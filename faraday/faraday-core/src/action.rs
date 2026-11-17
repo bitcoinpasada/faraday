@@ -535,16 +535,13 @@ pub enum Action {
     /// A single key's Backup card: how its key is backed up, by place in
     /// `BackupForm::ALL` (F240).
     CBackupForm(u8),
-    /// Answers the question of vaults on Make a new wallet: yes or no.
-    CVaults(bool),
+    /// The Keys card's row "Use a vault I already have on a stick": on
+    /// brings in that stick and unlocks its vault before any key exists.
+    CExistingVault(bool),
     /// The same on Restore.
     RVaults(bool),
-    /// Sets how many vaults Make a new wallet sets up.
-    CVaultN(u16),
     /// The same on Restore.
     RVaultN(u16),
-    /// Sets how many sticks Make a new wallet's backup uses.
-    CSticks(u16),
     /// The same on Restore.
     RSticks(u16),
     /// **Add a passphrase** on the plan's check lines: Create opens on
@@ -1694,9 +1691,7 @@ impl Faraday {
             | Action::CNext(..)
             | Action::CKind(..)
             | Action::CBackup
-            | Action::CVaults(..)
-            | Action::CVaultN(..)
-            | Action::CSticks(..)
+            | Action::CExistingVault(..)
             | Action::PlanAddPass
             | Action::CMoreKinds
             | Action::CBackupAbout

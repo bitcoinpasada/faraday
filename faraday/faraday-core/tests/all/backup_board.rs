@@ -109,6 +109,18 @@ pub(crate) fn save_vaults(app: &mut Faraday) {
         })
         .collect();
     for v in vaults {
+        // A vault the plan added is made first, from its checklist item.
+        if app.vaults().open.len() <= v {
+            crate::backup_flow_wallet::make_plan_vault(
+                app,
+                v,
+                [
+                    "first vault phrase",
+                    "second vault phrase",
+                    "third vault phrase",
+                ][v.min(2)],
+            );
+        }
         app.press(Action::BVaultSave(v as u8));
         assert!(
             app.backup_item_done_now(&c, Item::Vault(v)),
@@ -573,38 +585,43 @@ fn an_old_plan_text_loads_with_its_sticks_and_makes_the_same_checklist() {
     assert!(kept_nowhere(&c, &shape, &a, &[0, 1, 2]).is_some());
 }
 
-/// A 2-of-3 made in Create with one vault set up on stick S1 before its
+/// A 2-of-3 made in Create with a vault brought in from stick S1 before its
 /// three keys (typed in), its backup open on Back up's plan with nothing
 /// kept: no words, no paper. The keys' fingerprints.
 pub(crate) fn three_with_a_vault(shell: &mut Shell) -> (Faraday, Vec<[u8; 4]>) {
     three_with_vaults(shell, 1)
 }
 
-/// [`three_with_a_vault`] with `n` vaults, each on a stick of its own.
+/// [`three_with_a_vault`] with `n` vaults: the first brought in, the
+/// others new and added on the plan.
 pub(crate) fn three_with_vaults(shell: &mut Shell, n: usize) -> (Faraday, Vec<[u8; 4]>) {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     app.press(Action::CreateWallet);
     crate::common::ckind(&mut app, multi_index());
-    app.press(Action::CVaults(true));
-    app.press(Action::CNext(cstep::WHERE));
-    app.press(Action::CVaultN(n as u16));
-    app.press(Action::CNext(cstep::HOW_MANY));
+    // The vault on S1 is brought in before any key.
+    shell.disk_mut("S1").files = vec![(
+        "main.kdbx".into(),
+        vault("Main", "first vault phrase", 0x41),
+    )];
+    app.press(Action::CExistingVault(true));
     assert_eq!(step(&app), Step::Sticks);
-    for k in 0..n {
-        let d = format!("S{}", k + 1);
-        shell.plug(&mut app, &d);
-        shell.flow(&mut app, F::Tap);
-        shell.pull(&mut app, &d);
-    }
-    for k in 0..n {
-        create_vault(
-            shell,
-            &mut app,
-            k,
-            ["first vault phrase", "second vault phrase"][k],
-        );
-    }
+    shell.plug(&mut app, "S1");
+    let k = app
+        .flow()
+        .unwrap()
+        .live
+        .reading
+        .as_ref()
+        .unwrap()
+        .files
+        .iter()
+        .position(|(f, _)| f.name == "main.kdbx")
+        .unwrap();
+    shell.flow(&mut app, F::PickFile(0, k));
+    shell.flow(&mut app, F::Tap);
+    shell.pull(&mut app, "S1");
+    unlock(&mut app, "first vault phrase");
     assert_eq!(app.screen, Screen::Create, "{:?}", unlock_error(&app));
     let fps: Vec<[u8; 4]> = (0..3).map(|i| key_in(&mut app, i)).collect();
     app.press(Action::Nav(Screen::Create));
@@ -615,6 +632,10 @@ pub(crate) fn three_with_vaults(shell: &mut Shell, n: usize) -> (Faraday, Vec<[u
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup);
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
+    // The others are new vaults, added on the plan.
+    for _ in 1..n {
+        app.press(Action::Board(faraday_core::board::BoardPress::AddVault));
+    }
     no_words(&mut app);
     no_paper_description(&mut app);
     (app, fps)
@@ -1544,10 +1565,7 @@ fn main_vault_board(shell: &mut Shell) -> (Faraday, testkit::Kit) {
     keep_time(&mut app);
     app.press(Action::CreateWallet);
     crate::common::ckind(&mut app, multi_index());
-    app.press(Action::CVaults(true));
-    app.press(Action::CNext(cstep::WHERE));
-    app.press(Action::CVaultN(1));
-    app.press(Action::CNext(cstep::HOW_MANY));
+    app.press(Action::CExistingVault(true));
     // S1's vault is Vault 1: picked, the place confirmed.
     shell.plug(&mut app, "S1");
     let k = app

@@ -678,7 +678,6 @@ fn in_demo_a_seed_read_adds_its_passphrase_from_the_chips_and_loads_that_key() {
 
 #[test]
 fn in_demo_a_wallet_slots_passphrase_offers_faraday() {
-    use faraday_core::cstep;
     let mut app = demo_app();
     app.press(Action::Entry(None));
     app.press(Action::UseSample);
@@ -689,8 +688,6 @@ fn in_demo_a_wallet_slots_passphrase_offers_faraday() {
     app.press(Action::CBackupForm(
         faraday_core::create::BackupForm::Words.index(),
     ));
-    app.press(Action::CVaults(false));
-    app.press(Action::CNext(cstep::WHERE));
     app.press(Action::CSlotHere(0, first));
     let _ = app.frame();
     app.press(Action::CPassOpen(0));

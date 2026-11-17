@@ -161,7 +161,6 @@ fn multisig(t: &mut Tour) -> Result<usize, String> {
     t.press(Action::CreateWallet);
     t.press(Action::CKind(multi));
     t.press(Action::CNext(cstep::QUORUM));
-    t.press(Action::CVaults(false));
     for slot in 0..3u8 {
         let fp = t.app.session.keys[usize::from(slot)].fingerprint.0;
         t.press(Action::CSlotHere(slot, fp));
@@ -204,7 +203,6 @@ fn sign(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.press(Action::CBackupForm(
         faraday_core::create::BackupForm::Words.index(),
     ));
-    t.press(Action::CVaults(false));
     let fp = t.app.session.keys[0].fingerprint.0;
     t.press(Action::CSlotHere(0, fp));
     t.press(Action::CNext(cstep::KEYS));

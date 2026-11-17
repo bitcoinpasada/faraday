@@ -878,8 +878,8 @@ fn to_codex32_from_create(rig: &mut Rig) {
     rig.press(Action::CreateWallet);
     rig.press(Action::CKind(0));
     rig.press(Action::CBackupForm(BackupForm::Codex32.index()));
-    rig.press(Action::CVaults(false));
-    // New key's Start, then Scheme at its first split: Identifier opens.
+    // Keys' slot opens New key on Start, then Scheme at its first split: Identifier opens.
+    rig.press(Action::KeyGen(Some(0)));
     rig.press(Action::KStart(
         faraday_core::keygen::Start::MakeCodex32.index(),
     ));
@@ -1555,9 +1555,9 @@ fn offered_down(app: &mut Faraday, action: Action) -> bool {
 #[test]
 fn on_the_small_panel_both_segments_of_a_vaults_choice_are_on_the_page_and_the_second_can_be_pressed()
  {
-    use crate::common::{create_single_key, keep_time, process, texts};
+    use crate::common::{keep_time, process, texts};
+    use faraday_core::Action;
     use faraday_core::board::{BoardPress, Thing, Zone};
-    use faraday_core::{Action, cstep};
     use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -1573,9 +1573,14 @@ fn on_the_small_panel_both_segments_of_a_vaults_choice_are_on_the_page_and_the_s
         boot: BootState::Unknown,
         memory_mib: None,
     }));
-    create_single_key(&mut app);
-    app.press(Action::CVaults(true));
-    app.press(Action::CNext(cstep::WHERE));
+    // Restore's Sticks and vaults card lists each vault with New and
+    // Existing.
+    app.press(Action::RestoreWallet);
+    app.press(Action::RNext(faraday_core::rstep::KIND));
+    app.press(Action::RSeeds);
+    app.press(Action::RVaults(true));
+    app.press(Action::RNext(faraday_core::rstep::WHERE));
+    app.press(Action::RVaultN(1));
     let _ = app.frame();
     let second = Action::Board(BoardPress::Form(Zone::List, Thing::Vault(0), 1));
     let first = Action::Board(BoardPress::Form(Zone::List, Thing::Vault(0), 0));

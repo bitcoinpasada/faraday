@@ -8,12 +8,12 @@
 )]
 
 use crate::backup_flow_wallet::{
-    PHRASE, PHRASE_2, backup_places, backup_shape, bring_in_all, create_with_vaults, flow_board,
-    flow_into_vault, flow_keep, flow_pass_in_vault, flow_place_of, flow_plan, flow_put,
-    flow_whole_file_at, flow_whole_in_vault, kdbx, key_in, load_first_vault, multi_index, names,
-    new_key, new_key_here, no_visit, offered_down, restart, save_vaults, seed_words_file,
-    single_key, single_key_ready, single_key_with, step, sticks, two_of_three_with_setup,
-    vault_place, vault_with_key, write_sticks,
+    PHRASE, PHRASE_2, backup_places, backup_shape, create_with_vaults, flow_board, flow_into_vault,
+    flow_keep, flow_pass_in_vault, flow_place_of, flow_plan, flow_put, flow_whole_file_at,
+    flow_whole_in_vault, kdbx, key_in, load_first_vault, multi_index, names, new_key, new_key_here,
+    no_visit, offered_down, restart, save_vaults, seed_words_file, single_key, single_key_ready,
+    single_key_with, step, sticks, two_of_three_with_setup, vault_place, vault_with_key,
+    write_sticks,
 };
 use crate::common::RecordsOf as _;
 use crate::common::*;
@@ -189,8 +189,6 @@ fn a_share_kept_in_a_vault_is_saved_sealed_and_rebuilds_with_another() {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     create_with_vaults(&mut app, true, 1);
-    bring_in_all(&mut shell, &mut app, &["S1"]);
-    create_vault(&mut shell, &mut app, 0, PHRASE);
     let fps: Vec<[u8; 4]> = (0..3).map(|i| key_in(&mut app, i)).collect();
     app.press(Action::Nav(Screen::Create));
     for (i, fp) in fps.iter().enumerate() {
@@ -240,7 +238,7 @@ fn a_share_kept_in_a_vault_is_saved_sealed_and_rebuilds_with_another() {
     app.press(Action::BChecklist);
     assert_eq!(app.backup().unwrap().stage, BStage::Checklist);
     assert!(!app.backup_item_done_now(&c, Item::Vault(0)));
-    app.press(Action::BVaultSave(0));
+    crate::backup_flow_wallet::save_vault(&mut app, 0);
     let shares = |app: &Faraday| -> Vec<(String, Vec<u8>)> {
         contents(app, 0)
             .of(kind::WALLET_SHARE)
@@ -328,8 +326,6 @@ fn a_share_put_into_a_vault_after_the_lock_starts_the_round_and_is_sealed() {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     create_with_vaults(&mut app, true, 1);
-    bring_in_all(&mut shell, &mut app, &["S1"]);
-    create_vault(&mut shell, &mut app, 0, PHRASE);
     let fps: Vec<[u8; 4]> = (0..3).map(|i| key_in(&mut app, i)).collect();
     app.press(Action::Nav(Screen::Create));
     for (i, fp) in fps.iter().enumerate() {
@@ -411,8 +407,6 @@ fn single_key_one_stick(shell: &mut Shell) -> Faraday {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     create_with_vaults(&mut app, false, 1);
-    bring_in_all(shell, &mut app, &["S1"]);
-    create_vault(shell, &mut app, 0, PHRASE);
     let fp = key_in(&mut app, 1);
     app.press(Action::Nav(Screen::Create));
     app.press(Action::CSlotHere(0, fp));
@@ -457,6 +451,7 @@ fn done_on_a_row_sheet_during_a_write_changes_nothing_and_the_write_counts_for_i
     );
     shell.hold_writes = true;
     shell.plug(&mut app, "S1");
+    shell.flow(&mut app, F::Tap);
     assert!(
         app.flow().unwrap().live.writing.is_some(),
         "the write is under way"
@@ -489,8 +484,6 @@ fn two_wallets_of_one_name_keep_each_its_own_share_in_one_vault() {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     create_with_vaults(&mut app, true, 1);
-    bring_in_all(&mut shell, &mut app, &["S1"]);
-    create_vault(&mut shell, &mut app, 0, PHRASE);
     let fps: Vec<[u8; 4]> = (0..3).map(|i| key_in(&mut app, i)).collect();
     app.press(Action::Nav(Screen::Create));
     for (i, fp) in fps.iter().enumerate() {
@@ -516,7 +509,7 @@ fn two_wallets_of_one_name_keep_each_its_own_share_in_one_vault() {
         no_description_files(app);
         into_vault(app, 0, Thing::Share(1));
         app.press(Action::BChecklist);
-        app.press(Action::BVaultSave(0));
+        crate::backup_flow_wallet::save_vault(app, 0);
     };
     share_two_in_vault(&mut app);
     assert!(app.backup_item_done_now(&c, Item::Vault(0)));
@@ -596,8 +589,6 @@ fn a_passphrase_taken_out_of_a_vault_after_the_lock_starts_a_round_and_leaves_it
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     create_with_vaults(&mut app, false, 1);
-    bring_in_all(&mut shell, &mut app, &["S1"]);
-    create_vault(&mut shell, &mut app, 0, PHRASE);
     app.press(Action::Entry(None));
     for c in testkit::test_words(testkit::TEST_SEEDS[1].0).chars() {
         app.event(Event::Key(Key::Char(c)));
@@ -733,8 +724,6 @@ fn the_flows_slider_sets_its_keys_left_off_and_the_vault_takes_the_share_it_impl
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     create_with_vaults(&mut app, true, 1);
-    bring_in_all(&mut shell, &mut app, &["S1"]);
-    create_vault(&mut shell, &mut app, 0, PHRASE);
     let fps: Vec<[u8; 4]> = (0..3).map(|i| key_in(&mut app, i)).collect();
     app.press(Action::Nav(Screen::Create));
     for (i, fp) in fps.iter().enumerate() {
@@ -801,17 +790,14 @@ fn names_typed_before_the_lock_are_in_each_vaults_plan_and_never_in_the_flow() {
     no_words(&mut app);
     // Two vaults, as set up.
     vault_off(&mut app, 2);
-    let i = app.backup_flows().len() - 1;
-    shell.flow(&mut app, F::Show(i));
-    // Change the plan opens the board (§19.21 item 11).
-    shell.flow(&mut app, F::ChangePlan);
     assert!(offered_down(&mut app, Action::BName(0)), "a name field");
     app.press(Action::BName(0));
     type_text(&mut app, NAME);
     app.event(Event::Key(Key::Enter));
     app.press(Action::BChecklist);
     save_vaults(&mut app);
-    for o in 0..2 {
+    // The plan is written into the vault that keeps it.
+    for o in 0..1 {
         let names: Vec<String> = app
             .vaults()
             .store()
@@ -1045,6 +1031,7 @@ fn a_key_an_existing_vault_held_before_the_flow_is_never_taken_out() {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     create_with_vaults(&mut app, false, 1);
+    app.press(Action::CExistingVault(true));
     shell.plug(&mut app, "S1");
     let k = app
         .flow()
@@ -1132,7 +1119,7 @@ fn a_key_another_wallet_in_the_vault_uses_is_never_taken_out() {
     no_words(&mut app);
     no_paper_description(&mut app);
     app.press(Action::BChecklist);
-    app.press(Action::BVaultSave(0));
+    crate::backup_flow_wallet::save_vault(&mut app, 0);
     assert_eq!(contents(&app, 0).of(kind::WALLET).count(), 2);
     // Back to the first wallet's checklist, and its lock.
     app.press(Action::Backup(a));
@@ -1270,8 +1257,6 @@ fn keys_left_off_each_share_stay_after_the_lock_while_a_share_is_in_a_file() {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     create_with_vaults(&mut app, true, 1);
-    bring_in_all(&mut shell, &mut app, &["S1"]);
-    create_vault(&mut shell, &mut app, 0, PHRASE);
     let fps: Vec<[u8; 4]> = (0..3).map(|i| key_in(&mut app, i)).collect();
     app.press(Action::Nav(Screen::Create));
     for (i, fp) in fps.iter().enumerate() {
@@ -1432,8 +1417,6 @@ fn a_held_key_is_not_left_on_a_stale_file_after_the_lock() {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     create_with_vaults(&mut app, false, 1);
-    bring_in_all(&mut shell, &mut app, &["S1"]);
-    create_vault(&mut shell, &mut app, 0, PHRASE);
     app.press(Action::Nav(Screen::Create));
     let fp = new_key(&mut app);
     if app.create().unwrap().built.is_none() {
@@ -1502,8 +1485,6 @@ fn shares_locked(shell: &mut Shell) -> (Faraday, usize) {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     create_with_vaults(&mut app, true, 1);
-    bring_in_all(shell, &mut app, &["S1"]);
-    create_vault(shell, &mut app, 0, PHRASE);
     let fps: Vec<[u8; 4]> = (0..3).map(|i| key_in(&mut app, i)).collect();
     app.press(Action::Nav(Screen::Create));
     for (i, fp) in fps.iter().enumerate() {
@@ -1666,6 +1647,7 @@ fn the_round_adds_a_planned_key_record_once_beside_another_of_its_words() {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     create_with_vaults(&mut app, false, 1);
+    app.press(Action::CExistingVault(true));
     shell.plug(&mut app, "S1");
     let k = app
         .flow()
@@ -1830,8 +1812,6 @@ fn a_written_stick_of_files_is_never_sent_back_after_the_lock() {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     create_with_vaults(&mut app, false, 1);
-    bring_in_all(&mut shell, &mut app, &["S1"]);
-    create_vault(&mut shell, &mut app, 0, PHRASE);
     let fp = key_in(&mut app, 1);
     app.press(Action::Nav(Screen::Create));
     app.press(Action::CSlotHere(0, fp));
@@ -1934,6 +1914,7 @@ fn a_passphrase_taken_out_leaves_the_earlier_bare_record_alone() {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     create_with_vaults(&mut app, false, 1);
+    app.press(Action::CExistingVault(true));
     shell.plug(&mut app, "S1");
     let k = app
         .flow()
@@ -2178,9 +2159,6 @@ fn a_passphrase_alone_in_a_vault_is_saved_as_a_passphrase_record() {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     create_with_vaults(&mut app, false, 2);
-    bring_in_all(&mut shell, &mut app, &["S1", "S2"]);
-    create_vault(&mut shell, &mut app, 0, PHRASE);
-    create_vault(&mut shell, &mut app, 1, PHRASE_2);
     app.press(Action::Entry(None));
     type_text(&mut app, &testkit::test_words("summer"));
     bip39_passphrase(&mut app, "TREZOR");
@@ -2320,26 +2298,19 @@ fn a_sticks_files_written_show_on_the_sticks_card_on_the_next_frame() {
     assert!(app.offers(Action::Flow(F::WalletLock)), "Lock and write");
 }
 
-/// The vault question, in Make a new wallet and in Restore, says under it
+/// The vault question, in Restore, says under it
 /// that vaults already on sticks are brought in there, not later
 /// (`docs/BACKUP-FLOW.md` §17.21 item 5).
 #[test]
-fn the_vault_question_says_vaults_on_sticks_are_brought_in_here() {
+fn restore_vault_question_says_vaults_on_sticks_are_brought_in_here() {
     const LINE: &str = "Vaults already on sticks are brought in here, not later.";
-    let mut app = process(Vec::new(), Vec::new(), Vec::new());
-    create_single_key(&mut app);
-    if app.create().unwrap().open != Some(cstep::WHERE) {
-        app.press(Action::CStep(cstep::WHERE));
-    }
-    assert!(has(&mut app, "Will you use vaults as part of this backup?"));
-    assert!(has(&mut app, LINE), "Make a new wallet");
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     app.press(Action::RestoreWallet);
     if app.restore().unwrap().open != Some(faraday_core::rstep::WHERE) {
         app.press(Action::RStep(faraday_core::rstep::WHERE));
     }
     assert!(has(&mut app, "Will you use vaults as part of this backup?"));
-    assert!(has(&mut app, LINE), "Restore");
+    assert!(has(&mut app, LINE));
 }
 
 /// Change the plan, from a wallet flow's cards, opens the flow's own
@@ -2366,18 +2337,16 @@ fn change_the_plan_from_a_wallet_flow_opens_its_board() {
     assert!(app.offers(Action::Board(BoardPress::Zone(Zone::Paper(0)))));
 }
 
-/// NEW-WALLET §17 (F55, F98): with the vaults set up before the keys, Check's
+/// NEW-WALLET §17 (F55, F98): Check's
 /// Path Change takes the wallet back and the remade wallet, at another
 /// account, is the one the backup is for.
 #[test]
-fn a_wallet_taken_back_from_check_after_the_vault_setup_backs_up_as_remade() {
+fn a_wallet_taken_back_from_check_backs_up_as_remade() {
     let mut shell = Shell::new();
     sticks(&mut shell, 3);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     create_with_vaults(&mut app, false, 1);
-    bring_in_all(&mut shell, &mut app, &["S1"]);
-    create_vault(&mut shell, &mut app, 0, PHRASE);
     let fp = key_in(&mut app, 1);
     app.press(Action::Nav(Screen::Create));
     app.press(Action::CSlotHere(0, fp));
@@ -2406,17 +2375,9 @@ fn a_wallet_taken_back_from_check_after_the_vault_setup_backs_up_as_remade() {
     app.press(Action::CBackup);
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
     assert_eq!(app.screen, Screen::Backup);
-    let tied: Vec<&str> = app
-        .backup_flows()
-        .iter()
-        .filter_map(|f| f.subject.as_ref().map(|s| s.id.as_str()))
-        .collect();
-    assert!(
-        tied.contains(&sum.as_str()),
+    assert_eq!(
+        app.backup().unwrap().wallet,
+        w,
         "the backup is the remade wallet's"
-    );
-    assert!(
-        !tied.contains(&first_sum.as_str()),
-        "nothing is tied to the one taken back"
     );
 }

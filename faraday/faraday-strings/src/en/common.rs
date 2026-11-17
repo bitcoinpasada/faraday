@@ -966,8 +966,6 @@ macro_rules! words_common {
     app_format: "Format",
     /// Text in `MSTEPS`.
     app_signature: "Signature",
-    /// Text in `CSTEPS`.
-    app_back_up: "Back up",
     /// Text in `RSTEPS`.
     app_kind: "Kind",
     /// Text in `RSTEPS`.

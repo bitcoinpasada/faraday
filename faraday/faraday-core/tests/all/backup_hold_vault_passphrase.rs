@@ -2,8 +2,7 @@
 //! Create and kept in a vault: the flow ends Done and the key signs.
 
 use crate::backup_flow_wallet::{
-    PHRASE, PHRASE_2, bring_in_all, create_with_vaults, key_in, restart, save_vaults, step, sticks,
-    write_sticks,
+    PHRASE, create_with_vaults, key_in, restart, save_vaults, step, sticks, write_sticks,
 };
 use crate::common::*;
 use faraday_core::backup_flow::Step;
@@ -20,8 +19,6 @@ fn a_passphrase_made_in_create_and_kept_in_the_vault_is_written_and_signs() {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     create_with_vaults(&mut app, false, 1);
-    bring_in_all(&mut shell, &mut app, &["S1"]);
-    create_vault(&mut shell, &mut app, 0, PHRASE);
     let bare = key_in(&mut app, 1);
     app.press(Action::Nav(Screen::Create));
     app.press(Action::CSlotHere(0, bare));
@@ -73,9 +70,6 @@ fn a_chart_edit_moving_a_written_sticks_vault_is_refused_and_the_key_stays_held(
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     create_with_vaults(&mut app, false, 2);
-    bring_in_all(&mut shell, &mut app, &["S1", "S2"]);
-    create_vault(&mut shell, &mut app, 0, PHRASE);
-    create_vault(&mut shell, &mut app, 1, PHRASE_2);
     app.press(Action::Nav(Screen::Create));
     let fp = crate::backup_flow_wallet::new_key(&mut app);
     if app.create().unwrap().built.is_none() {
@@ -154,8 +148,6 @@ fn words_kept_without_a_passphrase_by_a_flow_hold_only_the_passphrase_still_writ
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     create_with_vaults(&mut app, false, 1);
-    bring_in_all(&mut shell, &mut app, &["S1"]);
-    create_vault(&mut shell, &mut app, 0, PHRASE);
     let bare = Fingerprint(key_in(&mut app, 1));
     app.press(Action::Nav(Screen::Create));
     // Two passphrases made here on the words: `two` waits, the flow keeps
@@ -213,8 +205,6 @@ fn words_kept_without_a_passphrase_by_a_flow_hold_only_the_passphrase_still_writ
     assert!(app.key_held(&c, two), "its passphrase is written nowhere");
     app.press(Action::CreateWallet);
     ckind(&mut app, 0);
-    app.press(Action::CVaults(false));
-    app.press(Action::CNext(cstep::WHERE));
     app.press(Action::CSlotHere(0, two.0));
     back_up_on_paper(&mut app);
     assert!(toast_names(&app, two));

@@ -19,7 +19,7 @@ Each row is a place: a stick and the vaults it keeps. For a wallet the card is *
 
 **Key:** backup-flow.sticks
 
-Every stick that holds a vault is read in this step, before any key exists, so that each vault has a stick that works. The read checks that the stick can be written, how much room it has and which vaults it holds. Nothing is written to a stick yet; the vaults go onto it after the keys are saved and memory is locked.
+Every stick that holds a vault is read in this step, before any key exists, so that each vault has a stick that works. The read checks the stick's room and its vaults. Nothing is written yet; the vaults go onto it after the keys are saved and memory is locked. Make a new wallet brings in one stick, through **Use a vault I already have on a stick**.
 
 **Lock and bring in the sticks** locks first, if a key or a vault is open. **Check it later** postpones a stick whose vaults are all new to the write step; its vaults are made now and kept sealed in memory until it is written. **Use another stick** refuses the stick in. On a stick that already holds vaults, choose one of them or make **A new vault beside them**. **Continue** waits until every stick is checked or postponed.
 

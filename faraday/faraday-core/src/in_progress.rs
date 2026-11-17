@@ -449,21 +449,14 @@ impl Faraday {
     }
 
     /// The key flow's Cancel: what it held is discarded, and Make a new
-    /// wallet is shown at its Keys card, the slot as it was; where Keys was
-    /// passed over for this flow, at the card before Keys. Decides from
+    /// wallet is shown at its Keys card, the slot as it was. Decides from
     /// the state as it is.
     pub(crate) fn key_cancel_end(&mut self) {
         let Some(k) = self.keygen_drop() else {
             return;
         };
         self.return_back(k.back);
-        let c = self.compute();
-        let open = if self.create_keys_one_way(&c) {
-            self.create_card_before_keys()
-        } else {
-            Some(crate::cstep::KEYS)
-        };
-        self.create.open_card(open);
+        self.create.open_card(Some(crate::cstep::KEYS));
     }
 
     /// The Cancel sheet's title over flow `g`.
@@ -775,13 +768,7 @@ impl Faraday {
             .open
             .or_else(|| cards.iter().copied().find(|&k| !self.create_card_done(k)))
             .or_else(|| cards.last().copied())?;
-        Some(if k == crate::cstep::STICKS {
-            self.medium.bring_in().to_string()
-        } else if k == crate::cstep::HOW_MANY {
-            self.medium.and_vaults().to_string()
-        } else {
-            crate::screens::CSTEPS[k as usize].to_string()
-        })
+        Some(crate::screens::CSTEPS[k as usize].to_string())
     }
 
     /// Costs what `backup_items_now`, `backup_item_done_now` and

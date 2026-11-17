@@ -53,6 +53,11 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let steps = steps_of(f);
     let cards: Vec<flow::Card> = steps.iter().map(|&s| card(app, f, s)).collect();
     let named = super::gpg_restore_screen::heading(f);
+    let owner = f
+        .wallet
+        .as_ref()
+        .filter(|w| app.create.state().is_some_and(|c| c.owner == w.owner))
+        .map_or(0, |w| w.owner);
     // While the plan card's board is shown on `wide`, its list is a
     // right-hand column, as on Back up (`docs/BACKUP-FLOW.md` §17.14).
     // On a large window the page runs to the window's edge: the cards
@@ -81,7 +86,13 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         },
         h,
         back: Some(app.named_back((leave_name(f.kind), fa(F::Back)))),
-        heading: named.map_or(title.as_str(), |n| n.0),
+        heading: match named {
+            Some(n) => n.0,
+            // One title throughout: the setup of a vault already on a
+            // stick is part of Make a new wallet.
+            None if owner != 0 && f.is_setup() => FEN.create_make_a_new_wallet,
+            None => title.as_str(),
+        },
         wrap_closed: false,
         total_fixed: false,
         note: None,
@@ -1064,6 +1075,15 @@ fn vaults_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
             continue;
         }
         let vp = &f.plan.vaults[v];
+        if !vp.found() && app.flow_only_existing(app.flow_index_of(f)) {
+            cy += ui.wrap_as(
+                (x, cy, w),
+                BODY_M,
+                Role::OnSurfaceVariant,
+                crate::strings::EN.create_no_vault_on_stick,
+            ) + tokens::GAP_SMALL;
+            continue;
+        }
         if f.live.unlocking != Some(v) || !vp.found() {
             let (label, action) = if vp.found() {
                 (FEN.backup_flow_open_vault, F::UnlockVault(v))

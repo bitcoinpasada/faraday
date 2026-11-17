@@ -221,8 +221,6 @@ fn make_wallet(app: &mut Faraday, k: usize) -> usize {
     app.press(Action::CreateWallet);
     crate::common::ckind(app, 0);
     app.press(Action::CNext(cstep::KIND));
-    app.press(Action::CVaults(false));
-    app.press(Action::CNext(cstep::WHERE));
     let fp = app.session.keys[k].fingerprint.0;
     app.press(Action::CSlotHere(0, fp));
     app.press(Action::CNext(cstep::KEYS));

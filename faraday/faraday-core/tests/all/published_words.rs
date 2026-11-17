@@ -319,8 +319,6 @@ fn removing_the_key_made_in_create_empties_its_slot() {
     app.press(Action::PublishedKeep);
     app.press(Action::CreateWallet);
     crate::common::ckind(&mut app, 0);
-    app.press(Action::CVaults(false));
-    app.press(Action::CNext(faraday_core::cstep::WHERE));
     app.press(Action::CSlotHere(0, fp));
     app.press(Action::CPassOpen(0));
     crate::common::type_text(&mut app, "TREZOR");

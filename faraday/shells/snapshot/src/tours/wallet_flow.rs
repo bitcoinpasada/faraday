@@ -1,6 +1,6 @@
 //! The wallet_flow tour.
 
-use crate::tour::{Tour, bmap, boff, keep_vault, type_text, vault_place};
+use crate::tour::{Tour, bmap, boff, type_text};
 use faraday_core::board::{BoardPress as BP, Chip, Thing, Zone};
 use faraday_core::plan::{self as fplan, At, What};
 use faraday_core::vault::VaultAction as V;
@@ -55,21 +55,17 @@ pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     t.press(Action::CBackupForm(
         faraday_core::create::BackupForm::Words.index(),
     ));
-    t.shot("wallet-flow-1-create-yes-no")?;
-    t.press(Action::CVaults(true));
-    t.press(Action::CNext(cstep::WHERE));
-    t.press(Action::CVaultN(2));
-    t.shot("wallet-flow-2-create-count")?;
-    t.press(Action::CNext(cstep::HOW_MANY));
+    t.shot("wallet-flow-1-create-keys-row")?;
+    t.press(Action::CExistingVault(true));
     t.shot("wallet-flow-3-insert")?;
     // A figure's ⋮ menu, and Check it later's dialog; Cancel leaves both.
-    t.press(Action::Flow(F::FigMenu(1)));
+    t.press(Action::Flow(F::FigMenu(0)));
     t.shot("wallet-flow-3b-figure-menu")?;
     t.press(Action::Cancel);
-    t.press(Action::Flow(F::LaterAsk(1)));
+    t.press(Action::Flow(F::LaterAsk(0)));
     t.shot("wallet-flow-3c-check-later")?;
     t.press(Action::Cancel);
-    // Vault 1: a stick that holds a vault, and the person picks.
+    // The vault on the stick: the person picks which, then the stick's sheet.
     let first = t.stick();
     t.app.storage(StorageEvent::Sticks(vec![first.clone()]));
     t.pump();
@@ -78,29 +74,11 @@ pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     t.press(Action::Flow(F::Tap));
     t.app.storage(StorageEvent::Sticks(Vec::new()));
     t.pump();
-    // Vault 2: an empty stick, a new vault.
-    t.app.storage(StorageEvent::Sticks(vec![empty("b", 2)]));
-    t.pump();
-    t.press(Action::Flow(F::Tap));
-    t.app.storage(StorageEvent::Sticks(Vec::new()));
-    t.pump();
-    // A checked figure's sheet; Close leaves it.
     t.press(Action::Flow(F::Want(0)));
     t.shot("wallet-flow-4a-stick-sheet")?;
     t.press(Action::Cancel);
-    t.press(Action::Flow(F::SticksOn));
-    t.shot("wallet-flow-5-vaults")?;
-    for v in 0..2 {
-        t.press(Action::Flow(F::CreateVault(v)));
-        type_text(t, "a vault phrase for the tour");
-        t.press(Action::Vault(V::CFocus(0, true)));
-        type_text(t, "a vault phrase for the tour");
-        t.press(Action::Vault(V::CGo));
-        for _ in 0..3 {
-            t.tick();
-        }
-    }
-    // Back in Make a new wallet, on Keys, with the cards done.
+    // Without the row: the wallet's vaults are added on the plan.
+    t.press(Action::CExistingVault(false));
     t.shot("wallet-flow-6-create-keys")?;
     t.press(Action::Entry(None));
     t.type_key(1);
@@ -111,15 +89,25 @@ pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     t.press(Action::CNext(cstep::CHECK));
     t.press(Action::CBackup);
     t.backup_as(faraday_core::plan::Preset::PaperVault);
-    // Back up's plan offers the two open vaults.
+    // Back up's plan holds the new vault the preset adds.
     t.shot("wallet-flow-7-back-up-vaults")?;
-    // The key in both vaults, none on paper.
+    // The key in it, none on paper; the vault is made from its item.
     words_off(c, t);
-    let p = vault_place(c, t, 1).unwrap_or(0);
-    keep_vault(c, t, p, 1, &[0]);
     t.press(Action::BChecklist);
+    t.press(Action::Vault(V::CreateFrom(Screen::Backup)));
+    type_text(t, "a vault phrase for the tour");
+    t.press(Action::Vault(V::CFocus(0, true)));
+    type_text(t, "a vault phrase for the tour");
+    t.press(Action::Vault(V::CGo));
+    for _ in 0..3 {
+        t.tick();
+    }
+    type_text(t, "a vault phrase for the tour");
+    t.press(Action::Vault(V::Unlock));
+    for _ in 0..3 {
+        t.tick();
+    }
     t.press(Action::BVaultSave(0));
-    t.press(Action::BVaultSave(1));
     t.press(Action::BOut(3));
     t.press(Action::BNext(Item::Envelopes));
     t.shot("wallet-flow-8-write-to-sticks")?;
@@ -180,55 +168,8 @@ pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
         t.pump();
     }
     t.shot("wallet-flow-11-done")?;
-    // Another wallet, two vaults: Vault 1 found on the first stick, then
-    // Use Boot stick takes the boot stick for Vault 2 in one press; with
-    // every stick read, the step offers Open Vault 1 and Create Vault 2,
-    // and Create's Pull sheet asks for the boot stick out first.
-    let boot = StickInfo {
-        make: Default::default(),
-        serial: Some(9),
-        id: faraday_text::Text::of("boot"),
-        label: faraday_text::Text::of("FARADAY"),
-        boot: true,
-        files: Vec::new(),
-        vaults: Vec::new(),
-    };
-    t.press(Action::CreateWallet);
-    t.press(Action::CKind(0));
-    t.press(Action::CBackupForm(
-        faraday_core::create::BackupForm::Words.index(),
-    ));
-    t.press(Action::CVaults(true));
-    t.press(Action::CNext(cstep::WHERE));
-    t.press(Action::CVaultN(2));
-    t.press(Action::CNext(cstep::HOW_MANY));
-    let stick = t.stick();
-    t.app.storage(StorageEvent::Sticks(vec![stick]));
-    t.pump();
-    t.press(Action::Flow(F::PickFile(0, 0)));
-    t.press(Action::Flow(F::Tap));
-    t.app.storage(StorageEvent::Sticks(Vec::new()));
-    t.pump();
-    t.app.storage(StorageEvent::Sticks(vec![boot]));
-    t.pump();
-    t.shot("wallet-flow-12-boot-insert")?;
-    let k = t
-        .app
-        .sticks()
-        .iter()
-        .position(|s| s.boot)
-        .ok_or("no boot stick")?;
-    t.press(Action::Flow(F::UseBoot(k)));
-    t.pump();
-    t.press(Action::Flow(F::SticksOn));
-    t.shot("wallet-flow-13-open-or-create")?;
-    t.press(Action::Flow(F::CreateVault(1)));
-    t.shot("wallet-flow-14-boot-pull")?;
-    t.app.storage(StorageEvent::Sticks(Vec::new()));
-    t.pump();
-    t.shot("wallet-flow-15-boot-create-vault")?;
     println!(
-        "the backup flow of a single key in two vaults, from the question of vaults to Done; then two vaults, one found on a stick and one on the boot stick, to Open or Create and Create a vault"
+        "the backup flow of a single key in a new vault, from Keys with the row for a vault already on a stick to Done"
     );
     Ok(())
 }

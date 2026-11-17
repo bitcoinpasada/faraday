@@ -722,7 +722,7 @@ fn a_flow_on_its_first_card_ends_without_the_sheet() {
     // Make a new wallet opens afresh, past Kind closed on its default.
     app.press(Action::CreateWallet);
     crate::common::ckind(&mut app, 0);
-    assert_eq!(app.create().unwrap().open, Some(cstep::WHERE));
+    assert_eq!(app.create().unwrap().open, Some(cstep::KEYS));
 }
 
 #[test]

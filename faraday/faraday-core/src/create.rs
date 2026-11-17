@@ -12,8 +12,7 @@ use faraday_text::{Text, text};
 
 use crate::wallet::{KeyTexts, fp_text};
 use crate::{
-    Action, Code, Faraday, MAX_VAULTS, Screen, VaultAsk, backup_flow, create, cstep, flow,
-    secret_text, wallet,
+    Action, Code, Faraday, Screen, VaultAsk, backup_flow, create, cstep, flow, secret_text, wallet,
 };
 use faraday_shell_api::Key as KeyIn;
 
@@ -114,7 +113,7 @@ pub fn create_steps(kind: NewKind) -> Vec<u8> {
     } else if BackupForm::offered().len() > 1 {
         v.push(cstep::BACKUP_FORM);
     }
-    v.extend([cstep::WHERE, cstep::KEYS, cstep::CHECK]);
+    v.extend([cstep::KEYS, cstep::CHECK]);
     v
 }
 
@@ -1016,8 +1015,9 @@ pub struct CreateState {
     /// Keys locked in with a passphrase here, by fingerprint: their slot
     /// shows **Locked in**.
     pub pass_locked: Vec<[u8; 4]>,
-    /// Whether vaults are part of the backup and how many; with yes, the
-    /// sticks and the vaults come before the keys.
+    /// The Keys row "Use a vault I already have on a stick": with yes, that
+    /// one stick is brought in and its vault unlocked before any key
+    /// exists. A new vault is added on the backup plan, not here.
     pub vaults: VaultAsk,
     /// The number the wallet's backup flow is tied to (`Faraday::owner_seq`).
     pub owner: u64,
@@ -1075,8 +1075,15 @@ impl CreateState {
         self.kind.account_card()
     }
 
-    /// The person answered yes to using vaults.
+    /// Make a new wallet no longer asks about vaults: it has no cards of
+    /// their own (Keys' row brings in one that is already on a stick, see
+    /// [`CreateState::uses_existing_vault`]).
     pub fn into_vaults(&self) -> bool {
+        false
+    }
+
+    /// The person turned on Keys' row, a vault already on a stick.
+    pub fn uses_existing_vault(&self) -> bool {
         self.vaults.answer == Some(true)
     }
 
@@ -1185,10 +1192,9 @@ impl CreateArea {
         }
     }
 
-    /// Notes that the Where card is done with no vault set up.
+    /// Notes that no vault is set up: the wallet opens on Keys.
     pub(crate) fn where_done_no_vault(&mut self) {
         if let Some(c) = self.state.as_mut() {
-            c.done[cstep::WHERE as usize] = true;
             c.vaults.answer = Some(false);
         }
     }
@@ -1497,6 +1503,44 @@ impl CreateArea {
 }
 
 impl Faraday {
+    /// Whether Make a new wallet has a vault's stick still to bring in and
+    /// unlock: its Keys wait for it.
+    pub(crate) fn create_setup_pending(&self) -> bool {
+        self.create.state().is_some_and(|c| {
+            self.setup_pending(c.owner, c.uses_existing_vault(), c.built.is_some())
+        })
+    }
+
+    /// Keys' row, a vault already on a stick: on brings in that one stick
+    /// and unlocks its vault before any key exists; off drops it. It is
+    /// fixed once a key exists, the wallet is made or the vault is open.
+    fn create_existing_vault(&mut self, on: bool) {
+        let Some(c) = self.create.state() else {
+            return;
+        };
+        if c.built.is_some() || c.uses_existing_vault() == on {
+            return;
+        }
+        if on && c.slots.iter().any(|s| *s != create::Source::Empty) {
+            return;
+        }
+        let owner = c.owner;
+        if self.setup_vault_open(owner) {
+            self.toast(EN.create_vaults_locked);
+            return;
+        }
+        if let Some(c) = self.create.state.as_mut() {
+            c.vaults = VaultAsk {
+                answer: on.then_some(true),
+                count: 1,
+            };
+        }
+        self.wallet_vaults_changed(owner);
+        if on {
+            self.wallet_flow_begin(owner);
+        }
+    }
+
     /// The Create flow's state, while it is open.
     pub fn create(&self) -> Option<&CreateState> {
         self.create.state()
@@ -1507,12 +1551,7 @@ impl Faraday {
     pub(crate) fn create_act(&mut self, action: Action, c: &Compute) {
         self.create_past_kind(action);
         match action {
-            Action::CreateWallet
-                if self.create_unfinished()
-                    || self.create.state.as_ref().is_some_and(|c| {
-                        self.setup_pending(c.owner, c.into_vaults(), c.built.is_some())
-                    }) =>
-            {
+            Action::CreateWallet if self.create_unfinished() || self.create_setup_pending() => {
                 // Resumed, its own way back stays where it was first
                 // opened from: the trail lands where the person was when
                 // they resumed it (F77), and a Home reached on the way, as
@@ -1542,14 +1581,10 @@ impl Faraday {
                 });
                 self.screen = Screen::Create;
             }
-            // Keys stay closed while the vaults' setup is to do.
-            Action::CStep(k)
-                if k == cstep::KEYS
-                    && self.create.state.as_ref().is_some_and(|c| {
-                        self.setup_pending(c.owner, c.into_vaults(), c.built.is_some())
-                    }) => {}
             // Keys' Continue makes the wallet, which opens Check; until
-            // it is made, a refusal keeps Keys open with the reason.
+            // it is made, a refusal keeps Keys open with the reason. A
+            // vault's stick still to bring in comes first.
+            Action::CNext(k) if k == cstep::KEYS && self.create_setup_pending() => {}
             Action::CNext(k)
                 if k == cstep::KEYS
                     && self
@@ -1573,29 +1608,6 @@ impl Faraday {
             // The info button after "codex32" shows its tooltip at once
             // (F112, F240).
             Action::CBackupAbout => self.pointer.tip_show(Action::CBackupAbout),
-            // The question of vaults waits for its answer.
-            Action::CNext(k)
-                if k == cstep::WHERE
-                    && self
-                        .create
-                        .state()
-                        .is_some_and(|c| c.vaults.answer.is_none()) => {}
-            // How many vaults: Continue opens the setup, which brings in
-            // each vault's stick and opens or makes the vault; it comes
-            // back to Keys.
-            Action::CNext(k)
-                if k == cstep::HOW_MANY
-                    && self
-                        .create
-                        .state()
-                        .is_some_and(|c| self.flows.layout_blocked(c.owner)) => {}
-            Action::CNext(k) if k == cstep::HOW_MANY => {
-                if let Some(c) = self.create.state.as_mut() {
-                    c.done[k as usize] = true;
-                    let owner = c.owner;
-                    self.wallet_flow_begin(owner);
-                }
-            }
             Action::CNext(k) => {
                 if let Some(c) = self.create.state.as_mut() {
                     c.done[k as usize] = true;
@@ -1625,51 +1637,7 @@ impl Faraday {
                     self.backup.set_from_create();
                 }
             }
-            Action::CVaults(_) | Action::CVaultN(_) | Action::CSticks(_)
-                if self
-                    .create
-                    .state()
-                    .is_some_and(|c| c.built.is_none() && self.setup_vault_open(c.owner)) =>
-            {
-                self.toast(EN.create_vaults_locked);
-            }
-            // Yes or No moves on by itself, and so does the answer already
-            // given, pressed again: Yes to How many, No to Keys.
-            Action::CVaults(yes) => {
-                let Some(c) = self.create.state.as_mut().filter(|c| c.built.is_none()) else {
-                    return;
-                };
-                if c.vaults.answer != Some(yes) {
-                    let owner = c.owner;
-                    c.vaults.answer = Some(yes);
-                    c.done[cstep::HOW_MANY as usize] = false;
-                    self.wallet_vaults_changed(owner);
-                }
-                if let Some(c) = self.create.state.as_mut() {
-                    c.done[cstep::WHERE as usize] = true;
-                }
-                self.create_open_next();
-            }
-            Action::CVaultN(n) => {
-                if let Some(c) = self.create.state.as_mut()
-                    && c.built.is_none()
-                {
-                    let owner = c.owner;
-                    c.vaults.count = usize::from(n).clamp(1, MAX_VAULTS);
-                    c.done[cstep::HOW_MANY as usize] = false;
-                    self.wallet_vaults_changed(owner);
-                }
-            }
-            Action::CSticks(n) => {
-                if let Some(c) = self.create.state.as_mut()
-                    && c.built.is_none()
-                {
-                    let owner = c.owner;
-                    c.done[cstep::HOW_MANY as usize] = false;
-                    self.flows.layout_sticks(owner, usize::from(n));
-                    self.wallet_vaults_changed(owner);
-                }
-            }
+            Action::CExistingVault(on) => self.create_existing_vault(on),
             Action::PlanAddPass => self.plan_add_passphrase(),
             // NEW-WALLET §16 (F45): keys from a vault in Create; a new
             // wallet from one held.
@@ -1800,72 +1768,16 @@ impl Faraday {
         })
     }
 
-    /// Costs what `create_vaults_now` costs. Whether Make a new wallet's Keys card would
-    /// offer one way on only: a single key's slot, empty, whose one choice
-    /// is its key flow, **New key** (no key in the session, no key or wallet
-    /// file in the Inbox, offered or refused, no open vault's key and no
-    /// locked vault). Such a card is passed over: the key flow opens in
-    /// its place.
-    pub(crate) fn create_keys_one_way(&self, c: &Compute) -> bool {
-        let Some(cs) = self.create.state() else {
-            return false;
-        };
-        if cs.built.is_some()
-            || cs.kind.multi()
-            || cs.slots.iter().any(|s| *s != create::Source::Empty)
-        {
-            return false;
-        }
-        if !self.session.keys.is_empty() {
-            return false;
-        }
-        // A file the card lists, offered or refused: the card shows, so
-        // the person sees why a refused file is not taken.
-        let file = self
-            .inbox
-            .iter()
-            .any(|it| it.kind.is_key() || is_listed_wallet(it));
-        if file {
-            return false;
-        }
-        let vaults = self.create_vaults_now(c);
-        vaults.open.is_empty() && vaults.locked.is_empty()
-    }
+    /// Keys, just opened by a Continue on the card before it. The card is
+    /// never passed over for a key flow: before any key exists it carries
+    /// the row for a vault already on a stick, so it always shows.
+    pub(crate) fn create_keys_opened(&mut self) {}
 
-    /// The card Make a new wallet shows before Keys: where Cancel in a
-    /// key flow opened in place of Keys returns to.
-    pub(crate) fn create_card_before_keys(&self) -> Option<u8> {
-        let cards = self.create_cards();
-        let at = cards.iter().position(|&k| k == cstep::KEYS)?;
-        at.checked_sub(1).and_then(|i| cards.get(i).copied())
-    }
-
-    /// Keys, just opened by a Continue on the card before it: where it
-    /// offers one way on only ([`Faraday::create_keys_one_way`]), that key
-    /// flow opens in its place, for slot 1, as its button would, and
-    /// Make a new wallet waits on the card before Keys. Decides from the
-    /// state as it is.
-    pub(crate) fn create_keys_opened(&mut self) {
-        let c = self.compute();
-        if self.screen != Screen::Create
-            || self.create.state().and_then(|c| c.open) != Some(cstep::KEYS)
-            || !self.create_keys_one_way(&c)
-        {
-            return;
-        }
-        let before = self.create_card_before_keys();
-        self.keygen_open(Some(0));
-        if self.screen == Screen::KeyGen {
-            self.create.open_card(before);
-        }
-    }
-
-    /// Make a new wallet shown on Keys, its vaults set up: or, where Keys
-    /// offers one way on only, its key flow ([`Faraday::create_keys_opened`]).
+    /// Make a new wallet shown on Keys, its vaults set up: Keys
+    /// always shows.
     pub(crate) fn create_open_keys(&mut self) {
         self.create.open_card(Some(cstep::KEYS));
         self.screen = Screen::Create;
-        self.create_keys_opened();
     }
 
     /// Slots left for a cosigner's key, in the creation under way.
@@ -2538,11 +2450,7 @@ impl crate::trail::StepFlow for CreateSteps {
         crate::Action::CStep(k)
     }
 
-    fn name(&self, app: &crate::Faraday, k: u8) -> &'static str {
-        match k {
-            cstep::STICKS => app.medium.bring_in(),
-            cstep::HOW_MANY => app.medium.and_vaults(),
-            k => crate::screens::CSTEPS[usize::from(k)],
-        }
+    fn name(&self, _: &crate::Faraday, k: u8) -> &'static str {
+        crate::screens::CSTEPS[usize::from(k)]
     }
 }

@@ -202,9 +202,6 @@ pub(crate) fn heavy_on(panel: Panel) -> (Faraday, usize) {
         let k = c
             .open
             .unwrap_or_else(|| panic!("no card open: {:?}", c.error));
-        if k == cstep::WHERE {
-            app.press(Action::CVaults(false));
-        }
         if k == cstep::KEYS && app.session.keys.is_empty() {
             for slot in 0..3u8 {
                 key_made_here(&mut app, slot, usize::from(slot) + 1);

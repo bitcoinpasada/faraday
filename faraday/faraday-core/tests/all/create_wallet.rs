@@ -39,14 +39,13 @@ fn a_fresh_create_opens_with_kind_closed_on_single_key() {
     let app = opened();
     let c = app.create().expect("create");
     assert_eq!(c.kind, NewKind::NativeSegwit);
-    assert_eq!(c.open, Some(cstep::WHERE), "the card after Kind is open");
+    assert_eq!(c.open, Some(cstep::KEYS), "the card after Kind is open");
     let mut app = app;
     let texts = app.drawn_texts();
     assert!(
         texts.iter().any(|t| t == "Single key · native SegWit"),
         "Kind closed on its default, shown: {texts:?}"
     );
-    app.press(Action::CVaults(false));
     assert!(
         app.create().unwrap().done[cstep::KIND as usize],
         "the default is taken once a later card is answered"
@@ -67,8 +66,8 @@ fn a_kind_pressed_moves_on_and_its_head_reopens_it_keeping_the_choice() {
     assert_eq!(app.create().map(|c| c.kind), Some(NewKind::Taproot));
     assert_eq!(
         app.create().and_then(|c| c.open),
-        Some(cstep::WHERE),
-        "the kind pressed closes Kind and opens Use vaults"
+        Some(cstep::KEYS),
+        "the kind pressed closes Kind and opens Keys"
     );
     app.press(Action::CStep(cstep::KIND));
     assert_eq!(app.create().and_then(|c| c.open), Some(cstep::KIND));
@@ -79,40 +78,7 @@ fn a_kind_pressed_moves_on_and_its_head_reopens_it_keeping_the_choice() {
     );
     // The kind already ticked, pressed again, moves on too.
     crate::common::ckind(&mut app, kind_index(NewKind::Taproot));
-    assert_eq!(app.create().and_then(|c| c.open), Some(cstep::WHERE));
-}
-
-#[test]
-fn yes_or_no_to_vaults_moves_on_and_so_does_the_answer_given_pressed_again() {
-    let mut app = opened();
-    app.press(Action::CVaults(true));
-    assert_eq!(
-        app.create().and_then(|c| c.open),
-        Some(cstep::HOW_MANY),
-        "Yes opens How many"
-    );
-    app.press(Action::CStep(cstep::WHERE));
-    app.press(Action::CVaults(false));
-    // No opens Keys, which with nothing loaded is New key for the slot.
-    assert_eq!(app.screen, Screen::KeyGen, "No opens the keys");
-    app.press(Action::CStep(cstep::WHERE));
-    app.press(Action::CVaults(false));
-    assert_eq!(
-        app.create().and_then(|c| c.open),
-        Some(cstep::KEYS),
-        "No pressed again moves on as well"
-    );
-}
-
-#[test]
-fn use_vaults_closed_before_it_is_answered_says_so() {
-    let mut app = opened();
-    app.press(Action::CStep(cstep::WHERE));
-    let texts = app.drawn_texts();
-    assert!(
-        texts.iter().any(|t| t == "Not answered"),
-        "the closed card names its state: {texts:?}"
-    );
+    assert_eq!(app.create().and_then(|c| c.open), Some(cstep::KEYS));
 }
 
 #[test]
@@ -174,8 +140,6 @@ fn made_on(mut app: Faraday) -> (Faraday, usize) {
     app.press(Action::CreateWallet);
     crate::common::ckind(&mut app, 0);
     app.press(Action::CNext(cstep::KIND)); // single key, the default: opens Keys
-    app.press(Action::CVaults(false));
-    app.press(Action::CNext(cstep::WHERE));
     let fp = app.session.keys[0].fingerprint.0;
     app.press(Action::CSlotHere(0, fp));
     app.press(Action::CNext(cstep::KEYS));
@@ -286,8 +250,6 @@ fn multisig_on_keys_in(mut app: Faraday) -> Faraday {
     app.press(Action::CreateWallet);
     crate::common::ckind(&mut app, multi_index());
     app.press(Action::CNext(cstep::KIND));
-    app.press(Action::CVaults(false));
-    app.press(Action::CNext(cstep::WHERE));
     app.press(Action::CNext(cstep::QUORUM)); // 2 of 3, the default
     app
 }
@@ -424,8 +386,6 @@ fn a_key_made_on_its_own_takes_a_passphrase_in_a_single_key_slot() {
         .to_string();
     app.press(Action::CreateWallet);
     crate::common::ckind(&mut app, 0);
-    app.press(Action::CVaults(false));
-    app.press(Action::CNext(cstep::WHERE));
     app.press(Action::CSlotHere(0, first));
     let _ = app.frame();
     assert!(app.offers(Action::CPassOpen(0)));
@@ -474,8 +434,6 @@ fn a_slot_whose_key_has_a_passphrase_offers_no_add_a_passphrase() {
         .0;
     app.press(Action::CreateWallet);
     crate::common::ckind(&mut app, 0);
-    app.press(Action::CVaults(false));
-    app.press(Action::CNext(cstep::WHERE));
     app.press(Action::CSlotHere(0, with));
     let _ = app.frame();
     assert!(!app.offers(Action::CPassOpen(0)));
@@ -491,8 +449,6 @@ fn unequal_passphrases_in_a_slot_lock_nothing_in() {
     let plain = app.session.keys[0].fingerprint.0;
     app.press(Action::CreateWallet);
     crate::common::ckind(&mut app, 0);
-    app.press(Action::CVaults(false));
-    app.press(Action::CNext(cstep::WHERE));
     app.press(Action::CSlotHere(0, plain));
     app.press(Action::CPassOpen(0));
     type_text(&mut app, "one");
@@ -518,8 +474,6 @@ fn a_slots_lock_waits_until_the_two_passphrases_match() {
     let plain = app.session.keys[0].fingerprint.0;
     app.press(Action::CreateWallet);
     crate::common::ckind(&mut app, 0);
-    app.press(Action::CVaults(false));
-    app.press(Action::CNext(cstep::WHERE));
     app.press(Action::CSlotHere(0, plain));
     app.press(Action::CPassOpen(0));
     type_text(&mut app, "one");
@@ -547,9 +501,6 @@ fn continue_throughout(app: &mut Faraday) -> usize {
             return b;
         }
         let k = c.open.expect("a card is open");
-        if k == cstep::WHERE {
-            app.press(Action::CVaults(false));
-        }
         app.press(Action::CNext(k));
     }
     panic!(
@@ -651,8 +602,6 @@ fn new_wallet_from_a_two_of_three_held_here_takes_every_key_at_account_1() {
     app.press(Action::CreateWallet);
     crate::common::ckind(&mut app, multi_index());
     app.press(Action::CNext(cstep::KIND));
-    app.press(Action::CVaults(false));
-    app.press(Action::CNext(cstep::WHERE));
     app.press(Action::CNext(cstep::QUORUM));
     for k in 0..3u8 {
         let fp = app.session.keys[usize::from(k)].fingerprint.0;
@@ -709,8 +658,6 @@ fn a_cosigners_xpub_at_another_account_leaves_its_slot_to_someone_else() {
     let c = app.create().unwrap();
     assert_eq!(c.account, 1);
     assert_eq!(c.slots[pos], Source::Later, "Someone else");
-    app.press(Action::CVaults(false));
-    app.press(Action::CNext(cstep::WHERE));
     assert_eq!(app.create().and_then(|c| c.open), Some(cstep::KEYS));
     let line = format!("Needs Key {}'s xpub at account 1", pos + 1);
     let texts = app.drawn_texts().plain();
@@ -826,8 +773,6 @@ fn a_multisig_at_account_1_set_on_quorum_has_it_in_its_path_and_check_returns_th
     assert!(app.offers(Action::CAccount(1)), "Change opens the stepper");
     app.press(Action::CAccount(1));
     app.press(Action::CNext(cstep::QUORUM));
-    app.press(Action::CVaults(false));
-    app.press(Action::CNext(cstep::WHERE));
     for k in 0..3u8 {
         let fp = app.session.keys[usize::from(k)].fingerprint.0;
         app.press(Action::CSlotHere(k, fp));
@@ -860,12 +805,11 @@ fn a_multisig_at_account_1_set_on_quorum_has_it_in_its_path_and_check_returns_th
 fn a_kind_without_an_account_offers_no_account_row() {
     let mut app = opened();
     app.press(Action::CNext(cstep::KIND));
-    app.press(Action::CVaults(false));
-    // New key opens in place of Keys; back from it, the Keys card is
-    // still there to open.
+    // Keys shows; New key opens from it, and back from it Keys is there.
+    assert_eq!(app.screen, Screen::Create);
+    app.press(Action::KeyGen(Some(0)));
     assert_eq!(app.screen, Screen::KeyGen);
     app.press(Action::CancelFlow);
-    app.press(Action::CStep(cstep::KEYS));
     assert_eq!(app.create().and_then(|c| c.open), Some(cstep::KEYS));
     let _ = app.frame();
     assert!(
@@ -896,7 +840,6 @@ fn checks_foot_reads_it_matches() {
 /// Make a new wallet at Keys: single key, No to vaults.
 fn single_key_to_keys(app: &mut Faraday) {
     app.press(Action::CNext(cstep::KIND));
-    app.press(Action::CVaults(false));
 }
 
 /// New key at its entry card, a few dice rolled.
@@ -911,21 +854,20 @@ fn roll_some(app: &mut Faraday) {
 }
 
 #[test]
-fn a_single_key_with_nothing_loaded_goes_from_the_step_before_keys_to_new_key() {
+fn a_single_key_with_nothing_loaded_shows_keys_and_new_key_opens_from_it() {
     let mut app = opened();
     single_key_to_keys(&mut app);
-    assert_eq!(app.screen, Screen::KeyGen, "New key in place of Keys");
+    assert_eq!(app.screen, Screen::Create, "Keys is shown, not passed over");
+    assert_eq!(app.create().and_then(|c| c.open), Some(cstep::KEYS));
+    let _ = app.frame();
+    assert!(app.offers(Action::KeyGen(Some(0))), "New key is on Keys");
+    app.press(Action::KeyGen(Some(0)));
+    assert_eq!(app.screen, Screen::KeyGen);
     let k = app.keygen().unwrap();
-    assert_eq!(k.slot, Some(0), "for slot 1, as its button would");
+    assert_eq!(k.slot, Some(0), "for slot 1");
     assert_eq!(k.back, Screen::Create);
     let c = app.create().unwrap();
     assert!(!c.done[cstep::KEYS as usize], "Keys is not done yet");
-    assert!(
-        app.create_cards().contains(&cstep::KEYS),
-        "Keys stays listed"
-    );
-    let texts = app.drawn_texts();
-    assert!(texts.iter().any(|t| t == "Make a new key"), "{texts:?}");
 }
 
 #[test]
@@ -949,7 +891,6 @@ fn a_multisig_shows_the_keys_card() {
     app.press(Action::CStep(cstep::KIND));
     crate::common::ckind(&mut app, multi_index());
     app.press(Action::CNext(cstep::QUORUM));
-    app.press(Action::CVaults(false));
     assert_eq!(app.screen, Screen::Create);
     assert_eq!(app.create().and_then(|c| c.open), Some(cstep::KEYS));
 }
@@ -990,25 +931,24 @@ fn cancel_in_new_key_from_create_with_rolls_asks_then_returns_to_keys_with_the_s
 }
 
 #[test]
-fn cancel_with_nothing_entered_returns_without_asking_to_the_step_before_a_passed_over_keys() {
+fn cancel_with_nothing_entered_returns_without_asking_to_keys() {
     let mut app = opened();
     single_key_to_keys(&mut app);
+    app.press(Action::KeyGen(Some(0)));
     assert_eq!(app.screen, Screen::KeyGen);
     app.press(Action::CancelFlow);
     assert_eq!(app.sheet, None, "nothing entered: no question");
     assert_eq!(app.screen, Screen::Create);
     let c = app.create().unwrap();
-    assert_eq!(c.open, Some(cstep::WHERE), "the step before Keys");
+    assert_eq!(c.open, Some(cstep::KEYS));
     assert_eq!(c.slots[0], faraday_core::create::Source::Empty);
-    // Its Continue opens New key again.
-    app.press(Action::CNext(cstep::WHERE));
-    assert_eq!(app.screen, Screen::KeyGen);
     // Rolls entered, it asks first, and lands there too.
+    app.press(Action::KeyGen(Some(0)));
     roll_some(&mut app);
     app.press(Action::CancelFlow);
     app.press(Action::CancelFlowNow);
     assert_eq!(app.screen, Screen::Create);
-    assert_eq!(app.create().and_then(|c| c.open), Some(cstep::WHERE));
+    assert_eq!(app.create().and_then(|c| c.open), Some(cstep::KEYS));
 }
 
 #[test]
@@ -1036,8 +976,6 @@ fn a_slots_passphrase_refuses_a_letter_outside_ascii_and_says_so() {
     let first = key_made_on_its_own(&mut app);
     app.press(Action::CreateWallet);
     crate::common::ckind(&mut app, 0);
-    app.press(Action::CVaults(false));
-    app.press(Action::CNext(cstep::WHERE));
     app.press(Action::CSlotHere(0, first));
     app.press(Action::CPassOpen(0));
     type_text(&mut app, "café");
@@ -1105,8 +1043,6 @@ fn made_multisig_at(kind: NewKind, bip87: bool) -> (Faraday, usize) {
         app.press(Action::CMultiPath(true));
     }
     app.press(Action::CNext(cstep::QUORUM));
-    app.press(Action::CVaults(false));
-    app.press(Action::CNext(cstep::WHERE));
     for k in 0..3u8 {
         let fp = app.session.keys[usize::from(k)].fingerprint.0;
         app.press(Action::CSlotHere(k, fp));
@@ -1312,8 +1248,6 @@ fn from_a_bip_48_wallet_choosing_bip_87_leaves_the_cosigners_slots_to_the_cosign
     app.press(Action::CMultiPathChange);
     app.press(Action::CMultiPath(true));
     assert_eq!(app.create().unwrap().slots[pos], Source::Later);
-    app.press(Action::CVaults(false));
-    app.press(Action::CNext(cstep::WHERE));
     let line = format!("Needs Key {}'s xpub at BIP-87, account 0", pos + 1);
     let texts = app.drawn_texts().plain();
     assert!(texts.contains(&line), "{line}: {texts:?}");

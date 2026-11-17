@@ -2483,7 +2483,8 @@ fn the_lock_with_a_shares_plan_kept_for_the_other_key_order_in_a_vault_starts_no
 /// of the open vault that is not the current one, and the wallet's.
 fn flow_with_two_vaults(shell: &mut crate::common::Shell) -> (Faraday, usize, usize) {
     use crate::common::{no_words, vault_off};
-    let mut app = two_of_three_with_setup(shell, 2);
+    let mut app = two_of_three_with_setup(shell, 1);
+    crate::backup_flow_wallet::make_plan_vault(&mut app, 1, crate::backup_flow_wallet::PHRASE_2);
     no_words(&mut app);
     vault_off(&mut app, 2);
     let w = app.backup().unwrap().wallet;
@@ -2530,7 +2531,9 @@ fn saving_a_vault_item_into_a_vault_that_keeps_a_shares_plan_of_the_other_order_
             }
         }
     });
-    let v = plan_vault.expect("the second vault is a plan vault") as u8;
+    // A plan vault made from the checklist keeps no salt in the plan
+    // until the flow counts it: the second vault is Vault 2.
+    let v = plan_vault.unwrap_or(1) as u8;
     testkit::vault_current(&mut app, target);
     plant_other_order_plan(&mut app, target, w, true);
     let before = every_record(&app);

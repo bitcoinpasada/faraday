@@ -10,11 +10,8 @@
 use crate::common::*;
 use faraday_core::backup_flow::steps::FlowAction as F;
 use faraday_core::backup_flow::{Kind, Slot, Step, Target};
-use faraday_core::create::NewKind;
 use faraday_core::testkit::Plain;
-use faraday_core::{
-    Action, BOOT_FOLDER, Faraday, Medium, Screen, SticksWanted, StorageEvent, cstep,
-};
+use faraday_core::{Action, BOOT_FOLDER, Faraday, Medium, Screen, SticksWanted, StorageEvent};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
 
 /// A desktop app with the boot stick and Stick 2 in, as the desktop
@@ -113,17 +110,13 @@ fn several_sticks_may_be_in_at_once() {
     }
 }
 
-fn create_with_vaults(app: &mut Faraday, count: usize) {
-    app.press(Action::CreateWallet);
-    let multi = NewKind::ALL
-        .iter()
-        .position(|k| *k == NewKind::Multi)
-        .unwrap() as u8;
-    crate::common::ckind(app, multi);
-    app.press(Action::CVaults(true));
-    app.press(Action::CNext(cstep::WHERE));
-    app.press(Action::CVaultN(count as u16));
-    app.press(Action::CNext(cstep::HOW_MANY));
+/// A restore with `count` vaults to bring in, which asks for their sticks.
+fn bring_in_vaults(app: &mut Faraday, count: usize) {
+    app.press(Action::RestoreWallet);
+    app.press(Action::RVaults(true));
+    app.press(Action::RNext(faraday_core::rstep::WHERE));
+    app.press(Action::RVaultN(count as u16));
+    app.press(Action::RNext(faraday_core::rstep::HOW_MANY));
     assert_eq!(app.screen, Screen::BackupFlow);
 }
 
@@ -131,7 +124,7 @@ fn create_with_vaults(app: &mut Faraday, count: usize) {
 fn a_wallet_backup_with_three_vaults_shows_the_boot_stick_and_three_sticks() {
     let mut shell = Shell::new();
     let mut app = desktop(&mut shell);
-    create_with_vaults(&mut app, 3);
+    bring_in_vaults(&mut app, 3);
     let t = drawn(&mut app);
     for want in [
         "Boot stick · in",
@@ -148,7 +141,7 @@ fn a_wallet_backup_with_three_vaults_shows_the_boot_stick_and_three_sticks() {
 fn five_vaults_give_the_boot_stick_and_stick_2_to_stick_6() {
     let mut shell = Shell::new();
     let mut app = desktop(&mut shell);
-    create_with_vaults(&mut app, 5);
+    bring_in_vaults(&mut app, 5);
     let pills = app.stick_pills();
     let labels: Vec<&str> = pills.iter().map(|p| p.label.as_str()).collect();
     assert_eq!(
@@ -171,7 +164,7 @@ fn the_flow_reports_the_stick_it_asks_for_at_each_step() {
     assert_eq!(app.sticks_wanted(), None, "no flow, no sticks asked for");
     shell.pull(&mut app, BOOT_FOLDER);
     shell.pull(&mut app, "STICK-2");
-    create_with_vaults(&mut app, 3);
+    bring_in_vaults(&mut app, 3);
     assert_eq!(app.flow().unwrap().step, Step::Sticks);
     let at = |count, now| Some(SticksWanted { count, now });
     // By the pills' numbers: the first backup stick is Stick 2.
@@ -192,7 +185,7 @@ fn the_flow_reports_the_stick_it_asks_for_at_each_step() {
 fn the_pills_show_the_stick_asked_for_as_the_one_to_insert() {
     let mut shell = Shell::new();
     let mut app = desktop(&mut shell);
-    create_with_vaults(&mut app, 3);
+    bring_in_vaults(&mut app, 3);
     let asked: Vec<usize> = app
         .stick_pills()
         .iter()
@@ -217,7 +210,7 @@ fn with_the_boot_stick_and_stick_2_in_a_backup_flow_reads_stick_2_and_does_not_a
  {
     let mut shell = Shell::new();
     let mut app = desktop(&mut shell);
-    create_with_vaults(&mut app, 3);
+    bring_in_vaults(&mut app, 3);
     shell.pump(&mut app);
     let t = drawn(&mut app);
     assert!(
@@ -272,7 +265,7 @@ fn on_a_device_there_are_no_pills_without_a_flow_and_one_per_stick_of_the_flow()
     assert!(app.stick_pills().is_empty());
     let t = drawn(&mut app);
     assert!(!t.iter().any(|s| s.starts_with("Stick ")), "{t:?}");
-    create_with_vaults(&mut app, 3);
+    bring_in_vaults(&mut app, 3);
     let labels: Vec<String> = app
         .stick_pills()
         .into_iter()
@@ -309,7 +302,7 @@ fn on_a_device_the_boot_pill_comes_first_and_no_pill_is_a_press() {
     shell.add(boot);
     let mut app = device();
     shell.plug(&mut app, "BOOT");
-    create_with_vaults(&mut app, 3);
+    bring_in_vaults(&mut app, 3);
     let pills = app.stick_pills();
     assert_eq!(pills[0].n, 1);
     assert_eq!(pills[0].label, "Boot stick");
@@ -328,7 +321,7 @@ fn the_first_backup_stick_is_stick_2_on_every_shell() {
     // Faraday Demo and the demo.
     let mut shell = Shell::new();
     let mut app = desktop(&mut shell);
-    create_with_vaults(&mut app, 2);
+    bring_in_vaults(&mut app, 2);
     let labels: Vec<String> = app
         .stick_pills()
         .into_iter()
@@ -340,7 +333,7 @@ fn the_first_backup_stick_is_stick_2_on_every_shell() {
     assert_eq!(app.take_stick_toggles(), ["STICK-2"]);
     // A device: the PC stick, then the Pi.
     let mut app = device();
-    create_with_vaults(&mut app, 2);
+    bring_in_vaults(&mut app, 2);
     let labels: Vec<String> = app
         .stick_pills()
         .into_iter()
@@ -489,7 +482,7 @@ fn on_the_pis_panel_a_five_stick_flow_fits_on_one_row_in_numbers_alone() {
     }));
     app.medium = Medium::SdCard;
     assert!(app.is_compact());
-    create_with_vaults(&mut app, 5);
+    bring_in_vaults(&mut app, 5);
     // The boot card's pill, then the five.
     assert_eq!(app.stick_pills().len(), 6);
     let _ = app.frame();
@@ -580,7 +573,7 @@ fn the_pill_edged_and_the_insert_line_name_the_same_stick() {
     let mut shell = Shell::new();
     shell.add(marked_disk("S1", "WORKSTICK", 5));
     let mut app = device();
-    create_with_vaults(&mut app, 2);
+    bring_in_vaults(&mut app, 2);
     // Place 1 keeps a stick of files too, which the write step asks for.
     let i = app.backup_flows().len() - 1;
     faraday_core::testkit::change_flows(&mut app, |flows| {

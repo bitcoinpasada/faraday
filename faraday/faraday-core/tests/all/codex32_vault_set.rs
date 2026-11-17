@@ -13,8 +13,8 @@
 )]
 
 use crate::backup_flow_wallet::{
-    PHRASE as FLOW_PHRASE, bring_in_all, create_with_vaults, flow_board, flow_into_vault,
-    flow_vault_zone, kdbx, restart, save_vaults, step, sticks, write_sticks,
+    PHRASE as FLOW_PHRASE, create_with_vaults, flow_board, flow_into_vault, flow_vault_zone, kdbx,
+    restart, save_vaults, step, sticks, write_sticks,
 };
 use crate::codex32_kept::{
     A, C, D, FP, PHRASE, codex32_item, ix, key_from_strings, share_record, share_records,
@@ -61,8 +61,6 @@ pub(crate) fn locked_with(shell: &mut Shell, in_vault: &[char]) -> Faraday {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     create_with_vaults(&mut app, false, 1);
-    bring_in_all(shell, &mut app, &["S1"]);
-    create_vault(shell, &mut app, 0, FLOW_PHRASE);
     key_from_strings(&mut app);
     app.press(Action::Nav(faraday_core::Screen::Create));
     app.press(Action::CSlotHere(0, FP));

@@ -1453,7 +1453,7 @@ Every screen whose state is kept when it is left, read from the code:
 
 | Flow | Tab | State | First step done | Finished | Started over, let go | A lock |
 |---|---|---|---|---|---|---|
-| Make a new wallet, its vault setup, its Back up | Wallets | `create`, the wallet flow of its `owner`, `backup` of the wallet made | a card closed as done | its Back up's checklist all done | **Start over**; **Make a new wallet** once the wallet is made (it resumes only while keys are chosen and none made, or the vaults are being set up) | wiped; the setup's flow is kept as the wallet's |
+| Make a new wallet, its vault brought in, its Back up | Wallets | `create`, the wallet flow of its `owner`, `backup` of the wallet made | a card closed as done | its Back up's checklist all done | **Start over**; **Make a new wallet** once the wallet is made (it resumes only while keys are chosen and none made, or the vault is being brought in) | wiped; the setup's flow is kept as the wallet's |
 | Restore an existing wallet, its vault setup | Wallets | `restore`, the wallet flow of its `owner` | a card done (from a key on Wallets, Kind to Description are done for the person) | Check done: on Done | **Restore** pressed again, unless the vaults are being set up | wiped |
 | Back up a wallet, on its own | Wallets | `backup` | a preset, a plan saved before, something placed, or the checklist made | every checklist item done | **Back up** on any wallet's card (the plan comes back from a vault) | wiped; its writes go on in the wallet's flow |
 | Spend: the Spend tab, a transaction's steps | Wallets | `spend`, `spend_backup` | a transaction read, or something in on What do you have? | signed and put out | **Start over**; another wallet's spend | the spend is wiped; the tab's own state is kept |
@@ -1612,7 +1612,7 @@ The code: `faraday-core/src/in_progress.rs` (`flow_cancel`,
 
 | Flow | Asks when | The line | Shown after, when where it was opened is not known |
 |---|---|---|---|
-| Make a new wallet | its Back up's plan begun; or its vaults' setup begun; or the wallet made, or a card done past the first | "The plan and its places are lost."; "Its answers and the setup of its vaults are lost."; "Its answers are lost." | Wallets, or Home when opened there |
+| Make a new wallet | its Back up's plan begun; or its vault's setup begun; or the wallet made, or a card done past the first | "The plan and its places are lost."; "Its answers and the vault brought in are lost."; "Its answers are lost." | Wallets, or Home when opened there |
 | Restore an existing wallet | its vaults' setup begun, or a card done past the first | as Make a new wallet's | Wallets, or Home |
 | Back up a wallet | always (its row is its plan begun) | "The plan and its places are lost." | the wallet, or the vault's contents it was opened from |
 | Spend | a step of the transaction done | "Its steps and any signatures made are lost." | the wallet it was opened on, Home or Wallets |

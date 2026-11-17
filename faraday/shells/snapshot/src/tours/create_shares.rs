@@ -1,7 +1,7 @@
 //! The createshares tour: Make a new wallet opened on Kind, nothing
 //! ticked (who signs: Single key, Multisig, More kinds); Single key's
 //! Backup card, nothing ticked, and the tooltip on "codex32"; Shares
-//! (codex32) chosen, Use vaults, then New key's Start with Make a new
+//! (codex32) chosen, Keys, then New key's Start with Make a new
 //! key fixed to Codex32 and every way to add a key you have, and Make
 //! codex32 shares' Scheme with no "None, the secret alone"; and a Taproot
 //! single key's Backup card, reached by More kinds (F240,
@@ -41,11 +41,11 @@ pub(crate) fn create_shares_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("shares-3-tooltip")?;
     t.app.event(Event::HoverEnd);
     t.press(Action::CBackupForm(BackupForm::Codex32.index()));
-    t.shot("shares-4-use-vaults")?;
-    // With no key loaded, Keys is passed over: New key opens on Start.
-    t.press(Action::CVaults(false));
+    t.shot("shares-4-keys")?;
+    // Keys' slot: New key opens on Start.
+    t.press(Action::KeyGen(Some(0)));
     if t.app.screen != Screen::KeyGen {
-        return Err("Use vaults' No opened no New key".into());
+        return Err("Keys' New key did not open".into());
     }
     t.shot("shares-5-start")?;
     t.press(Action::KStart(Start::MakeCodex32.index()));

@@ -110,6 +110,12 @@ macro_rules! words_screens_create {
     create_key: "Key",
     /// Text in `create_body`.
     create_continue: "Continue",
+    /// The Keys row, off until pressed: brings in the stick of a vault the person already has, before any key exists.
+    create_use_existing_vault: "Use a vault I already have on a stick",
+    /// The Keys card's line while the vault's stick is still to be brought in and unlocked.
+    create_vault_to_unlock: "Its vault is to be unlocked before the keys",
+    /// A stick read for a vault the person already has, holding no vault.
+    create_no_vault_on_stick: "No vault on this stick. A new vault is added on the backup plan",
     /// Text in `create_body`. `{}`: `app.session.wallets[old].name`.
     create_move_the_money: "Move the money from {}",
     /// Line in `create_body`.

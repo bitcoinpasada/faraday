@@ -23,13 +23,13 @@ pub(crate) fn cancel_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::CreateWallet);
     t.press(Action::CKind(multi));
     t.press(Action::CNext(cstep::KIND));
-    t.press(Action::CVaults(false));
-    t.press(Action::CNext(cstep::WHERE));
     t.shot("cancel-1-create")?;
+    // The sheet comes once an answer past Kind is given; before it Cancel
+    // ends the flow at once.
+    t.press(Action::CNext(cstep::QUORUM));
     t.press(Action::CancelFlow);
     t.shot("cancel-2-sheet")?;
     t.press(Action::Cancel);
-    t.press(Action::CNext(cstep::QUORUM));
     for slot in 0..3u8 {
         let fp = t.app.session.keys[usize::from(slot)].fingerprint.0;
         t.press(Action::CSlotHere(slot, fp));
@@ -50,7 +50,6 @@ pub(crate) fn cancel_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::CBackupForm(
         faraday_core::create::BackupForm::Words.index(),
     ));
-    t.press(Action::CVaults(false));
     t.press(Action::KeyGen(Some(0)));
     t.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
     t.press(Action::KWords(12));

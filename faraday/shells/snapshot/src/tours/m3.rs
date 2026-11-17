@@ -36,8 +36,6 @@ pub(crate) fn m3_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::CreateWallet);
     t.press(Action::CKind(multi));
     t.press(Action::CNext(cstep::KIND));
-    t.press(Action::CVaults(false));
-    t.press(Action::CNext(cstep::WHERE));
     t.shot("m3-5-flow")?;
     t.press(Action::CancelFlow);
     t.shot("m3-6-cancel-dialog")?;

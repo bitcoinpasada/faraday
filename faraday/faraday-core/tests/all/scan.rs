@@ -1013,8 +1013,6 @@ fn keys_card_with_file(name: &str, bytes: &[u8]) -> Faraday {
     app.press(Action::CreateWallet);
     crate::common::ckind(&mut app, 0);
     app.press(Action::CNext(faraday_core::cstep::KIND));
-    app.press(Action::CVaults(false));
-    app.press(Action::CNext(faraday_core::cstep::WHERE));
     let _ = app.frame();
     app
 }

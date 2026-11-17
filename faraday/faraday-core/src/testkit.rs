@@ -2337,6 +2337,13 @@ fn name_taken_body_t(app: &crate::Faraday) -> Option<Text> {
     app.visit.name_taken().front().map(|t| Text::of(&t.body))
 }
 
+/// What the open vaults remember, written now: the identity of each key
+/// they hold is worked out here, drawn first as a frame does, so that the
+/// next press on a vault does not stretch it.
+pub fn refresh_vault_summaries(app: &mut crate::Faraday) {
+    app.vault_summaries_refresh();
+}
+
 /// Changes the vaults' summaries as `f` says, and returns what it returns.
 pub fn change_vault_summaries<R>(
     app: &mut crate::Faraday,

@@ -440,8 +440,6 @@ macro_rules! words_vm_names {
     backup_flow_stick_for_vault: "the {} for {}",
     /// The flow's first card for a wallet whose keys exist: the plan.
     backup_flow_card_plan: "The plan",
-    /// Opens the flow on the card to change what it decided.
-    backup_flow_change: "Change",
     /// Button of a wallet's Make card.
     backup_flow_make_the_keys: "Make the keys",
     /// Make card of a round for an added vault: the seeds kept only on paper.

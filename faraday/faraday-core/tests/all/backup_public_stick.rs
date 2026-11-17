@@ -36,21 +36,13 @@ fn new_key_here(app: &mut Faraday) -> [u8; 4] {
     fp
 }
 
-/// A single key with Vault 1 set up before it on S1, then made here and
-/// backed up on paper and in the vault.
+/// A single key made here and backed up on paper and in a new vault, which
+/// the plan adds.
 fn single_key_in_a_vault(shell: &mut Shell) -> (Faraday, [u8; 4]) {
     sticks(shell, 3);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     create_single_key(&mut app);
-    app.press(Action::CVaults(true));
-    app.press(Action::CNext(cstep::WHERE));
-    app.press(Action::CVaultN(1));
-    app.press(Action::CNext(cstep::HOW_MANY));
-    shell.plug(&mut app, "S1");
-    shell.flow(&mut app, F::Tap);
-    shell.pull(&mut app, "S1");
-    create_vault(shell, &mut app, 0, PHRASE);
     app.press(Action::Nav(Screen::Create));
     let fp = new_key_here(&mut app);
     app.press(Action::CNext(cstep::CHECK));
@@ -71,6 +63,9 @@ fn save_vaults(app: &mut Faraday) {
         })
         .collect();
     for v in vaults {
+        if app.vaults().open.len() <= v {
+            crate::backup_flow_wallet::make_plan_vault(app, v, PHRASE);
+        }
         app.press(Action::BVaultSave(v as u8));
     }
 }

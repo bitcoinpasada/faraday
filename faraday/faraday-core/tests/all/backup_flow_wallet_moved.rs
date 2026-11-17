@@ -2,8 +2,8 @@
 //! vaults (`docs/VAULT.md` §7.2).
 
 use crate::backup_flow_wallet::{
-    PHRASE, PHRASE_2, PHRASE_3, backup_shape, bring_in_all, create_with_vaults,
-    flow_whole_in_vault, key_in, restart, sticks, two_of_three_ready,
+    PHRASE, PHRASE_2, PHRASE_3, backup_shape, create_with_vaults, flow_whole_in_vault, key_in,
+    restart, sticks, two_of_three_ready,
 };
 use crate::common::RecordsOf as _;
 use crate::common::*;
@@ -198,8 +198,6 @@ fn a_changed_plans_split_saved_again_replaces_the_old_share_2() {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     create_with_vaults(&mut app, true, 1);
-    bring_in_all(&mut shell, &mut app, &["S1"]);
-    create_vault(&mut shell, &mut app, 0, PHRASE);
     let fps: Vec<[u8; 4]> = (0..3).map(|i| key_in(&mut app, i)).collect();
     app.press(Action::Nav(Screen::Create));
     for (i, fp) in fps.iter().enumerate() {
@@ -223,7 +221,7 @@ fn a_changed_plans_split_saved_again_replaces_the_old_share_2() {
     no_description_files(&mut app);
     into_vault(&mut app, 0, Thing::Share(1));
     app.press(Action::BChecklist);
-    app.press(Action::BVaultSave(0));
+    crate::backup_flow_wallet::save_vault(&mut app, 0);
     let shares = |app: &Faraday| -> Vec<(String, u8)> {
         contents(app, 0)
             .of(kind::WALLET_SHARE)

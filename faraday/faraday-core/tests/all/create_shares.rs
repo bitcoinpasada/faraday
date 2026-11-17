@@ -56,8 +56,7 @@ fn on_backup() -> Faraday {
 fn on_keys_of(mut app: Faraday, kind: NewKind, form: BackupForm) -> Faraday {
     app = on_backup_of(app, kind);
     app.press(Action::CBackupForm(form.index()));
-    assert_eq!(app.create().and_then(|c| c.open), Some(cstep::WHERE));
-    app.press(Action::CVaults(false));
+    assert_eq!(app.create().and_then(|c| c.open), Some(cstep::KEYS));
     app
 }
 
@@ -68,7 +67,6 @@ fn on_multisig_slot() -> Faraday {
     app.press(Action::CreateWallet);
     app.press(Action::CKind(kind_index(NewKind::Multi)));
     app.press(Action::CNext(cstep::QUORUM));
-    app.press(Action::CVaults(false));
     open_new_key(&mut app);
     app
 }
@@ -152,7 +150,7 @@ fn a_single_key_opens_the_backup_card_with_nothing_ticked_and_next_waits() {
         assert_eq!(c.backup, None, "nothing is ticked");
         let _ = app.frame();
         let texts = app.drawn_texts();
-        for want in [WORDS, NAME, "Not answered"] {
+        for want in [WORDS, NAME] {
             assert!(texts.iter().any(|t| t == want), "{want}: {texts:?}");
         }
         app.press(Action::CNext(cstep::BACKUP_FORM));
@@ -170,7 +168,7 @@ fn a_single_key_opens_the_backup_card_with_nothing_ticked_and_next_waits() {
         app.press(Action::CBackupForm(BackupForm::Words.index()));
         let c = app.create().unwrap();
         assert_eq!(c.backup, Some(BackupForm::Words));
-        assert_eq!(c.open, Some(cstep::WHERE), "the next card opens");
+        assert_eq!(c.open, Some(cstep::KEYS), "the next card opens");
     }
 }
 
@@ -555,7 +553,7 @@ fn a_tap_on_the_row_beside_the_info_button_chooses_the_row() {
     tap_at(&mut app, row);
     tick(&mut app, 100);
     assert_eq!(app.create().unwrap().backup, Some(BackupForm::Codex32));
-    assert_eq!(open_card(&app), Some(cstep::WHERE));
+    assert_eq!(open_card(&app), Some(cstep::KEYS));
     assert!(!tip_shows(&mut app));
 }
 
@@ -634,7 +632,7 @@ fn a_tap_on_codex32_chooses_the_row() {
     });
     tick(&mut app, 600);
     assert_eq!(app.create().unwrap().backup, Some(BackupForm::Codex32));
-    assert_eq!(open_card(&app), Some(cstep::WHERE));
+    assert_eq!(open_card(&app), Some(cstep::KEYS));
     assert!(!tip_shows(&mut app));
 }
 
@@ -651,10 +649,7 @@ fn locked_with(form: BackupForm) -> (Shell, Faraday) {
     app.press(Action::CreateWallet);
     app.press(Action::CKind(0));
     app.press(Action::CBackupForm(form.index()));
-    app.press(Action::CVaults(true));
-    app.press(Action::CNext(cstep::WHERE));
-    app.press(Action::CVaultN(1));
-    app.press(Action::CNext(cstep::HOW_MANY));
+    app.press(Action::CExistingVault(true));
     assert_eq!(app.screen, Screen::BackupFlow);
     shell.flow(
         &mut app,

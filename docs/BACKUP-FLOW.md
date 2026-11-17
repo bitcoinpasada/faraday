@@ -64,9 +64,8 @@ Rules still in force:
   key made first would have to be locked into some vault before a stick
   holding the vault it belongs in could be read; a new Bitcoin seed held
   only in memory would be wiped by that lock. So every stick the key
-  will be kept on is read before the key exists. For a wallet the sticks
-  read before the keys are those of the vaults the person says it will
-  use. Restore, which makes nothing new, takes the same steps with its
+  will be kept on is read before the key exists. For a wallet the stick
+  read before the keys is that of the one vault the person brings in. Restore, which makes nothing new, takes the same steps with its
   seed typed or scanned at step 4.
 - **The plan decides what each stick holds**, before any stick is
   inserted. An empty stick holds what the plan puts there and nothing
@@ -607,61 +606,45 @@ and matched. A write made on the stick visit page does not count
 
 (Every bullet below keeps what the plan can say: §2.)
 
-- **Make a new wallet** asks about vaults after its kind and shape and
-  before Keys, and its plan is made in Back up after the keys (owner,
-  2026-10-15). In order:
-  1. **Whether vaults are part of the backup.** A question with Yes and
-     No: "Will you use vaults as part of this backup?", and under it,
-     in the muted style, "Vaults already on sticks are brought in here,
-     not later." (§17.21 item 5: a stick not read this power-on cannot
-     be read after the keys without the lock, which wipes them). It is
-     not done, and shows no check, until the person has pressed an answer,
-     which moves on (F103). No goes on to Keys.
-  2. **Sticks and vaults** (`docs/STICK-SETUP.md` §2). Two steppers,
-     Vaults and Sticks: Vaults one to 128 (the most a saved plan holds,
-     one checklist item number each), Sticks one to 1024 (the most a
-     saved plan reads back), and under them the board's chips: a chip per vault with New
-     or Already on a stick, and a box per stick (Stick 2, Stick 3, …)
-     holding the vaults on it. Moved by drag, tap or the chip's ⋮
-     (Put on…, Move to…, Copy to…, Take off). A vault on no stick holds
-     Continue and is named; vaults sharing a stick, and a stick holding
-     none, are warnings. Not done until its own Continue, also after the
-     wallet is made.
-  3. **Each vault set up**, one at a time, in this flow and never on the
-     stick visit page: **Bring in the sticks** and **Vaults**, as §4.2
-     and §4.3 describe them. A stick for each stick of the card, with the
-     vaults it holds named, is inserted with
-     nothing secret open and checked (FAT32, room, writable); a stick
-     that holds vaults offers which existing vault this is or **A new
-     vault beside them**, an empty one a new vault. Every stick is read
-     before any vault is unlocked. Then the existing vaults are unlocked
-     with their passphrases and the new ones made with Make a new vault's
-     own form (name, passphrase twice, cost and memory check). The setup
-     asks nothing about places, which key goes into which vault, or paper,
-     and its sticks are named "the stick for Vault 1". The guide's
-     pages say why the sticks are read before any key exists (what is
-     checked and read on them, that nothing is written until the lock,
-     and that a stick is read with a key in memory only after that lock)
-     and why the vaults are made or unlocked before the keys.
-  4. **Keys**, made into memory, as before. No key or wallet description
+- **Make a new wallet** asks nothing about vaults: its cards are Kind,
+  Keys, Check and Back up, and its plan is made in Back up after the keys
+  (owner, 2026-10-15). In order:
+  1. **A vault already on a stick**, only if the person has one: the
+     switch row **Use a vault I already have on a stick**, at the head of
+     Keys, off by default and offered only before any key exists. On, it
+     brings in that one stick and unlocks its vault in this flow, never
+     on the stick visit page, as §4.2 and §4.3 describe (§17.21 item 5:
+     a stick not read this power-on cannot be read after the keys without
+     the lock, which wipes them). A stick that holds vaults offers which
+     existing vault this is; a stick with no vault is not made into one.
+     The row is refused once any key is held, as a stick is never read
+     with a key open. A new vault is not made here: it is added on the
+     plan (step 5).
+  2. **Keys**, made into memory, as before. No key or wallet description
      is written to any vault by the setup.
-  5. **Back up's plan**, after the keys, as it was before F31: which
+  3. **Back up's plan**, after the keys, as it was before F31: which
      seeds go into which vault, how many places, the paper forms, SeedQR,
      files, the passphrase, the wallet description, the software. The
-     vaults set up in step 3 are the plan's vaults, numbered in the order
-     they were set up; the plan offers at least that many vaults, however
-     many seeds there are, and shows each by its name. The checklist's
+     vault brought in at step 1, if any, is the plan's Vault 1; the plan
+     adds new vaults on its board, and shows each by its name. The checklist's
      vault item saves into the vault set up for it.
-  6. **The checklist and Write to sticks**, as built: one
+  4. **The checklist and Write to sticks**, as built: one
      lock, each stick by place. A plan that keeps a vault at more places
      than the one stick it was set up on writes the extra copies at the
      write step, to new sticks checked when they are inserted, as an
-     added copy is (§4.8). A vault the plan adds after the setup is a new
-     one, made in the checklist (§17.21 item 4).
+     added copy is (§4.8). A vault the plan adds is a new
+     one, made in the checklist (§17.21 item 4) with its own passphrase,
+     and written at the write step to a new stick checked when it is
+     inserted.
   The stick read for a vault goes to the first place the plan gives that
   vault's stick; a stick the plan then gives no vault is not written.
-  Restore asks the same question and count, sets the vaults up before
-  the seeds are entered, and has its plan in Back up after (§11).
+- **Restore** asks "Will you use vaults as part of this backup?", and
+  under it, "Vaults already on sticks are brought in here, not later.";
+  with Yes, two steppers (Vaults one to 128, Sticks one to 1024) and the
+  board's chips for which vault is on which stick, then each vault set up
+  in this flow, existing ones unlocked and new ones made with Create a
+  vault's own form, before the seeds are entered. Its plan is in Back up
+  after (§11).
 - **New key** makes each seed into memory, with F6's flag set;
   **Restore** takes its seed into memory. Neither writes to a vault.
   `Item::Vault(v)` is done when the open vault set up for plan vault `v`
@@ -966,7 +949,7 @@ which asked where each kind of thing goes, are gone. The person says how
 many places there are, then fills one card per place with what that
 place keeps, then decides the wallet description and where it goes,
 then sees the whole map and approves it. The other kinds' plan (§2) is
-already by place and does not change. Make a new wallet's vault question
+already by place and does not change. Restore's vault question
 and count, and the vaults set up before the keys (§10.2), do not change:
 they are the vaults the place cards offer.
 
@@ -2170,7 +2153,7 @@ the board in Customize backup.
    on an empty stick, checked at the write step, §4.8). A vault already
    on a stick is brought in only before the keys (item 5).
 5. **The vault question says so.** Under "Will you use vaults as part of
-   this backup?" (Make a new wallet and Restore, §10.2), one line in the
+   this backup?" (Restore, §10.2), one line in the
    muted style: "Vaults already on sticks are brought in here, not
    later." Reason, not shown: a vault on a stick not read this power-on
    cannot be read after the keys without a lock, and the lock wipes the
@@ -2202,7 +2185,7 @@ the board in Customize backup.
    off removes it; a vault added with + new vault reads "made in the
    checklist" and, once the checklist has made it, "sealed"; a vault set
    up before the keys reads "sealed"; the vault question shows its line
-   in Make a new wallet and Restore; a plan text saved from Paper and
+   in Restore; a plan text saved from Paper and
    vault reopens unchanged and customisable. Tests that chose a preset
    to reach a plan build the same plan as a person now would: Customize
    backup, + new vault, and the ⋮ menu's Add to… (§17.20), through a

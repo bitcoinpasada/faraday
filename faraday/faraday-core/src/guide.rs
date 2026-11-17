@@ -287,10 +287,6 @@ fn create_key(step: Option<u8>) -> &'static str {
         Some(cstep::QUORUM) => "create.quorum",
         Some(cstep::KEYS) => "create.keys",
         Some(cstep::CHECK) => "create.check",
-        Some(cstep::WHERE) => "create.where",
-        Some(cstep::STICKS) => "create.sticks",
-        Some(cstep::VAULTS) => "create.vaults",
-        Some(cstep::HOW_MANY) => "create.how-many",
         Some(cstep::BACKUP_FORM) => "create.backup-form",
         _ => "create",
     }
@@ -1215,8 +1211,12 @@ mod at_tests {
         let mut app = testkit::started();
         app.press(Action::CreateWallet);
         assert_eq!(app.screen, Screen::Create);
-        app.press(Action::CStep(crate::cstep::WHERE));
-        assert_eq!(key(&app), "create.where");
+        // A single key's kind and backup form answered open Keys by itself.
+        app.press(Action::CKind(0));
+        app.press(Action::CBackupForm(
+            crate::create::BackupForm::Words.index(),
+        ));
+        assert_eq!(key(&app), "create.keys");
         app.press(Action::CStep(crate::cstep::KIND));
         assert_eq!(key(&app), "create.kind");
     }

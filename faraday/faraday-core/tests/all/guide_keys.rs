@@ -37,8 +37,14 @@ fn steps(s: Screen) -> Vec<u8> {
     };
     let counted = |n: usize| (0..n as u8).collect();
     match s {
-        // Number 4 is no card: Check's Back up wallet opens Back up.
-        Screen::Create => (0..cstep::COUNT as u8).filter(|&n| n != 4).collect(),
+        // The cards a new wallet has; the other numbers are no card.
+        Screen::Create => vec![
+            cstep::KIND,
+            cstep::QUORUM,
+            cstep::KEYS,
+            cstep::CHECK,
+            cstep::BACKUP_FORM,
+        ],
         Screen::KeyGen => counted(keygen::kstep::COUNT),
         Screen::Restore => counted(usize::from(rstep::COUNT)),
         Screen::Spend => (0..=wallet::step::NONCES).collect(),

@@ -3,7 +3,7 @@
 use super::backup;
 use super::parts::{
     OptionRow, buttons_and_next, descriptor_row, first_addresses, kind_list, locked_tag,
-    never_real_seed, next_button, option_list, pass_field, stepper, vaults_answer_line,
+    never_real_seed, next_button, option_list, pass_field, stepper,
 };
 use super::pass_pair::{self, pass_pair};
 use crate::drawing::{Scrolled, View};
@@ -21,12 +21,11 @@ pub(crate) const CSTEPS: [&str; crate::cstep::COUNT] = [
     EN.app_quorum,
     EN.app_keys,
     EN.app_check,
-    EN.app_back_up,
-    EN.backup_flow_card_use_vaults,
-    // Bring in the sticks: named by the medium where it is drawn.
+    // Numbers 4 to 8 are not cards of Make a new wallet.
     "",
-    EN.backup_flow_card_vaults,
-    // Sticks and vaults: named by the medium where it is drawn.
+    "",
+    "",
+    "",
     "",
     EN.create_backup,
 ];
@@ -45,21 +44,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let cards: Vec<flow::Card> = steps
         .iter()
         .map(|&k| flow::Card {
-            title: if k == cstep::STICKS {
-                app.medium.bring_in().to_string()
-            } else if k == cstep::HOW_MANY {
-                app.medium.and_vaults().to_string()
-            } else {
-                CSTEPS[k as usize].to_string()
-            },
+            title: CSTEPS[k as usize].to_string(),
             summary: card_summary(app, k, filled),
             mono: false,
             done: app.create_card_done(k),
             open: c.open == Some(k),
-            default: k == cstep::KIND
-                || k == cstep::QUORUM
-                || k == cstep::BACKUP_FORM
-                || k == cstep::WHERE,
+            default: k == cstep::KIND || k == cstep::QUORUM || k == cstep::BACKUP_FORM,
             toggle: Action::CStep(k),
             lead: None,
         })
@@ -104,9 +94,6 @@ fn card_summary(app: &View, k: u8, filled: usize) -> String {
         return String::new();
     };
     let line = match k {
-        cstep::WHERE | cstep::HOW_MANY | cstep::STICKS | cstep::VAULTS => {
-            create_flow_summary(app, k)
-        }
         cstep::KIND if c.kind_unchosen => EN.create_not_answered.to_string(),
         cstep::KIND => c.kind.name().to_string(),
         cstep::BACKUP_FORM => c
@@ -140,42 +127,6 @@ fn card_summary(app: &View, k: u8, filled: usize) -> String {
         return fill(EN.create_at_account, &[&line, &c.account.to_string()]);
     }
     line
-}
-
-/// The closed line of Make a new wallet's cards before Keys: what the
-/// person answered and what the setup has done.
-fn create_flow_summary(app: &View, k: u8) -> String {
-    use crate::cstep;
-    let Some(c) = app.create.state() else {
-        return String::new();
-    };
-    let flow = app
-        .wallet_flow_of_owner(c.owner)
-        .map(|i| (i, &app.flows[i]));
-    match (k, flow) {
-        (cstep::HOW_MANY, _) => c.vaults.count.to_string(),
-        (cstep::STICKS, Some((_, f))) => {
-            let (read, of) = f.setup_sticks_read();
-            fill(
-                EN.backup_flow_read_count,
-                &[&read.to_string(), &of.to_string()],
-            )
-        }
-        (cstep::VAULTS, Some((i, f))) => {
-            let used = f.setup_vaults();
-            let open = used
-                .iter()
-                .filter(|&&v| app.flow_open_index(i, v).is_some())
-                .count();
-            fill(
-                EN.backup_flow_unlocked_count,
-                &[&open.to_string(), &used.len().to_string()],
-            )
-        }
-        (cstep::WHERE, _) if c.vaults.answer.is_none() => EN.create_not_answered.to_string(),
-        (cstep::WHERE, _) => vaults_answer_line(c.vaults).to_string(),
-        _ => String::new(),
-    }
 }
 
 /// Under a Keys slot's session keys, each open vault's keys not loaded,
@@ -263,7 +214,6 @@ fn refused_file_row(ui: &mut Ui, x: f32, y: f32, w: f32, f: &crate::create::KeyF
 }
 
 fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
-    use crate::backup_flow::{Step, wallet_screen};
     use crate::cstep;
     let c = app.create.state().expect("create");
     let at = (x, y, w);
@@ -272,14 +222,6 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
         cstep::BACKUP_FORM => create_backup_form(ui, c, at),
         cstep::QUORUM => create_quorum(ui, c, n, at),
         cstep::KEYS => create_keys(app, ui, c, n, at),
-        cstep::WHERE => wallet_screen::create_where(app, ui, x, y, w).unwrap_or(0.0),
-        cstep::HOW_MANY => wallet_screen::create_count(app, ui, x, y, w).unwrap_or(0.0),
-        cstep::STICKS => {
-            wallet_screen::create_flow_card(app, ui, Step::Sticks, x, y, w).unwrap_or(0.0)
-        }
-        cstep::VAULTS => {
-            wallet_screen::create_flow_card(app, ui, Step::Vaults, x, y, w).unwrap_or(0.0)
-        }
         cstep::CHECK => create_check(app, ui, c, n, at),
         _ => 0.0,
     }
@@ -418,6 +360,35 @@ fn create_keys(
     // card (F98).
     if c.account_card() == Some(n) {
         cy += account_row(ui, x, cy, w, c);
+    }
+    // A vault already on a stick comes in before any key exists: off
+    // until pressed, and a stick is never read while a key is open.
+    let on = c.vaults.answer == Some(true);
+    if !locked && (on || c.slots.iter().all(|s| *s == Source::Empty)) {
+        let row = (x, cy, w);
+        cy += ui.switch_row(
+            row,
+            EN.create_use_existing_vault,
+            on,
+            Action::CExistingVault(!on),
+        );
+    }
+    if let (true, false, Some(i)) = (
+        app.create_setup_pending(),
+        locked,
+        app.wallet_flow_of_owner(c.owner),
+    ) {
+        cy += ui.wrap_as(
+            (x, cy + tokens::GAP_SMALL, w),
+            BODY_M,
+            Role::OnSurfaceVariant,
+            EN.create_vault_to_unlock,
+        ) + tokens::GAP_SMALL;
+        let show = Action::Flow(crate::backup_flow::steps::FlowAction::Show(i));
+        if next_button(ui, x, cy, w, app.medium.bring_in(), show) {
+            cy += tokens::TOUCH;
+        }
+        return cy - y;
     }
     // The Inbox's key and wallet files, from the drawing memo:
     // those with a key for this kind are offered, the others

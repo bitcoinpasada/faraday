@@ -211,8 +211,6 @@ fn keys_card_with(name: &str, text: &str) -> (faraday_core::Faraday, usize) {
     app.press(faraday_core::Action::CreateWallet);
     app.press(faraday_core::Action::CKind(multi));
     app.press(faraday_core::Action::CNext(faraday_core::cstep::KIND));
-    app.press(faraday_core::Action::CVaults(false));
-    app.press(faraday_core::Action::CNext(faraday_core::cstep::WHERE));
     app.press(faraday_core::Action::CNext(faraday_core::cstep::QUORUM));
     faraday_core::testkit::inbox_file(&mut app, name, text.as_bytes().to_vec());
     let _ = app.frame();

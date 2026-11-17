@@ -203,6 +203,18 @@ impl Faraday {
         }
     }
 
+    /// Whether flow `i` is the setup of Make a new wallet's Keys row: it
+    /// brings in a vault already on a stick and makes none.
+    pub(crate) fn flow_only_existing(&self, i: usize) -> bool {
+        let f = &self.flows[i];
+        f.is_setup()
+            && f.wallet.as_ref().is_some_and(|w| {
+                self.create
+                    .state()
+                    .is_some_and(|c| c.owner == w.owner && c.uses_existing_vault())
+            })
+    }
+
     /// The last stick bound: step 3 offers each vault found to open and
     /// each new one to create, and unlocks nothing by itself. Where only
     /// Create applies (no vault found on the sticks, none open in memory),
@@ -214,7 +226,11 @@ impl Faraday {
             return;
         }
         let f = &self.flows[i];
-        if f.step != Step::Vaults || f.live.creating.is_some() || f.live.unlocking.is_some() {
+        if f.step != Step::Vaults
+            || f.live.creating.is_some()
+            || f.live.unlocking.is_some()
+            || self.flow_only_existing(i)
+        {
             return;
         }
         let need = self.flow_needed_vaults(i);
@@ -1908,6 +1924,10 @@ impl Faraday {
     }
 
     fn flow_create_start(&mut self, i: usize, v: usize) {
+        // A new vault is added on the backup plan, not before the keys.
+        if self.flow_only_existing(i) {
+            return;
+        }
         let mut form = crate::vault::CreateForm::starting(self.vaults.memory_free_mib);
         form.name.set(&BackupFlow::vault_name(v));
         let focus = self.may_load_keys().then_some(Focus::Phrase(0, false));

@@ -45,8 +45,6 @@ pub(crate) fn create_from_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     t.press(Action::CreateWallet);
     t.press(Action::CKind(multi));
     t.press(Action::CNext(cstep::KIND));
-    t.press(Action::CVaults(false));
-    t.press(Action::CNext(cstep::WHERE));
     t.press(Action::CNext(cstep::QUORUM));
     t.shot("create-keys-vault-locked")?;
     // A small panel's page, down to what the change put there.
@@ -121,16 +119,12 @@ pub(crate) fn create_from_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     t.press(Action::CMultiPathChange);
     t.press(Action::CMultiPath(false));
     t.press(Action::CNext(cstep::QUORUM));
-    t.press(Action::CVaults(false));
-    t.press(Action::CNext(cstep::WHERE));
     t.shot("create-from-keys")?;
     down(t, Action::CSlotClear(2), "create-from-keys-down")?;
     // A fresh single-key wallet: Check's Path, and Change back to the
     // Account row at the head of Keys (F98).
     t.press(Action::CreateOver);
     t.press(Action::CNext(cstep::KIND));
-    t.press(Action::CVaults(false));
-    t.press(Action::CNext(cstep::WHERE));
     let fp = t.app.session.keys[0].fingerprint.0;
     t.press(Action::CSlotHere(0, fp));
     t.press(Action::CNext(cstep::KEYS));

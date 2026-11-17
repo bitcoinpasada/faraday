@@ -439,8 +439,6 @@ fn create_on_keys(app: &mut Faraday, kind: faraday_core::create::NewKind) {
     app.press(Action::CreateWallet);
     crate::common::ckind(app, i);
     app.press(Action::CNext(cstep::KIND));
-    app.press(Action::CVaults(false));
-    app.press(Action::CNext(cstep::WHERE));
     app.press(Action::CNext(cstep::QUORUM));
     assert_eq!(app.create().and_then(|c| c.open), Some(cstep::KEYS));
 }

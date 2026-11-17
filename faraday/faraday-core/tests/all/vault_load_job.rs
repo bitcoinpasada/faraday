@@ -317,8 +317,6 @@ fn create_over(records: Vec<faraday_vault::Record>) -> Faraday {
     app.press(Action::CreateWallet);
     crate::common::ckind(&mut app, i);
     app.press(Action::CNext(cstep::KIND));
-    app.press(Action::CVaults(false));
-    app.press(Action::CNext(cstep::WHERE));
     app.press(Action::CNext(cstep::QUORUM));
     let _ = app.frame();
     assert_eq!(app.create().and_then(|c| c.open), Some(cstep::KEYS));

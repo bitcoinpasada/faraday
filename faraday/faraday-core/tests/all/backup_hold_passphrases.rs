@@ -32,8 +32,6 @@ fn words_with_two_passphrases(app: &mut Faraday) -> [faraday_bip::keys::Fingerpr
     let bare = app.session.keys.last().unwrap().fingerprint;
     app.press(Action::CreateWallet);
     crate::common::ckind(app, 0);
-    app.press(Action::CVaults(false));
-    app.press(Action::CNext(cstep::WHERE));
     let mut with = Vec::new();
     for pass in ["one", "two"] {
         app.press(Action::CSlotHere(0, bare.0));
@@ -110,8 +108,6 @@ fn a_passphrase_backed_up_is_released_while_another_passphrase_of_its_words_wait
     let bare = crate::backup_flow_wallet::key_in(&mut app, 1);
     app.press(Action::CreateWallet);
     crate::common::ckind(&mut app, 0);
-    app.press(Action::CVaults(false));
-    app.press(Action::CNext(cstep::WHERE));
     app.press(Action::CSlotHere(0, bare));
     app.press(Action::CPassOpen(0));
     type_text(&mut app, "two");
@@ -225,8 +221,6 @@ fn vault_of_words(pass: Option<&str>, pending: bool) -> Faraday {
 fn wallet_of(app: &mut Faraday, fp: Fingerprint, pass: Option<&str>) -> Fingerprint {
     app.press(Action::CreateWallet);
     crate::common::ckind(app, 0);
-    app.press(Action::CVaults(false));
-    app.press(Action::CNext(cstep::WHERE));
     app.press(Action::CSlotHere(0, fp.0));
     match pass {
         Some(pass) => pass_in_slot(app, fp, pass),

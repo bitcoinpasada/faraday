@@ -126,15 +126,15 @@ fn a_wallet_is_made_by_touch_from_a_key_rolled_on_dice() {
     tap(&mut app, Action::Nav(Screen::WalletsStart));
     tap(&mut app, Action::CreateWallet);
     assert_eq!(app.screen, Screen::Create);
-    // Create opens on Kind; Single key opens Backup, Words opens Use
-    // vaults, whose No moves on to Keys: with nothing loaded, New key for
-    // its slot.
+    // Create opens on Kind; Single key opens Backup, Words moves on to
+    // Keys: with nothing loaded, its New key for slot 1.
     tap(&mut app, Action::CKind(0));
     tap(
         &mut app,
         Action::CBackupForm(faraday_core::create::BackupForm::Words.index()),
     );
-    tap(&mut app, Action::CVaults(false));
+    assert_eq!(app.screen, Screen::Create);
+    tap(&mut app, Action::KeyGen(Some(0)));
     assert_eq!(app.screen, Screen::KeyGen);
     // New key opens on Start with nothing ticked; a choice opens Length,
     // and pressing a count takes it and opens Randomness (F103).
@@ -170,7 +170,7 @@ fn a_wallet_is_made_by_touch_from_a_key_rolled_on_dice() {
         app.create().and_then(|c| c.open),
         Some(faraday_core::cstep::CHECK)
     );
-    assert!(on_panel(&mut app, Action::CBackup).is_some());
+    find(&mut app, Action::CBackup);
     let made = app.create().and_then(|c| c.built);
     assert!(made.is_some(), "Lock in made the wallet");
 }
@@ -319,14 +319,13 @@ fn kind_is_offered_on_the_keys_page_and_opens() {
     );
     assert_eq!(
         app.create().and_then(|c| c.open),
-        Some(faraday_core::cstep::WHERE),
-        "Words opens Use vaults"
+        Some(faraday_core::cstep::KEYS),
+        "Words opens Keys"
     );
-    tap(&mut app, Action::CVaults(false));
     assert_eq!(
         app.create().and_then(|c| c.open),
         Some(faraday_core::cstep::KEYS),
-        "No opens Keys"
+        "Words opens Keys"
     );
     let kind = Action::CStep(faraday_core::cstep::KIND);
     assert!(
@@ -348,14 +347,19 @@ fn the_page_title_shows_the_steps() {
     let mut app = panel();
     tap(&mut app, Action::Nav(Screen::WalletsStart));
     tap(&mut app, Action::CreateWallet);
-    tap(&mut app, Action::CStep(faraday_core::cstep::KIND));
+    tap(&mut app, Action::CKind(0));
+    tap(
+        &mut app,
+        Action::CBackupForm(faraday_core::create::BackupForm::Words.index()),
+    );
+    tap(&mut app, Action::CStep(faraday_core::cstep::KEYS));
     assert_eq!(app.create().and_then(|c| c.open), None);
     let check = Action::CStep(faraday_core::cstep::CHECK);
     assert!(on_panel(&mut app, check).is_some(), "every step is listed");
-    tap(&mut app, Action::CStep(faraday_core::cstep::WHERE));
+    tap(&mut app, Action::CStep(faraday_core::cstep::KEYS));
     assert_eq!(
         app.create().and_then(|c| c.open),
-        Some(faraday_core::cstep::WHERE)
+        Some(faraday_core::cstep::KEYS)
     );
 }
 

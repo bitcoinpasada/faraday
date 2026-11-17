@@ -5,7 +5,7 @@
 **Screen:** `Create`
 **Key:** create
 
-Make a new wallet is one card per step, from the kind of wallet to its first addresses. The wallet is made when you press **Make the wallet** on the Keys card, and its end card then shows **Back up now**, which opens its backup.
+Make a new wallet is one card per step: Kind, Keys, Check and then Back up. The wallet is made when you press **Make the wallet** on the Keys card, and its end card then shows **Back up now**, which opens its backup; new vaults are added on the backup plan.
 
 ## Kind
 
@@ -31,39 +31,13 @@ For a kind with several keys. A quorum of m keys out of n must sign to spend; **
 
 **Signatures needed** and **Keys** are set by steppers. **Path** is **BIP-48** or **BIP-87** for the multisig kinds that are a descriptor, and cannot change once the wallet is made. **Account** is the account the keys are taken at, 0 at first.
 
-## Use vaults
-
-**Key:** create.where
-
-Choose whether vaults are part of this backup. A vault keeps a further copy of the keys, sealed under a passphrase.
-
-**Yes** adds the cards Sticks and vaults, Bring in the sticks and Vaults before Keys. **No** goes straight to Keys. Vaults you already have on sticks are brought in here, not later.
-
-## Sticks and vaults
-
-**Key:** create.how-many
-
-Set how many vaults the backup uses and which stick holds which vault.
-
-**Vaults** and **Sticks** are steppers. Each vault is placed on a stick, and one stick may hold several vaults. **Continue** opens the next card.
-
-## Bring in the sticks
-
-**Key:** create.sticks
-
-The vaults are written to their sticks during the backup, so attach each stick that holds a vault here, one at a time. The keys are made only after the stick is removed.
-
-## Vaults
-
-**Key:** create.vaults
-
-Each vault is made or unlocked before the keys exist, so that each new key can be saved into it. Unlocking a vault needs its passphrase; a new vault is made as in Make a new vault.
-
 ## Keys
 
 **Key:** create.keys
 
 One row per key, **Key 1**, **Key 2** and so on. Fill each with one of the choices below; **Make the wallet** is offered once every row is filled.
+
+**Use a vault I already have on a stick** is a row at the head of Keys, off until pressed, and shown only before any key exists. On, it brings in that one stick and unlocks its vault, so a key can be saved into it.
 
 **Make a new key** makes a key for the row. A key already loaded, or a key in an open vault, can fill it too. **Scan its xpub**, or a cosigner's xpub file, fills a row of a multisig with a key from another signer. **Someone else adds it later** leaves the row waiting for that file. **Add a passphrase** adds one to a key from BIP-39 words. Hardware keyboard keys are read as US; **Lock in** then waits for the eye. **Clear** empties the row. **Show xpub QR** shows the key's xpub for the cosigners.
 

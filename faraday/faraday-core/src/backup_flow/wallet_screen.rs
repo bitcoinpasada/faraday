@@ -1,13 +1,13 @@
 //! A wallet's cards of the backup flow (`docs/BACKUP-FLOW.md` §10): the
 //! plan drawn from its answers once the keys exist; the card that sends
-//! the person on to make the keys; and the cards Make a new wallet and
-//! Restore gain before the keys: whether vaults are part of the backup,
-//! how many, and the two of their setup. Drawing only; what a press does
+//! the person on to make the keys; and the cards Restore gains before the
+//! keys: whether vaults are part of the backup, how many, and the two of
+//! their setup. Drawing only; what a press does
 //! is `backup_flow/steps.rs` and `backup_flow/wallet.rs`.
 
 use crate::Action;
+use crate::backup_flow::BackupFlow;
 use crate::backup_flow::steps::FlowAction as F;
-use crate::backup_flow::{BackupFlow, Step};
 use crate::drawing::View;
 use crate::strings::{EN as FEN, fill};
 use crate::ui::Shape;
@@ -273,35 +273,6 @@ fn ask_card(
     cy - y
 }
 
-/// Make a new wallet's question of vaults.
-pub(crate) fn create_where(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> Option<f32> {
-    let c = app.create.state()?;
-    Some(ask_card(
-        ui,
-        (x, y, w),
-        c.vaults,
-        c.built.is_some(),
-        (Action::CVaults(true), Action::CVaults(false)),
-        Some(Action::CNext(crate::cstep::WHERE)),
-    ))
-}
-
-/// Make a new wallet's Sticks and vaults card.
-pub(crate) fn create_count(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> Option<f32> {
-    let c = app.create.state()?;
-    Some(super::layout_screen::card(
-        app,
-        ui,
-        c.owner,
-        (x, y, w),
-        c.built.is_some() || app.setup_vault_open(c.owner),
-        (
-            (Action::CVaultN, Action::CSticks),
-            Action::CNext(crate::cstep::HOW_MANY),
-        ),
-    ))
-}
-
 /// Restore's question of vaults.
 pub(crate) fn restore_where(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> Option<f32> {
     let r = app.restore.state()?;
@@ -329,53 +300,4 @@ pub(crate) fn restore_count(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> 
             Action::RNext(crate::rstep::HOW_MANY),
         ),
     ))
-}
-
-/// Make a new wallet's Bring in the sticks and Vaults cards: where the
-/// flow stands, and **Change**, which opens the flow on that card.
-pub(crate) fn create_flow_card(
-    app: &View,
-    ui: &mut Ui,
-    step: Step,
-    x: f32,
-    y: f32,
-    w: f32,
-) -> Option<f32> {
-    let i = app.wallet_flow_of_owner(app.create.state()?.owner)?;
-    let f = &app.flows[i];
-    let mut cy = y;
-    let line = match step {
-        Step::Sticks => {
-            let (read, of) = f.setup_sticks_read();
-            fill(
-                FEN.backup_flow_read_count,
-                &[&read.to_string(), &of.to_string()],
-            )
-        }
-        _ => {
-            let used = f.setup_vaults();
-            let open = used
-                .iter()
-                .filter(|&&v| app.flow_open_index(i, v).is_some())
-                .count();
-            fill(
-                FEN.backup_flow_unlocked_count,
-                &[&open.to_string(), &used.len().to_string()],
-            )
-        }
-    };
-    cy += ui.wrap_as((x, cy, w), BODY_M, Role::OnSurface, &line) + 14.0;
-    let label = FEN.backup_flow_change;
-    let bw = ui.measure_as(LABEL_L, label) + 36.0;
-    ui.button(
-        x + w - bw,
-        cy,
-        Some(bw),
-        BUTTON_H,
-        label,
-        Style::Secondary,
-        fa(F::Show(i)),
-    );
-    cy += 48.0;
-    Some(cy - y)
 }
