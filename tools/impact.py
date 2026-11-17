@@ -348,6 +348,9 @@ class Git:
 
     def tracked(self):
         """Tracked and not-ignored untracked paths, or None outside a checkout."""
+        top = self.ok("rev-parse", "--show-toplevel")
+        if top is None or os.path.realpath(top) != os.path.realpath(self.root):
+            return None  # a folder inside another checkout (the site's export) is no checkout of its own
         out = self.ok("ls-files", "-z", "-c", "-o", "--exclude-standard")
         return None if out is None else {p for p in out.split("\0") if p}
 
