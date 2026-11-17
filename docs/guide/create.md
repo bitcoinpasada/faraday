@@ -5,7 +5,7 @@
 **Screen:** `Create`
 **Key:** create
 
-Make a new wallet is one card per step, from the kind of wallet to its first addresses. The wallet is made when you press **Make the wallet** on the Keys card, and **Back up wallet** then opens its backup.
+Make a new wallet is one card per step, from the kind of wallet to its first addresses. The wallet is made when you press **Make the wallet** on the Keys card, and its end card then shows **Back up now**, which opens its backup.
 
 ## Kind
 
@@ -73,4 +73,4 @@ One row per key, **Key 1**, **Key 2** and so on. Fill each with one of the choic
 
 Shows what was made, for you to compare with your watch-only software.
 
-**Descriptor** gives the kind, the keys and the checksum. **Path** gives the derivation path. **The wallet's first addresses** are its first receive and change addresses; while a key made here has no backup, **Back up before you receive** stands in their place. **It matches** marks the wallet as checked, and **Back up wallet** then opens its backup.
+**Descriptor** gives the kind, the keys and the checksum. **Path** gives the derivation path. **The wallet's first addresses** are its first receive and change addresses; while a key made here has no backup, **Back up before you receive** stands in their place. **It matches** marks the wallet as checked, and the end card shows **Wallet made**, **Backup** as **not made**, and **Back up now**, which opens its backup, and **Open the wallet**. **Lock** and **Power off** wait for the backup.

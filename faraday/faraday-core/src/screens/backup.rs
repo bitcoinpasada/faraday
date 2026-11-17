@@ -436,7 +436,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             }
             fy - y
                 + if all_done {
-                    backup_done(app_ref, ui, x, fy, w)
+                    app_ref.backup().map_or(0.0, |b| {
+                        wallet_done(app_ref, ui, b.wallet, From::Backup, None, (x, fy, w))
+                    })
                 } else {
                     wrap_buttons(
                         ui,
@@ -608,15 +610,49 @@ fn wallet_pick(app: &View, ui: &mut Ui, x: f32, y: f32, chip_w: f32, right: f32)
     }
 }
 
-/// Under the backup's cards once every one is done
-/// (`docs/WALLETS.md` §13): the plan's three checks as a strip, the
-/// wallet's chart of the plan just completed, what waits for the stick,
-/// and Write to a stick, Open the wallet, Change the plan. Returns its
-/// height.
-fn backup_done(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+/// Which flow ends on [`wallet_done`].
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum From {
+    /// Make a new wallet, checked and not yet backed up.
+    Create,
+    /// Back up, every card done.
+    Backup,
+    /// Restore an existing wallet.
+    #[expect(dead_code, reason = "Restore's Done draws it once its screen does")]
+    Restore,
+}
+
+/// The end card of Make a new wallet, Back up and Restore: a title with
+/// the wallet's name, where its backup stands, one filled button (Back up
+/// now while there is no backup, otherwise Show wallet QR), Open the
+/// wallet, Lock and Power off (not while a backup is still to make, so
+/// no button wipes an unbacked key), and for Back up the plan's three
+/// checks, the wallet's chart and Change the plan. `moving` is a button
+/// before the others (Make's Move the money). Returns its height.
+pub(crate) fn wallet_done(
+    app: &View,
+    ui: &mut Ui,
+    wallet: usize,
+    from: From,
+    moving: Option<(&str, Action)>,
+    (x, y, w): (f32, f32, f32),
+) -> f32 {
     use crate::glance::{self, Backup, Direction};
-    let Some(b) = app.backup() else {
+    let Some(wl) = app.session.wallets.get(wallet) else {
         return 0.0;
+    };
+    let glance = app.glance_of(wallet);
+    let backed = match from {
+        From::Create => false,
+        From::Backup => true,
+        From::Restore => glance
+            .as_ref()
+            .is_some_and(|g| matches!(g.backup, Backup::Plan { .. })),
+    };
+    let title = match from {
+        From::Create => EN.wallet_done_made,
+        From::Backup => EN.wallet_done_backup,
+        From::Restore => EN.wallet_done_restored,
     };
     let mut cy = y;
     ui.icon(x, cy, 24.0, Icon::Success, 13.0, Role::Ok);
@@ -624,10 +660,23 @@ fn backup_done(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         (x + 32.0, cy, 24.0),
         TITLE_M,
         Role::Ok,
-        EN.backup_done_backup,
+        &fill(title, &[&wl.name]),
     );
     cy += 40.0;
-    if let Some(g) = app.glance_of(b.wallet) {
+    ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, &Session::shape(wl));
+    cy += ui.advance_as(BODY_S, BUTTON_H) + T::GAP;
+    if from == From::Create {
+        let label_w = ui.measure_as(BODY_S, EN.create_backup) + T::GAP + T::GAP;
+        ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, EN.create_backup);
+        ui.text_as(
+            x + label_w,
+            cy,
+            BODY_S,
+            Role::Warning,
+            EN.wallet_done_not_made,
+        );
+        cy += ui.advance_as(BODY_S, BUTTON_H) + T::GAP;
+    } else if let Some(g) = glance {
         if let Backup::Plan { check, .. } = &g.backup {
             cy += glance::check_lines(ui, x, cy, w, *check, true, &glance::names_of(&g)) + 16.0;
         }
@@ -638,16 +687,41 @@ fn backup_done(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         };
         cy += 16.0;
     }
-    // What the checklist made was written inside it: nothing waits For the
-    // stick (`docs/BACKUP-FLOW.md` §10.2).
-    let items: Vec<(&str, Style, Action)> = vec![
-        (
-            EN.backup_done_open_wallet,
+    let mut items: Vec<(&str, Style, Action)> = Vec::new();
+    if backed {
+        items.push((
+            EN.wallets_show_wallet,
             Style::Primary,
-            Action::OpenWallet(b.wallet),
-        ),
-        (EN.backup_done_change, Style::Secondary, Action::BPlan),
-    ];
+            Action::QrWallet(wallet),
+        ));
+    } else {
+        let action = if from == From::Create {
+            Action::CBackup
+        } else {
+            Action::Backup(wallet)
+        };
+        items.push((EN.wallet_done_back_up_now, Style::Primary, action));
+    }
+    items.push((
+        EN.backup_done_open_wallet,
+        Style::Secondary,
+        Action::OpenWallet(wallet),
+    ));
+    if let Some((label, action)) = moving {
+        items.push((label, Style::Secondary, action));
+    }
+    if backed {
+        items.push((EN.tip_lock, Style::Ghost, Action::LockAsk));
+        let leave = if app.online {
+            EN.settings_quit
+        } else {
+            EN.nav_power_off
+        };
+        items.push((leave, Style::Ghost, Action::PowerAsk));
+    }
+    if from == From::Backup {
+        items.push((EN.backup_done_change, Style::Ghost, Action::BPlan));
+    }
     cy += wrap_buttons(ui, x, cy, w, 40.0, &items);
     cy - y
 }

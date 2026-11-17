@@ -853,11 +853,11 @@ rule of its flow.
   section label **The wallet's first addresses**
   above the address rows, so that a multisig's three rows do not read as
   one address per key; its press reads **It matches**, which leaves
-  Check open with **Back up wallet** at its foot. There is no Back up
-  card (owner, 2026-10-26): **Back up wallet** opens the backup on the
+  Check open with **Back up now** at its foot. There is no Back up
+  card (owner, 2026-10-26): **Back up now** opens the backup on the
   new wallet (its chip "Then: Wallets", its way back the wallet's card)
   on The standard way. A single key made here is checked as it is made:
-  Lock in opens Check with **Back up wallet** at its foot.
+  Lock in opens Check with **Back up now** at its foot.
 - **The Keys card** (decisions 35, 36 and 39). Where it would offer
   one way on only (a single key's empty slot with no key in the
   session, no key or wallet file in the Inbox, offered or refused, and no vault's key; F115, F240), the Continue on the

@@ -1,5 +1,6 @@
 //! `Screen::Create`: creating a wallet.
 
+use super::backup;
 use super::parts::{
     OptionRow, buttons_and_next, descriptor_row, first_addresses, kind_list, locked_tag,
     never_real_seed, next_button, option_list, pass_field, stepper, vaults_answer_line,
@@ -790,7 +791,7 @@ fn create_check(
 }
 
 /// Check's foot: **It matches** until the wallet is checked, then
-/// **Back up wallet**, which opens Back up on the wallet just made, the
+/// the wallet's end card ([`backup::wallet_done`]), whose filled **Back up now** opens Back up on the wallet just made, the
 /// board open on The standard way (`docs/BACKUP-FLOW.md` §17.21 item 2),
 /// and beside it, for a wallet made to move another's money to
 /// (`docs/WALLETS.md` §12), the spend of every coin from the
@@ -805,22 +806,14 @@ fn check_foot(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, checked: bool) ->
         let label = ui.fit_as(TITLE_S, &label, w - 32.0);
         (
             label,
-            Style::Secondary,
             Action::SpendBackup(crate::spend_backup::SpendBackupAction::SpendFrom(old)),
         )
     });
-    let left: Vec<(&str, Style, Action)> = moving
-        .iter()
-        .map(|(l, s, a)| (l.as_str(), *s, *a))
-        .collect();
-    buttons_and_next(
-        ui,
-        x,
-        y,
-        w,
-        &left,
-        Some((EN.create_back_up_button, Action::CBackup)),
-    )
+    let Some(wallet) = app.create().and_then(|c| c.built) else {
+        return 0.0;
+    };
+    let moving = moving.as_ref().map(|(l, a)| (l.as_str(), *a));
+    backup::wallet_done(app, ui, wallet, backup::From::Create, moving, (x, y, w))
 }
 
 /// Check's Path row: the made wallet's derivation paths, worked out when

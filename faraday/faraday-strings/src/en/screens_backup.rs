@@ -155,12 +155,20 @@ macro_rules! words_screens_backup {
     map_rows_on_its_own: "On its own device",
     /// Line in `map_rows`.
     map_rows_nothing: "Nothing",
-    // ----- backup_done (faraday-core/src/screens/backup.rs) -----
-    /// Line in `backup_done`.
-    backup_done_backup: "Backup done",
-    /// Text in `backup_done`.
+    // ----- wallet_done (faraday-core/src/screens/backup.rs) -----
+    /// Title in `wallet_done` after Make a new wallet. `{}`: the wallet's name.
+    wallet_done_made: "Wallet made · {}",
+    /// Title in `wallet_done` after Back up. `{}`: the wallet's name.
+    wallet_done_backup: "Backup done · {}",
+    /// Title in `wallet_done` after Restore. `{}`: the wallet's name.
+    wallet_done_restored: "Wallet restored · {}",
+    /// Value of the Backup line in `wallet_done` before any backup.
+    wallet_done_not_made: "not made",
+    /// Filled button in `wallet_done` while the wallet has no backup.
+    wallet_done_back_up_now: "Back up now",
+    /// Text in `wallet_done`.
     backup_done_open_wallet: "Open the wallet",
-    /// Text in `backup_done`.
+    /// Text in `wallet_done`.
     backup_done_change: "Change the plan",
     // ----- shares_card (faraday-core/src/screens/backup.rs) -----
     /// Text in `shares_card`.

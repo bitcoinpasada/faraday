@@ -109,6 +109,8 @@ One file for each kind of software you chose: **Descriptor** for any wallet soft
 
 **Show as QR** shows the descriptor as a QR code for your watch-only software to scan. It holds xpubs only, so it can watch the wallet but not spend.
 
+When every item is done, **Backup done** shows the plan's checks and the wallet's chart. **Show wallet QR** is its main button; **Open the wallet**, **Lock**, **Power off** and **Change the plan** are beside it.
+
 ## One envelope per place
 
 **Key:** backup.envelope

@@ -112,9 +112,6 @@ macro_rules! words_screens_create {
     create_continue: "Continue",
     /// Text in `create_body`. `{}`: `app.session.wallets[old].name`.
     create_move_the_money: "Move the money from {}",
-    /// Check's foot once the wallet is checked: Back up on the wallet just
-    /// made (`docs/BACKUP-FLOW.md` §17.21 item 2).
-    create_back_up_button: "Back up wallet",
     /// Line in `create_body`.
     create_make_the_wallet: "Make the wallet first",
     /// Create's passphrase pair, a line under it.

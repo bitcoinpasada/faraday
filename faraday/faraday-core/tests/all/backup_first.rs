@@ -451,6 +451,16 @@ fn with_every_item_done_the_done_card_shows_the_three_checks_above_the_chart() {
         "nothing waits For the stick after the checklist"
     );
     assert!(app.offers(Action::BPlan));
+    assert!(app.offers(Action::QrWallet(0)), "Show wallet QR");
+    assert!(app.offers(Action::OpenWallet(0)), "Open the wallet");
+    assert!(app.offers(Action::LockAsk), "Lock");
+    assert!(app.offers(Action::PowerAsk), "Power off");
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t.starts_with("Single key · ")),
+        "the card says what the wallet is"
+    );
 }
 
 #[test]

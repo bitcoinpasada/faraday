@@ -17,7 +17,7 @@ Wallets are listed with the ones this computer can spend from first, each with i
 
 **Key:** wallets-start.ways
 
-With no wallet, no open vault and nothing unfinished, five choices stand side by side: **Make a new wallet** (**Single key or multisig**), **Restore an existing wallet** (**From its backups**), **Spend from a backup, step by step** (**A stick, words, or paper**), **Add a key** (**Keys first, wallets later**, opening the page that takes a key held) and **Make a new key** (**A new key from randomness**). Otherwise only **Spend from a backup, step by step**, **Add a key** and **Make a new key** are offered here.
+With no wallet, no open vault and nothing unfinished, five choices stand side by side: **Make a new wallet** (**Single key or multisig**), **Restore an existing wallet** (**From its backups**), **Spend from a backup, step by step** (**A stick, words, or paper**), **Add a key** (**Keys first, wallets later**, opening the page that takes a key held) and **Make a new key** (**A new key from randomness**). Otherwise **Make a new wallet** and **Restore an existing wallet** stay, beside **Spend from a backup, step by step**, **Add a key** and **Make a new key**.
 
 The first locked vault in Files is named by its file name, with a note that it is locked, and **Unlock** opens it.
 

@@ -70,6 +70,28 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 x,
                 y,
                 width,
+                Some(Icon::Flag),
+                EN.start_make_a_new_wallet,
+                EN.start_create_line,
+                Role::OnSurfaceVariant.paint(),
+                Some(Action::CreateWallet),
+            );
+            y += crate::compact::screen::row(
+                ui,
+                x,
+                y,
+                width,
+                Some(Icon::Wallet),
+                EN.start_restore_an_existing,
+                EN.start_from_its_backups,
+                Role::OnSurfaceVariant.paint(),
+                Some(Action::RestoreWallet),
+            );
+            y += crate::compact::screen::row(
+                ui,
+                x,
+                y,
+                width,
                 Some(Icon::Sign),
                 EN.start_spend_backup,
                 EN.start_a_stick_words,
@@ -106,6 +128,16 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 width,
                 BUTTON_H,
                 &[
+                    (
+                        EN.start_make_a_new_wallet,
+                        Style::Secondary,
+                        Action::CreateWallet,
+                    ),
+                    (
+                        EN.start_restore_an_existing,
+                        Style::Secondary,
+                        Action::RestoreWallet,
+                    ),
                     (
                         EN.start_spend_backup,
                         Style::Secondary,

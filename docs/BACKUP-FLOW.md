@@ -2150,7 +2150,7 @@ the board in Customize backup.
    standard way placed (§17.6), read-only until **Customize backup**.
    Paper only, Paper and vault, and Paper, vault and watch-only software
    are not offered anywhere.
-2. **Back up wallet**, at the foot of Make a new wallet's Check once
+2. **Back up now**, at the foot of Make a new wallet's Check once
    the wallet is checked (Make a new wallet has no Back up card since
    the owner's call of 2026-10-26), and Restore's **Back up this
    wallet**, open Back up on the wallet just made, on the board as item
