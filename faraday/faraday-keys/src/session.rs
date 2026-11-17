@@ -421,6 +421,9 @@ pub struct Keys {
     kept_published: Vec<Fingerprint>,
     /// Keys derived from a published one (`Keys::note_child`).
     published_children: Vec<Fingerprint>,
+    /// Keys derived from a public sample (`Keys::note_child`): Mainnet
+    /// refuses them as it refuses the sample.
+    sample_children: Vec<Fingerprint>,
     /// Keys a vault says were written by Faraday Demo on an online
     /// computer ([`Keys::note_made_online`]): public fingerprints.
     made_online: Vec<Fingerprint>,
@@ -454,6 +457,7 @@ impl Keys {
             qr_item: None,
             kept_published: Vec::new(),
             published_children: Vec::new(),
+            sample_children: Vec::new(),
             made_online: Vec::new(),
             added: Vec::new(),
             from_vault: Vec::new(),
@@ -772,10 +776,18 @@ impl Keys {
         })
     }
 
-    /// Whether key `fp` is one of Faraday's public samples: on Mainnet it
-    /// is refused, whatever way it came in, with no way to keep it.
+    /// Whether key `fp` is one of Faraday's public samples, or a BIP-85
+    /// child of one (known from its parent in this session, or from the
+    /// device's short list of the samples' children): on Mainnet it is
+    /// refused, whatever way it came in, with no way to keep it.
     pub fn is_sample(&self, fp: Fingerprint) -> bool {
-        crate::published::is_sample(fp.0)
+        crate::published::is_sample(fp.0) || self.sample_children.contains(&fp)
+    }
+
+    /// Whether the Lightning node with this id is one of Faraday's public
+    /// samples on Mainnet with no demo: refused, as a sample seed is.
+    pub fn is_sample_node(&self, id: &[u8; 33]) -> bool {
+        !self.demo() && self.network == Network::Mainnet && crate::published::is_sample_node(id)
     }
 
     /// Whether a vault said key `fp` was written on an online computer, or
@@ -839,6 +851,10 @@ impl Keys {
     /// makes the child published too, and a parent written on an online
     /// computer makes the child written there too.
     pub fn note_child(&mut self, parent: Fingerprint, child: Fingerprint) {
+        if self.is_sample(parent) && !self.sample_children.contains(&child) {
+            // `extend`, not `push`: see `keep_published`.
+            self.sample_children.extend([child]);
+        }
         if self.is_published(parent) && !self.published_children.contains(&child) {
             // `extend`, not `push`: see `keep_published`.
             self.published_children.extend([child]);
@@ -1091,7 +1107,11 @@ impl Keys {
     /// parent is, however the two were ordered when loaded.
     fn carry_child_marks(&mut self) {
         loop {
-            let before = (self.published_children.len(), self.made_online.len());
+            let before = (
+                self.published_children.len(),
+                self.sample_children.len(),
+                self.made_online.len(),
+            );
             let pairs: Vec<(Fingerprint, Fingerprint)> = self
                 .entries
                 .iter()
@@ -1104,7 +1124,12 @@ impl Keys {
             for (parent, child) in pairs {
                 self.note_child(parent, child);
             }
-            if before == (self.published_children.len(), self.made_online.len()) {
+            let after = (
+                self.published_children.len(),
+                self.sample_children.len(),
+                self.made_online.len(),
+            );
+            if before == after {
                 break;
             }
         }
@@ -1211,6 +1236,7 @@ impl Keys {
     pub fn clear(&mut self) {
         self.remove_all();
         self.published_children.clear();
+        self.sample_children.clear();
         self.made_online.clear();
     }
 
@@ -1565,6 +1591,13 @@ impl Keys {
                 }) =>
             {
                 e.info.child_of = of;
+                // A child's words are as public as its parent's, whichever
+                // way the record reached the session.
+                if let Some(o) = of {
+                    let child = e.info.fingerprint;
+                    self.note_child(Fingerprint(o.parent), child);
+                    self.carry_child_marks();
+                }
                 true
             }
             _ => false,

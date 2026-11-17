@@ -269,6 +269,9 @@ impl crate::Keys {
             return Err(Text::new());
         };
         let node = found?;
+        if self.is_sample_node(node.public()) {
+            return Err(Text::of(faraday_strings::EN.published_sample_node));
+        }
         if !self.is_public_node(node.public()) {
             let id = faraday_crypto::hex::encode_string(node.public());
             return Err(Text::fill(faraday_strings::EN.wallet_is_not_a_key, &[&id]));
@@ -296,6 +299,9 @@ impl crate::Keys {
         }
         let (held, public) =
             found.map_err(|e| Text::fill(faraday_strings::EN.lightning_not_an_aezeed, &[&e]))?;
+        if self.is_sample_node(&public) {
+            return Err(Text::of(faraday_strings::EN.published_sample_node));
+        }
         if !self.is_public_node(&public) {
             let id = faraday_crypto::hex::encode_string(&public);
             return Err(Text::fill(faraday_strings::EN.wallet_is_not_a_key, &[&id]));

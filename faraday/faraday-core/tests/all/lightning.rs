@@ -5,18 +5,17 @@
 use faraday_core::{Action, Faraday, Screen, Sheet};
 use faraday_shell_api::{App, Event, Key};
 
-/// LND's cipher seed with no passphrase, and the node id LND derives.
+/// LND's cipher seed with no passphrase, and the node id LND derives at
+/// coin type 1, which every network but Mainnet uses (the reference's
+/// `tools/reference/aezeed/README.md` lists it with coin type 0's).
 const CIPHER_SEED: &str = "above judge emerge veteran reform crunch system all snap please \
     shoulder vault hurt city quarter cover enlist swear success suggest drink wagon enrich body";
-const NODE_KEY: &str = "024c7005923a074fd38b16ace7be4914ec9f929717692bfb585019be13290c9b1d";
+const NODE_KEY: &str = "0226594d21c0862a11168ab07cdbc15e7c7af5ee561b741259e311f1614f4df3b7";
 
-/// A start on Mainnet: LND's node key is derived at coin type 0 there. The
-/// aezeed is LND's published sample, kept on Mainnet for now (the owner is
-/// asked whether Mainnet refuses it as it refuses the BIP-32 samples).
-fn mainnet_started() -> Faraday {
-    let mut app = faraday_core::testkit::started();
-    faraday_core::testkit::move_to(&mut app.session, faraday_bip::keys::Network::Mainnet).unwrap();
-    app
+/// A start on the test network, where LND's cipher seed (a public sample)
+/// is taken: Mainnet refuses it.
+fn test_started() -> Faraday {
+    faraday_core::testkit::started()
 }
 
 fn hex(b: &[u8]) -> String {
@@ -36,7 +35,7 @@ fn typed(app: &mut Faraday, text: &str) {
 
 #[test]
 fn an_lnd_cipher_seed_gives_lnds_node_id() {
-    let mut app = mainnet_started();
+    let mut app = test_started();
     app.press(Action::Lightning);
     assert_eq!(app.screen, Screen::Lightning);
     app.press(Action::LAezeed);
@@ -106,7 +105,7 @@ fn the_aezeed_passphrase_refuses_a_letter_outside_ascii_and_says_so() {
 fn the_node_id_reads_back_from_its_code_and_its_picture() {
     use crate::common::{codes_offered, png_text, qr_text};
     use faraday_core::Code;
-    let mut app = mainnet_started();
+    let mut app = test_started();
     app.press(Action::Lightning);
     app.press(Action::LAezeed);
     typed(&mut app, CIPHER_SEED);
@@ -499,4 +498,33 @@ fn done_goes_back_to_where_the_node_key_was_opened_and_another_starts_again() {
     app.press(Action::Lightning);
     app.press(Action::Nav(Screen::Home));
     assert_eq!(app.screen, Screen::Home);
+}
+
+/// Types LND's sample cipher seed into Lightning on `network` and reads it.
+fn read_cipher_seed(network: faraday_bip::keys::Network) -> Faraday {
+    let mut app = faraday_core::testkit::started();
+    faraday_core::testkit::move_to(&mut app.session, network).unwrap();
+    app.press(Action::Lightning);
+    app.press(Action::LAezeed);
+    typed(&mut app, CIPHER_SEED);
+    app.event(Event::Key(Key::Enter));
+    let _ = app.frame();
+    let now = app.now_ms() + 16;
+    app.event(Event::Tick { now_ms: now });
+    faraday_core::testkit::settle(&mut app);
+    app
+}
+
+#[test]
+fn lnds_public_sample_cipher_seed_is_refused_on_mainnet_and_taken_on_testnet() {
+    let app = read_cipher_seed(faraday_bip::keys::Network::Mainnet);
+    let l = app.lightning().unwrap();
+    assert!(l.node.is_none(), "Mainnet holds the sample's node key");
+    assert_eq!(
+        l.error.as_deref(),
+        Some(faraday_core::strings::EN.published_sample_node)
+    );
+    let app = read_cipher_seed(faraday_bip::keys::Network::Testnet);
+    let l = app.lightning().unwrap();
+    assert_eq!(hex(l.node.as_ref().expect("a node").public()), NODE_KEY);
 }

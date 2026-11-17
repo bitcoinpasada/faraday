@@ -359,13 +359,13 @@ mod aezeed_read {
 
     const CIPHER_SEED: &str = "above judge emerge veteran reform crunch system all snap please \
         shoulder vault hurt city quarter cover enlist swear success suggest drink wagon enrich body";
-    const NODE_KEY: &str = "024c7005923a074fd38b16ace7be4914ec9f929717692bfb585019be13290c9b1d";
+    const NODE_KEY: &str = "0226594d21c0862a11168ab07cdbc15e7c7af5ee561b741259e311f1614f4df3b7";
 
     fn typed(words: &str) -> Faraday {
-        // LND's node key is derived at coin type 0: Mainnet. The aezeed is LND's
-        // published sample, kept on Mainnet for now (the owner is asked).
+        // LND's cipher seed is a public sample, which Mainnet refuses, so it
+        // is read on the test network, where LND derives its node key at
+        // coin type 1.
         let mut app = testkit::started();
-        testkit::move_to(&mut app.session, faraday_bip::keys::Network::Mainnet).unwrap();
         app.press(Action::Lightning);
         app.press(Action::LAezeed);
         for c in words

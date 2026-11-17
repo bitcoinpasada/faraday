@@ -108,6 +108,9 @@ macro_rules! words_wallet {
     published_sample_head: "Public sample seed",
     /// The published-words sheet's line for one.
     published_sample_line: "This seed is a public sample. Its coins can be taken by anyone, so it is not kept on Mainnet.",
+    /// Text in the Lightning screen and Convert: a node key of a public
+    /// sample, refused on Mainnet.
+    published_sample_node: "This Lightning key is a public sample. Its coins can be taken by anyone, so it is not used on Mainnet.",
     /// The published-words sheet's primary action: the key is dropped.
     published_remove: "Remove",
     /// The published-words sheet's other action: the key stays, for testing.

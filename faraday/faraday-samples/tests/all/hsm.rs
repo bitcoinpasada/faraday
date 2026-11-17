@@ -115,3 +115,51 @@ fn the_words_of_another_sample_key_give_a_public_node_typed() {
     let n = l.node.as_ref().unwrap_or_else(|| panic!("{:?}", l.error));
     assert!(SAMPLES.inputs.hsm_words_nodes.contains(n.public()));
 }
+
+/// Lightning's Core Lightning source on `network`, the sample file number
+/// `n` in Files, chosen (its passphrase typed when it takes one).
+fn sample_file_on(network: faraday_bip::keys::Network, n: usize) -> Faraday {
+    let mut app = testkit::started();
+    testkit::move_to(&mut app.session, network).unwrap();
+    testkit::inbox_file(&mut app, "hsm_secret", SAMPLES.inputs.hsm[n].bytes.to_vec());
+    app.press(Action::Lightning);
+    app.press(Action::LCln(None));
+    let _ = app.frame();
+    let at = app.inbox().len() - 1;
+    app.press(Action::LFile(at));
+    testkit::settle(&mut app);
+    if n == 1 {
+        app.press(Action::LPassphrase);
+        for c in "faraday".chars() {
+            app.event(Event::Key(Key::Char(c)));
+        }
+        app.event(Event::Key(Key::Enter));
+        let _ = app.frame();
+        let now = app.now_ms() + 16;
+        app.event(Event::Tick { now_ms: now });
+        testkit::settle(&mut app);
+    }
+    app
+}
+
+#[test]
+fn core_lightnings_sample_files_are_refused_on_mainnet_and_taken_on_testnet() {
+    use faraday_bip::keys::Network;
+    for n in 0..SAMPLES.inputs.hsm.len() {
+        let app = sample_file_on(Network::Mainnet, n);
+        let l = app.lightning().unwrap();
+        assert!(l.node.is_none(), "file {n}: Mainnet holds the node");
+        assert_eq!(
+            l.error.as_deref(),
+            Some(faraday_core::strings::EN.published_sample_node),
+            "file {n}"
+        );
+        let app = sample_file_on(Network::Testnet, n);
+        let l = app.lightning().unwrap();
+        let node = l
+            .node
+            .as_ref()
+            .unwrap_or_else(|| panic!("file {n}: {:?}", l.error));
+        assert_eq!(node.public(), &SAMPLES.inputs.hsm[n].node, "file {n}");
+    }
+}

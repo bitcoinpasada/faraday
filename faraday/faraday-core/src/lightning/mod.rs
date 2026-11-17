@@ -306,9 +306,14 @@ impl LightningArea {
     /// An aezeed read's answer, applied on the main thread.
     pub(crate) fn read_done(&mut self, keys: &Keys, done: ReadDone) {
         let found = match done {
-            ReadDone::Aezeed(read) => keys
-                .aezeed_node(*read)
-                .map_err(|e| Text::fill(EN.lightning_not_an_aezeed, &[&e])),
+            ReadDone::Aezeed(read) => keys.aezeed_node(*read).map_err(|e| {
+                // A public sample on Mainnet is an aezeed, refused as such.
+                if e.as_str() == EN.published_sample_node {
+                    e
+                } else {
+                    Text::fill(EN.lightning_not_an_aezeed, &[&e])
+                }
+            }),
             ReadDone::Hsm(read) => keys.hsm_node(read).map_err(refusal_line),
         };
         if let Some(l) = self.state.as_mut() {

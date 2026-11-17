@@ -54,7 +54,7 @@ const PAPERKEY: &str = include_str!("../../../../tools/vectors/paperkey/faraday-
 /// LND's cipher seed with no passphrase, enciphered at a released LND's
 /// cost (`tools/vectors/aezeed/`), and the node id LND derives from it.
 const AEZEED: &str = "above judge emerge veteran reform crunch system all snap please shoulder vault hurt city quarter cover enlist swear success suggest drink wagon enrich body";
-const AEZEED_NODE: &str = "024c7005923a074fd38b16ace7be4914ec9f929717692bfb585019be13290c9b1d";
+const AEZEED_NODE: &str = "0226594d21c0862a11168ab07cdbc15e7c7af5ee561b741259e311f1614f4df3b7";
 
 /// Every secret kind of `docs/SCANNING.md` §2 a scanner can read as text.
 const SECRETS: [&str; 16] = [
@@ -744,10 +744,10 @@ fn an_addwallet_or_an_sp_read_at_add_a_keys_scanner_goes_to_its_wallet_and_a_spe
 #[test]
 fn an_aezeed_read_at_a_scanner_is_used_in_lightning() {
     for at in [Opened::Home, Opened::AddAKey, Opened::Restore] {
-        // LND's node key is at coin type 0: Mainnet. The aezeed is LND's
-        // published sample, kept on Mainnet for now (the owner is asked).
+        // LND's cipher seed is a public sample, which Mainnet refuses, so it
+        // is read on the test network, where LND derives its node key at
+        // coin type 1.
         let mut app = testkit::started();
-        testkit::move_to(&mut app.session, faraday_bip::keys::Network::Mainnet).unwrap();
         open(&mut app, at);
         read(&mut app, AEZEED.as_bytes());
         let (kind, facts, ways) =

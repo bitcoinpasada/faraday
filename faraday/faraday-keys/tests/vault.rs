@@ -2459,3 +2459,42 @@ fn words_added_after_the_unlock_take_the_mark_under_any_passphrase_and_a_clear_f
     keys.clear();
     assert!(!keys.made_online(plain));
 }
+
+#[test]
+fn a_child_a_vault_records_under_a_public_sample_is_refused_on_mainnet_as_the_sample_is() {
+    let c = compute();
+    let mut keys = Keys::on(Network::Mainnet);
+    let child = keys
+        .add_words(
+            &c,
+            "letter advice cage absurd amount doctor acoustic avoid letter advice cage above",
+            "",
+            None,
+        )
+        .expect("a key");
+    assert!(
+        !keys.is_sample(child),
+        "no sample's child before the record"
+    );
+    // BIP-39's first vector, a public sample: its child at index 7.
+    let of = faraday_vault::child::ChildOf {
+        parent: [0x73, 0xc5, 0xda, 0x0a],
+        language: 0,
+        words: 12,
+        index: 7,
+    };
+    assert!(keys.set_child_of(0, Some(of)));
+    assert!(keys.is_sample(child));
+    assert_eq!(keys.published_pending(), Some(child));
+    // Testnet does not refuse it.
+    let mut test = Keys::on(Network::Testnet);
+    test.add_words(
+        &c,
+        "letter advice cage absurd amount doctor acoustic avoid letter advice cage above",
+        "",
+        None,
+    )
+    .expect("a key");
+    assert!(test.set_child_of(0, Some(of)));
+    assert_eq!(test.published_pending(), None);
+}

@@ -395,3 +395,86 @@ fn a_public_sample_typed_on_testnet_is_taken() {
     assert_eq!(app.sheet, None);
     assert_eq!(app.session.keys.len(), 1);
 }
+
+/// BIP-85 words of the public sample `SAMPLE` as a person derives them on
+/// the test network: `twelve_at_7` picks 12 words at index 7, otherwise
+/// the screen's first offer (24 words, index 0). Returns the app, with the
+/// child loaded as a key beside its parent when `load`, and the words.
+fn sample_child(twelve_at_7: bool, load: bool) -> (Faraday, String) {
+    let mut app = testkit::started();
+    typed(&mut app, SAMPLE);
+    app.press(Action::Bip85);
+    app.press(Action::PApp(0));
+    if twelve_at_7 {
+        for _ in 0..4 {
+            app.press(Action::PLength(-1));
+        }
+    }
+    app.press(Action::PNext);
+    if twelve_at_7 {
+        app.event(Event::Key(Key::Char('7')));
+    }
+    app.press(Action::PNext);
+    let words = app
+        .bip85_value(&testkit::compute())
+        .expect("the child's words")
+        .as_str()
+        .to_string();
+    if load {
+        app.press(Action::PLoad);
+        app.press(Action::PRecord(false));
+        assert_eq!(app.session.keys.len(), 2);
+    }
+    (app, words)
+}
+
+#[test]
+fn a_bip85_child_of_a_public_sample_typed_on_mainnet_can_only_be_removed() {
+    let (_, words) = sample_child(false, false);
+    let mut app = mainnet();
+    typed(&mut app, &words);
+    assert_eq!(app.session.keys.len(), 1);
+    assert_eq!(app.sheet, Some(Sheet::Published));
+    app.press(Action::PublishedKeep);
+    assert_eq!(app.sheet, Some(Sheet::Published), "it cannot be kept");
+    assert_eq!(app.session.keys.len(), 1);
+    app.press(Action::PublishedRemove);
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.session.keys.len(), 0);
+}
+
+#[test]
+fn a_bip85_child_of_a_public_sample_typed_on_testnet_is_taken() {
+    let (_, words) = sample_child(false, false);
+    let mut app = testkit::started();
+    typed(&mut app, &words);
+    let _ = app.frame();
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.session.keys.len(), 1);
+}
+
+#[test]
+fn a_bip85_child_derived_from_a_public_sample_stays_refused_on_mainnet_after_its_parent_is_removed()
+{
+    // Index 7 is on no list: the session knows whose child it is.
+    let (mut app, _) = sample_child(true, true);
+    testkit::move_to(&mut app.session, Network::Mainnet).unwrap();
+    let _ = app.frame();
+    let now = app.now_ms() + 16;
+    app.event(Event::Tick { now_ms: now });
+    assert_eq!(app.sheet, Some(Sheet::Published));
+    // The parent comes first.
+    app.press(Action::PublishedRemove);
+    assert_eq!(app.session.keys.len(), 1);
+    let _ = app.frame();
+    assert_eq!(
+        app.sheet,
+        Some(Sheet::Published),
+        "the child is refused too"
+    );
+    app.press(Action::PublishedKeep);
+    assert_eq!(app.sheet, Some(Sheet::Published), "it cannot be kept");
+    assert_eq!(app.session.keys.len(), 1);
+    app.press(Action::PublishedRemove);
+    assert_eq!(app.session.keys.len(), 0);
+}

@@ -199,3 +199,101 @@ fn the_size_a_key_sample_records_is_what_its_data_holds() {
     let xor = crate::common::key("sample_xor");
     assert_eq!(words(xor.combined), 12);
 }
+
+/// Every BIP-85 words child at index 0 that the BIP-85 screen offers for
+/// every sample key, as its fingerprint with no passphrase: what a person
+/// types bare. Sorted, without repeats.
+fn index_zero_children() -> Vec<[u8; 4]> {
+    use faraday_keys::bip85::App;
+    let c = compute();
+    let mut out = Vec::new();
+    for sample in SAMPLES.keys {
+        for (passphrase, held) in [("", sample.plain), (PASSPHRASE, sample.with_passphrase)] {
+            if held.is_none() {
+                continue;
+            }
+            let mut keys = Keys::on(Network::Testnet);
+            load(&mut keys, sample, passphrase).unwrap_or_else(|e| panic!("{}: {e}", sample.name));
+            for n in faraday_bip::bip85::WORD_COUNTS {
+                let words = keys
+                    .bip85_child(&c, 0, App::Words(n), 0, faraday_keys::Reveal::Bip85Child)
+                    .expect("a child");
+                let mut child = Keys::on(Network::Testnet);
+                let fp = child
+                    .add_words(&c, words.as_str(), "", None)
+                    .expect("the child's words load");
+                out.push(fp.0);
+            }
+        }
+    }
+    out.sort_unstable();
+    out.dedup();
+    out
+}
+
+/// The device refuses a sample's BIP-85 child typed bare on Mainnet from
+/// its own short list: it must be exactly what the samples derive.
+#[test]
+fn the_devices_list_of_sample_children_is_every_index_zero_child_the_samples_give() {
+    let derived = index_zero_children();
+    let listed = faraday_keys::published::sample_children();
+    let literal: String = derived
+        .iter()
+        .map(|f| {
+            format!(
+                "    [{:#04x}, {:#04x}, {:#04x}, {:#04x}],\n",
+                f[0], f[1], f[2], f[3]
+            )
+        })
+        .collect();
+    assert!(listed == derived.as_slice(), "the list is:\n{literal}");
+}
+
+/// The device refuses the samples' Lightning nodes on Mainnet from its own
+/// short list: LND's cipher seed as it reads on Mainnet, and Core
+/// Lightning's `hsm_secret` samples.
+#[test]
+fn the_devices_list_of_sample_nodes_is_the_lnd_node_on_mainnet_and_the_hsm_nodes() {
+    let c = compute();
+    let sample = crate::common::key("sample_aezeed");
+    let mut idx = [0u16; faraday_keys::lightning::AEZEED_WORDS];
+    for (slot, w) in idx.iter_mut().zip(sample.parts[0].split_whitespace()) {
+        *slot = Language::English.index_of(w).expect("an English word");
+    }
+    let lnd = faraday_keys::lightning::node_from_aezeed(&c, &idx, b"", Network::Mainnet)
+        .expect("the node");
+    let mut derived: Vec<[u8; 33]> = SAMPLES.inputs.hsm.iter().map(|h| h.node).collect();
+    derived.push(*lnd.public());
+    derived.sort_unstable();
+    derived.dedup();
+    let mut listed = faraday_keys::published::sample_nodes().to_vec();
+    listed.sort_unstable();
+    let literal: String = derived.iter().map(|n| format!("    {n:?},\n")).collect();
+    assert!(listed == derived, "the list is:\n{literal}");
+}
+
+/// Convert holds an aezeed as the source of its conversions: LND's public
+/// sample is refused on Mainnet and held on Testnet.
+#[test]
+fn lnds_sample_cipher_seed_is_not_held_for_convert_on_mainnet_but_is_on_testnet() {
+    use faraday_intake::secret_buf::SecretText;
+    let c = compute();
+    let sample = crate::common::key("sample_aezeed");
+    let mut idx = [0u16; faraday_keys::lightning::AEZEED_WORDS];
+    for (slot, w) in idx.iter_mut().zip(sample.parts[0].split_whitespace()) {
+        *slot = Language::English.index_of(w).expect("an English word");
+    }
+    for (network, held) in [(Network::Mainnet, false), (Network::Testnet, true)] {
+        let mut keys = Keys::on(network);
+        let read = keys.aezeed_seed_job(&idx, SecretText::of("")).run(&c);
+        let got = keys.aezeed_hold(read);
+        assert_eq!(got.is_ok(), held, "{network:?}");
+        if !held {
+            let said = got.expect_err("a refusal");
+            assert_eq!(
+                said.as_str(),
+                faraday_core::strings::EN.published_sample_node
+            );
+        }
+    }
+}

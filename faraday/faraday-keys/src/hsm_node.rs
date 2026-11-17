@@ -99,6 +99,11 @@ impl crate::Keys {
     }
 
     fn refuse_unless_public(&self, node: Node) -> Result<Node, NodeRefusal> {
+        if self.is_sample_node(node.public()) {
+            return Err(NodeRefusal::Demo(Text::of(
+                faraday_strings::EN.published_sample_node,
+            )));
+        }
         if !self.is_public_node(node.public()) {
             let id = faraday_crypto::hex::encode_string(node.public());
             return Err(NodeRefusal::Demo(Text::fill(
