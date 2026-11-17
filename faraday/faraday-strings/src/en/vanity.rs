@@ -26,8 +26,6 @@ macro_rules! words_vanity {
     vanity_passphrase: "Passphrase",
     /// Text in `dial_name`.
     vanity_a_few_characters: "A few characters added to the key's BIP-39 passphrase: slow, one PBKDF2 a try. The words with that passphrase are another wallet, which needs the passphrase kept with them.",
-    /// Toast in `vanity_open`.
-    vanity_load_a_key_first: "Load a key first",
     /// Error in `vanity_act`.
     vanity_type_at_least: "Type at least one character after the fixed part",
     /// Text in `vanity_act`.

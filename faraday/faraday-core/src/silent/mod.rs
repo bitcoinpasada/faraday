@@ -767,10 +767,6 @@ impl Faraday {
 
     /// Opens the flow.
     pub(crate) fn silent_open(&mut self) {
-        if self.session.keys.is_empty() {
-            self.toast(EN.silent_load_a_key_first);
-            return;
-        }
         self.silent.open(&self.session, self.screen);
         self.screen = Screen::Silent;
     }

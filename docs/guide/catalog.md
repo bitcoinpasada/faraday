@@ -19,7 +19,7 @@ A tile that cannot open yet shows in its own line what it needs first; one that 
 
 **Key:** catalog.key-tools
 
-**Explore a key**, **Child seeds and passwords**, **Vanity address** and **Silent payments** work from a key and read **Load a key first** until one is loaded. **Explore a key** gives its xpubs and addresses at any path. **Child seeds and passwords** are derived from it by BIP-85. **Vanity address** looks for a first address that begins as chosen. **Silent payments** gives one address to give out.
+**Explore a key**, **Child seeds and passwords**, **Vanity address** and **Silent payments** work from a key and open with no key loaded on **Add a key**, which returns to the tool once the key is loaded. **Explore a key** gives its xpubs and addresses at any path. **Child seeds and passwords** are derived from it by BIP-85. **Vanity address** looks for a first address that begins as chosen. **Silent payments** gives one address to give out.
 
 **Convert a seed** gives the same wallet in another standard. **Krux code** makes a passphrase, note or wallet an encrypted code. **Lightning node key** reads a node's key from a key here or from an LND aezeed.
 

@@ -685,6 +685,13 @@ impl Faraday {
         self.omit_remake_tick();
     }
 
+    /// Whether New key, opened from tool `s` to add the key it needs, is
+    /// on screen: the tool keeps what it held for the way back.
+    pub(crate) fn adding_key_for(&self, s: Screen) -> bool {
+        matches!(self.screen, Screen::KeyGen | Screen::Randomness)
+            && self.keygen.state().is_some_and(|k| k.back == s)
+    }
+
     /// What every press does once it has acted, however it came (a tap,
     /// a key, the mouse's back button, a scripted press): a screen left
     /// drops what it held, a detour not taken ends, a spent round goes
@@ -709,11 +716,16 @@ impl Faraday {
         if !waiting && !matches!(self.sheet, Some(Sheet::SecretOut | Sheet::Pull)) {
             self.secret_cancel();
         }
-        let kept = |s: Screen| self.screen == s || (waiting && self.vaults.back_to == Some(s));
-        let (bip85, lightning, silent) = (
+        let kept = |s: Screen| {
+            self.screen == s
+                || (waiting && self.vaults.back_to == Some(s))
+                || self.adding_key_for(s)
+        };
+        let (bip85, lightning, silent, vanity) = (
             kept(Screen::Bip85),
             kept(Screen::Lightning),
             kept(Screen::Silent),
+            kept(Screen::Vanity),
         );
         // A vault's passphrase, typed or half typed, goes once nothing that
         // takes it is up, however it was left; an unlock under way keeps it
@@ -743,7 +755,7 @@ impl Faraday {
             self.wordlist.clear();
         }
         // Leaving the vanity screen stops a search and drops a find.
-        if self.screen != Screen::Vanity {
+        if !vanity {
             self.vanity.clear();
         }
         if !lightning && self.sheet != Some(Sheet::SecretOut) {

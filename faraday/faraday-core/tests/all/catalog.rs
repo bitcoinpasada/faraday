@@ -96,15 +96,12 @@ fn a_calculator_tile_opens_that_calculator() {
 }
 
 #[test]
-fn a_tile_that_needs_a_key_says_so_and_opens_nothing() {
+fn a_tile_that_works_on_a_key_opens_with_no_key_loaded() {
     let mut app = shown();
     let i = tile("Child seeds and passwords");
-    assert_eq!(
-        app.tile_need(TILES[usize::from(i)].go),
-        Some("Load a key first")
-    );
+    assert_eq!(app.tile_need(TILES[usize::from(i)].go), None);
     app.press(Action::Catalog(i));
-    assert_eq!(app.screen, Screen::Catalog);
+    assert_eq!(app.screen, Screen::Bip85);
 }
 
 #[test]

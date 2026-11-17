@@ -361,8 +361,6 @@ macro_rules! words_bip85 {
     convert_copy_matches_part: "Your copy matches part {}",
     /// The way in from a key's chart sheet and from Explore.
     convert_way_in: "Write it in another form",
-    /// Toast in `bip85_open`.
-    bip85_load_a_key_first: "Load a key first",
     /// Text in `bip85_title`, and a key recorded as a child seed where its
     /// name is shown (`wallet::key_name`). `{}`: `app_name(b.app)`, the
     /// parent's `fp`, the index.
@@ -382,9 +380,7 @@ macro_rules! words_bip85 {
     bip85_no_vault_is_open: "No vault is open",
     /// Text in `bip85_to_vault`. `{}`: `title`.
     bip85_is_in_the_vault: "{} is in the vault",
-    /// Toast in `bip85_load`. `{}`: `self.medium.noun()`.
-    bip85_remove_the_first: "Remove the {} first",
-    /// Toast in `bip85_load`. `{}`: `fp_text(fp)`.
+    /// Line in `card`, once the child words are loaded as a key. `{}`: `fp_text(fp)`.
     bip85_key_added: "Key {} added",
     /// Text in `bip85_out`.
     bip85_a_child_seed: "A child seed's words",
@@ -436,10 +432,6 @@ macro_rules! words_bip85 {
     bip85_another: "Another",
     /// Line in `card`.
     bip85_path: "Path",
-    /// Text in `card`.
-    bip85_hide: "Hide",
-    /// Text in `card`.
-    bip85_show: "Show",
     /// Text in `card`. `{}`: `v.name`.
     bip85_save_into: "Save into {}",
     /// Text in `card`.

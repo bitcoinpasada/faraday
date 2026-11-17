@@ -115,6 +115,7 @@ pub(crate) fn pull_what(app: &Faraday, action: Action) -> Option<&'static str> {
         | Action::ScanPart
         | Action::LoadKey(_)
         | Action::KeyGen(None)
+        | Action::PLoad
         | Action::CSlotVault(..)
         | Action::Convert(C::VaultKey(..) | C::Aezeed | C::SetSource)
         | Action::SignerCheck(

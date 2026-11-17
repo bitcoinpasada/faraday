@@ -7,7 +7,7 @@ use faraday_bip::vanity::Kind;
 use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, BUTTON_H, LABEL_L};
 
 use crate::drawing::{Scrolled, View};
-use crate::screens::next_button;
+use crate::screens::{button_rows, next_button};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, grouped, thousands};
 use crate::vanity::{VanityAction as V, VanityState, dial_name, fp, script_name, vstep};
@@ -108,6 +108,18 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
                 ui.press_box(x, cy, w, rh, va(V::Key(id)));
                 cy += rh + 2.0;
             }
+            // Returns here, with the key loaded.
+            cy += button_rows(
+                ui,
+                x,
+                cy,
+                w,
+                &[(
+                    EN.convert_add_a_key.to_string(),
+                    Style::Secondary,
+                    Action::KeyGen(None),
+                )],
+            );
         }
         vstep::DIAL => {
             // The demo dims the passphrase dial (`docs/DEMO.md` §4).

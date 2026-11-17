@@ -315,3 +315,45 @@ fn timestamp_with_no_proof_offers_the_ways_in() {
     assert!(has(&mut none, EN.compact_scan));
     assert!(has(&mut none, EN.parts_open_files));
 }
+
+// Explore, BIP-85, Vanity and Silent payments with no key loaded.
+
+/// What opens each of the four tools.
+fn key_tools() -> [(Action, Screen); 4] {
+    [
+        (Action::Explore, Screen::Explore),
+        (Action::Bip85, Screen::Bip85),
+        (
+            Action::Vanity(faraday_core::vanity::VanityAction::Open),
+            Screen::Vanity,
+        ),
+        (Action::Silent, Screen::Silent),
+    ]
+}
+
+#[test]
+fn key_tools_open_with_no_key_on_add_a_key_and_say_nothing_else() {
+    for (open, screen) in key_tools() {
+        let mut app = testkit::started();
+        assert!(app.session.keys.is_empty());
+        app.press(Action::Nav(Screen::Catalog));
+        app.press(open);
+        assert_eq!(app.screen, screen);
+        assert!(has(&mut app, EN.convert_add_a_key), "{screen:?}");
+        assert!(!has(&mut app, "Load a key first"), "{screen:?}");
+    }
+}
+
+#[test]
+fn add_a_key_from_a_key_tool_comes_back_to_it() {
+    for (open, screen) in key_tools() {
+        let mut app = testkit::started();
+        app.press(Action::Nav(Screen::Catalog));
+        app.press(open);
+        app.press(Action::KeyGen(None));
+        assert_eq!(app.screen, Screen::KeyGen, "{screen:?}");
+        app.press(Action::Back);
+        assert_eq!(app.screen, screen, "{screen:?}");
+        assert!(has(&mut app, EN.convert_add_a_key), "{screen:?}");
+    }
+}

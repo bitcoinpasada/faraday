@@ -382,10 +382,6 @@ impl Faraday {
     }
 
     fn vanity_open(&mut self) {
-        if self.session.keys.is_empty() {
-            self.toast(EN.vanity_load_a_key_first);
-            return;
-        }
         let key = (self.session.keys.len() == 1).then(|| self.session.keys[0].fingerprint.0);
         let net = self.session.network();
         self.vanity.open(key, net, self.screen);

@@ -31,6 +31,6 @@ The index numbers the values of one application: 0 is the first, each other numb
 
 **Key:** bip85.result
 
-**Path** is the derivation path of the value, and below it the value, hidden until you press **Show**; **Hide** covers it again. The value is a secret.
+**Path** is the derivation path of the value, and below it the value, hidden until you press the eye at the end of its field; the eye covers it again.
 
-The Save into button, followed by the open vault's name, saves it there: a password as an entry, child words as a key, any other value as a note. With no vault open, **Make a new vault** or **Unlock a vault** takes its place. **Load as a key** is offered for Words and loads the child seed as a key of this session. For child words, either asks whether to record them as a child seed of the parent key: **Record** keeps the parent's fingerprint and index, **Don't record** keeps an ordinary seed. **Out unprotected…** writes the value to a file after a warning. **Another** starts again on the same key, and **Done** goes back to where BIP-85 was opened from.
+The Save into button, followed by the open vault's name, saves it there: a password as an entry, child words as a key, any other value as a note. With no vault open, **Make a new vault** or **Unlock a vault** takes its place. **Load as a key** is offered for Words and loads the child seed as a key of this session and ends on **Make a wallet with this key** and **Explore**. For child words, either asks whether to record them as a child seed of the parent key: **Record** keeps the parent's fingerprint and index. **Out unprotected…** writes the value to a file after a warning. **Another** starts again on the same key, and **Done** goes back.

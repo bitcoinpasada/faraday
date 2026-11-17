@@ -106,7 +106,7 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
     let mut cy = y;
     match s {
         pstep::KEY => {
-            let row: Vec<(String, Style, Action)> = app
+            let mut row: Vec<(String, Style, Action)> = app
                 .session
                 .keys
                 .all()
@@ -119,6 +119,12 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
                     )
                 })
                 .collect();
+            // Returns here, with the key loaded.
+            row.push((
+                EN.convert_add_a_key.to_string(),
+                Style::Secondary,
+                Action::KeyGen(None),
+            ));
             cy += button_rows(ui, x, cy, w, &row);
         }
         pstep::APP => {
@@ -266,20 +272,37 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
             let value = if b.shown { app.bip85_held() } else { None };
             let shown =
                 value.as_ref().map_or("••••••••••••", |v| v.as_str());
+            // The value stands in its field, the eye at the field's end.
+            let eye = faraday_draw::tokens::TOUCH;
+            let at = cy;
             cy += ui
-                .wrap_as((x + vx, cy, w - vx), BODY_M.mono(), Role::OnSurface, shown)
-                .max(20.0)
+                .wrap_as(
+                    (x + vx, cy, w - vx - eye),
+                    BODY_M.mono(),
+                    Role::OnSurface,
+                    shown,
+                )
+                .max(eye)
                 + 12.0;
-            let mut row: Vec<(String, Style, Action)> = vec![(
-                if b.shown {
-                    EN.bip85_hide
-                } else {
-                    EN.bip85_show
-                }
-                .to_string(),
-                Style::Secondary,
-                Action::PShow,
-            )];
+            crate::vault::screen::eye_at(ui, (x + vx, at, w - vx), eye, b.shown, Action::PShow);
+            let mut row: Vec<(String, Style, Action)> = Vec::new();
+            if let Some(fp) = b.loaded {
+                let line = fill(
+                    EN.bip85_key_added,
+                    &[&fp_text(faraday_bip::keys::Fingerprint(fp))],
+                );
+                cy += ui.wrap_as((x, cy, w), BODY_M, Role::OnSurface, &line) + 8.0;
+                row.push((
+                    EN.keygen_result_wallet.to_string(),
+                    Style::Primary,
+                    Action::CreateWallet,
+                ));
+                row.push((
+                    EN.explore_explore.to_string(),
+                    Style::Secondary,
+                    Action::ExploreKey(fp),
+                ));
+            }
             match app.vaults.open.get(app.vaults.current) {
                 Some(v) => row.push((
                     fill(EN.bip85_save_into, &[&v.name]),
@@ -292,7 +315,7 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
                         .map(|(label, a)| (String::from(label.as_str()), Style::Primary, a)),
                 ),
             }
-            if b.app == Bip85App::Words {
+            if b.app == Bip85App::Words && b.loaded.is_none() {
                 row.push((
                     EN.bip85_load_as_a_key.to_string(),
                     Style::Secondary,

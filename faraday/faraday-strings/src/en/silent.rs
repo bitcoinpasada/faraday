@@ -6,8 +6,6 @@ macro_rules! words_silent {
             [$($rest)*]
             $($acc)*
     // ----- silent (faraday-core/src/silent/mod.rs) -----
-    /// Toast in `silent_open`.
-    silent_load_a_key_first: "Load a key first",
     /// Error in `silent_code`.
     silent_not_open: "Silent payments is not open",
     /// Error in `silent_code`.

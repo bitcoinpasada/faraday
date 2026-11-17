@@ -180,6 +180,9 @@ pub struct Bip85State {
     /// Child words held at **Record it as a child seed?**, and where they
     /// go on the answer.
     pub asking: Option<ChildTo>,
+    /// The child words were loaded as this key: the result ends on what
+    /// the key is for.
+    pub loaded: Option<[u8; 4]>,
 }
 
 /// The lengths an application takes, and the one it starts with (BIP-85's
@@ -309,6 +312,7 @@ impl Bip85Area {
             shown: false,
             back,
             asking: None,
+            loaded: None,
         });
     }
 
@@ -383,6 +387,12 @@ impl Bip85Area {
 
     /// A press that changes only this flow.
     pub(crate) fn act(&mut self, action: crate::Action) {
+        // Any change to what the value is takes the key's ending away.
+        if !matches!(action, crate::Action::PShow)
+            && let Some(b) = self.state.as_mut()
+        {
+            b.loaded = None;
+        }
         self.act_on(action);
         self.settle();
         self.tidy();
@@ -455,6 +465,9 @@ impl Bip85Area {
     /// was taken.
     pub(crate) fn key(&mut self, key: faraday_shell_api::Key, screen: &mut Screen) -> bool {
         let taken = self.key_on(key, screen);
+        if taken && let Some(b) = self.state.as_mut() {
+            b.loaded = None;
+        }
         self.settle();
         self.tidy();
         taken
@@ -497,10 +510,6 @@ impl Faraday {
 
     /// Opens the flow.
     pub(crate) fn bip85_open(&mut self) {
-        if self.session.keys.is_empty() {
-            self.toast(EN.bip85_load_a_key_first);
-            return;
-        }
         let key = (self.session.keys.len() == 1).then(|| self.session.keys[0].fingerprint.0);
         self.bip85.open(key, self.screen);
         self.screen = Screen::Bip85;
@@ -598,11 +607,9 @@ impl Faraday {
     /// Child words load as a key of this session, once the person says
     /// whether they are recorded as a child seed (F166).
     pub(crate) fn bip85_load(&mut self) {
+        // With a stick in, the press waits under the Pull sheet and comes
+        // here once it is out ([`crate::stick::pull_what`]).
         if !self.may_load_keys() {
-            self.toast(&Text::fill(
-                EN.bip85_remove_the_first,
-                &[self.medium.noun()],
-            ));
             return;
         }
         if self.bip85.child_of().is_some() && self.makes_secrets() {
@@ -616,10 +623,6 @@ impl Faraday {
     fn bip85_load_as(&mut self, record: bool) {
         let c = self.compute();
         if !self.may_load_keys() {
-            self.toast(&Text::fill(
-                EN.bip85_remove_the_first,
-                &[self.medium.noun()],
-            ));
             return;
         }
         let Some(value) = self.bip85_value(&c) else {
@@ -635,7 +638,10 @@ impl Faraday {
                 if record && let Some(i) = self.session.keys.position_of(fp.0) {
                     self.session.keys.set_child_of(i, self.bip85.child_of());
                 }
-                self.toast(&Text::fill(EN.bip85_key_added, &[&fp_text(fp)]));
+                // The result says so and offers what the key is for.
+                if let Some(b) = self.bip85.state.as_mut() {
+                    b.loaded = Some(fp.0);
+                }
             }
             Err(e) => self.toast(&e.text()),
         }

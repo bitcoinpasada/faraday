@@ -225,8 +225,6 @@ macro_rules! words_catalog {
     /// Text in `TILES`.
     catalog_single_or_animated: "Single or animated, into Files",
     /// Text in `tile_need`.
-    catalog_load_a_key: "Load a key first",
-    /// Text in `tile_need`.
     catalog_load_a_wallet: "Load a wallet first",
     /// Text in `tile_need`.
     catalog_needs_a_single: "Needs a single-key wallet with its key here",

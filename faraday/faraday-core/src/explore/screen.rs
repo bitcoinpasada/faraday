@@ -31,7 +31,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if !compact {
         y = header(app, ui, y);
     }
-    let keys: Vec<(Text, Style, Action)> = app
+    let mut keys: Vec<(Text, Style, Action)> = app
         .session
         .keys
         .all()
@@ -44,7 +44,20 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             )
         })
         .collect();
+    // With no key loaded the page is the one way to add it, and back here.
+    let none = keys.is_empty();
+    if none {
+        keys.push((
+            Text::of(EN.convert_add_a_key),
+            Style::Secondary,
+            Action::KeyGen(None),
+        ));
+    }
     y += button_rows(ui, x, y, width, &keys) + 4.0;
+    if none {
+        crate::compact::screen::finish(app, ui, h, y - top + T::GAP);
+        return;
+    }
     if let Some(fp) = e
         .key
         .filter(|fp| app.session.keys.position_of(*fp).is_some())

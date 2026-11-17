@@ -91,7 +91,7 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
     let mut cy = y;
     match k {
         sstep::KEY => {
-            let row: Vec<(String, Style, Action)> = app
+            let mut row: Vec<(String, Style, Action)> = app
                 .session
                 .keys
                 .all()
@@ -104,6 +104,12 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
                     )
                 })
                 .collect();
+            // Returns here, with the key loaded.
+            row.push((
+                EN.convert_add_a_key.to_string(),
+                Style::Secondary,
+                Action::KeyGen(None),
+            ));
             cy += button_rows(ui, x, cy, w, &row);
         }
         // A record a loaded key contradicts: no address, no labels, no scan

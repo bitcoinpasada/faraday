@@ -155,6 +155,15 @@ impl ExploreArea {
         self.state.as_ref()
     }
 
+    /// Chooses key `fp` when none is chosen yet.
+    pub(crate) fn choose_if_none(&mut self, fp: [u8; 4]) {
+        if let Some(e) = self.state.as_mut()
+            && e.key.is_none()
+        {
+            e.key = Some(fp);
+        }
+    }
+
     /// Sets the address list's first index, for the test kit.
     #[cfg(feature = "testkit")]
     pub(crate) fn set_from(&mut self, from: u32) {
@@ -179,9 +188,9 @@ impl ExploreArea {
 
     /// Opens Explore on key `fp`, at the first preset on coin type
     /// `coin`, to return to `back`.
-    pub(crate) fn open(&mut self, fp: [u8; 4], coin: &str, back: Screen) {
+    pub(crate) fn open(&mut self, fp: Option<[u8; 4]>, coin: &str, back: Screen) {
         self.state = Some(ExploreState {
-            key: Some(fp),
+            key: fp,
             path: PRESETS[0].1.replace("{c}", coin),
             script: ScriptType::NativeSegwit,
             back,
@@ -333,10 +342,7 @@ impl Faraday {
 
     /// Opens Explore.
     pub(crate) fn explore_open(&mut self) {
-        if self.session.keys.is_empty() {
-            return self.toast(EN.explore_load_a_key);
-        }
-        let fp = self.session.keys[0].fingerprint.0;
+        let fp = self.session.keys.all().next().map(|k| k.fingerprint.0);
         self.explore.open(fp, self.explore_coin(), self.screen);
         self.screen = Screen::Explore;
     }
@@ -385,15 +391,22 @@ impl Faraday {
     /// seed opened from it, and Add a key or the aezeed's entry opened from
     /// that, which come back.
     pub(crate) fn explore_left(&mut self) {
+        // A key added from Explore's empty page is chosen when it is back.
+        if self.screen == Screen::Explore
+            && let Some(first) = self.session.keys.all().next().map(|k| k.fingerprint.0)
+        {
+            self.explore.choose_if_none(first);
+        }
         let comes_back = crate::convert::state(self).is_some_and(|s| s.back == Screen::Explore);
-        let away = comes_back
-            && (self.screen == Screen::Convert
-                || (matches!(self.screen, Screen::KeyGen | Screen::Randomness)
-                    && self
-                        .keygen
-                        .state()
-                        .is_some_and(|k| k.back == Screen::Convert))
-                || (self.screen == Screen::Lightning && self.lightning.for_convert()));
+        let away = self.adding_key_for(Screen::Explore)
+            || comes_back
+                && (self.screen == Screen::Convert
+                    || (matches!(self.screen, Screen::KeyGen | Screen::Randomness)
+                        && self
+                            .keygen
+                            .state()
+                            .is_some_and(|k| k.back == Screen::Convert))
+                    || (self.screen == Screen::Lightning && self.lightning.for_convert()));
         let held = self.explore.held_for().is_some_and(|i| self.card_open(i));
         if !held {
             self.explore.release();

@@ -566,11 +566,9 @@ impl Faraday {
 
     /// What a tile needs first, when it cannot open now.
     pub fn tile_need(&self, go: Go) -> Option<&'static str> {
-        let keys = !self.session.keys.is_empty();
         // A tile that loads a key or scans opens with a stick attached too:
         // it waits for the stick to be pulled ([`crate::Sheet::Pull`]).
         let need = match go {
-            Go::Explore | Go::Bip85 | Go::Vanity | Go::Silent if !keys => EN.catalog_load_a_key,
             Go::Backup if self.session.wallets.get(self.wallets.wallet()).is_none() => {
                 EN.catalog_load_a_wallet
             }

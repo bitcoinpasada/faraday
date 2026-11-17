@@ -231,6 +231,16 @@ not locked in, with the question a slot's has. New key pressed again over
 one that holds entries asks the same question before they go. A stick in
 the way of New key opens the Pull sheet, not a toast.
 
+**A tool with nothing to work on opens.** Explore, BIP-85, Vanity and
+Silent payments, pressed with no key loaded, open on their Key card (Explore on
+its page) with **Add a key**, as Convert a seed does, never a toast
+("Load a key first"). Add a key returns to the tool, which keeps what it
+held; a key loaded there is chosen on Explore, and chosen by a press on the
+others. BIP-85's **Load as a key**, pressed with a stick in, opens the Pull
+sheet, not a toast, and ends on the result with **Make a wallet with this key** and
+**Explore**. BIP-85's value stands in its field with the eye at its end,
+not a Show button.
+
 ## Sidebar
 
 **Check** stands right under Home, on the rails and first on the small
@@ -1226,7 +1236,8 @@ Removed (F99).
 this key** or the Tools tile → the path and the script type → the
 **Address**, **Public key** and **Extended key** at that path, each a
 row that opens its code when pressed (the value as printed, whole under
-the code, no PNG) → **Wallets**.
+the code, no PNG) → **Wallets**. With no key loaded the Tools tile opens
+Explore on **Add a key** alone, which returns here with the key chosen.
 
 ### Make a wallet at the path
 
