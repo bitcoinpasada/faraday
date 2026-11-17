@@ -348,7 +348,7 @@ fn stick_with_a_text_picture_and_its_wallet() -> Faraday {
         TEXT_SEEDQR,
     )
     .unwrap();
-    let mut probe = faraday_core::wallet::Session::default();
+    let mut probe = faraday_core::testkit::session();
     probe.keys.add_mnemonic(&c, &m, "", "", None).unwrap();
     let master = probe.keys.master_for_tests(0);
     let path = faraday_core::testkit::on_net("m/84'/1'/0'");

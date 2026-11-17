@@ -70,6 +70,7 @@ fn a_lock_keeps_the_mode() {
 #[test]
 fn the_mode_in_use_is_read_from_the_session() {
     let mut app = testkit::started();
+    testkit::move_to(&mut app.session, Network::Mainnet).unwrap();
     assert_eq!(app.mode(), Mode::Mainnet);
     testkit::move_to(&mut app.session, Network::Testnet).unwrap();
     assert_eq!(app.mode(), Mode::Testnet);
@@ -98,8 +99,8 @@ fn choosing_the_mode_in_use_or_one_not_offered_does_nothing() {
 /// A device with the test vault open and a change in it that has not
 /// been sealed: a lock asks first.
 fn with_unsealed_change() -> Faraday {
+    // On Testnet, where the test seed added below (a published sample) is taken.
     let mut app = testkit::started();
-    testkit::move_to(&mut app.session, Network::Mainnet).unwrap();
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
@@ -140,20 +141,20 @@ fn with_unsealed_change() -> Faraday {
 #[test]
 fn choosing_a_mode_where_a_lock_asks_shows_the_lock_sheet_and_not_now_keeps_the_mode() {
     let mut app = with_unsealed_change();
-    app.press(Action::Mode(Mode::Testnet));
+    app.press(Action::Mode(Mode::Mainnet));
     assert_eq!(app.sheet, Some(Sheet::LockAsk));
     assert!(!app.restart_requested(), "nothing is wiped yet");
     assert_eq!(app.vaults().open.len(), 1);
-    assert_eq!(app.mode_after_restart(), Mode::Testnet);
+    assert_eq!(app.mode_after_restart(), Mode::Mainnet);
     // Not now: the person stays where they were, in the mode in use.
     app.press(Action::Cancel);
     assert_eq!(app.sheet, None);
-    assert_eq!(app.mode_after_restart(), Mode::Mainnet);
+    assert_eq!(app.mode_after_restart(), Mode::Testnet);
     // Locking anyway ends in the mode chosen.
-    app.press(Action::Mode(Mode::Testnet));
+    app.press(Action::Mode(Mode::Mainnet));
     app.press(Action::LockUnsealed);
     assert!(app.restart_requested());
-    assert_eq!(app.mode_after_restart(), Mode::Testnet);
+    assert_eq!(app.mode_after_restart(), Mode::Mainnet);
 }
 
 #[test]

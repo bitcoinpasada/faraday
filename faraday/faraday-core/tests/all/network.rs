@@ -234,8 +234,9 @@ fn every_seed_form_and_xpub_on_the_test_stick_is_its_key() {
     }
 }
 
-const ABANDON: &str = "abandon abandon abandon abandon abandon abandon abandon abandon abandon \
-                       abandon abandon about";
+// Trezor's "all all ..." seed, not a sample, so Mainnet takes it; its
+// fingerprint 5c9e228d is from embit (the abandon sample is refused on Mainnet).
+const ALL_ALL: &str = "all all all all all all all all all all all all";
 
 #[test]
 fn a_key_reads_the_same_fingerprint_on_the_wallets_page_on_either_network() {
@@ -243,17 +244,17 @@ fn a_key_reads_the_same_fingerprint_on_the_wallets_page_on_either_network() {
     let mut app = testkit::started();
     app.session
         .keys
-        .add_words(&c, ABANDON, "Seed", None)
+        .add_words(&c, ALL_ALL, "Seed", None)
         .unwrap();
     faraday_core::testkit::keep_published(&mut app);
     app.press(Action::Nav(Screen::Wallets));
-    assert!(crate::common::has(&mut app, "73c5da0a · Seed"));
+    assert!(crate::common::has(&mut app, "5c9e228d · Seed"));
 
     testkit::move_to(&mut app.session, Network::Testnet).unwrap();
     app.press(Action::Nav(Screen::Wallets));
-    assert!(crate::common::has(&mut app, "73c5da0a · Seed"));
+    assert!(crate::common::has(&mut app, "5c9e228d · Seed"));
 
     testkit::move_to(&mut app.session, Network::Mainnet).unwrap();
     app.press(Action::Nav(Screen::Wallets));
-    assert!(crate::common::has(&mut app, "73c5da0a · Seed"));
+    assert!(crate::common::has(&mut app, "5c9e228d · Seed"));
 }

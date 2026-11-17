@@ -194,6 +194,8 @@ fn make_a_vault(app: &Faraday) -> Option<bool> {
 #[test]
 fn a_wif_private_key_scanned_on_home_opens_the_sweep_sheet_and_is_not_filed() {
     let mut app = testkit::started();
+    // The WIF is a mainnet key, and a Testnet session refuses it.
+    testkit::move_to(&mut app.session, faraday_bip::keys::Network::Mainnet).unwrap();
     home_scan(&mut app);
     read(&mut app, WIF);
     assert_eq!(app.sheet, Some(Sheet::Sweep), "{}", note(&app));

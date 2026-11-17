@@ -17,6 +17,8 @@ const MESSAGE: &str = "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq\nH+dGVzdHNpZ25
 
 fn tools_with(files: &[(&str, &[u8])]) -> Faraday {
     let mut app = testkit::started();
+    // The signed message and the transaction are Mainnet's.
+    testkit::move_to(&mut app.session, faraday_bip::keys::Network::Mainnet).unwrap();
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(
             files

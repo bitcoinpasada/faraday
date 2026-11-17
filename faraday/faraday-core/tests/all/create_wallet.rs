@@ -1036,8 +1036,9 @@ fn checks_receive_rows_open_their_codes() {
     }
 }
 
-/// The account key a test seed gives at `path`, derived by rust-bitcoin
-/// alone, as `[fingerprint/path]xpub`.
+/// The account key a test seed gives at `path` on Testnet (the tests start
+/// there: tpub keys, coin type 1 as the app has it for BIP-48 and BIP-87), derived by
+/// rust-bitcoin alone, as `[fingerprint/path]tpub`.
 #[expect(
     clippy::disallowed_methods,
     reason = "the test's own derivation, apart from the app's (docs/COMPUTE.md §7)"
@@ -1050,7 +1051,7 @@ fn rust_bitcoin_key_at(word: &str, path: &str) -> String {
     let m = Mnemonic::parse(&c, Language::English, &testkit::test_words(word)).unwrap();
     let seed = m.to_seed(&c, b"").unwrap();
     let secp = Secp256k1::new();
-    let master = Xpriv::new_master(faraday_bip::bitcoin::Network::Bitcoin, seed.expose()).unwrap();
+    let master = Xpriv::new_master(faraday_bip::bitcoin::Network::Testnet, seed.expose()).unwrap();
     let path: DerivationPath = path.parse().unwrap();
     let key = master.derive_priv(&secp, &path).unwrap();
     let xpub = Xpub::from_priv(&secp, &key);
@@ -1097,12 +1098,12 @@ fn a_multisig_made_with_bip_87_has_every_key_at_m_87_and_its_descriptor_says_so(
         let (app, made) = made_multisig_at(kind, true);
         let descriptor = app.session.wallets[made].policy().to_string();
         for (k, seed) in ["bacon", "zebra", "summer"].into_iter().enumerate() {
-            let want = rust_bitcoin_key_at(seed, "m/87'/0'/0'");
+            let want = rust_bitcoin_key_at(seed, "m/87'/1'/0'");
             let have = app.session.wallets[made].policy().keys()[k].key_text();
             assert_eq!(
                 have.replace('\'', "h"),
                 want,
-                "{kind:?}: key {k} is rust-bitcoin's at m/87'/0'/0'"
+                "{kind:?}: key {k} is rust-bitcoin's at m/87'/1'/0'"
             );
             assert!(descriptor.contains("87"), "{kind:?}: {descriptor}");
         }
@@ -1113,7 +1114,7 @@ fn a_multisig_made_with_bip_87_has_every_key_at_m_87_and_its_descriptor_says_so(
 fn a_multisig_made_without_the_choice_stays_at_bip_48() {
     let (app, made) = made_multisig_at(NewKind::Multi, false);
     for (k, seed) in ["bacon", "zebra", "summer"].into_iter().enumerate() {
-        let want = rust_bitcoin_key_at(seed, "m/48'/0'/0'/2'");
+        let want = rust_bitcoin_key_at(seed, "m/48'/1'/0'/2'");
         let have = app.session.wallets[made].policy().keys()[k].key_text();
         assert_eq!(have.replace('\'', "h"), want);
     }
@@ -1192,7 +1193,7 @@ fn a_bip_87_multisig_exports_carry_its_origin_and_read_back() {
     let net = app.session.network();
     let config = faraday_core::restore::checked_config(&c, net, w).expect("a multisig config");
     assert_eq!(
-        config.matches("Derivation: m/87'/0'/0'").count(),
+        config.matches("Derivation: m/87'/1'/0'").count(),
         3,
         "{}",
         &*config
@@ -1216,7 +1217,7 @@ fn a_bip_87_multisig_exports_carry_its_origin_and_read_back() {
         network: net,
     }
     .to_text();
-    assert_eq!(bsms.matches("/87h/0h/0h]").count(), 3, "{}", &*bsms);
+    assert_eq!(bsms.matches("/87h/1h/0h]").count(), 3, "{}", &*bsms);
 }
 
 /// A 2-of-3 multisig over the test seeds at `path`, bacon and zebra

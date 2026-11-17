@@ -198,8 +198,12 @@ fn a_key_file_with_ordinary_labels_stays_a_public_key_file() {
 fn keys_card_with(name: &str, text: &str) -> (faraday_core::Faraday, usize) {
     use faraday_shell_api::{App, Event, Key};
     let mut app = faraday_core::testkit::started();
+    // The files' keys are Mainnet keys: the session moves there, and the
+    // key added is Trezor's "all all ..." seed, which is no sample (the
+    // abandon seed in the files' notes is never loaded).
+    faraday_core::testkit::move_to(&mut app.session, faraday_bip::keys::Network::Mainnet).unwrap();
     app.press(faraday_core::Action::Entry(None));
-    for c in faraday_core::testkit::test_words("bacon").chars() {
+    for c in "all all all all all all all all all all all all".chars() {
         app.event(Event::Key(Key::Char(c)));
     }
     app.press(faraday_core::Action::EntryAdd);
