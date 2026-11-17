@@ -11,19 +11,19 @@ Check lists what you can check a hardware wallet against, one tile for each thin
 
 **Key:** check.signing
 
-**An address on its screen** opens Check an address. **A transaction before signing** opens Decode a transaction. **What it signed** opens Check a signer, which compares the PSBT you sent with the one that came back. **Its signatures hide nothing** opens Nonce check.
+**Check an address**, **Decode a transaction**, **Check a signer** and **Nonce check** each open the tool of that name. Check a signer compares the PSBT you sent with the one that came back.
 
 ## Setup and backups
 
 **Key:** check.setup
 
-**A seed made from dice rolls** opens New key at its dice source. **A backup in another form** offers **SLIP-39 shares**, **Seed XOR parts**, **SeedQR**, **codex32** and **Krux code**, each opening its tool. These buttons are tagged **Seed**: they work from the seed.
+**Check a seed made from dice** opens New key at its dice source. **Check a backup in another form** offers **SLIP-39 shares**, **Seed XOR parts**, **SeedQR**, **codex32** and **Krux code**, each opening its tool. These buttons are tagged **Seed**: they work from the seed.
 
 ## Messages and keys
 
 **Key:** check.messages
 
-**A signed message** opens Check a signed message. **Child seeds** opens Child seeds and passwords, marked **Seed**. **An xpub's other spellings** opens Convert an xpub.
+**Check a signed message** opens the tool of that name. **Child seeds and passwords** opens it, marked **Seed**. **Convert an xpub** opens the calculator of that name.
 
 ## Typing a seed here
 

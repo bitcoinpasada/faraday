@@ -2050,7 +2050,7 @@ one sheet each, "{i} of {n}", and Cancel drops only the wallet shown. Built. Its
 
 | From | What opens it |
 |---|---|
-| Check | its row 7, **A multisig setup**: the Setup card open |
+| Check | its row 7, **Check a multisig setup**: the Setup card open |
 | Tools | the tile **Check a multisig setup** in Wallets, after **Restore an existing wallet**, its line "Its quorum, checksum and cosigners", tags BIP-380, BIP-388, BIP-129: the same. Tools stays the list of every flow; Check is a second way in |
 | Files | a wallet file's row's ⋮, **Check this setup**, From the stick and For the stick alike, on a file Files reads as a wallet of more than one key; not offered on a file of one key or one that does not read as a wallet. That file is the setup, the Setup card closed on its name and shape with **Change**, and the Result (or the refusal line, where the file is refused) shown at once. Back from it lands on Files as it was left |
 
@@ -2302,7 +2302,7 @@ opens Learn at Verifying and Tools.
 confirmation sheet's own are `wallet_confirm_*`, F254, and the reader's,
 Restore's and My seed makes my wallet's are reused):
 
-- `check_row_multisig`: "A multisig setup"; `check_row_multisig_line`:
+- `check_row_multisig`: "A multisig setup" (now `mscheck_title`); `check_row_multisig_line`:
   "The wallet's descriptor or setup file" (Check's row 7, F255);
 - `catalog_check_multisig`: "Check a multisig setup";
   `catalog_check_multisig_line`: "Its quorum, checksum and cosigners";

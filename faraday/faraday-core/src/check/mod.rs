@@ -89,13 +89,13 @@ pub(crate) const GROUPS: [(&str, &[Item]); 4] = [
         EN.check_group_wallet,
         &[
             Item {
-                label: EN.check_row_seed,
+                label: EN.seed_check_title,
                 line: EN.check_seed_line,
                 seed: true,
                 row: Row::SeedCheck,
             },
             Item {
-                label: EN.check_row_address,
+                label: EN.catalog_check_an_address,
                 line: EN.check_address_line,
                 seed: false,
                 row: Row::Address,
@@ -106,19 +106,19 @@ pub(crate) const GROUPS: [(&str, &[Item]); 4] = [
         EN.check_group_signing,
         &[
             Item {
-                label: EN.check_transaction,
+                label: EN.catalog_decode_a_transaction,
                 line: EN.check_transaction_line,
                 seed: false,
                 row: Row::Transaction,
             },
             Item {
-                label: EN.check_signed,
+                label: EN.catalog_check_a_signer,
                 line: EN.check_signed_line,
                 seed: false,
                 row: Row::Signed,
             },
             Item {
-                label: EN.check_signatures,
+                label: EN.catalog_nonce_check,
                 line: EN.check_signatures_line,
                 seed: false,
                 row: Row::Signatures,
@@ -129,19 +129,19 @@ pub(crate) const GROUPS: [(&str, &[Item]); 4] = [
         EN.check_group_setup,
         &[
             Item {
-                label: EN.check_dice,
+                label: EN.catalog_check_dice_seed,
                 line: EN.check_dice_line,
                 seed: true,
                 row: Row::Dice,
             },
             Item {
-                label: EN.check_row_multisig,
+                label: EN.mscheck_title,
                 line: EN.check_multisig_line,
                 seed: false,
                 row: Row::Multisig,
             },
             Item {
-                label: EN.check_backup,
+                label: EN.catalog_check_a_backup,
                 line: EN.check_backup_line,
                 seed: true,
                 row: Row::Backup,
@@ -152,19 +152,19 @@ pub(crate) const GROUPS: [(&str, &[Item]); 4] = [
         EN.check_group_messages,
         &[
             Item {
-                label: EN.check_row_message,
+                label: EN.catalog_check_a_signed,
                 line: EN.check_message_line,
                 seed: false,
                 row: Row::Message,
             },
             Item {
-                label: EN.check_child,
+                label: EN.catalog_child_seeds,
                 line: EN.check_child_line,
                 seed: true,
                 row: Row::Child,
             },
             Item {
-                label: EN.check_xpub,
+                label: EN.catalog_convert_xpub,
                 line: EN.check_xpub_line,
                 seed: false,
                 row: Row::Xpub,

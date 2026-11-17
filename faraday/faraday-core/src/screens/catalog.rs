@@ -8,7 +8,10 @@ use crate::ui::Shape;
 use crate::ui::Ui;
 use crate::ui::pal::*;
 use faraday_draw::tokens::{BODY_M, BODY_S, LABEL_S, TITLE_S};
-use faraday_draw::tokens::{CATALOG_COLUMNS_MIN, CATALOG_TILE_MIN, PAGE_INSET};
+use faraday_draw::tokens::{
+    CATALOG_COLUMNS_MIN, CATALOG_ROW_GAP, CATALOG_TILE_H as TILE_H,
+    CATALOG_TILE_H_PLAIN as TILE_H_PLAIN, CATALOG_TILE_MIN, PAGE_INSET,
+};
 use faraday_ui::parts::section_label;
 
 /// Tools: every flow by group, as many tiles to a row as fit and at
@@ -119,9 +122,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ui.region_close(open, app.scroll.content_h().get() - h);
 }
 
-/// The height of a tile.
-const TILE_H: f32 = 82.0;
-
 /// The grid tiles stand in: as many columns as `CATALOG_TILE_MIN` leaves
 /// room for, never fewer than three beside the navigation (`docs/LAYOUT.md`
 /// §17), one on a small panel. Tools and Check both use it.
@@ -152,13 +152,28 @@ impl Grid {
     pub fn at(&self, x: f32, y: f32, k: usize) -> (f32, f32) {
         (
             x + (k % self.per) as f32 * (self.tile_w + TILE_GAP),
-            y + (k / self.per) as f32 * (TILE_H + 10.0),
+            y + (k / self.per) as f32 * (TILE_H + CATALOG_ROW_GAP),
         )
     }
 
     /// The height of `n` tiles.
     pub fn height(&self, n: usize) -> f32 {
-        n.div_ceil(self.per) as f32 * (TILE_H + 10.0)
+        n.div_ceil(self.per) as f32 * (TILE_H + CATALOG_ROW_GAP)
+    }
+
+    /// Where each of tiles `faces` of a group starting at (`x`, `y`) goes, and
+    /// the group's height: a row is as tall as its tallest tile.
+    pub fn place(&self, x: f32, y: f32, faces: &[Face]) -> (Vec<(f32, f32)>, f32) {
+        let mut at = Vec::with_capacity(faces.len());
+        let mut top = y;
+        for row in faces.chunks(self.per) {
+            let rh = row.iter().map(Face::height).fold(0.0, f32::max);
+            for c in 0..row.len() {
+                at.push((x + c as f32 * (self.tile_w + TILE_GAP), top));
+            }
+            top += rh + CATALOG_ROW_GAP;
+        }
+        (at, top - y)
     }
 }
 
@@ -179,9 +194,18 @@ pub(crate) struct Face<'a> {
 }
 
 impl Face<'_> {
+    /// The tile's height: the tags' row only where it has tags.
+    pub fn height(&self) -> f32 {
+        if self.tags.is_empty() {
+            TILE_H_PLAIN
+        } else {
+            TILE_H
+        }
+    }
+
     /// Draws the tile at (`tx`, `ty`), `tw3` wide.
     pub fn draw(&self, ui: &mut Ui, tx: f32, ty: f32, tw3: f32) {
-        let th = TILE_H;
+        let th = self.height();
         let r = faraday_draw::tokens::SHAPE_M;
         ui.fill(tx, ty, tw3, th, r, Role::SurfaceContainerLow);
         ui.stroke(tx, ty, tw3, th, r, Role::OutlineVariant);

@@ -116,6 +116,10 @@ macro_rules! words_catalog {
     catalog_messages: "Messages",
     /// Text in `TILES`.
     catalog_check_a_signed: "Check a signed message",
+    /// A tile's name in Check: the seed made from dice rolls, opened at New key's dice source.
+    catalog_check_dice_seed: "Check a seed made from dice",
+    /// A tile's name in Check, and the title of the dialog it opens: the forms of a backup.
+    catalog_check_a_backup: "Check a backup in another form",
     /// Text in `TILES`.
     catalog_check_signed_line: "Against its address",
     /// Text in `TILES`.

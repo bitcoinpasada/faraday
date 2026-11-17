@@ -1072,6 +1072,12 @@ pub const READING_VISIT_W: f32 = 2.0 * COLUMN_MAX + VISIT_GAP + 2.0 * PAGE_INSET
 /// and its standards' tags; the catalogue takes as many columns as fit,
 /// never fewer than three beside the navigation (`docs/LAYOUT.md` §17).
 pub const CATALOG_TILE_MIN: f32 = 360.0;
+/// The height of a tile of the catalogue with its standards' tags.
+pub const CATALOG_TILE_H: f32 = 82.0;
+/// The height of a tile with no tags: its name and its line, no tags' row.
+pub const CATALOG_TILE_H_PLAIN: f32 = 58.0;
+/// The space between two rows of the catalogue's tiles.
+pub const CATALOG_ROW_GAP: f32 = 10.0;
 /// The tools' catalogue's columns beside the navigation, at the least.
 pub const CATALOG_COLUMNS_MIN: usize = 3;
 /// The narrowest a derivation path's field is drawn on a wide window

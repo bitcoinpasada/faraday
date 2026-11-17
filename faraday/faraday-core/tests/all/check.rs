@@ -100,16 +100,16 @@ fn the_list_draws_its_rows_in_order() {
     };
     let order = [
         "My seed makes my wallet",
-        "An address on its screen",
-        "A transaction before signing",
-        "What it signed",
-        "Its signatures hide nothing",
-        "A seed made from dice rolls",
-        "A multisig setup",
-        "A backup in another form",
-        "A signed message",
-        "Child seeds",
-        "An xpub's other spellings",
+        "Check an address",
+        "Decode a transaction",
+        "Check a signer",
+        "Nonce check",
+        "Check a seed made from dice",
+        "Check a multisig setup",
+        "Check a backup in another form",
+        "Check a signed message",
+        "Child seeds and passwords",
+        "Convert an xpub",
     ];
     for w in order.windows(2) {
         assert!(at(w[0]) < at(w[1]), "{} before {}", w[0], w[1]);

@@ -776,9 +776,10 @@ is `docs/WALLETS.md` and the Spend tab `docs/SPEND-FROM-BACKUP.md`.
 **Check**, opened from its row right under Home on the expanded rail and
 the navigation rail, from the Pi's Home menu, where it is the first
 button, and from Home's Check tile (**Check a hardware wallet**, "Its
-seed, addresses and signatures", the fourth tile, always). The page's
-name is the verb and each row its object: a row reads "An address on its
-screen", and the tool it opens keeps its own name ("Check an address").
+seed, addresses and signatures", the fourth tile, always). A row has
+the name of the tool it opens, the same on its Tools tile and in the top
+app bar of its page ("Check an address"). A tile with no **Seed** tag
+keeps no row for tags: it is as tall as its name and its line.
 Each row is a tile in the grid Tools draws (`screens/catalog.rs`, the
 one drawing of a tile and its columns, `docs/LAYOUT.md` §17): the label
 as its name, the line under it saying what the person needs in hand, and
@@ -792,33 +793,33 @@ scrolls. Rows, in order (label, then its line, then what a press opens):
      wallet app": the flow that turns the words and passphrase into the
      fingerprint, the xpub and the first addresses, shown to be held
      against what the wallet app shows (`SeedCheck` below).
-  2. **An address on its screen**, "The address and the wallet loaded
+  2. **Check an address**, "The address and the wallet loaded
      here": Check an address.
 - **Signing**
-  3. **A transaction before signing**, "The PSBT, as a file or a QR
+  3. **Decode a transaction**, "The PSBT, as a file or a QR
      code": Decode a transaction.
-  4. **What it signed**, "The PSBT sent and the one returned": Check a
+  4. **Check a signer**, "The PSBT sent and the one returned": Check a
      signer, which also compares two transactions
      (`docs/SIGNER-CHECK.md` §11).
-  5. **Its signatures hide nothing**, "A signed PSBT or transaction":
+  5. **Nonce check**, "A signed PSBT or transaction":
      Nonce check, for a signed PSBT alone.
 - **Setup and backups**
-  6. **A seed made from dice rolls**, "The rolls and the words made from
+  6. **Check a seed made from dice**, "The rolls and the words made from
      them": New key at its dice source, the method (Coldcard, SeedSigner,
      Keystone, BitBox) chosen there.
-  7. **A multisig setup**, "The wallet's descriptor or setup file": Check
+  7. **Check a multisig setup**, "The wallet's descriptor or setup file": Check
      a multisig setup, its quorum, checksum and cosigners
      (`MultisigCheck` below).
-  8. **A backup in another form**, "Shares, parts, a SeedQR, codex32 or a
+  8. **Check a backup in another form**, "Shares, parts, a SeedQR, codex32 or a
      Krux code": a menu (Material 3 Menus) of **SLIP-39 shares**, **Seed
      XOR parts**, **SeedQR**, **codex32** and **Krux code**, each opening
      its tool as Tools does, the Krux code the scanner.
 - **Messages and keys**
-  9. **A signed message**, "The message, its signature and the address":
+  9. **Check a signed message**, "The message, its signature and the address":
      Check a signed message.
-  10. **Child seeds**, "The parent seed and the child's index": Child
+  10. **Child seeds and passwords**, "The parent seed and the child's index": Child
       seeds and passwords (BIP-85).
-  11. **An xpub's other spellings**, "An extended public key in any
+  11. **Convert an xpub**, "An extended public key in any
       spelling": Convert an xpub, in the calculators.
 
 **Seed** tags rows 1, 6, 8 and 10, as a standard is tagged on a Tools tile: the rows keep the order of

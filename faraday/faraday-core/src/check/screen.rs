@@ -39,20 +39,23 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         section_label(ui, x, y, name);
         y += ui.line_as(TITLE_S) + GAP_SMALL;
         let g = grid(compact, w);
-        for (k, it) in items.iter().enumerate() {
-            let (tx, ty) = g.at(x, y, k);
-            let tags: &[&str] = if it.seed { &[EN.check_seed] } else { &[] };
-            Face {
+        let seed_tag = [EN.check_seed];
+        let faces: Vec<Face> = items
+            .iter()
+            .map(|it| Face {
                 name: it.label,
                 line: it.line,
                 warn: false,
-                tags,
+                tags: if it.seed { &seed_tag } else { &[] },
                 opens: true,
                 action: Action::Check(Press::Row(it.row)),
-            }
-            .draw(ui, tx, ty, g.tile_w);
+            })
+            .collect();
+        let (at, height) = g.place(x, y, &faces);
+        for (face, (tx, ty)) in faces.iter().zip(at) {
+            face.draw(ui, tx, ty, g.tile_w);
         }
-        y += g.height(items.len());
+        y += height;
         y += GAP_SMALL;
     }
     app.scroll.content_h().set(y - top + CHECK_TAIL);
@@ -65,7 +68,7 @@ pub(crate) fn backups_dialog(ui: &mut Ui, w: f32, h: f32) {
     let head = (
         Icon::Checklist.into(),
         Role::Primary.paint(),
-        EN.check_backup,
+        EN.catalog_check_a_backup,
     );
     let actions = [(EN.vault_cancel, Style::Secondary, Action::Cancel)];
     crate::compact::dialog(
