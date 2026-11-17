@@ -851,6 +851,10 @@ impl Faraday {
         self.tools.clear_home_find();
         self.act(crate::Action::Nav(Screen::Settings));
         if !crate::panes::settings_listed(self.window()) {
+            // The glide to the section is Settings' page's: what moved
+            // the screen left behind stops now, not on the next tick.
+            self.scroll.went_to(crate::ui::Slot::Page);
+            self.own_motion();
             self.scroll.panes().set_goal(Some(row.part));
         } else if row.is_mode() {
             self.act(crate::Action::ModeSheet);

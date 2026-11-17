@@ -873,8 +873,6 @@ impl Faraday {
         if let Some(want) = follow_to {
             // A follow moves the page, whatever region the pointer was on.
             self.scroll.went_to(ui::Slot::Page);
-            // The glide is the region's now, whichever screen was moving.
-            self.own_motion();
             let now = self.scroll_offset().unwrap_or(want);
             if self.reduce_motion() {
                 self.with_region(|m, r| m.jump(r, want - now));
