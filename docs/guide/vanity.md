@@ -37,6 +37,6 @@ Type the characters you want after the fixed part. An estimate of tries (About, 
 
 Search for followed by the characters starts the search. While it runs, the tries so far, the rate and the expected time show, and **Stop** ends it.
 
-A find shows **Found**, the address, and for the account dial the account number and the tries it took. For the passphrase dial it shows **Added to the passphrase:** with the characters hidden until **Show**; they are part of the passphrase, so write them down with it. Pressing the address opens its code, unless the key waits for its backup.
+A find shows **Found**, the address, and for the account dial the account number and the tries it took. For the passphrase dial it shows **Added to the passphrase:** with the characters hidden until **Show**; write them down with the passphrase. Pressing the address opens its code, unless the key waits for its backup.
 
-**Open this wallet** opens the wallet at the account found, and **Open in Silent payments** opens a silent payment code found on the passphrase dial; an account found for a silent payment code has no wallet to open. **Another** starts the tool again, empty, on the same key; **Done** goes back to where the tool was opened. A search that tries every counter with no match says so.
+**Open this wallet** opens the wallet at the account found, and **Open in Silent payments** opens a silent payment code found on the passphrase dial; an account found for a silent payment code has no wallet. **Another** starts the tool again, empty, on the same key; **Done** goes back to where the tool was opened. A search with no match says so.
