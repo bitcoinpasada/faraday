@@ -6,6 +6,118 @@ macro_rules! words_catalog {
             [$($rest)*]
             $($acc)*
     // ----- catalog (faraday-core/src/catalog.rs) -----
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_sign_a_transaction_words: "send spend pay payment psbt hardware",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_make_a_new_wallet_words: "create setup hardware cold storage",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_add_a_key_words: "seed phrase mnemonic import recover",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_make_a_new_key_words: "seed phrase mnemonic create generate random dice coin flip",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_check_words: "verify",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_scan_a_seedqr_words: "seed qr camera import recover",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_slip_39_shares_words: "shamir split backup",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_restore_slip39_words: "recover shamir combine",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_sweep_key_words: "move transfer funds paper wallet wif",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_codex32_words: "recover combine backup",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_seed_xor_words: "recover combine backup",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_make_codex32_words: "split backup create",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_make_seed_xor_words: "split backup create",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_explore_a_key_words: "xpub address derivation path account fingerprint",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    seed_check_words: "verify backup checksum phrase mnemonic test",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_child_seeds_words: "derive bip85 password",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_convert_a_seed_words: "phrase mnemonic xprv master",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_krux_code_words: "encrypted backup",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_vanity_address_words: "custom prefix",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_silent_payments_words: "receive reusable private",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_lightning_node_words: "bolt channel",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_single_key_words: "singlesig hardware cold storage",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_multisig_words: "multisignature cosigner hardware cold storage",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_taproot_multisig_words: "multisignature cosigner threshold schnorr hardware",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_musig2_words: "multisignature cosigner schnorr aggregate hardware",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_restore_wallet_words: "recover import xpub watch only backup hardware",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_back_up_a_wallet_words: "backup recovery paper steel print words",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_read_core_wallet_words: "bitcoin core import recover",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    mscheck_words: "verify multisignature cosigner",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_spend_backup_words: "recover funds",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_nonce_check_words: "verify signature",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_check_a_signer_words: "verify psbt hardware",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_decode_a_transaction_words: "verify inspect read hex psbt",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_decode_a_lightning_invoice_words: "bolt11 pay",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_check_an_address_words: "receive verify validate deposit",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_sign_a_message_words: "prove ownership proof",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_check_a_signed_words: "verify proof signature",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_check_timestamp_words: "verify proof",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_vaults_words: "password manager encrypted storage backup",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_qr_vault_words: "encrypted backup password",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_totp_codes_words: "2fa twofactor authenticator otp login",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_diceware_passphrase_words: "password dice random generate",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_gpg_key_words: "pgp encrypt email",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_secure_boot_words: "enroll signing",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_keepass_export_words: "password manager export kdbx keepassxc",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_hashes_words: "checksum digest hash sha512 hmac",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_encodings_words: "base64 hex decode convert",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_descriptor_words: "verify checksum script",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_convert_xpub_words: "ypub zpub vpub tpub",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_units_words: "bitcoin sats satoshi convert amount",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_miniscript_words: "policy script spending conditions timelock",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_bip_39_words_words: "wordlist mnemonic seed phrase english",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_eff_large_list_words: "wordlist dice passphrase password",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_eff_short_list_1_words: "wordlist dice passphrase password",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_eff_short_list_2_words: "wordlist dice passphrase password",
+    /// Text in `TILES`: words typed to find the tile, never drawn.
+    catalog_scan_a_qr_code_words: "camera read animated ur bbqr",
     /// Text in `TILES`.
     catalog_add_a_key: "Add a key",
     /// Text in `TILES`: Add a key's line.

@@ -5,7 +5,7 @@
 **Screen:** `Catalog`
 **Key:** catalog
 
-Every flow of the app on one page, in groups of tiles, **Common** first (**Sign a transaction**, **Make a new wallet**, **Add a key**, **Make a new key** and **Check**), each with the standards it follows. **Find a tool: a name, a BIP number** narrows the tiles to those whose name, line, group or standards hold every word typed, and lists under **Settings** the settings the words find, a press of one opening Settings at it; **No tool matches** shows when neither a tool nor a setting does.
+Every flow of the app on one page, in groups of tiles, **Common** first (**Sign a transaction**, **Make a new wallet**, **Add a key**, **Make a new key** and **Check**), each with the standards it follows. **Find a tool: a name, a BIP number** narrows the tiles to those whose name, line, group, standards or everyday words hold every word typed ("send", "receive", "recover", "verify", "2FA" and "seed phrase" find the tools a newcomer means by them), and lists under **Settings** the settings the words find, a press of one opening Settings at it; **No tool matches** shows when neither a tool nor a setting does.
 
 ## Keys and seeds: making and restoring
 

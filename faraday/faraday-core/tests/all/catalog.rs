@@ -49,6 +49,23 @@ fn a_bip_number_finds_its_tools() {
 }
 
 #[test]
+fn everyday_words_find_their_tools() {
+    assert!(found("send").contains(&"Sign a transaction"));
+    assert!(found("receive").contains(&"Check an address"));
+    let recover = found("recover");
+    for name in ["Restore from SLIP-39", "Restore an existing wallet"] {
+        assert!(recover.contains(&name), "{name}");
+    }
+    let verify = found("verify");
+    for name in ["Check", "Check an address", "Check a signed message"] {
+        assert!(verify.contains(&name), "{name}");
+    }
+    assert!(found("2FA").contains(&"TOTP codes"));
+    assert!(found("seed phrase").contains(&"Add a key"));
+    assert!(found("send").len() < TILES.len() / 4);
+}
+
+#[test]
 fn a_tag_s_hyphen_need_not_be_typed_to_find_it() {
     assert_eq!(found("bip85"), found("bip-85"));
     assert_eq!(found("bip 85"), found("bip-85"));
