@@ -76,39 +76,66 @@ fn counts_path() -> std::path::PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../tools/touch-targets.counts")
 }
 
-/// Every tour at one size, collected: the counted targets, each with the
-/// tour it was found in.
+/// The four sizes of the ratchet: the name its lines carry in
+/// `tools/touch-targets.counts`, the window and its dpi.
 #[cfg(test)]
-fn collect(size: (u16, u16), dpi: u16, work: &Path) -> Result<Vec<(String, Small)>, String> {
+const SIZES: [(&str, (u16, u16), u16); 4] = [
+    ("small_240x320", (240, 320), 143),
+    ("small_480x640", (480, 640), 286),
+    ("stick_1024x600", (1024, 600), 170),
+    ("desktop_1280x800", (1280, 800), 160),
+];
+
+/// One tour (or the default run, `None`) at one size, the counted
+/// targets, each with the tour it was found in.
+#[cfg(test)]
+fn collect_tour(
+    size: (u16, u16),
+    dpi: u16,
+    work: &Path,
+    only: Option<&str>,
+) -> Result<Vec<Small>, String> {
     let kit = work.join("kit");
     std::fs::create_dir_all(&kit).map_err(|e| e.to_string())?;
     for (name, bytes) in faraday_core::testkit::files().map_err(|e| String::from(&*e))? {
         std::fs::write(kit.join(name), bytes).map_err(|e| e.to_string())?;
     }
     let compute = faraday_core::testkit::compute();
-    let mut found = Vec::new();
-    let mut failed = Vec::new();
-    let tours = std::iter::once(None).chain(
+    let out = work.join(only.unwrap_or("default"));
+    crate::run(
+        &compute,
+        size,
+        dpi,
+        (&kit, &out),
+        only,
+        faraday_core::Medium::Stick,
+        false,
+    )
+}
+
+/// The tours the ratchet walks: the default run and every named tour but
+/// the website's (made for 1280 × 800 on Mainnet; its frames are the named
+/// tours').
+#[cfg(test)]
+fn tours() -> impl Iterator<Item = Option<&'static str>> {
+    std::iter::once(None).chain(
         crate::tours::TOURS
             .iter()
             .map(|(n, _)| *n)
-            // The website's pictures are made for 1280 × 800 on Mainnet;
-            // their frames are the named tours'.
             .filter(|t| *t != "tour")
             .map(Some),
-    );
-    for only in tours {
+    )
+}
+
+/// Every tour at one size, collected: the counted targets, each with the
+/// tour it was found in.
+#[cfg(test)]
+fn collect(size: (u16, u16), dpi: u16, work: &Path) -> Result<Vec<(String, Small)>, String> {
+    let mut found = Vec::new();
+    let mut failed = Vec::new();
+    for only in tours() {
         let name = only.unwrap_or("default");
-        let out = work.join(name);
-        match crate::run(
-            &compute,
-            size,
-            dpi,
-            (&kit, &out),
-            only,
-            faraday_core::Medium::Stick,
-            false,
-        ) {
+        match collect_tour(size, dpi, work, only) {
             Ok(small) => found.extend(small.into_iter().map(|s| (name.to_string(), s))),
             Err(e) => failed.push(format!("tour {name}: {e}")),
         }
@@ -125,111 +152,251 @@ fn key_of(s: &Small) -> String {
     format!("{} {}", s.screen, kind(&format!("{:?}", s.action)))
 }
 
+/// The folder the walks leave their results in for the ratchet:
+/// `FARADAY_TARGETS_DIR`, set by `just lint-touch-targets`.
+#[cfg(test)]
+fn results_dir() -> std::path::PathBuf {
+    std::env::var_os("FARADAY_TARGETS_DIR")
+        .expect("FARADAY_TARGETS_DIR: run these tests with `just lint-touch-targets`")
+        .into()
+}
+
+/// One tour at the four sizes, as `just lint-touch-targets` runs it: the
+/// counted targets are left in `FARADAY_TARGETS_DIR`, one file a size,
+/// a line a target (key, action, the report line), for `ratchet` to hold
+/// against the counts file.
+#[cfg(test)]
+fn walk(only: Option<&str>) {
+    let tour = only.unwrap_or("default");
+    for (name, size, dpi) in SIZES {
+        let work =
+            std::env::temp_dir().join(format!("faraday-targets-{name}-{tour}-{}", std::process::id()));
+        let found = collect_tour(size, dpi, &work, only);
+        let _ = std::fs::remove_dir_all(&work);
+        let found = found.unwrap_or_else(|e| panic!("{name} tour {tour}: {e}"));
+        let mut text = String::new();
+        for s in &found {
+            text.push_str(&format!(
+                "{}\t{:?}\t{}\n",
+                key_of(s),
+                s.action,
+                line(&format!("{name} {tour}"), s)
+            ));
+        }
+        let dir = results_dir().join(name);
+        std::fs::create_dir_all(&dir).expect("a folder");
+        std::fs::write(dir.join(format!("{tour}.tsv")), text).expect("a result");
+    }
+}
+
+/// The counted targets of every tour at one size, read from the walks'
+/// results: (key, action, report line), in the order the tours run.
+/// Fails for a tour whose walk left nothing.
+#[cfg(test)]
+fn gathered(name: &str) -> Result<Vec<(String, String, String)>, String> {
+    let mut found = Vec::new();
+    for only in tours() {
+        let tour = only.unwrap_or("default");
+        let path = results_dir().join(name).join(format!("{tour}.tsv"));
+        let text = std::fs::read_to_string(&path)
+            .map_err(|e| format!("tour {tour} at {name}: no result ({e}): is it one of the walks?"))?;
+        for l in text.lines() {
+            let mut f = l.splitn(3, '\t');
+            let (Some(k), Some(a), Some(r)) = (f.next(), f.next(), f.next()) else {
+                return Err(format!("{}: a line of three fields", path.display()));
+            };
+            found.push((k.to_string(), a.to_string(), r.to_string()));
+        }
+    }
+    Ok(found)
+}
+
 /// Per screen and action kind, the distinct actions under the floor.
 #[cfg(test)]
-fn counted(found: &[(String, Small)]) -> std::collections::BTreeMap<String, usize> {
-    let mut seen: std::collections::BTreeMap<String, Vec<String>> =
+fn counted(found: &[(String, String, String)]) -> std::collections::BTreeMap<String, usize> {
+    let mut seen: std::collections::BTreeMap<String, Vec<&str>> =
         std::collections::BTreeMap::new();
-    for (_, s) in found {
-        let actions = seen.entry(key_of(s)).or_default();
-        let a = format!("{:?}", s.action);
-        if !actions.contains(&a) {
-            actions.push(a);
+    for (key, action, _) in found {
+        let actions = seen.entry(key.clone()).or_default();
+        if !actions.contains(&action.as_str()) {
+            actions.push(action);
         }
     }
     seen.into_iter().map(|(k, v)| (k, v.len())).collect()
 }
 
-/// The test at one size: collects, then holds the counts file.
+/// The ratchet: the walks' results at the four sizes, held to the counts
+/// file; with `FARADAY_TARGETS_WRITE` set, written to it instead.
 #[cfg(test)]
-fn at(name: &str, size: (u16, u16), dpi: u16) {
+#[test]
+#[ignore = "the ratchet: `just lint-touch-targets` runs it after the walks"]
+fn ratchet() {
     use std::collections::BTreeMap;
-    let started = std::time::Instant::now();
-    let work = std::env::temp_dir().join(format!("faraday-targets-{name}-{}", std::process::id()));
-    let found = collect(size, dpi, &work).unwrap_or_else(|e| panic!("{name}: {e}"));
-    let _ = std::fs::remove_dir_all(&work);
-    eprintln!("{name}: {} s", started.elapsed().as_secs());
-    let now = counted(&found);
     let path = counts_path();
     let text = std::fs::read_to_string(&path).unwrap_or_default();
-    let prefix = format!("{name} ");
-    let mut other = Vec::new();
-    let mut held: BTreeMap<String, usize> = BTreeMap::new();
-    for l in text.lines().filter(|l| !l.is_empty()) {
-        match l.strip_prefix(&prefix) {
-            Some(rest) => {
-                let (key, n) = rest.rsplit_once(' ').expect("a count");
-                held.insert(key.to_string(), n.parse().expect("a number"));
+    let write = std::env::var_os("FARADAY_TARGETS_WRITE").is_some();
+    // The lines of the other tests (the Starter's), kept as they are.
+    let mut lines: Vec<String> = text
+        .lines()
+        .filter(|l| !l.is_empty() && !SIZES.iter().any(|(n, ..)| l.starts_with(&format!("{n} "))))
+        .map(String::from)
+        .collect();
+    let mut fail = Vec::new();
+    for (name, ..) in SIZES {
+        let found = gathered(name).unwrap_or_else(|e| panic!("{name}: {e}"));
+        let now = counted(&found);
+        let prefix = format!("{name} ");
+        if write {
+            lines.extend(now.iter().map(|(k, n)| format!("{prefix}{k} {n}")));
+            continue;
+        }
+        let mut held: BTreeMap<String, usize> = BTreeMap::new();
+        for l in text.lines().filter_map(|l| l.strip_prefix(&prefix)) {
+            let (key, n) = l.rsplit_once(' ').expect("a count");
+            held.insert(key.to_string(), n.parse().expect("a number"));
+        }
+        let mut here = Vec::new();
+        for (key, n) in &now {
+            let limit = held.get(key).copied();
+            if limit.is_none_or(|l| *n > l) {
+                here.push(limit.map_or_else(
+                    || format!("{key}: {n}, a new line"),
+                    |l| format!("{key}: {n}, held at {l}"),
+                ));
+                for (k, _, report) in &found {
+                    if k == key {
+                        here.push(format!("    {report}"));
+                    }
+                }
             }
-            None => other.push(l.to_string()),
+        }
+        for (key, l) in &held {
+            let n = now.get(key).copied().unwrap_or(0);
+            if n < *l {
+                here.push(format!(
+                    "{key}: {n}, held at {l}: lower the line (FARADAY_TARGETS_WRITE=1 NEXTEST_TEST_THREADS=1 just lint-touch-targets)"
+                ));
+            }
+        }
+        if !here.is_empty() {
+            fail.push(format!(
+                "touch targets under the floor at {name} (docs/M3-CHECKS.md §2):\n{}",
+                here.join("\n")
+            ));
         }
     }
-    if std::env::var_os("FARADAY_TARGETS_WRITE").is_some() {
-        // The four tests write one file: run them with `-j 1`.
-        let mut lines = other;
-        lines.extend(now.iter().map(|(k, n)| format!("{prefix}{k} {n}")));
+    if write {
         lines.sort();
         let mut body = lines.join("\n");
         body.push('\n');
         std::fs::write(&path, body).expect("the counts file");
         return;
     }
-    let mut fail = Vec::new();
-    for (key, n) in &now {
-        let limit = held.get(key).copied();
-        if limit.is_none_or(|l| *n > l) {
-            fail.push(limit.map_or_else(
-                || format!("{key}: {n}, a new line"),
-                |l| format!("{key}: {n}, held at {l}"),
-            ));
-            for (tour, s) in &found {
-                if key_of(s) == *key {
-                    fail.push(format!("    {}", line(&format!("{name} {tour}"), s)));
-                }
+    assert!(fail.is_empty(), "{}", fail.join("\n"));
+}
+
+/// One walk test a tour, so that nextest runs them side by side. The list
+/// is `tours::TOURS` less the website's `tour`, each name once: `ratchet`
+/// fails for a tour with no walk, and a walk of a name not in the table
+/// fails itself.
+#[cfg(test)]
+macro_rules! walks {
+    ($($test:ident = $tour:expr,)*) => {
+        $(
+            #[test]
+            #[ignore = "the ratchet's walk: `just lint-touch-targets` runs it"]
+            fn $test() {
+                walk($tour);
             }
-        }
-    }
-    for (key, l) in &held {
-        let n = now.get(key).copied().unwrap_or(0);
-        if n < *l {
-            fail.push(format!(
-                "{key}: {n}, held at {l}: lower the line (FARADAY_TARGETS_WRITE=1 NEXTEST_TEST_THREADS=1 just lint-touch-targets)"
-            ));
-        }
-    }
-    assert!(
-        fail.is_empty(),
-        "touch targets under the floor at {name} (docs/M3-CHECKS.md §2):\n{}",
-        fail.join("\n")
-    );
+        )*
+    };
 }
 
 #[cfg(test)]
-#[test]
-#[ignore = "the ratchet: `just lint-touch-targets` runs it"]
-fn small_240x320() {
-    at("small_240x320", (240, 320), 143);
-}
-
-#[cfg(test)]
-#[test]
-#[ignore = "the ratchet: `just lint-touch-targets` runs it"]
-fn small_480x640() {
-    at("small_480x640", (480, 640), 286);
-}
-
-#[cfg(test)]
-#[test]
-#[ignore = "the ratchet: `just lint-touch-targets` runs it"]
-fn stick_1024x600() {
-    at("stick_1024x600", (1024, 600), 170);
-}
-
-#[cfg(test)]
-#[test]
-#[ignore = "the ratchet: `just lint-touch-targets` runs it"]
-fn desktop_1280x800() {
-    at("desktop_1280x800", (1280, 800), 160);
+walks! {
+    walk_default = None,
+    walk_spend = Some("spend"),
+    walk_check = Some("check"),
+    walk_check_address = Some("check-address"),
+    walk_open_tools = Some("open-tools"),
+    walk_convert = Some("convert"),
+    walk_invoice = Some("invoice"),
+    walk_devices = Some("devices"),
+    walk_toasts = Some("toasts"),
+    walk_themes = Some("themes"),
+    walk_tooltips = Some("tooltips"),
+    walk_compact = Some("compact"),
+    walk_seeds = Some("seeds"),
+    walk_keys = Some("keys"),
+    walk_visit = Some("visit"),
+    walk_copy = Some("copy"),
+    walk_scan = Some("scan"),
+    walk_public = Some("public"),
+    walk_qr = Some("qr"),
+    walk_lightning_cln = Some("lightning-cln"),
+    walk_seedfile = Some("seedfile"),
+    walk_vaultway = Some("vaultway"),
+    walk_vaultstates = Some("vaultstates"),
+    walk_kef = Some("kef"),
+    walk_kef_menu = Some("kef-menu"),
+    walk_kef_make = Some("kef-make"),
+    walk_kef_step = Some("kef-step"),
+    walk_qr_tool = Some("qr-tool"),
+    walk_ots = Some("ots"),
+    walk_core_wallet = Some("core-wallet"),
+    walk_kept = Some("kept"),
+    walk_again = Some("again"),
+    walk_plan = Some("plan"),
+    walk_board = Some("board"),
+    walk_boardunsorted = Some("boardunsorted"),
+    walk_menu = Some("menu"),
+    walk_m3 = Some("m3"),
+    walk_inbox = Some("inbox"),
+    walk_silent = Some("silent"),
+    walk_keypath = Some("keypath"),
+    walk_register = Some("register"),
+    walk_multisig_check = Some("multisig-check"),
+    walk_nonce = Some("nonce"),
+    walk_signer = Some("signer"),
+    walk_transfer = Some("transfer"),
+    walk_glance = Some("glance"),
+    walk_chartedit = Some("chartedit"),
+    walk_fromvault = Some("fromvault"),
+    walk_first = Some("first"),
+    walk_restore = Some("restore"),
+    walk_osk = Some("osk"),
+    walk_flow = Some("flow"),
+    walk_flowbeside = Some("flowbeside"),
+    walk_gpg_restore = Some("gpg-restore"),
+    walk_bootplace = Some("bootplace"),
+    walk_passseeds = Some("passseeds"),
+    walk_power = Some("power"),
+    walk_pills = Some("pills"),
+    walk_components = Some("components"),
+    walk_host = Some("host"),
+    walk_walletflow = Some("walletflow"),
+    walk_demo = Some("demo"),
+    walk_modes = Some("modes"),
+    walk_vaultshow = Some("vaultshow"),
+    walk_vaultsheets = Some("vaultsheets"),
+    walk_addkey = Some("addkey"),
+    walk_keygen = Some("keygen"),
+    walk_codex32correct = Some("codex32correct"),
+    walk_createfrom = Some("createfrom"),
+    walk_inprogress = Some("inprogress"),
+    walk_cancel = Some("cancel"),
+    walk_busy = Some("busy"),
+    walk_how = Some("how"),
+    walk_std = Some("std"),
+    walk_parts = Some("parts"),
+    walk_panes = Some("panes"),
+    walk_roller = Some("roller"),
+    walk_randomness = Some("randomness"),
+    walk_dice5 = Some("dice5"),
+    walk_codex32 = Some("codex32"),
+    walk_codex32form = Some("codex32form"),
+    walk_createshares = Some("createshares"),
+    walk_codex32backup = Some("codex32backup"),
 }
 
 /// Every tour runs to its end at the smallest size, nothing counted: the

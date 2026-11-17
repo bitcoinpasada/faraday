@@ -151,12 +151,19 @@ lint-repo-all:
 
 # The touch-target ratchet (docs/M3-CHECKS.md §2): every snapshot tour of
 # Faraday and the Starter's example at the four sizes, held to
-# tools/touch-targets.counts. The tests are `#[ignore]`d for `just test`.
+# tools/touch-targets.counts. Each tour is a test of its own, so that
+# nextest runs them side by side; they leave their results in a new
+# temporary folder, and the ratchet test then holds them to the file. The
+# tests are `#[ignore]`d for `just test`.
 # `FARADAY_TARGETS_WRITE=1 NEXTEST_TEST_THREADS=1 just lint-touch-targets` writes the file
 # again after a change that lowers counts.
 [group('lint')]
 lint-touch-targets:
-    cargo nextest run --locked -p faraday-snapshot -p faraday-starter --run-ignored only -E 'test(/^targets::/)'
+    #!/usr/bin/env bash
+    set -euo pipefail
+    export FARADAY_TARGETS_DIR=$(mktemp -d)
+    cargo nextest run --locked -p faraday-snapshot -p faraday-starter --run-ignored only -E 'test(/^targets::/) & !test(/^targets::ratchet$/)'
+    cargo nextest run --locked -p faraday-snapshot --run-ignored only -E 'test(/^targets::ratchet$/)'
 
 # The named costly operations (tools/op-cost): each run once under
 # valgrind's callgrind, its instruction count held to tools/op-cost.counts

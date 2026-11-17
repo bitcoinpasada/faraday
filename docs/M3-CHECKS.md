@@ -115,20 +115,26 @@ The test kit is written into a temporary directory from
 `faraday_core::testkit::files()`, as `faraday-testkit` writes it, so the
 test needs nothing under `out/`.
 
-One ignored test function a size, each running every named tour and the default
-tour at that size at Standard text:
+One ignored test a tour (`targets::walk_<tour>`, the default run
+included), each running its tour at the four sizes below at Standard text
+and leaving the counted targets in the folder `FARADAY_TARGETS_DIR`, which
+`just lint-touch-targets` makes; nextest runs them side by side. Then the
+ignored test `targets::ratchet` reads every tour's result at each size and
+holds it to the counts file (§2.5), and fails for a tour with no result.
+A tour added to `tours::TOURS` is added to the `walks!` list beside the
+test. The Starter's four size tests (`targets::small_240x320` and the
+rest in faraday/faraday-starter/tests/all/targets.rs) each run the
+example at one size.
 
-| Test | Size | Why |
+| Size | Window | Why |
 |---|---|---|
-| `targets::small_240x320` | 240 × 320 at 143 dpi | the smallest the design supports |
-| `targets::small_480x640` | 480 × 640 at 286 dpi | the Pi's 2.8-inch panel |
-| `targets::stick_1024x600` | 1024 × 600 at 170 dpi | the stick's 7-inch panel |
-| `targets::desktop_1280x800` | 1280 × 800 at 160 dpi | the desktop window, one dp a pixel |
+| `small_240x320` | 240 × 320 at 143 dpi | the smallest the design supports |
+| `small_480x640` | 480 × 640 at 286 dpi | the Pi's 2.8-inch panel |
+| `stick_1024x600` | 1024 × 600 at 170 dpi | the stick's 7-inch panel |
+| `desktop_1280x800` | 1280 × 800 at 160 dpi | the desktop window, one dp a pixel |
 
 Larger text only grows controls (`docs/TEXT-SIZE.md` §5) and is left to
-the review run below. A measuring run took 5 to 11 s for the default
-tour at one size on the build machine, PNGs included; A1 times the whole
-set and, if one size's test passes a minute, splits it by tour.
+the review run below.
 
 `just faraday-snap` and `just faraday-snapshots` also write
 `targets.txt` beside the pictures, one line per counted target, as they

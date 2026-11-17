@@ -138,7 +138,7 @@ just lint                 clippy with warnings as errors, fmt, and the repositor
 just lint-clippy          clippy over every target, then the stick's app as its image builds it
 just lint-deps            cargo deny, cargo vet, the fuzz crates built
 just lint-repo            fmt, the scripts in tools/, the registry
-just lint-touch-targets   the touch-target ratchet: every snapshot tour at four sizes
+just lint-touch-targets   the touch-target ratchet: every snapshot tour at four sizes, a test a tour
 just lint-op-cost         the instruction count of each named costly operation under valgrind (F238)
 just lint-all             every command of `lint`, run side by side and to the end; lists all that failed
 just lint-repo-all        the commands of `lint-repo` the same way
