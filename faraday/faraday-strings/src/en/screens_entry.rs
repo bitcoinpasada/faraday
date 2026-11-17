@@ -7,7 +7,7 @@ macro_rules! words_screens_entry {
             $($acc)*
     // ----- entry (faraday-core/src/screens/entry.rs) -----
     /// Text in `entry`.
-    entry_spend: "Spend",
+    entry_spend: "Spend from a backup",
     /// Text in `entry`.
     entry_wallets: "Wallets",
     /// Text in `entry`. `{}`: `fp_text(faraday_bip::keys::Fingerprint(fp))`.

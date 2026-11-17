@@ -23,7 +23,7 @@ This is the PSBT the signer gave back, chosen the same way as the sent one; wher
 
 **Key:** signer-check.result
 
-The result opens with the verdict. **Only signatures were added** is clean: the transaction is the one sent, and the only differences are verified signatures and inputs finalized from them. **Only nonces and signatures were added** is the same for a MuSig2 PSBT, which also gains public nonces. Otherwise it reads **1 finding** or a count of findings, in red when the worst is Danger or Blocked and amber otherwise, or **Not the same transaction**. A clean verdict does not say the transaction was the one wanted: check that in Spend. Where either side is a finished transaction, there is no verdict, because the signer check needs two PSBTs; the result lists the facts and the differences instead.
+The result opens with the verdict. **Only signatures were added** is clean: the transaction is the one sent, and the only differences are verified signatures and inputs finalized from them. **Only nonces and signatures were added** is the same for a MuSig2 PSBT, which also gains public nonces. Otherwise it reads **1 finding** or a count of findings, in red when the worst is Danger or Blocked and amber otherwise, or **Not the same transaction**. A clean verdict does not say the transaction was the one wanted: check that in Sign a transaction. Where either side is a finished transaction, there is no verdict, because the signer check needs two PSBTs; the result lists the facts and the differences instead.
 
 ## Facts and findings
 

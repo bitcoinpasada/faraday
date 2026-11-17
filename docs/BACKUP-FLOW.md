@@ -305,13 +305,13 @@ own row, in the order the person chooses, and unlocks nothing by itself
 - each existing vault found: **Open {vault}**, then its passphrase and
   **Unlock {vault}**, with Unlock's memory check; a vault kept at several
   places is unlocked once;
-- each new vault: **Create {vault}**, Create a vault (decision 21's
+- each new vault: **Create {vault}**, Make a new vault (decision 21's
   Size, Name and passphrase), its own passphrase, once per vault of the
   plan. Where only Create applies (no vault found on the sticks, none
-  open in memory), Create a vault opens for the first new vault by
+  open in memory), Make a new vault opens for the first new vault by
   itself once the last stick is bound; while a stick is in, the Pull
   sheet comes first, "Pull the stick to create the vault, then your
-  key", and Create a vault opens when the stick is out (owner,
+  key", and Make a new vault opens when the stick is out (owner,
   2026-10-25);
 - the vault's id is bound when it has opened, from what the unlock
   recorded: a plan vault whose file was a person's pick or taken from the
@@ -417,7 +417,7 @@ inserted before step 2.
 **Adding a place after the key is made:**
 
 - **A new vault on an empty stick**: no extra round. The vault is made
-  in memory (Create a vault, its own passphrase) and the key saved into
+  in memory (Make a new vault, its own passphrase) and the key saved into
   it. Its stick is checked (format, room, empty) when it is inserted at
   step 6; one that fails offers **Use another stick**.
 - **A copy of a vault already in the plan**: no extra round; one more
@@ -635,7 +635,7 @@ and matched. A write made on the stick visit page does not count
      that holds vaults offers which existing vault this is or **A new
      vault beside them**, an empty one a new vault. Every stick is read
      before any vault is unlocked. Then the existing vaults are unlocked
-     with their passphrases and the new ones made with Create a vault's
+     with their passphrases and the new ones made with Make a new vault's
      own form (name, passphrase twice, cost and memory check). The setup
      asks nothing about places, which key goes into which vault, or paper,
      and its sticks are named "the stick for Vault 1". The guide's
@@ -836,7 +836,7 @@ place than the seed is recommended.", `plan_add_passphrase` "Add a
 passphrase", and `item_templates_starter` "Print {} from Faraday
 Starter: Blank templates, {} words, {}" for the Templates item.
 
-**Unlock {vault}** and Create a vault's strings are reused.
+**Unlock {vault}** and Make a new vault's strings are reused.
 
 ## 13. Tests
 
@@ -1161,7 +1161,7 @@ filled, sealed and written (§10.2), in a round of the flow
 - A vault whose contents changed (`sealed_marks` differ from what it
   was sealed with) loses its sealing, and its sticks already written
   count as not written. A vault the plan adds is made in the round,
-  with Create a vault's form.
+  with Make a new vault's form.
 - The flow goes back to its Vaults card. The person unlocks that vault
   and, of the vaults that hold the keys, those holding the seeds it
   takes (`flow_needed_vaults`). **Copy the key** ("The new vault takes

@@ -1,4 +1,4 @@
-# Spend
+# Sign a transaction
 
 **Kind:** Reference
 **Status:** Checked against the app

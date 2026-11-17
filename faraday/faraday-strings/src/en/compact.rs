@@ -7,7 +7,7 @@ macro_rules! words_compact {
             $($acc)*
     // ----- compact (faraday-core/src/compact/mod.rs) -----
     /// Text in `screen_name`.
-    compact_spend: "Spend",
+    compact_spend: "Spend from a backup",
     /// Text in `screen_name`.
     compact_add_a_key: "Add a key",
     /// Text in `screen_name`.

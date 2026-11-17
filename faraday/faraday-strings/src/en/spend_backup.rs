@@ -110,7 +110,7 @@ macro_rules! words_spend_backup {
     /// Text in `loaded_compact`.
     spend_backup_home: "Home",
     /// Text in `loaded_compact`.
-    spend_backup_spend: "Spend",
+    spend_backup_spend: "Spend from a backup",
     /// Text in `summary`.
     spend_backup_six_stops: "Six stops",
     /// Text in `summary`.

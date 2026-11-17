@@ -1325,7 +1325,7 @@ header's salt, memory, passes and lanes to 32 bytes; SHA-256 and SHA-512
 over that and the header make the encryption key and the HMAC base, and
 each block has its own HMAC key.
 
-Create a vault offers five memory steps, from 64 MiB to 1 GiB, each at
+Make a new vault offers five memory steps, from 64 MiB to 1 GiB, each at
 3 passes and 4 lanes. The lanes do not change the work a guess costs.
 
 **Sealing and opening**
@@ -1431,7 +1431,7 @@ to a new seed afterwards.
 ### 18.4 Passphrase strength
 
 A second construction, `id = "passphrase-strength"`, on the same Learn
-page (`learn = "faraday:vaults"`, which Create a vault's Learn opens) and
+page (`learn = "faraday:vaults"`, which Make a new vault's Learn opens) and
 on /cryptography beside vault-create. It replaces the "Passphrase
 strength" section of Faraday's Vaults Learn page, whose facts it
 keeps. As it ships:
@@ -1459,7 +1459,7 @@ randomness, and not when a person chooses a word.
 
 Each guess costs one Argon2id at the vault's memory and passes, on the
 guesser's own hardware. Faraday states that work as log2(memory in KiB ×
-passes) bits, which Create a vault shows beside each cost. The memory of
+passes) bits, which Make a new vault shows beside each cost. The memory of
 the vaults Faraday makes ranges over a factor of 64, which is 6 bits;
 one more word from the large list is 12.9. The figure counts work, not
 how much more memory costs a guesser than time, and it gives no time per
@@ -1483,7 +1483,7 @@ The website links them; the device names them as text.
 ### 18.5 Where it is drawn
 
 - **In the app:** on the Cryptography tab, after the blocks of the
-  vault's actions on the screens that offer them (Vaults, Create a vault,
+  vault's actions on the screens that offer them (Vaults, Make a new vault,
   Unlock, the vault's contents and the backup flow): "How the vault is
   built", then "Passphrase strength".
 - **On /cryptography:** each construction at its own anchor

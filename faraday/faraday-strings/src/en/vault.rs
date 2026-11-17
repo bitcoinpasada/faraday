@@ -654,7 +654,7 @@ macro_rules! words_vault {
     /// Text in `back_name`.
     vaults_restore_an_existing: "Restore an existing wallet",
     /// Text in `back_name`.
-    vaults_spend: "Spend",
+    vaults_spend: "Spend from a backup",
     /// Text in `back_name`.
     vaults_back_up_a_wallet: "Back up a wallet",
     /// Text in `back_name`.

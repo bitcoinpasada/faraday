@@ -5,7 +5,7 @@
 **Screen:** `SpendBackup`
 **Key:** spend-from-backup
 
-Spend from a backup is one column of cards that takes you from what is in the envelope to a transaction sent and the device locked, with three stops on this computer and three on an online one; nothing moves until the last. The wallet is worked out from what you bring in, and the steps are those of Spend.
+Spend from a backup is one column of cards that takes you from what is in the envelope to a transaction sent and the device locked, with three stops on this computer and three on an online one; nothing moves until the last. The wallet is worked out from what you bring in, and the steps are those of Sign a transaction.
 
 ## How to spend bitcoin
 
@@ -45,7 +45,7 @@ The PSBT comes in by camera or from a stick. **Scan** (**Scan the PSBT** from a 
 
 **Key:** spend-from-backup.transaction
 
-This is the same card as Transaction in Spend. It shows what the transaction sends, the change, the fee and the warnings, with **Show the table**. A transaction that no loaded wallet matches is read without verified change.
+This is the same card as Transaction in Sign a transaction. It shows what the transaction sends, the change, the fee and the warnings, with **Show the table**. A transaction that no loaded wallet matches is read without verified change.
 
 ## The transaction
 

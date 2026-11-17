@@ -34,7 +34,7 @@ macro_rules! words_decode {
     /// Text in `decode_back`.
     decode_back_sign_transaction: "Sign a transaction",
     /// Text in `decode_back`.
-    decode_back_spend: "Spend",
+    decode_back_spend: "Spend from a backup",
     /// Text in `decode_back`.
     decode_back_files: "Files",
     /// Text in `decode_back`.
