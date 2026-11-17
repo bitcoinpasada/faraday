@@ -111,6 +111,7 @@ pub(crate) fn answer(look: &Look) -> (Answer, Vec<Way>) {
         );
         match found {
             FoundIn::Wallet {
+                place: at_wallet,
                 name,
                 shape,
                 keys,
@@ -141,6 +142,7 @@ pub(crate) fn answer(look: &Look) -> (Answer, Vec<Way>) {
                     sign.as_ref()
                         .map(|_| Way::SignAddress)
                         .into_iter()
+                        .chain((!look.listed).then_some(Way::OpenWallet(*at_wallet)))
                         .collect(),
                 )
             }

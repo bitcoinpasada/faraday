@@ -565,3 +565,21 @@ fn another_scanners_read_card_of_an_address_leads_to_the_result() {
         said(&app)
     );
 }
+
+#[test]
+fn an_address_found_in_a_wallet_offers_to_open_the_wallet() {
+    let (a, b) = (single(0), single(1));
+    let mut app = checking(&[a, b.clone()]);
+    read(&mut app, &address(&b, false, 5));
+    let at = ways(&app)
+        .iter()
+        .position(|w| w == "Open the wallet")
+        .unwrap_or_else(|| panic!("{:?}", ways(&app)));
+    app.press(way(u8::try_from(at).unwrap()));
+    assert_eq!(app.screen, Screen::Wallets);
+    let _ = app.frame();
+    assert!(
+        app.offers(Action::Backup(1)),
+        "the card of the wallet found"
+    );
+}

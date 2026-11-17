@@ -11,7 +11,7 @@ Open this page with **Check the signature** on a signed message in Files, or fro
 
 **Key:** check-message.opening
 
-From Tools it opens on the message itself when exactly one waits in Files, and on a list to choose from when several do. With none it says **No signed message chosen** and offers **Scan**, **Open Files** and, while a stick is attached, Bring in from that stick. The result ends with **Another**, which shows the list again, and **Done**, which goes back to where it was opened.
+From Tools it opens on the message itself when exactly one waits in Files, and on a list to choose from when several do. With none it says **No signed message chosen** and offers **Scan**, **Open Files** and, while a stick is attached, Bring in from that stick. The result of an address in a loaded wallet ends with **Open the wallet**, then **Another**, which shows the list again, and **Done**, which goes back to where it was opened.
 
 ## Verdict
 

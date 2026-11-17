@@ -389,8 +389,9 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                             (&png, Style::Secondary, Action::CodePng(Code::Message)),
                         ],
                     ) + 4.0;
-                    // The ending: Done, back to where the tool was opened,
-                    // and Another, the tool again, empty.
+                    // The ending: Check it, the signature just made,
+                    // Another, the tool again, empty, and Done, back to
+                    // where the tool was opened.
                     cy += wrap_buttons(
                         ui,
                         x,
@@ -399,11 +400,16 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                         BUTTON_H,
                         &[
                             (
+                                EN.message_check_it,
+                                Style::Primary,
+                                Action::CheckMessageMade,
+                            ),
+                            (
                                 EN.catalog_another_message,
                                 Style::Secondary,
                                 Action::SignMessage,
                             ),
-                            (EN.app_done, Style::Primary, Action::MDone),
+                            (EN.app_done, Style::Ghost, Action::MDone),
                         ],
                     ) + 4.0;
                 }

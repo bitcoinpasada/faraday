@@ -94,7 +94,11 @@ macro_rules! words_compact {
     /// Text in `wallet_card`. `{}`: `s.spend.source`.
     compact_continue_signing: "Continue signing {}",
     /// Text in `wallet_card`. `{}`: `app.inbox[i].name`.
-    compact_review: "Review {}",
+    compact_sign_file: "Sign {}",
+    /// Button in `wallet_card`.
+    compact_check_an_address: "Check an address",
+    /// Button in `wallet_card`.
+    compact_explore_its_keys: "Explore its keys",
     /// Button in `wallet_card`.
     compact_rename: "Rename",
     /// Text in `wallet_card`. `{}`: `here`, `m`.

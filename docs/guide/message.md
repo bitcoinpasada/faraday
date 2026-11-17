@@ -39,4 +39,4 @@ Choose the signature's format; the person checking it must be able to read that 
 
 **Make the file** writes it again. **Show as QR** shows the same three lines as a code, and the PNG button saves that code as an image. An address, message or format changed afterwards clears the signature.
 
-The card ends with **Another message**, which starts again empty, and **Done**, which goes back to where Sign a message was opened: Tools, a wallet's card or Home.
+The card ends with **Check it**, which checks the signature just made on Check a signed message, **Another message**, which starts again empty, and **Done**, which goes back to where Sign a message was opened: Tools, a wallet's card or Home.

@@ -999,6 +999,8 @@ pub enum Action {
     DecodeAnother,
     /// Check a signed message again, empty: the files to choose from.
     CheckMessageAnother,
+    /// Check the signed message Sign a message just made.
+    CheckMessageMade,
     /// A calculator's descriptor result **Take to Wallets**: the typed
     /// descriptor goes to Wallets through the wallet confirmation sheet.
     TTake,
@@ -1661,7 +1663,8 @@ impl Faraday {
             | Action::MOut
             | Action::MQr
             | Action::CheckMessage(..)
-            | Action::CheckMessageAnother) => self.message_act(a, &c),
+            | Action::CheckMessageAnother
+            | Action::CheckMessageMade) => self.message_act(a, &c),
             a @ (Action::CMultiPath(..) | Action::CMultiPathChange | Action::CPathChange) => {
                 self.create_act(a, &c)
             }

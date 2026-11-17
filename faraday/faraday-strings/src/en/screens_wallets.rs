@@ -32,6 +32,14 @@ macro_rules! words_screens_wallets {
     wallets_in_files: "in Files",
     /// Text in `wallets`.
     wallets_review: "Review",
+    /// Text in `wallets`: opens the PSBT in Files as a spend.
+    wallets_sign: "Sign",
+    /// Button in `wallets`: Check an address, opened from the wallet.
+    wallets_check_an_address: "Check an address",
+    /// Button in `wallets`: Explore on a key of the wallet that is loaded.
+    wallets_explore_its_keys: "Explore its keys",
+    /// Button in the signed message's result: Check a signed message on it.
+    message_check_it: "Check it",
     /// Section label in `wallets`.
     wallets_wallets: "Wallets",
     /// Text in `wallets`. `{}`: `shape`.

@@ -83,11 +83,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         super::bar_head(ui, Some(back), EN.check_check_a_signed)
     };
     let mut y = top;
-    let Some(item) = app.message.checking().and_then(|i| app.inbox.get(i)) else {
+    let Some((file, bytes)) = app.message.check_text(&app.inbox) else {
         landing(app, ui, (x, y, width));
         return;
     };
-    let Some(c) = app.message_check(&String::from_utf8_lossy(&item.bytes)) else {
+    let Some(c) = app.message_check(&String::from_utf8_lossy(bytes)) else {
         ui.wrap_as(
             (x, y, width),
             BODY_M,
@@ -148,7 +148,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     y += card_h + 20.0;
     let rows = [
-        (EN.check_file, item.name.clone(), BODY_M.mono()),
+        (EN.check_file, file.duplicate(), BODY_M.mono()),
         (EN.check_address, grouped(&c.signed.address), BODY_M.mono()),
         (
             EN.check_wallet,
@@ -196,7 +196,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += super::parts::ending(
         ui,
         (x, y, width),
-        None,
+        c.wallet
+            .map(|(i, ..)| (EN.explore_open_wallet, Action::OpenWallet(i))),
         (
             Action::CheckMessageAnother,
             Action::Nav(app.message.check_back()),

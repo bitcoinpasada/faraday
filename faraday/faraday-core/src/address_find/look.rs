@@ -32,6 +32,8 @@ pub(crate) enum FoundIn {
     /// A loaded wallet: its name, its shape and a line for each of its
     /// keys, the key's fingerprint and its full path to the address.
     Wallet {
+        /// Its place among the loaded wallets, which Open the wallet takes.
+        place: usize,
         name: Text,
         shape: Text,
         keys: Vec<Text>,
@@ -246,6 +248,7 @@ impl Look {
                     }
                 };
                 FoundIn::Wallet {
+                    place: w,
                     name: wl.name.clone(),
                     shape: Session::shape(wl),
                     sign,

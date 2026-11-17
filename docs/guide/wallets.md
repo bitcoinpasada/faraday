@@ -11,7 +11,7 @@ Wallets lists the wallets loaded in this session and shows the card of the one y
 
 **Key:** wallets.psbt
 
-While a wallet is loaded, a bar above the list names the transaction file in hand. **Signing** with **Continue** returns to a spend in progress. A PSBT file in Files, shown as **in Files**, offers **Review**. When there are several, the file offered is the one with the fewest signatures.
+While a wallet is loaded, a bar above the list names the transaction file in hand. **Signing** with **Continue** returns to a spend in progress. A PSBT file in Files, shown as **in Files**, offers **Sign**. When there are several, the file offered is the one with the fewest signatures.
 
 ## The list
 
@@ -39,7 +39,7 @@ The card gives the wallet's name with **Rename**, a tag for where it came from, 
 
 **Key:** wallets.actions
 
-The first button starts a spend. It reads **Spend from this wallet**, or **Sign the PSBT from the** stick when a PSBT is in hand, **Carry on the spend** while one is under way, or **Finish the backup first** while a key made here has no backup. **Show wallet QR** shows the wallet for watch-only software. **Back up** opens its backup, and reads **Continue the backup** when one is part done. **Sign a message** appears for a single-key wallet whose key is here. **Remove from session** drops the wallet and keeps its files.
+The first button starts a spend. It reads **Spend from this wallet**, or **Sign the PSBT from the** stick when a PSBT is in hand, **Carry on the spend** while one is under way, or **Finish the backup first** while a key made here has no backup. **Show wallet QR** shows the wallet for watch-only software. **Back up** opens its backup, and reads **Continue the backup** when one is part done. **Sign a message** appears for a single-key wallet whose key is here. **Check an address** opens that tool, and **Explore its keys** opens Explore on a key of the wallet that is loaded. **Remove from session** drops the wallet and keeps its files.
 
 ## Signatures
 

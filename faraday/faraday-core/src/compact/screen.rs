@@ -176,7 +176,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         None if app.psbt_for(app.wallets.wallet()).is_some() => None,
         None => app.lead_psbt().map(|i| {
             (
-                fill(EN.compact_review, &[&app.inbox[i].name]),
+                fill(EN.compact_sign_file, &[&app.inbox[i].name]),
                 Action::StartSpend(i),
             )
         }),
@@ -421,6 +421,24 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             EN.compact_sign_a_message,
             Style::Secondary,
             Action::SignMessageWith(app.wallets.wallet()),
+        ));
+    }
+
+    // Check an address and Explore, from the wallet itself.
+    buttons.push((
+        EN.compact_check_an_address,
+        Style::Secondary,
+        Action::AddressCheck(crate::address_check::AddressPress::Another),
+    ));
+    if let Some(fp) = slots
+        .iter()
+        .find(|s| s.held_by.is_some())
+        .and_then(|s| s.fingerprint)
+    {
+        buttons.push((
+            EN.compact_explore_its_keys,
+            Style::Secondary,
+            Action::ExploreKey(fp.0),
         ));
     }
     buttons.push((

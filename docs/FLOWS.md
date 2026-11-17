@@ -1826,7 +1826,10 @@ stick is pulled. Practice's sample message stands in for Check a signed
 message's file. Check an address counts only text files, reads one at
 once and ends its result with the same **Another** and **Done**. Each result ends with **Another** (the list, or the empty
 part again) and **Done** (back to where the tool was opened from: Tools,
-Check or Wallets); neither has a next step to offer, so none is filled.
+Check or Wallets); a next step is the filled button where one exists:
+**Open the wallet** on a signed message or an address found in a loaded
+wallet. Sign a message's result offers **Check it**, which opens Check a
+signed message on the signature just made, with Done back to the result.
 Read a Bitcoin Core wallet opens the same way on its wallet files and ends
 with **Another** and **Done**; its Take to Wallets stays on the result.
 

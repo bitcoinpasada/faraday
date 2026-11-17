@@ -142,3 +142,14 @@ fn the_card_does_not_offer_sign_a_message_without_the_key_here() {
     let _ = app.frame();
     assert!(!app.offers(Action::SignMessageWith(0)));
 }
+
+#[test]
+fn the_card_offers_check_an_address_and_it_opens() {
+    let mut app = with_single_key_wallet();
+    app.press(Action::OpenWallet(0));
+    let _ = app.frame();
+    let check = Action::AddressCheck(faraday_core::address_check::AddressPress::Another);
+    assert!(app.offers(check), "Check an address");
+    app.press(check);
+    assert_eq!(app.screen, Screen::CheckAddress);
+}

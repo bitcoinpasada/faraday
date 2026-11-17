@@ -298,3 +298,22 @@ fn a_changed_message_is_drawn_again_after_a_hidden_character() {
     }
     assert!(!texts.iter().any(|t| t == "pay\u{25CC}me"));
 }
+
+#[test]
+fn the_signed_message_is_checked_from_its_result_and_opens_its_wallet() {
+    let mut app = app();
+    app.press(Action::SignMessage);
+    testkit::message_text(&mut app, "hello");
+    open_step(&mut app, faraday_core::mstep::SIGN);
+    app.press(Action::MSign);
+    open_step(&mut app, faraday_core::mstep::SIGN);
+    app.press(Action::CheckMessageMade);
+    let _ = app.frame();
+    assert_eq!(app.screen, faraday_core::Screen::CheckMessage);
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t.contains("The signature is valid")),
+        "{texts:?}"
+    );
+    assert!(app.offers(Action::OpenWallet(0)), "Open the wallet");
+}

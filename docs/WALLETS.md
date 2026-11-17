@@ -87,7 +87,8 @@ Loading a key makes no wallet; the address check (`docs/QR.md` §2) still search
   `docs/history/NEW-WALLET.md` §16.2, 2026-10-19; in the foot when a long name
   leaves no room, and in the button list on a small panel), then along
   the foot **Show wallet QR**, **Back up**, **Sign a message** where
-  the wallet can, and **Remove from session** at the end. New wallet
+  the wallet can, **Check an address** and **Explore its keys** (for a key
+  of the wallet that is loaded), and **Remove from session** at the end. New wallet
   from this one opens Create filled from the wallet at the next account
   its keys and kind do not use (§5).
 

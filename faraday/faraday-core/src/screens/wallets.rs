@@ -414,7 +414,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 app.inbox[i].name.clone(),
                 EN.wallets_in_files,
                 Action::StartSpend(i),
-                EN.wallets_review,
+                EN.wallets_sign,
             )
         }),
     };
@@ -599,6 +599,24 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             EN.wallets_sign_a_message,
             Style::Secondary,
             Action::SignMessageWith(app.wallets.wallet()),
+        ));
+    }
+
+    // Check an address and Explore, from the wallet itself.
+    items.push((
+        EN.wallets_check_an_address,
+        Style::Secondary,
+        Action::AddressCheck(crate::address_check::AddressPress::Another),
+    ));
+    if let Some(fp) = slots
+        .iter()
+        .find(|s| s.held_by.is_some())
+        .and_then(|s| s.fingerprint)
+    {
+        items.push((
+            EN.wallets_explore_its_keys,
+            Style::Secondary,
+            Action::ExploreKey(fp.0),
         ));
     }
     let end = (
