@@ -106,6 +106,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += ui.wrap_as((x, y, w), BODY_S, Role::Ok, &place) + GAP;
     }
     y += wrap_buttons(ui, x, y, w, BUTTON_H, &items) + GAP;
+    // The end: another file by the camera, or Done to where it was opened.
+    y += super::parts::ending(ui, (x, y, w), None, (Action::Scan, Action::Nav(o.back))) + GAP;
     if o.show_hex
         && let Some(hex) = o.hex.as_ref()
     {

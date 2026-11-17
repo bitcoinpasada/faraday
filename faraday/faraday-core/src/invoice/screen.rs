@@ -103,7 +103,17 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Some(Err(why)) => {
             y += ui.wrap_as((x, y, w), BODY_M, Role::Error, why) + INVOICE_REFUSAL_GAP;
         }
-        Some(Ok(rows)) => y = draw_rows(ui, rows, (x, y, w)),
+        Some(Ok(rows)) => {
+            y = draw_rows(ui, rows, (x, y, w));
+            // The end: the tool again, empty, or Done to where it was
+            // opened.
+            y += crate::screens::parts::ending(
+                ui,
+                (x, y, w),
+                None,
+                (Action::Invoice(InvoicePress::Clear), Action::Nav(s.back())),
+            ) + INVOICE_BLOCK_GAP;
+        }
     }
     if compact {
         let guide = EN.invoice_about;

@@ -156,8 +156,12 @@ pub enum SpendBackupAction {
     MoreAddresses,
     /// The finished transaction as a QR code.
     QrTx,
-    /// Forget the route and the pages closed, and start again.
+    /// Forget the route and the pages closed, and start again. A spend
+    /// with steps done asks as Cancel does.
     StartOver,
+    /// The last page's Done: the spend ends where it was opened from, as
+    /// Cancel's end does, with nothing to ask.
+    Done,
     /// From the Loaded view: spend from this wallet of the session, at
     /// the first page it has not done.
     SpendFrom(usize),
@@ -821,7 +825,15 @@ impl Faraday {
                 self.refresh_spend();
                 self.spend_backup_advance(page::HOLDING);
             }
+            F::Done => self.flow_end(crate::in_progress::Going::Spend),
             F::StartOver => {
+                if self
+                    .cancel_loses(crate::in_progress::Going::Spend)
+                    .is_some()
+                {
+                    self.sheet = Some(Sheet::CancelFlow(crate::in_progress::Going::Spend));
+                    return;
+                }
                 self.spend_backup.state = SpendBackupState {
                     open: Some(Open::Page(page::HOLDING)),
                     closed: {

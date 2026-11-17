@@ -93,4 +93,4 @@ This card is shown for a wallet of several keys. Scan or copy in each cosigner's
 
 **Key:** spend-from-backup.away
 
-Files still waiting for the stick are listed. **Lock** seals the vault again with its keys inside, and no key is left in memory. **Power off** switches the device off. **Start over** returns to the first card. When Faraday signs with a vault open, locking seals a changed copy of the vault to write back, which keeps the record of the amounts signed.
+Files still waiting for the stick are listed. **Lock** seals the vault again with its keys inside, and no key is left in memory. **Power off** switches the device off. **Done** ends the spend and goes back to where it was opened from. **Start over** returns to the first card, and asks first once a step of the spend is done. When Faraday signs with a vault open, locking seals a changed copy of the vault to write back, which keeps the record of the amounts signed.

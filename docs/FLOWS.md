@@ -206,6 +206,15 @@ none.
 **The time first** (decision 58). GPG and Secure Boot ask
 for the time first where TOTP codes does (`docs/TOTP.md` §1.3).
 
+**Results end with Done.** A flow or tool that gives a result ends it with
+**Done**, which goes to where it was opened from (as Cancel's end does for
+a flow with steps), with **Another** beside it where the tool can be used
+again: Nonce check (**Another** reads a file by the camera), Decode a
+Lightning invoice (**Another** empties the field) and the Spend tab's last
+page, which has **Done** (the spend ends where it was opened from: the
+wallet's card, Home or Wallets), **Lock**, **Power off** and **Start over**.
+**Start over** asks as Cancel does once a step of the spend is done.
+
 ## Sidebar
 
 **Check** stands right under Home, on the rails and first on the small
@@ -1634,7 +1643,9 @@ signature whose key no origin names, as in a final raw transaction, and
 where nothing is wrong, what a person does with a signed transaction:
 **Save to a stick** (the finished transaction as `{name}-final.txn`, or
 the file as it came; **Remove** while it waits For the stick), **Decode
-it**, **Show the raw hex** and **Show as QR** for a finished one, the
+it**, **Show the raw hex** and **Show as QR** for a finished one, and at
+the end **Another** (the camera) and **Done** (back to where it was
+opened from), the
 PSBT's code for one still wanting signatures ("Not finished: more
 signatures are wanted"). A PSBT with every signature it needs is
 finished here as Spend finishes one. A wrong signature offers nothing

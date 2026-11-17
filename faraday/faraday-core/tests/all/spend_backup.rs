@@ -1075,6 +1075,26 @@ fn cancelling_the_spend_lets_the_other_transaction_be_scanned_and_signed() {
     assert_eq!(s.spend.txid, other.unsigned_tx().compute_txid());
 }
 
+#[test]
+fn done_on_the_last_page_ends_the_spend_where_it_was_opened() {
+    let mut app = savings_spend_signed_here();
+    app.press(Action::SpendBackup(F::Done));
+    assert_eq!(app.sheet, None);
+    assert!(app.spend().is_none());
+    assert_ne!(app.screen, Screen::SpendBackup);
+}
+
+#[test]
+fn start_over_asks_once_steps_of_the_spend_are_done() {
+    let mut app = savings_spend_signed_here();
+    app.press(Action::SpendBackup(F::StartOver));
+    assert_eq!(
+        app.sheet,
+        Some(Sheet::CancelFlow(faraday_core::in_progress::Going::Spend))
+    );
+    assert!(app.spend().is_some(), "asking lost the spend");
+}
+
 /// Home's Scan reads this code while the Savings spend is under way.
 fn scan_from_home(app: &mut Faraday, bytes: Vec<u8>) {
     app.press(Action::Nav(Screen::Home));

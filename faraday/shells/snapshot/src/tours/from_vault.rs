@@ -67,6 +67,10 @@ pub(crate) fn from_vault_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.shot("vault-spend-first")?;
     t.press(Action::SpendBackup(F::Next(page::CHECK)));
     t.shot("vault-spend-write")?;
+    // The last page: Done, Lock, Power off and Start over.
+    t.press(Action::SpendBackup(F::Next(page::COUNT - 1)));
+    t.shot("vault-spend-away")?;
+    t.press(Action::SpendBackup(F::Next(page::CHECK)));
     // A wallet of several keys with fewer here than sign, and its PSBT.
     let short = (0..t.app.session.wallets.len()).find(|&w| {
         let wl = &t.app.session.wallets[w];

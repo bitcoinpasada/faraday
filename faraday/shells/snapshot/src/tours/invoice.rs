@@ -1,6 +1,6 @@
 //! The invoice tour: Decode a Lightning invoice.
 
-use crate::tour::{Tour, type_text};
+use crate::tour::{Tour, scroll_to, type_text};
 use faraday_core::invoice::InvoicePress;
 use faraday_core::{Action, Screen};
 
@@ -35,6 +35,8 @@ pub(crate) fn invoice_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Invoice(InvoicePress::Decode));
     hide_keyboard(t);
     t.shot("invoice-decoded")?;
+    scroll_to(t, Action::Nav(Screen::Catalog));
+    t.shot("invoice-end")?;
     t.press(Action::Invoice(InvoicePress::Clear));
     type_text(t, SPOILED);
     t.press(Action::Invoice(InvoicePress::Decode));

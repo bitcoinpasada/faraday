@@ -583,7 +583,7 @@ fn wallet_card_compact(
                 BODY_S,
                 Role::OnSurfaceVariant,
                 EN.spend_backup_an_open_vault,
-            ) + 8.0
+            ) + GAP
         }
     };
     // What larger text adds to each line: nothing at Standard.
@@ -1434,13 +1434,29 @@ fn stick_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, label: &str) -> f3
         style,
         Action::VisitFrom(crate::Screen::SpendBackup),
     );
+    // Faraday asks to lock first: the Lock beside the button, the line
+    // after it (under both on a small panel).
+    let lock = !app.stick.is_empty() && open;
+    let lw = if lock {
+        ui.button(
+            x + bw + GAP,
+            y,
+            None,
+            BUTTON_H,
+            EN.spend_backup_lock,
+            Style::Secondary,
+            Action::LockAsk,
+        ) + GAP
+    } else {
+        0.0
+    };
     if ui.compact && !note.is_empty() {
         // Under the button, wrapped.
         return 46.0 + ui.wrap_as((x, y + 46.0, w), BODY_S, Role::OnSurfaceVariant, &note) + 12.0;
     }
     if !note.is_empty() {
         ui.text_mid_as(
-            (x + bw + 14.0, y, 38.0),
+            (x + bw + lw + 14.0, y, 38.0),
             BODY_S,
             Role::OnSurfaceVariant,
             &note,
@@ -1534,7 +1550,7 @@ fn shortcut(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             )
             + 8.0;
     }
-    crate::screens::wrap_buttons(ui, x, y, w, 40.0, &with_sample(SHORTCUT)) + 8.0
+    crate::screens::wrap_buttons(ui, x, y, w, 40.0, &with_sample(SHORTCUT)) + GAP
 }
 
 /// The shortcut's label.
@@ -2169,7 +2185,8 @@ fn away(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             w,
             40.0,
             &[
-                (EN.spend_backup_lock, Style::Primary, Action::LockAsk),
+                (EN.app_done, Style::Primary, fa(F::Done)),
+                (EN.spend_backup_lock, Style::Secondary, Action::LockAsk),
                 (
                     EN.spend_backup_power_off,
                     Style::Secondary,
@@ -2180,17 +2197,27 @@ fn away(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         );
         return cy + 4.0 - y;
     }
-    let bw = ui.button(
+    let dw = ui.button(
         x,
         cy,
         None,
         BUTTON_H,
-        EN.spend_backup_lock,
+        EN.app_done,
         Style::Primary,
+        fa(F::Done),
+    );
+    let lw = ui.button(
+        x + dw + GAP,
+        cy,
+        None,
+        BUTTON_H,
+        EN.spend_backup_lock,
+        Style::Secondary,
         Action::LockAsk,
     );
+    let bw = dw + GAP + lw;
     ui.button(
-        x + bw + 8.0,
+        x + bw + GAP,
         cy,
         None,
         BUTTON_H,

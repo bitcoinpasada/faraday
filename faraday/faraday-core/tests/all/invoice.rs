@@ -93,6 +93,18 @@ fn value(app: &Faraday, label: &str) -> Option<String> {
 }
 
 #[test]
+fn a_decoded_invoice_ends_with_another_and_done() {
+    let mut app = decoded(&coffee());
+    let text = {
+        let _ = app.frame();
+        app.drawn_texts().join("\n")
+    };
+    assert!(text.contains("Another") && text.contains("Done"), "{text}");
+    app.press(Action::Nav(Screen::Catalog));
+    assert_eq!(app.screen, Screen::Catalog);
+}
+
+#[test]
 fn the_tile_opens_the_tool_empty() {
     let app = opened();
     assert_eq!(app.screen, Screen::Invoice);

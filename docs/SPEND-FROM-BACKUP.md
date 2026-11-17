@@ -426,7 +426,9 @@ signatures, and a broken transaction is rejected, not redirected.
 
 ### 12 · Put everything away
 
-No lead: the page holds Lock, Power off and Start over. **More about this**
+No lead: the page holds Done (the spend ends where it was opened from),
+Lock, Power off and Start over (which asks as Cancel does once a step of
+the spend is done). **More about this**
 says: Lock Faraday. The vault is sealed again with the keys inside
 it, and none is left in memory. If the Outbox holds anything you still need (the finished
 transaction, or a vault that changed), plug a stick in and the visit

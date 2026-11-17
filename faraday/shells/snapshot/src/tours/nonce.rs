@@ -109,6 +109,8 @@ pub(crate) fn nonce_tour(t: &mut Tour) -> Result<(), String> {
         return Err("Nonce check opened no check".into());
     }
     t.shot("nonce-elsewhere")?;
+    scroll_to(t, Action::Scan);
+    t.shot("nonce-end")?;
     // The cosigner's seed loaded here: its signatures recomputed.
     t.press(Action::Entry(None));
     t.type_key(1);

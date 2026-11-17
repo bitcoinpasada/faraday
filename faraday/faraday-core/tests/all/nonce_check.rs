@@ -414,6 +414,24 @@ fn a_signed_psbt_scanned_opens_its_check_and_goes_back_where_the_scan_started() 
 }
 
 #[test]
+fn the_check_ends_with_another_and_done() {
+    let mut app = with_inbox(vec![(
+        "signed.psbt",
+        signed_elsewhere(How::LowR).to_bytes(),
+    )]);
+    app.press(Action::Nav(Screen::Catalog));
+    let tile = faraday_core::catalog::TILES
+        .iter()
+        .position(|t| t.name == "Nonce check")
+        .unwrap();
+    app.press(Action::Catalog(tile as u8));
+    assert_eq!(app.screen, Screen::NonceCheck);
+    let _ = app.frame();
+    let text = app.drawn_texts().join("\n");
+    assert!(text.contains("Another") && text.contains("Done"), "{text}");
+}
+
+#[test]
 fn tools_nonce_check_opens_a_signed_file_here() {
     let mut app = with_inbox(vec![(
         "signed.psbt",
