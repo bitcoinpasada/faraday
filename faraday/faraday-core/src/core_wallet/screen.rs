@@ -5,6 +5,7 @@ use super::tool::{CoreWalletAction as A, CoreWalletState, Verdict, cstep, state}
 use crate::Action;
 use crate::drawing::{Scrolled, View};
 use crate::flow;
+use crate::screens::parts::{ending, file_choices, nothing_to_work_on};
 use crate::strings::EN;
 use crate::ui::pal::Role;
 use crate::ui::{Style, Ui};
@@ -16,7 +17,7 @@ use faraday_draw::widgets::Icon;
 
 pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(s) = state(app) else { return };
-    let cards: Vec<flow::Card> = (0..cstep::COUNT as u8)
+    let cards: Vec<flow::Card> = (0..if s.landing { 0 } else { cstep::COUNT as u8 })
         .map(|step| flow::Card {
             title: title(step).to_string(),
             summary: summary(s, step),
@@ -57,9 +58,49 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 None => 0.0,
             }
         };
-        flow::column(ui, &col, &cards, scroll, &mut body)
+        let back = s.back;
+        let landing = s.landing;
+        let done = s.shown.is_some();
+        let mut foot = |ui: &mut Ui, x: f32, y: f32, w: f32| -> f32 {
+            if landing {
+                self::landing(app_ref, ui, (x, y, w))
+            } else if done {
+                ending(
+                    ui,
+                    (x, y, w),
+                    None,
+                    (Action::CoreWallet(A::Another), Action::Nav(back)),
+                )
+            } else {
+                0.0
+            }
+        };
+        flow::column_foot(ui, &col, &cards, scroll, &mut body, Some(&mut foot))
     };
     app.scroll(Scrolled::CoreWallet, next, again);
+}
+
+/// No file chosen: the wallet files of Files to choose from, or the empty
+/// part. Returns the height.
+fn landing(app: &View, ui: &mut Ui, at: (f32, f32, f32)) -> f32 {
+    let rows: Vec<(&str, Action)> = app
+        .inbox
+        .iter()
+        .enumerate()
+        .filter(|(_, i)| super::is_wallet_file(&i.bytes))
+        .map(|(k, i)| (&*i.name, Action::CoreWallet(A::File(k))))
+        .collect();
+    if rows.is_empty() {
+        nothing_to_work_on(
+            app,
+            ui,
+            at,
+            EN.core_wallet_no_file_waits,
+            (Action::Scan, crate::Screen::CoreWallet),
+        )
+    } else {
+        file_choices(ui, at, EN.core_wallet_choose_file, &rows)
+    }
 }
 
 fn title(step: u8) -> &'static str {

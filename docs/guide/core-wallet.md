@@ -11,7 +11,9 @@ This tool reads and checks the `wallet.dat` of a Bitcoin Core descriptor wallet,
 
 **Key:** core-wallet.file
 
-Choose the wallet from Files, which gives one button per SQLite or Berkeley DB file. **No wallet file in Files** shows when there is none. **Passphrase, if the wallet is encrypted** is the wallet's own passphrase, used only for this read. **Read** appears once you have chosen a file.
+From Tools it opens on the wallet file when one waits in Files, and on a list when several do. With none, **No Bitcoin Core wallet file waits in Files** comes with **Scan**, **Open Files** and the stick. The result ends with **Another** and **Done**.
+
+The wallet is one SQLite or Berkeley DB file. **Passphrase, if the wallet is encrypted** is the wallet's own passphrase, used only for this read. **Read** appears once you have chosen a file.
 
 A legacy Berkeley DB wallet, a file in the write-ahead-log form, a file with its journal, log or lock beside it in Files, a wallet of another network than the one Faraday is on, and a descriptor with a key that has no origin are refused with the reason in one line.
 

@@ -738,8 +738,6 @@ macro_rules! words_sweep {
     catalog_read_core_wallet: "Read a Bitcoin Core wallet",
     /// Tools: the line under the Read a Bitcoin Core wallet tile.
     catalog_read_core_wallet_line: "A wallet.dat, read and checked",
-    /// Text in `tile_need`.
-    catalog_copy_a_wallet_dat: "Copy a wallet.dat in first",
     /// Read a Bitcoin Core wallet: the sample plain wallet's name.
     sample_core_wallet_plain_file: "sample-plain-wallet.dat",
     /// Read a Bitcoin Core wallet: the sample encrypted wallet's name.
@@ -754,6 +752,10 @@ macro_rules! words_sweep {
     core_wallet_card_result: "Result",
     /// Read a Bitcoin Core wallet: no file to choose.
     core_wallet_none_in_files: "No wallet file in Files",
+    /// Line in `landing` (core_wallet/screen.rs): the empty part's line.
+    core_wallet_no_file_waits: "No Bitcoin Core wallet file waits in Files",
+    /// Line in `landing` (core_wallet/screen.rs): the files to choose from.
+    core_wallet_choose_file: "Choose a wallet file",
     /// Read a Bitcoin Core wallet: the passphrase field's label.
     core_wallet_passphrase: "Passphrase, if the wallet is encrypted",
     /// Read a Bitcoin Core wallet: the button that reads the file.

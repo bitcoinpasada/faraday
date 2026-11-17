@@ -45,6 +45,8 @@ pub enum CoreWalletAction {
     Read,
     /// This active pair, by its place in the list, goes to Wallets.
     Take(usize),
+    /// The result's Another: the tool again, with no file chosen.
+    Another,
 }
 
 /// The most failed records the Result lists.
@@ -104,6 +106,9 @@ pub(crate) struct Shown {
 /// The tool's state.
 pub struct CoreWalletState {
     pub(crate) open: Option<u8>,
+    /// The tool is open with no file chosen: the files to choose from, or
+    /// the empty part.
+    pub(crate) landing: bool,
     pub(crate) scroll: flow::Scroll,
     pub(crate) back: Screen,
     /// The name of the file chosen.
@@ -125,6 +130,7 @@ impl CoreWalletState {
     fn new(back: Screen) -> CoreWalletState {
         CoreWalletState {
             open: Some(cstep::FILE),
+            landing: false,
             scroll: flow::Scroll::default(),
             back,
             file: None,
@@ -454,6 +460,14 @@ fn shown(w: &Wallet) -> (Shown, (Vec<TakePair>, Option<Text>)) {
 pub(crate) fn act(app: &mut Faraday, action: CoreWalletAction) {
     match action {
         CoreWalletAction::Open => open(app, None),
+        CoreWalletAction::Another => {
+            if let Some(back) = st(app).map(|s| s.back) {
+                let mut s = CoreWalletState::new(back);
+                s.landing = true;
+                app.tools.core_wallet.state = Some(s);
+                app.list_offset = 0.0;
+            }
+        }
         CoreWalletAction::OpenFile(i) => {
             let name = app.inbox.get(i).map(|item| Text::of(&item.name));
             open(app, name);
@@ -494,8 +508,9 @@ pub(crate) fn act(app: &mut Faraday, action: CoreWalletAction) {
 fn open(app: &mut Faraday, file: Option<Text>) {
     let back = app.screen;
     let mut s = CoreWalletState::new(back);
-    if let Some(name) = file {
-        choose(&mut s, name);
+    match file {
+        Some(name) => choose(&mut s, name),
+        None => s.landing = true,
     }
     app.tools.core_wallet.state = Some(s);
     app.screen = Screen::CoreWallet;
@@ -504,6 +519,7 @@ fn open(app: &mut Faraday, file: Option<Text>) {
 /// A file chosen: what was read of another is dropped.
 fn choose(s: &mut CoreWalletState, name: Text) {
     s.file = Some(name);
+    s.landing = false;
     s.refused = None;
     s.shown = None;
     s.take.clear();
@@ -737,13 +753,20 @@ pub(crate) fn tidy(app: &mut Faraday) {
     }
 }
 
-/// The tile: the tool, with Files' wallet file when there is one, else
-/// (Practice) the two sample files put in Files, the plain one read.
+/// The tile: the tool, on Files' wallet file when exactly one waits, on
+/// the files to choose from when several do, and with none (Practice) the
+/// two sample files put in Files, the plain one read; elsewhere the empty
+/// part.
 pub(crate) fn open_tile(app: &mut Faraday) {
-    if let Some(i) = app.inbox.iter().position(|i| is_wallet_file(&i.bytes)) {
-        act(app, CoreWalletAction::OpenFile(i));
-    } else {
-        open_sample(app);
+    let waiting: Vec<usize> = (0..app.inbox.len())
+        .filter(|&i| is_wallet_file(&app.inbox[i].bytes))
+        .collect();
+    match waiting[..] {
+        [i] => act(app, CoreWalletAction::OpenFile(i)),
+        // Several: the files to choose from.
+        [_, ..] => act(app, CoreWalletAction::Open),
+        // None: Practice's sample stands in, else the empty part.
+        [] => open_sample(app),
     }
 }
 
@@ -751,10 +774,12 @@ pub(crate) fn open_tile(app: &mut Faraday) {
 /// in: the plain and the encrypted sample wallet go into Files, and the
 /// tool opens with the plain one read.
 fn open_sample(app: &mut Faraday) {
-    let Some(set) = app.put_on() else { return };
+    let Some(set) = app.put_on() else {
+        return act(app, CoreWalletAction::Open);
+    };
     let inputs = set.inputs;
     if inputs.core_wallet.is_empty() {
-        return;
+        return act(app, CoreWalletAction::Open);
     }
     let c = app.compute();
     let names = [

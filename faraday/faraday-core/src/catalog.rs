@@ -593,15 +593,6 @@ impl Faraday {
             {
                 EN.catalog_copy_a_proof
             }
-            Go::ReadCoreWallet
-                if !self
-                    .inbox
-                    .iter()
-                    .any(|i| crate::core_wallet::is_wallet_file(&i.bytes))
-                    && self.put_on().is_none() =>
-            {
-                EN.catalog_copy_a_wallet_dat
-            }
             // The keys the backup flow makes: the tile starts it, or resumes
             // it, and asks for no vault first (`docs/BACKUP-FLOW.md` §3).
             Go::VaultCategory(c)

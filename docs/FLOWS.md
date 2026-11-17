@@ -1793,7 +1793,7 @@ above. Whoever opens a vault reads each checked input on chain by its
 `r`, transactions of wallets not held here included, and a file vault
 grows about 200 bytes a signature.
 
-## Decode a transaction, Check a signed message and Check an address
+## Decode a transaction, Check a signed message, Check an address and Read a Bitcoin Core wallet
 
 Tools' tiles open each tool on what waits in Files: on the file itself
 when exactly one waits, on a list of the waiting files to choose from when
@@ -1806,6 +1806,8 @@ message's file. Check an address counts only text files, reads one at
 once and ends its result with the same **Another** and **Done**. Each result ends with **Another** (the list, or the empty
 part again) and **Done** (back to where the tool was opened from: Tools,
 Check or Wallets); neither has a next step to offer, so none is filled.
+Read a Bitcoin Core wallet opens the same way on its wallet files and ends
+with **Another** and **Done**; its Take to Wallets stays on the result.
 
 ## Check a signer
 

@@ -4,8 +4,10 @@
 //! result ends with Another and Done.
 
 use crate::common::has;
+use faraday_core::core_wallet::tool::CoreWalletAction as W;
 use faraday_core::strings::EN;
 use faraday_core::{Action, Faraday, Screen, StorageEvent, testkit};
+use faraday_shell_api::App;
 
 /// The first transaction ever sent, as the hex of its bytes.
 const TX: &str = "0100000001c997a5e56e104102fa209c6a852dd90660a20b2d9c352423edce25857fcd3704000000004847304402204e45e16932b8af514961a1d3a1a25fdf3f4f7732e9d624c6c61548ab5fb8cd410220181522ec8eca07de4860a4acdd12909d831cc56cbbac4622082221a8768d1d0901ffffffff0200ca9a3b00000000434104ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414e7aab37397f554a7df5f142c21c1b7303b8a0626f1baded5c72a704f7e6cd84cac00286bee0000000043410411db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5cb2e0eaddfb84ccf9744464f82e160bfa9b8b64f9d4c03f999b8643f656b412a3ac00000000";
@@ -182,4 +184,66 @@ fn check_address_result_ends_with_another_and_done() {
     ));
     assert!(app.address_check_state().unwrap().typed().is_empty());
     assert!(has(&mut app, "only.txt"));
+}
+
+// ----- Read a Bitcoin Core wallet -----
+
+fn wallet_vector(name: &str) -> Vec<u8> {
+    std::fs::read(format!(
+        "{}/../../tools/vectors/core-wallet/{name}",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .unwrap()
+}
+
+#[test]
+fn core_wallet_lists_several_files_and_ends_with_another_and_done() {
+    let (plain, enc) = (wallet_vector("plain.dat"), wallet_vector("encrypted.dat"));
+    let mut app = tools_with(&[("one.dat", &plain), ("two.dat", &enc)]);
+    app.session = faraday_core::wallet::Session::on(faraday_bip::keys::Network::Testnet);
+    open_tile(&mut app, EN.catalog_read_core_wallet);
+    assert_eq!(app.screen, Screen::CoreWallet);
+    assert!(has(&mut app, "one.dat"));
+    assert!(has(&mut app, "two.dat"));
+    assert!(!has(&mut app, EN.core_wallet_read));
+    app.press(Action::CoreWallet(W::File(0)));
+    app.press(Action::CoreWallet(W::Read));
+    app.event(faraday_shell_api::Event::Tick { now_ms: 1 });
+    assert!(has(&mut app, EN.core_wallet_whole));
+    // The ending is under the result: scroll to it.
+    for _ in 0..40 {
+        if has(&mut app, EN.bip85_another) {
+            break;
+        }
+        app.event(faraday_shell_api::Event::Scroll {
+            x: 240,
+            y: 400,
+            dy: 120,
+        });
+    }
+    assert!(has(&mut app, EN.bip85_another));
+    assert!(has(&mut app, EN.app_done));
+    app.press(Action::CoreWallet(W::Another));
+    assert!(has(&mut app, "two.dat"));
+    assert!(!has(&mut app, EN.core_wallet_whole));
+}
+
+#[test]
+fn core_wallet_with_one_file_opens_it_and_with_none_offers_the_ways_in() {
+    let plain = wallet_vector("plain.dat");
+    let mut one = tools_with(&[("only.dat", &plain)]);
+    open_tile(&mut one, EN.catalog_read_core_wallet);
+    assert!(has(&mut one, EN.core_wallet_read));
+
+    let mut none = tools_with(&[]);
+    open_tile(&mut none, EN.catalog_read_core_wallet);
+    assert_eq!(none.screen, Screen::CoreWallet);
+    // Practice puts its sample wallet in Files; take it out for the empty part.
+    none.press(Action::CoreWallet(W::Another));
+    while !none.inbox().is_empty() {
+        none.press(Action::InboxRemove(0));
+    }
+    assert!(has(&mut none, EN.core_wallet_no_file_waits));
+    assert!(has(&mut none, EN.compact_scan));
+    assert!(has(&mut none, EN.parts_open_files));
 }
