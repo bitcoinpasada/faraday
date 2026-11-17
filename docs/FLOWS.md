@@ -1011,6 +1011,13 @@ Every flow, entry point and step, and the rules this file's rules rest on, are i
 
 The Spend tab's pages and rules are in `docs/SPEND-FROM-BACKUP.md` (§4, the pages; §8, registering a wallet and MuSig2 spends).
 
+A spend of a single-key wallet whose key is not loaded has no Signers
+and no Signatures step: its Sign card offers Type the words, Scan a
+SeedQR and Open a vault, and the foot's button reads Load the key and
+opens that card. A key that is not the wallet's is refused. With a stick
+attached the routes are dimmed under "Keys load once the stick is out".
+The multisig Signers card offers Type the words too.
+
 ## GPG
 
 Every GPG action needs an open vault (the secret key lives there). With

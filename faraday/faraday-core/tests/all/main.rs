@@ -197,6 +197,7 @@ mod small_panel;
 mod spend_backup;
 mod spend_from_vault;
 mod spend_loaded;
+mod spend_sign_card_loads_key;
 mod spend_wallet_removed;
 mod step_back;
 mod stepper;

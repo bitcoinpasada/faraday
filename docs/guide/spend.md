@@ -57,7 +57,7 @@ An Add from button for each file in Files brings in another signer's copy. **Sho
 
 **Key:** spend.sign
 
-**Sign with**, followed by the fingerprints, signs with every key of the wallet that is loaded here, and each signature is checked before it is kept. Afterwards the card reads Signed with those keys. If no loaded key can sign, the card says so. A multisig needs further signatures before the transaction is finished.
+**Sign with**, followed by the fingerprints, signs with every key of the wallet that is loaded here, and each signature is checked before it is kept. Afterwards the card reads Signed with those keys. If no loaded key can sign, the card says so and offers the ways to load the wallet's key: **Type the words**, **Scan a SeedQR** and **Open** a vault. A key that is not the wallet's is refused. With a stick attached, the keys load once it is out. A multisig needs further signatures before the transaction is finished.
 
 ## Signatures for this transaction
 

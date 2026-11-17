@@ -327,6 +327,93 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
 }
 
+/// Whether the spend has no Signers and no Signatures step (one key signs)
+/// and its key is not loaded.
+pub(crate) fn single_key_unloaded(
+    session: &crate::wallet::Session,
+    s: &crate::wallet::SpendState,
+) -> bool {
+    !s.steps.contains(&step::COLLECT)
+        && !s.steps.contains(&step::SIGNERS)
+        && s.wallet
+            .and_then(|wi| session.wallets.get(wi))
+            .and_then(|wl| session.slots(wl).into_iter().next())
+            .is_some_and(|slot| slot.held_by.is_none())
+}
+
+/// The vaults not open, each as the button that unlocks it.
+fn unlock_items(app: &View) -> Vec<(Text, Action)> {
+    let back = app.screen;
+    app.vault_files()
+        .iter()
+        .enumerate()
+        .filter(|(_, f)| f.open.is_none())
+        .map(|(k, f)| {
+            (
+                Text::fill(EN.step_unlock, &[&f.name]),
+                Action::Vault(crate::vault::VaultAction::OpenFrom(k, back)),
+            )
+        })
+        .collect()
+}
+
+/// The Sign card of a single-key spend whose key is not loaded: the ways
+/// to load the wallet's key (type the words, scan a SeedQR, open a vault),
+/// dimmed under the line that keys load once the stick is out while one
+/// is attached. Returns the height used.
+fn single_key_routes(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), wi: usize) -> f32 {
+    let may = app.may_load_keys();
+    let mut cy = y;
+    let style = Style::Secondary.when(may);
+    let from_vault = app
+        .session
+        .wallets
+        .get(wi)
+        .and_then(|wl| app.session.slots(wl).into_iter().next())
+        .and_then(|slot| {
+            slot.fingerprint
+                .filter(|_| slot.held_by.is_none() && app.vault_key_for(&slot).is_some())
+        });
+    let files = app.vault_files();
+    let back = app.screen;
+    let mut opens: Vec<(Text, Action)> = Vec::new();
+    for (k, f) in files.iter().enumerate().filter(|(_, f)| f.open.is_none()) {
+        opens.push((
+            Text::fill(EN.step_open_vault, &[&f.name]),
+            Action::Vault(crate::vault::VaultAction::OpenFrom(k, back)),
+        ));
+    }
+    if files.is_empty() {
+        opens.push((Text::of(EN.step_open_a_vault), Action::Nav(Screen::Vaults)));
+    }
+    let mut items: Vec<(&str, Style, Action)> = vec![
+        (
+            EN.step_type_the_words,
+            Style::Primary.when(may),
+            Action::EntryWallet(wi),
+        ),
+        (EN.step_scan_a_seedqr, style, Action::ScanKey(wi)),
+    ];
+    if let Some(f) = from_vault {
+        items.push((
+            EN.step_load_from_vault,
+            style,
+            Action::Vault(crate::vault::VaultAction::LoadKeyOf(
+                f.0,
+                crate::vault::SlotOf::Loaded(wi, 0),
+            )),
+        ));
+    }
+    items.extend(opens.iter().map(|(l, a)| (l.as_str(), style, *a)));
+    cy += wrap_buttons(ui, x, cy, w, BUTTON_H, &items) + 2.0;
+    if !may {
+        let pull = Text::fill(EN.inbox_panel_keys_load, &[app.medium.noun()]);
+        ui.text_as(x, cy, LABEL_L, Role::Warning, &pull);
+        cy += ui.line_as(LABEL_L) + faraday_draw::tokens::GRID;
+    }
+    cy - y
+}
+
 /// Where a signing stands: the signatures there, how many are missing,
 /// the line that says what is left, the main button's label and its
 /// style: off while a check on Transaction stops signing here (F136).
@@ -370,6 +457,8 @@ fn spend_status(app: &View, needed: usize) -> (usize, usize, Text, ActionLabel, 
         )
     } else if !can_sign_here.is_empty() {
         Text::of(EN.spend_status_sign_here)
+    } else if single_key_unloaded(&app.session, s) {
+        Text::of(EN.step_no_signing_key)
     } else {
         Text::of(&crate::wallet::collect_line(to_come, count))
     };
@@ -390,6 +479,10 @@ fn spend_status(app: &View, needed: usize) -> (usize, usize, Text, ActionLabel, 
             EN.spend_status_sign_with_keys,
             &[&Text::joined(&can_sign_here, ", ")],
         )
+    } else if single_key_unloaded(&app.session, s) {
+        // No Signatures step here: the button does what the Sign
+        // card's lead does.
+        Text::of(EN.step_load_the_key)
     } else {
         Text::of(&crate::wallet::collect_line(to_come, count))
     };
@@ -1440,22 +1533,16 @@ impl StepView<'_> {
             } else {
                 Style::Disabled
             };
-            let unlocks: Vec<(Text, Action)> = app
-                .vault_files()
-                .iter()
-                .enumerate()
-                .filter(|(_, f)| f.open.is_none())
-                .map(|(k, f)| {
-                    (
-                        Text::fill(EN.step_unlock, &[&f.name]),
-                        Action::Vault(crate::vault::VaultAction::OpenFrom(k, Screen::Spend)),
-                    )
-                })
-                .collect();
+            let unlocks = unlock_items(app);
             let mut items: Vec<(&str, Style, Action)> = Vec::new();
             if let Some((wi, _)) = wl {
                 let scan = Style::Primary.when(may);
                 items.push((EN.step_scan_a_key, scan, Action::ScanKey(wi)));
+                items.push((
+                    EN.step_type_the_words,
+                    Style::Secondary.when(may),
+                    Action::EntryWallet(wi),
+                ));
             }
             items.extend(unlocks.iter().map(|(l, a)| (l.as_str(), style, *a)));
             if s.steps.contains(&step::COLLECT) {
@@ -1522,6 +1609,11 @@ impl StepView<'_> {
                 };
             ui.text_mid_as((x, cy, 40.0), BODY_S, Role::OnSurfaceVariant, line);
             cy += 44.0;
+            // A single-key spend has no Signers step: the ways to bring
+            // the wallet's key are here, unless it is already held.
+            if let Some(wi) = s.wallet.filter(|_| single_key_unloaded(&app.session, s)) {
+                cy += single_key_routes(app, ui, (x, cy, w), wi);
+            }
         } else {
             let label = Text::fill(EN.step_sign_with_keys, &[&Text::joined(&mine, ", ")]);
             let inputs = text!(

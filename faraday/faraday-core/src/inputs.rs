@@ -1092,6 +1092,9 @@ impl Faraday {
             self.wallets.open_finish();
         } else if can_sign_here {
             crate::signing::sign_here(self);
+        } else if crate::screens::single_key_unloaded(&self.session, s) {
+            // No Signatures step: the Sign card carries the ways to load the key.
+            self.wallets.open_step_followed(wallet::step::SIGN);
         } else {
             self.wallets.open_step_followed(wallet::step::COLLECT);
         }

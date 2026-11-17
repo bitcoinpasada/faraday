@@ -309,6 +309,16 @@ macro_rules! words_psbt_refusal {
     step_unlock: "Unlock {}",
     /// Text in `step_body`.
     step_scan_a_key: "Scan a key",
+    /// Button in `step_body`: the Sign card of a single-key spend whose key is not loaded.
+    step_scan_a_seedqr: "Scan a SeedQR",
+    /// Button in `step_body` and the foot's button: the same card and the Signers card.
+    step_type_the_words: "Type the words",
+    /// Button in `step_body`: a vault file in Files, opened to load the key. `{}`: its name.
+    step_open_vault: "Open {}",
+    /// Button in `step_body`: no vault file in Files.
+    step_open_a_vault: "Open a vault",
+    /// The foot's button on a single-key spend whose key is not loaded.
+    step_load_the_key: "Load the key",
     /// Text in `step_body`.
     step_collect_a_signature: "Collect a signature",
     /// Text in `step_body`. `{}`: `app.medium.noun()`.
