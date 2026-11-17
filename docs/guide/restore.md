@@ -31,7 +31,7 @@ The description names every key and the wallet's rules. Without one, the wallet 
 
 **I have the seed** makes a single-key wallet from its seed alone. **I do not have it** does the same for a multisig. **Scan descriptor** reads a description with the camera. A button named From and a file's name reads a wallet file from Files. **Copy files in** brings in a stick's files; a stick is not read while a key is loaded. A button named Unlock and a vault's name opens a locked vault, and a wallet in an open vault is offered by name.
 
-**Shares of a split backup** lists the share files in Files. Tick the ones to use; **Rebuild the wallet** stands out once the ticked shares are enough to rebuild the description.
+**Shares of a split backup** lists the share files in Files. Tick the ones to use; **Rebuild the wallet** stands out once they are enough to rebuild the description.
 
 ## Use vaults
 
