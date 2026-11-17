@@ -95,6 +95,19 @@ fn seed_record() -> Record {
         words: 12,
         index: 7,
     };
+    let split = faraday_vault::xor::XorFacts {
+        parts: vec![[0x0a, 0x0b, 0x0c, 0x0d], [0x1a, 0x1b, 0x1c, 0x1d]],
+    };
+    let shares = faraday_vault::slip39::Slip39Facts {
+        identifier: 0x1234,
+        exponent: 1,
+        threshold: 1,
+        groups: vec![faraday_vault::slip39::Group {
+            threshold: 2,
+            count: 3,
+            made: 0b011,
+        }],
+    };
     Record::new(kind::KEY)
         .with(field::KEY, &words_payload())
         .with(field::KEY_LABEL, b"Savings")
@@ -104,6 +117,14 @@ fn seed_record() -> Record {
         .with(
             field::KEY_CHILD,
             &faraday_vault::child::payload(&child).unwrap(),
+        )
+        .with(
+            field::KEY_XOR,
+            &faraday_vault::xor::payload(&split).unwrap(),
+        )
+        .with(
+            field::KEY_SLIP39,
+            &faraday_vault::slip39::payload(&shares).unwrap(),
         )
 }
 

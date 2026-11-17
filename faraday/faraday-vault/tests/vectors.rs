@@ -186,4 +186,9 @@ fn the_seed_reads_back_with_its_fields_and_facts() {
     assert_eq!(seed.text(field::KEY_PASSPHRASE), Some("TREZOR"));
     assert!(seed.field(field::KEY_CODEX32).is_some());
     assert!(seed.field(field::KEY_CHILD).is_some());
+    let xor = faraday_vault::xor::xor_of(seed.field(field::KEY_XOR).expect("the Seed XOR set"));
+    assert_eq!(xor.expect("reads").parts.len(), 2);
+    let slip =
+        faraday_vault::slip39::slip39_of(seed.field(field::KEY_SLIP39).expect("the SLIP-39 set"));
+    assert_eq!(slip.expect("reads").identifier, 0x1234);
 }

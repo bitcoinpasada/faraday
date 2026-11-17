@@ -202,6 +202,8 @@ fn seed_from_aezeed(
         has_passphrase: false,
         codex32: None,
         child_of: None,
+        xor: None,
+        slip39: None,
     };
     Ok((
         HeldAezeed {

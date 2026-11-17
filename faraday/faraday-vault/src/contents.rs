@@ -14,7 +14,10 @@
 //!   record (§7).
 //! - [`write_codex32_facts`] and [`read_codex32_facts`] are a seed's
 //!   `faraday.codex32`, and [`write_child_facts`] and [`read_child_facts`]
-//!   its `faraday.child`, each one TOML inline table of plain facts (§7).
+//!   its `faraday.child`, each one TOML inline table of plain facts (§7);
+//!   [`write_xor_facts`] and [`read_xor_facts`] are its `faraday.xor`, and
+//!   [`write_slip39_facts`] and [`read_slip39_facts`] its `faraday.slip39`,
+//!   the same.
 //!
 //! A syntax refusal names the line ([`Why::Syntax`]); every other
 //! refusal names the key ([`Refusal`]). Anything not named in §7 is
@@ -38,6 +41,8 @@ use crate::child::ChildOf;
 use crate::codex32::{self, SetFacts, State};
 use crate::layouts::{self, Opened};
 use crate::records::{Record, field, kind};
+use crate::slip39::{self, Slip39Facts};
+use crate::xor::XorFacts;
 use tree::{Arr, Table, Val};
 
 /// The most a TOML value is, in bytes: a backup plan is the longest.
@@ -108,6 +113,8 @@ pub enum Why {
     BadCodex32,
     /// BIP-85 facts that are not child facts this layout holds.
     BadChild,
+    /// Seed XOR or SLIP-39 facts that are not a set this layout holds.
+    BadSplit,
     /// A state or another value that is not one.
     BadValue,
     /// A number outside its range.
@@ -840,6 +847,159 @@ pub fn read_child_facts(bytes: &[u8]) -> Result<ChildOf, Refusal> {
         return Err(refuse(Why::BadChild));
     }
     Ok(c)
+}
+
+/// A seed's Seed XOR facts as one TOML inline table, the value of its
+/// `faraday.xor` (§7): `parts`, each part's master fingerprint as eight
+/// lower-case hex digits.
+pub fn write_xor_facts(f: &XorFacts) -> Result<Zeroizing<Vec<u8>>, Refusal> {
+    if !f.is_sound() {
+        return Err(refuse(Why::BadSplit));
+    }
+    let mut o = Out::new(1024)?;
+    o.s("{parts = [");
+    for (i, p) in f.parts.iter().enumerate() {
+        if i > 0 {
+            o.s(", ");
+        }
+        o.s("\"");
+        o.hex(p);
+        o.s("\"");
+    }
+    o.s("]}");
+    o.done("xor")
+}
+
+/// Reads a `faraday.xor` value (§7).
+pub fn read_xor_facts(bytes: &[u8]) -> Result<XorFacts, Refusal> {
+    let mut t = value_table(bytes, 1024)?;
+    let items = t
+        .array("parts")?
+        .ok_or_else(|| t.err(Why::Missing, "parts"))?
+        .items;
+    let mut parts = Vec::new();
+    for e in items {
+        let Val::Str(s) = e else {
+            return Err(t.err(Why::WrongType, "parts"));
+        };
+        let h = unhex(&s, Some(4)).ok_or_else(|| t.err(Why::BadHex, "parts"))?;
+        parts.push([h[0], h[1], h[2], h[3]]);
+    }
+    t.finish()?;
+    let f = XorFacts { parts };
+    if !f.is_sound() {
+        return Err(refuse(Why::BadSplit));
+    }
+    Ok(f)
+}
+
+/// A seed's SLIP-39 facts as one TOML inline table, the value of its
+/// `faraday.slip39` (§7): `id`, `exponent`, `threshold` and `groups`, an
+/// array of inline tables, `threshold`, `count` and `made`, the member
+/// indices made.
+pub fn write_slip39_facts(f: &Slip39Facts) -> Result<Zeroizing<Vec<u8>>, Refusal> {
+    if !f.is_sound() {
+        return Err(refuse(Why::BadSplit));
+    }
+    let mut o = Out::new(4096)?;
+    o.s("{id = ");
+    o.num(u64::from(f.identifier));
+    o.s(", exponent = ");
+    o.num(u64::from(f.exponent));
+    o.s(", threshold = ");
+    o.num(u64::from(f.threshold));
+    o.s(", groups = [");
+    for (i, g) in f.groups.iter().enumerate() {
+        if i > 0 {
+            o.s(", ");
+        }
+        o.s("{threshold = ");
+        o.num(u64::from(g.threshold));
+        o.s(", count = ");
+        o.num(u64::from(g.count));
+        o.s(", made = [");
+        let mut first = true;
+        for m in 0..g.count {
+            if g.made >> m & 1 == 1 {
+                if !first {
+                    o.s(", ");
+                }
+                first = false;
+                o.num(u64::from(m));
+            }
+        }
+        o.s("]}");
+    }
+    o.s("]}");
+    o.done("slip39")
+}
+
+/// Reads a `faraday.slip39` value (§7).
+pub fn read_slip39_facts(bytes: &[u8]) -> Result<Slip39Facts, Refusal> {
+    let mut v = value_table(bytes, 4096)?;
+    let id = v
+        .small("id", 0x7fff)?
+        .ok_or_else(|| v.err(Why::Missing, "id"))?;
+    let exponent = v
+        .small("exponent", 31)?
+        .ok_or_else(|| v.err(Why::Missing, "exponent"))?;
+    let threshold = v
+        .small("threshold", 16)?
+        .ok_or_else(|| v.err(Why::Missing, "threshold"))?;
+    let items = v
+        .array("groups")?
+        .ok_or_else(|| v.err(Why::Missing, "groups"))?
+        .items;
+    let mut groups = Vec::new();
+    for e in items {
+        let Val::Table(tab) = e else {
+            return Err(v.err(Why::WrongType, "groups"));
+        };
+        let mut g = Item {
+            t: tab,
+            prefix: "groups",
+        };
+        let threshold = g
+            .small("threshold", 16)?
+            .ok_or_else(|| g.err(Why::Missing, "threshold"))?;
+        let count = g
+            .small("count", 16)?
+            .ok_or_else(|| g.err(Why::Missing, "count"))?;
+        let made = g
+            .array("made")?
+            .ok_or_else(|| g.err(Why::Missing, "made"))?;
+        let mut mask = 0u16;
+        for m in made.items {
+            let Val::Int(n) = m else {
+                return Err(g.err(Why::WrongType, "made"));
+            };
+            let n = u8::try_from(n)
+                .ok()
+                .filter(|&n| u32::from(n) < count)
+                .ok_or_else(|| g.err(Why::Range, "made"))?;
+            if mask >> n & 1 == 1 {
+                return Err(g.err(Why::BadSplit, "made"));
+            }
+            mask |= 1 << n;
+        }
+        g.finish()?;
+        groups.push(slip39::Group {
+            threshold: threshold as u8,
+            count: count as u8,
+            made: mask,
+        });
+    }
+    v.finish()?;
+    let f = Slip39Facts {
+        identifier: id as u16,
+        exponent: exponent as u8,
+        threshold: threshold as u8,
+        groups,
+    };
+    if !f.is_sound() {
+        return Err(refuse(Why::BadSplit));
+    }
+    Ok(f)
 }
 
 /// The inline table a value is: read as the one key `v` of a document, so

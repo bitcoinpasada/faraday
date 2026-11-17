@@ -874,7 +874,7 @@ standard fields it leaves empty, must be absent or empty:
 
 | Kind (`faraday.kind`), group | Record type | Fields, and the published form of each | Custom data |
 |---|---|---|---|
-| `seed`, Bitcoin keys | 2 | `Title`: its label, or "Key {fingerprint}". `Password` (protected): the BIP-39 words of its list, one space between; or `hex` (protected): a BIP-32 seed of 16 to 64 bytes in lower-case hex; exactly one of the two. `list`: a list other than English (`japanese`, `korean`, `spanish`, `chinese-simplified`, `chinese-traditional`, `french`, `italian`, `czech`, `portuguese`). `passphrase` (protected): its BIP-39 passphrase, present only when the person chose to keep it with the seed. | `faraday.load` `false` when it is not loaded at unlock (F62); `faraday.held` `true` while it was made in Faraday with its backup not done; `faraday.codex32` and `faraday.child`, below |
+| `seed`, Bitcoin keys | 2 | `Title`: its label, or "Key {fingerprint}". `Password` (protected): the BIP-39 words of its list, one space between; or `hex` (protected): a BIP-32 seed of 16 to 64 bytes in lower-case hex; exactly one of the two. `list`: a list other than English (`japanese`, `korean`, `spanish`, `chinese-simplified`, `chinese-traditional`, `french`, `italian`, `czech`, `portuguese`). `passphrase` (protected): its BIP-39 passphrase, present only when the person chose to keep it with the seed. | `faraday.load` `false` when it is not loaded at unlock (F62); `faraday.held` `true` while it was made in Faraday with its backup not done; `faraday.codex32`, `faraday.child`, `faraday.xor` and `faraday.slip39`, below |
 | `wallet`, Wallets | 3 | `Title`: its name. `policy`: its BIP-388 wallet policy, or `descriptor`: its descriptor (BIP 380) for a wallet with no policy form; exactly one. A wallet whose key has no origin is refused, never kept. | `faraday.load` as a seed's |
 | `note`, Notes | 4 | `Title`: "Note". `Notes`: the text. | |
 | `sheet`, Recovery sheets | 5 | `Title`: its name. `descriptor`. `Notes`: the sheet's note. The three together at most 16 KiB. | |
@@ -906,6 +906,25 @@ TOML inline table: `parent`, the parent key's fingerprint;
 `application`, 39; `language`, BIP-85's language number; `words`, the
 seed's own word count; `index`, at most 2³¹ − 1. Public: a fingerprint
 and numbers. A seed held as `hex` takes none.
+
+A seed's `faraday.xor` is the plain facts of the one Seed XOR set it was
+split into, as one TOML inline table: `parts`, an array of each part's
+master fingerprint, eight lower-case hex digits, in the order of the
+parts, two to 16 of them. A seed's `faraday.slip39` is the plain facts of
+the one SLIP-39 set it was split into, as one TOML inline table: `id`, the
+set's identifier (0 to 32767); `exponent`, the iteration exponent (0 to
+31); `threshold`, how many groups recover the seed; `groups`, an array of
+one to 16 inline tables, `threshold` (1 to its `count`), `count` (1 to 16)
+and `made`, the member indices made (0 up to one below `count`, each once).
+Neither holds a part or a share: only numbers and fingerprints, public.
+A key has at most one set of each kind; a second is refused. In the binary
+key record they are fields 7 (`faraday.xor`) and 8 (`faraday.slip39`),
+`faraday-vault/src/xor.rs` and `slip39.rs` giving their layouts. A record
+without them reads as it always did. An older Faraday that does not know
+them reads an entry with either as damaged, below: the item is listed
+Unreadable and its key is not loaded there, and the next seal writes the
+entry back as it was read, so the facts are not lost; the binary record
+with either is refused by the older record check the same way.
 
 **Each is the person's to keep or drop** (owner, 2026-11-02). Wherever a
 seed is saved into a vault (Save on Vaults, the secret sheet's Save into
@@ -965,7 +984,7 @@ BIP-39 phrase of their list; a policy or descriptor that does not
 parse (one whose keys each read but a wallet rule refuses, such as a key
 repeated or keys of two networks, is listed with the reason a wallet
 added fresh gives); a PEM block other than the one its field names; a
-`faraday.codex32`, `faraday.child` or `faraday.plan.{n}` that is not the
+`faraday.codex32`, `faraday.child`, `faraday.xor`, `faraday.slip39` or `faraday.plan.{n}` that is not the
 TOML its key names; a GPG key not of Faraday's own shape (an Ed25519
 primary key with one Ed25519 signing subkey, unprotected); an entry with
 two fields of one name; two entries or two groups with one UUID; an entry,

@@ -39,7 +39,9 @@ pub mod kdbx;
 pub mod layouts;
 pub mod qr;
 pub mod records;
+pub mod slip39;
 pub mod totp;
+pub mod xor;
 
 use unicode_normalization::UnicodeNormalization;
 use zeroize::Zeroizing;

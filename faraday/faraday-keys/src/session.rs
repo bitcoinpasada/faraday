@@ -87,6 +87,18 @@ pub struct KeyInfo {
     /// Written into every vault record of the key; nowhere else. `None`
     /// for a key not recorded as a child.
     pub child_of: Option<faraday_vault::child::ChildOf>,
+    /// The Seed XOR set the key's seed is split into, as its plain facts
+    /// (`docs/VAULT.md` §7): the number of parts and each part's master
+    /// fingerprint, never a part. One set per key ([`Keys::set_xor`]).
+    /// Set when Convert makes the set and a vault record holds it, or read
+    /// from its vault record's field 7. `None` for a key with no set known.
+    pub xor: Option<faraday_vault::xor::XorFacts>,
+    /// The SLIP-39 set the key's seed is split into, as its plain facts
+    /// (`docs/VAULT.md` §7): identifier, iteration exponent, group
+    /// threshold, each group's threshold and count and the member indices
+    /// made, never a share. One set per key ([`Keys::set_slip39`]). Read
+    /// from its vault record's field 8. `None` for a key with no set known.
+    pub slip39: Option<faraday_vault::slip39::Slip39Facts>,
 }
 
 impl KeyInfo {
@@ -942,6 +954,12 @@ impl Keys {
             if item.child.is_some() {
                 self.set_child_of(at, item.child);
             }
+            if item.xor.is_some() {
+                self.set_xor(at, item.xor);
+            }
+            if item.slip39.is_some() {
+                self.set_slip39(at, item.slip39);
+            }
             out.push(fp);
         }
         (out, crate::job::Derived(derived), refused)
@@ -1286,6 +1304,21 @@ impl Keys {
         {
             record.push(field::KEY_CHILD, &of);
         }
+        // The plain facts of a Seed XOR or SLIP-39 set: no part, no share.
+        if !without.contains(&field::KEY_XOR)
+            && let Some(set) = e.info.xor.as_ref().and_then(faraday_vault::xor::payload)
+        {
+            record.push(field::KEY_XOR, &set);
+        }
+        if !without.contains(&field::KEY_SLIP39)
+            && let Some(set) = e
+                .info
+                .slip39
+                .as_ref()
+                .and_then(faraday_vault::slip39::payload)
+        {
+            record.push(field::KEY_SLIP39, &set);
+        }
         Some(Held(record))
     }
 
@@ -1332,6 +1365,48 @@ impl Keys {
                 }) =>
             {
                 e.info.child_of = of;
+                true
+            }
+            _ => false,
+        }
+    }
+
+    /// Sets the Seed XOR set key `i`'s seed is split into, its plain
+    /// facts. One set per key: a lookup; refused (false) for no such key,
+    /// facts the vault's layout cannot hold, or a key that already has a
+    /// set (`None` takes it off).
+    pub fn set_xor(&mut self, i: usize, set: Option<faraday_vault::xor::XorFacts>) -> bool {
+        match self.entries.get_mut(i) {
+            Some(e)
+                if set
+                    .as_ref()
+                    .is_none_or(faraday_vault::xor::XorFacts::is_sound)
+                    && (set.is_none() || e.info.xor.is_none()) =>
+            {
+                e.info.xor = set;
+                true
+            }
+            _ => false,
+        }
+    }
+
+    /// Sets the SLIP-39 set key `i`'s seed is split into, its plain
+    /// facts. One set per key: a lookup; refused (false) for no such key,
+    /// facts the vault's layout cannot hold, or a key that already has a
+    /// set (`None` takes it off).
+    pub fn set_slip39(
+        &mut self,
+        i: usize,
+        set: Option<faraday_vault::slip39::Slip39Facts>,
+    ) -> bool {
+        match self.entries.get_mut(i) {
+            Some(e)
+                if set
+                    .as_ref()
+                    .is_none_or(faraday_vault::slip39::Slip39Facts::is_sound)
+                    && (set.is_none() || e.info.slip39.is_none()) =>
+            {
+                e.info.slip39 = set;
                 true
             }
             _ => false,
@@ -2052,6 +2127,8 @@ impl Entry {
             has_passphrase: passphrase.is_some(),
             codex32: None,
             child_of: None,
+            xor: None,
+            slip39: None,
         };
         Entry {
             key: Key {

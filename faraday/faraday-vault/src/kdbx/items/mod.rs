@@ -17,7 +17,7 @@
 //! **Nothing about Faraday's items refuses the file** (owner, 2026-11-03).
 //! An item that does not read (an unknown `faraday.kind`, a field its kind
 //! does not name, a required field missing, a value not in its published
-//! form, a `faraday.codex32` or `faraday.child` that is not its TOML) is an
+//! form, a `faraday.codex32`, `faraday.child`, `faraday.xor` or `faraday.slip39` that is not its TOML) is an
 //! [`Unreadable`], naming the entry by title and UUID and the field or key
 //! and fault; it is never made a record, and its entry is written back as
 //! read. So is an entry whose UUID another entry shares, or one with two
@@ -67,7 +67,7 @@ use faraday_text::Text;
 use super::xml::{Document, Entry, Group};
 use crate::records::{self, BACKUP_PENDING, NO_LOAD_AT_UNLOCK, Record, field, kind};
 use crate::totp::{self, NotTotp, Totp};
-use crate::{child, codex32, contents};
+use crate::{child, codex32, contents, slip39, xor};
 
 pub use text::{
     Custom, Damage, Extra, Fault, Format, GpgKey, Item, Read, ReadOnly, Related, Unreadable,
@@ -142,6 +142,8 @@ fn named_custom(k: u8) -> &'static [&'static str] {
             "faraday.held",
             "faraday.codex32",
             "faraday.child",
+            "faraday.xor",
+            "faraday.slip39",
         ],
         kind::WALLET => &["faraday.load"],
         _ => &[],
@@ -222,6 +224,8 @@ fn record_damage(k: u8, f: records::Fault) -> Damage {
         (kind::KEY, field::KEY) => "Password",
         (kind::KEY, field::KEY_CODEX32) => "faraday.codex32",
         (kind::KEY, field::KEY_CHILD) => "faraday.child",
+        (kind::KEY, field::KEY_XOR) => "faraday.xor",
+        (kind::KEY, field::KEY_SLIP39) => "faraday.slip39",
         (kind::KEY, field::KEY_PASSPHRASE) => "passphrase",
         (kind::SHEET, _) => "descriptor",
         (kind::CODEX32_SHARE, _) => "Password",
@@ -315,6 +319,18 @@ fn read_seed(c: &Compute, e: &Entry, f: &mut Fields<'_>) -> Result<Body, Damage>
             .map_err(|_| damage("faraday.child", Fault::Value))?;
         let p = child::payload(&of).ok_or_else(|| damage("faraday.child", Fault::Value))?;
         r.push(field::KEY_CHILD, &p);
+    }
+    if let Some(v) = e.custom().get("faraday.xor") {
+        let facts = contents::read_xor_facts(v.as_bytes())
+            .map_err(|_| damage("faraday.xor", Fault::Value))?;
+        let p = xor::payload(&facts).ok_or_else(|| damage("faraday.xor", Fault::Value))?;
+        r.push(field::KEY_XOR, &p);
+    }
+    if let Some(v) = e.custom().get("faraday.slip39") {
+        let facts = contents::read_slip39_facts(v.as_bytes())
+            .map_err(|_| damage("faraday.slip39", Fault::Value))?;
+        let p = slip39::payload(&facts).ok_or_else(|| damage("faraday.slip39", Fault::Value))?;
+        r.push(field::KEY_SLIP39, &p);
     }
     checked(r)
 }

@@ -150,6 +150,8 @@ impl OpenVaults {
         let loaded = keys.add_mnemonic(c, &m, passphrase, &label, None);
         if loaded.is_ok() {
             keys.set_child_of(keys.len() - 1, child_of_of(r));
+            keys.set_xor(keys.len() - 1, xor_of_record(r));
+            keys.set_slip39(keys.len() - 1, slip39_of_record(r));
         }
         Some(KeyLoad::Done(loaded))
     }
@@ -555,12 +557,16 @@ impl OpenVaults {
                     label,
                     codex32,
                     child: child_of_of(r),
+                    xor: xor_of_record(r),
+                    slip39: slip39_of_record(r),
                 });
             } else if let Some(seed) = seed_of(r) {
                 job.seeds.push(SeedToLoad {
                     seed,
                     label,
                     codex32,
+                    xor: xor_of_record(r),
+                    slip39: slip39_of_record(r),
                 });
             }
         }
@@ -614,6 +620,8 @@ impl OpenVaults {
         if matches!(loaded, Some(Ok(_))) {
             keys.set_codex32(keys.len() - 1, codex32_set_of(r));
             keys.set_child_of(keys.len() - 1, child_of_of(r));
+            keys.set_xor(keys.len() - 1, xor_of_record(r));
+            keys.set_slip39(keys.len() - 1, slip39_of_record(r));
         }
         loaded
     }

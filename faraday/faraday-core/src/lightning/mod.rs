@@ -50,7 +50,7 @@ pub(crate) enum ReadWork {
 /// faraday-keys' type.
 pub(crate) enum ReadDone {
     /// An aezeed's.
-    Aezeed(faraday_keys::lightning::AezeedRead),
+    Aezeed(Box<faraday_keys::lightning::AezeedRead>),
     /// An `hsm_secret`'s.
     Hsm(faraday_keys::hsm_secret::HsmRead),
 }
@@ -60,7 +60,7 @@ impl ReadWork {
     /// derivation.
     pub(crate) fn run(self, c: &Compute) -> ReadDone {
         match self {
-            ReadWork::Aezeed(job) => ReadDone::Aezeed(job.run(c)),
+            ReadWork::Aezeed(job) => ReadDone::Aezeed(Box::new(job.run(c))),
             ReadWork::Hsm(job) => ReadDone::Hsm(job.run(c)),
         }
     }
@@ -307,7 +307,7 @@ impl LightningArea {
     pub(crate) fn read_done(&mut self, keys: &Keys, done: ReadDone) {
         let found = match done {
             ReadDone::Aezeed(read) => keys
-                .aezeed_node(read)
+                .aezeed_node(*read)
                 .map_err(|e| Text::fill(EN.lightning_not_an_aezeed, &[&e])),
             ReadDone::Hsm(read) => keys.hsm_node(read).map_err(refusal_line),
         };
@@ -333,7 +333,7 @@ impl LightningArea {
         let ReadDone::Aezeed(read) = done else {
             return None;
         };
-        match keys.aezeed_hold(read) {
+        match keys.aezeed_hold(*read) {
             Ok(fp) => {
                 self.state = None;
                 Some(fp)

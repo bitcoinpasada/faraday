@@ -627,6 +627,8 @@ pub(crate) struct WordsToLoad {
     pub(crate) label: Zeroizing<Vec<u8>>,
     pub(crate) codex32: Option<fv::codex32::SetFacts>,
     pub(crate) child: Option<fv::child::ChildOf>,
+    pub(crate) xor: Option<fv::xor::XorFacts>,
+    pub(crate) slip39: Option<fv::slip39::Slip39Facts>,
 }
 
 /// A key record of a master seed to load.
@@ -634,6 +636,8 @@ pub(crate) struct SeedToLoad {
     pub(crate) seed: Zeroizing<Vec<u8>>,
     pub(crate) label: Zeroizing<Vec<u8>>,
     pub(crate) codex32: Option<fv::codex32::SetFacts>,
+    pub(crate) xor: Option<fv::xor::XorFacts>,
+    pub(crate) slip39: Option<fv::slip39::Slip39Facts>,
 }
 
 /// The costly part of loading the key records of open vaults into the
@@ -686,6 +690,8 @@ pub(crate) struct LoadedKey {
     pub(crate) derived: Vec<(Fingerprint, DerivationPath, Xpub)>,
     pub(crate) codex32: Option<fv::codex32::SetFacts>,
     pub(crate) child: Option<fv::child::ChildOf>,
+    pub(crate) xor: Option<fv::xor::XorFacts>,
+    pub(crate) slip39: Option<fv::slip39::Slip39Facts>,
 }
 
 /// The text a held byte string stands for: what was stored as text, so it
@@ -779,13 +785,15 @@ impl KeysJob {
             let derived = self.derive_checks(c, &master);
             #[expect(
                 clippy::disallowed_methods,
-                reason = "a codex32 set's facts are public"
+                reason = "a codex32, Seed XOR or SLIP-39 set's facts are public"
             )]
             items.push(LoadedKey {
                 derived,
                 entry: crate::session::mnemonic_entry(c, master, &m, pass, text(&w.label)),
                 codex32: w.codex32.clone(),
                 child: w.child,
+                xor: w.xor.clone(),
+                slip39: w.slip39.clone(),
             });
         }
         for s in &self.seeds {
@@ -799,13 +807,15 @@ impl KeysJob {
             let derived = self.derive_checks(c, &master);
             #[expect(
                 clippy::disallowed_methods,
-                reason = "a codex32 set's facts are public"
+                reason = "a codex32, Seed XOR or SLIP-39 set's facts are public"
             )]
             items.push(LoadedKey {
                 derived,
                 entry: crate::session::seed_entry(c, master, &s.seed, text(&s.label)),
                 codex32: s.codex32.clone(),
                 child: None,
+                xor: s.xor.clone(),
+                slip39: s.slip39.clone(),
             });
         }
         KeysLoaded {

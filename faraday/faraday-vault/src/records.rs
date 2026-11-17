@@ -79,6 +79,12 @@ pub mod field {
     /// written only when the person chose to record it
     /// ([`crate::child::payload`]).
     pub const KEY_CHILD: u8 = 6;
+    /// Bitcoin key: the Seed XOR set its seed is split into, its plain
+    /// facts and no part ([`crate::xor::payload`]).
+    pub const KEY_XOR: u8 = 7;
+    /// Bitcoin key: the SLIP-39 set its seed is split into, its plain
+    /// facts and no share ([`crate::slip39::payload`]).
+    pub const KEY_SLIP39: u8 = 8;
 
     /// Wallet: BIP-388 text or a descriptor.
     pub const WALLET: u8 = 1;
@@ -231,6 +237,8 @@ const KEY_RULES: &[Rule] = &[
     rule(4, false, false, TEXT),
     rule(5, false, false, Shape::Bytes),
     rule(6, false, false, Shape::Exact(crate::child::LEN)),
+    rule(7, false, false, Shape::Bytes),
+    rule(8, false, false, Shape::Bytes),
 ];
 const WALLET_RULES: &[Rule] = &[
     rule(1, true, false, TEXT),
@@ -464,6 +472,18 @@ impl Record {
             && crate::codex32::set_of(set).is_none()
         {
             return Err(Fault::Value(self.kind, field::KEY_CODEX32));
+        }
+        if self.kind == kind::KEY
+            && let Some(set) = self.field(field::KEY_XOR)
+            && crate::xor::xor_of(set).is_none()
+        {
+            return Err(Fault::Value(self.kind, field::KEY_XOR));
+        }
+        if self.kind == kind::KEY
+            && let Some(set) = self.field(field::KEY_SLIP39)
+            && crate::slip39::slip39_of(set).is_none()
+        {
+            return Err(Fault::Value(self.kind, field::KEY_SLIP39));
         }
         // A child seed is words: its record holds words of its count.
         if self.kind == kind::KEY

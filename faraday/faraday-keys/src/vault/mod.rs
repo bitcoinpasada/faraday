@@ -2067,6 +2067,18 @@ fn child_of_of(r: &Record) -> Option<fv::child::ChildOf> {
     fv::child::child_of(r.field(field::KEY_CHILD)?)
 }
 
+/// The Seed XOR set a key record keeps, its plain facts; `None` where it
+/// keeps none.
+fn xor_of_record(r: &Record) -> Option<fv::xor::XorFacts> {
+    fv::xor::xor_of(r.field(field::KEY_XOR)?)
+}
+
+/// The SLIP-39 set a key record keeps, its plain facts; `None` where it
+/// keeps none.
+fn slip39_of_record(r: &Record) -> Option<fv::slip39::Slip39Facts> {
+    fv::slip39::slip39_of(r.field(field::KEY_SLIP39)?)
+}
+
 /// The master seed a key record holds, when it holds a seed rather than
 /// words.
 fn seed_of(r: &Record) -> Option<Zeroizing<Vec<u8>>> {

@@ -217,6 +217,8 @@ pub struct KeyInfo {        // kept values: public, and read by drawing
     pub has_passphrase: bool,
     pub share: Option<PublicKey>,
     pub child_of: Option<ChildOf>, // the BIP-85 parent, when recorded (F166)
+    pub xor: Option<XorFacts>,     // a Seed XOR set's public facts: each part's fingerprint, no part
+    pub slip39: Option<Slip39Facts>, // a SLIP-39 set's public facts, no share
 }
 
 impl Keys {

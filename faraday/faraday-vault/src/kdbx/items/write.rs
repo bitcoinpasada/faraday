@@ -14,7 +14,7 @@ use super::{
 };
 use crate::kdbx::xml::{Document, Entry, Group};
 use crate::records::{self, BACKUP_PENDING, NO_LOAD_AT_UNLOCK, Record, field, kind};
-use crate::{child, codex32, contents};
+use crate::{child, codex32, contents, slip39, xor};
 
 /// Why a change was not applied.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -107,6 +107,17 @@ fn seed_fields(r: &Record, title: &str, fl: &mut Pairs, cd: &mut Pairs) -> Resul
         let of = child::child_of(b).ok_or(Unwritable::Value("faraday.child"))?;
         let v = contents::write_child_facts(&of).map_err(|_| Unwritable::Value("faraday.child"))?;
         cd.push(("faraday.child", v, false));
+    }
+    if let Some(b) = r.field(field::KEY_XOR) {
+        let facts = xor::xor_of(b).ok_or(Unwritable::Value("faraday.xor"))?;
+        let v = contents::write_xor_facts(&facts).map_err(|_| Unwritable::Value("faraday.xor"))?;
+        cd.push(("faraday.xor", v, false));
+    }
+    if let Some(b) = r.field(field::KEY_SLIP39) {
+        let facts = slip39::slip39_of(b).ok_or(Unwritable::Value("faraday.slip39"))?;
+        let v = contents::write_slip39_facts(&facts)
+            .map_err(|_| Unwritable::Value("faraday.slip39"))?;
+        cd.push(("faraday.slip39", v, false));
     }
     Ok(())
 }

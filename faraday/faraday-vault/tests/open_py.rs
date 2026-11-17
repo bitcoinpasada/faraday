@@ -114,6 +114,8 @@ fn open_py_prints_every_item_under_its_name_with_the_values_pykeepass_reads() {
         "seed (Bitcoin keys) 01010101010101010101010101010101\n  Title: Savings\n  Password: abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about\n  passphrase: TREZOR\n  faraday.load: false\n  faraday.held: true\n",
         "  faraday.codex32: {k = 2, id = \"name\", lengths = [48], unknown = 1, shares = [{index = \"a\", state = \"placed\"}, {index = \"c\", state = \"made\"}]}\n",
         "  faraday.child: {parent = \"01020304\", application = 39, language = 0, words = 12, index = 7}\n",
+        "  faraday.xor: {parts = [\"0a0b0c0d\", \"1a1b1c1d\"]}\n",
+        "  faraday.slip39: {id = 4660, exponent = 1, threshold = 2, groups = [{threshold = 2, count = 3, made = [0, 2]}, {threshold = 1, count = 1, made = [0]}]}\n",
         "  Title: Key 01020304\n  hex: 5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a\n",
         "wallet (Wallets) ",
         "  policy: wpkh(@0/**)\n[73c5da0a/84h/0h/0h]xpub6Cat",

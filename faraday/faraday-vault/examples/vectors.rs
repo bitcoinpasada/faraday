@@ -41,6 +41,8 @@ use faraday_vault::kdbx::items::{self, Body, GpgKey, Place};
 use faraday_vault::kdbx::xml::{Document, Refused};
 use faraday_vault::kdbx::{self, Contents, RANDOM_LEN, Unsupported};
 use faraday_vault::records::{BACKUP_PENDING, NO_LOAD_AT_UNLOCK, field, kind};
+use faraday_vault::slip39::{self, Slip39Facts};
+use faraday_vault::xor::{self, XorFacts};
 use faraday_vault::{Cost, Record, layouts};
 use zeroize::Zeroizing;
 
@@ -152,6 +154,26 @@ fn every_kind() -> Vec<Item> {
         words: 12,
         index: 7,
     };
+    let split = XorFacts {
+        parts: vec![[0x0a, 0x0b, 0x0c, 0x0d], [0x1a, 0x1b, 0x1c, 0x1d]],
+    };
+    let shares = Slip39Facts {
+        identifier: 0x1234,
+        exponent: 1,
+        threshold: 2,
+        groups: vec![
+            slip39::Group {
+                threshold: 2,
+                count: 3,
+                made: 0b101,
+            },
+            slip39::Group {
+                threshold: 1,
+                count: 1,
+                made: 0b1,
+            },
+        ],
+    };
     let seed = Record::new(kind::KEY)
         .with(field::KEY, &words_payload())
         .with(field::KEY_LABEL, b"Savings")
@@ -161,7 +183,9 @@ fn every_kind() -> Vec<Item> {
             field::KEY_CODEX32,
             &set_payload(&facts).expect("a sound set"),
         )
-        .with(field::KEY_CHILD, &child::payload(&parent).expect("a child"));
+        .with(field::KEY_CHILD, &child::payload(&parent).expect("a child"))
+        .with(field::KEY_XOR, &xor::payload(&split).expect("a set"))
+        .with(field::KEY_SLIP39, &slip39::payload(&shares).expect("a set"));
     let hex = Record::new(kind::KEY).with(
         field::KEY,
         &layouts::seed_payload(&[0x5a; 32]).expect("32 bytes"),
