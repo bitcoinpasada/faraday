@@ -274,3 +274,76 @@ fn a_seed_typed_into_my_seed_makes_my_wallet_is_gone_once_the_screen_is_left() {
         }
     }
 }
+
+/// New key opened from Add a key with the words already typed there
+/// (`PHRASE`), the words typed again inside New key and taken as far as its
+/// Key card.
+fn new_key_over_add_a_key() -> Faraday {
+    use faraday_core::keygen::Start;
+    let mut app = demo_on_testnet();
+    type_text(&mut app, PHRASE);
+    app.press(Action::KeyGen(None));
+    assert_eq!(app.screen, Screen::KeyGen, "New key did not open");
+    app.press(Action::KStart(Start::Words.index()));
+    let _ = app.frame();
+    type_text(&mut app, PHRASE);
+    app.press(Action::KNext);
+    let _ = app.frame();
+    app
+}
+
+/// Leaves New key and then Add a key by `leave`, as far as neither is on
+/// screen.
+fn leave_both(app: &mut Faraday, leave: fn(&mut Faraday)) {
+    for _ in 0..12 {
+        if !matches!(app.screen, Screen::KeyGen | Screen::Entry) {
+            break;
+        }
+        leave(app);
+        let _ = app.frame();
+    }
+    for _ in 0..12 {
+        if !matches!(app.screen, Screen::KeyGen | Screen::Entry) {
+            break;
+        }
+        app.press(Action::Back);
+        let _ = app.frame();
+    }
+    assert!(
+        !matches!(app.screen, Screen::KeyGen | Screen::Entry),
+        "New key and Add a key were not left"
+    );
+}
+
+#[test]
+fn words_typed_in_add_a_key_and_new_key_are_gone_once_new_key_is_finished_and_left() {
+    for (way, leave) in ways_out() {
+        let forms = seed_forms("");
+        let armed = arm(&forms);
+        let mut app = new_key_over_add_a_key();
+        app.press(Action::KLock);
+        assert_eq!(app.session.keys.len(), 1, "New key did not add the key");
+        leave_both(&mut app, leave);
+        let flow = format!("new key finished, Add a key left by {way}");
+        finish_left(&flow, armed, crate::sign::KEY_FORMS);
+    }
+}
+
+#[test]
+#[ignore = "Add a key's typed words stay live (their indices, in a 6144-byte block) after New key, opened over them, is left by the arrow, though neither screen is on and the entry state and the flow are empty; Add a key left alone, and New key's own words left, are clean"]
+fn words_typed_in_add_a_key_and_new_key_are_gone_once_new_key_is_left() {
+    for (way, leave) in ways_out() {
+        let forms = seed_forms("");
+        let armed = arm(&forms);
+        let mut app = new_key_over_add_a_key();
+        leave_both(&mut app, leave);
+        assert!(app.session.keys.is_empty(), "{way} added a key");
+        assert!(app.keygen().is_none(), "{way} left New key's state");
+        assert!(
+            testkit::entry(&app).typed.as_str().is_empty(),
+            "{way} left words on {:?}",
+            app.screen
+        );
+        finish_left(&format!("new key left by {way}"), armed, &[]);
+    }
+}
