@@ -13,11 +13,14 @@ use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware}
 /// BIP-84's test mnemonic.
 const ABANDON: &str = "abandon abandon abandon abandon abandon abandon \
                        abandon abandon abandon abandon abandon about";
-/// BIP-84's first receive address for it, m/84'/0'/0'/0/0, on mainnet.
-const BIP84_FIRST: &str = "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu";
+/// BIP-84's first receive address for it on Testnet, m/84'/1'/0'/0/0 (the
+/// sample seed is refused on Mainnet): BIP-84's Mainnet vector with the
+/// coin type 1 and the `tb` prefix, worked out with a separate Python
+/// implementation (BIP-32, bech32) that reproduces the Mainnet vector.
+const BIP84_FIRST: &str = "tb1q6rz28mcfaxtmd6v789l9rrlrusdprr9pqcpvkl";
 
 fn shown(width: u16, height: u16, dpi: u16) -> Faraday {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::new_on_test_net();
     app.event(Event::Display(DisplayInfo {
         width,
         height,

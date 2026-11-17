@@ -19,7 +19,7 @@ fn with_stick(n: usize) -> Faraday {
 
 /// [`with_stick`] on a display `width` x `height` at `dpi`.
 fn with_stick_at(n: usize, (width, height, dpi): (u16, u16, u16)) -> Faraday {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::new_on_test_net();
     app.event(Event::Display(DisplayInfo {
         width,
         height,
@@ -79,7 +79,7 @@ fn every_file_comes_in_ticked_and_unselect_all_clears_them() {
 
 #[test]
 fn a_fresh_visit_has_the_psbts_and_descriptors_ticked_and_the_words_file_not() {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::new_on_test_net();
     app.event(Event::Display(DisplayInfo {
         width: 1366,
         height: 768,
@@ -353,7 +353,7 @@ type Files = Vec<(String, Vec<u8>)>;
 /// A process restored from `boxes` (Inbox, Outbox, kept), with the clock
 /// known and `stick` attached when given.
 fn process(boxes: (Files, Files, Files), stick: Option<&str>) -> Faraday {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::new_on_test_net();
     app.event(Event::Display(DisplayInfo {
         width: 1366,
         height: 768,
@@ -850,7 +850,7 @@ fn zeroing_stops_on_stop_and_on_a_pull() {
 /// A stick holding `on_stick`, the Outbox holding `outbox`, every one of
 /// them chosen on the visit.
 fn writing_over(on_stick: &[(&str, u64)], outbox: Vec<(&str, Vec<u8>)>) -> Faraday {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::new_on_test_net();
     app.event(Event::Display(DisplayInfo {
         width: 1366,
         height: 768,

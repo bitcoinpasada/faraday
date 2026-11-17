@@ -13,7 +13,13 @@ use faraday_core::spend_backup::SpendBackupAction as F;
 use faraday_core::{Action, Faraday, Screen, Sheet, testkit};
 use faraday_shell_api::{App, Event, Key};
 
-const ABANDON: &str =
+/// Words that are published but are none of Faraday's samples: Mainnet
+/// cautions and lets the person keep them for testing (BIP-39's vector).
+const ABANDON: &str = "legal winner thank year wave sausage worth useful legal winner thank yellow";
+
+/// BIP-39's first vector, also one of Faraday's public samples: Mainnet
+/// refuses it and offers only Remove.
+const SAMPLE: &str =
     "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
 
 /// Twelve words nobody published: one made from entropy of no vector.
@@ -42,6 +48,14 @@ fn fresh_words() -> String {
     words.join(" ")
 }
 
+/// The app on Mainnet, where the cautions are: a test starts on the test
+/// wallets' network.
+fn mainnet() -> Faraday {
+    let mut app = testkit::started();
+    testkit::move_to(&mut app.session, Network::Mainnet).unwrap();
+    app
+}
+
 fn typed(app: &mut Faraday, words: &str) {
     app.press(Action::Entry(None));
     for c in words.chars() {
@@ -52,7 +66,7 @@ fn typed(app: &mut Faraday, words: &str) {
 
 #[test]
 fn the_abandon_words_on_mainnet_bring_the_caution_before_anything_else() {
-    let mut app = testkit::started();
+    let mut app = mainnet();
     typed(&mut app, ABANDON);
     assert_eq!(
         app.session.keys.len(),
@@ -65,7 +79,7 @@ fn the_abandon_words_on_mainnet_bring_the_caution_before_anything_else() {
 
 #[test]
 fn typing_a_codex32_vector_on_mainnet_brings_the_caution() {
-    let mut app = testkit::started();
+    let mut app = mainnet();
     app.press(Action::Entry(None));
     let codex32 = faraday_core::forms::Form::ALL
         .iter()
@@ -89,7 +103,7 @@ fn typing_a_codex32_vector_on_mainnet_brings_the_caution() {
 
 #[test]
 fn typing_a_bip85_vectors_child_words_on_mainnet_brings_the_caution() {
-    let mut app = testkit::started();
+    let mut app = mainnet();
     typed(
         &mut app,
         "girl mad pet galaxy egg matter matrix prison refuse sense ordinary nose",
@@ -131,7 +145,7 @@ fn typing_a_bip85_vectors_hex_or_a_bip32_vectors_seed_as_codex32_on_mainnet_brin
             .map(|i| u8::from_str_radix(&seed[2 * i..2 * i + 2], 16).unwrap())
             .collect();
         let string = Codex32::from_seed(0, *b"test", &bytes).unwrap().encode();
-        let mut app = testkit::started();
+        let mut app = mainnet();
         typed_codex32(&mut app, string.as_str());
         assert_eq!(
             app.session.keys.len(),
@@ -146,7 +160,7 @@ fn typing_a_bip85_vectors_hex_or_a_bip32_vectors_seed_as_codex32_on_mainnet_brin
 
 #[test]
 fn a_bip85_child_of_a_published_key_kept_for_testing_brings_the_caution_too() {
-    let mut app = testkit::started();
+    let mut app = mainnet();
     typed(&mut app, ABANDON);
     app.press(Action::PublishedKeep);
     assert_eq!(app.sheet, None);
@@ -163,7 +177,7 @@ fn a_bip85_child_of_a_published_key_kept_for_testing_brings_the_caution_too() {
 
 #[test]
 fn a_bip85_child_of_a_key_nobody_published_brings_no_caution() {
-    let mut app = testkit::started();
+    let mut app = mainnet();
     typed(&mut app, &fresh_words());
     app.press(Action::Bip85);
     app.press(Action::PApp(0));
@@ -178,7 +192,7 @@ fn a_bip85_child_of_a_key_nobody_published_brings_no_caution() {
 
 #[test]
 fn remove_drops_the_key_and_keep_for_testing_leaves_it_alone() {
-    let mut app = testkit::started();
+    let mut app = mainnet();
     typed(&mut app, ABANDON);
     app.press(Action::PublishedRemove);
     assert_eq!(app.sheet, None);
@@ -196,7 +210,7 @@ fn remove_drops_the_key_and_keep_for_testing_leaves_it_alone() {
 
 #[test]
 fn a_fresh_key_and_a_test_network_bring_no_caution() {
-    let mut app = testkit::started();
+    let mut app = mainnet();
     typed(&mut app, &fresh_words());
     assert_eq!(
         app.session.keys.len(),
@@ -206,14 +220,14 @@ fn a_fresh_key_and_a_test_network_bring_no_caution() {
     );
     assert_eq!(app.sheet, None);
 
-    let mut test = testkit::started();
+    let mut test = mainnet();
     testkit::move_to(&mut test.session, Network::Testnet).unwrap();
     typed(&mut test, ABANDON);
     assert_eq!(test.session.keys.len(), 1);
     assert_eq!(test.sheet, None);
 }
 
-const ABANDON_KEY: &str = "73c5da0a";
+const ABANDON_KEY: &str = "b8688df1";
 
 fn drawn(app: &mut Faraday) -> String {
     app.drawn_texts().join("\n")
@@ -221,7 +235,7 @@ fn drawn(app: &mut Faraday) -> String {
 
 #[test]
 fn removing_a_key_typed_into_restore_takes_it_out_of_restore() {
-    let mut app = testkit::started();
+    let mut app = mainnet();
     app.press(Action::RestoreWallet);
     app.press(Action::RSlotWords);
     crate::common::type_text(&mut app, ABANDON);
@@ -280,7 +294,7 @@ fn check_the_money_drawn(app: &mut Faraday) -> String {
 
 #[test]
 fn removing_the_key_a_spend_from_a_backup_guess_made_leaves_no_wallet_of_it() {
-    let mut app = testkit::started();
+    let mut app = mainnet();
     spend_from_backup_with_pass(&mut app, ABANDON, "TREZOR", true);
     assert_eq!(app.sheet, Some(Sheet::Published));
     assert!(
@@ -313,7 +327,7 @@ fn removing_the_key_a_spend_from_a_backup_guess_made_leaves_no_wallet_of_it() {
 
 #[test]
 fn removing_the_key_made_in_create_empties_its_slot() {
-    let mut app = testkit::started();
+    let mut app = mainnet();
     typed(&mut app, ABANDON);
     let fp = app.session.keys[0].fingerprint.0;
     app.press(Action::PublishedKeep);
@@ -336,7 +350,7 @@ fn removing_the_key_made_in_create_empties_its_slot() {
 
 #[test]
 fn a_wallet_of_a_key_nobody_published_shows_its_addresses() {
-    let mut app = testkit::started();
+    let mut app = mainnet();
     spend_from_backup_with_pass(&mut app, &fresh_words(), "TREZOR", false);
     assert_eq!(app.sheet, None);
     assert!(!app.session.wallets.is_empty());
@@ -346,7 +360,7 @@ fn a_wallet_of_a_key_nobody_published_shows_its_addresses() {
 
 #[test]
 fn practice_brings_no_caution_for_a_handout_words() {
-    let mut app = testkit::started();
+    let mut app = mainnet();
     testkit::into_demo(&mut app);
     testkit::move_to(&mut app.session, Network::Mainnet).unwrap();
     typed(&mut app, &["twelve"; 12].join(" "));
@@ -357,4 +371,27 @@ fn practice_brings_no_caution_for_a_handout_words() {
         testkit::entry(&app).error
     );
     assert_eq!(app.sheet, None);
+}
+
+#[test]
+fn a_public_sample_typed_on_mainnet_can_only_be_removed() {
+    let mut app = mainnet();
+    typed(&mut app, SAMPLE);
+    assert_eq!(app.sheet, Some(Sheet::Published));
+    app.press(Action::PublishedKeep);
+    assert_eq!(app.sheet, Some(Sheet::Published), "it cannot be kept");
+    assert_eq!(app.session.keys.len(), 1);
+    app.press(Action::PublishedRemove);
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.session.keys.len(), 0);
+}
+
+#[test]
+fn a_public_sample_typed_on_testnet_is_taken() {
+    let mut app = mainnet();
+    testkit::move_to(&mut app.session, Network::Testnet).unwrap();
+    typed(&mut app, SAMPLE);
+    let _ = app.frame();
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.session.keys.len(), 1);
 }

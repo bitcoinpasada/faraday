@@ -192,7 +192,7 @@ fn a_desktop_has_a_separate_screen_and_a_laptop_does_not() {
 // ----- The stick -----
 
 fn shown(machine: DeviceCheck) -> Faraday {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::new_on_test_net();
     app.event(Event::Display(DisplayInfo {
         width: 1366,
         height: 768,

@@ -109,7 +109,7 @@ fn visit(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
 /// The app with the test vault in the Inbox and the release files copied
 /// in on a stick visit, the stick then pulled.
 fn copied_in() -> Faraday {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::new_on_test_net();
     display(&mut app);
     let vault = testkit::files()
         .unwrap()
@@ -1003,7 +1003,7 @@ fn a_signed_file_is_marked_and_an_asc_in_the_inbox_is_not_listed() {
 #[test]
 fn with_one_file_it_starts_ticked() {
     let c = faraday_core::testkit::compute();
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::new_on_test_net();
     display(&mut app);
     let vault = testkit::files()
         .unwrap()
@@ -1416,7 +1416,7 @@ fn boxes_kept(app: &mut Faraday) -> Option<StorageEvent> {
 #[test]
 fn files_from_a_second_stick_after_the_boot_stick_are_offered_for_signing() {
     let c = faraday_core::testkit::compute();
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::new_on_test_net();
     display(&mut app);
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
@@ -1492,7 +1492,7 @@ fn files_from_a_second_stick_after_the_boot_stick_are_offered_for_signing() {
     let restored = boxes_kept(&mut app).expect("the boxes kept at the lock");
 
     // The process after the lock, the second stick still in.
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::new_on_test_net();
     display(&mut app);
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
@@ -1549,7 +1549,7 @@ fn files_from_a_second_stick_after_the_boot_stick_are_offered_for_signing() {
 /// unlocked on the sheet, and the GPG key's Sign a file lists both (F60).
 #[test]
 fn files_imported_from_the_boot_sheet_are_offered_for_signing() {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::new_on_test_net();
     display(&mut app);
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,

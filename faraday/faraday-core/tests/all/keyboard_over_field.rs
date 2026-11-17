@@ -14,7 +14,7 @@ const PANELS: [(u16, u16, u16); 2] = [(480, 640, 286), (240, 320, 143)];
 
 /// The app on a panel `w` × `h` pixels at `dpi`, drawn once.
 fn panel((w, h, dpi): (u16, u16, u16)) -> Faraday {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::new_on_test_net();
     app.event(Event::Display(DisplayInfo {
         width: w,
         height: h,

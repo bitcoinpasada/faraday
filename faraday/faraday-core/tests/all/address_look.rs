@@ -236,26 +236,29 @@ fn with_key() -> Faraday {
 
 #[test]
 fn a_loaded_key_with_no_wallet_has_its_standard_accounts_searched() {
-    // Account 0 of `OTHER` on Mainnet: BIP-84's and BIP-86's own vectors,
-    // BIP-44's made with embit 0.8.0 (BIP-44 publishes none).
+    // Account 0 of `OTHER` on Testnet (the sample seed is refused on
+    // Mainnet): the addresses of BIP-84's and BIP-86's own Mainnet vectors
+    // with the coin type 1 and the `tb` prefix, worked out with a separate
+    // Python implementation (BIP-32, bech32/bech32m, base58check) that
+    // reproduces the published Mainnet vectors; BIP-44 publishes none.
     for (address, line) in [
-        // BIP-84: m/84'/0'/0'/0/0
+        // BIP-84: m/84'/1'/0'/0/0
         (
-            "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu",
+            "tb1q6rz28mcfaxtmd6v789l9rrlrusdprr9pqcpvkl",
             "Receive · index 0",
         ),
-        // BIP-84: m/84'/0'/0'/1/0
+        // BIP-84: m/84'/1'/0'/1/0
         (
-            "bc1q8c6fshw2dlwun7ekn9qwf37cu2rn755upcp6el",
+            "tb1q9u62588spffmq4dzjxsr5l297znf3z6j5p2688",
             "Change · index 0",
         ),
-        // BIP-86: m/86'/0'/0'/0/0
+        // BIP-86: m/86'/1'/0'/0/0
         (
-            "bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr",
+            "tb1p8wpt9v4frpf3tkn0srd97pksgsxc5hs52lafxwru9kgeephvs7rqlqt9zj",
             "Receive · index 0",
         ),
-        // BIP-44: m/44'/0'/0'/0/0, made with embit 0.8.0
-        ("1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA", "Receive · index 0"),
+        // BIP-44: m/44'/1'/0'/0/0, worked out with the separate Python implementation
+        ("mkpZhYtJu2r87Js3pDiWJDmPte2NRZ8bJV", "Receive · index 0"),
     ] {
         let mut app = with_key();
         read(&mut app, address);
@@ -269,9 +272,9 @@ fn a_loaded_key_with_no_wallet_has_its_standard_accounts_searched() {
     let mut app = with_key();
     read(
         &mut app,
-        "bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr",
+        "tb1p8wpt9v4frpf3tkn0srd97pksgsxc5hs52lafxwru9kgeephvs7rqlqt9zj",
     );
-    assert!(said(&app).contains("m/86h/0h/0h"), "{}", said(&app));
+    assert!(said(&app).contains("m/86h/1h/0h"), "{}", said(&app));
 }
 
 #[test]
@@ -291,13 +294,13 @@ fn a_loaded_key_has_its_nested_account_searched_on_testnet() {
 #[test]
 fn a_standard_account_is_looked_further_in() {
     let mut app = with_key();
-    // BIP-44 m/44'/0'/0'/0/150 of `OTHER`, made with embit 0.8.0 (Python): `HDKey.from_seed(bip39.mnemonic_to_seed(words))`, `derive("m/44h/0h/0h/0/150")`, `script.p2pkh(..).address()`; its index 0 is the embit address above.
-    read(&mut app, "1B2iaW2V1eutqAyXQxgussmdjeqDz4PPvw");
+    // BIP-44 m/44'/1'/0'/0/150 of `OTHER`, worked out with the separate Python implementation named above; its index 0 is the address above.
+    read(&mut app, "mhLeXQvZ8zzN2idymESqznYm8EcZupZP4W");
     assert!(said(&app).contains("first 100"), "{}", said(&app));
     app.press(way(0));
     look_through(&mut app);
     assert!(said(&app).contains("Receive · index 150"), "{}", said(&app));
-    assert!(said(&app).contains("m/44h/0h/0h"), "{}", said(&app));
+    assert!(said(&app).contains("m/44h/1h/0h"), "{}", said(&app));
     assert!(ways(&app).contains(&"Make a wallet".to_string()));
 }
 
@@ -315,8 +318,8 @@ fn an_account_with_a_wallet_is_not_searched_twice() {
     });
     testkit::load_wallet(&mut app, 0);
     assert_eq!(app.session.wallets.len(), 1);
-    // BIP-84: m/84'/0'/0'/0/0
-    read(&mut app, "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu");
+    // BIP-84: m/84'/1'/0'/0/0
+    read(&mut app, "tb1q6rz28mcfaxtmd6v789l9rrlrusdprr9pqcpvkl");
     // The wallet's own line, not the account's.
     assert!(!said(&app).contains("Found in key "), "{}", said(&app));
     assert!(said(&app).contains("Receive · index 0"), "{}", said(&app));
@@ -351,7 +354,7 @@ fn a_wallet_written_with_h_is_the_wallet_a_find_names() {
     let d = account_of_other(&app, NewKind::NativeSegwit).replace('\'', "h");
     assert!(d.contains('h') && !d.contains('\''), "{d}");
     load_from_file(&mut app, &d);
-    read(&mut app, "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu");
+    read(&mut app, "tb1q6rz28mcfaxtmd6v789l9rrlrusdprr9pqcpvkl");
     assert!(!said(&app).contains("Found in key "), "{}", said(&app));
     assert!(said(&app).contains("Receive · index 0"), "{}", said(&app));
 }
@@ -361,8 +364,8 @@ fn a_wallet_of_another_script_leaves_the_key_searched_on_its_own() {
     let mut app = with_key();
     let d = account_of_other(&app, NewKind::Taproot).replace('\'', "h");
     load_from_file(&mut app, &d);
-    // BIP-84 m/84'/0'/0'/0/0: the key's own account, no wallet for it.
-    read(&mut app, "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu");
+    // BIP-84 m/84'/1'/0'/0/0: the key's own account, no wallet for it.
+    read(&mut app, "tb1q6rz28mcfaxtmd6v789l9rrlrusdprr9pqcpvkl");
     assert!(said(&app).contains("Found in key "), "{}", said(&app));
 }
 
@@ -408,7 +411,7 @@ fn a_find_in_a_multisig_wallet_lists_each_cosigner() {
 fn a_find_in_a_keys_account_offers_to_make_its_wallet_and_then_to_open_it() {
     let mut app = with_key();
     testkit::keep_published(&mut app);
-    read(&mut app, "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu");
+    read(&mut app, "tb1q6rz28mcfaxtmd6v789l9rrlrusdprr9pqcpvkl");
     let card = said(&app);
     assert!(
         card.contains("Account: Native SegWit · account 0"),
@@ -432,7 +435,7 @@ fn a_find_in_a_keys_account_offers_to_make_its_wallet_and_then_to_open_it() {
 fn the_made_wallets_dialog_opens_the_wallet() {
     let mut app = with_key();
     testkit::keep_published(&mut app);
-    read(&mut app, "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu");
+    read(&mut app, "tb1q6rz28mcfaxtmd6v789l9rrlrusdprr9pqcpvkl");
     app.press(way(1));
     assert_eq!(app.sheet, Some(Sheet::MadeWallet));
     let _ = app.frame();
@@ -446,7 +449,7 @@ fn the_made_wallets_dialog_opens_the_wallet() {
 fn back_from_the_opened_wallet_returns_to_the_address_check() {
     let mut app = with_key();
     testkit::keep_published(&mut app);
-    read(&mut app, "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu");
+    read(&mut app, "tb1q6rz28mcfaxtmd6v789l9rrlrusdprr9pqcpvkl");
     let card = said(&app);
     app.press(way(1));
     let _ = app.frame();
@@ -469,7 +472,7 @@ fn a_find_among_a_files_several_addresses_offers_no_wallet() {
         .unwrap();
     app.press(Action::Catalog(tile as u8));
     assert_eq!(app.screen, Screen::CheckAddress);
-    let text = "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu\n1B2iaW2V1eutqAyXQxgussmdjeqDz4PPvw\n";
+    let text = "tb1q6rz28mcfaxtmd6v789l9rrlrusdprr9pqcpvkl\nmhLeXQvZ8zzN2idymESqznYm8EcZupZP4W\n";
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![(
             faraday_text::Text::of("list.txt"),
@@ -500,7 +503,7 @@ fn a_wallet_made_from_a_child_seeds_account_shows_its_notice_once_after_the_dial
         index: 7,
     };
     assert!(app.session.keys.set_child_of(0, Some(of)));
-    read(&mut app, "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu");
+    read(&mut app, "tb1q6rz28mcfaxtmd6v789l9rrlrusdprr9pqcpvkl");
     app.press(way(1));
     assert_eq!(app.sheet, Some(Sheet::MadeWallet));
     app.press(Action::X(XAction::MadeDone));
@@ -544,7 +547,7 @@ fn homes_scan_of_an_address_opens_the_address_check_with_it_checked() {
 fn with_nothing_loaded_the_address_check_says_to_load_a_key_or_a_wallet() {
     let mut app = testkit::started();
     app.press(Action::ScanFor(Ask::Address));
-    read(&mut app, "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu");
+    read(&mut app, "tb1q6rz28mcfaxtmd6v789l9rrlrusdprr9pqcpvkl");
     assert_eq!(said(&app), "Load a key or a wallet first");
 }
 

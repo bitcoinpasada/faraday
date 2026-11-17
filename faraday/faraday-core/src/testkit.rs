@@ -1751,7 +1751,7 @@ pub fn new_key_on_length(app: &mut crate::Faraday, slot: Option<u8>) {
 /// arrives, so nothing on screen moves.
 pub fn started() -> crate::Faraday {
     use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
-    let mut app = crate::Faraday::new();
+    let mut app = new_on_test_net();
     app.event(Event::Display(DisplayInfo {
         width: 1280,
         height: 800,
@@ -1767,12 +1767,27 @@ pub fn started() -> crate::Faraday {
     app
 }
 
+/// A new app on the test wallets' network ([`net`]): the test seeds are
+/// public samples, which Mainnet refuses, so a test starts on the test
+/// network, as the shell's start moves it, and goes to Mainnet itself
+/// when it tests Mainnet.
+pub fn new_on_test_net() -> crate::Faraday {
+    let mut app = crate::Faraday::new();
+    let _ = move_to(&mut app.session, net());
+    app
+}
+
 /// Answers the caution a published test seed brings up on Mainnet as a
 /// person testing does, with **Keep for testing**: pressed while its
 /// sheet is open, and for a key added to the session with no press yet,
 /// kept the way the sheet keeps it. The caution itself has no way past it.
 pub fn keep_published(app: &mut crate::Faraday) {
     while let Some(fp) = app.session.keys.published_pending() {
+        // A public sample on Mainnet cannot be kept: the test moves to
+        // Testnet before the key comes in, so it ends here and fails there.
+        if app.session.keys.is_sample(fp) {
+            break;
+        }
         if app.sheet == Some(crate::Sheet::Published) {
             app.press(crate::Action::PublishedKeep);
         } else {

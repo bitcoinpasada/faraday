@@ -155,7 +155,7 @@ fn a_bip_87_cosigners_key_code_and_signed_record_name_bip_87() {
     let (mut app, fp) = making_at(true);
     app.press(Action::CKeyOut(0));
     let want = plain(&text(&outbox(&app, &format!("xpub-{fp}.txt"))));
-    assert!(want.contains("/87h/0h/0h]"), "{want}");
+    assert!(want.contains("/87h/1h/0h]"), "{want}");
     // The code is ur:crypto-account and reads back as the key at m/87'.
     app.press(Action::CKeyQr(0));
     let q = app.qr().unwrap();
@@ -455,7 +455,7 @@ fn a_second_message_from_one_address_goes_beside_the_first() {
 /// An app with a new GPG key in the open test vault, its certificate
 /// and revocation in the Outbox, and a file in the Inbox to sign.
 fn with_gpg_key() -> Faraday {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::new_on_test_net();
     app.event(Event::Display(DisplayInfo {
         width: 1366,
         height: 768,

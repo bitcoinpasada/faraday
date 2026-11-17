@@ -10,7 +10,7 @@ use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent};
 use faraday_shell_api::{App, Command, DisplayInfo, Event, TouchPhase};
 
 fn shown() -> Faraday {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::new_on_test_net();
     app.event(faraday_shell_api::Event::Display(DisplayInfo {
         width: 1366,
         height: 768,

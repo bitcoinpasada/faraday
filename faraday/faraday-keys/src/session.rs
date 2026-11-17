@@ -772,19 +772,10 @@ impl Keys {
         })
     }
 
-    /// Whether key `fp` came from a vault and is one of Faraday's public
-    /// samples: on Mainnet it is refused, with no way to keep it. A sample
-    /// typed in stays a test key the person may keep.
+    /// Whether key `fp` is one of Faraday's public samples: on Mainnet it
+    /// is refused, whatever way it came in, with no way to keep it.
     pub fn is_sample(&self, fp: Fingerprint) -> bool {
-        crate::published::is_sample(fp.0) && self.from_vault.contains(&fp)
-    }
-
-    /// Notes that key `fp` was loaded from a vault.
-    pub fn note_from_vault(&mut self, fp: Fingerprint) {
-        if !self.from_vault.contains(&fp) {
-            // `extend`, not `push`: see `keep_published`.
-            self.from_vault.extend([fp]);
-        }
+        crate::published::is_sample(fp.0)
     }
 
     /// Whether a vault said key `fp` was written on an online computer, or
@@ -1085,7 +1076,6 @@ impl Keys {
             if item.slip39.is_some() {
                 self.set_slip39(at, item.slip39);
             }
-            self.note_from_vault(fp);
             if item.online {
                 self.note_made_online(fp);
             }

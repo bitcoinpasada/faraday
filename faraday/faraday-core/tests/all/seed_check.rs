@@ -336,7 +336,15 @@ fn type_chars(app: &mut Faraday, text: &str) {
 
 /// The tile pressed, the words typed and taken.
 fn with_words(words: &str) -> Faraday {
+    with_words_on(Network::Mainnet, words)
+}
+
+/// [`with_words`] on `network`: the checks read Mainnet's published
+/// vectors, and reading a seed refuses nothing, but keeping a public sample
+/// is refused on Mainnet, so the tests that keep go to the test network.
+fn with_words_on(network: Network, words: &str) -> Faraday {
     let mut app = testkit::started();
+    testkit::move_to(&mut app.session, network).unwrap();
     app.press(Action::Nav(faraday_core::Screen::Catalog));
     let tile = faraday_core::catalog::TILES
         .iter()
@@ -463,7 +471,7 @@ fn done_cancel_and_a_lock_each_leave_no_key() {
 
 #[test]
 fn keep_this_key_loads_the_key_and_is_refused_with_a_stick_in() {
-    let mut app = with_words(ABOUT);
+    let mut app = with_words_on(testkit::net(), ABOUT);
     app.press(Action::SeedCheck(S::NoPass));
     app.press(Action::SeedCheck(S::Pick(Account::NativeSegwit)));
     app.press(Action::SeedCheck(S::Keep));
@@ -475,7 +483,7 @@ fn keep_this_key_loads_the_key_and_is_refused_with_a_stick_in() {
     let info = app.session.keys.all().next().unwrap();
     assert!(info.has_words() && !info.has_passphrase);
 
-    let mut app = with_words(ABOUT);
+    let mut app = with_words_on(testkit::net(), ABOUT);
     app.press(Action::SeedCheck(S::NoPass));
     app.press(Action::SeedCheck(S::Pick(Account::NativeSegwit)));
     app.storage(StorageEvent::Sticks(vec![faraday_core::StickInfo {
@@ -610,7 +618,7 @@ fn with_a_stick_in_add_a_passphrase_is_refused_and_no_field_opens() {
 
 #[test]
 fn back_to_passphrase_for_a_loaded_key_opens_seed() {
-    let mut app = with_words(ABOUT);
+    let mut app = with_words_on(testkit::net(), ABOUT);
     app.press(Action::SeedCheck(S::NoPass));
     app.press(Action::SeedCheck(S::Pick(Account::NativeSegwit)));
     app.press(Action::SeedCheck(S::Keep));

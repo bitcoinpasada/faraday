@@ -41,7 +41,7 @@ fn kit_file(name: &str) -> (String, Vec<u8>) {
 }
 
 fn device(inbox: Vec<(String, Vec<u8>)>) -> Faraday {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::new_on_test_net();
     app.event(Event::Display(DisplayInfo {
         width: 1366,
         height: 768,

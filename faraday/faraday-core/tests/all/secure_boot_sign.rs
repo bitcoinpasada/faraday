@@ -92,7 +92,7 @@ fn visit(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
 /// The test vault unlocked with Secure Boot keys made in it, after a
 /// stick visit copied `files` in; its images shown.
 fn with_keys(files: &[(String, Vec<u8>)]) -> Faraday {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::new_on_test_net();
     display(&mut app);
     let vault = testkit::files()
         .unwrap()

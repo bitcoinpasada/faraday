@@ -160,7 +160,6 @@ impl OpenVaults {
             keys.take_child_of(*fp, child_of_of(r));
             keys.set_xor(keys.len() - 1, xor_of_record(r));
             keys.set_slip39(keys.len() - 1, slip39_of_record(r));
-            keys.note_from_vault(*fp);
             if faraday_vault::records::is_made_online(r) {
                 keys.note_made_online(*fp);
             }
@@ -644,7 +643,6 @@ impl OpenVaults {
             keys.take_child_of(*fp, child_of_of(r));
             keys.set_xor(keys.len() - 1, xor_of_record(r));
             keys.set_slip39(keys.len() - 1, slip39_of_record(r));
-            keys.note_from_vault(*fp);
             if faraday_vault::records::is_made_online(r) {
                 keys.note_made_online(*fp);
             }

@@ -11,7 +11,7 @@ const WORDS: &str = "abandon abandon abandon abandon abandon abandon abandon aba
                       abandon abandon about";
 
 fn shown() -> Faraday {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::new_on_test_net();
     app.event(Event::Display(DisplayInfo {
         width: 1366,
         height: 768,

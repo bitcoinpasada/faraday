@@ -15,7 +15,7 @@ use faraday_vault::records::{field, kind};
 const CODES: &str = "Gmail backup codes\n1234 5678\n2345 6789\n";
 
 fn with_files(files: Vec<(String, Vec<u8>)>) -> Faraday {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::new_on_test_net();
     app.event(Event::Display(DisplayInfo {
         width: 1366,
         height: 768,
@@ -307,7 +307,7 @@ fn every_text(width: u16, height: u16, dpi: u16) -> Vec<(String, String)> {
             .find(|(n, _)| n == name)
             .unwrap()
     };
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::new_on_test_net();
     app.event(Event::Display(DisplayInfo {
         width,
         height,

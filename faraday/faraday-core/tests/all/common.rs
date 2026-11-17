@@ -220,7 +220,7 @@ pub fn process(inbox: Files, outbox: Files, kept: Files) -> Faraday {
 /// A process with these files that has seen none of them: it knows no
 /// vault, as a machine just powered on does.
 pub fn process_unseen(inbox: Files, outbox: Files, kept: Files) -> Faraday {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::new_on_test_net();
     display(&mut app);
     for i in 0..8u8 {
         app.event(Event::Entropy(EntropyBytes::new([0x50 + i; 32])));
@@ -1719,6 +1719,9 @@ pub fn hold(app: &mut Faraday, a: Action) {
 }
 
 pub fn add_key(app: &mut Faraday, seed: &str) {
+    // The test seeds are public samples, which Mainnet refuses: they are
+    // held on the test wallets' network (a session with a wallet is there).
+    let _ = testkit::move_to(&mut app.session, testkit::net());
     app.press(Action::Entry(None));
     for c in testkit::test_words(seed).chars() {
         app.event(Event::Key(Key::Char(c)));

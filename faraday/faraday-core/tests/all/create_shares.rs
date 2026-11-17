@@ -15,7 +15,7 @@ use faraday_shell_api::{
 use faraday_ui::keyboard::OskPress;
 
 fn app() -> Faraday {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::new_on_test_net();
     app.event(Event::Display(DisplayInfo {
         width: 1366,
         height: 768,

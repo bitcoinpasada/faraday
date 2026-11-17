@@ -248,11 +248,16 @@ fn keys_typed_after_opening_on_a_found_address_reach_the_message() {
 
 const MAIN: faraday_bip::keys::Network = faraday_bip::keys::Network::Mainnet;
 
-/// Faraday on Mainnet with `words` loaded, `descriptor` a wallet when
+/// Faraday on `network` with `words` loaded, `descriptor` a wallet when
 /// given, and the address check's scanner open.
-fn main_checking(words: &str, descriptor: Option<&str>) -> Faraday {
+fn checking_on(
+    network: faraday_bip::keys::Network,
+    words: &str,
+    descriptor: Option<&str>,
+) -> Faraday {
     let c = testkit::compute();
     let mut app = testkit::started();
+    testkit::move_to(&mut app.session, network).unwrap();
     app.session
         .keys
         .add_words(&c, &faraday_text::Text::of(words), "Key", None)
@@ -266,14 +271,14 @@ fn main_checking(words: &str, descriptor: Option<&str>) -> Faraday {
     app
 }
 
-/// `WORDS`' account 0 of `kind` on Mainnet, as a single-key wallet.
-fn main_account(kind: faraday_core::create::NewKind) -> String {
+/// `WORDS`' account 0 of `kind` on the test network, as a single-key wallet.
+fn test_account(kind: faraday_core::create::NewKind) -> String {
     let c = testkit::compute();
-    let mut keys = faraday_core::wallet::Session::on(MAIN);
+    let mut keys = faraday_core::wallet::Session::on(testkit::net());
     keys.keys
         .add_words(&c, &faraday_text::Text::of(WORDS), "Abandon", None)
         .unwrap();
-    let spec = kind.spec(MAIN, 0).unwrap();
+    let spec = kind.spec(testkit::net(), 0).unwrap();
     let key = keys.keys.key_text(&c, 0, &spec).unwrap().unwrap();
     String::from(&*kind.descriptor(1, &[key.as_str()]))
 }
@@ -327,7 +332,7 @@ fn a_key_with_no_wallet_signs_what_trezor_signs() {
     // nonce is already low. Trezor's p2wpkh and p2pkh cases have a high r
     // and would differ.
     let words = "all all all all all all all all all all all all";
-    let mut app = main_checking(words, None);
+    let mut app = checking_on(MAIN, words, None);
     read(&mut app, "3L6TyTisPBmrDAj6RoKmDzNnj4eQi54gD2");
     assert!(said(&app).contains("Found in key "), "{}", said(&app));
     let labels: Vec<String> = ways(&app).iter().map(|w| w.label().to_string()).collect();
@@ -352,10 +357,10 @@ fn a_key_with_no_wallet_signs_what_trezor_signs() {
 
 #[test]
 fn a_change_address_in_a_wallet_signs_and_checks() {
-    let d = main_account(faraday_core::create::NewKind::NativeSegwit);
-    let found = "bc1q8c6fshw2dlwun7ekn9qwf37cu2rn755upcp6el";
+    let d = test_account(faraday_core::create::NewKind::NativeSegwit);
+    let found = "tb1q9u62588spffmq4dzjxsr5l297znf3z6j5p2688";
     for bip322 in [true, false] {
-        let mut app = main_checking(WORDS, Some(&d));
+        let mut app = checking_on(testkit::net(), WORDS, Some(&d));
         read(&mut app, found);
         press_sign(&mut app);
         assert_eq!(testkit::message(&app).unwrap().wallet, None);
@@ -374,10 +379,11 @@ fn a_change_address_in_a_wallet_signs_and_checks() {
 
 #[test]
 fn a_change_address_of_a_key_with_no_wallet_signs_in_its_script() {
-    // BIP-86's first change address, signed in BIP-322, the only format
-    // for Taproot.
-    let found = "bc1p3qkhfews2uk44qtvauqyr2ttdsw7svhkl9nkm9s9c3x4ax5h60wqwruhk7";
-    let mut app = main_checking(WORDS, None);
+    // BIP-86's first change address on Testnet (worked out with a separate
+    // Python implementation that reproduces BIP-86's Mainnet vectors),
+    // signed in BIP-322, the only format for Taproot.
+    let found = "tb1p6uav7en8k7zsumsqugdmg5j6930zmzy4dg7jcddshsr0fvxlqx7q7p5els";
+    let mut app = checking_on(testkit::net(), WORDS, None);
     read(&mut app, found);
     assert!(said(&app).contains("Found in key "), "{}", said(&app));
     press_sign(&mut app);
@@ -387,8 +393,8 @@ fn a_change_address_of_a_key_with_no_wallet_signs_in_its_script() {
 
 #[test]
 fn a_key_taken_away_before_signing_refuses() {
-    let mut app = main_checking(WORDS, None);
-    read(&mut app, "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu");
+    let mut app = checking_on(testkit::net(), WORDS, None);
+    read(&mut app, "tb1q6rz28mcfaxtmd6v789l9rrlrusdprr9pqcpvkl");
     press_sign(&mut app);
     app.session.keys.clear();
     testkit::message_text(&mut app, "Hello");

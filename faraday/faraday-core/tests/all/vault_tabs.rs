@@ -12,7 +12,7 @@ use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Secure
 
 /// The test vault unlocked on the Pi's panel, Vault contents open.
 fn contents() -> Faraday {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::new_on_test_net();
     app.event(Event::Display(DisplayInfo {
         width: 480,
         height: 640,

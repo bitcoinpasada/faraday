@@ -48,7 +48,7 @@ fn shell(app: &mut Faraday, native: (u16, u16), dpi: u16) -> Vec<Orientation> {
 /// A fresh app on a panel `native` in size that can turn, the panel
 /// handed over landscape.
 fn on_panel(native: (u16, u16), dpi: u16) -> Faraday {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::new_on_test_net();
     app.event(display(native.0, native.1, dpi));
     app.event(Event::RotationOffered {
         native: Orientation::Landscape,
@@ -185,7 +185,7 @@ fn rotation_is_on_settings_only_where_the_shell_offers_it() {
     // The desktop app, and the Pi's panel: no offer, no row.
     let mut desktop = testkit::started();
     assert!(!offered(&mut desktop));
-    let mut pi = Faraday::new();
+    let mut pi = faraday_core::testkit::new_on_test_net();
     pi.event(display(480, 640, 286));
     assert!(!offered(&mut pi));
     // Pressed anyway, nothing is asked of a shell that cannot turn.

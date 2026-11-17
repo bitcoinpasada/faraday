@@ -72,6 +72,8 @@ fn load(app: &mut Faraday, name: &str) -> usize {
 
 /// Test key n typed into Add a key.
 fn add_key(app: &mut Faraday, n: usize) -> faraday_bip::keys::Fingerprint {
+    // The test seeds are public samples, which Mainnet refuses.
+    let _ = testkit::move_to(&mut app.session, testkit::net());
     app.press(Action::Entry(None));
     type_text(app, &testkit::test_words(testkit::TEST_SEEDS[n].0));
     app.press(Action::EntryAdd);

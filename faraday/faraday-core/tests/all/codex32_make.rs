@@ -21,7 +21,7 @@ const BIP93: &str = include_str!("../../../../tools/vectors/bip93/vectors.json")
 const CHARSET: &[u8; 32] = b"qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 
 fn on(width: u16, height: u16, dpi: u16) -> Faraday {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::new_on_test_net();
     app.event(Event::Display(DisplayInfo {
         width,
         height,

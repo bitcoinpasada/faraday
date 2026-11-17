@@ -42,7 +42,7 @@ fn kit_file(name: &str) -> (String, Vec<u8>) {
 /// The test vault unlocked from a flow's way in, so that nothing in it
 /// is loaded, on its contents.
 fn opened() -> Faraday {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::new_on_test_net();
     app.event(Event::Display(DisplayInfo {
         width: 1366,
         height: 768,
@@ -419,7 +419,7 @@ fn a_japanese_seed_saved_to_a_stick_is_its_words() {
         .with(field::KEY, &records::words_payload(&m))
         .with(field::KEY_LABEL, b"Japanese");
     let vault = crate::common::vault_of("Japanese", "japanese phrase", 0x6a, vec![record]);
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::new_on_test_net();
     app.event(Event::Display(DisplayInfo {
         width: 1366,
         height: 768,

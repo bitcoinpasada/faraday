@@ -21,7 +21,7 @@ use faraday_shell_api::{
 type Files = Vec<(String, Vec<u8>)>;
 
 fn shown(inbox: Files, outbox: Files, kept: Files) -> Faraday {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::new_on_test_net();
     app.event(Event::Display(DisplayInfo {
         width: 1920,
         height: 1080,

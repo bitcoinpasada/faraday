@@ -25,7 +25,7 @@ fn with(seeds: u8, wallets: usize) -> Faraday {
 /// than 800 to fit its counts.
 fn with_height(seeds: u8, wallets: usize, height: u16) -> Faraday {
     let c = testkit::compute();
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::new_on_test_net();
     app.event(Event::Display(DisplayInfo {
         width: 1366,
         height,
