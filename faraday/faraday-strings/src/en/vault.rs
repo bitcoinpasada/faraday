@@ -9,7 +9,7 @@ macro_rules! words_vault {
     /// A key record's SeedQR, shown by its eye.
     vault_show_seedqr: "Show SeedQR",
     /// A vault record's button and the popup's title: its files to the
-    /// Outbox, for the stick.
+    /// Files, For the stick.
     vault_save_to_a_stick: "Save to a stick",
     /// The popup's line for a key record's files, before anything is made.
     vault_anyone_who_finds: "Anyone who finds this stick has this seed",
@@ -68,8 +68,8 @@ macro_rules! words_vault {
     vault_with_key_file: "key file",
     /// Chip on Create a vault for a key file Faraday makes. `{}`: the vault's file name without `.kdbx`.
     vault_keyx_made_at_create: "{}.keyx · made at Create",
-    /// Create a vault: the key file could not be put in the Outbox, so no vault was made.
-    vault_key_file_not_kept: "The key file could not be put in the Outbox. No vault was made.",
+    /// Create a vault: the key file could not be put in Files, For the stick, so no vault was made.
+    vault_key_file_not_kept: "The key file could not be put in Files, For the stick. No vault was made.",
     /// Under Unlock: the key file read as damaged. `{}`: its name.
     vault_key_file_damaged: "{} is damaged as a key file.",
     /// Under Unlock: the key file is empty. `{}`: its name.
@@ -93,7 +93,7 @@ macro_rules! words_vault {
     /// Text in `create`.
     vault_home: "Home",
     /// Text in `create`.
-    vault_create_a_vault: "Create a vault",
+    vault_create_a_vault: "Make a new vault",
     /// Under Create a vault's passphrase fields.
     vault_passphrase_no_reset: "A vault cannot be opened without this passphrase. Nobody can reset it.",
     /// Text in `create_summaries`.
@@ -219,7 +219,7 @@ macro_rules! words_vault {
     /// Text in `create_button`. `{}`: `app.vaults.time_text(mem, passes)`.
     vault_creating: "Creating · {}",
     /// Button in `create_button`.
-    vault_create_vault: "Create vault",
+    vault_create_vault: "Make a new vault",
     /// Text in `item_heading`.
     vault_key: "Key",
     /// Text in `item_heading`. `{}`: `m.word_count()`.
@@ -644,7 +644,7 @@ macro_rules! words_vault {
     /// Text in `kept_wiped`.
     vaults_nowhere_else: "nowhere else",
     /// Text in `vault_way`.
-    vaults_make_a_vault: "Make a vault",
+    vaults_make_a_vault: "Make a new vault",
     /// Text in `vault_way`. `{}`: `files[k].name`.
     vaults_unlock: "Unlock {}",
     /// Text in `vault_way`.
@@ -952,8 +952,8 @@ macro_rules! words_vault {
     vault_next_seal_a_key_file: "a key file",
     /// Toast after a key file is made, chosen or removed on the open vault.
     vault_key_file_next_seal: "Takes effect at the next seal. Copies sealed before keep the key file they had.",
-    /// The open vault's key file could not be put in the Outbox, so none was made.
-    vault_key_file_not_kept_open: "The key file could not be put in the Outbox. The vault keeps the key file it had.",
+    /// The open vault's key file could not be put in Files, For the stick, so none was made.
+    vault_key_file_not_kept_open: "The key file could not be put in Files, For the stick. The vault keeps the key file it had.",
     /// Line under the open vault's name: the next seal needs a key file.
     vault_needs_key_file: "Needs a key file",
     /// Title of the dialog before a move.

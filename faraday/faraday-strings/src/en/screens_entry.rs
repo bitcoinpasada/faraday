@@ -11,7 +11,7 @@ macro_rules! words_screens_entry {
     /// Text in `entry`.
     entry_wallets: "Wallets",
     /// Text in `entry`. `{}`: `fp_text(faraday_bip::keys::Fingerprint(fp))`.
-    entry_add_key: "Add key {}",
+    entry_add_key: "Add a key · {}",
     /// Text in `entry`. `{}`: `name`.
     entry_add_key_title: "Add a key for {}",
     /// Text in `entry`. `{}`: `app.entry.form.name()`.
@@ -54,7 +54,7 @@ macro_rules! words_screens_entry {
     /// Line in `entry_finish`.
     entry_finish_bip39_passphrase: "BIP-39 passphrase",
     /// Button in `entry_finish`.
-    entry_finish_add_key: "Add key",
+    entry_finish_add_key: "Add a key",
     /// Button in `entry_finish`.
     entry_finish_clear: "Clear",
     /// Button in `entry_finish`.

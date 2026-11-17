@@ -23,7 +23,7 @@ macro_rules! words_compact {
     /// Text in `screen_name`.
     compact_totp_codes: "TOTP codes",
     /// Text in `screen_name`.
-    compact_create_a_vault: "Create a vault",
+    compact_create_a_vault: "Make a new vault",
     /// Text in `screen_name`.
     compact_new_key: "Make a new key",
     /// Text in `screen_name`.
@@ -156,7 +156,7 @@ macro_rules! words_compact {
     /// Label in `entry`.
     compact_bip_39_passphrase: "BIP-39 passphrase",
     /// Text in `entry`.
-    compact_add_key: "Add key",
+    compact_add_key: "Add a key",
     /// Text in `entry`.
     compact_make_a_new_key: "Make a new key",
     /// Text in `entry`.

@@ -542,7 +542,10 @@ fn the_row_goes_when_the_flow_is_finished() {
     app.press(Action::Nav(Screen::Settings));
     assert!(offered(&mut app, Action::Resume(Going::Restore)));
     let names = sidebar_texts(&mut app);
-    let at = names.iter().position(|t| t == "Restore a wallet").unwrap();
+    let at = names
+        .iter()
+        .position(|t| t.starts_with("Restore an existing"))
+        .unwrap();
     assert_eq!(
         names.get(at + 1).map(String::as_str),
         Some("Keys"),

@@ -25,7 +25,7 @@ macro_rules! words_plan {
     /// Text in `label`. `{}`: `seed(i)`.
     plan_seed_with_passphrase: "Seed {} with its passphrase",
     /// Text in `label`.
-    plan_wallet_description: "Wallet description",
+    plan_wallet_description: "Descriptor",
     /// Text in `label`. `{}`: `seed(i)`.
     plan_seed_file: "Seed {}: file",
     /// Text in `label`. `{}`: `seed(i)`.
@@ -33,7 +33,7 @@ macro_rules! words_plan {
     /// Text in `label`. `{}`: `seed(i)`.
     plan_passphrase_file: "Passphrase of {}: file",
     /// Text in `label`. `{}`: the form, `form_name`.
-    plan_wallet_file: "Wallet description · {}",
+    plan_wallet_file: "Descriptor · {}",
     /// Text in `label`. `{}`: the share, how many, the form.
     plan_share_file: "Share {} of {} · {}",
     /// Text in `label`.

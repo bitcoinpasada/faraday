@@ -57,7 +57,7 @@ The vaults are written to their sticks during the backup, so attach each stick t
 
 **Key:** create.vaults
 
-Each vault is made or unlocked before the keys exist, so that each new key can be saved into it. Unlocking a vault needs its passphrase; a new vault is made as in Create a vault.
+Each vault is made or unlocked before the keys exist, so that each new key can be saved into it. Unlocking a vault needs its passphrase; a new vault is made as in Make a new vault.
 
 ## Keys
 
@@ -65,7 +65,7 @@ Each vault is made or unlocked before the keys exist, so that each new key can b
 
 One row per key, **Key 1**, **Key 2** and so on. Fill each with one of the choices below; **Make the wallet** is offered once every row is filled.
 
-**New key** makes a key for the row. A key already loaded, or a key in an open vault, can fill it too. **Scan its xpub**, or a cosigner's xpub file, fills a row of a multisig with a key from another signer. **Someone else adds it later** leaves the row waiting for that file. **Add a passphrase** adds one to a key from BIP-39 words. **Clear** empties the row. **Show xpub QR** shows the key's xpub for the cosigners.
+**Make a new key** makes a key for the row. A key already loaded, or a key in an open vault, can fill it too. **Scan its xpub**, or a cosigner's xpub file, fills a row of a multisig with a key from another signer. **Someone else adds it later** leaves the row waiting for that file. **Add a passphrase** adds one to a key from BIP-39 words. **Clear** empties the row. **Show xpub QR** shows the key's xpub for the cosigners.
 
 ## Check
 

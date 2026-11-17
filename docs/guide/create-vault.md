@@ -1,4 +1,4 @@
-# Create a vault
+# Make a new vault
 
 **Kind:** Reference
 **Status:** Checked against the app
@@ -37,4 +37,4 @@ A higher cost makes each guess at the passphrase more expensive (each guess cost
 
 **Name** says what the vault holds, for anyone who sees the stick; the file's name follows it. Left empty, the file is `vault.kdbx`. The strength line gives the passphrase's bits and what each guess costs at the unlock cost.
 
-Type the **Passphrase** twice; **Create vault** appears once the two match. **Show passphrase** and **Hide passphrase** toggle the fields. **Add a key file** takes **Make a key file** or **Choose a file**; you need the key file to open the vault, so keep it apart from the vault. **Generate with dice** opens a panel of words chosen by typed dice rolls, so their bits are known: **Long list** (7776 words, five dice), **Short list** (1296 words, four dice) or **Short list 2** (1296 words, 3 edits apart). **Use these words** puts them in both fields. Hardware keyboard keys are read as US, Caps Lock ignored.
+Type the **Passphrase** twice; **Make a new vault** appears once the two match. **Show passphrase** and **Hide passphrase** toggle the fields. **Add a key file** takes **Make a key file** or **Choose a file**; you need the key file to open the vault, so keep it apart from the vault. **Generate with dice** opens a panel of words chosen by typed dice rolls, so their bits are known: **Long list** (7776 words, five dice), **Short list** (1296 words, four dice) or **Short list 2** (1296 words, 3 edits apart). **Use these words** puts them in both fields. Hardware keyboard keys are read as US, Caps Lock ignored.

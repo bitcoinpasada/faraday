@@ -1583,11 +1583,11 @@ fn on_the_pi_a_step_flows_bar_names_it_whole_smaller_where_its_tools_leave_less_
     if let Some((text, _)) = shown {
         let words = text.trim_end_matches('…');
         assert!(
-            "Create a vault".starts_with(words) && !words.is_empty(),
+            "Make a new vault".starts_with(words) && !words.is_empty(),
             "{text:?}"
         );
         assert!(
-            text == "Create a vault" || "Create a vault"[words.len()..].starts_with(' '),
+            text == "Make a new vault" || "Make a new vault"[words.len()..].starts_with(' '),
             "{text:?} cuts a word"
         );
     }

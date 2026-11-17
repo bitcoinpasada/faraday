@@ -187,7 +187,7 @@ fn make_a_vault(app: &Faraday) -> Option<bool> {
                 .ways
                 .iter()
                 .map(|w| String::from(w.label().as_str()))
-                .eq(["Make a vault".to_string()]),
+                .eq(["Make a new vault".to_string()]),
     )
 }
 

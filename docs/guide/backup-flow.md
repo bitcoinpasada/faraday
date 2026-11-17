@@ -29,7 +29,7 @@ Every stick that holds a vault is read in this step, before any key exists, so t
 
 Each vault is made or unlocked in this step, so that the key can be saved into it.
 
-**Create Vault 1** opens Create a vault for that vault. **Open Vault 1** asks for its passphrase and unlocks it. If you do not have the passphrase, **I do not have its passphrase** offers **A new vault beside it** or another stick. A vault cannot be unlocked while a stick is attached.
+**Create Vault 1** opens Make a new vault for that vault. **Open Vault 1** asks for its passphrase and unlocks it. If you do not have the passphrase, **I do not have its passphrase** offers **A new vault beside it** or another stick. A vault cannot be unlocked while a stick is attached.
 
 ## Make the key
 

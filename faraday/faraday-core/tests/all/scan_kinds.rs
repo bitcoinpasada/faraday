@@ -330,13 +330,13 @@ fn add_a_keys_scanner_shows_what_it_read_instead_of_a_seed_on_the_card() {
         ),
         (
             kit.descriptor.as_bytes().to_vec(),
-            "A wallet description",
+            "A descriptor",
             vec!["Load the wallet"],
         ),
         (
             TOTP.as_bytes().to_vec(),
             "A TOTP setup code",
-            vec!["Make a vault"],
+            vec!["Make a new vault"],
         ),
         (
             WIF.as_bytes().to_vec(),
@@ -366,7 +366,7 @@ fn the_codex32_forms_scanner_shows_a_kind_that_is_not_its_forms_on_the_card() {
     let mut app = testkit::started();
     open(&mut app, Opened::Codex32Form);
     read(&mut app, kit.descriptor.as_bytes());
-    assert_eq!(card(&app).unwrap().0, "A wallet description");
+    assert_eq!(card(&app).unwrap().0, "A descriptor");
     app.press(Action::ReadAgain);
     assert!(card(&app).is_none());
     // A string that starts as a codex32 string does keeps the parser's
@@ -611,7 +611,7 @@ fn a_key_file_or_wallet_file_with_seed_words_beside_it_is_not_filed_or_called_an
 fn a_scanner_is_titled_for_what_it_was_opened_to_read() {
     for (open_it, title) in [
         (Action::ScanFor(Ask::SpendPsbt), "Scan the PSBT"),
-        (Action::ScanFor(Ask::Description), "Scan the description"),
+        (Action::ScanFor(Ask::Description), "Scan the descriptor"),
         (Action::ScanFor(Ask::Cosigner), "Scan a cosigner's key"),
         (Action::ScanFor(Ask::Xpub(2)), "Scan Key 2's xpub"),
         (Action::ScanFor(Ask::Decode), "Scan a transaction"),
@@ -708,7 +708,7 @@ fn an_addwallet_or_an_sp_read_at_add_a_keys_scanner_goes_to_its_wallet_and_a_spe
         open(&mut app, Opened::AddAKey);
         read(&mut app, text.as_bytes());
         let (kind, _, ways) = card(&app).unwrap_or_else(|| panic!("no card: {}", note(&app)));
-        assert_eq!(kind, "A wallet description");
+        assert_eq!(kind, "A descriptor");
         assert_eq!(ways.len(), 1, "{ways:?}");
         app.press(Action::ReadGo(0));
         faraday_core::testkit::confirm_wallets(&mut app);

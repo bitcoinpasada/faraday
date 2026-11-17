@@ -202,6 +202,6 @@ fn the_make_shares_and_make_parts_tiles_open_their_flows() {
 fn tools_has_one_tile_for_making_or_typing_a_key() {
     let mut app = shown();
     let texts = app.drawn_texts();
-    assert!(!texts.iter().any(|t| t == "New key"), "{texts:?}");
+    assert_eq!(texts.iter().filter(|t| *t == "Make a new key").count(), 1);
     assert_eq!(texts.iter().filter(|t| *t == "Add a key").count(), 1);
 }

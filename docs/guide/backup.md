@@ -13,7 +13,7 @@ A backup starts from a plan of where the wallet's keys and files are kept, and t
 
 The board lists the places that will keep the backup. Each place that keeps a seed says how close it brings someone to spending: **Can spend alone**, or **Spends with 1 more place** when one other place adds enough seeds. A change that brings a place closer to spending, or lets it see the balance, asks first: **Keep it** keeps the change and **Take it off** undoes it.
 
-**Add partial descriptions to this backup** gives every place a share of the wallet description, which is a multisig description with some keys left off; **Remove partial descriptions** takes the shares off again. A place with only one share cannot work out an address.
+**Add partial descriptions to this backup** gives every place a share of the descriptor, which is a multisig descriptor with some keys left off; **Remove partial descriptions** takes the shares off again. A place with only one share cannot work out an address.
 
 ## The plan
 
@@ -75,7 +75,7 @@ A code of 37 × 37 squares or less shows **Size**, **By hand** with its sheet in
 
 One item per vault in the plan. The vault keeps a further copy of the seed, sealed under its passphrase.
 
-**Into the vault** saves the seed and the wallet description into the open vault. **Load at unlock** has the seed loaded whenever the vault is unlocked. **Make a vault** makes one where none is open. The vault is sealed and written to its stick at **Lock and write**, the last item.
+**Into the vault** saves the seed and the descriptor into the open vault. **Load at unlock** has the seed loaded whenever the vault is unlocked. **Make a new vault** makes one where none is open. The vault is sealed and written to its stick at **Lock and write**, the last item.
 
 ## The seeds as files
 

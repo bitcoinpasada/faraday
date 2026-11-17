@@ -90,7 +90,8 @@ pub(crate) fn screen_name(s: Screen) -> &'static str {
     match s {
         Screen::Home => EN.compact_home,
         Screen::WalletsStart | Screen::Wallets => EN.compact_wallets,
-        Screen::Spend | Screen::SpendBackup => EN.compact_spend,
+        Screen::Spend => EN.spend_sign_a_transaction,
+        Screen::SpendBackup => EN.compact_spend,
         Screen::Files => EN.compact_files,
         Screen::Entry => EN.compact_add_a_key,
         Screen::Backup => EN.compact_back_up,

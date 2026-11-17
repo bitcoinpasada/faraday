@@ -33,7 +33,7 @@ macro_rules! words_glance {
     /// Text in `backup_nodes`. `{}`: `vault_name(v)`.
     glance_stick: "{} stick",
     /// Text in `backup_nodes`.
-    glance_description: "Description",
+    glance_description: "Descriptor",
     /// Text in `backup_nodes`. `{}`: `number(i)`.
     glance_key_file: "Key {} file",
     /// Text in `backup_nodes`. `{}`: `inside` joined by ", ".
@@ -131,7 +131,7 @@ macro_rules! words_glance {
     /// Text in `thing_label`. `{}`: `number(i)`.
     glance_key_seed_passphrase: "Key {} seed + passphrase",
     /// Text in `thing_label`.
-    glance_the_description: "The description",
+    glance_the_description: "The descriptor",
     /// Text in `thing_label`. `{}`: `number(i)`.
     glance_key: "Key {}",
     // ----- glance_sheet (faraday-core/src/glance/sheet.rs) -----

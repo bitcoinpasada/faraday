@@ -57,15 +57,15 @@ macro_rules! words_screens_sidebar {
     /// (`in_progress`).
     sidebar_flow_create: "Make a new wallet",
     /// A flow in progress's name (`in_progress`).
-    sidebar_flow_restore: "Restore a wallet",
+    sidebar_flow_restore: "Restore an existing wallet",
     /// A flow in progress's name (`in_progress`).
     sidebar_flow_backup: "Back up a wallet",
     /// A flow in progress's name (`in_progress`).
-    sidebar_flow_spend: "Spend",
+    sidebar_flow_spend: "Sign a transaction",
     /// A flow in progress's name (`in_progress`).
     sidebar_flow_message: "Sign a message",
     /// A flow in progress's name (`in_progress`).
-    sidebar_flow_vault: "Create a vault",
+    sidebar_flow_vault: "Make a new vault",
     /// A wallet's backup flow in progress (`in_progress`). `{}`: the
     /// wallet's name.
     sidebar_flow_backup_wallet: "Backup of {}",

@@ -243,7 +243,7 @@ macro_rules! words_screens_backup {
     /// Text in `vault_item`. `{}`: `name`.
     vault_item_seed: "Seed {}",
     /// Text in `vault_item`.
-    vault_item_wallet_description: "Wallet description",
+    vault_item_wallet_description: "Descriptor",
     // ----- seed_files (faraday-core/src/screens/backup.rs) -----
     /// Text in `seed_files`.
     seed_files_not_made: "Not made",

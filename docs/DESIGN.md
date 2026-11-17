@@ -432,7 +432,7 @@ floating action button under the pointer and a dragged chip
 
 A seed is typed on Add a key (`Screen::Entry`): **Scan a SeedQR** above
 the words, then the word grid, the candidates and the word keyboard,
-then the passphrase field and **Add key**. A line in `WARN` under it says
+then the passphrase field and **Add a key**. A line in `WARN` under it says
 never to type a seed that holds real bitcoin (`never_real_seed`); the
 line has its own room one gap under the field, and what follows (New
 key's **Show words**, Make a new wallet's passphrase note) starts under
@@ -776,7 +776,7 @@ is `docs/WALLETS.md` and the Spend tab `docs/SPEND-FROM-BACKUP.md`.
 **Check** (F255; Material 3 Cards). A page under the top app bar named
 **Check**, opened from its row right under Home on the expanded rail and
 the navigation rail, from the Pi's Home menu, where it is the first
-button, and from Home's Check tile (**Check a hardware wallet**, "Its
+button, and from Home's Check tile (**Check a signer**, "Its
 seed, addresses and signatures", the fourth tile, always). A row has
 the name of the tool it opens, the same on its Tools tile and in the top
 app bar of its page ("Check an address"). A tile with no **Seed** tag

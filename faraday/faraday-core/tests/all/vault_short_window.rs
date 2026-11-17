@@ -32,7 +32,7 @@ fn made_from_the_button(size: (u16, u16)) {
     type_text(&mut app, "test phrase");
     app.press(Action::Vault(V::CFocus(0, true)));
     type_text(&mut app, "test phrase");
-    scroll_to_text(&mut app, "Create vault");
+    scroll_to_text(&mut app, "Make a new vault");
     let _ = app.frame();
     let (_, y, _, h) = app
         .hit_box(Action::Vault(V::CGo))

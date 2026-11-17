@@ -157,7 +157,7 @@ macro_rules! words_catalog {
     /// Text in `TILES`.
     catalog_totp_codes_line: "Codes from the entries in open vaults",
     /// Text in `TILES`.
-    catalog_diceware_passphrase: "Create a vault",
+    catalog_diceware_passphrase: "Make a new vault",
     /// Text in `TILES`.
     catalog_diceware_line: "A new vault, its passphrase rolled with dice",
     /// Text in `TILES`.
@@ -233,7 +233,7 @@ macro_rules! words_catalog {
     /// Text in `tile_need`.
     catalog_copy_a_signed: "Copy a signed message in first",
     /// Text in `tile_need`.
-    catalog_make_a_vault: "Make a vault first",
+    catalog_make_a_vault: "Make a new vault first",
     /// Text in `tile_need`.
     catalog_unlock_a_vault: "Unlock a vault first",
         }

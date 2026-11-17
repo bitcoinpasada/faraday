@@ -240,7 +240,7 @@ macro_rules! words_screens_sheets {
     /// Line in `locked_sheet`.
     locked_locked_after: "Locked after a time without input. Every key and vault was wiped.",
     /// Title of `locked_sheet` when nothing was locked: the power-off time
-    /// came with the Outbox not empty.
+    /// came with Files, For the stick, not empty.
     locked_not_locked: "Not locked",
     /// Line in `locked_sheet`, error tone, when a waiting file holds a secret
     /// in the clear. `{}`: how many.

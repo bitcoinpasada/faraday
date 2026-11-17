@@ -49,7 +49,7 @@ macro_rules! words_keygen {
     /// Line under the second of two passphrases entered, and the note when the action is pressed with them differing.
     pass_pair_differ: "The two passphrases differ",
     /// Text in `keygen_lock`. `{}`: `self.new_keys + 1`.
-    keygen_new_key_n: "New key {}",
+    keygen_new_key_n: "Key {}",
     /// Text in `keygen_done`. `{}`: `crate::wallet::fp_text(faraday_bip::keys:…`, `if k.slip39 { FEN.keygen_shares_inline } els…`.
     keygen_key_added_back: "Key {} added; back up its {} before you rely on it",
     /// Title of the result card of a key made from Tools.
@@ -92,7 +92,7 @@ macro_rules! words_keygen {
     /// Text in `draw`.
     keygen_back: "Back",
     /// Text in `draw`.
-    keygen_new_key: "New key",
+    keygen_new_key: "Make a new key",
     /// Text in `entries_title`.
     keygen_flips: "Flips",
     /// Text in `entries_title`.
@@ -364,7 +364,7 @@ macro_rules! words_keygen {
     /// Text in `quiz`.
     keygen_use_this_key: "Use this key",
     /// Text in `quiz`.
-    keygen_add_key: "Add key",
+    keygen_add_key: "Add a key",
     /// Text in `quiz`. `{}`: `k.quiz_share + 1`, `k.shares.len()`, `done`, `n`.
     keygen_quiz_progress: "Share {} of {} · {} of {} right",
     /// Text in `quiz`. `{}`: `done`, `n`.

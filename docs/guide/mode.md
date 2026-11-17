@@ -19,9 +19,9 @@ Each row says what the sample is: a wallet its kind and script, a key its form a
 
 **Key:** mode.not-made
 
-These actions are dimmed and do nothing: Seed XOR parts, New key as SLIP-39 shares, a GPG key made or restored from its paperkey, Secure Boot keys, every BIP-85 output, the vanity passphrase dial, a Lightning node's private key shown or sent out, and a silent payments scan key sent out; also the way to a vault to keep one of those. Their screens open and everything else on them works.
+These actions are dimmed and do nothing: Seed XOR parts, Make a new key as SLIP-39 shares, a GPG key made or restored from its paperkey, Secure Boot keys, every BIP-85 output, the vanity passphrase dial, a Lightning node's private key shown or sent out, and a silent payments scan key sent out; also the way to a vault to keep one of those. Their screens open and everything else on them works.
 
-New key runs as on the device, but at the lock Practice adds the next sample of the length chosen that is not loaded, in place of the key made; with every sample of that length loaded the lock is dimmed. Codex32 screens put a sample's strings in place of those entered. A key made in Faraday on a stick, on a computer with no network, makes all of these.
+Make a new key runs as on the device, but at the lock Practice adds the next sample of the length chosen that is not loaded, in place of the key made; with every sample of that length loaded the lock is dimmed. Codex32 screens put a sample's strings in place of those entered. A key made in Faraday on a stick, on a computer with no network, makes all of these.
 
 ## Test networks
 

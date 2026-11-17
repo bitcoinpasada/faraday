@@ -47,7 +47,7 @@ macro_rules! words_screens_create {
     /// Text in `create_body`.
     create_a_cosigner_adds: "A cosigner adds it later · waiting for its xpub file",
     /// Text in `create_body`.
-    create_new_key: "New key",
+    create_new_key: "Make a new key",
     /// Text in `create_body`. `{}`: `name`.
     create_slot_source: "From {}",
     /// Text in `create_body`.

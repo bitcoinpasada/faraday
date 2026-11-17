@@ -157,7 +157,7 @@ fn a_vault_tile_with_no_vault_says_make_one_and_makes_it_then_opens_its_category
         let i = tile(name);
         assert_eq!(
             app.tile_need(TILES[usize::from(i)].go),
-            Some("Make a vault first")
+            Some("Make a new vault first")
         );
         app.press(Action::Catalog(i));
         make_the_vault(&mut app);

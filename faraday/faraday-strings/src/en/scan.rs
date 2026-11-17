@@ -127,8 +127,8 @@ macro_rules! words_scan {
     read_psbt: "A transaction to sign",
     /// A code read: a finished transaction.
     read_transaction: "A finished transaction",
-    /// A code read: a wallet description.
-    read_wallet: "A wallet description",
+    /// A code read: a descriptor.
+    read_wallet: "A descriptor",
     /// A code read: a multisig config with keys left off.
     read_split_sheets: "Split sheets of a wallet",
     /// A code read: an account key.
@@ -181,7 +181,7 @@ macro_rules! words_scan {
     /// The read card's way over for a TOTP code with a vault in Files but none open. `{}`: the vault.
     read_go_unlock: "Unlock {}",
     /// The read card's way over for a TOTP code with no vault at all.
-    read_go_make_vault: "Make a vault",
+    read_go_make_vault: "Make a new vault",
     /// The read card's line under Make a vault: the code read is not carried on.
     read_not_kept: "Not kept · scan it again once the vault is open",
     /// The read card's way over for a PSBT.
@@ -190,7 +190,7 @@ macro_rules! words_scan {
     read_go_collect: "Add to the signatures",
     /// The read card's way over for a finished transaction.
     read_go_decode: "Decode it",
-    /// The read card's way over for a wallet description.
+    /// The read card's way over for a descriptor.
     read_go_wallet: "Load the wallet",
     /// The read card's way over for split sheets.
     read_go_restore: "Restore the wallet",
@@ -285,7 +285,7 @@ macro_rules! words_scan {
     /// A copy check's line: the SeedQR scanned is a whole seed, but another one.
     read_another_seed: "This is another seed's SeedQR",
     /// A scanner's title (`docs/SCANNING.md` §7.1): Restore's Scan it and Scan descriptor.
-    scan_title_description: "Scan the description",
+    scan_title_description: "Scan the descriptor",
     /// A scanner's title: Create's key slot. `{}`: the key's number.
     scan_title_xpub: "Scan Key {}'s xpub",
     /// A scanner's title: Restore's seeds card.

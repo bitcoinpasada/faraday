@@ -45,7 +45,7 @@ A recovery sheet is listed here as well: its **Descriptor** and its **Note**, wi
 
 A GPG key here is an Ed25519 key with a signing subkey. It shows its **Fingerprint**, **Signing subkey**, **User ID**, **Valid** term, **Revocation certificate** and a **Paperkey** behind its eye. **Make a key** makes one with an **Expires** term of 1 year, 2 years, 3 years, 5 years or **Never**.
 
-**Export public key** writes the public key to the Outbox; **Show as QR** and **PNG** give it as a code and a picture. **Renew** sets a new term. **Sign a file** lists the files in Files to sign with the key. **Make a revocation** takes a **Reason**, and **Export the kept revocation** offers the certificate kept with the key. **Hold to mark the key revoked** marks it. **Restore from a paperkey** brings back a key from its paperkey.
+**Export public key** writes the public key to Files, **For the stick**; **Show as QR** and **PNG** give it as a code and a picture. **Renew** sets a new term. **Sign a file** lists the files in Files to sign with the key. **Make a revocation** takes a **Reason**, and **Export the kept revocation** offers the certificate kept with the key. **Hold to mark the key revoked** marks it. **Restore from a paperkey** brings back a key from its paperkey.
 
 ## GPG key terms and revocation
 

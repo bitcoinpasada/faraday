@@ -845,7 +845,7 @@ fn a_single_key_with_nothing_loaded_goes_from_the_step_before_keys_to_new_key() 
         "Keys stays listed"
     );
     let texts = app.drawn_texts();
-    assert!(texts.iter().any(|t| t == "New key"), "{texts:?}");
+    assert!(texts.iter().any(|t| t == "Make a new key"), "{texts:?}");
 }
 
 #[test]

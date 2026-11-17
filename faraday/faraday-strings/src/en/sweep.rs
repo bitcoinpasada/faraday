@@ -61,9 +61,9 @@ macro_rules! words_sweep {
     /// The hold that signs.
     sweep_hold: "Hold to sign",
     /// After signing, finished. `{}`: how many inputs.
-    sweep_signed_final: "Signed {} inputs. The transaction is in the Outbox",
+    sweep_signed_final: "Signed {} inputs. The transaction is in Files, For the stick",
     /// After signing, not finished. `{}`: how many inputs.
-    sweep_signed_part: "Signed {} inputs. The PSBT is in the Outbox",
+    sweep_signed_part: "Signed {} inputs. The PSBT is in Files, For the stick",
     /// The button that shows what was signed as a QR code.
     sweep_show_qr: "Show as QR",
     /// The QR view's title for the swept transaction.
@@ -916,16 +916,16 @@ macro_rules! words_sweep {
     qr_tool_not_made: "The code could not be made",
     /// Code: shows the code.
     qr_tool_show: "Show as QR",
-    /// Code: the picture to the Outbox.
-    qr_tool_png: "PNG to the Outbox",
-    /// Code: the `.pgp` file to the Outbox.
-    qr_tool_file: "To the Outbox",
+    /// Code: the picture to Files, For the stick.
+    qr_tool_png: "PNG for the stick",
+    /// Code: the `.pgp` file to Files, For the stick.
+    qr_tool_file: "File for the stick",
     /// Code: starts again.
     qr_tool_another: "Another",
     /// Code and Open: back to where the tool was opened.
     qr_tool_done: "Done",
     /// A toast. `{}`: the file's name.
-    qr_tool_saved: "{} is in the Outbox",
+    qr_tool_saved: "{} is in Files, For the stick",
     /// The code's sheet title and the picture's first line.
     qr_tool_view_title: "QR vault",
     /// The code's sheet: under the title.

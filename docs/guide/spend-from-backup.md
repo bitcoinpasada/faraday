@@ -19,13 +19,13 @@ The map lists the six stops: what you have, open the wallet here, check the bala
 
 Bring in everything from the envelope here, in any order; each new thing asks only the next question. The card also holds the start from the stick.
 
-**Unlock** with a vault's name opens a vault found in Files, using its passphrase. **Scan the QR codes you have** and **Type the words you have** take seeds, descriptions and split sheets. **Or bring in what is on paper** is offered beside an open vault. **Rebuild the wallet** joins split sheets that add up. **Not sure what you have?** shows what each thing looks like. **Start over** clears what you brought in.
+**Unlock** with a vault's name opens a vault found in Files, using its passphrase. **Scan the QR codes you have** and **Type the words you have** take seeds, descriptors and split sheets. **Or bring in what is on paper** is offered beside an open vault. **Rebuild the wallet** joins split sheets that add up. **Not sure what you have?** shows what each thing looks like. **Start over** clears what you brought in.
 
 ## Check the money is really there
 
 **Key:** spend-from-backup.check
 
-You do this on the online computer, to confirm the backup is the wallet you expect. **Show the wallet as a QR code** gives the wallet's description, which you load into Sparrow; then compare the Receive and Change addresses with those Sparrow shows. A match means two programs read the same backup. **Show more addresses** lists more of them. **Yes, my money shows** goes on.
+You do this on the online computer, to confirm the backup is the wallet you expect. **Show the wallet as a QR code** gives the wallet's descriptor, which you load into Sparrow; then compare the Receive and Change addresses with those Sparrow shows. A match means two programs read the same backup. **Show more addresses** lists more of them. **Yes, my money shows** goes on.
 
 For words alone, the wallet shown is of the most common kind. **No money shows** makes the next kind. When none shows money, use **Scan more** or **Type a passphrase** to go on. From a wallet's card, this card is Load the wallet in Sparrow: **Show the wallet QR** and Receive address 0, then **It is loaded**.
 

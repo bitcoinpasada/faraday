@@ -82,7 +82,7 @@ Each card's button depends on the kind of file.
 
 The card's menu holds the choices that apply to the file: **Add to vault** for a wallet or words file with a vault open, **Restore from its paperkey** for a GPG public key, **Check a signer** for a PSBT, **Details** and **Remove**.
 
-## Outbox
+## For the stick
 
 **Key:** files.outbox
 

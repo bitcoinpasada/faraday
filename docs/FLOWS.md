@@ -416,7 +416,7 @@ next card, and nothing moves on before one is pressed. **Change** on
 Start reopens it with its choice ticked, where a press on a choice, the
 ticked one included, moves on by itself. The SLIP-39, codex32 and Seed XOR tiles open with their
 choice made and Start closed. The page is titled **Add a key**, and
-**New key** for a Create slot and from the Add a key screen's Make a new
+**Make a new key** for a Create slot and from the Add a key screen's Make a new
 key, which opens with Start closed on it. The Add a key screen (Home,
 below) stays for a key asked for by name: a slot's fingerprint, a
 wallet's missing key, Restore's seed slots, and a seed scanned from Home
@@ -530,7 +530,7 @@ as their way back, and from Wallets, **Wallets**.
 **Add a key** (make, type or scan a seed) is on Wallets and in Tools →
 New key on its Start card (decision 60). The Add a key screen, for a key
 asked for by name and a seed scanned from Home: **Scan a SeedQR** first, full width over the words (primary until a word is
-typed, when **Add key** is), a form (BIP-39 words, with the count
+typed, when **Add a key** is), a form (BIP-39 words, with the count
 **12 · 15 · 18 · 21 · 24** above as many boxes, 12 first; SLIP-39
 shares, codex32, Seed XOR parts), **Make a new key**, and "From a stick ·
 plug it in" (with a stick attached, **Copy files in** → Files on the stick; a key
@@ -1356,7 +1356,7 @@ the small Home's tiles; `Action::Resume`.
    flow is in progress from its first step done until it is finished,
    started over or let go, or its state is wiped (a lock wipes what it
    wipes today). Each has one row, indented under the sidebar entry it
-   is opened from: Make a new wallet, Restore a wallet, Back up a
+   is opened from: Make a new wallet, Restore an existing wallet, Back up a
    wallet, Spend, Sign a message and a wallet's backup flow left on its
    own ("Backup of {wallet}") under **Wallets**; Create a vault under
    **Vaults**; the GPG and Secure Boot flows under **Tools**. New
@@ -1399,7 +1399,7 @@ Every screen whose state is kept when it is left, read from the code:
 | Flow | Tab | State | First step done | Finished | Started over, let go | A lock |
 |---|---|---|---|---|---|---|
 | Make a new wallet, its vault setup, its Back up | Wallets | `create`, the wallet flow of its `owner`, `backup` of the wallet made | a card closed as done | its Back up's checklist all done | **Start over**; **Make a new wallet** once the wallet is made (it resumes only while keys are chosen and none made, or the vaults are being set up) | wiped; the setup's flow is kept as the wallet's |
-| Restore a wallet, its vault setup | Wallets | `restore`, the wallet flow of its `owner` | a card done (from a key on Wallets, Kind to Description are done for the person) | Check done: on Done | **Restore** pressed again, unless the vaults are being set up | wiped |
+| Restore an existing wallet, its vault setup | Wallets | `restore`, the wallet flow of its `owner` | a card done (from a key on Wallets, Kind to Description are done for the person) | Check done: on Done | **Restore** pressed again, unless the vaults are being set up | wiped |
 | Back up a wallet, on its own | Wallets | `backup` | a preset, a plan saved before, something placed, or the checklist made | every checklist item done | **Back up** on any wallet's card (the plan comes back from a vault) | wiped; its writes go on in the wallet's flow |
 | Spend: the Spend tab, a transaction's steps | Wallets | `spend`, `spend_backup` | a transaction read, or something in on What do you have? | signed and put out | **Start over**; another wallet's spend | the spend is wiped; the tab's own state is kept |
 | Sign a message | Wallets | `message` | a card done | the signature made | **Sign a message** pressed again | wiped |
@@ -1558,7 +1558,7 @@ The code: `faraday-core/src/in_progress.rs` (`flow_cancel`,
 | Flow | Asks when | The line | Shown after, when where it was opened is not known |
 |---|---|---|---|
 | Make a new wallet | its Back up's plan begun; or its vaults' setup begun; or the wallet made, or a card done past the first | "The plan and its places are lost."; "Its answers and the setup of its vaults are lost."; "Its answers are lost." | Wallets, or Home when opened there |
-| Restore a wallet | its vaults' setup begun, or a card done past the first | as Make a new wallet's | Wallets, or Home |
+| Restore an existing wallet | its vaults' setup begun, or a card done past the first | as Make a new wallet's | Wallets, or Home |
 | Back up a wallet | always (its row is its plan begun) | "The plan and its places are lost." | the wallet, or the vault's contents it was opened from |
 | Spend | a step of the transaction done | "Its steps and any signatures made are lost." | the wallet it was opened on, Home or Wallets |
 | Sign a message | a card done past the first | "Its answers are lost." | Wallets |

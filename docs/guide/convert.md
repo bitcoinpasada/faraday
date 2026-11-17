@@ -13,7 +13,7 @@ This tool writes a key held on this device in another standard; it stays the sam
 
 Choose the key to convert, listed by fingerprint and label: the loaded keys, and the keys of an open vault. Choosing a vault's key loads it first.
 
-**Add a key** opens New key. **An LND aezeed** reads 24 words and a passphrase for this tool and holds them only until it is left. **A SLIP-39 set** takes shares typed one at a time with **Type one share** and **Use this share**; it shows each group as **Enough** or **Not enough yet**, and **Start again** forgets the set. It is not offered in Practice.
+**Add a key** opens Make a new key. **An LND aezeed** reads 24 words and a passphrase for this tool and holds them only until it is left. **A SLIP-39 set** takes shares typed one at a time with **Type one share** and **Use this share**; it shows each group as **Enough** or **Not enough yet**, and **Start again** forgets the set. It is not offered in Practice.
 
 ## To
 
@@ -39,4 +39,4 @@ Shown for Seed XOR parts, codex32, SLIP-39 sets and the actions on a set. **Make
 
 The value is hidden until you show it with the eye. **Standard** names the form and **Restores in** the software that reads it. **Fingerprint** is the source's, so you can tell the wallet. **Paths** lists the loaded wallets that use the key.
 
-**Passphrase** says whether the value holds the passphrase's wallet or must be restored with the passphrase. **Check my copy** compares a typed copy, with **Compare**, or a SeedQR scanned back, and says whether it matches. **Save as a file…** offers the value on the secret sheet, which warns first. For a set, **Save all shares, one file each…** warns once and puts every share in the Outbox as its own file, numbered such as `-2-of-3`; a share of the same set already there is replaced. The sheet says how many files recover the key. **Another** starts again on the same key; **Done** leaves the tool.
+**Passphrase** says whether the value holds the passphrase's wallet or must be restored with the passphrase. **Check my copy** compares a typed copy, with **Compare**, or a SeedQR scanned back, and says whether it matches. **Save as a file…** offers the value on the secret sheet, which warns first. For a set, **Save all shares, one file each…** warns once and puts every share in Files, **For the stick**, as its own file, numbered such as `-2-of-3`; a share of the same set already there is replaced. The sheet says how many files recover the key. **Another** starts again on the same key; **Done** leaves the tool.

@@ -5,7 +5,7 @@
 **Screen:** `SeedCheck`
 **Key:** seed-check
 
-This page shows what a seed makes, so you can compare it with what a wallet app and a hardware wallet show: the fingerprints, an account's extended public key and its first receive and change addresses. It opens from Tools and returns there; nothing is needed first, and it loads no key unless you press **Keep this key**.
+This page shows what a seed makes, so you can compare it with what a wallet app and a signer show: the fingerprints, an account's extended public key and its first receive and change addresses. It opens from Tools and returns there; nothing is needed first, and it loads no key unless you press **Keep this key**.
 
 ## Seed
 
@@ -33,4 +33,4 @@ Choose the account your wallet app uses: **Native SegWit**, **Taproot**, **Neste
 
 **Another account** and **Another seed** let you choose again. **Done** drops the seed. **Keep this key** loads it as **Add a key** does, and is not offered while a stick is in or for a key already loaded. Cancel, leaving the screen, the idle lock and a lock drop the seed too.
 
-The result shows what the seed makes, not what a wallet app or hardware wallet holds: a match means both made the same keys from the same seed.
+The result shows what the seed makes, not what a wallet app or signer holds: a match means both made the same keys from the same seed.

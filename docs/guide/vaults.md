@@ -13,7 +13,7 @@ Vaults lists the vaults in Files, open or locked; each is a file sealed under it
 
 One row per vault: its name, its file name, where it is and its size, with its state on the right. A vault not opened since power-on is called **Locked vault**, or **New vault** while it has not yet been written to a stick; once opened it goes by its own name.
 
-An open vault offers **View contents** and **Lock**; **Lock** seals it and every other open vault. Its contents page carries **Write it to a stick**, which asks to lock first and then waits for a stick; the sealed file goes out For the stick. A locked vault offers **Unlock**. **Create a vault** makes a new one. With no vault in Files the list reads **No vault in Files**. The state reads **Open**, **Open** with its count of unsaved changes, **Locked**, or **Locked · not written yet**.
+An open vault offers **View contents** and **Lock**; **Lock** seals it and every other open vault. Its contents page carries **Write it to a stick**, which asks to lock first and then waits for a stick; the sealed file goes out For the stick. A locked vault offers **Unlock**. **Make a new vault** makes a new one. With no vault in Files the list reads **No vault in Files**. The state reads **Open**, **Open** with its count of unsaved changes, **Locked**, or **Locked · not written yet**.
 
 ## Seal count
 

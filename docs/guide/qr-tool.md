@@ -27,7 +27,7 @@ The passphrase seals the code and is the only thing that opens it, so a lost pas
 
 **Key:** qr-tool.code
 
-**Show as QR** shows the code. **PNG to the Outbox** and **To the Outbox** save the picture and the .pgp file. **Another** returns to the first card, empty. **Done** goes back to where the tool was opened.
+**Show as QR** shows the code. **PNG for the stick** and **File for the stick** save the picture and the .pgp file. **Another** returns to the first card, empty. **Done** goes back to where the tool was opened.
 
 The code is a standard OpenPGP message under the passphrase, so software that reads one opens it without Faraday.
 

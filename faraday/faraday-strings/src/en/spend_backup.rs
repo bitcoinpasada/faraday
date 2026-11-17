@@ -23,9 +23,9 @@ macro_rules! words_spend_backup {
     /// Text in `spend_backup_intake_seed`. `{}`: `n + 1`.
     spend_backup_key_already: "Key {} · already here",
     /// Text in `spend_backup_intake_file`.
-    spend_backup_wallet_description_read: "Wallet description read · a wallet is open already",
+    spend_backup_wallet_description_read: "Descriptor read · a wallet is open already",
     /// Text in `spend_backup_intake_file`.
-    spend_backup_wallet_description: "Wallet description read",
+    spend_backup_wallet_description: "Descriptor read",
     /// Text in `spend_backup_intake_file`. `{}`: `k`.
     spend_backup_part_read_rebuilt: "Part {} read · the wallet is rebuilt",
     /// Text in `spend_backup_intake_file`. `{}`: `k`, `m.have.len()`, `m.n`.
@@ -174,9 +174,9 @@ macro_rules! words_spend_backup {
     /// Text in `came_rows`. `{}`: `t`, `label`.
     spend_backup_seed: "Seed · {} · {}",
     /// Text in `came_rows`. `{}`: `wl.name`, `Session::shape(wl)`.
-    spend_backup_description_row_shape: "Wallet description · {} · {}",
+    spend_backup_description_row_shape: "Descriptor · {} · {}",
     /// Text in `came_rows`. `{}`: `name`.
-    spend_backup_description_row: "Wallet description · {}",
+    spend_backup_description_row: "Descriptor · {}",
     /// Text in `came_rows`. `{}`: `sheets`, `m.have.len()`, `m.n`.
     spend_backup_part_of_keys: "Part {} · {} of {} keys in hand",
     /// Error in `came_rows`. `{}`: `sheets`.
@@ -196,7 +196,7 @@ macro_rules! words_spend_backup {
     /// Line in `question`.
     spend_backup_these_seeds: "These seeds are one wallet with several keys.",
     /// Text in `question`.
-    spend_backup_scan_the_description: "Scan the description",
+    spend_backup_scan_the_description: "Scan the descriptor",
     /// Text in `question`.
     spend_backup_i_can_t_find: "I can't find one",
     /// Text in `question`. `{}`: `s.n`.
@@ -335,7 +335,7 @@ macro_rules! words_spend_backup {
     /// Text in `map`.
     spend_backup_check_the_balance: "Check the balance",
     /// Text in `map`.
-    spend_backup_put_the_wallet: "Put the wallet's description into Sparrow on an online computer.",
+    spend_backup_put_the_wallet: "Put the wallet's descriptor into Sparrow on an online computer.",
     /// Text in `map`.
     spend_backup_make_the_transaction: "Make the transaction in Sparrow. It gives you a PSBT.",
     /// Text in `map`.
@@ -355,7 +355,7 @@ macro_rules! words_spend_backup {
     /// Text in `ANYTHING_HINT`.
     spend_backup_another_list: "Another list of words, another QR code, a line starting wsh( or tr(, or a word kept apart from the list.",
     /// Text in `DESCRIPTION_HINT`.
-    spend_backup_its_description: "Its description says how they fit together: a QR code labelled wallet, descriptor, setup or multisig; a long line starting wsh( or tr(; or sheets with lines like 73C5DA0A: xpub…",
+    spend_backup_its_description: "Its descriptor says how they fit together: a QR code labelled wallet, descriptor, setup or multisig; a long line starting wsh( or tr(; or sheets with lines like 73C5DA0A: xpub…",
     /// Text in `looks`.
     spend_backup_a_square_black: "A square black-and-white pattern",
     /// Text in `looks`.
@@ -383,7 +383,7 @@ macro_rules! words_spend_backup {
     /// Text in `looks`.
     spend_backup_a_small_device: "A small device with a screen and buttons",
     /// Text in `looks`.
-    spend_backup_a_hardware_wallet: "A hardware wallet. It is a way of using the words, not a replacement for them.",
+    spend_backup_a_hardware_wallet: "A signer. It is a way of using the words, not a replacement for them.",
     /// Text. `{}`: `m.a_full_cap()`.
     spend_backup_labelled_faraday: "{} labelled Faraday, and a passphrase on a separate card",
     /// Text. `{}`: `m.noun()`.
@@ -458,7 +458,7 @@ macro_rules! words_spend_backup {
     /// Text in `more`.
     spend_backup_more_words_kind: "Words alone do not say which kind of wallet they made. Faraday made the most common kind from them. If no money shows, Faraday makes the next kind.",
     /// Text in `more`.
-    spend_backup_more_description: "The code is the wallet's description: enough for Sparrow to find every address the wallet uses and add up what is on all of them. It cannot spend. If the first address matches, two separate programs have read the same backup and agreed. If it does not match, stop: something was typed or scanned wrongly.",
+    spend_backup_more_description: "The code is the wallet's descriptor: enough for Sparrow to find every address the wallet uses and add up what is on all of them. It cannot spend. If the first address matches, two separate programs have read the same backup and agreed. If it does not match, stop: something was typed or scanned wrongly.",
     /// Text in `more`.
     spend_backup_more_psbt_file: "Sparrow can also save the transaction as a .psbt file.",
     /// Text in `more`.
@@ -502,7 +502,7 @@ macro_rules! words_spend_backup {
     /// Text in `more`.
     spend_backup_more_words_order: "Words go in in the order they are written. Faraday checks them against the list of 2048 words and the backup's own checksum, so a mistyped or missing word is caught.",
     /// Text in `more`.
-    spend_backup_a_wallet_description: "A wallet description opens the wallet read-only: enough to see every address and to check the balance. The words that sign come later, after the transaction is read.",
+    spend_backup_a_wallet_description: "A descriptor opens the wallet read-only: enough to see every address and to check the balance. The words that sign come later, after the transaction is read.",
     /// Text in `more`.
     spend_backup_split_sheets: "Split sheets go in one at a time, in any order; the wallet opens when enough of them are in.",
     /// Text in `more`.
@@ -518,7 +518,7 @@ macro_rules! words_spend_backup {
     /// Text in `more`.
     spend_backup_faraday_locks: "Faraday locks after a few minutes without input. That is expected. Unlock again with the same passphrase and this tab opens where you left it.",
     /// Text in `more`.
-    spend_backup_if_the_envelope: "If the envelope held a hardware wallet that came with the papers and looks untouched, you can sign the same PSBT on it too and compare. Follow the device's own guide to restore from the same words. Compare what both screens say before approving anything: the amount, the fee and the address. They must match.",
+    spend_backup_if_the_envelope: "If the envelope held a signer that came with the papers and looks untouched, you can sign the same PSBT on it too and compare. Follow the device's own guide to restore from the same words. Compare what both screens say before approving anything: the amount, the fee and the address. They must match.",
     /// Text in `more`.
     spend_backup_more_faraday_enough: "Faraday on its own is enough to do the whole job.",
     /// Text in `more`.
