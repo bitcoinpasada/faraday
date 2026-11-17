@@ -65,6 +65,8 @@ pub enum OtsAction {
     Scan,
     /// The scanner for the file's SHA-256.
     ScanHash,
+    /// The tool again, empty: the proofs waiting, or the empty part.
+    Another,
 }
 
 /// A value taken from a file, a field or a scan, and where it came from.
@@ -135,6 +137,9 @@ pub(crate) const MAX_LINES: usize = 12;
 
 /// The tool's state.
 pub struct OtsState {
+    /// Whether no proof is chosen yet: the proofs waiting in Files to
+    /// choose from, or the empty part, in place of the cards.
+    pub(crate) landing: bool,
     pub(crate) open: Option<u8>,
     pub(crate) scroll: flow::Scroll,
     pub(crate) back: Screen,
@@ -152,6 +157,7 @@ pub struct OtsState {
 impl OtsState {
     fn new(back: Screen) -> OtsState {
         OtsState {
+            landing: false,
             open: Some(ostep::PROOF),
             scroll: flow::Scroll::default(),
             back,
@@ -450,6 +456,9 @@ pub(crate) fn act(app: &mut Faraday, action: OtsAction) {
             }
         }
         OtsAction::Proof(i) => {
+            if let Some(s) = st(app) {
+                s.landing = false;
+            }
             let c = app.compute();
             let Some(item) = app.inbox.get(i) else { return };
             let (name, bytes) = (Text::of(&item.name), item.bytes.clone());
@@ -465,6 +474,14 @@ pub(crate) fn act(app: &mut Faraday, action: OtsAction) {
             let Some(item) = app.inbox.get(i) else { return };
             let (name, bytes) = (Text::of(&item.name), item.bytes.clone());
             take_header(app, name, &bytes);
+        }
+        OtsAction::Another => {
+            let here = app.screen;
+            let back = st(app).map_or(here, |s| s.back);
+            let mut fresh = OtsState::new(back);
+            fresh.landing = true;
+            app.tools.ots.state = Some(fresh);
+            app.list_offset = 0.0;
         }
         OtsAction::Focus(f) => {
             if let Some(s) = st(app) {
@@ -777,13 +794,35 @@ pub(crate) fn tidy(app: &mut Faraday) {
     }
 }
 
-/// The tile: the tool, with Files' proof when there is one, else (Practice)
-/// the sample.
+/// The proofs waiting in Files, by index and name.
+pub(crate) fn waiting(app: &Faraday) -> Vec<(usize, &str)> {
+    app.inbox
+        .iter()
+        .enumerate()
+        .filter(|(_, i)| is_proof(&i.bytes))
+        .map(|(k, i)| (k, &*i.name))
+        .collect()
+}
+
+/// Costs what `act` costs. The tile: the tool on the proof when exactly
+/// one waits in Files, the proofs to choose from when several do, and the
+/// empty part when none (Practice's sample stands in for that).
 pub(crate) fn open_tile(app: &mut Faraday) {
-    if app.inbox.iter().any(|i| is_proof(&i.bytes)) {
+    let only = match waiting(app)[..] {
+        [(k, _)] => Some(k),
+        _ => None,
+    };
+    if let Some(k) = only {
         act(app, OtsAction::Open);
-    } else {
+        act(app, OtsAction::Proof(k));
+    } else if app.put_on().is_some() && waiting(app).is_empty() {
         open_sample(app);
+    } else {
+        act(app, OtsAction::Open);
+        if let Some(s) = st(app) {
+            s.landing = true;
+        }
+        app.list_offset = 0.0;
     }
 }
 

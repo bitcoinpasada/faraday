@@ -461,6 +461,8 @@ fn a_file_taken_before_a_proof_naming_another_hash_is_hashed_when_the_proof_come
     for size in [1 << 10, 4 << 20] {
         let file = vec![0xa5u8; size];
         let mut app = opened(pending_proof(faraday_ots::HashOp::Sha1, &file), file);
+        // The proof the tile took is put aside: the file comes first.
+        app.press(Action::OtsCheck(O::Another));
         app.press(Action::OtsCheck(O::Header(2)));
         // SHA-256 alone is taken first, as no proof is in.
         app.press(Action::OtsCheck(O::File(1)));

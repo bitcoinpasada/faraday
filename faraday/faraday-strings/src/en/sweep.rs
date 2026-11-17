@@ -496,8 +496,6 @@ macro_rules! words_sweep {
     catalog_check_timestamp: "Check a timestamp",
     /// Tools: the line under the Check a timestamp tile.
     catalog_check_timestamp_line: "A proof against a block header",
-    /// Text in `tile_need`.
-    catalog_copy_a_proof: "Copy a proof in first",
     /// Check a timestamp: the sample proof's name.
     sample_ots_proof_file: "sample-timestamp.ots",
     /// Check a timestamp: the sample header's name.
@@ -618,6 +616,10 @@ macro_rules! words_sweep {
     ots_card_header: "Block header",
     /// Check a timestamp's fourth card.
     ots_card_result: "Result",
+    /// Line in the empty part of Check a timestamp: no proof in Files.
+    ots_no_proof_waits: "No proof waits in Files",
+    /// Title over the proofs of Files to choose from in Check a timestamp.
+    ots_choose_proof: "Choose a proof",
     /// Check a timestamp: a card with no file of Files that fits.
     ots_none_in_files: "No file in Files",
     /// Check a timestamp: the typed hash field's label.

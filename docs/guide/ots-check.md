@@ -7,6 +7,12 @@
 
 Check a timestamp tests an OpenTimestamps proof (a `.ots` file) against a file and a Bitcoin block header, without a network. It opens from Tools and returns there.
 
+## Opening
+
+**Key:** ots-check.opening
+
+Opened from Tools, it opens on the proof when exactly one waits in Files, and on a list of the waiting proofs to choose from when several do. With none it says **No proof waits in Files** and offers **Scan**, **Open Files** and, while a stick is attached, Bring in from that stick. The result ends with **Another**, which shows the list again, and **Done**, which goes back to Tools.
+
 ## Proof
 
 **Key:** ots-check.proof

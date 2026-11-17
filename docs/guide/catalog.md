@@ -43,7 +43,7 @@ A tile that cannot open yet shows in its own line what it needs first; one that 
 
 **Key:** catalog.messages
 
-**Sign a message** signs with a single-key wallet's key here, and reads **Needs a single-key wallet with its key here** otherwise. **Check a signed message** checks one against its address, and reads **Copy a signed message in first** until one is in Files. **Check a timestamp** checks a proof against a block header, and reads **Copy a proof in first** until one is in Files.
+**Sign a message** signs with a single-key wallet's key here, and reads **Needs a single-key wallet with its key here** otherwise. **Check a signed message** checks one against its address, and reads **Copy a signed message in first** until one is in Files. **Check a timestamp** checks a proof against a block header; with no proof in Files it says so and offers the ways to bring one in.
 
 ## Vaults and other keys
 

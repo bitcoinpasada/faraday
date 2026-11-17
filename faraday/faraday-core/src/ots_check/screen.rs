@@ -6,6 +6,7 @@ use crate::Action;
 use crate::drawing::{Scrolled, View};
 use crate::flow;
 use crate::strings::EN;
+use crate::ui::Region;
 use crate::ui::pal::Role;
 use crate::ui::{Style, Ui, W};
 use faraday_draw::tokens::{
@@ -54,6 +55,10 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         chip_tap: None,
         moves: crate::ui::Moves::No,
     };
+    if s.landing {
+        landing(app, ui, (x0, cw, h), col.back);
+        return;
+    }
     let scroll = s.scroll;
     let (next, again) = {
         let app_ref: &View = app;
@@ -66,6 +71,42 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         flow::column(ui, &col, &cards, scroll, &mut body)
     };
     app.scroll(Scrolled::OtsCheck, next, again);
+}
+
+/// No proof chosen: the proofs waiting to choose from, or the empty part.
+fn landing(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), back: Option<(&str, Action)>) {
+    let clip = ui.rect(x0, 0.0, cw, h);
+    let open = ui.region_open(Region::page(clip).from_zero(app.list_offset));
+    let top = if ui.compact {
+        crate::compact::BAR_H + tokens::GAP
+    } else {
+        crate::screens::bar_head(ui, back, EN.ots_title)
+    };
+    let (x, w) = if ui.compact {
+        (x0 + crate::compact::M, cw - 2.0 * crate::compact::M)
+    } else {
+        (
+            x0 + tokens::FLOW_INSET,
+            (cw - 2.0 * tokens::FLOW_INSET).min(tokens::FLOW_MAX),
+        )
+    };
+    let waiting = super::waiting(app);
+    if waiting.is_empty() {
+        crate::screens::parts::nothing_to_work_on(
+            app,
+            ui,
+            (x, top, w),
+            EN.ots_no_proof_waits,
+            (Action::Scan, crate::Screen::OtsCheck),
+        );
+    } else {
+        let rows: Vec<(&str, Action)> = waiting
+            .into_iter()
+            .map(|(k, name)| (name, Action::OtsCheck(O::Proof(k))))
+            .collect();
+        crate::screens::parts::file_choices(ui, (x, top, w), EN.ots_choose_proof, &rows);
+    }
+    ui.region_close(open, 0.0);
 }
 
 fn summary(s: &OtsState, step: u8) -> String {
@@ -258,5 +299,10 @@ fn result(s: &OtsState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     for l in &r.lines {
         cy += ui.wrap_as((x, y + cy, w), BODY_M, Role::OnSurface, l) + GAP;
     }
-    cy - GAP
+    cy + crate::screens::parts::ending(
+        ui,
+        (x, y + cy, w),
+        None,
+        (Action::OtsCheck(O::Another), Action::Nav(s.back)),
+    )
 }

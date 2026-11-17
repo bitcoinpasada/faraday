@@ -247,3 +247,49 @@ fn core_wallet_with_one_file_opens_it_and_with_none_offers_the_ways_in() {
     assert!(has(&mut none, EN.compact_scan));
     assert!(has(&mut none, EN.parts_open_files));
 }
+
+// Check a timestamp
+
+const OTS_V: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../tools/vectors/opentimestamps"
+);
+
+fn proof() -> Vec<u8> {
+    std::fs::read(format!("{OTS_V}/examples/different-blockchains.txt.ots")).unwrap()
+}
+
+#[test]
+fn timestamp_with_one_proof_opens_it_and_with_several_lists_them() {
+    let mut one = tools_with(&[("only.ots", &proof())]);
+    open_tile(&mut one, EN.catalog_check_timestamp);
+    assert_eq!(one.screen, Screen::OtsCheck);
+    assert!(has(&mut one, "only.ots"));
+    assert!(!has(&mut one, EN.ots_choose_proof));
+
+    let mut two = tools_with(&[("a.ots", &proof()), ("b.ots", &proof())]);
+    open_tile(&mut two, EN.catalog_check_timestamp);
+    assert!(has(&mut two, EN.ots_choose_proof));
+    assert!(has(&mut two, "a.ots"));
+    assert!(has(&mut two, "b.ots"));
+    two.press(Action::OtsCheck(faraday_core::ots_check::OtsAction::Proof(
+        1,
+    )));
+    assert!(!has(&mut two, EN.ots_choose_proof));
+    assert!(has(&mut two, "b.ots"));
+}
+
+#[test]
+fn timestamp_with_no_proof_offers_the_ways_in() {
+    let mut none = tools_with(&[("notes.txt", b"hello")]);
+    open_tile(&mut none, EN.catalog_check_timestamp);
+    // Practice's sample stands in; take it out to see the empty part.
+    if !has(&mut none, EN.ots_no_proof_waits) {
+        none.press(Action::OtsCheck(
+            faraday_core::ots_check::OtsAction::Another,
+        ));
+    }
+    assert!(has(&mut none, EN.ots_no_proof_waits));
+    assert!(has(&mut none, EN.compact_scan));
+    assert!(has(&mut none, EN.parts_open_files));
+}
