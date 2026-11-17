@@ -28,6 +28,7 @@ pub(crate) struct KeyGenArea {
 #[derive(Clone, Copy)]
 pub(crate) enum Reopen {
     Slot(Option<u8>),
+    Card(u8),
     On(Start),
     Dice,
 }

@@ -486,8 +486,11 @@ codex32, SLIP-39, the other procedures), asking first when rolls or words
 are in. The making is New key's own state, so its gates are the same.
 Rolls and words not locked in are dropped when Make a new wallet is left
 (Nav, Lock, Start over, Cancel, which asks first) or its Kind or Backup
-changes. A later multisig slot keeps New key; its **New words** is not
-built yet.
+changes. An empty multisig slot with no making (Key 2 on, or Key 1 once
+a key made here holds another slot) offers **Scan its xpub** first and
+**New words** beside it, which opens the same making in that slot; one
+making stands at a time, so opening it on another slot drops the first,
+asking when rolls or words are in.
 
 **Make a new key** (decisions 34 and 38, F103). Once Start has a
 choice, Length opens, no count chosen; pressing a count takes it and opens

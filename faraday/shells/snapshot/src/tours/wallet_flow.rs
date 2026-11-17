@@ -217,6 +217,24 @@ pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     t.press(Action::KNext);
     crate::tour::scroll_to(t, Action::KShow);
     t.shot("wallet-flow-13-create-keys-words")?;
+    // A multisig's Key 2: Scan its xpub first, New words beside it, which
+    // opens the same making there.
+    let multi = faraday_core::create::NewKind::ALL
+        .iter()
+        .position(|k| *k == faraday_core::create::NewKind::Multi)
+        .ok_or("no multisig")? as u8;
+    t.press(Action::Nav(faraday_core::Screen::WalletsStart));
+    t.press(Action::CreateWallet);
+    t.press(Action::CKind(multi));
+    t.press(Action::CNext(faraday_core::cstep::KIND));
+    t.press(Action::CNext(faraday_core::cstep::QUORUM));
+    t.press(Action::CSlotLater(0));
+    crate::tour::scroll_to(t, Action::KeyOnCard(1));
+    t.shot("wallet-flow-13b-create-key-2-new-words")?;
+    t.press(Action::KeyOnCard(1));
+    roll(t, 20);
+    crate::tour::scroll_to(t, Action::KWords(24));
+    t.shot("wallet-flow-13c-create-key-2-rolls")?;
     println!(
         "the backup flow of a single key in a new vault, from Keys with the row for a vault already on a stick to Done"
     );

@@ -726,6 +726,9 @@ pub enum Action {
     /// Make a new key, for this Create slot or for the session; for the
     /// session it is Add a key, opening on Start.
     KeyGen(Option<u8>),
+    /// Make this later multisig slot's key on Make a new wallet's Keys
+    /// card, in place (F282): a making on another slot is dropped.
+    KeyOnCard(u8),
     /// Open or close a new-key card.
     KStep(u8),
     /// A choice on New key's Start card, by its place in
@@ -1377,6 +1380,7 @@ impl Faraday {
             }
             Action::WordList(a) => self.wordlist.act(a, &mut self.sheet),
             Action::KeyGen(_)
+            | Action::KeyOnCard(_)
             | Action::KStep(_)
             | Action::KStart(_)
             | Action::KOthers

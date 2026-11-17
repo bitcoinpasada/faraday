@@ -249,3 +249,43 @@ fn the_card_refuses_before_the_self_test_passes() {
     app.press(Action::KLock);
     assert!(app.create().is_none_or(|c| c.built.is_none()), "no wallet");
 }
+
+#[test]
+fn new_words_on_key_2_opens_the_making_there_after_key_1_is_a_cosigners_xpub() {
+    let mut app = multi_on_keys();
+    // Key 1 is a cosigner's xpub, so no key made here holds a slot.
+    app.press(Action::CSlotLater(0));
+    assert!(app.keygen().is_none(), "Key 1 has no making");
+    let _ = app.frame();
+    assert!(app.offers(Action::ScanFor(faraday_core::Ask::Xpub(2))));
+    assert!(app.offers(Action::KeyOnCard(1)), "Key 2 offers New words");
+    app.press(Action::KeyOnCard(1));
+    let k = app.keygen().expect("the making opens");
+    assert!(k.on_card);
+    assert_eq!(k.slot, Some(1));
+    assert_eq!(app.screen, Screen::Create);
+    words_made(&mut app);
+    app.press(Action::KLock);
+    assert!(matches!(app.create().unwrap().slots[1], Source::Here(_)));
+    assert!(app.keygen().is_none());
+}
+
+#[test]
+fn new_words_on_another_slot_drops_the_first_making_asking_first() {
+    let mut app = multi_on_keys();
+    assert_eq!(app.keygen().and_then(|k| k.slot), Some(0));
+    // Nothing rolled: it moves without asking.
+    let _ = app.frame();
+    app.press(Action::KeyOnCard(1));
+    assert_eq!(app.keygen().and_then(|k| k.slot), Some(1));
+    assert_eq!(app.sheet, None);
+    // With rolls in it asks; keeping them leaves the first making.
+    roll(&mut app, 4);
+    app.press(Action::KeyOnCard(0));
+    assert_eq!(app.sheet, Some(Sheet::CancelKey));
+    assert_eq!(app.keygen().and_then(|k| k.slot), Some(1));
+    // Discard moves the making to the other slot, empty.
+    app.press(Action::CancelFlowNow);
+    assert_eq!(app.keygen().and_then(|k| k.slot), Some(0));
+    assert_eq!(app.keygen().unwrap().dice.len(), 0);
+}

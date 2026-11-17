@@ -583,7 +583,25 @@ fn slot_choices(
         ));
     }
     // Its making on the card has its own Other ways in place of New key.
-    if !making {
+    // A multisig's empty slot makes its key in place beside Scan its xpub
+    // (F282): New key is one press away under the making.
+    let words_here = c.kind.multi() && *src == Source::Empty;
+    if words_here && !making {
+        row.push((
+            EN.create_scan_its_xpub.to_string(),
+            if *first_empty == Some(slot) {
+                Style::Primary
+            } else {
+                Style::Secondary
+            },
+            Action::ScanFor(crate::Ask::Xpub(slot as u8 + 1)),
+        ));
+        row.push((
+            EN.create_new_words.to_string(),
+            Style::Secondary,
+            Action::KeyOnCard(slot as u8),
+        ));
+    } else if !making {
         row.push((
             EN.create_new_key.to_string(),
             if *first_empty == Some(slot) {
@@ -604,7 +622,7 @@ fn slot_choices(
             Action::CSlotFile(slot as u8, *i),
         ));
     }
-    if c.kind.multi() && matches!(src, Source::Empty | Source::Later) {
+    if c.kind.multi() && (*src == Source::Later || (*src == Source::Empty && making)) {
         row.push((
             EN.create_scan_its_xpub.to_string(),
             Style::Secondary,

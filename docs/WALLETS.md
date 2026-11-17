@@ -863,7 +863,8 @@ rule of its flow.
 - **The Keys card** (decisions 35, 36 and 39, F282). The card is always
   shown; Keys is done with the key once it is locked in (owner,
   2026-10-24). A single key backed up as words, and Key 1 of a multisig
-  while no slot holds a key made here, makes its key on the card
+  while no slot holds a key made here, makes its key on the card, and
+  any other empty multisig slot does through **New words**
   (`docs/FLOWS.md`). A key loaded here that
   fills one slot, or a cosigner's file whose key fills one slot, is not
   offered for any other slot; clearing the slot offers it again. A code

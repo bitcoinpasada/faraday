@@ -128,6 +128,8 @@ macro_rules! words_screens_create {
     create_make_the_wallet: "Make the wallet first",
     /// Create's passphrase pair, a line under it.
     create_pass_kept: "Kept nowhere until it is backed up. A different passphrase opens a different wallet.",
+    /// Button in `create_body`: makes this multisig slot's key from new words on the card.
+    create_new_words: "New words",
         }
     };
 }

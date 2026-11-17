@@ -39,7 +39,7 @@ One row per key. **Make the wallet** is offered once every row is filled.
 
 **Use a vault I already have on a stick** brings in that stick's vault for the keys.
 
-On a single key backed up as words, and on **Key 1** of a multisig, the empty row makes its key where it is: **12 words** or **24 words**, roll dice until the count is met, then **Make the words**. **Show words** reveals them, **Make again** drops them, **Add a passphrase** adds one; hardware keys read as US; **Lock in** waits for the eye. **Make the wallet** or **Lock in** takes the key. **Other ways** opens **Make a new key**. Leaving the card drops the rolls and words.
+On a single key backed up as words, and on a multisig's empty row (**New words**), the row makes its key where it is: **12 words** or **24 words**, roll dice until the count is met, then **Make the words**. **Show words** reveals them, **Make again** drops them, **Add a passphrase** adds one; hardware keys read as US; **Lock in** waits for the eye. **Make the wallet** or **Lock in** takes the key. **Other ways** opens **Make a new key**. Leaving the card drops the rolls and words.
 
 **Scan its xpub** fills a multisig row with another signer's key. **Someone else adds it later** leaves the row waiting. **Clear** empties the row. **Show xpub QR** shows the key's xpub.
 

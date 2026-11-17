@@ -1366,6 +1366,7 @@ impl crate::Faraday {
         }
         match how {
             Reopen::Slot(slot) => self.keygen_open(slot),
+            Reopen::Card(slot) => self.keygen_open_card(slot),
             Reopen::On(start) => self.keygen_open_on(start),
             Reopen::Dice => self.keygen_open_dice(),
         }
@@ -1576,6 +1577,10 @@ impl crate::Faraday {
         use crate::Action as A;
         if let A::KeyGen(slot) = action {
             self.keygen_open(slot);
+            return;
+        }
+        if let A::KeyOnCard(slot) = action {
+            self.keygen_open_card(slot);
             return;
         }
         // The result card takes only its own presses.
@@ -2578,17 +2583,61 @@ impl crate::Faraday {
     fn keygen_card_slot(&self) -> Option<u8> {
         use crate::create::{BackupForm, Source};
         let c = self.create.state()?;
-        let open = self.screen == Screen::Create
-            && c.built.is_none()
-            && c.open == Some(crate::cstep::KEYS)
-            && c.vaults.answer != Some(true)
-            && c.slots.first() == Some(&Source::Empty);
+        let open = self.keygen_card_shown(c) && c.slots.first() == Some(&Source::Empty);
         let eligible = if c.kind.multi() {
             c.made == 0
         } else {
             c.backup == Some(BackupForm::Words)
         };
         (open && eligible).then_some(0)
+    }
+
+    /// Whether Make a new wallet shows its Keys card, unbuilt and not
+    /// answered from a vault: where a making on the card can stand.
+    fn keygen_card_shown(&self, c: &crate::CreateState) -> bool {
+        self.screen == Screen::Create
+            && c.built.is_none()
+            && c.open == Some(crate::cstep::KEYS)
+            && c.vaults.answer != Some(true)
+    }
+
+    /// Whether the card's making `k` still belongs: the first slot's by
+    /// the rule above, or a later multisig slot's that is still empty,
+    /// opened there by New words.
+    fn keygen_card_keeps(&self, k: &KeyGen) -> bool {
+        let Some(c) = self.create.state() else {
+            return false;
+        };
+        let slot = usize::from(k.slot.unwrap_or(0));
+        if slot == 0 {
+            return self.keygen_card_slot() == k.slot && k.card_multi == c.kind.multi();
+        }
+        c.kind.multi()
+            && k.card_multi
+            && self.keygen_card_shown(c)
+            && c.slots.get(slot) == Some(&crate::create::Source::Empty)
+    }
+
+    /// New words on a multisig slot: the card's making opens there, the
+    /// one on another slot dropped (asking first with rolls or words in).
+    pub(crate) fn keygen_open_card(&mut self, slot: u8) {
+        if !self.may_load_keys() {
+            if self.selftest_passed() && self.stick.in_the_way() {
+                self.visit.set_pull(crate::Action::KeyOnCard(slot));
+                self.sheet = Some(crate::Sheet::Pull);
+            } else {
+                self.toast(&Text::fill(
+                    EN.keygen_remove_the_first,
+                    &[self.medium.noun()],
+                ));
+            }
+            return;
+        }
+        if self.keygen_reopen_asks(Reopen::Card(slot)) {
+            return;
+        }
+        self.keygen_drop();
+        self.keygen_open_on_card(slot, true);
     }
 
     /// After each press: a making on the card that no longer belongs
@@ -2602,7 +2651,7 @@ impl crate::Faraday {
         if self
             .keygen
             .state()
-            .is_some_and(|k| k.on_card && (slot != k.slot || k.card_multi != multi))
+            .is_some_and(|k| k.on_card && !self.keygen_card_keeps(k))
         {
             self.keygen_drop();
         }
