@@ -387,7 +387,7 @@ fn landing(app: &View, ui: &mut Ui, (x, top, w): (f32, f32, f32)) -> f32 {
             ui,
             (x, top, w),
             EN.decode_no_transaction_waits,
-            (Action::ScanFor(crate::Ask::Decode), Screen::Decode),
+            (Some(Action::ScanFor(crate::Ask::Decode)), Screen::Decode),
         )
     } else {
         file_choices(ui, (x, top, w), EN.decode_choose_transaction, &waiting)

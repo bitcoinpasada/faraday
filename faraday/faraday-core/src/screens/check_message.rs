@@ -49,7 +49,7 @@ fn landing(app: &View, ui: &mut Ui, at: (f32, f32, f32)) {
             ui,
             at,
             EN.check_no_signed_message,
-            (Action::Scan, Screen::CheckMessage),
+            (Some(Action::Scan), Screen::CheckMessage),
         );
     } else {
         let rows: Vec<(&str, Action)> = waiting

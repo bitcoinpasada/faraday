@@ -96,7 +96,7 @@ fn landing(app: &View, ui: &mut Ui, at: (f32, f32, f32)) -> f32 {
             ui,
             at,
             EN.core_wallet_no_file_waits,
-            (Action::Scan, crate::Screen::CoreWallet),
+            (None, crate::Screen::CoreWallet),
         )
     } else {
         file_choices(ui, at, EN.core_wallet_choose_file, &rows)

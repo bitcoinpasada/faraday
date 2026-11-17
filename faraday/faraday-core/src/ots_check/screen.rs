@@ -97,7 +97,7 @@ fn landing(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), back: Option<(
             ui,
             (x, top, w),
             EN.ots_no_proof_waits,
-            (Action::Scan, crate::Screen::OtsCheck),
+            (Some(Action::Scan), crate::Screen::OtsCheck),
         );
     } else {
         let rows: Vec<(&str, Action)> = waiting

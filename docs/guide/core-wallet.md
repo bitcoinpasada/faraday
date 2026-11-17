@@ -11,7 +11,7 @@ This tool reads and checks the `wallet.dat` of a Bitcoin Core descriptor wallet,
 
 **Key:** core-wallet.file
 
-From Tools it opens on the wallet file when one waits in Files, and on a list when several do. With none, **No Bitcoin Core wallet file waits in Files** comes with **Scan**, **Open Files** and the stick. The result ends with **Another** and **Done**.
+From Tools it opens on the wallet file when one waits in Files, and on a list when several do. With none, **No Bitcoin Core wallet file waits in Files** comes with **Open Files** and the stick (a wallet file cannot come by QR, so there is no Scan). The result ends with **Another** and **Done**.
 
 The wallet is one SQLite or Berkeley DB file. **Passphrase, if the wallet is encrypted** is the wallet's own passphrase, used only for this read. **Read** appears once you have chosen a file.
 

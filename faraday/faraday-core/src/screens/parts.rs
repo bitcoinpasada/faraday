@@ -2271,7 +2271,9 @@ pub(crate) fn seed_word_grid(
 
 /// A tool with nothing to work on (`docs/DESIGN.md` §4): a card with the
 /// `line` that says so and the ways to get something, on the same card:
-/// Scan (`scan`), Open Files, and while a stick is attached and no key is
+/// Scan (`scan`, filled; left out with `None` for a tool whose input
+/// cannot come by QR, and then Open Files is the filled button), Open
+/// Files, and while a stick is attached and no key is
 /// open, Bring in from that stick, which returns to `back` when the stick
 /// is pulled. Returns the height used.
 pub(crate) fn nothing_to_work_on(
@@ -2279,7 +2281,7 @@ pub(crate) fn nothing_to_work_on(
     ui: &mut Ui,
     (x, y, w): (f32, f32, f32),
     line: &str,
-    (scan, back): (Action, crate::Screen),
+    (scan, back): (Option<Action>, crate::Screen),
 ) -> f32 {
     let pad = tokens::PAD;
     let step = tokens::GAP + tokens::GAP_SMALL;
@@ -2290,7 +2292,11 @@ pub(crate) fn nothing_to_work_on(
             &[&app.stick[app.visit.stick.min(app.stick.len() - 1)].label],
         )
     });
-    let mut labels = vec![EN.compact_scan, EN.parts_open_files];
+    let mut labels = Vec::new();
+    if scan.is_some() {
+        labels.push(EN.compact_scan);
+    }
+    labels.push(EN.parts_open_files);
     if let Some(s) = &stick {
         labels.push(s);
     }
@@ -2299,14 +2305,19 @@ pub(crate) fn nothing_to_work_on(
     let h = pad + line_h + step + buttons_h + tokens::GAP_SMALL;
     ui.card(x, y, w, h, Role::OutlineVariant);
     ui.wrap_as((x + pad, y + pad, inner), TITLE_S, Role::OnSurface, line);
-    let mut items = vec![
-        (EN.compact_scan, Style::Primary, scan),
-        (
-            EN.parts_open_files,
-            Style::Secondary,
-            Action::Nav(crate::Screen::Files),
-        ),
-    ];
+    let mut items = Vec::new();
+    if let Some(scan) = scan {
+        items.push((EN.compact_scan, Style::Primary, scan));
+    }
+    items.push((
+        EN.parts_open_files,
+        if scan.is_some() {
+            Style::Secondary
+        } else {
+            Style::Primary
+        },
+        Action::Nav(crate::Screen::Files),
+    ));
     if let Some(s) = &stick {
         items.push((s, Style::Secondary, Action::VisitFrom(back)));
     }

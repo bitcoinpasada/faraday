@@ -91,7 +91,10 @@ fn setup(app: &View, s: &MsState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f3
             ui,
             (x, y + cy, w),
             EN.mscheck_nothing_waits,
-            (Action::MultisigCheck(M::Scan), crate::Screen::MultisigCheck),
+            (
+                Some(Action::MultisigCheck(M::Scan)),
+                crate::Screen::MultisigCheck,
+            ),
         ) + GAP;
     } else {
         ui.button(

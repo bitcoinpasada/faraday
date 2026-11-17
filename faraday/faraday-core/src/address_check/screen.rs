@@ -85,7 +85,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             (x, y, width),
             EN.address_check_no_address,
             (
-                Action::AddressCheck(AddressPress::Scan),
+                Some(Action::AddressCheck(AddressPress::Scan)),
                 Screen::CheckAddress,
             ),
         ) + GAP;

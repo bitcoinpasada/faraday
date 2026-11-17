@@ -244,7 +244,8 @@ fn core_wallet_with_one_file_opens_it_and_with_none_offers_the_ways_in() {
         none.press(Action::InboxRemove(0));
     }
     assert!(has(&mut none, EN.core_wallet_no_file_waits));
-    assert!(has(&mut none, EN.compact_scan));
+    // A wallet file cannot come by QR: Open Files, and no Scan.
+    assert!(!has(&mut none, EN.compact_scan));
     assert!(has(&mut none, EN.parts_open_files));
 }
 

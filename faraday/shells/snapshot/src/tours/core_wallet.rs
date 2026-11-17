@@ -1,5 +1,5 @@
 //! Read a Bitcoin Core wallet in Tools (`docs/decisions/F229.md`): the
-//! File card with a wallet to choose, and the Result of an encrypted
+//! empty part, the File card with a wallet to choose, and the Result of an encrypted
 //! wallet read with its passphrase, and scrolled to its pairs.
 
 use crate::tour::{Tour, type_text};
@@ -14,6 +14,18 @@ const V: &str = concat!(
 pub(crate) fn core_wallet_tour(t: &mut Tour) -> Result<(), String> {
     let bytes =
         std::fs::read(format!("{V}/encrypted.dat")).map_err(|e| format!("encrypted.dat: {e}"))?;
+    // Nothing waiting: Open Files is the filled button, no Scan.
+    t.press(Action::Nav(Screen::Catalog));
+    let tile = faraday_core::catalog::TILES
+        .iter()
+        .position(|tile| tile.name == "Read a Bitcoin Core wallet")
+        .ok_or("no Read a Bitcoin Core wallet tile")?;
+    t.press(Action::Catalog(tile as u8));
+    t.press(Action::CoreWallet(W::Another));
+    while !t.app.inbox().is_empty() {
+        t.press(Action::InboxRemove(0));
+    }
+    t.shot("core-wallet-empty")?;
     t.app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![("wallet.dat".to_string(), bytes)]),
         outbox: Vec::new(),
