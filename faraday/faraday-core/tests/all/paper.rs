@@ -160,7 +160,11 @@ fn seed_xor_parts_are_put_away_only_once_checked_or_on_a_second_press() {
     assert!(app.backup().unwrap().paper.is_some(), "put away unchecked");
     app.press(Action::BPaperHide);
     assert!(app.backup().unwrap().paper.is_none());
+}
 
+#[test]
+fn checked_seed_xor_parts_stay_when_put_away() {
+    let mut app = backing_up();
     app.press(Action::BXor(2));
     for i in 0..2u8 {
         app.press(Action::BPartCheck(i));

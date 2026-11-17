@@ -276,6 +276,10 @@ macro_rules! words_screens_backup {
     paper_section_part_is: "Each part alone is valid words of another, empty wallet. Write 'Seed XOR part 1 of {}' and the key's fingerprint {} on each.",
     /// Line in `paper_section`.
     paper_section_not_on_plan: "Not on the plan: its checks do not count these parts",
+    /// Line in `paper_section`. `{}`: the places the parts are on, by name.
+    paper_section_on_plan: "On the plan: {}",
+    /// Toast on Seed XOR in `paper_section`: the key's plan already has a set.
+    paper_section_has_set: "This key's plan already has a Seed XOR set. Replace it on the plan.",
     /// Line in `paper_section`. `{}`: the word's place, the part's number.
     paper_section_word_differs: "Word {} differs from part {}",
     /// Button in `paper_section`, per part.

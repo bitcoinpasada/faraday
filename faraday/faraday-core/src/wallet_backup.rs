@@ -2415,6 +2415,16 @@ impl Faraday {
         if self.paper_other_list() {
             return self.toast(EN.convert_not_given);
         }
+        // One set of a kind per key (`docs/decisions/F276.md`): a second
+        // split is the plan's own Replace.
+        if self
+            .backup
+            .state()
+            .and_then(|b| self.session.keys.info(b.key))
+            .is_some_and(|k| k.xor.is_some())
+        {
+            return self.toast(EN.paper_section_has_set);
+        }
         let Some(draw) = self.fresh_bytes(b"seed xor", faraday_keys::seed_xor_random_len(parts))
         else {
             return self.toast(EN.no_randomness);
@@ -2437,7 +2447,8 @@ impl Faraday {
     /// just made becomes the backup's key's set (`docs/decisions/F276.md`):
     /// its public facts are kept with the key, the way Convert a seed
     /// keeps them, and the plan takes it as a form of the key. A key that
-    /// already has a set keeps that one.
+    /// already has a set is refused before this. The parts are placed one
+    /// to a place.
     fn paper_xor_count(&mut self, c: &Compute, lines: &[Text]) {
         let Some((key, wallet)) = self.backup.state().map(|b| (b.key, b.wallet)) else {
             return;
@@ -2453,7 +2464,7 @@ impl Faraday {
         let shape = self.plan_shape_now(wallet);
         let (xor, slip39) = self.set_facts(wallet);
         self.backup.change_answers(&shape, &|a, s| {
-            plan::sets::sync(a, s, &xor, &slip39);
+            plan::sets::sync_placed(a, s, &xor, &slip39);
         });
     }
 }

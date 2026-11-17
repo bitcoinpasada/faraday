@@ -2143,12 +2143,25 @@ fn paper_section(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 );
                 cy += ui.wrap_as((x, cy, w), BODY_S, Role::OnSurfaceVariant, &line) + T::GAP;
             }
-            cy += ui.wrap_as(
-                (x, cy, w),
-                BODY_S,
-                Role::OnSurfaceVariant,
-                EN.paper_section_not_on_plan,
-            ) + T::GAP;
+            let shape = app.plan_shape(b.wallet);
+            let mut at: Vec<usize> = Vec::new();
+            for spot in &app.plan_mapped(&shape, &b.answers).places {
+                if let crate::plan::At::Place(p) = spot.at
+                    && spot
+                        .holds
+                        .iter()
+                        .any(|(h, _)| matches!(h, crate::plan::What::XorPart(..)))
+                {
+                    at.push(p);
+                }
+            }
+            let line = if at.is_empty() {
+                EN.paper_section_not_on_plan.to_string()
+            } else {
+                let names: Vec<String> = at.iter().map(|&p| (&*app.place_name(p)).into()).collect();
+                fill(EN.paper_section_on_plan, &[&names.join(", ")])
+            };
+            cy += ui.wrap_as((x, cy, w), BODY_S, Role::OnSurfaceVariant, &line) + T::GAP;
             let mut all = true;
             for (i, l) in parts.iter().enumerate() {
                 ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, &format!("{}", i + 1));
