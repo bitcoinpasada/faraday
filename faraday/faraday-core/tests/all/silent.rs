@@ -73,7 +73,15 @@ fn another_scan_key() -> PublicKey {
 #[test]
 fn the_address_is_bip352s_for_the_key_and_a_label_makes_another() {
     let c = faraday_core::testkit::compute();
-    let mut app = with_key();
+    // Mainnet's `sp1` address, on Trezor's published "all all" seed (vectors.json), which is not a public sample.
+    let mut app = faraday_core::testkit::started();
+    faraday_core::testkit::move_to(&mut app.session, faraday_bip::keys::Network::Mainnet).unwrap();
+    app.press(Action::Entry(None));
+    for c in "all all all all all all all all all all all all".chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     app.press(Action::Silent);
     assert_eq!(app.screen, Screen::Silent);
     let secp = faraday_bip::bitcoin::secp256k1::Secp256k1::new();

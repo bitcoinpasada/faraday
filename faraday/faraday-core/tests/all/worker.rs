@@ -362,7 +362,10 @@ mod aezeed_read {
     const NODE_KEY: &str = "024c7005923a074fd38b16ace7be4914ec9f929717692bfb585019be13290c9b1d";
 
     fn typed(words: &str) -> Faraday {
+        // LND's node key is derived at coin type 0: Mainnet, where an aezeed is
+        // no public sample.
         let mut app = testkit::started();
+        testkit::move_to(&mut app.session, faraday_bip::keys::Network::Mainnet).unwrap();
         app.press(Action::Lightning);
         app.press(Action::LAezeed);
         for c in words

@@ -10,6 +10,14 @@ const CIPHER_SEED: &str = "above judge emerge veteran reform crunch system all s
     shoulder vault hurt city quarter cover enlist swear success suggest drink wagon enrich body";
 const NODE_KEY: &str = "024c7005923a074fd38b16ace7be4914ec9f929717692bfb585019be13290c9b1d";
 
+/// A start on Mainnet: LND's node key is derived at coin type 0 there, and
+/// an aezeed is no public sample.
+fn mainnet_started() -> Faraday {
+    let mut app = faraday_core::testkit::started();
+    faraday_core::testkit::move_to(&mut app.session, faraday_bip::keys::Network::Mainnet).unwrap();
+    app
+}
+
 fn hex(b: &[u8]) -> String {
     b.iter().map(|x| format!("{x:02x}")).collect()
 }
@@ -27,7 +35,7 @@ fn typed(app: &mut Faraday, text: &str) {
 
 #[test]
 fn an_lnd_cipher_seed_gives_lnds_node_id() {
-    let mut app = faraday_core::testkit::started();
+    let mut app = mainnet_started();
     app.press(Action::Lightning);
     assert_eq!(app.screen, Screen::Lightning);
     app.press(Action::LAezeed);
@@ -97,7 +105,7 @@ fn the_aezeed_passphrase_refuses_a_letter_outside_ascii_and_says_so() {
 fn the_node_id_reads_back_from_its_code_and_its_picture() {
     use crate::common::{codes_offered, png_text, qr_text};
     use faraday_core::Code;
-    let mut app = faraday_core::testkit::started();
+    let mut app = mainnet_started();
     app.press(Action::Lightning);
     app.press(Action::LAezeed);
     typed(&mut app, CIPHER_SEED);
