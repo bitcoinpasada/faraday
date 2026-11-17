@@ -65,16 +65,16 @@ The stick image on a PC, at 1280×800.
 
 <table>
 <tr>
-<td width="50%"><img src="docs/screenshots/pc-home.png" alt="Home" width="100%"></td>
-<td width="50%"><img src="docs/screenshots/pc-tools.png" alt="Tools" width="100%"></td>
+<td width="50%"><img src="docs/screenshots/pc-home.png" alt="Home: Make a new wallet, Restore an existing wallet, Spend from a backup" width="100%"></td>
+<td width="50%"><img src="docs/screenshots/pc-tools.png" alt="Tools: the tool cards under Common and Keys and seeds, with the search box" width="100%"></td>
 </tr>
 <tr>
 <td>Home</td>
 <td>Tools: every flow, with its standards</td>
 </tr>
 <tr>
-<td width="50%"><img src="docs/screenshots/pc-new-key-dice.png" alt="A new key from die rolls, its randomness check" width="100%"></td>
-<td width="50%"><img src="docs/screenshots/pc-settings.png" alt="Settings" width="100%"></td>
+<td width="50%"><img src="docs/screenshots/pc-new-key-dice.png" alt="Make a new key, Rolls step: 99 of 99 rolls typed and the randomness check" width="100%"></td>
+<td width="50%"><img src="docs/screenshots/pc-settings.png" alt="Settings: Mode, Lock and power, Time, Appearance and Display" width="100%"></td>
 </tr>
 <tr>
 <td>A new BIP-39 key from 99 die rolls: the randomness check on the
@@ -88,10 +88,10 @@ touch.
 
 <table>
 <tr>
-<td width="25%"><img src="docs/screenshots/pi-home.png" alt="Home" width="100%"></td>
-<td width="25%"><img src="docs/screenshots/pi-new-key-rolls.png" alt="A new key from dice rolls" width="100%"></td>
-<td width="25%"><img src="docs/screenshots/pi-add-a-key.png" alt="Typing a seed's words" width="100%"></td>
-<td width="25%"><img src="docs/screenshots/pi-restore-m-of-n.png" alt="Restore's Quorum card, 2 of 3" width="100%"></td>
+<td width="25%"><img src="docs/screenshots/pi-home.png" alt="Home: 0 files and no stick, Make a new wallet, Check, Wallets" width="100%"></td>
+<td width="25%"><img src="docs/screenshots/pi-new-key-rolls.png" alt="Make a new key, Rolls step: 16 of 70 rolls, the face buttons" width="100%"></td>
+<td width="25%"><img src="docs/screenshots/pi-add-a-key.png" alt="Add a key, Words step: 24 words typed, checksum correct" width="100%"></td>
+<td width="25%"><img src="docs/screenshots/pi-restore-m-of-n.png" alt="Restore an existing wallet, Quorum step: 2 of 3 signatures" width="100%"></td>
 </tr>
 </table>
 
