@@ -813,19 +813,42 @@ fn strings_on_two_sticks_are_written_and_rebuild_the_key() {
     let read = faraday_files::qr_in_png(&c, &picture.1).unwrap().to_vec();
     assert_eq!(read, vec![D.to_ascii_uppercase().into_bytes()]);
     // The two files, copied into a Faraday with nothing in it, are the
-    // key's seed.
+    // key's seed: the text as a restored file, the picture from a stick at
+    // a visit, which takes a share's picture only on the person's own tick.
     let mut back = testkit::started();
     back.storage(faraday_core::StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![text.clone()]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    back.storage(faraday_core::StorageEvent::QrRead {
-        stick: faraday_text::Text::of("S1"),
-        name: faraday_text::Text::of(&picture.0.clone()),
-        bytes: (picture.1.clone()).into(),
-        payloads: (read).into(),
-    });
+    faraday_core::testkit::move_to(&mut back.session, faraday_core::testkit::NET).unwrap();
+    back.storage(faraday_core::StorageEvent::Sticks(vec![
+        faraday_core::StickInfo {
+            make: Default::default(),
+            serial: None,
+            id: faraday_text::Text::of("S1"),
+            label: faraday_text::Text::of("TESTSTICK"),
+            boot: false,
+            files: vec![(faraday_text::Text::of(&picture.0), picture.1.len() as u64)],
+            vaults: Vec::new(),
+        },
+    ]));
+    // The visit page ticks its pictures when first drawn; the person
+    // unticks D's and ticks it again.
+    let _ = back.frame();
+    back.press(Action::VisitIn(0));
+    back.press(Action::VisitIn(0));
+    back.press(Action::VisitCopy);
+    while let Some(command) = back.poll_storage() {
+        if let faraday_core::StorageCommand::ReadQr { stick, name } = command {
+            back.storage(faraday_core::StorageEvent::QrRead {
+                stick,
+                name,
+                bytes: (picture.1.clone()).into(),
+                payloads: (read.clone()).into(),
+            });
+        }
+    }
     assert!(
         back.inbox_found_now(&c)
             .seeds
