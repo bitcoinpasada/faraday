@@ -607,6 +607,8 @@ pub enum Action {
     TMode(u8),
     /// Empty the calculator's field.
     TClear,
+    /// Empty Home's search bar (its ×).
+    HomeSearchClear,
     /// The node key from this loaded key, as ldk-node reads it.
     LKey([u8; 4]),
     /// The node key from an aezeed typed here.
@@ -1361,6 +1363,10 @@ impl Faraday {
             | Action::LVault
             | Action::LOut
             | Action::LAnother => self.lightning_act(action),
+            Action::HomeSearchClear => {
+                self.tools.clear_home_find();
+                self.list_offset = 0.0;
+            }
             Action::Tools
             | Action::TTool(_)
             | Action::TMode(_)

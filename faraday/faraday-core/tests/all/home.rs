@@ -945,22 +945,23 @@ fn type_on_home(app: &mut Faraday, text: &str) {
     let _ = app.frame();
 }
 
-fn key_tile() -> u8 {
+fn sign_tile() -> u8 {
     faraday_core::catalog::TILES
         .iter()
-        .position(|t| t.name == "Make a new key")
-        .expect("the Make a new key tile") as u8
+        .position(|t| t.name == "Sign a transaction")
+        .expect("the Sign a transaction tile") as u8
 }
 
 #[test]
 fn typing_on_home_searches_on_a_wide_and_a_phone_window() {
     for mut app in [shown(), window(400, 800, 160)] {
-        type_on_home(&mut app, "new key");
-        assert_eq!(faraday_core::testkit::home_find(&app), "new key");
-        assert!(app.where_offered(Action::Catalog(key_tile())).is_some());
-        // The result opens its flow, and Home is Home again.
-        tap(&mut app, Action::Catalog(key_tile()));
-        assert_ne!(app.screen, Screen::Home);
+        type_on_home(&mut app, "send");
+        assert_eq!(faraday_core::testkit::home_find(&app), "send");
+        assert!(app.where_offered(Action::Catalog(sign_tile())).is_some());
+        // The result opens its flow (the scanner, with no PSBT in Files),
+        // and Home is Home again.
+        tap(&mut app, Action::Catalog(sign_tile()));
+        assert_eq!(app.sheet, Some(faraday_core::Sheet::Scan));
         assert!(faraday_core::testkit::home_find(&app).is_empty());
     }
 }
@@ -968,17 +969,28 @@ fn typing_on_home_searches_on_a_wide_and_a_phone_window() {
 #[test]
 fn escape_clears_homes_search() {
     let mut app = shown();
-    type_on_home(&mut app, "new key");
+    type_on_home(&mut app, "send");
     app.event(Event::Key(faraday_shell_api::Key::Escape));
     assert!(faraday_core::testkit::home_find(&app).is_empty());
 }
 
 #[test]
+fn the_cross_in_homes_search_bar_clears_it() {
+    for mut app in [shown(), window(400, 800, 160)] {
+        type_on_home(&mut app, "send");
+        assert!(app.hit_box(Action::HomeSearchClear).is_some());
+        tap(&mut app, Action::HomeSearchClear);
+        assert!(faraday_core::testkit::home_find(&app).is_empty());
+        assert!(app.hit_box(Action::HomeSearchClear).is_none());
+    }
+}
+
+#[test]
 fn the_pis_home_has_no_search() {
     let mut app = window(480, 640, 286);
-    type_on_home(&mut app, "new key");
+    type_on_home(&mut app, "send");
     assert!(faraday_core::testkit::home_find(&app).is_empty());
-    assert!(app.where_offered(Action::Catalog(key_tile())).is_none());
+    assert!(app.where_offered(Action::Catalog(sign_tile())).is_none());
 }
 
 #[test]

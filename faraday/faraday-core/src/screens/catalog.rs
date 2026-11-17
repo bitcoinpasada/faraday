@@ -128,18 +128,64 @@ pub(crate) fn setting_hit(ui: &mut Ui, at: (f32, f32, f32), i: u8) -> f32 {
     crate::panes::screen::list_item(ui, at, &item, false)
 }
 
-/// Home's search bar at (`x`, `y`), `w` wide: Material's search bar (the
-/// search field, `search_field`) with its hint until something is typed.
-/// Returns the height it takes, the gap under it counted.
+/// Home's search bar at (`x`, `y`), `w` wide: Material's search bar, as
+/// the vault's is drawn (a full-round `SurfaceContainerHigh` field, the
+/// magnifying glass leading, the hint until something is typed, a
+/// trailing × that clears while it holds text). Typing lands in it with
+/// no press first, so at rest it draws no caret. Returns the height it
+/// takes, the gap under it counted.
 pub(crate) fn home_search_bar(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
-    search_field_caret(
-        ui,
-        (x, y, w),
-        (app.tools.home_find(), EN.home_search_hint),
-        Action::TypeHere(crate::edit::Here::HomeFind),
-        false,
+    use faraday_draw::tokens::{
+        BODY_L, GAP, GAP_SMALL, SEARCH_BAR_H, SEARCH_GLYPH, SEARCH_ICON, SEARCH_INSET, TITLE_M,
+        TOUCH,
+    };
+    let typed = app.tools.home_find();
+    let here = Action::TypeHere(crate::edit::Here::HomeFind);
+    let h = SEARCH_BAR_H;
+    ui.fill(x, y, w, h, h / 2.0, Role::SurfaceContainerHigh);
+    ui.icon(
+        x + SEARCH_INSET,
+        y + (h - SEARCH_ICON) / 2.0,
+        SEARCH_ICON,
+        faraday_draw::widgets::Icon::SEARCH,
+        SEARCH_GLYPH,
+        Role::OnSurfaceVariant,
     );
-    faraday_draw::tokens::HOME_SEARCH_ROOM
+    ui.press_box(x, y, w, h, here);
+    let tx = x + 2.0 * SEARCH_INSET + SEARCH_ICON;
+    let clear = if typed.is_empty() { 0.0 } else { TOUCH };
+    let room = (x + w - tx - SEARCH_INSET - clear).max(0.0);
+    if typed.is_empty() {
+        let shown = ui.fit_as(BODY_L, EN.home_search_hint, room);
+        ui.text_mid_as((tx, y, h), BODY_L, Role::OnSurfaceVariant, &shown);
+    } else {
+        ui.typed(
+            tx,
+            y,
+            h,
+            BODY_L.size,
+            crate::ui::W::from(BODY_L.face),
+            Role::OnSurface,
+            typed,
+            room,
+            true,
+            here,
+        );
+        let cx = x + w - GAP_SMALL - TOUCH;
+        let cy = y + (h - TOUCH) / 2.0;
+        ui.text_mid_as(
+            (cx + (TOUCH - ui.measure_as(TITLE_M, "×")) / 2.0, cy, TOUCH),
+            TITLE_M,
+            Role::OnSurfaceVariant,
+            "×",
+        );
+        ui.hit_tip(
+            (cx, cy, TOUCH, TOUCH),
+            Action::HomeSearchClear,
+            EN.vault_search_clear,
+        );
+    }
+    h + GAP
 }
 
 /// What Home shows in place of itself while something is typed in its
