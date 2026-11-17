@@ -20,6 +20,8 @@ macro_rules! words_screens_sidebar {
     sidebar_settings: "Settings",
     /// Text in `sidebar`. `{}`: `v`.
     sidebar_open_n: "{} open",
+    /// Files row's end: how many files wait to be written to the stick.
+    sidebar_to_write_n: "{} to write",
     /// Row in `sidebar`.
     sidebar_guide: "Guide",
     /// Text in `sidebar`.

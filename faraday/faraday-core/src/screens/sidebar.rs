@@ -10,7 +10,7 @@ use crate::ui::{Glyph, NameSuffix, Style, Ui};
 use crate::wallet::{Session, fp_text};
 use crate::{Action, Screen, Sheet};
 use faraday_draw::tokens::{BODY_S, BUTTON_H, LABEL_M, LABEL_S};
-use faraday_draw::tokens::{GAP_SMALL, GRID, SHAPE_S, TOUCH};
+use faraday_draw::tokens::{GRID, SHAPE_S, TOUCH};
 use faraday_draw::widgets::Icon;
 
 /// The word after the wordmark: DEMO in the desktop app, OFFLINE on the
@@ -66,13 +66,13 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     let items = [
         (Glyph::Icon(Icon::House), EN.sidebar_home, Screen::Home),
         (Glyph::Icon(Icon::Verified), EN.sidebar_check, Screen::Check),
-        (Glyph::Icon(Icon::Lock), EN.sidebar_vaults, Screen::Vaults),
-        (Glyph::Icon(Icon::File), EN.sidebar_files, Screen::Files),
         (
             Glyph::Icon(Icon::Wallet),
             EN.sidebar_wallets,
             Screen::WalletsStart,
         ),
+        (Glyph::Icon(Icon::File), EN.sidebar_files, Screen::Files),
+        (Glyph::Icon(Icon::Lock), EN.sidebar_vaults, Screen::Vaults),
         (Glyph::Icon(Icon::Tools), EN.sidebar_tools, Screen::Catalog),
     ];
     #[cfg_attr(not(feature = "demo"), expect(unused_mut))]
@@ -98,8 +98,17 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     // row, the current one on a pill (`docs/LAYOUT.md` §3).
     let row = |ui: &mut Ui, y: f32, icon: Glyph, label: &str, active: bool, action: Action| {
         // Vaults carries how many are open, at the row's right end.
-        let open = (icon == Glyph::Icon(Icon::Lock) && v > 0)
-            .then(|| fill(EN.sidebar_open_n, &[&v.to_string()]));
+        // Files carries how many wait to be written to the stick.
+        let open = if icon == Glyph::Icon(Icon::Lock) && v > 0 {
+            Some(fill(EN.sidebar_open_n, &[&v.to_string()]))
+        } else if icon == Glyph::Icon(Icon::File) && !app.outbox.is_empty() {
+            Some(fill(
+                EN.sidebar_to_write_n,
+                &[&app.outbox.len().to_string()],
+            ))
+        } else {
+            None
+        };
         let (x, w) = (12.0, SIDEBAR_W - 24.0);
         let d = faraday_ui::nav::Dest {
             icon,
@@ -144,19 +153,18 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     }
 
     let held = app.lock_held();
-    // The Files row stands above the stick's row at the foot; the pill
-    // under Lock while the idle lock waits for a new wallet's backup
-    // takes its room from the lists.
+    // The pill under Lock while the idle lock waits for a new wallet's
+    // backup takes its room from the lists.
     // The stick's row is shown when a stick is attached or an import
     // waits; with none, "none" is not worth the room the lists need.
     let sticks_row = sticks_row_shown(app);
-    let files_top = h - 172.0 + if sticks_row { 0.0 } else { TOUCH }
+    let foot_top = h - 124.0 + if sticks_row { 0.0 } else { TOUCH }
         - if held { LOCK_PILL_H + GRID } else { 0.0 };
-    lists(app, ui, y + GRID, files_top);
-    foot(app, ui, files_top, held, sticks_row);
+    lists(app, ui, y + GRID, foot_top);
+    foot(app, ui, foot_top, held, sticks_row);
 }
 
-/// Whether the foot's stick row stands under the Files row: a stick is
+/// Whether the foot has the stick's row: a stick is
 /// attached, or an import the boot stick brought waits behind it.
 fn sticks_row_shown(app: &View) -> bool {
     !app.stick.is_empty() || app.import.state().is_some()
@@ -335,11 +343,10 @@ fn group(
     }
 }
 
-/// The foot of the sidebar from `fy`: the Files row, the stick's row (`sticks_row`), Lock and Power off, and under them the pill
+/// The foot of the sidebar from `fy`: the stick's row (`sticks_row`), Lock and Power off, and under them the pill
 /// while the idle lock is `held`.
 fn foot(app: &View, ui: &mut Ui, fy: f32, held: bool, sticks_row: bool) {
-    files_row(app, ui, fy);
-    let mut fy = fy + TOUCH;
+    let mut fy = fy;
     if sticks_row {
         stick_row(app, ui, fy);
         fy += TOUCH;
@@ -391,76 +398,43 @@ fn stick_row(app: &View, ui: &mut Ui, fy: f32) {
 /// Lock and Power off at `fy`, and under them the pill while the idle
 /// lock is `held`.
 fn foot_buttons(app: &View, ui: &mut Ui, fy: f32, held: bool) {
+    // Lock and Power off side by side, each named; Power off alone has
+    // the whole width.
+    let (x, w) = (16.0, SIDEBAR_W - 32.0);
     if app.holds_secret() {
+        let half = (w - GRID) / 2.0;
         ui.button(
-            16.0,
+            x,
             fy,
-            Some(SIDEBAR_W - 32.0 - 44.0),
+            Some(half),
             BUTTON_H,
             EN.sidebar_lock,
             Style::Secondary,
             Action::LockAsk,
         );
+        ui.button(
+            x + half + GRID,
+            fy,
+            Some(half),
+            BUTTON_H,
+            EN.nav_power_off,
+            Style::Secondary,
+            Action::PowerAsk,
+        );
+    } else {
+        ui.button(
+            x,
+            fy,
+            Some(w),
+            BUTTON_H,
+            EN.nav_power_off,
+            Style::Secondary,
+            Action::PowerAsk,
+        );
     }
-    let px = SIDEBAR_W - 16.0 - 36.0;
-    // Material's outlined icon button, round (F108).
-    let r = faraday_draw::tokens::shape_full(36.0);
-    ui.stroke(px, fy, 36.0, 36.0, r, Role::OutlineVariant);
-    ui.press(
-        Shape::new(px, fy, 36.0, 36.0, r),
-        Role::OnSurface.paint(),
-        Action::PowerAsk,
-    );
-    ui.icon(
-        px,
-        fy,
-        36.0,
-        Glyph::Icon(Icon::Power),
-        14.0,
-        Role::OnSurfaceVariant,
-    );
-    ui.tip_plain((px, fy, 36.0, 36.0), Action::PowerAsk, EN.tip_power_off);
     if held {
         lock_held_pill(ui, 16.0, fy + 44.0, SIDEBAR_W - 32.0);
     }
-}
-
-/// The Files row at `fy`, one touch target tall, which opens Files: its
-/// name and under it what the files are: brought in from the stick,
-/// waiting to be written to it, or none.
-fn files_row(app: &View, ui: &mut Ui, fy: f32) {
-    let here = app.screen == Screen::Files;
-    if here {
-        ui.fill(
-            16.0,
-            fy,
-            SIDEBAR_W - 32.0,
-            TOUCH,
-            SHAPE_S,
-            Role::SecondaryContainer,
-        );
-    }
-    ui.press_box(
-        16.0,
-        fy,
-        SIDEBAR_W - 32.0,
-        TOUCH,
-        Action::Nav(Screen::Files),
-    );
-    let muted = on_selected(here, Role::OnSurfaceVariant);
-    ui.icon(22.0, fy + 14.0, 20.0, Glyph::Icon(Icon::File), 12.0, muted);
-    // Two lines in the row: the name, then what the files are: brought
-    // in from the stick, waiting to be written to it, or none.
-    let half = TOUCH / 2.0;
-    let line = (fy + GAP_SMALL, half - GAP_SMALL);
-    let tx = 46.0;
-    ui.text_mid_as((tx, line.0, line.1), BODY_S, muted, EN.sidebar_files);
-    let ink = on_selected(here, Role::OnSurface);
-    let files = app.files_count();
-    let line = (fy + half, half - GAP_SMALL);
-    let room = SIDEBAR_W - 24.0 - tx;
-    let files = ui.fit_as(BODY_S, &files, room);
-    ui.text_mid_as((tx, line.0, line.1), BODY_S, ink, &files);
 }
 
 /// The pill's height.

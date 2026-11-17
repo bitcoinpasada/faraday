@@ -221,10 +221,10 @@ fn the_lists_scrolled_to_their_end_follow_a_list_that_shrinks() {
     assert!(!app.offers(Action::ExploreKey(fp(&app, 29))));
 }
 
-/// The Files row says in plain words what the files are: brought in
-/// from the stick, then, once one waits, to be written to it.
+/// Files brought in from the stick are not "to write": the Files tab
+/// says so only for what waits to be written to the stick.
 #[test]
-fn the_files_row_says_what_the_files_are() {
+fn the_files_tab_says_to_write_only_for_files_waiting_for_the_stick() {
     let mut app = with(1, 0);
     app.storage(faraday_core::StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![(
@@ -235,7 +235,7 @@ fn the_files_row_says_what_the_files_are() {
         kept: Vec::new(),
     });
     app.press(Action::Nav(Screen::Home));
-    assert!(crate::common::has(&mut app, "1 file from the stick"));
+    assert!(!crate::common::has(&mut app, "1 to write"));
     app.outbox.push(faraday_core::Item {
         name: faraday_text::Text::of("a.psbt"),
         bytes: (Vec::new()).into(),
@@ -249,8 +249,65 @@ fn the_files_row_says_what_the_files_are() {
         outpoints: Vec::new(),
         unsigned_txid: None,
     });
-    assert!(crate::common::has(&mut app, "1 file to write to the stick"));
+    assert!(crate::common::has(&mut app, "1 to write"));
     assert!(app.offers(Action::Nav(Screen::Files)));
+}
+
+/// The sidebar lists the places in one order, Files once, and Power off
+/// is named.
+#[test]
+fn the_sidebar_lists_the_places_in_order_with_files_once() {
+    let mut app = with(1, 0);
+    let _ = app.frame();
+    let order = [
+        Screen::Home,
+        Screen::Check,
+        Screen::WalletsStart,
+        Screen::Files,
+        Screen::Vaults,
+        Screen::Catalog,
+        Screen::Settings,
+    ];
+    let ys: Vec<u16> = order
+        .iter()
+        .map(|s| {
+            app.where_offered(Action::Nav(*s))
+                .unwrap_or_else(|| panic!("{s:?} is not in the sidebar"))
+                .1
+        })
+        .collect();
+    assert!(ys.windows(2).all(|w| w[0] < w[1]), "the order: {ys:?}");
+    let files = app
+        .offered_actions()
+        .into_iter()
+        .filter(|a| *a == Action::Nav(Screen::Files))
+        .count();
+    assert_eq!(files, 1, "Files is offered once");
+    assert!(
+        crate::common::has(&mut app, "Power off"),
+        "Power off is named"
+    );
+}
+
+/// With files waiting for the stick, the Files tab says how many.
+#[test]
+fn the_files_tab_says_how_many_wait_to_be_written() {
+    let mut app = with(1, 0);
+    assert!(!crate::common::has(&mut app, "1 to write"));
+    app.outbox.push(faraday_core::Item {
+        name: faraday_text::Text::of("a.psbt"),
+        bytes: (Vec::new()).into(),
+        kind: faraday_core::wallet::FileKind::Psbt,
+        secret: false,
+        picture: None,
+        sha: None,
+        facts: None,
+        wallet: None,
+        psbt: None,
+        outpoints: Vec::new(),
+        unsigned_txid: None,
+    });
+    assert!(crate::common::has(&mut app, "1 to write"));
 }
 
 #[test]

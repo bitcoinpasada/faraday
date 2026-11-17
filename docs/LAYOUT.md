@@ -68,7 +68,7 @@ stick's arrival opens the On tab; on the Pi each tab draws its column as
 the Pi's compact pages do.
 
 **What the sidebar lists** besides its tabs (flows in progress with
-their open step, the loaded keys, the wallets, Files, the sticks
+their open step, the loaded keys, the wallets, the sticks
 attached) stays on the expanded rail. Where there is no expanded
 rail, it is **Home's box of what is loaded** (§4): one card with the same
 rows as plain lines, at the top of Home (on the small panel under its
