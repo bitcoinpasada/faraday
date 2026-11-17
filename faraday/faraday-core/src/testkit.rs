@@ -2138,6 +2138,11 @@ pub fn select_wallet(app: &mut crate::Faraday, i: usize) {
     app.wallets.set_wallet(i);
 }
 
+/// The wallet chosen on the Wallets tab.
+pub fn chosen_wallet(app: &crate::Faraday) -> usize {
+    app.wallets.wallet()
+}
+
 /// Holds the wallet confirmation sheet while one is open: a test whose
 /// subject is not the sheet has its wallet confirmed (F254).
 pub fn confirm_wallets(app: &mut crate::Faraday) {

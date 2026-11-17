@@ -514,14 +514,7 @@ fn samples_opens_the_hosts_sheet_above_the_strip_and_what_is_ticked_loads() {
     assert_eq!(host.menu_open(), Some(HostMenu::Samples));
     assert_eq!(host.app.sheet, None);
     let s = strip(&mut host);
-    for t in [
-        "Load samples",
-        "Wallets",
-        "Keys",
-        "Select all",
-        "Not now",
-        "Load ticked",
-    ] {
+    for t in ["Load samples", "Wallets", "Keys", "Not now", "Load ticked"] {
         assert!(s.iter().any(|x| x == t), "the sheet offers {t:?}: {s:?}");
     }
     let texts = app_texts(&mut host);
@@ -534,6 +527,11 @@ fn samples_opens_the_hosts_sheet_above_the_strip_and_what_is_ticked_loads() {
     assert!(y >= 0 && y + h <= 800 - STRIP, "the sheet at {y}, {h} tall");
     // A tick keeps it open; Load ticked loads the key and closes it.
     let keys = host.app.session.keys.len();
+    // The sheet opens with the wallets ticked: clear them, tick one key.
+    if strip(&mut host).iter().any(|x| x == "Unselect all") {
+        click(&mut host, HostPress::App(Action::SamplesAll));
+    }
+    assert!(strip(&mut host).iter().any(|x| x == "Select all"));
     let i = first_offered(&mut host);
     click(&mut host, tick_key(i));
     assert_eq!(host.menu_open(), Some(HostMenu::Samples));

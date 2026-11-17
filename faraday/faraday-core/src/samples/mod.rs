@@ -697,7 +697,8 @@ impl Faraday {
     }
 
     /// Costs a wallet read for each sample wallet, once a wallet is loaded.
-    /// The sheet's rows as the session stands now, nothing ticked.
+    /// The sheet's rows as the session stands now: every sample wallet not
+    /// loaded yet is ticked, the sample keys are not.
     fn samples_rows(&self, c: &Compute, set: &Samples) -> SheetState {
         let have: Vec<Text> = self
             .session
@@ -712,10 +713,14 @@ impl Faraday {
             .map(|(sample, w)| Row {
                 sample,
                 kind: w.kind_label(),
-                ticked: false,
+                ticked: true,
                 loaded: !have.is_empty()
                     && read_wallet(c, w.text)
                         .is_ok_and(|p| have.iter().any(|h| **h == *same_wallet(&p))),
+            })
+            .map(|mut r: Row| {
+                r.ticked = !r.loaded;
+                r
             })
             .collect();
         let keys = set
@@ -808,6 +813,7 @@ impl Faraday {
         let set = done.set;
         let sheet = std::mem::take(&mut self.sample_area.sheet);
         let (mut wallets, mut keys) = (0, 0);
+        let mut first = None;
         for (i, policy) in done.read {
             let w = &set.wallets[i];
             let name = label(w.name, "", 0).unwrap_or_default();
@@ -823,9 +829,11 @@ impl Faraday {
                     &Default::default(),
                 )
             });
-            wallets += usize::from(
-                added.is_some_and(|r| r.is_ok()) && self.session.wallets.len() > before,
-            );
+            let new = added.is_some_and(|r| r.is_ok()) && self.session.wallets.len() > before;
+            wallets += usize::from(new);
+            if new {
+                first = first.or(Some(before));
+            }
             for fp in w.keys {
                 let sample = set.keys.iter().find(|k| k.plain == Some(*fp));
                 keys += sample.map_or(0, |k| usize::from(k.add(&c, &mut self.session.keys)));
@@ -840,6 +848,10 @@ impl Faraday {
         }
         if wallets + keys > 0 {
             self.refresh_spend();
+            // The first wallet this load added is the one shown.
+            if let Some(i) = first {
+                self.act(Action::OpenWallet(i));
+            }
             self.toast(&Text::fill(
                 EN.samples_loaded,
                 &[&loaded_text(wallets, keys)],

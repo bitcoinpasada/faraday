@@ -121,6 +121,12 @@ const PRESS_BUDGETS: &[(&str, Work, u64, &str)] = &[
     ),
     (
         "SamplesLoad",
+        Work::Address,
+        1,
+        "Load ticked shows the first wallet it added on Wallets: that wallet's first receive address, derived once and kept on the wallet",
+    ),
+    (
+        "SamplesLoad",
         Work::Kdf,
         3,
         "Load ticked stretches each key it adds once (PBKDF2; the backup's Argon2id run too): here the three keys of Savings. A key already loaded is looked up first, not derived again",
@@ -447,7 +453,7 @@ fn samples_sheet_holds_on(panel: Panel) {
     press_within(&mut app, Action::Samples, SHEET_CANVAS);
     assert_eq!(app.sheet, Some(crate::Sheet::Samples));
     sheet_frames_are_free(&mut app, "the sheet's frames");
-    press_within(&mut app, Action::SampleTick(Pick::Wallet(0)), 3);
+    // The sheet opens with the wallet ticked.
     press_within(&mut app, Action::SampleTick(Pick::Key(0)), 3);
     // Load ticked derives the keys and reads the wallet, once, in the press.
     press_within(&mut app, Action::SamplesLoad, 3);

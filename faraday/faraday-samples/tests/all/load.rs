@@ -52,6 +52,8 @@ fn open(app: &mut Faraday) {
 
 /// Ticks `picks` on the open sheet and presses Load ticked.
 fn load(app: &mut Faraday, picks: &[Pick]) {
+    // The sheet opens with the standard set ticked: start from none.
+    crate::common::untick_samples(app);
     for &p in picks {
         app.press(Action::SampleTick(p));
     }
@@ -180,6 +182,27 @@ fn the_sheet_says_the_passphrase_is_faraday_in_a_code_box_and_never_password() {
 }
 
 #[test]
+fn load_samples_opens_with_the_wallets_ticked_and_lands_on_wallets_with_one_selected() {
+    let c = compute();
+    let mut app = demo_app();
+    // One wallet is there already (the same as the Savings sample).
+    app.session
+        .add_wallet_confirmed(&c, "Mine", &testkit::savings(), "t", Origin::Named)
+        .expect("the wallet");
+    open(&mut app);
+    // No row touched: Load takes the standard set.
+    app.press(Action::SamplesLoad);
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.session.wallets.len(), SAMPLES.wallets.len());
+    assert_eq!(app.screen, Screen::Wallets);
+    assert_eq!(
+        testkit::chosen_wallet(&app),
+        1,
+        "the first wallet this load added is shown"
+    );
+}
+
+#[test]
 fn ticking_savings_and_loading_it_loads_the_wallet_and_its_three_keys() {
     let c = compute();
     let mut app = demo_app();
@@ -257,6 +280,7 @@ fn what_is_loaded_is_ticked_and_dimmed_when_the_sheet_comes_back() {
     assert!(!app.offers(Action::SampleTick(savings)));
     assert!(!app.offers(Action::SampleTick(bacon)));
     assert!(app.offers(Action::SampleTick(key_pick("sample_words", "flag"))));
+    app.press(Action::SamplesAll);
     app.press(Action::SampleTick(savings));
     app.press(Action::SamplesLoad);
     assert_eq!(
@@ -293,7 +317,7 @@ fn a_key_already_loaded_is_skipped_without_an_error_and_the_rest_loads() {
 fn select_all_ticks_every_sample_not_loaded_and_unselect_all_clears_them() {
     let mut app = demo_app();
     open(&mut app);
-    app.press(Action::SamplesAll);
+    // The standard set is ticked at first: one press clears it.
     app.press(Action::SamplesAll);
     // Nothing is ticked: Load ticked does nothing, the sheet stays.
     app.press(Action::SamplesLoad);
@@ -310,6 +334,7 @@ fn select_all_ticks_every_sample_not_loaded_and_unselect_all_clears_them() {
 fn select_all_and_load_ticked_loads_every_wallet_and_every_key() {
     let mut app = demo_app();
     open(&mut app);
+    app.press(Action::SamplesAll);
     app.press(Action::SamplesAll);
     app.press(Action::SamplesLoad);
     assert_eq!(app.sheet, None);

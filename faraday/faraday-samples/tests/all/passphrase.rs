@@ -474,6 +474,7 @@ pub(crate) fn with_spending(app: &mut Faraday) {
         .iter()
         .position(|w| w.name == "sample_spending")
         .expect("Spending");
+    crate::common::untick_samples(app);
     app.press(Action::SampleTick(Pick::Wallet(at as u8)));
     app.press(Action::SamplesLoad);
     assert!(!app.session.wallets.is_empty());

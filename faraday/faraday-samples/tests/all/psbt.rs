@@ -29,6 +29,7 @@ pub(crate) fn with_savings() -> Faraday {
         .iter()
         .position(|w| w.name == "sample_savings")
         .expect("Savings");
+    crate::common::untick_samples(&mut app);
     app.press(Action::SampleTick(Pick::Wallet(at as u8)));
     let _ = app.frame();
     app.press(Action::SamplesLoad);

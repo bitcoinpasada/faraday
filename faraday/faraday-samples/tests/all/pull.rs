@@ -44,6 +44,7 @@ fn load_savings(app: &mut Faraday) {
     let _ = app.frame();
     app.press(Action::Samples);
     let _ = app.frame();
+    crate::common::untick_samples(app);
     app.press(Action::SampleTick(savings()));
     let _ = app.frame();
     app.press(Action::SamplesLoad);
@@ -105,7 +106,6 @@ fn the_sheet_says_to_pull_the_stick_while_one_is_in() {
     assert!(!says_pull(&mut app), "no stick, no line");
     stick(&mut app, true);
     assert!(says_pull(&mut app));
-    app.press(Action::SampleTick(savings()));
     let _ = app.frame();
     assert!(
         app.hit_box(Action::SamplesLoad).is_some(),

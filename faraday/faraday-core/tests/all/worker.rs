@@ -15,6 +15,10 @@ fn ticked() -> Faraday {
     testkit::into_demo(&mut app);
     app.samples = Some(testkit::demo_samples());
     app.press(Action::Samples);
+    // The sheet opens with the wallets ticked: only the key is wanted.
+    if app.sample_area().sheet().any_ticked() {
+        app.press(Action::SamplesAll);
+    }
     app.press(Action::SampleTick(Pick::Key(0)));
     app
 }

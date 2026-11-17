@@ -143,3 +143,12 @@ pub fn strip_offers(app: &mut Faraday, a: faraday_core::Action) -> bool {
     }
     faraday_host::Host::strip_actions_for(app).contains(&a)
 }
+
+/// The open Load samples sheet with no row ticked (it opens with the
+/// standard set ticked).
+pub(crate) fn untick_samples(app: &mut Faraday) {
+    use faraday_core::Action;
+    if app.sample_area().sheet().any_ticked() {
+        app.press(Action::SamplesAll);
+    }
+}

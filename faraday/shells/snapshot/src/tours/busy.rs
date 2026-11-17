@@ -1,7 +1,6 @@
 //! The busy tour.
 
 use crate::tour::Tour;
-use faraday_core::samples::Pick;
 use faraday_core::strings::EN;
 use faraday_core::{Action, testkit};
 
@@ -13,7 +12,6 @@ use faraday_core::{Action, testkit};
 pub(crate) fn busy_tour(t: &mut Tour) -> Result<(), String> {
     crate::tours::guide::demo_session(t);
     t.press(Action::Samples);
-    t.press(Action::SampleTick(Pick::Wallet(0)));
     t.shot("busy-1-ready")?;
     testkit::show_busy(&mut t.app, EN.working_samples, 0, 0);
     t.shot_moving("busy-2-indeterminate", 700)?;

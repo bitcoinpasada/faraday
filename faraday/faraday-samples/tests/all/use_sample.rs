@@ -365,6 +365,7 @@ fn the_envelope_takes_the_spend_of_the_wallet_loaded() {
     let mut app = demo_app();
     // Savings and its keys loaded, as the Load samples sheet loads them.
     app.press(Action::Samples);
+    crate::common::untick_samples(&mut app);
     app.press(Action::SampleTick(faraday_core::samples::Pick::Wallet(0)));
     app.press(Action::SamplesLoad);
     let _ = app.frame();
@@ -451,6 +452,7 @@ fn a_cosigner_s_box_takes_the_account_key_of_the_next_sample_seed_at_the_path() 
 fn the_files_scanner_on_spend_takes_the_sample_wallet_s_unsigned_spend() {
     let mut app = demo_app();
     app.press(Action::Samples);
+    crate::common::untick_samples(&mut app);
     app.press(Action::SampleTick(faraday_core::samples::Pick::Wallet(0)));
     app.press(Action::SamplesLoad);
     app.screen = Screen::Spend;

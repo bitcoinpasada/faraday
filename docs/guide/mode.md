@@ -11,7 +11,7 @@ The sheet lists the modes the app offers and marks the one in use; **Not now** c
 
 **Key:** mode.samples
 
-Practice takes only its samples; any other key is refused by its fingerprint. **Load samples** opens a list of sample **Wallets** and sample **Keys**, each with a tick box. **Load ticked** loads the ticked rows as if typed or scanned: a wallet with the sample keys it uses, a set as one key. A loaded row is ticked and dimmed. **Select all** and **Unselect all** change every tick.
+Practice takes only its samples; any other key is refused by its fingerprint. **Load samples** opens a list of sample **Wallets** and sample **Keys**, each with a tick box. Sample wallets not yet loaded start ticked. **Load ticked** loads the ticked rows as if typed or scanned: a wallet with the sample keys it uses, a set as one key. Wallets then shows the first wallet added. A loaded row is ticked and dimmed. **Select all** and **Unselect all** change every tick.
 
 Each row says what the sample is: a wallet its kind and script, a key its form and size. The sample passphrase is `faraday`; **Use faraday** puts it in a passphrase field. Where a screen asks for a key, a vault, a signed message or an address, **Use a sample** puts one in. Every sample is public, so anything sent to its addresses can be taken by anyone.
 

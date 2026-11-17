@@ -170,6 +170,7 @@ fn load_samples_lists_the_guide_key_first_by_its_name_and_loads_it() {
         .find(|k| k.listed && k.plain.is_some())
         .expect("a key");
     assert_eq!(first.name, "sample_guide");
+    crate::common::untick_samples(&mut app);
     app.press(Action::SampleTick(Pick::Key(0)));
     let _ = app.frame();
     app.press(Action::SamplesLoad);
