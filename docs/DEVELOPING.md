@@ -140,7 +140,8 @@ just lint-deps            cargo deny, cargo vet, the fuzz crates built
 just lint-repo            fmt, the scripts in tools/, the registry
 just lint-touch-targets   the touch-target ratchet: every snapshot tour at four sizes
 just lint-op-cost         the instruction count of each named costly operation under valgrind (F238)
-just lint-all             every command of `lint`, run to the end; lists all that failed
+just lint-all             every command of `lint`, run side by side and to the end; lists all that failed
+just lint-repo-all        the commands of `lint-repo` the same way
 cargo nextest run -p faraday-core -E 'test(/^keygen::/)'     one test module
 cargo nextest run -p faraday-core --test leaks               the leak tests: flows run under an allocator that looks for a test secret in freed memory
 ```
@@ -148,6 +149,9 @@ cargo nextest run -p faraday-core --test leaks               the leak tests: flo
 Run the module you touched while working, and `just` once for a finished
 body of work, not after each change or commit. When it fails, run again
 only the command `lint-all` names.
+`lint-all` runs as many commands at once as the machine has processors
+(two to eight); commands that build in one cargo target folder keep the
+recipe's order, and the report lists failures in the recipe's order.
 `tools/README.md` lists every lint and what it holds; `CLAUDE.md` is the
 rules a change follows. Builds and checks pass `--locked`.
 

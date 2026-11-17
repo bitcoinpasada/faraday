@@ -19,7 +19,8 @@ in `justfile` and `faraday/faraday.just`.
 |---|---|---|---|
 | `tools/clippy.py` | lint | `just lint` | clippy with warnings as errors; also fails on a warning about `clippy.toml` |
 | `tools/vet-refresh.py` | lint | `just vet-refresh` | fetches the imported audit sets and prunes (online), keeps the exemptions the separate workspaces (the two fuzz ones, keepass-rs's and rPGP's) still need, then vets all five workspaces offline (F71) |
-| `tools/lint-all.py` | runner | `just lint-all`, `just` | runs every command of `lint` to the end and lists the ones that failed |
+| `tools/test_lint_all.py` | test | `just lint-repo` | the runner's order, exit status and one-at-a-time builds |
+| `tools/lint-all.py` | runner | `just lint-all`, `just` | runs every command of `lint` (or of the recipe named) side by side and to the end, and lists the ones that failed |
 | `tools/lint-secrets.sh` | lint | `just lint` | secret-hygiene lint (below) |
 | `tools/lint-strings.sh` | lint | `just lint` | user-facing-strings lint (below) |
 | `tools/lint-tokens.sh` | lint | `just lint` | design-token lint (below); `--write` rewrites `lint-tokens.counts` |

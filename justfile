@@ -134,6 +134,8 @@ lint-repo:
     python3 -I -B tools/impact.py lint
     # No pair of the registry left unmet in the range from main (F149).
     python3 -I -B tools/impact.py check --quiet
+    # The lint's runner: every command to the end, in the recipe's order.
+    python3 -I -B tools/test_lint_all.py
 
 # Every lint of `lint`, run to the end: one line per command, then the
 # output of each that failed and the command to run it again
@@ -141,6 +143,11 @@ lint-repo:
 [group('lint')]
 lint-all:
     python3 -I -B tools/lint-all.py
+
+# `lint-repo`'s commands, run to the end side by side (tools/lint-all.py).
+[group('lint')]
+lint-repo-all:
+    python3 -I -B tools/lint-all.py lint-repo
 
 # The touch-target ratchet (docs/M3-CHECKS.md §2): every snapshot tour of
 # Faraday and the Starter's example at the four sizes, held to
