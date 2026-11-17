@@ -7,6 +7,12 @@
 
 This page says whether an address belongs to a loaded wallet or to a loaded key's standard accounts. Nothing is signed, paid or kept.
 
+## Opening
+
+**Key:** check-address.opening
+
+From Tools it opens on the file itself when exactly one text file waits in Files, and on a list of the text files to choose from when several do. With none it says **No address to check** and offers **Scan**, **Open Files** and, while a stick is attached, Bring in from that stick; typing into the box also works. A wallet description or a file that is not text does not count as waiting. A result ends with **Another**, which shows the page empty again, and **Done**, which goes back to where it was opened.
+
 ## The address
 
 **Key:** check-address.field

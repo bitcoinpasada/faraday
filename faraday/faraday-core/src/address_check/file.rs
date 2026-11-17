@@ -123,6 +123,19 @@ pub(crate) fn files(app: &Faraday) -> Vec<(usize, Text)> {
         .collect()
 }
 
+/// The text files in Files that Check an address reads, newest first, by
+/// place in the Inbox and name. A wallet description or a file that is
+/// not text is not one to work on.
+pub(crate) fn waiting(app: &Faraday) -> Vec<(usize, Text)> {
+    app.inbox
+        .iter()
+        .enumerate()
+        .rev()
+        .filter(|(_, f)| f.kind == FileKind::Text)
+        .map(|(i, f)| (i, f.name.clone()))
+        .collect()
+}
+
 /// Opens the menu of files under the button that asked for it.
 pub(crate) fn open_menu(app: &mut Faraday) {
     let at = app

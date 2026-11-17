@@ -46,6 +46,8 @@ pub enum AddressPress {
     /// The way over at this place of the result's ways: **Look
     /// further**, **Stop**, **Make a wallet** or **Open the wallet**.
     Way(u8),
+    /// Another: the page again, empty, to check the next address.
+    Another,
 }
 
 /// What the page holds.
@@ -104,6 +106,15 @@ impl AddressCheckState {
     /// Whether the page says to load a key or a wallet first.
     pub fn load_first(&self) -> bool {
         self.load_first
+    }
+
+    /// Whether the page has nothing in it yet: no text, no refusal, no
+    /// result and no list.
+    pub(crate) fn is_empty(&self) -> bool {
+        self.typed.is_empty()
+            && self.refusal.is_none()
+            && self.answer.is_none()
+            && self.list.is_none()
     }
 
     /// The ways over the result offers.
@@ -224,6 +235,19 @@ pub(crate) fn open(app: &mut Faraday) {
     let load_first = nothing_to_search(app);
     app.tools.address_check.state = Some(AddressCheckState::new(back, load_first));
     app.screen = Screen::CheckAddress;
+}
+
+/// Costs what reading a file costs. Tools' Check an address: the text
+/// file itself when exactly one waits in Files, and the page empty
+/// otherwise, which offers the files to choose from when several wait
+/// and the empty part (Scan, Open Files, the stick) when none does.
+pub(crate) fn open_tile(app: &mut Faraday) {
+    let waiting = file::waiting(app);
+    open(app);
+    if let [(at, _)] = waiting[..] {
+        let c = app.compute();
+        file::read(app, &c, at);
+    }
 }
 
 /// Where the page returns to: where it is opened from, and the same
@@ -363,6 +387,7 @@ pub(crate) fn act(app: &mut Faraday, press: AddressPress) {
             file::back_to_list(app);
         }
         AddressPress::Way(i) => way(app, usize::from(i)),
+        AddressPress::Another => open(app),
     }
 }
 

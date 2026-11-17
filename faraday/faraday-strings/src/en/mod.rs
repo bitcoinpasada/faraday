@@ -28,6 +28,8 @@ macro_rules! strings {
 #[macro_use]
 mod common;
 #[macro_use]
+mod address_check;
+#[macro_use]
 mod backups;
 #[macro_use]
 mod bip85;
@@ -133,5 +135,5 @@ mod walkthrough;
 mod wallet;
 
 words_common! {
-    [words_backups words_bip85 words_bip_refusal words_boot_import words_catalog words_codex32 words_compact words_compare words_create words_decode words_explore words_forms words_glance words_gpg words_invoice words_keygen words_lightning words_medium words_own_randomness words_paper words_plan words_psbt_refusal words_samples words_scan words_screens_backup words_screens_create words_screens_entry words_screens_files words_screens_home words_screens_parts words_screens_restore words_screens_settings words_screens_sheets words_screens_sidebar words_screens_spend words_screens_visit words_screens_wallets words_seeds words_silent words_sources words_spend_backup words_starter words_stick words_stick_files words_sweep words_tools words_transfer words_vanity words_vault words_vm_names words_walkthrough words_wallet strings]
+    [words_address_check words_backups words_bip85 words_bip_refusal words_boot_import words_catalog words_codex32 words_compact words_compare words_create words_decode words_explore words_forms words_glance words_gpg words_invoice words_keygen words_lightning words_medium words_own_randomness words_paper words_plan words_psbt_refusal words_samples words_scan words_screens_backup words_screens_create words_screens_entry words_screens_files words_screens_home words_screens_parts words_screens_restore words_screens_settings words_screens_sheets words_screens_sidebar words_screens_spend words_screens_visit words_screens_wallets words_seeds words_silent words_sources words_spend_backup words_starter words_stick words_stick_files words_sweep words_tools words_transfer words_vanity words_vault words_vm_names words_walkthrough words_wallet strings]
 }

@@ -717,7 +717,7 @@ impl Faraday {
             Go::Decode => crate::decode::open_tile(self),
             Go::Invoice => crate::invoice::open(self),
             // No wallet loaded: Restore, which comes back here.
-            Go::CheckAddress => crate::address_check::open(self),
+            Go::CheckAddress => crate::address_check::open_tile(self),
             Go::Scan => self.act(Action::Scan),
             Go::Sweep => self.act(Action::Sweep(crate::seeds::sweep::SweepAction::Open)),
             Go::SignMessage => self.act(Action::SignMessage),

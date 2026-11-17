@@ -134,3 +134,52 @@ fn check_multisig_opens_the_one_setup_and_lists_several_and_offers_the_ways_in_w
     assert!(has(&mut none, EN.compact_scan));
     assert!(has(&mut none, EN.parts_open_files));
 }
+
+// ----- Check an address -----
+
+const ADDRESS: &str = "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq";
+
+#[test]
+fn check_address_with_none_offers_the_ways_in_and_with_files_opens_or_lists_them() {
+    let mut none = tools_with(&[("photo.bin", &[0xff, 0xfe, 0x00, 0x80])]);
+    open_tile(&mut none, EN.catalog_check_an_address);
+    assert_eq!(none.screen, Screen::CheckAddress);
+    assert!(has(&mut none, EN.address_check_no_address));
+    assert!(has(&mut none, EN.compact_scan));
+    assert!(has(&mut none, EN.parts_open_files));
+
+    // One text file is read at once: the address in it is checked.
+    let mut one = tools_with(&[("only.txt", ADDRESS.as_bytes())]);
+    open_tile(&mut one, EN.catalog_check_an_address);
+    assert_eq!(one.address_check_state().unwrap().typed().as_str(), ADDRESS);
+
+    // Several: the files to choose from, then the chosen one is read.
+    let mut two = tools_with(&[("a.txt", ADDRESS.as_bytes()), ("b.txt", ADDRESS.as_bytes())]);
+    open_tile(&mut two, EN.catalog_check_an_address);
+    assert!(has(&mut two, "a.txt"));
+    assert!(has(&mut two, "b.txt"));
+    assert!(two.address_check_state().unwrap().typed().is_empty());
+    two.press(Action::AddressCheck(
+        faraday_core::address_check::AddressPress::File(1),
+    ));
+    assert_eq!(two.address_check_state().unwrap().typed().as_str(), ADDRESS);
+}
+
+#[test]
+fn check_address_result_ends_with_another_and_done() {
+    let descriptor = format!("wpkh({}/<0;1>/*)", testkit::key(0, "m/84h/1h/0h"));
+    let mut app = tools_with(&[
+        ("wallet.txt", descriptor.as_bytes()),
+        ("only.txt", b"tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx"),
+    ]);
+    app.press(Action::LoadWallet(0));
+    app.press(Action::Nav(Screen::Catalog));
+    open_tile(&mut app, EN.catalog_check_an_address);
+    assert!(has(&mut app, EN.bip85_another));
+    assert!(has(&mut app, EN.app_done));
+    app.press(Action::AddressCheck(
+        faraday_core::address_check::AddressPress::Another,
+    ));
+    assert!(app.address_check_state().unwrap().typed().is_empty());
+    assert!(has(&mut app, "only.txt"));
+}

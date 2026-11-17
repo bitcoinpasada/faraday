@@ -75,30 +75,75 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     );
     y += used + GAP;
 
-    // The other ways in, each an icon and a label.
-    let mut ins = vec![(
-        Icon::Scan,
-        EN.address_check_scan,
-        Style::Tonal,
-        Action::AddressCheck(AddressPress::Scan),
-    )];
-    if app.clipboard {
-        ins.push((
-            Icon::Paste,
-            EN.scan_paste,
-            Style::Ghost,
-            Action::AddressCheck(AddressPress::Paste),
-        ));
+    // The other ways in: the empty part or the files to choose from while
+    // the page holds nothing, else each an icon and a label.
+    let waiting = super::file::waiting(app);
+    if s.is_empty() && waiting.is_empty() {
+        y += crate::screens::parts::nothing_to_work_on(
+            app,
+            ui,
+            (x, y, width),
+            EN.address_check_no_address,
+            (
+                Action::AddressCheck(AddressPress::Scan),
+                Screen::CheckAddress,
+            ),
+        ) + GAP;
+        if app.clipboard {
+            y += icon_rows(
+                ui,
+                x,
+                y,
+                width,
+                &[(
+                    Icon::Paste,
+                    EN.scan_paste,
+                    Style::Ghost,
+                    Action::AddressCheck(AddressPress::Paste),
+                )],
+            );
+        }
+    } else if s.is_empty() {
+        let rows: Vec<(&str, Action)> = waiting
+            .iter()
+            .map(|(i, name)| {
+                (
+                    name.as_str(),
+                    Action::AddressCheck(AddressPress::File(*i as u16)),
+                )
+            })
+            .collect();
+        y += crate::screens::parts::file_choices(
+            ui,
+            (x, y, width),
+            EN.address_check_choose_file,
+            &rows,
+        ) + GAP;
+    } else {
+        let mut ins = vec![(
+            Icon::Scan,
+            EN.address_check_scan,
+            Style::Tonal,
+            Action::AddressCheck(AddressPress::Scan),
+        )];
+        if app.clipboard {
+            ins.push((
+                Icon::Paste,
+                EN.scan_paste,
+                Style::Ghost,
+                Action::AddressCheck(AddressPress::Paste),
+            ));
+        }
+        if !super::file::files(app).is_empty() {
+            ins.push((
+                Icon::File,
+                EN.address_check_file,
+                Style::Ghost,
+                Action::AddressCheck(AddressPress::Files),
+            ));
+        }
+        y += icon_rows(ui, x, y, width, &ins);
     }
-    if !super::file::files(app).is_empty() {
-        ins.push((
-            Icon::File,
-            EN.address_check_file,
-            Style::Ghost,
-            Action::AddressCheck(AddressPress::Files),
-        ));
-    }
-    y += icon_rows(ui, x, y, width, &ins);
 
     if s.load_first() {
         y += ui.wrap_as(
@@ -109,6 +154,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ) + GAP;
     } else if let (Some(list), false) = (s.list(), s.row_shown()) {
         y += listed(ui, (x, y, width), list);
+        y += ending(ui, (x, y, width), back_of_page(s));
     } else if let Some(a) = s.answer() {
         // The result in a card, measured before its surface goes down.
         let inner = (x + PAD, y + PAD, width - 2.0 * PAD);
@@ -136,8 +182,23 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         if !ways.is_empty() {
             y += crate::screens::button_rows(ui, x, y, width, &ways);
         }
+        y += ending(ui, (x, y, width), back_of_page(s));
     }
     crate::compact::screen::finish(app, ui, h, y - top + PAD);
+}
+
+/// The page's Another and Done actions.
+fn back_of_page(s: &super::AddressCheckState) -> (Action, Action) {
+    (
+        Action::AddressCheck(AddressPress::Another),
+        Action::Nav(s.back()),
+    )
+}
+
+/// The end of a result: Another, and Done back to where the page was
+/// opened from. Returns the height used, with the gap above.
+fn ending(ui: &mut Ui, (x, y, w): (f32, f32, f32), ends: (Action, Action)) -> f32 {
+    GAP + crate::screens::parts::ending(ui, (x, y + GAP, w), None, ends)
 }
 
 /// The addresses of a file, counted and listed, each a two-line item: the

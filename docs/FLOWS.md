@@ -1793,7 +1793,7 @@ above. Whoever opens a vault reads each checked input on chain by its
 `r`, transactions of wallets not held here included, and a file vault
 grows about 200 bytes a signature.
 
-## Decode a transaction and Check a signed message
+## Decode a transaction, Check a signed message and Check an address
 
 Tools' tiles open each tool on what waits in Files: on the file itself
 when exactly one waits, on a list of the waiting files to choose from when
@@ -1802,7 +1802,8 @@ in `screens/parts.rs`): the line that says so and, on the same card,
 **Scan**, **Open Files** and, while a stick is attached and no key is
 open, **Bring in from** that stick, which comes back to the tool when the
 stick is pulled. Practice's sample message stands in for Check a signed
-message's file. Each result ends with **Another** (the list, or the empty
+message's file. Check an address counts only text files, reads one at
+once and ends its result with the same **Another** and **Done**. Each result ends with **Another** (the list, or the empty
 part again) and **Done** (back to where the tool was opened from: Tools,
 Check or Wallets); neither has a next step to offer, so none is filled.
 
