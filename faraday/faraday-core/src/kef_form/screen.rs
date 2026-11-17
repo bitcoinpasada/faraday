@@ -233,7 +233,21 @@ fn code_card(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), f: &KefForm, a
         Style::Secondary,
         (ask.wrap)(KefAct::Another),
     );
-    cy + BUTTON_H - y
+    cy += BUTTON_H;
+    if f.by_hand_offer && !f.paper {
+        cy += GAP;
+        ui.button(
+            x,
+            cy,
+            None,
+            BUTTON_H,
+            EN.kef_done,
+            Style::Ghost,
+            (ask.wrap)(KefAct::Done),
+        );
+        cy += BUTTON_H;
+    }
+    cy - y
 }
 
 /// The Code card's **Size** and **By hand** lines for a code of side `s`,

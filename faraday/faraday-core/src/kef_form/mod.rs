@@ -137,6 +137,8 @@ pub enum KefAct {
     NotOnPaper,
     /// On Paper: the camera on the drawn copy (`ScanPurpose::CheckKef`).
     ScanCopy,
+    /// In the Krux code tool: leaves, back to where the tool was opened.
+    Done,
 }
 
 /// The form that makes a code.
@@ -591,7 +593,8 @@ impl KefForm {
             | KefAct::Rows(_)
             | KefAct::ByHand
             | KefAct::NotOnPaper
-            | KefAct::ScanCopy => {}
+            | KefAct::ScanCopy
+            | KefAct::Done => {}
         }
     }
 

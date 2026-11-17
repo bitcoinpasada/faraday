@@ -232,6 +232,12 @@ pub(crate) fn act(app: &mut Faraday, action: KefToolAction) {
             let text = Text::of(s.typed.text.as_str());
             begin(app, text, None, None);
         }
+        KefToolAction::Form(KefAct::Done) => {
+            if let Some(back) = state(app).map(|s| s.back) {
+                app.act(Action::Nav(back));
+            }
+            return;
+        }
         KefToolAction::Form(a) => {
             with_form(app, |f, app| f.act(app, a));
         }

@@ -120,6 +120,31 @@ fn a_loaded_wallets_descriptor_makes_a_code_with_its_fingerprint_as_id() {
 }
 
 #[test]
+fn done_on_the_code_goes_back_to_where_the_tool_was_opened() {
+    for from in [Screen::Catalog, Screen::Home] {
+        let mut app = started();
+        app.press(Action::Nav(from));
+        let tile = faraday_core::catalog::TILES
+            .iter()
+            .position(|t| t.name == "Krux code")
+            .unwrap();
+        if from == Screen::Catalog {
+            app.press(Action::Catalog(tile as u8));
+        } else {
+            app.press(Action::KefTool(K::Open));
+        }
+        app.press(Action::KefTool(K::Pick(Pick::Type)));
+        type_in(&mut app, "a note for later");
+        app.press(Action::KefTool(K::Next));
+        make(&mut app);
+        assert!(seen(&mut app, "Done"));
+        app.press(Action::KefTool(K::Form(KefAct::Done)));
+        assert_eq!(app.screen, from);
+        assert!(kef_tool::state(&app).is_none());
+    }
+}
+
+#[test]
 fn leaving_wipes_what_was_typed() {
     let mut app = started();
     open(&mut app);

@@ -98,6 +98,8 @@ pub(crate) fn kef_make_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.press(Action::KefTool(K::Next));
     t.shot("kef-make-first-step")?;
     type_text(t, "a passphrase");
+    t.press(form(KefAct::FieldAgain));
+    type_text(t, "a passphrase");
     t.shot("kef-make-passphrase")?;
     t.press(form(KefAct::Options));
     t.shot("kef-make-options")?;
@@ -120,14 +122,14 @@ pub(crate) fn kef_make_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     faraday_core::testkit::settle(&mut t.app);
     t.app.run_jobs_inline(true);
     t.tick();
-    scroll_to(t, form(KefAct::Another));
+    scroll_to(t, form(KefAct::Done));
     t.shot("kef-make-code")?;
     t.press(form(KefAct::Check));
     t.shot("kef-make-check")?;
     type_text(t, "a passphrase");
     t.press(form(KefAct::Compare));
     t.tick();
-    scroll_to(t, form(KefAct::Another));
+    scroll_to(t, form(KefAct::Done));
     t.shot("kef-make-checked")?;
     t.press(form(KefAct::Another));
     t.shot("kef-make-another")
