@@ -641,6 +641,25 @@ impl Faraday {
         (self.trail_name().unwrap_or(label), own)
     }
 
+    /// Leaving, as one act for the arrow, Escape and the mouse's back
+    /// button: a sheet's Cancel (the Lock sheet stays), the guide's
+    /// supporting pane, else the screen's way back as its link takes it,
+    /// or [`Self::back`] where it has none.
+    pub(crate) fn leave_back(&mut self) {
+        let link = self.trail.link_on(self.screen);
+        match (self.sheet, link) {
+            (Some(Sheet::Lock), _) => {}
+            (Some(_), _) => self.act(Action::Cancel),
+            (None, _) if self.guide_pane_shown() => self.guide_close(),
+            (None, Some(a)) => self.act(self.as_back(a)),
+            // The Starter's Transfer is left by the Starter, not by a Back here.
+            #[cfg(feature = "demo")]
+            (None, None) if self.held && self.screen == Screen::Transfer => {}
+            // No link: Back itself, taken as any press is while a job runs.
+            (None, None) => self.act(Action::Back),
+        }
+    }
+
     /// The mouse's back button: the screen's back link, or Escape; a
     /// screen it leaves can be opened again with the forward button.
     pub(crate) fn mouse_back(&mut self) {
@@ -648,18 +667,7 @@ impl Faraday {
         self.later_now();
         let before = self.screen;
         self.trail.begin_mouse_back(before);
-        let link = self.trail.link_on(self.screen);
-        match (self.sheet, link) {
-            // A sheet's own way out, as Escape takes it.
-            (Some(Sheet::Lock), _) => {}
-            (Some(_), _) => self.act(Action::Cancel),
-            // The guide's supporting pane goes first, as Escape takes it.
-            (None, _) if self.guide_pane_shown() => self.guide_close(),
-            // Out of the screen, where the link lands (F77); a step
-            // within it, as the link takes it.
-            (None, Some(a)) => self.act(self.as_back(a)),
-            (None, None) => self.key(faraday_shell_api::Key::Escape),
-        }
+        self.leave_back();
         self.trail.end_mouse_back(before, self.screen);
     }
 

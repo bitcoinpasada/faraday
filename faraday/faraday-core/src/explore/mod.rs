@@ -292,14 +292,9 @@ impl ExploreArea {
         }
     }
 
-    /// Typing into the path, on `screen`. Returns whether the key was
+    /// Typing into the path. Returns whether the key was
     /// taken.
-    pub(crate) fn path_key(
-        &mut self,
-        key: faraday_shell_api::Key,
-        screen: &mut Screen,
-        coin: &str,
-    ) -> bool {
+    pub(crate) fn path_key(&mut self, key: faraday_shell_api::Key, coin: &str) -> bool {
         use faraday_shell_api::Key as K;
         let Some(e) = self.state.as_mut() else {
             return false;
@@ -312,10 +307,6 @@ impl ExploreArea {
             }
             K::Backspace => {
                 e.path.pop();
-            }
-            K::Escape => {
-                *screen = e.back;
-                self.state = None;
             }
             K::Down => self.act(crate::Action::XIndex(1), coin),
             K::Up => self.act(crate::Action::XIndex(-1), coin),
@@ -420,7 +411,7 @@ impl Faraday {
         let taken = match self.explore.state().map(|e| e.page) {
             Some(Page::Path) => {
                 let coin = self.explore_coin();
-                self.explore.path_key(key, &mut self.screen, coin)
+                self.explore.path_key(key, coin)
             }
             Some(_) => self.explore_page_key(key),
             None => return false,

@@ -109,3 +109,32 @@ fn back_closes_a_sheet_as_escape_does_and_leaves_the_screen() {
     assert_eq!(app.sheet, None);
     assert_eq!(app.screen, Screen::KeyGen);
 }
+
+#[test]
+fn escape_leaves_a_page_as_the_back_button_does() {
+    let mut app = testkit::started();
+    app.press(Action::Nav(Screen::Settings));
+    let _ = app.frame();
+    assert_eq!(app.screen, Screen::Settings);
+    app.event(Event::Key(faraday_shell_api::Key::Escape));
+    let _ = app.frame();
+    assert_ne!(app.screen, Screen::Settings);
+}
+
+#[test]
+fn escape_in_new_key_steps_back_and_then_leaves_as_the_back_button_does() {
+    let mut app = new_key();
+    let open = |app: &Faraday| app.keygen().and_then(|k| k.open);
+    let first = open(&app);
+    app.event(Event::Key(faraday_shell_api::Key::Escape));
+    let _ = app.frame();
+    assert_ne!(open(&app), first, "the step before");
+    for _ in 0..4 {
+        if app.screen != Screen::KeyGen {
+            break;
+        }
+        app.event(Event::Key(faraday_shell_api::Key::Escape));
+        let _ = app.frame();
+    }
+    assert_eq!(app.screen, Screen::Entry);
+}

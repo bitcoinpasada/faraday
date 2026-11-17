@@ -408,6 +408,7 @@ fn back_from_the_list_and_the_search_returns_to_the_path_as_it_was() {
         (app.screen, e.page, &e.path),
         (Screen::Explore, Page::Path, &path)
     );
+    let _ = app.frame();
     app.event(Event::Key(Key::Escape));
     assert_ne!(app.screen, Screen::Explore);
 }

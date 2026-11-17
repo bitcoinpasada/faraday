@@ -465,7 +465,7 @@ impl LightningArea {
     }
 
     /// Typing the aezeed and its passphrase, on `screen`. Returns whether
-    /// the key was taken. Escape leaves the screen for where it came from.
+    /// the key was taken.
     pub(crate) fn key(&mut self, key: faraday_shell_api::Key, screen: &mut Screen) -> bool {
         use faraday_shell_api::Key as K;
         if *screen != Screen::Lightning {
@@ -474,11 +474,6 @@ impl LightningArea {
         let Some(l) = self.state.as_mut() else {
             return false;
         };
-        if key == K::Escape {
-            *screen = l.back;
-            self.state = None;
-            return true;
-        }
         if !matches!(
             l.source,
             Some(NodeSource::Aezeed | NodeSource::CoreLightning)
@@ -783,10 +778,6 @@ impl Faraday {
     /// taken. Enter reads the aezeed, on the worker.
     pub(crate) fn lightning_key(&mut self, key: faraday_shell_api::Key) -> bool {
         use faraday_shell_api::Key as K;
-        // Escape leaves the screen: a read under way has nowhere to go.
-        if key == K::Escape && self.screen == Screen::Lightning {
-            self.taken_while_busy(crate::Action::Back);
-        }
         let reads = key == K::Enter && self.lightning_reads_aezeed();
         let words = key == K::Enter && !reads && self.lightning.on_core_lightning();
         let taken = self.lightning.key(key, &mut self.screen);

@@ -1241,7 +1241,13 @@ impl Faraday {
             let typed = forms::word_key(self.entry.typing_words(false), key);
             match typed {
                 forms::WordKey::Enter => self.entry_enter(),
-                forms::WordKey::Escape => self.screen = self.entry_leave(),
+                forms::WordKey::Escape => {
+                    let to = self.entry_leave();
+                    self.leave_back();
+                    if self.screen == Screen::Entry {
+                        self.screen = to;
+                    }
+                }
                 _ => {}
             }
             return;
@@ -1282,9 +1288,8 @@ impl Faraday {
             KeyIn::Escape => {
                 // Escape is the sheet's Cancel: the scanner's camera goes
                 // off with it, as on Cancel.
-                if self.sheet.is_some() && self.sheet != Some(Sheet::Lock) {
-                    self.act(Action::Cancel);
-                }
+                // With no sheet and no field, it is the way back.
+                self.leave_back();
             }
             KeyIn::Down => self.glide(motion::WHEEL_NOTCH),
             KeyIn::Up => self.glide(-motion::WHEEL_NOTCH),

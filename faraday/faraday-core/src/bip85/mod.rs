@@ -733,16 +733,9 @@ impl Faraday {
         }
     }
 
-    /// Digits typed into the index; Escape is Back (F104). Returns
+    /// Digits typed into the index. Returns
     /// whether the key was taken.
     pub(crate) fn bip85_key(&mut self, key: faraday_shell_api::Key) -> bool {
-        if key == faraday_shell_api::Key::Escape
-            && self.screen == Screen::Bip85
-            && self.bip85.state().is_some()
-        {
-            self.back();
-            return true;
-        }
         self.bip85.key(key, &mut self.screen)
     }
 }

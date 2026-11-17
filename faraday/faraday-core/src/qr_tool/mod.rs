@@ -700,8 +700,8 @@ pub(crate) fn field(app: &Faraday) -> Option<(Action, &str)> {
     Some((Action::QrTool(QrToolAction::Focus(f)), s.text_of(f)))
 }
 
-/// A key on the tool: typing in the focused field; Enter goes on;
-/// Escape is Back. Returns whether it was taken.
+/// A key on the tool: typing in the focused field; Enter goes on.
+/// Returns whether it was taken.
 pub(crate) fn key(app: &mut Faraday, key: Key) -> bool {
     if app.screen != Screen::QrTool || state(app).is_none() || app.sheet.is_some() {
         return false;
@@ -745,10 +745,6 @@ pub(crate) fn key(app: &mut Faraday, key: Key) -> bool {
                 }
             }
         }
-    }
-    if key == Key::Escape {
-        app.back();
-        return true;
     }
     false
 }

@@ -522,8 +522,7 @@ pub(crate) fn tick(app: &mut Faraday, now_ms: u64) -> bool {
 }
 
 /// Typing into the field: a character other than white space, Backspace,
-/// Enter, which checks, and Escape, the way back. Returns whether the key
-/// was taken.
+/// and Enter, which checks. Returns whether the key was taken.
 pub(crate) fn key(app: &mut Faraday, key: Key) -> bool {
     if app.screen != Screen::CheckAddress || app.sheet.is_some() {
         return false;
@@ -534,10 +533,6 @@ pub(crate) fn key(app: &mut Faraday, key: Key) -> bool {
     match key {
         Key::Escape if s.row_shown() => {
             file::back_to_list(app);
-        }
-        Key::Escape => {
-            let back = s.back;
-            app.act(Action::Nav(back));
         }
         Key::Char(c) if !c.is_control() && !c.is_whitespace() => {
             if s.typed.chars().count() < FIELD_MAX {

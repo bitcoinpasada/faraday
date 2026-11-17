@@ -190,20 +190,10 @@ pub(crate) fn act(app: &mut Faraday, press: InvoicePress) {
     }
 }
 
-/// Typing into the field; Escape is the way back. Returns whether the key
-/// was taken.
+/// Typing into the field. Returns whether the key was taken.
 pub(crate) fn key(app: &mut Faraday, key: faraday_shell_api::Key) -> bool {
     if app.screen != Screen::Invoice || app.sheet.is_some() {
         return false;
-    }
-    if key == faraday_shell_api::Key::Escape {
-        let back = app
-            .tools
-            .invoice
-            .state()
-            .map_or(Screen::Catalog, |s| s.back);
-        app.act(Action::Nav(back));
-        return true;
     }
     app.tools.invoice.key(key)
 }

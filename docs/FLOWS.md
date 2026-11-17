@@ -138,7 +138,10 @@ flow as F77 says. A running step (a vault being made, a search under
 way, a stick being written) takes no Back. Once a wallet is made from its seeds or
 from Make a new wallet's keys, or a key here
 has signed, or a MuSig2 round is open here, Back goes back no further
-than the step after it. Escape is Back on BIP-85, Convert a seed and Vanity.
+than the step after it. Leaving is one act: the arrow, Escape and the
+mouse's back button do the same on every page (a sheet's Cancel, the
+guide pane's close, else the page's way back); Escape in a field that
+has focus drops the focus first.
 
 **Krux code** (planned; `docs/KEF.md` §15.2): a Tools tile, not a calculator, that
 seals a typed text or a loaded wallet's descriptor as a Krux code.
@@ -188,8 +191,8 @@ leaving the flow, on choosing a key as the source and on lock.
 
 **Mouse and typing** (decision 47). On the desktop the mouse's back
 button does what Back does (F77, F104: within a flow the step before,
-else the screen seen before, as it was seen; Escape where there is no
-back link, a sheet's Cancel over a sheet), and its forward button opens
+else the screen seen before, as it was seen; a sheet's Cancel over a
+sheet; Escape does the same), and its forward button opens
 again the step or screen back left, as it was left, until anything else
 is opened. In a line of typing (typed text, a masked
 passphrase, New key's box of rolls or flips) a press puts the caret

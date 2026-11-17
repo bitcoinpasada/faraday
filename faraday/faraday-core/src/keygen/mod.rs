@@ -2404,12 +2404,6 @@ impl crate::Faraday {
         if k.roller_typing {
             return k.roller_key(key);
         }
-        // Escape is Back: the step before, or out of the flow from its
-        // first (F104).
-        if key == KeyIn::Escape {
-            self.act(crate::Action::Back);
-            return true;
-        }
         // The keyboard's place is on a control: Enter or Space presses
         // it, as everywhere else (`docs/DESIGN.md` §4.15), before the
         // card takes the key.

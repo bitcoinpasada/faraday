@@ -543,16 +543,9 @@ impl Faraday {
         }
     }
 
-    /// Typing on the vanity screen; Escape is Back (F104). Returns
+    /// Typing on the vanity screen. Returns
     /// whether the key was taken.
     pub(crate) fn vanity_key_in(&mut self, k: faraday_shell_api::Key) -> bool {
-        if k == faraday_shell_api::Key::Escape
-            && self.screen == Screen::Vanity
-            && self.vanity.state().is_some()
-        {
-            self.back();
-            return true;
-        }
         let net = self.session.network();
         let words = self.vanity_has_words() && self.makes_secrets();
         self.vanity

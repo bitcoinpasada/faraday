@@ -573,7 +573,7 @@ shell — takes keys as a desktop app does. Nothing on a screen says so.
 | Typing | Characters, Backspace, Delete and Enter go to the field typing goes to, and to the on-screen keyboard's field where it is up; Left, Right, Home and End move the caret, and Up and Down a line in a field of several lines; Backspace, Delete and a character act at the caret (`edit`, `docs/TEXT-CURSOR.md`). |
 | Enter | Takes what is typed where the field has one action: a word on word entry, a share or a part, a name, a passphrase. |
 | Tab | Finishes a word on a Latin list once only one fits; moves between a passphrase and its repeat. On the backup board, Tab and Shift+Tab move among the chips' ⋮s, ringed in the accent at `FOCUS_STROKE` (§4.17). Everywhere else, Tab and Shift+Tab move the keyboard's place through the controls in the order the frame drew them, round at the ends; the control it is on is ringed (`Ui::focus_ring`), and Enter or Space presses it. A hold is not among them: no key sets one off. A press of the pointer or a finger takes it off. |
-| Escape | Closes the open sheet or ⋮ menu (a sheet's Cancel), leaves a field, and goes back from Add a key and Set the time. |
+| Escape | Closes the open sheet or ⋮ menu (a sheet's Cancel), leaves a field; with none of these it leaves the page as the top bar's back arrow and the mouse's back button do (one act). |
 | Up, Down | In a ⋮ menu, move between its rows; elsewhere scroll the region under the pointer, or the page's, by one wheel notch. On a slider the arrows step it (§4.2). |
 | Ctrl+V | The scanner's Paste, and nothing anywhere else. |
 
