@@ -58,3 +58,22 @@ fn finish(flow: &str, armed: Armed, locked: bool) {
     let report = armed.finish();
     entries::verdict(flow, report, &live);
 }
+
+/// Ends a flow that left its screen without Lock (the arrow, Escape, the
+/// mouse's back, finishing): every block still live is searched, and a
+/// copy of a form not named in `kept` fails. `kept` names what the
+/// session rightly holds after the screen is done (a loaded key's seed).
+/// Freed blocks are not looked at here: the flow's lock test does that.
+fn finish_left(flow: &str, armed: Armed, kept: &[&str]) {
+    faraday_core::testkit::on_worker_start(None);
+    let live: Vec<_> = armed
+        .scan_live()
+        .into_iter()
+        .filter(|h| !kept.contains(&h.form.as_str()))
+        .collect();
+    let _ = armed.finish();
+    assert!(
+        live.is_empty(),
+        "{flow}: a secret is still live after its screen was left: {live:?}"
+    );
+}

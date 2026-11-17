@@ -1072,6 +1072,7 @@ pub(crate) use inbox::{result_stem, stem};
 
 impl App for Faraday {
     fn event(&mut self, event: Event) {
+        let on_entry = self.screen == Screen::Entry;
         self.drain_jobs();
         self.vault_shown_tidy();
         // Any event but a pointer's motion, a scroll, a hover, a tick, a
@@ -1392,6 +1393,7 @@ impl App for Faraday {
         } else {
             self.out.redraw();
         }
+        self.entry_left(on_entry);
         self.out.commands.push_back(Command::Draw);
     }
 

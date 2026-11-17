@@ -1599,6 +1599,15 @@ impl Faraday {
             .is_some_and(|s| s.typing_words())
     }
 
+    /// Add a key was on screen (`was_on`) and is not now: what was typed
+    /// into it is dropped, however it was left (the arrow, Escape, the
+    /// mouse's back, a key loaded).
+    pub(crate) fn entry_left(&mut self, was_on: bool) {
+        if was_on && self.screen != Screen::Entry {
+            self.entry.reset();
+        }
+    }
+
     /// Whether Add a key's form takes the keys typed: on Add a key, on
     /// New key's Words card for a key typed
     /// or on My seed makes my wallet's Seed card.

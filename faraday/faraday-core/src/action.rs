@@ -1088,7 +1088,9 @@ impl Faraday {
     }
 
     fn act_noted(&mut self, action: Action) {
+        let on_entry = self.screen == Screen::Entry;
         self.act_dealt(action);
+        self.entry_left(on_entry);
         // "Lock and write" waits only while its lock is: on the sheet
         // that asks, or under way. Any other way past is giving it up.
         if self.visit.lock_to_write().is_some()

@@ -9,7 +9,7 @@
 
 use crate::common::{device, type_text};
 use crate::forms::{PASSPHRASE, PHRASE, VAULT_PASSPHRASE, seed_forms, vault_passphrase_forms};
-use crate::{arm, finish};
+use crate::{arm, finish, finish_left};
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::seeds::read::Choice;
 use faraday_core::vault::VaultAction as V;
@@ -204,4 +204,73 @@ fn coin_flips_previewed_as_the_last_word_leave_no_copy_of_the_entropy() {
         "the last word was not previewed"
     );
     finish("coin preview", armed, false);
+}
+
+/// A way out of a screen: its name and the press.
+type Way = (&'static str, fn(&mut Faraday));
+
+/// The ways out of a screen, as a person takes them.
+fn ways_out() -> [Way; 3] {
+    [
+        ("the arrow", |a| a.press(Action::Back)),
+        ("Escape", |a| {
+            a.event(Event::Key(faraday_shell_api::Key::Escape))
+        }),
+        ("the mouse's back", |a| a.event(Event::Back)),
+    ]
+}
+
+#[test]
+fn a_seed_typed_into_add_a_key_is_gone_once_the_screen_is_left() {
+    for (way, leave) in ways_out() {
+        let forms = seed_forms("");
+        let armed = arm(&forms);
+        let mut app = demo_on_testnet();
+        type_text(&mut app, PHRASE);
+        leave(&mut app);
+        let _ = app.frame();
+        assert_ne!(app.screen, Screen::Entry, "{way} did not leave Add a key");
+        finish_left(&format!("seed typed, left by {way}"), armed, &[]);
+    }
+}
+
+#[test]
+fn a_seed_typed_into_my_seed_makes_my_wallet_is_gone_once_the_screen_is_left() {
+    use faraday_core::seed_check::SeedAction as S;
+    // Left with the words typed and not taken, and with the key made.
+    for taken in [false, true] {
+        for (way, leave) in ways_out() {
+            let forms = seed_forms("");
+            let armed = arm(&forms);
+            let mut app = testkit::started();
+            app.press(Action::SeedCheck(S::Open));
+            app.press(Action::SeedCheck(S::Type));
+            type_text(&mut app, PHRASE);
+            if taken {
+                app.press(Action::SeedCheck(S::Words));
+                app.press(Action::SeedCheck(S::NoPass));
+                testkit::settle(&mut app);
+            }
+            let _ = app.frame();
+            // Each way out steps back through the flow's cards first.
+            for _ in 0..12 {
+                if app.screen != Screen::SeedCheck {
+                    break;
+                }
+                leave(&mut app);
+                let _ = app.frame();
+            }
+            // Escape has no way out on some cards: the arrow ends it.
+            for _ in 0..12 {
+                if app.screen != Screen::SeedCheck {
+                    break;
+                }
+                app.press(Action::Back);
+                let _ = app.frame();
+            }
+            assert_ne!(app.screen, Screen::SeedCheck, "{way} did not leave");
+            let flow = format!("seed typed into My seed, taken {taken}, left by {way}");
+            finish_left(&flow, armed, &[]);
+        }
+    }
 }
