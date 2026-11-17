@@ -271,7 +271,7 @@ Read this table, then only the decision you need.
 | [F252](history/decisions/F252.md) | A shell can no longer fix a session's network; the website demo that used it is gone | 2026-11-12 | Superseded by F268 | platforms |
 | [F253](decisions/F253.md) | A function has no line limit; a cognitive-complexity ceiling and a review keep it to one job | 2026-11-14 | Active | repository |
 | [F254](decisions/F254.md) | An output is change only of the wallet the inputs spend, and a wallet of several keys comes in only through one sheet that shows its keys | 2026-11-14 | Active | wallets |
-| [F255](decisions/F255.md) | Check takes Create a vault's place on Home and is a place of its own in the sidebar | 2026-11-14 | Amended by F275 | design |
+| [F255](decisions/F255.md) | Check takes Create a vault's place on Home and is a place of its own in the sidebar | 2026-11-14 | Amended by F275, F277 | design |
 | [F257](decisions/F257.md) | What nobody can run or reach leaves the tree: the macOS code, silent-payment sending, the Liana-shape recovery builder, own-against-own cross-check areas, the typed YubiKey secret and Guided mode's walk-through | 2026-11-14 | Active | repository |
 | [F258](decisions/F258.md) | The impact registry keeps only the pairs and what reads them; review rules are a checklist in the reviewer's file and the area documents | 2026-11-14 | Active | repository |
 | [F259](decisions/F259.md) | Cryptographic actions carry no fingerprint; a release is held by the cross-check's stamp alone, and the crypto counts stay | 2026-11-14 | Active | repository |
@@ -288,3 +288,4 @@ Read this table, then only the decision you need.
 | [F273](decisions/F273.md) | A costly press runs in the press or as a job on the worker; nothing is drawn first | 2026-11-16 | Active | speed |
 | [F275](decisions/F275.md) | Home's Check tile only where the navigation has no Check | 2026-11-16 | Active | design |
 | [F276](decisions/F276.md) | A Seed XOR set and a SLIP-39 set made on the device are counted on a wallet's backup plan | 2026-11-16 | Active | backup |
+| [F277](decisions/F277.md) | The Check screen shows its checks as tiles in the grid Tools uses | 2026-11-16 | Active | design |
