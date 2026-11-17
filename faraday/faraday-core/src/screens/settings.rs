@@ -50,8 +50,7 @@ enum Part {
     Randomness,
     Appearance,
     Display,
-    Signed,
-    Nonces,
+    Remembered,
     About,
 }
 
@@ -60,7 +59,7 @@ enum Part {
 fn parts() -> Vec<Part> {
     use Part::*;
     vec![
-        Mode, Session, Time, Randomness, Appearance, Display, Signed, Nonces, About,
+        Mode, Session, Time, Randomness, Appearance, Display, Remembered, About,
     ]
 }
 
@@ -74,8 +73,7 @@ pub(crate) fn part_guide_key(i: usize) -> Option<&'static str> {
         Part::Randomness => "settings.randomness",
         Part::Appearance => "settings.appearance",
         Part::Display => "settings.display",
-        Part::Signed => "settings.signed-amounts",
-        Part::Nonces => "settings.nonce-history",
+        Part::Remembered => "settings.remembered",
         Part::About => "settings.about",
     })
 }
@@ -84,13 +82,12 @@ pub(crate) fn part_guide_key(i: usize) -> Option<&'static str> {
 fn part_title(p: Part) -> &'static str {
     match p {
         Part::Mode => EN.settings_mode,
-        Part::Session => EN.settings_session,
+        Part::Session => EN.settings_lock_and_power,
         Part::Time => EN.settings_time,
         Part::Randomness => EN.own_randomness,
         Part::Appearance => EN.settings_appearance,
         Part::Display => EN.settings_display,
-        Part::Signed => EN.settings_signed_amounts,
-        Part::Nonces => EN.settings_nonce_history,
+        Part::Remembered => EN.settings_what_remembered,
         Part::About => EN.settings_about,
     }
 }
@@ -122,13 +119,12 @@ fn part_body(app: &View, ui: &mut Ui, p: Part, at: (f32, f32, f32)) -> f32 {
             let label = (!ui.compact).then_some(APPEARANCE_LABEL_W);
             display_body(app, ui, at, label)
         }
-        Part::Signed => signed_body(app, ui, at),
-        Part::Nonces => nonces_body(app, ui, at),
+        Part::Remembered => remembered_body(app, ui, at),
         Part::About => about_body(app, ui, at),
     }
 }
 
-/// Session: the keys loaded, Lock, Remove every key, Power off (or
+/// Lock and power: the keys loaded, Lock, Remove every key, Power off (or
 /// Quit), the panic key, and the idle timers. Returns its height.
 fn session_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
     let mut y = y0;
@@ -321,9 +317,10 @@ fn scale_body(app: &View, ui: &mut Ui, at: (f32, f32, f32), label_w: Option<f32>
     labelled_choices(ui, at, label_w, EN.settings_scale, &items, on)
 }
 
-/// Signed amounts: how many are remembered, and whether they are sealed
-/// into the vault or kept until power-off. Returns its height.
-fn signed_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
+/// What is remembered: the amounts signed and the signatures made, each
+/// with how many are remembered and where they are kept. Returns its
+/// height.
+fn remembered_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
     let mut y = y0;
     let n = app.memory.signed().len();
     let line = fill(
@@ -337,21 +334,15 @@ fn signed_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
             }),
         ],
     );
-    ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, &line);
-    y += ui.line_as(BODY_S) + faraday_draw::tokens::GRID;
     let items = [
-        (EN.settings_sealed_into, Action::SealAmounts(true)),
-        (EN.settings_kept_until, Action::SealAmounts(false)),
+        (EN.settings_in_open_vault, Action::SealAmounts(true)),
+        (EN.settings_until_power_off, Action::SealAmounts(false)),
     ];
     let on = Some(usize::from(!app.seal_amounts()));
-    y += ui.choices((x, y, w, SEGMENTED_H), LABEL_L.size, &items, on);
-    y - y0
-}
-
-/// Nonce history: how many signatures are remembered, and whether the
-/// history is kept in an open vault or off. Returns its height.
-fn nonces_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
-    let mut y = y0;
+    y += labelled_choices(ui, (x, y, w), None, EN.settings_amounts_signed, &items, on);
+    y += faraday_draw::tokens::GRID;
+    ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, &line);
+    y += ui.line_as(BODY_S) + APPEARANCE_ROW_GAP;
     let n = app.nonces_remembered();
     let line = fill(
         EN.settings_signatures_remembered,
@@ -364,14 +355,15 @@ fn nonces_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
             }),
         ],
     );
-    ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, &line);
-    y += ui.line_as(BODY_S) + faraday_draw::tokens::GRID;
     let items = [
-        (EN.settings_nonces_kept, Action::NonceHistory(true)),
+        (EN.settings_in_open_vault, Action::NonceHistory(true)),
         (EN.settings_nonces_off, Action::NonceHistory(false)),
     ];
     let on = Some(usize::from(!app.nonce_history_kept()));
-    y += ui.choices((x, y, w, SEGMENTED_H), LABEL_L.size, &items, on);
+    y += labelled_choices(ui, (x, y, w), None, EN.settings_signatures_made, &items, on);
+    y += faraday_draw::tokens::GRID;
+    ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, &line);
+    y += ui.line_as(BODY_S);
     y - y0
 }
 

@@ -1784,12 +1784,12 @@ loses what was not yet written, as any change. A vault keeps up to
 10,000 entries, the oldest transaction dropped first, and at its ceiling
 nonce records are dropped before signed amounts (`docs/VAULT.md` §5).
 
-**The setting.** Settings carries a card after Signed amounts, **Nonce
-history**, with **Kept in an open vault** · **Off**, the status line
-"{n} signatures remembered" over the open vaults. Off, nothing is remembered, compared or
+**The setting.** Settings' **What is remembered** card has a row **Signatures made, for
+the nonce check**, with **In an open vault** · **Off**, the status line
+"{n} signatures remembered" under it over the open vaults. Off, nothing is remembered, compared or
 drawn, and a vault's records are neither read nor added to; at the
 vault's ceiling they still go first, as above.
-The default is **Kept in an open vault**.
+The default is **In an open vault**.
 
 **What it does not show.** It sees only signatures brought in or made
 here, while the setting is on and a vault is open, per vault, up to its

@@ -46,6 +46,11 @@ pub(crate) fn panes_tour(t: &mut Tour) -> Result<(), String> {
     // (`docs/ORIENTATION.md` §6).
     t.press(Action::SettingsSection(Some(5)));
     t.shot("panes-settings-display")?;
+    // Lock and power, and What is remembered.
+    t.press(Action::SettingsSection(Some(1)));
+    t.shot("panes-settings-lock")?;
+    t.press(Action::SettingsSection(Some(6)));
+    t.shot("panes-settings-remembered")?;
     t.press(Action::SettingsSection(None));
     Ok(())
 }

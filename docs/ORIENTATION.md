@@ -51,8 +51,8 @@ owner's choices are F100, which amends F92.
 - **Settings.** The stick keeps its settings in `faraday-settings.txt`,
   one `key=value` line each (`Settings::body` and `Settings::apply`,
   `faraday/faraday-core/src/stick/settings.rs`). Settings' sections are
-  Mode, Session, Time, Randomness, Appearance, Display, Signed amounts
-  and About (`Part`, `faraday/faraday-core/src/screens/settings.rs`).
+  Mode, Lock and power, Time, Randomness, Appearance, Display, What is
+  remembered and About (`Part`, `faraday/faraday-core/src/screens/settings.rs`).
 
 So every 7-inch or 10-inch panel today is a stick on a PC: a small
 tablet or panel PC with its own screen, or a portable monitor on HDMI or

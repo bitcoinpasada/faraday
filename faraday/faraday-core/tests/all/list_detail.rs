@@ -309,12 +309,12 @@ fn vaults_choosing_a_locked_vault_shows_its_unlock_beside_the_list() {
 /// Settings' sections, as their cards and the list name them.
 const SECTIONS: [&str; 8] = [
     "Mode",
-    "Session",
+    "Lock and power",
     "Time",
     "Randomness",
     "Appearance",
     "Display",
-    "Signed amounts",
+    "What is remembered",
     "About",
 ];
 
@@ -344,7 +344,7 @@ fn settings_on_a_wide_window_is_every_section_on_one_page() {
             assert!(section_of(&mut app, name).is_none(), "no list at {w}");
         }
         // Two columns: Appearance beside Session, not under it.
-        let session = boxes(&mut app, "Session")[0];
+        let session = boxes(&mut app, "Lock and power")[0];
         let appearance = boxes(&mut app, "Appearance")[0];
         assert!(appearance.0 > session.0 + session.2, "two columns at {w}");
         assert!(appearance.1 < session.1 + 200, "level with Session at {w}");
@@ -373,11 +373,14 @@ fn pi_settings() -> Faraday {
 #[test]
 fn settings_on_the_pi_panel_is_a_list_and_each_section_its_page() {
     let mut app = pi_settings();
-    let session = section_of(&mut app, "Session").expect("Session in the list");
+    let session = section_of(&mut app, "Lock and power").expect("Session in the list");
     assert!(boxes(&mut app, "Lock after").is_empty(), "no section open");
     // Mode first, opening its sheet at once.
     let mode = boxes(&mut app, "Mode")[0];
-    assert!(mode.1 < boxes(&mut app, "Session")[0].1, "Mode first");
+    assert!(
+        mode.1 < boxes(&mut app, "Lock and power")[0].1,
+        "Mode first"
+    );
     assert!(app.offers(Action::ModeSheet), "Mode opens its sheet");
     app.press(session);
     let _ = app.frame();
@@ -425,7 +428,7 @@ fn settings_on_a_medium_window_is_every_section_on_one_page() {
     let mut app = with_wallets(768, 1024, 160);
     app.press(Action::Nav(Screen::Settings));
     let _ = app.frame();
-    assert!(section_of(&mut app, "Session").is_none(), "no list");
+    assert!(section_of(&mut app, "Lock and power").is_none(), "no list");
     assert!(
         !boxes(&mut app, "Lock after").is_empty(),
         "Session's timers"

@@ -5,7 +5,7 @@
 **Screen:** `Settings`
 **Key:** settings
 
-Settings holds the session's settings and how the app looks, in sections: Mode, Session, Time, Randomness, Appearance, Display, Signed amounts, Nonce history and About.
+Settings holds the session's settings and how the app looks, in sections: Mode, Lock and power, Time, Randomness, Appearance, Display, What is remembered and About.
 
 ## Mode
 
@@ -15,7 +15,7 @@ Mode is the network that keys, wallets and addresses are made for. The row shows
 
 The device offers **Mainnet**, **Testnet**, **Signet** and **Regtest**. Faraday Demo offers **Practice** in place of Mainnet.
 
-## Session
+## Lock and power
 
 **Key:** settings.session
 
@@ -55,21 +55,13 @@ This section shows what the session's randomness is made from: the system's, and
 
 **Rotation** is **Landscape** or **Portrait**, offered only where the screen can rotate. Landscape suits the backup board and lists beside their detail; Portrait suits typing words in.
 
-## Signed amounts
+## What is remembered
 
-**Key:** settings.signed-amounts
+**Key:** settings.remembered
 
-Faraday remembers the amounts each signed input stated, and refuses the same transaction when it is stated with other amounts. The line gives how many transactions are remembered.
+**Amounts signed:** Faraday remembers the amounts each signed input stated, and refuses the same transaction when it is stated with other amounts. The line under the row gives how many transactions are remembered. **In an open vault** keeps them past power-off. **Until power-off** keeps them for the session.
 
-**Sealed into an open vault** keeps them past power-off. **Kept until power-off only** keeps them for the session.
-
-## Nonce history
-
-**Key:** settings.nonce-history
-
-Faraday remembers each signature it checks by its key, its nonce and its message, and refuses a nonce that one key used on another message. The line gives how many signatures are remembered.
-
-**Kept in an open vault** stores them in the open vault. **Off** keeps none.
+**Signatures made, for the nonce check:** Faraday remembers each signature it checks by its key, its nonce and its message, and refuses a nonce that one key used on another message. The line under the row gives how many signatures are remembered. **In an open vault** stores them in the open vault. **Off** keeps none.
 
 ## About
 

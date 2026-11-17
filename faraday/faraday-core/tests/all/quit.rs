@@ -23,7 +23,7 @@ fn settings(online: bool, width: u16, height: u16) -> Faraday {
         memory_mib: None,
     }));
     app.press(Action::Nav(Screen::Settings));
-    crate::common::settings_section(&mut app, "Session");
+    crate::common::settings_section(&mut app, "Lock and power");
     app
 }
 

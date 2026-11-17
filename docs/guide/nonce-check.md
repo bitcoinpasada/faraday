@@ -27,7 +27,7 @@ Each input is a row with its key and its verdict. **Valid · nonce recomputed** 
 
 **Key:** nonce-check.history
 
-With a vault open and **Nonce history** on in Settings, the check compares each signature's key and nonce with those the vault holds. **Not seen before in this vault** is the clean result. A nonce used before on another transaction is a red line, **nonce used before, on another transaction**, and the transaction is not finished. A clean history does not show that a signer is honest.
+With a vault open and **Signatures made, for the nonce check** set to **In an open vault** in Settings, the check compares each signature's key and nonce with those the vault holds. **Not seen before in this vault** is the clean result. A nonce used before on another transaction is a red line, **nonce used before, on another transaction**, and the transaction is not finished. A clean history does not show that a signer is honest.
 
 ## What can be done
 

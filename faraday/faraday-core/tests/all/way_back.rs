@@ -185,7 +185,7 @@ fn back_from_the_spend_tab_after_the_guide_lands_where_it_was_opened_from() {
 
 #[test]
 fn set_the_time_goes_back_to_settings_scrolled_as_it_was() {
-    let mut app = with(0, 480, 640);
+    let mut app = with(0, 480, 500);
     app.press(Action::Nav(Screen::Settings));
     let _ = app.frame();
     app.event(Event::Scroll {

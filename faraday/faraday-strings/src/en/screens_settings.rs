@@ -15,7 +15,7 @@ macro_rules! words_screens_settings {
     /// Title in `settings`.
     settings_settings: "Settings",
     /// Line in `settings`.
-    settings_session: "Session",
+    settings_lock_and_power: "Lock and power",
     /// Text in `settings`. `{}`: `n`, `if n == 1 { EN.settings_key } else { …`.
     settings_loaded: "{} {} loaded",
     /// Text in `settings`.
@@ -117,7 +117,11 @@ macro_rules! words_screens_settings {
     /// menu.
     host_more: "More",
     /// Line in `settings`.
-    settings_signed_amounts: "Signed amounts",
+    settings_what_remembered: "What is remembered",
+    /// Line in `settings`.
+    settings_amounts_signed: "Amounts signed",
+    /// Line in `settings`.
+    settings_signatures_made: "Signatures made, for the nonce check",
     /// Text in `settings`. `{}`: `n`, `if n == 1 { EN.settings_transaction }…`.
     settings_remembered: "{} {} remembered",
     /// Text in `settings`.
@@ -125,19 +129,15 @@ macro_rules! words_screens_settings {
     /// Text in `settings`.
     settings_transactions: "transactions",
     /// Text in `settings`.
-    settings_sealed_into: "Sealed into an open vault",
+    settings_in_open_vault: "In an open vault",
     /// Text in `settings`.
-    settings_kept_until: "Kept until power-off only",
-    /// Line in `settings`.
-    settings_nonce_history: "Nonce history",
+    settings_until_power_off: "Until power-off",
     /// Text in `settings`. `{}`: `n`, `if n == 1 { EN.settings_signature }…`.
     settings_signatures_remembered: "{} {} remembered",
     /// Text in `settings`.
     settings_signature: "signature",
     /// Text in `settings`.
     settings_signatures: "signatures",
-    /// Text in `settings`.
-    settings_nonces_kept: "Kept in an open vault",
     /// Text in `settings`.
     settings_nonces_off: "Off",
     /// Line in `settings`.
