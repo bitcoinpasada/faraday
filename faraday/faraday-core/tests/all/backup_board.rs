@@ -1339,16 +1339,16 @@ fn partial_descriptions_are_added_by_one_button_and_follow_the_places() {
     let _ = app.frame();
     assert!(!app.offers(Action::Board(list(Thing::Share(0)))));
     assert!(!app.offers(Action::BOmit(0)), "no stepper");
-    expect(&mut app, "Add partial descriptions to this backup");
+    expect(&mut app, "Add partial descriptors to this backup");
     app.press(Action::Board(BP::Partials));
     assert_eq!(app.sheet, Some(Sheet::BoardPartials));
     let t = app.drawn_texts().join(" ");
     assert!(
-        t.contains("Each place now holds a part of the description."),
+        t.contains("Each place now holds a part of the descriptor."),
         "{t}"
     );
     assert!(
-        t.contains("The whole description is still kept at Place 1, Place 2 and Place 3"),
+        t.contains("The whole descriptor is still kept at Place 1, Place 2 and Place 3"),
         "{t}"
     );
     assert!(app.offers(Action::Board(BP::PartialsWholeOff)), "{t}");
@@ -1371,18 +1371,18 @@ fn partial_descriptions_are_added_by_one_button_and_follow_the_places() {
         assert_eq!(a.shares_at(&shape, p).len(), 1, "Place {}", p + 1);
     }
     expect_down(&mut app, "Place 3 holds no seed");
-    // Remove partial descriptions: no share, and the description cannot
+    // Remove partial descriptors: no share, and the descriptor cannot
     // be put back together.
-    expect(&mut app, "Remove partial descriptions");
+    expect(&mut app, "Remove partial descriptors");
     app.press(Action::Board(BP::Partials));
     let a = app.backup().unwrap().answers.clone();
     assert!((0..3).all(|p| a.shares_at(&shape, p).is_empty()));
-    expect_down_part(&mut app, "The description cannot be put back together");
+    expect_down_part(&mut app, "The descriptor cannot be put back together");
 }
 
-/// A 2 of 3 whose description is kept nowhere (no copy of it, no share)
+/// A 2 of 3 whose descriptor is kept nowhere (no copy of it, no share)
 /// does not offer Make the checklist: the plan's way on says why, as the
-/// board's own line, until a place keeps the description again.
+/// board's own line, until a place keeps the descriptor again.
 #[test]
 fn a_plan_that_keeps_the_description_nowhere_does_not_offer_the_checklist() {
     let mut app = fresh_three();
@@ -1397,7 +1397,7 @@ fn a_plan_that_keeps_the_description_nowhere_does_not_offer_the_checklist() {
     app.press(Action::BQ(faraday_core::qstep::PLAN));
     let _ = app.frame();
     assert!(!app.offers(Action::BChecklist));
-    expect_down_part(&mut app, "The description cannot be put back together");
+    expect_down_part(&mut app, "The descriptor cannot be put back together");
     assert!(!app.offers(Action::BChecklist));
 }
 
@@ -2408,7 +2408,7 @@ fn dropping_shares_that_hold_every_key_asks_and_take_it_off_undoes_it() {
     let t = app.drawn_texts().join(" ");
     assert!(t.contains("Place 3 can see the wallet's balance"), "{t}");
     assert!(
-        t.contains("Shares 1 and 2 together make the whole description."),
+        t.contains("Shares 1 and 2 together make the whole descriptor."),
         "{t}"
     );
     app.press(Action::Board(BP::SeesUndo));
@@ -2689,7 +2689,7 @@ fn vault_band(app: &mut Faraday, title: &str) -> String {
         .unwrap_or_else(|| panic!("no band for {title}: {:?}", app.drawn_texts()))
 }
 
-/// A vault added on the board with **+ new vault** is made in the
+/// A vault added on the board with **+ Make a new vault** is made in the
 /// checklist, and its box says so until it is (`docs/BACKUP-FLOW.md`
 /// §17.21 items 4 and 6).
 #[test]
@@ -2697,7 +2697,7 @@ fn a_vault_added_with_new_vault_reads_made_in_the_checklist() {
     let mut app = fresh_three();
     app.press(Action::Board(BP::Customize));
     let _ = app.frame();
-    expect(&mut app, "+ new vault");
+    expect(&mut app, "+ Make a new vault");
     app.press(Action::Board(BP::AddVault));
     app.press(Action::Board(BP::Menu(Chip::List(Thing::Vault(0)))));
     app.press(Action::Board(BP::MenuTo(Zone::NewStick(0))));

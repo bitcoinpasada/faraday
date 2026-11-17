@@ -252,7 +252,7 @@ macro_rules! words_vm_names {
     /// Button of that round.
     backup_flow_copy_key: "Copy the key",
     /// Makes a vault of the plan.
-    backup_flow_create_vault: "Create {}",
+    backup_flow_create_vault: "Make {}",
     /// Opens a vault of the plan found on its stick: its passphrase next.
     backup_flow_open_vault: "Open {}",
     /// Takes a written place off the plan.
@@ -450,8 +450,8 @@ macro_rules! words_vm_names {
     backup_flow_add_from_copy: "Add the key from its copy",
     /// Toast: a change would take a written stick off the plan.
     backup_flow_written_stays: "A stick already written stays on the plan",
-    /// Toast: the round has no copy of the wallet description to put in.
-    backup_flow_no_description: "No copy of the wallet description is here to put in",
+    /// Toast: the round has no copy of the descriptor to put in.
+    backup_flow_no_description: "No copy of the descriptor is here to put in",
     /// Toast: a change would leave a key held back kept on no stick.
     backup_flow_held_stays: "A key not yet written stays kept on a stick",
     /// The backup board's card (`docs/BACKUP-FLOW.md` §17): its title.
@@ -482,9 +482,9 @@ macro_rules! words_vm_names {
     board_seeds: "Seeds",
     /// The list's group of passphrases.
     board_passphrases: "Passphrases",
-    /// The list's group of the description and its shares.
-    board_wallet_description: "Wallet description",
-    /// The whole description's chip.
+    /// The list's group of the descriptor and its shares.
+    board_wallet_description: "Descriptor",
+    /// The whole descriptor's chip.
     board_whole: "Whole",
     /// A share's chip. `{}`: its number.
     board_share: "Share {}",
@@ -492,7 +492,7 @@ macro_rules! words_vm_names {
     board_vaults: "Vaults",
     /// The list's button that adds a vault, always a new one, made in the
     /// checklist (`docs/BACKUP-FLOW.md` §17.21 item 4).
-    board_add_vault: "+ new vault",
+    board_add_vault: "+ Make a new vault",
     /// A cosigner's seed in the list: its key is not here.
     board_not_here: "Not here",
     /// A form: a seed's words on paper.
@@ -597,13 +597,13 @@ macro_rules! words_vm_names {
     /// The sheet over a drop that lets a place see the balance
     /// (`docs/BACKUP-FLOW.md` §17.5). `{}`: the place.
     board_sees_title: "{} can see the wallet's balance",
-    /// Its line: the place keeps the whole description.
-    board_sees_whole: "The whole description is kept there.",
-    /// Its line: what at the place together makes the description. `{}`:
+    /// Its line: the place keeps the whole descriptor.
+    board_sees_whole: "The whole descriptor is kept there.",
+    /// Its line: what at the place together makes the descriptor. `{}`:
     /// "Share 1 and seed 9a6a2580".
-    board_sees_together: "{} together make the whole description.",
-    /// Its line: one share alone makes the description. `{}`: "Share 1".
-    board_sees_alone: "{} makes the whole description.",
+    board_sees_together: "{} together make the whole descriptor.",
+    /// Its line: one share alone makes the descriptor. `{}`: "Share 1".
+    board_sees_alone: "{} makes the whole descriptor.",
     /// One share in its line. `{}`: its number.
     board_sees_share: "Share {}",
     /// Shares in its line. `{}`: "1, 2", the last.
@@ -614,45 +614,45 @@ macro_rules! words_vm_names {
     board_keep_button: "Keep it",
     /// Undoes the drop.
     board_take_it_off: "Take it off",
-    /// Under the list's Wallet description: hands a share to every place
+    /// Under the list's Descriptor: hands a share to every place
     /// (`docs/BACKUP-FLOW.md` §17.19 item 1).
-    board_partials_add: "Add partial descriptions to this backup",
+    board_partials_add: "Add partial descriptors to this backup",
     /// The same button while they are on: takes every share off.
-    board_partials_remove: "Remove partial descriptions",
+    board_partials_remove: "Remove partial descriptors",
     /// In the button's place, for a wallet of more than one key whose
     /// split sheets would not rebuild it (`docs/WALLETS.md` §5).
-    board_partials_not_offered: "Partial descriptions: only for a sortedmulti or tr(NUMS, sortedmulti_a) wallet",
+    board_partials_not_offered: "Partial descriptors: only for a sortedmulti or tr(NUMS, sortedmulti_a) wallet",
     /// The same, for a multisig two of whose keys come from one seed.
-    board_partials_one_seed: "Partial descriptions: not for a wallet with two keys of one seed",
+    board_partials_one_seed: "Partial descriptors: not for a wallet with two keys of one seed",
     /// The sheet after adding them: its title.
-    board_partials_each: "Each place now holds a part of the description.",
-    /// Its line where the whole description is still kept. `{}`: the
+    board_partials_each: "Each place now holds a part of the descriptor.",
+    /// Its line where the whole descriptor is still kept. `{}`: the
     /// places, "Place 1, Place 2 and Place 3".
-    board_partials_whole: "The whole description is still kept at {}, so the balance can be seen there. Take it off any place where the balance should stay hidden.",
-    /// Takes the whole description off every place.
+    board_partials_whole: "The whole descriptor is still kept at {}, so the balance can be seen there. Take it off any place where the balance should stay hidden.",
+    /// Takes the whole descriptor off every place.
     board_take_it_off_every: "Take it off every place",
-    /// A warning: nothing of the description is kept.
-    board_desc_nothing: "The description cannot be put back together: add the whole description",
+    /// A warning: nothing of the descriptor is kept.
+    board_desc_nothing: "The descriptor cannot be put back together: add the whole descriptor",
     /// A warning: what is kept does not put it back together. `{}`: what
     /// is kept ("Share 1 twice and Share 2"), what would complete it
     /// ("Share 3").
-    board_desc_missing: "The description cannot be put back together: the places hold {}; add {} or the whole description",
+    board_desc_missing: "The descriptor cannot be put back together: the places hold {}; add {} or the whole descriptor",
     /// The same, every share kept somewhere. `{}`: what is kept.
-    board_desc_kept_add: "The description cannot be put back together: the places hold {}; add the whole description",
+    board_desc_kept_add: "The descriptor cannot be put back together: the places hold {}; add the whole descriptor",
     /// A share kept twice, in those warnings. `{}`: its number.
     board_share_twice: "Share {} twice",
     /// A share kept more often. `{}`: its number, how often.
     board_share_times: "Share {} {} times",
     /// A warning: a place sees the balance from its share and seeds.
-    /// `{}`: the place, what there makes the description.
+    /// `{}`: the place, what there makes the descriptor.
     board_sees_warn: "{} can see the balance. {}",
     /// A warning: a place keeps no seed. `{}`: the place.
     board_no_seed: "{} holds no seed",
     /// "Any one place lost" with a single place (§19.19).
     plan_no_single_place: "No: a single place",
-    /// Why "Any one place lost" reads No when the description goes. `{}`:
+    /// Why "Any one place lost" reads No when the descriptor goes. `{}`:
     /// the place.
-    plan_without_no_description: "Without {}, the rest cannot put the description back together",
+    plan_without_no_description: "Without {}, the rest cannot put the descriptor back together",
         }
     };
 }

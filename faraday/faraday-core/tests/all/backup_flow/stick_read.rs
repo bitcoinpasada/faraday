@@ -593,7 +593,7 @@ fn without_its_passphrase_a_chosen_vault_can_be_made_new_beside_it_or_moved_to_a
         expect(&mut app, "Use another stick");
         if beside {
             shell.flow(&mut app, F::BesideIt(0));
-            assert!(has(&mut app, "Create Vault 1"), "{:?}", texts(&mut app));
+            assert!(has(&mut app, "Make Vault 1"), "{:?}", texts(&mut app));
             assert!(!app.flow().unwrap().plan.vaults[0].found());
         } else {
             shell.flow(&mut app, F::AnotherStick(0));

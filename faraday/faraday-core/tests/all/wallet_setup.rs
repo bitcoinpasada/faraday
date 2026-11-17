@@ -31,8 +31,8 @@ fn on_the_sticks() -> Faraday {
 
 /// With the boot stick in, as Faraday Demo has it: one press, Use
 /// Boot stick, takes it for Vault 1; the Pull sheet then asks for it out
-/// to create the vault, then the key; once it is out, Create a vault is
-/// open, with no Create Vault 1 pressed.
+/// to make a new vault, then the key; once it is out, Create a vault is
+/// open, with no Make Vault 1 pressed.
 #[test]
 fn use_boot_stick_takes_it_for_vault_1_and_its_pull_opens_create_a_vault() {
     let mut shell = Shell::new();
@@ -51,7 +51,7 @@ fn use_boot_stick_takes_it_for_vault_1_and_its_pull_opens_create_a_vault() {
     assert_eq!(app.sheet, Some(Sheet::Pull));
     expect_wrapped(
         &mut app,
-        "Pull the stick to create the vault, then your key",
+        "Pull the stick to make a new vault, then your key",
     );
     shell.pull(&mut app, "BOOT");
     assert_eq!(app.sheet, None);
@@ -64,7 +64,7 @@ fn use_boot_stick_takes_it_for_vault_1_and_its_pull_opens_create_a_vault() {
 }
 
 /// An inserted stick confirmed with its one tap and pulled: Create a
-/// vault opens for the new vault, with no Create Vault 1 pressed.
+/// vault opens for the new vault, with no Make Vault 1 pressed.
 #[test]
 fn the_last_stick_pulled_opens_create_a_vault_for_a_new_vault() {
     let mut shell = Shell::new();

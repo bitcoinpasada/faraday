@@ -441,7 +441,7 @@ fn i_do_not_have_its_passphrase_offers_a_new_vault_beside_it() {
     shell.flow(&mut app, F::BesideIt(0));
     let v = &app.flow().unwrap().plan.vaults[0];
     assert!(!v.existing && v.salt.is_none(), "the plan's vault is new");
-    expect(&mut app, "Create Vault 1");
+    expect(&mut app, "Make Vault 1");
 }
 
 #[test]
@@ -812,7 +812,7 @@ fn a_mix_of_existing_and_new_vaults_offers_open_and_create_once_every_stick_is_r
     // Then the step offers both: Open the vault found, Create the new
     // one; nothing is unlocked or opened by itself.
     expect(&mut app, "Open Vault 1");
-    expect(&mut app, "Create Vault 2");
+    expect(&mut app, "Make Vault 2");
     assert!(offered(&mut app, Action::Flow(F::UnlockVault(0))));
     assert!(offered(&mut app, Action::Flow(F::CreateVault(1))));
     assert!(app.vaults().open.is_empty());

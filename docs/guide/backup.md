@@ -13,7 +13,7 @@ A backup starts from a plan of where the wallet's keys and files are kept, and t
 
 The board lists the places that will keep the backup. Each place that keeps a seed says how close it brings someone to spending: **Can spend alone**, or **Spends with 1 more place** when one other place adds enough seeds. A change that brings a place closer to spending, or lets it see the balance, asks first: **Keep it** keeps the change and **Take it off** undoes it.
 
-**Add partial descriptions to this backup** gives every place a share of the descriptor, which is a multisig descriptor with some keys left off; **Remove partial descriptions** takes the shares off again. A place with only one share cannot work out an address.
+**Add partial descriptors to this backup** gives every place a share of the descriptor, which is a multisig descriptor with some keys left off; **Remove partial descriptors** takes the shares off again. A place with only one share cannot work out an address.
 
 ## The plan
 
@@ -21,9 +21,9 @@ The board lists the places that will keep the backup. Each place that keeps a se
 
 The plan is checked three ways, by trying each place lost or found in turn. A place is a paper place, a stick of files, or a vault's stick that no paper place keeps.
 
-**Any one place lost: the rest rebuild the wallet** is **Yes** when the other places always hold a quorum of seeds with their passphrases and, for several keys, the whole description or shares that hold every key. **Yes, with the vault's passphrase** means a loss is covered only by a vault. **No** names a single point of failure.
+**Any one place lost: the rest rebuild the wallet** is **Yes** when the other places always hold a quorum of seeds with their passphrases and, for several keys, the whole descriptor or shares that hold every key. **Yes, with the vault's passphrase** means a loss is covered only by a vault. **No** names a single point of failure.
 
-**One place found: can spend** is **Yes** when one place holds a quorum of seeds; **Only with the vault's passphrase** means the vault holds what is missing. **One place found: sees the balance** is **Yes** when one place holds the whole description, or the seed of a single key. **Make the checklist** approves the plan.
+**One place found: can spend** is **Yes** when one place holds a quorum of seeds; **Only with the vault's passphrase** means the vault holds what is missing. **One place found: sees the balance** is **Yes** when one place holds the whole descriptor, or the seed of a single key. **Make the checklist** approves the plan.
 
 ## Print the blank templates
 
@@ -95,7 +95,7 @@ One sheet with the wallet's name, every xpub and the checksum. It cannot spend; 
 
 For a multisig whose description is split, the item is **The shares**. Each share holds the description with some keys left off: one alone cannot watch the wallet, and enough together rebuild it. **Make them** makes the sheets, text files and pictures.
 
-**Keys left off each share** is a slider from 0 to the most the quorum allows: one fewer than the signatures needed, and at most one fewer than the keys. At 0 every share is the whole description. The table lists each share with its keys' fingerprints. The lines under it say whether any quorum's worth of shares rebuilds the wallet or only some, the fewest shares that rebuild it, how many shares each key is on, and **No single share holds every key** or **Each share holds every key**. A share holds account keys and cannot sign.
+**Keys left off each share** is a slider from 0 to the most the quorum allows: one fewer than the signatures needed, and at most one fewer than the keys. At 0 every share is the whole descriptor. The table lists each share with its keys' fingerprints. The lines under it say whether any quorum's worth of shares rebuilds the wallet or only some, the fewest shares that rebuild it, how many shares each key is on, and **No single share holds every key** or **Each share holds every key**. A share holds account keys and cannot sign.
 
 ## The public files
 

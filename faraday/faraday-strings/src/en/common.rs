@@ -156,7 +156,7 @@ macro_rules! words_common {
     pull_what_make_a_key: "make a key",
     /// Text in `pull_what`: a backup flow's Create {vault}, the key made
     /// after it.
-    pull_what_create_vault: "create the vault, then your key",
+    pull_what_create_vault: "make a new vault, then your key",
     /// Text in `pull_what`.
     pull_what_add_a_key: "add a key",
     /// Text in `pull_what`.
@@ -455,8 +455,8 @@ macro_rules! words_common {
     address_check_file: "From a file",
     /// Check an address's menu in place of a file that is empty, over 64 KiB or not text.
     address_check_not_text: "Not a text file",
-    /// Check an address's line for a file that holds a wallet description.
-    address_check_descriptor: "A wallet description, not an address",
+    /// Check an address's line for a file that holds a descriptor.
+    address_check_descriptor: "A descriptor, not an address",
     /// Check an address's line for a text file that holds no address.
     address_check_none_in_file: "No address in the file",
     /// Check an address's count over the list of a file's addresses. `{}`: how many are listed, then how many the file holds.

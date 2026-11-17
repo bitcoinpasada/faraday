@@ -188,10 +188,10 @@ fn the_board_says_why_partial_descriptions_are_not_offered_for_a_multisig_that_d
     use faraday_core::Action;
     use faraday_shell_api::App;
     let (only, one_seed) = (
-        "Partial descriptions: only for",
-        "Partial descriptions: not for",
+        "Partial descriptors: only for",
+        "Partial descriptors: not for",
     );
-    let add = "Add partial descriptions to this backup";
+    let add = "Add partial descriptors to this backup";
     let musig = testkit::musig_policy()
         .expect("the MuSig2 kit")
         .to_descriptor_checksummed()
@@ -225,7 +225,7 @@ fn the_board_says_why_partial_descriptions_are_not_offered_for_a_multisig_that_d
         let texts = app.drawn_texts().plain();
         let said = texts
             .iter()
-            .find(|t| t.starts_with("Partial descriptions:"))
+            .find(|t| t.starts_with("Partial descriptors:"))
             .map(String::as_str);
         assert_eq!(
             said.map(|t| says.is_some_and(|s| t.starts_with(s))),

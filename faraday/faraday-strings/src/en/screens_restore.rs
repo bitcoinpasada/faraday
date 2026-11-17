@@ -23,7 +23,7 @@ macro_rules! words_screens_restore {
     /// Text in `restore_screen`.
     restore_title: "Restore an existing wallet",
     /// Text in `restore_body`.
-    restore_have_description: "I have the wallet description",
+    restore_have_description: "I have the descriptor",
     /// Text in `restore_body`.
     restore_scan_button: "Scan it",
     /// Text in `restore_body`.

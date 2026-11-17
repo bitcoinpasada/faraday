@@ -13,7 +13,7 @@ Restore rebuilds a wallet from its backup, one card per step, from the kind of w
 
 Choose the kind written on the backup. If you have the wallet's description, read it here instead: it sets the kind, the quorum and every key, and **Continue** carries on from it.
 
-**I have the wallet description** offers **Scan it**, and **From Files** when a wallet file is in Files. The kinds are the same rows as in Make a new wallet; choosing one opens the next card, and **More kinds** opens the rest.
+**I have the descriptor** offers **Scan it**, and **From Files** when a wallet file is in Files. The kinds are the same rows as in Make a new wallet; choosing one opens the next card, and **More kinds** opens the rest.
 
 ## Quorum
 

@@ -246,5 +246,5 @@ fn a_file_of_exactly_64_kib_is_taken() {
 fn a_descriptor_file_is_named_and_not_read_as_addresses() {
     let mut app = on_page();
     read_file(&mut app, 0);
-    assert_eq!(said(&app), "A wallet description, not an address");
+    assert_eq!(said(&app), "A descriptor, not an address");
 }
