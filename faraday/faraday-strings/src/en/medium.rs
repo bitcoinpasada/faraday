@@ -80,6 +80,8 @@ macro_rules! words_medium {
     backup_step_copy: "Copy by hand",
     /// The way back's name for the checklist item of codex32 strings.
     backup_step_codex32: "Codex32 strings",
+    /// The way back's name for the checklist item of Seed XOR parts.
+    backup_step_parts: "Seed XOR parts",
     /// The way back's name for the checklist item of a passphrase on paper.
     backup_step_passphrase: "Passphrase on paper",
     /// The way back's name for the checklist item of a Krux code.

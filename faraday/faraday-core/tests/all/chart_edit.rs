@@ -2363,7 +2363,7 @@ fn xor_vault_wallet() -> (Faraday, usize) {
 fn type_part(app: &mut Faraday, w: usize, j: u8, seed: usize) {
     app.press(Action::Backup(w));
     app.press(Action::BChecklist);
-    testkit::backup_open_item(app, faraday_core::plan::Item::Copy(0));
+    testkit::backup_open_item(app, faraday_core::plan::Item::Parts(0));
     app.press(Action::BPartCheck(j));
     testkit::type_words(app, &testkit::test_words(testkit::TEST_SEEDS[seed].0));
 }

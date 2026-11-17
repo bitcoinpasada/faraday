@@ -177,6 +177,30 @@ fn checked_seed_xor_parts_stay_when_put_away() {
 }
 
 #[test]
+fn seed_xor_parts_on_the_plan_are_an_item_done_once_every_part_is_checked() {
+    use faraday_core::plan::Item;
+    let mut app = backing_up();
+    app.press(Action::BXor(2));
+    let c = testkit::compute();
+    assert!(app.backup_items_now(&c).contains(&Item::Parts(0)));
+    assert!(!app.backup_item_done_now(&c, Item::Parts(0)));
+    for i in 0..2u8 {
+        app.press(Action::BPartCheck(i));
+        let words = part_words(&app, i.into());
+        typed(&mut app, &format!("{words} "));
+        assert_eq!(
+            app.backup_item_done_now(&c, Item::Parts(0)),
+            i == 1,
+            "after part {}",
+            i + 1
+        );
+    }
+    // Put away, the checks stay.
+    app.press(Action::BPaperHide);
+    assert!(app.backup_item_done_now(&c, Item::Parts(0)));
+}
+
+#[test]
 fn a_seed_xor_part_typed_back_with_one_word_changed_is_named_as_differing() {
     let mut app = backing_up();
     app.press(Action::BXor(3));

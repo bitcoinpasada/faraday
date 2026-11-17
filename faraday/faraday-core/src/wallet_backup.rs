@@ -612,6 +612,9 @@ pub struct BackupState {
     pub paper: Option<faraday_keys::Held<Vec<Text>>>,
     /// Which of the Seed XOR parts a typed copy matched, one bit a part.
     pub paper_ok: u8,
+    /// The Seed XOR parts typed back right in this backup, by seed and
+    /// part, kept after the parts are put away.
+    pub parts_checked: Vec<(usize, usize)>,
     /// Put them away was pressed once with a part unchecked: a second
     /// press puts them away.
     pub paper_skip: bool,
@@ -1612,13 +1615,20 @@ impl WalletBackupArea {
             b.paper = Some(parts);
             b.paper_ok = 0;
             b.paper_skip = false;
+            // A new set: the old parts' checks no longer count.
+            b.parts_checked.clear();
         }
     }
 
-    /// Seed XOR part `i` was typed back right.
-    pub(crate) fn part_matched(&mut self, i: usize) {
+    /// Seed XOR part `i` of seed `seed` was typed back right.
+    pub(crate) fn part_matched(&mut self, seed: Option<usize>, i: usize) {
         if let Some(b) = self.state.as_mut() {
             b.paper_ok |= 1 << i.min(7);
+            if let Some(s) = seed
+                && !b.parts_checked.contains(&(s, i))
+            {
+                b.parts_checked.push((s, i));
+            }
         }
     }
 
@@ -2144,6 +2154,14 @@ impl Faraday {
         self.backup.check_start(check);
     }
 
+    /// The place in the backup's seed list of the key the backup is on.
+    fn part_seed(&self) -> Option<usize> {
+        let b = self.backup.state()?;
+        self.backup_seed_list_now(b.wallet)
+            .iter()
+            .position(|(_, k)| *k == Some(b.key))
+    }
+
     /// Costs a PBKDF2 and an elliptic-curve multiplication. The words
     /// typed compared with the fingerprint the key's kept set holds for
     /// part `i`, as the parts are no longer on screen. A match closes the
@@ -2162,10 +2180,7 @@ impl Faraday {
             .info(b.key)
             .and_then(|k| k.xor.as_ref())
             .and_then(|x| x.parts.get(i).copied());
-        let seed = self
-            .backup_seed_list_now(b.wallet)
-            .iter()
-            .position(|(_, k)| *k == Some(b.key));
+        let seed = self.part_seed();
         let (lang, mut typed) = (chk.lang, chk.indices());
         let made = faraday_keys::words::from_indices(lang, &typed)
             .ok()
@@ -2174,7 +2189,7 @@ impl Faraday {
         match (made, want) {
             (Some(m), Some(w)) if m.0 == w => {
                 self.backup.check_close();
-                self.backup.part_matched(i);
+                self.backup.part_matched(seed, i);
                 if let Some(s) = seed {
                     self.what_dating(&c, plan::What::XorPart(s, i), None);
                 }
@@ -2213,8 +2228,13 @@ impl Faraday {
         typed.zeroize();
         match differs {
             None => {
+                let c = self.compute();
+                let seed = self.part_seed();
                 self.backup.check_close();
-                self.backup.part_matched(i);
+                self.backup.part_matched(seed, i);
+                if let Some(s) = seed {
+                    self.what_dating(&c, plan::What::XorPart(s, i), None);
+                }
             }
             Some(k) => {
                 let k = k + 1;
@@ -2609,6 +2629,7 @@ impl Faraday {
                 plan::Item::Copy(i)
                 | plan::Item::Passphrase(i)
                 | plan::Item::Codex32(i)
+                | plan::Item::Parts(i)
                 | plan::Item::KefCode(i) => Some(i),
                 // A vault's item shows its first seed.
                 plan::Item::Vault(v) => {
@@ -2700,6 +2721,13 @@ impl Faraday {
                 let paper = plan::codex32::paper_strings(&b.answers, &mapped, i);
                 !paper.is_empty() && paper.iter().all(|&j| b.c32_checked.contains(&(i, j)))
             }
+            // Every part of the key's set typed back right, here or
+            // earlier in this visit.
+            plan::Item::Parts(i) => here.iter().find(|(j, _)| *j == i).is_some_and(|(_, k)| {
+                k.xor
+                    .as_ref()
+                    .is_some_and(|x| (0..x.parts.len()).all(|j| b.parts_checked.contains(&(i, j))))
+            }),
             plan::Item::Copy(i) => here
                 .iter()
                 .find(|(j, _)| *j == i)
@@ -3166,6 +3194,7 @@ impl crate::trail::StepFlow for BackupSteps {
             plan::Item::Templates => EN.backup_step_templates,
             plan::Item::Copy(_) => EN.backup_step_copy,
             plan::Item::Codex32(_) => EN.backup_step_codex32,
+            plan::Item::Parts(_) => EN.backup_step_parts,
             plan::Item::Passphrase(_) => EN.backup_step_passphrase,
             plan::Item::KefCode(_) => EN.backup_step_kef,
             plan::Item::Vault(_) => EN.backup_step_vault,
@@ -3180,6 +3209,15 @@ impl crate::trail::StepFlow for BackupSteps {
             plan::Item::Sticks => app.medium.write_to(),
         }
     }
+}
+
+/// How many Seed XOR parts the key the backup is on has counted.
+pub(crate) fn part_count(app: &Faraday, b: &BackupState) -> usize {
+    app.session
+        .keys
+        .info(b.key)
+        .and_then(|k| k.xor.as_ref())
+        .map_or(0, |x| x.parts.len())
 }
 
 impl Faraday {

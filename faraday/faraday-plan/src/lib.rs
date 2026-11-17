@@ -2755,6 +2755,9 @@ pub enum Item {
     /// Seed `i`'s codex32 strings on paper: each copy checked
     /// (`docs/CODEX32.md` §9.4).
     Codex32(usize),
+    /// Seed `i`'s Seed XOR parts on paper: each part checked by its
+    /// words typed back (`docs/decisions/F276.md`).
+    Parts(usize),
     /// Write seed `i`'s passphrase on paper and check it
     /// (`docs/WALLETS.md` §13).
     Passphrase(usize),
@@ -2809,6 +2812,9 @@ pub fn checklist_on(shape: &Shape, a: &Answers, m: &Mapped) -> Vec<Item> {
             &|w| matches!(w, What::Codex32Share(x, _) | What::Codex32QrPaper(x, _) if x == i),
         ) {
             paper.push(Item::Codex32(i));
+        }
+        if at_places(&|w| matches!(w, What::XorPart(x, _) if x == i)) {
+            paper.push(Item::Parts(i));
         }
         if at_places(&|w| w == What::Passphrase(i)) {
             paper.push(Item::Passphrase(i));

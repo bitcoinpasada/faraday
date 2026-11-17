@@ -1653,7 +1653,7 @@ impl Faraday {
                     }
                     Step::PartCheck(i, p) => {
                         if self.chart_checklist(w, from_vault) {
-                            self.backup_item_open(Some(Item::Copy(i)));
+                            self.backup_item_open(Some(Item::Parts(i)));
                             self.act(Action::BPartCheck(p.min(255) as u8));
                             self.screen = Screen::Backup;
                         }

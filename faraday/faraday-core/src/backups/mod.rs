@@ -2450,7 +2450,7 @@ fn checklist_item(at: At, items: &[plan::Item]) -> Option<plan::Item> {
     use plan::Item;
     let first = |f: &dyn Fn(&Item) -> bool| items.iter().copied().find(|i| f(i));
     match at {
-        At::Place(_) => first(&|i| matches!(i, Item::Copy(_) | Item::Codex32(_)))
+        At::Place(_) => first(&|i| matches!(i, Item::Copy(_) | Item::Codex32(_) | Item::Parts(_)))
             .or_else(|| first(&|i| matches!(i, Item::Passphrase(_) | Item::Sheets))),
         At::Vault(v) => first(&|i| *i == Item::Vault(v)),
         At::Files | At::Stick(..) => first(&|i| matches!(i, Item::SeedFiles | Item::Sticks)),

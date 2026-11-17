@@ -102,12 +102,12 @@ fn item_title_on(reads: &impl crate::glance::Reads, item: crate::plan::Item) -> 
             }
             .to_string(),
         ),
-        Item::Copy(i) | Item::Passphrase(i) => (
+        Item::Copy(i) | Item::Passphrase(i) | Item::Parts(i) => (
             fill(
-                if matches!(item, Item::Copy(_)) {
-                    EN.item_title_copy_seed
-                } else {
-                    EN.item_title_passphrase
+                match item {
+                    Item::Copy(_) => EN.item_title_copy_seed,
+                    Item::Parts(_) => EN.item_title_parts,
+                    _ => EN.item_title_passphrase,
                 },
                 &[(shape.seeds.get(i).map_or("", |s| s.name.as_str()))],
             ),
@@ -535,6 +535,7 @@ pub(crate) fn held_item(
         (At::Place(_), What::Passphrase(i)) => Item::Passphrase(i),
         (_, What::Passphrase(_)) => return None,
         (_, What::Words(i) | What::SeedQr(i)) => Item::Copy(i),
+        (_, What::XorPart(i, _)) => Item::Parts(i),
         (_, What::KefCode(i) | What::KefCodePaper(i)) => Item::KefCode(i),
         (_, What::Sheet | What::Share(_)) => Item::Sheets,
         (At::Vault(v), _) => Item::Vault(v),
@@ -1102,6 +1103,13 @@ fn backup_body(app: &View, ui: &mut Ui, item: Item, x: f32, y: f32, w: f32) -> f
             let (h, foot) = crate::codex32_backup::screen::item(app, ui, x, cy, w, i);
             cy += h;
             if foot && item_next(app, ui, x, cy, w, item) {
+                cy += T::TOUCH;
+            }
+        }
+        Item::Parts(i) => {
+            cy += parts_item(app, ui, x, cy, w, i);
+            cy += copy_check(app, ui, x, cy, w);
+            if item_next(app, ui, x, cy, w, item) {
                 cy += T::TOUCH;
             }
         }
@@ -1735,6 +1743,16 @@ fn item_action(app: &View, n: Item) -> (String, Action) {
                 )),
             )
         }
+        // Check my copy of the first part not checked.
+        Item::Parts(i) => {
+            let first = (0..crate::wallet_backup::part_count(app, b))
+                .find(|j| !b.parts_checked.contains(&(i, *j)))
+                .unwrap_or(0);
+            (
+                EN.item_action_check_my.to_string(),
+                Action::BPartCheck(first.min(255) as u8),
+            )
+        }
         // Check my copy opens the field; with it open, Compare.
         Item::Passphrase(_) if b.check.is_some() => {
             (EN.item_action_compare.to_string(), Action::BCheck)
@@ -2091,6 +2109,30 @@ fn seed_files(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy += 26.0;
     }
     cy + 4.0 - y
+}
+
+/// Seed `i`'s Seed XOR parts as the plan counts them: each one's number,
+/// then Checked or Check my copy.
+fn parts_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, i: usize) -> f32 {
+    let Some(b) = app.backup() else {
+        return 0.0;
+    };
+    let mut cy = y;
+    for j in 0..crate::wallet_backup::part_count(app, b) {
+        if b.parts_checked.contains(&(i, j)) {
+            let line = fill(EN.convert_copy_matches_part, &[&(j + 1).to_string()]);
+            cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Ok, &line) + T::GAP;
+        } else if b.check.is_none() {
+            let label = fill(EN.paper_section_check_part, &[&(j + 1).to_string()]);
+            let row = [(
+                label,
+                Style::Secondary,
+                Action::BPartCheck(j.min(255) as u8),
+            )];
+            cy += button_rows(ui, x, cy, w, &row);
+        }
+    }
+    cy - y
 }
 
 fn paper_section(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {

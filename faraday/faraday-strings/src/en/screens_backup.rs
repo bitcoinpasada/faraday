@@ -20,6 +20,8 @@ macro_rules! words_screens_backup {
     /// Text in `item_title`. `{}`: `shape.seeds.get(i).map_or("", |s| s.n…`.
     item_title_copy_seed: "Copy seed {} by hand",
     /// Text in `item_title`. `{}`: the seed's name.
+    item_title_parts: "Seed XOR parts of seed {}",
+    /// Text in `item_title`. `{}`: the seed's name.
     item_title_passphrase: "Write the passphrase of seed {} on paper",
     /// Text in `item_title`.
     item_title_checked: "Checked",

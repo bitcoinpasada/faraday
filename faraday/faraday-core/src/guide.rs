@@ -222,6 +222,7 @@ fn backup_item_key(n: crate::plan::Item) -> &'static str {
         Item::Templates => "backup.blank",
         Item::Copy(_) => "backup.copy",
         Item::Codex32(_) => "backup.codex32",
+        Item::Parts(_) => "backup.copy",
         Item::Passphrase(_) => "backup.passphrase",
         Item::KefCode(_) => "backup.kef",
         Item::Vault(_) => "backup.vault",
