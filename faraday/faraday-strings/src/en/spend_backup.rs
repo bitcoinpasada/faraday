@@ -284,7 +284,7 @@ macro_rules! words_spend_backup {
     /// Text in `bring`. `{}`: `app.medium.a()`.
     spend_backup_on_medium: "On {}",
     /// Text in `bring`. `{}`: `app.medium.a()`.
-    spend_backup_copy_psbt_button: "Copy it in from {}",
+    spend_backup_copy_psbt_button: "Copy files in from {}",
     /// Line in `bring`.
     spend_backup_in_files: "In Files",
     /// Line in `bring`.

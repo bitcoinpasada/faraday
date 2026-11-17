@@ -274,7 +274,7 @@ pub(crate) fn files_menu(app: &View, ui: &mut Ui, w: f32, h: f32) {
             at: 0,
             keys: false,
             anchor: s.files_at(),
-            cancel: (EN.keygen_back, Action::Cancel),
+            cancel: (EN.address_check_cancel, Action::Cancel),
             shown: 1.0,
         },
     );

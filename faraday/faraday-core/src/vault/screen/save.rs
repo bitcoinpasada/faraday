@@ -34,7 +34,7 @@ pub(crate) fn gpg_sign_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let ready = now.is_some() && !chosen.is_empty();
     let head = (Icon::Sign.into(), primary.paint(), title.as_str());
     let frame = (w, h, faraday_draw::tokens::DIALOG_MAX);
-    let cancel = [(EN.vault_cancel, Style::Ghost, Action::Cancel)];
+    let cancel = [(EN.vault_cancel, Style::Secondary, Action::Cancel)];
     crate::compact::dialog(
         ui,
         frame,
@@ -127,7 +127,7 @@ pub(crate) fn stick_save_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     };
     let any = s.files.iter().any(|f| f.ticked);
     let items: Vec<(&str, Style, Action)> = vec![
-        (EN.vault_cancel, Style::Ghost, Action::Cancel),
+        (EN.vault_cancel, Style::Secondary, Action::Cancel),
         (
             EN.vault_save,
             Style::Primary.when(any),

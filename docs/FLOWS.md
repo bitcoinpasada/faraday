@@ -1113,12 +1113,15 @@ and shows its card. With no transaction open, the Spend page offers
 
 ## GPG
 
-Every GPG action needs an open vault (the secret key lives there). With
-none open, Tools' **GPG key** tile reads "Make a vault first" (no vault
-file) or "Unlock a vault first" and leads into Create a vault or Unlock,
-which come back to the vault's GPG keys (decision 10). Making a key is
-the exception (F31): **Make a key** opens the backup flow (decision 59),
-whose steps decide and open the vaults first.
+The tile asks for no vault first (`docs/BACKUP-FLOW.md` §3). Tools' **GPG
+key** opens a dialog with **Make a key** (the backup flow, decision 59,
+whose steps decide and open the vaults first) and **Restore from a
+paperkey** (dimmed in Practice), and **Cancel**; a key being made and not
+finished resumes in place of the dialog, its tile reading "Continue".
+Every other GPG action, signing, checking a signature, Renew,
+the key's page, needs an open vault (the secret key lives there): from a
+vault's GPG keys, or Tools' vault tiles, which lead into Create a vault
+or Unlock with none open and come back (decision 10).
 
 **Make a key** (the backup flow's steps 1 to 3 (F31): two places or
 more, their sticks, their vaults; then name and email, expiry with 3 years chosen, as `gpg
@@ -1192,9 +1195,11 @@ two vaults open on one machine, the vault's copy of an item is the way.
 
 ## Secure Boot
 
-Needs an open vault for the keys. With none open, Tools' **Secure Boot
-keys** tile leads into Create a vault or Unlock and back, as GPG's does;
-**KeePass export** the same, to the vault's entries.
+Tools' **Secure Boot keys** tile asks for no vault first: it starts the
+backup flow, or resumes one, as GPG's **Make a key** does. The keys' page,
+**Hold for enrolment files** and **Sign or check an image** need an open
+vault for the keys, reached from the vault; **KeePass export** with none
+open leads into Create a vault or Unlock and back, to the vault's entries.
 
 **Make keys** → the backup flow (decision 59): two places or more,
 their sticks, their vaults → PK, KEK, db generated into every vault the

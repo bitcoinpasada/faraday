@@ -437,7 +437,7 @@ macro_rules! words_bip85 {
     /// Text in `card`.
     bip85_load_as_a_key: "Load as a key",
     /// Text in `card`.
-    bip85_out_unprotected: "Out unprotected…",
+    bip85_out_unprotected: "Save as a file…",
         }
     };
 }
