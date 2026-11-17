@@ -154,6 +154,9 @@ way or waiting (`docs/FLOWS.md`, Home), then the tiles in a grid.
   for Vaults (`docs/FLOWS.md`, Home; F255).
 - **Scan** stays the floating button at the bottom-right.
 
+One Home for every size, the destinations in one order, is specified in
+`docs/HOME.md`.
+
 ## 5. Panes
 
 Material's canonical layouts, by what a screen shows:

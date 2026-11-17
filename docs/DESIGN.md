@@ -730,7 +730,7 @@ is `docs/WALLETS.md` and the Spend tab `docs/SPEND-FROM-BACKUP.md`.
 
 | `Screen` | What it holds | Drawn as |
 |---|---|---|
-| `Home` | The lead tile while something is under way or waiting, then the tiles; on the small panel the menu of the sidebar's entries; **Scan** (`docs/FLOWS.md`, Home). | Page |
+| `Home` | The lead tile while something is under way or waiting, then the tiles; on the small panel the menu of the sidebar's entries; **Scan** (`docs/FLOWS.md`, Home). One Home for every size, with each loaded wallet's Sign and Receive and the first-run tiles only while nothing is loaded, is specified and not built: `docs/HOME.md`. | Page |
 | `Check` | Check, the place for checking what a hardware wallet says (F255): four groups of tiles in the grid Tools uses, each tile a label and one line saying what the person needs in hand, the tiles that take a seed tagged **Seed**, each opening the tool that does the check; below the table. Checked against Material 3's cards page and its navigation drawer and navigation rail pages. | Page |
 | `WalletsStart` | The Wallets tab's first page: the wallets loaded, the keys without a wallet, and every way in by what the person has. | Page |
 | `Wallets` | The wallets as a list and the chosen wallet's card: its name and shape, a `tr()` tree's key path line under the shape (the danger line, in the error colour, for a key not of the wallet; F132), the backup line, the signatures possible here, **Spend paths** (fact rows, §4.11) for a wallet with a relative wait, with **Coins last moved** and **I moved every coin**, **At a glance** (§4.16), the first receive address and the card's actions (`docs/WALLETS.md`). | Page |
