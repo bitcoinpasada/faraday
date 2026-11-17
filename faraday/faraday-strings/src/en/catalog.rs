@@ -8,8 +8,12 @@ macro_rules! words_catalog {
     // ----- catalog (faraday-core/src/catalog.rs) -----
     /// Text in `TILES`.
     catalog_add_a_key: "Add a key",
+    /// Text in `TILES`: Add a key's line.
+    catalog_add_a_key_line: "Words, a SeedQR or codex32 shares you have",
+    /// Text in `TILES`, and Wallets start.
+    catalog_make_a_new_key: "Make a new key",
     /// Text in `TILES`.
-    catalog_make_or_type: "Make one from dice, coins, cards, hex, camera or a mix, or type its words",
+    catalog_make_or_type: "Dice, coins, cards, hex or the camera",
     /// Text in `TILES`.
     catalog_scan_a_seedqr: "Scan a SeedQR",
     /// Text in `TILES`.
@@ -23,11 +27,33 @@ macro_rules! words_catalog {
     /// Text in `TILES`.
     catalog_shares_typed: "Shares typed or scanned back into a key",
     /// A tile's name in `TILES`: the standard's own name.
-    catalog_codex32: "codex32",
+    catalog_codex32: "Restore from codex32 shares",
+    /// Text in `TILES`: the group of the few tiles a person comes for most.
+    catalog_common: "Common",
+    /// Text in `TILES`.
+    catalog_make_a_new_wallet: "Make a new wallet",
+    /// Text in `TILES`.
+    catalog_make_wallet_line: "Single key, multisig, taproot or MuSig2",
+    /// Text in `TILES`.
+    catalog_check: "Check",
+    /// Text in `TILES`.
+    catalog_make_codex32: "Make codex32 shares",
+    /// Text in `TILES`.
+    catalog_make_codex32_line: "A new key dealt as shares of a secret",
+    /// Text in `TILES`.
+    catalog_make_seed_xor: "Make Seed XOR parts",
+    /// Text in `TILES`.
+    catalog_make_seed_xor_line: "A key split into parts that combine back",
+    /// Text in `TILES`.
+    catalog_spend_backup: "Spend from a backup",
+    /// Text in `TILES`.
+    catalog_spend_backup_line: "From a stick, words or paper, step by step",
+    /// Wallets start: the line under Make a new key.
+    catalog_make_key_start_line: "A new key from randomness",
     /// Text in `TILES`.
     catalog_codex32_line: "A secret or its shares typed into a key",
     /// Text in `TILES`.
-    catalog_seed_xor: "Seed XOR",
+    catalog_seed_xor: "Restore from Seed XOR parts",
     /// Text in `TILES`.
     catalog_parts_combined: "Parts combined into a key",
     /// Text in `TILES`.
@@ -73,13 +99,9 @@ macro_rules! words_catalog {
     /// Text in `TILES`.
     catalog_all_keys_one: "All keys, one signature on chain",
     /// Text in `TILES`.
-    catalog_miniscript_inheritance: "Miniscript and inheritance",
-    /// Text in `TILES`.
-    catalog_miniscript_line: "Load one from its descriptor",
-    /// Text in `TILES`.
     catalog_restore_wallet: "Restore an existing wallet",
     /// Text in `TILES`.
-    catalog_descriptor_wallet: "Descriptor, wallet file, BIP 129 record or split sheets",
+    catalog_descriptor_wallet: "Descriptor, miniscript, wallet file, BIP 129 record or split sheets",
     /// Text in `TILES`.
     catalog_wallets: "Wallets",
     /// Text in `TILES`.
@@ -131,9 +153,9 @@ macro_rules! words_catalog {
     /// Text in `TILES`.
     catalog_totp_codes_line: "Codes from the entries in open vaults",
     /// Text in `TILES`.
-    catalog_diceware_passphrase: "Diceware passphrase",
+    catalog_diceware_passphrase: "Create a vault",
     /// Text in `TILES`.
-    catalog_diceware_line: "Rolled with dice in Create a vault",
+    catalog_diceware_line: "A new vault, its passphrase rolled with dice",
     /// Text in `TILES`.
     catalog_gpg_key: "GPG key",
     /// Text in `TILES`.

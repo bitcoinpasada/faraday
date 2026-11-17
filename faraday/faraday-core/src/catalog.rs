@@ -13,8 +13,20 @@ use crate::{Action, Faraday, Screen};
 /// Where a tile leads.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Go {
-    /// Add a key: New key's flow, opening on Start.
+    /// Make a new key: New key's flow, opening on Start.
     NewKey,
+    /// Add a key you have: the Add a key page (words, a SeedQR, codex32).
+    LoadKey,
+    /// Make codex32 shares: New key, on its codex32 choice.
+    NewCodex32,
+    /// Make Seed XOR parts of a loaded key: Convert, on Seed XOR.
+    MakeXor,
+    /// Make a new wallet: its kinds to choose from.
+    CreateWallet,
+    /// The Check page.
+    Check,
+    /// Spend from a backup, step by step.
+    SpendBackup,
     /// New key, SLIP-39 shares.
     NewShares,
     /// Add a key, in this form.
@@ -100,7 +112,8 @@ pub struct Tile {
 }
 
 /// The groups, in order.
-pub const GROUPS: [&str; 8] = [
+pub const GROUPS: [&str; 9] = [
+    EN.catalog_common,
     EN.catalog_keys_and_seeds,
     EN.catalog_wallets,
     EN.catalog_transactions,
@@ -113,14 +126,41 @@ pub const GROUPS: [&str; 8] = [
 
 /// Every tile, by group.
 pub const TILES: &[Tile] = &[
-    // One tile for making a key and for typing one: Start offers both
-    // (owner, 2026-10-24).
+    // The few a person comes for most; each is in this group only.
     Tile {
-        group: EN.catalog_keys_and_seeds,
+        group: EN.catalog_common,
+        name: EN.catalog_sign_a_transaction,
+        line: EN.catalog_sign_transaction_line,
+        tags: &["BIP-174", "BIP-143", "BIP-341"],
+        go: Go::Sign,
+    },
+    Tile {
+        group: EN.catalog_common,
+        name: EN.catalog_make_a_new_wallet,
+        line: EN.catalog_make_wallet_line,
+        tags: &["BIP-380"],
+        go: Go::CreateWallet,
+    },
+    Tile {
+        group: EN.catalog_common,
         name: EN.catalog_add_a_key,
+        line: EN.catalog_add_a_key_line,
+        tags: &["BIP-39", "SeedQR", "BIP-93"],
+        go: Go::LoadKey,
+    },
+    Tile {
+        group: EN.catalog_common,
+        name: EN.catalog_make_a_new_key,
         line: EN.catalog_make_or_type,
         tags: &["BIP-39"],
         go: Go::NewKey,
+    },
+    Tile {
+        group: EN.catalog_common,
+        name: EN.catalog_check,
+        line: EN.home_ways_check_line,
+        tags: &[],
+        go: Go::Check,
     },
     Tile {
         group: EN.catalog_keys_and_seeds,
@@ -163,6 +203,20 @@ pub const TILES: &[Tile] = &[
         line: EN.catalog_parts_combined,
         tags: &["Seed XOR", "BIP-39"],
         go: Go::AddKey(Form::Xor),
+    },
+    Tile {
+        group: EN.catalog_keys_and_seeds,
+        name: EN.catalog_make_codex32,
+        line: EN.catalog_make_codex32_line,
+        tags: &["BIP-93"],
+        go: Go::NewCodex32,
+    },
+    Tile {
+        group: EN.catalog_keys_and_seeds,
+        name: EN.catalog_make_seed_xor,
+        line: EN.catalog_make_seed_xor_line,
+        tags: &["Seed XOR", "BIP-39"],
+        go: Go::MakeXor,
     },
     Tile {
         group: EN.catalog_keys_and_seeds,
@@ -250,13 +304,6 @@ pub const TILES: &[Tile] = &[
     },
     Tile {
         group: EN.catalog_wallets,
-        name: EN.catalog_miniscript_inheritance,
-        line: EN.catalog_miniscript_line,
-        tags: &["BIP-379", "BIP-382"],
-        go: Go::Restore,
-    },
-    Tile {
-        group: EN.catalog_wallets,
         name: EN.catalog_restore_wallet,
         line: EN.catalog_descriptor_wallet,
         tags: &["BIP-380", "BIP-388", "BIP-389", "BIP-129"],
@@ -285,10 +332,10 @@ pub const TILES: &[Tile] = &[
     },
     Tile {
         group: EN.catalog_transactions,
-        name: EN.catalog_sign_a_transaction,
-        line: EN.catalog_sign_transaction_line,
-        tags: &["BIP-174", "BIP-143", "BIP-341"],
-        go: Go::Sign,
+        name: EN.catalog_spend_backup,
+        line: EN.catalog_spend_backup_line,
+        tags: &["BIP-39"],
+        go: Go::SpendBackup,
     },
     Tile {
         group: EN.catalog_transactions,
@@ -599,6 +646,22 @@ impl Faraday {
         };
         match tile.go {
             Go::NewKey => self.act(Action::KeyGen(None)),
+            Go::LoadKey => self.act(Action::Entry(None)),
+            Go::NewCodex32 => self.keygen_open_on(crate::keygen::Start::MakeCodex32),
+            Go::MakeXor => {
+                self.act(Action::Convert(crate::convert::ConvertAction::Open));
+                if let Some(row) = crate::convert::ROWS
+                    .iter()
+                    .position(|r| r.target == Some(crate::convert::Target::SeedXor))
+                {
+                    self.act(Action::Convert(crate::convert::ConvertAction::To(
+                        row as u8,
+                    )));
+                }
+            }
+            Go::CreateWallet => self.act(Action::CreateWallet),
+            Go::Check => self.act(Action::Nav(Screen::Check)),
+            Go::SpendBackup => self.act(Action::Nav(Screen::SpendBackup)),
             Go::NewShares => self.act(Action::KeyGenSlip39),
             // Add a key is New key opening on Start; a tile for one form
             // opens it with that choice made.

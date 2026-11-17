@@ -385,7 +385,9 @@ rest** and **Add a share** (§8.1 step 2, §8.2); **Check a string** shows
 its checksum worksheet's final row; and the mark's line stands beside the
 fingerprint on Wallets and on New key's Key card.
 
-**Add a key is New key, opening on Start** (decision 60, F44). New key's
+**Make a new key is New key, opening on Start** (decision 60, F44); the **Add a
+key** tile opens the Add a key page instead, which takes a key held (words, a
+SeedQR, codex32), in Tools and on Wallets start. New key's
 first card is **Start**, open with no choice ticked (owner, 2026-10-29):
 under **Make a new key**, **BIP-39 words** and **Codex32**, the same; under **Add a key you have**, **Type the
 words**, **Scan a SeedQR** and **Type codex32 strings**; and under

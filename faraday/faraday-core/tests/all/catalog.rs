@@ -120,7 +120,7 @@ fn the_codex32_tile_opens_new_key_on_the_codex32_words_card() {
     use faraday_core::keygen::{Start, kstep};
     let mut app = faraday_core::testkit::started();
     app.press(Action::Nav(Screen::Catalog));
-    app.press(Action::Catalog(tile("codex32")));
+    app.press(Action::Catalog(tile("Restore from codex32 shares")));
     assert_eq!(app.screen, Screen::KeyGen);
     let k = app.keygen().unwrap();
     assert_eq!(k.start, Start::Codex32);
@@ -132,20 +132,17 @@ fn the_codex32_tile_opens_new_key_on_the_codex32_words_card() {
 }
 
 #[test]
-fn the_add_a_key_tile_opens_new_key_on_start() {
+fn the_make_a_new_key_tile_opens_new_key_on_start() {
     let mut app = faraday_core::testkit::started();
     app.press(Action::Nav(Screen::Catalog));
-    app.press(Action::Catalog(tile("Add a key")));
+    app.press(Action::Catalog(tile("Make a new key")));
     assert_eq!(app.screen, Screen::KeyGen);
     assert_eq!(
         app.keygen().unwrap().open,
         Some(faraday_core::keygen::kstep::START),
         "Start opens with nothing ticked"
     );
-    // The page is titled as the tile is, and Start's Type the words is
-    // the way to the words: one tile for both (owner, 2026-10-24).
     let _ = app.frame();
-    assert!(app.drawn_texts().iter().any(|t| t == "Add a key"));
     app.press(Action::KStart(faraday_core::keygen::Start::Words.index()));
     assert_eq!(
         app.keygen().unwrap().start,
@@ -155,6 +152,50 @@ fn the_add_a_key_tile_opens_new_key_on_start() {
         faraday_core::testkit::entry(&app).form,
         faraday_core::forms::Form::Words
     );
+}
+
+#[test]
+fn the_common_group_comes_first_with_what_a_person_comes_for() {
+    let first: Vec<&str> = TILES
+        .iter()
+        .take_while(|t| t.group == TILES[0].group)
+        .map(|t| t.name)
+        .collect();
+    assert_eq!(
+        first,
+        [
+            "Sign a transaction",
+            "Make a new wallet",
+            "Add a key",
+            "Make a new key",
+            "Check"
+        ]
+    );
+    assert_eq!(TILES[0].group, "Common");
+}
+
+#[test]
+fn the_add_a_key_tile_opens_the_page_that_takes_a_key_you_have() {
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Nav(Screen::Catalog));
+    app.press(Action::Catalog(tile("Add a key")));
+    assert_eq!(app.screen, Screen::Entry);
+}
+
+#[test]
+fn the_make_shares_and_make_parts_tiles_open_their_flows() {
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Nav(Screen::Catalog));
+    app.press(Action::Catalog(tile("Make codex32 shares")));
+    assert_eq!(app.screen, Screen::KeyGen);
+    assert_eq!(
+        app.keygen().unwrap().start,
+        faraday_core::keygen::Start::MakeCodex32
+    );
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Nav(Screen::Catalog));
+    app.press(Action::Catalog(tile("Make Seed XOR parts")));
+    assert_eq!(app.screen, Screen::Convert);
 }
 
 #[test]

@@ -146,8 +146,10 @@ pub(crate) fn pull_what(app: &Faraday, action: Action) -> Option<&'static str> {
             {
                 EN.pull_what_unlock
             }
-            Go::NewShares => EN.pull_what_make_a_key,
-            Go::NewKey | Go::AddKey(_) | Go::SeedQr | Go::Sweep => EN.pull_what_add_a_key,
+            Go::NewShares | Go::NewCodex32 => EN.pull_what_make_a_key,
+            Go::NewKey | Go::LoadKey | Go::AddKey(_) | Go::SeedQr | Go::Sweep => {
+                EN.pull_what_add_a_key
+            }
             // Sign and Decode with nothing to open: the Scan they press waits.
             Go::CheckAddress | Go::Scan => EN.pull_what_scan,
             _ => return None,

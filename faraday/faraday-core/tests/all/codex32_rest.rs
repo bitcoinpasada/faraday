@@ -243,7 +243,7 @@ fn tools_codex32_tile_reaches_make_the_rest() {
     let _ = app.frame();
     let tile = faraday_core::catalog::TILES
         .iter()
-        .position(|t| t.name == "codex32")
+        .position(|t| t.name == "Restore from codex32 shares")
         .expect("the codex32 tile");
     app.press(Action::Catalog(tile as u8));
     assert_eq!(testkit::entry(&app).form, Form::Codex32);

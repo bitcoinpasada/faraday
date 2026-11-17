@@ -886,6 +886,8 @@ COMPUTE_KINDS = {"WordsParse", "Kdf", "MasterKey", "KeyDerive", "DescriptorParse
 # The screen(s) a Tools tile (`Go::…` in faraday-core's catalog.rs) leads to.
 TILE_SCREENS = {
     "NewKey": ("KeyGen",), "NewShares": ("KeyGen",), "AddKey": ("KeyGen",),
+    "LoadKey": ("Entry",), "NewCodex32": ("KeyGen",), "MakeXor": ("Convert",),
+    "CreateWallet": ("Create",), "Check": ("Check",), "SpendBackup": ("SpendBackup",),
     "SeedQr": ("Entry",), "Explore": ("Explore",), "Bip85": ("Bip85",),
     "Convert": ("Convert",), "SignerCheck": ("SignerCheck",),
     "Vanity": ("Vanity",), "Silent": ("Silent",), "Lightning": ("Lightning",),

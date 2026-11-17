@@ -80,7 +80,8 @@ fn with_watch_only_wallet() -> Faraday {
 fn wallets_start_page_offers_the_row_and_add_a_key() {
     let app = with_single_key_wallet();
     assert!(app.offers(Action::OpenWallet(0)), "the wallet row");
-    assert!(app.offers(Action::KeyGen(None)), "Add a key");
+    assert!(app.offers(Action::Entry(None)), "Add a key");
+    assert!(app.offers(Action::KeyGen(None)), "Make a new key");
 }
 
 #[test]

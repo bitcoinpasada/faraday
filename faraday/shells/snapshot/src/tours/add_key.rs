@@ -35,7 +35,7 @@ pub(crate) fn add_key_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::Catalog));
     let codex32 = faraday_core::catalog::TILES
         .iter()
-        .position(|tile| tile.name == "codex32")
+        .position(|tile| tile.name == "Restore from codex32 shares")
         .ok_or("no codex32 tile")?;
     t.press(Action::Catalog(codex32 as u8));
     t.shot("addkey-codex32")?;

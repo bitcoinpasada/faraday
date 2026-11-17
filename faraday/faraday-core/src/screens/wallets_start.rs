@@ -85,6 +85,17 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 EN.start_add_a_key,
                 EN.start_keys_first_wallets,
                 Role::OnSurfaceVariant.paint(),
+                Some(Action::Entry(None)),
+            );
+            y += crate::compact::screen::row(
+                ui,
+                x,
+                y,
+                width,
+                Some(Icon::Keys),
+                EN.catalog_make_a_new_key,
+                EN.catalog_make_key_start_line,
+                Role::OnSurfaceVariant.paint(),
                 Some(Action::KeyGen(None)),
             );
         } else {
@@ -100,7 +111,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                         Style::Secondary,
                         Action::Nav(Screen::SpendBackup),
                     ),
-                    (EN.start_add_a_key, Style::Secondary, Action::KeyGen(None)),
+                    (EN.start_add_a_key, Style::Secondary, Action::Entry(None)),
+                    (
+                        EN.catalog_make_a_new_key,
+                        Style::Secondary,
+                        Action::KeyGen(None),
+                    ),
                 ],
             ) + 10.0;
         }
@@ -155,6 +171,17 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             EN.start_add_a_key,
             EN.start_keys_first_wallets,
             Role::OnSurfaceVariant.paint(),
+            Some(Action::Entry(None)),
+        );
+        y += crate::compact::screen::row(
+            ui,
+            x,
+            y,
+            width,
+            Some(Icon::Keys),
+            EN.catalog_make_a_new_key,
+            EN.catalog_make_key_start_line,
+            Role::OnSurfaceVariant.paint(),
             Some(Action::KeyGen(None)),
         );
         y += 8.0;
@@ -178,9 +205,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     if empty {
         let gap = 16.0;
-        // Four ways in: Create, Load or
-        // restore, Spend from a backup, and Add a key.
-        let tw = (width - 3.0 * gap) / 4.0;
+        // Five ways in: Create, Load or restore, Spend from a backup,
+        // Add a key and Make a new key.
+        let tw = (width - 4.0 * gap) / 5.0;
         let ways = [
             (
                 Icon::Flag,
@@ -204,6 +231,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 Icon::Keys,
                 EN.start_add_a_key,
                 EN.start_keys_first_wallets,
+                Action::Entry(None),
+            ),
+            (
+                Icon::Keys,
+                EN.catalog_make_a_new_key,
+                EN.catalog_make_key_start_line,
                 Action::KeyGen(None),
             ),
         ];

@@ -5,7 +5,7 @@
 **Screen:** `Catalog`
 **Key:** catalog
 
-Every flow of the app on one page, in groups of tiles, each with the standards it follows. **Find a tool: a name, a BIP number** narrows the tiles to those whose name, line, group or standards hold every word typed, and **No tool matches** shows when none does.
+Every flow of the app on one page, in groups of tiles, **Common** first (**Sign a transaction**, **Make a new wallet**, **Add a key**, **Make a new key** and **Check**), each with the standards it follows. **Find a tool: a name, a BIP number** narrows the tiles to those whose name, line, group or standards hold every word typed, and **No tool matches** shows when none does.
 
 ## Keys and seeds: making and restoring
 
@@ -13,7 +13,7 @@ Every flow of the app on one page, in groups of tiles, each with the standards i
 
 A tile that cannot open yet shows in its own line what it needs first; one that needs nothing opens its flow.
 
-**Add a key** makes a key from dice, coins, cards, hex, camera or a mix, or takes its words typed. **Scan a SeedQR** takes a standard or compact code. **SLIP-39 shares** deals a new key as m of n shares, and **Restore from SLIP-39** takes shares typed or scanned back into a key. **codex32** takes a secret or its shares typed into a key. **Seed XOR** combines parts into a key. **My seed makes my wallet** takes a seed's words and passphrase and shows its fingerprint, an account's xpub and first addresses, to hold against a wallet app. **Sweep a private key** moves a paper wallet's or a WIF key's coins to a wallet; Practice sweeps no private key.
+**Scan a SeedQR** takes a standard or compact code. **SLIP-39 shares** deals a new key as m of n shares, and **Restore from SLIP-39** takes shares typed or scanned back into a key. **Restore from codex32 shares** and **Restore from Seed XOR parts** take them typed into a key; **Make codex32 shares** deals a new key as shares, and **Make Seed XOR parts** splits a loaded key. **My seed makes my wallet** takes a seed's words and passphrase and shows its fingerprint, an account's xpub and first addresses, to hold against a wallet app. **Sweep a private key** moves a paper wallet's or a WIF key's coins to a wallet; Practice sweeps no private key.
 
 ## Keys and seeds: working with a key
 
@@ -27,15 +27,15 @@ A tile that cannot open yet shows in its own line what it needs first; one that 
 
 **Key:** catalog.wallets
 
-**Single-key wallet** makes a native SegWit, Taproot, nested or legacy wallet. **Multisig** is k of n keys, **Taproot multisig** is k of n in one script leaf, and **MuSig2** is all keys with one signature on chain; each opens Make a new wallet at that kind. **Miniscript and inheritance** loads one from its descriptor.
+**Single-key wallet** makes a native SegWit, Taproot, nested or legacy wallet. **Multisig** is k of n keys, **Taproot multisig** is k of n in one script leaf, and **MuSig2** is all keys with one signature on chain; each opens Make a new wallet at that kind.
 
-**Restore an existing wallet** takes a descriptor, a wallet file, a BIP 129 record or split sheets. **Back up a wallet** writes seeds by hand, on sheets, in envelopes or as codex32 shares, and reads **Load a wallet first** until one is loaded. **Read a Bitcoin Core wallet** reads and checks a wallet.dat, and reads **Copy a wallet.dat in first** until one is in Files. **Check a multisig setup** reads a descriptor, policy, setup file or wallet and shows its quorum and which key is yours.
+**Restore an existing wallet** takes a descriptor, a miniscript, a wallet file, a BIP 129 record or split sheets. **Back up a wallet** writes seeds by hand, on sheets, in envelopes or as codex32 shares, and reads **Load a wallet first** until one is loaded. **Read a Bitcoin Core wallet** reads and checks a wallet.dat, and reads **Copy a wallet.dat in first** until one is in Files. **Check a multisig setup** reads a descriptor, policy, setup file or wallet and shows its quorum and which key is yours.
 
 ## Transactions
 
 **Key:** catalog.transactions
 
-**Sign a transaction** takes a PSBT from Files or a QR code. **Nonce check** recomputes and checks every signature. **Check a signer** compares the sent and returned PSBTs, or two transactions. **Decode a transaction** shows what it spends and pays, field by field. **Decode a Lightning invoice** shows what it asks to be paid, and by whom.
+**Sign a transaction** (in Common) takes a PSBT from Files or a QR code. **Spend from a backup** spends from a stick, words or paper, step by step. **Nonce check** recomputes and checks every signature. **Check a signer** compares the sent and returned PSBTs, or two transactions. **Decode a transaction** shows what it spends and pays, field by field. **Decode a Lightning invoice** shows what it asks to be paid, and by whom.
 
 **Check an address** takes an address typed, pasted, scanned or read from a text file in Files, and searches the first 100 of each chain of the loaded wallets, then further to 1,000 or 10,000. With no key or wallet loaded it reads **Load a key or a wallet first**.
 
@@ -49,7 +49,7 @@ A tile that cannot open yet shows in its own line what it needs first; one that 
 
 **Key:** catalog.vaults-and-other-keys
 
-**Vaults** holds keys, wallets, entries and notes under passphrases. **QR vault** seals a note or a key in one QR code. **TOTP codes** shows codes from the entries in open vaults. **Diceware passphrase** is rolled with dice in Create a vault. **GPG key** makes, restores, signs, revokes and writes a paperkey. **Secure Boot keys** holds PK, KEK and db, and signs an EFI image. **KeePass export** writes a vault entry as a sealed database.
+**Vaults** holds keys, wallets, entries and notes under passphrases. **QR vault** seals a note or a key in one QR code. **TOTP codes** shows codes from the entries in open vaults. **Create a vault** makes a new vault, its passphrase rolled with dice. **GPG key** makes, restores, signs, revokes and writes a paperkey. **Secure Boot keys** holds PK, KEK and db, and signs an EFI image. **KeePass export** writes a vault entry as a sealed database.
 
 **TOTP codes**, **GPG key**, **Secure Boot keys** and **KeePass export** read **Make a vault first** or **Unlock a vault first** while no vault is open, and still open, to lead to that.
 
