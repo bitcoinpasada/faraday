@@ -162,8 +162,11 @@ impl SpendState {
     }
 
     /// What Review shows of the inspection, as it is now: every warning
-    /// (its level and kind) but a MuSig2 nonce replaced, and the keys that
-    /// take part. Signatures and nonces a Collect adds are in none of it.
+    /// (its level, kind and detail, so the output or input it is about) but
+    /// a MuSig2 nonce replaced, and the keys that take part. Valid
+    /// signatures and nonces a Collect adds are in none of it; a signature
+    /// that fails, cannot be checked or uses another sighash brings its
+    /// warning.
     pub(crate) fn review_shown(&self) -> ReviewShown {
         ReviewShown {
             warnings: self
