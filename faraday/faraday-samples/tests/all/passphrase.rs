@@ -364,11 +364,9 @@ fn in_demo_the_unlock_passphrase_is_empty_and_offers_faraday() {
         "{:?}",
         app.vaults().unlock_error
     );
-    assert_eq!(
-        app.sheet,
-        Some(Sheet::UnlockLoad),
-        "it unlocks to the Load sheet"
-    );
+    // The sample vault holds one wallet: it loads with no sheet.
+    assert_eq!(app.sheet, None, "no Load sheet");
+    assert!(!app.session.wallets.is_empty(), "its wallet is loaded");
 }
 
 #[test]

@@ -3,9 +3,12 @@
 //! {vault}** lists a card per wallet the vault holds, with the seeds of it
 //! the vault keeps, and a Keys card for the keys in none of its wallets.
 //! Each card starts ticked from its record's Load at unlock; ticks changed
-//! here are for this unlock only. **Load ticked** loads what is ticked and
-//! not loaded already; **Not now** loads nothing and leaves the vault
-//! open. An unlock a flow asked for returns to its flow and shows none.
+//! here are for this unlock only. The main button says what it loads
+//! (**Load 2 wallets and 1 key**) and loads what is ticked and not loaded
+//! already; **Not now** loads nothing and leaves the vault open. An unlock
+//! a flow asked for returns to its flow and shows none; a vault of one
+//! wallet and nothing else loads it with its seeds at once, the sheet
+//! showing until they are loaded.
 //!
 //! What the sheet shows is worked out on [`super::Vaults`] here; its
 //! presses are the vault's glue, in `vault/mod.rs`.
@@ -33,7 +36,8 @@ pub struct LoadSheet {
     /// How many wallets the session held before: the landing after it
     /// counts what this unlock, or the import, brought.
     pub wallets_before: usize,
-    /// The wallet records and Keys-card key records ticked.
+    /// The wallet records and Keys-card key records ticked, and the key
+    /// records of seeds on a wallet's card ticked alone (Check a signer's).
     pub ticked: BTreeSet<usize>,
     /// The passphrase chosen for a key record that has several kept for
     /// it: the record's place, and which of them (from 0). Absent: the
@@ -43,6 +47,9 @@ pub struct LoadSheet {
     /// when the sheet opens (a fingerprint each costs a key stretch);
     /// the view only reads it. Records with one or none are absent.
     pub passphrases: BTreeMap<usize, Vec<String>>,
+    /// What loads with no press once the unlock is known not to be a
+    /// flow's: the vault's one wallet and its seeds. Empty: the sheet asks.
+    pub auto: BTreeSet<usize>,
 }
 
 /// A seed of a wallet card, or a key of the Keys card.
@@ -126,13 +133,19 @@ pub struct LoadView {
     pub cards: Vec<LoadCard>,
     /// The Keys card: keys in no wallet of the vault.
     pub keys: Vec<LoadSeed>,
+    /// The main button's label, worked out with the view: "Load 2
+    /// wallets and 1 key"; "Load ticked" while nothing is ticked.
+    pub load_label: String,
 }
 
 impl LoadView {
     /// Something is ticked: Load ticked is enabled, and the line above
     /// the cards reads Unselect all.
     pub fn any_ticked(&self) -> bool {
-        self.cards.iter().any(|c| c.ticked) || self.keys.iter().any(|k| k.ticked)
+        self.cards
+            .iter()
+            .any(|c| c.ticked || c.seeds.iter().any(|s| s.ticked))
+            || self.keys.iter().any(|k| k.ticked)
     }
 
     /// Something can be ticked: not everything is loaded.
@@ -150,6 +163,28 @@ impl LoadView {
             .collect()
     }
 
+    /// The Load button's label: what ticking loads, "Load 2 wallets and
+    /// 1 key"; "Load ticked" while nothing is ticked.
+    fn label(&self) -> String {
+        let set = self.to_load();
+        if set.is_empty() {
+            return EN.load_sheet_load_ticked.to_string();
+        }
+        let wallets = self.cards.iter().filter(|c| c.ticked && !c.loaded).count();
+        let keys = set.len().saturating_sub(wallets);
+        let n =
+            |k: usize, one: &str, many: &str| format!("{k} {}", if k == 1 { one } else { many });
+        let wallets =
+            (wallets > 0).then(|| n(wallets, EN.load_sheet_wallet, EN.load_sheet_wallets));
+        let keys = (keys > 0).then(|| n(keys, EN.load_sheet_key, EN.load_sheet_keys));
+        let said = match (wallets, keys) {
+            (Some(w), Some(k)) => fill(EN.load_sheet_and, &[&w, &k]),
+            (Some(one), None) | (None, Some(one)) => one,
+            (None, None) => String::new(),
+        };
+        fill(EN.load_sheet_load_count, &[&said])
+    }
+
     /// The records Load ticked loads: each ticked card's wallet and seeds,
     /// each ticked key, only what the session does not hold, each once.
     pub(crate) fn to_load(&self) -> BTreeSet<usize> {
@@ -159,6 +194,15 @@ impl LoadView {
                 set.insert(c.record);
             }
             set.extend(c.seeds.iter().filter(|s| !s.loaded).map(|s| s.record));
+        }
+        // A seed ticked alone on an unticked card.
+        for c in self.cards.iter().filter(|c| !c.ticked) {
+            set.extend(
+                c.seeds
+                    .iter()
+                    .filter(|s| s.ticked && !s.loaded)
+                    .map(|s| s.record),
+            );
         }
         set.extend(
             self.keys
@@ -399,7 +443,9 @@ impl super::Vaults {
                         .filter(|o| o.record != w.record && in_wallet(&k.1, o))
                         .map(|o| o.name.clone())
                         .collect();
-                    seed(k, also)
+                    let mut s = seed(k, also);
+                    s.ticked = !s.loaded && ticked.contains(&s.record);
+                    s
                 })
                 .collect();
             let total = w.fps.len();
@@ -455,6 +501,7 @@ impl super::Vaults {
         .map(|(k, one, many)| n(k, one, many))
         .collect();
         view.count = parts.join(" · ");
+        view.load_label = view.label();
         view
     }
 }

@@ -132,7 +132,7 @@ fn wallets_pressed() -> Faraday {
         .with(field::WALLET_NAME, b"Spending");
     let files = vec![(
         faraday_text::Text::of("main.kdbx"),
-        vault_of("Main", PHRASE, 1, vec![key, wallet]).into(),
+        vault_of("Main", PHRASE, 1, vec![key, wallet, key_record(1)]).into(),
     )];
     let mut app = testkit::started();
     // The test wallet is a testnet one.
@@ -538,6 +538,9 @@ fn wallet_and_key() -> Vec<faraday_vault::Record> {
     vec![
         wallet_record(&testkit::kits()[1].descriptor, b"Spending"),
         key_record(0),
+        // A key in no wallet: the vault holds more than the one wallet, so
+        // the unlock asks what to load.
+        key_record(1),
     ]
 }
 
@@ -653,7 +656,9 @@ fn backup_pressed() -> Faraday {
     let mut app = restart(&mut shell, &mut app);
     write_sticks(&mut shell, &mut app, &["S1", "S2", "S3"]);
     assert_eq!(step(&app), Step::Done);
-    // The vault is opened on Vaults, its Load sheet left unpressed.
+    // The vault opened on Vaults loads its one wallet at once; the keys are
+    // then taken out of the session, as a person's earlier Lock of them
+    // leaves a vault still open.
     faraday_core::testkit::vault_speed(&mut app, Some(180));
     app.press(Action::Nav(faraday_core::Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
@@ -666,6 +671,8 @@ fn backup_pressed() -> Faraday {
         "{:?}",
         app.vaults().unlock_error
     );
+    app.session.keys.clear();
+    app.session.wallets.clear();
     assert!(app.session.keys.is_empty());
     testkit::hold_worker();
     testkit::press_on_worker(&mut app, Action::Flow(F::UnlockDone(0)));

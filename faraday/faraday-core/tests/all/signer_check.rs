@@ -491,10 +491,8 @@ fn a_vault_holding_the_key_loads_it_and_the_same_press_checks_again() {
     assert_ne!(app.screen, Screen::SignerCheck);
     app.press(Action::Vault(V::Open(0)));
     type_and_unlock(&mut app);
-    // The vault's Load sheet, the key ticked: nothing is loaded yet.
-    assert_eq!(app.sheet, Some(Sheet::UnlockLoad));
-    assert_eq!(app.session.keys.len(), 0);
-    app.press(Action::Vault(V::LoadTicked));
+    // The seed the check asked for loads with no sheet.
+    assert_ne!(app.sheet, Some(Sheet::UnlockLoad));
     for t in 1..20u64 {
         if !app.session.keys.is_empty() {
             break;
@@ -506,6 +504,67 @@ fn a_vault_holding_the_key_loads_it_and_the_same_press_checks_again() {
     }
     testkit::keep_published(&mut app);
     assert_eq!(app.session.keys.len(), 1);
+    checked_with_the_key(&mut app);
+}
+
+/// A vault file holding the "abandon" key and a wallet over it, the key
+/// in the wallet's card and not on the Keys card.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the test builds a vault record from words (docs/KEYS.md)"
+)]
+fn vault_with_abandon_in_a_wallet() -> Vec<(String, Vec<u8>)> {
+    use faraday_bip::bip39::{Language, Mnemonic};
+    use faraday_vault::Record;
+    use faraday_vault::records::{field, kind, words_payload};
+    use std::str::FromStr;
+    let c = testkit::compute();
+    let mut keys = testkit::started();
+    let fp = keys.session.keys.add_words(&c, ABANDON, "", None).unwrap();
+    let path = faraday_bip::bitcoin::bip32::DerivationPath::from_str("m/84'/1'/0'").unwrap();
+    let at = keys.session.keys.position(fp).unwrap();
+    let x = keys.session.keys.xpub_at(&c, at, &path).unwrap();
+    let hex = String::from_utf8_lossy(&fp.to_hex()).into_owned();
+    let descriptor = format!("wpkh([{hex}/84'/1'/0']{x}/<0;1>/*)");
+    let words = Mnemonic::parse(&c, Language::English, ABANDON).unwrap();
+    let records = vec![
+        Record::new(kind::KEY).with(field::KEY, &words_payload(&words)),
+        Record::new(kind::WALLET)
+            .with(field::WALLET, descriptor.as_bytes())
+            .with(field::WALLET_NAME, b"Savings"),
+    ];
+    let file = crate::common::vault_of("Cellar", testkit::VAULT_PASSPHRASE, 0x5d, records);
+    vec![("vault.kdbx".to_string(), file)]
+}
+
+/// The seed a check asks for belongs to a wallet of the vault: it alone
+/// loads, with no sheet, and not the wallet.
+#[test]
+fn a_seed_of_a_vault_wallet_loads_alone_and_the_wallet_stays_unloaded() {
+    use crate::vault_keys::{device, type_and_unlock};
+    use faraday_core::vault::VaultAction as V;
+    let mut inbox = vault_with_abandon_in_a_wallet();
+    inbox.push(("random.psbt".into(), vector("signer-random-nonce.psbt")));
+    inbox.push(("sent.psbt".into(), vector("demo-regtest.psbt")));
+    let mut app = device(inbox);
+    open(&mut app);
+    open_seed_sheet(&mut app);
+    app.press(Action::SignerCheck(SignerPress::SeedVault));
+    app.press(Action::Vault(V::Open(0)));
+    type_and_unlock(&mut app);
+    assert_ne!(app.sheet, Some(Sheet::UnlockLoad));
+    for t in 1..20u64 {
+        if !app.session.keys.is_empty() {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick {
+            now_ms: 100_000 + t * 1000,
+        });
+    }
+    testkit::keep_published(&mut app);
+    assert_eq!(app.session.keys.len(), 1);
+    assert!(app.session.wallets.is_empty());
     checked_with_the_key(&mut app);
 }
 

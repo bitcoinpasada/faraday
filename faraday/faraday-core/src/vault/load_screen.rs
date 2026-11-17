@@ -1,6 +1,6 @@
 //! The Load sheet an unlock shows (`vault_load`, F62): a card per wallet
 //! the vault holds with the seeds of it there, the Keys card, Unselect all
-//! or Select all over them, Not now and Load ticked at its foot; and the
+//! or Select all over them, Not now and the Load button at its foot; and the
 //! older-copy dialog an unlock stops at before it (`older_copy`).
 
 use crate::drawing::View;
@@ -72,6 +72,7 @@ fn body(ui: &mut Ui, x: f32, y: f32, w: f32, view: &LoadView, may: bool) -> f32 
     if !view.keys.is_empty() {
         cy += keys_card(ui, x, cy, w, &view.keys) + 10.0;
     }
+    let label = &view.load_label;
     cy += buttons(
         ui,
         x,
@@ -79,11 +80,7 @@ fn body(ui: &mut Ui, x: f32, y: f32, w: f32, view: &LoadView, may: bool) -> f32 
         w,
         &[
             (EN.load_sheet_not_now, Style::Secondary, va(V::LoadNotNow)),
-            (
-                EN.load_sheet_load_ticked,
-                Style::Primary.when(any && may),
-                va(V::LoadTicked),
-            ),
+            (label, Style::Primary.when(any && may), va(V::LoadTicked)),
         ],
     );
     cy - y

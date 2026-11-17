@@ -410,6 +410,11 @@ macro_rules! words_vault {
     load_sheet_not_now: "Not now",
     /// The Load sheet's button that loads what is ticked.
     load_sheet_load_ticked: "Load ticked",
+    /// The Load sheet's button once something is ticked. `{}`: what it
+    /// loads, "2 wallets and 1 key".
+    load_sheet_load_count: "Load {}",
+    /// Two counts joined, "2 wallets and 1 key". `{}`: each.
+    load_sheet_and: "{} and {}",
     /// Title of the sheet of seeds an open vault keeps with no
     /// passphrase, from a wallet short of a key (F62).
     pass_seeds_title: "Seeds with no passphrase stored",

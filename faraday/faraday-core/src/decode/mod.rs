@@ -1104,8 +1104,8 @@ impl Faraday {
         let c = self.compute();
         let slot = wallet::Slot::bare(fp);
         if let Some((v, rec)) = self.vault_key_for(&c, &slot) {
-            // The vault's Load sheet, the seed ticked; the sheet's own
-            // press loads it and the Result checks again.
+            // The seed loads with no sheet, or the vault's Load sheet
+            // comes up with it ticked; the Result checks again after.
             if !self.signer_load_sheet(v, rec) {
                 self.vault_act(V::LoadKeyOf(fp.0, SlotOf::Bare));
             }

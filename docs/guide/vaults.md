@@ -27,6 +27,8 @@ If the copy you unlock has a lower count than one seen since power-on, or than o
 
 **Key:** vaults.load
 
-Unlocking a vault that holds wallets or keys the session does not have opens **Load from** with the vault's name: a card for each wallet with its seeds, and **Keys** for those in no wallet. **Load ticked** loads what is ticked; **Not now** loads nothing and leaves the vault open.
+Unlocking a vault that holds wallets or keys the session does not have opens **Load from** with the vault's name: a card for each wallet with its seeds, and **Keys** for those in no wallet. The filled button says what it loads, as in **Load 2 wallets and 1 key**; **Not now** loads nothing and leaves the vault open. A load that brings keys and no wallet leaves you on Wallets, where keys without a wallet are listed.
 
-What is ticked at first follows each record's **Load at unlock**. **Select all** and **Unselect all** tick every card or none. A flow that asked for the unlock loads what it needs instead.
+A vault of one wallet set to load at unlock, and nothing else, loads it with no answer and opens it.
+
+What is ticked at first follows each record's **Load at unlock**. **Select all** and **Unselect all** tick every card or none. A flow or a tool that asked for the unlock loads only what it needs, with no sheet, and goes back to where it was.

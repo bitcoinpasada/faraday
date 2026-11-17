@@ -199,7 +199,7 @@ fn from_the_vaults_tab_the_sheet_ticks_by_setting_and_load_ticked_loads_that() {
         "Load from Cellar",
         "Unselect all",
         "Not now",
-        "Load ticked",
+        "Load 2 wallets and 3 keys",
         "Watch-only here",
         "also in Spending",
     ] {
@@ -210,6 +210,94 @@ fn from_the_vaults_tab_the_sheet_ticks_by_setting_and_load_ticked_loads_that() {
     assert_eq!((app.screen, app.sheet), (Screen::Wallets, None));
     assert_eq!(wallet_names(&app), ["Savings", "Summer"]);
     assert_eq!(key_labels(&app), ["Loose A", "Test key 1", "Test key 2"]);
+}
+
+/// A vault of one wallet and the seed it keeps, nothing else.
+fn one_wallet_vault() -> Vec<u8> {
+    let records = vec![
+        test_key(0),
+        wallet(
+            "Summer",
+            &format!("wpkh({}/<0;1>/*)", testkit::key(0, "m/84'/1'/0'")),
+        ),
+    ];
+    crate::common::vault_of("Cellar", PHRASE, 0x5d, records)
+}
+
+/// A vault holding one wallet and nothing else loads it without the
+/// sheet and lands on the wallet.
+#[test]
+fn a_vault_of_one_wallet_loads_without_the_sheet_and_lands_on_it() {
+    let mut app = device(vec![("cellar.kdbx".into(), one_wallet_vault())]);
+    unlock_on_vaults(&mut app, "cellar.kdbx", PHRASE);
+    for t in 1..60u64 {
+        if !app.session.wallets.is_empty() {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick {
+            now_ms: 100_000 + t * 1000,
+        });
+    }
+    assert_eq!((app.screen, app.sheet), (Screen::Wallets, None));
+    assert_eq!(wallet_names(&app), ["Summer"]);
+    assert_eq!(key_labels(&app), ["Test key 1"]);
+}
+
+/// A vault of one wallet set not to load at unlock asks: the sheet is
+/// up with nothing ticked, and nothing loads.
+#[test]
+fn a_vault_of_one_wallet_set_not_to_load_at_unlock_shows_its_sheet() {
+    let records = vec![
+        test_key(0),
+        not_at_unlock(wallet(
+            "Summer",
+            &format!("wpkh({}/<0;1>/*)", testkit::key(0, "m/84'/1'/0'")),
+        )),
+    ];
+    let file = crate::common::vault_of("Cellar", PHRASE, 0x5d, records);
+    let mut app = device(vec![("cellar.kdbx".into(), file)]);
+    unlock_on_vaults(&mut app, "cellar.kdbx", PHRASE);
+    for t in 1..10u64 {
+        let _ = app.frame();
+        app.event(Event::Tick {
+            now_ms: 100_000 + t * 1000,
+        });
+    }
+    assert_eq!(app.sheet, Some(Sheet::UnlockLoad));
+    assert!(!view(&app).any_ticked());
+    assert!(app.session.wallets.is_empty() && app.session.keys.is_empty());
+}
+
+/// A vault of keys alone shows the sheet, and what it loads lands on
+/// Wallets start, where keys without a wallet are listed.
+#[test]
+fn keys_alone_land_on_wallets_start() {
+    let records = vec![
+        test_key(0),
+        loose_key(
+            "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+            "Loose A",
+        ),
+    ];
+    let vault = crate::common::vault_of("Cellar", PHRASE, 0x5d, records);
+    let mut app = device(vec![("cellar.kdbx".into(), vault)]);
+    unlock_on_vaults(&mut app, "cellar.kdbx", PHRASE);
+    assert_eq!(app.sheet, Some(Sheet::UnlockLoad));
+    let _ = app.frame();
+    assert!(app.drawn_texts().iter().any(|t| t == "Load 2 keys"));
+    app.press(Action::Vault(V::LoadTicked));
+    for t in 1..60u64 {
+        if app.session.keys.len() == 2 {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick {
+            now_ms: 100_000 + t * 1000,
+        });
+    }
+    assert_eq!((app.screen, app.sheet), (Screen::WalletsStart, None));
+    assert!(app.session.wallets.is_empty());
 }
 
 /// Not now loads nothing, the vault stays open on Files, and the Vaults
@@ -302,8 +390,8 @@ fn a_key_in_no_wallet_follows_its_own_setting() {
     app.press(Action::Vault(V::LoadTicked));
     assert!(app.session.wallets.is_empty());
     assert_eq!(key_labels(&app), ["Loose A", "Loose B"]);
-    // Load ticked with only keys stays on Files.
-    assert_eq!((app.screen, app.sheet), (Screen::Files, None));
+    // Load with only keys lands on Wallets start.
+    assert_eq!((app.screen, app.sheet), (Screen::WalletsStart, None));
 }
 
 /// What the session holds already is Loaded on the sheet: a card with

@@ -1177,6 +1177,7 @@ impl Faraday {
             self.sheet = None;
         }
         copy::unlocked(self);
+        self.load_sheet_auto();
     }
 
     /// Costs what `vault_gather_codex32` and the Load sheet cost. The rest
@@ -3493,6 +3494,33 @@ impl Faraday {
             .filter(|s| !s.passphrases.is_empty())
             .map(|s| (s.record, s.passphrases.clone()))
             .collect();
+        // One wallet and nothing else, and it loads at unlock: nothing to
+        // choose, so it loads without the sheet and lands on the wallet.
+        let alone = first.cards.len() == 1
+            && first.keys.is_empty()
+            && first
+                .cards
+                .iter()
+                .all(|c| c.seeds.iter().all(|s| s.passphrases.len() < 2))
+            && self.may_load_keys()
+            && self.vault_musig_one_seed(v).is_empty();
+        // A seed on a wallet's card has no tick of its own here: it loads
+        // with its card.
+        let on_card: BTreeSet<usize> = first
+            .cards
+            .iter()
+            .flat_map(|c| c.seeds.iter().map(|s| s.record))
+            .collect();
+        let with_card: BTreeSet<usize> = first
+            .cards
+            .iter()
+            .filter(|c| c.ticked)
+            .flat_map(|c| c.seeds.iter().map(|s| s.record))
+            .collect();
+        let mut set = first.to_load();
+        set.retain(|r| !on_card.contains(r) || with_card.contains(r));
+        let mut ticked = ticked;
+        ticked.retain(|r| !on_card.contains(r));
         let Some(open) = self.vaults.open.get(v) else {
             return false;
         };
@@ -3504,15 +3532,36 @@ impl Faraday {
             ticked,
             choice: Default::default(),
             passphrases,
+            auto: if alone { set } else { BTreeSet::new() },
         });
         self.sheet = Some(Sheet::UnlockLoad);
         true
     }
 
+    /// Costs what `load_job::start` costs. The unlock is over and was no
+    /// flow's, so its Load sheet is still up: a vault of one wallet and
+    /// nothing else loads it now, without the sheet being answered (the
+    /// sheet shows while its seeds load).
+    fn load_sheet_auto(&mut self) {
+        if self.sheet != Some(Sheet::UnlockLoad) {
+            return;
+        }
+        let Some(s) = self.vaults.state.load.as_mut() else {
+            return;
+        };
+        let set = std::mem::take(&mut s.auto);
+        let Some(v) = self.vaults.load_sheet_vault() else {
+            return;
+        };
+        if !set.is_empty() {
+            load_job::start(self, v, &set);
+        }
+    }
+
     /// Open vault `v` holds the seed in key record `rec` that Check a
-    /// signer asked for: the Load sheet comes up with that seed ticked, as
-    /// its own card's tick where the vault keeps it on a Keys card, or its
-    /// wallet's where it is a wallet's seed. Returns false, showing
+    /// signer asked for: it loads with no sheet where it keeps one
+    /// passphrase or none; else the Load sheet comes up with that seed
+    /// ticked alone, on its wallet's card too. Returns false, showing
     /// nothing, when the sheet has nothing to tick for it.
     pub(crate) fn signer_load_sheet(&mut self, v: usize, rec: usize) -> bool {
         let c = self.compute();
@@ -3529,12 +3578,42 @@ impl Faraday {
             .or_else(|| {
                 view.cards
                     .iter()
-                    .find(|c| !c.done && c.seeds.iter().any(|s| s.record == rec && !s.loaded))
-                    .map(|c| c.record)
+                    .filter(|c| !c.done)
+                    .flat_map(|c| c.seeds.iter())
+                    .find(|s| s.record == rec && !s.loaded)
+                    .map(|s| s.record)
             });
         let Some(tick) = tick else {
             return false;
         };
+        // Only the seed the check asked for loads, with no sheet: where
+        // it keeps one passphrase or none, and keys may load.
+        let asked = view
+            .keys
+            .iter()
+            .chain(view.cards.iter().flat_map(|c| c.seeds.iter()))
+            .find(|s| s.record == rec);
+        if self.may_load_keys() && asked.is_some_and(|s| s.passphrases.len() < 2) {
+            let then: load_job::Then = Box::new(|app, keys, _| {
+                let counts = (keys > 0).then(|| {
+                    Text::fill(
+                        EN.vaults_loaded,
+                        &[
+                            &Text::num(keys as u64),
+                            (if keys == 1 {
+                                EN.vaults_seed_inline
+                            } else {
+                                EN.vaults_seeds
+                            }),
+                        ],
+                    )
+                });
+                app.vault_loaded_toast(counts);
+                app.signer_check_sync();
+            });
+            load_job::start_then(self, v, &BTreeSet::from([rec]), then);
+            return true;
+        }
         let passphrases = view
             .cards
             .iter()
@@ -3554,6 +3633,7 @@ impl Faraday {
             ticked: BTreeSet::from([tick]),
             choice: Default::default(),
             passphrases,
+            auto: BTreeSet::new(),
         });
         self.sheet = Some(Sheet::UnlockLoad);
         true
@@ -3588,10 +3668,24 @@ impl Faraday {
                 if !view.tickable_records().contains(&r) {
                     return;
                 }
-                if let Some(s) = self.vaults.state.load.as_mut()
-                    && !s.ticked.remove(&r)
-                {
-                    s.ticked.insert(r);
+                // A card's own tick replaces its seeds' ticks alone.
+                let own: Vec<usize> = view
+                    .cards
+                    .iter()
+                    .filter(|c| c.record == r)
+                    .flat_map(|c| c.seeds.iter().map(|s| s.record))
+                    .collect();
+                let was = view.cards.iter().any(|c| c.record == r && c.ticked)
+                    || view.keys.iter().any(|k| k.record == r && k.ticked);
+                if let Some(s) = self.vaults.state.load.as_mut() {
+                    for o in own {
+                        s.ticked.remove(&o);
+                    }
+                    if was {
+                        s.ticked.remove(&r);
+                    } else {
+                        s.ticked.insert(r);
+                    }
                 }
             }
             VaultAction::LoadPassphrase(r, n) => {
@@ -3609,9 +3703,7 @@ impl Faraday {
                 let all = view.tickable_records();
                 if let Some(s) = self.vaults.state.load.as_mut() {
                     if view.any_ticked() {
-                        for r in all {
-                            s.ticked.remove(&r);
-                        }
+                        s.ticked.clear();
                     } else {
                         s.ticked.extend(all);
                     }
@@ -3627,7 +3719,7 @@ impl Faraday {
                 set.extend(self.vault_musig_one_seed(v));
                 load_job::start(self, v, &set);
             }
-            VaultAction::LoadNotNow => self.load_sheet_close(v),
+            VaultAction::LoadNotNow => self.load_sheet_close(v, false),
             _ => {}
         }
     }
@@ -3654,13 +3746,14 @@ impl Faraday {
         if wallets == 0 {
             self.vault_loaded_toast(counts);
         }
-        self.load_sheet_close(v);
+        self.load_sheet_close(v, wallets == 0 && keys > 0);
     }
 
     /// The sheet is done with: the boot import goes on to its next vault
     /// or lands, as F60 has it; an unlock from the Vaults tab lands on
-    /// Wallets when wallets loaded, else stays on Files.
-    fn load_sheet_close(&mut self, v: usize) {
+    /// Wallets when wallets loaded, on Wallets start when only keys did
+    /// (`keys_only`, where they are listed), else stays on Files.
+    fn load_sheet_close(&mut self, v: usize, keys_only: bool) {
         let Some(s) = self.vaults.state.load.take() else {
             return;
         };
@@ -3681,6 +3774,10 @@ impl Faraday {
                 self.screen = Screen::Files;
             }
             self.unlock_landed(s.wallets_before, &file, None);
+            if keys_only {
+                self.screen = Screen::WalletsStart;
+                self.list_offset = 0.0;
+            }
         }
     }
 }

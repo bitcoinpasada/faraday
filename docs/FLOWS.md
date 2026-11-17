@@ -603,8 +603,11 @@ all** above them →
   in, then its passphrase field with **Unlock** and **Cancel** →
   **Unlock** → **Load from {vault}** (F62; none when it holds no wallet
   or key, or all are loaded): a card per wallet with its seeds there,
-  the Keys card, each ticked from its Load at unlock → **Load ticked**
-  loads what is ticked (anything loaded already, a key from a file
+  the Keys card, each ticked from its Load at unlock (a vault of one
+  wallet set to load at unlock and nothing else loads it without an answer,
+  the sheet up until its seeds are loaded, and lands on it) →
+  **Load {n} wallets and {m} keys**
+  loads what is ticked (keys alone land on Wallets start; anything loaded already, a key from a file
   among them, shows Loaded and is not loaded twice), **Not now** loads
   nothing → the next vault, or, after the last,
   Wallets, on the first wallet loaded that can sign here, with "Savings
