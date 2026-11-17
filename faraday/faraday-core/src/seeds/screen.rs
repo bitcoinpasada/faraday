@@ -337,18 +337,19 @@ pub(crate) fn path_rows(
         EN.seeds_derivation_path,
     );
     cy += ui.line_as(LABEL_L) + faraday_draw::tokens::GAP_SMALL;
+    use faraday_draw::tokens::{ICON_BUTTON, ICON_GLYPH_BUTTON as BOX, LIST_1 as ROW, TEXT_FIELD};
     let standard = s.custom.is_none();
-    ui.checkbox(x, cy + 11.0, standard, true);
+    ui.checkbox(x, cy + (ROW - BOX) / 2.0, standard, true);
     let std_path = s.kind.path_at(net, s.account);
     ui.text_mid_as(
-        (x + 30.0, cy, 40.0),
+        (x + 30.0, cy, ROW),
         LABEL_L,
         Role::OnSurface,
         EN.seeds_standard,
     );
     let pw = ui.measure_as(LABEL_L, EN.seeds_standard) + 44.0;
     ui.text_mid_as(
-        (x + pw, cy, 40.0),
+        (x + pw, cy, ROW),
         BODY_M.mono(),
         if standard {
             Role::OnSurface
@@ -357,14 +358,14 @@ pub(crate) fn path_rows(
         },
         &std_path,
     );
-    ui.press_box(x, cy, w, 40.0, sa(S::Standard));
-    cy += 44.0;
+    ui.press_box(x, cy, w, ROW, sa(S::Standard));
+    cy += ROW;
     // The account, where the kind's path has one.
     if s.kind != NewKind::MultiLegacy {
         stepper(
             ui,
             x + 30.0,
-            cy,
+            cy + (ROW - ICON_BUTTON) / 2.0,
             w - 30.0,
             EN.seeds_account,
             s.account as usize,
@@ -372,30 +373,30 @@ pub(crate) fn path_rows(
             sa(S::Account(true)),
             true,
         );
-        cy += 50.0;
+        cy += ROW;
     }
-    ui.checkbox(x, cy + 11.0, !standard, true);
+    ui.checkbox(x, cy + (ROW - BOX) / 2.0, !standard, true);
     ui.text_mid_as(
-        (x + 30.0, cy, 40.0),
+        (x + 30.0, cy, ROW),
         LABEL_L,
         Role::OnSurface,
         EN.seeds_custom_path,
     );
-    ui.press_box(x, cy, w, 40.0, sa(S::Custom));
-    cy += 44.0;
+    ui.press_box(x, cy, w, ROW, sa(S::Custom));
+    cy += ROW;
     if let Some(p) = &s.custom {
         let focused = s.focus == Some(Focus::Path);
         field(
             ui,
             x + 30.0,
-            cy,
+            cy + (ROW - TEXT_FIELD) / 2.0,
             (w - 30.0).min(420.0),
             p,
             "m/48'/0'/0'/2'",
             focused,
             sa(S::Focus(Focus::Path)),
         );
-        cy += 50.0;
+        cy += ROW;
     }
     cy - y
 }
