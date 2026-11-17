@@ -15,6 +15,8 @@ The board lists the places that will keep the backup. Each place that keeps a se
 
 The board offers ready plans: **Paper only**, **Paper and a vault** and, for a single key, **Two vaults**. A vault in one is new, made in the checklist.
 
+**Keeps a copy of the plan** leaves a vault out.
+
 **Add partial descriptors to this backup** gives every place a share of the descriptor, which is a multisig descriptor with some keys left off; **Remove partial descriptors** takes the shares off again. A place with only one share cannot work out an address.
 
 ## The plan

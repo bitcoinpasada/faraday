@@ -130,3 +130,20 @@ fn a_spot_keeping_a_string_the_set_does_not_have_is_refused() {
     assert!(read(&with(&format!("{set}\nspot place0 x0.29 x0.24"))).is_some());
     assert!(read(&with(&format!("{set}\nspot place0 x0.29 x0.10"))).is_none());
 }
+
+#[test]
+fn the_vaults_left_out_of_keeping_the_plan_read_back_and_none_adds_no_line() {
+    assert!(
+        !saved().contains("unkept"),
+        "a plan leaving none out is as before"
+    );
+    let mut a = Answers::defaults(&shape());
+    a.set_keeps_plan(2, false);
+    a.set_keeps_plan(1, false);
+    let text = String::from(&*a.to_text());
+    assert!(text.contains("unkept 1,2\n"));
+    let back = read(&text).expect("the plan reads");
+    assert!(back.keeps_plan(0) && !back.keeps_plan(1) && !back.keeps_plan(2));
+    assert_eq!(back.to_text().as_str(), text);
+    assert!(read(&with("unkept 1,x")).is_none());
+}

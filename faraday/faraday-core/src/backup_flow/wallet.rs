@@ -903,8 +903,13 @@ impl Faraday {
             };
             opens.push((v, o));
         }
-        let written: Vec<usize> = opens.iter().map(|&(_, o)| o).collect();
-        if !self.plan_save_with(&written) {
+        // A vault left out of keeping the plan is still written with its
+        // keys, but gets no plan.
+        let (kept, left): (Vec<_>, Vec<_>) =
+            opens.iter().partition(|&&(v, _)| answers.keeps_plan(v));
+        let written: Vec<usize> = kept.iter().map(|&&(_, o)| o).collect();
+        let left: Vec<usize> = left.iter().map(|&&(_, o)| o).collect();
+        if !self.plan_save_with(&written, &left) {
             return;
         }
         // The flow of this wallet's backup under way; a flow that is done

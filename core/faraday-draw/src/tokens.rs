@@ -611,6 +611,9 @@ pub const CREATE_FIELD_LABEL: f32 = 20.0;
 /// height of a board's row of boxes; the board's chips are one touch
 /// target high (`tokens::touch`).
 pub const BOARD_CHIP: f32 = 28.0;
+/// The height in dp of the label beside a checkbox under a vault of the
+/// board's list.
+pub const BOARD_CHECK_LABEL: f32 = 22.0;
 /// The gap in dp between two chips, beside or under each other.
 pub const BOARD_CHIP_GAP: f32 = GAP_SMALL;
 /// The side of a chip's marks in dp: its glyph, its × target's cross,

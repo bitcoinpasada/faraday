@@ -859,7 +859,7 @@ The vault's own values are the database's:
 | `faraday.sealed` | the time of the last seal, an RFC 3339 date-time in UTC (`2026-10-28T14:02:00Z`) by the clock of the computer that sealed it; absent when that clock was not set. |
 | `faraday.signed.{tx}` | one per transaction: `{tx}` the SHA-256 of an unsigned transaction in lower-case hex, the value the amount each input stated, in satoshis, comma-separated, in order. Written by `docs/WALLETS.md` §3.3 when that setting is on; the oldest are dropped first when the vault is full. |
 | `faraday.nonces.{tx}` | One per transaction, `{tx}` as `faraday.signed.{tx}` names it: the signatures of that transaction the nonce check found valid, each `{key}:{r}:{msg}` in lower-case hex (the x coordinate of its key, its nonce point, the message it verified against; 32 bytes each), comma-separated, with no version field. Written into every open vault at a seal when Nonce history is on (`docs/FLOWS.md`, Nonce check); a transaction checked again with new entries is written again as the newest; past 10,000 entries in a vault the oldest transaction is dropped first. Record type 17: field 1 the tx (32 bytes, required), field 2 an entry (96 bytes, required, repeated). |
-| `faraday.plan.{n}` | one per backup plan, `{n}` from 1: the plan as a TOML v1.0.0 document of the `plan` keys (`wallet`, `answers`, `places`, `holds`, `marks`), read by the TOML reader already written. `answers` carries `seals {id} {count} {digest}` for each other vault the plan places whose copy the session has seen: that vault's identifier, its seal count and the SHA-256 of the file at that count, never the plan's own vault. Never a secret. Written when the backup's checklist is made with a vault open and when the plan is changed; the next backup of that wallet starts from it. |
+| `faraday.plan.{n}` | one per backup plan, `{n}` from 1: the plan as a TOML v1.0.0 document of the `plan` keys (`wallet`, `answers`, `places`, `holds`, `marks`), read by the TOML reader already written. `answers` carries `seals {id} {count} {digest}` for each other vault the plan places whose copy the session has seen: that vault's identifier, its seal count and the SHA-256 of the file at that count, never the plan's own vault. `answers` carries one `unkept` line, the vault numbers left out of keeping the plan, only when one is (F283). Never a secret. Written when the backup's checklist is made with a vault open and when the plan is changed; the next backup of that wallet starts from it. |
 
 **An entry** is a KeePass entry with no `faraday.kind`: the person's
 password entries, whether Faraday made them or a KeePass app did.
@@ -1543,8 +1543,10 @@ unlock asks and does not refuse.
 
 **The plan's `seals` lines.** A line is written for each other
 vault, locked ones included, that has a summary and a count seen
-since power-on and whose summary's plan wallets hold this plan's wallet
-checksum (the other vault keeps a plan record for the wallet), with the
+since power-on and whose summary's wallets or plan wallets hold this plan's wallet
+checksum (the other vault keeps the wallet or a plan record for it, so a
+vault left out of keeping the plan is still checked for an older copy,
+F283), with the
 highest count and digest seen, counting a seal at this lock. None names the
 plan's own vault: it would roll back with it. A line for a copy not seen
 this session is carried as it was, and is replaced only by a higher count

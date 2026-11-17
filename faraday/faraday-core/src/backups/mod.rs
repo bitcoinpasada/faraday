@@ -1950,7 +1950,7 @@ impl Faraday {
                         at: None,
                         paper: false,
                     }]),
-                    None => None,
+                    None => Some(Self::no_plan_kept_lines()),
                 };
                 out.push(Entry {
                     sum: Text::of(sum.as_str()),
@@ -1960,6 +1960,12 @@ impl Faraday {
                     lines,
                     unlock: Some(self.locked_unlock(s)),
                 });
+            }
+        }
+        // A wallet a vault holds with no plan kept anywhere.
+        for e in out.iter_mut().filter(|e| e.lines.is_none()) {
+            if self.wallet_in_a_vault(&e.sum) {
+                e.lines = Some(Self::no_plan_kept_lines());
             }
         }
         out
@@ -2276,7 +2282,8 @@ impl Faraday {
         if self.session.wallets.get(i).is_none() {
             return Text::default();
         }
-        self.backup_line_from(self.backup_map_of(c, i))
+        let sum = Text::of(self.session.wallets[i].checksum());
+        self.backup_line_from(&sum, self.backup_map_of(c, i))
     }
 
     /// Costs what `backup_lines` costs. Loaded wallet `i`'s map as its
@@ -2334,9 +2341,8 @@ impl Faraday {
                 .take(s.wallets.len())
                 .filter(|x| !x.is_empty())
             {
-                note(sum, &|| {
-                    self.backups_area.record(sum).is_some() || s.planned.contains(sum)
-                });
+                // A vault that holds the wallet counts as backed up.
+                note(sum, &|| true);
             }
         }
         (seen.len(), without)
@@ -2344,17 +2350,47 @@ impl Faraday {
 
     /// Costs what `plan_load_of` costs. Whether [`Faraday::backup_lines`]
     /// has a map for `w`: a record of its backup, or a plan an open vault
-    /// keeps for it.
+    /// keeps for it, or a vault that holds the wallet and keeps no plan.
     fn wallet_has_map(&self, c: &Compute, w: &Wallet, sum: &str) -> bool {
         self.backups_area.record(sum).is_some()
             || self.plan_load_of(c, w, &self.plan_shape_of(w)).is_some()
+            || self.wallet_in_a_vault(sum)
+    }
+
+    /// Whether an open or known vault holds the wallet with descriptor
+    /// checksum `sum`.
+    pub(crate) fn wallet_in_a_vault(&self, sum: &str) -> bool {
+        !sum.is_empty()
+            && self
+                .vaults
+                .summaries
+                .iter()
+                .any(|s| s.sums.iter().take(s.wallets.len()).any(|x| x == sum))
+    }
+
+    /// The Backups line of a wallet a vault holds when none keeps its plan.
+    fn no_plan_kept_lines() -> Vec<Line> {
+        vec![Line {
+            place: Text::of(EN.backups_plan),
+            holds: Text::default(),
+            tag: None,
+            state: Text::of(EN.backups_plan_not_kept),
+            tone: Tone::Dim,
+            at: None,
+            paper: false,
+        }]
     }
 
     /// The wallet card's backup line: "Backup:
     /// paper ×2 checked · vault.kdbx · for the stick", or "Not backed up",
     /// from the wallet's map ([`Faraday::backup_map_of`]). Cheap.
-    pub(crate) fn backup_line_from(&self, map: Option<Vec<Line>>) -> Text {
+    pub(crate) fn backup_line_from(&self, sum: &str, map: Option<Vec<Line>>) -> Text {
         let Some(lines) = map else {
+            // A vault holds the wallet, and none keeps its plan (the
+            // person left them all out, `docs/BACKUP-FLOW.md` §15.7).
+            if self.wallet_in_a_vault(sum) {
+                return Text::of(EN.backups_no_plan_kept);
+            }
             return Text::of(EN.backups_not_backed);
         };
         let mut parts: Vec<Text> = Vec::new();

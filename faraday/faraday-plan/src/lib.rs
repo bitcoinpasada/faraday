@@ -333,6 +333,10 @@ pub struct Answers {
     /// save takes the strings of these sets, and of no other, out of a
     /// vault (§9.5).
     pub rotated: Vec<(usize, u8, [u8; 4])>,
+    /// The vaults left out of keeping a copy of the backup plan, by
+    /// vault number, ascending: a vault not named here keeps one
+    /// (`docs/BACKUP-FLOW.md` §15.7).
+    pub unkept: Vec<usize>,
 }
 
 impl Default for Answers {
@@ -357,6 +361,7 @@ impl Default for Answers {
             xor: Vec::new(),
             slip39: Vec::new(),
             rotated: Vec::new(),
+            unkept: Vec::new(),
         }
     }
 }
@@ -395,6 +400,7 @@ impl Answers {
             xor: Vec::new(),
             slip39: Vec::new(),
             rotated: Vec::new(),
+            unkept: Vec::new(),
         };
         a.pass = shape
             .seeds
@@ -590,6 +596,13 @@ impl Answers {
             self.sticks = sticks;
             kept_rows = keep;
             kept_rows.resize(rows, usize::MAX);
+            let left = std::mem::take(&mut self.unkept);
+            self.unkept = kept_rows
+                .iter()
+                .enumerate()
+                .filter(|(_, old)| left.contains(old))
+                .map(|(new, _)| new)
+                .collect();
         }
         if shape.nothing_to_vault() {
             self.seeds[seeds::VAULT] = false;
@@ -3490,6 +3503,22 @@ impl Answers {
         shape.vault_rows().max(named)
     }
 
+    /// Whether vault `v` keeps a copy of the backup plan: every vault
+    /// does unless it is left out.
+    #[must_use]
+    pub fn keeps_plan(&self, v: usize) -> bool {
+        !self.unkept.contains(&v)
+    }
+
+    /// Vault `v` set to keep a copy of the backup plan, or left out.
+    pub fn set_keeps_plan(&mut self, v: usize, keeps: bool) {
+        self.unkept.retain(|&u| u != v);
+        if !keeps {
+            self.unkept.push(v);
+            self.unkept.sort_unstable();
+        }
+    }
+
     /// Costs what `of` costs. What row `row` of place `p`'s card holds: the
     /// seeds, by place among the wallet's; `None` while it is not ticked. A
     /// vault's row is ticked while the place keeps its stick, and holds the
@@ -3536,6 +3565,7 @@ impl Answers {
     /// (`docs/BACKUP-FLOW.md` §17.12 item 7): a stick that carried only
     /// the vault goes, one with files beside it stays a stick of files.
     pub fn remove_vault(&mut self, shape: &Shape, v: usize) {
+        self.unkept.retain(|&u| u != v);
         self.edit_map(shape, |m| {
             let places = places_of(&m);
             let mut out: Vec<Spot> = m.into_iter().filter(|s| s.at != At::Vault(v)).collect();

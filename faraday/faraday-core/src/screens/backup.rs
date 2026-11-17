@@ -2009,6 +2009,10 @@ fn vault_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, v: usize) -> f32 
         });
         cy += vault_row(ui, x, cy, w, &line, has);
     }
+    // A vault left out of keeping a copy of the plan says so.
+    if !b.answers.keeps_plan(v) {
+        cy += vault_row(ui, x, cy, w, EN.vault_item_plan_not_kept, false);
+    }
     // The wallet's record loads at unlock unless turned off here (F62).
     if b.answers.wallet_in_vault(v) {
         let on = !b.no_load.contains(&v);

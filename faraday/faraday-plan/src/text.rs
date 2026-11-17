@@ -51,6 +51,18 @@ impl Answers {
             }
             out.push('\n');
         }
+        // The vaults left out of keeping a copy of the plan: a line only
+        // when one is, so a plan that leaves none out reads as before.
+        if !self.unkept.is_empty() {
+            out.push_str("unkept ");
+            for (n, v) in self.unkept.iter().enumerate() {
+                if n > 0 {
+                    out.push(',');
+                }
+                out.push_str(&Text::num(*v as u64));
+            }
+            out.push('\n');
+        }
         // Whether the board was opened for changes (§19.6).
         if self.custom {
             out.push_str("custom 1\n");
@@ -462,6 +474,15 @@ fn answer_line(a: &mut Answers, name: &str, value: &str, got: &mut Lines) -> Opt
                 .split(',')
                 .map(|p| p.parse().ok())
                 .collect::<Option<Vec<usize>>>()?;
+        }
+        "unkept" => {
+            let mut left = value
+                .split(',')
+                .map(|v| v.parse().ok().filter(|&v| v < crate::MAX_VAULTS))
+                .collect::<Option<Vec<usize>>>()?;
+            left.sort_unstable();
+            left.dedup();
+            a.unkept = left;
         }
         "pass" => {
             let (i, row) = value.split_once(' ')?;

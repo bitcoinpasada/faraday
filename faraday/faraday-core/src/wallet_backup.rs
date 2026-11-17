@@ -3643,13 +3643,19 @@ impl Faraday {
     /// refuses the whole save: a toast, nothing written in any vault, the
     /// board's note edits kept.
     pub(crate) fn plan_save(&mut self) -> bool {
-        self.plan_save_with(&[])
+        self.plan_save_with(&[], &[])
     }
 
     /// Costs what `plan_save` costs. `plan_save` for a caller that writes
     /// into open vaults `extra` as well: a refusal in one of them refuses
     /// the save too.
-    pub(crate) fn plan_save_with(&mut self, extra: &[usize]) -> bool {
+    ///
+    /// `left` are the open vaults the person left out of keeping the plan
+    /// that the caller knows of, besides those the flow names: none is
+    /// written, and the plan one already kept for the wallet goes
+    /// (`docs/BACKUP-FLOW.md` §15.7). With every vault left out nothing is
+    /// written and the save still succeeds.
+    pub(crate) fn plan_save_with(&mut self, extra: &[usize], left: &[usize]) -> bool {
         let c = self.compute();
         if self.plan_save_refused(&c, self.vaults.current, extra) {
             self.toast(EN.plan_store_other_key_order);
@@ -3666,16 +3672,24 @@ impl Faraday {
                 vaults.push(o);
             }
         }
-        let Some((&v, others)) = vaults.split_first() else {
-            return false;
-        };
-        let (wi, answers, names, extras) = (
-            b.wallet,
-            b.answers.clone(),
-            b.names.clone(),
-            b.extras.clone(),
-        );
+        // A vault left out keeps no plan, and drops one it kept.
+        let mut left_out = self.plan_left_out();
+        left_out.extend_from_slice(left);
+        vaults.retain(|o| !left_out.contains(o));
+        let wi = b.wallet;
+        let answers = b.answers.clone();
+        let names = b.names.clone();
+        let extras = b.extras.clone();
         let edits = self.backup.edits_take();
+        if let Some(w) = self.session.wallets.get(wi) {
+            for &o in &left_out {
+                self.vaults.plan_forget(&c, o, w);
+            }
+        }
+        let Some((&v, others)) = vaults.split_first() else {
+            // Every vault is left out: the plan is kept nowhere.
+            return true;
+        };
         // The notes follow the board's edits, in each vault as it keeps
         // them (`plan::notes_after`); none edited, as the record kept them.
         let notes_in = |app: &Self, o: usize| -> Option<Vec<plan::Note>> {
@@ -3726,7 +3740,22 @@ impl Faraday {
                     .filter(|&o| o != v),
             );
         }
+        let left = self.plan_left_out();
+        vaults.retain(|o| !left.contains(o));
         vaults
+    }
+
+    /// The open vaults the flow's plan leaves out of keeping a copy of
+    /// the backup plan: those of its vaults the answers name in `unkept`.
+    pub(crate) fn plan_left_out(&self) -> Vec<usize> {
+        let (Some(b), Some(i)) = (self.backup.state(), self.wallet_flow_of_backup()) else {
+            return Vec::new();
+        };
+        b.answers
+            .unkept
+            .iter()
+            .filter_map(|&pv| self.flow_open_index(i, pv))
+            .collect()
     }
 
     /// Costs what `plan_refused` costs, for each vault `plan_save_vaults`

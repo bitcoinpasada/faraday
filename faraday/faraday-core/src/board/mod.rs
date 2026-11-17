@@ -137,6 +137,9 @@ pub enum BoardPress {
     RemoveVault(usize),
     /// **Take off** under a vault that holds something.
     RemoveVaultSure(usize),
+    /// The checkbox on a vault of the list: vault `v` keeps a copy of the
+    /// backup plan, or is left out (`docs/BACKUP-FLOW.md` §15.7).
+    VaultKeeps(usize),
     /// The × on the software place's card.
     RemoveSoftware,
     /// The × on a stick box's head: stick `s` at place `p` taken off with
@@ -805,6 +808,9 @@ pub(crate) struct BoardView {
     pub room: bool,
     /// The vaults.
     pub vaults: Vec<Entry>,
+    /// For each vault of the list, by number, whether it keeps a copy of
+    /// the backup plan.
+    pub vault_keeps: Vec<(usize, bool)>,
     /// Another vault may be added: the plan holds fewer than the most.
     pub vault_room: bool,
     /// Each seed's codex32 group (`docs/CODEX32.md` §9.5).
@@ -1475,7 +1481,7 @@ impl Faraday {
                 .filter(|v| named.contains(v) || *v < shape.vaults)
                 .collect()
         };
-        let vaults = shown_vaults
+        let vaults: Vec<Entry> = shown_vaults
             .into_iter()
             .map(|v| {
                 let held: Vec<String> = plan::holds_at(&m, At::Vault(v))
@@ -1516,6 +1522,12 @@ impl Faraday {
             room: places < plan::codex32::max_places_of(&shape, &a),
             c32: codex32::groups(&shape, &a, &entry),
             parts: parts::groups(&shape, &a, &entry),
+            vault_keeps: (0..vaults.len())
+                .filter_map(|n| match vaults[n].chip.thing() {
+                    Thing::Vault(v) => Some((v, a.keeps_plan(v))),
+                    _ => None,
+                })
+                .collect(),
             vaults,
             vault_room: a.vault_room(&shape),
             software_entry: (!has_software && !locked).then(|| entry(Thing::Software)),
@@ -2178,6 +2190,13 @@ impl Faraday {
                 }
                 set(self, None);
                 self.board_change(&|a, shape| a.remove_vault(shape, v));
+            }
+            BoardPress::VaultKeeps(v) => {
+                set(self, None);
+                self.board_change(&|a, _| {
+                    let keeps = a.keeps_plan(v);
+                    a.set_keeps_plan(v, !keeps);
+                });
             }
             BoardPress::RemoveVaultSure(v) => {
                 set(self, None);

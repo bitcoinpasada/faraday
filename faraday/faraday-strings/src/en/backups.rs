@@ -91,6 +91,12 @@ macro_rules! words_backups {
     backups_part_check_detail: "Type its words",
     /// Line in `part_check_after`. `{}`: part number.
     backups_part_differs: "Does not match part {}",
+    /// The wallet card's backup line when a vault holds the wallet and no
+    /// vault keeps its backup plan.
+    backups_no_plan_kept: "Backed up · no plan kept",
+    /// State of Backups' Plan line for a wallet a vault holds when no
+    /// vault keeps its plan.
+    backups_plan_not_kept: "Not kept",
         }
     };
 }

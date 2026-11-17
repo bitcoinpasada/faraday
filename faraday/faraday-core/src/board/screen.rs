@@ -1686,6 +1686,38 @@ fn list(ui: &mut Ui, fr: &mut Frame, v: &BoardView, x: f32, y: f32, w: f32) -> f
             _ => None,
         };
         cy += entry(ui, fr, e, x, cy, w, off) + gap;
+        // A Material 3 checkbox: the vault keeps a copy of the plan,
+        // changed only while the board is open for changes.
+        if let Thing::Vault(n) = e.chip.thing()
+            && let Some(&(_, on)) = v.vault_keeps.iter().find(|(k, _)| *k == n)
+        {
+            let top = cy;
+            let live = v.custom;
+            // The box and its label sit in a row of the touch floor, so
+            // the whole row is a target.
+            let side = tokens::BOARD_CHIP + gap;
+            let row = chip_h(ui).max(tokens::BOARD_CHIP);
+            let lift = (row - tokens::BOARD_CHIP) / 2.0;
+            ui.checkbox(x, cy + lift, on, live);
+            let label = ui.fit_as(LABEL_L, EN.board_keeps_plan, w - side);
+            ui.text_mid_as(
+                (x + side, cy + lift - gap / 2.0, tokens::BOARD_CHECK_LABEL),
+                LABEL_L,
+                Role::OnSurface,
+                &label,
+            );
+            cy += row;
+            if live {
+                ui.press_box(
+                    x - gap,
+                    top,
+                    w + gap * 2.0,
+                    cy - top,
+                    Action::Board(BoardPress::VaultKeeps(n)),
+                );
+            }
+            cy += gap;
+        }
     }
     cy += faraday_ui::parts::wrap_buttons(
         ui,

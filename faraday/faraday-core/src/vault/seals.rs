@@ -331,11 +331,14 @@ impl Vaults {
             let kept = seals_in(old);
             let mut lines = kept.clone();
             for s in self.summaries.iter().filter(|s| s.id != own) {
-                let Some(e) = s
-                    .seal
-                    .as_ref()
-                    .filter(|e| e.planned.iter().any(|p| *p == *d.checksum))
-                else {
+                let Some(e) = s.seal.as_ref().filter(|e| {
+                    // A vault that keeps the wallet counts as well as
+                    // one that keeps its plan: a vault left out of
+                    // keeping the plan is still checked for an older
+                    // copy (`docs/VAULT.md` §11).
+                    e.planned.iter().any(|p| *p == *d.checksum)
+                        || s.sums.iter().any(|x| *x == *d.checksum)
+                }) else {
                     continue;
                 };
                 let new = SealLine {

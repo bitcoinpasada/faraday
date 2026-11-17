@@ -691,3 +691,72 @@ fn a_plan_placing_two_vaults_records_each_for_the_other_at_the_lock() {
     let count = |lines: &[String]| lines[0].split(' ').nth(2).unwrap().parse::<u64>().unwrap();
     assert_eq!(count(second), count(first) + 1, "{in_a:?} {in_b:?}");
 }
+
+/// The vault of `phrase` among the files a lock saved.
+fn file_of(outbox: &Files, phrase: &str) -> Vec<u8> {
+    outbox
+        .iter()
+        .find(|(_, f)| {
+            faraday_keys::vault::OpenVaults::default()
+                .unlock(&testkit::compute(), f.clone(), phrase)
+                .is_ok()
+        })
+        .map(|(_, f)| f.clone())
+        .expect("the vault was sealed")
+}
+
+/// A vault of a plan left out of keeping a copy of it holds no plan, yet
+/// the plan the other vault keeps records its seal count, so an older copy
+/// of it is named at the next power-on.
+#[test]
+fn an_older_copy_of_a_vault_left_out_of_keeping_the_plan_is_named_by_the_plan_in_the_other() {
+    use crate::backup_flow_wallet::{PHRASE, PHRASE_2};
+    let files = crate::backup_plan::two_vault_files(&[1], &[]);
+    let get = |p: &str| files.iter().find(|f| f.0 == p).unwrap().1.clone();
+    let (a1, b1) = (get(PHRASE), get(PHRASE_2));
+    // Two more locks seal both vaults again: the plan in the first now
+    // records the second at a count higher than the copy from the first.
+    let (mut a, mut b) = (a1, b1.clone());
+    for lock in 0..2 {
+        let mut app = process(
+            vec![("a.kdbx".into(), a.clone()), ("b.kdbx".into(), b.clone())],
+            Vec::new(),
+            Vec::new(),
+        );
+        unlock(&mut app, 0, PHRASE);
+        unlock(&mut app, 1, PHRASE_2);
+        testkit::settle(&mut app);
+        // The Load sheet a vault with keys opens under is put away.
+        while app.sheet.is_some() {
+            app.press(Action::Cancel);
+        }
+        // The left-out vault is renamed, as a person would: a vault nothing
+        // changed in is not written at a lock, and its count must rise.
+        app.press(Action::Vault(V::Rename));
+        type_text(&mut app, &format!("Renamed {lock}"));
+        app.press(Action::Vault(V::FormSave));
+        crate::common::top_up(&mut app);
+        app.press(Action::Lock);
+        testkit::settle(&mut app);
+        let (_, outbox, _) = saved(&mut app);
+        assert_eq!(outbox.len(), 2, "both were sealed: {:?}", app.sheet);
+        a = file_of(&outbox, PHRASE);
+        b = file_of(&outbox, PHRASE_2);
+    }
+    // The copy of the second vault from the first lock is older than the
+    // count the first vault's plan records.
+    let mut app = process(
+        vec![("a.kdbx".into(), a), ("b.kdbx".into(), b1)],
+        Vec::new(),
+        Vec::new(),
+    );
+    unlock(&mut app, 0, PHRASE);
+    app.press(Action::Vault(V::Open(1)));
+    type_text(&mut app, PHRASE_2);
+    app.press(Action::Vault(V::Unlock));
+    settle(&mut app, |a| a.sheet == Some(Sheet::OlderCopy));
+    assert_eq!(app.sheet, Some(Sheet::OlderCopy), "no older-copy dialog");
+    let _ = app.frame();
+    let texts = app.drawn_texts().plain();
+    assert!(said(&texts, "records a copy sealed"), "{texts:?}");
+}

@@ -381,6 +381,12 @@ macro_rules! words_screens_backup {
     /// A part's line at the chip's right. `{}`: how many places keep it, and
     /// that the part was not typed back here.
     board_part_count: "{} · {}",
+    /// Checkbox under each vault of the board's list: the vault keeps a
+    /// copy of the backup plan.
+    board_keeps_plan: "Keeps a copy of the plan",
+    /// Row of a vault's checklist item for a vault left out of keeping a
+    /// copy of the backup plan.
+    vault_item_plan_not_kept: "Backup plan: not kept here",
         }
     };
 }

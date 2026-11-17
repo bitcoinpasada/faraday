@@ -2542,19 +2542,57 @@ fn saving_a_vault_item_into_a_vault_that_keeps_a_shares_plan_of_the_other_order_
     assert_eq!(every_record(&app), before);
 }
 
-/// A vault the plan adds, with keys made into it from Back up, holds the
-/// plan with its places' names once the lock has written: opened alone, it
-/// shows the plan, not only the keys.
-#[test]
-fn a_vault_added_on_the_plan_holds_the_plan_with_the_place_names() {
+/// Locks a two-vault plan whose second vault is named `NAME` and keeps a
+/// copy of the plan or not, writes the sticks and opens each vault's file
+/// alone, as on another device: for each vault found, by its phrase, the
+/// place names of the plan it holds and how many keys.
+fn two_vaults_opened_alone(left_out: &[usize]) -> Vec<(&'static str, Vec<String>, usize, String)> {
+    two_vaults_unticked_after(left_out, &[])
+}
+
+/// As `two_vaults_opened_alone`, with the vaults in `later` unticked after
+/// the plan was saved, before the lock.
+fn two_vaults_unticked_after(
+    left_out: &[usize],
+    later: &[usize],
+) -> Vec<(&'static str, Vec<String>, usize, String)> {
+    use crate::common::RecordsOf as _;
+    use faraday_vault::records::{field, kind};
+    let mut found = Vec::new();
+    for (phrase, file) in two_vault_files(left_out, later) {
+        let c = faraday_core::testkit::compute();
+        let mut store = faraday_keys::vault::OpenVaults::default();
+        let (id, _) = store.unlock(&c, file, phrase).unwrap();
+        let text = |n| -> Vec<String> {
+            store
+                .contents_for_tests(id)
+                .of(kind::PLAN)
+                .flat_map(|(_, r)| {
+                    r.fields
+                        .iter()
+                        .filter(|f| f.number == n)
+                        .map(|f| String::from_utf8_lossy(&f.bytes).into_owned())
+                        .collect::<Vec<_>>()
+                })
+                .collect()
+        };
+        let names = text(field::PLAN_PLACE);
+        let answers = text(field::PLAN_ANSWERS).concat();
+        let keys = store.contents_for_tests(id).of(kind::KEY).count();
+        found.push((phrase, names, keys, answers));
+    }
+    found
+}
+
+/// The files of the vaults the lock wrote to sticks of a two-vault plan,
+/// each with the phrase that opens it.
+pub(crate) fn two_vault_files(left_out: &[usize], later: &[usize]) -> Vec<(&'static str, Vec<u8>)> {
     use crate::backup_flow_wallet::vault_place;
-    use crate::backup_flow_wallet::{PHRASE_2, kdbx, restart, write_sticks};
-    use crate::common::{Disk, RecordsOf as _, Shell, no_words, type_text, vault_off};
+    use crate::backup_flow_wallet::{PHRASE, PHRASE_2, kdbx, restart, write_sticks};
+    use crate::common::{Disk, Shell, no_words, type_text, vault_off};
     use faraday_core::backup_flow::steps::FlowAction as F;
     use faraday_core::{Action, qstep};
     use faraday_shell_api::{App, Event, Key};
-    use faraday_vault::records::{field, kind};
-    const NAME: &str = "Safe deposit";
     let mut shell = Shell::new();
     let mut app = two_of_three_with_setup(&mut shell, 1);
     if app.backup().unwrap().q != Some(qstep::BOARD) {
@@ -2569,16 +2607,25 @@ fn a_vault_added_on_the_plan_holds_the_plan_with_the_place_names() {
     vault_at(&mut app, p, 0, &[0]);
     let p = vault_place(&app, 1);
     vault_at(&mut app, p, 1, &[1, 2]);
+    for &v in left_out {
+        board(&mut app, BoardPress::VaultKeeps(v));
+    }
     vault_off(&mut app, 2);
     no_words(&mut app);
     no_paper_description(&mut app);
     app.press(Action::BChecklist);
     save_vaults(&mut app);
+    if !later.is_empty() {
+        app.press(Action::BQ(qstep::BOARD));
+        for &v in later {
+            board(&mut app, BoardPress::VaultKeeps(v));
+        }
+        app.press(Action::BChecklist);
+        save_vaults(&mut app);
+    }
     app.press(Action::BNext(Item::Envelopes));
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
-    // The sticks are written by place; each vault's file is then opened
-    // alone, as on another device.
     let n = app.flow().unwrap().slots.len();
     for k in 2..=n {
         let mut d = Disk::empty(&format!("S{k}"), "KEYSTICK");
@@ -2588,29 +2635,103 @@ fn a_vault_added_on_the_plan_holds_the_plan_with_the_place_names() {
     let disks: Vec<String> = (1..=n).map(|k| format!("S{k}")).collect();
     let disks: Vec<&str> = disks.iter().map(String::as_str).collect();
     write_sticks(&mut shell, &mut app, &disks);
-    let mut found = false;
+    let mut found = Vec::new();
     for d in &disks {
         let Some(file) = kdbx(&shell, d) else {
             continue;
         };
-        let c = faraday_core::testkit::compute();
-        let mut store = faraday_keys::vault::OpenVaults::default();
-        let Ok((id, _)) = store.unlock(&c, file, PHRASE_2) else {
-            continue;
-        };
-        found = true;
-        let names: Vec<String> = store
-            .contents_for_tests(id)
-            .of(kind::PLAN)
-            .flat_map(|(_, r)| {
-                r.fields
-                    .iter()
-                    .filter(|f| f.number == field::PLAN_PLACE)
-                    .map(|f| String::from_utf8_lossy(&f.bytes).into_owned())
-                    .collect::<Vec<_>>()
-            })
-            .collect();
-        assert!(names.iter().any(|n| n == NAME), "{d}: {names:?}");
+        for phrase in [PHRASE, PHRASE_2] {
+            let c = faraday_core::testkit::compute();
+            let mut store = faraday_keys::vault::OpenVaults::default();
+            if store.unlock(&c, file.clone(), phrase).is_ok() {
+                found.push((phrase, file.clone()));
+            }
+        }
     }
-    assert!(found, "Vault 2's file is on a stick");
+    found
+}
+
+const NAME: &str = "Safe deposit";
+
+/// With every vault left out the lock still writes every vault with its
+/// keys, and none of them holds a plan.
+#[test]
+fn with_every_vault_left_out_the_lock_writes_the_keys_and_no_plan() {
+    let found = two_vaults_opened_alone(&[0, 1]);
+    assert!(
+        found.len() >= 2,
+        "both vaults' files are on sticks: {found:?}"
+    );
+    for (_, names, keys, _) in &found {
+        assert!(names.is_empty(), "{names:?}");
+        assert!(*keys > 0, "each vault holds its keys");
+    }
+}
+
+/// A vault the plan adds, with keys made into it from Back up, holds the
+/// plan with its places' names once the lock has written: opened alone, it
+/// shows the plan, not only the keys.
+#[test]
+fn a_vault_added_on_the_plan_holds_the_plan_with_the_place_names() {
+    let found = two_vaults_opened_alone(&[]);
+    let second: Vec<_> = found
+        .iter()
+        .filter(|f| f.0 == "second vault phrase")
+        .collect();
+    assert!(!second.is_empty(), "Vault 2's file is on a stick");
+    for (_, names, ..) in second {
+        assert!(names.iter().any(|n| n == NAME), "{names:?}");
+    }
+}
+
+/// A vault left out of keeping a copy of the plan holds its keys and no
+/// plan after the lock and a restart; the vault that keeps it still does.
+#[test]
+fn a_vault_left_out_holds_its_keys_and_no_plan() {
+    let found = two_vaults_opened_alone(&[1]);
+    let second: Vec<_> = found
+        .iter()
+        .filter(|f| f.0 == "second vault phrase")
+        .collect();
+    assert!(!second.is_empty(), "Vault 2's file is on a stick");
+    for (_, names, keys, _) in second {
+        assert!(names.is_empty(), "{names:?}");
+        assert!(*keys > 0, "Vault 2 holds its keys");
+    }
+    assert!(
+        found
+            .iter()
+            .any(|(p, names, ..)| *p == "first vault phrase" && names.iter().any(|n| n == NAME)),
+        "Vault 1 keeps the plan: {found:?}"
+    );
+    // The vault left out is still checked for an older copy: the plan
+    // Vault 1 keeps records its seal.
+    assert!(
+        found
+            .iter()
+            .any(|(p, _, _, a)| *p == "first vault phrase" && a.contains("seals ")),
+        "Vault 1's plan records Vault 2's seal: {found:?}"
+    );
+}
+
+/// A vault unticked after the plan was saved loses the plan copy it held
+/// at the next lock and still holds its keys once restarted.
+#[test]
+fn a_vault_unticked_after_a_save_loses_its_plan_copy_at_the_lock_and_keeps_its_keys() {
+    let found = two_vaults_unticked_after(&[], &[1]);
+    let second: Vec<_> = found
+        .iter()
+        .filter(|f| f.0 == "second vault phrase")
+        .collect();
+    assert!(!second.is_empty(), "Vault 2's file is on a stick");
+    for (_, names, keys, _) in second {
+        assert!(names.is_empty(), "{names:?}");
+        assert!(*keys > 0, "Vault 2 holds its keys");
+    }
+    assert!(
+        found
+            .iter()
+            .any(|(p, names, ..)| *p == "first vault phrase" && names.iter().any(|n| n == NAME)),
+        "Vault 1 keeps the plan: {found:?}"
+    );
 }

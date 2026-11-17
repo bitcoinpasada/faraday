@@ -233,6 +233,31 @@ impl VaultArea {
         })
     }
 
+    /// Costs what `plan_refused` costs. Open vault `v` no longer keeps a
+    /// plan for `w`, which the person left it out of: the records it kept
+    /// for the wallet go, unless they are for the other key order `w` does
+    /// not read.
+    pub(crate) fn plan_forget(&mut self, c: &Compute, v: usize, w: &crate::wallet::Wallet) {
+        let Some(open) = self.open.get(v) else {
+            return;
+        };
+        let id = open.id;
+        if self.plan_refused(c, v, w) {
+            return;
+        }
+        let same = wallet::same_wallet(w.policy());
+        let ours: Vec<usize> = self
+            .described_of(c, id, kind::PLAN)
+            .filter(|(_, _, d)| *d.same == *same)
+            .map(|(i, _, _)| i)
+            .collect();
+        if ours.is_empty() {
+            return;
+        }
+        self.plan_take(id, &ours);
+        self.changed(id);
+    }
+
     /// Takes the plan records at `ours` out of vault `id`, returning them to
     /// put back by [`VaultArea::plan_restore`].
     pub(crate) fn plan_take(&mut self, id: VaultId, ours: &[usize]) -> Vec<Record> {

@@ -99,6 +99,11 @@ pub(crate) fn board_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     if t.app.is_compact() {
         t.press(Action::Board(B::OpenList));
         t.shot("board-narrow-add-sheet")?;
+        // The vaults of the list, each with its Keeps a copy of the plan
+        // checkbox (F283).
+        scroll_to(t, Action::Board(B::VaultKeeps(0)));
+        t.shot("board-narrow-vault-keeps")?;
+        scroll(t, -2000);
         t.press(Action::Board(B::Chip(Chip::List(Thing::Seed(2)))));
         t.shot("board-narrow-seed-menu")?;
         t.press(Action::Board(B::MenuClose));

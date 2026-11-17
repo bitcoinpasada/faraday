@@ -399,7 +399,7 @@ fn a_wallet_seen_only_in_a_locked_vaults_summary_is_listed_from_it() {
     app.press(Action::Nav(Screen::Backups));
     let texts = app.drawn_texts().plain();
     assert!(texts.contains(&name), "{name}: {texts:?}");
-    assert!(texts.iter().any(|t| t == "No backup plan"), "{texts:?}");
+    assert!(texts.iter().any(|t| t == "Not kept"), "{texts:?}");
 }
 
 #[test]
@@ -469,15 +469,34 @@ fn home_counts_a_wallet_known_only_from_a_vault_or_a_locked_vaults_summary() {
     app.press(Action::Vault(V::AddKind(1)));
     app.press(Action::Vault(V::SaveWallet(0)));
     // The wallet is loaded and in the vault: one wallet, listed once.
-    assert_eq!(counts_agree(&app), (1, 1));
+    // A vault holds the wallet: it counts as backed up, with no plan kept.
+    assert_eq!(counts_agree(&app), (1, 0));
     crate::common::lock(&mut app);
     let (inbox, outbox, kept) = saved(&mut app);
     let mut app = shown(inbox, outbox, kept);
     assert!(app.session.wallets.is_empty());
-    assert_eq!(counts_agree(&app), (1, 1));
+    assert_eq!(counts_agree(&app), (1, 0));
     app.press(Action::Nav(Screen::Home));
     let texts = app.drawn_texts();
-    assert!(texts.iter().any(|t| t == "1 not backed up"), "{texts:?}");
+    assert!(!texts.iter().any(|t| t == "1 not backed up"), "{texts:?}");
+}
+
+/// A wallet a vault holds with no plan kept in any vault (every vault left
+/// out, or the plan gone after a power-off) reads as backed up with no plan
+/// kept, not as not backed up.
+#[test]
+fn a_wallet_a_vault_holds_without_a_plan_reads_backed_up_no_plan_kept() {
+    let mut app = with_a_wallet();
+    open_a_vault(&mut app);
+    app.press(Action::Vault(V::AddKind(1)));
+    app.press(Action::Vault(V::SaveWallet(0)));
+    app.press(Action::Nav(Screen::Wallets));
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == "Backed up · no plan kept"),
+        "{texts:?}"
+    );
+    assert!(!texts.iter().any(|t| t == "Not backed up"), "{texts:?}");
 }
 
 #[test]

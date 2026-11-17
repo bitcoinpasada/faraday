@@ -1126,6 +1126,19 @@ the board list's stepper.
   holds (VAULT §7 type 11 field 3). After the lock no vault is open:
   the name fields are not drawn and places read "Place n". A name is
   never kept in the flow's state.
+- **Which vaults keep a copy of the plan** (owner, 2026-11-17; F283).
+  Every vault of the plan keeps a copy of the plan unless the person
+  leaves it out with its checkbox on the board's list; the plan records
+  only the vaults left out, one optional `unkept` line of its answers
+  (VAULT §7), and a build that does not know it reads the plan as none.
+  **Lock and write** writes the keys into every vault and the plan only
+  into those that keep it; a plan a left-out vault kept for the wallet
+  is taken out of it. Any vault may be left out, all of them included:
+  the plan then lasts until power-off, Back up starts again from the
+  standard way, Restore does not read it, and Backups and the wallet
+  card read "Backed up · no plan kept" for a wallet an open or known
+  vault holds. The checklist's vault item reads "Backup plan: not kept
+  here" for a vault left out.
 - **One way on.** In the flow, a card's Continue opens the next card,
   and The plan card's is the flow's Continue; nothing else draws one.
 
@@ -1343,7 +1356,10 @@ grouped, each a chip (DESIGN §4.17):
 - **Vaults**: one chip per vault of the plan, and **+ vault**, which
   adds one (the vault rows of §10.2: a vault the plan makes), drawn
   disabled, and taking no press, once the plan's last vault is the
-  128th (removing a vault does not renumber the others).
+  128th (removing a vault does not renumber the others). Under each
+  vault a **Keeps a copy of the plan** checkbox (Material 3's Checkbox),
+  ticked unless the person leaves the vault out; it changes only while
+  the board is open for changes (§17.6) (F283, §15.7).
 - **Watch-only software**, while the board has no software place.
 - Under Seeds, **a seed kept as codex32 strings** (a key whose secret is
   a codex32 set) is a group of its own, one chip per string by its share
