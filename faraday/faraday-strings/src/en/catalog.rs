@@ -134,6 +134,8 @@ macro_rules! words_catalog {
     catalog_sign_a_message: "Sign a message",
     /// Text in `TILES`.
     catalog_with_a_single: "With a single-key wallet's key here",
+    /// Button in `message_body`: Sign a message again, empty.
+    catalog_another_message: "Another message",
     /// Text in `TILES`.
     catalog_messages: "Messages",
     /// Text in `TILES`.

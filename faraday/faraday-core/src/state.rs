@@ -1195,6 +1195,19 @@ impl Faraday {
                 self.message_format_fit();
                 self.screen = Screen::Message;
             }
+            // From a wallet's card: that wallet is chosen, the address
+            // card done, and the message is next.
+            Action::SignMessageWith(wallet) => {
+                if self.session.message_wallets().contains(&wallet) {
+                    self.message_open_at(wallet, 0);
+                } else {
+                    self.act(Action::SignMessage);
+                }
+            }
+            Action::MDone => {
+                self.message.state = None;
+                self.back();
+            }
             Action::MScan => {
                 if let Some(m) = self.message.state.as_mut() {
                     // Keys go to the scanner's sheet, not the message behind it.

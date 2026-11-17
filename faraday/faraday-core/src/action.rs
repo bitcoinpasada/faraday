@@ -485,6 +485,11 @@ pub enum Action {
     BOmit(usize),
     /// Start signing a message.
     SignMessage,
+    /// Start signing a message with the wallet at this index, the one a
+    /// card was opened on.
+    SignMessageWith(usize),
+    /// Done: leave the signed message and go back to where it was opened.
+    MDone,
     /// Open or close a message card.
     MStep(u8),
     /// Close a message card as done and open the next.
@@ -1633,6 +1638,8 @@ impl Faraday {
             Action::Invoice(p) => invoice::act(self, p),
             Action::AddressCheck(p) => address_check::act(self, p),
             a @ (Action::SignMessage
+            | Action::SignMessageWith(..)
+            | Action::MDone
             | Action::MStep(..)
             | Action::MNext(..)
             | Action::MWallet(..)

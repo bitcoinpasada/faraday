@@ -71,3 +71,28 @@ fn a_wallet_chosen_moves_the_format_off_one_greyed_for_it() {
     app.press(Action::MWallet(wallet(&app, "Taproot")));
     assert!(bip322(&app), "BIP-137 is greyed for a taproot wallet");
 }
+
+/// The address a message is signed with, signing it from the start the
+/// way `open` does.
+fn signed_address(app: &mut faraday_core::Faraday, open: Action) -> String {
+    app.press(open);
+    testkit::message_text(app, "Faraday signs this");
+    app.press(Action::MSign);
+    let m = testkit::message(app).unwrap();
+    assert_eq!(m.error, None);
+    m.signed.as_ref().expect("signed").address.to_string()
+}
+
+#[test]
+fn sign_a_message_from_the_second_wallets_card_signs_with_the_second_wallet() {
+    let mut app = with_wallets(&["spending", "taproot"]);
+    let second = wallet(&app, "Taproot");
+    let first = signed_address(&mut app, Action::SignMessage);
+    let from_card = signed_address(&mut app, Action::SignMessageWith(second));
+    assert_ne!(first, from_card, "the first wallet is not the one signing");
+    signed_address(&mut app, Action::SignMessage);
+    app.press(Action::MWallet(second));
+    app.press(Action::MSign);
+    let m = testkit::message(&app).unwrap();
+    assert_eq!(from_card, m.signed.as_ref().unwrap().address.to_string());
+}

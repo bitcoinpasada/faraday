@@ -127,7 +127,7 @@ fn the_card_offers_sign_a_message_for_a_single_key_wallet_with_its_key_here() {
     let mut app = with_single_key_wallet();
     app.press(Action::OpenWallet(0));
     let _ = app.frame();
-    assert!(app.offers(Action::SignMessage));
+    assert!(app.offers(Action::SignMessageWith(0)));
 }
 
 #[test]
@@ -135,5 +135,5 @@ fn the_card_does_not_offer_sign_a_message_without_the_key_here() {
     let mut app = with_watch_only_wallet();
     app.press(Action::OpenWallet(0));
     let _ = app.frame();
-    assert!(!app.offers(Action::SignMessage));
+    assert!(!app.offers(Action::SignMessageWith(0)));
 }

@@ -583,7 +583,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         items.push((
             EN.wallets_sign_a_message,
             Style::Secondary,
-            Action::SignMessage,
+            Action::SignMessageWith(app.wallets.wallet()),
         ));
     }
     let end = (

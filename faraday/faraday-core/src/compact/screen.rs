@@ -420,7 +420,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         buttons.push((
             EN.compact_sign_a_message,
             Style::Secondary,
-            Action::SignMessage,
+            Action::SignMessageWith(app.wallets.wallet()),
         ));
     }
     buttons.push((

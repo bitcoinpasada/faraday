@@ -42,7 +42,12 @@ impl crate::trail::StepFlow for MessageSteps {
     }
 
     fn moves_on(&self, _: &crate::Faraday, chosen: Action) -> Option<Action> {
-        matches!(chosen, Action::MFormat(_)).then_some(Action::MNext(crate::mstep::FORMAT))
+        match chosen {
+            // A wallet chosen moves on to the message.
+            Action::MWallet(_) => Some(Action::MNext(crate::mstep::ADDRESS)),
+            Action::MFormat(_) => Some(Action::MNext(crate::mstep::FORMAT)),
+            _ => None,
+        }
     }
 }
 
@@ -200,9 +205,6 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 for (font, role, text) in rows {
                     cy += ui.wrap_as((x, cy, w), font, role, text) + 12.0;
                 }
-            }
-            if next_button(ui, x, cy, w, EN.message_continue, Action::MNext(n)) {
-                cy += 48.0;
             }
         }
         mstep::TEXT => {
@@ -385,6 +387,23 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                         &[
                             (EN.message_show_as_qr, Style::Secondary, Action::MQr),
                             (&png, Style::Secondary, Action::CodePng(Code::Message)),
+                        ],
+                    ) + 4.0;
+                    // The ending: Done, back to where the tool was opened,
+                    // and Another, the tool again, empty.
+                    cy += wrap_buttons(
+                        ui,
+                        x,
+                        cy,
+                        w,
+                        BUTTON_H,
+                        &[
+                            (
+                                EN.catalog_another_message,
+                                Style::Secondary,
+                                Action::SignMessage,
+                            ),
+                            (EN.app_done, Style::Primary, Action::MDone),
                         ],
                     ) + 4.0;
                 }
