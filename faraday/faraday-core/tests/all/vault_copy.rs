@@ -1040,8 +1040,13 @@ fn backing_out_of_create_makes_no_vault_and_nothing_waits() {
     let mut app = opened(vec![("a.kdbx", a)]);
     sheet_for(&mut app, 0, ENTRIES, 0);
     app.press(Action::Vault(V::CopyPick(0)));
+    // The form says an item waits, and its way back is the item's page.
+    let then = EN.vault_then.trim_end_matches("{}");
+    let texts = page(&mut app);
+    assert!(texts.contains(then), "{texts}");
     app.press(Action::Vault(V::Back));
     testkit::settle(&mut app);
+    assert_eq!(app.screen, Screen::VaultContents);
     assert_eq!(app.vaults().open.len(), 1);
     // A vault made by the ordinary Create takes no item.
     app.press(Action::Vault(V::Create));

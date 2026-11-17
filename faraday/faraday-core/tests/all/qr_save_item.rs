@@ -258,7 +258,6 @@ fn a_person_entry_and_a_wallet_have_no_button() {
         Record::new(kind::WALLET).with(field::WALLET, WALLET.as_bytes()),
     ]);
     let texts = item_page(&mut app, WALLETS);
-    assert!(texts.contains(EN.vault_copy_to), "{texts}");
     assert!(!texts.contains(EN.vault_qr_save), "{texts}");
 }
 

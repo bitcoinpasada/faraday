@@ -45,6 +45,13 @@ pub(crate) fn vault_show_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Vault(V::SaveToStick));
     t.shot("vault-key-save")?;
     t.press(Action::Cancel);
+    // Loaded, the seed's page leads on to its key and its other forms.
+    t.tick();
+    t.press(Action::Vault(V::Load));
+    t.tick();
+    t.tick();
+    crate::tour::scroll_to(t, Action::Vault(V::SaveToStick));
+    t.shot("vault-key-loaded")?;
     t.press(Action::Vault(V::Category(1)));
     let k = t
         .app
@@ -63,6 +70,8 @@ pub(crate) fn vault_show_tour(t: &mut Tour) -> Result<(), String> {
         })
         .ok_or("no Spending in the test vault")?;
     t.press(Action::Vault(V::Item(k)));
+    crate::tour::scroll_to(t, Action::Vault(V::SaveToStick));
+    t.shot("vault-wallet")?;
     t.press(Action::Vault(V::SaveToStick));
     t.shot("vault-wallet-save")?;
     // The wallets searched (`docs/VAULT.md` §12).
@@ -97,5 +106,9 @@ pub(crate) fn vault_show_tour(t: &mut Tour) -> Result<(), String> {
     type_text(t, "sav");
     t.shot("vault-wallets-search")?;
     type_text(t, "x");
-    t.shot("vault-wallets-search-none")
+    t.shot("vault-wallets-search-none")?;
+    // An entry saved with no title is refused on its form.
+    t.press(Action::Vault(V::AddKind(2)));
+    t.press(Action::Vault(V::FormSave));
+    t.shot("vault-entry-refused")
 }

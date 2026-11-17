@@ -192,6 +192,7 @@ fn removing_the_set_keeps_the_words_the_origin_and_the_name_through_a_reopen() {
     let before = fields(&app);
     seed_page(&mut app);
     remove(&mut app, field::KEY_CODEX32);
+    assert_eq!(app.toast_text(), Some(EN.vault_trimmed_codex32));
     let mut after = resealed(&mut app);
     let want: Vec<_> = before
         .into_iter()
@@ -338,4 +339,19 @@ fn a_change_while_the_dialog_is_up_makes_the_press_do_nothing() {
     testkit::vault_edit(&mut app, id, |s| s.insert(id, note));
     app.press(Action::Vault(V::TrimGo));
     assert_eq!(fields(&app), before);
+}
+
+#[test]
+fn a_removal_over_a_vault_that_changed_says_nothing_was_removed() {
+    let mut app = opened(vault(vec![seed(true, true)]));
+    seed_page(&mut app);
+    app.press(Action::Vault(V::TrimAsk(field::KEY_CODEX32)));
+    let id = app.vaults().open[0].id;
+    testkit::vault_edit(&mut app, id, |s| {
+        s.insert(id, Record::new(kind::NOTE).with(field::NOTE, b"x"))
+    });
+    testkit::vault_changed(&mut app, id);
+    app.press(Action::Vault(V::TrimGo));
+    assert_eq!(app.toast_text(), Some(EN.vault_trim_refused));
+    assert!(has(&app, field::KEY_CODEX32));
 }

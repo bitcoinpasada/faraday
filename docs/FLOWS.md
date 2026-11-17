@@ -932,20 +932,36 @@ item's page stacks the same nodes in that order, with no lines.
   secret typed or **Scan**; **Generate with dice** is Create a vault's,
   for its passphrases, not an entry's) → saved → the entry
   selected in the list; vault marked unsaved.
-- Entries list → **TOTP codes** → the codes screen (below).
+- Entries list → **TOTP codes** → the codes screen (below); so does an
+  entry's page when it holds a TOTP secret.
 - An entry with a TOTP secret → **Show as QR** under **TOTP
   secret** → the QR sheet with the stored `otpauth://` URI, marked
   Secret, no PNG, nothing For the stick; **Done** closes it, and so does
   a lock (F28, `docs/QR.md` §7). An HOTP or unreadable secret has none.
 - **Import entries** (from a file in Files) → preview: entries found, lines
   skipped with the reason → choose the vault → import → Entries list.
-- **Edit** → the same form → back to the item.
+- **Edit** → the same form → back to the item, a toast saying "Entry
+  saved", "Entry added", "Note saved" or "Note added". A refusal (a
+  title missing, a secret that is not a TOTP key, a vault too full or
+  too short of memory to take it) is a red line on the form, above Save,
+  and the form stays; **Rename** says "Renamed to {name}" or "Name
+  removed".
 - **Hold to delete from vault** → gone; the next item selected.
 - **Copy to another vault…** or **Move to another vault…** → the sheet of
   open vaults, locked ones (**Unlock {vault}**) and **New vault with this
   item**, one that cannot take it dimmed with why → Move's dialog that it
   will be gone from this vault → a toast naming the vault (`docs/VAULT.md`
-  §7.2).
+  §7.2). **New vault with this item** opens Create a vault from the
+  item's page, "Then: {page}" by its title and Back returning to the
+  item. Where the vault changed under the sheet, a toast says "Nothing
+  was copied to {vault}. The original changed."
+- A key loaded in this session leads on from its page: **Open the key**
+  (Explore on it), **Back it up** (the backup of a loaded wallet that
+  holds it, shown only then) and **Write it in another form**
+  (Convert). A wallet's page has **Backup checklist** beside **Open in
+  Wallets**. **Remove codex32 set** and **Remove BIP-85 origin** say
+  "Codex32 set removed" or "BIP-85 origin removed"; where the vault
+  changed under the dialog, "Nothing was removed. The vault changed."
 - A Bitcoin key or wallet → **Open in Wallets** or **Don't load at unlock** / **Load at unlock** (F62: a wallet's, and a key's in no wallet of the vault; a key in one reads "Loads with {wallet}").
 - A GPG key → **Show as QR** under its masked paperkey (F215: the
   QR sheet marked Secret, no PNG, no file); **Export public key** with

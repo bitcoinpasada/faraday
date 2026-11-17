@@ -270,6 +270,20 @@ fn a_vault_with_one_key_lists_keys_every_add_and_no_other_kind() {
     }
 }
 
+#[test]
+fn a_loaded_seeds_page_leads_on_to_its_key() {
+    let mut app = device(Vec::new());
+    add_key(&mut app, 0);
+    new_open_vault(&mut app);
+    app.press(Action::Nav(Screen::VaultContents));
+    let _ = app.frame();
+    app.press(Action::Vault(V::AddKind(0)));
+    app.press(Action::Vault(V::SaveKey(0)));
+    let _ = app.frame();
+    let fp = app.session.keys.all().next().unwrap().fingerprint.0;
+    assert!(app.offers(Action::ExploreKey(fp)), "Open the key");
+}
+
 /// A key made here from coin flips and saved into the test vault, which
 /// is locked: the vault as it is written to the stick, and the key's
 /// words.

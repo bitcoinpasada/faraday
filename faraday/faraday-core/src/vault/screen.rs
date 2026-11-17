@@ -2560,6 +2560,10 @@ fn form_pane(
     };
     ui.text_as(dx, dy, TITLE_M, ink, heading);
     dy += ui.line_as(TITLE_M) + faraday_draw::tokens::PAD;
+    // Why the last Save was refused, under the title, in view on every panel.
+    if let Some(e) = &app.vaults.form_error {
+        dy += ui.field_supporting((dx, dy, dw), Role::Error, e, false) + faraday_draw::tokens::PAD;
+    }
     for (k, (_, label, b, masked)) in form.fields.iter().enumerate() {
         ui.text_as(dx, dy, BODY_S, muted, label);
         dy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
@@ -3081,11 +3085,13 @@ fn key_rows(app: &View, ui: &mut Ui, r: RecordView<'_>, rows: &mut Rows) {
             false,
         ),
     }
-    let here = app
+    let loaded = app
         .session
         .keys
         .all()
-        .any(|k| *fp_text(k.fingerprint) == *fp);
+        .find(|k| *fp_text(k.fingerprint) == *fp)
+        .map(|k| k.fingerprint);
+    let here = loaded.is_some();
     rows.field(
         ui,
         EN.vault_in_this_session,
@@ -3102,6 +3108,24 @@ fn key_rows(app: &View, ui: &mut Ui, r: RecordView<'_>, rows: &mut Rows) {
             rows.actions
                 .push((EN.vault_load_with_a_passphrase, va(V::LoadWithPassphrase)));
         }
+    }
+    // A key in the session leads on: its page in Explore, the backup of
+    // the wallet it belongs to, the other forms it can be written in.
+    if let Some(fp) = loaded {
+        rows.actions
+            .push((EN.vault_open_the_key, Action::ExploreKey(fp.0)));
+        if let Some(w) = app.session.wallets.iter().position(|w| {
+            w.policy()
+                .keys()
+                .iter()
+                .any(|k| k.fingerprint() == Some(fp))
+        }) {
+            rows.actions.push((EN.vault_back_it_up, Action::Backup(w)));
+        }
+        rows.actions.push((
+            EN.convert_way_in,
+            Action::Convert(crate::convert::ConvertAction::OpenOn(fp.0)),
+        ));
     }
     if with.is_none() {
         rows.actions.push((
@@ -3144,6 +3168,12 @@ fn wallet_rows(app: &View, ui: &mut Ui, r: RecordView<'_>, rows: &mut Rows) {
         false,
     );
     rows.actions.push((EN.vault_open_in_wallets, va(V::Load)));
+    if let Some(i) = app.vault_selected_index() {
+        rows.actions.push((
+            EN.vault_backup_checklist,
+            va(V::ChecklistOf(app.vaults.current, i)),
+        ));
+    }
     rows.actions.push((
         if loads {
             EN.vault_dont_load_at_unlock
@@ -3181,6 +3211,9 @@ fn entry_rows(app: &View, ui: &mut Ui, v: &vault::OpenVault, r: RecordView<'_>, 
     if r.has(field::NOTES) {
         let n = app.reveal_record(r, field::NOTES, Reveal::VaultEntry(Part::EntryNotes));
         rows.secret(ui, EN.vault_notes, &n, false);
+    }
+    if r.has(field::TOTP) {
+        rows.actions.push((EN.vault_totp_codes, Action::OpenCodes));
     }
     if v.read_only().is_none() {
         rows.actions.push((EN.vault_edit, va(V::Edit)));

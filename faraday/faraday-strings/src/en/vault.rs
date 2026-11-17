@@ -933,6 +933,30 @@ macro_rules! words_vault {
     vault_trim_child_line: "The BIP-85 origin is removed from this seed in {} at the next seal. Its words and its other data stay. Copies of {} sealed before still hold the origin.",
     /// Button of those dialogs that removes.
     vault_trim_go: "Remove",
+    /// Toast after the codex32 set is removed from a seed.
+    vault_trimmed_codex32: "Codex32 set removed",
+    /// Toast after the BIP-85 origin is removed from a seed.
+    vault_trimmed_child: "BIP-85 origin removed",
+    /// Toast when Remove does nothing because the vault changed under the dialog.
+    vault_trim_refused: "Nothing was removed. The vault changed.",
+    /// Toast after an entry is added.
+    vault_entry_added: "Entry added",
+    /// Toast after an entry is changed.
+    vault_entry_saved: "Entry saved",
+    /// Toast after a note is added.
+    vault_note_added: "Note added",
+    /// Toast after a note is changed.
+    vault_note_saved: "Note saved",
+    /// Toast after a vault is renamed. `{}`: the new name.
+    vault_renamed_to: "Renamed to {}",
+    /// Toast after a vault's name is cleared.
+    vault_name_removed: "Name removed",
+    /// Button on a loaded seed's page: Explore on that key.
+    vault_open_the_key: "Open the key",
+    /// Button on a loaded seed's page: the backup of the wallet it belongs to.
+    vault_back_it_up: "Back it up",
+    /// Button on a wallet's page: its backup checklist.
+    vault_backup_checklist: "Backup checklist",
     /// Button on the page of a seed, codex32 share, BIP-39 passphrase or note, and title of its dialog.
     vault_qr_save: "Save as a QR vault",
     /// Dialog of that button, a seed that is not 12 or 24 words of the English list.

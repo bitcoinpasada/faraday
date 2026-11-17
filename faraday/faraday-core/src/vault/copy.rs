@@ -338,10 +338,19 @@ fn make(app: &mut Faraday, n: usize) {
     };
     // The item is held by its place: only the original as it was when the
     // sheet was made has the same item there.
+    // Where the vault changed under the sheet, nothing is copied, and
+    // the toast says so.
+    let line = if s.mv {
+        EN.vault_move_refused
+    } else {
+        EN.vault_copy_refused
+    };
     if app.vaults.store().version(s.from) != s.version {
+        app.toast(&fill(line, &[&row.name, EN.vault_copy_changed]));
         return;
     }
     let Some(staged) = app.vaults.store().stage(s.from, s.record, &s.left_out()) else {
+        app.toast(&fill(line, &[&row.name, EN.vault_copy_changed]));
         return;
     };
     if !s.mv {
@@ -498,8 +507,9 @@ fn new_for(app: &mut Faraday) {
         return;
     }
     // A fresh Create drops any wait, so the wait is taken after it: it is
-    // then the wait of the form just made.
-    app.vault_act(VaultAction::Create);
+    // then the wait of the form just made. Its chip names the item's page
+    // and its way back is that page.
+    app.vault_act(VaultAction::CreateFrom(Screen::VaultContents));
     hold(app, None);
 }
 

@@ -79,6 +79,7 @@ impl VaultArea {
         if i < self.open.len() {
             self.state.current = i;
             self.state.form = None;
+            self.state.form_error = None;
             self.state.saving = false;
             self.state.item_open = false;
             self.set_item_offset(0.0);
@@ -91,6 +92,7 @@ impl VaultArea {
         self.set_item_offset(0.0);
         self.state.category_chosen = true;
         self.state.form = None;
+        self.state.form_error = None;
         self.state.saving = false;
         self.state.item_open = false;
     }
@@ -100,6 +102,7 @@ impl VaultArea {
         self.state.item[self.category] = k;
         self.set_item_offset(0.0);
         self.state.form = None;
+        self.state.form_error = None;
         self.state.saving = false;
         self.state.item_open = true;
     }
@@ -108,6 +111,7 @@ impl VaultArea {
     pub(crate) fn close_item(&mut self) {
         self.state.item_open = false;
         self.state.form = None;
+        self.state.form_error = None;
         self.state.prompt = None;
         self.state.saving = false;
         self.state.sb_images = false;

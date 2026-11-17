@@ -522,6 +522,7 @@ impl VaultArea {
     /// field.
     pub(crate) fn open_form(&mut self, form: Form) {
         self.state.form = Some(form);
+        self.state.form_error = None;
         self.state.saving = false;
         self.state.focus = Some(Focus::Field(0));
     }
@@ -529,6 +530,7 @@ impl VaultArea {
     /// The item's form closed, typing nowhere.
     pub(crate) fn close_form(&mut self) {
         self.state.form = None;
+        self.state.form_error = None;
         self.state.focus = None;
     }
 
@@ -2175,6 +2177,9 @@ pub struct Vaults {
     pub passphrase: TextBox,
     /// Why the last unlock failed.
     pub unlock_error: Option<Text>,
+    /// Why the item form just saved was refused: shown on the form, gone
+    /// with it.
+    pub form_error: Option<Text>,
     /// Unlock's page is to bring a refusal or failure just said into
     /// view, once ([`crate::vault::screen`]'s small panel).
     pub unlock_follow: std::cell::Cell<bool>,

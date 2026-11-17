@@ -394,7 +394,9 @@ fn the_entry_form_saves_a_bare_key_and_refuses_garbage() {
     type_text(&mut app, "hello");
     app.press(Action::Vault(V::FormSave));
     assert!(app.vaults().form.is_some(), "the form is kept on a refusal");
-    assert_eq!(app.toast_text(), Some("Not a TOTP key"));
+    // The refusal is a line on the form, where it is typed.
+    let said = app.vaults().form_error.as_ref().map(|e| e.as_str());
+    assert_eq!(said, Some("Not a TOTP key"));
 }
 
 #[test]
@@ -512,7 +514,9 @@ fn an_entry_whose_totp_does_not_read_can_be_edited_and_keeps_it() {
     app.press(Action::Vault(V::FocusField(5)));
     type_text(&mut app, "&digits=99");
     app.press(Action::Vault(V::FormSave));
-    assert_eq!(app.toast_text(), Some("Not a TOTP key"));
+    // The refusal is a line on the form, where it is typed.
+    let said = app.vaults().form_error.as_ref().map(|e| e.as_str());
+    assert_eq!(said, Some("Not a TOTP key"));
 }
 
 /// A KVM plugged in after the vault opened, its sheet closed and the KVM

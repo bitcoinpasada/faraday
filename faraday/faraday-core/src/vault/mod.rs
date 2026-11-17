@@ -723,6 +723,7 @@ impl Faraday {
             },
             V::FormCancel => {
                 self.vaults.state.form = None;
+                self.vaults.state.form_error = None;
                 self.vaults.state.focus = None;
                 self.vault_sheet_closed();
             }
@@ -1855,12 +1856,12 @@ impl Faraday {
         }
     }
 
-    /// The form's record was not set: the form stays, and the toast says
+    /// The form's record was not set: the form stays, and its line says
     /// whether the vault is full, cannot be written or memory is short.
     fn vault_form_refused(&mut self, form: Form, why: faraday_keys::vault::NotSet) {
         self.vaults.state.form = Some(form);
         let text = self.not_set_text(self.vaults.current_id(), why);
-        self.toast(&text);
+        self.vaults.state.form_error = Some(text);
     }
 
     fn vault_form_save(&mut self) {
@@ -1871,6 +1872,7 @@ impl Faraday {
         let Some(form) = self.vaults.state.form.take() else {
             return;
         };
+        self.vaults.state.form_error = None;
         self.vaults.state.focus = None;
         // A key made new is the flow's to make, from any screen: a plain
         // entry cannot hold it.
@@ -1912,6 +1914,11 @@ impl Faraday {
                 }
             });
             self.vaults.changed(id);
+            self.toast(&if form.fields[0].2.text.trim().is_empty() {
+                Text::of(EN.vault_name_removed)
+            } else {
+                Text::fill(EN.vault_renamed_to, &[form.fields[0].2.text.trim()])
+            });
             return;
         }
         if form.fields[0].2.text.trim().is_empty() {
@@ -1921,7 +1928,7 @@ impl Faraday {
                 EN.vaults_an_entry_needs
             };
             self.vaults.state.form = Some(form);
-            self.toast(what);
+            self.vaults.state.form_error = Some(Text::of(what));
             return;
         }
         let totp_text = form
@@ -1936,7 +1943,7 @@ impl Faraday {
         let totp_store = self.form_totp_store(&form, id, totp_text.as_ref().map(|t| t.as_str()));
         let Ok(totp_store) = totp_store else {
             self.vaults.state.form = Some(form);
-            self.toast(EN.vaults_not_a_totp_key);
+            self.vaults.state.form_error = Some(Text::of(EN.vaults_not_a_totp_key));
             return;
         };
         // The record takes each field as it was typed; one left empty is
@@ -1967,6 +1974,12 @@ impl Faraday {
             self.vaults.state.select_place(place);
         }
         self.vaults.changed(id);
+        self.toast(match (form.kind == kind::NOTE, was.is_some()) {
+            (true, true) => EN.vault_note_saved,
+            (true, false) => EN.vault_note_added,
+            (false, true) => EN.vault_entry_saved,
+            (false, false) => EN.vault_entry_added,
+        });
     }
 
     /// Costs reading one record's TOTP field. What the form's TOTP field

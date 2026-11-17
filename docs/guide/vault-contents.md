@@ -13,13 +13,13 @@ Vault contents shows what an open vault holds, in categories: Bitcoin keys, Wall
 
 Each item shows its **Fingerprint**, its **Words** behind an eye, the **SeedQR** of English words, and whether a **BIP-39 passphrase** is **Stored**. **Save a key** adds the keys loaded in this session, and **Save with its passphrase** adds one with its BIP-39 passphrase.
 
-**Load at unlock** is **Yes** or **No**: a key marked so loads when the vault opens. **Load into session** loads the key now, **Load with a passphrase** loads a key of words with a passphrase typed, and **Save to a stick** offers the key's files to write to a stick. **Remove codex32 set** and **Remove BIP-85 origin** drop that record from the seed at the next seal.
+**Load at unlock** is **Yes** or **No**: a key marked so loads when the vault opens. **Load into session** loads the key now, **Load with a passphrase** loads a key of words with a passphrase typed, and **Save to a stick** offers the key's files to write to a stick. **Remove codex32 set** and **Remove BIP-85 origin** drop that record from the seed at the next seal. Once the key is loaded, **Open the key** shows it in Explore, **Back it up** opens the backup of a loaded wallet that holds it, and **Write it in another form** opens Convert on it.
 
 ## Wallets
 
 **Key:** vault-contents.wallets
 
-Each wallet shows its chart, with where each seed is kept, and its **Descriptor**. **Save a wallet** adds a wallet loaded in this session. **Search wallets** filters the list by title.
+Each wallet shows its chart, with where each seed is kept, and its **Descriptor**. **Backup checklist** opens the wallet's backup checklist. **Save a wallet** adds a wallet loaded in this session. **Search wallets** filters the list by title.
 
 **Open in Wallets** loads it. **Load at unlock** and **Don't load at unlock** set whether it loads when the vault opens, as for a key; a wallet whose seed is in the same vault loads with it. **Show as QR** shows the descriptor as a code, and **Save to a stick** offers its files to write.
 

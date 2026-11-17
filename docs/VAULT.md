@@ -1152,9 +1152,10 @@ Either opens a sheet listing where it can go:
   name as long as the document takes (64 bytes) made of the character it
   writes longest (`&`, five bytes), so a size offered holds
   the item whatever name is typed; a size it does not fit is dimmed. The
-  item waits only while that form is shown: leaving it, whichever way,
-  ends the wait, and the form came back to through the in-progress row
-  makes an ordinary vault. A backup flow's own Create vault takes no item.
+  item waits only while that form is shown, which says "Then: {the
+  item's page}" by its title and goes back to that page: leaving it,
+  whichever way, ends the wait, and the form came back to through the
+  in-progress row makes an ordinary vault. A backup flow's own Create vault takes no item.
   The Keep sheet's title names the vault the seed goes into as the press
   that asked chose it (a wallet flow's, which can cover several vaults,
   names them all).
@@ -1163,6 +1164,10 @@ A seed that has a codex32 set or a BIP-85 origin shows the ticks above
 the list, each ticked; the rows are judged on what will be written, so a
 tick changes which vaults and sizes fit. A Move says in its dialog when a
 tick is off that the data is gone from the original too.
+
+A copy or move whose original changed under the sheet makes nothing and
+says "Nothing was copied to {vault}. The original changed." (moved, for a
+move).
 
 A vault that cannot take the item is listed, dimmed, with the reason:
 it is read-only, it has no room at its size, or it already holds this

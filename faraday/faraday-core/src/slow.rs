@@ -131,6 +131,7 @@ pub(crate) fn runs_in_press(a: Action) -> bool {
                     | V::Category(_)
                     | V::CopyTo
                     | V::MoveTo
+                    | V::Load
                     | V::LoadAll(_)
                     | V::LoadChosen(_)
                     | V::LoadKeyOf(..)

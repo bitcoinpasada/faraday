@@ -75,6 +75,13 @@ pub(crate) fn go(app: &mut Faraday) {
         .edit(t.id, |s| s.drop_custom(t.id, t.record, t.field, t.version))
     {
         app.vaults.changed(t.id);
+        app.toast(if t.field == field::KEY_CODEX32 {
+            EN.vault_trimmed_codex32
+        } else {
+            EN.vault_trimmed_child
+        });
+    } else {
+        app.toast(EN.vault_trim_refused);
     }
 }
 
@@ -95,6 +102,10 @@ pub(crate) fn settle(app: &mut Faraday) -> bool {
     let open = app.vaults.open.iter().any(|o| o.id == t.id);
     if app.sheet == Some(Sheet::Trim) && open && app.vaults.store().version(t.id) == t.version {
         return false;
+    }
+    // The vault changed under the dialog: it says nothing was removed.
+    if app.sheet == Some(Sheet::Trim) && open {
+        app.toast(EN.vault_trim_refused);
     }
     close(app);
     true
