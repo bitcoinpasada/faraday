@@ -35,7 +35,8 @@ fn tag_tone(t: crate::plan::Tag) -> crate::ui::Paint {
 
 /// A wallet's card: its head, a row per place, the foot.
 const CARD_HEAD: f32 = 68.0;
-const ROW: f32 = 28.0;
+/// A place row is a touch target tall: its press opens the item.
+const ROW: f32 = faraday_draw::tokens::TOUCH;
 const CARD_FOOT: f32 = 12.0;
 
 fn card_h(e: &Entry) -> f32 {
