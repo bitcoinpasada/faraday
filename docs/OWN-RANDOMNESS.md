@@ -112,7 +112,12 @@ on) are the page's, not the source's.
   pointer and keys: as §2.1 says). Pointer and keys' pad is an area to
   move the pointer over and type, with a count of what it took ("412
   pointer moves, 30 keys"). The sources stand under the label **Add
-  randomness to the pool**. Once a batch is added, from any source, a
+  randomness to the pool**. After **Add** on the page opened from
+  Settings, the page shows the status line and the line below with
+  **Done**, the filled button, back to where it was opened, and **Another**
+  for the next batch (a source pressed does the same); opened from a press
+  that asked for randomness (§8) or the Lock sheet, **Add** goes back to
+  it at once. Once a batch is added, from any source, a
   check mark and a line under the pad say how many batches this session
   has taken and the last one ("Added to the pool once: 6 dice rolls",
   "Added to the pool 3 times · last: 1 camera frame"), the line kept

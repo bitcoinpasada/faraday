@@ -230,6 +230,17 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let mut y = top;
     y += ui.wrap_as((x, y, w), BODY_M, Role::OnSurfaceVariant, &app.own_status()) + PAD;
+    if p.done() {
+        // What was added, then Done back to where the page was opened and
+        // Another for a next batch.
+        if let Some((line, shown)) = app.own_added() {
+            y += added(ui, (x, y, w), line, shown) + PAD;
+        }
+        let left = [(EN.silent_another, Style::Ghost, own(Act::Another))];
+        y += buttons_and_next(ui, x, y, w, &left, Some((EN.app_done, Action::Back)));
+        crate::compact::screen::finish(app, ui, h, y + PAD - top);
+        return;
+    }
     y += ui.wrap_as((x, y, w), TITLE_S, Role::OnSurface, EN.own_add_to_pool) + PAD;
     y += own_sources(app, p, ui, (x, y, w), false);
     if let Some((line, shown)) = app.own_added() {

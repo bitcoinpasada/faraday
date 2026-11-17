@@ -507,9 +507,9 @@ fn settings_randomness_row_counts_what_the_page_added_and_none_after_a_lock() {
     app.press(own(Act::Add));
     assert_eq!(app.own_counts().dice_rolls, 99);
     assert!(
-        app.drawn_texts()
+        !app.drawn_texts()
             .iter()
-            .any(|t| t == "In this batch: 0 dice rolls"),
+            .any(|t| t.starts_with("In this batch")),
         "the batch goes once it is added"
     );
     app.press(Action::Back);
@@ -563,6 +563,7 @@ fn the_page_says_what_it_adds_to_and_each_batch_added_changes_its_line() {
         Some("Added to the pool once: 6 dice rolls")
     );
     // The same batch again still changes the line: its count goes up.
+    app.press(own(Act::Another));
     for f in 1..=6 {
         app.press(own(Act::Roll(f)));
     }
@@ -585,6 +586,63 @@ fn the_page_says_what_it_adds_to_and_each_batch_added_changes_its_line() {
     crate::common::settings_section(&mut app, "Randomness");
     app.press(own(Act::Open));
     assert_eq!(added_shown(&mut app), None);
+}
+
+#[test]
+fn add_from_tools_ends_on_done_back_to_tools_and_another_takes_a_next_batch() {
+    let mut app = testkit::started();
+    answer(&mut app, SEED);
+    app.press(Action::Nav(Screen::Settings));
+    crate::common::settings_section(&mut app, "Randomness");
+    app.press(own(Act::Open));
+    app.press(own(Act::Source(OwnSource::Dice)));
+    for f in 1..=6 {
+        app.press(own(Act::Roll(f)));
+    }
+    app.press(own(Act::Add));
+    assert_eq!(
+        app.screen,
+        Screen::Randomness,
+        "the page shows what was added"
+    );
+    let shown = app.drawn_texts();
+    assert!(shown.iter().any(|t| t == "Done"), "{shown:?}");
+    assert!(shown.iter().any(|t| t == "Another"), "{shown:?}");
+    assert!(added_shown(&mut app).is_some(), "what was added is on show");
+    // A roll typed now is not taken into a batch nobody can see.
+    app.press(own(Act::Roll(3)));
+    app.press(own(Act::Another));
+    app.press(own(Act::Roll(3)));
+    app.press(own(Act::Add));
+    assert_eq!(app.own_counts().dice_rolls, 7);
+    app.press(Action::Back);
+    assert_eq!(app.screen, Screen::Settings);
+}
+
+#[test]
+fn add_from_a_press_that_asked_for_randomness_goes_back_to_it_at_once() {
+    let mut app = changed_vault();
+    app.event(Event::Display(tall()));
+    app.press(Action::Nav(Screen::VaultContents));
+    if app.sheet.is_some() {
+        app.press(Action::Cancel);
+    }
+    answers_for_a_seal(&mut app);
+    app.press(Action::LockAsk);
+    assert_eq!(app.sheet, Some(Sheet::LockAsk));
+    let _ = app.frame();
+    app.press(own(Act::Open));
+    assert_eq!(app.screen, Screen::Randomness);
+    app.press(own(Act::Source(OwnSource::Dice)));
+    app.press(own(Act::Roll(2)));
+    app.press(own(Act::Add));
+    assert_eq!(app.own_counts().dice_rolls, 1);
+    assert_eq!(
+        app.screen,
+        Screen::VaultContents,
+        "back where it was asked for"
+    );
+    assert_eq!(app.sheet, Some(Sheet::LockAsk));
 }
 
 #[test]

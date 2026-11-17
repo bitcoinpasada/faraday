@@ -46,6 +46,8 @@ pub enum Act {
     /// New key's Generator card: on to the words with nothing of one's
     /// own added.
     Skip,
+    /// After an Add: take another batch, with the same source.
+    Another,
 }
 
 /// A batch the page hands to the session: its source, its commitment
@@ -78,6 +80,12 @@ pub(crate) struct OwnPage {
     last_frame: Option<FrameStats>,
     /// What the last press could not do.
     note: Option<&'static str>,
+    /// A batch was just added from the page and the page shows it, with
+    /// Done and Another.
+    done: bool,
+    /// The page was opened from a press that asked for randomness (a
+    /// flow's Randomness row, the Lock sheet): Add goes back to it at once.
+    from_flow: bool,
 }
 
 impl Drop for OwnPage {
@@ -104,7 +112,30 @@ impl OwnPage {
             frame: None,
             last_frame: None,
             note: None,
+            done: false,
+            from_flow: false,
         }
+    }
+
+    /// Whether a batch was just added and the page shows it.
+    pub(crate) fn done(&self) -> bool {
+        self.done
+    }
+
+    /// Whether Add goes back to the press that opened the page.
+    pub(crate) fn asked_for(&self) -> bool {
+        self.from_flow
+    }
+
+    /// Records where the page was opened from.
+    pub(crate) fn set_asked_for(&mut self, flow: bool) {
+        self.from_flow = flow;
+        self.done = false;
+    }
+
+    /// The batch just added is shown; or, `false`, the next one starts.
+    pub(crate) fn set_done(&mut self, done: bool) {
+        self.done = done;
     }
 
     /// The source shown.

@@ -25,6 +25,6 @@ The status line reads **System:** with the source the system names, then **your 
 
 **Key:** randomness.entries
 
-For dice, coins and cards, **In this batch** counts the entries not yet added. **Undo** takes the last entry back, **Clear** drops the batch, and **Add** puts it in the pool and empties it. Dice show **Enough for 256 bits on its own** from 99 rolls.
+For dice, coins and cards, **In this batch** counts the entries not yet added. **Undo** takes the last entry back, **Clear** drops the batch, and **Add** puts it in the pool and empties it. The page then shows what was added with **Done**, back to where it was opened, and **Another** for the next batch; opened from a press that asked for randomness, **Add** goes back to that press at once. Dice show **Enough for 256 bits on its own** from 99 rolls.
 
 On a keyboard, dice take the digits 1 to 6, coins H and T, cards a rank and then S, H, D or C; Backspace undoes, Enter adds, and Space takes a camera picture.

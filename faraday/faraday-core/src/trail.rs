@@ -394,10 +394,18 @@ impl Faraday {
     /// sheet the sheet goes, kept with its screen on the trail, and Back
     /// puts it back (`docs/OWN-RANDOMNESS.md` §8.2).
     pub(crate) fn own_press(&mut self, a: crate::fresh::page::Act) {
-        if a == crate::fresh::page::Act::Open && self.sheet == Some(Sheet::LockAsk) {
+        let open = a == crate::fresh::page::Act::Open;
+        // A press that draws the system's randomness asked for this page.
+        let flow = open
+            && (self.sheet == Some(Sheet::LockAsk)
+                || crate::screens::randomness::own_at_press(self));
+        if open && self.sheet == Some(Sheet::LockAsk) {
             self.sheet = None;
         }
         self.own_act(a);
+        if open {
+            self.fresh_own_from(flow);
+        }
     }
 
     /// The screen on show as it is seen now.

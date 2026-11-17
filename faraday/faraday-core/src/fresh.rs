@@ -681,16 +681,50 @@ impl Faraday {
             }
             return;
         }
+        if self.fresh.page.as_ref().is_some_and(page::OwnPage::done) {
+            // The added batch is on show: Another or a source goes on,
+            // nothing else does.
+            if !matches!(a, page::Act::Another | page::Act::Source(_)) {
+                return;
+            }
+            if let Some(p) = self.fresh.page.as_mut() {
+                p.set_done(false);
+            }
+            if a == page::Act::Another {
+                return;
+            }
+        }
         let batch = self.fresh.page.as_mut().and_then(|p| p.act(a));
         if let Some((source, commitment, n)) = batch {
             self.own_add(source, &commitment, n);
+            if a == page::Act::Add && self.screen == crate::Screen::Randomness {
+                let flow = self
+                    .fresh
+                    .page
+                    .as_ref()
+                    .is_some_and(page::OwnPage::asked_for);
+                if flow {
+                    // Back to the press that asked for it, at once.
+                    self.back();
+                } else if let Some(p) = self.fresh.page.as_mut() {
+                    p.set_done(true);
+                }
+            }
+        }
+    }
+
+    /// Records whether the page just opened was asked for by a press (a
+    /// flow's Randomness row, the Lock sheet) rather than opened as itself.
+    pub(crate) fn fresh_own_from(&mut self, flow: bool) {
+        if let Some(p) = self.fresh.page.as_mut() {
+            p.set_asked_for(flow);
         }
     }
 
     /// A key typed on Add randomness; `false` when it is not on show or
     /// the key means nothing there.
     pub(crate) fn own_key(&mut self, key: faraday_shell_api::Key) -> bool {
-        if !self.own_on_show() {
+        if !self.own_on_show() || self.own_page().is_some_and(page::OwnPage::done) {
             return false;
         }
         if self
