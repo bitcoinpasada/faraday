@@ -204,10 +204,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         return;
     }
     if empty {
-        let gap = 16.0;
         // Five ways in: Create, Load or restore, Spend from a backup,
         // Add a key and Make a new key.
-        let tw = (width - 4.0 * gap) / 5.0;
+        // Laid out on the grid Tools uses: as many columns as the width
+        // leaves room for, three at least.
+        let g = super::catalog::grid(false, width);
+        let (tw, gap) = (g.tile_w, g.gap());
         let ways = [
             (
                 Icon::Flag,
@@ -241,63 +243,66 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ),
         ];
         // A label or sub-line that does not fit at its size breaks onto
-        // further lines (`docs/DESIGN.md` "Menu row"): every card in the
-        // row grows to the tallest label and sub among them, so the row
-        // stays even and nothing is cut off.
+        // further lines (`docs/DESIGN.md` "Menu row"): every card in a row
+        // grows to the tallest label and sub among them, so the row stays
+        // even and nothing is cut off.
         let label_room = tw - 100.0;
         let label_line_h = ui.line_as(TITLE_M);
         let sub_line_h = ui.line_as(BODY_S);
-        let max_label_lines = ways
-            .iter()
-            .map(|(_, label, _, _)| ui.wrap_lines_as(TITLE_M, label, label_room))
-            .max()
-            .unwrap_or(1);
-        let max_sub_lines = ways
-            .iter()
-            .map(|(_, _, sub, _)| ui.wrap_lines_as(BODY_S, sub, label_room))
-            .max()
-            .unwrap_or(1);
-        let card_h = 92.0
-            + (max_label_lines - 1) as f32 * label_line_h
-            + (max_sub_lines - 1) as f32 * sub_line_h;
-        for (k, (icon, label, sub, action)) in ways.iter().enumerate() {
-            let tx = x + k as f32 * (tw + gap);
-            let r = faraday_draw::tokens::SHAPE_M;
-            ui.fill(tx, y, tw, card_h, r, Role::SurfaceContainerLow);
-            ui.stroke(tx, y, tw, card_h, r, Role::OutlineVariant);
-            ui.press(
-                Shape::new(tx, y, tw, card_h, r),
-                Role::OnSurface.paint(),
-                *action,
-            );
-            ui.fill(tx + 20.0, y + 24.0, 44.0, 44.0, r, Role::SecondaryContainer);
-            let on_tile = Role::OnSecondaryContainer;
-            ui.icon(tx + 20.0, y + 24.0, 44.0, *icon, 18.0, on_tile);
-            if ui.wrap_lines_as(TITLE_M, label, label_room) > 1 {
-                ui.wrap_as(
-                    (tx + 82.0, y + 24.0, label_room),
-                    TITLE_M,
-                    Role::OnSurface,
-                    label,
+        for row in ways.chunks(g.per) {
+            let max_label_lines = row
+                .iter()
+                .map(|(_, label, _, _)| ui.wrap_lines_as(TITLE_M, label, label_room))
+                .max()
+                .unwrap_or(1);
+            let max_sub_lines = row
+                .iter()
+                .map(|(_, _, sub, _)| ui.wrap_lines_as(BODY_S, sub, label_room))
+                .max()
+                .unwrap_or(1);
+            let card_h = 92.0
+                + (max_label_lines - 1) as f32 * label_line_h
+                + (max_sub_lines - 1) as f32 * sub_line_h;
+            for (k, (icon, label, sub, action)) in row.iter().enumerate() {
+                let tx = x + k as f32 * (tw + gap);
+                let r = faraday_draw::tokens::SHAPE_M;
+                ui.fill(tx, y, tw, card_h, r, Role::SurfaceContainerLow);
+                ui.stroke(tx, y, tw, card_h, r, Role::OutlineVariant);
+                ui.press(
+                    Shape::new(tx, y, tw, card_h, r),
+                    Role::OnSurface.paint(),
+                    *action,
                 );
-            } else {
-                let label = ui.fit_as(TITLE_M, label, label_room);
-                ui.text_as(tx + 82.0, y + 24.0, TITLE_M, Role::OnSurface, &label);
+                ui.fill(tx + 20.0, y + 24.0, 44.0, 44.0, r, Role::SecondaryContainer);
+                let on_tile = Role::OnSecondaryContainer;
+                ui.icon(tx + 20.0, y + 24.0, 44.0, *icon, 18.0, on_tile);
+                if ui.wrap_lines_as(TITLE_M, label, label_room) > 1 {
+                    ui.wrap_as(
+                        (tx + 82.0, y + 24.0, label_room),
+                        TITLE_M,
+                        Role::OnSurface,
+                        label,
+                    );
+                } else {
+                    let label = ui.fit_as(TITLE_M, label, label_room);
+                    ui.text_as(tx + 82.0, y + 24.0, TITLE_M, Role::OnSurface, &label);
+                }
+                let sub_y = y + 24.0 + max_label_lines as f32 * label_line_h + 2.0;
+                if ui.wrap_lines_as(BODY_S, sub, label_room) > 1 {
+                    ui.wrap_as(
+                        (tx + 82.0, sub_y, label_room),
+                        BODY_S,
+                        Role::OnSurfaceVariant,
+                        sub,
+                    );
+                } else {
+                    let sub = ui.fit_as(BODY_S, sub, label_room);
+                    ui.text_as(tx + 82.0, sub_y, BODY_S, Role::OnSurfaceVariant, &sub);
+                }
             }
-            let sub_y = y + 24.0 + max_label_lines as f32 * label_line_h + 2.0;
-            if ui.wrap_lines_as(BODY_S, sub, label_room) > 1 {
-                ui.wrap_as(
-                    (tx + 82.0, sub_y, label_room),
-                    BODY_S,
-                    Role::OnSurfaceVariant,
-                    sub,
-                );
-            } else {
-                let sub = ui.fit_as(BODY_S, sub, label_room);
-                ui.text_as(tx + 82.0, sub_y, BODY_S, Role::OnSurfaceVariant, &sub);
-            }
+            y += card_h + gap;
         }
-        y += card_h + 28.0;
+        y += 28.0 - gap;
         let files = app.vault_files();
         if let Some(i) = files.iter().position(|f| f.open.is_none()) {
             let line = fill(EN.start_is_in_files_locked, &[&files[i].name]);

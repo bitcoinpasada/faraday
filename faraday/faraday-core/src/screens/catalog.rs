@@ -163,6 +163,11 @@ pub(crate) fn grid(compact: bool, width: f32) -> Grid {
 }
 
 impl Grid {
+    /// The space between tiles.
+    pub fn gap(&self) -> f32 {
+        TILE_GAP
+    }
+
     /// Where tile `k` of a group starting at (`x`, `y`) goes.
     pub fn at(&self, x: f32, y: f32, k: usize) -> (f32, f32) {
         (
