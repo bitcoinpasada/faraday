@@ -1872,30 +1872,6 @@ pub(crate) fn partials_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     });
 }
 
-/// The read-only board's two buttons, in the list's place (the narrow
-/// column's Add): **Add watch-only software**, or **Take off watch-only
-/// software** while the software place is there, then **Customize
-/// backup** (`docs/BACKUP-FLOW.md` §17.21 item 3).
-fn read_only_buttons(v: &crate::board::BoardView) -> Vec<(&'static str, Style, Action)> {
-    let software = if v.software.is_some() {
-        EN.board_take_off_watch
-    } else {
-        EN.board_add_watch_only
-    };
-    vec![
-        (
-            software,
-            Style::Secondary,
-            Action::Board(BoardPress::Software),
-        ),
-        (
-            EN.board_customize,
-            Style::Secondary,
-            Action::Board(BoardPress::Customize),
-        ),
-    ]
-}
-
 /// The reading column of a page that holds the board on a large window
 /// (`docs/LAYOUT.md` §14): a flow's card whose body is `COLUMN_MAX` wide.
 pub(crate) fn column_w() -> f32 {
@@ -2001,7 +1977,7 @@ pub(crate) fn board(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 Action::Board(BoardPress::OpenList),
             )]
         } else {
-            read_only_buttons(&v)
+            crate::board::plans::read_only_buttons(&v)
         };
         cy +=
             faraday_ui::parts::wrap_buttons(ui, x, cy, w, chip_h(ui), &buttons) + tokens::BOARD_PAD;
@@ -2131,7 +2107,14 @@ fn list_in(app: &View, ui: &mut Ui, (px, top, pw, view): Box4, card: bool) {
         if v.custom {
             cy += list(ui, fr, &v, x, cy, w);
         } else {
-            cy += faraday_ui::parts::wrap_buttons(ui, x, cy, w, chip_h(ui), &read_only_buttons(&v));
+            cy += faraday_ui::parts::wrap_buttons(
+                ui,
+                x,
+                cy,
+                w,
+                chip_h(ui),
+                &crate::board::plans::read_only_buttons(&v),
+            );
         }
         cy + pad - y
     };

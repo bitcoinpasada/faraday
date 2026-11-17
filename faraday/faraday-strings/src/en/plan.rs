@@ -114,6 +114,13 @@ macro_rules! words_plan {
     plan_mark_exposed: "exposed",
     /// A thing's mark on the chart: a SeedQR dropped for the words.
     plan_mark_drawn_in_part: "drawn in part",
+    // ----- the board's ready plans (faraday-core/src/plan/ready.rs) -----
+    /// A ready plan on the board's first choice: each seed's words on paper.
+    plan_ready_paper: "Paper only",
+    /// A ready plan: paper, and one vault on a stick.
+    plan_ready_vault: "Paper and a vault",
+    /// A ready plan: paper, and two vaults on two sticks.
+    plan_ready_two_vaults: "Two vaults",
         }
     };
 }

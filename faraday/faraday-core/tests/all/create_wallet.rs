@@ -14,7 +14,7 @@
 
 use crate::common::{add_key, type_text};
 use faraday_core::create::NewKind;
-use faraday_core::plan::{Answers, Preset};
+use faraday_core::plan::{self, Answers, Preset};
 use faraday_core::testkit::Plain;
 use faraday_core::{Action, Faraday, Screen, cstep, testkit};
 use faraday_shell_api::{App, Event, Key};
@@ -207,10 +207,70 @@ fn back_up_this_wallet_opens_the_board_read_only_on_the_standard_way() {
     use faraday_core::board::BoardPress;
     assert!(app.offers(Action::Board(BoardPress::Customize)));
     assert!(app.offers(Action::Board(BoardPress::Software)));
+    assert!(app.offers(Action::Board(BoardPress::Plan(
+        faraday_core::plan::Ready::PaperAndVault
+    ))));
     assert!(
         !app.offers(Action::Board(BoardPress::AddVault)),
         "no list yet"
     );
+}
+
+/// The vaults the board's plan keeps, each with the places its sticks are
+/// at, for the wallet `built` in `app`.
+fn vault_sticks(app: &Faraday, built: usize) -> Vec<(usize, Vec<usize>)> {
+    let shape = app.plan_shape_now(built);
+    let a = app.backup().expect("backup").answers.clone();
+    let m = plan::stored_map(&shape, &a);
+    plan::kept_vaults(&m)
+        .into_iter()
+        .map(|v| {
+            let at = (0..plan::places_of(&m))
+                .filter(|&p| {
+                    (0..plan::sticks_at(&m, p)).any(|s| plan::stick_vaults(&m, p, s) == [v])
+                })
+                .collect();
+            (v, at)
+        })
+        .collect()
+}
+
+#[test]
+fn a_ready_plan_on_the_board_replaces_the_placement_and_stays_read_only() {
+    use faraday_core::board::BoardPress;
+    use faraday_core::plan::Ready;
+    let (mut app, built) = made();
+    app.press(Action::CNext(cstep::CHECK));
+    app.press(Action::CBackup);
+    assert!(vault_sticks(&app, built).is_empty(), "paper only to begin");
+
+    app.press(Action::Board(BoardPress::Plan(Ready::PaperAndVault)));
+    let b = app.backup().expect("backup");
+    assert!(!b.answers.custom, "still read-only");
+    assert_eq!(vault_sticks(&app, built).len(), 1, "one vault on a stick");
+
+    app.press(Action::Board(BoardPress::Plan(Ready::TwoVaults)));
+    let two = vault_sticks(&app, built);
+    assert_eq!(two.len(), 2, "two vaults");
+    assert!(two.iter().all(|(_, at)| at.len() == 1), "each on one stick");
+    assert_ne!(two[0].1, two[1].1, "on sticks at two places");
+
+    app.press(Action::Board(BoardPress::Plan(Ready::PaperOnly)));
+    assert!(vault_sticks(&app, built).is_empty(), "back to paper only");
+    assert!(!app.backup().expect("backup").answers.custom);
+}
+
+#[test]
+fn customize_backup_keeps_the_ready_plan_chosen() {
+    use faraday_core::board::BoardPress;
+    use faraday_core::plan::Ready;
+    let (mut app, built) = made();
+    app.press(Action::CNext(cstep::CHECK));
+    app.press(Action::CBackup);
+    app.press(Action::Board(BoardPress::Plan(Ready::TwoVaults)));
+    app.press(Action::Board(BoardPress::Customize));
+    assert!(app.backup().expect("backup").answers.custom);
+    assert_eq!(vault_sticks(&app, built).len(), 2, "both vaults stay");
 }
 
 #[test]

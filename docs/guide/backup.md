@@ -13,6 +13,8 @@ A backup starts from a plan of where the wallet's keys and files are kept, and t
 
 The board lists the places that will keep the backup. Each place that keeps a seed says how close it brings someone to spending: **Can spend alone**, or **Spends with 1 more place** when one other place adds enough seeds. A change that brings a place closer to spending, or lets it see the balance, asks first: **Keep it** keeps the change and **Take it off** undoes it.
 
+The board offers ready plans: **Paper only**, **Paper and a vault** and, for a single key, **Two vaults**. A vault in one is new, made in the checklist.
+
 **Add partial descriptors to this backup** gives every place a share of the descriptor, which is a multisig descriptor with some keys left off; **Remove partial descriptors** takes the shares off again. A place with only one share cannot work out an address.
 
 ## The plan

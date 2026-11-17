@@ -17,6 +17,7 @@
 
 pub mod codex32;
 pub(crate) mod lines;
+mod plans;
 pub(crate) mod screen;
 mod view;
 
@@ -142,6 +143,9 @@ pub enum BoardPress {
     /// **Add**, at the top of the narrow column: the list as a sheet
     /// (`docs/BACKUP-FLOW.md` §17.12 item 3).
     OpenList,
+    /// A ready plan chosen on the read-only board (`docs/BACKUP-FLOW.md`
+    /// §17.25): the placement becomes that plan's, still read-only.
+    Plan(plan::Ready),
     /// **Customize backup**: the board, read-only until now, opened for
     /// changes, and the list shown (`docs/BACKUP-FLOW.md` §17.6).
     Customize,
@@ -724,7 +728,7 @@ pub(crate) struct CardView {
     pub paper: ZoneView,
     /// Its header's tags, each with how it reads: whether it sees the
     /// balance, then how near it brings a spend, where it keeps a seed
-    /// (`docs/BACKUP-FLOW.md` §17.22).
+    /// (`docs/BACKUP-FLOW.md` §17.25).
     pub facts: Vec<(String, plan::AloneKind)>,
     /// What it holds, as the ask under its header says it, while its ×
     /// has asked first.
@@ -799,6 +803,9 @@ pub(crate) struct BoardView {
     pub c32: Vec<codex32::C32Group>,
     /// The software's entry, while the board has no software place.
     pub software_entry: Option<Entry>,
+    /// The ready plans offered while the board is read-only, each with
+    /// whether the board is it now (`docs/BACKUP-FLOW.md` §17.25).
+    pub ready: Vec<(plan::Ready, bool)>,
     /// Each check that stands, a line under the board.
     pub warnings: Vec<faraday_text::Text>,
     /// After the lock: paper and files take nothing.
@@ -1480,6 +1487,14 @@ impl Faraday {
             vaults,
             vault_room: a.vault_room(&shape),
             software_entry: (!has_software && !locked).then(|| entry(Thing::Software)),
+            ready: if custom || locked {
+                Vec::new()
+            } else {
+                plan::Ready::offered(&shape)
+                    .into_iter()
+                    .map(|r| (r, r.is(&shape, &a)))
+                    .collect()
+            },
             warnings,
             locked,
             custom,
@@ -1797,6 +1812,7 @@ impl Faraday {
             && !matches!(
                 press,
                 BoardPress::Customize
+                    | BoardPress::Plan(_)
                     | BoardPress::Software
                     | BoardPress::LetGo
                     | BoardPress::SeesKeep
@@ -1898,6 +1914,17 @@ impl Faraday {
             BoardPress::Customize => {
                 set(self, None);
                 self.board_change(&|a, _| a.custom = true);
+            }
+            BoardPress::Plan(r) => {
+                set(self, None);
+                if locked {
+                    return self.toast(EN.backup_flow_files_after_lock);
+                }
+                self.board_change(&|a, shape| {
+                    let custom = a.custom;
+                    *a = r.answers(shape);
+                    a.custom = custom;
+                });
             }
             BoardPress::Software => {
                 set(self, None);

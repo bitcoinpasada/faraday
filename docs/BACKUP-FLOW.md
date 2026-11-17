@@ -2132,8 +2132,9 @@ the board in Customize backup.
 1. **No Start from.** Back up's plan has no Start from card, no preset
    list and no **Change**: a new plan opens on the board with The
    standard way placed (§17.6), read-only until **Customize backup**.
-   Paper only, Paper and vault, and Paper, vault and watch-only software
-   are not offered anywhere.
+   *(Narrowed by §17.25, F279: the read-only board offers three ready
+   plans as buttons; there is still no Start from card.)* Paper, vault
+   and watch-only software is not offered anywhere.
 2. **Back up now**, at the foot of Make a new wallet's Check once
    the wallet is checked (Make a new wallet has no Back up card since
    the owner's call of 2026-10-26), and Restore's **Back up this
@@ -2778,3 +2779,31 @@ keep, on the sheet. Learn says why (below).
   number.
 - An absolute lock (`after`) gets no margin row: moving coins does not
   change it.
+
+### 17.25 Ready plans on the read-only board (owner, 2026-11-16, F279)
+
+Customizing had no starting point between paper only and an empty
+board. The read-only board offers ready plans, each a whole placement,
+as buttons in the right-hand column (in the narrow column where **Add**
+stands), above **Add watch-only software** and **Customize backup**
+(§17.21 item 3):
+
+- **Paper only**: The standard way (§17.6), the plan the board opens on.
+- **Paper and a vault**: paper, and one vault on a stick holding the
+  seeds and the description (a multisig: a vault for each seed, as
+  `Preset::PaperVault` makes them).
+- **Two vaults**: paper, and two vaults each holding the key and the
+  description, on sticks at two places. Offered for a single key only.
+
+The plan the board is now reads as selected. Pressing another replaces
+the placement with that plan's (`BoardPress::Plan`) and the board stays
+read-only; **Customize backup** then opens that plan for changes. None
+is offered once Customize backup is pressed, after the lock, or when a
+vault was brought in from a stick before the keys (it is already the
+plan's Vault 1; its placement is not replaced). A vault a ready plan adds
+is new: made in the checklist and written at the write step (§17.21
+item 4). `Ready` in `faraday-core/src/plan/ready.rs` builds each plan
+from the wallet's shape.
+
+**Open:** the buttons are not yet drawn; the board takes the press
+(`board/plans.rs` holds the list the screen draws).
