@@ -499,21 +499,39 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let line = Text::fill(EN.vault_unlocking, &[&t]);
         crate::screens::working_line(ui, (x, y, w, 46.0), &line);
     } else {
+        let unlock_w = 160.0;
         let style = Style::Primary.when(app.may_load_keys());
         ui.button(
             x,
             y,
-            Some(160.0),
+            Some(unlock_w),
             BUTTON_H,
             EN.vault_unlock,
             style,
             va(V::Unlock),
         );
+        // Opened from a flow that waits: Cancel returns to it, as the
+        // arrow does.
+        let mut fx = x + 180.0;
+        if app.vaults.back_to.is_some() {
+            let cancel_x = x + unlock_w + tokens::GAP;
+            let cw = ui.measure_as(LABEL_L, EN.vault_cancel) + tokens::PAD + tokens::PAD;
+            ui.button(
+                cancel_x,
+                y,
+                Some(cw),
+                BUTTON_H,
+                EN.vault_cancel,
+                Style::Secondary,
+                unlock_back(app).1,
+            );
+            fx = cancel_x + cw + tokens::PAD;
+        }
         let free = match app.vaults.memory_free_mib {
             Some(m) => Text::fill(EN.vault_this_computer_free, &[&mib_text(m)]),
             None => Text::of(EN.vault_this_computer_memory),
         };
-        ui.text_mid_as((x + 180.0, y, 46.0), BODY_S, muted, &free);
+        ui.text_mid_as((fx, y, 46.0), BODY_S, muted, &free);
     }
 }
 
@@ -808,6 +826,27 @@ fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             va(V::Unlock),
         ) {
             y += 52.0;
+        }
+        if app.vaults.back_to.is_some() {
+            if ui.pinning {
+                // Beside the pinned Unlock, in view without scrolling.
+                ui.pin_aside = Some((
+                    Text::of(EN.vault_cancel),
+                    Style::Secondary,
+                    unlock_back(app).1,
+                ));
+            } else {
+                ui.button(
+                    x,
+                    y,
+                    Some(w),
+                    BUTTON_H,
+                    EN.vault_cancel,
+                    Style::Secondary,
+                    unlock_back(app).1,
+                );
+                y += BUTTON_H + tokens::GAP;
+            }
         }
         let free = match app.vaults.memory_free_mib {
             Some(m) => Text::fill(EN.vault_this_computer_free, &[&mib_text(m)]),

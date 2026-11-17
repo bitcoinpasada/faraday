@@ -207,7 +207,7 @@ fn from_the_vaults_tab_the_sheet_ticks_by_setting_and_load_ticked_loads_that() {
     }
 
     app.press(Action::Vault(V::LoadTicked));
-    assert_eq!((app.screen, app.sheet), (Screen::Wallets, None));
+    assert_eq!((app.screen, app.sheet), (Screen::VaultContents, None));
     assert_eq!(wallet_names(&app), ["Savings", "Summer"]);
     assert_eq!(key_labels(&app), ["Loose A", "Test key 1", "Test key 2"]);
 }
@@ -225,9 +225,9 @@ fn one_wallet_vault() -> Vec<u8> {
 }
 
 /// A vault holding one wallet and nothing else loads it without the
-/// sheet and lands on the wallet.
+/// sheet, and the person stays in the vault.
 #[test]
-fn a_vault_of_one_wallet_loads_without_the_sheet_and_lands_on_it() {
+fn a_vault_of_one_wallet_loads_without_the_sheet_and_stays_in_the_vault() {
     let mut app = device(vec![("cellar.kdbx".into(), one_wallet_vault())]);
     unlock_on_vaults(&mut app, "cellar.kdbx", PHRASE);
     for t in 1..60u64 {
@@ -239,7 +239,7 @@ fn a_vault_of_one_wallet_loads_without_the_sheet_and_lands_on_it() {
             now_ms: 100_000 + t * 1000,
         });
     }
-    assert_eq!((app.screen, app.sheet), (Screen::Wallets, None));
+    assert_eq!((app.screen, app.sheet), (Screen::VaultContents, None));
     assert_eq!(wallet_names(&app), ["Summer"]);
     assert_eq!(key_labels(&app), ["Test key 1"]);
 }
@@ -269,10 +269,10 @@ fn a_vault_of_one_wallet_set_not_to_load_at_unlock_shows_its_sheet() {
     assert!(app.session.wallets.is_empty() && app.session.keys.is_empty());
 }
 
-/// A vault of keys alone shows the sheet, and what it loads lands on
-/// Wallets start, where keys without a wallet are listed.
+/// A vault of keys alone shows the sheet, and what it loads leaves the
+/// person in the vault.
 #[test]
-fn keys_alone_land_on_wallets_start() {
+fn keys_alone_stay_in_the_vault() {
     let records = vec![
         test_key(0),
         loose_key(
@@ -296,18 +296,18 @@ fn keys_alone_land_on_wallets_start() {
             now_ms: 100_000 + t * 1000,
         });
     }
-    assert_eq!((app.screen, app.sheet), (Screen::WalletsStart, None));
+    assert_eq!((app.screen, app.sheet), (Screen::VaultContents, None));
     assert!(app.session.wallets.is_empty());
 }
 
-/// Not now loads nothing, the vault stays open on Files, and the Vaults
+/// Not now loads nothing, the vault stays open on its contents, and the Vaults
 /// tab still loads from it.
 #[test]
 fn not_now_loads_nothing_and_the_vault_can_still_load_later() {
     let mut app = device(vec![("cellar.kdbx".into(), load_vault())]);
     unlock_on_vaults(&mut app, "cellar.kdbx", PHRASE);
     app.press(Action::Vault(V::LoadNotNow));
-    assert_eq!((app.screen, app.sheet), (Screen::Files, None));
+    assert_eq!((app.screen, app.sheet), (Screen::VaultContents, None));
     assert_eq!(app.vaults().open.len(), 1);
     assert!(app.session.keys.is_empty() && app.session.wallets.is_empty());
     app.press(Action::Vault(V::LoadAll(0)));
@@ -390,8 +390,8 @@ fn a_key_in_no_wallet_follows_its_own_setting() {
     app.press(Action::Vault(V::LoadTicked));
     assert!(app.session.wallets.is_empty());
     assert_eq!(key_labels(&app), ["Loose A", "Loose B"]);
-    // Load with only keys lands on Wallets start.
-    assert_eq!((app.screen, app.sheet), (Screen::WalletsStart, None));
+    // Load with only keys stays in the vault.
+    assert_eq!((app.screen, app.sheet), (Screen::VaultContents, None));
 }
 
 /// What the session holds already is Loaded on the sheet: a card with
@@ -1018,4 +1018,45 @@ fn a_multisig_of_a_vault_loads_with_no_confirmation_sheet() {
     assert_ne!(app.sheet, Some(Sheet::WalletConfirm));
     assert!(wallet_names(&app).contains(&"Savings".to_string()));
     assert!(app.session.wallet_asked().is_none());
+}
+
+/// Unlocking from the Vaults list lands in that vault's contents, with
+/// the Load sheet over them, and the unlock page has no Cancel: its
+/// arrow is the way out.
+#[test]
+fn an_unlock_from_the_vaults_list_lands_in_the_vault_under_the_sheet() {
+    let mut app = device(vec![("cellar.kdbx".into(), load_vault())]);
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Open(0)));
+    let _ = app.frame();
+    assert!(!app.drawn_texts().iter().any(|t| t == "Cancel"));
+    type_text(&mut app, PHRASE);
+    app.press(Action::Vault(V::Unlock));
+    for t in 1..60u64 {
+        if !app.vaults().open.is_empty() {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    assert_eq!(
+        (app.screen, app.sheet),
+        (Screen::VaultContents, Some(Sheet::UnlockLoad))
+    );
+}
+
+/// An unlock a flow waits on offers Cancel beside Unlock, and Cancel
+/// returns to the flow with what was typed dropped, as the arrow does.
+#[test]
+fn an_unlock_a_flow_waits_on_has_a_cancel_that_returns_to_it() {
+    let mut app = device(vec![("cellar.kdbx".into(), load_vault())]);
+    app.press(Action::Vault(V::OpenFrom(0, Screen::Home)));
+    assert_eq!(app.screen, Screen::Unlock);
+    let _ = app.frame();
+    assert!(app.drawn_texts().iter().any(|t| t == "Cancel"));
+    type_text(&mut app, PHRASE);
+    app.press(Action::Vault(V::Back));
+    assert_eq!(app.screen, Screen::Home);
+    assert!(app.vaults().open.is_empty());
+    assert_eq!(app.vaults().back_to, None);
 }

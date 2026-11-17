@@ -1271,13 +1271,10 @@ impl Faraday {
             self.screen = Screen::SpendBackup;
             self.spend_backup_unlocked(v);
         } else if back.is_none() && !made {
-            // The Vaults list's Unlock (F62):
-            // Files, where it landed before F62 when it loaded no
-            // wallet, with the vault's Load sheet over it; a wallet loaded
-            // lands on Wallets as the boot sheet's does. A vault opened from
-            // inside a flow, or just made, keeps `back_to` or `made` and
-            // takes the branch below instead, loading nothing here.
-            self.screen = Screen::Files;
+            // The Vaults list's Unlock (F62, F280): the vault's contents,
+            // with its Load sheet over them. What the sheet loads stays
+            // there; the boot sheet's and a flow's landings are their own.
+            self.screen = Screen::VaultContents;
             let before = self.session.wallets.len();
             self.load_sheet_offer(v, false, before);
         } else {
@@ -1310,7 +1307,7 @@ impl Faraday {
     }
 
     /// After an unlock's Load sheet that loaded wallets
-    /// (F62: the boot sheet's Unlock or the Vaults list's):
+    /// (F62: the boot sheet's Unlock):
     /// Wallets, on
     /// the first loaded that can sign here, else the first loaded, and a
     /// toast naming what loaded from where. One that loaded none stays
@@ -1331,8 +1328,18 @@ impl Faraday {
         self.screen = Screen::Wallets;
         self.wallets.set_card_offset(0.0);
         self.glance.set_open(false);
-        // From the vault, or from the stick it came on when the stick's
-        // own files brought some.
+        self.unlock_loaded_note(before, file, stick);
+    }
+
+    /// The toast for the wallets that loaded from `before` on: from the
+    /// vault, or from the stick it came on when the stick's own files
+    /// brought some. A kept wallet this device cannot load follows the
+    /// line, with its reason.
+    fn unlock_loaded_note(&mut self, before: usize, file: &str, stick: Option<&str>) {
+        let loaded: Vec<usize> = (before..self.session.wallets.len()).collect();
+        let Some(&first) = loaded.first() else {
+            return;
+        };
         let from = match stick {
             Some(s)
                 if loaded
@@ -1348,8 +1355,6 @@ impl Faraday {
             n => Text::fill(EN.vaults_wallets_n, &[&Text::num(n as u64)]),
         };
         let note = Text::fill(EN.vaults_loaded_note, &[&what, from]);
-        // A kept wallet this device cannot load follows the line, with
-        // its reason.
         match self.vaults.state.refused.take() {
             Some((w, why)) => self.toast(&Text::fill(EN.vaults_loaded_refused, &[&note, &w, &why])),
             None => self.toast(&note),
@@ -3719,7 +3724,7 @@ impl Faraday {
                 set.extend(self.vault_musig_one_seed(v));
                 load_job::start(self, v, &set);
             }
-            VaultAction::LoadNotNow => self.load_sheet_close(v, false),
+            VaultAction::LoadNotNow => self.load_sheet_close(v),
             _ => {}
         }
     }
@@ -3746,14 +3751,13 @@ impl Faraday {
         if wallets == 0 {
             self.vault_loaded_toast(counts);
         }
-        self.load_sheet_close(v, wallets == 0 && keys > 0);
+        self.load_sheet_close(v);
     }
 
     /// The sheet is done with: the boot import goes on to its next vault
-    /// or lands, as F60 has it; an unlock from the Vaults tab lands on
-    /// Wallets when wallets loaded, on Wallets start when only keys did
-    /// (`keys_only`, where they are listed), else stays on Files.
-    fn load_sheet_close(&mut self, v: usize, keys_only: bool) {
+    /// or lands, as F60 has it; an unlock from the Vaults tab stays in the
+    /// vault's contents (F280), with a toast for the wallets that loaded.
+    fn load_sheet_close(&mut self, v: usize) {
         let Some(s) = self.vaults.state.load.take() else {
             return;
         };
@@ -3770,14 +3774,8 @@ impl Faraday {
                 self.unlock_landed(s.wallets_before, &file, label.as_deref());
             }
         } else {
-            if self.screen == Screen::Unlock {
-                self.screen = Screen::Files;
-            }
-            self.unlock_landed(s.wallets_before, &file, None);
-            if keys_only {
-                self.screen = Screen::WalletsStart;
-                self.list_offset = 0.0;
-            }
+            // F280: the person stays in the vault; what loaded is said.
+            self.unlock_loaded_note(s.wallets_before, &file, None);
         }
     }
 }

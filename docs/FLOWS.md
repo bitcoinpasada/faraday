@@ -846,13 +846,14 @@ line "Savings 2 of 3 · key 9a6a2580 · 12 entries · seen 14:02"; with
 nothing remembered, "Unlock to see what it holds".
 
 - open vault → **View contents** → Vault contents;
-- locked vault → **Unlock** → passphrase sheet → Files, with **Load
-  from {vault}** over it (F62): **Load ticked** → Wallets on the first
-  wallet loaded that can sign here (Files when only keys loaded); **Not
-  now** → Files, the vault open, nothing loaded. No sheet when the vault
-  holds no wallet or key, or all are loaded already.
+- locked vault → **Unlock** → passphrase sheet → Vault contents of that
+  vault (F280), with **Load from {vault}** over it (F62): **Load
+  ticked** and **Not now** leave it there, a toast saying what loaded.
+  No sheet when the vault holds no wallet or key, or all are loaded
+  already.
 - opened from a flow that needs a vault (decision 10): **Unlock** →
-  the flow, on the step it was on; the way back returns to it.
+  the flow, on the step it was on; **Cancel** beside it, like the way
+  back, returns to it and drops the secret it held.
 
 **Create a vault** (step cards: Size, then Name and passphrase;
 **Customize** puts where it opens, unlock cost and space per passphrase

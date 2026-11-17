@@ -557,6 +557,11 @@ credentials with the passphrase alone. It is opened in KeePassXC.
 7. Read the inner header and the XML (§7, §7.1). Any fault refuses the
    file, naming it.
 8. Compare the seal count with what the session has seen (§11).
+9. Land: an unlock started from the Vaults list lands on that vault's
+   Vault contents, with the Load sheet over it where F62 shows one, and
+   what the sheet loads leaves the person there (F280). An unlock a flow
+   asked for returns to the flow, and its Cancel returns too; the boot
+   sheet's landing is F60's.
 
 Neither the key file nor its name is remembered once the
 vault is locked (§11). Built: an open vault keeps them in `faraday-keys`

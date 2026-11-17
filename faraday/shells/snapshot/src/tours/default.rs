@@ -1047,7 +1047,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.press(Action::Vault(V::Unlock));
     t.tick();
     // Unlocked from the Vaults list: its
-    // Load sheet (F62), every card ticked; Load ticked lands on Wallets.
+    // Load sheet (F62), every card ticked; Load ticked stays in the vault (F280).
     if t.app.sheet != Some(faraday_core::Sheet::UnlockLoad) || !t.app.session.keys.is_empty() {
         return Err("the unlock did not ask what to load".into());
     }
@@ -1056,9 +1056,11 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.shot("vault-load-sheet-none")?;
     t.press(Action::Vault(V::LoadTickAll));
     t.press(Action::Vault(V::LoadTicked));
-    if t.app.screen != Screen::Wallets || t.app.session.keys.is_empty() {
+    if t.app.screen != Screen::VaultContents || t.app.session.keys.is_empty() {
         return Err("the unlock did not load the vault's wallets".into());
     }
+    t.shot("vault-loaded")?;
+    t.press(Action::Nav(Screen::Wallets));
     t.shot("wallets-vault-open")?;
     t.press(Action::Nav(Screen::VaultContents));
     if t.app.vaults().open.len() != 1

@@ -464,6 +464,8 @@ pub struct Ui<'a, A> {
     pub page_view: Option<(f32, f32)>,
     /// The forward action a page pinned this frame.
     pub pin: Option<(Text, Style, A)>,
+    /// A button pinned beside [`Ui::pin`], at its left (a Cancel).
+    pub pin_aside: Option<(Text, Style, A)>,
     /// On a small panel, where a step flow's bar tools begin (the ?, the
     /// eye, Cancel and the rest at its right end), set by the frame
     /// before the page is drawn so the bar's title ends before it.
@@ -681,6 +683,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             bar_tools_x: None,
             bar_pill_w: 0.0,
             bar_pill_top: None,
+            pin_aside: None,
             sheet_pinning: false,
             sheet_pin: None,
             fab_at: None,

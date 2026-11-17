@@ -178,6 +178,13 @@ fn keyed_unlock(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::Vaults));
     t.press(Action::Vault(V::Open(0)));
     t.shot("unlock-key-buttons")?;
+    // The same Unlock asked for by a flow that waits: Cancel beside it.
+    t.press(Action::Nav(Screen::Home));
+    t.press(Action::Vault(V::OpenFrom(0, Screen::Home)));
+    t.shot("unlock-from-a-flow")?;
+    t.press(Action::Vault(V::Back));
+    t.press(Action::Nav(Screen::Vaults));
+    t.press(Action::Vault(V::Open(0)));
     t.press(Action::Vault(V::KeyFileAsk));
     t.shot("unlock-key-file-dialog")?;
     t.press(Action::Vault(V::KeyFileChoose));

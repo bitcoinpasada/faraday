@@ -1128,12 +1128,12 @@ fn a_seed_on_the_stick_as_words_and_a_picture_is_labelled_from_the_words_file() 
 fn a_vault_imported_then_unlocked_on_vaults_loads_its_own_wallets() {
     let mut app = unlocked_elsewhere();
     // Unlocked through the list, not the sheet:
-    // its Load sheet; Load ticked lands on Wallets, with the
-    // vault's own wallets and keys loaded; the import, its one vault
-    // open, is over.
+    // its Load sheet over the vault's contents; Load ticked stays there,
+    // with the vault's own wallets and keys loaded; the import, its one
+    // vault open, is over.
     assert_eq!(app.sheet, Some(Sheet::UnlockLoad));
     app.press(Action::Vault(V::LoadTicked));
-    assert_eq!((app.screen, app.sheet), (Screen::Wallets, None));
+    assert_eq!((app.screen, app.sheet), (Screen::VaultContents, None));
     assert!(app.import().is_none());
     assert!(app.session.wallets.iter().any(|w| w.name == "Savings"));
     assert_eq!(app.vaults().back_to, None);

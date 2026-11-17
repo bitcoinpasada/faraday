@@ -92,7 +92,7 @@ fn the_boot_sticks_vault_waits_on_the_sheet_and_pulling_the_stick_leaves_it_up()
 }
 
 #[test]
-fn unlocking_asks_what_to_load_and_load_ticked_loads_it_and_lands_on_wallets() {
+fn unlocking_asks_what_to_load_and_load_ticked_loads_it_and_stays_in_the_vault() {
     let (mut app, _) = later();
     app.storage(StorageEvent::Sticks(Vec::new()));
     app.press(Action::Vault(V::Open(0)));
@@ -103,7 +103,7 @@ fn unlocking_asks_what_to_load_and_load_ticked_loads_it_and_lands_on_wallets() {
     assert!(app.session.keys.is_empty() && app.session.wallets.is_empty());
     app.press(Action::Vault(V::LoadTicked));
     assert_eq!(app.sheet, None);
-    assert_eq!(app.screen, Screen::Wallets);
+    assert_eq!(app.screen, Screen::VaultContents);
     assert_eq!(app.session.keys.len(), 1);
     let n = app.session.wallets.len();
     assert!(n > 1, "the test vault holds every test wallet");

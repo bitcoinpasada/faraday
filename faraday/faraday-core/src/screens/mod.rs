@@ -756,6 +756,7 @@ fn draw_compact(app: &View, ui: &mut Ui, area: (f32, f32), h: f32, kb: bool, y0:
         ui.c.push_clip(clip);
         ui.oy = y0 + top;
         ui.pin = None;
+        ui.pin_aside = None;
         ui.pinning = !kb;
         ui.bar_tools_x = crate::compact::draws_own_bar(app.screen)
             .then(|| crate::compact::flow_bar_tools_x(app, ui, w));
@@ -774,6 +775,7 @@ fn draw_compact(app: &View, ui: &mut Ui, area: (f32, f32), h: f32, kb: bool, y0:
             crate::compact::flow_bar_tools(app, ui, w);
         }
         let pin = ui.pin.take().filter(|_| !kb);
+        let aside = ui.pin_aside.take().filter(|_| pin.is_some());
         let want = if pin.is_some() { PIN_H } else { 0.0 };
         if want != had {
             // The bar came or went: the page again, laid out for it, in
@@ -790,16 +792,18 @@ fn draw_compact(app: &View, ui: &mut Ui, area: (f32, f32), h: f32, kb: bool, y0:
             ui.fill(0.0, y, aw, 1.0, 0.0, Role::OutlineVariant);
             ui.ox = cx;
             let m = crate::compact::M;
-            let label = ui.fit_as(TITLE_M, &label, w - 2.0 * m - 24.0);
-            ui.button(
-                m,
-                y + 10.0,
-                Some(w - 2.0 * m),
-                BUTTON_H,
-                &label,
-                style,
-                action,
-            );
+            // A pinned Cancel takes the left half, the page's action the right.
+            let (bx, bw) = match &aside {
+                Some((al, astyle, aaction)) => {
+                    let half = (w - 3.0 * m) / 2.0;
+                    let al = ui.fit_as(TITLE_M, al, half - 24.0);
+                    ui.button(m, y + 10.0, Some(half), BUTTON_H, &al, *astyle, *aaction);
+                    (m + half + m, half)
+                }
+                None => (m, w - 2.0 * m),
+            };
+            let label = ui.fit_as(TITLE_M, &label, bw - 24.0);
+            ui.button(bx, y + 10.0, Some(bw), BUTTON_H, &label, style, action);
             foot = y;
         }
     }

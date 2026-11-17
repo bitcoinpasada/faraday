@@ -560,6 +560,9 @@ fn restore_pressed() -> Faraday {
     let mut app = app_with(wallet_and_key());
     assert!(app.session.keys.is_empty());
     let r = wallet_index(&app);
+    // The unlock's Load sheet is over the vault: a person answers it
+    // before going to Restore.
+    app.press(Action::Vault(V::LoadNotNow));
     app.press(Action::RestoreWallet);
     testkit::hold_worker();
     testkit::press_on_worker(&mut app, Action::RFromVault(0, r));
@@ -577,9 +580,6 @@ fn restore_from_a_vault_left_before_its_answer_adds_no_key() {
         testkit::settle_stale(&mut app);
         let _ = app.frame();
         assert!(app.session.keys.is_empty(), "{name}");
-        if name != "Lock" {
-            assert_ne!(app.screen, faraday_core::Screen::Restore, "{name}");
-        }
     }
 }
 

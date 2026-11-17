@@ -124,18 +124,18 @@ fn at_unlock() -> Faraday {
 const UNLOCK: Table = &[
     (
         Work::Kdf,
-        5,
-        "Argon2id once over the passphrase; PBKDF2 for the vault's seed (its identity, worked out in the unlock's job, which this harness runs on the calling thread) and for the three seed files Files lists under the Load sheet (their fingerprints, kept)",
+        3,
+        "Argon2id once over the passphrase; PBKDF2 for the vault's seed (its identity, worked out in the unlock's job, which this harness runs on the calling thread) and once for the seed Vault contents shows under the Load sheet (its fingerprint, kept)",
     ),
     (
         Work::MasterKey,
-        4,
-        "the vault's seed (in the unlock's job) and the three seed files in Files, each made a master key once for its fingerprint, then kept",
+        2,
+        "the vault's seed (in the unlock's job) and the seed Vault contents shows, each made a master key once for its fingerprint, then kept",
     ),
     (
         Work::WordsParse,
-        6,
-        "the three seed files in Files once each; the vault's key record three times: once by the vault's reader, which checks the words read as it maps the file's items (faraday_vault::kdbx::items::read, on the worker, so a seed that does not read is shown as unreadable), then for its words' hash (VaultRecords) and, in the unlock's job, its identity (key_identity), each kept",
+        4,
+        "the seed Vault contents shows, once; the vault's key record three times: once by the vault's reader, which checks the words read as it maps the file's items (faraday_vault::kdbx::items::read, on the worker, so a seed that does not read is shown as unreadable), then for its words' hash (VaultRecords) and, in the unlock's job, its identity (key_identity), each kept",
     ),
     (
         Work::FileHash,
@@ -144,13 +144,13 @@ const UNLOCK: Table = &[
     ),
     (
         Work::KeyDerive,
-        1,
-        "the vault seed's master key's xpub, for its id (key_identity), worked out in the unlock's job",
+        3,
+        "the vault seed's master key's xpub, for its id (key_identity), worked out in the unlock's job (1); Vault contents, drawn under the Load sheet, derives the fingerprints of the keys it lists, kept (2)",
     ),
     (
         Work::DescriptorParse,
-        24,
-        "each of the vault's 11 wallet records read twice: once by the vault's reader, which checks the policy or descriptor reads as it maps the file's items (faraday_vault::kdbx::items::read, on the worker, so a wallet that does not read is shown as unreadable), once for the description the app keeps (Vaults::read, VaultRecords); Savings' share sheets in Files put together, the config they make read once for its name (config_name_kept) and once for its wallet (read_kept), each kept",
+        22,
+        "each of the vault's 11 wallet records read twice: once by the vault's reader, which checks the policy or descriptor reads as it maps the file's items (faraday_vault::kdbx::items::read, on the worker, so a wallet that does not read is shown as unreadable), once for the description the app keeps (Vaults::read, VaultRecords); Savings' share sheets put together (Vault contents lists them), the config they make read once for its name (config_name_kept) and once for its wallet (read_kept), each kept",
     ),
     (
         Work::Blur,
@@ -190,19 +190,9 @@ const LOAD: Table = &[
         "the loaded key's master xpub, for its id (wallet::master_id), worked out in the job and kept on the key (1); each of the 22 kept wallet keys under the loaded key's fingerprint derived at its origin path, in the same job (KeysJob::check_at), to check it is the loaded key's as the wallet is added on the main thread (Session::add_kept), which derives none (22)",
     ),
     (
-        Work::Address,
-        12,
-        "Wallets opens on a wallet's card, which shows its first receive address: derived once, then kept (1); each script a wallet derives for the PSBTs in Files (WalletMatch below) is a script derivation, counted at its source (11)",
-    ),
-    (
-        Work::WalletMatch,
-        11,
-        "each card's first button asks which wallet each PSBT in Files spends from: each wallet derives its script at a PSBT's places the first time it is asked, then keeps it",
-    ),
-    (
         Work::FullCanvas,
         5,
-        "the change to Wallets fades from the frame before: one copy, blended on each frame after",
+        "the Load sheet closing fades from the frame before: one copy, blended on each frame after",
     ),
 ];
 
