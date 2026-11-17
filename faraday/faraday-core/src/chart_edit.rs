@@ -297,6 +297,12 @@ impl Faraday {
         if self.chart_copy_not_current(&c, press) {
             return;
         }
+        // A part or share of a set reads Checked only by a match
+        // (`docs/decisions/F276.md`): never by this mark.
+        let things: Vec<_> = things
+            .into_iter()
+            .filter(|(_, w)| !matches!(w, What::XorPart(..) | What::Slip39Share(..)))
+            .collect();
         let today = self.today();
         let kept = self.chart_notes_change(press, &|notes: &mut Vec<Note>| {
             for &(at, what) in &things {

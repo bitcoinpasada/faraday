@@ -82,6 +82,9 @@ pub enum Step {
     /// Type the words of a copy of the seed with this fingerprint, at the
     /// checklist's copy item, with the check open.
     Type([u8; 4], Item, Option<At>),
+    /// Type the words of Seed XOR part j of seed i, to be compared with
+    /// the part's fingerprint kept with the key.
+    PartCheck(usize, usize),
     /// The backup's plan questions, with the plan the chart shows.
     Plan,
     /// Type a new name for place p: the plan's Places question.
@@ -970,9 +973,17 @@ fn line(ctx: &Ctx<'_>, n: u8, j: u8) -> Option<View> {
         // A Krux code is made in its checklist item, and no check
         // counts it: nothing to do from here.
         What::KefCode(_) | What::KefCodePaper(_) => {}
-        // A Seed XOR part or a SLIP-39 share: paper only, checked from
-        // Backups, nothing to do from here yet.
-        What::XorPart(..) | What::Slip39Share(..) => {}
+        // A Seed XOR part: its words typed back and compared with its
+        // fingerprint. A SLIP-39 share keeps no fingerprint: nothing to
+        // do from here.
+        What::XorPart(i, p) => {
+            rows.push(row(
+                EN.glance_sheet_check_row,
+                EN.backups_part_check_detail,
+                ctx.doing(Step::PartCheck(i, p)),
+            ));
+        }
+        What::Slip39Share(..) => {}
         What::Sheet => {
             rows.push(row(EN.glance_sheet_reprint, "PDF", ctx.doing(Step::Out(3))));
             rows.push(row(EN.glance_sheet_as_a_qr, "PNG", ctx.doing(Step::Out(8))));
@@ -1637,6 +1648,13 @@ impl Faraday {
                             self.act(Action::BKey(k));
                             self.backup.check_at_set(at);
                             self.act(Action::BCheck);
+                            self.screen = Screen::Backup;
+                        }
+                    }
+                    Step::PartCheck(i, p) => {
+                        if self.chart_checklist(w, from_vault) {
+                            self.backup_item_open(Some(Item::Copy(i)));
+                            self.act(Action::BPartCheck(p.min(255) as u8));
                             self.screen = Screen::Backup;
                         }
                     }

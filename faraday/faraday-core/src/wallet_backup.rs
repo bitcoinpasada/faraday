@@ -2123,7 +2123,18 @@ impl Faraday {
         let Some(b) = self.backup.state() else {
             return;
         };
-        if b.check.is_some() || b.paper.as_ref().is_none_or(|p| usize::from(i) >= p.len()) {
+        // The parts on screen, or a counted part: one of the key's kept
+        // set, compared by its fingerprint.
+        let parts = match b.paper.as_ref() {
+            Some(p) => p.len(),
+            None => self
+                .session
+                .keys
+                .info(b.key)
+                .and_then(|k| k.xor.as_ref())
+                .map_or(0, |x| x.parts.len()),
+        };
+        if b.check.is_some() || usize::from(i) >= parts {
             return;
         }
         let mut check = self.copy_check_new();
@@ -2133,6 +2144,48 @@ impl Faraday {
         self.backup.check_start(check);
     }
 
+    /// Costs a PBKDF2 and an elliptic-curve multiplication. The words
+    /// typed compared with the fingerprint the key's kept set holds for
+    /// part `i`, as the parts are no longer on screen. A match closes the
+    /// check and dates the part; nothing typed is kept.
+    fn part_check_counted(&mut self, i: usize) {
+        let c = self.compute();
+        let Some(b) = self.backup.state() else {
+            return;
+        };
+        let Some(chk) = b.check.as_ref() else {
+            return;
+        };
+        let want = self
+            .session
+            .keys
+            .info(b.key)
+            .and_then(|k| k.xor.as_ref())
+            .and_then(|x| x.parts.get(i).copied());
+        let seed = self
+            .backup_seed_list_now(b.wallet)
+            .iter()
+            .position(|(_, k)| *k == Some(b.key));
+        let (lang, mut typed) = (chk.lang, chk.indices());
+        let made = faraday_keys::words::from_indices(lang, &typed)
+            .ok()
+            .and_then(|m| faraday_keys::identity::fingerprint_of_mnemonic(&c, &m, "").ok());
+        typed.zeroize();
+        match (made, want) {
+            (Some(m), Some(w)) if m.0 == w => {
+                self.backup.check_close();
+                self.backup.part_matched(i);
+                if let Some(s) = seed {
+                    self.what_dating(&c, plan::What::XorPart(s, i), None);
+                }
+            }
+            _ => {
+                let line = Text::fill(EN.backups_part_differs, &[&Text::num(i as u64 + 1)]);
+                self.backup.check_wrong(1, line);
+            }
+        }
+    }
+
     /// Compares the words typed with Seed XOR part `i` once the last is
     /// taken. A match marks the part and closes the check; a word that
     /// differs is named and typing resumes at it.
@@ -2140,8 +2193,11 @@ impl Faraday {
         let Some(b) = self.backup.state() else {
             return;
         };
-        let (Some(chk), Some(parts)) = (b.check.as_ref(), b.paper.as_ref()) else {
+        let Some(chk) = b.check.as_ref() else {
             return;
+        };
+        let Some(parts) = b.paper.as_ref() else {
+            return self.part_check_counted(i);
         };
         let Some(part) = parts.get(i) else {
             return;

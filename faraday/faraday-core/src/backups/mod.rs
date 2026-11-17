@@ -1167,7 +1167,7 @@ impl Faraday {
     /// Costs what `plan_mapped` costs. Dates the copy of `what` that
     /// matched at `at`, or at the one place the plan keeps it, or asks
     /// which copy it was.
-    fn what_dating(&mut self, c: &Compute, what: What, at: Option<At>) {
+    pub(crate) fn what_dating(&mut self, c: &Compute, what: What, at: Option<At>) {
         let Some(b) = self.backup.state() else {
             return;
         };

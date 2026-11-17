@@ -106,6 +106,14 @@ pub(crate) fn chart_edit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         t.press(Action::Cancel);
     }
     shot_chart(t, one, "chart-marked")?;
+    // A place's row on Backups opens its place's sheet over the list; back
+    // returns to the list.
+    t.press(Action::Nav(Screen::Backups));
+    t.press(Action::BackupsPlace(one, At::Place(0)));
+    t.shot("backups-place-sheet")?;
+    t.press(Action::Cancel);
+    t.tick();
+    t.shot("backups-place-sheet-back")?;
     // A 2-of-3 with test key 3 a cosigner's: its holder named.
     t.press(Action::Entry(None));
     t.type_key(1);

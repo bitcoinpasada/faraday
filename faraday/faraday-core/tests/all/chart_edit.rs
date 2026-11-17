@@ -2329,3 +2329,82 @@ fn a_matched_copy_shows_the_fingerprint_and_first_address_to_write_on_the_sheet(
     assert!(shown(&mut app, "Write these on the sheet"));
     assert!(shown(&mut app, "First address"));
 }
+
+// ---------------------------------------------------------------------
+// A counted Seed XOR part: checked by its fingerprint, never by Mark checked
+// ---------------------------------------------------------------------
+
+/// A vault wallet whose saved plan holds a Seed XOR set of three parts
+/// over its key, the first part the key's own words (so that typing them
+/// matches), the plan kept in the vault.
+fn xor_vault_wallet() -> (Faraday, usize) {
+    let mut app = desktop();
+    let w = one_key_wait(&mut app, "", None);
+    fresh_vault(&mut app);
+    clock_kept(&mut app);
+    let first = app.session.keys.info(0).expect("the key").fingerprint.0;
+    let parts = vec![first, [5, 6, 7, 8], [9, 10, 11, 12]];
+    assert!(app.session.keys.set_xor(
+        0,
+        Some(faraday_vault::xor::XorFacts {
+            parts: parts.clone()
+        })
+    ));
+    // The plan Back up opens with places the set, a part to a place.
+    app.press(Action::Backup(w));
+    app.press(Action::BChecklist);
+    app.press(Action::BVaultSave(0));
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::AddKind(1)));
+    app.press(Action::Vault(V::SaveWallet(w)));
+    app.press(Action::OpenWallet(w));
+    let _ = app.frame();
+    (app, w)
+}
+
+/// Check my copy of part `j`, the words of test key `seed` typed.
+fn type_part(app: &mut Faraday, w: usize, j: u8, seed: usize) {
+    app.press(Action::Backup(w));
+    app.press(Action::BChecklist);
+    testkit::backup_open_item(app, faraday_core::plan::Item::Copy(0));
+    app.press(Action::BPartCheck(j));
+    testkit::type_words(app, &testkit::test_words(testkit::TEST_SEEDS[seed].0));
+}
+
+fn part_checked(app: &mut Faraday, w: usize, j: usize) -> Option<String> {
+    app.press(Action::OpenWallet(w));
+    let _ = app.frame();
+    let (node, k) = line_holding(app, w, What::XorPart(0, j));
+    node.checked[k].as_deref().map(String::from)
+}
+
+#[test]
+fn typing_a_seed_xor_parts_words_dates_the_part_and_wrong_words_date_nothing() {
+    let (mut app, w) = xor_vault_wallet();
+    assert_eq!(part_checked(&mut app, w, 0), None);
+    type_part(&mut app, w, 0, 1);
+    assert!(
+        shown(&mut app, "Does not match part 1"),
+        "{:?}",
+        crate::common::texts(&mut app)
+    );
+    assert_eq!(part_checked(&mut app, w, 0), None);
+    type_part(&mut app, w, 0, 0);
+    assert_eq!(part_checked(&mut app, w, 0).as_deref(), Some("2026-10-03"));
+}
+
+#[test]
+fn mark_checked_dates_what_is_in_a_place_but_never_a_seed_xor_part() {
+    let (mut app, w) = xor_vault_wallet();
+    let (node, _) = line_holding(&app, w, What::XorPart(0, 0));
+    let (n, _) = node_of(&app, w, &node.name);
+    app.press(Action::Chart(C::Checked(Press::Loaded(w), n)));
+    let (_, node) = node_of(&app, w, &node.name);
+    let dated = node.checked.iter().filter(|d| d.is_some()).count();
+    assert!(dated > 0, "something else in the place is dated: {node:?}");
+    for (i, what) in node.whats.iter().enumerate() {
+        if matches!(what, What::XorPart(..)) {
+            assert_eq!(node.checked[i], None, "{what:?} is not dated");
+        }
+    }
+}

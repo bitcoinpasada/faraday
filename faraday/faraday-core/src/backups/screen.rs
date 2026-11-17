@@ -52,22 +52,31 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     // List and detail (`docs/LAYOUT.md` §5): the wallets in the list
     // pane, the one chosen's map beside it.
-    let p = split(x0, cw);
+    // The one chosen alone where a chart's side sheet leaves no room for
+    // both (`docs/LAYOUT.md` §5).
+    let listed = ui.compact || crate::panes::screen::fits(cw);
+    let p = if listed {
+        split(x0, cw)
+    } else {
+        crate::panes::screen::alone(x0, cw)
+    };
     let at = app.backups_area.at().min(entries.len().saturating_sub(1));
     if !ui.compact {
         crate::screens::bar_head_back(app, ui, EN.backups_backups);
     }
-    let mut pane = ListPane::begin_moving(app, ui, (p.list.0, p.top, p.list.1, h - p.top));
-    for (k, e) in entries.iter().enumerate() {
-        let item = Item {
-            headline: &e.name,
-            supporting: &e.shape,
-            trailing: None,
-            action: Action::BackupsPage(k),
-        };
-        pane.item(ui, &item, k == at);
+    if listed {
+        let mut pane = ListPane::begin_moving(app, ui, (p.list.0, p.top, p.list.1, h - p.top));
+        for (k, e) in entries.iter().enumerate() {
+            let item = Item {
+                headline: &e.name,
+                supporting: &e.shape,
+                trailing: None,
+                action: Action::BackupsPage(k),
+            };
+            pane.item(ui, &item, k == at);
+        }
+        pane.end(ui);
     }
-    pane.end(ui);
     let (dx, dw) = p.detail;
     if ui.compact {
         let m = crate::compact::M;

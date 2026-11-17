@@ -87,6 +87,10 @@ macro_rules! words_backups {
     backups_previous: "Previous",
     /// Button in `compact`.
     backups_next: "Next",
+    /// Detail of a row in `line`.
+    backups_part_check_detail: "Type its words",
+    /// Line in `part_check_after`. `{}`: part number.
+    backups_part_differs: "Does not match part {}",
         }
     };
 }
