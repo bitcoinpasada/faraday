@@ -33,6 +33,8 @@ pub enum Pick {
     Type,
     /// A loaded wallet's descriptor.
     Wallet,
+    /// A loaded key's words.
+    Key,
 }
 
 /// A press in the tool.
@@ -50,6 +52,8 @@ pub enum KefToolAction {
     Eye,
     /// Chooses a loaded wallet, by its place.
     Wallet(usize),
+    /// Chooses a loaded key, by its place among the keys.
+    Key(usize),
     /// Goes on from Contents with the typed text.
     Next,
     /// A press on the form.
@@ -73,6 +77,7 @@ pub struct KefToolState {
     pub(crate) typing: bool,
     pub(crate) shown: bool,
     pub(crate) wallet: Option<usize>,
+    pub(crate) key: Option<usize>,
     pub(crate) form: Option<KefForm>,
 }
 
@@ -91,6 +96,11 @@ impl KefToolState {
     /// Whether the typed text takes keys.
     pub fn typing(&self) -> bool {
         self.open == Some(kstep::CONTENTS) && self.pick == Some(Pick::Type) && self.typing
+    }
+
+    /// The loaded key the code is made of, by its place among the keys.
+    pub fn key(&self) -> Option<usize> {
+        self.key
     }
 
     /// The text the form holds, in bytes.
@@ -157,6 +167,37 @@ fn wallet_text(app: &Faraday, i: usize) -> Option<(Text, Option<[u8; 4]>)> {
     Some((Text::of(&w.policy().to_descriptor_checksummed()), fp))
 }
 
+/// The loaded keys a code can be made of (12 or 24 English words), by
+/// their place among the keys.
+pub(crate) fn offered_keys(app: &Faraday) -> Vec<usize> {
+    (0..app.session.keys.len())
+        .filter(|&i| app.session.keys.info(i).is_some_and(|k| k.kef_offered()))
+        .collect()
+}
+
+/// Starts the form on key `i`'s words, as the entropy Krux reads them
+/// from (`docs/KEF.md` §6), the key's fingerprint offered as the id. The
+/// words reach the encryption only inside `faraday-keys`.
+fn begin_key(app: &mut Faraday, i: usize) {
+    let Some(info) = app.session.keys.info(i).filter(|k| k.kef_offered()) else {
+        return;
+    };
+    let (bytes, fingerprint) = (
+        usize::from(info.word_count.unwrap_or(0)) * 4 / 3,
+        info.fingerprint.0,
+    );
+    let mut form = KefForm::new(
+        Source::Seed {
+            index: i,
+            bytes,
+            fingerprint: Some(fingerprint),
+        },
+        false,
+    );
+    form.offer_by_hand();
+    finish_begin(app, form, None, Some(i));
+}
+
 /// A stick is attached: the typed text and the form's secret fields lose
 /// focus and, with `wipe`, what was typed.
 pub(crate) fn stick_attached(app: &mut Faraday, wipe: bool) {
@@ -187,6 +228,7 @@ pub(crate) fn act(app: &mut Faraday, action: KefToolAction) {
                 typing: false,
                 shown: false,
                 wallet: None,
+                key: None,
                 form: None,
             });
             app.screen = Screen::KefTool;
@@ -198,8 +240,14 @@ pub(crate) fn act(app: &mut Faraday, action: KefToolAction) {
                 s.pick = Some(p);
                 s.typing = p == Pick::Type && no_stick;
                 s.wallet = None;
+                s.key = None;
                 s.form = None;
                 s.done = [false; kstep::COUNT];
+            }
+            if p == Pick::Key
+                && let [only] = offered_keys(app)[..]
+            {
+                begin_key(app, only);
             }
         }
         KefToolAction::Field => {
@@ -220,6 +268,7 @@ pub(crate) fn act(app: &mut Faraday, action: KefToolAction) {
                 begin(app, text, fp, Some(i));
             }
         }
+        KefToolAction::Key(i) => begin_key(app, i),
         KefToolAction::Next => {
             let Some(s) = st(app) else { return };
             if s.typed.text.is_empty() {
@@ -257,9 +306,15 @@ fn begin(app: &mut Faraday, text: Text, fp: Option<[u8; 4]>, wallet: Option<usiz
     let mut form = KefForm::new(Source::Text(text), false);
     form.offer_fingerprint(fp);
     form.offer_by_hand();
+    finish_begin(app, form, wallet, None);
+}
+
+/// Puts the form in the state and opens its card.
+fn finish_begin(app: &mut Faraday, form: KefForm, wallet: Option<usize>, key: Option<usize>) {
     if let Some(s) = st(app) {
         s.form = Some(form);
         s.wallet = wallet;
+        s.key = key;
         s.done[usize::from(kstep::CONTENTS)] = true;
         s.done[usize::from(kstep::MAKE)] = false;
         s.done[usize::from(kstep::CODE)] = false;

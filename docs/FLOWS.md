@@ -144,7 +144,9 @@ guide pane's close, else the page's way back); Escape in a field that
 has focus drops the focus first.
 
 **Krux code** (planned; `docs/KEF.md` §15.2): a Tools tile, not a calculator, that
-seals a typed text or a loaded wallet's descriptor as a Krux code.
+seals a typed text, a loaded wallet's descriptor or a loaded key's words (12 or 24
+English; the only such key is chosen at once, several by name and fingerprint, the key's
+BIP-39 passphrase not in the code) as a Krux code.
 
 **Convert a seed** (`docs/SEED-CONVERSION.md` §6). Tools' tile opens From, the
 loaded keys, the open vaults' keys not loaded and **Add a key**, which returns

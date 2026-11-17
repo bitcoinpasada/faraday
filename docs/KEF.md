@@ -726,12 +726,13 @@ and a toast names the file.
 |---|---|---|
 | A passphrase, a codex32 share, a note | **Type it**: one field, masked behind its eye (DESIGN §4.10), UTF-8 up to the codec's limit | Yes; no kind is asked, the bytes are the text |
 | A wallet's descriptor | **A loaded wallet**: its row; the checksummed descriptor, public, needing no reveal; Krux's wallet loader reads it | Yes |
+| A held key's words | **This key's words**: a key's row by name and fingerprint, the only offered key chosen at once; the seed's entropy of §6 through `Reveal::KefCode`, sealed by the same call as the seed's item, so no new way out of `faraday-keys`; the Code card says the code holds the words only when the key has a passphrase | Yes |
 | A held key's BIP-39 passphrase | A key's row; it would need a reveal of its own, since `Reveal::KefCode` lends no stored text | No |
 | A vault's note or password | The item's action in Vault contents, under `Reveal::VaultEntry` | No |
 
-The held sources are not offered because each would open a new way out of `faraday-keys`, and typing reaches the
+The other held sources are not offered because each would open a new way out of `faraday-keys`, and typing reaches the
 same code without one. **Check my code** compares against the text the flow still holds. The
-fingerprint as an id is offered only for **A loaded wallet**: typed text has none. Its Code card
+fingerprint as an id is offered for **A loaded wallet** and for **This key's words**: typed text has none. Its Code card
 shows the picture, and for a code that fits a blank template (side up to 37) **Size**, **By hand**
 and a secondary **Copy by hand**: pressed, the picture is replaced by the same `copy_grid` as the
 seed's item (§15.1), blocks lettered as on the Starter's Krux sheet, the mark at block A1 for each

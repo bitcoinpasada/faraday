@@ -5,7 +5,7 @@
 **Screen:** `KefTool`
 **Key:** kef-tool
 
-One card per step: the contents, the passphrase and its options, and the code. The tool makes an encrypted QR code in Krux's format from text or from a wallet's descriptor; nothing typed is kept once the tool is left.
+One card per step: the contents, the passphrase and its options, and the code. The tool makes an encrypted QR code in Krux's format from text, from a wallet's descriptor or from a loaded key's words; nothing typed is kept once the tool is left.
 
 ## Contents
 
@@ -13,7 +13,7 @@ One card per step: the contents, the passphrase and its options, and the code. T
 
 Choose what the code holds.
 
-**Type it** takes **Text**, hidden until the eye shows it, and **Continue** goes on once there is some. **A loaded wallet** lists the loaded wallets, each by name and shape, and the code holds the wallet's public descriptor; with none loaded, the card says so.
+**Type it** takes **Text**, hidden until the eye shows it, and **Continue** goes on once there is some. **A loaded wallet** lists the loaded wallets, each by name and shape, and the code holds the wallet's public descriptor; with none loaded, the card says so. **This key's words** is offered while a key is loaded: the only key that has 12 or 24 English words is chosen at once, and with several each is listed by name and fingerprint. The code holds the words as Krux reads them back into a seed, and Krux asks for the same passphrase to open it. The key's own BIP-39 passphrase is not in the code: for a key that has one, the Code card says the code holds the words only.
 
 ## Passphrase
 

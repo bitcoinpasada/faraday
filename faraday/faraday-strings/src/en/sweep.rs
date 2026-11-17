@@ -472,6 +472,14 @@ macro_rules! words_sweep {
     kef_tool_type: "Type it",
     /// Contents: the choice of a loaded wallet's descriptor.
     kef_tool_wallet: "A loaded wallet",
+    /// Contents: the choice of a loaded key's words.
+    kef_tool_key: "This key's words",
+    /// Contents: no loaded key has 12 or 24 English words.
+    kef_tool_no_key: "No loaded key has 12 or 24 English words.",
+    /// Contents, closed: a key's words. `{}`: the key's name, then its fingerprint.
+    kef_tool_key_sum: "Words of {} · {}",
+    /// The Code card: the key has a passphrase, which the code does not hold.
+    kef_tool_words_only: "The code holds the words only, not the passphrase.",
     /// Contents: the typed text's field label.
     kef_tool_text: "Text",
     /// Contents: goes on to the passphrase.

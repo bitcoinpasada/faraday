@@ -90,6 +90,11 @@ fn summary(app: &View, s: &KefToolState, step: u8) -> String {
                 .get(i)
                 .map(|w| fill(EN.kef_tool_wallet_sum, &[&w.name]))
                 .unwrap_or_default(),
+            None if s.key.is_some() => s
+                .key
+                .and_then(|i| app.session.keys.info(i))
+                .map(|k| fill(EN.kef_tool_key_sum, &[&k.label, &k.fingerprint.to_string()]))
+                .unwrap_or_default(),
             None => fill(EN.kef_tool_typed_sum, &[&s.typed_len().to_string()]),
         },
         kstep::MAKE => s
@@ -112,7 +117,12 @@ fn card(app: &View, s: &KefToolState, ui: &mut Ui, step: u8, (x, y, w): (f32, f3
             let Some(f) = s.form() else { return 0.0 };
             let made = matches!(f.stage(), Stage::Made | Stage::Check | Stage::Comparing);
             if made == (step == kstep::CODE) {
-                form_draw(app, ui, (x, y, w), f, ask())
+                let note = if made {
+                    words_only(app, s, ui, (x, y, w))
+                } else {
+                    0.0
+                };
+                note + form_draw(app, ui, (x, y + note, w), f, ask())
             } else {
                 0.0
             }
@@ -133,7 +143,10 @@ fn contents(app: &View, s: &KefToolState, ui: &mut Ui, (x, y, w): (f32, f32, f32
     for (label, pick) in [
         (EN.kef_tool_type, Pick::Type),
         (EN.kef_tool_wallet, Pick::Wallet),
-    ] {
+    ]
+    .into_iter()
+    .chain((!app.session.keys.is_empty()).then_some((EN.kef_tool_key, Pick::Key)))
+    {
         ui.button(
             x,
             cy,
@@ -201,7 +214,58 @@ fn contents(app: &View, s: &KefToolState, ui: &mut Ui, (x, y, w): (f32, f32, f32
             }
             cy -= GAP;
         }
+        Some(Pick::Key) => cy += key_rows(app, s, ui, (x, cy, w)) - GAP,
         None => cy -= GAP,
+    }
+    cy - y
+}
+
+/// The Code card's line saying the code holds the words only, for a key
+/// that has a passphrase: its height, 0 when there is none to say.
+fn words_only(app: &View, s: &KefToolState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+    let has = s
+        .key
+        .and_then(|i| app.session.keys.info(i))
+        .is_some_and(|k| k.has_passphrase);
+    if !has {
+        return 0.0;
+    }
+    ui.wrap_as(
+        (x, y, w),
+        BODY_S,
+        Role::OnSurfaceVariant,
+        EN.kef_tool_words_only,
+    ) + GAP
+}
+
+/// The loaded keys a code can be made of, one row each, or the line
+/// saying there is none. Returns the height.
+fn key_rows(app: &View, s: &KefToolState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+    let mut cy = y;
+    let offered = super::offered_keys(app);
+    if offered.is_empty() {
+        cy += ui.wrap_as(
+            (x, cy, w),
+            BODY_S,
+            Role::OnSurfaceVariant,
+            EN.kef_tool_no_key,
+        );
+    }
+    for i in offered {
+        let Some(k) = app.session.keys.info(i) else {
+            continue;
+        };
+        let label = format!("{} · {}", &*k.label, k.fingerprint);
+        ui.button(
+            x,
+            cy,
+            Some(w),
+            BUTTON_H,
+            &label,
+            choice(s.key == Some(i)),
+            Action::KefTool(K::Key(i)),
+        );
+        cy += BUTTON_H + GAP;
     }
     cy - y
 }

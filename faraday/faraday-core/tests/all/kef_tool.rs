@@ -330,3 +330,141 @@ fn the_form_shows_when_the_two_passphrases_differ_and_make_waits() {
         Action::KefTool(K::Form(KefAct::Make))
     ));
 }
+
+const OTHER: &str =
+    "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+
+/// Opens a made code under the passphrase `make` typed.
+fn open_code(c: &faraday_crypto::work::Compute, envelope: faraday_keys::kef::Envelope) -> Vec<u8> {
+    faraday_keys::kef::OpenJob::new(
+        zeroize::Zeroizing::new(b"a passphrase".to_vec()),
+        envelope,
+        std::sync::Arc::new(faraday_keys::kef::Progress::default()),
+    )
+    .run(c)
+    .unwrap()
+    .plaintext
+    .to_vec()
+}
+
+/// What the key's words are in Krux's code: their entropy.
+fn entropy_of(app: &Faraday, i: usize) -> Vec<u8> {
+    let c = testkit::compute();
+    faraday_keys::kef::seed_plaintext(&app.session.keys, &c, i)
+        .unwrap()
+        .to_vec()
+}
+
+#[test]
+fn the_only_loaded_key_is_chosen_at_once_and_its_code_opens_to_its_words() {
+    let mut app = started();
+    let c = testkit::compute();
+    app.session.keys.add_words(&c, WORDS, "Test", None).unwrap();
+    testkit::keep_published(&mut app);
+    open(&mut app);
+    app.press(Action::KefTool(K::Pick(Pick::Key)));
+    assert_eq!(kef_tool::state(&app).unwrap().key(), Some(0));
+    make(&mut app);
+    let form = kef_tool::state(&app).unwrap().form().unwrap();
+    let envelope = unwrap(&form.made().unwrap().bytes).unwrap();
+    check(&mut app);
+    assert!(kef_tool::state(&app).unwrap().form().unwrap().checked());
+    let opened = open_code(&c, envelope);
+    // The published BIP-39 vector for these 24 words: entropy 0x7f, 32 times.
+    assert_eq!(opened, vec![0x7f; 32]);
+}
+
+#[test]
+fn with_two_keys_loaded_the_one_chosen_is_the_one_sealed() {
+    let mut app = started();
+    let c = testkit::compute();
+    app.session
+        .keys
+        .add_words(&c, WORDS, "First", None)
+        .unwrap();
+    app.session
+        .keys
+        .add_words(&c, OTHER, "Second", None)
+        .unwrap();
+    testkit::keep_published(&mut app);
+    open(&mut app);
+    app.press(Action::KefTool(K::Pick(Pick::Key)));
+    assert_eq!(kef_tool::state(&app).unwrap().key(), None);
+    app.press(Action::KefTool(K::Key(1)));
+    assert_eq!(kef_tool::state(&app).unwrap().key(), Some(1));
+    make(&mut app);
+    let form = kef_tool::state(&app).unwrap().form().unwrap();
+    let envelope = unwrap(&form.made().unwrap().bytes).unwrap();
+    let opened = open_code(&c, envelope);
+    assert_eq!(opened, entropy_of(&app, 1));
+    assert_ne!(entropy_of(&app, 0), entropy_of(&app, 1));
+}
+
+#[test]
+fn a_key_with_a_passphrase_says_the_code_holds_the_words_only() {
+    let mut app = started();
+    let c = testkit::compute();
+    app.session
+        .keys
+        .add_words_with(&c, WORDS, "extra", "Test", None)
+        .unwrap();
+    testkit::keep_published(&mut app);
+    open(&mut app);
+    app.press(Action::KefTool(K::Pick(Pick::Key)));
+    make(&mut app);
+    assert!(seen(
+        &mut app,
+        "The code holds the words only, not the passphrase."
+    ));
+}
+
+#[test]
+fn a_key_without_a_passphrase_has_no_passphrase_note() {
+    let mut app = started();
+    let c = testkit::compute();
+    app.session.keys.add_words(&c, WORDS, "Test", None).unwrap();
+    testkit::keep_published(&mut app);
+    open(&mut app);
+    app.press(Action::KefTool(K::Pick(Pick::Key)));
+    make(&mut app);
+    assert!(!seen(
+        &mut app,
+        "The code holds the words only, not the passphrase."
+    ));
+}
+
+#[test]
+fn a_key_with_a_passphrase_makes_a_code_of_the_words_entropy() {
+    let mut app = started();
+    let c = testkit::compute();
+    app.session
+        .keys
+        .add_words_with(&c, WORDS, "extra", "Test", None)
+        .unwrap();
+    testkit::keep_published(&mut app);
+    open(&mut app);
+    app.press(Action::KefTool(K::Pick(Pick::Key)));
+    make(&mut app);
+    let form = kef_tool::state(&app).unwrap().form().unwrap();
+    let envelope = unwrap(&form.made().unwrap().bytes).unwrap();
+    assert_eq!(open_code(&c, envelope), vec![0x7f; 32]);
+}
+
+#[test]
+fn a_12_word_key_beside_an_18_word_key_is_the_only_one_offered_and_chosen() {
+    let mut app = started();
+    let c = testkit::compute();
+    let eighteen = format!("{}agent", "abandon ".repeat(17));
+    app.session
+        .keys
+        .add_words(&c, &eighteen, "Eighteen", None)
+        .unwrap();
+    app.session
+        .keys
+        .add_words(&c, OTHER, "Twelve", None)
+        .unwrap();
+    testkit::keep_published(&mut app);
+    open(&mut app);
+    app.press(Action::KefTool(K::Pick(Pick::Key)));
+    assert_eq!(kef_tool::state(&app).unwrap().key(), Some(1));
+}

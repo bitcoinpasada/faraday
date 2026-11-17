@@ -310,7 +310,7 @@ impl Keys {
     its own eye. Costs a key derivation;
   - a seed's entropy for a Krux encrypted code: `Keys::kef_entropy(c, i,
     Reveal::KefCode)`, 16 bytes for a seed of 12 English words and 32 for 24,
-    held and wiped on drop, and nothing for a seed of 15, 18 or 21 words, another
+    held and wiped on drop (the seed's Krux code item and the Krux code tool's **This key's words** both seal it), and nothing for a seed of 15, 18 or 21 words, another
     list's or a key with no words (`docs/KEF.md` §6). Costs a parse of the words.
   - whether what a Krux encrypted code opened to is a seed's entropy:
     `Keys::kef_matches(c, i, Reveal::KefCode, plaintext)`, a yes or a no; the
