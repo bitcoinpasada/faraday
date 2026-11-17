@@ -655,7 +655,7 @@ pub struct Inspection {
     pub version: i32,
     /// Absolute locktime.
     pub locktime: Locktime,
-    /// Whether any input signals replace-by-fee (BIP-125).
+    /// Whether an input signals replace-by-fee (BIP-125) or the transaction is version 3 (BIP-431).
     pub rbf: bool,
     /// Inputs in order.
     pub inputs: Vec<InputInfo>,

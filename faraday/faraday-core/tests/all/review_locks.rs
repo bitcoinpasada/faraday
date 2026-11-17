@@ -231,3 +231,19 @@ fn a_version_3_spend_reads_replaceable_whatever_its_sequences() {
     assert!(shown.contains(EN.step_replaceable), "{shown}");
     assert!(!shown.contains(EN.step_not_signalled), "{shown}");
 }
+
+#[test]
+fn a_time_lock_is_stated_when_only_one_of_two_inputs_is_final() {
+    let lock = LockTime::from_consensus(1_893_456_000);
+    let mut psbt = spend(2, lock, Sequence::MAX);
+    let inner = psbt.inner_mut();
+    let mut second = inner.unsigned_tx.input[0].clone();
+    second.previous_output.vout += 1;
+    second.sequence = Sequence::ENABLE_RBF_NO_LOCKTIME;
+    inner.unsigned_tx.input.push(second);
+    let data = inner.inputs[0].clone();
+    inner.inputs.push(data);
+    let mut app = reviewing(&psbt);
+    assert_eq!(app.spend().unwrap().inspection.inputs.len(), 2);
+    assert!(lock_stated(&mut app).0);
+}

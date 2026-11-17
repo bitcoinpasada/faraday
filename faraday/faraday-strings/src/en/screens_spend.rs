@@ -178,7 +178,7 @@ macro_rules! words_screens_spend {
     step_locked_until: "Locked until",
     /// A row on Review: whether the transaction can be replaced (BIP 125).
     step_replacement: "Replacement",
-    /// The value of Review's replacement row: an input signals it.
+    /// The value of Review's replacement row: an input signals it (BIP-125) or the transaction is version 3 (BIP-431).
     step_replaceable: "Replaceable",
     /// The value of Review's replacement row: no input signals it and the version is not 3.
     step_not_signalled: "Not signalled",

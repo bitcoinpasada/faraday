@@ -211,7 +211,7 @@ pub struct Bump {
     pub replacement_fee: Option<Fee>,
     /// How many inputs the replacement adds.
     pub added_inputs: usize,
-    /// Whether the original signals replace-by-fee.
+    /// Whether the original signals replacement: an input signals it (BIP-125) or the transaction is version 3 (BIP-431).
     pub signalled: bool,
 }
 
