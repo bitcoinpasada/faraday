@@ -325,6 +325,7 @@ walks! {
     walk_invoice = Some("invoice"),
     walk_devices = Some("devices"),
     walk_toasts = Some("toasts"),
+    walk_home_search = Some("home-search"),
     walk_themes = Some("themes"),
     walk_tooltips = Some("tooltips"),
     walk_compact = Some("compact"),
