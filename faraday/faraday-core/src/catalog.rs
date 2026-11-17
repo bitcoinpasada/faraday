@@ -158,7 +158,7 @@ pub const TILES: &[Tile] = &[
     Tile {
         group: EN.catalog_common,
         name: EN.catalog_check,
-        line: EN.home_ways_check_line,
+        line: EN.catalog_check_line,
         tags: &[],
         go: Go::Check,
     },

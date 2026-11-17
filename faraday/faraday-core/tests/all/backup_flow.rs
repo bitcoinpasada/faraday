@@ -917,7 +917,8 @@ fn home_leads_with_the_backup_not_finished_and_the_power_sheet_lists_it() {
         "a GPG key's flow leaves to Tools"
     );
     app.press(Action::Nav(Screen::Home));
-    expect(&mut app, "Continue the backup of Release");
+    expect(&mut app, "Backup not finished");
+    expect(&mut app, "Finish");
     app.press(Action::PowerAsk);
     expect_part(&mut app, "Backup of Release: written to 1 of 2 places");
     app.press(Action::Cancel);

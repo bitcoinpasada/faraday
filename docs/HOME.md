@@ -2,12 +2,12 @@
 
 **Kind:** Spec
 **Status:** Specified. Built today, and described in `docs/LAYOUT.md` §4 and `docs/FLOWS.md` (Home): on the one-column layouts the box of what is loaded, the lead and a menu of the places; on the wide layout the lead and four first-run tiles, whatever is loaded.
-**Open:** all of this document: one Home for the Pi, the navigation bar's and rail's windows and the wide layout; the lead as a card with one filled button; each loaded wallet on Home with Sign and Receive; the first-run tiles only while nothing is loaded; the Pi's box of what is loaded held to three lines; the Files tile and the power button in words; the destinations in one order everywhere, and the sidebar's Files row once. The change to F255's Check tile (§6.3) waits for a decision.
+**Open:** the wide layout's Home is built (the lead as a card with one filled button, each loaded wallet with Sign, the first-run tiles only while nothing is loaded, no Check tile, F275); the one-column Home is not: one Home for the Pi and the navigation bar's and rail's windows with the same lead and wallet cards, the Pi's box of what is loaded held to three lines, the Files tile and the power button in words, the Backups row, the destinations in one order everywhere, and the sidebar's Files row once.
 
 Home is the first page after the self-test and after every lock, and
 the page a person comes back to between jobs. It answers three
 questions in this order: what is loaded, what is the next thing to do,
-and, for each wallet loaded, how to sign for it or receive to it. A
+and, for each wallet loaded, how to sign for it. A
 person who has loaded nothing is shown the ways to start instead.
 
 One model, every size. The Pi's 480 by 640 panel, the navigation bar's
@@ -23,7 +23,7 @@ parts take and in what the navigation beside them already carries.
    sidebar's lists are this card (`docs/LAYOUT.md` §3).
 2. **The lead** (§2): the next thing, one card with one filled button.
    None when nothing waits and something is loaded.
-3. **Wallets** (§3): each loaded wallet with **Sign** and **Receive**,
+3. **Wallets** (§3): each loaded wallet with **Sign**,
    then the Backups row while a wallet is known.
 4. **Start** (§5): the first-run tiles, only while nothing is loaded.
 5. **The places** (§6): on the Pi only, which has no navigation
@@ -79,7 +79,7 @@ in the session, in the sidebar's order (the wallets the keys here sign
 for alone first, then those with some keys here, then watch-only).
 
 Each card: the wallet icon, the wallet's name, one line under it, and at
-its end **Sign** and **Receive**, Material's outlined buttons. The card
+its end **Sign**, Material's outlined button. The card
 itself opens the wallet's card on Wallets (`Action::OpenWallet`), as the
 name in the sidebar does.
 
@@ -91,10 +91,9 @@ name in the sidebar does.
 - **Sign** does what the wallet card's first button does
   (`spend_button`, read through the frame's memo): finish the backup
   first, carry on its spend, sign its PSBT in Files, or spend from it.
-- **Receive** opens the receive address's code, as the wallet card's
-  first receive address does (`Code::Receive`, index 0). While a key
-  made here waits for its backup no address is shown (F31): Receive is
-  disabled and the line reads "Not backed up".
+
+Home has no Receive button: Faraday is an offline signer, and the
+wallet's card on Wallets keeps its "First receive address" line.
 
 On the Pi at most three wallets are listed; past three, two and a row
 "+ {n} more" that opens Wallets. Wider windows list them all in the
@@ -191,8 +190,8 @@ bar's windows Check is not on the bar, so Home keeps **Check a hardware
 wallet**, "Its seed, addresses and signatures": among Start while
 nothing is loaded, and as a tile after the Backups row once something
 is. This narrows F255's second point ("Home's fourth tile is Check,
-always") to the windows whose navigation lacks Check, and needs a
-decision amending F255 before it is built.
+always") to the windows whose navigation lacks Check (F275). The wide
+layout's Home is built so: no Check tile.
 
 ### 6.4 Files once in the sidebar
 
@@ -248,11 +247,11 @@ The sketches are to scale in their parts' order, not in their pixels.
 | +--------------------------------+ |
 | Wallets                            |
 | +--------------------------------+ |
-| | Savings     (Sign) (Receive)   | |  a wallet card
+| | Savings     (Sign)             | |  a wallet card
 | | A PSBT to sign                 | |
 | +--------------------------------+ |
 | +--------------------------------+ |
-| | Spending    (Sign) (Receive)   | |
+| | Spending    (Sign)             | |
 | | single key                     | |
 | +--------------------------------+ |
 |  + 2 more                       >  |
@@ -296,12 +295,12 @@ The sketches are to scale in their parts' order, not in their pixels.
 | Tools       | +--------------------------+ +--------------------------+|
 | Guide       | | Savings                  | | Spending                 ||
 | Settings    | | A PSBT to sign           | | single key               ||
-| ----------- | |        (Sign) (Receive)  | |        (Sign) (Receive)  ||
+| ----------- | |                  (Sign)  | |                  (Sign)  ||
 | Keys      3 | +--------------------------+ +--------------------------+|
 |  9a6a2580   | +--------------------------+ +--------------------------+|
 |  5d388376   | | Taproot                  | | Legacy multisig          ||
 | Wallets  11 | | single key               | | 2 of 3 · watch only      ||
-|  ...        | |        (Sign) (Receive)  | |        (Sign) (Receive)  ||
+|  ...        | |                  (Sign)  | |                  (Sign)  ||
 | [Lock]      | +--------------------------+ +--------------------------+|
 | [Power off] | Backups · 1 not backed up                     >  [ Scan ]|
 +-------------+----------------------------------------------------------+
@@ -322,7 +321,7 @@ others:
 - the lead's lines that change: "Backup not finished", "Changed since it
   was written" (today the vault's currency line is reused; kept if it
   reads so), "Key {}", "No wallet uses it";
-- Wallets: the section's head "Wallets", "Sign", "Receive", "A PSBT to
+- Wallets: the section's head "Wallets", "Sign", "A PSBT to
   sign", "Not backed up", "Signatures {} of {}";
 - what is loaded: "1 key", "{} keys", "Show less".
 
@@ -342,8 +341,7 @@ Left unused once built: `home_job_sign`'s "Sign {}" and the Pi's
 
 Drawing reads and does not work things out (`docs/SPEED.md` §3.3,
 `docs/COMPUTE.md`). Sign's action and the wallet's line come from the
-frame's memo (`View::spend_button`, `crate::glance::Reads`), and the
-receive address's hold from what the wallet card already reads; the
+frame's memo (`View::spend_button`, `crate::glance::Reads`); the
 lead's ranking stays the lookup `home_jobs` is. No new costly work is
 drawn: a wallet card on Home reads what the wallet card on Wallets
 reads.
@@ -370,7 +368,7 @@ Feed layout (the wide Home's grid).
 ## 11. Tests
 
 What a person would notice: with a wallet loaded, Home on the Pi and on
-the wide layout offers its Sign and Receive, and Sign opens what the
+the wide layout offers its Sign, and Sign opens what the
 wallet card's first button opens; with nothing loaded, Start shows and
 the first card is the lead, not a files line; with a key and no wallet,
 the lead makes a wallet from it; once something is loaded Start is gone;

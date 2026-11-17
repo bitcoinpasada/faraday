@@ -1336,6 +1336,16 @@ pub const HOME_TILE_ICON: f32 = 40.0;
 pub const HOME_TILE_INSET: f32 = 18.0;
 /// The left edge of the wide Home tile's text.
 pub const HOME_TILE_TEXT_X: f32 = 74.0;
+/// The wide Home's lead card's height.
+pub const HOME_LEAD_H: f32 = 96.0;
+/// The wide Home's lead card's inset from its left and right edges.
+pub const HOME_LEAD_INSET: f32 = 20.0;
+/// The wide Home's lead card's icon box.
+pub const HOME_LEAD_ICON: f32 = 48.0;
+/// The left edge of the wide Home's lead card's text.
+pub const HOME_LEAD_TEXT_X: f32 = 86.0;
+/// Where the wide Home lead card's second line starts, from its top.
+pub const HOME_LEAD_SUB_Y: f32 = 54.0;
 
 /// A grid tile's inset on the compact Home.
 pub const GRID_TILE_INSET: f32 = 12.0;

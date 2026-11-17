@@ -303,14 +303,9 @@ const OPEN: Table = &[
         "the inspection's context: each of the two seeds' six account xpubs (KeyRef::from_master) (12); each loaded seed's cosigner key derived at the path the input states, to check it is the script's (2)",
     ),
     (
-        Work::WalletMatch,
-        1,
-        "Savings derives its script at the input's place once, then keeps it (Wallet::script_at)",
-    ),
-    (
         Work::Address,
-        4,
-        "Savings' script at the input's place for WalletMatch (1); the inspection derives it at the places the PSBT claims are Savings', to verify them: the input's wallet and its spend route, and the change output (3)",
+        3,
+        "the inspection derives Savings' script at the places the PSBT claims are Savings', to verify them: the input's wallet and its spend route, and the change output (3); the script at the input's place was derived when Home's wallet card, drawn before, asked which wallet the PSBT spends from, and Savings kept it (Wallet::script_at)",
     ),
     (
         Work::FullCanvas,
@@ -374,7 +369,9 @@ fn asking_which_wallet_a_place_belongs_to_derives_scripts_and_no_keys() {
     let c = testkit::compute();
     let w = app.session.wallets.first().expect("a wallet");
     let before = snapshot();
-    for index in 0..40 {
+    // Place 0 was derived when Home's wallet card asked which wallet the
+    // PSBT spends from, and is kept.
+    for index in 1..41 {
         let _ = w.script_at(&c, false, index);
     }
     let done = since(&before);

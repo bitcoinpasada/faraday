@@ -460,7 +460,8 @@ fn home_lead_rule_3_an_import_waiting() {
     app.storage(StorageEvent::Sticks(Vec::new()));
     let _ = app.frame();
     let texts = app.drawn_texts();
-    assert!(texts.iter().any(|t| t == "Unlock vault.kdbx"), "{texts:?}");
+    assert!(texts.iter().any(|t| t == "vault.kdbx"), "{texts:?}");
+    assert!(texts.iter().any(|t| t == "Unlock"), "{texts:?}");
     assert!(app.offers(faraday_core::boot_import::OPEN));
     app.press(faraday_core::boot_import::OPEN);
     assert_eq!(app.sheet, Some(Sheet::Import));
@@ -637,7 +638,7 @@ fn home_lead_rule_5_reads_what_the_vault_held_when_last_seen_open() {
     );
     let texts = app.drawn_texts();
     assert!(
-        texts.iter().any(|t| t == "Unlock Test vault"),
+        texts.iter().any(|t| t == "Test vault"),
         "the lead names the vault it remembers: {texts:?}"
     );
     assert!(
@@ -735,9 +736,7 @@ fn home_lead_rule_6_a_vault_changed_since_written_offers_to_write_it() {
     app.press(Action::Nav(Screen::Home));
     let texts = app.drawn_texts();
     assert!(
-        texts
-            .iter()
-            .any(|t| t.starts_with("Write ") && t.ends_with(" to a stick")),
+        texts.iter().any(|t| t == "Write"),
         "Home leads with writing the vault: {texts:?}"
     );
     tap(&mut app, Action::Nav(Screen::Files));
@@ -872,4 +871,54 @@ fn the_pi_s_home_shows_files_waiting_to_be_written() {
             .any(|t| t.starts_with("1 file to write to the stick")),
         "{shown:?}"
     );
+}
+
+/// With nothing loaded Home leads with Make a new wallet and shows
+/// Start's tiles.
+#[test]
+fn with_nothing_loaded_start_shows_and_make_a_new_wallet_leads() {
+    let mut app = shown();
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "Start"), "{texts:?}");
+    assert!(
+        texts.iter().any(|t| t == "Make"),
+        "the lead's button: {texts:?}"
+    );
+    assert!(app.offers(Action::CreateWallet));
+    assert!(app.offers(Action::RestoreWallet));
+    assert!(app.offers(Action::Nav(Screen::SpendBackup)));
+}
+
+/// A key no wallet uses leads with Make a wallet from it, and Start's
+/// tiles are gone.
+#[test]
+fn a_key_with_no_wallet_leads_with_make_a_wallet() {
+    let mut app = shown();
+    tap(&mut app, Action::Scan);
+    read(&mut app, SEEDQR.as_bytes());
+    without_passphrase(&mut app);
+    let fp = app.session.keys[0].fingerprint.0;
+    app.press(Action::Nav(Screen::Home));
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "No wallet uses it"), "{texts:?}");
+    assert!(app.offers(Action::KeyWallet(fp, 1)));
+    assert!(!app.offers(Action::RestoreWallet), "Start is gone");
+    assert!(!app.offers(Action::CreateWallet), "Make is not the lead");
+}
+
+/// A loaded wallet shows its card with Sign, which opens what the wallet
+/// card's first button opens, and Start's tiles are gone.
+#[test]
+fn a_loaded_wallet_shows_sign_and_start_is_gone() {
+    use faraday_core::spend_backup::SpendBackupAction as F;
+    let mut app = with_a_wallet();
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "Sign"), "{texts:?}");
+    assert!(!texts.iter().any(|t| t == "Receive"), "{texts:?}");
+    assert!(!texts.iter().any(|t| t == "Start"), "{texts:?}");
+    assert!(!app.offers(Action::RestoreWallet));
+    assert!(!app.offers(Action::CreateWallet));
+    assert!(app.offers(Action::OpenWallet(0)));
+    tap(&mut app, Action::SpendBackup(F::SpendFrom(0)));
+    assert_eq!(app.screen, Screen::SpendBackup);
 }

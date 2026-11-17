@@ -60,6 +60,36 @@ const PRESS_BUDGETS: &[(&str, Work, u64, &str)] = &[
         "the wallet's card shows its first receive address: derived the first time the card shows, then kept on the wallet (Wallet::address_on) (1); each script a wallet derives for WalletMatch below is a script derivation, counted at its source (11)",
     ),
     (
+        "OpenWallet",
+        Work::Address,
+        1,
+        "Home's wallet card opens the wallet on the same card as PickWallet does: its first receive address is derived the first time the card shows, then kept on the wallet (Wallet::address_on)",
+    ),
+    (
+        "SpendBackup(SpendFrom(",
+        Work::KeyDerive,
+        64,
+        "Sign on a wallet opens its review at once, as Wallets' Sign does: it parses and inspects each PSBT in Files that spends from the wallet (at most two in the heavy session) once, checking each input's key and address, and holds the result in the inbox",
+    ),
+    (
+        "SpendBackup(SpendFrom(",
+        Work::Address,
+        6,
+        "Sign on a wallet opens its review at once, as Wallets' Sign does: it parses and inspects each PSBT in Files that spends from the wallet (at most two in the heavy session) once, checking each input's key and address, and holds the result in the inbox",
+    ),
+    (
+        "SpendBackup(SpendFrom(",
+        Work::PsbtParse,
+        2,
+        "Sign on a wallet opens its review at once, as Wallets' Sign does: it parses and inspects each PSBT in Files that spends from the wallet (at most two in the heavy session) once, checking each input's key and address, and holds the result in the inbox",
+    ),
+    (
+        "SpendBackup(SpendFrom(",
+        Work::PsbtInspect,
+        2,
+        "Sign on a wallet opens its review at once, as Wallets' Sign does: it parses and inspects each PSBT in Files that spends from the wallet (at most two in the heavy session) once, checking each input's key and address, and holds the result in the inbox",
+    ),
+    (
         "PickWallet",
         Work::WalletMatch,
         11,

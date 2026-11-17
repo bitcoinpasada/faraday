@@ -504,18 +504,23 @@ boxes still grows them to 24; Clear starts the count over.
 ## Home
 
 **Start** (decisions 11 and 50). Home carries no status cards: the
-sidebar's status block carries them. A full-width lead tile shows only
-while something is under way or waiting, the first job that applies: a
-spend under way ("Carry on the spend"), a PSBT in Files ("Sign {psbt}",
-after a lock cycle too, decision 3), an import waiting ("Import from
-{label}"), what the last visit wrote with nothing loaded ("Written to
-{label}"), a locked vault ("Unlock {name}"), a vault changed since it
-was written ("Write {name} to a stick"). Then half-width tiles, two to a
-row: **Make a new wallet** (Create), **Restore an existing wallet**
-(Restore), **Spend from a backup, step by step** (the Spend tab) and
-**Check a hardware wallet**, "Its seed, addresses and signatures"
-(Check, `docs/DESIGN.md` §5; F255), always; then **Backups** once a
-wallet is known. Vaults has no tile: it is in the sidebar, the rail, the
+sidebar's status block carries them. On the wide layout the lead is a
+card with one filled button, shown while something is under way or
+waiting, the first job that applies: a spend under way ("Carry on"), a
+backup not finished ("Finish"), a PSBT in Files ("Sign", after a lock
+cycle too, decision 3), an import waiting ("Import"), what the last visit
+wrote with nothing loaded ("Open"), a locked vault ("Unlock"), a vault
+changed since it was written ("Write"), a stick attached and not yet
+visited ("Files on {stick}", "Open"), a key no wallet uses ("Make a
+wallet"), and, only while nothing is loaded, **Make a new wallet**
+("Make"). Under the lead each wallet loaded has a card with its name, one
+line and **Sign**, which does what the wallet card's first button does;
+the card opens the wallet on Wallets. While nothing is loaded, half-width
+tiles follow: **Restore an existing wallet** (Restore) and **Spend from a
+backup, step by step** (the Spend tab), and **Make a new wallet** when a
+job leads; once anything is loaded they are gone. **Backups** follows
+once a wallet is known. Check is no tile on the wide layout: the sidebar
+lists it (F255, F275). `docs/HOME.md` has the design for every size. Vaults has no tile: it is in the sidebar, the rail, the
 bar and the Pi's Home menu, and Create a vault is on Vaults. A stick
 attached and not yet visited leads Home as "Files on {stick}", opening
 Files; Home has no Stick visit tile. Create,

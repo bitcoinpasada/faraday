@@ -36,6 +36,8 @@ macro_rules! words_catalog {
     catalog_make_wallet_line: "Single key, multisig, taproot or MuSig2",
     /// Text in `TILES`.
     catalog_check: "Check",
+    /// Text in `TILES`: Check's line.
+    catalog_check_line: "Its seed, addresses and signatures",
     /// Text in `TILES`.
     catalog_make_codex32: "Make codex32 shares",
     /// Text in `TILES`.

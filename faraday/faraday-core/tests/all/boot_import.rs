@@ -700,7 +700,8 @@ fn put_off_after_import_home_leads_with_the_vaults_unlock() {
         "what was typed stays"
     );
     let texts = drawn(&mut app);
-    assert!(texts.contains("Unlock vault.kdbx"), "{texts}");
+    assert!(texts.contains("vault.kdbx"), "{texts}");
+    assert!(texts.contains("Unlock"), "{texts}");
     app.press(boot_import::OPEN);
     assert_eq!(app.sheet, Some(Sheet::Import));
     let _ = app.frame();
