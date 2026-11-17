@@ -27,8 +27,8 @@ Under the box, the page names text that is not an address, an address of another
 
 **Key:** check-address.result
 
-The first 100 receive and change addresses of each loaded wallet and of each loaded key's standard accounts are searched. A find names the wallet or key, the place (**Receive** or **Change** and its index), the wallet's shape and the path, or each key's path in a multisig wallet. A find in a key's account offers **Make a wallet**, then **Open the wallet**; a file's several addresses do not. A find in a loaded key's account or single-key wallet also offers **Sign a message with this address**.
+The first 100 receive and change addresses of each loaded wallet and each loaded key's standard accounts are searched. A find names the wallet or key, the place (**Receive** or **Change** and its index), the wallet's shape and the path. A find in a key's account offers **Make a wallet**, then **Open the wallet**; a file's several addresses do not. A find in a key's account or single-key wallet also offers **Sign a message with this address**.
 
 A find says this device makes the address; whether a wallet app or signer shows the same one is read on its own screen.
 
-A miss names how far it looked. **Look further** goes to deeper indices, and **Stop** ends the search where it is. With no wallet and no key loaded the page says **Load a key or a wallet first**.
+A miss names how far it looked. **Look further** goes deeper, and **Stop** ends the search. With no wallet and no key loaded the page says **Load a key or a wallet first** beside **Add a key** and **Load a wallet**, which returns here with the address checked.

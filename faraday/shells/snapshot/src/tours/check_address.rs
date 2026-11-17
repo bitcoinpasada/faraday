@@ -27,6 +27,11 @@ pub(crate) fn check_address_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Catalog(tile as u8));
     hide_keyboard(t);
     t.shot("check-address-empty")?;
+    type_text(t, "tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx");
+    t.app.event(Event::Key(Key::Enter));
+    t.pump();
+    hide_keyboard(t);
+    t.shot("check-address-load-first")?;
     t.press(Action::Nav(Screen::Catalog));
     t.load_kit()?;
     t.press(Action::Nav(Screen::Catalog));

@@ -168,6 +168,27 @@ fn check_address_with_none_offers_the_ways_in_and_with_files_opens_or_lists_them
 }
 
 #[test]
+fn check_address_with_nothing_loaded_offers_to_add_a_key_or_load_a_wallet() {
+    let mut app = tools_with(&[("only.txt", ADDRESS.as_bytes())]);
+    open_tile(&mut app, EN.catalog_check_an_address);
+    assert!(app.address_check_state().unwrap().load_first());
+    assert!(has(&mut app, EN.address_check_load_first));
+    assert!(has(&mut app, EN.catalog_add_a_key));
+    assert!(has(&mut app, EN.decode_load_a_wallet));
+    app.press(Action::Entry(None));
+    assert_eq!(app.screen, Screen::Entry, "Add a key opens its page");
+
+    let mut app = tools_with(&[("only.txt", ADDRESS.as_bytes())]);
+    open_tile(&mut app, EN.catalog_check_an_address);
+    app.press(Action::RestoreFor(faraday_core::restore::Check::Address));
+    assert_eq!(
+        app.screen,
+        Screen::Restore,
+        "the wallet is loaded in Restore"
+    );
+}
+
+#[test]
 fn check_address_result_ends_with_another_and_done() {
     let descriptor = format!("wpkh({}/<0;1>/*)", testkit::key(0, "m/84h/1h/0h"));
     let mut app = tools_with(&[

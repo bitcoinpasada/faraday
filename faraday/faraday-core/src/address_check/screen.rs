@@ -152,6 +152,21 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             Role::OnSurfaceVariant,
             EN.address_check_load_first,
         ) + GAP;
+        // The ways to load: a key you have, or a wallet, which comes back
+        // here with the address still in the field.
+        let ways = [
+            (
+                EN.catalog_add_a_key.to_string(),
+                Style::Secondary,
+                Action::Entry(None),
+            ),
+            (
+                EN.decode_load_a_wallet.to_string(),
+                Style::Secondary,
+                Action::RestoreFor(crate::restore::Check::Address),
+            ),
+        ];
+        y += crate::screens::button_rows(ui, x, y, width, &ways);
     } else if let (Some(list), false) = (s.list(), s.row_shown()) {
         y += listed(ui, (x, y, width), list);
         y += ending(ui, (x, y, width), back_of_page(s));

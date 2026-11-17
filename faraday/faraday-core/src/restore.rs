@@ -1357,7 +1357,7 @@ impl Faraday {
         self.flow_drop_unmade(self.wallet_flow_of_owner(r.owner));
         self.screen = from;
         match check {
-            Check::Address => crate::address_check::open(self),
+            Check::Address => crate::address_check::reopen(self),
             Check::Decode => {
                 let c = self.compute();
                 self.decode.reread_ours(&c, &self.session);

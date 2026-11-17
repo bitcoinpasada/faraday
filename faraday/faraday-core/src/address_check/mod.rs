@@ -237,6 +237,21 @@ pub(crate) fn open(app: &mut Faraday) {
     app.screen = Screen::CheckAddress;
 }
 
+/// Costs what an address check costs. The page shown again after a wallet
+/// was loaded for it: the address that was in the field is checked
+/// against the wallet.
+pub(crate) fn reopen(app: &mut Faraday) {
+    let typed = app
+        .address_check_state()
+        .map(|s| s.typed.as_str().to_string())
+        .unwrap_or_default();
+    open(app);
+    if !typed.is_empty() {
+        let c = app.compute();
+        check_text(app, &c, &typed);
+    }
+}
+
 /// Costs what reading a file costs. Tools' Check an address: the text
 /// file itself when exactly one waits in Files, and the page empty
 /// otherwise, which offers the files to choose from when several wait
