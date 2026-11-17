@@ -299,6 +299,10 @@ pub struct Locktime {
     pub kind: LocktimeKind,
     /// The date and time (UTC) of a time lock, worked out once here.
     pub date: Option<LockDate>,
+    /// Whether the locktime holds: some input's sequence is not final,
+    /// 0xFFFFFFFF, which turns the locktime off for that input (BIP 65).
+    /// Worked out once here; a lock that does not hold is not stated.
+    pub holds: bool,
 }
 
 /// A date and time in UTC, to the minute.
@@ -861,10 +865,11 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
     script_mix(kinds, &mut warnings);
 
     // Locktime and RBF.
-    let locktime = locktime(tx.lock_time);
+    let locktime = locktime(tx);
     // A height lock is no warning: wallets set the current height on
-    // nearly every spend, so it is a plain row on Review.
-    if matches!(locktime.kind, LocktimeKind::Time(_)) {
+    // nearly every spend, so it is a plain row on Review. A lock is
+    // stated only when it holds.
+    if locktime.holds && matches!(locktime.kind, LocktimeKind::Time(_)) {
         warn(
             &mut warnings,
             Level::Caution,
@@ -885,7 +890,8 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
             );
         }
     }
-    let rbf = tx.input.iter().any(|i| i.sequence.is_rbf());
+    // Version 3 (BIP 431) is replaceable whatever its sequences say.
+    let rbf = tx.version.0 == 3 || tx.input.iter().any(|i| i.sequence.is_rbf());
 
     if participating.is_empty() {
         warn(
@@ -1626,7 +1632,9 @@ fn far_change(warnings: &mut Vec<Warning>, output: usize, index: u32) {
     }
 }
 
-fn locktime(lt: LockTime) -> Locktime {
+fn locktime(tx: &Transaction) -> Locktime {
+    let lt = tx.lock_time;
+    let holds = tx.input.iter().any(|i| i.sequence != Sequence::MAX);
     let raw = lt.to_consensus_u32();
     let kind = match lt {
         LockTime::Blocks(h) if h.to_consensus_u32() == 0 => LocktimeKind::None,
@@ -1637,7 +1645,12 @@ fn locktime(lt: LockTime) -> Locktime {
         LocktimeKind::Time(t) => Some(lock_date(t)),
         _ => None,
     };
-    Locktime { raw, kind, date }
+    Locktime {
+        raw,
+        kind,
+        date,
+        holds,
+    }
 }
 
 /// A Unix time as a UTC date, by the civil-from-days rule.

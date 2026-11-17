@@ -13,8 +13,8 @@ use faraday_bip::keys::{Network, ScriptType};
 use faraday_crypto::work::Compute;
 use faraday_psbt::{
     ABSURD_FEE_RATE_SAT_VB, Aux, Context, Error, HIGH_FEE_CAUTION_PCT, HIGH_FEE_DANGER_ABS,
-    Inspection, KeyRef, Level, LocktimeKind, Nonce, OutputKind, Psbt, Warning, WarningKind,
-    inspect, sign,
+    Inspection, KeyRef, Level, LocktimeKind, Nonce, OutputKind, Psbt, RelativeLock, Warning,
+    WarningKind, inspect, sign,
 };
 
 const NET: Network = Network::Regtest;
@@ -747,6 +747,31 @@ fn locktime_rbf_and_non_standard_output() {
     let insp = inspect_with_abandon(&single_sig(&master(ABANDON, NET), &b));
     assert_eq!(insp.locktime.kind, LocktimeKind::Time(1_700_000_000));
     assert!(insp.rbf);
+}
+
+/// The relative lock `inspect` reads from one input's sequence at a version.
+fn relative_lock(version: i32, sequence: u32) -> Option<RelativeLock> {
+    let mut psbt = basic(ScriptType::NativeSegwit);
+    let tx = &mut psbt.inner_mut().unsigned_tx;
+    tx.version = bitcoin::transaction::Version(version);
+    tx.input[0].sequence = bitcoin::Sequence::from_consensus(sequence);
+    inspect_with_abandon(&psbt).inputs[0].relative_lock
+}
+
+#[test]
+fn relative_lock_reads_the_bits_of_the_sequence() {
+    assert_eq!(relative_lock(2, 144), Some(RelativeLock::Blocks(144)));
+    assert_eq!(
+        relative_lock(2, (1 << 22) | 10),
+        Some(RelativeLock::Intervals(10))
+    );
+    // Only the low 16 bits are the count.
+    assert_eq!(relative_lock(2, 0x0001_0005), Some(RelativeLock::Blocks(5)));
+    // Disable flag, count of zero, version 1: no lock.
+    assert_eq!(relative_lock(2, (1 << 31) | 144), None);
+    assert_eq!(relative_lock(2, 1 << 22), None);
+    assert_eq!(relative_lock(1, 144), None);
+    assert_eq!(relative_lock(3, 144), Some(RelativeLock::Blocks(144)));
 }
 
 #[test]

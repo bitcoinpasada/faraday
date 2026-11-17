@@ -180,8 +180,8 @@ macro_rules! words_screens_spend {
     step_replacement: "Replacement",
     /// The value of Review's replacement row: an input signals it.
     step_replaceable: "Replaceable",
-    /// The value of Review's replacement row: no input signals it.
-    step_final: "Final",
+    /// The value of Review's replacement row: no input signals it and the version is not 3.
+    step_not_signalled: "Not signalled",
     /// Review's line when Faraday signs nothing of the transaction: a
     /// blocked or a danger warning with no hold (F136).
     step_review_refused: "Faraday does not sign this transaction. Make it again in the coordinator without what is marked above.",

@@ -100,10 +100,10 @@ fn a_relative_lock_is_shown_on_its_input() {
 }
 
 #[test]
-fn a_spend_no_input_marks_replaceable_reads_final() {
+fn a_spend_no_input_marks_replaceable_reads_not_signalled() {
     let mut app = reviewing(&spend(2, LockTime::ZERO, Sequence::MAX));
     let shown = screen(&mut app);
-    assert!(shown.contains(EN.step_final), "{shown}");
+    assert!(shown.contains(EN.step_not_signalled), "{shown}");
     assert!(!shown.contains(EN.step_replaceable), "{shown}");
 }
 
@@ -112,4 +112,122 @@ fn a_spend_that_signals_replacement_reads_replaceable() {
     let mut app = reviewing(&spend(2, LockTime::ZERO, Sequence::ENABLE_RBF_NO_LOCKTIME));
     let shown = screen(&mut app);
     assert!(shown.contains(EN.step_replaceable), "{shown}");
+}
+
+fn lock_stated(app: &mut Faraday) -> (bool, bool) {
+    let caution = app
+        .spend()
+        .unwrap()
+        .inspection
+        .warnings
+        .iter()
+        .any(|w| w.kind == WarningKind::LocktimeInFuture);
+    let row = screen(app).contains(EN.step_locked_until);
+    (caution, row)
+}
+
+#[test]
+fn a_time_lock_is_not_stated_when_every_input_is_final() {
+    let lock = LockTime::from_consensus(1_893_456_000);
+    let mut app = reviewing(&spend(2, lock, Sequence::MAX));
+    let shown = screen(&mut app);
+    let want = fill(EN.psbt_locktime_time, &["2030-01-01 00:00"]);
+    assert_eq!(lock_stated(&mut app), (false, false));
+    assert!(!shown.contains(&want), "{shown}");
+}
+
+#[test]
+fn a_height_lock_is_not_stated_when_every_input_is_final() {
+    let lock = LockTime::from_consensus(2_000_000);
+    let mut app = reviewing(&spend(2, lock, Sequence::MAX));
+    assert_eq!(lock_stated(&mut app), (false, false));
+}
+
+#[test]
+fn a_height_lock_is_stated_when_an_input_is_not_final() {
+    let lock = LockTime::from_consensus(2_000_000);
+    let mut app = reviewing(&spend(2, lock, Sequence::from_consensus(0xffff_fffe)));
+    assert_eq!(lock_stated(&mut app), (false, true));
+}
+
+#[test]
+fn a_time_lock_date_shows_its_hour_and_minute() {
+    // 2030-01-01 13:45:00 UTC.
+    let lock = LockTime::from_consensus(1_893_456_000 + 13 * 3_600 + 45 * 60);
+    let mut app = reviewing(&spend(2, lock, Sequence::ENABLE_RBF_NO_LOCKTIME));
+    let shown = screen(&mut app);
+    let want = fill(EN.psbt_locktime_time, &["2030-01-01 13:45"]);
+    assert!(shown.contains(&want), "{shown}");
+}
+
+#[test]
+fn a_relative_lock_in_512_second_units_is_worded_so() {
+    let mut app = reviewing(&spend(
+        2,
+        LockTime::ZERO,
+        Sequence::from_512_second_intervals(100),
+    ));
+    let shown = screen(&mut app);
+    let wait = fill(EN.psbt_wait_intervals, &["100"]);
+    let want = fill(EN.psbt_warn_relative_lock, &["0", &wait]);
+    assert!(shown.contains(&want), "{shown}");
+}
+
+#[test]
+fn a_sequence_with_the_disable_bit_set_shows_no_relative_lock() {
+    let mut app = reviewing(&spend(
+        2,
+        LockTime::ZERO,
+        Sequence::from_consensus((1 << 31) | 144),
+    ));
+    let shown = screen(&mut app);
+    let none = fill(EN.psbt_wait_blocks, &["144"]);
+    assert!(!shown.contains(&none), "{shown}");
+    assert!(
+        !app.spend()
+            .unwrap()
+            .inspection
+            .warnings
+            .iter()
+            .any(|w| w.kind == WarningKind::RelativeLock)
+    );
+}
+
+#[test]
+fn a_version_1_spend_shows_no_relative_lock() {
+    let app = reviewing(&spend(1, LockTime::ZERO, Sequence::from_height(144)));
+    assert!(
+        !app.spend()
+            .unwrap()
+            .inspection
+            .warnings
+            .iter()
+            .any(|w| w.kind == WarningKind::RelativeLock)
+    );
+}
+
+#[test]
+fn sequence_fffffffe_reads_not_signalled_and_fffffffd_replaceable() {
+    let mut app = reviewing(&spend(
+        2,
+        LockTime::ZERO,
+        Sequence::from_consensus(0xffff_fffe),
+    ));
+    let shown = screen(&mut app);
+    assert!(shown.contains(EN.step_not_signalled), "{shown}");
+    let mut app = reviewing(&spend(
+        2,
+        LockTime::ZERO,
+        Sequence::from_consensus(0xffff_fffd),
+    ));
+    let shown = screen(&mut app);
+    assert!(shown.contains(EN.step_replaceable), "{shown}");
+}
+
+#[test]
+fn a_version_3_spend_reads_replaceable_whatever_its_sequences() {
+    let mut app = reviewing(&spend(3, LockTime::ZERO, Sequence::MAX));
+    let shown = screen(&mut app);
+    assert!(shown.contains(EN.step_replaceable), "{shown}");
+    assert!(!shown.contains(EN.step_not_signalled), "{shown}");
 }

@@ -973,7 +973,7 @@ impl StepView<'_> {
                 None
             },
         ));
-        if let faraday_psbt::LocktimeKind::Height(h) = i.locktime.kind {
+        if let (true, faraday_psbt::LocktimeKind::Height(h)) = (i.locktime.holds, i.locktime.kind) {
             rows.push((
                 Text::of(EN.step_locked_until),
                 Text::fill(EN.psbt_locktime_block, &[&text!("{h}")]),
@@ -986,7 +986,7 @@ impl StepView<'_> {
             Text::of(if i.rbf {
                 EN.step_replaceable
             } else {
-                EN.step_final
+                EN.step_not_signalled
             }),
             Text::new(),
             None,
