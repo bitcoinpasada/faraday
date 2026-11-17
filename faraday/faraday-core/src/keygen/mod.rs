@@ -1204,11 +1204,6 @@ impl crate::Faraday {
             k.codex32_offered = !multi && codex32;
             k.words_offered = !k.codex32_offered;
             k.slip39_offered = !multi;
-            // The cards after Start are the codex32 ones until a choice
-            // is pressed; nothing is ticked.
-            if k.codex32_offered {
-                k.start = Start::MakeCodex32;
-            }
         }
         // A small panel is a touch screen with no keyboard of its own:
         // the faces are pressed, not typed.
@@ -1220,8 +1215,23 @@ impl crate::Faraday {
         // the cards after it open from there (F103, `docs/FLOWS.md`, New
         // key).
         k.open = Some(kstep::START);
+        // A single key's slot has its Start answered by the Backup card:
+        // words make BIP-39 words, shares make codex32 shares. Start is
+        // shown closed on it, with Change, and the flow opens on the next
+        // card.
+        let answered = slot.is_some() && self.create_slot_backup().is_some();
+        if answered {
+            k.start = if k.codex32_offered {
+                Start::MakeCodex32
+            } else {
+                Start::Make
+            };
+        }
         self.keygen.state = Some(k);
         self.screen = Screen::KeyGen;
+        if answered {
+            self.keygen_start_next();
+        }
     }
 
     /// Make codex32 shares as this device runs it: in Practice the sample stands in

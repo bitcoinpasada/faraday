@@ -2594,15 +2594,15 @@ fn a_vault_preset_chosen_after_the_keys_goes_through_to_the_writes() {
 }
 
 #[test]
-fn check_stays_open_after_the_wallet_is_made_and_it_matches() {
+fn it_matches_opens_back_up_on_the_wallet_in_one_press() {
     let mut shell = Shell::new();
     let (mut app, _, _) = single_key(&mut shell, false);
     app.press(Action::CNext(cstep::KIND));
     app.press(Action::CNext(cstep::KEYS));
     assert!(app.create().unwrap().built.is_some());
-    // It matches keeps Check open, Back up wallet at its foot.
     app.press(Action::CNext(cstep::CHECK));
-    assert_eq!(app.create().unwrap().open, Some(cstep::CHECK));
+    assert_eq!(app.screen, Screen::Backup, "Back up opens");
+    assert!(app.backup().is_some(), "on the wallet made");
 }
 
 /// After the keys, with a vault brought in, the wallet's backup on paper

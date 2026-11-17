@@ -126,8 +126,9 @@ fn a_wallet_is_made_by_touch_from_a_key_rolled_on_dice() {
     tap(&mut app, Action::Nav(Screen::WalletsStart));
     tap(&mut app, Action::CreateWallet);
     assert_eq!(app.screen, Screen::Create);
-    // Create opens on Kind; Single key opens Backup, Words moves on to
-    // Keys: with nothing loaded, its New key for slot 1.
+    // Create opens on Kind with Single key ticked and Words answering
+    // Backup: pressing each takes it and moves on to Keys, with nothing
+    // loaded its New key for slot 1.
     tap(&mut app, Action::CKind(0));
     tap(
         &mut app,
@@ -136,16 +137,12 @@ fn a_wallet_is_made_by_touch_from_a_key_rolled_on_dice() {
     assert_eq!(app.screen, Screen::Create);
     tap(&mut app, Action::KeyGen(Some(0)));
     assert_eq!(app.screen, Screen::KeyGen);
-    // New key opens on Start with nothing ticked; a choice opens Length,
-    // and pressing a count takes it and opens Randomness (F103).
+    // New key opens with Start answered by the Backup card: it opens on
+    // Length, and pressing a count takes it and opens Randomness (F103).
     assert_eq!(
         app.keygen().and_then(|k| k.open),
-        Some(faraday_core::keygen::kstep::START),
-        "Start opens with nothing ticked"
-    );
-    tap(
-        &mut app,
-        Action::KStart(faraday_core::keygen::Start::Make.index()),
+        Some(faraday_core::keygen::kstep::LENGTH),
+        "Start is answered by Words: New key opens on Length"
     );
     tap(&mut app, Action::KWords(12));
     assert_eq!(
@@ -284,6 +281,17 @@ fn forward_in_view(mut app: Faraday, h: u16) {
         );
     }
     tap(&mut app, Action::CKind(0));
+    // Backup shows Words and More ways; the others after it is pressed.
+    for next in [
+        Action::CBackupForm(faraday_core::create::BackupForm::Words.index()),
+        Action::CMoreBackup,
+    ] {
+        assert!(
+            in_view(&mut app, h, next),
+            "Make a new wallet, Backup, {next:?}"
+        );
+    }
+    tap(&mut app, Action::CMoreBackup);
     for form in faraday_core::create::BackupForm::ALL {
         assert!(
             in_view(&mut app, h, Action::CBackupForm(form.index())),

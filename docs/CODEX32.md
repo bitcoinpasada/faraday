@@ -168,8 +168,8 @@ Sources read for it, each as data and none vendored:
 25. **Move the money opens Kind with nothing ticked** (owner,
     2026-10-24): the person moves money to a wallet of their choosing,
     so Faraday does not guess. The rows are in the same order; Next waits
-    until a row is chosen, and a row chosen moves on as any does. Since 2026-11-09 a
-    new wallet opened on its own has no row ticked either (§6.9).
+    until a row is chosen, and a row chosen moves on as any does. A
+    new wallet opened on its own ticks Single key (§6.9).
     Its key record keeps the codex32 set for the backup plan (§9.4), and
     the board names a backup-in-shares seed placed whole in a vault
     (§9.5, §9.6).
@@ -1153,31 +1153,31 @@ it is offered where the person chooses how a single key is backed up,
 as an answer of its own, each row stating plainly what it is.
 
 **Make a new wallet's Kind card** (FLOWS, Make a new wallet; DESIGN
-§4.2, Option row) asks only who signs. The flow opens on it, open, no
-row ticked (owner, 2026-11-09, §1.1 items 24 and 25):
+§4.2, Option row) asks only who signs. The flow opens on it, open, with
+Single key ticked (§1.1 items 24 and 25):
 
-- **Single key**: "One key signs".
-- **Multisig**: "3 keys, any 2 sign", the quorum's counts.
+- **Single key**: "One key signs; bc1q addresses, what most wallets make".
+- **Multisig**: "3 keys, any 2 sign; bc1q addresses", the quorum's counts.
 - **More kinds**: the address types (Single key Taproot, nested,
   legacy; Multisig nested, legacy, Taproot) and MuSig2.
 
-Whatever opens Create (Home, Wallets, Start over, a chart's **Move the
-money**) leaves the card with no row ticked: the person chooses, and
-Next waits until they have. A Tools tile that opens Create with a kind
+Whatever opens Create (Home, Wallets, Start over) ticks Single key; a
+chart's **Move the money** leaves the card with no row ticked: the
+person chooses, and Next waits until they have. A Tools tile that opens Create with a kind
 chosen ticks that kind. A row pressed opens the next card, as any row
 does (F103).
 
 **The Backup card** follows Kind for a single key of every address type
 (native SegWit, Taproot, nested, legacy). Its title is "Backup" and its
-rows, nothing ticked:
+rows:
 
-- **Words (BIP-39)**: 12 to 24 words on paper.
-- **Shares (codex32)**: the key in shares on paper, a few of them
-  rebuild it.
+- **Words (BIP-39)**, ticked when the card opens: 12 to 24 words on
+  paper.
+- **Shares (codex32)**, behind **More ways**: the key in shares on
+  paper, a few of them rebuild it.
 
-A row pressed closes the card and opens the next (F103); Next waits
-until one is chosen; closed it reads the form's name, or "Not
-answered". Keys stays closed until Backup is answered. A wallet made
+A row pressed closes the card and opens the next (F103), the ticked one
+too; closed it reads the form's name. A wallet made
 from another (New wallet from this one) takes its keys and has no
 Backup card.
 
@@ -1206,9 +1206,9 @@ Keys · Check. Each does codex32's part:
 - **Keys** is passed over where it would offer one way on only (F115);
   the key flow opens for slot 1. The Account row is at the head of Keys
   (F98), as for every kind without a Quorum card.
-- **New key**, opened for the slot, starts on Start with nothing ticked.
-  Under Make a new key it offers the Backup card's form only: Codex32
-  for Shares. Codex32 opens Make codex32 shares on its **Scheme** card
+- **New key**, opened for the slot, has Start answered by the Backup
+  card, closed with Change, and opens on the next card. Under Make a new
+  key it offers the Backup card's form only: Codex32 for Shares. Codex32 opens Make codex32 shares on its **Scheme** card
   (Length 48 · 74; Split 2 of 3 · 3 of 5 · Other, §6.1), which for a
   wallet's key offers no "None, the secret alone" (that is Single key
   with a codex32 seed, §6); then Identifier (§6.2) and the rest. Lock in

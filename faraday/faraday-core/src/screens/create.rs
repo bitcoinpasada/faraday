@@ -251,7 +251,15 @@ fn create_kind(app: &View, ui: &mut Ui, c: &crate::CreateState, (x, y, w): (f32,
     // From Move money no kind is ticked: the person chooses
     // (owner, 2026-10-24).
     let chosen = (!c.kind_unchosen).then_some(c.kind);
-    cy += kind_list(ui, (x, cy, w), &rows, chosen, more, !locked, Action::CKind);
+    cy += kind_list(
+        ui,
+        (x, cy, w),
+        &rows,
+        chosen,
+        more,
+        !locked,
+        (Action::CKind, crate::create::NewKind::create_name),
+    );
     if app.create_unfinished() {
         cy += tokens::GAP_SMALL;
         let over = [(EN.create_start_over, Style::Ghost, Action::CreateOver)];
@@ -266,7 +274,15 @@ fn create_kind(app: &View, ui: &mut Ui, c: &crate::CreateState, (x, y, w): (f32,
 fn create_backup_form(ui: &mut Ui, c: &crate::CreateState, (x, y, w): (f32, f32, f32)) -> f32 {
     let locked = c.built.is_some();
     let mut cy = y;
-    let rows: Vec<OptionRow> = crate::create::BackupForm::offered()
+    // Words is ticked from the start; the other ways are behind a button
+    // until pressed, or until one of them is the answer.
+    let shown: Vec<crate::create::BackupForm> = crate::create::BackupForm::offered()
+        .into_iter()
+        .filter(|f| *f == crate::create::BackupForm::Words || c.more_backup || c.backup == Some(*f))
+        .collect();
+    let more = (shown.len() < crate::create::BackupForm::offered().len())
+        .then_some((EN.create_more_backup, Action::CMoreBackup));
+    let rows: Vec<OptionRow> = shown
         .into_iter()
         .map(|f| OptionRow {
             name: f.name(),
@@ -276,7 +292,7 @@ fn create_backup_form(ui: &mut Ui, c: &crate::CreateState, (x, y, w): (f32, f32,
             tip: f == crate::create::BackupForm::Codex32,
         })
         .collect();
-    cy += option_list(ui, (x, cy, w), &rows, None, !locked);
+    cy += option_list(ui, (x, cy, w), &rows, more, !locked);
     cy - y
 }
 

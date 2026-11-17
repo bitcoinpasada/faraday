@@ -1,15 +1,13 @@
-//! The createshares tour: Make a new wallet opened on Kind, nothing
+//! The createshares tour: Make a new wallet opened on Kind, Single key
 //! ticked (who signs: Single key, Multisig, More kinds); Single key's
-//! Backup card, nothing ticked, and the tooltip on "codex32"; Shares
-//! (codex32) chosen, Keys, then New key's Start with Make a new
-//! key fixed to Codex32 and every way to add a key you have, and Make
-//! codex32 shares' Scheme with no "None, the secret alone"; and a Taproot
+//! Backup card, Words ticked, More ways, and the tooltip on "codex32"; Shares
+//! (codex32) chosen, Keys, then New key opening on Make codex32 shares'
+//! Scheme with no "None, the secret alone"; and a Taproot
 //! single key's Backup card, reached by More kinds (F240,
 //! `docs/CODEX32.md` §6.9).
 
 use crate::tour::Tour;
 use faraday_core::create::{BackupForm, NewKind};
-use faraday_core::keygen::Start;
 use faraday_core::{Action, Screen, cstep};
 use faraday_shell_api::{App, Event};
 
@@ -26,6 +24,8 @@ pub(crate) fn create_shares_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("shares-1-opened")?;
     t.press(Action::CKind(kind(NewKind::NativeSegwit)?));
     t.shot("shares-2-backup")?;
+    t.press(Action::CMoreBackup);
+    t.shot("shares-2b-backup-more")?;
     // The pointer resting on "codex32" brings its tooltip up.
     let (line, (x, y, w, h)) = t
         .app
@@ -42,14 +42,13 @@ pub(crate) fn create_shares_tour(t: &mut Tour) -> Result<(), String> {
     t.app.event(Event::HoverEnd);
     t.press(Action::CBackupForm(BackupForm::Codex32.index()));
     t.shot("shares-4-keys")?;
-    // Keys' slot: New key opens on Start.
+    // Keys' slot: New key opens the flow.
     t.press(Action::KeyGen(Some(0)));
     if t.app.screen != Screen::KeyGen {
         return Err("Keys' New key did not open".into());
     }
-    t.shot("shares-5-start")?;
-    t.press(Action::KStart(Start::MakeCodex32.index()));
-    t.shot("shares-6-scheme")?;
+    // Start is answered by the Backup card: the flow opens on Scheme.
+    t.shot("shares-5-scheme")?;
     // Cancel, nothing entered, back on Make a new wallet: Kind changed to
     // a Taproot single key keeps its Backup card. The kind moves on to
     // New key again, its one way on; Cancel once more.
@@ -58,9 +57,6 @@ pub(crate) fn create_shares_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::CMoreKinds);
     t.shot("shares-7-more-kinds")?;
     t.press(Action::CKind(kind(NewKind::Taproot)?));
-    if t.app.screen == Screen::KeyGen {
-        t.press(Action::CancelFlow);
-    }
     t.press(Action::CStep(cstep::BACKUP_FORM));
     t.shot("shares-8-taproot-backup")?;
     Ok(())

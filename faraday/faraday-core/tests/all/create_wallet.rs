@@ -150,42 +150,13 @@ fn made_on(mut app: Faraday) -> (Faraday, usize) {
 }
 
 #[test]
-fn it_matches_leaves_check_open_on_back_up_wallet_with_no_back_up_card() {
+fn it_matches_opens_back_up_on_the_wallet_in_one_press() {
     let (mut app, _) = made();
     let _ = app.frame();
     assert!(!app.offers(Action::CBackup), "It matches comes first");
     app.press(Action::CNext(cstep::CHECK));
-    assert_eq!(
-        app.create().and_then(|c| c.open),
-        Some(cstep::CHECK),
-        "Check stays open"
-    );
-    // Scrolled down the column as a person would, the texts seen on the way.
-    let mut texts = Vec::new();
-    for _ in 0..20 {
-        app.settle();
-        let _ = app.frame();
-        texts.extend(app.drawn_texts());
-        if app.offers(Action::CBackup) {
-            break;
-        }
-        app.event(Event::Scroll {
-            x: 400,
-            y: 384,
-            dy: 300,
-        });
-    }
-    assert!(app.offers(Action::CBackup), "Back up wallet is offered");
-    assert!(texts.iter().any(|t| t == "Back up now"));
-    assert!(texts.iter().any(|t| t == "not made"), "Backup · not made");
-    assert!(
-        !texts.iter().any(|t| t == "Show wallet QR"),
-        "the watch-only code waits for the backup"
-    );
-    assert!(!texts.iter().any(|t| t == "Back up"), "no Back up card");
-    for gone in ["Paper only", "Paper and vault", "The standard way"] {
-        assert!(!texts.iter().any(|t| t == gone), "{gone} is not offered");
-    }
+    assert_eq!(app.screen, Screen::Backup, "Back up is open");
+    assert!(app.backup().is_some(), "on the wallet made");
 }
 
 #[test]

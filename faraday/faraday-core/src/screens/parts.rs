@@ -345,14 +345,17 @@ pub(crate) fn kind_rows(
         Some(chosen),
         (!more).then_some(more_action),
         enabled,
-        pick,
+        (pick, crate::create::NewKind::name),
     )
 }
 
+/// A Kind card's press of a row and name of a kind.
+type KindFns = (fn(u8) -> Action, fn(crate::create::NewKind) -> &'static str);
+
 /// A Kind card's rows, `rows` in the order shown, each a place in
 /// `NewKind::ALL` with its second line; the ticked one `chosen`, none
-/// when `None`; **More kinds** under them when `more` is given. Returns
-/// the height used.
+/// when `None`; **More kinds** under them when `more` is given; `pick`
+/// makes a row's press and `name` its name. Returns the height used.
 pub(crate) fn kind_list(
     ui: &mut Ui,
     (x, y, w): (f32, f32, f32),
@@ -360,7 +363,7 @@ pub(crate) fn kind_list(
     chosen: Option<crate::create::NewKind>,
     more: Option<Action>,
     enabled: bool,
-    pick: fn(u8) -> Action,
+    (pick, name): KindFns,
 ) -> f32 {
     use crate::create::NewKind;
     let rows: Vec<OptionRow> = rows
@@ -368,7 +371,7 @@ pub(crate) fn kind_list(
         .map(|(i, line)| {
             let k = NewKind::ALL[*i];
             OptionRow {
-                name: k.name(),
+                name: name(k),
                 line,
                 on: chosen == Some(k),
                 action: pick(*i as u8),
@@ -376,7 +379,13 @@ pub(crate) fn kind_list(
             }
         })
         .collect();
-    option_list(ui, (x, y, w), &rows, more, enabled)
+    option_list(
+        ui,
+        (x, y, w),
+        &rows,
+        more.map(|a| (EN.kind_rows_more_kinds, a)),
+        enabled,
+    )
 }
 
 /// One row of a card that asks one thing (DESIGN §4.2, Option row): its
@@ -396,12 +405,12 @@ pub(crate) struct OptionRow<'a> {
 }
 
 /// A card's option rows, in the order given, and **More kinds** under
-/// them when `more` is given. Returns the height used.
+/// them (its label and press) when `more` is given. Returns the height used.
 pub(crate) fn option_list(
     ui: &mut Ui,
     (x, y, w): (f32, f32, f32),
     rows: &[OptionRow],
-    more: Option<Action>,
+    more: Option<(&str, Action)>,
     enabled: bool,
 ) -> f32 {
     let mut cy = y;
@@ -473,16 +482,8 @@ pub(crate) fn option_list(
         }
         cy += 54.0 - tokens::TOUCH + h;
     }
-    if let Some(more_action) = more.filter(|_| enabled) {
-        ui.button(
-            x,
-            cy,
-            None,
-            BUTTON_H,
-            EN.kind_rows_more_kinds,
-            Style::Ghost,
-            more_action,
-        );
+    if let Some((label, more_action)) = more.filter(|_| enabled) {
+        ui.button(x, cy, None, BUTTON_H, label, Style::Ghost, more_action);
         cy += 44.0;
     }
     cy - y

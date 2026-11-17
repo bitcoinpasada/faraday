@@ -72,9 +72,15 @@ macro_rules! words_create {
     /// Tooltip on "codex32" in the Backup card's Shares row: an explanation on a working screen, by the owner's decision (2026-10-24, F112; moved to the Backup card by F240).
     create_backup_tip: "codex32 is the only method that makes a seed and its shares fully by hand, the checksum included.",
     /// Make a new wallet's Kind row: Single key's line.
-    create_single_key_line: "One key signs",
+    create_single_key_line: "One key signs; bc1q addresses, what most wallets make",
     /// Make a new wallet's Kind row: Multisig's line. `{}`: the keys, the signatures needed.
-    create_multisig_line: "{} keys, any {} sign",
+    create_multisig_line: "{} keys, any {} sign; bc1q addresses",
+    /// Make a new wallet's Kind row: Single key's name.
+    create_kind_single: "Single key",
+    /// Make a new wallet's Kind row: Multisig's name.
+    create_kind_multi: "Multisig",
+    /// The Backup card's button that shows the other ways to back up the key.
+    create_more_backup: "More ways",
     /// The Backup card's title, and Check's row label for a key made as codex32 shares.
     create_backup: "Backup",
     /// Check's row value. `{}`: the identifier, k, n.

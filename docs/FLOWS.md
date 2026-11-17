@@ -119,8 +119,12 @@ passphrase.
 **Step cards** (decisions 16 and 34). In Sign a transaction, Back up and
 Create a vault a step card with a default opens closed and shows its
 value and **Change** in place of the chevron; the flow opens on the first
-card without one. Make a new wallet opens on Kind, open, with nothing
-ticked (owner, 2026-11-09); a Tools tile that ticks a
+card without one. Make a new wallet opens on Kind, open, with Single key
+ticked and Words the Backup card's answer, Shares behind **More ways**
+(Move money still opens it with nothing ticked); **It matches** on Check
+opens Back up in the same press, except for a wallet made to move
+another's money, which stays on Check, whose foot has the spend of the
+old wallet's coins; a Tools tile that ticks a
 kind opens the card after it. New key opens on its first step, whatever
 opened it.
 A card that asks one thing (a kind, Yes
@@ -451,8 +455,9 @@ words behind **Show words**, **Passphrase** and **Passphrase again**
 does (not marked made here) and fills a Create slot, and leaves the
 flow by itself, with no Words or Quiz. Add a key on Wallets and its
 Tools tile (one tile for making and for typing a key, owner,
-2026-10-24) open with Start open and nothing ticked, and so does New key
-from a Create slot (F103): a press on a choice takes it and opens the
+2026-10-24) open with Start open and nothing ticked; New key from a Create
+slot of a single key has Start answered by the Backup card, closed with
+**Change**, and opens on the next card (F103): a press on a choice takes it and opens the
 next card, and nothing moves on before one is pressed. **Change** on
 Start reopens it with its choice ticked, where a press on a choice, the
 ticked one included, moves on by itself. The SLIP-39, codex32 and Seed XOR tiles open with their

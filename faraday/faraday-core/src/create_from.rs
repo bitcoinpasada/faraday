@@ -283,6 +283,7 @@ impl Faraday {
             owner,
             done,
             kind,
+            backup: Some(crate::create::BackupForm::Words),
             m: if kind.all_sign() { n } else { m.clamp(1, n) },
             n,
             slots,

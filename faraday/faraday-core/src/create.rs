@@ -205,6 +205,16 @@ impl NewKind {
         }
     }
 
+    /// The name of the kind's row on Make a new wallet's Kind card: the
+    /// first two rows say who signs, the others their full name.
+    pub fn create_name(self) -> &'static str {
+        match self {
+            NewKind::NativeSegwit => EN.create_kind_single,
+            NewKind::Multi => EN.create_kind_multi,
+            other => other.name(),
+        }
+    }
+
     /// The second line of the kind's row on Make a new wallet's Kind card:
     /// a fact of the row, with the counts the creation holds now, `m` of
     /// `n` for a multisig.
@@ -1000,6 +1010,8 @@ pub struct CreateState {
     /// The Kind card's **More kinds** is expanded: the other eight kinds
     /// are shown too.
     pub more_kinds: bool,
+    /// The Backup card's other ways to back up the key are shown too.
+    pub more_backup: bool,
     /// New keys made for this wallet.
     pub made: u32,
     /// The slot whose passphrase fields are open.
@@ -1389,6 +1401,9 @@ impl CreateArea {
                     // (a single choice moves on by itself).
                     c.kind = create::NewKind::ALL[i as usize % create::NewKind::ALL.len()];
                     c.kind_unchosen = false;
+                    if !c.kind.multi() && c.backup.is_none() {
+                        c.backup = Some(BackupForm::Words);
+                    }
                     c.bip87 = false;
                     c.path_open = false;
                     if c.kind.multi() {
@@ -1413,6 +1428,11 @@ impl CreateArea {
             Action::CMoreKinds => {
                 if let Some(c) = self.state.as_mut() {
                     c.more_kinds = true;
+                }
+            }
+            Action::CMoreBackup => {
+                if let Some(c) = self.state.as_mut() {
+                    c.more_backup = true;
                 }
             }
             // The Backup card's row: how the single key is backed up.
@@ -1559,8 +1579,9 @@ impl Faraday {
                 self.screen = Screen::Create;
             }
             Action::CreateWallet | Action::CreateOver => {
-                // Create opens on Kind, open, with no row ticked until one
-                // is pressed (owner, 2026-11-09; `docs/CODEX32.md` §6.9).
+                // Create opens on Kind, open, with Single key ticked and
+                // Words the Backup card's answer: a press on the ticked
+                // row takes the default.
                 // Back goes where it was opened from, Home or Wallets.
                 let done = [false; cstep::COUNT];
                 let owner = self.fresh_owner();
@@ -1569,7 +1590,7 @@ impl Faraday {
                     done,
                     open: Some(cstep::KIND),
                     kind: NewKind::NativeSegwit,
-                    kind_unchosen: true,
+                    backup: Some(BackupForm::Words),
                     // Start over keeps it.
                     from_home: self.screen == Screen::Home
                         || (self.screen == Screen::Create
@@ -1612,8 +1633,8 @@ impl Faraday {
                 if let Some(c) = self.create.state.as_mut() {
                     c.done[k as usize] = true;
                 }
-                // It matches keeps Check open: its foot is Back up wallet
-                // now (owner, 2026-10-26).
+                // It matches keeps Check open, for a way back to it: its
+                // foot is Back up wallet then.
                 if k == cstep::CHECK {
                     if let Some(c) = self.create.state.as_mut() {
                         c.open = Some(k);
@@ -1630,7 +1651,15 @@ impl Faraday {
                     let checksum = Text::of(wallet.checksum());
                     self.mark_checked(&checksum);
                 }
+                // It matches is one press: Back up opens on the wallet. A
+                // wallet made to move another's money to stays on Check,
+                // whose foot also offers the spend of the old one.
+                if k == cstep::CHECK && self.moving_from().is_none() {
+                    self.act(Action::CBackup);
+                }
             }
+            // Back up is already open: It matches opened it.
+            Action::CBackup if self.screen == Screen::Backup => {}
             Action::CBackup => {
                 if let Some(i) = self.create.state.as_ref().and_then(|c| c.built) {
                     self.act(Action::Backup(i));
@@ -1721,6 +1750,7 @@ impl Faraday {
             }
             Action::CStep(_)
             | Action::CMoreKinds
+            | Action::CMoreBackup
             | Action::CM(_)
             | Action::CSlotHere(..)
             | Action::CSlotLater(_)
@@ -1745,6 +1775,7 @@ impl Faraday {
                 | Action::CreateOver
                 | Action::CStep(_)
                 | Action::CMoreKinds
+                | Action::CMoreBackup
                 | Action::CBackupAbout
                 | Action::CKind(_)
         ) {

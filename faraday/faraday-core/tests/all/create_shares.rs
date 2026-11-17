@@ -117,18 +117,19 @@ const NAME: &str = "Shares (codex32)";
 const TIP: &str = "codex32 is the only method that makes a seed and its shares fully by hand, the checksum included.";
 
 #[test]
-fn kind_shows_single_key_and_multisig_with_no_shares_row_and_nothing_ticked() {
+fn kind_shows_single_key_and_multisig_with_single_key_ticked_and_no_shares_row() {
     let mut app = app();
     app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::CreateWallet);
     let c = app.create().expect("Make a new wallet");
     assert_eq!(c.open, Some(cstep::KIND), "Kind is open");
-    assert!(c.kind_unchosen, "no row is ticked");
+    assert!(!c.kind_unchosen, "Single key is ticked");
+    assert_eq!(c.kind, NewKind::NativeSegwit);
     let texts = app.drawn_texts();
     let at = |name: &str| texts.iter().position(|t| t == name);
     let (single, multi) = (
-        at("Single key · native SegWit").expect("Single key"),
-        at("Multisig · native SegWit").expect("Multisig"),
+        at("Single key").expect("Single key"),
+        at("Multisig").expect("Multisig"),
     );
     assert!(single < multi, "{texts:?}");
     assert!(
@@ -143,28 +144,20 @@ fn kind_shows_single_key_and_multisig_with_no_shares_row_and_nothing_ticked() {
 }
 
 #[test]
-fn a_single_key_opens_the_backup_card_with_nothing_ticked_and_next_waits() {
+fn a_single_key_opens_the_backup_card_with_words_ticked_and_shares_behind_more() {
     for kind in [NewKind::NativeSegwit, NewKind::Taproot] {
         let mut app = on_backup_of(app(), kind);
         let c = app.create().unwrap();
-        assert_eq!(c.backup, None, "nothing is ticked");
+        assert_eq!(c.backup, Some(BackupForm::Words), "Words is ticked");
         let _ = app.frame();
         let texts = app.drawn_texts();
-        for want in [WORDS, NAME] {
-            assert!(texts.iter().any(|t| t == want), "{want}: {texts:?}");
-        }
-        app.press(Action::CNext(cstep::BACKUP_FORM));
-        assert_eq!(
-            app.create().unwrap().open,
-            Some(cstep::BACKUP_FORM),
-            "Next waits for an answer"
-        );
-        app.press(Action::CStep(cstep::KEYS));
-        assert_eq!(
-            app.create().unwrap().open,
-            Some(cstep::BACKUP_FORM),
-            "Keys waits for the Backup card"
-        );
+        assert!(texts.iter().any(|t| t == WORDS), "{texts:?}");
+        assert!(!texts.iter().any(|t| t == NAME), "Shares wait: {texts:?}");
+        app.press(Action::CMoreBackup);
+        let _ = app.frame();
+        let texts = app.drawn_texts();
+        assert!(texts.iter().any(|t| t == NAME), "{texts:?}");
+        // One press on the ticked row takes the default and moves on.
         app.press(Action::CBackupForm(BackupForm::Words.index()));
         let c = app.create().unwrap();
         assert_eq!(c.backup, Some(BackupForm::Words));
@@ -179,7 +172,11 @@ fn a_multisig_has_a_quorum_and_no_backup_card() {
     app.press(Action::CKind(kind_index(NewKind::Multi)));
     assert_eq!(app.create().and_then(|c| c.open), Some(cstep::QUORUM));
     app.press(Action::CBackupForm(BackupForm::Codex32.index()));
-    assert_eq!(app.create().unwrap().backup, None);
+    assert_eq!(
+        app.create().unwrap().backup,
+        Some(BackupForm::Words),
+        "a multisig's keys are words; the press changes nothing"
+    );
 }
 
 #[test]
@@ -201,9 +198,12 @@ fn words_make_new_key_offer_bip39_words_and_no_codex32() {
     );
     assert_eq!(
         app.keygen().unwrap().open,
-        Some(kstep::START),
-        "Start opens with nothing ticked"
+        Some(kstep::LENGTH),
+        "Start is answered by the Backup card: the flow opens on the count"
     );
+    assert_eq!(app.keygen().unwrap().start, Start::Make);
+    app.press(Action::KStep(kstep::START));
+    let _ = app.frame();
     assert!(app.offers(Action::KStart(Start::Make.index())));
     assert!(!app.offers(Action::KStart(Start::MakeCodex32.index())));
 }
@@ -243,6 +243,9 @@ fn codex32_make_new_key_offer_codex32_and_no_bip39_words_to_make() {
         ],
         "the fixed make, and the ways to add a key you have"
     );
+    assert_eq!(app.keygen().unwrap().start, Start::MakeCodex32);
+    app.press(Action::KStep(kstep::START));
+    let _ = app.frame();
     assert!(app.offers(Action::KStart(Start::MakeCodex32.index())));
     assert!(!app.offers(Action::KStart(Start::Make.index())));
 }
@@ -369,6 +372,8 @@ fn a_codex32_set_you_hold_fills_a_codex32_backups_slot_and_the_wallet_is_made() 
     app.press(Action::CStep(cstep::KEYS));
     // Type codex32 strings is one of the ways offered at Start.
     open_new_key(&mut app);
+    app.press(Action::KStep(kstep::START));
+    let _ = app.frame();
     assert!(app.offers(Action::KStart(Start::Codex32.index())));
     app.press(Action::Back);
     app.press(Action::CStep(cstep::KEYS));
@@ -445,6 +450,7 @@ fn restore_does_not_offer_a_shares_kind() {
 /// Shares row's name, in pixels, and the clock a second on.
 fn on_backup_card() -> (Faraday, (u16, u16)) {
     let mut app = on_backup();
+    app.press(Action::CMoreBackup);
     let now = app.now_ms() + 1000;
     app.event(Event::Tick { now_ms: now });
     let _ = app.frame();
@@ -490,7 +496,7 @@ fn the_pointer_resting_on_codex32_shows_its_tooltip_and_leaving_hides_it() {
     assert!(!tip_shows(&mut app));
     assert_eq!(
         (app.create().unwrap().backup, open_card(&app)),
-        (None, Some(cstep::BACKUP_FORM)),
+        (Some(BackupForm::Words), Some(cstep::BACKUP_FORM)),
         "hovering pressed nothing"
     );
 }
@@ -527,7 +533,7 @@ fn a_tap_on_the_info_button_shows_the_tooltip_at_once_and_a_press_elsewhere_hide
     assert!(tip_shows(&mut app), "at once");
     assert_eq!(
         (app.create().unwrap().backup, open_card(&app)),
-        (None, Some(cstep::BACKUP_FORM)),
+        (Some(BackupForm::Words), Some(cstep::BACKUP_FORM)),
         "the row is not chosen"
     );
     tick(&mut app, 5000);
@@ -579,7 +585,7 @@ fn the_keyboard_on_the_info_button_shows_its_tooltip_and_escape_hides_it() {
     app.event(Event::Key(Key::Enter));
     assert!(tip_shows(&mut app));
     assert_eq!(open_card(&app), Some(cstep::BACKUP_FORM));
-    assert_eq!(app.create().unwrap().backup, None);
+    assert_eq!(app.create().unwrap().backup, Some(BackupForm::Words));
     app.event(Event::Key(Key::Escape));
     app.event(Event::Key(Key::Tab));
     tick(&mut app, 600);
@@ -603,7 +609,7 @@ fn a_long_press_on_codex32_shows_its_tooltip_and_chooses_nothing() {
     });
     assert_eq!(
         (app.create().unwrap().backup, open_card(&app)),
-        (None, Some(cstep::BACKUP_FORM)),
+        (Some(BackupForm::Words), Some(cstep::BACKUP_FORM)),
         "the lift presses nothing"
     );
     tick(&mut app, 3000);

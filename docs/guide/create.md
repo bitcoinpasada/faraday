@@ -13,7 +13,7 @@ Make a new wallet is one card per step: Kind, Keys, Check and then Back up. The 
 
 Choose the kind of wallet: it sets how the wallet locks its coins and what its addresses look like. Choosing a row opens the next card.
 
-**Single key · native SegWit** is one key signing, with bc1q addresses, the kind most wallets make. **Multisig · native SegWit** needs a quorum of several keys. **More kinds** opens the rest. **Single key · Taproot** gives bc1p addresses. **Single key · nested SegWit** and **Multisig · nested SegWit** give 3 addresses, for services that cannot pay bc1. **Single key · legacy** (1 addresses) and **Multisig · legacy** (3 addresses) are for old software only. **Multisig · Taproot** is a quorum on one Taproot script leaf. **All keys · MuSig2** needs every key to sign and appears on chain as one Taproot key. **Start over** forgets a wallet part made.
+**Single key** is ticked when the page opens: one key signing, with bc1q addresses, the kind most wallets make; pressing it takes it and opens the next card. **Multisig** needs a quorum of several keys. **More kinds** opens the rest. **Single key · Taproot** gives bc1p addresses. **Single key · nested SegWit** and **Multisig · nested SegWit** give 3 addresses, for services that cannot pay bc1. **Single key · legacy** (1 addresses) and **Multisig · legacy** (3 addresses) are for old software only. **Multisig · Taproot** is a quorum on one Taproot script leaf. **All keys · MuSig2** needs every key to sign and appears on chain as one Taproot key. **Start over** forgets a wallet part made.
 
 ## Backup
 
@@ -21,7 +21,7 @@ Choose the kind of wallet: it sets how the wallet locks its coins and what its a
 
 Asked for a single key of any address type: choose how the key is written on paper.
 
-**Words (BIP-39)** is 12 to 24 words in one list. **Shares (codex32)** splits the key into shares: a set number of them rebuild it and fewer reveal nothing of it, so you can keep each in its own place. The Keys card stays closed until you answer this one.
+**Words (BIP-39)** is ticked when the card opens: 12 to 24 words in one list. **More ways** shows **Shares (codex32)**, which splits the key into shares: a set number of them rebuild it and fewer reveal nothing of it, so you can keep each in its own place. The key made on the Keys card is made the way chosen here, and its Start card is already answered, with **Change**.
 
 ## Quorum
 
@@ -47,4 +47,4 @@ One row per key, **Key 1**, **Key 2** and so on. **Make the wallet** is offered 
 
 Shows what was made, for you to compare with your watch-only software.
 
-**Descriptor** gives the kind, the keys and the checksum. **Path** gives the derivation path. **The wallet's first addresses** are its first receive and change addresses; while a key made here has no backup, **Back up before you receive** stands in their place. **It matches** marks the wallet as checked, and the end card shows **Wallet made**, **Backup** as **not made**, and **Back up now**, which opens its backup, and **Open the wallet**. **Lock** and **Power off** wait for the backup.
+**Descriptor** gives the kind, the keys and the checksum. **Path** gives the derivation path. **The wallet's first addresses** are its first receive and change addresses; while a key made here has no backup, **Back up before you receive** stands in their place. **It matches** marks the wallet as checked and opens its backup in the same press. For a wallet made to move another's money, Check stays open, with **Back up wallet** and the spend of the old wallet's coins.
