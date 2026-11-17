@@ -38,7 +38,7 @@ plan <paths>` lists the ones a change touches.
   every test passing or change it to the rule it now encodes; do not
   delete a test to make the build pass. The full check is slow, so it runs
   once for a finished body of work, never after each change or each
-  commit: GitHub Actions runs it on every push and pull request, and a
+  commit: GitHub Actions runs it (below), and a
   commit on main need not pass it on its own. While working, run only the test module you touched (`cargo
   nextest run -p faraday-core -E 'test(/^keygen::/)'`) and the one lint
   script for the files you changed; when the full check fails, fix what it
@@ -110,13 +110,14 @@ plan <paths>` lists the ones a change touches.
   file, a QR code) and the device verifies it; its cryptography is right
   against published vectors. A bug there is fixed now. Timing and memory
   side channels on the offline device (constant-time arithmetic, wiping
-  copies in freed memory) are worth having but later work: recorded as
-  open work and done when the app is mature, not fixed now. A malicious
+  copies in freed memory) are strictly outside this scope, but Faraday
+  covers them as far as it can: each one found is recorded as open work
+  and done when the app is mature, not fixed now. A malicious
   Faraday binary, firmware and the management engines, cold-boot attacks
   and a weak passphrase are out of scope, and so is a USB device that shows
   only as a keyboard or mouse and is plugged in at boot (trusted; a notice
   lists it). Faraday Demo and the Starter run on an online computer and hold
-  test data. A risk outside this scope, or later work found in passing, gets
+  test data. Any other risk outside this scope gets
   one line in a report; it is not fixed without the owner asking.
 
 ## By area
@@ -131,7 +132,7 @@ plan <paths>` lists the ones a change touches.
   against.
 - **Drawing and costly work:** drawing reads and does not work things
   out; costly work takes `c: &Compute`; work added while drawing is timed once in a late-flow
-  session for the batch, before it is pushed: `docs/SPEED.md` §3.3 and §7,
+  session, before it is pushed: `docs/SPEED.md` §3.3 and §7,
   `docs/COMPUTE.md` (held by `costs-lint`, clippy and the budget tests); a named
   costly operation is held by an instruction count, raised only in a
   commit that says why, and a stated cost says how it was measured (F238).
