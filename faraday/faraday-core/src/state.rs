@@ -1605,6 +1605,7 @@ impl Faraday {
     pub(crate) fn entry_left(&mut self, was_on: bool) {
         if was_on && self.screen != Screen::Entry {
             self.entry.reset();
+            self.pointer.forget_drawn();
         }
     }
 

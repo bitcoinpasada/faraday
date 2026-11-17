@@ -97,6 +97,15 @@ impl Pointer {
         self.cut = cut;
     }
 
+    /// Lets go of the buffers the last frames' controls were kept in, not
+    /// only their contents: a buffer keeps what its entries once held
+    /// past their end, and a screen that held a secret may have left some.
+    pub(crate) fn forget_drawn(&mut self) {
+        self.hits = Vec::new();
+        self.cut = Vec::new();
+        self.reach = Vec::new();
+    }
+
     /// Takes the hits out to be filled by the next frame.
     pub(crate) fn take_hits(&mut self) -> Vec<(Rect, Action)> {
         std::mem::take(&mut self.hits)

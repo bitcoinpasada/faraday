@@ -235,6 +235,24 @@ fn a_seed_typed_into_add_a_key_is_gone_once_the_screen_is_left() {
 }
 
 #[test]
+fn a_seed_typed_into_add_a_key_and_paused_on_is_gone_once_the_screen_is_left() {
+    // The pause: typing stops long enough for a frame to work out the
+    // status line's key.
+    for (way, leave) in ways_out() {
+        let forms = seed_forms("");
+        let armed = arm(&forms);
+        let mut app = demo_on_testnet();
+        type_text(&mut app, PHRASE);
+        app.event(Event::Tick { now_ms: 100_000 });
+        let _ = app.frame();
+        leave(&mut app);
+        let _ = app.frame();
+        assert_ne!(app.screen, Screen::Entry, "{way} did not leave Add a key");
+        finish_left(&format!("seed typed, paused, left by {way}"), armed, &[]);
+    }
+}
+
+#[test]
 fn a_seed_typed_into_my_seed_makes_my_wallet_is_gone_once_the_screen_is_left() {
     use faraday_core::seed_check::SeedAction as S;
     // Left with the words typed and not taken, and with the key made.
@@ -330,7 +348,6 @@ fn words_typed_in_add_a_key_and_new_key_are_gone_once_new_key_is_finished_and_le
 }
 
 #[test]
-#[ignore = "Add a key's typed words stay live (their indices, in a 6144-byte block) after New key, opened over them, is left by the arrow, though neither screen is on and the entry state and the flow are empty; Add a key left alone, and New key's own words left, are clean"]
 fn words_typed_in_add_a_key_and_new_key_are_gone_once_new_key_is_left() {
     for (way, leave) in ways_out() {
         let forms = seed_forms("");
