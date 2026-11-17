@@ -232,8 +232,13 @@ fn on_the_small_panel_the_name_scrolls_up_with_home_and_goes_off_the_top() {
 #[test]
 fn on_the_small_panel_home_scrolls_to_a_power_off_button_that_can_be_pressed() {
     let mut app = home(false, false, (480, 640, 286));
+    // The button's height where it stands whole: the tallest it is seen.
+    let mut whole = None;
     for _ in 0..30 {
         scroll_home(&mut app, 30);
+        if let Some((_, _, _, h)) = app.hit_box(faraday_core::Action::PowerAsk) {
+            whole = whole.max(Some(h));
+        }
     }
     let (x, y, w, h) = app
         .hit_box(faraday_core::Action::PowerAsk)
@@ -243,7 +248,7 @@ fn on_the_small_panel_home_scrolls_to_a_power_off_button_that_can_be_pressed() {
         "Power off is off the window"
     );
     // The button whole, not a sliver above the Scan button's strip.
-    assert!(h >= 72, "only {h} high of Power off shows");
+    assert_eq!(Some(h), whole, "Power off shows {h} high, not whole");
     use faraday_shell_api::{App, Event, TouchPhase};
     let (cx, cy) = (x + w / 2, y + h / 2);
     for phase in [TouchPhase::Down, TouchPhase::Up] {

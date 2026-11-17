@@ -284,18 +284,14 @@ fn back_from_a_key_explored_from_a_wallets_chart_lands_on_that_chart() {
     assert!(app.glance(), "the chart, as it was left");
 }
 
-/// Wide pages that are not a sidebar destination draw their way back.
+/// A wide page that is not a sidebar destination draws its way back. (A
+/// wallet card with its list beside it draws none: list_detail.)
 #[test]
-fn on_a_wide_panel_backups_and_a_wallets_card_draw_a_way_back_to_where_they_were_opened() {
+fn on_a_wide_panel_backups_draws_a_way_back_to_where_it_was_opened() {
     let mut app = with(1, 1280, 800);
     app.press(Action::Nav(Screen::Backups));
     tap_back(&mut app);
     assert_eq!(app.screen, Screen::Home);
-    app.press(Action::Nav(Screen::WalletsStart));
-    app.press(Action::OpenWallet(0));
-    assert_eq!(app.screen, Screen::Wallets);
-    tap_back(&mut app);
-    assert_eq!(app.screen, Screen::WalletsStart);
 }
 
 #[test]

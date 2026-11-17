@@ -321,7 +321,7 @@ fn the_sweeps_psbt_is_reviewed_against_the_wallets_and_signed_with_a_hold() {
     let done = s.signed.as_ref().unwrap_or_else(|| panic!("{:?}", s.error));
     assert_eq!(
         done.line,
-        "Signed 1 inputs. The transaction is in the Outbox"
+        "Signed 1 inputs. The transaction is in Files, For the stick"
     );
     let names: Vec<&str> = app.outbox.iter().map(|i| i.name.as_str()).collect();
     assert!(names.contains(&"sweep-signed.psbt") && names.contains(&"sweep-final.txn"));
