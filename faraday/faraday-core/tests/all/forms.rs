@@ -78,6 +78,7 @@ fn two_slip39_shares_and_the_passphrase_make_the_vectors_key() {
     typed(&mut app, "TREZOR");
     app.press(Action::EntryPassphraseAgain);
     typed(&mut app, "TREZOR");
+    app.press(Action::PassEye);
     enter(&mut app);
     assert_eq!(
         only_key(&app),
@@ -294,6 +295,7 @@ fn words_key(count: u8, words: &str) -> Faraday {
     typed(&mut app, "TREZOR");
     app.press(Action::EntryPassphraseAgain);
     typed(&mut app, "TREZOR");
+    app.press(Action::PassEye);
     app.press(Action::EntryAdd);
     app
 }
@@ -409,6 +411,7 @@ fn add_a_key_takes_a_bip_39_passphrase_typed_twice() {
     typed(&mut app, "TREZOR");
     app.press(Action::EntryPassphraseAgain);
     typed(&mut app, "TREZOP");
+    app.press(Action::PassEye);
     let _ = app.frame();
     assert!(
         app.drawn_texts()
@@ -423,6 +426,55 @@ fn add_a_key_takes_a_bip_39_passphrase_typed_twice() {
         faraday_shell_api::Key::Backspace,
     ));
     typed(&mut app, "R");
+    app.press(Action::EntryAdd);
+    assert_eq!(app.session.keys.len(), 1);
+}
+
+const US_LINE: &str = "Keys are read as a US keyboard. Caps Lock is ignored.";
+
+fn shown(app: &mut Faraday) -> Vec<String> {
+    let _ = app.frame();
+    app.drawn_texts().iter().map(|t| t.to_string()).collect()
+}
+
+#[test]
+fn a_passphrase_typed_with_hardware_keys_on_add_a_key_says_so_and_add_key_waits_for_the_eye() {
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Entry(None));
+    typed(&mut app, &faraday_core::testkit::test_words("bacon"));
+    app.press(Action::EntryPassphrase);
+    assert!(!shown(&mut app).iter().any(|t| t == US_LINE));
+    typed(&mut app, "Ride the 7 bus");
+    app.press(Action::EntryPassphraseAgain);
+    typed(&mut app, "Ride the 7 bus");
+    let texts = shown(&mut app);
+    assert!(texts.iter().any(|t| t == US_LINE));
+    assert!(
+        !texts.iter().any(|t| t == "Ride the 7 bus"),
+        "the eye is closed"
+    );
+    enter(&mut app);
+    app.press(Action::EntryAdd);
+    assert!(app.session.keys.is_empty(), "Add key waits for the eye");
+    app.press(Action::PassEye);
+    assert!(shown(&mut app).iter().any(|t| t == "Ride the 7 bus"));
+    app.press(Action::EntryAdd);
+    assert_eq!(app.session.keys.len(), 1);
+}
+
+#[test]
+fn a_passphrase_typed_on_the_on_screen_keyboard_on_add_a_key_has_no_line_and_no_wait() {
+    use faraday_ui::keyboard::OskPress;
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Entry(None));
+    typed(&mut app, &faraday_core::testkit::test_words("bacon"));
+    for field in [Action::EntryPassphrase, Action::EntryPassphraseAgain] {
+        app.press(field);
+        for c in "one".chars() {
+            app.press(Action::Osk(OskPress::Char(c)));
+        }
+    }
+    assert!(!shown(&mut app).iter().any(|t| t == US_LINE));
     app.press(Action::EntryAdd);
     assert_eq!(app.session.keys.len(), 1);
 }

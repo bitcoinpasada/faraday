@@ -334,6 +334,66 @@ fn key_made_on_its_own(app: &mut Faraday) -> [u8; 4] {
     app.session.keys[0].fingerprint.0
 }
 
+const US_LINE: &str = "Keys are read as a US keyboard. Caps Lock is ignored.";
+
+/// A Create slot holding a key made on its own, its passphrase fields open.
+fn slot_with_passphrase_fields() -> (Faraday, [u8; 4]) {
+    let mut app = testkit::started();
+    let first = key_made_on_its_own(&mut app);
+    app.press(Action::CreateWallet);
+    crate::common::ckind(&mut app, 0);
+    app.press(Action::CVaults(false));
+    app.press(Action::CNext(cstep::WHERE));
+    app.press(Action::CSlotHere(0, first));
+    let _ = app.frame();
+    app.press(Action::CPassOpen(0));
+    (app, first)
+}
+
+#[test]
+fn a_slot_passphrase_typed_with_hardware_keys_says_so_and_lock_in_waits_for_the_eye() {
+    let (mut app, first) = slot_with_passphrase_fields();
+    let _ = app.frame();
+    assert!(!app.drawn_texts().iter().any(|t| t == US_LINE));
+    type_text(&mut app, "Ride the 7 bus");
+    app.press(Action::CPassField(1));
+    type_text(&mut app, "Ride the 7 bus");
+    let _ = app.frame();
+    assert!(app.drawn_texts().iter().any(|t| t == US_LINE));
+    assert!(!app.drawn_texts().iter().any(|t| t == "Ride the 7 bus"));
+    app.press(Action::CPassLock);
+    assert_eq!(
+        app.create().unwrap().slots[0],
+        faraday_core::create::Source::Here(first),
+        "Lock in waits for the eye"
+    );
+    app.press(Action::PassEye);
+    app.press(Action::CPassLock);
+    assert_ne!(
+        app.create().unwrap().slots[0],
+        faraday_core::create::Source::Here(first)
+    );
+}
+
+#[test]
+fn a_slot_passphrase_typed_on_the_on_screen_keyboard_has_no_line_and_no_wait() {
+    use faraday_ui::keyboard::OskPress;
+    let (mut app, first) = slot_with_passphrase_fields();
+    for field in [0, 1] {
+        app.press(Action::CPassField(field));
+        for c in "one".chars() {
+            app.press(Action::Osk(OskPress::Char(c)));
+        }
+    }
+    let _ = app.frame();
+    assert!(!app.drawn_texts().iter().any(|t| t == US_LINE));
+    app.press(Action::CPassLock);
+    assert_ne!(
+        app.create().unwrap().slots[0],
+        faraday_core::create::Source::Here(first)
+    );
+}
+
 #[test]
 fn a_key_made_on_its_own_takes_a_passphrase_in_a_single_key_slot() {
     let c = testkit::compute();
@@ -355,6 +415,7 @@ fn a_key_made_on_its_own_takes_a_passphrase_in_a_single_key_slot() {
     type_text(&mut app, "Ride the 7 bus");
     app.press(Action::CPassField(1));
     type_text(&mut app, "Ride the 7 bus");
+    app.press(Action::PassEye);
     app.press(Action::CPassLock);
     let with = faraday_core::wallet::Session::default()
         .keys
@@ -452,6 +513,7 @@ fn a_slots_lock_waits_until_the_two_passphrases_match() {
         app.event(Event::Key(Key::Backspace));
     }
     type_text(&mut app, "one");
+    app.press(Action::PassEye);
     assert!(!crate::common::has(&mut app, "The two passphrases differ"));
     assert!(crate::common::offered(&mut app, Action::CPassLock));
 }

@@ -1935,6 +1935,7 @@ pub fn bip39_passphrase(app: &mut Faraday, text: &str) {
     type_text(app, text);
     app.press(Action::EntryPassphraseAgain);
     type_text(app, text);
+    app.press(Action::PassEye);
 }
 
 /// A 12-word seed of each BIP-39 list, written as a keyboard or a web page

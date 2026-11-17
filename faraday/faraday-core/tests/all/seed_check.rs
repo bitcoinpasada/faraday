@@ -367,12 +367,57 @@ fn the_words_and_an_account_give_the_fingerprint_and_the_first_address() {
     type_chars(&mut app, "TREZOR");
     app.press(Action::SeedCheck(S::PassField(1)));
     type_chars(&mut app, "TREZOR");
+    app.press(Action::PassEye);
     app.press(Action::SeedCheck(S::UsePass));
     app.press(Action::SeedCheck(S::Pick(Account::NativeSegwit)));
     assert!(
         shows(&mut app, &want),
         "the fingerprint with the passphrase"
     );
+}
+
+/// The line that says keys are read as a US keyboard, as `shows` reads text
+/// (its words run together).
+const US_LINE: &str = "KeysarereadasaUSkeyboard.CapsLockisignored.";
+
+#[test]
+fn a_passphrase_typed_with_hardware_keys_in_the_seed_check_says_so_and_waits_for_the_eye() {
+    let mut app = with_words(ABOUT);
+    app.press(Action::SeedCheck(S::AddPass));
+    app.press(Action::SeedCheck(S::PassField(0)));
+    assert!(!shows(&mut app, US_LINE));
+    type_chars(&mut app, "TREZOR");
+    app.press(Action::SeedCheck(S::PassField(1)));
+    type_chars(&mut app, "TREZOR");
+    assert!(shows(&mut app, US_LINE));
+    app.press(Action::SeedCheck(S::UsePass));
+    assert!(
+        !app.offers(Action::SeedCheck(S::Pick(Account::NativeSegwit))),
+        "the passphrase waits for the eye"
+    );
+    app.press(Action::PassEye);
+    app.press(Action::SeedCheck(S::UsePass));
+    testkit::settle(&mut app);
+    let _ = app.frame();
+    assert!(app.offers(Action::SeedCheck(S::Pick(Account::NativeSegwit))));
+}
+
+#[test]
+fn a_passphrase_typed_on_the_on_screen_keyboard_in_the_seed_check_has_no_line_and_no_wait() {
+    use faraday_ui::keyboard::OskPress;
+    let mut app = with_words(ABOUT);
+    app.press(Action::SeedCheck(S::AddPass));
+    for field in [0, 1] {
+        app.press(Action::SeedCheck(S::PassField(field)));
+        for c in "one".chars() {
+            app.press(Action::Osk(OskPress::Char(c)));
+        }
+    }
+    assert!(!shows(&mut app, US_LINE));
+    app.press(Action::SeedCheck(S::UsePass));
+    testkit::settle(&mut app);
+    let _ = app.frame();
+    assert!(app.offers(Action::SeedCheck(S::Pick(Account::NativeSegwit))));
 }
 
 #[test]
@@ -498,6 +543,7 @@ fn a_passphrase_taken_after_back_replaces_the_result_of_the_key_before() {
     type_chars(&mut app, "secret");
     app.press(Action::SeedCheck(S::PassField(1)));
     type_chars(&mut app, "secret");
+    app.press(Action::PassEye);
     app.press(Action::SeedCheck(S::UsePass));
     assert_ne!(app.session.keys.check_facts().unwrap(), before);
     assert!(!shows(&mut app, &address), "the old key's address is gone");
@@ -517,6 +563,7 @@ fn enter_in_the_passphrase_field_is_drawn_first_with_a_working_line() {
     type_chars(&mut app, "secret");
     app.press(Action::SeedCheck(S::PassField(1)));
     type_chars(&mut app, "secret");
+    app.press(Action::PassEye);
     app.event(Event::Key(Key::Enter));
     assert!(
         app.session.keys.check_facts().is_none(),
@@ -664,6 +711,7 @@ fn at_compare(pass: bool) -> Faraday {
         type_chars(&mut app, "TREZOR");
         app.press(Action::SeedCheck(S::PassField(1)));
         type_chars(&mut app, "TREZOR");
+        app.press(Action::PassEye);
         app.press(Action::SeedCheck(S::UsePass));
     } else {
         app.press(Action::SeedCheck(S::NoPass));

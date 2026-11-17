@@ -77,6 +77,11 @@ pub(crate) struct SeedState {
 }
 
 impl SeedState {
+    /// How many characters the passphrase fields hold.
+    pub(crate) fn pass_len(&self) -> usize {
+        self.pass.as_str().len() + self.pass2.as_str().len()
+    }
+
     pub(super) fn new(back: Screen) -> SeedState {
         SeedState {
             open: Some(step::SEED),

@@ -216,7 +216,7 @@ fn passphrase(app: &View, s: &SeedState, ui: &mut Ui, (x, y, w): (f32, f32, f32)
         ];
         return button_rows(ui, x, y, w, &rows);
     }
-    let mut cy = pass_pair(
+    let pairs = pass_pair(
         ui,
         (x, y, w),
         (s.pass.as_str(), s.pass2.as_str()),
@@ -241,8 +241,11 @@ fn passphrase(app: &View, s: &SeedState, ui: &mut Ui, (x, y, w): (f32, f32, f32)
                 act(S::PassField(n)),
             )
         },
-    ) + GAP;
-    let ready = !s.pass.is_empty() && !differ(s.pass.as_str(), s.pass2.as_str());
+    );
+    let mut cy = pairs + crate::screens::keys_read_as_us_line(app, ui, (x, y + pairs, w)) + GAP;
+    let ready = !s.pass.is_empty()
+        && !differ(s.pass.as_str(), s.pass2.as_str())
+        && !app.typing.pass_eye.waits();
     ui.button(
         x,
         y + cy,

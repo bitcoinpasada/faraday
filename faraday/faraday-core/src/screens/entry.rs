@@ -434,7 +434,7 @@ fn entry_pass_fields(app: &View, ui: &mut Ui, (x, y, width): (f32, f32, f32), la
         );
         48.0
     };
-    if e.pair() {
+    let h = if e.pair() {
         super::pass_pair::pass_pair(
             ui,
             (px, y, pw),
@@ -444,7 +444,8 @@ fn entry_pass_fields(app: &View, ui: &mut Ui, (x, y, width): (f32, f32, f32), la
     } else {
         field(ui, 0, y);
         40.0
-    }
+    };
+    h + super::keys_read_as_us_line(app, ui, (px, y + h, pw))
 }
 
 /// Add a key's Use faraday for its first field or, `second`, the one
@@ -485,7 +486,7 @@ fn entry_finish(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) -> 
         Some(140.0),
         BUTTON_H,
         EN.entry_finish_add_key,
-        if app.entry.state().differs() {
+        if app.entry.state().differs() || app.typing.pass_eye.waits() {
             Style::Disabled
         } else if entry_typed(app) {
             Style::Primary
@@ -701,7 +702,7 @@ pub(crate) fn entry_form(
         None,
         BUTTON_H,
         label,
-        Style::Primary.when(ready && !app.entry.state().differs()),
+        Style::Primary.when(ready && !app.entry.state().differs() && !app.typing.pass_eye.waits()),
         action,
     );
     // Its Enter on an empty line makes the key; the flow's opens Key.

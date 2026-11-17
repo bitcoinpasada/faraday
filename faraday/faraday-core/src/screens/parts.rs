@@ -937,6 +937,21 @@ pub(crate) fn pass_field(
     py - y + 48.0
 }
 
+/// The line under passphrase fields that says keys are read as a US
+/// keyboard, while a character of the passphrase came from a hardware key.
+/// Returns the height used.
+pub(crate) fn keys_read_as_us_line(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+    if !app.typing.pass_eye.hardware {
+        return 0.0;
+    }
+    ui.wrap_as(
+        (x, y, w),
+        BODY_S,
+        Role::OnSurfaceVariant,
+        EN.keys_read_as_us,
+    ) + tokens::GRID
+}
+
 /// What a BIP-39 passphrase field 40 tall and `w` wide at (x, y) shows:
 /// a dot for each character typed (the characters while `shown`, the eye
 /// open), with the selection and the caret

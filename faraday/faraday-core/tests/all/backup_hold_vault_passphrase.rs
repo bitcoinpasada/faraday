@@ -29,6 +29,7 @@ fn a_passphrase_made_in_create_and_kept_in_the_vault_is_written_and_signs() {
     type_text(&mut app, "kept");
     app.press(Action::CPassField(1));
     type_text(&mut app, "kept");
+    app.press(Action::PassEye);
     app.press(Action::CPassLock);
     let fp = app.session.keys.last().unwrap().fingerprint;
     assert_ne!(fp.0, bare);

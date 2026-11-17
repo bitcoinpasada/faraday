@@ -1028,7 +1028,7 @@ impl Faraday {
 
     pub(crate) fn entry_add(&mut self) {
         let c = self.compute();
-        if !self.may_load_keys() || self.entry.state().differs() {
+        if !self.may_load_keys() || self.entry.state().differs() || self.typing.pass_eye.waits() {
             return;
         }
         let wanted = self
@@ -1092,6 +1092,7 @@ impl Faraday {
         {
             self.restore.set_error(why);
             self.entry.reset();
+            crate::pass_eye::done(self);
             self.screen = Screen::Restore;
             return;
         }
@@ -1106,6 +1107,7 @@ impl Faraday {
         match self.typed_load(&m, &pass, &label, wanted, back, said) {
             Ok(_) => {
                 self.entry.reset();
+                crate::pass_eye::done(self);
                 self.refresh_spend();
                 self.screen = match back {
                     Some(s) => s,
@@ -1126,6 +1128,7 @@ impl Faraday {
                 ) {
                     self.seeds_took(fp, back);
                     self.entry.reset();
+                    crate::pass_eye::done(self);
                     self.refresh_spend();
                     self.screen = Screen::SpendBackup;
                     self.spend_backup_key_added();
@@ -1135,6 +1138,7 @@ impl Faraday {
             Err(e) if self.screen == Screen::Restore => {
                 self.restore.set_error(e.text());
                 self.entry.reset();
+                crate::pass_eye::done(self);
             }
             // A seed asked for by Check a signer that makes another key.
             Err(crate::wallet::Refusal::WrongKey { wanted, got })

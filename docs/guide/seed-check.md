@@ -17,7 +17,7 @@ This page shows what a seed makes, so you can compare it with what a wallet app 
 
 **Key:** seed-check.passphrase
 
-Choose **No passphrase**, or **Add a passphrase**, which asks for it twice, each time behind an eye, and takes it when you press **Use this passphrase**. The card closes on the key's fingerprint, with **with a passphrase** where one was given. **Change** on Seed or Passphrase lets you enter the key again.
+Choose **No passphrase**, or **Add a passphrase**, which asks for it twice, each time behind an eye, and takes it when you press **Use this passphrase**. Hardware keyboard keys are read as US, Caps Lock ignored; once a hardware keyboard has typed one, **Use this passphrase** waits until the eye has been opened. The card closes on the key's fingerprint, with **with a passphrase** where one was given. **Change** on Seed or Passphrase lets you enter the key again.
 
 ## Account
 

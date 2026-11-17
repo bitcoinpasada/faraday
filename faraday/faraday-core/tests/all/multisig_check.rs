@@ -291,6 +291,7 @@ fn give(app: &mut Faraday, words: &str, pass: Option<&str>) {
             type_chars(app, p);
             app.press(Action::SeedCheck(S::PassField(1)));
             type_chars(app, p);
+            app.press(Action::PassEye);
             app.press(Action::SeedCheck(S::UsePass));
         }
     }

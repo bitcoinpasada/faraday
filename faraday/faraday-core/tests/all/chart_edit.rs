@@ -86,6 +86,7 @@ pub(crate) fn one_key_wait(app: &mut Faraday, pass: &str, blocks: Option<u32>) -
         app.press(Action::EntryPassphraseAgain);
         type_text(app, pass);
     }
+    app.press(Action::PassEye);
     app.press(Action::EntryAdd);
     let text = faraday_core::create::NewKind::NativeSegwit
         .key_text(&c, app.session.keys.master_for_tests(0))

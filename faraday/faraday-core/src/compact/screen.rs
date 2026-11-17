@@ -629,7 +629,7 @@ fn entry_pass(app: &View, ui: &mut Ui, (x, y, iw): (f32, f32, f32), label: &str)
             action,
         )
     };
-    if e.pair() {
+    let h = if e.pair() {
         crate::screens::pass_pair::pass_pair(
             ui,
             (x, y, iw),
@@ -638,7 +638,8 @@ fn entry_pass(app: &View, ui: &mut Ui, (x, y, iw): (f32, f32, f32), label: &str)
         )
     } else {
         field(ui, 0, y)
-    }
+    };
+    h + crate::screens::keys_read_as_us_line(app, ui, (x, y + h, iw))
 }
 
 /// What Add a key on a small panel is for, over its form: the round's
@@ -724,7 +725,7 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y = entry_words(app, ui, x, y, iw, true);
     y += entry_pass(app, ui, (x, y, iw), EN.compact_bip_39_passphrase);
     // Add key is pinned at the foot.
-    let add = if es.differs() {
+    let add = if es.differs() || app.typing.pass_eye.waits() {
         Style::Disabled
     } else if typed {
         Style::Primary
@@ -1074,7 +1075,8 @@ fn entry_form_foot(
                     Some(_) => EN.keygen_continue,
                     None => EN.compact_make_the_key,
                 },
-                Style::Primary.when(ready && !app.entry.state().differs()),
+                Style::Primary
+                    .when(ready && !app.entry.state().differs() && !app.typing.pass_eye.waits()),
                 flow.unwrap_or(Action::EntryRecover),
             ),
         ],

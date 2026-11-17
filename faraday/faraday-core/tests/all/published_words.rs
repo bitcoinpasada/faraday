@@ -326,6 +326,7 @@ fn removing_the_key_made_in_create_empties_its_slot() {
     crate::common::type_text(&mut app, "TREZOR");
     app.press(Action::CPassField(1));
     crate::common::type_text(&mut app, "TREZOR");
+    app.press(Action::PassEye);
     app.press(Action::CPassLock);
     assert_eq!(app.sheet, Some(Sheet::Published));
     app.press(Action::PublishedRemove);

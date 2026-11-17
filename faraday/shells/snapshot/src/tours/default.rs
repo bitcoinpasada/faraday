@@ -1117,6 +1117,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.press(Action::EntryPassphraseAgain);
     type_text(t, "TREZOR");
     t.shot("entry-passphrase")?;
+    t.press(Action::PassEye);
     t.press(Action::EntryAdd);
     let with = t
         .app

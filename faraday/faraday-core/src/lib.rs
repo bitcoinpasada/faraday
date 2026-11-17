@@ -1121,6 +1121,7 @@ impl App for Faraday {
         );
         if settle {
             self.note_here();
+            pass_eye::settle(self);
         }
         // A scroll or a wheel moves the region's offset and nothing else
         // (`docs/FRAMES.md` §3.4).
@@ -1164,7 +1165,9 @@ impl App for Faraday {
                 } else {
                     self.later_now();
                     self.typing.hardware_key = true;
+                    let before = pass_eye::before_key(self);
                     self.key(k);
+                    pass_eye::after_key(self, k, before);
                     self.typing.hardware_key = false;
                 }
                 self.pointer.tip_focus(self.now_ms);

@@ -2666,6 +2666,7 @@ fn a_key_in_a_slot_goes_into_no_vault_by_itself_and_a_passphrase_added_later_lea
         app.press(Action::CPassField(f));
         type_text(&mut app, "later pass");
     }
+    app.press(Action::PassEye);
     app.press(Action::CPassLock);
     assert_eq!(
         contents(&app, 0).of(kind::KEY).count(),

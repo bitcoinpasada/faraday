@@ -173,6 +173,9 @@ pub(crate) fn act(app: &mut Faraday, action: A) {
             }
         }
         A::UsePass => {
+            if app.typing.pass_eye.waits() {
+                return;
+            }
             if st(app).is_some_and(|s| !s.pass.is_empty()) && crate::stick::refuses_secret(app) {
                 return;
             }
@@ -331,6 +334,7 @@ fn read(app: &mut Faraday, with: bool) {
     if got.is_ok() {
         reset_from(app, step::ACCOUNT);
     }
+    let read_ok = got.is_ok();
     let Some(s) = st(app) else { return };
     match got {
         Ok(f) => {
@@ -348,6 +352,10 @@ fn read(app: &mut Faraday, with: bool) {
             s.open = Some(step::ACCOUNT);
         }
         Err(e) => s.error = Some(e.text()),
+    }
+    if read_ok {
+        app.typing.pass_eye.close();
+        app.typing.pass_eye.reset();
     }
     if ok {
         read_for_check(app);
@@ -570,6 +578,7 @@ pub(crate) fn enter_is_slow(app: &Faraday) -> bool {
     };
     s.field()
         .is_some_and(|(target, _)| target != A::PathField && target != A::CompareField)
+        && !app.typing.pass_eye.waits()
         && crate::screens::pass_pair::ready(s.pass.as_str(), s.pass2.as_str())
 }
 

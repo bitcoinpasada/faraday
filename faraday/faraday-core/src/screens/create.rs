@@ -728,6 +728,7 @@ fn slot_passphrase(
             Role::OnSurfaceVariant,
             EN.create_pass_kept,
         ) + tokens::GAP_SMALL;
+        cy += super::keys_read_as_us_line(app, ui, (px, cy, pw));
         cy += never_real_seed(app, ui, px, cy, pw);
         if let Some(n) = &c.pass_note {
             cy += ui.wrap_as((px, cy, pw), BODY_M, Role::Error, n) + 6.0;
@@ -739,7 +740,10 @@ fn slot_passphrase(
             Some(bw),
             BUTTON_H,
             EN.create_lock_button,
-            Style::Primary.when(!pass_pair::differ(c.pass.as_str(), c.pass2.as_str())),
+            Style::Primary.when(
+                !pass_pair::differ(c.pass.as_str(), c.pass2.as_str())
+                    && !app.typing.pass_eye.waits(),
+            ),
             Action::CPassLock,
         );
         cy += 52.0;

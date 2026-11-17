@@ -41,6 +41,7 @@ fn words_with_two_passphrases(app: &mut Faraday) -> [faraday_bip::keys::Fingerpr
         type_text(app, pass);
         app.press(Action::CPassField(1));
         type_text(app, pass);
+        app.press(Action::PassEye);
         app.press(Action::CPassLock);
         with.push(app.session.keys.last().unwrap().fingerprint);
     }
@@ -116,6 +117,7 @@ fn a_passphrase_backed_up_is_released_while_another_passphrase_of_its_words_wait
     type_text(&mut app, "two");
     app.press(Action::CPassField(1));
     type_text(&mut app, "two");
+    app.press(Action::PassEye);
     app.press(Action::CPassLock);
     let two = app.session.keys.last().unwrap().fingerprint;
     assert_ne!(one, two);
@@ -240,6 +242,7 @@ pub(crate) fn pass_in_slot(app: &mut Faraday, fp: Fingerprint, pass: &str) -> Fi
     type_text(app, pass);
     app.press(Action::CPassField(1));
     type_text(app, pass);
+    app.press(Action::PassEye);
     app.press(Action::CPassLock);
     app.session.keys.last().unwrap().fingerprint
 }

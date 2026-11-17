@@ -66,6 +66,7 @@ fn type_seed_with(app: &mut Faraday, words: &str, pass: &str) {
     type_text(app, words);
     app.press(Action::EntryPassphrase);
     type_text(app, pass);
+    app.press(Action::PassEye);
     app.press(Action::EntryAdd);
     faraday_core::testkit::keep_published(app);
     assert_eq!(app.screen, Screen::Restore, "Add a key did not return");

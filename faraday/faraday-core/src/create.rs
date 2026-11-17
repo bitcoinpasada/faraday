@@ -2147,7 +2147,7 @@ impl Faraday {
         let Some(slot) = self.create.state.as_ref().and_then(|cs| cs.pass_slot) else {
             return;
         };
-        if !self.create_pass_offered(usize::from(slot)) {
+        if !self.create_pass_offered(usize::from(slot)) || self.typing.pass_eye.waits() {
             return;
         }
         let Some(cs) = self.create.state.as_mut() else {
@@ -2207,6 +2207,8 @@ impl Faraday {
                     cs.pass_locked.push(fp.0);
                 }
                 cs.close_pass();
+                self.typing.pass_eye.close();
+                self.typing.pass_eye.reset();
                 self.refresh_spend();
             }
             Err(e) => cs.pass_note = Some(e),

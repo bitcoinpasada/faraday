@@ -15,8 +15,8 @@ use crate::keygen::{
 use crate::screens::pass_pair::{self, pass_pair};
 use crate::screens::{
     buttons_and_next, buttons_and_next_when, camera_row, card_pad, coin_pad, descriptor_row,
-    dice_pad, locked_tag, never_below, never_real_seed, next_button, pass_field, section_label,
-    stepper,
+    dice_pad, keys_read_as_us_line, locked_tag, never_below, never_real_seed, next_button,
+    pass_field, section_label, stepper,
 };
 use crate::ui::Paint;
 use crate::ui::pal::*;
@@ -811,14 +811,7 @@ fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
                     )
                 },
             );
-            if app.typing.pass_eye.hardware {
-                cy += ui.wrap_as(
-                    (x, cy, w),
-                    BODY_S,
-                    Role::OnSurfaceVariant,
-                    EN.keys_read_as_us,
-                ) + faraday_draw::tokens::GRID;
-            }
+            cy += keys_read_as_us_line(app, ui, (x, cy, w));
             cy += never_real_seed(app, ui, x, cy, w);
         }
         // The demo adds a sample in place of words made here (F81): the

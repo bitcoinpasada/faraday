@@ -1645,6 +1645,7 @@ impl Faraday {
         if !self.may_load_keys()
             || self.entry.state().form == Form::Words
             || self.entry.state().differs()
+            || self.typing.pass_eye.waits()
         {
             return;
         }
@@ -1664,6 +1665,7 @@ impl Faraday {
                 let back = self.entry.state().back;
                 self.seeds_took(fp, back);
                 self.entry.reset();
+                crate::pass_eye::done(self);
                 self.refresh_spend();
                 self.screen = back.unwrap_or(crate::Screen::Wallets);
                 if back == Some(crate::Screen::SpendBackup) {
