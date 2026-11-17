@@ -106,7 +106,7 @@ fn every_make_starts_on_where_it_will_be_kept() {
 
 #[test]
 fn make_the_key_is_offered_only_once_the_sticks_are_read_and_the_vaults_open() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     empties(&mut shell, 2);
     let mut app = started(Kind::Gpg);
     through_where(&mut shell, &mut app);
@@ -129,7 +129,7 @@ fn make_the_key_is_offered_only_once_the_sticks_are_read_and_the_vaults_open() {
 
 #[test]
 fn with_a_vault_open_step_two_locks_first() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     empties(&mut shell, 2);
     let file = vault("Main", PHRASE, 0x31);
     let mut app = process(vec![("main.kdbx".into(), file)], Vec::new(), Vec::new());
@@ -158,7 +158,7 @@ fn with_a_vault_open_step_two_locks_first() {
 
 #[test]
 fn an_empty_stick_is_bound_to_the_new_vault_with_no_question() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     empties(&mut shell, 2);
     let mut app = started(Kind::Gpg);
     through_where(&mut shell, &mut app);
@@ -176,7 +176,7 @@ fn an_empty_stick_is_bound_to_the_new_vault_with_no_question() {
 
 #[test]
 fn a_stick_with_vaults_asks_which_and_copies_in_only_that_one() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut d = Disk::empty("S1", "WORKSTICK");
     d.serial = Some(1);
     let main = vault("Main", PHRASE, 0x41);
@@ -243,7 +243,7 @@ fn a_stick_with_vaults_asks_which_and_copies_in_only_that_one() {
 
 #[test]
 fn at_a_place_given_a_new_vault_a_stick_with_vaults_offers_a_new_one_beside_them() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut d = Disk::empty("S1", "WORKSTICK");
     let main = vault("Main", PHRASE, 0x43);
     d.files = vec![("vault-1.kdbx".into(), main.clone())];
@@ -275,7 +275,7 @@ fn at_a_place_given_a_new_vault_a_stick_with_vaults_offers_a_new_one_beside_them
 
 #[test]
 fn a_stick_bound_to_place_1_inserted_for_place_2_is_refused() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut d = Disk::empty("S1", "WORKSTICK");
     d.files = vec![("notes.txt".into(), b"a file to tell it by".to_vec())];
     shell.add(d);
@@ -299,7 +299,7 @@ fn a_stick_bound_to_place_1_inserted_for_place_2_is_refused() {
 
 #[test]
 fn a_second_empty_stick_of_the_same_label_and_serial_needs_the_hold() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     empties(&mut shell, 2);
     let mut app = started(Kind::Gpg);
     through_where(&mut shell, &mut app);
@@ -335,7 +335,7 @@ fn an_unusable_stick_says_why_and_binds_nothing() {
         ),
     ];
     for (name, make, want) in cases {
-        let mut shell = Shell::new();
+        let mut shell = Shell::light();
         let mut d = Disk::empty("S1", "KEYSTICK");
         make(&mut d);
         shell.add(d);
@@ -354,7 +354,7 @@ fn an_unusable_stick_says_why_and_binds_nothing() {
 /// and the backup flow takes it as a stick.
 #[test]
 fn a_second_faraday_stick_is_a_stick_for_a_backup() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     shell.add(Disk::empty("S1", "Basic data partition"));
     let mut app = started(Kind::Gpg);
     through_where(&mut shell, &mut app);
@@ -369,7 +369,7 @@ fn a_second_faraday_stick_is_a_stick_for_a_backup() {
 
 #[test]
 fn new_vaults_have_their_own_passphrases_and_the_key_is_in_every_one() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     shell.add(Disk::empty("S1", "ONE"));
     shell.add(Disk::empty("S2", "TWO"));
     shell.disks[1].serial = Some(2);
@@ -417,7 +417,7 @@ fn new_vaults_have_their_own_passphrases_and_the_key_is_in_every_one() {
 
 #[test]
 fn i_do_not_have_its_passphrase_offers_a_new_vault_beside_it() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut d = Disk::empty("S1", "WORKSTICK");
     d.files = vec![("main.kdbx".into(), vault("Main", PHRASE, 0x44))];
     shell.add(d);
@@ -446,7 +446,7 @@ fn i_do_not_have_its_passphrase_offers_a_new_vault_beside_it() {
 
 #[test]
 fn example_a_writes_both_sticks_and_the_key_page_reads_every_place_written() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = gpg_locked(&mut shell);
     // The first stick, then the second with the hold.
     write_all(&mut shell, &mut app, &[("S1", false), ("S2", true)]);
@@ -475,7 +475,7 @@ fn example_a_writes_both_sticks_and_the_key_page_reads_every_place_written() {
 #[test]
 fn a_stick_put_back_for_place_2_or_unlike_the_one_read_is_refused_and_nothing_is_written_before_the_hold()
  {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = gpg_locked(&mut shell);
     shell.add(Disk::empty("S3", "OTHER"));
     shell.disk_mut("S3").serial = Some(77);
@@ -503,7 +503,7 @@ fn a_stick_put_back_for_place_2_or_unlike_the_one_read_is_refused_and_nothing_is
 
 #[test]
 fn the_stick_visit_never_shows_and_no_lock_or_write_out_sheet_comes_up() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = to_make(&mut shell, Kind::Gpg);
     make_key(&mut shell, &mut app, &GPG_FIELDS);
     shell.flow(&mut app, F::MadeContinue);
@@ -527,7 +527,7 @@ fn the_stick_visit_never_shows_and_no_lock_or_write_out_sheet_comes_up() {
 
 #[test]
 fn a_stick_arriving_at_the_vaults_card_brings_the_pull_sheet_not_the_visit() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     empties(&mut shell, 3);
     let mut app = started(Kind::Gpg);
     through_where(&mut shell, &mut app);
@@ -544,14 +544,14 @@ fn a_stick_arriving_at_the_vaults_card_brings_the_pull_sheet_not_the_visit() {
 #[test]
 fn a_lock_resumes_on_the_right_card() {
     // On Where.
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = started(Kind::Gpg);
     let app2 = shell.lock(&mut app);
     assert_eq!(app2.screen, Screen::BackupFlow);
     assert_eq!(step(&app2), Step::Where);
 
     // On Vaults, with the sticks read.
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     empties(&mut shell, 2);
     let mut app = started(Kind::Gpg);
     through_where(&mut shell, &mut app);
@@ -571,7 +571,7 @@ fn a_lock_resumes_on_the_right_card() {
     );
 
     // On Make with the key made: the vaults sealed, on to the writes.
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = to_make(&mut shell, Kind::Gpg);
     make_key(&mut shell, &mut app, &GPG_FIELDS);
     let app2 = shell.lock(&mut app);
@@ -581,7 +581,7 @@ fn a_lock_resumes_on_the_right_card() {
 
 #[test]
 fn the_kept_state_read_back_after_the_first_stick_asks_for_the_next() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = gpg_locked(&mut shell);
     write_all(&mut shell, &mut app, &[("S1", false)]);
     assert_eq!(app.flow().unwrap().written_of(), (1, 2));
@@ -597,7 +597,7 @@ fn the_kept_state_read_back_after_the_first_stick_asks_for_the_next() {
 
 #[test]
 fn a_power_off_between_writes_leaves_the_copy_and_the_key_signs_at_once_from_it() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = gpg_locked(&mut shell);
     write_all(&mut shell, &mut app, &[("S1", false)]);
     // Power-off: nothing of the flow is kept.
@@ -635,7 +635,7 @@ fn a_power_off_between_writes_leaves_the_copy_and_the_key_signs_at_once_from_it(
 
 #[test]
 fn signing_waits_until_every_place_is_written_then_works_after_the_unlock() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = to_make(&mut shell, Kind::Gpg);
     make_key(&mut shell, &mut app, &GPG_FIELDS);
     // The key's page, while it waits.
@@ -685,7 +685,7 @@ fn signing_waits_until_every_place_is_written_then_works_after_the_unlock() {
 
 #[test]
 fn secure_boot_keys_wait_too() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = to_make(&mut shell, Kind::SecureBoot);
     make_key(&mut shell, &mut app, &["Owner"]);
     assert!(app.flow().unwrap().made, "{:?}", app.toast_text());
@@ -702,7 +702,7 @@ fn secure_boot_keys_wait_too() {
 
 #[test]
 fn a_vault_kept_at_four_places_asks_for_four_sticks_the_later_ones_by_another_hold() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     empties(&mut shell, 4);
     let mut app = started(Kind::Gpg);
     shell.flow(&mut app, F::AddPlace);
@@ -758,7 +758,7 @@ fn a_key_that_cannot_be_made_again_is_planned_at_two_places_or_more() {
 
 #[test]
 fn a_plan_of_empty_sticks_makes_every_vault_at_step_three_inside_the_flow() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     shell.add(Disk::empty("S1", "ONE"));
     shell.add(Disk::empty("S2", "TWO"));
     shell.disks[1].serial = Some(2);
@@ -788,7 +788,7 @@ fn a_plan_of_empty_sticks_makes_every_vault_at_step_three_inside_the_flow() {
 
 #[test]
 fn a_mix_of_existing_and_new_vaults_offers_open_and_create_once_every_stick_is_read() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut d = Disk::empty("S1", "WORKSTICK");
     d.files = vec![("main.kdbx".into(), vault("Main", PHRASE, 0x45))];
     shell.add(d);
@@ -832,7 +832,7 @@ fn a_mix_of_existing_and_new_vaults_offers_open_and_create_once_every_stick_is_r
 
 #[test]
 fn a_stick_pulled_while_writing_counts_nothing() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = gpg_locked(&mut shell);
     shell.hold_writes = true;
     shell.plug(&mut app, "S1");
@@ -854,7 +854,7 @@ fn a_stick_pulled_while_writing_counts_nothing() {
 #[test]
 fn a_wallets_backup_is_named_alike_on_its_page_and_on_the_rail() {
     use crate::backup_flow_wallet::{restart, single_key_ready};
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, _, _) = single_key_ready(&mut shell);
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
@@ -872,7 +872,7 @@ fn a_wallets_backup_is_named_alike_on_its_page_and_on_the_rail() {
 fn writing_a_stick_reads_as_a_state_not_a_link() {
     use faraday_draw::canvas::InkKind;
     use faraday_shell_api::{Event, TouchPhase};
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = gpg_locked(&mut shell);
     shell.hold_writes = true;
     shell.plug(&mut app, "S1");
@@ -910,7 +910,7 @@ fn with_no_flow_in_the_kept_state_none_is_offered() {
 
 #[test]
 fn home_leads_with_the_backup_not_finished_and_the_power_sheet_lists_it() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = gpg_locked(&mut shell);
     write_all(&mut shell, &mut app, &[("S1", false)]);
     app.press(Action::Flow(F::Back));
@@ -934,7 +934,7 @@ fn home_leads_with_the_backup_not_finished_and_the_power_sheet_lists_it() {
 
 #[test]
 fn the_done_page_lists_one_row_per_stick_and_ends_on_done() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = gpg_locked(&mut shell);
     write_all(&mut shell, &mut app, &[("S1", false), ("S2", true)]);
     assert_eq!(step(&app), Step::Done);
@@ -952,7 +952,7 @@ fn the_done_page_lists_one_row_per_stick_and_ends_on_done() {
 
 #[test]
 fn a_flow_left_hands_a_stick_to_the_visit_with_its_files_in_the_backup() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = gpg_locked(&mut shell);
     app.press(Action::Flow(F::Back));
     shell.plug(&mut app, "S1");
@@ -964,7 +964,7 @@ fn a_flow_left_hands_a_stick_to_the_visit_with_its_files_in_the_backup() {
 
 #[test]
 fn adding_a_copy_of_a_planned_vault_adds_one_stick_to_step_six() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     empties(&mut shell, 3);
     shell.disks[2].serial = Some(333);
     let mut app = to_make(&mut shell, Kind::Gpg);
@@ -993,7 +993,7 @@ fn adding_a_copy_of_a_planned_vault_adds_one_stick_to_step_six() {
 
 #[test]
 fn adding_a_new_vault_on_an_empty_stick_after_the_key_is_made_asks_for_no_lock() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     empties(&mut shell, 3);
     shell.disks[2].serial = Some(33);
     let mut app = to_make(&mut shell, Kind::Gpg);
@@ -1025,7 +1025,7 @@ fn adding_a_new_vault_on_an_empty_stick_after_the_key_is_made_asks_for_no_lock()
 
 #[test]
 fn adding_a_stick_with_an_existing_vault_runs_the_extra_round_inside_the_flow() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     empties(&mut shell, 2);
     let mut d = Disk::empty("S3", "WORKSTICK");
     d.serial = Some(44);
@@ -1090,7 +1090,7 @@ fn adding_a_stick_with_an_existing_vault_runs_the_extra_round_inside_the_flow() 
 
 #[test]
 fn removing_a_place_before_its_write_drops_a_new_vault_holding_only_this_flows_key() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     empties(&mut shell, 3);
     shell.disks[1].serial = Some(2);
     shell.disks[2].serial = Some(3);
@@ -1110,7 +1110,7 @@ fn removing_a_place_before_its_write_drops_a_new_vault_holding_only_this_flows_k
 
 #[test]
 fn removing_a_written_place_keeps_it_on_the_map_until_destroyed() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     empties(&mut shell, 3);
     let mut app = to_make(&mut shell, Kind::Gpg);
     make_key(&mut shell, &mut app, &GPG_FIELDS);
@@ -1131,7 +1131,7 @@ fn removing_a_written_place_keeps_it_on_the_map_until_destroyed() {
 
 #[test]
 fn two_files_of_one_vault_on_one_stick_cannot_serve_that_vault() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let main = vault("Main", PHRASE, 0x47);
     let mut d = Disk::empty("S1", "WORKSTICK");
     d.files = vec![
@@ -1154,7 +1154,7 @@ fn two_files_of_one_vault_on_one_stick_cannot_serve_that_vault() {
 
 #[test]
 fn a_copy_that_differs_from_one_already_read_lets_the_person_pick_which_to_unlock() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let main = vault("Main", PHRASE, 0x48);
     let mut older = main.clone();
     let last = older.len() - 1;
@@ -1189,7 +1189,7 @@ fn a_copy_that_differs_from_one_already_read_lets_the_person_pick_which_to_unloc
 
 #[test]
 fn the_stick_the_machine_started_from_is_offered_as_already_read_and_one_press_takes_it() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     empties(&mut shell, 1);
     let mut app = started(Kind::Gpg);
     through_where(&mut shell, &mut app);
@@ -1232,7 +1232,7 @@ fn the_tools_tile_starts_the_flow_with_no_vault_and_reads_continue_once_one_wait
 
 #[test]
 fn a_written_copy_that_is_deleted_opens_its_card_again() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = gpg_locked(&mut shell);
     write_all(&mut shell, &mut app, &[("S1", false), ("S2", true)]);
     assert_eq!(step(&app), Step::Done);
@@ -1252,7 +1252,7 @@ fn a_written_copy_that_is_deleted_opens_its_card_again() {
 
 #[test]
 fn back_does_not_leave_while_a_write_is_under_way() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = gpg_locked(&mut shell);
     shell.hold_writes = true;
     shell.plug(&mut app, "S1");
@@ -1269,7 +1269,7 @@ fn back_does_not_leave_while_a_write_is_under_way() {
 /// there.
 #[test]
 fn after_the_lock_a_tools_flows_way_back_reads_tools() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = gpg_locked(&mut shell);
     let _ = app.frame();
     assert!(app.drawn_texts().iter().any(|t| t == "Back to Lock"));
@@ -1285,7 +1285,7 @@ fn after_the_lock_a_tools_flows_way_back_reads_tools() {
 
 #[test]
 fn coming_back_to_the_writes_with_a_vault_open_again_is_on_lock_and_written_sticks_stay_written() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = gpg_locked(&mut shell);
     write_all(&mut shell, &mut app, &[("S1", false)]);
     // The person leaves, unlocks the vault that is in Files, and comes back.
@@ -1306,7 +1306,7 @@ fn coming_back_to_the_writes_with_a_vault_open_again_is_on_lock_and_written_stic
 
 #[test]
 fn enter_in_the_make_form_makes_the_key_and_adds_no_stray_record() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = to_make(&mut shell, Kind::Gpg);
     app.press(Action::Vault(V::FocusField(0)));
     type_text(&mut app, "Release");
@@ -1366,7 +1366,7 @@ fn boot_disk(shell: &mut Shell) {
 
 #[test]
 fn the_boot_stick_ends_at_the_bind_and_is_written_at_step_six_like_any_stick() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     empties(&mut shell, 1);
     boot_disk(&mut shell);
     let mut app = started(Kind::Gpg);
@@ -1406,7 +1406,7 @@ fn the_boot_stick_ends_at_the_bind_and_is_written_at_step_six_like_any_stick() {
 
 #[test]
 fn a_stick_changed_by_a_write_that_was_cut_short_counts_when_it_is_put_back() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = gpg_locked(&mut shell);
     shell.hold_writes = true;
     shell.plug(&mut app, "S1");
@@ -1432,7 +1432,7 @@ fn a_stick_changed_by_a_write_that_was_cut_short_counts_when_it_is_put_back() {
 
 #[test]
 fn use_another_stick_at_step_six_gives_the_slot_to_the_next_stick() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = gpg_locked(&mut shell);
     shell.add(Disk::empty("S3", "SPARE"));
     shell.disk_mut("S3").serial = Some(77);
@@ -1463,7 +1463,7 @@ fn use_another_stick_at_step_six_gives_the_slot_to_the_next_stick() {
 
 #[test]
 fn a_wipe_or_delete_on_an_unrelated_stick_reopens_nothing_before_or_after_a_lock() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = locked_of(&mut shell, Kind::Gpg, &GPG_FIELDS, None);
     write_all(&mut shell, &mut app, &[("S1", false), ("S2", true)]);
     assert_eq!(step(&app), Step::Done);
@@ -1497,7 +1497,7 @@ fn a_wipe_or_delete_on_an_unrelated_stick_reopens_nothing_before_or_after_a_lock
 
 #[test]
 fn the_copy_not_picked_is_not_written_over_and_the_vault_goes_beside_it_after_a_hold() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     // Two copies of one vault, the same vault, the later one edited.
     let first = vault("Main", PHRASE, 0x49);
     let later = vault("Main edited", PHRASE, 0x49);
@@ -1562,7 +1562,7 @@ fn the_copy_not_picked_is_not_written_over_and_the_vault_goes_beside_it_after_a_
 
 #[test]
 fn a_first_stick_with_a_differing_copy_of_a_vault_in_files_asks_which_to_unlock() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let first = vault("Main", PHRASE, 0x4a);
     let other = vault("Main elsewhere", PHRASE, 0x4a);
     let mut d = Disk::empty("S1", "FIRST");
@@ -1586,7 +1586,7 @@ fn a_first_stick_with_a_differing_copy_of_a_vault_in_files_asks_which_to_unlock(
 
 #[test]
 fn a_lock_before_copy_the_key_in_the_added_vault_round_resumes_on_the_vaults() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     empties(&mut shell, 3);
     shell.disks[2].serial = Some(33);
     let mut app = to_make(&mut shell, Kind::Gpg);
@@ -1607,7 +1607,7 @@ fn a_lock_before_copy_the_key_in_the_added_vault_round_resumes_on_the_vaults() {
 
 #[test]
 fn a_kept_state_that_does_not_read_is_dropped_with_a_toast() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let app = gpg_locked(&mut shell);
     let good = faraday_core::backup_flow::encode(app.backup_flows());
     let text = String::from_utf8(good.clone()).unwrap();
@@ -1653,7 +1653,7 @@ fn a_kept_state_that_does_not_read_is_dropped_with_a_toast() {
 
 #[test]
 fn the_plan_cannot_be_changed_while_a_stick_is_being_written() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = gpg_locked(&mut shell);
     shell.hold_writes = true;
     shell.plug(&mut app, "S1");
@@ -1670,7 +1670,7 @@ fn the_plan_cannot_be_changed_while_a_stick_is_being_written() {
 
 #[test]
 fn setting_the_time_at_make_and_locking_from_there_keeps_the_flow() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     empties(&mut shell, 2);
     // A clock nobody has checked: Make asks for the time first.
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
@@ -1690,7 +1690,7 @@ fn setting_the_time_at_make_and_locking_from_there_keeps_the_flow() {
 
 #[test]
 fn a_new_vault_that_holds_other_entries_is_not_dropped_with_its_place() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     empties(&mut shell, 3);
     shell.disks[2].serial = Some(33);
     let mut app = to_make(&mut shell, Kind::Gpg);
@@ -1738,7 +1738,7 @@ fn a_new_vault_that_holds_other_entries_is_not_dropped_with_its_place() {
 
 #[test]
 fn a_new_vault_an_item_was_moved_into_is_not_dropped_with_its_place() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     empties(&mut shell, 3);
     shell.disks[2].serial = Some(33);
     let mut app = to_make(&mut shell, Kind::Gpg);
@@ -1779,7 +1779,7 @@ fn a_new_vault_an_item_was_moved_into_is_not_dropped_with_its_place() {
 
 #[test]
 fn a_key_moved_into_an_added_vault_is_not_copied_there_a_second_time() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     empties(&mut shell, 3);
     shell.disks[1].serial = Some(2);
     shell.disks[2].serial = Some(33);
@@ -1824,7 +1824,7 @@ fn a_key_moved_into_an_added_vault_is_not_copied_there_a_second_time() {
 /// Copy the key: nothing is left to copy, and the step finishes.
 #[test]
 fn copy_the_key_finishes_when_the_added_vault_already_holds_it_by_a_move() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = to_make(&mut shell, Kind::Gpg);
     make_key(&mut shell, &mut app, &GPG_FIELDS);
     shell.flow(&mut app, F::MadeContinue);
@@ -1864,7 +1864,7 @@ fn copy_the_key_finishes_when_the_added_vault_already_holds_it_by_a_move() {
 /// holds it.
 #[test]
 fn dropping_the_place_of_a_sealed_vault_that_holds_the_moved_key_does_not_lose_it() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = to_make(&mut shell, Kind::Gpg);
     make_key(&mut shell, &mut app, &GPG_FIELDS);
     shell.flow(&mut app, F::MadeContinue);
@@ -1907,7 +1907,7 @@ fn dropping_the_place_of_a_sealed_vault_that_holds_the_moved_key_does_not_lose_i
 
 #[test]
 fn a_key_moved_into_a_vault_and_deleted_there_is_taken_out_with_a_dropped_place() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     empties(&mut shell, 3);
     shell.disks[1].serial = Some(2);
     shell.disks[2].serial = Some(33);
@@ -1962,7 +1962,7 @@ fn a_key_moved_into_a_vault_and_deleted_there_is_taken_out_with_a_dropped_place(
 
 #[test]
 fn an_unrelated_item_moved_into_a_dropped_place_does_not_keep_the_key_there() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     empties(&mut shell, 3);
     shell.disks[2].serial = Some(33);
     let mut app = to_make(&mut shell, Kind::Gpg);
@@ -2015,7 +2015,7 @@ fn an_unrelated_item_moved_into_a_dropped_place_does_not_keep_the_key_there() {
 
 #[test]
 fn a_new_vault_emptied_by_a_move_is_not_closed_before_the_item_is_sealed_elsewhere() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     empties(&mut shell, 3);
     shell.disks[2].serial = Some(33);
     let mut app = to_make(&mut shell, Kind::Gpg);
@@ -2070,7 +2070,7 @@ fn a_new_vault_emptied_by_a_move_is_not_closed_before_the_item_is_sealed_elsewhe
 
 #[test]
 fn the_last_vault_holding_the_key_is_never_taken_out_of_the_plan() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = to_make(&mut shell, Kind::Gpg);
     make_key(&mut shell, &mut app, &GPG_FIELDS);
     shell.flow(&mut app, F::MadeContinue);
@@ -2101,7 +2101,7 @@ fn the_last_vault_holding_the_key_is_never_taken_out_of_the_plan() {
 
 #[test]
 fn nothing_is_written_when_a_vault_has_lost_its_outbox_copy() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let app = gpg_locked(&mut shell);
     drop(app);
     shell.boxes.1.retain(|(n, _)| !n.ends_with(".kdbx"));
@@ -2116,7 +2116,7 @@ fn nothing_is_written_when_a_vault_has_lost_its_outbox_copy() {
 
 #[test]
 fn a_key_deleted_from_a_vault_before_the_lock_is_not_sealed_and_not_written() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = to_make(&mut shell, Kind::Gpg);
     make_key(&mut shell, &mut app, &GPG_FIELDS);
     shell.flow(&mut app, F::MadeContinue);
@@ -2138,7 +2138,7 @@ fn a_key_deleted_from_a_vault_before_the_lock_is_not_sealed_and_not_written() {
 
 #[test]
 fn the_code_of_a_signature_waits_for_the_backup_like_the_signing() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = to_make(&mut shell, Kind::Gpg);
     make_key(&mut shell, &mut app, &GPG_FIELDS);
     app.press(Action::Nav(Screen::VaultContents));
@@ -2156,7 +2156,7 @@ fn the_code_of_a_signature_waits_for_the_backup_like_the_signing() {
 
 #[test]
 fn a_stick_is_read_and_written_only_by_a_clean_process() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = gpg_locked(&mut shell);
     // Something secret is typed: the process is not clean.
     app.press(Action::Nav(Screen::Vaults));
@@ -2171,7 +2171,7 @@ fn a_stick_is_read_and_written_only_by_a_clean_process() {
     assert!(shell.writes.is_empty(), "{:?}", shell.writes);
     assert!(shell.unclean_io.is_empty(), "{:?}", shell.unclean_io);
     // A whole flow on a clean process asks for no stick unclean.
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = gpg_locked(&mut shell);
     write_all(&mut shell, &mut app, &[("S1", false), ("S2", true)]);
     assert_eq!(step(&app), Step::Done);
@@ -2180,7 +2180,7 @@ fn a_stick_is_read_and_written_only_by_a_clean_process() {
 
 #[test]
 fn a_write_that_failed_or_read_back_wrong_is_not_counted() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = gpg_locked(&mut shell);
     shell.fail_writes = true;
     shell.plug(&mut app, "S1");
@@ -2214,10 +2214,10 @@ fn nothing_secret_kept(app: &Faraday, secret: &[&str]) {
 
 #[test]
 fn the_kept_state_of_a_gpg_or_secure_boot_flow_holds_nothing_secret() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let app = locked_of(&mut shell, Kind::Gpg, &GPG_FIELDS, None);
     nothing_secret_kept(&app, &[PHRASE]);
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let app = locked_of(&mut shell, Kind::SecureBoot, &["Owner"], None);
     nothing_secret_kept(&app, &[PHRASE]);
 }
@@ -2229,7 +2229,7 @@ fn the_public_files_are_written_to_the_stick_of_the_place_the_plan_names() {
         (Kind::SecureBoot, vec!["Owner"]),
     ] {
         for at in [0usize, 1] {
-            let mut shell = Shell::new();
+            let mut shell = Shell::light();
             let mut app = locked_of(&mut shell, kind, &fields, Some(at));
             let names: Vec<String> = app
                 .flow()
@@ -2264,7 +2264,7 @@ fn the_public_files_are_written_to_the_stick_of_the_place_the_plan_names() {
 
 #[test]
 fn a_place_may_keep_a_stick_for_each_vault_or_one_stick_for_both() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     empties(&mut shell, 3);
     shell.disks[1].serial = Some(2);
     shell.disks[2].serial = Some(3);
@@ -2308,7 +2308,7 @@ fn subject_bytes(app: &Faraday) -> Vec<u8> {
 
 #[test]
 fn a_plan_changed_at_step_six_and_locked_without_continue_keeps_the_key_waiting() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = gpg_locked(&mut shell);
     let id = subject_bytes(&app);
     assert!(app.backup_waits(Kind::Gpg, &id).is_some());
@@ -2325,7 +2325,7 @@ fn a_plan_changed_at_step_six_and_locked_without_continue_keeps_the_key_waiting(
 
 #[test]
 fn a_kept_state_that_does_not_read_leaves_the_key_waiting() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let app = gpg_locked(&mut shell);
     let id = subject_bytes(&app);
     // The kept flows are unreadable; the keys that wait are kept apart.
@@ -2344,7 +2344,7 @@ fn a_kept_state_that_does_not_read_leaves_the_key_waiting() {
     let app = process(shell.boxes.0.clone(), shell.boxes.1.clone(), kept);
     assert!(app.backup_waits(Kind::Gpg, &id).is_some());
     // A key whose backup is done is not kept waiting.
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = gpg_locked(&mut shell);
     write_all(&mut shell, &mut app, &[("S1", false), ("S2", true)]);
     assert!(shell.boxes.2.iter().all(|(n, _)| n != "backup-gate"));
@@ -2352,7 +2352,7 @@ fn a_kept_state_that_does_not_read_leaves_the_key_waiting() {
 
 #[test]
 fn a_flow_with_nothing_sealed_past_the_lock_is_repaired_not_dropped() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let app = gpg_locked(&mut shell);
     let id = subject_bytes(&app);
     let text = String::from_utf8(faraday_core::backup_flow::encode(app.backup_flows())).unwrap();
@@ -2402,7 +2402,7 @@ fn existing_locked(shell: &mut Shell) -> Faraday {
 #[test]
 fn a_stick_named_at_step_six_with_a_copy_the_session_never_saw_gets_the_vault_beside_it_after_a_hold()
  {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = existing_locked(&mut shell);
     let edited = vault("Main edited", PHRASE, 0x55);
     let mut u = Disk::empty("U", "OTHER");
@@ -2429,7 +2429,7 @@ fn a_stick_named_at_step_six_with_a_copy_the_session_never_saw_gets_the_vault_be
 #[test]
 fn a_stick_named_at_step_six_with_a_copy_the_session_saw_from_another_line_gets_the_vault_beside_it()
  {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = existing_locked(&mut shell);
     let edited = vault("Main edited", PHRASE, 0x55);
     let mut u = Disk::empty("U", "OTHER");
@@ -2457,7 +2457,7 @@ fn a_stick_named_at_step_six_with_a_copy_the_session_saw_from_another_line_gets_
 
 #[test]
 fn an_ordinary_visit_after_done_does_not_write_the_flows_vault_over_another_copy() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = existing_locked(&mut shell);
     write_all(&mut shell, &mut app, &[("S1", false), ("S2", true)]);
     assert_eq!(step(&app), Step::Done);
@@ -2499,7 +2499,7 @@ fn an_ordinary_visit_after_done_does_not_write_the_flows_vault_over_another_copy
 
 #[test]
 fn a_copy_deleted_after_done_is_written_again_and_the_key_signs() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = gpg_locked(&mut shell);
     write_all(&mut shell, &mut app, &[("S1", false), ("S2", true)]);
     assert_eq!(step(&app), Step::Done);
@@ -2532,7 +2532,7 @@ fn a_copy_deleted_after_done_is_written_again_and_the_key_signs() {
 
 #[test]
 fn stopping_a_whole_wipe_after_the_partition_was_emptied_reopens_the_copies() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = gpg_locked(&mut shell);
     write_all(&mut shell, &mut app, &[("S1", false), ("S2", true)]);
     app.press(Action::Flow(F::Back));
@@ -2568,7 +2568,7 @@ fn stopping_a_whole_wipe_after_the_partition_was_emptied_reopens_the_copies() {
 
 #[test]
 fn a_stick_the_space_of_which_cannot_be_asked_is_unusable_and_not_waited_on() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut d = Disk::empty("S1", "KEYSTICK");
     d.unreadable = true;
     shell.add(d);
@@ -2585,7 +2585,7 @@ fn a_stick_the_space_of_which_cannot_be_asked_is_unusable_and_not_waited_on() {
 
 #[test]
 fn the_enrolment_files_of_a_waiting_secure_boot_key_are_in_the_backup_not_tickable() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = locked_of(&mut shell, Kind::SecureBoot, &["Owner"], None);
     let names: Vec<String> = app
         .flow()
@@ -2620,7 +2620,7 @@ fn the_enrolment_files_of_a_waiting_secure_boot_key_are_in_the_backup_not_tickab
 
 #[test]
 fn a_stick_not_handed_out_yet_shows_no_problem_once_it_is() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut d = Disk::empty("S1", "KEYSTICK");
     d.unreadable = true;
     shell.add(d);
@@ -2649,7 +2649,7 @@ fn a_stick_not_handed_out_yet_shows_no_problem_once_it_is() {
 
 #[test]
 fn a_lock_that_cannot_keep_a_waiting_backup_does_not_go_ahead() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = to_make(&mut shell, Kind::Gpg);
     make_key(&mut shell, &mut app, &GPG_FIELDS);
     shell.flow(&mut app, F::MadeContinue);
@@ -2670,7 +2670,7 @@ fn a_lock_that_cannot_keep_a_waiting_backup_does_not_go_ahead() {
 #[test]
 fn a_whole_wipe_that_fails_or_is_cut_off_before_its_first_answer_reopens_the_copies() {
     for cut in ["fails", "pulled"] {
-        let mut shell = Shell::new();
+        let mut shell = Shell::light();
         let mut app = gpg_locked(&mut shell);
         write_all(&mut shell, &mut app, &[("S1", false), ("S2", true)]);
         app.press(Action::Flow(F::Back));
@@ -2706,7 +2706,7 @@ fn a_whole_wipe_that_fails_or_is_cut_off_before_its_first_answer_reopens_the_cop
 #[test]
 fn a_flow_whose_vault_was_not_sealed_at_the_lock_goes_back_to_its_vaults() {
     use faraday_vault::records::{Record, field, kind};
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = to_make(&mut shell, Kind::Gpg);
     make_key(&mut shell, &mut app, &GPG_FIELDS);
     shell.flow(&mut app, F::MadeContinue);
@@ -2773,7 +2773,7 @@ fn made_and_locked(shell: &mut Shell, app: &mut Faraday) -> Faraday {
 
 #[test]
 fn a_stick_put_off_reads_checked_when_written_and_is_checked_and_written_at_step_six() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = sticks_with_the_first_put_off(&mut shell);
     expect(&mut app, "Checked when written");
     shell.plug(&mut app, "S2");
@@ -2810,7 +2810,7 @@ fn a_stick_put_off_reads_checked_when_written_and_is_checked_and_written_at_step
 
 #[test]
 fn continue_is_not_live_while_a_stick_is_neither_checked_nor_put_off() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     empties(&mut shell, 2);
     let mut app = started(Kind::Gpg);
     through_where(&mut shell, &mut app);
@@ -2824,7 +2824,7 @@ fn continue_is_not_live_while_a_stick_is_neither_checked_nor_put_off() {
 
 #[test]
 fn cancel_in_the_check_it_later_dialog_changes_nothing() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     empties(&mut shell, 2);
     let mut app = started(Kind::Gpg);
     through_where(&mut shell, &mut app);
@@ -2839,7 +2839,7 @@ fn cancel_in_the_check_it_later_dialog_changes_nothing() {
 
 #[test]
 fn a_stick_holding_a_vault_already_on_a_stick_offers_no_check_it_later() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     empties(&mut shell, 2);
     let mut app = started(Kind::Gpg);
     shell.flow(&mut app, F::VaultExisting(0));
@@ -2852,7 +2852,7 @@ fn a_stick_holding_a_vault_already_on_a_stick_offers_no_check_it_later() {
 
 #[test]
 fn a_put_off_stick_that_fails_at_step_six_takes_another_and_nothing_is_lost() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = sticks_with_the_first_put_off(&mut shell);
     shell.disks[0].label = "EFI".into();
     shell.add(Disk::empty("S3", "SPARE"));
@@ -2888,7 +2888,7 @@ fn a_put_off_stick_that_fails_at_step_six_takes_another_and_nothing_is_lost() {
 
 #[test]
 fn a_put_off_stick_that_holds_vaults_gets_the_new_vault_beside_them() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = sticks_with_the_first_put_off(&mut shell);
     let other = vault("Other", PHRASE_2, 0x42);
     shell.disks[0].files = vec![("other.kdbx".into(), other.clone())];
@@ -2914,7 +2914,7 @@ mod stick_read;
 
 #[test]
 fn cancelling_the_name_taken_sheet_in_the_flow_writes_nothing_and_use_another_asks_again() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = existing_locked(&mut shell);
     let edited = vault("Main edited", PHRASE, 0x55);
     let mut u = Disk::empty("U", "OTHER");
@@ -2948,7 +2948,7 @@ fn cancelling_the_name_taken_sheet_in_the_flow_writes_nothing_and_use_another_as
 
 #[test]
 fn a_new_vault_in_the_flow_goes_beside_what_the_stick_holds_with_no_sheet() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = sticks_with_the_first_put_off(&mut shell);
     let held = vec![1; 10];
     shell.disks[0].files = vec![("Vault.kdbx".into(), held.clone())];
@@ -3024,7 +3024,7 @@ fn count(shell: &Shell, name: &str) -> usize {
 
 #[test]
 fn a_plain_file_waits_for_the_vaults_answer_and_is_written_once() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = asked_with_a_plain_file(&mut shell);
     assert_eq!(count(&shell, "note.pdf"), 0, "not before the answer");
     shell.press(&mut app, Action::NameTakenBeside);
@@ -3034,7 +3034,7 @@ fn a_plain_file_waits_for_the_vaults_answer_and_is_written_once() {
 
 #[test]
 fn a_cancel_then_a_second_try_leaves_one_of_each_on_the_stick() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = asked_with_a_plain_file(&mut shell);
     shell.press(&mut app, Action::Cancel);
     assert_eq!(
@@ -3058,7 +3058,7 @@ fn a_cancel_then_a_second_try_leaves_one_of_each_on_the_stick() {
 
 #[test]
 fn the_answer_writes_the_bytes_first_sent_not_a_file_of_the_same_name() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = asked_with_a_plain_file(&mut shell);
     let first = app
         .outbox
@@ -3075,7 +3075,7 @@ fn the_answer_writes_the_bytes_first_sent_not_a_file_of_the_same_name() {
 
 #[test]
 fn bytes_that_are_gone_when_answered_end_the_write_as_a_cancel() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = asked_with_a_plain_file(&mut shell);
     app.outbox.retain(|i| i.name != "main.kdbx");
     shell.press(&mut app, Action::NameTakenBeside);
@@ -3087,7 +3087,7 @@ fn bytes_that_are_gone_when_answered_end_the_write_as_a_cancel() {
 
 #[test]
 fn a_file_changed_since_it_was_shown_is_not_overwritten_and_the_card_says_so() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = asked_with_a_plain_file(&mut shell);
     let changed = vault("Changed", PHRASE_2, 0x42);
     shell.disk_mut("U").files[0].1 = changed.clone();
@@ -3108,7 +3108,7 @@ fn a_file_changed_since_it_was_shown_is_not_overwritten_and_the_card_says_so() {
 fn back_in_the_backup_flow_opens_the_card_before_and_from_the_first_leaves() {
     use faraday_shell_api::Event;
     for mouse in [false, true] {
-        let mut shell = Shell::new();
+        let mut shell = Shell::light();
         let mut app = gpg_locked(&mut shell);
         let back = |app: &mut Faraday| {
             if mouse {

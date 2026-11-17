@@ -491,7 +491,7 @@ pub(crate) fn single_key_plan(
 #[test]
 fn a_single_key_with_a_vault_on_two_sticks_and_the_descriptor_on_a_stick_of_files_is_written_inside_the_flow()
  {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, _, _) = single_key_ready(&mut shell);
     // One lock, then each stick by place: the visit is never shown.
     shell.flow(&mut app, F::WalletLock);
@@ -553,7 +553,7 @@ fn a_single_key_with_a_vault_on_two_sticks_and_the_descriptor_on_a_stick_of_file
 fn the_hold_on_the_key_stays_until_the_last_stick_is_written_and_a_lock_resumes_at_the_next_stick()
 {
     let c = testkit::compute();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, _, fp) = single_key(&mut shell, true);
     let fp = faraday_bip::keys::Fingerprint(fp);
     assert!(app.key_held(&c, fp), "made here, its backup not done");
@@ -719,7 +719,7 @@ fn a_plan_may_have_any_number_of_places_and_one_place_says_so() {
 
 #[test]
 fn the_flow_follows_its_places_and_none_past_one_per_key() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, _, _) = single_key_ready(&mut shell);
     // Back up's board: no place past one per key (`docs/BACKUP-FLOW.md`
     // §17.19); a place taken off, and the flow follows it.
@@ -833,7 +833,7 @@ pub(crate) fn two_of_three_ready(shell: &mut Shell, software: bool) -> Faraday {
 #[test]
 fn a_two_of_three_with_an_existing_vault_and_two_new_ones_writes_each_stick_by_place() {
     let c = faraday_core::testkit::compute();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = two_of_three_ready(&mut shell, false);
     let other = shell.disk("S1").file("main-2.kdbx").cloned().unwrap();
     let before = shell.disk("S1").file("main.kdbx").cloned().unwrap();
@@ -890,7 +890,7 @@ fn a_two_of_three_with_an_existing_vault_and_two_new_ones_writes_each_stick_by_p
 
 #[test]
 fn the_account_keys_and_their_records_are_written_to_the_stick_of_public_files() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = two_of_three_ready(&mut shell, true);
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
@@ -946,7 +946,7 @@ fn new_key_at(app: &mut Faraday, slot: u8) -> [u8; 4] {
 fn a_two_of_three_with_key_3_on_paper_asks_for_two_sticks_and_holds_key_3_until_its_copy_is_checked()
  {
     let c = testkit::compute();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 2);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -1139,7 +1139,7 @@ fn a_single_keys_passphrase_has_a_place_of_its_own_and_sits_at_the_one_place_wit
 
 #[test]
 fn the_lines_are_drawn_and_add_a_passphrase_opens_the_key_with_its_fields() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, _, _) = single_key_ready(&mut shell);
     // Change the plan opens the board (§19.21 item 11); the lines are
     // under The plan's checks.
@@ -1161,7 +1161,7 @@ fn the_lines_are_drawn_and_add_a_passphrase_opens_the_key_with_its_fields() {
 
 #[test]
 fn a_single_keys_one_place_reads_so_and_blocks_nothing() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, _, _) = single_key_ready(&mut shell);
     app.press(Action::BPlan);
     while backup_places(&app) > 1 {
@@ -1188,7 +1188,7 @@ fn a_single_keys_one_place_reads_so_and_blocks_nothing() {
 #[test]
 fn restore_takes_the_same_steps_and_a_restored_key_signs_at_once() {
     let c = testkit::compute();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 2);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -1243,7 +1243,7 @@ fn restore_takes_the_same_steps_and_a_restored_key_signs_at_once() {
 /// own plan, a plan of the wallet with its keys in the other order (with
 /// shares when `shares`), and the copy is pressed. Returns the app.
 fn copy_with_other_order_plan_in_the_added_vault(shares: bool) -> Faraday {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = two_of_three_ready(&mut shell, false);
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
@@ -1365,7 +1365,7 @@ fn copying_the_keys_to_a_vault_with_shares_for_the_other_key_order_copies_nothin
 
 #[test]
 fn changing_the_plan_after_the_lock_runs_the_round_and_writes_the_vault_again() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = two_of_three_ready(&mut shell, false);
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
@@ -1441,7 +1441,7 @@ fn changing_the_plan_after_the_lock_runs_the_round_and_writes_the_vault_again() 
 
 #[test]
 fn the_first_stick_put_back_for_the_second_place_is_refused_and_nothing_is_written() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, _, _) = single_key_ready(&mut shell);
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
@@ -1464,7 +1464,7 @@ fn the_first_stick_put_back_for_the_second_place_is_refused_and_nothing_is_writt
 fn the_kept_state_of_a_wallet_flow_holds_nothing_secret_and_a_state_that_does_not_read_leaves_the_key_waiting()
  {
     let c = testkit::compute();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, _, fp) = single_key(&mut shell, true);
     let words = app
         .session
@@ -1520,7 +1520,7 @@ fn the_kept_state_of_a_wallet_flow_holds_nothing_secret_and_a_state_that_does_no
 #[test]
 fn a_seed_let_out_unprotected_is_written_to_the_stick_of_files_and_to_no_other() {
     let c = faraday_core::testkit::compute();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 2);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -1632,7 +1632,7 @@ pub(crate) fn write_sticks(shell: &mut Shell, app: &mut Faraday, disks: &[&str])
 #[test]
 fn a_second_backup_of_the_same_wallet_in_the_same_power_on_writes_again() {
     let c = testkit::compute();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, _, _) = single_key_ready(&mut shell);
     let mut d = Disk::empty("S4", "KEYSTICK");
     d.serial = Some(4);
@@ -1676,7 +1676,7 @@ fn a_second_backup_of_the_same_wallet_in_the_same_power_on_writes_again() {
 
 #[test]
 fn a_wallet_left_with_its_vaults_open_does_not_take_the_next_wallets_keys() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 2);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -1699,7 +1699,7 @@ fn a_wallet_left_with_its_vaults_open_does_not_take_the_next_wallets_keys() {
 #[test]
 fn a_seed_kept_only_as_a_file_is_held_until_its_stick_is_written() {
     let c = testkit::compute();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 1);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -1805,7 +1805,7 @@ fn a_wallet_the_seed_alone_does_not_give_back_is_remembered_across_a_restart() {
 #[test]
 fn a_kept_state_cut_short_or_missing_its_wallet_part_still_holds_the_key() {
     let c = testkit::compute();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, _, fp) = single_key(&mut shell, true);
     shell.flow(&mut app, F::WalletLock);
     let _app = restart(&mut shell, &mut app);
@@ -1887,7 +1887,7 @@ fn a_kept_state_cut_short_or_missing_its_wallet_part_still_holds_the_key() {
 #[test]
 fn a_vault_stays_with_its_own_salt_when_a_slot_turns_out_to_be_a_cosigners() {
     let c = testkit::compute();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 3);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -1951,7 +1951,7 @@ fn a_vault_stays_with_its_own_salt_when_a_slot_turns_out_to_be_a_cosigners() {
 fn the_round_keeps_a_passphrase_apart_and_copies_only_this_wallets_records() {
     use faraday_vault::Record;
     use faraday_vault::records::field;
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = two_of_three_ready_with(&mut shell, true);
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
@@ -2031,7 +2031,7 @@ fn lone_passphrase_round(
 ) -> (Faraday, usize, [u8; 4]) {
     let c = faraday_core::testkit::compute();
     use faraday_core::glance::Press;
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = two_of_three_ready_with(&mut shell, true);
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
@@ -2117,7 +2117,7 @@ fn a_vault_added_for_a_key_kept_as_shares_is_made_and_holds_it() {
     use faraday_bip::bip39::{Language, Mnemonic};
     use faraday_core::glance::Press;
     let c = testkit::compute();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = two_of_three_ready_with(&mut shell, false);
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
@@ -2248,7 +2248,7 @@ fn a_vault_added_for_a_key_kept_as_shares_is_made_and_holds_it() {
 #[test]
 fn a_vault_added_for_a_loaded_passphrase_seed_kept_apart_saves_its_words_alone() {
     use faraday_core::glance::Press;
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = two_of_three_ready_with(&mut shell, true);
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
@@ -2551,7 +2551,7 @@ fn two_of_three_planned(shell: &mut Shell, passphrase: bool) -> Faraday {
 #[test]
 fn a_vault_preset_chosen_after_the_keys_goes_through_to_the_writes() {
     let c = testkit::compute();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 2);
     let main = vault("Main", PHRASE, 0x41);
     let mut app = process(vec![("main.kdbx".into(), main)], Vec::new(), Vec::new());
@@ -2595,7 +2595,7 @@ fn a_vault_preset_chosen_after_the_keys_goes_through_to_the_writes() {
 
 #[test]
 fn it_matches_opens_back_up_on_the_wallet_in_one_press() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, _, _) = single_key(&mut shell, false);
     app.press(Action::CNext(cstep::KIND));
     app.press(Action::CNext(cstep::KEYS));
@@ -2609,7 +2609,7 @@ fn it_matches_opens_back_up_on_the_wallet_in_one_press() {
 /// alone reads its places and the vault on The plan.
 #[test]
 fn the_plan_reads_the_vault_brought_in_and_its_places_after_the_keys() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 1);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -2637,7 +2637,7 @@ fn the_plan_reads_the_vault_brought_in_and_its_places_after_the_keys() {
 #[test]
 fn a_key_in_a_slot_goes_into_no_vault_by_itself_and_a_passphrase_added_later_leaves_one_record() {
     let c = testkit::compute();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 1);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -2698,7 +2698,7 @@ fn a_key_in_a_slot_goes_into_no_vault_by_itself_and_a_passphrase_added_later_lea
 
 #[test]
 fn a_description_added_to_an_existing_vault_after_the_lock_starts_a_round() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, _, _) = single_key_with(&mut shell, false, false);
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
@@ -2801,7 +2801,7 @@ fn only_this_wallets_seed_files_go_to_the_stick_of_files_and_public_files_have_t
 
 #[test]
 fn back_on_a_card_before_the_keys_returns_to_make_a_new_wallet_and_a_refusal_says_so() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 1);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -2850,7 +2850,7 @@ pub(crate) fn load_first_vault(app: &mut Faraday, phrase: &str) {
 
 #[test]
 fn a_key_held_for_its_sticks_stays_kept_on_one_and_is_held_until_every_stick_is_written() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, _, fp) = single_key(&mut shell, true);
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
@@ -2911,7 +2911,7 @@ fn held_after_lock(shell: &mut Shell, app: &mut Faraday, fp: [u8; 4]) -> bool {
 
 #[test]
 fn a_key_with_its_vault_sticks_written_but_not_the_stick_of_the_description_is_held() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, _, fp) = single_key(&mut shell, true);
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
@@ -2929,7 +2929,7 @@ fn a_key_with_its_vault_sticks_written_but_not_the_stick_of_the_description_is_h
 
 #[test]
 fn a_key_with_its_vault_written_but_not_its_seed_file_is_held() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 2);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -2961,7 +2961,7 @@ fn a_key_with_its_vault_written_but_not_its_seed_file_is_held() {
 
 #[test]
 fn a_passphrase_kept_only_in_the_vault_is_not_taken_out_while_its_key_is_held() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, _, _) = single_key(&mut shell, true);
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
@@ -2994,7 +2994,7 @@ fn a_passphrase_kept_only_in_the_vault_is_not_taken_out_while_its_key_is_held() 
 
 #[test]
 fn two_planned_vaults_holding_the_same_seed_are_never_one_open_vault() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = two_of_three_planned(&mut shell, false);
     // Vault 2 holds Key 1 too, in place of Key 2.
     app.press(Action::BPlan);
@@ -3017,7 +3017,7 @@ fn two_planned_vaults_holding_the_same_seed_are_never_one_open_vault() {
 
 #[test]
 fn a_seed_file_let_out_and_then_dropped_from_the_plan_is_not_written_beside_the_public_files() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 2);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -3078,7 +3078,7 @@ fn a_seed_file_let_out_and_then_dropped_from_the_plan_is_not_written_beside_the_
 
 #[test]
 fn a_record_the_vault_held_before_the_flow_is_neither_doubled_nor_taken_out() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 2);
     // Main holds the key of Key 2 (TEST_SEEDS[1]) already.
     let main = vault_with_key("Main", PHRASE, 0x41, 1);
@@ -3125,7 +3125,7 @@ fn a_record_the_vault_held_before_the_flow_is_neither_doubled_nor_taken_out() {
 
 #[test]
 fn the_vaults_set_up_stay_the_plans_when_a_key_turns_out_not_to_be_here() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 3);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -3167,7 +3167,7 @@ fn the_vaults_set_up_stay_the_plans_when_a_key_turns_out_not_to_be_here() {
 
 #[test]
 fn the_lock_keeps_the_flows_own_vault_when_another_open_vault_holds_the_same_key() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 2);
     let other = vault_with_key("Other", PHRASE_2, 0x42, 1);
     let mut app = process(vec![("other.kdbx".into(), other)], Vec::new(), Vec::new());
@@ -3209,7 +3209,7 @@ fn the_lock_keeps_the_flows_own_vault_when_another_open_vault_holds_the_same_key
 
 #[test]
 fn two_wallets_in_vaults_keep_each_its_own_vaults_and_a_flow_with_no_owner_matches_nothing() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 2);
     let vb = vault("Second", PHRASE_2, 0x43);
     let mut app = process(vec![("second.kdbx".into(), vb)], Vec::new(), Vec::new());
@@ -3267,7 +3267,7 @@ fn two_wallets_in_vaults_keep_each_its_own_vaults_and_a_flow_with_no_owner_match
 
 #[test]
 fn a_done_flow_still_waiting_hands_its_hold_to_the_next_backup() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, _, fp) = single_key(&mut shell, true);
     let mut d = Disk::empty("S4", "KEYSTICK");
     d.serial = Some(4);
@@ -3296,7 +3296,7 @@ fn a_done_flow_still_waiting_hands_its_hold_to_the_next_backup() {
 
 #[test]
 fn add_a_passphrase_acts_on_the_wallet_shown_not_the_one_a_backup_was_left_on() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let _ = &mut shell;
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -3322,7 +3322,7 @@ fn add_a_passphrase_acts_on_the_wallet_shown_not_the_one_a_backup_was_left_on() 
 
 #[test]
 fn a_plan_change_after_the_lock_starts_its_round_without_continue() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = two_of_three_ready(&mut shell, false);
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
@@ -3335,7 +3335,7 @@ fn a_plan_change_after_the_lock_starts_its_round_without_continue() {
 
 #[test]
 fn a_passphrase_put_into_a_vault_after_the_lock_starts_a_round_too() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = two_of_three_ready_with(&mut shell, true);
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
@@ -3418,7 +3418,7 @@ fn answering_no_goes_to_the_keys_with_no_stick_or_vault_step_and_back_up_asks_th
 
 #[test]
 fn a_vault_brought_in_on_the_keys_row_is_read_before_any_unlock_and_is_open_before_the_keys() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 3);
     let main = vault("Main", PHRASE, 0x41);
     shell.disk_mut("S1").files = vec![("main.kdbx".into(), main)];
@@ -3457,7 +3457,7 @@ fn a_vault_brought_in_on_the_keys_row_is_read_before_any_unlock_and_is_open_befo
 
 #[test]
 fn back_ups_plan_offers_the_open_vaults_and_a_vault_at_two_places_writes_both_copies() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 3);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -3524,7 +3524,7 @@ fn back_ups_plan_offers_the_open_vaults_and_a_vault_at_two_places_writes_both_co
 
 #[test]
 fn restore_asks_the_same_question_and_opens_its_vaults_before_the_seeds() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 3);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -3592,7 +3592,7 @@ pub(crate) fn two_of_three_with_setup(shell: &mut Shell, count: usize) -> Farada
 fn a_plan_vault_with_none_set_up_offers_to_make_one_while_another_is_open() {
     let c = testkit::compute();
     use faraday_core::vault::VaultAction as V;
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = two_of_three_with_setup(&mut shell, 1);
     no_words(&mut app);
     app.press(Action::BChecklist);
@@ -3647,7 +3647,7 @@ fn a_plan_vault_with_none_set_up_offers_to_make_one_while_another_is_open() {
 #[test]
 fn the_vault_set_up_for_a_plan_vault_is_not_locked_away_for_another_one_that_holds_a_key() {
     use faraday_core::vault::VaultAction as V;
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = two_of_three_with_setup(&mut shell, 2);
     no_words(&mut app);
     // Vault 1 holds Key 1, Vault 2 Keys 2 and 3; the vault set up for
@@ -3670,7 +3670,7 @@ fn the_vault_set_up_for_a_plan_vault_is_not_locked_away_for_another_one_that_hol
 
 #[test]
 fn a_setup_survives_the_lock_that_makes_the_process_clean() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 2);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -3716,7 +3716,7 @@ fn a_setup_survives_the_lock_that_makes_the_process_clean() {
 
 #[test]
 fn a_restore_setup_survives_the_lock_too() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 1);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -3745,7 +3745,7 @@ fn a_restore_setup_survives_the_lock_too() {
 /// flow kept before the mark was written reads the key as not.
 #[test]
 fn a_saved_wallet_flow_remembers_a_key_is_kept_as_shares() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = two_of_three_ready_with(&mut shell, false);
     shell.flow(&mut app, F::WalletLock);
     let app = restart(&mut shell, &mut app);
@@ -3791,7 +3791,7 @@ fn a_saved_wallet_flow_remembers_a_key_is_kept_as_shares() {
 /// mark, and the key reads back as kept as shares.
 #[test]
 fn a_wallet_flow_with_a_key_kept_as_shares_is_written_with_the_mark() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = two_of_three_ready_with(&mut shell, false);
     shell.flow(&mut app, F::WalletLock);
     let app = restart(&mut shell, &mut app);

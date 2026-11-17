@@ -44,7 +44,7 @@ fn held(app: &Faraday, o: usize, what: Moved) -> Vec<Vec<u8>> {
 fn moved_then_copy(what: Moved, lock: bool) {
     use faraday_vault::Record;
     use faraday_vault::records::field;
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = two_of_three_ready(&mut shell, false);
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
@@ -136,7 +136,7 @@ fn a_passphrase_record_moved_into_an_added_vault_stays_after_a_lock_between_two_
 fn a_record_moved_into_a_saved_vault_before_the_lock_stays_when_a_later_plan_changes_it() {
     use faraday_vault::Record;
     use faraday_vault::records::field;
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = two_of_three_ready(&mut shell, false);
     // A passphrase record, which the plan does not keep, in Vault 2.
     let fp = app.session.keys.info(0).unwrap().fingerprint.0;
@@ -193,7 +193,7 @@ fn a_record_moved_into_a_saved_vault_before_the_lock_stays_when_a_later_plan_cha
 fn a_changed_plans_split_saved_again_replaces_the_old_share_2() {
     use faraday_vault::records::field;
     let c = testkit::compute();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 1);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -250,7 +250,7 @@ fn a_changed_plans_split_saved_again_replaces_the_old_share_2() {
 /// what the first one takes.
 #[test]
 fn a_copy_that_stops_part_way_leaves_every_added_vault_as_it_was() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = two_of_three_ready(&mut shell, false);
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);

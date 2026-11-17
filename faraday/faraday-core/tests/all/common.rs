@@ -230,16 +230,31 @@ pub fn process_unseen(inbox: Files, outbox: Files, kept: Files) -> Faraday {
         outbox: faraday_core::files_from(outbox),
         kept: faraday_core::kept_from(kept),
     });
-    app.storage(StorageEvent::Memory {
-        available_mib: 15_000,
-    });
+    if let Some(available_mib) = FREE_MIB.with(std::cell::Cell::get) {
+        app.storage(StorageEvent::Memory { available_mib });
+    }
     app.storage(StorageEvent::Clock { unix_secs: CLOCK });
     faraday_core::testkit::vault_speed(&mut app, Some(180));
     app
 }
 
+thread_local! {
+    /// The memory the machine reports free, when it does: it sets the cost a new vault is
+    /// made at and so how long every make, seal and unlock stretches.
+    static FREE_MIB: std::cell::Cell<Option<u32>> = const { std::cell::Cell::new(Some(15_000)) };
+}
+
 impl Shell {
     pub fn new() -> Shell {
+        Shell::default()
+    }
+
+    /// A shell for a test about the flow, not the cost: the machines it
+    /// starts do not say how much memory they have free, so every vault is
+    /// made, sealed and opened at Light, the smallest cost (`docs/VAULT.md`
+    /// §3.1), for this test's thread.
+    pub fn light() -> Shell {
+        FREE_MIB.with(|f| f.set(None));
         Shell::default()
     }
 

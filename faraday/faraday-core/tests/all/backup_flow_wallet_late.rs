@@ -36,7 +36,7 @@ use faraday_vault::records::kind;
 #[test]
 fn the_flows_plan_card_edits_the_map_the_cards_made() {
     let c = faraday_core::testkit::compute();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, _, _) = single_key_ready(&mut shell);
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
@@ -74,7 +74,7 @@ fn the_flows_plan_card_edits_the_map_the_cards_made() {
 #[test]
 fn a_seed_kept_as_a_file_at_a_place_is_released_once_that_stick_is_written() {
     let c = testkit::compute();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 1);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -108,7 +108,7 @@ fn a_seed_kept_as_a_file_at_a_place_is_released_once_that_stick_is_written() {
 #[test]
 fn each_places_stick_of_files_takes_only_that_places_seed_file() {
     let c = faraday_core::testkit::compute();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 3);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -184,7 +184,7 @@ fn each_places_stick_of_files_takes_only_that_places_seed_file() {
 fn a_share_kept_in_a_vault_is_saved_sealed_and_rebuilds_with_another() {
     let c = testkit::compute();
     use faraday_vault::records::field;
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 1);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -321,7 +321,7 @@ fn a_share_kept_in_a_vault_is_saved_sealed_and_rebuilds_with_another() {
 fn a_share_put_into_a_vault_after_the_lock_starts_the_round_and_is_sealed() {
     let c = testkit::compute();
     use faraday_vault::records::field;
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 1);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -434,7 +434,7 @@ fn single_key_one_stick(shell: &mut Shell) -> Faraday {
 /// plan, and the write counts for the stick it was for.
 #[test]
 fn done_on_a_row_sheet_during_a_write_changes_nothing_and_the_write_counts_for_its_stick() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = single_key_one_stick(&mut shell);
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
@@ -479,7 +479,7 @@ fn done_on_a_row_sheet_during_a_write_changes_nothing_and_the_write_counts_for_i
 fn two_wallets_of_one_name_keep_each_its_own_share_in_one_vault() {
     let c = testkit::compute();
     use faraday_vault::records::field;
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 1);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -584,7 +584,7 @@ fn two_wallets_of_one_name_keep_each_its_own_share_in_one_vault() {
 /// the sealed copy on S1 keeps the key without its passphrase.
 #[test]
 fn a_passphrase_taken_out_of_a_vault_after_the_lock_starts_a_round_and_leaves_it() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 1);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -653,7 +653,7 @@ fn a_passphrase_taken_out_of_a_vault_after_the_lock_starts_a_round_and_leaves_it
 #[test]
 fn back_ups_cards_after_the_lock_edit_the_flows_plan_with_its_refusals() {
     let c = testkit::compute();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, w, fp) = single_key(&mut shell, true);
     let name = app.session.wallets[w].name.clone();
     shell.flow(&mut app, F::WalletLock);
@@ -719,7 +719,7 @@ fn back_ups_cards_after_the_lock_edit_the_flows_plan_with_its_refusals() {
 #[test]
 fn the_flows_slider_sets_its_keys_left_off_and_the_vault_takes_the_share_it_implies() {
     use faraday_vault::records::field;
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 1);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -785,7 +785,7 @@ fn the_flows_slider_sets_its_keys_left_off_and_the_vault_takes_the_share_it_impl
 fn names_typed_before_the_lock_are_in_each_vaults_plan_and_never_in_the_flow() {
     use faraday_vault::records::field;
     const NAME: &str = "Harbour cellar";
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = two_of_three_with_setup(&mut shell, 2);
     no_words(&mut app);
     // Two vaults, as set up.
@@ -834,7 +834,7 @@ fn names_typed_before_the_lock_are_in_each_vaults_plan_and_never_in_the_flow() {
 #[test]
 fn the_flows_plan_card_has_one_continue_at_both_sizes() {
     let c = faraday_core::testkit::compute();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, _, _) = single_key_ready(&mut shell);
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
@@ -1024,7 +1024,7 @@ fn a_vault_kept_with_apostrophes_opens_with_its_plan_attached() {
 /// before the flow is refused, and the sealed copy still holds it.
 #[test]
 fn a_key_an_existing_vault_held_before_the_flow_is_never_taken_out() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 1);
     let main = vault_with_key("Main", PHRASE, 0x41, 1);
     shell.disk_mut("S1").files = vec![("main.kdbx".into(), main)];
@@ -1096,7 +1096,7 @@ fn a_key_an_existing_vault_held_before_the_flow_is_never_taken_out() {
 #[test]
 fn a_key_another_wallet_in_the_vault_uses_is_never_taken_out() {
     let c = testkit::compute();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, a, _) = single_key(&mut shell, false);
     // Another wallet of the same key, saved into the same vault.
     let k = app.session.keys.len() - 1;
@@ -1149,7 +1149,7 @@ fn a_key_another_wallet_in_the_vault_uses_is_never_taken_out() {
 #[test]
 fn a_held_seed_is_never_left_on_no_stick_after_the_lock() {
     let c = testkit::compute();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, _, fp) = single_key(&mut shell, true);
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
@@ -1203,7 +1203,7 @@ fn a_key_is_never_taken_out_of_a_vault_another_wallets_record_is_in() {
     let c = testkit::compute();
     use faraday_vault::Record;
     use faraday_vault::records::field;
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, _, _) = single_key_with(&mut shell, false, true);
     // The hidden wallet: the same words with a passphrase; its
     // description in Vault 1.
@@ -1252,7 +1252,7 @@ fn a_key_is_never_taken_out_of_a_vault_another_wallets_record_is_in() {
 /// is on paper or in a file: those were made with it as it is.
 #[test]
 fn keys_left_off_each_share_stay_after_the_lock_while_a_share_is_in_a_file() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 3);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -1332,7 +1332,7 @@ fn two_of_three_paper(shell: &mut Shell, n: usize) -> Faraday {
 /// there, and nothing stale holds the flow.
 #[test]
 fn a_seed_file_taken_off_after_the_lock_is_refused_and_its_stick_keeps_its_files() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = two_of_three_paper(&mut shell, 2);
     files_at(&mut app, 0, &[0, 1]);
     files_at(&mut app, 1, &[2]);
@@ -1412,7 +1412,7 @@ fn type_back_the_copy(app: &mut Faraday) {
 /// leaves it on no stick and is refused.
 #[test]
 fn a_held_key_is_not_left_on_a_stale_file_after_the_lock() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 2);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -1541,7 +1541,7 @@ fn disks_in_order(app: &Faraday) -> Vec<&'static str> {
 /// there, and the vault takes the share now planned.
 #[test]
 fn shares_files_follow_the_plan_after_the_lock() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, p) = shares_locked(&mut shell);
     let q = (0..3).find(|&q| q != p).unwrap();
     let files_at = |app: &Faraday, at: usize| -> Vec<String> {
@@ -1605,7 +1605,7 @@ fn shares_files_follow_the_plan_after_the_lock() {
 /// the split: whole or in shares is fixed, as the keys left off are.
 #[test]
 fn whole_or_in_shares_is_fixed_after_the_lock_while_a_share_is_in_a_file() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, _) = shares_locked(&mut shell);
     shell.flow(&mut app, F::ChangePlan);
     // The share's file taken off: refused, so the split stays.
@@ -1640,7 +1640,7 @@ fn whole_or_in_shares_is_fixed_after_the_lock_while_a_share_is_in_a_file() {
 #[test]
 fn the_round_adds_a_planned_key_record_once_beside_another_of_its_words() {
     use faraday_vault::records::field;
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 1);
     let main = vault_with_key("Main", PHRASE, 0x41, 1);
     shell.disk_mut("S1").files = vec![("main.kdbx".into(), main)];
@@ -1722,7 +1722,7 @@ fn the_round_adds_a_planned_key_record_once_beside_another_of_its_words() {
 /// address; "As a file" at a place with no vault open is one.
 #[test]
 fn a_file_added_after_the_lock_is_refused_and_loads_no_wallet() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, _, _) = single_key_ready(&mut shell);
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
@@ -1750,7 +1750,7 @@ fn a_file_added_after_the_lock_is_refused_and_loads_no_wallet() {
 #[test]
 fn the_done_landing_loads_the_vaults_keys_released() {
     let c = testkit::compute();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, _, fp) = single_key(&mut shell, true);
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
@@ -1772,7 +1772,7 @@ fn the_done_landing_loads_the_vaults_keys_released() {
 /// stick of files' list as it was made, the account key files with it.
 #[test]
 fn a_stick_of_files_keeps_its_list_after_a_vault_edit() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, _, _) = single_key_ready(&mut shell);
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
@@ -1807,7 +1807,7 @@ fn a_stick_of_files_keeps_its_list_after_a_vault_edit() {
 /// written.
 #[test]
 fn a_written_stick_of_files_is_never_sent_back_after_the_lock() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 3);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -1907,7 +1907,7 @@ fn a_written_stick_of_files_is_never_sent_back_after_the_lock() {
 #[test]
 fn a_passphrase_taken_out_leaves_the_earlier_bare_record_alone() {
     use faraday_vault::records::field;
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 1);
     let main = vault_with_key("Main", PHRASE, 0x41, 1);
     shell.disk_mut("S1").files = vec![("main.kdbx".into(), main)];
@@ -1987,7 +1987,7 @@ fn a_passphrase_taken_out_leaves_the_earlier_bare_record_alone() {
 #[test]
 fn files_and_words_stay_as_made_after_the_lock_with_a_vault_unlocked() {
     let c = faraday_core::testkit::compute();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, _, _) = single_key_ready(&mut shell);
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
@@ -2024,7 +2024,7 @@ fn another_open_vault_never_replaces_a_backup_past_its_lock() {
     use faraday_core::glance::Press;
     use faraday_vault::Record;
     use faraday_vault::records::{self, field};
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, w, _) = single_key_ready(&mut shell);
     let desc = app.session.wallets[w].policy().to_descriptor_checksummed();
     let name = app.session.wallets[w].name.clone();
@@ -2097,7 +2097,7 @@ fn another_open_vault_never_replaces_a_backup_past_its_lock() {
 /// and write.
 #[test]
 fn back_up_again_after_done_adds_a_file_and_writes_it() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, _, _) = single_key_ready(&mut shell);
     let mut d = Disk::empty("S4", "KEYSTICK");
     d.serial = Some(4);
@@ -2154,7 +2154,7 @@ fn back_up_again_after_done_adds_a_file_and_writes_it() {
 fn a_passphrase_alone_in_a_vault_is_saved_as_a_passphrase_record() {
     let c = testkit::compute();
     use faraday_vault::records::field;
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 2);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -2252,7 +2252,7 @@ fn stick_row_written(boxes: &[TextBox], row: &str, label: &str) -> bool {
 
 #[test]
 fn a_sticks_files_written_show_on_the_sticks_card_on_the_next_frame() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, _, _) = single_key_ready(&mut shell);
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
@@ -2318,7 +2318,7 @@ fn restore_vault_question_says_vaults_on_sticks_are_brought_in_here() {
 #[test]
 fn change_the_plan_from_a_wallet_flow_opens_its_board() {
     let c = faraday_core::testkit::compute();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, _, _) = single_key_ready(&mut shell);
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
@@ -2342,7 +2342,7 @@ fn change_the_plan_from_a_wallet_flow_opens_its_board() {
 /// account, is the one the backup is for.
 #[test]
 fn a_wallet_taken_back_from_check_backs_up_as_remade() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 3);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
