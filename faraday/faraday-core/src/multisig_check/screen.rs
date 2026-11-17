@@ -83,54 +83,40 @@ fn setup(app: &View, s: &MsState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f3
     if super::paste_shown(app) {
         ui.demo_offer(EN.mscheck_paste, Action::MultisigCheck(M::Paste));
     }
-    ui.button(
-        x,
-        y,
-        None,
-        BUTTON_H,
-        EN.mscheck_scan,
-        Style::Secondary,
-        Action::MultisigCheck(M::Scan),
-    );
-    cy += BUTTON_H + GAP;
-    cy += ui.wrap_as(
-        (x, y + cy, w),
-        BODY_S,
-        Role::OnSurfaceVariant,
-        EN.mscheck_from_files,
-    ) + GAP;
-    let mut any = false;
-    for (k, item) in app.inbox.iter().enumerate() {
-        let Some(policy) = item.wallet() else {
-            continue;
-        };
-        any = true;
-        let one = !super::is_setup(Some(policy));
-        if one {
-            let line = format!("{} · {}", &*item.name, EN.mscheck_one_key);
-            cy += ui.wrap_as((x, y + cy, w), BODY_M, Role::OnSurfaceVariant, &line) + GAP;
-        } else {
-            ui.button(
-                x,
-                y + cy,
-                Some(w),
-                BUTTON_H,
-                &item.name,
-                Style::Secondary,
-                Action::MultisigCheck(M::Inbox(k)),
-            );
-            cy += BUTTON_H + GAP;
+    let files = super::waiting(app);
+    let loaded = super::loaded(app);
+    if files.is_empty() && loaded.is_empty() {
+        cy += crate::screens::parts::nothing_to_work_on(
+            app,
+            ui,
+            (x, y + cy, w),
+            EN.mscheck_nothing_waits,
+            (Action::MultisigCheck(M::Scan), crate::Screen::MultisigCheck),
+        ) + GAP;
+    } else {
+        ui.button(
+            x,
+            y + cy,
+            None,
+            BUTTON_H,
+            EN.mscheck_scan,
+            Style::Secondary,
+            Action::MultisigCheck(M::Scan),
+        );
+        cy += BUTTON_H + GAP;
+        if !files.is_empty() {
+            let rows: Vec<(&str, Action)> = files
+                .iter()
+                .map(|&k| (&*app.inbox[k].name, Action::MultisigCheck(M::Inbox(k))))
+                .collect();
+            cy += crate::screens::parts::file_choices(
+                ui,
+                (x, y + cy, w),
+                EN.mscheck_choose_setup,
+                &rows,
+            ) + GAP;
         }
     }
-    if !any {
-        cy += ui.wrap_as(
-            (x, y + cy, w),
-            BODY_S,
-            Role::OnSurfaceVariant,
-            EN.mscheck_none_in_files,
-        ) + GAP;
-    }
-    let loaded = super::loaded(app);
     if !loaded.is_empty() {
         cy += ui.wrap_as(
             (x, y + cy, w),

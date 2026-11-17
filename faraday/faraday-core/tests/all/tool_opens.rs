@@ -99,3 +99,38 @@ fn check_message_lists_several_and_offers_the_ways_in_with_none() {
     assert!(has(&mut one, EN.compact_scan));
     assert!(has(&mut one, EN.parts_open_files));
 }
+
+// Check a multisig setup.
+
+/// A wallet of three keys, as a file's text.
+fn setup() -> String {
+    let d = testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "savings")
+        .unwrap()
+        .descriptor;
+    d.split('#').next().unwrap().to_string()
+}
+
+#[test]
+fn check_multisig_opens_the_one_setup_and_lists_several_and_offers_the_ways_in_with_none() {
+    let mut one = tools_with(&[("only.txt", setup().as_bytes())]);
+    open_tile(&mut one, EN.mscheck_title);
+    assert_eq!(one.screen, Screen::MultisigCheck);
+    assert!(has(&mut one, EN.mscheck_add));
+    assert!(has(&mut one, EN.mscheck_another));
+    assert!(has(&mut one, EN.mscheck_done));
+
+    let mut two = tools_with(&[("a.txt", setup().as_bytes()), ("b.txt", setup().as_bytes())]);
+    open_tile(&mut two, EN.mscheck_title);
+    assert!(has(&mut two, EN.mscheck_choose_setup));
+    assert!(has(&mut two, "a.txt"));
+    assert!(has(&mut two, "b.txt"));
+    assert!(!has(&mut two, EN.mscheck_add));
+
+    let mut none = tools_with(&[]);
+    open_tile(&mut none, EN.mscheck_title);
+    assert!(has(&mut none, EN.mscheck_nothing_waits));
+    assert!(has(&mut none, EN.compact_scan));
+    assert!(has(&mut none, EN.parts_open_files));
+}

@@ -724,7 +724,7 @@ impl Faraday {
             Go::CheckMessage => crate::screens::check_message::open_tile(self),
             Go::CheckTimestamp => crate::ots_check::open_tile(self),
             Go::ReadCoreWallet => crate::core_wallet::tool::open_tile(self),
-            Go::MultisigCheck => crate::multisig_check::open(self),
+            Go::MultisigCheck => crate::multisig_check::open_tile(self),
             Go::Vaults => self.act(Action::Nav(Screen::Vaults)),
             Go::CreateVault => self.act(Action::Vault(VaultAction::Create)),
             // The keys the backup flow makes: the flow, when none is open

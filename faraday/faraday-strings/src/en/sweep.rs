@@ -516,8 +516,10 @@ macro_rules! words_sweep {
     mscheck_scan: "Scan",
     /// The scanner's title in Check a multisig setup.
     mscheck_scan_title: "Scan the wallet's setup",
-    /// Check a multisig setup: the heading over the files of Files that read as wallets.
-    mscheck_from_files: "From Files",
+    /// Check a multisig setup: the heading over the files of Files to choose from.
+    mscheck_choose_setup: "Choose a setup",
+    /// Check a multisig setup: the line when no setup waits.
+    mscheck_nothing_waits: "No multisig setup to check",
     /// Check a multisig setup: the heading over the wallets loaded here.
     mscheck_loaded: "A wallet loaded here",
     /// Check a multisig setup: the name of a setup read from a code.
@@ -526,8 +528,6 @@ macro_rules! words_sweep {
     mscheck_pasted: "Pasted",
     /// Faraday Demo's Paste on the Setup card.
     mscheck_paste: "Paste",
-    /// Check a multisig setup: a file of one key, listed dimmed.
-    mscheck_one_key: "One key",
     /// Check a multisig setup: the line for a wallet of one key.
     mscheck_refused_one_key: "One key: not a multisig setup",
     /// Check a multisig setup: the line for a descriptor that holds a private key.
@@ -574,8 +574,6 @@ macro_rules! words_sweep {
     mscheck_wait_preimage: "a hash's preimage",
     /// Check a multisig setup: the first receive address's label.
     mscheck_first_receive: "First receive address",
-    /// Check a multisig setup: no file of Files reads as a wallet.
-    mscheck_none_in_files: "No wallet in Files",
     /// Check a multisig setup: the Result's button that adds the wallet.
     mscheck_add: "Add this wallet",
     /// Check a multisig setup: the Result's line once the wallet is loaded.

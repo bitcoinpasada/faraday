@@ -2335,10 +2335,11 @@ Restore's and My seed makes my wallet's are reused):
 - `files_check_setup`: "Check this setup" (the file row's ⋮ entry);
 - `mscheck_setup`: "Setup"; `mscheck_result`: "Result";
 - `mscheck_scan`: "Scan"; `mscheck_scan_title`: "Scan the wallet's
-  setup"; `mscheck_from_files`: "From Files"; `mscheck_loaded`: "A
+  setup"; `mscheck_choose_setup`: "Choose a setup";
+  `mscheck_nothing_waits`: "No multisig setup to check"; `mscheck_loaded`: "A
   wallet loaded here"; `mscheck_paste`: "Paste"; `mscheck_scanned`:
   "Scanned";
-- `mscheck_one_key`: "One key"; `mscheck_refused_one_key`: "One key:
+- `mscheck_refused_one_key`: "One key:
   not a multisig setup";
 - `mscheck_checksum_fails`: "The descriptor checksum does not hold:
   given {}, the descriptor gives {}";

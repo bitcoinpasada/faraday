@@ -176,6 +176,27 @@ pub(crate) fn open(app: &mut Faraday) {
     app.screen = Screen::MultisigCheck;
 }
 
+/// Costs what `act` costs. Tools' tile: the setup itself when exactly one
+/// file of Files reads as a wallet of several keys, the screen's Setup card
+/// (the files to choose from, or the empty part) otherwise.
+pub(crate) fn open_tile(app: &mut Faraday) {
+    let waiting = waiting(app);
+    open(app);
+    if let [k] = waiting[..] {
+        from_file(app, false, k);
+    }
+}
+
+/// The files of Files that read as a wallet of several keys, by place.
+pub(crate) fn waiting(app: &Faraday) -> Vec<usize> {
+    app.inbox
+        .iter()
+        .enumerate()
+        .filter(|(_, i)| i.wallet().is_some_and(|p| is_setup(Some(p))))
+        .map(|(k, _)| k)
+        .collect()
+}
+
 /// After a press: the screen's state ends unless it is on show.
 pub(crate) fn tidy(app: &mut Faraday) {
     if app.screen != Screen::MultisigCheck {
