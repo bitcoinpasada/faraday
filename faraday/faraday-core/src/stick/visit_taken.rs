@@ -179,15 +179,69 @@ pub(crate) struct VisitArea {
     /// The PSBT a stick's "Import and sign" brought in: its Spend shows the
     /// signing sequence.
     sign_stick: Option<Text>,
+    /// The stick that PSBT came from, as a receipt names it: the stick
+    /// "Lock and write" writes to when none is in at the press.
+    sign_from: Option<Text>,
+    /// The one PSBT on the stick on show that "Import and sign" names,
+    /// worked out before a frame ([`Faraday::visit_sign_refresh`]).
+    sign_file: Option<Text>,
     /// A press of "Lock and write" is on its way to the lock: the files
     /// For the stick are written when it comes back.
-    lock_to_write: bool,
-    /// The lock was "Lock and write": the next stick to arrive is written
-    /// to at once, and the files checked.
-    write_waiting: bool,
+    lock_to_write: Option<WriteWait>,
+    /// The lock was "Lock and write": the stick it names, or the next to
+    /// arrive when none was in, is written with these files at once, and
+    /// they are checked.
+    write_waiting: Option<WriteWait>,
     /// The files For the stick were written by "Lock and write": the page
     /// ends on the card Finish has.
     signed_end: bool,
+}
+
+/// A stick told from another: by its FAT volume serial; a folder the shell
+/// lists has none, and is told by where it is.
+fn stick_identity(stick: &crate::StickInfo) -> Text {
+    match stick.serial {
+        Some(s) => text!("{s:08x}"),
+        None => text!("id:{}", &*stick.id),
+    }
+}
+
+/// The files a "Lock and write" writes to the stick, and which stick.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct WriteWait {
+    /// The stick in when it was pressed, as a visit's receipt names it;
+    /// none when no stick was in.
+    pub stick: Option<Text>,
+    /// The spend's own results, by name.
+    pub names: Vec<Text>,
+}
+
+impl WriteWait {
+    /// What the next process keeps: the stick's identity on the first
+    /// line (empty for none), then one name a line.
+    pub(crate) fn encode(&self) -> Vec<u8> {
+        let mut out: Vec<u8> = Vec::new();
+        out.extend_from_slice(self.stick.as_deref().unwrap_or("").as_bytes());
+        for n in &self.names {
+            out.push(b'\n');
+            out.extend_from_slice(n.as_bytes());
+        }
+        out
+    }
+
+    /// What [`Self::encode`] kept; none when no name is left.
+    pub(crate) fn decode(bytes: &[u8]) -> Option<WriteWait> {
+        let mut lines = bytes.split(|b| *b == b'\n');
+        let stick = lines
+            .next()
+            .filter(|l| !l.is_empty())
+            .map(Text::from_utf8_lossy);
+        let names: Vec<Text> = lines
+            .filter(|l| !l.is_empty())
+            .map(Text::from_utf8_lossy)
+            .collect();
+        (!names.is_empty()).then_some(WriteWait { stick, names })
+    }
 }
 
 impl std::ops::Deref for VisitArea {
@@ -203,29 +257,50 @@ impl VisitArea {
         self.sign_stick.as_ref()
     }
 
+    /// The stick "Import and sign" brought the PSBT from.
+    pub(crate) fn sign_from(&self) -> Option<&Text> {
+        self.sign_from.as_ref()
+    }
+
+    /// "Import and sign" came from the stick `identity`.
+    pub(crate) fn set_sign_from(&mut self, identity: Option<Text>) {
+        self.sign_from = identity;
+    }
+
+    /// The PSBT the stick on show offers to sign, as last worked out.
+    pub(crate) fn sign_file(&self) -> Option<&Text> {
+        self.sign_file.as_ref()
+    }
+
     /// "Import and sign" brings `name` in to sign.
     pub(crate) fn set_sign_stick(&mut self, name: Option<Text>) {
         self.sign_stick = name;
     }
 
-    /// Whether the lock now coming is "Lock and write".
-    pub(crate) fn lock_to_write(&self) -> bool {
-        self.lock_to_write
+    /// The PSBT the stick on show offers to sign.
+    pub(crate) fn set_sign_file(&mut self, name: Option<Text>) {
+        self.sign_file = name;
     }
 
-    /// "Lock and write" was pressed (or given up).
-    pub(crate) fn set_lock_to_write(&mut self, on: bool) {
-        self.lock_to_write = on;
+    /// What the lock now coming writes, when it is "Lock and write".
+    pub(crate) fn lock_to_write(&self) -> Option<&WriteWait> {
+        self.lock_to_write.as_ref()
     }
 
-    /// Whether the files For the stick are written when a stick arrives.
-    pub(crate) fn write_waiting(&self) -> bool {
-        self.write_waiting
+    /// "Lock and write" was pressed (`Some`) or given up (`None`).
+    pub(crate) fn set_lock_to_write(&mut self, what: Option<WriteWait>) {
+        self.lock_to_write = what;
     }
 
-    /// The files For the stick are written when a stick arrives, or not.
-    pub(crate) fn set_write_waiting(&mut self, on: bool) {
-        self.write_waiting = on;
+    /// What is written when a stick arrives: the files of a "Lock and
+    /// write" the process before this one ended with.
+    pub(crate) fn write_waiting(&self) -> Option<&WriteWait> {
+        self.write_waiting.as_ref()
+    }
+
+    /// The files written when a stick arrives, or none.
+    pub(crate) fn set_write_waiting(&mut self, what: Option<WriteWait>) {
+        self.write_waiting = what;
     }
 
     /// Whether the page shows the end card after a "Lock and write".
@@ -1041,6 +1116,81 @@ impl Faraday {
         rows
     }
 
+    /// The stick on show, told from another: by its FAT volume serial; a
+    /// folder the shell lists has none, and is told by where it is.
+    pub(crate) fn visit_stick_identity(&self) -> Option<Text> {
+        self.stick.get(self.visit.stick).map(stick_identity)
+    }
+
+    /// The open spend's own results (the signed PSBT and the transaction)
+    /// that are still in the Outbox.
+    pub(crate) fn spend_outbox_names(&self) -> Vec<Text> {
+        let Some(s) = self.wallets.spend() else {
+            return Vec::new();
+        };
+        [s.out_names.signed.as_ref(), s.out_names.tx.as_ref()]
+            .into_iter()
+            .flatten()
+            .filter(|n| self.outbox.iter().any(|i| *i.name == ***n))
+            .cloned()
+            .collect()
+    }
+
+    /// What "Lock and write" writes: the spend's results still in the
+    /// Outbox, to the stick in now or else the one the PSBT was imported
+    /// from. With neither, nothing is written by itself.
+    pub(crate) fn spend_write_plan(&self) -> Option<WriteWait> {
+        let names = self.spend_outbox_names();
+        let stick = self
+            .visit_stick_identity()
+            .or_else(|| self.visit.sign_from().cloned())?;
+        (!names.is_empty()).then(|| WriteWait {
+            stick: Some(stick),
+            names,
+        })
+    }
+
+    /// The write a "Lock and write" left for the stick that came: only the
+    /// spend's own files, to the stick it named (any other stick has the
+    /// ordinary visit).
+    pub(crate) fn visit_write_waiting(&mut self) {
+        let Some(wait) = self.visit.write_waiting().cloned() else {
+            return;
+        };
+        if !self.clean() {
+            // Given up: the Lock sheet asks first.
+            self.visit.set_write_waiting(None);
+            return;
+        }
+        // The stick it named, wherever it is among those in; no other is
+        // written by itself, and none named writes nothing.
+        let Some(named) = &wait.stick else {
+            self.visit.set_write_waiting(None);
+            return;
+        };
+        let Some(i) = self.stick.iter().position(|s| stick_identity(s) == *named) else {
+            return;
+        };
+        self.visit.set_stick(i);
+        self.visit.set_write_waiting(None);
+        let names: Vec<Text> = wait
+            .names
+            .into_iter()
+            .filter(|n| self.outbox.iter().any(|i| *i.name == **n))
+            .collect();
+        if names.is_empty() {
+            return;
+        }
+        self.visit.set_out(names);
+        self.visit.inbox_pick_none();
+        self.visit.set_settings(Some(false));
+        self.visit.set_signed_end(true);
+        self.visit_write_ask();
+        if self.sheet != Some(Sheet::Taken) {
+            self.visit.set_settings(None);
+        }
+    }
+
     /// The visit's Write: the sheet first when a file's name is taken and
     /// the choice decides what becomes of it; otherwise written at once.
     ///
@@ -1083,11 +1233,8 @@ impl Faraday {
         };
         let id = stick.id.clone();
         let label = stick.label.clone();
-        // A stick is told from another by its FAT volume serial; a folder
-        // the shell lists has none, and is told by where it is.
-        let identity = match stick.serial {
-            Some(s) => text!("{s:08x}"),
-            None => text!("id:{}", &*stick.id),
+        let Some(identity) = self.visit_stick_identity() else {
+            return;
         };
         self.visit.log_clear();
         self.name_taken_wrote_clear();
@@ -1631,7 +1778,14 @@ impl Faraday {
                 self.act(Action::Nav(Screen::Files));
             }
             Action::VisitCopyAndSign => {
-                self.visit.set_sign_stick(self.visit_sign_file());
+                let sign = self.visit_sign_file();
+                // Only the PSBT the label names comes in.
+                if let Some(name) = &sign {
+                    self.visit.set_inn([name]);
+                }
+                self.visit.set_sign_stick(sign);
+                let from = self.visit_stick_identity();
+                self.visit.set_sign_from(from);
                 self.visit_copy();
             }
             Action::VisitFrom(back) => {
@@ -1817,14 +1971,24 @@ impl Faraday {
         out
     }
 
+    /// Keeps [`Self::visit_sign_file`] for the frame to read; costs a walk
+    /// of the stick's file names, without a copy of them.
+    pub(crate) fn visit_sign_refresh(&mut self) {
+        let now = self.visit_sign_file();
+        if now.as_deref() != self.visit.sign_file().map(|t| &**t) {
+            self.visit.set_sign_file(now);
+        }
+    }
+
     /// The one PSBT on the stick on show, when it is ticked to come in
     /// and the stick holds no other: "Import and sign" names it.
     pub(crate) fn visit_sign_file(&self) -> Option<Text> {
         let stick = self.stick.get(self.visit.stick)?;
-        let mut psbts = stick
-            .files
-            .iter()
-            .filter(|(n, _)| Text::ascii_lowercase(n).ends_with(".psbt"));
+        let mut psbts = stick.files.iter().filter(|(n, _)| {
+            n.len()
+                .checked_sub(5)
+                .is_some_and(|at| n.as_bytes()[at..].eq_ignore_ascii_case(b".psbt"))
+        });
         let (name, _) = psbts.next()?;
         if psbts.next().is_some() || !self.visit.inn.contains(&**name) {
             return None;

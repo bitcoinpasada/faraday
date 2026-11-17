@@ -1080,6 +1080,19 @@ impl Faraday {
     }
 
     fn act_noted(&mut self, action: Action) {
+        self.act_dealt(action);
+        // "Lock and write" waits only while its lock is: on the sheet
+        // that asks, or under way. Any other way past is giving it up.
+        if self.visit.lock_to_write().is_some()
+            && !self.restart
+            && !self.sealing()
+            && !matches!(self.sheet, Some(Sheet::Lock | Sheet::LockAsk))
+        {
+            self.visit.set_lock_to_write(None);
+        }
+    }
+
+    fn act_dealt(&mut self, action: Action) {
         if !self.taken_synced(action) || self.seed_gate(action) {
             return;
         }
@@ -1154,7 +1167,7 @@ impl Faraday {
             Action::Cancel if self.sweep_scanning() => self.sweep_back(),
             Action::Cancel => {
                 // A lock cancelled writes nothing by itself later.
-                self.visit.set_lock_to_write(false);
+                self.visit.set_lock_to_write(None);
                 self.read_again_cancel();
                 self.vault_rekey_cancel();
                 self.visit.clear_pull();

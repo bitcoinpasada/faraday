@@ -111,13 +111,19 @@ pub(crate) fn storage_event(app: &mut Faraday, event: StorageEvent) {
                         &[&item.name, app.medium.noun()],
                     )
                 });
+                // The stick's own file name, not the Inbox name a rename
+                // gave it.
                 let sign = item.kind == FileKind::Psbt
-                    && app.visit.sign_stick().is_some_and(|n| **n == *item.name);
+                    && app.visit.sign_stick().is_some_and(|n| **n == *name);
+                let sign_name = app.visit.sign_stick().cloned();
+                let sign_from = app.visit.sign_from().cloned();
                 app.inbox.push(item);
                 if sign {
                     // "Import and sign": the review, not a trip through Files.
                     let k = app.inbox.len().saturating_sub(1);
                     app.act(crate::Action::StartSpend(k));
+                    app.visit.set_sign_stick(sign_name);
+                    app.visit.set_sign_from(sign_from);
                 }
                 if let Some(line) = line {
                     app.visit.log_push((line, true));
@@ -395,6 +401,7 @@ pub(crate) fn sticks_changed(app: &mut Faraday, sticks: Vec<StickInfo>) {
         app.stick.set_not_now(false);
         if app.sheet == Some(Sheet::Lock) {
             app.sheet = None;
+            app.visit.set_lock_to_write(None);
         }
         // A passphrase waiting on the stick takes typing now.
         if app.screen == Screen::Unlock
@@ -481,6 +488,7 @@ pub(crate) fn stick_arrived(app: &mut Faraday) {
     let first_look = app.stick.settings().is_none();
     let boot = app.stick.iter().find(|s| s.boot).cloned();
     if !app.clean() {
+        app.visit.set_write_waiting(None);
         app.stick.set_not_now(false);
         app.lock_sheet_replaces_devices();
     } else {
@@ -511,13 +519,7 @@ pub(crate) fn stick_arrived(app: &mut Faraday) {
         }
         // "Lock and write" was pressed before the lock: the files For the
         // stick are written to the stick that came, and read back.
-        if app.visit.write_waiting() {
-            app.visit.set_write_waiting(false);
-            if !app.visit.out.is_empty() {
-                app.visit.set_signed_end(true);
-                app.visit_write_ask();
-            }
-        }
+        app.visit_write_waiting();
         if first_look
             && app.import.state().is_none()
             && let Some(b) = boot.as_ref()

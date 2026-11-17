@@ -736,6 +736,7 @@ impl Faraday {
         if self.sheet == Some(Sheet::LockAsk) {
             self.vaults.name_lock_seen();
         }
+        self.visit_sign_refresh();
         self.vault_code_refresh();
         self.vault_codes_refresh();
         self.codex32_refit();

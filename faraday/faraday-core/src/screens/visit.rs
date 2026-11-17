@@ -94,7 +94,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // What is left to do: pull the stick, and where the copied files went.
     y += crate::vault::screen::stick_banner(ui, x, y, w, &pull_line(app));
     if signed_end(app) {
-        y += super::spend::end_card(app, ui, (x, y, w), false, false) + GAP_SMALL;
+        y += super::spend::end_card(app, ui, (x, y, w), 0) + GAP_SMALL;
     }
     if let Some((line, _)) = app.visit.unprotected_of(&stick.id) {
         y += ui.wrap_as((x, y, w), BODY_M, Role::Error, line) + GAP_SMALL;
@@ -241,7 +241,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ],
     );
     y += 6.0;
-    let sign = app.visit_sign_file();
+    let sign = app.visit.sign_file().cloned();
     let sign_label = sign
         .as_ref()
         .map(|n| Text::fill(EN.visit_import_and_sign, &[n]));
@@ -1045,7 +1045,6 @@ fn main_action(app: &View, k: usize, item: &crate::Item) -> Option<(Text, Style,
         .map(|(label, style, action)| (Text::of(&label), style, action))
 }
 
-/// A file's kind and its size, as a visit's row says them.
 /// Whether the files written by "Lock and write" are on the stick and
 /// checked: the page ends on the card Finish has.
 fn signed_end(app: &View) -> bool {
@@ -1056,7 +1055,7 @@ fn signed_end(app: &View) -> bool {
 /// stick, Import and sign it, right-aligned at `(right, y)`. Returns its
 /// width.
 fn import_primary(app: &View, ui: &mut Ui, (right, y): (f32, f32), colw: f32, on: bool) -> f32 {
-    let sign = app.visit_sign_file();
+    let sign = app.visit.sign_file().cloned();
     let sign_label = sign
         .as_ref()
         .map(|n| Text::fill(EN.visit_import_and_sign, &[n]));
@@ -1092,10 +1091,11 @@ fn end_room(app: &View) -> f32 {
 /// The end card's buttons on the wide page, once the files are written.
 fn end_row(app: &View, ui: &mut Ui, at: (f32, f32, f32)) {
     if signed_end(app) {
-        super::spend::end_card(app, ui, at, false, false);
+        super::spend::end_card(app, ui, at, 0);
     }
 }
 
+/// A file's kind and its size, as a visit's row says them.
 fn kind_and_size(kind: &str, size: u64) -> Text {
     let mut out = Text::of(kind);
     out.push_str(" · ");

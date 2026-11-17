@@ -156,12 +156,27 @@ fn a_second_spends_remove_takes_off_its_own_file() {
 
 /// Spending, signed and finished here with test key 1.
 fn spending_finished() -> Faraday {
+    spending_finished_with(Vec::new())
+}
+
+/// As [`spending_finished`], with other files already waiting For the stick.
+fn spending_finished_with(waiting: Vec<(&str, Vec<u8>)>) -> Faraday {
     let k = kit("spending");
     let psbt = testkit::unsigned(&k).unwrap();
-    let mut app = with_inbox(vec![
-        ("spend.psbt".to_string(), psbt.to_bytes()),
-        ("spending-wallet.txt".to_string(), k.descriptor.into_bytes()),
-    ]);
+    let mut app = faraday_core::testkit::started();
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![
+            ("spend.psbt".to_string(), psbt.to_bytes()),
+            ("spending-wallet.txt".to_string(), k.descriptor.into_bytes()),
+        ]),
+        outbox: faraday_core::files_from(
+            waiting
+                .into_iter()
+                .map(|(n, b)| (n.to_string(), b))
+                .collect::<Vec<_>>(),
+        ),
+        kept: Vec::new(),
+    });
     let wallet_at = at(&app, "spending-wallet.txt");
     testkit::load_wallet(&mut app, wallet_at);
     add_key(&mut app, "bacon");
@@ -1036,21 +1051,73 @@ fn finish_offers_a_qr_of_each_result_and_lock_and_write() {
     }
 }
 
-/// "Lock and write": the lock keeps the signed files, and the stick that
-/// comes back to the next process is written and read back, with no visit
-/// to Files; the page then ends on the end card.
-#[test]
-fn lock_and_write_writes_the_signed_files_when_the_stick_returns() {
-    let mut app = spending_finished();
-    app.press(Action::Primary);
-    app.press(Action::Lock);
+/// The finished spend with an open vault holding a change: Lock asks first.
+fn finished_with_vault_change() -> Faraday {
+    let k = kit("spending");
+    let psbt = testkit::unsigned(&k).unwrap();
+    let mut app = faraday_core::testkit::started();
+    app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    testkit::vault_speed(&mut app, Some(100));
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![
+            ("spend.psbt".to_string(), psbt.to_bytes()),
+            ("spending-wallet.txt".to_string(), k.descriptor.into_bytes()),
+            ("vault.kdbx".to_string(), testkit::test_vault().unwrap()),
+        ]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.press(Action::Vault(faraday_core::vault::VaultAction::Open(0)));
+    crate::common::type_text(&mut app, testkit::VAULT_PASSPHRASE);
+    app.press(Action::Vault(faraday_core::vault::VaultAction::Unlock));
+    for t in 1..60u64 {
+        if !app.vaults().open.is_empty() {
+            break;
+        }
+        let _ = app.frame();
+        app.event(faraday_shell_api::Event::Tick { now_ms: t * 1000 });
+    }
+    assert_eq!(app.vaults().open.len(), 1, "the vault did not open");
+    let wallet_at = at(&app, "spending-wallet.txt");
+    testkit::load_wallet(&mut app, wallet_at);
+    add_key(&mut app, "bacon");
+    app.press(Action::StartSpend(at(&app, "spend.psbt")));
+    testkit::steps_before_sign_done(&mut app);
+    app.press(Action::SignHere);
+    assert!(app.spend().unwrap().spend.finished.is_some());
+    let key = app.session.keys.len() - 1;
+    app.press(Action::Vault(faraday_core::vault::VaultAction::SaveKey(
+        key,
+    )));
+    assert!(
+        app.vaults().open[0].changes > 0,
+        "the vault was not changed"
+    );
+    app
+}
+
+/// What the last lock kept: the Outbox and the memory.
+fn the_lock_kept(app: &mut Faraday) -> (faraday_core::Kept, faraday_core::Kept) {
     let mut saved = None;
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::SaveBoxes { outbox, kept, .. } = c {
             saved = Some((outbox, kept));
         }
     }
-    let (outbox, kept) = saved.expect("the lock kept the boxes");
+    saved.expect("the lock kept the boxes")
+}
+
+/// Whether the memory a lock kept holds a write waiting for the next stick.
+fn keeps_a_write(kept: &faraday_core::Kept) -> bool {
+    faraday_core::testkit::plain_kept(kept.clone())
+        .iter()
+        .any(|(n, _)| n == "write-waiting")
+}
+
+/// The next process: restored from what the lock kept.
+fn restarted(outbox: faraday_core::Kept, kept: faraday_core::Kept) -> Faraday {
     let mut next = faraday_core::testkit::started();
     next.storage(StorageEvent::Restored {
         inbox: Vec::new(),
@@ -1058,29 +1125,321 @@ fn lock_and_write_writes_the_signed_files_when_the_stick_returns() {
         kept,
     });
     while next.poll_storage().is_some() {}
-    next.storage(StorageEvent::Sticks(vec![a_stick(Vec::new())]));
+    next
+}
+
+/// The names written by the commands the app has queued.
+fn writes_queued(app: &mut Faraday) -> Vec<String> {
     let mut wrote = Vec::new();
-    while let Some(c) = next.poll_storage() {
+    while let Some(c) = app.poll_storage() {
         if let StorageCommand::Write { name, .. } = c {
             wrote.push(name.to_string());
         }
     }
-    assert!(wrote.iter().any(|n| n == "spend-signed.psbt"), "{wrote:?}");
-    assert!(wrote.iter().any(|n| n == "spend-final.txn"), "{wrote:?}");
+    wrote
 }
 
-/// A lock cancelled writes nothing by itself when a later lock comes.
+/// The finished spend with a vault open: the stick `T` is in, and Lock and
+/// write is asked, the sheet up.
+fn lock_asking() -> Faraday {
+    let mut app = finished_with_vault_change();
+    app.storage(StorageEvent::Sticks(vec![a_stick(Vec::new())]));
+    app.press(Action::NotNow);
+    app.press(Action::Primary);
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::LockAsk));
+    app
+}
+
+/// The stick pulled and put back while the lock asks: the Lock sheet takes
+/// its place.
+fn lock_sheet_up() -> Faraday {
+    let mut app = lock_asking();
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    app.storage(StorageEvent::Sticks(vec![a_stick(Vec::new())]));
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::Lock));
+    app
+}
+
+/// A later lock keeps no write for the next stick.
+fn a_later_lock_keeps_no_write(app: &mut Faraday) {
+    while app.poll_storage().is_some() {}
+    app.press(Action::LockUnsealed);
+    let (_, kept) = the_lock_kept(app);
+    assert!(!keeps_a_write(&kept));
+}
+
+/// A lock that asks, answered with Cancel, writes nothing by itself when a
+/// later lock comes.
 #[test]
 fn a_cancelled_lock_and_write_does_not_write_at_a_later_lock() {
+    let mut app = lock_asking();
+    app.press(Action::Cancel);
+    assert_eq!(app.sheet, None);
+    a_later_lock_keeps_no_write(&mut app);
+}
+
+/// The lock asks, the stick is put in, and Not now on the Lock sheet gives
+/// the write up.
+#[test]
+fn not_now_on_the_lock_sheet_gives_the_write_up() {
+    let mut app = lock_sheet_up();
+    app.press(Action::NotNow);
+    assert_eq!(app.sheet, None);
+    a_later_lock_keeps_no_write(&mut app);
+}
+
+/// The Lock sheet's scan as a QR code gives the write up too.
+#[test]
+fn the_lock_sheets_scan_gives_the_write_up() {
+    let mut app = lock_sheet_up();
+    app.press(Action::ScanFor(faraday_core::Ask::SpendPsbt));
+    a_later_lock_keeps_no_write(&mut app);
+}
+
+/// A stick pulled with the Lock sheet up gives the write up.
+#[test]
+fn a_stick_pulled_with_the_lock_sheet_up_gives_the_write_up() {
+    let mut app = lock_sheet_up();
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    assert_eq!(app.sheet, None);
+    a_later_lock_keeps_no_write(&mut app);
+}
+
+/// A write waiting in the next process is not carried over a plain lock.
+#[test]
+fn a_restored_write_waiting_is_not_kept_by_a_plain_lock() {
+    let mut app = spending_finished();
+    app.storage(StorageEvent::Sticks(vec![a_stick(Vec::new())]));
+    app.press(Action::Primary);
+    app.press(Action::Lock);
+    let (outbox, kept) = the_lock_kept(&mut app);
+    assert!(keeps_a_write(&kept));
+    let mut next = restarted(outbox, kept);
+    add_key(&mut next, "bacon");
+    next.press(Action::Lock);
+    let (_, kept) = the_lock_kept(&mut next);
+    assert!(!keeps_a_write(&kept));
+}
+
+/// Import and sign, pull the stick to load the key, sign, Lock and write
+/// with no stick in: the stick the PSBT came from is written, and another
+/// stick that comes first is not.
+#[test]
+fn lock_and_write_goes_to_the_stick_the_psbt_came_from() {
+    let k = kit("spending");
+    let files = vec![("spend.psbt", testkit::unsigned(&k).unwrap().to_bytes())];
+    let mut app = with_inbox(vec![(
+        "spending-wallet.txt".to_string(),
+        k.descriptor.clone().into_bytes(),
+    )]);
+    testkit::load_wallet(&mut app, 0);
+    app.storage(StorageEvent::Sticks(vec![a_stick(files.clone())]));
+    app.press(Action::VisitCopyAndSign);
+    answer_reads(&mut app, &files);
+    testkit::settle(&mut app);
+    assert_eq!(app.screen, Screen::Spend);
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    add_key(&mut app, "bacon");
+    testkit::steps_before_sign_done(&mut app);
+    app.press(Action::SignHere);
+    app.press(Action::Primary);
+    app.press(Action::Lock);
+    let (outbox, kept) = the_lock_kept(&mut app);
+    assert!(keeps_a_write(&kept));
+
+    let mut other = restarted(outbox.clone(), kept.clone());
+    let mut elsewhere = a_stick(Vec::new());
+    elsewhere.id = faraday_text::Text::of("U");
+    other.storage(StorageEvent::Sticks(vec![elsewhere]));
+    assert!(writes_queued(&mut other).is_empty());
+
+    let mut next = restarted(outbox, kept);
+    next.storage(StorageEvent::Sticks(vec![a_stick(Vec::new())]));
+    let mut wrote = writes_queued(&mut next);
+    wrote.sort();
+    assert_eq!(wrote, ["spend-final.txn", "spend-signed.psbt"]);
+}
+
+/// A spend finished with no stick in and no Import and sign keeps no write,
+/// and a stick put in next is not written with the spend's files.
+#[test]
+fn lock_and_write_with_no_stick_and_no_import_keeps_nothing() {
     let mut app = spending_finished();
     app.press(Action::Primary);
-    app.press(Action::Cancel);
     app.press(Action::Lock);
-    let mut kept = Vec::new();
-    while let Some(c) = app.poll_storage() {
-        if let StorageCommand::SaveBoxes { kept: k, .. } = c {
-            kept = faraday_core::testkit::plain_kept(k);
+    let (outbox, kept) = the_lock_kept(&mut app);
+    assert!(!keeps_a_write(&kept));
+    let mut next = restarted(outbox, kept);
+    next.storage(StorageEvent::Sticks(vec![a_stick(Vec::new())]));
+    assert!(writes_queued(&mut next).is_empty());
+}
+
+/// Import and sign from a stick, then a new spend from the Inbox finished
+/// with no stick in: that first stick is not written with the new spend's
+/// files.
+#[test]
+fn a_later_spend_is_not_written_to_the_stick_of_an_earlier_import_and_sign() {
+    let k = kit("spending");
+    let files = vec![("spend.psbt", testkit::unsigned(&k).unwrap().to_bytes())];
+    let mut app = with_inbox(vec![(
+        "spending-wallet.txt".to_string(),
+        k.descriptor.clone().into_bytes(),
+    )]);
+    testkit::load_wallet(&mut app, 0);
+    app.storage(StorageEvent::Sticks(vec![a_stick(files.clone())]));
+    app.press(Action::VisitCopyAndSign);
+    answer_reads(&mut app, &files);
+    testkit::settle(&mut app);
+    assert_eq!(app.screen, Screen::Spend);
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    add_key(&mut app, "bacon");
+    app.press(Action::StartSpend(at(&app, "spend.psbt")));
+    testkit::steps_before_sign_done(&mut app);
+    app.press(Action::SignHere);
+    app.press(Action::Primary);
+    app.press(Action::Lock);
+    let (outbox, kept) = the_lock_kept(&mut app);
+    assert!(!keeps_a_write(&kept));
+    let mut next = restarted(outbox, kept);
+    next.storage(StorageEvent::Sticks(vec![a_stick(Vec::new())]));
+    assert!(writes_queued(&mut next).is_empty());
+}
+
+/// Import and sign lands on Spend when the Inbox already holds a file of
+/// the stick's file name with other bytes.
+#[test]
+fn import_and_sign_lands_on_spend_beside_an_inbox_file_of_its_name() {
+    let k = kit("spending");
+    let files = vec![("spend.psbt", testkit::unsigned(&k).unwrap().to_bytes())];
+    let mut app = with_inbox(vec![
+        (
+            "spending-wallet.txt".to_string(),
+            k.descriptor.clone().into_bytes(),
+        ),
+        ("spend.psbt".to_string(), b"another file".to_vec()),
+    ]);
+    let wallet_at = at(&app, "spending-wallet.txt");
+    testkit::load_wallet(&mut app, wallet_at);
+    app.storage(StorageEvent::Sticks(vec![a_stick(files.clone())]));
+    app.press(Action::VisitCopyAndSign);
+    answer_reads(&mut app, &files);
+    testkit::settle(&mut app);
+    assert_eq!(app.screen, Screen::Spend);
+}
+
+/// A stick is told by its FAT serial where it has one: the same serial
+/// under another id is the same stick, another serial is not.
+#[test]
+fn lock_and_write_tells_a_stick_by_its_serial() {
+    let mut app = spending_finished();
+    let mut here = a_stick(Vec::new());
+    here.serial = Some(0xABCD_0123);
+    app.storage(StorageEvent::Sticks(vec![here]));
+    app.press(Action::Primary);
+    app.press(Action::Lock);
+    let (outbox, kept) = the_lock_kept(&mut app);
+    let mut wrong = restarted(outbox.clone(), kept.clone());
+    let mut other = a_stick(Vec::new());
+    other.serial = Some(0x1234_5678);
+    wrong.storage(StorageEvent::Sticks(vec![other]));
+    assert!(writes_queued(&mut wrong).is_empty());
+    let mut right = restarted(outbox, kept);
+    let mut same = a_stick(Vec::new());
+    same.serial = Some(0xABCD_0123);
+    same.id = faraday_text::Text::of("moved-to-another-port");
+    right.storage(StorageEvent::Sticks(vec![same]));
+    assert_eq!(writes_queued(&mut right).len(), 2);
+}
+
+/// "Lock and write": only the spend's own two files go, to the stick that
+/// was in, and are read back; any other stick has the ordinary visit, and a
+/// stick that comes into a process that is not clean gets the Lock sheet.
+#[test]
+fn lock_and_write_writes_exactly_the_spends_files_to_its_stick() {
+    let mut app = spending_finished_with(vec![
+        ("other.psbt", b"another transaction".to_vec()),
+        ("export.txt", b"an export".to_vec()),
+    ]);
+    app.storage(StorageEvent::Sticks(vec![a_stick(Vec::new())]));
+    app.press(Action::Primary);
+    app.press(Action::Lock);
+    let (outbox, kept) = the_lock_kept(&mut app);
+    assert!(keeps_a_write(&kept));
+
+    // Another stick is not written by itself.
+    let mut other = restarted(outbox.clone(), kept.clone());
+    let mut elsewhere = a_stick(Vec::new());
+    elsewhere.id = faraday_text::Text::of("U");
+    other.storage(StorageEvent::Sticks(vec![elsewhere]));
+    assert!(writes_queued(&mut other).is_empty());
+
+    // The stick that was in is, and only with the spend's files.
+    let mut next = restarted(outbox.clone(), kept.clone());
+    next.storage(StorageEvent::Sticks(vec![a_stick(Vec::new())]));
+    let mut wrote = Vec::new();
+    while let Some(c) = next.poll_storage() {
+        if let StorageCommand::Write { stick, name, .. } = c {
+            wrote.push(name.to_string());
+            next.storage(StorageEvent::Written {
+                stick,
+                wrote_as: name.clone(),
+                name,
+            });
         }
     }
-    assert!(kept.iter().all(|(n, _)| n != "write-waiting"), "{kept:?}");
+    wrote.sort();
+    assert_eq!(wrote, ["spend-final.txn", "spend-signed.psbt"]);
+    let _ = next.frame();
+    let texts = next.drawn_texts();
+    for want in ["Sign another", "Power off"] {
+        assert!(texts.iter().any(|t| t == want), "{want}: {texts:?}");
+    }
+    // It was acted on: a second stick is not written.
+    let mut second = a_stick(Vec::new());
+    second.id = faraday_text::Text::of("V");
+    next.storage(StorageEvent::Sticks(vec![a_stick(Vec::new()), second]));
+    assert!(writes_queued(&mut next).is_empty());
+
+    // A process that is not clean asks to lock, and writes nothing.
+    let mut busy = restarted(outbox, kept);
+    add_key(&mut busy, "bacon");
+    busy.storage(StorageEvent::Sticks(vec![a_stick(Vec::new())]));
+    assert_eq!(busy.sheet, Some(faraday_core::Sheet::Lock));
+    assert!(writes_queued(&mut busy).is_empty());
+}
+
+/// After Remove of a result, the end card no longer says it waits.
+#[test]
+fn the_end_card_counts_only_what_is_still_waiting() {
+    let mut app = spending_finished();
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == "2 files wait for the stick"),
+        "{texts:?}"
+    );
+    let first = app
+        .outbox
+        .iter()
+        .position(|i| i.name == "spend-signed.psbt")
+        .unwrap();
+    app.press(Action::OutboxRemove(first));
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == "1 file waits for the stick"),
+        "{texts:?}"
+    );
+    let last = app
+        .outbox
+        .iter()
+        .position(|i| i.name == "spend-final.txn")
+        .unwrap();
+    app.press(Action::OutboxRemove(last));
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert!(
+        !texts.iter().any(|t| t == "Lock and write to the stick"),
+        "{texts:?}"
+    );
 }

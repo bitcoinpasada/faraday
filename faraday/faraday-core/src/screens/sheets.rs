@@ -604,7 +604,8 @@ pub(super) fn lock_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     };
     let line = Text::fill(EN.lock_nothing_has_been, &[label]);
     let mut actions = vec![(EN.lock_not_now, Style::Secondary, Action::NotNow)];
-    if !app.cameras().is_empty() {
+    // "It" is the PSBT a spend waits for: only a stick brought for one.
+    if !app.cameras().is_empty() && app.wallets.spend().is_some() {
         actions.push((
             EN.lock_scan_instead,
             Style::Secondary,

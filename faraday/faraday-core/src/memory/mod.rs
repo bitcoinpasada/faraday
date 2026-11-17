@@ -443,8 +443,10 @@ impl Faraday {
             out.push(("renamed".to_string(), names.join("\n").into_bytes()));
         }
         // "Lock and write": the next stick is written to when it arrives.
-        if self.visit.write_waiting() || self.visit.lock_to_write() {
-            out.push(("write-waiting".to_string(), b"1".to_vec()));
+        // Only from the lock that was "Lock and write": a write waiting
+        // in this process is not carried over a later lock.
+        if let Some(what) = self.visit.lock_to_write() {
+            out.push(("write-waiting".to_string(), what.encode()));
         }
         // What each picture in the Inbox holds: the next process does not
         // decode it, and only the disk process could.
@@ -585,7 +587,9 @@ impl Faraday {
                             .collect::<Vec<String>>(),
                     );
                 }
-                "write-waiting" => self.visit.set_write_waiting(true),
+                "write-waiting" => self
+                    .visit
+                    .set_write_waiting(crate::stick::visit_taken::WriteWait::decode(bytes)),
                 "backup-flow" => self.flow_restore(bytes),
                 "backup-gate" => gate = Some(bytes),
                 "backups" => self.backups_area.set_records(crate::backups::decode(bytes)),

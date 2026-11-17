@@ -4413,6 +4413,10 @@ impl Faraday {
                 self.wallets.clear_spend();
             }
             Action::StartSpend(i) => {
+                // A spend from anywhere but the stick's "Import and sign"
+                // has no sequence of its own (that read sets it after).
+                self.visit.set_sign_stick(None);
+                self.visit.set_sign_from(None);
                 crate::signing::read::start_spend(self, i, crate::signing::read::Then::Spend);
             }
             Action::Step(n) => {

@@ -45,7 +45,7 @@ The wallet's addresses **Receive 0/0**, **Receive 0/1** and **Change 1/0**, for 
 
 Shown for a wallet of several keys. Each key is listed with its fingerprint and marked **Signs here** when it is loaded on this device, or **Not here**. The count says how many keys are here against how many must sign.
 
-**Load from vault** loads a key that an open vault holds. **Load with a passphrase** loads a seed kept without the passphrase this wallet uses. When too few keys are here, **Scan a key**, **Unlock** with a vault's name, and **Collect a signature** are offered. Keys cannot be loaded while a stick is attached: the routes read **Pull the stick to load a key**. A spend that came from a stick says which of its four steps it is at. **Continue** goes to the next card.
+**Load from vault** loads a key that an open vault holds. **Load with a passphrase** loads a seed kept without the passphrase this wallet uses. When too few keys are here, **Scan a key**, **Unlock** with a vault's name, and **Collect a signature** are offered. Keys cannot be loaded while a stick is attached. A spend that came from a stick says which of its four steps it is at: **Step 1 of 4 · Pull the stick**, **Step 2 of 4 · Load the key**, **Step 3 of 4 · Sign** and **Step 4 of 4 · Write to the stick**. **Continue** goes to the next card.
 
 ## Nonces
 

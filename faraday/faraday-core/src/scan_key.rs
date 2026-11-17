@@ -594,6 +594,12 @@ impl Faraday {
                 }
             }
             Action::Scan | Action::ScanFor(_) => {
+                // The Lock sheet's scan is a way past it, as Not now is.
+                if self.sheet == Some(Sheet::Lock) {
+                    self.visit.set_lock_to_write(None);
+                    self.next_mode.clear();
+                    self.stick.set_not_now(true);
+                }
                 let mut scan = ScanState::default();
                 if let Action::ScanFor(ask) = action {
                     scan.ask = ask;

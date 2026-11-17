@@ -340,14 +340,7 @@ fn sequence_line(app: &View) -> Option<Text> {
 
 /// The end of a signing: what waits for the stick, and what to do next:
 /// another transaction, lock, power off. Returns its height.
-pub(super) fn end_card(
-    app: &View,
-    ui: &mut Ui,
-    (x, y, w): (f32, f32, f32),
-    signed: bool,
-    tx: bool,
-) -> f32 {
-    let waits = usize::from(signed) + usize::from(tx);
+pub(super) fn end_card(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), waits: usize) -> f32 {
     let mut cy = y + GAP_SMALL;
     if waits > 0 {
         let noun = app.medium.noun();
@@ -500,7 +493,7 @@ fn spend_status(app: &View, needed: usize) -> (usize, usize, Text, ActionLabel, 
         && crate::review::review_stop(i, &s.held).is_some();
     let need_line = if stopped {
         Text::fill(EN.spend_status_stopped, &[EN.app_transaction])
-    } else if s.spend.finished.is_some() && s.out_signed && s.out_tx {
+    } else if s.spend.finished.is_some() && app.spend_outbox_names().len() == 2 {
         Text::fill(EN.spend_status_both_wait, &[app.medium.for_the()])
     } else if missing == 0 {
         Text::of(EN.spend_status_complete)
@@ -522,7 +515,7 @@ fn spend_status(app: &View, needed: usize) -> (usize, usize, Text, ActionLabel, 
     } else if s.spend.finished.is_some() {
         // Files wait For the stick: one press locks and writes them when
         // it is in. Nothing waits: the next transaction.
-        if s.out_signed || s.out_tx {
+        if !app.spend_outbox_names().is_empty() {
             Text::fill(EN.spend_status_lock_write, &[app.medium.noun()])
         } else {
             Text::of(EN.spend_status_sign_another)
@@ -2090,7 +2083,7 @@ impl StepView<'_> {
                 ui.stroke(x, cy, w, th + 20.0, 8.0, Role::OutlineVariant);
                 cy += th + 32.0;
             }
-            cy += end_card(app, ui, (x, cy, w), s.out_signed, s.out_tx);
+            cy += end_card(app, ui, (x, cy, w), app.spend_outbox_names().len());
         }
         cy
     }

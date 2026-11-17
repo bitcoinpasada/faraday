@@ -1086,10 +1086,12 @@ impl Faraday {
             .iter()
             .any(|fp| self.session.keys.key_label(*fp).is_some() && s.to_sign.contains(&fp.0));
         if s.spend.finished.is_some() && s.reviewed_now() {
-            if s.out_signed || s.out_tx {
-                // Files wait For the stick at Finish: the lock keeps them,
-                // and the stick, when it is in, is written and checked.
-                self.visit.set_lock_to_write(true);
+            if !self.spend_outbox_names().is_empty() {
+                // Files wait For the stick at Finish: the lock keeps their
+                // names and the stick they go to, which is written and
+                // checked when it comes; with no stick named, nothing is
+                // written by itself.
+                self.visit.set_lock_to_write(self.spend_write_plan());
                 self.lock_ask(false);
             } else {
                 self.screen = Screen::Files;

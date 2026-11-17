@@ -12,6 +12,7 @@ use faraday_shell_api::{App, Event};
 /// scrolls as one.
 pub(crate) fn visit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::wallet::classify;
+    import_and_sign(t)?;
     let stem = "family-savings";
     let mut names: Vec<String> = [
         "descriptor.txt",
@@ -176,4 +177,23 @@ fn unprotected(t: &mut Tour) -> Result<(), String> {
         scroll_to(t, Action::DeleteUnprotected);
     }
     t.shot("visit-unprotected")
+}
+
+/// A stick holding one PSBT, in a clean process: the stick's pane offers
+/// Import and sign with the file's name.
+fn import_and_sign(t: &mut Tour) -> Result<(), String> {
+    t.app
+        .storage(StorageEvent::Sticks(vec![faraday_core::StickInfo {
+            make: Default::default(),
+            serial: None,
+            id: faraday_text::Text::of("one-psbt"),
+            label: faraday_text::Text::of("TESTSTICK"),
+            boot: false,
+            files: vec![(faraday_text::Text::of("payment.psbt"), 1400)],
+            vaults: Vec::new(),
+        }]));
+    t.press(Action::Nav(Screen::Files));
+    t.shot("visit-import-and-sign")?;
+    t.sticks(false);
+    Ok(())
 }
