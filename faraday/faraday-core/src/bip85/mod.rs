@@ -595,7 +595,7 @@ impl Faraday {
                     Some(of) => r.with(field::KEY_CHILD, &of),
                     None => r,
                 };
-                self.marked_online(r)
+                self.marked_online(b.key.map(faraday_bip::keys::Fingerprint), r)
             }
             _ => {
                 let note = text!("{}\n{}\n{}", title.as_str(), path.as_str(), value.as_str());

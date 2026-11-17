@@ -1012,7 +1012,33 @@ impl Keys {
             }
             out.push(fp);
         }
+        // A child read before its parent in this load missed the parent's
+        // marks: carry them on until nothing changes.
+        self.carry_child_marks();
         (out, crate::job::Derived(derived), refused)
+    }
+
+    /// Notes each recorded child as published or made online when its
+    /// parent is, however the two were ordered when loaded.
+    fn carry_child_marks(&mut self) {
+        loop {
+            let before = (self.published_children.len(), self.made_online.len());
+            let pairs: Vec<(Fingerprint, Fingerprint)> = self
+                .entries
+                .iter()
+                .filter_map(|e| {
+                    e.info
+                        .child_of
+                        .map(|o| (Fingerprint(o.parent), e.info.fingerprint))
+                })
+                .collect();
+            for (parent, child) in pairs {
+                self.note_child(parent, child);
+            }
+            if before == (self.published_children.len(), self.made_online.len()) {
+                break;
+            }
+        }
     }
 
     /// Costs what `add_words_with` costs. Adds the key key `i`'s words and
@@ -1034,7 +1060,13 @@ impl Keys {
             .get(i)
             .and_then(|e| e.key.words.clone())
             .ok_or_else(|| Refusal::Words(Text::of("")))?;
-        self.add_words_with(c, &words, passphrase, label, None)
+        let online = self.made_online(self.entries[i].info.fingerprint);
+        let fp = self.add_words_with(c, &words, passphrase, label, None)?;
+        // The same words, written on an online computer: so is this key.
+        if online {
+            self.note_made_online(fp);
+        }
+        Ok(fp)
     }
 
     /// Costs what `add_with_passphrase` costs. Adds the key key `i`'s
@@ -1068,7 +1100,13 @@ impl Keys {
         let lang = self.entries[i].info.language;
         let m = Mnemonic::parse(c, lang, &words)
             .map_err(|e| Refusal::Words(faraday_strings::bip::bip39_error(&e)))?;
-        self.add_mnemonic(c, &m, &passphrase, label, None)
+        let online = self.made_online(self.entries[i].info.fingerprint);
+        let fp = self.add_mnemonic(c, &m, &passphrase, label, None)?;
+        // The same words, written on an online computer: so is this key.
+        if online {
+            self.note_made_online(fp);
+        }
+        Ok(fp)
     }
 
     /// Drops key `i`.

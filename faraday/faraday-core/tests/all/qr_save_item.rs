@@ -428,3 +428,12 @@ fn the_desktop_app_does_not_seal_a_seed_into_a_qr_vault() {
     assert!(texts.contains(EN.vault_qr_online_no), "{texts}");
     assert!(qr_tool::state(&app).is_none());
 }
+
+#[test]
+fn the_desktop_app_does_not_seal_a_codex32_share_into_a_qr_vault() {
+    let mut app = opened(vec![share()]);
+    app.online = true;
+    let texts = dialog(&mut app, KEYS);
+    assert!(texts.contains(EN.vault_qr_online_no), "{texts}");
+    assert!(qr_tool::state(&app).is_none());
+}

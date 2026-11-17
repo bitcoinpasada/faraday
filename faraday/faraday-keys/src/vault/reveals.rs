@@ -713,6 +713,10 @@ impl OpenVaults {
                     .map(|(_, t)| t.as_str())
                     .collect();
                 keys.keep_codex32(c, k, &texts);
+                // Shares an online computer wrote mark the key already loaded.
+                if online {
+                    keys.note_made_online(Fingerprint(fp));
+                }
                 continue;
             }
             let Some((first, _)) = list.first() else {
@@ -942,11 +946,11 @@ impl OpenVaults {
                         texts.push(t.clone());
                     }
                 }
-                found = Some((texts, seed));
+                found = Some((texts, seed, fp));
                 break;
             }
         }
-        let Some((texts, seed)) = found else {
+        let Some((texts, seed, of)) = found else {
             return tried.then(|| {
                 Err(Refusal::Words(Text::of(
                     faraday_strings::EN.c32_vault_other_seed,
@@ -957,6 +961,18 @@ impl OpenVaults {
             Ok(fp) => fp,
             Err(e) => return Some(Err(e)),
         };
+        // A share of the key written on an online computer marks it,
+        // as when the vault's shares alone load it.
+        let online = self
+            .slots
+            .iter()
+            .flat_map(|s| s.records.iter())
+            .filter(|r| r.kind == kind::CODEX32_SHARE)
+            .filter(|r| r.field(field::CODEX32_KEY) == Some(&of[..]))
+            .any(faraday_vault::records::is_made_online);
+        if online {
+            keys.note_made_online(fp);
+        }
         let at = keys.len() - 1;
         // Those typed are on paper; those in a vault are placed there.
         let strings = texts

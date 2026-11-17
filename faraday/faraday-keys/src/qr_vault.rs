@@ -499,10 +499,11 @@ impl OpenVaults {
         }
     }
 
-    /// Whether item `i` of open vault `id` is a seed. A lookup.
+    /// Whether item `i` of open vault `id` is a seed or a codex32 share of
+    /// one. A lookup.
     pub fn qr_item_is_seed(&self, id: VaultId, i: usize) -> bool {
         self.copy_out(id, i, &[])
-            .is_some_and(|h| h.kind == kind::KEY)
+            .is_some_and(|h| h.kind == kind::KEY || h.kind == kind::CODEX32_SHARE)
     }
 
     /// Costs what `qr_fit` costs. Item `i` of open vault `id` (a seed, a

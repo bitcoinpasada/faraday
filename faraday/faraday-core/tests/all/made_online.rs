@@ -301,6 +301,61 @@ fn a_seed_split_into_codex32_strings_by_the_desktop_app_is_held_on_the_device() 
     assert_eq!(device.sheet, Some(Sheet::Published));
 }
 
+#[test]
+fn a_child_seed_a_made_online_seed_writes_into_a_vault_is_held_when_opened_on_the_device() {
+    let mut app = opened_records(
+        vec![key_record(&fresh(), Some(MADE_ONLINE))],
+        Network::Mainnet,
+        false,
+    );
+    let _ = app.frame();
+    app.press(Action::PublishedHold);
+    assert_eq!(app.sheet, None);
+    app.press(Action::Bip85);
+    app.press(Action::PApp(0));
+    for _ in 0..4 {
+        app.press(Action::PLength(-1));
+    }
+    app.press(Action::PNext);
+    app.event(Event::Key(faraday_shell_api::Key::Char('7')));
+    app.press(Action::PNext);
+    app.press(Action::PVault);
+    app.press(Action::PRecord(true));
+    let child: Vec<_> = records_of(&app, 0, kind::KEY)
+        .into_iter()
+        .filter(|r| r.field(field::KEY_CHILD).is_some())
+        .collect();
+    assert_eq!(child.len(), 1, "the child is in the vault");
+    assert!(faraday_vault::records::is_made_online(&child[0]));
+    let mut device = opened_records(child, Network::Mainnet, false);
+    let _ = device.frame();
+    assert_eq!(device.sheet, Some(Sheet::Published));
+    device.press(Action::PublishedKeep);
+    assert_eq!(
+        device.sheet,
+        Some(Sheet::Published),
+        "a press does not keep it"
+    );
+}
+
+#[test]
+fn a_codex32_string_typed_with_made_online_shares_in_a_vault_loads_a_held_key() {
+    use crate::codex32_kept::{A, C, share_record};
+    let mut c = share_record(C);
+    faraday_vault::records::mark_made_online(&mut c);
+    let mut app = opened_records(vec![c], Network::Mainnet, false);
+    assert!(app.session.keys.is_empty(), "one share is nothing");
+    app.press(Action::Entry(None));
+    app.press(Action::EntryForm(2));
+    type_text(&mut app, A);
+    app.event(Event::Key(faraday_shell_api::Key::Enter));
+    assert_eq!(app.session.keys.len(), 1);
+    // The strings are a published vector, so the sheet shows either way:
+    // the key is also marked, and kept so in the next vault it is saved to.
+    let fp = app.session.keys[0].fingerprint;
+    assert!(app.session.keys.made_online(fp), "the key is not marked");
+}
+
 /// A Mainnet device holding a made-online key, held, with a second empty
 /// vault open beside the first.
 fn two_vaults() -> Faraday {
@@ -377,4 +432,80 @@ fn demo_opening_its_own_vault_brings_no_caution() {
     );
     let _ = app.frame();
     assert_eq!(app.sheet, None);
+}
+
+#[test]
+fn a_share_an_online_computer_wrote_marks_a_key_already_loaded_from_other_shares() {
+    use crate::codex32_kept::{
+        A, C, D, FP, PHRASE as HOME, share_record, unlock_on_vaults, vault_of,
+    };
+    let mut marked = share_record(D);
+    faraday_vault::records::mark_made_online(&mut marked);
+    let mut app = crate::common::device(vec![
+        (
+            "home.kdbx".into(),
+            vault_of(HOME, vec![share_record(A), share_record(C)], 3),
+        ),
+        ("bank.kdbx".into(), vault_of("bank phrase", vec![marked], 4)),
+    ]);
+    unlock_on_vaults(&mut app, "home.kdbx", HOME);
+    let k = app
+        .session
+        .keys
+        .position_of(FP)
+        .expect("A and C load the key");
+    let fp = app.session.keys.info(k).unwrap().fingerprint;
+    assert!(!app.session.keys.made_online(fp));
+    unlock_on_vaults(&mut app, "bank.kdbx", "bank phrase");
+    assert!(app.session.keys.made_online(fp));
+}
+
+#[test]
+fn a_child_seed_read_before_its_online_parent_in_a_vault_is_held_too() {
+    let mut app = desktop_with_vault();
+    app.press(Action::Bip85);
+    app.press(Action::PApp(0));
+    for _ in 0..4 {
+        app.press(Action::PLength(-1));
+    }
+    app.press(Action::PNext);
+    app.event(Event::Key(faraday_shell_api::Key::Char('7')));
+    app.press(Action::PNext);
+    app.press(Action::PVault);
+    app.press(Action::PRecord(true));
+    let child = records_of(&app, 0, kind::KEY).remove(0);
+    let child = child
+        .fields
+        .iter()
+        .filter(|f| f.number != field::KEY_FLAGS)
+        .fold(faraday_vault::Record::new(kind::KEY), |n, f| {
+            n.with(f.number, &f.bytes)
+        });
+    assert!(!faraday_vault::records::is_made_online(&child));
+    let mut parent = key_record(&fresh(), None);
+    faraday_vault::records::mark_made_online(&mut parent);
+    let device = opened_records(vec![child, parent], Network::Mainnet, false);
+    assert_eq!(device.session.keys.len(), 2);
+    for i in 0..2 {
+        let fp = device.session.keys.info(i).unwrap().fingerprint;
+        assert!(device.session.keys.made_online(fp), "key {i}");
+    }
+}
+
+#[test]
+fn the_same_words_under_another_passphrase_stay_held_when_the_words_were_written_online() {
+    let mut app = opened_with(&fresh(), Some(MADE_ONLINE));
+    let c = testkit::compute();
+    let a = app
+        .session
+        .keys
+        .add_with_passphrase(&c, 0, "extra", "Again")
+        .unwrap();
+    assert!(app.session.keys.made_online(a));
+    let b = app
+        .session
+        .keys
+        .add_with_suffix(&c, 0, "more", "Vanity")
+        .unwrap();
+    assert!(app.session.keys.made_online(b));
 }

@@ -2049,6 +2049,7 @@ impl Faraday {
                 };
                 (
                     self.marked_online(
+                        None,
                         Record::new(kind::KEY)
                             .with(field::KEY, &records::words_payload(&m))
                             .with(field::KEY_LABEL, stem.as_bytes()),
@@ -2152,9 +2153,10 @@ impl Faraday {
     }
 
     /// `record` with the online mark when [`Faraday::written_online`] says
-    /// so for it; any record but a key or a codex32 share is as it was.
-    pub(crate) fn marked_online(&self, mut record: Record) -> Record {
-        if self.written_online(None) {
+    /// so for it, `from` the key it was made from (a BIP-85 child's
+    /// parent); any record but a key or a codex32 share is as it was.
+    pub(crate) fn marked_online(&self, from: Option<Fingerprint>, mut record: Record) -> Record {
+        if self.written_online(from) {
             records::mark_made_online(&mut record);
         }
         record
