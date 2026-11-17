@@ -1711,7 +1711,7 @@ fn list(ui: &mut Ui, fr: &mut Frame, v: &BoardView, x: f32, y: f32, w: f32) -> f
 fn codex32_groups(ui: &mut Ui, fr: &mut Frame, v: &BoardView, (x, y, w): (f32, f32, f32)) -> f32 {
     let gap = tokens::BOARD_CHIP_GAP;
     let mut cy = y;
-    for g in &v.c32 {
+    for g in v.c32.iter().chain(&v.parts) {
         cy += group(ui, &g.head, x, cy);
         for e in &g.strings {
             cy += entry(ui, fr, e, x, cy, w, None) + gap;

@@ -1657,8 +1657,10 @@ A Seed XOR set and a SLIP-39 set are counted by the plan the same way
 (F276): the plan holds the set's public facts, read from a saved plan or a
 vault record, and places its parts on paper, and the checks count them as
 they count these strings. A whole set saved by Convert a seed for a loaded key is
-recorded on the key as its public facts. Their set actions stay in Convert, never here; only a codex32
-set's are this section's.
+recorded on the key as its public facts, and the plan of a wallet using the
+key takes it as the parts on its board (BACKUP-FLOW §17.26). Their set
+actions stay in Convert, never here; only a codex32 set's are this
+section's.
 
 ### 9.5 Shares on the backup board (owner, 2026-10-22)
 

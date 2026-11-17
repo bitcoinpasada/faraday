@@ -22,6 +22,14 @@ pub struct Xor {
 }
 
 impl Xor {
+    /// Seed `seed`'s set as its key keeps it (`docs/VAULT.md` §7).
+    pub fn of_facts(seed: usize, f: &faraday_vault::xor::XorFacts) -> Xor {
+        Xor {
+            seed,
+            parts: f.parts.clone(),
+        }
+    }
+
     /// How many parts the set has: all of them rebuild the seed.
     pub fn n(&self) -> usize {
         self.parts.len()

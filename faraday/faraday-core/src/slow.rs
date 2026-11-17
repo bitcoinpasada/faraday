@@ -124,6 +124,10 @@ pub(crate) fn runs_in_press(a: Action) -> bool {
                     | crate::convert::ConvertAction::Make
                     | crate::convert::ConvertAction::Save
             )
+            // Split into Seed XOR parts keeps the set's facts, one PBKDF2
+            // each (up to five), under the line by count, not yet timed
+            // on a Pi 3B+.
+            | Action::BXor(_)
             | Action::Chart(C::Checked(..) | C::Do(..) | C::PassTry(_))
             | Action::Vault(
                 V::AddFile(_)

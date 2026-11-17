@@ -361,6 +361,22 @@ macro_rules! words_screens_backup {
     /// Done's button for a Secure Boot set: it opens the item that holds
     /// the enrolment files. `{}`: the vault.
     backup_flow_unlock_for_enrolment: "Unlock {} for the enrolment files",
+    // ----- the board's Seed XOR and SLIP-39 parts (faraday-core/src/board/) -----
+    /// A key's Seed XOR group head on the board. `{}`: the seed, how many parts.
+    board_xor_head: "{} · Seed XOR · {} parts",
+    /// A key's SLIP-39 group head on the board. `{}`: the seed, how many groups are needed, how many groups.
+    board_slip39_head: "{} · SLIP-39 · {} of {} groups",
+    /// A Seed XOR part's chip. `{}`: the seed, the part's number.
+    board_xor_chip: "{} · part {}",
+    /// A SLIP-39 share's chip. `{}`: the seed, the group, the share.
+    board_slip39_chip: "{} · group {} share {}",
+    /// A part's chip under its group. `{}`: the part's number.
+    board_xor_part: "Part {}",
+    /// A share's chip under its group. `{}`: the group, the share.
+    board_slip39_part: "Group {} · share {}",
+    /// A part's line at the chip's right. `{}`: how many places keep it, and
+    /// that the part was not typed back here.
+    board_part_count: "{} · {}",
         }
     };
 }

@@ -1,0 +1,78 @@
+//! The board's Seed XOR and SLIP-39 parts (`docs/decisions/F276.md`): a
+//! seed split into a set that exists is a group in the list, its head the
+//! set and one chip per part made. A part is paper only: it goes on a
+//! place's paper and nowhere else, and reads "Not checked" until its copy
+//! typed back here matched. What is here reads the plan it is given.
+
+use super::codex32::C32Group;
+use super::*;
+
+/// What a part's line reads: where it is kept, and that it was not typed
+/// back here.
+fn line(count: &str) -> String {
+    if count.is_empty() {
+        EN.backups_not_checked.to_string()
+    } else {
+        fill(EN.board_part_count, &[count, EN.backups_not_checked])
+    }
+}
+
+/// The Seed XOR and SLIP-39 groups of the list: each seed here whose key
+/// keeps such a set, a chip per part (per share made). `entry` makes a
+/// list chip's entry.
+pub(crate) fn groups(shape: &Shape, a: &Answers, entry: &dyn Fn(Thing) -> Entry) -> Vec<C32Group> {
+    let part = |t: Thing, name: String| {
+        let e = entry(t);
+        Entry {
+            name,
+            count: line(&e.count),
+            ..e
+        }
+    };
+    let mut out = Vec::new();
+    for i in shape.here() {
+        let seed = shape.seeds[i].name.as_str();
+        if let Some(x) = a.xor(i) {
+            out.push(C32Group {
+                seed: i,
+                head: fill(EN.board_xor_head, &[seed, &x.n().to_string()]),
+                strings: (0..x.n())
+                    .map(|j| {
+                        part(
+                            Thing::Part(i, j),
+                            fill(EN.board_xor_part, &[&(j + 1).to_string()]),
+                        )
+                    })
+                    .collect(),
+            });
+        }
+        if let Some(z) = a.slip39(i) {
+            let mut chips = Vec::new();
+            for (g, grp) in z.groups.iter().enumerate() {
+                for &m in &grp.made {
+                    let m = usize::from(m);
+                    chips.push(part(
+                        Thing::Slip(i, g, m),
+                        fill(
+                            EN.board_slip39_part,
+                            &[&(g + 1).to_string(), &(m + 1).to_string()],
+                        ),
+                    ));
+                }
+            }
+            out.push(C32Group {
+                seed: i,
+                head: fill(
+                    EN.board_slip39_head,
+                    &[
+                        seed,
+                        &z.group_threshold.to_string(),
+                        &z.groups.len().to_string(),
+                    ],
+                ),
+                strings: chips,
+            });
+        }
+    }
+    out
+}

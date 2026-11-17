@@ -1761,15 +1761,18 @@ impl Faraday {
                     let (answers, names, q) = match self.plan_load(c, i, &shape) {
                         Some((mut a, names)) => {
                             plan::codex32::sync(&mut a, &shape, &self.c32_sets(i));
+                            let (xor, slip39) = self.set_facts(i);
+                            plan::sets::sync(&mut a, &shape, &xor, &slip39);
                             (a, names, None)
                         }
                         // A key with a codex32 set places that set: one
                         // string per place (`docs/CODEX32.md` §9.5).
-                        None => (
-                            self.wallet_start_answers(c, i, &shape),
-                            Vec::new(),
-                            Some(qstep::BOARD),
-                        ),
+                        None => {
+                            let mut a = self.wallet_start_answers(c, i, &shape);
+                            let (xor, slip39) = self.set_facts(i);
+                            plan::sets::sync_placed(&mut a, &shape, &xor, &slip39);
+                            (a, Vec::new(), Some(qstep::BOARD))
+                        }
                     };
                     // A copy checked this power-on stays checked.
                     let marks = self.backups_marks(i);
@@ -2370,7 +2373,32 @@ impl Faraday {
         else {
             return;
         };
+        self.paper_xor_count(&c, &lines);
         self.backup.set_paper(lines);
+    }
+
+    /// Costs a PBKDF2 and a derivation for each part. The Seed XOR set
+    /// just made becomes the backup's key's set (`docs/decisions/F276.md`):
+    /// its public facts are kept with the key, the way Convert a seed
+    /// keeps them, and the plan takes it as a form of the key. A key that
+    /// already has a set keeps that one.
+    fn paper_xor_count(&mut self, c: &Compute, lines: &[Text]) {
+        let Some((key, wallet)) = self.backup.state().map(|b| (b.key, b.wallet)) else {
+            return;
+        };
+        let Some(fp) = self.session.keys.info(key).map(|k| k.fingerprint.0) else {
+            return;
+        };
+        let Some(made) = crate::convert::set::facts_of(c, crate::convert::Target::SeedXor, lines)
+        else {
+            return;
+        };
+        crate::convert::set::record(&mut self.session.keys, fp, made);
+        let shape = self.plan_shape_now(wallet);
+        let (xor, slip39) = self.set_facts(wallet);
+        self.backup.change_answers(&shape, &|a, s| {
+            plan::sets::sync(a, s, &xor, &slip39);
+        });
     }
 }
 
@@ -3110,10 +3138,39 @@ impl Faraday {
             .all()
             .enumerate()
             // A key with words, or one whose seed is a codex32 set it
-            // knows (`docs/CODEX32.md` §9.4): its backup places that set.
-            .filter(|(_, k)| (k.has_words() || k.codex32.is_some()) && fps.contains(&k.fingerprint))
+            // knows (`docs/CODEX32.md` §9.4), or one split into a Seed XOR
+            // or SLIP-39 set (F276): its backup places that set.
+            .filter(|(_, k)| {
+                (k.has_words() || k.codex32.is_some() || k.xor.is_some() || k.slip39.is_some())
+                    && fps.contains(&k.fingerprint)
+            })
             .map(|(i, _)| i)
             .collect()
+    }
+
+    /// Each seed of wallet `w`'s Seed XOR set and SLIP-39 set, where its
+    /// key is here and keeps one (`docs/decisions/F276.md`): what the plan
+    /// takes as paper parts. A lookup.
+    pub(crate) fn set_facts(
+        &self,
+        w: usize,
+    ) -> (
+        Vec<Option<faraday_vault::xor::XorFacts>>,
+        Vec<Option<faraday_vault::slip39::Slip39Facts>>,
+    ) {
+        let keys: Vec<Option<usize>> = self
+            .backup_seed_list_now(w)
+            .into_iter()
+            .map(|(_, k)| k)
+            .collect();
+        (
+            keys.iter()
+                .map(|k| self.session.keys.info((*k)?)?.xor.clone())
+                .collect(),
+            keys.iter()
+                .map(|k| self.session.keys.info((*k)?)?.slip39.clone())
+                .collect(),
+        )
     }
 
     /// Wallet `w`'s seeds, in its order, as the plan and the panel list

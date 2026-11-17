@@ -17,6 +17,7 @@
 
 pub mod codex32;
 pub(crate) mod lines;
+mod parts;
 mod plans;
 pub(crate) mod screen;
 mod view;
@@ -52,6 +53,10 @@ pub enum Thing {
     /// Codex32 string `j` (its share index's bech32 value) of seed `i`
     /// (`docs/CODEX32.md` §9.5).
     String(usize, usize),
+    /// Seed XOR part `j` of seed `i`, paper only (`docs/decisions/F276.md`).
+    Part(usize, usize),
+    /// SLIP-39 share `m` of group `g` of seed `i`, paper only.
+    Slip(usize, usize, usize),
     /// Seed `i`'s Krux encrypted code (`docs/KEF.md` §15.1): a chip the
     /// list does not show, made by a seed chip's menu.
     Kef(usize),
@@ -380,6 +385,9 @@ fn forms_in(k: Kind, t: Thing) -> Vec<What> {
             vec![What::Codex32ShareFile(i, j), What::Codex32QrFile(i, j)]
         }
         (Kind::Vault, Thing::String(i, j)) => vec![What::Codex32Share(i, j)],
+        // A part or a share is paper only: never a file, a stick or a vault.
+        (Kind::Paper, Thing::Part(i, j)) => vec![What::XorPart(i, j)],
+        (Kind::Paper, Thing::Slip(i, g, m)) => vec![What::Slip39Share(i, g, m)],
         (Kind::Files, Thing::Seed(i)) => vec![What::SeedFile(i), What::SeedQrFile(i)],
         (Kind::Files, Thing::Pass(i)) => vec![What::PassphraseFile(i)],
         (Kind::Files, Thing::Whole) => vec![
@@ -432,8 +440,8 @@ pub(crate) fn things_of(w: What) -> Vec<Thing> {
         | What::Codex32ShareFile(i, j)
         | What::Codex32QrFile(i, j) => vec![Thing::String(i, j)],
         What::KefCode(i) | What::KefCodePaper(i) => vec![Thing::Kef(i)],
-        // Paper-only set pieces have no chip on the board yet.
-        What::XorPart(..) | What::Slip39Share(..) => Vec::new(),
+        What::XorPart(i, j) => vec![Thing::Part(i, j)],
+        What::Slip39Share(i, g, m) => vec![Thing::Slip(i, g, m)],
     }
 }
 
@@ -506,7 +514,7 @@ pub fn takes(shape: &Shape, z: Zone, t: Thing, locked: bool) -> bool {
     let shares = |i: usize| shape.seeds.get(i).is_some_and(|s| s.shares);
     let thing_ok = match t {
         Thing::Seed(i) => here(i) || (shares(i) && matches!(z, Zone::Vault(..))),
-        Thing::String(i, _) | Thing::Kef(i) => here(i),
+        Thing::String(i, _) | Thing::Part(i, _) | Thing::Slip(i, ..) | Thing::Kef(i) => here(i),
         Thing::Pass(i) => shape.seeds.get(i).is_some_and(|s| s.here && s.passphrase),
         Thing::Share(j) => shape.splits && j < shape.keys,
         Thing::Whole | Thing::Vault(_) | Thing::Software => true,
@@ -523,7 +531,7 @@ pub fn takes(shape: &Shape, z: Zone, t: Thing, locked: bool) -> bool {
         ) => true,
         (_, Thing::Vault(_)) | (Zone::Card(_), _) => false,
         // A code is no vault record: it goes on paper or a stick's files.
-        (Zone::Vault(..), Thing::Kef(_)) => false,
+        (Zone::Vault(..), Thing::Kef(_) | Thing::Part(..) | Thing::Slip(..)) => false,
         (Zone::Vault(..), _) => true,
         _ if locked => false,
         (Zone::Scanned, _) => false,
@@ -801,6 +809,8 @@ pub(crate) struct BoardView {
     pub vault_room: bool,
     /// Each seed's codex32 group (`docs/CODEX32.md` §9.5).
     pub c32: Vec<codex32::C32Group>,
+    /// Each seed's Seed XOR and SLIP-39 groups (`docs/decisions/F276.md`).
+    pub parts: Vec<codex32::C32Group>,
     /// The software's entry, while the board has no software place.
     pub software_entry: Option<Entry>,
     /// The ready plans offered while the board is read-only, each with
@@ -1008,6 +1018,27 @@ impl Faraday {
             Thing::Share(j) => fill(EN.board_share, &[&(j + 1).to_string()]),
             Thing::Vault(v) => self.board_vault_title(v),
             Thing::Software => EN.board_watch_only.to_string(),
+            Thing::Part(i, j) => fill(
+                EN.board_xor_chip,
+                &[
+                    &shape
+                        .seeds
+                        .get(i)
+                        .map_or_else(String::new, |s| String::from(&*s.name)),
+                    &(j + 1).to_string(),
+                ],
+            ),
+            Thing::Slip(i, g, m) => fill(
+                EN.board_slip39_chip,
+                &[
+                    &shape
+                        .seeds
+                        .get(i)
+                        .map_or_else(String::new, |s| String::from(&*s.name)),
+                    &(g + 1).to_string(),
+                    &(m + 1).to_string(),
+                ],
+            ),
             Thing::String(i, j) => fill(
                 EN.c32_board_chip,
                 &[
@@ -1484,6 +1515,7 @@ impl Faraday {
             partials: a.partials_on(),
             room: places < plan::codex32::max_places_of(&shape, &a),
             c32: codex32::groups(&shape, &a, &entry),
+            parts: parts::groups(&shape, &a, &entry),
             vaults,
             vault_room: a.vault_room(&shape),
             software_entry: (!has_software && !locked).then(|| entry(Thing::Software)),
@@ -1777,7 +1809,9 @@ impl Faraday {
         }
         match c.thing() {
             Thing::Seed(i) => shape.seeds.get(i).is_some_and(|s| s.here || s.shares),
-            Thing::String(i, _) | Thing::Kef(i) => shape.seeds.get(i).is_some_and(|s| s.here),
+            Thing::String(i, _) | Thing::Part(i, _) | Thing::Slip(i, ..) | Thing::Kef(i) => {
+                shape.seeds.get(i).is_some_and(|s| s.here)
+            }
             _ => true,
         }
     }

@@ -107,6 +107,91 @@ impl Answers {
     }
 }
 
+/// `a` brought in step with the Seed XOR and SLIP-39 sets its keys keep
+/// (`docs/decisions/F276.md`): a seed here whose key has a set of a kind
+/// and whose plan has none of that kind takes it, its parts not placed
+/// yet. One set of a kind per seed: a set the plan already has stays.
+/// `xor` and `slip39` are each seed's set, where its key has one.
+pub fn sync(
+    a: &mut Answers,
+    shape: &Shape,
+    xor: &[Option<faraday_vault::xor::XorFacts>],
+    slip39: &[Option<faraday_vault::slip39::Slip39Facts>],
+) {
+    let here = |i: usize| shape.seeds.get(i).is_some_and(|s| s.here);
+    for (i, f) in xor.iter().enumerate() {
+        if let Some(f) = f
+            && here(i)
+            && a.xor(i).is_none()
+        {
+            a.set_xor(shape, i, Some(xor::Xor::of_facts(i, f)));
+        }
+    }
+    for (i, f) in slip39.iter().enumerate() {
+        if let Some(f) = f
+            && here(i)
+            && a.slip39(i).is_none()
+        {
+            a.set_slip39(shape, i, Some(slip39::Slip39::of_facts(i, f)));
+        }
+    }
+}
+
+/// [`sync`] for a plan just started: each part of each set also placed on
+/// paper, one to a place (the first parts at the places there are, the
+/// rest at places of their own). A part already placed stays where it is.
+pub fn sync_placed(
+    a: &mut Answers,
+    shape: &Shape,
+    xor: &[Option<faraday_vault::xor::XorFacts>],
+    slip39: &[Option<faraday_vault::slip39::Slip39Facts>],
+) {
+    sync(a, shape, xor, slip39);
+    let mut parts: Vec<What> = a
+        .xor
+        .iter()
+        .flat_map(|x| (0..x.n()).map(|j| What::XorPart(x.seed, j)))
+        .collect();
+    for z in &a.slip39 {
+        for (g, grp) in z.groups.iter().enumerate() {
+            parts.extend(
+                grp.made
+                    .iter()
+                    .map(|&m| What::Slip39Share(z.seed, g, usize::from(m))),
+            );
+        }
+    }
+    if parts.is_empty() {
+        return;
+    }
+    let mut m = stored_map(shape, a);
+    let mut next = 0usize;
+    for w in parts {
+        if m.iter().any(|s| s.holds.iter().any(|(x, _)| *x == w)) {
+            continue;
+        }
+        let places = m.iter().filter(|s| matches!(s.at, At::Place(_))).count();
+        match m.iter().position(|s| s.at == At::Place(next)) {
+            Some(k) => m[k].holds.push((w, Tag::Secret)),
+            None => {
+                let at = m
+                    .iter()
+                    .rposition(|s| matches!(s.at, At::Place(_) | At::Stick(..)))
+                    .map_or(0, |x| x + 1);
+                m.insert(
+                    at,
+                    Spot {
+                        at: At::Place(places),
+                        holds: vec![(w, Tag::Secret)],
+                    },
+                );
+            }
+        }
+        next += 1;
+    }
+    a.set_map(m);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

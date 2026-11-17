@@ -39,6 +39,25 @@ pub struct Slip39 {
 }
 
 impl Slip39 {
+    /// Seed `seed`'s set as its key keeps it (`docs/VAULT.md` §7).
+    pub fn of_facts(seed: usize, f: &faraday_vault::slip39::Slip39Facts) -> Slip39 {
+        Slip39 {
+            seed,
+            identifier: f.identifier,
+            exponent: f.exponent,
+            group_threshold: f.threshold,
+            groups: f
+                .groups
+                .iter()
+                .map(|g| Group {
+                    threshold: g.threshold,
+                    count: g.count,
+                    made: (0..g.count).filter(|&m| (g.made >> m) & 1 == 1).collect(),
+                })
+                .collect(),
+        }
+    }
+
     /// Whether member `m` of group `g` was made: only a made share exists,
     /// so only it counts or may be placed.
     pub fn has_member(&self, g: usize, m: usize) -> bool {

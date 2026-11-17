@@ -2807,3 +2807,24 @@ from the wallet's shape.
 
 **Open:** the buttons are not yet drawn; the board takes the press
 (`board/plans.rs` holds the list the screen draws).
+
+### 17.26 Seed XOR parts and SLIP-39 shares on the board (F276)
+
+A key's Seed XOR set and SLIP-39 set (their public facts, kept with the
+key: `docs/VAULT.md` §7) are read by the wallet's plan when Back up
+opens, as a codex32 set is (§17.23): a set the plan has none of that
+kind for becomes the key's form; a set the plan has stays, one of a kind
+per key. A plan that starts here (the board's standard way) also places
+the parts, one to a place and further parts at places of their own; a
+saved plan reads with the set's parts not placed yet.
+
+Under **Seeds**, each such set is a group: its head ("Seed XOR · 3
+parts", "SLIP-39 · 1 of 2 groups") and a chip per part (per share made,
+never one not made). A part goes on a place's paper only: not a stick's
+files, not a vault. Its line reads where it is kept and "Not checked".
+A Seed XOR set Back up makes on its paper section becomes the key's form
+the same way, as Convert's does.
+
+**Open:** a part's copy typed back and checked here (the chip then reads
+"Checked"); the paper section's line "Not on the plan" still says so; the
+checklist has no item for the parts.
