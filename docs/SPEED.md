@@ -4,6 +4,8 @@
 **Status:** Built; the glyph cache measured (§3.8).
 
 §2 and §7 are standing rules; §3.3, §8.3 and §9 to §13 say what holds now.
+What could still make drawing cheaper, and what was looked at and left, is
+`docs/DRAW-COST.md`.
 
 The owner's report: on a slow laptop Faraday became very slow in the
 later stages of setting up a multisig wallet, the backups especially,
@@ -169,7 +171,7 @@ a frame fills 4 to 16 and strokes 3 to 34 rounded rectangles (`pills` at
 480x640 6 and 6, at 1280x800 16 and 34), so for the fills it is up to 5
 per cent of a frame, again too little. Strokes were not measured as a
 cached outline; a stroke cache is the one open candidate, to be timed
-before it is built.
+before it is built (`docs/DRAW-COST.md` §8 reads it as a small gain).
 
 ### 3.4 Public file names without making the files (issue 123)
 
@@ -856,3 +858,13 @@ Read by whoever makes or reviews a change in this area; no script holds these.
 - No shipped program installs WipeOnFree or another global allocator; installing one is a new decision, made with its timings, peak memory, the suite run with it, Miri and a fuzz target.
 - A press whose work takes longer than a tenth of a second on a Pi 3B+ at 1400 MHz is a job on the core's worker, shorter work is drawn first and done on the tick after; a press added to `slow`'s list, or moved on it, says which side of the line it is on and how that was measured.
 - A page that shows a secret the person chose to show holds it while shown, wipes it when hidden, on leaving the page and at a lock, and its budget state draws it twice with the second frame working out nothing.
+
+## 15. Where the next speed-ups are
+
+`docs/DRAW-COST.md` holds what a read of the drawing code found after the
+work above: the lists a frame still works out more than once, the whole
+frames drawn for a caret, a clock or a running job, what the shells do not
+use of what the core knows about a frame, shadows, the bands and text,
+each with what it would give, and what was looked at and is not worth
+building. None of it is built or timed. `docs/FRAMES.md` holds the open
+work on the frame's way to the panel.
