@@ -56,5 +56,10 @@ pub(crate) fn multisig_check_tour(t: &mut Tour) -> Result<(), String> {
     let bad = format!("{body}#{}{last}", &sum[..sum.len() - 1]);
     scan(t, &bad);
     t.shot("multisig-check-refused")?;
+    t.press(Action::MultisigCheck(M::Another));
+    scan(t, &kit.descriptor);
+    t.press(Action::MultisigCheck(M::Add));
+    t.press(Action::WalletHold);
+    t.shot("multisig-check-added")?;
     Ok(())
 }

@@ -87,6 +87,8 @@ pub(crate) struct Shown {
     pub(crate) first: Option<Text>,
     /// The name this wallet is loaded under here, if it is.
     pub(crate) loaded: Option<Text>,
+    /// The place of that wallet among the loaded ones.
+    pub(crate) place: Option<usize>,
 }
 
 /// The check's state.
@@ -320,11 +322,11 @@ fn shown(app: &Faraday, c: &Compute, policy: WalletPolicy, given: bool) -> Shown
         .ok()
         .map(|a| Text::of(&a.to_string()));
     let same = crate::wallet::same_wallet(&policy);
-    let loaded = session
+    let found = session
         .wallets
         .iter()
-        .find(|w| crate::wallet::same_wallet(w.policy()) == same)
-        .map(|w| Text::of(&w.name));
+        .position(|w| crate::wallet::same_wallet(w.policy()) == same);
+    let loaded = found.map(|i| Text::of(&session.wallets[i].name));
     Shown {
         policy,
         rows,
@@ -333,6 +335,7 @@ fn shown(app: &Faraday, c: &Compute, policy: WalletPolicy, given: bool) -> Shown
         ways_too_many,
         first,
         loaded,
+        place: found,
     }
 }
 
@@ -502,6 +505,7 @@ fn add(app: &mut Faraday) {
             app.refresh_spend();
             if let Some(shown) = st(app).and_then(|s| s.shown.as_mut()) {
                 shown.loaded = Some(name);
+                shown.place = Some(i);
             }
         }
         Err(crate::wallet::Refusal::Unconfirmed) => {}

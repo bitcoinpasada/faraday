@@ -179,17 +179,6 @@ fn result(app: &View, s: &MsState, ui: &mut Ui, at: (f32, f32, f32)) -> f32 {
             Role::Ok,
             &Text::fill(EN.mscheck_loaded_as, &[name]),
         ) + GAP;
-    } else {
-        ui.button(
-            x,
-            y + cy,
-            None,
-            BUTTON_H,
-            EN.mscheck_add,
-            Style::Secondary,
-            Action::MultisigCheck(M::Add),
-        );
-        cy += BUTTON_H + GAP;
     }
     ui.button(
         x,
@@ -202,15 +191,15 @@ fn result(app: &View, s: &MsState, ui: &mut Ui, at: (f32, f32, f32)) -> f32 {
     );
     cy += BUTTON_H + GAP;
     cy += seed(app, s, ui, (x, y + cy, w));
-    ui.button(
-        x,
-        y + cy,
-        None,
-        BUTTON_H,
-        EN.mscheck_done,
-        Style::Primary,
-        Action::Nav(s.back),
-    );
+    let (next, style, action) = match r.place {
+        Some(i) => (EN.made_wallet_open, Style::Primary, Action::OpenWallet(i)),
+        None => (
+            EN.mscheck_add,
+            Style::Primary,
+            Action::MultisigCheck(M::Add),
+        ),
+    };
+    ui.button(x, y + cy, None, BUTTON_H, next, style, action);
     cy += BUTTON_H + GAP;
     ui.button(
         x,
@@ -220,6 +209,16 @@ fn result(app: &View, s: &MsState, ui: &mut Ui, at: (f32, f32, f32)) -> f32 {
         EN.mscheck_another,
         Style::Ghost,
         Action::MultisigCheck(M::Another),
+    );
+    cy += BUTTON_H + GAP;
+    ui.button(
+        x,
+        y + cy,
+        None,
+        BUTTON_H,
+        EN.mscheck_done,
+        Style::Ghost,
+        Action::Nav(s.back),
     );
     cy + BUTTON_H
 }

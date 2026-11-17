@@ -2213,20 +2213,21 @@ that asks for it to be pulled.
 
 **Add this wallet** (decided here: offered, through the sheet). A person
 checking a setup they are about to use often wants it loaded next, so
-the Result offers **Add this wallet** (outlined) while the wallet is not
+the Result offers **Add this wallet** (filled) while the wallet is not
 loaded. It never adds the wallet itself: it opens the confirmation sheet
 (F254) over the page, with its rows, its compare line and **Hold to add
 this wallet**, and only the hold adds it, as every wallet of more than
 one key comes in; Cancel on the sheet leaves the page as it was. Once
-added, the button gives way to "Loaded here as {name}", and a wallet
-already loaded (the same descriptor checksum) reads so from the start.
+added, the page says "Loaded here as {name}" and the filled button is
+**Open the wallet**, which opens it in Wallets; a wallet already loaded
+(the same descriptor checksum) reads so from the start.
 The page leaves out the sheet's compare line: comparing is what the page
 is for.
 
 The Result's actions: **Another setup** (a text button, opening Setup),
-**Check a seed against it** (a text button), **Add this wallet**
-(outlined) and **Done** (filled), which goes back where the flow was
-opened (Check or Tools).
+**Check a seed against it** (a text button), the next step, filled
+(**Add this wallet**, then **Open the wallet**), and **Done** (a text
+button), which goes back where the flow was opened (Check or Tools).
 
 What the flow keeps is public (the setup read, the rows worked out)
 until it is left or a lock, but for a seed given to Check a seed against
