@@ -1322,6 +1322,37 @@ impl Keys {
         Some(Held(record))
     }
 
+    /// Costs a parse of the words, a hash and an elliptic-curve
+    /// multiplication; no PBKDF2, the master key being held. The id,
+    /// fingerprint and [`master_id`] of the vault key record
+    /// [`Session::key_record`] makes of key `i` with or without its
+    /// passphrase, so that what a vault keeps of the record is known at
+    /// the save and no stretch is left for the next press on a vault.
+    /// `None` for a key with no record, and for a record of the words
+    /// alone from a key that has a passphrase: its master key is another
+    /// one, not held.
+    pub fn saved_identity(
+        &self,
+        c: &Compute,
+        i: usize,
+        with_passphrase: bool,
+    ) -> Option<([u8; 32], Fingerprint, [u8; 32])> {
+        let e = self.entries.get(i)?;
+        if !with_passphrase && e.key.passphrase.is_some() {
+            return None;
+        }
+        let record = self.key_record(
+            c,
+            i,
+            None,
+            with_passphrase,
+            &[],
+            Reveal::VaultEntry(Part::Words),
+        )?;
+        let id = crate::vault::key_record_id(crate::vault::RecordView::of(&record.0))?;
+        Some((id, e.key.master.fingerprint(), master_id(c, &e.key.master)))
+    }
+
     /// Costs a hash. The id ([`crate::vault::key_record_id`]) a vault key
     /// record of key `i`'s master seed has, for a key loaded from one (a
     /// codex32 or SLIP-39 key): what tells a vault holds it

@@ -249,27 +249,12 @@ pub(crate) fn bring_in_existing(shell: &mut Shell, app: &mut Faraday) {
 
 /// The new vault the plan adds for Vault `v + 1`, made from its checklist
 /// item with `phrase` and left open.
-/// Frames and ticks forward from the app's own clock, so that a seal the
-/// last press left for the tick is done, with a frame drawn, before the
-/// next press.
-pub(crate) fn settle_on(app: &mut Faraday) {
-    for _ in 0..10 {
-        let _ = app.frame();
-        let now = app.now_ms() + 1000;
-        app.event(Event::Tick { now_ms: now });
-    }
-    faraday_core::testkit::refresh_vault_summaries(app);
-    app.settle();
-}
-
 pub(crate) fn make_plan_vault(app: &mut Faraday, v: usize, phrase: &str) {
     use faraday_core::vault::VaultAction as V;
     if app.backup().unwrap().open != Some(Item::Vault(v)) {
         app.press(Action::BStep(Item::Vault(v)));
     }
     crate::common::top_up(app);
-    // A seal the last save left for the tick goes first, with a frame drawn.
-    settle_on(app);
     app.press(Action::Vault(V::CreateFrom(Screen::Backup)));
     assert_eq!(app.screen, Screen::CreateVault);
     app.press(Action::Vault(V::CFocus(0, false)));
@@ -293,7 +278,6 @@ pub(crate) fn save_vault(app: &mut Faraday, v: usize) {
     if app.vaults().open.len() <= v {
         make_plan_vault(app, v, [PHRASE, PHRASE_2, PHRASE_3][v.min(2)]);
     }
-    settle_on(app);
     app.press(Action::BVaultSave(v as u8));
 }
 
@@ -313,7 +297,6 @@ pub(crate) fn save_vaults(app: &mut Faraday) {
         if app.vaults().open.len() <= v {
             make_plan_vault(app, v, [PHRASE, PHRASE_2, PHRASE_3][v.min(2)]);
         }
-        settle_on(app);
         crate::backup_keep::save(app, v as u8);
         assert!(
             app.backup_item_done_now(&c, Item::Vault(v)),

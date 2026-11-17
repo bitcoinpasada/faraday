@@ -4810,6 +4810,7 @@ functions = [
   "faraday/faraday-keys/src/session.rs::Keys::words_alone",
   "faraday/faraday-keys/src/session.rs::Keys::words_identity",
   "faraday/faraday-keys/src/session.rs::Keys::words_fingerprint",
+  "faraday/faraday-keys/src/session.rs::Keys::saved_identity",
   "faraday/faraday-keys/src/session.rs::Keys::words_record_id",
   "faraday/faraday-core/src/quiz.rs::Quiz::seed",
   "faraday/faraday-keys/src/identity.rs::secret_id",

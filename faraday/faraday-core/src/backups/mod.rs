@@ -3866,6 +3866,18 @@ impl Faraday {
     /// unlock, after every change made on a vault screen, and as the
     /// session seals.
     pub(crate) fn vault_summaries_refresh(&mut self) {
+        self.vault_summaries_write(true);
+    }
+
+    /// Writes the summaries as `vault_summaries_refresh` does, with only
+    /// the key identities already worked out: a press on a vault stretches
+    /// no key for them, and one not worked out yet is left out until the
+    /// next refresh that works it out (the lock's, or a frame's).
+    pub(crate) fn vault_summaries_refresh_kept(&mut self) {
+        self.vault_summaries_write(false);
+    }
+
+    fn vault_summaries_write(&mut self, work: bool) {
         let c = self.compute();
         let seen = self.clock_now();
         let mut fresh = Vec::new();
@@ -3892,7 +3904,14 @@ impl Faraday {
                 .vaults
                 .records(v.id)
                 .of(kind::KEY)
-                .filter_map(|(_, r)| crate::vault::screen::key_identity(&c, self, r))
+                .filter_map(|(_, r)| {
+                    if work {
+                        crate::vault::screen::key_identity(&c, self, r)
+                    } else {
+                        let id = faraday_keys::vault::key_record_id(r)?;
+                        self.vaults.kept_identity(id, || None)
+                    }
+                })
                 .map(|(fp, id)| (faraday_text::Text::of(&fp), Some(id)))
                 .unzip();
             let sum_of = |i: usize| {

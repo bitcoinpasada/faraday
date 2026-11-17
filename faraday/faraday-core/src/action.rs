@@ -1274,8 +1274,9 @@ impl Faraday {
             Action::Flow(a) => self.flow_act(a),
             Action::Vault(v) => {
                 self.vault_act(v);
-                // What changed in an open vault is what a lock remembers.
-                self.vault_summaries_refresh();
+                // What changed in an open vault is what a lock remembers, with
+                // the identities already worked out: a press stretches none.
+                self.vault_summaries_refresh_kept();
             }
             Action::Import(a) => self.import_act(a),
             Action::TextSeed(a) => self.text_seed_answer(a),

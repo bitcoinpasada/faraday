@@ -2111,6 +2111,11 @@ impl Faraday {
             without,
             faraday_keys::Reveal::VaultEntry(faraday_keys::Part::Words),
         )?;
+        // What the vault keeps of the record is known now, from the key held:
+        // the next press on a vault stretches nothing for it.
+        if let Some(found) = self.session.keys.saved_identity(&c, k, with_passphrase) {
+            self.vaults.keep_identities(&[found]);
+        }
         Some((record, Text::of(&label)))
     }
 
