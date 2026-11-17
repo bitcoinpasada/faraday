@@ -230,6 +230,9 @@ pub struct Glance {
     /// A key of it made here waits for its backup: the wallet node says
     /// "Back up before you receive" (`docs/WALLETS.md` §13).
     pub held: bool,
+    /// The wallet's backup was begun and not finished: its button reads
+    /// Continue the backup, as the wallet's page does.
+    pub unfinished: bool,
     /// A vault is open to keep names, dates and marks in (§9.5).
     pub keep: bool,
     /// The wallet has a relative wait and a plan to keep a note in:
@@ -838,6 +841,7 @@ fn build(
         press,
         focus,
         held,
+        unfinished: matches!(press, Press::Loaded(w) if app.wallet_backup_unfinished(w)),
         keep: matches!(press, Press::Vault(..))
             || app.vaults.open.get(app.vaults.current).is_some(),
         waits: wallet.waits().shortest.is_some() && charted.is_some(),
@@ -1558,7 +1562,11 @@ fn rows(g: &Glance, compact: bool, lines_open: bool) -> [Vec<Node>; 3] {
                 tag: None,
                 lines: Vec::new(),
                 button: Some((
-                    Text::of(EN.glance_back_up),
+                    Text::of(if g.unfinished {
+                        EN.backup_flow_continue
+                    } else {
+                        EN.glance_back_up
+                    }),
                     Style::Secondary,
                     Action::Backup(w),
                 )),

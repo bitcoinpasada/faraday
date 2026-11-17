@@ -430,7 +430,8 @@ rest** and **Add a share** (§8.1 step 2, §8.2); **Check a string** shows
 its checksum worksheet's final row; and the mark's line stands beside the
 fingerprint on Wallets and on New key's Key card.
 
-**Make a new key is New key, opening on Start** (decision 60, F44); the **Add a
+**Make a new key is New key, opening on Start** (decision 60, F44); its top
+bar reads **Make a new key** whichever screen opened it; the **Add a
 key** tile opens the Add a key page instead, which takes a key held (words, a
 SeedQR, codex32), in Tools and on Wallets start. New key's
 first card is **Start**, open with no choice ticked (owner, 2026-10-29):
@@ -1082,7 +1083,7 @@ public) and its state:
 - the seeds on their own devices: "Not here".
 
 A loaded wallet's card offers **Open the wallet** and **Back up**
-(**Continue** for a backup left part way); a place row opens its item of
+(**Continue the backup** for one left part way, on the wallet's chart too); a place row opens its item of
 the wallet's checklist (the chart's lines do the same); a wallet seen in a
 locked vault offers **Unlock {vault}**. With no wallet known, Backups
 offers **Make a new wallet** and **Restore an existing wallet**.

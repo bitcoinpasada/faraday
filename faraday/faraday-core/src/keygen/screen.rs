@@ -41,8 +41,8 @@ pub(super) const TITLES: [&str; kstep::COUNT] = [
 ];
 
 /// The flow's name in the top app bar, its actions beginning at `right`:
-/// Add a key wherever the flow opens on Start; New key for a Create slot,
-/// and from Add a key's own Make a new key.
+/// Make a new key, whichever screen opened the flow (Add a key is its own
+/// page, and its name is the way back from here).
 /// While a share's codex32
 /// characters are entered, where the entry stands, in its short form
 /// where the whole does not fit (the Pi's panel; F146); where neither
@@ -50,11 +50,7 @@ pub(super) const TITLES: [&str; kstep::COUNT] = [
 /// Characters card to read in place of its name. Cheap: a string filled
 /// and a width or two measured.
 fn heading(k: &KeyGen, ui: &Ui, right: f32) -> (Text, Option<Text>) {
-    let name = if k.slot.is_some() || k.back == crate::Screen::Entry {
-        EN.keygen_new_key
-    } else {
-        EN.keygen_add_a_key
-    };
+    let name = EN.keygen_new_key;
     let Some(m) = k
         .codex32
         .as_ref()

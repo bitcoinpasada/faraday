@@ -1,6 +1,8 @@
 //! The open-tools tour (`docs/DESIGN.md` §4, Nothing to work on): Decode a
 //! transaction and Check a signed message opened from Tools with nothing
-//! waiting, with several files waiting, and a result with its ending.
+//! waiting, with several files waiting, and a result with its ending; the
+//! key tools (Explore a key, Child seeds and passwords, Vanity address, Silent payments)
+//! opened with no key loaded.
 
 use crate::tour::Tour;
 use faraday_core::{Action, Screen, StorageEvent};
@@ -28,6 +30,17 @@ pub(crate) fn open_tools_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::Catalog));
     t.press(Action::Catalog(check));
     t.shot("message-empty")?;
+    for (name, shot) in [
+        ("Explore a key", "explore-no-key"),
+        ("Child seeds and passwords", "bip85-no-key"),
+        ("Vanity address", "vanity-no-key"),
+        ("Silent payments", "silent-no-key"),
+    ] {
+        let k = tile(name)?;
+        t.press(Action::Nav(Screen::Catalog));
+        t.press(Action::Catalog(k));
+        t.shot(shot)?;
+    }
     t.app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![
             ("first.txt".to_string(), TX.as_bytes().to_vec()),

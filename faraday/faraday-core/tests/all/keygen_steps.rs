@@ -47,6 +47,14 @@ fn back_opens_the_step_before_as_it_was_and_forward_opens_the_one_left() {
 }
 
 #[test]
+fn the_step_flow_has_one_title_whichever_screen_opened_it() {
+    let mut app = on_rolls();
+    let _ = app.frame();
+    assert!(app.drawn_texts().iter().any(|t| t == "Make a new key"));
+    assert!(!app.drawn_texts().iter().any(|t| t == "Add a key"));
+}
+
+#[test]
 fn escape_is_back_within_the_steps_and_leaves_from_start() {
     let mut app = on_rolls();
     button(&mut app, Event::Back);
