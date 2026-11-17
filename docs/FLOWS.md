@@ -148,7 +148,7 @@ loaded keys, the open vaults' keys not loaded and **Add a key**, which returns
 here; a vault's key, pressed, loads and stays loaded, as under Make a new
 wallet's Keys; with one key loaded, To opens on it. A key shown on its chart
 sheet or on Explore has **Write it in another form**, which opens the flow on
-that key, To open; Done returns to the screen it came from. To lists the
+that key, To open; a Result ends with its next step (Save), **Another**, which starts To again on the same key, and Done, which returns to the screen it came from. To lists the
 master seed in hex and the xprv, and for a key of words the words, SeedQR,
 CompactSeedQR, hex entropy, word numbers (`1 (0)` a line), 4-letter starts and
 Seed XOR parts (English words only); for a key of seed bytes the SLIP-39 1 of 1 and k of n (16 or 32 bytes; 64

@@ -37,6 +37,6 @@ Shown for Seed XOR parts, codex32, SLIP-39 sets and the actions on a set. **Make
 
 **Key:** convert.result
 
-The value is hidden until you show it with the eye. **Standard** names the form and **Restores in** the software that reads it. **Fingerprint** is the source's, so you can tell it is the same wallet. **Paths** lists the loaded wallets that use the key.
+The value is hidden until you show it with the eye. **Standard** names the form and **Restores in** the software that reads it. **Fingerprint** is the source's, so you can tell the wallet. **Paths** lists the loaded wallets that use the key.
 
-**Passphrase** says whether the value holds the passphrase's wallet or must be restored with the passphrase. **Check my copy** compares a copy you typed, with **Compare**, or a SeedQR scanned back, and says **Your copy matches** or **Your copy differs**. **Save as a file…** offers the value on the secret sheet, which warns before it leaves. For a set, **Save all shares, one file each…** warns once and puts every share in the Outbox as its own file, numbered such as `-2-of-3`; a share already there is replaced, not added twice. **Done** leaves the tool.
+**Passphrase** says whether the value holds the passphrase's wallet or must be restored with the passphrase. **Check my copy** compares a typed copy, with **Compare**, or a SeedQR scanned back, and says whether it matches. **Save as a file…** offers the value on the secret sheet, which warns first. For a set, **Save all shares, one file each…** warns once and puts every share in the Outbox as its own file, numbered such as `-2-of-3`; a share of the same set already there is replaced. The sheet says how many files recover the key. **Another** starts again on the same key; **Done** leaves the tool.

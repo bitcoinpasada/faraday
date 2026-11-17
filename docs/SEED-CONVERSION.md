@@ -262,7 +262,7 @@ card stays. Every count is a Stepper, as New key's SLIP-39 split uses. A set is 
 Previous share and Next share under it (a set of one string, the codex32 secret,
 unnumbered, has neither); Check my copy compares
 one typed string with every part and says which part matched or that it
-differs; Save as a file (**Save all shares, one file each…**) takes one warning for the set and then writes every part as its own file, named for its number and the count (`…-1-of-3.txt`), so that whoever holds one file has one part, and a part already in the Outbox is replaced by its file, never saved twice; a set goes only to the Outbox, never into a vault as one file; all are dropped
+differs; Save as a file (**Save all shares, one file each…**) takes one warning for the set and then writes every part as its own file, named for its set's mark (a codex32 or SLIP-39 set's identifier; for Seed XOR part 1's fingerprint, taken with no passphrase), its number and the count (`…-1-of-3.txt`), so that whoever holds one file has one part and two sets of one key never share a name, and a part of the same set already in the Outbox is replaced by its file, never saved twice; a set goes only to the Outbox, never into a vault as one file; all are dropped
 when Result is left. In Practice Seed XOR and SLIP-39, k of n are dimmed and
 codex32's secret goes straight to Result. The codex32 length setting of item 3
 below is left out: a loaded key's seed fixes it. 
@@ -347,7 +347,7 @@ on that key.
    set's own passphrase still opens the same wallet; Rotate adds that the old
    set is no longer to be used. Buttons: **Check my copy** (scanned back
    for a SeedQR or CompactSeedQR, typed for any other result), **Save as a file…** (the Secret out
-   sheet, §4.10), **Done**. Nothing is written or kept unless pressed.
+   sheet, §4.10; for a set its Who can use it line says how many of the files recover the key, or all of them for Seed XOR), **Another** (starts again on the same key), **Done**. Nothing is written or kept unless pressed.
 5. Leaving drops every result (rule 5).
 
 On the small panel, a page per step, as every step flow. The work of a

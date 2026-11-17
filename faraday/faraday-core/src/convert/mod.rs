@@ -111,6 +111,41 @@ pub enum ConvertAction {
     Save,
     /// Leave the flow.
     Done,
+    /// Start the flow again, empty, on the same key.
+    Another,
+}
+
+/// How many of a set's files recover the key.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Needed {
+    /// This many of the files.
+    Some(u8),
+    /// All of the files.
+    All,
+    /// The files of this many of this many groups, each with its own
+    /// threshold.
+    Groups(u8, u8),
+}
+
+impl Needed {
+    /// The secret sheet's line for a set of `files` files: what whoever
+    /// has this many can do.
+    pub(crate) fn gives(self, files: usize, apart: bool) -> Text {
+        let what = if apart {
+            EN.convert_gives_apart
+        } else {
+            EN.convert_gives_every
+        };
+        let n = |v: u64| Text::num(v);
+        match self {
+            Needed::Some(k) => Text::fill(EN.convert_gives_some, &[&n(u64::from(k)), what]),
+            Needed::All => Text::fill(EN.convert_gives_all, &[&n(files as u64), what]),
+            Needed::Groups(t, g) => Text::fill(
+                EN.convert_gives_groups,
+                &[&n(u64::from(t)), &n(u64::from(g)), what],
+            ),
+        }
+    }
 }
 
 /// What a row that is offered writes.
@@ -253,6 +288,21 @@ impl Target {
     /// of the words, restored with the passphrase.
     pub(crate) fn keeps_passphrase_apart(self) -> bool {
         !matches!(self, Target::SeedHex | Target::Xprv)
+    }
+
+    /// How many of the files of a set made for `target` (None: a rotated
+    /// SLIP-39 set) recover the key; None where one file does. A lookup.
+    pub(crate) fn files_needed(target: Option<Target>, s: &ConvertState) -> Option<Needed> {
+        match target {
+            Some(Target::Codex32) if s.k >= 2 => Some(Needed::Some(s.k)),
+            Some(Target::SeedXor) => Some(Needed::All),
+            Some(Target::SlipSet) | None => match s.slip.as_slice() {
+                [(k, _)] if *k >= 2 => Some(Needed::Some(*k)),
+                [_] => None,
+                groups => Some(Needed::Groups(s.slip_t, groups.len() as u8)),
+            },
+            Some(_) => None,
+        }
     }
 
     /// Whether Check my copy is offered for a key on `lang`: a code's copy
@@ -1457,6 +1507,24 @@ fn scan_reads(
     app.seedqr_reads_as(c, i, payload) == Some(true)
 }
 
+/// A short mark of one set, in each of its file names, so that the files of
+/// two sets of one key and count never share a name: the identifier a
+/// codex32 or SLIP-39 set carries, and for Seed XOR part 1's fingerprint
+/// (a part is itself a BIP-39 phrase, so this is a public value of the kind
+/// the app shows for any key). The part's fingerprint is taken with no
+/// passphrase: the part is not the key. Costs a PBKDF2 and a derivation for
+/// Seed XOR.
+fn set_mark(c: &Compute, target: Target, parts: &[Text]) -> Text {
+    let first = parts.first().map_or("", |p| p.as_str());
+    match target {
+        Target::Codex32 => first.get(4..8).map_or_else(Text::new, Text::of),
+        Target::SlipSet | Target::SlipOne => faraday_bip::slip39::Share::parse(first)
+            .map_or_else(|_| Text::new(), |sh| text!("{:04x}", sh.identifier())),
+        _ => faraday_keys::identity::fingerprint_of_words(c, first, "")
+            .map_or_else(|_| Text::new(), |fp| Text::lowercase(&fp_text(fp))),
+    }
+}
+
 /// Costs a picture for a code. Offers the value on the secret sheet: nothing
 /// is written until the sheet is answered, and what it writes is the value
 /// alone, or the code's labelled picture, which no vault is offered.
@@ -1483,15 +1551,17 @@ fn save(app: &mut Faraday) {
         Value::Set(parts) => {
             // One file for each share, never the whole set in one.
             let n = parts.len();
+            let mark = set_mark(&c, target, parts);
             let mut files = parts.iter().enumerate().map(|(i, part)| {
                 let mut one = Zeroizing::new(Vec::with_capacity(part.len() + 1));
                 one.extend_from_slice(part.as_bytes());
                 one.push(b'\n');
                 let name = if n > 1 {
                     text!(
-                        "{}-{}-{}-of-{}.txt",
+                        "{}-{}-{}-{}-of-{}.txt",
                         &*lower,
                         &*target.file_for(lang),
+                        &*mark,
                         i + 1,
                         n
                     )
@@ -1523,6 +1593,9 @@ fn save(app: &mut Faraday) {
         EN.convert_secret_gives
     };
     let mut out = SecretOut::new(name, bytes, target.secret(), gives);
+    if let Some(need) = Target::files_needed(Some(target), s).filter(|_| !also.is_empty()) {
+        out.gives = need.gives(also.len() + 1, apart);
+    }
     out.keep = if also.is_empty() { keep } else { Keep::None };
     out.also = also;
     app.offer_secret(out);
@@ -1660,6 +1733,15 @@ pub(crate) fn act(app: &mut Faraday, action: ConvertAction) {
         ConvertAction::CheckClear => app.tools.convert.clear_check(),
         ConvertAction::Save if state(app).is_some_and(|s| s.set.is_some()) => set::save(app),
         ConvertAction::Save => save(app),
+        ConvertAction::Another => {
+            if let Some((key, back)) = state(app).map(|s| (s.key, s.back)) {
+                forget_held(app);
+                // Only a key still loaded is carried in; an aezeed or a
+                // set source starts at From.
+                let key = key.filter(|fp| app.session.keys.position_of(*fp).is_some());
+                app.tools.convert.open(key, back);
+            }
+        }
         ConvertAction::Done => {
             if let Some(back) = state(app).map(|s| s.back) {
                 app.act(Action::Nav(back));

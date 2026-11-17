@@ -1431,10 +1431,10 @@ fn a_set_is_checked_part_by_part_saved_a_file_a_part_and_dropped_on_leaving() {
     assert!(opened_up(&mut app).iter().any(|t| t == "Your copy differs"));
     save(&mut app);
     let out = testkit::secret_out(&app).unwrap();
-    assert!(out.name.ends_with("seed-xor-1-of-2.txt"), "{}", &*out.name);
+    assert!(out.name.contains("seed-xor-") && out.name.ends_with("-1-of-2.txt"));
     assert_eq!(out.bytes.to_vec(), (set[0].clone() + "\n").into_bytes());
     assert_eq!(out.also.len(), 1, "the other part is its own file");
-    assert!(out.also[0].0.ends_with("seed-xor-2-of-2.txt"));
+    assert!(out.also[0].0.ends_with("-2-of-2.txt"));
     assert_eq!(out.also[0].1.to_vec(), (set[1].clone() + "\n").into_bytes());
     app.press(Action::Convert(C::Step(cstep::TO)));
     app.press(Action::Convert(C::Show));
@@ -1812,7 +1812,7 @@ fn a_slip39_copy_is_checked_by_group_and_every_file_has_one_share() {
     save(&mut app);
     let out = testkit::secret_out(&app).unwrap();
     assert!(
-        out.name.ends_with("slip39-set-1-of-6.txt"),
+        out.name.contains("slip39-set-") && out.name.ends_with("-1-of-6.txt"),
         "{}",
         &*out.name
     );
@@ -3064,4 +3064,172 @@ fn the_result_of_a_share_and_of_a_set_say_what_they_are() {
         &*out.name
     );
     assert_eq!(out.bytes.to_vec(), (lines[0].clone() + "\n").into_bytes());
+}
+
+#[test]
+fn another_starts_convert_again_empty_on_the_same_key_and_done_goes_back() {
+    let mut app = mainnet();
+    let c = testkit::compute();
+    app.session.keys.add_words(&c, ABOUT, "Test", None).unwrap();
+    let fp = app
+        .session
+        .keys
+        .add_words(&c, LEGAL, "Test 2", None)
+        .unwrap();
+    faraday_core::testkit::keep_published(&mut app);
+    app.press(Action::Explore);
+    app.press(Action::XKey(fp.0));
+    app.press(Action::Convert(C::OpenOn(fp.0)));
+    assert!(make(&mut app, "Hex entropy").is_some());
+    assert!(
+        drawn(&mut app).iter().any(|t| t == "Another"),
+        "the result offers Another"
+    );
+    app.press(Action::Convert(C::Another));
+    assert_eq!(app.screen, Screen::Convert);
+    let s = convert::state(&app).unwrap();
+    assert_eq!(
+        (s.key, s.open),
+        (Some(fp.0), Some(cstep::TO)),
+        "the key in hand"
+    );
+    assert_eq!(s.target, None, "nothing chosen");
+    assert!(!s.done[usize::from(cstep::RESULT)]);
+    assert_eq!(convert::shown(&app), None);
+    assert!(make(&mut app, "Hex entropy").is_some(), "it makes again");
+    app.press(Action::Convert(C::Done));
+    assert_eq!(app.screen, Screen::Explore, "where it was opened");
+}
+
+#[test]
+fn a_seed_xor_sheet_says_all_the_files_are_needed() {
+    let mut app = opened(mainnet(), LEGAL);
+    feed(&mut app);
+    make_set(&mut app, "Seed XOR parts").unwrap();
+    save(&mut app);
+    let out = testkit::secret_out(&app).unwrap();
+    assert_eq!(
+        &*out.gives,
+        "Whoever has all 2 of these files can spend from every wallet of this key"
+    );
+}
+
+#[test]
+fn a_codex32_sheet_says_how_many_files_recover_the_key() {
+    let mut app = seed_opened(&unhex(SEED_1));
+    feed(&mut app);
+    app.press(Action::Convert(C::To(place("codex32"))));
+    settle(&mut app);
+    app.press(Action::Convert(C::K(1)));
+    app.press(Action::Convert(C::N(1)));
+    app.press(Action::Convert(C::Make));
+    settle(&mut app);
+    save(&mut app);
+    let out = testkit::secret_out(&app).unwrap();
+    assert_eq!(out.also.len(), 2);
+    assert_eq!(
+        &*out.gives,
+        "Whoever has 2 of these files can spend from every wallet of this key"
+    );
+}
+
+/// Saves a set unprotected, through the sheet and its hold.
+fn save_through_the_hold(app: &mut Faraday) {
+    save(app);
+    app.press(Action::SecretUnprotected);
+    app.press(Action::SecretHold);
+}
+
+#[test]
+fn a_set_is_not_offered_a_vault_and_cancel_on_either_sheet_writes_nothing() {
+    let mut app = opened(mainnet(), LEGAL);
+    feed(&mut app);
+    make_set(&mut app, "Seed XOR parts").unwrap();
+    let waiting = app.outbox.len();
+    save(&mut app);
+    let out = testkit::secret_out(&app).unwrap();
+    assert!(
+        matches!(out.keep, faraday_core::secrets::Keep::None),
+        "no vault for a set"
+    );
+    app.press(Action::Cancel);
+    assert_eq!(app.outbox.len(), waiting, "Cancel on the secret sheet");
+    save(&mut app);
+    app.press(Action::SecretUnprotected);
+    app.press(Action::Cancel);
+    assert_eq!(app.outbox.len(), waiting, "Cancel on the hold");
+}
+
+#[test]
+fn two_sets_of_one_key_saved_one_after_the_other_both_stay_whole() {
+    let mut app = opened(mainnet(), LEGAL);
+    let waiting = app.outbox.len();
+    let mut sets = Vec::new();
+    for round in 0..2u8 {
+        for i in 0..6u8 {
+            let byte = 0x70 + i + round * 0x20;
+            app.event(Event::Entropy(EntropyBytes::new([byte; 32])));
+        }
+        sets.push(make_set(&mut app, "Seed XOR parts").unwrap());
+        save_through_the_hold(&mut app);
+        app.press(Action::Convert(C::Another));
+    }
+    assert_ne!(sets[0], sets[1], "the sets differ");
+    assert_eq!(app.outbox.len(), waiting + 4, "every file of both sets");
+    let mut names: Vec<_> = app.outbox[waiting..]
+        .iter()
+        .map(|i| i.name.clone())
+        .collect();
+    names.sort();
+    names.dedup();
+    assert_eq!(names.len(), 4, "no two files share a name");
+    for set in &sets {
+        for part in set {
+            let line = format!("{part}\n").into_bytes();
+            assert!(
+                app.outbox.iter().any(|i| i.bytes[..] == line[..]),
+                "a part of a set is missing"
+            );
+        }
+    }
+}
+
+/// A Seed XOR set's files carry part 1's fingerprint, the one Add a key
+/// shows for that part's words.
+#[test]
+fn a_seed_xor_sets_files_carry_part_ones_fingerprint() {
+    let mut app = opened(mainnet(), LEGAL);
+    feed(&mut app);
+    let set = make_set(&mut app, "Seed XOR parts").unwrap();
+    save(&mut app);
+    let out = testkit::secret_out(&app).unwrap();
+    let mut other = testkit::started();
+    other.press(Action::Entry(None));
+    type_copy(&mut other, &set[0]);
+    other.event(Event::Key(Key::Enter));
+    assert_eq!(other.session.keys.len(), 1);
+    let fp = other.session.keys[0].fingerprint.to_hex();
+    let mark = String::from_utf8_lossy(&fp).to_lowercase();
+    assert!(out.name.as_str().contains(&format!("-{mark}-1-of-2.txt")));
+    assert!(
+        out.also[0]
+            .0
+            .as_str()
+            .contains(&format!("-{mark}-2-of-2.txt"))
+    );
+}
+
+#[test]
+fn a_codex32_set_saved_through_the_hold_is_one_file_a_share() {
+    let mut app = seed_opened(&unhex(SEED_1));
+    feed(&mut app);
+    app.press(Action::Convert(C::To(place("codex32"))));
+    settle(&mut app);
+    app.press(Action::Convert(C::K(1)));
+    app.press(Action::Convert(C::N(1)));
+    app.press(Action::Convert(C::Make));
+    settle(&mut app);
+    let waiting = app.outbox.len();
+    save_through_the_hold(&mut app);
+    assert_eq!(app.outbox.len(), waiting + 3);
 }

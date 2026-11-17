@@ -517,22 +517,14 @@ fn set_result(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f
             }
             actions.push((
                 save_label(app).to_string(),
-                Style::Secondary,
+                Style::Primary,
                 Action::Convert(C::Save),
             ));
-            cy += button_rows(ui, x, cy, w, &actions);
+            cy += button_rows(ui, x, cy, w, &actions) + GAP_SMALL;
         }
     }
-    ui.button(
-        x,
-        cy,
-        None,
-        BUTTON_H,
-        EN.convert_done,
-        Style::Primary,
-        Action::Convert(C::Done),
-    );
-    cy + BUTTON_H - y + GAP_SMALL
+    cy += ending(ui, (x, cy, w));
+    cy - y + GAP_SMALL
 }
 
 fn to_card(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
@@ -873,21 +865,31 @@ fn result_card(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, 
             }
             actions.push((
                 save_label(app).to_string(),
-                Style::Secondary,
+                Style::Primary,
                 Action::Convert(C::Save),
             ));
-            cy += button_rows(ui, x, cy, w, &actions);
+            cy += button_rows(ui, x, cy, w, &actions) + GAP_SMALL;
         }
         _ => {}
     }
-    ui.button(
-        x,
-        cy,
-        None,
-        BUTTON_H,
-        EN.convert_done,
-        Style::Primary,
-        Action::Convert(C::Done),
-    );
-    cy + BUTTON_H - y + GAP_SMALL
+    cy += ending(ui, (x, cy, w));
+    cy - y + GAP_SMALL
+}
+
+/// The end of a result: Another starts Convert again, empty, and Done goes
+/// back to where it was opened from; the next step above is the filled one.
+fn ending(ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+    let end = [
+        (
+            EN.convert_another.to_string(),
+            Style::Secondary,
+            Action::Convert(C::Another),
+        ),
+        (
+            EN.convert_done.to_string(),
+            Style::Secondary,
+            Action::Convert(C::Done),
+        ),
+    ];
+    button_rows(ui, x, y, w, &end)
 }

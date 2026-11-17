@@ -546,6 +546,12 @@ pub(crate) fn save(app: &mut Faraday) {
         EN.convert_secret_gives,
     );
     out.also = files.collect();
+    if x.act == Some(SetAct::Rotate)
+        && !out.also.is_empty()
+        && let Some(need) = crate::convert::Target::files_needed(None, s)
+    {
+        out.gives = need.gives(out.also.len() + 1, false);
+    }
     out.keep = if out.also.is_empty() {
         crate::secrets::Keep::Note
     } else {

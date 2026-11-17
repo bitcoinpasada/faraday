@@ -107,6 +107,9 @@ macro_rules! words_bip85 {
     /// Result's button, for a result of several shares: one file each, all
     /// saved at once.
     convert_save_shares: "Save all shares, one file each…",
+    /// The secret sheet's File line for a set of several files. `{}`: how
+    /// many files; the first file's name; the last's.
+    convert_files_named: "{} files: {} to {}",
     /// Toast in `secret_unprotected_now`, for a set. `{}`: how many shares,
     /// the medium's `for_the()`.
     convert_shares_wait: "{} shares wait {}, one file each, unprotected",
@@ -133,8 +136,24 @@ macro_rules! words_bip85 {
     /// What the secret sheet says of a form that leaves out the key's
     /// passphrase.
     convert_secret_gives_apart: "Whoever has it can spend from the wallet of these words with no passphrase",
+    /// What the secret sheet says of a set saved as several files, where a
+    /// threshold of them is needed. `{}`: how many files; the wallets.
+    convert_gives_some: "Whoever has {} of these files can spend from {}",
+    /// As above, for Seed XOR parts, which are needed all. `{}`: how many
+    /// files; the wallets.
+    convert_gives_all: "Whoever has all {} of these files can spend from {}",
+    /// As above, for a SLIP-39 set of several groups. `{}`: the groups
+    /// needed; the groups made; the wallets.
+    convert_gives_groups: "Whoever has the files of {} of these {} groups, each with its own threshold, can spend from {}",
+    /// The wallets of a set's lines above.
+    convert_gives_every: "every wallet of this key",
+    /// The wallets of a set's lines above, for a key whose passphrase the
+    /// form leaves out.
+    convert_gives_apart: "the wallet of these words with no passphrase",
     /// Result's button.
     convert_done: "Done",
+    /// Text in `ending`: starts Convert again, empty.
+    convert_another: "Another",
     /// A target under To: the key's words as they are.
     convert_words: "The words",
     /// The standard of `convert_words`, and its Standard fact.

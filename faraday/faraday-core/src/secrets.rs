@@ -181,9 +181,11 @@ impl SecretOut {
         if self.also.is_empty() {
             return self.name.clone();
         }
-        let mut names = vec![self.name.clone()];
-        names.extend(self.also.iter().map(|(n, _)| n.clone()));
-        Text::joined(&names, ", ")
+        let last = self.also.last().map_or(&self.name, |(n, _)| n);
+        Text::fill(
+            EN.convert_files_named,
+            &[&Text::num(self.also.len() as u64 + 1), &self.name, last],
+        )
     }
 }
 
