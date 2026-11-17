@@ -544,6 +544,41 @@ just fuzz psbt_parse 300        one target for 300 seconds
 `just lint` checks that every fuzz target still compiles (`cargo check --locked`
 on the stable toolchain, no nightly or cargo-fuzz needed).
 
+Every parser of what the online side can hand the device has a target, or
+a reason here why it needs none (`fuzz/README.md` and `faraday/fuzz/README.md`
+say what each target feeds):
+
+| Parser | Entry point | Target |
+|---|---|---|
+| Scanned text, any file's kind | `faraday_codec::classify`, `faraday_qr::classify_text`, the classifier of Files | `classify`, `classify_file`, `app_scanned` |
+| UR and BBQr parts, Specter and SeedSigner parts | `ur::Decoder`, `ur::decode_single`, `faraday_qr::Assembler`, `specter::parse`, `registry::read` | `ur_receive`, `ur_single`, `qr_assembler`, `qr_specter`, `ur_registry` |
+| Camera frame, PNG on a stick | `decode_luma`, `qr_in_png`, the V4L2 converter | `decode_luma`, `png_qr`, `v4l2_luma` |
+| SeedQR, codex32, SLIP-39, recovery words | `seedqr`, `Codex32::parse`, `Share::parse`, `parse_words` | `seedqr`, `seed_parts`, `core_text`, `bip39_words` |
+| Seed XOR, SLIP-39, codex32, BIP-85 facts, backup plan in a vault | `faraday_vault::contents::read_*`, `faraday_plan::Answers::from_text`, `Note::from_text` | `contents`, `plan_text` |
+| PSBT versions 0 and 2, raw transaction | `Psbt::parse_bytes`, `PsbtV2::parse_bytes`, `signer::check`, `transaction::read_raw`, `decode` | `psbt_parse`, `psbt_v2`, `signer_check`, `transaction`, `decode_tx` |
+| Descriptors, wallet policies, multisig files, cosigner keys | `WalletPolicy::parse_any`, `multisig_config::parse`, `bsms`, `PolicyKey::parse`, `silent_wallet::parse_descriptor` | `policy`, `multisig_config`, `bsms`, `key_file`, `silent` |
+| Extended keys, master keys, addresses, payment requests | `xkey`, `MasterKey::decode`, `address::parse`, `bip21`, `bolt11`, `bolt12`, `address_text::find` | `xkey`, `master_key`, `address`, `address_text`, `bip21`, `bolt11`, `bolt12` |
+| Other wallets' files | `faraday_intake::read_wallet`, `core_wallet::read`, `faraday_sqlite::Database::open`, Coldcard and JSON | `read_wallet`, `core_wallet_records`, `sqlite`, `json` |
+| Signed messages, aezeed, MuSig2 values, raw hex | `message::verify`, `aezeed::decode_at_cost`, `musig`, `RawHex::parse`, `hex` | `message_verify`, `aezeed`, `musig`, `raw_hex`, `hex_decode` |
+| Vault files and KDBX | `file::inspect`, `kdbx::inspect` and `open`, the XML document and Faraday's items, a key file, entries and TOTP, parts left by an interrupted write | `vault_header`, `kdbx_file`, `kdbx_body`, `kdbx_xml`, `keyfile`, `vault_entries`, `vault_parts` |
+| KEF and the QR vault | `faraday_kef::unwrap` and `open_with_key`, `faraday_pgp::message::parse` and `open` | `kef`, `pgp_qr_vault` |
+| PGP keys and signatures | `read_public`, `read_secret_at`, `Certificate::read`, `paperkey`, `verify_detached` | `pgp_armor`, `pgp_secret`, `pgp_restore`, `pgp_paperkey`, `pgp_verify` |
+| Stick, disk and host | FAT, GPT, the disk process's pipe, piecewise reads, the kept list, EDID, USB descriptors, image list, OpenTimestamps, release sums, PE images, the Starter's readers | `fat`, `gpt`, `files_proto`, `storage_read_parts`, `memory_kept`, `edid`, `hid_ranges`, `image_list`, `ots`, `release_sums`, `pe_image`, `pe_transplant`, `starter_udisks`, `starter_windows`, `recovery_key` |
+
+No target, and why:
+
+- `faraday_core_wallet::read_file` is the SQLite reader and the records
+  reader in a row, each with a target (`sqlite`, `core_wallet_records`).
+- `faraday_vault::file::open` is `kdbx::open` and the items reader, each with
+  a target (`kdbx_file`, `kdbx_xml`); `faraday_vault::qr::open` is the
+  message parser and `read_qr` (`pgp_qr_vault`, `contents`).
+- `faraday_keys`' `from_seedqr_digits`, `from_compact_seedqr` and the xpub and
+  key readers wrap the codec and bip readers above.
+- Dice, coin and card entropy (`faraday-entropy`) and the BIP-85 child
+  derivations are typed or chosen on the device, and the online side hands
+  them nothing.
+- BIP-329 labels are left out of what the device reads (`docs/INTEROP.md`, "Left out"): the classifier only names them as a kind (`classify`, `app_scanned`) and the file is kept as it came.
+
 The fuzz targets need the nightly in `fuzz/rust-toolchain.toml` and
 cargo-fuzz. The run before a release can also run on GitHub's runners,
 started by hand on the tree to fuzz (`gh workflow run fuzz.yml --ref BRANCH`,

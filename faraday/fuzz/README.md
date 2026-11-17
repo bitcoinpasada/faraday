@@ -98,6 +98,7 @@ shipped binary does.
 | `hid_ranges` | `hid::ranges` over a USB touchscreen's HID report descriptor; the stick shell's `hid.rs` is included by path. |
 | `bip39_words` | `Mnemonic::parse`, `forms::typed_mnemonic` and `faraday_intake::file_words` over text, in the language the first byte picks. |
 | `kef` | Krux's encrypted code: `recognize` and `unwrap` over any bytes, and `open_with_key` under a fixed key on what unwraps, never past the inflate limit. |
+| `plan_text` | A backup plan's text as a vault file keeps it: `faraday_plan::Answers::from_text` for four wallet shapes and `Note::from_text`; what reads is written and reads back as the same. |
 | `ots` | OpenTimestamps proofs: any bytes read as a proof and as a block header, and a proof that reads is walked against a fixed real header from its own digest and from a wrong one. |
 | `sqlite` | `faraday_sqlite::Database::open` over any bytes, then every table read as two blob columns (read twice, the same rows) and the check that only `main` holds records. Seeds are databases SQLite made (`faraday/faraday-sqlite/tests/make_fixtures.py`). |
 | `vault_header` | `faraday_vault::file::inspect` over any file. |
@@ -111,7 +112,7 @@ shipped binary does.
 | `pe_transplant` | `pe::transplant` against a fixed release PE (`faraday-sb`'s `tests/vectors/tiny.efi`) and `pe::signer`, on the input as a signed boot file: whenever it is taken, what is built has the release's image hash and is the release's bytes but for the checksum, the certificate-table entry and the table. |
 | `gpt` | The Starter's `gpt::read` and `faraday_boot` over the input as a disk image, with the header's and the entries' checksums made right first; the Starter shell's `gpt.rs` is included by path. And `faraday_boot::find_release`, with which the Starter reads a stick's version, over the input as a boot partition's bytes. |
 | `v4l2_luma` | The V4L2 shell's frame converters (`luma`, `chroma`, the two downscales) over a format, a size, a stride and a buffer taken from the input; `abi.rs` and `convert.rs` are included by path. |
-| `contents` | The TOML inside a vault: `read_qr`, `read_plan`, `read_codex32_facts` and `read_child_facts`; a value read is written again and reads back as the same fields. |
+| `contents` | The TOML inside a vault: `read_qr`, `read_plan`, `read_codex32_facts`, `read_child_facts`, `read_xor_facts` and `read_slip39_facts`; a value read is written again and reads back as the same fields. |
 | `image_list` | `faraday_payload::ImageList::parse` over any bytes, the release's `IMAGES` list. |
 | `core_text` | Four readers of text in `faraday-core`: `explore::parse_path`, `vault::parse_tz_offset`, `parse_version_output` and `wallet::parse_words` in each language. |
 | `core_wallet_records` | `core_wallet::read` over the records of a Bitcoin Core descriptor wallet: a flags byte (the passphrase `faraday`, the mode's network, the application id as written), four bytes of application id, then records of a one-byte key length, a two-byte value length, the key and the value. |

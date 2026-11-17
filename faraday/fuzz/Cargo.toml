@@ -299,3 +299,10 @@ path = "fuzz_targets/storage_read_parts.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "plan_text"
+path = "fuzz_targets/plan_text.rs"
+test = false
+doc = false
+bench = false

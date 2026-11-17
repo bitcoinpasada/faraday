@@ -1,6 +1,7 @@
 //! The TOML inside a vault: the QR vault's keys on up to two lines, and
-//! the three TOML values a file vault keeps in KDBX custom data (a backup
-//! plan, a seed's codex32 facts, its BIP-85 facts). Whatever the bytes,
+//! the TOML values a file vault keeps in KDBX custom data (a backup
+//! plan, a seed's codex32 facts, its BIP-85 facts, its Seed XOR and SLIP-39
+//! facts). Whatever the bytes,
 //! each read gives a value or a refusal; a value read is written again and
 //! read back as the same fields.
 
@@ -9,8 +10,9 @@
 use faraday_crypto::work::Compute;
 use faraday_vault::Record;
 use faraday_vault::contents::{
-    read_child_facts, read_codex32_facts, read_plan, read_qr, write_child_facts,
-    write_codex32_facts, write_plan, write_qr,
+    read_child_facts, read_codex32_facts, read_plan, read_qr, read_slip39_facts, read_xor_facts,
+    write_child_facts, write_codex32_facts, write_plan, write_qr, write_slip39_facts,
+    write_xor_facts,
 };
 use libfuzzer_sys::fuzz_target;
 
@@ -50,5 +52,15 @@ fuzz_target!(|data: &[u8]| {
             (back.parent, back.language, back.words, back.index),
             (child.parent, child.language, child.words, child.index)
         );
+    }
+    if let Ok(set) = read_xor_facts(data) {
+        let text = write_xor_facts(&set).expect("Seed XOR facts read are written");
+        let back = read_xor_facts(&text).expect("Seed XOR facts written read back");
+        assert_eq!(back, set);
+    }
+    if let Ok(set) = read_slip39_facts(data) {
+        let text = write_slip39_facts(&set).expect("SLIP-39 facts read are written");
+        let back = read_slip39_facts(&text).expect("SLIP-39 facts written read back");
+        assert_eq!(back, set);
     }
 });
