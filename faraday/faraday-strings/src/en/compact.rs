@@ -15,8 +15,6 @@ macro_rules! words_compact {
     /// Text in `screen_name`.
     compact_sign_a_message: "Sign a message",
     /// Text in `screen_name`.
-    compact_check_a_message: "Check a message",
-    /// Text in `screen_name`.
     compact_make_a_new: "Make a new wallet",
     /// Text in `screen_name`.
     compact_restore_wallet: "Restore an existing wallet",
@@ -29,8 +27,6 @@ macro_rules! words_compact {
     /// Text in `screen_name`.
     compact_new_key: "New key",
     /// Text in `screen_name`.
-    compact_bip_85: "BIP-85",
-    /// Text in `screen_name`.
     compact_silent_payments: "Silent payments",
     /// Text in `screen_name`.
     compact_explore_a_key: "Explore a key",
@@ -38,12 +34,8 @@ macro_rules! words_compact {
     compact_lightning: "Lightning",
     /// Text in `screen_name`.
     compact_vanity_address: "Vanity address",
-    /// Text in `screen_name`.
-    compact_transaction: "Transaction",
     /// Title in `compact_screen_name`.
     compact_invoice: "Invoice",
-    /// Text in `screen_name`: the nonce check of a transaction brought in.
-    compact_nonce_check: "Nonces",
     /// Text in `page`.
     compact_at_a_glance: "At a glance",
     /// Text in `page`.
