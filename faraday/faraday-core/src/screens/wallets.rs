@@ -373,6 +373,21 @@ fn panes_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     crate::compact::screen::wallet_card(app, ui, dx - M, p.reading() + 2.0 * M, h);
 }
 
+/// The wide page's bar: the page's name, and its way back as the trail
+/// names it, none where the list pane stands beside the card and the
+/// way back would only name the list in view (Material's list-detail
+/// shows a back only where one pane hides the other). Costs a lookup.
+fn bar_head(app: &View, ui: &mut Ui, cw: f32) -> f32 {
+    let back = app.named_back(crate::compact::page_head(app).0);
+    let names_list = back.0 == EN.compact_wallets && matches!(back.1, Action::Nav(_));
+    let listed = crate::panes::screen::fits(cw);
+    super::bar_head(
+        ui,
+        (!(listed && names_list)).then_some(back),
+        EN.wallets_wallets,
+    )
+}
+
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use faraday_draw::tokens::MARGIN_WIDE;
     if ui.compact && crate::panes::screen::shown(app, Screen::Wallets) {
@@ -384,7 +399,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     let x = x0 + MARGIN_WIDE;
     let width = cw - 2.0 * MARGIN_WIDE;
-    let mut y = super::bar_head_back(app, ui, EN.wallets_wallets);
+    let mut y = bar_head(app, ui, cw);
 
     // An Inbox PSBT leads.
     let lead = match app.wallets.spend() {

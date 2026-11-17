@@ -156,6 +156,27 @@ fn at_1280_the_chosen_wallet_stands_beside_the_list() {
 }
 
 #[test]
+fn a_wallet_beside_the_list_has_no_back_line_naming_wallets() {
+    let mut app = with_wallets(1280, 800, 160);
+    app.press(Action::PickWallet(1));
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    let seen: Vec<&str> = texts.iter().map(|t| t.as_str()).collect();
+    assert!(!seen.contains(&"Back to Wallets"), "{seen:?}");
+    assert!(seen.contains(&"Wallets"), "{seen:?}");
+}
+
+#[test]
+fn a_wallet_on_its_own_page_keeps_its_back_line() {
+    let mut app = with_wallets(480, 640, 286);
+    app.press(Action::OpenWallet(1));
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    let seen: Vec<&str> = texts.iter().map(|t| t.as_str()).collect();
+    assert!(seen.iter().any(|t| t.starts_with("Back to ")), "{seen:?}");
+}
+
+#[test]
 fn at_760_the_wallets_list_stands_alone() {
     let mut app = with_wallets(760, 1000, 160);
     app.press(Action::Nav(Screen::WalletsStart));
