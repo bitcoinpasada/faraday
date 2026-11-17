@@ -2013,6 +2013,9 @@ pub const EDGE_FADE: f32 = 24.0;
 /// The bottom edge's fade on a small panel, shallower so a control
 /// resting at the fold still reads at its own emphasis, units.
 pub const EDGE_FADE_LOW_COMPACT: f32 = 18.0;
+/// How much of an edge fade's depth the page is under the top app bar
+/// when the bar's tint is whole: it comes in quickly, as Material's does.
+pub const APP_BAR_TINT_SHARE: f32 = 0.25;
 /// An edge fade's opacity at the very edge, of 255.
 pub const EDGE_FADE_ALPHA: f32 = 230.0;
 

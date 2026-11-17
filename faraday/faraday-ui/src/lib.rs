@@ -792,17 +792,22 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     }
 
     /// The top app bar's fill with the page `offset` units under it:
-    /// surface, and surface-container once the page is an edge fade's
-    /// depth under it, mixed between the two on the way.
+    /// surface, and surface-container once the page is a quarter of an
+    /// edge fade's depth under it, mixed between the two on the way. The
+    /// tint is quick, as Material's is, so that a page scrolled on past
+    /// it moves rows and does not redraw the bar with each step.
     pub fn bar_tone(&self, offset: f32) -> Color {
-        use faraday_draw::tokens::{EDGE_FADE, EDGE_FADE_COMPACT};
+        use faraday_draw::tokens::{APP_BAR_TINT_SHARE, EDGE_FADE, EDGE_FADE_COMPACT};
         let depth = if self.compact {
             EDGE_FADE_COMPACT
         } else {
             EDGE_FADE
         };
         let rest = self.col(Role::Surface);
-        rest.mix(self.col(Role::SurfaceContainer), offset / depth)
+        rest.mix(
+            self.col(Role::SurfaceContainer),
+            offset / (depth * APP_BAR_TINT_SHARE),
+        )
     }
 
     /// The region's content fades into `ground`, the surface it sits on,
