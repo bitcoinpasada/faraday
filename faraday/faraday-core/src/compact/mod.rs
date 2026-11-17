@@ -285,10 +285,14 @@ fn tools_from(app: &View, ui: &mut Ui, w: f32, over: Overflow) -> f32 {
     };
     // On the compact layouts a flow page's Cancel is the ⋮'s first row, so the
     // bar has one leave control (`docs/DESIGN.md` §4.1).
+    let open = Action::NavMenu(MenuPress::Open(Some(held)));
     if held.any() || cancel_in_menu(app) {
-        let open = Action::NavMenu(MenuPress::Open(Some(held)));
         right = faraday_ui::nav::more(ui, right, open, EN.tip_more);
     } else {
+        // On the Pi's panel the ⋮ is on every page, for Lock and Power off.
+        if power_in_menu(app) {
+            right = faraday_ui::nav::more(ui, right, open, EN.tip_more);
+        }
         // Immediately left of the ?: **How Faraday does it**
         // (`docs/CRYPTO-LEARN.md` §8.1).
         right = faraday_ui::nav::help(ui, right, Action::Guide, EN.tip_guide);
@@ -345,6 +349,13 @@ pub(crate) fn bar_eye(app: &View, ui: &mut Ui, right: f32) -> f32 {
 /// wide), on a page that can be cancelled. A lookup.
 pub(crate) fn cancel_in_menu(app: &View) -> bool {
     matches!(app.nav(), crate::nav::Nav::Menu | crate::nav::Nav::Bar) && app.cancel_shown()
+}
+
+/// Whether the ⋮ menu carries Lock (while something is held) and Power
+/// off: on the Pi's panel, on every page but Home, whose foot has them.
+/// A lookup.
+fn power_in_menu(app: &View) -> bool {
+    app.nav() == crate::nav::Nav::Menu
 }
 
 /// **Cancel** on a top app bar, its right edge at `right`, on a flow that
@@ -414,6 +425,14 @@ pub(crate) fn overflow_sheet(app: &View, ui: &mut Ui, w: f32, h: f32, held: Over
             EN.bar_menu_hide_sheets
         };
         lines.push(item(label, BarTool::Eye));
+    }
+    // Lock and Power off last, as Home's foot has them: Lock does what
+    // Home's Lock does (`Action::LockAsk`).
+    if power_in_menu(app) {
+        if app.holds_secret() {
+            lines.push(item(EN.compact_lock, BarTool::Lock));
+        }
+        lines.push(item(EN.nav_power_off, BarTool::Power));
     }
     crate::menu::draw(
         ui,
@@ -933,12 +952,15 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
 /// Home's foot on the small panel at `y`: Lock, when something is held,
 /// and power. Returns the height it takes.
 fn lock_row(app: &View, ui: &mut Ui, y: f32, inner: f32, gap: f32) -> f32 {
-    let pw = 44.0;
-    if app.holds_secret() {
+    // Lock and Power off, each labelled, sharing the row while something
+    // is held.
+    let held = app.holds_secret();
+    let pw = if held { (inner - gap) / 2.0 } else { inner };
+    if held {
         ui.button(
             M,
             y,
-            Some(inner - pw - gap),
+            Some(pw),
             BUTTON_H,
             EN.compact_lock,
             Style::Secondary,
@@ -946,16 +968,15 @@ fn lock_row(app: &View, ui: &mut Ui, y: f32, inner: f32, gap: f32) -> f32 {
         );
     }
     let px = M + inner - pw;
-    // Material's outlined icon button, round (F108).
-    let r = faraday_draw::tokens::shape_full(pw);
-    ui.stroke(px, y, pw, 44.0, r, Role::OutlineVariant);
-    ui.press(
-        Shape::new(px, y, pw, 44.0, r),
-        Role::OnSurface.paint(),
+    ui.button(
+        px,
+        y,
+        Some(pw),
+        BUTTON_H,
+        EN.nav_power_off,
+        Style::Secondary,
         Action::PowerAsk,
     );
-    ui.icon(px, y, pw, Icon::Power, 15.0, Role::OnSurfaceVariant);
-    ui.tip_plain((px, y, pw, 44.0), Action::PowerAsk, EN.tip_power_off);
     44.0 + 16.0
 }
 
@@ -1788,6 +1809,8 @@ impl Faraday {
                     BarTool::Keyboard if self.osk_shown() => Action::Osk(OskPress::Hide),
                     BarTool::Keyboard => Action::Osk(OskPress::Show),
                     BarTool::Eye => Action::Codex32(crate::codex32::C32::Eye),
+                    BarTool::Lock => Action::LockAsk,
+                    BarTool::Power => Action::PowerAsk,
                 });
             }
         }

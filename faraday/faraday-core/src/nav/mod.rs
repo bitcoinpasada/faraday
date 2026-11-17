@@ -41,6 +41,10 @@ pub enum BarTool {
     Keyboard,
     /// Make codex32 shares' eye.
     Eye,
+    /// **Lock**, on the Pi's panel while something is held.
+    Lock,
+    /// **Power off**, on the Pi's panel.
+    Power,
 }
 
 /// Which of a compact bar's tools are in its overflow menu.

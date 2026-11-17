@@ -1515,6 +1515,33 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.press(Action::PowerAsk);
     t.shot("power-sheet")?;
     t.app.event(Event::Key(Key::Escape));
+    // Home's foot: Lock and Power off, labelled.
+    t.press(Action::Nav(Screen::Home));
+    for _ in 0..30 {
+        t.app.event(Event::Key(Key::Down));
+    }
+    t.shot("home-foot")?;
+    // The bar's ⋮ on a flow's page, with a key held: Lock and Power off.
+    t.press(Action::CreateWallet);
+    let _ = t.app.frame();
+    if let Some(open) = (0u8..64)
+        .map(|bits| {
+            Action::NavMenu(faraday_core::nav::MenuPress::Open(Some(faraday_core::nav::Overflow {
+                own: bits & 1 != 0,
+                how: bits & 2 != 0,
+                help: bits & 4 != 0,
+                keyboard: bits & 8 != 0,
+                keyboard_up: false,
+                eye: bits & 16 != 0,
+            })))
+        })
+        .find(|a| t.app.offers(*a))
+    {
+        t.press(open);
+        t.shot("bar-menu")?;
+        t.press(Action::Cancel);
+    }
+    t.press(Action::CancelFlow);
     // A stick that started with Secure Boot off reminds at power-off.
     t.app.secure_boot = faraday_core::SecureBootAtStart::Off;
     t.app.maker = faraday_text::Text::of("LENOVO");

@@ -7,7 +7,7 @@
 //! destination; a stick being written hides the navigation.
 
 use faraday_core::in_progress::Going;
-use faraday_core::nav::{MenuPress, Nav};
+use faraday_core::nav::{BarTool, MenuPress, Nav, Overflow};
 use faraday_core::testkit;
 use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware, TouchPhase};
@@ -75,6 +75,46 @@ fn flow_begun(app: &mut Faraday) {
     app.press(Action::CreateWallet);
     crate::common::ckind(app, 0);
     app.press(Action::Nav(Screen::Home));
+}
+
+/// The ⋮ on the page shown, whatever it holds.
+fn more_menu(app: &mut Faraday) -> Action {
+    let _ = app.frame();
+    (0u8..64)
+        .map(|bits| {
+            Action::NavMenu(MenuPress::Open(Some(Overflow {
+                own: bits & 1 != 0,
+                how: bits & 2 != 0,
+                help: bits & 4 != 0,
+                keyboard: bits & 8 != 0,
+                keyboard_up: false,
+                eye: bits & 16 != 0,
+            })))
+        })
+        .find(|a| app.offers(*a))
+        .expect("the bar's ⋮")
+}
+
+#[test]
+fn the_pi_panels_menu_locks_from_a_flows_page_and_always_offers_power_off() {
+    let mut app = on(480, 640, 286);
+    app.press(Action::CreateWallet);
+    let open = more_menu(&mut app);
+    app.press(open);
+    let _ = app.frame();
+    assert!(app.offers(Action::NavMenu(MenuPress::Tool(BarTool::Power))));
+    assert!(!app.offers(Action::NavMenu(MenuPress::Tool(BarTool::Lock))));
+    app.press(Action::Cancel);
+    app.press(Action::CancelFlow);
+    app.press(Action::Nav(Screen::Home));
+    key_in(&mut app);
+    app.press(Action::CreateWallet);
+    let open = more_menu(&mut app);
+    app.press(open);
+    let _ = app.frame();
+    assert!(app.offers(Action::NavMenu(MenuPress::Tool(BarTool::Lock))));
+    app.press(Action::NavMenu(MenuPress::Tool(BarTool::Lock)));
+    assert!(!app.holds_secret(), "the menu's Lock did not lock");
 }
 
 #[test]
