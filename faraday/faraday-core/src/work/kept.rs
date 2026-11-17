@@ -439,6 +439,9 @@ fn a_spend_opened_before_its_seeds_were_loaded_signs_with_them_once_they_are() {
             .keys
             .add_words(&c, &testkit::test_words(word), l, None);
     }
+    // The keys now loaded change which keys take part: the inspection is
+    // redone with the next press and Review is gone through again for it.
+    app.press(Action::SignHere);
     testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     let _ = app.frame();

@@ -476,7 +476,9 @@ fn decode_names_the_psbt_the_amounts_going_in_came_from() {
 /// Savings' unsigned spend with test key 2's good signature on every
 /// input, made under `ty` where the PSBT asks for nothing: a cosigner
 /// that answered another question than the one asked.
-fn signed_by_zebra_under(ty: faraday_bip::bitcoin::sighash::EcdsaSighashType) -> Vec<u8> {
+pub(crate) fn signed_by_zebra_under(
+    ty: faraday_bip::bitcoin::sighash::EcdsaSighashType,
+) -> Vec<u8> {
     use faraday_bip::bitcoin::secp256k1::{Message, Secp256k1};
     use faraday_bip::bitcoin::sighash::SighashCache;
     use faraday_bip::bitcoin::{PublicKey, ecdsa, hashes::Hash};
