@@ -69,7 +69,9 @@ and `docs/DEMO.md` differ, this holds.
    - otherwise `self.next_mode = Some(m)` and `self.lock()`: the same
      LockAsk, the same refusal when the state cannot be kept
      (`not_kept`, which also clears `next_mode`), the same sheet the Lock
-     action shows when a stick is attached.
+     action shows when a stick is attached. With a file in From the stick
+     or For the stick the sheet shows too, whatever else is open: it lists
+     the files as going, and Cancel keeps them and the mode.
    `Faraday::mode_after_restart()` is `next_mode.unwrap_or(self.mode())`:
    a lock keeps the mode the person was in; a mode change takes the one
    chosen. The shell reads it before it drops the app.

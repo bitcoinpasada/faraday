@@ -5,7 +5,7 @@
 use faraday_bip::keys::Network;
 use faraday_core::wallet::Session;
 use faraday_core::{
-    Action, DESKTOP_MODES, Faraday, Mode, STICK_MODES, Screen, StorageCommand, StorageEvent,
+    Action, DESKTOP_MODES, Faraday, Mode, STICK_MODES, Screen, Sheet, StorageCommand, StorageEvent,
     testkit,
 };
 
@@ -50,6 +50,7 @@ fn a_mode_change_empties_both_boxes_and_the_session() {
     let mut app = demo_app();
     let _ = saved(&mut app);
     app.press(Action::Mode(Mode::Testnet));
+    app.press(Action::Lock);
     assert!(app.restart_requested());
     assert_eq!(app.mode_after_restart(), Mode::Testnet);
     assert!(app.inbox().is_empty(), "From the stick");
@@ -76,6 +77,32 @@ fn a_mode_change_on_the_stick_carries_no_boxes_either() {
     let _ = saved(&mut app);
     app.press(Action::Nav(Screen::Settings));
     app.press(Action::Mode(Mode::Signet));
+    app.press(Action::Lock);
     assert!(app.restart_requested());
     assert_eq!(saved(&mut app), Some((0, 0)));
+}
+
+#[test]
+fn a_mode_change_with_files_asks_first_and_cancel_keeps_them() {
+    let mut app = demo_app();
+    let _ = saved(&mut app);
+    app.press(Action::Mode(Mode::Testnet));
+    assert_eq!(app.sheet, Some(Sheet::LockAsk), "the sheet asks");
+    assert!(!app.restart_requested());
+    assert_eq!(app.inbox().len(), 1);
+    assert_eq!(app.outbox.len(), 1);
+    app.press(Action::Cancel);
+    assert!(app.sheet.is_none());
+    assert!(!app.restart_requested());
+    assert_eq!(app.mode_after_restart(), Mode::Demo);
+    assert_eq!(app.inbox().len(), 1);
+    assert_eq!(app.outbox.len(), 1);
+}
+
+#[test]
+fn a_mode_change_with_no_files_locks_at_once() {
+    let mut app = testkit::started();
+    app.press(Action::Nav(Screen::Settings));
+    app.press(Action::Mode(Mode::Signet));
+    assert!(app.restart_requested());
 }

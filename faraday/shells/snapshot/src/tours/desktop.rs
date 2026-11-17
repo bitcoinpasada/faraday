@@ -126,6 +126,19 @@ pub(crate) fn modes_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::ModeSheet);
     t.shot("modes-testnet-sheet")?;
     t.press(Action::Cancel);
+    // A mode change with files waiting for the stick asks first, and
+    // Cancel keeps them.
+    t.app.storage(StorageEvent::Restored {
+        inbox: Vec::new(),
+        outbox: faraday_core::files_from(vec![(
+            faraday_text::Text::of("note.txt"),
+            b"a note".to_vec(),
+        )]),
+        kept: Vec::new(),
+    });
+    t.press(Action::Mode(faraday_core::Mode::Signet));
+    t.shot("modes-testnet-change-asks")?;
+    t.press(Action::Cancel);
     t.press(Action::Entry(None));
     t.shot("modes-testnet-add-key")?;
     testnet_passphrases(t)?;

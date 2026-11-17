@@ -195,15 +195,19 @@ impl Faraday {
 
     /// Lock asked for: by the person (`for_flow` false), or by a step of
     /// a backup flow. Asks first when a vault is open with something
-    /// not in it, a seal waits, or the lock would end Make a new wallet;
-    /// else locks.
+    /// not in it, a seal waits, the lock would end Make a new wallet, or it
+    /// is a mode change and a file waits in From or For the stick (the
+    /// change empties both); else locks.
     pub(crate) fn lock_ask(&mut self, for_flow: bool) {
         let c = self.compute();
         self.idle.set_lock_for_flow(for_flow);
         let (keys, wallets) = self.unsaved_now(&c);
         let sealed = self.vaults.open.iter().any(|v| v.changes > 0);
+        let files_go =
+            self.mode_changing() && (!self.inbox().is_empty() || !self.outbox.is_empty());
         if self.lock_ends_create(&c)
             || self.lock_would_lose(&c)
+            || files_go
             || !self.vaults.open.is_empty() && (sealed || !keys.is_empty() || !wallets.is_empty())
         {
             self.vaults.name_lock(&c);
