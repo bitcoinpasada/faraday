@@ -164,6 +164,12 @@ macro_rules! words_screens_backup {
     wallet_done_restored: "Wallet restored · {}",
     /// Value of the Backup line in `wallet_done` before any backup.
     wallet_done_not_made: "not made",
+    /// Label of the source line in `wallet_done` after Restore.
+    wallet_done_restored_from: "Restored from",
+    /// Value of the source line in `wallet_done`: the wallet came from its description.
+    wallet_done_from_description: "wallet description",
+    /// Value of the source line in `wallet_done`: the wallet was made from the seeds.
+    wallet_done_from_seeds: "seeds",
     /// Filled button in `wallet_done` while the wallet has no backup.
     wallet_done_back_up_now: "Back up now",
     /// Text in `wallet_done`.

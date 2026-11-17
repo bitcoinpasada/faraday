@@ -71,4 +71,4 @@ The descriptor and the first addresses are shown. **It matches** closes the card
 
 The wallet stays in this session until memory is locked. The card offers what to do with it next.
 
-A spend button opens the wallet's spend, or its backup first when a key still has none. **Back up this wallet** opens its backup. **Another wallet from these seeds** makes a wallet of another kind from the same keys. **Wallets** opens the wallet.
+The restore ends on the same end card as Make a new wallet and Back up: **Wallet restored** with the wallet's name, its kind line and where it was restored from. **Show wallet QR** is the filled button, for the watch-only app. A spend button opens the wallet's spend, or its backup first when a key still has none. **Back up this wallet** opens its backup while it has none. **Open the wallet** opens its card. **Another wallet from these seeds** makes a wallet of another kind from the same keys. **Lock** and **Power off** end the visit.

@@ -560,9 +560,12 @@ fn a_description_read_first_then_a_vault_resumes_the_backup_with_the_vault() {
     );
 }
 
-/// Done offers the four ways on, each doing what it says.
+/// Done is the one end card: the wallet restored, where it came from, Show
+/// wallet QR filled, then a spend, Back up this wallet while it has none,
+/// Open the wallet, Another wallet, Lock and Power off; no button reads
+/// "Wallets".
 #[test]
-fn done_offers_a_spend_the_backup_another_wallet_and_wallets() {
+fn done_is_the_end_card_with_a_spend_the_backup_and_another_wallet() {
     let mut app = two_of_three_from_seeds();
     type_seed(&mut app, &testkit::test_words("bacon"));
     type_seed(&mut app, &testkit::test_words("zebra"));
@@ -574,12 +577,18 @@ fn done_offers_a_spend_the_backup_another_wallet_and_wallets() {
     assert_eq!(app.restore().unwrap().open, Some(DONE));
     let text = drawn(&mut app);
     for said in [
+        "Wallet restored",
+        "Restored from",
+        "Show wallet QR",
         "Spend from this wallet",
         "Back up this wallet",
+        "Open the wallet",
         "Another wallet from these seeds",
     ] {
         assert!(text.contains(said), "no {said}: {text}");
     }
+    assert!(app.offers(Action::QrWallet(w)));
+    assert!(app.offers(Action::LockAsk));
     assert!(app.offers(Action::SpendBackup(F::SpendFrom(w))));
     assert!(app.offers(Action::Backup(w)));
     assert!(app.offers(Action::NewWalletFrom(w)));
@@ -607,7 +616,7 @@ fn back_up_this_wallet_opens_back_up_on_it() {
 }
 
 #[test]
-fn wallets_opens_the_wallet() {
+fn open_the_wallet_opens_the_wallet() {
     let (mut app, w) = single_key_done();
     app.press(Action::OpenWallet(w));
     assert_eq!(app.screen, Screen::Wallets);

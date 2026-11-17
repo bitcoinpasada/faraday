@@ -289,32 +289,16 @@ fn restore_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             }
         }
         _ => {
-            // Restore ends on a choice, none of them the one to take.
+            // Restore ends on the one end card.
             if let Some(i) = r.wallet.filter(|_| r.done[rstep::SEEDS as usize]) {
-                let (spend, spend_action) = app.spend_button(i);
-                let mut items = vec![
-                    (spend.as_str(), Style::Secondary, spend_action),
-                    (
-                        EN.restore_back_up_button,
-                        Style::Secondary,
-                        Action::Backup(i),
-                    ),
-                ];
-                let from = app
-                    .session
-                    .wallets
-                    .get(i)
-                    .and_then(|wl| crate::create::NewKind::of(wl.policy()))
-                    .is_some();
-                if from {
-                    items.push((
-                        EN.restore_another_wallet,
-                        Style::Secondary,
-                        Action::NewWalletFrom(i),
-                    ));
-                }
-                items.push((EN.restore_wallets, Style::Secondary, Action::OpenWallet(i)));
-                cy += wrap_buttons(ui, x, cy, w, BUTTON_H, &items) + 4.0;
+                cy += crate::screens::backup::wallet_done(
+                    app,
+                    ui,
+                    i,
+                    crate::screens::backup::From::Restore,
+                    None,
+                    (x, cy, w),
+                ) + 4.0;
             }
         }
     }

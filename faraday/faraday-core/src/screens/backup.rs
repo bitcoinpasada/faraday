@@ -618,7 +618,6 @@ pub(crate) enum From {
     /// Back up, every card done.
     Backup,
     /// Restore an existing wallet.
-    #[expect(dead_code, reason = "Restore's Done draws it once its screen does")]
     Restore,
 }
 
@@ -665,7 +664,24 @@ pub(crate) fn wallet_done(
     cy += 40.0;
     ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, &Session::shape(wl));
     cy += ui.advance_as(BODY_S, BUTTON_H) + T::GAP;
-    if from == From::Create {
+    if from == From::Restore {
+        let source = if app.restore.state().is_some_and(|r| r.described) {
+            EN.wallet_done_from_description
+        } else {
+            EN.wallet_done_from_seeds
+        };
+        let label_w = ui.measure_as(BODY_S, EN.wallet_done_restored_from) + T::GAP + T::GAP;
+        ui.text_as(
+            x,
+            cy,
+            BODY_S,
+            Role::OnSurfaceVariant,
+            EN.wallet_done_restored_from,
+        );
+        ui.text_as(x + label_w, cy, BODY_S, Role::OnSurface, source);
+        cy += ui.advance_as(BODY_S, BUTTON_H) + T::GAP;
+    }
+    if !backed {
         let label_w = ui.measure_as(BODY_S, EN.create_backup) + T::GAP + T::GAP;
         ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, EN.create_backup);
         ui.text_as(
@@ -687,7 +703,7 @@ pub(crate) fn wallet_done(
         };
         cy += 16.0;
     }
-    let primary = if backed {
+    let primary = if backed || from == From::Restore {
         (EN.wallets_show_wallet, Action::QrWallet(wallet))
     } else {
         let action = if from == From::Create {
@@ -705,6 +721,10 @@ pub(crate) fn wallet_done(
     } else {
         items.push((primary.0, Style::Primary, primary.1));
     }
+    let spend = (from == From::Restore).then(|| app.spend_button(wallet));
+    if let Some((label, action)) = &spend {
+        items.push((label.as_str(), Style::Secondary, *action));
+    }
     items.push((
         EN.backup_done_open_wallet,
         Style::Secondary,
@@ -713,7 +733,23 @@ pub(crate) fn wallet_done(
     if let Some((label, action)) = moving {
         items.push((label, Style::Secondary, action));
     }
-    if backed {
+    if from == From::Restore && !backed {
+        items.push((
+            EN.restore_back_up_button,
+            Style::Secondary,
+            Action::Backup(wallet),
+        ));
+    }
+    if from == From::Restore && crate::create::NewKind::of(wl.policy()).is_some() {
+        items.push((
+            EN.restore_another_wallet,
+            Style::Ghost,
+            Action::NewWalletFrom(wallet),
+        ));
+    }
+    // Lock and Power off end the visit: not while a key made here is
+    // held until its backup is done.
+    if from != From::Create {
         items.push((EN.tip_lock, Style::Ghost, Action::LockAsk));
         let leave = if app.online {
             EN.settings_quit
