@@ -148,14 +148,16 @@ impl OpenVaults {
         }
         let label = Text::of(r.text(field::KEY_LABEL).unwrap_or(""));
         let loaded = keys.add_mnemonic(c, &m, passphrase, &label, None);
-        // A key already held takes the record's mark too.
-        if let Err(Refusal::Duplicate(fp)) = &loaded
-            && faraday_vault::records::is_made_online(r)
-        {
-            keys.note_made_online(*fp);
+        // A key already held takes the record's parent link and mark too.
+        if let Err(Refusal::Duplicate(fp)) = &loaded {
+            keys.take_child_of(*fp, child_of_of(r));
+            if faraday_vault::records::is_made_online(r) {
+                keys.note_made_online(*fp);
+            }
         }
         if let Ok(fp) = &loaded {
             keys.set_child_of(keys.len() - 1, child_of_of(r));
+            keys.take_child_of(*fp, child_of_of(r));
             keys.set_xor(keys.len() - 1, xor_of_record(r));
             keys.set_slip39(keys.len() - 1, slip39_of_record(r));
             keys.note_from_vault(*fp);
@@ -629,15 +631,17 @@ impl OpenVaults {
             }
             None => seed_of(r).map(|seed| keys.add_seed(c, &seed, &label)),
         };
-        // A key already held takes the record's mark too.
-        if let Some(Err(Refusal::Duplicate(fp))) = &loaded
-            && faraday_vault::records::is_made_online(r)
-        {
-            keys.note_made_online(*fp);
+        // A key already held takes the record's parent link and mark too.
+        if let Some(Err(Refusal::Duplicate(fp))) = &loaded {
+            keys.take_child_of(*fp, child_of_of(r));
+            if faraday_vault::records::is_made_online(r) {
+                keys.note_made_online(*fp);
+            }
         }
         if let Some(Ok(fp)) = &loaded {
             keys.set_codex32(keys.len() - 1, codex32_set_of(r));
             keys.set_child_of(keys.len() - 1, child_of_of(r));
+            keys.take_child_of(*fp, child_of_of(r));
             keys.set_xor(keys.len() - 1, xor_of_record(r));
             keys.set_slip39(keys.len() - 1, slip39_of_record(r));
             keys.note_from_vault(*fp);
@@ -646,6 +650,42 @@ impl OpenVaults {
             }
         }
         loaded
+    }
+
+    /// Costs a parse of the words and a PBKDF2 for each key record of an
+    /// open vault that says it was written on an online computer, while
+    /// `keys` holds a key. A key the session already holds that such a
+    /// record is of takes its mark, as one already held does from a share
+    /// record in [`Self::gather_codex32`]. Nothing is loaded.
+    pub fn note_made_online_keys(&self, c: &Compute, keys: &mut Keys) {
+        if keys.is_empty() {
+            return;
+        }
+        for slot in &self.slots {
+            for r in slot
+                .records
+                .iter()
+                .filter(|r| r.kind == kind::KEY && faraday_vault::records::is_made_online(r))
+            {
+                let fp = match record_words(c, r) {
+                    Some(m) => {
+                        let p = match r.text(field::KEY_PASSPHRASE) {
+                            Some(p) => crate::texts::wiped(p),
+                            None => self.passphrase_kept_for(c, keys, &m, 0).unwrap_or_default(),
+                        };
+                        fingerprint(c, Material::Words(&m), &p, keys.network())
+                    }
+                    None => seed_of(r)
+                        .and_then(|s| fingerprint(c, Material::Seed(&s), "", keys.network())),
+                };
+                if let Some(fp) = fp
+                    && keys.position(fp).is_some()
+                {
+                    keys.take_child_of(fp, child_of_of(r));
+                    keys.note_made_online(fp);
+                }
+            }
+        }
     }
 
     /// Costs a parse of each codex32 share record's string and, for each

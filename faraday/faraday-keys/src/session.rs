@@ -812,6 +812,27 @@ impl Keys {
         }
     }
 
+    /// A vault record of key `fp` says it is a child of `of`: the key takes
+    /// that link where it has none (typed words, say, met a record naming
+    /// the parent), and gets whatever its parent's marks give it, now or
+    /// when the parent is marked later.
+    pub(crate) fn take_child_of(
+        &mut self,
+        fp: Fingerprint,
+        of: Option<faraday_vault::child::ChildOf>,
+    ) {
+        let Some(of) = of else {
+            return;
+        };
+        if let Some(i) = self.position(fp)
+            && self.entries[i].info.child_of.is_none()
+        {
+            self.set_child_of(i, Some(of));
+        }
+        self.note_child(Fingerprint(of.parent), fp);
+        self.carry_child_marks();
+    }
+
     /// Keeps the published key `fp` for testing: it is not warned about
     /// again this session.
     pub fn keep_published(&mut self, fp: Fingerprint) {
@@ -996,6 +1017,7 @@ impl Keys {
                 self.note_child(Fingerprint(of.parent), fp);
             }
             if self.position(fp).is_some() {
+                self.take_child_of(fp, item.child);
                 // The vault's mark counts for the key already held too.
                 if item.online {
                     self.note_made_online(fp);

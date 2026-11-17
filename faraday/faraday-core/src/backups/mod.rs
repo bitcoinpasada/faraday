@@ -4089,6 +4089,11 @@ impl Faraday {
     /// where keys may load.
     pub(crate) fn vault_gather_codex32(&mut self) {
         let c = self.compute();
+        // A mark noted only makes the key held more careful, so it is noted
+        // wherever keys may not load too.
+        self.vaults
+            .store()
+            .note_made_online_keys(&c, &mut self.session.keys);
         if !self.may_load_keys() {
             return;
         }

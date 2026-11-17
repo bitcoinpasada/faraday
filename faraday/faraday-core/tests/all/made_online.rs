@@ -76,6 +76,20 @@ fn settle(app: &mut Faraday, until: impl Fn(&Faraday) -> bool) {
     }
 }
 
+/// Lets the caution for a key written online come up, as it does a moment
+/// after the key is held.
+fn caution(app: &mut Faraday) {
+    app.event(Event::Tick { now_ms: 90_000 });
+    let _ = app.frame();
+}
+
+/// The device of the codex32 tests, on Mainnet.
+fn mainnet_device(inbox: Files) -> Faraday {
+    let mut app = crate::common::device(inbox);
+    testkit::move_to(&mut app.session, Network::Mainnet).unwrap();
+    app
+}
+
 fn typed(app: &mut Faraday, words: &str) {
     app.press(Action::Entry(None));
     type_text(app, words);
@@ -450,7 +464,7 @@ fn a_share_an_online_computer_wrote_marks_a_key_already_loaded_from_other_shares
     };
     let mut marked = share_record(D);
     faraday_vault::records::mark_made_online(&mut marked);
-    let mut app = crate::common::device(vec![
+    let mut app = mainnet_device(vec![
         (
             "home.kdbx".into(),
             vault_of(HOME, vec![share_record(A), share_record(C)], 3),
@@ -467,7 +481,14 @@ fn a_share_an_online_computer_wrote_marks_a_key_already_loaded_from_other_shares
     assert!(!app.session.keys.made_online(fp));
     unlock_on_vaults(&mut app, "bank.kdbx", "bank phrase");
     settle(&mut app, |a| a.session.keys.made_online(fp));
-    assert!(app.session.keys.made_online(fp));
+    caution(&mut app);
+    assert_eq!(app.sheet, Some(Sheet::Published));
+    app.press(Action::PublishedKeep);
+    assert_eq!(
+        app.sheet,
+        Some(Sheet::Published),
+        "a press does not keep it"
+    );
 }
 
 #[test]
@@ -529,8 +550,6 @@ fn the_same_words_under_another_passphrase_stay_held_when_the_words_were_written
     assert!(app.session.keys.made_online(b));
 }
 
-/// A Mainnet device with `words` typed, then the vault holding `words`
-/// flagged `flags` unlocked.
 #[test]
 fn words_typed_on_mainnet_are_held_when_a_vault_demo_wrote_has_them() {
     let words = fresh();
@@ -544,19 +563,9 @@ fn words_typed_on_mainnet_are_held_when_a_vault_demo_wrote_has_them() {
     let mut app = process(vec![("made.kdbx".into(), file)], Network::Mainnet);
     typed(&mut app, &words);
     assert_eq!(app.session.keys.len(), 1);
+    // A plain unlock, with nothing loaded from the vault by hand.
     unlock(&mut app);
-    // The key is held, so the unlock offers nothing; the person loads the
-    // vault's record of it from the vault's contents.
-    app.press(Action::Nav(Screen::VaultContents));
-    app.press(Action::Vault(V::Category(0)));
-    app.press(Action::Vault(V::Item(0)));
-    testkit::press_on_worker(&mut app, Action::Vault(V::Load));
-    let fp = app.session.keys.info(0).unwrap().fingerprint;
-    // The load runs on a worker: give it its ticks.
-    settle(&mut app, |a| a.session.keys.made_online(fp));
-    assert!(app.session.keys.made_online(fp), "the key is not marked");
-    app.event(Event::Tick { now_ms: 90_000 });
-    let _ = app.frame();
+    caution(&mut app);
     assert_eq!(app.sheet, Some(Sheet::Published));
     app.press(Action::PublishedKeep);
     assert_eq!(
@@ -592,9 +601,10 @@ fn unlock_loading(app: &mut Faraday, name: &str, phrase: &str) {
     }
 }
 
-#[test]
-fn a_child_seed_is_held_when_its_parent_s_shares_from_the_desktop_app_load_later() {
-    use crate::codex32_kept::{A, C, FP, PHRASE as HOME, share_record, unlock_on_vaults, vault_of};
+/// The child of the key the shares A and C make, as the device writes it into
+/// a vault, and the shares A and C marked as the desktop app writes them.
+fn child_and_marked_shares() -> (faraday_vault::Record, Vec<faraday_vault::Record>) {
+    use crate::codex32_kept::{A, C, PHRASE as HOME, share_record, unlock_on_vaults, vault_of};
     // The child of the key A and C make, written by the device.
     let mut first = crate::common::device(vec![(
         "home.kdbx".into(),
@@ -617,7 +627,6 @@ fn a_child_seed_is_held_when_its_parent_s_shares_from_the_desktop_app_load_later
         .find(|r| r.field(field::KEY_CHILD).is_some())
         .expect("the child is in the vault");
     assert!(!faraday_vault::records::is_made_online(&child));
-    // Another device holds the child, then opens shares the desktop wrote.
     let marked: Vec<_> = [A, C]
         .iter()
         .map(|s| {
@@ -626,7 +635,15 @@ fn a_child_seed_is_held_when_its_parent_s_shares_from_the_desktop_app_load_later
             r
         })
         .collect();
-    let mut app = crate::common::device(vec![
+    (child, marked)
+}
+
+#[test]
+fn a_child_seed_is_held_when_its_parent_s_shares_from_the_desktop_app_load_later() {
+    use crate::codex32_kept::{FP, vault_of};
+    let (child, marked) = child_and_marked_shares();
+    // Another device holds the child, then opens shares the desktop wrote.
+    let mut app = mainnet_device(vec![
         (
             "child.kdbx".into(),
             vault_of("child phrase", vec![child], 5),
@@ -635,12 +652,139 @@ fn a_child_seed_is_held_when_its_parent_s_shares_from_the_desktop_app_load_later
     ]);
     unlock_loading(&mut app, "child.kdbx", "child phrase");
     assert_eq!(app.session.keys.len(), 1);
-    let fp = app.session.keys.info(0).unwrap().fingerprint;
-    assert!(!app.session.keys.made_online(fp));
     unlock_loading(&mut app, "bank.kdbx", "bank phrase");
     assert_eq!(app.session.keys.len(), 2, "the parent loads");
     assert!(app.session.keys.position_of(FP).is_some());
-    assert!(app.session.keys.made_online(fp), "the child is not held");
+    caution(&mut app);
+    assert_eq!(app.sheet, Some(Sheet::Published), "the child is not held");
+    app.press(Action::PublishedKeep);
+    app.press(Action::PublishedHold);
+    assert_eq!(
+        app.sheet,
+        Some(Sheet::Published),
+        "the child is held as its parent is, so a second key waits on a hold"
+    );
+}
+
+/// Opens vault file `name` and unlocks it, loading nothing: the sheet that
+/// offers the vault's keys is put away.
+fn unlock_without_loading(app: &mut Faraday, name: &str, phrase: &str) {
+    app.press(Action::Nav(Screen::Vaults));
+    let n = app
+        .vault_files()
+        .iter()
+        .position(|f| f.name == name)
+        .expect("the vault is listed");
+    let before = app.vaults().open.len();
+    app.press(Action::Vault(V::Open(n)));
+    type_text(app, phrase);
+    app.press(Action::Vault(V::Unlock));
+    settle(app, |a| a.vaults().open.len() > before);
+    assert_eq!(
+        app.vaults().open.len(),
+        before + 1,
+        "the vault did not open"
+    );
+    if app.sheet == Some(Sheet::UnlockLoad) {
+        app.press(Action::Back);
+    }
+}
+
+#[test]
+fn a_child_seed_loaded_with_a_passphrase_after_its_online_parent_is_held() {
+    use crate::codex32_kept::vault_of;
+    let (child, marked) = child_and_marked_shares();
+    let mut app = mainnet_device(vec![
+        (
+            "child.kdbx".into(),
+            vault_of("child phrase", vec![child], 5),
+        ),
+        ("bank.kdbx".into(), vault_of("bank phrase", marked, 4)),
+    ]);
+    unlock_loading(&mut app, "bank.kdbx", "bank phrase");
+    assert_eq!(app.session.keys.len(), 1, "the parent loads");
+    // The parent is held, so only the child can bring the caution back.
+    caution(&mut app);
+    app.press(Action::PublishedHold);
+    assert_eq!(app.sheet, None);
+    unlock_without_loading(&mut app, "child.kdbx", "child phrase");
+    assert_eq!(app.session.keys.len(), 1);
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::Category(0)));
+    app.press(Action::Vault(V::Item(0)));
+    app.press(Action::Vault(V::LoadWithPassphrase));
+    type_text(&mut app, "a passphrase");
+    app.press(Action::Vault(V::FocusPromptAgain));
+    type_text(&mut app, "a passphrase");
+    app.press(Action::Vault(V::PromptGo));
+    assert_eq!(app.session.keys.len(), 2, "the child loads");
+    app.press(Action::Nav(Screen::Spend));
+    caution(&mut app);
+    assert_eq!(app.sheet, Some(Sheet::Published), "the child is not held");
+    app.press(Action::PublishedKeep);
+    assert_eq!(
+        app.sheet,
+        Some(Sheet::Published),
+        "a press does not keep it"
+    );
+}
+
+#[test]
+fn words_typed_before_their_vault_records_parent_loads_are_held_when_the_parent_is_marked() {
+    use crate::codex32_kept::vault_of;
+    let (child, marked) = child_and_marked_shares();
+    // The child's own words, typed on the device before any vault opens.
+    let words = {
+        use faraday_bip::bip39::Language;
+        let m = faraday_vault::records::words_of(&child).expect("the child holds words");
+        let typed: Vec<String> = m
+            .indices()
+            .iter()
+            .map(|&i| {
+                Language::English
+                    .typed(i)
+                    .unwrap()
+                    .as_chars()
+                    .iter()
+                    .collect()
+            })
+            .collect();
+        typed.join(" ")
+    };
+    let mut app = mainnet_device(vec![
+        (
+            "child.kdbx".into(),
+            vault_of("child phrase", vec![child], 5),
+        ),
+        ("bank.kdbx".into(), vault_of("bank phrase", marked, 4)),
+    ]);
+    typed(&mut app, &words);
+    assert_eq!(app.session.keys.len(), 1);
+    // The record naming the parent loads first, then the marked parent.
+    unlock_loading(&mut app, "child.kdbx", "child phrase");
+    // The unlock offers nothing, as the key is held; the person loads the
+    // vault's record of it from the vault's contents.
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::Category(0)));
+    app.press(Action::Vault(V::Item(0)));
+    testkit::press_on_worker(&mut app, Action::Vault(V::Load));
+    settle(&mut app, |a| {
+        a.session.keys.info(0).is_some_and(|i| i.child_of.is_some())
+    });
+    unlock_loading(&mut app, "bank.kdbx", "bank phrase");
+    caution(&mut app);
+    assert_eq!(
+        app.sheet,
+        Some(Sheet::Published),
+        "the typed key is not held"
+    );
+    app.press(Action::PublishedKeep);
+    app.press(Action::PublishedHold);
+    assert_eq!(
+        app.sheet,
+        Some(Sheet::Published),
+        "the child is held as its parent is, so a second key waits on a hold"
+    );
 }
 
 #[test]
