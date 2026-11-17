@@ -5,6 +5,7 @@
 //! and answers read are written and read back, and what is read from that
 //! writing is written and read as itself (a free text, a vault's name, is
 //! cleaned when written, so the first read back may differ from the read).
+//! A note read is written and reads back as the same note.
 
 #![no_main]
 
@@ -50,15 +51,11 @@ fuzz_target!(|data: &[u8]| {
             assert_eq!(again, back);
         }
     }
-    // A note's free text is cleaned when written, which can leave nothing
-    // that reads: a note read then written may not read back (reported, not
-    // asserted). What does read back is the same note again.
+    // A note read is written back as it was read.
     for seeds in [0, 1, 4, usize::MAX] {
-        if let Some(note) = Note::from_text(&text, seeds)
-            && let Some(back) = Note::from_text(&note.to_text(), seeds)
-        {
-            let again = Note::from_text(&back.to_text(), seeds);
-            assert!(again.is_none_or(|a| a == back));
+        if let Some(note) = Note::from_text(&text, seeds) {
+            let back = Note::from_text(&note.to_text(), seeds).expect("note written read back");
+            assert_eq!(back, note);
         }
     }
 });

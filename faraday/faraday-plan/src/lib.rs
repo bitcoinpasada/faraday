@@ -3823,11 +3823,15 @@ impl Note {
     }
 
     /// [`Note::to_text`] read back for a wallet of `seeds` seeds: None for
-    /// a note on a seed it does not have.
+    /// a note on a seed it does not have, and for text the writer would
+    /// change.
     pub fn from_text(s: &str, seeds: usize) -> Option<Note> {
         let note = text::note_read(s)?;
         let on_seed = note.on().and_then(|(_, w)| w.seed_index());
-        on_seed.is_none_or(|i| i < seeds).then_some(note)
+        // A note the writer would change (a tab or line break in a free text,
+        // a trailing space) is refused: what is read is what is kept.
+        let kept = text::note_read(&note.to_text()).as_ref() == Some(&note);
+        (on_seed.is_none_or(|i| i < seeds) && kept).then_some(note)
     }
 
     /// The thing of the map it is on, when it is on one.
