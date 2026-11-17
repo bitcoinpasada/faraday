@@ -117,6 +117,11 @@ lint-repo:
     # Each cross-check area's facts are stated, their paths resolve, and the
     # README's table and known differences are what they say.
     python3 -I -B tools/crosscheck/facts.py check
+    # Every judge tool is there and the cross-check's own harness tests pass
+    # (no Rust, no network, about 20 seconds); a missing tool is named and
+    # the tests skipped on a printed line. No cross-check runs, no stamp is
+    # written (F197).
+    python3 -I -B tools/crosscheck/judges.py harness
     # The colour tables are what the vendored material-color-utilities
     # makes (docs/THEMES.md §11.3).
     tools/lint-themes.sh

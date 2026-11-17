@@ -86,6 +86,10 @@ recipe (F243), nothing else.
   below that skip without a tool under plain `just` with
   `FARADAY_JUDGES_REQUIRED=1`, so a missing tool fails them, and runs
   the OVMF Secure Boot check (§6.3's tools and `systemd-boot-efi`).
+  Plain `just` also runs the cross-check's harness tests through
+  `judges.py harness` (`just crosscheck-test`, about 20 seconds, no Rust)
+  once every judge is there; with one missing it names it on a printed
+  line and skips. It runs no cross-check and writes no stamp (F197).
 - **Bitcoin Core v31.1**, which the cross-check requires: the official
   release tarball for x86_64 or aarch64 Linux, fetched and checked once
   by a script that needs **gpg** and git (§7). It is not in the

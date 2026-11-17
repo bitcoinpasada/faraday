@@ -2,6 +2,9 @@
 """The outside programs `just crosscheck` needs (docs/ESTABLISHED.md §9.2, rule 4).
 
     judges.py check      exit 1 and name every missing tool; print nothing else
+    judges.py harness    the ordinary check's form: the harness's own tests
+                         (test_harness.py) when every tool is present; else a line
+                         naming what is missing and that the tests are skipped, exit 0
     judges.py versions   the stamp's lines, `<tool> <version>` each
 
 The judged test files (tests that skip without these tools under plain
@@ -188,6 +191,8 @@ def missing():
         out.append("cbor2 for Python (package python3-cbor2)")
     if not pyotp_version():
         out.append("pyotp for Python (package python3-pyotp)")
+    if subprocess.run([sys.executable, "-I", "-c", "import ecdsa"], capture_output=True).returncode:
+        out.append("ecdsa for Python (package python3-ecdsa)")
     if not ovmf():
         out.append("OVMF's Secure Boot firmware, OVMF_CODE.secboot.4m.fd or "
                    "OVMF_CODE_4M.secboot.fd and its empty variable store "
@@ -228,6 +233,13 @@ def main():
         sys.stdout.write(versions())
         return 0
     gone = missing()
+    if cmd == "harness":
+        if gone:
+            print("crosscheck harness tests: SKIPPED, not run; missing: " + ", ".join(gone))
+            return 0
+        here = pathlib.Path(__file__).resolve().parent
+        print("crosscheck judges: every tool present")
+        return subprocess.run([sys.executable, "-I", "-B", str(here / "test_harness.py")]).returncode
     for g in gone:
         print(f"crosscheck: missing judge: {g}", file=sys.stderr)
     if gone:
