@@ -39,13 +39,13 @@ fn a_bip84_path_makes_the_wallet_and_a_second_press_opens_it() {
     let made = app.session.wallets.len() - 1;
     let w = &app.session.wallets[made];
     assert!(
-        w.name.as_str().ends_with("m/84h/0h/0h"),
+        w.name.as_str().ends_with("m/84h/1h/0h"),
         "{}",
         w.name.as_str()
     );
     assert_eq!(
         String::from(&*app.session.address(&c, w, false, 0)),
-        "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu"
+        "tb1q6rz28mcfaxtmd6v789l9rrlrusdprr9pqcpvkl"
     );
     let _ = app.frame();
     app.press(Action::X(XAction::MadeDone));

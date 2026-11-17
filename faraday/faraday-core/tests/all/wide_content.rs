@@ -165,7 +165,7 @@ fn explore_keeps_its_column_centred_and_wraps_long_values_between_groups() {
             "{w}: the column's middle {middle}, the room's {room}"
         );
         // The address in groups of four, on one line in the column.
-        let grouped = "bc1q cr8t e4kr 609g cawu tmrz a0j4 xv80 jy8z 306f yu";
+        let grouped = "tb1q 6rz2 8mcf axtm d6v7 89l9 rrlr usdp rr9p qcpv kl";
         let line = boxes(&mut app, grouped);
         assert_eq!(line.len(), 1, "{w}: the address in groups, whole");
         // The extended key wraps between groups: every line of it ends
@@ -175,7 +175,12 @@ fn explore_keeps_its_column_centred_and_wraps_long_values_between_groups() {
             .drawn_text_boxes()
             .plain()
             .into_iter()
-            .filter(|(t, _)| t.starts_with("xpub") || t.starts_with("zpub"))
+            .filter(|(t, _)| {
+                t.starts_with("xpub")
+                    || t.starts_with("zpub")
+                    || t.starts_with("tpub")
+                    || t.starts_with("vpub")
+            })
             .collect();
         assert!(!xpub_lines.is_empty(), "{w}: the extended key drawn");
         for (t, b) in &xpub_lines {

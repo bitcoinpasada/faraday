@@ -1,5 +1,7 @@
 //! Explore shows the public side of a loaded key at a path: the
-//! addresses BIP-84 and BIP-86 publish for "abandon … about", the script
+//! addresses BIP-84 and BIP-86 publish for "abandon … about" (their
+//! Testnet counterparts, worked out with embit: Mainnet refuses the sample
+//! seed), the script
 //! a path's purpose names, and a path that is not one named as such; and
 //! behind its eyes the key's words, its extended private keys and an
 //! address's private key (BIP-84's), each hidden until its eye is pressed
@@ -27,18 +29,18 @@ fn bip84_and_bip86s_first_addresses() {
     let c = faraday_core::testkit::compute();
     let mut app = exploring();
     let r = app.explore_reading(&c).unwrap();
-    assert_eq!(r.address, "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu");
+    assert_eq!(r.address, "tb1q6rz28mcfaxtmd6v789l9rrlrusdprr9pqcpvkl");
     app.press(Action::XPreset(1));
     let r = app.explore_reading(&c).unwrap();
     assert_eq!(
         r.address,
-        "bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr"
+        "tb1p8wpt9v4frpf3tkn0srd97pksgsxc5hs52lafxwru9kgeephvs7rqlqt9zj"
     );
     // The next index along.
     app.press(Action::XPreset(0));
     app.press(Action::XIndex(1));
     let r = app.explore_reading(&c).unwrap();
-    assert_eq!(r.address, "bc1qnjg0jd8228aq7egyzacy8cys3knf9xvrerkf9g");
+    assert_eq!(r.address, "tb1qd7spv5q28348xl4myc8zmh983w5jx32cjhkn97");
 }
 
 #[test]
@@ -73,17 +75,18 @@ fn eye(app: &mut Faraday, e: Eye) {
     app.press(Action::X(XAction::Eye(e)));
 }
 
-/// BIP-84's published private key of "abandon … about"'s first receive
-/// address, m/84h/0h/0h/0/0 (faraday-keys' tests derive it and check it
-/// pays to the address BIP-84 publishes).
-const FIRST_WIF: &str = "KyZpNDKnfs94vbrwhJneDi77V6jF64PWPF8x5cdJb8ifgg2DUc9d";
+/// The Testnet private key (WIF) of "abandon … about"'s first receive
+/// address, m/84h/1h/0h/0/0, on Testnet because Mainnet refuses the sample
+/// seed. Worked out with embit (a separate implementation; it reproduces
+/// BIP-84's published Mainnet vectors for this seed).
+const FIRST_WIF: &str = "cTGhosGriPpuGA586jemcuH9pE9spwUmneMBmYYzrQEbY92DJrbo";
 
 #[test]
 fn nothing_secret_is_shown_until_an_eye_is_pressed() {
     let mut app = exploring();
     assert_eq!(cells(&mut app, "abandon"), 0);
     let all = drawn(&mut app);
-    assert!(!all.contains("xprv"));
+    assert!(!all.contains("tprv"));
     assert!(!all.contains(FIRST_WIF));
     // Every eye is offered, closed.
     for e in [Eye::Secret, Eye::Wif, Eye::Xprv] {
@@ -130,13 +133,13 @@ fn the_extended_private_keys_show_behind_their_eye() {
     eye(&mut app, Eye::Xprv);
     let all = drawn(&mut app);
     assert_eq!(
-        all.matches("xprv").count(),
+        all.matches("tprv").count(),
         2,
         "the root's and the account's"
     );
-    assert!(crate::common::has(&mut app, "m/84h/0h/0h"));
+    assert!(crate::common::has(&mut app, "m/84h/1h/0h"));
     eye(&mut app, Eye::Xprv);
-    assert!(!drawn(&mut app).contains("xprv"));
+    assert!(!drawn(&mut app).contains("tprv"));
 }
 
 #[test]
@@ -153,7 +156,7 @@ fn everything_is_hidden_after_leaving_and_coming_back() {
     assert!(!app.explore_shown().unwrap().any());
     assert_eq!(cells(&mut app, "abandon"), 0);
     let all = drawn(&mut app);
-    assert!(!all.contains("xprv"));
+    assert!(!all.contains("tprv"));
     assert!(!all.contains(FIRST_WIF));
 }
 
@@ -169,11 +172,11 @@ fn the_address_public_key_and_extended_key_open_their_codes() {
     for (code, want) in [
         (
             Code::ExploreAddress,
-            "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu",
+            "tb1q6rz28mcfaxtmd6v789l9rrlrusdprr9pqcpvkl",
         ),
         (
             Code::ExplorePublicKey,
-            "0330d54fd0dd420a6e5f8d3624f5f3482cae350f79d5f0753bf5beef9c2d91af3c",
+            "02e7ab2537b5d49e970309aae06e9e49f36ce1c9febbd44ec8e0d1cca0b4f9c319",
         ),
         (Code::ExploreXpub, r.xpub.as_str()),
     ] {

@@ -61,53 +61,54 @@ fn read_at(app: &mut Faraday, change: bool, index: u32) -> String {
     a
 }
 
-/// "abandon … about"'s addresses: BIP-84's, BIP-86's and BIP-49's own
-/// test vectors, BIP-49's mainnet first address and BIP-44's as BIP-44
-/// wallets derive them: (network, preset, change, index, address).
+/// "abandon … about"'s Testnet addresses (coin type 1, `tb` prefix; Mainnet
+/// refuses the sample seed): the paths of BIP-84, BIP-86 and BIP-44 worked
+/// out with embit, a separate implementation that reproduces the published
+/// Mainnet vectors of BIP-84, BIP-86 and BIP-44, and BIP-49's own Testnet
+/// vector: (network, preset, change, index, address).
 const VECTORS: &[(Option<Network>, u8, bool, u32, &str)] = &[
     (
         None,
         0,
         false,
         0,
-        "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu",
+        "tb1q6rz28mcfaxtmd6v789l9rrlrusdprr9pqcpvkl",
     ),
     (
         None,
         0,
         false,
         1,
-        "bc1qnjg0jd8228aq7egyzacy8cys3knf9xvrerkf9g",
+        "tb1qd7spv5q28348xl4myc8zmh983w5jx32cjhkn97",
     ),
     (
         None,
         0,
         true,
         0,
-        "bc1q8c6fshw2dlwun7ekn9qwf37cu2rn755upcp6el",
+        "tb1q9u62588spffmq4dzjxsr5l297znf3z6j5p2688",
     ),
     (
         None,
         1,
         false,
         0,
-        "bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr",
+        "tb1p8wpt9v4frpf3tkn0srd97pksgsxc5hs52lafxwru9kgeephvs7rqlqt9zj",
     ),
     (
         None,
         1,
         false,
         1,
-        "bc1p4qhjn9zdvkux4e44uhx8tc55attvtyu358kutcqkudyccelu0was9fqzwh",
+        "tb1p90h6z3p36n9hrzy7580h5l429uwchyg8uc9sz4jwzhdtuhqdl5eqmpwq6n",
     ),
     (
         None,
         1,
         true,
         0,
-        "bc1p3qkhfews2uk44qtvauqyr2ttdsw7svhkl9nkm9s9c3x4ax5h60wqwruhk7",
+        "tb1p6uav7en8k7zsumsqugdmg5j6930zmzy4dg7jcddshsr0fvxlqx7q7p5els",
     ),
-    (None, 2, false, 0, "37VucYSaXLCAsxYyAPfbSi9eh4iEcbShgf"),
     (
         Some(Network::Testnet),
         2,
@@ -115,9 +116,9 @@ const VECTORS: &[(Option<Network>, u8, bool, u32, &str)] = &[
         0,
         "2Mww8dCYPUpKHofjgcXcBCEGmniw9CoaiD2",
     ),
-    (None, 3, false, 0, "1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA"),
-    (None, 3, false, 1, "1Ak8PffB2meyfYnbXZR9EGfLfFZVpzJvQP"),
-    (None, 3, true, 0, "1J3J6EvPrv8q6AC3VCjWV45Uf3nssNMRtH"),
+    (None, 3, false, 0, "mkpZhYtJu2r87Js3pDiWJDmPte2NRZ8bJV"),
+    (None, 3, false, 1, "mzpbWabUQm1w8ijuJnAof5eiSTep27deVH"),
+    (None, 3, true, 0, "mi8nhzZgGZQthq6DQHbru9crMDerUdTKva"),
 ];
 
 #[test]
@@ -159,14 +160,14 @@ fn the_list_follows_the_account_explored() {
     // list, never the one kept before.
     let mut app = on_page(None, 0, Page::Addresses);
     let segwit = listed(&mut app, false, 0);
-    assert_eq!(segwit[0].1, "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu");
+    assert_eq!(segwit[0].1, "tb1q6rz28mcfaxtmd6v789l9rrlrusdprr9pqcpvkl");
     app.press(Action::X(XAction::Page(Page::Path)));
     app.press(Action::XPreset(1));
     app.press(Action::X(XAction::Page(Page::Addresses)));
     let taproot = listed(&mut app, false, 0);
     assert_eq!(
         taproot[0].1,
-        "bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr"
+        "tb1p8wpt9v4frpf3tkn0srd97pksgsxc5hs52lafxwru9kgeephvs7rqlqt9zj"
     );
     assert!(
         app.explore_kept() <= 10,
@@ -249,7 +250,7 @@ fn a_whole_address_is_found_at_its_index_on_each_chain() {
     let receive_37 = listed(&mut list, false, 30)[7].1.clone();
     let change_640 = listed(&mut list, true, 640)[0].1.clone();
     let mut app = on_page(None, 0, Page::Find);
-    let change_0 = "bc1q8c6fshw2dlwun7ekn9qwf37cu2rn755upcp6el";
+    let change_0 = "tb1q9u62588spffmq4dzjxsr5l297znf3z6j5p2688";
     search(&mut app, change_0, 0);
     assert_eq!(found(&app), (vec![(true, 0, change_0.into())], 1));
     search(&mut app, &receive_37, 0);
@@ -296,7 +297,7 @@ fn a_miss_says_how_far_it_looked() {
     // BIP-86's first address is none of BIP-84's account's.
     search(
         &mut app,
-        "bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr",
+        "tb1p8wpt9v4frpf3tkn0srd97pksgsxc5hs52lafxwru9kgeephvs7rqlqt9zj",
         0,
     );
     let s = app.explore().unwrap().search.as_ref().unwrap();
@@ -362,7 +363,7 @@ fn a_paste_fills_the_field_and_a_secret_is_refused() {
     use faraday_shell_api::FileKind;
     let mut app = on_page(None, 0, Page::Find);
     app.clipboard = true;
-    let change_0 = "bc1q8c6fshw2dlwun7ekn9qwf37cu2rn755upcp6el";
+    let change_0 = "tb1q9u62588spffmq4dzjxsr5l297znf3z6j5p2688";
     app.press(Action::X(XAction::Paste));
     app.event(Event::Clipboard {
         kind: FileKind::Text,
@@ -433,7 +434,7 @@ fn on_the_small_panel_the_bar_goes_back_to_the_path() {
     assert!(app.offers(Action::X(XAction::Page(Page::Path))));
 }
 
-const CHANGE_0: &str = "bc1q8c6fshw2dlwun7ekn9qwf37cu2rn755upcp6el";
+const CHANGE_0: &str = "tb1q9u62588spffmq4dzjxsr5l297znf3z6j5p2688";
 
 #[test]
 fn a_found_address_records_where_the_match_lies() {
