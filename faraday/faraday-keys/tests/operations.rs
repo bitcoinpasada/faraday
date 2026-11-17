@@ -1678,7 +1678,7 @@ fn a_job_view_holds_the_masters_and_no_words() {
 }
 
 #[test]
-fn a_key_with_a_passphrase_keeps_the_fingerprint_of_its_words_alone() {
+fn a_key_with_a_passphrase_gives_the_fingerprint_of_its_words_alone() {
     let c = compute();
     let mut keys = Keys::on(Network::Testnet);
     let plain = keys.add_words(&c, ABANDON, "Plain", None).unwrap();
@@ -1688,8 +1688,8 @@ fn a_key_with_a_passphrase_keeps_the_fingerprint_of_its_words_alone() {
     // The published fingerprint of the "abandon" words, 73c5da0a.
     let published = plain;
     assert_ne!(with, plain);
-    assert_eq!(keys.info(0).unwrap().words_fingerprint, published);
-    assert_eq!(keys.info(1).unwrap().words_fingerprint, published);
+    assert_eq!(keys.words_fingerprint(&c, 0), Some(published));
+    assert_eq!(keys.words_fingerprint(&c, 1), Some(published));
     assert_eq!(keys.info(1).unwrap().fingerprint, with);
     assert_eq!(format!("{published}"), "73c5da0a");
 }

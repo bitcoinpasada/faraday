@@ -643,7 +643,9 @@ impl Faraday {
 impl Faraday {
     /// Starts making a code of seed `seed`'s entropy under `passphrase`
     /// (`docs/KEF.md` §6). A seed of 15, 18 or 21 words, another list's,
-    /// or none gives [`kef_make::MakeStart::NotOffered`].
+    /// or none gives [`kef_make::MakeStart::NotOffered`]. Costs a PBKDF2 and
+    /// a master key when the id is the fingerprint of the words of a key
+    /// that has a passphrase.
     pub fn kef_make_seed(
         &mut self,
         seed: usize,
@@ -653,6 +655,21 @@ impl Faraday {
         let c = self.compute();
         let entropy = faraday_keys::kef::seed_plaintext(&self.session.keys, &c, seed)
             .ok_or(kef_make::MakeStart::NotOffered)?;
+        // The words' own fingerprint is worked out here, on the press that
+        // starts the job, and only for a code that asks for it; words that
+        // do not parse offer none.
+        if options.id == kef_make::IdChoice::WordsFingerprint {
+            let fp = self
+                .session
+                .keys
+                .words_fingerprint(&c, seed)
+                .ok_or(kef_make::MakeStart::NotOffered)?;
+            let options = kef_make::Options {
+                id: kef_make::IdChoice::Fingerprint(fp.0),
+                ..options.clone()
+            };
+            return self.kef_make(passphrase, entropy, &options);
+        }
         self.kef_make(passphrase, entropy, options)
     }
 

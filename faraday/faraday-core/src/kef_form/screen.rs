@@ -499,7 +499,7 @@ fn id_part(ui: &mut Ui, (x, y, w): (f32, f32, f32), f: &KefForm, ask: Ask) -> f3
         ids.push((
             EN.kef_opt_id_fingerprint,
             IdKind::Fingerprint,
-            matches!(o.id, IdChoice::Fingerprint(_)),
+            matches!(o.id, IdChoice::Fingerprint(_) | IdChoice::WordsFingerprint),
         ));
     }
     let items: Vec<_> = ids
@@ -521,7 +521,10 @@ fn id_part(ui: &mut Ui, (x, y, w): (f32, f32, f32), f: &KefForm, ask: Ask) -> f3
         );
         cy += FIELD_H + GAP;
     }
-    if matches!(o.id, IdChoice::Label(_) | IdChoice::Fingerprint(_)) {
+    if matches!(
+        o.id,
+        IdChoice::Label(_) | IdChoice::Fingerprint(_) | IdChoice::WordsFingerprint
+    ) {
         cy += ui.wrap_as(
             (x, cy, w),
             BODY_S,

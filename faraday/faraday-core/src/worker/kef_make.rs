@@ -26,8 +26,12 @@ pub enum IdChoice {
     Random(usize),
     /// A label typed by the person; public, printed on the code.
     Label(faraday_text::Text),
-    /// The wallet's fingerprint; public, printed on the code.
+    /// The wallet's fingerprint; public, printed on the code as its 8
+    /// lower-case hex characters, as Krux writes it.
     Fingerprint([u8; 4]),
+    /// The fingerprint of a seed's words alone, without its BIP-39
+    /// passphrase, worked out when the code is made.
+    WordsFingerprint,
 }
 
 /// The options of one code, at the defaults of `docs/KEF.md` §10: version
@@ -55,6 +59,15 @@ impl Default for Options {
     }
 }
 
+/// A fingerprint as Krux writes it as a code's id: its 8 lower-case hex
+/// characters as text (`fingerprint_hex_str()`, encoded).
+pub(crate) fn fingerprint_id(f: [u8; 4]) -> Vec<u8> {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    f.iter()
+        .flat_map(|b| [HEX[usize::from(b >> 4)], HEX[usize::from(b & 15)]])
+        .collect()
+}
+
 impl Options {
     /// What a name or count wrong in these options says, if any.
     pub fn problem(&self) -> Option<&'static str> {
@@ -64,7 +77,7 @@ impl Options {
         let bad_id = match &self.id {
             IdChoice::Random(n) => *n != DEFAULT_ID_LEN && *n != LONG_ID_LEN,
             IdChoice::Label(l) => l.is_empty() || l.len() > ID_MAX,
-            IdChoice::Fingerprint(_) => false,
+            IdChoice::Fingerprint(_) | IdChoice::WordsFingerprint => false,
         };
         if bad_id {
             return Some(EN.kef_refuse_id);
@@ -84,7 +97,9 @@ impl Options {
         match &self.id {
             IdChoice::Random(n) => KefId::Random(*n),
             IdChoice::Label(l) => KefId::Public(l.as_bytes().to_vec()),
-            IdChoice::Fingerprint(f) => KefId::Public(f.to_vec()),
+            IdChoice::Fingerprint(f) => KefId::Public(fingerprint_id(*f)),
+            // Made into a `Fingerprint` before any code is started.
+            IdChoice::WordsFingerprint => KefId::Random(DEFAULT_ID_LEN),
         }
     }
 }
@@ -101,7 +116,7 @@ pub fn side(options: &Options, plaintext_len: usize) -> Option<usize> {
     let id_len = match &options.id {
         IdChoice::Random(n) => *n,
         IdChoice::Label(l) => l.len(),
-        IdChoice::Fingerprint(_) => 4,
+        IdChoice::Fingerprint(_) | IdChoice::WordsFingerprint => 8,
     };
     let hidden = usize::from(spec.auth.unsigned_abs()) * usize::from(spec.auth < 0);
     let exposed = usize::from(spec.auth.max(0).unsigned_abs());

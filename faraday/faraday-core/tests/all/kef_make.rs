@@ -123,7 +123,7 @@ fn each_option_changes_the_code_as_it_says() {
         id: IdChoice::Fingerprint([1, 2, 3, 4]),
         ..quick()
     });
-    assert_eq!(e.id, [1, 2, 3, 4]);
+    assert_eq!(e.id, b"01020304");
     let (_, e) = make(Options {
         count: 25_000,
         ..quick()

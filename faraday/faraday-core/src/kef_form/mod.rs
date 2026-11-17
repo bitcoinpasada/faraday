@@ -24,15 +24,15 @@ const DICE_TAG: usize = 0;
 
 /// What the code holds.
 pub enum Source {
-    /// Seed `index`'s entropy, `bytes` long (16 or 32); `fingerprint` is
-    /// the wallet's, offered as the id.
+    /// Seed `index`'s entropy, `bytes` long (16 or 32); `fingerprint` says
+    /// the fingerprint of its words alone is offered as the id.
     Seed {
         /// The seed's place in the session's keys.
         index: usize,
         /// The entropy's length.
         bytes: usize,
-        /// The wallet's fingerprint.
-        fingerprint: Option<[u8; 4]>,
+        /// Whether the words' own fingerprint is offered as the id.
+        fingerprint: bool,
     },
     /// A text: a passphrase, a share, a note.
     Text(Text),
@@ -439,11 +439,12 @@ impl KefForm {
         &self.sizes
     }
 
-    /// The fingerprint offered as the id, on a seed.
-    pub fn fingerprint(&self) -> Option<[u8; 4]> {
+    /// The fingerprint offered as the id: the words' own on a seed (worked
+    /// out when the code is made), a loaded wallet's on a text.
+    pub fn fingerprint(&self) -> Option<IdChoice> {
         match &self.source {
-            Source::Seed { fingerprint, .. } => *fingerprint,
-            Source::Text(_) => self.offered,
+            Source::Seed { fingerprint, .. } => fingerprint.then_some(IdChoice::WordsFingerprint),
+            Source::Text(_) => self.offered.map(IdChoice::Fingerprint),
         }
     }
 
@@ -459,7 +460,7 @@ impl KefForm {
             IdChoice::Random(n) if *n == LONG_ID_LEN => EN.kef_id_random16_fact,
             IdChoice::Random(_) => EN.kef_id_random8_fact,
             IdChoice::Label(_) => EN.kef_id_label_fact,
-            IdChoice::Fingerprint(_) => EN.kef_id_fingerprint_fact,
+            IdChoice::Fingerprint(_) | IdChoice::WordsFingerprint => EN.kef_id_fingerprint_fact,
         };
         let line = Text::fill(
             EN.kef_form_summary,
@@ -572,7 +573,7 @@ impl KefForm {
                     IdKind::Random16 => IdChoice::Random(LONG_ID_LEN),
                     IdKind::Label => IdChoice::Label(Text::of(self.label.text.as_str())),
                     IdKind::Fingerprint => match self.fingerprint() {
-                        Some(f) => IdChoice::Fingerprint(f),
+                        Some(id) => id,
                         None => return,
                     },
                 };

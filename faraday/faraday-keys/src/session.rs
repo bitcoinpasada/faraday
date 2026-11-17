@@ -65,11 +65,6 @@ pub struct KeyInfo {
     pub id: KeyId,
     /// The master key's fingerprint; the same on every network.
     pub fingerprint: Fingerprint,
-    /// The fingerprint of the key's words alone, without its BIP-39
-    /// passphrase: what Faraday and Krux show when a code of the words is
-    /// opened (`docs/KEF.md` §6). The key's own where it has no passphrase
-    /// or no words.
-    pub words_fingerprint: Fingerprint,
     /// What the person called it.
     pub label: Text,
     /// The BIP-39 list its words are from (English for a key with none).
@@ -1729,6 +1724,22 @@ impl Keys {
         Some(Held(WifAscii::new(key.secret_key(), self.network)))
     }
 
+    /// Costs, for a key with a passphrase, a parse of the words, a PBKDF2
+    /// and an elliptic-curve multiplication. The fingerprint of key `i`'s
+    /// words alone, without its BIP-39 passphrase: the id of a Krux code of
+    /// the words (`docs/KEF.md` §6). The key's own where it has no
+    /// passphrase; `None` for a key with no words or words that do not
+    /// parse, never the fingerprint with the passphrase.
+    pub fn words_fingerprint(&self, c: &Compute, i: usize) -> Option<Fingerprint> {
+        let e = self.entries.get(i)?;
+        let words = e.key.words.as_ref()?;
+        if !e.info.has_passphrase {
+            return Some(e.info.fingerprint);
+        }
+        let m = Mnemonic::parse(c, e.info.language, words).ok()?;
+        crate::identity::fingerprint_of_mnemonic(c, &m, "").ok()
+    }
+
     /// Costs a parse of the words. A vault key record of key `i`'s words
     /// alone, with no label and no passphrase, kept in this crate.
     fn words_alone(&self, c: &Compute, i: usize) -> Option<faraday_vault::Record> {
@@ -2122,18 +2133,9 @@ impl Entry {
         passphrase: Option<Text>,
         seed: Option<Zeroizing<Vec<u8>>>,
     ) -> Entry {
-        // Costs a PBKDF2 when the key has a passphrase.
-        let words_fingerprint = match (&passphrase, words.as_deref()) {
-            (Some(_), Some(w)) => Mnemonic::parse(c, language, w)
-                .ok()
-                .and_then(|m| crate::identity::fingerprint_of_mnemonic(c, &m, "").ok())
-                .unwrap_or_else(|| master.fingerprint()),
-            _ => master.fingerprint(),
-        };
         let info = KeyInfo {
             id: KeyId(master_id(c, &master)),
             fingerprint: master.fingerprint(),
-            words_fingerprint,
             label,
             language,
             word_count,

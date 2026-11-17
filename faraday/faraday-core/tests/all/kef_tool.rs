@@ -102,7 +102,6 @@ fn a_loaded_wallets_descriptor_makes_a_code_with_its_fingerprint_as_id() {
             faraday_core::wallet::Origin::Named,
         )
         .unwrap();
-    let fp = app.session.keys[0].fingerprint.0;
     open(&mut app);
     app.press(Action::KefTool(K::Pick(Pick::Wallet)));
     app.press(Action::KefTool(K::Wallet(0)));
@@ -114,7 +113,9 @@ fn a_loaded_wallets_descriptor_makes_a_code_with_its_fingerprint_as_id() {
     make(&mut app);
     let form = kef_tool::state(&app).unwrap().form().unwrap();
     let envelope = unwrap(&form.made().unwrap().bytes).unwrap();
-    assert_eq!(envelope.id, fp);
+    // Written as Krux writes it: 8 lower-case hex characters as text.
+    let hex = app.session.keys[0].fingerprint.to_string();
+    assert_eq!(envelope.id, hex.as_bytes());
     check(&mut app);
     assert!(kef_tool::state(&app).unwrap().form().unwrap().checked());
 }
@@ -501,10 +502,8 @@ fn a_key_with_a_passphrase_offers_the_fingerprint_of_its_words_as_the_id() {
     testkit::keep_published(&mut app);
     // The key's own fingerprint is another; the words' is the published one.
     assert_ne!(app.session.keys[0].fingerprint.0, [0x73, 0xc5, 0xda, 0x0a]);
-    assert_eq!(
-        id_of_the_keys_code(&mut app),
-        [0x73, 0xc5, 0xda, 0x0a].to_vec()
-    );
+    // Written as Krux writes it: the 8 lower-case hex characters as text.
+    assert_eq!(id_of_the_keys_code(&mut app), b"73c5da0a".to_vec());
     check(&mut app);
     assert!(kef_tool::state(&app).unwrap().form().unwrap().checked());
 }
@@ -515,6 +514,8 @@ fn a_key_without_a_passphrase_offers_its_own_fingerprint_as_the_id() {
     let c = testkit::compute();
     app.session.keys.add_words(&c, WORDS, "Test", None).unwrap();
     testkit::keep_published(&mut app);
-    let fp = app.session.keys[0].fingerprint.0;
-    assert_eq!(id_of_the_keys_code(&mut app), fp.to_vec());
+    assert_eq!(
+        id_of_the_keys_code(&mut app),
+        format!("{}", app.session.keys[0].fingerprint).into_bytes()
+    );
 }

@@ -23,13 +23,27 @@ pub(crate) fn at_the_checklist() -> Faraday {
 
 /// As [`at_the_checklist`], the code on `sticks` new sticks.
 fn at_the_checklist_on(sticks: usize) -> Faraday {
+    at_the_checklist_of(sticks, None)
+}
+
+/// As [`at_the_checklist_on`], the key loaded with `passphrase` when given
+/// (the published "abandon ... about" words).
+fn at_the_checklist_of(sticks: usize, passphrase: Option<&str>) -> Faraday {
     let mut app = testkit::started();
     for i in 0..8u8 {
         app.event(Event::Entropy(EntropyBytes::new([0x40 + i; 32])));
     }
-    app.press(Action::Entry(None));
-    type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
-    app.press(Action::EntryAdd);
+    if let Some(p) = passphrase {
+        let words = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+        app.session
+            .keys
+            .add_words_with(&testkit::compute(), words, p, "Test", None)
+            .unwrap();
+    } else {
+        app.press(Action::Entry(None));
+        type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
+        app.press(Action::EntryAdd);
+    }
     faraday_core::testkit::keep_published(&mut app);
     let fp = app.session.keys.last().unwrap().fingerprint;
     app.press(Action::KeyWallet(fp.0, 1));
@@ -146,6 +160,36 @@ fn the_item_reads_not_checked_once_made_and_checked_once_opened_back() {
     open_item(&mut app, Item::KefCode(0));
     assert!(done(&app));
     assert_eq!(status(&mut app), "Checked");
+}
+
+#[test]
+fn the_code_of_a_key_with_a_passphrase_has_the_fingerprint_of_its_words_as_id() {
+    let mut app = at_the_checklist_of(1, Some("extra"));
+    // The key's passphrase has its own item, kept first.
+    testkit::type_passphrases(&mut app);
+    open_item(&mut app, Item::KefCode(0));
+    app.press(Action::KefTool(K::Backup(KefAct::Options)));
+    app.press(Action::KefTool(K::Backup(KefAct::Id(
+        faraday_core::kef_form::IdKind::Fingerprint,
+    ))));
+    app.press(Action::KefTool(K::Backup(KefAct::Back)));
+    make(&mut app);
+    check_with(&mut app, "a passphrase");
+    let names: Vec<_> = app.outbox.iter().map(|i| String::from(&*i.name)).collect();
+    let file = app
+        .outbox
+        .iter()
+        .find(|i| i.name.ends_with(".kef"))
+        .unwrap_or_else(|| {
+            panic!(
+                "the code's file: {names:?} {:?}",
+                app.backup_items_now(&testkit::compute())
+            )
+        });
+    // The key's own fingerprint is another; the words' is the published
+    // one, written as Krux writes it: its 8 hex characters as text.
+    let envelope = faraday_keys::kef::unwrap(&file.bytes).unwrap();
+    assert_eq!(&*envelope.id, b"73c5da0a");
 }
 
 #[test]
@@ -985,11 +1029,17 @@ fn a_record_with_the_old_eight_field_code_line_still_reads() {
 
 /// The made code's base43 text, as its picture holds it.
 fn code_text(app: &Faraday) -> Vec<u8> {
+    let names: Vec<_> = app.outbox.iter().map(|i| String::from(&*i.name)).collect();
     let file = app
         .outbox
         .iter()
         .find(|i| i.name.ends_with(".kef"))
-        .expect("the code's file");
+        .unwrap_or_else(|| {
+            panic!(
+                "the code's file: {names:?} {:?}",
+                app.backup_items_now(&testkit::compute())
+            )
+        });
     faraday_codec::kef::base43_encode(&file.bytes).into_bytes()
 }
 

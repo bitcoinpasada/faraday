@@ -329,7 +329,7 @@ fn new_form(app: &Faraday, c: &Compute, i: usize) -> Option<KefForm> {
         Source::Seed {
             index: key,
             bytes,
-            fingerprint: Some(info.words_fingerprint.0),
+            fingerprint: true,
         },
         on_paper(app, c, i),
     ))

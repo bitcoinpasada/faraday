@@ -292,8 +292,7 @@ The check is short, so a wrong passphrase passes about 1 time in 16,777,216
 and **16 or 32 random bytes are a valid seed**.
 
 So the check is never treated as proof. A seed from KEF comes to the sheet
-with its **fingerprint** (without a BIP-39 passphrase, the form Krux's
-default id holds), for the person to compare against what they wrote down.
+with its **fingerprint**, for the person to compare against what they wrote down.
 Where the id is 8 hex characters, it is shown beside the fingerprint and
 marked when they match; a difference is only a note, since an id may be
 anything. A person is told to compare; nothing here can decide.
@@ -732,7 +731,7 @@ and a toast names the file.
 
 The other held sources are not offered because each would open a new way out of `faraday-keys`, and typing reaches the
 same code without one. **Check my code** compares against the text the flow still holds. The
-fingerprint as an id is offered for **A loaded wallet** (the wallet's key) and for **This key's words** and the seed's item (the words' own fingerprint, worked out inside `faraday-keys` when the key is loaded, without the key's BIP-39 passphrase, as Faraday and Krux show it when the code is opened, and the same as the key's where it has no passphrase): typed text has none. Its Code card
+fingerprint as an id is offered for **A loaded wallet** (the wallet's key) and for **This key's words** and the seed's item (the words' own fingerprint, worked out inside `faraday-keys` by `Keys::words_fingerprint` only when the code is made, on the press that starts the job, so a key load pays nothing for it; without the key's BIP-39 passphrase, so it says nothing of a hidden wallet, and the same as the key's where it has no passphrase; words that do not parse offer none, never the fingerprint with the passphrase). The id is written as Krux writes a fingerprint id: the fingerprint's 8 lower-case hex characters as text (`73c5da0a`, 8 bytes, as Krux's `fingerprint_hex_str()` encoded), which the seed sheet reads back as "Code id … matches this key" (§7.3). Krux's own default for a key with a passphrase is the fingerprint with the passphrase (read from Krux's code, `Key.__init__` and `encryption_ui.py`, not tried on a device); Faraday's id is the words' own by the owner's rule: typed text has none. Its Code card
 shows the picture, and for a code that fits a blank template (side up to 37) **Size**, **By hand**
 and a secondary **Copy by hand**: pressed, the picture is replaced by the same `copy_grid` as the
 seed's item (§15.1), blocks lettered as on the Starter's Krux sheet, the mark at block A1 for each

@@ -31,7 +31,7 @@ fn seed_form() -> KefForm {
         Source::Seed {
             index: 0,
             bytes: 32,
-            fingerprint: Some([1, 2, 3, 4]),
+            fingerprint: true,
         },
         false,
     )
@@ -110,7 +110,9 @@ fn each_option_changes_the_code_as_it_says() {
     });
     assert_eq!(e.id, b"my label");
     let e = go(&mut app, &|f, a| f.act(a, KefAct::Id(IdKind::Fingerprint)));
-    assert_eq!(e.id, [1, 2, 3, 4]);
+    // The words' own fingerprint, which a key with no passphrase has as its own.
+    let fp = app.session.keys[0].fingerprint.to_string();
+    assert_eq!(e.id, fp.as_bytes());
     let e = go(&mut app, &|f, a| rounds(f, a, "25000"));
     assert_eq!(e.count, 25_000);
 }
@@ -122,7 +124,7 @@ fn the_options_line_reads_the_choices_and_the_side_on_paper() {
         Source::Seed {
             index: 0,
             bytes: 32,
-            fingerprint: None,
+            fingerprint: false,
         },
         true,
     );
@@ -304,7 +306,7 @@ fn seed_form_of(bytes: usize) -> KefForm {
         Source::Seed {
             index: 0,
             bytes,
-            fingerprint: None,
+            fingerprint: false,
         },
         false,
     )
