@@ -77,7 +77,7 @@ fn save_vaults(app: &mut Faraday) {
 #[test]
 fn a_seed_file_beside_the_wallets_vault_leaves_the_public_files_another_stick() {
     let c = faraday_core::testkit::compute();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, fp) = single_key_in_a_vault(&mut shell);
     no_words(&mut app);
     let p = (0..board_places(&app))

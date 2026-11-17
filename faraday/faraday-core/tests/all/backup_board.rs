@@ -295,7 +295,7 @@ fn a_second_vault_at_a_place_goes_on_a_second_stick() {
 #[test]
 fn seed_bs_words_file_beside_vault_1_is_written_in_one_visit_and_the_stick_is_recognised() {
     let c = testkit::compute();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 2);
     // A 2-of-3 with one vault set up before its keys.
     let (mut app, fps) = three_with_a_vault(&mut shell);
@@ -379,7 +379,7 @@ fn seed_bs_words_file_beside_vault_1_is_written_in_one_visit_and_the_stick_is_re
 #[test]
 fn a_seed_kept_nowhere_holds_the_plan() {
     let c = testkit::compute();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 1);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -646,7 +646,7 @@ pub(crate) fn three_with_vaults(shell: &mut Shell, n: usize) -> (Faraday, Vec<[u
 /// back afterwards is recognised as the one it is.
 #[test]
 fn two_sticks_of_vault_1_at_one_place_are_written_as_two_sticks_each_recognised() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 3);
     let (mut app, _) = three_with_a_vault(&mut shell);
     vault_at(&mut app, 0, 0, &[0, 1, 2]);
@@ -705,7 +705,7 @@ fn two_sticks_of_vault_1_at_one_place_are_written_as_two_sticks_each_recognised(
 /// files, and each put back is recognised as the one it is.
 #[test]
 fn two_sticks_of_files_at_one_place_are_written_as_two_sticks_each_recognised() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 2);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -775,7 +775,7 @@ fn two_sticks_of_files_at_one_place_are_written_as_two_sticks_each_recognised() 
 /// nothing more, and the three files are made at the lock.
 #[test]
 fn a_seeds_words_file_on_a_stick_asks_the_hold_at_the_drop_and_not_at_the_lock() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 1);
     let mut app = three_here();
     keep_time(&mut app);
@@ -1603,7 +1603,7 @@ fn main_vault_board(shell: &mut Shell) -> (Faraday, testkit::Kit) {
 #[test]
 fn an_existing_vaults_contents_are_drawn_dimmed_and_take_no_press() {
     let c = faraday_core::testkit::compute();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, other) = main_vault_board(&mut shell);
     if vault_stick(&app, 0, 0).is_none() {
         tap(&mut app, list(Thing::Vault(0)));
@@ -1671,12 +1671,12 @@ fn the_same_plan(app: &mut Faraday) {
 /// flow's own plan: the same presses make the same map.
 #[test]
 fn a_plan_made_on_the_flows_board_is_the_map_back_up_makes() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 3);
     let (mut backup, _) = three_with_a_vault(&mut shell);
     open_board(&mut backup);
     the_same_plan(&mut backup);
-    let mut shell2 = Shell::new();
+    let mut shell2 = Shell::light();
     sticks(&mut shell2, 3);
     let (mut flow, _) = three_with_a_vault(&mut shell2);
     open_flow_board(&mut shell2, &mut flow);
@@ -1692,7 +1692,7 @@ fn a_plan_made_on_the_flows_board_is_the_map_back_up_makes() {
 /// change is a round of the vault (`docs/BACKUP-FLOW.md` §17.12 item 8).
 #[test]
 fn after_the_lock_the_flows_board_keeps_paper_and_files_and_changes_vaults() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 3);
     let (mut app, _) = three_with_a_vault(&mut shell);
     vault_at(&mut app, 0, 0, &[0, 1, 2]);
@@ -2090,7 +2090,7 @@ fn a_vault_kept_at_no_place_is_out_of_the_plan_and_comes_back_with_what_it_held(
 /// (`docs/BACKUP-FLOW.md` §17.16 item 3).
 #[test]
 fn a_vault_that_exists_at_no_place_is_a_warning_only() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, _) = main_vault_board(&mut shell);
     for i in 0..3 {
         put(&mut app, Thing::Seed(i), Zone::Paper(0));
@@ -2163,7 +2163,7 @@ fn a_drop_on_a_sticks_files_box_keeps_a_file_beside_its_vault() {
 /// a name of that one character (`docs/BACKUP-FLOW.md` §17.18).
 #[test]
 fn a_press_on_a_places_name_selects_it_and_the_first_key_replaces_it() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, _) = main_vault_board(&mut shell);
     let name = on_screen(&mut app, Action::BName(0));
     touch(&mut app, name, TouchPhase::Down);
@@ -2735,7 +2735,7 @@ fn a_vault_added_with_new_vault_reads_made_in_the_checklist() {
 /// "· sealed" (`docs/BACKUP-FLOW.md` §17.21 item 6).
 #[test]
 fn a_vault_set_up_before_the_keys_reads_sealed() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 2);
     let (mut app, _) = three_with_a_vault(&mut shell);
     vault_at(&mut app, 0, 0, &[0]);

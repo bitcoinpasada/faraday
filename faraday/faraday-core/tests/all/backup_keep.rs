@@ -74,7 +74,7 @@ fn origins_in_open(app: &Faraday) -> usize {
 
 #[test]
 fn a_seed_copied_from_a_holder_into_an_added_vault_asks_and_unticked_arrives_without_its_origin() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     WANTED.set(true);
     let mut app = two_of_three_ready(&mut shell, false);
     // The vault the plan wrote the seed into holds its origin.
@@ -108,7 +108,7 @@ fn a_seed_copied_from_a_holder_into_an_added_vault_asks_and_unticked_arrives_wit
 
 #[test]
 fn an_untick_and_the_asked_mark_in_one_flow_do_not_reach_another() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     WANTED.set(true);
     let mut app = two_of_three_ready(&mut shell, false);
     let fp = app
@@ -169,7 +169,7 @@ fn an_untick_and_the_asked_mark_in_one_flow_do_not_reach_another() {
 #[test]
 fn an_unticked_origin_is_left_out_when_the_plan_keeps_the_passphrase_apart() {
     use faraday_vault::records::field;
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = two_of_three_ready_with(&mut shell, true);
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
@@ -236,7 +236,7 @@ fn an_unticked_origin_is_left_out_when_the_plan_keeps_the_passphrase_apart() {
 
 #[test]
 fn the_keep_sheet_of_a_backups_save_names_the_vault_the_seed_goes_into() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     WANTED.set(true);
     SHEETS.with_borrow_mut(Vec::clear);
     let app = two_of_three_ready(&mut shell, false);

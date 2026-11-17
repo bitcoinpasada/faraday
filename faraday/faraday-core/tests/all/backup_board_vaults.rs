@@ -17,7 +17,7 @@ use faraday_core::{Action, BStage, Screen};
 /// writes both vault files in one visit.
 #[test]
 fn two_vaults_on_one_stick_survive_a_save_and_are_both_written_to_it_each_its_own_file() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 2);
     let (mut app, _) = three_with_vaults(&mut shell, 2);
     vault_at(&mut app, 0, 0, &[0]);
@@ -92,7 +92,7 @@ fn two_vaults_on_one_stick_survive_a_save_and_are_both_written_to_it_each_its_ow
 /// the first.
 #[test]
 fn a_vault_put_on_the_second_of_two_copies_sticks_is_written_to_that_stick_only() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 3);
     let (mut app, _) = three_with_vaults(&mut shell, 2);
     vault_at(&mut app, 0, 0, &[0]);

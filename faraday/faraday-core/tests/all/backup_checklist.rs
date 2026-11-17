@@ -44,9 +44,6 @@ pub(crate) fn device(inbox: Vec<(String, Vec<u8>)>) -> Faraday {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    app.storage(StorageEvent::Memory {
-        available_mib: 15_000,
-    });
     let _ = app.frame();
     app
 }

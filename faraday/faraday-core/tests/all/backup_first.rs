@@ -57,9 +57,6 @@ fn device(inbox: Vec<(String, Vec<u8>)>, height: u16) -> Faraday {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    app.storage(StorageEvent::Memory {
-        available_mib: 15_000,
-    });
     // The system's randomness, which a new vault draws on.
     for i in 0..8u8 {
         app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(

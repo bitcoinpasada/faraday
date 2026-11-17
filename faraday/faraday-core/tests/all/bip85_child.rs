@@ -21,9 +21,6 @@ const PHRASE: &str = "child phrase";
 /// A device with these files restored and test key 1 typed in.
 fn process(inbox: Files, outbox: Files, kept: Files) -> Faraday {
     let mut app = testkit::started();
-    app.storage(StorageEvent::Memory {
-        available_mib: 15_000,
-    });
     testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(inbox),

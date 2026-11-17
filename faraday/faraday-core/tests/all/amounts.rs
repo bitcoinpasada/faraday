@@ -150,9 +150,6 @@ fn sign_with_vault_open(vault: Vec<u8>, psbt: &faraday_psbt::Psbt) -> Faraday {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    app.storage(StorageEvent::Memory {
-        available_mib: 15_000,
-    });
     testkit::vault_speed(&mut app, Some(180));
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));

@@ -44,9 +44,6 @@ fn process_kept(inbox: Files, kept: Files) -> Faraday {
         boot: BootState::Unknown,
         memory_mib: None,
     }));
-    app.storage(StorageEvent::Memory {
-        available_mib: 15_000,
-    });
     app.storage(StorageEvent::Clock {
         unix_secs: 1_791_000_000,
     });

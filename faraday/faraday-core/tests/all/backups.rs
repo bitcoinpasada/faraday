@@ -39,9 +39,6 @@ fn shown(inbox: Files, outbox: Files, kept: Files) -> Faraday {
         outbox: faraday_core::files_from(outbox),
         kept: faraday_core::kept_from(kept),
     });
-    app.storage(StorageEvent::Memory {
-        available_mib: 15_000,
-    });
     app.storage(StorageEvent::Clock {
         unix_secs: 1_791_000_000,
     });

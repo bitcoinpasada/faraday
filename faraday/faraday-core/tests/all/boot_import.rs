@@ -131,9 +131,6 @@ fn pump(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
 fn booted_with(files: &[(String, Vec<u8>)]) -> Faraday {
     let mut app = testkit::started();
     faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
-    app.storage(StorageEvent::Memory {
-        available_mib: 15_000,
-    });
     faraday_core::testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Sticks(vec![boot_stick(files)]));
     pump(&mut app, files);
@@ -260,9 +257,6 @@ fn key_fps(app: &Faraday) -> Vec<String> {
 fn boot_only(files: &[(String, Vec<u8>)]) -> Faraday {
     let mut app = testkit::started();
     faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
-    app.storage(StorageEvent::Memory {
-        available_mib: 15_000,
-    });
     faraday_core::testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Sticks(vec![boot_stick(files)]));
     app
@@ -626,9 +620,6 @@ fn the_reminders_before_the_passphrase_leave_the_sheet_where_it_was() {
     faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.devices =
         faraday_core::devices::DeviceCheck::machine("flags\t: fpu vme", "LENOVO", "20XW", "10");
-    app.storage(StorageEvent::Memory {
-        available_mib: 15_000,
-    });
     faraday_core::testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Sticks(vec![boot_stick(&files)]));
     go(&mut app, &files);
@@ -1060,9 +1051,6 @@ fn a_seed_on_the_stick_as_words_and_a_picture_is_labelled_from_the_words_file() 
     ];
     let mut app = testkit::started();
     faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
-    app.storage(StorageEvent::Memory {
-        available_mib: 15_000,
-    });
     faraday_core::testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Sticks(vec![boot_stick(&files)]));
     while let Some(c) = app.poll_storage() {
@@ -1167,9 +1155,6 @@ fn a_mouse_plugged_in_at_boot_is_asked_about_before_the_import() {
     let files = stick_files();
     let mut app = testkit::started();
     faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
-    app.storage(StorageEvent::Memory {
-        available_mib: 15_000,
-    });
     mouse(&mut app);
     app.storage(StorageEvent::Sticks(vec![boot_stick(&files)]));
     pump(&mut app, &files);
@@ -1473,9 +1458,6 @@ fn import_keeps_a_file_of_a_held_name_beside_it_and_a_same_one_once() {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    app.storage(StorageEvent::Memory {
-        available_mib: 15_000,
-    });
     faraday_core::testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Sticks(vec![boot_stick(&files)]));
     pump(&mut app, &files);
@@ -1554,9 +1536,6 @@ fn an_import_that_arrives_under_a_mouse_over_the_devices_sheet_comes_up_after_bo
     use faraday_core::devices::{DeviceCheck, Interface, UsbDevice};
     let mut app = testkit::started();
     faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
-    app.storage(StorageEvent::Memory {
-        available_mib: 15_000,
-    });
     faraday_core::testkit::vault_speed(&mut app, Some(100));
     app.devices = DeviceCheck::machine("flags\t: fpu vme", "LENOVO", "20XW", "10");
     let hid = |protocol| Interface {
@@ -1640,9 +1619,6 @@ fn text_picture_asked() -> faraday_core::Faraday {
     let files: Vec<(String, Vec<u8>)> = vec![("note.png".to_string(), b"a picture".to_vec())];
     let mut app = testkit::started();
     faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
-    app.storage(StorageEvent::Memory {
-        available_mib: 15_000,
-    });
     app.storage(StorageEvent::Sticks(vec![boot_stick(&files)]));
     let answer = |app: &mut faraday_core::Faraday| {
         while let Some(c) = app.poll_storage() {

@@ -14,7 +14,7 @@ use faraday_core::{Action, Screen, cstep};
 #[test]
 fn a_passphrase_made_in_create_and_kept_in_the_vault_is_written_and_signs() {
     let c = testkit::compute();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 1);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -65,7 +65,7 @@ fn a_chart_edit_moving_a_written_sticks_vault_is_refused_and_the_key_stays_held(
     use faraday_core::glance::Press;
     use faraday_core::plan::{self, At, What};
     let c = testkit::compute();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 3);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -143,7 +143,7 @@ fn words_kept_without_a_passphrase_by_a_flow_hold_only_the_passphrase_still_writ
     };
     use faraday_bip::keys::Fingerprint;
     let c = testkit::compute();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 1);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);

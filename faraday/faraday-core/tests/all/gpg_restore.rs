@@ -171,7 +171,7 @@ fn gpg_records(app: &Faraday) -> Vec<faraday_vault::Record> {
 #[test]
 fn a_gpg_key_is_restored_from_its_paperkey_into_the_vaults_of_the_plan() {
     let k = paper_key();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = machine(&mut shell, &k);
     from_files(&mut app);
     // The plan card starts with the public key, and the bytes line 1 must read.
@@ -255,7 +255,7 @@ fn a_gpg_key_is_restored_from_its_paperkey_into_the_vaults_of_the_plan() {
 #[test]
 fn a_line_fixed_in_the_middle_is_checked_the_moment_it_is_right() {
     let k = paper_key();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = machine(&mut shell, &k);
     to_lines(&mut shell, &mut app);
     let ls = printed();
@@ -282,7 +282,7 @@ fn a_line_fixed_in_the_middle_is_checked_the_moment_it_is_right() {
 #[test]
 fn a_lock_at_step_four_forgets_the_lines_and_keeps_the_public_key() {
     let k = paper_key();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = machine(&mut shell, &k);
     to_lines(&mut shell, &mut app);
     let ls = printed();
@@ -800,7 +800,7 @@ fn the_shown_paperkey_restores_the_key_on_another_machine() {
         scan_note(&home)
     );
     assert!(home.inbox().is_empty(), "the paperkey was filed");
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = machine(&mut shell, &k);
     to_lines(&mut shell, &mut app);
     app.press(Action::Flow(F::Restore(R::ScanPaperkey)));

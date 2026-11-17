@@ -278,7 +278,7 @@ fn fp_of(n: usize, pass: &str) -> [u8; 4] {
 /// alone gives the wallet back.
 #[test]
 fn a_words_file_restores_the_wallet() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 1);
     let (mut app, address, fps) = made(&[2], "");
     board_edit(&mut app, |m| {
@@ -293,7 +293,7 @@ fn a_words_file_restores_the_wallet() {
 /// back gives the wallet.
 #[test]
 fn a_seedqr_picture_restores_the_wallet() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 1);
     let (mut app, address, fps) = made(&[2], "");
     board_edit(&mut app, |m| {
@@ -312,7 +312,7 @@ fn a_seedqr_picture_restores_the_wallet() {
 #[test]
 fn a_passphrase_file_beside_the_words_restores_the_key_with_its_passphrase() {
     let c = testkit::compute();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 2);
     let (mut app, address, fps) = made(&[2], PASS);
     assert_eq!(fps[0], fp_of(2, PASS));
@@ -373,7 +373,7 @@ fn two_of_three_with(
 /// The description's text file at Place 1 gives the wallet back.
 #[test]
 fn the_descriptions_text_restores_the_wallet() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (files, address) = two_of_three_with(&mut shell, &|m| {
         plan::with_added(&m, At::Stick(0, 0), What::WalletFile(form::TEXT))
     });
@@ -385,7 +385,7 @@ fn the_descriptions_text_restores_the_wallet() {
 /// gives the wallet back.
 #[test]
 fn the_descriptions_qr_picture_restores_the_wallet() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (files, address) = two_of_three_with(&mut shell, &|m| {
         plan::with_added(&m, At::Stick(0, 0), What::WalletFile(form::QR))
     });
@@ -399,7 +399,7 @@ fn the_descriptions_qr_picture_restores_the_wallet() {
 /// The software's own file at Place 1 gives the wallet back.
 #[test]
 fn the_softwares_file_restores_the_wallet() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (files, address) = two_of_three_with(&mut shell, &|m| {
         plan::with_added(&m, At::Stick(0, 0), What::SoftwareFile)
     });
@@ -411,7 +411,7 @@ fn the_softwares_file_restores_the_wallet() {
 /// pictures: the two places' sticks together give the wallet back.
 fn shares_restore(f: usize) {
     let c = faraday_core::testkit::compute();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 2);
     let (mut app, address, _) = made(&[0, 1, 2], "");
     board_edit(&mut app, |m| {
@@ -473,7 +473,7 @@ fn seedqr_on_stick_1(shell: &mut Shell) -> (Faraday, [u8; 4]) {
 /// again, and the stick counts once it reads.
 #[test]
 fn a_picture_that_does_not_read_back_is_written_again_once() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, _) = seedqr_on_stick_1(&mut shell);
     shell.blank_pictures.push(("png".into(), 1));
     write_stick(&mut shell, &mut app, "S1");
@@ -491,7 +491,7 @@ fn a_picture_that_does_not_read_back_is_written_again_once() {
 /// says which file did not read back from which stick.
 #[test]
 fn a_picture_that_does_not_read_back_twice_leaves_the_stick_not_done() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let (mut app, fp) = seedqr_on_stick_1(&mut shell);
     shell.blank_pictures.push(("png".into(), 2));
     shell.plug(&mut app, "S1");
@@ -533,7 +533,7 @@ fn a_picture_that_does_not_read_back_twice_leaves_the_stick_not_done() {
 /// again, and the stick counts.
 #[test]
 fn a_text_file_that_does_not_read_back_is_written_again_once() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 1);
     let (mut app, _, _) = made(&[2], "");
     board_edit(&mut app, |m| {
@@ -561,7 +561,7 @@ fn sha_hex(bytes: &[u8]) -> String {
 #[test]
 fn after_a_seedqr_is_written_and_read_back_the_kept_state_holds_nothing_of_the_seed() {
     let c = testkit::compute();
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     sticks(&mut shell, 3);
     let (mut app, _, _) = made(&[2], PASS);
     board_edit(&mut app, |m| {

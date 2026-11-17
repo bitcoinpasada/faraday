@@ -142,7 +142,7 @@ fn round_and_write(shell: &mut Shell, app: &mut Faraday, typed: &[&str]) -> Vec<
 /// to be filled and written: its sealed copy holds the string.
 #[test]
 fn a_codex32_string_put_into_a_vault_after_the_lock_is_sealed_in_it() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = locked_with(&mut shell, &[]);
     assert_eq!(step(&app), Step::Write);
     shell.flow(&mut app, F::ChangePlan);
@@ -160,7 +160,7 @@ fn a_codex32_string_put_into_a_vault_after_the_lock_is_sealed_in_it() {
 /// it in no vault (owner, 2026-11-05).
 #[test]
 fn a_codex32_string_moved_out_of_a_vault_after_the_lock_leaves_it() {
-    let mut shell = Shell::new();
+    let mut shell = Shell::light();
     let mut app = locked_with(&mut shell, &['d']);
     shell.flow(&mut app, F::ChangePlan);
     let z = flow_vault_zone(&app, 0);
