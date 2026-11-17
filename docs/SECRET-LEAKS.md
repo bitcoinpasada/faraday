@@ -242,8 +242,8 @@ entry is made only in a commit that says why, and passes review.
   secret type is held only when it is on `NAMELESS`.
 - **Nothing is shipped.** The allocator is a dev-dependency, no shipped
   program installs it or any other global allocator, and F181's rule
-  (`speed.no-wiping-allocator`) holds as it is. If the hits argue for
-  wiping every free, that is a new decision with F181 point 5's numbers.
+  (`speed.no-wiping-allocator`) holds as it is. Wiping every free in a shipped program
+  is decided against and not proposed again (F281 point 5).
 
 ## 9. The owner's choices (owner, 2026-11-12)
 
