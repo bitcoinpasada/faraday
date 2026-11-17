@@ -286,3 +286,4 @@ Read this table, then only the decision you need.
 | [F270](decisions/F270.md) | Check a signer takes in Compare two PSBTs: one tile and one Result for two PSBTs or finished transactions | 2026-11-15 | Active, built | signing |
 | [F272](decisions/F272.md) | An area's glue lives in that area's folder; lib.rs holds none | 2026-11-15 | Active | repository |
 | [F273](decisions/F273.md) | A costly press runs in the press or as a job on the worker; nothing is drawn first | 2026-11-16 | Active | speed |
+| [F276](decisions/F276.md) | A Seed XOR set and a SLIP-39 set made on the device are counted on a wallet's backup plan | 2026-11-16 | Active | backup |

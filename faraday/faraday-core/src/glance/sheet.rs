@@ -953,6 +953,9 @@ fn line(ctx: &Ctx<'_>, n: u8, j: u8) -> Option<View> {
         // A Krux code is made in its checklist item, and no check
         // counts it: nothing to do from here.
         What::KefCode(_) | What::KefCodePaper(_) => {}
+        // A Seed XOR part or a SLIP-39 share: paper only, checked from
+        // Backups, nothing to do from here yet.
+        What::XorPart(..) | What::Slip39Share(..) => {}
         What::Sheet => {
             rows.push(row(EN.glance_sheet_reprint, "PDF", ctx.doing(Step::Out(3))));
             rows.push(row(EN.glance_sheet_as_a_qr, "PNG", ctx.doing(Step::Out(8))));

@@ -14,9 +14,12 @@
 pub mod codex32;
 mod groups;
 pub mod question;
+pub mod sets;
 mod setup_sticks;
+pub mod slip39;
 pub use groups::REACH_STEPS;
 pub mod text;
+pub mod xor;
 use text::fp_code;
 
 pub use text::{at_code, at_read, held_in, renumber_seeds, tag_of, what_code, what_read};
@@ -309,6 +312,12 @@ pub struct Answers {
     /// Each seed kept as codex32 strings: its form (`docs/CODEX32.md`
     /// §9.4).
     pub codex32: Vec<codex32::C32>,
+    /// Each seed kept as Seed XOR parts: the set's public facts
+    /// (`docs/decisions/F276.md`).
+    pub xor: Vec<xor::Xor>,
+    /// Each seed kept as a SLIP-39 set: the set's public facts
+    /// (`docs/decisions/F276.md`).
+    pub slip39: Vec<slip39::Slip39>,
     /// The codex32 sets of a seed rotated away (**Rotate the set**,
     /// `docs/CODEX32.md` §9.7), each as (seed, threshold, identifier): a
     /// save takes the strings of these sets, and of no other, out of a
@@ -335,6 +344,8 @@ impl Default for Answers {
             custom: false,
             part: Vec::new(),
             codex32: Vec::new(),
+            xor: Vec::new(),
+            slip39: Vec::new(),
             rotated: Vec::new(),
         }
     }
@@ -371,6 +382,8 @@ impl Answers {
             custom: false,
             part: Vec::new(),
             codex32: Vec::new(),
+            xor: Vec::new(),
+            slip39: Vec::new(),
             rotated: Vec::new(),
         };
         a.pass = shape
@@ -1292,6 +1305,12 @@ pub enum What {
     KefCode(usize),
     /// That code drawn by hand on paper at a place.
     KefCodePaper(usize),
+    /// Part `j` (from 0) of seed `i`'s Seed XOR set, written on paper at
+    /// a place (`docs/decisions/F276.md`): every part is needed.
+    XorPart(usize, usize),
+    /// Member `m` of group `g` of seed `i`'s SLIP-39 set, written on
+    /// paper at a place (`docs/decisions/F276.md`).
+    Slip39Share(usize, usize, usize),
 }
 
 /// How what is kept may be read.
@@ -1384,6 +1403,13 @@ impl What {
                     &text!("{}", char::to_ascii_uppercase(&codex32::index_char(j))),
                 ],
             ),
+            What::XorPart(i, j) => {
+                Text::fill(EN.plan_xor_part, &[seed(i), &Text::num(j as u64 + 1)])
+            }
+            What::Slip39Share(i, g, m) => Text::fill(
+                EN.plan_slip39_share,
+                &[seed(i), &Text::num(g as u64 + 1), &Text::num(m as u64 + 1)],
+            ),
         }
     }
 }
@@ -1425,8 +1451,8 @@ pub struct Mapped {
     pub map: Vec<Spot>,
     /// The map as places keep it ([`place_map`]).
     pub places: Vec<Spot>,
-    /// The plan's codex32 thresholds ([`Answers::c32_needs`]).
-    pub needs: codex32::Needs,
+    /// The plan's codex32 thresholds ([`Answers::set_needs`]).
+    pub needs: sets::Needs,
     check: std::cell::OnceCell<Check>,
 }
 
@@ -1438,7 +1464,7 @@ impl Mapped {
         Mapped {
             map,
             places,
-            needs: a.c32_needs(),
+            needs: a.set_needs(),
             check: std::cell::OnceCell::new(),
         }
     }
@@ -1800,19 +1826,19 @@ struct Have {
     shares: Vec<bool>,
     /// The codex32 seeds and how many strings rebuild each, and the
     /// strings seen: a seed is had once enough are (§9.5).
-    needs: codex32::Needs,
-    strings: Vec<(usize, usize)>,
+    needs: sets::Needs,
+    seen: Vec<What>,
 }
 
 impl Have {
-    fn none(shape: &Shape, needs: &[(usize, usize)]) -> Have {
+    fn none(shape: &Shape, needs: &sets::Needs) -> Have {
         Have {
             seeds: vec![false; shape.seeds.len()],
             pass: vec![false; shape.seeds.len()],
             wallet: false,
             shares: vec![false; shape.keys],
-            needs: needs.to_vec(),
-            strings: Vec::new(),
+            needs: needs.clone(),
+            seen: Vec::new(),
         }
     }
 
@@ -1851,12 +1877,14 @@ impl Have {
             // A Krux code is an extra copy that counts for nothing
             // (`docs/KEF.md` §15.1).
             What::VaultStick(_) | What::KefCode(_) | What::KefCodePaper(_) => {}
-            What::Codex32Share(i, j)
-            | What::Codex32QrPaper(i, j)
-            | What::Codex32ShareFile(i, j)
-            | What::Codex32QrFile(i, j) => {
-                self.strings.push((i, j));
-                for i in codex32::rebuilt(&self.needs, &self.strings) {
+            What::Codex32Share(..)
+            | What::Codex32QrPaper(..)
+            | What::Codex32ShareFile(..)
+            | What::Codex32QrFile(..)
+            | What::XorPart(..)
+            | What::Slip39Share(..) => {
+                self.seen.push(what);
+                for i in self.needs.rebuilt(&self.seen) {
                     if let Some(s) = self.seeds.get_mut(i) {
                         *s = true;
                     }
@@ -2254,7 +2282,7 @@ fn opened_in(boxes: &[Spot], have: &Have, vaults: &[usize]) -> Have {
 }
 
 fn alone_in(shape: &Shape, a: &Answers, boxes: &[Spot], at: At) -> Alone {
-    let mut have = Have::none(shape, &a.c32_needs());
+    let mut have = Have::none(shape, &a.set_needs());
     if !matches!(at, At::Vault(_)) {
         holds_in(boxes, at).into_iter().for_each(|w| have.add(w));
     }
@@ -2307,7 +2335,7 @@ fn check_of(shape: &Shape, a: &Answers, boxes: &[Spot]) -> Check {
         balance,
         // A single key has one place at most: its every secret there is
         // no warning (§19.19).
-        one_place: one_place_in(shape, &found_in, &a.c32_needs())
+        one_place: one_place_in(shape, &found_in, &a.set_needs())
             .filter(|_| codex32::max_places_of(shape, a) > 1),
         single: places.len() == 1,
         passphrase_apart: shape.seeds.len() == 1
@@ -2334,7 +2362,7 @@ pub fn all_at_one_place_on(shape: &Shape, m: &Mapped) -> Option<usize> {
 }
 
 /// [`all_at_one_place`] on the map `boxes`.
-fn one_place_in(shape: &Shape, boxes: &[Spot], needs: &[(usize, usize)]) -> Option<usize> {
+fn one_place_in(shape: &Shape, boxes: &[Spot], needs: &sets::Needs) -> Option<usize> {
     if shape.watch_only() {
         return None;
     }
@@ -2354,22 +2382,25 @@ fn one_place_in(shape: &Shape, boxes: &[Spot], needs: &[(usize, usize)]) -> Opti
             _ => false,
         })
     };
-    // Enough codex32 strings of a seed at `p`, on paper or in a vault
+    // Enough pieces of a seed's set at `p`, on paper or in a vault
     // whose stick is there, are the seed.
-    let strings_at = |i: usize, p: usize| {
-        codex32::strings_at(boxes, i, &|at| {
-            at == At::Place(p) || matches!(at, At::Vault(v) if sticks_of(boxes, v).contains(&p))
-        })
+    let pieces_at = |p: usize| -> Vec<What> {
+        boxes
+            .iter()
+            .filter(|s| {
+                s.at == At::Place(p)
+                    || matches!(s.at, At::Vault(v) if sticks_of(boxes, v).contains(&p))
+            })
+            .flat_map(|s| s.holds.iter().map(|(w, _)| *w))
+            .filter(|&w| sets::piece_of(w).is_some())
+            .collect()
     };
     let seed_at = |i: usize, p: usize| {
         boxes
             .iter()
             .any(|s| s.at == At::Place(p) && holds(s, &|w| seed_form(w) == Some(i)))
             || in_vault_at(p, &|w| w == What::Seed(i) || w == What::SeedPassphrase(i))
-            || needs.iter().any(|&(x, k)| {
-                let js = strings_at(i, p);
-                x == i && (js.len() >= k || js.contains(&codex32::SECRET))
-            })
+            || (needs.covers(i) && needs.enough(i, &pieces_at(p)))
     };
     let pass_at = |i: usize, p: usize| {
         boxes.iter().any(|s| {
@@ -2399,7 +2430,7 @@ fn one_place_in(shape: &Shape, boxes: &[Spot], needs: &[(usize, usize)]) -> Opti
 /// What is left with spot `gone` lost (none: with nothing lost), of
 /// `places` on the map `boxes`.
 fn lost_one(shape: &Shape, a: &Answers, boxes: &[Spot], places: &[At], gone: Option<At>) -> Lost {
-    let mut have = Have::none(shape, &a.c32_needs());
+    let mut have = Have::none(shape, &a.set_needs());
     let mut readable: Vec<usize> = Vec::new();
     for &at in places.iter().filter(|&&at| Some(at) != gone) {
         if !matches!(at, At::Vault(_)) {
@@ -2434,16 +2465,19 @@ fn seed_form(w: What) -> Option<usize> {
 /// Where seed `i` is kept on the map `boxes` (by place): each place with
 /// its words, SeedQR or a file of it on a stick there, the stick of files,
 /// each vault that holds it.
-fn seed_spots(boxes: &[Spot], i: usize, needs: &[(usize, usize)]) -> Vec<At> {
+fn seed_spots(boxes: &[Spot], i: usize, needs: &sets::Needs) -> Vec<At> {
     let has = |s: &Spot, f: &dyn Fn(What) -> bool| s.holds.iter().any(|(w, _)| f(*w));
-    // A codex32 seed is kept where its strings are, once enough are kept
-    // anywhere to rebuild it (§9.5).
-    if let Some(&(_, k)) = needs.iter().find(|&&(x, _)| x == i) {
-        let all = codex32::strings_at(boxes, i, &|_| true);
-        if all.len() >= k || all.contains(&codex32::SECRET) {
+    // A seed kept as a set is kept where its pieces are, once enough are
+    // kept anywhere to rebuild it (§9.5).
+    if needs.covers(i) {
+        let all: Vec<What> = boxes
+            .iter()
+            .flat_map(|s| s.holds.iter().map(|(w, _)| *w))
+            .collect();
+        if needs.enough(i, &all) {
             return boxes
                 .iter()
-                .filter(|s| has(s, &|w| codex32::string_of(w).is_some_and(|(x, _)| x == i)))
+                .filter(|s| has(s, &|w| sets::piece_of(w) == Some(i)))
                 .map(|s| s.at)
                 .collect();
         }
@@ -2584,7 +2618,7 @@ pub fn lost_why_on(
     }
     // The seeds are there without it, the description is not (§19.19
     // item 5): the line names the description.
-    let mut have = Have::none(shape, &a.c32_needs());
+    let mut have = Have::none(shape, &a.set_needs());
     let mut readable: Vec<usize> = Vec::new();
     for &at in places.iter().filter(|&&at| at != gone) {
         if !matches!(at, At::Vault(_)) {
@@ -3910,7 +3944,7 @@ pub fn follows_on(
         .filter(|w| matches!(w, What::Seed(_) | What::SeedPassphrase(_)))
         .collect();
     if !sealed.is_empty() {
-        let mut have = Have::none(shape, &a.c32_needs());
+        let mut have = Have::none(shape, &a.set_needs());
         holds_in(&with, finder)
             .into_iter()
             .chain(sealed)

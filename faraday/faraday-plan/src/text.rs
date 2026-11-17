@@ -64,6 +64,14 @@ impl Answers {
         for f in &self.codex32 {
             out.push_str(&f.to_line());
         }
+        // Each seed's Seed XOR and SLIP-39 sets (F276): public facts
+        // only, never a part or a share.
+        for x in &self.xor {
+            out.push_str(&x.to_line());
+        }
+        for z in &self.slip39 {
+            out.push_str(&z.to_line());
+        }
         // The sets rotated away (`docs/CODEX32.md` §9.7): seed, threshold
         // and identifier, never a string.
         for (i, k, id) in &self.rotated {
@@ -140,7 +148,25 @@ pub fn what_code(w: What) -> Text {
         What::Codex32QrFile(i, j) => text!("xp{i}.{j}"),
         What::KefCode(i) => text!("kef{i}"),
         What::KefCodePaper(i) => text!("kefp{i}"),
+        What::XorPart(i, j) => text!("xorp{i}.{j}"),
+        What::Slip39Share(i, g, m) => text!("slip{i}.{g}.{m}"),
     }
+}
+
+/// A Seed XOR part, `xorp0.1`, or a SLIP-39 share, `slip0.1.2`, as
+/// [`what_code`] writes them (F276).
+fn set_piece_read(s: &str) -> Option<What> {
+    if let Some(rest) = s.strip_prefix("xorp") {
+        let (i, j) = rest.split_once('.')?;
+        return Some(What::XorPart(i.parse().ok()?, j.parse().ok()?));
+    }
+    let mut f = s.strip_prefix("slip")?.split('.');
+    let w = What::Slip39Share(
+        f.next()?.parse().ok()?,
+        f.next()?.parse().ok()?,
+        f.next()?.parse().ok()?,
+    );
+    f.next().is_none().then_some(w)
 }
 
 /// [`what_code`] read back. A plan saved before the forms
@@ -166,6 +192,7 @@ pub fn what_read(s: &str) -> Option<What> {
         _ if s.starts_with("shareqr") => What::ShareFile(n("shareqr")?, form::QR),
         _ if s.starts_with("kefp") => What::KefCodePaper(n("kefp")?),
         _ if s.starts_with("kef") => What::KefCode(n("kef")?),
+        _ if s.starts_with("xorp") || s.starts_with("slip") => set_piece_read(s)?,
         _ if s.starts_with("xq") => two("xq").map(|(i, j)| What::Codex32QrPaper(i, j))?,
         _ if s.starts_with("xt") => two("xt").map(|(i, j)| What::Codex32ShareFile(i, j))?,
         _ if s.starts_with("xp") => two("xp").map(|(i, j)| What::Codex32QrFile(i, j))?,
@@ -508,6 +535,22 @@ fn place_line<'a>(
                 a.rotated.push((seed, k, id));
             }
         }
+        // A seed's Seed XOR set (F276).
+        "xor" => {
+            let f = xor::Xor::from_value(value, shape.seeds.len())?;
+            if a.xor(f.seed).is_some() {
+                return None;
+            }
+            a.xor.push(f);
+        }
+        // A seed's SLIP-39 set (F276).
+        "slip39" => {
+            let f = slip39::Slip39::from_value(value, shape.seeds.len())?;
+            if a.slip39(f.seed).is_some() {
+                return None;
+            }
+            a.slip39.push(f);
+        }
         // A SeedQR drawn in part (§14.7 item 3).
         "part" => {
             let (p, i) = value.split_once(' ')?;
@@ -644,7 +687,9 @@ fn read_map(a: &mut Answers, shape: &Shape, lines: Vec<(At, Vec<&str>)>) -> Opti
             | What::Codex32ShareFile(i, _)
             | What::Codex32QrFile(i, _)
             | What::KefCode(i)
-            | What::KefCodePaper(i) => i < shape.seeds.len(),
+            | What::KefCodePaper(i)
+            | What::XorPart(i, _)
+            | What::Slip39Share(i, _, _) => i < shape.seeds.len(),
             _ => true,
         };
         let sticks_ok = edited.iter().all(|s| match s.at {
@@ -655,8 +700,27 @@ fn read_map(a: &mut Answers, shape: &Shape, lines: Vec<(At, Vec<&str>)>) -> Opti
             }
             _ => true,
         });
+        // A Seed XOR part or a SLIP-39 share is paper only, at a place,
+        // and of a set the plan holds the facts of (F276).
+        let sets_ok = edited.iter().all(|s| {
+            s.holds.iter().all(|(w, _)| match *w {
+                What::XorPart(i, j) => {
+                    matches!(s.at, At::Place(_)) && a.xor(i).is_some_and(|x| j < x.n())
+                }
+                What::Slip39Share(i, g, m) => {
+                    matches!(s.at, At::Place(_))
+                        && a.slip39(i).is_some_and(|z| {
+                            z.groups
+                                .get(g)
+                                .is_some_and(|grp| m < usize::from(grp.count))
+                        })
+                }
+                _ => true,
+            })
+        });
         let ok = places.iter().enumerate().all(|(n, &p)| n == p)
             && sticks_ok
+            && sets_ok
             && edited
                 .iter()
                 .all(|s| !matches!(s.at, At::Vault(v) if v >= crate::MAX_VAULTS))
@@ -714,7 +778,9 @@ impl What {
             | What::Codex32ShareFile(i, _)
             | What::Codex32QrFile(i, _)
             | What::KefCode(i)
-            | What::KefCodePaper(i) => Some(i),
+            | What::KefCodePaper(i)
+            | What::XorPart(i, _)
+            | What::Slip39Share(i, _, _) => Some(i),
             _ => None,
         }
     }
@@ -749,6 +815,8 @@ impl What {
             What::Codex32QrFile(_, j) => What::Codex32QrFile(n, j),
             What::KefCode(_) => What::KefCode(n),
             What::KefCodePaper(_) => What::KefCodePaper(n),
+            What::XorPart(_, j) => What::XorPart(n, j),
+            What::Slip39Share(_, g, m) => What::Slip39Share(n, g, m),
             other => other,
         })
     }
@@ -793,7 +861,7 @@ pub fn renumber_seeds(text: &str, map: &[usize]) -> Option<Text> {
                 text!("vault {v} {}", &*flags.into_iter().collect::<Text>())
             }
             // The seed, then what is not one.
-            "pass" | "codex32" | "rotated" => {
+            "pass" | "codex32" | "xor" | "slip39" | "rotated" => {
                 let (i, rest) = value.split_once(' ')?;
                 text!("{name} {} {rest}", seed(i)?)
             }

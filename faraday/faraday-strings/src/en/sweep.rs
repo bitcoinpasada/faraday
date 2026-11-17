@@ -442,6 +442,10 @@ macro_rules! words_sweep {
     plan_kef_code: "Seed {}: Krux code",
     /// Text in `label`: a seed's Krux code copied by hand onto paper. `{}`: `seed(i)`.
     plan_kef_code_paper: "Seed {}: Krux code, by hand",
+    /// Text in `label`: a Seed XOR part, written on paper. `{}`: `seed(i)`, the part's number.
+    plan_xor_part: "Seed {}: Seed XOR part {}",
+    /// Text in `label`: a SLIP-39 share, written on paper. `{}`: `seed(i)`, the group's number, the share's number in the group.
+    plan_slip39_share: "Seed {}: SLIP-39 group {} share {}",
     /// A form on a chip: a seed's Krux encrypted code, on a stick or on paper.
     board_kef_code: "Krux code",
     /// The chart's name for a seed's Krux code. `{}`: the key's number.

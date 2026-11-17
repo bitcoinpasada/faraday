@@ -428,6 +428,8 @@ pub(crate) fn things_of(w: What) -> Vec<Thing> {
         | What::Codex32ShareFile(i, j)
         | What::Codex32QrFile(i, j) => vec![Thing::String(i, j)],
         What::KefCode(i) | What::KefCodePaper(i) => vec![Thing::Kef(i)],
+        // Paper-only set pieces have no chip on the board yet.
+        What::XorPart(..) | What::Slip39Share(..) => Vec::new(),
     }
 }
 

@@ -51,12 +51,15 @@ standard it is and which software restores it.
 7. **codex32's set actions are the backup's; SLIP-39's are this
    tool's.** A codex32 set's Add a share, Replace a lost share and Rotate
    the set change what a plan's places keep, so they live with the backup
-   (`docs/CODEX32.md` §9.7). A SLIP-39 set is in no plan and no vault
-   record, so its three actions are in this tool, on the source **A
-   SLIP-39 set** (§8, F204): the person types the shares and nothing is
-   remembered. The tool's "codex32 set → a new codex32 set" always makes
-   a fresh set with its own identifier, which never combines with the
-   key's own set or a plan's (§6); a plan's set keeps its upkeep in the
+   (`docs/CODEX32.md` §9.7). A SLIP-39 set's three actions are in this
+   tool, on the source **A SLIP-39 set** (§8, F204): the person types the
+   shares and the tool holds nothing of them. A Seed XOR set and a SLIP-39
+   set made here can be counted on a wallet's backup plan (F276): the plan
+   keeps only the set's public facts and places its parts on paper, never
+   in a vault or on a stick, one set of a kind per key; the set actions
+   stay here. The tool's "codex32 set → a new codex32 set" always makes a
+   fresh set with its own identifier, which never combines with the key's
+   own set or a plan's (§6); a plan's set keeps its upkeep in the
    backup's set actions.
 
 ## 2. What is built today

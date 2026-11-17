@@ -189,19 +189,10 @@ pub fn string_of(w: What) -> Option<(usize, usize)> {
     }
 }
 
-/// The thresholds of the plan's codex32 forms, as (seed, strings that
-/// rebuild it): what the checks count strings against.
-pub type Needs = Vec<(usize, usize)>;
-
 impl Answers {
     /// Seed `i`'s codex32 form, where it has one.
     pub fn c32(&self, i: usize) -> Option<&C32> {
         self.codex32.iter().find(|f| f.seed == i)
-    }
-
-    /// The plan's codex32 thresholds ([`Needs`]).
-    pub(crate) fn c32_needs(&self) -> Needs {
-        self.codex32.iter().map(|f| (f.seed, f.need())).collect()
     }
 
     /// Sets seed `i`'s codex32 form, replacing the one it had, or takes
@@ -245,25 +236,6 @@ impl Answers {
     pub fn rotated_id(&self, i: usize, id: [u8; 4]) -> bool {
         self.rotated.iter().any(|&(x, _, r)| x == i && r == id)
     }
-}
-
-/// What strings of each codex32 seed a spot keeps, counted against the
-/// plan's [`Needs`]: the seeds they rebuild.
-pub fn rebuilt(needs: &[(usize, usize)], seen: &[(usize, usize)]) -> Vec<usize> {
-    needs
-        .iter()
-        .filter(|&&(i, k)| {
-            let mut js: Vec<usize> = seen
-                .iter()
-                .filter(|&&(si, _)| si == i)
-                .map(|&(_, j)| j)
-                .collect();
-            js.sort_unstable();
-            js.dedup();
-            js.len() >= k || js.contains(&SECRET)
-        })
-        .map(|&(i, _)| i)
-        .collect()
 }
 
 /// The distinct strings of seed `i` the spots `at` keep on the map
@@ -383,12 +355,22 @@ pub fn sync(a: &mut Answers, shape: &Shape, sets: &[Option<SetFacts>]) {
 
 /// The most places a plan of `shape` and `a` has: [`max_places`], and
 /// each codex32 seed's further strings a place more (§9.5: three places
-/// for 2 of 3).
+/// for 2 of 3), and a Seed XOR or SLIP-39 set's further parts the same.
 pub fn max_places_of(shape: &Shape, a: &Answers) -> usize {
     max_places(shape)
         + a.codex32
             .iter()
             .map(|f| f.indices.len().saturating_sub(1))
+            .sum::<usize>()
+        // A Seed XOR set's parts and a SLIP-39 set's shares each may have
+        // a place of their own (F276).
+        + a.xor
+            .iter()
+            .map(|x| x.n().saturating_sub(1))
+            .sum::<usize>()
+        + a.slip39
+            .iter()
+            .map(|z| z.groups.iter().map(|g| g.made.len()).sum::<usize>().saturating_sub(1))
             .sum::<usize>()
 }
 
