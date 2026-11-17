@@ -242,8 +242,8 @@ fn on_the_small_panel_home_scrolls_to_a_power_off_button_that_can_be_pressed() {
         u32::from(y) + u32::from(h) <= 640 && u32::from(x) + u32::from(w) <= 480,
         "Power off is off the window"
     );
-    // The round button whole, not a sliver above the Scan button's strip.
-    assert!(h + 2 >= w, "only {h} of Power off's {w} shows");
+    // The button whole, not a sliver above the Scan button's strip.
+    assert!(h >= 72, "only {h} high of Power off shows");
     use faraday_shell_api::{App, Event, TouchPhase};
     let (cx, cy) = (x + w / 2, y + h / 2);
     for phase in [TouchPhase::Down, TouchPhase::Up] {
