@@ -2356,8 +2356,9 @@ impl Faraday {
                     continue;
                 }
                 let to = self.vaults.open[o].id;
+                let online = self.online;
                 self.vaults
-                    .edit(to, |s| s.copy_record(from, holder_at, to, &[]));
+                    .edit(to, |s| s.copy_record(from, holder_at, to, &[], online));
                 self.vaults.changed(to);
             }
         }

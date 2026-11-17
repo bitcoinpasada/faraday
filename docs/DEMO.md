@@ -60,7 +60,7 @@ online computer; the line under every field that takes a seed or a secret
 is the guard, in every mode, and the released files are named testnet
 only (F81). A seed such a vault keeps carries `faraday.online`
 (`docs/VAULT.md`): on the device in Mainnet it is kept only after a hold,
-and Faraday's public sample seeds are refused there. A QR vault has nowhere to carry the mark, so Faraday Demo seals no seed into one and no marked seed or share is copied into one. Faraday Demo writes the mark on every key, BIP-85 child, codex32 share and words file it saves, and a child of a marked key is marked; the mark is written by an honest Demo, and the online computer could remove it from the file.
+and Faraday's public sample seeds are refused there. A QR vault has nowhere to carry the mark, so Faraday Demo seals no seed into one and no marked seed or share is copied into one. Faraday Demo writes the mark on every key, BIP-85 child, codex32 share and words file it saves and on every key or share it copies or moves to another vault (on the device a copy keeps its source's mark), and a child of a marked key is marked; the mark is written by an honest Demo, and the online computer could remove it from the file.
 
 ## 3. What makes a secret
 

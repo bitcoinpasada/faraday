@@ -561,7 +561,7 @@ fn a_key_record_copied_between_vaults_is_the_same_key_there() {
     let (a, _) = store.unlock(&c, from, "first").expect("opens");
     let (b, _) = store.unlock(&c, to, "second").expect("opens");
     assert_eq!(store.records(b).len(), AT, "only the label");
-    store.copy_record(a, AT, b, &[]).expect("copied");
+    store.copy_record(a, AT, b, &[], false).expect("copied");
     assert_eq!(store.records(b).len(), AT + 1);
     let mut keys = Keys::on(Network::Mainnet);
     let loaded = store.load_from_vault(
@@ -1279,7 +1279,7 @@ fn every_edit_is_refused_on_a_read_only_vault_for_either_reason() {
                 .is_err()
         );
         assert_eq!(open.remove_where(id, |_| true), 0);
-        assert!(open.copy_record(w, AT, id, &[]).is_none());
+        assert!(open.copy_record(w, AT, id, &[], false).is_none());
         assert!(!open.fits(&c, id, &[], &[] as &[&Record]));
         assert!(
             open.seal_job(id, &[9u8; SEAL_RANDOM_LEN], &[0u8; 64], None)

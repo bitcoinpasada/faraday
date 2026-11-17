@@ -777,6 +777,14 @@ impl Keys {
     /// Notes that the vault the key `fp` was loaded from says it was
     /// written by Faraday Demo on an online computer.
     pub fn note_made_online(&mut self, fp: Fingerprint) {
+        self.insert_made_online(fp);
+        // Every key loaded as a child of it was written there too, however
+        // the two were ordered when loaded.
+        self.carry_child_marks();
+    }
+
+    /// Marks `fp` made online, and nothing else.
+    fn insert_made_online(&mut self, fp: Fingerprint) {
         if !self.made_online.contains(&fp) {
             // `extend`, not `push`: see `keep_published`.
             self.made_online.extend([fp]);
@@ -800,7 +808,7 @@ impl Keys {
             self.published_children.extend([child]);
         }
         if self.made_online(parent) {
-            self.note_made_online(child);
+            self.insert_made_online(child);
         }
     }
 
@@ -988,6 +996,10 @@ impl Keys {
                 self.note_child(Fingerprint(of.parent), fp);
             }
             if self.position(fp).is_some() {
+                // The vault's mark counts for the key already held too.
+                if item.online {
+                    self.note_made_online(fp);
+                }
                 refused.push(Refusal::Duplicate(fp));
                 continue;
             }

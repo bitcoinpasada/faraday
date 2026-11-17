@@ -1449,10 +1449,10 @@ impl Faraday {
                         })
                         .unwrap_or_default();
                     if has_pass(r) == want_pass {
-                        self.vaults.store().stage(from, at, &left)
+                        self.vaults.store().stage(from, at, &left, self.online)
                     } else if !want_pass {
                         left.push(field::KEY_PASSPHRASE);
-                        self.vaults.store().stage(from, at, &left)
+                        self.vaults.store().stage(from, at, &left, self.online)
                     } else {
                         None
                     }
@@ -1723,7 +1723,7 @@ impl Faraday {
             let found = self.vaults.open.iter().find_map(|open| {
                 self.vaults.records(open.id).iter().find_map(|(k, r)| {
                     if here(r) {
-                        return self.vaults.store().stage(open.id, k, &[]);
+                        return self.vaults.store().stage(open.id, k, &[], self.online);
                     }
                     if !r.has(field::KEY_PASSPHRASE) {
                         return None;

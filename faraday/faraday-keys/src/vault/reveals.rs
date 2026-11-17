@@ -148,6 +148,12 @@ impl OpenVaults {
         }
         let label = Text::of(r.text(field::KEY_LABEL).unwrap_or(""));
         let loaded = keys.add_mnemonic(c, &m, passphrase, &label, None);
+        // A key already held takes the record's mark too.
+        if let Err(Refusal::Duplicate(fp)) = &loaded
+            && faraday_vault::records::is_made_online(r)
+        {
+            keys.note_made_online(*fp);
+        }
         if let Ok(fp) = &loaded {
             keys.set_child_of(keys.len() - 1, child_of_of(r));
             keys.set_xor(keys.len() - 1, xor_of_record(r));
@@ -623,6 +629,12 @@ impl OpenVaults {
             }
             None => seed_of(r).map(|seed| keys.add_seed(c, &seed, &label)),
         };
+        // A key already held takes the record's mark too.
+        if let Some(Err(Refusal::Duplicate(fp))) = &loaded
+            && faraday_vault::records::is_made_online(r)
+        {
+            keys.note_made_online(*fp);
+        }
         if let Some(Ok(fp)) = &loaded {
             keys.set_codex32(keys.len() - 1, codex32_set_of(r));
             keys.set_child_of(keys.len() - 1, child_of_of(r));

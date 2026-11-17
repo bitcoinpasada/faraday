@@ -125,7 +125,7 @@ pub(crate) fn open(app: &mut Faraday, mv: bool) {
     let c = app.compute();
     let store = app.vaults.store();
     let keeps = keeps_of(app, from, record);
-    let Some(staged) = store.stage(from, record, &without(&keeps)) else {
+    let Some(staged) = store.stage(from, record, &without(&keeps), app.online) else {
         return;
     };
     let from_name = app
@@ -204,7 +204,7 @@ pub(crate) fn keep(app: &mut Faraday, k: usize) {
     let from_name = s.from_name.clone();
     let left = without(&s.keeps);
     let c = app.compute();
-    let Some(staged) = app.vaults.store().stage(from, record, &left) else {
+    let Some(staged) = app.vaults.store().stage(from, record, &left, app.online) else {
         return;
     };
     let whys: Vec<Option<Option<String>>> =
@@ -349,7 +349,11 @@ fn make(app: &mut Faraday, n: usize) {
         app.toast(&fill(line, &[&row.name, EN.vault_copy_changed]));
         return;
     }
-    let Some(staged) = app.vaults.store().stage(s.from, s.record, &s.left_out()) else {
+    let Some(staged) = app
+        .vaults
+        .store()
+        .stage(s.from, s.record, &s.left_out(), app.online)
+    else {
         app.toast(&fill(line, &[&row.name, EN.vault_copy_changed]));
         return;
     };
@@ -500,7 +504,7 @@ fn new_for(app: &mut Faraday) {
         return;
     };
     let c = app.compute();
-    let Some(staged) = app.vaults.store().stage(from, record, &left) else {
+    let Some(staged) = app.vaults.store().stage(from, record, &left, app.online) else {
         return;
     };
     if !fits(app, &c, &staged) {
@@ -601,7 +605,7 @@ pub(crate) fn unlocked(app: &mut Faraday) {
     let Some(staged) = app
         .vaults
         .store()
-        .stage(w.from, w.record, &without(&w.keeps))
+        .stage(w.from, w.record, &without(&w.keeps), app.online)
     else {
         return;
     };

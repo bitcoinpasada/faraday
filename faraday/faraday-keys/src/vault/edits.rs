@@ -600,15 +600,18 @@ impl OpenVaults {
     /// Copies record `i` of open vault `from` into open vault `to`, last;
     /// its place there. With `without`, the copy lacks those fields (a
     /// key's stored passphrase, its codex32 set or BIP-85 origin). The secrets are copied here, and are
-    /// never in the caller's hands.
+    /// never in the caller's hands. With `online` (the app is Faraday Demo,
+    /// on an online computer), a key or codex32 share copy carries the
+    /// online mark; otherwise the copy keeps the source record's mark.
     pub fn copy_record(
         &mut self,
         from: VaultId,
         i: usize,
         to: VaultId,
         without: &[u8],
+        online: bool,
     ) -> Option<usize> {
-        let held = self.copy_out(from, i, without)?;
+        let held = self.copy_out_marked(from, i, without, online)?;
         self.insert(to, held)
     }
 
@@ -621,10 +624,30 @@ impl OpenVaults {
         Some(Held::of(r))
     }
 
+    /// [`OpenVaults::copy_out`], with the online mark on a key or codex32
+    /// share copy when `online`.
+    fn copy_out_marked(
+        &self,
+        id: VaultId,
+        i: usize,
+        without: &[u8],
+        online: bool,
+    ) -> Option<Held<Record>> {
+        let mut r = self.slot(id)?.records.get(i)?.duplicate();
+        r.fields.retain(|f| !without.contains(&f.number));
+        if online {
+            faraday_vault::records::mark_made_online(&mut r);
+        }
+        Some(Held::of(r))
+    }
+
     /// A copy of record `i` of open vault `id`, staged to go into a vault
-    /// ([`OpenVaults::insert`]); with `without`, lacking those fields.
-    pub fn stage(&self, id: VaultId, i: usize, without: &[u8]) -> Option<Staged> {
-        self.copy_out(id, i, without).map(Staged::Held)
+    /// ([`OpenVaults::insert`]); with `without`, lacking those fields. With
+    /// `online` (the app is Faraday Demo), a key or codex32 share copy
+    /// carries the online mark; otherwise it keeps the source's mark.
+    pub fn stage(&self, id: VaultId, i: usize, without: &[u8], online: bool) -> Option<Staged> {
+        self.copy_out_marked(id, i, without, online)
+            .map(Staged::Held)
     }
 
     /// A passphrase record (type 14) for the key whose fingerprint is `fp`,

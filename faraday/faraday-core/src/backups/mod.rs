@@ -3499,7 +3499,7 @@ impl Faraday {
                         .records(open.id)
                         .iter()
                         .find(|(_, r)| here(*r))?;
-                    self.vaults.store().stage(open.id, k, &[])
+                    self.vaults.store().stage(open.id, k, &[], self.online)
                 })
                 .or_else(|| {
                     let k = self.session.keys.position_of(f)?;
