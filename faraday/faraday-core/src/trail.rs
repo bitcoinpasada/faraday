@@ -502,15 +502,7 @@ impl Faraday {
     pub(crate) fn back(&mut self) {
         let from = self.screen;
         self.back_from();
-        self.entry_left(from);
-    }
-
-    /// Add a key left with words typed: they are wiped with it, however
-    /// it was left.
-    fn entry_left(&mut self, from: Screen) {
-        if from == Screen::Entry && self.screen != Screen::Entry {
-            self.entry.reset();
-        }
+        self.entry_left(from == Screen::Entry);
     }
 
     fn back_from(&mut self) {
@@ -662,7 +654,7 @@ impl Faraday {
     pub(crate) fn leave_back(&mut self) {
         let from = self.screen;
         self.leave_back_from();
-        self.entry_left(from);
+        self.entry_left(from == Screen::Entry);
     }
 
     fn leave_back_from(&mut self) {
