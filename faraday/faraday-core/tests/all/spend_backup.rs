@@ -1093,6 +1093,14 @@ fn start_over_asks_once_steps_of_the_spend_are_done() {
         Some(Sheet::CancelFlow(faraday_core::in_progress::Going::Spend))
     );
     assert!(app.spend().is_some(), "asking lost the spend");
+    let text = drawn(&mut app);
+    assert!(text.contains("Start over"), "{text}");
+    assert!(!text.contains("Cancel the flow"), "{text}");
+    app.press(Action::CancelFlowNow);
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.screen, Screen::SpendBackup);
+    assert!(app.spend().is_none(), "the spend was kept");
+    assert_eq!(app.spend_backup().open, Some(Open::Page(page::HOLDING)));
 }
 
 /// Home's Scan reads this code while the Savings spend is under way.

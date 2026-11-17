@@ -250,6 +250,9 @@ pub struct SpendBackupState {
     pub error: Option<Text>,
     /// The walk-through is shown although something is loaded already.
     pub walkthrough: bool,
+    /// The sheet on screen was opened by Start over, not by Cancel: its
+    /// confirm starts the tab again instead of leaving it.
+    pub start_over_asked: bool,
     /// The seeds typed on the words route, and the wallet of several
     /// keys they make (`seeds.rs`).
     pub seeds: crate::seeds::SeedsState,
@@ -381,6 +384,16 @@ pub(crate) fn more_bit(id: CardId) -> u8 {
 }
 
 impl Faraday {
+    /// The sheet on screen was opened by Start over.
+    pub(crate) fn start_over_asked(&self) -> bool {
+        self.spend_backup.state.start_over_asked
+    }
+
+    /// Cancel, not Start over, opens the sheet from here on.
+    pub(crate) fn spend_backup_not_start_over(&mut self) {
+        self.spend_backup.state.start_over_asked = false;
+    }
+
     /// The Spend tab's state.
     pub fn spend_backup(&self) -> &SpendBackupState {
         &self.spend_backup.state
@@ -832,6 +845,7 @@ impl Faraday {
                     .is_some()
                 {
                     self.sheet = Some(Sheet::CancelFlow(crate::in_progress::Going::Spend));
+                    self.spend_backup.state.start_over_asked = true;
                     return;
                 }
                 self.spend_backup.state = SpendBackupState {

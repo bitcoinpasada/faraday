@@ -389,6 +389,7 @@ impl Faraday {
             return;
         };
         if self.cancel_loses(g).is_some() {
+            self.spend_backup_not_start_over();
             self.sheet = Some(crate::Sheet::CancelFlow(g));
         } else {
             self.flow_end(g);
@@ -398,6 +399,13 @@ impl Faraday {
     /// **Cancel the flow** on the sheet: the flow it names ends.
     pub(crate) fn flow_cancel_now(&mut self) {
         match self.sheet {
+            Some(crate::Sheet::CancelFlow(Going::Spend)) if self.start_over_asked() => {
+                // Start over stays on the tab: the spend is cleared and
+                // its first page opens.
+                self.sheet = None;
+                self.wallets.clear_spend();
+                self.spend_backup_act(crate::spend_backup::SpendBackupAction::StartOver);
+            }
             Some(crate::Sheet::CancelFlow(g)) => {
                 self.sheet = None;
                 self.flow_end(g);
@@ -460,6 +468,9 @@ impl Faraday {
 
     /// The Cancel sheet's title over flow `g`.
     pub(crate) fn cancel_title(&self, g: Going) -> &'static str {
+        if g == Going::Spend && self.start_over_asked() {
+            return EN.spend_backup_start_over;
+        }
         match g {
             Going::Create => EN.flow_cancel_create,
             Going::Restore => EN.flow_cancel_restore,
@@ -863,7 +874,11 @@ pub(crate) fn cancel_sheet(app: &View, ui: &mut crate::ui::Ui, g: Going, w: f32,
             &[
                 (EN.flow_keep_going, Style::Secondary, Action::Cancel),
                 (
-                    EN.flow_cancel_the_flow,
+                    if g == Going::Spend && app.start_over_asked() {
+                        EN.spend_backup_start_over
+                    } else {
+                        EN.flow_cancel_the_flow
+                    },
                     Style::Primary,
                     Action::CancelFlowNow,
                 ),
