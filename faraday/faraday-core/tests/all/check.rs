@@ -49,14 +49,13 @@ fn a_row_opens_its_tool_and_back_returns_to_check() {
         (Row::SeedCheck, Screen::SeedCheck),
         (Row::Multisig, Screen::MultisigCheck),
         (Row::Signed, Screen::SignerCheck),
-        (Row::Child, Screen::Check),
+        (Row::Child, Screen::Bip85),
         (Row::Dice, Screen::KeyGen),
     ] {
         let mut app = shown();
         app.press(Action::Nav(Screen::Check));
         app.press(Action::Check(Press::Row(row)));
         let _ = app.frame();
-        // Child seeds needs a key first: it opens nothing and stays.
         assert_eq!(app.screen, screen, "{row:?}");
         if screen != Screen::Check {
             // A flow of cards steps back through them first.
