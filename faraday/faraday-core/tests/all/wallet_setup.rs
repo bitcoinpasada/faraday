@@ -27,7 +27,7 @@ fn on_the_sticks() -> Faraday {
 }
 
 /// A stick holding no vault is not made into one here: the flow never
-/// opens Create a vault, and says a new vault is added on the plan.
+/// opens Make a new vault, and says a new vault is added on the plan.
 #[test]
 fn a_stick_with_no_vault_is_not_made_into_one_before_the_keys() {
     let mut shell = Shell::new();

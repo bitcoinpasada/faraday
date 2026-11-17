@@ -78,7 +78,7 @@ Read this table, then only the decision you need.
 | [F59](history/decisions/F59.md) | APK signing is switched off in the app; its code stays | 2026-10-20 | Replaced by F99 | signing |
 | [F60](decisions/F60.md) | The boot sheet is a picker; a file row offers a vault only while one is open | 2026-10-20 | Amended by F62, F130 | stick |
 | [F61](history/decisions/F61.md) | Faraday Desktop is published again, testnet only for real seeds | 2026-10-20 | Superseded by F81 and F126 | release |
-| [F62](decisions/F62.md) | Unlocking a vault asks what to load | 2026-10-20 | Active | vault |
+| [F62](decisions/F62.md) | Unlocking a vault asks what to load | 2026-10-20 | Amended by F280 | vault |
 | [F63](decisions/F63.md) | Sign a file signs from a sheet that shows the time | 2026-10-20 | Active | signing |
 | [F64](decisions/F64.md) | Other wallets' formats, the less common under More options | 2026-10-20 | Active | wallets |
 | [F65](history/decisions/F65.md) | Upstream's code taken in house: a soft fork | 2026-10-20 | Replaced by F72 | repository |
@@ -290,4 +290,6 @@ Read this table, then only the decision you need.
 | [F276](decisions/F276.md) | A Seed XOR set and a SLIP-39 set made on the device are counted on a wallet's backup plan | 2026-11-16 | Active | backup |
 | [F277](decisions/F277.md) | The Check screen shows its checks as tiles in the grid Tools uses | 2026-11-16 | Active | design |
 | [F278](decisions/F278.md) | The sidebar no longer holds a session strip | 2026-11-16 | Active | design |
+| [F279](decisions/F279.md) | Ready plans on the backup board: paper only, paper and a vault, two vaults | 2026-11-16 | Active | backup |
+| [F280](decisions/F280.md) | Unlocking a vault from the Vaults list lands in the vault | 2026-11-17 | Active | vault |
 | [F281](decisions/F281.md) | Timing and memory side channels on the offline device are outside the security model: not looked for, not recorded, not fixed | 2026-11-17 | Active | crypto |

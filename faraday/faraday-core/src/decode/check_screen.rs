@@ -112,7 +112,7 @@ fn choose(app: &View, s: &CheckState, ui: &mut Ui, slot: Slot, (x, y, w): (f32, 
             ui,
             (x, cy, w),
             EN.compare_no_files,
-            (scan, crate::Screen::SignerCheck),
+            (Some(scan), crate::Screen::SignerCheck),
         ) + GAP;
     }
     // A copy whose file was replaced is no row's file: any can be picked.

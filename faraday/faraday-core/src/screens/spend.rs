@@ -246,7 +246,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ui,
             (col_x, top, cw - 2.0 * 40.0),
             EN.spend_no_transaction,
-            (Action::Scan, Screen::Spend),
+            (Some(Action::Scan), Screen::Spend),
         );
         return;
     }

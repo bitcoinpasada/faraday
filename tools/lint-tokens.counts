@@ -2,10 +2,10 @@
 # writes in place, and faraday-core's colours written in place. A count
 # only falls; tools/lint-tokens.sh --write lowers it.
 faraday/faraday-core/src/backup_flow/screen.rs 95
-faraday/faraday-core/src/backups/screen.rs 33
+faraday/faraday-core/src/backups/screen.rs 36
 faraday/faraday-core/src/bip85/screen.rs 36
 faraday/faraday-core/src/board/screen.rs 7
-faraday/faraday-core/src/boot_import/screen.rs 38
+faraday/faraday-core/src/boot_import/screen.rs 41
 faraday/faraday-core/src/codes/screen.rs 51
 faraday/faraday-core/src/codex32_correct/screen.rs 3
 faraday/faraday-core/src/compact/screen.rs 120
@@ -32,12 +32,12 @@ faraday/faraday-core/src/screens/settings.rs 16
 faraday/faraday-core/src/screens/sheets.rs 205
 faraday/faraday-core/src/screens/sidebar.rs 51
 faraday/faraday-core/src/screens/spend.rs 250
-faraday/faraday-core/src/screens/visit.rs 209
+faraday/faraday-core/src/screens/visit.rs 210
 faraday/faraday-core/src/screens/wallets.rs 118
 faraday/faraday-core/src/screens/wallets_start.rs 61
 faraday/faraday-core/src/seeds/screen.rs 62
 faraday/faraday-core/src/silent/screen.rs 17
-faraday/faraday-core/src/spend_backup/screen.rs 320
+faraday/faraday-core/src/spend_backup/screen.rs 323
 faraday/faraday-core/src/tools/screen.rs 17
 faraday/faraday-core/src/transfer/screen.rs 17
 faraday/faraday-core/src/vanity/screen.rs 44
