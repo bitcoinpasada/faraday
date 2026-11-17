@@ -143,6 +143,7 @@ just lint-op-cost         the instruction count of each named costly operation u
 just lint-all             every command of `lint`, run side by side and to the end; lists all that failed
 just lint-repo-all        the commands of `lint-repo` the same way
 cargo nextest run -p faraday-core -E 'test(/^keygen::/)'     one test module
+cargo nextest run -p faraday-core --test all_backup           one area's integration tests (all_backup, all_codex32, all_psbt, all_screens, all_vault; a module's file is in tests/all/)
 cargo nextest run -p faraday-core --test leaks               the leak tests: flows run under an allocator that looks for a test secret in freed memory
 ```
 

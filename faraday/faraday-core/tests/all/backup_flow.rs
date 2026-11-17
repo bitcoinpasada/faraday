@@ -2908,8 +2908,10 @@ fn a_put_off_stick_that_holds_vaults_gets_the_new_vault_beside_them() {
     assert_eq!(files.iter().filter(|f| f.0.ends_with(".kdbx")).count(), 2);
 }
 
+#[path = "backup_flow/figures.rs"]
 mod figures;
 
+#[path = "backup_flow/stick_read.rs"]
 mod stick_read;
 
 #[test]

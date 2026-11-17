@@ -4089,4 +4089,5 @@ mod leaf_not_run {
 
 /// The nonce history: a key's nonce an open vault holds over another
 /// message refuses the signature (F227).
+#[path = "nonce_check/history.rs"]
 mod history;

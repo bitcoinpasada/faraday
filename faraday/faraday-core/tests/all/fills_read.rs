@@ -12,8 +12,8 @@ use faraday_shell_api::App;
 use faraday_ui::Theme;
 use faraday_ui::pal::Role;
 
-use super::codex32_make::both_typed_in;
-use super::common::{over, ratio, settle_n, under};
+use crate::codex32_make::both_typed_in;
+use crate::common::{over, ratio, settle_n, under};
 
 /// Every line of text the frame draws on `fill`: what it reads and how
 /// far it stands out from the fill, as drawn.

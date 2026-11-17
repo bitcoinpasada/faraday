@@ -370,7 +370,7 @@ Once the outside implementation is written:
   prints the seed. `just crosscheck --area vault --seed S --case
   corpus:N` runs case N of it again (`tools/crosscheck/README.md`). The
   prerequisites are in `docs/DEVELOPING.md`.
-- `cargo test -p faraday-core --test all own_randomness` runs the known
+- `cargo test -p faraday-core --test all_backup own_randomness` runs the known
   answers of own randomness, and `cargo test -p faraday-core --lib
   five_tests` those of the five dice, over the files in
   `tools/vectors/own-randomness/` and `tools/vectors/roller/`;
