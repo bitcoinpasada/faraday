@@ -57,7 +57,8 @@ standard it is and which software restores it.
    set are counted on a wallet's backup plan (F276) from the plan's own
    record of the set's public facts: the plan keeps only those facts and
    places its parts on paper, never in a vault or on a stick, one set of
-   a kind per key; the set actions stay here. A whole Seed XOR set
+   a kind per key; the set actions stay here, except that a Seed XOR set's parts are
+checked on the plan, by their recorded fingerprint. A whole Seed XOR set
    or SLIP-39 set saved here for a loaded key is recorded on that key as
    its public facts once its files are written, never when the sheet is
    cancelled (the key's fingerprint matches; a key has one set of a kind,

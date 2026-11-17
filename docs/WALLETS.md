@@ -699,8 +699,17 @@ The record of what a plan holds is made when its checklist is made;
 each matching check adds one copy. It holds the map's places, tags and
 file names and the counts by fingerprint, never a place's name, and is
 kept across a lock (kept state, `backups`) and gone at power-off. A
-backup of the wallet opened again starts with its seeds checked. The
-wallet card's line under its shape says the same in one line ("Backup:
+backup of the wallet opened again starts with its seeds checked.
+A press on a place's row opens that place's sheet (§12) over Backups: a
+place of paper with Seed XOR parts or SLIP-39 shares has a sheet too, and
+its parts are counted there. A Seed XOR part's sheet has **Check my copy**:
+the words typed back are compared by their master fingerprint with the
+part's recorded one, with no part kept here, so a part counts as
+**Checked** after Back up is gone. A SLIP-39 share has no fingerprint of
+its own kept, so its sheet has no check. A node's **Mark checked** dates
+what a node holds except Seed XOR parts, SLIP-39 shares and codex32
+strings: a copy is dated only by a check that matched. The wallet card's
+line under its shape says the same in one line ("Backup:
 paper ×2 checked · vault.kdbx · for the stick", or "Not backed up") and
 opens Backups on that wallet.
 
@@ -1303,6 +1312,12 @@ hold for every one.
   fingerprint it makes, typed into a masked field and wiped at once, and
   only "checked on" is kept. With no vault open those rows read "Open a
   vault to keep this".
+- **A Seed XOR part's check is by fingerprint.** A part's sheet offers
+  **Check my copy** (Back up's check of that part, then back to the
+  chart); the typed words are compared with the part's recorded master
+  fingerprint and wiped, so the check works once the on-screen parts are
+  gone. A SLIP-39 share's sheet has no check and
+  no **Mark checked**.
 - **A copy's check follows its form.** A words line opens the typed check
   (**Type my copy**); a SeedQR line opens the camera (**Scan my copy**,
   **Type my copy** with no camera). A key node offers one row per form

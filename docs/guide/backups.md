@@ -21,6 +21,12 @@ The card names the wallet and its shape, then lists where its backup is, one lin
 
 A line gives the place, what it holds (or **Nothing**), a tag and what was seen of it. The tag is secret, sealed or public: secret means the place holds the key as it is, sealed means it holds the key under a vault's passphrase, and public means it holds nothing that spends.
 
+## A place's sheet
+
+**Key:** backups.sheet
+
+Choosing a place's row opens that place's sheet. For a Seed XOR part it has **Check my copy**. **Mark checked** never dates a part or a share: only a copy you typed back counts.
+
 ## What was seen
 
 **Key:** backups.state

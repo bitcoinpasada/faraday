@@ -2839,8 +2839,21 @@ parts", "SLIP-39 · 1 of 2 groups") and a chip per part (per share made,
 never one not made). A part goes on a place's paper only: not a stick's
 files, not a vault. Its line reads where it is kept and "Not checked".
 A Seed XOR set Back up makes on its paper section becomes the key's form
-the same way, as Convert's does.
+the same way, as Convert's does, with its parts placed as the plan's
+places have them. A key has one Seed XOR set: a second split of a key
+that has one is refused, not recorded beside it.
 
-**Open:** a part's copy typed back and checked here (the chip then reads
-"Checked"); the paper section's line "Not on the plan" still says so; the
-checklist has no item for the parts.
+Back up's Seed XOR section reads "On the plan: Place 1, Place 2, Place 3"
+(the places the parts are placed at) where it read "Not on the plan".
+The checklist has a parts item, one per set, done when every part has
+been checked. A part's copy is checked by typing its words back: the
+words' master fingerprint is compared with the part's recorded one, and
+the chip then reads "Checked". The check is Check my copy on the part's
+chart sheet or on Back up's section, and it needs no part kept here. A
+chip's check is a copy's check only: **Mark checked** on a node never
+dates a part or a share.
+
+**Open:** a SLIP-39 share has no fingerprint of its own kept, so a share's
+copy is not checked here. **Make new parts** (a second split of a key that
+has a set, asking per old part **I destroyed it** or **Still kept**) is not
+built: the plan indexes a part within the current set only.

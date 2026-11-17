@@ -45,7 +45,7 @@ One item per seed. Copy the words onto a template in order, then type them back;
 
 **Show the seed** shows the words, each with its number in the word list, and the SeedQR grid, **Standard SeedQR** or **Compact SeedQR**. **Check my copy** compares the words you type with the seed. **Scan your copy** reads a SeedQR copy. **Keep the words only** drops a SeedQR copy and checks the words instead.
 
-**Seed XOR, 2 parts** and **Seed XOR, 3 parts** are other paper forms. Each part on its own is valid words for a different, empty wallet, and is on no plan. **Check my copy of part 1** compares the words you type with that part. **Put them away** needs every part checked, or a second press.
+**Seed XOR, 2 parts** and **Seed XOR, 3 parts** are other paper forms. Each part on its own is valid words for a different, empty wallet. The section lists the places the parts go to, and the checklist has an item for them. **Check my copy of part 1** compares the words you type with that part. **Put them away** needs every part checked, or a second press.
 
 ## Codex32 strings
 

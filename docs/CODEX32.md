@@ -1672,7 +1672,11 @@ the set exists already (§9.4); the plan makes none (§9.2).
 (**A**, **C**, **D**), each reading how many places keep it ("2
 places"). A share added later is the set's action (§9.7), and its chip
 joins the group. A string chip never runs out: dragging places a copy,
-as every list chip does.
+as every list chip does. A Seed XOR set's parts and a SLIP-39 set's
+shares are groups of the same kind (BACKUP-FLOW §17.26), counted by
+fingerprint where a codex32 string is counted by its index; a node's
+**Mark checked** never dates a codex32 string, a Seed XOR part or a
+SLIP-39 share.
 
 **Each zone, each form.** A string placed in a zone is one chip there,
 its index large ("w0za · **C**"), its forms as the chip's toggles
