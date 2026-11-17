@@ -169,8 +169,10 @@ fn results_dir() -> std::path::PathBuf {
 fn walk(only: Option<&str>) {
     let tour = only.unwrap_or("default");
     for (name, size, dpi) in SIZES {
-        let work =
-            std::env::temp_dir().join(format!("faraday-targets-{name}-{tour}-{}", std::process::id()));
+        let work = std::env::temp_dir().join(format!(
+            "faraday-targets-{name}-{tour}-{}",
+            std::process::id()
+        ));
         let found = collect_tour(size, dpi, &work, only);
         let _ = std::fs::remove_dir_all(&work);
         let found = found.unwrap_or_else(|e| panic!("{name} tour {tour}: {e}"));
@@ -198,8 +200,9 @@ fn gathered(name: &str) -> Result<Vec<(String, String, String)>, String> {
     for only in tours() {
         let tour = only.unwrap_or("default");
         let path = results_dir().join(name).join(format!("{tour}.tsv"));
-        let text = std::fs::read_to_string(&path)
-            .map_err(|e| format!("tour {tour} at {name}: no result ({e}): is it one of the walks?"))?;
+        let text = std::fs::read_to_string(&path).map_err(|e| {
+            format!("tour {tour} at {name}: no result ({e}): is it one of the walks?")
+        })?;
         for l in text.lines() {
             let mut f = l.splitn(3, '\t');
             let (Some(k), Some(a), Some(r)) = (f.next(), f.next(), f.next()) else {
@@ -214,8 +217,7 @@ fn gathered(name: &str) -> Result<Vec<(String, String, String)>, String> {
 /// Per screen and action kind, the distinct actions under the floor.
 #[cfg(test)]
 fn counted(found: &[(String, String, String)]) -> std::collections::BTreeMap<String, usize> {
-    let mut seen: std::collections::BTreeMap<String, Vec<&str>> =
-        std::collections::BTreeMap::new();
+    let mut seen: std::collections::BTreeMap<String, Vec<&str>> = std::collections::BTreeMap::new();
     for (key, action, _) in found {
         let actions = seen.entry(key.clone()).or_default();
         if !actions.contains(&action.as_str()) {
