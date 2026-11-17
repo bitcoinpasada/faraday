@@ -615,3 +615,42 @@ fn every_way_back_from_set_the_time_on_the_way_into_the_codes_lands_on_tools() {
         assert_ne!(app.screen, Screen::SetTime, "way {way}");
     }
 }
+
+#[test]
+fn empty_codes_offer_scan_a_setup_code_and_it_opens_the_scanner() {
+    let mut app = Faraday::new();
+    app.online = true;
+    app.event(display());
+    for i in 0..6u8 {
+        app.event(Event::Entropy(EntropyBytes::new([0x60 + i; 32])));
+    }
+    let vault = vault_with("Empty", "pw", 0x22, Vec::new());
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![(faraday_text::Text::of("vault.kdbx"), vault)]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.storage(StorageEvent::Clock {
+        unix_secs: 2_000_000_000,
+    });
+    app.press(Action::Nav(Screen::Catalog));
+    app.press(Action::Catalog(tile("TOTP codes")));
+    type_text(&mut app, "pw");
+    app.press(Action::Vault(V::Unlock));
+    settle(&mut app, |a| !a.vaults().open.is_empty());
+    let texts = crate::common::texts(&mut app);
+    assert!(
+        texts.iter().any(|t| t == "No entries with a TOTP secret"),
+        "{texts:?}"
+    );
+    assert!(texts.iter().any(|t| t == "Scan a setup code"), "{texts:?}");
+    assert!(crate::common::offered(
+        &mut app,
+        Action::Vault(V::ScanEntry)
+    ));
+    app.press(Action::Vault(V::ScanEntry));
+    app.event(Event::Scanned {
+        bytes: b"otpauth://totp/Scanned:me?secret=JBSWY3DPEHPK3PXP".to_vec(),
+    });
+    assert_eq!(app.screen, Screen::Codes);
+}

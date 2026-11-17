@@ -19,4 +19,4 @@ One row per entry: its title and, under it, the account (from the setup's label,
 
 **Key:** codes.add
 
-**Search codes** keeps the rows whose title contains what you type. **No codes match** shows when none does, and **No entries with a TOTP secret** when there are none. **Scan a setup code** adds an entry to the current vault from a code, and **Add an entry** opens the entry form for one.
+**Search codes** keeps the rows whose title contains what you type. **No codes match** shows when none does, and **No entries with a TOTP secret** when there are none. **Scan a setup code**, filled while there are no entries, adds an entry to the current vault from a code, and **Add an entry** opens the entry form for one.

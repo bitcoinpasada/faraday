@@ -23,7 +23,7 @@ Tools holds six calculators on one page: each takes what you type, works one thi
 
 **Key:** tools.descriptor
 
-**Descriptor checksum** gives the **Checksum** of a descriptor, **Given** with whether a checksum typed with it **holds**, the descriptor **With it**, and whether it is **Wallet**: one this device loads. A key that appears twice is named under **Keys** in the warning tone.
+**Descriptor checksum** gives the **Checksum** of a descriptor, **Given** with whether a checksum typed with it **holds**, the descriptor **With it**, and whether it is **Wallet**: one this device loads. **Take to Wallets** then puts it in Wallets after the wallet is confirmed. A key that appears twice is named under **Keys** in the warning tone.
 
 ## Convert an xpub
 

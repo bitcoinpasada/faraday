@@ -194,3 +194,30 @@ fn the_descriptor_tool_says_which_key_is_used_twice() {
     );
     assert!(!app.drawn_texts().iter().any(|t| t == "Keys"));
 }
+
+#[test]
+fn a_descriptor_this_device_loads_is_taken_to_wallets_after_confirmation() {
+    let mut app = wide();
+    app.press(Action::Tools);
+    tool(&mut app, Tool::Descriptor);
+    typed(
+        &mut app,
+        &format!(
+            "wsh(sortedmulti(1,[9a6a2580/48h/1h/0h/3h]{KEY_A}/<0;1>/*,[5d388376/48h/1h/0h/3h]{KEY_B}/<0;1>/*))"
+        ),
+    );
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "Take to Wallets"), "{texts:?}");
+    assert!(app.offers(Action::TTake));
+    app.press(Action::TTake);
+    assert_eq!(app.screen, Screen::Tools, "the sheet asks first");
+    testkit::confirm_wallets(&mut app);
+    assert_eq!(app.screen, Screen::Wallets);
+    assert!(app.drawn_texts().iter().any(|t| t == "Wallet"), "named");
+    // What is not loadable offers no way on.
+    let mut app = wide();
+    app.press(Action::Tools);
+    tool(&mut app, Tool::Descriptor);
+    typed(&mut app, "wpkh(02)");
+    assert!(!app.drawn_texts().iter().any(|t| t == "Take to Wallets"));
+}

@@ -205,16 +205,14 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     } else {
         let scan = EN.codes_scan_a_setup;
         let add = EN.codes_add_an_entry;
+        // With nothing to show, the way on is the filled button.
+        let lead = if rows.is_empty() && !searched(app) {
+            Style::Primary
+        } else {
+            Style::Secondary
+        };
         let sw = ui.measure_as(LABEL_L, scan) + 32.0;
-        ui.button(
-            x,
-            y,
-            Some(sw),
-            BUTTON_H,
-            scan,
-            Style::Secondary,
-            va(V::ScanEntry),
-        );
+        ui.button(x, y, Some(sw), BUTTON_H, scan, lead, va(V::ScanEntry));
         let aw = ui.measure_as(LABEL_L, add) + 32.0;
         ui.button(
             x + sw + 10.0,
@@ -263,7 +261,11 @@ fn compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             None,
             BUTTON_H,
             EN.codes_scan_a_setup,
-            Style::Secondary,
+            if rows.is_empty() && !searched(app) {
+                Style::Primary
+            } else {
+                Style::Secondary
+            },
             va(V::ScanEntry),
         );
         y += 52.0;

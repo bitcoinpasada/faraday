@@ -573,6 +573,7 @@ pub fn replays(action: Action) -> bool {
     matches!(
         action,
         Action::LoadWallet(_)
+            | Action::TTake
             | Action::RUse(_)
             | Action::RRebuild
             | Action::RestoreShares

@@ -62,6 +62,10 @@ macro_rules! words_tools {
     tools_does_not_hold: "does not hold",
     /// Text in `body`.
     tools_with_checksum_label: "With it",
+    /// A calculator's descriptor result: puts the descriptor in Wallets.
+    tools_take_to_wallets: "Take to Wallets",
+    /// A wallet's source line when it came from a calculator.
+    tools_typed_in_a_calculator: "Typed in a calculator",
     /// Text in `body`.
     tools_not_loadable: "not one this device loads",
     /// Note in `body`.

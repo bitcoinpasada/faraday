@@ -996,6 +996,9 @@ pub enum Action {
     DecodeAnother,
     /// Check a signed message again, empty: the files to choose from.
     CheckMessageAnother,
+    /// A calculator's descriptor result **Take to Wallets**: the typed
+    /// descriptor goes to Wallets through the wallet confirmation sheet.
+    TTake,
 }
 
 /// Which mark of a backup board chip a tooltip names.
@@ -1324,9 +1327,11 @@ impl Faraday {
             | Action::LVault
             | Action::LOut
             | Action::LAnother => self.lightning_act(action),
-            Action::Tools | Action::TTool(_) | Action::TMode(_) | Action::TClear => {
-                self.tools_act(action)
-            }
+            Action::Tools
+            | Action::TTool(_)
+            | Action::TMode(_)
+            | Action::TClear
+            | Action::TTake => self.tools_act(action),
             Action::ExploreKey(fp) => {
                 self.explore_act(Action::Explore);
                 self.explore_act(Action::XKey(fp));

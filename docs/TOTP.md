@@ -331,7 +331,7 @@ again after a lock in the same power-on.
   form opened from here comes back to the codes screen, with the new
   entry's row in the list.
 - No rows: the line **No entries with a TOTP secret**, and the two
-  buttons under it.
+  buttons under it, **Scan a setup code** filled.
 - Over the rows, while there are any, Material's search bar
   (DESIGN §4.3, **Search codes**): typing keeps the rows whose entry's
   title (field 1) holds what is typed, case not counted, as it is typed;

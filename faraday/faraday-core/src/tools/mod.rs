@@ -495,7 +495,37 @@ impl Faraday {
         if action == crate::Action::Tools {
             return self.tools_open();
         }
+        if action == crate::Action::TTake {
+            return self.tools_take();
+        }
         self.tools.act(action);
+    }
+
+    /// Costs what `add_wallet` costs: the typed descriptor goes to Wallets
+    /// as a descriptor with its origins does, through the wallet
+    /// confirmation sheet where it asks for one.
+    fn tools_take(&mut self) {
+        let Some(t) = self.tools.state() else {
+            return;
+        };
+        let text = Text::of(t.typed.trim());
+        let c = self.compute();
+        match self.session.add_wallet(
+            &c,
+            EN.tools_wallet,
+            &text,
+            EN.tools_typed_in_a_calculator,
+            crate::wallet::Origin::Named,
+        ) {
+            Ok(i) => {
+                self.wallets.set_wallet(i);
+                self.screen = Screen::Wallets;
+                self.refresh_spend();
+            }
+            // Held for its sheet: its hold runs this again and opens Wallets.
+            Err(crate::wallet::Refusal::Unconfirmed) => {}
+            Err(e) => self.toast(&e.text()),
+        }
     }
 
     /// Typing into the field. Returns whether the key was taken.

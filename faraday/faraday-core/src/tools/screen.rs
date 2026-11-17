@@ -14,7 +14,7 @@ use crate::screens::button_rows;
 use crate::tools::{UNITS, tool_name};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
-use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H};
+use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, PAD};
 
 fn hex(b: &[u8]) -> String {
     String::from(&*faraday_crypto::hex::encode_string(b))
@@ -178,6 +178,7 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
     let mut rows: Vec<(String, String)> = Vec::new();
     let mut note: Option<String> = None;
     let mut warn_row: Option<usize> = None;
+    let mut take = false;
     match &*reading {
         Reading::Hashes(None) => note = Some(EN.tools_not_hex.into()),
         Reading::Hashes(Some(h)) => {
@@ -227,6 +228,7 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
                     ));
                 }
                 rows.push((EN.tools_with_checksum_label.into(), f.with_checksum.clone()));
+                take = f.wallet.is_some();
                 rows.push((
                     EN.tools_wallet.into(),
                     if f.wallet.is_some() {
@@ -316,6 +318,20 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
             .wrap_as((x + vx, y, width - vx), BODY_M.mono(), role, &value)
             .max(20.0)
             + 10.0;
+    }
+    if take {
+        let label = EN.tools_take_to_wallets;
+        let bw = ui.measure_as(LABEL_L, label) + PAD + PAD;
+        ui.button(
+            x,
+            y,
+            Some(bw),
+            BUTTON_H,
+            label,
+            Style::Primary,
+            Action::TTake,
+        );
+        y += BUTTON_H + PAD;
     }
     y
 }
