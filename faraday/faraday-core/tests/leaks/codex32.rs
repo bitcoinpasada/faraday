@@ -3,7 +3,7 @@
 //! plain copy of either string, or of its data symbols, is freed.
 
 use crate::common::type_text;
-use crate::{arm, finish};
+use crate::{arm, finish, finish_left};
 use faraday_bip::keys::ScriptType;
 use faraday_core::codex32_backup::Press;
 use faraday_core::{Action, Faraday, StorageEvent, plan, plan::Item, testkit};
@@ -120,4 +120,28 @@ fn shares_typed_back_and_counted_towards_the_rebuild_leave_no_plain_copy() {
         "the two shares rebuild the key"
     );
     finish("codex32 shares typed back", armed, false);
+}
+
+/// A backup is a flow in progress (`docs/FLOWS.md`, Flows in progress):
+/// the arrow, Escape and the mouse's back leave its screen and keep what
+/// was typed back until the flow is cancelled or Lock. Cancel ends it.
+#[test]
+fn shares_typed_back_are_gone_once_the_backup_is_cancelled() {
+    let mut app = at_the_item();
+    let mut forms = Vec::new();
+    forms.extend(forms_of("share A text", A));
+    forms.extend(forms_of("share C text", C));
+    let armed = arm(&forms);
+    app.press(Action::BC32(Press::Open(
+        plan::codex32::index_of(b'a').unwrap() as u8,
+    )));
+    type_back(&mut app, A);
+    app.press(Action::BC32(Press::Next));
+    type_back(&mut app, C);
+    app.press(Action::BC32(Press::Next));
+    app.press(Action::CancelFlow);
+    app.press(Action::CancelFlowNow);
+    let _ = app.frame();
+    assert!(app.backup().is_none(), "Cancel did not end the backup");
+    finish_left("codex32 shares, backup cancelled", armed, &[]);
 }

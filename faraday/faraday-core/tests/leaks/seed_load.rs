@@ -32,7 +32,7 @@ fn demo_on_testnet() -> Faraday {
 }
 
 /// Paste pressed and the clipboard holding `text`.
-fn paste(app: &mut Faraday, text: faraday_text::Text) {
+pub fn paste(app: &mut Faraday, text: faraday_text::Text) {
     app.press(Action::ScanPaste);
     let asked = std::iter::from_fn(|| app.poll_command())
         .any(|c| matches!(c, Command::RequestClipboard { .. }));
@@ -207,10 +207,10 @@ fn coin_flips_previewed_as_the_last_word_leave_no_copy_of_the_entropy() {
 }
 
 /// A way out of a screen: its name and the press.
-type Way = (&'static str, fn(&mut Faraday));
+pub type Way = (&'static str, fn(&mut Faraday));
 
 /// The ways out of a screen, as a person takes them.
-fn ways_out() -> [Way; 3] {
+pub fn ways_out() -> [Way; 3] {
     [
         ("the arrow", |a| a.press(Action::Back)),
         ("Escape", |a| {

@@ -4,7 +4,7 @@
 //! decoder's stack buffers are not seen by it.
 
 use crate::stick_visit::digits;
-use crate::{arm, finish};
+use crate::{arm, finish, finish_left};
 use faraday_codec::qr::{self, Ecc, Payload};
 use faraday_core::testkit;
 use faraday_leak_scan::Form;
@@ -111,4 +111,74 @@ fn an_outbox_seed_file_shown_as_a_qr_code_leaves_no_freed_copy() {
     app.press(Action::Cancel);
     assert!(app.qr().is_none(), "the sheet closed");
     finish("an Outbox seed file shown as a QR code", armed, false);
+}
+
+/// The ways out of a sheet: its Cancel, Escape, the mouse's back (the
+/// arrow leaves the screen under the sheet, not the sheet).
+fn sheet_ways_out() -> [crate::seed_load::Way; 3] {
+    let [_, escape, back] = crate::seed_load::ways_out();
+    [
+        ("Cancel", |a| a.press(faraday_core::Action::Cancel)),
+        escape,
+        back,
+    ]
+}
+
+/// A seed pasted into the scanner and its sheet closed by each way out
+/// (the arrow, Escape, the mouse's back): no copy of the words stays live.
+#[test]
+fn a_seed_pasted_into_the_scanner_is_gone_once_its_sheet_is_left() {
+    use crate::forms::{PHRASE, seed_forms};
+    use faraday_core::{Action, Sheet};
+    for (way, leave) in sheet_ways_out() {
+        let forms = seed_forms("");
+        let armed = arm(&forms);
+        let mut app = testkit::started();
+        app.clipboard = true;
+        app.press(Action::ScanSeed);
+        crate::seed_load::paste(&mut app, faraday_text::Text::of(PHRASE));
+        assert_eq!(app.sheet, Some(Sheet::SeedRead));
+        for _ in 0..6 {
+            if app.sheet.is_none() {
+                break;
+            }
+            leave(&mut app);
+            let _ = app.frame();
+        }
+        assert!(app.sheet.is_none(), "{way} did not close the sheet");
+        finish_left(&format!("seed pasted, sheet left by {way}"), armed, &[]);
+    }
+}
+
+/// An Outbox seed file shown as a QR code, its sheet closed by each way out.
+#[test]
+fn an_outbox_seed_file_shown_as_a_qr_code_is_gone_once_its_sheet_is_left() {
+    use crate::forms::{PHRASE, seed_forms};
+    use faraday_core::{Action, StorageEvent};
+    for (way, leave) in sheet_ways_out() {
+        let file = zeroize::Zeroizing::new(PHRASE.as_bytes().to_vec());
+        let mut forms = seed_forms("");
+        forms.push(Form::new(
+            "phrase as base64, as the envelope holds it",
+            faraday_bip::base64::encode(PHRASE.as_bytes()).into_bytes(),
+        ));
+        let armed = arm(&forms);
+        let mut app = testkit::started();
+        app.storage(StorageEvent::Restored {
+            inbox: Vec::new(),
+            outbox: faraday_core::files_from(vec![("seed.dat", file)]),
+            kept: Vec::new(),
+        });
+        app.press(Action::QrOutbox(0));
+        assert!(app.qr().is_some(), "the code is shown");
+        let _ = app.frame();
+        leave(&mut app);
+        let _ = app.frame();
+        assert!(app.qr().is_none(), "{way} did not close the sheet");
+        finish_left(
+            &format!("Outbox seed QR, left by {way}"),
+            armed,
+            &["Outbox seed file"],
+        );
+    }
 }

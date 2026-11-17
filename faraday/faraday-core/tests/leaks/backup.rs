@@ -4,7 +4,7 @@
 
 use crate::common::{device, type_text};
 use crate::forms::{PHRASE, VAULT_PASSPHRASE, seed_forms, vault_passphrase_forms};
-use crate::{arm, finish};
+use crate::{arm, finish, finish_left};
 use faraday_core::seeds::SeedsAction as S;
 use faraday_core::{Action, Faraday, Screen, Sheet, plan, plan::Item, testkit};
 use faraday_shell_api::{App, EntropyBytes, Event};
@@ -94,4 +94,27 @@ fn a_seed_file_let_out_unprotected_leaves_no_copy_after_lock() {
     crate::seed_load::lock(&mut app);
     while app.poll_storage().is_some() {}
     finish("seed file let out", armed, true);
+}
+
+/// The copy checked by typing the words back, then the backup cancelled:
+/// the typed words stay nowhere but in the key; its own forms stay with the
+/// session.
+#[test]
+fn the_words_checked_on_the_copy_step_are_gone_once_the_backup_is_cancelled() {
+    let forms = seed_forms("");
+    let armed = arm(&forms);
+    let mut app = testkit::started();
+    at_the_copy(&mut app, plan::Preset::Paper);
+    app.press(Action::BReveal);
+    app.press(Action::BCheck);
+    testkit::type_words(&mut app, PHRASE);
+    app.press(Action::CancelFlow);
+    app.press(Action::CancelFlowNow);
+    let _ = app.frame();
+    assert!(app.backup().is_none(), "Cancel did not end the backup");
+    finish_left(
+        "copy checked, backup cancelled",
+        armed,
+        crate::sign::KEY_FORMS,
+    );
 }
