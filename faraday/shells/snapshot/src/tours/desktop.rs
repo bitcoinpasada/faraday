@@ -1,7 +1,6 @@
 //! The desktop tours.
 
 use crate::tour::{Tour, type_text};
-use faraday_core::samples::Pick;
 use faraday_core::testkit;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Screen, StorageEvent};
@@ -100,8 +99,6 @@ pub(crate) fn modes_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Cancel);
     t.press(Action::Samples);
     t.shot("modes-demo-samples-sheet")?;
-    t.press(Action::SampleTick(Pick::Wallet(0)));
-    t.shot("modes-demo-samples-ticked")?;
     // The list is longer than the sheet: its scrollbar shows with the
     // pointer at the sheet's right edge.
     t.app
