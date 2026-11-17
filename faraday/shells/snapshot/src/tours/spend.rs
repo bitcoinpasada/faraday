@@ -103,7 +103,6 @@ pub(crate) fn spend_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Vanity(Va::Next(vstep::SCRIPT)));
     type_text(t, "qq");
     t.shot("vanity-prefix")?;
-    t.press(Action::Vanity(Va::Next(vstep::PREFIX)));
     t.press(Action::Vanity(Va::Start));
     // Ticks a tenth of a second apart, as a shell sends them: well inside
     // the idle lock.

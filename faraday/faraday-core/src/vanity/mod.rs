@@ -58,6 +58,10 @@ pub enum VanityAction {
     Stop,
     /// Show the passphrase a find names, or hide it.
     Show,
+    /// Leave the tool for the place it was opened from.
+    Done,
+    /// Start the tool again, empty, on the same key.
+    Another,
     /// Open the wallet the find's address belongs to: the key at the
     /// account found, or the key with the passphrase found.
     Use,
@@ -270,6 +274,11 @@ impl VanityArea {
                     v.grind.start(now);
                     v.running = true;
                     v.shown = false;
+                    // The search's own card shows at once.
+                    v.done[usize::from(vstep::PREFIX)] = true;
+                    open(v, vstep::RUN);
+                } else {
+                    v.error = Some(EN.vanity_type_at_least.into());
                 }
             }
             V::Stop => {
@@ -279,7 +288,7 @@ impl VanityArea {
                 }
             }
             V::Show => v.shown = !v.shown,
-            V::Open | V::Use => {}
+            V::Open | V::Use | V::Done | V::Another => {}
         }
     }
 
@@ -358,7 +367,7 @@ impl VanityArea {
                 v.error = None;
             }
             K::Enter if v.open == Some(vstep::PREFIX) => {
-                self.act(VanityAction::Next(vstep::PREFIX), net, now, words);
+                self.act(VanityAction::Start, net, now, words);
             }
             _ => return false,
         }
@@ -400,6 +409,19 @@ impl Faraday {
         match a {
             VanityAction::Open => self.vanity_open(),
             VanityAction::Use => self.vanity_use(),
+            VanityAction::Done => {
+                if let Some(v) = self.vanity.state() {
+                    self.screen = v.back;
+                }
+                self.vanity.clear();
+            }
+            VanityAction::Another => {
+                if let Some(v) = self.vanity.state() {
+                    let (key, back) = (v.key, v.back);
+                    let net = self.session.network();
+                    self.vanity.open(key, net, back);
+                }
+            }
             _ => {
                 let net = self.session.network();
                 // The demo searches no passphrase: what it finds is a new key.

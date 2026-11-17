@@ -1876,7 +1876,7 @@ fn on_the_small_panel_a_typed_messages_count_and_continue_do_not_share_a_line() 
 }
 
 #[test]
-fn on_the_small_panel_a_found_vanity_address_offers_both_buttons_clear_of_each_other() {
+fn on_the_small_panel_a_found_vanity_result_offers_its_buttons_clear_of_each_other() {
     use faraday_core::vanity::{VanityAction as Va, vstep};
     let mut rig = rig(On::Stick, Mode::Testnet, Vec::new());
     add_key(&mut rig, testkit::TEST_SEEDS[0].0);
@@ -1897,7 +1897,7 @@ fn on_the_small_panel_a_found_vanity_address_offers_both_buttons_clear_of_each_o
         }
     }
     rig.settle();
-    let (open, again) = (Action::Vanity(Va::Use), Action::Vanity(Va::Start));
+    let (open, again) = (Action::Vanity(Va::Another), Action::Vanity(Va::Done));
     let mut shown = false;
     for _ in 0..20 {
         let _ = rig.drawn_texts();
@@ -1915,12 +1915,26 @@ fn on_the_small_panel_a_found_vanity_address_offers_both_buttons_clear_of_each_o
         rig.drawn_texts(),
         rig.screen
     );
-    let (a, b) = (rig.hit_box(open).unwrap(), rig.hit_box(again).unwrap());
-    let apart = a.0 + a.2 <= b.0 || b.0 + b.2 <= a.0 || a.1 + a.3 <= b.1 || b.1 + b.3 <= a.1;
-    assert!(apart, "the buttons overlap: {a:?} {b:?}");
-    // Neither crosses the page's margin at the right.
-    let right = u32::from(rig.w) - u32::from(a.0);
-    for (name, c) in [("Open this wallet", a), ("Search again", b)] {
+    // Every button of the result that is drawn, the next step included.
+    let mut boxes = vec![
+        ("Another", rig.hit_box(open).unwrap()),
+        ("Done", rig.hit_box(again).unwrap()),
+    ];
+    if let Some(c) = rig.hit_box(Action::Vanity(Va::Use)) {
+        boxes.push(("Open", c));
+    }
+    for (i, (na, a)) in boxes.iter().enumerate() {
+        for (nb, b) in &boxes[i + 1..] {
+            let apart =
+                a.0 + a.2 <= b.0 || b.0 + b.2 <= a.0 || a.1 + a.3 <= b.1 || b.1 + b.3 <= a.1;
+            assert!(apart, "{na} and {nb} overlap: {a:?} {b:?}");
+        }
+    }
+    // None crosses the page's margin at the right (the left margin is
+    // where the first of a row starts).
+    let left = boxes.iter().map(|(_, c)| c.0).min().unwrap();
+    let right = u32::from(rig.w) - u32::from(left);
+    for (name, c) in &boxes {
         assert!(
             u32::from(c.0) + u32::from(c.2) <= right,
             "{name} crosses the page's margin: {c:?}"

@@ -49,23 +49,26 @@ fn opened_address(app: &mut Faraday) -> String {
 }
 
 #[test]
-fn search_again_finds_another_address() {
+fn another_starts_the_tool_again_on_the_same_key() {
     let mut app = with_key();
-    let first = search(&mut app, "q");
-    let account = app.vanity().unwrap().grind.find.as_ref().unwrap().account;
-    app.press(Action::Vanity(V::Start));
-    let mut again = None;
-    for t in 5000..10_000u64 {
-        app.event(Event::Tick { now_ms: t * 100 });
-        if let Some(f) = &app.vanity().unwrap().grind.find {
-            again = Some((f.address.as_str().to_string(), f.account));
-            break;
-        }
-    }
-    let (second, next) = again.expect("a second find");
-    assert!(second.starts_with("tb1qq"), "{second}");
-    assert_ne!(second, first, "Search again found the same address");
-    assert!(next > account, "it goes on past the first find");
+    search(&mut app, "q");
+    let key = app.vanity().unwrap().key;
+    app.press(Action::Vanity(V::Another));
+    let v = app.vanity().expect("the tool stays open");
+    assert_eq!(app.screen, Screen::Vanity);
+    assert!(v.grind.find.is_none() && !v.running);
+    assert_eq!(v.key, key);
+    assert_eq!(v.open, Some(vstep::DIAL));
+}
+
+#[test]
+fn done_returns_to_where_the_tool_was_opened() {
+    let mut app = with_key();
+    let back = app.vanity().unwrap().back;
+    search(&mut app, "q");
+    app.press(Action::Vanity(V::Done));
+    assert!(app.vanity().is_none());
+    assert_eq!(app.screen, back);
 }
 
 #[test]

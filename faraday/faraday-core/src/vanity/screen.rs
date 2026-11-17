@@ -209,7 +209,8 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
             if let Some(e) = &v.error {
                 cy += ui.wrap_as((x, cy, w), BODY_S, Role::Error, e) + 8.0;
             }
-            if next_button(ui, x, cy, w, EN.vanity_continue, va(V::Next(vstep::PREFIX))) {
+            let go = fill(EN.vanity_search_prefix, &[v.grind.prefix.as_str()]);
+            if next_button(ui, x, cy, w, &go, va(V::Start)) {
                 cy += 52.0;
             }
         }
@@ -290,7 +291,8 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
                     (Kind::Silent, Dial::Passphrase) => Some(EN.vanity_open_in_silent_payments),
                     _ => Some(EN.vanity_open_this_wallet),
                 };
-                let again = (EN.vanity_search_again, Style::Secondary, va(V::Start));
+                let another = (EN.vanity_another, Style::Secondary, va(V::Another));
+                let done = |style| (EN.vanity_done, style, va(V::Done));
                 cy += match open {
                     Some(open) => crate::screens::wrap_buttons(
                         ui,
@@ -298,9 +300,20 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
                         cy,
                         w,
                         BUTTON_H,
-                        &[(open, Style::Primary, va(V::Use)), again],
+                        &[
+                            (open, Style::Primary, va(V::Use)),
+                            another,
+                            done(Style::Secondary),
+                        ],
                     ),
-                    None => crate::screens::wrap_buttons(ui, x, cy, w, BUTTON_H, &[again]),
+                    None => crate::screens::wrap_buttons(
+                        ui,
+                        x,
+                        cy,
+                        w,
+                        BUTTON_H,
+                        &[another, done(Style::Primary)],
+                    ),
                 } + 4.0;
             }
             (None, true) => {

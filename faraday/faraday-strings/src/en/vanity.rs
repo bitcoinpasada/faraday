@@ -63,8 +63,6 @@ macro_rules! words_vanity {
     vanity_tried_count: "{} tried",
     /// Text in `card`. `{}`: `thousands(expected)`.
     vanity_about_tries: "About {} tries",
-    /// Button in `card`.
-    vanity_continue: "Continue",
     /// Line in `card`.
     vanity_found: "Found",
     /// Text in `card`. `{}`: `f.account`, `thousands(v.grind.tested)`.
@@ -81,8 +79,10 @@ macro_rules! words_vanity {
     vanity_open_this_wallet: "Open this wallet",
     /// Button in `card`.
     vanity_open_in_silent_payments: "Open in Silent payments",
-    /// Button in `card`.
-    vanity_search_again: "Search again",
+    /// Button in `card`, under a find.
+    vanity_another: "Another",
+    /// Button in `card`, under a find.
+    vanity_done: "Done",
     /// Text in `card`. `{}`: `thousands(r as u64)`.
     vanity_a_second: "{} a second",
     /// Text in `card`, after a space. `{}`: `seconds_text(s)`.
