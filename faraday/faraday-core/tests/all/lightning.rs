@@ -471,3 +471,23 @@ fn a_chosen_file_is_found_by_name_when_files_change_and_says_so_when_gone() {
     assert!(l.node.is_none());
     assert_eq!(l.error.as_deref(), Some("hsm_secret is no longer in Files"));
 }
+
+#[test]
+fn done_goes_back_to_where_the_node_key_was_opened_and_another_starts_again() {
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Nav(Screen::Tools));
+    let from = app.screen;
+    app.press(Action::Lightning);
+    app.press(Action::LAezeed);
+    typed(&mut app, CIPHER_SEED);
+    app.press(Action::LAnother);
+    assert_eq!(app.screen, Screen::Lightning);
+    let l = app.lightning().unwrap();
+    assert_eq!(l.back, from);
+    assert!(l.source.is_none() && l.node.is_none() && l.typed.is_empty());
+    app.press(Action::Nav(from));
+    assert_eq!(app.screen, from);
+    app.press(Action::Lightning);
+    app.press(Action::Nav(Screen::Home));
+    assert_eq!(app.screen, Screen::Home);
+}

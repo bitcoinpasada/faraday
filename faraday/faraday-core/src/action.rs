@@ -979,6 +979,8 @@ pub enum Action {
     /// A mark on a backup board chip that is no button: it only owns the
     /// plain tooltip that names it, and is never pressed.
     Mark(crate::board::Chip, MarkTip),
+    /// Start the Lightning node key again, with nothing chosen.
+    LAnother,
 }
 
 /// Which mark of a backup board chip a tooltip names.
@@ -1305,7 +1307,8 @@ impl Faraday {
             | Action::LResolve
             | Action::LShow
             | Action::LVault
-            | Action::LOut => self.lightning_act(action),
+            | Action::LOut
+            | Action::LAnother => self.lightning_act(action),
             Action::Tools | Action::TTool(_) | Action::TMode(_) | Action::TClear => {
                 self.tools_act(action)
             }

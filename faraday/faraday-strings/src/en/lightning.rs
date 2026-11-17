@@ -59,6 +59,8 @@ macro_rules! words_lightning {
     lightning_show: "Show",
     /// Text in `body`. `{}`: `v.name`.
     lightning_save_into: "Save into {}",
+    /// Text in `body`: starts the node key again.
+    lightning_another: "Another",
     /// Text in `body`.
     lightning_out_unprotected: "Out unprotected…",
     /// Text in `body`.

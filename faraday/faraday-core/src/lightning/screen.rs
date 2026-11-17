@@ -290,7 +290,17 @@ fn body(
         Style::Ghost,
         Action::LOut,
     ));
-    y + button_rows(ui, vx, y, vw, &row)
+    y += button_rows(ui, vx, y, vw, &row) + T::GAP;
+    // The end: Another starts again, Done goes back to where this opened.
+    let end = [
+        (
+            Text::of(EN.lightning_another),
+            Style::Ghost,
+            Action::LAnother,
+        ),
+        (Text::of(EN.app_done), Style::Secondary, Action::Nav(l.back)),
+    ];
+    y + button_rows(ui, vx, y, vw, &end)
 }
 
 /// The words' field with its count and the sample chip; `cln` for Core

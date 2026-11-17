@@ -27,4 +27,4 @@ Each loaded key has two buttons, ldk-node · and Core Lightning · followed by t
 
 **Node id** is the node's public key in hex, with **Show as QR** and **PNG**. **Made** is the day the aezeed says it was made and shows for an aezeed only.
 
-**Private key** is hidden until **Show**, and **Hide** hides it again. Save into the open vault writes it to a note in the vault; with no vault open, one is made or unlocked first. **Out unprotected…** writes it to a file after a warning that whoever has it is the node, with its channels and their money.
+**Private key** is hidden until **Show**, and **Hide** hides it again. Save into the open vault writes it to a note in the vault; with no vault open, one is made or unlocked first. **Out unprotected…** writes it to a file after a warning that whoever has it is the node, with its channels and their money. **Another** starts again with nothing chosen, and **Done** goes back to where the node key was opened from.

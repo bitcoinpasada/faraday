@@ -614,6 +614,11 @@ impl Faraday {
                 self.lightning.open(self.screen);
                 self.screen = Screen::Lightning;
             }
+            A::LAnother => {
+                if let Some(back) = self.lightning.state().map(|l| l.back) {
+                    self.lightning.open(back);
+                }
+            }
             A::LFile(at) => self.lightning_file(at),
             A::LResolve if self.lightning_reads_aezeed() => self.lightning_read(),
             A::LResolve if self.lightning.on_core_lightning() => {
