@@ -307,7 +307,7 @@ fn silent_payments_makes_a_vault_and_comes_back_to_save_the_scan_key() {
     let mut app = device(Vec::new());
     add_key(&mut app, 0);
     app.press(Action::Silent);
-    app.press(Action::SNext);
+    app.press(Action::SStep(faraday_core::silent::sstep::SCAN));
     press_make(&mut app, Screen::Silent);
     make_the_vault(&mut app);
     unlock_with(&mut app, NEW_PHRASE);

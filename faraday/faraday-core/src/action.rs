@@ -638,8 +638,8 @@ pub enum Action {
     /// Session wallet n's BIP-392 `sp()` descriptor out unprotected,
     /// through the secret sheet: it carries the scan key.
     SDescriptorOut(usize),
-    /// Done with this silent payments card.
-    SNext,
+    /// Start silent payments again, over the session's keys.
+    SAnother,
     /// Add the key's silent payments wallet to the session's wallets.
     SAddWallet,
     /// Open session wallet n, a silent payments wallet, on its page.
@@ -1283,7 +1283,7 @@ impl Faraday {
             | Action::SScanVault
             | Action::SScanOut
             | Action::SDescriptorOut(_)
-            | Action::SNext
+            | Action::SAnother
             | Action::SAddWallet
             | Action::SWallet(_)
             | Action::SCheck(_) => self.silent_act(action),

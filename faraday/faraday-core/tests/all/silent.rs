@@ -168,12 +168,26 @@ fn the_dns_record_of_a_labelled_address_names_its_label() {
 fn the_scan_key_leaves_only_through_the_secret_sheet() {
     let mut app = with_key();
     app.press(Action::Silent);
-    app.press(Action::SNext);
+    app.press(Action::SStep(faraday_core::silent::sstep::SCAN));
     app.press(Action::SScanVault);
     assert!(app.outbox.is_empty(), "no vault is open");
     app.press(Action::SScanOut);
     assert_eq!(app.sheet, Some(Sheet::SecretOut));
     assert!(app.outbox.is_empty());
+}
+
+#[test]
+fn another_starts_over_and_done_goes_back_to_where_it_was_opened() {
+    let mut app = with_key();
+    let from = app.screen;
+    app.press(Action::Silent);
+    app.press(Action::SLabel(1));
+    assert_eq!(app.silent().unwrap().label, 1);
+    app.press(Action::SAnother);
+    assert_eq!(app.screen, Screen::Silent);
+    assert_eq!(app.silent().unwrap().label, 0);
+    app.press(Action::Nav(app.silent().unwrap().back));
+    assert_eq!(app.screen, from);
 }
 
 /// The key a payer spends with, and the P2WPKH output it pays from.

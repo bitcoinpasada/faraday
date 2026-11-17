@@ -2,7 +2,7 @@
 //! [`crate::silent`].
 
 use crate::drawing::{Scrolled, View};
-use crate::screens::{button_rows, next_button};
+use crate::screens::button_rows;
 use crate::silent::{RecordCheck, SilentState, sstep};
 use crate::strings::EN;
 use crate::strings::fill;
@@ -144,7 +144,7 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
             let row = vec![
                 (
                     EN.silent_show_as_qr.to_string(),
-                    Style::Primary,
+                    Style::Secondary,
                     Action::SQr(false),
                 ),
                 (
@@ -188,7 +188,7 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
             let row = vec![
                 (
                     EN.silent_show_as_qr.to_string(),
-                    Style::Primary,
+                    Style::Secondary,
                     Action::SQr(false),
                 ),
                 (
@@ -216,17 +216,20 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
             if s.wallet.is_none() {
                 row.push((
                     EN.silent_add_as_a_wallet.to_string(),
-                    Style::Secondary,
+                    Style::Primary,
                     Action::SAddWallet,
                 ));
             }
             cy += button_rows(ui, x, cy, w, &row);
             cy += dns_card(app, s, ui, x, cy, w);
-            if next_button(ui, x, cy, w, EN.silent_continue, Action::SNext) {
-                cy += 48.0;
+            cy += ending(ui, (x, cy, w), s.back, s.wallet.is_some());
+        }
+        sstep::CHECK => {
+            cy += check_card(app, s, ui, x, cy, w);
+            if s.check.is_some() {
+                cy += ending(ui, (x, cy, w), s.back, true);
             }
         }
-        sstep::CHECK => cy += check_card(app, s, ui, x, cy, w),
         _ => {
             ui.tag(x, cy, EN.silent_secret_shows, Status::Warning);
             cy += 38.0;
@@ -257,6 +260,29 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
 /// The address's DNS record: a name and a domain, and once both are
 /// filled and valid the name as it reads, the record line and its QR; a
 /// plain line under a field that is not a valid DNS name.
+/// The end of a result: Another starts the tool again, and Done goes back
+/// to where it was opened from. Done is the filled button when `last`:
+/// nothing else is left to do with the result.
+fn ending(ui: &mut Ui, (x, y, w): (f32, f32, f32), back: crate::Screen, last: bool) -> f32 {
+    let row = vec![
+        (
+            EN.silent_another.to_string(),
+            Style::Ghost,
+            Action::SAnother,
+        ),
+        (
+            EN.app_done.to_string(),
+            if last {
+                Style::Primary
+            } else {
+                Style::Secondary
+            },
+            Action::Nav(back),
+        ),
+    ];
+    button_rows(ui, x, y, w, &row)
+}
+
 fn dns_card(app: &View, s: &SilentState, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     use crate::edit::Here;
     let Some(address) = app.silent_shown().address else {

@@ -565,7 +565,7 @@ fn scan_key(app: &mut Faraday) -> [bool; 2] {
     app.press(Action::Silent);
     assert_eq!(app.screen, Screen::Silent, "Silent payments opens");
     app.press(Action::SKey(fp));
-    app.press(Action::SNext);
+    app.press(Action::SStep(faraday_core::silent::sstep::SCAN));
     assert_eq!(
         app.silent().unwrap().open,
         Some(faraday_core::silent::sstep::SCAN)

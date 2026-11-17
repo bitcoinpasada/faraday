@@ -111,8 +111,8 @@ macro_rules! words_silent {
     silent_record_as_png: "Record as PNG",
     /// Text in `card`.
     silent_add_as_a_wallet: "Add as a wallet",
-    /// Button in `card`.
-    silent_continue: "Continue",
+    /// Button in `ending`: starts the tool again.
+    silent_another: "Another",
     /// Chip in `card`.
     silent_secret_shows: "Secret · shows every payment, cannot spend",
     /// Text in `card`. `{}`: `v.name`.

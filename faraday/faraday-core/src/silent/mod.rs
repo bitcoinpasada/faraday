@@ -290,7 +290,7 @@ impl SilentArea {
             } else {
                 sstep::KEY
             }),
-            done: [key.is_some(), false, false, false],
+            done: [key.is_some(), key.is_some(), false, false],
             scroll: flow::Scroll::default(),
             key,
             label: 0,
@@ -315,7 +315,7 @@ impl SilentArea {
         };
         self.state = Some(SilentState {
             open: Some(sstep::ADDRESS),
-            done: [true, false, false, false],
+            done: [true, true, false, false],
             scroll: flow::Scroll::default(),
             key: Some(r.fingerprint.0),
             label: 0,
@@ -587,11 +587,11 @@ impl SilentArea {
         let s = self.state.as_mut()?;
         match action {
             A::SStep(k) => {
-                // A wallet's page opens any card; the first time through,
-                // the cards go in order.
+                // A wallet's page opens any card, and so does a chosen key;
+                // before one, only the key's card opens.
                 if s.open == Some(k) {
                     s.open = None;
-                } else if s.wallet.is_some() || (0..k).all(|i| s.done[usize::from(i)]) {
+                } else if s.wallet.is_some() || s.key.is_some() || k == sstep::KEY {
                     s.open = Some(k);
                     s.scroll.follow = true;
                 }
@@ -600,6 +600,7 @@ impl SilentArea {
                 s.key = Some(fp);
                 s.check = None;
                 s.done[usize::from(sstep::KEY)] = true;
+                s.done[usize::from(sstep::ADDRESS)] = true;
                 s.open = Some(sstep::ADDRESS);
                 s.scroll.follow = true;
             }
@@ -616,14 +617,9 @@ impl SilentArea {
                     return Some((i, r));
                 }
             }
-            A::SNext => {
-                if let Some(k) = s.open {
-                    s.done[usize::from(k)] = true;
-                    if k < sstep::CHECK {
-                        s.open = Some(k + 1);
-                        s.scroll.follow = true;
-                    }
-                }
+            A::SAnother => {
+                let back = s.back;
+                self.open(session, back);
             }
             _ => {}
         }
