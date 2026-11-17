@@ -115,6 +115,9 @@ pub(crate) fn runs_in_press(a: Action) -> bool {
                     | crate::seed_check::SeedAction::Keep,
             )
             | Action::Vanity(vanity::VanityAction::Use)
+            // Save of a Seed XOR set stretches up to five parts (one
+            // PBKDF2 each), under the line by count, not yet timed on a
+            // Pi 3B+.
             | Action::Convert(
                 crate::convert::ConvertAction::To(_)
                     | crate::convert::ConvertAction::VaultKey(..)

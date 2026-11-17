@@ -1511,23 +1511,31 @@ fn scan_reads(
 /// two sets of one key and count never share a name: the identifier a
 /// codex32 or SLIP-39 set carries, and for Seed XOR part 1's fingerprint
 /// (a part is itself a BIP-39 phrase, so this is a public value of the kind
-/// the app shows for any key). The part's fingerprint is taken with no
-/// passphrase: the part is not the key. Costs a PBKDF2 and a derivation for
-/// Seed XOR.
-fn set_mark(c: &Compute, target: Target, parts: &[Text]) -> Text {
+/// the app shows for any key), read from the set's facts, which took it
+/// with no passphrase: the part is not the key. Costs nothing.
+fn set_mark(target: Target, parts: &[Text], made: Option<&set::Made>) -> Text {
     let first = parts.first().map_or("", |p| p.as_str());
     match target {
         Target::Codex32 => first.get(4..8).map_or_else(Text::new, Text::of),
         Target::SlipSet | Target::SlipOne => faraday_bip::slip39::Share::parse(first)
             .map_or_else(|_| Text::new(), |sh| text!("{:04x}", sh.identifier())),
-        _ => faraday_keys::identity::fingerprint_of_words(c, first, "")
-            .map_or_else(|_| Text::new(), |fp| Text::lowercase(&fp_text(fp))),
+        _ => match made {
+            Some(set::Made::Xor(f)) => f
+                .parts
+                .first()
+                .map_or_else(Text::new, |fp| Text::lowercase(&fp_text(Fingerprint(*fp)))),
+            _ => Text::new(),
+        },
     }
 }
 
-/// Costs a picture for a code. Offers the value on the secret sheet: nothing
-/// is written until the sheet is answered, and what it writes is the value
-/// alone, or the code's labelled picture, which no vault is offered.
+/// Costs a picture for a code, and for a Seed XOR set a PBKDF2 and a
+/// derivation for each part (up to five, by count under a tenth of a second
+/// on a Pi 3B+, not yet timed there). Offers the value on the secret sheet:
+/// nothing is written until the sheet is answered, and what it writes is the
+/// value alone, or the code's labelled picture, which no vault is offered.
+/// A whole set's public facts ride on the offer and go on the key only
+/// when its files are written.
 fn save(app: &mut Faraday) {
     let c = app.compute();
     let area = &app.tools.convert;
@@ -1544,14 +1552,17 @@ fn save(app: &mut Faraday) {
         k.language,
         k.has_passphrase && target.keeps_passphrase_apart(),
     );
+    let key_fp = fp;
     let fp = fp_text(Fingerprint(fp));
     let lower = Text::lowercase(&fp);
     let mut also = Vec::new();
+    let mut recorded = None;
     let (name, bytes, keep) = match held {
         Value::Set(parts) => {
             // One file for each share, never the whole set in one.
             let n = parts.len();
-            let mark = set_mark(&c, target, parts);
+            recorded = set::facts_of(&c, target, parts);
+            let mark = set_mark(target, parts, recorded.as_ref());
             let mut files = parts.iter().enumerate().map(|(i, part)| {
                 let mut one = Zeroizing::new(Vec::with_capacity(part.len() + 1));
                 one.extend_from_slice(part.as_bytes());
@@ -1598,6 +1609,10 @@ fn save(app: &mut Faraday) {
     }
     out.keep = if also.is_empty() { keep } else { Keep::None };
     out.also = also;
+    // A whole Seed XOR or SLIP-39 set of a loaded key: its public facts
+    // go on the key (`docs/VAULT.md` §7) once the files are written,
+    // never a part or a share.
+    out.made = recorded.map(|m| (key_fp, m));
     app.offer_secret(out);
 }
 

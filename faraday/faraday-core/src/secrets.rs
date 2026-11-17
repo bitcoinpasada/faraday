@@ -110,6 +110,10 @@ pub struct SecretOut {
     /// Further files that go out with `name` and `bytes`, one file each: the
     /// other shares of a set, which never share a file. Empty for one file.
     pub also: Vec<(Text, zeroize::Zeroizing<Vec<u8>>)>,
+    /// The public facts of a whole set these files are, and the
+    /// fingerprint of the key it was made of: put on that key when the
+    /// files are written, never when the sheet is left.
+    pub(crate) made: Option<([u8; 4], crate::convert::set::Made)>,
 }
 
 /// What a secret becomes in a vault.
@@ -172,6 +176,7 @@ impl SecretOut {
             ack: Ack::Any,
             to_visit: false,
             also: Vec::new(),
+            made: None,
         }
     }
 
@@ -402,6 +407,7 @@ impl Faraday {
             ack: Ack::Seed,
             to_visit: false,
             also: Vec::new(),
+            made: None,
         };
         self.offer_secret(out);
     }
@@ -415,7 +421,7 @@ impl Faraday {
         };
         let vault = v.name.clone();
         self.secrets.plain = None;
-        let Some(out) = self.secrets.take() else {
+        let Some(mut out) = self.secrets.take() else {
             return;
         };
         let record = match &out.keep {
@@ -458,6 +464,7 @@ impl Faraday {
             return;
         }
         self.sheet = None;
+        self.record_made(out.made.take());
         match out.keep {
             Keep::Key { key, .. } => {
                 let label = self
@@ -470,6 +477,13 @@ impl Faraday {
             }
             Keep::Note => self.toast(&Text::fill(EN.secrets_saved_to_vault, &[&out.name, &vault])),
             Keep::None => {}
+        }
+    }
+
+    /// A whole set's public facts on its key, once its files are written.
+    fn record_made(&mut self, made: Option<([u8; 4], crate::convert::set::Made)>) {
+        if let Some((fp, made)) = made {
+            crate::convert::set::record(&mut self.session.keys, fp, made);
         }
     }
 
@@ -684,7 +698,7 @@ impl Faraday {
     /// The secret to the Outbox unprotected, past its hold.
     fn secret_unprotected_now(&mut self) {
         let c = self.compute();
-        let Some(out) = self.secrets.take() else {
+        let Some(mut out) = self.secrets.take() else {
             return;
         };
         self.sheet = None;
@@ -695,6 +709,7 @@ impl Faraday {
             return;
         }
         let name = out.name.clone();
+        self.record_made(out.made.take());
         // A file with a name the Outbox holds replaces it: a share saved
         // before is not there twice.
         let files =

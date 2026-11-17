@@ -57,10 +57,14 @@ standard it is and which software restores it.
    set are counted on a wallet's backup plan (F276) from the plan's own
    record of the set's public facts: the plan keeps only those facts and
    places its parts on paper, never in a vault or on a stick, one set of
-   a kind per key; the set actions stay here. A set made here is not
-   recorded on the key: the facts reach a key only from a vault record
-   that holds them, and a plan holds them only from a saved plan that
-   already does. The tool's "codex32 set → a new codex32 set" always
+   a kind per key; the set actions stay here. A whole Seed XOR set
+   or SLIP-39 set saved here for a loaded key is recorded on that key as
+   its public facts once its files are written, never when the sheet is
+   cancelled (the key's fingerprint matches; a key has one set of a kind,
+   so a second is not recorded and the first stays; no part or share is
+   kept), and a vault save keeps
+   them (`docs/VAULT.md` §7). Shares typed in as a source are no loaded
+   key and record nothing. The tool's "codex32 set → a new codex32 set" always
    makes a fresh set with its own identifier, which never combines with
    the key's own set or a plan's (§6); a plan's set keeps its upkeep in
    the backup's set actions.

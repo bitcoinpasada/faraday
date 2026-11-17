@@ -3233,3 +3233,288 @@ fn a_codex32_set_saved_through_the_hold_is_one_file_a_share() {
     save_through_the_hold(&mut app);
     assert_eq!(app.outbox.len(), waiting + 3);
 }
+
+// A set Convert saves for a loaded key is recorded on the key as public
+// facts (docs/VAULT.md §7): the backup plan counts them, a vault keeps them.
+
+fn one_seed_shape() -> faraday_core::plan::Shape {
+    faraday_core::plan::Shape {
+        m: 1,
+        paths: Vec::new(),
+        keys: 1,
+        seeds: vec![faraday_core::plan::Seed {
+            name: faraday_text::Text::of("Savings"),
+            here: true,
+            shares: false,
+            passphrase: false,
+        }],
+        splits: false,
+        vaults: 0,
+    }
+}
+
+/// Whether a plan that places every piece of a set at one place of three
+/// reads the set as the key found there, from the facts alone.
+fn one_place_holds(
+    set: impl FnOnce(&mut faraday_core::plan::Answers, &faraday_core::plan::Shape),
+    pieces: Vec<faraday_core::plan::What>,
+) -> bool {
+    use faraday_core::plan::{self, At, Spot, Tag};
+    let shape = one_seed_shape();
+    let mut a = plan::Answers::defaults(&shape);
+    a.places = 3;
+    set(&mut a, &shape);
+    a.set_map(vec![Spot {
+        at: At::Place(0),
+        holds: pieces.into_iter().map(|w| (w, Tag::Secret)).collect(),
+    }]);
+    plan::check(&testkit::compute(), &shape, &a).one_place == Some(0)
+}
+
+/// More entropy, other bytes than `feed`'s, so a second set differs.
+fn feed_again(app: &mut Faraday) {
+    for i in 0..6u8 {
+        app.event(Event::Entropy(EntropyBytes::new([0x20 + i; 32])));
+    }
+}
+
+/// A part's master fingerprint by another route: its words loaded as a key.
+fn part_fingerprint(words: &str) -> [u8; 4] {
+    let mut keys = faraday_keys::Keys::on(faraday_bip::keys::Network::Mainnet);
+    keys.add_words(&testkit::compute(), words, "Part", None)
+        .unwrap();
+    keys[0].fingerprint.0
+}
+
+#[test]
+fn a_seed_xor_set_saved_for_a_key_is_recorded_on_it_and_counted_by_the_plan() {
+    let mut app = opened(mainnet(), LEGAL);
+    feed(&mut app);
+    assert!(app.session.keys[0].xor.is_none());
+    let set = make_set(&mut app, "Seed XOR parts").unwrap();
+    assert!(
+        app.session.keys[0].xor.is_none(),
+        "made, not yet saved: nothing recorded"
+    );
+    save_and_write(&mut app);
+    let facts = app.session.keys[0]
+        .xor
+        .clone()
+        .expect("the set is recorded");
+    let want: Vec<[u8; 4]> = set.iter().map(|p| part_fingerprint(p)).collect();
+    assert_eq!(facts.parts, want);
+    let n = facts.parts.len();
+    assert!(one_place_holds(
+        |a, s| a.set_xor(
+            s,
+            0,
+            Some(faraday_core::plan::xor::Xor {
+                seed: 0,
+                parts: facts.parts.clone()
+            })
+        ),
+        (0..n)
+            .map(|j| faraday_core::plan::What::XorPart(0, j))
+            .collect(),
+    ));
+}
+
+/// Saves the set offered, writing it unprotected to the Outbox.
+fn write_unprotected(app: &mut Faraday) {
+    app.press(Action::SecretUnprotected);
+    app.press(Action::SecretHold);
+}
+
+/// Presses Save for the set made, writing its files, on the tick after.
+fn save_and_write(app: &mut Faraday) {
+    save(app);
+    assert_eq!(app.sheet, Some(Sheet::SecretOut));
+    write_unprotected(app);
+}
+
+#[test]
+fn a_set_is_recorded_only_when_its_files_are_written() {
+    let mut app = opened(mainnet(), LEGAL);
+    feed(&mut app);
+    make_set(&mut app, "Seed XOR parts").unwrap();
+    save(&mut app);
+    assert_eq!(app.sheet, Some(Sheet::SecretOut));
+    assert!(app.session.keys[0].xor.is_none(), "the sheet is only open");
+    app.press(Action::Cancel);
+    assert_eq!(app.sheet, None);
+    assert!(app.outbox.is_empty());
+    assert!(app.session.keys[0].xor.is_none(), "cancelled: not recorded");
+    save(&mut app);
+    write_unprotected(&mut app);
+    assert_eq!(
+        app.outbox.len(),
+        app.session.keys[0].xor.as_ref().unwrap().parts.len()
+    );
+}
+
+#[test]
+fn a_second_seed_xor_set_leaves_the_first_counted() {
+    let mut app = opened(mainnet(), LEGAL);
+    feed(&mut app);
+    let first_set = make_set(&mut app, "Seed XOR parts").unwrap();
+    save_and_write(&mut app);
+    let first = app.session.keys[0].xor.clone().unwrap();
+    feed_again(&mut app);
+    make_set(&mut app, "Seed XOR parts").unwrap();
+    save_and_write(&mut app);
+    assert_eq!(app.session.keys[0].xor, Some(first.clone()));
+    let want: Vec<[u8; 4]> = first_set.iter().map(|p| part_fingerprint(p)).collect();
+    assert_eq!(first.parts, want);
+}
+
+#[test]
+fn a_seed_xor_sets_parts_are_taken_without_the_keys_passphrase() {
+    let mut app = mainnet();
+    let c = testkit::compute();
+    app.session.keys.add_words(&c, LEGAL, "Test", None).unwrap();
+    let fp = app
+        .session
+        .keys
+        .add_with_passphrase(&c, 0, "TREZOR", "Test 2")
+        .unwrap();
+    open(&mut app);
+    app.press(Action::Convert(C::Key(fp.0)));
+    feed(&mut app);
+    let set = make_set(&mut app, "Seed XOR parts").unwrap();
+    save_and_write(&mut app);
+    let facts = app.session.keys[1].xor.clone().expect("recorded");
+    let want: Vec<[u8; 4]> = set.iter().map(|p| part_fingerprint(p)).collect();
+    assert_eq!(facts.parts, want);
+    assert!(app.session.keys[0].xor.is_none());
+}
+
+#[test]
+fn a_set_saved_for_one_key_records_nothing_on_another() {
+    let mut app = mainnet();
+    let c = testkit::compute();
+    app.session
+        .keys
+        .add_words(&c, ABOUT, "Other", None)
+        .unwrap();
+    app.session.keys.add_words(&c, LEGAL, "Test", None).unwrap();
+    open(&mut app);
+    let fp = app.session.keys[1].fingerprint.0;
+    app.press(Action::Convert(C::Key(fp)));
+    feed(&mut app);
+    make_set(&mut app, "Seed XOR parts").unwrap();
+    save_and_write(&mut app);
+    assert!(app.session.keys[1].xor.is_some());
+    assert!(app.session.keys[0].xor.is_none());
+    assert!(app.session.keys[0].slip39.is_none() && app.session.keys[1].slip39.is_none());
+}
+
+#[test]
+fn a_slip39_set_of_a_published_secret_is_recorded_with_its_own_facts() {
+    let v: serde_json::Value = serde_json::from_str(SLIP39).unwrap();
+    let e = v
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e[1].as_array().unwrap().len() == 1 && !e[2].as_str().unwrap().is_empty())
+        .unwrap();
+    let seed = unhex(e[2].as_str().unwrap());
+    let mut app = slip_opened(&seed);
+    assert!(app.session.keys[0].slip39.is_none());
+    let set = make_set(&mut app, SLIP_SET).unwrap();
+    save_and_write(&mut app);
+    let facts = app.session.keys[0]
+        .slip39
+        .clone()
+        .expect("the set is recorded");
+    let share = faraday_bip::slip39::Share::parse(&set[0]).unwrap();
+    assert_eq!(facts.identifier, share.identifier());
+    assert_eq!(facts.exponent, share.iteration_exponent());
+    assert_eq!(facts.threshold, 1);
+    assert_eq!(
+        facts.groups,
+        vec![faraday_vault::slip39::Group {
+            threshold: 2,
+            count: 3,
+            made: 0b111
+        }]
+    );
+    assert!(one_place_holds(
+        |a, s| a.set_slip39(
+            s,
+            0,
+            Some(faraday_core::plan::slip39::Slip39 {
+                seed: 0,
+                identifier: facts.identifier,
+                exponent: facts.exponent,
+                group_threshold: facts.threshold,
+                groups: facts
+                    .groups
+                    .iter()
+                    .map(|g| faraday_core::plan::slip39::Group {
+                        threshold: g.threshold,
+                        count: g.count,
+                        made: (0..g.count).filter(|m| g.made >> m & 1 == 1).collect(),
+                    })
+                    .collect(),
+            })
+        ),
+        (0..3)
+            .map(|m| faraday_core::plan::What::Slip39Share(0, 0, m))
+            .collect(),
+    ));
+    feed_again(&mut app);
+    make_set(&mut app, SLIP_SET).unwrap();
+    save_and_write(&mut app);
+    assert_eq!(
+        app.session.keys[0].slip39,
+        Some(facts),
+        "a second set leaves the first counted"
+    );
+    assert!(app.session.keys[0].xor.is_none());
+}
+
+#[test]
+fn a_slip39_set_of_groups_is_recorded_group_by_group() {
+    let seed = unhex("ffeeddccbbaa99887766554433221100");
+    let mut app = slip_opened(&seed);
+    app.press(Action::Convert(C::To(place(SLIP_SET))));
+    app.press(Action::Convert(C::SlipGroups(1)));
+    app.press(Action::Convert(C::SlipGroups(1)));
+    app.press(Action::Convert(C::SlipN(1, 1)));
+    app.press(Action::Convert(C::SlipK(0, 1)));
+    app.press(Action::Convert(C::Make));
+    settle(&mut app);
+    app.press(Action::Convert(C::Show));
+    let _ = app.frame();
+    let set: Vec<String> = convert::shown_parts(&app)
+        .unwrap()
+        .into_iter()
+        .map(str::to_string)
+        .collect();
+    assert_eq!(set.len(), 3 + 4 + 3);
+    save_and_write(&mut app);
+    let facts = app.session.keys[0].slip39.clone().expect("recorded");
+    let g = |threshold, count, made| faraday_vault::slip39::Group {
+        threshold,
+        count,
+        made,
+    };
+    assert_eq!(facts.threshold, 2, "two of the three groups");
+    assert_eq!(
+        facts.groups,
+        vec![g(3, 3, 0b111), g(2, 4, 0b1111), g(2, 3, 0b111)]
+    );
+    assert!(facts.groups.iter().all(|g| g.count > 0));
+}
+
+#[test]
+fn an_aezeeds_set_is_recorded_on_the_loaded_key_of_the_same_seed() {
+    let entropy = faraday_crypto::hex::decode_vec(AEZEED_ENTROPY).unwrap();
+    let mut app = seed_opened(&entropy);
+    read_aezeed(&mut app, AEZEED, "");
+    feed(&mut app);
+    assert_eq!(app.session.keys.len(), 1, "an aezeed is no key");
+    make_set(&mut app, SLIP_SET).unwrap();
+    save_and_write(&mut app);
+    assert!(app.session.keys[0].slip39.is_some(), "the same seed");
+}

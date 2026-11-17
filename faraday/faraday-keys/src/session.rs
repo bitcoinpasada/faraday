@@ -90,8 +90,8 @@ pub struct KeyInfo {
     /// The Seed XOR set the key's seed is split into, as its plain facts
     /// (`docs/VAULT.md` §7): the number of parts and each part's master
     /// fingerprint, never a part. One set per key ([`Keys::set_xor`]).
-    /// Read from its vault record's field 7 (nothing sets it yet when a
-    /// set is made). `None` for a key with no set known.
+    /// Set when Convert saves a whole set of the key, or read from
+    /// its vault record's field 7. `None` for a key with no set known.
     pub xor: Option<faraday_vault::xor::XorFacts>,
     /// The SLIP-39 set the key's seed is split into, as its plain facts
     /// (`docs/VAULT.md` §7): identifier, iteration exponent, group

@@ -559,3 +559,110 @@ pub(crate) fn save(app: &mut Faraday) {
     };
     app.offer_secret(out);
 }
+
+/// The public facts of a whole set Convert made of a key's seed.
+pub(crate) enum Made {
+    /// A Seed XOR set: each part's master fingerprint.
+    Xor(faraday_vault::xor::XorFacts),
+    /// A SLIP-39 set: identifier, exponent, thresholds, and each group's
+    /// size and members made.
+    Slip39(faraday_vault::slip39::Slip39Facts),
+}
+
+/// The public header fields of one share.
+struct Header {
+    identifier: u16,
+    exponent: u8,
+    threshold: u8,
+    groups: u8,
+    group: u8,
+    member: u8,
+    member_threshold: u8,
+}
+
+/// Costs a PBKDF2 and a derivation for each Seed XOR part (a part is a
+/// BIP-39 phrase; its fingerprint is taken with no passphrase, the part
+/// not being the key). The facts of `parts`, the whole set `target` made
+/// (`docs/VAULT.md` §7): public values only, no part or share is kept.
+/// `None` for another target, or parts Convert's set cannot be (a part
+/// that does not parse, a group with no share, a count the layout cannot
+/// hold). The parts are Convert's own, so they are taken to be one set:
+/// the identifier and counts are read from the first share.
+pub(crate) fn facts_of(
+    c: &faraday_crypto::work::Compute,
+    target: super::Target,
+    parts: &[Text],
+) -> Option<Made> {
+    use faraday_vault::{slip39 as v39, xor as vxor};
+    match target {
+        super::Target::SeedXor => {
+            let fps = parts
+                .iter()
+                .map(|p| {
+                    faraday_keys::identity::fingerprint_of_words(c, p.as_str(), "")
+                        .ok()
+                        .map(|fp| fp.0)
+                })
+                .collect::<Option<Vec<[u8; 4]>>>()?;
+            Some(Made::Xor(vxor::XorFacts { parts: fps }))
+        }
+        super::Target::SlipSet => {
+            // Each share is dropped as soon as its header is read.
+            let heads = parts
+                .iter()
+                .map(|p| {
+                    faraday_bip::slip39::Share::parse(p.as_str())
+                        .ok()
+                        .map(|sh| Header {
+                            identifier: sh.identifier(),
+                            exponent: sh.iteration_exponent(),
+                            threshold: sh.group_threshold(),
+                            groups: sh.group_count(),
+                            group: sh.group_index(),
+                            member: sh.member_index(),
+                            member_threshold: sh.member_threshold(),
+                        })
+                })
+                .collect::<Option<Vec<Header>>>()?;
+            let first = heads.first()?;
+            let mut groups: Vec<v39::Group> = Vec::new();
+            for g in 0..first.groups {
+                let of_group: Vec<&Header> = heads.iter().filter(|h| h.group == g).collect();
+                let made = of_group.iter().fold(0u16, |m, h| {
+                    m | 1u16.checked_shl(u32::from(h.member)).unwrap_or(0)
+                });
+                groups.push(v39::Group {
+                    threshold: of_group.first()?.member_threshold,
+                    count: u8::try_from(of_group.len()).ok()?,
+                    made,
+                });
+            }
+            Some(Made::Slip39(v39::Slip39Facts {
+                identifier: first.identifier,
+                exponent: first.exponent,
+                threshold: first.threshold,
+                groups,
+            }))
+        }
+        _ => None,
+    }
+}
+
+/// Records `made` on the loaded key with fingerprint `fp`. A key keeps
+/// one set of a kind (`docs/VAULT.md` §7): the first stays, and a second
+/// is left unrecorded (the way on is that set's Replace or Rotate). A
+/// fingerprint that is no loaded key, or facts the vault's layout cannot
+/// hold, record nothing.
+pub(crate) fn record(keys: &mut faraday_keys::Keys, fp: [u8; 4], made: Made) {
+    let Some(i) = keys.all().position(|k| k.fingerprint.0 == fp) else {
+        return;
+    };
+    match made {
+        Made::Xor(f) => {
+            keys.set_xor(i, Some(f));
+        }
+        Made::Slip39(f) => {
+            keys.set_slip39(i, Some(f));
+        }
+    }
+}
