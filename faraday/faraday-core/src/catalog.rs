@@ -693,6 +693,8 @@ impl Faraday {
         let Some(tile) = TILES.get(i).filter(|t| self.tile_opens(t.go)) else {
             return;
         };
+        // A result pressed on Home's search clears it: Home is Home again.
+        self.tools.clear_home_find();
         match tile.go {
             Go::NewKey => self.act(Action::KeyGen(None)),
             Go::LoadKey => self.act(Action::Entry(None)),

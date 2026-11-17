@@ -173,6 +173,8 @@ pub struct ToolsArea {
     tools: Option<ToolsState>,
     /// What is typed in Tools' Find a tool.
     catalog_find: Text,
+    /// What is typed in Home's search bar, kept beside Tools' own.
+    home_find: Text,
     /// Convert a seed, a tool with a flow of its own.
     pub(crate) convert: crate::convert::ConvertArea,
     /// The Krux code tool.
@@ -231,6 +233,16 @@ impl ToolsArea {
     /// What is typed in Find a tool.
     pub fn find(&self) -> &str {
         &self.catalog_find
+    }
+
+    /// What is typed in Home's search bar.
+    pub fn home_find(&self) -> &str {
+        &self.home_find
+    }
+
+    /// Clears Home's search bar, so Home shows Home again.
+    pub(crate) fn clear_home_find(&mut self) {
+        self.home_find.clear();
     }
 
     /// Opens Tools, returning to `back`.
@@ -429,6 +441,23 @@ impl ToolsArea {
         }
         true
     }
+
+    /// Typing on Home goes to its search bar. Returns whether the key was
+    /// taken.
+    pub(crate) fn home_find_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        use faraday_shell_api::Key as K;
+        match key {
+            K::Char(c) if !c.is_control() && self.home_find.chars().count() < 40 => {
+                self.home_find.push(c);
+            }
+            K::Backspace => {
+                self.home_find.pop();
+            }
+            K::Escape => self.home_find.clear(),
+            _ => return false,
+        }
+        true
+    }
 }
 
 impl Faraday {
@@ -559,6 +588,22 @@ impl Faraday {
         }
         self.list_offset = 0.0;
         true
+    }
+
+    /// Typing on Home goes to its search bar, on every window but the
+    /// Pi's menu. Returns whether the key was taken.
+    pub(crate) fn home_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        if !self.home_search_here() || !self.tools.home_find_key(key) {
+            return false;
+        }
+        self.list_offset = 0.0;
+        true
+    }
+
+    /// Whether Home shows its search bar and takes typing: not on the
+    /// menu (the Pi's compact, short Home), and not under a sheet.
+    pub(crate) fn home_search_here(&self) -> bool {
+        self.screen == Screen::Home && self.sheet.is_none() && self.nav() != crate::nav::Nav::Menu
     }
 }
 

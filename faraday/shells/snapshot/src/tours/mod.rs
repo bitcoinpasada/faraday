@@ -35,6 +35,7 @@ pub(crate) mod from_vault;
 pub(crate) mod glance;
 pub(crate) mod gpg_restore;
 pub(crate) mod guide;
+pub(crate) mod home_search;
 pub(crate) mod host;
 pub(crate) mod how;
 pub(crate) mod in_progress;
@@ -105,6 +106,7 @@ pub(crate) const TOURS: &[(&str, TourFn)] = &[
     ("themes", TourFn::Plain(themes::themes_tour)),
     ("tooltips", TourFn::Plain(tooltips::tooltips_tour)),
     ("compact", TourFn::Plain(compact::compact_tour)),
+    ("home-search", TourFn::Plain(home_search::home_search_tour)),
     ("seeds", TourFn::Plain(seeds::seeds_tour)),
     ("keys", TourFn::Plain(keys::keys_tour)),
     ("visit", TourFn::Costly(visit::visit_tour)),

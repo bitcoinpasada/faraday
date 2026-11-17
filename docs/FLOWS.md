@@ -568,6 +568,11 @@ boxes still grows them to 24; Clear starts the count over.
 
 ## Home
 
+A search bar leads Home on every window but the small panel's menu:
+typing on Home lands in it, and what is typed replaces Home with the
+tools that match, each a button that opens as its Tools tile does and
+clears the search; Escape clears it too.
+
 **Start** (decisions 11 and 50). Home carries no status cards: the
 sidebar's status block carries them. On the wide layout the lead is a
 card with one filled button, shown while something is under way or

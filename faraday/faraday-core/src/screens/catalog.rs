@@ -128,17 +128,90 @@ pub(crate) fn setting_hit(ui: &mut Ui, at: (f32, f32, f32), i: u8) -> f32 {
     crate::panes::screen::list_item(ui, at, &item, false)
 }
 
+/// Home's search bar at (`x`, `y`), `w` wide: Material's search bar (the
+/// search field, `search_field`) with its hint until something is typed.
+/// Returns the height it takes, the gap under it counted.
+pub(crate) fn home_search_bar(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+    search_field_caret(
+        ui,
+        (x, y, w),
+        (app.tools.home_find(), EN.home_search_hint),
+        Action::TypeHere(crate::edit::Here::HomeFind),
+        false,
+    );
+    faraday_draw::tokens::HOME_SEARCH_ROOM
+}
+
+/// What Home shows in place of itself while something is typed in its
+/// search bar: the matching tiles as buttons, then the rows of Settings, from (`x`, `y`), `width`
+/// wide, each opening as the Tools tile does, or a line saying none
+/// matches. Returns the height it takes.
+pub(crate) fn home_results(
+    app: &View,
+    ui: &mut Ui,
+    (x, y): (f32, f32),
+    width: f32,
+    compact: bool,
+) -> f32 {
+    use crate::catalog::TILES;
+    use crate::tools::search::{Hit, hits};
+    let found = hits(app.tools.home_find());
+    if found.is_empty() {
+        ui.text_as(
+            x,
+            y,
+            BODY_M,
+            Role::OnSurfaceVariant,
+            EN.catalog_no_tool_matches,
+        );
+        return ui.advance_as(BODY_M, faraday_draw::tokens::HOME_RESULTS_LINE);
+    }
+    let g = grid(compact, width);
+    let mut k = 0;
+    for hit in &found {
+        let Hit::Tile(i) = *hit else { continue };
+        let tile = &TILES[i];
+        let (tx, ty) = g.at(x, y, k);
+        let need = app.tile_need(tile.go);
+        let face = Face {
+            name: tile.name,
+            line: need.unwrap_or(tile.line),
+            warn: need.is_some(),
+            tags: tile.tags,
+            opens: app.tile_opens(tile.go),
+            action: Action::Catalog(i as u8),
+        };
+        face.draw(ui, tx, ty, g.tile_w);
+        k += 1;
+    }
+    let mut used = g.height(k);
+    for hit in &found {
+        if let Hit::Setting(i) = *hit {
+            used += setting_hit(ui, (x, y + used, width), i);
+        }
+    }
+    used
+}
+
 /// A search field at (x, y), `w` wide: Material's search field, in
 /// Tools' look, with `hint` until something is typed. Typing on its page
 /// always lands here, with no click to focus it first, so the caret is
 /// drawn whether or not anything is typed yet: the one sign that this
 /// box is already live. A press places it (`docs/TEXT-CURSOR.md` §3).
 /// Tools' Find a tool and the guide's Find in the guide both draw it.
-pub(super) fn search_field(
+pub(crate) fn search_field(ui: &mut Ui, at: (f32, f32, f32), text: (&str, &str), here: Action) {
+    search_field_caret(ui, at, text, here, true);
+}
+
+/// [`search_field`], with the caret at rest drawn only where `rest` is
+/// true: Home's bar draws none until something is typed, so Home at rest
+/// asks for no frame (the caret's blink would).
+fn search_field_caret(
     ui: &mut Ui,
     (fx, fy, fw): (f32, f32, f32),
     (typed, hint): (&str, &str),
     here: Action,
+    rest: bool,
 ) {
     ui.fill(fx, fy, fw, 40.0, 8.0, Role::SurfaceContainerHighest);
     ui.stroke(fx, fy, fw, 40.0, 8.0, Role::Outline);
@@ -151,11 +224,13 @@ pub(super) fn search_field(
     if typed.is_empty() {
         let shown = ui.fit_as(BODY_M, hint, room);
         ui.text_mid_as((tx, fy, fh), BODY_M, Role::OnSurfaceVariant, &shown);
-        ui.caret(
-            tx,
-            fy + (fh - faraday_draw::tokens::CARET_MIN) / 2.0,
-            faraday_draw::tokens::CARET_MIN,
-        );
+        if rest {
+            ui.caret(
+                tx,
+                fy + (fh - faraday_draw::tokens::CARET_MIN) / 2.0,
+                faraday_draw::tokens::CARET_MIN,
+            );
+        }
     } else {
         ui.typed(
             tx,

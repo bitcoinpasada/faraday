@@ -848,6 +848,7 @@ impl Faraday {
         let Some(row) = crate::screens::catalog::ROWS.get(usize::from(k)) else {
             return;
         };
+        self.tools.clear_home_find();
         self.act(crate::Action::Nav(Screen::Settings));
         if !crate::panes::settings_listed(self.window()) {
             self.scroll.panes().set_goal(Some(row.part));

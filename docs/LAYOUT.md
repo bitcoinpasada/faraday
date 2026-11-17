@@ -145,6 +145,14 @@ way or waiting (`docs/FLOWS.md`, Home), then the tiles in a grid.
   vaults are open; its menu follows it. On the 480 by 640 panel with a
   flow, a key and a wallet loaded, the menu's first row shows and the
   rest scrolls.
+- **The search bar** (every window but the small panel's menu, the
+  Pi's compact, short Home; checked against Material's Search bar,
+  m3.material.io, Components, Search): a search field at the top of
+  Home, full width on the one-column layouts, with the hint "Search
+  tools and settings". Typing on Home lands in it, Escape clears it.
+  Something typed replaces Home's content with the matching tiles of
+  Tools as buttons under the bar, a line saying none matches when none
+  does; a result opens as its Tools tile does and clears the search.
 - **The lead tile**: its icon, its line and its one button at its end,
   as wide as that needs and at most `LEAD_MAX` (560 dp).
 - **The tiles**: each its icon beside its name and one line under the

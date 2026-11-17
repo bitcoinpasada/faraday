@@ -919,3 +919,78 @@ fn a_loaded_wallet_shows_sign_and_start_is_gone() {
     tap(&mut app, Action::SpendBackup(F::SpendFrom(0)));
     assert_eq!(app.screen, Screen::SpendBackup);
 }
+
+fn window(width: u16, height: u16, dpi: u16) -> Faraday {
+    let mut app = Faraday::new();
+    app.event(Event::Display(DisplayInfo {
+        width,
+        height,
+        dpi,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: faraday_shell_api::SecureHardware::None,
+        boot: faraday_shell_api::BootState::Unknown,
+        memory_mib: None,
+    }));
+    let _ = app.frame();
+    app
+}
+
+fn type_on_home(app: &mut Faraday, text: &str) {
+    for c in text.chars() {
+        app.event(Event::Key(faraday_shell_api::Key::Char(c)));
+    }
+    let _ = app.frame();
+}
+
+fn key_tile() -> u8 {
+    faraday_core::catalog::TILES
+        .iter()
+        .position(|t| t.name == "Make a new key")
+        .expect("the Make a new key tile") as u8
+}
+
+#[test]
+fn typing_on_home_searches_on_a_wide_and_a_phone_window() {
+    for mut app in [shown(), window(400, 800, 160)] {
+        type_on_home(&mut app, "new key");
+        assert_eq!(faraday_core::testkit::home_find(&app), "new key");
+        assert!(app.where_offered(Action::Catalog(key_tile())).is_some());
+        // The result opens its flow, and Home is Home again.
+        tap(&mut app, Action::Catalog(key_tile()));
+        assert_ne!(app.screen, Screen::Home);
+        assert!(faraday_core::testkit::home_find(&app).is_empty());
+    }
+}
+
+#[test]
+fn escape_clears_homes_search() {
+    let mut app = shown();
+    type_on_home(&mut app, "new key");
+    app.event(Event::Key(faraday_shell_api::Key::Escape));
+    assert!(faraday_core::testkit::home_find(&app).is_empty());
+}
+
+#[test]
+fn the_pis_home_has_no_search() {
+    let mut app = window(480, 640, 286);
+    type_on_home(&mut app, "new key");
+    assert!(faraday_core::testkit::home_find(&app).is_empty());
+    assert!(app.where_offered(Action::Catalog(key_tile())).is_none());
+}
+
+#[test]
+fn theme_typed_on_home_shows_the_theme_setting() {
+    for mut app in [shown(), window(400, 800, 160)] {
+        type_on_home(&mut app, "theme");
+        let button = (0..64u8)
+            .map(Action::SettingAt)
+            .find(|&a| app.hit_box(a).is_some())
+            .expect("a setting button for theme");
+        tap(&mut app, button);
+        assert_eq!(app.screen, Screen::Settings);
+        assert!(faraday_core::testkit::home_find(&app).is_empty());
+    }
+}

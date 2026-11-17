@@ -720,6 +720,24 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32) {
     let width = cw - (x - x0) - MARGIN_WIDE;
     let mut y = super::bar_head(ui, None, EN.home_home);
     let gap = 16.0;
+    // Home's search bar: what is typed in it replaces Home's content with
+    // the matching tiles (the page scrolls as Tools does).
+    let h = ui.c.height() as f32 / ui.f;
+    let find = !app.tools.home_find().is_empty();
+    let open = find.then(|| {
+        let clip = ui.rect(x0, 0.0, cw, h);
+        ui.region_open(crate::ui::Region::page(clip).from_zero(app.list_offset))
+    });
+    let top = y;
+    y += super::catalog::home_search_bar(app, ui, (x, y, width.min(LEAD_MAX)));
+    if let Some(open) = open {
+        y += super::catalog::home_results(app, ui, (x, y), width, false);
+        app.scroll
+            .content_h()
+            .set(y - top + faraday_draw::tokens::HOME_RESULTS_FOOT);
+        ui.region_close(open, app.scroll.content_h().get() - h);
+        return;
+    }
     let lead = home_lead(app, false);
     let makes = lead
         .as_ref()

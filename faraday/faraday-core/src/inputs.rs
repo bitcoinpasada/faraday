@@ -1150,7 +1150,7 @@ impl Faraday {
         if self.potential_key(key) {
             return;
         }
-        if self.catalog_key(key) {
+        if self.catalog_key(key) || self.home_key(key) {
             return;
         }
         // The caret moved, or an edit inside the field: what is selected

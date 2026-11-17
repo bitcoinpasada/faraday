@@ -2095,6 +2095,11 @@ pub fn catalog_find(app: &crate::Faraday) -> &str {
     app.tools.find()
 }
 
+/// What is typed in Home's search bar.
+pub fn home_find(app: &crate::Faraday) -> &str {
+    app.tools.home_find()
+}
+
 /// Opens the Descriptor calculator with `text` typed in.
 pub fn tools_type_descriptor(app: &mut crate::Faraday, text: &str) {
     app.tools.type_descriptor(text);
