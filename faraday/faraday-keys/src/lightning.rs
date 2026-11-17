@@ -148,7 +148,7 @@ pub struct AezeedRead {
 
 enum Found {
     Node(Result<Node, Text>),
-    Seed(Result<(HeldAezeed, [u8; 33]), Text>),
+    Seed(Box<Result<(HeldAezeed, [u8; 33]), Text>>),
 }
 
 /// An aezeed read for Convert (`docs/SEED-CONVERSION.md` §4.5): its 16
@@ -195,6 +195,7 @@ fn seed_from_aezeed(
     let info = KeyInfo {
         id: KeyId(crate::identity::master_id(c, &master)),
         fingerprint: master.fingerprint(),
+        words_fingerprint: master.fingerprint(),
         label: Text::new(),
         language: faraday_bip::bip39::Language::English,
         word_count: None,
@@ -223,7 +224,12 @@ impl AezeedJob {
         let pass = self.passphrase.as_bytes();
         AezeedRead {
             found: if self.for_convert {
-                Found::Seed(seed_from_aezeed(c, &self.words, pass, self.network))
+                Found::Seed(Box::new(seed_from_aezeed(
+                    c,
+                    &self.words,
+                    pass,
+                    self.network,
+                )))
             } else {
                 Found::Node(node_from_aezeed(c, &self.words, pass, self.network))
             },
@@ -288,6 +294,7 @@ impl crate::Keys {
         let Found::Seed(found) = read.found else {
             return Err(Text::new());
         };
+        let found = *found;
         if let Some(noun) = self.stick_attached() {
             return Err(Text::fill(
                 faraday_strings::EN.stick_keys_keys_load,

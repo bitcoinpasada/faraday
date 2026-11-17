@@ -468,3 +468,53 @@ fn a_12_word_key_beside_an_18_word_key_is_the_only_one_offered_and_chosen() {
     app.press(Action::KefTool(K::Pick(Pick::Key)));
     assert_eq!(kef_tool::state(&app).unwrap().key(), Some(1));
 }
+
+/// Makes the code of the only loaded key with its fingerprint as the id
+/// and returns the id the made code carries.
+fn id_of_the_keys_code(app: &mut Faraday) -> Vec<u8> {
+    open(app);
+    app.press(Action::KefTool(K::Pick(Pick::Key)));
+    app.press(Action::KefTool(K::Form(KefAct::Options)));
+    app.press(Action::KefTool(K::Form(KefAct::Id(
+        faraday_core::kef_form::IdKind::Fingerprint,
+    ))));
+    app.press(Action::KefTool(K::Form(KefAct::Back)));
+    make(app);
+    let form = kef_tool::state(app).unwrap().form().unwrap();
+    unwrap(&form.made().unwrap().bytes).unwrap().id.to_vec()
+}
+
+#[test]
+fn a_key_with_a_passphrase_offers_the_fingerprint_of_its_words_as_the_id() {
+    let mut app = started();
+    let c = testkit::compute();
+    app.session
+        .keys
+        .add_words_with(
+            &c,
+            "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+            "extra",
+            "Test",
+            None,
+        )
+        .unwrap();
+    testkit::keep_published(&mut app);
+    // The key's own fingerprint is another; the words' is the published one.
+    assert_ne!(app.session.keys[0].fingerprint.0, [0x73, 0xc5, 0xda, 0x0a]);
+    assert_eq!(
+        id_of_the_keys_code(&mut app),
+        [0x73, 0xc5, 0xda, 0x0a].to_vec()
+    );
+    check(&mut app);
+    assert!(kef_tool::state(&app).unwrap().form().unwrap().checked());
+}
+
+#[test]
+fn a_key_without_a_passphrase_offers_its_own_fingerprint_as_the_id() {
+    let mut app = started();
+    let c = testkit::compute();
+    app.session.keys.add_words(&c, WORDS, "Test", None).unwrap();
+    testkit::keep_published(&mut app);
+    let fp = app.session.keys[0].fingerprint.0;
+    assert_eq!(id_of_the_keys_code(&mut app), fp.to_vec());
+}

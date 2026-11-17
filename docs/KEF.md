@@ -732,7 +732,7 @@ and a toast names the file.
 
 The other held sources are not offered because each would open a new way out of `faraday-keys`, and typing reaches the
 same code without one. **Check my code** compares against the text the flow still holds. The
-fingerprint as an id is offered for **A loaded wallet** and for **This key's words**: typed text has none. Its Code card
+fingerprint as an id is offered for **A loaded wallet** (the wallet's key) and for **This key's words** and the seed's item (the words' own fingerprint, worked out inside `faraday-keys` when the key is loaded, without the key's BIP-39 passphrase, as Faraday and Krux show it when the code is opened, and the same as the key's where it has no passphrase): typed text has none. Its Code card
 shows the picture, and for a code that fits a blank template (side up to 37) **Size**, **By hand**
 and a secondary **Copy by hand**: pressed, the picture is replaced by the same `copy_grid` as the
 seed's item (§15.1), blocks lettered as on the Starter's Krux sheet, the mark at block A1 for each

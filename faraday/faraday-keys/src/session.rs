@@ -65,6 +65,11 @@ pub struct KeyInfo {
     pub id: KeyId,
     /// The master key's fingerprint; the same on every network.
     pub fingerprint: Fingerprint,
+    /// The fingerprint of the key's words alone, without its BIP-39
+    /// passphrase: what Faraday and Krux show when a code of the words is
+    /// opened (`docs/KEF.md` §6). The key's own where it has no passphrase
+    /// or no words.
+    pub words_fingerprint: Fingerprint,
     /// What the person called it.
     pub label: Text,
     /// The BIP-39 list its words are from (English for a key with none).
@@ -2117,9 +2122,18 @@ impl Entry {
         passphrase: Option<Text>,
         seed: Option<Zeroizing<Vec<u8>>>,
     ) -> Entry {
+        // Costs a PBKDF2 when the key has a passphrase.
+        let words_fingerprint = match (&passphrase, words.as_deref()) {
+            (Some(_), Some(w)) => Mnemonic::parse(c, language, w)
+                .ok()
+                .and_then(|m| crate::identity::fingerprint_of_mnemonic(c, &m, "").ok())
+                .unwrap_or_else(|| master.fingerprint()),
+            _ => master.fingerprint(),
+        };
         let info = KeyInfo {
             id: KeyId(master_id(c, &master)),
             fingerprint: master.fingerprint(),
+            words_fingerprint,
             label,
             language,
             word_count,

@@ -176,21 +176,20 @@ pub(crate) fn offered_keys(app: &Faraday) -> Vec<usize> {
 }
 
 /// Starts the form on key `i`'s words, as the entropy Krux reads them
-/// from (`docs/KEF.md` §6), the key's fingerprint offered as the id. The
+/// from (`docs/KEF.md` §6), the fingerprint of the words alone (without the
+/// key's passphrase) offered as the id. The
 /// words reach the encryption only inside `faraday-keys`.
 fn begin_key(app: &mut Faraday, i: usize) {
     let Some(info) = app.session.keys.info(i).filter(|k| k.kef_offered()) else {
         return;
     };
-    let (bytes, fingerprint) = (
-        usize::from(info.word_count.unwrap_or(0)) * 4 / 3,
-        info.fingerprint.0,
-    );
+    let bytes = usize::from(info.word_count.unwrap_or(0)) * 4 / 3;
+    let fingerprint = Some(info.words_fingerprint.0);
     let mut form = KefForm::new(
         Source::Seed {
             index: i,
             bytes,
-            fingerprint: Some(fingerprint),
+            fingerprint,
         },
         false,
     );
