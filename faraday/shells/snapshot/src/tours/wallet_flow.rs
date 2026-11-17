@@ -23,12 +23,10 @@ pub(crate) fn words_off(c: &Compute, t: &mut Tour) {
 }
 
 /// Costs a map of the plan. A wallet's backup flow: Make a new wallet
-/// asks whether vaults are part of the backup and how many, brings in
-/// each vault's stick, opens or makes the vaults, makes the key; Back
-/// up's plan offers the vaults; the checklist ends in Write to sticks;
-/// one lock, each stick by place, done. Then another wallet's two vaults,
-/// one found on a stick and one on the boot stick, to the step's Open and
-/// Create, and Create a vault.
+/// (Kind, Keys, Check, Back up) with Keys' row for a vault already on a
+/// stick: its stick brought in, the vault unlocked, the key made; Back up's
+/// plan; the checklist ends in Write to sticks; one lock, each stick by
+/// place (the vault's own stick replaced), done.
 pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::backup_flow::steps::FlowAction as F;
     use faraday_core::cstep;
@@ -67,16 +65,35 @@ pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     t.app.storage(StorageEvent::Sticks(vec![first.clone()]));
     t.pump();
     t.shot("wallet-flow-4-which-vault")?;
-    t.press(Action::Flow(F::PickBeside(0)));
+    // The stick's vault is picked from its files and read.
+    let k = t
+        .app
+        .flow()
+        .and_then(|f| f.live.reading.as_ref())
+        .and_then(|r| r.files.iter().position(|(f, _)| f.name == "vault.kdbx"))
+        .ok_or("no vault on the stick")?;
+    t.press(Action::Flow(F::PickFile(0, k)));
     t.press(Action::Flow(F::Tap));
+    t.pump();
     t.app.storage(StorageEvent::Sticks(Vec::new()));
     t.pump();
     t.press(Action::Flow(F::Want(0)));
     t.shot("wallet-flow-4a-stick-sheet")?;
     t.press(Action::Cancel);
-    // Without the row: the wallet's vaults are added on the plan.
-    t.press(Action::CExistingVault(false));
+    // Bring in, collapsed to the sticks inserted; the vault is unlocked
+    // from Vaults, and Create's Keys follows.
+    t.press(Action::Flow(F::SticksOn));
+    t.shot("wallet-flow-5-bring-in-inserted")?;
+    t.press(Action::Flow(F::UnlockVault(0)));
+    type_text(t, faraday_core::testkit::VAULT_PASSPHRASE);
+    t.press(Action::Vault(V::Unlock));
+    for _ in 0..3 {
+        t.tick();
+    }
     t.shot("wallet-flow-6-create-keys")?;
+    t.press(Action::Flow(F::Show(0)));
+    t.shot("wallet-flow-6a-vaults-unlocked")?;
+    t.press(Action::Nav(Screen::Create));
     t.press(Action::Entry(None));
     t.type_key(1);
     let fp = t.app.session.keys.last().ok_or("no key")?.fingerprint.0;
@@ -137,7 +154,7 @@ pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     }
     // Each stick by place: the sticks read for the vaults, then the stick
     // of public files.
-    for n in 0..3 {
+    for n in 0..6 {
         let slot = t
             .app
             .flow()
@@ -160,6 +177,13 @@ pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
                 .and_then(|f| f.live.reading.as_ref())
                 .is_some_and(|r| r.hold);
             t.press(Action::Flow(if hold { F::Hold } else { F::Tap }));
+        }
+        // The vault's name is taken on its own stick: replaced.
+        if t.app.sheet == Some(faraday_core::Sheet::NameTaken) {
+            t.press(Action::NameTakenOverwrite);
+        }
+        for _ in 0..3 {
+            t.tick();
         }
         t.app.storage(StorageEvent::Sticks(Vec::new()));
         t.pump();
