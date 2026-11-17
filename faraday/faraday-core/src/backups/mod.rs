@@ -3862,9 +3862,9 @@ impl Faraday {
             .find(|s| f.sha.is_some_and(|d| s.copies.contains(&d)))
     }
 
-    /// Writes each open vault's summary over the one kept for it: on
-    /// unlock, after every change made on a vault screen, and as the
-    /// session seals.
+    /// Writes each open vault's summary over the one kept for it, working
+    /// out any key identity not kept yet: on unlock, as the session seals
+    /// and as a vault is locked.
     pub(crate) fn vault_summaries_refresh(&mut self) {
         self.vault_summaries_write(true);
     }
@@ -3872,7 +3872,8 @@ impl Faraday {
     /// Writes the summaries as `vault_summaries_refresh` does, with only
     /// the key identities already worked out: a press on a vault stretches
     /// no key for them, and one not worked out yet is left out until the
-    /// next refresh that works it out (the lock's, or a frame's).
+    /// next full refresh (unlock, seal or lock), or the next press after a
+    /// frame has worked it out.
     pub(crate) fn vault_summaries_refresh_kept(&mut self) {
         self.vault_summaries_write(false);
     }
