@@ -3534,7 +3534,14 @@ impl Faraday {
         let Some(b) = self.backup.state() else {
             return false;
         };
-        let vaults = self.plan_save_vaults(&c, self.vaults.current);
+        let mut vaults = self.plan_save_vaults(&c, self.vaults.current);
+        // The vaults the caller writes into are the plan's too, brought in
+        // or added on the plan: each holds the plan with the keys.
+        for &o in extra {
+            if !vaults.contains(&o) {
+                vaults.push(o);
+            }
+        }
         let Some((&v, others)) = vaults.split_first() else {
             return false;
         };

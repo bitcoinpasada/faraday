@@ -2541,3 +2541,76 @@ fn saving_a_vault_item_into_a_vault_that_keeps_a_shares_plan_of_the_other_order_
     assert_eq!(app.toast_text(), Some(OTHER_ORDER_TOAST));
     assert_eq!(every_record(&app), before);
 }
+
+/// A vault the plan adds, with keys made into it from Back up, holds the
+/// plan with its places' names once the lock has written: opened alone, it
+/// shows the plan, not only the keys.
+#[test]
+fn a_vault_added_on_the_plan_holds_the_plan_with_the_place_names() {
+    use crate::backup_flow_wallet::vault_place;
+    use crate::backup_flow_wallet::{PHRASE_2, kdbx, restart, write_sticks};
+    use crate::common::{Disk, RecordsOf as _, Shell, no_words, type_text, vault_off};
+    use faraday_core::backup_flow::steps::FlowAction as F;
+    use faraday_core::{Action, qstep};
+    use faraday_shell_api::{App, Event, Key};
+    use faraday_vault::records::{field, kind};
+    const NAME: &str = "Safe deposit";
+    let mut shell = Shell::new();
+    let mut app = two_of_three_with_setup(&mut shell, 1);
+    if app.backup().unwrap().q != Some(qstep::BOARD) {
+        app.press(Action::BQ(qstep::BOARD));
+    }
+    board(&mut app, BoardPress::AddVault);
+    app.press(Action::BName(0));
+    type_text(&mut app, NAME);
+    app.event(Event::Key(Key::Enter));
+    // Vault 1 holds Key 1, the vault added on the plan Keys 2 and 3.
+    let p = vault_place(&app, 0);
+    vault_at(&mut app, p, 0, &[0]);
+    let p = vault_place(&app, 1);
+    vault_at(&mut app, p, 1, &[1, 2]);
+    vault_off(&mut app, 2);
+    no_words(&mut app);
+    no_paper_description(&mut app);
+    app.press(Action::BChecklist);
+    save_vaults(&mut app);
+    app.press(Action::BNext(Item::Envelopes));
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    // The sticks are written by place; each vault's file is then opened
+    // alone, as on another device.
+    let n = app.flow().unwrap().slots.len();
+    for k in 2..=n {
+        let mut d = Disk::empty(&format!("S{k}"), "KEYSTICK");
+        d.serial = Some(k as u32);
+        shell.add(d);
+    }
+    let disks: Vec<String> = (1..=n).map(|k| format!("S{k}")).collect();
+    let disks: Vec<&str> = disks.iter().map(String::as_str).collect();
+    write_sticks(&mut shell, &mut app, &disks);
+    let mut found = false;
+    for d in &disks {
+        let Some(file) = kdbx(&shell, d) else {
+            continue;
+        };
+        let c = faraday_core::testkit::compute();
+        let mut store = faraday_keys::vault::OpenVaults::default();
+        let Ok((id, _)) = store.unlock(&c, file, PHRASE_2) else {
+            continue;
+        };
+        found = true;
+        let names: Vec<String> = store
+            .contents_for_tests(id)
+            .of(kind::PLAN)
+            .flat_map(|(_, r)| {
+                r.fields
+                    .iter()
+                    .filter(|f| f.number == field::PLAN_PLACE)
+                    .map(|f| String::from_utf8_lossy(&f.bytes).into_owned())
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+        assert!(names.iter().any(|n| n == NAME), "{d}: {names:?}");
+    }
+    assert!(found, "Vault 2's file is on a stick");
+}
