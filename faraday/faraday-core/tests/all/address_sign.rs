@@ -379,8 +379,8 @@ fn a_change_address_in_a_wallet_signs_and_checks() {
 
 #[test]
 fn a_change_address_of_a_key_with_no_wallet_signs_in_its_script() {
-    // BIP-86's first change address on Testnet (worked out with a separate
-    // Python implementation that reproduces BIP-86's Mainnet vectors),
+    // BIP-86's first change address on Testnet (worked out with embit 0.8.0, which
+    // reproduces BIP-86's Mainnet vectors),
     // signed in BIP-322, the only format for Taproot.
     let found = "tb1p6uav7en8k7zsumsqugdmg5j6930zmzy4dg7jcddshsr0fvxlqx7q7p5els";
     let mut app = checking_on(testkit::net(), WORDS, None);

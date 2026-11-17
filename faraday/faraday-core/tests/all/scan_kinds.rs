@@ -744,8 +744,8 @@ fn an_addwallet_or_an_sp_read_at_add_a_keys_scanner_goes_to_its_wallet_and_a_spe
 #[test]
 fn an_aezeed_read_at_a_scanner_is_used_in_lightning() {
     for at in [Opened::Home, Opened::AddAKey, Opened::Restore] {
-        // LND's node key is at coin type 0: Mainnet, where an aezeed is no
-        // public sample.
+        // LND's node key is at coin type 0: Mainnet. The aezeed is LND's
+        // published sample, kept on Mainnet for now (the owner is asked).
         let mut app = testkit::started();
         testkit::move_to(&mut app.session, faraday_bip::keys::Network::Mainnet).unwrap();
         open(&mut app, at);

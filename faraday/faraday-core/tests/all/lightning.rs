@@ -10,8 +10,9 @@ const CIPHER_SEED: &str = "above judge emerge veteran reform crunch system all s
     shoulder vault hurt city quarter cover enlist swear success suggest drink wagon enrich body";
 const NODE_KEY: &str = "024c7005923a074fd38b16ace7be4914ec9f929717692bfb585019be13290c9b1d";
 
-/// A start on Mainnet: LND's node key is derived at coin type 0 there, and
-/// an aezeed is no public sample.
+/// A start on Mainnet: LND's node key is derived at coin type 0 there. The
+/// aezeed is LND's published sample, kept on Mainnet for now (the owner is
+/// asked whether Mainnet refuses it as it refuses the BIP-32 samples).
 fn mainnet_started() -> Faraday {
     let mut app = faraday_core::testkit::started();
     faraday_core::testkit::move_to(&mut app.session, faraday_bip::keys::Network::Mainnet).unwrap();

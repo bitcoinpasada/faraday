@@ -15,7 +15,7 @@ use faraday_shell_api::{App, Event, Key};
 
 /// Words that are published but are none of Faraday's samples: Mainnet
 /// cautions and lets the person keep them for testing (BIP-39's vector).
-const ABANDON: &str = "legal winner thank year wave sausage worth useful legal winner thank yellow";
+const LEGAL: &str = "legal winner thank year wave sausage worth useful legal winner thank yellow";
 
 /// BIP-39's first vector, also one of Faraday's public samples: Mainnet
 /// refuses it and offers only Remove.
@@ -65,9 +65,9 @@ fn typed(app: &mut Faraday, words: &str) {
 }
 
 #[test]
-fn the_abandon_words_on_mainnet_bring_the_caution_before_anything_else() {
+fn the_legal_winner_words_on_mainnet_bring_the_caution_before_anything_else() {
     let mut app = mainnet();
-    typed(&mut app, ABANDON);
+    typed(&mut app, LEGAL);
     assert_eq!(
         app.session.keys.len(),
         1,
@@ -161,7 +161,7 @@ fn typing_a_bip85_vectors_hex_or_a_bip32_vectors_seed_as_codex32_on_mainnet_brin
 #[test]
 fn a_bip85_child_of_a_published_key_kept_for_testing_brings_the_caution_too() {
     let mut app = mainnet();
-    typed(&mut app, ABANDON);
+    typed(&mut app, LEGAL);
     app.press(Action::PublishedKeep);
     assert_eq!(app.sheet, None);
     app.press(Action::Bip85);
@@ -193,12 +193,12 @@ fn a_bip85_child_of_a_key_nobody_published_brings_no_caution() {
 #[test]
 fn remove_drops_the_key_and_keep_for_testing_leaves_it_alone() {
     let mut app = mainnet();
-    typed(&mut app, ABANDON);
+    typed(&mut app, LEGAL);
     app.press(Action::PublishedRemove);
     assert_eq!(app.sheet, None);
     assert_eq!(app.session.keys.len(), 0);
 
-    typed(&mut app, ABANDON);
+    typed(&mut app, LEGAL);
     assert_eq!(app.sheet, Some(Sheet::Published));
     app.press(Action::PublishedKeep);
     assert_eq!(app.sheet, None);
@@ -222,12 +222,12 @@ fn a_fresh_key_and_a_test_network_bring_no_caution() {
 
     let mut test = mainnet();
     testkit::move_to(&mut test.session, Network::Testnet).unwrap();
-    typed(&mut test, ABANDON);
+    typed(&mut test, LEGAL);
     assert_eq!(test.session.keys.len(), 1);
     assert_eq!(test.sheet, None);
 }
 
-const ABANDON_KEY: &str = "b8688df1";
+const LEGAL_KEY: &str = "b8688df1";
 
 fn drawn(app: &mut Faraday) -> String {
     app.drawn_texts().join("\n")
@@ -238,7 +238,7 @@ fn removing_a_key_typed_into_restore_takes_it_out_of_restore() {
     let mut app = mainnet();
     app.press(Action::RestoreWallet);
     app.press(Action::RSlotWords);
-    crate::common::type_text(&mut app, ABANDON);
+    crate::common::type_text(&mut app, LEGAL);
     app.press(Action::EntryAdd);
     assert_eq!(app.sheet, Some(Sheet::Published));
     assert!(
@@ -251,7 +251,7 @@ fn removing_a_key_typed_into_restore_takes_it_out_of_restore() {
     assert_eq!(app.session.keys.len(), 0);
     assert_eq!(app.screen, Screen::Restore);
     let text = drawn(&mut app);
-    assert!(!text.contains(ABANDON_KEY), "{text}");
+    assert!(!text.contains(LEGAL_KEY), "{text}");
     assert!(
         app.restore()
             .and_then(|r| r.seeds.as_ref())
@@ -295,7 +295,7 @@ fn check_the_money_drawn(app: &mut Faraday) -> String {
 #[test]
 fn removing_the_key_a_spend_from_a_backup_guess_made_leaves_no_wallet_of_it() {
     let mut app = mainnet();
-    spend_from_backup_with_pass(&mut app, ABANDON, "TREZOR", true);
+    spend_from_backup_with_pass(&mut app, LEGAL, "TREZOR", true);
     assert_eq!(app.sheet, Some(Sheet::Published));
     assert!(
         !app.session.wallets.is_empty(),
@@ -328,7 +328,7 @@ fn removing_the_key_a_spend_from_a_backup_guess_made_leaves_no_wallet_of_it() {
 #[test]
 fn removing_the_key_made_in_create_empties_its_slot() {
     let mut app = mainnet();
-    typed(&mut app, ABANDON);
+    typed(&mut app, LEGAL);
     let fp = app.session.keys[0].fingerprint.0;
     app.press(Action::PublishedKeep);
     app.press(Action::CreateWallet);

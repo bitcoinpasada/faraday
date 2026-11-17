@@ -838,7 +838,11 @@ fn a_mainnet_wallet_at_the_testnet_path_is_not_rebuilt_from_the_seed_alone() {
     app.press(Action::RSeeds);
     app.press(Action::RVaults(false));
     app.press(Action::RNext(WHERE));
-    type_seed(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
+    // BIP-39's second vector, published but no sample, so Mainnet takes it.
+    type_seed(
+        &mut app,
+        "legal winner thank year wave sausage worth useful legal winner thank yellow",
+    );
     app.press(Action::Seeds(S::Custom));
     for _ in 0..5 {
         app.event(Event::Key(Key::Backspace));

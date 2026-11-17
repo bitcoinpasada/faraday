@@ -232,7 +232,17 @@ fn a_testnet_wallet_moves_an_empty_stick_session_to_testnet_and_a_loaded_key_sto
 
     let mut keyed = testkit::started();
     testkit::move_to(&mut keyed.session, Network::Mainnet).unwrap();
-    keyed.session.keys.add_words(&c, ABANDON, "", None).unwrap();
+    // BIP-39's second vector: published but no sample, which Mainnet takes.
+    keyed
+        .session
+        .keys
+        .add_words(
+            &c,
+            "legal winner thank year wave sausage worth useful legal winner thank yellow",
+            "",
+            None,
+        )
+        .unwrap();
     faraday_core::testkit::keep_published(&mut keyed);
     let refused = keyed.session.add_wallet_confirmed(
         &c,

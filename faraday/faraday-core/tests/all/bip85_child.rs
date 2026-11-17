@@ -18,9 +18,15 @@ type Files = Vec<(String, Vec<u8>)>;
 
 const PHRASE: &str = "child phrase";
 
-/// A device with these files restored and test key 1 typed in.
+/// BIP-39's second twelve-word vector: published but not one of Faraday's
+/// samples, so Mainnet cautions and lets the person keep it for testing.
+const PARENT: &str = "legal winner thank year wave sausage worth useful legal winner thank yellow";
+
+/// A device on Mainnet, where a published key brings its caution, with
+/// these files restored.
 fn process(inbox: Files, outbox: Files, kept: Files) -> Faraday {
     let mut app = testkit::started();
+    testkit::move_to(&mut app.session, faraday_bip::keys::Network::Mainnet).unwrap();
     testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(inbox),
@@ -35,7 +41,7 @@ fn process(inbox: Files, outbox: Files, kept: Files) -> Faraday {
 
 fn add_parent(app: &mut Faraday) -> String {
     app.press(Action::Entry(None));
-    type_text(app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
+    type_text(app, PARENT);
     app.press(Action::EntryAdd);
     faraday_core::testkit::keep_published(app);
     faraday_core::wallet::fp_text(app.session.keys[0].fingerprint).to_string()

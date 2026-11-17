@@ -15,16 +15,26 @@ use faraday_shell_api::{App, Event, Key};
 const ABANDON: &str =
     "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
 
-/// Explore on "abandon … about" at preset `preset` on `network`, with
-/// `page` open.
+/// Trezor's firmware test seed: not one of Faraday's samples, so Mainnet
+/// takes it.
+const ALL_ALL: &str = "all all all all all all all all all all all all";
+
+/// Explore on "abandon … about" at preset `preset` on `network` (the
+/// start's Testnet for `None`), with `page` open; on Mainnet, which refuses
+/// that sample seed, on "all all …".
 fn on_page(network: Option<Network>, preset: u8, page: Page) -> Faraday {
     let mut app = faraday_core::testkit::started();
     if let Some(n) = network {
         app.press(Action::Nav(Screen::Settings));
         faraday_core::testkit::move_to(&mut app.session, n).unwrap();
     }
+    let words = if network == Some(Network::Mainnet) {
+        ALL_ALL
+    } else {
+        ABANDON
+    };
     app.press(Action::Entry(None));
-    for c in ABANDON.chars() {
+    for c in words.chars() {
         app.event(Event::Key(Key::Char(c)));
     }
     app.press(Action::EntryAdd);
@@ -63,9 +73,10 @@ fn read_at(app: &mut Faraday, change: bool, index: u32) -> String {
 
 /// "abandon … about"'s Testnet addresses (coin type 1, `tb` prefix; Mainnet
 /// refuses the sample seed): the paths of BIP-84, BIP-86 and BIP-44 worked
-/// out with embit, a separate implementation that reproduces the published
-/// Mainnet vectors of BIP-84, BIP-86 and BIP-44, and BIP-49's own Testnet
-/// vector: (network, preset, change, index, address).
+/// out with embit 0.8.0, which reproduces the published Mainnet vectors of
+/// BIP-84 and BIP-86 (BIP-44 and BIP-49 publish no Mainnet addresses; BIP-49
+/// publishes this Testnet one): (network, preset, change, index, address).
+/// Preset 2's row runs on Signet, which shares Testnet's addresses.
 const VECTORS: &[(Option<Network>, u8, bool, u32, &str)] = &[
     (
         None,
@@ -110,7 +121,7 @@ const VECTORS: &[(Option<Network>, u8, bool, u32, &str)] = &[
         "tb1p6uav7en8k7zsumsqugdmg5j6930zmzy4dg7jcddshsr0fvxlqx7q7p5els",
     ),
     (
-        Some(Network::Testnet),
+        Some(Network::Signet),
         2,
         false,
         0,
@@ -120,6 +131,45 @@ const VECTORS: &[(Option<Network>, u8, bool, u32, &str)] = &[
     (None, 3, false, 1, "mzpbWabUQm1w8ijuJnAof5eiSTep27deVH"),
     (None, 3, true, 0, "mi8nhzZgGZQthq6DQHbru9crMDerUdTKva"),
 ];
+
+/// Trezor's "all all …" seed on Mainnet (coin type 0): the first receive
+/// address of BIP-84, BIP-86, BIP-49 and BIP-44 and the extended public key
+/// at that address's path, worked out with embit 0.8.0; BIP-49's
+/// 3L6TyTisPBmrDAj6RoKmDzNnj4eQi54gD2 is also the address Trezor publishes.
+/// (preset, address, xpub)
+const MAINNET: &[(u8, &str, &str)] = &[
+    (
+        0,
+        "bc1qannfxke2tfd4l7vhepehpvt05y83v3qsf6nfkk",
+        "xpub6Fz53SoDjN7ndUcgZnWkjECH6bntV5Jy8fcNXaEQifnfFL7PpQMF8cikbqrQuZmtKpZtTxWKVQxkLPiz8SKS375iqLh5vAtZec4Yh2mwyJU",
+    ),
+    (
+        1,
+        "bc1ptxs597p3fnpd8gwut5p467ulsydae3rp9z75hd99w8k3ljr9g9rqx6ynaw",
+        "xpub6FuPAT6wm7hyFtCXHzBysnpnyC84gvSHMrSfuh5pBzAdVoB3a9qxANjasANu3hjWmASS1pufBo8YNYo6Fca3JLv6poQkzPmexvMzvrgpB3j",
+    ),
+    (
+        2,
+        "3L6TyTisPBmrDAj6RoKmDzNnj4eQi54gD2",
+        "xpub6GDXzUkrsQbjnKt1crc1VqZx4YS8eipBn2gxa6uE2aNfVCvuTMjJuNLhQbVcThP1bZn6yfEkrWK4vU3uWcXrFR8qsBCG3jHgZNNPwaPd6fL",
+    ),
+    (
+        3,
+        "1JAd7XCBzGudGpJQSDSfpmJhiygtLQWaGL",
+        "xpub6FVDRC1jiWNTuT3embehwSZ1buxRDyZGbTakVCkBr6w2LwpERmYqXyvtrLeJX9hqzLaucS3qJXGekeFsSVCELkbgepp7FVGeH5BYekEgT9x",
+    ),
+];
+
+#[test]
+fn on_mainnet_the_presets_give_bc1_3_and_1_addresses_and_an_xpub() {
+    let c = faraday_core::testkit::compute();
+    for &(preset, address, xpub) in MAINNET {
+        let app = on_page(Some(Network::Mainnet), preset, Page::Path);
+        let r = app.explore_reading(&c).unwrap();
+        assert_eq!(r.address, address, "preset {preset}");
+        assert_eq!(r.xpub, xpub, "preset {preset}");
+    }
+}
 
 #[test]
 fn the_list_gives_the_published_addresses_of_each_account() {

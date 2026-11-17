@@ -1,6 +1,6 @@
 //! Explore shows the public side of a loaded key at a path: the
 //! addresses BIP-84 and BIP-86 publish for "abandon … about" (their
-//! Testnet counterparts, worked out with embit: Mainnet refuses the sample
+//! Testnet counterparts, worked out with embit 0.8.0: Mainnet refuses the sample
 //! seed), the script
 //! a path's purpose names, and a path that is not one named as such; and
 //! behind its eyes the key's words, its extended private keys and an
@@ -77,8 +77,8 @@ fn eye(app: &mut Faraday, e: Eye) {
 
 /// The Testnet private key (WIF) of "abandon … about"'s first receive
 /// address, m/84h/1h/0h/0/0, on Testnet because Mainnet refuses the sample
-/// seed. Worked out with embit (a separate implementation; it reproduces
-/// BIP-84's published Mainnet vectors for this seed).
+/// seed. Worked out with embit 0.8.0, which reproduces BIP-84's published
+/// Mainnet vectors for this seed.
 const FIRST_WIF: &str = "cTGhosGriPpuGA586jemcuH9pE9spwUmneMBmYYzrQEbY92DJrbo";
 
 #[test]

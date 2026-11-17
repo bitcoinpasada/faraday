@@ -205,14 +205,14 @@ fn a_coldcard_file_with_no_account_for_the_kind_gives_no_key() {
     assert!(read_keys(&file("bluewallet/coldcardQ.json")).len() >= 5);
 }
 
-/// Trezor's published test seed (`vectors.json`), not one of the samples.
+/// Trezor's published firmware test seed, not one of the samples.
 const ALL_ALL: &str = "all all all all all all all all all all all all";
 
 #[test]
 fn create_offers_a_coldcard_export_for_a_cosigners_slot_and_takes_its_multisig_key() {
     use faraday_shell_api::{App, Event, Key};
-    // The Coldcard file's paths are Mainnet's (`0h`), and the key is the
-    // test key "bacon", which is not a public sample.
+    // The Coldcard file's paths are Mainnet's (`0h`), and the key is
+    // Trezor's "all all" seed, which is not a public sample.
     let mut app = faraday_core::testkit::started();
     faraday_core::testkit::move_to(&mut app.session, Network::Mainnet).unwrap();
     app.storage(faraday_core::StorageEvent::Restored {

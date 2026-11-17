@@ -15,8 +15,8 @@ const ABANDON: &str = "abandon abandon abandon abandon abandon abandon \
                        abandon abandon abandon abandon abandon about";
 /// BIP-84's first receive address for it on Testnet, m/84'/1'/0'/0/0 (the
 /// sample seed is refused on Mainnet): BIP-84's Mainnet vector with the
-/// coin type 1 and the `tb` prefix, worked out with a separate Python
-/// implementation (BIP-32, bech32) that reproduces the Mainnet vector.
+/// coin type 1 and the `tb` prefix, worked out with embit 0.8.0, which
+/// reproduces the Mainnet vector.
 const BIP84_FIRST: &str = "tb1q6rz28mcfaxtmd6v789l9rrlrusdprr9pqcpvkl";
 
 fn shown(width: u16, height: u16, dpi: u16) -> Faraday {

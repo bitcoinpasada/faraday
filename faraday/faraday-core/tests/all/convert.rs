@@ -20,10 +20,12 @@ const ABOUT: &str = "abandon abandon abandon abandon abandon abandon abandon aba
     abandon abandon about";
 const ABOUT_SEED: &str = "5eb00bbddcf069084889a8ab9155568165f5c453ccb85e70811aaed6f6da5fc1\
     9a5ac40b389cd370d086206dec8aa6c43daea6690f20ad3d8d48b2d2ce9e38e4";
-const ABOUT_XPRV: &str = "xprv9s21ZrQH143K3GJpoapnV8SFfukcVBSfeCficPSGfubmSFDxo1kuHnLisriDvSnRRuL2Qrg5ggqHKNVpxR86QEC8w35uxmGoggxtQTPvfUu";
+/// The same seed's master key on Testnet (the abandon sample is refused on
+/// Mainnet): BIP-39's vector worked out with embit 0.8.0.
 const ABOUT_TPRV: &str = "tprv8ZgxMBicQKsPe5YMU9gHen4Ez3ApihUfykaqUorj9t6FDqy3nP6eoXiAo2ssvpAjoLroQxHqr3R5nE3a5dU3DHTjTgJDd7zrbniJr6nrCzd";
-/// The same words with the passphrase "TREZOR", BIP-39's vector.
-const TREZOR_XPRV: &str = "xprv9s21ZrQH143K3h3fDYiay8mocZ3afhfULfb5GX8kCBdno77K4HiA15Tg23wpbeF1pLfs1c5SPmYHrEpTuuRhxMwvKDwqdKiGJS9XFKzUsAF";
+/// The same words with the passphrase "TREZOR" (BIP-39's vector), the master
+/// key on Testnet worked out with embit 0.8.0.
+const TREZOR_TPRV: &str = "tprv8ZgxMBicQKsPeWHBt7a68nPnvgTnuDhUgDWC8wZCgA8GahrQ3f3uWpq7wE7Uc1dLBnCe1hhCZ886K6ND37memRDWqsA9HgSKDXtwh2Qxo6J";
 /// BIP-32's test vector 1.
 const SEED_1: &str = "000102030405060708090a0b0c0d0e0f";
 const SEED_1_XPRV: &str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
@@ -36,6 +38,13 @@ fn place(name: &str) -> u8 {
 
 fn mainnet() -> Faraday {
     testkit::started()
+}
+
+/// A device on Mainnet, for what holds no sample seed there.
+fn on_mainnet() -> Faraday {
+    let mut app = testkit::started();
+    testkit::move_to(&mut app.session, faraday_bip::keys::Network::Mainnet).unwrap();
+    app
 }
 
 fn test_net() -> Faraday {
@@ -89,7 +98,7 @@ fn make(app: &mut Faraday, name: &str) -> Option<String> {
 
 #[test]
 fn a_key_of_words_gives_bip_39s_seed_and_the_master_xprv() {
-    let mut app = opened(mainnet(), ABOUT);
+    let mut app = opened(test_net(), ABOUT);
     assert_eq!(
         make(&mut app, "Master seed, hex").as_deref(),
         Some(ABOUT_SEED)
@@ -100,7 +109,7 @@ fn a_key_of_words_gives_bip_39s_seed_and_the_master_xprv() {
         "Result opens on the press"
     );
     app.press(Action::Convert(C::Step(cstep::TO)));
-    assert_eq!(make(&mut app, "xprv").as_deref(), Some(ABOUT_XPRV));
+    assert_eq!(make(&mut app, "xprv").as_deref(), Some(ABOUT_TPRV));
 }
 
 #[test]
@@ -111,7 +120,7 @@ fn a_test_network_writes_a_tprv() {
 
 #[test]
 fn a_passphrase_is_folded_into_the_result() {
-    let mut app = mainnet();
+    let mut app = test_net();
     let c = testkit::compute();
     app.session.keys.add_words(&c, ABOUT, "Test", None).unwrap();
     faraday_core::testkit::keep_published(&mut app);
@@ -122,13 +131,13 @@ fn a_passphrase_is_folded_into_the_result() {
         .unwrap();
     open(&mut app);
     app.press(Action::Convert(C::Key(fp.0)));
-    assert_eq!(make(&mut app, "xprv").as_deref(), Some(TREZOR_XPRV));
+    assert_eq!(make(&mut app, "xprv").as_deref(), Some(TREZOR_TPRV));
     assert!(app.session.keys[1].has_passphrase);
 }
 
 #[test]
 fn a_key_of_seed_bytes_gives_those_bytes_and_bip_32s_xprv() {
-    let mut app = mainnet();
+    let mut app = on_mainnet();
     let c = testkit::compute();
     let seed: Vec<u8> = (0..16).collect();
     app.session.keys.add_seed(&c, &seed, "Test").unwrap();
@@ -252,7 +261,7 @@ fn type_copy(app: &mut Faraday, copy: &str) {
 /// Check my copy on `value`'s row: wrong, then right, each saying so where
 /// the person can read it.
 fn checks(row: &str, right: &str) {
-    let mut app = opened(mainnet(), ABOUT);
+    let mut app = opened(test_net(), ABOUT);
     assert_eq!(make(&mut app, row).as_deref(), Some(right));
     app.press(Action::Convert(C::Check));
     // One character short, and one changed.
@@ -283,17 +292,17 @@ fn check_my_copy_says_a_copy_of_the_hex_is_right_or_wrong() {
 
 #[test]
 fn check_my_copy_says_a_copy_of_the_xprv_is_right_or_wrong() {
-    checks("xprv", ABOUT_XPRV);
+    checks("xprv", ABOUT_TPRV);
 }
 
 #[test]
 fn check_my_copy_works_with_the_value_masked() {
-    let mut app = opened(mainnet(), ABOUT);
+    let mut app = opened(test_net(), ABOUT);
     assert!(make(&mut app, "xprv").is_some());
     app.press(Action::Convert(C::Show));
     assert_eq!(convert::shown(&app), None);
     app.press(Action::Convert(C::Check));
-    type_copy(&mut app, ABOUT_XPRV);
+    type_copy(&mut app, ABOUT_TPRV);
     app.press(Action::Convert(C::Compare));
     assert_eq!(convert::found(&app), Some(true));
     let _ = app.frame();
@@ -329,13 +338,13 @@ fn leaving_result_drops_what_was_typed() {
 
 #[test]
 fn save_offers_exactly_the_value_and_writes_nothing_until_answered() {
-    let mut app = opened(mainnet(), ABOUT);
+    let mut app = opened(test_net(), ABOUT);
     let waiting = app.outbox.len();
-    assert_eq!(make(&mut app, "xprv").as_deref(), Some(ABOUT_XPRV));
+    assert_eq!(make(&mut app, "xprv").as_deref(), Some(ABOUT_TPRV));
     assert_eq!(app.outbox.len(), waiting, "a conversion writes nothing");
     save(&mut app);
     let out = testkit::secret_out(&app).expect("the Secret out sheet is up");
-    assert_eq!(out.bytes.as_slice(), ABOUT_XPRV.as_bytes());
+    assert_eq!(out.bytes.as_slice(), ABOUT_TPRV.as_bytes());
     assert_eq!(
         app.outbox.len(),
         waiting,
@@ -344,14 +353,14 @@ fn save_offers_exactly_the_value_and_writes_nothing_until_answered() {
     // Cancel writes nothing, and the result stays.
     app.press(Action::Cancel);
     assert_eq!(app.outbox.len(), waiting);
-    assert_eq!(convert::shown(&app), Some(ABOUT_XPRV));
+    assert_eq!(convert::shown(&app), Some(ABOUT_TPRV));
     // Answered: the file holds the value and nothing else.
     save(&mut app);
     app.press(Action::SecretUnprotected);
     assert_eq!(app.outbox.len(), waiting, "not before the hold");
     app.press(Action::SecretHold);
     let item = app.outbox.last().expect("the file is written");
-    assert_eq!(&item.bytes[..], ABOUT_XPRV.as_bytes());
+    assert_eq!(&item.bytes[..], ABOUT_TPRV.as_bytes());
 }
 
 /// BIP-39's vector of all ones, whose words are three letters and five.
@@ -2010,7 +2019,7 @@ fn make_default(app: &mut Faraday, name: &str) -> String {
 
 #[test]
 fn an_aezeeds_entropy_is_the_seed_and_every_row_reads_back_to_it() {
-    let mut app = mainnet();
+    let mut app = on_mainnet();
     open(&mut app);
     read_aezeed(&mut app, AEZEED, "");
     assert_eq!(app.screen, Screen::Convert);
@@ -2054,7 +2063,7 @@ fn an_aezeeds_entropy_is_the_seed_and_every_row_reads_back_to_it() {
 
 #[test]
 fn the_aezeeds_result_says_its_birthday_and_what_it_covers() {
-    let mut app = mainnet();
+    let mut app = on_mainnet();
     open(&mut app);
     read_aezeed(&mut app, AEZEED_PASS, "!very_safe_55345_password*");
     assert_eq!(app.screen, Screen::Convert);

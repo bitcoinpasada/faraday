@@ -238,9 +238,9 @@ fn with_key() -> Faraday {
 fn a_loaded_key_with_no_wallet_has_its_standard_accounts_searched() {
     // Account 0 of `OTHER` on Testnet (the sample seed is refused on
     // Mainnet): the addresses of BIP-84's and BIP-86's own Mainnet vectors
-    // with the coin type 1 and the `tb` prefix, worked out with a separate
-    // Python implementation (BIP-32, bech32/bech32m, base58check) that
-    // reproduces the published Mainnet vectors; BIP-44 publishes none.
+    // with the coin type 1 and the `tb` prefix, worked out with embit
+    // 0.8.0, which reproduces BIP-84's and BIP-86's published Mainnet
+    // vectors; BIP-44 publishes no addresses, so its rows rest on embit.
     for (address, line) in [
         // BIP-84: m/84'/1'/0'/0/0
         (
@@ -257,7 +257,7 @@ fn a_loaded_key_with_no_wallet_has_its_standard_accounts_searched() {
             "tb1p8wpt9v4frpf3tkn0srd97pksgsxc5hs52lafxwru9kgeephvs7rqlqt9zj",
             "Receive · index 0",
         ),
-        // BIP-44: m/44'/1'/0'/0/0, worked out with the separate Python implementation
+        // BIP-44: m/44'/1'/0'/0/0, worked out with embit 0.8.0
         ("mkpZhYtJu2r87Js3pDiWJDmPte2NRZ8bJV", "Receive · index 0"),
     ] {
         let mut app = with_key();
@@ -294,7 +294,7 @@ fn a_loaded_key_has_its_nested_account_searched_on_testnet() {
 #[test]
 fn a_standard_account_is_looked_further_in() {
     let mut app = with_key();
-    // BIP-44 m/44'/1'/0'/0/150 of `OTHER`, worked out with the separate Python implementation named above; its index 0 is the address above.
+    // BIP-44 m/44'/1'/0'/0/150 of `OTHER`, worked out with embit 0.8.0; its index 0 is the address above.
     read(&mut app, "mhLeXQvZ8zzN2idymESqznYm8EcZupZP4W");
     assert!(said(&app).contains("first 100"), "{}", said(&app));
     app.press(way(0));

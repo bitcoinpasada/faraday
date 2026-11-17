@@ -1769,8 +1769,8 @@ pub fn started() -> crate::Faraday {
 
 /// A new app on the test wallets' network ([`net`]): the test seeds are
 /// public samples, which Mainnet refuses, so a test starts on the test
-/// network, as the shell's start moves it, and goes to Mainnet itself
-/// when it tests Mainnet.
+/// network and goes to Mainnet itself when it tests Mainnet. (The app's
+/// start on the stick image is Mainnet, the desktop demo's Testnet.)
 pub fn new_on_test_net() -> crate::Faraday {
     let mut app = crate::Faraday::new();
     let _ = move_to(&mut app.session, net());
@@ -1784,10 +1784,11 @@ pub fn new_on_test_net() -> crate::Faraday {
 pub fn keep_published(app: &mut crate::Faraday) {
     while let Some(fp) = app.session.keys.published_pending() {
         // A public sample on Mainnet cannot be kept: the test moves to
-        // Testnet before the key comes in, so it ends here and fails there.
-        if app.session.keys.is_sample(fp) {
-            break;
-        }
+        // Testnet before the key comes in, so it fails here when it did not.
+        assert!(
+            !app.session.keys.is_sample(fp),
+            "a public sample is refused on Mainnet and cannot be kept: the test belongs on Testnet"
+        );
         if app.sheet == Some(crate::Sheet::Published) {
             app.press(crate::Action::PublishedKeep);
         } else {
