@@ -1,6 +1,6 @@
 # One targeted check on GitHub's Linux runners (docs/decisions/F243.md),
 # started by hand on any branch: one crate's tests, one of the justfile's
-# lint recipes, or the format check or clippy of some crates. It does not replace `just`, the check. It reads only: no
+# lint recipes, or the format check, clippy or cargo check of some crates. It does not replace `just`, the check. It reads only: no
 # secrets, the checkout's token not kept, GitHub's own actions pinned by
 # commit. It reads the check's cache and saves nothing to it
 # (docs/decisions/F212.md). Its inputs reach the shell only through env:.
@@ -21,9 +21,9 @@ on:
         options: [none, lint-clippy, lint-deps, lint-repo, lint-touch-targets, lint-op-cost]
         default: none
       tool:
-        description: The format check or clippy (warnings as errors, every target) of the crates named in crates
+        description: The format check, clippy (warnings as errors, every target) or cargo check (every target) of the crates named in crates
         type: choice
-        options: [none, fmt, clippy]
+        options: [none, fmt, clippy, check]
         default: none
       crates:
         description: The workspace crates the tool checks, separated by spaces
@@ -91,7 +91,7 @@ jobs:
         with:
           packages: ${{ inputs.crate != '' }}
           valgrind: ${{ inputs.lint == 'lint-op-cost' }}
-          deps: ${{ inputs.tool == 'clippy' && 'lint-clippy' || (inputs.crate != '' && 'build-tests' || inputs.lint) }}
+          deps: ${{ (inputs.tool == 'clippy' || inputs.tool == 'check') && 'lint-clippy' || (inputs.crate != '' && 'build-tests' || inputs.lint) }}
       - name: The crates are members of the workspace
         if: inputs.crate != '' || inputs.crates != ''
         env:
@@ -131,3 +131,11 @@ jobs:
           args=()
           for c in $CRATES; do args+=(-p "$c"); done
           python3 tools/clippy.py --locked "${args[@]}" --all-targets
+      - name: Cargo check
+        if: inputs.tool == 'check'
+        env:
+          CRATES: ${{ inputs.crates }}
+        run: |
+          args=()
+          for c in $CRATES; do args+=(-p "$c"); done
+          cargo check --locked "${args[@]}" --all-targets

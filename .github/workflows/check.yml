@@ -229,8 +229,7 @@ jobs:
           set -o pipefail
           cargo nextest run --archive-file nextest-archive.tar.zst \
             --workspace-remap . --extract-to . --extract-overwrite \
-            --partition "hash:${{ matrix.shard }}/${SHARDS}" \
-            --retries 1 2>&1 | tee nextest.log
+            --partition "hash:${{ matrix.shard }}/${SHARDS}" 2>&1 | tee nextest.log
           if grep -q 'FLAKY' nextest.log; then
             { echo "Flaky tests (failed once, passed on the retry):"; grep -E '^ *FLAKY' nextest.log | sort -u; } >> "$GITHUB_STEP_SUMMARY"
           fi

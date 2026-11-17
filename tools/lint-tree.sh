@@ -25,6 +25,7 @@ cd "$(dirname "$0")/.." || exit 2
 # What each top-level entry is.
 TOP=(
     .claude              # the agent definitions a change may use
+    .config              # cargo nextest's configuration
     .github              # issue templates and the check's workflow (F183)
     .gitignore
     CLAUDE.md            # the rules every change follows

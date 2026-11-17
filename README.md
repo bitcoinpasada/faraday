@@ -428,6 +428,7 @@ are signed with the same key as well (`git tag -v v0.1.10`).
 | `third_party/` | vendored crates, each with its patches |
 | `supply-chain/` | cargo vet's audits and exemptions; `deny.toml` is cargo deny's policy |
 | `.github/` | the issue templates, and the workflow that runs the check on GitHub |
+| `.config/` | cargo nextest's configuration (`docs/DEVELOPING.md`) |
 | `.claude/` | the agent definitions a change may use |
 
 The top level holds nothing else: `tools/lint-tree.sh` fails on a new

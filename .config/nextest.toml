@@ -1,0 +1,28 @@
+# Configuration of `cargo nextest run` (docs/DEVELOPING.md).
+
+[profile.default]
+# A test that fails is run once more; one that then passes is still reported
+# as flaky, so it is seen and fixed, not hidden.
+retries = 1
+
+# Tests that assert a wall-clock limit run one at a time: beside other tests
+# on a loaded machine their time is not the code's.
+[test-groups]
+wall-clock = { max-threads = 1 }
+
+[[profile.default.overrides]]
+filter = '''
+    (package(faraday-bip) & test(an_object_of_many_members_is_checked_for_repeats_in_little_time))
+  | (package(faraday-codec) & test(a_very_long_base43_text_is_at_once_not_a_code))
+  | (package(faraday-scanner) & test(a_stop_during_a_crafted_frame_ends_soon))
+  | (package(faraday-psbt) & test(a_signed_file_with_many_uncompressed_derivations_is_written_out_quickly))
+  | (package(faraday-core) & test(a_key_file_with_a_big_file_of_words_is_read_without_delay))
+  | (package(faraday-core) & test(a_big_file_of_short_tokens_is_read_without_delay))
+  | (package(faraday-core) & test(a_job_at_100_million_rounds_stops_on_cancel_and_the_next_job_runs))
+  | (package(faraday-window) & test(a_tool_that_hangs_is_cut_off))
+  | (package(faraday-stick) & test(a_frame_is_written_after_the_vblank_and_not_before))
+  | (package(faraday-stick) & test(a_full_ring_waits_for_a_read_and_ends_with_the_senders))
+  | (package(faraday-grant) & test(an_hdmi_screen_slow_to_read_connected_wins_over_the_panel_also_attached))
+  | (package(faraday-grant) & test(a_controller_that_answers_late_is_found_within_the_wait))
+'''
+test-group = 'wall-clock'

@@ -203,7 +203,8 @@ psbt-fixtures:
 
 # --- Fuzzing (fuzz/, faraday/fuzz/) -----------------
 #
-# Local only: no hosted CI runs this. It needs cargo-fuzz and the nightly
+# Run locally, or on GitHub's runners by hand (.github/workflows/fuzz.yml,
+# F210). A local run needs cargo-fuzz and the nightly
 # the fuzz crates pin (fuzz/rust-toolchain.toml, a dated one, so a run is
 # reproduced from its commit), both at user level:
 #

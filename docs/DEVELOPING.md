@@ -152,7 +152,7 @@ request (`.github/workflows/check.yml`, F183), on Ubuntu 26.04 with
 the tools above at the versions it names, spread over twenty-five jobs:
 one compiles the tests once and archives them (`cargo nextest
 archive`), fourteen each run a fourteenth of them (`--partition
-hash:k/14`, a failed test run once more and named in the job's summary when it then passes), and the doc tests, the parser crates' tests on a 32-bit
+hash:k/14`, a failed test run once more and named in the job's summary when it then passes: `.config/nextest.toml`), and the doc tests, the parser crates' tests on a 32-bit
 target and the five parts of `just lint` run
 beside them, after a first job that does nothing on a pull request or a run
 by hand. Its result is shown on the commit and the pull request. A push to
@@ -173,15 +173,21 @@ tests only, `filter` is optional and `crate` may name several crates separated b
 gh workflow run targeted.yml --ref <branch> -f crate=faraday-core -f filter='test(/^keygen::/)' -f lint=none
 ```
 
-The format check or clippy of some crates runs there too (`tool` is `fmt` or
-`clippy`, `crates` the names separated by spaces; clippy with warnings as
-errors over every target, as `just lint-clippy` runs it):
+The format check, clippy or `cargo check` of some crates runs there too
+(`tool` is `fmt`, `clippy` or `check`, `crates` the names separated by
+spaces; clippy with warnings as errors over every target, as `just
+lint-clippy` runs it; `check` is `cargo check --locked --all-targets`):
 
 ```
 gh workflow run targeted.yml --ref <branch> -f tool=clippy -f crates='faraday-core faraday-draw'
 ```
 
 `just` stays the check; this is for a change that touches one crate.
+
+`.config/nextest.toml` is nextest's configuration, read by every `cargo
+nextest run`: a failed test is run once more and, when it then passes,
+reported as flaky; the few tests that assert a wall-clock limit run one at
+a time, so another test's load does not count against their limit.
 
 ## 3. The desktop app
 
