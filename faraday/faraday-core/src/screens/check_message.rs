@@ -4,9 +4,61 @@ use crate::drawing::View;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Ui, grouped};
-use crate::{Action, Screen};
+use crate::wallet::FileKind;
+use crate::{Action, Faraday, Screen};
 use faraday_draw::tokens::{BODY_M, BODY_S, TITLE_M, TITLE_S};
 use faraday_draw::widgets::Icon;
+
+/// Costs what `act` costs. Tools' Check a signed message: the message
+/// itself when exactly one waits in Files, the files to choose from when
+/// several do, and the empty part when none. Practice's sample message
+/// stands in when there is none.
+pub(crate) fn open_tile(app: &mut Faraday) {
+    let waiting = waiting(app);
+    match waiting[..] {
+        [(k, _)] => app.act(Action::CheckMessage(k)),
+        [] if app.put_on().is_some() => app.check_use_sample(),
+        _ => {
+            let back = match app.screen {
+                Screen::CheckMessage => app.message.check_back(),
+                s => s,
+            };
+            app.message.open_landing(back);
+            app.list_offset = 0.0;
+            app.screen = Screen::CheckMessage;
+        }
+    }
+}
+
+/// The signed messages in Files, by index and name.
+fn waiting(app: &Faraday) -> Vec<(usize, &str)> {
+    app.inbox
+        .iter()
+        .enumerate()
+        .filter(|(_, i)| i.kind == FileKind::Message)
+        .map(|(k, i)| (k, &*i.name))
+        .collect()
+}
+
+/// No message chosen: the files to choose from, or the empty part.
+fn landing(app: &View, ui: &mut Ui, at: (f32, f32, f32)) {
+    let waiting = waiting(app);
+    if waiting.is_empty() {
+        super::parts::nothing_to_work_on(
+            app,
+            ui,
+            at,
+            EN.check_no_signed_message,
+            (Action::Scan, Screen::CheckMessage),
+        );
+    } else {
+        let rows: Vec<(&str, Action)> = waiting
+            .into_iter()
+            .map(|(k, name)| (name, Action::CheckMessage(k)))
+            .collect();
+        super::parts::file_choices(ui, at, EN.decode_choose_message, &rows);
+    }
+}
 
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // A small panel has the way back and the name in its bar, and one
@@ -21,18 +73,18 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.page_begin((x0, cw, h), app.list_offset);
         14.0
     } else {
-        let back = app.named_back((EN.check_wallets, Action::Nav(Screen::WalletsStart)));
+        let to = app.message.check_back();
+        let name = if to == Screen::WalletsStart {
+            EN.check_wallets
+        } else {
+            super::decode_back(to)
+        };
+        let back = app.named_back((name, Action::Nav(to)));
         super::bar_head(ui, Some(back), EN.check_check_a_signed)
     };
     let mut y = top;
     let Some(item) = app.message.checking().and_then(|i| app.inbox.get(i)) else {
-        ui.text_as(
-            x,
-            y,
-            BODY_M,
-            Role::OnSurfaceVariant,
-            EN.check_no_signed_message,
-        );
+        landing(app, ui, (x, y, width));
         return;
     };
     let Some(c) = app.message_check(&String::from_utf8_lossy(&item.bytes)) else {
@@ -141,6 +193,15 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     let shown = app.message.shown().text(&c.signed.message);
     y += ui.wrap_as((x + vx, y, width - vx), BODY_M, Role::OnSurface, &shown);
+    y += super::parts::ending(
+        ui,
+        (x, y, width),
+        None,
+        (
+            Action::CheckMessageAnother,
+            Action::Nav(app.message.check_back()),
+        ),
+    );
     if compact {
         let guide = EN.check_a_valid_signature;
         y += 16.0 + crate::compact::screen::about(ui, x, y + 16.0, width, guide);

@@ -388,6 +388,9 @@ pub enum CheckPress {
 #[derive(Default)]
 pub(crate) struct DecodeArea {
     state: Option<DecodeState>,
+    /// The tool is open with no transaction chosen: the files to choose
+    /// from, and the screen its back link and Done return to.
+    landing: Option<Screen>,
     /// Boxed: it holds a PSBT and its check, and `Faraday` is built on
     /// the stack.
     outside: Option<Box<OutsideCheck>>,
@@ -397,6 +400,12 @@ pub(crate) struct DecodeArea {
 }
 
 impl DecodeArea {
+    /// The screen the landing returns to, while the tool is open with no
+    /// transaction chosen.
+    pub(crate) fn landing(&self) -> Option<Screen> {
+        self.landing
+    }
+
     /// The transaction on show.
     pub(crate) fn state(&self) -> Option<&DecodeState> {
         self.state.as_ref()
@@ -405,9 +414,16 @@ impl DecodeArea {
     /// Shows `decoded` on the Decode screen, whose back link returns to
     /// the screen on show.
     pub(crate) fn show(&mut self, decoded: Decoded, screen: &mut Screen) {
+        // Chosen on the landing: back is where the tool was opened from.
+        let landing = self.landing.take();
+        let back = if *screen == Screen::Decode {
+            landing.unwrap_or(*screen)
+        } else {
+            *screen
+        };
         self.state = Some(DecodeState {
             decoded,
-            back: *screen,
+            back,
             show_hex: false,
         });
         *screen = Screen::Decode;
@@ -870,6 +886,14 @@ impl Faraday {
                         }
                         Err(line) => self.toast(line),
                     }
+                }
+            }
+            Action::DecodeAnother => {
+                let back = self.decode.state.as_ref().map(|d| d.back);
+                if let Some(back) = back {
+                    self.decode.state = None;
+                    self.decode.landing = Some(back);
+                    self.list_offset = 0.0;
                 }
             }
             Action::QrDecoded => {
@@ -1512,5 +1536,26 @@ impl Faraday {
         let c = self.compute();
         self.refresh_others(&c);
         self.signer_check_sync();
+    }
+}
+
+/// Costs what `act` costs. Tools' Decode a transaction: the transaction
+/// itself when exactly one waits in Files, the files to choose from when
+/// several do, and the empty part (Scan, Open Files, the stick) when none.
+pub(crate) fn open_tile(app: &mut Faraday) {
+    let waiting: Vec<usize> = (0..app.inbox.len())
+        .filter(|&k| app.inbox[k].kind == wallet::FileKind::Transaction)
+        .collect();
+    if let [k] = waiting[..] {
+        app.act(Action::DecodeInbox(k));
+    } else {
+        app.decode.state = None;
+        let back = match app.screen {
+            Screen::Decode => app.decode.landing.unwrap_or(Screen::Catalog),
+            s => s,
+        };
+        app.decode.landing = Some(back);
+        app.list_offset = 0.0;
+        app.screen = Screen::Decode;
     }
 }

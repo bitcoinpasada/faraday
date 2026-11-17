@@ -1,7 +1,7 @@
 //! `Screen::Decode`: a transaction taken apart.
 
 use crate::drawing::View;
-use crate::screens::parts::spaced;
+use crate::screens::parts::{ending, file_choices, nothing_to_work_on, spaced};
 use crate::strings::{EN, fill};
 use crate::ui::Region;
 use crate::ui::pal::*;
@@ -40,10 +40,11 @@ pub(crate) fn decode_back_to(back: Screen) -> Action {
 
 pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::decode::btc;
-    let Some(d) = app.decode() else {
-        return;
-    };
-    let t = &d.decoded;
+    let d = app.decode();
+    let back = d.map_or_else(
+        || app.decode.landing().unwrap_or(Screen::Catalog),
+        |d| d.back,
+    );
     // A small panel has the way back in its bar, and one column: each
     // value under its name.
     let compact = ui.compact;
@@ -58,9 +59,15 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let top = if compact {
         14.0
     } else {
-        let back = app.named_back((decode_back(d.back), decode_back_to(d.back)));
-        crate::screens::bar_head(ui, Some(back), EN.decode_decode_a_transaction)
+        let link = app.named_back((decode_back(back), decode_back_to(back)));
+        crate::screens::bar_head(ui, Some(link), EN.decode_decode_a_transaction)
     };
+    let Some(d) = d else {
+        landing(app, ui, (x, top, w));
+        ui.region_close(open, 0.0);
+        return;
+    };
+    let t = &d.decoded;
     let mut y = top;
     y += ui.wrap_as((x, y, w), BODY_S, Role::OnSurfaceVariant, &t.source) + 14.0;
 
@@ -259,6 +266,12 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if !buttons.is_empty() {
         y += wrap_buttons(ui, x, y, w, BUTTON_H, &buttons) + 4.0;
     }
+    y += ending(
+        ui,
+        (x, y, w),
+        None,
+        (Action::DecodeAnother, decode_back_to(d.back)),
+    );
     if d.show_hex && !refused {
         let th = ui.wrap_as(
             (x + 12.0, y + 10.0, w - 24.0),
@@ -357,4 +370,26 @@ fn table_w(ui: &mut Ui, t: &crate::decode::Decoded, w: f32) -> f32 {
         .fold(0.0, f32::max)
         + DECODE_INDEX_W;
     values.max(lines).min(w)
+}
+
+/// No transaction chosen: the files to choose from, or the empty part.
+fn landing(app: &View, ui: &mut Ui, (x, top, w): (f32, f32, f32)) -> f32 {
+    let waiting: Vec<(&str, Action)> = app
+        .inbox
+        .iter()
+        .enumerate()
+        .filter(|(_, i)| i.kind == crate::wallet::FileKind::Transaction)
+        .map(|(k, i)| (&*i.name, Action::DecodeInbox(k)))
+        .collect();
+    if waiting.is_empty() {
+        nothing_to_work_on(
+            app,
+            ui,
+            (x, top, w),
+            EN.decode_no_transaction_waits,
+            (Action::ScanFor(crate::Ask::Decode), Screen::Decode),
+        )
+    } else {
+        file_choices(ui, (x, top, w), EN.decode_choose_transaction, &waiting)
+    }
 }

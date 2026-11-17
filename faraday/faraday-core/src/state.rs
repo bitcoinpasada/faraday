@@ -1008,6 +1008,8 @@ pub(crate) struct MessageArea {
     state: Option<MessageState>,
     /// The Inbox file of the signed message being checked.
     checking: Option<usize>,
+    /// The screen Check a signed message was opened from, and returns to.
+    check_back: Option<crate::Screen>,
     /// The message as drawn, kept while it is the same.
     shown: crate::visible::Shown,
 }
@@ -1021,6 +1023,25 @@ impl MessageArea {
     /// The cards' state, while the flow is open.
     pub(crate) fn state(&self) -> Option<&MessageState> {
         self.state.as_ref()
+    }
+
+    /// The screen Check a signed message returns to: where it was opened
+    /// from, Wallets when that is not known.
+    pub(crate) fn check_back(&self) -> crate::Screen {
+        self.check_back.unwrap_or(crate::Screen::WalletsStart)
+    }
+
+    /// Whether Check a signed message is open with no message chosen: the
+    /// files to choose from.
+    pub(crate) fn landing(&self) -> bool {
+        self.checking.is_none() && self.check_back.is_some()
+    }
+
+    /// Opens Check a signed message with no message chosen, returning to
+    /// `back`.
+    pub(crate) fn open_landing(&mut self, back: crate::Screen) {
+        self.checking = None;
+        self.check_back = Some(back);
     }
 
     /// The Inbox file being checked, by index.
@@ -1037,6 +1058,7 @@ impl MessageArea {
     pub(crate) fn clear(&mut self) {
         self.state = None;
         self.checking = None;
+        self.check_back = None;
         self.shown = crate::visible::Shown::default();
     }
 
@@ -1244,8 +1266,16 @@ impl Faraday {
                     }
                 }
             }
+            Action::CheckMessageAnother => {
+                self.message.checking = None;
+                self.list_offset = 0.0;
+            }
             Action::CheckMessage(i) => {
                 if i < self.inbox.len() {
+                    // Where it was opened from, unless it is open already.
+                    if self.screen != Screen::CheckMessage {
+                        self.message.check_back = Some(self.screen);
+                    }
                     self.message.checking = Some(i);
                     self.screen = Screen::CheckMessage;
                 }

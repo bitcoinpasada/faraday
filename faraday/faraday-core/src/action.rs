@@ -987,6 +987,10 @@ pub enum Action {
     KMadeAnother,
     /// The result card: back to where New key was opened.
     KMadeDone,
+    /// Decode a transaction again, empty: the files to choose from.
+    DecodeAnother,
+    /// Check a signed message again, empty: the files to choose from.
+    CheckMessageAnother,
 }
 
 /// Which mark of a backup board chip a tooltip names.
@@ -1623,6 +1627,7 @@ impl Faraday {
             | Action::DecodeInbox(..)
             | Action::QrDecoded
             | Action::DecodeHex
+            | Action::DecodeAnother
             | Action::SpendHex) => self.decode_act(a, &c),
             a @ (Action::NonceCheck(..) | Action::SignerCheck(..)) => self.decode_act(a, &c),
             Action::Invoice(p) => invoice::act(self, p),
@@ -1638,7 +1643,8 @@ impl Faraday {
             | Action::MSign
             | Action::MOut
             | Action::MQr
-            | Action::CheckMessage(..)) => self.message_act(a, &c),
+            | Action::CheckMessage(..)
+            | Action::CheckMessageAnother) => self.message_act(a, &c),
             a @ (Action::CMultiPath(..) | Action::CMultiPathChange | Action::CPathChange) => {
                 self.create_act(a, &c)
             }

@@ -7,6 +7,12 @@
 
 This page takes a transaction apart, field by field, for one that you only want to read. Nothing is signed.
 
+## Opening
+
+**Key:** decode.opening
+
+Opened from Tools, it opens on the transaction when exactly one waits in Files, and on a list of the waiting transactions to choose from when several do. With none it says **No transaction waits in Files** and offers **Scan**, **Open Files** and, while a stick is attached, Bring in from that stick. The result ends with **Another**, which shows the list again, and **Done**, which goes back to where Decode was opened.
+
 ## Summary
 
 **Key:** decode.summary

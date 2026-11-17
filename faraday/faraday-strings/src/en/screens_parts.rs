@@ -106,6 +106,11 @@ macro_rules! words_screens_parts {
     // ----- tz_row (faraday-core/src/screens/parts.rs) -----
     /// Line in `tz_row`.
     tz_row_time_zone: "Time zone",
+    // ----- nothing_to_work_on (faraday-core/src/screens/parts.rs) -----
+    /// Button in `nothing_to_work_on`: opens Files.
+    parts_open_files: "Open Files",
+    /// Button in `nothing_to_work_on`, with the stick attached. `{}`: the stick's name.
+    parts_bring_in_from: "Bring in from {}",
         }
     };
 }

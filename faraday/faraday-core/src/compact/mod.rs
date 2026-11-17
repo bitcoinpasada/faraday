@@ -618,7 +618,11 @@ pub(crate) fn page_head<'a>(app: &'a View) -> ((&'a str, Action), &'a str) {
         Screen::Entry if app.entry_leave() == Screen::SignerCheck => {
             (EN.catalog_check_a_signer, Action::Nav(Screen::SignerCheck))
         }
-        Screen::Wallets | Screen::Explore | Screen::Entry | Screen::CheckMessage => {
+        Screen::CheckMessage => {
+            let back = app.message.check_back();
+            (crate::screens::decode_back(back), Action::Nav(back))
+        }
+        Screen::Wallets | Screen::Explore | Screen::Entry => {
             (EN.compact_wallets, Action::Nav(Screen::WalletsStart))
         }
         // An item of a vault goes back to the vault's list.
@@ -655,7 +659,10 @@ pub(crate) fn page_head<'a>(app: &'a View) -> ((&'a str, Action), &'a str) {
                 crate::screens::decode_back(d.back),
                 crate::screens::decode_back_to(d.back),
             ),
-            None => (EN.compact_tools, Action::Nav(Screen::Catalog)),
+            None => {
+                let back = app.decode.landing().unwrap_or(Screen::Catalog);
+                (crate::screens::decode_back(back), Action::Nav(back))
+            }
         },
         // Decode a Lightning invoice goes back where it was opened from.
         Screen::Invoice => crate::invoice::screen::back_of(app),

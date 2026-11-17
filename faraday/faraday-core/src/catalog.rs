@@ -705,25 +705,14 @@ impl Faraday {
             }
             Go::NonceCheck => self.nonce_check_tile(),
             Go::SignerCheck => self.signer_check_tile(),
-            Go::Decode => match self
-                .inbox
-                .iter()
-                .position(|i| i.kind == FileKind::Transaction)
-            {
-                Some(k) => self.act(Action::DecodeInbox(k)),
-                None => self.act(Action::ScanFor(crate::Ask::Decode)),
-            },
+            Go::Decode => crate::decode::open_tile(self),
             Go::Invoice => crate::invoice::open(self),
             // No wallet loaded: Restore, which comes back here.
             Go::CheckAddress => crate::address_check::open(self),
             Go::Scan => self.act(Action::Scan),
             Go::Sweep => self.act(Action::Sweep(crate::seeds::sweep::SweepAction::Open)),
             Go::SignMessage => self.act(Action::SignMessage),
-            Go::CheckMessage => match self.inbox.iter().position(|i| i.kind == FileKind::Message) {
-                Some(k) => self.act(Action::CheckMessage(k)),
-                // Practice: the sample message stands in for the one to copy in.
-                None => self.check_use_sample(),
-            },
+            Go::CheckMessage => crate::screens::check_message::open_tile(self),
             Go::CheckTimestamp => crate::ots_check::open_tile(self),
             Go::ReadCoreWallet => crate::core_wallet::tool::open_tile(self),
             Go::MultisigCheck => crate::multisig_check::open(self),

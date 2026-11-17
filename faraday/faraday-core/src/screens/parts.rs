@@ -2268,3 +2268,95 @@ pub(crate) fn seed_word_grid(
     }
     rows as f32 * 26.0 + 16.0
 }
+
+/// A tool with nothing to work on (`docs/DESIGN.md` §4): a card with the
+/// `line` that says so and the ways to get something, on the same card:
+/// Scan (`scan`), Open Files, and while a stick is attached and no key is
+/// open, Bring in from that stick, which returns to `back` when the stick
+/// is pulled. Returns the height used.
+pub(crate) fn nothing_to_work_on(
+    app: &View,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    line: &str,
+    (scan, back): (Action, crate::Screen),
+) -> f32 {
+    let pad = tokens::PAD;
+    let step = tokens::GAP + tokens::GAP_SMALL;
+    let inner = w - 2.0 * pad;
+    let stick = (!app.stick.is_empty() && !app.holds_secret()).then(|| {
+        fill(
+            EN.parts_bring_in_from,
+            &[&app.stick[app.visit.stick.min(app.stick.len() - 1)].label],
+        )
+    });
+    let mut labels = vec![EN.compact_scan, EN.parts_open_files];
+    if let Some(s) = &stick {
+        labels.push(s);
+    }
+    let line_h = ui.wrap_height_as(TITLE_S, line, inner);
+    let buttons_h = faraday_ui::parts::wrap_buttons_height(ui, inner, BUTTON_H, &labels);
+    let h = pad + line_h + step + buttons_h + tokens::GAP_SMALL;
+    ui.card(x, y, w, h, Role::OutlineVariant);
+    ui.wrap_as((x + pad, y + pad, inner), TITLE_S, Role::OnSurface, line);
+    let mut items = vec![
+        (EN.compact_scan, Style::Primary, scan),
+        (
+            EN.parts_open_files,
+            Style::Secondary,
+            Action::Nav(crate::Screen::Files),
+        ),
+    ];
+    if let Some(s) = &stick {
+        items.push((s, Style::Secondary, Action::VisitFrom(back)));
+    }
+    wrap_buttons(
+        ui,
+        x + pad,
+        y + pad + line_h + step,
+        inner,
+        BUTTON_H,
+        &items,
+    );
+    h
+}
+
+/// The waiting files of a tool to choose from, one row each under `title`:
+/// the file's name and what it is, a chevron at the end, and the row's
+/// press. Returns the height used.
+pub(crate) fn file_choices(
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    title: &str,
+    rows: &[(&str, Action)],
+) -> f32 {
+    section_label(ui, x, y, title);
+    let mut cy = y + tokens::ROW / 2.0;
+    for (name, action) in rows {
+        let h = ui.touch;
+        let shown = ui.fit_as(BODY_M, name, w - tokens::ROW_CHEVRON_ROOM - tokens::GAP);
+        ui.text_mid_as((x, cy, h), BODY_M, Role::OnSurface, &shown);
+        row_press(ui, (x, cy, w, h), *action);
+        ui.rule(x, cy + h, w, Role::OutlineVariant);
+        cy += h + 1.0;
+    }
+    cy - y
+}
+
+/// The end of a tool's result (survey rule): its next step as the filled
+/// button when a real one exists (`next`), Another (the tool again, empty)
+/// and Done (back to where it was opened from). Returns the height used.
+pub(crate) fn ending(
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    next: Option<(&str, Action)>,
+    (another, done): (Action, Action),
+) -> f32 {
+    let mut items = Vec::new();
+    if let Some((label, action)) = next {
+        items.push((label, Style::Primary, action));
+    }
+    items.push((EN.bip85_another, Style::Secondary, another));
+    items.push((EN.app_done, Style::Ghost, done));
+    wrap_buttons(ui, x, y, w, BUTTON_H, &items)
+}

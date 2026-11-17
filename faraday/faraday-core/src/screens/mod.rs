@@ -8,7 +8,7 @@
 
 mod backup;
 pub(crate) mod catalog;
-mod check_message;
+pub(crate) mod check_message;
 mod create;
 use crate::decode::screen as decode;
 mod entry;

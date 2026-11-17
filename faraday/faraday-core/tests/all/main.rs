@@ -206,6 +206,7 @@ mod stick_with_vault;
 mod sweep;
 mod text_size;
 mod toast;
+mod tool_opens;
 mod tool_stick;
 mod tools;
 mod top_actions_surface;

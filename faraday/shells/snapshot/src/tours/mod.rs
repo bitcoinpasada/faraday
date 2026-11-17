@@ -50,6 +50,7 @@ pub(crate) mod m3;
 pub(crate) mod menu;
 pub(crate) mod multisig_check;
 pub(crate) mod nonce;
+pub(crate) mod open_tools;
 pub(crate) mod ots_check;
 pub(crate) mod panes;
 pub(crate) mod partials;
@@ -96,6 +97,7 @@ pub(crate) const TOURS: &[(&str, TourFn)] = &[
         "check-address",
         TourFn::Plain(check_address::check_address_tour),
     ),
+    ("open-tools", TourFn::Plain(open_tools::open_tools_tour)),
     ("convert", TourFn::Plain(convert::convert_tour)),
     ("invoice", TourFn::Plain(invoice::invoice_tour)),
     ("devices", TourFn::Plain(devices::devices_tour)),

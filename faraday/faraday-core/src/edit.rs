@@ -1220,10 +1220,10 @@ impl Faraday {
             Screen::CoreWallet => self.tools.core_wallet.state().is_some(),
             Screen::CreateVault => self.vaults.create.is_some(),
             Screen::BackupFlow => self.flow().is_some(),
-            Screen::Decode => self.decode().is_some(),
+            Screen::Decode => self.decode().is_some() || self.decode.landing().is_some(),
             Screen::NonceCheck => self.outside_check().is_some(),
             Screen::SignerCheck => self.signer_check().is_some(),
-            Screen::CheckMessage => self.message.checking().is_some(),
+            Screen::CheckMessage => self.message.checking().is_some() || self.message.landing(),
             #[cfg(feature = "demo")]
             Screen::Transfer => self.online,
             Screen::Randomness => self.own_page().is_some(),
