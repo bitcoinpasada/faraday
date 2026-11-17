@@ -340,7 +340,7 @@ fn a_wallet_card_opens_the_wallet() {
 }
 
 #[test]
-fn a_place_row_opens_its_item_of_the_checklist() {
+fn a_place_row_opens_its_places_sheet() {
     let mut app = backed_up(2);
     app.press(Action::Nav(Screen::Backups));
     let at = {
@@ -354,11 +354,11 @@ fn a_place_row_opens_its_item_of_the_checklist() {
             .expect("a paper place")
     };
     tap(&mut app, Action::BackupsPlace(0, at));
-    assert_eq!(app.screen, Screen::Backup);
-    assert_eq!(
-        app.backup().and_then(|b| b.open),
-        Some(faraday_core::plan::Item::Copy(0))
-    );
+    assert_eq!(app.screen, Screen::Backups);
+    assert!(matches!(
+        app.chart(),
+        Some((_, faraday_core::glance::sheet::Target::Node(_)))
+    ));
 }
 
 #[test]

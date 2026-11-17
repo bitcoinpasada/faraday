@@ -2464,7 +2464,11 @@ impl Faraday {
                 self.list_offset = 0.0;
             }
             Action::BackupsPlace(w, at) => {
-                if self.chart_checklist(w, false) {
+                let press = crate::glance::Press::Loaded(w);
+                if let Some(n) = crate::glance::sheet::node_of_now(c, self, press, at) {
+                    use crate::glance::sheet::{ChartAction, Target};
+                    self.act(Action::Chart(ChartAction::Open(press, Target::Node(n))));
+                } else if self.chart_checklist(w, false) {
                     let item = checklist_item(at, &self.backup_items_now(c));
                     self.backup_item_open(item);
                     self.screen = Screen::Backup;

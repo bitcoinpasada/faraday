@@ -219,6 +219,23 @@ pub(crate) fn node_at_now(c: &Compute, app: &Faraday, press: Press, n: u8) -> Op
     }
 }
 
+/// Costs what the chart costs to read the first time: the backup node of
+/// the chart of `press` that stands for `at`, by place in the backup row.
+/// A place and the sticks folded into it are one node.
+pub(crate) fn node_of_now(c: &Compute, app: &Faraday, press: Press, at: At) -> Option<u8> {
+    let Backup::Plan { nodes, .. } = chart(&glance::Now { app, c }, press)?.backup else {
+        return None;
+    };
+    let place = |a: At| match a {
+        At::Place(p) | At::Stick(p, _) => Some(p),
+        _ => None,
+    };
+    nodes
+        .iter()
+        .position(|n| n.at == at || (place(n.at).is_some() && place(n.at) == place(at)))
+        .and_then(|n| u8::try_from(n).ok())
+}
+
 /// The sheet for `target` on the chart of `press`; `None` when it is no
 /// longer there. Drawing's form: the chart through the memo and the kept
 /// values. Only drawing asks for it.
