@@ -73,6 +73,7 @@ mod core_wallet;
 mod core_wallet_pinned;
 mod core_wallet_tool;
 mod create_musig;
+mod create_on_card;
 mod create_shares;
 mod create_vault;
 mod create_wallet;

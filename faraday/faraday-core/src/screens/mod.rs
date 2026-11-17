@@ -10,6 +10,7 @@ mod backup;
 pub(crate) mod catalog;
 pub(crate) mod check_message;
 mod create;
+mod create_making;
 use crate::decode::screen as decode;
 mod entry;
 mod files;
@@ -67,7 +68,9 @@ pub(crate) use parts::{
     never_real_seed_if, never_under, next_button, next_button_when, pass_field, pin_button,
     row_press, side_panel_w, sign_readiness, size_text, stepper, ticked, working_bar, working_line,
 };
-pub(crate) use parts::{camera_row, card_pad, coin_pad, dice_pad, key_path_line, word_cell_edge};
+pub(crate) use parts::{
+    camera_row, card_pad, coin_pad, dice_pad, dice_pad_fit, key_path_line, word_cell_edge,
+};
 pub(crate) use restore::RSTEPS;
 pub(crate) use settings::display_section as settings_display_section;
 pub(crate) use settings::open_head as settings_open;

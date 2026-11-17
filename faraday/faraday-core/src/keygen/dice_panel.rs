@@ -14,7 +14,7 @@ use faraday_entropy::{RANKS, SUITS};
 use super::{KeyGen, Source, kstep};
 use crate::Action;
 use crate::drawing::View;
-use crate::screens::dice_pad;
+use crate::screens::{dice_pad, dice_pad_fit};
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
@@ -60,14 +60,22 @@ pub(crate) fn draw(
 /// The pad of the dice's faces, a face the direct procedure would not
 /// take now disabled. Returns its height with the gap under it.
 pub(crate) fn pad(k: &KeyGen, ui: &mut Ui, at: (f32, f32, f32)) -> f32 {
-    let style = |f| {
-        if k.procedure().direct() && !k.procedure().accepts(k.dice.len(), f) {
-            Style::Disabled
-        } else {
-            Style::Secondary
-        }
-    };
-    dice_pad(ui, at, &style, Action::KRoll)
+    dice_pad(ui, at, &|f| face_style(k, f), Action::KRoll)
+}
+
+/// The pad as [`pad`] draws it, in two rows of three where one row of
+/// six would leave a face's target under `touch`.
+pub(crate) fn pad_fit(k: &KeyGen, ui: &mut Ui, at: (f32, f32, f32), touch: f32) -> f32 {
+    dice_pad_fit(ui, at, touch, &|f| face_style(k, f), Action::KRoll)
+}
+
+/// A face the direct procedure would not take now is disabled.
+fn face_style(k: &KeyGen, f: u8) -> Style {
+    if k.procedure().direct() && !k.procedure().accepts(k.dice.len(), f) {
+        Style::Disabled
+    } else {
+        Style::Secondary
+    }
 }
 
 /// How far along, as a count and a bar, with the entry just made at the

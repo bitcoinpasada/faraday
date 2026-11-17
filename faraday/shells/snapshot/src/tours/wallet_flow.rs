@@ -189,6 +189,34 @@ pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
         t.pump();
     }
     t.shot("wallet-flow-11-done")?;
+    // A new wallet's Keys card, with the making on it.
+    t.press(Action::CreateWallet);
+    t.press(Action::CKind(0));
+    t.press(Action::CBackupForm(
+        faraday_core::create::BackupForm::Words.index(),
+    ));
+    // The making on the card: some rolls in, then the words made. A roll
+    // the entry refuses (a repeat) is tried again with the next face.
+    let roll = |t: &mut Tour, n: usize| {
+        for i in 0..n {
+            let before = t.app.keygen().map_or(0, |k| k.dice.len());
+            for f in 0..6usize {
+                t.press(Action::KRoll(((i * 5 + f) % 6) as u8 + 1));
+                if t.app.keygen().map_or(0, |k| k.dice.len()) > before {
+                    break;
+                }
+            }
+        }
+    };
+    roll(t, 20);
+    crate::tour::scroll_to(t, Action::KWords(24));
+    t.shot("wallet-flow-12-create-keys-rolls")?;
+    let need = t.app.keygen().map_or(0, |k| k.dice_needed());
+    let have = t.app.keygen().map_or(0, |k| k.dice.len());
+    roll(t, need.saturating_sub(have));
+    t.press(Action::KNext);
+    crate::tour::scroll_to(t, Action::KShow);
+    t.shot("wallet-flow-13-create-keys-words")?;
     println!(
         "the backup flow of a single key in a new vault, from Keys with the row for a vault already on a stick to Done"
     );

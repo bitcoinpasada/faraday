@@ -506,8 +506,24 @@ fn key_slot(
     cy += 28.0;
     if c.built.is_none() {
         let pass_offered = app.create_pass_offered(slot);
+        // The slot's making on the card stands in place of New key.
+        let making = app
+            .keygen()
+            .filter(|k| k.on_card && k.slot == Some(slot as u8));
+        if let Some(k) = making {
+            let at = (x + indent, cy, w - indent);
+            cy += super::create_making::slot_making(app, ui, k, c.kind.multi(), at);
+        }
         let at = (x + indent, cy, w - indent);
-        cy += slot_choices(app, ui, c, slots, (slot, src), pass_offered, at);
+        cy += slot_choices(
+            app,
+            ui,
+            c,
+            slots,
+            (slot, src),
+            (pass_offered, making.is_some()),
+            at,
+        );
         let at = (x + indent, cy, w - indent);
         cy += slot_xpub_outputs(app, ui, c, (slot, src), pass_offered, at);
         let at = (x + indent, cy, w - indent);
@@ -527,7 +543,7 @@ fn slot_choices(
     c: &crate::CreateState,
     slots: &KeySlots,
     (slot, src): (usize, &crate::create::Source),
-    pass_offered: bool,
+    (pass_offered, making): (bool, bool),
     (x, y, w): (f32, f32, f32),
 ) -> f32 {
     use crate::create::Source;
@@ -566,15 +582,18 @@ fn slot_choices(
             Action::CSlotHere(slot as u8, fp.0),
         ));
     }
-    row.push((
-        EN.create_new_key.to_string(),
-        if *first_empty == Some(slot) {
-            Style::Primary
-        } else {
-            Style::Secondary
-        },
-        Action::KeyGen(Some(slot as u8)),
-    ));
+    // Its making on the card has its own Other ways in place of New key.
+    if !making {
+        row.push((
+            EN.create_new_key.to_string(),
+            if *first_empty == Some(slot) {
+                Style::Primary
+            } else {
+                Style::Secondary
+            },
+            Action::KeyGen(Some(slot as u8)),
+        ));
+    }
     for (i, name, text) in key_files {
         if used_elsewhere_cosigner(text) {
             continue;

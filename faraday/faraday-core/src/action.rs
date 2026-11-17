@@ -1102,6 +1102,9 @@ impl Faraday {
         self.act_leaving_flow(action);
         // A wallet's flow follows the plan and the keys the press left.
         self.wallet_flow_sync();
+        // Make a new wallet's Keys card holds its making while it is the
+        // card shown.
+        self.keygen_card_tidy();
         // A board left takes its empty sticks with it.
         self.board_tidy();
         // The order the flows were begun in, and where each was left.

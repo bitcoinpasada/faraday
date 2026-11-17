@@ -505,6 +505,14 @@ impl Faraday {
                 if self.wallet_flow_of_owner(c.owner).is_some() {
                     return Some(EN.flow_lost_setup);
                 }
+                // Rolls or words made on the Keys card are lost with it.
+                if self
+                    .keygen
+                    .state()
+                    .is_some_and(|k| k.on_card && k.entered_any(self.entry.state()))
+                {
+                    return Some(EN.flow_lost_answers);
+                }
                 let cards = self.create_cards();
                 (c.built.is_some() || past_first(&cards, &|k| c.done[k as usize]))
                     .then_some(EN.flow_lost_answers)

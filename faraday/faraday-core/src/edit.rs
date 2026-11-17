@@ -545,10 +545,12 @@ impl Faraday {
                         || (k.open == Some(keygen::kstep::ENTER) && k.typing && k.flip_or_roll())
                         || k.open == Some(keygen::kstep::TYPED))
             }),
-            Screen::Create => self
-                .create
-                .state()
-                .is_some_and(|c| c.pass_slot.is_some() && c.pass_focus.is_some()),
+            Screen::Create => {
+                self.create
+                    .state()
+                    .is_some_and(|c| c.pass_slot.is_some() && c.pass_focus.is_some())
+                    || self.card_pass_focus().is_some()
+            }
             _ => false,
         }
     }
@@ -641,7 +643,10 @@ impl Faraday {
                     _ => Some(Action::KTyping(true)),
                 }
             }
-            Screen::Create => self.create.state()?.pass_focus.map(Action::CPassField),
+            Screen::Create => self
+                .card_pass_focus()
+                .map(Action::KPassField)
+                .or_else(|| self.create.state()?.pass_focus.map(Action::CPassField)),
             Screen::SetTime => self.set_time.focus().map(Action::SetTimeFocus),
             _ => None,
         }
@@ -794,7 +799,11 @@ impl Faraday {
     /// what the Inbox already holds, and the stick it goes to must stay
     /// open (`docs/FLOWS.md`).
     pub(crate) fn secret_typed(&self) -> bool {
-        self.keygen.state().is_some()
+        // The making on Make a new wallet's Keys card is open from the start
+        // and holds nothing until something is rolled or typed in.
+        self.keygen
+            .state()
+            .is_some_and(|k| !k.on_card || k.entered_any(self.entry.state()))
             || self.secrets.out().is_some_and(|o| !o.to_visit)
             || self.lightning.state().is_some()
             || !self.entry.state().typed.is_empty()

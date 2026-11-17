@@ -954,7 +954,10 @@ fn cancel_in_new_key_from_create_with_rolls_asks_then_returns_to_keys_with_the_s
     app.press(Action::CancelFlowNow);
     assert_eq!(app.sheet, None);
     assert_eq!(app.screen, Screen::Create);
-    assert!(app.keygen().is_none(), "the key so far is gone");
+    assert!(
+        app.keygen().is_none_or(|k| k.on_card && k.dice.is_empty()),
+        "the key so far is gone: the card's making starts again"
+    );
     let c = app.create().unwrap();
     assert_eq!(c.open, Some(cstep::KEYS));
     assert_eq!(c.slots[0], faraday_core::create::Source::Empty);

@@ -137,12 +137,13 @@ fn a_wallet_is_made_by_touch_from_a_key_rolled_on_dice() {
     assert_eq!(app.screen, Screen::Create);
     tap(&mut app, Action::KeyGen(Some(0)));
     assert_eq!(app.screen, Screen::KeyGen);
-    // New key opens with Start answered by the Backup card: it opens on
-    // Length, and pressing a count takes it and opens Randomness (F103).
+    // New key, as Other ways opens it, has Start answered by the Backup
+    // card and opens on Length; pressing a count takes it and opens
+    // Randomness (F103).
     assert_eq!(
         app.keygen().and_then(|k| k.open),
         Some(faraday_core::keygen::kstep::LENGTH),
-        "Start is answered by Words: New key opens on Length"
+        "Start is answered, Length opens"
     );
     tap(&mut app, Action::KWords(12));
     assert_eq!(
@@ -292,7 +293,7 @@ fn forward_in_view(mut app: Faraday, h: u16) {
         );
     }
     tap(&mut app, Action::CMoreBackup);
-    for form in faraday_core::create::BackupForm::ALL {
+    for form in faraday_core::create::BackupForm::offered() {
         assert!(
             in_view(&mut app, h, Action::CBackupForm(form.index())),
             "Make a new wallet, Backup, {form:?}"

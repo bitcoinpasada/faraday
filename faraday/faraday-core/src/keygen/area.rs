@@ -428,6 +428,7 @@ impl KeyGenArea {
             A::KOthers => k.others_open = !k.others_open,
             A::KPassField(f) => {
                 if k.open == Some(kstep::KEY) && k.asks_passphrase() && f < 2 {
+                    k.pass_open = true;
                     k.focus = Some(f);
                     k.note = None;
                 }
@@ -483,6 +484,9 @@ impl KeyGenArea {
                     k.length_chosen = true;
                     k.done[usize::from(kstep::LENGTH)] = true;
                     open(k, kstep::SOURCE);
+                    // On the card the dice are the source: the entry stays
+                    // open at the new length.
+                    k.card_dice();
                 }
             }
             A::KWay(i) => {
@@ -538,7 +542,7 @@ impl KeyGenArea {
                         } else {
                             // Words that showed as they came in stay on
                             // screen; hashed ones wait for Show words.
-                            k.shown = k.reveals();
+                            k.shown = k.reveals_as_made();
                             open(k, kstep::KEY);
                         }
                     }
@@ -662,6 +666,7 @@ impl KeyGenArea {
             }
             A::KAgain => {
                 k.clear_entries();
+                k.card_forget_words();
                 open(k, kstep::ENTER);
             }
             _ => {}

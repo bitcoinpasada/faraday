@@ -352,11 +352,12 @@ key gives is made once its confirmation sheet is held (F254): Continue
 goes on from the hold as it would have with no sheet, and Cancel leaves
 Keys open with no wallet. Restore's Make from typed seeds and its
 description work the same, and a vault's wallet restored from the open
-vault takes no sheet. Keys that would offer one way on only
-(a single key with nothing to choose from; F115, F240) is
-passed over: the card before it opens that key flow for slot 1, and the
-key flow's Cancel returns to the card before Keys (`docs/FLOWS.md`,
-Cancel). On the Keys card, a key chosen for one
+vault takes no sheet. The Keys card is always shown (the vault counters it once passed
+over are gone), and its empty first slot of a single key backed up as
+words, or Key 1 of a multisig while no slot holds a key made here,
+holds the making of its key in place of New key (F282, `docs/FLOWS.md`,
+A key made on the Keys card); the key flow New key opens from **Other
+ways** returns to Keys on Cancel. On the Keys card, a key chosen for one
 slot — loaded here, or a cosigner's file — is not offered for any other
 slot, until the slot is cleared (`docs/history/NEW-WALLET.md` §2.2); its foot
 button reads **New key for Key N**
@@ -859,13 +860,11 @@ rule of its flow.
   new wallet (its chip "Then: Wallets", its way back the wallet's card)
   on The standard way. A single key made here is checked as it is made:
   Lock in opens Check with **Back up now** at its foot.
-- **The Keys card** (decisions 35, 36 and 39). Where it would offer
-  one way on only (a single key's empty slot with no key in the
-  session, no key or wallet file in the Inbox, offered or refused, and no vault's key; F115, F240), the Continue on the
-  card before it opens that key flow for slot 1 in its place; Keys
-  stays in the list of steps, not done, and is done with the key once
-  it is locked in (owner, 2026-10-24). A multisig, or a slot with more
-  than one choice, shows the card. A key loaded here that
+- **The Keys card** (decisions 35, 36 and 39, F282). The card is always
+  shown; Keys is done with the key once it is locked in (owner,
+  2026-10-24). A single key backed up as words, and Key 1 of a multisig
+  while no slot holds a key made here, makes its key on the card
+  (`docs/FLOWS.md`). A key loaded here that
   fills one slot, or a cosigner's file whose key fills one slot, is not
   offered for any other slot; clearing the slot offers it again. A code
   scanned while a multisig's slot waits for a cosigner (one marked for
@@ -882,10 +881,9 @@ rule of its flow.
   a key or wallet file in the Inbox that cannot be a slot's key is still
   listed on the card, disabled, with its reason under its name (a key
   with no origin: it needs its fingerprint and derivation path, which
-  most wallets export), and a single key's card with such a file is
-  shown, not passed over. While a
+  most wallets export). While a
   slot is empty there is no button at the foot: the first empty slot's
-  own **New key** leads; once no slot is empty the foot reads **Make the
+  own button leads (**Make the words**, **Make the wallet**, **Lock in** or **New key**); once no slot is empty the foot reads **Make the
   wallet**. A slot
   filled by a key loaded here from BIP-39 words with no passphrase has
   **Add a passphrase** (beside Show xpub QR on a multisig, on the slot's

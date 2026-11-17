@@ -47,7 +47,9 @@ configuration, and the boot measurement of it (QEMU, a PC and the Pi).
   coins, cards, camera noise and this device (`Mixed`: SHA-256 over the
   sources' commitments; §2.3). Camera noise is never a key's only
   source (F158, §2.1). A key from dice alone takes nothing from the
-  system, by design: it can be reproduced elsewhere.
+  system, by design: it can be reproduced elsewhere. Make a new wallet's
+  Keys card makes its first key from dice by default, the same New key
+  state with the dice chosen and nothing taken from the system (F282).
 
 What a person adds reaches the seed and the pool from Add
 randomness: Settings › Randomness and New key's This device open

@@ -15,6 +15,7 @@
 //! drops them all.
 
 pub(crate) mod dice_panel;
+mod on_card;
 pub(crate) mod screen;
 
 use crate::strings::EN;
@@ -375,6 +376,14 @@ pub struct KeyGen {
     pub roller: crate::fresh::roller::Roller,
     /// The roller's number field has the keys.
     pub roller_typing: bool,
+    /// The making is drawn on Make a new wallet's Keys card, not on a screen
+    /// of its own: Create stays the screen shown.
+    pub on_card: bool,
+    /// Whether the card's wallet is a multisig, as the making began: a Kind
+    /// change ends it.
+    pub card_multi: bool,
+    /// The card's passphrase fields are open (Add a passphrase pressed).
+    pub pass_open: bool,
 }
 
 impl Drop for KeyGen {
@@ -461,6 +470,9 @@ impl KeyGen {
             with_own: false,
             roller: crate::fresh::roller::Roller::default(),
             roller_typing: false,
+            on_card: false,
+            card_multi: false,
+            pass_open: false,
         }
     }
 
@@ -1760,6 +1772,10 @@ impl crate::Faraday {
         if !self.selftest_passed() || self.demo_refuses(crate::Action::KLock) {
             return;
         }
+        // A stick put in under a making on the card holds it until it is out.
+        if self.keygen.state().is_some_and(|k| k.on_card) && !self.may_load_keys() {
+            return;
+        }
         // A passphrase typed with hardware keys waits until the eye has
         // shown it once.
         if self.typing.pass_eye.waits() && self.keygen.state().is_some_and(KeyGen::asks_passphrase)
@@ -2001,7 +2017,10 @@ impl crate::Faraday {
             self.keygen.state = Some(r);
             return;
         }
-        self.return_back(k.back);
+        // A making on the Keys card never left Create.
+        if !k.on_card {
+            self.return_back(k.back);
+        }
         if k.slot.is_some() {
             self.create.open_card_unbuilt(Some(crate::cstep::KEYS));
         }
@@ -2442,10 +2461,11 @@ impl crate::Faraday {
     /// the key.
     pub(crate) fn keygen_key(&mut self, key: faraday_shell_api::Key) -> bool {
         use faraday_shell_api::Key as KeyIn;
-        if self.screen != Screen::KeyGen {
+        // On Make a new wallet's Keys card only its passphrase fields type.
+        if self.screen != Screen::KeyGen && self.card_pass_focus().is_none() {
             return false;
         }
-        if self.keygen_own_key(key) {
+        if self.screen == Screen::KeyGen && self.keygen_own_key(key) {
             return true;
         }
         let Some(k) = self.keygen.state.as_mut() else {
@@ -2547,5 +2567,88 @@ impl crate::Faraday {
             _ => return false,
         }
         true
+    }
+}
+
+impl crate::Faraday {
+    /// The slot the Keys card makes a key in, while it should: Keys is
+    /// open on Create, the wallet is not made, and the slot is the first
+    /// of a single key backed up as words, or of a multisig with no key
+    /// made here yet. Only lookups.
+    fn keygen_card_slot(&self) -> Option<u8> {
+        use crate::create::{BackupForm, Source};
+        let c = self.create.state()?;
+        let open = self.screen == Screen::Create
+            && c.built.is_none()
+            && c.open == Some(crate::cstep::KEYS)
+            && c.vaults.answer != Some(true)
+            && c.slots.first() == Some(&Source::Empty);
+        let eligible = if c.kind.multi() {
+            c.made == 0
+        } else {
+            c.backup == Some(BackupForm::Words)
+        };
+        (open && eligible).then_some(0)
+    }
+
+    /// After each press: a making on the card that no longer belongs
+    /// there is dropped, and one that does is opened. The one place the
+    /// card's making begins and ends, whatever left the card (a screen
+    /// changed, Start over, Cancel, a Kind or Backup answer, a slot
+    /// filled).
+    pub(crate) fn keygen_card_tidy(&mut self) {
+        let slot = self.keygen_card_slot();
+        let multi = self.create.state().is_some_and(|c| c.kind.multi());
+        if self
+            .keygen
+            .state()
+            .is_some_and(|k| k.on_card && (slot != k.slot || k.card_multi != multi))
+        {
+            self.keygen_drop();
+        }
+        if self.keygen.state().is_none()
+            && let Some(slot) = slot
+        {
+            self.keygen_open_on_card(slot, multi);
+        }
+    }
+
+    /// Opens the making on the card for `slot`: BIP-39, 12 words and the
+    /// dice that name them chosen, the entry open.
+    fn keygen_open_on_card(&mut self, slot: u8, multi: bool) {
+        if !self.may_load_keys() {
+            return;
+        }
+        self.typing.pass_eye = crate::pass_eye::PassEye::default();
+        let mut k = KeyGen::new(Some(slot), Screen::Create);
+        k.entropy_source = self.keygen.entropy_source;
+        k.with_own = self.fresh.own_acc().is_some();
+        k.words_offered = true;
+        k.codex32_offered = false;
+        k.slip39_offered = !multi;
+        k.typing = false;
+        k.on_card = true;
+        k.card_multi = multi;
+        k.entry_kept = self.entry.take();
+        k.start = Start::Make;
+        k.open = Some(kstep::START);
+        self.keygen.state = Some(k);
+        self.keygen_start_next();
+        if let Some(k) = self.keygen.state.as_mut() {
+            k.words = 12;
+            k.length_chosen = true;
+            k.done[usize::from(kstep::LENGTH)] = true;
+            k.choose(Way::DiceWords);
+            k.source_next();
+        }
+    }
+
+    /// The passphrase field of the card's making that has the keys, if
+    /// one does. Only lookups.
+    pub(crate) fn card_pass_focus(&self) -> Option<u8> {
+        self.keygen
+            .state()
+            .filter(|k| k.on_card && !k.locked && k.open == Some(kstep::KEY))
+            .and_then(|k| k.focus)
     }
 }

@@ -100,6 +100,10 @@ macro_rules! words_screens_create {
     create_xpub_file: "Xpub file {}",
     /// Text in `create_body`.
     create_add_a_passphrase: "Add a passphrase",
+    /// Button in `create_body`: ends the card's making for New key.
+    create_other_ways: "Other ways",
+    /// Button in `create_body`: drops the words made on the Keys card.
+    create_make_again: "Make again",
     /// Label in `create_body`.
     create_passphrase: "Passphrase",
     /// Label in `create_body`.

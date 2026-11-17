@@ -738,8 +738,10 @@ impl Faraday {
             self.vaults.clear_unlock();
         }
         // Leaving New key drops what it held (Add randomness, opened from it, keeps it).
+        // (The making on Make a new wallet's Keys card stays while Create
+        // shows: `keygen_card_tidy` ends it.)
         if !matches!(self.screen, Screen::KeyGen | Screen::Randomness)
-            && self.keygen.state().is_some()
+            && self.keygen.state().is_some_and(|k| !k.on_card)
         {
             self.keygen_drop();
         }

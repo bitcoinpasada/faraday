@@ -691,7 +691,7 @@ fn long_row(ui: &mut Ui, x: f32, y: f32, w: f32, label: &str, value: &str) -> f3
 
 /// The words in their numbered grid, shown or hidden. Returns the height
 /// used.
-fn word_grid(
+pub(crate) fn word_grid(
     ui: &mut Ui,
     m: &faraday_bip::bip39::Mnemonic,
     shown: bool,

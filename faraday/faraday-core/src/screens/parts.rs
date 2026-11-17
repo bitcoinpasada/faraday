@@ -1735,18 +1735,59 @@ pub(super) fn tz_row(ui: &mut Ui, x: f32, y: f32, _w: f32, tz_min: i16) -> f32 {
 /// style, `press` its action. Returns its height.
 pub(crate) fn dice_pad(
     ui: &mut Ui,
+    at: (f32, f32, f32),
+    style: &dyn Fn(u8) -> Style,
+    press: impl Fn(u8) -> Action,
+) -> f32 {
+    dice_rows(ui, at, 6, style, press)
+}
+
+/// The dice pad in a column `w` wide whose touch side is `touch`: one
+/// row of six where each face's target, the key and the gap beside it,
+/// reaches `touch`, else two rows of three. Returns its height with the
+/// gap under it.
+pub(crate) fn dice_pad_fit(
+    ui: &mut Ui,
+    at: (f32, f32, f32),
+    touch: f32,
+    style: &dyn Fn(u8) -> Style,
+    press: impl Fn(u8) -> Action,
+) -> f32 {
+    let row = if dice_key_w(at.2, 6) + DICE_GAP >= touch {
+        6
+    } else {
+        3
+    };
+    dice_rows(ui, at, row, style, press)
+}
+
+/// The gap between two keys of the dice pad.
+const DICE_GAP: f32 = 8.0;
+
+/// A dice key's width when `row` keys and their gaps share `w`.
+fn dice_key_w(w: f32, row: u8) -> f32 {
+    let n = f32::from(row);
+    ((w - (n - 1.0) * DICE_GAP) / n).min(84.0)
+}
+
+/// The six faces, `row` to a row.
+fn dice_rows(
+    ui: &mut Ui,
     (x, y, w): (f32, f32, f32),
+    row: u8,
     style: &dyn Fn(u8) -> Style,
     press: impl Fn(u8) -> Action,
 ) -> f32 {
     // A pad keeps its size whatever the text size, as a keyboard's keys
     // do (`docs/TEXT-SIZE.md` §3).
     ui.fixed_text(|ui| {
-        let bw = ((w - 5.0 * 8.0) / 6.0).min(84.0);
+        let bw = dice_key_w(w, row);
+        let step = tokens::DICE_PAD_KEY_H + DICE_GAP;
         for f in 1..=6u8 {
+            let (col, line) = (f32::from((f - 1) % row), f32::from((f - 1) / row));
             ui.button(
-                x + f32::from(f - 1) * (bw + 8.0),
-                y,
+                x + col * (bw + DICE_GAP),
+                y + line * step,
                 Some(bw),
                 tokens::DICE_PAD_KEY_H,
                 &Text::num(u64::from(f)),
@@ -1754,7 +1795,7 @@ pub(crate) fn dice_pad(
                 press(f),
             );
         }
-        68.0
+        68.0 + f32::from(6 / row - 1) * step
     })
 }
 
