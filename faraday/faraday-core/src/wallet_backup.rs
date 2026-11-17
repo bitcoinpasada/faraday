@@ -28,8 +28,8 @@ use crate::plan::{CopyChecks, CopyForm, CopyForms};
 use crate::public_files;
 use crate::wallet::{Kind, Session, Wallet, fp_label, fp_text, wallet_name};
 use crate::{
-    Action, BStage, Command, Faraday, Later, PlanPress, ScanPurpose, ScanState, Screen, Sheet,
-    board, copy_check, file_stem, flow, picture, plan, plan_cards_on, qrow, qstep, ui, vault,
+    Action, BStage, Command, Faraday, PlanPress, ScanPurpose, ScanState, Screen, Sheet, board,
+    copy_check, file_stem, flow, picture, plan, plan_cards_on, qrow, qstep, ui, vault,
 };
 use faraday_bip::bip39::Language;
 use faraday_shell_api::Key as KeyIn;
@@ -685,6 +685,9 @@ pub(crate) struct WalletBackupArea {
     /// beyond the backup so the next one finds the file it made and no
     /// other of the name. Public text, a few hundred bytes each.
     xpub_names: Vec<(XpubKey, (Text, Vec<u8>))>,
+    /// The wallet whose shares' files a slider that changes them asks to
+    /// have made again, once it is let go (`docs/WORKERS.md` §2.1).
+    omit_remake: Option<usize>,
 }
 
 impl WalletBackupArea {
@@ -729,6 +732,21 @@ impl WalletBackupArea {
         if let Some(s) = self.state.as_mut() {
             s.keeps.add(left, asks);
         }
+    }
+
+    /// The wallet whose shares' files wait for the slider to be let go.
+    pub(crate) fn omit_remake(&self) -> Option<usize> {
+        self.omit_remake
+    }
+
+    /// Asks for the shares' files of `wallet` once the slider is let go.
+    pub(crate) fn set_omit_remake(&mut self, wallet: usize) {
+        self.omit_remake = Some(wallet);
+    }
+
+    /// Takes the wallet whose files were asked for.
+    pub(crate) fn take_omit_remake(&mut self) -> Option<usize> {
+        self.omit_remake.take()
     }
 
     /// The backup under way, while it is open.
@@ -1963,11 +1981,10 @@ impl Faraday {
                 }
                 let remake = self.backup_remake(4);
                 self.backup.set_omit(n);
-                // The shares' files and pictures are made again once the
-                // slider is let go and a frame drawn (`docs/SPEED.md` §9).
+                // The shares' files and pictures are made again, as a job,
+                // once the slider is let go (`docs/WORKERS.md` §2.1).
                 if let Some(w) = remake {
-                    self.later = Some(Later::Press(Action::PublicOut(w, 4)));
-                    self.worker.set_drawn(false);
+                    self.backup.set_omit_remake(w);
                 }
             }
             Action::BOut(what) => self.backup_out(what),

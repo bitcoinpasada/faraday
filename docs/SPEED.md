@@ -528,19 +528,21 @@ Nothing a person waits on blocks a frame. What holds:
    no dark-on-light one (`faraday_codec::decode::decode_picture`), a
    picture over 2^23 pixels (`faraday_files::TWO_PASS_PIXELS`) only for
    dark-on-light ones (`decode_luma`).
-2. **A press that stretches a key or makes pictures is drawn first.** A
-   press whose work stretches a key (PBKDF2, scrypt, Argon2) or makes
-   more than one picture or PDF is drawn, then done on the tick after
-   (`slow`, `Faraday::press_in`, `Later`), with a toast for files or a
-   node key that goes when the work is done. A slider that changes the
-   shares (`BOmit`) sets its value at once and makes the files again
-   once it is let go and a frame drawn. A scripted press
-   (`Faraday::press`, the snapshot tool, the tests) does the work at
-   once. In a debug build a press not on the list that stretches a key
-   or makes more than one picture panics, naming itself
+2. **A press that stretches a key or makes pictures runs in the press
+   or is a job.** A press whose work stretches a key (PBKDF2, scrypt,
+   Argon2) or makes more than one picture or PDF, and takes at most a
+   tenth of a second, runs in the press itself, with no frame and no
+   working toast drawn first (`slow::runs_in_press`,
+   `Faraday::press_in`); a longer one is a job on the worker
+   (`slow::starts_job`). A slider that changes the shares (`BOmit`) sets
+   its value at once and starts the files' job once it is let go. A
+   scripted press (`Faraday::press`, the snapshot tool, the tests) does
+   the work at once. In a debug build a press on neither list that
+   stretches a key or makes more than one picture panics, naming itself
    (`tests/all/slow_press.rs`). Enter on Add a key's, New key's and a
    chart's fields does what their buttons do at once; Enter on Lightning
-   node key's words and files stretch a key and are drawn first.
+   node key's words and a passphrase field's stretch a key and are drawn
+   first, with a toast that says so (`Later::Key`).
    **Typing waits for
    a pause:** a field that works out a key from what is typed (the
    passphrase on `Sheet::Potential` and `Sheet::SeedRead`, Load a key's
@@ -550,7 +552,7 @@ Nothing a person waits on blocks a frame. What holds:
    (owner, 2026-11-02) this holds for short work alone: a press whose
    work takes longer than a tenth of a second on a Raspberry Pi 3B+ is
    a job on the core's worker instead (`docs/WORKERS.md` §2.1), and
-   F273 (owner, 2026-11-16) is to run the short work in the press
+   since F273 (owner, 2026-11-16) the short work runs in the press
    itself, with no frame drawn first.
 3. **Rows out of sight are not drawn.** A line of text wholly outside
    the clip, or under a clip with no room (a pass that only measures),
@@ -856,7 +858,7 @@ Read by whoever makes or reviews a change in this area; no script holds these.
 
 - A value kept on the state for drawing has its invariant written where it lives and a test that changes the source.
 - No shipped program installs WipeOnFree or another global allocator; it is not measured and not proposed again (F281 point 5).
-- A press whose work takes longer than a tenth of a second on a Pi 3B+ at 1400 MHz is a job on the core's worker, shorter work is drawn first and done on the tick after; a press added to `slow`'s list, or moved on it, says which side of the line it is on and how that was measured.
+- A press whose work takes longer than a tenth of a second on a Pi 3B+ at 1400 MHz is a job on the core's worker, shorter work runs in the press; a press added to `slow`'s list, or moved on it, says which side of the line it is on and how that was measured.
 - A page that shows a secret the person chose to show holds it while shown, wipes it when hidden, on leaving the page and at a lock, and its budget state draws it twice with the second frame working out nothing.
 
 ## 15. Where the next speed-ups are

@@ -1059,18 +1059,13 @@ impl Default for Faraday {
 
 pub use create::create_steps;
 
-/// What a press leaves for the tick after the frame that shows it (`docs/SPEED.md` §9).
+/// What is left for the tick after the frame that shows it (`docs/SPEED.md` §9).
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum Later {
-    /// A press whose work is [`drawn_first`], or the backup's shares made
-    /// again once a slider that changes them is let go.
-    Press(Action),
     /// A key whose work is slow (`Faraday::key_slow`, in `lightning`).
     Key(KeyIn),
     Vault(vault::Work, bool),
 }
-
-use slow::{drawn_first, working_text};
 
 pub use inbox::file_stem;
 pub(crate) use inbox::{result_stem, stem};
@@ -1158,8 +1153,7 @@ impl App for Faraday {
                     self.later = Some(Later::Key(k));
                     self.worker.set_drawn(false);
                     let line = if crate::seed_check::here(self) {
-                        working_text(Action::SeedCheck(seed_check::SeedAction::UsePass))
-                            .unwrap_or(EN.working_node_key)
+                        EN.working_seed_key
                     } else {
                         self.lightning_working()
                     };
@@ -1320,6 +1314,7 @@ impl App for Faraday {
                 // Each runs whatever the others return.
                 if self.vault_tick(now_ms)
                     | self.later_tick()
+                    | self.omit_remake_tick()
                     | self.keygen_tick(now_ms)
                     | self.seed_tick()
                     | self.typed_tick(now_ms)

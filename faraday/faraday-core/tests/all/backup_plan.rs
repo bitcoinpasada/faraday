@@ -651,6 +651,53 @@ fn a_three_of_five_over_five_places_leaves_two_keys_off_each_share() {
     assert_eq!(app.backup().unwrap().answers.omit, 1);
 }
 
+/// The Shares card's slider sets the keys left off at once, and the
+/// split files are made again only once the slider is let go
+/// (`docs/WORKERS.md` §2.1).
+#[test]
+fn the_shares_slider_remakes_the_files_once_it_is_let_go() {
+    use faraday_core::Action;
+    use faraday_core::seeds::SLIDE_OMIT;
+    use faraday_shell_api::{App, Event, TouchPhase};
+    let mut app = places_of("Five");
+    app.press(Action::Board(BoardPress::Partials));
+    app.press(Action::Board(BoardPress::PartialsWholeOff));
+    app.press(Action::BQ(faraday_core::qstep::PLAN));
+    app.press(Action::BChecklist);
+    app.press(Action::BStep(faraday_core::plan::Item::Sheets));
+    let w = app.backup().unwrap().wallet;
+    app.press(Action::PublicOut(w, 4));
+    let _ = app.frame();
+    let made = app.outbox.len();
+    assert!(made > 0, "the split files are in the Outbox");
+    let (x0, y0) = app
+        .where_offered(Action::Slide(SLIDE_OMIT, 2))
+        .expect("the Shares card at its present stop");
+    let (x, y) = app
+        .where_offered(Action::Slide(SLIDE_OMIT, 1))
+        .expect("the Shares card");
+    app.event(Event::Touch {
+        x: x0,
+        y: y0,
+        phase: TouchPhase::Down,
+    });
+    app.event(Event::Touch {
+        x,
+        y,
+        phase: TouchPhase::Move,
+    });
+    assert_eq!(app.backup().unwrap().answers.omit, 1, "set at once");
+    assert!(app.outbox.len() < made, "the files wait while it is held");
+    app.event(Event::Touch {
+        x,
+        y,
+        phase: TouchPhase::Up,
+    });
+    assert_eq!(app.backup().unwrap().answers.omit, 1);
+    faraday_core::testkit::settle(&mut app);
+    assert_eq!(app.outbox.len(), made, "made again once let go");
+}
+
 /// What is a share? opens the guide on the page about shares; closing it
 /// leaves the plan on the board.
 #[test]

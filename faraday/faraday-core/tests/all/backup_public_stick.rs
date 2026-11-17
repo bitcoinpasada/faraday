@@ -125,7 +125,13 @@ fn a_seed_file_beside_the_wallets_vault_leaves_the_public_files_another_stick() 
     let fp = faraday_bip::keys::Fingerprint(fp);
     assert!(app.key_held(&c, fp), "held until its sticks are written");
     shell.flow(&mut app, F::WalletLock);
-    assert_eq!(app.toast_text(), None);
+    // The lock is not refused: at most the files it made are said to wait.
+    assert!(
+        app.toast_text()
+            .is_none_or(|t| t.ends_with("waits for the stick")),
+        "{:?}",
+        app.toast_text()
+    );
     assert_eq!(let_seed_files_out(&mut app), 0, "held at the drop");
     let mut app = restart(&mut shell, &mut app);
     assert!(

@@ -1,13 +1,13 @@
 # Costly work off the drawing thread
 
 **Kind:** Spec
-**Status:** Partly built: the worker, the shells' wake, the busy screen and the jobs listed in §9 run; the rest are open. The owner's answers are in §10, the line between a job and work drawn first is F184, amended by F273.
-**Open:** the list of §2.1 confirmed on a Pi 3B+, and the presses drawn first run in the press or as jobs instead, with the drawn-first path taken out (F273)
+**Status:** Partly built: the worker, the shells' wake, the busy screen and the jobs listed in §9 run; the rest are open. The owner's answers are in §10, the line between a job and work run in the press is F184, amended by F273.
+**Open:** pictures and PDFs of secret words as a job on the worker (§6, §10 item 4)
 
 Touch and drawing run on each shell's own thread, the main thread. Work
 that takes longer than a tenth of a second on a Raspberry Pi 3B+ runs on
 a thread of its own, one worker in the core; shorter work stays where
-it is, drawn first and done on the tick after (owner, 2026-10-31,
+it is, run in the press (owner, 2026-10-31,
 2026-11-02; F184, which amends `docs/SPEED.md` §9 point 2). This holds
 for every Faraday: the stick and the Pi (`faraday/shells/stick`, one
 shell for both) and Faraday Demo (`faraday/shells/demo` over
@@ -41,7 +41,7 @@ still for them. And the panic chord is timed by the stick's main loop
 stretched there, the chord held for its whole time does nothing until
 the stretch ends. Moving the long work off the main thread fixes both:
 the inspection and every stretch that holds the screen for seconds are
-jobs (§2.1), and what stays is drawn first and shorter than a tenth of a
+jobs (§2.1), and what stays runs in the press and is shorter than a tenth of a
 second on a Pi.
 
 **The Starter.** Its own work already runs on threads (the disks,
@@ -60,7 +60,7 @@ Demo's (§7.2).
    they hold nothing of `Faraday`, and a band that panics ends the frame
    as a panic on the main thread does; so is a fade's blend of its two
    kept frames, in bands of rows (`docs/FRAMES.md` §4.3). Work on §2.1's list of jobs runs on the worker; any other
-   costly press is drawn first and done on the tick after, as SPEED §9
+   costly press runs in the press, as SPEED §9
    point 2 says, and is short by the line of §2.1.
 2. **Drawing reads.** The busy screen (§4) reads what the core keeps
    of the job (`Busy`: what it is, when it began, a count where it has
@@ -81,32 +81,43 @@ Demo's (§7.2).
 
 **The line** (owner, 2026-11-02; F184). A press is a job when its work
 takes longer than a tenth of a second, 100 ms, on a Raspberry Pi 3B+ at
-its full clock (1400 MHz); shorter work is drawn first and done on the
-tick after. A vault's key stretch is a job whatever it measures. Work
+its full clock (1400 MHz); shorter work runs in the press. A vault's key stretch is a job whatever it measures. Work
 that grows with what it is given is judged at a large ordinary case: a
 2-of-3 spend of 50 inputs, a multisig of fifteen keys.
 
-**In the press, not drawn first** (owner, 2026-11-16; F273, not
-built). Work under the line is to run in the press itself, with no frame
-drawn first and no working toast: the frame after the press shows its
-result. The drawn-first side of the table below then becomes the presses
-run in the press; until a Pi times them, the stand-in places each, and a
-press whose timings fall either side of the stand-in's line is a job.
-`Later::Vault` and the debug guard stay; `drawn_first`, `Later::Press`
-and `working_text` go.
+**In the press, not drawn first** (owner, 2026-11-16; F273). Work under
+the line runs in the press itself, with no frame drawn first and no
+working toast: the frame after the press shows its result. The table's
+"In the press" side is `slow::runs_in_press`; the measurement below
+places each, and a press whose timings fall either side of 10 ms is a job. `Later::Vault` and the debug guard stay (a
+press on neither list that stretches a key or makes more than one picture
+panics, naming itself). A slider that changes the shares (`BOmit`) sets
+its value at once and starts the files' job once it is let go.
 
-**Until a Pi measures it.** No Pi has timed these presses yet, so a
-release build on a desktop PC stands in, at a tenth of the line (10 ms):
-SPEED's history found that "a Pi 3 is about ten times
-slower". The list below was
-made that way.
+**How the list is placed** (owner, 2026-11-17; F273). No Pi 3B+ is timed
+for it, so a release build on a desktop PC places each press, at a tenth
+of the line (10 ms): SPEED's history found that "a Pi 3 is about ten
+times slower". Under 10 ms the press runs in the press, over it it is a
+job, and a press whose timings fall either side of 10 ms from run to run
+is a job. The list below was made that way.
 
-**How an item moves.** The dev card's `work` rows (`costly::label`),
-read on a Pi 3B+ at 1400 MHz, confirm an item or move it: a press drawn
-first whose row shows more than 100 ms becomes a job, and a job whose
-row shows well under it goes back to drawn first, except a vault's
-stretch. A move is one commit that changes `slow.rs`'s list and this
-table together and says in its message what was measured on what.
+**Measured** (a release build, `cargo nextest run --release` of the
+tests that press them, with the time of `Faraday::act` in `press_in`
+printed for each press, on the build machine; the range over the tests'
+runs): Run self-test (`SelfTestRun`) 4.9 ms; Read a seed (`SeedRead`,
+`Plain` and `WithPass`) 3.0 to 4.1 ms; Load a key (`LoadKey`, one
+sample) 4.9 ms; My seed's Check (`SeedCheck` `NoPass`, `UsePass`, `Keep`)
+1.6 to 1.8 ms, 2.9 to 3.0 ms and under 1.8 ms. All are under 10 ms and
+run in the press. Compare (`CompareGo`, `CompareFile`) measured 0.5 to
+6.5 ms by the size of the case and stays a job (the count of its key
+derivations, and a range that reaches the line on a slower machine).
+
+**How an item moves.** A measurement in a release build on a desktop PC
+that puts a press on the other side of 10 ms moves it: a press run in the
+press that measures over 10 ms becomes a job, and a job that measures
+well under it goes back to the press, except a vault's stretch. A move
+is one commit that changes `slow.rs`'s list and this table together and
+says in its message what was measured on what.
 
 | Work | Presses | Side |
 |---|---|---|
@@ -124,16 +135,16 @@ table together and says in its message what was measured on what.
 | Signing | A PSBT signed, on the Spend tab or from a review. The job also works the spend out after it signs (the signature noted, the inspection, the nonce check, the signers, the finished transaction) and plans the part file, on a copy of the session as Collect's does; the apply is moves only, and the part file is worked out again on the main thread only where the Outbox no longer holds the file the job planned against | Job |
 | A PSBT's Collect | `Action::Collect`: a file's signatures added to the open spend, and the spend worked out anew (the inspection, the nonce check with every key, the signers, the finished transaction) and its part file planned (`Kind::Collecting`; `faraday-core/src/signing/collect.rs`). Measured at 50 inputs, release, on a desktop PC: 118 ms (2-of-3) and 178 ms (taproot), the stand-in's line at 10 ms. The answer's apply is moves only, and the part file is worked out again on the main thread only where the Outbox no longer holds the file the job planned against | Job |
 | A PSBT's inspection | A PSBT parsed, inspected and worked out (the signers, the finished transaction; the nonce check is left to the Finish card, which works it out when drawn, as before), from a file or the last part of a scanned code (`Work::PsbtParse`, `PsbtInspect`), on a copy of the session as Collect's; the apply is moves only. Measured on a desktop PC, release, at 50 inputs, the main-thread part of opening before this (its apply: the aggregation, the signers, the wallet and the finish): 20 and 17 ms (2-of-3, taproot) the first time, 11 and 9 ms read again, the stand-in's line at 10 ms. A scanned card's one-line fact (`read_psbt_fact`) still parses on the main thread, left for the measurement on a Pi | Job |
-| A file's hash in Check a timestamp | The file taken (`OtsCheck(File)`, `ots_check::hash`), and a proof naming another hash taken after it: one pass over the file under the hash the proof's first operation names, or SHA-256 until a proof is in (the others only when a proof names them, from the file kept for it). A file over 3 MiB (`ots_check::hash::JOB_BYTES`) is a job (`Kind::OtsHash`; the line "Hashing the file"; Back or Cancel drops the answer); a smaller one is hashed on the press as before. Measured in a release build on a desktop PC (2026-11-10), 8 MiB hashed five times over, the best: SHA-256 0.45 ms/MiB, SHA-1 0.43 ms/MiB, RIPEMD-160 2.6 ms/MiB, so the three together cost 3.4 ms/MiB and a 10 MiB file took about 35 ms before this; the line is the slowest hash at the stand-in's 10 ms, about 3.8 MiB, rounded down to 3 MiB (7.8 ms). A Pi has no instructions for SHA-256 and SHA-1, so those two are about as slow there as RIPEMD-160 and one line is kept for all | Job over 3 MiB, else drawn first |
+| A file's hash in Check a timestamp | The file taken (`OtsCheck(File)`, `ots_check::hash`), and a proof naming another hash taken after it: one pass over the file under the hash the proof's first operation names, or SHA-256 until a proof is in (the others only when a proof names them, from the file kept for it). A file over 3 MiB (`ots_check::hash::JOB_BYTES`) is a job (`Kind::OtsHash`; the line "Hashing the file"; Back or Cancel drops the answer); a smaller one is hashed on the press as before. Measured in a release build on a desktop PC (2026-11-10), 8 MiB hashed five times over, the best: SHA-256 0.45 ms/MiB, SHA-1 0.43 ms/MiB, RIPEMD-160 2.6 ms/MiB, so the three together cost 3.4 ms/MiB and a 10 MiB file took about 35 ms before this; the line is the slowest hash at the stand-in's 10 ms, about 3.8 MiB, rounded down to 3 MiB (7.8 ms). A Pi has no instructions for SHA-256 and SHA-1, so those two are about as slow there as RIPEMD-160 and one line is kept for all | Job over 3 MiB, else in the press |
 | Compare in My seed makes my wallet | `SeedCheck(CompareGo)`, `SeedCheck(CompareFile)` and Enter, a scanned code or a file in Compare's field: a key, an address or a wallet file held against the seed at the account picked, up to a PBKDF2 and 200 key derivations (the first 100 addresses of each chain). The job is `Kind::SeedCompare`, the line "Comparing", over `Keys::compare_view`; a typed or pasted secret is refused before it starts; the answer of a value or an account changed meanwhile is dropped, and Back or Cancel drops it too | Job |
 | A Bitcoin Core wallet's Read | `CoreWallet(Read)` in Tools: the file opened and its records and keys checked, with the passphrase stretch of an encrypted wallet (66 ms here at Core's usual rounds, about 3 s on a Pi, up to ten million rounds allowed). The job is `Kind::CoreWalletRead`, the line "Reading the wallet"; the passphrase leaves the field when the job starts, and Back or Cancel drops the answer. Take to Wallets stays on the press, as every other import's `add_wallet` does | Job |
 | A set of files | A wallet's public files (`PublicOut` 2, 4 and 14: the multisig config checked, the split shares, Specter's numbered pictures), the backup's checklist (`BChecklist`) and its Make the files (`BFilesMake`): jobs; the backup stick's files made at Lock and write and the flow's writes (`Flow`), which write to a stick beside secret words | Job (the files made inside Lock and write stay with the write, §7.3) |
-| PBKDF2 alone | A BIP-39 seed with or without a passphrase: Add a key, Load a key and its probe of the words, `SeedRead`, a Krux code's Read as a seed, the read card's Add this key on a secret (`ReadGo`), the QR vault tool's seed to the seed sheet and Add to key (`QrTool(Seed)`, `QrTool(AddToKey)`; when the open finishes, the seed sheet's PBKDF2, or one PBKDF2 per loaded key with words for a passphrase, is worked out in the same completion), `Potential`, New key, a chart's passphrase try; SLIP-39 shares split and recovered, Convert a seed's SLIP-39 set among them (a split and two read-backs: about the stand-in's line for 2 of 3 and for two groups, ten times it for the largest shape the card reaches, 13 of 16 groups of 2 of 16 each, which is no ordinary case) | Drawn first |
-| A key's fingerprint for each key record of each target | A copy or move of an item (`V::CopyTo`, `V::MoveTo`, and `V::CopyKeep`, the tick that judges every row again), a seed saved into a vault with its Keep sheet (`V::SaveKey`, `V::KeepSave`, `V::SaveKeyKept`). A copy tells a key the target already holds by its fingerprint and master id, worked out once for each key record and kept by the record's id (a hash of its words and passphrase, so a record changed is worked out again). The words of a key record are read once and kept for the record, dropped for the record changed alone, and a document measure reads no other entry again. Measured (2026-11-05) in a release build on a desktop PC, the stand-in of this section, with two other vaults of 15 seeds each (each carrying a stored passphrase, a codex32 set and a BIP-85 origin, and without): with every fingerprint kept, `V::CopyTo`, `V::CopyKeep` and `V::MoveTo` under 1 ms, `V::SaveKey` and `V::KeepSave` 2 ms with the frame after under 1 ms, the same at 40 seeds. Every key record of an open vault is worked out as the vault unlocks and after every vault press, so a copy or move finds them kept and pays for none of them; the work at unlock (about 1.7 ms for each key record on the stand-in) is done in the unlock's job on the worker, which hands back each record's fingerprint and master id with the opened vault, so the main thread works out no fingerprint or master id at the unlock and a press after it finds them kept; the job takes about 1.4 s more on a Pi 3B+ with 15 keys, while "Unlocking" is shown. A wallet's matching of its keys (an account key at its path) is still worked out on first use on the main thread | Drawn first |
-| One picture or one PDF | A SeedQR picture, a seed's words or a paper form, one backup sheet | Drawn first |
-| The self-test | Run self-test (`SelfTestRun`) | Drawn first |
-| Lock | `Lock`, and `LockUnsealed` (lock with the open vaults' changes that cannot be sealed lost: the sheet's action when the system has given no randomness, or a vault is short of memory or past the most a vault holds): drawn first. Each runs `lock_now`, which takes every secret on show off the screen (`lock_secrets_off_screen`, the idle warning's shorter `secrets_off_screen` leaving the Seed XOR parts: the code, revealed fields, words, SeedQR, Seed XOR parts, codex32 strings, the Convert result and the other eyes; what is typed stays, to be finished if the lock stops) and starts the vaults' seals on the worker (`Kind::VaultSeal`, one at a time, the lock going on in `lock_finish` when the last is done); `Lock` reaches it once it has found nothing to lose, `LockUnsealed` (changes may be lost) directly. Before it, `Lock` checks on the main thread what a lock would lose (`lock_would_lose`: for each changed open vault its size against the ceiling and the memory free, with an exact count of the vault when free memory is close, about 22 ms for a vault of 19 MB of entries on the build machine; not measured on a Pi), and `lock_now` refreshes the vaults' summaries and the held list before the seals start; the seals are the Argon2id row's jobs | Drawn first |
-| Not yet timed | codex32's new set, Vanity's Use, the Inbox's load, the Seeds tab's Make and Sample | Drawn first until timed with the stand-in |
+| PBKDF2 alone | A BIP-39 seed with or without a passphrase: Add a key, Load a key and its probe of the words, `SeedRead`, a Krux code's Read as a seed, the read card's Add this key on a secret (`ReadGo`), the QR vault tool's seed to the seed sheet and Add to key (`QrTool(Seed)`, `QrTool(AddToKey)`; when the open finishes, the seed sheet's PBKDF2, or one PBKDF2 per loaded key with words for a passphrase, is worked out in the same completion), `Potential`, New key, a chart's passphrase try; SLIP-39 shares split and recovered, Convert a seed's SLIP-39 set among them (a split and two read-backs: about the stand-in's line for 2 of 3 and for two groups, ten times it for the largest shape the card reaches, 13 of 16 groups of 2 of 16 each, which is no ordinary case) | In the press |
+| A key's fingerprint for each key record of each target | A copy or move of an item (`V::CopyTo`, `V::MoveTo`, and `V::CopyKeep`, the tick that judges every row again), a seed saved into a vault with its Keep sheet (`V::SaveKey`, `V::KeepSave`, `V::SaveKeyKept`). A copy tells a key the target already holds by its fingerprint and master id, worked out once for each key record and kept by the record's id (a hash of its words and passphrase, so a record changed is worked out again). The words of a key record are read once and kept for the record, dropped for the record changed alone, and a document measure reads no other entry again. Measured (2026-11-05) in a release build on a desktop PC, the stand-in of this section, with two other vaults of 15 seeds each (each carrying a stored passphrase, a codex32 set and a BIP-85 origin, and without): with every fingerprint kept, `V::CopyTo`, `V::CopyKeep` and `V::MoveTo` under 1 ms, `V::SaveKey` and `V::KeepSave` 2 ms with the frame after under 1 ms, the same at 40 seeds. Every key record of an open vault is worked out as the vault unlocks and after every vault press, so a copy or move finds them kept and pays for none of them; the work at unlock (about 1.7 ms for each key record on the stand-in) is done in the unlock's job on the worker, which hands back each record's fingerprint and master id with the opened vault, so the main thread works out no fingerprint or master id at the unlock and a press after it finds them kept; the job takes about 1.4 s more on a Pi 3B+ with 15 keys, while "Unlocking" is shown. A wallet's matching of its keys (an account key at its path) is still worked out on first use on the main thread | In the press |
+| One picture or one PDF | A SeedQR picture, a seed's words or a paper form, one backup sheet | In the press |
+| The self-test | Run self-test (`SelfTestRun`) | In the press |
+| Lock | `Lock`, and `LockUnsealed` (lock with the open vaults' changes that cannot be sealed lost: the sheet's action when the system has given no randomness, or a vault is short of memory or past the most a vault holds): in the press. Each runs `lock_now`, which takes every secret on show off the screen (`lock_secrets_off_screen`, the idle warning's shorter `secrets_off_screen` leaving the Seed XOR parts: the code, revealed fields, words, SeedQR, Seed XOR parts, codex32 strings, the Convert result and the other eyes; what is typed stays, to be finished if the lock stops) and starts the vaults' seals on the worker (`Kind::VaultSeal`, one at a time, the lock going on in `lock_finish` when the last is done); `Lock` reaches it once it has found nothing to lose, `LockUnsealed` (changes may be lost) directly. Before it, `Lock` checks on the main thread what a lock would lose (`lock_would_lose`: for each changed open vault its size against the ceiling and the memory free, with an exact count of the vault when free memory is close, about 22 ms for a vault of 19 MB of entries on the build machine; not measured on a Pi), and `lock_now` refreshes the vaults' summaries and the held list before the seals start; the seals are the Argon2id row's jobs | In the press |
+| Not yet timed | codex32's new set, Vanity's Use, the Inbox's load, the Seeds tab's Make and Sample | In the press until timed in a release build |
 
 Files written to a stick are not a press's work but a wait on the disk
 process; they stay on the main thread (§7.3).
@@ -185,7 +196,7 @@ struct Answer { done: Done, gen: u64, counts: work::Counts }
   new one replaces the one not yet started and makes the running one's
   answer stale, as the scanner takes the newest frame. The probes that
   follow typing (`Sheet::Potential`, `Sheet::SeedRead`, Load a key's
-  probe of the words) stretch PBKDF2 alone and stay drawn first, after
+  probe of the words) stretch PBKDF2 alone and stay in the press, after
   SPEED §9 point 2's typed pause (§2.1); one that moves to the worker
   takes this rule.
 - **Inline.** A scripted press (`Faraday::press`, the snapshot tool,
@@ -200,10 +211,11 @@ struct Answer { done: Done, gen: u64, counts: work::Counts }
 
 ### 3.3 What the worker replaces
 
-Nothing that is drawn first. `Later`, `later_drawn`, `later_tick` and
-`later_now` stay, for the presses under the line (§2.1): their work is
-short, and the frame drawn first already shows the press. `slow`'s list
-is split in two, the presses that start a job and those drawn first, as
+Nothing that runs in the press. `Later::Vault`, `Later::Key`,
+`later_tick` and `later_now` stay, for a vault's stretch and a key left
+for the frame that says it is under way; the presses under the line
+(§2.1) run in the press with no frame drawn first. `slow`'s list
+is split in two, the presses that start a job and those run in the press, as
 §2.1's table says, and the debug guard in `press_in` stays as it
 is: a press on neither list that stretches a key or makes more than one
 picture on the main thread panics, naming itself. What the worker
@@ -212,9 +224,8 @@ once and its work no longer runs on the thread that draws.
 
 ## 4. The screen while a job runs
 
-This screen is for the jobs of §2.1 alone. A press drawn first keeps
-what it has today: the frame that shows it, with its toast for files or
-a node key, and the work on the tick after.
+This screen is for the jobs of §2.1 alone. A press run in the press
+has no busy screen: the frame after it shows its result.
 
 `Faraday.busy: Option<Busy>`, public and read by drawing: the job's
 `Kind`, its line of text, the time it began, and `done`/`of` where the
@@ -307,7 +318,7 @@ F70 stands: key material lives in faraday-keys and leaves only through
 its named reveals (`docs/KEYS.md` §2). A job's key material never leaves
 faraday-keys' types; the thread it runs on changes, the crate holding it
 does not. Only the jobs of §2.1 carry key material to the worker; a
-press drawn first keeps its secrets on the main thread, as today.
+press run in the press keeps its secrets on the main thread, as today.
 
 **What moves to the worker.**
 
@@ -417,9 +428,10 @@ Each states what a person would notice, in the area's tests
   the inline press gives; a vault made through the worker opens with the
   same passphrase in a fresh app; files made through the worker are the
   same bytes.
-- **A short press is drawn first.** A press on the drawn-first side of
-  §2.1 shows its frame before its work, and its work is done on the tick
-  after, with no busy screen (`tests/all/slow_press.rs`, as today).
+- **A short press runs in the press.** A press on the in-the-press side
+  of §2.1 does its work in the press, with no frame or working toast
+  drawn first and no busy screen: the frame after it shows the result
+  (`tests/all/slow_press.rs`).
 - **A scan goes on.** The Scan sheet with an animated PSBT: frames keep
   being drawn while its last part's PSBT is read and checked, and the
   review opens after `settle`.
@@ -433,13 +445,13 @@ Each states what a person would notice, in the area's tests
 ## 9. Order of building
 
 The worker, with the split of `slow`'s list into presses that start a job
-and presses drawn first (§2.1), comes first; everything else uses it. The
+and presses run in the press (§2.1), comes first; everything else uses it. The
 shells' wake and the busy screen (§3, §4) follow. The vault stretches come
 before the other jobs that hold key material, because they build
 faraday-keys' `job.rs`, which the aezeed read, the KeePass export, signing
 and a PSBT's read use; a set of public files needs only the worker and the
 busy screen. Files written to a stick stay on the main thread (§7.3).
-Confirming the list of §2.1 on a Pi 3B+ needs a Pi dev card. A job that
+A job that
 touches keys, cryptography, signing or what the device takes in gets the
 reviewer before it lands.
 
@@ -449,7 +461,7 @@ What each piece is and changes:
   wins, inline mode, `work::absorb`, `busy`, the refusals of §4, the idle
   clock held, `testkit::settle`; the mint's row in COMPUTE §3 and `MINTS`
   (checked by the costs lint); `slow`'s list split as §2.1's table says,
-  the presses not yet timed timed with the stand-in and put on their side.
+  the presses not yet timed timed in a release build and put on their side.
   The first job is Practice's samples loaded (`SamplesLoad`, public data).
   `faraday-core/src/worker.rs`, `lib.rs` (`press_in`, the drain), `slow.rs`,
   `idle.rs`, `work.rs`, `testkit.rs`, `tools/costs-lint/src/main.rs`,
@@ -467,12 +479,12 @@ What each piece is and changes:
 - **Vault stretches** (built): Open (an older vault's, the boot import's
   and Spend's unlock included) and Make as `StretchJob` and `Stretched` in
   faraday-keys, the passphrase by move. Seal again runs no stretch; the
-  samples' keys stay drawn first (PBKDF2). faraday-keys' `job.rs`,
+  samples' keys stay in the press (PBKDF2). faraday-keys' `job.rs`,
   `faraday-vault`'s Argon2 call site, `faraday-core/src/vault/`,
   `boot_import/`, `docs/KEYS.md`.
 - **The other stretches** (built): an aezeed read, a Core Lightning hsm_secret read (the job in `faraday/faraday-keys/src/hsm_secret.rs`, run by the Lightning screen's Core Lightning source), the KDBX export written
   and verified. A BIP-39 seed, SLIP-39 and a chart's passphrase try stay
-  drawn first (§2.1). `faraday-core/src/lightning/`, the KDBX writer's
+  in the press (§2.1). `faraday-core/src/lightning/`, the KDBX writer's
   call site (`faraday/faraday-keys/src/vault/`).
 - **Signing and checking** (built): `SignJob` with the store's keys behind
   `Arc` (§10 question 1; `Keys::sign_job`, `faraday-core/src/signing.rs`);
@@ -504,7 +516,7 @@ What each piece is and changes:
   `faraday-core/src/signing/fresh.rs`, `faraday/faraday-keys/src/session.rs`.
 - **Sets of files of public values** (built in part): a wallet's files,
   the checklist's, the backup stick's and the flow's public files. A single
-  picture or PDF, and those of secret words, stay drawn first (§2.1, §6).
+  picture or PDF, and those of secret words, stay in the press (§2.1, §6).
   Built: `public_files.rs` makes a wallet's files from owned public inputs
   (name, policy, network, the sheet's fingerprints, the slider's setting)
   in one `FilesWork` job. A press on the multisig config, the split shares
@@ -521,10 +533,8 @@ What each piece is and changes:
   vault's save are made with the write of a stick, beside secret words,
   and stay there (§6, §7.3). `faraday-core/src/public_files.rs`,
   `wallet_backup.rs`, `picture.rs`, `pdf.rs`, `backup_flow/`.
-- **The list confirmed on a Pi** (not built): the list of §2.1 on a
-  Pi 3B+ at 1400 MHz from the dev card's `work` rows, each item kept or
-  moved as §2.1 says; one late-flow session timed as SPEED §7 says. `Later`
-  stays. `slow.rs`, `docs/SPEED.md`.
+- **The list placed by a desktop release build** (built): §2.1's
+  measurement; `Later::Vault` stays. `slow.rs`, `docs/SPEED.md`.
 
 
 ## 10. For the owner
@@ -556,8 +566,6 @@ Decided by the owner, 2026-11-02, as below.
 6. **The decision** (§5): one new decision, F184.
 
 **The middle way** (owner, 2026-11-02, F184). Not every costly press is
-a job: draw first and work on the tick after stays the rule for short
-work, and work longer than a tenth of a second on a Pi 3B+ runs on the
+a job: short work runs in the press, and work longer than a tenth of a second on a Pi 3B+ runs on the
 worker (§2.1). The answers above stand for the jobs; answer 4 applies
-to none of today's presses, since a picture or PDF of secret words is
-drawn first, and holds for one a Pi moves over the line.
+to none of today's presses, since a picture or PDF of secret words runs in the press, and holds for one a Pi moves over the line.

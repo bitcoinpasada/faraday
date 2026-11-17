@@ -37,26 +37,39 @@ impl Faraday {
 /// The press left to wait for a frame, and the job on the worker
 /// (`docs/SPEED.md` §9, `docs/WORKERS.md`).
 impl Faraday {
-    /// Says what a press left for the tick is doing, at once: the toast
+    /// Says what a key left for the tick is doing, at once: the toast
     /// shows in full on the frame drawn before the work.
     pub(crate) fn working(&mut self, text: &str) {
         self.toast(text);
         self.out.toast_at = Some(self.now_ms.saturating_sub(motion::TOAST_MS));
     }
 
-    /// Does the press waiting, once a frame has been drawn since it was
-    /// pressed. Public files a slider asked for wait until it is let go.
-    /// Returns whether it did.
+    /// Does the vault stretch or key waiting, once a frame has been drawn
+    /// since it was left. Returns whether it did.
     pub(crate) fn later_tick(&mut self) -> bool {
-        let held = matches!(self.pointer.pressed(), Some((Action::Slide(..), _)));
-        if !self.worker.drawn()
-            || self.later.is_none()
-            || (held && matches!(self.later, Some(Later::Press(Action::PublicOut(..)))))
-        {
+        if !self.worker.drawn() || self.later.is_none() {
             return false;
         }
         self.later_now();
         true
+    }
+
+    /// The shares' files, started once the slider that changed them is
+    /// let go (`docs/WORKERS.md` §2.1). Returns whether it started them.
+    pub(crate) fn omit_remake_tick(&mut self) -> bool {
+        let held = matches!(self.pointer.pressed(), Some((Action::Slide(..), _)));
+        if held || self.backup.omit_remake().is_none() {
+            return false;
+        }
+        self.omit_remake_now();
+        true
+    }
+
+    /// Starts the shares' files at once, if a slider asked for them.
+    pub(crate) fn omit_remake_now(&mut self) {
+        if let Some(w) = self.backup.take_omit_remake() {
+            self.act(Action::PublicOut(w, 4));
+        }
     }
 
     /// Does the press waiting now, and for a script (`inline`) what that
@@ -70,11 +83,12 @@ impl Faraday {
 
     /// Does the press waiting now, whatever has been drawn.
     pub(crate) fn later_now(&mut self) {
+        self.omit_remake_now();
         let Some(later) = self.later.take() else {
             return;
         };
         let toast = self.out.toast.as_ref().map(|(t, _)| t.clone());
-        if let Later::Press(_) | Later::Key(_) = later {
+        if let Later::Key(_) = later {
             self.note_here();
         }
         match later {
@@ -86,10 +100,9 @@ impl Faraday {
                     self.nonce_spend_sync();
                 }
             }
-            Later::Press(a) => self.act(a),
             Later::Key(k) => self.key(k),
         }
-        if let Later::Press(_) | Later::Key(_) = later {
+        if let Later::Key(_) = later {
             self.backup_settle();
             self.after_input();
         }

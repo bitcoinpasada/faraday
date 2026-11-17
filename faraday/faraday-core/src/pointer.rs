@@ -8,9 +8,7 @@ use faraday_shell_api::Key as KeyIn;
 use faraday_ui::tooltip::{TipAnchor, TipBy, Tips};
 
 use crate::Action;
-use crate::{
-    Faraday, Later, Screen, Sheet, drawn_first, motion, slow, ui, vault, work, working_text,
-};
+use crate::{Faraday, Screen, Sheet, motion, slow, ui, vault, work};
 use faraday_shell_api::Command;
 use faraday_shell_api::TouchPhase;
 
@@ -668,33 +666,23 @@ impl Faraday {
         self.out.commands.push_back(Command::Draw);
     }
 
-    /// A person's press: done now, or, when its work stretches a key or
-    /// makes pictures ([`drawn_first`]), drawn first and done on the tick after
-    /// (`docs/SPEED.md` §9). A press left waiting goes first.
+    /// A person's press: done now, whatever its work (`docs/WORKERS.md`
+    /// §2.1: under the line it runs here, over it it starts a job). A
+    /// vault stretch or key left waiting goes first.
     pub(crate) fn press_in(&mut self, action: Action) {
         // A slider moved again replaces the files it asked to be made.
-        if !(matches!(action, Action::Slide(..))
-            && matches!(self.later, Some(Later::Press(Action::PublicOut(..)))))
-        {
+        if !(matches!(action, Action::Slide(..)) && self.backup.omit_remake().is_some()) {
             self.later_now();
-        }
-        if drawn_first(action) && !field_action(action) {
-            self.later = Some(Later::Press(action));
-            self.worker.set_drawn(false);
-            if let Some(text) = working_text(action) {
-                self.working(text);
-            }
-            self.out.redraw();
-            self.out.commands.push_back(Command::Draw);
-            return;
         }
         let before = work::snapshot();
         self.act(action);
         // The rule `slow` keeps, held in debug builds and every test: a
-        // press not left for the tick stretches no key and makes at most
-        // one picture.
+        // press on neither list stretches no key and makes at most one
+        // picture.
         let done = work::since(&before);
         slow::guard(action, &done);
+        // A slider let go starts the files it changed.
+        self.omit_remake_tick();
     }
 
     /// What every press does once it has acted, however it came (a tap,

@@ -16,7 +16,6 @@ use faraday_codec::encodings::ReadAs;
 use faraday_crypto::work::Compute;
 use faraday_text::{Text, text};
 
-use crate::{Action, Later};
 use crate::{Faraday, Screen};
 
 /// The calculators, in the order Tools lists them.
@@ -579,12 +578,6 @@ impl Faraday {
     /// checks passed, or the name of the first that failed.
     pub fn selftest(&self) -> Option<faraday_selftest::Outcome> {
         self.selftest
-    }
-
-    /// Run again was pressed and its frame is drawn, the run waiting for
-    /// the tick after (`slow`).
-    pub(crate) fn selftest_running(&self) -> bool {
-        matches!(self.later, Some(Later::Press(Action::SelfTestRun)))
     }
 
     /// The self-test has run and every check passed.

@@ -1,9 +1,10 @@
-//! A press that stretches a key or makes many pictures is drawn first and
-//! does its work on the tick after (`docs/SPEED.md` §9): a person's tap
-//! or Enter does none of that work itself, the frame after it shows the
-//! press (and, for files or a node key, what is being made), and the tick
-//! after that frame does the work. Every other press does no such work
-//! at all, which the guard in every test holds (`Faraday::press_in`).
+//! A press that makes many pictures is a job on the worker; one that
+//! stretches a key under the line runs in the press, and the frame after
+//! it shows the result with no working line drawn first
+//! (`docs/WORKERS.md` §2.1). An Enter that stretches a node key is left for
+//! the frame that says so (`docs/SPEED.md` §9). The guard in every test
+//! holds that no press on neither list does such work
+//! (`Faraday::press_in`).
 
 use faraday_core::testkit;
 use faraday_core::work::{Counts, Work, since, snapshot};
@@ -34,18 +35,6 @@ fn tap(app: &mut Faraday, action: Action) -> Counts {
         app.event(Event::Touch { x, y, phase });
     }
     since(&before)
-}
-
-/// The frame that shows what was pressed, then the tick after it: the
-/// work the tick did.
-fn frame_then_tick(app: &mut Faraday) -> Counts {
-    let _ = app.frame();
-    let before = snapshot();
-    let now = app.now_ms() + 16;
-    app.event(Event::Tick { now_ms: now });
-    let done = since(&before);
-    let _ = app.frame();
-    done
 }
 
 /// Neither a key stretched nor more than one picture made.
@@ -134,7 +123,7 @@ fn the_checklists_pictures_are_made_on_the_worker() {
 }
 
 #[test]
-fn a_key_added_by_a_tap_is_stretched_after_the_frame_that_shows_the_press() {
+fn a_key_added_by_a_tap_is_loaded_by_the_frame_after_with_no_working_line() {
     let mut app = testkit::started();
     faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.press(Action::Entry(None));
@@ -142,17 +131,18 @@ fn a_key_added_by_a_tap_is_stretched_after_the_frame_that_shows_the_press() {
         app.event(Event::Key(Key::Char(c)));
     }
     let pressed = tap(&mut app, Action::EntryAdd);
-    assert!(light(&pressed), "the tap stretched the key: {pressed:?}");
     assert!(
-        app.session.keys.is_empty(),
-        "nothing loaded before the frame"
+        pressed.of(Work::Kdf) > 0,
+        "the tap stretched the key: {pressed:?}"
     );
-    let done = frame_then_tick(&mut app);
-    assert!(
-        done.of(Work::Kdf) > 0,
-        "the tick after stretched it: {done:?}"
-    );
+    let _ = app.frame();
     assert_eq!(app.session.keys.len(), 1, "the key is loaded");
+    assert_ne!(
+        app.toast_text(),
+        Some(EN.working_seed_key),
+        "no working line was drawn first"
+    );
+    assert!(app.busy().is_none(), "and no job is running");
 }
 
 #[test]
