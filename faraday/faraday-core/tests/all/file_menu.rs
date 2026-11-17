@@ -19,6 +19,7 @@ fn file(name: &str, bytes: &[u8]) -> (String, Vec<u8>) {
 fn menu_of(app: &mut Faraday, row: Row) -> Vec<String> {
     let _ = app.frame();
     let dots = Action::File(FilePress::Menu(row));
+    scroll_to(app, dots);
     assert!(app.offers(dots), "{row:?} has a ⋮");
     app.press(dots);
     assert_eq!(app.sheet, Some(Sheet::FileMenu));
@@ -30,6 +31,34 @@ fn menu_of(app: &mut Faraday, row: Row) -> Vec<String> {
         .iter()
         .map(|(l, _)| l.clone())
         .collect()
+}
+
+/// The wheel turned over the stick's file list until `action` is drawn:
+/// a row below the window is reached by scrolling to it.
+fn scroll_to(app: &mut Faraday, action: Action) {
+    for _ in 0..20 {
+        if app.offers(action) {
+            return;
+        }
+        let names: Vec<String> = app.sticks()[0]
+            .files
+            .iter()
+            .map(|(n, _)| String::from(&**n))
+            .collect();
+        let (x, y) = app
+            .drawn_text_boxes()
+            .into_iter()
+            .find(|(t, _)| names.iter().any(|n| n.as_str() == &**t))
+            .map(|(_, (x, y, w, h))| (x + w / 2, y + h / 2))
+            .expect("a file of the stick is drawn");
+        app.event(Event::Wheel {
+            x: x as u16,
+            y: y as u16,
+            dy: 120,
+        });
+        app.settle();
+        let _ = app.frame();
+    }
 }
 
 /// The choice in the open menu that reads `label`, pressed.
