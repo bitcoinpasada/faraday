@@ -377,6 +377,7 @@ impl Faraday {
     /// ending it loses something the person would notice, else ends it.
     /// Decides from the state as it is.
     pub(crate) fn flow_cancel(&mut self) {
+        self.keygen.clear_reopen();
         if self.key_cancel_offered() {
             if self.key_cancel_loses() {
                 self.sheet = Some(crate::Sheet::CancelKey);
@@ -412,7 +413,9 @@ impl Faraday {
             }
             Some(crate::Sheet::CancelKey) => {
                 self.sheet = None;
-                self.key_cancel_end();
+                if !self.keygen_reopen() {
+                    self.key_cancel_end();
+                }
             }
             _ => {}
         }
@@ -425,19 +428,22 @@ impl Faraday {
         self.cancel_offered().is_some() || self.key_cancel_offered()
     }
 
-    /// Whether the key flow on screen, New key or Make codex32 shares
-    /// opened for a slot of Make a new wallet, offers **Cancel**: until
-    /// its key is locked in. Its Cancel returns to Make a new wallet, which
-    /// goes on (`docs/FLOWS.md`, Cancel). Only lookups.
+    /// Whether the key flow on screen, New key or Make codex32 shares,
+    /// offers **Cancel**: for a slot of Make a new wallet until its key is
+    /// locked in, and opened on its own once something is entered. Its
+    /// Cancel returns to Make a new wallet, which goes on, or to where the
+    /// flow was opened (`docs/FLOWS.md`, Cancel). Only lookups.
     pub(crate) fn key_cancel_offered(&self) -> bool {
         self.screen == Screen::KeyGen
             && self.keygen.state().is_some_and(|k| {
-                k.slot.is_some()
-                    && k.back == Screen::Create
-                    && !k.locked
+                !k.locked
                     && !k.codex32.as_ref().is_some_and(|m| m.locked())
+                    && if k.slot.is_some() && k.back == Screen::Create {
+                        self.create.state().is_some_and(|c| c.built.is_none())
+                    } else {
+                        k.slot.is_none() && k.entered_any(self.entry.state())
+                    }
             })
-            && self.create.state().is_some_and(|c| c.built.is_none())
     }
 
     /// Whether the key flow's Cancel discards something entered: rolls,
@@ -456,6 +462,9 @@ impl Faraday {
             return;
         };
         self.return_back(k.back);
+        if k.slot.is_none() {
+            return;
+        }
         self.create.open_card(Some(crate::cstep::KEYS));
     }
 
@@ -877,8 +886,9 @@ pub(crate) fn cancel_sheet(app: &View, ui: &mut crate::ui::Ui, g: Going, w: f32,
 
 /// The Cancel dialog over a key flow opened from Make a new wallet
 /// (`faraday_ui::sheet::dialog`): the key so far is discarded and Make a
-/// new wallet shown again; **Keep going** and **Discard**. Reads only.
-pub(crate) fn cancel_key_sheet(_app: &View, ui: &mut crate::ui::Ui, w: f32, h: f32) {
+/// new wallet shown again, or the key opened on its own gone; **Keep
+/// going** and **Discard**. Reads only.
+pub(crate) fn cancel_key_sheet(app: &View, ui: &mut crate::ui::Ui, w: f32, h: f32) {
     use crate::Action;
     use crate::ui::Style;
     use crate::ui::pal::*;
@@ -902,8 +912,12 @@ pub(crate) fn cancel_key_sheet(_app: &View, ui: &mut crate::ui::Ui, w: f32, h: f
         head,
         &mut |ui, x, y, iw| {
             // Material's supporting text, Body Medium (14).
-            ui.wrap_as((x, y, iw), BODY_M, Role::OnSurface, EN.flow_cancel_key_line)
-                + faraday_draw::tokens::GAP
+            let line = if app.keygen().is_some_and(|k| k.slot.is_none()) {
+                EN.keygen_cancel_line
+            } else {
+                EN.flow_cancel_key_line
+            };
+            ui.wrap_as((x, y, iw), BODY_M, Role::OnSurface, line) + faraday_draw::tokens::GAP
         },
         &actions,
     );

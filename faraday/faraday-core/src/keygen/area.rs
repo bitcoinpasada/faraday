@@ -18,9 +18,30 @@ pub(crate) struct KeyGenArea {
     /// The codex32 dice the person chose, kept for the session: a new
     /// Make codex32 shares starts on them (`docs/CODEX32.md` §5.1).
     pub(super) dice: crate::codex32::DiceChoice,
+    /// New key pressed again while one holds what was entered: what it
+    /// opens once the sheet's Discard is pressed.
+    pub(super) reopen: Option<Reopen>,
+}
+
+/// How New key was pressed while another one held entries, to open it
+/// the same way once those are discarded.
+#[derive(Clone, Copy)]
+pub(crate) enum Reopen {
+    Slot(Option<u8>),
+    On(Start),
+    Dice,
 }
 
 impl KeyGenArea {
+    /// What New key was pressed for over a key holding entries, taken.
+    pub(crate) fn take_reopen(&mut self) -> Option<Reopen> {
+        self.reopen.take()
+    }
+
+    pub(crate) fn clear_reopen(&mut self) {
+        self.reopen = None;
+    }
+
     /// The flow being made, while it is open.
     pub(crate) fn state(&self) -> Option<&KeyGen> {
         self.state.as_ref()

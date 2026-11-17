@@ -256,7 +256,7 @@ fn a_seedqr_scanned_from_home_loads_the_key_add_a_keys_scan_loads() {
         app.session.keys[0].fingerprint,
         from_add.session.keys[0].fingerprint
     );
-    assert_eq!(app.screen, Screen::Wallets);
+    assert_eq!(app.screen, Screen::Home);
 }
 
 #[test]

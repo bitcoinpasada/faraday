@@ -197,7 +197,7 @@ pub(crate) fn device_own(bytes: &[u8; 32], acc: &[u8; 32]) -> zeroize::Zeroizing
 mod area;
 mod entries;
 mod start;
-pub(crate) use area::KeyGenArea;
+pub(crate) use area::{KeyGenArea, Reopen};
 pub(crate) mod steps;
 pub use start::{STARTS, Start};
 
@@ -1166,10 +1166,20 @@ impl crate::Faraday {
     /// Opens the flow, for a Create slot or for the session.
     pub(crate) fn keygen_open(&mut self, slot: Option<u8>) {
         if !self.may_load_keys() {
-            self.toast(&Text::fill(
-                EN.keygen_remove_the_first,
-                &[self.medium.noun()],
-            ));
+            // The stick in the way waits under the Pull sheet, and the
+            // flow opens once it is out.
+            if self.selftest_passed() && self.stick.in_the_way() {
+                self.visit.set_pull(crate::Action::KeyGen(slot));
+                self.sheet = Some(crate::Sheet::Pull);
+            } else {
+                self.toast(&Text::fill(
+                    EN.keygen_remove_the_first,
+                    &[self.medium.noun()],
+                ));
+            }
+            return;
+        }
+        if self.keygen_reopen_asks(Reopen::Slot(slot)) {
             return;
         }
         self.typing.pass_eye = crate::pass_eye::PassEye::default();
@@ -1298,9 +1308,54 @@ impl crate::Faraday {
         k.codex32 = Some(m);
     }
 
+    /// Whether the flow open holds entries and is not locked in: New key
+    /// pressed again over it asks before the entries go. Only lookups.
+    pub(crate) fn keygen_holds_entries(&self) -> bool {
+        self.keygen.state().is_some_and(|k| {
+            !k.locked
+                && !k.codex32.as_ref().is_some_and(|m| m.locked())
+                && k.entered_any(self.entry.state())
+        })
+    }
+
+    /// New key pressed as `how` over a flow that holds entries: the
+    /// Discard sheet asks, and Discard opens it as pressed. Returns
+    /// whether it asked.
+    fn keygen_reopen_asks(&mut self, how: Reopen) -> bool {
+        if !self.keygen_holds_entries() {
+            return false;
+        }
+        self.keygen.reopen = Some(how);
+        self.sheet = Some(crate::Sheet::CancelKey);
+        true
+    }
+
+    /// Discard on the sheet New key's second press raised: the entries go
+    /// and the flow opens as it was pressed for. Whether one was waiting.
+    pub(crate) fn keygen_reopen(&mut self) -> bool {
+        let Some(how) = self.keygen.take_reopen() else {
+            return false;
+        };
+        // The flow it opens returns where the one dropped would have.
+        if let Some(k) = self.keygen_drop()
+            && self.screen == Screen::KeyGen
+        {
+            self.screen = k.back;
+        }
+        match how {
+            Reopen::Slot(slot) => self.keygen_open(slot),
+            Reopen::On(start) => self.keygen_open_on(start),
+            Reopen::Dice => self.keygen_open_dice(),
+        }
+        true
+    }
+
     /// Opens the flow for the session with `start` chosen and Start
     /// closed on it, as the Tools tiles for one form do (NEW-WALLET §15.3).
     pub(crate) fn keygen_open_on(&mut self, start: Start) {
+        if self.keygen_reopen_asks(Reopen::On(start)) {
+            return;
+        }
         self.keygen_open(None);
         if let Some(k) = self.keygen.state.as_mut() {
             k.start = start;
@@ -1312,6 +1367,9 @@ impl crate::Faraday {
     /// Opens the flow making a key, on its Randomness card with dice
     /// chosen, the way chosen there (Check's dice row).
     pub(crate) fn keygen_open_dice(&mut self) {
+        if self.keygen_reopen_asks(Reopen::Dice) {
+            return;
+        }
         self.keygen_open_on(Start::Make);
         if let Some(k) = self.keygen.state.as_mut().filter(|k| !k.locked) {
             k.done[usize::from(kstep::LENGTH)] = true;

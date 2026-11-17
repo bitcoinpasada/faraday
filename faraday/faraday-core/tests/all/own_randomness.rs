@@ -1632,6 +1632,10 @@ fn before_the_seed_a_too_short_keepass_passphrase_is_refused_not_waited_on() {
     for c in "sevench".chars() {
         app.event(Event::Key(Key::Char(c)));
     }
+    app.press(Action::Vault(V::FocusPromptAgain));
+    for c in "sevench".chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
     app.press(Action::Vault(V::PromptGo));
     assert!(
         !app.waits_for_randomness(Action::Vault(V::PromptGo)),

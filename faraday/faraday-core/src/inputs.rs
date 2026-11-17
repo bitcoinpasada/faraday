@@ -1003,21 +1003,15 @@ impl Faraday {
         self.selftest_passed() && !self.stick.in_the_way()
     }
 
-    /// Where leaving Add a key goes: the Spend tab when it came from
-    /// there, else Wallets.
+    /// Where leaving Add a key goes: where it was opened from, else
+    /// Wallets.
     pub(crate) fn entry_leave(&self) -> Screen {
         match self.entry.state().back {
-            Some(
-                s @ (Screen::SpendBackup
-                | Screen::Spend
-                | Screen::BackupFlow
-                | Screen::Create
-                | Screen::SignerCheck),
-            ) => s,
-            Some(Screen::Restore) if self.restore.state().is_some_and(|r| r.seeds.is_some()) => {
-                Screen::Restore
+            Some(Screen::Restore) if self.restore.state().is_none_or(|r| r.seeds.is_none()) => {
+                Screen::Wallets
             }
-            _ => Screen::Wallets,
+            Some(s) => s,
+            None => Screen::Wallets,
         }
     }
 

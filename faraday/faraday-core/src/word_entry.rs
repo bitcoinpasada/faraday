@@ -905,11 +905,14 @@ impl Faraday {
         match action {
             Action::Entry(wanted) => {
                 if self.may_load_keys() {
-                    let back = matches!(
-                        self.screen,
-                        Screen::Restore | Screen::SpendBackup | Screen::Spend | Screen::SignerCheck
-                    )
-                    .then_some(self.screen);
+                    // Wherever it was opened from, always: Done and Back
+                    // return there. Pressed again from Add a key itself,
+                    // the opener it already had stays.
+                    let back = if self.screen == Screen::Entry {
+                        self.entry.state().back
+                    } else {
+                        Some(self.screen)
+                    };
                     // A small panel has no keyboard of its own: every
                     // list's words go on the word keyboard.
                     self.entry.begin(wanted, back, self.compact);
@@ -1044,9 +1047,9 @@ impl Faraday {
                 return;
             }
         };
-        // A SeedQR scanned over the Spend tab or Restore returns to it too.
-        let on_tab = matches!(self.screen, Screen::SpendBackup | Screen::Restore);
-        let back = self.entry.state().back.or(on_tab.then_some(self.screen));
+        // A seed scanned over a screen returns to it too.
+        let here = (self.screen != Screen::Entry).then_some(self.screen);
+        let back = self.entry.state().back.or(here);
         // Add a key for a wallet takes only a key the wallet is missing.
         let mut for_wallet = None;
         if let Some(w) = self.entry.state().wallet {

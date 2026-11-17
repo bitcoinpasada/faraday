@@ -220,6 +220,17 @@ page, which has **Done** (the spend ends where it was opened from: the
 wallet's card, Home or Wallets), **Lock**, **Power off** and **Start over**.
 **Start over** asks as Cancel does once a step of the spend is done.
 
+**Every way out lands where it began.** Done, Cancel and Back from a flow's
+first step return to the screen the flow was opened from, whichever of them
+was pressed. Add a key records its opener every time it opens, from
+Tools, Silent payments, Decode, Home's Scan or a wallet's page as from
+Restore or the Spend tab, and a key added or left returns there; only an
+Add a key opened with no opener lands on the Spend tab or Wallets. New key
+opened on its own has **Cancel** once something is entered and the key is
+not locked in, with the question a slot's has. New key pressed again over
+one that holds entries asks the same question before they go. A stick in
+the way of New key opens the Pull sheet, not a toast.
+
 ## Sidebar
 
 **Check** stands right under Home, on the rails and first on the small
@@ -587,7 +598,8 @@ takes it ("A transaction to sign", **Sign it**; `docs/SCANNING.md` §4,
 §5). The
 Wallets tab carries **Add a key** last among its ways in, "Keys first,
 wallets later".
-A key added with no wallet loaded lands on Wallets, whose card says
+A key added from Wallets with no wallet loaded lands on Wallets (from any
+other screen it returns to that screen), whose card says
 "Key 73c5da0a is loaded. No wallet uses it." with **Make a wallet from
 this key** (Restore's Seeds card with the key in its slot: single key,
 native SegWit, account 0 → **Make the wallet**), **Add another key** (the
@@ -1604,7 +1616,10 @@ sidebar row (a press on the row only returns to the flow).
    dialog "Discard this key?", "What is entered for this key so far is
    discarded, and you return to Make a new wallet.", **Keep going** and
    **Discard**. New key opened on its own (Home, Wallets, Tools, Add a
-   key) has no Cancel; its back link is as it was.
+   key) has Cancel once something is entered and the key is not locked
+   in, asking the same question ("What is entered for this key so far is
+   discarded.") and returning to where it was opened; with nothing
+   entered it has none, and its back link is as it was.
 
 The code: `faraday-core/src/in_progress.rs` (`flow_cancel`,
 `cancel_loses`, `flow_end`, `cancel_sheet`; `Action::CancelFlow`,

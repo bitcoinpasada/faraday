@@ -2459,12 +2459,10 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy += 6.0;
         // A BIP-39 key was added at Lock in: the quiz's last button only
         // ends the flow.
-        let label = if !k.slip39 {
-            EN.keygen_done
-        } else if k.slot.is_some() {
+        let label = if k.slot.is_some() {
             EN.keygen_use_this_key
         } else {
-            EN.keygen_add_key
+            EN.keygen_done
         };
         let drawn = next_button(ui, x, cy, w, label, Action::KAdd);
         return cy + (if drawn { 48.0 } else { 8.0 }) - y;

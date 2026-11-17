@@ -175,3 +175,67 @@ fn the_arrow_names_a_typed_form_by_the_form() {
     assert_eq!(drawn_count(&mut app, &back_to), 1);
     assert_eq!(drawn_count(&mut app, EN.keygen_words), 0);
 }
+
+/// New key opened from Home on rolls, one roll in.
+fn lone_on_rolls() -> Faraday {
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::KeyGen(None));
+    assert_eq!(app.screen, Screen::KeyGen);
+    app.press(Action::KStart(Start::Make.index()));
+    app.press(Action::KStep(kstep::SOURCE));
+    app.press(Action::KWay(Way::DiceHashed.index()));
+    if open(&app) != Some(kstep::ENTER) {
+        app.press(Action::KNext);
+    }
+    app.press(Action::KRoll(3));
+    assert_eq!(app.keygen().unwrap().dice.len(), 1);
+    app
+}
+
+#[test]
+fn a_lone_new_key_with_rolls_cancels_after_asking_and_lands_where_it_began() {
+    let mut app = lone_on_rolls();
+    app.press(Action::CancelFlow);
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::CancelKey));
+    assert!(app.keygen().is_some(), "asking discards nothing");
+    app.press(Action::CancelFlowNow);
+    assert!(app.keygen().is_none());
+    assert_eq!(app.screen, Screen::Home);
+}
+
+#[test]
+fn a_lone_new_key_with_nothing_entered_has_no_cancel() {
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::KeyGen(None));
+    app.press(Action::CancelFlow);
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.screen, Screen::KeyGen, "nothing to cancel");
+}
+
+#[test]
+fn opening_new_key_again_over_rolls_asks_before_they_go() {
+    let mut app = lone_on_rolls();
+    app.press(Action::KeyGen(None));
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::CancelKey));
+    assert_eq!(app.keygen().unwrap().dice.len(), 1, "kept until asked");
+    app.press(Action::CancelFlowNow);
+    assert_eq!(app.screen, Screen::KeyGen);
+    assert!(app.keygen().unwrap().dice.is_empty(), "a fresh New key");
+    assert_eq!(
+        app.keygen().unwrap().back,
+        Screen::Home,
+        "opened from Home still"
+    );
+}
+
+#[test]
+fn add_a_key_from_home_leaves_to_home() {
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Entry(None));
+    assert_eq!(app.screen, Screen::Entry);
+    app.event(Event::Key(faraday_shell_api::Key::Escape));
+    assert_eq!(app.screen, Screen::Home);
+}

@@ -62,5 +62,20 @@ pub(crate) fn cancel_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::CancelFlow);
     t.shot("cancel-7-key-dialog")?;
     t.press(Action::CancelFlowNow);
-    t.shot("cancel-8-keys")
+    t.shot("cancel-8-keys")?;
+    // New key opened on its own has Cancel once rolls are entered, and
+    // Discard returns to where it was opened.
+    t.press(Action::Nav(faraday_core::Screen::Home));
+    t.press(Action::KeyGen(None));
+    t.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
+    t.press(Action::KWords(12));
+    t.press(Action::KWay(faraday_core::keygen::Way::DiceHashed.index()));
+    t.press(Action::KNext);
+    for i in 0..5u8 {
+        t.press(Action::KRoll(i % 6 + 1));
+    }
+    t.press(Action::CancelFlow);
+    t.shot("cancel-9-lone-key-dialog")?;
+    t.press(Action::CancelFlowNow);
+    t.shot("cancel-10-home")
 }

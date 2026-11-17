@@ -38,10 +38,11 @@ fn desktop() -> Faraday {
     shown(1366, 768, 160)
 }
 
-/// Home, Add a key, the words typed, Add key. Returns the key's
+/// Wallets, Add a key, the words typed, Add key. Returns the key's
 /// fingerprint.
 fn add_key(app: &mut Faraday, words: &str) -> [u8; 4] {
     let before: Vec<[u8; 4]> = app.session.keys.all().map(|k| k.fingerprint.0).collect();
+    app.press(Action::Nav(Screen::Wallets));
     app.press(Action::Entry(None));
     assert_eq!(app.screen, Screen::Entry);
     for c in words.chars() {

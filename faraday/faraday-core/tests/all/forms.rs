@@ -86,7 +86,7 @@ fn two_slip39_shares_and_the_passphrase_make_the_vectors_key() {
             "xprv9s21ZrQH143K2nNuAbfWPHBtfiSCS14XQgb3otW4pX655q58EEZeC8zmjEUwucBu9dPnxdpbZLCn57yx45RBkwJHnwHFjZK4XPJ8SyeYjYg"
         )
     );
-    assert_eq!(app.screen, Screen::Wallets);
+    assert_eq!(app.screen, Screen::Home);
 }
 
 #[test]

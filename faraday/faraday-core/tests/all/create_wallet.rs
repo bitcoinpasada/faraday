@@ -1012,19 +1012,20 @@ fn cancel_with_nothing_entered_returns_without_asking_to_keys() {
 }
 
 #[test]
-fn new_key_opened_from_home_keeps_its_back_and_has_no_cancel() {
+fn new_key_opened_from_home_keeps_its_back_and_cancels_once_something_is_entered() {
     let mut app = testkit::started();
     app.press(Action::Nav(Screen::Home));
     app.press(Action::KeyGen(None));
     assert_eq!(app.screen, Screen::KeyGen);
+    let _ = app.frame();
+    assert!(!app.offers(Action::CancelFlow), "no Cancel with nothing in");
     roll_some(&mut app);
     let _ = app.frame();
-    assert!(!app.offers(Action::CancelFlow), "no Cancel on its own");
-    app.press(Action::CancelFlow);
-    assert_eq!(app.screen, Screen::KeyGen, "nothing happens");
-    assert_eq!(app.sheet, None);
+    assert!(app.offers(Action::CancelFlow), "Cancel once rolls are in");
     assert!(app.offers(Action::Nav(Screen::Home)), "its back goes Home");
-    app.press(Action::Nav(Screen::Home));
+    app.press(Action::CancelFlow);
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::CancelKey));
+    app.press(Action::CancelFlowNow);
     assert_eq!(app.screen, Screen::Home);
 }
 

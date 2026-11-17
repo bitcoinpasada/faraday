@@ -38,6 +38,8 @@ macro_rules! words_keygen {
     keygen_picture_already_taken: "That picture was already taken",
     /// Note in `finish_entry`. `{}`: `have`, `need`.
     keygen_entry_count: "{} of {}",
+    /// Text in `cancel_key_sheet`.
+    keygen_cancel_line: "What is entered for this key so far is discarded.",
     /// Toast in `keygen_open`. `{}`: `self.medium.noun()`.
     keygen_remove_the_first: "Remove the {} first",
     /// Text in `keygen_act`.
@@ -363,8 +365,6 @@ macro_rules! words_keygen {
     keygen_done: "Done",
     /// Text in `quiz`.
     keygen_use_this_key: "Use this key",
-    /// Text in `quiz`.
-    keygen_add_key: "Add a key",
     /// Text in `quiz`. `{}`: `k.quiz_share + 1`, `k.shares.len()`, `done`, `n`.
     keygen_quiz_progress: "Share {} of {} · {} of {} right",
     /// Text in `quiz`. `{}`: `done`, `n`.

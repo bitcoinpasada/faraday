@@ -1014,7 +1014,7 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 Action::SeedRead(Choice::WithPass),
             ),
             (
-                EN.seed_read_no_passphrase,
+                EN.seed_read_use_without,
                 Style::Secondary,
                 Action::SeedRead(Choice::Plain),
             ),
