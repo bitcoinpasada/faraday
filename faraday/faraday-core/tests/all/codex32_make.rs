@@ -1375,3 +1375,31 @@ fn an_identifier_the_set_of_a_key_record_of_an_open_vault_carries_is_refused_nam
     let line = format!("Used in vault {}", app.vaults().open[0].name.as_str());
     assert_eq!(identifier_typed(&mut app, "cash", &line), (false, true));
 }
+
+/// A share typed into Add a key's form and New key opened from there: the
+/// Identifier card refuses that share's identifier, naming Add a key.
+#[test]
+fn an_identifier_typed_into_add_a_key_is_refused_in_a_new_codex32_set_made_from_there() {
+    let (all, _) = vector2();
+    let mut app = on(1366, 768, 160);
+    app.press(Action::ReduceMotion(true));
+    app.press(Action::Entry(None));
+    app.press(Action::EntryForm(2));
+    for ch in all[0].chars() {
+        app.event(Event::Key(faraday_shell_api::Key::Char(ch)));
+    }
+    app.event(Event::Key(faraday_shell_api::Key::Enter));
+    app.press(Action::KeyGen(None));
+    let _ = app.frame();
+    app.press(Action::KStart(Start::MakeCodex32.index()));
+    c32(&mut app, C32::Next);
+    for ch in "name".chars() {
+        key(&mut app, ch);
+    }
+    let _ = app.frame();
+    let shown = !label_alphas(&mut app, "Used by the strings typed in Add a key").is_empty();
+    assert_eq!(
+        (app.offers(Action::Codex32(C32::Next)), shown),
+        (false, true)
+    );
+}

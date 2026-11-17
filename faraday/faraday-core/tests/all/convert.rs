@@ -1269,11 +1269,10 @@ fn codex32_set_id(app: &mut Faraday) -> [u8; 4] {
         .identifier()
 }
 
-/// A codex32 string typed into Add a key's form carries an identifier that
-/// Convert's set for a key then does not use, though the same randomness
-/// drew it before.
+/// A codex32 string typed into Add a key's form is gone once Add a key is
+/// left, so Convert's set for a key draws the identifier it drew before.
 #[test]
-fn a_codex32_set_made_avoids_an_identifier_typed_into_add_a_key() {
+fn a_codex32_set_made_after_add_a_key_is_left_may_take_the_identifier_typed_there() {
     let seed = unhex(SEED_1);
     let drawn_id = codex32_set_id(&mut seed_opened(&seed));
     // One share of another key's set, which loads no key by itself.
@@ -1290,7 +1289,7 @@ fn a_codex32_set_made_avoids_an_identifier_typed_into_add_a_key() {
     let c = testkit::compute();
     app.session.keys.add_seed(&c, &seed, "Test").unwrap();
     open(&mut app);
-    assert_ne!(codex32_set_id(&mut app), drawn_id);
+    assert_eq!(codex32_set_id(&mut app), drawn_id);
 }
 
 /// The parts of Seed XOR typed into Add a key give the same key.
