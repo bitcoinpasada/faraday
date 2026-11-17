@@ -500,6 +500,20 @@ impl Faraday {
     /// was seen. A way back that opened a sheet or stayed on its screen
     /// is all there is to it.
     pub(crate) fn back(&mut self) {
+        let from = self.screen;
+        self.back_from();
+        self.entry_left(from);
+    }
+
+    /// Add a key left with words typed: they are wiped with it, however
+    /// it was left.
+    fn entry_left(&mut self, from: Screen) {
+        if from == Screen::Entry && self.screen != Screen::Entry {
+            self.entry.reset();
+        }
+    }
+
+    fn back_from(&mut self) {
         if self.step_back() {
             return;
         }
@@ -646,6 +660,12 @@ impl Faraday {
     /// supporting pane, else the screen's way back as its link takes it,
     /// or [`Self::back`] where it has none.
     pub(crate) fn leave_back(&mut self) {
+        let from = self.screen;
+        self.leave_back_from();
+        self.entry_left(from);
+    }
+
+    fn leave_back_from(&mut self) {
         let link = self.trail.link_on(self.screen);
         match (self.sheet, link) {
             (Some(Sheet::Lock), _) => {}

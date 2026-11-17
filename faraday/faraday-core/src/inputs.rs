@@ -1226,6 +1226,7 @@ impl Faraday {
                     self.back();
                     if self.screen == Screen::Entry {
                         self.screen = to;
+                        self.entry.reset();
                     }
                 }
                 _ => {}
@@ -1246,6 +1247,7 @@ impl Faraday {
                     self.leave_back();
                     if self.screen == Screen::Entry {
                         self.screen = to;
+                        self.entry.reset();
                     }
                 }
                 _ => {}

@@ -280,8 +280,8 @@ fn back_while_a_vault_is_made_makes_none() {
     assert!(app.vault_files().is_empty(), "a vault was made after Back");
 }
 
-#[test]
-fn sign_a_transaction_steps_back_and_once_signed_leaves() {
+/// A transaction to sign, opened on its spend as a person opens it.
+fn spend_opened() -> Faraday {
     let k = testkit::kits()
         .into_iter()
         .find(|k| k.id == "spending")
@@ -306,6 +306,12 @@ fn sign_a_transaction_steps_back_and_once_signed_leaves() {
     app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::StartSpend(at(&app, "spend.psbt")));
     assert_eq!(app.screen, Screen::Spend);
+    app
+}
+
+#[test]
+fn sign_a_transaction_steps_back_and_once_signed_leaves() {
+    let mut app = spend_opened();
     let s = app.spend().unwrap();
     let open = s.open.unwrap();
     let place = s.steps.iter().position(|&k| k == open).unwrap();
@@ -405,4 +411,44 @@ fn the_spend_tabs_start_opens_what_do_you_have_and_back_the_map() {
         app.spend_backup_open_card(),
         Some(CardId::Page(page::HOLDING))
     );
+}
+
+/// The arrow, Escape or the mouse's back, on the screen as drawn.
+fn leave_by(app: &mut Faraday, way: usize) {
+    let _ = app.frame();
+    match way {
+        0 => app.press(Action::Back),
+        1 => app.event(Event::Key(Key::Escape)),
+        _ => app.event(Event::Back),
+    }
+    let _ = app.frame();
+}
+
+#[test]
+fn sign_a_transaction_steps_back_by_the_arrow_escape_and_the_mouse_back_alike() {
+    for way in 0..3 {
+        let mut app = spend_opened();
+        let s = app.spend().unwrap();
+        let open = s.open.unwrap();
+        let place = s.steps.iter().position(|&k| k == open).unwrap();
+        assert!(place > 0, "the spend opens past its first step");
+        let before = s.steps[place - 1];
+        leave_by(&mut app, way);
+        assert_eq!(app.screen, Screen::Spend, "way {way}");
+        assert_eq!(app.spend().unwrap().open, Some(before), "way {way}");
+    }
+}
+
+#[test]
+fn restore_steps_back_to_its_first_step_by_the_arrow_escape_and_the_mouse_back_alike() {
+    for way in 0..3 {
+        let mut app = testkit::started();
+        app.press(Action::Nav(Screen::WalletsStart));
+        app.press(Action::RestoreWallet);
+        app.press(Action::RKind(MULTI));
+        assert_eq!(restore_open(&app), Some(QUORUM));
+        leave_by(&mut app, way);
+        assert_eq!(app.screen, Screen::Restore, "way {way}");
+        assert_eq!(restore_open(&app), Some(KIND), "way {way}");
+    }
 }
