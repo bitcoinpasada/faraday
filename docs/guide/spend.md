@@ -35,6 +35,8 @@ The transaction, row by row. Check it against what you meant to send; nothing is
 
 **Key:** spend.check
 
+A wallet you have already checked since the device started has this card done.
+
 The wallet's addresses **Receive 0/0**, **Receive 0/1** and **Change 1/0**, for you to compare with the software that made the transaction. If they match, both are reading the same wallet. **Continue** goes to the next card.
 
 ## Signers

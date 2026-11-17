@@ -135,14 +135,14 @@ destination's action.
 | GPG paperkey | a GPG restore's Scan the paperkey only, which needs its public key first; every other scanner names it ("That is a paperkey. Restore a GPG key takes it at Type the paperkey, not Files") and files nothing (F167) |
 | TOTP setup code | a new entry's form in the open vault, filled, as the TOTP scanner fills it. **Add to {vault}**; with a vault in Files but none open, **Unlock {vault}**, the code carried through the unlock and the form opened filled once it is; with no vault at all, **Make a vault**, and the code is not kept: the card says "Not kept · scan it again once the vault is open", and the code is wiped at the press (§4.5) |
 | Vault entries | added to the open vault. **Add to {vault}**; the same **Unlock {vault}** and **Make a vault** cases as a TOTP setup code |
-| PSBT | filed, then the spend (`StartSpend`). **Sign it**; one of the spend under way, **Add to the signatures** |
+| PSBT | filed, then the spend (`StartSpend`) at once: its review opens, with no card between. One of the spend under way: **Add to the signatures** |
 | Finished transaction | filed, then Decode. **Decode it** |
 | Wallet description | filed, then loaded. **Load the wallet**; in Restore, its description |
 | Split sheets | filed, then Restore's description. **Restore the wallet** |
-| Account key | Create's or Restore's slot waiting for one; else filed. **Keep in Files** |
+| Account key | Create's or Restore's slot waiting for one; else filed. **Make a wallet with it** (Create a wallet opens) |
 | Address, BIP-21, silent payment address | **Is this address mine?**: on the address check's own scanner (Home's Scan, Tools' Check an address) the result card (`docs/DESIGN.md` §5, Check an address: the wallet or key account, the place, the path or each cosigner's, the whole address in groups of four, or on a miss the address and how far it looked); on any other scanner the address is named and its way over is **Check the address**; a find in a key's account ends with **Make a wallet**, then **Open the wallet**; with nothing loaded the line is "Load a key or a wallet first"; a `bitcoin:` link is read to BIP 21 first (`core/faraday-codec/src/bip21.rs`), and one with a `req-` parameter or one not well formed says so instead; on a miss the card's ways are **Look further** to each depth past what was looked at, and **Stop** while it looks (`docs/QR.md` §2) |
 | Signed message | filed, then Check a message. **Check the signature** |
-| GPG public key, Faraday file envelope | filed (an envelope under its own name, then as its contents). **Keep in Files** |
+| GPG public key, Faraday file envelope | filed (an envelope under its own name, then as its contents). A GPG public key Faraday can restore from: **Restore from its paperkey** (Restore a GPG key opens on it); an envelope: **Keep in Files** |
 | Text | the card shows it masked (§4.10), with **Save as a note** in the open vault, **Sign this message** while a single-key wallet is loaded (Sign a message opens with the text as the message) and **Keep in Files** |
 | Lightning invoice or offer | not filed. **Decode it** opens Decode a Lightning invoice on the text, read at once |
 | Labels, web address | named |
@@ -327,9 +327,11 @@ card says so first (§4.5).
 
 Home's Scan takes every kind (§4.3). Where its destination is a page
 the person opens with one press, the card shows with that press in
-place of the toast "scanned-1.psbt is in Files": a PSBT, a finished
+place of the toast "scanned-1.psbt is in Files": a finished
 transaction, a wallet description, split sheets, a signed message,
-text, a TOTP code with no vault open. The code is in Files already
+text, an account key (Make a wallet with it), a GPG public key to
+restore from (Restore from its paperkey), a TOTP code with no vault
+open. A PSBT to sign has no card: its review opens at once. The code is in Files already
 (public kinds) and **Done** replaces **Cancel**. Where Home's Scan goes
 straight on (a seed to the seed sheet, a share to its form, a TOTP code
 into the open vault's form), no card. An address shows the address check's result card, as the address check's own scanner does (§4.2).

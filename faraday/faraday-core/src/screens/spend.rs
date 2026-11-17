@@ -241,25 +241,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let needed = app.spend_needed();
     if app.wallets.spend().is_none() {
         let top = empty_head(app, ui, cw);
-        ui.text_as(
-            col_x,
-            top,
-            BODY_M,
-            Role::OnSurfaceVariant,
+        super::parts::nothing_to_work_on(
+            app,
+            ui,
+            (col_x, top, cw - 2.0 * 40.0),
             EN.spend_no_transaction,
-        );
-        ui.button(
-            col_x,
-            top + if ui.compact {
-                36.0
-            } else {
-                ui.line_as(BODY_M) + faraday_draw::tokens::PAD
-            },
-            None,
-            BUTTON_H,
-            EN.spend_open_files,
-            Style::Secondary,
-            Action::Nav(Screen::Files),
+            (Action::Scan, Screen::Spend),
         );
         return;
     }

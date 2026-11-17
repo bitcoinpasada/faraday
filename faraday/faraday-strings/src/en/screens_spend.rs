@@ -77,8 +77,6 @@ macro_rules! words_screens_spend {
     // ----- spend (faraday-core/src/screens/spend.rs) -----
     /// Line in `spend`.
     spend_no_transaction: "No transaction loaded",
-    /// Button in `spend`.
-    spend_open_files: "Open Files",
     /// Text in `spend`.
     spend_wallets: "Wallets",
     /// Text in `spend`.

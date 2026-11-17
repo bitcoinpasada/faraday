@@ -1134,12 +1134,12 @@ fn home_scan_of_another_transaction_during_a_spend_is_refused() {
 }
 
 #[test]
-fn home_scan_with_no_spend_only_puts_the_psbt_in_files() {
+fn home_scan_with_no_spend_files_the_psbt_and_opens_its_review() {
     let mut app = with_files(vec![vault_file()], Vec::new());
     unlock_on_tab(&mut app);
     let (other, _) = testkit::spend_of(&kit("taproot")).unwrap();
     scan_from_home(&mut app, other.to_bytes());
-    assert!(app.spend().is_none());
+    assert!(app.spend().is_some(), "its review did not open");
     assert!(
         app.inbox()
             .iter()

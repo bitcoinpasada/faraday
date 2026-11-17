@@ -553,11 +553,13 @@ carried through the unlock) or **Make a vault** (the code not kept); none of the
 other scanner (Files', Restore's, Create's, the Spend tab's). Transactions, wallet
 files, account keys, signed messages and GPG keys go to Files and the
 flow waiting for them, as before; where the next step is a press away
-(a PSBT to sign, a transaction to decode, a wallet to load, split
+(a transaction to decode, a wallet to load, split
 sheets to restore, a message to check, text to save as a note or, with a
 single-key wallet loaded, to sign as a message), the
 read card shows that press with **Done**, in place of the toast
-(`docs/SCANNING.md` §5.4). A private key (an xprv, a WIF or a Nostr
+(`docs/SCANNING.md` §5.4); a PSBT to sign goes straight to its review, and
+an account key or a GPG public key filed gets **Make a wallet with it** or
+**Restore from its paperkey** on the card. A private key (an xprv, a WIF or a Nostr
 secret key) and words that fail a BIP-39 checksum are named and never
 filed, since Add a key does not take them; 24 words that are an LND
 aezeed by its own CRC-32C show the read card with **Use in Lightning**
@@ -1032,6 +1034,15 @@ SeedQR and Open a vault, and the foot's button reads Load the key and
 opens that card. A key that is not the wallet's is refused. With a stick
 attached the routes are dimmed under "Keys load once the stick is out".
 The multisig Signers card offers Type the words too.
+
+The review's Continue is never passed: nothing is signed before it. After
+a Continue the spend goes on past a step with nothing to decide: Check
+where no wallet is known (no addresses to compare), Signers where the keys
+held here already make up the signatures needed and no path is still to be
+chosen. A wallet already checked this power-on has its Check done at the
+start. A step with a warning, a choice or a key still to bring stops
+and shows its card. With no transaction open, the Spend page offers
+**Scan** and **Open Files**; a PSBT scanned there opens its review.
 
 ## GPG
 

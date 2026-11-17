@@ -475,6 +475,11 @@ pub enum Way {
     Note,
     /// A public kind filed.
     Keep,
+    /// An account key filed: Make a new wallet opens, its Keys card listing
+    /// it.
+    UseKey,
+    /// A GPG public key filed: Restore a GPG key opens from it.
+    RestoreGpg,
     /// A QR vault: the QR vault tool opens on it.
     OpenQrVault,
     /// A Krux encrypted code: its passphrase is asked.
@@ -518,6 +523,8 @@ impl Way {
             Way::SignMessage => Text::of(EN.read_go_message),
             Way::Note => Text::of(EN.read_go_note),
             Way::Keep => Text::of(EN.read_keep),
+            Way::UseKey => Text::of(EN.read_go_use_key),
+            Way::RestoreGpg => Text::of(EN.gpg_restore_files_action),
             Way::OpenQrVault => Text::of(EN.read_go_qr_vault),
             Way::Open => Text::of(EN.kef_open),
             Way::NotEncrypted => Text::of(EN.kef_not_encrypted),

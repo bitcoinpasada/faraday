@@ -794,6 +794,7 @@ mod signing {
                 .collect();
             let scanned = || {
                 let mut app = Faraday::new();
+                app.press(Action::Nav(faraday_core::Screen::Files));
                 app.press(Action::Scan);
                 for p in &parts {
                     app.event(Ev::Scanned {
@@ -803,11 +804,12 @@ mod signing {
                 app
             };
             let mut inline = scanned();
-            inline.press(Action::ReadGo(0));
+            let at = inline.inbox().len() - 1;
+            inline.press(Action::StartSpend(at));
 
             let mut app = scanned();
             assert_eq!(app.inbox().last().map(|i| i.bytes.to_vec()), Some(psbt));
-            testkit::press_on_worker(&mut app, Action::ReadGo(0));
+            testkit::press_on_worker(&mut app, Action::StartSpend(at));
             assert!(app.busy().is_some());
             assert!(app.spend().is_none());
             testkit::settle(&mut app);

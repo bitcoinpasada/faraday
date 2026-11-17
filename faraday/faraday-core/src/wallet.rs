@@ -2458,6 +2458,10 @@ pub struct Spend {
     /// version 0 form (`wallet/v2.rs`). Set as the spend starts, never
     /// changed: `collect` keeps `psbt` of its transaction.
     pub v2: Option<faraday_psbt::v2::PsbtV2>,
+    /// The checksum of the loaded wallet the transaction was last read as
+    /// spending from, so that Check is owed again when another wallet
+    /// takes its place (`SpendState::keep_fresh`).
+    pub wallet_sum: Option<Text>,
 }
 
 /// A MuSig2 partial signature this device wrote: the input, the
@@ -2565,6 +2569,7 @@ impl Spend {
             finished: None,
             nonce_hold: false,
             v2: None,
+            wallet_sum: None,
         }
     }
 
@@ -4442,6 +4447,14 @@ impl Faraday {
                     let checksum = Text::of(wallet.checksum());
                     self.mark_checked(&checksum);
                 }
+                // The steps with nothing to decide are passed (never the
+                // review): Continue on one carries on past them.
+                let c = self.compute();
+                let mut one_wallet = None;
+                while let Some(next) = self.wallets.spend().and_then(|s| s.open)
+                    && crate::signing::nothing_to_decide(self, &c, next, &mut one_wallet)
+                    && self.wallets.continue_step(next)
+                {}
                 // A complete PSBT waits for this: its files go out once
                 // Review (and Check) is gone through.
                 self.spend_files_out();

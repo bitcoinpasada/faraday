@@ -364,8 +364,8 @@ fn the_public_key_scanned_on_the_sheet_is_filed_and_restored_from() {
 }
 
 /// A GPG public key scanned at Home's Scan is filed as the Restore sheet's
-/// own scan files it, `{name}-{fp8}.asc`; the toast names it and Restore a
-/// GPG key lists it. A file sent in the Faraday file envelope keeps the
+/// own scan files it, `{name}-{fp8}.asc`; its card offers the restore and
+/// Restore a GPG key lists it. A file sent in the Faraday file envelope keeps the
 /// name it was sent under.
 #[test]
 fn a_public_key_scanned_at_home_keeps_its_real_name() {
@@ -384,9 +384,9 @@ fn a_public_key_scanned_at_home_keeps_its_real_name() {
             .collect::<Vec<_>>()
     };
     assert!(names(&app).contains(&name), "{:?}", names(&app));
-    assert_eq!(
-        app.toast_text(),
-        Some(format!("{name} is in Files").as_str())
+    assert!(
+        app.scan().is_some_and(|s| s.card.is_some()),
+        "no card for the filed key"
     );
     let files = app.inbox().len();
     app.press(Action::Nav(Screen::Home));
@@ -968,4 +968,34 @@ fn digits_typed_on_arrival_at_step_four_land_in_the_line() {
         app.event(Event::Key(KeyIn::Char(c)));
     }
     assert!(has(&mut app, "Line 1 · checked"), "{:?}", texts(&mut app));
+}
+
+/// A GPG public key scanned at Home that can be restored from offers
+/// Restore from its paperkey on the card, and the press opens the restore.
+#[test]
+fn a_public_key_scanned_at_home_offers_its_restore() {
+    let k = paper_key();
+    let mut app = with_test_vault();
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Scan);
+    scan(&mut app, &cert_file(&k).1);
+    let ways: Vec<String> = app
+        .scan()
+        .and_then(|s| s.card.as_ref())
+        .map(|c| {
+            c.ways
+                .iter()
+                .map(|w| String::from(w.label().as_str()))
+                .collect()
+        })
+        .unwrap_or_default();
+    assert_eq!(ways, vec!["Restore from its paperkey".to_string()]);
+    app.press(Action::ReadGo(0));
+    assert_eq!(app.screen, Screen::BackupFlow);
+    assert_eq!(
+        app.flow()
+            .and_then(|f| f.restore.as_ref())
+            .map(|r| r.fingerprint),
+        Some(k.fingerprint())
+    );
 }

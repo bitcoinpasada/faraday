@@ -2064,6 +2064,11 @@ pub fn steps_before_sign_done(app: &mut crate::Faraday) {
     app.wallets.mark_steps_before_sign_done();
 }
 
+/// Marks key `fp` as made here, so it is held until its backup is done.
+pub fn mark_made_here(app: &mut crate::Faraday, fp: faraday_bip::keys::Fingerprint) {
+    app.mark_made_here(fp);
+}
+
 /// Opens the vanity screen's card `step`, as a press on it does.
 pub fn vanity_open_card(app: &mut crate::Faraday, step: u8) {
     app.vanity.open_card(step);

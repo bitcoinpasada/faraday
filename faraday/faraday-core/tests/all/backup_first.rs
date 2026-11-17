@@ -174,7 +174,15 @@ fn a_key_from_new_key_cannot_sign_until_its_wallets_checklist_is_complete_and_ca
         .position(|i| i.name == "spend.psbt")
         .unwrap();
     app.press(Action::StartSpend(at));
-    testkit::steps_before_sign_done(&mut app);
+    // Every step passed the way a person passes them: the refusal is Sign's.
+    for _ in 0..8 {
+        match app.spend().and_then(|s| s.open) {
+            Some(n) if n != faraday_core::wallet::step::SIGN => {
+                app.press(Action::StepNext(n));
+            }
+            _ => break,
+        }
+    }
     app.press(Action::SignHere);
     let s = app.spend().unwrap();
     assert!(s.spend.finished.is_none(), "a held key signed");
@@ -720,5 +728,61 @@ fn a_key_loaded_without_words_goes_into_the_plans_vault_and_the_vault_restores_i
     assert!(
         next.session.keys.all().any(|k| k.fingerprint == fp),
         "the vault did not restore the key"
+    );
+}
+
+/// A multisig whose steps include Signers: both keys are held, so Signers
+/// passes by itself, and a key made here and not backed up still keeps Sign
+/// from signing.
+#[test]
+fn signers_passed_by_itself_does_not_pass_the_backup_refusal() {
+    let k = testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "savings")
+        .unwrap();
+    let (unsigned, _) = testkit::spend_of(&k).unwrap();
+    let mut app = device(
+        vec![
+            ("spend.psbt".to_string(), unsigned.to_bytes()),
+            testkit::wallet_file(&k),
+        ],
+        768,
+    );
+    testkit::move_to(&mut app.session, testkit::NET).unwrap();
+    let wallet_at = app
+        .inbox()
+        .iter()
+        .position(|i| i.name.ends_with("-wallet.txt"))
+        .unwrap();
+    testkit::load_wallet(&mut app, wallet_at);
+    for s in ["zebra", "bacon"] {
+        crate::common::add_key(&mut app, s);
+    }
+    let fp = app.session.keys.last().unwrap().fingerprint;
+    testkit::mark_made_here(&mut app, fp);
+    let at = app
+        .inbox()
+        .iter()
+        .position(|i| i.name == "spend.psbt")
+        .unwrap();
+    app.press(Action::StartSpend(at));
+    for _ in 0..8 {
+        match app.spend().and_then(|s| s.open) {
+            Some(n) if n != faraday_core::wallet::step::SIGN => {
+                app.press(Action::StepNext(n));
+            }
+            _ => break,
+        }
+    }
+    let s = app.spend().unwrap();
+    assert_eq!(s.open, Some(faraday_core::wallet::step::SIGN));
+    assert!(s.done[faraday_core::wallet::step::SIGNERS as usize]);
+    app.press(Action::SignHere);
+    let s = app.spend().unwrap();
+    assert!(s.spend.signed_here.is_empty(), "a held key signed");
+    assert!(
+        s.error.as_deref().is_some_and(|e| e.contains("backup")),
+        "{:?}",
+        s.error
     );
 }

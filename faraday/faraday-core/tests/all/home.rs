@@ -273,7 +273,7 @@ fn a_seeds_words_scanned_from_home_go_to_add_a_key() {
 }
 
 #[test]
-fn a_psbt_scanned_from_home_goes_into_files_and_home_stays() {
+fn a_psbt_scanned_from_home_opens_its_review() {
     let kit = faraday_core::testkit::kits()
         .into_iter()
         .find(|k| k.id == "spending")
@@ -282,16 +282,13 @@ fn a_psbt_scanned_from_home_goes_into_files_and_home_stays() {
     let mut app = shown();
     tap(&mut app, Action::Scan);
     read(&mut app, &psbt);
-    // The read card offers its spend, the PSBT in Files already
-    // (`docs/SCANNING.md` §5.4); Done leaves Home as it was.
-    let way = app
-        .scan()
-        .and_then(|s| s.card.as_ref())
-        .map(|c| c.ways[0].label());
-    assert_eq!(way.as_deref(), Some("Sign it"));
-    app.press(Action::Cancel);
+    faraday_core::testkit::settle(&mut app);
+    // No card in between: the PSBT is in Files and its spend is open,
+    // where nothing is signed before the review's Continue.
     assert_eq!(app.sheet, None);
-    assert_eq!(app.screen, Screen::Home);
+    assert!(app.scan().is_none());
+    assert_eq!(app.screen, Screen::Spend);
+    assert!(app.spend().is_some());
     assert!(app.session.keys.is_empty());
     assert_eq!(app.inbox().last().map(|i| i.bytes.to_vec()), Some(psbt));
 }

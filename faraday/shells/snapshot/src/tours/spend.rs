@@ -14,6 +14,9 @@ pub(crate) fn spend_tour(t: &mut Tour) -> Result<(), String> {
         available_mib: 15_000,
     });
     faraday_core::testkit::vault_speed(&mut t.app, Some(180));
+    // The Spend page with nothing open: Scan and Open Files.
+    t.press(Action::Nav(Screen::Spend));
+    t.shot("spend-empty")?;
     t.press(Action::Nav(Screen::SpendBackup));
     t.shot("spend-map")?;
     t.press(fam(F::More(page::MAP)));

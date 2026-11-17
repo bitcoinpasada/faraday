@@ -148,6 +148,7 @@ mod ots_check;
 mod outside;
 mod own_randomness;
 mod paper;
+mod pass_steps;
 mod passphrase_kept;
 mod passphrase_paper;
 mod paste_a_seed;

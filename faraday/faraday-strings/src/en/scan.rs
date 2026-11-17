@@ -5,6 +5,8 @@ macro_rules! words_scan {
         $next! {
             [$($rest)*]
             $($acc)*
+    /// A read card's button: an account key is filed, Make a new wallet opens.
+    read_go_use_key: "Make a wallet with it",
     // ----- A scanned code refused (faraday-core/src/qr_view.rs, faraday-qr's kinds) -----
     /// Under the scanner: a code too long to read.
     scan_refused_too_long: "A code over 4,096 characters",

@@ -127,6 +127,59 @@ impl SignWork {
     }
 }
 
+/// Costs what `Session::wallet_of_input` costs for each input still to
+/// sign, once: `one_wallet` keeps that answer for the later calls of one
+/// press. Whether step `n` of the open spend has nothing to decide, so that
+/// Continue on the one before it carries on past it. Only Check and Signers
+/// can have none: Check where no wallet is known (there are no addresses to
+/// compare), Signers where the keys held here already make up the
+/// signatures needed for every input still to sign and no path is still
+/// to be chosen. The review is never passed.
+pub(crate) fn nothing_to_decide(
+    app: &Faraday,
+    c: &Compute,
+    n: u8,
+    one_wallet: &mut Option<bool>,
+) -> bool {
+    use crate::wallet::step;
+    let Some(s) = app.wallets.spend() else {
+        return false;
+    };
+    match n {
+        step::CHECK => s.wallet.is_none(),
+        step::SIGNERS => {
+            let Some(wl) = s.wallet.and_then(|w| app.session.wallets.get(w)) else {
+                return false;
+            };
+            let paths = matches!(
+                crate::wallet::Kind::of(wl.policy()),
+                crate::wallet::Kind::Miniscript | crate::wallet::Kind::Tree
+            );
+            let here = s
+                .inspection
+                .participating_keys
+                .iter()
+                .filter(|fp| app.session.keys.key_label(**fp).is_some())
+                .count();
+            if here < s.needed || paths {
+                return false;
+            }
+            // Every input still to sign is of this wallet: keys for another
+            // wallet's inputs are not among the ones counted here.
+            *one_wallet.get_or_insert_with(|| {
+                let inner = s.spend.psbt.inner();
+                (0..inner.inputs.len())
+                    .filter(|&i| {
+                        let input = &inner.inputs[i];
+                        input.final_script_sig.is_none() && input.final_script_witness.is_none()
+                    })
+                    .all(|i| app.session.wallet_of_input(c, inner, i) == s.wallet)
+            })
+        }
+        _ => false,
+    }
+}
+
 /// Signs the open spend with the keys held here, on the worker. The
 /// refusals come first and answer at once.
 ///

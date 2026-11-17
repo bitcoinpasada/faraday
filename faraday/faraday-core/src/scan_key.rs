@@ -1730,6 +1730,11 @@ impl Faraday {
             Way::Collect => self.act(Action::Collect(at)),
             Way::Decode => self.act(Action::DecodeInbox(at)),
             Way::Wallet => self.act(Action::LoadWallet(at)),
+            Way::UseKey => self.act(Action::CreateWallet),
+            Way::RestoreGpg => {
+                use crate::backup_flow::steps::{FlowAction, RestorePress};
+                self.act(Action::Flow(FlowAction::Restore(RestorePress::From(at))));
+            }
             Way::Restore => self.act(Action::RestoreShares),
             Way::Check => self.act(Action::CheckMessage(at)),
             Way::Note => self.act(Action::Vault(crate::vault::VaultAction::AddFile(at))),
@@ -1816,11 +1821,11 @@ impl Faraday {
 
     /// Costs what [`Faraday::read_card`] costs. After Home's Scan filed
     /// Inbox file `at` (`docs/SCANNING.md` §5.4): where the kind's page is
-    /// a press away (a PSBT to sign, a finished transaction, a wallet
-    /// description, split sheets, a signed message, text with a vault
-    /// open), the read card shows with that press and **Done**, in place
-    /// of the toast. A transaction to check rather than sign goes straight
-    /// to its check, as before. The scanner, closed as the code was
+    /// a press away (a finished transaction, a wallet description, split
+    /// sheets, a signed message, an account key, a GPG public key to
+    /// restore from, text with a vault open), the read card shows with that press and **Done**, in place
+    /// of the toast. A PSBT to sign has no card: its review opens. A
+    /// transaction to check rather than sign goes straight to its check. The scanner, closed as the code was
     /// filed, opens again on the card. Returns whether the card shows.
     fn read_card_after_home(
         &mut self,
@@ -1837,8 +1842,22 @@ impl Faraday {
         };
         let kind = scan_read::public_kind(item.kind, false, &item.bytes);
         let bytes = item.bytes.clone();
+        let file_kind = item.kind;
+        let restorable = crate::backup_flow::gpg_restore::restorable(item);
         let mut card = self.read_card(c, kind, (None, "txt", bytes));
+        // A PSBT to sign has no card: its review opens, where Continue is
+        // what goes on (nothing is signed before it).
+        if card.ways == [Way::Sign] {
+            self.read_go_at(Way::Sign, at);
+            return true;
+        }
         card.ways.retain(|w| *w != Way::Keep);
+        // A key filed has an onward step in place of the toast.
+        if file_kind == crate::wallet::FileKind::Key {
+            card.ways.push(Way::UseKey);
+        } else if restorable {
+            card.ways.push(Way::RestoreGpg);
+        }
         // A text whose own bytes are not UTF-8 is not offered as a message.
         if single
             .as_ref()
@@ -2224,7 +2243,10 @@ impl Faraday {
         if intake {
             return self.spend_backup_intake_file(at);
         }
-        let home = self.screen == crate::Screen::Home
+        // Home's Scan, and the empty Spend screen's, which has nothing open
+        // for a code to be taken by.
+        let home = (self.screen == crate::Screen::Home
+            || (self.screen == crate::Screen::Spend && self.wallets.spend().is_none()))
             && self.sheet == Some(Sheet::Scan)
             && self
                 .camera

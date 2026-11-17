@@ -588,6 +588,10 @@ fn a_second_ur_animation_starts_again_instead_of_sticking() {
         "{a_count} and {b_count} parts"
     );
     let mut app = scanning(Vec::new());
+    // From Files: Home's Scan opens a PSBT's review as it is read.
+    app.press(Action::Cancel);
+    app.press(Action::Nav(faraday_core::Screen::Files));
+    app.press(Action::Scan);
     scan(&mut app, &a[0]);
     scan(&mut app, &a[1]);
     // The second animation comes in the middle of the first.
