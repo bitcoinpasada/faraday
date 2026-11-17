@@ -574,7 +574,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // Rows between the heading and the buttons at the card's foot, and
     // over the stick's buttons a row for zeroing it.
     let list_top = y + 62.0;
-    let max_rows = ((colh - 140.0 - 40.0) / ROW).max(1.0) as usize;
+    let max_rows = ((colh - 140.0 - 40.0 - GRID) / ROW).max(1.0) as usize;
     let track_h = max_rows as f32 * ROW;
     // Write to the stick: the Outbox, and copies from the Inbox.
     ui.card(x, y, colw, colh, Role::OutlineVariant);
@@ -921,8 +921,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let none = Text::fill(EN.visit_no_files, &[app.medium.noun()]);
         ui.text_as(ix + 22.0, ry, BODY_S, Role::OnSurfaceVariant, &none);
     }
-    // Delete files: the one way into deleting from the stick.
-    let zy = y + colh - 62.0 - 44.0;
+    // Delete files: the one way into deleting from the stick, a grid step
+    // above the buttons at the foot so their touch targets keep apart.
+    let zy = y + colh - 62.0 - BUTTON_H - GRID;
     ui.button(
         ix + 20.0,
         zy,
