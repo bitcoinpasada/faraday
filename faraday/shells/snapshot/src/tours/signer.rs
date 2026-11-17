@@ -18,6 +18,15 @@ fn vector(name: &str) -> Result<Vec<u8>, String> {
 }
 
 pub(crate) fn signer_tour(t: &mut Tour) -> Result<(), String> {
+    // Nothing in Files: the empty card, with its ways to get a PSBT.
+    let tile = TILES
+        .iter()
+        .position(|g| g.go == Go::SignerCheck)
+        .ok_or("no Check a signer tile")? as u8;
+    t.press(Action::Nav(Screen::Catalog));
+    t.press(Action::Catalog(tile));
+    t.shot("signer-empty")?;
+    t.press(Action::SignerCheck(SignerPress::Back));
     t.app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![
             ("sent.psbt".to_string(), vector("signer-core-sent.psbt")?),

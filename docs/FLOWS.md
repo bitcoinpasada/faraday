@@ -568,7 +568,7 @@ single-key wallet loaded, to sign as a message), the
 read card shows that press with **Done**, in place of the toast
 (`docs/SCANNING.md` §5.4); a PSBT to sign goes straight to its review, and
 an account key or a GPG public key filed gets **Make a wallet with it** or
-**Restore from its paperkey** on the card. A private key (an xprv, a WIF or a Nostr
+**Restore from its paperkey** on the card from any scanner. A private key (an xprv, a WIF or a Nostr
 secret key) and words that fail a BIP-39 checksum are named and never
 filed, since Add a key does not take them; 24 words that are an LND
 aezeed by its own CRC-32C show the read card with **Use in Lightning**

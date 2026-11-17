@@ -101,9 +101,19 @@ fn choose(app: &View, s: &CheckState, ui: &mut Ui, slot: Slot, (x, y, w): (f32, 
     let all = check::files(&app.inbox, &app.outbox);
     let (same, other) = check::rows(&all, slot, (s.sent.as_ref(), s.returned.as_ref()));
     let mut cy = y;
+    // Load sample PSBT goes in the "Demo only" card (`docs/DEMO.md` §14).
+    if app.sample_psbt_offered() {
+        ui.demo_offer(EN.scan_sample_psbt, Action::SamplePsbt);
+    }
+    let scan = Action::SignerCheck(SignerPress::Scan(slot));
     if all.is_empty() {
-        ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, EN.compare_no_files);
-        cy += ui.line_as(BODY_S) + PAD;
+        cy += crate::screens::parts::nothing_to_work_on(
+            app,
+            ui,
+            (x, cy, w),
+            EN.compare_no_files,
+            (scan, crate::Screen::SignerCheck),
+        ) + GAP;
     }
     // A copy whose file was replaced is no row's file: any can be picked.
     let chosen = s.side(slot).filter(|d| !d.differs).map(|d| &d.origin);
@@ -120,17 +130,27 @@ fn choose(app: &View, s: &CheckState, ui: &mut Ui, slot: Slot, (x, y, w): (f32, 
     if let Some(why) = &s.refused[usize::from(slot.card())] {
         cy += ui.wrap_as((x, cy, w), BODY_S, Role::Error, why) + GAP;
     }
+    if all.is_empty() {
+        return cy - y;
+    }
     cy += GAP_SMALL;
-    ui.button(
-        x,
-        cy,
-        None,
-        BUTTON_H,
-        EN.signer_scan,
-        Style::Secondary,
-        Action::SignerCheck(SignerPress::Scan(slot)),
-    );
-    cy + BUTTON_H + GAP_SMALL - y
+    // Scan, and the stick when one is attached and no key is open.
+    let stick = (!app.stick.is_empty() && !app.holds_secret()).then(|| {
+        fill(
+            EN.parts_bring_in_from,
+            &[&app.stick[app.visit.stick.min(app.stick.len() - 1)].label],
+        )
+    });
+    let mut items = vec![(EN.signer_scan, Style::Secondary, scan)];
+    if let Some(s) = &stick {
+        items.push((
+            s,
+            Style::Secondary,
+            Action::VisitFrom(crate::Screen::SignerCheck),
+        ));
+    }
+    cy += crate::screens::wrap_buttons(ui, x, cy, w, BUTTON_H, &items);
+    cy + GAP_SMALL - y
 }
 
 /// One option row (DESIGN §4.2): the file's name and its line, the

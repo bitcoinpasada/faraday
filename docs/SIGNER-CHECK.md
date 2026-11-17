@@ -115,6 +115,11 @@ Either card also takes a finished transaction (§11.1).
   signatures · {txid short form}" (DESIGN §4.5), or "Finished · {txid
   short form}" (§11.3). What the line reads comes from the file's
   `PsbtSeen`, kept on the Inbox item since it came in: a lookup.
+- **Stick**: under **Scan**, **Bring in from {stick}** while a stick is
+  attached and no key is open; it goes to Files and returns to the flow
+  when the stick is pulled. With no file, the card is the empty part
+  (DESIGN §4): the line, **Scan**, **Open Files** and the stick. In
+  Practice, **Load sample PSBT** is in the Demo only card.
 - **Scan**: a secondary button on each of the two cards opens the
   scanner titled "Scan the PSBT sent" or "Scan the PSBT returned"
   (DESIGN §4.9; `crypto-psbt`, animated or not, base64 text and a
@@ -185,7 +190,7 @@ working screen. The ? opens the Learn section.
 
 | Card | Open | Closed |
 |---|---|---|
-| Sent | Option rows (§4.2), one per PSBT or finished transaction: the file's name; "{n} signatures · {txid}" or "Finished · {txid}" as its line. Under them **Scan**, secondary. Empty: "No PSBT or transaction in Files" (§4.14, Empty state) and **Scan**. | The file's name, or "Scanned"; **Change**. |
+| Sent | Option rows (§4.2), one per PSBT or finished transaction: the file's name; "{n} signatures · {txid}" or "Finished · {txid}" as its line. Under them **Scan**, secondary, and the stick's row. Empty: "No PSBT or transaction in Files" (§4.14, Empty state) with **Scan**, **Open Files** and the stick's row. | The file's name, or "Scanned"; **Change**. |
 | Returned | The same rows, the files spending an input of the other card's first, then "Other transactions" (§4.12, Section label) and the rest; **Scan**. | As Sent. |
 | Result | Below. | — |
 

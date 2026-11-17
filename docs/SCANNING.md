@@ -139,7 +139,7 @@ destination's action.
 | Finished transaction | filed, then Decode. **Decode it** |
 | Wallet description | filed, then loaded. **Load the wallet**; in Restore, its description |
 | Split sheets | filed, then Restore's description. **Restore the wallet** |
-| Account key | Create's or Restore's slot waiting for one; else filed. **Make a wallet with it** (Create a wallet opens) |
+| Account key | Create's or Restore's slot waiting for one; else filed. **Make a wallet with it** (Create a wallet opens); Files' row for the key offers the same |
 | Address, BIP-21, silent payment address | **Is this address mine?**: on the address check's own scanner (Home's Scan, Tools' Check an address) the result card (`docs/DESIGN.md` §5, Check an address: the wallet or key account, the place, the path or each cosigner's, the whole address in groups of four, or on a miss the address and how far it looked); on any other scanner the address is named and its way over is **Check the address**; a find in a key's account ends with **Make a wallet**, then **Open the wallet**; with nothing loaded the line is "Load a key or a wallet first"; a `bitcoin:` link is read to BIP 21 first (`core/faraday-codec/src/bip21.rs`), and one with a `req-` parameter or one not well formed says so instead; on a miss the card's ways are **Look further** to each depth past what was looked at, and **Stop** while it looks (`docs/QR.md` §2) |
 | Signed message | filed, then Check a message. **Check the signature** |
 | GPG public key, Faraday file envelope | filed (an envelope under its own name, then as its contents). A GPG public key Faraday can restore from: **Restore from its paperkey** (Restore a GPG key opens on it); an envelope: **Keep in Files** |

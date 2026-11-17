@@ -609,14 +609,14 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     Action::LoadKey(k),
                 ) + 8.0;
             }
-            FileKind::Message | FileKind::CoreWallet => {
-                let (label, action) = if item.kind == FileKind::Message {
-                    (EN.files_check_the_signature, Action::CheckMessage(k))
-                } else {
-                    (
+            FileKind::Message | FileKind::CoreWallet | FileKind::Key => {
+                let (label, action) = match item.kind {
+                    FileKind::Message => (EN.files_check_the_signature, Action::CheckMessage(k)),
+                    FileKind::Key => (EN.read_go_use_key, Action::CreateWallet),
+                    _ => (
                         EN.files_read_core_wallet,
                         Action::CoreWallet(crate::core_wallet::tool::CoreWalletAction::OpenFile(k)),
-                    )
+                    ),
                 };
                 bx += ui.button(bx, iy + 64.0, None, BUTTON_H, label, Style::Primary, action) + 8.0;
             }

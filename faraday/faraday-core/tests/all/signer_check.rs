@@ -78,6 +78,14 @@ fn the_tile_opens_with_no_key_or_wallet() {
 }
 
 #[test]
+fn a_card_with_nothing_to_choose_offers_scan_and_open_files() {
+    let mut app = testkit::started();
+    open(&mut app);
+    assert!(shows(&mut app, EN.compact_scan));
+    assert!(shows(&mut app, EN.parts_open_files));
+}
+
+#[test]
 fn two_psbts_of_one_transaction_open_checked() {
     let mut app = with_files(vec![("sent.psbt", sent()), ("signed.psbt", signed())]);
     open(&mut app);

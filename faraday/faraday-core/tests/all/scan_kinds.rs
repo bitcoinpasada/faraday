@@ -556,6 +556,23 @@ fn homes_scan_of_an_account_key_offers_making_a_wallet_with_it() {
     assert_eq!(app.screen, Screen::Create);
 }
 
+/// An account key in Files offers making a wallet with it.
+#[test]
+fn an_account_key_in_files_offers_a_wallet() {
+    let key = testkit::key(2, "48h/1h/0h/2h");
+    let mut app = testkit::started();
+    open(&mut app, Opened::Home);
+    read(&mut app, key.as_bytes());
+    app.press(Action::ReadGo(0));
+    app.press(Action::Nav(Screen::Files));
+    let _ = app.frame();
+    assert!(
+        app.drawn_texts()
+            .join("\n")
+            .contains("Make a wallet with it")
+    );
+}
+
 /// A scanned wallet description of several keys, whose way over loads
 /// it, asks on the confirmation sheet and is added on the hold.
 #[test]

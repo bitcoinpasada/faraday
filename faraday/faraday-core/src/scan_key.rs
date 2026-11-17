@@ -1442,7 +1442,7 @@ impl Faraday {
             Kind::SplitSheets => vec![Way::Restore],
             Kind::AccountKey => {
                 facts.extend(scan_read::account_fact(&text));
-                vec![Way::Keep]
+                vec![Way::UseKey]
             }
             Kind::Kef => match crate::seeds::kef::kef_header(self, &code) {
                 Some((h, lines)) => {
@@ -1455,6 +1455,9 @@ impl Faraday {
             Kind::Invoice => vec![Way::Invoice],
             Kind::Message => vec![Way::Check],
             Kind::QrVault => vec![Way::OpenQrVault],
+            Kind::Gpg if crate::backup_flow::gpg_restore::RestoreFrom::read(&code).is_ok() => {
+                vec![Way::RestoreGpg]
+            }
             Kind::Gpg | Kind::File => vec![Way::Keep],
             Kind::Text => {
                 let mut ways = vec![Way::Keep];
@@ -1849,7 +1852,6 @@ impl Faraday {
         let kind = scan_read::public_kind(item.kind, false, &item.bytes);
         let bytes = item.bytes.clone();
         let file_kind = item.kind;
-        let restorable = crate::backup_flow::gpg_restore::restorable(item);
         let mut card = self.read_card(c, kind, (None, "txt", bytes));
         // A PSBT to sign has no card: its review opens, where Continue is
         // what goes on (nothing is signed before it).
@@ -1858,11 +1860,9 @@ impl Faraday {
             return true;
         }
         card.ways.retain(|w| *w != Way::Keep);
-        // A key filed has an onward step in place of the toast.
-        if file_kind == crate::wallet::FileKind::Key {
-            card.ways.push(Way::UseKey);
-        } else if restorable {
-            card.ways.push(Way::RestoreGpg);
+        // A key with a secret beside it is not offered as an account key.
+        if file_kind == crate::wallet::FileKind::KeyWithSecret {
+            card.ways.retain(|w| *w != Way::UseKey);
         }
         // A text whose own bytes are not UTF-8 is not offered as a message.
         if single
