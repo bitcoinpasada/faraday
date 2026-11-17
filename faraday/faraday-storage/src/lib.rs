@@ -428,9 +428,9 @@ pub fn memory_available_mib() -> Option<u32> {
         let available = meminfo_available_mib(&info)?;
         // A control group's limit (a container, a service) holds the
         // process below what the machine has free.
-        let limit = fs::read_to_string("/sys/fs/cgroup/memory.max")
-            .ok()
-            .and_then(|t| cgroup_limit_mib(&t));
+        let max = fs::read_to_string("/sys/fs/cgroup/memory.max").ok();
+        let current = fs::read_to_string("/sys/fs/cgroup/memory.current").ok();
+        let limit = max.and_then(|m| cgroup_free_mib(&m, current.as_deref()));
         Some(limit.map_or(available, |l| l.min(available)))
     }
 }
@@ -443,12 +443,15 @@ fn meminfo_available_mib(info: &str) -> Option<u32> {
     u32::try_from(kib / 1024).ok()
 }
 
-/// The limit of a cgroup v2 `memory.max` text, in MiB: `None` for `max`
-/// (no limit) or text that is not a number.
+/// What a cgroup v2 limit leaves free, in MiB: `memory.max` less
+/// `memory.current` (the use counts as nothing where it cannot be read).
+/// `None` for `max` (no limit) or a text that is not a number.
 #[cfg(not(windows))]
-fn cgroup_limit_mib(text: &str) -> Option<u32> {
-    let bytes: u64 = text.trim().parse().ok()?;
-    Some(u32::try_from(bytes / (1024 * 1024)).unwrap_or(u32::MAX))
+fn cgroup_free_mib(max: &str, current: Option<&str>) -> Option<u32> {
+    let limit: u64 = max.trim().parse().ok()?;
+    let used: u64 = current.and_then(|t| t.trim().parse().ok()).unwrap_or(0);
+    let free = limit.saturating_sub(used) / (1024 * 1024);
+    Some(u32::try_from(free).unwrap_or(u32::MAX))
 }
 
 #[cfg(all(test, not(windows)))]
@@ -456,10 +459,15 @@ mod memory_tests {
     use super::*;
 
     #[test]
-    fn a_cgroup_limit_reads_in_mib_and_no_limit_reads_as_none() {
-        assert_eq!(cgroup_limit_mib("536870912\n"), Some(512));
-        assert_eq!(cgroup_limit_mib("max\n"), None);
-        assert_eq!(cgroup_limit_mib(""), None);
+    fn a_cgroup_limit_leaves_its_limit_less_its_use_and_no_limit_leaves_none() {
+        assert_eq!(
+            cgroup_free_mib("536870912\n", Some("268435456\n")),
+            Some(256)
+        );
+        assert_eq!(cgroup_free_mib("536870912\n", None), Some(512));
+        assert_eq!(cgroup_free_mib("1048576", Some("2097152")), Some(0));
+        assert_eq!(cgroup_free_mib("max\n", Some("1024")), None);
+        assert_eq!(cgroup_free_mib("", None), None);
     }
 }
 

@@ -1237,7 +1237,7 @@ pub enum Question {
 pub enum At {
     /// A place, by number from zero: what it keeps on paper.
     Place(usize),
-    /// Stick `s` (from zero) at place `p` (`docs/BACKUP-FLOW.md` §17.4):
+    /// Stick `s` (from zero) at place `p`, written `Stick(p, s)` (`docs/BACKUP-FLOW.md` §17.4):
     /// at most one vault's stick, and any of the stick forms beside it.
     Stick(usize, usize),
     /// Vault `v`, by number from zero.
@@ -1977,6 +1977,7 @@ fn sticks_of(boxes: &[Spot], v: usize) -> Vec<usize> {
             _ => None,
         })
         .collect();
+    out.sort_unstable();
     out.dedup();
     out
 }
@@ -4249,4 +4250,24 @@ fn without_shares(m: &[Spot]) -> Vec<Spot> {
     }
     out.retain(|s| !(s.holds.is_empty() && matches!(s.at, At::Files | At::Software | At::Away)));
     tidy_sticks(out)
+}
+
+#[cfg(test)]
+mod sticks_of_tests {
+    use super::*;
+
+    #[test]
+    fn a_vault_stick_kept_at_places_out_of_order_lists_each_place_once() {
+        let spot = |at| Spot {
+            at,
+            holds: vec![(What::VaultStick(0), Tag::Secret)],
+        };
+        let boxes = [
+            spot(At::Place(2)),
+            spot(At::Place(1)),
+            spot(At::Stick(2, 0)),
+            spot(At::Place(1)),
+        ];
+        assert_eq!(sticks_of(&boxes, 0), vec![1, 2]);
+    }
 }
