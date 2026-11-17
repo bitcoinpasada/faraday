@@ -87,6 +87,9 @@ pub(crate) fn first_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     write_sticks(t)?;
     t.shot("first-sticks-written")?;
     t.press(Action::Flow(F::UnlockDone(0)));
+    // No field has the focus after the sticks were pulled: a tap on it
+    // takes the typing.
+    t.press(Action::Vault(V::FocusPassphrase));
     type_text(t, "first phrase");
     t.press(Action::Vault(V::Unlock));
     for _ in 0..10 {
@@ -102,8 +105,8 @@ pub(crate) fn first_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     }
     t.shot("first-done")?;
     if t.app.is_compact() {
-        // The done card's top: the checks strip, then the chart.
-        scroll(t, 420);
+        // The end card: Backup done, the checks strip, then the chart.
+        scroll(t, 600);
         t.shot("first-done-strip")?;
     }
     scroll_to(t, Action::BPlan);
