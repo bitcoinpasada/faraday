@@ -458,6 +458,20 @@ fingerprint, **Make a wallet with this key** (filled), **Another** (New key
 again, from Start) and **Done** (back to Tools); none of the key's secret is on
 it. Opened from Make a new wallet or Add a key it returns there as before.
 
+**A key made on the Keys card** (F282) is designed and not yet built: on
+a single key with Backup set to Words, and on Key 1 of a multisig while
+no slot holds a key made here, the empty slot holds the making in place.
+Length offers 12 words · 24 words, 12 chosen; dice are the source,
+chosen, by the rolls that name the words, the entry under Length with
+the count still needed; **Make the words** shows the words masked,
+**Show words** and **Add a passphrase**; then **Make the wallet** on a
+single key or **Lock in** on a multisig. **Other ways** under the slot
+opens New key as above (This device, typed words, a SeedQR, codex32,
+SLIP-39, the other procedures); a later multisig slot keeps **Scan its
+xpub** first with **New words** beside it. Rolls and words not locked in
+are dropped when Make a new wallet is left or its Kind or Backup
+changes. Until it is built the slot offers New key.
+
 **Make a new key** (decisions 34 and 38, F103). Once Start has a
 choice, Length opens, no count chosen; pressing a count takes it and opens
 Randomness, and pressing a way opens the entry card, with no Continue
@@ -1610,8 +1624,7 @@ sidebar row (a press on the row only returns to the flow).
    2026-10-24; F115): New key or Make codex32 shares opened for a slot
    (`Action::KeyGen(Some(slot))`), until its key is locked in. It has no
    row of its own and ends no flow: it returns to Make a new wallet on
-   its Keys card, the slot as it was, or on the card before Keys where
-   Keys was passed over for this flow (WALLETS §5). It asks first only
+   its Keys card, the slot as it was (the card always shows). It asks first only
    when rolls, characters, words or a passphrase are entered: the
    dialog "Discard this key?", "What is entered for this key so far is
    discarded, and you return to Make a new wallet.", **Keep going** and

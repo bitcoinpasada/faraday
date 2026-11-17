@@ -131,7 +131,7 @@ Read this table, then only the decision you need.
 | [F112](decisions/F112.md) | One explanation on a working screen: the tooltip on "codex32" in Make a new wallet's Kind card | 2026-10-24 | Amended by F240, F247 | design |
 | [F113](decisions/F113.md) | Colour follows Material 3's colour system: ten seeded themes, Light and Dark, three contrast levels | 2026-10-24 | Amended by F126, F138 | design |
 | [F114](decisions/F114.md) | Wide content takes the room beside the navigation; reading content keeps its column | 2026-10-24 | Active | design |
-| [F115](decisions/F115.md) | A key flow opened from Make a new wallet has Cancel, back to it; a Keys card with one way on is passed over | 2026-10-24 | Amended by F240 | design |
+| [F115](decisions/F115.md) | A key flow opened from Make a new wallet has Cancel, back to it; a Keys card with one way on is passed over | 2026-10-24 | Amended by F240, F282 | design |
 | [F116](decisions/F116.md) | Faraday's scope: an offline signer and keeper of keys, Bitcoin first | 2026-10-25 | Active | scope |
 | [F117](decisions/F117.md) | Faraday Demo matches the device; it differs only where the platform or an owner decision forces it | 2026-10-25 | Amended by F119 | design |
 | [F118](decisions/F118.md) | Faraday Demo is a simulator: what is Faraday Demo's or Practice's stands in a host strip outside the app | 2026-10-25 | Amended by F119 | design |
@@ -256,7 +256,7 @@ Read this table, then only the decision you need.
 | [F237](history/decisions/F237.md) | Transfer calls Read the words and does not offer it; the screens_not count is 23 | 2026-11-10 | Superseded by F268 | crypto |
 | [F238](decisions/F238.md) | Named costly operations are held by an instruction count in the check: more than 25% over fails, a count is raised only in a commit that says why; a stated cost says how it was measured | 2026-11-10 | Active | speed |
 | [F239](decisions/F239.md) | A release's cross-check may be made of runs at one fresh seed, the later ones running only the areas whose own inputs changed | 2026-11-10 | Amended by F259 | repository |
-| [F240](decisions/F240.md) | Make a new wallet asks who signs, then a single key's backup: Words (BIP-39) or Shares (codex32) on a Backup card, New key making the key in that form | 2026-11-10 | Active | wallets |
+| [F240](decisions/F240.md) | Make a new wallet asks who signs, then a single key's backup: Words (BIP-39) or Shares (codex32) on a Backup card, New key making the key in that form | 2026-11-10 | Amended by F282 | wallets |
 | [F241](decisions/F241.md) | A release's fuzz run may be made of two runs, the later one running only the targets whose corpus reaches what changed | 2026-11-11 | Active | repository |
 | [F242](decisions/F242.md) | Change at an address index of 10,000 or more is shown as change with a Caution, not as verified change; signing stays possible | 2026-11-11 | Active | signing |
 | [F243](decisions/F243.md) | One targeted check may run on GitHub Actions, started by hand: one crate's tests or one lint recipe, under F183's limits | 2026-11-11 | Active | repository |
@@ -293,3 +293,4 @@ Read this table, then only the decision you need.
 | [F279](decisions/F279.md) | Ready plans on the backup board: paper only, paper and a vault, two vaults | 2026-11-16 | Active | backup |
 | [F280](decisions/F280.md) | Unlocking a vault from the Vaults list lands in the vault | 2026-11-17 | Active | vault |
 | [F281](decisions/F281.md) | Timing and memory side channels on the offline device are outside the security model: not looked for, not recorded, not fixed | 2026-11-17 | Active | crypto |
+| [F282](decisions/F282.md) | A wallet's key is made on Make a new wallet's Keys card, from dice by default | 2026-11-17 | Active | wallets |
