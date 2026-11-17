@@ -188,6 +188,7 @@ mod select;
 mod selftest;
 mod settings_file;
 mod shared_keys;
+mod sheet_pdf_read_back;
 mod sidebar;
 mod sign_from_card;
 mod signer_check;
