@@ -791,12 +791,6 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         self.c.fill_rounded_rect(rect, w as f32 / 2.0, color);
     }
 
-    /// The region's content fades into `ground`, the surface it sits on,
-    /// at an edge it continues past: under the top once scrolled, above
-    /// the bottom while there is more. Each fade comes in over the first
-    /// 24 units scrolled. At High contrast a scheme draws none: a fade
-    /// lowers the contrast of what is under it, and the scrollbar says
-    /// the page goes on.
     /// The top app bar's fill with the page `offset` units under it:
     /// surface, and surface-container once the page is an edge fade's
     /// depth under it, mixed between the two on the way.
@@ -811,12 +805,19 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         rest.mix(self.col(Role::SurfaceContainer), offset / depth)
     }
 
+    /// The region's content fades into `ground`, the surface it sits on,
+    /// at an edge it continues past: under the top once scrolled, above
+    /// the bottom while there is more. Each fade comes in over the first
+    /// units scrolled. The top one is drawn only when `fade_top`, into
+    /// `top_into` when given (the bar's fill over the page). At High contrast a scheme draws none: a fade
+    /// lowers the contrast of what is under it, and the scrollbar says
+    /// the page goes on.
     fn edge_fades(
         &mut self,
         view: Rect,
         (max, offset): (f32, f32),
         ground: Role,
-        top_into: Option<Color>,
+        (fade_top, top_into): (bool, Option<Color>),
     ) {
         use faraday_draw::tokens::{
             EDGE_FADE, EDGE_FADE_ALPHA, EDGE_FADE_COMPACT, EDGE_FADE_LOW_COMPACT,
@@ -842,7 +843,11 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             .clamp(1, view.h / 4 + 1);
         let page = self.col(ground);
         let reach = band as f32 / self.f;
-        let top = (offset / reach).clamp(0.0, 1.0);
+        let top = if fade_top {
+            (offset / reach).clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
         let above = top_into.unwrap_or(page);
         let bottom = ((max - offset) / (low as f32 / self.f)).clamp(0.0, 1.0);
         for i in 0..band {

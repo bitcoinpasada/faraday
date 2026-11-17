@@ -449,8 +449,11 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             && !self.in_sheet
             && (self.under_bar || self.head.is_some());
         let top_into = under_bar.then(|| self.bar_tone(offset));
+        // A page that begins at the top of the frame, with no bar over
+        // it, has nothing to fade under there: it scrolls off the edge.
+        let fade_top = under_bar || slot != Slot::Page || self.in_sheet || view.y > 0;
         let into = region.fade.unwrap_or(ground);
-        self.edge_fades(view, (max, offset), into, top_into);
+        self.edge_fades(view, (max, offset), into, (fade_top, top_into));
         // A small panel draws no scrollbar: the edge fades say the page
         // goes on.
         if let Some((alpha, bar_offset)) = self.bar
