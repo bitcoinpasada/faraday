@@ -473,6 +473,7 @@ dependencies = [
  "faraday-bip",
  "faraday-codec",
  "faraday-crypto",
+ "faraday-entropy",
  "faraday-intake",
  "faraday-pgp",
  "faraday-text",

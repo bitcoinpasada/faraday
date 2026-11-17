@@ -24,7 +24,7 @@ pub(crate) fn name_suffix(app: &View) -> NameSuffix {
 }
 
 /// A flow in progress's row's height in the sidebar.
-const FLOW_ROW: f32 = 30.0;
+const FLOW_ROW: f32 = faraday_draw::tokens::TOUCH;
 
 /// A flow in progress's row, indented under its tab: its name and, at
 /// the right end in the muted tone, its open step; lit while the flow is

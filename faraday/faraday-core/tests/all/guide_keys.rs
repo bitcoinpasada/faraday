@@ -70,7 +70,7 @@ fn steps(s: Screen) -> Vec<u8> {
 fn parts(s: Screen) -> Vec<GuideAt> {
     use faraday_core::wallet::step;
     match s {
-        Screen::Settings => (0..9).map(GuideAt::Part).collect(),
+        Screen::Settings => (0..8).map(GuideAt::Part).collect(),
         Screen::VaultContents => (0..6).map(GuideAt::Part).collect(),
         Screen::Entry => (0..4).map(GuideAt::Part).collect(),
         Screen::Backup => [

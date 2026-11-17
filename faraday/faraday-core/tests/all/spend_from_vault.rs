@@ -321,7 +321,9 @@ fn leaving_the_spend_and_coming_back_resumes_it() {
     );
     app.press(Action::Nav(Screen::Home));
     let text = drawn(&mut app);
-    assert!(text.contains("Carry on the spend"), "{text}");
+    // The wide Home's card: the wallet and its signatures, with Carry on.
+    assert!(text.contains("Spending · Signatures 0 of 1"), "{text}");
+    assert!(text.contains("Carry on"), "{text}");
     assert!(app.offers(Action::SpendBackup(F::SpendFrom(w))));
     app.press(Action::SpendBackup(F::SpendFrom(w)));
     assert_eq!(app.screen, Screen::SpendBackup);
