@@ -832,3 +832,72 @@ fn a_seal_running_is_not_stopped_by_a_cancel_while_a_krux_sheet_is_left_over() {
     testkit::settle(&mut app);
     assert!(app.busy().is_none());
 }
+
+/// A Krux code sealed around 32 bytes of seed with `id`, read back in a
+/// fresh scanner that holds the key of `loaded`'s words; what its seed sheet shows.
+fn seed_code_sheet(entropy: u8, id: &[u8], loaded: &str) -> Vec<String> {
+    let mut app = scanner();
+    app.session
+        .keys
+        .add_words_with(&testkit::compute(), loaded, "", "Held", None)
+        .unwrap();
+    fresh(&mut app);
+    app.kef_seal(
+        Zeroizing::new(b"key".to_vec()),
+        Zeroizing::new(vec![entropy; 32]),
+        20,
+        faraday_core::worker::kef::KefId::Public(id.to_vec()),
+        10_000,
+        "Working",
+    )
+    .expect("fresh bytes");
+    testkit::settle(&mut app);
+    let code = app.kef_take_sealed().unwrap().unwrap().to_vec();
+    read(&mut app, &code);
+    go(&mut app, "Open");
+    open_with(&mut app, "key");
+    let shown = texts(&mut app);
+    assert_eq!(app.sheet, Some(Sheet::SeedRead), "{shown:?}");
+    shown
+}
+
+#[test]
+fn a_code_whose_id_is_its_words_fingerprint_says_the_id_matches_the_key() {
+    let words_of = |b: u8| {
+        let m = faraday_keys::words::from_compact_seedqr(
+            &[b; 32],
+            faraday_bip::bip39::Language::English,
+        )
+        .unwrap();
+        let list = faraday_bip::bip39::Language::English.words();
+        m.indices()
+            .iter()
+            .map(|&i| list[usize::from(i)])
+            .collect::<Vec<_>>()
+            .join(" ")
+    };
+    let (mine, other) = (words_of(0xa1), words_of(0xb2));
+    let mut held = testkit::started();
+    held.session
+        .keys
+        .add_words_with(&testkit::compute(), &mine, "", "Held", None)
+        .unwrap();
+    let fp = held.session.keys.last().unwrap().fingerprint;
+    let id = String::from_utf8(fp.to_hex().to_vec()).unwrap();
+    let shown = seed_code_sheet(0xa1, id.as_bytes(), &mine);
+    assert!(
+        shown
+            .iter()
+            .any(|t| *t == format!("Code id {id} matches this key")),
+        "{shown:?}"
+    );
+    // The same id on a code of another key's words does not match.
+    let shown = seed_code_sheet(0xb2, id.as_bytes(), &other);
+    assert!(
+        shown
+            .iter()
+            .any(|t| *t == format!("Code id {id} differs from this key")),
+        "{shown:?}"
+    );
+    assert!(!shown.iter().any(|t| t.contains("matches this key")));
+}
