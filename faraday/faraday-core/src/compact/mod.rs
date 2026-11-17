@@ -1047,6 +1047,13 @@ fn tiles(app: &View) -> Vec<Tile> {
             true,
         ),
         (
+            Icon::File.into(),
+            EN.compact_files,
+            text!("{} · {}", app.inbox.len(), app.outbox.len()),
+            Action::Nav(Screen::Files),
+            true,
+        ),
+        (
             Icon::Lock.into(),
             EN.compact_vaults,
             match (open, vault_files) {
@@ -1057,26 +1064,12 @@ fn tiles(app: &View) -> Vec<Tile> {
             Action::Nav(Screen::Vaults),
             true,
         ),
-        (
-            Icon::File.into(),
-            EN.compact_files,
-            text!("{} · {}", app.inbox.len(), app.outbox.len()),
-            Action::Nav(Screen::Files),
-            true,
-        ),
-        (
-            Icon::Help.into(),
-            EN.compact_guide,
-            Text::new(),
-            Action::Guide,
-            true,
-        ),
     ];
     // Backups once any wallet is known (§5), after Wallets.
     let (known, without) = app.backup_counts();
     if known > 0 {
         t.insert(
-            3,
+            2,
             (
                 Icon::Shield.into(),
                 EN.compact_backups,
@@ -1095,6 +1088,13 @@ fn tiles(app: &View) -> Vec<Tile> {
         EN.compact_tools,
         Text::new(),
         Action::Nav(Screen::Catalog),
+        true,
+    ));
+    t.push((
+        Icon::Help.into(),
+        EN.compact_guide,
+        Text::new(),
+        Action::Guide,
         true,
     ));
     // The online app is the device's QR link.

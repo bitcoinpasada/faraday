@@ -25,7 +25,7 @@ macro_rules! words_compact {
     /// Text in `screen_name`.
     compact_create_a_vault: "Create a vault",
     /// Text in `screen_name`.
-    compact_new_key: "New key",
+    compact_new_key: "Make a new key",
     /// Text in `screen_name`.
     compact_silent_payments: "Silent payments",
     /// Text in `screen_name`.
