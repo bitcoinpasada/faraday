@@ -68,7 +68,6 @@ small_480x640 Entry EntryCandidate 17
 small_480x640 Files File 3
 small_480x640 Files VisitInAll 1
 small_480x640 Home Import 1
-small_480x640 Home Nav 1
 small_480x640 KeyGen Codex32 9
 small_480x640 KeyGen WordList 3
 small_480x640 Settings Theme 52
@@ -106,7 +105,6 @@ stick_1024x600 Files DeletePick 4
 stick_1024x600 Files File 11
 stick_1024x600 Files Osk 38
 stick_1024x600 Home Import 1
-stick_1024x600 Home Nav 1
 stick_1024x600 Home Osk 38
 stick_1024x600 Invoice Osk 38
 stick_1024x600 KefTool Osk 38
