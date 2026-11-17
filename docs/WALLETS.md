@@ -303,7 +303,7 @@ used. In Faraday the keys are usually already loaded from a vault, so
 the signers step shows them rather than asking for them, and asks only
 for what is missing. The transaction's id, where it is known before
 signing, is a row of the Transaction card's table, not a step of its
-own. Nothing of a spend goes to the Outbox until Review (and Check, where the wallet is known) is gone through on this device for that exact PSBT, also for a PSBT that arrives signed by enough keys elsewhere or becomes complete through Collect; a Collect answer that changes the PSBT needs Review again.
+own. Nothing of a spend goes to the Outbox until Review (and Check, where the wallet is known) is gone through on this device for that exact PSBT, also for a PSBT that arrives signed by enough keys elsewhere or becomes complete through Collect; a Collect answer that changes the PSBT needs Review again. Sign stops and Review is asked again after a Collect, or a wallet or key loaded, that changes what the inspection finds (a warning, or a key that takes part, Review did not show).
 
 | Kind | Flow | What differs |
 |---|---|---|

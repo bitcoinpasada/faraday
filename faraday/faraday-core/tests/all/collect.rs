@@ -15,6 +15,15 @@ fn collecting_says_more_only_once_a_signature_is_in() {
 fn reviewed_then_collected(
     answer: impl Fn(faraday_psbt::Psbt) -> Vec<u8>,
 ) -> faraday_core::Faraday {
+    reviewed_then_collected_from(|p| p, answer)
+}
+
+/// As [`reviewed_then_collected`], with the spend `base` makes of the
+/// unsigned one opened and reviewed.
+fn reviewed_then_collected_from(
+    base: impl Fn(faraday_psbt::Psbt) -> faraday_psbt::Psbt,
+    answer: impl Fn(faraday_psbt::Psbt) -> Vec<u8>,
+) -> faraday_core::Faraday {
     use crate::common::add_key;
     use faraday_core::{Action, StorageEvent, testkit};
     let k = testkit::kits()
@@ -22,6 +31,7 @@ fn reviewed_then_collected(
         .find(|k| k.id == "savings")
         .unwrap();
     let (unsigned, _) = testkit::spend_of(&k).unwrap();
+    let unsigned = base(unsigned);
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![
@@ -46,6 +56,57 @@ fn reviewed_then_collected(
     let n = at(&app, "from-a.psbt");
     app.press(Action::Collect(n));
     app
+}
+
+/// A key origin under a fingerprint no key is loaded for, on output `n`.
+fn unknown_origin(psbt: &mut faraday_psbt::Psbt, n: usize) {
+    let key = faraday_bip::bitcoin::secp256k1::PublicKey::from_slice(&[
+        2, 0x79, 0xbe, 0x66, 0x7e, 0xf9, 0xdc, 0xbb, 0xac, 0x55, 0xa0, 0x62, 0x95, 0xce, 0x87,
+        0x0b, 0x07, 0x02, 0x9b, 0xfc, 0xdb, 0x2d, 0xce, 0x28, 0xd9, 0x59, 0xf2, 0x81, 0x5b, 0x16,
+        0xf8, 0x17, 0x98,
+    ])
+    .unwrap();
+    psbt.inner_mut().outputs[n].bip32_derivation.insert(
+        key,
+        (
+            faraday_bip::bitcoin::bip32::Fingerprint::from([9, 9, 9, 9]),
+            "m/84'/1'/0'/1/0".parse().unwrap(),
+        ),
+    );
+}
+
+/// Review showed one output as change nothing can verify, then a Collect
+/// brought a second such output: a second warning of the kind Review showed,
+/// on another output, opens Review again and Sign Here signs nothing.
+#[test]
+fn sign_here_opens_review_again_after_a_collect_adds_a_second_warning_of_a_kind() {
+    use faraday_core::Action;
+    use faraday_core::wallet::step;
+    let mut app = reviewed_then_collected_from(
+        |mut p| {
+            p.inner_mut().outputs[1].bip32_derivation.clear();
+            unknown_origin(&mut p, 1);
+            p
+        },
+        |mut p| {
+            unknown_origin(&mut p, 0);
+            p.to_bytes()
+        },
+    );
+    let s = app.spend().unwrap();
+    let collected = s.spend.psbt.to_bytes();
+    let unverified = s
+        .inspection
+        .warnings
+        .iter()
+        .filter(|w| w.kind == faraday_psbt::WarningKind::UnverifiedChange)
+        .count();
+    assert_eq!(unverified, 2, "{:?} {:?}", s.error, s.inspection.warnings);
+    assert!(!s.done[step::TRANSACTION as usize], "Review reads done");
+    app.press(Action::SignHere);
+    let s = app.spend().unwrap();
+    assert_eq!(s.spend.psbt.to_bytes(), collected, "signed without Review");
+    assert_eq!(s.open, Some(step::TRANSACTION));
 }
 
 /// Review was gone through, then a Collect brought an output's key origin

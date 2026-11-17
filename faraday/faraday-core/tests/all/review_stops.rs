@@ -462,3 +462,49 @@ fn high_fee_psbt() -> Psbt {
         faraday_psbt::bitcoin::Amount::from_sat(3_000_000);
     psbt
 }
+
+/// Review was gone through, then another of the person's wallets was loaded
+/// and a payment on it turns out to go into that wallet, a warning Review
+/// never showed: Review opens again and Sign Here signs nothing.
+#[test]
+fn a_wallet_loaded_that_adds_a_warning_opens_review_again() {
+    let (spending, savings) = (kit("spending"), kit("savings"));
+    let psbt = testkit::unsigned_into(&spending, &savings).unwrap();
+    let mut app = reviewing_wallets_loaded(&psbt, &[&spending, &savings], 1);
+    app.press(Action::StepNext(step::TRANSACTION));
+    assert!(app.spend().unwrap().done[step::TRANSACTION as usize]);
+    app.press(Action::LoadWallet(1));
+    testkit::confirm_wallets(&mut app);
+    let s = app.spend().unwrap();
+    assert!(
+        s.inspection
+            .warnings
+            .iter()
+            .any(|w| w.kind == faraday_psbt::WarningKind::TransferToOwnWallet),
+        "{:?}",
+        s.inspection.warnings
+    );
+    assert!(!s.done[step::TRANSACTION as usize], "Review reads done");
+    app.press(Action::SignHere);
+    assert!(app.spend().unwrap().spend.signed_here.is_empty());
+}
+
+/// Review was gone through with no key of the wallet here, then a key was
+/// loaded and takes part, a key Review never showed: Review opens again and
+/// Sign Here signs nothing.
+#[test]
+fn a_key_loaded_that_takes_part_opens_review_again() {
+    let psbt = testkit::unsigned(&kit("spending")).unwrap();
+    let mut app = reviewing_with(&psbt, false);
+    app.press(Action::StepNext(step::TRANSACTION));
+    assert!(app.spend().unwrap().done[step::TRANSACTION as usize]);
+    add_key(&mut app, "bacon");
+    let s = app.spend().unwrap();
+    assert!(
+        !s.inspection.participating_keys.is_empty(),
+        "no key takes part"
+    );
+    assert!(!s.done[step::TRANSACTION as usize], "Review reads done");
+    app.press(Action::SignHere);
+    assert!(app.spend().unwrap().spend.signed_here.is_empty());
+}

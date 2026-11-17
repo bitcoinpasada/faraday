@@ -98,8 +98,11 @@ pub struct SpendState {
     /// known) was gone through for: what the Outbox waits for. A PSBT that
     /// is any other is not vouched for (`SpendState::review_lapse`), nor is
     /// one whose inspection came out with other warnings or keys
-    /// (`SpendState::review_lapse_for`).
+    /// (`SpendState::review_lapse_inspection`).
     reviewed: Option<Psbt>,
+    /// What Review showed of the inspection when it was marked done: what
+    /// every later inspection is compared with, until Review is done again.
+    shown: Option<ReviewShown>,
     /// [`SpendState::review_owed`] as it was last worked out, for drawing
     /// to read (`SpendState::review_owed_shown`). Worked out by
     /// [`SpendState::settle_owed`] wherever the PSBT, `reviewed`, `steps`,
@@ -109,7 +112,11 @@ pub struct SpendState {
 
 /// What Review showed of an inspection (`SpendState::review_shown`).
 pub(crate) struct ReviewShown {
-    warnings: Vec<(faraday_psbt::Level, faraday_psbt::WarningKind)>,
+    warnings: Vec<(
+        faraday_psbt::Level,
+        faraday_psbt::WarningKind,
+        faraday_psbt::Detail,
+    )>,
     keys: Vec<faraday_bip::keys::Fingerprint>,
 }
 
@@ -124,14 +131,18 @@ impl SpendState {
     /// Notes that Review was gone through for the PSBT as it is.
     pub(crate) fn mark_reviewed(&mut self) {
         self.reviewed = Some(self.spend.psbt.clone());
+        self.shown = Some(self.review_shown());
         self.settle_owed();
     }
 
     /// Review was gone through for `before`, the PSBT before this device
     /// signed it: it vouches for the signed one.
     pub(crate) fn carry_review(&mut self, before: &Psbt) {
+        // What Review showed stays the baseline: this device's own
+        // signature adds no warning, and the inspection made after it is
+        // compared with that.
         if self.reviewed.as_ref() == Some(before) {
-            self.mark_reviewed();
+            self.reviewed = Some(self.spend.psbt.clone());
         }
         self.settle_owed();
     }
@@ -162,26 +173,40 @@ impl SpendState {
                 // A round's own nonce moving (a mend, a Collect of the
                 // others' nonces) is not something Review showed or held.
                 .filter(|w| w.kind != faraday_psbt::WarningKind::MusigNonceReplaced)
-                .map(|w| (w.level, w.kind.clone()))
+                .map(|w| (w.level, w.kind.clone(), w.detail.clone()))
                 .collect(),
             keys: self.inspection.participating_keys.clone(),
         }
     }
 
     /// Review is needed again where the inspection was made again and what
-    /// it shows is not what it showed `before`, which Review was passed
-    /// with: a warning or a key that was never shown on Review, and the
-    /// hold given there does not cover it. Review's step is not done,
-    /// nothing is held and the PSBT is no longer reviewed. The same
-    /// warnings (as sets) and keys leave Review as it was.
-    pub(crate) fn review_lapse_for(&mut self, before: &ReviewShown) {
+    /// it shows is not what Review showed when it was passed: a warning
+    /// (counted, with its detail) or a key that was never shown on Review,
+    /// and the hold given there does not cover it. Review's step is not
+    /// done, nothing is held and the PSBT is no longer reviewed. The same
+    /// warnings (as multisets) and keys leave Review as it was.
+    pub(crate) fn review_lapse_inspection(&mut self) {
+        let Some(before) = self.shown.as_ref() else {
+            return;
+        };
         let now = self.review_shown();
         fn same<T: PartialEq>(a: &[T], b: &[T]) -> bool {
-            a.iter().all(|k| b.contains(k)) && b.iter().all(|k| a.contains(k))
+            let mut rest: Vec<&T> = b.iter().collect();
+            a.len() == b.len()
+                && a.iter().all(|k| {
+                    rest.iter()
+                        .position(|r| *r == k)
+                        .map(|i| rest.swap_remove(i))
+                        .is_some()
+                })
         }
-        if same(&now.warnings, &before.warnings) && same(&now.keys, &before.keys) {
+        let keys = |v: &[faraday_bip::keys::Fingerprint]| {
+            v.iter().all(|k| before.keys.contains(k)) && before.keys.iter().all(|k| v.contains(k))
+        };
+        if same(&now.warnings, &before.warnings) && keys(&now.keys) {
             return;
         }
+        self.shown = None;
         self.reviewed = None;
         self.done[step::TRANSACTION as usize] = false;
         self.held.clear();
@@ -295,6 +320,7 @@ impl SpendState {
             others_from: None,
             others_stale: true,
             reviewed: None,
+            shown: None,
             owed: Some((step::TRANSACTION, 1)),
         }
     }
@@ -673,7 +699,6 @@ impl WalletsArea {
         let Some(s) = self.spend.as_mut().filter(|s| s.spend.psbt == *input) else {
             return false;
         };
-        let before = s.review_shown();
         s.take_spend(spend);
         if error.is_some() {
             s.error = error;
@@ -685,7 +710,7 @@ impl WalletsArea {
             // The answer's inspection is the one Review will show now: a
             // warning or key it did not show before lapses Review, as a
             // redone inspection in `refresh` does.
-            s.review_lapse_for(&before);
+            s.review_lapse_inspection();
         }
         true
     }
@@ -900,12 +925,11 @@ impl WalletsArea {
         let inputs = session.inspect_inputs();
         let view = s.musig.as_ref().map(|m| m.view());
         if !s.inspected_for(&inputs) {
-            let before = s.review_shown();
             let fresh =
                 crate::signing::fresh::worked_out(c, session, &mut s.spend, view.as_ref(), true);
             s.take(fresh);
             s.others_stale = true;
-            s.review_lapse_for(&before);
+            s.review_lapse_inspection();
         }
         // The wallets the outputs go to, named once here for every draw.
         s.own_names = s
