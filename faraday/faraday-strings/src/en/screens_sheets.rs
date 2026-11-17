@@ -341,6 +341,12 @@ macro_rules! words_screens_sheets {
     /// Text button at the foot of the guide's sheet and pane: opens the
     /// contents.
     guide_contents: "Contents",
+    /// Hint of the contents' search field.
+    guide_find: "Find in the guide",
+    /// Line of the contents when no page matches what is typed.
+    guide_no_page_matches: "No page matches",
+    /// Button under it: empties the field.
+    guide_clear_find: "Clear",
     /// Heading of the contents' first group, the place the guide was
     /// opened from.
     guide_here: "Here",

@@ -252,6 +252,18 @@ page at its lead section. The place the guide was opened from is
 listed first under **Here**. The contents is the only way from one
 place's page to another's; the guide does not link between sections.
 
+At its head is **Find in the guide**, Tools' search field: every word
+typed must be in a page's title or one of its headings, and the list
+narrows to the pages that match, the keys going into the field as they
+do on Tools (Material 3 Search). With no match the list says so and a
+**Clear** button empties the field. Opening the contents again starts
+with the field empty.
+
+Pressed on Home with nothing loaded (no key, wallet, vault or file) and
+no flow under way, the guide opens the **First start** page, listed first
+in the group of that name, in place of Home's page; with anything
+loaded it opens Home's page.
+
 ### 4.4 Links into the guide from a working screen
 
 A working screen opens the guide only through the button and the rail

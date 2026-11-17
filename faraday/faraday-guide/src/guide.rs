@@ -10,7 +10,7 @@ use faraday_strings::EN;
 
 /// The included pages, by place: the one list of files. A page is added
 /// by a line here.
-const PAGES: [(&str, &str); 55] = [
+const PAGES: [(&str, &str); 56] = [
     ("backup", include_str!("../../../docs/guide/backup.md")),
     (
         "backup-flow",
@@ -43,6 +43,10 @@ const PAGES: [(&str, &str); 55] = [
     ("entry", include_str!("../../../docs/guide/entry.md")),
     ("explore", include_str!("../../../docs/guide/explore.md")),
     ("files", include_str!("../../../docs/guide/files.md")),
+    (
+        "first-start",
+        include_str!("../../../docs/guide/first-start.md"),
+    ),
     (
         "gpg-restore",
         include_str!("../../../docs/guide/gpg-restore.md"),
@@ -344,7 +348,7 @@ pub struct GuideGroup {
 /// (`docs/GUIDE-IN-APP.md` §4.3). Every place with a page is listed once.
 const ORDER: [&[&str]; 10] = [
     &["starter-stick", "starter-start"],
-    &["home", "mode", "randomness", "files"],
+    &["first-start", "home", "mode", "randomness", "files"],
     &[
         "keygen",
         "entry",

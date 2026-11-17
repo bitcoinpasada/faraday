@@ -226,6 +226,8 @@ pub(crate) const GPG_LINE: Action = Action::Flow(crate::backup_flow::steps::Flow
 pub enum Here {
     /// Tools' Find a tool.
     Find,
+    /// The guide contents' Find in the guide.
+    GuideFind,
     /// A word list's find.
     WordFind,
     /// Explore's path, after its `m/`.
@@ -304,6 +306,9 @@ impl Faraday {
                     Action::PotentialType
                 }
             });
+        }
+        if self.guide_find_here() {
+            return Some(Action::TypeHere(Here::GuideFind));
         }
         if self.sheet.is_some() {
             return None;
@@ -392,6 +397,7 @@ impl Faraday {
                     Action::EntryPassphrase
                 });
             }
+            Here::GuideFind => self.guide.focus_find(true),
             Here::SilentName | Here::SilentDomain => {
                 self.silent.focus_dns(h == Here::SilentDomain);
             }
@@ -438,7 +444,7 @@ impl Faraday {
         matches!(
             self.here(),
             Some(
-                Action::TypeHere(Here::WordFind | Here::Find | Here::Chart)
+                Action::TypeHere(Here::WordFind | Here::Find | Here::GuideFind | Here::Chart,)
                     | Action::PotentialType
                     | Action::PotentialTypeAgain
                     | GPG_LINE
@@ -740,6 +746,7 @@ impl Faraday {
     fn here_text(&self, h: Here) -> Option<&str> {
         Some(match h {
             Here::Find => self.tools.find(),
+            Here::GuideFind => &self.guide.state().find,
             Here::WordFind => &self.wordlist.state()?.find,
             Here::Path => &self.explore.state()?.path,
             Here::Query => &self.explore.state()?.query,

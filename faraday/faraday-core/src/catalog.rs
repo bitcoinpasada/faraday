@@ -534,13 +534,22 @@ fn fold(s: &str) -> String {
 /// Whether a tile matches what is typed in Find a tool: every word of it
 /// in the name, line, group or a standard; "85" finds BIP-85.
 pub fn matches(tile: &Tile, find: &str) -> bool {
-    let hay = fold(&format!(
-        "{} {} {} {}",
-        tile.name,
-        tile.line,
-        tile.group,
-        tile.tags.join(" ")
-    ));
+    words_in(
+        &format!(
+            "{} {} {} {}",
+            tile.name,
+            tile.line,
+            tile.group,
+            tile.tags.join(" ")
+        ),
+        find,
+    )
+}
+
+/// Whether every word of `find` is in `text`, as Find a tool reads it:
+/// case and punctuation do not count. The guide's Find shares it.
+pub(crate) fn words_in(text: &str, find: &str) -> bool {
+    let hay = fold(text);
     find.split_whitespace().all(|w| hay.contains(&fold(w)))
 }
 

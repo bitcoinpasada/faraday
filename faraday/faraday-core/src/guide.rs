@@ -430,6 +430,11 @@ pub struct GuideState {
     /// (`docs/CRYPTO-LEARN.md` §8.2). Kept only while the screen offers
     /// blocks ([`Faraday::guide_place`]).
     pub how: bool,
+    /// What is typed in the contents' Find in the guide.
+    pub find: String,
+    /// The field was pressed: on a small panel the docked keyboard is up
+    /// for it (it does not rise by itself).
+    pub find_focus: bool,
     /// The lines and heights of the page's texts at the width, font and
     /// scale they were last laid out at, so a frame drawn again breaks
     /// none of them ([`faraday_ui::roles::WrapBasis`]).
@@ -656,7 +661,43 @@ impl Faraday {
 
     /// The key of what is on screen now ([`guide_key`]).
     fn screen_key(&self) -> &'static str {
-        guide_key(self.screen, self.guide_here())
+        let key = guide_key(self.screen, self.guide_here());
+        if key == "home" && self.nothing_loaded() {
+            return "first-start";
+        }
+        key
+    }
+
+    /// Nothing is held (no key, wallet, vault or file) and no flow is
+    /// under way: Home is then a first start. A lookup.
+    fn nothing_loaded(&self) -> bool {
+        !self.holds_secret()
+            && self.session.wallets.is_empty()
+            && self.inbox.is_empty()
+            && self.flows_begun_now().is_empty()
+    }
+
+    /// Typing goes to the contents' Find in the guide: the contents is
+    /// on show in the sheet, or in the pane with no sheet over the page.
+    pub(crate) fn guide_find_here(&self) -> bool {
+        let st = self.guide.state();
+        st.contents
+            && !st.how
+            && (self.sheet == Some(crate::Sheet::Guide)
+                || (self.sheet.is_none() && self.guide_pane_shown()))
+    }
+
+    /// Typing on the contents goes to Find in the guide. Returns whether
+    /// the key was taken.
+    pub(crate) fn guide_find_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        if !self.guide_find_here() {
+            return false;
+        }
+        let taken = self.guide.type_find(key);
+        if taken {
+            self.guide.set_scroll_y(0.0);
+        }
+        taken
     }
 
     /// Opens the guide at the section of what is on screen.
@@ -907,6 +948,27 @@ impl GuideArea {
         true
     }
 
+    /// The field is pressed (`true`) or left unfocused (`false`).
+    pub(crate) fn focus_find(&mut self, on: bool) {
+        self.state.find_focus = on;
+    }
+
+    /// A key typed on the contents: a character, Backspace, or Escape
+    /// emptying the field. True when the key was taken.
+    pub(crate) fn type_find(&mut self, key: faraday_shell_api::Key) -> bool {
+        use faraday_shell_api::Key as K;
+        let find = &mut self.state.find;
+        match key {
+            K::Char(c) if !c.is_control() && find.chars().count() < 40 => find.push(c),
+            K::Backspace if !find.is_empty() => {
+                find.pop();
+            }
+            K::Escape if !find.is_empty() => find.clear(),
+            _ => return false,
+        }
+        true
+    }
+
     /// Whether the guide is open as the supporting pane.
     pub(crate) fn pane_open(&self) -> bool {
         self.pane
@@ -997,6 +1059,8 @@ impl GuideArea {
             Action::GuideContents => {
                 st.how = false;
                 st.contents = true;
+                st.find.clear();
+                st.find_focus = false;
                 st.scroll = 0.0;
             }
             Action::GuideHere => {

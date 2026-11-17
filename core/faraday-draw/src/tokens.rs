@@ -2263,3 +2263,8 @@ pub const MOVE_TABLE_ROW: f32 = 18.0;
 pub const SHARE_QUORUM_GAP: f32 = 18.0;
 /// Share sheets: the room before the share's lines.
 pub const SHARE_LINES_GAP: f32 = 10.0;
+/// The room above the contents' search field in the guide's sheet while
+/// the keyboard is up and the title and tabs have given way.
+pub const GUIDE_SEARCH_TOP: f32 = GAP_SMALL;
+/// The room under the sheet's top edge to the text's view in the same.
+pub const GUIDE_SEARCH_AFTER: f32 = GAP_SMALL / 2.0;

@@ -141,7 +141,7 @@ impl Faraday {
 
     /// The flows begun and not owned by another, in a fixed order: only
     /// lookups.
-    fn flows_begun_now(&self) -> Vec<Going> {
+    pub(crate) fn flows_begun_now(&self) -> Vec<Going> {
         let mut v = Vec::new();
         if self
             .create

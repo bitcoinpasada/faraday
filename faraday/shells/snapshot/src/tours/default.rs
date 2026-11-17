@@ -66,6 +66,12 @@ pub(crate) fn dice_key(t: &mut Tour, slot: u8) -> Result<(), String> {
     t.shot("learn-keygen")?;
     // The contents, then its second page, scrolled.
     t.press(Action::GuideContents);
+    t.shot("learn-contents")?;
+    t.press(Action::TypeHere(faraday_core::edit::Here::GuideFind));
+    for c in "key".chars() {
+        t.app.event(Event::Key(Key::Char(c)));
+    }
+    t.shot("learn-contents-found")?;
     t.press(Action::GuidePage(1));
     let _ = t.app.frame();
     t.app.event(Event::Scroll {

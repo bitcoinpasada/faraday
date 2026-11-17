@@ -446,3 +446,85 @@ fn guide_pressed_straight_after_moving_on_opens_the_pane_there() {
     assert!(app.offers(Action::GuideClose), "the pane on Vaults");
     assert_eq!(shown(&app), "vaults");
 }
+
+/// The contents' row of the page at `place`, as the Action that opens it.
+fn row_of(place: &str) -> Action {
+    let at = faraday_guide::guide_groups()
+        .iter()
+        .flat_map(|g| g.pages.iter())
+        .position(|p| p.place == place)
+        .expect("a page in the contents");
+    Action::GuidePage(at as u8)
+}
+
+#[test]
+fn guide_from_home_with_nothing_loaded_opens_first_start() {
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Guide);
+    assert_eq!(app.sheet, Some(Sheet::Guide));
+    assert_eq!(shown(&app), "first-start");
+}
+
+#[test]
+fn guide_from_home_with_something_loaded_opens_homes_page() {
+    let mut app = faraday_core::testkit::started();
+    faraday_core::testkit::inbox_file(&mut app, "notes.txt", b"hello".to_vec());
+    app.press(Action::Guide);
+    assert_eq!(shown(&app), "home");
+}
+
+#[test]
+fn typing_a_headings_word_in_the_contents_leaves_the_page_holding_it() {
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Guide);
+    app.press(Action::GuideContents);
+    frame(&mut app);
+    assert!(app.offers(row_of("home")));
+    for c in "formatting".chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    frame(&mut app);
+    assert!(app.offers(row_of("files")), "the page with that heading");
+    assert!(!app.offers(row_of("home")), "a page without it is gone");
+}
+
+#[test]
+fn a_find_with_no_page_says_so_and_clear_brings_the_contents_back() {
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Guide);
+    app.press(Action::GuideContents);
+    for c in "zzzzqq".chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    frame(&mut app);
+    assert!(!app.offers(row_of("files")));
+    assert!(app.offers(Action::GuideContents), "Clear is offered");
+    app.press(Action::GuideContents);
+    frame(&mut app);
+    assert!(app.offers(row_of("files")));
+}
+
+#[test]
+fn the_pis_keyboard_leaves_the_guides_search_and_its_matches_in_view() {
+    let mut app = faraday_core::testkit::started();
+    window(&mut app, 480, 640);
+    app.press(Action::Guide);
+    app.press(Action::GuideContents);
+    let find = Action::TypeHere(faraday_core::edit::Here::GuideFind);
+    app.press(find);
+    for c in "files".chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    frame(&mut app);
+    let top = app.keyboard_top().expect("the keyboard is up");
+    for (what, action) in [("the field", find), ("the first match", row_of("files"))] {
+        let (_, y, _, h) = app
+            .hit_box(action)
+            .unwrap_or_else(|| panic!("{what} is offered"));
+        assert!(
+            y + h <= top,
+            "{what} ({y} to {}) is above the keyboard's top ({top})",
+            y + h
+        );
+    }
+}

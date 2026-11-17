@@ -41,42 +41,13 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         320.0f32.min(width * 0.4)
     };
     let fx = x + width - fw;
-    ui.fill(fx, y - 2.0, fw, 40.0, 8.0, Role::SurfaceContainerHighest);
-    ui.stroke(fx, y - 2.0, fw, 40.0, 8.0, Role::Outline);
-    // Typing on this page always lands here, with no click to focus it
-    // first, so the caret is drawn whether or not anything is typed yet:
-    // the one sign that this box is already live. A press places it
-    // (`docs/TEXT-CURSOR.md` §3).
     let here = Action::TypeHere(crate::edit::Here::Find);
-    let (tx, fy, fh, room) = (
-        fx + faraday_draw::tokens::TYPED_INSET,
-        y - 2.0,
-        faraday_draw::tokens::TEXT_FIELD,
-        fw - 28.0,
+    search_field(
+        ui,
+        (fx, y - 2.0, fw),
+        (app.tools.find(), EN.catalog_find_a_tool),
+        here,
     );
-    ui.press_box(fx, fy, fw, fh, here);
-    if app.tools.find().is_empty() {
-        let shown = ui.fit_as(BODY_M, EN.catalog_find_a_tool, room);
-        ui.text_mid_as((tx, fy, fh), BODY_M, Role::OnSurfaceVariant, &shown);
-        ui.caret(
-            tx,
-            fy + (fh - faraday_draw::tokens::CARET_MIN) / 2.0,
-            faraday_draw::tokens::CARET_MIN,
-        );
-    } else {
-        ui.typed(
-            tx,
-            fy,
-            fh,
-            BODY_M.size,
-            crate::ui::W::R,
-            Role::OnSurface,
-            app.tools.find(),
-            room,
-            true,
-            here,
-        );
-    }
     y += if compact { 54.0 } else { 64.0 };
     let g = grid(compact, width);
     let tw3 = g.tile_w;
@@ -120,6 +91,50 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     app.scroll.content_h().set(y - top + 40.0);
     ui.region_close(open, app.scroll.content_h().get() - h);
+}
+
+/// A search field at (x, y), `w` wide: Material's search field, in
+/// Tools' look, with `hint` until something is typed. Typing on its page
+/// always lands here, with no click to focus it first, so the caret is
+/// drawn whether or not anything is typed yet: the one sign that this
+/// box is already live. A press places it (`docs/TEXT-CURSOR.md` §3).
+/// Tools' Find a tool and the guide's Find in the guide both draw it.
+pub(super) fn search_field(
+    ui: &mut Ui,
+    (fx, fy, fw): (f32, f32, f32),
+    (typed, hint): (&str, &str),
+    here: Action,
+) {
+    ui.fill(fx, fy, fw, 40.0, 8.0, Role::SurfaceContainerHighest);
+    ui.stroke(fx, fy, fw, 40.0, 8.0, Role::Outline);
+    let (tx, fh, room) = (
+        fx + faraday_draw::tokens::TYPED_INSET,
+        faraday_draw::tokens::TEXT_FIELD,
+        fw - 28.0,
+    );
+    ui.press_box(fx, fy, fw, fh, here);
+    if typed.is_empty() {
+        let shown = ui.fit_as(BODY_M, hint, room);
+        ui.text_mid_as((tx, fy, fh), BODY_M, Role::OnSurfaceVariant, &shown);
+        ui.caret(
+            tx,
+            fy + (fh - faraday_draw::tokens::CARET_MIN) / 2.0,
+            faraday_draw::tokens::CARET_MIN,
+        );
+    } else {
+        ui.typed(
+            tx,
+            fy,
+            fh,
+            BODY_M.size,
+            crate::ui::W::R,
+            Role::OnSurface,
+            typed,
+            room,
+            true,
+            here,
+        );
+    }
 }
 
 /// The grid tiles stand in: as many columns as `CATALOG_TILE_MIN` leaves

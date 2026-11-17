@@ -46,6 +46,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) {
         body: T::BODY_M,
         after: [T::GAP, T::GAP_SMALL, T::GUIDE_PANE_PARA, T::GAP],
         clip_hits: true,
+        searching: false,
     };
     let (clip, max) = guide_body(app, ui, &look, (x, y, w, view));
     let head = (x + T::GUIDE_PANE_PAD, y + T::GUIDE_PANE_CLOSE_TOP, T::TOUCH);

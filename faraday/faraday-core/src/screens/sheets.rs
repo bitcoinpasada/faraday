@@ -2037,6 +2037,10 @@ pub(super) struct GuideLook {
     pub(super) body: T::TypeRole,
     /// The room under the title, a heading, a paragraph and a section.
     pub(super) after: [f32; 4],
+    /// The Pi's keyboard is up over the contents' search field: the
+    /// tabs and the rule give way so the field and its matches stay in
+    /// view above the keyboard.
+    pub(super) searching: bool,
     /// What is scrolled out of the text's view takes no press.
     pub(super) clip_hits: bool,
 }
@@ -2089,7 +2093,11 @@ pub(super) fn guide_body(
     let guide = app.guide();
     let how = guide.how && app.how_offered();
     let pad = look.pad;
-    let tabs = guide_tab_items(app);
+    let tabs = if look.searching {
+        Vec::new()
+    } else {
+        guide_tab_items(app)
+    };
     let row = !tabs.is_empty();
     let mut tabs_h = 0.0;
     if row {
@@ -2103,7 +2111,7 @@ pub(super) fn guide_body(
     }
     let top = y + look.tabs_top + tabs_h + look.after_tabs;
     // Without tabs, a divider of its own over the text.
-    if !row {
+    if !row && !look.searching {
         ui.rule(
             x + pad,
             top - look.rule,
@@ -2157,21 +2165,72 @@ fn guide_contents(app: &View, ui: &mut Ui, look: &GuideLook, (bx, y, bw): (f32, 
         };
         ui.list_item((bx, cy, bw), &it, false)
     };
+    let find = app.guide().find.as_str();
     let mut cy = y;
-    if let Some(page) = app.guide().here() {
+    // Find in the guide: Tools' search field, over the page titles and
+    // headings.
+    let here = Action::TypeHere(crate::edit::Here::GuideFind);
+    super::catalog::search_field(ui, (bx, cy, bw), (find, EN.guide_find), here);
+    cy += T::TEXT_FIELD + after_section;
+    let found = |page: &faraday_guide::GuidePage| {
+        let heads = page.sections.iter().skip(1).map(|s| s.heading.as_str());
+        std::iter::once(page.title.as_str())
+            .chain(heads)
+            .any(|text| crate::catalog::words_in(text, find))
+    };
+    // With the keyboard up, the matches are one list under the field,
+    // with no Here and no group headings: the room goes to the rows.
+    let first = app.guide().here().filter(|_| !look.searching);
+    if let Some(page) = first.filter(|p| found(p)) {
         let at = (bx, cy, bw);
         cy += ui.wrap_as(at, look.heading, Role::OnSurface, EN.guide_here) + after_heading;
         cy += item(ui, cy, &page.title, Action::GuideHere) + after_section;
     }
     let mut n = 0u8;
+    let mut any = false;
     for group in faraday_guide::guide_groups() {
-        let at = (bx, cy, bw);
-        cy += ui.wrap_as(at, look.heading, Role::OnSurface, group.title) + after_heading;
-        for page in &group.pages {
-            cy += item(ui, cy, &page.title, Action::GuidePage(n));
-            n += 1;
+        let first = n;
+        n = n.saturating_add(u8::try_from(group.pages.len()).unwrap_or(u8::MAX));
+        let pages: Vec<(u8, &faraday_guide::GuidePage)> = (first..)
+            .zip(group.pages.iter().copied())
+            .filter(|(_, p)| found(p))
+            .collect();
+        if pages.is_empty() {
+            continue;
+        }
+        any = true;
+        if !look.searching {
+            let at = (bx, cy, bw);
+            cy += ui.wrap_as(at, look.heading, Role::OnSurface, group.title) + after_heading;
+        }
+        for (i, page) in pages {
+            cy += item(ui, cy, &page.title, Action::GuidePage(i));
         }
         cy += after_section;
+    }
+    if !any {
+        // An empty result carries its way on: the button that empties
+        // the field.
+        let at = (bx, cy, bw);
+        cy += ui.wrap_as(
+            at,
+            look.body,
+            Role::OnSurfaceVariant,
+            EN.guide_no_page_matches,
+        );
+        cy += after_heading;
+        let label = EN.guide_clear_find;
+        let w = ui.measure_as(LABEL_L, label) + 2.0 * T::BUTTON_PAD;
+        ui.button(
+            bx,
+            cy,
+            Some(w),
+            BUTTON_H,
+            label,
+            Style::Secondary,
+            Action::GuideContents,
+        );
+        cy += BUTTON_H + after_section;
     }
     cy - y
 }
@@ -2309,7 +2368,10 @@ pub(super) fn guide_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         let (x, y) = sheet_box(ui, w, h, sw, sh);
         (x, y, sw, sh)
     };
-    if !app.held {
+    // With the keyboard up over the contents' search field the sheet
+    // keeps the field, the matches and Done: no title, no tabs.
+    let searching = compact && !app.held && app.osk_height() > 0.0 && app.guide().contents;
+    if !app.held && !searching {
         ui.text_mid_as(
             (x + pad, y + 14.0, T::TOUCH),
             sheet_head(compact),
@@ -2321,8 +2383,18 @@ pub(super) fn guide_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let look = GuideLook {
         pad,
         tabs_edge: pad,
-        tabs_top: if app.held { 14.0 } else { 14.0 + T::TOUCH },
-        after_tabs: 18.0,
+        tabs_top: if app.held {
+            14.0
+        } else if searching {
+            T::GUIDE_SEARCH_TOP
+        } else {
+            14.0 + T::TOUCH
+        },
+        after_tabs: if searching {
+            T::GUIDE_SEARCH_AFTER
+        } else {
+            18.0
+        },
         rule: 8.0,
         inset: 4.0,
         text_top: 12.0,
@@ -2332,6 +2404,7 @@ pub(super) fn guide_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         body: BODY_M,
         after: [16.0, 8.0, 12.0, 10.0],
         clip_hits: false,
+        searching,
     };
     let (clip, max) = guide_body(app, ui, &look, (x, y, sw, sh));
     if !app.held {

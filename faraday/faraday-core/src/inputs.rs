@@ -1136,7 +1136,7 @@ impl Faraday {
         if key == KeyIn::Paste {
             return self.paste();
         }
-        if self.guide_key(key) || self.scroll_key(key) {
+        if self.guide_find_key(key) || self.guide_key(key) || self.scroll_key(key) {
             return;
         }
         if self.board_key(key) || self.gpg_restore_key(key) || self.chart_key(key) {

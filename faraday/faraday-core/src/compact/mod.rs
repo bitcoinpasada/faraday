@@ -1403,6 +1403,9 @@ impl Faraday {
         if self.sheet == Some(crate::Sheet::KefOptions) {
             return crate::kef_tool::field(self).is_some();
         }
+        if self.sheet == Some(crate::Sheet::Guide) {
+            return self.guide_find_here() && self.guide.state().find_focus;
+        }
         if self.sheet.is_some() {
             return false;
         }
@@ -1651,6 +1654,7 @@ impl Faraday {
         }
         self.set_time.clear_focus();
         self.create.clear_pass_focus();
+        self.guide.focus_find(false);
     }
 
     /// After a press on a small panel: a press on a field, the one
