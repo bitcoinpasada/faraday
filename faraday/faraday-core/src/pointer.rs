@@ -707,6 +707,7 @@ impl Faraday {
     /// from its vault, and a sheet waiting comes up. Lookups, unless
     /// something is dropped.
     pub(crate) fn after_input(&mut self) {
+        self.note_added_keys();
         self.stick.note_visit(self.stick_pane());
         vault::settle(self);
         self.trail_note();

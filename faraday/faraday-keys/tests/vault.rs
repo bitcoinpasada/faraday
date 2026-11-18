@@ -2415,3 +2415,47 @@ fn the_same_words_under_any_passphrase_take_a_mark_and_a_later_key_with_its_fing
         .expect("a key");
     assert!(!later.made_online(fp), "Lock forgets it");
 }
+
+#[test]
+fn a_seed_a_vault_marked_and_no_key_held_is_marked_when_added_later() {
+    let c = compute();
+    let seed: Vec<u8> = (1..=16).collect();
+    let mut store = store();
+    let (id, _) = store.unlock(&c, empty(&c, "pass"), "pass").expect("opens");
+    let mut r = Record::new(kind::KEY).with(
+        field::KEY,
+        &faraday_vault::layouts::seed_payload(&seed).expect("a seed"),
+    );
+    faraday_vault::records::mark_made_online(&mut r);
+    store.insert(id, r).expect("kept");
+    let mut keys = Keys::on(Network::Mainnet);
+    store.note_made_online_keys(&c, &mut keys);
+    let fp = keys.add_seed(&c, &seed, "").expect("a key");
+    assert!(keys.made_online(fp));
+}
+
+#[test]
+fn words_added_after_the_unlock_take_the_mark_under_any_passphrase_and_a_clear_forgets_it() {
+    let c = compute();
+    let store = marked_abandon_store(&c);
+    let mut keys = Keys::on(Network::Mainnet);
+    store.note_made_online_keys(&c, &mut keys);
+    let other = keys
+        .add_words_with(&c, ABANDON, "other", "", None)
+        .expect("a key");
+    assert!(!keys.made_online(other), "not matched until the words are");
+    let added = keys.take_added();
+    store.note_made_online_added(&c, &mut keys, &added);
+    assert!(keys.made_online(other));
+    let plain = keys
+        .add_words_with(&c, ABANDON, "", "", None)
+        .expect("a key");
+    let added = keys.take_added();
+    store.note_made_online_added(&c, &mut keys, &added);
+    assert!(keys.made_online(plain));
+    // Remove all keys keeps the mark; Lock drops it.
+    keys.remove_all();
+    assert!(keys.made_online(plain));
+    keys.clear();
+    assert!(!keys.made_online(plain));
+}

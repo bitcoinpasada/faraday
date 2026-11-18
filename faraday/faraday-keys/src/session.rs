@@ -424,9 +424,9 @@ pub struct Keys {
     /// Keys a vault says were written by Faraday Demo on an online
     /// computer ([`Keys::note_made_online`]): public fingerprints.
     made_online: Vec<Fingerprint>,
-    /// Fingerprints a vault marked made online that no key held had when
-    /// noted: a key with one added later takes the mark. Cleared at Lock.
-    made_online_pending: Vec<Fingerprint>,
+    /// Fingerprints of keys added since [`Keys::take_added`] last said:
+    /// public, so the open vaults' marks can be matched to them.
+    added: Vec<Fingerprint>,
     /// Keys loaded from a vault ([`Keys::note_from_vault`]): public
     /// fingerprints.
     from_vault: Vec<Fingerprint>,
@@ -455,7 +455,7 @@ impl Keys {
             kept_published: Vec::new(),
             published_children: Vec::new(),
             made_online: Vec::new(),
-            made_online_pending: Vec::new(),
+            added: Vec::new(),
             from_vault: Vec::new(),
         }
     }
@@ -554,12 +554,24 @@ impl Keys {
     fn push(&mut self, c: &Compute, entry: Entry) {
         self.entries.push(entry);
         self.blind_key(c, self.entries.len() - 1);
-        // A mark a vault gave this fingerprint before the key was held.
         let fp = self.entries[self.entries.len() - 1].info.fingerprint;
-        if self.made_online_pending.contains(&fp) {
-            self.insert_made_online(fp);
+        self.added.extend([fp]);
+        // A mark a vault gave this fingerprint before the key was held
+        // is in `made_online` already: its children follow.
+        if self.made_online.contains(&fp) {
             self.carry_child_marks();
         }
+    }
+
+    /// The fingerprints of the keys added since this was last called, still
+    /// held: the caller matches them against the open vaults' records of
+    /// keys written on an online computer.
+    pub fn take_added(&mut self) -> Vec<Fingerprint> {
+        let added = std::mem::take(&mut self.added);
+        added
+            .into_iter()
+            .filter(|fp| self.position(*fp).is_some())
+            .collect()
     }
 
     /// A stick is attached, called `noun`, or none is (`None`): while one
@@ -789,34 +801,26 @@ impl Keys {
     ///
     /// Every held key with the same words takes the mark, under any
     /// passphrase, and a fingerprint no key held has is remembered until
-    /// Lock, for a key with it added later.
+    /// Lock: a key added later with it is marked already.
     pub fn note_made_online(&mut self, fp: Fingerprint) {
         self.insert_made_online(fp);
-        match self.position(fp) {
-            Some(i) => {
-                let same: Vec<Fingerprint> = match self.entries[i].key.words.as_deref() {
-                    Some(w) => self
-                        .entries
-                        .iter()
-                        .filter(|e| {
-                            e.key
-                                .words
-                                .as_deref()
-                                .is_some_and(|x| x.split_whitespace().eq(w.split_whitespace()))
-                        })
-                        .map(|e| e.info.fingerprint)
-                        .collect(),
-                    None => Vec::new(),
-                };
-                for f in same {
-                    self.insert_made_online(f);
-                }
-            }
-            None => {
-                if !self.made_online_pending.contains(&fp) {
-                    // `extend`, not `push`: see `keep_published`.
-                    self.made_online_pending.extend([fp]);
-                }
+        if let Some(i) = self.position(fp) {
+            let same: Vec<Fingerprint> = match self.entries[i].key.words.as_deref() {
+                Some(w) => self
+                    .entries
+                    .iter()
+                    .filter(|e| {
+                        e.key
+                            .words
+                            .as_deref()
+                            .is_some_and(|x| x.split_whitespace().eq(w.split_whitespace()))
+                    })
+                    .map(|e| e.info.fingerprint)
+                    .collect(),
+                None => Vec::new(),
+            };
+            for f in same {
+                self.insert_made_online(f);
             }
         }
         // Every key loaded as a child of it was written there too, however
@@ -1196,8 +1200,12 @@ impl Keys {
         self.entries.retain(|e| keep(&e.info));
     }
 
-    /// Drops every key.
-    pub fn clear(&mut self) {
+    /// Drops every key and what is kept per key: what Remove all keys
+    /// does. A mark a vault gave a fingerprint, and a key derived from a
+    /// published one, stay while the session does ([`Keys::clear`]): a
+    /// key typed again after this is marked as it was. Published keys
+    /// kept for testing are not kept: the caution comes again.
+    pub fn remove_all(&mut self) {
         self.entries.clear();
         self.sweep = None;
         self.check = None;
@@ -1205,10 +1213,15 @@ impl Keys {
         self.slip39_set = None;
         self.qr_item = None;
         self.kept_published.clear();
+        self.added.clear();
+        self.from_vault.clear();
+    }
+
+    /// Drops every key and every mark the session holds: Lock and exit.
+    pub fn clear(&mut self) {
+        self.remove_all();
         self.published_children.clear();
         self.made_online.clear();
-        self.made_online_pending.clear();
-        self.from_vault.clear();
     }
 
     /// Sets key `i`'s label.
@@ -2069,19 +2082,24 @@ impl Keys {
         self.entries.get(i).is_some_and(|e| e.key.words.is_some())
     }
 
+    /// Costs a parse of the words. Key `i`'s words as a vault key
+    /// record's payload, in wiped memory; `None` for a key with no words.
+    pub(crate) fn words_payload(
+        &self,
+        c: &Compute,
+        i: usize,
+    ) -> Option<zeroize::Zeroizing<Vec<u8>>> {
+        let e = self.entries.get(i)?;
+        let words = e.key.words.as_ref()?;
+        let m = Mnemonic::parse(c, e.info.language, words).ok()?;
+        Some(faraday_vault::records::words_payload(&m))
+    }
+
     /// Costs a parse of the words. Whether key `i`'s words, as a vault key
     /// record's payload, are among `held`.
     pub fn words_payload_among(&self, c: &Compute, i: usize, held: &[&[u8]]) -> bool {
-        use faraday_vault::records;
-        let Some(e) = self.entries.get(i) else {
-            return false;
-        };
-        let Some(words) = e.key.words.as_ref() else {
-            return false;
-        };
-        Mnemonic::parse(c, e.info.language, words)
-            .ok()
-            .is_some_and(|m| held.contains(&records::words_payload(&m).as_slice()))
+        self.words_payload(c, i)
+            .is_some_and(|p| held.contains(&p.as_slice()))
     }
 
     // ---- signing and inspecting ----

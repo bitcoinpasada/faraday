@@ -4414,7 +4414,7 @@ impl Faraday {
                 if self.sheet == Some(crate::Sheet::RemoveKeys) {
                     self.sheet = None;
                 }
-                self.session.keys.clear();
+                self.session.keys.remove_all();
                 self.wallets.clear_spend();
             }
             Action::StartSpend(i) => {

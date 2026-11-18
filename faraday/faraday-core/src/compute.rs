@@ -96,6 +96,7 @@ impl Faraday {
                 let was = self.worker.set_inline(inline || self.worker.inline());
                 crate::vault::stretch::work(self, w);
                 self.worker.set_inline(was);
+                self.note_added_keys();
                 if self.wallets.spend().is_some() {
                     self.nonce_spend_sync();
                 }

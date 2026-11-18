@@ -4082,14 +4082,32 @@ impl Faraday {
         true
     }
 
+    /// Costs a parse of the words of each key added since the last call.
+    /// Every key added, whichever way, is matched to the open vaults'
+    /// records of its words: the mark a record gives, and the parent it
+    /// names ([`faraday_keys::OpenVaults::note_made_online_added`]). Run
+    /// after every press and every answer that can add a key, and before a
+    /// key is saved.
+    pub(crate) fn note_added_keys(&mut self) {
+        let added = self.session.keys.take_added();
+        if added.is_empty() {
+            return;
+        }
+        let c = self.compute();
+        self.vaults
+            .store()
+            .note_made_online_added(&c, &mut self.session.keys, &added);
+    }
+
     /// Costs what `gather_codex32` costs, and what `note_made_online_keys`
-    /// costs: a parse of the words of each marked key record or one naming
-    /// a parent, for each key held. The codex32 share records of
-    /// every open vault gathered towards their keys (`docs/CODEX32.md`
-    /// §9.5): a key held keeps its strings, and a key `k` strings of one
-    /// set make across the open vaults loads, its fingerprint said. Only the
-    /// gathering waits for where keys may load; the marks and parent links
-    /// of `note_made_online_keys` are noted everywhere.
+    /// costs: a parse of the words of each key held, and a PBKDF2 for each
+    /// marked key record only when a key held has no words. The codex32
+    /// share records of every open vault gathered towards their keys
+    /// (`docs/CODEX32.md` §9.5): a key held keeps its strings, and a key
+    /// `k` strings of one set make across the open vaults loads, its
+    /// fingerprint said. Only the gathering waits for where keys may load;
+    /// the marks and parent links of `note_made_online_keys` are noted
+    /// everywhere.
     pub(crate) fn vault_gather_codex32(&mut self) {
         let c = self.compute();
         // A mark noted only makes the key held more careful, so it is noted
@@ -4105,6 +4123,7 @@ impl Faraday {
             .vaults
             .store()
             .gather_codex32(&c, &mut self.session.keys);
+        self.note_added_keys();
         if loaded.is_empty() {
             return;
         }

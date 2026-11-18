@@ -652,20 +652,26 @@ impl OpenVaults {
         loaded
     }
 
-    /// Costs a parse of the words for each key record of an open vault that
-    /// says it was written on an online computer or names a parent, times
-    /// the keys held (a master key for a seed record), and a PBKDF2 for a
-    /// marked record no key held is of, and for one a held key with no words
-    /// may be. A fingerprint a marked codex32
-    /// share record names, and the fingerprint of a marked key record no
-    /// key held is of, is marked, held or not (a key added later with it
-    /// takes the mark, until Lock). Every key the session holds with the
-    /// words of such a record takes its mark and, where it has none, its
-    /// parent link, with the parent's mark, for any passphrase of the words
-    /// ([`Keys::note_made_online`]). A key already held takes these here, as one
-    /// does from a share record in [`Self::gather_codex32`]. Nothing is
-    /// loaded.
+    /// Costs a parse of the words of each key held, and, with a key held
+    /// that has no words, a PBKDF2 and a master key for each marked key record
+    /// of words or one naming a parent, once; and a master key for each
+    /// marked seed record. A fingerprint a marked codex32 share record
+    /// names, and the fingerprint of a marked seed record, is marked, held or
+    /// not (a key added later with it is marked already, until Lock). A
+    /// marked record of words is matched to a key by its words, held now or
+    /// added later ([`Self::note_made_online_added`]): no PBKDF2 here for
+    /// a key not held. Every key the session holds with the words of such a
+    /// record takes its mark and, where it has none, its parent link, with
+    /// the parent's mark, for any passphrase of the words
+    /// ([`Keys::note_made_online`]); a key with no words is matched by its
+    /// fingerprint, under the passphrase the record keeps or none. A key
+    /// already held takes these here, as one does from a share record in
+    /// [`Self::gather_codex32`]. Nothing is loaded.
     pub fn note_made_online_keys(&self, c: &Compute, keys: &mut Keys) {
+        let payloads: Vec<(usize, Zeroizing<Vec<u8>>)> = (0..keys.len())
+            .filter_map(|i| keys.words_payload(c, i).map(|p| (i, p)))
+            .collect();
+        let wordless = (0..keys.len()).any(|i| !keys.has_words(i));
         for slot in &self.slots {
             // A share record names its key: a key held takes the mark, and
             // one not held yet takes it when it is added.
@@ -685,66 +691,81 @@ impl OpenVaults {
                 if !online && of.is_none() {
                     continue;
                 }
-                // The held keys the record is of, whatever their passphrase.
-                let mut hits: Vec<(Fingerprint, bool)> = Vec::new();
+                // The keys held the record is of, whatever their passphrase.
+                let mut hits: Vec<Fingerprint> = Vec::new();
                 if let Some(s) = seed_of(r) {
-                    if let Some(fp) = fingerprint(c, Material::Seed(&s), "", keys.network())
-                        && keys.position(fp).is_some()
-                    {
-                        hits.push((fp, true));
+                    if let Some(fp) = fingerprint(c, Material::Seed(&s), "", keys.network()) {
+                        // Held or not: a key added later with it takes the
+                        // mark (SLIP-39 shares, a codex32 string).
+                        if online {
+                            keys.note_made_online(fp);
+                        }
+                        if keys.position(fp).is_some() {
+                            hits.push(fp);
+                        }
                     }
                 } else if let Some(held) = r.field(field::KEY) {
-                    let stored = r.text(field::KEY_PASSPHRASE);
-                    for i in 0..keys.len() {
-                        if !keys.words_payload_among(c, i, &[held]) {
-                            continue;
+                    for (i, p) in &payloads {
+                        if p.as_slice() == held
+                            && let Some(info) = keys.info(*i)
+                        {
+                            hits.push(info.fingerprint);
                         }
-                        let Some(info) = keys.info(i) else {
-                            continue;
-                        };
-                        let exact = match stored {
-                            Some(p) => keys.passphrase_matches(i, p),
-                            None => !info.has_passphrase,
-                        };
-                        hits.push((info.fingerprint, exact));
                     }
                     // A held key with no words (a 64-byte seed) has the
                     // record's key by its fingerprint alone.
-                    if (0..keys.len()).any(|i| !keys.has_words(i))
+                    if wordless
                         && let Some(m) = record_words(c, r)
                         && let Some(fp) = fingerprint(
                             c,
                             Material::Words(&m),
-                            stored.unwrap_or(""),
+                            r.text(field::KEY_PASSPHRASE).unwrap_or(""),
                             keys.network(),
                         )
                         && keys.position(fp).is_some_and(|i| !keys.has_words(i))
-                        && !hits.iter().any(|h| h.0 == fp)
+                        && !hits.contains(&fp)
                     {
-                        hits.push((fp, true));
+                        hits.push(fp);
                     }
                 }
-                // No key held is the record's: its fingerprint, for the
-                // passphrase stored or none, is remembered for a key added
-                // later with it (until Lock).
-                if online
-                    && hits.is_empty()
-                    && seed_of(r).is_none()
-                    && let Some(m) = record_words(c, r)
-                    && let Some(fp) = fingerprint(
-                        c,
-                        Material::Words(&m),
-                        r.text(field::KEY_PASSPHRASE).unwrap_or(""),
-                        keys.network(),
-                    )
-                {
-                    keys.note_made_online(fp);
-                }
-                for (fp, _) in hits {
+                for fp in hits {
                     keys.take_child_of(fp, of);
                     if online {
                         keys.note_made_online(fp);
                     }
+                }
+            }
+        }
+    }
+
+    /// Costs a parse of the words of each key in `added`. The keys added
+    /// since `Keys::take_added` last said (typed, scanned, read from a file,
+    /// a codex32 or SLIP-39 set, a BIP-85 child, a vault's load) are
+    /// matched to the open vaults' key records of words by the words, as
+    /// [`Self::note_made_online_keys`] matches the keys held at unlock: a
+    /// marked record of the words marks the key, under any passphrase, and
+    /// a record of them naming a parent gives it the parent link and what
+    /// the parent's mark gives. No PBKDF2: a key with no words is marked
+    /// only when its fingerprint was marked already.
+    pub fn note_made_online_added(&self, c: &Compute, keys: &mut Keys, added: &[Fingerprint]) {
+        for fp in added {
+            let Some(i) = keys.position(*fp) else {
+                continue;
+            };
+            let Some(payload) = keys.words_payload(c, i) else {
+                continue;
+            };
+            for r in self
+                .slots
+                .iter()
+                .flat_map(|s| s.records.iter())
+                .filter(|r| r.kind == kind::KEY && r.field(field::KEY) == Some(&payload[..]))
+            {
+                let online = faraday_vault::records::is_made_online(r);
+                let of = child_of_of(r);
+                keys.take_child_of(*fp, of);
+                if online {
+                    keys.note_made_online(*fp);
                 }
             }
         }
