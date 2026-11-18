@@ -1385,8 +1385,12 @@ impl Faraday {
             label.push(' ');
             label.push_str(EN.spend_backup_with_a_passphrase);
         }
-        g.tried
-            .push(Text::fill(EN.spend_backup_no_money, &[&label]));
+        // A way answered again, after the next one was cancelled while
+        // held for its sheet, is listed once.
+        let line = Text::fill(EN.spend_backup_no_money, &[&label]);
+        if !g.tried.contains(&line) {
+            g.tried.push(line);
+        }
         if !g.multi && g.at == 0 {
             g.asking = true;
             return;
