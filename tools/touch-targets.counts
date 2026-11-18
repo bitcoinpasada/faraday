@@ -82,6 +82,7 @@ stick_1024x600 KeyGen EntryKey 19
 stick_1024x600 KeyGen KGroup 2
 stick_1024x600 KeyGen Osk 38
 stick_1024x600 KeyGen WordList 29
+stick_1024x600 Lightning Osk 38
 stick_1024x600 Message Osk 38
 stick_1024x600 QrTool Osk 38
 stick_1024x600 Restore Osk 38
