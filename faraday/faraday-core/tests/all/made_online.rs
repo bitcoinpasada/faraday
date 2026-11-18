@@ -601,14 +601,49 @@ fn unlock_loading(app: &mut Faraday, name: &str, phrase: &str) {
     }
 }
 
-/// The child of the key the shares A and C make, as the device writes it into
-/// a vault, and the shares A and C marked as the desktop app writes them.
+/// BIP-93's third vector: three shares of a key that is not a sample.
+const VECTOR3: [&str; 3] = [
+    "ms13casha320zyxwvutsrqpnmlkjhgfedca2a8d0zehn8a0t",
+    "ms13cashcacdefghjklmnpqrstuvwxyz023949xq35my48dr",
+    "ms13cashd0wsedstcdcts64cd7wvy4m90lm28w4ffupqs7rm",
+];
+
+/// `VECTOR3` as vault share records, each naming the key the strings make.
+fn vector3_records() -> Vec<faraday_vault::Record> {
+    let mut app = crate::common::device(Vec::new());
+    app.press(Action::Entry(None));
+    app.press(Action::EntryForm(2));
+    for s in VECTOR3 {
+        type_text(&mut app, s);
+        app.event(Event::Key(faraday_shell_api::Key::Enter));
+    }
+    app.event(Event::Key(faraday_shell_api::Key::Enter));
+    let fp = app
+        .session
+        .keys
+        .info(0)
+        .expect("the key is held")
+        .fingerprint
+        .0;
+    VECTOR3
+        .iter()
+        .map(|s| {
+            faraday_vault::Record::new(kind::CODEX32_SHARE)
+                .with(field::CODEX32_STRING, s.as_bytes())
+                .with(field::CODEX32_KEY, &fp)
+        })
+        .collect()
+}
+
+/// The child of the key `VECTOR3` makes, as the device writes it into a
+/// vault, and its shares marked as the desktop app writes them.
 fn child_and_marked_shares() -> (faraday_vault::Record, Vec<faraday_vault::Record>) {
-    use crate::codex32_kept::{A, C, PHRASE as HOME, share_record, unlock_on_vaults, vault_of};
-    // The child of the key A and C make, written by the device.
+    use crate::codex32_kept::{PHRASE as HOME, unlock_on_vaults, vault_of};
+    // The child of the key BIP-93's third vector makes (not one of
+    // Faraday's samples, which Mainnet refuses), written by the device.
     let mut first = crate::common::device(vec![(
         "home.kdbx".into(),
-        vault_of(HOME, vec![share_record(A), share_record(C)], 3),
+        vault_of(HOME, vector3_records(), 3),
     )]);
     unlock_on_vaults(&mut first, "home.kdbx", HOME);
     assert_eq!(first.session.keys.len(), 1);
@@ -627,10 +662,9 @@ fn child_and_marked_shares() -> (faraday_vault::Record, Vec<faraday_vault::Recor
         .find(|r| r.field(field::KEY_CHILD).is_some())
         .expect("the child is in the vault");
     assert!(!faraday_vault::records::is_made_online(&child));
-    let marked: Vec<_> = [A, C]
-        .iter()
-        .map(|s| {
-            let mut r = share_record(s);
+    let marked: Vec<_> = vector3_records()
+        .into_iter()
+        .map(|mut r| {
             faraday_vault::records::mark_made_online(&mut r);
             r
         })
@@ -640,7 +674,7 @@ fn child_and_marked_shares() -> (faraday_vault::Record, Vec<faraday_vault::Recor
 
 #[test]
 fn a_child_seed_is_held_when_its_parent_s_shares_from_the_desktop_app_load_later() {
-    use crate::codex32_kept::{FP, vault_of};
+    use crate::codex32_kept::vault_of;
     let (child, marked) = child_and_marked_shares();
     // Another device holds the child, then opens shares the desktop wrote.
     let mut app = mainnet_device(vec![
@@ -654,7 +688,6 @@ fn a_child_seed_is_held_when_its_parent_s_shares_from_the_desktop_app_load_later
     assert_eq!(app.session.keys.len(), 1);
     unlock_loading(&mut app, "bank.kdbx", "bank phrase");
     assert_eq!(app.session.keys.len(), 2, "the parent loads");
-    assert!(app.session.keys.position_of(FP).is_some());
     caution(&mut app);
     assert_eq!(app.sheet, Some(Sheet::Published), "the child is not held");
     app.press(Action::PublishedKeep);
