@@ -211,6 +211,24 @@ fn register_this_wallet_shows_the_wallet_and_the_hold_registers_it_and_it_signs(
 }
 
 #[test]
+fn a_wallet_registered_with_a_key_ticked_keeps_the_tick_and_the_toast_counts_the_rest() {
+    let kit = savings();
+    let mut app = with_spend(&testkit::unsigned_with_xpubs(&kit).unwrap());
+    app.press(Action::RegisterOpen);
+    app.press(Action::KeyTick(
+        faraday_core::wallet::KeyBlockOf::Register,
+        1,
+    ));
+    hold(&mut app, Action::RegisterHold);
+    assert_eq!(app.session.wallets.len(), 1);
+    let w = &app.session.wallets[0];
+    assert_eq!(w.key_ticks(), [false, true, false]);
+    assert_eq!(w.keys_unchecked(), 1);
+    let toast = app.toast_text().unwrap();
+    assert!(toast.contains("1 key not checked"), "{toast}");
+}
+
+#[test]
 fn the_name_typed_is_the_wallet_name() {
     let mut app = with_spend(&testkit::unsigned_with_xpubs(&savings()).unwrap());
     app.press(Action::RegisterOpen);

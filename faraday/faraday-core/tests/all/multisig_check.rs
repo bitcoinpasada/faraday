@@ -8,6 +8,7 @@ use faraday_core::file_menu::{FilePress, Row};
 use faraday_core::multisig_check::MsAction as M;
 use faraday_core::seed_check::SeedAction as S;
 use faraday_core::strings::EN;
+use faraday_core::wallet::KeyBlockOf;
 use faraday_core::{Action, Faraday, Screen, StorageEvent, testkit};
 use faraday_shell_api::{App, Event, Key};
 
@@ -531,6 +532,77 @@ fn a_wallet_already_loaded_reads_loaded_at_once() {
     assert!(has_part(&mut app, "Loaded here as"));
     assert!(!shows(&mut app, "Add this wallet"));
     assert_eq!(app.session.wallets.len(), 1);
+}
+
+/// A wallet of the savings setup added from the Result with key 1 ticked
+/// on the sheet, the page then opened on it from the wallet.
+fn loaded_with_a_tick() -> Faraday {
+    let mut app = scanned(&kit("savings"));
+    app.press(Action::MultisigCheck(M::Add));
+    app.press(Action::KeyTick(KeyBlockOf::Asked, 1));
+    app.press(Action::WalletHold);
+    assert_eq!(app.session.wallets.len(), 1);
+    app.press(Action::MultisigCheck(M::Another));
+    app.press(Action::MultisigCheck(M::Loaded(0)));
+    let _ = app.frame();
+    app
+}
+
+fn page(app: &mut Faraday) -> String {
+    let _ = app.frame();
+    texts(app).join(" ")
+}
+
+#[test]
+fn a_loaded_wallet_opened_here_shows_the_marks_its_confirmation_gave() {
+    let mut app = loaded_with_a_tick();
+    let w = &app.session.wallets[0];
+    assert_eq!(w.key_ticks(), [false, true, false]);
+    let before = w.keys_unchecked();
+    let s = page(&mut app);
+    assert!(s.contains("Checked by you"), "{s}");
+    assert!(
+        s.contains(&format!("{before} keys not checked")),
+        "{before}: {s}"
+    );
+}
+
+#[test]
+fn a_key_ticked_on_a_loaded_wallet_s_page_is_the_wallet_s_tick_and_unticking_returns_it() {
+    let mut app = loaded_with_a_tick();
+    let before = app.session.wallets[0].keys_unchecked();
+    app.press(Action::KeyTick(KeyBlockOf::Check, 2));
+    assert_eq!(app.session.wallets[0].keys_unchecked(), before - 1);
+    assert_eq!(app.session.wallets[0].key_ticks(), [false, true, true]);
+    let s = page(&mut app);
+    assert!(
+        s.contains("Every key checked") || s.contains("1 key not checked"),
+        "{s}"
+    );
+    app.press(Action::KeyTick(KeyBlockOf::Check, 2));
+    assert_eq!(app.session.wallets[0].keys_unchecked(), before);
+    // A tick made elsewhere shows here.
+    app.session.tick_key(0, 1);
+    assert_eq!(app.session.wallets[0].key_ticks(), [false, false, false]);
+    let s = page(&mut app);
+    assert!(!s.contains("Checked by you"), "{s}");
+}
+
+#[test]
+fn a_pasted_setup_s_ticks_do_not_touch_a_loaded_wallet() {
+    let mut app = loaded_with_a_tick();
+    app.press(Action::MultisigCheck(M::Another));
+    app.press(Action::MultisigCheck(M::Scan));
+    app.event(Event::Scanned {
+        bytes: kit("savings").into_bytes(),
+    });
+    let _ = app.frame();
+    let ticks = app.session.wallets[0].key_ticks();
+    app.press(Action::KeyTick(KeyBlockOf::Check, 0));
+    app.press(Action::KeyTick(KeyBlockOf::Check, 2));
+    assert_eq!(app.session.wallets[0].key_ticks(), ticks);
+    let s = page(&mut app);
+    assert!(s.contains("Checked by you"), "{s}");
 }
 
 /// Bitcoin Core's `deriveaddresses` of each multisig kind's first receive

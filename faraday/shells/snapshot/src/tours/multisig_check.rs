@@ -8,6 +8,7 @@ use crate::tour::Tour;
 use faraday_core::multisig_check::MsAction as M;
 use faraday_core::seed_check::SeedAction as S;
 use faraday_core::testkit;
+use faraday_core::wallet::KeyBlockOf;
 use faraday_core::{Action, Screen};
 use faraday_shell_api::{App, Event};
 
@@ -40,6 +41,8 @@ pub(crate) fn multisig_check_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("multisig-check-empty")?;
     scan(t, &kit.descriptor);
     t.shot("multisig-check-result")?;
+    crate::tour::scroll_to(t, Action::KeyTick(KeyBlockOf::Check, 2));
+    t.shot("multisig-check-keys")?;
     t.press(Action::MultisigCheck(M::CheckSeed));
     t.shot("multisig-check-seed")?;
     seed(t, &testkit::test_words("zebra"));

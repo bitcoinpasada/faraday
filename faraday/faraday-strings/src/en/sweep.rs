@@ -572,6 +572,10 @@ macro_rules! words_sweep {
     keycheck_added_one: "{} added · 1 key not checked",
     /// A wallet was added with keys not checked. `{}`: its name, then how many.
     keycheck_added_many: "{} added · {} keys not checked",
+    /// A wallet was registered with one key not checked. `{}`: its name.
+    keycheck_registered_one: "{} registered · 1 key not checked",
+    /// A wallet was registered with keys not checked. `{}`: its name, then how many.
+    keycheck_registered_many: "{} registered · {} keys not checked",
     /// Check a multisig setup: a cosigner under a loaded key's fingerprint that is not that key. `{}`: the fingerprint, then the path.
     mscheck_wrong_key: "The fingerprint is {}'s; the key at {} is not",
     /// Check a multisig setup: the quorum's label.

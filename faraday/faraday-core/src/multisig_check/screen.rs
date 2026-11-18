@@ -159,7 +159,7 @@ fn result(app: &View, s: &MsState, ui: &mut Ui, at: (f32, f32, f32)) -> f32 {
             EN.mscheck_result_waits,
         );
     };
-    let mut cy = rows(r, s.seed.as_ref(), ui, (x, y, w));
+    let mut cy = rows(app, r, s.seed.as_ref(), ui, (x, y, w));
     cy += GAP;
     if let Some(name) = &r.loaded {
         cy += ui.wrap_as(
@@ -213,14 +213,28 @@ fn result(app: &View, s: &MsState, ui: &mut Ui, at: (f32, f32, f32)) -> f32 {
 }
 
 /// The Result's rows: the confirmation sheet's, then the page's own.
-fn rows(r: &Shown, seed: Option<&SeedAnswer>, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+fn rows(
+    app: &View,
+    r: &Shown,
+    seed: Option<&SeedAnswer>,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+) -> f32 {
     use faraday_ui::sheet::kv;
     let ours: &[usize] = match seed {
         Some(SeedAnswer::Key(ours, _)) => ours,
         _ => &[],
     };
+    // A loaded wallet's setup shows the wallet's own marks and ticks.
+    let own = r
+        .of_wallet
+        .and_then(|i| app.session.wallets.get(i))
+        .map(|w| crate::wallet::Rows {
+            keys: w.key_rows().to_vec(),
+            ..r.rows.clone()
+        });
     let mut cy = crate::wallet::draw_rows(
-        &r.rows,
+        own.as_ref().unwrap_or(&r.rows),
         ours,
         crate::wallet::KeyBlockOf::Check,
         ui,

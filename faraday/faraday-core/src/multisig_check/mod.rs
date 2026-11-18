@@ -89,6 +89,10 @@ pub(crate) struct Shown {
     pub(crate) loaded: Option<Text>,
     /// The place of that wallet among the loaded ones.
     pub(crate) place: Option<usize>,
+    /// The loaded wallet this Result was opened from: its keys' states and
+    /// ticks are that wallet's own. `None` for a pasted, scanned or file
+    /// setup, whose ticks live in `rows`.
+    pub(crate) of_wallet: Option<usize>,
 }
 
 /// The check's state.
@@ -139,8 +143,17 @@ impl MsArea {
         self.state.as_ref()
     }
 
+    /// The loaded wallet the Result was opened from, whose ticks are its
+    /// own. A lookup.
+    pub(crate) fn of_wallet(&self) -> Option<usize> {
+        self.state.as_ref()?.shown.as_ref()?.of_wallet
+    }
+
     /// The person's tick of key `key` in the Result's rows.
     pub(crate) fn tick(&mut self, key: usize) {
+        if self.of_wallet().is_some() {
+            return;
+        }
         if let Some(s) = self.state.as_mut().and_then(|s| s.shown.as_mut()) {
             s.rows.tick(key);
         }
@@ -364,6 +377,7 @@ fn shown(app: &Faraday, c: &Compute, policy: WalletPolicy, given: bool) -> Shown
         first,
         loaded,
         place: found,
+        of_wallet: None,
     }
 }
 
@@ -487,7 +501,11 @@ pub(crate) fn act(app: &mut Faraday, action: MsAction) {
                 return;
             };
             let (name, policy) = (Text::of(&w.name), w.policy().clone());
-            let result = check_policy(app, &c, &policy);
+            let result = check_policy(app, &c, &policy).map(|mut shown| {
+                shown.rows.keys = w.key_rows().to_vec();
+                shown.of_wallet = Some(i);
+                shown
+            });
             take(app, name, result);
         }
         MsAction::Another => {
@@ -515,9 +533,9 @@ pub(crate) fn act(app: &mut Faraday, action: MsAction) {
 /// it; a wallet already loaded, or all of whose keys are loaded keys,
 /// reads as loaded at once.
 fn add(app: &mut Faraday) {
-    let Some((policy, source)) = state(app).and_then(|s| {
+    let Some((policy, source, ticks)) = state(app).and_then(|s| {
         let shown = s.shown.as_ref()?;
-        Some((shown.policy.clone(), s.source.clone()?))
+        Some((shown.policy.clone(), s.source.clone()?, shown.rows.ticks()))
     }) else {
         return;
     };
@@ -528,6 +546,7 @@ fn add(app: &mut Faraday) {
         .add_policy(&c, &name, policy, &source, Origin::Named)
     {
         Ok(i) => {
+            app.session.wallets[i].set_key_ticks(&ticks);
             let name = Text::of(&app.session.wallets[i].name);
             app.wallets.set_wallet(i);
             app.refresh_spend();

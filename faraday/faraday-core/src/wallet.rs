@@ -4113,7 +4113,10 @@ impl Faraday {
             KeyBlockOf::Asked => self.session.ask_tick(key),
             KeyBlockOf::Register => self.wallets.register_tick(key),
             KeyBlockOf::Wallet(i) => self.session.tick_key(usize::from(i), key),
-            KeyBlockOf::Check => self.tools.mscheck.tick(key),
+            KeyBlockOf::Check => match self.tools.mscheck.of_wallet() {
+                Some(i) => self.session.tick_key(i, key),
+                None => self.tools.mscheck.tick(key),
+            },
         }
     }
 
@@ -4181,7 +4184,15 @@ impl Faraday {
                         self.sheet = None;
                         self.wallets.set_wallet(i);
                         self.refresh_spend();
-                        self.toast(&Text::fill(EN.register_added, &[&name]));
+                        let text = match self.session.wallets[i].keys_unchecked() {
+                            0 => Text::fill(EN.register_added, &[&name]),
+                            1 => Text::fill(EN.keycheck_registered_one, &[&name]),
+                            n => Text::fill(
+                                EN.keycheck_registered_many,
+                                &[&name, &Text::num(n as u64)],
+                            ),
+                        };
+                        self.toast(&text);
                     }
                     Err((why, _)) => {
                         self.wallets.register_refused(why);
