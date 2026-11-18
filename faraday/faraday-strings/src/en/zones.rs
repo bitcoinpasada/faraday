@@ -28,6 +28,7 @@ pub const ZONES: &[(i16, &str)] = &[
         -180,
         "Sao Paulo, Buenos Aires, Halifax in summer, Santiago in summer",
     ),
+    (-150, "St. John's in summer"),
     (-120, "Nuuk in winter, South Georgia, Fernando de Noronha"),
     (-60, "Azores in winter, Cape Verde, Nuuk in summer"),
     (0, "UTC · Reykjavik, London in winter"),
@@ -60,10 +61,11 @@ pub const ZONES: &[(i16, &str)] = &[
     (630, "Adelaide in summer, Lord Howe Island in winter"),
     (
         660,
-        "Sydney in summer, Melbourne in summer, Noumea, Honiara",
+        "Sydney in summer, Melbourne in summer, Lord Howe Island in summer, Noumea, Honiara",
     ),
     (720, "Auckland in winter, Fiji, Petropavlovsk-Kamchatsky"),
     (765, "Chatham Islands in winter"),
     (780, "Auckland in summer, Nuku'alofa, Apia"),
+    (825, "Chatham Islands in summer"),
     (840, "Kiritimati"),
 ];
