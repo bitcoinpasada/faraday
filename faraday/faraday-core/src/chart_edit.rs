@@ -318,10 +318,12 @@ impl Faraday {
         if written {
             self.chart_destroyed_record(w, &answers);
         }
-        // The open Back up keeps its unsaved edits, without the part.
+        // The open Back up keeps its unsaved edits, without the part, and
+        // its save drops the part's notes if no vault did here.
         if self.backup.state().is_some_and(|b| b.wallet == w) {
             self.backup
                 .change_answers(&shape, &|a, _| a.destroy_kept(i, fp));
+            self.backup.old_part_destroyed(i, fp);
         }
     }
 
