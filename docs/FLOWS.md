@@ -1957,7 +1957,7 @@ is `docs/DESIGN.md` §5, My seed makes my wallet.
 | From | What opens it |
 |---|---|
 | Check | its first row, **My seed makes my wallet**: the Seed card open |
-| Tools | the tile **My seed makes my wallet** in Keys and seeds, after **Explore a key**, its line "Seed words to its xpub and addresses", tags BIP-32, BIP-39, BIP-84: the same. Tools stays the list of every flow; Check is a second way in |
+| Tools | the tile **My seed makes my wallet** in Keys and seeds, after **Explore a key**, its line "Seed words to its xpub and addresses", found by BIP-32, BIP-39, BIP-84 in Find: the same. Tools stays the list of every flow; Check is a second way in |
 
 It opens with nothing needed first, no key and no wallet. The screen is a
 step flow (`Screen::SeedCheck`) of four cards: **Seed**, **Passphrase**,
@@ -2209,7 +2209,7 @@ one sheet each, "{i} of {n}", and Cancel drops only the wallet shown. Built. Its
 | From | What opens it |
 |---|---|
 | Check | its row 7, **Check a multisig setup**: the Setup card open |
-| Tools | the tile **Check a multisig setup** in Wallets, after **Restore an existing wallet**, its line "Its quorum, checksum and cosigners", tags BIP-380, BIP-388, BIP-129: the same. Tools stays the list of every flow; Check is a second way in |
+| Tools | the tile **Check a multisig setup** in Wallets, after **Restore an existing wallet**, its line "Its quorum, checksum and cosigners", found by BIP-380, BIP-388, BIP-129 in Find: the same. Tools stays the list of every flow; Check is a second way in |
 | Files | a wallet file's row's ⋮, **Check this setup**, From the stick and For the stick alike, on a file Files reads as a wallet of more than one key; not offered on a file of one key or one that does not read as a wallet. That file is the setup, the Setup card closed on its name and shape with **Change**, and the Result (or the refusal line, where the file is refused) shown at once. Back from it lands on Files as it was left |
 
 It opens with nothing needed first, no key and no wallet. The screen is

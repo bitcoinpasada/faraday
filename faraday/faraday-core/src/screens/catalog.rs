@@ -1,4 +1,4 @@
-//! `Screen::Catalog`: Tools, every flow on one page, with its standards.
+//! `Screen::Catalog`: Tools, every flow on one page; Find also reaches a tool by its standards.
 
 use crate::Action;
 use crate::drawing::View;
@@ -17,7 +17,7 @@ use faraday_ui::parts::section_label;
 pub(crate) use super::settings::rows::{ROWS, Row};
 
 /// Tools: every flow by group, as many tiles to a row as fit and at
-/// least three, each with its standards; Find a tool narrows them as it is typed.
+/// least three, in a page at most `TRANSFER_W` wide; Find a tool narrows them as it is typed.
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::catalog::{GROUPS, TILES, matches};
     // A small panel has the name in its bar, Find across the panel, and a
@@ -26,7 +26,10 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (x, width) = if compact {
         (x0 + crate::compact::M, cw - 2.0 * crate::compact::M)
     } else {
-        (x0 + PAGE_INSET, cw - 2.0 * PAGE_INSET)
+        (
+            x0 + PAGE_INSET,
+            (cw - 2.0 * PAGE_INSET).min(faraday_draw::tokens::TRANSFER_W),
+        )
     };
     let clip = ui.rect(x0, 0.0, cw, h);
     let open = ui.region_open(Region::page(clip).from_zero(app.list_offset));
@@ -72,7 +75,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     name: tile.name,
                     line: need.unwrap_or(tile.line),
                     warn: need.is_some(),
-                    tags: tile.tags,
+                    tags: &[],
                     opens: app.tile_opens(tile.go),
                     action: Action::Catalog(*i as u8),
                 }

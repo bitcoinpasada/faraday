@@ -1071,8 +1071,7 @@ pub const VISIT_ROW_BUTTON_H: f32 = 32.0;
 /// A stick visit's reading area: its two lists, each at most
 /// `COLUMN_MAX`, the gap between them, between two `PAGE_INSET`s.
 pub const READING_VISIT_W: f32 = 2.0 * COLUMN_MAX + VISIT_GAP + 2.0 * PAGE_INSET;
-/// The narrowest a tile of the tools' catalogue is: its name, its line
-/// and its standards' tags; the catalogue takes as many columns as fit,
+/// The narrowest a tile of the tools' catalogue is: its name, its line; the catalogue takes as many columns as fit,
 /// never fewer than three beside the navigation (`docs/LAYOUT.md` §17).
 pub const CATALOG_TILE_MIN: f32 = 360.0;
 /// The height of a tile of the catalogue with its standards' tags.

@@ -66,11 +66,11 @@ The stick image on a PC, at 1280×800.
 <table>
 <tr>
 <td width="50%"><img src="docs/screenshots/pc-home.png" alt="Home: Make a new wallet, Restore an existing wallet, Spend from a backup" width="100%"></td>
-<td width="50%"><img src="docs/screenshots/pc-tools.png" alt="Tools: the tool cards under Common and Keys and seeds, with the search box" width="100%"></td>
+<td width="50%"><img src="docs/screenshots/pc-tools.png" alt="Tools: the tool tiles under Common and Keys and seeds, with the search box" width="100%"></td>
 </tr>
 <tr>
 <td>Home</td>
-<td>Tools: every flow, with its standards</td>
+<td>Tools: every flow, by group</td>
 </tr>
 <tr>
 <td width="50%"><img src="docs/screenshots/pc-new-key-dice.png" alt="Make a new key, Rolls step: 99 of 99 rolls typed and the randomness check" width="100%"></td>

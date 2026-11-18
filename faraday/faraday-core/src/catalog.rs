@@ -1,5 +1,4 @@
-//! Tools: every flow Faraday has, on one page, by what it works on, each
-//! with the standards it follows. A tile opens its flow, or says what it
+//! Tools: every flow Faraday has, on one page, by what it works on. A tile opens its flow, or says what it
 //! needs first. "Find a tool" narrows the page to the tiles whose name,
 //! line, group, standards or everyday words (send, receive, recover,
 //! verify, 2FA) hold what is typed.
