@@ -95,4 +95,5 @@ stick_1024x600 Transfer TransferSend 2
 stick_1024x600 Unlock Osk 38
 stick_1024x600 Vanity Osk 38
 stick_1024x600 VaultContents Osk 38
+stick_1024x600 Wallets Osk 38
 stick_1024x600 Wallets PickKey 2
