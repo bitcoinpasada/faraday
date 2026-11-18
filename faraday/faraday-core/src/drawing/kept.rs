@@ -1016,6 +1016,13 @@ impl View<'_> {
     pub fn vault_key_fingerprint(&self, r: RecordView<'_>) -> Option<Text> {
         self.kept(|c| crate::vault::screen::key_fingerprint(c, self.app, r))
     }
+
+    /// Whether vault key record `r` is session key `key`, told by the
+    /// identity kept with its fingerprint (`vault::screen::record_is_key`).
+    /// Costs what [`Self::vault_key_fingerprint`] costs the first time.
+    pub fn vault_record_is_key(&self, r: RecordView<'_>, key: &faraday_keys::KeyInfo) -> bool {
+        self.kept(|c| crate::vault::screen::record_is_key(c, self.app, r, key))
+    }
 }
 
 /// What the chart, its sheet and the checklist's titles read, as a frame

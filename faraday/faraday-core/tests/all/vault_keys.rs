@@ -405,6 +405,51 @@ fn a_key_whose_words_are_in_the_vault_reads_as_kept_there_and_another_does_not()
     assert!(app.key_held(&c, app.session.keys[2].fingerprint));
 }
 
+/// The page of vault key `at` as a person reads it, drawn.
+fn key_page(app: &mut Faraday, at: usize) -> String {
+    if app.sheet.is_some() {
+        app.press(Action::Cancel);
+    }
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::Category(0)));
+    app.press(Action::Vault(V::Item(at)));
+    let _ = app.frame();
+    app.drawn_texts()
+        .iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>()
+        .join(" | ")
+}
+
+#[test]
+fn a_vault_key_reads_in_this_session_only_when_its_own_key_is_loaded() {
+    use faraday_bip::bip39::Language;
+    let (vault, made) = vault_holding_a_made_key();
+    let mut app = device(vault);
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Open(0)));
+    type_and_unlock(&mut app);
+    // Another key is in the session: the vault's made key (the second
+    // one listed) is not loaded.
+    add_key(&mut app, 0);
+    let page = key_page(&mut app, 1);
+    assert!(
+        page.contains(faraday_core::strings::EN.vault_not_loaded),
+        "{page}"
+    );
+    assert!(
+        !page.contains(faraday_core::strings::EN.vault_loaded),
+        "{page}"
+    );
+    // Its own words typed: now it is.
+    type_words(&mut app, Language::English, &made);
+    let page = key_page(&mut app, 1);
+    assert!(
+        page.contains(faraday_core::strings::EN.vault_loaded),
+        "{page}"
+    );
+}
+
 // ---- Create's Keys card offers an open vault's keys (NEW-WALLET §16.1) ----
 
 /// The master fingerprint of `words` with no passphrase, worked out here.

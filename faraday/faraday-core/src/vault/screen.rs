@@ -3090,7 +3090,7 @@ fn key_rows(app: &View, ui: &mut Ui, r: RecordView<'_>, rows: &mut Rows) {
         .session
         .keys
         .all()
-        .find(|k| *fp_text(k.fingerprint) == *fp)
+        .find(|k| app.vault_record_is_key(r, k))
         .map(|k| k.fingerprint);
     let here = loaded.is_some();
     rows.field(
