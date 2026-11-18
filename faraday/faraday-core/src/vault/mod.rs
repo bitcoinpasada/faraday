@@ -2152,31 +2152,90 @@ impl Faraday {
         Some((record, Text::of(&label)))
     }
 
-    /// Costs what `Vaults::described` costs. A tick or untick of wallet
-    /// `k` reaches every wallet record of an open vault that is the same
-    /// wallet, in the record's own key order (F286).
-    pub(crate) fn vault_keep_ticks(&mut self, k: usize) {
+    /// Costs what `Vaults::described` costs. After a press on key `key` of
+    /// wallet `k`: that one key's place is set or cleared in every wallet
+    /// record of an open vault that is the same wallet, as the wallet now
+    /// has it, and no other place of the record changes (F286).
+    pub(crate) fn vault_keep_tick(&mut self, k: usize, key: usize) {
+        let Some(w) = self.session.wallets.get(k) else {
+            return;
+        };
+        let n = w.policy().keys().len();
+        let on = w.key_ticks().get(key).copied().unwrap_or(false);
+        let mut mask = vec![false; n];
+        if let Some(m) = mask.get_mut(key) {
+            *m = true;
+        }
+        let none = vec![false; n];
+        if on {
+            self.vault_write_ticks(k, &mask, &none);
+        } else {
+            self.vault_write_ticks(k, &none, &mask);
+        }
+    }
+
+    /// Costs what `Vaults::described` costs. After a sheet's ticks (`ticks`,
+    /// one per key of `from`) were merged into wallet `k`: the keys ticked
+    /// there are added to every record of the same wallet in an open vault;
+    /// none is cleared, and a sheet with nothing ticked writes nothing.
+    pub(crate) fn vault_keep_sheet_ticks(&mut self, k: usize, from: &WalletPolicy, ticks: &[bool]) {
+        let Some(w) = self.session.wallets.get(k) else {
+            return;
+        };
+        if from.keys().len() != ticks.len() || !ticks.iter().any(|t| *t) {
+            return;
+        }
+        let set: Vec<bool> = w
+            .policy()
+            .keys()
+            .iter()
+            .map(|mine| from.keys().iter().zip(ticks).any(|(f, t)| *t && f == mine))
+            .collect();
+        let none = vec![false; set.len()];
+        self.vault_write_ticks(k, &set, &none);
+    }
+
+    /// The one writer: `set` and `clear` are marks over the keys of wallet
+    /// `k`. A vault that is read-only or sealing is left as it is.
+    fn vault_write_ticks(&mut self, k: usize, set: &[bool], clear: &[bool]) {
         let c = self.compute();
         let Some(w) = self.session.wallets.get(k) else {
             return;
         };
         let want = crate::wallet::same_wallet(w.policy());
-        let (mine, ticks) = (w.policy().clone(), w.key_ticks());
-        let ids: Vec<VaultId> = self.vaults.open.iter().map(|o| o.id).collect();
+        let mine = w.policy().clone();
+        let ids: Vec<VaultId> = self
+            .vaults
+            .open
+            .iter()
+            .map(|o| o.id)
+            .filter(|id| !self.vaults.store().is_locked(*id))
+            .collect();
         for id in ids {
             let to_set: Vec<(usize, Vec<usize>)> = self
                 .vaults
                 .described_of(&c, id, kind::WALLET)
                 .filter(|(_, _, d)| d.same.as_str() == &*want)
                 .filter_map(|(i, r, d)| {
-                    let places = ticked_places(&d.policy, &mine, &ticks);
-                    (places != r.keys_checked()).then_some((i, places))
+                    let add = ticked_places(&d.policy, &mine, set);
+                    let drop = ticked_places(&d.policy, &mine, clear);
+                    let have = r.keys_checked();
+                    let mut places: Vec<usize> = have
+                        .iter()
+                        .copied()
+                        .chain(add)
+                        .filter(|p| !drop.contains(p))
+                        .collect();
+                    places.sort_unstable();
+                    places.dedup();
+                    (places != have).then_some((i, places))
                 })
                 .collect();
+            let mut any = false;
             for (i, places) in &to_set {
-                self.vaults.edit(id, |s| s.set_keys_checked(id, *i, places));
+                any |= self.vaults.edit(id, |s| s.set_keys_checked(id, *i, places));
             }
-            if !to_set.is_empty() {
+            if any {
                 self.vaults.changed(id);
             }
         }

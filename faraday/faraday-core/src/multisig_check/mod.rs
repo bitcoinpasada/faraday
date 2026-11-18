@@ -568,6 +568,7 @@ fn add(app: &mut Faraday) {
     {
         Ok(i) => {
             app.session.wallets[i].merge_key_ticks(&asked, &ticks);
+            app.vault_keep_sheet_ticks(i, &asked, &ticks);
             let name = Text::of(&app.session.wallets[i].name);
             app.wallets.set_wallet(i);
             app.refresh_spend();

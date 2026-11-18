@@ -4,10 +4,11 @@
 //! checked.
 
 use crate::common::{Shell, process, type_text};
+use faraday_core::multisig_check::MsAction;
 use faraday_core::testkit;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::wallet::KeyCheck;
-use faraday_core::{Action, Faraday, Screen, StorageEvent};
+use faraday_core::{Action, Faraday, Screen, Sheet, StorageEvent};
 use faraday_shell_api::{App, Event};
 use faraday_vault::Record;
 use faraday_vault::records::{field, kind};
@@ -304,4 +305,102 @@ fn restore_from_a_vault_brings_the_records_ticks() {
     app.press(Action::RFromVault(0, record));
     assert_eq!(app.session.wallets.len(), 1);
     assert_eq!(checked_keys(&app), [1]);
+}
+
+#[test]
+fn a_key_ticked_on_the_sheet_for_a_wallet_a_vault_holds_reads_checked_at_the_next_unlock() {
+    let mut app = unlocked(vault_holding_wallet(&[]));
+    assert_eq!(app.session.wallets.len(), 1);
+    // The same wallet met again in Check a multisig setup, a key ticked
+    // there and the wallet added.
+    app.press(Action::MultisigCheck(MsAction::Open));
+    app.press(Action::MultisigCheck(MsAction::Scan));
+    app.event(Event::Scanned {
+        bytes: multisig().into_bytes(),
+    });
+    let _ = app.frame();
+    app.press(Action::KeyTick(faraday_core::wallet::KeyBlockOf::Check, 1));
+    app.press(Action::MultisigCheck(MsAction::Add));
+    if app.sheet == Some(Sheet::WalletConfirm) {
+        app.press(Action::WalletHold);
+    }
+    assert_eq!(app.session.wallets.len(), 1);
+    assert_eq!(app.session.wallets[0].key_checks()[1], KeyCheck::Checked);
+    let mut shell = Shell::new();
+    let app = shell.lock(&mut app);
+    let files: Vec<_> = app
+        .outbox
+        .iter()
+        .filter(|i| i.name.ends_with(".kdbx"))
+        .map(|i| (String::from(&*i.name), i.bytes.to_vec()))
+        .collect();
+    let app = unlocked(files);
+    assert_eq!(app.session.wallets[0].key_checks()[1], KeyCheck::Checked);
+}
+
+fn held_file() -> Vec<u8> {
+    testkit::kdbx_vault(
+        "Held",
+        PHRASE,
+        0x60,
+        vec![record_of([0, 1, 2], &[1, 2], false)],
+    )
+    .unwrap()
+}
+
+/// The vault holds a record of the wallet with keys 1 and 2 ticked, and the
+/// wallet is loaded from a file, not from the record, through its sheet
+/// with nothing ticked.
+fn held_with_two_ticked_and_loaded_from_a_file() -> Faraday {
+    let mut app = unlocked(vec![
+        ("held.kdbx".to_string(), held_file()),
+        (
+            "zz-wallet.txt".to_string(),
+            multisig_in([0, 1, 2]).into_bytes(),
+        ),
+    ]);
+    assert!(app.session.wallets.is_empty());
+    testkit::load_wallet(&mut app, 1);
+    assert_eq!(app.session.wallets.len(), 1);
+    app
+}
+
+/// Locked and unlocked again, the wallet loaded from the vault's record.
+fn reloaded_from_the_record(mut app: Faraday) -> Faraday {
+    let mut shell = Shell::new();
+    let mut files: Vec<_> = shell
+        .lock(&mut app)
+        .outbox
+        .iter()
+        .filter(|i| i.name.ends_with(".kdbx"))
+        .map(|i| (String::from(&*i.name), i.bytes.to_vec()))
+        .collect();
+    // A vault nothing changed in is not written again.
+    if files.is_empty() {
+        files.push(("held.kdbx".to_string(), held_file()));
+    }
+    let mut app = unlocked(files);
+    assert!(app.session.wallets.is_empty());
+    app.press(Action::Vault(V::Item(0)));
+    app.press(Action::Vault(V::Load));
+    assert_eq!(app.session.wallets.len(), 1);
+    app
+}
+
+#[test]
+fn a_tick_keeps_the_keys_a_vault_remembers_of_a_wallet_loaded_from_a_file() {
+    let mut app = held_with_two_ticked_and_loaded_from_a_file();
+    app.press(Action::KeyTick(
+        faraday_core::wallet::KeyBlockOf::Wallet(0),
+        0,
+    ));
+    let app = reloaded_from_the_record(app);
+    assert_eq!(checked_keys(&app), [0, 1, 2]);
+}
+
+#[test]
+fn a_sheet_confirmed_with_nothing_ticked_keeps_what_the_vault_remembers() {
+    let app = held_with_two_ticked_and_loaded_from_a_file();
+    let app = reloaded_from_the_record(app);
+    assert_eq!(checked_keys(&app), [1, 2]);
 }

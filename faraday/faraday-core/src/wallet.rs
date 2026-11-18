@@ -4064,13 +4064,14 @@ impl Faraday {
             && inbox == self.inbox_print()
         {
             self.act(press);
-            if let Some(w) = self
+            if let Some(i) = self
                 .session
                 .wallets
-                .iter_mut()
-                .find(|w| same_wallet(&w.policy) == descriptor)
+                .iter()
+                .position(|w| same_wallet(&w.policy) == descriptor)
             {
-                w.merge_key_ticks(&asked, &ticks);
+                self.session.wallets[i].merge_key_ticks(&asked, &ticks);
+                self.vault_keep_sheet_ticks(i, &asked, &ticks);
                 return;
             }
         }
@@ -4081,6 +4082,7 @@ impl Faraday {
         {
             Ok(i) if ask.restore && self.restore.state().is_some() => {
                 self.session.wallets[i].merge_key_ticks(&asked, &ticks);
+                self.vault_keep_sheet_ticks(i, &asked, &ticks);
                 self.restore_added(i, ask.origin);
                 if ask.origin == Origin::TypedSeeds {
                     // Made from the typed seeds, as Make would have.
@@ -4090,6 +4092,7 @@ impl Faraday {
             }
             Ok(i) => {
                 self.session.wallets[i].merge_key_ticks(&asked, &ticks);
+                self.vault_keep_sheet_ticks(i, &asked, &ticks);
                 self.wallets.set_wallet(i);
                 self.refresh_spend();
                 self.toast_added(i);
@@ -4122,7 +4125,7 @@ impl Faraday {
             KeyBlockOf::Wallet(_) if self.wallets.list_changed() => {}
             KeyBlockOf::Wallet(i) => {
                 self.session.tick_key(usize::from(i), key);
-                self.vault_keep_ticks(usize::from(i));
+                self.vault_keep_tick(usize::from(i), key);
             }
             // The same, and a Result whose wallet is gone ticks nothing.
             KeyBlockOf::Check if self.wallets.list_changed() => {}
@@ -4130,7 +4133,7 @@ impl Faraday {
                 Some(_) => {
                     if let Some(i) = self.tools.mscheck.own_wallet(&self.session) {
                         self.session.tick_key(i, key);
-                        self.vault_keep_ticks(i);
+                        self.vault_keep_tick(i, key);
                     }
                 }
                 None => self.tools.mscheck.tick(key),
@@ -4201,6 +4204,7 @@ impl Faraday {
                     Ok(i) => {
                         if let Some(asked) = &asked {
                             self.session.wallets[i].merge_key_ticks(asked, &ticks);
+                            self.vault_keep_sheet_ticks(i, asked, &ticks);
                         }
                         self.wallets.close_register();
                         self.sheet = None;
