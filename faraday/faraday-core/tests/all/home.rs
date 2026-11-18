@@ -1096,3 +1096,20 @@ fn with_something_typed_homes_buttons_stay_and_can_be_pressed() {
         assert_eq!(app.screen, Screen::Check);
     }
 }
+
+/// On the Pi's menu the top pair is Wallets then Check on one row; a
+/// phone-size window keeps Check first (Wallets there is on the bar).
+#[test]
+fn the_pi_s_menu_puts_wallets_left_of_check_and_a_phone_keeps_check_first() {
+    let boxes = |app: &Faraday| {
+        (
+            app.hit_box(Action::Nav(Screen::WalletsStart)).unwrap(),
+            app.hit_box(Action::Nav(Screen::Check)).unwrap(),
+        )
+    };
+    let (w, c) = boxes(&window(480, 640, 286));
+    assert_eq!(w.1, c.1, "one row");
+    assert!(w.0 < c.0, "Wallets is left of Check");
+    let (w, c) = boxes(&window(400, 800, 160));
+    assert!(c.1 < w.1, "Check is in the page, Wallets on the bar below");
+}

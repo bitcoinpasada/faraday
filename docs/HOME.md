@@ -159,7 +159,7 @@ at every signing; Vaults is opened at the start of a session and seldom
 after; Tools is the long list of everything. It is also the order the
 rail and the bar already have, so only the sidebar (today Check, Vaults,
 Files, Wallets) and the Pi's menu (today Check, Wallets, Vaults, Files)
-change.
+change; the Pi's menu keeps Wallets before Check (§6.2).
 
 The bar keeps its five, Home, Wallets, Files, Vaults, Tools: Check is
 not on it (F255).
@@ -167,7 +167,8 @@ not on it (F255).
 ### 6.2 The Pi's menu
 
 The Pi has no navigation component: its Home ends with the places as
-tiles two to a row, in §6.1's order: Check, Wallets, Files, Vaults,
+tiles two to a row, in §6.1's order but for the top pair, which is
+the one place the order differs: Wallets, Check, Files, Vaults,
 Tools, Guide, Transfer in the desktop app, Settings. Backups is no tile
 (§3). A tile's line under its name is in words:
 
@@ -221,7 +222,7 @@ The sketches are to scale in their parts' order, not in their pixels.
 | | wallet        | | by step      | |
 | +---------------+ +--------------+ |
 | +---------------+ +--------------+ |
-| | [v] Check     | | [w] Wallets  | |  the places
+| | [w] Wallets   | | [v] Check    | |  the places
 | +---------------+ +--------------+ |
 | +---------------+ +--------------+ |
 | | [f] Files     | | [l] Vaults   | |

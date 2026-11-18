@@ -1039,7 +1039,8 @@ fn tiles(app: &View) -> Vec<Tile> {
     // Wallets empty state and the guide sheet), then the ways in and
     // out, then what is used now and then.
     let mut t: Vec<Tile> = vec![
-        // Check is the first button (F255).
+        // Check is the first button (F255), except on the panel's menu
+        // (swapped below).
         (
             Icon::Verified.into(),
             EN.compact_check,
@@ -1127,6 +1128,11 @@ fn tiles(app: &View) -> Vec<Tile> {
         Action::Nav(Screen::Settings),
         true,
     ));
+    // The panel's menu puts Wallets first of the top pair, Check second
+    // (F255 amended); the grid layouts keep Check first.
+    if app.nav() == crate::nav::Nav::Menu {
+        t.swap(0, 1);
+    }
     t
 }
 

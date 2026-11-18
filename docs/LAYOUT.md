@@ -51,7 +51,7 @@ app. A stick is no destination: it is a pane of Files (F235).
 
 | Class | Navigation | Guide, Settings, Lock |
 |---|---|---|
-| Compact, short (the Pi) | Home is the menu, a button for each place in the rail's order (Check, Wallets, Files, Vaults, Tools, then Guide and Settings); every other page has the 44-unit bar with its back chevron | on Home's menu; Lock and the power button at its foot |
+| Compact, short (the Pi) | Home is the menu, a button for each place in the rail's order but for the top pair (Wallets, Check, Files, Vaults, Tools, then Guide and Settings); every other page has the 44-unit bar with its back chevron | on Home's menu; Lock and the power button at its foot |
 | Compact | the navigation bar at the foot, 80 dp: Home, Wallets, Files, Vaults, Tools; Check is reached from Home's Check tile, as Material 3 gives the bar three to five destinations (F255) | the top app bar: the ? (Guide at the page's section), the ⋮ menu (Settings), Lock |
 | Medium; Expanded | the navigation rail at the left, 80 dp: the six destinations, Check under Home, then Guide and Settings under a divider, Lock at its foot | on the rail |
 | Expanded and low (the 7-inch panel) | the rail, as above | on the rail |
