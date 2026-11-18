@@ -296,3 +296,4 @@ Read this table, then only the decision you need.
 | [F282](decisions/F282.md) | A wallet's key is made on Make a new wallet's Keys card, from dice by default | 2026-11-17 | Active | wallets |
 | [F283](decisions/F283.md) | Which of the plan's vaults keep a copy of the backup plan is the person's choice | 2026-11-17 | Active | backup |
 | [F284](decisions/F284.md) | A hand-started run's tests may be split over several runners | 2026-11-17 | Active | repository |
+| [F285](decisions/F285.md) | Make new parts replaces a key's Seed XOR set, and an old part still kept stays on the plan | 2026-11-17 | Active | backup |

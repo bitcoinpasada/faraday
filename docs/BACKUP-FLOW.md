@@ -2840,8 +2840,8 @@ never one not made). A part goes on a place's paper only: not a stick's
 files, not a vault. Its line reads where it is kept and "Not checked".
 A Seed XOR set Back up makes on its paper section becomes the key's form
 the same way, as Convert's does, with its parts placed as the plan's
-places have them. A key has one Seed XOR set: a second split of a key
-that has one is refused, not recorded beside it.
+places have them. A key has one Seed XOR set in use: a second split is **Make new parts**,
+which replaces it (F285).
 
 Back up's Seed XOR section reads "On the plan: Place 1, Place 2, Place 3"
 (the places the parts are placed at) where it read "Not on the plan".
@@ -2853,7 +2853,40 @@ chart sheet or on Back up's section, and it needs no part kept here. A
 chip's check is a copy's check only: **Mark checked** on a node never
 dates a part or a share.
 
+**Make new parts** (F285). On Back up's Seed XOR section, a key that
+has a set offers Make new parts in place of the split buttons: the key
+is split again (2 or 3 parts), and the new set replaces the old one at
+once, on the key's facts and on the plan, its parts placed one to a
+place. Each old part the plan placed stays at its place as a kept old
+part until the person says otherwise: the section lists each by number
+and place ("Old part 2 · Place 2") with **I destroyed it**, which takes
+it off the plan, and **Still kept**, which leaves it there, marked; a
+kept part's chart sheet offers I destroyed it later. A part the plan
+never placed is not asked about. A kept part's chip reads "Old part ·
+still kept", in a group of its own under the set ("Seed XOR · old set");
+it has no checklist item and no Check my copy, and the parts item counts
+the new set only. Back up's section adds "Old parts still kept: Place 1,
+Place 3", and "Every old part is still kept: together they rebuild this
+key." while that is so.
+
+A kept part is named by its seed and its own master fingerprint, never
+its number: on a spot line `xork{seed}.{fingerprint}`, beside the old
+set kept whole as `xorold {seed} {fingerprints}`, as a codex32 set
+rotated away is kept. An old set rebuilds the key only while every one of
+its parts is on the plan, and then counts for a place lost and for what
+a finder holds; one destroyed and it rebuilds nothing, and old and new
+parts never combine. A plan holds at most four old sets of a seed, a
+fingerprint in at most one; Make new parts that would break either is
+refused until older kept parts are destroyed, and an old set's line goes
+once none of its parts is on the map. A plan without a kept part is the
+same bytes as before; an older Faraday reads one with them as a plan it
+cannot read. The key's own record keeps the new set only (`docs/VAULT.md`
+§7). A plan whose set differs from its key's (another wallet's plan of the
+same key) reads its placed parts as kept old parts and takes the key's
+set, not placed yet. Convert a seed still records a set only on a key
+that has none. A kept part records a fingerprint and a place, never a
+word.
+
 **Open:** a SLIP-39 share has no fingerprint of its own kept, so a share's
-copy is not checked here. **Make new parts** (a second split of a key that
-has a set, asking per old part **I destroyed it** or **Still kept**) is not
-built: the plan indexes a part within the current set only.
+copy is not checked here. Make new parts is not built: a second split of a
+key that has a set is still refused, and the plan has no kept old part.
