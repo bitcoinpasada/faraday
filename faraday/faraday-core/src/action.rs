@@ -269,6 +269,9 @@ pub enum Action {
     /// The × on the list of what was plugged in at start: it goes, for this
     /// power-on.
     BootNoticeClose,
+    /// The × on the notice for keyboards waiting: it goes, and they stay
+    /// held.
+    InputNoticeClose,
     /// The target a new touchscreen or pointer presses to be believed: the
     /// device, which target of the run it is (from 0), and how many there
     /// are. The press counts only if it is the one the device has reached;
@@ -1635,6 +1638,7 @@ impl Faraday {
             a @ (Action::InputUse(..)
             | Action::InputIgnore(..)
             | Action::BootNoticeClose
+            | Action::InputNoticeClose
             | Action::InputTarget(..)
             | Action::Mode(..)
             | Action::ModeSheet

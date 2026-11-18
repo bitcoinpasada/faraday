@@ -759,8 +759,11 @@ macro_rules! words_common {
     /// Toast in `potential_make`. `{}`: `name`.
     inbox_is_a_wallet: "{} is a wallet",
     // ----- inputs (faraday-core/src/inputs.rs) -----
-    /// Toast in `input_new`, a device held until it is used. `{}`: `d.name`.
+    /// Toast in `input_new`, a pointer or touchscreen held until it is used. `{}`: `d.name`.
     inputs_new_device_held: "New device: {}",
+    /// Notice in `keyboard_notice`, keyboards held until a key is typed.
+    /// `{}`: their names, with commas.
+    inputs_keyboard_attached: "Keyboard attached: {}. To use it, type any key on it.",
     /// Toast in `input_boot_usb`, the external USB devices plugged in at
     /// start. `{}`: their names, with commas.
     inputs_plugged_in_at_start: "Plugged in: {}. Only your keyboard and mouse should be plugged in. Unplug anything else.",

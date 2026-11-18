@@ -454,6 +454,7 @@ pub(crate) fn stays_live(action: &crate::Action) -> bool {
             | A::Cancel
             | A::Lock
             | A::BootNoticeClose
+            | A::InputNoticeClose
             | A::LockUnsealed
             | A::LockAsk
             | A::Scale(_)

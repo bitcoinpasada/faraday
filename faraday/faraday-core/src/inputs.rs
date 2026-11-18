@@ -1,6 +1,8 @@
 //! A held device asks when it is used, not when it is plugged in (F202):
-//! at plug-in a notice names it and nothing blocks; its first motion,
-//! press, touch or key brings up its sheet, and that press or touch counts
+//! at plug-in a notice names it and nothing blocks (a keyboard's notice
+//! stays, saying to type any key on it, until its × or a key typed on a
+//! keyboard waiting; a pointer's or touchscreen's is a timed toast); its
+//! first motion, press, touch or key brings up its sheet, and that press or touch counts
 //! for nothing, as nothing was drawn to aim at, while a letter counts as
 //! one. One sheet shows at a time; a device that acts while another's is
 //! up waits its turn in the order they acted, its proof and counts
@@ -113,6 +115,23 @@ pub struct NewInput {
     /// It has acted (moved, pressed, typed or touched) since it was held:
     /// only then does its sheet show (F202).
     pub used: bool,
+    /// The keyboard's notice names it: it is held and no key was typed on
+    /// it or another keyboard since, and the notice's × was not pressed.
+    pub noticed: bool,
+}
+
+impl NewInput {
+    /// How many of the code's boxes show as typed: the length of the
+    /// longest ending of what was typed that is a start of the code, so a
+    /// wrong key takes the marks back to what still matches. Arithmetic.
+    pub fn marked(&self) -> usize {
+        let typed = self.typed.as_bytes();
+        let code = self.code.as_deref().unwrap_or("").as_bytes();
+        (1..=typed.len().min(code.len()))
+            .rev()
+            .find(|k| typed[typed.len() - k..] == code[..*k])
+            .unwrap_or(0)
+    }
 }
 
 /// How many targets in a row a sheet draws, from the room it leaves for
@@ -210,6 +229,8 @@ pub(crate) struct InputsArea {
     /// The lock notice waits under a held device's sheet, and comes back
     /// when the device is decided.
     locked_under: bool,
+    /// The keyboards' notice text, kept so drawing only reads it.
+    notice: Option<Text>,
 }
 
 /// How long the list of what was plugged in at start shows, from the
@@ -232,6 +253,40 @@ impl InputsArea {
     /// it.
     pub(crate) fn take_locked_under(&mut self) -> bool {
         std::mem::take(&mut self.locked_under)
+    }
+
+    /// The notice's text for the keyboards waiting, made again where the
+    /// held list or a `noticed` changes; `None` when it names none.
+    pub(crate) fn keyboard_notice(&self) -> Option<&str> {
+        self.notice.as_deref()
+    }
+
+    /// Makes the notice's text again: the names of the keyboards it
+    /// still names.
+    fn refresh_notice(&mut self) {
+        let names: Vec<&str> = self
+            .held
+            .iter()
+            .filter(|d| d.noticed)
+            .map(|d| {
+                if d.name.is_empty() {
+                    EN.inputs_usb_device_unnamed
+                } else {
+                    d.name.as_str()
+                }
+            })
+            .collect();
+        self.notice = (!names.is_empty())
+            .then(|| Text::fill(EN.inputs_keyboard_attached, &[&*Text::joined(&names, ", ")]));
+    }
+
+    /// The keyboard notice goes: its × or a key typed on a keyboard. The
+    /// keyboards stay held.
+    pub(crate) fn notice_close(&mut self) {
+        for d in &mut self.held {
+            d.noticed = false;
+        }
+        self.refresh_notice();
     }
 
     /// The devices held back.
@@ -368,7 +423,9 @@ impl InputsArea {
             typed: Text::new(),
             letters: 0,
             used: false,
+            noticed: keyboard,
         });
+        self.refresh_notice();
         Admitted::Held
     }
 
@@ -485,9 +542,16 @@ impl InputsArea {
         }
         let mut d = self.held.remove(i);
         d.used = true;
+        d.noticed = false;
         let at = self.held.iter().take_while(|d| d.used).count();
         self.held.insert(at, d);
+        self.refresh_notice();
         true
+    }
+
+    /// Whether the device `id` is held back.
+    pub(crate) fn is_held(&self, id: u32) -> bool {
+        self.held.iter().any(|d| d.id == id)
     }
 
     /// Whether the held device `id` has acted.
@@ -500,6 +564,7 @@ impl InputsArea {
     pub(crate) fn believe(&mut self, id: u32) -> Option<NewInput> {
         let i = self.held.iter().position(|d| d.id == id)?;
         let d = self.held.remove(i);
+        self.refresh_notice();
         self.decisions.push_back((id, true));
         if d.pointer || d.touch {
             self.alone = false;
@@ -522,6 +587,7 @@ impl InputsArea {
             return;
         };
         let d = self.held.remove(i);
+        self.refresh_notice();
         self.wrong += d.letters;
         self.decisions.push_back((id, false));
         self.ignored.push((id, d.name));
@@ -533,6 +599,7 @@ impl InputsArea {
             self.wrong += d.letters;
         }
         self.held.retain(|d| d.id != id);
+        self.refresh_notice();
         self.ignored.retain(|(i, _)| *i != id);
     }
 
@@ -689,6 +756,21 @@ impl Faraday {
         self.out.redraw();
     }
 
+    /// The notice for the keyboards waiting, while it shows (F202).
+    /// Not while a held device's sheet is up: it is the whole screen, and
+    /// the notice's × would sit over its controls.
+    pub(crate) fn keyboard_notice_text(&self) -> Option<&str> {
+        if self.sheet == Some(Sheet::NewInput) {
+            return None;
+        }
+        self.inputs.keyboard_notice()
+    }
+
+    /// The × on the keyboard notice: it goes; the keyboards stay held.
+    pub(crate) fn keyboard_notice_close(&mut self) {
+        self.inputs.notice_close();
+    }
+
     /// The list of what was plugged in at start, while it shows.
     pub(crate) fn boot_notice_text(&self) -> Option<&str> {
         self.inputs.boot_notice()
@@ -784,8 +866,11 @@ impl Faraday {
             }
             Admitted::Held => {}
         }
-        // A notice only: the sheet comes when the device is used.
-        if let Some(d) = self.inputs.held().iter().find(|d| d.id == id) {
+        // A notice only: the sheet comes when the device is used. A
+        // keyboard's stays until it is closed or a key is typed.
+        if kinds.0 {
+            self.out.redraw();
+        } else if let Some(d) = self.inputs.held().iter().find(|d| d.id == id) {
             let text = fill(EN.inputs_new_device_held, &[&d.name]);
             self.toast(&text);
         }
@@ -823,6 +908,9 @@ impl Faraday {
 
     /// A key a held-back keyboard typed.
     pub(crate) fn input_typed(&mut self, id: u32, ch: char) {
+        if self.inputs.is_held(id) {
+            self.inputs.notice_close();
+        }
         self.input_used(id);
         let typed = self.inputs.typed(id, ch);
         self.input_tried(id, typed, [EN.inputs_wrong_code; 2]);

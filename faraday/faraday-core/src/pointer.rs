@@ -148,7 +148,11 @@ impl Pointer {
                     .reach
                     .iter()
                     .map(|t| t.action)
-                    .filter(|a| !crate::vault::is_hold(*a) && *a != Action::BootNoticeClose)
+                    .filter(|a| {
+                        !crate::vault::is_hold(*a)
+                            && *a != Action::BootNoticeClose
+                            && *a != Action::InputNoticeClose
+                    })
                     .collect();
                 let at = self.focused();
                 self.focus = faraday_ui::focus_step(&order, at, key == KeyIn::BackTab);

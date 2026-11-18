@@ -12,7 +12,8 @@
 //! a row, a pointer with no other input approving itself the same way,
 //! and every press beside a target counted for the session, whatever
 //! becomes of the device, are F202, which also has a held device ask only
-//! when it is used: a notice at plug-in, its sheet at its first act.
+//! when it is used: a notice at plug-in, its sheet at its first act. A
+//! keyboard's notice stays, and says to type any key on it.
 
 use faraday_core::strings::EN;
 use faraday_core::testkit::Plain;
@@ -845,11 +846,12 @@ fn a_new_device_shows_a_notice_with_its_name_and_no_sheet() {
         });
         announce(&mut app, id, "USB Thing", kinds);
         assert_eq!(app.sheet, None);
-        assert!(
-            app.drawn_texts()
-                .iter()
-                .any(|t| t == "New device: USB Thing")
-        );
+        let notice = if kinds.0 {
+            "Keyboard attached: USB Thing. To use it, type any key on it."
+        } else {
+            "New device: USB Thing"
+        };
+        assert!(app.drawn_texts().iter().any(|t| t == notice));
         // The screen under it still takes presses.
         app.press(Action::PowerAsk);
         assert_eq!(app.sheet, Some(Sheet::Power));
@@ -1273,9 +1275,9 @@ fn the_start_notice_goes_after_ten_seconds_whatever_else_is_pressed_or_toasted()
     assert_eq!(app.screen, Screen::Settings);
     app.storage(StorageEvent::NewInput {
         id: 9,
-        name: faraday_text::Text::of("USB Keyboard"),
-        keyboard: true,
-        pointer: false,
+        name: faraday_text::Text::of("USB Mouse"),
+        keyboard: false,
+        pointer: true,
         touch: false,
     });
     let both = said(&mut app);
@@ -1581,4 +1583,113 @@ fn a_person_who_replugs_their_keyboard_twice_still_gets_a_code() {
     let code = code_of(&app);
     type_on(&mut app, 3, &code);
     assert_eq!(app.poll_input_decision(), Some((3, true)));
+}
+
+fn keyboard_x(app: &mut Faraday) -> (u16, u16) {
+    let _ = app.frame();
+    app.where_offered(Action::InputNoticeClose)
+        .expect("the keyboard notice's × is on screen")
+}
+
+const ATTACHED: &str = "Keyboard attached: USB Keyboard. To use it, type any key on it.";
+
+fn trusted_screen() -> Faraday {
+    let mut app = on_screen(7);
+    app.event(Event::Tick { now_ms: 1000 });
+    app
+}
+
+#[test]
+fn a_keyboard_plugged_in_shows_a_notice_that_stays_until_a_key_is_typed() {
+    let mut app = trusted_screen();
+    announce(&mut app, 1, "USB Keyboard", (true, false, false));
+    assert_eq!(app.sheet, None);
+    assert!(said(&mut app).contains(ATTACHED));
+    app.event(Event::Tick { now_ms: 60_000 });
+    assert!(said(&mut app).contains(ATTACHED), "no time takes it away");
+    let code = code_of(&app);
+    type_on(&mut app, 1, "z");
+    assert_eq!(app.sheet, Some(Sheet::NewInput));
+    assert!(!said(&mut app).contains("Keyboard attached"));
+    type_on(&mut app, 1, &code);
+    assert_eq!(app.poll_input_decision(), Some((1, true)));
+}
+
+#[test]
+fn the_keyboard_notice_x_closes_it_and_a_later_key_still_opens_the_code() {
+    let mut app = trusted_screen();
+    announce(&mut app, 1, "USB Keyboard", (true, false, false));
+    let at = keyboard_x(&mut app);
+    tap(&mut app, at);
+    assert!(!said(&mut app).contains("Keyboard attached"));
+    assert_eq!(app.new_inputs().len(), 1);
+    assert_eq!(app.sheet, None);
+    type_on(&mut app, 1, "z");
+    assert_eq!(app.sheet, Some(Sheet::NewInput));
+}
+
+#[test]
+fn a_key_on_any_waiting_keyboard_closes_the_one_notice_that_names_them() {
+    let mut app = trusted_screen();
+    announce(&mut app, 1, "USB Keyboard", (true, false, false));
+    announce(&mut app, 2, "USB Keyboard", (true, false, false));
+    let both = said(&mut app);
+    assert_eq!(both.matches("Keyboard attached").count(), 1);
+    type_on(&mut app, 2, "z");
+    assert!(!said(&mut app).contains("Keyboard attached"));
+}
+
+#[test]
+fn an_unplugged_keyboard_takes_its_notice_and_a_pointers_toast_still_times_out() {
+    let mut app = trusted_screen();
+    announce(&mut app, 1, "USB Keyboard", (true, false, false));
+    app.storage(StorageEvent::InputGone { id: 1 });
+    assert!(!said(&mut app).contains("Keyboard attached"));
+    announce(&mut app, 2, "USB Mouse", (false, true, false));
+    assert!(said(&mut app).contains("New device: USB Mouse"));
+    app.event(Event::Tick { now_ms: 60_000 });
+    assert!(!said(&mut app).contains("New device"));
+}
+
+#[test]
+fn a_wrong_key_then_the_code_marks_the_boxes_again_and_the_keyboard_is_believed() {
+    let mut app = seeded();
+    new_device(&mut app, 1, true, false);
+    let code = code_of(&app);
+    let marked = |app: &Faraday| app.new_inputs()[0].marked();
+    type_on(&mut app, 1, "z");
+    assert_eq!(marked(&app), 0);
+    type_on(&mut app, 1, &code[..2]);
+    assert_eq!(marked(&app), 2);
+    // A wrong key takes the marks back; the code after it marks again.
+    type_on(&mut app, 1, "z");
+    assert_eq!(marked(&app), 0);
+    type_on(&mut app, 1, &code);
+    assert_eq!(app.poll_input_decision(), Some((1, true)));
+}
+
+#[test]
+fn a_held_pointers_sheet_hides_the_keyboard_notice_and_its_ignore_works() {
+    let mut app = on_screen(7);
+    app.event(Event::Tick { now_ms: 1000 });
+    app.storage(StorageEvent::InputTrust {
+        pointer: false,
+        keyboard: false,
+    });
+    announce(&mut app, 1, "USB Keyboard", (true, false, false));
+    assert!(said(&mut app).contains(ATTACHED));
+    announce(&mut app, 2, "USB Mouse", (false, true, false));
+    app.storage(StorageEvent::InputUsed { id: 2 });
+    assert_eq!(app.sheet, Some(Sheet::NewInput));
+    assert!(!said(&mut app).contains("Keyboard attached"));
+    let at = app.where_offered(Action::InputIgnore(2)).expect("Ignore");
+    app.storage(StorageEvent::InputTapped {
+        id: 2,
+        x: at.0,
+        y: at.1,
+    });
+    assert_eq!(app.poll_input_decision(), Some((2, false)));
+    assert_eq!(app.ignored_inputs().len(), 1);
+    assert_eq!(app.sheet, None);
+    assert!(said(&mut app).contains(ATTACHED));
 }
