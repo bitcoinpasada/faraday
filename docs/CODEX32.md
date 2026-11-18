@@ -1171,13 +1171,14 @@ does (F103).
 (native SegWit, Taproot, nested, legacy). Its title is "Backup" and its
 rows:
 
-- **Words (BIP-39)**, ticked when the card opens: 12 to 24 words on
-  paper.
-- **Shares (codex32)**, behind **More ways**: the key in shares on
-  paper, a few of them rebuild it.
+- **Words (BIP-39)**: 12 to 24 words on paper.
+- **Shares (codex32)**: the key in shares on paper, a few of them
+  rebuild it.
 
-A row pressed closes the card and opens the next (F103), the ticked one
-too; closed it reads the form's name. A wallet made
+Neither is ticked when the card opens and there is no way on until one
+is pressed (as on Kind); a flow begun with its backup type decided
+keeps it. A row pressed closes the card and opens the next (F103), the
+ticked one too; closed it reads the form's name. A wallet made
 from another (New wallet from this one) takes its keys and has no
 Backup card.
 

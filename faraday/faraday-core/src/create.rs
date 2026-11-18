@@ -1010,8 +1010,6 @@ pub struct CreateState {
     /// The Kind card's **More kinds** is expanded: the other eight kinds
     /// are shown too.
     pub more_kinds: bool,
-    /// The Backup card's other ways to back up the key are shown too.
-    pub more_backup: bool,
     /// New keys made for this wallet.
     pub made: u32,
     /// The slot whose passphrase fields are open.
@@ -1401,9 +1399,6 @@ impl CreateArea {
                     // (a single choice moves on by itself).
                     c.kind = create::NewKind::ALL[i as usize % create::NewKind::ALL.len()];
                     c.kind_unchosen = false;
-                    if !c.kind.multi() && c.backup.is_none() {
-                        c.backup = Some(BackupForm::Words);
-                    }
                     c.bip87 = false;
                     c.path_open = false;
                     if c.kind.multi() {
@@ -1428,11 +1423,6 @@ impl CreateArea {
             Action::CMoreKinds => {
                 if let Some(c) = self.state.as_mut() {
                     c.more_kinds = true;
-                }
-            }
-            Action::CMoreBackup => {
-                if let Some(c) = self.state.as_mut() {
-                    c.more_backup = true;
                 }
             }
             // The Backup card's row: how the single key is backed up.
@@ -1580,8 +1570,8 @@ impl Faraday {
             }
             Action::CreateWallet | Action::CreateOver => {
                 // Create opens on Kind, open, with no row ticked: the
-                // person chooses, and Next waits for it. Words is the
-                // Backup card's answer once a single key is chosen.
+                // person chooses, and Next waits for it. The Backup card
+                // starts the same way.
                 // Back goes where it was opened from, Home or Wallets.
                 let done = [false; cstep::COUNT];
                 let owner = self.fresh_owner();
@@ -1591,7 +1581,8 @@ impl Faraday {
                     open: Some(cstep::KIND),
                     kind: NewKind::NativeSegwit,
                     kind_unchosen: true,
-                    backup: Some(BackupForm::Words),
+                    // No backup type until one is pressed.
+                    backup: None,
                     // Start over keeps it.
                     from_home: self.screen == Screen::Home
                         || (self.screen == Screen::Create
@@ -1755,7 +1746,6 @@ impl Faraday {
             }
             Action::CStep(_)
             | Action::CMoreKinds
-            | Action::CMoreBackup
             | Action::CM(_)
             | Action::CSlotHere(..)
             | Action::CSlotLater(_)
@@ -1780,7 +1770,6 @@ impl Faraday {
                 | Action::CreateOver
                 | Action::CStep(_)
                 | Action::CMoreKinds
-                | Action::CMoreBackup
                 | Action::CBackupAbout
                 | Action::CPathAbout
                 | Action::CKind(_)

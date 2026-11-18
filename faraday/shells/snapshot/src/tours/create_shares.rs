@@ -24,8 +24,6 @@ pub(crate) fn create_shares_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("shares-1-opened")?;
     t.press(Action::CKind(kind(NewKind::NativeSegwit)?));
     t.shot("shares-2-backup")?;
-    t.press(Action::CMoreBackup);
-    t.shot("shares-2b-backup-more")?;
     // The pointer resting on "codex32" brings its tooltip up.
     let (line, (x, y, w, h)) = t
         .app

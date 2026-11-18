@@ -546,8 +546,6 @@ pub enum Action {
     CKind(u8),
     /// Expands the Kind card's other eight kinds.
     CMoreKinds,
-    /// Shows the Backup card's other ways to back up the key.
-    CMoreBackup,
     /// The info button after "codex32" on the Backup card: shows its
     /// tooltip at once (F112, F240).
     CBackupAbout,
@@ -1763,7 +1761,6 @@ impl Faraday {
             | Action::CExistingVault(..)
             | Action::PlanAddPass
             | Action::CMoreKinds
-            | Action::CMoreBackup
             | Action::CBackupAbout
             | Action::CPathAbout
             | Action::CBackupForm(..)

@@ -282,17 +282,7 @@ fn forward_in_view(mut app: Faraday, h: u16) {
         );
     }
     tap(&mut app, Action::CKind(0));
-    // Backup shows Words and More ways; the others after it is pressed.
-    for next in [
-        Action::CBackupForm(faraday_core::create::BackupForm::Words.index()),
-        Action::CMoreBackup,
-    ] {
-        assert!(
-            in_view(&mut app, h, next),
-            "Make a new wallet, Backup, {next:?}"
-        );
-    }
-    tap(&mut app, Action::CMoreBackup);
+    // Backup shows every way at once.
     for form in faraday_core::create::BackupForm::offered() {
         assert!(
             in_view(&mut app, h, Action::CBackupForm(form.index())),

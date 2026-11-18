@@ -121,8 +121,8 @@ Create a vault a step card with a default opens closed and shows its
 value and **Change** in place of the chevron; the flow opens on the first
 card without one. Make a new wallet opens on Kind, open, with nothing
 ticked and no way on until a row is pressed, and only the Kind card
-shows until then (the Backup card's answer is Words, Shares behind **More
-ways**); **It matches** on Check
+shows until then (a single key's Backup card, Words and Shares, starts
+the same way: neither ticked, no way on until one is pressed); **It matches** on Check
 opens Back up in the same press, except for a wallet made to move
 another's money, which stays on Check, whose foot has the spend of the
 old wallet's coins; a Tools tile that ticks a

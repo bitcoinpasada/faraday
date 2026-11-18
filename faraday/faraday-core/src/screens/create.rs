@@ -274,15 +274,8 @@ fn create_kind(app: &View, ui: &mut Ui, c: &crate::CreateState, (x, y, w): (f32,
 fn create_backup_form(ui: &mut Ui, c: &crate::CreateState, (x, y, w): (f32, f32, f32)) -> f32 {
     let locked = c.built.is_some();
     let mut cy = y;
-    // Words is ticked from the start; the other ways are behind a button
-    // until pressed, or until one of them is the answer.
-    let shown: Vec<crate::create::BackupForm> = crate::create::BackupForm::offered()
-        .into_iter()
-        .filter(|f| *f == crate::create::BackupForm::Words || c.more_backup || c.backup == Some(*f))
-        .collect();
-    let more = (shown.len() < crate::create::BackupForm::offered().len())
-        .then_some((EN.create_more_backup, Action::CMoreBackup));
-    let rows: Vec<OptionRow> = shown
+    // Every way is a row, none ticked until one is pressed.
+    let rows: Vec<OptionRow> = crate::create::BackupForm::offered()
         .into_iter()
         .map(|f| OptionRow {
             name: f.name(),
@@ -292,7 +285,7 @@ fn create_backup_form(ui: &mut Ui, c: &crate::CreateState, (x, y, w): (f32, f32,
             tip: f == crate::create::BackupForm::Codex32,
         })
         .collect();
-    cy += option_list(ui, (x, cy, w), &rows, more, !locked);
+    cy += option_list(ui, (x, cy, w), &rows, None, !locked);
     cy - y
 }
 

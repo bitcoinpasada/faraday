@@ -22,7 +22,7 @@ Neither kind is ticked when the page opens; a press on one takes it and opens th
 
 Asked for a single key of any address type: choose how the key is written on paper.
 
-**Words (BIP-39)** is ticked when the card opens: 12 to 24 words in one list. **More ways** shows **Shares (codex32)**, which splits the key into shares: a set number of them rebuild it and fewer reveal nothing of it, so you can keep each in its own place. The key made on the Keys card is made the way chosen here, and its Start card is already answered, with **Change**.
+Neither row is ticked when the card opens; press one to go on. **Words (BIP-39)** is 12 to 24 words in one list. **Shares (codex32)** splits the key into shares: a set number of them rebuild it and fewer reveal nothing of it, so you can keep each in its own place. The key made on the Keys card is made the way chosen here, and its Start card is already answered, with **Change**.
 
 ## Quorum
 

@@ -79,8 +79,6 @@ macro_rules! words_create {
     create_kind_single: "Single key",
     /// Make a new wallet's Kind row: Multisig's name.
     create_kind_multi: "Multisig",
-    /// The Backup card's button that shows the other ways to back up the key.
-    create_more_backup: "More ways",
     /// The Backup card's title, and Check's row label for a key made as codex32 shares.
     create_backup: "Backup",
     /// Check's row value. `{}`: the identifier, k, n.

@@ -2134,6 +2134,15 @@ impl Faraday {
             return vec![cstep::KIND];
         }
         let mut v = crate::create_steps(c.kind);
+        // A single key's backup type not chosen yet: the cards after it
+        // wait.
+        if c.built.is_none()
+            && c.backup.is_none()
+            && let Some(at) = v.iter().position(|&k| k == cstep::BACKUP_FORM)
+            && c.from.is_none()
+        {
+            v.truncate(at + 1);
+        }
         // A wallet made from another takes its keys: there is no backup
         // to choose (F240).
         if c.from.is_some() {
