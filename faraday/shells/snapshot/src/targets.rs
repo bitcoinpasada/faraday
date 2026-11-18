@@ -364,6 +364,7 @@ walks! {
     walk_transfer = Some("transfer"),
     walk_glance = Some("glance"),
     walk_chartedit = Some("chartedit"),
+    walk_oldparts = Some("oldparts"),
     walk_fromvault = Some("fromvault"),
     walk_first = Some("first"),
     walk_restore = Some("restore"),
