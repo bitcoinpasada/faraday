@@ -46,8 +46,6 @@ macro_rules! words_screens_home {
     home_btn_finish: "Finish",
     /// The lead's button: sign a PSBT in Files.
     home_btn_sign: "Sign",
-    /// The lead's button: take an import in.
-    home_btn_import: "Import",
     /// The lead's button: unlock a vault.
     home_btn_unlock: "Unlock",
     /// The lead's button: open Files.
@@ -56,8 +54,6 @@ macro_rules! words_screens_home {
     home_btn_write: "Write",
     /// The lead's button: make a wallet from a key no wallet uses.
     home_btn_make_a_wallet: "Make a wallet",
-    /// The lead's button: make a new wallet.
-    home_btn_make: "Make",
     /// The lead's line under a backup's name.
     home_card_backup_not_finished: "Backup not finished",
     /// The lead's line for a key no wallet uses. `{}`: the key's fingerprint.
@@ -78,15 +74,9 @@ macro_rules! words_screens_home {
     /// Text in `home_ways`.
     home_ways_make_a_new: "Make a new wallet",
     /// Text in `home_ways`.
-    home_ways_single_key: "Single key or multisig",
-    /// Text in `home_ways`.
     home_ways_restore_wallet: "Restore an existing wallet",
     /// Text in `home_ways`.
-    home_ways_restore_line: "From its backups",
-    /// Text in `home_ways`.
     home_ways_spend_backup: "Spend from a backup, step by step",
-    /// Text in `home_ways`.
-    home_ways_a_stick_words: "A stick, words, or paper",
     /// Text in `home_ways`.
     home_ways_a_stick_attached: "A stick attached",
     /// Text in `home_ways`.
@@ -100,8 +90,6 @@ macro_rules! words_screens_home {
     home_search_hint: "Search tools and settings",
     /// Title in `home`.
     home_home: "Home",
-    /// Section label in `home`.
-    home_start: "Start",
     /// Button in `home`.
     home_scan: "Scan",
         }

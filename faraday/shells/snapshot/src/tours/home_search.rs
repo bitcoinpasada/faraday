@@ -10,8 +10,8 @@ use faraday_shell_api::{App, Event};
 pub(crate) fn home_search_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::Home));
     let find = Action::TypeHere(Here::HomeFind);
-    // A phone-width Home has the bar below the fold: scroll to it as a
-    // person does. The Pi's small panel has no bar (its Home is the menu).
+    // The bar stands under the actions and does not scroll; the Pi's small
+    // panel has none (its Home is the menu).
     let mut scrolled = 0;
     while scrolled < 3600 && t.app.hit_box(find).is_none() {
         scroll(t, 120);

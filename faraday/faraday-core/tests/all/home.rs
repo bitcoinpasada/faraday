@@ -999,17 +999,18 @@ fn the_pi_s_home_shows_files_waiting_to_be_written() {
 /// With nothing loaded Home leads with Make a new wallet and shows
 /// Start's tiles.
 #[test]
-fn with_nothing_loaded_start_shows_and_make_a_new_wallet_leads() {
+fn with_nothing_loaded_the_three_first_actions_stand_as_headings_only() {
     let mut app = shown();
     let texts = app.drawn_texts();
-    assert!(texts.iter().any(|t| t == "Start"), "{texts:?}");
+    assert!(!texts.iter().any(|t| t == "Start"), "{texts:?}");
+    assert!(!texts.iter().any(|t| t == "Make"), "no pill: {texts:?}");
     assert!(
-        texts.iter().any(|t| t == "Make"),
-        "the lead's button: {texts:?}"
+        !texts.iter().any(|t| t == "From its backups"),
+        "no small line: {texts:?}"
     );
-    assert!(app.offers(Action::CreateWallet));
-    assert!(app.offers(Action::RestoreWallet));
-    assert!(app.offers(Action::Nav(Screen::SpendBackup)));
+    for a in FIRST {
+        assert!(app.offers(a), "{a:?}");
+    }
 }
 
 /// A key no wallet uses leads with Make a wallet from it, and Start's
@@ -1199,27 +1200,38 @@ fn a_press_in_homes_empty_search_bar_shows_a_blinking_caret_and_typing_goes_in()
     assert_eq!(faraday_core::testkit::home_find(&app), "send");
 }
 
+const FIRST: [Action; 3] = [
+    Action::CreateWallet,
+    Action::RestoreWallet,
+    Action::Nav(Screen::SpendBackup),
+];
+
+fn wide() -> Faraday {
+    shown()
+}
+
+fn phone() -> Faraday {
+    window(400, 800, 160)
+}
+
+/// The hit boxes of the three first actions and of `more`.
+fn boxes(app: &Faraday, more: Action) -> Vec<Option<(u16, u16, u16, u16)>> {
+    FIRST
+        .iter()
+        .chain([&more])
+        .map(|a| app.hit_box(*a))
+        .collect()
+}
+
 #[test]
-fn with_something_typed_homes_buttons_stay_and_can_be_pressed() {
-    for mut app in [shown(), window(400, 800, 160)] {
-        assert!(app.offers(Action::Nav(Screen::Check)), "on Home at first");
-        type_on_home(&mut app, "send");
-        // The results are under the bar; scrolled back up, the buttons
-        // are there as before.
-        app.event(Event::Scroll {
-            x: 300,
-            y: 300,
-            dy: -3000,
-        });
-        let _ = app.frame();
-        assert!(app.offers(Action::Nav(Screen::Check)), "on Home still");
-        assert!(
-            app.where_offered(Action::Nav(Screen::Check)).is_some(),
-            "on screen"
-        );
-        assert_eq!(faraday_core::testkit::home_find(&app), "send");
-        tap(&mut app, Action::Nav(Screen::Check));
-        assert_eq!(app.screen, Screen::Check);
+fn with_nothing_loaded_each_first_action_is_pressed_as_a_whole() {
+    let flows = [Screen::Create, Screen::Restore, Screen::SpendBackup];
+    for make in [wide as fn() -> Faraday, phone] {
+        for (action, screen) in FIRST.into_iter().zip(flows) {
+            let mut app = make();
+            tap(&mut app, action);
+            assert_eq!(app.screen, screen, "{action:?}");
+        }
     }
 }
 
@@ -1238,4 +1250,211 @@ fn the_pi_s_menu_puts_wallets_left_of_check_and_a_phone_keeps_check_first() {
     assert!(w.0 < c.0, "Wallets is left of Check");
     let (w, c) = boxes(&window(400, 800, 160));
     assert!(c.1 < w.1, "Check is in the page, Wallets on the bar below");
+}
+
+#[test]
+fn the_first_actions_and_the_bar_stay_where_they_were_while_a_search_is_typed() {
+    let bar = Action::TypeHere(faraday_core::edit::Here::HomeFind);
+    for make in [wide as fn() -> Faraday, phone] {
+        let mut app = make();
+        let before = boxes(&app, bar);
+        assert!(before.iter().all(Option::is_some));
+        type_on_home(&mut app, "send");
+        assert_eq!(before, boxes(&app, bar));
+        // Scrolling the results moves none of them either.
+        app.event(Event::Scroll {
+            x: 300,
+            y: 700,
+            dy: 3000,
+        });
+        let _ = app.frame();
+        assert_eq!(before, boxes(&app, bar));
+        tap(&mut app, Action::CreateWallet);
+        assert_eq!(app.screen, Screen::Create);
+    }
+}
+
+/// Home with the boot stick's import waiting and nothing loaded.
+fn with_an_import_waiting(make: fn() -> Faraday) -> Faraday {
+    let files = vec![("notes.txt".to_string(), b"a note".to_vec())];
+    let mut app = make();
+    app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    app.storage(StorageEvent::Sticks(vec![boot_stick(&files)]));
+    pump(&mut app, &files);
+    let _ = app.frame();
+    app.press(faraday_core::boot_import::LATER);
+    let _ = app.frame();
+    app
+}
+
+#[test]
+fn the_import_lead_is_a_card_with_no_pill_and_typing_a_search_leaves_it_and_the_row() {
+    let open = faraday_core::boot_import::OPEN;
+    for make in [wide as fn() -> Faraday, phone] {
+        let mut app = with_an_import_waiting(make);
+        let texts = app.drawn_texts();
+        assert!(!texts.iter().any(|t| t == "Import"), "no pill: {texts:?}");
+        let before = boxes(&app, open);
+        assert!(before.iter().all(Option::is_some), "{before:?}");
+        type_on_home(&mut app, "send");
+        assert_eq!(before, boxes(&app, open));
+        tap(&mut app, open);
+        assert!(app.sheet.is_some());
+    }
+}
+
+#[test]
+fn with_something_typed_homes_buttons_stay_and_can_be_pressed() {
+    let mut app = shown();
+    assert!(app.offers(Action::Nav(Screen::Check)), "on Home at first");
+    type_on_home(&mut app, "send");
+    assert_eq!(faraday_core::testkit::home_find(&app), "send");
+    assert!(app.where_offered(Action::Nav(Screen::Check)).is_some());
+    tap(&mut app, Action::Nav(Screen::Check));
+    assert_eq!(app.screen, Screen::Check);
+}
+
+/// Whether a tick at `now_ms` asks for a frame.
+fn tick_draws(app: &mut Faraday, now_ms: u64) -> bool {
+    app.event(Event::Tick { now_ms });
+    std::iter::from_fn(|| app.poll_command()).any(|c| c == Command::Draw)
+}
+
+#[test]
+fn a_press_in_homes_search_bar_shows_a_blinking_caret_and_at_rest_none_shows() {
+    let bar = Action::TypeHere(faraday_core::edit::Here::HomeFind);
+    for mut app in [shown(), window(400, 800, 160)] {
+        let _ = app.frame();
+        while app.poll_command().is_some() {}
+        let at_rest = app.now_ms();
+        for k in 1..=100 {
+            assert!(
+                !tick_draws(&mut app, at_rest + 16 * k),
+                "no caret at rest at {k}"
+            );
+        }
+        tap(&mut app, bar);
+        let t = app.now_ms();
+        while app.poll_command().is_some() {}
+        let on = app.frame().rgba.to_vec();
+        assert!(tick_draws(&mut app, t + 600), "the caret goes off");
+        let off = app.frame().rgba.to_vec();
+        assert!(on != off);
+        assert!(tick_draws(&mut app, t + 1_100), "and comes back");
+    }
+}
+
+/// A window of `width` by `height` at 160 dpi with the test wallet loaded.
+fn short_with_a_wallet(width: u16, height: u16) -> Faraday {
+    let wallet = faraday_core::testkit::files()
+        .unwrap()
+        .into_iter()
+        .find(|(n, _)| n == "spending-wallet.txt")
+        .unwrap();
+    let mut app = faraday_core::testkit::new_on_test_net();
+    app.event(Event::Display(DisplayInfo {
+        width,
+        height,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: faraday_shell_api::SecureHardware::None,
+        boot: faraday_shell_api::BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![("spending-wallet.txt".to_string(), wallet.1)]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    let _ = app.frame();
+    faraday_core::testkit::load_wallet(&mut app, 0);
+    app.press(Action::Nav(Screen::Home));
+    let _ = app.frame();
+    app
+}
+
+/// Whether the last frame offers `action` inside a window `height` tall.
+fn on_screen(app: &Faraday, action: Action, height: u16) -> bool {
+    app.where_offered(action).is_some_and(|(_, y)| y < height)
+}
+
+fn scroll_home(app: &mut Faraday, width: u16, dy: i16) {
+    app.event(Event::Scroll {
+        x: width / 2,
+        y: 70,
+        dy,
+    });
+    app.event(Event::ScrollEnd {
+        x: width / 2,
+        y: 70,
+    });
+    let _ = app.frame();
+}
+
+/// Scrolls Home from its top, a step at a time, until `action` is inside a
+/// window `height` tall; whether it got there.
+fn scrolled_to(app: &mut Faraday, width: u16, height: u16, action: Action) -> bool {
+    for _ in 0..80 {
+        if on_screen(app, action, height) {
+            return true;
+        }
+        scroll_home(app, width, 60);
+    }
+    false
+}
+
+/// A Home taller than its window scrolls as one page, the bar and what is
+/// under it reachable, with a search typed or not.
+#[test]
+fn a_home_taller_than_its_window_scrolls_to_the_search_bar_and_its_results() {
+    let bar = Action::TypeHere(faraday_core::edit::Here::HomeFind);
+    for (width, height) in [(1366, 140), (400, 500)] {
+        let mut app = short_with_a_wallet(width, height);
+        // On the short wide window the bar starts below it; on the phone
+        // it starts in view and the results are what is out of it.
+        if width > 1000 {
+            assert!(
+                !on_screen(&app, bar, height),
+                "{width}x{height}: the bar is below the window: {:?}",
+                app.where_offered(bar)
+            );
+        }
+        assert!(
+            scrolled_to(&mut app, width, height, bar),
+            "{width}x{height}: the bar is out of reach"
+        );
+        // Typed on a keyboard of the person's own: the on-screen one,
+        // taller than a window this short, would cover all of it.
+        type_on_home(&mut app, "send");
+        assert_eq!(faraday_core::testkit::home_find(&app), "send");
+        assert!(
+            scrolled_to(&mut app, width, height, Action::Catalog(sign_tile())),
+            "{width}x{height}: the result is out of reach"
+        );
+    }
+}
+
+/// On the phone-size window the places under the bar stay reachable by
+/// scrolling, with no search typed and with one.
+#[test]
+fn the_phone_homes_places_under_the_bar_are_reachable_by_scrolling() {
+    let mut app = short_with_a_wallet(400, 500);
+    assert!(scrolled_to(
+        &mut app,
+        400,
+        500,
+        Action::Nav(Screen::Backups)
+    ));
+    type_on_home(&mut app, "send");
+    assert!(scrolled_to(
+        &mut app,
+        400,
+        500,
+        Action::Catalog(sign_tile())
+    ));
 }

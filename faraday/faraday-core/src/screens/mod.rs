@@ -59,7 +59,10 @@ pub(crate) use faraday_ui::parts::{
     button_rows, section_label, sheet_box, wrap_buttons, wrap_buttons_spaced,
 };
 pub(crate) use files::{stick_chip as files_stick_chip, vault_panel};
-pub(crate) use home::{home_lead_beside_tiles, tile_grid};
+pub(crate) use home::{
+    actions_fit_a_row, first_actions, home_lead_beside_tiles, home_pinned, nothing_loaded,
+    tile_grid,
+};
 pub(crate) use message::{MESSAGE_STEPS, MSTEPS};
 pub(crate) use parts::{
     CopyGrid, address_press, busy_bar, busy_line, buttons_and_next, buttons_and_next_when,

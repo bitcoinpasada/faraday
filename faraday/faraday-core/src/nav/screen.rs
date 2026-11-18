@@ -375,6 +375,67 @@ struct Line {
 /// files and a stick's import waiting, each opening what its sidebar row
 /// opens. Drawn at (x, y) in `w`; returns the height it takes.
 pub(crate) fn loaded_card(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let (lines, at, row_h, h) = loaded_layout(app, ui, w);
+    let room = w - 2.0 * PAD;
+    ui.fill(x, y, w, h, SHAPE_M, Role::SurfaceContainerLow);
+    ui.stroke(x, y, w, h, SHAPE_M, Role::OutlineVariant);
+    for (i, l) in lines.iter().enumerate() {
+        let (ox, r) = at[i];
+        let line_h = row_h[r];
+        let lx = x + PAD + ox;
+        let ly = y + GAP_SMALL + row_h[..r].iter().sum::<f32>();
+        let next = at
+            .get(i + 1)
+            .filter(|n| n.1 == r)
+            .map_or(room, |n| n.0 - PAD);
+        let lw = (next - ox).min(room - ox);
+        if let Some(a) = l.action {
+            ui.press(
+                Shape::new(lx - GAP_SMALL, ly, lw + 2.0 * GAP_SMALL, line_h, SHAPE_XS),
+                Role::OnSurface.paint(),
+                a,
+            );
+        }
+        let mut tx = lx;
+        if let Some(ic) = l.icon {
+            let iy = ly + (line_h - ICON_SMALL) / 2.0;
+            ui.icon(
+                tx,
+                iy,
+                ICON_SMALL,
+                ic,
+                NAV_ICON - GAP_SMALL,
+                Role::OnSurfaceVariant,
+            );
+            tx += ICON_SMALL + GRID;
+        }
+        let avail = lx + lw - tx;
+        let head = ui.fit_as(LABEL_L, &l.head, avail);
+        let used = ui.text_mid_as((tx, ly, line_h), LABEL_L, Role::OnSurface, &head);
+        if !l.tail.is_empty() {
+            let tail = ui.fit_as(BODY_S, &l.tail, (avail - used - GRID).max(0.0));
+            ui.text_mid_as(
+                (tx + used + GRID, ly, line_h),
+                BODY_S,
+                Role::OnSurfaceVariant,
+                &tail,
+            );
+        }
+    }
+    h
+}
+
+/// The height [`loaded_card`] takes in `w`, without drawing it.
+pub(crate) fn loaded_card_h(app: &View, ui: &Ui, w: f32) -> f32 {
+    loaded_layout(app, ui, w).3
+}
+
+/// What [`loaded_layout`] works out: the lines, where each stands (its
+/// offset in its row, and the row), each row's height and the box's height.
+type Laid = (Vec<Line>, Vec<(f32, usize)>, Vec<f32>, f32);
+
+/// The box's lines laid out in `w`.
+fn loaded_layout(app: &View, ui: &Ui, w: f32) -> Laid {
     let mut lines: Vec<Line> = Vec::new();
     for r in app.flows_in_progress().iter() {
         let icon = match r.tab {
@@ -484,52 +545,7 @@ pub(crate) fn loaded_card(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f3
         row_h[r] = row_h[r].max(heights[i]);
     }
     let h = row_h.iter().sum::<f32>() + 2.0 * GAP_SMALL;
-    ui.fill(x, y, w, h, SHAPE_M, Role::SurfaceContainerLow);
-    ui.stroke(x, y, w, h, SHAPE_M, Role::OutlineVariant);
-    for (i, l) in lines.iter().enumerate() {
-        let (ox, r) = at[i];
-        let line_h = row_h[r];
-        let lx = x + PAD + ox;
-        let ly = y + GAP_SMALL + row_h[..r].iter().sum::<f32>();
-        let next = at
-            .get(i + 1)
-            .filter(|n| n.1 == r)
-            .map_or(room, |n| n.0 - PAD);
-        let lw = (next - ox).min(room - ox);
-        if let Some(a) = l.action {
-            ui.press(
-                Shape::new(lx - GAP_SMALL, ly, lw + 2.0 * GAP_SMALL, line_h, SHAPE_XS),
-                Role::OnSurface.paint(),
-                a,
-            );
-        }
-        let mut tx = lx;
-        if let Some(ic) = l.icon {
-            let iy = ly + (line_h - ICON_SMALL) / 2.0;
-            ui.icon(
-                tx,
-                iy,
-                ICON_SMALL,
-                ic,
-                NAV_ICON - GAP_SMALL,
-                Role::OnSurfaceVariant,
-            );
-            tx += ICON_SMALL + GRID;
-        }
-        let avail = lx + lw - tx;
-        let head = ui.fit_as(LABEL_L, &l.head, avail);
-        let used = ui.text_mid_as((tx, ly, line_h), LABEL_L, Role::OnSurface, &head);
-        if !l.tail.is_empty() {
-            let tail = ui.fit_as(BODY_S, &l.tail, (avail - used - GRID).max(0.0));
-            ui.text_mid_as(
-                (tx + used + GRID, ly, line_h),
-                BODY_S,
-                Role::OnSurfaceVariant,
-                &tail,
-            );
-        }
-    }
-    h
+    (lines, at, row_h, h)
 }
 
 /// The ⋮ menu of the top app bar on the bar's windows: Settings and

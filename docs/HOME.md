@@ -1,8 +1,8 @@
 # Home at every size
 
 **Kind:** Spec
-**Status:** Specified. Built today, and described in `docs/LAYOUT.md` §4 and `docs/FLOWS.md` (Home): on the one-column layouts the box of what is loaded, the lead and a menu of the places; on the wide layout the lead and four first-run tiles, whatever is loaded.
-**Open:** the wide layout's Home is built (the lead as a card with one filled button, each loaded wallet with Sign, the first-run tiles only while nothing is loaded, no Check tile, F275); the one-column Home is not: one Home for the Pi and the navigation bar's and rail's windows with the same lead and wallet cards, the Pi's box of what is loaded held to three lines, the Files tile and the power button in words, the Backups row, the destinations in one order everywhere, and the sidebar's Files row once.
+**Status:** Specified. Built today, and described in `docs/LAYOUT.md` §4 and `docs/FLOWS.md` (Home): on the one-column layouts the box of what is loaded, the lead and a menu of the places; on every window but the Pi's menu the three first actions as headings only and a search bar under them.
+**Open:** the wide layout's Home is built (the lead as a card with one filled button, or the plain Import lead as a card pressed whole; each loaded wallet with Sign; the three first actions as one row of heading-only buttons while nothing is loaded, stacked on the phone-size window; the search bar under them, which a typed search never moves or changes; no Check tile, F275); the rail's and the bar's windows draw the same row and bar; the one-column Home for the Pi is not: one Home for the Pi and the navigation bar's and rail's windows with the same lead and wallet cards, the Pi's box of what is loaded held to three lines, the Files tile and the power button in words, the Backups row, the destinations in one order everywhere, and the sidebar's Files row once.
 
 Home is the first page after the self-test and after every lock, and
 the page a person comes back to between jobs. It answers three
@@ -25,10 +25,14 @@ parts take and in what the navigation beside them already carries.
    None when nothing waits and something is loaded.
 3. **Wallets** (§3): each loaded wallet with **Sign**,
    then the Backups row while a wallet is known.
-4. **Start** (§5): the first-run tiles, only while nothing is loaded.
-5. **The places** (§6): on the Pi only, which has no navigation
+4. **The three first actions** (§5): one row of buttons under the
+   title, only while nothing is loaded, and not on the Pi's menu.
+5. **The search bar**: under the buttons, on every window but the Pi's
+   menu. What is typed shows its results under it; nothing above the
+   bar changes or moves (§5).
+6. **The places** (§6): on the Pi only, which has no navigation
    component, the menu of the destinations; then Lock and Power off.
-6. **Scan**, the floating button at the bottom right, on every size.
+7. **Scan**, the floating button at the bottom right, on every size.
 
 "Nothing is loaded" means no key held, no wallet in the session and no
 vault open. Files brought in, a stick attached and a vault file not yet
@@ -58,17 +62,19 @@ line is above it (`docs/FLOWS.md`, Flows in progress), as today.
 The first ten are today's jobs and their order (`docs/FLOWS.md`, Home);
 the key with no wallet is new, and is what that key's card on Wallets
 already offers (`docs/WALLETS.md` §1, **Make a wallet from this key**).
-Make a new wallet is the lead only while nothing is loaded; with a
-wallet loaded and nothing waiting there is no lead, and the wallets
-head the page.
+Make a new wallet is the lead on the Pi only, while nothing is loaded;
+on every other window it is the first of the three first actions (§5),
+and nothing leads. With a wallet loaded and nothing waiting there is no
+lead, and the wallets head the page.
 
 **Drawn as** Material's filled card: the job's icon in its container,
 the line, the line under it in the muted tone, and at the card's end
-one filled button, the only filled button on Home. On the Pi the card is
+one filled button, the only filled button on Home. The plain Import
+lead has no button: the whole card is the press, with no pill. On the Pi the card is
 one row as tall as its two lines; on wider windows it is at most
 `LEAD_MAX` wide. A job that cannot be done here yet (a locked vault with
 the stick still in) shows its button disabled and its second line, "Pull
-the stick to unlock", in the warning tone. The whole card is not a
+the stick to unlock", in the warning tone. The card with a button is not a
 press: the button is, so the lead and the wallets below it read the
 same way.
 
@@ -127,18 +133,31 @@ person's first card is the lead, never "0 files · no stick".
 first two and "+ {n} more", which opens the card in place to every line,
 ending "Show less". Wider windows show every line.
 
-## 5. Start, while nothing is loaded
+## 5. The first actions and the search bar
 
-While nothing is loaded, Start follows the lead (which is then Make a
-new wallet, or a job waiting): **Restore an existing wallet**, "From its
-backups"; **Spend from a backup, step by step**, "A stick, words, or
-paper"; and, on the navigation bar's windows only, **Check a hardware
-wallet** (§6.3). Make a new wallet is not a tile while it is the lead.
-When a job waiting leads, Make a new wallet is Start's first tile.
+While nothing is loaded, the three first actions stand under the title,
+before the search bar and after the lead when a job waits: **Make a new
+wallet**, **Restore an existing wallet** and **Spend from a backup**.
+They are three like buttons with their heading only, no small line, no
+label over them, no pill: the whole button is the press. Where the
+headings all fit in full, three across the page's width, they stand as
+one row (the rail's and the expanded rail's windows); otherwise they
+stand one under the other at full width. The phone-size window always
+stacks them, with the search bar under them.
 
-Once anything is loaded, Start is gone: its ways in stay on Wallets
-(Make a new wallet, Restore an existing wallet, Spend from a backup,
-Add a key; `docs/WALLETS.md`), and Check is a destination.
+The search bar is under the first actions, or under the tiles once
+something is loaded, centred on the wide layout and full width on the
+one-column layouts. Typing in it changes nothing above it, neither what
+is drawn nor where: the lead, the wallets and the buttons stay in place
+and only the results under the bar scroll. That holds where the content
+above the bar and the bar leave room under it for about three rows of
+results; on a window too short for that, the whole page scrolls as one,
+the same content in the same order, the bar and the results reached by
+scrolling. A press in the bar shows its caret, which blinks.
+
+Once anything is loaded, the three actions are gone: their ways in stay
+on Wallets (Make a new wallet, Restore an existing wallet, Spend from a
+backup, Add a key; `docs/WALLETS.md`), and Check is a destination.
 
 ## 6. The places
 
@@ -188,9 +207,9 @@ already.
 On the rail's, the expanded rail's and the Pi's windows Check is a
 destination right under Home, so Home carries no Check tile. On the
 bar's windows Check is not on the bar, so Home keeps **Check a hardware
-wallet**, "Its seed, addresses and signatures": among Start while
-nothing is loaded, and as a tile after the Backups row once something
-is. This narrows F255's second point ("Home's fourth tile is Check,
+wallet**, "Its seed, addresses and signatures": a tile under the three
+first actions while nothing is loaded, and after the Backups row once
+something is. This narrows F255's second point ("Home's fourth tile is Check,
 always") to the windows whose navigation lacks Check (F275). The wide
 layout's Home is built so: no Check tile.
 
@@ -268,19 +287,23 @@ The sketches are to scale in their parts' order, not in their pixels.
 +-------------+----------------------------------------------------------+
 | FARADAY     | Home                                      (Testnet)  ?   |
 | OFFLINE     |                                                          |
-| Home        | +----------------------------------------------+         |
-| Check       | | [w] Make a new wallet              [ Make ]  |         |
-| Wallets     | |     Single key or multisig                   |         |
-| Files       | +----------------------------------------------+         |
-| Vaults      | Start                                                    |
-| Tools       | +-------------------------+ +-------------------------+  |
-| Guide       | | Restore an existing     | | Spend from a backup,    |  |
-| Settings    | | wallet  From its backups| | step by step            |  |
-|             | +-------------------------+ +-------------------------+  |
-|             |                                                          |
-| [Power off] |                                                [ Scan ]  |
+| Home        | +-----------------+ +-----------------+ +--------------+ |
+| Check       | | [w] Make a new  | | [r] Restore an  | | [s] Spend    | |
+| Wallets     | |     wallet      | |     existing    | |     from a   | |
+| Files       | |                 | |     wallet      | |     backup   | |
+| Vaults      | +-----------------+ +-----------------+ +--------------+ |
+| Tools       |                                                          |
+| Guide       |        ( search  Search tools and settings        )      |
+| Settings    |                                                          |
+|             |                                                [ Scan ]  |
+| [Power off] |                                                          |
 +-------------+----------------------------------------------------------+
 ```
+
+A job waiting (an import, say) stands as its card above the row; the
+plain Import card has no pill and is pressed whole. Typing in the search
+bar leaves the card, the row and the bar where they are; the results
+show and scroll under the bar.
 
 ### 7.4 The wide layout, 1280 by 800, keys and wallets loaded
 
@@ -312,13 +335,42 @@ under the top app bar, without the head and without the places (the
 navigation carries them), Lock and Power off being on the rail and in
 the ⋮ menu; on the bar's windows the Check tile of §6.3 follows Backups.
 
+### 7.5 The phone-size window, nothing loaded
+
+```
++------------------------------+
+| [mark] FARADAY     (Testnet) |
+| +--------------------------+ |
+| | [files] ...              | |  what is loaded
+| +--------------------------+ |
+| +--------------------------+ |
+| | [w] Make a new wallet    | |
+| +--------------------------+ |
+| +--------------------------+ |
+| | [r] Restore an existing  | |  the three first actions,
+| |     wallet               | |  stacked at full width
+| +--------------------------+ |
+| +--------------------------+ |
+| | [s] Spend from a backup  | |
+| +--------------------------+ |
+| ( search  Search tools ...  ) |
+| the places, or the results   |
+|                     [ Scan ] |
++------------------------------+
+```
+
+Only what is under the search bar scrolls, until the window is too short
+to leave room under the bar for about three rows of results; then the
+whole page scrolls (§5).
+
 ## 8. Strings
 
 New, in `faraday/faraday-strings/src/en/screens_home.rs` beside Home's
 others:
 
-- the lead's buttons: "Carry on", "Finish", "Sign", "Import", "Unlock",
-  "Open", "Write", "Make a wallet", "Make";
+- the lead's buttons: "Carry on", "Finish", "Sign", "Unlock", "Open",
+  "Write", "Make a wallet" (the Import lead has none: the card is the
+  press);
 - the lead's lines that change: "Backup not finished", "Changed since it
   was written" (today the vault's currency line is reused; kept if it
   reads so), "Key {}", "No wallet uses it";
@@ -334,7 +386,7 @@ tab's "{} to write".
 
 Kept as they are: "+ {} more" (`sidebar_more`), "in progress", "{} {}
 open", "Backups", "{} not backed up", "{} with a plan", "Restore an
-existing wallet" and the other Start tiles, "Power off" (`nav_power_off`).
+existing wallet" and the other first actions, "Power off" (`nav_power_off`).
 Left unused once built: `home_job_sign`'s "Sign {}" and the Pi's
 "{} · {}" files line (`home_files_line`).
 
@@ -370,9 +422,14 @@ Feed layout (the wide Home's grid).
 
 What a person would notice: with a wallet loaded, Home on the Pi and on
 the wide layout offers its Sign, and Sign opens what the
-wallet card's first button opens; with nothing loaded, Start shows and
-the first card is the lead, not a files line; with a key and no wallet,
-the lead makes a wallet from it; once something is loaded Start is gone;
+wallet card's first button opens; with nothing loaded, the three first
+actions show, each pressed as a whole, and a job waiting leads above
+them; with a key and no wallet, the lead makes a wallet from it; once
+something is loaded the three actions are gone; the three actions and the
+search bar stay where they were while a search is typed, on the wide and
+the phone-size window; a press in the empty bar shows its blinking
+caret; a Home taller than its window scrolls as one page to the bar and
+its results, with a search typed or not;
 with four or more wallets on the Pi, two and "+ N more" show, and "+ N
 more" opens Wallets; the Pi's Files tile and the box name files in
 words; Power off is labelled and powers off. The destinations' order is

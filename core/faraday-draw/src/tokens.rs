@@ -2289,5 +2289,9 @@ pub const GUIDE_SEARCH_AFTER: f32 = GAP_SMALL / 2.0;
 /// The room left under Home's search results at the foot of the page.
 pub const HOME_RESULTS_FOOT: f32 = 40.0;
 
+/// How many rows of results Home keeps room for under its search bar
+/// before the whole page scrolls with it.
+pub const HOME_RESULTS_ROWS: f32 = 3.0;
+
 /// The height of the line saying no tool matches Home's search.
 pub const HOME_RESULTS_LINE: f32 = 30.0;

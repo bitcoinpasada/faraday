@@ -578,27 +578,29 @@ boxes still grows them to 24; Clear starts the count over.
 
 ## Home
 
-A search bar leads Home on every window but the small panel's menu:
-typing on Home lands in it, and what is typed replaces Home with the
-tools that match, each a button that opens as its Tools tile does and
-clears the search; Escape clears it too.
+A search bar stands under Home's buttons on every window but the small
+panel's menu: typing on Home lands in it, and the tools that match show
+under it, each a button that opens as its Tools tile does and clears the
+search; Escape clears it too. Nothing above the bar changes or moves
+while a search is typed; only the results scroll, or the whole page
+where the window is too short to leave room for them.
 
 **Start** (decisions 11 and 50). Home carries no status cards: the
 sidebar's status block carries them. On the wide layout the lead is a
 card with one filled button, shown while something is under way or
 waiting, the first job that applies: a spend under way ("Carry on"), a
 backup not finished ("Finish"), a PSBT in Files ("Sign", after a lock
-cycle too, decision 3), an import waiting ("Import"), what the last visit
+cycle too, decision 3), an import waiting (a card pressed whole, no button), what the last visit
 wrote with nothing loaded ("Open"), a locked vault ("Unlock"), a vault
 changed since it was written ("Write"), a stick attached and not yet
 visited ("Files on {stick}", "Open"), a key no wallet uses ("Make a
-wallet"), and, only while nothing is loaded, **Make a new wallet**
-("Make"). Under the lead each wallet loaded has a card with its name, one
+wallet"). Under the lead each wallet loaded has a card with its name, one
 line and **Sign**, which does what the wallet card's first button does;
-the card opens the wallet on Wallets. While nothing is loaded, half-width
-tiles follow: **Restore an existing wallet** (Restore) and **Spend from a
-backup, step by step** (the Spend tab), and **Make a new wallet** when a
-job leads; once anything is loaded they are gone. **Backups** follows
+the card opens the wallet on Wallets. While nothing is loaded, three like buttons with
+their heading only stand in one row (one under the other where the
+headings do not fit, and on the phone-size window): **Make a new
+wallet**, **Restore an existing wallet** and **Spend from a backup**,
+each pressed as a whole; once anything is loaded they are gone. **Backups** follows
 once a wallet is known. Check is no tile on the wide layout: the sidebar
 lists it (F255, F275). `docs/HOME.md` has the design for every size. Vaults has no tile: it is in the sidebar, the rail, the
 bar and the Pi's Home menu, and Create a vault is on Vaults. A stick

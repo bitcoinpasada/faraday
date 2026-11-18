@@ -173,9 +173,18 @@ pub(crate) fn word_hits(
 /// the vault's is drawn (a full-round `SurfaceContainerHigh` field, the
 /// magnifying glass leading, the hint until something is typed, a
 /// trailing × that clears while it holds text). Typing lands in it with
-/// no press first, so at rest it draws no caret. Returns the height it
+/// no press first, so at rest it draws no caret; a press shows one,
+/// blinking, until something is typed. `page_top` is the top of the page
+/// the bar moves with, if it does, as on a Home taller than its window (`home_pinned`): its
+/// place is then kept, so the page follows the results no further than
+/// the bar at its top; a bar that stays has none. Returns the height it
 /// takes, the gap under it counted.
-pub(crate) fn home_search_bar(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+pub(crate) fn home_search_bar(
+    app: &View,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    page_top: Option<f32>,
+) -> f32 {
     use faraday_draw::tokens::{
         BODY_L, GAP, GAP_SMALL, SEARCH_BAR_H, SEARCH_GLYPH, SEARCH_ICON, SEARCH_INSET, TITLE_M,
         TOUCH,
@@ -183,7 +192,7 @@ pub(crate) fn home_search_bar(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32
     let typed = app.tools.home_find();
     let here = Action::TypeHere(crate::edit::Here::HomeFind);
     let h = SEARCH_BAR_H;
-    app.tools.note_home_bar(y);
+    app.tools.note_home_bar(page_top.map_or(0.0, |top| y - top));
     ui.fill(x, y, w, h, h / 2.0, Role::SurfaceContainerHigh);
     // The state layer takes the pill's own shape, not the default corner.
     ui.press(

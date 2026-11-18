@@ -155,10 +155,20 @@ way or waiting (`docs/FLOWS.md`, Home), then the tiles in a grid.
   it is empty once it is pressed), Escape or its × clears it. Its hover
   layer takes the bar's rounded shape.
   Something typed shows the matching tiles of Tools as buttons under
-  the bar, Home's buttons above it staying, a line saying none matches when none
-  does; a result opens as its Tools tile does and clears the search.
+  the bar, Home's buttons above it staying and not moving (only the
+  results scroll, where the window leaves room under the bar for about
+  three rows; else the whole page scrolls as one), a line saying none
+  matches when none does; a result opens as its Tools tile does and
+  clears the search.
+- **The first actions** (nothing loaded; every window but the small
+  panel's menu): **Make a new wallet**, **Restore an existing wallet** and
+  **Spend from a backup** as like buttons, heading only, the whole button
+  the press, above the bar: one row where the three headings fit in full
+  (the rail's windows), else one under the other at full width; the
+  phone-size window always stacks them.
 - **The lead tile**: its icon, its line and its one button at its end,
-  as wide as that needs and at most `LEAD_MAX` (560 dp).
+  as wide as that needs and at most `LEAD_MAX` (560 dp); the plain Import
+  lead has no button and is pressed whole.
 - **The tiles**: each its icon beside its name and one line under the
   name, at least `TILE_MIN` (200 dp) wide. The grid takes as many
   columns as fit; a row with fewer tiles than columns leaves the rest

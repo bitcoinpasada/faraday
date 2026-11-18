@@ -43,6 +43,16 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         return Err("the boot stick's files did not come up for the import".into());
     }
     t.shot("boot-import-stick")?;
+    // Later leaves Home leading with the import as a card, which a search
+    // typed under it leaves where it is; the card opens the sheet again.
+    t.press(Action::Import(I::Later));
+    t.shot("home-import-lead")?;
+    type_text(t, "send");
+    t.shot("home-import-lead-typed")?;
+    if t.app.offers(Action::HomeSearchClear) {
+        t.press(Action::HomeSearchClear);
+    }
+    t.press(faraday_core::boot_import::OPEN);
     // Pulled before Import, the sheet asks for it back: Import reads it.
     t.app.storage(StorageEvent::Sticks(Vec::new()));
     t.pump();

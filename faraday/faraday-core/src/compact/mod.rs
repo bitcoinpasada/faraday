@@ -720,16 +720,49 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     // Scan floats over the foot in a strip of its own: the scrollable
     // list is clipped above it, so no tile's hit area ever falls under
     // it, at any scroll position, not only at the bottom.
-    let view_h = (h - FAB_ROOM).max(0.0);
-    let clip = ui.rect(0.0, 0.0, w, view_h);
-    let open = ui.region_open(Region::page(clip).from_zero(app.list_offset));
-    let top = 0.0;
-    let mut y = top + 12.0;
+    // Where the window is too short to leave the list more than the strip
+    // takes, the list has the whole window and the button floats over it:
+    // the page scrolls from under it.
+    let view_h = if h - FAB_ROOM < FAB_ROOM {
+        h.max(0.0)
+    } else {
+        h - FAB_ROOM
+    };
+    // On the windows that have the search bar, the page down to the bar
+    // stays still, typing or not, and only what is under it scrolls: where
+    // the window leaves room for it (`home_pinned`), else the whole page
+    // scrolls as one, the same content in the same order.
+    let bars = app.nav() != crate::nav::Nav::Menu;
     let inner = w - 2.0 * M;
+    let beside = app.nav().beside();
+    let prompts = prompts(app);
+    let first = bars && crate::screens::nothing_loaded(app);
+    let vaults = app.vaults.open.len();
+    let card = vaults > 0;
+    let l1 = ui.line_as(LABEL_L);
+    // The card as tall as its line needs (`docs/TEXT-SIZE.md` §5).
+    let card_h = ui.row_height(52.0, l1, faraday_draw::tokens::GRID);
+    let mut above = 12.0 + crate::nav::screen::loaded_card_h(app, ui, inner) + 10.0;
+    if !beside {
+        above += 38.0;
+    }
+    if card {
+        above += card_h + 10.0;
+    }
+    above += prompts.len() as f32 * 52.0 + 2.0;
+    if first {
+        above += first_actions_h(app, ui, inner);
+    }
+    let pinned = bars && crate::screens::home_pinned(above, view_h, TILE_H_GRID + 8.0);
+    let mut open = (!pinned).then(|| {
+        let clip = ui.rect(0.0, 0.0, w, view_h);
+        ui.region_open(Region::page(clip).from_zero(app.list_offset))
+    });
+    let mut top = 0.0;
+    let mut y = top + 12.0;
 
     // On the rail's and the bar's windows the top app bar carries the
     // name, and the sidebar's lists lead in one box (`docs/LAYOUT.md` §3).
-    let beside = app.nav().beside();
     if !beside {
         home_head(app, ui, w, y);
         y += 38.0;
@@ -739,8 +772,6 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     // The box above names the keys, the wallets and the files; this card
     // stays only for the vaults it does not show.
     let keys = app.session.keys.len();
-    let vaults = app.vaults.open.len();
-    let card = vaults > 0;
     let line = Text::fill(
         EN.compact_vaults_open,
         &[
@@ -758,9 +789,6 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
         Screen::Wallets
     };
     let action = Action::Nav(session);
-    // The card as tall as its line needs (`docs/TEXT-SIZE.md` §5).
-    let l1 = ui.line_as(LABEL_L);
-    let card_h = ui.row_height(52.0, l1, faraday_draw::tokens::GRID);
     let text_top = y + (card_h - l1) / 2.0;
     if card {
         ui.fill(M, y, inner, card_h, SHAPE_M, Role::SurfaceContainerLow);
@@ -782,7 +810,7 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     } else {
         inner.min(LEAD_MAX)
     };
-    for (icon, label, action, tone) in prompts(app) {
+    for (icon, label, action, tone) in prompts {
         // In its tone's container, its icon and words in the
         // container's on-role: never a tint (`docs/DESIGN.md` §3).
         let (bg, ink) = if tone == Role::Warning.paint() {
@@ -810,6 +838,26 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
         y += 44.0 + 8.0;
     }
     y += 2.0;
+    if bars {
+        if first {
+            y += first_actions(app, ui, y, inner);
+        }
+        y += crate::screens::catalog::home_search_bar(
+            app,
+            ui,
+            (M, y, inner),
+            (!pinned).then_some(0.0),
+        );
+        if pinned {
+            let clip = ui.rect(0.0, y, w, (view_h - y).max(0.0));
+            open = Some(ui.region_open(Region::page(clip).from_zero(app.list_offset)));
+            top = y;
+        }
+        if !app.tools.home_find().is_empty() {
+            y += crate::screens::catalog::home_results(app, ui, (M, y), inner, true);
+            y += faraday_draw::tokens::HOME_RESULTS_FOOT;
+        }
+    }
 
     // The menu: the sidebar's places, two to a row.
     // On the panel's menu two to a row; elsewhere a grid of as many
@@ -938,17 +986,6 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     }
     y = acc + 4.0;
 
-    // Home's search bar under the buttons, on every window but the
-    // menu's: something typed shows the matching tiles under it, the
-    // buttons staying.
-    if app.nav() != crate::nav::Nav::Menu {
-        y += crate::screens::catalog::home_search_bar(app, ui, (M, y, inner));
-        if !app.tools.home_find().is_empty() {
-            y += crate::screens::catalog::home_results(app, ui, (M, y), inner, true);
-            y += faraday_draw::tokens::HOME_RESULTS_FOOT;
-        }
-    }
-
     // Lock and power, here on the small panel; the rail and the top app
     // bar carry them on wider windows.
     if beside {
@@ -963,9 +1000,70 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
 
     let content = y - top;
     app.scroll.content_h().set(content);
-    ui.region_close(open, content - view_h);
+    if let Some(open) = open {
+        ui.region_close(open, content - (view_h - top));
+    }
 
     ui.fab(w - M, h - M, Icon::Scan, EN.compact_scan, Action::Scan);
+}
+
+/// Whether the first-run actions stand on one row: only on the rail's
+/// windows, and only where all three headings fit in full; the phone-size
+/// window stacks them. The one place that chooses.
+fn actions_in_a_row(app: &View, ui: &Ui, inner: f32, gap: f32) -> bool {
+    app.nav() == crate::nav::Nav::Rail
+        && crate::screens::actions_fit_a_row(
+            ui,
+            LABEL_L,
+            (inner, gap),
+            (GRID_TILE_TEXT_X, GRID_TILE_INSET),
+        )
+}
+
+/// The height [`first_actions`] takes.
+fn first_actions_h(app: &View, ui: &Ui, inner: f32) -> f32 {
+    let cols = if actions_in_a_row(app, ui, inner, 8.0) {
+        3
+    } else {
+        1
+    };
+    3usize.div_ceil(cols) as f32 * (TILE_H_GRID + 8.0)
+}
+
+/// The three first-run actions at `y`, heading only, the whole button the
+/// press: one row or one under the other at full width. Returns the
+/// height they take, the gap under them counted.
+fn first_actions(app: &View, ui: &mut Ui, y: f32, inner: f32) -> f32 {
+    let gap = 8.0;
+    let cols = if actions_in_a_row(app, ui, inner, gap) {
+        3
+    } else {
+        1
+    };
+    let tw = (inner - gap * (cols - 1) as f32) / cols as f32;
+    for (i, (icon, label, action)) in crate::screens::first_actions().into_iter().enumerate() {
+        let tx = M + (i % cols) as f32 * (tw + gap);
+        let ty = y + (i / cols) as f32 * (TILE_H_GRID + gap);
+        ui.fill(tx, ty, tw, TILE_H_GRID, SHAPE_M, Role::SurfaceContainerLow);
+        ui.stroke(tx, ty, tw, TILE_H_GRID, SHAPE_M, Role::OutlineVariant);
+        ui.press(
+            Shape::new(tx, ty, tw, TILE_H_GRID, SHAPE_M),
+            Role::OnSurface.paint(),
+            action,
+        );
+        let iy = ty + (TILE_H_GRID - 30.0) / 2.0;
+        ui.fill(tx + 12.0, iy, 30.0, 30.0, 8.0, Role::SecondaryContainer);
+        ui.icon(tx + 12.0, iy, 30.0, icon, 14.0, Role::OnSecondaryContainer);
+        let room = tw - GRID_TILE_TEXT_X - GRID_TILE_INSET;
+        let label = ui.fit_as(LABEL_L, label, room);
+        ui.text_mid_as(
+            (tx + GRID_TILE_TEXT_X, ty, TILE_H_GRID),
+            LABEL_L,
+            Role::OnSurface,
+            &label,
+        );
+    }
+    3usize.div_ceil(cols) as f32 * (TILE_H_GRID + gap)
 }
 
 /// Home's foot on the small panel at `y`: Lock, when something is held,
@@ -1148,7 +1246,11 @@ fn prompts(
     Option<Action>,
     crate::ui::Paint,
 )> {
+    // Make a new wallet is a lead on the Pi's menu only: elsewhere it is
+    // the first of the first-run actions, or no lead.
+    let menu = app.nav() == crate::nav::Nav::Menu;
     crate::screens::home_lead_beside_tiles(app)
+        .filter(|l| menu || l.3 != Action::CreateWallet)
         .map(|(icon, label, _sub, action, enabled)| {
             let tone = if enabled {
                 Role::Primary.paint()

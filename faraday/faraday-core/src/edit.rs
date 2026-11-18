@@ -1182,6 +1182,11 @@ impl Faraday {
         if a == Action::TypeHere(Here::GuideFind) {
             self.guide.focus_find(true);
         }
+        // Home's search bar takes typing at rest, so this press is the
+        // one that shows its caret.
+        if a == Action::TypeHere(Here::HomeFind) {
+            self.tools.focus_home_find();
+        }
         if let Action::TypeHere(h @ (Here::Keyed | Here::CheckKeyed)) = a {
             if let Some(i) = index(self, x) {
                 self.keyed_press(h, i);
