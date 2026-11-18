@@ -2235,7 +2235,9 @@ impl Faraday {
                 .collect();
             let mut any = false;
             for (i, places) in &to_set {
-                any |= self.vaults.edit(id, |s| s.set_keys_checked(id, *i, places));
+                any |= self
+                    .vaults
+                    .edit_keeping_descriptions(id, |s| s.set_keys_checked(id, *i, places));
             }
             if any {
                 self.vaults.changed(id);

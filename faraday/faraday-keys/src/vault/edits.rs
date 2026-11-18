@@ -546,7 +546,7 @@ impl OpenVaults {
             return false;
         }
         records::set_keys_checked(r, places);
-        s.touch(i);
+        s.touch_field(i);
         true
     }
 

@@ -1137,6 +1137,17 @@ impl Slot {
         self.changed();
     }
 
+    /// Record `i` was changed in a field no check reads (the places of the
+    /// keys ticked as checked): it counts as changed, and whether a check
+    /// of it is still due stays as it was, so the next room check does not
+    /// read its wallet again.
+    fn touch_field(&mut self, i: usize) {
+        if let Some(d) = self.dirty.get_mut(i) {
+            *d = true;
+        }
+        self.changed();
+    }
+
     /// Record `i` was changed after a check of it passed.
     fn touch_checked(&mut self, i: usize) {
         self.touch(i);

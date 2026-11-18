@@ -250,6 +250,16 @@ impl VaultArea {
         self.state.edit(id, change)
     }
 
+    /// As [`Self::edit`], for a change that leaves every wallet description
+    /// as it was ([`Vaults::edit_keeping_descriptions`]).
+    pub(crate) fn edit_keeping_descriptions<T>(
+        &mut self,
+        id: VaultId,
+        change: impl FnOnce(&mut OpenVaults) -> T,
+    ) -> T {
+        self.state.edit_keeping_descriptions(id, change)
+    }
+
     /// As [`Self::edit`], for a change that may be refused ([`Vaults::edit_or`]).
     pub(crate) fn edit_or<T, E>(
         &mut self,
@@ -1667,6 +1677,30 @@ impl Vaults {
         out
     }
 
+    /// As [`Vaults::edit`], for a change that leaves every record's wallet
+    /// description, every key's words and every secret as it was (the tick
+    /// of a key): the descriptions read are kept for the next read, which
+    /// parses none again, and nothing that follows the keys and records
+    /// ([`Vaults::edits`]) is asked to work again.
+    pub fn edit_keeping_descriptions<T>(
+        &mut self,
+        id: VaultId,
+        change: impl FnOnce(&mut OpenVaults) -> T,
+    ) -> T {
+        let out = change(&mut self.store);
+        if let Some(o) = self.open.iter_mut().find(|o| o.id == id) {
+            let kept = o
+                .read
+                .read
+                .take()
+                .map(|r| r.described)
+                .or_else(|| o.read.carried.get_mut().take());
+            o.read = Kept::default();
+            *o.read.carried.get_mut() = kept;
+        }
+        out
+    }
+
     /// As [`Vaults::edit`], for a change that may be refused: what was
     /// read is dropped only when `change` gives `Ok`, so a refusal leaves
     /// the vault as it was.
@@ -1738,21 +1772,13 @@ impl Vaults {
                     None
                 },
                 past,
-                described: self
-                    .store
-                    .records(id)
-                    .iter()
-                    .map(|(_, r)| {
-                        let f = match r.kind() {
-                            kind::WALLET => field::WALLET,
-                            kind::PLAN => field::PLAN_WALLET,
-                            kind::WALLET_SHARE => field::SHARE_WALLET,
-                            _ => return None,
-                        };
-                        let policy = crate::wallet::read_wallet(c, r.public_text(f)?).ok()?;
-                        Some(Described::of(policy))
-                    })
-                    .collect(),
+                described: o
+                    .read
+                    .carried
+                    .borrow_mut()
+                    .take()
+                    .filter(|d| d.len() == self.store.records(id).len())
+                    .unwrap_or_else(|| self.described_all(c, id)),
             }
         });
         debug_assert_eq!(
@@ -1761,6 +1787,25 @@ impl Vaults {
             "an edit of the records that did not go through Vaults::edit"
         );
         Some(read)
+    }
+
+    /// Costs a parse of each description. The wallet description each
+    /// record of open vault `id` holds.
+    fn described_all(&self, c: &Compute, id: VaultId) -> Vec<Option<Described>> {
+        self.store
+            .records(id)
+            .iter()
+            .map(|(_, r)| {
+                let f = match r.kind() {
+                    kind::WALLET => field::WALLET,
+                    kind::PLAN => field::PLAN_WALLET,
+                    kind::WALLET_SHARE => field::SHARE_WALLET,
+                    _ => return None,
+                };
+                let policy = crate::wallet::read_wallet(c, r.public_text(f)?).ok()?;
+                Some(Described::of(policy))
+            })
+            .collect()
     }
 
     /// Costs what `warm` costs. The wallet description record `i` of open
@@ -1916,6 +1961,10 @@ pub struct OpenVault {
 #[derive(Default)]
 pub(super) struct Kept {
     pub(super) read: std::cell::OnceCell<Read>,
+    /// The descriptions of the read dropped by an edit that left every one
+    /// as it was ([`Vaults::edit_keeping_descriptions`]); the next read
+    /// takes them instead of parsing each again.
+    pub(super) carried: std::cell::RefCell<Option<Vec<Option<Described>>>>,
     pub(super) found: std::cell::OnceCell<super::search::Found>,
 }
 
