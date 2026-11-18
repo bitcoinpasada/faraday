@@ -908,13 +908,6 @@ def spent_index_missing(raw):
     return False
 
 
-def keyed_version_pair(raw):
-    """A global pair of type 0xfb (`PSBT_GLOBAL_VERSION`) that carries key
-    data."""
-    return any(kind == "global" and key[:1] == b"\xfb" and len(key) > 1
-               for kind, _, key, _ in pairs_of(raw))
-
-
 def hwi_rule(raw, text):
     """HWI refuses a version 2 PSBT (once the pairs Faraday leaves to the
     bridge are taken out) that Faraday reads."""
@@ -926,8 +919,6 @@ def hwi_rule(raw, text):
         return "hwi: an empty output script"
     if "PSBT_OUTPUT_SCRIPT is required" in text and silent_output_without_script(raw):
         return "hwi: a silent payment output with no script"
-    if "version key is more than one byte type" in text and keyed_version_pair(raw):
-        return "hwi: a global version pair with key data"
     if "Musig2" in text and musig_key_wrong(raw):
         return "hwi: a MuSig2 field's key data of a size BIP-373 forbids"
     return None
@@ -1062,9 +1053,7 @@ class Psbt(Area):
             'btclib refuses a PSBT with two BIP-32 derivation pairs of one map of the same '
             "value (a version 0 PSBT, in the cases met) and a version 2 PSBT whose input's "
             'previous transaction has no output at the spent index (Core refuses the version 0 '
-            'form of that, above); Faraday reads both. HWI refuses a global pair of type 0xfb '
-            "that carries key data (`PSBT_GLOBAL_VERSION` takes none); Faraday carries it as an "
-            'unknown pair and takes the version only from the exact key `0xfb`.'
+            'form of that, above); Faraday reads both.'
         ),
         (
             'A version 2 transaction with no input is written by `bitcoin` with the segwit '
@@ -1502,11 +1491,7 @@ class Psbt(Area):
         with no output at the spent index (btclib refuses it, HWI and Faraday
         read it), and a version 2 PSBT with a second global pair of type 0xfb
         that carries a byte of key data after the exact `0xfb` version pair
-        (HWI refuses it; Faraday carries it as an unknown pair in the version 2
-        PSBT, takes the version only from the exact key, and leaves the pair
-        out of the version 0 form with the other version 2 globals, which
-        drops a pair by its type byte, so the review does not count it among
-        the unread fields)."""
+        (every judge and Faraday refuse it)."""
         def key(n):
             return FAST_G.mul(n).to_bytes_compressed()
 

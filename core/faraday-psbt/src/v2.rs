@@ -20,7 +20,8 @@
 //! the modifiable flags, the sequence and the required locktimes of
 //! their sizes, a required time locktime from 500 000 000 and a
 //! required height locktime from 1 to 499 999 999, no taproot signature
-//! with a sighash byte of 0 (BIP-341), no key twice in a map, nothing
+//! with a sighash byte of 0 (BIP-341), no key twice in a map, no key data on a
+//! field BIP-370 defines without any, nothing
 //! after the last map. A silent payment (BIP-375) is refused when read
 //! for signing.
 
@@ -375,6 +376,60 @@ pub(crate) fn read_map(bytes: &[u8], at: &mut usize) -> Result<Map, Error> {
     Ok(map)
 }
 
+/// The version 2 fields BIP-370 defines with no key data, by map: a
+/// pair of one of these types whose key is longer than the type byte is
+/// refused by both readers, as Bitcoin Core and HWI refuse it. BIP-375's
+/// fields carry key data and are not listed.
+const GLOBAL_UNKEYED: &[(u8, &str)] = &[
+    (GLOBAL_TX_VERSION, "PSBT_GLOBAL_TX_VERSION"),
+    (GLOBAL_FALLBACK_LOCKTIME, "PSBT_GLOBAL_FALLBACK_LOCKTIME"),
+    (GLOBAL_INPUT_COUNT, "PSBT_GLOBAL_INPUT_COUNT"),
+    (GLOBAL_OUTPUT_COUNT, "PSBT_GLOBAL_OUTPUT_COUNT"),
+    (GLOBAL_TX_MODIFIABLE, "PSBT_GLOBAL_TX_MODIFIABLE"),
+    (GLOBAL_VERSION, "PSBT_GLOBAL_VERSION"),
+];
+const INPUT_UNKEYED: &[(u8, &str)] = &[
+    (IN_PREVIOUS_TXID, "PSBT_IN_PREVIOUS_TXID"),
+    (IN_OUTPUT_INDEX, "PSBT_IN_OUTPUT_INDEX"),
+    (IN_SEQUENCE, "PSBT_IN_SEQUENCE"),
+    (IN_REQUIRED_TIME_LOCKTIME, "PSBT_IN_REQUIRED_TIME_LOCKTIME"),
+    (
+        IN_REQUIRED_HEIGHT_LOCKTIME,
+        "PSBT_IN_REQUIRED_HEIGHT_LOCKTIME",
+    ),
+];
+const OUTPUT_UNKEYED: &[(u8, &str)] = &[
+    (OUT_AMOUNT, "PSBT_OUT_AMOUNT"),
+    (OUT_SCRIPT, "PSBT_OUT_SCRIPT"),
+];
+
+/// Refuses a map of a version 2 file that holds a keyed pair of a field
+/// defined with no key data.
+fn check_unkeyed(map: &Map, fields: &[(u8, &'static str)]) -> Result<(), Error> {
+    for (key, _) in map.pairs.iter().filter(|(k, _)| k.len() > 1) {
+        if let Some((_, name)) = fields.iter().find(|(t, _)| Some(t) == key.first()) {
+            return Err(Error::Field(name));
+        }
+    }
+    Ok(())
+}
+
+/// A version 2 file's maps as [`check_unkeyed`] holds them.
+fn check_unkeyed_maps<'m>(
+    global: &Map,
+    inputs: impl IntoIterator<Item = &'m Map>,
+    outputs: impl IntoIterator<Item = &'m Map>,
+) -> Result<(), Error> {
+    check_unkeyed(global, GLOBAL_UNKEYED)?;
+    for m in inputs {
+        check_unkeyed(m, INPUT_UNKEYED)?;
+    }
+    for m in outputs {
+        check_unkeyed(m, OUTPUT_UNKEYED)?;
+    }
+    Ok(())
+}
+
 /// A field that may be absent and, present, is `n` bytes.
 fn sized<'m>(
     map: &'m Map,
@@ -474,6 +529,7 @@ pub(crate) fn read_file(bytes: &[u8]) -> Result<File, Error> {
             for _ in 0..n_out {
                 outputs.push(r.map()?);
             }
+            check_unkeyed_maps(&global, &inputs, &outputs)?;
         }
         _ => return Err(Error::Version),
     }
@@ -587,6 +643,7 @@ impl PsbtV2 {
         if global.get_type(GLOBAL_VERSION).and_then(u32_value) != Some(2) {
             return Err(Error::Version);
         }
+        check_unkeyed(&global, GLOBAL_UNKEYED)?;
         if global.get_type(GLOBAL_UNSIGNED_TX).is_some() {
             return Err(Error::UnsignedTx);
         }
@@ -628,12 +685,14 @@ impl PsbtV2 {
         let mut inputs = Vec::new();
         for _ in 0..n_in {
             let map = r.map()?;
+            check_unkeyed(&map, INPUT_UNKEYED)?;
             check_input(&map)?;
             inputs.push(map);
         }
         let mut outputs = Vec::new();
         for _ in 0..n_out {
             let map = r.map()?;
+            check_unkeyed(&map, OUTPUT_UNKEYED)?;
             if map.get_type(OUT_AMOUNT).map(<[u8]>::len) != Some(8) {
                 return Err(Error::Field("PSBT_OUT_AMOUNT"));
             }

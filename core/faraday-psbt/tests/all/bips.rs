@@ -250,6 +250,21 @@ fn version_2_checks_its_locktime_fields_sizes_on_reading() {
 }
 
 #[test]
+fn a_version_2_field_without_key_data_is_refused_when_its_key_has_some() {
+    let c = Compute::unchecked();
+    let base = case("1 input, 2 output PSBTv2, required fields only");
+    assert!(PsbtV2::parse_bytes(&c, &base).is_ok());
+    // The global version, an input's output index and an output's amount.
+    for (map, key) in [(0, [0xfb, 0x00]), (1, [0x0f, 0x00]), (2, [0x03, 0x00])] {
+        let bytes = v2_with(map, &key, &[0, 0, 0, 0]);
+        assert!(
+            PsbtV2::parse_bytes(&c, &bytes).is_err(),
+            "map {map}, key {key:02x?}"
+        );
+    }
+}
+
+#[test]
 fn a_silent_payment_output_alone_may_leave_its_script_out() {
     let c = Compute::unchecked();
     let mut m = maps(&case("1 input, 2 output PSBTv2, required fields only"), 3);

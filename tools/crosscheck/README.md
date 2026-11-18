@@ -796,9 +796,7 @@ difference"), and says why.
     the same value (a version 0 PSBT, in the cases met) and a version 2
     PSBT whose input's previous transaction has no output at the spent
     index (Core refuses the version 0 form of that, above); Faraday
-    reads both. HWI refuses a global pair of type 0xfb that carries key
-    data (`PSBT_GLOBAL_VERSION` takes none); Faraday carries it as an
-    unknown pair and takes the version only from the exact key `0xfb`.
+    reads both.
   - A version 2 transaction with no input is written by `bitcoin` with
     the segwit marker and by HWI without; it is compared without it.
 - `sign`
