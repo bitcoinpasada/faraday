@@ -1196,3 +1196,44 @@ fn check_the_moneys_receive_rows_open_their_codes() {
         crate::common::opens_its_code(&mut app, faraday_core::Code::Receive(w, i), &want);
     }
 }
+
+/// Two seeds shaped as nested SegWit multisig, no description: Check the
+/// money, guessed.
+fn guessed_nested_multi() -> Faraday {
+    let mut app = shown_at(2000);
+    on_intake(&mut app);
+    scan_seed(&mut app, "bacon");
+    scan_seed(&mut app, "zebra");
+    app.press(Action::Cancel);
+    app.press(Action::SpendBackup(F::NoDescription));
+    app.press(Action::Slide(faraday_core::seeds::SLIDE_N, 2));
+    app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Kind(1)));
+    app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
+    faraday_core::testkit::confirm_wallets(&mut app);
+    assert_eq!(app.spend_backup().open, Some(Open::Page(page::CHECK)));
+    app
+}
+
+#[test]
+fn a_guess_shaped_as_nested_multisig_goes_on_to_native_and_taproot_and_ends_after_each_way() {
+    let mut app = guessed_nested_multi();
+    let text = drawn(&mut app);
+    assert!(text.contains("Trying: nested SegWit multisig"), "{text}");
+    for (offered, tried) in [
+        ("native SegWit multisig", "nested SegWit multisig"),
+        ("Taproot multisig", "native SegWit multisig"),
+        ("legacy multisig", "Taproot multisig"),
+    ] {
+        app.press(Action::SpendBackup(F::NoMoney));
+        let text = drawn(&mut app);
+        assert!(text.contains(&format!("Trying: {offered}")), "{text}");
+        assert!(text.contains(&format!("{tried} · no money")), "{text}");
+    }
+    app.press(Action::SpendBackup(F::NoMoney));
+    let text = drawn(&mut app);
+    assert!(text.contains("None of these show money."), "{text}");
+    for kind in ["nested SegWit", "native SegWit", "Taproot", "legacy"] {
+        let line = format!("{kind} multisig · no money");
+        assert_eq!(text.matches(&line).count(), 1, "{text}");
+    }
+}
