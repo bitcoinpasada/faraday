@@ -287,6 +287,11 @@ fn alpha_tuple(
     digits: usize,
 ) -> DeQRResult<()> {
     let mut tuple = ds.take_bits_checked(nbits)?;
+    // 45 to the power of `digits` and above is no pair or character of
+    // the alphabet: refuse it rather than wrap it onto other characters.
+    if tuple >= 45usize.pow(digits as u32) {
+        return Err(DeQRError::DataOverflow);
+    }
     for i in (0..digits).rev() {
         const ALPHA_MAP: &[u8; 46] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:\x00";
         buf[i] = ALPHA_MAP[tuple % 45];
@@ -337,6 +342,11 @@ fn numeric_tuple(
     digits: usize,
 ) -> DeQRResult<()> {
     let mut tuple = ds.take_bits_checked(nbits)?;
+    // A group of `digits` digits is below 10 to that power; a larger value
+    // is no digits at all: refuse it rather than wrap it onto other digits.
+    if tuple >= 10usize.pow(digits as u32) {
+        return Err(DeQRError::DataOverflow);
+    }
     for i in (0..digits).rev() {
         buf[i] = (tuple % 10) as u8 + b'0';
         tuple /= 10;
@@ -707,8 +717,7 @@ const FORMAT_CODEWORDS: [u16; 32] = {
 /// three bits of a valid codeword is within three bits of exactly one of
 /// them, and the nearest codeword is the answer. Upstream ran
 /// Berlekamp-Massey over a second Galois field, GF(2^4), to reach the
-/// same result; quirc, which upstream is a port of, searches the
-/// codewords as this does.
+/// same result.
 fn correct_format(word: u16) -> DeQRResult<u16> {
     let mut best = 0;
     let mut best_distance = u32::MAX;
@@ -1132,5 +1141,84 @@ mod tests {
         let mut out = Vec::new();
         decode_payload(&meta, stream_of(&bits), &mut out).expect("a complete count indicator");
         assert!(out.is_empty());
+    }
+
+    /// Decode one numeric or alphanumeric segment at version 1 whose data is
+    /// `groups`, each a value and its width in bits.
+    fn decode_groups(mode: usize, count: usize, groups: &[(usize, usize)]) -> (DeQRResult<()>, Vec<u8>) {
+        let meta = MetaData {
+            version: Version(1),
+            ecc_level: 0,
+            mask: 0,
+        };
+        let mut bits = bits_of(mode, 4);
+        bits.extend(bits_of(count, if mode == 1 { 10 } else { 9 }));
+        for &(value, width) in groups {
+            bits.extend(bits_of(value, width));
+        }
+        let mut out = Vec::new();
+        let r = decode_payload(&meta, stream_of(&bits), &mut out);
+        (r, out)
+    }
+
+    #[test]
+    fn numeric_groups_above_their_range_are_refused() {
+        // 3 digits in 10 bits, 2 in 7, 1 in 4: the largest valid value of
+        // each decodes, the next value up is refused.
+        for (count, width, max, text) in [(3, 10, 999, "999"), (2, 7, 99, "99"), (1, 4, 9, "9")] {
+            let (r, out) = decode_groups(1, count, &[(max, width)]);
+            assert_eq!(r, Ok(()));
+            assert_eq!(out, text.as_bytes());
+            for value in max + 1..1 << width {
+                let (r, _) = decode_groups(1, count, &[(value, width)]);
+                assert_eq!(r, Err(DeQRError::DataOverflow), "{width}-bit numeric group {value}");
+            }
+        }
+    }
+
+    #[test]
+    fn alphanumeric_groups_above_their_range_are_refused() {
+        // A pair in 11 bits (largest 44 * 45 + 44 = 2024, the
+        // alphabet's last character twice), a single in 6 bits (largest 44).
+        for (count, width, max, text) in [(2, 11, 2024, "::"), (1, 6, 44, ":")] {
+            let (r, out) = decode_groups(2, count, &[(max, width)]);
+            assert_eq!(r, Ok(()));
+            assert_eq!(out, text.as_bytes());
+            for value in max + 1..1 << width {
+                let (r, _) = decode_groups(2, count, &[(value, width)]);
+                assert_eq!(r, Err(DeQRError::DataOverflow), "{width}-bit alphanumeric group {value}");
+            }
+        }
+    }
+
+    #[test]
+    fn format_information_is_corrected_up_to_three_flipped_bits() {
+        // ISO/IEC 18004 Table C.1: the 32 format sequences as they are
+        // placed in the symbol, masked with 101010000010010.
+        const TABLE_C1: [u16; 32] = [
+            0b111011111000100, 0b111001011110011, 0b111110110101010, 0b111100010011101,
+            0b110011000101111, 0b110001100011000, 0b110110001000001, 0b110100101110110,
+            0b101010000010010, 0b101000100100101, 0b101111001111100, 0b101101101001011,
+            0b100010111111001, 0b100000011001110, 0b100111110010111, 0b100101010100000,
+            0b011010101011111, 0b011000001101000, 0b011111100110001, 0b011101000000110,
+            0b010010010110100, 0b010000110000011, 0b010111011011010, 0b010101111101101,
+            0b001011010001001, 0b001001110111110, 0b001110011100111, 0b001100111010000,
+            0b000011101100010, 0b000001001010101, 0b000110100001100, 0b000100000111011,
+        ];
+        for (data, &placed) in TABLE_C1.iter().enumerate() {
+            let word = placed ^ 0x5412;
+            // The table lists levels L, M, Q, H, whose bits are 01, 00, 11, 10.
+            let level_bits = [1u16, 0, 3, 2][data / 8];
+            assert_eq!(word >> 10, level_bits << 3 | (data % 8) as u16, "table row {data}");
+            for a in 0..15 {
+                assert_eq!(correct_format(word ^ (1 << a)), Ok(word));
+                for b in a + 1..15 {
+                    assert_eq!(correct_format(word ^ (1 << a) ^ (1 << b)), Ok(word));
+                    for c in b + 1..15 {
+                        assert_eq!(correct_format(word ^ (1 << a) ^ (1 << b) ^ (1 << c)), Ok(word));
+                    }
+                }
+            }
+        }
     }
 }

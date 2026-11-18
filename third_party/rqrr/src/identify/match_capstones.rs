@@ -1,4 +1,3 @@
-use std::cmp;
 
 use crate::CapStone;
 
@@ -56,9 +55,10 @@ fn rank_pairs(capstones: &[CapStone], idx: usize, affine: bool, threshold: f64) 
 
     // A score is a ratio of two distances taken from the frame, so it
     // can be NaN: two capstones at the same place give 0.0 / 0.0.
-    // Upstream panicked on the comparison. Ordering NaN last leaves the
-    // pairs that do compare in the same order they had.
-    res.sort_unstable_by(|a, b| a.score.partial_cmp(&b.score).unwrap_or(cmp::Ordering::Greater));
+    // Upstream panicked on the comparison. `total_cmp` is a total order,
+    // which a sort needs: a positive NaN sorts after every number, and the
+    // pairs that do compare keep the order they had.
+    res.sort_unstable_by(|a, b| a.score.total_cmp(&b.score));
     res.iter().map(|n| (n.h_index, n.v_index)).collect()
 }
 

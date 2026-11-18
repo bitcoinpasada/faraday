@@ -134,13 +134,13 @@ pub struct BresenhamScan {
 
 impl BresenhamScan {
     /// The scan from `from` to `to`, or `None` when either difference is
-    /// beyond `MAX_SCAN` (no frame is that wide, and the counters would
+    /// `MAX_SCAN` or more (no frame is that wide, and the counters would
     /// wrap).
     pub fn new(from: &Point, to: &Point) -> Option<Self> {
         const MAX_SCAN: i32 = 1 << 30;
         let n = to.x.checked_sub(from.x)?;
         let d = to.y.checked_sub(from.y)?;
-        if n.unsigned_abs() > MAX_SCAN as u32 || d.unsigned_abs() > MAX_SCAN as u32 {
+        if n.unsigned_abs() >= MAX_SCAN as u32 || d.unsigned_abs() >= MAX_SCAN as u32 {
             return None;
         }
         let x = from.x;
@@ -356,6 +356,7 @@ mod tests {
         let p = |x, y| Point { x, y };
         assert!(BresenhamScan::new(&p(i32::MIN, 0), &p(i32::MAX, 0)).is_none());
         assert!(BresenhamScan::new(&p(0, 0), &p(i32::MIN, 0)).is_none());
+        assert!(BresenhamScan::new(&p(0, 0), &p(1 << 30, 1 << 30)).is_none());
         assert!(BresenhamScan::new(&p(0, 0), &p(1900, 3)).is_some());
     }
 }

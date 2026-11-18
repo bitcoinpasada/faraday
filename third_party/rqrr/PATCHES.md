@@ -98,10 +98,16 @@ two fields with the `g2gen` proc-macro.
   fails when the nearest is more than three bits away. The code's minimum
   distance is 7, so a word within three bits of a codeword is within
   three bits of exactly one of them, and this is the same answer
-  Berlekamp-Massey gave. It is also what quirc, which this crate is a
-  port of, does. `format_syndromes` is gone with it, and
+  Berlekamp-Massey gave. `format_syndromes` is gone with it, and
   `berlekamp_massey`, `poly_eval` and `poly_add` are no longer generic
   over a field.
+
+**Digit groups out of range are refused** (`numeric_tuple`, `alpha_tuple` in
+`src/decode.rs`). Upstream took each group modulo 10 or 45, so a numeric
+group of 1000-1023 (10 bits), 100-127 (7 bits) or 10-15 (4 bits), and an
+alphanumeric group of 2025-2047 (11 bits) or 45-63 (6 bits), decoded as other
+characters. ISO/IEC 18004 allows none of them; each is now
+`DeQRError::DataOverflow`.
 
 **Buffers that hold a code are wiped when dropped.** `RawData` and
 `CorrectedDataStream` (`src/decode.rs`), each an array of the code's data
@@ -124,7 +130,7 @@ error.
 | `repaint_and_apply` (`src/prepare.rs`) | `panic!("Cannot repaint with white or same color")` — an alignment pattern already claimed by another candidate group reaches the second half | returns `Option<F>`; `create_capstone` and `from_group` reject the candidate |
 | `get_region` (`src/prepare.rs`) | `panic!("Tried to color white patch")`, and `.unwrap()` on a cache entry | returns `Option<ColoredRegion>` |
 | `flood_fill` (`src/prepare.rs`) | `assert_ne!(from, to)` | returns the filler untouched |
-| `find_and_rank_possible_neighbors` (`src/identify/match_capstones.rs`) | `.expect(...)` on a `partial_cmp` that is `None` for a NaN score | NaN sorts last |
+| `find_and_rank_possible_neighbors` (`src/identify/match_capstones.rs`) | `.expect(...)` on a `partial_cmp` that is `None` for a NaN score | `total_cmp`, a total order: a positive NaN sorts last |
 | `RawData::push` (`src/decode.rs`) | `assert!((self.len / 8) < MAX_PAYLOAD_SIZE)` | a bit past the buffer is dropped, and the truncated stream fails error correction |
 | `bits_remaining` (`src/decode.rs`) | `assert!(self.bit_len >= self.ptr)` | saturating subtraction |
 | `take_bits` (`src/decode.rs`) | `assert!(max_len <= 64)` | the read is clamped to the accumulator's width |
