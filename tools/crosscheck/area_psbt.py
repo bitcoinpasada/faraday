@@ -151,6 +151,7 @@ import io
 import json
 import os
 import pathlib
+import signal
 import sys
 from decimal import Decimal
 
@@ -539,6 +540,8 @@ def outcome(fn):
 # function takes the judge's error text and the PSBT's bytes and gives the
 # rule's name, or None: a refusal no rule states is a disagreement.
 
+# Seconds one corpus case may take, every judge and helper together.
+CASE_SECONDS = 120
 MAX_MONEY = 21_000_000 * 10**8
 # Bitcoin Core's limit on a compact size it reads (`MAX_SIZE`).
 CORE_MAX_SIZE = 0x02000000
@@ -1637,7 +1640,20 @@ class Psbt(Area):
             return
         name, raw = FUZZ[0][i]
         version = 2 if _says_v2(raw) else 0
-        self.read_all([(raw, version, None), (raw, 2 - version, None)])
+
+        def late(*_):
+            raise Mismatch(self.name, "psbt.fuzz", {"corpus file": name, "psbt": raw.hex()},
+                           ("err", "no answer"), ("err", "no answer"),
+                           f"no judge or helper finished this case in {CASE_SECONDS} s")
+
+        # A case that cannot finish fails with its input named, never hangs.
+        old = signal.signal(signal.SIGALRM, late)
+        signal.alarm(CASE_SECONDS)
+        try:
+            self.read_all([(raw, version, None), (raw, 2 - version, None)])
+        finally:
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, old)
 
     def case_corpus(self):
         self.corpus_case()
