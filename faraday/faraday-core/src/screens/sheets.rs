@@ -2525,12 +2525,14 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let vault = app.vaults.open.get(v).map(|o| {
         let held = match out.keep {
             // The key itself, told by its master key's id (F65).
+            // Save writes the words alone, so a vault that holds those
+            // words, whatever the passphrase, holds what it would write.
             crate::secrets::Keep::Key { key, fp, .. } => app
                 .session
                 .keys
                 .info(key)
                 .filter(|k| k.fingerprint == fp)
-                .is_some_and(|k| app.vault_has_key(v, k)),
+                .is_some_and(|k| app.vault_has_key(v, k) || app.vault_holds_seed(v, key, false)),
             _ => false,
         };
         (o.name.as_str(), held)

@@ -459,8 +459,9 @@ impl Faraday {
             .get(self.vaults.current)
             .map_or(0, |v| v.changes);
         if after == before {
-            // It did not fit: the secret is dropped, its bytes wiped.
-            drop(out);
+            // The vault refused it (it does not fit, or holds it): the
+            // sheet stays as it was, with the secret on it.
+            self.secrets.out = Some(out);
             return;
         }
         self.sheet = None;

@@ -696,10 +696,12 @@ fn an_entry_s_notes_show_at_a_press_on_their_eye_and_hide_on_leaving() {
     assert!(!notes_shown(&mut app), "the notes after coming back");
 }
 
-/// A key loaded with a BIP-39 passphrase and saved by plain Save is in the
-/// vault: the Save panel stops offering it, and a second press adds nothing.
+/// A key loaded with a BIP-39 passphrase and saved by plain Save is not
+/// offered plain again, but Save with passphrase is still offered; once
+/// that is pressed the panel says every key is saved, and no press adds a
+/// second record.
 #[test]
-fn a_key_with_a_passphrase_saved_plain_is_not_offered_or_saved_again() {
+fn a_key_with_a_passphrase_saved_plain_is_still_offered_with_its_passphrase() {
     let mut app = opened();
     let c = testkit::compute();
     let words = "legal winner thank year wave sausage worth useful legal winner thank yellow";
@@ -724,16 +726,31 @@ fn a_key_with_a_passphrase_saved_plain_is_not_offered_or_saved_again() {
     let _ = app.frame();
     assert!(
         !app.offers(Action::Vault(V::SaveKey(k))),
-        "offered again after Save"
+        "plain Save offered again after Save"
     );
     assert!(
-        app.drawn_texts()
-            .plain()
-            .contains(&"Every key in this session is in the vault".to_string()),
-        "the panel says every key is saved"
+        app.offers(Action::Vault(V::SaveKeyWithPassphrase(k))),
+        "Save with passphrase is still offered"
     );
+    let every = "Every key in this session is in the vault".to_string();
+    assert!(!app.drawn_texts().plain().contains(&every));
     app.press(Action::Vault(V::SaveKey(k)));
     assert_eq!(vault_now(&app).0, records + 1, "a second Save adds nothing");
+    app.press(Action::Vault(V::SaveKeyWithPassphrase(k)));
+    assert_eq!(
+        vault_now(&app).0,
+        records + 2,
+        "the passphrase key is added"
+    );
+    let _ = app.frame();
+    assert!(!app.offers(Action::Vault(V::SaveKeyWithPassphrase(k))));
+    assert!(
+        app.drawn_texts().plain().contains(&every),
+        "the panel says every key is saved"
+    );
+    app.press(Action::Vault(V::SaveKeyWithPassphrase(k)));
+    app.press(Action::Vault(V::SaveKey(k)));
+    assert_eq!(vault_now(&app).0, records + 2, "no further record");
 }
 
 /// A sortedmulti wallet the vault holds, loaded again with two of its keys

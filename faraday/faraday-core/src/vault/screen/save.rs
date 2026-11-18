@@ -191,9 +191,9 @@ pub(super) fn save_panel(app: &View, ui: &mut Ui, dx: f32, mut dy: f32, dw: f32)
             // Any key loaded is offered: words, or the master seed a
             // codex32 or SLIP-39 key was loaded from (VAULT.md §7, type
             // 2's seed payload).
-            if app.vault_holds_seed(cur, k, false)
-                || !(key.has_words() || app.session.keys.holds_seed_bytes(k))
-            {
+            let plain = !app.vault_holds_seed(cur, k, false);
+            let with_pass = key.has_passphrase && !app.vault_holds_seed(cur, k, true);
+            if !(plain || with_pass) || !(key.has_words() || app.session.keys.holds_seed_bytes(k)) {
                 continue;
             }
             any = true;
@@ -208,8 +208,11 @@ pub(super) fn save_panel(app: &View, ui: &mut Ui, dx: f32, mut dy: f32, dw: f32)
                 let label = ui.fit_as(BODY_S, &label, dw - 100.0);
                 ui.text_mid_as((dx + 100.0, dy, 40.0), BODY_S, muted, &label);
                 dy += 42.0;
-                let mut items = vec![(EN.vault_save, Style::Secondary, va(V::SaveKey(k)))];
-                if key.has_passphrase {
+                let mut items = Vec::new();
+                if plain {
+                    items.push((EN.vault_save, Style::Secondary, va(V::SaveKey(k))));
+                }
+                if with_pass {
                     items.push((
                         EN.vault_save_passphrase_button,
                         Style::Secondary,
@@ -228,16 +231,18 @@ pub(super) fn save_panel(app: &View, ui: &mut Ui, dx: f32, mut dy: f32, dw: f32)
             if two {
                 dy += 40.0;
             }
-            ui.button(
-                dx + dw - 80.0,
-                dy + 2.0,
-                Some(80.0),
-                BUTTON_H,
-                EN.vault_save,
-                Style::Secondary,
-                va(V::SaveKey(k)),
-            );
-            if key.has_passphrase {
+            if plain {
+                ui.button(
+                    dx + dw - 80.0,
+                    dy + 2.0,
+                    Some(80.0),
+                    BUTTON_H,
+                    EN.vault_save,
+                    Style::Secondary,
+                    va(V::SaveKey(k)),
+                );
+            }
+            if with_pass {
                 let pw = ui.measure_as(LABEL_L, EN.vault_save_passphrase_button) + 26.0;
                 ui.button(
                     dx + dw - 88.0 - pw,

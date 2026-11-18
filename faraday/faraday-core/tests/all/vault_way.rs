@@ -389,6 +389,33 @@ fn the_secret_sheet_waits_while_a_vault_is_made_and_saves_into_it() {
 }
 
 #[test]
+fn the_secret_sheet_does_not_offer_saving_a_seed_the_vault_holds() {
+    let mut app = device(Vec::new());
+    on_the_seeds_step(&mut app);
+    app.press(Action::BFile);
+    press_make(&mut app, Screen::Backup);
+    make_the_vault(&mut app);
+    let _ = app.frame();
+    app.press(Action::SecretVault);
+    let id = app.vaults().open[0].id;
+    let keys = |app: &Faraday| app.vaults().records(id).of(kind::KEY).count();
+    assert_eq!(keys(&app), 1);
+    app.press(Action::BFile);
+    let _ = app.frame();
+    assert_eq!(app.sheet, Some(Sheet::SecretOut));
+    assert!(
+        !app.offers(Action::SecretVault),
+        "the vault holds the seed already"
+    );
+    app.press(Action::SecretVault);
+    assert_eq!(keys(&app), 1, "nothing is added");
+    assert!(
+        testkit::secret_out(&app).is_some(),
+        "the sheet keeps its secret"
+    );
+}
+
+#[test]
 fn going_back_on_the_way_drops_the_secret() {
     let mut app = device(Vec::new());
     on_the_seeds_step(&mut app);

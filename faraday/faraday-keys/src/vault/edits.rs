@@ -217,6 +217,14 @@ impl OpenVaults {
 
     // ---- edits ----
 
+    /// A lookup. Whether open vault `id` holds a key record identical to
+    /// `r` (same fields, same bytes): what [`Self::insert`] refuses to add.
+    /// False for a record of another kind and for a vault not held.
+    pub fn holds_key(&self, id: VaultId, r: &impl Fit) -> bool {
+        self.slot(id)
+            .is_some_and(|s| is_held_key(&s.records, r.record_of(Inside(()))))
+    }
+
     /// Puts `record` last in open vault `id`; its place. `None` for a
     /// vault this store does not hold or that is read-only, or when the
     /// vault already holds a key record identical to `record` (same fields,
@@ -224,16 +232,7 @@ impl OpenVaults {
     pub fn insert(&mut self, id: VaultId, record: impl IntoRecord) -> Option<usize> {
         let s = self.slot_mut(id)?;
         let record = record.into_record();
-        if record.kind == kind::KEY
-            && s.records.iter().any(|o| {
-                o.kind == kind::KEY
-                    && o.fields.len() == record.fields.len()
-                    && o.fields
-                        .iter()
-                        .zip(&record.fields)
-                        .all(|(a, b)| a.number == b.number && a.bytes == b.bytes)
-            })
-        {
+        if is_held_key(&s.records, &record) {
             return None;
         }
         s.records.push(record);
@@ -726,4 +725,17 @@ impl OpenVaults {
         s.unchecked.iter().for_each(|u| u.set(true));
         &mut s.records
     }
+}
+
+/// Whether `records` hold a key record identical to `record`.
+fn is_held_key(records: &[Record], record: &Record) -> bool {
+    record.kind == kind::KEY
+        && records.iter().any(|o| {
+            o.kind == kind::KEY
+                && o.fields.len() == record.fields.len()
+                && o.fields
+                    .iter()
+                    .zip(&record.fields)
+                    .all(|(a, b)| a.number == b.number && a.bytes == b.bytes)
+        })
 }

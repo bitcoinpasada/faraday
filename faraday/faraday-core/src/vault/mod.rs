@@ -2365,6 +2365,14 @@ impl Faraday {
             self.toast(&why);
             return false;
         }
+        if self.vaults.store().holds_key(id, &record) {
+            let name = self.vaults.open.get(v).map(|o| o.name.clone());
+            self.toast(&Text::fill(
+                EN.vault_holds_key,
+                &[name.as_deref().unwrap_or("")],
+            ));
+            return false;
+        }
         if self.vaults.edit(id, |s| s.insert(id, record)).is_none() {
             return false;
         }

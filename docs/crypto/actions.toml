@@ -8372,6 +8372,7 @@ screens = [
 ]
 functions = [
   "faraday/faraday-keys/src/vault/edits.rs::OpenVaults::insert",
+  "faraday/faraday-keys/src/vault/edits.rs::OpenVaults::holds_key",
   "faraday/faraday-keys/src/vault/edits.rs::OpenVaults::insert_at",
   "faraday/faraday-keys/src/vault/edits.rs::OpenVaults::set_public_all",
   "faraday/faraday-keys/src/vault/edits.rs::OpenVaults::set_public",

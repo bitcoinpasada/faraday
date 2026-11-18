@@ -904,6 +904,9 @@ macro_rules! words_vault {
     vault_move_refused: "Nothing was moved to {}. {}",
     /// Reason a vault on that sheet is dimmed: it holds the item already.
     vault_copy_holds: "Already holds this item",
+    /// Toast when a key is saved to a vault that holds it already. `{}`:
+    /// the vault.
+    vault_holds_key: "{} already holds this key",
     /// Tick on that sheet for a seed that has a codex32 set.
     vault_copy_keep_codex32: "Keep its codex32 set",
     /// Tick on that sheet for a seed that has a BIP-85 origin.

@@ -136,6 +136,56 @@ fn a_password_goes_into_the_vault_as_an_entry() {
     assert!(app.outbox.is_empty());
 }
 
+/// Child words saved to the vault twice: the second press adds no record and
+/// says the vault holds the key already.
+#[test]
+fn child_words_saved_to_the_vault_twice_are_added_once_and_the_person_is_told() {
+    let vault = testkit::files()
+        .unwrap()
+        .into_iter()
+        .find(|(n, _)| n == "vault.kdbx")
+        .unwrap();
+    let mut app = with_key(vec![vault]);
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Open(0)));
+    type_text(&mut app, testkit::VAULT_PASSPHRASE);
+    app.press(Action::Vault(V::Unlock));
+    for t in 1..60u64 {
+        if !app.vaults().open.is_empty() {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    assert_eq!(app.vaults().open.len(), 1);
+    let keys = |app: &Faraday| {
+        let v = &app.vaults().open[0];
+        app.vaults()
+            .store()
+            .contents_for_tests(v.id)
+            .of(kind::KEY)
+            .count()
+    };
+    let before = keys(&app);
+    app.press(Action::Bip85);
+    app.press(Action::PApp(0));
+    app.press(Action::PNext);
+    app.event(Event::Key(Key::Char('7')));
+    app.press(Action::PNext);
+    app.press(Action::PVault);
+    app.press(Action::PRecord(false));
+    assert_eq!(keys(&app), before + 1, "the child key is added");
+    app.press(Action::PVault);
+    app.press(Action::PRecord(false));
+    assert_eq!(keys(&app), before + 1, "a second press adds nothing");
+    assert!(
+        app.toast_text()
+            .is_some_and(|t| t.contains("already holds this key")),
+        "the person is told"
+    );
+}
+
 /// What `bytes` hold of the key a password came from: its fingerprint,
 /// in either case, BIP-85's name, the index's word or the path's purpose.
 fn names_the_parent(app: &Faraday, bytes: &[u8]) -> Option<String> {
