@@ -2250,8 +2250,9 @@ fn a_fresh_two_of_three_opens_on_the_board_with_the_standard_way_placed() {
     assert_eq!(t[soft + 1], "Customize backup", "{t:?}");
 }
 
-/// A single key's standard way is one place: its words and the whole
-/// description, no SeedQR (§17.21 item 12).
+/// A single key whose words alone give the wallet back starts as one place
+/// holding its words, no SeedQR and no wallet sheet (`docs/BACKUP-FLOW.md`
+/// §19.3).
 #[test]
 fn a_single_keys_standard_way_is_one_place() {
     let mut app = testkit::started();
@@ -2262,7 +2263,7 @@ fn a_single_keys_standard_way_is_one_place() {
     app.press(Action::Backup(w));
     assert_eq!(app.backup().unwrap().q, Some(qstep::BOARD));
     assert_eq!(backup_places(&app), 1);
-    assert_eq!(paper(&app, 0), vec![What::Words(0), What::Sheet]);
+    assert_eq!(paper(&app, 0), vec![What::Words(0)]);
 }
 
 /// Until Customize backup the board is read-only: the list's column is the
@@ -2796,8 +2797,9 @@ fn change_the_plan_from_the_checklist_shows_the_board() {
 }
 
 /// A new plan keeps each seed's words on paper and no SeedQR, a single key
-/// and a 2-of-3 alike; Customize backup and the SeedQR's toggle add it
-/// (`docs/BACKUP-FLOW.md` §17.21 item 12).
+/// (words only, no sheet) and a 2-of-3 (words and the sheet) alike;
+/// Customize backup and the SeedQR's toggle add it (`docs/BACKUP-FLOW.md`
+/// §17.21 item 12, §19.3).
 #[test]
 fn a_new_plan_keeps_the_words_and_no_seedqr() {
     let c = faraday_core::testkit::compute();
@@ -2810,7 +2812,11 @@ fn a_new_plan_keeps_the_words_and_no_seedqr() {
     let three = fresh_three();
     for (mut app, n) in [(single, 1), (three, 3)] {
         for p in 0..n {
-            assert_eq!(paper(&app, p), vec![What::Words(p), What::Sheet]);
+            let mut want = vec![What::Words(p)];
+            if n > 1 {
+                want.push(What::Sheet);
+            }
+            assert_eq!(paper(&app, p), want);
         }
         app.press(Action::BChecklist);
         let items = app.backup_items_now(&c);
@@ -2818,10 +2824,11 @@ fn a_new_plan_keeps_the_words_and_no_seedqr() {
         app.press(Action::BPlan);
         app.press(Action::Board(BP::Customize));
         app.press(Action::Board(BP::Form(Zone::Paper(0), Thing::Seed(0), 1)));
-        assert_eq!(
-            sorted(paper(&app, 0)),
-            sorted(vec![What::Words(0), What::SeedQr(0), What::Sheet])
-        );
+        let mut want = vec![What::Words(0), What::SeedQr(0)];
+        if n > 1 {
+            want.push(What::Sheet);
+        }
+        assert_eq!(sorted(paper(&app, 0)), sorted(want));
     }
 }
 

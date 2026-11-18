@@ -2233,7 +2233,9 @@ the board in Customize backup.
     saved with a SeedQR keeps it. §17.6 item 1 reads accordingly. Test:
     a new plan's checklist has the words' item and no SeedQR, for a
     single key and a 2-of-3; Customize backup and the SeedQR toggled on
-    adds it.
+    adds it. A single key whose words alone give the wallet back starts
+    as Paper only, its words and no wallet sheet (§19.3); a multisig
+    wallet's seeds keep the sheet.
 13. **A key with a codex32 set** opens on its own standard way:
     one string per place, on paper, with the description (§17.23).
 14. **A Krux code of a seed** (planned): a form on the seed, one level down in

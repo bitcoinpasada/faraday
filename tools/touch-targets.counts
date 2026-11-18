@@ -1,3 +1,4 @@
+desktop_1280x800 Backup BC32 31
 desktop_1280x800 Backup BPin 6
 desktop_1280x800 Backup BReveal 1
 desktop_1280x800 Backup Board 46
@@ -31,6 +32,7 @@ small_240x320 Files VisitInAll 1
 small_240x320 KeyGen WordList 3
 small_240x320 Settings Theme 42
 small_240x320 Wallets PickKey 1
+small_480x640 Backup BC32 1
 small_480x640 Backup Board 17
 small_480x640 CreateVault WordList 3
 small_480x640 Entry EntryCandidate 17
@@ -53,6 +55,7 @@ starter_240x320 Appearance Host 40
 starter_240x320 Start Host 1
 starter_480x640 Appearance Host 40
 starter_480x640 Start Host 1
+stick_1024x600 Backup BC32 25
 stick_1024x600 Backup Board 41
 stick_1024x600 Backup EntryKey 25
 stick_1024x600 Backup EntryKeyBack 1

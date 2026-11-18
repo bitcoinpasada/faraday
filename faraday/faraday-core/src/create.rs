@@ -2436,6 +2436,22 @@ impl Faraday {
         }
     }
 
+    /// Whether wallet `w`'s seed is kept as a set: codex32 strings, Seed
+    /// XOR parts or SLIP-39 shares.
+    fn has_share_set(
+        &self,
+        w: usize,
+        shape: &crate::plan::Shape,
+        sets: &[Option<faraday_vault::codex32::SetFacts>],
+    ) -> bool {
+        let (xor, slip39) = self.set_facts(w);
+        shape.splits
+            || shape.seeds.iter().any(|s| s.shares)
+            || sets.iter().any(Option::is_some)
+            || xor.iter().any(Option::is_some)
+            || slip39.iter().any(Option::is_some)
+    }
+
     /// Costs what `standard` costs. The answers Back up's board opens on
     /// for wallet `w`: The standard way, with the setup's sticks placed
     /// where the wallet's flow set up vaults before its keys and has not
@@ -2457,9 +2473,13 @@ impl Faraday {
             Some(wf) => {
                 crate::plan::codex32::standard_over(c, &wf.shape, &sets, wf.answers.clone())
             }
-            // The seed alone gives the wallet back: Paper only, no sheet
-            // (`docs/BACKUP-FLOW.md` §19.3).
-            None if shape.words_alone() => crate::plan::Ready::PaperOnly.answers(shape),
+            // The seed alone gives the wallet back and its key has no set
+            // of shares (a set's standard way is a string or share per
+            // place): Paper only, no sheet (`docs/BACKUP-FLOW.md` §19.1,
+            // §19.3).
+            None if shape.words_alone() && !self.has_share_set(w, shape, &sets) => {
+                crate::plan::Ready::PaperOnly.answers(shape)
+            }
             None => crate::plan::codex32::standard(c, shape, &sets),
         }
     }

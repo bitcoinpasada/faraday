@@ -7,6 +7,7 @@
 use crate::common::*;
 use faraday_core::board::{BoardPress as BP, Chip, Thing, Zone};
 use faraday_core::plan::{At, What};
+use faraday_core::wallet_backup::quick::Quick;
 use faraday_core::{Action, Faraday, Sheet, cstep, testkit};
 use faraday_shell_api::{App, Event, Key};
 
@@ -196,6 +197,9 @@ fn a_three_of_five_with_two_seeds_at_a_place_needs_only_one_more() {
     assert!(t.contains("Spends with 1 more place"), "{t}");
 }
 
+/// A single key's backup opens on the short path; More ways to back up
+/// opens its board, and a seed taken off the paper and put back says it
+/// spends alone, with no sheet asked (`docs/BACKUP-FLOW.md` §17.22 item 5).
 #[test]
 fn a_single_keys_seed_says_it_spends_alone_and_never_asks() {
     let mut app = testkit::started();
@@ -208,6 +212,7 @@ fn a_single_keys_seed_says_it_spends_alone_and_never_asks() {
     app.press(Action::CNext(cstep::CHECK));
     let w = app.session.wallets.len() - 1;
     app.press(Action::Backup(w));
+    app.press(Action::BQuick(Quick::More));
     app.press(Action::Board(BP::Customize));
     take_off(&mut app, Zone::Paper(0), Thing::Seed(0));
     app.press(Action::Board(BP::Chip(Chip::List(Thing::Seed(0)))));
