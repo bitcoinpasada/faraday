@@ -8,6 +8,10 @@
 //! gives another key. Seed XOR has no threshold, so a part short is another
 //! wallet, and the tests say that.
 //!
+//! The vault file and the QR vault are sealed under a random passphrase
+//! (non-ASCII and long ones among them), opened and read back as the same
+//! key; a wrong passphrase opens nothing.
+//!
 //! Each property runs a fixed number of cases from a fixed seed, sized by the
 //! cost of the form (SLIP-39's key stretching is the dearest), so a run is
 //! the same everywhere and leaves no regression files.
@@ -23,7 +27,10 @@ use faraday_keys::operations::{
     WordsForm, codex32_random_len, codex32_seed, seed_xor_random_len, slip39_random_len,
     slip39_seed,
 };
-use faraday_keys::{Keys, Reveal};
+use faraday_keys::vault::{self, Names, OpenVaults, SEAL_RANDOM_LEN};
+use faraday_keys::{Keys, QR_RANDOM_LEN, QrHolds, QrOpenJob, Reveal};
+use faraday_vault::records::{field, kind, words_payload};
+use faraday_vault::{Cost, Record};
 use proptest::prelude::*;
 use proptest::test_runner::{Config, RngAlgorithm, RngSeed};
 
@@ -510,5 +517,126 @@ proptest! {
                 prop_assert!(codex32_seed(&chosen).is_err(), "{} of {}", chosen.len(), k);
             }
         }
+    }
+}
+
+/// The names the app writes, as the strings hold them.
+fn names() -> Names {
+    let s = |t: &'static str| t;
+    Names {
+        group_keys: s("Seeds"),
+        group_wallets: s("Wallets"),
+        group_notes: s("Notes"),
+        group_sheets: s("Sheets"),
+        group_gpg: s("GPG keys"),
+        group_secure_boot: s("Secure Boot"),
+        group_wallet_shares: s("Wallet shares"),
+        group_passphrases: s("Passphrases"),
+        group_shares: s("Codex32 shares"),
+        title_key: s("Key {fingerprint}"),
+        title_note: s("Note"),
+        title_passphrase: s("Passphrase for {for}"),
+        title_share: s("Codex32 share for {for}"),
+        title_secure_boot: s("Secure Boot keys"),
+    }
+}
+
+/// The cheapest cost a vault is made at: 8 MiB, one pass, one lane.
+const COST: Cost = Cost {
+    memory_kib: 8192,
+    passes: 1,
+    lanes: 1,
+};
+
+/// A vault passphrase: any printable text, non-ASCII and long ones among
+/// them.
+fn vault_passphrase() -> impl Strategy<Value = String> {
+    prop_oneof!["[ -~]{1,24}", "\\PC{1,24}", "\\PC{150,200}"]
+}
+
+/// The same text with one more character: another passphrase.
+fn other(pass: &str) -> String {
+    format!("{pass}x")
+}
+
+proptest! {
+    #![proptest_config(config(6))]
+
+    /// A key sealed in a vault file under a passphrase opens, with that
+    /// passphrase and no other, as the same wallet.
+    #[test]
+    fn a_key_in_a_vault_file_opens_as_the_same_wallet(
+        entropy in entropy(),
+        pass in vault_passphrase(),
+        salt in any::<[u8; 16]>(),
+    ) {
+        let c = compute();
+        let words = sentence(&entropy);
+        let original = words_wallet(&c, &words, "");
+        let m = Mnemonic::parse(&c, Language::English, &words).unwrap();
+        let file = vault::create(&c, salt, "Test", COST, &pass, &[7u8; SEAL_RANDOM_LEN], None)
+            .expect("a vault");
+        let mut store = OpenVaults::default();
+        store.set_names(names());
+        let (id, _) = store.unlock(&c, file, &pass).expect("opens");
+        store.insert(
+            id,
+            Record::new(kind::KEY)
+                .with(field::KEY, &words_payload(&m))
+                .with(field::KEY_LABEL, b"Test"),
+        );
+        let n = store.uuid_bytes(id).expect("held");
+        let uuids: Vec<u8> = (0..n).map(|i| 0x10 + (i / 16) as u8).collect();
+        let sealed = store
+            .seal_job(id, &[9u8; SEAL_RANDOM_LEN], &uuids, Some(1_780_000_000))
+            .expect("a job")
+            .run(&c)
+            .into_file()
+            .expect("sealed");
+        store.seal_ended(id, true);
+        prop_assert!(store.unlock(&c, sealed.clone(), &other(&pass)).is_err());
+        let (again, _) = store.unlock(&c, sealed, &pass).expect("the sealed vault opens");
+        let mut keys = Keys::on(Network::Mainnet);
+        let all = store.records(again).of(kind::KEY).map(|(i, _)| i).collect();
+        let loaded = store.load_from_vault(&c, &mut keys, again, &all, &Default::default());
+        prop_assert_eq!(loaded.len(), 1);
+        prop_assert_eq!(loaded[0].0, original.fingerprint);
+        let written = keys
+            .words_written(&c, 0, WordsForm::Words, Reveal::PaperForm)
+            .expect("written")
+            .release();
+        prop_assert_eq!(words_wallet(&c, written.as_str(), ""), original);
+    }
+}
+
+proptest! {
+    #![proptest_config(config(8))]
+
+    /// A key of 12 or 24 words sealed as a QR vault opens, with its
+    /// passphrase and no other, as the same wallet.
+    #[test]
+    fn a_key_in_a_qr_vault_opens_as_the_same_wallet(
+        long in any::<bool>(),
+        bytes in pool(32),
+        pass in vault_passphrase(),
+        random in pool(QR_RANDOM_LEN),
+    ) {
+        let c = compute();
+        let entropy = &bytes[..if long { 32 } else { 16 }];
+        let words = sentence(entropy);
+        let original = words_wallet(&c, &words, "");
+        let keys = keys_of_words(&c, &words, "");
+        let random: [u8; QR_RANDOM_LEN] = random.try_into().unwrap();
+        let code = keys
+            .qr_seal_key_job(&c, 0, &pass, 16, zeroize::Zeroizing::new(random))
+            .and_then(|j| j.run(&c))
+            .expect("sealed");
+        prop_assert!(QrOpenJob::new(&code, &other(&pass)).run(&c).is_err());
+        let mut reader = Keys::on(Network::Mainnet);
+        let opened = QrOpenJob::new(&code, &pass).run(&c).expect("opens");
+        let holds = reader.qr_hold(opened).expect("held");
+        prop_assert_eq!(holds, QrHolds::Seed { words: if long { 24 } else { 12 } });
+        let read = reader.qr_words(Reveal::QrVault).to_string();
+        prop_assert_eq!(words_wallet(&c, &read, ""), original);
     }
 }

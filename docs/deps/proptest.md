@@ -4,7 +4,10 @@
 (`faraday/faraday-keys/tests/round_trips.rs`): for random seeds,
 passphrases, share counts and thresholds, every backup form restores to the
 same wallet, and a split restores from every sufficient subset and refuses
-every insufficient one. It makes the random inputs and shrinks a failing one
+every insufficient one; and the backup plan's sets
+(`faraday/faraday-plan/tests/set_round_trips.rs`): a plan made for a codex32,
+SLIP-39 or Seed XOR set reads back as that set, and a set over the limits is
+refused. It makes the random inputs and shrinks a failing one
 to a small case. It brings `rand`, `rand_xorshift`, `regex-syntax`,
 `unarray` and `core_detect`; `bitflags`, `num-traits`, `chacha20`,
 `getrandom` and `rand_core` were already in the graph.
