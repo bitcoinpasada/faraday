@@ -415,7 +415,13 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     fn region_finish(&mut self, region: Region, reach: Extent, moved: Option<i32>) {
         let offset = region.offset.unwrap_or(self.offset);
         let (slot, view, ground) = (region.slot, region.view, region.ground);
-        let max = reach.down.max(0.0);
+        // A floating button over the page: its content scrolls clear of it.
+        let room = if slot == Slot::Page && !self.in_sheet {
+            self.foot_room
+        } else {
+            0.0
+        };
+        let max = (reach.down + room).max(0.0);
         let scrolled = Scrolled {
             slot,
             view,

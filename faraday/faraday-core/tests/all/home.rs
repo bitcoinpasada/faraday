@@ -93,6 +93,132 @@ fn scan_on_home_starts_the_camera() {
     assert!(std::iter::from_fn(|| app.poll_command()).any(|c| c == Command::CameraOn));
 }
 
+fn sized(width: u16, height: u16, dpi: u16) -> Faraday {
+    let mut app = faraday_core::testkit::new_on_test_net();
+    app.event(faraday_shell_api::Event::Display(DisplayInfo {
+        width,
+        height,
+        dpi,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: faraday_shell_api::SecureHardware::None,
+        boot: faraday_shell_api::BootState::Unknown,
+        memory_mib: None,
+    }));
+    let _ = app.frame();
+    app
+}
+
+/// Whether the last frame floats Scan at the window's bottom-right (a
+/// page's own Scan sits in its content, and the button is drawn last).
+fn floats_scan(app: &Faraday, w: u16, h: u16) -> bool {
+    app.hit_box(Action::Scan)
+        .is_some_and(|(x, y, bw, bh)| x + bw + 32 >= w && x + bw <= w && y + bh + 120 >= h)
+}
+
+const FIVE: [Screen; 5] = [
+    Screen::Check,
+    Screen::WalletsStart,
+    Screen::Files,
+    Screen::Vaults,
+    Screen::Catalog,
+];
+
+/// Scan floats on the top page of Check, Wallets, Files, Vaults and Tools
+/// as it does on Home, on a wide window and a phone-size one, and starts
+/// the camera; Back returns to the page it was pressed on.
+#[test]
+fn scan_floats_on_the_five_destinations() {
+    for (w, h) in [(1280, 800), (400, 800)] {
+        for screen in FIVE {
+            let mut app = sized(w, h, 160);
+            app.press(Action::Nav(screen));
+            let _ = app.frame();
+            assert!(floats_scan(&app, w, h), "{screen:?} at {w}x{h}");
+            while app.poll_command().is_some() {}
+            tap(&mut app, Action::Scan);
+            assert_eq!(app.sheet, Some(Sheet::Scan));
+            assert!(std::iter::from_fn(|| app.poll_command()).any(|c| c == Command::CameraOn));
+            app.press(Action::Cancel);
+            let _ = app.frame();
+            assert_eq!(app.screen, screen, "Back from the scanner at {w}x{h}");
+            assert_eq!(app.sheet, None);
+        }
+    }
+}
+
+#[test]
+fn scan_is_not_on_settings_or_inside_a_flow() {
+    for (w, h) in [(1280, 800), (400, 800)] {
+        let mut app = sized(w, h, 160);
+        app.press(Action::Nav(Screen::Settings));
+        let _ = app.frame();
+        assert!(!floats_scan(&app, w, h), "Settings at {w}x{h}");
+        let mut app = sized(w, h, 160);
+        app.press(Action::Nav(Screen::WalletsStart));
+        tap(&mut app, Action::KeyGen(None));
+        assert_eq!(app.screen, Screen::KeyGen);
+        assert!(!floats_scan(&app, w, h), "a flow at {w}x{h}");
+    }
+}
+
+/// The small panel's menu layout keeps Scan on Home alone.
+#[test]
+fn scan_on_the_small_panel_stays_on_home() {
+    let mut app = sized(480, 640, 286);
+    assert!(floats_scan(&app, 480, 640));
+    for screen in FIVE {
+        app.press(Action::Nav(screen));
+        let _ = app.frame();
+        assert!(
+            !floats_scan(&app, 480, 640),
+            "{screen:?} on the small panel"
+        );
+    }
+}
+
+/// Scan's hit box, and whether its touch target is whole, in `app`'s
+/// last frame.
+fn scan_target(app: &Faraday) -> ((u16, u16, u16, u16), bool) {
+    let hit = app.hit_box(Action::Scan).expect("Scan is drawn");
+    let whole = app
+        .drawn_targets()
+        .into_iter()
+        .filter(|(a, ..)| *a == Action::Scan)
+        .all(|(_, target, _, _, grown)| target == grown);
+    (hit, whole)
+}
+
+/// On Files, with a long list scrolled under it, and on Wallets' start
+/// page, Scan at 1024x600 is as large as on Home and no control scrolled
+/// under it takes a share of its target.
+#[test]
+fn scan_keeps_its_whole_target_over_a_list_at_1024x600() {
+    let home = sized(1024, 600, 160);
+    let ((_, _, bw, bh), home_whole) = scan_target(&home);
+    assert!(home_whole);
+    let mut app = sized(1024, 600, 160);
+    stick(&mut app, true);
+    let names: Vec<(String, Vec<u8>)> = (0..12)
+        .map(|i| (format!("file-{i}.txt"), b"x".to_vec()))
+        .collect();
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(names),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.press(Action::Nav(Screen::Files));
+    let _ = app.frame();
+    let ((_, _, w, h), whole) = scan_target(&app);
+    assert_eq!(((w, h), whole), ((bw, bh), true), "Files");
+    app.press(Action::Nav(Screen::WalletsStart));
+    let _ = app.frame();
+    let ((_, _, w, h), whole) = scan_target(&app);
+    assert_eq!(((w, h), whole), ((bw, bh), true), "Wallets");
+}
+
 /// Add a key is reached from Wallets' empty state and from Tools now,
 /// not from Home: Home's lead, with nothing
 /// loaded, is Make a new wallet instead.

@@ -334,7 +334,9 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         ui.ox = ox;
         ui.oy = top - lift;
         ui.head = None;
+        ui.foot_room = scan_foot(app);
         dispatch(app, ui, x, cw, page_h - top);
+        ui.foot_room = 0.0;
         ui.c.pop_clip();
         ui.oy = 0.0;
         ui.ox = 0.0;
@@ -347,7 +349,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         // Home's Scan floats at the window's right edge and foot
         // (`docs/LAYOUT.md` §15), whatever area its tiles are laid out
         // in; beside the guide's pane, at the page's edge.
-        if app.screen == Screen::Home {
+        if crate::nav::shows_scan(app) {
             ui.fab(
                 full_w - if pane { beside } else { MARGIN_WIDE },
                 full_h - MARGIN_WIDE,
@@ -762,6 +764,7 @@ fn draw_compact(app: &View, ui: &mut Ui, area: (f32, f32), h: f32, kb: bool, y0:
         ui.pin = None;
         ui.pin_aside = None;
         ui.pinning = !kb;
+        ui.foot_room = scan_foot(app);
         ui.bar_tools_x = crate::compact::draws_own_bar(app.screen)
             .then(|| crate::compact::flow_bar_tools_x(app, ui, w));
         ui.bar_pill_w = if ui.bar_tools_x.is_some() {
@@ -770,6 +773,7 @@ fn draw_compact(app: &View, ui: &mut Ui, area: (f32, f32), h: f32, kb: bool, y0:
             0.0
         };
         dispatch(app, ui, 0.0, w, page_h - top);
+        ui.foot_room = 0.0;
         ui.bar_tools_x = None;
         ui.bar_pill_w = 0.0;
         ui.pinning = false;
@@ -810,10 +814,23 @@ fn draw_compact(app: &View, ui: &mut Ui, area: (f32, f32), h: f32, kb: bool, y0:
             ui.button(bx, y + 10.0, Some(bw), BUTTON_H, &label, style, action);
             foot = y;
         }
+        if crate::nav::shows_scan(app) && !app.held {
+            let m = crate::compact::M;
+            ui.fab(w - m, foot - m, Icon::Scan, EN.compact_scan, Action::Scan);
+        }
     }
     notices(app, ui, 0.0, w, foot);
     ui.ox = 0.0;
     ui.oy = 0.0;
+}
+
+/// The foot room the Scan button takes from a page that carries it.
+fn scan_foot(app: &View) -> f32 {
+    if app.screen != Screen::Home && crate::nav::shows_scan(app) {
+        faraday_draw::tokens::HOME_RESULTS_FOOT
+    } else {
+        0.0
+    }
 }
 
 /// "Remove the stick" and the toast in `cw` from `x`, at the foot `h`:

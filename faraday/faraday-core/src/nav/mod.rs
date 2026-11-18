@@ -171,3 +171,17 @@ pub(crate) fn destination_of(s: Screen) -> Screen {
         Screen::Transfer => s,
     }
 }
+
+/// Whether the screen on show carries the floating Scan button: Home, and
+/// the top page of Check, Wallets, Files, Vaults and Tools, on every layout
+/// but the Pi's menu, where Home alone has it. Not inside a flow, a tool,
+/// a wallet's own page or a held app. A lookup.
+pub(crate) fn shows_scan(app: &crate::View) -> bool {
+    match app.screen {
+        Screen::Home => true,
+        _ if app.nav() == Nav::Menu || app.held => false,
+        Screen::Check | Screen::WalletsStart | Screen::Files | Screen::Catalog => true,
+        Screen::Vaults => app.vaults.back_to.is_none(),
+        _ => false,
+    }
+}

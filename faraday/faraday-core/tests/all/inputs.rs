@@ -1324,7 +1324,8 @@ fn a_press_on_the_x_does_not_reach_what_is_under_it() {
     use faraday_core::Screen;
     let mut app = on_size(7, (480, 640), 160);
     app.event(Event::Tick { now_ms: 1000 });
-    app.press(Action::Nav(Screen::Files));
+    // A page without the floating Scan, which the notice would stand above.
+    app.press(Action::Nav(Screen::Settings));
     boot_usb(&mut app, &["USB Receiver"]);
     let at = notice_x(&mut app);
     let screen = app.screen;

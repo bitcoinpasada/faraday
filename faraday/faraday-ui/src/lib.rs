@@ -487,6 +487,9 @@ pub struct Ui<'a, A> {
     /// window's units (x, y, width, height): a snackbar drawn after it
     /// stands above it, as Material places one (`snackbar.rs`).
     fab_at: Option<(f32, f32, f32, f32)>,
+    /// Room a page's scrolling region leaves at its foot, so its last row
+    /// scrolls clear of a floating action button that stands over it.
+    pub foot_room: f32,
     /// The overlay scrollbar for the scrolling region, when it shows:
     /// its opacity (0–255) and the region's offset in units.
     pub bar: Option<(u8, f32)>,
@@ -687,6 +690,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             sheet_pinning: false,
             sheet_pin: None,
             fab_at: None,
+            foot_room: 0.0,
             disclosure: None,
             column: None,
             follow_to: None,
@@ -2228,6 +2232,11 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             Role::OnPrimary.paint(),
             action,
         );
+        // It floats over the page, drawn last: its whole grown target is
+        // its own, and no control scrolled under it takes a share.
+        if let Some(r) = self.reach.last_mut().filter(|r| r.action == action) {
+            r.target = r.grown;
+        }
         let iy = y + (h - ICON_GLYPH) / 2.0;
         self.icon(x + pad, iy, ICON_GLYPH, icon, ICON_GLYPH, Role::OnPrimary);
         let at = (x + pad + lead, y, h);

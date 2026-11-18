@@ -164,7 +164,7 @@ way or waiting (`docs/FLOWS.md`, Home), then the tiles in a grid.
   columns as fit; a row with fewer tiles than columns leaves the rest
   empty. The tiles keep their order, the fourth Check's, always, and none
   for Vaults (`docs/FLOWS.md`, Home; F255).
-- **Scan** stays the floating button at the bottom-right.
+- **Scan** stays the floating button at the bottom-right, and the top page of Check, Wallets, Files, Vaults and Tools carries it too (§15).
 
 One Home for every size, the destinations in one order, is specified in
 `docs/HOME.md`.
@@ -501,7 +501,8 @@ edge:
   the bar's end, as Material's top app bar puts its trailing actions;
 - a supporting pane (§6): its right edge `MARGIN_WIDE` from the
   window's, its top `SUPPORT_PANE_TOP`, `SPACER` from the page;
-- Home's Scan button: `MARGIN_WIDE` from the window's right and foot
+- The Scan button (Home, and the top page of Check, Wallets, Files, Vaults
+  and Tools; Home alone on the small panel's menu layout): `MARGIN_WIDE` from the window's right and foot
   (Material's floating action button margin on medium windows and up);
 - toasts and notices: centred on the page area, as today.
 
