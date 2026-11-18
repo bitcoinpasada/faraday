@@ -64,22 +64,21 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             continue;
         }
         any = true;
-        section_label(ui, x, y, group);
-        y += ui.line_as(faraday_draw::tokens::TITLE_S) + faraday_draw::tokens::GRID;
-        for (k, (i, tile)) in tiles.iter().enumerate() {
-            let (tx, ty) = g.at(x, y, k);
-            let need = app.tile_need(tile.go);
-            let face = Face {
-                name: tile.name,
-                line: need.unwrap_or(tile.line),
-                warn: need.is_some(),
-                tags: tile.tags,
-                opens: app.tile_opens(tile.go),
-                action: Action::Catalog(*i as u8),
-            };
-            face.draw(ui, tx, ty, tw3);
-        }
-        y += g.height(tiles.len()) + 16.0;
+        let faces: Vec<Face> = tiles
+            .iter()
+            .map(|(i, tile)| {
+                let need = app.tile_need(tile.go);
+                Face {
+                    name: tile.name,
+                    line: need.unwrap_or(tile.line),
+                    warn: need.is_some(),
+                    tags: tile.tags,
+                    opens: app.tile_opens(tile.go),
+                    action: Action::Catalog(*i as u8),
+                }
+            })
+            .collect();
+        y += section(ui, (x, y), &g, group, &faces);
     }
     // The rows of Settings the same words find, under Settings' name.
     let settings: Vec<u8> = crate::tools::search::hits(app.tools.find())
@@ -213,24 +212,25 @@ pub(crate) fn home_results(
         return ui.advance_as(BODY_M, faraday_draw::tokens::HOME_RESULTS_LINE);
     }
     let g = grid(compact, width);
-    let mut k = 0;
-    for hit in &found {
-        let Hit::Tile(i) = *hit else { continue };
-        let tile = &TILES[i];
-        let (tx, ty) = g.at(x, y, k);
-        let need = app.tile_need(tile.go);
-        let face = Face {
-            name: tile.name,
-            line: need.unwrap_or(tile.line),
-            warn: need.is_some(),
-            tags: tile.tags,
-            opens: app.tile_opens(tile.go),
-            action: Action::Catalog(i as u8),
-        };
-        face.draw(ui, tx, ty, g.tile_w);
-        k += 1;
-    }
-    let mut used = g.height(k);
+    let faces: Vec<Face> = found
+        .iter()
+        .filter_map(|hit| match *hit {
+            Hit::Tile(i) => Some((i, &TILES[i])),
+            Hit::Setting(_) => None,
+        })
+        .map(|(i, tile)| {
+            let need = app.tile_need(tile.go);
+            Face {
+                name: tile.name,
+                line: need.unwrap_or(tile.line),
+                warn: need.is_some(),
+                tags: tile.tags,
+                opens: app.tile_opens(tile.go),
+                action: Action::Catalog(i as u8),
+            }
+        })
+        .collect();
+    let mut used = g.draw_rows(ui, (x, y), &faces);
     for hit in &found {
         if let Hit::Setting(i) = *hit {
             used += setting_hit(ui, (x, y + used, width), i);
@@ -324,33 +324,41 @@ impl Grid {
         TILE_GAP
     }
 
-    /// Where tile `k` of a group starting at (`x`, `y`) goes.
-    pub fn at(&self, x: f32, y: f32, k: usize) -> (f32, f32) {
-        (
-            x + (k % self.per) as f32 * (self.tile_w + TILE_GAP),
-            y + (k / self.per) as f32 * (TILE_H + CATALOG_ROW_GAP),
-        )
-    }
-
-    /// The height of `n` tiles.
-    pub fn height(&self, n: usize) -> f32 {
-        n.div_ceil(self.per) as f32 * (TILE_H + CATALOG_ROW_GAP)
-    }
-
-    /// Where each of tiles `faces` of a group starting at (`x`, `y`) goes, and
-    /// the group's height: a row is as tall as its tallest tile.
-    pub fn place(&self, x: f32, y: f32, faces: &[Face]) -> (Vec<(f32, f32)>, f32) {
-        let mut at = Vec::with_capacity(faces.len());
+    /// Draws `faces` in rows from `at`, a row as tall as the tallest tile
+    /// in it and never under `CATALOG_TILE_H`, and returns their height.
+    pub fn draw_rows(&self, ui: &mut Ui, (x, y): (f32, f32), faces: &[Face]) -> f32 {
         let mut top = y;
         for row in faces.chunks(self.per) {
-            let rh = row.iter().map(Face::height).fold(0.0, f32::max);
-            for c in 0..row.len() {
-                at.push((x + c as f32 * (self.tile_w + TILE_GAP), top));
+            let rh = row
+                .iter()
+                .map(|f| f.height(ui, self.tile_w))
+                .fold(TILE_H, f32::max);
+            for (c, face) in row.iter().enumerate() {
+                face.draw(
+                    ui,
+                    x + c as f32 * (self.tile_w + TILE_GAP),
+                    top,
+                    self.tile_w,
+                );
             }
             top += rh + CATALOG_ROW_GAP;
         }
-        (at, top - y)
+        top - y
     }
+}
+
+/// A group of tiles under its name from `at`, in `g`: the layout Tools and
+/// Check share. Returns the height up to where the next group starts.
+pub(crate) fn section(
+    ui: &mut Ui,
+    (x, y): (f32, f32),
+    g: &Grid,
+    name: &str,
+    faces: &[Face],
+) -> f32 {
+    section_label(ui, x, y, name);
+    let head = ui.line_as(TITLE_S) + faraday_draw::tokens::GRID;
+    head + g.draw_rows(ui, (x, y + head), faces) + faraday_draw::tokens::GRID * 2.0
 }
 
 /// What a tile shows.
@@ -370,8 +378,22 @@ pub(crate) struct Face<'a> {
 }
 
 impl Face<'_> {
-    /// The tile's height: the tags' row only where it has tags.
-    pub fn height(&self) -> f32 {
+    /// What the name and the line under it take over one line each at
+    /// `tw3` wide: they wrap rather than end in an ellipsis.
+    fn grown(&self, ui: &Ui, tw3: f32) -> (f32, f32) {
+        let room = tw3 - 32.0;
+        let over = |role, s| (ui.wrap_height_as(role, s, room) - ui.line_as(role)).max(0.0);
+        (over(TITLE_S, self.name), over(BODY_S, self.line))
+    }
+
+    /// The tile's height at `tw3` wide: the tags' row only where it has
+    /// tags, and a line more for each that wraps.
+    pub fn height(&self, ui: &Ui, tw3: f32) -> f32 {
+        let (n, l) = self.grown(ui, tw3);
+        n + l + self.base_height()
+    }
+
+    fn base_height(&self) -> f32 {
         if self.tags.is_empty() {
             TILE_H_PLAIN
         } else {
@@ -381,7 +403,8 @@ impl Face<'_> {
 
     /// Draws the tile at (`tx`, `ty`), `tw3` wide.
     pub fn draw(&self, ui: &mut Ui, tx: f32, ty: f32, tw3: f32) {
-        let th = self.height();
+        let (grow_n, grow_l) = self.grown(ui, tw3);
+        let th = self.height(ui, tw3);
         let r = faraday_draw::tokens::SHAPE_M;
         ui.fill(tx, ty, tw3, th, r, Role::SurfaceContainerLow);
         ui.stroke(tx, ty, tw3, th, r, Role::OutlineVariant);
@@ -392,30 +415,20 @@ impl Face<'_> {
                 self.action,
             );
         }
-        let name = ui.fit_as(TITLE_S, self.name, tw3 - 32.0);
-        ui.text_as(
-            tx + 16.0,
-            ty + 12.0,
-            TITLE_S,
-            if self.opens {
-                Role::OnSurface.paint()
-            } else {
-                crate::ui::off()
-            },
-            &name,
-        );
-        let line = ui.fit_as(BODY_S, self.line, tw3 - 32.0);
-        ui.text_as(
-            tx + 16.0,
-            ty + 34.0,
-            BODY_S,
-            if self.warn {
-                Role::Warning
-            } else {
-                Role::OnSurfaceVariant
-            },
-            &line,
-        );
+        let ink = if self.opens {
+            Role::OnSurface.paint()
+        } else {
+            crate::ui::off()
+        };
+        ui.wrap_as((tx + 16.0, ty + 12.0, tw3 - 32.0), TITLE_S, ink, self.name);
+        let warn = if self.warn {
+            Role::Warning
+        } else {
+            Role::OnSurfaceVariant
+        };
+        let ly = ty + 34.0 + grow_n;
+        ui.wrap_as((tx + 16.0, ly, tw3 - 32.0), BODY_S, warn, self.line);
+        let tag_y = ty + 56.0 + grow_n + grow_l;
         // The standards, as small tags.
         let mut gx = tx + 16.0;
         for tag in self.tags {
@@ -425,14 +438,14 @@ impl Face<'_> {
             }
             ui.fill(
                 gx,
-                ty + 56.0,
+                tag_y,
                 gw,
                 18.0,
                 faraday_draw::tokens::shape_full(18.0),
                 Role::SurfaceContainerHighest,
             );
             ui.text_mid_as(
-                (gx + 7.0, ty + 56.0, 18.0),
+                (gx + 7.0, tag_y, 18.0),
                 LABEL_S.mono(),
                 Role::OnSurfaceVariant,
                 tag,

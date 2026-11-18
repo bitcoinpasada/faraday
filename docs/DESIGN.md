@@ -787,8 +787,10 @@ one drawing of a tile and its columns, `docs/LAYOUT.md` §17): the label
 as its name, the line under it saying what the person needs in hand, and
 nothing else on the page, no explainer. The tiles stand in as many
 columns as fit, at least three beside the navigation and one on a small
-panel, under a subheader per group, a divider between groups; the page
-scrolls. Rows, in order (label, then its line, then what a press opens):
+panel, under a subheader per group with Tools' spacing (`section` in
+`screens/catalog.rs`, both pages' one call) and no line between groups; a
+name or line that does not fit in a tile wraps and the tile grows, never
+an ellipsis; the page scrolls. Rows, in order (label, then its line, then what a press opens):
 
 - **The wallet**
   1. **My seed makes my wallet**, "Its words, its passphrase and the

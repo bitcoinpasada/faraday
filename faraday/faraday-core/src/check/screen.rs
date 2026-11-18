@@ -1,18 +1,17 @@
 //! `Screen::Check`: what to hold up against a hardware wallet, a tile for
-//! each in Tools' grid, a subheader per group and a divider between them.
+//! each in Tools' grid and group layout (`catalog::section`).
 
 use super::{FORMS, GROUPS, Press};
 use crate::Action;
 use crate::drawing::View;
-use crate::screens::catalog::{Face, grid};
+use crate::screens::catalog::{Face, grid, section};
 use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Region, Style, Ui};
 use faraday_draw::tokens::{
-    BODY_M, CHECK_TAIL, CHECK_TOP, GAP_SMALL, LIST_1, PAD, PAGE_INSET, RADIUS_SMALL, TITLE_S,
+    BODY_M, CHECK_TAIL, CHECK_TOP, GAP_SMALL, LIST_1, PAD, PAGE_INSET, RADIUS_SMALL,
 };
 use faraday_draw::widgets::Icon;
-use faraday_ui::parts::section_label;
 
 /// Check: the tiles in the page, scrolling where the panel is
 /// short. The top app bar carries the name.
@@ -31,13 +30,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         crate::screens::bar_head_back(app, ui, EN.compact_check)
     };
     let mut y = top;
-    for (g, (name, items)) in GROUPS.iter().enumerate() {
-        if g > 0 {
-            ui.fill(x, y, w, 1.0, 0.0, Role::OutlineVariant);
-            y += GAP_SMALL;
-        }
-        section_label(ui, x, y, name);
-        y += ui.line_as(TITLE_S) + GAP_SMALL;
+    for (name, items) in GROUPS {
         let g = grid(compact, w);
         let seed_tag = [EN.check_seed];
         let faces: Vec<Face> = items
@@ -51,12 +44,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 action: Action::Check(Press::Row(it.row)),
             })
             .collect();
-        let (at, height) = g.place(x, y, &faces);
-        for (face, (tx, ty)) in faces.iter().zip(at) {
-            face.draw(ui, tx, ty, g.tile_w);
-        }
-        y += height;
-        y += GAP_SMALL;
+        y += section(ui, (x, y), &g, name, &faces);
     }
     app.scroll.content_h().set(y - top + CHECK_TAIL);
     ui.region_close(open, app.scroll.content_h().get() - h);
