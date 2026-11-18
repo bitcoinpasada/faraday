@@ -49,6 +49,15 @@ fn wait(app: &mut Faraday, what: &str, done: impl Fn(&Faraday) -> bool) {
 /// A vault made and unlocked here, the wallet saved into it with the keys
 /// `ticked` ticked; its file as the lock sealed it.
 fn vault_holding_wallet(ticked: &[usize]) -> Vec<(String, Vec<u8>)> {
+    vault_holding_wallet_then(ticked, |_, _| {})
+}
+
+/// As [`vault_holding_wallet`], with `after` run on the wallet (its place)
+/// once it is saved, before the lock.
+fn vault_holding_wallet_then(
+    ticked: &[usize],
+    after: impl FnOnce(&mut Faraday, usize),
+) -> Vec<(String, Vec<u8>)> {
     let c = testkit::compute();
     let mut shell = Shell::new();
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
@@ -89,6 +98,7 @@ fn vault_holding_wallet(ticked: &[usize]) -> Vec<(String, Vec<u8>)> {
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::AddKind(1)));
     app.press(Action::Vault(V::SaveWallet(w)));
+    after(&mut app, w);
     let app = shell.lock(&mut app);
     app.outbox
         .iter()
@@ -109,6 +119,11 @@ fn unlocked(files: Vec<(String, Vec<u8>)>) -> Faraday {
     app.press(Action::Vault(V::Unlock));
     wait(&mut app, "unlocked", |a| !a.vaults().open.is_empty());
     testkit::settle(&mut app);
+    // A vault of several loadable items asks what to load first.
+    if app.sheet.is_some() {
+        app.press(Action::Vault(V::LoadTicked));
+        testkit::settle(&mut app);
+    }
     app
 }
 
@@ -155,4 +170,138 @@ fn a_wallet_a_vault_holds_with_no_ticks_loads_unchecked() {
     let w = &app.session.wallets[0];
     assert_eq!(w.keys_unchecked(), 3);
     assert!(w.key_ticks().iter().all(|t| !t));
+}
+
+/// The same wallet with its keys in the order `order` names.
+fn multisig_in(order: [usize; 3]) -> String {
+    let p = "m/48'/1'/0'/0'";
+    let k: Vec<String> = order
+        .iter()
+        .map(|&n| format!("{}/<0;1>/*", testkit::key(n, p)))
+        .collect();
+    format!("wsh(sortedmulti(2,{},{},{}))", k[0], k[1], k[2])
+}
+
+fn record_of(order: [usize; 3], ticked: &[usize], loads: bool) -> Record {
+    let mut r = Record::new(kind::WALLET)
+        .with(field::WALLET, multisig_in(order).as_bytes())
+        .with(field::WALLET_NAME, b"Twice");
+    faraday_vault::records::set_keys_checked(&mut r, ticked);
+    faraday_vault::records::set_loads_at_unlock(&mut r, loads);
+    r
+}
+
+/// The keys of the wallet that read as checked, as the numbers `testkit::key`
+/// takes, found by master fingerprint.
+fn checked_keys(app: &Faraday) -> Vec<usize> {
+    let w = &app.session.wallets[0];
+    let fp_of = |n: usize| {
+        let key = testkit::key(n, "m/48'/1'/0'/0'");
+        key.trim_start_matches('[')[..8].to_ascii_lowercase()
+    };
+    (0..3)
+        .filter(|&n| {
+            w.policy().keys().iter().zip(w.key_checks()).any(|(k, c)| {
+                *c == KeyCheck::Checked
+                    && k.fingerprint().is_some_and(|f| {
+                        faraday_core::wallet::fp_text(f).to_ascii_lowercase() == fp_of(n)
+                    })
+            })
+        })
+        .collect()
+}
+
+#[test]
+fn two_records_of_one_wallet_in_other_key_orders_tick_exactly_their_keys() {
+    // The first record ticks its place 0 (key 0); the second, listing the
+    // keys the other way round, ticks its place 0 (key 2).
+    let file = testkit::kdbx_vault(
+        "Twice",
+        PHRASE,
+        0x5d,
+        vec![
+            record_of([0, 1, 2], &[0], true),
+            record_of([2, 1, 0], &[0], true),
+        ],
+    )
+    .unwrap();
+    let app = unlocked(vec![("twice.kdbx".to_string(), file)]);
+    assert_eq!(
+        app.session.wallets.len(),
+        1,
+        "{:?} {:?}",
+        app.toast_text(),
+        app.screen
+    );
+    assert_eq!(
+        checked_keys(&app),
+        [0, 2],
+        "{:?}",
+        app.session.wallets[0].key_ticks()
+    );
+}
+
+#[test]
+fn a_key_unticked_after_the_save_reads_not_checked_at_the_next_unlock() {
+    let files = vault_holding_wallet_then(&[2], |app, w| {
+        app.press(Action::KeyTick(
+            faraday_core::wallet::KeyBlockOf::Wallet(w as u16),
+            2,
+        ));
+    });
+    let app = unlocked(files);
+    assert_eq!(app.session.wallets[0].key_ticks(), [false, false, false]);
+    assert_eq!(app.session.wallets[0].key_checks()[2], KeyCheck::Unchecked);
+}
+
+#[test]
+fn a_key_ticked_after_the_save_reads_checked_at_the_next_unlock() {
+    let files = vault_holding_wallet_then(&[], |app, w| {
+        app.press(Action::KeyTick(
+            faraday_core::wallet::KeyBlockOf::Wallet(w as u16),
+            1,
+        ));
+    });
+    let app = unlocked(files);
+    assert_eq!(app.session.wallets[0].key_checks()[1], KeyCheck::Checked);
+}
+
+#[test]
+fn the_vault_items_load_brings_the_records_ticks() {
+    let file = testkit::kdbx_vault(
+        "Load",
+        PHRASE,
+        0x5e,
+        vec![record_of([2, 1, 0], &[0], false)],
+    )
+    .unwrap();
+    let mut app = unlocked(vec![("load.kdbx".to_string(), file)]);
+    assert!(app.session.wallets.is_empty(), "not loaded at the unlock");
+    app.press(Action::Vault(V::Item(0)));
+    app.press(Action::Vault(V::Load));
+    assert_eq!(app.session.wallets.len(), 1);
+    assert_eq!(checked_keys(&app), [2]);
+}
+
+#[test]
+fn restore_from_a_vault_brings_the_records_ticks() {
+    let file = testkit::kdbx_vault(
+        "Restore",
+        PHRASE,
+        0x5f,
+        vec![record_of([0, 1, 2], &[1], false)],
+    )
+    .unwrap();
+    let mut app = unlocked(vec![("restore.kdbx".to_string(), file)]);
+    app.press(Action::RestoreWallet);
+    let record = app
+        .vaults()
+        .store()
+        .contents_for_tests(app.vaults().open[0].id)
+        .iter()
+        .position(|r| r.text(field::WALLET_NAME) == Some("Twice"))
+        .expect("the vault's wallet");
+    app.press(Action::RFromVault(0, record));
+    assert_eq!(app.session.wallets.len(), 1);
+    assert_eq!(checked_keys(&app), [1]);
 }

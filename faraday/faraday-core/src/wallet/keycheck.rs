@@ -134,14 +134,6 @@ impl KeyChecks {
         self.ticks.clone()
     }
 
-    /// `ticks` taken as the person's, unless it is not one per key.
-    pub(crate) fn set_ticks(&mut self, ticks: &[bool]) {
-        if ticks.len() == self.ticks.len() {
-            self.ticks.copy_from_slice(ticks);
-            self.apply();
-        }
-    }
-
     /// Merges the ticks a sheet took (`ticks`, one per key of `from`, the
     /// policy the sheet asked about) into the person's ticks of `policy`,
     /// the policy of the wallet that was added or was already loaded. A

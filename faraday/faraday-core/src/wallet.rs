@@ -294,12 +294,6 @@ impl Wallet {
         self.key_checks.ticks()
     }
 
-    /// Takes `ticks` as the person's, one per key; a slice of another
-    /// length is ignored.
-    pub fn set_key_ticks(&mut self, ticks: &[bool]) {
-        self.key_checks.set_ticks(ticks);
-    }
-
     /// Merges the ticks of a sheet that asked about `from` into this
     /// wallet's, key by key ([`KeyChecks::merge_ticks`]).
     pub(crate) fn merge_key_ticks(&mut self, from: &WalletPolicy, ticks: &[bool]) {
@@ -4119,13 +4113,17 @@ impl Faraday {
             // A wallet taken out since the frame the press was drawn on
             // leaves the next one at its place: the press is dropped.
             KeyBlockOf::Wallet(_) if self.wallets.list_changed() => {}
-            KeyBlockOf::Wallet(i) => self.session.tick_key(usize::from(i), key),
+            KeyBlockOf::Wallet(i) => {
+                self.session.tick_key(usize::from(i), key);
+                self.vault_keep_ticks(usize::from(i));
+            }
             // The same, and a Result whose wallet is gone ticks nothing.
             KeyBlockOf::Check if self.wallets.list_changed() => {}
             KeyBlockOf::Check => match self.tools.mscheck.of_wallet() {
                 Some(_) => {
                     if let Some(i) = self.tools.mscheck.own_wallet(&self.session) {
                         self.session.tick_key(i, key);
+                        self.vault_keep_ticks(i);
                     }
                 }
                 None => self.tools.mscheck.tick(key),

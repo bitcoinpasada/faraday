@@ -76,6 +76,7 @@ use crate::wallet::fp_text;
 use crate::{Action, Faraday, FileKind, Item, Screen, gpg, share_record_is};
 use crate::{fresh, sha256_of};
 use faraday_bip::keys::Fingerprint;
+use faraday_bip::policy::WalletPolicy;
 use faraday_keys::vault::{GpgFacts as Facts, gpg_facts, gpg_field as f};
 use faraday_pgp::{Armor, Reason, armor};
 use std::rc::Rc;
@@ -1657,18 +1658,20 @@ impl Faraday {
         let before = self.session.wallets.len();
         for (policy, name, checked) in descs {
             let to = crate::wallet::Origin::Vault;
+            let own = policy.clone();
             let added = self
                 .session
                 .add_kept(c, &name, policy, EN.vaults_vault, to, derived);
-            // The record's ticks go to a wallet this load added; one the
-            // session already held keeps the person's ticks of this session.
+            // The record's ticks go, key by key, to a wallet this load
+            // added (a second record of the same wallet in another key
+            // order adds its ticks to the first's: a tick is the person's
+            // own statement about that key); one the session already held
+            // keeps the person's ticks of this session.
             if let Ok(i) = added
                 && i >= before
                 && let Some(w) = self.session.wallets.get_mut(i)
             {
-                let n = w.key_ticks().len();
-                let ticks: Vec<bool> = (0..n).map(|k| checked.contains(&k)).collect();
-                w.set_key_ticks(&ticks);
+                w.merge_key_ticks(&own, &record_ticks(&own, &checked));
             }
             // A kept MuSig2 wallet two of whose keys are one seed's, or a
             // wallet with a loaded key's fingerprint and another xpub, is
@@ -1752,6 +1755,11 @@ impl Faraday {
                 let text = Text::of(r.public_text(field::WALLET).unwrap_or(""));
                 let name = Text::of(&wallet_name_in(r, field::WALLET_NAME, EN.vaults_wallet));
                 // The person's own record, sealed by them: no sheet (F254).
+                let ticks = self
+                    .vaults
+                    .described(&c, id, at)
+                    .map(|d| (d.policy.clone(), r.keys_checked()));
+                let before = self.session.wallets.len();
                 match self.session.add_wallet_kept(
                     &c,
                     &name,
@@ -1760,6 +1768,12 @@ impl Faraday {
                     crate::wallet::Origin::Vault,
                 ) {
                     Ok(i) => {
+                        if i >= before
+                            && let Some((own, checked)) = ticks
+                            && let Some(w) = self.session.wallets.get_mut(i)
+                        {
+                            w.merge_key_ticks(&own, &record_ticks(&own, &checked));
+                        }
                         self.wallets.set_wallet(i);
                         self.screen = Screen::Wallets;
                     }
@@ -2136,6 +2150,36 @@ impl Faraday {
             self.vaults.keep_identities(&[found]);
         }
         Some((record, Text::of(&label)))
+    }
+
+    /// Costs what `Vaults::described` costs. A tick or untick of wallet
+    /// `k` reaches every wallet record of an open vault that is the same
+    /// wallet, in the record's own key order (F286).
+    pub(crate) fn vault_keep_ticks(&mut self, k: usize) {
+        let c = self.compute();
+        let Some(w) = self.session.wallets.get(k) else {
+            return;
+        };
+        let want = crate::wallet::same_wallet(w.policy());
+        let (mine, ticks) = (w.policy().clone(), w.key_ticks());
+        let ids: Vec<VaultId> = self.vaults.open.iter().map(|o| o.id).collect();
+        for id in ids {
+            let to_set: Vec<(usize, Vec<usize>)> = self
+                .vaults
+                .described_of(&c, id, kind::WALLET)
+                .filter(|(_, _, d)| d.same.as_str() == &*want)
+                .filter_map(|(i, r, d)| {
+                    let places = ticked_places(&d.policy, &mine, &ticks);
+                    (places != r.keys_checked()).then_some((i, places))
+                })
+                .collect();
+            for (i, places) in &to_set {
+                self.vaults.edit(id, |s| s.set_keys_checked(id, *i, places));
+            }
+            if !to_set.is_empty() {
+                self.vaults.changed(id);
+            }
+        }
     }
 
     fn vault_save_wallet(&mut self, k: usize) {
@@ -4611,4 +4655,24 @@ impl Faraday {
         let c = self.compute();
         self.visit.vault_from_set(name, sha256_of(&c, bytes), label);
     }
+}
+
+/// The ticks of a record whose wallet is `own` and whose ticked places
+/// are `checked`, one per key; a place beyond the keys ticks nothing.
+pub(crate) fn record_ticks(own: &WalletPolicy, checked: &[usize]) -> Vec<bool> {
+    (0..own.keys().len())
+        .map(|k| checked.contains(&k))
+        .collect()
+}
+
+/// The places of record policy `own` whose key the person ticked in the
+/// loaded wallet (`mine`, ticks `ticks` by its own places), by key and
+/// not by place.
+fn ticked_places(own: &WalletPolicy, mine: &WalletPolicy, ticks: &[bool]) -> Vec<usize> {
+    own.keys()
+        .iter()
+        .enumerate()
+        .filter(|(_, key)| mine.keys().iter().zip(ticks).any(|(m, t)| *t && m == *key))
+        .map(|(i, _)| i)
+        .collect()
 }

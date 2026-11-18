@@ -1127,7 +1127,20 @@ impl Faraday {
             return;
         };
         let source = open.name.clone();
+        let ticks = self
+            .vaults
+            .described(&c, open.id, r)
+            .map(|d| (d.policy.clone(), rec.keys_checked()));
+        let before = self.session.wallets.len();
         self.restore_wallet_in(&name, &text, &source, wallet::Origin::Vault, false);
+        // The record's ticks, key by key, to a wallet this added.
+        if let Some((own, checked)) = ticks
+            && let Some(i) = self.restore.state().and_then(|s| s.wallet)
+            && i >= before
+            && let Some(w) = self.session.wallets.get_mut(i)
+        {
+            w.merge_key_ticks(&own, &crate::vault::record_ticks(&own, &checked));
+        }
         let Some(w) = self
             .restore
             .state()
