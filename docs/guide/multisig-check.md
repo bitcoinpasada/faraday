@@ -34,7 +34,7 @@ Each key has a mark. A green check with **Yours, can sign** is a key this device
 
 **Key:** multisig-check.tick
 
-To tick a key, compare it, in full, with what its own device shows for that signer, then press it; press again to untick. Ticking is optional and the wallet can be added with keys not checked, but the wallet then shows that for the rest of the session, on its chart node, beside its receive addresses and in the review of a spend. Lock ends it unless a vault holds the wallet.
+To tick a key, compare it, in full, with what its own device shows for that signer, then press it; press again to untick. Ticking is optional and the wallet can be added with keys not checked, but the wallet then shows that for the rest of the session, on its chart node, beside its receive addresses and in the review of a spend. Lock ends it unless a vault holds the wallet. Keys ticked here go with the wallet when you add it, each on the same key.
 
 ## The checksum
 

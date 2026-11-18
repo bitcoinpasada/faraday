@@ -1115,11 +1115,11 @@ The flow's cards, steps and rules are in `docs/BACKUP-FLOW.md` (§4, the steps; 
 
 Every flow, entry point and step, and the rules this file's rules rest on, are in `docs/WALLETS.md` (§11, the rules).
 
-A wallet of several keys that has a key not checked (F286) shows a second line on its chart node, "2 keys not checked" in the caution tone; its own sheet shows the key block, tickable, under the Descriptor row; its receive addresses carry the caution line "2 keys of this wallet are not checked". Not built (`docs/WALLETS.md` §3.5).
+A wallet of several keys that has a key not checked (F286) shows a second line on its chart node, "2 keys not checked" in the caution tone; its own sheet shows the key block, tickable, under the Descriptor row; its receive addresses carry the caution line "2 keys of this wallet are not checked" (`docs/WALLETS.md` §3.5).
 
 ## Spend tab
 
-The Spend tab's pages and rules are in `docs/SPEND-FROM-BACKUP.md` (§4, the pages; §8, registering a wallet and MuSig2 spends). The review of a spend from a wallet with a key not checked (F286) shows the key block while any key is grey and one green line "Every key checked" once none is. Not built.
+The Spend tab's pages and rules are in `docs/SPEND-FROM-BACKUP.md` (§4, the pages; §8, registering a wallet and MuSig2 spends). The review of a spend from a wallet with a key not checked (F286) shows the key block while any key is grey and one green line "Every key checked" once none is.
 
 A spend of a single-key wallet whose key is not loaded has no Signers
 and no Signatures step: its Sign card offers Type the words, Scan a
@@ -2213,7 +2213,7 @@ fingerprint and is not that key; one line under them says how many are not
 checked or "Every key checked", and the descriptor checksum is the last
 row, a typing check and not proof. The sheet's hold adds the wallet
 whatever is ticked, and the confirmation reads "{name} added" or "{name}
-added · 2 keys not checked". Not built: the marks, the ticks and the line. With a key loaded here, or a
+added · 2 keys not checked". With a key loaded here, or a
 seed given to the check, it says which cosigner that key is. The person
 holds the rows against every other signer's device and the coordinator.
 Nothing is added to the session unless the person asks, and then only

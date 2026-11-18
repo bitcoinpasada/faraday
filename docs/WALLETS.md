@@ -325,9 +325,7 @@ person's is green at once, and a lock ends the ticks no vault holds. The
 states are worked out when a wallet is added and when a key is loaded or
 removed, never while drawing.
 
-**Open:** nothing of this is built yet: the sheet shows each key and
-the checksum as F254 describes, with no state, tick, chart line, caution
-line, review block or vault field. Not decided: further ways the device
+Not decided: further ways the device
 turns a grey key green (an open vault that holds the key, the key scanned
 from the cosigner's own screen or the paper backup's code).
 

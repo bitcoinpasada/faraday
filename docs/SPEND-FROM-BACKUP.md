@@ -523,7 +523,7 @@ with no second sheet, and the
 spend goes on from the same card, now signable; a wallet whose keys do
 not give the spend's addresses, or none of whose keys is a loaded key's
 own, stays unregistered and the dialog says which ("These keys do not
-give input 0's address", "None of these keys is yours"). Where the spend
+give input 0's address", "None of these keys is yours"). The keys read as on any sheet: "Yours, can sign" or "Not checked", a press ticking one (`docs/WALLETS.md` §3.5). Where the spend
 cannot tell sorted keys from keys in the order listed, the dialog adds
 "Most coordinators sort the keys" over **Sorted** (chosen) and **In
 this order**. Where the PSBT does
