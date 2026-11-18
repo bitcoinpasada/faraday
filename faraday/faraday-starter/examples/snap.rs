@@ -19,7 +19,7 @@ use std::process::ExitCode;
 
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 use faraday_starter::api::{
-    BitLocker, BitLockerStep, BootFile, BootSigner, Bus, Computer, Concern, DevImage, Disk,
+    BitLocker, BitLockerStep, BootFile, BootSigner, Bus, Camera, Computer, Concern, DevImage, Disk,
     FaradayStick, FoundImage, ImageFinding, InUse, InstallItem, Installed, Kind, Mode, Os,
     Protection, Reason, RecoveryKey, StarterEvent, Volume, WriteStage,
 };
@@ -133,6 +133,7 @@ fn laptop(os: Os, secure_boot: bool) -> Computer {
         arm: false,
         secure_boot: Some(secure_boot),
         tpm_unlock: false,
+        camera: Camera::Usable,
     }
 }
 
@@ -147,6 +148,7 @@ fn mac(model: &str) -> Computer {
         arm: false,
         secure_boot: None,
         tpm_unlock: false,
+        camera: Default::default(),
     }
 }
 
@@ -651,6 +653,16 @@ pub(crate) fn run(s: &Snap) -> Result<(), String> {
     arm.model = "Surface Example".into();
     h.starter_event(StarterEvent::Computer(arm));
     s.shot(&mut h, "home-arm")?;
+    let mut h = s.starter();
+    let mut c = laptop(Os::Linux, true);
+    c.camera = Camera::None;
+    h.starter_event(StarterEvent::Computer(c));
+    s.shot(&mut h, "home-no-camera")?;
+    let mut c = laptop(Os::Linux, true);
+    c.camera = Camera::NotUsable;
+    c.uefi = false;
+    h.starter_event(StarterEvent::Computer(c));
+    s.shot(&mut h, "home-legacy-camera-not-usable")?;
 
     // On a Mac (§3.1's "On a Mac", §3.4): an Intel Mac and a T2 Mac,
     // Home with a stick attached and the Start page.

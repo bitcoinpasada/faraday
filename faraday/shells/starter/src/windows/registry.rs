@@ -108,5 +108,6 @@ pub fn computer(f: &Facts) -> Computer {
         arm: f.machine.is_some_and(|m| ARM_MACHINES.contains(&m)),
         secure_boot,
         tpm_unlock: false,
+        camera: Default::default(),
     }
 }

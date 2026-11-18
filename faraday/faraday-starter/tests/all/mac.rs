@@ -97,6 +97,7 @@ fn mac(os: Os, model: &str, arm: bool) -> Computer {
         arm,
         secure_boot: if os == Os::MacOs { None } else { Some(false) },
         tpm_unlock: false,
+        camera: Default::default(),
     }
 }
 

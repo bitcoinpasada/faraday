@@ -31,6 +31,7 @@ fn computer(os: Os, maker: &str, family: &str, model: &str) -> Computer {
         arm: false,
         secure_boot: Some(true),
         tpm_unlock: false,
+        camera: Default::default(),
     }
 }
 

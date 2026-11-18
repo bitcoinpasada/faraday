@@ -412,6 +412,7 @@ pub fn computer(root: &Path) -> Computer {
         arm: arch.starts_with("arm") || arch.starts_with("aarch64"),
         secure_boot,
         tpm_unlock: tpm_unlock(&read("etc/crypttab")),
+        camera: Default::default(),
     }
 }
 

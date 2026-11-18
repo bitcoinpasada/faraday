@@ -8,7 +8,7 @@ use faraday_paper::build::{Fit, compare};
 use faraday_strings::EN;
 use faraday_strings::fill;
 
-use crate::api::{Bus, Computer, Disk, FaradayStick, InUse, Os};
+use crate::api::{Bus, Camera, Computer, Disk, FaradayStick, InUse, Os, Protection};
 use crate::macs;
 
 /// What is being made.
@@ -292,6 +292,122 @@ impl crate::Starter {
             .is_some_and(|stick| {
                 keep_data(stick, image.build.as_deref(), image.boot_sha256.as_deref()) == Fit::Newer
             })
+    }
+}
+
+/// How a check on This computer reads: passed, a step to take, or not
+/// compatible.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Tone {
+    /// Passed.
+    Good,
+    /// A step to take, not a failure.
+    Step,
+    /// Not compatible.
+    Bad,
+}
+
+/// One check on This computer (§3.1): its label and what it found.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Check {
+    /// What was checked.
+    pub label: &'static str,
+    /// What it found.
+    pub value: &'static str,
+    /// How it reads.
+    pub tone: Tone,
+}
+
+/// The summary above the checks (§3.1).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Summary {
+    /// Every check that decides it passes.
+    Can,
+    /// It can, but the stick has no camera to use.
+    CanWithoutCamera,
+    /// A check that decides it fails.
+    Cannot,
+}
+
+impl crate::Starter {
+    /// The checks of this computer (§3.1): start mode, Secure Boot and
+    /// camera always, the processor only when ARM and BitLocker only on
+    /// Windows with it on. A Mac has none. What is attached and held is
+    /// [`Starter::restart_holds`](crate::Starter). A lookup.
+    pub fn checks(&self) -> Vec<Check> {
+        let c = &self.computer;
+        if self.facts().mac().is_some() {
+            return Vec::new();
+        }
+        let check = |label, value, tone| Check { label, value, tone };
+        let mut rows = vec![check(
+            EN.starter_check_start_mode,
+            if c.uefi {
+                EN.starter_check_uefi
+            } else {
+                EN.starter_check_legacy
+            },
+            if c.uefi { Tone::Good } else { Tone::Bad },
+        )];
+        if c.arm {
+            rows.push(check(
+                EN.starter_check_processor,
+                EN.starter_check_arm,
+                Tone::Bad,
+            ));
+        }
+        rows.push(match c.secure_boot {
+            Some(false) => check(
+                EN.starter_check_secure_boot,
+                EN.starter_check_off,
+                Tone::Good,
+            ),
+            Some(true) => check(
+                EN.starter_check_secure_boot,
+                EN.starter_check_on,
+                Tone::Step,
+            ),
+            None => check(
+                EN.starter_check_secure_boot,
+                EN.starter_check_not_read,
+                Tone::Step,
+            ),
+        });
+        let (value, tone) = match c.camera {
+            Camera::Usable => (EN.starter_check_camera_usable, Tone::Good),
+            Camera::None => (EN.starter_check_camera_none, Tone::Step),
+            Camera::NotUsable => (EN.starter_check_camera_not_usable, Tone::Step),
+            Camera::Unknown => (EN.starter_check_camera_unknown, Tone::Step),
+        };
+        rows.push(check(EN.starter_check_camera, value, tone));
+        if c.os == Os::Windows
+            && self
+                .bitlocker
+                .as_ref()
+                .is_some_and(|b| b.protection == Protection::On)
+        {
+            rows.push(check(
+                EN.starter_check_bitlocker,
+                EN.starter_check_on,
+                Tone::Step,
+            ));
+        }
+        rows
+    }
+
+    /// The summary above the checks (§3.1): cannot when the start mode
+    /// or the processor fails or something is held (a virtual machine, a
+    /// screen or switch that can record); without a camera when it is
+    /// known there is none the stick can use. A lookup.
+    pub fn summary(&self) -> Summary {
+        let c = &self.computer;
+        if !c.uefi || !self.facts().can_start() || !self.restart_holds().is_empty() {
+            Summary::Cannot
+        } else if matches!(c.camera, Camera::None | Camera::NotUsable) {
+            Summary::CanWithoutCamera
+        } else {
+            Summary::Can
+        }
     }
 }
 

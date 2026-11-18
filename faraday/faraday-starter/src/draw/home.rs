@@ -6,11 +6,12 @@
 use super::*;
 use faraday_draw::Rect;
 use faraday_draw::tokens::{
-    BODY_M, BUTTON_H, CARD_MIN_W, GAP, LABEL_L, LIST_2, MARGIN_COMPACT, MARGIN_WIDE, PAD, TITLE_M,
-    TITLE_S,
+    BODY_M, BUTTON_H, CARD_MIN_W, GAP, GAP_SMALL, ICON_GLYPH_SMALL, LABEL_L, LIST_2,
+    MARGIN_COMPACT, MARGIN_WIDE, PAD, TITLE_M, TITLE_S,
 };
 
 use crate::Class;
+use crate::decide::{Summary, Tone};
 
 /// A checklist row's height: a two-line list item.
 const ROW_H: f32 = LIST_2;
@@ -130,7 +131,12 @@ pub(super) fn home(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f
     let h = card_height(ui, w, &mut body);
     draw_card(ui, (x, y, w, h), S.starter_computer, &mut body);
     y += h + g;
-    y += concern_block(starter, ui, x, y, w, &starter.restart_holds());
+    y += concern_block(
+        starter,
+        ui,
+        (x, y, w),
+        (&starter.restart_holds(), starter.facts().mac().is_some()),
+    );
     y += receiver_line(starter, ui, x, y, w);
     y = grid(starter, ui, (x, y, w), &mut home_cards(starter));
     y - g
@@ -272,7 +278,7 @@ fn computer_facts(starter: &Starter) -> (String, Vec<(String, Role)>) {
             }
             l
         }
-        None => vec![(secure_boot_text(c.secure_boot), Role::OnSurface)],
+        None => Vec::new(),
     };
     match mac {
         Some(macs::Start::NotYet) => {
@@ -285,12 +291,74 @@ fn computer_facts(starter: &Starter) -> (String, Vec<(String, Role)>) {
             ));
         }
         Some(macs::Start::Intel { .. }) => {}
-        None if c.arm => lines.push((S.starter_cannot_start_arm.to_string(), Role::Warning)),
-        None if !c.uefi => lines.push((S.starter_cannot_start_bios.to_string(), Role::Warning)),
         None => {}
     }
     lines.extend(restart_lines(starter));
     (name, lines)
+}
+
+/// The icon and colour of a check's tone: a mark besides the colour, so
+/// the colour is not all that tells it.
+fn tone_mark(tone: Tone) -> (Icon, Role) {
+    match tone {
+        Tone::Good => (Icon::Success, Role::Ok),
+        Tone::Step => (Icon::Warning, Role::Warning),
+        Tone::Bad => (Icon::Error, Role::Error),
+    }
+}
+
+/// One check: its mark, its label and what it found beside it (under it
+/// when the card is too narrow for both), the value in the tone's
+/// colour. A check with no label is one sentence. Returns its height.
+fn check_row(ui: &mut Ui, (x, y, w): (f32, f32, f32), label: &str, value: &str, tone: Tone) -> f32 {
+    let (icon, role) = tone_mark(tone);
+    let line = ui.line_as(BODY_M);
+    ui.icon(
+        x,
+        y + (line - ICON_GLYPH_SMALL) / 2.0,
+        ICON_GLYPH_SMALL,
+        icon,
+        ICON_GLYPH_SMALL,
+        role,
+    );
+    let tx = x + ICON_GLYPH_SMALL + GAP_SMALL * 2.0;
+    let tw = w - (tx - x);
+    let h = if label.is_empty() {
+        ui.wrap_as((tx, y, tw), BODY_M, Role::OnSurface, value)
+    } else {
+        let lw = ui
+            .measure_as(BODY_M, S.starter_check_secure_boot)
+            .max(ui.measure_as(BODY_M, S.starter_check_start_mode))
+            + GAP;
+        ui.text_as(tx, y, BODY_M, Role::OnSurfaceVariant, label);
+        ui.wrap_as((tx + lw, y, tw - lw), BODY_M, Role::OnSurface, value)
+    };
+    h.max(line) + GAP_SMALL
+}
+
+/// The summary and the checks of this computer (§3.1): one line saying
+/// whether it can start Faraday, then a row for each check, then each
+/// thing attached that holds a restart. A Mac has none. Returns its
+/// height.
+fn checks(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let rows = starter.checks();
+    if rows.is_empty() {
+        return 0.0;
+    }
+    let (summary, tone) = match starter.summary() {
+        Summary::Can => (S.starter_check_can, Tone::Good),
+        Summary::CanWithoutCamera => (S.starter_check_can_no_camera, Tone::Step),
+        Summary::Cannot => (S.starter_check_cannot, Tone::Bad),
+    };
+    let mut y = y0 + GAP_SMALL;
+    y += check_row(ui, (x, y, w), "", summary, tone) + GAP_SMALL;
+    for r in &rows {
+        y += check_row(ui, (x, y, w), r.label, r.value, r.tone);
+    }
+    for c in starter.restart_holds() {
+        y += check_row(ui, (x, y, w), "", &concern_text(c), Tone::Bad);
+    }
+    y - y0
 }
 
 /// Why the card offers what it does (§3.1): the restart that did not
@@ -347,6 +415,7 @@ fn computer_body(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32
     for (l, tone) in &lines {
         y += card_line(ui, (x, y, w), l, *tone);
     }
+    y += checks(starter, ui, x, y, w);
     y += GAP * 2.0;
     y += checklist(starter, ui, x, y, w);
     y += GAP;

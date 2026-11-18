@@ -59,6 +59,7 @@ fn starter(width: u16, height: u16) -> Starter {
         arm: false,
         secure_boot: Some(true),
         tpm_unlock: false,
+        camera: Default::default(),
     }));
     s.starter_event(StarterEvent::ImagesFound(super::starter::images("0.2.0")));
     s.starter_event(StarterEvent::Disks(Vec::new()));

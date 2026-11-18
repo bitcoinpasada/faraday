@@ -567,21 +567,22 @@ fn receiver_line(starter: &Starter, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
 /// What is attached that holds a step (§3.1a): each item's line, its
 /// Continue anyway (never for a virtual machine), Check again, and the
 /// Learn page. Returns its height with the gap under it; nothing when
-/// nothing holds.
+/// nothing holds. `named` draws each item's line; Home's card has
+/// already listed them among its checks.
 fn concern_block(
     starter: &Starter,
     ui: &mut Ui,
-    x: f32,
-    y0: f32,
-    w: f32,
-    items: &[&Concern],
+    (x, y0, w): (f32, f32, f32),
+    (items, named): (&[&Concern], bool),
 ) -> f32 {
     if items.is_empty() {
         return 0.0;
     }
     let mut y = y0;
     for c in items {
-        y += warning(ui, x, y, w, &concern_text(c));
+        if named {
+            y += warning(ui, x, y, w, &concern_text(c));
+        }
         if c.kind != Kind::VirtualMachine {
             let n = StarterAction::ContinueAnyway(starter.concern_number(&c.id));
             y += buttons(
@@ -1547,7 +1548,7 @@ fn start(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         y += warning(ui, x, y, w, S.starter_cannot_start_bios);
     }
     let held = starter.restart_holds();
-    y += concern_block(starter, ui, x, y, w, &held);
+    y += concern_block(starter, ui, (x, y, w), (&held, true));
     y += receiver_line(starter, ui, x, y, w);
     let guide = StartGuide::for_computer(c);
     y += guide_line(ui, x, y, w, guide);
@@ -1682,7 +1683,7 @@ fn mac_start(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32, mac: macs:
         }
     };
     let held = starter.restart_holds();
-    y += concern_block(starter, ui, x, y, w, &held);
+    y += concern_block(starter, ui, (x, y, w), (&held, true));
     y += receiver_line(starter, ui, x, y, w);
     let guide = StartGuide::MacIntel;
     y += guide_line(ui, x, y, w, guide);

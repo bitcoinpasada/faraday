@@ -60,6 +60,7 @@ fn windows() -> Computer {
         arm: false,
         secure_boot: Some(true),
         tpm_unlock: false,
+        camera: Default::default(),
     }
 }
 

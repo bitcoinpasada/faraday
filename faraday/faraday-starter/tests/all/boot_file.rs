@@ -93,6 +93,7 @@ fn starter() -> Starter {
         arm: false,
         secure_boot: Some(true),
         tpm_unlock: false,
+        camera: Default::default(),
     }));
     s.starter_event(StarterEvent::ImagesFound(images()));
     s.starter_event(StarterEvent::Disks(vec![stick()]));

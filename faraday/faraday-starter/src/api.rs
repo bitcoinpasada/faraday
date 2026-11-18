@@ -43,6 +43,25 @@ pub struct Computer {
     /// `/etc/crypttab`), so its passphrase is asked for after Secure
     /// Boot changes (§6.4).
     pub tpm_unlock: bool,
+    /// The camera, as the stick would find it.
+    pub camera: Camera,
+}
+
+/// Whether Faraday on the stick can use this computer's camera (§7.1,
+/// `docs/HARDWARE.md` §4): a USB video camera that offers uncompressed
+/// frames.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Camera {
+    /// Could not be read.
+    #[default]
+    Unknown,
+    /// A USB video camera that offers uncompressed frames.
+    Usable,
+    /// A camera is there, but not one the stick can use (not USB video,
+    /// such as a MIPI camera, or no uncompressed frames).
+    NotUsable,
+    /// No camera.
+    None,
 }
 
 /// How many times Windows starts before a suspension the Starter makes

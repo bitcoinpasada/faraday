@@ -48,6 +48,7 @@ fn start_page((w, h): (u16, u16)) -> Starter {
         arm: false,
         secure_boot: Some(true),
         tpm_unlock: false,
+        camera: Default::default(),
     }));
     s.starter_event(StarterEvent::Disks(Vec::new()));
     s.starter_event(StarterEvent::OtherEncryption(Some("VeraCrypt".into())));

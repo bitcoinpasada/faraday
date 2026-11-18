@@ -39,6 +39,7 @@ fn windows(secure_boot: Option<bool>) -> Computer {
         arm: false,
         secure_boot,
         tpm_unlock: false,
+        camera: Default::default(),
     }
 }
 

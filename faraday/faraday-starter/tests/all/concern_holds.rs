@@ -33,6 +33,7 @@ fn computer(os: Os, secure_boot: bool) -> Computer {
         arm: false,
         secure_boot: Some(secure_boot),
         tpm_unlock: false,
+        camera: Default::default(),
     }
 }
 

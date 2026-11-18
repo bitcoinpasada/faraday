@@ -72,6 +72,43 @@ macro_rules! words_starter {
     starter_secure_boot_off: "Secure Boot: off",
     /// Secure Boot state that could not be read.
     starter_secure_boot_unknown: "Secure Boot: not read",
+    /// Summary above the checks on This computer: every check that
+    /// decides it passes.
+    starter_check_can: "This computer can start Faraday",
+    /// Summary: it can start Faraday, but the stick has no camera to use.
+    starter_check_can_no_camera: "This computer can start Faraday, without a camera",
+    /// Summary: a check that decides it fails.
+    starter_check_cannot: "This computer cannot start Faraday",
+    /// Check label.
+    starter_check_start_mode: "Start mode",
+    /// Start mode value.
+    starter_check_uefi: "UEFI",
+    /// Start mode value: legacy BIOS.
+    starter_check_legacy: "Legacy BIOS: not compatible",
+    /// Check label.
+    starter_check_secure_boot: "Secure Boot",
+    /// Secure Boot and BitLocker value.
+    starter_check_on: "On",
+    /// Secure Boot value.
+    starter_check_off: "Off",
+    /// Secure Boot value that could not be read.
+    starter_check_not_read: "Not read",
+    /// Check label.
+    starter_check_camera: "Camera",
+    /// Camera value: a USB video camera with uncompressed frames.
+    starter_check_camera_usable: "Should work on the stick",
+    /// Camera value: no camera.
+    starter_check_camera_none: "None found: files go by stick",
+    /// Camera value: a camera the stick cannot use.
+    starter_check_camera_not_usable: "Not usable on the stick: files go by stick",
+    /// Camera value: it could not be read.
+    starter_check_camera_unknown: "Could not be checked",
+    /// Check label, shown only for an ARM computer.
+    starter_check_processor: "Processor",
+    /// Processor value.
+    starter_check_arm: "ARM: not compatible",
+    /// Check label, shown only on Windows with BitLocker on.
+    starter_check_bitlocker: "BitLocker",
     /// An ARM computer.
     starter_cannot_start_arm: "This computer cannot start a Faraday stick",
     /// A computer started in legacy BIOS mode.

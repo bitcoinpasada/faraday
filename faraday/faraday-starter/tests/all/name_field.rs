@@ -39,6 +39,7 @@ fn starter() -> Starter {
         arm: false,
         secure_boot: Some(true),
         tpm_unlock: false,
+        camera: Default::default(),
     }));
     s.starter_event(StarterEvent::ImagesFound(vec![ImageFinding::Found(
         FoundImage {
