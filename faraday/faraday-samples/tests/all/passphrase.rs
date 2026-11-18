@@ -151,7 +151,16 @@ fn on_testnet_add_a_keys_passphrase_is_typed_masked_and_edited_as_before() {
 fn in_demo_a_typed_key_with_a_passphrase_loads_the_key_with_faraday() {
     use faraday_core::keygen::{Start, kstep};
     let mut app = demo_app();
-    app.press(Action::KeyGen(None));
+    // A key already held comes in through Add a key: the tools' tile for
+    // codex32 shares, its Start card reopened to choose words instead.
+    let tile = TILES
+        .iter()
+        .position(|t| t.go == Go::AddKey(faraday_core::forms::Form::Codex32))
+        .expect("a codex32 tile") as u8;
+    app.press(Action::Catalog(tile));
+    let _ = app.frame();
+    app.press(Action::KStep(kstep::START));
+    let _ = app.frame();
     app.press(Action::KStart(Start::Words.index()));
     let _ = app.frame();
     type_in(&mut app, words_of("twelve").parts[0]);
