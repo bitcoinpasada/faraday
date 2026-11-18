@@ -1340,11 +1340,16 @@ enum Going {
     },
 }
 
-/// How long a list or a read may take.
+/// How long a request other than a write, a piece or a piece read may take
+/// (a list, a hash, a delete, a rename).
 const ASK: std::time::Duration = std::time::Duration::from_secs(15);
 /// How long a write may take: a vault of four 4 MiB slots on a slow stick,
 /// written and read back.
 const ASK_WRITE: std::time::Duration = std::time::Duration::from_secs(120);
+/// How long one `ReadPart` may take: a piece is at most 16 MiB and a slow
+/// USB 2 stick reads about 1 MiB/s, so 16 s, taken as 120 s with margin for a
+/// stick that stalls. Used by `ask` and by a transfer's flight alike.
+const ASK_READ_PART: std::time::Duration = std::time::Duration::from_secs(120);
 /// How long a picture may take to be read for its codes: the largest
 /// (`MAX_PIXELS`) takes seconds on a Pi.
 const ASK_PICTURE: std::time::Duration = std::time::Duration::from_secs(60);
@@ -1590,7 +1595,12 @@ impl DiskProcess {
         use faraday_files::proto::{PIECE, Response};
         if let Some(f) = self.transfer.take() {
             let Some(mut frame) = f.answer else {
-                if f.asked.elapsed() > ASK_WRITE {
+                let limit = if matches!(f.what, Going::Read { .. }) {
+                    ASK_READ_PART
+                } else {
+                    ASK_WRITE
+                };
+                if f.asked.elapsed() > limit {
                     self.finish(f.what, Text::of(EN.storage_disk_silent));
                 } else {
                     self.transfer = Some(Flight { answer: None, ..f });
@@ -1722,6 +1732,8 @@ impl DiskProcess {
         sent.map_err(|e| text!("{e}"))?;
         let wait = if matches!(req, Request::Write { .. } | Request::Piece { .. }) {
             ASK_WRITE
+        } else if matches!(req, Request::ReadPart { .. }) {
+            ASK_READ_PART
         } else {
             ASK
         };
