@@ -97,17 +97,9 @@ pub struct KeepSave {
     into: Vec<String>,
 }
 
-/// The text of a fingerprint, four bytes, as bytes.
+/// A fingerprint written as exactly eight hex digits (no sign), as bytes.
 pub(crate) fn fp_bytes(text: &str) -> Option<[u8; 4]> {
-    let b = text.as_bytes();
-    if b.len() != 8 {
-        return None;
-    }
-    let mut out = [0u8; 4];
-    for (i, o) in out.iter_mut().enumerate() {
-        *o = u8::from_str_radix(text.get(2 * i..2 * i + 2)?, 16).ok()?;
-    }
-    Some(out)
+    faraday_crypto::hex::decode_exact::<4>(text)
 }
 
 /// The fields among `fields` as the sheet lists them, each ticked unless

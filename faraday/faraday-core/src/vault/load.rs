@@ -216,7 +216,7 @@ impl LoadView {
 
 /// A fingerprint written as eight hex digits.
 pub(crate) fn fp_of(text: &str) -> Option<Fingerprint> {
-    faraday_crypto::hex::decode_exact::<4>(text).map(Fingerprint)
+    super::keep::fp_bytes(text).map(Fingerprint)
 }
 
 impl super::Vaults {

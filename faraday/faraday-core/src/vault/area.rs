@@ -1553,8 +1553,10 @@ impl Vaults {
     /// leave while the vault holds over [`CAP`] nonce entries, oldest
     /// first, and, only while it is past the ceiling, for room: a nonce
     /// record before any signed amounts (`docs/VAULT.md` §7, types 10 and
-    /// 17). Every nonce record put in this call is kept, so a seal that
-    /// puts more than the cap leaves the vault over it until a later seal.
+    /// 17). The cap loop keeps every nonce record put in this call, so a
+    /// seal that puts more than the cap leaves the vault over it until a
+    /// later seal; the ceiling loop, while the vault is past the ceiling,
+    /// removes nonce records oldest first, one of them included.
     pub(crate) fn add_memory(
         &mut self,
         c: &Compute,

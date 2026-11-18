@@ -3417,7 +3417,7 @@ impl Faraday {
             return self.toast(&e);
         }
         let ticked = std::mem::take(&mut self.vaults.state.sign_ticked);
-        let (mut written, mut changed) = (0usize, 0usize);
+        let mut written = 0usize;
         let mut failure: Option<Text> = None;
         for (name, hash) in ticked {
             let found = self
@@ -3425,7 +3425,6 @@ impl Faraday {
                 .iter()
                 .position(|i| i.name == *name && crate::sha256_of(&c, &i.bytes) == hash);
             let Some(k) = found else {
-                changed += 1;
                 failure.get_or_insert_with(|| Text::fill(EN.gpg_changed, &[&name]));
                 continue;
             };
@@ -3444,7 +3443,6 @@ impl Faraday {
             self.put_outbox(&out, sig.as_bytes().to_vec());
             written += 1;
         }
-        let _ = changed;
         let text = match (written, failure) {
             (0, Some(e)) => e,
             (0, None) => return,

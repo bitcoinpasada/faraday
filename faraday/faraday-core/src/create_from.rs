@@ -17,6 +17,7 @@ use faraday_vault::records::{self, kind};
 
 use crate::create::{self, FromWallet, NewKind, Source};
 use crate::strings::EN;
+use crate::vault::keep::fp_bytes;
 use crate::wallet::{Session, fp_text, key_line};
 use crate::{CreateState, Faraday, Screen, cstep};
 
@@ -51,11 +52,6 @@ pub(crate) struct CreateVaults {
     pub open: Vec<VaultKeys>,
     /// The locked vaults.
     pub locked: Vec<(usize, String)>,
-}
-
-/// A fingerprint written as eight hex digits, as bytes.
-fn fp_bytes(text: &str) -> Option<[u8; 4]> {
-    faraday_crypto::hex::decode_exact::<4>(text)
 }
 
 impl Faraday {
