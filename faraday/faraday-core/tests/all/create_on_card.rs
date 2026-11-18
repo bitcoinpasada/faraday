@@ -228,20 +228,114 @@ fn cancel_with_rolls_on_the_card_asks_first() {
 }
 
 #[test]
-fn other_ways_opens_new_key_for_the_slot() {
+fn other_ways_opens_the_keys_cards_inside_make_a_new_wallet() {
     let mut app = opened();
     let _ = app.frame();
-    assert!(app.offers(Action::KeyGen(Some(0))));
-    app.press(Action::KeyGen(Some(0)));
+    assert!(app.offers(Action::KeyOtherWays(0)));
+    app.press(Action::KeyOtherWays(0));
     assert_eq!(app.screen, Screen::KeyGen);
     let k = app.keygen().unwrap();
     assert!(!k.on_card);
     assert_eq!(k.slot, Some(0));
+    assert!(k.hosted(), "Make a new wallet is the flow it is a step of");
     // With rolls in it asks before they go.
     let mut app = opened();
     roll(&mut app, 4);
-    app.press(Action::KeyGen(Some(0)));
+    app.press(Action::KeyOtherWays(0));
     assert_eq!(app.sheet, Some(Sheet::CancelKey));
+}
+
+#[test]
+fn other_ways_carries_the_length_chosen_on_the_card() {
+    let mut app = opened();
+    app.press(Action::KWords(24));
+    app.press(Action::KeyOtherWays(0));
+    let k = app.keygen().unwrap();
+    assert!(k.hosted());
+    assert!(k.length_chosen);
+    assert_eq!(k.words, 24);
+    // Discard on the sheet opens it the same way, the length kept.
+    let mut app = opened();
+    app.press(Action::KWords(24));
+    roll(&mut app, 3);
+    app.press(Action::KeyOtherWays(0));
+    assert_eq!(app.sheet, Some(Sheet::CancelKey));
+    app.press(Action::CancelFlowNow);
+    let k = app.keygen().unwrap();
+    assert!(k.hosted() && k.length_chosen && k.words == 24);
+    assert!(k.dice.is_empty());
+}
+
+#[test]
+fn back_from_the_first_card_returns_to_keys_with_the_answers_kept() {
+    let mut app = opened();
+    let backup = app.create().unwrap().backup;
+    app.press(Action::KeyOtherWays(0));
+    assert_eq!(app.screen, Screen::KeyGen);
+    let _ = app.frame();
+    let back = app.back_link().expect("the first card has a way back");
+    app.press(back);
+    assert_eq!(app.screen, Screen::Create);
+    let c = app.create().unwrap();
+    assert_eq!(c.open, Some(cstep::KEYS));
+    assert_eq!(c.backup, backup);
+    assert_eq!(c.slots[0], Source::Empty);
+}
+
+#[test]
+fn other_ways_pressed_with_a_stick_in_opens_the_keys_cards_once_it_is_out() {
+    let mut app = opened();
+    let _ = app.frame();
+    app.storage(boot_stick(true));
+    app.press(Action::KeyOtherWays(0));
+    assert_eq!(app.sheet, Some(Sheet::Pull));
+    app.storage(boot_stick(false));
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.screen, Screen::KeyGen);
+    let k = app.keygen().unwrap();
+    assert!(
+        k.hosted() && !k.on_card,
+        "the key's cards, not the card's dice"
+    );
+}
+
+#[test]
+fn a_stick_plugged_in_while_the_keys_cards_are_open_asks_to_lock_and_stays_in_the_wallet() {
+    let mut app = opened();
+    app.press(Action::KeyOtherWays(0));
+    assert!(app.keygen().unwrap().hosted());
+    app.storage(plain_stick(true));
+    assert_eq!(app.sheet, Some(Sheet::Lock));
+    assert_eq!(
+        app.screen,
+        Screen::KeyGen,
+        "the key and the wallet are kept"
+    );
+    assert!(app.create().is_some());
+}
+
+fn boot_stick(on: bool) -> faraday_core::StorageEvent {
+    stick(on, true)
+}
+
+fn plain_stick(on: bool) -> faraday_core::StorageEvent {
+    stick(on, false)
+}
+
+fn stick(on: bool, boot: bool) -> faraday_core::StorageEvent {
+    faraday_core::StorageEvent::Sticks(if on {
+        vec![faraday_core::StickInfo {
+            make: Default::default(),
+            serial: None,
+            id: faraday_text::Text::of("a"),
+            label: faraday_text::Text::of("STICK"),
+            boot,
+            files: Vec::new(),
+            vaults: Vec::new(),
+        }]
+    } else {
+        Vec::new()
+    })
 }
 
 #[test]
@@ -259,6 +353,7 @@ fn shares_keep_new_key_on_the_slot() {
     );
     app.press(Action::KeyGen(Some(0)));
     assert!(app.keygen().unwrap().codex32_offered);
+    assert!(app.keygen().unwrap().hosted());
 }
 
 #[test]
@@ -473,4 +568,32 @@ fn undo_takes_one_roll_back_and_clear_all_of_them() {
     assert_eq!(app.keygen().unwrap().dice.len(), 4);
     app.press(Action::KClear);
     assert_eq!(app.keygen().unwrap().dice.len(), 0);
+}
+
+#[test]
+fn a_key_made_through_other_ways_fills_the_slot_and_a_single_key_opens_check() {
+    let mut app = opened();
+    app.press(Action::KeyOtherWays(0));
+    app.press(Action::KWords(12));
+    app.press(Action::KWay(faraday_core::keygen::Way::Coins.index()));
+    app.press(Action::KNext);
+    for i in 0..128 {
+        app.press(Action::KFlip((i * 5 + i / 3) % 2 == 0));
+    }
+    app.press(Action::KNext);
+    for _ in 0..3 {
+        if app.screen != Screen::KeyGen {
+            break;
+        }
+        app.press(Action::KNext);
+    }
+    assert_eq!(
+        app.screen,
+        Screen::Create,
+        "back in Make a new wallet: {:?}",
+        app.keygen().map(|k| k.open)
+    );
+    let c = app.create().unwrap();
+    assert_ne!(c.slots[0], Source::Empty, "the slot is filled");
+    assert_eq!(c.open, Some(cstep::CHECK));
 }

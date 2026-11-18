@@ -241,6 +241,9 @@ impl Faraday {
     pub(crate) fn flow_on_screen(&self) -> Option<Going> {
         match self.screen {
             Screen::Create if self.create.state().is_some() => Some(Going::Create),
+            Screen::KeyGen if self.keygen_hosted() && self.create.state().is_some() => {
+                Some(Going::Create)
+            }
             Screen::Restore if self.restore.state().is_some() => Some(Going::Restore),
             Screen::Backup => self.backup_going(),
             Screen::Spend | Screen::SpendBackup => Some(Going::Spend),
@@ -266,7 +269,14 @@ impl Faraday {
     pub(crate) fn flows_note(&mut self) {
         let now = self.flows_begun_now();
         let on_screen = self.flow_on_screen();
-        self.in_progress.note(now, self.screen, on_screen);
+        // A key made inside Make a new wallet leaves the wallet on its own
+        // screen: the flow resumes there.
+        let screen = if self.keygen_hosted() {
+            Screen::Create
+        } else {
+            self.screen
+        };
+        self.in_progress.note(now, screen, on_screen);
     }
 
     /// Does what the press does. The form on a flow's screen is the flow's
@@ -438,7 +448,7 @@ impl Faraday {
             && self.keygen.state().is_some_and(|k| {
                 !k.locked
                     && !k.codex32.as_ref().is_some_and(|m| m.locked())
-                    && if k.slot.is_some() && k.back == Screen::Create {
+                    && if k.hosted() {
                         self.create.state().is_some_and(|c| c.built.is_none())
                     } else {
                         k.slot.is_none() && k.entered_any(self.entry.state())

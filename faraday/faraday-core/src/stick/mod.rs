@@ -124,9 +124,10 @@ pub(crate) fn pull_what(app: &Faraday, action: Action) -> Option<&'static str> {
             | crate::decode::check::SignerPress::SeedVault,
         )
         | Action::Vault(vault::VaultAction::PassphraseKey(_)) => EN.pull_what_add_a_key,
-        Action::KeyGen(Some(_)) | Action::KeyOnCard(_) | Action::KeyGenSlip39 => {
-            EN.pull_what_make_a_key
-        }
+        Action::KeyGen(Some(_))
+        | Action::KeyOnCard(_)
+        | Action::KeyOtherWays(_)
+        | Action::KeyGenSlip39 => EN.pull_what_make_a_key,
         Action::PotentialOpen(_) => EN.pull_what_load_wallet,
         // The ticks stay on Load samples' state; the load runs once the stick is out.
         Action::SamplesLoad if app.sample_area.any_ticked() => EN.pull_what_load_samples,

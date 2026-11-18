@@ -395,6 +395,14 @@ impl Drop for KeyGen {
 }
 
 impl KeyGen {
+    /// Whether this key is made as a step of Make a new wallet: opened for
+    /// one of its slots from its own screen. Its Cancel and Back are the
+    /// key's and return to the Keys card; the sidebar's row for the wallet
+    /// stays lit. Only a lookup.
+    pub fn hosted(&self) -> bool {
+        self.slot.is_some() && self.back == Screen::Create
+    }
+
     /// A fresh flow.
     pub fn new(slot: Option<u8>, back: Screen) -> KeyGen {
         KeyGen {
@@ -1188,14 +1196,41 @@ impl crate::Faraday {
         }
     }
 
+    /// Whether the key's cards on show are a step of Make a new wallet:
+    /// opened for one of its slots (`docs/FLOWS.md`, A wallet's key stays
+    /// in Make a new wallet). Only lookups.
+    pub(crate) fn keygen_hosted(&self) -> bool {
+        self.screen == Screen::KeyGen && self.keygen.state().is_some_and(KeyGen::hosted)
+    }
+
     /// Opens the flow, for a Create slot or for the session.
     pub(crate) fn keygen_open(&mut self, slot: Option<u8>) {
+        self.keygen_open_with(slot, None);
+    }
+
+    /// **Other ways** under a slot's making: the key's cards for the slot,
+    /// hosted, with the length chosen on the card carried into Length.
+    fn keygen_open_other_ways(&mut self, slot: u8) {
+        let len = self
+            .keygen
+            .state()
+            .filter(|k| k.on_card && k.length_chosen)
+            .map(|k| k.words);
+        self.keygen_open_with(Some(slot), Some(len));
+    }
+
+    /// [`Self::keygen_open`], pressed as Other ways when `other` is some
+    /// (with the length to carry).
+    fn keygen_open_with(&mut self, slot: Option<u8>, other: Option<Option<usize>>) {
         if !self.may_load_keys() {
             // The stick in the way waits under the Pull sheet, and the
             // flow opens once it is out.
             if self.selftest_passed() && self.stick.in_the_way() {
-                self.visit
-                    .set_pull(self.keygen_pull_action(crate::Action::KeyGen(slot)));
+                let pull = match (slot, other) {
+                    (Some(s), Some(_)) => crate::Action::KeyOtherWays(s),
+                    _ => self.keygen_pull_action(crate::Action::KeyGen(slot)),
+                };
+                self.visit.set_pull(pull);
                 self.sheet = Some(crate::Sheet::Pull);
             } else {
                 self.toast(&Text::fill(
@@ -1205,7 +1240,11 @@ impl crate::Faraday {
             }
             return;
         }
-        if self.keygen_reopen_asks(Reopen::Slot(slot)) {
+        let how = match (slot, other) {
+            (Some(s), Some(len)) => Reopen::OtherWays(s, len),
+            _ => Reopen::Slot(slot),
+        };
+        if self.keygen_reopen_asks(how) {
             return;
         }
         self.typing.pass_eye = crate::pass_eye::PassEye::default();
@@ -1257,6 +1296,18 @@ impl crate::Faraday {
         self.screen = Screen::KeyGen;
         if answered {
             self.keygen_start_next();
+        }
+        // The length chosen on the card is carried, closed with Change;
+        // Randomness opens with no way chosen.
+        if let Some(Some(n)) = other
+            && let Some(k) = self.keygen.state.as_mut()
+            && k.open == Some(kstep::LENGTH)
+            && k.counts().iter().any(|c| usize::from(*c) == n)
+        {
+            k.words = n;
+            k.length_chosen = true;
+            k.done[usize::from(kstep::LENGTH)] = true;
+            k.open = Some(kstep::SOURCE);
         }
     }
 
@@ -1380,6 +1431,7 @@ impl crate::Faraday {
         }
         match how {
             Reopen::Slot(slot) => self.keygen_open(slot),
+            Reopen::OtherWays(slot, len) => self.keygen_open_with(Some(slot), Some(len)),
             Reopen::Card(slot) => self.keygen_open_card(slot),
             Reopen::On(start) => self.keygen_open_on(start),
             Reopen::Dice => self.keygen_open_dice(),
@@ -1591,6 +1643,10 @@ impl crate::Faraday {
         use crate::Action as A;
         if let A::KeyGen(slot) = action {
             self.keygen_open(slot);
+            return;
+        }
+        if let A::KeyOtherWays(slot) = action {
+            self.keygen_open_other_ways(slot);
             return;
         }
         if let A::KeyOnCard(slot) = action {

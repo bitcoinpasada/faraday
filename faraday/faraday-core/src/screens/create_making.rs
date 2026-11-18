@@ -50,7 +50,7 @@ pub(super) fn slot_making(
     let other = (
         EN.create_other_ways,
         Style::Ghost,
-        Action::KeyGen(Some(slot)),
+        Action::KeyOtherWays(slot),
     );
     if let Some(m) = k.mnemonic.as_ref() {
         cy += word_grid(ui, m, k.shown, x, cy, w);

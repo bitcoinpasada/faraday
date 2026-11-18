@@ -1,7 +1,8 @@
 # Flows
 
-**Kind:** Reference
-**Status:** Built; the code is the record where it differs
+**Kind:** Spec
+**Status:** Built but for the items under Open; the code is the record where it differs
+**Open:** a wallet's key made in any way other than the Keys card's dice still reads as New key on the top app bar, its back label, the column's first line, the compact title and the guide's page, and Start's own offers are not yet limited to the forms the slot may take (A wallet's key stays in Make a new wallet)
 
 Every flow, where it starts, and where it leaves the person.
 
@@ -495,6 +496,72 @@ a key made here holds another slot) offers **Scan its xpub** first and
 **New words** beside it, which opens the same making in that slot; one
 making stands at a time, so opening it on another slot drops the first,
 asking when rolls or words are in.
+
+**A wallet's key stays in Make a new wallet** (owner, 2026-11-18; not
+built, see Open). While a wallet is being made, no press and no event
+leaves Make a new wallet for the separate New key flow. Every way of
+putting a key in a slot that New key offers there (This device, the other
+dice procedures, coins, cards, the camera, a mix, typed words, a SeedQR,
+codex32 strings, SLIP-39 shares, Seed XOR parts, and Make codex32 shares
+for a single key backed up as shares) is a step of Make a new wallet: the
+same cards New key draws, opened on Make a new wallet's own page.
+
+- **Where it opens.** **Other ways** under a slot's making on the Keys
+  card, **New key** on a slot (a single key backed up as shares, a
+  multisig slot marked for later), the foot's **New key for Key N**, the
+  Pull sheet's resume once the stick is out, the Discard sheet's reopen,
+  and **Make the rest** or **Add a share** on the codex32 form typed for
+  a slot. Each opens the key's cards for that slot inside Make a new
+  wallet, never the separate flow. The Pull sheet resumes the press as it
+  was made: Other ways opens the key's cards, not the card's dice again.
+- **What it shows.** The top app bar reads **Make a new wallet**, as on
+  the Keys card, and its way back is named after the step before. The
+  column's first line names the slot: "Key 1", or "Key 2 of 3" on a
+  multisig. While a share's codex32 characters are entered the bar reads
+  where the entry stands, as New key's does (F146). The sidebar's Make a
+  new wallet row stays lit, reading "Make a new wallet · Keys"; no New
+  key title, row or navigation entry appears. On the phone-size window
+  and the small panel the open card is the page, as for every step
+  column: the bar's name is Make a new wallet, the strip holds the key's
+  cards, and the rolls start on Typed or Buttons as on the Keys card.
+  This is Material 3's full-screen step within a flow, under the flow's
+  own top app bar; no step list is nested in another.
+- **Nothing asked twice.** Kind and the Backup card answer what New key's
+  Start would: Start stands closed on that answer with **Change**, which
+  offers only the forms the slot may take (BIP-39 words on a multisig
+  slot or a single key backed up as words; codex32 shares on a single key
+  backed up as shares) beside every way to add a key already held. A
+  length chosen on the Keys card is carried into Length, closed with
+  **Change**; Randomness opens with no way chosen, since Other ways was
+  pressed for another.
+- **Back, Cancel, leaving.** Back walks the key's cards back, then from
+  the first one opened returns to the Keys card with every answer of the
+  wallet as it was and the slot empty; the card's own making opens again
+  there, as it does whenever Keys opens. **Cancel** in the bar is the
+  key's, as F115 has it: it returns to the Keys card, asking first ("Discard
+  this key?") only when rolls, characters, words or a passphrase would be
+  lost. Rolls and words on the card are dropped when Other ways opens,
+  asking first as now. Leaving for another screen (the sidebar, Home, a
+  tab) drops the key's cards and keeps Make a new wallet as in progress;
+  its row opens it on Keys, the slot empty. **Add randomness**, opened
+  from This device, is a detour that returns to the key's cards, as it
+  returns to New key.
+- **Lock and the stick.** The person's Lock asks first and ends Make a
+  new wallet as its Cancel does, the key's cards with it. A stick plugged
+  in while something has been entered meets the lock sheet, as it does
+  anywhere a secret has been typed; one plugged in before then opens the
+  stick in Files and, once pulled, returns to Make a new wallet on Keys.
+  A stick put in while a key is being locked in holds Lock in until it is
+  out, as on the card.
+- **An error** (words that do not load, the self-test gate, Practice's
+  refusal, a frame refused) is said on the card it belongs to, and the
+  person stays on it.
+- **The key made.** Lock in loads the key as New key's Lock in does,
+  marked made here, and fills the slot; on a single key it makes the
+  wallet and opens Check, on a multisig it returns to the Keys card with
+  the slot filled. The words, rolls and passphrase are New key's own
+  state until then, and leave it only by Lock in into the session's keys
+  (`docs/KEYS.md`): there is no other copy and no reveal of its own.
 
 **Make a new key** (decisions 34 and 38, F103). Once Start has a
 choice, Length opens, no count chosen; pressing a count takes it and opens

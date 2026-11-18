@@ -395,13 +395,13 @@ vault takes no sheet. The Keys card is always shown (the vault counters it once 
 over are gone), and its empty first slot of a single key backed up as
 words, or Key 1 of a multisig while no slot holds a key made here,
 holds the making of its key in place of New key (F282, `docs/FLOWS.md`,
-A key made on the Keys card); the key flow New key opens from **Other
-ways** returns to Keys on Cancel. On the Keys card, a key chosen for one
+A key made on the Keys card); **Other ways** opens the key's cards inside
+Make a new wallet (F288), whose Cancel returns to Keys. On the Keys card, a key chosen for one
 slot — loaded here, or a cosigner's file — is not offered for any other
 slot, until the slot is cleared (`docs/history/NEW-WALLET.md` §2.2); its foot
 button reads **New key for Key N**
-while a slot is still empty, N the first one, and opens New key for it,
-else **Continue** (`docs/history/NEW-WALLET.md` §2.3). Check shows the
+while a slot is still empty, N the first one, and opens the key's cards for it
+inside Make a new wallet, else **Continue** (`docs/history/NEW-WALLET.md` §2.3). Check shows the
 descriptor as a summary row ("2 of 3 · native SegWit multisig ·
 9a6a2580, cf0e9805, 048ab54e · #qf45pmyh"), which opens the wallet's code
 with the descriptor's whole text under it, then the first addresses

@@ -28,6 +28,8 @@ pub(crate) struct KeyGenArea {
 #[derive(Clone, Copy)]
 pub(crate) enum Reopen {
     Slot(Option<u8>),
+    /// Other ways, with the length chosen on the card it left.
+    OtherWays(u8, Option<usize>),
     Card(u8),
     On(Start),
     Dice,

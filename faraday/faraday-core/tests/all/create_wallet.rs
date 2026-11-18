@@ -939,8 +939,8 @@ fn a_single_key_with_nothing_loaded_shows_keys_and_new_key_opens_from_it() {
     assert_eq!(app.screen, Screen::Create, "Keys is shown, not passed over");
     assert_eq!(app.create().and_then(|c| c.open), Some(cstep::KEYS));
     let _ = app.frame();
-    assert!(app.offers(Action::KeyGen(Some(0))), "New key is on Keys");
-    app.press(Action::KeyGen(Some(0)));
+    assert!(app.offers(Action::KeyOtherWays(0)), "Other ways is on Keys");
+    app.press(Action::KeyOtherWays(0));
     assert_eq!(app.screen, Screen::KeyGen);
     let k = app.keygen().unwrap();
     assert_eq!(k.slot, Some(0), "for slot 1");
@@ -961,7 +961,10 @@ fn with_a_key_in_the_session_the_keys_card_shows() {
     let fp = app.session.keys[0].fingerprint.0;
     let _ = app.frame();
     assert!(app.offers(Action::CSlotHere(0, fp)), "the key is offered");
-    assert!(app.offers(Action::KeyGen(Some(0))), "and New key beside it");
+    assert!(
+        app.offers(Action::KeyOtherWays(0)),
+        "and Other ways beside it"
+    );
 }
 
 #[test]

@@ -758,6 +758,10 @@ pub enum Action {
     /// Make this later multisig slot's key on Make a new wallet's Keys
     /// card, in place (F282): a making on another slot is dropped.
     KeyOnCard(u8),
+    /// **Other ways** under a slot's making on the Keys card: the key's
+    /// own cards for that slot, inside Make a new wallet, with the length
+    /// chosen on the card carried.
+    KeyOtherWays(u8),
     /// Open or close a new-key card.
     KStep(u8),
     /// A choice on New key's Start card, by its place in
@@ -1430,6 +1434,7 @@ impl Faraday {
             Action::WordList(a) => self.wordlist.act(a, &mut self.sheet),
             Action::KeyGen(_)
             | Action::KeyOnCard(_)
+            | Action::KeyOtherWays(_)
             | Action::KStep(_)
             | Action::KStart(_)
             | Action::KOthers
