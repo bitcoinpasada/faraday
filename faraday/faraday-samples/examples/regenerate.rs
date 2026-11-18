@@ -718,14 +718,17 @@ fn hsm_samples(c: &Compute) -> String {
 }
 
 /// The Core Lightning node every English words sample (the guide's key,
-/// the sample words and the abandon vector) gives, with no passphrase and
-/// under `faraday`.
+/// the sample words, the abandon vector and the Seed XOR sample's combined
+/// words) gives, with no passphrase and under `faraday`.
 fn hsm_words_nodes(c: &Compute, keys: &[Key]) -> Vec<[u8; 33]> {
     use faraday_bip::bip39::Mnemonic;
     let mut out = Vec::new();
     for k in keys {
-        let [words] = k.parts.as_slice() else {
-            continue;
+        // A multi-part key (Seed XOR) has the words its parts combine to.
+        let words = match k.parts.as_slice() {
+            [one] => one,
+            _ if !k.combined.is_empty() => &k.combined,
+            _ => continue,
         };
         if Mnemonic::parse(c, Language::English, words).is_err() {
             continue;

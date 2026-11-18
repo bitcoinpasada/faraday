@@ -1199,6 +1199,14 @@ static SAMPLE_NODES: &[[u8; 33]] = &[
         2, 214, 78, 144, 187, 17, 239, 62, 166, 108, 136, 130, 132, 12, 201, 116, 65, 217, 212, 94,
         63, 220, 113, 247, 65, 193, 78, 133, 78, 110, 56, 72, 55,
     ],
+    [
+        3, 70, 38, 122, 44, 120, 41, 184, 198, 211, 123, 151, 116, 193, 229, 200, 239, 136, 113,
+        49, 72, 55, 18, 65, 99, 51, 194, 146, 181, 246, 83, 189, 164,
+    ],
+    [
+        3, 202, 37, 154, 13, 179, 70, 84, 247, 227, 44, 3, 126, 137, 169, 202, 128, 55, 58, 100,
+        223, 10, 231, 199, 223, 127, 151, 211, 80, 132, 134, 184, 33,
+    ],
 ];
 
 /// Whether this Lightning node id is one of Faraday's public samples'
@@ -1207,20 +1215,25 @@ pub fn is_sample_node(id: &[u8; 33]) -> bool {
     SAMPLE_NODES.contains(id)
 }
 
-/// The fifteen-bit identifiers of Faraday's SLIP-39 samples' sets. A share
-/// with one is refused on Mainnet where a set is held; a real set has one of
-/// these by chance about three times in 32768.
-static SAMPLE_SLIP39_IDS: &[u16] = &[7945, 25653, 32134];
+/// The fifteen-bit identifier and iteration exponent of each of Faraday's
+/// SLIP-39 samples' sets; all three have the extendable flag clear. A share
+/// with one, not extendable, is refused on Mainnet where a set is held; a
+/// real set has one of these by chance about three times in 32768 and then
+/// only if it matches the exponent and is not extendable too.
+static SAMPLE_SLIP39_SETS: &[(u16, u8)] = &[(7945, 0), (25653, 2), (32134, 0)];
 
-/// Whether a SLIP-39 set with this identifier is one of Faraday's samples.
-pub fn is_sample_slip39_set(identifier: u16) -> bool {
-    SAMPLE_SLIP39_IDS.contains(&identifier)
+/// Whether a SLIP-39 share with this identifier, extendable flag and
+/// iteration exponent is of one of Faraday's samples' sets. Every set
+/// Faraday's own Convert writes is extendable, so none is.
+pub fn is_sample_slip39_set(identifier: u16, extendable: bool, exponent: u8) -> bool {
+    !extendable && SAMPLE_SLIP39_SETS.contains(&(identifier, exponent))
 }
 
-/// The samples' SLIP-39 identifiers, for the tests that check them.
+/// The samples' SLIP-39 identifiers with their iteration exponents, for the
+/// tests that check them.
 #[doc(hidden)]
-pub fn sample_slip39_ids() -> &'static [u16] {
-    SAMPLE_SLIP39_IDS
+pub fn sample_slip39_sets() -> &'static [(u16, u8)] {
+    SAMPLE_SLIP39_SETS
 }
 
 /// The samples' children, for the tests that check them.

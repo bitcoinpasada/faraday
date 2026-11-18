@@ -226,3 +226,34 @@ fn an_hsm_secret_file_of_a_sample_keys_words_is_refused_on_mainnet_and_read_on_t
     let n = l.node.as_ref().unwrap_or_else(|| panic!("{:?}", l.error));
     assert!(SAMPLES.inputs.hsm_words_nodes.contains(n.public()));
 }
+
+#[test]
+fn an_hsm_secret_file_of_the_seed_xor_samples_combined_words_is_refused_on_mainnet_and_read_on_testnet()
+ {
+    use faraday_bip::keys::Network;
+    let mut file = vec![0u8; 32];
+    file.extend_from_slice(crate::common::key("sample_xor").combined.as_bytes());
+    let opened = |network: Network| {
+        let mut app = testkit::started();
+        testkit::move_to(&mut app.session, network).unwrap();
+        testkit::inbox_file(&mut app, "hsm_secret", file.clone());
+        app.press(Action::Lightning);
+        app.press(Action::LCln(None));
+        let _ = app.frame();
+        let at = app.inbox().len() - 1;
+        app.press(Action::LFile(at));
+        testkit::settle(&mut app);
+        app
+    };
+    let app = opened(Network::Mainnet);
+    let l = app.lightning().unwrap();
+    assert!(l.node.is_none(), "Mainnet holds the node");
+    assert_eq!(
+        l.error.as_deref(),
+        Some(faraday_core::strings::EN.published_sample_node)
+    );
+    let app = opened(Network::Testnet);
+    let l = app.lightning().unwrap();
+    let n = l.node.as_ref().unwrap_or_else(|| panic!("{:?}", l.error));
+    assert!(SAMPLES.inputs.hsm_words_nodes.contains(n.public()));
+}

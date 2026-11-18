@@ -120,7 +120,7 @@ pub(crate) fn refused_text(r: &SetRefused, medium: crate::Medium) -> Text {
     match r {
         SetRefused::Stick(_) => Text::of(&crate::stick::keys_load(medium)),
         SetRefused::Practice => Text::of(EN.convert_set_practice),
-        SetRefused::Sample => Text::of(EN.published_sample_node),
+        SetRefused::Sample => Text::of(EN.published_sample_line),
         SetRefused::Share(e) => faraday_strings::bip::slip39_error(e),
         SetRefused::NotGiven => Text::of(EN.convert_not_given),
         SetRefused::NoRandomness => Text::of(EN.no_randomness),

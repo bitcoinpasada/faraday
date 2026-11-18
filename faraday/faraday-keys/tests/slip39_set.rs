@@ -95,11 +95,16 @@ fn made(keys: &Keys, group: u8, at: u8) -> Result<String, SetRefused> {
 
 /// A 2 of 3 set of a 16-byte seed made by Convert, with its shares.
 fn converted(shape: &[(u8, u8)], gt: u8) -> (Keys, Vec<String>) {
+    converted_with(shape, gt, 0x1234)
+}
+
+/// The same, the set's identifier as given.
+fn converted_with(shape: &[(u8, u8)], gt: u8, identifier: u16) -> (Keys, Vec<String>) {
     let c = compute();
     let mut source = Keys::on(Network::Testnet);
     source.add_seed(&c, &[7u8; 16], "").unwrap();
     let g = groups(shape);
-    let r = random(16, gt, &g, 0x1234);
+    let r = random(16, gt, &g, identifier);
     let lines = source
         .slip39_converted(&c, 0, gt, &g, &r, Reveal::PaperForm)
         .unwrap()
@@ -576,5 +581,28 @@ mod an_aezeed_and_a_set_held {
         // A share that is refused leaves the aezeed.
         assert!(keys.slip39_set_hold("not words at all").is_err());
         assert!(keys.aezeed_birthday().is_some());
+    }
+}
+
+/// A set Convert makes is held on Mainnet, one with a sample's identifier
+/// too, as it is extendable and a sample's is not.
+#[test]
+fn a_set_convert_made_is_held_on_mainnet_even_with_a_samples_identifier() {
+    let sample_ids: Vec<u16> = faraday_keys::published::sample_slip39_sets()
+        .iter()
+        .map(|s| s.0)
+        .collect();
+    for identifier in [0x1234, sample_ids[0], sample_ids[1], sample_ids[2]] {
+        let (_, shares) = converted_with(&[(2, 3)], 1, identifier);
+        assert_eq!(
+            sample_ids.contains(&identifier),
+            identifier != 0x1234,
+            "0x1234 is none of the samples'"
+        );
+        let mut keys = Keys::on(Network::Mainnet);
+        for s in &shares[..2] {
+            keys.slip39_set_hold(s).unwrap();
+        }
+        assert!(keys.slip39_set_facts().unwrap().recoverable);
     }
 }

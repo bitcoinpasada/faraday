@@ -299,23 +299,26 @@ fn lnds_sample_cipher_seed_is_not_held_for_convert_on_mainnet_but_is_on_testnet(
     }
 }
 
-/// The device refuses the samples' SLIP-39 sets on Mainnet by identifier,
-/// from its own short list.
+/// The device refuses the samples' SLIP-39 sets on Mainnet by identifier and
+/// iteration exponent, from its own short list.
 #[test]
 fn the_devices_list_of_slip39_sample_sets_is_every_identifier_the_samples_give() {
-    let mut derived: Vec<u16> = SAMPLES
+    let mut derived: Vec<(u16, u8)> = SAMPLES
         .keys
         .iter()
         .filter(|k| matches!(k.form, SampleForm::Slip39))
         .flat_map(|k| k.parts.iter())
         .map(|p| match part_of(p) {
-            Some(Part::Slip39(s)) => s.identifier(),
+            Some(Part::Slip39(s)) => {
+                assert!(!s.is_extendable(), "the samples are not extendable");
+                (s.identifier(), s.iteration_exponent())
+            }
             _ => panic!("a SLIP-39 share"),
         })
         .collect();
     derived.sort_unstable();
     derived.dedup();
-    let mut listed = faraday_keys::published::sample_slip39_ids().to_vec();
+    let mut listed = faraday_keys::published::sample_slip39_sets().to_vec();
     listed.sort_unstable();
     assert!(listed == derived, "the list is: {derived:?}");
 }

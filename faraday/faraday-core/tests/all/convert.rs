@@ -3537,3 +3537,24 @@ fn an_aezeeds_set_is_recorded_on_the_loaded_key_of_the_same_seed() {
     save_and_write(&mut app);
     assert!(app.session.keys[0].slip39.is_some(), "the same seed");
 }
+
+/// A sample's SLIP-39 set is refused on Mainnet in Convert with the line
+/// for a public sample seed, and nothing is held.
+#[test]
+fn a_sample_slip39_set_is_refused_in_convert_on_mainnet_as_a_public_sample_seed() {
+    let mut app = on_mainnet();
+    open(&mut app);
+    type_set(&mut app, &[SET_A]);
+    assert!(nothing_held(&app));
+    let error = convert::state(&app)
+        .unwrap()
+        .set
+        .as_ref()
+        .unwrap()
+        .error
+        .clone();
+    assert_eq!(
+        error.as_deref(),
+        Some(faraday_core::strings::EN.published_sample_line)
+    );
+}

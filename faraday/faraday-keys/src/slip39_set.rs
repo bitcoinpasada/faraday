@@ -176,12 +176,16 @@ fn same_ems(a: &Ems, b: &Ems) -> bool {
 }
 
 impl Keys {
-    /// Whether a SLIP-39 set with this identifier is one of Faraday's public
-    /// samples on Mainnet with no demo: refused, as a sample seed is.
-    fn is_sample_slip39_set(&self, identifier: u16) -> bool {
+    /// Whether this share is of one of Faraday's public samples' sets, on
+    /// Mainnet with no demo: refused, as a sample seed is.
+    fn is_sample_slip39_set(&self, share: &Share) -> bool {
         !self.demo()
             && self.network() == Network::Mainnet
-            && crate::published::is_sample_slip39_set(identifier)
+            && crate::published::is_sample_slip39_set(
+                share.identifier(),
+                share.is_extendable(),
+                share.iteration_exponent(),
+            )
     }
 
     /// Holds one more share of a SLIP-39 set, typed as `text`, and says
@@ -200,7 +204,7 @@ impl Keys {
             return Err(SetRefused::Practice);
         }
         let share = Share::parse(text).map_err(SetRefused::Share)?;
-        if self.is_sample_slip39_set(share.identifier()) {
+        if self.is_sample_slip39_set(&share) {
             return Err(SetRefused::Sample);
         }
         // Room for every member of every group, so the shares never move.
