@@ -881,7 +881,7 @@ standard fields it leaves empty, must be absent or empty:
 | Kind (`faraday.kind`), group | Record type | Fields, and the published form of each | Custom data |
 |---|---|---|---|
 | `seed`, Bitcoin keys | 2 | `Title`: its label, or "Key {fingerprint}". `Password` (protected): the BIP-39 words of its list, one space between; or `hex` (protected): a BIP-32 seed of 16 to 64 bytes in lower-case hex; exactly one of the two. `list`: a list other than English (`japanese`, `korean`, `spanish`, `chinese-simplified`, `chinese-traditional`, `french`, `italian`, `czech`, `portuguese`). `passphrase` (protected): its BIP-39 passphrase, present only when the person chose to keep it with the seed. | `faraday.load` `false` when it is not loaded at unlock (F62); `faraday.held` `true` while it was made in Faraday with its backup not done; `faraday.online` `true` when Faraday Demo wrote it on an online computer (never removed; Mainnet on the device keeps such a key only after a hold); `faraday.codex32`, `faraday.child`, `faraday.xor` and `faraday.slip39`, below |
-| `wallet`, Wallets | 3 | `Title`: its name. `policy`: its BIP-388 wallet policy, or `descriptor`: its descriptor (BIP 380) for a wallet with no policy form; exactly one. A wallet whose key has no origin is refused, never kept. | `faraday.load` as a seed's |
+| `wallet`, Wallets | 3 | `Title`: its name. `policy`: its BIP-388 wallet policy, or `descriptor`: its descriptor (BIP 380) for a wallet with no policy form; exactly one. A wallet whose key has no origin is refused, never kept. | `faraday.load` as a seed's; `faraday.checked`, below |
 | `note`, Notes | 4 | `Title`: "Note". `Notes`: the text. | |
 | `sheet`, Recovery sheets | 5 | `Title`: its name. `descriptor`. `Notes`: the sheet's note. The three together at most 16 KiB. | |
 | `gpg`, GPG keys | 7 | `Title`: the key's primary user ID. `key` (protected): the armored OpenPGP secret key as `gpg --export-secret-keys --armor` writes it, unprotected; required. `public`: the public certificate as last exported, armored. `revocation` (protected): the revocation certificate made with the key (F32), armored. `revoked`: when the key was marked revoked, an RFC 3339 date-time. | |
@@ -895,6 +895,20 @@ standard fields it leaves empty, must be absent or empty:
 The group names are Faraday's strings, written in the language the app
 is in; a kind is known by its custom data, never by its group's name, so
 a group renamed or an entry moved in a KeePass app changes nothing.
+
+A wallet's `faraday.checked` holds the places of the keys of its policy or
+descriptor that the person ticked as checked (compared with the device that
+holds them), in the order of the keys of the wallet's own text: their
+numbers from 1, ascending, comma-separated, as `2,3`; at most 64 numbers.
+It is written only when at least one key is ticked, so an entry without it,
+one written before it existed and one written by other software, means no
+key was ticked. A value that does not read (a number repeated or out of
+order, zero, a number over 64, text that is not a number, an empty part)
+means the same, and is never damage: the wallet opens and no key reads as
+checked. A place beyond the wallet's keys names no key and is dropped by
+the app. In the binary wallet record it is field 4, the same text. The
+vault holds only these ticks: Faraday works out which keys are "Yours" from
+the seeds itself and never reads it from the vault.
 
 A seed's `faraday.codex32` is its set's plain facts (`docs/CODEX32.md`
 §9.4), never a string of the set, as one TOML inline table: `k`, the

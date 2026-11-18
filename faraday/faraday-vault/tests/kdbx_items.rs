@@ -203,6 +203,13 @@ fn records() -> Vec<(Record, &'static str, &'static str)> {
             "",
             "",
         ),
+        (
+            Record::new(kind::WALLET)
+                .with(field::WALLET, policy.as_bytes())
+                .with(field::WALLET_CHECKED, b"2,3"),
+            "Wallets",
+            "",
+        ),
     ]
 }
 
@@ -388,7 +395,7 @@ fn an_item_is_written_in_its_published_form() {
         .entries()
         .map(|e| e.field("policy").is_some())
         .collect();
-    assert_eq!(names, [true, false]);
+    assert_eq!(names, [true, false, true]);
 }
 
 // --- Damage ---------------------------------------------------------------
@@ -1705,4 +1712,81 @@ fn a_codex32_share_written_online_reads_back_marked() {
     assert!(read.unreadable.is_empty(), "{:?}", read.unreadable);
     assert!(!faraday_vault::records::is_made_online(record_of(&read, 1)));
     assert!(faraday_vault::records::is_made_online(record_of(&read, 2)));
+}
+
+#[test]
+fn a_wallets_ticked_keys_are_one_custom_data_entry_and_none_is_no_entry() {
+    let read = read(&full());
+    let ticked = records().len() as u8;
+    assert_eq!(
+        faraday_vault::records::keys_checked(record_of(&read, ticked)),
+        [1, 2]
+    );
+    assert!(faraday_vault::records::keys_checked(record_of(&read, 4)).is_empty());
+    let doc = full();
+    let entry = |n: u8| {
+        doc.root()
+            .groups()
+            .flat_map(|g| g.entries())
+            .find(|e| e.uuid() == uuid(n))
+            .unwrap()
+    };
+    assert_eq!(entry(ticked).custom().get("faraday.checked"), Some("2,3"));
+    assert_eq!(entry(4).custom().get("faraday.checked"), None);
+}
+
+#[test]
+fn a_ticked_value_that_does_not_read_is_no_tick_and_the_wallet_still_opens() {
+    let policy = format!("wpkh(@0/**)\n{XPUB}");
+    for (i, v) in [
+        "",
+        "0",
+        "1,1",
+        "3,2",
+        "a",
+        "1,",
+        ",1",
+        "2;3",
+        " 2",
+        "-1",
+        "65",
+        "99999999999999999999",
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let mut doc = full();
+        let n = 150 + i as u8;
+        doc.root_mut()
+            .push_entry(bad(
+                n,
+                Some("wallet"),
+                &[("policy", &policy, false)],
+                &[("faraday.checked", v)],
+            ))
+            .unwrap();
+        let read = read(&doc);
+        assert!(read.unreadable.is_empty(), "{v:?}: {:?}", read.unreadable);
+        assert!(
+            faraday_vault::records::keys_checked(record_of(&read, n)).is_empty(),
+            "{v:?}"
+        );
+        assert!(record_of(&read, n).field(field::WALLET_CHECKED).is_none());
+    }
+}
+
+#[test]
+fn a_record_with_a_ticked_value_that_does_not_read_reads_as_none_ticked() {
+    for v in ["0", "1,1", "3,2", "a", "65"] {
+        let r = Record::new(kind::WALLET)
+            .with(field::WALLET, b"wpkh(@0/**)")
+            .with(field::WALLET_CHECKED, v.as_bytes());
+        assert!(faraday_vault::records::keys_checked(&r).is_empty(), "{v}");
+    }
+    let mut r = Record::new(kind::WALLET).with(field::WALLET, b"wpkh(@0/**)");
+    faraday_vault::records::set_keys_checked(&mut r, &[2, 1, 2]);
+    assert_eq!(r.field(field::WALLET_CHECKED), Some(&b"2,3"[..]));
+    assert_eq!(faraday_vault::records::keys_checked(&r), [1, 2]);
+    faraday_vault::records::set_keys_checked(&mut r, &[]);
+    assert!(r.field(field::WALLET_CHECKED).is_none());
 }

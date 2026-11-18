@@ -2498,3 +2498,43 @@ fn a_child_a_vault_records_under_a_public_sample_is_refused_on_mainnet_as_the_sa
     assert!(test.set_child_of(0, Some(of)));
     assert_eq!(test.published_pending(), None);
 }
+
+/// A wallet record of one key, with its checked ticks as typed.
+fn ticked_wallet(ticks: &[u8]) -> Record {
+    let mut r = Record::new(kind::WALLET).with(
+        field::WALLET,
+        b"wpkh([73c5da0a/84h/0h/0h]xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V/<0;1>/*)",
+    );
+    if !ticks.is_empty() {
+        r.push(field::WALLET_CHECKED, ticks);
+    }
+    r
+}
+
+#[test]
+fn a_wallets_ticked_keys_survive_a_seal_and_a_copy_and_are_set_by_name() {
+    let c = compute();
+    let from = made_with(&c, "first", vec![ticked_wallet(b"2,3"), ticked_wallet(b"")]);
+    let to = made_with(&c, "second", Vec::new());
+    let mut store = store();
+    let (a, _) = store.unlock(&c, from, "first").expect("opens");
+    let (b, _) = store.unlock(&c, to, "second").expect("opens");
+    let ticks = |s: &OpenVaults, id, i: usize| {
+        s.records(id)
+            .iter()
+            .nth(i)
+            .map(|(_, r)| r.keys_checked())
+            .expect("a record")
+    };
+    assert_eq!(ticks(&store, a, AT), [1, 2]);
+    assert!(ticks(&store, a, AT + 1).is_empty());
+    store.copy_record(a, AT, b, &[], false).expect("copied");
+    assert_eq!(ticks(&store, b, AT), [1, 2]);
+    assert!(store.set_keys_checked(b, AT, &[0]));
+    let sealed = seal(&mut store, &c, b);
+    let (again, _) = store.unlock(&c, sealed, "second").expect("opens");
+    assert_eq!(ticks(&store, again, AT), [0]);
+    assert!(store.set_keys_checked(again, AT, &[]));
+    assert!(ticks(&store, again, AT).is_empty());
+    assert!(!store.set_keys_checked(again, 0, &[0]), "the label");
+}

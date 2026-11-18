@@ -443,7 +443,7 @@ faraday-core sees an open vault's public fields and nothing else.
   and `gpg_revocation_kept_at` gives the date it was made.
 - **Reading.** `OpenVaults::records(id)` gives `Records`, whose records are
   `RecordView`s: `kind()`, `public`, `public_text`, `public_all`, `has`,
-  `len`, `loads_at_unlock`, `size`. `public` is `None` for a secret field.
+  `len`, `loads_at_unlock`, `keys_checked`, `size`. `public` is `None` for a secret field.
   `OpenVaults::version(id)` counts the edits of a vault.
 - **Revealing.** `OpenVaults::reveal(c, id, record, field, why)` lends a
   secret field as a `Revealed`, for a `Reveal` whose `Part` names it
@@ -465,7 +465,7 @@ faraday-core sees an open vault's public fields and nothing else.
   `key_record_id`.
 - **Editing.** `insert`, `insert_at`, `replace`, `remove`, `remove_where`,
   `set_public`, `set_public_all`, `set_public_all_in`, `set_secret`,
-  `set_fields` (a form), `set_loads_at_unlock`, `copy_record` and `stage`
+  `set_fields` (a form), `set_loads_at_unlock`, `set_keys_checked`, `copy_record` and `stage`
   (a copy of a record that waits to go into a vault as a `Staged`,
   readable by `view()` and nothing else), `fits`. A secret field is
   written only from input the caller holds, or copied inside the crate.

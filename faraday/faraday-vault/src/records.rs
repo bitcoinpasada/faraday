@@ -93,6 +93,10 @@ pub mod field {
     /// Wallet: flags, bit 0 not loaded at unlock
     /// ([`super::NO_LOAD_AT_UNLOCK`]). Absent, it loads.
     pub const WALLET_FLAGS: u8 = 3;
+    /// Wallet: the places of the keys the person ticked as checked, as
+    /// their numbers from 1, ascending, comma-separated ("2,3"). Absent,
+    /// no key is ticked ([`super::keys_checked`]).
+    pub const WALLET_CHECKED: u8 = 4;
 
     /// Note: the text.
     pub const NOTE: u8 = 1;
@@ -188,6 +192,13 @@ pub const BACKUP_PENDING: u8 = 2;
 /// clears it. Never a secret.
 pub const MADE_ONLINE: u8 = 4;
 
+/// The most keys a wallet's checked ticks can name.
+pub const MAX_CHECKED_KEYS: usize = 64;
+
+/// The longest text of the checked field: the numbers 1 to
+/// [`MAX_CHECKED_KEYS`] and their commas.
+const CHECKED_MAX_LEN: usize = 182;
+
 /// Why a record was refused.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Fault {
@@ -251,6 +262,7 @@ const WALLET_RULES: &[Rule] = &[
     rule(1, true, false, TEXT),
     rule(2, false, false, TEXT),
     rule(3, false, false, Shape::Exact(1)),
+    rule(4, false, false, Shape::Text(CHECKED_MAX_LEN)),
 ];
 const NOTE_RULES: &[Rule] = &[rule(1, true, false, TEXT)];
 const SHEET_RULES: &[Rule] = &[rule(1, true, false, Shape::Bytes)];
@@ -606,5 +618,77 @@ pub fn words_of(record: &Record) -> Option<Mnemonic> {
     match crate::layouts::payload_of(crate::layouts::KIND_WORDS, payload)? {
         crate::layouts::Opened::Words(m) => Some(m),
         _ => None,
+    }
+}
+
+/// The places (from 0) of the keys a wallet record has ticked as checked.
+/// Empty for no field, a record that is not a wallet's, and a value that
+/// does not read (a number repeated, out of order, zero, not a number or
+/// over [`MAX_CHECKED_KEYS`]): fail closed, nothing is ticked.
+pub fn keys_checked(record: &Record) -> Vec<usize> {
+    if record.kind != kind::WALLET {
+        return Vec::new();
+    }
+    record
+        .text(field::WALLET_CHECKED)
+        .and_then(parse_checked)
+        .unwrap_or_default()
+}
+
+/// The places (from 0) a checked value names, or `None` when it does not
+/// read.
+pub fn parse_checked(text: &str) -> Option<Vec<usize>> {
+    let mut places: Vec<usize> = Vec::new();
+    for part in text.split(',') {
+        if part.is_empty() || !part.bytes().all(|b| b.is_ascii_digit()) {
+            return None;
+        }
+        let n: usize = part.parse().ok()?;
+        if n == 0 || n > MAX_CHECKED_KEYS || places.last().is_some_and(|&l| l >= n) {
+            return None;
+        }
+        places.push(n);
+    }
+    Some(places.into_iter().map(|n| n.saturating_sub(1)).collect())
+}
+
+/// The text of a wallet's checked value for these places (from 0), as
+/// bytes, or `None` when there are none to write. Places from
+/// [`MAX_CHECKED_KEYS`] on are left out; the rest are sorted, once each.
+pub fn checked_text(places: &[usize]) -> Option<Vec<u8>> {
+    let mut v: Vec<usize> = places
+        .iter()
+        .copied()
+        .filter(|&p| p < MAX_CHECKED_KEYS)
+        .collect();
+    v.sort_unstable();
+    v.dedup();
+    if v.is_empty() {
+        return None;
+    }
+    let mut out: Vec<u8> = Vec::new();
+    for (i, p) in v.iter().enumerate() {
+        if i > 0 {
+            out.push(b',');
+        }
+        let n = p.saturating_add(1);
+        if n >= 10 {
+            out.push(b'0'.saturating_add((n / 10) as u8));
+        }
+        out.push(b'0'.saturating_add((n % 10) as u8));
+    }
+    Some(out)
+}
+
+/// Sets the places (from 0) of the keys a wallet record has ticked as
+/// checked; with none, the field is removed. Any other record is left as
+/// it is.
+pub fn set_keys_checked(record: &mut Record, places: &[usize]) {
+    if record.kind != kind::WALLET {
+        return;
+    }
+    match checked_text(places) {
+        Some(t) => record.set(field::WALLET_CHECKED, &t),
+        None => record.set(field::WALLET_CHECKED, &[]),
     }
 }

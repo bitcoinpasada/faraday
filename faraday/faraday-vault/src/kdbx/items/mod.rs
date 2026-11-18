@@ -146,7 +146,7 @@ fn named_custom(k: u8) -> &'static [&'static str] {
             "faraday.xor",
             "faraday.slip39",
         ],
-        kind::WALLET => &["faraday.load"],
+        kind::WALLET => &["faraday.load", "faraday.checked"],
         kind::CODEX32_SHARE => &["faraday.online"],
         _ => &[],
     }
@@ -527,6 +527,14 @@ fn read_kind(c: &Compute, k: u8, e: &Entry) -> Result<Body, Damage> {
             }
             if flag(e, "faraday.load")? == Some(false) {
                 r.push(field::WALLET_FLAGS, &[NO_LOAD_AT_UNLOCK]);
+            }
+            // A value that does not read is no tick, never a damaged entry.
+            if let Some(places) = e
+                .custom()
+                .get("faraday.checked")
+                .and_then(records::parse_checked)
+            {
+                records::set_keys_checked(&mut r, &places);
             }
             checked(r)?
         }

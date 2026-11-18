@@ -175,6 +175,9 @@ fn fields_for(c: &Compute, body: &Body, title: &str) -> Result<(Pairs, Pairs), U
             if !records::loads_at_unlock(r) {
                 cd.push(("faraday.load", z("false"), false));
             }
+            if let Some(t) = records::checked_text(&records::keys_checked(r)) {
+                cd.push(("faraday.checked", crate::wiped_copy(&t), false));
+            }
         }
         kind::NOTE => {
             fl.push(("Title", z(title), false));

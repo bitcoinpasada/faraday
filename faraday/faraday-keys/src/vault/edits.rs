@@ -532,6 +532,24 @@ impl OpenVaults {
         true
     }
 
+    /// Sets the places (from 0) of the keys wallet record `i` of open
+    /// vault `id` has ticked as checked; none removes the field. False
+    /// for a record that is not a wallet's.
+    pub fn set_keys_checked(&mut self, id: VaultId, i: usize, places: &[usize]) -> bool {
+        let Some(s) = self.slot_mut(id) else {
+            return false;
+        };
+        let Some(r) = s.records.get_mut(i) else {
+            return false;
+        };
+        if r.kind != kind::WALLET {
+            return false;
+        }
+        records::set_keys_checked(r, places);
+        s.touch(i);
+        true
+    }
+
     /// Costs what [`OpenVaults::fits`] costs. Writes a form into open
     /// vault `id`: record `at` (or, with `None` or a place with no
     /// record, a new record of type `kind`) gets each of `fields`, a field

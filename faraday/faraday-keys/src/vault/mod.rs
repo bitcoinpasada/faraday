@@ -220,6 +220,12 @@ impl<'a> RecordView<'a> {
         records::loads_at_unlock(self.record)
     }
 
+    /// The places (from 0) of the keys a wallet record has ticked as
+    /// checked; empty when none, or for any other record.
+    pub fn keys_checked(&self) -> Vec<usize> {
+        records::keys_checked(self.record)
+    }
+
     /// The bytes the record takes in a slot.
     pub fn size(&self) -> usize {
         self.record.size()
