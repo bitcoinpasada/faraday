@@ -306,6 +306,10 @@ way in place of the wallet:
 3. Nested SegWit.
 4. Legacy.
 
+With several keys the kind the seeds were shaped as comes first, then
+the others in the order native SegWit, Taproot, nested SegWit, legacy;
+each is tried once.
+
 After the last: **None of these show money.** "The words may belong to a
 wallet with several keys, or need a different passphrase." **Scan more**
 and **Type a passphrase** drop the guessed wallet and go back to page 3,

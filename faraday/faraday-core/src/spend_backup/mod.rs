@@ -187,6 +187,9 @@ pub enum Came {
 pub struct Guess {
     /// Several keys: the multisig kinds, else the single-key ways.
     pub multi: bool,
+    /// Several keys: the place in the multisig kinds of the one the seeds
+    /// were shaped as, tried first.
+    pub first: usize,
     /// The way tried now, by its place among the wallet's ways.
     pub at: usize,
     /// A passphrase was typed for the seed.
@@ -1313,7 +1316,7 @@ impl Faraday {
     /// The wallet just made from seeds alone is a guess: Check the money
     /// tries the other kinds.
     pub(crate) fn spend_backup_guess_start(&mut self, multi: bool) {
-        let at = if multi {
+        let first = if multi {
             MULTI_ORDER
                 .iter()
                 .position(|k| *k == self.spend_backup.state.seeds.kind)
@@ -1323,7 +1326,7 @@ impl Faraday {
         };
         self.spend_backup.state.guess = Some(Guess {
             multi,
-            at,
+            first,
             ..Guess::default()
         });
         self.spend_backup.state.closed[page::CHECK as usize] = false;
@@ -1342,7 +1345,14 @@ impl Faraday {
     /// whether a passphrase goes with it.
     pub(crate) fn guess_way(g: &Guess, at: usize) -> (NewKind, bool) {
         if g.multi {
-            (MULTI_ORDER[at.min(MULTI_ORDER.len() - 1)], false)
+            // The kind the seeds were shaped as, then the others in order.
+            let at = at.min(MULTI_ORDER.len() - 1);
+            let place = match at {
+                0 => g.first,
+                _ if at > g.first => at,
+                _ => at - 1,
+            };
+            (MULTI_ORDER[place], false)
         } else {
             let kind = match at {
                 0 | 1 => NewKind::NativeSegwit,
