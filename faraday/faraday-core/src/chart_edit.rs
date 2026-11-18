@@ -267,6 +267,41 @@ impl Faraday {
         }
     }
 
+    /// Costs what the plan the chart shows costs. A kept old Seed XOR
+    /// part of seed `i` with fingerprint `fp` destroyed: it leaves the
+    /// plan and the vault's copy of it, with its notes.
+    pub(crate) fn chart_destroyed(&mut self, press: Press, i: usize, fp: [u8; 4]) {
+        let c = self.compute();
+        let Some(w) = self.press_wallet(press) else {
+            return;
+        };
+        let Some(v) = self.notes_vault(&c, press, w) else {
+            return;
+        };
+        let Some(wallet) = self.session.wallets.get(w) else {
+            return;
+        };
+        let notes = self.plan_notes(&c, wallet, Some(v));
+        let Some((mut answers, names)) = crate::wallet_backup::plan_now(&c, self, w) else {
+            return;
+        };
+        answers.destroy_kept(i, fp);
+        let notes = crate::plan::xor::notes_after_destroyed(&notes, i, fp);
+        // The device's own record of the plan draws the chart first.
+        let sum = Text::of(wallet.checksum());
+        let mut records = self.backups_area.records().to_vec();
+        if let Some(r) = records
+            .iter_mut()
+            .find(|r| r.sum == sum && !r.answers.is_empty())
+        {
+            r.answers = Text::of(&answers.to_text());
+            self.backups_area.set_records(records);
+        }
+        self.plan_store(v, w, &answers, &names, &[], Some(&notes));
+        // The checklist, where it is open on this wallet, follows.
+        self.backup.follow_answers(w, answers);
+    }
+
     /// Costs what `notes_vault` costs. Whether the vault a date would be
     /// written into is a copy that is not the current one: it would live
     /// only there, so nothing is written, and the toast says so.
@@ -301,7 +336,12 @@ impl Faraday {
         // (`docs/decisions/F276.md`): never by this mark.
         let things: Vec<_> = things
             .into_iter()
-            .filter(|(_, w)| !matches!(w, What::XorPart(..) | What::Slip39Share(..)))
+            .filter(|(_, w)| {
+                !matches!(
+                    w,
+                    What::XorPart(..) | What::XorKept(..) | What::Slip39Share(..)
+                )
+            })
             .collect();
         let today = self.today();
         let kept = self.chart_notes_change(press, &|notes: &mut Vec<Note>| {

@@ -2405,3 +2405,67 @@ fn mark_checked_dates_what_is_in_a_place_but_never_a_seed_xor_part() {
         }
     }
 }
+
+// ---------------------------------------------------------------------
+// A kept old Seed XOR part: destroyed from its sheet, never dated by a mark
+// ---------------------------------------------------------------------
+
+/// `xor_vault_wallet` with its key split again (a new set the plan did not
+/// place): the plan's three placed parts read as kept old parts. The kept
+/// old parts' fingerprints.
+fn kept_old_parts() -> (Faraday, usize, Vec<[u8; 4]>) {
+    let (mut app, w) = xor_vault_wallet();
+    let old: Vec<[u8; 4]> = vec![
+        app.session.keys.info(0).expect("the key").fingerprint.0,
+        [5, 6, 7, 8],
+        [9, 10, 11, 12],
+    ];
+    assert!(app.session.keys.replace_xor(
+        0,
+        faraday_vault::xor::XorFacts {
+            parts: vec![[21, 22, 23, 24], [25, 26, 27, 28]]
+        }
+    ));
+    // Back up opens on the key's set, reads the plan's parts as old ones
+    // and saves it again in the vault.
+    app.press(Action::Backup(w));
+    app.press(Action::BChecklist);
+    app.press(Action::BVaultSave(0));
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::SaveWallet(w)));
+    app.press(Action::OpenWallet(w));
+    let _ = app.frame();
+    (app, w, old)
+}
+
+#[test]
+fn a_kept_old_parts_sheet_destroys_it() {
+    let (mut app, w, old) = kept_old_parts();
+    let (node, k) = line_holding(&app, w, What::XorKept(0, old[1]));
+    assert_eq!(node.checked[k], None);
+    app.press(Action::Chart(C::Destroyed(Press::Loaded(w), 0, old[1])));
+    let _ = app.frame();
+    for n in nodes(&chart(&app, w)) {
+        assert!(
+            !n.whats.contains(&What::XorKept(0, old[1])),
+            "the destroyed part is off the plan: {n:?}"
+        );
+    }
+    // The other old parts are still kept.
+    line_holding(&app, w, What::XorKept(0, old[0]));
+    line_holding(&app, w, What::XorKept(0, old[2]));
+}
+
+#[test]
+fn mark_checked_never_dates_a_kept_part() {
+    let (mut app, w, old) = kept_old_parts();
+    let (node, _) = line_holding(&app, w, What::XorKept(0, old[0]));
+    let (n, _) = node_of(&app, w, &node.name);
+    app.press(Action::Chart(C::Checked(Press::Loaded(w), n)));
+    let (_, node) = node_of(&app, w, &node.name);
+    for (i, what) in node.whats.iter().enumerate() {
+        if matches!(what, What::XorKept(..)) {
+            assert_eq!(node.checked[i], None, "{what:?} is not dated");
+        }
+    }
+}

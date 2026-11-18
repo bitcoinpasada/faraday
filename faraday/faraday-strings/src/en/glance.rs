@@ -245,6 +245,12 @@ macro_rules! words_glance {
     glance_sheet_rewrite: "Write it again",
     /// Row in `view`.
     glance_sheet_stick_detail: "For the stick",
+    /// A kept old Seed XOR part's line on the chart. `{}`: the seed, the chip's text.
+    glance_xor_old_part: "Seed {}: {}",
+    /// Row in `view`: a kept old Seed XOR part, taken off the plan.
+    glance_sheet_destroyed_it: "I destroyed it",
+    /// Text in `view`: under a kept old part's row.
+    glance_sheet_destroyed_detail: "Takes it off the plan",
     /// Row in `view`.
     glance_sheet_check_row: "Check it",
     /// Row in `view`.

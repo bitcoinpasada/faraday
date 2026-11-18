@@ -126,6 +126,9 @@ pub enum ChartAction {
     PassTry(Press),
     /// Move the money to a new wallet.
     MoveMoney(Press),
+    /// A kept old Seed XOR part of seed `i` with this fingerprint
+    /// destroyed: off the plan.
+    Destroyed(Press, usize, [u8; 4]),
 }
 
 /// One action row of a sheet.
@@ -983,9 +986,16 @@ fn line(ctx: &Ctx<'_>, n: u8, j: u8) -> Option<View> {
                 ctx.doing(Step::PartCheck(i, p)),
             ));
         }
-        // A kept old part has no check: it is destroyed from its sheet
-        // once the chart offers that.
-        What::Slip39Share(..) | What::XorKept(..) => {}
+        What::Slip39Share(..) => {}
+        // A kept old part has no check: its sheet takes it off the plan
+        // once it is destroyed (`docs/decisions/F285.md`).
+        What::XorKept(s, fp) => {
+            rows.push(row(
+                EN.glance_sheet_destroyed_it,
+                EN.glance_sheet_destroyed_detail,
+                ctx.chart_do(ChartAction::Destroyed(press, s, fp)),
+            ));
+        }
         What::Sheet => {
             rows.push(row(EN.glance_sheet_reprint, "PDF", ctx.doing(Step::Out(3))));
             rows.push(row(EN.glance_sheet_as_a_qr, "PNG", ctx.doing(Step::Out(8))));
@@ -1608,6 +1618,10 @@ impl Faraday {
             ChartAction::Save(press) => self.chart_save_name(press),
             ChartAction::PassTry(press) => self.chart_pass_try(press),
             ChartAction::MoveMoney(press) => self.chart_move_money(press),
+            ChartAction::Destroyed(press, i, fp) => {
+                self.chart_destroyed(press, i, fp);
+                self.close_chart();
+            }
             ChartAction::Do(press, step) => {
                 self.close_chart();
                 let Some(w) = self.press_wallet(press) else {

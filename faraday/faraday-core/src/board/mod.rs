@@ -55,6 +55,9 @@ pub enum Thing {
     String(usize, usize),
     /// Seed XOR part `j` of seed `i`, paper only (`docs/decisions/F276.md`).
     Part(usize, usize),
+    /// A kept old Seed XOR part of seed `i`, by its master fingerprint,
+    /// paper only (`docs/decisions/F285.md`).
+    Kept(usize, [u8; 4]),
     /// SLIP-39 share `m` of group `g` of seed `i`, paper only.
     Slip(usize, usize, usize),
     /// Seed `i`'s Krux encrypted code (`docs/KEF.md` §15.1): a chip the
@@ -390,6 +393,7 @@ fn forms_in(k: Kind, t: Thing) -> Vec<What> {
         (Kind::Vault, Thing::String(i, j)) => vec![What::Codex32Share(i, j)],
         // A part or a share is paper only: never a file, a stick or a vault.
         (Kind::Paper, Thing::Part(i, j)) => vec![What::XorPart(i, j)],
+        (Kind::Paper, Thing::Kept(i, fp)) => vec![What::XorKept(i, fp)],
         (Kind::Paper, Thing::Slip(i, g, m)) => vec![What::Slip39Share(i, g, m)],
         (Kind::Files, Thing::Seed(i)) => vec![What::SeedFile(i), What::SeedQrFile(i)],
         (Kind::Files, Thing::Pass(i)) => vec![What::PassphraseFile(i)],
@@ -445,9 +449,7 @@ pub(crate) fn things_of(w: What) -> Vec<Thing> {
         What::KefCode(i) | What::KefCodePaper(i) => vec![Thing::Kef(i)],
         What::XorPart(i, j) => vec![Thing::Part(i, j)],
         What::Slip39Share(i, g, m) => vec![Thing::Slip(i, g, m)],
-        // A kept old part is no chip yet: the board draws it with the
-        // old set's group once that is built.
-        What::XorKept(..) => Vec::new(),
+        What::XorKept(i, fp) => vec![Thing::Kept(i, fp)],
     }
 }
 
@@ -520,7 +522,11 @@ pub fn takes(shape: &Shape, z: Zone, t: Thing, locked: bool) -> bool {
     let shares = |i: usize| shape.seeds.get(i).is_some_and(|s| s.shares);
     let thing_ok = match t {
         Thing::Seed(i) => here(i) || (shares(i) && matches!(z, Zone::Vault(..))),
-        Thing::String(i, _) | Thing::Part(i, _) | Thing::Slip(i, ..) | Thing::Kef(i) => here(i),
+        Thing::String(i, _)
+        | Thing::Part(i, _)
+        | Thing::Kept(i, _)
+        | Thing::Slip(i, ..)
+        | Thing::Kef(i) => here(i),
         Thing::Pass(i) => shape.seeds.get(i).is_some_and(|s| s.here && s.passphrase),
         Thing::Share(j) => shape.splits && j < shape.keys,
         Thing::Whole | Thing::Vault(_) | Thing::Software => true,
@@ -537,7 +543,9 @@ pub fn takes(shape: &Shape, z: Zone, t: Thing, locked: bool) -> bool {
         ) => true,
         (_, Thing::Vault(_)) | (Zone::Card(_), _) => false,
         // A code is no vault record: it goes on paper or a stick's files.
-        (Zone::Vault(..), Thing::Kef(_) | Thing::Part(..) | Thing::Slip(..)) => false,
+        (Zone::Vault(..), Thing::Kef(_) | Thing::Part(..) | Thing::Kept(..) | Thing::Slip(..)) => {
+            false
+        }
         (Zone::Vault(..), _) => true,
         _ if locked => false,
         (Zone::Scanned, _) => false,
@@ -1036,6 +1044,14 @@ impl Faraday {
                         .map_or_else(String::new, |s| String::from(&*s.name)),
                     &(j + 1).to_string(),
                 ],
+            ),
+            Thing::Kept(i, _) => format!(
+                "{} · {}",
+                shape
+                    .seeds
+                    .get(i)
+                    .map_or_else(String::new, |s| String::from(&*s.name)),
+                EN.board_xor_old_chip
             ),
             Thing::Slip(i, g, m) => fill(
                 EN.board_slip39_chip,
@@ -1824,9 +1840,11 @@ impl Faraday {
         }
         match c.thing() {
             Thing::Seed(i) => shape.seeds.get(i).is_some_and(|s| s.here || s.shares),
-            Thing::String(i, _) | Thing::Part(i, _) | Thing::Slip(i, ..) | Thing::Kef(i) => {
-                shape.seeds.get(i).is_some_and(|s| s.here)
-            }
+            Thing::String(i, _)
+            | Thing::Part(i, _)
+            | Thing::Kept(i, _)
+            | Thing::Slip(i, ..)
+            | Thing::Kef(i) => shape.seeds.get(i).is_some_and(|s| s.here),
             _ => true,
         }
     }

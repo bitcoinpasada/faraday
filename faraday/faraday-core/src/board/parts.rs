@@ -46,6 +46,27 @@ pub(crate) fn groups(shape: &Shape, a: &Answers, entry: &dyn Fn(Thing) -> Entry)
                     .collect(),
             });
         }
+        // Each old set whose parts the plan keeps: a group of its own,
+        // a chip per part still on the map.
+        for x in a.old_sets(i) {
+            let chips: Vec<Entry> = x
+                .parts
+                .iter()
+                .map(|&fp| entry(Thing::Kept(i, fp)))
+                .filter(|e| !e.count.is_empty())
+                .map(|e| Entry {
+                    name: EN.board_xor_old_chip.to_string(),
+                    ..e
+                })
+                .collect();
+            if !chips.is_empty() {
+                out.push(C32Group {
+                    seed: i,
+                    head: fill(EN.board_xor_old_head, &[seed]),
+                    strings: chips,
+                });
+            }
+        }
         if let Some(z) = a.slip39(i) {
             let mut chips = Vec::new();
             for (g, grp) in z.groups.iter().enumerate() {
