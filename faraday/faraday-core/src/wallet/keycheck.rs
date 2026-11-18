@@ -114,6 +114,14 @@ impl KeyChecks {
         self.states = self.shown.iter().map(|r| r.mark.state()).collect();
     }
 
+    /// Sets each row's `waiting` as `waits` says.
+    fn set_waiting(&mut self, waits: impl Fn(&KeyRow) -> bool) {
+        for r in &mut self.given {
+            r.waiting = waits(r);
+        }
+        self.apply();
+    }
+
     pub(crate) fn states(&self) -> &[KeyCheck] {
         &self.states
     }
@@ -154,6 +162,37 @@ impl KeyChecks {
 }
 
 impl Session {
+    /// The keys here whose backup is not done are `held` (what
+    /// `Faraday::held_keys_now` says): the rows of each added wallet and
+    /// of each wallet waiting to be confirmed say so for those keys. A
+    /// lookup; the rows made after this read it as they are made.
+    pub(crate) fn set_waiting(&mut self, held: Vec<Fingerprint>) {
+        let waits = |r: &KeyRow, now: &[Fingerprint]| {
+            matches!(r.mark, Mark::Yours(_))
+                && now
+                    .iter()
+                    .any(|f| r.fingerprint == crate::wallet::fp_text(*f))
+        };
+        for w in &mut self.wallets {
+            w.key_checks.set_waiting(|r| waits(r, &held));
+        }
+        for a in &mut self.wallet_asked {
+            for r in &mut a.rows.keys {
+                r.waiting = waits(r, &held);
+            }
+        }
+        self.waiting = held;
+    }
+
+    /// Whether any wallet's key rows are kept, or a wallet waits to be
+    /// confirmed, or a key is marked as not backed up: the rows may need
+    /// the words of `set_waiting` worked out again.
+    pub(crate) fn shows_key_states(&self) -> bool {
+        !self.waiting.is_empty()
+            || !self.wallet_asked.is_empty()
+            || self.wallets.iter().any(|w| !w.key_checks.rows().is_empty())
+    }
+
     /// Toggles the person's tick of key `key` of wallet `wallet` where the
     /// key is unchecked or checked by them; nothing for a key a loaded key
     /// gives or one that is wrong. A lookup.
@@ -197,8 +236,10 @@ fn line_of(keys: &[KeyRow]) -> Option<(Text, Role)> {
 }
 
 /// One key's state, as a mark and words. Returns the height.
-fn state_row(ui: &mut Ui, mark: &Mark, (x, y, w): (f32, f32, f32)) -> f32 {
+fn state_row(ui: &mut Ui, (mark, waiting): (&Mark, bool), (x, y, w): (f32, f32, f32)) -> f32 {
     let (text, tone): (&str, Role) = match mark {
+        Mark::Yours(true) if waiting => (EN.mscheck_yours_waiting_single, Role::Ok),
+        Mark::Yours(false) if waiting => (EN.mscheck_yours_waiting, Role::Ok),
         Mark::Yours(true) => (EN.mscheck_yours_single, Role::Ok),
         Mark::Yours(false) => (EN.mscheck_yours, Role::Ok),
         Mark::Checked => (EN.keycheck_checked, Role::Ok),
@@ -238,7 +279,7 @@ pub(crate) fn draw_keys(
         cy += ui.wrap_as((x, y + cy, w), BODY_M.mono(), Role::OnSurface, &k.xpub);
         let shows = states || matches!(k.mark, Mark::Yours(_) | Mark::Wrong(_));
         if shows {
-            cy += state_row(ui, &k.mark, (x, y + cy, w));
+            cy += state_row(ui, (&k.mark, k.waiting), (x, y + cy, w));
         }
         if states
             && let Mark::Unchecked | Mark::Checked = k.mark

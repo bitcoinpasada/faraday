@@ -700,6 +700,7 @@ impl Faraday {
         if self.flows.drop_flow(i) && self.vaults.back_to == Some(Screen::BackupFlow) {
             self.vaults.leave_create();
         }
+        self.sync_waiting();
         self.in_progress.flow_removed(i);
     }
 

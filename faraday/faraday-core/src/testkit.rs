@@ -2101,6 +2101,12 @@ pub fn mark_made_here(app: &mut crate::Faraday, fp: faraday_bip::keys::Fingerpri
     app.mark_made_here(fp);
 }
 
+/// Key `fp`'s backup is done: it is no longer held (a press after it
+/// brings the screens in step, as it does when a flow releases it).
+pub fn release_made(app: &mut crate::Faraday, fp: faraday_bip::keys::Fingerprint) {
+    app.flows.release_made(fp, &[]);
+}
+
 /// Opens the vanity screen's card `step`, as a press on it does.
 pub fn vanity_open_card(app: &mut crate::Faraday, step: u8) {
     app.vanity.open_card(step);

@@ -51,6 +51,8 @@ pub(crate) struct KeyRow {
     /// The extended public key whole, in groups of four.
     pub(crate) xpub: Text,
     pub(crate) mark: Mark,
+    /// A `Yours` key made here whose backup is not done: it signs once it is.
+    pub(crate) waiting: bool,
 }
 
 /// The rows of the confirmation sheet, worked out once.
@@ -149,6 +151,8 @@ pub(crate) fn key_row(
         (Some(fp), Some(path)) => mark_of(session, c, memo, k.xpub(), fp, path),
         _ => Mark::Unchecked,
     };
+    let waiting =
+        matches!(mark, Mark::Yours(_)) && fp.is_some_and(|f| session.waiting.contains(&f));
     KeyRow {
         number: Text::fill(EN.mscheck_key, &[&Text::num(i as u64 + 1)]),
         fingerprint: fp.map(fp_text).unwrap_or_default(),
@@ -157,6 +161,7 @@ pub(crate) fn key_row(
             .unwrap_or_default(),
         xpub: groups_of_four(&k.xpub().to_string()),
         mark,
+        waiting,
     }
 }
 

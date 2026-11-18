@@ -28,7 +28,7 @@ The result is what the setup says. It does not show that a signer holds a key or
 
 **Key:** multisig-check.marks
 
-Each key has a mark. A green check with **Yours, can sign** is a key this device worked out from a seed loaded here. A green check with **Checked by you** is a key you ticked. A grey circle with **Not checked** is a key nothing here vouches for. A red cross is a key that claims the fingerprint of a key loaded here and is not that key: do not use the wallet. Under the keys a line says how many are not checked, or **Every key checked**.
+Each key has a mark. A green check with **Yours, can sign** is a key this device worked out from a seed loaded here; a key made here whose backup is not done reads **Yours, signs after its backup**, as it signs nothing until the backup is done. A green check with **Checked by you** is a key you ticked. A grey circle with **Not checked** is a key nothing here vouches for. A red cross is a key that claims the fingerprint of a key loaded here and is not that key: do not use the wallet. Under the keys a line says how many are not checked, or **Every key checked**.
 
 ## Ticking a key
 

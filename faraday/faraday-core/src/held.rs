@@ -83,6 +83,16 @@ impl Faraday {
     /// Marks key `fp` as made here: held until its backup is done.
     pub(crate) fn mark_made_here(&mut self, fp: Fingerprint) {
         self.flows.note_made(fp);
+        self.sync_waiting();
+    }
+
+    /// Costs what `held_keys_now` costs. The rows of the wallets say
+    /// "signs after its backup" for the keys held now, worked out again
+    /// when a key is made, loaded or removed and when a backup is done.
+    pub(crate) fn sync_waiting(&mut self) {
+        let c = self.compute();
+        let held = self.held_keys_now(&c);
+        self.session.set_waiting(held);
     }
 
     /// Costs what `held_keys_stored_with` costs. The keys here that are

@@ -156,3 +156,38 @@ fn a_seed_loaded_later_makes_its_key_yours_and_the_ticks_stay() {
     assert_eq!(w.key_ticks(), [false, true, true]);
     assert_eq!(w.keys_unchecked(), 0);
 }
+
+fn last_fingerprint(app: &Faraday) -> faraday_bip::keys::Fingerprint {
+    app.session.keys.last().unwrap().fingerprint
+}
+
+#[test]
+fn a_key_made_here_reads_signs_after_its_backup_until_the_backup_is_done() {
+    let mut app = app_with_wallet_file();
+    add_key(&mut app, 0);
+    let fp = last_fingerprint(&app);
+    testkit::mark_made_here(&mut app, fp);
+    app.press(Action::LoadWallet(0));
+    let s = shown(&mut app);
+    assert!(s.contains("Yours, signs after its backup"), "{s}");
+    assert!(!s.contains("Yours, can sign"), "{s}");
+    assert!(s.contains("2 keys not checked"), "{s}");
+    testkit::release_made(&mut app, fp);
+    tick(&mut app, 1);
+    let s = shown(&mut app);
+    assert!(s.contains("Yours, can sign"), "{s}");
+}
+
+#[test]
+fn a_key_loaded_from_words_reads_can_sign_in_a_wallet_beside_a_key_made_here() {
+    let mut app = app_with_wallet_file();
+    add_key(&mut app, 0);
+    add_key(&mut app, 1);
+    let made = last_fingerprint(&app);
+    testkit::mark_made_here(&mut app, made);
+    app.press(Action::LoadWallet(0));
+    let s = shown(&mut app);
+    assert!(s.contains("Yours, can sign"), "{s}");
+    assert!(s.contains("Yours, signs after its backup"), "{s}");
+    assert!(s.contains("1 key not checked"), "{s}");
+}

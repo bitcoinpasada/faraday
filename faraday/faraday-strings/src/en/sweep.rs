@@ -554,6 +554,10 @@ macro_rules! words_sweep {
     mscheck_yours: "Yours, can sign",
     /// Check a multisig setup: a cosigner that is a single-key account of a key loaded here.
     mscheck_yours_single: "Yours, can sign · your single-key account",
+    /// Check a multisig setup: a cosigner a key made here is, whose backup is not done.
+    mscheck_yours_waiting: "Yours, signs after its backup",
+    /// Check a multisig setup: a single-key account of a key made here, whose backup is not done.
+    mscheck_yours_waiting_single: "Yours, signs after its backup · your single-key account",
     /// A key of a wallet of several keys that the person ticked as compared with its own device.
     keycheck_checked: "Checked by you",
     /// A key of a wallet of several keys that nothing vouches for; a press ticks it.

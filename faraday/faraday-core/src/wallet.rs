@@ -652,6 +652,9 @@ pub struct Session {
     /// add and held back, in the order found, one sheet each. Empty while
     /// nothing waits.
     wallet_asked: std::collections::VecDeque<WalletAsk>,
+    /// The keys here whose backup is not done: a loaded key of a wallet
+    /// reads "signs after its backup" (`Session::set_waiting`).
+    waiting: Vec<Fingerprint>,
     /// How many wallets of the run now waiting were confirmed or
     /// cancelled already: the sheet's "{i} of {n}". Zero once none waits.
     wallet_asked_past: usize,
@@ -719,6 +722,7 @@ impl Default for Session {
             modes: crate::modes::STICK_MODES,
             key_marks: crate::codex32_correct::KeyMarks::default(),
             wallet_asked: std::collections::VecDeque::new(),
+            waiting: Vec::new(),
             wallet_asked_past: 0,
             wallet_asked_last: 0,
             wallet_covered: None,
@@ -795,6 +799,7 @@ impl Session {
             modes: crate::modes::STICK_MODES,
             key_marks: crate::codex32_correct::KeyMarks::default(),
             wallet_asked: std::collections::VecDeque::new(),
+            waiting: Vec::new(),
             wallet_asked_past: 0,
             wallet_asked_last: 0,
             wallet_covered: None,
@@ -4242,6 +4247,7 @@ impl Faraday {
     pub(crate) fn drop_forged_wallets(&mut self) {
         let c = self.compute();
         let dropped = self.session.drop_forged(&c);
+        self.sync_waiting();
         if let Some((name, why)) = dropped.first() {
             let text = Text::fill(EN.vaults_refused, &[name, why]);
             self.wallets.set_wallet(0);
