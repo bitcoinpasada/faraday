@@ -133,7 +133,7 @@ recipe (F243, F284), nothing else.
 just                      the tests, then every lint run to the end (lint-all)
 just test                 the tests alone (nextest over the workspace, then the vendored QR reader's own, then the doc tests)
 just test-doc             the doc tests alone
-just test-i686            the tests of the parser crates (sb, fat, files, disk, codec, psbt, bip) as a 32-bit program, as the Pi runs them
+just test-i686            the tests of the parser crates (sb, fat, files, disk, codec, psbt, bip, the vendored QR reader) as a 32-bit program, as the Pi runs them
 just lint                 clippy with warnings as errors, fmt, and the repository's lints, in five parts:
 just lint-clippy          clippy over every target, then the stick's app as its image builds it
 just lint-deps            cargo deny, cargo vet, the fuzz crates built

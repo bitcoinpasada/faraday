@@ -614,7 +614,11 @@ mod tests {
             y: -1_000_000_000,
         };
         let area = projected_module_area(seed, &capstone(scaled(2e9)), &capstone(scaled(2e9)));
-        assert!(area.is_some_and(|a| a > 3_000_000_000_000_000_000));
+        // A 32-bit usize cannot hold the area: there it is refused.
+        match usize::try_from(3_000_000_000_000_000_000_u64) {
+            Ok(least) => assert!(area.is_some_and(|a| a > least)),
+            Err(_) => assert_eq!(area, None),
+        }
     }
 
     #[test]
