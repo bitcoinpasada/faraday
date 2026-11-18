@@ -924,7 +924,12 @@ one to 16 inline tables, `threshold` (1 to its `count`; a member threshold
 of 1 needs `count` 1, as SLIP-39 itself requires), `count` (1 to 16)
 and `made`, the member indices made (0 up to one below `count`, each once).
 Neither holds a part or a share: only numbers and fingerprints, public.
-A key has at most one set of each kind; a second is refused. In the binary
+A key has at most one set of each kind; a second is refused, except that
+Back up's Make new parts replaces the Seed XOR set with a new one (F285): the
+record keeps the new set only, in the same layout, and the old parts the
+plan placed are the plan's (`faraday.plan.{n}`: `xorold` lines and `xork`
+spot tokens, a plan with none the same bytes as before; an older Faraday
+reads one with either as a plan it cannot read and keeps it as read). In the binary
 key record they are fields 7 (`faraday.xor`) and 8 (`faraday.slip39`),
 `faraday-vault/src/xor.rs` and `slip39.rs` giving their layouts. A record
 without them reads as it always did. An older Faraday that does not know

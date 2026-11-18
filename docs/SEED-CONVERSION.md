@@ -61,9 +61,10 @@ standard it is and which software restores it.
 checked on the plan, by their recorded fingerprint. A whole Seed XOR set
    or SLIP-39 set saved here for a loaded key is recorded on that key as
    its public facts once its files are written, never when the sheet is
-   cancelled (the key's fingerprint matches; a key has one set of a kind,
-   so a second is not recorded and the first stays; no part or share is
-   kept), and a vault save keeps
+   cancelled (the key's fingerprint matches; a key has one set of a kind
+   in use, so a second split here is not recorded and the first stays:
+   only Back up's Make new parts replaces a Seed XOR set, F285; no part
+   or share is kept), and a vault save keeps
    them (`docs/VAULT.md` §7). Shares typed in as a source are no loaded
    key and record nothing. The tool's "codex32 set → a new codex32 set" always
    makes a fresh set with its own identifier, which never combines with

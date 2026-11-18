@@ -2844,7 +2844,8 @@ files, not a vault. Its line reads where it is kept and "Not checked".
 A Seed XOR set Back up makes on its paper section becomes the key's form
 the same way, as Convert's does, with its parts placed as the plan's
 places have them. A key has one Seed XOR set in use: a second split is **Make new parts**,
-which replaces it (F285).
+which replaces it (F285), and the old parts the plan placed stay as kept
+old parts.
 
 Back up's Seed XOR section reads "On the plan: Place 1, Place 2, Place 3"
 (the places the parts are placed at) where it read "Not on the plan".
@@ -2891,8 +2892,7 @@ that has none. A kept part records a fingerprint and a place, never a
 word.
 
 **Open:** a SLIP-39 share has no fingerprint of its own kept, so a share's
-copy is not checked here. Make new parts is not built: a second split of a
-key that has a set is still refused, and the plan has no kept old part.
+copy is not checked here.
 
 ## 19. The quick paper backup (owner, 2026-11-17)
 

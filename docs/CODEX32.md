@@ -1646,7 +1646,10 @@ same seed, and the plan would not know about the first.
   an unused index, with the same identifier, and its chip is placed like
   the others.
 - **A new set on purpose** is **Rotate the set** (§9.7), never a
-  second split beside the first.
+  second split beside the first. (A Seed XOR set differs: its second
+  split is Back up's **Make new parts**, which replaces the key's set and
+  keeps the old parts the plan placed as kept old parts, `docs/BACKUP-FLOW.md`
+  §17.26, F285.)
 - **A key made of words** has no set and is given none: the board and
   the copies by hand offer no codex32 strings for it (§9.1, §9.2).
 

@@ -25,7 +25,7 @@ A line gives the place, what it holds (or **Nothing**), a tag and what was seen 
 
 **Key:** backups.sheet
 
-Choosing a place's row opens that place's sheet. For a Seed XOR part it has **Check my copy**. **Mark checked** never dates a part or a share: only a copy you typed back counts.
+Choosing a place's row opens that place's sheet. For a Seed XOR part it has **Check my copy**. An old part still kept after Make new parts has I destroyed it instead. **Mark checked** never dates a part or a share: only a copy you typed back counts.
 
 ## What was seen
 

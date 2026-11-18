@@ -702,7 +702,8 @@ kept across a lock (kept state, `backups`) and gone at power-off. A
 backup of the wallet opened again starts with its seeds checked.
 A press on a place's row opens that place's sheet (§12) over Backups: a
 place of paper with Seed XOR parts or SLIP-39 shares has a sheet too, and
-its parts are counted there. A Seed XOR part's sheet has **Check my copy**:
+its parts are counted there. An old Seed XOR part still kept (Make new
+parts, F285) has a sheet with **I destroyed it** and no check. A Seed XOR part's sheet has **Check my copy**:
 the words typed back are compared by their master fingerprint with the
 part's recorded one, with no part kept here, so a part counts as
 **Checked** after Back up is gone. A SLIP-39 share has no fingerprint of
