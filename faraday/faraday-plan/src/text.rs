@@ -63,7 +63,7 @@ impl Answers {
             }
             out.push('\n');
         }
-        // Whether the board was opened for changes (§19.6).
+        // Whether the board was opened for changes (§17.6).
         if self.custom {
             out.push_str("custom 1\n");
         }

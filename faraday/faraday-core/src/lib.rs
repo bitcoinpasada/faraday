@@ -775,7 +775,7 @@ impl PlanPress {
 /// Costs what `of` costs. The cards of a plan, in
 /// order (`docs/BACKUP-FLOW.md` §15.1, §17.1): the board, the software
 /// where the description goes into software or as files, and The plan.
-/// Back up's and a wallet flow's alike (§19.12 item 1).
+/// Back up's and a wallet flow's alike (§17.12 item 1).
 pub fn plan_cards(c: &Compute, shape: &plan::Shape, a: &plan::Answers) -> Vec<u8> {
     plan_cards_on(&plan::Mapped::of(c, shape, a))
 }

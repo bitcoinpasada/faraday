@@ -2209,7 +2209,7 @@ fn check_boxes(ui: &mut Ui, x: f32, y: f32, w: f32, c: plan::Check, beside: bool
         Found::OnlyWithVault => Role::Primary,
         Found::No => Role::Ok,
     };
-    // A single place: No by the nature of it, said so, muted (§19.19).
+    // A single place: No by the nature of it, said so, muted (§17.19).
     let (lost_text, lost) = if c.single && c.lost == Lost::No {
         (EN.plan_no_single_place, Role::OnSurfaceVariant)
     } else {

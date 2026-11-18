@@ -758,7 +758,7 @@ fn the_flows_slider_sets_its_keys_left_off_and_the_vault_takes_the_share_it_impl
     app.press(Action::BNext(Item::Envelopes));
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
-    // Change the plan opens the board (§19.21 item 11).
+    // Change the plan opens the board (§17.21 item 11).
     shell.flow(&mut app, F::ChangePlan);
     // The keys left off set as the checklist's slider sets them; the
     // board has no stepper (`docs/BACKUP-FLOW.md` §17.19).
@@ -821,7 +821,7 @@ fn names_typed_before_the_lock_are_in_each_vaults_plan_and_never_in_the_flow() {
         !kept.windows(NAME.len()).any(|w| w == NAME.as_bytes()),
         "the flow keeps no name"
     );
-    // Change the plan opens the board (§19.21 item 11).
+    // Change the plan opens the board (§17.21 item 11).
     shell.flow(&mut app, F::ChangePlan);
     assert!(
         !offered_down(&mut app, Action::BName(0)),

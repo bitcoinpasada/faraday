@@ -2736,7 +2736,7 @@ impl Faraday {
         };
         // The board replaces the cards from Places to Where the
         // description goes (`docs/BACKUP-FLOW.md` §17.1); the software and
-        // The plan stay. Start from is gone (§19.21 item 1).
+        // The plan stay. Start from is gone (§17.21 item 1).
         let shape = self.plan_shape_now(b.wallet);
         plan_cards_on(&self.kept.plan_mapped(c, &shape, &b.answers))
     }

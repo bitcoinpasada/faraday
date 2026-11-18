@@ -1143,7 +1143,7 @@ impl Faraday {
 
     /// A press on the field `a` at pixel (x, y), on its release (but for
     /// the first on a place's name, which opens all of it selected,
-    /// `docs/BACKUP-FLOW.md` §19.18): the
+    /// `docs/BACKUP-FLOW.md` §17.18): the
     /// caret goes there; a second press soon after selects all of the
     /// field, or nothing if all was; a drag from `from` across an edge
     /// between characters selects what it went over; with Shift held

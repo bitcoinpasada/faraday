@@ -378,7 +378,7 @@ impl Tour {
         use faraday_core::board::BoardPress as B;
         // The tours that edit a board press Customize backup first
         // (`docs/BACKUP-FLOW.md` §17.6), and keep a drop the sheet asks
-        // about (§19.5); the std tour shows both itself.
+        // about (§17.5); the std tour shows both itself.
         if let Action::Board(p) = a
             && !matches!(p, B::Customize | B::Software | B::SeesKeep | B::SeesUndo)
             && self.app.board_plan().is_some_and(|(_, plan)| !plan.custom)

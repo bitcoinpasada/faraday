@@ -12,7 +12,7 @@
 //! through the drawing memo, `docs/SPEED.md` §3.3). A decision (whether a
 //! drop is taken) computes from the state as it is, never from the memo.
 //! The drawing is `board/screen.rs`. The same board is Back up's plan and
-//! a wallet flow's own plan card (§19.12 item 1): whose it is follows the
+//! a wallet flow's own plan card (§17.12 item 1): whose it is follows the
 //! screen ([`BoardOf`]).
 
 pub mod codex32;
@@ -166,7 +166,7 @@ pub enum BoardPress {
     /// (`docs/BACKUP-FLOW.md` §17.21 item 3).
     Software,
     /// **Keep it**, on the sheet over a drop that let a place see the
-    /// balance (§19.5): the drop stands.
+    /// balance (§17.5): the drop stands.
     SeesKeep,
     /// **Take it off**, on that sheet: the drop undone.
     SeesUndo,
@@ -257,7 +257,7 @@ impl Menu {
 }
 
 /// Whose plan the board edits: Back up's (after the lock, its wallet's
-/// flow's, §17.8), or a wallet flow's own plan card (§17.7, §19.12
+/// flow's, §17.8), or a wallet flow's own plan card (§17.7, §17.12
 /// item 1), by index.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BoardOf {
@@ -324,7 +324,7 @@ pub struct BoardState {
     /// The drop that let a place see the balance, asked about on a sheet
     /// (`docs/BACKUP-FLOW.md` §17.5).
     pub sees: Option<Sees>,
-    /// The sheet after partial descriptions are added (§19.19 item 4):
+    /// The sheet after partial descriptions are added (§17.19 item 4):
     /// its line, and whether **Take it off every place** is offered.
     pub partials: Option<(String, bool)>,
     /// The chip's ⋮ menu that is open (`docs/BACKUP-FLOW.md` §17.20).
@@ -345,7 +345,7 @@ pub struct Sees {
     pub title: String,
     /// What there makes the description, or the seeds it keeps.
     pub line: String,
-    /// The drop brought the place nearer a spend (§19.22), not to the
+    /// The drop brought the place nearer a spend (§17.22), not to the
     /// balance: the sheet carries the warning mark.
     pub spend: bool,
 }
@@ -515,7 +515,7 @@ pub fn target(z: Zone, t: Thing) -> Zone {
 /// key here, its passphrase, the description and its shares where the
 /// zone has a form for them; a vault's stick on a place. After the lock
 /// (`locked`) paper and files take nothing, and a vault and its sticks
-/// change as §17.8 allows (§19.12 item 8). Costs a lookup.
+/// change as §17.8 allows (§17.12 item 8). Costs a lookup.
 pub fn takes(shape: &Shape, z: Zone, t: Thing, locked: bool) -> bool {
     let here = |i: usize| shape.seeds.get(i).is_some_and(|s| s.here);
     // A key kept as shares has no words to write: only a vault takes it.
@@ -682,7 +682,7 @@ fn form_toggled(m: Vec<Spot>, z: Zone, t: Thing, k: usize) -> Vec<Spot> {
 
 /// Writes the map out: `a`'s map with `f` made to it, as the plan. The
 /// description counts as split while any share of it is kept, so the
-/// checklist makes the shares (§19.1: Whole and shares are both offered,
+/// checklist makes the shares (§17.1: Whole and shares are both offered,
 /// with nothing to choose first).
 fn map_edit(a: &mut Answers, shape: &Shape, f: impl FnOnce(Vec<Spot>) -> Vec<Spot>) {
     a.ensure_map(shape);
@@ -708,7 +708,7 @@ pub(crate) struct ChipView {
     /// one form only, or where the forms are toggles.
     pub marks: String,
     /// Each of its forms there, with whether it is on: the toggles on the
-    /// chip while the board takes changes (§19.3); empty when read-only
+    /// chip while the board takes changes (§17.3); empty when read-only
     /// or where it has one form only.
     pub forms: Vec<(String, bool)>,
     /// A check names it (`docs/BACKUP-FLOW.md` §17.5).
@@ -716,7 +716,7 @@ pub(crate) struct ChipView {
     /// Drawn at every place that keeps its vault's stick.
     pub link: bool,
     /// What an existing vault held before this backup: dimmed, read-only
-    /// (§19.12 item 7).
+    /// (§17.12 item 7).
     pub fixed: bool,
     /// Drawn dim but still picked up: a vault kept at no place, out of
     /// the plan (`docs/BACKUP-FLOW.md` §17.16 item 3).
@@ -795,7 +795,7 @@ pub(crate) struct Entry {
 pub(crate) struct BoardView {
     /// The wallet's shape: which zones take the chip held.
     pub shape: Shape,
-    /// The plan's three checks, under the board (§19.14).
+    /// The plan's three checks, under the board (§17.14).
     pub check: plan::Check,
     /// A wallet flow's own plan, by index; `None` for Back up's.
     pub flow: Option<usize>,
@@ -810,7 +810,7 @@ pub(crate) struct BoardView {
     /// The whole description.
     pub description: Vec<Entry>,
     /// `Some(None)`: the description splits into shares, **Add partial
-    /// descriptions** (or **Remove…**) under it (§19.19 item 1); `Some(Some(line))`:
+    /// descriptions** (or **Remove…**) under it (§17.19 item 1); `Some(Some(line))`:
     /// a multisig whose description does not split, the line saying why.
     pub splits: Option<Option<&'static str>>,
     /// Partial descriptions are on.
@@ -838,7 +838,7 @@ pub(crate) struct BoardView {
     /// After the lock: paper and files take nothing.
     pub locked: bool,
     /// Open for changes by **Customize backup**: until then the board
-    /// is the placement read-only, the list a button (§19.6).
+    /// is the placement read-only, the list a button (§17.6).
     pub custom: bool,
     /// Place names are typed by a press on a card's name.
     pub names_typed: bool,
@@ -922,7 +922,7 @@ impl Faraday {
     }
 
     /// The chip held on the board on screen let go, its forms and a
-    /// vault's question closed: a press anywhere else (§19.2).
+    /// vault's question closed: a press anywhere else (§17.2).
     pub(crate) fn board_let_go(&mut self) {
         self.board_edit(|st| {
             st.held = None;
@@ -953,7 +953,7 @@ impl Faraday {
     }
 
     /// The flow whose plan the board on screen edits past its lock, where
-    /// it is: paper and files stay as made (§17.8, §19.12 item 8).
+    /// it is: paper and files stay as made (§17.8, §17.12 item 8).
     fn board_locked(&self) -> Option<usize> {
         match self.board_of()? {
             BoardOf::Backup => self.backup_locked_flow(),
@@ -1134,7 +1134,7 @@ impl Faraday {
         for (p, here) in things.iter().enumerate() {
             for i in shape.here() {
                 // A passphrase beside its seed's words, on paper or a stick
-                // there (§19.5).
+                // there (§17.5).
                 let words = plan::holds_at(&m, At::Place(p))
                     .into_iter()
                     .chain(
@@ -1184,7 +1184,7 @@ impl Faraday {
         ) {
             warn(line, &mut warnings);
         }
-        // A single key's one place is no warning (§19.19).
+        // A single key's one place is no warning (§17.19).
         if let Some(p) = plan::all_at_one_place_on(&shape, &mapped)
             .filter(|_| plan::codex32::max_places_of(&shape, &a) > 1)
         {
@@ -1294,7 +1294,7 @@ impl Faraday {
                 .filter_map(|(_, l)| l.clone())
                 .collect();
             // While the board takes changes its forms are toggles on the
-            // chip; read-only, they read as text (§19.3, §19.6). After
+            // chip; read-only, they read as text (§17.3, §17.6). After
             // the lock paper and files stay as made.
             let toggles = custom
                 && all.len() > 1
@@ -1399,7 +1399,7 @@ impl Faraday {
                     })
                     .collect::<Vec<StickView>>();
                 // The board's empty sticks after the plan's, their numbers
-                // following on (§19.16 item 1).
+                // following on (§17.16 item 1).
                 let mut sticks = sticks;
                 for k in 0..state.empty.get(p).copied().unwrap_or(0) {
                     sticks.push(StickView {
@@ -1414,7 +1414,7 @@ impl Faraday {
                 }
                 let alone = plan::alone_on(&shape, &a, &mapped, At::Place(p));
                 // The name being typed is drawn as it is typed, the field's
-                // own text (§19.18).
+                // own text (§17.18).
                 let name = match self.backup.state() {
                     Some(b) if naming == Some(p) => {
                         b.names.get(p).map(|n| (&**n).into()).unwrap_or_default()
@@ -1483,7 +1483,7 @@ impl Faraday {
             .map(|i| entry(Thing::Pass(i)))
             .collect();
         // The shares are not offered one by one: one button adds them to
-        // the whole backup (§19.19 item 1).
+        // the whole backup (§17.19 item 1).
         let description = vec![entry(Thing::Whole)];
         let shown_vaults: Vec<usize> = {
             let named: Vec<usize> = m
@@ -1826,14 +1826,14 @@ impl Faraday {
         let Some((shape, a)) = self.board_plan() else {
             return false;
         };
-        // Read-only until Customize backup (§19.6).
+        // Read-only until Customize backup (§17.6).
         if !a.custom {
             return false;
         }
         if matches!(c, Chip::Placed(Zone::List, _)) {
             return false;
         }
-        // After the lock paper and files stay as made (§19.12 item 8).
+        // After the lock paper and files stay as made (§17.12 item 8).
         if self.board_locked().is_some()
             && let Chip::Placed(z, t) = c
             && matches!(kind(z), Some(Kind::Paper | Kind::Files | Kind::Public))
@@ -1908,7 +1908,7 @@ impl Faraday {
         }
         // A chip pressed in the narrow column's Add sheet opens its menu,
         // as its ⋮ does: the sheet places by the menu, not by a tap on a
-        // chip then a box (§19.20 item 4).
+        // chip then a box (§17.20 item 4).
         if let BoardPress::Chip(c @ Chip::List(_)) = press
             && self.sheet == Some(crate::Sheet::BoardList)
         {
@@ -1960,7 +1960,7 @@ impl Faraday {
                 self.board_menu_shut();
                 set(self, None);
                 // The same edit a drop makes, with all that follows it
-                // (§19.20 item 2): from the list for Add to… and Copy to…
+                // (§17.20 item 2): from the list for Add to… and Copy to…
                 // (a second drop from the list), from its box for Move to….
                 let t = match (menu.verb, menu.chip.thing()) {
                     (Some(Verb::Kef), Thing::Seed(i)) => Thing::Kef(i),
@@ -2081,7 +2081,7 @@ impl Faraday {
             }
             BoardPress::Zone(z) => {
                 // A press on + stick with nothing held adds an empty stick
-                // there, before and after the lock (§19.16 item 1).
+                // there, before and after the lock (§17.16 item 1).
                 if let (None, Zone::NewStick(p)) = (state.held, z) {
                     self.board_edit(|st| {
                         if st.empty.len() <= p {
@@ -2093,7 +2093,7 @@ impl Faraday {
                 }
                 let Some(c) = state.held else {
                     // After the lock a press on paper or a stick's files
-                    // says why nothing there changes (§19.12 item 8).
+                    // says why nothing there changes (§17.12 item 8).
                     if locked && matches!(kind(z), Some(Kind::Paper | Kind::Files | Kind::Public)) {
                         self.toast(EN.backup_flow_files_after_lock);
                     }
@@ -2105,7 +2105,7 @@ impl Faraday {
             BoardPress::Off(z, t) => {
                 set(self, None);
                 // After the lock paper and files stay as made; a vault's
-                // stick changes as §17.8 allows (§19.12 item 8).
+                // stick changes as §17.8 allows (§17.12 item 8).
                 let file = matches!(kind(z), Some(Kind::Paper | Kind::Files | Kind::Public));
                 if locked && file && !matches!(t, Thing::Vault(_)) {
                     return self.toast(EN.backup_flow_files_after_lock);
@@ -2156,7 +2156,7 @@ impl Faraday {
                     return;
                 }
                 // A place that holds something asks first, with what it
-                // holds, as a vault does (§19.12 item 7).
+                // holds, as a vault does (§17.12 item 7).
                 let holds = self
                     .board_map()
                     .is_some_and(|m| !things_at(&m, p).is_empty());
@@ -2181,7 +2181,7 @@ impl Faraday {
                 }
                 self.board_partials_refresh();
                 // Its empty sticks go with it; the places after move down
-                // with theirs (§19.16 item 1).
+                // with theirs (§17.16 item 1).
                 if self.board_plan().is_some_and(|(_, a)| a.places < places) {
                     self.board_edit(|st| {
                         if p < st.empty.len() {
@@ -2201,7 +2201,7 @@ impl Faraday {
             }
             BoardPress::RemoveVault(v) => {
                 // A vault that holds something asks first, with what it
-                // holds (§19.12 item 7).
+                // holds (§17.12 item 7).
                 let holds = self.board_plan().is_some_and(|(shape, a)| {
                     !plan::holds_at(&plan::stored_map(&shape, &a), At::Vault(v)).is_empty()
                 });
@@ -2406,7 +2406,7 @@ impl Faraday {
     /// Works out a placed chip's first menu level (a map read): **Move
     /// to…** and **Copy to…** where there is a box to go to, and **Take
     /// off**. A share is handed out by Faraday and not copied by hand
-    /// (§19.19), so it has no Copy to….
+    /// (§17.19), so it has no Copy to….
     fn board_menu_top(&self, z: Zone, t: Thing) -> Vec<MenuRow> {
         let boxes = self
             .board_menu_boxes(Chip::Placed(z, t))
@@ -2641,7 +2641,7 @@ impl Faraday {
 
     /// Chip `c` dropped on zone `z`: kept there, moved there, or taken off
     /// on the list; refused when the zone does not take it, with §17.8's
-    /// line after the lock (§19.12 item 8).
+    /// line after the lock (§17.12 item 8).
     fn board_put(&mut self, c: Chip, z: Zone) {
         let t = c.thing();
         if t == Thing::Software {
@@ -2682,7 +2682,7 @@ impl Faraday {
         }
         // A drop on an empty stick makes it the place's next stick of the
         // plan: one empty stick fewer there, the rest in their order
-        // (§19.16 item 1).
+        // (§17.16 item 1).
         if let Zone::Empty(p, _) = to
             && self.board_map() != before
         {
@@ -2694,7 +2694,7 @@ impl Faraday {
     }
 
     /// After a drop: where it brought a place keeping two seeds or more
-    /// nearer a spend (§19.22), or let a place see the balance it could
+    /// nearer a spend (§17.22), or let a place see the balance it could
     /// not see before, the sheet that says so, with the plan as it was for
     /// **Take it off** (`docs/BACKUP-FLOW.md` §17.5). Computes from the
     /// state as it is: the check of each place before and after, a map
@@ -2714,7 +2714,7 @@ impl Faraday {
             plan::Mapped::of(&c, &shape, &was),
         );
         // Nearer a spend, at a place keeping more than one seed that
-        // signs (§19.22): asked before the balance. A single key's one
+        // signs (§17.22): asked before the balance. A single key's one
         // seed is never asked about.
         let near = (0..places).filter(|_| shape.multi()).find_map(|p| {
             let r = plan::reach_on(&shape, &now_m, p)?;
@@ -2786,7 +2786,7 @@ impl Faraday {
         });
     }
 
-    /// The sheet after partial descriptions are added (§19.19 item 4):
+    /// The sheet after partial descriptions are added (§17.19 item 4):
     /// where the whole description is still kept, and **Take it off every
     /// place** where taking it off leaves any `M` places able to rebuild
     /// it. Works out the hand-out again, a search.
@@ -2853,7 +2853,7 @@ impl Faraday {
             });
             return false;
         };
-        // The narrow column places by tap only (§19.12 item 3); a sheet
+        // The narrow column places by tap only (§17.12 item 3); a sheet
         // over the board takes no drag.
         if self.compact || self.sheet.is_some() || !self.board_movable(c) {
             return false;

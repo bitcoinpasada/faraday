@@ -1141,7 +1141,7 @@ fn a_single_keys_passphrase_has_a_place_of_its_own_and_sits_at_the_one_place_wit
 fn the_lines_are_drawn_and_add_a_passphrase_opens_the_key_with_its_fields() {
     let mut shell = Shell::light();
     let (mut app, _, _) = single_key_ready(&mut shell);
-    // Change the plan opens the board (§19.21 item 11); the lines are
+    // Change the plan opens the board (§17.21 item 11); the lines are
     // under The plan's checks.
     app.press(Action::BPlan);
     app.press(Action::BQ(faraday_core::qstep::PLAN));

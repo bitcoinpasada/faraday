@@ -2,7 +2,7 @@
 //! one code for Back up's plan and for a wallet flow's own plan card, so
 //! that there is one way to edit a plan. The places and what each keeps
 //! are one card, the board (§19, `board.rs`, `board/screen.rs`), on both
-//! (§19.12 item 1). What a press on the other cards does is `lib.rs`
+//! (§17.12 item 1). What a press on the other cards does is `lib.rs`
 //! (Back up) and `backup_flow/wallet.rs` (the flow); both edit the map as
 //! `plan.rs` says.
 
@@ -163,7 +163,7 @@ pub(crate) fn summary(ctx: &PlanCtx, q: u8) -> Text {
 
 /// The warning over The plan's way on, which does not hold it: a vault
 /// that exists already whose stick no place keeps
-/// (`docs/BACKUP-FLOW.md` §17.16 item 3, §19.5).
+/// (`docs/BACKUP-FLOW.md` §17.16 item 3, §17.5).
 pub(crate) fn stickless_line(app: &View, ctx: &PlanCtx) -> Option<Text> {
     let v = ctx.answers.stickless(&ctx.shape)?;
     Some(Text::fill(

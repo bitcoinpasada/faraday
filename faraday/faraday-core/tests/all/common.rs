@@ -1203,7 +1203,7 @@ pub fn board(app: &mut Faraday, p: BoardPress) {
     if testkit::plain_asked(app).is_some() {
         app.press(Action::SecretHold);
     }
-    // A drop that let a place see the balance asks (§19.5): kept.
+    // A drop that let a place see the balance asks (§17.5): kept.
     if app.sheet == Some(faraday_core::Sheet::BoardSees) {
         app.press(Action::Board(BoardPress::SeesKeep));
     }

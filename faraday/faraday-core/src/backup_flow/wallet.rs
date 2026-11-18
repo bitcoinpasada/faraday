@@ -616,7 +616,7 @@ impl Faraday {
     /// (`docs/BACKUP-FLOW.md` §17.12 item 6). A seed's files go out as
     /// secrets let out unprotected. Returns, for each picture made, its
     /// name and the SHA-256 of what its codes must read as, which the
-    /// write step reads it back against (§19.12 item 10): a SeedQR by its
+    /// write step reads it back against (§17.12 item 10): a SeedQR by its
     /// key's fingerprint only, never anything of the seed.
     pub(crate) fn wallet_stick_files_make(
         &mut self,
@@ -2203,7 +2203,7 @@ impl Faraday {
     /// A press on the flow's plan cards, Back up's cards drawn in the flow
     /// (`docs/BACKUP-FLOW.md` §15.7): the card open, the next card, the
     /// software, or the keys left off each share. The board's own presses
-    /// are `board.rs`'s (§19.12 item 1).
+    /// are `board.rs`'s (§17.12 item 1).
     pub(crate) fn flow_plan_press(&mut self, i: usize, press: crate::PlanPress) {
         let c = self.compute();
         use crate::PlanPress as P;

@@ -564,7 +564,7 @@ fn changing_to_paper_only_after_the_vault_keeps_its_copy_on_the_map_and_the_hold
     app.press(Action::BVaultSave(0));
     assert!(app.backup_item_done_now(&c, Item::Vault(0)));
     // Paper only, part way: the vault taken off on the board, by its ×
-    // and Take off, as a person does it (§19.21).
+    // and Take off, as a person does it (§17.21).
     app.press(Action::BPlan);
     use faraday_core::board::BoardPress;
     app.press(Action::Board(BoardPress::RemoveVault(0)));

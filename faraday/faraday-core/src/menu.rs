@@ -66,7 +66,7 @@ pub(crate) enum Step {
     Close,
 }
 
-/// What `key` does in an open menu (§19.20 item 5): Down and Up move,
+/// What `key` does in an open menu (§17.20 item 5): Down and Up move,
 /// round at the ends, Enter or Space chooses, Escape closes; `None` for
 /// any other key, which the menu takes and does nothing with.
 pub(crate) fn step(key: KeyIn, at: usize, n: usize) -> Option<Step> {
@@ -150,7 +150,7 @@ pub(crate) fn measure(ui: &mut Ui, draw: &mut dyn FnMut(&mut Ui) -> f32) -> f32 
 
 /// Costs measuring every line. The menu drawn as Material's menu
 /// ([`faraday_ui::menu::menu`]): a popup under its ⋮ on `wide`, a sheet
-/// on the small panel (§19.20 item 5).
+/// on the small panel (§17.20 item 5).
 pub(crate) fn draw(ui: &mut Ui, w: f32, h: f32, v: &View) {
     let lines: Vec<MenuLine<Action>> = v
         .lines

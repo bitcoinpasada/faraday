@@ -5,7 +5,7 @@ use faraday_core::Action;
 use faraday_core::testkit;
 
 /// The standard way on the board (`docs/BACKUP-FLOW.md` §17.6, §17.3,
-/// §19.5, §19.21): Make a new wallet opening on Kind; its Check with
+/// §17.5, §17.21): Make a new wallet opening on Kind; its Check with
 /// Back up wallet; a single key's Back up open on the board
 /// read-only; a 2-of-3's the same, then with Add watch-only software
 /// pressed; the 2-of-3 after
@@ -27,7 +27,7 @@ pub(crate) fn standard_tour(t: &mut Tour) -> Result<(), String> {
     let fp = t.app.session.keys[0].fingerprint.0;
     t.press(Action::CSlotHere(0, fp));
     t.press(Action::CNext(cstep::KEYS));
-    // The vault question with its line (§19.21 item 5), then Check's
+    // The vault question with its line (§17.21 item 5), then Check's
     // It matches, leaving Back up wallet at its foot (item 2).
     t.press(Action::CStep(cstep::WHERE));
     t.shot("std-2a-vault-question")?;
@@ -60,7 +60,7 @@ pub(crate) fn standard_tour(t: &mut Tour) -> Result<(), String> {
         .ok_or("no wallet")?;
     t.press(Action::Backup(three));
     t.shot("std-3-two-of-three")?;
-    // Add watch-only software on the read-only board (§19.21 item 3).
+    // Add watch-only software on the read-only board (§17.21 item 3).
     t.press(Action::Board(B::Software));
     t.shot("std-3a-watch-only")?;
     t.press(Action::Board(B::Software));

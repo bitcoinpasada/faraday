@@ -1824,7 +1824,7 @@ pub fn backup_as(app: &mut crate::Faraday, preset: crate::plan::Preset) {
     use crate::{Action, Sheet};
     let press = |app: &mut crate::Faraday, p: P| {
         app.press(Action::Board(p));
-        // A drop that lets a place see the balance asks (§19.5): kept.
+        // A drop that lets a place see the balance asks (§17.5): kept.
         if app.sheet == Some(Sheet::BoardSees) {
             app.press(Action::Board(P::SeesKeep));
         }

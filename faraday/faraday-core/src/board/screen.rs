@@ -129,7 +129,7 @@ fn link(ui: &mut Ui, x: f32, cy: f32, color: crate::ui::Paint) {
 }
 
 /// A chip's glyph: the fingerprint before a seed's, the passphrase's
-/// before its own, the closed lock before a vault's (§19.17 item 5).
+/// before its own, the closed lock before a vault's (§17.17 item 5).
 fn glyph(t: Thing) -> Option<Icon> {
     match t {
         Thing::Seed(_) | Thing::Kef(_) => Some(Icon::Fingerprint),
@@ -433,7 +433,7 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
     let action = Action::Board(BoardPress::Chip(cv.chip));
     // A chip is the surface with a stronger neutral edge and a faint
     // shadow, so it stands on every box's fill: paper, a stick box, a
-    // vault box, the list (§19.15).
+    // vault box, the list (§17.15).
     if cv.fixed {
         ui.stroke(x, y, w, h, r, Role::Outline);
     } else {
@@ -597,7 +597,7 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
         edge(ui, (x, y, w, h), r, Role::Primary.paint());
     }
     // The ⋮, its own press target over the chip's right end, after the
-    // chip's own press (§19.20 item 1).
+    // chip's own press (§17.20 item 1).
     if cv.menu {
         let color = Role::OnSurfaceVariant.paint();
         dots(
@@ -718,7 +718,7 @@ const PAPER: Tones = (
     Role::Tertiary.paint(),
 );
 
-/// A stick's files box, in the files colours (§19.17).
+/// A stick's files box, in the files colours (§17.17).
 const FILES: Tones = (
     Role::SecondaryContainer.paint(),
     Role::Secondary.paint(),
@@ -768,7 +768,7 @@ fn paper(
     }
     // Edged where it takes the chip held; while it is dragged, with the
     // pointer in `hot` (the box itself, or for a files box the stick box
-    // round it outside its vault, §19.17 item 2).
+    // round it outside its vault, §17.17 item 2).
     if fr.edged(z, hot) {
         edge(ui, r, tokens::GAP, Role::Primary.paint());
     }
@@ -820,7 +820,7 @@ fn add_stick(ui: &mut Ui, fr: &Frame, p: usize, r: Box4) {
     let z = Zone::NewStick(p);
     let a = Action::Board(BoardPress::Zone(z));
     // While a chip it takes is held, its edge is drawn solid, at every
-    // place (§19.16 item 2).
+    // place (§17.16 item 2).
     let takes_held = fr.held.is_some_and(|c| {
         takes(&fr.shape, z, c.thing(), fr.locked) && !matches!(c, Chip::List(Thing::Software))
     });
@@ -1005,7 +1005,7 @@ fn place_head(
         ui.press_box(nx, y, room, hh, a);
     }
     // While it is typed, the name is a line of typing: just pressed, the
-    // whole of it selected and no caret (§19.18).
+    // whole of it selected and no caret (§17.18).
     let nw = match name_press {
         Some((a, true)) => {
             let nw = ui.typed(
@@ -1343,7 +1343,7 @@ fn stick_parts(ui: &Ui, st: &crate::board::StickView, w: f32) -> (f32, Vec<f32>)
 
 /// Stick `s` of place `p` in box `r` (`docs/DESIGN.md` §4.17): headed
 /// "Stick n" with the × that takes it off; inside it the files box, the
-/// files kept on the stick outside any vault, on every stick (§19.17),
+/// files kept on the stick outside any vault, on every stick (§17.17),
 /// and under it a vault box for each vault the stick carries (its band,
 /// what it holds inside).
 fn stick(ui: &mut Ui, fr: &mut Frame, st: &crate::board::StickView, r: Box4, custom: bool) {
@@ -1355,7 +1355,7 @@ fn stick(ui: &mut Ui, fr: &mut Frame, st: &crate::board::StickView, r: Box4, cus
     let (files_h, vault_hs) = stick_parts(ui, st, w);
     let fz = st.files.zone;
     // The stick box outside its files box and vault box still keeps a
-    // drop as a file (§19.17 item 2).
+    // drop as a file (§17.17 item 2).
     let zone = Action::Board(BoardPress::Zone(fz));
     let hh = stick_box(ui, fr.stick_glyph, &st.label, r, zone);
     // Its × (after the lock, only for a stick that carries a vault alone:
@@ -1465,7 +1465,7 @@ fn software(ui: &mut Ui, fr: &mut Frame, v: &BoardView, x: f32, y: f32, w: f32) 
     let off = (v.custom && !v.locked).then_some(Action::Board(BoardPress::RemoveSoftware));
     place_head(ui, &sv.title, &[], bx, y + e, bw, None, off);
     // Its stick of public files: its files in a files box, no vault box
-    // (§19.17 item 3).
+    // (§17.17 item 3).
     if let Some(&r) = lay.sticks.first() {
         let z = Zone::SoftStick;
         let zone = Action::Board(BoardPress::Zone(z));
@@ -1803,7 +1803,7 @@ pub(crate) fn list_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     });
 }
 
-/// The sheet over a drop that brought a place nearer a spend (§19.22),
+/// The sheet over a drop that brought a place nearer a spend (§17.22),
 /// with the warning mark, or let a place see the balance it could not
 /// before (`docs/BACKUP-FLOW.md` §17.5): its title, the line naming what
 /// there makes the description, **Keep it** and **Take it off**. It
@@ -1936,7 +1936,7 @@ fn cells(
     let gap = tokens::BOARD_PLACE_GAP;
     let mut all: Vec<Cell> = v.places.iter().map(Cell::Place).collect();
     // A place may be added after the lock too (§17.8).
-    // Not at one place per key (§19.19).
+    // Not at one place per key (§17.19).
     if v.custom && v.room {
         all.push(Cell::Add);
     }
@@ -1978,7 +1978,7 @@ fn cells(
 /// lines under them; over them a placed chip's forms. On `wide` the list
 /// is the right-hand column ([`list_panel`]); in the narrow column a
 /// place's parts stand one under another, under **Add**, which opens the
-/// list as a sheet (§19.12 item 3). On a large window the places run on
+/// list as a sheet (§17.12 item 3). On a large window the places run on
 /// to the work width's end in columns, the list in the supporting pane
 /// ([`list_pane`]), and the checks keep the column's `w`
 /// (`docs/LAYOUT.md` §17). Returns its height.
@@ -2001,7 +2001,7 @@ pub(crate) fn board(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     if ui.compact {
         // Read-only until Customize backup, its two buttons in Add's place
-        // (§19.6, §19.21 item 3).
+        // (§17.6, §17.21 item 3).
         let buttons = if v.custom {
             vec![(
                 EN.board_add,
@@ -2017,7 +2017,7 @@ pub(crate) fn board(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy += cells(ui, &mut fr, &v, (x, cy, ww), cols);
     let mut bottom = cy - gap;
     // The plan's three checks, as the Map drew them, under the board
-    // (§19.14; the owner's choice, 2026-10-16: the board's top is kept
+    // (§17.14; the owner's choice, 2026-10-16: the board's top is kept
     // free).
     bottom += tokens::GAP;
     let name = |p: usize| {
@@ -2026,7 +2026,7 @@ pub(crate) fn board(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             .map_or_else(faraday_text::Text::new, |c| faraday_text::Text::of(&c.name))
     };
     bottom += crate::glance::check_lines(ui, x, bottom, w, v.check, false, &name);
-    // The checks that stand, a line each (§19.5).
+    // The checks that stand, a line each (§17.5).
     for line in &v.warnings {
         bottom += tokens::GAP;
         let side = tokens::BOARD_MARK;
@@ -2135,7 +2135,7 @@ fn list_in(app: &View, ui: &mut Ui, (px, top, pw, view): Box4, card: bool) {
     let draw = |ui: &mut Ui, fr: &mut Frame, y: f32| -> f32 {
         let mut cy = y + tokens::GRID;
         // Read-only until Customize backup: the button in the list's
-        // place (§19.6).
+        // place (§17.6).
         if v.custom {
             cy += list(ui, fr, &v, x, cy, w);
         } else {

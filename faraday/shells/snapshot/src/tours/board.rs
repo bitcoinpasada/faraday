@@ -49,12 +49,12 @@ pub(crate) fn board_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.shot("board-shares-and-software")?;
     // One stick with Vault 1 on it, a seed sealed inside, and beside the
     // vault on the same stick another seed's words file and SeedQR
-    // picture; Paper under the stick box (§19.14): in the dark theme and
+    // picture; Paper under the stick box (§17.14): in the dark theme and
     // the light.
     let p = vault_place(c, t, 0).ok_or("Vault 1's stick has no place")?;
     let s = vault_stick(c, t, p, 0).ok_or("no stick for Vault 1")?;
     // The stick with Vault 1 and nothing beside it: its files box empty
-    // (§19.17).
+    // (§17.17).
     scroll_to(t, Action::Board(B::Zone(Zone::Files(p, s))));
     t.shot("board-vault-no-files")?;
     // A second vault dropped on the same stick joins the first (the
@@ -87,7 +87,7 @@ pub(crate) fn board_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     // Back to the theme the tour is in.
     t.press(Action::Theme(was));
     // + stick pressed with nothing held: an empty stick with its files
-    // box; **+ vault**: a vault at no place, dim on the list (§19.16).
+    // box; **+ vault**: a vault at no place, dim on the list (§17.16).
     t.press(Action::Board(B::Zone(Zone::NewStick(p))));
     scroll_to(t, Action::Board(B::RemoveEmpty(p)));
     t.shot("board-empty-stick")?;
@@ -95,7 +95,7 @@ pub(crate) fn board_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.press(Action::Board(B::AddVault));
     t.shot("board-vault-at-no-place")?;
     // The narrow column: Add opens the list as a sheet; a chip pressed
-    // there opens its menu, Add to… (§19.12 item 3, §19.20 item 4).
+    // there opens its menu, Add to… (§17.12 item 3, §17.20 item 4).
     if t.app.is_compact() {
         t.press(Action::Board(B::OpenList));
         t.shot("board-narrow-add-sheet")?;
@@ -112,7 +112,7 @@ pub(crate) fn board_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.press(Action::BQ(qstep::PLAN));
     t.shot("board-the-plan")?;
     // A place's name, typed with a vault open: just pressed, the whole of
-    // it selected; after one key, that key alone (§19.18).
+    // it selected; after one key, that key alone (§17.18).
     open_a_vault(t, "board phrase")?;
     t.press(Action::Backup(savings));
     if t.app.backup().and_then(|b| b.q) != Some(qstep::BOARD) {

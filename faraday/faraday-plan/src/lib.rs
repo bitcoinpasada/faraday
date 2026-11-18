@@ -144,7 +144,7 @@ pub enum Preset {
     /// no SeedQR, no vault, no stick. The board opens on it for a new
     /// plan.
     Standard,
-    /// Paper in each place: since §19.21 item 12 the same plan as
+    /// Paper in each place: since §17.21 item 12 the same plan as
     /// [`Preset::Standard`], which a saved plan's `preset 1` named.
     Paper,
     /// Paper, and the seeds and the wallet in the vault.
@@ -318,7 +318,7 @@ pub struct Answers {
     /// (`docs/BACKUP-FLOW.md` §10.3).
     pub bare: Vec<usize>,
     /// The board has been opened for changes by **Customize backup**
-    /// (§19.6): until then it shows the placement read-only. Kept with
+    /// (§17.6): until then it shows the placement read-only. Kept with
     /// the plan, so a plan customised once reopens customisable.
     pub custom: bool,
     /// The SeedQR copies dropped for the words that stay on the map,
@@ -485,7 +485,7 @@ impl Answers {
                 continue;
             }
             let free = (0..self.places).find(|&p| !self.seed_at(shape, i, p));
-            // At the most places a plan has (§19.19), the passphrase goes
+            // At the most places a plan has (§17.19), the passphrase goes
             // into the vault where the seeds go into one, else beside its
             // seed, which the board warns of.
             let full = self.places >= most;
@@ -555,7 +555,7 @@ impl Answers {
             row.iter_mut().for_each(|b| *b = false);
         }
         // A plan over more places than one per key is one saved before
-        // (§19.19): its passphrase finds a place as it did then.
+        // (§17.19): its passphrase finds a place as it did then.
         let most = if base > max_places(shape) {
             usize::MAX
         } else {
@@ -745,7 +745,7 @@ impl Answers {
     /// Costs what `of` costs. The places that keep a stick of files: a
     /// stick with no vault on it, holding a seed's file, the description's
     /// files, a share's or the software's (`docs/BACKUP-FLOW.md` §15.2,
-    /// §19.4).
+    /// §17.4).
     pub fn file_places(&self, c: &Compute, shape: &Shape) -> Vec<usize> {
         Mapped::of(c, shape, self).file_places()
     }
@@ -2344,7 +2344,7 @@ fn alone_in(shape: &Shape, a: &Answers, boxes: &[Spot], at: At) -> Alone {
         }
     };
     Alone {
-        // Seeds alone spend: the description is public (§19.22).
+        // Seeds alone spend: the description is public (§17.22).
         spend: found(&|h| h.spends(shape)),
         balance: found(&|h| h.sees(shape, a)),
     }
@@ -2381,7 +2381,7 @@ fn check_of(shape: &Shape, a: &Answers, boxes: &[Spot]) -> Check {
         spend,
         balance,
         // A single key has one place at most: its every secret there is
-        // no warning (§19.19).
+        // no warning (§17.19).
         one_place: one_place_in(shape, &found_in, &a.set_needs())
             .filter(|_| codex32::max_places_of(shape, a) > 1),
         single: places.len() == 1,
@@ -2597,7 +2597,7 @@ pub fn lost_why_on(
 ) -> Option<Text> {
     let boxes: &[Spot] = &m.places;
     let places = spots(boxes);
-    // A single place: "No: a single place" says why (§19.19); a seed kept
+    // A single place: "No: a single place" says why (§17.19); a seed kept
     // nowhere still says so.
     if places.len() == 1 {
         return kept_nowhere_on(shape, m, &shape.here());
@@ -2667,7 +2667,7 @@ pub fn lost_why_on(
             }
         }
     }
-    // The seeds are there without it, the description is not (§19.19
+    // The seeds are there without it, the description is not (§17.19
     // item 5): the line names the description.
     let mut have = Have::none(shape, &a.set_needs());
     let mut readable: Vec<usize> = Vec::new();
@@ -2738,7 +2738,7 @@ pub fn kept_nowhere_on(shape: &Shape, m: &Mapped, seeds: &[usize]) -> Option<Tex
 /// files that goes to an online computer (`docs/BACKUP-FLOW.md` §10.2):
 /// sheets or shares on paper to print, the description as files on the
 /// stick of files, or the software given its text form. Files kept at a
-/// place go on a stick there instead (§17.2, §19.4).
+/// place go on a stick there instead (§17.2, §17.4).
 pub fn public_stick(c: &Compute, shape: &Shape, a: &Answers) -> bool {
     public_stick_on(a, &Mapped::of(c, shape, a))
 }
@@ -2807,7 +2807,7 @@ pub enum Item {
     Envelopes,
     /// Write to sticks: one lock, then each stick by place
     /// (`docs/BACKUP-FLOW.md` §10.2), each with the files the plan keeps
-    /// on it, made then (§19.12 item 6).
+    /// on it, made then (§17.12 item 6).
     Sticks,
 }
 

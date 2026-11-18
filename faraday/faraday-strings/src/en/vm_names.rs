@@ -576,7 +576,7 @@ macro_rules! words_vm_names {
     board_spend_vault_more_one: "Spends with the vault's passphrase and 1 more place",
     /// As `board_spend_more`, with the vault's passphrase. `{}`: places.
     board_spend_vault_more: "Spends with the vault's passphrase and {} more places",
-    /// The sheet over a drop that brings a place nearer a spend (§19.22). `{}`: the place.
+    /// The sheet over a drop that brings a place nearer a spend (§17.22). `{}`: the place.
     board_spend_title_alone: "Anyone with access to {} can spend",
     /// As `board_spend_title_alone`, with the vault's passphrase. `{}`: the place.
     board_spend_title_alone_vault: "Anyone with access to {} and the vault's passphrase can spend",
@@ -646,7 +646,7 @@ macro_rules! words_vm_names {
     board_sees_warn: "{} can see the balance. {}",
     /// A warning: a place keeps no seed. `{}`: the place.
     board_no_seed: "{} holds no seed",
-    /// "Any one place lost" with a single place (§19.19).
+    /// "Any one place lost" with a single place (§17.19).
     plan_no_single_place: "No: a single place",
     /// Why "Any one place lost" reads No when the descriptor goes. `{}`:
     /// the place.

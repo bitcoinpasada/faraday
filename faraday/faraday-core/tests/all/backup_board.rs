@@ -164,7 +164,7 @@ fn places_targets(flow: &BackupFlow) -> Vec<Target> {
         .collect()
 }
 
-/// The name a seed's file is written as on a stick (§19.12 item 6).
+/// The name a seed's file is written as on a stick (§17.12 item 6).
 fn stick_name(prefix: &str, fp: [u8; 4], ext: &str) -> String {
     format!(
         "{prefix}-{}.{ext}",
@@ -256,7 +256,7 @@ fn a_second_vault_at_a_place_goes_on_a_second_stick() {
         vec![Target::PlaceVault(0, 0), Target::PlaceVault(0, 1)]
     );
     // The board's drop: Vault 1 again at Place 1 is a second stick of it
-    // (§19.12 item 7).
+    // (§17.12 item 7).
     faraday_core::testkit::change_backup_answers(&mut app, |a| {
         a.add_vault_stick(&shape, 0, 0);
         let m = plan::map(&c, &shape, a);
@@ -641,7 +641,7 @@ pub(crate) fn three_with_vaults(shell: &mut Shell, n: usize) -> (Faraday, Vec<[u
     (app, fps)
 }
 
-/// Vault 1 kept on two sticks at Place 1 (§19.12 item 7): the write step
+/// Vault 1 kept on two sticks at Place 1 (§17.12 item 7): the write step
 /// writes two sticks, each its own write and its own pill, and each put
 /// back afterwards is recognised as the one it is.
 #[test]
@@ -700,7 +700,7 @@ fn two_sticks_of_vault_1_at_one_place_are_written_as_two_sticks_each_recognised(
     }
 }
 
-/// Two sticks of files at Place 1 (§19.4): Seed A's words on one, Seed
+/// Two sticks of files at Place 1 (§17.4): Seed A's words on one, Seed
 /// B's and Seed C's on the other. Each is its own write with its own
 /// files, and each put back is recognised as the one it is.
 #[test]
@@ -803,7 +803,7 @@ fn a_seeds_words_file_on_a_stick_asks_the_hold_at_the_drop_and_not_at_the_lock()
     assert!(app.restart_requested(), "locked");
 }
 
-// ---- the board, as a person uses it (§19.1, §19.2, §19.3, §19.5) ----
+// ---- the board, as a person uses it (§17.1, §17.2, §17.3, §17.5) ----
 
 use faraday_core::board::{BoardPress as BP, Chip, Thing, Zone};
 use faraday_shell_api::TouchPhase;
@@ -869,8 +869,8 @@ fn offered_on_page(app: &mut Faraday, a: Action) -> bool {
 /// [`on_screen`], or `None` where the page offers `a` nowhere.
 fn find(app: &mut Faraday, a: Action) -> Option<(u16, u16)> {
     // A plain secret file is held for (F129); a drop that let a place see
-    // the balance asks (§19.5): kept. The board takes changes once
-    // Customize backup is pressed (§19.6).
+    // the balance asks (§17.5): kept. The board takes changes once
+    // Customize backup is pressed (§17.6).
     if testkit::plain_asked(app).is_some() {
         app.press(Action::SecretHold);
     }
@@ -1204,7 +1204,7 @@ fn passphrase_key_on_the_board() -> Faraday {
     app.press(Action::CBackup);
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     open_board(&mut app);
-    // Over two places, as a plan saved before one place per key (§19.19).
+    // Over two places, as a plan saved before one place per key (§17.19).
     preset_two_places(&mut app, 1);
     app
 }
@@ -1212,7 +1212,7 @@ fn passphrase_key_on_the_board() -> Faraday {
 /// A passphrase dropped on paper that keeps its seed's words is kept
 /// there, with the warning line and the warning mark; Make the checklist
 /// is still offered. Dropped into a vault that does not hold its seed, it
-/// is kept there alone (§19.12 item 4).
+/// is kept there alone (§17.12 item 4).
 #[test]
 fn a_passphrase_beside_its_words_is_kept_with_a_warning_and_the_checklist_offered() {
     let c = testkit::compute();
@@ -1599,7 +1599,7 @@ fn main_vault_board(shell: &mut Shell) -> (Faraday, testkit::Kit) {
 }
 
 /// A vault that already holds something (made before this backup) shows
-/// what it held in its zone, dimmed, taking no press (§19.12 item 7).
+/// what it held in its zone, dimmed, taking no press (§17.12 item 7).
 #[test]
 fn an_existing_vaults_contents_are_drawn_dimmed_and_take_no_press() {
     let c = faraday_core::testkit::compute();
@@ -1744,7 +1744,7 @@ fn narrow(app: &mut Faraday) {
     app.settle();
 }
 
-/// A narrow window (`docs/BACKUP-FLOW.md` §17.12 item 3, §19.20 item 4):
+/// A narrow window (`docs/BACKUP-FLOW.md` §17.12 item 3, §17.20 item 4):
 /// the place cards stand in one column; **Add** opens the list as a
 /// sheet, each item with its ⋮; a tap on a chip there opens its Add to…
 /// as its ⋮ does, and a box chosen places it: the map a drag makes on
@@ -1794,7 +1794,7 @@ fn a_narrow_window_places_from_the_add_sheets_menu_as_a_drag_does_on_wide() {
 
 /// What is sealed in a vault and what is only a file on its stick are
 /// told apart as a person reads them (`docs/BACKUP-FLOW.md` §17.14,
-/// §19.15, §19.17): under the stick's head "Stick 2", the files box
+/// §17.15, §17.17): under the stick's head "Stick 2", the files box
 /// headed "Files · not sealed" with Seed B's words file and SeedQR
 /// picture in it, and under it, apart from it, the vault box headed
 /// "Vault 1 · sealed · made in the checklist" (a vault not made yet)
@@ -1852,7 +1852,7 @@ fn a_seed_in_a_vault_and_a_seed_file_on_its_stick_are_drawn_in_their_own_boxes()
     };
     let stick_head = at("Stick 2");
     let files_head = at("Files · not sealed");
-    // A vault added on the board, not made yet (§19.21 item 6).
+    // A vault added on the board, not made yet (§17.21 item 6).
     let vault_head = texts
         .iter()
         .find(|(s, _)| s == "Vault 1 · sealed · made in the checklist" || s == "Vault 1 · new")
@@ -1870,7 +1870,7 @@ fn a_seed_in_a_vault_and_a_seed_file_on_its_stick_are_drawn_in_their_own_boxes()
         vault_head.1 >= i32::from(vault.1) && vault_head.1 < i32::from(sealed.1),
         "Vault 1's band heads the vault box"
     );
-    // Its forms are toggles on the chip (§19.3).
+    // Its forms are toggles on the chip (§17.3).
     for form in ["Words file", "SeedQR file"] {
         assert!(texts.iter().any(|(s, _)| s == form), "no {form} toggle");
     }
@@ -1946,7 +1946,7 @@ fn ink_light(app: &mut Faraday, text: &str) -> u32 {
 /// The plan and the checklist do not change. A file dropped on it is kept
 /// on a stick of the plan there; its × takes an empty stick away; a
 /// place removed takes its empty sticks with it (`docs/BACKUP-FLOW.md`
-/// §17.16 item 1, §19.17 item 1).
+/// §17.16 item 1, §17.17 item 1).
 #[test]
 fn a_press_on_plus_stick_adds_an_empty_stick_that_the_plan_does_not_see() {
     let c = faraday_core::testkit::compute();
@@ -2251,7 +2251,7 @@ fn a_fresh_two_of_three_opens_on_the_board_with_the_standard_way_placed() {
 }
 
 /// A single key's standard way is one place: its words and the whole
-/// description, no SeedQR (§19.21 item 12).
+/// description, no SeedQR (§17.21 item 12).
 #[test]
 fn a_single_keys_standard_way_is_one_place() {
     let mut app = testkit::started();
@@ -2370,7 +2370,7 @@ fn the_standard_ways_checklist_writes_its_copies() {
 }
 
 /// In Customize backup a seed chip's toggles: the SeedQR is added by its
-/// toggle (§19.21 item 12), Words off then keeps the SeedQR, and the last
+/// toggle (§17.21 item 12), Words off then keeps the SeedQR, and the last
 /// form on cannot be turned off.
 #[test]
 fn a_seed_chips_toggles_keep_the_last_form_on() {
@@ -2403,7 +2403,7 @@ fn a_seed_chips_toggles_keep_the_last_form_on() {
 /// A 2-of-3 customised with the whole description off Place 3: Share 1
 /// leaves off key 3, so Place 3 sees nothing from it, even beside the seed
 /// of key 3 (Restore does not join the two); Share 2 dropped there too
-/// lets Place 3 see the balance and the sheet says so (§19.5).
+/// lets Place 3 see the balance and the sheet says so (§17.5).
 fn share_sheet_board() -> Faraday {
     let mut app = fresh_three();
     app.press(Action::Board(BP::Customize));
@@ -2458,7 +2458,7 @@ fn a_share_on_a_place_that_still_cannot_see_asks_nothing() {
     assert_eq!(app.sheet, None);
 }
 
-// ---- §19.20: the ⋮ menu ----
+// ---- §17.20: the ⋮ menu ----
 
 /// The ⋮ menu of the chip `c`.
 pub(crate) fn dots(c: Chip) -> BP {
@@ -2536,7 +2536,7 @@ fn add_to_on_a_seed_lists_the_boxes_that_take_it_by_place_and_places_it_as_a_dro
 
 /// A placed chip's ⋮: **Move to…** moves it with its forms, as a drag
 /// does; **Copy to…** keeps it in both boxes, as a second drop from the
-/// list does; **Take off** takes it off, as its × does (§19.20 items 3
+/// list does; **Take off** takes it off, as its × does (§17.20 items 3
 /// and 6).
 #[test]
 fn a_placed_chips_menu_moves_copies_and_takes_off() {
@@ -2593,7 +2593,7 @@ fn a_placed_chips_menu_moves_copies_and_takes_off() {
 }
 
 /// A press on a chip's ⋮ opens its menu and neither selects the chip
-/// nor starts its drag, even when the finger moves (§19.20 item 1).
+/// nor starts its drag, even when the finger moves (§17.20 item 1).
 #[test]
 fn a_press_on_the_dots_neither_selects_nor_drags() {
     let mut app = menu_board();
@@ -2611,7 +2611,7 @@ fn a_press_on_the_dots_neither_selects_nor_drags() {
     assert_eq!(the_map(&app), before, "nothing placed");
 }
 
-/// The menu by the keys (§19.20 item 5): Tab reaches a chip's ⋮, Enter
+/// The menu by the keys (§17.20 item 5): Tab reaches a chip's ⋮, Enter
 /// opens its menu, the arrows move and Enter chooses; Escape goes back
 /// from Move to… to the first level, then closes the menu with the
 /// keyboard on the ⋮ again. A press outside the menu closes it, nothing
@@ -2669,7 +2669,7 @@ fn the_menu_by_the_keys_and_escape_closes_it_back_to_its_dots() {
 }
 
 /// The read-only board (before Customize backup) shows no ⋮; once
-/// customised every chip has one (§19.20 items 1 and 6).
+/// customised every chip has one (§17.20 items 1 and 6).
 #[test]
 fn the_read_only_board_shows_no_dots() {
     let mut app = fresh_three();

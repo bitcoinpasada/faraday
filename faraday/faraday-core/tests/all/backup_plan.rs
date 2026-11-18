@@ -149,11 +149,11 @@ fn each_preset_fills_a_one_key_wallets_answers() {
         let a = Answers::preset(&shape, preset);
         let vault = !matches!(preset, Preset::Paper | Preset::Standard);
         assert!(a.seeds[seeds::WORDS], "{preset:?}: paper words");
-        // The words and no SeedQR, The standard way too (§19.21 item 12).
+        // The words and no SeedQR, The standard way too (§17.21 item 12).
         assert!(!a.seeds[seeds::SEEDQR], "{preset:?}");
         assert!(!a.seeds[seeds::FILE], "{preset:?}");
         assert_eq!(a.seeds[seeds::VAULT], vault, "{preset:?}");
-        // One place for a single key, whatever the preset (§19.19).
+        // One place for a single key, whatever the preset (§17.19).
         assert_eq!(a.places, 1, "{preset:?}: places");
         assert!(a.wallet[wallet::PAPER], "{preset:?}: the sheet in each");
         assert_eq!(a.wallet[wallet::VAULT], vault, "{preset:?}");
@@ -282,7 +282,7 @@ fn a_place_with_a_quorum_of_seeds_on_paper_can_spend() {
 fn the_vault_counts_with_its_passphrase() {
     let c = faraday_core::testkit::compute();
     let shape = one_key();
-    // Two places, as a plan saved before one place per key (§19.19).
+    // Two places, as a plan saved before one place per key (§17.19).
     let mut a = Answers::preset_at(&shape, Preset::PaperVault, 2);
     // No paper seed: the seed is in the vault alone, its stick in place 2.
     a.toggle(&shape, Question::Seeds, seeds::WORDS);
@@ -936,7 +936,7 @@ fn no_place_holds_two_different_keys_where_the_places_allow_it() {
         }
     }
     // A single key: its one place keeps its words and the vault's stick
-    // (§19.19).
+    // (§17.19).
     let shape = one_key();
     let a = Answers::preset(&shape, Preset::PaperVault);
     assert_eq!(a.places, 1);
@@ -995,7 +995,7 @@ fn the_single_key_with_words_unticked_places_vault_1s_stick() {
 fn a_plan_that_does_not_survive_a_place_lost_says_why() {
     let c = faraday_core::testkit::compute();
     let shape = one_key();
-    // Two places, as a plan saved before one place per key (§19.19).
+    // Two places, as a plan saved before one place per key (§17.19).
     let mut a = Answers::preset_at(&shape, Preset::PaperVault, 2);
     a.toggle(&shape, Question::Seeds, seeds::WORDS);
     let stick = (0..a.places).find(|&p| a.stick_at(0, p)).unwrap();
@@ -1350,7 +1350,7 @@ fn the_files(shape: &Shape, a: &Answers) -> usize {
 }
 
 /// Change the plan from the checklist opens the board on the map the
-/// cards made, nothing replaced (§19.21 item 11).
+/// cards made, nothing replaced (§17.21 item 11).
 #[test]
 fn change_the_plan_from_the_checklist_opens_the_place_cards_with_the_map_kept() {
     use faraday_core::{Action, BStage, qstep};
@@ -1616,7 +1616,7 @@ fn fewer_places_take_the_last_with_what_it_held_and_a_seed_kept_nowhere_holds_th
     let mut app = passphrase_key();
     app.press(Action::CBackup);
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
-    // The words at Place 1, the passphrase alone at Place 2 (§19.19).
+    // The words at Place 1, the passphrase alone at Place 2 (§17.19).
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     assert_eq!(app.backup().unwrap().answers.places, 2);
     // The seed's words at Place 2 alone, its passphrase at Place 1.
@@ -1718,7 +1718,7 @@ fn passphrases_add_no_place_to_a_key_without_one_or_to_a_multisig() {
 fn each_preset_fills_the_board() {
     let c = faraday_core::testkit::compute();
     use faraday_core::Action;
-    // Each plan as a person now makes it from The standard way (§19.21).
+    // Each plan as a person now makes it from The standard way (§17.21).
     for preset in Preset::ALL.iter() {
         let mut app = passphrase_key();
         app.press(Action::CBackup);
@@ -1731,7 +1731,7 @@ fn each_preset_fills_the_board() {
             Some(vec![0]),
             "{preset:?}"
         );
-        // Two places for a key with a passphrase (§19.19): the seed at
+        // Two places for a key with a passphrase (§17.19): the seed at
         // Place 1, the vault's stick there too, the passphrase alone at
         // Place 2.
         assert_eq!(a.places, 2, "{preset:?}: two places");

@@ -451,7 +451,7 @@ impl Faraday {
                 }
                 self.pointer.set_pressed(found);
                 self.vaults.pressed(self.now_ms);
-                // A press on a board chip may be its drag: no scroll (§19.2).
+                // A press on a board chip may be its drag: no scroll (§17.2).
                 if self.board_press_down(found.map(|f| f.0), x, y) {
                     self.pointer.set_drag(None);
                 }

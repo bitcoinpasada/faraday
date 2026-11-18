@@ -855,7 +855,7 @@ pub struct Writing {
     /// Files answered, read back and matched: the name written as.
     pub done: Vec<(Text, [u8; 32])>,
     /// The files sent that are not vaults, by the name sent: each may be
-    /// written again once when it does not read back (§19.12 item 10).
+    /// written again once when it does not read back (§17.12 item 10).
     pub plain: Vec<Text>,
     /// The files written again, by the name the flow meant them under.
     pub retried: Vec<Text>,
