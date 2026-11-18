@@ -4,9 +4,10 @@
 //! with the transaction and locktime a version 2 PSBT gives and its
 //! version 0 form.
 
+use faraday_bip::keys::Network;
 use faraday_crypto::work::Compute;
-use faraday_psbt::Psbt;
 use faraday_psbt::v2::PsbtV2;
+use faraday_psbt::{Context, Psbt, inspect};
 use serde_json::{Value, json};
 
 use crate::Answer;
@@ -30,8 +31,20 @@ pub fn handle(name: &str, req: &Value) -> Answer {
             // version 0 (`PsbtV2::to_v0`).
             let v2 = PsbtV2::from_v0(&c, &p);
             let back = v2.to_v0(&c).ok().map(|v| hex(&v.to_bytes()));
+            // `fee`: what the Sign screens' `inspect` shows, in satoshis,
+            // none where it shows none (an input's amount unknown, or the
+            // outputs over the inputs): Bitcoin Core's `analyzepsbt` fee.
+            let ctx = Context {
+                network: Network::Mainnet,
+                keys: &[],
+                wallets: &[],
+                musig_session: None,
+            };
+            let seen = inspect(&c, &p, &ctx);
+            let fee = seen.fee_rate_sat_vb.map(|_| seen.fee.to_sat());
             Ok(json!({
                 "bytes": hex(&p.to_bytes()),
+                "fee": fee,
                 "canonical": hex(&p.inner().serialize()),
                 "v2": hex(&v2.to_bytes()),
                 "back": back,

@@ -46,6 +46,22 @@ for both.
   bytes read where the unsigned transaction leads the global map, no
   `PSBT_GLOBAL_VERSION` is written and the transaction has an input.
 
+Every file of the fuzz corpora's `psbt_diff`, `psbt_parse` and `psbt_v2`
+folders (`fuzz/corpus/`), read as bytes or, where it is base64 text, as the
+PSBT it spells, is a case of its own (`fuzz` loop), read as the version it
+says and as the other and judged as every case above is, btclib included.
+A file with no PSBT magic is counted and left out; the same bytes twice are
+read once. `FARADAY_FUZZ_CORPUS` (folders separated by `:`, one folder per
+target, as `tools/fuzz-release.sh` reads it) and the machine's kept store
+(`$FARADAY_FUZZ_STORE`, default `~/.cache/faraday-fuzz`) add the corpus a
+fuzz run grew, when they exist: at most `FUZZ_GROWN_CAP` files of them, the
+first by sorted name, the rest counted as left out. The run prints what it
+read. The cases of a corpus are run at `--scale` 1 at most.
+
+For a version 0 PSBT Faraday and Core both read, Core's `analyzepsbt` fee
+(given only when every input's UTXO is known) must be the fee Faraday's
+`inspect` shows, and Faraday must show none where Core gives none.
+
 Every PSBT of BIP-174's, BIP-370's and BIP-371's Test Vectors sections
 (`tools/vectors/psbt-bips/`) is read all three ways, and the side that
 decides must give the BIP's answer; then random version 0 and 2 PSBTs with
@@ -82,9 +98,13 @@ Still Faraday's own, and counted as known differences:
 """
 
 import base64
+import hashlib
 import io
 import json
+import os
+import pathlib
 import sys
+from decimal import Decimal
 
 import core_node
 from common import ROOT, Area, Mismatch, use_reference
@@ -113,6 +133,73 @@ N = GE.ORDER
 
 class Refused(Exception):
     pass
+
+
+# ----- the fuzz corpora's PSBTs ------------------------------------------------
+
+FUZZ_TARGETS = ("psbt_diff", "psbt_parse", "psbt_v2")
+# At most this many files of the grown corpora (`FARADAY_FUZZ_CORPUS` and the
+# kept store) are read: their names sorted, the first ones, so the same run
+# reads the same files. The committed seeds are always all read.
+FUZZ_GROWN_CAP = 3000
+# A corpus PSBT the area does not judge, by the SHA-256 of its bytes, with
+# why (a disagreement kept for the owner's decision).
+FUZZ_SKIPPED = {}
+
+
+def _fuzz_folders():
+    """(kind, folder) of every folder read: the committed seeds, then each
+    `FARADAY_FUZZ_CORPUS` folder (separated by `:`), then the kept store
+    (`FARADAY_FUZZ_STORE`, default `~/.cache/faraday-fuzz`), each as it
+    holds a folder per target."""
+    out = [("seeds", ROOT / "fuzz" / "corpus" / t) for t in FUZZ_TARGETS]
+    grown = [pathlib.Path(d) for d in os.environ.get("FARADAY_FUZZ_CORPUS", "").split(":") if d]
+    store = os.environ.get("FARADAY_FUZZ_STORE")
+    grown.append(pathlib.Path(store) if store else pathlib.Path.home() / ".cache" / "faraday-fuzz")
+    for d in grown:
+        out += [("grown", d / t) for t in FUZZ_TARGETS]
+    return [(k, d) for k, d in out if d.is_dir()]
+
+
+def fuzz_psbts():
+    """The corpus PSBTs, in a fixed order, as (name, bytes): each file read
+    as bytes, or as base64 text where it is that; a file that is no PSBT
+    (no magic either way) is counted and left out. Returns the list and a
+    dict of counts: files of each kind, PSBTs, not PSBTs, grown files left
+    out by the cap, and PSBTs already read (the same bytes)."""
+    counts = {"seeds": 0, "grown": 0, "psbts": 0, "not_psbts": 0, "left_out": 0,
+              "duplicates": 0}
+    found, seen = [], set()
+    grown_read = 0
+    for kind, folder in _fuzz_folders():
+        files = sorted(f for f in folder.iterdir() if f.is_file())
+        if kind == "grown":
+            room = max(0, FUZZ_GROWN_CAP - grown_read)
+            counts["left_out"] += max(0, len(files) - room)
+            files = files[:room]
+            grown_read += len(files)
+        for f in files:
+            counts[kind] += 1
+            raw = f.read_bytes()
+            if not raw.startswith(MAGIC):
+                try:
+                    raw = base64.b64decode(b"".join(raw.split()), validate=True)
+                except ValueError:
+                    raw = b""
+            if not raw.startswith(MAGIC):
+                counts["not_psbts"] += 1
+                continue
+            h = hashlib.sha256(raw).hexdigest()
+            if h in seen:
+                counts["duplicates"] += 1
+                continue
+            seen.add(h)
+            found.append((f"{folder.parent.name}/{folder.name}/{f.name}", raw))
+    counts["psbts"] = len(found)
+    return found, counts
+
+
+FUZZ = fuzz_psbts()
 
 
 # ----- the container: written here, to build PSBTs and to take them apart
@@ -439,7 +526,9 @@ class Psbt(Area):
         "and btclib's `to_v2` make it, and back to its own bytes; BIP-370's locktime, "
         'transaction and version 0 form under every mix of required locktimes, also '
         "btclib's `lock_time`, `tx` and `to_v0`; one version 0 PSBT in eight carries "
-        'fields btclib refuses and btclib is not asked of it'
+        'fields btclib refuses and btclib is not asked of it; every PSBT of the fuzz '
+        "corpora (`fuzz/corpus/psbt_diff`, `psbt_parse`, `psbt_v2`, and a grown corpus "
+        "when `FARADAY_FUZZ_CORPUS` or the fuzz store has one) judged the same ways"
     )
     differences = [
         (
@@ -505,6 +594,7 @@ class Psbt(Area):
                 calls += [("decodepsbt", [b64(raw)]), ("combinepsbt", [[b64(raw)]])]
                 if r[0] == "ok":
                     calls.append(("decodepsbt", [b64(bytes.fromhex(r[1]["canonical"]))]))
+                    calls.append(("analyzepsbt", [b64(raw)]))
             elif r[0] == "ok" and h[0] == "ok" and r[1]["v0"] and h[1]["v0"]:
                 # Both version 0 forms, read by Core.
                 at[i] = len(calls)
@@ -512,7 +602,7 @@ class Psbt(Area):
         core = core_batch(calls) if calls else []
         for i, ((raw, version, expected), r, h) in enumerate(zip(reads, rust, hwi)):
             if version == 0:
-                self.judge_v0(raw, r, core[at[i]:at[i] + 3], expected)
+                self.judge_v0(raw, r, core[at[i]:at[i] + 4], expected)
             else:
                 self.judge_v2(raw, r, h, core[at[i]:at[i] + 2] if i in at else None,
                               expected)
@@ -560,6 +650,7 @@ class Psbt(Area):
                                {"core_reads_it": mine, "core_reads_faradays": theirs},
                                "Core reads Faraday's writing of the PSBT otherwise than "
                                "the PSBT itself")
+            self.judge_fee(inputs, rust, core[3])
             self.judge_to_v2(raw, got, len(decoded[1]["tx"]["vin"]),
                              len(decoded[1]["tx"]["vout"]))
             # Core's own writing of the PSBT, read and written back by
@@ -578,6 +669,18 @@ class Psbt(Area):
         if expected is not None and decided[0] != expected:
             raise Mismatch(self.name, "psbt.v0", inputs, rust, decided,
                            f"differs from the published vector ({expected})")
+
+    def judge_fee(self, inputs, rust, analyzed):
+        """Core's `analyzepsbt` fee, in satoshis, against Faraday's
+        `inspect` fee: both give one and it is the same, or neither does."""
+        theirs = None
+        if analyzed[0] == "ok" and analyzed[1].get("fee") is not None:
+            theirs = int((Decimal(str(analyzed[1]["fee"])) * 10**8).to_integral_value())
+        ours = rust[1]["fee"]
+        self.compared += 1
+        if ours != theirs:
+            raise Mismatch(self.name, "psbt.v0", inputs, rust, {"analyzepsbt": [analyzed[0], str(analyzed[1])]},
+                           f"Faraday's fee {ours} is not analyzepsbt's {theirs}")
 
     def judge_btclib_v0(self, raw, rust, decided):
         """btclib reads the version 0 PSBT when the others do and refuses
@@ -1066,10 +1169,27 @@ class Psbt(Area):
             reads.append((raw, 2 - version, "err"))
         self.read_all(reads)
 
-    LOOPS = (("corpus", 1500),)
+    # `fuzz`: one case a corpus PSBT (`fuzz_psbts`); a scale above 1 reads no
+    # more of them, below 1 fewer.
+    LOOPS = (("corpus", 1500), ("fuzz", len(FUZZ[0])))
 
     def prelude(self):
         self.published()
+        print("psbt: fuzz corpora read: " + ", ".join(
+            f"{v} {k.replace('_', ' ')}" for k, v in FUZZ[1].items()), file=sys.stderr)
+
+    def case_fuzz(self):
+        """A corpus PSBT, read as the version it says and as the other,
+        judged as every other case is (btclib asked too: a PSBT it reads
+        otherwise than the others is reported)."""
+        i = self.case_at[1]
+        if i >= len(FUZZ[0]):
+            return
+        name, raw = FUZZ[0][i]
+        if hashlib.sha256(raw).hexdigest() in FUZZ_SKIPPED:
+            return
+        version = 2 if _says_v2(raw) else 0
+        self.read_all([(raw, version, None), (raw, 2 - version, None)])
 
     def case_corpus(self):
         self.corpus_case()
