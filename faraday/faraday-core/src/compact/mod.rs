@@ -1433,6 +1433,7 @@ impl Faraday {
                     | crate::Sheet::SeedRead
                     | crate::Sheet::KefRead
                     | crate::Sheet::Sweep
+                    | crate::Sheet::PassphraseSeeds
             )
         ) {
             return self.typing_field();

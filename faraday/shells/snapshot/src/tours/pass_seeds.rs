@@ -107,9 +107,11 @@ pub(crate) fn pass_seeds_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         .map(|s| (s.vault, s.record))
         .ok_or("test key 3 is not listed")?;
     t.press(Action::Vault(V::PassphrasePick(pick.0, pick.1)));
+    t.press(Action::Vault(V::FocusPrompt));
     type_text(t, "wrong");
     t.press(Action::Vault(V::PromptGo));
     t.shot("passseeds-mismatch")?;
+    t.press(Action::Vault(V::FocusPrompt));
     type_text(t, "kept apart");
     t.press(Action::Vault(V::PromptGo));
     if t.app.sheet.is_some() || t.app.session.keys.len() != 3 {
