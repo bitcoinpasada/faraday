@@ -154,6 +154,8 @@ pub(crate) struct View {
     pub go: Option<(Text, Option<Action>)>,
     /// The loaded wallet whose first addresses are shown.
     pub addresses: Option<usize>,
+    /// The loaded wallet whose keys are shown, tickable.
+    pub keys: Option<usize>,
     /// A wallet's spend paths and the margin: label and value, each a
     /// fact under the **Spend paths** heading.
     pub paths: Vec<(Text, Text, Paint)>,
@@ -170,6 +172,7 @@ impl View {
             field: None,
             go: None,
             addresses: None,
+            keys: None,
             paths: Vec::new(),
         }
     }
@@ -463,6 +466,7 @@ fn wallet(ctx: &Ctx<'_>) -> Option<View> {
     ));
     rows.push(row(EN.glance_sheet_change, "", ctx.change_plan()));
     let mut v = View::new(Icon::Wallet, g.name.clone());
+    v.keys = loaded(press);
     v.facts = vec![
         (
             EN.glance_sheet_shape,
@@ -1231,6 +1235,31 @@ fn pass_check(ctx: &Ctx<'_>, k: u8) -> Option<View> {
     Some(v)
 }
 
+/// The loaded wallet a press is on, whose keys the sheet shows.
+fn loaded(press: Press) -> Option<usize> {
+    match press {
+        Press::Loaded(w) => Some(w),
+        Press::Vault(..) => None,
+    }
+}
+
+/// The keys of loaded wallet `wi` with their marks, tickable; nothing for
+/// a wallet of one key. Returns the height.
+fn key_block(
+    app: &crate::drawing::View,
+    ui: &mut Ui,
+    wi: Option<usize>,
+    at: (f32, f32, f32),
+) -> f32 {
+    let Some(wl) = wi.and_then(|i| Some((i, app.session.wallets.get(i)?))) else {
+        return 0.0;
+    };
+    match u16::try_from(wl.0) {
+        Ok(i) => crate::wallet::draw_key_block(wl.1, crate::wallet::KeyBlockOf::Wallet(i), ui, at),
+        Err(_) => 0.0,
+    }
+}
+
 /// The sheet for target `Target::Addresses`.
 fn addresses(ctx: &Ctx<'_>) -> Option<View> {
     let Ctx { g, press, .. } = *ctx;
@@ -1239,6 +1268,7 @@ fn addresses(ctx: &Ctx<'_>) -> Option<View> {
     };
     let mut v = View::new(Icon::Wallet, g.name.clone());
     v.addresses = Some(w);
+    v.keys = Some(w);
     Some(v)
 }
 
@@ -1403,6 +1433,9 @@ fn body(
             cy += crate::screens::descriptor_row(ui, x, cy, iw, wl, Action::QrWallet(wi));
         }
         cy += crate::screens::first_addresses(app, ui, wi, x, cy, iw);
+        cy += key_block(app, ui, v.keys, (x, cy, iw));
+    } else {
+        cy += key_block(app, ui, v.keys, (x, cy, iw));
     }
     for (heading, rows) in &v.groups {
         if rows.is_empty() {

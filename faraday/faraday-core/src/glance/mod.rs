@@ -209,6 +209,16 @@ impl Reads for Now<'_> {
     }
 }
 
+/// The wallet node's line counting the keys not checked, when some are.
+fn unchecked_line(g: &Glance, lines: &mut Vec<Line>) {
+    let text = match g.unchecked {
+        0 => return,
+        1 => Text::of(EN.keycheck_node_one),
+        n => Text::fill(EN.keycheck_node_many, &[&Text::num(n as u64)]),
+    };
+    lines.push(Line::new(text, LABEL_M, Role::Warning.paint()));
+}
+
 /// The chart of one wallet.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Glance {
@@ -230,6 +240,8 @@ pub struct Glance {
     /// A key of it made here waits for its backup: the wallet node says
     /// "Back up before you receive" (`docs/WALLETS.md` §13).
     pub held: bool,
+    /// How many of the wallet's keys are not checked.
+    pub unchecked: usize,
     /// The wallet's backup was begun and not finished: its button reads
     /// Continue the backup, as the wallet's page does.
     pub unfinished: bool,
@@ -841,6 +853,7 @@ fn build(
         press,
         focus,
         held,
+        unchecked: wallet.keys_unchecked(),
         unfinished: matches!(press, Press::Loaded(w) if app.wallet_backup_unfinished(w)),
         keep: matches!(press, Press::Vault(..))
             || app.vaults.open.get(app.vaults.current).is_some(),
@@ -1444,6 +1457,7 @@ fn rows(g: &Glance, compact: bool, lines_open: bool) -> [Vec<Node>; 3] {
             Role::Warning.paint(),
         ));
     }
+    unchecked_line(g, &mut wallet_lines);
     let wallet = vec![Node {
         title: g.name.clone(),
         tag: None,

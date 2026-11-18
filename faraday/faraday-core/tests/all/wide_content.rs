@@ -61,6 +61,13 @@ fn with_wallets(width: u16, height: u16) -> Faraday {
         testkit::load_wallet(&mut app, i);
     }
     assert!(!app.session.wallets.is_empty(), "a wallet loaded");
+    // Every key checked: the wallet node has no key-check line, so the
+    // card's address stays in view at this window size.
+    for w in 0..app.session.wallets.len() {
+        for k in 0..app.session.wallets[w].key_checks().len() {
+            app.session.tick_key(w, k);
+        }
+    }
     app
 }
 

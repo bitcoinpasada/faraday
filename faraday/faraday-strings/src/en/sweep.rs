@@ -568,6 +568,10 @@ macro_rules! words_sweep {
     keycheck_line_many: "{} keys not checked · compare each with its own device",
     /// Under a wallet's keys: every key is checked.
     keycheck_line_all: "Every key checked",
+    /// A wallet's node on the chart: one key is not checked.
+    keycheck_node_one: "1 key not checked",
+    /// A wallet's node on the chart: several keys are not checked. `{}`: how many.
+    keycheck_node_many: "{} keys not checked",
     /// A wallet was added with one key not checked. `{}`: its name.
     keycheck_added_one: "{} added · 1 key not checked",
     /// A wallet was added with keys not checked. `{}`: its name, then how many.

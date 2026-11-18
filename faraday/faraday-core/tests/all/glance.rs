@@ -238,6 +238,9 @@ fn a_cosigners_key_is_xpub_only_and_no_backup_node_holds_its_seed() {
 fn a_place_with_the_whole_sheet_sees_the_balance() {
     let mut app = desktop();
     let w = two_of_three(&mut app);
+    // The cosigner's key is ticked: the wallet node has no key-check
+    // line, and the page below it is as tall as this test reads.
+    app.session.tick_key(w, 2);
     planned(&mut app, w, 1);
     let nodes = nodes(&chart(&app, w));
     // The cosigner's place keeps the sheet alone.
