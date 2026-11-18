@@ -70,6 +70,11 @@ broken one rule at a time.
 
 Still Faraday's own, and counted as known differences:
 
+- A version 0 PSBT with an input whose UTXO script is provably unspendable:
+  Core's `analyzepsbt` refuses it ("spends unspendable output") and gives no
+  fee; Faraday shows the fee.
+- A version 0 PSBT whose outputs are worth more than its inputs (or that has
+  no inputs): Core's `analyzepsbt` gives a negative fee; Faraday shows none.
 - Core reads a version 0 PSBT with version 2 fields as valid, the fields
   as unknown; HWI refuses it, as BIP-370 does, and decides it (btclib
   refuses it too).
@@ -144,7 +149,17 @@ FUZZ_TARGETS = ("psbt_diff", "psbt_parse", "psbt_v2")
 FUZZ_GROWN_CAP = 3000
 # A corpus PSBT the area does not judge, by the SHA-256 of its bytes, with
 # why (a disagreement kept for the owner's decision).
-FUZZ_SKIPPED = {}
+FUZZ_SKIPPED = {
+    # Bitcoin Core's decodepsbt refuses it ("Input specifies output index that
+    # does not exist") and Faraday reads it; kept for the owner's decision.
+    # Bitcoin Core's decodepsbt refuses it ("Non-witness UTXO does not match
+    # outpoint hash") and Faraday reads it; kept for the owner's decision.
+    "6390b6924d03132e816d497ee34b073e7aa606e9612a083e2e67dfddb58915dc": "a non_witness_utxo whose txid is not the spent outpoint's",
+    "b5cc2f48274a36964df772eb50c048e830ddfafd90ffdab84c6262f703c71aac": "a non_witness_utxo whose txid is not the spent outpoint's",
+    "9344c7ae3e723ec7a601438ea4d13faa88206073a9d7e387a6fb5a6a05a41ff3": "a non_witness_utxo whose txid is not the spent outpoint's",
+    "3005b6f41e558746677b99b56b0531828e8c9621c927acc0595469e97b581db9": "a non_witness_utxo whose txid is not the spent outpoint's",
+    "72554f1b136fb7e3aee7eadd25a0bcc0066604248854f910f2b9d05977a85b09": "an input whose non_witness_utxo has no output at the spent index",
+}
 
 
 def _fuzz_folders():
@@ -672,12 +687,26 @@ class Psbt(Area):
 
     def judge_fee(self, inputs, rust, analyzed):
         """Core's `analyzepsbt` fee, in satoshis, against Faraday's
-        `inspect` fee: both give one and it is the same, or neither does."""
+        `inspect` fee: both give one and it is the same, or neither does. Known
+        difference: outputs worth more than the inputs: Core's fee is the
+        negative difference and Faraday shows none."""
         theirs = None
         if analyzed[0] == "ok" and analyzed[1].get("fee") is not None:
             theirs = int((Decimal(str(analyzed[1]["fee"])) * 10**8).to_integral_value())
         ours = rust[1]["fee"]
         self.compared += 1
+        if (analyzed[0] == "ok" and "unspendable" in str(analyzed[1].get("error", ""))
+                and theirs is None):
+            # analyzepsbt refuses a PSBT that spends an output whose script
+            # is provably unspendable; inspect has no such rule.
+            self.known += 1
+            return
+        if theirs is not None and theirs < 0 and ours is None:
+            # Outputs worth more than the inputs (or no inputs at all):
+            # analyzepsbt gives the negative difference as its fee; Faraday
+            # gives none.
+            self.known += 1
+            return
         if ours != theirs:
             raise Mismatch(self.name, "psbt.v0", inputs, rust, {"analyzepsbt": [analyzed[0], str(analyzed[1])]},
                            f"Faraday's fee {ours} is not analyzepsbt's {theirs}")
