@@ -61,6 +61,26 @@ fn all(app: &mut Faraday) -> String {
     texts(app).join(" ")
 }
 
+/// The sheet scrolled down, as a person would, until a line holding
+/// `part` is drawn (at most 12 wheel steps), then read as it stands. The
+/// side sheet is taller than the window once its addresses are worked
+/// out, and a line below the window is not drawn.
+fn all_with(app: &mut Faraday, part: &str) -> String {
+    for _ in 0..12 {
+        let s = all(app);
+        if s.contains(part) {
+            return s;
+        }
+        let (w, h) = app.size();
+        app.event(Event::Scroll {
+            x: (w - 100.0) as u16,
+            y: (h / 2.0) as u16,
+            dy: 120,
+        });
+    }
+    all(app)
+}
+
 #[test]
 fn the_node_and_the_sheet_count_the_keys_not_checked_and_a_tick_there_updates_both() {
     for target in [Target::Wallet, Target::Addresses] {
@@ -72,14 +92,15 @@ fn the_node_and_the_sheet_count_the_keys_not_checked_and_a_tick_there_updates_bo
         assert_eq!(s.matches("Not checked").count(), 2, "{s}");
         // The node's line and the sheet's line.
         assert!(s.contains("2 keys not checked"), "{s}");
+        let s = all_with(&mut app, "compare each with its own device");
         assert!(s.contains("compare each with its own device"), "{s}");
 
         app.press(Action::KeyTick(KeyBlockOf::Wallet(w as u16), 1));
-        let s = all(&mut app);
+        let s = all_with(&mut app, "1 key not checked");
         assert!(s.contains("1 key not checked"), "{s}");
         assert!(!s.contains("2 keys not checked"), "{s}");
         app.press(Action::KeyTick(KeyBlockOf::Wallet(w as u16), 2));
-        let s = all(&mut app);
+        let s = all_with(&mut app, "Every key checked");
         assert!(s.contains("Every key checked"), "{s}");
         assert!(!s.contains("keys not checked"), "{s}");
         assert!(!s.contains("1 key not checked"), "{s}");
