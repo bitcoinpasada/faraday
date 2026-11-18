@@ -13,12 +13,23 @@ use std::path::{Path, PathBuf};
 /// `usb_root` (`/sys/bus/usb/devices`), each by name, sorted: a disk or
 /// partition of size above 0 on a USB bus or named `mmcblk<n>` or
 /// `mmcblk<n>p<m>`, and an authorised mass-storage interface of a USB
-/// device. The disk `boot_partition` is on is left out, with the USB port
-/// it is behind: the medium the machine started from is not a stick that
-/// was attached. An empty card-reader slot (size 0) is not storage.
-pub fn attached(sys_block: &Path, usb_root: &Path, boot_partition: Option<&str>) -> Vec<String> {
-    let boot_disk = boot_partition.and_then(|p| disk_of(sys_block, p));
-    let boot_port = boot_partition.and_then(|p| crate::start_window::medium_port(sys_block, p));
+/// device that has no block device yet or one of size above 0. The disk
+/// the `boot` partition is on is left out, with the USB port it is behind:
+/// the medium the machine started from is not a stick that was attached.
+/// It is that disk only while its `diskseq` is the one recorded at boot, so
+/// a stick that took the boot stick's name after it was pulled is attached;
+/// with no recorded `diskseq` (`boot` is `None`) nothing is left out. An
+/// empty card-reader slot (size 0) is not storage.
+pub fn attached(sys_block: &Path, usb_root: &Path, boot: Option<(&str, &str)>) -> Vec<String> {
+    let boot_disk = boot.and_then(|(p, seq)| {
+        let disk = disk_of(sys_block, p)?;
+        let now = fs::read_to_string(disk.join("diskseq")).unwrap_or_default();
+        (now.trim() == seq.trim()).then_some(disk)
+    });
+    let boot_port = boot_disk
+        .as_ref()
+        .and(boot)
+        .and_then(|(p, _)| crate::start_window::medium_port(sys_block, p));
     let mut out = Vec::new();
     for name in names(sys_block) {
         if !is_storage_name(&name) || size(&sys_block.join(&name)) == 0 {
@@ -49,6 +60,7 @@ pub fn attached(sys_block: &Path, usb_root: &Path, boot_partition: Option<&str>)
         if u8::from_str_radix(class.trim(), 16) == Ok(8)
             && authorised(&dir)
             && authorised(&usb_root.join(port))
+            && !only_empty_disks(&dir)
         {
             out.push(name);
         }
@@ -110,6 +122,39 @@ fn disk_of(sys_block: &Path, name: &str) -> Option<PathBuf> {
     }
 }
 
+/// Whether the interface shows block devices and every one is of size 0: an
+/// empty card-reader slot. One that shows none yet is a stick the listing
+/// has not shown, and is not this.
+fn only_empty_disks(interface: &Path) -> bool {
+    let mut disks = Vec::new();
+    collect_disks(interface, &mut disks);
+    !disks.is_empty() && disks.iter().all(|d| size(d) == 0)
+}
+
+/// The block devices (`block/<name>`) below an interface, at whatever depth
+/// the SCSI host puts them.
+fn collect_disks(dir: &Path, out: &mut Vec<PathBuf>) {
+    let Ok(entries) = fs::read_dir(dir) else {
+        return;
+    };
+    for e in entries.flatten() {
+        if !e.file_type().is_ok_and(|t| t.is_dir()) {
+            continue;
+        }
+        if e.file_name() == "block" {
+            out.extend(
+                fs::read_dir(e.path())
+                    .into_iter()
+                    .flatten()
+                    .flatten()
+                    .map(|d| d.path()),
+            );
+        } else {
+            collect_disks(&e.path(), out);
+        }
+    }
+}
+
 /// Whether the device or interface is let through (`authorized` is not 0,
 /// or not there).
 fn authorised(dir: &Path) -> bool {
@@ -151,7 +196,7 @@ mod tests {
         root
     }
 
-    fn look(root: &Path, boot: Option<&str>) -> Vec<String> {
+    fn look(root: &Path, boot: Option<(&str, &str)>) -> Vec<String> {
         attached(&root.join("class/block"), &root.join("usb"), boot)
     }
 
@@ -174,10 +219,31 @@ mod tests {
     fn the_boot_disk_and_its_partitions_are_left_out_and_a_card_is_not() {
         let root = tree("boot");
         let sdb = disk(&root, "pci/usb1/1-2/1-2:1.0/host0/block", "sdb", 1000);
+        put(&sdb.join("diskseq"), "7\n");
         partition(&root, &sdb, "sdb2");
         disk(&root, "soc/mmc/block", "mmcblk0", 1000);
         assert_eq!(look(&root, None), ["mmcblk0", "sdb", "sdb2"]);
-        assert_eq!(look(&root, Some("sdb2")), ["mmcblk0"]);
+        assert_eq!(look(&root, Some(("sdb2", "7"))), ["mmcblk0"]);
+    }
+
+    #[test]
+    fn a_stick_that_takes_the_pulled_boot_sticks_name_is_attached() {
+        let root = tree("renamed");
+        let sdb = disk(&root, "pci/usb1/1-3/1-3:1.0/host0/block", "sdb", 1000);
+        put(&sdb.join("diskseq"), "12\n");
+        partition(&root, &sdb, "sdb2");
+        assert_eq!(look(&root, Some(("sdb2", "7"))), ["sdb", "sdb2"]);
+    }
+
+    #[test]
+    fn an_empty_reader_interface_is_not_attached_and_a_card_in_it_is() {
+        let root = tree("reader");
+        put(&root.join("usb/1-1:1.0/bInterfaceClass"), "08\n");
+        let sda = root.join("usb/1-1:1.0/host0/target0:0:0/0:0:0:0/block/sda");
+        put(&sda.join("size"), "0\n");
+        assert!(look(&root, None).is_empty());
+        put(&sda.join("size"), "1000\n");
+        assert_eq!(look(&root, None), ["1-1:1.0"]);
     }
 
     #[test]
