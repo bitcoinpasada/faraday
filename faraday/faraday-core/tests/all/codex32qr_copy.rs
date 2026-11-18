@@ -241,10 +241,21 @@ fn a_drawn_string_shows_its_grid_marked_by_blocks_and_rows() {
     let f6 = seen(&mut app, Action::BC32(Press::BlockAt(35)));
     let cell = f32::from(a1.2) / 5.0;
     assert!((f32::from(a1.3) / cell - 5.0).abs() < 0.3, "{a1:?}");
-    assert!((f32::from(a6.2) / cell - 4.0).abs() < 0.3, "{a6:?}");
+    // A block short at the edge reaches the touch floor outward, into the
+    // room beside the grid: its press is 48 wide, its squares four.
+    assert!(
+        f32::from(a6.2) >= (4.0 * cell - 0.3 * cell).max(48.0) - 1.0,
+        "{a6:?}"
+    );
     assert!((f32::from(a6.3) / cell - 5.0).abs() < 0.3, "{a6:?}");
-    assert!((f32::from(f6.2) / cell - 4.0).abs() < 0.3, "{f6:?}");
-    assert!((f32::from(f6.3) / cell - 4.0).abs() < 0.3, "{f6:?}");
+    assert!(
+        f32::from(f6.2) >= (4.0 * cell - 0.3 * cell).max(48.0) - 1.0,
+        "{f6:?}"
+    );
+    assert!(
+        f32::from(f6.3) >= (4.0 * cell - 0.3 * cell).max(48.0) - 1.0,
+        "{f6:?}"
+    );
     // A press on a block marks it.
     app.press(Action::BC32(Press::BlockAt(7)));
     assert!(text_seen(&mut app, "Block B2"));

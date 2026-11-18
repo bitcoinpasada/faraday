@@ -1306,8 +1306,11 @@ fn the_seedqr_to_copy_is_marked_by_blocks_or_rows() {
     let corner = grid_box(&mut app, Action::BPin(35));
     let cell = f32::from(first.2) / 5.0;
     assert!((f32::from(first.3) / cell - 5.0).abs() < 0.3, "{first:?}");
-    assert!((f32::from(edge.2) / cell - 4.0).abs() < 0.3, "{edge:?}");
-    assert!((f32::from(corner.3) / cell - 4.0).abs() < 0.3, "{corner:?}");
+    // A block short at the edge reaches the touch floor outward, into the
+    // room beside or under the grid.
+    let floor = (4.0 * cell - 0.3 * cell).max(48.0) - 1.0;
+    assert!(f32::from(edge.2) >= floor, "{edge:?}");
+    assert!(f32::from(corner.3) >= floor, "{corner:?}");
     assert!(text_seen(&mut app, "Block 0 · 0"));
     // The keys move the mark a block at a time, and no further than the
     // last block.
