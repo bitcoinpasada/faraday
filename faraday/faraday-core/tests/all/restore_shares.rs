@@ -390,3 +390,43 @@ fn a_taproot_multisig_rebuilt_from_its_sheets_keeps_its_name() {
     assert_eq!(app.session.wallets.len(), 1);
     assert_eq!(&*app.session.wallets[0].name, "Family trust");
 }
+
+/// A named Taproot multisig's sheets listed in the Inbox show the wallet
+/// under the sheets' name.
+#[test]
+fn a_taproot_multisig_from_its_sheets_is_listed_in_the_inbox_by_name() {
+    let (sheets, _) = sheets("Fund", &taproot_descriptor());
+    let app = device(vec![
+        ("fund-1.txt".to_string(), sheets[0].clone().into_bytes()),
+        ("fund-2.txt".to_string(), sheets[1].clone().into_bytes()),
+    ]);
+    let c = testkit::compute();
+    let found = app.inbox_found_now(&c);
+    let rebuilt: Vec<_> = found.wallets.iter().filter(|w| w.from_shares).collect();
+    assert_eq!(rebuilt.len(), 1);
+    assert_eq!(&*rebuilt[0].name, "Fund");
+}
+
+/// The same sheets brought into Spend from a backup open the wallet as
+/// "Fund".
+#[test]
+fn a_taproot_multisig_from_its_sheets_keeps_its_name_in_spend_from_a_backup() {
+    use faraday_core::spend_backup::{SpendBackupAction as F, page};
+    let (sheets, _) = sheets("Fund", &taproot_descriptor());
+    let mut app = device(Vec::new());
+    app.press(Action::Nav(Screen::SpendBackup));
+    app.press(Action::SpendBackup(F::Next(page::MAP)));
+    for s in &sheets[..2] {
+        if app.scan().is_none() {
+            app.press(Action::SpendBackup(F::Scan));
+        }
+        app.event(Event::Scanned {
+            bytes: s.clone().into_bytes(),
+        });
+        testkit::settle(&mut app);
+        let _ = app.frame();
+    }
+    testkit::confirm_wallets(&mut app);
+    assert_eq!(app.session.wallets.len(), 1, "{:?}", app.toast_text());
+    assert_eq!(&*app.session.wallets[0].name, "Fund");
+}

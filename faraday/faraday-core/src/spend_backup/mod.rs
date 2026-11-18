@@ -1709,10 +1709,14 @@ impl Faraday {
         match crate::restore::merge(&texts) {
             Ok(m) => match m.whole {
                 Some(whole) => {
-                    let name = faraday_bip::multisig_config::parse_named(&c, &whole)
+                    let in_text = faraday_bip::multisig_config::parse_named(&c, &whole)
                         .ok()
-                        .and_then(|(_, n)| n)
-                        .unwrap_or_else(|| Text::of(EN.spend_backup_restored_wallet));
+                        .and_then(|(_, n)| n);
+                    let name = crate::restore::name_or_sheets(
+                        in_text,
+                        m.name,
+                        EN.spend_backup_restored_wallet,
+                    );
                     let asked = self.session.wallet_asked().is_some();
                     match self.session.add_wallet(
                         &c,

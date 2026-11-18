@@ -273,11 +273,18 @@ pub fn merge<T: AsRef<str>>(texts: &[T]) -> Result<Merged, Text> {
 /// `Name:`, or for a Taproot descriptor, which has none, the shares' own;
 /// the fallback when neither is there.
 fn rebuilt_name(c: &Compute, whole: &str, shares: Option<Text>) -> Text {
-    multisig_config::parse_named(c, whole)
+    let in_text = multisig_config::parse_named(c, whole)
         .ok()
-        .and_then(|(_, n)| n)
-        .or_else(|| shares.filter(|n| !n.trim().is_empty()))
-        .unwrap_or_else(|| Text::of(EN.act_restored_wallet))
+        .and_then(|(_, n)| n);
+    name_or_sheets(in_text, shares, EN.act_restored_wallet)
+}
+
+/// The name found in a rebuilt text, or when it has none (a Taproot
+/// descriptor) the sheets' own when not blank, or `fallback`.
+pub(crate) fn name_or_sheets(in_text: Option<Text>, sheets: Option<Text>, fallback: &str) -> Text {
+    in_text
+        .or_else(|| sheets.filter(|n| !n.trim().is_empty()))
+        .unwrap_or_else(|| Text::of(fallback))
 }
 
 /// Costs what `parse` and `read_wallet` cost. Whether the rebuilt text

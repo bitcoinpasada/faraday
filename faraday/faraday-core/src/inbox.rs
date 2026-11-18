@@ -1048,10 +1048,11 @@ impl Faraday {
             match crate::restore::merge(&shares) {
                 Ok(m) => match m.whole {
                     Some(whole) => {
-                        let name = self
-                            .kept
-                            .config_name_kept(c, &whole)
-                            .map_or_else(|| Text::of(EN.inbox_restored_wallet), |n| Text::of(&n));
+                        let name = crate::restore::name_or_sheets(
+                            self.kept.config_name_kept(c, &whole),
+                            m.name,
+                            EN.inbox_restored_wallet,
+                        );
                         if let Some(p) = self.kept.read_kept(c, &whole) {
                             let loaded = loaded_desc.contains(&*crate::wallet::same_wallet(&p));
                             push_wallet(&mut found, name, p, None, true, loaded);
