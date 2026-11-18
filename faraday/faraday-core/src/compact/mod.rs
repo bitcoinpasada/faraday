@@ -1282,9 +1282,14 @@ fn tiles(app: &View) -> Vec<Tile> {
         true,
     ));
     // The panel's menu puts Wallets first of the top pair, Check second
-    // (F255 amended); the grid layouts keep Check first.
-    if app.nav() == crate::nav::Nav::Menu {
-        t.swap(0, 1);
+    // (F255 amended); the grid layouts keep Check first, except where the
+    // rail lists Check: no tile there (F275).
+    match app.nav() {
+        crate::nav::Nav::Menu => t.swap(0, 1),
+        crate::nav::Nav::Rail => {
+            t.remove(0);
+        }
+        _ => {}
     }
     t
 }

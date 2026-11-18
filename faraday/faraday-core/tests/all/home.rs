@@ -685,6 +685,22 @@ fn homes_fourth_tile_is_check_with_or_without_a_vault() {
     assert!(!app.offers(Action::Vault(V::Create)));
 }
 
+/// The rail lists Check, so Home on a rail-size window draws no tile for
+/// it; the phone-size window's bar lacks Check, so its Home keeps the tile.
+#[test]
+fn home_draws_no_check_tile_where_the_rail_lists_check() {
+    let count = |app: &Faraday| {
+        app.offered_actions()
+            .into_iter()
+            .filter(|a| *a == Action::Nav(Screen::Check))
+            .count()
+    };
+    let rail = sized(1024, 768, 160);
+    assert_eq!(count(&rail), 1, "only the rail's own destination");
+    let phone = sized(400, 800, 160);
+    assert_eq!(count(&phone), 1, "the tile, the bar having no Check");
+}
+
 /// Stick visit joins Home's tiles while a stick is attached and nothing
 /// is held.
 #[test]

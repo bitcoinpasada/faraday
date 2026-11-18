@@ -224,9 +224,9 @@ tiles: the sidebar is its places.
 
 ### 6.3 Check on Home
 
-Check is a tile of the places wherever they are drawn (the Pi's menu, the
-rail's windows, the phone-size window); the wide layout's Home draws none,
-the sidebar listing Check (F275).
+Check is a tile of the places where the navigation lacks Check (the Pi's
+menu, the phone-size window); the rail's windows and the wide layout's Home
+draw none, the rail and the sidebar listing Check (F275).
 
 ### 6.4 Files once in the sidebar
 
