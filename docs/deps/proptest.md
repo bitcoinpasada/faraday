@@ -1,8 +1,7 @@
 # proptest
 
 **Purpose.** The property tests of the backup forms
-(`faraday/faraday-keys/tests/round_trips.rs`,
-`faraday/faraday-plan/tests/round_trips.rs`): for random seeds,
+(`faraday/faraday-keys/tests/round_trips.rs`): for random seeds,
 passphrases, share counts and thresholds, every backup form restores to the
 same wallet, and a split restores from every sufficient subset and refuses
 every insufficient one. It makes the random inputs and shrinks a failing one

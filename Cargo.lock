@@ -1053,6 +1053,7 @@ version = "0.2.0"
 dependencies = [
  "aes",
  "argon2",
+ "bip39",
  "cbc",
  "chacha20",
  "faraday-bip",

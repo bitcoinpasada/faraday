@@ -43,6 +43,7 @@ master-for-tests = []
 [dev-dependencies]
 serde_json = { workspace = true, features = ["std"] }
 proptest.workspace = true
+bip39.workspace = true
 
 [lints]
 workspace = true
