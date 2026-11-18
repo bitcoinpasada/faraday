@@ -276,6 +276,11 @@ version = "0.23.2"
 criteria = "safe-to-deploy"
 notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
 
+[[exemptions.core_detect]]
+version = "1.0.0"
+criteria = "safe-to-run"
+notes = "not reviewed; a dev-dependency of the backup property tests only (docs/deps/proptest.md), in no shipped binary"
+
 [[exemptions.cpufeatures]]
 version = "0.2.17"
 criteria = "safe-to-deploy"
@@ -977,6 +982,11 @@ version = "3.5.0"
 criteria = "safe-to-deploy"
 notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
 
+[[exemptions.proptest]]
+version = "1.12.0"
+criteria = "safe-to-run"
+notes = "not reviewed; a dev-dependency of the backup property tests only (docs/deps/proptest.md), in no shipped binary"
+
 [[exemptions.quick-xml]]
 version = "0.41.0"
 criteria = "safe-to-deploy"
@@ -1005,10 +1015,20 @@ version = "0.8.8"
 criteria = "safe-to-deploy"
 notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
 
+[[exemptions.rand]]
+version = "0.10.4"
+criteria = "safe-to-run"
+notes = "not reviewed; a dev-dependency of the backup property tests only (docs/deps/proptest.md), in no shipped binary"
+
 [[exemptions.rand_chacha]]
 version = "0.3.1"
 criteria = "safe-to-deploy"
 notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
+
+[[exemptions.rand_xorshift]]
+version = "0.5.0"
+criteria = "safe-to-run"
+notes = "not reviewed; a dev-dependency of the backup property tests only (docs/deps/proptest.md), in no shipped binary"
 
 [[exemptions.redox_syscall]]
 version = "0.4.1"
@@ -1024,6 +1044,11 @@ notes = "F71: not reviewed; desktop shells only, linked through winit or softbuf
 version = "0.9.4"
 criteria = "safe-to-deploy"
 notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
+
+[[exemptions.regex-syntax]]
+version = "0.8.12"
+criteria = "safe-to-run"
+notes = "not reviewed; a dev-dependency of the backup property tests only (docs/deps/proptest.md), in no shipped binary"
 
 [[exemptions.replace_with]]
 version = "0.1.8"
@@ -1260,6 +1285,11 @@ notes = "F193: not reviewed; the keepass-rs cross-check crate only (docs/deps/ke
 [[exemptions.typenum]]
 version = "1.20.1"
 criteria = "safe-to-deploy"
+
+[[exemptions.unarray]]
+version = "0.1.4"
+criteria = "safe-to-run"
+notes = "not reviewed; a dev-dependency of the backup property tests only (docs/deps/proptest.md), in no shipped binary"
 
 [[exemptions.unicode-ident]]
 version = "1.0.27"

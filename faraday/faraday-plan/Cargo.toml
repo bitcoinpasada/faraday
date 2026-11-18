@@ -22,5 +22,8 @@ faraday-text = { path = "../../core/faraday-text" }
 # The codex32 set facts a plan's strings are read against.
 faraday-vault = { path = "../faraday-vault" }
 
+[dev-dependencies]
+proptest.workspace = true
+
 [lints]
 workspace = true
