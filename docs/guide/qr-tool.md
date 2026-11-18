@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `QrTool`
 **Key:** qr-tool
+**Words:** seed, codex32, share, seal, vault, for-the-stick
 
 The tool has one card per step: the contents, the passphrase and the code. A QR vault seals one small thing under a passphrase into a single QR code, and the same tool opens a scanned code or a .pgp file; nothing typed, opened or made is kept once you leave the tool.
 

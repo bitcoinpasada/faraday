@@ -164,6 +164,31 @@ made at **Make the wallet**.
   second copy to keep in step.
 - The pages are English, as every string is.
 
+### 3.1 The glossary and Words on this page
+
+`docs/guide/glossary.md` is the glossary: one page, one section a word
+(`## Seed`, key `glossary.seed`), each a plain definition of one or two
+sentences of a word Faraday uses in its own way. Its keys are the
+anchors the app opens the page at. It is in the contents under First
+start, and Find in the guide finds a word by its heading.
+
+A page whose screen uses some of these words names them in one header
+line under its `**Key:**`, `**Words:** seed, key, vault`: the words'
+names as they stand in the glossary's keys, in the order the page lists
+them. The app draws the line under the lead as **Words on this page**,
+one full list row a word (Material's list item, `Action::GuideWord`)
+whose press shows the word's definition; Back returns to the page.
+No definition is written twice, and a page whose screen uses none has
+no line. The parser reads the line once, with the pages
+(`GuidePage::words`, resolved to places in `faraday_guide::glossary`),
+and `tools/lint-guide.py` fails a name the glossary does not define and
+a Words line in the glossary. The Starter's pages carry none.
+
+Find a tool, on Tools, and Home's search also offer the words whose
+heading holds every word typed, under **Words** after the settings
+(`tools::search::Hit::Word`); a press opens the guide at that
+definition.
+
 ## 4. The button and the guide's screen
 
 Checked against Material 3's pages on m3.material.io:

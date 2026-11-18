@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `Codes`
 **Key:** codes
+**Words:** vault
 
 Codes shows the current one-time code of every vault entry that holds a TOTP secret, across every open vault. It needs a vault open and the clock checked; each code is worked out on this computer.
 

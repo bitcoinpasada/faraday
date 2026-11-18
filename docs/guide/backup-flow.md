@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `BackupFlow`
 **Key:** backup-flow
+**Words:** plan, place, checklist, seal, vault, lock
 
 This flow plans where a key will be kept, reads its sticks and makes or unlocks its vaults before the key exists, then makes the key, locks once and writes each stick. It is used for a GPG key, Secure Boot keys, or the vaults and sticks of a wallet.
 

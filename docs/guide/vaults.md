@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `Vaults`
 **Key:** vaults
+**Words:** vault, seal, lock, session, for-the-stick, stick-visit
 
 Vaults lists the vaults in Files, open or locked; each is a file sealed under its passphrase. A vault is copied in on a stick visit, and sealed again when the session locks with changes.
 

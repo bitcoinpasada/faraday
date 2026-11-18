@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `SpendBackup`
 **Key:** spend-from-backup
+**Words:** psbt, descriptor, vault, seal, share, seed
 
 Spend from a backup is one column of cards that takes you from what is in the envelope to a transaction sent and the device locked, with three stops on this computer and three on an online one; nothing moves until the last. The wallet is worked out from what you bring in, and the steps are those of Sign a transaction.
 

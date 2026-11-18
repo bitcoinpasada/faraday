@@ -2318,6 +2318,39 @@ fn guide_text(
     flow.draw(ui, (x, y))
 }
 
+/// **Words on this page** from (x, y), `w` wide: one list row for each
+/// glossary word the page's screen uses, a press of which shows the word's
+/// definition (`docs/GUIDE-IN-APP.md` §3.1). Returns the height used.
+fn guide_words(
+    ui: &mut Ui,
+    look: &GuideLook,
+    page: &faraday_guide::GuidePage,
+    (bx, y, bw): (f32, f32, f32),
+) -> f32 {
+    let [_, after_heading, _, _] = look.after;
+    let glossary = faraday_guide::glossary();
+    let mut cy = y;
+    cy += ui.wrap_as(
+        (bx, cy, bw),
+        look.heading,
+        Role::OnSurface,
+        EN.guide_words_here,
+    ) + after_heading;
+    for &i in &page.word_ix {
+        let Some(word) = glossary.get(usize::from(i)) else {
+            continue;
+        };
+        let it = faraday_ui::roles::ListItem {
+            headline: word.word,
+            supporting: "",
+            trailing: None,
+            action: Action::GuideWord(i),
+        };
+        cy += ui.list_item((bx, cy, bw), &it, false);
+    }
+    cy - y
+}
+
 /// A guide page from (x, y), `w` wide: its title, the lead's text, then
 /// each section's heading and text. Returns the height used and where the
 /// section the guide is to scroll to begins, if it is on the page.
@@ -2343,6 +2376,9 @@ fn guide_page(
         }
         for para in &section.paragraphs {
             cy += guide_text(app, ui, (bx, cy, bw), look.body, para) + after_para;
+        }
+        if i == 0 && !page.word_ix.is_empty() {
+            cy += guide_words(ui, look, page, (bx, cy, bw));
         }
         cy += after_section;
     }

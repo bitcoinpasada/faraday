@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `Convert`
 **Key:** convert
+**Words:** seed, key, codex32, share, part, seed-xor, seedqr, fingerprint
 
 This tool writes a key held on this device in another standard; it stays the same wallet, and each result is read back before it is shown. There is one card per step: the source, the form to write it in, that form's settings where it has any, and the result.
 

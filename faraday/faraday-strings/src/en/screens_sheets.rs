@@ -356,6 +356,12 @@ macro_rules! words_screens_sheets {
     /// Heading of the contents' first group, the place the guide was
     /// opened from.
     guide_here: "Here",
+    /// Heading of the list of glossary words a guide page uses, under its
+    /// lead.
+    guide_words_here: "Words on this page",
+    /// Heading of the glossary words Find a tool and Home's search find,
+    /// after the settings.
+    guide_words_found: "Words",
     /// A heading of the guide's contents.
     guide_group_get: "Get Faraday",
     /// A heading of the guide's contents.

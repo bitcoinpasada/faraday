@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `Settings`
 **Key:** settings
+**Words:** session, lock, practice, vault, for-the-stick
 
 Settings holds the session's settings and how the app looks, in sections: Mode, Lock and power, Time, Randomness, Appearance, Display, What is remembered and About.
 

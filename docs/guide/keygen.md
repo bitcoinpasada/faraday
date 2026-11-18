@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `KeyGen`
 **Key:** keygen
+**Words:** words, codex32, share, seed-xor, part, seedqr, bip39-passphrase, fingerprint
 
 Make a new key makes a key from randomness, or takes in one you already hold as words, shares or strings. It is one card per step, from how the key comes in to the quiz on its backup; headed Add a key, the same cards take a key in for a wallet.
 

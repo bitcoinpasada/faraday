@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `Check`
 **Key:** check
+**Words:** key, seed, seedqr, share, seed-xor, codex32
 
 Check lists what you can check a signer against, one tile for each thing, in groups. A tile opens the tool that does it, and **Back** returns to Check; each tool is also on the Tools page.
 

@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `Decode`
 **Key:** decode
+**Words:** psbt
 
 This page takes a transaction apart, field by field, for one that you only want to read. Nothing is signed.
 

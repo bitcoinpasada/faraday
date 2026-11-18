@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `BackupFlow`
 **Key:** gpg-restore
+**Words:** fingerprint, vault, stick-visit, seal
 
 This flow restores a GPG key made by Faraday, from the paper copy of its secret (a paperkey) and its public key. The key is saved into each vault of the plan, and the vaults are then written to sticks as in the backup flow.
 

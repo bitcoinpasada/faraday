@@ -4,6 +4,7 @@
 
 use crate::tour::{Tour, scroll};
 use faraday_core::{Action, Screen};
+use faraday_shell_api::App;
 
 pub(crate) fn how_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::Spend));
@@ -16,6 +17,11 @@ pub(crate) fn how_tour(t: &mut Tour) -> Result<(), String> {
     }
     t.press(Action::GuideTabGuide);
     t.shot("how-6-page")?;
+    // The page's Words on this page rows, and the glossary at the first.
+    let word = words_in_view(t).ok_or("no Words on this page row on Spend's guide page")?;
+    t.shot("how-6-words")?;
+    t.press(word);
+    t.shot("how-6-glossary")?;
     // Settings' tabs, Cryptography, Key storage and Glossary, each whole;
     // where the guide is a pane it is pinned, and stays open on the Spend
     // tab.
@@ -25,4 +31,22 @@ pub(crate) fn how_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::GuidePin);
     t.press(Action::Nav(Screen::SpendBackup));
     t.shot("how-8-spend-tab")
+}
+
+/// Scrolls the open guide page until one of its word rows is offered,
+/// and returns its action.
+fn words_in_view(t: &mut Tour) -> Option<Action> {
+    for _ in 0..40 {
+        let _ = t.app.frame();
+        let found = t
+            .app
+            .offered_actions()
+            .into_iter()
+            .find(|a| matches!(a, Action::GuideWord(_)));
+        if found.is_some() {
+            return found;
+        }
+        scroll(t, 240);
+    }
+    None
 }

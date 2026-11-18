@@ -725,6 +725,10 @@ pub enum Action {
     GuidePin,
     /// Show the page in place `i` of the guide's contents.
     GuidePage(u8),
+    /// Show the definition of glossary word `i` (its place in
+    /// `faraday_guide::glossary`), from a guide page's list of words or
+    /// from a search that found it.
+    GuideWord(u8),
     /// The guide's **Cryptography** tab.
     GuideTabHow,
     /// The guide's **Guide** tab.
@@ -1404,6 +1408,7 @@ impl Faraday {
                 self.guide.show_page(a);
                 self.guide_bar_synced();
             }
+            Action::GuideWord(i) => self.guide_word(i),
             Action::WordList(a) => self.wordlist.act(a, &mut self.sheet),
             Action::KeyGen(_)
             | Action::KeyOnCard(_)

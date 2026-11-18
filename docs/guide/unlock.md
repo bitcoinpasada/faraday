@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `Unlock`
 **Key:** unlock
+**Words:** vault, vault-passphrase, unlock-cost, seal
 
 Unlock opens one locked vault in Files with its passphrase. You reach it from a locked vault's row in Vaults, and from any flow that needs a vault open.
 

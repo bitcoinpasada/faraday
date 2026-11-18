@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `Silent`
 **Key:** silent
+**Words:** fingerprint
 
 Silent payments shows the silent payments address of a loaded key, with its labels, its record and its scan key, and checks whether a transaction pays it. The address starts with sp1q and can be given out many times; each payment to it lands at an address that is not linked to the others.
 

@@ -18,8 +18,8 @@ pub mod how;
 
 pub use block::Block;
 pub use guide::{
-    GuideGroup, GuidePage, GuideSection, Span, guide_groups, guide_page, guide_places,
-    guide_section,
+    GlossaryWord, GuideGroup, GuidePage, GuideSection, Span, glossary, guide_groups, guide_page,
+    guide_places, guide_section,
 };
 
 /// One page of a start guide: its title and the sections under it.

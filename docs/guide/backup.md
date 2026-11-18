@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `Backup`
 **Key:** backup
+**Words:** plan, place, checklist, quorum, seed-xor, part, share, vault
 
 A backup starts from a plan of where the wallet's keys and files are kept, and the plan becomes a checklist with one item per thing to make. Each item opens once the one before it is done, and the last item writes the sticks.
 

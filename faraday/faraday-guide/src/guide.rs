@@ -10,7 +10,8 @@ use faraday_strings::EN;
 
 /// The included pages, by place: the one list of files. A page is added
 /// by a line here.
-const PAGES: [(&str, &str); 56] = [
+const PAGES: [(&str, &str); 57] = [
+    ("glossary", include_str!("../../../docs/guide/glossary.md")),
     ("backup", include_str!("../../../docs/guide/backup.md")),
     (
         "backup-flow",
@@ -179,6 +180,12 @@ pub struct GuidePage {
     pub title: String,
     /// The lead section first, then the parts' in the page's order.
     pub sections: Vec<GuideSection>,
+    /// The glossary words the page's `**Words:**` line names, as the
+    /// words' names in a glossary key (`glossary.<name>`).
+    pub words: Vec<String>,
+    /// The same words as places in [`glossary`], resolved once when the
+    /// pages are read, so that drawing looks nothing up.
+    pub word_ix: Vec<u8>,
 }
 
 impl GuidePage {
@@ -189,7 +196,7 @@ impl GuidePage {
 }
 
 /// Header lines the website and the lint read; the app skips them (but for Key).
-const HEADS: [&str; 8] = [
+const HEADS: [&str; 9] = [
     "Kind",          // not wording: a table head the parser reads
     "Status",        // not wording: a table head the parser reads
     "Screen",        // not wording: a table head the parser reads
@@ -198,6 +205,7 @@ const HEADS: [&str; 8] = [
     "Group",         // not wording: a table head the parser reads
     "Opened from",   // not wording: a table head the parser reads
     "Key",           // not wording: a table head the parser reads
+    "Words",         // not wording: a table head the parser reads
 ];
 
 /// The runs of `text`, bold where it is between `**`.
@@ -233,6 +241,7 @@ pub fn parse(place: &str, text: &str) -> GuidePage {
     // The open section's heading and key, set when its `##` or the title
     // begins it.
     let mut open: Option<(String, Option<String>)> = None;
+    let mut words: Vec<String> = Vec::new();
 
     fn close(
         open: &mut Option<(String, Option<String>)>,
@@ -254,15 +263,23 @@ pub fn parse(place: &str, text: &str) -> GuidePage {
         para: &mut Vec<&str>,
         open: &mut Option<(String, Option<String>)>,
         paras: &mut Vec<Paragraph>,
+        words: &mut Vec<String>,
     ) {
         if para.is_empty() {
             return;
         }
         let first = para[0];
         if let Some((name, value)) = head(first) {
+            let words_line = name == "Words"; // not wording: the table head
             // not wording: the table head the parser reads
             if let ("Key", Some((_, key))) = (name, open) {
                 *key = Some(value.to_string());
+            } else if words_line {
+                *words = value
+                    .split(',')
+                    .map(|w| w.trim().to_string())
+                    .filter(|w| !w.is_empty())
+                    .collect();
             }
         } else if !first.starts_with("![") && !first.starts_with('|') && !first.starts_with("*![") {
             paras.push(spans(&para.join(" ")));
@@ -278,41 +295,106 @@ pub fn parse(place: &str, text: &str) -> GuidePage {
             continue;
         }
         if let Some(t) = line.strip_prefix("# ") {
-            flush(&mut para, &mut open, &mut paras);
+            flush(&mut para, &mut open, &mut paras, &mut words);
             title = t.trim().to_string();
             open = Some((title.clone(), None));
         } else if let Some(h) = line.strip_prefix("## ") {
-            flush(&mut para, &mut open, &mut paras);
+            flush(&mut para, &mut open, &mut paras, &mut words);
             close(&mut open, &mut paras, &mut sections, place);
             open = Some((h.trim().to_string(), None));
         } else if line.trim().is_empty() {
-            flush(&mut para, &mut open, &mut paras);
+            flush(&mut para, &mut open, &mut paras, &mut words);
         } else {
             // A head line is its own paragraph, though the header lines
             // of a page stand one under the other.
             if head(line).is_some() {
-                flush(&mut para, &mut open, &mut paras);
+                flush(&mut para, &mut open, &mut paras, &mut words);
                 para.push(line);
-                flush(&mut para, &mut open, &mut paras);
+                flush(&mut para, &mut open, &mut paras, &mut words);
             } else {
                 para.push(line);
             }
         }
     }
-    flush(&mut para, &mut open, &mut paras);
+    flush(&mut para, &mut open, &mut paras, &mut words);
     close(&mut open, &mut paras, &mut sections, place);
     assert!(!title.is_empty(), "guide page {place}: no title");
     GuidePage {
         place: place.to_string(),
         title,
         sections,
+        words,
+        word_ix: Vec::new(),
     }
 }
 
 /// Costs the parse of every page on its first call; a lookup after.
 fn all() -> &'static HashMap<&'static str, GuidePage> {
     static ALL: OnceLock<HashMap<&'static str, GuidePage>> = OnceLock::new();
-    ALL.get_or_init(|| PAGES.iter().map(|(p, t)| (*p, parse(p, t))).collect())
+    ALL.get_or_init(|| {
+        let mut pages: HashMap<&'static str, GuidePage> =
+            PAGES.iter().map(|(p, t)| (*p, parse(p, t))).collect();
+        let names: Vec<String> = pages
+            .get("glossary")
+            .map(|g| {
+                g.sections
+                    .iter()
+                    .skip(1)
+                    .map(|s| s.key[GLOSSARY.len()..].to_string())
+                    .collect()
+            })
+            .unwrap_or_default();
+        for page in pages.values_mut() {
+            page.word_ix = page
+                .words
+                .iter()
+                .map(|w| {
+                    let i = names.iter().position(|n| n == w);
+                    let i = i.unwrap_or_else(|| {
+                        panic!(
+                            "guide page {}: word {w:?} is not in the glossary",
+                            page.place
+                        )
+                    });
+                    u8::try_from(i).expect("a glossary of fewer than 256 words")
+                })
+                .collect();
+        }
+        pages
+    })
+}
+
+/// The glossary's keys begin with this: `glossary.<word>`.
+const GLOSSARY: &str = "glossary.";
+
+/// A word of the glossary: a section of the page `glossary`.
+#[derive(Clone, Copy, Debug)]
+pub struct GlossaryWord {
+    /// The word as the glossary heads it.
+    pub word: &'static str,
+    /// The section's key, `glossary.<name>`.
+    pub key: &'static str,
+}
+
+/// The glossary's words in the glossary's order: the index of a word in
+/// it is what `GuidePage::word_ix` and the app's word actions carry. A
+/// lookup after the first call, which parses every page (`all`).
+pub fn glossary() -> &'static [GlossaryWord] {
+    static WORDS: OnceLock<Vec<GlossaryWord>> = OnceLock::new();
+    WORDS.get_or_init(|| {
+        guide_page("glossary")
+            .map(|g| {
+                g.sections
+                    .iter()
+                    .skip(1)
+                    .map(|s| GlossaryWord {
+                        word: s.heading.as_str(),
+                        key: s.key.as_str(),
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
+    })
 }
 
 /// The page of `place`, if one is written. A lookup after the first call,
@@ -348,7 +430,14 @@ pub struct GuideGroup {
 /// (`docs/GUIDE-IN-APP.md` §4.3). Every place with a page is listed once.
 const ORDER: [&[&str]; 10] = [
     &["starter-stick", "starter-start"],
-    &["first-start", "home", "mode", "randomness", "files"],
+    &[
+        "first-start",
+        "home",
+        "mode",
+        "randomness",
+        "files",
+        "glossary",
+    ],
     &[
         "keygen",
         "entry",
@@ -454,6 +543,9 @@ mod tests {
         assert_eq!(p.title, "X");
         assert_eq!(p.sections.len(), 2);
         assert_eq!(p.lead().key, "x");
+        let w = parse("y", "# Y\n\n**Key:** y\n**Words:** seed, key\n\nBody.\n");
+        assert_eq!(w.words, ["seed", "key"]);
+        assert_eq!(w.lead().paragraphs.len(), 1);
         assert_eq!(p.lead().paragraphs[0].len(), 3);
         assert!(p.lead().paragraphs[0][1].bold);
         assert_eq!(p.sections[1].key, "x.part");
@@ -469,6 +561,30 @@ mod tests {
             .collect();
         listed.sort_unstable();
         assert_eq!(listed, guide_places());
+    }
+
+    #[test]
+    fn a_page_lists_only_words_the_glossary_defines() {
+        let mut listed = 0;
+        for place in guide_places() {
+            let page = guide_page(place).unwrap();
+            assert_eq!(page.words.len(), page.word_ix.len());
+            for (name, &i) in page.words.iter().zip(&page.word_ix) {
+                let word = glossary()[usize::from(i)];
+                assert_eq!(word.key, format!("glossary.{name}"));
+                listed += 1;
+            }
+        }
+        assert!(listed > 0, "no page lists a word");
+        assert!(guide_page("glossary").unwrap().words.is_empty());
+    }
+
+    #[test]
+    fn the_glossary_words_are_found_by_their_keys() {
+        for w in glossary() {
+            assert!(guide_section(w.key).is_some());
+        }
+        assert!(glossary().len() >= 25);
     }
 
     #[test]

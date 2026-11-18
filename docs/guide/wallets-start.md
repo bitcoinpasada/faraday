@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `WalletsStart`
 **Key:** wallets-start
+**Words:** wallet, watch-only, quorum, multisig, fingerprint
 
 The first page of Wallets shows the wallets that are loaded and every way to bring one in. Choosing a wallet opens it.
 

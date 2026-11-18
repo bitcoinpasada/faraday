@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `CoreWallet`
 **Key:** core-wallet
+**Words:** descriptor
 
 This tool reads and checks the `wallet.dat` of a Bitcoin Core descriptor wallet, which is a SQLite database. It opens from Tools and returns there, and only reads the file; the private keys are checked but not shown.
 

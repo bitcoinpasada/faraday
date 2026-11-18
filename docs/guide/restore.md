@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `Restore`
 **Key:** restore
+**Words:** seed, descriptor, quorum, xpub, share, vault, multisig
 
 Restore rebuilds a wallet from its backup, one card per step, from the kind of wallet to what to do with it once it is back. The wallet is made from the seeds when you press **Make the wallet** on the Keys card, and you compare its first addresses on Check.
 

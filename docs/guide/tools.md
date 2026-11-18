@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `Tools`
 **Key:** tools
+**Words:** descriptor, fingerprint, xpub
 
 Tools holds six calculators on one page: each takes what you type, works one thing out and keeps nothing. An extended private key is refused, and **Clear** empties the field.
 

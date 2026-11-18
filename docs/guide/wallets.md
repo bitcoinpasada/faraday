@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `Wallets`
 **Key:** wallets
+**Words:** watch-only, quorum, multisig, fingerprint, session, psbt
 
 Wallets lists the wallets loaded in this session and shows the card of the one you choose. On a wide panel the list stands beside the card; on a small one each is its own page.
 

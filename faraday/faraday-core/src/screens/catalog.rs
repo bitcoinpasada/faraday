@@ -84,11 +84,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += section(ui, (x, y), &g, group, &faces);
     }
     // The rows of Settings the same words find, under Settings' name.
-    let settings: Vec<u8> = crate::tools::search::hits(app.tools.find())
-        .into_iter()
+    let found = crate::tools::search::hits(app.tools.find());
+    let settings: Vec<u8> = found
+        .iter()
         .filter_map(|h| match h {
-            crate::tools::search::Hit::Setting(i) => Some(i),
-            crate::tools::search::Hit::Tile(_) => None,
+            crate::tools::search::Hit::Setting(i) => Some(*i),
+            _ => None,
         })
         .collect();
     if !settings.is_empty() {
@@ -99,6 +100,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             y += setting_hit(ui, (x, y, tw3), i);
         }
     }
+    // The guide's words the same words find, each opening its definition.
+    y += word_hits(ui, (x, y, tw3), &found);
+    any |= found
+        .iter()
+        .any(|h| matches!(h, crate::tools::search::Hit::Word(_)));
     if !any {
         ui.text_as(
             x,
@@ -128,6 +134,39 @@ pub(crate) fn setting_hit(ui: &mut Ui, at: (f32, f32, f32), i: u8) -> f32 {
         action: Action::SettingAt(i),
     };
     crate::panes::screen::list_item(ui, at, &item, false)
+}
+
+/// The guide's words among `found`, from (x, y), `w` wide, under their
+/// heading, each a Material list item: the word, a press of which opens
+/// the guide at its definition. Returns the height used, none when no
+/// word was found. Tools' Find and Home's search both draw it.
+pub(crate) fn word_hits(
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    found: &[crate::tools::search::Hit],
+) -> f32 {
+    let glossary = faraday_guide::glossary();
+    let mut cy = y;
+    for hit in found {
+        let crate::tools::search::Hit::Word(i) = *hit else {
+            continue;
+        };
+        let Some(word) = glossary.get(usize::from(i)) else {
+            continue;
+        };
+        if cy == y {
+            section_label(ui, x, cy, EN.guide_words_found);
+            cy += ui.line_as(faraday_draw::tokens::TITLE_S) + faraday_draw::tokens::GRID;
+        }
+        let item = crate::panes::screen::Item {
+            headline: word.word,
+            supporting: "",
+            trailing: None,
+            action: Action::GuideWord(i),
+        };
+        cy += crate::panes::screen::list_item(ui, (x, cy, w), &item, false);
+    }
+    cy - y
 }
 
 /// Home's search bar at (`x`, `y`), `w` wide: Material's search bar, as
@@ -239,7 +278,7 @@ pub(crate) fn home_results(
             used += setting_hit(ui, (x, y + used, width), i);
         }
     }
-    used
+    used + word_hits(ui, (x, y + used, width), &found)
 }
 
 /// A search field at (x, y), `w` wide: Material's search field, in

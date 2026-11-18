@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `KefTool`
 **Key:** kef-tool
+**Words:** bip39-passphrase, fingerprint, seed, words
 
 One card per step: the contents, the passphrase and its options, and the code. The tool makes an encrypted QR code in Krux's format from text, from a wallet's descriptor or from a loaded key's words; nothing typed is kept once the tool is left.
 

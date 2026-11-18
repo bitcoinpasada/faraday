@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `Explore`
 **Key:** explore
+**Words:** key, seed
 
 Explore shows the public side of a loaded key at any path: the address, the public key and the extended public key, so you can compare them with what another wallet shows for the same path. Secrets show only behind an eye.
 

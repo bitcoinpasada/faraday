@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `Create`
 **Key:** create
+**Words:** key, multisig, quorum, descriptor, xpub, vault, share
 
 Make a new wallet is one card per step: Kind, Keys, Check and then Back up. The wallet is made when you press **Make the wallet** on the Keys card, and its end card then shows **Back up now**, which opens its backup; new vaults are added on the backup plan.
 

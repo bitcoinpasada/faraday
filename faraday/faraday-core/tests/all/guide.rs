@@ -7,7 +7,7 @@
 
 use faraday_core::testkit::Plain;
 use faraday_core::{Action, Faraday, Sheet};
-use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware, TouchPhase};
 
 /// The place of the guide's page on show.
 fn shown(app: &Faraday) -> &'static str {
@@ -527,4 +527,71 @@ fn the_pis_keyboard_leaves_the_guides_search_and_its_matches_in_view() {
             y + h
         );
     }
+}
+
+/// The index of the glossary word headed `word`.
+fn word_index(word: &str) -> u8 {
+    let i = faraday_guide::glossary()
+        .iter()
+        .position(|w| w.word == word)
+        .unwrap();
+    u8::try_from(i).unwrap()
+}
+
+#[test]
+fn a_word_pressed_on_a_page_shows_its_definition_and_back_returns_to_the_page() {
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Guide);
+    let before = shown(&app);
+    app.press(Action::GuideWord(word_index("Quorum")));
+    assert_eq!(shown(&app), "glossary");
+    assert_eq!(app.guide().to, Some("glossary.quorum"));
+    app.press(Action::Cancel);
+    assert_eq!(shown(&app), before);
+    assert_eq!(app.sheet, Some(Sheet::Guide));
+}
+
+#[test]
+fn a_word_found_by_a_search_opens_the_guide_at_its_definition() {
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::GuideWord(word_index("Seal")));
+    assert_eq!(app.sheet, Some(Sheet::Guide));
+    assert_eq!(shown(&app), "glossary");
+    assert_eq!(app.guide().key, "glossary.seal");
+    app.press(Action::Cancel);
+    assert_eq!(app.sheet, None);
+}
+
+/// Types `text` and presses the glossary word `word` the search offers.
+fn find_and_press_word(mut app: Faraday, text: &str, word: &str) -> Faraday {
+    for c in text.chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    let _ = app.frame();
+    let (x, y) = app
+        .where_offered(Action::GuideWord(word_index(word)))
+        .unwrap_or_else(|| panic!("{word} is not offered for {text:?}"));
+    for phase in [TouchPhase::Down, TouchPhase::Up] {
+        app.event(Event::Touch { x, y, phase });
+    }
+    let _ = app.frame();
+    app
+}
+
+#[test]
+fn typing_a_glossary_word_in_tools_or_home_offers_it_and_a_press_opens_its_definition() {
+    use faraday_core::Screen;
+    let mut tools = faraday_core::testkit::started();
+    tools.press(Action::Nav(Screen::Catalog));
+    let app = find_and_press_word(tools, "quorum", "Quorum");
+    assert_eq!(app.sheet, Some(Sheet::Guide));
+    assert_eq!(shown(&app), "glossary");
+    assert_eq!(app.guide().key, "glossary.quorum");
+
+    let mut home = faraday_core::testkit::started();
+    home.press(Action::Nav(Screen::Home));
+    let app = find_and_press_word(home, "quorum", "Quorum");
+    assert_eq!(app.sheet, Some(Sheet::Guide));
+    assert_eq!(app.guide().key, "glossary.quorum");
+    assert!(faraday_core::testkit::home_find(&app).is_empty());
 }

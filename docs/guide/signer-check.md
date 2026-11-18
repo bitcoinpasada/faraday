@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `SignerCheck`
 **Key:** signer-check
+**Words:** psbt, fingerprint, seed
 
 Check a signer compares the PSBT you sent to a signing device with the one that came back, in three cards: **Sent**, **Returned** and **Result**. The result says what the signer changed and how the two differ; nothing is signed.
 

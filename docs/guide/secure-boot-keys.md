@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `BackupFlow`
 **Key:** secure-boot-keys
+**Words:** vault, seal, plan, place
 
 This flow makes three RSA-2048 keys, the platform key (PK), the key exchange key (KEK) and the signature database key (db), each with a self-signed certificate valid for 30 years. It runs inside the backup flow and keeps the keys at two places or more, because seed words cannot make them again.
 

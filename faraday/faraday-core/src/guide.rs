@@ -423,6 +423,9 @@ pub struct GuideState {
     pub scroll: f32,
     /// The furthest it can scroll, as last drawn.
     pub max: f32,
+    /// The page on show is the glossary, opened from a word's row on the
+    /// page the guide was at: Back returns to that page.
+    pub word: bool,
     /// The Cryptography tab is on show, in place of the page
     /// (`docs/CRYPTO-LEARN.md` §8.2). Kept only while the screen offers
     /// blocks ([`Faraday::guide_place`]).
@@ -824,6 +827,23 @@ impl Faraday {
         }
     }
 
+    /// A word's row pressed, on a guide page or in a search: the guide
+    /// opens at the word's definition, or, where it is open, moves to it.
+    pub(crate) fn guide_word(&mut self, i: u8) {
+        let Some(word) = faraday_guide::glossary().get(usize::from(i)) else {
+            return;
+        };
+        let open = self.sheet == Some(crate::Sheet::Guide)
+            || (self.sheet.is_none() && self.guide_pane_shown());
+        if open {
+            self.guide.show_word(word.key);
+            self.guide_bar_synced();
+        } else {
+            self.tools.clear_home_find();
+            self.guide_open_key(word.key);
+        }
+    }
+
     /// The link to the shares page: the guide at the current place.
     pub(crate) fn guide_shares(&mut self) {
         self.guide_open_key(self.screen_key());
@@ -924,6 +944,7 @@ impl GuideArea {
         st.key = key;
         st.contents = faraday_guide::guide_page(place_of(key)).is_none();
         st.shown = place_of(key);
+        st.word = false;
         st.to = (!st.contents).then_some(key);
         st.scroll = 0.0;
     }
@@ -935,7 +956,7 @@ impl GuideArea {
         if !self.state.inside() {
             return false;
         }
-        if self.state.contents {
+        if self.state.contents || self.state.word {
             let key = self.state.key;
             self.show_key(key);
         } else {
@@ -1055,6 +1076,7 @@ impl GuideArea {
             }
             Action::GuideContents => {
                 st.how = false;
+                st.word = false;
                 st.contents = true;
                 st.find.clear();
                 st.find_focus = false;
@@ -1072,6 +1094,7 @@ impl GuideArea {
                     .nth(usize::from(n));
                 if let Some(page) = page {
                     st.how = false;
+                    st.word = false;
                     st.contents = false;
                     st.shown = place_of_page(page);
                     st.to = Some(place_of_page(page));
@@ -1080,6 +1103,18 @@ impl GuideArea {
             }
             _ => {}
         }
+    }
+
+    /// Shows the definition at `key` in the glossary, from a page of the
+    /// guide that is open: Back returns to the page it was pressed on.
+    pub(crate) fn show_word(&mut self, key: &'static str) {
+        let st = &mut self.state;
+        st.how = false;
+        st.contents = false;
+        st.shown = place_of(key);
+        st.word = st.shown != place_of(st.key);
+        st.to = Some(key);
+        st.scroll = 0.0;
     }
 
     /// The screen offers no blocks any more: the first page is on show.

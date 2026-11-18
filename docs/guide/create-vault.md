@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `CreateVault`
 **Key:** create-vault
+**Words:** vault, vault-passphrase, unlock-cost, seal
 
 A vault is one encrypted file for a stick, opened with its passphrase. Two cards make it, Opens on and Name and passphrase; **Customize** replaces Opens on with Where will you open it? and Unlock cost.
 

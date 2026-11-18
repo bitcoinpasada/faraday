@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `CheckAddress`
 **Key:** check-address
+**Words:** descriptor
 
 This page says whether an address belongs to a loaded wallet or to a loaded key's standard accounts. Nothing is signed, paid or kept.
 

@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `SeedCheck`
 **Key:** seed-check
+**Words:** seed, fingerprint, xpub, multisig
 
 This page shows what a seed makes, so you can compare it with what a wallet app and a signer show: the fingerprints, an account's extended public key and its first receive and change addresses. It opens from Tools and returns there; nothing is needed first, and it loads no key unless you press **Keep this key**.
 

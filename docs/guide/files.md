@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `Files`
 **Key:** files
+**Words:** inbox, for-the-stick, stick-visit, vault, psbt, lock
 
 Files shows the files copied in from the stick and the files waiting to be written to it, along with what the open vaults and the Inbox can load. Both lists are held in memory and emptied at power-off.
 

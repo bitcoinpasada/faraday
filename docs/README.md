@@ -26,6 +26,7 @@ need. Each document's header says what kind it is:
 | Why is something the way it is? | `docs/DECISIONS.md`, the index; then the one decision, `docs/decisions/F<n>.md` |
 | What does the in-app guide hold, how does it open at the step the person is on, and what replaces Learn and the website's walkthroughs? | `docs/GUIDE-IN-APP.md`; the decision, `docs/decisions/F247.md` |
 | How does a person use Faraday, step by step, with the screens? | the guide's pages, `docs/guide/<place>.md` (`docs/GUIDE-IN-APP.md`) |
+| What does a word Faraday uses in its own way (key, seed, plan, place, seal, vault, quorum) mean? | the guide's glossary, `docs/guide/glossary.md` (`docs/GUIDE-IN-APP.md` §3.1) |
 | What does a screen look like, and what is it made of? | `docs/DESIGN.md`; the Starter's screens, `docs/STARTER.md` §3 |
 | What happens, step by step, in a flow? | `docs/FLOWS.md`; backups, `docs/BACKUP-FLOW.md`; spending, `docs/SPEND-FROM-BACKUP.md` |
 | How are codex32 shares made, checked by hand and repaired? | `docs/CODEX32.md` |

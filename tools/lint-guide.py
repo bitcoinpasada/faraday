@@ -169,7 +169,7 @@ def check_names(root, files, errors):
     for path in files:
         rel = os.path.relpath(path, root)
         for line, span in bold_spans(path):
-            if re.match(r"^(Kind|Status|Open|Screen|Group|Starter page|Starter sheet):$", span):
+            if re.match(r"^(Kind|Status|Open|Screen|Group|Starter page|Starter sheet|Key|Words):$", span):
                 continue
             whole = " ".join(span.split())
             parts = [whole] + SEPARATORS.split(span) if SEPARATORS.search(span) else [whole]
@@ -410,12 +410,39 @@ def check_lengths(root, files, errors):
                 errors.append(f"{rel}:{n}: {msg} (section {heading!r})")
 
 
+def check_words(root, files, errors):
+    """docs/GUIDE-IN-APP.md §3.1: a page's `**Words:**` line names only
+    words the glossary defines, each once, and the glossary has no list."""
+    defined = set()
+    glossary = os.path.join(root, "docs/guide/glossary.md")
+    if os.path.exists(glossary):
+        for _, line in prose_lines(glossary):
+            m = re.match(r"^\*\*Key:\*\*\s*glossary\.(\S+)\s*$", line)
+            if m:
+                defined.add(m.group(1))
+    for path in files:
+        rel = os.path.relpath(path, root)
+        for n, line in prose_lines(path):
+            m = re.match(r"^\*\*Words:\*\*\s*(.*?)\s*$", line)
+            if not m:
+                continue
+            if rel == "docs/guide/glossary.md":
+                errors.append(f"{rel}:{n}: the glossary has no Words line")
+            names = [w.strip() for w in m.group(1).split(",")]
+            for w in names:
+                if w not in defined:
+                    errors.append(f"{rel}:{n}: word `{w}` is not defined in docs/guide/glossary.md")
+            if len(set(names)) != len(names):
+                errors.append(f"{rel}:{n}: a word is named twice")
+
+
 def run(root):
     errors = []
     files = guide_files(root)
     count = check_names(root, files, errors)
     check_links(root, files, errors)
     check_lengths(root, files, errors)
+    check_words(root, files, errors)
     check_keys(root, errors)
     check_starter_pages(root, errors)
     return count, errors
@@ -457,6 +484,13 @@ def self_test():
         put(ALLOW, "")
         _, errors = run(root)
         assert len(errors) == 1 and "section is 151" in errors[0], errors
+        put("docs/guide/glossary.md", "# W\n\n**Key:** glossary\n\n## Seed\n\n**Key:** glossary.seed\n\nWords.\n")
+        put("docs/guide/a.md", "# A\n\n**Words:** seed\n")
+        _, errors = run(root)
+        assert not errors, errors
+        put("docs/guide/a.md", "# A\n\n**Words:** seed, vault\n")
+        _, errors = run(root)
+        assert len(errors) == 1 and "`vault`" in errors[0], errors
         put("docs/guide/a.md", "# A\n")
     print("lint-guide self-test: ok")
 

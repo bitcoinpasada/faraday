@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `Vanity`
 **Key:** vanity
+**Words:** bip39-passphrase, fingerprint, practice
 
 Vanity address searches for a first receive address of a loaded key that begins with characters you choose, by trying one account number or one passphrase suffix after another. A find belongs to the key and the number: any device that turns the same dial gives the same address.
 

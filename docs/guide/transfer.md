@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `Transfer`
 **Key:** transfer
+**Words:** key, seed
 
 Transfer carries a file or text between this computer and the offline device as QR codes. Send shows a file or text as codes for the other side to scan, and Receive reads codes with the camera.
 

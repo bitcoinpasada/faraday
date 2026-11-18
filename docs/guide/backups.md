@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `Backups`
 **Key:** backups
+**Words:** plan, place, checklist, part, seed-xor, vault
 
 This page lists every wallet the device knows and where its backup is. A wallet is listed once, whether it is loaded, in an open vault, or only remembered from a vault that is now locked.
 

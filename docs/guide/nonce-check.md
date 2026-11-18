@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `NonceCheck`
 **Key:** nonce-check
+**Words:** psbt
 
 Nonce check looks at the signatures of a signed PSBT or a finished transaction you bring in, and signs nothing. It refuses a signature that is not of this transaction, or that shares a nonce with another.
 

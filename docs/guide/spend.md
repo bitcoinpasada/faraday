@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `Spend`
 **Key:** spend
+**Words:** psbt, fingerprint, multisig
 
 Signing is one card per step, from the wallet a transaction spends from to the signed result. You make the transaction in your online wallet and bring it here as a PSBT; nothing is signed until the Sign card.
 

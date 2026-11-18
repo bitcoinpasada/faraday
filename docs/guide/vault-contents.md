@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `VaultContents`
 **Key:** vault-contents
+**Words:** vault, vault-passphrase, seal, for-the-stick, session, bip39-passphrase, descriptor, fingerprint
 
 Vault contents shows what an open vault holds, in categories: Bitcoin keys, Wallets, Entries, Notes, GPG keys and Secure Boot. A category is listed once it holds an item, with its count.
 

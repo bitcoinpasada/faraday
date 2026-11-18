@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `Bip85`
 **Key:** bip85
+**Words:** seed, words, fingerprint
 
 BIP-85 derives a further secret from a loaded key; the same key, application and index always give the same value. There is one card for each step: the key, the application, the index and the value.
 

@@ -4,6 +4,7 @@
 **Status:** Checked against the app
 **Screen:** `Entry`
 **Key:** entry
+**Words:** seed, key, words, bip39-passphrase, seedqr, share, codex32, seed-xor
 
 Type in a key you have already written down, as BIP-39 words or in another form. It is added to the keys loaded, under its fingerprint.
 
