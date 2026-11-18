@@ -145,3 +145,10 @@ fn create_a_vaults_dice_pad_at_the_foot_types_the_rolls() {
     let (_, rolls, _) = app.vaults().dice.open().unwrap();
     assert_eq!(rolls.text.as_str(), "36", "3, 5, Backspace, 6");
 }
+
+#[test]
+fn on_a_phone_new_keys_dice_take_a_roll_from_a_face_pressed() {
+    let mut app = rolling_key(1081, 2400, 420);
+    tap(&mut app, Action::KRoll(3));
+    assert_eq!(app.keygen().unwrap().dice.len(), 1, "a roll");
+}

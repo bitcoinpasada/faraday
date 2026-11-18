@@ -6,7 +6,7 @@
 //! Home's Scan takes a seed to Add a key, and anything else where it
 //! went before.
 
-use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent};
+use faraday_core::{Action, Faraday, OskPress, Screen, Sheet, StickInfo, StorageEvent};
 use faraday_shell_api::{App, Command, DisplayInfo, Event, TouchPhase};
 
 fn shown() -> Faraday {
@@ -966,6 +966,40 @@ fn typing_on_home_searches_on_a_wide_and_a_phone_window() {
         assert_eq!(app.sheet, Some(faraday_core::Sheet::Scan));
         assert!(faraday_core::testkit::home_find(&app).is_empty());
     }
+}
+
+#[test]
+fn pressing_homes_search_bar_in_a_narrow_window_brings_the_keyboard_up_to_type_into_it() {
+    let bar = Action::TypeHere(faraday_core::edit::Here::HomeFind);
+    let mut app = window(1081, 2400, 420);
+    let _ = app.frame();
+    // Typing with no press leaves the keyboard down.
+    type_on_home(&mut app, "x");
+    assert!(app.keyboard_top().is_none());
+    tap(&mut app, bar);
+    assert!(app.keyboard_top().is_some());
+    assert!(
+        app.where_offered(Action::Osk(OskPress::Char('s')))
+            .is_some()
+    );
+    for c in "send".chars() {
+        tap(&mut app, Action::Osk(OskPress::Char(c)));
+    }
+    assert_eq!(faraday_core::testkit::home_find(&app), "xsend");
+    // Leaving the page puts it away.
+    app.press(Action::Nav(Screen::Settings));
+    let _ = app.frame();
+    assert!(app.keyboard_top().is_none());
+}
+
+#[test]
+fn pressing_homes_search_bar_in_the_wide_layout_leaves_the_keyboard_down() {
+    let mut app = shown();
+    tap(
+        &mut app,
+        Action::TypeHere(faraday_core::edit::Here::HomeFind),
+    );
+    assert!(app.keyboard_top().is_none());
 }
 
 #[test]

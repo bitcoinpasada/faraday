@@ -566,6 +566,9 @@ impl Faraday {
                     {
                         self.pointer
                             .set_last_tap((!double && !dragged).then_some((a, self.now_ms)));
+                        // A press that only placed the caret still brings
+                        // the keyboard up on a one-column layout.
+                        self.osk_after(a);
                         return;
                     }
                     self.pointer.set_last_tap(Some((a, self.now_ms)));

@@ -1349,6 +1349,12 @@ impl CompactArea {
         }
     }
 
+    /// The keyboard is brought up, as its button does.
+    pub(crate) fn show(&mut self) {
+        self.osk.manual = true;
+        self.osk.hidden = false;
+    }
+
     /// Leaving a page puts away a keyboard brought up by hand.
     pub(crate) fn leave(&mut self) {
         self.osk.manual = false;
@@ -1475,6 +1481,11 @@ impl Faraday {
     /// A page that takes typing with no field to focus: its bar offers
     /// the keyboard.
     pub(crate) fn osk_offered(&self) -> bool {
+        // Home's search bar takes typing with no field to focus; the
+        // wide layout has no keyboard to offer there.
+        if self.compact && self.home_search_here() {
+            return true;
+        }
         self.sheet.is_none()
             && match self.screen {
                 Screen::Explore
@@ -1678,6 +1689,12 @@ impl Faraday {
             && (self.typing_target() == Some(action) || self.typing.is_field(action))
         {
             self.panel.press_field();
+        }
+        // A press on a bar that takes typing with no field to focus (Home's
+        // search, Find a tool, Explore's path) brings the keyboard up as a
+        // press on a field does.
+        if self.compact && self.osk_offered() && self.here() == Some(action) {
+            self.panel.show();
         }
     }
 

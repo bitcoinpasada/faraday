@@ -285,7 +285,7 @@ impl Faraday {
     /// The field of [`Here`] that typing goes to now, or the potential
     /// wallet's or the aezeed's passphrase while typing goes there. Only
     /// lookups.
-    fn here(&self) -> Option<Action> {
+    pub(crate) fn here(&self) -> Option<Action> {
         use crate::explore::Page;
         if self.sheet == Some(Sheet::WordList) {
             return self
