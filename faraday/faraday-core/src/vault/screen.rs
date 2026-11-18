@@ -2012,7 +2012,7 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.press_box(x, ky, kinds_w, row, va(V::Category(k)));
         ky += row + 4.0;
     }
-    if !empty {
+    if !empty && v.read_only().is_none() {
         if ky > top {
             ky += 8.0;
         }
@@ -2023,7 +2023,7 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if empty {
         ui.text_as(ix, top + 6.0, TITLE_M, ink, NOTHING_YET);
         let mut by = top + 40.0;
-        for (label, style, action) in empty_buttons(app) {
+        for (label, style, action) in empty_buttons(app, v.read_only().is_none()) {
             let bw = ui.measure_as(LABEL_L, &label) + 36.0;
             ui.button(ix, by, Some(bw), BUTTON_H, &label, style, action);
             by += 50.0;
@@ -2179,8 +2179,9 @@ fn shows_empty(app: &View, v: &vault::OpenVault) -> bool {
 }
 
 /// An empty vault's next steps: every way to add, then writing it out.
-fn empty_buttons(app: &View) -> Vec<(Text, Style, Action)> {
+fn empty_buttons(app: &View, editable: bool) -> Vec<(Text, Style, Action)> {
     let mut out: Vec<(Text, Style, Action)> = (0..CATEGORIES.len())
+        .filter(|_| editable)
         .filter_map(|k| add_full(k).map(|a| (Text::of(a), Style::Secondary, va(V::AddKind(k)))))
         .collect();
     out.push((
@@ -2423,7 +2424,7 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if !kind_items.is_empty() {
         y += wrap_buttons(ui, x, y, w, ui.touch, &kind_items) + tokens::GAP_SMALL;
     }
-    if !empty {
+    if !empty && v.read_only().is_none() {
         y += add_rows(ui, x, y, w, ui.touch) + tokens::GAP_SMALL;
     }
     ui.rule(x, y, w, Role::OutlineVariant);
@@ -2431,7 +2432,7 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if empty {
         ui.text_as(x, y, TITLE_M, ink, NOTHING_YET);
         y += ui.advance_as(TITLE_M, 34.0);
-        for (label, style, action) in empty_buttons(app) {
+        for (label, style, action) in empty_buttons(app, v.read_only().is_none()) {
             ui.button(x, y, Some(w), BUTTON_H, &label, style, action);
             y += 54.0;
         }

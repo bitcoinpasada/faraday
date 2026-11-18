@@ -688,6 +688,12 @@ impl Faraday {
             V::Edit if !stick::refuses(self, true) => self.vault_form(true),
             V::PromptGo if !stick::refuses(self, false) => self.vault_prompt_go(),
             V::Load | V::Edit | V::PromptGo => {}
+            // A vault open to read only has no Add: its page says why.
+            V::AddKind(_) | V::Add
+                if self
+                    .vaults
+                    .current_id()
+                    .is_some_and(|id| self.vaults.store().read_only(id).is_some()) => {}
             V::AddKind(k) => {
                 self.vault_act(V::Category(k));
                 self.vault_act(V::Add);

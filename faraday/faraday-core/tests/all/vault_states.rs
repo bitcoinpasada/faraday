@@ -245,6 +245,35 @@ fn a_read_only_vault_says_why_and_an_edit_and_a_seal_write_nothing() {
 }
 
 #[test]
+fn a_read_only_vault_shows_no_add_and_the_add_action_opens_nothing() {
+    let adds = [
+        EN.vault_add_an_entry,
+        EN.vault_add_a_note,
+        EN.vault_make_a_gpg_key,
+        EN.vault_make_secure_boot,
+        EN.vault_save_a_bitcoin,
+        EN.vault_save_a_wallet,
+    ];
+    for (name, file, _) in read_only_files() {
+        for (w, h) in [(480, 640), (1280, 800)] {
+            let mut app = process_at(w, h, vec![("ro.kdbx".into(), file.clone())]);
+            try_unlock(&mut app, PHRASE);
+            let texts = head(&mut app);
+            for a in adds {
+                assert!(!texts.contains(a), "{name} {w}x{h}: {a}: {texts}");
+            }
+            let screen = app.screen;
+            for k in 0..6 {
+                app.press(Action::Vault(V::AddKind(k)));
+                assert_eq!(app.screen, screen, "{name} {w}x{h}: kind {k}");
+            }
+            app.press(Action::Vault(V::Add));
+            assert_eq!(page(&mut app), texts, "{name} {w}x{h}: the page changed");
+        }
+    }
+}
+
+#[test]
 fn a_read_only_file_with_history_is_not_told_a_seal_leaves_anything_out() {
     let file = history_file(|xml| {
         let at = xml.find("faraday.format").unwrap();
