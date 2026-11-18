@@ -1261,8 +1261,14 @@ impl Faraday {
             self.board_let_go();
         }
         // A chart's sheet leads into a flow: whatever its rows press, the
-        // sheet goes first.
-        if self.sheet == Some(Sheet::Chart) && !matches!(action, Action::Chart(_)) {
+        // sheet goes first. Its field's own presses (a press on the field,
+        // the keyboard's) stay in the sheet.
+        if self.sheet == Some(Sheet::Chart)
+            && !matches!(
+                action,
+                Action::Chart(_) | Action::Osk(_) | Action::TypeHere(crate::edit::Here::Chart)
+            )
+        {
             self.sheet = None;
             self.glance.set_chart(None);
         }

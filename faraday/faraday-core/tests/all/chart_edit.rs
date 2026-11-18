@@ -2784,3 +2784,52 @@ fn each_kept_old_part_on_the_chart_carries_its_own_number() {
         );
     }
 }
+
+#[test]
+fn on_a_one_column_layout_the_holders_field_keeps_its_sheet_when_the_keyboard_is_put_away_and_a_press_brings_it_back()
+ {
+    use faraday_shell_api::TouchPhase;
+    for (width, height, dpi) in [(1081u16, 2400u16, 420u16), (1024, 600, 170)] {
+        let mut app = desktop();
+        clock_kept(&mut app);
+        let w = two_of_three(&mut app);
+        planned(&mut app, w, 1);
+        fresh_vault(&mut app);
+        app.press(Action::OpenWallet(w));
+        app.event(Event::Display(DisplayInfo {
+            width,
+            height,
+            dpi,
+            inset_bottom: 0,
+            inset_top: 0,
+            buttons: 0,
+            camera_fixed: false,
+            secure: SecureHardware::None,
+            boot: BootState::Unknown,
+            memory_mib: None,
+        }));
+        let _ = app.frame();
+        let press = Press::Loaded(w);
+        open(&mut app, press, Target::Key(2));
+        app.press(Action::Chart(C::Open(press, Target::Holder(2))));
+        let _ = app.frame();
+        assert!(app.keyboard_top().is_some(), "{width}: up as it opens");
+        app.press(Action::Osk(faraday_ui::keyboard::OskPress::Hide));
+        let _ = app.frame();
+        assert_eq!(app.sheet, Some(Sheet::Chart), "{width}: the sheet stays");
+        assert!(app.keyboard_top().is_none(), "{width}: put away");
+        let (x, y) = app
+            .where_offered(Action::TypeHere(faraday_core::edit::Here::Chart))
+            .unwrap_or_else(|| panic!("{width}: the field is gone"));
+        for phase in [TouchPhase::Down, TouchPhase::Up] {
+            app.event(Event::Touch { x, y, phase });
+        }
+        let _ = app.frame();
+        let _ = app.frame();
+        assert_eq!(app.sheet, Some(Sheet::Chart), "{width}: stays on a press");
+        assert!(app.keyboard_top().is_some(), "{width}: a press brings it back");
+        type_text(&mut app, "Alice");
+        app.press(Action::Chart(C::Save(press)));
+        assert_eq!(chart(&app, w).keys[2].holder.as_deref(), Some("Alice"));
+    }
+}
