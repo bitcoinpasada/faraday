@@ -171,7 +171,7 @@ use_reference("core")
 from test_framework.crypto.ripemd160 import ripemd160  # noqa: E402
 from test_framework.crypto.secp256k1 import FAST_G, GE  # noqa: E402
 from test_framework.messages import (  # noqa: E402
-    COutPoint, CTransaction, CTxIn, CTxOut, deser_vector)
+    COutPoint, CTransaction, CTxIn, CTxOut, deser_vector, ser_uint256)
 from test_framework.script import taproot_tree_helper  # noqa: E402
 
 use_reference("hwi")
@@ -869,6 +869,52 @@ def silent_output_without_script(raw):
                for m in maps[1 + n_in:])
 
 
+def origins_repeat(raw):
+    """A map with two BIP-32 derivation pairs (an input's 0x06, an output's
+    0x02) of the same value, whatever their keys."""
+    seen_values = set()
+    for kind, i, key, value in pairs_of(raw):
+        if (kind, key[:1]) in (("input", b"\x06"), ("output", b"\x02")):
+            if (i, value) in seen_values:
+                return True
+            seen_values.add((i, value))
+    return False
+
+
+def spent_index_missing(raw):
+    """An input with a previous transaction that has no output at the spent
+    index."""
+    got = maps_of(raw)
+    if got is None:
+        return False
+    maps, n_in = got
+    v2 = _says_v2(raw)
+    spent = None
+    if not v2:
+        try:
+            spent = [i.prevout.n for i in read_unsigned(get(maps[0], 0)).vin]
+        except Exception:  # noqa: BLE001
+            return False
+    for i, m in enumerate(maps[1:n_in + 1]):
+        prev = get(m, 0x00)
+        if prev is None:
+            continue
+        n = spent[i] if spent is not None else int.from_bytes(get(m, 0x0f) or b"", "little")
+        try:
+            if n >= len(_prev_tx(prev).vout):
+                return True
+        except Exception:  # noqa: BLE001
+            continue
+    return False
+
+
+def keyed_version_pair(raw):
+    """A global pair of type 0xfb (`PSBT_GLOBAL_VERSION`) that carries key
+    data."""
+    return any(kind == "global" and key[:1] == b"\xfb" and len(key) > 1
+               for kind, _, key, _ in pairs_of(raw))
+
+
 def hwi_rule(raw, text):
     """HWI refuses a version 2 PSBT (once the pairs Faraday leaves to the
     bridge are taken out) that Faraday reads."""
@@ -880,6 +926,8 @@ def hwi_rule(raw, text):
         return "hwi: an empty output script"
     if "PSBT_OUTPUT_SCRIPT is required" in text and silent_output_without_script(raw):
         return "hwi: a silent payment output with no script"
+    if "version key is more than one byte type" in text and keyed_version_pair(raw):
+        return "hwi: a global version pair with key data"
     if "Musig2" in text and musig_key_wrong(raw):
         return "hwi: a MuSig2 field's key data of a size BIP-373 forbids"
     return None
@@ -897,6 +945,10 @@ def btclib_rule(raw, version, text):
         return "btclib: a BIP-375 field whose key data is of a size it forbids"
     if version == 0 and bip375_in_v0(raw):
         return "btclib: a BIP-375 field in a version 0 PSBT"
+    if "Duplicated key origin values" in text and origins_repeat(raw):
+        return "btclib: two key origins of one map with the same value"
+    if "vout out of range for the non-witness utxo" in text and spent_index_missing(raw):
+        return "btclib: a previous transaction with no output at the spent index"
     return None
 
 
@@ -1005,6 +1057,14 @@ class Psbt(Area):
             'previous transaction\'s output, a preimage that does not hash to its key and a '
             'BIP-375 field in a version 0 PSBT; Faraday reads them and blocks the first two '
             'at use.'
+        ),
+        (
+            'btclib refuses a PSBT with two BIP-32 derivation pairs of one map of the same '
+            "value (a version 0 PSBT, in the cases met) and a version 2 PSBT whose input's "
+            'previous transaction has no output at the spent index (Core refuses the version 0 '
+            'form of that, above); Faraday reads both. HWI refuses a global pair of type 0xfb '
+            "that carries key data (`PSBT_GLOBAL_VERSION` takes none); Faraday carries it as an "
+            'unknown pair and takes the version only from the exact key `0xfb`.'
         ),
         (
             'A version 2 transaction with no input is written by `bitcoin` with the segwit '
@@ -1433,6 +1493,48 @@ class Psbt(Area):
             if got[at][0] != "ok" or got[at][1].get("locktime") != want:
                 raise AssertionError(f"{name}: locktime {got[at]}, the BIP says {want}")
 
+    # ----- PSBTs built to show a known difference
+
+    def built(self):
+        """Three PSBTs, each the case of a known difference no committed seed
+        shows: a version 0 PSBT with two derivation pairs of one value
+        (btclib refuses it), a version 2 PSBT with a previous transaction
+        with no output at the spent index (btclib refuses it, HWI and Faraday
+        read it), and a version 2 PSBT with a second global pair of type 0xfb
+        that carries a byte of key data after the exact `0xfb` version pair
+        (HWI refuses it; Faraday carries it as an unknown pair in the version 2
+        PSBT, takes the version only from the exact key, and leaves the pair
+        out of the version 0 form with the other version 2 globals, which
+        drops a pair by its type byte, so the review does not count it among
+        the unread fields)."""
+        def key(n):
+            return FAST_G.mul(n).to_bytes_compressed()
+
+        def p2wpkh(n):
+            return b"\x00\x14" + bytes([n]) * 20
+
+        origin = bytes.fromhex("01020304") + (0x80000000).to_bytes(4, "little")
+        tx = CTransaction()
+        tx.version = 2
+        tx.vin.append(CTxIn(COutPoint(0x11 << 200, 0), b"", 0xFFFFFFFD))
+        tx.vout.append(CTxOut(50_000, p2wpkh(1)))
+        v0 = MAGIC + write_map([(b"\x00", tx.serialize_without_witness())]) + write_map(
+            [(b"\x06" + key(3), origin), (b"\x06" + key(4), origin)]) + write_map([])
+        prev = CTransaction()
+        prev.version = 2
+        prev.vin.append(CTxIn(COutPoint(0x22 << 200, 0), b"", 0xFFFFFFFF))
+        prev.vout.append(CTxOut(100_000, p2wpkh(2)))
+        glob = [(b"\x02", (2).to_bytes(4, "little")), (b"\x04", ser_compact(1)),
+                (b"\x05", ser_compact(1)), (b"\xfb", (2).to_bytes(4, "little"))]
+        inp = [(b"\x00", prev.serialize()), (b"\x0e", ser_uint256(prev.txid_int)),
+               (b"\x0f", (5).to_bytes(4, "little"))]
+        out = [(b"\x03", (90_000).to_bytes(8, "little")), (b"\x04", p2wpkh(3))]
+        v2 = MAGIC + write_map(glob) + write_map(inp) + write_map(out)
+        inp_ok = [(b"\x0e", ser_uint256(prev.txid_int)), (b"\x0f", (0).to_bytes(4, "little"))]
+        keyed = MAGIC + write_map(glob + [(b"\xfb\x00", (2).to_bytes(4, "little"))]) \
+            + write_map(inp_ok) + write_map(out)
+        self.read_all([(v0, 0, None), (v2, 2, None), (keyed, 2, None)])
+
     # ----- random PSBTs
 
     def key(self):
@@ -1687,6 +1789,7 @@ class Psbt(Area):
 
     def prelude(self):
         self.published()
+        self.built()
         print("psbt: fuzz corpora read: " + ", ".join(
             f"{v} {k.replace('_', ' ')}" for k, v in FUZZ[1].items()), file=sys.stderr)
 

@@ -792,6 +792,13 @@ difference"), and says why.
     not the previous transaction's output, a preimage that does not hash
     to its key and a BIP-375 field in a version 0 PSBT; Faraday reads
     them and blocks the first two at use.
+  - btclib refuses a PSBT with two BIP-32 derivation pairs of one map of
+    the same value (a version 0 PSBT, in the cases met) and a version 2
+    PSBT whose input's previous transaction has no output at the spent
+    index (Core refuses the version 0 form of that, above); Faraday
+    reads both. HWI refuses a global pair of type 0xfb that carries key
+    data (`PSBT_GLOBAL_VERSION` takes none); Faraday carries it as an
+    unknown pair and takes the version only from the exact key `0xfb`.
   - A version 2 transaction with no input is written by `bitcoin` with
     the segwit marker and by HWI without; it is compared without it.
 - `sign`
