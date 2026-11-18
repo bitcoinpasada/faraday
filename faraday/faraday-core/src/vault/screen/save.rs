@@ -192,18 +192,13 @@ pub(super) fn save_panel(
     dy += ui.line_as(TITLE_M) + faraday_draw::tokens::PAD;
     let mut any = false;
     if keys {
-        let held: Vec<faraday_text::Text> = app
-            .vaults
-            .records(v.id)
-            .of(kind::KEY)
-            .filter_map(|(_, r)| app.vault_key_fingerprint(r))
-            .collect();
+        let cur = app.vaults.current;
         for (k, key) in app.session.keys.all().enumerate() {
             let fp = fp_text(key.fingerprint);
             // Any key loaded is offered: words, or the master seed a
             // codex32 or SLIP-39 key was loaded from (VAULT.md §7, type
             // 2's seed payload).
-            if held.iter().any(|h| *h == *fp)
+            if app.vault_holds_seed(cur, k, false)
                 || !(key.has_words() || app.session.keys.holds_seed_bytes(k))
             {
                 continue;

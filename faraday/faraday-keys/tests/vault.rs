@@ -99,6 +99,30 @@ fn seal_with(store: &mut OpenVaults, c: &Compute, id: vault::VaultId, salt: u8) 
 }
 
 #[test]
+fn a_key_record_identical_to_one_held_is_not_added_again() {
+    let c = compute();
+    let key = || {
+        Record::new(kind::KEY)
+            .with(field::KEY_LABEL, b"Main")
+            .with(field::KEY_FLAGS, &[1])
+    };
+    let mut store = store();
+    let (id, _) = store.unlock(&c, empty(&c, "pass"), "pass").expect("opens");
+    let before = store.records(id).len();
+    store.insert(id, key()).expect("kept");
+    assert!(store.insert(id, key()).is_none(), "the same key again");
+    assert_eq!(store.records(id).len(), before + 1);
+    // Another key, and a note repeated, are added.
+    store
+        .insert(id, Record::new(kind::KEY).with(field::KEY_LABEL, b"Other"))
+        .expect("another key");
+    let note = || Record::new(kind::NOTE).with(field::NOTE, b"n");
+    store.insert(id, note()).expect("kept");
+    store.insert(id, note()).expect("a note may repeat");
+    assert_eq!(store.records(id).len(), before + 4);
+}
+
+#[test]
 fn a_seal_that_fails_leaves_the_vault_open_with_its_changes() {
     let c = compute();
     let note = |n: u8| Record::new(kind::NOTE).with(field::NOTE, &[n]);

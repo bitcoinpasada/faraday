@@ -695,3 +695,43 @@ fn an_entry_s_notes_show_at_a_press_on_their_eye_and_hide_on_leaving() {
     app.press(Action::Nav(Screen::VaultContents));
     assert!(!notes_shown(&mut app), "the notes after coming back");
 }
+
+/// A key loaded with a BIP-39 passphrase and saved by plain Save is in the
+/// vault: the Save panel stops offering it, and a second press adds nothing.
+#[test]
+fn a_key_with_a_passphrase_saved_plain_is_not_offered_or_saved_again() {
+    let mut app = opened();
+    let c = testkit::compute();
+    let words = "legal winner thank year wave sausage worth useful legal winner thank yellow";
+    app.session.keys.add_words(&c, words, "Own", None).unwrap();
+    faraday_core::testkit::keep_published(&mut app);
+    app.session
+        .keys
+        .add_with_passphrase(&c, 0, "TREZOR", "Own 2")
+        .unwrap();
+    let k = app.session.keys.len() - 1;
+    assert!(app.session.keys[k].has_passphrase);
+    app.press(Action::Vault(V::Category(0)));
+    app.press(Action::Vault(V::Add));
+    if !app.vaults().saving {
+        app.press(Action::Vault(V::Add));
+    }
+    let _ = app.frame();
+    assert!(app.offers(Action::Vault(V::SaveKey(k))), "offered at first");
+    let (records, _) = vault_now(&app);
+    app.press(Action::Vault(V::SaveKey(k)));
+    assert_eq!(vault_now(&app).0, records + 1, "one record more");
+    let _ = app.frame();
+    assert!(
+        !app.offers(Action::Vault(V::SaveKey(k))),
+        "offered again after Save"
+    );
+    assert!(
+        app.drawn_texts()
+            .plain()
+            .contains(&"Every key in this session is in the vault".to_string()),
+        "the panel says every key is saved"
+    );
+    app.press(Action::Vault(V::SaveKey(k)));
+    assert_eq!(vault_now(&app).0, records + 1, "a second Save adds nothing");
+}

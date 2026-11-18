@@ -218,10 +218,25 @@ impl OpenVaults {
     // ---- edits ----
 
     /// Puts `record` last in open vault `id`; its place. `None` for a
-    /// vault this store does not hold or that is read-only.
+    /// vault this store does not hold or that is read-only, or when the
+    /// vault already holds a key record identical to `record` (same fields,
+    /// same bytes): nothing is added.
     pub fn insert(&mut self, id: VaultId, record: impl IntoRecord) -> Option<usize> {
         let s = self.slot_mut(id)?;
-        s.records.push(record.into_record());
+        let record = record.into_record();
+        if record.kind == kind::KEY
+            && s.records.iter().any(|o| {
+                o.kind == kind::KEY
+                    && o.fields.len() == record.fields.len()
+                    && o.fields
+                        .iter()
+                        .zip(&record.fields)
+                        .all(|(a, b)| a.number == b.number && a.bytes == b.bytes)
+            })
+        {
+            return None;
+        }
+        s.records.push(record);
         s.origin.push(Origin::New);
         s.dirty.push(true);
         s.facts.push(OnceCell::new());
