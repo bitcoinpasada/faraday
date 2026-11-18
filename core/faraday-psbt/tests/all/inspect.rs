@@ -1364,6 +1364,31 @@ fn an_unknown_global_pair_is_stated_as_not_read() {
 }
 
 #[test]
+fn a_malformed_musig_field_is_stated_as_not_read() {
+    let key = |type_value, len| bitcoin::psbt::raw::Key {
+        type_value,
+        key: vec![2; len],
+    };
+    let mut psbt = fixture(DEMO);
+    psbt.inner_mut().inputs[0]
+        .unknown
+        .insert(key(0x1b, 26), vec![2; 66]);
+    let insp = inspect_with_abandon(&psbt);
+    assert_eq!(
+        unknown_fields(&insp)[0].kind,
+        WarningKind::UnknownFields { count: 1 }
+    );
+    psbt.inner_mut().outputs[0]
+        .unknown
+        .insert(key(0x08, 21), vec![2; 33]);
+    let insp = inspect_with_abandon(&psbt);
+    assert_eq!(
+        unknown_fields(&insp)[0].kind,
+        WarningKind::UnknownFields { count: 2 }
+    );
+}
+
+#[test]
 fn psbts_without_unread_pairs_state_none() {
     for text in [
         DEMO,

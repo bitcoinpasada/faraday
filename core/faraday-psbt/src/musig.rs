@@ -144,6 +144,25 @@ pub fn input_participants(input: &Input) -> Result<Vec<Participants>, Error> {
     read_participants(&of_type(&input.unknown, IN_PARTICIPANT_PUBKEYS))
 }
 
+/// Whether `musig.rs`'s own reader accepts this one pair of an input's
+/// BIP-373 types (so `inspect` counts it as read), and false for any
+/// other type, a malformed pair and a script-path entry, which is
+/// well-formed but not read by Faraday.
+pub(crate) fn input_pair_is_read(key: &raw::Key, value: &Vec<u8>) -> bool {
+    match key.type_value {
+        IN_PARTICIPANT_PUBKEYS => read_participants(&[(key, value)]).is_ok(),
+        IN_PUB_NONCE => entries_of(key).is_ok() && PubNonce::from_bytes(value).is_ok(),
+        IN_PARTIAL_SIG => entries_of(key).is_ok() && PartialSig::from_bytes(value).is_ok(),
+        _ => false,
+    }
+}
+
+/// The same for an output, whose only BIP-373 type is the participants
+/// field: an input's type on an output is read nowhere.
+pub(crate) fn output_pair_is_read(key: &raw::Key, value: &Vec<u8>) -> bool {
+    key.type_value == OUT_PARTICIPANT_PUBKEYS && read_participants(&[(key, value)]).is_ok()
+}
+
 /// The `PSBT_OUT_MUSIG2_PARTICIPANT_PUBKEYS` entries of an output.
 pub fn output_participants(output: &Output) -> Result<Vec<Participants>, Error> {
     read_participants(&of_type(&output.unknown, OUT_PARTICIPANT_PUBKEYS))
