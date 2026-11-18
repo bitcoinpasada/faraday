@@ -526,7 +526,8 @@ PDFs) → Done. Key 3 is held until its copy is checked; Keys 1 and 2
 until their sticks are written.
 
 **E. Paper only.** No vault, no stick: steps 2, 3, 5 and 6 are not
-drawn; the keys are made and copied, the checklist as today.
+drawn; the keys are made and copied, the checklist as today. A single
+key backed up as words takes Paper only by a shorter way (§19).
 
 ## 7. The state
 
@@ -2890,3 +2891,231 @@ word.
 **Open:** a SLIP-39 share has no fingerprint of its own kept, so a share's
 copy is not checked here. Make new parts is not built: a second split of a
 key that has a set is still refused, and the plan has no kept old part.
+
+## 19. The quick paper backup (owner, 2026-11-17)
+
+A person making a single key wallet who wants it quick gets a short
+backup and loses no choice the board has. The short path is the ready
+plan Paper only (§17.25), taken without the board, for a single key
+backed up as words; the plan it records is the one the board would have
+made, so everything that reads a plan reads it as it reads Paper only.
+
+**Open:** designed, not built. Nothing of this section is drawn or
+taken; Back up opens on the board as §17.21 item 1 says.
+
+### 19.1 Which wallets take it
+
+The short path is taken by default when every one of these holds; any
+other wallet opens on the board as today:
+
+- one key, made here or restored, its seed here;
+- backed up as words (Create's backup form Words, not codex32 shares);
+- its seed alone gives the wallet back (`Shape::needs_description` is
+  false: account 0, one plain key);
+- no BIP-39 passphrase (with one, the plan has a second place and a
+  passphrase item, §10.3 and §17.19);
+- no vault brought in before the keys, and no saved plan for the wallet
+  (a saved plan opens as it was saved).
+
+A multisig never takes it: its plan needs a place per key and the
+description at each, which is the board's work. A key backed up as
+codex32 shares never takes it: its standard way is a string per place
+(§17.21 item 13), which is not one copy of words. A person who wants the
+board from the start presses **More ways to back up** on the first
+screen of the short path: one press.
+
+### 19.2 Screen by screen
+
+The way in is unchanged: Make the wallet, then Check, whose **It
+matches** opens the backup in the same press (and Restore's **Back up
+this wallet**). Where §17.21 item 2 opens the board, a wallet of §19.1
+opens on the checklist instead, with the plan already made as Paper only
+(as **Make the checklist** makes it from the board). Back up's step
+cards (wide) or pages (small) are the checklist's, as today.
+
+1. **Write the words down.** The copy item of §10.2 (`Item::Copy`),
+   first half: its title is the item's own ("Copy seed {} by hand"),
+   its body **Show the seed** and the words' grid as today. Beside
+   **Show the seed**, a text button **Blank template**, which opens the
+   templates item's line ("Print 1 from Faraday Starter: Blank
+   templates, 12 words, words") as a sheet with **Close**; nothing is
+   pressed to pass it. Under the item, one row, **More ways to back up**.
+   The foot is **I wrote them down**, filled, offered once the seed has
+   been shown; it hides the seed and moves on.
+2. **Check my copy.** The same item's second half: the typed check of
+   `docs/WALLETS.md` §13 (whole seed typed back, words or four-letter
+   prefixes, compared when the last word is in, "Word 5 differs from the
+   seed"). **Show the seed** goes back to step 1. A match completes the
+   copy item, as it does today, and dates the copy where a vault keeps
+   the plan (§18.3; with no vault, held in memory and nothing dated, as
+   today). The foot reads **Done** once matched.
+3. **The end card.** `wallet_done` with Back up's variant: "Backup done
+   · {wallet}", the plan's three checks as a strip, the wallet's chart,
+   **Show wallet QR** as the filled button, **Open the wallet**, **Change
+   the plan**, Lock and Power off. One row is added on the short path:
+   the wallet's first receive address ("First receive address · 0/0",
+   pressable for its code, as on the wallet card): the key is released
+   at step 2, so this is the first screen that may show it. Today's end
+   card draws no address; this row is an addition. The one copy is read
+   from the checks strip as it is today (§19.4).
+
+The two items are one checklist item split over two screens; no new item
+is made, and the full checklist shows it as one item, done. Leaving the
+short path between its two screens and coming back opens on the screen
+left: on step 2 if the seed was hidden by **I wrote them down**.
+
+### 19.3 More ways to back up
+
+**More ways to back up** opens the board exactly as a new plan opens it
+today (§17.21 item 1, §17.25): read-only with Paper only selected, the
+ready plans, **Add watch-only software** and **Customize backup**. It is
+the board's Change the plan (§17.21 item 11), so everything it offers is
+there: a vault, Two vaults' second place, SeedQR, Seed XOR, files,
+envelopes, the public files and watch-only software. From it, Continue
+and **Make the checklist** make the full checklist of whatever plan
+stands, with what the short path did already done; nothing is asked
+twice. Kept as Paper only after step 2's match, the full checklist reads
+Templates, Copy seed by hand and One envelope per place, all three done;
+pressed before the match, the copy and the two presses are still to do,
+each as today.
+
+The row is offered on both short-path screens and, as **Change the
+plan**, on the end card. Once pressed, the wallet's backup is the board's
+for good: coming back to it opens the board or the checklist as left,
+never the short path again.
+
+### 19.4 The one copy
+
+Paper only for a single key is one place. The plan's own check reads it
+("Any one place lost: No: a single place", §17.19), today in the muted
+tone as a fact, not a warning. The short path's end card shows that
+line in its checks strip, in the same muted tone, and adds no line or
+action of its own for it. A second place is the board's: **Change the
+plan** opens it, and it offers one for a single key only by a ready
+plan (Two vaults) or a vault's stick, since + place stops at one place
+for a single key with no passphrase (§17.19). Neither the tone nor the
+cap changes.
+
+### 19.5 Paper only's items on the short path
+
+Today's checklist of Paper only for a single key (`plan::checklist`):
+Templates, Copy seed by hand, The wallet sheet, One envelope per place,
+and Write to sticks (the sheet's PDF to a stick of public files, which
+takes the lock). On the short path:
+
+- **Copy seed by hand**: kept, as the two screens of §19.2.
+- **Templates**: moved to a text button beside the words. People write
+  the seed as they wish; the template is printed on the online computer
+  and the device makes nothing for it (§10.2), so its press only says it
+  was done. Step 2's match records its press, kept with the wallet's
+  backup record as §10.2 keeps it, so the item reads done on the full
+  checklist.
+- **One envelope per place**: not asked. One place is one envelope, and
+  the item is a press that checks nothing. Step 2's match records its
+  press the same way. On a full checklist of more places both stay
+  presses, as today.
+- **The wallet sheet and Write to sticks**: not on the short path. For a
+  wallet of §19.1 the seed alone gives the wallet back and sees its
+  balance (`sees` for one key), so the sheet changes none of the three
+  checks; and it is the only thing that brings a stick and a lock into
+  Paper only. The plan records Paper only for this wallet without the
+  sheet at its place (§19.6). The sheet is one press away: the end
+  card's chart, the wallet's sheet, **Print the wallet sheet again**
+  (`docs/WALLETS.md` §11), or the board's Wallet description chip.
+- **Show the descriptor to the software**: not in Paper only (it comes
+  only with **Add watch-only software**); on the end card **Show wallet
+  QR** is the same code, a press away.
+
+### 19.6 What the plan records
+
+The short path makes the plan Paper only builds for the wallet
+(`Ready::PaperOnly`, `Answers::preset(shape, Preset::Standard)`), with
+one change for a wallet of §19.1: Paper only keeps the seed's words alone
+at its one place, without the whole description. This narrows §17.6 item
+1 for these wallets on the board too, so the board's Paper only and the
+short path's are one plan, and `Ready::is` reads the short path's plan as
+Paper only. The plan record is saved when the checklist is made, as
+today (`docs/WALLETS.md`, The Backups screen). So the Backups page lists
+the wallet with its one place, Checked once the typed check matched, and
+Change the plan opens the board on that plan, both as for a Paper only
+plan today, and neither changes.
+
+### 19.7 Holds, the idle lock and leaving
+
+- **Back up before you receive.** The hold of `docs/WALLETS.md` §13
+  ends when every item but Write to sticks is done. Step 2's match
+  completes the copy and records the templates' and envelopes' presses
+  (§19.5), so the checklist is complete at that match: the key is
+  released there, as today, the release toast names it, and the end
+  card, the address and the idle lock follow from the checklist as they
+  do now. The check that releases it is unchanged: the whole seed typed
+  back and matched.
+- **The idle lock.** From Make a new wallet begun until the backup is
+  done there is no idle lock (`docs/FLOWS.md`, Lock; F58), and the
+  sidebar says "Auto-lock off until backup complete". On the short path
+  the backup is done at step 2's match; the idle lock comes back then,
+  with no change to the rule.
+  A plan changed by More ways keeps today's rule (the lock step, where a
+  stick is written).
+- **Leaving half way.** Back, Escape or the sidebar leaves as from any
+  checklist (§5): the state is kept, the key stays held, the idle lock
+  stays off, and Make a new wallet, the key's page and Home read
+  **Continue the backup**, which reopens the short-path screen left. A
+  lock or power-off before step 2's match wipes the key with Create's
+  state, as today.
+
+### 19.8 Decided (owner, 2026-11-17)
+
+- **The wallet sheet.** Paper only keeps the words alone for a wallet
+  whose seed alone gives it back, on the board too (§19.5, §19.6). Not
+  taken: the sheet kept with its PDF For the stick and Write to sticks
+  behind More ways; the sheet and the lock kept on the short path.
+- **The one copy.** §17.19's muted fact, nothing added (§19.4). Not
+  taken: a warning line with an action to add a place; lifting the
+  single key's cap of one place.
+- **The check.** Step 2 is the typed check only, the one §18.3 dates.
+  Make a new key's quiz (four words to pick from per position) is not
+  offered beside it.
+- **Which wallets.** A key with a passphrase opens on the board (§19.1).
+  Restore's Back up this wallet takes the short path as Make a new
+  wallet does.
+
+### 19.9 Material and the flow rules
+
+The two screens follow the checklist's item cards (DESIGN §4.13, the
+foot's one filled action, Continue or Done); **Blank template** is a
+text button and its sheet a Material bottom sheet (DESIGN §4.16). The
+flow keeps `docs/FLOWS.md`'s rules: one action per foot, leaving keeps
+the state, nothing explains on a working screen. **I wrote them down** is a press that checks
+nothing, as Make a new key's of the same name; it only hides the seed,
+and the item passes only on step 2's match. No check is done for the
+person: the two presses recorded at the match (§19.5) check nothing on
+the full checklist either, and the typed check is the one check.
+
+### 19.10 Security
+
+- The words are still checked: the copy item passes only on the whole
+  seed typed back and matched, as on the full checklist.
+- Nothing the device refuses is accepted: the plan is a plan the board
+  makes, and what it holds back (a key made here, until its copy is
+  checked) is held back the same.
+- The seed is shown no more often than today: once, on step 1, by **Show
+  the seed**, hidden by **I wrote them down**, **Hide the seed**, the
+  typed check opening, leaving and a lock, as the copy item hides it now.
+- The one place reads on the end card as the plan's check reads it
+  everywhere (§19.4).
+
+### 19.11 Files that change when built
+
+`faraday/faraday-core/src/screens/backup.rs` (the two screens, the
+Blank template sheet, More ways to back up, the end card's address row); `faraday/faraday-core/src/wallet_backup.rs` and
+`faraday/faraday-core/src/create.rs` (opening on the checklist for a
+wallet of §19.1, the short path's state and its leaving and coming
+back, and the two presses recorded at step 2's match);
+`faraday/faraday-plan/src/lib.rs` and
+`faraday/faraday-core/src/plan/ready.rs` (Paper only's words alone for
+a wallet whose seed alone gives it back); the strings in
+`faraday/faraday-strings/src/en/screens_backup.rs`; the guide's
+`docs/guide/create.md` and Back up's page; and their tests in
+`faraday/faraday-core/tests/all/` (backup_checklist, backup_flow_wallet,
+backup_plan).
