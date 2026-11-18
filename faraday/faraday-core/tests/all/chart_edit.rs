@@ -2827,7 +2827,10 @@ fn on_a_one_column_layout_the_holders_field_keeps_its_sheet_when_the_keyboard_is
         let _ = app.frame();
         let _ = app.frame();
         assert_eq!(app.sheet, Some(Sheet::Chart), "{width}: stays on a press");
-        assert!(app.keyboard_top().is_some(), "{width}: a press brings it back");
+        assert!(
+            app.keyboard_top().is_some(),
+            "{width}: a press brings it back"
+        );
         type_text(&mut app, "Alice");
         app.press(Action::Chart(C::Save(press)));
         assert_eq!(chart(&app, w).keys[2].holder.as_deref(), Some("Alice"));
