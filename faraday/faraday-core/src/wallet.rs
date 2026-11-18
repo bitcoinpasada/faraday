@@ -3789,9 +3789,10 @@ impl Session {
         Ok(signed)
     }
 
-    /// Costs an address derivation (through `find_address`). Checks a
-    /// signed message, and finds its address among the loaded wallets'
-    /// first hundred addresses on each chain.
+    /// Costs an address derivation per address tried (through
+    /// `WalletPolicy::find_address`), up to 202 for each loaded wallet: its
+    /// receive and change addresses at indexes 0 to 100. Checks a signed
+    /// message, and finds its address among them.
     pub fn check_message(&self, c: &Compute, text: &str) -> Option<MessageCheck> {
         let signed = faraday_psbt::message::parse_signed(text)?;
         let address = signed

@@ -67,12 +67,14 @@ Faraday's own parts: the vault, the stick rule and the lock cycle
   a wallet loaded, a spend loaded, signed, finished, written), not stored.
   So it is right after a lock, after work done on another tab, and after a
   stick visit.
-- What the tab stores is the route what came in set, the page open, the
-  wallet chosen (by its descriptor checksum, as names repeat) and
-  the names of the files that came in on page 3. That is not secret; it
-  is kept across a lock with the settings (`memory.rs` `kept()`), so a
-  lock for a stick visit or for idleness returns the person to the same
-  page after Unlock, with those files still listed. Seeds come back by a
+- What the tab stores is the route what came in set, the page open
+  (a page or the spend), the pages closed, the wallet chosen (by its
+  descriptor checksum, as names repeat), whether the walk began from a
+  card and the names of the files that came in on page 3. That is not
+  secret; it is kept across a lock with the settings (`memory.rs`
+  `kept()`), so a lock for a stick visit or for idleness returns the
+  person to the same page after Unlock, with those files still listed.
+  Seeds come back by a
   vault or not at all. A page 4 kept from before maps to page 3.
 
 ## 3. The pages
