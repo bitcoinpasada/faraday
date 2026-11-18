@@ -29,6 +29,8 @@ mod vault_by_contents;
 mod vault_copy;
 #[path = "all/vault_full.rs"]
 mod vault_full;
+#[path = "all/vault_key_checks.rs"]
+mod vault_key_checks;
 #[path = "all/vault_keys.rs"]
 mod vault_keys;
 #[path = "all/vault_load.rs"]

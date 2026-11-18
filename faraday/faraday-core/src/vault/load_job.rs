@@ -16,8 +16,9 @@ use crate::strings::EN;
 use crate::worker::Job;
 use faraday_text::Text;
 
-/// A wallet to add after the keys: its description and its name. Public.
-pub(crate) type LoadWallet = (faraday_bip::policy::WalletPolicy, String);
+/// A wallet to add after the keys: its description, its name and the places
+/// of the keys its record has ticked as checked. Public.
+pub(crate) type LoadWallet = (faraday_bip::policy::WalletPolicy, String, Vec<usize>);
 
 /// What a load goes on with once its keys and wallets are added: the
 /// counts of the keys that joined and the wallets that did.
@@ -124,7 +125,7 @@ fn begin(app: &mut Faraday, v: usize, set: &BTreeSet<usize>, kind: Kind, then: T
     let Some(id) = app.vaults.open.get(v).map(|o| o.id) else {
         return false;
     };
-    for (policy, _) in &wallets {
+    for (policy, ..) in &wallets {
         job.check_at(policy);
     }
     if job.is_empty() {

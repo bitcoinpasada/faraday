@@ -1632,6 +1632,7 @@ impl Faraday {
                 descs.push((
                     d.policy.clone(),
                     (&*wallet_name_in(r, field::WALLET_NAME, EN.vaults_wallet)).into(),
+                    r.keys_checked(),
                 ));
             }
         }
@@ -1654,11 +1655,21 @@ impl Faraday {
         derived: &faraday_keys::job::Derived,
     ) -> usize {
         let before = self.session.wallets.len();
-        for (policy, name) in descs {
+        for (policy, name, checked) in descs {
             let to = crate::wallet::Origin::Vault;
             let added = self
                 .session
                 .add_kept(c, &name, policy, EN.vaults_vault, to, derived);
+            // The record's ticks go to a wallet this load added; one the
+            // session already held keeps the person's ticks of this session.
+            if let Ok(i) = added
+                && i >= before
+                && let Some(w) = self.session.wallets.get_mut(i)
+            {
+                let n = w.key_ticks().len();
+                let ticks: Vec<bool> = (0..n).map(|k| checked.contains(&k)).collect();
+                w.set_key_ticks(&ticks);
+            }
             // A kept MuSig2 wallet two of whose keys are one seed's, or a
             // wallet with a loaded key's fingerprint and another xpub, is
             // left out; the load's toast says why.
@@ -2137,9 +2148,16 @@ impl Faraday {
             Some(s) => Text::of(&s.to_text()),
             None => Text::of(&w.policy().to_descriptor_checksummed()),
         };
-        let record = Record::new(kind::WALLET)
+        let places: Vec<usize> = w
+            .key_ticks()
+            .iter()
+            .enumerate()
+            .filter_map(|(i, t)| t.then_some(i))
+            .collect();
+        let mut record = Record::new(kind::WALLET)
             .with(field::WALLET, text.as_bytes())
             .with(field::WALLET_NAME, w.name.as_bytes());
+        records::set_keys_checked(&mut record, &places);
         let name = w.name.clone();
         self.vault_push(record, &Text::fill(EN.vaults_is_in_the_vault, &[&name]));
     }
