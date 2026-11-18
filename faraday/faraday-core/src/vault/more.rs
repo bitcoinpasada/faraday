@@ -143,7 +143,7 @@ fn unkeep(app: &mut Faraday, id: VaultId) {
 }
 
 /// Whether `name` may leave the Outbox: not when it is the `.keyx` of a
-/// made key still pending on a vault that is sealing or read-only, which
+/// made key still pending on a vault that is sealing, which
 /// cannot take the key back; the item stays listed.
 pub(crate) fn outbox_may_remove(app: &Faraday, name: &str) -> bool {
     !app.vaults.key_outbox.iter().any(|k| {
