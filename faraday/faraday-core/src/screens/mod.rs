@@ -151,7 +151,9 @@ fn area_of(screen: Screen) -> Area {
         Screen::Tools => Area::Reading(faraday_draw::tokens::READING_TOOLS_W),
         #[cfg(feature = "demo")]
         Screen::Transfer => Area::Reading(faraday_draw::tokens::READING_TRANSFER_W),
-        Screen::Catalog => Area::Work,
+        // The tools' catalogue is a page at most `TRANSFER_W` wide, its
+        // tile grid unchanged, centred in the room.
+        Screen::Catalog => Area::Reading(faraday_draw::tokens::READING_TRANSFER_W),
         Screen::Check => Area::Reading(faraday_draw::tokens::READING_CHECK_W),
         // New key, which holds Make codex32 shares and its supporting
         // pane; Home, whose tiles are a feed across the work width; and
@@ -178,11 +180,28 @@ fn area_of(screen: Screen) -> Area {
 /// runs to the edge; a page with no wide layout yet keeps the area the
 /// old frame gave it. Returns how far the page is moved right and its
 /// width. Arithmetic.
-fn page_area(screen: Screen, room: f32) -> (f32, f32) {
+fn page_area(app: &crate::Faraday, screen: Screen, room: f32) -> (f32, f32) {
     if room <= PAGE_AREA_UNTIL_W {
         return (0.0, room);
     }
-    match area_of(screen) {
+    // New key's cards are reading content, its column and its insets; only
+    // Make codex32 shares holds wide content (its sheets and input panel)
+    // and takes the work width (`docs/LAYOUT.md` §14).
+    let area = if screen == Screen::KeyGen && !keygen_wide(app) {
+        let t =
+            faraday_draw::tokens::KEYGEN_COLUMN_MAX + 2.0 * faraday_draw::tokens::KEYGEN_COLUMN_IN;
+        Area::Reading(t)
+    } else if screen == Screen::Backup && app.backup().is_some_and(|b| b.quick) {
+        // The quick paper backup is reading content only: its column
+        // (`board::screen::column_w`, as `backup`'s own column takes it)
+        // and its side panel, with the column's inset and the gap between
+        // them, centred as a pair; the board's page stays at the start.
+        let panel = side_panel_w(f32::INFINITY);
+        Area::Reading(crate::board::screen::column_w() + 72.0 + panel)
+    } else {
+        area_of(screen)
+    };
+    match area {
         Area::Reading(w) => ((room - w) / 2.0, w),
         Area::Work => (0.0, room),
         Area::Until => ((room - PAGE_AREA_UNTIL_W) / 2.0, PAGE_AREA_UNTIL_W),
@@ -320,7 +339,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         // (`docs/LAYOUT.md` §6).
         let pane = app.guide_pane_shown();
         let beside = if pane { support_pane_room() } else { 0.0 };
-        let (ox, cw) = page_area(app.screen, room - beside);
+        let (ox, cw) = page_area(app, app.screen, room - beside);
         let h = full_h;
         ui.ox = ox;
         let x = SIDEBAR_W;
@@ -609,7 +628,7 @@ fn drop_edge(app: &View, ui: &mut Ui, (full_w, full_h): (f32, f32), kb: bool) {
 /// keyboard, the window's height, drawn up to keep the field in view.
 fn held_frame(app: &View, ui: &mut Ui, full_w: f32, full_h: f32, page: (f32, f32)) {
     let (page_h, lift) = page;
-    let (ox, cw) = page_area(app.screen, full_w);
+    let (ox, cw) = page_area(app, app.screen, full_w);
     ui.ox = ox;
     if app.screen != Screen::Home {
         ui.oy = -lift;
@@ -907,15 +926,20 @@ pub(crate) fn keygen_page_w(app: &crate::Faraday) -> f32 {
         };
     }
     let room = if app.held { full_w } else { full_w - SIDEBAR_W };
-    page_area(Screen::KeyGen, room).1
+    page_area(app, Screen::KeyGen, room).1
+}
+
+/// Whether New key holds Make codex32 shares, whose string, sheets and
+/// input panel are wide content (`docs/LAYOUT.md` §14, F114; owner,
+/// 2026-10-25). A lookup.
+fn keygen_wide(app: &crate::Faraday) -> bool {
+    app.keygen.state().is_some_and(|k| k.codex32.is_some())
 }
 
 /// Whether a one-column page takes the whole area beside the rail rather
-/// than a reading column centred in it: Make codex32 shares, whose
-/// string, sheets and input panel are wide content (`docs/LAYOUT.md`
-/// §14, F114; owner, 2026-10-25). A lookup.
+/// than a reading column centred in it: Make codex32 shares. A lookup.
 fn whole_area(app: &crate::Faraday) -> bool {
-    app.screen == Screen::KeyGen && app.keygen.state().is_some_and(|k| k.codex32.is_some())
+    app.screen == Screen::KeyGen && keygen_wide(app)
 }
 
 /// The start-up self-test failed: which check, and Exit. A build whose
