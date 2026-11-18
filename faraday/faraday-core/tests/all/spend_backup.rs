@@ -1237,3 +1237,29 @@ fn a_guess_shaped_as_nested_multisig_goes_on_to_native_and_taproot_and_ends_afte
         assert_eq!(text.matches(&line).count(), 1, "{text}");
     }
 }
+
+#[test]
+fn no_money_again_after_the_next_way_was_cancelled_lists_the_way_once() {
+    let mut app = shown_at(2000);
+    on_intake(&mut app);
+    scan_seed(&mut app, "bacon");
+    scan_seed(&mut app, "zebra");
+    app.press(Action::Cancel);
+    app.press(Action::SpendBackup(F::NoDescription));
+    app.press(Action::Slide(faraday_core::seeds::SLIDE_N, 2));
+    app.event(Event::Key(faraday_shell_api::Key::Right));
+    app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Focus(
+        faraday_core::seeds::Focus::Cosigner(0),
+    )));
+    type_text(&mut app, &testkit::key(2, "m/48'/1'/0'/2'"));
+    app.event(Event::Key(faraday_shell_api::Key::Enter));
+    app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
+    faraday_core::testkit::confirm_wallets(&mut app);
+    app.press(Action::SpendBackup(F::NoMoney));
+    assert_eq!(app.sheet, Some(Sheet::WalletConfirm));
+    app.press(Action::WalletCancel);
+    app.press(Action::SpendBackup(F::NoMoney));
+    app.press(Action::WalletCancel);
+    let text = drawn(&mut app);
+    assert_eq!(text.matches("· no money").count(), 1, "{text}");
+}
