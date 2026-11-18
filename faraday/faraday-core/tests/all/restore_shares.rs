@@ -4,7 +4,7 @@
 //! so the keys in hand are counted and no wallet loads.
 
 use crate::common::{device, type_text};
-use faraday_core::restore::merge;
+use faraday_core::restore::{is_share, merge};
 use faraday_core::vault::VaultAction as V;
 use faraday_core::wallet::{Origin, Session};
 use faraday_core::wallet_backup::{split_plan, split_share};
@@ -285,6 +285,66 @@ fn a_sheet_whose_key_or_derivation_holds_more_than_one_is_refused() {
         ] {
             let sheet = with_path(&good[0], path);
             assert!(merge(&[sheet, good[1].clone()]).is_err(), "{path}");
+        }
+    }
+}
+
+/// A Derivation that is not a plain path (no `/` after `m`, a capital `M`,
+/// a doubled `m`, a lone `/`, a sign or leading zeros on a step) makes a
+/// sheet no share, so it is not offered for Restore.
+#[test]
+fn a_sheet_whose_derivation_is_not_a_plain_path_is_not_a_share() {
+    for descriptor in [taproot_descriptor(), two_of_three(0)] {
+        let (good, _) = sheets("Savings", &descriptor);
+        assert!(is_share(&good[0]));
+        for path in [
+            "m44h/0h",
+            "M/44h",
+            "m/m/44h",
+            "mm/44h",
+            "/",
+            "m/+48'/00'",
+            "m/48'/01'",
+            "m/48''",
+            "m/48'/",
+            "m//48'",
+            "m/2147483648",
+        ] {
+            let sheet = with_path(&good[0], path);
+            assert!(!is_share(&sheet), "{path}");
+            assert!(merge(&[sheet, good[1].clone()]).is_err(), "{path}");
+        }
+    }
+}
+
+/// Sheets with `m`, `m/`, hardened and unhardened steps and `h` marks
+/// still merge into a whole wallet.
+#[test]
+fn sheets_with_plain_paths_still_restore() {
+    for descriptor in [taproot_descriptor(), two_of_three(0)] {
+        let (good, _) = sheets("Savings", &descriptor);
+        for path in [
+            "m",
+            "m/",
+            "m/48'/1'/0'/2'",
+            "m/48h/1h/0h/2h",
+            "m/48/1/0/2",
+            "48'/0",
+        ] {
+            let all: Vec<String> = good[..2]
+                .iter()
+                .map(|s| {
+                    s.lines()
+                        .map(|l| match l.starts_with("Derivation: ") {
+                            true => format!("Derivation: {path}\n"),
+                            false => format!("{l}\n"),
+                        })
+                        .collect()
+                })
+                .collect();
+            assert!(all.iter().all(|s| is_share(s)), "{path}");
+            let whole = merge(&all).map(|m| m.whole.is_some());
+            assert_eq!(whole.ok(), Some(true), "{path}");
         }
     }
 }

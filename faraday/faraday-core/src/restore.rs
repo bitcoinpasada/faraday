@@ -39,14 +39,27 @@ pub struct ConfigParts {
 /// copied fifteen times.
 const MAX_DERIVATION_LEN: usize = 1 + 255 * 12;
 
-/// Whether `v` is a derivation path alone: `m`, or steps with an optional
-/// leading `m/`, `'` or `h` marking the hardened ones. A share without a
-/// `Derivation:` line has none, so empty passes.
+/// Whether `v` is a derivation path as Faraday's own sheets write one:
+/// empty (a share without a `Derivation:` line has none), `m` or `m/`, or
+/// an optional lowercase `m/` followed by 1 to 255 steps separated by single
+/// `/`. A step is ASCII digits only, with no leading zero unless it is `0`,
+/// a value below 2^31 and at most one trailing `'` or `h`. Anything else
+/// is refused, so the value is written into the rebuilt wallet as read.
 fn is_path(v: &str) -> bool {
-    use std::str::FromStr as _;
-    let v = v.strip_prefix(['m', 'M']).unwrap_or(v);
-    let body = v.strip_prefix('/').unwrap_or(v);
-    body.is_empty() || faraday_bip::bitcoin::bip32::DerivationPath::from_str(body).is_ok()
+    if matches!(v, "" | "m" | "m/") {
+        return true;
+    }
+    let body = v.strip_prefix("m/").unwrap_or(v);
+    let steps = body.split('/');
+    steps.clone().count() <= 255
+        && steps.into_iter().all(|step| {
+            let digits = step.strip_suffix(['\'', 'h']).unwrap_or(step);
+            !digits.is_empty()
+                && digits.bytes().all(|b| b.is_ascii_digit())
+                && (digits == "0" || !digits.starts_with('0'))
+                && digits.len() <= 10
+                && digits.parse::<u64>().is_ok_and(|n| n < 1 << 31)
+        })
 }
 
 /// Reads a multisig config's lines without requiring every key. A
@@ -125,8 +138,7 @@ pub struct Merged {
     pub have: Vec<Text>,
     /// The whole config, once every key is in hand.
     pub whole: Option<Text>,
-    /// The `Name:` the shares carry, as written: untrusted, and bounded
-    /// when a wallet is added under it (`Session::add_wallet`).
+    /// The `Name:` the shares carry, as written: untrusted.
     pub name: Option<Text>,
 }
 
