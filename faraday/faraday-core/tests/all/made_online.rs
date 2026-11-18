@@ -1040,3 +1040,33 @@ fn a_seed_copied_to_another_vault_by_the_desktop_app_is_held_on_the_device() {
         "a press does not keep it"
     );
 }
+
+#[test]
+fn words_typed_under_another_passphrase_are_held_beside_the_same_words_a_vault_marked() {
+    let words = fresh();
+    let file = testkit::kdbx_vault("Made", PHRASE, 7, vec![seed_record_of(&words)]).unwrap();
+    let mut app = process(vec![("made.kdbx".into(), file)], Network::Mainnet);
+    unlock_without_loading(&mut app, "made.kdbx", PHRASE);
+    typed(&mut app, &words);
+    typed_with(&mut app, &words, "a passphrase");
+    assert_eq!(app.session.keys.len(), 2);
+    for i in 0..2 {
+        let fp = app.session.keys[i].fingerprint;
+        assert!(app.session.keys.made_online(fp), "key {i} is not marked");
+    }
+}
+
+#[test]
+fn words_typed_under_a_passphrase_are_held_when_the_same_words_are_typed_after_them() {
+    let words = fresh();
+    let file = testkit::kdbx_vault("Made", PHRASE, 7, vec![seed_record_of(&words)]).unwrap();
+    let mut app = process(vec![("made.kdbx".into(), file)], Network::Mainnet);
+    unlock_without_loading(&mut app, "made.kdbx", PHRASE);
+    typed_with(&mut app, &words, "a passphrase");
+    typed(&mut app, &words);
+    assert_eq!(app.session.keys.len(), 2);
+    for i in 0..2 {
+        let fp = app.session.keys[i].fingerprint;
+        assert!(app.session.keys.made_online(fp), "key {i} is not marked");
+    }
+}

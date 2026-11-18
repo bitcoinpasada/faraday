@@ -4101,7 +4101,8 @@ impl Faraday {
 
     /// Costs what `gather_codex32` costs, and what `note_made_online_keys`
     /// costs: a parse of the words of each key held, and a PBKDF2 for each
-    /// marked key record only when a key held has no words. The codex32
+    /// marked key record, and each naming a parent, only when a key held
+    /// has no words. The codex32
     /// share records of every open vault gathered towards their keys
     /// (`docs/CODEX32.md` §9.5): a key held keeps its strings, and a key
     /// `k` strings of one set make across the open vaults loads, its

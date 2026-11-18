@@ -560,11 +560,30 @@ impl Keys {
         self.blind_key(c, self.entries.len() - 1);
         let fp = self.entries[self.entries.len() - 1].info.fingerprint;
         self.added.extend([fp]);
-        // A mark a vault gave this fingerprint before the key was held
-        // is in `made_online` already: its children follow.
-        if self.made_online.contains(&fp) {
-            self.carry_child_marks();
+        // A mark a vault gave this fingerprint before the key was held is
+        // in `made_online` already, and the same words under another
+        // passphrase as a key held and marked were written online too:
+        // the mark spreads to every key held with these words, and to the
+        // children.
+        if self.made_online.contains(&fp) || self.same_words_as_marked(self.entries.len() - 1) {
+            self.note_made_online(fp);
         }
+    }
+
+    /// Whether the key at `i` has words and another key held, already
+    /// marked made online, has the same words.
+    fn same_words_as_marked(&self, i: usize) -> bool {
+        let Some(w) = self.entries[i].key.words.as_deref() else {
+            return false;
+        };
+        self.entries.iter().enumerate().any(|(j, e)| {
+            j != i
+                && self.made_online.contains(&e.info.fingerprint)
+                && e.key
+                    .words
+                    .as_deref()
+                    .is_some_and(|x| x.split_whitespace().eq(w.split_whitespace()))
+        })
     }
 
     /// The fingerprints of the keys added since this was last called, still
@@ -802,8 +821,9 @@ impl Keys {
     /// Notes that the vault the key `fp` was loaded from says it was
     /// written by Faraday Demo on an online computer.
     ///
-    /// Every held key with the same words takes the mark, under any
-    /// passphrase, and a fingerprint no key held has is remembered until
+    /// Every key held now with the same words takes the mark, under any
+    /// passphrase (a key with the same words added later takes it in
+    /// `push`), and a fingerprint no key held has is remembered until
     /// Lock: a key added later with it is marked already.
     pub fn note_made_online(&mut self, fp: Fingerprint) {
         self.insert_made_online(fp);
