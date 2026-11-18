@@ -140,6 +140,8 @@ pub(crate) fn create_from_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     t.press(Action::CBackupForm(
         faraday_core::create::BackupForm::Words.index(),
     ));
+    t.shot("create-keys-neutral")?;
+    t.press(Action::KWords(12));
     for i in 0..14u8 {
         t.press(Action::KRoll(i % 6 + 1));
     }

@@ -198,6 +198,9 @@ pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     // The making on the card: some rolls in, then the words made. A roll
     // the entry refuses (a repeat) is tried again with the next face.
     let roll = |t: &mut Tour, n: usize| {
+        if t.app.keygen().is_some_and(|k| !k.length_chosen) {
+            t.press(Action::KWords(12));
+        }
         for i in 0..n {
             let before = t.app.keygen().map_or(0, |k| k.dice.len());
             for f in 0..6usize {

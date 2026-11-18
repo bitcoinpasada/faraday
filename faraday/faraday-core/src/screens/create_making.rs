@@ -37,13 +37,13 @@ pub(super) fn slot_making(
         (&*labels[0], Action::KWords(12)),
         (&*labels[1], Action::KWords(24)),
     ];
-    let chosen = usize::from(k.words != 12);
+    let chosen = k.length_chosen.then_some(usize::from(k.words != 12));
     let off = (tokens::TOUCH - SEGMENTED_H) / 2.0;
     ui.segmented(
         (x, cy + off, SEGMENTED_H),
         LABEL_L.size,
         &options,
-        Some(chosen),
+        chosen,
         None,
     );
     cy += tokens::TOUCH + tokens::GAP_SMALL;
@@ -118,7 +118,7 @@ pub(super) fn slot_making(
             std::slice::from_ref(&other),
             (Some((label, Action::KLock)), agree),
         );
-    } else {
+    } else if k.length_chosen {
         cy += dice_panel::progress(k, ui, x, cy, w);
         // The same entry New key's Entries card shows: Typed or Buttons,
         // then the words as the rolls name them.
@@ -142,6 +142,9 @@ pub(super) fn slot_making(
             &left,
             (Some((EN.keygen_make_the_words, Action::KNext)), k.ready()),
         );
+    } else {
+        // Until a count is picked only the choice and Other ways show.
+        cy += buttons_and_next_when(ui, x, cy, w, std::slice::from_ref(&other), (None, false));
     }
     cy + tokens::GAP_SMALL - y
 }

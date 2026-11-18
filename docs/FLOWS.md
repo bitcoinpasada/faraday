@@ -477,9 +477,9 @@ it. Opened from Make a new wallet or Add a key it returns there as before.
 **A key made on the Keys card** (F282): on a single key with Backup set
 to Words, and on Key 1 of a multisig while no slot holds a key made here,
 the empty slot holds the making in place of New key, opened with Keys.
-Length offers 12 words · 24 words, 12 chosen; dice are the source, chosen,
-by the rolls that name the words: the count still needed under Length with
-its bar, Typed or Buttons, the words so far with their bits and the checksum
+Length offers 12 words · 24 words, neither chosen until one is pressed;
+dice are the source, by the rolls that name the words, shown once a count is
+chosen: the count still needed under Length with its bar, Typed or Buttons, the words so far with their bits and the checksum
 row as New key's Entries card draws them, Undo and Clear;
 **Make the words** shows the words masked, **Show words**, **Make again**
 and **Add a passphrase**; then **Make the wallet** on a single key or

@@ -1,6 +1,6 @@
 //! Make a new wallet's Keys card makes the wallet's first key where it is
-//! chosen: 12 words and dice already chosen, the count of rolls still
-//! needed, Make the words, Show words, an optional passphrase, and the
+//! chosen: neither count chosen until one is pressed, then the count of
+//! rolls still needed, Make the words, Show words, an optional passphrase, and the
 //! slot's button. New key stays behind Other ways.
 
 use crate::common::type_text;
@@ -33,6 +33,9 @@ fn multi_on_keys() -> Faraday {
 
 /// Rolls `n` dice on the card, the faces varied.
 fn roll(app: &mut Faraday, n: usize) {
+    if !app.keygen().unwrap().length_chosen {
+        app.press(Action::KWords(12));
+    }
     for i in 0..n {
         let before = app.keygen().unwrap().dice.len();
         for f in 0..6u8 {
@@ -76,16 +79,32 @@ fn words_made(app: &mut Faraday) {
 }
 
 #[test]
-fn a_single_key_opens_keys_with_12_words_and_dice_chosen_and_the_count_needed() {
+fn a_single_key_opens_keys_with_neither_count_chosen_and_no_rolls_to_enter() {
     let mut app = opened();
     let k = app.keygen().expect("the making is open on the card");
     assert!(k.on_card);
     assert_eq!(app.screen, Screen::Create);
-    assert_eq!(k.words, 12);
+    assert!(!k.length_chosen, "neither count is chosen");
+    let texts = app.drawn_texts();
+    for want in ["12 words", "24 words", "Other ways"] {
+        assert!(texts.iter().any(|t| t == want), "{want}: {texts:?}");
+    }
+    assert!(
+        !texts
+            .iter()
+            .any(|t| t == "Make the words" || t.contains("0 of")),
+        "no rolls or Make the words before a pick: {texts:?}"
+    );
+    let _ = app.frame();
+    assert!(!app.offers(Action::KRoll(3)), "no pad before a pick");
+    assert!(!app.offers(Action::KNext), "no Make the words");
+    app.press(Action::KWords(12));
+    let k = app.keygen().unwrap();
     assert!(k.length_chosen);
+    assert_eq!(k.words, 12);
     assert_eq!(k.dice_needed(), 70);
     let texts = app.drawn_texts();
-    for want in ["12 words", "24 words", "Make the words", "Other ways"] {
+    for want in ["Make the words", "Other ways"] {
         assert!(texts.iter().any(|t| t == want), "{want}: {texts:?}");
     }
     assert!(
@@ -308,6 +327,9 @@ fn new_words_on_another_slot_drops_the_first_making_asking_first() {
 /// Rolls the faces 2 to 6 in turn, `n` of them, so that no face reads as
 /// a bit by itself.
 fn roll_high(app: &mut Faraday, n: usize) {
+    if !app.keygen().unwrap().length_chosen {
+        app.press(Action::KWords(12));
+    }
     for i in 0..n {
         let before = app.keygen().unwrap().dice.len();
         for f in 0..3u8 {
@@ -352,6 +374,7 @@ fn rolls_part_way_show_words_so_far_with_the_first_words_bits_and_both_entry_way
 #[test]
 fn typed_faces_on_the_card_count_as_rolls() {
     let mut app = opened();
+    app.press(Action::KWords(12));
     let _ = app.frame();
     app.press(Action::KTyping(true));
     let _ = app.frame();

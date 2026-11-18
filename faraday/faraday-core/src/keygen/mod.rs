@@ -2664,8 +2664,8 @@ impl crate::Faraday {
         }
     }
 
-    /// Opens the making on the card for `slot`: BIP-39, 12 words and the
-    /// dice that name them chosen, the entry open.
+    /// Opens the making on the card for `slot`: BIP-39 with
+    /// neither count chosen, the entry closed until one is.
     fn keygen_open_on_card(&mut self, slot: u8, multi: bool) {
         if !self.may_load_keys() {
             return;
@@ -2685,12 +2685,11 @@ impl crate::Faraday {
         k.open = Some(kstep::START);
         self.keygen.state = Some(k);
         self.keygen_start_next();
+        // Neither count is chosen (owner, 2026-11-17): the rolls and
+        // Make the words wait for the pick, which opens the entry.
         if let Some(k) = self.keygen.state.as_mut() {
             k.words = 12;
-            k.length_chosen = true;
-            k.done[usize::from(kstep::LENGTH)] = true;
-            k.choose(Way::DiceWords);
-            k.source_next();
+            k.open = Some(kstep::LENGTH);
         }
     }
 
