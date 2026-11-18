@@ -105,7 +105,7 @@ fn a_ready_wallet_with_its_transaction_in_files_goes_to_signing() {
 }
 
 /// A wallet made here with its keys loaded asks for no seeds: its
-/// signers' card is Who signs, not Add the seeds that can sign.
+/// page offers no Add the seeds that can sign.
 #[test]
 fn a_wallet_made_here_with_its_keys_loaded_asks_for_no_seeds() {
     use faraday_core::strings::EN;
@@ -140,10 +140,6 @@ fn a_wallet_made_here_with_its_keys_loaded_asks_for_no_seeds() {
     app.press(Action::SpendBackup(F::SpendFrom(0)));
     let _ = app.frame();
     let texts = app.drawn_texts();
-    assert!(
-        texts.iter().any(|t| t == EN.spend_backup_who_signs),
-        "{texts:?}"
-    );
     assert!(
         !texts.iter().any(|t| t == EN.spend_backup_add_the_seeds),
         "{texts:?}"

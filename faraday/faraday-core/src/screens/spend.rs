@@ -290,6 +290,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         heading: EN.spend_sign_a_transaction,
         wrap_closed: false,
         total_fixed: false,
+        all_shown: false,
         note: sequence.as_deref(),
         chip: None,
         chip_tap: None,

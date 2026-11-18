@@ -95,6 +95,8 @@ mod paper;
 mod passphrase_kept;
 #[path = "all/rounds.rs"]
 mod rounds;
+#[path = "all/steps_hidden.rs"]
+mod steps_hidden;
 #[path = "all/stick_pills.rs"]
 mod stick_pills;
 #[path = "all/vault_load_job.rs"]

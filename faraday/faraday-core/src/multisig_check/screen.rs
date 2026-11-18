@@ -39,6 +39,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         heading: EN.mscheck_title,
         wrap_closed: false,
         total_fixed: true,
+        all_shown: false,
         note: None,
         chip: None,
         chip_tap: None,

@@ -101,6 +101,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         heading: from.as_deref().unwrap_or(EN.spend_backup_spend),
         wrap_closed: false,
         total_fixed: false,
+        all_shown: false,
         note: None,
         chip: None,
         chip_tap: None,

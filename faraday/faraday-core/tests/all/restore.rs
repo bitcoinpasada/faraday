@@ -159,8 +159,12 @@ fn restore_opens_on_kind_with_no_transaction_card() {
     assert_eq!(app.screen, Screen::Restore);
     assert_eq!(app.restore().unwrap().open, Some(KIND));
     let text = drawn(&mut app);
-    for card in ["Kind", "Description", "Use vaults", "Keys", "Check"] {
-        assert!(text.lines().any(|l| l == card), "no {card} card: {text}");
+    assert!(text.lines().any(|l| l == "Kind"), "no Kind card: {text}");
+    for card in ["Description", "Use vaults", "Keys"] {
+        assert!(
+            !text.lines().any(|l| l == card),
+            "{card} before it is reached: {text}"
+        );
     }
     assert!(!text.contains("transaction"), "{text}");
     // The shortcut, and the two everyday kinds with More kinds.

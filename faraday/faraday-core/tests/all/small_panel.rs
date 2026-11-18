@@ -354,7 +354,15 @@ fn the_page_title_shows_the_steps() {
     tap(&mut app, Action::CStep(faraday_core::cstep::KEYS));
     assert_eq!(app.create().and_then(|c| c.open), None);
     let check = Action::CStep(faraday_core::cstep::CHECK);
-    assert!(on_panel(&mut app, check).is_some(), "every step is listed");
+    let keys = Action::CStep(faraday_core::cstep::KEYS);
+    assert!(
+        on_panel(&mut app, keys).is_some(),
+        "the steps reached are listed"
+    );
+    assert!(
+        on_panel(&mut app, check).is_none(),
+        "a step not reached is not"
+    );
     tap(&mut app, Action::CStep(faraday_core::cstep::KEYS));
     assert_eq!(
         app.create().and_then(|c| c.open),

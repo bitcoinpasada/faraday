@@ -67,6 +67,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         heading: EN.catalog_check_a_signer,
         wrap_closed: true,
         total_fixed: true,
+        all_shown: false,
         note: None,
         chip: None,
         chip_tap: None,

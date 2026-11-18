@@ -80,6 +80,10 @@ pub struct Column<'a> {
     /// changes; where it can (Spend, Restore, Backup)
     /// a step reads "Step N" alone.
     pub total_fixed: bool,
+    /// Whether every card is drawn, the ones not yet reached too: for a
+    /// list of independent items (a checklist, a plan's cards) and not a
+    /// sequence of steps.
+    pub all_shown: bool,
     /// A line at the head of the column, about the page as a whole.
     pub note: Option<&'a str>,
     /// A chip at the head of the column: where the flow goes next, or
@@ -136,8 +140,12 @@ pub(crate) fn column_wide(
     body: &mut dyn FnMut(&mut Ui, usize, f32, f32, f32) -> f32,
     foot: Option<Foot>,
 ) -> (Scroll, bool) {
+    // A step not yet reached is not drawn: no head, number, rule or
+    // press (`docs/FLOWS.md`, "Step cards"). The flow's whole count stays known.
+    let total = cards.len();
+    let cards = &cards[..if col.all_shown { total } else { reached(cards) }];
     if ui.compact {
-        return paged(ui, col, cards, scroll, body, foot);
+        return paged(ui, col, cards, total, scroll, body, foot);
     }
     let clip = ui.rect(col.area_x, 0.0, col.area_w, col.h);
     let view_open = ui.region_open(Region::page(clip).from_zero(scroll.y).moves(col.moves));
@@ -342,6 +350,17 @@ pub(crate) fn column_wide(
     (next, again)
 }
 
+/// How many cards, from the first, are drawn: up to the furthest one
+/// finished or open, and at least up to the first not finished, which is
+/// the step the person is on. A finished step after the current one (one
+/// gone back from) stays drawn; what is hidden is only what has not been
+/// reached.
+fn reached(cards: &[Card]) -> usize {
+    let current = cards.iter().position(|c| !c.done).unwrap_or(0);
+    let furthest = cards.iter().rposition(|c| c.done || c.open).unwrap_or(0);
+    (current.max(furthest) + 1).min(cards.len())
+}
+
 /// How many cards lead the flow before its step 1, numbered 0 and not
 /// counted among its steps: a GPG key's restore opens on its public key
 /// (`docs/GPG-PAPERKEY.md` §4.2).
@@ -367,6 +386,7 @@ fn paged(
     ui: &mut Ui,
     col: &Column,
     cards: &[Card],
+    total: usize,
     scroll: Scroll,
     body: &mut dyn FnMut(&mut Ui, usize, f32, f32, f32) -> f32,
     foot: Option<Foot>,
@@ -485,7 +505,7 @@ fn paged(
             let count = if i < lead {
                 String::new()
             } else {
-                let (n, of) = (i + 1 - lead, cards.len() - lead);
+                let (n, of) = (i + 1 - lead, total - lead);
                 if col.total_fixed {
                     fill(EN.flow_step_count, &[&n.to_string(), &of.to_string()])
                 } else {

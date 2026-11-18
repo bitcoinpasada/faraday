@@ -753,10 +753,10 @@ fn a_create_slot_new_key_shows_no_check_words_or_quiz_card() {
     flip_all(&mut app);
     let _ = app.frame();
     assert!(app.offers(Action::KNext));
-    for s in [kstep::LENGTH, kstep::SOURCE, kstep::ENTER, kstep::KEY] {
+    for s in [kstep::LENGTH, kstep::SOURCE, kstep::ENTER] {
         assert!(app.offers(Action::KStep(s)), "card {s} is shown");
     }
-    for s in [kstep::CHECK, kstep::WORDS, kstep::QUIZ] {
+    for s in [kstep::KEY, kstep::CHECK, kstep::WORDS, kstep::QUIZ] {
         assert!(!app.offers(Action::KStep(s)), "card {s} is not shown");
     }
 }

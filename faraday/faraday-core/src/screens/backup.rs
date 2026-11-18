@@ -392,6 +392,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         heading: &heading,
         wrap_closed: false,
         total_fixed: false,
+        all_shown: true,
         note: None,
         // From Create the wallet is the one just made, and the way on is
         // its card.

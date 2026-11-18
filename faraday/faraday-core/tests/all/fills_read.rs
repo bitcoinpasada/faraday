@@ -42,7 +42,7 @@ fn on_fill(app: &mut Faraday, fill: Color) -> Vec<(String, f64)> {
 /// BIP 93's vector 2 typed share by share, in each theme: once the
 /// entry is done, every character, box number and letter on a checksum
 /// square, in the string's boxes and on the worksheet, reads on it, and
-/// so does each later step's number on its badge.
+/// so does a step's number on its badge where one is drawn.
 #[test]
 fn what_is_written_on_a_checksum_square_or_a_badge_reads_in_every_theme() {
     let mut short = Vec::new();
@@ -71,14 +71,10 @@ fn what_is_written_on_a_checksum_square_or_a_badge_reads_in_every_theme() {
             has(|t| t.parse::<u8>().is_ok_and(|n| n > 35)),
             "{preset:?}: a box number: {drawn:?}"
         );
-        // The steps not reached yet: each one's number on its badge.
+        // The numbers on badges that are drawn.
         let badges = on_fill(
             &mut app,
             theme.color(Role::SurfaceContainerHighest).with_alpha(255),
-        );
-        assert!(
-            badges.iter().any(|(t, _)| t == "8"),
-            "{preset:?}: Strings made's number on its badge: {badges:?}"
         );
         for (text, got) in drawn.into_iter().chain(badges) {
             if got < need {

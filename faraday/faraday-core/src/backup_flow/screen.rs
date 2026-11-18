@@ -95,6 +95,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         },
         wrap_closed: false,
         total_fixed: false,
+        all_shown: false,
         note: None,
         chip: named.map(|n| n.1),
         chip_tap: None,
