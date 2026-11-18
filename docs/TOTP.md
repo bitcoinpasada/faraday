@@ -1,8 +1,7 @@
 # TOTP codes and the time
 
-**Kind:** Spec
-**Status:** Built, except the zone list, the local-time wording and the line showing both times of Set the time (§2.1, §3)
-**Open:** Set the time is built as §3 describes it. Two records in the Back up flow still take a time from a clock nobody has checked: the time a copy was written to a stick and the time a copy was bound to the plan. They are to wait for a checked clock, as a vault's seal times, a new vault, a KeePass export, the write receipt, the vault summaries and a sealed QR picture already do.
+**Kind:** Reference
+**Status:** Built
 
 A vault entry holds a TOTP secret (record type 6, field 6,
 `docs/VAULT.md` §7), scanned from a setup QR, typed, or imported from
@@ -27,6 +26,12 @@ that clock in local time, so the stick can be hours off.
    when daylight saving starts or ends.
 4. Where the clock is not known, the codes screen opens Set the time
    first.
+
+A time is recorded or shown from the clock only once the person has
+checked it this power-on. Until then these carry no time: a vault's seal
+times, a new vault, a KeePass export, the write receipt, the vault
+summaries, a sealed QR picture, and in Back up the time a copy was
+written to a stick and the time a copy was bound to the plan.
 
 Decided in this spec (architect, 2026-10-11, inside the owner's four):
 

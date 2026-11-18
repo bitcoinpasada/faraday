@@ -132,6 +132,7 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 - `docs/TEXT-CURSOR.md`: The caret in every text field. Built (`faraday/faraday-core/src/edit.rs`, `Ui::typed`, `Ui::typed_lines`, `Ui::draw_typed`).
 - `docs/TEXT-SIZE.md`: Text size. Built (F85): the setting in Faraday and the Starter, its storage, the one-column decision, the components and screens that make room for larger text, the Larger renders and their `cut.txt`.
 - `docs/THEMES.md`: Themes on Material 3's colour system. Built (owner, 2026-10-24; F113, `docs/decisions/F113.md`): the roles, the generator and the tables; every screen and component of Faraday and the Starter drawn on the roles by name; Settings › Appearance's Theme, Mode, Contrast and Reduce motion, the settings file's lines and the migration, the Starter's Appearance page; the theme tour.
+- `docs/TOTP.md`: TOTP codes and the time. Built.
 - `docs/VAULT.md`: The Faraday vault. Built (F190; F208; F226; F227); the app reads and seals KDBX 4 file vaults, each seal under the vault's own passphrase, growing by itself from 32 KiB to 128 MiB and at the memory step at or above its own; `faraday-pgp` holds the QR vault's OpenPGP message (§1.2), which `faraday-vault`'s `qr` seals and opens as one call; the app makes a QR vault code, opens one with its offers, and saves a file vault's item as one.
 - `docs/WALLETS.md`: The Wallets tab. Built.
 
@@ -146,7 +147,6 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 - `docs/INTEROP.md`: Interoperability with other wallets. Tested; §2 lists what works; §5 is built except Electrum seed words.
 - `docs/MOTION.md`: Scrolling, motion and appearance. Built; not yet checked by the owner on hardware.
 - `docs/STARTER.md`: The Starter. Partly built: the Starter on Linux and Windows with its Material 3 navigation (§3.1d), the Pi 3 card.
-- `docs/TOTP.md`: TOTP codes and the time. Built, except the zone list, the local-time wording and the line showing both times of Set the time (§2.1, §3).
 - `docs/WORKERS.md`: Costly work off the drawing thread. Partly built: the worker, the shells' wake, the busy screen and the jobs listed in §9 run; the rest are open.
 
 **Record**
