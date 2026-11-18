@@ -74,8 +74,9 @@ pub(crate) struct Settings {
     /// is held and the Outbox is empty; 0 for never.
     idle_off_min: u16,
     /// The time zone, minutes east of UTC (`docs/TOTP.md` §2.1): −720 to
-    /// +840, a multiple of 15.
-    tz_min: i16,
+    /// +840, a multiple of 15. `None` until the person chooses one: a
+    /// settings file with no `tz` line is Not set.
+    tz_min: Option<i16>,
     /// Faraday Demo's host holds the app (`docs/DESKTOP-HOST.md`):
     /// its stick pills, Load samples, the preview size and every demo
     /// aid stand in the host's strip, outside the app, so the app draws
@@ -96,7 +97,7 @@ impl Default for Settings {
             idle_lock_min: crate::IDLE_LOCK_MIN,
             qr_frame_ms: crate::QR_SPEEDS[0],
             idle_off_min: crate::IDLE_OFF_MIN,
-            tz_min: 0,
+            tz_min: None,
             hosted: false,
         }
     }
@@ -169,9 +170,19 @@ impl Settings {
         self.idle_off_min
     }
 
-    /// The time zone, minutes east of UTC.
+    /// The time zone, minutes east of UTC; 0 (UTC) while it is not set.
     pub(crate) fn tz_min(&self) -> i16 {
-        self.tz_min
+        self.tz_min.unwrap_or(0)
+    }
+
+    /// Whether a time zone has been chosen.
+    pub(crate) fn tz_known(&self) -> bool {
+        self.tz_min.is_some()
+    }
+
+    /// Chooses the time zone, clamped to −12:00 .. +14:00.
+    pub(crate) fn set_tz(&mut self, min: i16) {
+        self.tz_min = Some(min.clamp(-720, 840));
     }
 
     /// Whether Faraday Demo's host holds the app.
@@ -215,16 +226,16 @@ impl Settings {
     }
 
     /// Steps the time zone by `delta` minutes, stopping at −12:00 and
-    /// +14:00.
+    /// +14:00; from Not set it steps from UTC.
     pub(crate) fn step_tz(&mut self, delta: i16) {
-        self.tz_min = (self.tz_min + delta).clamp(-720, 840);
+        self.set_tz(self.tz_min() + delta);
     }
 
     /// The settings a stick carries, one `key=value` line each: what the
     /// file holds after its first line, and the start of the kept set.
     pub(crate) fn body(&self) -> String {
         format!(
-            "scale={}\nrotation={}\ntheme={}\nmode={}\ncontrast={}\ntext={}\n{}qr-ms={}\nidle-lock={}\nidle-off={}\ntz={}\n",
+            "scale={}\nrotation={}\ntheme={}\nmode={}\ncontrast={}\ntext={}\n{}qr-ms={}\nidle-lock={}\nidle-off={}\n{}",
             self.scale_pct,
             self.orientation.id(),
             self.theme.name.id(),
@@ -241,7 +252,10 @@ impl Settings {
             self.qr_frame_ms,
             self.idle_lock_min,
             self.idle_off_min,
-            crate::vault::tz_offset_text(self.tz_min).as_str(),
+            // Only a chosen zone is kept: Not set has no line.
+            self.tz_min
+                .map(|m| format!("tz={}\n", crate::vault::tz_offset_text(m).as_str()))
+                .unwrap_or_default(),
         )
     }
 
@@ -325,7 +339,7 @@ impl Settings {
             }
             "tz" => {
                 if let Some(tz) = crate::vault::parse_tz_offset(value) {
-                    self.tz_min = tz;
+                    self.tz_min = Some(tz);
                 }
             }
             _ => {}
@@ -668,8 +682,15 @@ impl Faraday {
         self.settings.idle_off_min()
     }
 
-    /// The time zone, minutes east of UTC: −720 to +840, a multiple of 15.
+    /// The time zone, minutes east of UTC: −720 to +840, a multiple of 15;
+    /// 0 while it is not set.
     pub fn tz_min(&self) -> i16 {
         self.settings.tz_min()
+    }
+
+    /// The time zone chosen, minutes east of UTC; `None` while it is not
+    /// set.
+    pub(crate) fn tz_chosen(&self) -> Option<i16> {
+        self.settings.tz_known().then(|| self.settings.tz_min())
     }
 }

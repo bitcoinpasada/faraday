@@ -60,6 +60,7 @@ pub(crate) fn m3_tour(t: &mut Tour) -> Result<(), String> {
     type_text(t, "2026-10-23");
     t.press(Action::SetTimeFocus(Focus::Time));
     type_text(t, "14:30");
+    t.press(Action::TzSet(0));
     t.press(Action::SetTimeSet);
     // Inside its 4 s on screen.
     t.shot_after("m3-11-toast", 1000)?;

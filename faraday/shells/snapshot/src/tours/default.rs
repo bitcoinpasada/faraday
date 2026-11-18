@@ -272,6 +272,10 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.shot("settings-time")?;
     t.press(Action::OpenSetTime);
     t.shot("set-time")?;
+    // The list of zones, which the zone row opens.
+    t.press(Action::TzList(true));
+    t.shot("set-time-zones")?;
+    t.press(Action::TzList(false));
     t.press(Action::SetTimeBack);
     t.press(Action::Nav(Screen::Home));
     // A stick arrives while nothing secret is held: the visit.

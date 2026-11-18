@@ -188,7 +188,7 @@ fn time_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
     ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, EN.settings_now);
     y += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
     y += ui.wrap_as((x, y, w), TITLE_M, Role::OnSurface, &app.now_local_text()) + 10.0;
-    y += tz_row(ui, x, y, w, app.tz_min()) + 10.0;
+    y += tz_row(ui, x, y, w, app.tz_chosen()) + 10.0;
     y += ui.button(
         x,
         y,

@@ -137,6 +137,7 @@ fn set_the_time_with_no_clock_reading_says_so_and_counts_from_set() {
     type_text(&mut app, "2026-10-11");
     app.press(Action::SetTimeFocus(Focus::Time));
     type_text(&mut app, "14:02");
+    app.press(Action::TzSet(0));
     app.press(Action::SetTimeSet);
     let set = app.clock_now().expect("the time set is the clock");
     let later = app.now_ms() + 61_000;
@@ -167,6 +168,7 @@ fn a_pi_like_clock_opens_set_the_time_first_then_shows_the_code() {
     type_text(&mut app, "2026-10-11");
     app.press(Action::SetTimeFocus(Focus::Time));
     type_text(&mut app, "14:02");
+    app.press(Action::TzSet(0));
     app.press(Action::SetTimeSet);
     assert_eq!(app.screen, Screen::Codes, "Set goes back to the codes");
     let now = app.clock_now().expect("the clock is now known");

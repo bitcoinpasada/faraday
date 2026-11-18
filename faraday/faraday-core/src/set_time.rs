@@ -34,6 +34,8 @@ pub(crate) struct SetTimeArea {
     /// The sheet Set the time was opened from (Sign with {key}, F63),
     /// shown again over `back_to` by Back, Set and Keep this time.
     sheet: Option<Sheet>,
+    /// The list of zones is shown in place of the fields.
+    zones: bool,
 }
 
 impl Default for SetTimeArea {
@@ -44,6 +46,7 @@ impl Default for SetTimeArea {
             focus: None,
             back_to: Screen::Settings,
             sheet: None,
+            zones: false,
         }
     }
 }
@@ -81,6 +84,30 @@ impl SetTimeArea {
         self.back_to
     }
 
+    /// Whether the list of zones is shown.
+    pub(crate) fn zones(&self) -> bool {
+        self.zones
+    }
+
+    /// Shows or hides the list of zones; typing goes to no field while it
+    /// is shown.
+    pub(crate) fn set_zones(&mut self, on: bool) {
+        self.zones = on;
+        if on {
+            self.focus = None;
+        }
+    }
+
+    /// Whether Date is empty.
+    pub(crate) fn date_empty(&self) -> bool {
+        self.date.text.is_empty()
+    }
+
+    /// Puts `d` in Date.
+    pub(crate) fn fill_date(&mut self, d: &str) {
+        self.date.text.set(d);
+    }
+
     /// Typing goes to neither field.
     pub(crate) fn clear_focus(&mut self) {
         self.focus = None;
@@ -104,6 +131,7 @@ impl SetTimeArea {
         self.sheet = sheet.take();
         self.date = TextBox::default();
         self.time = TextBox::default();
+        self.zones = false;
         if let Some(d) = local_date {
             self.date.text.set(d);
         }
@@ -134,6 +162,13 @@ impl SetTimeArea {
 
     /// A key typed: into the focused field, or to move focus.
     fn key(&mut self, key: KeyIn) -> Typed {
+        if self.zones {
+            return if key == KeyIn::Escape {
+                Typed::Back
+            } else {
+                Typed::Ignored
+            };
+        }
         let Some(focus) = self.focus else {
             return Typed::Ignored;
         };
@@ -218,8 +253,14 @@ impl Faraday {
         match self.clock_now() {
             Some(t) => {
                 let local = crate::vault::local_secs(t, self.tz_min());
+                // With no zone chosen the clock reads in UTC, and says so.
+                let utc = if self.tz_known() {
+                    String::new()
+                } else {
+                    format!(" {}", EN.set_time_utc)
+                };
                 format!(
-                    "{} {}",
+                    "{} {}{utc}",
                     crate::gpg::date(local).as_str(),
                     crate::vault::time_of_day_secs(local).as_str()
                 )
@@ -266,7 +307,41 @@ impl Faraday {
     /// and Set the time's context row.
     pub(crate) fn tz_step(&mut self, delta: i16) {
         self.settings.step_tz(delta);
+        self.zone_chosen();
+    }
+
+    /// Chooses the zone `min` minutes east of UTC from the list, and
+    /// closes the list.
+    pub(crate) fn tz_set(&mut self, min: i16) {
+        self.settings.set_tz(min);
+        self.set_time.set_zones(false);
+        self.zone_chosen();
+    }
+
+    /// A zone was chosen: kept in the settings, and Date filled from the
+    /// clock when it is known and Date is still empty.
+    fn zone_chosen(&mut self) {
+        if self.set_time.date_empty()
+            && let Some(t) = self.clock_now()
+        {
+            let d = crate::gpg::date(crate::vault::local_secs(t, self.tz_min()));
+            self.set_time.fill_date(&d);
+        }
         self.save_boxes();
+    }
+
+    /// Opens or closes the list of zones. Opening from another screen
+    /// opens Set the time on it.
+    pub(crate) fn tz_list(&mut self, on: bool) {
+        if on && self.screen != Screen::SetTime {
+            self.open_set_time();
+        }
+        self.set_time.set_zones(on);
+    }
+
+    /// Whether a time zone has been chosen (Not set until then).
+    pub fn tz_known(&self) -> bool {
+        self.settings.tz_known()
     }
 
     /// Opens Set the time from `self.screen`, which it returns to, and
@@ -274,6 +349,7 @@ impl Faraday {
     pub(crate) fn open_set_time(&mut self) {
         let date = self
             .clock_now()
+            .filter(|_| self.tz_known())
             .map(|t| crate::gpg::date(crate::vault::local_secs(t, self.tz_min())));
         self.set_time
             .open(self.screen, &mut self.sheet, date.as_deref());
@@ -295,10 +371,37 @@ impl Faraday {
         true
     }
 
-    /// Whether Set the time's Set button is enabled: a real date and a
-    /// real 24-hour time are typed.
+    /// Whether Set the time's Set button is offered: a zone is chosen and
+    /// a real date and a real 24-hour time are typed.
     pub(crate) fn set_time_ready(&self) -> bool {
-        self.set_time.ready()
+        self.tz_known() && self.set_time.ready()
+    }
+
+    /// What Set would set, both ways: the local time typed with its zone,
+    /// and the same moment in UTC. `None` while Set is not offered.
+    pub(crate) fn set_time_result(&self) -> Option<String> {
+        if !self.set_time_ready() {
+            return None;
+        }
+        let (local, _, _) = self.set_time.typed_local()?;
+        let utc = (local - i64::from(self.tz_min()) * 60).max(0) as u64;
+        let both = |t: u64| {
+            let s = t % 86_400;
+            format!(
+                "{} {:02}:{:02}",
+                crate::gpg::date(t).as_str(),
+                s / 3600,
+                (s / 60) % 60
+            )
+        };
+        Some(fill(
+            EN.set_time_result,
+            &[
+                &both(local as u64),
+                crate::vault::tz_offset_text(self.tz_min()).as_str(),
+                &both(utc),
+            ],
+        ))
     }
 
     /// Set: the local time typed, at :00 seconds, becomes the offset
@@ -357,6 +460,7 @@ impl Faraday {
             Typed::Ignored => return false,
             Typed::Taken => {}
             Typed::Set => self.set_time_set(),
+            Typed::Back if self.set_time.zones() => self.set_time.set_zones(false),
             Typed::Back => self.back(),
         }
         true
@@ -374,6 +478,8 @@ impl Faraday {
     pub(crate) fn time_act(&mut self, action: Action) {
         match action {
             Action::TzStep(delta) => self.tz_step(delta),
+            Action::TzSet(min) => self.tz_set(min),
+            Action::TzList(on) => self.tz_list(on),
             Action::OpenSetTime => self.open_set_time(),
             Action::SetTimeFocus(f) => self.set_time.set_focus(f),
             Action::SetTimeSet => {

@@ -344,6 +344,11 @@ pub enum Action {
     /// Steps the time zone by this many minutes, stopping at the ends
     /// (`docs/TOTP.md` §2.1). Settings' row and Set the time's own row.
     TzStep(i16),
+    /// Chooses a row of Set the time's list of zones: its offset in
+    /// minutes east of UTC.
+    TzSet(i16),
+    /// Opens (`true`) or closes the list of zones, on Set the time.
+    TzList(bool),
     /// Opens Set the time from the current screen, which it returns to.
     OpenSetTime,
     /// Where typing goes on Set the time.
@@ -1638,6 +1643,8 @@ impl Faraday {
             Action::About(k) => self.panel.toggle_about(self.screen, k),
             a @ (Action::SealAmounts(_) | Action::NonceHistory(_)) => self.memory_press(a),
             a @ (Action::TzStep(..)
+            | Action::TzSet(..)
+            | Action::TzList(..)
             | Action::OpenSetTime
             | Action::SetTimeFocus(..)
             | Action::SetTimeSet

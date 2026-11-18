@@ -334,6 +334,7 @@ fn set_the_time_from_the_sheet_returns_to_it_and_signs_nothing() {
     type_text(&mut app, "2026-10-21");
     app.event(Event::Key(Key::Tab));
     type_text(&mut app, "09:30");
+    app.press(Action::TzSet(0));
     app.press(Action::SetTimeSet);
     assert_eq!(app.screen, Screen::VaultContents);
     assert_eq!(app.sheet, Some(Sheet::GpgSign), "back on the sheet");
@@ -391,6 +392,7 @@ fn with_the_clock_not_known_the_sheet_says_so_and_the_hold_signs_nothing() {
     type_text(&mut app, "2026-10-21");
     app.event(Event::Key(Key::Tab));
     type_text(&mut app, "09:30");
+    app.press(Action::TzSet(0));
     app.press(Action::SetTimeSet);
     assert_eq!(app.sheet, Some(Sheet::GpgSign));
     assert_eq!(app.outbox.len(), files, "setting the time signs nothing");

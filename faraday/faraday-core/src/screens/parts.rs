@@ -1679,11 +1679,10 @@ pub(super) fn section(
     taken
 }
 
-/// Time zone: a label, the offset stepped ±15 minutes, stopping at
-/// −12:00 and +14:00 (`docs/TOTP.md` §2.1). Settings and Set the time
-/// press the same action. On a small panel the label goes on its own
-/// line, as the shares card's does. Returns the row's height.
-pub(super) fn tz_row(ui: &mut Ui, x: f32, y: f32, _w: f32, tz_min: i16) -> f32 {
+/// The time zone row: its label, and the zone as a button that opens
+/// the list of zones (`docs/TOTP.md` §3): the offset chosen, or Not set.
+/// Returns its height.
+pub(super) fn tz_row(ui: &mut Ui, x: f32, y: f32, _w: f32, tz: Option<i16>) -> f32 {
     let (ly, bx, h) = if ui.compact {
         ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, EN.tz_row_time_zone);
         let ly = y + ui.advance_as(BODY_S, 24.0);
@@ -1697,9 +1696,33 @@ pub(super) fn tz_row(ui: &mut Ui, x: f32, y: f32, _w: f32, tz_min: i16) -> f32 {
         );
         (y, x + 180.0, ui.button_height(BUTTON_H))
     };
+    let v = match tz {
+        Some(m) => {
+            let mut v = Text::of("UTC");
+            v.push_str(&crate::vault::tz_offset_text(m));
+            v
+        }
+        None => Text::of(EN.set_time_zone_not_set),
+    };
     ui.button(
         bx,
         ly,
+        None,
+        BUTTON_H,
+        v.as_str(),
+        Style::Secondary,
+        Action::TzList(true),
+    );
+    h
+}
+
+/// The offset steppers: − and + move the zone 15 minutes, for an offset
+/// the list of zones lacks. `tz` is the zone now chosen. Returns its
+/// height.
+pub(super) fn tz_steppers(ui: &mut Ui, x: f32, y: f32, tz: Option<i16>) -> f32 {
+    ui.button(
+        x,
+        y,
         Some(40.0),
         BUTTON_H,
         "-",
@@ -1707,27 +1730,30 @@ pub(super) fn tz_row(ui: &mut Ui, x: f32, y: f32, _w: f32, tz_min: i16) -> f32 {
         Action::TzStep(-15),
     );
     let mut v = Text::of("UTC");
-    v.push_str(&crate::vault::tz_offset_text(tz_min));
+    match tz {
+        Some(m) => v.push_str(&crate::vault::tz_offset_text(m)),
+        None => v = Text::of(EN.set_time_zone_not_set),
+    }
     // A one-line slot between the buttons: larger text fits down there.
     let slot = 84.0;
     let vw = ui.text_fit_width(TITLE_S, &v, slot);
     let bh = ui.button_height(BUTTON_H);
     ui.text_fit_as(
-        (bx + 48.0 + (slot - vw) / 2.0, ly, bh, slot),
+        (x + 48.0 + (slot - vw) / 2.0, y, bh, slot),
         TITLE_S,
         Role::OnSurface,
         &v,
     );
     ui.button(
-        bx + 132.0,
-        ly,
+        x + 132.0,
+        y,
         Some(40.0),
         BUTTON_H,
         "+",
         Style::Secondary,
         Action::TzStep(15),
     );
-    h
+    bh
 }
 
 /// The dice pad New key and Add randomness enter rolls on: a button for

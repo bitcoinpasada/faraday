@@ -37,6 +37,7 @@ fn set_clock_at(app: &mut Faraday, date: &str, time: &str) {
         app.event(Event::Key(Key::Backspace));
     }
     type_text(app, time);
+    app.press(Action::TzSet(0));
     app.press(Action::SetTimeSet);
 }
 

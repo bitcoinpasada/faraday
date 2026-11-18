@@ -1078,7 +1078,16 @@ macro_rules! words_common {
     /// Section label in `set_time_compact`.
     set_time_date: "Date",
     /// Section label in `set_time_compact`.
-    set_time_time: "Time",
+    set_time_time: "Local time",
+    /// The name of UTC, after a time read in it.
+    set_time_utc: "UTC",
+    /// Value of the Time zone row while no zone is chosen.
+    set_time_zone_not_set: "Not set",
+    /// Label of the offset steppers under the list of zones.
+    set_time_other_offset: "Other offset",
+    /// The result of Set both ways. `{}`: the local date and time, the
+    /// zone's offset, the date and time in UTC.
+    set_time_result: "{} UTC{} is {} UTC",
     /// Text in `set_time_compact`.
     set_time_set: "Set",
     /// Text in `set_time_compact`.

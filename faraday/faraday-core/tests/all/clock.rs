@@ -209,6 +209,7 @@ fn set_times_fields_take_typing_where_the_caret_is() {
         app.event(Event::Touch { x, y, phase });
     }
     app.event(Event::Key(Key::Char(':')));
+    app.press(Action::TzSet(0));
     app.press(Action::SetTimeSet);
     assert_eq!(app.toast_text(), Some("Time set to 14:02"));
     assert!(
@@ -226,6 +227,7 @@ fn a_later_clock_reading_keeps_the_same_correction() {
     type_text(&mut app, "2026-10-11");
     app.press(Action::SetTimeFocus(Focus::Time));
     type_text(&mut app, "14:02");
+    app.press(Action::TzSet(0));
     app.press(Action::SetTimeSet);
     make_gpg_key(&mut app);
     let first = gpg_created(&app);
@@ -247,6 +249,7 @@ fn the_set_time_and_its_checked_mark_survive_a_lock() {
     type_text(&mut app, "2026-10-11");
     app.press(Action::SetTimeFocus(Focus::Time));
     type_text(&mut app, "14:02");
+    app.press(Action::TzSet(0));
     app.press(Action::SetTimeSet);
     assert!(app.clock_checked());
     let mut kept = Vec::new();
@@ -288,6 +291,7 @@ fn a_tz_line_in_steps_of_15_minutes_is_applied() {
     ] {
         let app = booted(Some(bad.as_bytes()));
         assert_eq!(app.tz_min(), 0, "{bad:?}");
+        assert!(!app.tz_known(), "{bad:?}");
     }
 }
 
@@ -345,6 +349,7 @@ fn receipt_heading(checked: bool) -> String {
 fn set_is_not_offered_for_an_impossible_date_or_time() {
     let mut app = vault_app(Some(1_791_000_000));
     app.press(Action::OpenSetTime);
+    app.press(Action::TzSet(0));
     app.press(Action::SetTimeFocus(Focus::Date));
     type_text(&mut app, "2026-02-30");
     app.press(Action::SetTimeFocus(Focus::Time));
@@ -378,6 +383,7 @@ fn a_time_set_with_no_clock_reading_is_not_kept_across_a_lock() {
     type_text(&mut app, "2026-10-11");
     app.press(Action::SetTimeFocus(Focus::Time));
     type_text(&mut app, "14:02");
+    app.press(Action::TzSet(0));
     app.press(Action::SetTimeSet);
     assert!(app.clock_now().is_some());
     let mut kept = Vec::new();
@@ -396,4 +402,130 @@ fn a_time_set_with_no_clock_reading_is_not_kept_across_a_lock() {
     next.event(Event::Tick { now_ms: 5_000 });
     assert_eq!(next.clock_now(), None, "{}", next.now_local_text());
     assert!(!next.clock_checked());
+}
+
+/// A stick whose settings have no zone reads Not set on Set the time, and
+/// Set is offered only once a zone is chosen.
+#[test]
+fn a_new_sticks_zone_reads_not_set_and_set_waits_for_a_zone() {
+    let mut app = vault_app(Some(1_791_000_000));
+    assert!(!app.tz_known());
+    app.press(Action::OpenSetTime);
+    app.press(Action::SetTimeFocus(Focus::Time));
+    type_text(&mut app, "14:02");
+    let _ = app.frame();
+    let text = app.drawn_texts().join("\n");
+    assert!(text.contains("Not set"), "{text}");
+    assert!(!app.offers(Action::SetTimeSet));
+    assert!(!app.offers(Action::SetTimeKeep));
+    // Even pressed, nothing is set.
+    app.press(Action::SetTimeSet);
+    assert_eq!(app.screen, Screen::SetTime);
+    app.press(Action::TzSet(-300));
+    let _ = app.frame();
+    assert!(app.offers(Action::SetTimeSet));
+    assert!(app.offers(Action::SetTimeKeep));
+}
+
+/// The zone chosen from the list is kept in the settings, so the next
+/// start of the app has it and does not ask again.
+#[test]
+fn a_zone_chosen_from_the_list_is_kept_across_a_restart() {
+    let mut app = vault_app(Some(1_791_000_000));
+    app.press(Action::OpenSetTime);
+    app.press(Action::TzList(true));
+    let _ = app.frame();
+    app.press(Action::TzSet(-300));
+    assert_eq!(app.tz_min(), -300);
+    let mut kept = Vec::new();
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::SaveBoxes { kept: k, .. } = c {
+            kept = k;
+        }
+    }
+    let mut next = Faraday::new();
+    next.event(display());
+    next.storage(StorageEvent::Restored {
+        inbox: Vec::new(),
+        outbox: Vec::new(),
+        kept,
+    });
+    assert!(next.tz_known());
+    assert_eq!(next.tz_min(), -300);
+    let fresh = booted(None);
+    assert!(!fresh.tz_known());
+}
+
+/// The local time typed in the zone chosen is that moment in UTC: at
+/// 09:03 in UTC+05:30 the TOTP code is the one RFC 6238 gives for
+/// 2033-05-18 03:33 UTC (Appendix B, time 2000000000, SHA-1, 8 digits).
+#[test]
+fn local_time_typed_in_a_zone_gives_the_utc_moment_the_codes_use() {
+    let mut app = vault_app(None);
+    app.press(Action::OpenSetTime);
+    app.press(Action::TzSet(330));
+    app.press(Action::SetTimeFocus(Focus::Date));
+    type_text(&mut app, "2033-05-18");
+    app.press(Action::SetTimeFocus(Focus::Time));
+    type_text(&mut app, "09:03");
+    let _ = app.frame();
+    let text = app.drawn_texts().join(" ");
+    assert!(text.contains("UTC+05:30 is 2033-05-18 03:33 UTC"), "{text}");
+    app.press(Action::SetTimeSet);
+    let now = app.clock_now().expect("the time is set");
+    let code = faraday_vault::totp::parse(
+        "otpauth://totp/RFC:6238?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&digits=8",
+    )
+    .unwrap()
+    .code(now);
+    assert_eq!(&*code, "69279037");
+}
+
+/// A PC whose clock is hours off (it keeps local time and says it is
+/// UTC) is put right by typing the phone's time in the zone chosen.
+#[test]
+fn a_pc_clock_hours_off_is_put_right_by_typing_the_phones_time() {
+    // 14:02 at UTC+02:00 is 12:02 UTC, but the PC says 09:02 as if UTC.
+    let mut app = vault_app(Some(1_791_720_120 - 3 * 3600));
+    app.press(Action::OpenSetTime);
+    app.press(Action::TzSet(120));
+    let _ = app.frame();
+    assert!(
+        app.now_local_text().starts_with("2026-10-11 11:02"),
+        "reads 3 hours behind the phone: {}",
+        app.now_local_text()
+    );
+    app.press(Action::SetTimeFocus(Focus::Time));
+    type_text(&mut app, "16:02");
+    app.press(Action::SetTimeSet);
+    assert!(
+        app.now_local_text().starts_with("2026-10-11 16:02"),
+        "{}",
+        app.now_local_text()
+    );
+}
+
+/// A Pi has no clock before it is set: Date starts empty, so Set waits
+/// for a date as well as the time; a PC's date is already there.
+#[test]
+fn a_pi_starts_with_date_empty_and_a_pc_with_its_date() {
+    let mut pi = vault_app(Some(1000));
+    pi.press(Action::OpenSetTime);
+    pi.press(Action::TzSet(0));
+    pi.press(Action::SetTimeFocus(Focus::Time));
+    type_text(&mut pi, "14:02");
+    let _ = pi.frame();
+    assert!(!pi.offers(Action::SetTimeSet), "no date yet");
+    pi.press(Action::SetTimeFocus(Focus::Date));
+    type_text(&mut pi, "2026-10-11");
+    let _ = pi.frame();
+    assert!(pi.offers(Action::SetTimeSet));
+
+    let mut pc = vault_app(Some(1_791_720_120));
+    pc.press(Action::OpenSetTime);
+    pc.press(Action::TzSet(0));
+    pc.press(Action::SetTimeFocus(Focus::Time));
+    type_text(&mut pc, "14:02");
+    let _ = pc.frame();
+    assert!(pc.offers(Action::SetTimeSet), "the date is the clock's");
 }
