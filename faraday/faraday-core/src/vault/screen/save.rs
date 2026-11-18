@@ -245,7 +245,7 @@ pub(super) fn save_panel(app: &View, ui: &mut Ui, dx: f32, mut dy: f32, dw: f32)
             if with_pass {
                 let pw = ui.measure_as(LABEL_L, EN.vault_save_passphrase_button) + 26.0;
                 ui.button(
-                    dx + dw - 88.0 - pw,
+                    dx + dw - if plain { 88.0 } else { 0.0 } - pw,
                     dy + 2.0,
                     Some(pw),
                     BUTTON_H,

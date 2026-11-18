@@ -2361,16 +2361,19 @@ impl Faraday {
             return false;
         };
         let c = self.compute();
-        if let Some(why) = self.vault_refuses(&c, id, &[], &[&record]) {
-            self.toast(&why);
-            return false;
-        }
-        if self.vaults.store().holds_key(id, &record) {
+        // A vault that cannot be written says so first; otherwise a record
+        // it already holds is said to be held, whatever room is left.
+        let store = self.vaults.store();
+        if store.read_only(id).is_none() && store.holds_key(id, &record) {
             let name = self.vaults.open.get(v).map(|o| o.name.clone());
             self.toast(&Text::fill(
                 EN.vault_holds_key,
                 &[name.as_deref().unwrap_or("")],
             ));
+            return false;
+        }
+        if let Some(why) = self.vault_refuses(&c, id, &[], &[&record]) {
+            self.toast(&why);
             return false;
         }
         if self.vaults.edit(id, |s| s.insert(id, record)).is_none() {

@@ -267,6 +267,40 @@ fn the_secret_sheet_saves_a_seed_as_a_key_and_not_a_note() {
 }
 
 #[test]
+fn the_secret_sheet_does_not_offer_a_passphrase_key_whose_words_the_vault_holds() {
+    let mut app = device(vec![kit_file("vault.kdbx")]);
+    backing_up(&mut app, true);
+    unlock(&mut app);
+    let k = app.session.keys.len() - 1;
+    // The words alone are saved from the vault's Save panel.
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Category(0)));
+    app.press(Action::Vault(V::Add));
+    if !app.vaults().saving {
+        app.press(Action::Vault(V::Add));
+    }
+    let _ = app.frame();
+    let keys = keys_in_vault(&app);
+    app.press(Action::Vault(V::SaveKey(k)));
+    assert_eq!(keys_in_vault(&app), keys + 1, "the words were saved");
+    app.press(Action::Nav(Screen::Backup));
+    let _ = app.frame();
+    app.press(Action::BFile);
+    let _ = app.frame();
+    assert_eq!(app.sheet, Some(Sheet::SecretOut));
+    assert!(
+        !app.offers(Action::SecretVault),
+        "the vault holds the words already"
+    );
+    app.press(Action::SecretVault);
+    assert_eq!(keys_in_vault(&app), keys + 1, "nothing is added");
+    assert!(
+        testkit::secret_out(&app).is_some(),
+        "the sheet keeps its secret"
+    );
+}
+
+#[test]
 fn the_unprotected_button_does_nothing_until_the_hold() {
     let mut app = device(Vec::new());
     backing_up(&mut app, false);
