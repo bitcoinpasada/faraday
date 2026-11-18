@@ -1034,3 +1034,22 @@ fn a_fee_bump_naming_a_key_not_loaded_keeps_its_load_row() {
         texts(&mut app)
     );
 }
+
+#[test]
+fn the_signer_checks_load_opens_add_a_key_and_returns_with_the_key() {
+    let mut app = with_files(vec![
+        ("original.psbt", vector("bump-core-original.psbt")),
+        ("replacement.psbt", vector("bump-core-replacement.psbt")),
+    ]);
+    open(&mut app);
+    app.press(Action::SignerCheck(SignerPress::Pick(Slot::Sent, 0)));
+    app.press(Action::SignerCheck(SignerPress::Pick(Slot::Returned, 1)));
+    app.press(Action::SignerCheck(SignerPress::Load(0)));
+    assert_eq!(app.screen, Screen::Entry, "Add a key, not a key to make");
+    assert!(app.keygen().is_none());
+    for c in testkit::test_words("bacon").chars() {
+        app.event(Event::Key(faraday_shell_api::Key::Char(c)));
+    }
+    app.press(Action::EntryAdd);
+    assert_eq!(app.screen, Screen::SignerCheck, "back in the check");
+}

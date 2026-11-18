@@ -437,17 +437,22 @@ bar reads **Make a new key** whichever screen opened it; the **Add a
 key** tile opens the Add a key page instead, which takes a key held (words, a
 SeedQR, codex32), in Tools and on Wallets start. New key's
 first card is **Start**, open with no choice ticked (owner, 2026-10-29):
-under **Make a new key**, **BIP-39 words** and **Codex32**, the same; under **Add a key you have**, **Type the
-words**, **Scan a SeedQR** and **Type codex32 strings**; and under
-**Other forms** (closed) **Make SLIP-39 shares**, **Type SLIP-39
-shares**, **Type Seed XOR parts**; closed, it shows the choice ("Make a
+under **Make a new key**, **BIP-39 words** and **Codex32**, the same;
+and under **Other forms** (closed) **Make SLIP-39 shares**. Opened on its
+own (from Wallets or Tools) it lists only these ways of making a key:
+a key already held comes in through **Add a key** (Wallets' and Tools'
+Add a key, Home's Scan), never here. A Create slot, and a flow opened
+on a form of a key held by a Tools tile, also list **Add a key you
+have**, **Type the words**, **Scan a SeedQR** and **Type codex32
+strings**, and under Other forms **Type SLIP-39 shares** and **Type
+Seed XOR parts**; closed, it shows the choice ("Make a
 new key · Codex32") and **Change** until the key is locked in. Opened
 for a single key's slot (F240) Make a new key offers only the Backup
 card's form, **BIP-39 words** for Words and **Codex32** for Shares, and
 **Change** reopens the same list; opened for a multisig cosigner's slot
 it offers **BIP-39 words** only (no Codex32, and **Make SLIP-39 shares**
 is not offered there); in both, every way to add a key you have is
-offered. On its own (Tools, Add a key) every choice is offered
+offered. On its own (Tools, Wallets) every way of making is offered
 (`docs/CODEX32.md` §6.9). A key typed is Start · **Words** · Key, one scanned
 Start · Key: Words is Add a key's form drawn by its own code (count,
 boxes or keyboard, lists; the other forms' fields with **Add this one**
@@ -456,9 +461,8 @@ whole with a checksum that holds or the parts are enough; Key shows the
 words behind **Show words**, **Passphrase** and **Passphrase again**
 (none for codex32), and **Lock in**, which loads the key as Add a key
 does (not marked made here) and fills a Create slot, and leaves the
-flow by itself, with no Words or Quiz. Add a key on Wallets and its
-Tools tile (one tile for making and for typing a key, owner,
-2026-10-24) open with Start open and nothing ticked; New key from a Create
+flow by itself, with no Words or Quiz. Make a new key on Wallets and
+its Tools tile open with Start open and nothing ticked; New key from a Create
 slot of a single key has Start answered by the Backup card, closed with
 **Change**, and opens on the next card (F103): a press on a choice takes it and opens the
 next card, and nothing moves on before one is pressed. **Change** on
@@ -468,8 +472,9 @@ choice made and Start closed. The page is titled **Add a key**, and
 **Make a new key** for a Create slot and from the Add a key screen's Make a new
 key, which opens with Start closed on it. The Add a key screen (Home,
 below) stays for a key asked for by name: a slot's fingerprint, a
-wallet's missing key, Restore's seed slots, and a seed scanned from Home
-or the Spend tab. New key keeps nothing when its screen is left, so it
+wallet's missing key, Restore's seed slots, a seed scanned from Home
+or the Spend tab, and the Add a key buttons of Convert, Explore, BIP-85
+and Check a signer, which return to the tool. New key keeps nothing when its screen is left, so it
 has no sidebar row (Flows in progress). Opened from Tools, a key made, typed
 or scanned in ends on a result card, not a toast: the key's name and
 fingerprint, **Make a wallet with this key** (filled), **Another** (New key
@@ -676,8 +681,9 @@ Files; Home has no Stick visit tile. Create,
 Restore and the Spend tab opened from Home have **Home**
 as their way back, and from Wallets, **Wallets**.
 
-**Add a key** (make, type or scan a seed) is on Wallets and in Tools →
-New key on its Start card (decision 60). The Add a key screen, for a key
+**Add a key** (type or scan a seed) is on Wallets and in Tools → Add a
+key; Wallets' Make a new key and Tools' New key only make one (decision
+60). The Add a key screen, for a key
 asked for by name and a seed scanned from Home: **Scan a SeedQR** first, full width over the words (primary until a word is
 typed, when **Add a key** is), a form (BIP-39 words, with the count
 **12 · 15 · 18 · 21 · 24** above as many boxes, 12 first; SLIP-39

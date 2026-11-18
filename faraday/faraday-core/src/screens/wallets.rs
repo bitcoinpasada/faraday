@@ -342,7 +342,7 @@ fn add_key_button(app: &View, ui: &mut Ui, pane: &mut crate::panes::screen::List
             fill(EN.wallets_scan_key_title, &[&wl.name]),
             Action::ScanKey(app.wallets.wallet()),
         ),
-        None => (EN.wallets_add_a_key.to_string(), Action::KeyGen(None)),
+        None => (EN.wallets_add_a_key.to_string(), Action::Entry(None)),
     };
     let add_label = ui.fit_as(LABEL_L, &add_label, listw - 2.0 * LIST_PAD - 32.0);
     let y = pane.at().2;

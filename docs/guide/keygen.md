@@ -12,9 +12,7 @@ Make a new key makes a key from randomness, or takes in one you already hold as 
 
 **Key:** keygen.start
 
-First choose how the key comes in. Under **Make a new key** the device makes one; under **Add a key you have** you type or scan a key that is already written down. **Other forms** opens three more.
-
-**BIP-39 words** makes a key of 12 to 24 words. **Codex32** makes codex32 strings worked out by hand, on its own cards. **Type the words**, **Scan a SeedQR** and **Type codex32 strings** take in a key you hold on paper or in a code. **Make SLIP-39 shares** makes shares, **Type SLIP-39 shares** takes them in, and **Type Seed XOR parts** takes in the parts of a Seed XOR key.
+First choose how the key is made. **BIP-39 words** makes a key of 12 to 24 words. **Codex32** makes codex32 strings worked out by hand, on its own cards. **Other forms** opens **Make SLIP-39 shares**. A key you already hold on paper or in a code is brought in through **Add a key**, not here; when a wallet's key is being made, this card also lists **Type the words**, **Scan a SeedQR**, **Type codex32 strings** and, under **Other forms**, **Type SLIP-39 shares** and **Type Seed XOR parts**.
 
 ## Length
 

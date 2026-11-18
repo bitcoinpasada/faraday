@@ -308,3 +308,19 @@ fn a_value_has_no_code() {
     app.press(Action::PNext);
     assert_eq!(crate::common::codes_offered(&mut app), Vec::new());
 }
+
+#[test]
+fn bip85_with_no_key_adds_one_on_the_add_a_key_page_and_returns() {
+    let mut app = testkit::started();
+    app.press(Action::Bip85);
+    assert_eq!(app.screen, Screen::Bip85);
+    let _ = app.frame();
+    assert!(app.offers(Action::Entry(None)), "Add a key is offered");
+    assert!(!app.offers(Action::KeyGen(None)));
+    app.press(Action::Entry(None));
+    assert_eq!(app.screen, Screen::Entry);
+    type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
+    app.press(Action::EntryAdd);
+    assert_eq!(app.session.keys.len(), 1);
+    assert_eq!(app.screen, Screen::Bip85, "back in the tool");
+}

@@ -356,6 +356,12 @@ pub struct KeyGen {
     /// Make SLIP-39 shares is offered, under Other forms: everywhere but
     /// a multisig's slot, where two thresholds would stack (F240).
     pub slip39_offered: bool,
+    /// The ways of adding a key already held (Type the words, Scan a
+    /// SeedQR, Type codex32 strings, and under Other forms the typed
+    /// shares and parts) are offered. New key opened on its own offers
+    /// only the ways of making one: those are Add a key's. A Create slot,
+    /// the card's own making and a flow opened on one of them offer them.
+    pub held_offered: bool,
     /// Make codex32 shares, while it is the Start card's choice and its
     /// cards are open (`docs/CODEX32.md` §6).
     pub codex32: Option<crate::codex32::Codex32Make>,
@@ -472,6 +478,7 @@ impl KeyGen {
             codex32_offered: slot.is_none(),
             words_offered: true,
             slip39_offered: true,
+            held_offered: false,
             codex32: None,
             entry_kept: crate::EntryState::default(),
             entropy_source: None,
@@ -555,6 +562,12 @@ impl KeyGen {
         }
     }
 
+    /// Whether the Start card lists the ways of adding a key already held
+    /// (`held_offered`, set as the flow opens).
+    pub fn lists_held(&self) -> bool {
+        self.held_offered
+    }
+
     /// The Start card's choices this flow offers.
     pub fn starts(&self) -> Vec<Start> {
         self.starts_with(crate::codex32::MAKE_OFFERED)
@@ -569,6 +582,7 @@ impl KeyGen {
             .iter()
             .copied()
             .filter(|s| match s {
+                s if !s.makes() => self.held_offered,
                 Start::MakeCodex32 => make_codex32 && self.codex32_offered,
                 Start::Make => self.words_offered,
                 Start::MakeShares => self.slip39_offered,
@@ -1264,6 +1278,7 @@ impl crate::Faraday {
         // a multisig's as BIP-39 words, neither codex32 nor SLIP-39
         // shares stacked on its quorum (`docs/CODEX32.md` §6.9).
         if slot.is_some() {
+            k.held_offered = true;
             let multi = self.create.state().is_none_or(|c| c.kind.multi());
             let codex32 = self.create_slot_backup() == Some(crate::create::BackupForm::Codex32);
             k.codex32_offered = !multi && codex32;
@@ -1447,6 +1462,7 @@ impl crate::Faraday {
         }
         self.keygen_open(None);
         if let Some(k) = self.keygen.state.as_mut() {
+            k.held_offered = !start.makes();
             k.start = start;
             k.others_open = start.other();
         }
@@ -2747,6 +2763,7 @@ impl crate::Faraday {
         k.words_offered = true;
         k.codex32_offered = false;
         k.slip39_offered = !multi;
+        k.held_offered = true;
         // Typed where a keyboard is counted on (a window of 600 dp or
         // more, where a field press leaves the on-screen one down),
         // Buttons on a small panel.

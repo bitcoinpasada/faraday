@@ -349,26 +349,13 @@ fn a_seedqr_scanned_while_a_stick_is_held_loads_no_key() {
 
 #[test]
 fn a_seedqr_scanned_from_home_loads_the_key_add_a_keys_scan_loads() {
-    use faraday_core::keygen::Start;
     let mut from_add = shown();
     from_add.press(Action::Nav(Screen::WalletsStart));
-    tap(&mut from_add, Action::KeyGen(None));
-    // The card is opening: until it has, its lower rows are still under
-    // the next card's header, which a press there reaches. Let it finish
-    // before pressing a row on it.
-    for _ in 0..4 {
-        let now = from_add.now_ms() + 300;
-        from_add.event(Event::Tick { now_ms: now });
-        let _ = from_add.frame();
-    }
-    tap(&mut from_add, Action::KStart(Start::Scan.index()));
+    tap(&mut from_add, Action::Entry(None));
+    tap(&mut from_add, Action::ScanSeed);
     assert_eq!(from_add.sheet, Some(Sheet::Scan), "Scan a SeedQR moves on");
     read(&mut from_add, SEEDQR.as_bytes());
-    assert_eq!(
-        from_add.keygen().map(|k| k.open),
-        Some(Some(faraday_core::keygen::kstep::KEY))
-    );
-    tap(&mut from_add, Action::KLock);
+    without_passphrase(&mut from_add);
     faraday_core::testkit::keep_published(&mut from_add);
 
     let mut app = shown();

@@ -698,11 +698,13 @@ impl Faraday {
         self.omit_remake_tick();
     }
 
-    /// Whether New key, opened from tool `s` to add the key it needs, is
-    /// on screen: the tool keeps what it held for the way back.
+    /// Whether the Add a key page or New key, opened from tool `s` to add
+    /// the key it needs, is on screen: the tool keeps what it held for
+    /// the way back.
     pub(crate) fn adding_key_for(&self, s: Screen) -> bool {
-        matches!(self.screen, Screen::KeyGen | Screen::Randomness)
-            && self.keygen.state().is_some_and(|k| k.back == s)
+        (matches!(self.screen, Screen::KeyGen | Screen::Randomness)
+            && self.keygen.state().is_some_and(|k| k.back == s))
+            || (self.screen == Screen::Entry && self.entry.state().back == Some(s))
     }
 
     /// What every press does once it has acted, however it came (a tap,

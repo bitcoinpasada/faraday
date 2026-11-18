@@ -728,8 +728,7 @@ fn a_tv_swapped_in_mid_session_takes_the_words_off_the_screen_until_checked_agai
     let tv = boot_params(Some(("SAM", Some("EXAMPLE TV"))));
     let words = testkit::test_words("bacon");
     let mut app = shown(DeviceCheck::hdmi_screen().with_edid(from_boot_params(&monitor)));
-    app.press(Action::Nav(Screen::WalletsStart));
-    app.press(Action::KeyGen(None));
+    crate::common::add_a_key_flow(&mut app);
     app.press(Action::KStart(Start::Words.index()));
     let _ = app.frame();
     crate::common::type_text(&mut app, &words);
@@ -850,8 +849,7 @@ fn a_kvm_arriving_takes_new_keys_words_off_the_screen_until_checked_again() {
     use faraday_core::testkit;
     let words = testkit::test_words("bacon");
     let mut app = shown(laptop());
-    app.press(Action::Nav(Screen::WalletsStart));
-    app.press(Action::KeyGen(None));
+    crate::common::add_a_key_flow(&mut app);
     app.press(Action::KStart(Start::Words.index()));
     let _ = app.frame();
     crate::common::type_text(&mut app, &words);

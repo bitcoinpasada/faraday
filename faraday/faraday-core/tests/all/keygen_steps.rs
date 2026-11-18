@@ -161,8 +161,7 @@ fn the_arrow_names_a_typed_form_by_the_form() {
     use faraday_core::strings::EN;
     use faraday_shell_api::Key;
     let mut app = faraday_core::testkit::started();
-    app.press(Action::Nav(Screen::WalletsStart));
-    app.press(Action::KeyGen(None));
+    crate::common::add_a_key_flow(&mut app);
     app.press(Action::KStart(Start::Codex32.index()));
     assert_eq!(open(&app), Some(kstep::TYPED));
     for share in [

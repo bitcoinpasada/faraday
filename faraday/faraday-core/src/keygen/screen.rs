@@ -354,7 +354,7 @@ pub(super) fn card_name(k: &KeyGen, s: u8) -> &'static str {
 /// words, Scan a SeedQR, and under Other forms the other four.
 fn start(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
-    let offered = k.starts();
+    let offered: Vec<Start> = k.starts();
     let one = |ui: &mut Ui, cy: &mut f32, s: Start| {
         row(
             ui,
@@ -371,7 +371,7 @@ fn start(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         *cy += 60.0;
     };
     // Make a new key, then Add a key you have, each under its label
-    // (`docs/CODEX32.md` §6).
+    // (`docs/CODEX32.md` §6); New key on its own lists only the first.
     for (label, new) in [
         (EN.keygen_make_a_new_key, true),
         (EN.keygen_add_a_key_you_have, false),
@@ -381,7 +381,7 @@ fn start(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             .copied()
             .filter(|s| !s.other() && s.new_key() == new)
             .collect();
-        if rows.len() < offered.iter().filter(|s| !s.other()).count() {
+        if !rows.is_empty() && rows.len() < offered.iter().filter(|s| !s.other()).count() {
             // A list subheader: 16 above, 8 below.
             if cy > y {
                 cy += faraday_draw::tokens::PAD;

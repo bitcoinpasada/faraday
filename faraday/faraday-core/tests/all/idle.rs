@@ -247,8 +247,7 @@ fn texts(app: &mut Faraday) -> Vec<String> {
 fn words_on_show_while_make_a_new_wallet_holds_the_lock_are_masked_at_the_warning_time() {
     let c = testkit::compute();
     let mut app = creating();
-    app.press(Action::Nav(Screen::WalletsStart));
-    app.press(Action::KeyGen(None));
+    crate::common::add_a_key_flow(&mut app);
     app.press(Action::KStart(faraday_core::keygen::Start::Words.index()));
     let _ = app.frame();
     for ch in testkit::test_words("bacon").chars() {

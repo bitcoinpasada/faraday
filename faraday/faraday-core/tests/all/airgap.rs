@@ -218,7 +218,7 @@ fn every_step_that_takes_a_secret_says_never_a_real_seed_on_the_desktop() {
         if mode == Mode::Testnet {
             app.session = Session::on(Network::Testnet);
         }
-        app.press(Action::KeyGen(None));
+        crate::common::add_a_key_flow(&mut app);
         app.press(Action::KStart(faraday_core::keygen::Start::Words.index()));
         assert!(says_never(&mut app), "new key, {mode:?}");
     }

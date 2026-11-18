@@ -157,14 +157,16 @@ fn the_make_a_new_key_tile_opens_new_key_on_start() {
         "Start opens with nothing ticked"
     );
     let _ = app.frame();
+    // Only the ways of making a key: a held one is Add a key's.
     app.press(Action::KStart(faraday_core::keygen::Start::Words.index()));
     assert_eq!(
-        app.keygen().unwrap().start,
-        faraday_core::keygen::Start::Words
+        app.keygen().unwrap().open,
+        Some(faraday_core::keygen::kstep::START)
     );
+    app.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
     assert_eq!(
-        faraday_core::testkit::entry(&app).form,
-        faraday_core::forms::Form::Words
+        app.keygen().unwrap().start,
+        faraday_core::keygen::Start::Make
     );
 }
 

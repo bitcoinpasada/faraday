@@ -5,21 +5,21 @@ use faraday_core::testkit;
 use faraday_core::{Action, Screen};
 use faraday_shell_api::App;
 
-/// Add a key, which is New key opening on Start:
-/// the Start card, its Other forms, the Words card typed, the Key
-/// card for words typed, locked in; then the codex32 tile's Words card;
-/// then a PSBT read at Add a key's Scan a SeedQR, on the read card
-/// (`docs/SCANNING.md` §5).
+/// New key opened from Wallets, which lists only the ways of making a
+/// key: its Start card and its Other forms. Then Add a key, where a key
+/// held is brought in: the words typed, added; from Tools the same, then
+/// the codex32 tile's Words card; then a PSBT read at Add a key's Scan a
+/// SeedQR, on the read card (`docs/SCANNING.md` §5).
 pub(crate) fn add_key_tour(t: &mut Tour) -> Result<(), String> {
-    use faraday_core::keygen::Start;
     t.press(Action::Nav(Screen::WalletsStart));
     t.press(Action::KeyGen(None));
     // Start opens with nothing ticked.
     t.shot("addkey-start")?;
     t.press(Action::KOthers);
     t.shot("addkey-start-others")?;
-    t.press(Action::KOthers);
-    t.press(Action::KStart(Start::Words.index()));
+    t.press(Action::Back);
+    t.press(Action::Nav(Screen::WalletsStart));
+    t.press(Action::Entry(None));
     t.shot("addkey-words")?;
     let words = testkit::test_words(testkit::TEST_SEEDS[0].0);
     let cut = words.len() / 2;
@@ -27,21 +27,16 @@ pub(crate) fn add_key_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("addkey-words-typing")?;
     type_text(t, &words[cut..]);
     t.shot("addkey-words-typed")?;
-    t.press(Action::KNext);
     t.shot("addkey-key")?;
-    t.press(Action::KLock);
-    // Lock in leaves the flow by itself.
+    t.press(Action::EntryAdd);
     t.shot("addkey-key-locked")?;
-    // Opened from Tools, a key typed in ends on its result card.
+    // From Tools the same Add a key takes a key held.
     t.press(Action::Nav(Screen::Catalog));
-    t.press(Action::KeyGen(None));
-    t.press(Action::KStart(Start::Words.index()));
+    t.press(Action::Entry(None));
     let other = testkit::test_words(testkit::TEST_SEEDS[1].0);
     type_text(t, &other);
-    t.press(Action::KNext);
-    t.press(Action::KLock);
+    t.press(Action::EntryAdd);
     t.shot("addkey-tools-result")?;
-    t.press(Action::KMadeDone);
     // Find a tool also finds the rows of Settings.
     t.press(Action::Nav(Screen::Catalog));
     type_text(t, "theme");

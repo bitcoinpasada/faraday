@@ -85,6 +85,7 @@ fn opened(app: &mut Faraday) {
     );
     // The choice moves on by itself.
     app.press(Action::KStart(Start::MakeCodex32.index()));
+    let _ = app.frame();
     let k = app.keygen().unwrap();
     assert_eq!(k.open, Some(kstep::CODEX32));
     assert_eq!(k.codex32.as_ref().unwrap().open(), Some(Card::Scheme));
@@ -95,14 +96,20 @@ fn opened(app: &mut Faraday) {
 fn to_entry(app: &mut Faraday, way: Way) {
     let split = SPLITS.iter().position(|s| *s == Split::TwoOfThree).unwrap();
     c32(app, C32::Split(split as u8));
+    let _ = app.frame();
     c32(app, C32::Next);
+    let _ = app.frame();
     for ch in "name".chars() {
         key(app, ch);
+        let _ = app.frame();
     }
     c32(app, C32::Next);
+    let _ = app.frame();
     let w = WAYS.iter().position(|w| *w == way).unwrap();
     c32(app, C32::Way(w as u8));
+    let _ = app.frame();
     c32(app, C32::Next);
+    let _ = app.frame();
     let m = app.keygen().unwrap().codex32.as_ref().unwrap();
     assert_eq!(m.open(), Some(Card::Enter), "{:?}", m.note());
 }
@@ -443,8 +450,8 @@ fn rolled_z(width: u16, height: u16, dpi: u16) -> Faraday {
     to_entry(&mut app, Way::Dice);
     for f in faces(b'z') {
         key(&mut app, char::from(b'0' + f));
+        let _ = app.frame();
     }
-    let _ = app.frame();
     app
 }
 
@@ -601,7 +608,8 @@ fn the_pi_panel_shows_the_context_above_the_pad_and_the_cell_has_its_own_page() 
 #[test]
 fn start_offers_making_codex32_only_while_it_is_switched_on() {
     use faraday_core::keygen::KeyGen;
-    let k = KeyGen::new(None, Screen::Entry);
+    let mut k = KeyGen::new(None, Screen::Entry);
+    k.held_offered = true;
     assert!(k.starts_with(true).contains(&Start::MakeCodex32));
     let off = k.starts_with(false);
     assert!(!off.contains(&Start::MakeCodex32), "not offered when off");

@@ -1802,11 +1802,7 @@ pub(crate) fn hide(app: &mut Faraday) {
 /// show or Add a key, opened from it, is and will come back.
 pub(crate) fn tidy(app: &mut Faraday) {
     let kept = app.screen == Screen::Convert
-        || (matches!(app.screen, Screen::KeyGen | Screen::Randomness)
-            && app
-                .keygen
-                .state()
-                .is_some_and(|k| k.back == Screen::Convert))
+        || app.adding_key_for(Screen::Convert)
         || (app.screen == Screen::Lightning && app.lightning.for_convert());
     if !kept {
         forget_held(app);

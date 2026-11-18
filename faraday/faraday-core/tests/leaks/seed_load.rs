@@ -300,7 +300,7 @@ fn new_key_over_add_a_key() -> Faraday {
     use faraday_core::keygen::Start;
     let mut app = demo_on_testnet();
     type_text(&mut app, PHRASE);
-    app.press(Action::KeyGen(None));
+    crate::common::add_a_key_flow(&mut app);
     assert_eq!(app.screen, Screen::KeyGen, "New key did not open");
     app.press(Action::KStart(Start::Words.index()));
     let _ = app.frame();

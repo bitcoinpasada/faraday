@@ -124,7 +124,7 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
             row.push((
                 EN.convert_add_a_key.to_string(),
                 Style::Secondary,
-                Action::KeyGen(None),
+                Action::Entry(None),
             ));
             cy += button_rows(ui, x, cy, w, &row);
         }

@@ -971,6 +971,21 @@ pub fn tile_of(kind: Kind) -> u8 {
         .expect("a tile") as u8
 }
 
+/// The new key flow as a person gets every way of adding a key held in
+/// it: Tools' tile for codex32 shares opened, its Start card reopened
+/// with Change. (New key opened on its own offers only the ways of
+/// making a key.)
+pub fn add_a_key_flow(app: &mut Faraday) {
+    let i = TILES
+        .iter()
+        .position(|t| t.go == Go::AddKey(faraday_core::forms::Form::Codex32))
+        .expect("a codex32 tile") as u8;
+    app.press(Action::Catalog(i));
+    let _ = app.frame();
+    app.press(Action::KStep(faraday_core::keygen::kstep::START));
+    let _ = app.frame();
+}
+
 /// Make a new wallet opened, Single key chosen on its Kind card and
 /// Words on its Backup card, which opens on Use vaults.
 pub fn create_single_key(app: &mut Faraday) {

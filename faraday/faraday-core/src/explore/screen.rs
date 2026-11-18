@@ -50,7 +50,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         keys.push((
             Text::of(EN.convert_add_a_key),
             Style::Secondary,
-            Action::KeyGen(None),
+            Action::Entry(None),
         ));
     }
     y += button_rows(ui, x, y, width, &keys) + 4.0;

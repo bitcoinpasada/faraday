@@ -209,23 +209,29 @@ fn a_codex32_string_and_a_slip39_share_can_be_scanned_instead_of_typed() {
 }
 
 #[test]
-fn a_fresh_add_a_key_offers_type_the_words_and_no_share_form_until_other_forms() {
+fn a_fresh_new_key_offers_no_form_of_a_key_held_and_add_a_key_offers_the_words() {
     use faraday_core::keygen::Start;
     let mut app = faraday_core::testkit::started();
     app.press(Action::KeyGen(None));
     let _ = app.frame();
-    assert!(app.offers(Action::KStart(Start::Words.index())));
-    assert!(
-        !app.offers(Action::KStart(Start::Shares.index())),
-        "SLIP-39 shares is behind Other forms"
-    );
-    assert!(app.offers(Action::KOthers));
-    app.press(Action::KOthers);
+    assert!(!app.offers(Action::KStart(Start::Words.index())));
+    assert!(!app.offers(Action::KStart(Start::Shares.index())));
+    assert!(app.offers(Action::KStart(Start::Make.index())));
+    // Add a key is where a key held comes in: its words and a SeedQR.
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Entry(None));
     let _ = app.frame();
-    assert!(
-        app.offers(Action::KStart(Start::Shares.index())),
-        "Other forms shows them"
-    );
+    assert!(app.offers(Action::TypeHere(faraday_core::edit::Here::Words)));
+    assert!(app.offers(Action::ScanSeed));
+    // Codex32 strings are on a form behind Other forms.
+    assert!(app.offers(Action::EntryOtherForms));
+    app.press(Action::EntryOtherForms);
+    let _ = app.frame();
+    let at = faraday_core::forms::Form::ALL
+        .iter()
+        .position(|f| *f == faraday_core::forms::Form::Codex32)
+        .unwrap() as u8;
+    assert!(app.offers(Action::EntryForm(at)));
 }
 
 #[test]

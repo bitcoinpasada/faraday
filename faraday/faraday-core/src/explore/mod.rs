@@ -401,11 +401,7 @@ impl Faraday {
         let away = self.adding_key_for(Screen::Explore)
             || comes_back
                 && (self.screen == Screen::Convert
-                    || (matches!(self.screen, Screen::KeyGen | Screen::Randomness)
-                        && self
-                            .keygen
-                            .state()
-                            .is_some_and(|k| k.back == Screen::Convert))
+                    || self.adding_key_for(Screen::Convert)
                     || (self.screen == Screen::Lightning && self.lightning.for_convert()));
         let held = self.explore.held_for().is_some_and(|i| self.card_open(i));
         if !held {

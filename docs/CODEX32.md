@@ -825,6 +825,10 @@ arithmetic.
   side; Codex32 opens this flow.
 - **Add a key you have**: **Type the words** · **Scan a SeedQR** ·
   **Type codex32 strings** (§8.1) · **Scan a Codex32QR** (§10.1).
+  Listed only for a Create slot and for a flow opened on one of
+  them (Tools' form tiles); New key opened on its own, from Wallets or
+  Tools, lists only the ways of making a key, and a key held comes in
+  through the Add a key page.
 - **Other forms** (closed): Make SLIP-39 shares · Type SLIP-39 shares ·
   Type Seed XOR parts.
 

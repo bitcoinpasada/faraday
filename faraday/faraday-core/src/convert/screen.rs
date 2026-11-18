@@ -177,7 +177,7 @@ fn from_card(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f3
         (
             EN.convert_add_a_key.to_string(),
             Style::Secondary,
-            Action::KeyGen(None),
+            Action::Entry(None),
         ),
         (
             EN.convert_lnd_aezeed.to_string(),

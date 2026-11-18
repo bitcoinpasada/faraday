@@ -55,8 +55,7 @@ fn home_scan_names_a_qr_vault_and_opens_the_tool_with_it() {
 fn scan_a_seedqr_names_a_qr_vault_and_opens_the_tool_with_it() {
     for code in [NOTE, SEED] {
         let mut app = testkit::started();
-        app.press(Action::KeyGen(None));
-        let _ = app.frame();
+        crate::common::add_a_key_flow(&mut app);
         app.press(Action::KStart(Start::Scan.index()));
         assert_eq!(app.sheet, Some(Sheet::Scan));
         read(&mut app, code);
@@ -71,8 +70,7 @@ fn scan_a_seedqr_names_a_qr_vault_and_opens_the_tool_with_it() {
 fn scan_a_seedqr_with_a_stick_plugged_in_still_opens_the_tool() {
     for code in [NOTE, SEED] {
         let mut app = testkit::started();
-        app.press(Action::KeyGen(None));
-        let _ = app.frame();
+        crate::common::add_a_key_flow(&mut app);
         app.press(Action::KStart(Start::Scan.index()));
         assert_eq!(app.sheet, Some(Sheet::Scan));
         // Plugged in while the camera is on.

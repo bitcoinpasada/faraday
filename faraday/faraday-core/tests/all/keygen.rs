@@ -6,9 +6,9 @@
 //! fills it, and leaving the screen forgets everything. The randomness
 //! check is on the entry card, Lock in adds the key, with a passphrase
 //! for a Create slot, and a Create slot's flow ends there.
-//! Add a key is the same flow opening on
-//! Start, where words already held are typed or scanned and loaded as
-//! Add a key loads them.
+//! New key opened on its own offers only the ways of making a key;
+//! a Create slot and a Tools tile for one form also offer the ways of
+//! adding a key held, and Add a key is its own page.
 
 #![expect(
     clippy::disallowed_methods,
@@ -1338,35 +1338,53 @@ fn add_a_key() -> Faraday {
     app
 }
 
-/// Whether Start offers each way in, Other forms opened: codex32 to type
-/// at the top level (`docs/CODEX32.md` §6).
-fn offers_every_start(app: &mut Faraday) {
+/// The new key flow with the ways of adding a key held offered: Tools'
+/// tile for codex32 shares, its Start card reopened with Change.
+fn held_flow() -> Faraday {
+    let mut app = faraday_core::testkit::started();
+    tall(&mut app);
+    crate::common::add_a_key_flow(&mut app);
+    app
+}
+
+/// What Start offers on New key opened from Wallets: the ways of making
+/// a key, and none of bringing one in (those are Add a key's).
+fn offers_only_the_ways_of_making(app: &mut Faraday) {
     // Start opens with nothing ticked; Change reopens it later.
     if app.keygen().unwrap().open != Some(kstep::START) {
         app.press(Action::KStep(kstep::START));
     }
     let _ = app.frame();
-    for s in [Start::Make, Start::Words, Start::Scan, Start::Codex32] {
-        assert!(app.offers(Action::KStart(s.index())), "{s:?} is offered");
-    }
-    let others = [Start::MakeShares, Start::Shares, Start::Xor];
-    for s in others {
-        assert!(!app.offers(Action::KStart(s.index())), "{s:?} waits");
-    }
+    assert!(app.offers(Action::KStart(Start::Make.index())), "Make");
     app.press(Action::KOthers);
     let _ = app.frame();
-    for s in others {
-        assert!(app.offers(Action::KStart(s.index())), "{s:?} is offered");
+    assert!(
+        app.offers(Action::KStart(Start::MakeShares.index())),
+        "Make SLIP-39 shares"
+    );
+    for s in [
+        Start::Words,
+        Start::Scan,
+        Start::Codex32,
+        Start::Shares,
+        Start::Xor,
+    ] {
+        assert!(!app.offers(Action::KStart(s.index())), "{s:?} is not");
     }
+    let t = texts(app);
+    assert!(
+        !t.contains(faraday_core::strings::EN.keygen_add_a_key_you_have),
+        "{t}"
+    );
 }
 
 #[test]
-fn add_a_key_opens_on_start_offering_every_way_in_and_a_cosigner_slot_all_but_slip39_making() {
+fn new_key_from_wallets_offers_only_the_ways_of_making_and_a_cosigner_slot_all_but_slip39_making() {
     let mut app = add_a_key();
     let k = app.keygen().unwrap();
     assert_eq!(k.open, Some(kstep::START), "Start opens first");
     assert_eq!(k.started, None, "no choice is ticked");
-    offers_every_start(&mut app);
+    offers_only_the_ways_of_making(&mut app);
 
     use faraday_core::create::NewKind;
     let mut app = faraday_core::testkit::started();
@@ -1447,7 +1465,7 @@ fn passphrase_twice(app: &mut Faraday, pass: &str) {
 fn twelve_words_typed_with_a_passphrase_load_the_key_add_a_key_loads_not_made_here() {
     let c = faraday_core::testkit::compute();
     let words = faraday_core::testkit::test_words("bacon");
-    let mut app = add_a_key();
+    let mut app = held_flow();
     type_the_words(&mut app, &words);
     let _ = app.frame();
     assert!(
@@ -1488,7 +1506,7 @@ fn twelve_words_typed_with_a_passphrase_load_the_key_add_a_key_loads_not_made_he
 
 #[test]
 fn typed_words_whose_checksum_fails_do_not_open_key() {
-    let mut app = add_a_key();
+    let mut app = held_flow();
     app.press(Action::KStart(Start::Words.index()));
     typed(&mut app, &["abandon"; 12].join(" "));
     app.press(Action::KNext);
@@ -1528,7 +1546,7 @@ fn words_typed_for_a_create_slot_fill_the_slot_with_that_key() {
 
 #[test]
 fn a_scanned_seedqr_opens_key_with_its_words() {
-    let mut app = add_a_key();
+    let mut app = held_flow();
     app.press(Action::KStart(Start::Scan.index()));
     assert_eq!(app.sheet, Some(faraday_core::Sheet::Scan));
     // "abandon" eleven times and "about".

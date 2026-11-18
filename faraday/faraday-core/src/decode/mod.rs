@@ -1059,7 +1059,7 @@ impl Faraday {
             }
             // Add a key opens with this screen as its way back; the key
             // loaded makes the result again (`signer_check_sync`).
-            P::Load(_) => self.keygen_open(None),
+            P::Load(_) => self.act(Action::Entry(None)),
             P::Seed(n) => {
                 let fp = self
                     .decode

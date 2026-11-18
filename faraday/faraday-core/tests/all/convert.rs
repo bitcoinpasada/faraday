@@ -216,14 +216,17 @@ fn a_key_added_from_the_tool_returns_to_it() {
     let mut app = mainnet();
     open(&mut app);
     assert_eq!(convert::state(&app).unwrap().open, Some(cstep::FROM));
-    app.press(Action::KeyGen(None));
-    assert_eq!(app.screen, Screen::KeyGen);
+    // The tool's Add a key opens the Add a key page, not a key to make.
+    let _ = app.frame();
+    assert!(app.offers(Action::Entry(None)));
+    assert!(!app.offers(Action::KeyGen(None)));
+    app.press(Action::Entry(None));
+    assert_eq!(app.screen, Screen::Entry);
     assert!(convert::state(&app).is_some(), "the detour keeps the tool");
-    // New key's Back returns as its own flow does.
-    let back = app.keygen().map(|k| k.back);
-    assert_eq!(back, Some(Screen::Convert));
-    app.press(Action::Nav(Screen::Convert));
-    assert_eq!(app.screen, Screen::Convert);
+    crate::common::type_text(&mut app, &testkit::test_words("bacon"));
+    app.press(Action::EntryAdd);
+    assert_eq!(app.session.keys.len(), 1, "the key is added");
+    assert_eq!(app.screen, Screen::Convert, "back in the tool");
     assert!(convert::state(&app).is_some());
     // Anywhere else ends it.
     app.press(Action::Nav(Screen::Catalog));
@@ -938,8 +941,8 @@ fn the_flow_through_add_a_key_returns_to_an_explore_that_draws() {
     app.press(Action::Convert(C::OpenOn(fp.0)));
     app.press(Action::Convert(C::Step(cstep::TO)));
     app.press(Action::Convert(C::Step(cstep::FROM)));
-    app.press(Action::KeyGen(None));
-    assert_eq!(app.screen, Screen::KeyGen);
+    app.press(Action::Entry(None));
+    assert_eq!(app.screen, Screen::Entry);
     app.press(Action::Nav(Screen::Convert));
     assert_eq!(app.screen, Screen::Convert);
     app.press(Action::Convert(C::Done));

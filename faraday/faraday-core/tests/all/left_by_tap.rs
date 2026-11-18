@@ -78,8 +78,7 @@ fn bip85_shown(app: &mut Faraday) -> Vec<String> {
 fn new_key_left_by_a_tap_on_the_sidebar_forgets_the_words_typed() {
     let words = testkit::test_words("bacon");
     let mut app = testkit::started();
-    app.press(Action::Nav(Screen::WalletsStart));
-    app.press(Action::KeyGen(None));
+    crate::common::add_a_key_flow(&mut app);
     app.press(Action::KStart(Start::Words.index()));
     let _ = app.frame();
     typed(&mut app, &words);

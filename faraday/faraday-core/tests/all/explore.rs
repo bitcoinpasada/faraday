@@ -218,3 +218,21 @@ fn a_private_key_at_an_all_hardened_path_says_nothing_of_the_account() {
     assert!(app.explore_shown().is_some_and(|s| s.any()));
     assert!(!drawn(&mut app).contains(GIVES_ACCOUNT));
 }
+
+#[test]
+fn explore_with_no_key_adds_one_on_the_add_a_key_page_and_returns() {
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Explore);
+    assert_eq!(app.screen, Screen::Explore);
+    let _ = app.frame();
+    assert!(app.offers(Action::Entry(None)), "Add a key is offered");
+    assert!(!app.offers(Action::KeyGen(None)));
+    app.press(Action::Entry(None));
+    assert_eq!(app.screen, Screen::Entry);
+    for c in "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about".chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.press(Action::EntryAdd);
+    assert_eq!(app.session.keys.len(), 1);
+    assert_eq!(app.screen, Screen::Explore, "back in Explore");
+}
