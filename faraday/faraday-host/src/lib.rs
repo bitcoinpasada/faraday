@@ -180,6 +180,10 @@ pub struct Host {
     /// and when they were first asked for: their pills pulse from then.
     asked: Vec<usize>,
     pulse_at: u64,
+    /// Whether a step waits for the boot stick to be pulled, as last
+    /// seen, and when it began to: its pill flashes from then.
+    pull_wait: bool,
+    flash_at: u64,
     /// An event other than a tick came since the frame last drawn whole:
     /// a frame that host motion on the strip alone asks for draws the
     /// strip and nothing else while this is false.
@@ -241,6 +245,8 @@ impl Host {
             edge_move: None,
             asked: Vec::new(),
             pulse_at: 0,
+            pull_wait: false,
+            flash_at: 0,
             stale: true,
             drawn_whole_moving: false,
             edge_drawn: None,
@@ -790,7 +796,7 @@ impl Host {
     /// list coasting or springing back, which Reduce motion stops at the
     /// finger's lift.
     fn moving(&self) -> bool {
-        self.whole_moving() || self.pulsing() || self.lists_moving()
+        self.whole_moving() || self.pulsing() || self.flashing() || self.lists_moving()
     }
 
     /// Whether a menu fades in or out or the focus border changes colour:
@@ -818,6 +824,25 @@ impl Host {
         !self.asked.is_empty()
             && self.app.fades()
             && self.now.saturating_sub(self.pulse_at) < t::HOST_PULSE_MS * t::HOST_PULSES
+    }
+
+    /// Whether the boot stick's pill flashes: a step waits for the stick
+    /// to be pulled, fades on. Arithmetic.
+    fn flashing(&self) -> bool {
+        self.pull_wait && self.app.fades()
+    }
+
+    /// How lit the boot stick's mark is now while a step waits for the
+    /// stick to be pulled, 0 (the pill as any other) to 1 (marked):
+    /// from 1 at the wait's start, a cosine down and up once each
+    /// `HOST_FLASH_MS`; 1, steady, under Reduce motion and with fades
+    /// off. Arithmetic.
+    pub(crate) fn flash_level(&self) -> f32 {
+        if !self.flashing() {
+            return 1.0;
+        }
+        let into = self.now.saturating_sub(self.flash_at) % t::HOST_FLASH_MS;
+        0.5 + 0.5 * (std::f32::consts::TAU * into as f32 / t::HOST_FLASH_MS as f32).cos()
     }
 
     /// The primary layer on a stick pill the app asks for now: rising and
@@ -871,13 +896,14 @@ impl Host {
         if self.bare || !self.app.shell_sticks {
             return;
         }
-        let asked: Vec<usize> = self
-            .app
-            .stick_pills()
-            .into_iter()
-            .filter(|p| p.asked)
-            .map(|p| p.n)
-            .collect();
+        let pills = self.app.stick_pills();
+        let wait = pills.iter().any(|p| p.n == 1 && p.asked && p.inserted);
+        if wait != self.pull_wait {
+            self.pull_wait = wait;
+            self.flash_at = self.now;
+            self.out.push_back(Command::Draw);
+        }
+        let asked: Vec<usize> = pills.into_iter().filter(|p| p.asked).map(|p| p.n).collect();
         if asked == self.asked {
             return;
         }

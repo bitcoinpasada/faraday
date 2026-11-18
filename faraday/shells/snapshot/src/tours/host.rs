@@ -90,22 +90,70 @@ fn shot(
     if let Some(m) = menu {
         host.open_menu_at_rest(m);
     }
-    t.n += 1;
-    let path = t.out.join(format!("{:02}-{name}.png", t.n));
     let frame = host.frame();
-    let file = std::fs::File::create(&path).map_err(|e| format!("{}: {e}", path.display()))?;
-    let mut enc = png::Encoder::new(
-        std::io::BufWriter::new(file),
-        u32::from(frame.width),
-        u32::from(frame.height),
-    );
-    enc.set_color(png::ColorType::Rgba);
-    enc.set_depth(png::BitDepth::Eight);
-    let mut w = enc.write_header().map_err(|e| e.to_string())?;
-    w.write_image_data(frame.rgba).map_err(|e| e.to_string())?;
-    println!("{}", path.display());
+    save(t, name, frame.rgba, (frame.width, frame.height))?;
     t.app = host.app;
     // At the host's size for the presses that follow.
+    t.app.event(display(app_size(win), t.dpi));
+    Ok(())
+}
+
+/// Saves a frame's pixels as the next picture.
+fn save(
+    t: &mut Tour,
+    name: &str,
+    rgba: &[u8],
+    (w, h): (impl Into<u32>, impl Into<u32>),
+) -> Result<(), String> {
+    t.n += 1;
+    let path = t.out.join(format!("{:02}-{name}.png", t.n));
+    let file = std::fs::File::create(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let mut enc = png::Encoder::new(std::io::BufWriter::new(file), w.into(), h.into());
+    enc.set_color(png::ColorType::Rgba);
+    enc.set_depth(png::BitDepth::Eight);
+    let mut wr = enc.write_header().map_err(|e| e.to_string())?;
+    wr.write_image_data(rgba).map_err(|e| e.to_string())?;
+    println!("{}", path.display());
+    Ok(())
+}
+
+/// The window while a step waits for the boot stick to be pulled, at
+/// two moments half a flash apart: its pill marked, then plain.
+fn flash(t: &mut Tour, win: (u16, u16)) -> Result<(), String> {
+    t.pump();
+    let app = std::mem::replace(&mut t.app, Faraday::new());
+    let mut host = Host::new(app);
+    host.event(display(win, t.dpi));
+    host.app.press(Action::ReduceMotion(false));
+    // The step starts now: the wait, and the flash with it.
+    host.app.press(Action::Entry(None));
+    host.app.settle();
+    // Frames at a steady pace, as the window draws them, so its fades
+    // stay on; a whole flash on, the pill is marked as at the wait's start.
+    let step = |host: &mut Host, t: &mut Tour, ms: u64| {
+        for _ in 0..ms / 16 {
+            t.now += 16;
+            host.event(Event::Tick { now_ms: t.now });
+            let _ = host.frame();
+        }
+    };
+    step(&mut host, t, faraday_draw::tokens::HOST_FLASH_MS);
+    let frame = host.frame();
+    save(
+        t,
+        "host-pull-wait-marked",
+        frame.rgba,
+        (frame.width, frame.height),
+    )?;
+    step(&mut host, t, faraday_draw::tokens::HOST_FLASH_MS / 2);
+    let frame = host.frame();
+    save(
+        t,
+        "host-pull-wait-plain",
+        frame.rgba,
+        (frame.width, frame.height),
+    )?;
+    t.app = host.app;
     t.app.event(display(app_size(win), t.dpi));
     Ok(())
 }
@@ -126,6 +174,7 @@ pub(crate) fn host_tour(t: &mut Tour) -> Result<(), String> {
         Some(HostMenu::Samples),
     )?;
     shot(t, win, "host-7in-panel", Some(SEVEN_INCH), None)?;
+    flash(t, win)?;
     // A key is made with no stick in: the boot stick pulled, as from its
     // pill in the strip.
     t.press(Action::StickPill(1));

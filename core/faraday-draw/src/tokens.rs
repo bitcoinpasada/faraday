@@ -947,6 +947,9 @@ pub const HOST_MARK_EDGE: f32 = 2.0;
 pub const HOST_PULSE_MS: u64 = MOTION_EXTRA_LONG4;
 /// How many pulses the pill gives before it holds its highlight steady.
 pub const HOST_PULSES: u64 = 3;
+/// One full flash of the boot stick's pill while a step waits for it to
+/// be pulled, its mark fading out and back in.
+pub const HOST_FLASH_MS: u64 = 1600;
 /// The primary layer at a pulse's height.
 pub const HOST_PULSE_LAYER: f32 = 0.24;
 /// The primary layer of a steady highlight: after the pulses, under

@@ -95,7 +95,12 @@ The strip holds two kinds of control. Those always there come first:
    `HOST_PULSE_LAYER` and back, then holds the steady highlight; under
    Reduce motion and with fades off (`docs/MOTION.md` §3.5) the steady
    highlight alone. A newly asked stick pulses again; the mark ends when
-   the stick is moved as asked or the sheet closes.
+   the stick is moved as asked or the sheet closes. The boot stick's pill
+   while a step waits for it to be pulled does not pulse but flashes: its
+   mark (layer and outline) fades out and back in once each
+   `HOST_FLASH_MS` (1.6 s) for as long as the step waits, starting
+   marked, and holds steady under Reduce motion and with fades off; the
+   host asks for a frame only while it flashes.
 2. **Samples**, in Practice with samples set: opens Load samples' sheet,
    the host's (§6).
 3. **Size · <size shown>**: opens the Size menu (§5), which lists the

@@ -1043,7 +1043,7 @@ fn the_stick_the_app_asks_for_is_marked_while_its_sheet_waits_and_not_after() {
 }
 
 #[test]
-fn a_stick_pill_pulses_for_a_while_then_holds_its_mark_and_the_window_rests() {
+fn the_boot_pill_flashes_while_a_step_waits_for_it_to_be_pulled_and_stops_after() {
     let mut shell = Shell::default();
     let mut host = desktop(&mut shell, 1, true, (1280, 800));
     host.app.press(Action::ReduceMotion(false));
@@ -1051,22 +1051,26 @@ fn a_stick_pill_pulses_for_a_while_then_holds_its_mark_and_the_window_rests() {
     let (_, now) = ticks(&mut host, start, 16, 60);
     let plain = inside_end(&mut host, BOOT_PILL);
     pull_sheet(&mut host);
-    let mut seen = Vec::new();
-    let mut now = now;
-    for _ in 0..40 {
-        let (_, n) = ticks(&mut host, now, 16, 1);
-        now = n;
-        seen.push(inside_end(&mut host, BOOT_PILL));
-    }
-    seen.dedup();
-    assert!(seen.len() > 5, "the pill pulses: {seen:?}");
-    assert!(seen.iter().all(|c| *c != plain), "and stays marked");
-    // The pulses run their time, then the mark holds and the window rests.
-    let (pulsing, now) = ticks(&mut host, now, 16, 300);
-    assert!(pulsing > 0, "the pulse asked for its frames");
-    let (asked, _) = ticks(&mut host, now, 16, 300);
-    assert_eq!(asked, 0, "the mark at rest asks for no frame");
-    assert_ne!(inside_end(&mut host, BOOT_PILL), plain);
+    // The app's own fade to its sheet run.
+    let (_, now) = ticks(&mut host, now, 16, 40);
+    let first = inside_end(&mut host, BOOT_PILL);
+    // Half a period on: the pill looks otherwise, and frames are asked.
+    let (asked, now) = ticks(&mut host, now, 16, 50);
+    let second = inside_end(&mut host, BOOT_PILL);
+    assert!(asked > 0, "the flash asked for frames");
+    assert_ne!(first, second, "the pill's look changes with time");
+    assert!(
+        first != plain || second != plain,
+        "one of its looks is the mark"
+    );
+    // Pressed: the stick is pulled, the sheet goes and the flash with it.
+    click(&mut host, BOOT_PILL);
+    shell_follows(&mut shell, &mut host.app);
+    assert_eq!(host.app.sheet, None);
+    let (_, now) = ticks(&mut host, now, 16, 60);
+    let (asked, _) = ticks(&mut host, now, 16, 120);
+    assert_eq!(asked, 0, "nothing flashes after the press");
+    assert_eq!(inside_end(&mut host, BOOT_PILL), plain);
 }
 
 #[test]
@@ -1414,7 +1418,7 @@ fn under_reduce_motion_a_drag_on_samples_sheet_stops_at_the_lift() {
 }
 
 #[test]
-fn a_fling_along_the_narrow_strip_coasts_and_then_the_window_rests() {
+fn a_fling_along_the_narrow_strip_coasts_and_then_the_row_rests() {
     let more = HostPress::Menu(HostMenu::More);
     let mut shell = Shell::default();
     let mut host = add_a_key_at(&mut shell, (268, 600));
@@ -1442,8 +1446,11 @@ fn a_fling_along_the_narrow_strip_coasts_and_then_the_window_rests() {
     let (_, now) = ticks(&mut host, now, 16, 200);
     let (moved, ..) = host.offered_area(more).expect("More");
     assert!(moved < lifted, "More went on from {lifted} to {moved}");
-    let (asked, _) = ticks(&mut host, now, 16, 200);
-    assert_eq!(asked, 0, "and then the window rests");
+    // The boot stick's pill flashes while the step waits for it, so
+    // frames go on; the row itself has come to rest.
+    let _ = ticks(&mut host, now, 16, 200);
+    let (rested, ..) = host.offered_area(more).expect("More");
+    assert_eq!(rested, moved, "and then the row rests");
     assert_eq!(host.menu_open(), None, "the fling opened nothing");
 }
 

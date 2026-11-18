@@ -121,7 +121,7 @@ type HostUi<'a> = faraday_ui::Ui<'a, HostPress>;
 #[derive(Clone, PartialEq)]
 enum Kind {
     /// A stick's pill, its dot lit while it is in.
-    Stick { inserted: bool },
+    Stick { inserted: bool, waits: bool },
     /// A button.
     Button,
     /// The step's main press: filled.
@@ -181,6 +181,7 @@ fn sticks(app: &Faraday) -> Vec<Ctl> {
                 press: HostPress::App(Action::StickPill(p.n as u8)),
                 kind: Kind::Stick {
                     inserted: p.inserted,
+                    waits: p.n == 1 && p.asked && p.inserted,
                 },
             }
         })
@@ -932,11 +933,27 @@ fn control(host: &Host, ui: &mut HostUi, c: &Ctl, (x, y): (f32, f32), inks: Inks
     if c.mark {
         // The app asks for this stick: a primary layer, pulsing while the
         // pulse runs, under a primary outline.
-        ui.wash(x, y, w, h, r, layer(inks.main, host.mark_layer()));
+        // The boot stick waiting to be pulled flashes instead: its mark
+        // fades out and in, the outline with it.
+        let waits = matches!(c.kind, Kind::Stick { waits: true, .. });
+        let lit = if waits { host.flash_level() } else { 1.0 };
+        let wash = if waits {
+            t::HOST_MARK_LAYER * lit
+        } else {
+            host.mark_layer()
+        };
+        ui.wash(x, y, w, h, r, layer(inks.main, wash));
         // `HOST_MARK_EDGE` wide: a dp-wide outline each dp inward.
         for k in 0..t::HOST_MARK_EDGE as u8 {
             let k = f32::from(k);
-            ui.stroke(x + k, y + k, w - 2.0 * k, h - 2.0 * k, r - k, inks.main);
+            ui.stroke(
+                x + k,
+                y + k,
+                w - 2.0 * k,
+                h - 2.0 * k,
+                r - k,
+                layer(inks.main, lit),
+            );
         }
     }
     let mut tx = x + CTL_PAD;
