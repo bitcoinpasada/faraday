@@ -51,6 +51,7 @@ pub(crate) mod m3;
 pub(crate) mod menu;
 pub(crate) mod multisig_check;
 pub(crate) mod nonce;
+pub(crate) mod old_parts;
 pub(crate) mod open_tools;
 pub(crate) mod ots_check;
 pub(crate) mod panes;
@@ -151,6 +152,7 @@ pub(crate) const TOURS: &[(&str, TourFn)] = &[
     ("transfer", TourFn::Plain(transfer::transfer_tour)),
     ("glance", TourFn::Costly(glance::glance_tour)),
     ("chartedit", TourFn::Costly(chart_edit::chart_edit_tour)),
+    ("oldparts", TourFn::Costly(old_parts::old_parts_tour)),
     ("fromvault", TourFn::Costly(from_vault::from_vault_tour)),
     ("first", TourFn::Costly(first::first_tour)),
     ("restore", TourFn::Plain(restore::restore_tour)),
