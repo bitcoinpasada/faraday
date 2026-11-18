@@ -9,6 +9,7 @@
 
 pub mod boot;
 pub mod bus;
+pub mod camera;
 pub mod devices;
 pub mod install;
 pub mod udisks;
@@ -412,7 +413,7 @@ pub fn computer(root: &Path) -> Computer {
         arm: arch.starts_with("arm") || arch.starts_with("aarch64"),
         secure_boot,
         tpm_unlock: tpm_unlock(&read("etc/crypttab")),
-        camera: Default::default(),
+        camera: camera::camera(root),
     }
 }
 

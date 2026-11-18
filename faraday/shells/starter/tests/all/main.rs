@@ -2,6 +2,7 @@
 
 mod bitlocker;
 mod boot;
+mod camera;
 mod demo;
 mod devices;
 mod disks;
