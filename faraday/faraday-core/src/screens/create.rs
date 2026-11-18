@@ -68,7 +68,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         })),
         heading: EN.create_make_a_new_wallet,
         wrap_closed: false,
-        total_fixed: !c.kind_unchosen,
+        // The whole count is known once the Keys card is in the list;
+        // before, the title reads the step alone.
+        total_fixed: steps.contains(&cstep::KEYS),
         all_shown: false,
         note: None,
         chip: None,

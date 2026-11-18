@@ -165,8 +165,22 @@ fn with_no_wallet_loaded_the_sample_psbt_still_comes_in_and_says_what_is_missing
     assert_eq!(psbt_files(&app), 1);
     assert!(app.session.keys.is_empty());
     assert!(app.session.wallets.is_empty());
+    // The page that brings the transaction is past the open step with no
+    // wallet; using the file from Files reaches it, where a person reads
+    // the transaction.
+    let at = app
+        .inbox()
+        .iter()
+        .position(|i| i.name.ends_with(".psbt"))
+        .unwrap();
+    app.press(Action::SpendBackup(F::UsePsbt(at)));
+    let _ = app.frame();
     let texts = app.drawn_texts();
-    assert!(texts.iter().any(|t| t.contains("transaction")), "{texts:?}");
+    assert!(
+        texts.iter().any(|t| t == "Read the transaction") && texts.iter().any(|t| t == "Fee"),
+        "{:?}",
+        texts.iter().map(|t| t.to_string()).collect::<Vec<_>>()
+    );
 }
 
 #[test]

@@ -370,6 +370,43 @@ fn the_page_title_shows_the_steps() {
     );
 }
 
+/// Make a new wallet states its step's number alone until the whole count
+/// is known, so a total is never shown and then changed.
+#[test]
+fn make_a_new_wallet_counts_its_steps_only_once_it_knows_how_many() {
+    let mut app = panel();
+    tap(&mut app, Action::Nav(Screen::WalletsStart));
+    tap(&mut app, Action::CreateWallet);
+    tap(&mut app, Action::CKind(0));
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == "Step 2"),
+        "{:?}",
+        texts.iter().map(|t| t.to_string()).collect::<Vec<_>>()
+    );
+    assert!(
+        !texts
+            .iter()
+            .any(|t| t.starts_with("Step ") && t.contains(" of ")),
+        "{:?}",
+        texts.iter().map(|t| t.to_string()).collect::<Vec<_>>()
+    );
+    tap(
+        &mut app,
+        Action::CBackupForm(faraday_core::create::BackupForm::Words.index()),
+    );
+    assert_eq!(
+        app.create().and_then(|c| c.open),
+        Some(faraday_core::cstep::KEYS)
+    );
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == "Step 3 of 4"),
+        "{:?}",
+        texts.iter().map(|t| t.to_string()).collect::<Vec<_>>()
+    );
+}
+
 #[test]
 fn every_step_s_forward_action_is_on_a_2_8_inch_panel_without_scrolling() {
     forward_in_view(panel(), H);
