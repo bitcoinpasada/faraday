@@ -2302,11 +2302,7 @@ fn old_parts(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let mut at: Vec<usize> = Vec::new();
     for (n, (_, fp, p)) in &kept {
-        let num = b
-            .answers
-            .old_set_with(seed, *fp)
-            .and_then(|s| s.parts.iter().position(|f| f == fp))
-            .map_or(0, |j| j + 1);
+        let num = crate::wallet_backup::old_part_number(&b.answers, seed, *fp);
         let name = app.place_name(*p);
         let line = fill(EN.paper_old_part_row, &[&num.to_string(), &name]);
         cy += ui.wrap_as((x, cy, w), BODY_S, Role::OnSurface, &line) + T::GAP;

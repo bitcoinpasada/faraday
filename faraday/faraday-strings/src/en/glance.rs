@@ -250,7 +250,7 @@ macro_rules! words_glance {
     /// Row in `view`: a kept old Seed XOR part, taken off the plan.
     glance_sheet_destroyed_it: "I destroyed it",
     /// Text in `view`: under a kept old part's row.
-    glance_sheet_destroyed_detail: "Takes it off the plan",
+    glance_sheet_destroyed_detail: "Off the plan",
     /// Row in `view`.
     glance_sheet_check_row: "Check it",
     /// Row in `view`.

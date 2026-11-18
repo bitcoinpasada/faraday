@@ -52,10 +52,13 @@ pub(crate) fn groups(shape: &Shape, a: &Answers, entry: &dyn Fn(Thing) -> Entry)
             let chips: Vec<Entry> = x
                 .parts
                 .iter()
-                .map(|&fp| entry(Thing::Kept(i, fp)))
-                .filter(|e| !e.count.is_empty())
-                .map(|e| Entry {
-                    name: EN.board_xor_old_chip.to_string(),
+                .map(|&fp| (fp, entry(Thing::Kept(i, fp))))
+                .filter(|(_, e)| !e.count.is_empty())
+                .map(|(fp, e)| Entry {
+                    name: fill(
+                        EN.board_xor_old_chip,
+                        &[&crate::wallet_backup::old_part_number(a, i, fp).to_string()],
+                    ),
                     ..e
                 })
                 .collect();

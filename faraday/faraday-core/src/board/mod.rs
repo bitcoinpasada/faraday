@@ -1025,7 +1025,7 @@ impl Faraday {
 
     /// What the chip of `t` reads: a seed's or a passphrase's
     /// fingerprint, "Whole", "Share 1", the vault's title.
-    fn board_thing_name(&self, shape: &Shape, t: Thing) -> String {
+    fn board_thing_name(&self, shape: &Shape, a: &Answers, t: Thing) -> String {
         match t {
             Thing::Seed(i) | Thing::Pass(i) | Thing::Kef(i) => shape
                 .seeds
@@ -1045,13 +1045,16 @@ impl Faraday {
                     &(j + 1).to_string(),
                 ],
             ),
-            Thing::Kept(i, _) => format!(
+            Thing::Kept(i, fp) => format!(
                 "{} · {}",
                 shape
                     .seeds
                     .get(i)
                     .map_or_else(String::new, |s| String::from(&*s.name)),
-                EN.board_xor_old_chip
+                fill(
+                    EN.board_xor_old_chip,
+                    &[&crate::wallet_backup::old_part_number(a, i, fp).to_string()]
+                )
             ),
             Thing::Slip(i, g, m) => fill(
                 EN.board_slip39_chip,
@@ -1110,7 +1113,7 @@ impl Faraday {
                 .get(i)
                 .map_or_else(String::new, |s| String::from(&*s.name))
         };
-        let name_of = |t: Thing| -> String { self.board_thing_name(&shape, t) };
+        let name_of = |t: Thing| -> String { self.board_thing_name(&shape, &a, t) };
         // The checks (`docs/BACKUP-FLOW.md` §17.5): each a line, and the
         // chips each names marked.
         let place_name = |p: usize| self.board_place_name(p);
@@ -2270,7 +2273,7 @@ impl Faraday {
             .rect_of(crate::Action::Board(BoardPress::Menu(c)))
             .map(|r| (r.x, r.y, r.w, r.h));
         let from_list = self.sheet == Some(crate::Sheet::BoardList);
-        let Some((shape, _)) = self.board_plan() else {
+        let Some((shape, a)) = self.board_plan() else {
             return;
         };
         let (verb, title, rows) = match c {
@@ -2281,7 +2284,7 @@ impl Faraday {
             ),
             Chip::Placed(z, t) => (
                 None,
-                self.board_thing_name(&shape, t),
+                self.board_thing_name(&shape, &a, t),
                 self.board_menu_top(z, t),
             ),
         };
@@ -2582,7 +2585,7 @@ impl Faraday {
                         let rows = self.board_menu_top(z, t);
                         let title = self
                             .board_plan()
-                            .map(|(shape, _)| self.board_thing_name(&shape, t))
+                            .map(|(shape, a)| self.board_thing_name(&shape, &a, t))
                             .unwrap_or_default();
                         self.board_edit(|st| st.menu_rows(None, title, rows));
                     } else if let (Some(Verb::Kef), Chip::List(_)) = (menu.verb, menu.chip) {

@@ -391,7 +391,7 @@ macro_rules! words_screens_backup {
     /// The group head of a key's old Seed XOR set. `{}`: the seed.
     board_xor_old_head: "{} · Seed XOR · old set",
     /// An old part's chip, still kept.
-    board_xor_old_chip: "Old part · still kept",
+    board_xor_old_chip: "Old part {} · still kept",
     /// A part's chip under its group. `{}`: the part's number.
     board_xor_part: "Part {}",
     /// A share's chip under its group. `{}`: the group, the share.

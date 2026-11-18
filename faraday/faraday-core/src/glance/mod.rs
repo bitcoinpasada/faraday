@@ -967,11 +967,16 @@ fn backup_nodes(
         What::KefCode(i) | What::KefCodePaper(i) => {
             Text::fill(EN.glance_kef_code, &[&Text::num(number(i) as u64)])
         }
-        What::XorKept(i, _) => Text::fill(
+        What::XorKept(i, fp) => Text::fill(
             EN.glance_xor_old_part,
             &[
                 &Text::num(number(i) as u64),
-                &Text::of(EN.board_xor_old_chip),
+                &Text::fill(
+                    EN.board_xor_old_chip,
+                    &[&Text::num(
+                        crate::wallet_backup::old_part_number(a, i, fp) as u64
+                    )],
+                ),
             ],
         ),
         What::XorPart(..) | What::Slip39Share(..) => what.label(shape, ""),

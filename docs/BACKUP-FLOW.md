@@ -2868,8 +2868,10 @@ it off the plan, and **Still kept**, which leaves it there, marked; a
 kept part's chart sheet offers I destroyed it later: it leaves the
 plan in every open vault that keeps it, and while Back up is open it
 leaves the flow's plan, which the flow's save writes. A part the plan
-never placed is not asked about. A kept part's chip reads "Old part ·
-still kept", in a group of its own under the set ("Seed XOR · old set");
+never placed is not asked about. A kept part's chip reads "Old part 2 ·
+still kept", the chart's line and sheet title "Seed 1: Old part 2 · still
+kept", all with the number the section gives, in a group of its own under
+the set ("Seed XOR · old set");
 it has no checklist item and no Check my copy, and the parts item counts
 the new set only. Back up's section adds "Old parts still kept: Place 1,
 Place 3", and "Every old part is still kept: together they rebuild this

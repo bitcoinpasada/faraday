@@ -2635,3 +2635,31 @@ fn a_destroyed_old_part_keeps_the_lines_the_vault_holds() {
 fn hex(fp: [u8; 4]) -> String {
     fp.iter().map(|b| format!("{b:02x}")).collect()
 }
+
+#[test]
+fn each_kept_old_part_on_the_chart_carries_its_own_number() {
+    let (mut app, w, old) = kept_old_parts();
+    // Back up's Seed XOR section numbers the old set's parts from 1.
+    app.press(Action::Backup(w));
+    let set = app
+        .backup()
+        .expect("Back up is open")
+        .answers
+        .old_sets(0)
+        .next()
+        .expect("the old set is kept")
+        .parts
+        .clone();
+    assert_eq!(set.len(), old.len());
+    app.press(Action::Nav(Screen::Wallets));
+    let _ = app.frame();
+    for (j, fp) in set.iter().enumerate() {
+        let (node, k) = line_holding(&app, w, What::XorKept(0, *fp));
+        let line = node.holds[k].to_string();
+        assert!(
+            line.contains(&format!("Old part {} ", j + 1)),
+            "the chart's line for part {} reads {line:?}",
+            j + 1
+        );
+    }
+}

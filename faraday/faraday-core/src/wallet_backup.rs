@@ -2618,6 +2618,15 @@ pub(crate) fn kept_old(b: &BackupState) -> Vec<(usize, [u8; 4], usize)> {
     out
 }
 
+/// The number of kept old part `fp` of seed `seed` among its old set's
+/// parts, from 1 (0 when no old set has it): the one number Back up's
+/// Seed XOR section and the chart give a kept old part.
+pub(crate) fn old_part_number(a: &plan::Answers, seed: usize, fp: [u8; 4]) -> usize {
+    a.old_set_with(seed, fp)
+        .and_then(|s| s.parts.iter().position(|f| *f == fp))
+        .map_or(0, |j| j + 1)
+}
+
 impl Faraday {
     /// Costs what `vault_has_wallet`, `vault_key` and `seed_copy_checked`
     /// cost. Where the wallet being backed up and each of its keys are
