@@ -2012,10 +2012,7 @@ impl Shell {
     /// for [`HIDE_WAITING`] and no longer.
     fn tell_attached(&mut self, record: &Record) {
         let boot = match record {
-            Record::Found {
-                partition,
-                diskseq: Some(seq),
-            } => Some((partition.as_str(), seq.as_str())),
+            Record::Found { partition, diskseq } => Some((partition.as_str(), diskseq.as_deref())),
             _ => None,
         };
         let now = attached::attached(Path::new(SYS_BLOCK), Path::new(USB_DEVICES), boot);

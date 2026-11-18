@@ -16,15 +16,21 @@ use std::path::{Path, PathBuf};
 /// device that has no block device yet or one of size above 0. The disk
 /// the `boot` partition is on is left out, with the USB port it is behind:
 /// the medium the machine started from is not a stick that was attached.
-/// It is that disk only while its `diskseq` is the one recorded at boot, so
-/// a stick that took the boot stick's name after it was pulled is attached;
-/// with no recorded `diskseq` (`boot` is `None`) nothing is left out. An
-/// empty card-reader slot (size 0) is not storage.
-pub fn attached(sys_block: &Path, usb_root: &Path, boot: Option<(&str, &str)>) -> Vec<String> {
+/// Where the record holds a `diskseq` it is that disk only while its
+/// `diskseq` is the recorded one, so a stick that took the boot stick's
+/// name after it was pulled is attached; the Pi's own card has none
+/// recorded and is known by its name alone. An empty card-reader slot
+/// (size 0) is not storage.
+pub fn attached(
+    sys_block: &Path,
+    usb_root: &Path,
+    boot: Option<(&str, Option<&str>)>,
+) -> Vec<String> {
     let boot_disk = boot.and_then(|(p, seq)| {
         let disk = disk_of(sys_block, p)?;
         let now = fs::read_to_string(disk.join("diskseq")).unwrap_or_default();
-        (now.trim() == seq.trim()).then_some(disk)
+        seq.is_none_or(|seq| now.trim() == seq.trim())
+            .then_some(disk)
     });
     let boot_port = boot_disk
         .as_ref()
@@ -196,7 +202,7 @@ mod tests {
         root
     }
 
-    fn look(root: &Path, boot: Option<(&str, &str)>) -> Vec<String> {
+    fn look(root: &Path, boot: Option<(&str, Option<&str>)>) -> Vec<String> {
         attached(&root.join("class/block"), &root.join("usb"), boot)
     }
 
@@ -223,7 +229,7 @@ mod tests {
         partition(&root, &sdb, "sdb2");
         disk(&root, "soc/mmc/block", "mmcblk0", 1000);
         assert_eq!(look(&root, None), ["mmcblk0", "sdb", "sdb2"]);
-        assert_eq!(look(&root, Some(("sdb2", "7"))), ["mmcblk0"]);
+        assert_eq!(look(&root, Some(("sdb2", Some("7")))), ["mmcblk0"]);
     }
 
     #[test]
@@ -232,7 +238,17 @@ mod tests {
         let sdb = disk(&root, "pci/usb1/1-3/1-3:1.0/host0/block", "sdb", 1000);
         put(&sdb.join("diskseq"), "12\n");
         partition(&root, &sdb, "sdb2");
-        assert_eq!(look(&root, Some(("sdb2", "7"))), ["sdb", "sdb2"]);
+        assert_eq!(look(&root, Some(("sdb2", Some("7")))), ["sdb", "sdb2"]);
+    }
+
+    #[test]
+    fn the_pis_own_card_is_left_out_and_a_stick_beside_it_is_attached() {
+        let root = tree("pi");
+        let card = disk(&root, "soc/mmc/block", "mmcblk0", 1000);
+        partition(&root, &card, "mmcblk0p2");
+        assert!(look(&root, Some(("mmcblk0p2", None))).is_empty());
+        disk(&root, "soc/usb1/1-1/1-1:1.0/host0/block", "sda", 1000);
+        assert_eq!(look(&root, Some(("mmcblk0p2", None))), ["sda"]);
     }
 
     #[test]
