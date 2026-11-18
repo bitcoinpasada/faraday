@@ -196,6 +196,18 @@ pub(crate) fn own_wallet(shown: &Shown, session: &crate::Session) -> Option<usiz
     (session.wallets.get(i)?.policy() == &shown.policy).then_some(i)
 }
 
+/// The loaded wallet `shown` matched when it was made, while the wallet at
+/// that place is still that wallet: the same policy, or the same wallet
+/// written with its keys in another order. A wallet taken out since, which
+/// may leave another at that place or none, is not it.
+pub(crate) fn placed(shown: &Shown, session: &crate::Session) -> Option<usize> {
+    let i = shown.place?;
+    let w = session.wallets.get(i)?;
+    (w.policy() == &shown.policy
+        || crate::wallet::same_wallet(w.policy()) == crate::wallet::same_wallet(&shown.policy))
+    .then_some(i)
+}
+
 /// The state, while the screen is open.
 pub fn state(app: &Faraday) -> Option<&MsState> {
     app.tools.mscheck.state()

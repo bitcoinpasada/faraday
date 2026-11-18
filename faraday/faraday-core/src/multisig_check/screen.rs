@@ -161,7 +161,8 @@ fn result(app: &View, s: &MsState, ui: &mut Ui, at: (f32, f32, f32)) -> f32 {
     };
     let mut cy = rows(app, r, s.seed.as_ref(), ui, (x, y, w));
     cy += GAP;
-    if let Some(name) = &r.loaded {
+    let place = super::placed(r, &app.session);
+    if let Some(name) = r.loaded.as_ref().filter(|_| place.is_some()) {
         cy += ui.wrap_as(
             (x, y + cy, w),
             BODY_M,
@@ -180,7 +181,7 @@ fn result(app: &View, s: &MsState, ui: &mut Ui, at: (f32, f32, f32)) -> f32 {
     );
     cy += BUTTON_H + GAP;
     cy += seed(app, s, ui, (x, y + cy, w));
-    let (next, style, action) = match r.place {
+    let (next, style, action) = match place {
         Some(i) => (EN.made_wallet_open, Style::Primary, Action::OpenWallet(i)),
         None => (
             EN.mscheck_add,

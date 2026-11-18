@@ -2,7 +2,7 @@
 //! setup file read by Files' reader and shown as its quorum, checksum and
 //! cosigners, with nothing added to the session.
 
-use crate::common::{has_part, texts};
+use crate::common::{has_part, offered, texts};
 use faraday_bip::policy::WalletPolicy;
 use faraday_core::file_menu::{FilePress, Row};
 use faraday_core::multisig_check::MsAction as M;
@@ -703,6 +703,52 @@ fn a_result_opened_from_a_wallet_taken_out_ticks_and_shows_no_other_wallet() {
     assert_eq!(before, after);
     let s = page(&mut app);
     assert!(!s.contains("Checked by you"), "{s}");
+}
+
+/// A Result opened from wallet 0 of two loaded, then that wallet taken out;
+/// `keep_other` leaves the second wallet at its place.
+fn result_whose_wallet_is_taken_out(keep_other: bool) -> Faraday {
+    let mut app = testkit::started();
+    let c = testkit::compute();
+    let p = "m/48'/1'/0'/0'";
+    let other = format!(
+        "wsh(sortedmulti(2,{}/<0;1>/*,{}/<0;1>/*))",
+        testkit::key(0, p),
+        testkit::key(1, p)
+    );
+    let mut loaded = vec![("First", ordered([0, 1, 2]))];
+    if keep_other {
+        loaded.push(("Second", other));
+    }
+    for (name, d) in loaded {
+        app.session
+            .add_wallet_confirmed(&c, name, &d, "test", faraday_core::wallet::Origin::Named)
+            .unwrap();
+    }
+    app.press(Action::MultisigCheck(M::Open));
+    app.press(Action::MultisigCheck(M::Loaded(0)));
+    assert!(shows(&mut app, EN.made_wallet_open));
+    app.session.wallets.remove(0);
+    app
+}
+
+#[test]
+fn a_result_whose_wallet_was_taken_out_does_not_open_the_wallet_now_at_its_place() {
+    let mut app = result_whose_wallet_is_taken_out(true);
+    assert_eq!(app.session.wallets.len(), 1);
+    assert!(!shows(&mut app, EN.made_wallet_open));
+    assert!(shows(&mut app, "Add this wallet"));
+    assert!(!has_part(&mut app, "Loaded here as"));
+    assert!(offered(&mut app, Action::MultisigCheck(M::Add)));
+}
+
+#[test]
+fn a_result_whose_wallet_was_taken_out_offers_to_add_it_with_nothing_at_its_place() {
+    let mut app = result_whose_wallet_is_taken_out(false);
+    assert!(app.session.wallets.is_empty());
+    assert!(!shows(&mut app, EN.made_wallet_open));
+    assert!(shows(&mut app, "Add this wallet"));
+    assert!(offered(&mut app, Action::MultisigCheck(M::Add)));
 }
 
 /// Bitcoin Core's `deriveaddresses` of each multisig kind's first receive
