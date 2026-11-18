@@ -258,7 +258,7 @@ pub(crate) fn home_results(
         .iter()
         .filter_map(|hit| match *hit {
             Hit::Tile(i) => Some((i, &TILES[i])),
-            Hit::Setting(_) => None,
+            Hit::Setting(_) | Hit::Word(_) => None,
         })
         .map(|(i, tile)| {
             let need = app.tile_need(tile.go);
