@@ -1175,6 +1175,11 @@ impl Faraday {
         if self.typing_target() != Some(a) {
             return None;
         }
+        // The guide's Find takes typing whenever the contents shows; a
+        // press on it focuses it.
+        if a == Action::TypeHere(Here::GuideFind) {
+            self.guide.focus_find(true);
+        }
         if let Action::TypeHere(h @ (Here::Keyed | Here::CheckKeyed)) = a {
             if let Some(i) = index(self, x) {
                 self.keyed_press(h, i);

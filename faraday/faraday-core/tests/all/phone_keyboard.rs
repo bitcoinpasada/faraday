@@ -85,5 +85,14 @@ fn a_press_on_a_bar_or_field_that_takes_typing_brings_the_keyboard_up_and_again_
         assert!(app.keyboard_top().is_none(), "{w:?}: sweep down first");
         tap(&mut app, Action::Sweep(faraday_core::seeds::sweep::SweepAction::Field));
         assert!(app.keyboard_top().is_some(), "{w:?}: the sweep field");
+
+        // The guide's contents, a sheet whose Find takes typing at once.
+        let mut app = window(w);
+        app.press(Action::Guide);
+        app.press(Action::GuideContents);
+        let _ = app.frame();
+        assert!(app.keyboard_top().is_none(), "{w:?}: guide down first");
+        tap(&mut app, Action::TypeHere(Here::GuideFind));
+        assert!(app.keyboard_top().is_some(), "{w:?}: the guide's Find");
     }
 }
