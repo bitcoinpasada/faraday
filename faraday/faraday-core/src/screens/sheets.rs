@@ -1354,7 +1354,11 @@ pub(super) fn qr_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         whole_h = ui.wrap_height_as(LABEL_S.mono(), t, (side + 64.0).max(420.0) - 64.0) + 10.0;
     }
     let sw = (side + 64.0).max(420.0);
-    let sh = side + 242.0 + grow + whole_h;
+    // A caution under the subtitle takes its own lines.
+    let caution_h = q.caution.as_ref().map_or(0.0, |t| {
+        ui.wrap_height_as(LABEL_M, t, sw - 2.0 * T::QR_SHEET_MARGIN) + T::GAP_SMALL
+    });
+    let sh = side + 242.0 + grow + whole_h + caution_h;
     let (x, y) = sheet_box(ui, w, h, sw, sh);
     let t = ui.fit_as(TITLE_M, &q.title, sw - 64.0);
     let mut ty = y + 26.0;
@@ -1373,6 +1377,10 @@ pub(super) fn qr_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let sub = ui.fit_as(BODY_S, counted.as_deref().unwrap_or(&q.subtitle), sw - 64.0);
     ui.text_as(x + 32.0, ty, BODY_S, Role::OnSurfaceVariant, &sub);
     ty += ui.line_as(BODY_S);
+    if let Some(t) = &q.caution {
+        let at = (x + T::QR_SHEET_MARGIN, ty, sw - 2.0 * T::QR_SHEET_MARGIN);
+        ty += ui.wrap_as(at, LABEL_M, Role::Warning, t) + T::GAP_SMALL;
+    }
     // Whether scanning it is safe, said beside the code itself.
     let (tag, tone) = if q.secret {
         (EN.qr_secret_whoever_scans, Role::Error)
@@ -1525,6 +1533,9 @@ fn qr_sheet_compact(app: &View, q: &crate::QrView, ui: &mut Ui, w: f32, h: f32) 
         let t = ui.fit_as(TITLE_M, counted.as_deref().unwrap_or(&q.title), iw);
         ui.text_as(x, cy, TITLE_M, Role::OnSurface, &t);
         cy += ui.advance_as(TITLE_M, 22.0);
+        if let Some(t) = &q.caution {
+            cy += ui.wrap_as((x, cy, iw), LABEL_M, Role::Warning, t) + T::GAP_SMALL;
+        }
         let (tag, tone) = if q.secret {
             (EN.qr_sheet_secret_whoever, Role::Error)
         } else {

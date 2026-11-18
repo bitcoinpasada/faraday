@@ -122,6 +122,11 @@ fn a_wallet_made_here_with_its_keys_loaded_asks_for_no_seeds() {
             faraday_core::wallet::Origin::Statement,
         )
         .unwrap();
+    // With every key checked the review shows no block of keys.
+    for k in 0..app.session.wallets[0].key_checks().len() {
+        let of = faraday_core::wallet::KeyBlockOf::Wallet(0);
+        app.press(Action::KeyTick(of, k as u8));
+    }
     app.press(Action::Nav(Screen::SpendBackup));
     app.press(Action::SpendBackup(F::SpendFrom(0)));
     let _ = app.frame();

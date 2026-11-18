@@ -43,12 +43,8 @@ mod confirm;
 pub use confirm::Rows;
 pub(crate) use confirm::{draw_rows, draw_rows_over, draw_rows_without_shape};
 mod keycheck;
-#[allow(
-    unused_imports,
-    reason = "the screens that draw an added wallet's keys use it"
-)]
-pub(crate) use keycheck::draw_key_block;
 pub use keycheck::{KeyBlockOf, KeyCheck};
+pub(crate) use keycheck::{draw_key_block, draw_review_keys, keys_caution_text};
 mod state;
 pub use state::SpendState;
 pub(crate) use state::{SPEND_STEPS, SpendSteps, WalletsArea};

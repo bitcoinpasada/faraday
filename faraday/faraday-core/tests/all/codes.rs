@@ -664,7 +664,8 @@ fn files_show_as_qr_is_the_file_and_offers_no_picture() {
 fn the_wallet_cards_receive_address_opens_its_code() {
     let c = testkit::compute();
     let (mut app, w) = holding("Savings", &testkit::savings());
-    // Every key checked: the wallet node has no key-check line.
+    // Every key checked: the wallet node has no key-check line and the
+    // card no caution over the address.
     for k in 0..app.session.wallets[w].key_checks().len() {
         app.session.tick_key(w, k);
     }

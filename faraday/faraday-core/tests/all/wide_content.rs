@@ -119,6 +119,11 @@ fn a_wallet_cards_first_receive_address_is_drawn_on_one_line() {
     app.press(Action::Nav(Screen::Wallets));
     for i in 0..app.session.wallets.len() {
         app.press(Action::PickWallet(i));
+        // With every key checked there is no caution over the address.
+        for k in 0..app.session.wallets[i].key_checks().len() {
+            let of = faraday_core::wallet::KeyBlockOf::Wallet(i as u16);
+            app.press(Action::KeyTick(of, k as u8));
+        }
         let _ = app.frame();
         let texts: Vec<String> = app
             .drawn_text_boxes()

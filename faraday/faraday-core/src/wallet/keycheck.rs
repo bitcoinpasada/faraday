@@ -327,10 +327,6 @@ pub(crate) fn draw_keys(
 /// Draws the keys of an added wallet as the confirmation sheet draws
 /// them, from the rows kept with it: nothing for a wallet of one key.
 /// Returns the height.
-#[allow(
-    dead_code,
-    reason = "the screens that draw an added wallet's keys call it"
-)]
 pub(crate) fn draw_key_block(
     wallet: &super::Wallet,
     of: KeyBlockOf,
@@ -338,4 +334,36 @@ pub(crate) fn draw_key_block(
     at: (f32, f32, f32),
 ) -> f32 {
     draw_keys(wallet.key_rows(), &[], of, true, ui, at)
+}
+
+/// The caution over a wallet's receive addresses: how many of its keys
+/// are not checked; nothing while none is. Reads the stored count.
+pub(crate) fn keys_caution_text(wallet: &super::Wallet) -> Option<Text> {
+    match wallet.keys_unchecked() {
+        0 => None,
+        1 => Some(Text::of(EN.keycheck_receive_one)),
+        n => Some(Text::fill(
+            EN.keycheck_receive_many,
+            &[&Text::num(n as u64)],
+        )),
+    }
+}
+
+/// What a spend's review shows of the wallet's keys: the block in full,
+/// tickable, while a key is not checked; one green line once none is;
+/// nothing for a wallet of one key. Returns the height, the gap under it
+/// included.
+pub(crate) fn draw_review_keys(
+    wallet: &super::Wallet,
+    of: KeyBlockOf,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+) -> f32 {
+    if wallet.keys_unchecked() > 0 {
+        return draw_key_block(wallet, of, ui, (x, y, w)) + GAP_SMALL;
+    }
+    if wallet.key_checks().is_empty() {
+        return 0.0;
+    }
+    ui.wrap_as((x, y, w), BODY_M, Role::Ok, EN.keycheck_line_all) + GAP
 }

@@ -345,6 +345,8 @@ pub struct QrView {
     pub public: bool,
     /// The lines under the title in that picture, one statement each.
     pub label: Vec<Text>,
+    /// A caution the sheet shows under the title, never in a picture.
+    pub caution: Option<Text>,
     /// The picture's file name.
     pub png_name: Text,
     /// The text the code holds, shown whole under it: a wallet's
@@ -681,6 +683,7 @@ impl QrView {
             secret: false,
             public: true,
             label: texts(&lines),
+            caution: None,
             png_name: Text::of(png_name),
             whole: Some(Text::of(text)),
             one_code: true,
@@ -727,6 +730,7 @@ impl QrView {
             secret,
             public: false,
             label: Vec::new(),
+            caution: None,
             png_name: Text::new(),
             whole: None,
             one_code: false,
@@ -741,6 +745,7 @@ impl QrView {
             v.secret |= secret;
             v.public = self.public;
             v.label = self.label.clone();
+            v.caution = self.caution.clone();
             v.png_name = self.png_name.clone();
             v.whole = self.whole.clone();
             v.one_code = self.one_code;
@@ -1368,7 +1373,10 @@ impl Faraday {
                     EN.code_view_receive,
                     &[&text!("{}", &*w.name), &text!("{at}")],
                 );
-                plain(&title, &a)
+                plain(&title, &a).map(|mut v| {
+                    v.caution = crate::wallet::keys_caution_text(w);
+                    v
+                })
             }
             Code::VanityAddress => {
                 let v = self.vanity.state().ok_or(EN.code_view_no_address)?;

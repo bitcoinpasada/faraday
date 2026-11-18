@@ -654,6 +654,7 @@ fn view(c: &Compute, made: &Made) -> Result<QrView, Text> {
         secret: false,
         public: true,
         label,
+        caution: None,
         png_name: text!("{}.png", made.stem.as_str()),
         whole: None,
         one_code: true,

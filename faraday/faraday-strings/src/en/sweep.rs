@@ -572,6 +572,10 @@ macro_rules! words_sweep {
     keycheck_node_one: "1 key not checked",
     /// A wallet's node on the chart: several keys are not checked. `{}`: how many.
     keycheck_node_many: "{} keys not checked",
+    /// Over a wallet's receive addresses: one key of it is not checked.
+    keycheck_receive_one: "1 key of this wallet is not checked",
+    /// Over a wallet's receive addresses: several keys of it are not checked. `{}`: how many.
+    keycheck_receive_many: "{} keys of this wallet are not checked",
     /// A wallet was added with one key not checked. `{}`: its name.
     keycheck_added_one: "{} added · 1 key not checked",
     /// A wallet was added with keys not checked. `{}`: its name, then how many.

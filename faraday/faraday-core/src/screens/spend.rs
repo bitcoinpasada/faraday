@@ -1311,6 +1311,10 @@ impl StepView<'_> {
                 ) + GAP;
             }
         }
+        if let Some((wi, wl)) = wallet.and_then(|wi| Some((wi, app.session.wallets.get(wi)?))) {
+            let of = crate::wallet::KeyBlockOf::Wallet(u16::try_from(wi).unwrap_or(u16::MAX));
+            cy += crate::wallet::draw_review_keys(wl, of, ui, (x, cy, w));
+        }
         if !warned {
             let mut chx = x;
             chx += ui.tag(chx, cy, EN.step_no_warnings, Status::Ok) + 6.0;

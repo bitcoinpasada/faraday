@@ -582,6 +582,20 @@ fn compare_software(app: &View, i: usize) -> &'static str {
         .unwrap_or(EN.first_addresses_your_software)
 }
 
+/// The caution over a wallet's receive addresses while some of its keys
+/// are not checked: nothing otherwise. Returns the height, the gap under
+/// it included.
+pub(crate) fn keys_caution(
+    ui: &mut Ui,
+    wl: &crate::wallet::Wallet,
+    (x, y, w): (f32, f32, f32),
+) -> f32 {
+    match crate::wallet::keys_caution_text(wl) {
+        Some(t) => ui.wrap_as((x, y, w), LABEL_L, Role::Warning, &t) + tokens::GAP_SMALL,
+        None => 0.0,
+    }
+}
+
 /// A wallet's first two receive addresses and first change address,
 /// under a label, as Create's Check and Restore's show them, with the
 /// warning while a key made here waits for its backup. Returns the
@@ -605,6 +619,7 @@ pub(crate) fn first_addresses(app: &View, ui: &mut Ui, i: usize, x: f32, y: f32,
         ) + 8.0;
         return cy - y;
     }
+    cy += keys_caution(ui, wl, (x, cy, w));
     let software = compare_software(app, i);
     cy += ui.wrap_as(
         (x, cy, w),

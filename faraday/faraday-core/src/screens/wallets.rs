@@ -409,6 +409,7 @@ pub(crate) fn first_receive_row(
         EN.wallets_first_receive,
     );
     cy += ui.line_as(LABEL_M) + faraday_draw::tokens::GRID;
+    cy += super::parts::keys_caution(ui, wlt, (ix, cy, iw));
     let (addr, held) = app.receive_line(wlt, false, 0);
     // The row opens the address's code, unless it is held back.
     let open = (!held).then_some(Action::ShowCode(crate::Code::Receive(wallet, 0)));

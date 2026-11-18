@@ -379,6 +379,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     cy += 10.0;
     cy += heading(ui, x, cy, EN.compact_first_receive);
+    cy += crate::screens::keys_caution(ui, wlt, (x, cy, iw));
     let (addr, held) = app.receive_line(wlt, false, 0);
     let open = (!held).then_some(Action::ShowCode(crate::Code::Receive(
         app.wallets.wallet(),
