@@ -109,9 +109,11 @@ seconds run, executions, corpus entries and bytes, and "no crashes". The
 release notes quote it.
 
 The cross-check that follows reads the PSBTs of the `psbt_diff`,
-`psbt_parse` and `psbt_v2` corpora, the committed seeds and what a run
-grew (`FARADAY_FUZZ_CORPUS`, the kept store), and judges them as Bitcoin
-Core and the other references read them (`just crosscheck --area psbt`).
+`psbt_parse` and `psbt_v2` corpora and judges them as Bitcoin Core and the
+other references read them (`just crosscheck --area psbt`). A plain run reads
+the committed seeds only, so it gives the same answer on every machine; what
+a run grew is read only when `FARADAY_FUZZ_CORPUS` or `FARADAY_FUZZ_STORE`
+names its folder.
 
 `just fuzz-corpus-export` (`tools/fuzz-corpus-export.sh`) minimizes each
 target's kept corpus and seeds with `cargo fuzz cmin` into

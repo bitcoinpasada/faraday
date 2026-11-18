@@ -51,10 +51,12 @@ folders (`fuzz/corpus/`), read as bytes or, where it is base64 text, as the
 PSBT it spells, is a case of its own (`fuzz` loop), read as the version it
 says and as the other and judged as every case above is, btclib included.
 A file with no PSBT magic is counted and left out; the same bytes twice are
-read once. `FARADAY_FUZZ_CORPUS` (folders separated by `:`, one folder per
-target, as `tools/fuzz-release.sh` reads it) and the machine's kept store
-(`$FARADAY_FUZZ_STORE`, default `~/.cache/faraday-fuzz`) add the corpus a
-fuzz run grew, when they exist: at most `FUZZ_GROWN_CAP` files of them, the
+read once. A plain run reads those
+committed seeds only, so it gives the same answer on every machine.
+`FARADAY_FUZZ_CORPUS` (folders separated by `:`, one folder per target, as
+`tools/fuzz-release.sh` reads it) and `FARADAY_FUZZ_STORE` (a fuzz store's
+folders, separated by `:`, one folder per target) add the corpus a fuzz run
+grew, when they name one: at most `FUZZ_GROWN_CAP` files of them, the
 first by sorted name, the rest counted as left out. The run prints what it
 read. The cases of a corpus are run at `--scale` 1 at most.
 
@@ -100,6 +102,47 @@ Still Faraday's own, and counted as known differences:
   reads some PSBTs Core refuses (a key with key data on a field that
   takes none), so it is asked to refuse only what Core and HWI read and
   Faraday refuses.
+  Faraday refuses.
+
+The fuzz corpora's PSBTs add these. Each is a rule of its own in the judge
+(`core_rule`, `hwi_rule`, `btclib_rule`), applied only where the judge's error
+text and the property of the input both hold; a refusal no rule states fails
+the area. Every one is a PSBT Faraday reads and then blocks at use, or only
+carries; none is signed.
+
+- Core's `decodepsbt` refuses "Non-witness UTXO does not match outpoint hash"
+  (an input's previous transaction is not the spent output's txid) and "Input
+  specifies output index that does not exist" (it has no output at the spent
+  index); Faraday reads the PSBT, leaves that input's amount and the fee
+  unknown and blocks the input, so it is never signed.
+- Core refuses a key type, or a proprietary key's subtype, that is a compact
+  size over its limit ("ReadCompactSize(): size too large") or cut short by the
+  key's end ("SpanReader::read(): end of data"); Faraday, as `bitcoin` does,
+  reads the type as one byte and only carries the pair, which it never reads.
+  For a version 2 PSBT Core refuses both version 0 forms alike.
+- Core ("... musig2 ...") and HWI ("Musig2") refuse a MuSig2 field (BIP-373:
+  input 0x1a, 0x1b, 0x1c, output 0x08) whose key data is of a size BIP-373
+  forbids, and so does Faraday where it uses the field (`musig.rs`): a hold on
+  the input, or an ordinary payment for an output, not at reading.
+- HWI refuses a key whose type is a compact size cut short ("unpack requires a
+  buffer of N bytes"), a transaction version of 2^31 or more ("'i' format
+  requires ..."; `struct.pack` of a signed version), and an output script that
+  is present and empty ("PSBT_OUTPUT_SCRIPT is required in PSBTv2"; BIP-370's
+  script is the scriptPubKey, which is empty); Faraday reads all three. HWI
+  reads a version 2 PSBT in which Faraday's reader refuses a compact size not
+  written in its shortest form, as Core does, and btclib decides it.
+- btclib refuses an amount over 21,000,000 BTC ("satoshi amount"), a witness
+  UTXO that is not the previous transaction's output at the spent index
+  ("mismatched witness utxo"), a hash preimage that does not hash to its key,
+  and a BIP-375 field (any map) of a version 0 PSBT; Faraday reads them and
+  blocks the amount, the disagreement and the preimage at use.
+- A version 2 PSBT HWI makes a version 0 PSBT of, Core reads, and Faraday makes
+  none of: a key origin of more than 16 steps (Faraday's own limit, no wallet's
+  path is longer) or a hash preimage that does not hash to its key (the bridge
+  to version 0 checks it).
+- A version 2 transaction with no input: `bitcoin` writes it with the segwit
+  marker `0001` after the version, HWI and BIP-174 without; the two are
+  compared with the marker taken out, also in the version 0 form Faraday makes.
 """
 
 import base64
@@ -115,6 +158,7 @@ import core_node
 from common import ROOT, Area, Mismatch, use_reference
 
 use_reference("core")
+from test_framework.crypto.ripemd160 import ripemd160  # noqa: E402
 from test_framework.crypto.secp256k1 import FAST_G, GE  # noqa: E402
 from test_framework.messages import (  # noqa: E402
     COutPoint, CTransaction, CTxIn, CTxOut, deser_vector)
@@ -147,30 +191,16 @@ FUZZ_TARGETS = ("psbt_diff", "psbt_parse", "psbt_v2")
 # kept store) are read: their names sorted, the first ones, so the same run
 # reads the same files. The committed seeds are always all read.
 FUZZ_GROWN_CAP = 3000
-# A corpus PSBT the area does not judge, by the SHA-256 of its bytes, with
-# why (a disagreement kept for the owner's decision).
-FUZZ_SKIPPED = {
-    # Bitcoin Core's decodepsbt refuses it ("Input specifies output index that
-    # does not exist") and Faraday reads it; kept for the owner's decision.
-    # Bitcoin Core's decodepsbt refuses it ("Non-witness UTXO does not match
-    # outpoint hash") and Faraday reads it; kept for the owner's decision.
-    "6390b6924d03132e816d497ee34b073e7aa606e9612a083e2e67dfddb58915dc": "a non_witness_utxo whose txid is not the spent outpoint's",
-    "b5cc2f48274a36964df772eb50c048e830ddfafd90ffdab84c6262f703c71aac": "a non_witness_utxo whose txid is not the spent outpoint's",
-    "9344c7ae3e723ec7a601438ea4d13faa88206073a9d7e387a6fb5a6a05a41ff3": "a non_witness_utxo whose txid is not the spent outpoint's",
-    "3005b6f41e558746677b99b56b0531828e8c9621c927acc0595469e97b581db9": "a non_witness_utxo whose txid is not the spent outpoint's",
-    "72554f1b136fb7e3aee7eadd25a0bcc0066604248854f910f2b9d05977a85b09": "an input whose non_witness_utxo has no output at the spent index",
-}
 
 
 def _fuzz_folders():
     """(kind, folder) of every folder read: the committed seeds, then each
-    `FARADAY_FUZZ_CORPUS` folder (separated by `:`), then the kept store
-    (`FARADAY_FUZZ_STORE`, default `~/.cache/faraday-fuzz`), each as it
-    holds a folder per target."""
+    `FARADAY_FUZZ_CORPUS` folder and each `FARADAY_FUZZ_STORE` folder
+    (separated by `:`), each as it holds a folder per target. With neither
+    variable set only the committed seeds are read."""
     out = [("seeds", ROOT / "fuzz" / "corpus" / t) for t in FUZZ_TARGETS]
     grown = [pathlib.Path(d) for d in os.environ.get("FARADAY_FUZZ_CORPUS", "").split(":") if d]
-    store = os.environ.get("FARADAY_FUZZ_STORE")
-    grown.append(pathlib.Path(store) if store else pathlib.Path.home() / ".cache" / "faraday-fuzz")
+    grown += [pathlib.Path(d) for d in os.environ.get("FARADAY_FUZZ_STORE", "").split(":") if d]
     for d in grown:
         out += [("grown", d / t) for t in FUZZ_TARGETS]
     return [(k, d) for k, d in out if d.is_dir()]
@@ -502,6 +532,318 @@ def outcome(fn):
         return ("err", f"{type(e).__name__}: {e}")
 
 
+# ----- the known differences, as rules --------------------------------------
+#
+# A rule names a judge, the judge's answer (its error text, and a property of
+# the input) and Faraday's answer; it applies only when both hold. Each
+# function takes the judge's error text and the PSBT's bytes and gives the
+# rule's name, or None: a refusal no rule states is a disagreement.
+
+MAX_MONEY = 21_000_000 * 10**8
+# Bitcoin Core's limit on a compact size it reads (`MAX_SIZE`).
+CORE_MAX_SIZE = 0x02000000
+
+
+def maps_of(raw):
+    """The PSBT's maps, global first, and its input count; None when it
+    cannot be taken apart."""
+    try:
+        if _says_v2(raw):
+            return split(raw)
+        glob, _ = read_map(raw, len(MAGIC))
+        tx = read_unsigned(get(glob, 0))
+        return split(raw, len(tx.vin), len(tx.vout))
+    except Exception:  # noqa: BLE001 - a PSBT that is not taken apart has no property
+        return None
+
+
+def pairs_of(raw):
+    """Every pair of every map as (kind, index, key, value), kind
+    "global", "input" or "output"; empty when the PSBT is not taken apart."""
+    got = maps_of(raw)
+    if got is None:
+        return []
+    maps, n_in = got
+    return [("global" if i == 0 else "input" if i <= n_in else "output", i, k, v)
+            for i, m in enumerate(maps) for k, v in m]
+
+
+def _size_at(b, at):
+    """The compact size at `at` as Core reads it: "cut" when the bytes end
+    inside it, else its value."""
+    if at >= len(b):
+        return "cut"
+    n = b[at]
+    if n < 0xfd:
+        return n
+    size = {0xfd: 2, 0xfe: 4, 0xff: 8}[n]
+    if at + 1 + size > len(b):
+        return "cut"
+    return int.from_bytes(b[at + 1:at + 1 + size], "little")
+
+
+def _type_sizes(key):
+    """The compact sizes Core reads from a key as its type: the type, and
+    for a proprietary key (0xfc) the prefix's length and the subtype."""
+    out = [_size_at(key, 0)]
+    if key[:1] == b"\xfc":
+        at = 1
+        n = _size_at(key, at)
+        out.append(n)
+        if n != "cut":
+            at += (1 if n < 0xfd else 1 + {0xfd: 2, 0xfe: 4, 0xff: 8}[key[at]]) + n
+            out.append(_size_at(key, at))
+    return out
+
+
+def core_wide_type(raw, text):
+    """Core reads a key's type, and a proprietary key's subtype, as a
+    compact size: it refuses one over its limit ("size too large") or cut
+    short by the key's end ("end of data"). Faraday's reader (and
+    `bitcoin`'s) reads the type as one byte and only carries the pair."""
+    want = ("size too large" if "ReadCompactSize(): size too large" in text else
+            "end of data" if "SpanReader::read(): end of data" in text else None)
+    if want is None:
+        return False
+    for _, _, key, _ in pairs_of(raw):
+        for n in _type_sizes(key):
+            if (n == "cut") if want == "end of data" else (n != "cut" and n > CORE_MAX_SIZE):
+                return True
+    return False
+
+
+def musig_key_wrong(raw):
+    """A pair of a MuSig2 type (BIP-373) whose key data is not of a size it
+    allows: an aggregate key of 33 bytes for the participants fields
+    (input 0x1a, output 0x08), 33 and 33 or 33 more bytes for a public nonce
+    or a partial signature (input 0x1b, 0x1c; the key is the type byte and
+    its data)."""
+    for kind, _, key, value in pairs_of(raw):
+        if kind == "input" and key[:1] == b"\x1a" and len(key) != 34:
+            return True
+        if kind == "input" and key[:1] in (b"\x1b", b"\x1c") and len(key) not in (67, 99):
+            return True
+        if kind == "output" and key[:1] == b"\x08" and len(key) != 34:
+            return True
+        # the values: participants are 33-byte keys, a nonce 66 bytes, a
+        # partial signature 32
+        if key[:1] in ((b"\x1a",) if kind == "input" else (b"\x08",) if kind == "output" else ()):
+            if not value or len(value) % 33:
+                return True
+        if kind == "input" and key[:1] == b"\x1b" and len(value) != 66:
+            return True
+        if kind == "input" and key[:1] == b"\x1c" and len(value) != 32:
+            return True
+    return False
+
+
+def _sum_over(value):
+    return value < 0 or value > MAX_MONEY
+
+
+def _prev_tx(value):
+    tx = CTransaction()
+    tx.deserialize(io.BytesIO(value))
+    return tx
+
+
+def amount_over(raw):
+    """An amount over 21,000,000 BTC (or one that reads negative): an
+    output of the unsigned transaction, a version 2 output's amount, a
+    witness UTXO's, or an output of a previous transaction."""
+    got = maps_of(raw)
+    if got is None:
+        return False
+    maps, n_in = got
+    glob = get(maps[0], 0)
+    if glob is not None:
+        try:
+            if any(_sum_over(o.nValue) for o in read_unsigned(glob).vout):
+                return True
+        except Exception:  # noqa: BLE001
+            pass
+    for i, m in enumerate(maps[1:], 1):
+        for k, v in m:
+            if i > n_in and k == b"\x03" and len(v) == 8:
+                if _sum_over(int.from_bytes(v, "little", signed=True)):
+                    return True
+            if i <= n_in and k == b"\x01" and len(v) >= 8:
+                if _sum_over(int.from_bytes(v[:8], "little", signed=True)):
+                    return True
+            if i <= n_in and k == b"\x00":
+                try:
+                    if any(_sum_over(o.nValue) for o in _prev_tx(v).vout):
+                        return True
+                except Exception:  # noqa: BLE001
+                    pass
+    return False
+
+
+def utxos_disagree(raw):
+    """An input with a previous transaction and a witness UTXO, the
+    witness UTXO not the previous transaction's output at the spent index."""
+    got = maps_of(raw)
+    if got is None:
+        return False
+    maps, n_in = got
+    v2 = _says_v2(raw)
+    spent = None
+    if not v2:
+        try:
+            spent = [i.prevout.n for i in read_unsigned(get(maps[0], 0)).vin]
+        except Exception:  # noqa: BLE001
+            return False
+    for i, m in enumerate(maps[1:n_in + 1]):
+        prev, wit = get(m, 0x00), get(m, 0x01)
+        if prev is None or wit is None:
+            continue
+        n = spent[i] if spent is not None else int.from_bytes(get(m, 0x0f) or b"", "little")
+        try:
+            outs = _prev_tx(prev).vout
+            if n >= len(outs) or outs[n].serialize() != wit:
+                return True
+        except Exception:  # noqa: BLE001
+            continue
+    return False
+
+
+def preimage_wrong(raw):
+    """An input's hash preimage (types 0x0a RIPEMD160, 0x0b SHA256, 0x0c
+    HASH160, 0x0d HASH256) that does not hash to its key's data."""
+    for kind, _, key, value in pairs_of(raw):
+        if kind != "input" or key[:1] not in (b"\x0a", b"\x0b", b"\x0c", b"\x0d"):
+            continue
+        sha = hashlib.sha256(value).digest()
+        want = {b"\x0a": ripemd160(value), b"\x0b": sha, b"\x0c": ripemd160(sha),
+                b"\x0d": hashlib.sha256(sha).digest()}[key[:1]]
+        if key[1:] != want:
+            return True
+    return False
+
+
+def bip375_in_v0(raw):
+    """A pair of a type BIP-375 defines (`BIP375_V2`) in a version 0 PSBT, in
+    any map."""
+    if _says_v2(raw):
+        return False
+    return any(key[:1] and key[0] in BIP375_V2[0 if kind == "global" else 1 if kind == "input" else 2]
+               for kind, _, key, _ in pairs_of(raw))
+
+
+def bip375_pair(raw):
+    """A pair of a type BIP-375 defines, in a PSBT of either version (the
+    global 0x09 included)."""
+    types = {"global": {0x07, 0x08, 0x09}, "input": {0x1d, 0x1e}, "output": {0x09, 0x0a}}
+    return any(key[0] in types[kind] for kind, _, key, _ in pairs_of(raw))
+
+
+def long_origin(raw):
+    """A key origin (a global xpub 0x01, an input's 0x06 or taproot 0x16, an
+    output's 0x02 or taproot 0x07) of more than 16 steps."""
+    origins = {("global", 0x01), ("input", 0x06), ("input", 0x16), ("output", 0x02),
+               ("output", 0x07)}
+    for kind, _, key, value in pairs_of(raw):
+        ty = key[:1]
+        if (kind, key[0] if key else None) not in origins:
+            continue
+        if ty in (b"\x16", b"\x07"):  # leaf hashes first
+            n = _size_at(value, 0)
+            if n == "cut":
+                continue
+            value = value[(1 if n < 0xfd else 1 + {0xfd: 2, 0xfe: 4, 0xff: 8}[value[0]]) + 32 * n:]
+        if len(value) >= 4 and (len(value) - 4) % 4 == 0 and (len(value) - 4) // 4 > 16:
+            return True
+    return False
+
+
+def tx_version_high(raw):
+    """A version 2 PSBT's transaction version (global 0x02) of 2^31 or more."""
+    got = maps_of(raw)
+    v = get(got[0][0], 0x02) if got else None
+    return v is not None and len(v) == 4 and int.from_bytes(v, "little") >= 2**31
+
+
+def empty_output_script(raw):
+    """A version 2 output's PSBT_OUT_SCRIPT (0x04) that is present and empty."""
+    return any(kind == "output" and key == b"\x04" and value == b""
+               for kind, _, key, value in pairs_of(raw))
+
+
+def key_type_cut(raw):
+    """A key whose type is a compact size cut short by the key's end (0xfd,
+    0xfe or 0xff and fewer bytes than that form takes)."""
+    return any(_size_at(key, 0) == "cut" for _, _, key, _ in pairs_of(raw) if key)
+
+
+def no_inputs(raw):
+    """True for a version 2 PSBT of a transaction with no input."""
+    got = maps_of(raw)
+    return got is not None and got[1] == 0
+
+
+def unmarked_tx(tx):
+    """A transaction (hex) of no input as HWI and BIP-174 write it, with no
+    segwit marker: `bitcoin` writes one of no input with the marker `0001`
+    after the version, which is the same transaction."""
+    return tx[:8] + tx[12:] if tx[8:12] == "0001" else tx
+
+
+def unmarked_v0(raw):
+    """The version 0 PSBT (bytes) with its unsigned transaction of no input
+    written without the marker."""
+    glob, at = read_map(raw, len(MAGIC))
+    tx = get(glob, 0)
+    if tx is None or tx[4:6] != b"\x00\x01":
+        return raw
+    glob = [(k, tx[:4] + tx[6:] if k == b"\x00" else v) for k, v in glob]
+    return MAGIC + write_map(glob) + raw[at:]
+
+
+def core_rule(raw, text):
+    """Bitcoin Core refuses a version 0 PSBT (`decodepsbt`'s `text`) that
+    Faraday reads."""
+    if "Non-witness UTXO does not match outpoint hash" in text:
+        # Faraday reads it, shows that input's amount and the fee as unknown
+        # and blocks it; it never signs it.
+        return "core: a previous transaction that is not the spent output's"
+    if "Input specifies output index that does not exist" in text:
+        return "core: a previous transaction with no output at the spent index"
+    if core_wide_type(raw, text):
+        return "core: a key type or proprietary subtype as a compact size over its limit"
+    if "musig2" in text.lower() and musig_key_wrong(raw):
+        return "core: a MuSig2 field's key data of a size BIP-373 forbids"
+    return None
+
+
+def hwi_rule(raw, text):
+    """HWI refuses a version 2 PSBT (once the pairs Faraday leaves to the
+    bridge are taken out) that Faraday reads."""
+    if "unpack requires a buffer of" in text and key_type_cut(raw):
+        return "hwi: a key type cut short"
+    if "'i' format requires" in text and tx_version_high(raw):
+        return "hwi: a transaction version of 2^31 or more"
+    if "PSBT_OUTPUT_SCRIPT is required" in text and empty_output_script(raw):
+        return "hwi: an empty output script"
+    if "Musig2" in text and musig_key_wrong(raw):
+        return "hwi: a MuSig2 field's key data of a size BIP-373 forbids"
+    return None
+
+
+def btclib_rule(raw, version, text):
+    """btclib refuses a PSBT that Faraday reads."""
+    if "satoshi amount" in text and amount_over(raw):
+        return "btclib: an amount over 21,000,000 BTC"
+    if "mismatched witness utxo" in text and utxos_disagree(raw):
+        return "btclib: a witness UTXO that is not the previous transaction's output"
+    if "preimage" in text and preimage_wrong(raw):
+        return "btclib: a preimage that does not hash to its key"
+    if ("silent payment" in text or "signed message" in text) and bip375_pair(raw):
+        return "btclib: a BIP-375 field whose key data is of a size it forbids"
+    if version == 0 and bip375_in_v0(raw):
+        return "btclib: a BIP-375 field in a version 0 PSBT"
+    return None
+
+
 class Psbt(Area):
     name = "psbt"
     # A corpus PSBT with fields btclib refuses and the BIPs do not (see the
@@ -543,7 +885,7 @@ class Psbt(Area):
         "btclib's `lock_time`, `tx` and `to_v0`; one version 0 PSBT in eight carries "
         'fields btclib refuses and btclib is not asked of it; every PSBT of the fuzz '
         "corpora (`fuzz/corpus/psbt_diff`, `psbt_parse`, `psbt_v2`, and a grown corpus "
-        "when `FARADAY_FUZZ_CORPUS` or the fuzz store has one) judged the same ways"
+        "when `FARADAY_FUZZ_CORPUS` or `FARADAY_FUZZ_STORE` names one) judged the same ways"
     )
     differences = [
         (
@@ -588,6 +930,30 @@ class Psbt(Area):
             'place are left out of the conversions it is compared on, and leaf hashes are '
             'compared sorted, as it writes them.'
         ),
+        (
+            "Bitcoin Core refuses a previous transaction that is not the spent output's, or has "
+            'no output at the spent index, a key type or proprietary subtype that is a compact '
+            "size over its limit or cut short, and a MuSig2 field whose key data is of a size "
+            'BIP-373 forbids; Faraday reads the PSBT, carries the pair or blocks the input at '
+            'use, and never signs it.'
+        ),
+        (
+            'HWI refuses a key type cut short, a transaction version of 2^31 or more, an '
+            'empty output script and a MuSig2 field whose key data is of a size BIP-373 '
+            "forbids; Faraday reads them. Faraday's bridge to version 0 refuses a key origin of "
+            'more than 16 steps and a preimage that does not hash to its key, which HWI and '
+            'Core read.'
+        ),
+        (
+            'btclib refuses an amount over 21,000,000 BTC, a witness UTXO that is not the '
+            'previous transaction\'s output, a preimage that does not hash to its key and a '
+            'BIP-375 field in a version 0 PSBT; Faraday reads them and blocks the first two '
+            'at use.'
+        ),
+        (
+            'A version 2 transaction with no input is written by `bitcoin` with the segwit '
+            'marker and by HWI without; it is compared without it.'
+        ),
     ]
     not_compared = (
         'whether a `PSBT_GLOBAL_VERSION` of 0 is written: Core reads a version 0 PSBT '
@@ -613,7 +979,10 @@ class Psbt(Area):
             elif r[0] == "ok" and h[0] == "ok" and r[1]["v0"] and h[1]["v0"]:
                 # Both version 0 forms, read by Core.
                 at[i] = len(calls)
-                calls += [("decodepsbt", [b64(bytes.fromhex(x[1]["v0"]))]) for x in (r, h)]
+                v0s = [bytes.fromhex(x[1]["v0"]) for x in (r, h)]
+                if no_inputs(raw):
+                    v0s[0] = unmarked_v0(v0s[0])
+                calls += [("decodepsbt", [b64(v)]) for v in v0s]
         core = core_batch(calls) if calls else []
         for i, ((raw, version, expected), r, h) in enumerate(zip(reads, rust, hwi)):
             if version == 0:
@@ -649,6 +1018,12 @@ class Psbt(Area):
                                "Faraday refuses what Core reads, and neither HWI nor "
                                "btclib refuses it")
             self.known += 1
+        elif rust[0] == "ok" and decoded[0] == "err" and core_rule(raw, decoded[1]):
+            # Core refuses what Faraday reads, by a rule of the list.
+            self.rule(core_rule(raw, decoded[1]))
+            if bytes.fromhex(rust[1]["bytes"]) != raw:
+                raise Mismatch(self.name, "psbt.v0", inputs, rust, shown,
+                               "Faraday does not write back the bytes it read")
         elif rust[0] != decoded[0]:
             raise Mismatch(self.name, "psbt.v0", inputs, rust, shown)
         elif rust[0] == "ok":
@@ -684,6 +1059,10 @@ class Psbt(Area):
         if expected is not None and decided[0] != expected:
             raise Mismatch(self.name, "psbt.v0", inputs, rust, decided,
                            f"differs from the published vector ({expected})")
+
+    def rule(self, name):
+        """A known difference of the list applied."""
+        self.known += 1
 
     def judge_fee(self, inputs, rust, analyzed):
         """Core's `analyzepsbt` fee, in satoshis, against Faraday's
@@ -723,6 +1102,17 @@ class Psbt(Area):
             # key data on a field that takes none, for one): not a
             # refusal btclib is asked to make.
             self.known += 1
+            return
+        if bt[0] == "err" and rust[0] == "ok":
+            rule = btclib_rule(raw, 0, bt[1])
+            if rule:
+                self.rule(rule)
+                return
+            if decided[0] == "err":
+                return  # Core refuses it too, by a rule of the list
+        if rust[0] == "ok" and decided[0] == "err":
+            # Core refuses it by a rule of the list (`core_rule`): btclib's
+            # reading of it is not compared.
             return
         if bt[0] != decided[0]:
             raise Mismatch(self.name, "psbt.v0", {"psbt": raw.hex()}, rust,
@@ -839,10 +1229,14 @@ class Psbt(Area):
             left = faraday_leaves(raw)
             hwi = outcome(lambda: hwi_v2(left)) if left is not None else hwi
             if hwi[0] == "err":
-                raise Mismatch(self.name, "psbt.v2", inputs, rust, hwi,
-                               "Faraday reads what HWI refuses, even without the pairs "
-                               "Faraday leaves to the bridge")
-            self.known += 1
+                rule = hwi_rule(raw, hwi[1])
+                if not rule:
+                    raise Mismatch(self.name, "psbt.v2", inputs, rust, hwi,
+                                   "Faraday reads what HWI refuses, even without the pairs "
+                                   "Faraday leaves to the bridge")
+                self.rule(rule)
+            else:
+                self.known += 1
             decided = hwi
             leaves = True
             read = left
@@ -853,7 +1247,8 @@ class Psbt(Area):
             if bytes.fromhex(got["bytes"]) != raw:
                 raise Mismatch(self.name, "psbt.v2", inputs, rust, hwi,
                                "Faraday does not write back the bytes it read")
-            if (got["locktime"], got["tx"]) != (hwi[1]["locktime"], hwi[1]["tx"]):
+            tx = unmarked_tx(got["tx"]) if no_inputs(raw) and got["tx"] else got["tx"]
+            if hwi[0] == "ok" and (got["locktime"], tx) != (hwi[1]["locktime"], hwi[1]["tx"]):
                 raise Mismatch(self.name, "psbt.v2", inputs, rust, hwi,
                                "the locktime or the transaction differs")
             # The version 0 form: HWI's `convert_to_v0`, written by HWI,
@@ -865,16 +1260,29 @@ class Psbt(Area):
                 # the version 0 PSBT of the PSBT's own pairs.
                 core_v0 = core_batch([("decodepsbt", [b64(v0_of_pairs(raw, hwi[1]["tx"]))])])[0]
                 if core_v0[0] != "err":
-                    raise Mismatch(self.name, "psbt.v2", inputs, rust, hwi,
-                                   "HWI makes a version 0 PSBT of it, Core reads one, "
-                                   "Faraday makes none")
-                self.known += 1
+                    # Faraday's bridge refuses what no wallet has (a key
+                    # origin of over 16 steps) and a preimage that does not
+                    # hash to its key; HWI and Core read them.
+                    rule = ("faraday: a key origin of more than 16 steps" if long_origin(raw)
+                            else "faraday: a preimage that does not hash to its key"
+                            if preimage_wrong(raw) else None)
+                    if not rule:
+                        raise Mismatch(self.name, "psbt.v2", inputs, rust, hwi,
+                                       "HWI makes a version 0 PSBT of it, Core reads one, "
+                                       "Faraday makes none")
+                    self.rule(rule)
+                else:
+                    self.known += 1
             elif not leaves and (got["v0"] is None) != (hwi[1]["v0"] is None):
                 raise Mismatch(self.name, "psbt.v2", inputs, rust, hwi,
                                "one makes a version 0 PSBT of it and the other does not")
             if core is not None:
                 mine, theirs = core_view(core[0]), core_view(core[1])
-                if mine[0] != "ok" or mine != theirs:
+                if (mine[0] == theirs[0] == "err" and core_rule(raw, mine[1])
+                        and core_rule(raw, theirs[1])):
+                    # Core refuses both version 0 forms by a rule of the list.
+                    self.rule(core_rule(raw, mine[1]))
+                elif mine[0] != "ok" or mine != theirs:
                     raise Mismatch(self.name, "psbt.v2", inputs, rust,
                                    {"core_reads_faradays": mine, "core_reads_hwis": theirs},
                                    "Core reads Faraday's version 0 form otherwise than HWI's")
@@ -905,7 +1313,16 @@ class Psbt(Area):
             # version 0 PSBT, and Core refuses the one of its own pairs.
             self.known += 1
             return
-        if bt[0] != decided[0]:
+        if bt[0] == "err" and rust[0] == "ok":
+            rule = btclib_rule(raw, 2, bt[1])
+            if rule:
+                self.rule(rule)
+                return
+            if decided[0] == "err":
+                return  # HWI refuses it too, by a rule of the list
+        if decided[0] == "err" and rust[0] == "ok" and bt[0] == "ok":
+            pass  # HWI refuses it by a rule of the list; btclib reads it
+        elif bt[0] != decided[0]:
             raise Mismatch(self.name, "psbt.v2", inputs, rust, {"btclib": seen(bt), "others": decided},
                            "btclib's reading of the PSBT differs from HWI's and Faraday's")
         if bt[0] != "ok" or rust[0] != "ok":
@@ -914,7 +1331,8 @@ class Psbt(Area):
         lock = btclib_lock(p)
         tx = None if lock is None else p.tx.serialize(include_witness=False,
                                                      check_validity=False).hex()
-        if (lock, tx) != (got["locktime"], got["tx"]):
+        ours_tx = unmarked_tx(got["tx"]) if no_inputs(read) and got["tx"] else got["tx"]
+        if (lock, tx) != (got["locktime"], ours_tx):
             raise Mismatch(self.name, "psbt.v2", inputs, rust, {"locktime": lock, "tx": tx},
                            "the locktime or the transaction differs from btclib's")
         if leaves or got["v0"] is None or lock is None:
@@ -924,7 +1342,10 @@ class Psbt(Area):
         if made[0] != "ok":
             raise Mismatch(self.name, "psbt.v2", inputs, rust, made,
                            "btclib does not make a version 0 PSBT of it")
-        ours = [sorted_leaves(m) for m in split(bytes.fromhex(got["v0"]), n_in, n_out)[0]]
+        v0 = bytes.fromhex(got["v0"])
+        if no_inputs(read):
+            v0 = unmarked_v0(v0)
+        ours = [sorted_leaves(m) for m in split(v0, n_in, n_out)[0]]
         differ = unrewritten([sorted_leaves(m) for m in split(read)[0]],
                              btclib_maps(p, n_in, n_out, 2), ours, made[1])
         for i, left in enumerate(differ):
@@ -1215,8 +1636,6 @@ class Psbt(Area):
         if i >= len(FUZZ[0]):
             return
         name, raw = FUZZ[0][i]
-        if hashlib.sha256(raw).hexdigest() in FUZZ_SKIPPED:
-            return
         version = 2 if _says_v2(raw) else 0
         self.read_all([(raw, version, None), (raw, 2 - version, None)])
 
