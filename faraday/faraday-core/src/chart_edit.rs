@@ -269,24 +269,37 @@ impl Faraday {
 
     /// Costs what the plan the chart shows costs. A kept old Seed XOR
     /// part of seed `i` with fingerprint `fp` destroyed: it leaves the
-    /// plan and the vault's copy of it, with its notes.
+    /// plan and every open vault's copy of it, with its notes. While the
+    /// backup flow is open on the wallet's checklist the plan is the
+    /// flow's unsaved one: the part leaves it as the flow's own
+    /// I destroyed it does, and the flow's save writes it with its notes.
     pub(crate) fn chart_destroyed(&mut self, press: Press, i: usize, fp: [u8; 4]) {
         let c = self.compute();
         let Some(w) = self.press_wallet(press) else {
             return;
         };
+        if let Some(b) = self.backup.state()
+            && b.wallet == w
+            && b.stage == crate::BStage::Checklist
+        {
+            let shape = self.plan_shape_now(w);
+            self.backup
+                .change_answers(&shape, &|a, _| a.destroy_kept(i, fp));
+            self.backup.old_part_destroyed(i, fp);
+            return;
+        }
         let Some(v) = self.notes_vault(&c, press, w) else {
+            return;
+        };
+        let Some((mut answers, names)) = crate::wallet_backup::plan_now(&c, self, w) else {
             return;
         };
         let Some(wallet) = self.session.wallets.get(w) else {
             return;
         };
-        let notes = self.plan_notes(&c, wallet, Some(v));
-        let Some((mut answers, names)) = crate::wallet_backup::plan_now(&c, self, w) else {
-            return;
-        };
+        let shape = self.plan_shape_now(w);
+        let before = answers.clone();
         answers.destroy_kept(i, fp);
-        let notes = crate::plan::xor::notes_after_destroyed(&notes, i, fp);
         // The device's own record of the plan draws the chart first.
         let sum = Text::of(wallet.checksum());
         let mut records = self.backups_area.records().to_vec();
@@ -297,9 +310,37 @@ impl Faraday {
             r.answers = Text::of(&answers.to_text());
             self.backups_area.set_records(records);
         }
-        self.plan_store(v, w, &answers, &names, &[], Some(&notes));
-        // The checklist, where it is open on this wallet, follows.
-        self.backup.follow_answers(w, answers);
+        // Each open vault that keeps the wallet's plan, the one the chart
+        // is drawn from first, holds it without the part, with the lines
+        // it already holds of other vaults' seeds.
+        let mut vaults = vec![v];
+        vaults.extend(self.plan_vaults_of(&c, w).into_iter().filter(|&o| o != v));
+        for o in vaults {
+            let Some(wallet) = self.session.wallets.get(w) else {
+                return;
+            };
+            let notes = self.plan_notes(&c, wallet, Some(o));
+            let notes = crate::plan::xor::notes_after_destroyed(&notes, i, fp);
+            let extras = self.vaults.plan_extras_of(&c, o, wallet, &shape, &before);
+            self.plan_store(o, w, &answers, &names, &extras, Some(&notes));
+        }
+    }
+
+    /// Costs what `described_of` costs. The open vaults that keep a plan
+    /// record of wallet `w`.
+    fn plan_vaults_of(&self, c: &Compute, w: usize) -> Vec<usize> {
+        use faraday_vault::records::kind;
+        let Some(wallet) = self.session.wallets.get(w) else {
+            return Vec::new();
+        };
+        let want = wallet.same();
+        (0..self.vaults.open.len())
+            .filter(|&o| {
+                self.vaults
+                    .described_of(c, self.vaults.open[o].id, kind::PLAN)
+                    .any(|(_, _, d)| d.same == *want)
+            })
+            .collect()
     }
 
     /// Costs what `notes_vault` costs. Whether the vault a date would be

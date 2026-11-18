@@ -233,6 +233,34 @@ impl VaultArea {
         })
     }
 
+    /// Costs what `described_of` costs, and `place_map`. The lines open
+    /// vault `v`'s plan record of `w` holds besides its places' own: work a
+    /// later plan dropped (`PlanSource::extras`), the record having been
+    /// made from `answers`.
+    pub(crate) fn plan_extras_of(
+        &self,
+        c: &Compute,
+        v: usize,
+        w: &crate::wallet::Wallet,
+        shape: &plan::Shape,
+        answers: &plan::Answers,
+    ) -> Vec<faraday_text::Text> {
+        let Some(open) = self.open.get(v) else {
+            return Vec::new();
+        };
+        let spots = plan::place_map(c, shape, answers).len();
+        let want = wallet::same_wallet(w.policy());
+        self.described_of(c, open.id, kind::PLAN)
+            .find(|(_, r, d)| *d.same == *want && reads_for(d, *r, w.policy()))
+            .map(|(_, r, _)| {
+                r.public_all(field::PLAN_HOLDS)
+                    .skip(spots)
+                    .map(faraday_text::Text::from_utf8_lossy)
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
     /// Costs what `plan_refused` costs. Open vault `v` no longer keeps a
     /// plan for `w`, which the person left it out of: the records it kept
     /// for the wallet go, unless they are for the other key order `w` does

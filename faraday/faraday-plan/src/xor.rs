@@ -421,6 +421,21 @@ mod tests {
     }
 
     #[test]
+    fn a_kept_part_of_a_broken_old_set_counts_for_no_whole_one() {
+        let sh = shape();
+        let mut a = planned();
+        a.make_new_parts(&sh, 0, set(2, 2)).expect("made");
+        a.make_new_parts(&sh, 0, set(2, 3)).expect("made");
+        a.destroy_kept(0, [2, 2, 2, 0]);
+        let needs = a.set_needs();
+        // The first old set is whole; of the second only one part is left.
+        let held = [kept(1, 0), kept(1, 1), kept(2, 1)];
+        assert!(needs.counts(0, kept(1, 0), &held));
+        assert!(needs.counts(0, kept(1, 1), &held));
+        assert!(!needs.counts(0, kept(2, 1), &held));
+    }
+
+    #[test]
     fn a_fifth_old_set_is_refused() {
         let sh = shape();
         let mut a = planned();

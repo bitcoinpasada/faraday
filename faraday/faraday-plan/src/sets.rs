@@ -57,7 +57,7 @@ impl Needs {
             .iter()
             .filter(|r| r.seed() == i && r.enough(ws))
             .any(|r| match (r, w) {
-                (Rule::XorOld(..), What::XorKept(..)) => true,
+                (Rule::XorOld(_, fps), What::XorKept(_, fp)) => fps.contains(&fp),
                 (Rule::XorOld(..), _) | (_, What::XorKept(..)) => false,
                 _ => true,
             })

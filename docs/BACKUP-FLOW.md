@@ -2865,7 +2865,9 @@ place. Each old part the plan placed stays at its place as a kept old
 part until the person says otherwise: the section lists each by number
 and place ("Old part 2 · Place 2") with **I destroyed it**, which takes
 it off the plan, and **Still kept**, which leaves it there, marked; a
-kept part's chart sheet offers I destroyed it later. A part the plan
+kept part's chart sheet offers I destroyed it later: it leaves the
+plan in every open vault that keeps it, and while Back up is open it
+leaves the flow's plan, which the flow's save writes. A part the plan
 never placed is not asked about. A kept part's chip reads "Old part ·
 still kept", in a group of its own under the set ("Seed XOR · old set");
 it has no checklist item and no Check my copy, and the parts item counts

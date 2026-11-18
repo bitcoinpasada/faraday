@@ -2434,6 +2434,8 @@ fn kept_old_parts() -> (Faraday, usize, Vec<[u8; 4]>) {
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::SaveWallet(w)));
     app.press(Action::OpenWallet(w));
+    // Back up is left: the chart is drawn from what is kept.
+    testkit::backup_drop(&mut app);
     let _ = app.frame();
     (app, w, old)
 }
@@ -2454,6 +2456,11 @@ fn a_kept_old_parts_sheet_destroys_it() {
     // The other old parts are still kept.
     line_holding(&app, w, What::XorKept(0, old[0]));
     line_holding(&app, w, What::XorKept(0, old[2]));
+    // And the vault's record no longer lists the destroyed one.
+    for (answers, _) in plan_texts_in(&app, 0) {
+        assert!(!answers.contains(&format!("xork0.{}", hex(old[1]))));
+        assert!(answers.contains(&format!("xork0.{}", hex(old[0]))));
+    }
 }
 
 #[test]
@@ -2468,4 +2475,163 @@ fn mark_checked_never_dates_a_kept_part() {
             assert_eq!(node.checked[i], None, "{what:?} is not dated");
         }
     }
+}
+
+/// The wallet's plan records in open vault `o`: their answers and the
+/// lines their map holds.
+fn plan_texts_in(app: &Faraday, o: usize) -> Vec<(String, Vec<String>)> {
+    use crate::common::RecordsOf;
+    use faraday_vault::records::{field, kind};
+    crate::common::contents(app, o)
+        .of(kind::PLAN)
+        .map(|(_, r)| {
+            let r = faraday_keys::vault::RecordView::of(r);
+            (
+                r.public_text(field::PLAN_ANSWERS)
+                    .unwrap_or_default()
+                    .to_string(),
+                r.public_all(field::PLAN_HOLDS)
+                    .map(|b| String::from_utf8_lossy(b).into_owned())
+                    .collect(),
+            )
+        })
+        .collect()
+}
+
+/// `kept_old_parts` with a copy of the key's set checked first, and Back
+/// up opened again with Make new parts pressed on it, not saved.
+fn new_parts_made_unsaved() -> (Faraday, usize, Vec<[u8; 4]>) {
+    let (mut app, w) = xor_vault_wallet();
+    type_part(&mut app, w, 0, 0);
+    let first = app.session.keys.info(0).expect("the key").fingerprint.0;
+    let old = vec![first, [5, 6, 7, 8], [9, 10, 11, 12]];
+    app.press(Action::Backup(w));
+    app.press(Action::BChecklist);
+    app.press(Action::BXor(2));
+    assert_eq!(
+        app.backup().unwrap().answers.old_sets(0).count(),
+        1,
+        "the old set is kept"
+    );
+    (app, w, old)
+}
+
+#[test]
+fn i_destroyed_it_on_the_chart_during_back_up_waits_for_the_flows_save() {
+    let (mut app, w, old) = new_parts_made_unsaved();
+    app.press(Action::Chart(C::Destroyed(Press::Loaded(w), 0, old[1])));
+    let _ = app.frame();
+    for n in nodes(&chart(&app, w)) {
+        assert!(!n.whats.contains(&What::XorKept(0, old[1])), "{n:?}");
+    }
+    // Nothing was written: leaving Back up unsaved keeps the saved plan.
+    testkit::backup_drop(&mut app);
+    assert_eq!(part_checked(&mut app, w, 0).as_deref(), Some("2026-10-03"));
+    for (answers, _) in plan_texts_in(&app, 0) {
+        assert!(!answers.contains("xorold"), "{answers}");
+    }
+}
+
+#[test]
+fn a_part_destroyed_on_the_chart_during_back_up_leaves_the_new_part_unchecked_once_saved() {
+    let (mut app, w, old) = new_parts_made_unsaved();
+    app.press(Action::Chart(C::Destroyed(Press::Loaded(w), 0, old[1])));
+    app.press(Action::BVaultSave(0));
+    assert_eq!(part_checked(&mut app, w, 0), None);
+    let (node, _) = line_holding(&app, w, What::XorKept(0, old[0]));
+    assert!(!node.whats.contains(&What::XorKept(0, old[1])));
+}
+
+#[test]
+fn a_destroyed_old_part_leaves_every_open_vaults_plan() {
+    let (mut app, w, old) = kept_old_parts();
+    // A second vault holding the same plan.
+    for i in 0..8u8 {
+        app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(
+            [0x60 + i; 32],
+        )));
+    }
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Create));
+    for second in [false, true] {
+        app.press(Action::Vault(V::CFocus(0, second)));
+        type_text(&mut app, "other phrase");
+    }
+    app.press(Action::Vault(V::CGo));
+    app.settle();
+    type_text(&mut app, "other phrase");
+    app.press(Action::Vault(V::Unlock));
+    app.settle();
+    assert_eq!(app.vaults().open.len(), 2, "the second vault did not open");
+    use crate::common::RecordsOf;
+    // The first vault's plan record, kept in the second as well.
+    let plan = {
+        use faraday_vault::records::{field, kind};
+        let one = crate::common::contents(&app, 0)
+            .of(kind::PLAN)
+            .next()
+            .map(|(_, r)| faraday_keys::vault::RecordView::of(r))
+            .expect("the plan is kept");
+        let mut copy = faraday_vault::Record::new(kind::PLAN);
+        for f in [
+            field::PLAN_WALLET,
+            field::PLAN_ANSWERS,
+            field::PLAN_PLACE,
+            field::PLAN_HOLDS,
+            field::PLAN_NOTE,
+        ] {
+            for b in one.public_all(f) {
+                copy.push(f, b);
+            }
+        }
+        copy
+    };
+    let id = app.vaults().open[1].id;
+    testkit::vault_edit(&mut app, id, |s| s.insert(id, plan)).expect("inserted");
+    app.press(Action::OpenWallet(w));
+    let _ = app.frame();
+    let kept = format!("xork0.{}", hex(old[1]));
+    for o in 0..2 {
+        let plans = plan_texts_in(&app, o);
+        assert!(plans.iter().any(|(a, _)| a.contains(&kept)), "vault {o}");
+    }
+    app.press(Action::Chart(C::Destroyed(Press::Loaded(w), 0, old[1])));
+    let _ = app.frame();
+    for o in 0..2 {
+        for (answers, _) in plan_texts_in(&app, o) {
+            assert!(!answers.contains(&kept), "vault {o}: {answers}");
+        }
+    }
+}
+
+#[test]
+fn a_destroyed_old_part_keeps_the_lines_the_vault_holds() {
+    use faraday_vault::records::{field, kind};
+    let c = testkit::compute();
+    let (mut app, w, old) = kept_old_parts();
+    let id = app.vaults().open[0].id;
+    let at: Vec<usize> = app
+        .vaults()
+        .described_of(&c, id, kind::PLAN)
+        .map(|(i, _, _)| i)
+        .collect();
+    let mut lines: Vec<Vec<u8>> = plan_texts_in(&app, 0)[0]
+        .1
+        .iter()
+        .map(|l| l.as_bytes().to_vec())
+        .collect();
+    lines.push(b"Vault X holds seed 1".to_vec());
+    let lines: Vec<&[u8]> = lines.iter().map(Vec::as_slice).collect();
+    testkit::vault_edit(&mut app, id, |s| {
+        s.set_public_all_in(&c, id, &at, field::PLAN_HOLDS, &lines)
+    })
+    .unwrap();
+    app.press(Action::Chart(C::Destroyed(Press::Loaded(w), 0, old[1])));
+    let _ = app.frame();
+    let held = &plan_texts_in(&app, 0)[0].1;
+    assert!(held.iter().any(|l| l == "Vault X holds seed 1"), "{held:?}");
+}
+
+fn hex(fp: [u8; 4]) -> String {
+    fp.iter().map(|b| format!("{b:02x}")).collect()
 }
