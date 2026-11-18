@@ -2224,7 +2224,9 @@ impl Faraday {
                         .iter()
                         .copied()
                         .chain(add)
-                        .filter(|p| !drop.contains(p))
+                        // A place the record cannot hold is left out, so an
+                        // edit that would write the same text is not made.
+                        .filter(|p| *p < records::MAX_CHECKED_KEYS && !drop.contains(p))
                         .collect();
                     places.sort_unstable();
                     places.dedup();

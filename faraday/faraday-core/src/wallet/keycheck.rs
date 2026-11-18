@@ -160,15 +160,18 @@ impl KeyChecks {
         self.apply();
     }
 
-    /// Toggles the tick of key `i` where the person's tick decides it.
-    pub(crate) fn tick(&mut self, i: usize) {
+    /// Toggles the tick of key `i` where the person's tick decides it;
+    /// whether it did.
+    pub(crate) fn tick(&mut self, i: usize) -> bool {
         if matches!(
             self.states.get(i),
             Some(KeyCheck::Unchecked | KeyCheck::Checked)
         ) {
             self.ticks[i] = !self.ticks[i];
             self.apply();
+            return true;
         }
+        false
     }
 
     pub(crate) fn unchecked(&self) -> usize {
@@ -214,11 +217,11 @@ impl Session {
 
     /// Toggles the person's tick of key `key` of wallet `wallet` where the
     /// key is unchecked or checked by them; nothing for a key a loaded key
-    /// gives or one that is wrong. A lookup.
-    pub fn tick_key(&mut self, wallet: usize, key: usize) {
-        if let Some(w) = self.wallets.get_mut(wallet) {
-            w.key_checks.tick(key);
-        }
+    /// gives or one that is wrong. True when a tick was toggled. A lookup.
+    pub fn tick_key(&mut self, wallet: usize, key: usize) -> bool {
+        self.wallets
+            .get_mut(wallet)
+            .is_some_and(|w| w.key_checks.tick(key))
     }
 
     /// Costs what [`KeyChecks::update`] costs: the states of wallet `i`

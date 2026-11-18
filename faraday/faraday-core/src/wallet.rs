@@ -4124,15 +4124,17 @@ impl Faraday {
             // leaves the next one at its place: the press is dropped.
             KeyBlockOf::Wallet(_) if self.wallets.list_changed() => {}
             KeyBlockOf::Wallet(i) => {
-                self.session.tick_key(usize::from(i), key);
-                self.vault_keep_tick(usize::from(i), key);
+                if self.session.tick_key(usize::from(i), key) {
+                    self.vault_keep_tick(usize::from(i), key);
+                }
             }
             // The same, and a Result whose wallet is gone ticks nothing.
             KeyBlockOf::Check if self.wallets.list_changed() => {}
             KeyBlockOf::Check => match self.tools.mscheck.of_wallet() {
                 Some(_) => {
-                    if let Some(i) = self.tools.mscheck.own_wallet(&self.session) {
-                        self.session.tick_key(i, key);
+                    if let Some(i) = self.tools.mscheck.own_wallet(&self.session)
+                        && self.session.tick_key(i, key)
+                    {
                         self.vault_keep_tick(i, key);
                     }
                 }

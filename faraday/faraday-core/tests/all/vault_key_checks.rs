@@ -404,3 +404,87 @@ fn a_sheet_confirmed_with_nothing_ticked_keeps_what_the_vault_remembers() {
     let app = reloaded_from_the_record(app);
     assert_eq!(checked_keys(&app), [1, 2]);
 }
+
+/// The wallet met in Check a multisig setup (its keys in `order`), key 0
+/// ticked there and the wallet added.
+fn added_through_check_with_key_0_ticked(app: &mut Faraday, order: [usize; 3]) {
+    app.press(Action::MultisigCheck(MsAction::Open));
+    app.press(Action::MultisigCheck(MsAction::Scan));
+    app.event(Event::Scanned {
+        bytes: multisig_in(order).into_bytes(),
+    });
+    let _ = app.frame();
+    let place = order.iter().position(|&n| n == 0).unwrap() as u8;
+    app.press(Action::KeyTick(
+        faraday_core::wallet::KeyBlockOf::Check,
+        place,
+    ));
+    app.press(Action::MultisigCheck(MsAction::Add));
+    if app.sheet == Some(Sheet::WalletConfirm) {
+        app.press(Action::WalletHold);
+    }
+    assert_eq!(app.session.wallets.len(), 1);
+}
+
+#[test]
+fn a_sheet_only_adds_to_what_the_vault_remembers() {
+    let mut app = unlocked(vec![("held.kdbx".to_string(), held_file())]);
+    added_through_check_with_key_0_ticked(&mut app, [0, 1, 2]);
+    let app = reloaded_from_the_record(app);
+    assert_eq!(checked_keys(&app), [0, 1, 2]);
+}
+
+#[test]
+fn a_sheet_with_the_keys_in_another_order_adds_the_key_by_its_fingerprint() {
+    let mut app = unlocked(vec![("held.kdbx".to_string(), held_file())]);
+    added_through_check_with_key_0_ticked(&mut app, [2, 1, 0]);
+    let app = reloaded_from_the_record(app);
+    assert_eq!(checked_keys(&app), [0, 1, 2]);
+}
+
+#[test]
+fn an_untick_reaches_a_record_the_wallet_was_not_loaded_from() {
+    let mut app = held_with_two_ticked_and_loaded_from_a_file();
+    for _ in 0..2 {
+        app.press(Action::KeyTick(
+            faraday_core::wallet::KeyBlockOf::Wallet(0),
+            1,
+        ));
+    }
+    let app = reloaded_from_the_record(app);
+    assert_eq!(checked_keys(&app), [2]);
+    assert_eq!(app.session.wallets[0].key_checks()[1], KeyCheck::Unchecked);
+}
+
+#[test]
+fn a_tick_in_another_key_order_reaches_the_record_by_its_key() {
+    let mut app = unlocked(vec![
+        ("held.kdbx".to_string(), held_file()),
+        (
+            "zz-wallet.txt".to_string(),
+            multisig_in([2, 1, 0]).into_bytes(),
+        ),
+    ]);
+    testkit::load_wallet(&mut app, 1);
+    assert_eq!(app.session.wallets.len(), 1);
+    // Key 0 is the file's place 2 and the record's place 0.
+    app.press(Action::KeyTick(
+        faraday_core::wallet::KeyBlockOf::Wallet(0),
+        2,
+    ));
+    let app = reloaded_from_the_record(app);
+    assert_eq!(checked_keys(&app), [0, 1, 2]);
+}
+
+#[test]
+fn a_press_on_a_key_that_is_yours_changes_no_record() {
+    let mut app = held_with_two_ticked_and_loaded_from_a_file();
+    add_key(&mut app, 1);
+    assert_eq!(app.session.wallets[0].key_checks()[1], KeyCheck::Yours);
+    app.press(Action::KeyTick(
+        faraday_core::wallet::KeyBlockOf::Wallet(0),
+        1,
+    ));
+    let app = reloaded_from_the_record(app);
+    assert_eq!(checked_keys(&app), [1, 2]);
+}
