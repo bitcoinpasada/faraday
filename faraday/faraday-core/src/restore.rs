@@ -130,9 +130,12 @@ pub struct Merged {
     pub name: Option<Text>,
 }
 
-/// `s` in lower case.
-fn lower(s: &str) -> Text {
-    s.chars().flat_map(char::to_lowercase).collect()
+/// Room for the lines of `keys` in a rebuilt text, so it is written once
+/// and never regrown.
+fn keys_size(keys: &[(Text, Text, Text)]) -> usize {
+    keys.iter()
+        .map(|(fp, d, x)| fp.len() + d.len() + x.len() + 24)
+        .sum()
 }
 
 /// A derivation as written, `'` and `h` alike, for comparing two.
@@ -164,7 +167,7 @@ pub fn merge<T: AsRef<str>>(texts: &[T]) -> Result<Merged, Text> {
         let p = parts(t.as_ref()).ok_or_else(|| Text::of(EN.restore_not_a_multisig))?;
         for (i, k) in p.keys.iter().enumerate() {
             if p.keys[..i].iter().any(|x| x.0.eq_ignore_ascii_case(&k.0)) {
-                return Err(Text::fill(EN.restore_key_twice, &[&*lower(&k.0)]));
+                return Err(Text::fill(EN.restore_key_twice, &[&*Text::lowercase(&k.0)]));
             }
         }
         match all.as_mut() {
@@ -194,20 +197,13 @@ pub fn merge<T: AsRef<str>>(texts: &[T]) -> Result<Merged, Text> {
         }
     }
     let a = all.ok_or_else(|| Text::of(EN.restore_no_shares))?;
-    let have: Vec<Text> = a.keys.iter().map(|k| lower(&k.0)).collect();
+    let have: Vec<Text> = a.keys.iter().map(|k| Text::lowercase(&k.0)).collect();
     // A Taproot multisig's sheets rebuild its descriptor: Coldcard's
     // config has no Taproot format.
     if a.format.eq_ignore_ascii_case("P2TR") {
         let whole = (a.keys.len() >= a.n).then(|| {
             use std::fmt::Write as _;
-            // Sized up front: the text is written once, never regrown.
-            let size = a
-                .keys
-                .iter()
-                .map(|(fp, d, x)| fp.len() + d.len() + x.len() + 24)
-                .sum::<usize>()
-                + NUMS.len()
-                + 48;
+            let size = keys_size(&a.keys) + NUMS.len() + 48;
             let mut out = Text::with_room(size);
             let _ = write!(out, "tr({NUMS},sortedmulti_a({},", a.m);
             for (i, (fp, d, x)) in a.keys.iter().enumerate() {
@@ -219,7 +215,7 @@ pub fn merge<T: AsRef<str>>(texts: &[T]) -> Result<Merged, Text> {
                     .chars()
                     .map(|c| if c == '\'' { 'h' } else { c })
                     .collect();
-                let fp = lower(fp);
+                let fp = Text::lowercase(fp);
                 if path.is_empty() || path == "m" {
                     let _ = write!(out, "[{}]{}/<0;1>/*", &*fp, &**x);
                 } else {
