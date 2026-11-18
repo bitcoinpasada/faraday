@@ -107,7 +107,12 @@ fn write_body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         } else {
             Style::Tonal
         },
-        Action::BReveal,
+        // The first press records that the seed was shown.
+        if b.reveal {
+            Action::BReveal
+        } else {
+            Action::BQuick(Quick::Show)
+        },
     );
     // The Blank template button goes beside Show the seed, after `bw`.
     let (ix, iy) = if ui.compact {

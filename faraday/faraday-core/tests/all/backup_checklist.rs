@@ -930,3 +930,138 @@ fn a_sheet_the_backup_flow_wrote_shows_done_in_the_checklist_and_written_in_its_
         "its row shows it made"
     );
 }
+
+// ---- The quick paper backup (docs/BACKUP-FLOW.md §19) ----
+
+use faraday_core::wallet_backup::quick::Quick;
+
+/// Back up on the key-2 wallet, on the quick paper backup's first screen.
+fn quick_open(app: &mut Faraday) -> usize {
+    let w = one_key(app);
+    app.press(Action::BQuick(Quick::Open(w)));
+    assert!(app.backup().is_some_and(|b| b.quick), "not the quick path");
+    w
+}
+
+/// The seed shown, written down, and its words typed back.
+fn quick_match(app: &mut Faraday, w: usize) {
+    let k = app.backup_seed_list_now(w)[0].1.expect("the seed is here");
+    let words = app
+        .session
+        .keys
+        .reveal(k, faraday_keys::Reveal::Words)
+        .to_string();
+    app.press(Action::BQuick(Quick::Show));
+    app.press(Action::BQuick(Quick::Wrote));
+    testkit::type_words(app, &words);
+}
+
+#[test]
+fn the_quick_screens_offer_i_wrote_them_down_only_after_show_the_seed_and_done_only_after_the_match()
+ {
+    let mut app = device(Vec::new());
+    let w = quick_open(&mut app);
+    let _ = app.frame();
+    assert!(crate::common::has(&mut app, "Write the words down"));
+    assert!(app.offers(Action::BQuick(Quick::Show)));
+    assert!(app.offers(Action::BQuick(Quick::More)));
+    assert!(!app.offers(Action::BQuick(Quick::Wrote)));
+    app.press(Action::BQuick(Quick::Show));
+    let _ = app.frame();
+    assert!(app.offers(Action::BQuick(Quick::Wrote)));
+    app.press(Action::BQuick(Quick::Wrote));
+    let _ = app.frame();
+    assert!(crate::common::has(&mut app, "Check my copy"));
+    assert!(!app.offers(Action::BQuick(Quick::Done)));
+    quick_match(&mut app, w);
+    let _ = app.frame();
+    assert!(app.offers(Action::BQuick(Quick::Done)));
+}
+
+#[test]
+fn the_match_completes_every_item_of_the_quick_plan() {
+    let c = testkit::compute();
+    let mut app = device(Vec::new());
+    let w = quick_open(&mut app);
+    quick_match(&mut app, w);
+    for item in app.backup_items_now(&c) {
+        assert!(done(&app, item), "{item:?} is not done");
+    }
+    app.press(Action::BQuick(Quick::Done));
+    assert!(!app.backup().is_some_and(|b| b.quick));
+}
+
+#[test]
+fn more_ways_to_back_up_opens_the_board_with_nothing_asked_twice() {
+    let c = testkit::compute();
+    let mut app = device(Vec::new());
+    let w = quick_open(&mut app);
+    assert_eq!(
+        app.backup_items_now(&c),
+        vec![Item::Templates, Item::Copy(0), Item::Envelopes],
+        "the quick plan"
+    );
+    quick_match(&mut app, w);
+    app.press(Action::BQuick(Quick::More));
+    let b = app.backup().unwrap();
+    assert!(!b.quick);
+    assert_eq!(b.q, Some(qstep::BOARD));
+    app.press(Action::BChecklist);
+    for item in [Item::Templates, Item::Copy(0), Item::Envelopes] {
+        assert!(done(&app, item), "{item:?} is asked again");
+    }
+    // Back up again from the wallet: the board, never the quick screen.
+    app.press(Action::BQuick(Quick::Open(w)));
+    assert!(!app.backup().is_some_and(|b| b.quick));
+}
+
+#[test]
+fn continue_the_backup_reopens_the_quick_screen_left() {
+    let mut app = device(Vec::new());
+    let w = quick_open(&mut app);
+    app.press(Action::BQuick(Quick::Show));
+    app.press(Action::BQuick(Quick::Wrote));
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Backup(w));
+    assert_eq!(app.screen, Screen::Backup);
+    let b = app.backup().expect("backup");
+    assert!(b.quick);
+    assert_eq!(
+        b.quick_step,
+        faraday_core::wallet_backup::quick::Step::Check
+    );
+}
+
+#[test]
+fn a_passphrase_wallet_opens_on_the_board() {
+    let c = testkit::compute();
+    let mut app = device(Vec::new());
+    let m = faraday_bip::bip39::Mnemonic::parse(
+        &c,
+        faraday_bip::bip39::Language::English,
+        &testkit::test_words(testkit::TEST_SEEDS[0].0),
+    )
+    .unwrap();
+    app.session
+        .keys
+        .add_mnemonic(&c, &m, "lantern-orchid-41", "Key", None)
+        .unwrap();
+    use faraday_core::testkit::KindText;
+    let text = faraday_core::create::NewKind::NativeSegwit
+        .key_text(&c, app.session.keys.master_for_tests(0))
+        .unwrap();
+    let w = app
+        .session
+        .add_wallet_confirmed(
+            &c,
+            "Spending",
+            &format!("wpkh({}/<0;1>/*)", &*text),
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .unwrap();
+    app.press(Action::BQuick(Quick::Open(w)));
+    let b = app.backup().expect("backup");
+    assert!(!b.quick);
+    assert_eq!(b.q, Some(qstep::BOARD));
+}

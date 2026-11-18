@@ -806,3 +806,25 @@ fn signers_passed_by_itself_does_not_pass_the_backup_refusal() {
         s.error
     );
 }
+
+#[test]
+fn the_quick_paper_backups_match_releases_a_made_key() {
+    use faraday_core::wallet_backup::quick::Quick;
+    let c = testkit::compute();
+    let mut app = device(Vec::new(), 768);
+    let (w, fp) = made_here(&mut app);
+    assert!(app.key_held(&c, fp));
+    app.press(Action::BQuick(Quick::Open(w)));
+    assert!(app.backup().is_some_and(|b| b.quick), "not the quick path");
+    assert!(app.key_held(&c, fp), "held before the match");
+    let k = app.backup_seed_list_now(w)[0].1.expect("the seed is here");
+    let words = app
+        .session
+        .keys
+        .reveal(k, faraday_keys::Reveal::Words)
+        .to_string();
+    app.press(Action::BQuick(Quick::Show));
+    app.press(Action::BQuick(Quick::Wrote));
+    testkit::type_words(&mut app, &words);
+    assert!(!app.key_held(&c, fp), "still held after the match");
+}

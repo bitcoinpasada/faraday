@@ -160,27 +160,30 @@ fn it_matches_opens_back_up_on_the_wallet_in_one_press() {
 }
 
 #[test]
-fn back_up_this_wallet_opens_the_board_read_only_on_the_standard_way() {
+fn back_up_this_wallet_opens_the_quick_screen_and_more_ways_the_board() {
+    use faraday_core::board::BoardPress;
+    use faraday_core::wallet_backup::quick::Quick;
     let (mut app, built) = made();
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup);
     assert_eq!(app.screen, Screen::Backup);
     let b = app.backup().expect("backup");
     assert_eq!(b.wallet, built, "the backup is of the wallet just made");
-    assert_eq!(b.q, Some(faraday_core::qstep::BOARD), "on the board");
-    assert_eq!(
-        b.answers,
-        Answers::preset(&app.plan_shape_now(built), Preset::Standard),
-        "The standard way placed"
+    assert!(b.quick, "a plain single key opens on the quick screen");
+    let _ = app.frame();
+    assert!(app.offers(Action::BQuick(Quick::More)));
+    assert!(
+        !app.offers(Action::Board(BoardPress::Customize)),
+        "no board yet"
     );
+    app.press(Action::BQuick(Quick::More));
+    let b = app.backup().expect("backup");
+    assert!(!b.quick);
+    assert_eq!(b.q, Some(faraday_core::qstep::BOARD), "on the board");
     assert!(!b.answers.custom, "read-only until Customize backup");
     let _ = app.frame();
-    use faraday_core::board::BoardPress;
     assert!(app.offers(Action::Board(BoardPress::Customize)));
     assert!(app.offers(Action::Board(BoardPress::Software)));
-    assert!(app.offers(Action::Board(BoardPress::Plan(
-        faraday_core::plan::Ready::PaperAndVault
-    ))));
     assert!(
         !app.offers(Action::Board(BoardPress::AddVault)),
         "no list yet"

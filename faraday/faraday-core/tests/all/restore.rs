@@ -590,7 +590,9 @@ fn done_is_the_end_card_with_a_spend_the_backup_and_another_wallet() {
     assert!(app.offers(Action::QrWallet(w)));
     assert!(app.offers(Action::LockAsk));
     assert!(app.offers(Action::SpendBackup(F::SpendFrom(w))));
-    assert!(app.offers(Action::Backup(w)));
+    assert!(app.offers(Action::BQuick(
+        faraday_core::wallet_backup::quick::Quick::Open(w)
+    )));
     assert!(app.offers(Action::NewWalletFrom(w)));
     assert!(app.offers(Action::OpenWallet(w)));
     // Restored seeds are backed up already: the spend opens at once.
@@ -610,7 +612,9 @@ fn single_key_done() -> (Faraday, usize) {
 #[test]
 fn back_up_this_wallet_opens_back_up_on_it() {
     let (mut app, w) = single_key_done();
-    app.press(Action::Backup(w));
+    app.press(Action::BQuick(
+        faraday_core::wallet_backup::quick::Quick::Open(w),
+    ));
     assert_eq!(app.screen, Screen::Backup);
     assert_eq!(app.backup().unwrap().wallet, w);
 }

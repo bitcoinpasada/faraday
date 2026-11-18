@@ -1833,6 +1833,15 @@ impl Faraday {
             }
             Action::BQuick(q) => self.quick_act(q, c),
             Action::Backup(i) => {
+                // A quick backup left half way reopens on its screen.
+                if self
+                    .backup
+                    .state()
+                    .is_some_and(|b| b.quick && b.wallet == i)
+                {
+                    self.screen = Screen::Backup;
+                    return;
+                }
                 if i < self.session.wallets.len() {
                     let keys = self.backup_keys(i);
                     let first_key = keys.first().copied().unwrap_or(0);
@@ -4150,6 +4159,12 @@ impl Faraday {
         if !self.quick_takes(c, b.wallet) {
             return;
         }
+        // The plan is Paper only: the words at one place, no vault.
+        let w = b.wallet;
+        let shape = self.plan_shape_now(w);
+        if let Some(b) = self.backup.state.as_mut() {
+            b.answers = crate::plan::Ready::PaperOnly.answers(&shape);
+        }
         // The checklist is made as Make the checklist makes it.
         self.backup_extras();
         crate::wallet_backup::kef::plan_made(self);
@@ -4260,16 +4275,21 @@ impl Faraday {
     }
 
     /// More ways to back up, or Change the plan: the board, for good.
-    pub(crate) fn quick_leave(&mut self, _c: &Compute) {
-        let Some(sum) = self
-            .backup
-            .state()
-            .and_then(|b| self.session.wallets.get(b.wallet))
-            .map(|w| Text::of(w.checksum()))
-        else {
+    pub(crate) fn quick_leave(&mut self, c: &Compute) {
+        let Some((w, sum)) = self.backup.state().and_then(|b| {
+            let sum = Text::of(self.session.wallets.get(b.wallet)?.checksum());
+            Some((b.wallet, sum))
+        }) else {
             return;
         };
+        // The board opens as a new plan opens it.
+        let was_quick = self.backup.is_quick();
+        let shape = self.plan_shape_now(w);
+        let answers = self.wallet_start_answers(c, w, &shape);
         self.backup.quick_left_for(&sum);
+        if let Some(b) = self.backup.state.as_mut().filter(|_| was_quick) {
+            b.answers = answers;
+        }
     }
 
     /// Whether the words of the backup's key matched in this backup.
