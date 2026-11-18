@@ -967,7 +967,7 @@ fn backup_nodes(
         What::KefCode(i) | What::KefCodePaper(i) => {
             Text::fill(EN.glance_kef_code, &[&Text::num(number(i) as u64)])
         }
-        What::XorPart(..) | What::Slip39Share(..) => what.label(shape, ""),
+        What::XorPart(..) | What::XorKept(..) | What::Slip39Share(..) => what.label(shape, ""),
     };
     // The small panel names the keys a vault's stick opens.
     let keys_label = |what: What| match what {
@@ -2364,6 +2364,13 @@ pub(crate) fn thing_label(g: Option<&Glance>, what: What) -> Text {
         What::XorPart(i, j) => Text::fill(
             EN.plan_xor_part,
             &[&Text::num(number(i) as u64), &Text::num(j as u64 + 1)],
+        ),
+        What::XorKept(i, fp) => Text::fill(
+            EN.plan_xor_kept,
+            &[
+                &Text::num(number(i) as u64),
+                &faraday_crypto::hex::encode_string(&fp),
+            ],
         ),
         What::Slip39Share(i, g, m) => Text::fill(
             EN.plan_slip39_share,

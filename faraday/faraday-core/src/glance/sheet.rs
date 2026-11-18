@@ -983,7 +983,9 @@ fn line(ctx: &Ctx<'_>, n: u8, j: u8) -> Option<View> {
                 ctx.doing(Step::PartCheck(i, p)),
             ));
         }
-        What::Slip39Share(..) => {}
+        // A kept old part has no check: it is destroyed from its sheet
+        // once the chart offers that.
+        What::Slip39Share(..) | What::XorKept(..) => {}
         What::Sheet => {
             rows.push(row(EN.glance_sheet_reprint, "PDF", ctx.doing(Step::Out(3))));
             rows.push(row(EN.glance_sheet_as_a_qr, "PNG", ctx.doing(Step::Out(8))));

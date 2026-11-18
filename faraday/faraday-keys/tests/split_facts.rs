@@ -161,3 +161,42 @@ fn the_vault_record_keeps_the_sets_and_they_load_back_with_the_key() {
     assert_eq!(again[0].xor, Some(halves()));
     assert_eq!(again[0].slip39, Some(quorum()));
 }
+
+#[test]
+fn make_new_parts_replaces_a_keys_seed_xor_set() {
+    let c = compute();
+    let thirds = XorFacts {
+        parts: vec![[9; 4], [10; 4], [11; 4]],
+    };
+    let mut keys = with_key(&c);
+    // A key with no set has nothing to replace; no such key either.
+    assert!(!keys.replace_xor(0, thirds.clone()));
+    assert!(keys.set_xor(0, Some(halves())));
+    assert!(!keys.replace_xor(5, thirds.clone()));
+    assert!(!keys.replace_xor(
+        0,
+        XorFacts {
+            parts: vec![[1; 4]]
+        }
+    ));
+    assert_eq!(keys[0].xor, Some(halves()));
+    assert!(keys.replace_xor(0, thirds.clone()));
+    assert_eq!(keys[0].xor, Some(thirds));
+    // The record keeps the new set, in the one field it always had.
+    let r = record_of(&c, &keys, &[]);
+    assert!(r.field(field::KEY_XOR).is_some());
+}
+
+#[test]
+fn a_second_set_xor_is_still_not_recorded() {
+    let c = compute();
+    let mut keys = with_key(&c);
+    assert!(keys.set_xor(0, Some(halves())));
+    assert!(!keys.set_xor(
+        0,
+        Some(XorFacts {
+            parts: vec![[9; 4]; 3]
+        })
+    ));
+    assert_eq!(keys[0].xor, Some(halves()));
+}

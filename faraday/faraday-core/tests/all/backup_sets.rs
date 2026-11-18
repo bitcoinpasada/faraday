@@ -347,7 +347,7 @@ fn a_slip39_set_saved_for_a_key_is_on_its_wallets_plan_with_only_the_shares_made
 }
 
 #[test]
-fn a_set_the_plan_has_stays_when_the_key_keeps_another_of_that_kind() {
+fn a_plan_whose_seed_xor_set_is_not_its_keys_takes_the_keys() {
     let shape = shape();
     let mut a = Answers::defaults(&shape);
     xor3(&mut a, &shape);
@@ -359,7 +359,9 @@ fn a_set_the_plan_has_stays_when_the_key_keeps_another_of_that_kind() {
         })],
         &[],
     );
-    assert_eq!(a.xor(0).map(|x| x.n()), Some(3));
+    // The plan's own set (its parts not placed) is not kept: the key's
+    // is the plan's now (F285).
+    assert_eq!(a.xor(0).map(|x| x.n()), Some(2));
 }
 
 #[test]

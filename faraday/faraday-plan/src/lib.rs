@@ -332,6 +332,12 @@ pub struct Answers {
     /// Each seed kept as Seed XOR parts: the set's public facts
     /// (`docs/decisions/F276.md`).
     pub xor: Vec<xor::Xor>,
+    /// Each seed's old Seed XOR sets whose parts the plan still keeps
+    /// (`docs/decisions/F285.md`), oldest first: the set whole, so a
+    /// kept part is named by its fingerprint. At most
+    /// [`xor::MAX_OLD_SETS`] a seed, a fingerprint in one of them; a set
+    /// with no part on the map is dropped.
+    pub xor_old: Vec<xor::Xor>,
     /// Each seed kept as a SLIP-39 set: the set's public facts
     /// (`docs/decisions/F276.md`).
     pub slip39: Vec<slip39::Slip39>,
@@ -366,6 +372,7 @@ impl Default for Answers {
             part: Vec::new(),
             codex32: Vec::new(),
             xor: Vec::new(),
+            xor_old: Vec::new(),
             slip39: Vec::new(),
             rotated: Vec::new(),
             unkept: Vec::new(),
@@ -405,6 +412,7 @@ impl Answers {
             part: Vec::new(),
             codex32: Vec::new(),
             xor: Vec::new(),
+            xor_old: Vec::new(),
             slip39: Vec::new(),
             rotated: Vec::new(),
             unkept: Vec::new(),
@@ -1214,6 +1222,7 @@ impl Answers {
             row.push(vault);
         }
         self.map = Some(m);
+        self.drop_unkept_old_sets();
     }
 }
 
@@ -1338,6 +1347,11 @@ pub enum What {
     /// Part `j` (from 0) of seed `i`'s Seed XOR set, written on paper at
     /// a place (`docs/decisions/F276.md`): every part is needed.
     XorPart(usize, usize),
+    /// An old Seed XOR part of seed `i` still kept (`docs/decisions/F285.md`),
+    /// named by its own master fingerprint and never its number: written
+    /// on paper at a place. It has no check of its own; the old set
+    /// rebuilds the seed only while every part of it is kept.
+    XorKept(usize, [u8; 4]),
     /// Member `m` of group `g` of seed `i`'s SLIP-39 set, written on
     /// paper at a place (`docs/decisions/F276.md`).
     Slip39Share(usize, usize, usize),
@@ -1436,6 +1450,7 @@ impl What {
             What::XorPart(i, j) => {
                 Text::fill(EN.plan_xor_part, &[seed(i), &Text::num(j as u64 + 1)])
             }
+            What::XorKept(i, fp) => Text::fill(EN.plan_xor_kept, &[seed(i), &fp_code(fp)]),
             What::Slip39Share(i, g, m) => Text::fill(
                 EN.plan_slip39_share,
                 &[seed(i), &Text::num(g as u64 + 1), &Text::num(m as u64 + 1)],
@@ -1912,6 +1927,7 @@ impl Have {
             | What::Codex32ShareFile(..)
             | What::Codex32QrFile(..)
             | What::XorPart(..)
+            | What::XorKept(..)
             | What::Slip39Share(..) => {
                 self.seen.push(what);
                 for i in self.needs.rebuilt(&self.seen) {
@@ -2508,7 +2524,11 @@ fn seed_spots(boxes: &[Spot], i: usize, needs: &sets::Needs) -> Vec<At> {
         if needs.enough(i, &all) {
             return boxes
                 .iter()
-                .filter(|s| has(s, &|w| sets::piece_of(w) == Some(i)))
+                .filter(|s| {
+                    has(s, &|w| {
+                        sets::piece_of(w) == Some(i) && needs.counts(i, w, &all)
+                    })
+                })
                 .map(|s| s.at)
                 .collect();
         }

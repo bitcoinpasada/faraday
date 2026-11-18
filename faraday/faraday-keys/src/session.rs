@@ -1643,6 +1643,21 @@ impl Keys {
         }
     }
 
+    /// Replaces the Seed XOR set key `i` has with `set` (**Make new
+    /// parts**, `docs/decisions/F285.md`): public facts only, the new
+    /// parts' fingerprints, never a word. A lookup; refused (false) for
+    /// no such key, a key with no set (that is [`Keys::set_xor`]), or
+    /// facts the vault's layout cannot hold.
+    pub fn replace_xor(&mut self, i: usize, set: faraday_vault::xor::XorFacts) -> bool {
+        match self.entries.get_mut(i) {
+            Some(e) if e.info.xor.is_some() && set.is_sound() => {
+                e.info.xor = Some(set);
+                true
+            }
+            _ => false,
+        }
+    }
+
     /// Sets the SLIP-39 set key `i`'s seed is split into, its plain
     /// facts. One set per key: a lookup; refused (false) for no such key,
     /// facts the vault's layout cannot hold, or a key that already has a

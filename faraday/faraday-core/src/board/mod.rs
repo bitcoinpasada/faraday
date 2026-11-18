@@ -445,6 +445,9 @@ pub(crate) fn things_of(w: What) -> Vec<Thing> {
         What::KefCode(i) | What::KefCodePaper(i) => vec![Thing::Kef(i)],
         What::XorPart(i, j) => vec![Thing::Part(i, j)],
         What::Slip39Share(i, g, m) => vec![Thing::Slip(i, g, m)],
+        // A kept old part is no chip yet: the board draws it with the
+        // old set's group once that is built.
+        What::XorKept(..) => Vec::new(),
     }
 }
 
