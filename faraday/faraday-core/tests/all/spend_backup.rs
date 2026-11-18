@@ -1306,3 +1306,28 @@ fn a_transaction_of_another_wallet_leaves_its_check_unanswered() {
         "the check was marked done for a wallet it was never shown for"
     );
 }
+
+/// Two wallets of one name: the one chosen is the one shown.
+#[test]
+fn of_two_wallets_with_one_name_the_one_chosen_is_shown() {
+    let c = testkit::compute();
+    let mut app = shown();
+    for id in ["savings", "spending"] {
+        app.session
+            .add_wallet_confirmed(
+                &c,
+                "Twin",
+                &kit(id).descriptor,
+                "kit",
+                faraday_core::wallet::Origin::Named,
+            )
+            .expect("the kit's wallet reads");
+    }
+    assert_eq!(app.session.wallets.len(), 2);
+    app.press(Action::Nav(Screen::SpendBackup));
+    app.press(Action::SpendBackup(F::Choose(1)));
+    assert_eq!(app.spend_backup_wallet(), Some(1));
+    assert_eq!(chosen_address(&app), kit_address("spending"));
+    app.press(Action::SpendBackup(F::Choose(0)));
+    assert_eq!(chosen_address(&app), kit_address("savings"));
+}

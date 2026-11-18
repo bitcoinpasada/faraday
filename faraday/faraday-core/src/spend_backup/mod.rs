@@ -244,8 +244,8 @@ pub struct SpendBackupState {
     pub more: u32,
     /// Addresses shown on each chain beyond the first three.
     pub addresses: u32,
-    /// The wallet chosen to spend from, by name: names survive a lock,
-    /// places in the session do not.
+    /// The wallet chosen to spend from, by its descriptor checksum: it
+    /// survives a lock, places in the session do not, and names repeat.
     pub wallet: Option<Text>,
     /// The column's scroll.
     pub scroll: flow::Scroll,
@@ -320,9 +320,9 @@ impl SpendBackupArea {
         }
     }
 
-    /// Chooses the wallet to spend from, by name.
-    pub(crate) fn choose(&mut self, name: Text) {
-        self.state.wallet = Some(name);
+    /// Chooses the wallet to spend from, by its descriptor checksum.
+    pub(crate) fn choose(&mut self, checksum: Text) {
+        self.state.wallet = Some(checksum);
     }
 
     /// Sets the column's scroll, as the drawing pass notes it.
@@ -481,8 +481,11 @@ pub(crate) fn spend_button_on(r: &impl crate::glance::Reads, w: usize) -> (Text,
 impl Faraday {
     /// The wallet chosen to spend from, by its place in the session.
     pub fn spend_backup_wallet(&self) -> Option<usize> {
-        let name = self.spend_backup.state.wallet.as_deref()?;
-        self.session.wallets.iter().position(|w| w.name == name)
+        let checksum = self.spend_backup.state.wallet.as_deref()?;
+        self.session
+            .wallets
+            .iter()
+            .position(|w| w.checksum() == checksum)
     }
 
     /// A wallet is open and chosen.
@@ -935,7 +938,7 @@ impl Faraday {
     /// said nothing of this one: choosing a different wallet opens the
     /// money check and the write page again.
     fn spend_backup_set_wallet(&mut self, i: usize) {
-        let chosen = Text::of(&self.session.wallets[i].name);
+        let chosen = Text::of(self.session.wallets[i].checksum());
         if self.spend_backup.state.wallet.as_ref() != Some(&chosen) {
             self.spend_backup.state.closed[page::CHECK as usize] = false;
             self.spend_backup.state.closed[page::WRITE as usize] = false;

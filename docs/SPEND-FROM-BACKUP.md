@@ -67,7 +67,8 @@ Faraday's own parts: the vault, the stick rule and the lock cycle
   a wallet loaded, a spend loaded, signed, finished, written), not stored.
   So it is right after a lock, after work done on another tab, and after a
   stick visit.
-- What the tab stores is the route what came in set, the page open and
+- What the tab stores is the route what came in set, the page open, the
+  wallet chosen (by its descriptor checksum, as names repeat) and
   the names of the files that came in on page 3. That is not secret; it
   is kept across a lock with the settings (`memory.rs` `kept()`), so a
   lock for a stick visit or for idleness returns the person to the same
