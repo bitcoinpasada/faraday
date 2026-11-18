@@ -311,7 +311,8 @@ fn spend_from_a_backup_after_the_hold_has_the_wallet_as_with_no_question() {
     assert_eq!(app.sheet, Some(Sheet::WalletConfirm));
     assert_eq!(app.spend_backup().wallet, None);
     app.press(Action::WalletHold);
-    assert_eq!(app.spend_backup().wallet, plain.spend_backup().wallet);
+    assert!(app.spend_backup_wallet().is_some());
+    assert_eq!(app.spend_backup_wallet(), plain.spend_backup_wallet());
     assert_eq!(
         app.spend_backup().came,
         plain.spend_backup().came,
