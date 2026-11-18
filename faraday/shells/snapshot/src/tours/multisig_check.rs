@@ -2,9 +2,13 @@
 //! the screen with nothing read; a setup scanned and its Result; a
 //! descriptor whose checksum does not hold, refused on the scanner; and
 //! Check a seed against it: the Seed and Passphrase steps under the rows,
-//! a seed that is a cosigner's key, and one that is no key of the wallet.
+//! a seed that is a cosigner's key, and one that is no key of the wallet;
+//! and the added wallet's own sheet with a key loaded here: its key block
+//! with a key Yours, then one ticked, then every key checked.
 
 use crate::tour::Tour;
+use faraday_core::glance::Press;
+use faraday_core::glance::sheet::{ChartAction as C, Target};
 use faraday_core::multisig_check::MsAction as M;
 use faraday_core::seed_check::SeedAction as S;
 use faraday_core::testkit;
@@ -64,5 +68,27 @@ pub(crate) fn multisig_check_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::MultisigCheck(M::Add));
     t.press(Action::WalletHold);
     t.shot("multisig-check-added")?;
+    // The wallet's own sheet with a key loaded here: its key block, a
+    // key Yours and two not checked; a press on the second; the third.
+    let w = t.app.session.wallets.len() - 1;
+    let of = KeyBlockOf::Wallet(u16::try_from(w).map_err(|e| e.to_string())?);
+    t.press(Action::Entry(None));
+    t.type_key(0);
+    t.press(Action::OpenWallet(w));
+    // A press on a tick closes a chart's sheet on a narrow window, so the
+    // sheet is opened again, as a person would, before each frame.
+    let sheet = |t: &mut Tour, name: &str| {
+        if t.app.sheet.is_none() {
+            t.press(Action::Chart(C::Open(Press::Loaded(w), Target::Wallet)));
+        }
+        crate::tour::scroll_to(t, Action::KeyTick(of, 2));
+        crate::tour::scroll(t, 120);
+        t.shot(name)
+    };
+    sheet(t, "multisig-wallet-keys")?;
+    t.press(Action::KeyTick(of, 1));
+    sheet(t, "multisig-wallet-keys-ticked")?;
+    t.press(Action::KeyTick(of, 2));
+    sheet(t, "multisig-wallet-keys-all")?;
     Ok(())
 }
