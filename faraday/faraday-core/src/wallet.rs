@@ -3983,7 +3983,9 @@ impl Faraday {
                     self.session.keys.remove_published(fp);
                     self.wallets.clear_spend();
                     if self.session.drop_typed_with(fp) {
-                        // Wallets after the one taken out moved up.
+                        // Wallets after the one taken out moved up: a key
+                        // tick drawn before is dropped.
+                        self.wallets.set_list_changed();
                         let last = self.session.wallets.len().saturating_sub(1);
                         self.wallets.set_wallet(self.wallets.wallet().min(last));
                     }

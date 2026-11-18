@@ -127,6 +127,9 @@ impl Faraday {
                 s.written.as_ref().map(|w| &w.files).hash(&mut h);
             }
             f.sealing.len().hash(&mut h);
+            for e in &f.sealing {
+                (e.vault, e.len, e.sha).hash(&mut h);
+            }
         }
         h.finish()
     }

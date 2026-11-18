@@ -132,7 +132,13 @@ fn a_wallet_cards_first_receive_address_is_drawn_on_one_line() {
             .expect("the first receive address's label");
         // The first line after the label that starts as an address: a
         // caution over it, where keys are not checked, is not it.
-        let line: String = texts[at + 1..]
+        // The search stops at the next label (a text with " · " in it) or
+        // at the end of the page's texts after the label's own.
+        let end = texts[at + 1..]
+            .iter()
+            .position(|t| t.contains(" · "))
+            .map_or(texts.len(), |n| at + 1 + n);
+        let line: String = texts[at + 1..end]
             .iter()
             .map(|t| t.split_whitespace().collect::<String>())
             .find(|t| t.starts_with("bc1") || t.starts_with("tb1"))
