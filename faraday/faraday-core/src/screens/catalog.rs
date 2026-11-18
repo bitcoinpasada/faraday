@@ -183,7 +183,14 @@ pub(crate) fn home_search_bar(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32
     let typed = app.tools.home_find();
     let here = Action::TypeHere(crate::edit::Here::HomeFind);
     let h = SEARCH_BAR_H;
+    app.tools.note_home_bar(y);
     ui.fill(x, y, w, h, h / 2.0, Role::SurfaceContainerHigh);
+    // The state layer takes the pill's own shape, not the default corner.
+    ui.press(
+        crate::ui::Shape::new(x, y, w, h, h / 2.0),
+        Role::OnSurface.paint(),
+        here,
+    );
     ui.icon(
         x + SEARCH_INSET,
         y + (h - SEARCH_ICON) / 2.0,
@@ -192,13 +199,16 @@ pub(crate) fn home_search_bar(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32
         SEARCH_GLYPH,
         Role::OnSurfaceVariant,
     );
-    ui.press_box(x, y, w, h, here);
     let tx = x + 2.0 * SEARCH_INSET + SEARCH_ICON;
     let clear = if typed.is_empty() { 0.0 } else { TOUCH };
     let room = (x + w - tx - SEARCH_INSET - clear).max(0.0);
     if typed.is_empty() {
         let shown = ui.fit_as(BODY_L, EN.home_search_hint, room);
         ui.text_mid_as((tx, y, h), BODY_L, Role::OnSurfaceVariant, &shown);
+        if app.tools.home_focused() {
+            let ch = faraday_draw::tokens::CARET_MIN;
+            ui.caret(tx, y + (h - ch) / 2.0, ch);
+        }
     } else {
         ui.typed(
             tx,

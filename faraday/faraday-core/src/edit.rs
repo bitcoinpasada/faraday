@@ -400,6 +400,7 @@ impl Faraday {
                     Action::EntryPassphrase
                 });
             }
+            Here::HomeFind => self.tools.focus_home_find(),
             Here::GuideFind => self.guide.focus_find(true),
             Here::SilentName | Here::SilentDomain => {
                 self.silent.focus_dns(h == Here::SilentDomain);

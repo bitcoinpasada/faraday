@@ -14,6 +14,6 @@ Sign button, and, while nothing is loaded, the tiles that start each task.
 
 **Key:** home.search
 
-Where a search bar leads Home (every window but the Pi's small panel),
-typing finds a tool, a setting or a glossary word and replaces Home with the matches; a press
-opens one, a word at its definition in the guide. Escape clears the search.
+A search bar stands under Home's buttons (every window but the Pi's small
+panel). Typing finds a tool, a setting or a glossary word and shows the matches under the bar,
+the buttons above staying; a press opens one, a word at its definition in the guide. Escape clears the search.

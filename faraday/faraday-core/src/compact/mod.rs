@@ -734,19 +734,6 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
         home_head(app, ui, w, y);
         y += 38.0;
     }
-    // Home's search bar, on every window but the menu's: something typed
-    // replaces the rest with the matching tiles.
-    if app.nav() != crate::nav::Nav::Menu {
-        y += crate::screens::catalog::home_search_bar(app, ui, (M, y, inner));
-        if !app.tools.home_find().is_empty() {
-            y += crate::screens::catalog::home_results(app, ui, (M, y), inner, true);
-            app.scroll
-                .content_h()
-                .set(y + faraday_draw::tokens::HOME_RESULTS_FOOT);
-            ui.region_close(open, app.scroll.content_h().get() - view_h);
-            return;
-        }
-    }
     y += crate::nav::screen::loaded_card(app, ui, M, y, inner) + 10.0;
 
     // The box above names the keys, the wallets and the files; this card
@@ -950,6 +937,17 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
         }
     }
     y = acc + 4.0;
+
+    // Home's search bar under the buttons, on every window but the
+    // menu's: something typed shows the matching tiles under it, the
+    // buttons staying.
+    if app.nav() != crate::nav::Nav::Menu {
+        y += crate::screens::catalog::home_search_bar(app, ui, (M, y, inner));
+        if !app.tools.home_find().is_empty() {
+            y += crate::screens::catalog::home_results(app, ui, (M, y), inner, true);
+            y += faraday_draw::tokens::HOME_RESULTS_FOOT;
+        }
+    }
 
     // Lock and power, here on the small panel; the rail and the top app
     // bar carry them on wider windows.

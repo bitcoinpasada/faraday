@@ -1385,7 +1385,8 @@ impl Faraday {
             | Action::LAnother => self.lightning_act(action),
             Action::HomeSearchClear => {
                 self.tools.clear_home_find();
-                self.list_offset = 0.0;
+                self.tools.focus_home_find();
+                self.tools.follow_home_find();
             }
             Action::Tools
             | Action::TTool(_)

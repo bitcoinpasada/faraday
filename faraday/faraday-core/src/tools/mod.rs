@@ -175,6 +175,14 @@ pub struct ToolsArea {
     catalog_find: Text,
     /// What is typed in Home's search bar, kept beside Tools' own.
     home_find: Text,
+    /// Whether Home's search bar has been pressed, so it shows its caret
+    /// while empty.
+    home_focus: bool,
+    /// Where Home's search bar was last drawn in its page, so typing can
+    /// scroll the page to it.
+    home_bar_y: std::cell::Cell<f32>,
+    /// Whether the page is to follow the results after the next frame.
+    home_follow: std::cell::Cell<bool>,
     /// Convert a seed, a tool with a flow of its own.
     pub(crate) convert: crate::convert::ConvertArea,
     /// The Krux code tool.
@@ -243,6 +251,39 @@ impl ToolsArea {
     /// Clears Home's search bar, so Home shows Home again.
     pub(crate) fn clear_home_find(&mut self) {
         self.home_find.clear();
+        self.home_focus = false;
+    }
+
+    /// Whether Home's search bar has been pressed and shows its caret.
+    pub(crate) fn home_focused(&self) -> bool {
+        self.home_focus
+    }
+
+    /// Keeps where Home's search bar is drawn in its page.
+    pub(crate) fn note_home_bar(&self, y: f32) {
+        self.home_bar_y.set(y);
+    }
+
+    /// The page offset that puts Home's search bar near the top, past
+    /// which scrolling to the results' foot does not go.
+    pub(crate) fn home_bar_offset(&self) -> f32 {
+        (self.home_bar_y.get() - 12.0).max(0.0)
+    }
+
+    /// Asks for the page to be scrolled after the next frame to the
+    /// results' foot, no further than the bar at its top.
+    pub(crate) fn follow_home_find(&self) {
+        self.home_follow.set(true);
+    }
+
+    /// Takes the ask of [`ToolsArea::follow_home_find`].
+    pub(crate) fn take_home_follow(&self) -> bool {
+        self.home_follow.replace(false)
+    }
+
+    /// Focuses Home's search bar, as a press on it does.
+    pub(crate) fn focus_home_find(&mut self) {
+        self.home_focus = true;
     }
 
     /// Opens Tools, returning to `back`.
@@ -596,8 +637,30 @@ impl Faraday {
         if !self.home_search_here() || !self.tools.home_find_key(key) {
             return false;
         }
-        self.list_offset = 0.0;
+        // The results stand under the buttons: the page scrolls to the
+        // foot, as far as it reaches, so the bar and its results show.
+        self.tools.follow_home_find();
         true
+    }
+
+    /// After a frame: Home's page scrolled to its results' foot, no
+    /// further than the search bar at its top, once something typed or
+    /// cleared asked for it.
+    pub(crate) fn follow_home_find(&mut self) {
+        if !self.tools.take_home_follow() {
+            return;
+        }
+        let Some(e) = self.region_now() else {
+            return;
+        };
+        let want = e.max.min(self.tools.home_bar_offset()).max(0.0);
+        if (want - self.list_offset).abs() > 0.5 {
+            self.list_offset = want;
+            self.out.redraw();
+            self.out
+                .commands
+                .push_back(faraday_shell_api::Command::Draw);
+        }
     }
 
     /// Whether Home shows its search bar and takes typing: not on the

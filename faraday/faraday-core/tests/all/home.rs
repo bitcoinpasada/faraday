@@ -942,6 +942,8 @@ fn type_on_home(app: &mut Faraday, text: &str) {
     for c in text.chars() {
         app.event(Event::Key(faraday_shell_api::Key::Char(c)));
     }
+    // The frame, and the one the page follows the results with.
+    let _ = app.frame();
     let _ = app.frame();
 }
 
@@ -1004,5 +1006,59 @@ fn theme_typed_on_home_shows_the_theme_setting() {
         tap(&mut app, button);
         assert_eq!(app.screen, Screen::Settings);
         assert!(faraday_core::testkit::home_find(&app).is_empty());
+    }
+}
+
+#[test]
+fn a_press_in_homes_empty_search_bar_shows_a_blinking_caret_and_typing_goes_in() {
+    let mut app = shown();
+    let blinks = |app: &mut Faraday| {
+        let mut drawn = false;
+        let start = app.now_ms();
+        for step in 1..=80u64 {
+            app.event(Event::Tick {
+                now_ms: start + step * 16,
+            });
+            drawn |= std::iter::from_fn(|| app.poll_command()).any(|c| c == Command::Draw);
+            let _ = app.frame();
+        }
+        drawn
+    };
+    // Whatever Home was still settling on arrival is done first.
+    let _ = blinks(&mut app);
+    assert!(
+        !blinks(&mut app),
+        "nothing blinks before the bar is pressed"
+    );
+    tap(
+        &mut app,
+        Action::TypeHere(faraday_core::edit::Here::HomeFind),
+    );
+    assert!(blinks(&mut app), "the caret blinks once it is pressed");
+    type_on_home(&mut app, "send");
+    assert_eq!(faraday_core::testkit::home_find(&app), "send");
+}
+
+#[test]
+fn with_something_typed_homes_buttons_stay_and_can_be_pressed() {
+    for mut app in [shown(), window(400, 800, 160)] {
+        assert!(app.offers(Action::Nav(Screen::Check)), "on Home at first");
+        type_on_home(&mut app, "send");
+        // The results are under the bar; scrolled back up, the buttons
+        // are there as before.
+        app.event(Event::Scroll {
+            x: 300,
+            y: 300,
+            dy: -3000,
+        });
+        let _ = app.frame();
+        assert!(app.offers(Action::Nav(Screen::Check)), "on Home still");
+        assert!(
+            app.where_offered(Action::Nav(Screen::Check)).is_some(),
+            "on screen"
+        );
+        assert_eq!(faraday_core::testkit::home_find(&app), "send");
+        tap(&mut app, Action::Nav(Screen::Check));
+        assert_eq!(app.screen, Screen::Check);
     }
 }

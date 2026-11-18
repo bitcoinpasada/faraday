@@ -505,7 +505,7 @@ fn tiles(
     (x, y): (f32, f32),
     width: f32,
     gap: f32,
-) {
+) -> f32 {
     // The tiles in a grid: as many columns as `TILE_MIN` leaves room
     // for, a row with fewer tiles than columns leaving the rest empty.
     // A tile is wide enough for its longest line, so no name is cut.
@@ -566,6 +566,7 @@ fn tiles(
             &sub,
         );
     }
+    ways.len().div_ceil(cols) as f32 * (tile_h + gap)
 }
 
 /// The lead's card at `(x, y)`, at most `LEAD_MAX` wide inside `width`:
@@ -720,8 +721,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32) {
     let width = cw - (x - x0) - MARGIN_WIDE;
     let mut y = super::bar_head(ui, None, EN.home_home);
     let gap = 16.0;
-    // Home's search bar: what is typed in it replaces Home's content with
-    // the matching tiles (the page scrolls as Tools does).
+    // Home's search bar stands under the buttons, centred; what is
+    // typed in it shows the matching tiles under it, the buttons staying
+    // (the page scrolls as Tools does).
     let h = ui.c.height() as f32 / ui.f;
     let find = !app.tools.home_find().is_empty();
     let open = find.then(|| {
@@ -729,15 +731,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32) {
         ui.region_open(crate::ui::Region::page(clip).from_zero(app.list_offset))
     });
     let top = y;
-    y += super::catalog::home_search_bar(app, ui, (x, y, width.min(LEAD_MAX)));
-    if let Some(open) = open {
-        y += super::catalog::home_results(app, ui, (x, y), width, false);
-        app.scroll
-            .content_h()
-            .set(y - top + faraday_draw::tokens::HOME_RESULTS_FOOT);
-        ui.region_close(open, app.scroll.content_h().get() - h);
-        return;
-    }
     let lead = home_lead(app, false);
     let makes = lead
         .as_ref()
@@ -755,5 +748,14 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32) {
         section_label(ui, x, y, EN.home_start);
         y += ui.advance_as(faraday_draw::tokens::TITLE_S, 30.0);
     }
-    tiles(&home_ways(app, makes), ui, (x, y), width, gap);
+    y += tiles(&home_ways(app, makes), ui, (x, y), width, gap);
+    let sw = width.min(LEAD_MAX);
+    y += super::catalog::home_search_bar(app, ui, (x0 + (cw - sw) / 2.0, y, sw));
+    if let Some(open) = open {
+        y += super::catalog::home_results(app, ui, (x, y), width, false);
+        app.scroll
+            .content_h()
+            .set(y - top + faraday_draw::tokens::HOME_RESULTS_FOOT);
+        ui.region_close(open, app.scroll.content_h().get() - h);
+    }
 }

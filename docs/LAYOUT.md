@@ -147,14 +147,15 @@ way or waiting (`docs/FLOWS.md`, Home), then the tiles in a grid.
   rest scrolls.
 - **The search bar** (every window but the small panel's menu, the
   Pi's compact, short Home; checked against Material's Search bar,
-  m3.material.io, Components, Search): a search bar at the top of
-  Home, drawn as the vault's is (`SEARCH_BAR_H`, 56 dp, fully rounded,
+  m3.material.io, Components, Search): a search bar under
+  Home's buttons, centred on the wide layout, drawn as the vault's is (`SEARCH_BAR_H`, 56 dp, fully rounded,
   `SurfaceContainerHigh`, the magnifying glass leading), full width on the
   one-column layouts, with the hint "Search tools and settings".
-  Typing on Home lands in it with no press first (no caret while it is
-  empty), Escape or its × clears it.
-  Something typed replaces Home's content with the matching tiles of
-  Tools as buttons under the bar, a line saying none matches when none
+  Typing on Home lands in it with no press first (its caret blinks while
+  it is empty once it is pressed), Escape or its × clears it. Its hover
+  layer takes the bar's rounded shape.
+  Something typed shows the matching tiles of Tools as buttons under
+  the bar, Home's buttons above it staying, a line saying none matches when none
   does; a result opens as its Tools tile does and clears the search.
 - **The lead tile**: its icon, its line and its one button at its end,
   as wide as that needs and at most `LEAD_MAX` (560 dp).

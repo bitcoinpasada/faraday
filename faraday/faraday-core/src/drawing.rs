@@ -884,6 +884,7 @@ impl Faraday {
         }
         let drew = self.region_key();
         self.scroll.drew(drew, scrolled);
+        self.follow_home_find();
         self.typing.set_caret_drawn(caret);
         self.vaults.set_drawn();
         self.worker.set_drawn(true);
