@@ -1012,14 +1012,12 @@ fn checklist_items_that_do_not_apply_are_not_shown() {
     let mut starter = starter_with(Vec::new());
     // Linux: no Turn Secure Boot back on with Secure Boot on.
     assert!(!shows(&mut starter, "Turn Secure Boot back on"));
-    // An ARM computer: only Make a stick, and the line that says why.
+    // An ARM computer: only Make a stick, and the card says why.
     let mut arm = windows(true);
     arm.arm = true;
     starter.starter_event(StarterEvent::Computer(arm));
-    assert!(shows(
-        &mut starter,
-        "This computer cannot start a Faraday stick"
-    ));
+    assert!(shows(&mut starter, "This computer cannot start Faraday"));
+    assert!(shows(&mut starter, "ARM: not compatible"));
     assert!(!shows(&mut starter, "Start this computer from the stick"));
 }
 

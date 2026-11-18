@@ -128,7 +128,7 @@ fn a_finger_drag_scrolls_home_and_presses_nothing_and_a_tap_presses() {
 
 #[test]
 fn a_fling_on_home_coasts_then_settles_and_the_starter_asks_for_no_frame() {
-    let mut s = starter(400, 300);
+    let mut s = starter(400, 460);
     let start = at(&mut s, ROW);
     // A flick: 16 pixels a frame, lifted while moving.
     let now = drag(&mut s, start, -48, 3, 1000);
@@ -146,7 +146,7 @@ fn a_fling_on_home_coasts_then_settles_and_the_starter_asks_for_no_frame() {
 
 #[test]
 fn a_touch_on_home_while_it_coasts_stops_it_and_presses_nothing() {
-    let mut s = starter(400, 300);
+    let mut s = starter(400, 460);
     let start = at(&mut s, ROW);
     let now = drag(&mut s, start, -48, 3, 1000);
     let (_, now) = ticks(&mut s, now, 1);
