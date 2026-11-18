@@ -255,10 +255,10 @@ fn free_keyx(app: &Faraday, vault_name: &str) -> Text {
     if !held(&first) {
         return first;
     }
-    (2..100)
+    (2..)
         .map(|n| text!("{stem}-{n}.keyx"))
         .find(|n| !held(n))
-        .unwrap_or_else(|| text!("{stem}-100.keyx"))
+        .unwrap_or(first)
 }
 
 /// **Make a key file**: drawn now, its `.keyx` in the Outbox at once; the

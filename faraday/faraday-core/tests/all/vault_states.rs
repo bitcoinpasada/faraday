@@ -1761,6 +1761,29 @@ fn a_made_key_file_never_takes_the_name_of_a_file_already_there() {
 }
 
 #[test]
+fn a_made_key_file_finds_a_free_name_when_the_first_hundred_are_held() {
+    let file = testkit::kdbx_vault_keyed("Keyed", PHRASE, 3, Some(KEY_BYTES)).unwrap();
+    let mut files: Files = vec![
+        ("keyed.kdbx".into(), file),
+        ("0-vault.keyx".into(), KEY_BYTES.to_vec()),
+        ("keyed.keyx".into(), vec![1]),
+    ];
+    files.extend((2..=100).map(|n| (format!("keyed-{n}.keyx"), vec![1])));
+    let mut app = process_at(800, 1200, files);
+    open_unlock(&mut app);
+    app.press(Action::Vault(V::KeyFileAsk));
+    app.press(Action::Vault(V::KeyFilePick(0)));
+    app.press(Action::Vault(V::KeyFileChoose));
+    attempt(&mut app, PHRASE);
+    assert_eq!(app.vaults().open.len(), 1, "{}", page(&mut app));
+    app.press(Action::Nav(Screen::VaultContents));
+    more_then(&mut app, V::VKeyMake);
+    let names = outbox_names(&app);
+    assert_eq!(names.len(), 1, "{names:?}");
+    assert!(!in_files(&app, &names[0]), "{names:?}");
+}
+
+#[test]
 fn a_made_key_file_taken_back_or_replaced_before_a_seal_leaves_no_keyx_in_the_outbox() {
     let mut app = open_keyed();
     more_then(&mut app, V::VKeyMake);
