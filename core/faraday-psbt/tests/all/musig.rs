@@ -361,6 +361,40 @@ fn a_malformed_participants_field_blocks_the_input() {
     assert!(inspect(&c, &psbt, &ctx).has_blocked());
 }
 
+/// An aggregate key written in its 65-byte uncompressed form is not the
+/// compressed key BIP-373 requires: the input is blocked, and the same
+/// PSBT with the 33-byte key is established.
+#[test]
+fn an_uncompressed_aggregate_key_blocks_the_input() {
+    let c = Compute::unchecked();
+    let abandon = master(ABANDON, NET);
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let wallets = [core_policy()];
+    let ctx = core_context(&keys, &wallets);
+
+    let good = fixture(example::CORE_FIRST_NAME);
+    assert!(!inspect(&c, &good, &ctx).has_blocked());
+
+    let mut psbt = fixture(example::CORE_FIRST_NAME);
+    let input = &mut psbt.inner_mut().inputs[0];
+    let key = input
+        .unknown
+        .keys()
+        .find(|k| k.type_value == faraday_psbt::musig::IN_PARTICIPANT_PUBKEYS)
+        .cloned()
+        .unwrap();
+    let value = input.unknown.remove(&key).unwrap();
+    let mut wide = key.clone();
+    wide.key = PublicKey::from_slice(&key.key)
+        .unwrap()
+        .serialize_uncompressed()
+        .to_vec();
+    assert_eq!(wide.key.len(), 65);
+    input.unknown.insert(wide, value);
+    assert!(faraday_psbt::musig::input_participants(&psbt.inner().inputs[0]).is_err());
+    assert!(inspect(&c, &psbt, &ctx).has_blocked());
+}
+
 // ---------------------------------------------------------------------
 // A second signer, played here, so that the rounds run the whole way
 // ---------------------------------------------------------------------

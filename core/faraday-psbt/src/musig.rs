@@ -94,6 +94,11 @@ pub struct Entry<T> {
 }
 
 fn key_of(bytes: &[u8]) -> Result<PublicKey, Error> {
+    // BIP-373 allows only the 33-byte compressed key, not the 65-byte
+    // uncompressed or hybrid forms `from_slice` also takes.
+    if bytes.len() != 33 {
+        return Err(Error::Participants);
+    }
     PublicKey::from_slice(bytes).map_err(|_| Error::Participants)
 }
 
