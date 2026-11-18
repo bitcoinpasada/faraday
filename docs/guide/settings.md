@@ -33,7 +33,7 @@ A loaded key is in memory only, and nothing is written to the stick or the disk 
 
 **Key:** settings.time
 
-This section shows the clock now and the **Time zone**. **Set the time** opens the page that sets the clock by hand. TOTP codes, GPG and Secure Boot signatures and backup check dates read this clock.
+This section shows the clock now, in your local time, and the **Time zone**, which reads **Not set** until you choose it from a list of offsets named by their cities. **Set the time** opens the page that sets the clock by hand. TOTP codes, GPG and Secure Boot signatures and backup check dates read this clock.
 
 ## Randomness
 

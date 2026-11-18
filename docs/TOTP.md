@@ -1,7 +1,8 @@
 # TOTP codes and the time
 
-**Kind:** Reference
-**Status:** Built
+**Kind:** Spec
+**Status:** Built, except the zone list, the local-time wording and the line showing both times of Set the time (§2.1, §3)
+**Open:** Set the time is built as §3 describes it. Two records in the Back up flow still take a time from a clock nobody has checked: the time a copy was written to a stick and the time a copy was bound to the plan. They are to wait for a checked clock, as a vault's seal times, a new vault, a KeePass export, the write receipt, the vault summaries and a sealed QR picture already do.
 
 A vault entry holds a TOTP secret (record type 6, field 6,
 `docs/VAULT.md` §7), scanned from a setup QR, typed, or imported from
@@ -16,10 +17,14 @@ that clock in local time, so the stick can be hours off.
 1. Faraday shows TOTP codes for the entries in open vaults. The secrets
    stay where they are: type 6 field 6, in the vault. Nothing new is
    stored outside a vault.
-2. The time can be set by hand, in local time, to the minute.
-3. The time zone is a fixed offset from UTC, chosen in Settings and kept
-   in `faraday-settings.txt`. No time zone database; the person changes
-   the offset when daylight saving starts or ends.
+2. The time can be set by hand, in local time, to the minute. The
+   person types the time their phone shows and their zone, never UTC
+   unless they choose it (2026-11-17).
+3. The time zone is a fixed offset from UTC, kept in
+   `faraday-settings.txt`, and never set until the person chooses it
+   (2026-11-17): it is chosen once from a list of offsets named by their
+   cities (§2.1). No time zone database; the person changes the offset
+   when daylight saving starts or ends.
 4. Where the clock is not known, the codes screen opens Set the time
    first.
 
@@ -80,7 +85,7 @@ session's secrets.
 ### 1.3 Checked this power-on
 
 `clock_checked: bool`, true once the person has pressed **Set** or
-**Keep this time** (§3) in this power-on, and kept across a lock with
+**Keep this time** (§3) in this power-on (neither is offered while the zone is Not set, §2.1), and kept across a lock with
 the offset. The desktop app (`app.online`) counts as checked whenever
 its clock is known. §5 uses this, and so does everything else that
 keeps the time it reads (2026-10-11): GPG's Make a
@@ -98,24 +103,50 @@ hold signs, disabled while the clock is not known.
 
 ### 2.1 The setting
 
-`tz_min: i16`, minutes east of UTC, default 0. It takes values from
-−720 to +840 (−12:00 to +14:00) in steps of 15. That covers every
-offset in use, including +05:30 and +05:45.
+`tz_min: Option<i16>`, minutes east of UTC, `None` until the person
+chooses a zone. A chosen value is from −720 to +840 (−12:00 to +14:00)
+in steps of 15. That covers every offset in use, including +05:30 and
++05:45. While it is `None` the zone reads **Not set**, not
+`UTC+00:00`; no time is turned into local time with it, and **Set**
+(§3) is not offered. UTC is a choice like any other, the row UTC+00:00.
+
+**The list.** The zone is chosen from a list, one row per offset, from
+UTC−12:00 to UTC+14:00: the row reads the offset and then city names as
+the clue, for the offset in standard time and in summer time, such as
+`UTC−05:00 · New York in winter, Chicago in summer`. The offsets are the
+ones in use, so the list has no row for 00:15 or 14:15. The table is
+fixed and its city names are in the strings
+(`faraday/faraday-strings/src/en/`). There is no time zone database and
+no daylight saving rule in the device: it is offline, so a database
+would go stale without a sign, and a rule wrong for one year would set a
+wrong time without the person seeing it. A fixed table cannot do that;
+the person changes the zone's row twice a year, when their clocks change,
+and **Now** reading an hour off their phone (§3) is the cue. The page
+has no quick picks that shift the clock by whole hours: the zone is
+chosen from the list, and the time is typed.
+
+The **−** and **+** buttons stay, under the list as **Other offset**,
+stepping 15 minutes and stopping at the ends, for an offset the list
+lacks. From **Not set** the first press
+starts at UTC+00:00. The zone is kept in the stick's settings as §2.2
+says, so it is asked once.
 
 - **Settings** gains a section **Time** after **Session**
   (`docs/DESIGN.md` §5, Settings). It holds a
   row **Now**, the live local date and time (`2026-10-11
-  14:02:37`) or `Not known`; a row **Time zone** showing `UTC+02:00`
-  (`UTC+00:00` for zero, `UTC−03:30` with a minus sign) between a −
-  and a + button that step 15 minutes and stop at the ends; and the
-  button **Set the time**, which opens §3.
+  14:02:37`) or `Not known` (a clock known but a zone **Not set** shows
+  **Not set** for the zone and the time in UTC marked as such); a row
+  **Time zone** showing `UTC+02:00` (`UTC−03:30` with a minus sign) or
+  **Not set**, a button that opens the list on Set the time (§3);
+  and the button **Set the time**, which opens §3.
 - The compact (small panel) Settings gets the same three rows, laid out
   as its other sections are.
 
 ### 2.2 In the settings file and the kept set
 
-`settings_body()` (`faraday-core/src/stick/settings.rs`) gains a line
-`tz=+02:00`: the sign always written, two-digit hours, two-digit
+`settings_body()` (`faraday-core/src/stick/settings.rs`) has a line
+`tz=+02:00` only once a zone is chosen; none is written while it is Not
+set, and a file that has one keeps it. The sign is always written, two-digit hours, two-digit
 minutes. `apply_setting()` takes `tz` only when it has that exact form,
 the minutes are 00, 15, 30 or 45, and the value is in range; anything
 else is skipped as an unknown value is now. The file is untrusted
@@ -123,14 +154,14 @@ else is skipped as an unknown value is now. The file is untrusted
 wrong codes, never a less protected session, so it may be read from the
 file. The stick-settings comment names it.
 
-A stick file written before this change has no `tz` line. The zone stays
-at its default, and the next stick visit offers Settings ticked because
-the body now differs. That is expected.
+A stick file with no `tz` line leaves the zone **Not set**. The Starter
+does not offer the computer's own zone when it writes a stick: the zone is
+chosen on the device.
 
 ### 2.3 Every time shown is local
 
 One function in `vault/mod.rs`, beside `time_of_day`, turns Unix seconds
-into local seconds (`unix + tz_min × 60`). Every date or time **drawn
+into local seconds (`unix + tz_min × 60`) once a zone is chosen. Every date or time **drawn
 on screen or written for the person** goes through it:
 
 - `vault::time_of_day` callers: `backups.rs` ("On STICK, 14:02"),
@@ -147,24 +178,47 @@ signature's time, Secure Boot timestamps, the TOTP counter.
 
 A screen, `Screen::SetTime`, drawn as a page (DESIGN §5): the back
 link and the title **Set the time**, then from the top a card with
-**Now** and **Time zone**, the two fields, and the buttons under them.
+**Now** and **Time zone**, the two fields, the line giving the result
+both ways, and the buttons under them. The page asks for the person's
+local time, as their phone shows it, and their zone once; never UTC
+unless they choose it.
 
-- **Context:** the row **Now**, live as in §2.1, and the **Time
-  zone** row with its − and + buttons (the same actions as Settings').
-- **Entry:** two fields, **Date** (`YYYY-MM-DD`) and **Time** (`HH:MM`,
-  24-hour). Date starts filled with the clock's local date when the
-  clock is known and empty when not; Time starts empty and has the
-  focus. They take digits and the separators; the on-screen keyboard
-  on the Pi as for any field.
-- **Set** (primary): enabled when Date is a real calendar date between
-  2020-01-01 and 2099-12-31 and Time is 00:00 to 23:59. Pressing it
-  sets the local time to Date Time at **:00 seconds** at the instant of
-  the press (§1.2), marks the clock checked, toasts `Time set to 14:02`
-  and goes back. The person presses it as their phone's minute changes;
-  the Learn page says so, the screen does not.
-- **Keep this time** (secondary): shown only when the clock is known.
-  It marks the clock checked, sets no offset, and goes back.
+- **Context:** the row **Now**, live as in §2.1, shown in the chosen
+  zone, and the **Time zone** row (§2.1): **Not set** until a zone is
+  chosen, then the offset; pressing it opens the list, each row an
+  offset over its cities, with **Other offset** and its − and + buttons
+  under the list.
+- **Entry:** two fields, **Date** (`YYYY-MM-DD`) and **Local time**
+  (`HH:MM`, 24-hour). Date starts filled with the clock's local date when
+  the clock is known and a zone is chosen, and empty when not; Time
+  starts empty and has the focus. They take digits and the separators;
+  the on-screen keyboard on the Pi as for any field.
+- **The line:** once Date and Time are real and a zone is chosen, one
+  line shows what is typed both ways: the local time with its zone, and
+  the same instant in UTC (`2026-10-11 14:05 UTC+02:00 is 2026-10-11 12:05 UTC`).
+- **Set** (primary): offered only when a zone is chosen, and enabled
+  when Date is a real calendar date between 2020-01-01 and 2099-12-31
+  and Time is 00:00 to 23:59. Pressing it sets the local time to Date
+  Time at **:00 seconds** at the instant of the press (§1.2), marks the
+  clock checked, toasts `Time set to 14:02` and goes back. The person
+  presses it as their phone's minute changes; the Learn page says so,
+  the screen does not.
+- **Keep this time** (secondary): shown only when the clock is known and
+  a zone is chosen. It marks the clock checked, sets no offset, and goes
+  back.
 - **Back** goes back without marking anything.
+
+**A PC, the clock known.** **Now** shows the clock in the chosen zone.
+If it matches the phone, **Keep this time**; if not, the person types the
+phone's time and presses **Set**. A PC that keeps local time reads hours
+off, because its clock is read as UTC (§1); **Now** shows that.
+
+**A Pi, no clock.** The same page with Date empty and **Now** reading
+**Not known**: the person types the date and the time, once the zone is
+chosen. After the first time, only these two are asked; the zone is kept.
+
+**Clocks changing.** The person changes the zone's row when their clocks
+change (§2.1); **Now** an hour off the phone is the sign.
 
 "Goes back" is to the screen it was opened from: Settings, or the codes
 screen (§5), which then shows its codes. The ? button opens the Learn
@@ -384,6 +438,8 @@ and the on-screen keyboard under them; Done leaves it. Check at `480x640` and `2
 - Steam's five-character codes.
 - Opening Set the time from the "This computer's clock is not known"
   toasts in GPG and Secure Boot. Settings → Time reaches it.
+- The computer's own zone: the Starter does not offer it when it writes
+  a stick, and no screen reads a zone from the host.
 - Dates on files written to a stick: they come from the system clock,
   1970 on the Pi, and are not changed here (decision 7).
 
