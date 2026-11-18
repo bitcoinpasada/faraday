@@ -827,6 +827,10 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     // Another paper form: test key 1 split into two Seed XOR parts.
     t.press(Action::BXor(2));
     t.shot("backup-xor")?;
+    // The parts on the plan, scrolled to the chips and the line naming
+    // their places.
+    crate::tour::scroll_to(t, Action::BPartCheck(0));
+    t.shot("backup-xor-on-plan")?;
     // Put away unchecked: the first press says so, the second puts them away.
     t.press(Action::BPaperHide);
     t.shot("backup-xor-unchecked")?;

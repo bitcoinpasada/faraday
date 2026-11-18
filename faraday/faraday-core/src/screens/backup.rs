@@ -1673,7 +1673,15 @@ fn passphrase_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// way to one), then Save into the open vault, then Continue.
 fn item_action(app: &View, n: Item) -> (String, Action) {
     let item = n;
-    let next = (EN.item_action_continue.to_string(), Action::BNext(n));
+    // The last item of the list finishes the backup: Done (`docs/DESIGN.md`
+    // §4.13); any other goes on to the next: Continue.
+    let last = app.backup_items().last() == Some(&n);
+    let label = if last {
+        EN.item_action_done
+    } else {
+        EN.item_action_continue
+    };
+    let next = (label.to_string(), Action::BNext(n));
     if item == Item::Envelopes || app.backup_item_done(item) {
         return next;
     }

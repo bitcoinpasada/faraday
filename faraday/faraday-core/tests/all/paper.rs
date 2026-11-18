@@ -7,7 +7,7 @@
     reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
 )]
 
-use faraday_core::testkit;
+use faraday_core::testkit::{self, Plain};
 use faraday_core::{Action, Faraday, StorageEvent};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 
@@ -218,4 +218,28 @@ fn a_seed_xor_part_typed_back_with_one_word_changed_is_named_as_differing() {
     assert_eq!(b.paper_ok, 0);
     let error = b.check.as_ref().and_then(|c| c.error.as_deref());
     assert_eq!(error, Some("Word 3 differs from part 2"));
+}
+
+#[test]
+fn back_ups_seed_xor_section_names_the_places_the_parts_are_on() {
+    let mut app = backing_up();
+    testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
+    app.press(Action::BChecklist);
+    app.press(Action::BNext(faraday_core::plan::Item::Templates));
+    app.press(Action::BReveal);
+    app.press(Action::BXor(2));
+    let want = "On the plan: Place 1, Place 2";
+    let mut seen = false;
+    for _ in 0..40 {
+        let _ = app.frame();
+        if app.drawn_texts().plain().iter().any(|t| t == want) {
+            seen = true;
+            break;
+        }
+        for x in [600, 1326] {
+            app.event(Event::Scroll { x, y: 400, dy: 150 });
+        }
+    }
+    let all: Vec<String> = app.drawn_texts().plain();
+    assert!(seen, "the section says where the parts are: {all:?}");
 }
