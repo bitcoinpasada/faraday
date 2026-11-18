@@ -314,6 +314,31 @@ fn a_passphrase_never_shares_a_place_with_its_words() {
     assert_eq!(check(&c, &shape, &a).lost, Lost::No);
 }
 
+/// Paper only keeps the words alone for a single key whose seed gives the
+/// wallet back, and the whole wallet sheet for any other wallet.
+#[test]
+fn paper_only_keeps_the_words_alone_for_a_seed_that_gives_the_wallet_back() {
+    use faraday_core::plan::Ready;
+    let c = faraday_core::testkit::compute();
+    let shape = one_key();
+    let a = Ready::PaperOnly.answers(&shape);
+    assert_eq!(
+        checklist(&c, &shape, &a),
+        vec![Item::Templates, Item::Copy(0), Item::Envelopes]
+    );
+    assert!(Ready::PaperOnly.is(&shape, &a));
+    // A seed that does not give the wallet back alone, or a passphrase,
+    // keeps the sheet.
+    let mut other = one_key();
+    other.seed_alone_fails = true;
+    assert!(checklist(&c, &other, &Ready::PaperOnly.answers(&other)).contains(&Item::Sticks));
+    let mut pass = one_key();
+    pass.seeds[0].passphrase = true;
+    assert!(checklist(&c, &pass, &Ready::PaperOnly.answers(&pass)).contains(&Item::Sticks));
+    let multi = two_of_three();
+    assert!(checklist(&c, &multi, &Ready::PaperOnly.answers(&multi)).contains(&Item::Sticks));
+}
+
 #[test]
 fn the_checklist_lists_only_what_the_plan_needs() {
     let c = faraday_core::testkit::compute();

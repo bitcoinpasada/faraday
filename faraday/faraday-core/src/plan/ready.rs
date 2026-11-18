@@ -2,7 +2,9 @@
 //! §17.25): each a whole placement a person takes as it stands or then
 //! customises.
 
-use faraday_plan::{Answers, At, Preset, Shape, What, stored_map, with_added, with_vault_stick};
+use faraday_plan::{
+    Answers, At, Preset, Shape, What, stored_map, wallet, with_added, with_vault_stick,
+};
 
 /// One ready plan.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -50,7 +52,15 @@ impl Ready {
     /// The answers of this plan for `shape`, read-only as a new plan is.
     pub fn answers(self, shape: &Shape) -> Answers {
         match self {
-            Ready::PaperOnly => Answers::preset(shape, Preset::Standard),
+            Ready::PaperOnly => {
+                let mut a = Answers::preset(shape, Preset::Standard);
+                // The seed alone gives the wallet back: the words alone
+                // at the place, no sheet (`docs/BACKUP-FLOW.md` §19.6).
+                if shape.words_alone() {
+                    a.wallet[wallet::PAPER] = false;
+                }
+                a
+            }
             Ready::PaperAndVault => Answers::preset(shape, Preset::PaperVault),
             Ready::TwoVaults => {
                 let mut a = Answers::preset(shape, Preset::PaperVault);

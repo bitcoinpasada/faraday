@@ -1507,7 +1507,9 @@ The one way a backup starts (owner, 2026-10-19; narrowed 2026-10-20,
 §17.21):
 
 1. **The standard way**. A single key: one place, Paper
-   holding the seed's words and the whole description. An m-of-n
+   holding the seed's words and the whole description; for a key whose
+   seed alone gives the wallet back and has no passphrase, the words
+   alone (§19.6). An m-of-n
    multisig: n places, each Paper holding one seed's words and the
    whole description. No SeedQR (§17.21 item 12). No vaults, no sticks. A seed with a
    passphrase has the passphrase at a place of its own, as every preset

@@ -214,6 +214,13 @@ impl Shape {
         self.multi() || self.seed_alone_fails
     }
 
+    /// One key whose words are here, with no passphrase, and whose seed
+    /// alone gives the wallet back: its Paper only keeps the words alone,
+    /// without the wallet sheet (`docs/BACKUP-FLOW.md` §19.1, §19.6).
+    pub fn words_alone(&self) -> bool {
+        !self.needs_description() && matches!(self.seeds.as_slice(), [s] if s.here && !s.passphrase)
+    }
+
     /// No seed of it is here: nothing to ask about seeds.
     pub fn watch_only(&self) -> bool {
         !self.seeds.iter().any(|s| s.here)
