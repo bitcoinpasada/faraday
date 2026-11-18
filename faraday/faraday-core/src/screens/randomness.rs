@@ -7,11 +7,12 @@
 //! press that draws the system's randomness and opens the page from there
 //! (`docs/OWN-RANDOMNESS.md` §8, F157).
 
-use super::parts::{buttons_and_next, camera_row, card_pad, coin_pad, dice_pad};
+use super::parts::{buttons_and_next, camera_row, card_pad, coin_pad, dice_pad_fit};
 use crate::Action;
 use crate::drawing::View;
 use crate::fresh::OwnSource;
 use crate::fresh::page::{Act, OwnPage};
+use crate::keygen::screen::{typed_buttons, typed_field};
 use crate::strings::{EN, fill};
 use crate::ui::Shape;
 use crate::ui::pal::*;
@@ -302,7 +303,7 @@ pub(crate) fn own_sources(
         ui.choices((x, cy, w, OWN_BUTTON), LABEL, &sources, on)
     } + PAD;
     if p.chosen() {
-        cy += pad(p, ui, x, cy, w);
+        cy += pad(app, p, ui, x, cy, w);
         cy += batch(p, ui, (x, cy, w), card);
     }
     cy - y
@@ -351,7 +352,7 @@ fn source_grid(
 }
 
 /// The chosen source's pad, New key's own. Returns its height.
-fn pad(p: &OwnPage, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn pad(app: &View, p: &OwnPage, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     match p.source() {
         OwnSource::Camera => camera_row(
             ui,
@@ -360,7 +361,7 @@ fn pad(p: &OwnPage, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             p.last_frame(),
             own(Act::Frame),
         ),
-        OwnSource::Dice => dice_pad(ui, (x, y, w), &|_| Style::Secondary, |f| own(Act::Roll(f))),
+        OwnSource::Dice => dice_entry(app, p, ui, (x, y, w)),
         OwnSource::Coins => coin_pad(ui, (x, y, w), own(Act::Flip(true)), own(Act::Flip(false))),
         OwnSource::Cards => card_pad(
             ui,
@@ -372,6 +373,30 @@ fn pad(p: &OwnPage, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         ),
         OwnSource::PointerKeys => pointer_keys_area(p, ui, (x, y, w)),
     }
+}
+
+/// Dice, entered as New key's dice are: Typed (a box showing the rolls)
+/// or Buttons (the faces), chosen on a row above. Returns its height.
+fn dice_entry(app: &View, p: &OwnPage, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+    let touch = crate::flow::small_touch(ui).max(app.touch_side());
+    let bh = BUTTON_H.max(touch);
+    let mut cy = y + typed_buttons(ui, (x, y), bh, p.typing(), |t| own(Act::Typing(t)));
+    cy += if p.typing() {
+        p.with_rolls_text(|text| {
+            typed_field(
+                ui,
+                (x, cy, w),
+                text,
+                EN.keygen_dice_faces_caption,
+                own(Act::Typing(true)),
+            )
+        }) + GAP
+    } else {
+        dice_pad_fit(ui, (x, cy, w), touch, &|_| Style::Secondary, |f| {
+            own(Act::Roll(f))
+        })
+    };
+    cy - y
 }
 
 /// Pointer and keys' area, which the pointer's moves are taken over, and
@@ -420,7 +445,12 @@ fn batch(p: &OwnPage, ui: &mut Ui, (x, y, w): (f32, f32, f32), card: bool) -> f3
     if let Some((one, many)) = unit {
         let n = p.batch_len();
         let noun = if n == 1 { one } else { many };
-        let line = fill(EN.own_batch, &[&n.to_string(), noun]);
+        let line = if p.source() == OwnSource::Dice {
+            let bits = format!("{:.1}", p.dice_bits());
+            fill(EN.own_batch_bits, &[&n.to_string(), noun, &bits])
+        } else {
+            fill(EN.own_batch, &[&n.to_string(), noun])
+        };
         cy += ui.wrap_as((x, cy, w), BODY_M, Role::OnSurface, &line) + GAP;
         // As New key names it: 99 rolls are enough for 256 bits alone.
         if p.source() == OwnSource::Dice

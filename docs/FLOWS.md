@@ -538,6 +538,12 @@ at once in the frame that shows the click; the die then tumbles a moment
 "simulated dice and your dice" where both made the entries; the roller
 makes no value a real die did not, and the flow is otherwise unchanged.
 
+**Add randomness's dice** (and New key's Generator card's) offer **Typed**
+(the default: a box showing the rolls, faces 1 to 6) and **Buttons**, as
+New key's dice do, and the batch line reads the rolls and the bits they
+hold if fair (log2(6) each, one decimal): "In this batch: 10 dice rolls ·
+25.8 bits".
+
 **Make codex32 shares** (`docs/CODEX32.md` §6, §7). Start's Codex32
 opens the flow's own cards: **Scheme** (Length 48 · 74 characters; Split
 2 of 3 · 3 of 5 · Other, with a threshold stepper 2 to 9 and a strings

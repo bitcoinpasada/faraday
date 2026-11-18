@@ -37,6 +37,8 @@ pub enum Act {
     /// Pointer and keys' area: drawn as a region so the pointer's moves
     /// over it are found there; a press on it does nothing.
     Area,
+    /// Dice: the rolls are typed (`true`) or pressed as buttons.
+    Typing(bool),
     /// Take back the batch's last entry.
     Undo,
     /// Forget the batch.
@@ -72,6 +74,8 @@ pub(crate) struct OwnPage {
     cards: CardDraws,
     /// Pointer moves and keys not yet added, and their counts.
     pk: PointerKeys,
+    /// Dice are entered by typing, with the box shown; or by buttons.
+    typing: bool,
     /// A card's rank, picked before its suit.
     rank: Option<u8>,
     /// The camera's newest frame's luma, while the camera is on.
@@ -108,6 +112,7 @@ impl OwnPage {
             coins: CoinFlips::new(),
             cards: CardDraws::new(),
             pk: PointerKeys::new(),
+            typing: true,
             rank: None,
             frame: None,
             last_frame: None,
@@ -199,6 +204,28 @@ impl OwnPage {
     pub(crate) fn flush(&mut self) -> Option<Batch> {
         let (c, n) = self.pk.commit()?;
         Some((OwnSource::PointerKeys, c, n))
+    }
+
+    /// Whether dice are entered by typing (the box) rather than by buttons.
+    pub(crate) fn typing(&self) -> bool {
+        self.typing
+    }
+
+    /// `f` on the dice batch's faces as typed, one digit each; the copy
+    /// is wiped after.
+    pub(crate) fn with_rolls_text<R>(&self, f: impl FnOnce(&str) -> R) -> R {
+        let mut ascii = [0u8; faraday_entropy::MAX_ROLLS];
+        for (a, r) in ascii.iter_mut().zip(self.dice.rolls()) {
+            *a = b'0' + r;
+        }
+        let out = f(core::str::from_utf8(&ascii[..self.dice.len()]).unwrap_or_default());
+        ascii.zeroize();
+        out
+    }
+
+    /// The bits the dice batch holds if the rolls are fair: rolls times log2(6).
+    pub(crate) fn dice_bits(&self) -> f32 {
+        self.dice.bits_collected()
     }
 
     /// The rank picked, waiting for its suit.
@@ -294,6 +321,7 @@ impl OwnPage {
             Act::Rank(r) if self.source == OwnSource::Cards => self.rank = Some(r),
             Act::Suit(s) if self.source == OwnSource::Cards => self.suit(s),
             Act::Frame if self.source == OwnSource::Camera => return self.take_frame(),
+            Act::Typing(t) => self.typing = t,
             Act::Undo => self.undo(),
             Act::Clear => self.clear_shown(),
             Act::Add => return self.take_batch(),

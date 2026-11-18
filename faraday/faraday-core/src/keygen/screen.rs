@@ -1623,18 +1623,7 @@ pub(crate) fn entry_style(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32, touch
             cy += 42.0 + grow;
         }
     }
-    for (label, on) in [(EN.keygen_typed, true), (EN.keygen_buttons, false)] {
-        bx += ui.button(
-            bx,
-            cy,
-            None,
-            bh,
-            label,
-            style(k.typing == on),
-            Action::KTyping(on),
-        ) + 6.0;
-    }
-    cy += 46.0 + grow;
+    cy += typed_buttons(ui, (bx, cy), bh, k.typing, Action::KTyping);
     if k.active() == Some(Source::Coins) {
         let line = if k.by_die {
             EN.keygen_dice_flip_rule
@@ -1646,13 +1635,34 @@ pub(crate) fn entry_style(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32, touch
     cy
 }
 
-/// The box entries are typed into. Each is taken as it is typed, and
-/// the box shows every one taken, by buttons too.
-fn typed_box(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+/// The Typed and Buttons choice from (x, y), `bh` tall, `typing` the one
+/// chosen, each press `act`'s. Shared by every dice entry. Returns the
+/// row's height.
+pub(crate) fn typed_buttons(
+    ui: &mut Ui,
+    (x, y): (f32, f32),
+    bh: f32,
+    typing: bool,
+    act: fn(bool) -> Action,
+) -> f32 {
+    let mut bx = x;
+    for (label, on) in [(EN.keygen_typed, true), (EN.keygen_buttons, false)] {
+        bx += ui.button(bx, y, None, bh, label, Style::chosen(typing == on), act(on)) + 6.0;
+    }
+    46.0 + (bh - BUTTON_H)
+}
+
+/// The box rolls are typed into, `text` in it, a press in it `act`.
+/// Returns the height used, its caption under it included.
+pub(crate) fn typed_field(
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    text: &str,
+    caption: &str,
+    act: Action,
+) -> f32 {
     ui.fill(x, y, w, 40.0, 8.0, Role::SurfaceContainerHighest);
     ui.stroke(x, y, w, 40.0, 8.0, Role::Primary);
-    // A press in the box places the caret, a drag selects rolls, and
-    // what is deleted there leaves the key.
     ui.typed(
         x + 12.0,
         y,
@@ -1660,17 +1670,27 @@ fn typed_box(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
         BODY_M.size,
         W::M,
         Role::OnSurface,
-        &k.entered,
+        text,
         w - 30.0,
         true,
-        Action::KTyping(true),
+        act,
     );
-    ui.press_box(x, y, w, 40.0, Action::KTyping(true));
+    ui.press_box(x, y, w, 40.0, act);
+    let cap = y + 48.0;
+    ui.text_as(x, cap, BODY_S, Role::OnSurfaceVariant, caption);
+    cap + ui.line_as(BODY_S) - y
+}
+
+/// The box entries are typed into. Each is taken as it is typed, and
+/// the box shows every one taken, by buttons too.
+fn typed_box(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    // A press in the box places the caret, a drag selects rolls, and
+    // what is deleted there leaves the key.
     let what = match k.active() {
         Some(Source::Coins) if !k.by_die => EN.keygen_h_or_1_for_heads,
         _ => EN.keygen_dice_faces_caption,
     };
-    ui.text_as(x, y + 48.0, BODY_S, Role::OnSurfaceVariant, what);
+    typed_field(ui, (x, y, w), &k.entered, what, Action::KTyping(true));
     let line = never_below(app, ui, x, y + 64.0, w);
     y + 76.0 + line
 }

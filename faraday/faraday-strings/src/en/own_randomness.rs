@@ -54,6 +54,8 @@ macro_rules! words_own_randomness {
     own_source_cards: "Cards",
     /// The batch not yet added. `{}`: how many, then `own_dice_rolls` or its kin.
     own_batch: "In this batch: {} {}",
+    /// The dice batch not yet added. `{}`: how many, then `own_dice_rolls` or its kin, then the bits they hold if fair (one decimal).
+    own_batch_bits: "In this batch: {} {} · {} bits",
     /// A dice batch of 99 rolls or more.
     own_enough_256: "Enough for 256 bits on its own",
     /// The button that adds the batch.

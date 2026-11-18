@@ -1,6 +1,6 @@
 //! The randomness tour (`docs/OWN-RANDOMNESS.md` §2.2): Settings'
 //! Randomness row, Add randomness as it opens with nothing chosen, on
-//! Camera with a picture taken, Dice with a batch entered, Cards with a
+//! Camera with a picture taken, Dice with a batch entered (typed, then as buttons), Cards with a
 //! rank picked, Pointer and keys, and the row again with what was added;
 //! then the Randomness row at a press that draws the system's randomness
 //! (§8): New key's SLIP-39 shares on their Enter step, with the ⋮ on the
@@ -45,6 +45,8 @@ pub(crate) fn randomness_tour(t: &mut Tour) -> Result<(), String> {
         t.press(own(Act::Roll(f)));
     }
     t.shot("randomness-dice")?;
+    t.press(own(Act::Typing(false)));
+    t.shot("randomness-dice-buttons")?;
     t.press(own(Act::Add));
     t.press(own(Act::Source(OwnSource::Cards)));
     t.press(own(Act::Rank(0)));

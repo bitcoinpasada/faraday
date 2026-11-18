@@ -500,7 +500,7 @@ fn settings_randomness_row_counts_what_the_page_added_and_none_after_a_lock() {
     assert!(
         app.drawn_texts()
             .iter()
-            .any(|t| t == "In this batch: 99 dice rolls"),
+            .any(|t| t == "In this batch: 99 dice rolls · 255.9 bits"),
         "{:?}",
         app.drawn_texts()
     );
@@ -809,6 +809,7 @@ fn new_keys_generator_offers_the_sources_on_its_card_and_takes_its_bytes_again_m
     assert!(!app.own_counts().any(), "nothing taken passively");
     assert!(!crate::common::has(&mut app, ADDED), "nothing added yet");
     app.press(own(Act::Source(OwnSource::Dice)));
+    app.press(own(Act::Typing(false)));
     assert!(
         crate::common::offered(&mut app, own(Act::Roll(1))),
         "the dice pad on the card"
@@ -1150,7 +1151,7 @@ fn add_randomness_reached_by_navigation_opens_its_page_with_a_way_back() {
     assert!(
         app.drawn_texts()
             .iter()
-            .any(|t| t == "In this batch: 6 dice rolls"),
+            .any(|t| t == "In this batch: 6 dice rolls · 15.5 bits"),
         "{:?}",
         app.drawn_texts()
     );
@@ -1793,5 +1794,51 @@ fn before_the_seed_a_new_set_with_a_new_identifier_waits_and_is_made_when_it_arr
     assert_eq!(
         &app.session.keys[0].codex32.clone().unwrap().identifier,
         b"w0za"
+    );
+}
+
+#[test]
+fn dice_on_the_page_show_the_typed_rolls_and_their_bits_and_offer_buttons_too() {
+    let mut app = testkit::started();
+    answer(&mut app, SEED);
+    app.press(Action::Nav(Screen::Settings));
+    crate::common::settings_section(&mut app, "Randomness");
+    app.press(own(Act::Open));
+    app.press(own(Act::Source(OwnSource::Dice)));
+    assert!(
+        crate::common::offered(&mut app, own(Act::Typing(false))),
+        "Buttons is offered"
+    );
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t == "In this batch: 0 dice rolls · 0.0 bits"),
+        "{:?}",
+        app.drawn_texts()
+    );
+    // Typed faces show in the box and add their bits; Backspace takes one back.
+    crate::common::type_text(&mut app, "1234");
+    app.event(Event::Key(Key::Backspace));
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "123"), "{texts:?}");
+    assert!(
+        texts
+            .iter()
+            .any(|t| t == "In this batch: 3 dice rolls · 7.8 bits"),
+        "{texts:?}"
+    );
+    // The same rolls pressed as buttons count the same.
+    app.press(own(Act::Typing(false)));
+    assert!(
+        crate::common::offered(&mut app, own(Act::Roll(6))),
+        "the faces are offered"
+    );
+    app.press(own(Act::Roll(6)));
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t == "In this batch: 4 dice rolls · 10.3 bits"),
+        "{:?}",
+        app.drawn_texts()
     );
 }

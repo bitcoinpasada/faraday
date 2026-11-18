@@ -71,7 +71,7 @@ committed by `faraday-entropy`'s `PointerKeys`.
 
 | Source | Shells | What is taken | Its commitment |
 |---|---|---|---|
-| Dice | every shell | rolls on the dice pad, as New key takes them (`DiceRolls`) | SHA-256 of the rolls as ASCII digits, as `faraday-entropy`'s dice commitment |
+| Dice | every shell | rolls typed into a box or pressed on the dice pad (Typed and Buttons, as New key's dice), as New key takes them (`DiceRolls`); the batch line shows the rolls and the bits they hold if fair, log2(6) each | SHA-256 of the rolls as ASCII digits, as `faraday-entropy`'s dice commitment |
 | Camera noise | every shell with a camera | frames, as New key's mix takes them (`CameraNoise`, the same refusal of a frame with under 32 distinct values) | each frame's SHA-256, as it is taken |
 | Coins | every shell | flips, as New key takes them (`CoinFlips`) | `CoinFlips::commitment`, as New key's |
 | Cards | every shell | draws from a shuffled deck, as New key takes them (`CardDraws`, refusing a card already drawn from its deck) | `CardDraws::commitment`: SHA-256 of the draws' indices, as New key's |

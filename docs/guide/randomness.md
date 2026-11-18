@@ -19,7 +19,7 @@ The status line reads **System:** with the source the system names, then **your 
 
 **Add randomness to the pool** offers one source at a time, and nothing starts until you choose one.
 
-**Camera** is offered where a camera is present. **Take a picture** adds that frame at once; a picture with too little variation is refused. **Dice** takes the faces 1 to 6. **Coins** takes **Heads** and **Tails**. **Cards** takes a rank, then a suit, from a deck; a card already drawn from it is refused, and the next batch starts from a full deck. **Pointer and keys** is offered on the desktop app only. It takes pointer movement over its area and typing in it; keys typed elsewhere are not taken.
+**Camera** is offered where a camera is present. **Take a picture** adds that frame at once; a picture with too little variation is refused. **Dice** takes the faces 1 to 6, **Typed** into a box (the default) or pressed as **Buttons**, and shows the rolls so far with the bits they hold, 2.6 bits a roll. **Coins** takes **Heads** and **Tails**. **Cards** takes a rank, then a suit, from a deck; a card already drawn from it is refused, and the next batch starts from a full deck. **Pointer and keys** is offered on the desktop app only. It takes pointer movement over its area and typing in it; keys typed elsewhere are not taken.
 
 ## Entries
 
