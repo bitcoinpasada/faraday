@@ -140,6 +140,15 @@ carries; none is signed.
   none of: a key origin of more than 16 steps (Faraday's own limit, no wallet's
   path is longer) or a hash preimage that does not hash to its key (the bridge
   to version 0 checks it).
+- Faraday refuses; Core, HWI and btclib read: an x-only key that is not a point's
+  x (an input's taproot internal key, 0x17, or key origin, 0x16, an output's 0x05
+  or 0x07; "invalid xonly public key"), which `bitcoin` checks as a key.
+- Faraday refuses; HWI reads: a version 2 transaction with no input (with or
+  without outputs), for which HWI makes a version 0 PSBT and Core reads it and Faraday's
+  bridge to version 0 fails ("Bridge").
+- HWI refuses; Faraday reads: an output with a silent payment's info (BIP-375,
+  0x09) and no script ("PSBT_OUTPUT_SCRIPT is required"); BIP-375 leaves the
+  script to the signer.
 - A version 2 transaction with no input: `bitcoin` writes it with the segwit
   marker `0001` after the version, HWI and BIP-174 without; the two are
   compared with the marker taken out, also in the version 0 form Faraday makes.
@@ -498,6 +507,9 @@ def sorted_leaves(pairs):
     for k, v in pairs:
         if k[:1] == b"\x16":
             n, at = compact(v, 0)
+            if n > len(v) // 32:
+                out.add((k, v))  # a count the value cannot hold: nothing to sort
+                continue
             hashes = sorted(v[at + 32 * i:at + 32 * i + 32] for i in range(n))
             v = ser_compact(n) + b"".join(hashes) + v[at + 32 * n:]
         out.add((k, v))
@@ -542,6 +554,8 @@ def outcome(fn):
 
 # Seconds one corpus case may take, every judge and helper together.
 CASE_SECONDS = 120
+# Faraday's text where `to_v0` makes nothing of a transaction with no input.
+V0_NONE = "Bridge"
 MAX_MONEY = 21_000_000 * 10**8
 # Bitcoin Core's limit on a compact size it reads (`MAX_SIZE`).
 CORE_MAX_SIZE = 0x02000000
@@ -818,6 +832,43 @@ def core_rule(raw, text):
     return None
 
 
+def _is_x(b):
+    """Whether 32 bytes are the x of a point on secp256k1."""
+    p = 2**256 - 2**32 - 977
+    x = int.from_bytes(b, "big")
+    if len(b) != 32 or x >= p:
+        return False
+    rhs = (pow(x, 3, p) + 7) % p
+    return pow(pow(rhs, (p + 1) // 4, p), 2, p) == rhs
+
+
+def xonly_invalid(raw):
+    """An x-only key that is not a point's x, where `bitcoin` reads one as a
+    key: an input's taproot internal key (value of 0x17) or key origin (key
+    data of 0x16), an output's (value of 0x05, key data of 0x07)."""
+    for kind, _, key, value in pairs_of(raw):
+        ty = key[0] if key else None
+        if kind == "input" and ty == 0x17 and len(value) == 32 and not _is_x(value):
+            return True
+        if kind == "output" and ty == 0x05 and len(value) == 32 and not _is_x(value):
+            return True
+        if (kind, ty) in (("input", 0x16), ("output", 0x07)) and len(key) == 33 \
+                and not _is_x(key[1:]):
+            return True
+    return False
+
+
+def silent_output_without_script(raw):
+    """A version 2 PSBT with an output that has a silent payment's info
+    (BIP-375, `PSBT_OUT_SP_V0_INFO`, 0x09) and no script (0x04)."""
+    got = maps_of(raw)
+    if got is None:
+        return False
+    maps, n_in = got
+    return any(any(k[:1] == b"\x09" for k, _ in m) and not any(k == b"\x04" for k, _ in m)
+               for m in maps[1 + n_in:])
+
+
 def hwi_rule(raw, text):
     """HWI refuses a version 2 PSBT (once the pairs Faraday leaves to the
     bridge are taken out) that Faraday reads."""
@@ -827,6 +878,8 @@ def hwi_rule(raw, text):
         return "hwi: a transaction version of 2^31 or more"
     if "PSBT_OUTPUT_SCRIPT is required" in text and empty_output_script(raw):
         return "hwi: an empty output script"
+    if "PSBT_OUTPUT_SCRIPT is required" in text and silent_output_without_script(raw):
+        return "hwi: a silent payment output with no script"
     if "Musig2" in text and musig_key_wrong(raw):
         return "hwi: a MuSig2 field's key data of a size BIP-373 forbids"
     return None
@@ -1005,7 +1058,11 @@ class Psbt(Area):
                             "outputs": len(tx["vout"])})
         decided = shown
         self.compared += 1
-        if rust[0] == "err" and decoded[0] == "ok":
+        if rust[0] == "err" and decoded[0] == "ok" and "invalid xonly public key" in rust[1] \
+                and xonly_invalid(raw):
+            # Faraday refuses; Core, HWI and btclib read.
+            self.rule("faraday: an x-only key that is not a point's x")
+        elif rust[0] == "err" and decoded[0] == "ok":
             # Core reads it; HWI must refuse it as BIP-370 does, or
             # btclib as BIP-341 does (a taproot signature with a sighash
             # byte of 0).
@@ -1266,7 +1323,9 @@ class Psbt(Area):
                     # Faraday's bridge refuses what no wallet has (a key
                     # origin of over 16 steps) and a preimage that does not
                     # hash to its key; HWI and Core read them.
-                    rule = ("faraday: a key origin of more than 16 steps" if long_origin(raw)
+                    rule = ("faraday: a transaction with no input"
+                            if no_inputs(raw) and V0_NONE in str(got["v0_error"])
+                            else "faraday: a key origin of more than 16 steps" if long_origin(raw)
                             else "faraday: a preimage that does not hash to its key"
                             if preimage_wrong(raw) else None)
                     if not rule:

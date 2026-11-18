@@ -60,11 +60,13 @@ pub fn handle(name: &str, req: &Value) -> Answer {
             // `v0`: the version 0 PSBT the signer is given, none where
             // there is none.
             let v0 = p.to_v0(&c).ok().map(|v| hex(&v.to_bytes()));
+            let v0_error = p.to_v0(&c).err().map(err);
             Ok(json!({
                 "bytes": hex(&p.to_bytes()),
                 "locktime": p.locktime().ok(),
                 "tx": tx,
                 "v0": v0,
+                "v0_error": v0_error,
             }))
         }
         _ => Err(format!("unknown psbt op {name}")),
