@@ -118,6 +118,29 @@ fn usb_sticks_are_offered_and_the_computers_own_disks_are_not() {
     assert!(stick.faraday.is_none());
 }
 
+/// A recording of a USB hard drive on Windows: the drive reports itself as
+/// not removable, so it is listed as a fixed USB disk, and a fixed disk is
+/// written only after the stronger confirmation.
+#[test]
+fn a_usb_hard_drive_is_listed_as_fixed_and_asks_for_the_stronger_confirmation() {
+    let text =
+        fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/windows/usb-hdd.txt"))
+            .expect("a recorded answer");
+    let s = Snapshot::parse(&text).expect("a well-formed recording");
+    let list = found(&s);
+    let drive = &disk(&list, "Disk 2").disk;
+    assert_eq!(drive.bus, Bus::Usb);
+    assert!(drive.fixed);
+    assert!(unlike_a_stick(drive).is_some());
+    // The same recording's USB stick is not fixed.
+    let stick = &disk(&list, "Disk 1").disk;
+    assert_eq!(stick.bus, Bus::Usb);
+    assert!(!stick.fixed);
+    // Both are offered for a stick.
+    let offers = offered(&s, Target::Stick);
+    assert!(offers.contains(&("Disk 2".to_string(), None)), "{offers:?}");
+}
+
 /// Disk 1's one volume as Windows answers for a BitLocker volume: locked
 /// (no file system named) or unlocked (its file system mounted).
 fn disk_one_with(filesystem: &str) -> Snapshot {
