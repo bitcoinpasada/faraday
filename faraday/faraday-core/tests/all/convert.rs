@@ -2065,8 +2065,9 @@ fn an_aezeeds_entropy_is_the_seed_and_every_row_reads_back_to_it() {
 
 #[test]
 fn the_aezeeds_result_says_its_birthday_and_what_it_covers() {
-    // LND's cipher seed is a public sample, which Mainnet refuses: it is
-    // read on the test network.
+    // This cipher seed holds the same entropy as LND's public sample, so its
+    // node is the sample's and Mainnet refuses it: it is read on the test
+    // network.
     let mut app = testkit::started();
     open(&mut app);
     read_aezeed(&mut app, AEZEED_PASS, "!very_safe_55345_password*");
