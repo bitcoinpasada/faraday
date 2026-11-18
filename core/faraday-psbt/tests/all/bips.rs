@@ -482,7 +482,7 @@ fn a_signing_pass_brings_back_its_signatures_and_nothing_else() {
 /// `bytes` with the compact size at `at` (one byte, below 0xfd) written
 /// as `fd`, `fe` or `ff` and the same value.
 fn widened(bytes: &[u8], at: usize, marker: u8) -> Vec<u8> {
-    let n = usize::from(bytes[at]);
+    let n = u64::from(bytes[at]);
     assert!(n < 0xfd);
     let width = match marker {
         0xfd => 2,
