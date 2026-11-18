@@ -14,7 +14,7 @@
 
 use crate::common::{add_key, type_text};
 use faraday_core::create::NewKind;
-use faraday_core::plan::{self, Answers, Preset};
+use faraday_core::plan;
 use faraday_core::testkit::Plain;
 use faraday_core::{Action, Faraday, Screen, cstep, testkit};
 use faraday_shell_api::{App, Event, Key};
