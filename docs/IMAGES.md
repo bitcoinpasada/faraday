@@ -1335,9 +1335,10 @@ image headless and saves the screen as a PNG under `OUT_DIR` at each
 stage: the first screen, with the boot stick in; after the boot stick is
 pulled; with a test stick holding `TESTKIT_DIR`'s files plugged in; and
 after that stick is pulled. It also reads the serial port and fails
-(exit 1) when a kernel line arrives on it, or when the screen does not
-change on plugging the test stick in after Ctrl-Z and Ctrl-C were sent on
-the port; the frames are for a person to look at. Run it on the release
+(exit 1) when a kernel line arrives on it, or when, after Ctrl-Z and
+Ctrl-C were sent on the port, the screen changes neither on a mouse move
+(the app draws its pointer, which shows on the virtual machine notice the
+release image stays on) nor on plugging the test stick in; the frames are for a person to look at. Run it on the release
 image: the dev image's console is on that port. `--no-kvm` emulates the CPU for a machine
 without `/dev/kvm`, and every wait is four times as long.
 

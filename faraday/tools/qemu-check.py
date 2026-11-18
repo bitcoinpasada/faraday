@@ -17,8 +17,11 @@ it; every wait is then four times as long.
 
 The serial port is read as well (the release image's kernel has no console on
 it, so no kernel line may arrive), and the app is sent Ctrl-Z and Ctrl-C on
-it, after which it must still answer: plugging the test stick in changes its
-screen. The check fails (exit 1) when either does not hold.
+it, after which it must still answer: a mouse move sent through QMP makes it
+draw its pointer, which changes its screen even on the virtual machine notice
+the release image stays on; failing that, plugging the test stick in changes
+its screen. A frozen screen passes neither. The check fails (exit 1) when
+either half does not hold.
 """
 
 import argparse
@@ -172,13 +175,26 @@ def main():
         port.sendall(b"\x1a\x03")
         time.sleep(2 * SLOW)
         heard += listen(port)
+        # The release image stays on its virtual machine notice, which a
+        # plugged stick does not change; the app draws the pointer, so a mouse
+        # move is a sign of life that shows there. The screen before the move
+        # is the one after the serial bytes: it is the app that changes it.
+        _, _, quiet = settle(monitor, scratch, 15)
+        monitor.move(200, 150)
+        time.sleep(1 * SLOW)
+        monitor.move(-60, -40)
+        time.sleep(2 * SLOW)
+        _, _, moved = monitor.screendump(scratch)
+        shot(monitor, scratch, out, "02b-pointer-moved.png")
+        alive = st.differs(quiet, moved) != 0
         st.plug_in(monitor, stick)
         time.sleep(6 * SLOW)
         _, _, after = settle(monitor, scratch, 15)
         heard += listen(port)
-        if st.differs(before, after) == 0:
-            failures.append("the screen did not change when the test stick was "
-                            "plugged in after Ctrl-Z and Ctrl-C on the serial port")
+        if not alive and st.differs(before, after) == 0:
+            failures.append("the screen did not change when the mouse was moved "
+                            "or the test stick was plugged in after Ctrl-Z and "
+                            "Ctrl-C on the serial port")
         shot(monitor, scratch, out, "03-test-stick-in.png")
         st.unplug(monitor)
         time.sleep(4 * SLOW)
