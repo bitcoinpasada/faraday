@@ -324,7 +324,7 @@ fn the_lock_sheet_lists_a_seed_checked_and_in_a_vault_as_kept() {
         app.backup_item_done_now(&c, faraday_core::plan::Item::Copy(0)),
         "the copy was not checked"
     );
-    // The test vault, which holds the seed; the wallet saved into it.
+    // The test vault, which holds the seed and the wallet; the backup's plan saved into it.
     app.press(Action::Vault(V::Open(0)));
     for c in testkit::VAULT_PASSPHRASE.chars() {
         app.event(Event::Key(Key::Char(c)));
@@ -338,7 +338,7 @@ fn the_lock_sheet_lists_a_seed_checked_and_in_a_vault_as_kept() {
         "{:?}",
         app.vaults().unlock_error
     );
-    app.press(Action::Vault(V::SaveWallet(0)));
+    app.press(Action::BVaultSave(0));
     let lines = lock_sheet_lines(&mut app);
     let line = lines
         .iter()

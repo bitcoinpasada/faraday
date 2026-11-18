@@ -722,6 +722,8 @@ fn pass_check_typed(typed: &str) -> (Faraday, faraday_core::glance::Press) {
     let press = Press::Vault(0, r);
     crate::chart_edit::passphrase_copied(&mut app, press);
     let r = app.vault_selected_index().expect("a wallet is chosen");
+    // The change to the plan wrote its record again, which moved the wallet's.
+    let press = Press::Vault(0, r);
     let g = faraday_core::glance::of_vault_now(&testkit::compute(), &app, 0, r)
         .expect("the vault's chart");
     let (n, j) = crate::chart_edit::passphrase_line(&g);

@@ -383,6 +383,13 @@ fn reads(app: &Faraday) -> Vec<Read> {
             }),
         ),
         (
+            "vault_record_is_key",
+            Box::new(move |v| {
+                let r = record(v, key_record);
+                let _ = v.session.keys.all().any(|k| v.vault_record_is_key(r, k));
+            }),
+        ),
+        (
             "vault_key_fingerprint",
             Box::new(move |v| {
                 let _ = v.vault_key_fingerprint(record(v, key_record));

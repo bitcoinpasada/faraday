@@ -323,8 +323,6 @@ fn vault_wallet(pass: &str, blocks: Option<u32>) -> (Faraday, usize) {
     app.press(Action::BChecklist);
     app.press(Action::BVaultSave(0));
     app.press(Action::Nav(Screen::VaultContents));
-    app.press(Action::Vault(V::AddKind(1)));
-    app.press(Action::Vault(V::SaveWallet(w)));
     app.press(Action::OpenWallet(w));
     let _ = app.frame();
     (app, w)
@@ -781,14 +779,28 @@ fn in_an_open_vaults_view_a_change_is_kept_in_that_vault() {
     app.press(Action::Vault(V::Item(0)));
     let _ = app.frame();
     let r = app.vault_selected_index().expect("a wallet is chosen");
-    let press = Press::Vault(0, r);
-    let vault_chart = |app: &Faraday| faraday_core::glance::of_vault_now(&c, app, 0, r).unwrap();
+    // A change to the plan writes its record again, which moves the wallet's
+    // record: the chart is found by the wallet's record each time.
+    let wallet_at = |app: &Faraday| {
+        use crate::common::RecordsOf;
+        crate::common::contents(app, 0)
+            .of(faraday_vault::records::kind::WALLET)
+            .next()
+            .map(|(i, _)| i)
+            .expect("the vault holds the wallet")
+    };
+    assert_eq!(wallet_at(&app), r);
+    let press = |app: &Faraday| Press::Vault(0, wallet_at(app));
+    let vault_chart =
+        |app: &Faraday| faraday_core::glance::of_vault_now(&c, app, 0, wallet_at(app)).unwrap();
     let at = nodes(&vault_chart(&app))
         .iter()
         .position(|n| n.name == "Place 1")
         .unwrap() as u8;
-    app.press(Action::Chart(C::Checked(press, at)));
-    change_in_plan(&mut app, press, Some((At::Place(0), None)));
+    let p = press(&app);
+    app.press(Action::Chart(C::Checked(p, at)));
+    let p = press(&app);
+    change_in_plan(&mut app, p, Some((At::Place(0), None)));
     crate::common::board(&mut app, BP::AddPlace);
     board_move(&mut app, Zone::Paper(0), Thing::Seed(0), Zone::Paper(2));
     keep_changes(&mut app);
