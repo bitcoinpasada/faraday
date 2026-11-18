@@ -150,7 +150,8 @@ way or waiting (`docs/FLOWS.md`, Home), then the tiles in a grid.
   m3.material.io, Components, Search): a search bar under
   Home's buttons, centred on the wide layout, drawn as the vault's is (`SEARCH_BAR_H`, 56 dp, fully rounded,
   `SurfaceContainerHigh`, the magnifying glass leading), full width on the
-  one-column layouts, with the hint "Search tools and settings".
+  one-column layouts, with the hint "Search" and, on the phone-size
+  window, at the top of the page under the box of what is loaded.
   Typing on Home lands in it with no press first (its caret blinks while
   it is empty once it is pressed), Escape or its × clears it. Its hover
   layer takes the bar's rounded shape.
@@ -163,9 +164,11 @@ way or waiting (`docs/FLOWS.md`, Home), then the tiles in a grid.
 - **The first actions** (nothing loaded; every window but the small
   panel's menu): **Make a new wallet**, **Restore an existing wallet** and
   **Spend from a backup** as like buttons, heading only, the whole button
-  the press, above the bar: one row where the three headings fit in full
-  (the rail's windows), else one under the other at full width; the
-  phone-size window always stacks them.
+  the press, above the bar (on the phone-size window, under it): on the
+  wide layout always one row of three equal columns, a long heading
+  wrapping to a second line; on the rail's windows one row where three
+  columns leave each heading room within two lines, else one under the
+  other at full width; the phone-size window always stacks them.
 - **The lead tile**: its icon, its line and its one button at its end,
   as wide as that needs and at most `LEAD_MAX` (560 dp); the plain Import
   lead has no button and is pressed whole.

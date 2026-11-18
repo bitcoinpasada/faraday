@@ -506,7 +506,7 @@ fn tiles(
     for (i, (icon, label, sub, action)) in ways.iter().enumerate() {
         let tx = x + (i % cols) as f32 * (tilew + gap);
         let ty = y + (i / cols) as f32 * (TILE_H + gap);
-        tile(ui, (tx, ty, tilew), (*icon, label, sub), *action);
+        tile(ui, (tx, ty, tilew), TILE_H, (*icon, label, sub), *action);
     }
     tiles_h(ways, ui, width, gap)
 }
@@ -517,10 +517,10 @@ fn tiles(
 fn tile(
     ui: &mut Ui,
     (tx, ty, tilew): (f32, f32, f32),
+    tile_h: f32,
     (icon, label, sub): (Glyph, &str, &str),
     action: Action,
 ) {
-    let tile_h = TILE_H;
     ui.fill(tx, ty, tilew, tile_h, SHAPE_M, Role::SurfaceContainerLow);
     ui.stroke(tx, ty, tilew, tile_h, SHAPE_M, Role::OutlineVariant);
     ui.press(
@@ -533,16 +533,19 @@ fn tile(
     ui.fill(tx + ix, ty + iy, ib, ib, SHAPE_M, Role::SecondaryContainer);
     ui.icon(tx + ix, ty + iy, ib, icon, 17.0, Role::OnSecondaryContainer);
     let room = tilew - HOME_TILE_TEXT_X - ix - ix;
-    let label = ui.fit_as(TITLE_M, label, room);
     if sub.is_empty() {
-        ui.text_mid_as(
-            (tx + HOME_TILE_TEXT_X, ty, tile_h),
+        // A heading too long for one line wraps; the block stays centred.
+        let lines = ui.wrap_lines_as(TITLE_M, label, room);
+        let block = lines as f32 * ui.line_as(TITLE_M);
+        ui.wrap_as(
+            (tx + HOME_TILE_TEXT_X, ty + (tile_h - block) / 2.0, room),
             TITLE_M,
             Role::OnSurface,
-            &label,
+            label,
         );
         return;
     }
+    let label = ui.fit_as(TITLE_M, label, room);
     ui.text_as(
         tx + HOME_TILE_TEXT_X,
         ty + 20.0,
@@ -582,52 +585,73 @@ pub(crate) fn first_actions() -> [(Glyph, &'static str, Action); 3] {
     ]
 }
 
+/// The most lines any first-run heading takes at `role` in a column
+/// `col` wide, with `text_x` before the heading and `inset` after it.
+pub(crate) fn actions_lines(
+    ui: &Ui,
+    role: faraday_draw::tokens::TypeRole,
+    col: f32,
+    (text_x, inset): (f32, f32),
+) -> usize {
+    let room = (col - text_x - inset).max(0.0);
+    first_actions()
+        .iter()
+        .map(|(_, label, _)| ui.wrap_lines_as(role, label, room))
+        .max()
+        .unwrap_or(1)
+}
+
+/// The width of one of three equal columns `width` wide with `gap`
+/// between them.
+pub(crate) fn actions_col(width: f32, gap: f32) -> f32 {
+    (width - 2.0 * gap) / 3.0
+}
+
 /// Whether the first-run actions stand on one row `width` wide with `gap`
-/// between them: all three headings fit unshortened at `role`, with
-/// `text_x` before each heading and `inset` after it. The one place that
-/// chooses a row or a stack, for the wide layout and the rail's windows.
+/// between them: every heading wraps within two lines at `role`, with
+/// `text_x` before each heading and `inset` after it. The rail's windows
+/// choose a row or a stack with it; the wide layout always has the row.
 pub(crate) fn actions_fit_a_row(
     ui: &Ui,
     role: faraday_draw::tokens::TypeRole,
     (width, gap): (f32, f32),
-    (text_x, inset): (f32, f32),
+    insets: (f32, f32),
 ) -> bool {
-    let widest = first_actions()
-        .iter()
-        .map(|(_, label, _)| ui.measure_as(role, label))
-        .fold(0.0, f32::max);
-    3.0 * (widest + text_x + inset) + 2.0 * gap <= width
+    actions_lines(ui, role, actions_col(width, gap), insets) <= 2
 }
 
-/// How many columns the first-run actions take: three, or one.
-fn actions_cols(ui: &Ui, width: f32, gap: f32) -> usize {
-    let row = actions_fit_a_row(
-        ui,
-        TITLE_M,
-        (width, gap),
-        (HOME_TILE_TEXT_X, HOME_TILE_INSET),
-    );
-    if row { 3 } else { 1 }
+/// The height of one first-run button whose longest heading takes `lines`
+/// lines of `role`: `base`, grown where the lines need more, with `pad`
+/// above and below. All three buttons share it.
+pub(crate) fn action_h(
+    ui: &Ui,
+    role: faraday_draw::tokens::TypeRole,
+    lines: usize,
+    (base, pad): (f32, f32),
+) -> f32 {
+    base.max(lines as f32 * ui.line_as(role) + 2.0 * pad)
 }
 
-/// The height the first-run actions take, the gap under them counted.
+/// The height the first-run actions take on the wide layout, the gap under
+/// them counted.
 fn actions_h(ui: &Ui, width: f32, gap: f32) -> f32 {
-    3usize.div_ceil(actions_cols(ui, width, gap)) as f32 * (TILE_H + gap)
+    let col = actions_col(width, gap);
+    let lines = actions_lines(ui, TITLE_M, col, (HOME_TILE_TEXT_X, HOME_TILE_INSET));
+    action_h(ui, TITLE_M, lines, (TILE_H, HOME_TILE_INSET)) + gap
 }
 
 /// The first-run actions with their top left at `(x, y)`, `width` wide:
-/// one row of three like buttons, or one under the other when the
-/// headings do not fit a row. Returns the height they take, the gap under
-/// them counted.
+/// always one row of three equal columns, a heading too long for its
+/// column wrapping onto a second line, the three buttons one height.
+/// Returns the height they take, the gap under them counted.
 fn actions(ui: &mut Ui, (x, y): (f32, f32), width: f32, gap: f32) -> f32 {
-    let cols = actions_cols(ui, width, gap);
-    let tilew = (width - gap * (cols - 1) as f32) / cols as f32;
+    let col = actions_col(width, gap);
+    let h = actions_h(ui, width, gap) - gap;
     for (i, (icon, label, action)) in first_actions().into_iter().enumerate() {
-        let tx = x + (i % cols) as f32 * (tilew + gap);
-        let ty = y + (i / cols) as f32 * (TILE_H + gap);
-        tile(ui, (tx, ty, tilew), (icon, label, ""), action);
+        let tx = x + i as f32 * (col + gap);
+        tile(ui, (tx, y, col), h, (icon, label, ""), action);
     }
-    3usize.div_ceil(cols) as f32 * (TILE_H + gap)
+    h + gap
 }
 
 /// The lead's card at `(x, y)`, at most `LEAD_MAX` wide inside `width`:

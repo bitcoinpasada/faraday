@@ -742,16 +742,27 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let l1 = ui.line_as(LABEL_L);
     // The card as tall as its line needs (`docs/TEXT-SIZE.md` §5).
     let card_h = ui.row_height(52.0, l1, faraday_draw::tokens::GRID);
-    let mut above = 12.0 + crate::nav::screen::loaded_card_h(app, ui, inner) + 10.0;
+    // The phone-size window has the search bar first, under the box of what
+    // is loaded, and a search typed takes the whole page; the rail's windows
+    // have it under the first actions. The Pi has none.
+    let phone = app.nav() == crate::nav::Nav::Bar;
+    let typed = bars && !app.tools.home_find().is_empty();
+    let shown = !crate::nav::screen::loaded_empty(app);
+    let mut above = 12.0;
+    if shown {
+        above += crate::nav::screen::loaded_card_h(app, ui, inner) + 10.0;
+    }
     if !beside {
         above += 38.0;
     }
-    if card {
-        above += card_h + 10.0;
-    }
-    above += prompts.len() as f32 * 52.0 + 2.0;
-    if first {
-        above += first_actions_h(app, ui, inner);
+    if !phone {
+        if card {
+            above += card_h + 10.0;
+        }
+        above += prompts.len() as f32 * 52.0 + 2.0;
+        if first {
+            above += first_actions_h(app, ui, inner);
+        }
     }
     let pinned = bars && crate::screens::home_pinned(above, view_h, TILE_H_GRID + 8.0);
     let mut open = (!pinned).then(|| {
@@ -767,41 +778,37 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
         home_head(app, ui, w, y);
         y += 38.0;
     }
-    y += crate::nav::screen::loaded_card(app, ui, M, y, inner) + 10.0;
-
-    // The box above names the keys, the wallets and the files; this card
-    // stays only for the vaults it does not show.
-    let keys = app.session.keys.len();
-    let line = Text::fill(
-        EN.compact_vaults_open,
-        &[
-            &Text::num(vaults as u64),
-            (if vaults == 1 {
-                EN.compact_vault
-            } else {
-                EN.compact_vaults_inline
-            }),
-        ],
-    );
-    let session = if keys + app.session.wallets.len() == 0 {
-        Screen::WalletsStart
-    } else {
-        Screen::Wallets
-    };
-    let action = Action::Nav(session);
-    let text_top = y + (card_h - l1) / 2.0;
-    if card {
-        ui.fill(M, y, inner, card_h, SHAPE_M, Role::SurfaceContainerLow);
-        ui.stroke(M, y, inner, card_h, SHAPE_M, Role::OutlineVariant);
-        ui.press(
-            Shape::new(M, y, inner, card_h, SHAPE_M),
-            Role::OnSurface.paint(),
-            action,
-        );
-        ui.dot(M + 16.0, text_top + l1 / 2.0, 4.0, Role::Ok);
-        let line = ui.fit_as(LABEL_L, &line, inner - 40.0);
-        ui.text_mid_as((M + 28.0, text_top, l1), LABEL_L, Role::OnSurface, &line);
-        y += card_h + 10.0;
+    if shown {
+        y += crate::nav::screen::loaded_card(app, ui, M, y, inner) + 10.0;
+    }
+    // The search bar and, while something is typed, its results.
+    macro_rules! search {
+        () => {{
+            y += crate::screens::catalog::home_search_bar(
+                app,
+                ui,
+                (M, y, inner),
+                (!pinned).then_some(0.0),
+            );
+            if pinned {
+                let clip = ui.rect(0.0, y, w, (view_h - y).max(0.0));
+                open = Some(ui.region_open(Region::page(clip).from_zero(app.list_offset)));
+                top = y;
+            }
+            if typed {
+                y += crate::screens::catalog::home_results(app, ui, (M, y), inner, true);
+                y += faraday_draw::tokens::HOME_RESULTS_FOOT;
+            }
+        }};
+    }
+    if phone {
+        search!();
+    }
+    // A search typed on the phone-size window takes the page: nothing
+    // under the bar is drawn.
+    let rest = !(phone && typed);
+    if card && rest {
+        y += vaults_card(app, ui, y, inner);
     }
 
     // The one thing waiting, when there is one.
@@ -810,7 +817,7 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     } else {
         inner.min(LEAD_MAX)
     };
-    for (icon, label, action, tone) in prompts {
+    for (icon, label, action, tone) in prompts.into_iter().filter(|_| rest) {
         // In its tone's container, its icon and words in the
         // container's on-role: never a tint (`docs/DESIGN.md` §3).
         let (bg, ink) = if tone == Role::Warning.paint() {
@@ -838,28 +845,154 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
         y += 44.0 + 8.0;
     }
     y += 2.0;
-    if bars {
-        if first {
-            y += first_actions(app, ui, y, inner);
-        }
-        y += crate::screens::catalog::home_search_bar(
-            app,
-            ui,
-            (M, y, inner),
-            (!pinned).then_some(0.0),
-        );
-        if pinned {
-            let clip = ui.rect(0.0, y, w, (view_h - y).max(0.0));
-            open = Some(ui.region_open(Region::page(clip).from_zero(app.list_offset)));
-            top = y;
-        }
-        if !app.tools.home_find().is_empty() {
-            y += crate::screens::catalog::home_results(app, ui, (M, y), inner, true);
-            y += faraday_draw::tokens::HOME_RESULTS_FOOT;
-        }
+    if rest && first {
+        y += first_actions(app, ui, y, inner);
+    }
+    if bars && !phone {
+        search!();
     }
 
-    // The menu: the sidebar's places, two to a row.
+    // The menu: the sidebar's places.
+    let gap = 8.0;
+    y += places(app, ui, y, inner, rest);
+
+    // Lock and power, here on the small panel; the rail and the top app
+    // bar carry them on wider windows.
+    if rest {
+        if beside {
+            y += faraday_draw::tokens::GRID;
+        } else {
+            y += lock_row(app, ui, y, inner, gap);
+        }
+    }
+    // The idle lock waits for a new wallet's backup.
+    if rest && app.lock_held() {
+        y += crate::screens::lock_held_pill(ui, M, y - 8.0, inner) + 8.0;
+    }
+
+    let content = y - top;
+    app.scroll.content_h().set(content);
+    if let Some(open) = open {
+        ui.region_close(open, content - (view_h - top));
+    }
+
+    ui.fab(w - M, h - M, Icon::Scan, EN.compact_scan, Action::Scan);
+}
+
+/// Whether the first-run actions stand on one row: only on the rail's
+/// windows, and only where three columns leave each heading room within
+/// two lines; the phone-size window stacks them. The one place that chooses.
+fn actions_in_a_row(app: &View, ui: &Ui, inner: f32, gap: f32) -> bool {
+    app.nav() == crate::nav::Nav::Rail
+        && crate::screens::actions_fit_a_row(
+            ui,
+            LABEL_L,
+            (inner, gap),
+            (GRID_TILE_TEXT_X, GRID_TILE_INSET),
+        )
+}
+
+/// The columns and the button height of the first-run actions: three
+/// columns whose longest heading wraps within two lines, all three buttons
+/// one height, or one under the other.
+fn first_actions_grid(app: &View, ui: &Ui, inner: f32, gap: f32) -> (usize, f32) {
+    let insets = (GRID_TILE_TEXT_X, GRID_TILE_INSET);
+    if actions_in_a_row(app, ui, inner, gap) {
+        let lines = crate::screens::actions_lines(
+            ui,
+            LABEL_L,
+            crate::screens::actions_col(inner, gap),
+            insets,
+        );
+        (
+            3,
+            crate::screens::action_h(ui, LABEL_L, lines, (TILE_H_GRID, TILE_PAD)),
+        )
+    } else {
+        (1, TILE_H_GRID)
+    }
+}
+
+/// The height [`first_actions`] takes.
+fn first_actions_h(app: &View, ui: &Ui, inner: f32) -> f32 {
+    let (cols, h) = first_actions_grid(app, ui, inner, 8.0);
+    3usize.div_ceil(cols) as f32 * (h + 8.0)
+}
+
+/// The three first-run actions at `y`, heading only, the whole button the
+/// press: one row or one under the other at full width. Returns the
+/// height they take, the gap under them counted.
+fn first_actions(app: &View, ui: &mut Ui, y: f32, inner: f32) -> f32 {
+    let gap = 8.0;
+    let (cols, bh) = first_actions_grid(app, ui, inner, gap);
+    let tw = (inner - gap * (cols - 1) as f32) / cols as f32;
+    for (i, (icon, label, action)) in crate::screens::first_actions().into_iter().enumerate() {
+        let tx = M + (i % cols) as f32 * (tw + gap);
+        let ty = y + (i / cols) as f32 * (bh + gap);
+        ui.fill(tx, ty, tw, bh, SHAPE_M, Role::SurfaceContainerLow);
+        ui.stroke(tx, ty, tw, bh, SHAPE_M, Role::OutlineVariant);
+        ui.press(
+            Shape::new(tx, ty, tw, bh, SHAPE_M),
+            Role::OnSurface.paint(),
+            action,
+        );
+        let iy = ty + (bh - 30.0) / 2.0;
+        ui.fill(tx + 12.0, iy, 30.0, 30.0, 8.0, Role::SecondaryContainer);
+        ui.icon(tx + 12.0, iy, 30.0, icon, 14.0, Role::OnSecondaryContainer);
+        let room = tw - GRID_TILE_TEXT_X - GRID_TILE_INSET;
+        let block = ui.wrap_height_as(LABEL_L, label, room);
+        ui.wrap_as(
+            (tx + GRID_TILE_TEXT_X, ty + (bh - block) / 2.0, room),
+            LABEL_L,
+            Role::OnSurface,
+            label,
+        );
+    }
+    3usize.div_ceil(cols) as f32 * (bh + gap)
+}
+
+/// The card at `y` for the vaults the box of what is loaded does not
+/// show: how many are open, and a press opens the session. Returns the
+/// height it takes, the gap under it counted.
+fn vaults_card(app: &View, ui: &mut Ui, y: f32, inner: f32) -> f32 {
+    let vaults = app.vaults.open.len();
+    let keys = app.session.keys.len();
+    let line = Text::fill(
+        EN.compact_vaults_open,
+        &[
+            &Text::num(vaults as u64),
+            (if vaults == 1 {
+                EN.compact_vault
+            } else {
+                EN.compact_vaults_inline
+            }),
+        ],
+    );
+    let session = if keys + app.session.wallets.len() == 0 {
+        Screen::WalletsStart
+    } else {
+        Screen::Wallets
+    };
+    let l1 = ui.line_as(LABEL_L);
+    // The card as tall as its line needs (`docs/TEXT-SIZE.md` §5).
+    let card_h = ui.row_height(52.0, l1, faraday_draw::tokens::GRID);
+    let text_top = y + (card_h - l1) / 2.0;
+    ui.fill(M, y, inner, card_h, SHAPE_M, Role::SurfaceContainerLow);
+    ui.stroke(M, y, inner, card_h, SHAPE_M, Role::OutlineVariant);
+    ui.press(
+        Shape::new(M, y, inner, card_h, SHAPE_M),
+        Role::OnSurface.paint(),
+        Action::Nav(session),
+    );
+    ui.dot(M + 16.0, text_top + l1 / 2.0, 4.0, Role::Ok);
+    let line = ui.fit_as(LABEL_L, &line, inner - 40.0);
+    ui.text_mid_as((M + 28.0, text_top, l1), LABEL_L, Role::OnSurface, &line);
+    card_h + 10.0
+}
+
+/// The sidebar's places at `y`, two to a row on the panel's menu and a
+/// grid elsewhere; none while `rest` is false. Returns the height they take.
+fn places(app: &View, ui: &mut Ui, y: f32, inner: f32, rest: bool) -> f32 {
     // On the panel's menu two to a row; elsewhere a grid of as many
     // columns as `TILE_MIN` leaves room for (`docs/LAYOUT.md` §4).
     let gap = 8.0;
@@ -894,7 +1027,7 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
             )
         }
     };
-    let tiles = tiles(app);
+    let tiles = if rest { tiles(app) } else { Vec::new() };
     let heights: Vec<f32> = tiles.iter().map(|t| wraps(ui, &t.2).1).collect();
     let row_h = |r: usize| {
         heights
@@ -984,86 +1117,7 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
             }
         }
     }
-    y = acc + 4.0;
-
-    // Lock and power, here on the small panel; the rail and the top app
-    // bar carry them on wider windows.
-    if beside {
-        y += faraday_draw::tokens::GRID;
-    } else {
-        y += lock_row(app, ui, y, inner, gap);
-    }
-    // The idle lock waits for a new wallet's backup.
-    if app.lock_held() {
-        y += crate::screens::lock_held_pill(ui, M, y - 8.0, inner) + 8.0;
-    }
-
-    let content = y - top;
-    app.scroll.content_h().set(content);
-    if let Some(open) = open {
-        ui.region_close(open, content - (view_h - top));
-    }
-
-    ui.fab(w - M, h - M, Icon::Scan, EN.compact_scan, Action::Scan);
-}
-
-/// Whether the first-run actions stand on one row: only on the rail's
-/// windows, and only where all three headings fit in full; the phone-size
-/// window stacks them. The one place that chooses.
-fn actions_in_a_row(app: &View, ui: &Ui, inner: f32, gap: f32) -> bool {
-    app.nav() == crate::nav::Nav::Rail
-        && crate::screens::actions_fit_a_row(
-            ui,
-            LABEL_L,
-            (inner, gap),
-            (GRID_TILE_TEXT_X, GRID_TILE_INSET),
-        )
-}
-
-/// The height [`first_actions`] takes.
-fn first_actions_h(app: &View, ui: &Ui, inner: f32) -> f32 {
-    let cols = if actions_in_a_row(app, ui, inner, 8.0) {
-        3
-    } else {
-        1
-    };
-    3usize.div_ceil(cols) as f32 * (TILE_H_GRID + 8.0)
-}
-
-/// The three first-run actions at `y`, heading only, the whole button the
-/// press: one row or one under the other at full width. Returns the
-/// height they take, the gap under them counted.
-fn first_actions(app: &View, ui: &mut Ui, y: f32, inner: f32) -> f32 {
-    let gap = 8.0;
-    let cols = if actions_in_a_row(app, ui, inner, gap) {
-        3
-    } else {
-        1
-    };
-    let tw = (inner - gap * (cols - 1) as f32) / cols as f32;
-    for (i, (icon, label, action)) in crate::screens::first_actions().into_iter().enumerate() {
-        let tx = M + (i % cols) as f32 * (tw + gap);
-        let ty = y + (i / cols) as f32 * (TILE_H_GRID + gap);
-        ui.fill(tx, ty, tw, TILE_H_GRID, SHAPE_M, Role::SurfaceContainerLow);
-        ui.stroke(tx, ty, tw, TILE_H_GRID, SHAPE_M, Role::OutlineVariant);
-        ui.press(
-            Shape::new(tx, ty, tw, TILE_H_GRID, SHAPE_M),
-            Role::OnSurface.paint(),
-            action,
-        );
-        let iy = ty + (TILE_H_GRID - 30.0) / 2.0;
-        ui.fill(tx + 12.0, iy, 30.0, 30.0, 8.0, Role::SecondaryContainer);
-        ui.icon(tx + 12.0, iy, 30.0, icon, 14.0, Role::OnSecondaryContainer);
-        let room = tw - GRID_TILE_TEXT_X - GRID_TILE_INSET;
-        let label = ui.fit_as(LABEL_L, label, room);
-        ui.text_mid_as(
-            (tx + GRID_TILE_TEXT_X, ty, TILE_H_GRID),
-            LABEL_L,
-            Role::OnSurface,
-            &label,
-        );
-    }
-    3usize.div_ceil(cols) as f32 * (TILE_H_GRID + gap)
+    acc + 4.0 - y
 }
 
 /// Home's foot on the small panel at `y`: Lock, when something is held,

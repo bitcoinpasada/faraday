@@ -87,7 +87,7 @@ macro_rules! words_screens_home {
     home_ways_not_backed: "{} not backed up",
     // ----- home (faraday-core/src/screens/home.rs) -----
     /// Hint in Home's search bar.
-    home_search_hint: "Search tools and settings",
+    home_search_hint: "Search",
     /// Title in `home`.
     home_home: "Home",
     /// Button in `home`.

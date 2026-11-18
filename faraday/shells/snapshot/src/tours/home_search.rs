@@ -12,6 +12,8 @@ pub(crate) fn home_search_tour(t: &mut Tour) -> Result<(), String> {
     let find = Action::TypeHere(Here::HomeFind);
     // The bar stands under the actions and does not scroll; the Pi's small
     // panel has none (its Home is the menu).
+    t.app.settle();
+    let _ = t.app.frame();
     let mut scrolled = 0;
     while scrolled < 3600 && t.app.hit_box(find).is_none() {
         scroll(t, 120);
@@ -23,6 +25,10 @@ pub(crate) fn home_search_tour(t: &mut Tour) -> Result<(), String> {
         scroll(t, -3600);
         t.app.settle();
         t.shot("home-search-empty")?;
+        // The Pi's menu with a stick in: the box of what is loaded is back.
+        t.sticks(true);
+        t.press(Action::Nav(Screen::Home));
+        t.shot("home-search-stick")?;
         return Ok(());
     };
     t.shot("home-search-empty")?;
@@ -46,6 +52,12 @@ pub(crate) fn home_search_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::HomeSearchClear);
     type_text(t, "zzzz");
     t.shot("home-search-none")?;
+    // With a stick in, the box of what is loaded stands above the bar.
+    t.press(Action::HomeSearchClear);
+    t.sticks(true);
+    t.press(Action::Nav(Screen::Home));
+    t.shot("home-search-stick")?;
+    t.sticks(false);
     // A phone window has no search bar on Home: Tools' Find a tool offers the word.
     t.press(Action::Nav(Screen::Catalog));
     type_text(t, "seal");

@@ -1253,9 +1253,10 @@ fn the_pi_s_menu_puts_wallets_left_of_check_and_a_phone_keeps_check_first() {
 }
 
 #[test]
-fn the_first_actions_and_the_bar_stay_where_they_were_while_a_search_is_typed() {
+fn the_wide_homes_first_actions_and_bar_stay_where_they_were_while_a_search_is_typed() {
     let bar = Action::TypeHere(faraday_core::edit::Here::HomeFind);
-    for make in [wide as fn() -> Faraday, phone] {
+    {
+        let make = wide;
         let mut app = make();
         let before = boxes(&app, bar);
         assert!(before.iter().all(Option::is_some));
@@ -1292,7 +1293,8 @@ fn with_an_import_waiting(make: fn() -> Faraday) -> Faraday {
 #[test]
 fn the_import_lead_is_a_card_with_no_pill_and_typing_a_search_leaves_it_and_the_row() {
     let open = faraday_core::boot_import::OPEN;
-    for make in [wide as fn() -> Faraday, phone] {
+    {
+        let make = wide;
         let mut app = with_an_import_waiting(make);
         let texts = app.drawn_texts();
         assert!(!texts.iter().any(|t| t == "Import"), "no pill: {texts:?}");
@@ -1457,4 +1459,66 @@ fn the_phone_homes_places_under_the_bar_are_reachable_by_scrolling() {
         500,
         Action::Catalog(sign_tile())
     ));
+}
+
+/// Whether Home draws the box of what is loaded (its files line).
+fn shows_loaded_box(app: &mut Faraday) -> bool {
+    let _ = app.frame();
+    app.drawn_texts().iter().any(|t| t.contains("file"))
+}
+
+#[test]
+fn the_phone_homes_search_is_offered_above_the_three_actions() {
+    let mut app = phone();
+    let bar = app.hit_box(Action::TypeHere(faraday_core::edit::Here::HomeFind));
+    let bar = bar.expect("the search bar is offered");
+    for action in FIRST {
+        let b = app.hit_box(action).expect("a first action is offered");
+        assert!(bar.1 < b.1, "{action:?} is under the bar");
+    }
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "Search"), "{texts:?}");
+}
+
+#[test]
+fn a_search_typed_on_the_phone_takes_the_page_and_clearing_it_brings_the_rest_back() {
+    let mut app = phone();
+    assert!(app.offers(Action::Nav(Screen::Check)));
+    type_on_home(&mut app, "send");
+    for action in FIRST {
+        assert!(!app.offers(action), "{action:?} while typing");
+    }
+    assert!(!app.offers(Action::Nav(Screen::Check)));
+    assert!(app.offers(Action::Catalog(sign_tile())));
+    tap(&mut app, Action::HomeSearchClear);
+    for action in FIRST {
+        assert!(app.offers(action), "{action:?} once cleared");
+    }
+    assert!(app.offers(Action::Nav(Screen::Check)));
+}
+
+#[test]
+fn the_box_of_what_is_loaded_is_left_out_with_nothing_loaded_on_the_phone_and_the_pi() {
+    for make in [phone as fn() -> Faraday, || window(480, 640, 286)] {
+        let mut app = make();
+        assert!(!shows_loaded_box(&mut app), "with nothing loaded");
+        stick(&mut app, true);
+        app.press(Action::Nav(Screen::Home));
+        assert!(shows_loaded_box(&mut app), "with a stick in");
+    }
+}
+
+#[test]
+fn on_a_1280_wide_window_the_three_first_actions_stand_side_by_side_and_none_is_cut() {
+    let mut app = window(1280, 800, 160);
+    let boxes: Vec<_> = FIRST
+        .iter()
+        .map(|a| app.hit_box(*a).expect("offered"))
+        .collect();
+    assert!(boxes.iter().all(|b| b.1 == boxes[0].1 && b.3 == boxes[0].3));
+    assert!(boxes[0].0 < boxes[1].0 && boxes[1].0 < boxes[2].0);
+    // Equal columns, to a pixel of rounding.
+    assert!(boxes.iter().all(|b| b.2.abs_diff(boxes[0].2) <= 1));
+    let texts = app.drawn_texts();
+    assert!(!texts.iter().any(|t| t.ends_with('…')), "{texts:?}");
 }

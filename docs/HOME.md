@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified. Built today, and described in `docs/LAYOUT.md` §4 and `docs/FLOWS.md` (Home): on the one-column layouts the box of what is loaded, the lead and a menu of the places; on every window but the Pi's menu the three first actions as headings only and a search bar under them.
-**Open:** the wide layout's Home is built (the lead as a card with one filled button, or the plain Import lead as a card pressed whole; each loaded wallet with Sign; the three first actions as one row of heading-only buttons while nothing is loaded, stacked on the phone-size window; the search bar under them, which a typed search never moves or changes; no Check tile, F275); the rail's and the bar's windows draw the same row and bar; the one-column Home for the Pi is not: one Home for the Pi and the navigation bar's and rail's windows with the same lead and wallet cards, the Pi's box of what is loaded held to three lines, the Files tile and the power button in words, the Backups row, the destinations in one order everywhere, and the sidebar's Files row once.
+**Open:** the wide layout's Home is built (the lead as a card with one filled button, or the plain Import lead as a card pressed whole; each loaded wallet with Sign; the three first actions as one row of three equal heading-only buttons while nothing is loaded, stacked on the phone-size window, whose search bar is at the top; the search bar under them elsewhere, which a typed search never moves or changes; no Check tile, F275); the rail's and the bar's windows draw the same row and bar; the one-column Home for the Pi is not: one Home for the Pi and the navigation bar's and rail's windows with the same lead and wallet cards, the Pi's box of what is loaded held to three lines, the Files tile and the power button in words, the Backups row, the destinations in one order everywhere, and the sidebar's Files row once.
 
 Home is the first page after the self-test and after every lock, and
 the page a person comes back to between jobs. It answers three
@@ -20,7 +20,8 @@ parts take and in what the navigation beside them already carries.
 1. **What is loaded** (§4): one card naming the flows in progress, the
    keys, the vaults open and the files, each line opening its place.
    Only where there is no expanded rail: beside the expanded rail the
-   sidebar's lists are this card (`docs/LAYOUT.md` §3).
+   sidebar's lists are this card (`docs/LAYOUT.md` §3). It is not drawn
+   while it has nothing to show (no flow, key, wallet, file or stick).
 2. **The lead** (§2): the next thing, one card with one filled button.
    None when nothing waits and something is loaded.
 3. **Wallets** (§3): each loaded wallet with **Sign**,
@@ -28,8 +29,10 @@ parts take and in what the navigation beside them already carries.
 4. **The three first actions** (§5): one row of buttons under the
    title, only while nothing is loaded, and not on the Pi's menu.
 5. **The search bar**: under the buttons, on every window but the Pi's
-   menu. What is typed shows its results under it; nothing above the
-   bar changes or moves (§5).
+   menu, and on the phone-size window at the top, under the box of what
+   is loaded. What is typed shows its results under it; on the wide
+   layout and the rail's windows nothing above the bar changes or moves,
+   on the phone-size window the results take the page (§5).
 6. **The places** (§6): on the Pi only, which has no navigation
    component, the menu of the destinations; then Lock and Power off.
 7. **Scan**, the floating button at the bottom right, on every size.
@@ -139,15 +142,22 @@ While nothing is loaded, the three first actions stand under the title,
 before the search bar and after the lead when a job waits: **Make a new
 wallet**, **Restore an existing wallet** and **Spend from a backup**.
 They are three like buttons with their heading only, no small line, no
-label over them, no pill: the whole button is the press. Where the
-headings all fit in full, three across the page's width, they stand as
-one row (the rail's and the expanded rail's windows); otherwise they
-stand one under the other at full width. The phone-size window always
-stacks them, with the search bar under them.
+label over them, no pill: the whole button is the press. On the wide
+layout they always stand as one row of three equal columns, a heading
+too long for its column wrapping onto a second line, the three buttons
+one height. On the rail's windows they stand as a row where three
+columns leave every heading room within two lines, else one under the
+other at full width. The phone-size window always stacks them.
 
-The search bar is under the first actions, or under the tiles once
+The search bar shows the search icon and the word "Search", on every
+layout. On the phone-size window it is at the top, directly under the
+box of what is loaded (which is not drawn while it has nothing to show,
+as on the Pi's menu), above the three actions; while something is typed
+its results take the page and the three actions and the places are not
+drawn until the search is cleared. On the wide layout and the rail's
+windows it is under the first actions, or under the tiles once
 something is loaded, centred on the wide layout and full width on the
-one-column layouts. Typing in it changes nothing above it, neither what
+one-column layouts. Typing in it there changes nothing above it, neither what
 is drawn nor where: the lead, the wallets and the buttons stay in place
 and only the results under the bar scroll. That holds where the content
 above the bar and the bar leave room under it for about three rows of
@@ -293,7 +303,7 @@ The sketches are to scale in their parts' order, not in their pixels.
 | Files       | |                 | |     wallet      | |     backup   | |
 | Vaults      | +-----------------+ +-----------------+ +--------------+ |
 | Tools       |                                                          |
-| Guide       |        ( search  Search tools and settings        )      |
+| Guide       |        ( search  Search                           )      |
 | Settings    |                                                          |
 |             |                                                [ Scan ]  |
 | [Power off] |                                                          |
@@ -340,11 +350,9 @@ the ⋮ menu; on the bar's windows the Check tile of §6.3 follows Backups.
 ```
 +------------------------------+
 | [mark] FARADAY     (Testnet) |
-| +--------------------------+ |
-| | [files] ...              | |  what is loaded
-| +--------------------------+ |
-| +--------------------------+ |
-| | [w] Make a new wallet    | |
+| ( search  Search            ) |  the search bar; the box of what
+| +--------------------------+ |  is loaded above it only once
+| | [w] Make a new wallet    | |  something is loaded
 | +--------------------------+ |
 | +--------------------------+ |
 | | [r] Restore an existing  | |  the three first actions,
@@ -353,12 +361,12 @@ the ⋮ menu; on the bar's windows the Check tile of §6.3 follows Backups.
 | +--------------------------+ |
 | | [s] Spend from a backup  | |
 | +--------------------------+ |
-| ( search  Search tools ...  ) |
-| the places, or the results   |
+| the places                   |
 |                     [ Scan ] |
 +------------------------------+
 ```
 
+While something is typed the results alone fill the page under the bar.
 Only what is under the search bar scrolls, until the window is too short
 to leave room under the bar for about three rows of results; then the
 whole page scrolls (§5).

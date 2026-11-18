@@ -430,6 +430,19 @@ pub(crate) fn loaded_card_h(app: &View, ui: &Ui, w: f32) -> f32 {
     loaded_layout(app, ui, w).3
 }
 
+/// Whether the box has nothing to show: no flow, key or wallet, no file
+/// brought in or waiting, no stick and no import waiting. Home leaves the
+/// box out then, as the wide layout does.
+pub(crate) fn loaded_empty(app: &View) -> bool {
+    app.flows_in_progress().is_empty()
+        && app.session.keys.all().next().is_none()
+        && app.session.wallets.is_empty()
+        && app.inbox.is_empty()
+        && app.outbox.is_empty()
+        && app.stick.is_empty()
+        && app.import.state().is_none()
+}
+
 /// What [`loaded_layout`] works out: the lines, where each stands (its
 /// offset in its row, and the row), each row's height and the box's height.
 type Laid = (Vec<Line>, Vec<(f32, usize)>, Vec<f32>, f32);
