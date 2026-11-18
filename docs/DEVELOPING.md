@@ -193,7 +193,7 @@ gh workflow run targeted.yml --ref <branch> -f tool=clippy -f crates='faraday-co
 
 `partitions` (1 to 14, default 1; F284) splits a run of crate tests over that
 many runners, each running its share by nextest's hash partition (a lint or
-a tool runs on one runner):
+a tool runs on one runner; a runner whose share holds no test passes):
 
 ```
 gh workflow run targeted.yml --ref <branch> -f crate='faraday-core faraday-host' -f partitions=4

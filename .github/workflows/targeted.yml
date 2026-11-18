@@ -130,7 +130,8 @@ jobs:
         run: |
           args=()
           for c in $CRATE; do args+=(-p "$c"); done
-          if [ "$PARTITIONS" != 1 ]; then args+=(--partition "hash:${SHARD}/${PARTITIONS}"); fi
+          # A runner whose share of a small run holds no test passes: the other runners run them.
+          if [ "$PARTITIONS" != 1 ]; then args+=(--partition "hash:${SHARD}/${PARTITIONS}" --no-tests=pass); fi
           cargo nextest run --locked --no-fail-fast "${args[@]}" -E "${FILTER:-all()}"
       - name: The lint recipe
         if: inputs.lint != 'none'
