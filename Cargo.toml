@@ -239,6 +239,11 @@ opt-level = 2
 opt-level = 2
 [profile.dev.package.faraday-draw]
 opt-level = 2
+# faraday-core's own tests drive its screens and session thousands of times:
+# the whole nextest run of the crate takes about 40% less time optimised,
+# for a clean build about 30% longer and an incremental one no longer.
+[profile.dev.package.faraday-core]
+opt-level = 2
 
 # RSA key generation (`faraday-sb`) runs
 # in some tests: about 0.4 s in a release build, and with the big-integer
