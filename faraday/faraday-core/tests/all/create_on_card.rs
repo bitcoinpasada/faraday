@@ -597,3 +597,57 @@ fn a_key_made_through_other_ways_fills_the_slot_and_a_single_key_opens_check() {
     assert_ne!(c.slots[0], Source::Empty, "the slot is filled");
     assert_eq!(c.open, Some(cstep::CHECK));
 }
+
+fn has_text(app: &mut Faraday, text: &str) -> bool {
+    crate::common::texts(app).iter().any(|t| t == text)
+}
+
+#[test]
+fn the_key_made_through_other_ways_reads_as_make_a_new_wallet_and_names_its_slot() {
+    let mut app = opened();
+    app.press(Action::KeyOtherWays(0));
+    assert!(app.keygen().unwrap().hosted());
+    assert!(has_text(&mut app, "Make a new wallet"), "the bar");
+    let texts = crate::common::texts(&mut app);
+    assert!(
+        texts.iter().any(|t| t == "Key 1"),
+        "the slot's name: {texts:?}"
+    );
+    assert!(has_text(&mut app, "Keys"), "back names the Keys card");
+}
+
+#[test]
+fn a_multisigs_second_key_reads_key_2_of_3() {
+    let mut app = multi_on_keys();
+    assert_eq!(app.create().unwrap().n, 3);
+    app.press(Action::CSlotLater(0));
+    app.press(Action::KeyGen(Some(1)));
+    let k = app.keygen().unwrap();
+    assert!(k.hosted());
+    assert_eq!(k.slot, Some(1));
+    assert!(has_text(&mut app, "Key 2 of 3"));
+    assert!(has_text(&mut app, "Make a new wallet"));
+}
+
+#[test]
+fn the_guide_of_the_hosted_key_opens_make_a_new_wallets_page() {
+    let mut app = opened();
+    app.press(Action::KeyOtherWays(0));
+    app.press(Action::Guide);
+    let texts = crate::common::texts(&mut app);
+    assert!(
+        texts.iter().any(|t| t.starts_with("One row per key")),
+        "the guide page is Make a new wallet's Keys page: {texts:?}"
+    );
+}
+
+#[test]
+fn new_key_from_wallets_still_reads_new_key() {
+    let mut app = testkit::started();
+    app.press(Action::Nav(Screen::WalletsStart));
+    let _ = app.frame();
+    app.press(Action::KeyGen(None));
+    assert!(!app.keygen().unwrap().hosted());
+    assert!(has_text(&mut app, "Make a new key"));
+    assert!(!has_text(&mut app, "Key 1"));
+}

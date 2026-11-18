@@ -42,7 +42,8 @@ pub(super) const TITLES: [&str; kstep::COUNT] = [
 
 /// The flow's name in the top app bar, its actions beginning at `right`:
 /// Make a new key, whichever screen opened the flow (Add a key is its own
-/// page, and its name is the way back from here).
+/// page, and its name is the way back from here); Make a new wallet while
+/// a wallet's key is made inside it.
 /// While a share's codex32
 /// characters are entered, where the entry stands, in its short form
 /// where the whole does not fit (the Pi's panel; F146); where neither
@@ -50,7 +51,12 @@ pub(super) const TITLES: [&str; kstep::COUNT] = [
 /// Characters card to read in place of its name. Cheap: a string filled
 /// and a width or two measured.
 fn heading(k: &KeyGen, ui: &Ui, right: f32) -> (Text, Option<Text>) {
-    let name = EN.keygen_new_key;
+    // A wallet's key is a step of Make a new wallet, which names the bar.
+    let name = if k.hosted() {
+        EN.keygen_make_a_new_wallet
+    } else {
+        EN.keygen_new_key
+    };
     let Some(m) = k
         .codex32
         .as_ref()
@@ -74,6 +80,25 @@ fn heading(k: &KeyGen, ui: &Ui, right: f32) -> (Text, Option<Text>) {
         return (whole, None);
     }
     (Text::of(name), Some(whole))
+}
+
+/// The column's first line while a wallet's key is made: its slot, "Key 1"
+/// on a single key and "Key 2 of 3" on a multisig. A lookup.
+fn slot_name(app: &View, k: &KeyGen) -> Option<Text> {
+    let slot = u64::from(k.slot?);
+    if !k.hosted() {
+        return None;
+    }
+    let n = app
+        .create
+        .state()
+        .filter(|c| c.kind.multi())
+        .map_or(1, |c| c.n as u64);
+    Some(if n > 1 {
+        Text::fill(EN.seed_read_key_of, &[&Text::num(slot + 1), &Text::num(n)])
+    } else {
+        Text::fill(EN.keygen_new_key_n, &[&Text::num(slot + 1)])
+    })
 }
 
 /// Where the bar has no room for the codex32 entry's `step`, the
@@ -142,6 +167,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let wide = codex32_work_w(cw, side) - (lead - inset);
     let (heading, step) = heading(k, ui, x0 + cw);
     step_on_card(&mut cards, &at, step);
+    let slot_line = slot_name(app, k);
     let col = flow::Column {
         area_x: x0 + start,
         area_w: cw - side - start,
@@ -154,7 +180,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         total_fixed: true,
         all_shown: false,
         note: None,
-        chip: None,
+        chip: slot_line.as_ref().map(|t| t.as_str()),
         chip_tap: None,
         // Opened for a Make a new wallet slot, Cancel returns there
         // (`docs/FLOWS.md`, Cancel).

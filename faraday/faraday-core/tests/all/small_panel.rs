@@ -135,9 +135,9 @@ fn a_wallet_is_made_by_touch_from_a_key_rolled_on_dice() {
         Action::CBackupForm(faraday_core::create::BackupForm::Words.index()),
     );
     assert_eq!(app.screen, Screen::Create);
-    tap(&mut app, Action::KeyGen(Some(0)));
+    tap(&mut app, Action::KeyOtherWays(0));
     assert_eq!(app.screen, Screen::KeyGen);
-    // New key, as Other ways opens it, has Start answered by the Backup
+    // The key's cards, as Other ways opens them, has Start answered by the Backup
     // card and opens on Length; pressing a count takes it and opens
     // Randomness (F103).
     assert_eq!(

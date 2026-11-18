@@ -661,7 +661,7 @@ impl Faraday {
 
     /// The key of what is on screen now ([`guide_key`]).
     fn screen_key(&self) -> &'static str {
-        let key = guide_key(self.screen, self.guide_here());
+        let key = guide_key(self.guide_screen(), self.guide_here());
         if key == "home" && self.nothing_loaded() {
             return "first-start";
         }
@@ -1158,6 +1158,16 @@ impl std::fmt::Write for ScreenName {
 }
 
 impl Faraday {
+    /// The screen whose guide page opens: a wallet's key made inside Make a
+    /// new wallet opens that wallet's page. A lookup.
+    pub(crate) fn guide_screen(&self) -> Screen {
+        if self.keygen_hosted() {
+            Screen::Create
+        } else {
+            self.screen
+        }
+    }
+
     /// A lookup, made when the guide opens or the step changes; never
     /// while drawing. What the screen on show is at, for [`guide_key`]:
     /// the open card of a flow, a backup flow's kind and step, the sheet
@@ -1166,6 +1176,9 @@ impl Faraday {
     /// where it holds nothing finer.
     pub(crate) fn guide_here(&self) -> GuideAt {
         use crate::trail::StepFlow;
+        if self.keygen_hosted() {
+            return GuideAt::Step(crate::cstep::KEYS);
+        }
         let open = |flow: &dyn StepFlow| flow.steps(self).and_then(|s| s.open);
         let step = |n: Option<u8>| n.map_or(GuideAt::Whole, GuideAt::Step);
         match self.screen {
@@ -1239,7 +1252,7 @@ mod at_tests {
     use crate::{Action, Screen, testkit};
 
     fn key(app: &crate::Faraday) -> &'static str {
-        guide_key(app.screen, app.guide_here())
+        guide_key(app.guide_screen(), app.guide_here())
     }
 
     #[test]

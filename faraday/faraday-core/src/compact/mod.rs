@@ -607,6 +607,7 @@ pub(crate) fn page_head<'a>(app: &'a View) -> ((&'a str, Action), &'a str) {
         _ if app.screen == Screen::Lightning && app.lightning.for_convert() => {
             EN.convert_lnd_aezeed
         }
+        _ if app.keygen_hosted() => EN.compact_make_a_new,
         _ => screen_name(app.screen),
     };
     let back = match app.screen {

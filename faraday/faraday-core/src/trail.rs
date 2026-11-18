@@ -644,6 +644,14 @@ impl Faraday {
         if let Some(step) = self.step_back_name() {
             return (step, own);
         }
+        // A wallet's key made inside Make a new wallet goes back to its
+        // Keys card.
+        if self.keygen_hosted() {
+            return (
+                crate::create::CREATE_STEPS.name(self, crate::cstep::KEYS),
+                own,
+            );
+        }
         (self.trail_name().unwrap_or(label), own)
     }
 

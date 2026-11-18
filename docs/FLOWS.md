@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Built but for the items under Open; the code is the record where it differs
-**Open:** a wallet's key made in any way other than the Keys card's dice still reads as New key on the top app bar, its back label, the column's first line, the compact title and the guide's page, and Start's own offers are not yet limited to the forms the slot may take (A wallet's key stays in Make a new wallet)
+**Open:** Start's own offers are not yet limited to the forms the slot may take (A wallet's key stays in Make a new wallet)
 
 Every flow, where it starts, and where it leaves the person.
 
@@ -497,8 +497,8 @@ a key made here holds another slot) offers **Scan its xpub** first and
 making stands at a time, so opening it on another slot drops the first,
 asking when rolls or words are in.
 
-**A wallet's key stays in Make a new wallet** (owner, 2026-11-18; not
-built, see Open). While a wallet is being made, no press and no event
+**A wallet's key stays in Make a new wallet** (owner, 2026-11-18; built but
+for Start's own offers, see Open). While a wallet is being made, no press and no event
 leaves Make a new wallet for the separate New key flow. Every way of
 putting a key in a slot that New key offers there (This device, the other
 dice procedures, coins, cards, the camera, a mix, typed words, a SeedQR,

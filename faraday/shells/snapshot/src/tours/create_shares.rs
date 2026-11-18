@@ -57,5 +57,15 @@ pub(crate) fn create_shares_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::CKind(kind(NewKind::Taproot)?));
     t.press(Action::CStep(cstep::BACKUP_FORM));
     t.shot("shares-8-taproot-backup")?;
+    // Words on the Keys card, Other ways: the key's first card inside
+    // Make a new wallet, its bar, back label and first line Make a new
+    // wallet's own.
+    t.press(Action::CBackupForm(BackupForm::Words.index()));
+    t.press(Action::CStep(cstep::KEYS));
+    t.press(Action::KeyOtherWays(0));
+    if !t.app.keygen().is_some_and(|k| k.hosted()) {
+        return Err("Other ways did not open the key's cards in the wallet".into());
+    }
+    t.shot("shares-9-hosted-key")?;
     Ok(())
 }
