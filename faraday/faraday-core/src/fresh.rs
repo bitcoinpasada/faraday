@@ -661,9 +661,9 @@ impl Faraday {
     /// rolls typed. A lookup.
     pub(crate) fn own_typing_rolls(&self) -> bool {
         self.screen == crate::Screen::Randomness
-            && self.own_page().is_some_and(|p| {
-                p.source() == OwnSource::Dice && p.typing() && !p.done()
-            })
+            && self
+                .own_page()
+                .is_some_and(|p| p.source() == OwnSource::Dice && p.typing() && !p.done())
     }
 
     /// A press on Add randomness, or one that opens it.

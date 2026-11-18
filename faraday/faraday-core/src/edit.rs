@@ -650,9 +650,7 @@ impl Faraday {
                     _ => Some(Action::KTyping(true)),
                 }
             }
-            Screen::Randomness => {
-                Some(Action::Own(crate::fresh::page::Act::Typing(true)))
-            }
+            Screen::Randomness => Some(Action::Own(crate::fresh::page::Act::Typing(true))),
             Screen::Create => self
                 .card_pass_focus()
                 .map(Action::KPassField)
