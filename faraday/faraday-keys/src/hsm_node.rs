@@ -63,7 +63,9 @@ impl crate::Keys {
     }
 
     /// Costs what [`node_from_words`] costs, and a parse of the words for
-    /// each list tried (English once more in [`node_from_words`]). The node key for the BIP-39
+    /// each list tried (English once more in [`node_from_words`]); on
+    /// Mainnet with no demo, up to three PBKDF2 and three key derivations
+    /// in all, as [`Self::words_are_a_sample`] adds two of each. The node key for the BIP-39
     /// `words` typed, with the same demo refusal as [`Self::hsm_node`].
     /// The list is told as Add a key tells it, English first; words of
     /// another list are refused as [`WordsRefusal::NotEnglish`], and words

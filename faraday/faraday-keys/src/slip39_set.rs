@@ -10,6 +10,7 @@
 //! still opens the same wallet. No PBKDF2 runs here.
 #![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
+use faraday_bip::keys::Network;
 use faraday_bip::slip39::{self, Ems, GroupSpec, Share};
 use subtle::ConstantTimeEq;
 
@@ -24,6 +25,9 @@ pub enum SetRefused {
     Stick(&'static str),
     /// Practice is on: a set made here would look like a real backup.
     Practice,
+    /// The set is one of Faraday's public samples and the network is
+    /// Mainnet: its coins can be taken by anyone.
+    Sample,
     /// SLIP-39 refused it, for this reason: a share that does not parse, a
     /// share of another set, a duplicate, a group of threshold 1, an index
     /// among the shares typed, a short quorum, a quorum whose digest fails,
@@ -172,9 +176,17 @@ fn same_ems(a: &Ems, b: &Ems) -> bool {
 }
 
 impl Keys {
+    /// Whether a SLIP-39 set with this identifier is one of Faraday's public
+    /// samples on Mainnet with no demo: refused, as a sample seed is.
+    fn is_sample_slip39_set(&self, identifier: u16) -> bool {
+        !self.demo()
+            && self.network() == Network::Mainnet
+            && crate::published::is_sample_slip39_set(identifier)
+    }
+
     /// Holds one more share of a SLIP-39 set, typed as `text`, and says
     /// what is now held. Refused while a stick is attached, as every way a
-    /// key is added is, and in Practice; refused as SLIP-39 refuses it: a
+    /// key is added is, in Practice, and for a sample's set on Mainnet; refused as SLIP-39 refuses it: a
     /// share that does not parse, of another set (identifier, flag,
     /// exponent, group threshold, group count, length), a member typed
     /// already or one more than its group's threshold. What was held before
@@ -188,6 +200,9 @@ impl Keys {
             return Err(SetRefused::Practice);
         }
         let share = Share::parse(text).map_err(SetRefused::Share)?;
+        if self.is_sample_slip39_set(share.identifier()) {
+            return Err(SetRefused::Sample);
+        }
         // Room for every member of every group, so the shares never move.
         let mut held = self.slip39_set.take().map_or_else(
             || Vec::with_capacity(slip39::MAX_COUNT * slip39::MAX_COUNT),

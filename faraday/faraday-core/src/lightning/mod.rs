@@ -287,8 +287,9 @@ impl LightningArea {
         Some(ReadWork::Hsm(keys.hsm_job(bytes, pass)))
     }
 
-    /// Costs a PBKDF2 and a key derivation. Core Lightning's node from the
-    /// typed English BIP-39 words and the passphrase.
+    /// Costs a PBKDF2 and a key derivation, and on Mainnet with no demo up
+    /// to three PBKDF2 and three key derivations. Core Lightning's node from
+    /// the typed English BIP-39 words and the passphrase.
     pub(crate) fn read_words(&mut self, c: &Compute, keys: &Keys) {
         let Some(l) = self.state.as_mut() else {
             return;

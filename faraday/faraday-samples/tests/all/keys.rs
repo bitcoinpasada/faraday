@@ -251,9 +251,9 @@ fn the_devices_list_of_sample_children_is_every_index_zero_child_the_samples_giv
 
 /// The device refuses the samples' Lightning nodes on Mainnet from its own
 /// short list: LND's cipher seed as it reads on Mainnet, and Core
-/// Lightning's `hsm_secret` samples.
+/// Lightning's `hsm_secret` samples and the nodes of their words.
 #[test]
-fn the_devices_list_of_sample_nodes_is_the_lnd_node_on_mainnet_and_the_hsm_nodes() {
+fn the_devices_list_of_sample_nodes_is_the_lnd_node_on_mainnet_and_the_hsm_and_words_nodes() {
     let c = compute();
     let sample = crate::common::key("sample_aezeed");
     let mut idx = [0u16; faraday_keys::lightning::AEZEED_WORDS];
@@ -263,6 +263,7 @@ fn the_devices_list_of_sample_nodes_is_the_lnd_node_on_mainnet_and_the_hsm_nodes
     let lnd = faraday_keys::lightning::node_from_aezeed(&c, &idx, b"", Network::Mainnet)
         .expect("the node");
     let mut derived: Vec<[u8; 33]> = SAMPLES.inputs.hsm.iter().map(|h| h.node).collect();
+    derived.extend(SAMPLES.inputs.hsm_words_nodes.iter().copied());
     derived.push(*lnd.public());
     derived.sort_unstable();
     derived.dedup();
@@ -295,5 +296,50 @@ fn lnds_sample_cipher_seed_is_not_held_for_convert_on_mainnet_but_is_on_testnet(
                 faraday_core::strings::EN.published_sample_node
             );
         }
+    }
+}
+
+/// The device refuses the samples' SLIP-39 sets on Mainnet by identifier,
+/// from its own short list.
+#[test]
+fn the_devices_list_of_slip39_sample_sets_is_every_identifier_the_samples_give() {
+    let mut derived: Vec<u16> = SAMPLES
+        .keys
+        .iter()
+        .filter(|k| matches!(k.form, SampleForm::Slip39))
+        .flat_map(|k| k.parts.iter())
+        .map(|p| match part_of(p) {
+            Some(Part::Slip39(s)) => s.identifier(),
+            _ => panic!("a SLIP-39 share"),
+        })
+        .collect();
+    derived.sort_unstable();
+    derived.dedup();
+    let mut listed = faraday_keys::published::sample_slip39_ids().to_vec();
+    listed.sort_unstable();
+    assert!(listed == derived, "the list is: {derived:?}");
+}
+
+/// Convert holds a SLIP-39 set as the source of its conversions: a sample's
+/// is refused on Mainnet, with nothing held, and held on Testnet.
+#[test]
+fn a_sample_slip39_set_is_not_held_for_convert_on_mainnet_but_is_on_testnet() {
+    use faraday_keys::slip39_set::SetRefused;
+    for k in SAMPLES
+        .keys
+        .iter()
+        .filter(|k| matches!(k.form, SampleForm::Slip39))
+    {
+        let mut main = Keys::on(Network::Mainnet);
+        assert_eq!(
+            main.slip39_set_hold(k.parts[0]).err(),
+            Some(SetRefused::Sample),
+            "{}",
+            k.name
+        );
+        assert!(main.slip39_set_facts().is_none(), "{}", k.name);
+        let mut test = Keys::on(Network::Testnet);
+        assert!(test.slip39_set_hold(k.parts[0]).is_ok(), "{}", k.name);
+        assert!(test.slip39_set_facts().is_some(), "{}", k.name);
     }
 }

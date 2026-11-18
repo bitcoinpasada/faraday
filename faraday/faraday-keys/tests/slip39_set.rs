@@ -45,7 +45,7 @@ fn vector(n: usize) -> (Vec<String>, Vec<u8>) {
 }
 
 fn holding(shares: &[String]) -> Keys {
-    let mut keys = Keys::on(Network::Mainnet);
+    let mut keys = Keys::on(Network::Testnet);
     for s in shares {
         keys.slip39_set_hold(s).unwrap();
     }
@@ -96,7 +96,7 @@ fn made(keys: &Keys, group: u8, at: u8) -> Result<String, SetRefused> {
 /// A 2 of 3 set of a 16-byte seed made by Convert, with its shares.
 fn converted(shape: &[(u8, u8)], gt: u8) -> (Keys, Vec<String>) {
     let c = compute();
-    let mut source = Keys::on(Network::Mainnet);
+    let mut source = Keys::on(Network::Testnet);
     source.add_seed(&c, &[7u8; 16], "").unwrap();
     let g = groups(shape);
     let r = random(16, gt, &g, 0x1234);
@@ -111,7 +111,7 @@ fn converted(shape: &[(u8, u8)], gt: u8) -> (Keys, Vec<String>) {
 #[test]
 fn slip39_typing_a_published_set_says_what_is_held_and_adds_no_key() {
     let (shares, _) = vector(3);
-    let mut keys = Keys::on(Network::Mainnet);
+    let mut keys = Keys::on(Network::Testnet);
     let first = keys.slip39_set_hold(&shares[0]).unwrap().clone();
     assert!(!first.recoverable);
     assert_eq!(first.groups.len(), 1);
@@ -375,7 +375,7 @@ fn slip39_a_rotation_short_of_randomness_or_of_a_valid_shape_gives_nothing() {
 #[test]
 fn slip39_a_forget_leaves_nothing_held_and_the_key_list_is_unchanged() {
     let c = compute();
-    let mut keys = Keys::on(Network::Mainnet);
+    let mut keys = Keys::on(Network::Testnet);
     keys.add_seed(&c, &[3u8; 16], "").unwrap();
     let (shares, _) = vector(3);
     for s in &shares {
@@ -391,7 +391,7 @@ fn slip39_a_forget_leaves_nothing_held_and_the_key_list_is_unchanged() {
 
 #[test]
 fn slip39_practice_takes_no_share() {
-    let mut keys = Keys::on(Network::Mainnet);
+    let mut keys = Keys::on(Network::Testnet);
     keys.set_demo(&[], &[], &[]);
     let (shares, _) = vector(3);
     assert_eq!(
@@ -477,7 +477,7 @@ fn slip39_a_share_is_replaced_in_a_later_group_when_earlier_groups_have_met_thei
 #[test]
 fn slip39_a_stick_attached_holds_nothing_and_makes_nothing_until_it_is_gone() {
     let (shares, _) = vector(3);
-    let mut keys = Keys::on(Network::Mainnet);
+    let mut keys = Keys::on(Network::Testnet);
     keys.set_stick_attached(Some("stick"));
     assert_eq!(
         keys.slip39_set_hold(&shares[0]).err(),
@@ -571,7 +571,7 @@ mod an_aezeed_and_a_set_held {
         assert!(hold_aezeed(&mut keys, &bad).is_err());
         assert!(keys.slip39_set_facts().is_some());
 
-        let mut keys = Keys::on(Network::Mainnet);
+        let mut keys = Keys::on(Network::Testnet);
         hold_aezeed(&mut keys, WORDS).unwrap();
         // A share that is refused leaves the aezeed.
         assert!(keys.slip39_set_hold("not words at all").is_err());
