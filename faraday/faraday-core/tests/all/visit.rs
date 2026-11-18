@@ -427,6 +427,9 @@ fn a_write_leaves_a_receipt_that_a_lock_keeps_and_power_off_does_not() {
         .find(|(n, _)| n == "spending-wallet.txt")
         .unwrap();
     let mut app = process((Vec::new(), vec![wallet], Vec::new()), Some("TESTSTICK"));
+    // The person has checked the clock: the receipt carries its time.
+    app.press(Action::OpenSetTime);
+    app.press(Action::SetTimeKeep);
     app.press(Action::Nav(Screen::Files));
     app.press(Action::VisitWrite);
     while let Some(c) = app.poll_storage() {

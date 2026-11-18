@@ -530,7 +530,7 @@ fn seal_work(app: &mut Faraday, id: VaultId) -> Result<SealWork, NoJob> {
         let answer = app.fresh_bytes(b"vault entries", 32).ok_or(NoJob::Seed)?;
         uuid_bytes_from(&answer, n)
     };
-    let now = app.clock_now();
+    let now = app.checked_now();
     let name = app
         .vaults
         .open

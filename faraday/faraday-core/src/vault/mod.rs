@@ -2522,6 +2522,13 @@ impl Faraday {
         self.vaults.clock_checked || (self.online && self.clock_now().is_some())
     }
 
+    /// The clock's time when the person has checked it, else nothing: what
+    /// a record or a shown time uses, so none is kept from a clock that may
+    /// be hours off.
+    pub(crate) fn checked_now(&self) -> Option<u64> {
+        self.clock_now().filter(|_| self.clock_checked())
+    }
+
     /// Whether the screen shows the clock or a TOTP code live: Settings'
     /// and Set the time's Now, the codes, an open vault's entries, whose
     /// detail has the Code row, and Sign with {key}'s time.

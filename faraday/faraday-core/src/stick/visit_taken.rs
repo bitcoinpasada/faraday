@@ -1893,7 +1893,7 @@ impl Faraday {
     /// replaces the last receipt with a new one.
     pub(crate) fn receipt_add(&mut self, name: &str, failure: Option<faraday_text::Text>) {
         let c = self.compute();
-        let now = self.clock_now();
+        let now = self.checked_now();
         let Some((name, hash, opened)) = self.visit.writing_answered(name, now) else {
             return;
         };

@@ -54,7 +54,7 @@ pub(crate) fn sealed(app: &mut Faraday, done: SealDone) {
     }
     // The vault locked, closed or changed while it ran: nothing is made.
     let gone = super::item::gone(app);
-    let date = app.clock_now().map(|t| Text::of(&crate::gpg::date(t)));
+    let date = app.checked_now().map(|t| Text::of(&crate::gpg::date(t)));
     let Some(s) = st(app) else { return };
     match sealed {
         Ok(_) if gone => s.error = Some(refusal_line(&QrError::NoItem)),

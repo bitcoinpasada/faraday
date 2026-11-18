@@ -293,6 +293,17 @@ fn a_tz_line_in_steps_of_15_minutes_is_applied() {
 
 #[test]
 fn written_to_stick_shows_the_local_time() {
+    let r = receipt_heading(true);
+    assert_eq!(r, "Written to FIRST at 08:02");
+}
+
+#[test]
+fn written_to_stick_shows_no_time_from_a_clock_not_checked() {
+    assert_eq!(receipt_heading(false), "Written to FIRST");
+}
+
+/// The receipt of a write on a clock the person has checked or not.
+fn receipt_heading(checked: bool) -> String {
     let mut app = Faraday::new();
     app.event(display());
     for _ in 0..16 {
@@ -310,6 +321,10 @@ fn written_to_stick_shows_the_local_time() {
         )]),
         kept: Vec::new(),
     });
+    if checked {
+        app.press(Action::OpenSetTime);
+        app.press(Action::SetTimeKeep);
+    }
     app.storage(StorageEvent::Sticks(vec![stick("FIRST", false, None)]));
     app.press(Action::Nav(Screen::Files));
     app.press(Action::VisitWrite);
@@ -323,7 +338,7 @@ fn written_to_stick_shows_the_local_time() {
         }
     }
     let r = app.receipt().expect("a receipt");
-    assert_eq!(r.heading(app.tz_min()), "Written to FIRST at 08:02");
+    r.heading(app.tz_min())
 }
 
 #[test]

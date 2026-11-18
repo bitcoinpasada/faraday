@@ -279,7 +279,7 @@ fn create_start(app: &mut Faraday) -> bool {
     id16.copy_from_slice(&id);
     let mut seal = Zeroizing::new([0u8; SEAL_RANDOM_LEN]);
     seal.copy_from_slice(&random);
-    let now = app.clock_now();
+    let now = app.checked_now();
     // A key file Create makes is drawn now, at the press; a chosen one is
     // read now. A refused one was said by the press before this.
     let drawn = match app.vaults.create.as_ref().map(|c| c.key.clone()) {
@@ -660,7 +660,7 @@ fn kdbx_start(app: &mut Faraday) -> bool {
     seal.copy_from_slice(&random);
     let mut u32s = [0u8; 32];
     u32s.copy_from_slice(&uuids);
-    let now = app.clock_now();
+    let now = app.checked_now();
     // The memory step the prompt offers is the first; passes and lanes are
     // the format's.
     let cost = Cost {

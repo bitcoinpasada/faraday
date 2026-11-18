@@ -3921,7 +3921,7 @@ impl Faraday {
 
     fn vault_summaries_write(&mut self, work: bool) {
         let c = self.compute();
-        let seen = self.clock_now();
+        let seen = self.checked_now();
         let mut fresh = Vec::new();
         for v in &self.vaults.open {
             let wallets = self

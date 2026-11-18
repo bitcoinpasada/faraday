@@ -150,16 +150,19 @@ fn with_lines(label: &str, phrase: &str, id: u8, lines: &str) -> Vec<u8> {
 const A: &str = "a phrase";
 const B: &str = "b phrase";
 
-#[test]
-fn a_new_vault_reads_sealed_once_and_each_seal_adds_one() {
+/// Two seals of a new vault, the clock checked or not before the second
+/// lock; what the next unlock says.
+fn two_seals_head(checked: bool) -> Vec<String> {
     let original = made("Main", B, 1);
     let mut app = process(vec![("main.kdbx".into(), original)], Vec::new(), Vec::new());
+    if checked {
+        app.press(Action::OpenSetTime);
+        app.press(Action::SetTimeKeep);
+    }
     unlock(&mut app, 0, B);
     let texts = head(&mut app);
     assert!(said(&texts, "Sealed once"), "{texts:?}");
 
-    // Changed and locked: the next unlock reads two seals, with the time
-    // by the clock that sealed it.
     app.press(Action::Entry(None));
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     app.press(Action::EntryAdd);
@@ -171,9 +174,25 @@ fn a_new_vault_reads_sealed_once_and_each_seal_adds_one() {
     let (inbox, outbox, kept) = saved(&mut app);
     let mut app = process(inbox, outbox, kept);
     unlock(&mut app, 0, B);
-    let texts = head(&mut app);
+    head(&mut app)
+}
+
+#[test]
+fn a_new_vault_reads_sealed_once_and_each_seal_adds_one() {
+    // Changed and locked: the next unlock reads two seals, with the time
+    // by the clock that sealed it, which the person had checked.
+    let texts = two_seals_head(true);
     assert!(said(&texts, "Sealed 2 times · last "), "{texts:?}");
     assert!(!said(&texts, "older copy"), "{texts:?}");
+}
+
+#[test]
+fn a_clock_not_checked_leaves_no_time_on_the_seals_line() {
+    let texts = two_seals_head(false);
+    assert!(
+        said(&texts, "Sealed 2 times · last time not recorded"),
+        "{texts:?}"
+    );
 }
 
 /// A seal waits for five answers of the system's: a lock with none
