@@ -66,7 +66,10 @@ fn framed<A: Copy + PartialEq>(
     ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
     ui.sheet_pin = None;
     ui.sheet_pinning = true;
+    // The measuring pass is not where the field typing goes to stands.
+    let focus = ui.focus_box;
     let ch = body(ui, ix, 0.0, iw);
+    ui.focus_box = focus;
     let pins = ui.sheet_pin.take();
     let items: Vec<(&str, Style, A)> = pins
         .iter()

@@ -139,6 +139,51 @@ fn randomness_dice_are_pressed_as_faces_or_typed_on_the_keyboard_a_press_brings_
 }
 
 #[test]
+fn a_field_in_a_sheet_that_scrolls_stands_whole_above_the_keyboard() {
+    use faraday_core::kef_form::KefAct;
+    use faraday_core::kef_tool::{KefToolAction as K, Pick};
+    let reach = |app: &mut Faraday, a: Action| {
+        for _ in 0..20 {
+            let _ = app.frame();
+            if app.where_offered(a).is_some() {
+                break;
+            }
+            app.event(Event::Scroll {
+                x: 400,
+                y: 300,
+                dy: 150,
+            });
+        }
+    };
+    for w in WINDOWS {
+        let mut app = window(w);
+        app.press(Action::Nav(Screen::Catalog));
+        let tile = faraday_core::catalog::TILES
+            .iter()
+            .position(|t| t.name == "Krux code")
+            .unwrap();
+        app.press(Action::Catalog(tile as u8));
+        app.press(Action::KefTool(K::Pick(Pick::Type)));
+        faraday_core::testkit::type_words(&mut app, "a note");
+        app.press(Action::KefTool(K::Next));
+        let options = Action::KefTool(K::Form(KefAct::Options));
+        reach(&mut app, options);
+        tap(&mut app, options);
+        // Options is taller than the 7-inch panel: Rounds is scrolled to
+        // and pressed.
+        let rounds = Action::KefTool(K::Form(KefAct::Rounds));
+        reach(&mut app, rounds);
+        tap(&mut app, rounds);
+        let top = app.keyboard_top().expect("the keyboard is up");
+        let (_, y, _, h) = app.focused_field().expect("the field");
+        assert!(
+            y + h <= i32::from(top),
+            "{w:?}: field {y}+{h}, keyboard {top}"
+        );
+    }
+}
+
+#[test]
 fn my_seed_makes_my_wallets_passphrase_fields_bring_the_keyboard_up_when_pressed() {
     use faraday_core::seed_check::SeedAction as S;
     use faraday_ui::keyboard::OskPress;
