@@ -99,3 +99,41 @@ fn a_press_on_a_bar_or_field_that_takes_typing_brings_the_keyboard_up_and_again_
         assert!(app.keyboard_top().is_some(), "{w:?}: the guide's Find");
     }
 }
+
+#[test]
+fn randomness_dice_are_pressed_as_faces_or_typed_on_the_keyboard_a_press_brings_up() {
+    use faraday_core::fresh::OwnSource;
+    use faraday_core::fresh::page::Act;
+    use faraday_ui::keyboard::OskPress;
+    for w in WINDOWS {
+        let rolls = |app: &mut Faraday, n: &str| {
+            let _ = app.frame();
+            app.drawn_texts().iter().any(|t| t.contains(n))
+        };
+        let mut app = window(w);
+        app.press(Action::Nav(Screen::Randomness));
+        app.press(Action::Own(Act::Source(OwnSource::Dice)));
+        let _ = app.frame();
+        assert!(app.keyboard_top().is_none(), "{w:?}: down first");
+        tap(&mut app, Action::Own(Act::Roll(3)));
+        assert!(rolls(&mut app, "1 dice roll"), "{w:?}: a face pressed");
+
+        tap(&mut app, Action::Own(Act::Typing(true)));
+        assert!(app.keyboard_top().is_some(), "{w:?}: Typed brings it up");
+        tap(&mut app, Action::Osk(OskPress::Char('4')));
+        assert!(rolls(&mut app, "2 dice rolls"), "{w:?}: a roll typed");
+        tap(&mut app, Action::Osk(OskPress::Hide));
+        assert!(app.keyboard_top().is_none(), "{w:?}: put away");
+        let (x, y, fw, fh) = app.focused_field().expect("the rolls' box");
+        for phase in [TouchPhase::Down, TouchPhase::Up] {
+            app.event(Event::Touch {
+                x: (x + fw / 2) as u16,
+                y: (y + fh / 2) as u16,
+                phase,
+            });
+        }
+        let _ = app.frame();
+        let _ = app.frame();
+        assert!(app.keyboard_top().is_some(), "{w:?}: the box brings it up");
+    }
+}

@@ -206,6 +206,11 @@ impl OwnPage {
         Some((OwnSource::PointerKeys, c, n))
     }
 
+    /// Dice are entered by typing (`true`) or by buttons.
+    pub(crate) fn set_typing(&mut self, on: bool) {
+        self.typing = on;
+    }
+
     /// Whether dice are entered by typing (the box) rather than by buttons.
     pub(crate) fn typing(&self) -> bool {
         self.typing

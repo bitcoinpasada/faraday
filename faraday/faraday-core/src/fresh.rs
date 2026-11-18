@@ -657,13 +657,26 @@ impl Faraday {
             || (self.screen == crate::Screen::KeyGen && self.keygen.own_offered())
     }
 
+    /// Whether Add randomness shows its dice as a box that takes the
+    /// rolls typed. A lookup.
+    pub(crate) fn own_typing_rolls(&self) -> bool {
+        self.screen == crate::Screen::Randomness
+            && self.own_page().is_some_and(|p| {
+                p.source() == OwnSource::Dice && p.typing() && !p.done()
+            })
+    }
+
     /// A press on Add randomness, or one that opens it.
     pub(crate) fn own_act(&mut self, a: page::Act) {
         if a == page::Act::Open {
             if self.fresh.page.is_none() {
                 // Nothing is chosen or started until a source is pressed
                 // (owner, 2026-10-26).
-                self.fresh.page = Some(page::OwnPage::unchosen());
+                let mut p = page::OwnPage::unchosen();
+                // A one-column window starts with the faces pressed, as
+                // New key's dice do; typing them is a press on Typed.
+                p.set_typing(!self.compact);
+                self.fresh.page = Some(p);
             }
             self.screen = crate::Screen::Randomness;
             self.list_offset = 0.0;

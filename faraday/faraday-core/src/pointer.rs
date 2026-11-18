@@ -367,6 +367,7 @@ pub(crate) fn field_action(a: Action) -> bool {
             | Action::KefRead(crate::seeds::kef::KefAct::Field)
             | Action::Rename
             | Action::KTyping(true)
+            | Action::Own(crate::fresh::page::Act::Typing(true))
             | Action::Seeds(seeds::SeedsAction::Focus(_))
             | Action::Vault(V::Search(crate::vault::SearchAct::Focus(_)))
             | Action::Vault(V::Roller(crate::fresh::roller::Act::Count))

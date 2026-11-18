@@ -523,6 +523,7 @@ impl Faraday {
                             || self.gpg_restore_keyboard()))
             }
             Screen::Entry => true,
+            Screen::Randomness => self.own_typing_rolls(),
             Screen::SetTime => self.set_time.focus().is_some(),
             Screen::Silent => self.silent.state().is_some_and(|s| {
                 s.dns_focus.is_some() && s.open == Some(crate::silent::sstep::ADDRESS)
@@ -648,6 +649,9 @@ impl Faraday {
                     Some(keygen::kstep::TYPED) => self.entry_target(),
                     _ => Some(Action::KTyping(true)),
                 }
+            }
+            Screen::Randomness => {
+                Some(Action::Own(crate::fresh::page::Act::Typing(true)))
             }
             Screen::Create => self
                 .card_pass_focus()
