@@ -38,7 +38,7 @@ Print the blank templates from Faraday Starter on your online computer. They hol
 
 **Words on the seed** is **12** or **24**. **Done** marks the templates as printed.
 
-A single key backed up as words, with no passphrase, opens the quick paper backup: **Make a copy** (**Show the seed**, **Show the SeedQR** to copy by hand, **Blank template** for what to print, **I wrote them down**), then **Check my copy**, where the whole seed typed back finishes the backup and the end card shows the first receive address. **Make a backup plan** opens the board.
+A single key backed up as words, with no passphrase, opens the quick paper backup: **Make a copy** (**Show the seed**, **Show the SeedQR** to copy by hand, **Blank template** for what to print, **Krux code** for an encrypted copy, **I wrote them down**), then **Check my copy**, then the Krux code's card, made with a passphrase and checked. The seed typed back and the code checked finish the backup and the end card shows the first receive address. **Make a backup plan** opens the board.
 
 ## Copy by hand
 

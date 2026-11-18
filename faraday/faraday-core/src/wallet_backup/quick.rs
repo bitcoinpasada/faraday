@@ -27,6 +27,14 @@ pub enum Quick {
     /// Show the SeedQR: the plan keeps the seed's SeedQR beside its words
     /// and the first screen shows both.
     SeedQr,
+    /// Krux code: the plan keeps seed 0's encrypted backup as a code to
+    /// copy onto paper, at the words' place, and a third card is part of
+    /// the flow.
+    Code,
+    /// Next: from the check of the copy to the Krux code's card.
+    Next,
+    /// The check of the copy, from the Krux code's card.
+    Copy,
     /// Make a backup plan: the board.
     More,
 }
@@ -39,6 +47,8 @@ pub enum Step {
     Write,
     /// Check my copy.
     Check,
+    /// The Krux code, where the plan keeps one.
+    Code,
 }
 
 impl WalletBackupArea {
@@ -55,6 +65,7 @@ impl WalletBackupArea {
             b.quick = true;
             b.quick_step = Step::Write;
             b.quick_shown = false;
+            b.quick_code = false;
             b.open = Some(plan::Item::Copy(0));
         }
     }
@@ -69,6 +80,7 @@ impl WalletBackupArea {
             b.quick = false;
             b.quick_done = false;
             b.quick_shown = false;
+            b.quick_code = false;
             b.board = crate::board::BoardState::default();
         }
     }
@@ -80,10 +92,8 @@ impl WalletBackupArea {
         let Some(b) = self.state.as_mut().filter(|b| b.quick) else {
             return false;
         };
-        // The short path's plan is the preset's: answers, no map.
-        if b.answers.map.is_some() {
-            return false;
-        }
+        // A plan with a map (a Krux code put on it) keeps it in the map:
+        // the caller puts it there.
         b.answers.seeds[plan::seeds::SEEDQR] = true;
         b.quick_step = Step::Write;
         b.scanned = None;
@@ -95,11 +105,15 @@ impl WalletBackupArea {
     }
 
     /// The copy item stays the open one while the short path is under
-    /// way: the checklist's first item not done is the templates, which
-    /// the short path does not show.
+    /// way, the code's on its card: the checklist's first item not done
+    /// is the templates, which the short path does not show.
     pub(crate) fn quick_keeps_open(&mut self) {
         if let Some(b) = self.state.as_mut().filter(|b| b.quick) {
-            b.open = Some(plan::Item::Copy(0));
+            b.open = Some(if b.quick_step == Step::Code {
+                plan::Item::KefCode(0)
+            } else {
+                plan::Item::Copy(0)
+            });
         }
     }
 

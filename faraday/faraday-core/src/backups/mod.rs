@@ -3314,7 +3314,7 @@ impl Faraday {
 impl Faraday {
     /// Costs what `backup_item_done_now` costs. An item that has just
     /// become done moves on to the next, as its Continue did
-    /// (`docs/BACKUP-FLOW.md` §17.23): a copy matched, a passphrase compared,
+    /// (`docs/BACKUP-FLOW.md` §17.23): a copy matched (not on the short path), a passphrase compared,
     /// a vault saved into, files or sheets made, the descriptor shown,
     /// codex32 strings checked. The blank templates, the envelopes and the
     /// sticks stay a deliberate press. An item opened already done stays
@@ -3330,10 +3330,14 @@ impl Faraday {
             return self.backup.set_seen(None);
         };
         let item = n;
-        let moves = !matches!(
-            item,
-            plan::Item::Templates | plan::Item::Envelopes | plan::Item::Sticks
-        );
+        // The short path's cards are its own: Next moves to the Krux
+        // code's, not a match of the words, whose form would take the
+        // keys typed after it.
+        let moves = !b.quick
+            && !matches!(
+                item,
+                plan::Item::Templates | plan::Item::Envelopes | plan::Item::Sticks
+            );
         let done = self.backup_item_done_now(c, item);
         let was = b.seen.filter(|&(m, _)| m == n).map(|(_, d)| d);
         // A codex32 string still open waits for its Continue.

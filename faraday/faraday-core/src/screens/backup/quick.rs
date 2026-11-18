@@ -19,6 +19,7 @@ pub(super) fn draw(
     let title = match b.quick_step {
         Step::Write => EN.quick_write_title,
         Step::Check => EN.quick_check_title,
+        Step::Code => EN.backup_step_kef,
     };
     let card = |title: &str, done: bool, toggle: Action| flow::Card {
         title: String::from(title),
@@ -33,11 +34,19 @@ pub(super) fn draw(
     // The check is the second step: the first stands before it, done,
     // and its press goes back to the words.
     let mut cards = Vec::new();
-    if b.quick_step == Step::Check {
+    if b.quick_step != Step::Write {
         cards.push(card(
             EN.quick_write_title,
             true,
             Action::BQuick(Quick::Show),
+        ));
+    }
+    // The code's card is the third: the check stands before it, done.
+    if b.quick_step == Step::Code {
+        cards.push(card(
+            EN.quick_check_title,
+            true,
+            Action::BQuick(Quick::Copy),
         ));
     }
     cards.push(card(title, false, Action::BQuick(Quick::Card)));
@@ -65,6 +74,11 @@ fn matched(app: &View) -> bool {
     app.backup_item_done(crate::plan::Item::Copy(0))
 }
 
+/// Whether the Krux code's check is done, by the board's own rule.
+fn code_done(app: &View) -> bool {
+    app.backup_item_done(crate::plan::Item::KefCode(0))
+}
+
 /// The open card's body: the screen's own, then More ways to back up.
 fn body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let Some(b) = app.backup() else {
@@ -74,6 +88,7 @@ fn body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy += match b.quick_step {
         Step::Write => write_body(app, ui, x, cy, w),
         Step::Check => check_body(app, ui, x, cy, w),
+        Step::Code => super::kef_code_block(app, ui, (x, cy, w), (0, false)) + T::GAP,
     };
     ui.button(
         x,
@@ -110,15 +125,31 @@ fn write_body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             Action::BQuick(Quick::Show),
         )
     };
-    let actions = [
+    // The SeedQR shows with the seed, where the plan keeps one.
+    let (qr, qr_style, qr_action) = if b.reveal && b.check.is_none() && app.copy_forms(b, 0).seedqr
+    {
+        (EN.quick_hide_seedqr, Style::Secondary, Action::BReveal)
+    } else {
+        (EN.quick_seedqr, Style::Tonal, Action::BQuick(Quick::SeedQr))
+    };
+    let mut actions = vec![
         (show, style, action),
-        (EN.quick_seedqr, Style::Tonal, Action::BQuick(Quick::SeedQr)),
+        (qr, qr_style, qr_action),
         (
             EN.quick_template,
             Style::Ghost,
             Action::BQuick(Quick::Template),
         ),
     ];
+    // The Krux code, once added, stands selected.
+    if key.kef_offered() {
+        let style = if b.quick_code {
+            Style::Selected
+        } else {
+            Style::Tonal
+        };
+        actions.insert(2, (EN.backup_step_kef, style, Action::BQuick(Quick::Code)));
+    }
     cy += wrap_buttons(ui, x, cy, w, BUTTON_H, &actions);
     let (ix, iy) = (x, cy);
     let info = fill(
@@ -195,7 +226,9 @@ fn foot(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     }
     let next = match b.quick_step {
         Step::Write if b.quick_shown => Some((EN.quick_wrote_them, Quick::Wrote)),
+        Step::Check if matched(app) && b.quick_code => Some((EN.quick_next, Quick::Next)),
         Step::Check if matched(app) => Some((EN.backup_done, Quick::Done)),
+        Step::Code if matched(app) && code_done(app) => Some((EN.backup_done, Quick::Done)),
         _ => None,
     };
     if let Some((label, q)) = next

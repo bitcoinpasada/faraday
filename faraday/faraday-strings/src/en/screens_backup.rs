@@ -141,6 +141,11 @@ macro_rules! words_screens_backup {
     /// Button beside Show the seed on the quick paper backup: the seed's
     /// SeedQR to copy by hand.
     quick_seedqr: "Show the SeedQR",
+    /// The same button while the SeedQR shows.
+    quick_hide_seedqr: "Hide the SeedQR",
+    /// Foot of the quick paper backup's second screen when the plan holds
+    /// a Krux code too: on to its card.
+    quick_next: "Next",
     /// Button beside Show the seed on the quick paper backup, and the
     /// title of the sheet it opens.
     quick_template: "Blank template",

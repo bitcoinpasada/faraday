@@ -242,19 +242,25 @@ fn a_drawn_string_shows_its_grid_marked_by_blocks_and_rows() {
     let cell = f32::from(a1.2) / 5.0;
     assert!((f32::from(a1.3) / cell - 5.0).abs() < 0.3, "{a1:?}");
     // A block short at the edge reaches the touch floor outward, into the
-    // room beside the grid: its press is 48 wide, its squares four.
-    assert!(
-        f32::from(a6.2) >= (4.0 * cell - 0.3 * cell).max(48.0) - 1.0,
-        "{a6:?}"
+    // room beside the grid: its press starts at the block's own left or
+    // top edge, is as wide as four cells or the touch size, and never
+    // lies over a neighbour.
+    let floor = (4.0 * cell).max(48.0) - 1.0;
+    let left = f32::from(a1.0) + 25.0 * cell;
+    let (a5, f1) = (
+        seen(&mut app, Action::BC32(Press::BlockAt(4))),
+        seen(&mut app, Action::BC32(Press::BlockAt(30))),
     );
+    assert!((f32::from(a6.0) - left).abs() < 1.5, "{a6:?}");
+    assert!((f32::from(f6.0) - left).abs() < 1.5, "{f6:?}");
+    assert!((f32::from(f6.1) - f32::from(f1.1)).abs() < 1.5, "{f6:?}");
     assert!((f32::from(a6.3) / cell - 5.0).abs() < 0.3, "{a6:?}");
+    assert!(f32::from(a6.2) >= floor, "{a6:?}");
+    assert!(f32::from(f6.2) >= floor, "{f6:?}");
+    assert!(f32::from(f6.3) >= floor, "{f6:?}");
     assert!(
-        f32::from(f6.2) >= (4.0 * cell - 0.3 * cell).max(48.0) - 1.0,
-        "{f6:?}"
-    );
-    assert!(
-        f32::from(f6.3) >= (4.0 * cell - 0.3 * cell).max(48.0) - 1.0,
-        "{f6:?}"
+        f32::from(a5.0) + f32::from(a5.2) <= f32::from(a6.0) + 1.5,
+        "{a5:?} over {a6:?}"
     );
     // A press on a block marks it.
     app.press(Action::BC32(Press::BlockAt(7)));

@@ -1737,6 +1737,27 @@ impl Faraday {
         self.backup_change_plain(&shape, f);
     }
 
+    /// The quick paper backup puts `what` of seed 0 at its one place, as a
+    /// drop on the board's Paper does (`docs/BACKUP-FLOW.md` §19.2). Whether
+    /// the plan holds it now.
+    pub(crate) fn quick_put(&mut self, what: What) -> bool {
+        let Some(w) = self.backup.state().map(|b| b.wallet) else {
+            return false;
+        };
+        let shape = self.plan_shape_now(w);
+        let t = things_of(what)[0];
+        if !takes(&shape, Zone::Paper(0), t, false) {
+            return false;
+        }
+        self.board_change(&|a, shape| {
+            map_edit(a, shape, |m| {
+                plan::edited(&m, Edit::Add(At::Place(0), what), &[])
+            });
+        });
+        self.board_map()
+            .is_some_and(|m| plan::holds_at(&m, At::Place(0)).contains(&what))
+    }
+
     /// The map the board shows now.
     fn board_map(&self) -> Option<Vec<Spot>> {
         self.board_plan()

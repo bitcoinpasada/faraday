@@ -611,7 +611,7 @@ Paper and each stick's files, and **New stick** where + stick would take it. Nev
 (owner, 2026-11-05): a code goes on a stick or on Paper. On Paper means copied by hand onto a blank
 template (§15.5), which people will often prefer even though the code is encrypted. A person may
 also print the picture from a stick, on any computer, since it is not a secret; that is the
-stick's form, and the plan does not know of it. A seed §6 refuses has the row dimmed, with `kef_not_offered` under it, worked out
+stick's form, and the plan does not know of it. The quick paper backup (`docs/BACKUP-FLOW.md` §19.2) also makes one: its **Krux code** puts the paper code at the one place and its third card is this form. A seed §6 refuses has the row dimmed, with `kef_not_offered` under it, worked out
 when the menu opens (a lookup in `faraday-keys`, no words parsed). Material 3: Menus, a submenu;
 on the small panel the sheet's list changes in place.
 

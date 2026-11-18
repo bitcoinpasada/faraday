@@ -2949,7 +2949,10 @@ cards (wide) or pages (small) are the checklist's, as today.
    template**, which opens the templates item's line ("Print 1 from
    Faraday Starter: Blank templates, 12 words, words") as a sheet with
    **Close**; nothing is pressed to pass it; where the column is narrow
-   the three wrap as a button row does. **Show the SeedQR** is the
+   they wrap as a button row does. A fourth action, **Krux code**
+   (where the seed is one a code can be made of, `docs/KEF.md` §6),
+   adds the board's paper Krux code to the plan at the one place (step
+   3). **Show the SeedQR** is the
    board's SeedQR answer made from here: the plan keeps the seed's
    SeedQR beside its words at its one place (Paper only with the SeedQR
    added, so `Ready::is` no longer reads it as Paper only; saved when
@@ -2961,7 +2964,9 @@ cards (wide) or pages (small) are the checklist's, as today.
    (§17.24), the words typed back and, where a camera is listed, the
    drawn grid scanned; the foot's **Done** and the match's completion of
    the plan read the copy item's own done, so with a SeedQR they wait
-   for both. Under the item, one row, **Make a backup plan**.
+   for both; while the SeedQR shows, its button reads **Hide the
+   SeedQR**, as **Show the seed** reads **Hide the seed**. Under the
+   item, one row, **Make a backup plan**.
    The foot is **I wrote them down**, filled, offered once the seed has
    been shown; it hides the seed and moves on.
 2. **Check my copy.** The same item's second half: the typed check of
@@ -2970,8 +2975,21 @@ cards (wide) or pages (small) are the checklist's, as today.
    seed"). **Show the seed** goes back to step 1. A match completes the
    copy item, as it does today, and dates the copy where a vault keeps
    the plan (§18.3; with no vault, held in memory and nothing dated, as
-   today). The foot reads **Done** once matched.
-3. **The end card.** `wallet_done` with Back up's variant: "Backup done
+   today). The foot reads **Done** once matched, or **Next** where the
+   plan holds a Krux code.
+3. **Krux code** (only after **Krux code** was pressed on step 1). The
+   board's paper Krux code (`Item::KefCode`, `What::KefCodePaper`,
+   `docs/KEF.md` §15.1) kept at the same one place as the words, no
+   stick and no stick lock. The card is the board's own form
+   (`kef_code_block`, one block for the item and the card): its
+   passphrase asked as the board asks it, the code made, drawn to copy
+   onto paper by hand and checked by scanning the drawn copy back where
+   a camera is listed, by the board's rule where none is. The card has
+   no **Not on Paper**; Change the plan has it. The foot's **Done** and
+   the match's completion wait for every item the short path holds, this
+   check included (`Item::Copy` and `Item::KefCode`, each by its own
+   done). The card is drawn once reached.
+4. **The end card.** `wallet_done` with Back up's variant: "Backup done
    · {wallet}", the plan's three checks as a strip, the wallet's chart,
    **Show wallet QR** as the filled button, **Open the wallet**, **Change
    the plan**, Lock and Power off. One row is added on the short path:
@@ -3096,12 +3114,12 @@ plan today, and neither changes.
 - **The one copy.** §17.19's muted fact, nothing added (§19.4). Not
   taken: a warning line with an action to add a place; lifting the
   single key's cap of one place.
-- **A KEF encrypted backup from the first screen.** Not built. A Krux
-  code is its own item (`Item::KefCode`, `docs/KEF.md` §15.1) on a
-  place of its own kind, paper or a stick's file, with its own form for
-  the passphrase and the code made, and a check of its own. §19.2 does
-  not settle which of the two the short path's one place keeps it as,
-  nor what checked means here.
+- **A KEF encrypted backup from the first screen.** Built, on paper
+  (owner, 2026-11-18): the board's paper Krux code at the one place,
+  offered from step 1 as **Krux code** and made, shown and checked on a
+  third card as the board does (§19.2 item 3). Not taken: a file on a
+  stick (it would bring back Write to sticks and the lock of §19.5), a
+  route to Tools' KEF tool.
 - **The check.** Step 2 is the typed check, the one §18.3 dates, and the
   SeedQR's scan once **Show the SeedQR** was pressed.
   Make a new key's quiz (four words to pick from per position) is not

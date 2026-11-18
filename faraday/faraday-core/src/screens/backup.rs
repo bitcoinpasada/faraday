@@ -953,10 +953,6 @@ pub(crate) fn shares_table(
     cy + 10.0 - y
 }
 
-#[expect(
-    clippy::cognitive_complexity,
-    reason = "one match over the backup flow's steps, each arm drawing that step's body"
-)]
 fn backup_body(app: &View, ui: &mut Ui, item: Item, x: f32, y: f32, w: f32) -> f32 {
     let b = app.backup().expect("backup");
     let wallet = &app.session.wallets[b.wallet];
@@ -1102,37 +1098,7 @@ fn backup_body(app: &View, ui: &mut Ui, item: Item, x: f32, y: f32, w: f32) -> f
             }
         }
         Item::KefCode(i) => {
-            if let Some(f) = app.backup.kef_form(i) {
-                cy += crate::kef_form::screen::draw(
-                    app,
-                    ui,
-                    (x, cy, w),
-                    f,
-                    crate::wallet_backup::kef::ask(),
-                );
-                cy += T::GAP;
-            }
-            if app.backup.kef_form(i).is_some_and(|f| f.on_paper()) {
-                ui.button(
-                    x,
-                    cy,
-                    None,
-                    BUTTON_H,
-                    EN.kef_not_on_paper,
-                    Style::Ghost,
-                    Action::KefTool(crate::kef_tool::KefToolAction::Backup(
-                        crate::kef_form::KefAct::NotOnPaper,
-                    )),
-                );
-                cy += BUTTON_H + T::GAP;
-            }
-            let misses = b.kef_misses_of(i);
-            if misses >= crate::copy_check::MISSES
-                && app.backup.kef_form(i).is_some_and(|f| f.on_paper())
-            {
-                let line = fill(EN.copy_check_scans_without, &[&misses.to_string()]);
-                cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Warning, &line) + T::GAP;
-            }
+            cy += kef_code_block(app, ui, (x, cy, w), (i, true));
             if app.backup_item_done(crate::plan::Item::KefCode(i))
                 && item_next(app, ui, x, cy, w, item)
             {
@@ -1780,6 +1746,47 @@ fn item_action(app: &View, n: Item) -> (String, Action) {
         ),
         Item::Envelopes => next,
     }
+}
+
+/// Seed `i`'s Krux code on paper, as the checklist's code item and the
+/// quick paper backup's third card draw it: the form, Not on paper where
+/// the form is on paper and `removable` (the quick card has no such
+/// press), and the scan line. Its height.
+pub(super) fn kef_code_block(
+    app: &View,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    (i, removable): (usize, bool),
+) -> f32 {
+    let Some(b) = app.backup() else {
+        return 0.0;
+    };
+    let mut cy = y;
+    if let Some(f) = app.backup.kef_form(i) {
+        cy +=
+            crate::kef_form::screen::draw(app, ui, (x, cy, w), f, crate::wallet_backup::kef::ask());
+        cy += T::GAP;
+    }
+    if removable && app.backup.kef_form(i).is_some_and(|f| f.on_paper()) {
+        ui.button(
+            x,
+            cy,
+            None,
+            BUTTON_H,
+            EN.kef_not_on_paper,
+            Style::Ghost,
+            Action::KefTool(crate::kef_tool::KefToolAction::Backup(
+                crate::kef_form::KefAct::NotOnPaper,
+            )),
+        );
+        cy += BUTTON_H + T::GAP;
+    }
+    let misses = b.kef_misses_of(i);
+    if misses >= crate::copy_check::MISSES && app.backup.kef_form(i).is_some_and(|f| f.on_paper()) {
+        let line = fill(EN.copy_check_scans_without, &[&misses.to_string()]);
+        cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Warning, &line) + T::GAP;
+    }
+    cy - y
 }
 
 /// The SeedQR of the seed shown, to copy by hand, where the plan keeps

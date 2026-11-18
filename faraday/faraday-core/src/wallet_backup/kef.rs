@@ -466,6 +466,8 @@ pub(crate) fn scanned(app: &mut Faraday, i: usize, bytes: &[u8]) {
             .commands
             .push_back(faraday_shell_api::Command::CameraOff);
         sync_record(app, i);
+        let c = app.compute();
+        app.quick_matched(&c);
     } else {
         app.camera.say(EN.kef_not_this_code);
     }
@@ -499,6 +501,8 @@ pub(crate) fn act(app: &mut Faraday, a: KefAct) {
         sync_record(app, i);
     }
     sync(app);
+    let c = app.compute();
+    app.quick_matched(&c);
 }
 
 /// A press on the dice entry or the roller.

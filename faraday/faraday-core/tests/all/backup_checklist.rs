@@ -1180,3 +1180,130 @@ fn the_quick_backups_end_card_adds_the_first_receive_address_and_it_opens_its_co
     app.press(Action::ShowCode(faraday_core::Code::Receive(w, 0)));
     assert!(app.qr().is_some(), "the code opens");
 }
+
+/// The code made with a passphrase on the quick screen's Krux code card,
+/// as the board's item makes it, and checked back with the same one.
+fn quick_code(app: &mut Faraday, check: bool) {
+    use faraday_core::kef_form::KefAct;
+    use faraday_core::kef_tool::KefToolAction as K;
+    let type_in = |app: &mut Faraday, text: &str| {
+        for c in text.chars() {
+            app.event(Event::Key(Key::Char(c)));
+        }
+    };
+    if !check {
+        app.press(Action::KefTool(K::Backup(KefAct::Options)));
+        app.press(Action::KefTool(K::Backup(KefAct::Rounds)));
+        for _ in 0..8 {
+            app.event(Event::Key(Key::Backspace));
+        }
+        type_in(app, "10000");
+        app.press(Action::KefTool(K::Backup(KefAct::Back)));
+        app.press(Action::KefTool(K::Backup(KefAct::Field)));
+        type_in(app, "a passphrase");
+        app.press(Action::KefTool(K::Backup(KefAct::FieldAgain)));
+        type_in(app, "a passphrase");
+        app.press(Action::KefTool(K::Backup(KefAct::Make)));
+    } else {
+        app.press(Action::KefTool(K::Backup(KefAct::Check)));
+        type_in(app, "a passphrase");
+        app.press(Action::KefTool(K::Backup(KefAct::Compare)));
+    }
+    testkit::settle(app);
+}
+
+#[test]
+fn step_one_offers_the_krux_code_and_pressing_it_puts_the_code_at_the_one_place_beside_the_words() {
+    let c = testkit::compute();
+    let mut app = device(Vec::new());
+    let _ = quick_open(&mut app);
+    let _ = app.frame();
+    assert!(app.offers(Action::BQuick(Quick::Code)));
+    assert_eq!(
+        app.backup_items_now(&c),
+        vec![Item::Templates, Item::Copy(0), Item::Envelopes],
+        "no code before the press"
+    );
+    app.press(Action::BQuick(Quick::SeedQr));
+    app.press(Action::BQuick(Quick::Code));
+    let _ = app.frame();
+    let items = app.backup_items_now(&c);
+    assert!(items.contains(&Item::Copy(0)) && items.contains(&Item::KefCode(0)));
+    let b = app.backup().expect("backup");
+    let map = plan::stored_map(&app.plan_shape_now(b.wallet), &b.answers);
+    let held = plan::holds_at(&map, plan::At::Place(0));
+    for what in [
+        plan::What::Words(0),
+        plan::What::SeedQr(0),
+        plan::What::KefCodePaper(0),
+    ] {
+        assert!(held.contains(&what), "{what:?} is not at the one place");
+    }
+    assert!(b.quick, "still the short path");
+}
+
+#[test]
+fn done_waits_for_the_krux_codes_check_after_the_words_match() {
+    let c = testkit::compute();
+    let mut app = device(Vec::new());
+    // The code's passphrase form needs the randomness a person adds.
+    for i in 0..8u8 {
+        app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(
+            [0x40 + i; 32],
+        )));
+    }
+    let w = quick_open(&mut app);
+    app.press(Action::BQuick(Quick::Code));
+    quick_match(&mut app, w);
+    let _ = app.frame();
+    // The words matched: on to the code's card, not Done.
+    assert!(!app.offers(Action::BQuick(Quick::Done)));
+    assert!(app.offers(Action::BQuick(Quick::Next)));
+    assert!(!done(&app, Item::Envelopes), "the plan is not complete yet");
+    app.press(Action::BQuick(Quick::Next));
+    let _ = app.frame();
+    assert!(crate::common::has(&mut app, "Krux code"));
+    assert!(!app.offers(Action::BQuick(Quick::Done)));
+    quick_code(&mut app, false);
+    let _ = app.frame();
+    assert!(!app.offers(Action::BQuick(Quick::Done)), "not checked yet");
+    quick_code(&mut app, true);
+    let _ = app.frame();
+    assert!(done(&app, Item::KefCode(0)), "the code is not checked");
+    assert!(done(&app, Item::Copy(0)), "the copy is not done");
+    // The foot is under the code: scrolled to, as a person does.
+    let mut offered = false;
+    for _ in 0..30 {
+        let _ = app.frame();
+        offered = app.offers(Action::BQuick(Quick::Done));
+        if offered {
+            break;
+        }
+        app.event(Event::Scroll {
+            x: 600,
+            y: 400,
+            dy: 120,
+        });
+    }
+    assert!(offered, "Done is not offered");
+    for item in app.backup_items_now(&c) {
+        assert!(done(&app, item), "{item:?} is not done");
+    }
+    app.press(Action::BQuick(Quick::Done));
+    assert!(!app.backup().is_some_and(|b| b.quick));
+}
+
+#[test]
+fn the_seedqr_button_reads_hide_while_the_seedqr_shows() {
+    let mut app = device(Vec::new());
+    let _ = quick_open(&mut app);
+    let _ = app.frame();
+    assert!(crate::common::has(&mut app, "Show the SeedQR"));
+    app.press(Action::BQuick(Quick::SeedQr));
+    let _ = app.frame();
+    assert!(crate::common::has(&mut app, "Hide the SeedQR"));
+    assert!(!crate::common::has(&mut app, "Show the SeedQR"));
+    app.press(Action::BReveal);
+    let _ = app.frame();
+    assert!(crate::common::has(&mut app, "Show the SeedQR"));
+}

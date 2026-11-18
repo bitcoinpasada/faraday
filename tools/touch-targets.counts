@@ -1,6 +1,7 @@
 desktop_1280x800 Backup BC32 22
 desktop_1280x800 Backup BReveal 1
 desktop_1280x800 Backup Board 46
+desktop_1280x800 Backup KefTool 47
 desktop_1280x800 BackupFlow Board 6
 desktop_1280x800 CreateVault WordList 21
 desktop_1280x800 Entry EntryCandidate 17
@@ -24,6 +25,7 @@ desktop_1280x800 Wallets Chart 9
 desktop_1280x800 Wallets PickKey 2
 desktop_1280x800 WalletsStart OpenWallet 2
 small_240x320 Backup Board 17
+small_240x320 Backup KefTool 48
 small_240x320 CreateVault WordList 3
 small_240x320 Entry EntryCandidate 17
 small_240x320 Files File 3
@@ -33,6 +35,7 @@ small_240x320 Settings Theme 42
 small_240x320 Wallets PickKey 1
 small_480x640 Backup BC32 1
 small_480x640 Backup Board 17
+small_480x640 Backup KefTool 48
 small_480x640 CreateVault WordList 3
 small_480x640 Entry EntryCandidate 17
 small_480x640 Files File 3
@@ -58,6 +61,7 @@ stick_1024x600 Backup BC32 15
 stick_1024x600 Backup Board 41
 stick_1024x600 Backup EntryKey 25
 stick_1024x600 Backup EntryKeyBack 1
+stick_1024x600 Backup KefTool 42
 stick_1024x600 Backup Osk 38
 stick_1024x600 BackupFlow Osk 38
 stick_1024x600 Catalog Osk 38

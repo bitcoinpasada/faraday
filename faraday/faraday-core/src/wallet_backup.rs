@@ -711,6 +711,9 @@ pub struct BackupState {
     /// The backup was the quick one and its words matched: the end card
     /// adds the first receive address.
     pub quick_done: bool,
+    /// The plan keeps seed 0's Krux code on paper beside the words: the
+    /// short path has its card.
+    pub quick_code: bool,
 }
 
 /// A wallet, a slot and whether it is the BIP 129 record: which account
@@ -4248,6 +4251,7 @@ impl Faraday {
                     b.reveal = true;
                     b.quick_shown = true;
                 }
+                self.quick_opened();
             }
             Quick::Wrote => {
                 // A press that checks nothing: the words are put away and
@@ -4264,6 +4268,23 @@ impl Faraday {
                     b.reveal = false;
                 }
                 self.copy_check_open();
+                self.quick_opened();
+            }
+            Quick::Next | Quick::Copy => {
+                if let Some(b) = self
+                    .backup
+                    .state
+                    .as_mut()
+                    .filter(|b| b.quick && b.quick_code)
+                {
+                    b.quick_step = if q == Quick::Next {
+                        Step::Code
+                    } else {
+                        Step::Check
+                    };
+                    b.reveal = false;
+                }
+                self.quick_opened();
             }
             Quick::Done => {
                 let matched = self.quick_matched_now(c);
@@ -4272,9 +4293,27 @@ impl Faraday {
                     b.quick_done = true;
                     b.open = None;
                 }
+                kef::opened(self);
             }
             Quick::SeedQr => {
+                let mapped = self.backup.state().is_some_and(|b| b.answers.map.is_some());
+                if mapped && !self.quick_put(plan::What::SeedQr(0)) {
+                    return;
+                }
                 if self.backup.quick_seedqr() {
+                    self.plan_save();
+                    self.backups_sync();
+                }
+                self.quick_opened();
+            }
+            Quick::Code => {
+                let on = self.backup.state().is_some_and(|b| b.quick);
+                if on && self.quick_put(plan::What::KefCodePaper(0)) {
+                    if let Some(b) = self.backup.state.as_mut() {
+                        b.quick_code = true;
+                    }
+                    self.backup_extras();
+                    kef::plan_made(self);
                     self.plan_save();
                     self.backups_sync();
                 }
@@ -4303,10 +4342,21 @@ impl Faraday {
         }
     }
 
-    /// Whether the copy item is done in this backup: the words typed
-    /// back, and the SeedQR scanned where the plan keeps one.
+    /// Whether every item the short path holds is done in this backup: the
+    /// copy item (the words typed back, and the SeedQR scanned where the
+    /// plan keeps one) and the Krux code's, by the board's own rule.
     fn quick_matched_now(&self, c: &Compute) -> bool {
-        self.backup_item_done_now(c, plan::Item::Copy(0))
+        self.backup_items_now(c).into_iter().all(|it| {
+            !matches!(it, plan::Item::Copy(_) | plan::Item::KefCode(_))
+                || self.backup_item_done_now(c, it)
+        })
+    }
+
+    /// The open item follows the short path's card: the copy item, or the
+    /// Krux code's with its form made ready.
+    fn quick_opened(&mut self) {
+        self.backup.quick_keeps_open();
+        kef::opened(self);
     }
 
     /// A copy of seed `fp` matched: once the copy item is done, on the
