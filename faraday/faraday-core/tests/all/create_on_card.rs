@@ -6,7 +6,7 @@
 use crate::common::type_text;
 use faraday_core::create::{BackupForm, NewKind, Source};
 use faraday_core::{Action, Faraday, Screen, Sheet, cstep, testkit};
-use faraday_shell_api::{App, Event};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 fn opened() -> Faraday {
     let mut app = testkit::started();
@@ -103,6 +103,9 @@ fn a_single_key_opens_keys_with_neither_count_chosen_and_no_rolls_to_enter() {
     assert!(k.length_chosen);
     assert_eq!(k.words, 12);
     assert_eq!(k.dice_needed(), 70);
+    // Wide windows start typed; the pad is Buttons'.
+    app.press(Action::KTyping(false));
+    let _ = app.frame();
     let texts = app.drawn_texts();
     for want in ["Make the words", "Other ways"] {
         assert!(texts.iter().any(|t| t == want), "{want}: {texts:?}");
@@ -346,6 +349,7 @@ fn rolls_part_way_show_words_so_far_with_the_first_words_bits_and_both_entry_way
     let mut app = opened();
     roll_high(&mut app, 6);
     assert_eq!(app.keygen().unwrap().dice.len(), 6);
+    app.press(Action::KTyping(false));
     let _ = app.frame();
     let texts = app.drawn_texts();
     for want in ["Words so far", "Typed", "Buttons"] {
@@ -386,6 +390,77 @@ fn typed_faces_on_the_card_count_as_rolls() {
         texts.iter().any(|t| t.contains("4 of 70")),
         "the count: {texts:?}"
     );
+}
+
+/// The card opened on a display `width` x `height` at `dpi`.
+fn opened_on(width: u16, height: u16, dpi: u16) -> Faraday {
+    let mut app = testkit::started();
+    app.event(Event::Display(DisplayInfo {
+        width,
+        height,
+        dpi,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    let _ = app.frame();
+    app.press(Action::CreateWallet);
+    crate::common::ckind(&mut app, 0);
+    app.press(Action::CNext(cstep::KIND));
+    app
+}
+
+#[test]
+fn on_a_wide_window_the_cards_rolls_start_typed_and_digits_land_as_rolls() {
+    let mut app = opened_on(1280, 800, 96);
+    app.press(Action::KWords(12));
+    let _ = app.frame();
+    type_text(&mut app, "2342");
+    assert_eq!(app.keygen().unwrap().dice.len(), 4);
+}
+
+#[test]
+fn a_new_keys_coin_flips_open_as_before_on_a_wide_window_and_the_pis_panel() {
+    use faraday_core::keygen::{Start, Way};
+    for (w, h, dpi, typed) in [(1280, 800, 96, true), (1024, 600, 170, false)] {
+        let mut app = testkit::started();
+        app.event(Event::Display(DisplayInfo {
+            width: w,
+            height: h,
+            dpi,
+            inset_bottom: 0,
+            inset_top: 0,
+            buttons: 0,
+            camera_fixed: false,
+            secure: SecureHardware::None,
+            boot: BootState::Unknown,
+            memory_mib: None,
+        }));
+        let _ = app.frame();
+        app.press(Action::Entry(None));
+        app.press(Action::KeyGen(None));
+        app.press(Action::KStart(Start::Make.index()));
+        app.press(Action::KWords(12));
+        app.press(Action::KNext);
+        app.press(Action::KWay(Way::Coins.index()));
+        app.press(Action::KNext);
+        assert_eq!(app.keygen().unwrap().typing, typed, "{w}x{h}");
+    }
+}
+
+#[test]
+fn on_the_pis_panel_the_cards_rolls_start_on_buttons() {
+    let mut app = opened_on(1024, 600, 170);
+    app.press(Action::KWords(12));
+    let _ = app.frame();
+    assert!(!app.keygen().unwrap().typing, "Buttons");
+    assert!(app.offers(Action::KRoll(3)), "the pad is there to press");
+    app.press(Action::KRoll(3));
+    assert_eq!(app.keygen().unwrap().dice.len(), 1);
 }
 
 #[test]

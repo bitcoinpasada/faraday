@@ -2677,7 +2677,10 @@ impl crate::Faraday {
         k.words_offered = true;
         k.codex32_offered = false;
         k.slip39_offered = !multi;
-        k.typing = false;
+        // Typed where a keyboard is counted on (a window of 600 dp or
+        // more, where a field press leaves the on-screen one down),
+        // Buttons on a small panel.
+        k.typing = !self.compact;
         k.on_card = true;
         k.card_multi = multi;
         k.entry_kept = self.entry.take();

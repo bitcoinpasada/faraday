@@ -134,7 +134,8 @@ pub(crate) fn create_from_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     t.press(Action::CAccount(1));
     t.shot("create-path-keys-account")?;
     // A fresh single key's making on the Keys step: the dice as New
-    // key shows them, part way with the buttons, typed, and every roll in.
+    // key shows them, part way as the window starts them (typed on a wide
+    // one, buttons on a small panel), typed, and every roll in.
     t.press(Action::CreateOver);
     t.press(Action::CNext(cstep::KIND));
     t.press(Action::CBackupForm(
