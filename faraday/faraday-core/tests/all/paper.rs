@@ -243,3 +243,69 @@ fn back_ups_seed_xor_section_names_the_places_the_parts_are_on() {
     let all: Vec<String> = app.drawn_texts().plain();
     assert!(seen, "the section says where the parts are: {all:?}");
 }
+
+/// Back up opened on a key with a Seed XOR set of two parts, put away, its
+/// plan placing the parts at Place 1 and Place 2, and a second split made.
+fn made_new_parts() -> Faraday {
+    let mut app = backing_up();
+    app.press(Action::BXor(2));
+    app.press(Action::BPaperHide);
+    app.press(Action::BPaperHide);
+    app.press(Action::BXor(3));
+    assert!(app.backup().unwrap().paper.is_some());
+    app
+}
+
+fn kept_old(app: &Faraday) -> Vec<(faraday_core::plan::What, usize)> {
+    let a = &app.backup().unwrap().answers;
+    let mut out = Vec::new();
+    for (p, spot) in a.map.iter().flatten().enumerate() {
+        for (w, _) in &spot.holds {
+            if matches!(w, faraday_core::plan::What::XorKept(..)) {
+                out.push((*w, p));
+            }
+        }
+    }
+    out
+}
+
+#[test]
+fn make_new_parts_replaces_the_set_and_keeps_old_parts_on_the_plan() {
+    let mut app = backing_up();
+    app.press(Action::BXor(2));
+    let first = app.backup().unwrap().answers.xor[0].clone();
+    app.press(Action::BPaperHide);
+    app.press(Action::BPaperHide);
+    app.press(Action::BXor(3));
+    let b = app.backup().unwrap();
+    assert_eq!(b.paper.as_ref().unwrap().len(), 3);
+    assert_eq!(b.answers.xor.len(), 1);
+    assert_eq!(b.answers.xor[0].n(), 3);
+    assert!(b.parts_checked.is_empty());
+    let kept = kept_old(&app);
+    assert_eq!(kept.len(), 2, "each old part stays where it was");
+    for (j, (w, _)) in kept.iter().enumerate() {
+        assert_eq!(*w, faraday_core::plan::What::XorKept(0, first.parts[j]));
+    }
+    assert_eq!(app.backup().unwrap().answers.old_sets(0).count(), 1);
+}
+
+#[test]
+fn i_destroyed_it_takes_an_old_part_off_the_plan() {
+    let mut app = made_new_parts();
+    app.press(Action::BOldDestroy(0));
+    assert_eq!(kept_old(&app).len(), 1);
+    app.press(Action::BOldDestroy(0));
+    assert!(kept_old(&app).is_empty());
+    assert_eq!(app.backup().unwrap().answers.old_sets(0).count(), 0);
+    assert_eq!(app.backup().unwrap().answers.xor[0].n(), 3);
+}
+
+#[test]
+fn still_kept_leaves_it_marked() {
+    let mut app = made_new_parts();
+    app.press(Action::BOldKeep(1));
+    let b = app.backup().unwrap();
+    assert_eq!(kept_old(&app).len(), 2, "nothing leaves the plan");
+    assert_eq!(b.old_kept.len(), 1);
+}

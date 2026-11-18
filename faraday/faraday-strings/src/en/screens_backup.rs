@@ -280,8 +280,20 @@ macro_rules! words_screens_backup {
     paper_section_not_on_plan: "Not on the plan: its checks do not count these parts",
     /// Line in `paper_section`. `{}`: the places the parts are on, by name.
     paper_section_on_plan: "On the plan: {}",
-    /// Toast on Seed XOR in `paper_section`: the key's plan already has a set.
-    paper_section_has_set: "This key's plan already has a Seed XOR set. Replace it on the plan.",
+    /// Button in `paper_section`, in place of the split buttons on a key that has a set.
+    paper_make_new_parts: "Make new parts",
+    /// Row in `paper_section`. `{}`: the old part's number, the place it is kept at.
+    paper_old_part_row: "Old part {} · {}",
+    /// Button in `paper_section`, per old part.
+    paper_old_destroyed: "I destroyed it",
+    /// Button in `paper_section`, per old part.
+    paper_old_kept: "Still kept",
+    /// Line in `paper_section`. `{}`: the places the old parts are kept at, by name.
+    paper_old_kept_at: "Old parts still kept: {}",
+    /// Line in `paper_section`.
+    paper_old_whole: "Every old part is still kept: together they rebuild this key.",
+    /// Toast in `paper_section`: Make new parts that the plan cannot keep.
+    paper_old_too_many: "The plan keeps no more old parts. Destroy some old parts first.",
     /// Line in `paper_section`. `{}`: the word's place, the part's number.
     paper_section_word_differs: "Word {} differs from part {}",
     /// Button in `paper_section`, per part.
@@ -376,6 +388,10 @@ macro_rules! words_screens_backup {
     board_xor_chip: "{} · part {}",
     /// A SLIP-39 share's chip. `{}`: the seed, the group, the share.
     board_slip39_chip: "{} · group {} share {}",
+    /// The group head of a key's old Seed XOR set. `{}`: the seed.
+    board_xor_old_head: "{} · Seed XOR · old set",
+    /// An old part's chip, still kept.
+    board_xor_old_chip: "Old part · still kept",
     /// A part's chip under its group. `{}`: the part's number.
     board_xor_part: "Part {}",
     /// A share's chip under its group. `{}`: the group, the share.

@@ -534,6 +534,16 @@ pub fn fp_of(fp: Option<Fingerprint>) -> Text {
     fp.map(fp_label).unwrap_or_else(|| Text::of("--------"))
 }
 
+/// A change of Seed XOR parts the notes on the map follow when the plan
+/// is saved (`docs/decisions/F285.md`).
+pub enum NoteFix {
+    /// Seed `.0`'s set `.1` was replaced: its parts' notes go to the
+    /// kept old parts.
+    NewParts(usize, plan::xor::Xor),
+    /// Seed `.0`'s kept old part with fingerprint `.1` was destroyed.
+    Destroyed(usize, [u8; 4]),
+}
+
 /// The backup flow's state.
 #[derive(Default)]
 pub struct BackupState {
@@ -615,6 +625,12 @@ pub struct BackupState {
     /// The Seed XOR parts typed back right in this backup, by seed and
     /// part, kept after the parts are put away.
     pub parts_checked: Vec<(usize, usize)>,
+    /// The kept old Seed XOR parts, by seed and fingerprint, the person
+    /// answered **Still kept** for (`docs/decisions/F285.md`).
+    pub old_kept: Vec<(usize, [u8; 4])>,
+    /// What Make new parts and I destroyed it did to the map, for the
+    /// notes to follow when the plan is saved.
+    pub note_fixes: Vec<NoteFix>,
     /// Put them away was pressed once with a part unchecked: a second
     /// press puts them away.
     pub paper_skip: bool,
@@ -764,6 +780,38 @@ impl WalletBackupArea {
     /// Takes the wallet whose files were asked for.
     pub(crate) fn take_omit_remake(&mut self) -> Option<usize> {
         self.omit_remake.take()
+    }
+
+    /// Make new parts of seed `seed` happened (`docs/decisions/F285.md`):
+    /// the plan's answers are `answers`, `old` the set they replaced.
+    pub(crate) fn new_parts_made(
+        &mut self,
+        seed: usize,
+        answers: plan::Answers,
+        old: plan::xor::Xor,
+    ) {
+        if let Some(b) = self.state.as_mut() {
+            b.answers = answers;
+            b.old_kept.retain(|(s, _)| *s != seed);
+            b.note_fixes.push(NoteFix::NewParts(seed, old));
+        }
+    }
+
+    /// Seed `seed`'s kept old part `fp` was destroyed.
+    pub(crate) fn old_part_destroyed(&mut self, seed: usize, fp: [u8; 4]) {
+        if let Some(b) = self.state.as_mut() {
+            b.old_kept.retain(|k| *k != (seed, fp));
+            b.note_fixes.push(NoteFix::Destroyed(seed, fp));
+        }
+    }
+
+    /// Seed `seed`'s kept old part `fp` answered Still kept.
+    pub(crate) fn old_part_kept(&mut self, seed: usize, fp: [u8; 4]) {
+        if let Some(b) = self.state.as_mut()
+            && !b.old_kept.contains(&(seed, fp))
+        {
+            b.old_kept.push((seed, fp));
+        }
     }
 
     /// The backup under way, while it is open.
@@ -1458,6 +1506,13 @@ impl WalletBackupArea {
         })
     }
 
+    /// The note changes kept since the last save, taken.
+    pub(crate) fn note_fixes_take(&mut self) -> Vec<NoteFix> {
+        self.state
+            .as_mut()
+            .map_or_else(Vec::new, |b| std::mem::take(&mut b.note_fixes))
+    }
+
     /// Seed `fp`'s files on a stick let out unprotected past the secret
     /// sheet's warning.
     pub(crate) fn files_warned(&mut self, fp: Text) {
@@ -1943,6 +1998,8 @@ impl Faraday {
                 self.backup_item_open(next);
             }
             Action::BXor(n) => self.paper_xor(n),
+            Action::BOldDestroy(i) => self.old_part_destroy(i),
+            Action::BOldKeep(i) => self.old_part_keep(i),
             Action::BPartCheck(i) => self.part_check_open(i),
             Action::BC32(p) => self.backup_c32(p, c),
             Action::BCheck => self.copy_check_open(),
@@ -2435,16 +2492,6 @@ impl Faraday {
         if self.paper_other_list() {
             return self.toast(EN.convert_not_given);
         }
-        // One set of a kind per key (`docs/decisions/F276.md`): a second
-        // split is the plan's own Replace.
-        if self
-            .backup
-            .state()
-            .and_then(|b| self.session.keys.info(b.key))
-            .is_some_and(|k| k.xor.is_some())
-        {
-            return self.toast(EN.paper_section_has_set);
-        }
         let Some(draw) = self.fresh_bytes(b"seed xor", faraday_keys::seed_xor_random_len(parts))
         else {
             return self.toast(EN.no_randomness);
@@ -2459,34 +2506,116 @@ impl Faraday {
         else {
             return;
         };
-        self.paper_xor_count(&c, &lines);
+        if !self.paper_xor_count(&c, &lines) {
+            return;
+        }
         self.backup.set_paper(lines);
     }
 
     /// Costs a PBKDF2 and a derivation for each part. The Seed XOR set
     /// just made becomes the backup's key's set (`docs/decisions/F276.md`):
     /// its public facts are kept with the key, the way Convert a seed
-    /// keeps them, and the plan takes it as a form of the key. A key that
-    /// already has a set is refused before this. The parts are placed one
-    /// to a place.
-    fn paper_xor_count(&mut self, c: &Compute, lines: &[Text]) {
+    /// keeps them, and the plan takes it as a form of the key. The parts
+    /// are placed one to a place. A key that already has a set gets
+    /// **Make new parts** (`docs/decisions/F285.md`): the new set
+    /// replaces it on the key and on the plan, and each old part the plan
+    /// placed stays as a kept old part. False, with a toast and nothing
+    /// changed, when the plan cannot keep the old set.
+    fn paper_xor_count(&mut self, c: &Compute, lines: &[Text]) -> bool {
         let Some((key, wallet)) = self.backup.state().map(|b| (b.key, b.wallet)) else {
-            return;
+            return false;
         };
         let Some(fp) = self.session.keys.info(key).map(|k| k.fingerprint.0) else {
-            return;
+            return false;
         };
         let Some(made) = crate::convert::set::facts_of(c, crate::convert::Target::SeedXor, lines)
         else {
+            return false;
+        };
+        let shape = self.plan_shape_now(wallet);
+        let had = self.session.keys.info(key).is_some_and(|k| k.xor.is_some());
+        if !had {
+            crate::convert::set::record(&mut self.session.keys, fp, made);
+            let (xor, slip39) = self.set_facts(wallet);
+            self.backup.change_answers(&shape, &|a, s| {
+                plan::sets::sync_placed(a, s, &xor, &slip39);
+            });
+            return true;
+        }
+        let crate::convert::set::Made::Xor(facts) = made else {
+            return false;
+        };
+        let Some(seed) = self
+            .backup_seed_list_now(wallet)
+            .iter()
+            .position(|(_, k)| *k == Some(key))
+        else {
+            return false;
+        };
+        let new = plan::xor::Xor::of_facts(seed, &facts);
+        let Some(mut answers) = self.backup.state().map(|b| b.answers.clone()) else {
+            return false;
+        };
+        let old = answers.xor(seed).cloned();
+        if old.is_none() || answers.make_new_parts(&shape, seed, new).is_none() {
+            self.toast(EN.paper_old_too_many);
+            return false;
+        }
+        let Some(i) = self.session.keys.all().position(|k| k.fingerprint.0 == fp) else {
+            return false;
+        };
+        if !self.session.keys.replace_xor(i, facts) {
+            return false;
+        }
+        if let Some(old) = old {
+            self.backup.new_parts_made(seed, answers, old);
+        }
+        true
+    }
+
+    /// The kept old part `i` of the backup's plan: I destroyed it takes it
+    /// off the plan.
+    fn old_part_destroy(&mut self, i: u8) {
+        let Some((seed, fp, _)) = self
+            .backup
+            .state()
+            .and_then(|b| kept_old(b).get(usize::from(i)).copied())
+        else {
             return;
         };
-        crate::convert::set::record(&mut self.session.keys, fp, made);
+        let wallet = self.backup.state().map_or(0, |b| b.wallet);
         let shape = self.plan_shape_now(wallet);
-        let (xor, slip39) = self.set_facts(wallet);
-        self.backup.change_answers(&shape, &|a, s| {
-            plan::sets::sync_placed(a, s, &xor, &slip39);
-        });
+        self.backup
+            .change_answers(&shape, &|a, _| a.destroy_kept(seed, fp));
+        self.backup.old_part_destroyed(seed, fp);
     }
+
+    /// The kept old part `i` answered Still kept.
+    fn old_part_keep(&mut self, i: u8) {
+        if let Some((seed, fp, _)) = self
+            .backup
+            .state()
+            .and_then(|b| kept_old(b).get(usize::from(i)).copied())
+        {
+            self.backup.old_part_kept(seed, fp);
+        }
+    }
+}
+
+/// The kept old Seed XOR parts the plan's map has at places, in the
+/// map's order: seed, fingerprint and place.
+pub(crate) fn kept_old(b: &BackupState) -> Vec<(usize, [u8; 4], usize)> {
+    let mut out = Vec::new();
+    for spot in b.answers.map.iter().flatten() {
+        if let plan::At::Place(p) = spot.at {
+            for (w, _) in &spot.holds {
+                if let plan::What::XorKept(i, fp) = *w {
+                    out.push((i, fp, p));
+                }
+            }
+        }
+    }
+    out
 }
 
 impl Faraday {
@@ -3719,6 +3848,7 @@ impl Faraday {
         let names = b.names.clone();
         let extras = b.extras.clone();
         let edits = self.backup.edits_take();
+        let fixes = self.backup.note_fixes_take();
         if let Some(w) = self.session.wallets.get(wi) {
             for &o in &left_out {
                 self.vaults.plan_forget(&c, o, w);
@@ -3731,17 +3861,19 @@ impl Faraday {
         // The notes follow the board's edits, in each vault as it keeps
         // them (`plan::notes_after`); none edited, as the record kept them.
         let notes_in = |app: &Self, o: usize| -> Option<Vec<plan::Note>> {
-            if edits.is_empty() {
+            if edits.is_empty() && fixes.is_empty() {
                 return None;
             }
             let wallet = app.session.wallets.get(wi)?;
-            Some(
-                edits
-                    .iter()
-                    .fold(app.plan_notes(&c, wallet, Some(o)), |n, &e| {
-                        plan::notes_after(&n, e, &[])
-                    }),
-            )
+            let n = edits
+                .iter()
+                .fold(app.plan_notes(&c, wallet, Some(o)), |n, &e| {
+                    plan::notes_after(&n, e, &[])
+                });
+            Some(fixes.iter().fold(n, |n, f| match f {
+                NoteFix::NewParts(i, old) => plan::xor::notes_after_new_parts(&n, *i, old),
+                NoteFix::Destroyed(i, fp) => plan::xor::notes_after_destroyed(&n, *i, *fp),
+            }))
         };
         let notes = notes_in(self, v);
         self.plan_store(v, wi, &answers, &names, &extras, notes.as_deref());

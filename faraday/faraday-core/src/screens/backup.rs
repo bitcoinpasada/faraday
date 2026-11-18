@@ -2170,6 +2170,17 @@ fn paper_section(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 return cy - y;
             }
             cy += crate::screens::randomness::row(app, ui, (x, cy, w));
+            if app
+                .session
+                .keys
+                .info(b.key)
+                .is_some_and(|k| k.xor.is_some())
+            {
+                // A key with a set: a second split replaces it
+                // (`docs/decisions/F285.md`).
+                ui.text_as(x, cy, LABEL_L, Role::OnSurface, EN.paper_make_new_parts);
+                cy += ui.line_as(LABEL_L) + T::GAP;
+            }
             let row: Vec<(String, Style, Action)> = vec![
                 (
                     app.wait_label(Action::BXor(2), EN.paper_section_seed_xor)
@@ -2264,6 +2275,76 @@ fn paper_section(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             );
             cy += 44.0;
         }
+    }
+    cy + old_parts(app, ui, x, cy, w) - y
+}
+
+/// The kept old Seed XOR parts of the key the backup is on: each one's
+/// number and place with I destroyed it and Still kept, then where they
+/// are, and whether together they rebuild the key
+/// (`docs/decisions/F285.md`).
+fn old_parts(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let Some(b) = app.backup() else {
+        return 0.0;
+    };
+    let seeds = app.backup_seed_list(b.wallet);
+    let Some(seed) = seeds.iter().position(|(_, k)| *k == Some(b.key)) else {
+        return 0.0;
+    };
+    let kept: Vec<_> = crate::wallet_backup::kept_old(b)
+        .into_iter()
+        .enumerate()
+        .filter(|(_, (s, _, _))| *s == seed)
+        .collect();
+    if kept.is_empty() {
+        return 0.0;
+    }
+    let mut cy = y;
+    let mut at: Vec<usize> = Vec::new();
+    for (n, (_, fp, p)) in &kept {
+        let num = b
+            .answers
+            .old_set_with(seed, *fp)
+            .and_then(|s| s.parts.iter().position(|f| f == fp))
+            .map_or(0, |j| j + 1);
+        let name = app.place_name(*p);
+        let line = fill(EN.paper_old_part_row, &[&num.to_string(), &name]);
+        cy += ui.wrap_as((x, cy, w), BODY_S, Role::OnSurface, &line) + T::GAP;
+        let n = (*n).min(255) as u8;
+        let mut row = vec![(
+            EN.paper_old_destroyed.to_string(),
+            Style::Secondary,
+            Action::BOldDestroy(n),
+        )];
+        if b.old_kept.contains(&(seed, *fp)) {
+            cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Ok, EN.paper_old_kept) + T::GAP;
+        } else {
+            row.push((
+                EN.paper_old_kept.to_string(),
+                Style::Secondary,
+                Action::BOldKeep(n),
+            ));
+        }
+        cy += button_rows(ui, x, cy, w, &row);
+        if !at.contains(p) {
+            at.push(*p);
+        }
+    }
+    let names: Vec<String> = at.iter().map(|&p| (&*app.place_name(p)).into()).collect();
+    let line = fill(EN.paper_old_kept_at, &[&names.join(", ")]);
+    cy += ui.wrap_as((x, cy, w), BODY_S, Role::OnSurfaceVariant, &line) + T::GAP;
+    let whole = b.answers.old_sets(seed).any(|s| {
+        s.parts
+            .iter()
+            .all(|fp| kept.iter().any(|(_, (_, f, _))| f == fp))
+    });
+    if whole {
+        cy += ui.wrap_as(
+            (x, cy, w),
+            BODY_S,
+            Role::OnSurfaceVariant,
+            EN.paper_old_whole,
+        ) + T::GAP;
     }
     cy - y
 }

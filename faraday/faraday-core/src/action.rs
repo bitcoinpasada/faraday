@@ -699,6 +699,11 @@ pub enum Action {
     BXor(u8),
     /// Check my copy of this Seed XOR part, by place.
     BPartCheck(u8),
+    /// I destroyed it: the kept old Seed XOR part, by its number among
+    /// those the plan keeps, leaves the plan.
+    BOldDestroy(u8),
+    /// Still kept: the kept old Seed XOR part, by its number, stays.
+    BOldKeep(u8),
     /// Put the other paper form away.
     BPaperHide,
     /// Read with this camera, by its place in the shell's list.
@@ -1670,6 +1675,8 @@ impl Faraday {
             | Action::BReveal
             | Action::BXor(..)
             | Action::BPartCheck(..)
+            | Action::BOldDestroy(..)
+            | Action::BOldKeep(..)
             | Action::BPaperHide
             | Action::BCompact(..)
             | Action::BPin(..)

@@ -406,20 +406,3 @@ fn back_ups_own_seed_xor_split_is_on_the_plan_one_part_to_a_place() {
         assert_eq!(at, vec![j], "part {} is a chip at its own place", j + 1);
     }
 }
-
-#[test]
-fn a_second_split_of_a_key_with_a_set_is_refused() {
-    let mut app = crate::paper::backing_up();
-    app.press(Action::BXor(2));
-    assert!(app.backup().unwrap().paper.is_some());
-    app.press(Action::BPaperHide);
-    app.press(Action::BPaperHide);
-    app.press(Action::BXor(3));
-    assert!(app.backup().unwrap().paper.is_none());
-    assert_eq!(
-        app.toast_text(),
-        Some(faraday_strings::EN.paper_section_has_set)
-    );
-    let xors = app.backup().unwrap().answers.xor.len();
-    assert_eq!(xors, 1);
-}
