@@ -41,7 +41,7 @@ mod own_name;
 pub use account::{Account, AccountAsk};
 mod confirm;
 pub use confirm::Rows;
-pub(crate) use confirm::{draw_rows, draw_rows_without_shape};
+pub(crate) use confirm::{draw_rows, draw_rows_over, draw_rows_without_shape};
 mod keycheck;
 #[allow(
     unused_imports,
@@ -4124,8 +4124,14 @@ impl Faraday {
             // leaves the next one at its place: the press is dropped.
             KeyBlockOf::Wallet(_) if self.wallets.list_changed() => {}
             KeyBlockOf::Wallet(i) => self.session.tick_key(usize::from(i), key),
+            // The same, and a Result whose wallet is gone ticks nothing.
+            KeyBlockOf::Check if self.wallets.list_changed() => {}
             KeyBlockOf::Check => match self.tools.mscheck.of_wallet() {
-                Some(i) => self.session.tick_key(i, key),
+                Some(_) => {
+                    if let Some(i) = self.tools.mscheck.own_wallet(&self.session) {
+                        self.session.tick_key(i, key);
+                    }
+                }
                 None => self.tools.mscheck.tick(key),
             },
         }

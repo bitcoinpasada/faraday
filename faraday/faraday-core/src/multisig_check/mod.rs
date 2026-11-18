@@ -149,7 +149,16 @@ impl MsArea {
         self.state.as_ref()?.shown.as_ref()?.of_wallet
     }
 
-    /// The person's tick of key `key` in the Result's rows.
+    /// The loaded wallet whose marks and ticks the Result shows: the one at
+    /// `of_wallet` while its policy is still the Result's own, so a wallet
+    /// taken out since, which leaves another at that place, counts for
+    /// nothing. One lookup, for the tick and for the drawing.
+    pub(crate) fn own_wallet(&self, session: &crate::Session) -> Option<usize> {
+        own_wallet(self.state.as_ref()?.shown.as_ref()?, session)
+    }
+
+    /// The person's tick of key `key` in the Result's own rows, for a
+    /// setup that is no loaded wallet's.
     pub(crate) fn tick(&mut self, key: usize) {
         if self.of_wallet().is_some() {
             return;
@@ -178,6 +187,13 @@ impl MsArea {
     pub(crate) fn clear(&mut self) {
         self.state = None;
     }
+}
+
+/// The loaded wallet `shown` was opened from, while it is still that
+/// wallet (its policy is the Result's own).
+pub(crate) fn own_wallet(shown: &Shown, session: &crate::Session) -> Option<usize> {
+    let i = shown.of_wallet?;
+    (session.wallets.get(i)?.policy() == &shown.policy).then_some(i)
 }
 
 /// The state, while the screen is open.
@@ -533,9 +549,14 @@ pub(crate) fn act(app: &mut Faraday, action: MsAction) {
 /// it; a wallet already loaded, or all of whose keys are loaded keys,
 /// reads as loaded at once.
 fn add(app: &mut Faraday) {
-    let Some((policy, source, ticks)) = state(app).and_then(|s| {
+    let Some((policy, asked, source, ticks)) = state(app).and_then(|s| {
         let shown = s.shown.as_ref()?;
-        Some((shown.policy.clone(), s.source.clone()?, shown.rows.ticks()))
+        Some((
+            shown.policy.clone(),
+            shown.policy.clone(),
+            s.source.clone()?,
+            shown.rows.ticks(),
+        ))
     }) else {
         return;
     };
@@ -546,7 +567,7 @@ fn add(app: &mut Faraday) {
         .add_policy(&c, &name, policy, &source, Origin::Named)
     {
         Ok(i) => {
-            app.session.wallets[i].set_key_ticks(&ticks);
+            app.session.wallets[i].merge_key_ticks(&asked, &ticks);
             let name = Text::of(&app.session.wallets[i].name);
             app.wallets.set_wallet(i);
             app.refresh_spend();

@@ -253,7 +253,20 @@ pub(crate) fn draw_rows(
     ui: &mut Ui,
     at: (f32, f32, f32),
 ) -> f32 {
-    draw_rows_with(r, seeded, true, of, ui, at)
+    draw_rows_with(r, &r.keys, seeded, true, of, ui, at)
+}
+
+/// `draw_rows` with `keys` as the cosigners' rows instead of `r`'s own:
+/// Check a multisig setup's Result, for a loaded wallet's keys, borrowed.
+pub(crate) fn draw_rows_over(
+    r: &Rows,
+    keys: &[KeyRow],
+    seeded: &[usize],
+    of: KeyBlockOf,
+    ui: &mut Ui,
+    at: (f32, f32, f32),
+) -> f32 {
+    draw_rows_with(r, keys, seeded, true, of, ui, at)
 }
 
 /// `draw_rows` without the shape line, for the sheet that states the
@@ -264,11 +277,12 @@ pub(crate) fn draw_rows_without_shape(
     ui: &mut Ui,
     at: (f32, f32, f32),
 ) -> f32 {
-    draw_rows_with(r, &[], false, of, ui, at)
+    draw_rows_with(r, &r.keys, &[], false, of, ui, at)
 }
 
 fn draw_rows_with(
     r: &Rows,
+    keys: &[KeyRow],
     seeded: &[usize],
     shape: bool,
     of: KeyBlockOf,
@@ -284,7 +298,7 @@ fn draw_rows_with(
     for line in &r.repeats {
         cy += ui.wrap_as((x, y + cy, w), BODY_M, Role::Error, line) + GAP;
     }
-    cy += draw_keys(&r.keys, seeded, of, r.keys.len() > 1, ui, (x, y + cy, w));
+    cy += draw_keys(keys, seeded, of, keys.len() > 1, ui, (x, y + cy, w));
     // A typing check, not proof: the quieter tone.
     cy += kv(
         ui,

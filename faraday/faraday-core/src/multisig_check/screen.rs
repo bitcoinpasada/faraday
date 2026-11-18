@@ -226,15 +226,12 @@ fn rows(
         _ => &[],
     };
     // A loaded wallet's setup shows the wallet's own marks and ticks.
-    let own = r
-        .of_wallet
+    let keys = super::own_wallet(r, &app.session)
         .and_then(|i| app.session.wallets.get(i))
-        .map(|w| crate::wallet::Rows {
-            keys: w.key_rows().to_vec(),
-            ..r.rows.clone()
-        });
-    let mut cy = crate::wallet::draw_rows(
-        own.as_ref().unwrap_or(&r.rows),
+        .map_or(&r.rows.keys[..], |w| w.key_rows());
+    let mut cy = crate::wallet::draw_rows_over(
+        &r.rows,
+        keys,
         ours,
         crate::wallet::KeyBlockOf::Check,
         ui,

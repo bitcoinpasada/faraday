@@ -605,6 +605,106 @@ fn a_pasted_setup_s_ticks_do_not_touch_a_loaded_wallet() {
     assert!(s.contains("Checked by you"), "{s}");
 }
 
+/// The 2-of-3 over test keys 0, 1 and 2, written in the given order.
+fn ordered(order: [usize; 3]) -> String {
+    let p = "m/48'/1'/0'/0'";
+    let k = |i: usize| testkit::key(i, p);
+    format!(
+        "wsh(sortedmulti(2,{}/<0;1>/*,{}/<0;1>/*,{}/<0;1>/*))",
+        k(order[0]),
+        k(order[1]),
+        k(order[2])
+    )
+}
+
+/// The fingerprint of test key `key`.
+fn fingerprint(key: usize) -> Option<faraday_bip::keys::Fingerprint> {
+    let k = testkit::key(key, "m/48'/1'/0'/0'");
+    let hex = k
+        .trim_start_matches('[')
+        .split(['/', ']'])
+        .next()?
+        .to_string();
+    let mut out = [0u8; 4];
+    for (i, b) in out.iter_mut().enumerate() {
+        *b = u8::from_str_radix(hex.get(2 * i..2 * i + 2)?, 16).ok()?;
+    }
+    Some(faraday_bip::keys::Fingerprint(out))
+}
+
+#[test]
+fn a_wallet_added_from_the_result_takes_its_ticks_by_key_when_it_is_loaded_in_another_order() {
+    let mut app = scanned(&ordered([2, 1, 0]));
+    // The Result's first key is test key 2: ticked.
+    app.press(Action::KeyTick(KeyBlockOf::Check, 0));
+    app.press(Action::MultisigCheck(M::Add));
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::WalletConfirm));
+    // While the sheet waits, the same wallet arrives in the other order with
+    // a tick of its own on test key 1.
+    app.session
+        .add_wallet_confirmed(
+            &testkit::compute(),
+            "Other order",
+            &ordered([0, 1, 2]),
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .unwrap();
+    let own = app.session.wallets[0]
+        .policy()
+        .keys()
+        .iter()
+        .position(|k| k.fingerprint() == fingerprint(1))
+        .unwrap();
+    app.session.tick_key(0, own);
+    app.press(Action::WalletHold);
+    assert_eq!(app.session.wallets.len(), 1);
+    let w = &app.session.wallets[0];
+    let ticked: Vec<Option<faraday_bip::keys::Fingerprint>> = w
+        .policy()
+        .keys()
+        .iter()
+        .zip(w.key_ticks())
+        .filter(|(_, t)| *t)
+        .map(|(k, _)| k.fingerprint())
+        .collect();
+    assert_eq!(ticked.len(), 2, "{ticked:?}");
+    assert!(ticked.contains(&fingerprint(1)), "its own tick stays");
+    assert!(ticked.contains(&fingerprint(2)), "the Result's tick");
+    assert!(!ticked.contains(&fingerprint(0)), "no other key");
+}
+
+#[test]
+fn a_result_opened_from_a_wallet_taken_out_ticks_and_shows_no_other_wallet() {
+    let mut app = testkit::started();
+    let c = testkit::compute();
+    let p = "m/48'/1'/0'/0'";
+    let other = format!(
+        "wsh(sortedmulti(2,{}/<0;1>/*,{}/<0;1>/*))",
+        testkit::key(0, p),
+        testkit::key(1, p)
+    );
+    for (name, d) in [("First", ordered([0, 1, 2])), ("Second", other)] {
+        app.session
+            .add_wallet_confirmed(&c, name, &d, "test", faraday_core::wallet::Origin::Named)
+            .unwrap();
+    }
+    app.session.tick_key(1, 1);
+    app.press(Action::MultisigCheck(M::Open));
+    app.press(Action::MultisigCheck(M::Loaded(0)));
+    let _ = app.frame();
+    // The wallet the Result was opened from is taken out: another sits at
+    // its place.
+    app.session.wallets.remove(0);
+    let before: Vec<Vec<bool>> = app.session.wallets.iter().map(|w| w.key_ticks()).collect();
+    app.press(Action::KeyTick(KeyBlockOf::Check, 0));
+    app.press(Action::KeyTick(KeyBlockOf::Check, 1));
+    let after: Vec<Vec<bool>> = app.session.wallets.iter().map(|w| w.key_ticks()).collect();
+    assert_eq!(before, after);
+    let s = page(&mut app);
+    assert!(!s.contains("Checked by you"), "{s}");
+}
+
 /// Bitcoin Core's `deriveaddresses` of each multisig kind's first receive
 /// address, with the descriptor and checksum Core gives it
 /// (`tools/vectors/multisig-check`).
