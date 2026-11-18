@@ -1557,6 +1557,61 @@ fn outbox_names(app: &Faraday) -> Vec<String> {
     app.outbox.iter().map(|i| String::from(&*i.name)).collect()
 }
 
+/// Starts Create a vault, types `name` and both passphrases, and asks for a
+/// made key file.
+fn create_named_with_made_key(app: &mut Faraday, name: &str) {
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Create));
+    app.press(Action::Vault(V::CName));
+    type_text(app, name);
+    for second in [false, true] {
+        app.press(Action::Vault(V::CFocus(0, second)));
+        type_text(app, PHRASE);
+    }
+    app.press(Action::Vault(V::CKeyAsk));
+    app.press(Action::Vault(V::CKeyMake));
+}
+
+#[test]
+fn a_second_vault_of_one_name_shows_the_key_file_name_the_outbox_then_holds() {
+    let mut app = process_at(800, 3000, Vec::new());
+    create_named_with_made_key(&mut app, "Savings");
+    press_create(&mut app);
+    assert!(outbox_names(&app).contains(&"Savings.keyx".to_string()));
+    for i in 0..8u8 {
+        app.event(Event::Entropy(EntropyBytes::new([0x60 + i; 32])));
+    }
+    create_named_with_made_key(&mut app, "Savings");
+    let _ = app.frame();
+    app.press(Action::Osk(faraday_ui::keyboard::OskPress::Hide));
+    let _ = app.frame();
+    let _ = app.frame();
+    assert!(
+        app.keyboard_top().is_none(),
+        "keyboard away, sheet {:?}",
+        app.sheet
+    );
+    let chip = "Savings-2.keyx \u{b7} made at Create";
+    let texts: Vec<String> = app
+        .drawn_texts()
+        .iter()
+        .map(|t| String::from(&**t))
+        .collect();
+    assert!(texts.iter().any(|t| t == chip), "{texts:?}");
+    press_create(&mut app);
+    let names = outbox_names(&app);
+    let error = app
+        .vaults()
+        .create
+        .as_ref()
+        .and_then(|c| c.error.as_ref().map(|e| String::from(&**e)));
+    assert!(
+        names.contains(&"Savings-2.keyx".to_string()),
+        "{names:?} {error:?} {:?}",
+        app.screen
+    );
+}
+
 #[test]
 fn a_vault_made_with_a_made_key_file_opens_at_once_and_its_keyx_stays_in_the_outbox() {
     let mut app = create_form(Vec::new());

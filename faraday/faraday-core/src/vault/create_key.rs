@@ -80,10 +80,13 @@ pub(crate) fn chip(app: &View) -> Option<Text> {
     let c = app.vaults.create.as_ref()?;
     match &c.key {
         KeyChoice::None => None,
-        KeyChoice::Make => Some(Text::fill(
-            EN.vault_keyx_made_at_create,
-            &[&crate::vault::vault_stem(&c.name.text)],
-        )),
+        KeyChoice::Make => {
+            // The name Create gives the vault, less `.kdbx`: its key file
+            // takes the same stem.
+            let file = app.free_vault_name(&crate::vault::vault_stem(&c.name.text));
+            let stem = file.strip_suffix(".kdbx").unwrap_or(&file);
+            Some(Text::fill(EN.vault_keyx_made_at_create, &[stem]))
+        }
         KeyChoice::File(name) => Some(name.duplicate()),
     }
 }
