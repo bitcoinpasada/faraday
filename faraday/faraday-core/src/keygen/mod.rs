@@ -1276,14 +1276,16 @@ impl crate::Faraday {
         // A slot makes its key the one way its wallet asks (F240): a
         // single key's as its Backup card chose, words or codex32 shares;
         // a multisig's as BIP-39 words, neither codex32 nor SLIP-39
-        // shares stacked on its quorum (`docs/CODEX32.md` §6.9).
+        // shares stacked on its quorum (`docs/CODEX32.md` §6.9). SLIP-39
+        // shares are no form of the Backup card, so a key with its card
+        // answered does not offer them either.
         if slot.is_some() {
             k.held_offered = true;
             let multi = self.create.state().is_none_or(|c| c.kind.multi());
             let codex32 = self.create_slot_backup() == Some(crate::create::BackupForm::Codex32);
             k.codex32_offered = !multi && codex32;
             k.words_offered = !k.codex32_offered;
-            k.slip39_offered = !multi;
+            k.slip39_offered = !multi && self.create_slot_backup().is_none();
         }
         // A small panel is a touch screen with no keyboard of its own:
         // the faces are pressed, not typed.
@@ -2762,7 +2764,7 @@ impl crate::Faraday {
         k.with_own = self.fresh.own_acc().is_some();
         k.words_offered = true;
         k.codex32_offered = false;
-        k.slip39_offered = !multi;
+        k.slip39_offered = !multi && self.create_slot_backup().is_none();
         k.held_offered = true;
         // Typed where a keyboard is counted on (a window of 600 dp or
         // more, where a field press leaves the on-screen one down),

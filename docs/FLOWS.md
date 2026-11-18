@@ -1,8 +1,7 @@
 # Flows
 
-**Kind:** Spec
-**Status:** Built but for the items under Open; the code is the record where it differs
-**Open:** Start's own offers are not yet limited to the forms the slot may take (A wallet's key stays in Make a new wallet)
+**Kind:** Reference
+**Status:** Built; the code is the record where it differs
 
 Every flow, where it starts, and where it leaves the person.
 
@@ -448,8 +447,8 @@ strings**, and under Other forms **Type SLIP-39 shares** and **Type
 Seed XOR parts**; closed, it shows the choice ("Make a
 new key · Codex32") and **Change** until the key is locked in. Opened
 for a single key's slot (F240) Make a new key offers only the Backup
-card's form, **BIP-39 words** for Words and **Codex32** for Shares, and
-**Change** reopens the same list; opened for a multisig cosigner's slot
+card's form, **BIP-39 words** for Words and **Codex32** for Shares (not
+**Make SLIP-39 shares** either), and **Change** reopens the same list; opened for a multisig cosigner's slot
 it offers **BIP-39 words** only (no Codex32, and **Make SLIP-39 shares**
 is not offered there); in both, every way to add a key you have is
 offered. On its own (Tools, Wallets) every way of making is offered
@@ -502,8 +501,7 @@ a key made here holds another slot) offers **Scan its xpub** first and
 making stands at a time, so opening it on another slot drops the first,
 asking when rolls or words are in.
 
-**A wallet's key stays in Make a new wallet** (owner, 2026-11-18; built but
-for Start's own offers, see Open). While a wallet is being made, no press and no event
+**A wallet's key stays in Make a new wallet** (owner, 2026-11-18). While a wallet is being made, no press and no event
 leaves Make a new wallet for the separate New key flow. Every way of
 putting a key in a slot that New key offers there (This device, the other
 dice procedures, coins, cards, the camera, a mix, typed words, a SeedQR,

@@ -203,7 +203,6 @@ fn words_make_new_key_offer_bip39_words_and_no_codex32() {
             Start::Words,
             Start::Scan,
             Start::Codex32,
-            Start::MakeShares,
             Start::Shares,
             Start::Xor
         ],
@@ -250,7 +249,6 @@ fn codex32_make_new_key_offer_codex32_and_no_bip39_words_to_make() {
             Start::Words,
             Start::Scan,
             Start::Codex32,
-            Start::MakeShares,
             Start::Shares,
             Start::Xor
         ],
@@ -413,6 +411,116 @@ fn a_key_of_words_fills_a_codex32_backups_slot_too() {
     let c = app.create().unwrap();
     assert!(c.error.is_none(), "no refusal: {:?}", c.error);
     assert!(c.built.is_some(), "the wallet is made");
+}
+
+/// What the hosted Start offers to make, under Other forms too.
+fn makes_offered(app: &mut Faraday) -> Vec<Start> {
+    app.press(Action::KStep(kstep::START));
+    let _ = app.frame();
+    app.press(Action::KOthers);
+    let _ = app.frame();
+    [Start::Make, Start::MakeCodex32, Start::MakeShares]
+        .into_iter()
+        .filter(|s| app.offers(Action::KStart(s.index())))
+        .collect()
+}
+
+#[test]
+fn words_chosen_the_hosted_start_makes_words_only_and_still_adds_a_key_you_hold() {
+    let mut app = on_keys_of(app(), NewKind::NativeSegwit, BackupForm::Words);
+    open_new_key(&mut app);
+    assert_eq!(makes_offered(&mut app), vec![Start::Make]);
+    for s in [
+        Start::Words,
+        Start::Scan,
+        Start::Codex32,
+        Start::Shares,
+        Start::Xor,
+    ] {
+        assert!(app.offers(Action::KStart(s.index())), "{s:?} is offered");
+    }
+}
+
+#[test]
+fn codex32_chosen_the_hosted_start_makes_codex32_only_and_still_adds_a_key_you_hold() {
+    let mut app = on_keys_of(app(), NewKind::NativeSegwit, BackupForm::Codex32);
+    open_new_key(&mut app);
+    assert_eq!(makes_offered(&mut app), vec![Start::MakeCodex32]);
+    for s in [
+        Start::Words,
+        Start::Scan,
+        Start::Codex32,
+        Start::Shares,
+        Start::Xor,
+    ] {
+        assert!(app.offers(Action::KStart(s.index())), "{s:?} is offered");
+    }
+}
+
+/// A share typed for a slot, then Make the rest: the key that comes of
+/// it fills that slot and Make a new wallet goes on.
+#[test]
+fn make_the_rest_on_a_slots_typed_codex32_keeps_the_slot() {
+    let mut app = on_keys_of(app(), NewKind::NativeSegwit, BackupForm::Codex32);
+    open_new_key(&mut app);
+    app.press(Action::KStep(kstep::START));
+    let _ = app.frame();
+    app.press(Action::KStart(Start::Codex32.index()));
+    assert_eq!(
+        app.keygen().unwrap().open,
+        Some(kstep::TYPED),
+        "the codex32 form"
+    );
+    let add = |app: &mut Faraday, t: &str| {
+        for c in t.chars() {
+            app.event(Event::Key(Key::Char(c)));
+        }
+        app.event(Event::Key(Key::Enter));
+    };
+    add(&mut app, "ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm");
+    app.press(Action::Codex32Form(faraday_core::forms::C32Press::Rest));
+    add(&mut app, "ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn");
+    assert_eq!(app.screen, Screen::KeyGen);
+    assert_eq!(app.keygen().unwrap().slot, Some(0), "still the slot's");
+    let c32 = |app: &mut Faraday, p: C32| app.press(Action::Codex32(p));
+    let open = |app: &Faraday| {
+        app.keygen()
+            .and_then(|k| k.codex32.as_ref())
+            .and_then(|m| m.open())
+    };
+    // On to the sheets and past the strings, whichever card it opens on.
+    let mut seen_open = vec![open(&app)];
+    for _ in 0..10 {
+        match open(&app) {
+            Some(Card::Made) => break,
+            Some(Card::Strings) => {
+                c32(&mut app, C32::Skip);
+                c32(&mut app, C32::Skip);
+            }
+            _ => {
+                let _ = app.frame();
+                c32(&mut app, C32::Next);
+            }
+        }
+        seen_open.push(open(&app));
+    }
+    assert_eq!(open(&app), Some(Card::Made), "{seen_open:?}");
+    let _ = app.frame();
+    let seen = app
+        .keygen()
+        .and_then(|k| k.codex32.as_ref())
+        .map(|m| (m.open(), m.note().map(str::to_owned)));
+    c32(&mut app, C32::Lock);
+    faraday_core::testkit::keep_published(&mut app);
+    assert_eq!(app.session.keys.len(), 1, "the key is loaded: {seen:?}");
+    let fp = app.session.keys[0].fingerprint.0;
+    let c = app.create().expect("Make a new wallet goes on");
+    assert!(c.error.is_none(), "no refusal: {:?}", c.error);
+    assert!(
+        c.slots[0] == faraday_core::create::Source::Here(fp) || c.built.is_some(),
+        "the key fills the slot it was typed for"
+    );
+    assert_eq!(app.screen, Screen::Create, "Make a new wallet goes on");
 }
 
 #[test]
