@@ -339,6 +339,7 @@ fn this_computers_facts_come_from_the_registry_and_the_firmware() {
         secure_boot: Some(1u32.to_le_bytes().to_vec()),
         firmware: Some(registry::FIRMWARE_UEFI),
         machine: Some(0x8664),
+        cameras: None,
     };
     let c = registry::computer(&facts);
     assert_eq!(c.os, Os::Windows);

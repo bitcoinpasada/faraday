@@ -1340,9 +1340,10 @@ impl bitlocker::Wmi for WmiSession {
 // ---------------------------------------------------------------------
 
 use windows_sys::Win32::Devices::DeviceAndDriverInstallation::{
-    DIGCF_ALLCLASSES, DIGCF_PRESENT, SP_DEVINFO_DATA, SPDRP_COMPATIBLEIDS, SPDRP_DEVICEDESC,
-    SPDRP_HARDWAREID, SPDRP_MFG, SetupDiDestroyDeviceInfoList, SetupDiEnumDeviceInfo,
-    SetupDiGetClassDevsW, SetupDiGetDevicePropertyW, SetupDiGetDeviceRegistryPropertyW,
+    DIGCF_ALLCLASSES, DIGCF_PRESENT, SP_DEVINFO_DATA, SPDRP_CLASS, SPDRP_COMPATIBLEIDS,
+    SPDRP_DEVICEDESC, SPDRP_HARDWAREID, SPDRP_MFG, SPDRP_SERVICE, SetupDiDestroyDeviceInfoList,
+    SetupDiEnumDeviceInfo, SetupDiGetClassDevsW, SetupDiGetDeviceInstanceIdW,
+    SetupDiGetDevicePropertyW, SetupDiGetDeviceRegistryPropertyW,
 };
 use windows_sys::Win32::Devices::Display::{
     DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME, DISPLAYCONFIG_MODE_INFO, DISPLAYCONFIG_PATH_INFO,
@@ -1351,7 +1352,7 @@ use windows_sys::Win32::Devices::Display::{
 };
 use windows_sys::Win32::Devices::Properties::{DEVPKEY_Device_BusReportedDeviceDesc, DEVPROPTYPE};
 
-use super::devices::{Output, RawUsb};
+use super::devices::{Output, RawCamera, RawUsb};
 
 /// Each active display output: its technology, the monitor's friendly
 /// name and its device path, from `QueryDisplayConfig` and
@@ -1532,4 +1533,63 @@ pub fn hypervisor_guest() -> bool {
     {
         false
     }
+}
+
+/// `GUID_DEVCLASS_CAMERA`.
+const CLASS_CAMERA: GUID = GUID::from_u128(0xca3e7ab9_b4c3_4ae6_8251_579ef933890f);
+/// `GUID_DEVCLASS_IMAGE`.
+const CLASS_IMAGE: GUID = GUID::from_u128(0x6bdd1fc6_810f_11d0_bec7_08002be2092f);
+
+/// A device's instance ID, through SetupAPI.
+fn instance_id(set: isize, data: &SP_DEVINFO_DATA) -> String {
+    let mut buf = vec![0u16; 512];
+    // SAFETY: `buf` holds the number of units given.
+    let ok = unsafe {
+        SetupDiGetDeviceInstanceIdW(
+            set,
+            data,
+            buf.as_mut_ptr(),
+            buf.len() as u32,
+            ptr::null_mut(),
+        )
+    };
+    if ok == 0 {
+        return String::new();
+    }
+    narrow(&buf)
+}
+
+/// Every present device of the Camera and Image classes, through
+/// SetupAPI; `None` when a class could not be listed.
+pub fn camera_devices() -> Option<Vec<RawCamera>> {
+    let mut out = Vec::new();
+    for class in [&CLASS_CAMERA, &CLASS_IMAGE] {
+        // SAFETY: the class GUID is a static; no enumerator or window.
+        let set = unsafe { SetupDiGetClassDevsW(class, ptr::null(), 0, DIGCF_PRESENT) };
+        if set == INVALID_HANDLE_VALUE {
+            return None;
+        }
+        for i in 0.. {
+            // SAFETY: plain data, valid when zeroed.
+            let mut data: SP_DEVINFO_DATA = unsafe { std::mem::zeroed() };
+            data.cbSize = std::mem::size_of::<SP_DEVINFO_DATA>() as u32;
+            // SAFETY: `data` says its size.
+            if unsafe { SetupDiEnumDeviceInfo(set, i, &mut data) } == 0 {
+                break;
+            }
+            let single = |p| {
+                device_property(set, &data, p)
+                    .and_then(|b| super::registry::sz(&b))
+                    .unwrap_or_default()
+            };
+            out.push(RawCamera {
+                instance_id: instance_id(set, &data),
+                class: single(SPDRP_CLASS),
+                service: single(SPDRP_SERVICE),
+            });
+        }
+        // SAFETY: the set came from SetupDiGetClassDevsW and is freed once.
+        unsafe { SetupDiDestroyDeviceInfoList(set) };
+    }
+    Some(out)
 }

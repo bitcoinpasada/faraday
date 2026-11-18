@@ -89,6 +89,7 @@ impl Platform for Windows {
             ),
             firmware: sys::firmware_type(),
             machine: sys::native_machine(),
+            cameras: sys::camera_devices(),
         })
     }
 

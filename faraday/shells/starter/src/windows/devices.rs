@@ -4,7 +4,7 @@
 //! screens, the monitor's EDID from the registry, SetupAPI for the USB devices, `CPUID` for a hypervisor) and these
 //! read them, so the tests feed recorded answers.
 
-use faraday_starter::api::{Concern, Kind};
+use faraday_starter::api::{Camera, Concern, Kind};
 use faraday_starter::concern::{self, Usb};
 
 /// `DISPLAYCONFIG_OUTPUT_TECHNOLOGY_INTERNAL`.
@@ -204,4 +204,53 @@ pub fn concerns(vm: Option<String>, outputs: &[Output], usb: &[RawUsb]) -> Vec<C
         }
     }
     out
+}
+
+/// One present device of the Camera or Image class, as SetupAPI lists it.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct RawCamera {
+    /// The device instance ID: `USB\VID_046D&PID_0825&MI_00\...` for a
+    /// USB camera, `ACPI\...` or `PCI\...` for a built-in MIPI one.
+    pub instance_id: String,
+    /// `SPDRP_CLASS`: `Camera` or `Image`.
+    pub class: String,
+    /// `SPDRP_SERVICE`: `usbvideo` for the USB video class driver.
+    pub service: String,
+}
+
+/// Whether the stick can use the camera, from how it is attached and
+/// its driver (`docs/HARDWARE.md` §4). A USB video class device (its
+/// instance under `USB\`, service `usbvideo`) counts as usable: whether
+/// it offers uncompressed frames is not read, so a camera that offers
+/// only compressed ones is taken for usable. A device of the Image
+/// class is a camera only when it has that driver (a scanner or a phone
+/// is not one). `None` for the list: it could not be read.
+pub fn camera(devices: Option<&[RawCamera]>) -> Camera {
+    let Some(devices) = devices else {
+        return Camera::Unknown;
+    };
+    let cameras: Vec<&RawCamera> = devices
+        .iter()
+        .filter(|d| {
+            d.class.eq_ignore_ascii_case("Camera")
+                || (d.class.eq_ignore_ascii_case("Image") && is_uvc(d))
+        })
+        .collect();
+    if cameras.is_empty() {
+        Camera::None
+    } else if cameras.iter().any(|d| is_usb(d) && is_uvc(d)) {
+        Camera::Usable
+    } else {
+        Camera::NotUsable
+    }
+}
+
+fn is_usb(d: &RawCamera) -> bool {
+    d.instance_id
+        .get(..4)
+        .is_some_and(|p| p.eq_ignore_ascii_case("USB\\"))
+}
+
+fn is_uvc(d: &RawCamera) -> bool {
+    d.service.eq_ignore_ascii_case("usbvideo")
 }

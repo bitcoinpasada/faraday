@@ -5,6 +5,8 @@
 
 use faraday_starter::api::{Computer, Os};
 
+use super::devices::{self, RawCamera};
+
 /// `HKLM\…\BIOS`: `SystemManufacturer`, `SystemProductName`,
 /// `SystemFamily`.
 pub const BIOS: &str = r"HARDWARE\DESCRIPTION\System\BIOS";
@@ -72,6 +74,8 @@ pub struct Facts {
     pub firmware: Option<u32>,
     /// `IsWow64Process2`'s native machine.
     pub machine: Option<u16>,
+    /// The present devices of the Camera and Image classes.
+    pub cameras: Option<Vec<RawCamera>>,
 }
 
 /// This computer's facts. A computer started in legacy BIOS mode has no
@@ -108,6 +112,6 @@ pub fn computer(f: &Facts) -> Computer {
         arm: f.machine.is_some_and(|m| ARM_MACHINES.contains(&m)),
         secure_boot,
         tpm_unlock: false,
-        camera: Default::default(),
+        camera: devices::camera(f.cameras.as_deref()),
     }
 }

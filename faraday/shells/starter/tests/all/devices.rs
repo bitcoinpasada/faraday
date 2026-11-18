@@ -4,7 +4,8 @@
 //! them (UTF-16 registry values, output technologies, device paths).
 //! Never a real person's device dump.
 
-use faraday_starter::api::{Concern, Kind};
+use faraday_starter::api::{Camera, Concern, Kind};
+use faraday_starter_shell::windows::devices::RawCamera;
 
 /// A made-up EDID: the header, the maker's PNP ID and a monitor name.
 fn edid(maker: &str, name: &str) -> Vec<u8> {
@@ -395,4 +396,35 @@ mod windows {
         );
         assert!(concerns(None, &[], &[]).is_empty());
     }
+}
+
+fn cam(instance_id: &str, class: &str, service: &str) -> RawCamera {
+    RawCamera {
+        instance_id: instance_id.into(),
+        class: class.into(),
+        service: service.into(),
+    }
+}
+
+#[test]
+fn windows_camera_is_usable_only_as_a_usb_video_device() {
+    let usb = cam(
+        r"USB\VID_0000&PID_0001&MI_00\6&1&0&0000",
+        "Camera",
+        "usbvideo",
+    );
+    let mipi = cam(r"ACPI\EXAMPLE0001\0", "Camera", "ExampleIsp");
+    let scanner = cam(r"USB\VID_0000&PID_0002\1", "Image", "usbscan");
+    let old_usb = cam(r"USB\VID_0000&PID_0003\1", "Image", "usbvideo");
+    let camera = |d: &[RawCamera]| faraday_starter_shell::windows::devices::camera(Some(d));
+    assert_eq!(camera(std::slice::from_ref(&usb)), Camera::Usable);
+    assert_eq!(camera(&[mipi.clone(), usb]), Camera::Usable);
+    assert_eq!(camera(&[old_usb]), Camera::Usable);
+    assert_eq!(camera(&[mipi]), Camera::NotUsable);
+    assert_eq!(camera(&[scanner]), Camera::None);
+    assert_eq!(camera(&[]), Camera::None);
+    assert_eq!(
+        faraday_starter_shell::windows::devices::camera(None),
+        Camera::Unknown
+    );
 }
