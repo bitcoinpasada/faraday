@@ -32,6 +32,10 @@ use crate::{Action, Faraday, StickInfo};
 use faraday_text::{Num, Text};
 use faraday_ui::stick::{PillAt, StickState};
 
+/// The most pills there are: a pill's press carries its number in a byte,
+/// so a stick past the 255th has none.
+pub const MAX_STICK_PILLS: usize = u8::MAX as usize;
+
 /// The sticks a backup flow waits for, for the pills and for a demo that
 /// inserts them itself.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -137,7 +141,7 @@ impl Faraday {
         let last = wanted
             .map_or(0, |w| w.count + FIRST_BACKUP - 1)
             .max(held)
-            .max(FIRST_BACKUP);
+            .clamp(FIRST_BACKUP, MAX_STICK_PILLS);
         let asked = wanted.and_then(|w| w.now);
         let is_in = |folder: &str| self.stick.iter().any(|s| s.label == folder);
         // The Pull sheet asks for every stick that is in to be pulled.
@@ -630,10 +634,16 @@ pub(crate) fn bar(app: &View, ui: &mut Ui, right: f32) -> f32 {
             dot_room: z.dot_room,
             text: z.text,
         };
-        let action = Action::StickPill(p.n as u8);
+        let action = u8::try_from(p.n).ok().map(Action::StickPill);
         // The tones are counted from the boot stick's, the first.
         let n = p.n.saturating_sub(1);
-        ui.stick_pill(at, n, state(p), &l.texts[k], presses.then_some(action));
+        ui.stick_pill(
+            at,
+            n,
+            state(p),
+            &l.texts[k],
+            presses.then_some(action).flatten(),
+        );
         x += w + z.gap;
     }
     left - GAP
@@ -666,7 +676,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, window_w: f32) {
         let mut x = (window_w - row.width) / 2.0;
         for &k in &row.items {
             let (p, w) = (&pills[k], l.widths[k]);
-            let action = Action::StickPill(p.n as u8);
+            let action = u8::try_from(p.n).ok().map(Action::StickPill);
             let at = PillAt {
                 x,
                 y,
@@ -679,7 +689,13 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, window_w: f32) {
             };
             // The tones are counted from the boot stick's, the first.
             let n = p.n.saturating_sub(1);
-            ui.stick_pill(at, n, state(p), &l.texts[k], presses.then_some(action));
+            ui.stick_pill(
+                at,
+                n,
+                state(p),
+                &l.texts[k],
+                presses.then_some(action).flatten(),
+            );
             x += w + z.gap;
         }
     }

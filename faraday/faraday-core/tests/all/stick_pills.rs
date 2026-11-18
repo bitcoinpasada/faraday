@@ -121,6 +121,25 @@ fn bring_in_vaults(app: &mut Faraday, count: usize) {
 }
 
 #[test]
+fn with_more_vaults_than_a_pill_can_number_every_pill_is_its_own_stick() {
+    let mut shell = Shell::new();
+    let mut app = desktop(&mut shell);
+    app.press(Action::RestoreWallet);
+    app.press(Action::RVaults(true));
+    app.press(Action::RNext(faraday_core::rstep::WHERE));
+    app.press(Action::RVaultN(1024));
+    app.press(Action::RSticks(1024));
+    app.press(Action::RNext(faraday_core::rstep::HOW_MANY));
+    assert_eq!(app.screen, Screen::BackupFlow);
+    let pills = app.stick_pills();
+    let last = pills.last().expect("pills").n;
+    assert_eq!(last, 255);
+    for (k, p) in pills.iter().enumerate() {
+        assert_eq!(p.n, k + 1, "pill {k} is stick {}", p.n);
+    }
+}
+
+#[test]
 fn a_wallet_backup_with_three_vaults_shows_the_boot_stick_and_three_sticks() {
     let mut shell = Shell::new();
     let mut app = desktop(&mut shell);

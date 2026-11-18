@@ -169,21 +169,22 @@ fn sticks(app: &Faraday) -> Vec<Ctl> {
     }
     app.stick_pills()
         .into_iter()
-        .map(|p| {
+        .filter_map(|p| {
+            let n = u8::try_from(p.n).ok()?;
             let state = if p.inserted {
                 EN.stick_pill_inserted
             } else {
                 EN.stick_pill_out
             };
-            Ctl {
+            Some(Ctl {
                 mark: p.asked,
                 label: fill(EN.stick_pill_state, &[&p.label, state]),
-                press: HostPress::App(Action::StickPill(p.n as u8)),
+                press: HostPress::App(Action::StickPill(n)),
                 kind: Kind::Stick {
                     inserted: p.inserted,
                     waits: p.n == 1 && p.asked && p.inserted,
                 },
-            }
+            })
         })
         .collect()
 }
