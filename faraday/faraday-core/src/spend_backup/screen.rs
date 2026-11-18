@@ -206,36 +206,7 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
             Role::OnSurfaceVariant,
             &Session::shape(wl),
         );
-        let (marker, tone) = if ready {
-            (
-                Text::fill(
-                    EN.spend_backup_can_spend_count,
-                    &[&Text::num(here.min(need) as u64), &Text::num(need as u64)],
-                ),
-                Role::Ok,
-            )
-        } else if here > 0 {
-            (
-                Text::fill(
-                    EN.spend_backup_here_needed,
-                    &[
-                        &Text::num(here as u64),
-                        (if here == 1 {
-                            EN.spend_backup_key
-                        } else {
-                            EN.spend_backup_keys
-                        }),
-                        &Text::num(need as u64),
-                    ],
-                ),
-                Role::Warning,
-            )
-        } else {
-            (
-                Text::of(EN.spend_backup_no_key_here),
-                Role::OnSurfaceVariant,
-            )
-        };
+        let (marker, tone) = keys_marker(here, need);
         ui.text_mid_as(
             (x + 46.0, y + 30.0 + grow, 28.0 + mark_grow),
             LABEL_M,
@@ -289,20 +260,7 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
     }
 
     // Seeds that open no wallet loaded.
-    let lonely: Vec<&faraday_keys::KeyInfo> = app
-        .session
-        .keys
-        .all()
-        .filter(|k| {
-            let fp = k.fingerprint;
-            !app.session.wallets.iter().any(|w| {
-                app.session
-                    .slots(w)
-                    .iter()
-                    .any(|s| s.fingerprint == Some(fp))
-            })
-        })
-        .collect();
+    let lonely = lonely_keys(app);
     if !lonely.is_empty() {
         y += 8.0;
         crate::screens::section_label(ui, x, y, EN.spend_backup_keys_without_wallet);
@@ -440,20 +398,7 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
     }
 
     // Seeds that open no wallet loaded.
-    let lonely: Vec<&faraday_keys::KeyInfo> = app
-        .session
-        .keys
-        .all()
-        .filter(|k| {
-            let fp = k.fingerprint;
-            !app.session.wallets.iter().any(|w| {
-                app.session
-                    .slots(w)
-                    .iter()
-                    .any(|s| s.fingerprint == Some(fp))
-            })
-        })
-        .collect();
+    let lonely = lonely_keys(app);
     if !lonely.is_empty() {
         y += 8.0;
         section_label(ui, x, y, EN.spend_backup_keys_without_wallet);
@@ -507,6 +452,23 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
         (EN.spend_backup_home, Action::Nav(crate::Screen::Home)),
         EN.spend_backup_spend,
     );
+}
+
+/// The keys loaded that no wallet loaded uses.
+fn lonely_keys(app: &View) -> Vec<&faraday_keys::KeyInfo> {
+    app.session
+        .keys
+        .all()
+        .filter(|k| {
+            let fp = k.fingerprint;
+            !app.session.wallets.iter().any(|w| {
+                app.session
+                    .slots(w)
+                    .iter()
+                    .any(|s| s.fingerprint == Some(fp))
+            })
+        })
+        .collect()
 }
 
 /// What a loaded wallet's card says of its keys here: can spend, how

@@ -682,6 +682,36 @@ fn two_seeds_and_no_description_make_the_two_of_three_from_all_three_seeds() {
     assert_eq!(app.spend_backup().open, Some(Open::Page(page::CHECK)));
 }
 
+/// A wallet file named like the typed-words step is a wallet of its own: a
+/// second seed replaces the wallet the first typed seed opened, not it.
+#[test]
+fn a_wallet_file_named_typed_words_stays_when_a_second_seed_replaces_the_typed_one() {
+    let (_, bytes) = testkit::files()
+        .unwrap()
+        .into_iter()
+        .find(|(n, _)| n == "savings-wallet.txt")
+        .unwrap();
+    let mut app = with_files(vec![("Typed words".to_string(), bytes)], Vec::new());
+    on_intake(&mut app);
+    app.press(Action::SpendBackup(F::TypeWords));
+    type_text(&mut app, &testkit::test_words("bacon"));
+    app.press(Action::EntryAdd);
+    let k = inbox_at(&app, "Typed words");
+    app.press(Action::SpendBackup(F::UseWallet(k)));
+    faraday_core::testkit::confirm_wallets(&mut app);
+    let before = app.session.wallets.len();
+    assert_eq!(before, 2, "the file and the typed words make two wallets");
+    scan_seed(&mut app, "zebra");
+    assert_eq!(app.session.wallets.len(), before - 1);
+    assert!(
+        app.session
+            .wallets
+            .iter()
+            .any(|w| w.source == "Typed words"),
+        "the file's wallet went with the typed one"
+    );
+}
+
 /// Two seeds and a cosigner's key no loaded key gives: the wallet is held
 /// for its sheet at every way the guess tries, and the guess goes on from
 /// the hold with the way before kept until then.

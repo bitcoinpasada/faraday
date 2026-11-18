@@ -934,6 +934,16 @@ impl Faraday {
         }
     }
 
+    /// Drops the wallet Spend from a backup's own typed words made. Only
+    /// that one: a wallet guessed from Seeds' typed seeds
+    /// (`Origin::TypedSeeds`) is left alone, as the two screens keep their
+    /// own guesses on their own terms.
+    fn spend_backup_drop_typed_words(&mut self) {
+        self.session
+            .wallets
+            .retain(|w| w.origin != crate::wallet::Origin::TypedWords);
+    }
+
     /// Chooses the wallet at `i` of the session. Another wallet's pages
     /// said nothing of this one: choosing a different wallet opens the
     /// money check and the write page again.
@@ -1292,13 +1302,7 @@ impl Faraday {
                 return;
             }
         }
-        // Only a wallet guessed from Spend from a backup's own typed words is dropped
-        // here; one guessed from Seeds' typed seeds (`Origin::TypedSeeds`)
-        // is left alone. Deliberate, not an oversight: the two screens
-        // keep their own guesses on their own terms.
-        self.session
-            .wallets
-            .retain(|w| w.origin != crate::wallet::Origin::TypedWords);
+        self.spend_backup_drop_typed_words();
         self.spend_backup.state.wallet = None;
         let last = self.session.wallets.len().saturating_sub(1);
         self.wallets.set_wallet(self.wallets.wallet().min(last));
@@ -1567,13 +1571,7 @@ impl Faraday {
         {
             self.remove_wallet(w);
         }
-        // Only a wallet guessed from Spend from a backup's own typed words is dropped
-        // here; one guessed from Seeds' typed seeds (`Origin::TypedSeeds`)
-        // is left alone. Deliberate, not an oversight: the two screens
-        // keep their own guesses on their own terms.
-        self.session
-            .wallets
-            .retain(|w| w.origin != crate::wallet::Origin::TypedWords);
+        self.spend_backup_drop_typed_words();
         self.spend_backup.state.wallet = None;
         let last = self.session.wallets.len().saturating_sub(1);
         self.wallets.set_wallet(self.wallets.wallet().min(last));
@@ -1615,13 +1613,7 @@ impl Faraday {
             }
         };
         let descriptor = kind.descriptor(1, &[faraday_text::Text::of(&text)]);
-        // Only a wallet guessed from Spend from a backup's own typed words is dropped
-        // here; one guessed from Seeds' typed seeds (`Origin::TypedSeeds`)
-        // is left alone. Deliberate, not an oversight: the two screens
-        // keep their own guesses on their own terms.
-        self.session
-            .wallets
-            .retain(|w| w.origin != crate::wallet::Origin::TypedWords);
+        self.spend_backup_drop_typed_words();
         let name = Text::fill(EN.spend_backup_words, &[kind_name(kind)]);
         match self.session.add_wallet(
             &c,
@@ -1695,13 +1687,7 @@ impl Faraday {
         }
         self.spend_backup.state.walkthrough = true;
         self.spend_backup.state.guess = None;
-        // Only a wallet guessed from Spend from a backup's own typed words is dropped
-        // here; one guessed from Seeds' typed seeds (`Origin::TypedSeeds`)
-        // is left alone. Deliberate, not an oversight: the two screens
-        // keep their own guesses on their own terms.
-        self.session
-            .wallets
-            .retain(|w| w.origin != crate::wallet::Origin::TypedWords);
+        self.spend_backup_drop_typed_words();
         if let Some(i) = self.spend_backup_wallet() {
             self.wallets.set_wallet(i);
         }
@@ -2033,7 +2019,7 @@ impl Faraday {
                 .session
                 .wallets
                 .iter()
-                .find(|w| w.source == WORDS_SOURCE)
+                .find(|w| w.origin == crate::wallet::Origin::TypedWords)
             && let Some(first) = self.session.slots(w).first().and_then(|s| s.fingerprint)
             && first != fp
         {
@@ -2050,7 +2036,7 @@ impl Faraday {
     /// wallet's shape comes up.
     pub(crate) fn spend_backup_several_seeds(&mut self) {
         let before = self.session.wallets.len();
-        self.session.wallets.retain(|w| w.source != WORDS_SOURCE);
+        self.spend_backup_drop_typed_words();
         if self.session.wallets.len() != before {
             self.wallets.set_list_changed();
             if self
