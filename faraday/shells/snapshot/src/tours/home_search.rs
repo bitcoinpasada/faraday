@@ -1,6 +1,6 @@
 //! The home search tour.
 
-use crate::tour::{Tour, scroll, scroll, type_text};
+use crate::tour::{Tour, scroll, type_text};
 use faraday_core::edit::Here;
 use faraday_core::{Action, Screen};
 use faraday_shell_api::{App, Event};
