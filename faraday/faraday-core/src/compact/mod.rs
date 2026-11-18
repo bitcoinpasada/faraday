@@ -1473,9 +1473,10 @@ impl Faraday {
             // as Add a key's form docks it; the box of rolls has buttons
             // of its own on a small panel.
             Screen::SeedCheck | Screen::MultisigCheck if crate::seed_check::here(self) => {
-                self.seed_words_typing()
-                    && (self.entry.state().form != crate::forms::Form::Words
-                        || self.entry.state().keys.is_none())
+                crate::seed_check::field(self).is_some()
+                    || (self.seed_words_typing()
+                        && (self.entry.state().form != crate::forms::Form::Words
+                            || self.entry.state().keys.is_none()))
             }
             Screen::KeyGen => self.keygen.state().is_some_and(|k| {
                 !k.locked

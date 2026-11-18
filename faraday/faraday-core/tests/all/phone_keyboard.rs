@@ -137,3 +137,27 @@ fn randomness_dice_are_pressed_as_faces_or_typed_on_the_keyboard_a_press_brings_
         assert!(app.keyboard_top().is_some(), "{w:?}: the box brings it up");
     }
 }
+
+#[test]
+fn my_seed_makes_my_wallets_passphrase_fields_bring_the_keyboard_up_when_pressed() {
+    use faraday_core::seed_check::SeedAction as S;
+    use faraday_ui::keyboard::OskPress;
+    for w in WINDOWS {
+        let mut app = window(w);
+        app.press(Action::SeedCheck(S::Open));
+        tap(&mut app, Action::SeedCheck(S::Type));
+        faraday_core::testkit::type_words(
+            &mut app,
+            &faraday_core::testkit::test_words(faraday_core::testkit::TEST_SEEDS[0].0),
+        );
+        tap(&mut app, Action::SeedCheck(S::Words));
+        tap(&mut app, Action::SeedCheck(S::AddPass));
+        tap(&mut app, Action::Osk(OskPress::Hide));
+        assert!(app.keyboard_top().is_none(), "{w:?}: put away");
+        tap(&mut app, Action::SeedCheck(S::PassField(0)));
+        assert!(app.keyboard_top().is_some(), "{w:?}: the passphrase");
+        tap(&mut app, Action::Osk(OskPress::Hide));
+        tap(&mut app, Action::SeedCheck(S::PassField(1)));
+        assert!(app.keyboard_top().is_some(), "{w:?}: the second field");
+    }
+}
