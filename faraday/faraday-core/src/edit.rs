@@ -554,6 +554,7 @@ impl Faraday {
                     .state()
                     .is_some_and(|c| c.pass_slot.is_some() && c.pass_focus.is_some())
                     || self.card_pass_focus().is_some()
+                    || self.card_typing_rolls()
             }
             _ => false,
         }
@@ -650,6 +651,7 @@ impl Faraday {
             Screen::Create => self
                 .card_pass_focus()
                 .map(Action::KPassField)
+                .or_else(|| self.card_typing_rolls().then_some(Action::KTyping(true)))
                 .or_else(|| self.create.state()?.pass_focus.map(Action::CPassField)),
             Screen::SetTime => self.set_time.focus().map(Action::SetTimeFocus),
             _ => None,

@@ -132,5 +132,27 @@ pub(crate) fn create_from_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     down(t, Action::CPathChange, "create-check-path-down")?;
     t.press(Action::CPathChange);
     t.press(Action::CAccount(1));
-    t.shot("create-path-keys-account")
+    t.shot("create-path-keys-account")?;
+    // A fresh single key's making on the Keys step: the dice as New
+    // key shows them, part way with the buttons, typed, and every roll in.
+    t.press(Action::CreateOver);
+    t.press(Action::CNext(cstep::KIND));
+    t.press(Action::CBackupForm(
+        faraday_core::create::BackupForm::Words.index(),
+    ));
+    for i in 0..14u8 {
+        t.press(Action::KRoll(i % 6 + 1));
+    }
+    t.shot("create-keys-dice")?;
+    down(t, Action::KNext, "create-keys-dice-down")?;
+    t.press(Action::KTyping(true));
+    t.shot("create-keys-dice-typed")?;
+    t.press(Action::KTyping(false));
+    let need = t.app.keygen().map_or(0, |k| k.dice_needed());
+    let have = t.app.keygen().map_or(0, |k| k.dice.len());
+    for i in 0..need.saturating_sub(have) {
+        t.press(Action::KRoll((i % 6) as u8 + 1));
+    }
+    t.shot("create-keys-dice-full")?;
+    down(t, Action::KNext, "create-keys-dice-full-down")
 }

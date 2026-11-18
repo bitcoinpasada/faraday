@@ -6,7 +6,7 @@
 use crate::common::type_text;
 use faraday_core::create::{BackupForm, NewKind, Source};
 use faraday_core::{Action, Faraday, Screen, Sheet, cstep, testkit};
-use faraday_shell_api::App;
+use faraday_shell_api::{App, Event};
 
 fn opened() -> Faraday {
     let mut app = testkit::started();
@@ -42,6 +42,22 @@ fn roll(app: &mut Faraday, n: usize) {
             }
         }
     }
+}
+
+/// Scrolls the page down, as a person would, until a frame offers `action`.
+fn scroll_to(app: &mut Faraday, action: Action) {
+    for _ in 0..40 {
+        let _ = app.frame();
+        if app.offers(action) {
+            return;
+        }
+        app.event(Event::Scroll {
+            x: 640,
+            y: 400,
+            dy: 120,
+        });
+    }
+    panic!("the page never offers {action:?}");
 }
 
 fn roll_all(app: &mut Faraday) {
@@ -87,16 +103,15 @@ fn rolling_the_count_then_make_the_words_shows_them_masked_with_show_words() {
         "Make the words waits for the count"
     );
     roll_all(&mut app);
-    let _ = app.frame();
-    assert!(app.offers(Action::KNext));
+    scroll_to(&mut app, Action::KNext);
     app.press(Action::KNext);
     let k = app.keygen().unwrap();
     assert!(k.mnemonic.is_some());
     assert!(!k.shown, "masked until Show words");
-    let _ = app.frame();
-    assert!(app.offers(Action::KShow));
+    scroll_to(&mut app, Action::KShow);
     app.press(Action::KShow);
     assert!(app.keygen().unwrap().shown);
+    scroll_to(&mut app, Action::KAgain);
     let texts = app.drawn_texts();
     assert!(texts.iter().any(|t| t == "Make again"), "{texts:?}");
 }
@@ -287,5 +302,77 @@ fn new_words_on_another_slot_drops_the_first_making_asking_first() {
     // Discard moves the making to the other slot, empty.
     app.press(Action::CancelFlowNow);
     assert_eq!(app.keygen().and_then(|k| k.slot), Some(0));
+    assert_eq!(app.keygen().unwrap().dice.len(), 0);
+}
+
+/// Rolls the faces 2 to 6 in turn, `n` of them, so that no face reads as
+/// a bit by itself.
+fn roll_high(app: &mut Faraday, n: usize) {
+    for i in 0..n {
+        let before = app.keygen().unwrap().dice.len();
+        for f in 0..3u8 {
+            app.press(Action::KRoll((i as u8 + f) % 3 + 2));
+            if app.keygen().unwrap().dice.len() > before {
+                break;
+            }
+        }
+    }
+}
+
+#[test]
+fn rolls_part_way_show_words_so_far_with_the_first_words_bits_and_both_entry_ways() {
+    let mut app = opened();
+    roll_high(&mut app, 6);
+    assert_eq!(app.keygen().unwrap().dice.len(), 6);
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    for want in ["Words so far", "Typed", "Buttons"] {
+        assert!(texts.iter().any(|t| t == want), "{want}: {texts:?}");
+    }
+    assert!(
+        texts
+            .iter()
+            .any(|t| !t.is_empty() && t.chars().all(|c| c == '0' || c == '1')),
+        "the bits of the first word's rolls: {texts:?}"
+    );
+    assert!(app.offers(Action::KTyping(true)));
+    assert!(app.offers(Action::KTyping(false)));
+    assert!(app.offers(Action::KRoll(3)), "the pad is there to press");
+    scroll_to(&mut app, Action::KClear);
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "Undo"), "{texts:?}");
+    assert!(
+        texts
+            .iter()
+            .any(|t| t.contains("No need to write the words down yet")),
+        "{texts:?}"
+    );
+}
+
+#[test]
+fn typed_faces_on_the_card_count_as_rolls() {
+    let mut app = opened();
+    let _ = app.frame();
+    app.press(Action::KTyping(true));
+    let _ = app.frame();
+    type_text(&mut app, "2342");
+    assert_eq!(app.screen, Screen::Create);
+    assert_eq!(app.keygen().unwrap().dice.len(), 4);
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t.contains("4 of 70")),
+        "the count: {texts:?}"
+    );
+}
+
+#[test]
+fn undo_takes_one_roll_back_and_clear_all_of_them() {
+    let mut app = opened();
+    roll_high(&mut app, 5);
+    scroll_to(&mut app, Action::KClear);
+    assert!(app.offers(Action::KUndo));
+    app.press(Action::KUndo);
+    assert_eq!(app.keygen().unwrap().dice.len(), 4);
+    app.press(Action::KClear);
     assert_eq!(app.keygen().unwrap().dice.len(), 0);
 }

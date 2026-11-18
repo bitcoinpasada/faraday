@@ -2466,8 +2466,10 @@ impl crate::Faraday {
     /// the key.
     pub(crate) fn keygen_key(&mut self, key: faraday_shell_api::Key) -> bool {
         use faraday_shell_api::Key as KeyIn;
-        // On Make a new wallet's Keys card only its passphrase fields type.
-        if self.screen != Screen::KeyGen && self.card_pass_focus().is_none() {
+        // On Make a new wallet's Keys card only its passphrase fields and
+        // the dice being rolled take keys.
+        if self.screen != Screen::KeyGen && self.card_pass_focus().is_none() && !self.card_rolling()
+        {
             return false;
         }
         if self.screen == Screen::KeyGen && self.keygen_own_key(key) {
@@ -2690,6 +2692,21 @@ impl crate::Faraday {
             k.choose(Way::DiceWords);
             k.source_next();
         }
+    }
+
+    /// Whether the card's making is taking rolls: its entry open, not yet
+    /// made into words. Only lookups.
+    pub(crate) fn card_rolling(&self) -> bool {
+        self.screen == Screen::Create
+            && self
+                .keygen
+                .state()
+                .is_some_and(|k| k.on_card && !k.locked && k.open == Some(kstep::ENTER))
+    }
+
+    /// Whether the card's rolls are typed into the box.
+    pub(crate) fn card_typing_rolls(&self) -> bool {
+        self.card_rolling() && self.keygen.state().is_some_and(|k| k.typing)
     }
 
     /// The passphrase field of the card's making that has the keys, if

@@ -687,6 +687,12 @@ is up for the rolls' field, its keys are the pad and the panel stands
 in the card. The page scrolls clear of the panel. Dice typed as one
 string keep their field in the card.
 
+Make a new wallet's Keys step takes dice rolls in the card, not in the
+panel: the count with its bar, Typed or Buttons (the box, or the pad of
+six faces), the words so far with their bits and the checksum row, and
+Undo and Clear, drawn by the functions New key's Entries card uses
+(`keygen::screen::rolled_entry`), so the two show the same.
+
 ### 16.4 The view follows the work
 
 The view moves only where the work would otherwise be off screen, and

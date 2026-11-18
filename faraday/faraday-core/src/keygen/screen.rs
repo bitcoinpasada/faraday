@@ -1396,14 +1396,11 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy += super::dice_panel::pad(k, ui, (x, cy, w));
     }
     if matches!(active, Some(Source::Dice | Source::Coins)) {
-        cy = entry_style(k, ui, x, cy, w);
+        cy = entry_style(k, ui, x, cy, w, 0.0);
     }
     match active {
         Some(Source::Dice | Source::Coins) if k.typing => {
-            cy = typed_box(app, k, ui, x, cy, w);
-            if k.reveals() {
-                cy = reveal(k, ui, x, cy, w);
-            }
+            cy += rolled_entry(app, k, ui, (x, cy, w), None);
         }
         Some(Source::Coins) if k.by_die => {
             cy += dice_pad(ui, (x, cy, w), &|_| Style::Secondary, Action::KDie);
@@ -1412,12 +1409,8 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             }
         }
         Some(Source::Dice) => {
-            if foot.is_none() && !pad_first {
-                cy += super::dice_panel::pad(k, ui, (x, cy, w));
-            }
-            if k.reveals() {
-                cy = reveal(k, ui, x, cy, w);
-            }
+            let pad = (foot.is_none() && !pad_first).then_some(None);
+            cy += rolled_entry(app, k, ui, (x, cy, w), pad);
         }
         Some(Source::Coins) => {
             cy += coin_pad(ui, (x, cy, w), Action::KFlip(true), Action::KFlip(false));
@@ -1480,9 +1473,7 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         _ => {}
     }
     // Words for a Create slot are shown and checked again by Back up.
-    if !k.slip39 && k.reveals() && k.slot.is_some() {
-        cy += ui.wrap_as((x, cy, w), BODY_S, muted, EN.keygen_no_need_to_write) + 10.0;
-    }
+    cy += no_need_line(k, ui, (x, cy, w));
     // BIP-39 words: the randomness check is here, once the last entry is
     // in. Before that, and for shares, cautions as they appear.
     let ready = k.ready();
@@ -1558,12 +1549,53 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy + hh + faraday_draw::tokens::GAP - y
 }
 
+/// Rolls or flips entered where the entry card shows them: the typed box,
+/// or the pad when `pad` is `Some` (its smallest touch target, `None` for
+/// one row), then the words as they form. Shared by New key's Entries card
+/// and Make a new wallet's Keys step. Returns the height used.
+pub(crate) fn rolled_entry(
+    app: &View,
+    k: &KeyGen,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    pad: Option<Option<f32>>,
+) -> f32 {
+    let mut cy = y;
+    if k.typing {
+        cy = typed_box(app, k, ui, x, cy, w);
+    } else if let Some(touch) = pad {
+        cy += match touch {
+            Some(t) => super::dice_panel::pad_fit(k, ui, (x, cy, w), t),
+            None => super::dice_panel::pad(k, ui, (x, cy, w)),
+        };
+    }
+    if k.reveals() {
+        cy = reveal(k, ui, x, cy, w);
+    }
+    cy - y
+}
+
+/// The line saying a Create slot's words are shown again by Back up, once
+/// they show. Returns its height.
+pub(crate) fn no_need_line(k: &KeyGen, ui: &mut Ui, at: (f32, f32, f32)) -> f32 {
+    if !k.slip39 && k.reveals() && k.slot.is_some() {
+        ui.wrap_as(
+            at,
+            BODY_S,
+            Role::OnSurfaceVariant,
+            EN.keygen_no_need_to_write,
+        ) + 10.0
+    } else {
+        0.0
+    }
+}
+
 /// How entries are made: for coins, a coin or a die read as one; for
 /// both, pressed one at a time or typed as one string. Returns where the
-/// next row starts.
-fn entry_style(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+/// next row starts. Each button is `touch` tall at least.
+pub(crate) fn entry_style(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32, touch: f32) -> f32 {
     let mut cy = y;
-    let bh = BUTTON_H.max(crate::flow::small_touch(ui));
+    let bh = BUTTON_H.max(crate::flow::small_touch(ui)).max(touch);
     let grow = bh - BUTTON_H;
     let style = Style::chosen;
     let mut bx = x;

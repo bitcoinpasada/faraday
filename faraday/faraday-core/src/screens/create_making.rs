@@ -7,7 +7,10 @@ use super::parts::{buttons_and_next_when, pass_field};
 use super::pass_pair::{self, pass_pair};
 use crate::Action;
 use crate::drawing::View;
-use crate::keygen::{KeyGen, dice_panel, screen::word_grid};
+use crate::keygen::{
+    KeyGen, dice_panel,
+    screen::{entry_style, no_need_line, rolled_entry, word_grid},
+};
 use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
@@ -117,14 +120,19 @@ pub(super) fn slot_making(
         );
     } else {
         cy += dice_panel::progress(k, ui, x, cy, w);
-        cy += dice_panel::pad_fit(k, ui, (x, cy, w), app.touch_side());
+        // The same entry New key's Entries card shows: Typed or Buttons,
+        // then the words as the rolls name them.
+        let touch = app.touch_side();
+        cy = entry_style(k, ui, x, cy, w, touch);
+        cy += rolled_entry(app, k, ui, (x, cy, w), Some(Some(touch)));
+        cy += no_need_line(k, ui, (x, cy, w));
         if let Some(n) = &k.note {
             cy += ui.wrap_as((x, cy, w), BODY_S, Role::Error, n) + tokens::GAP_SMALL;
         }
-        let mut left = Vec::new();
-        if !k.dice.is_empty() {
-            left.push((EN.keygen_undo, Style::Ghost, Action::KUndo));
-        }
+        let mut left = vec![
+            (EN.keygen_undo, Style::Ghost, Action::KUndo),
+            (EN.keygen_clear, Style::Ghost, Action::KClear),
+        ];
         left.push(other);
         cy += buttons_and_next_when(
             ui,
