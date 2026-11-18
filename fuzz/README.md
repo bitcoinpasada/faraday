@@ -211,6 +211,7 @@ cargo +nightly fuzz run --fuzz-dir fuzz decode_luma fuzz/artifacts/decode_luma/r
 | `seedqr` | `faraday_codec::seedqr::from_digits`, `from_entropy` |
 | `ur_receive` | `faraday_codec::ur::Decoder::receive`, one part and a sequence |
 | `psbt_parse` | `faraday_psbt::Psbt::parse_bytes` / `parse_base64`, then `inspect` with no key loaded and with the BIP-39 test vector key, then `finalize` on a copy |
+| `psbt_diff` | `faraday_psbt::Psbt::parse_bytes`, `inspect` and `PsbtV2::to_v0` against rust-bitcoin (`bitcoin::Psbt`) on the same bytes: Faraday's answer to what rust-bitcoin reads, a PSBT read written back as it came, each input's amount, each output's amount, script and address, the totals and the fee against the transaction and the previous outputs, and a version 2 PSBT's transaction, amounts and fee against its own fields |
 | `signer_check` | `faraday_psbt::signer::check` and `nonce_view` over two files (sent, returned) read as version 0 or version 2; a file written canonically, against itself, has no Blocked or Danger finding but a repeated nonce |
 | `policy` | `faraday_bip::policy::WalletPolicy::parse_any` |
 | `message_verify` | `faraday_psbt::message::verify` over the test vector key's four addresses; `parse_signed` on the whole input, its result verified |

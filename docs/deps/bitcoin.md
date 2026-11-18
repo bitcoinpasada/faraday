@@ -10,7 +10,9 @@ computation, BIP-137 message signatures (`bitcoin::sign_message`), and
 through it `secp256k1` (libsecp256k1 bindings) and `bitcoin_hashes`.
 Direct dependants: `core/faraday-bip` (keys, accounts, addresses,
 descriptors), `core/faraday-psbt` (reading, reviewing and signing a PSBT)
-and `core/faraday-codec` (payload classification). `faraday-keys`
+and `core/faraday-codec` (payload classification); the fuzz crate
+(`fuzz/`) names it for `psbt_diff`, which holds `faraday-psbt` against it
+on the same bytes. `faraday-keys`
 (`faraday/faraday-keys`) and `faraday-core` reach it through those crates.
 
 **Where it ships.** It is in the signing core, so in every build that

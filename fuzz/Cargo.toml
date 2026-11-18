@@ -24,6 +24,9 @@ faraday-pgp = { path = "../faraday/faraday-pgp" }
 faraday-text = { path = "../core/faraday-text" }
 # `fuzzing` adds the entry kdbx_body feeds; only this crate turns it on.
 faraday-vault = { path = "../faraday/faraday-vault", features = ["fuzzing"] }
+# The reader `psbt_diff` holds faraday-psbt against; the version and
+# features are the root workspace's (docs/deps/bitcoin.md).
+bitcoin = { version = "0.32", default-features = false, features = ["secp-recovery"] }
 
 [profile.release]
 debug = true
@@ -234,6 +237,13 @@ bench = false
 [[bin]]
 name = "ur_single"
 path = "fuzz_targets/ur_single.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "psbt_diff"
+path = "fuzz_targets/psbt_diff.rs"
 test = false
 doc = false
 bench = false

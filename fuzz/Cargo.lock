@@ -377,6 +377,7 @@ dependencies = [
 name = "faraday-fuzz"
 version = "0.0.0"
 dependencies = [
+ "bitcoin",
  "faraday-bip",
  "faraday-codec",
  "faraday-crypto",
