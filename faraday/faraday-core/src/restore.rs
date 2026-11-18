@@ -125,6 +125,9 @@ pub struct Merged {
     pub have: Vec<Text>,
     /// The whole config, once every key is in hand.
     pub whole: Option<Text>,
+    /// The `Name:` the shares carry, as written: untrusted, and bounded
+    /// when a wallet is added under it (`Session::add_wallet`).
+    pub name: Option<Text>,
 }
 
 /// `s` in lower case.
@@ -231,19 +234,13 @@ pub fn merge<T: AsRef<str>>(texts: &[T]) -> Result<Merged, Text> {
             n: a.n,
             have,
             whole,
+            name: a.name,
         });
     }
     let whole = (a.keys.len() >= a.n).then(|| {
         use std::fmt::Write as _;
-        // Sized up front: the text is written once, never regrown.
-        let size = a
-            .keys
-            .iter()
-            .map(|(fp, d, x)| fp.len() + d.len() + x.len() + 24)
-            .sum::<usize>()
-            + a.name.as_ref().map_or(0, |n| n.len() + 8)
-            + a.format.len()
-            + 128;
+        let size =
+            keys_size(&a.keys) + a.name.as_ref().map_or(0, |n| n.len() + 8) + a.format.len() + 128;
         let mut out = Text::with_room(size);
         out.push_str("# Multisig config rebuilt by Faraday from its shares\n");
         if let Some(n) = &a.name {
@@ -260,7 +257,19 @@ pub fn merge<T: AsRef<str>>(texts: &[T]) -> Result<Merged, Text> {
         n: a.n,
         have,
         whole,
+        name: a.name,
     })
+}
+
+/// The name a wallet rebuilt from shares is added under: the config's
+/// `Name:`, or for a Taproot descriptor, which has none, the shares' own;
+/// the fallback when neither is there.
+fn rebuilt_name(c: &Compute, whole: &str, shares: Option<Text>) -> Text {
+    multisig_config::parse_named(c, whole)
+        .ok()
+        .and_then(|(_, n)| n)
+        .or_else(|| shares.filter(|n| !n.trim().is_empty()))
+        .unwrap_or_else(|| Text::of(EN.act_restored_wallet))
 }
 
 /// Costs what `parse` and `read_wallet` cost. Whether the rebuilt text
@@ -806,10 +815,7 @@ impl Faraday {
                 match restore::merge(&texts) {
                     Ok(m) => match m.whole {
                         Some(whole) => {
-                            let name = faraday_bip::multisig_config::parse_named(c, &whole)
-                                .ok()
-                                .and_then(|(_, n)| n)
-                                .unwrap_or_else(|| Text::of(EN.act_restored_wallet));
+                            let name = rebuilt_name(c, &whole, m.name);
                             self.restore_wallet(
                                 &name,
                                 &whole,
@@ -875,12 +881,9 @@ impl Faraday {
                     .filter(|i| i.kind == FileKind::Share)
                     .map(|i| Text::from_utf8_lossy(&i.bytes))
                     .collect();
-                match restore::merge(&texts).map(|m| m.whole) {
-                    Ok(Some(whole)) => {
-                        let name = faraday_bip::multisig_config::parse_named(c, &whole)
-                            .ok()
-                            .and_then(|(_, n)| n)
-                            .unwrap_or_else(|| Text::of(EN.act_restored_wallet));
+                match restore::merge(&texts).map(|m| (m.whole, m.name)) {
+                    Ok((Some(whole), name)) => {
+                        let name = rebuilt_name(c, &whole, name);
                         match self.session.add_wallet(
                             c,
                             &name,
@@ -897,7 +900,7 @@ impl Faraday {
                             Err(e) => self.toast(&e.text()),
                         }
                     }
-                    Ok(None) => self.toast(EN.act_keys_missing),
+                    Ok((None, _)) => self.toast(EN.act_keys_missing),
                     Err(e) => self.toast(&e),
                 }
             }

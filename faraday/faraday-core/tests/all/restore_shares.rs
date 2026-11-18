@@ -288,3 +288,45 @@ fn a_sheet_whose_key_or_derivation_holds_more_than_one_is_refused() {
         }
     }
 }
+
+/// A named Taproot multisig rebuilt from two of its sheets keeps its name,
+/// whether the sheets are restored from Files or picked in Restore.
+#[test]
+fn a_taproot_multisig_rebuilt_from_its_sheets_keeps_its_name() {
+    let (sheets, _) = sheets("Family trust", &taproot_descriptor());
+    let files = || {
+        vec![
+            (
+                "trust-share-1.txt".to_string(),
+                sheets[0].clone().into_bytes(),
+            ),
+            (
+                "trust-share-2.txt".to_string(),
+                sheets[1].clone().into_bytes(),
+            ),
+        ]
+    };
+
+    let mut app = device(files());
+    app.press(Action::Nav(Screen::Files));
+    let _ = app.frame();
+    app.press(Action::RestoreShares);
+    testkit::confirm_wallets(&mut app);
+    assert_eq!(app.session.wallets.len(), 1, "{:?}", app.toast_text());
+    assert_eq!(&*app.session.wallets[0].name, "Family trust");
+
+    let mut app = device(files());
+    app.press(Action::RestoreWallet);
+    for name in ["trust-share-1.txt", "trust-share-2.txt"] {
+        let i = app
+            .inbox()
+            .iter()
+            .position(|f| f.name == name)
+            .expect("in the Inbox");
+        app.press(Action::RShare(i));
+    }
+    app.press(Action::RRebuild);
+    testkit::confirm_wallets(&mut app);
+    assert_eq!(app.session.wallets.len(), 1);
+    assert_eq!(&*app.session.wallets[0].name, "Family trust");
+}
