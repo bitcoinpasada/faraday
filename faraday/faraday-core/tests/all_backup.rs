@@ -101,6 +101,8 @@ mod vault_load_job;
 mod vault_memory;
 #[path = "all/vault_seal.rs"]
 mod vault_seal;
+#[path = "all/vault_seal_count.rs"]
+mod vault_seal_count;
 #[path = "all/vault_seal_stop.rs"]
 mod vault_seal_stop;
 #[path = "all/wallet_paths.rs"]

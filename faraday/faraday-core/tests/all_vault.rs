@@ -37,8 +37,6 @@ mod vault_load;
 mod vault_name;
 #[path = "all/vault_passphrase.rs"]
 mod vault_passphrase;
-#[path = "all/vault_seal_count.rs"]
-mod vault_seal_count;
 #[path = "all/vault_seal_room.rs"]
 mod vault_seal_room;
 #[path = "all/vault_search.rs"]
