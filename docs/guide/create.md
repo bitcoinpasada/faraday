@@ -30,7 +30,7 @@ Asked for a single key of any address type: choose how the key is written on pap
 
 For a kind with several keys. A quorum of m keys out of n must sign to spend; **All keys · MuSig2** has no quorum, only the count of keys. Keep the keys apart, on different devices or with different people: together in one place, the quorum protects nothing.
 
-**Signatures needed** and **Keys** are set by steppers. **Path** is **BIP-48** or **BIP-87** for the multisig kinds that are a descriptor, and cannot change once the wallet is made. **Account** is the account the keys are taken at, 0 at first.
+**Signatures needed** and **Keys** are set by steppers. **Path** is **BIP-48** or **BIP-87** for the multisig kinds that are a descriptor, and cannot change once the wallet is made. BIP-48 is the standard path for a multisig wallet, the one most wallets use; BIP-87 is newer, the same for every script type, and fewer wallets support it. The info button after BIP-48 says the same. **Account** is the account the keys are taken at, 0 at first.
 
 ## Keys
 

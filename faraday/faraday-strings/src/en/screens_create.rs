@@ -71,6 +71,8 @@ macro_rules! words_screens_create {
     /// Segment in `path_choice`: a multisig's own path, BIP-48's, the
     /// default.
     create_path_bip48: "BIP-48",
+    /// Tooltip on the info button after BIP-48 on the multisig path row: a second explanation on a working screen, by the owner's decision (2026-11-18, F287).
+    create_path_tip: "BIP-48 is the standard path for a multisig wallet, the one most wallets use. BIP-87 is a newer path, the same for every script type; fewer wallets support it.",
     /// Segment in `path_choice`: legacy multisig's own path.
     create_path_bip45: "m/45'",
     /// Segment in `path_choice`: BIP-87's multisig path, which leaves the

@@ -867,26 +867,49 @@ fn path_choice(ui: &mut Ui, x: f32, y: f32, w: f32, c: &crate::CreateState) -> f
         (EN.create_path_bip87, Action::CMultiPath(true)),
     ];
     let locked = c.built.is_some();
+    // The info button (F287) stands only where BIP-48 is on show, while
+    // the wallet is being made: after the closed value, or after the
+    // segmented button.
+    let tip = !locked && c.kind != crate::create::NewKind::MultiLegacy;
+    let side = ui.touch.max(tokens::ICON_BUTTON);
     if c.path_open && !locked {
         ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, EN.create_path);
+        let top = y + tokens::CREATE_FIELD_LABEL + 2.0;
+        let labels = [options[0].0, options[1].0];
+        let sw = ui.segment_width(LABEL_L.size, &labels) * 2.0;
+        // After the segments when they and the button fit one line, else
+        // at the label's line, at the right.
+        let beside = tip && sw + side <= w;
+        let room = if beside { w - side } else { w };
         let h = ui.choices(
-            (x, y + tokens::CREATE_FIELD_LABEL + 2.0, w, tokens::TOUCH),
+            (x, top, room, tokens::TOUCH),
             LABEL_L.size,
             &options,
             Some(usize::from(c.at_bip87())),
         );
+        if tip {
+            let at = if beside {
+                (x + sw, top + h / 2.0)
+            } else {
+                (x + w - side, y + tokens::GRID)
+            };
+            super::parts::info_button(ui, at, Action::CPathAbout, EN.create_path_tip);
+        }
         return tokens::CREATE_FIELD_LABEL + 2.0 + h + tokens::GAP;
     }
     let change = (!locked).then_some((EN.create_account_change, Action::CMultiPathChange));
-    change_row(
-        ui,
-        x,
-        y,
-        w,
-        EN.create_path,
-        options[usize::from(c.at_bip87())].0,
-        change,
-    )
+    let value = options[usize::from(c.at_bip87())].0;
+    let h = change_row(ui, x, y, w, EN.create_path, value, change);
+    if tip && !c.at_bip87() {
+        let end = x + ui.measure_as(BODY_M.mono(), value);
+        super::parts::info_button(
+            ui,
+            (end, y + tokens::CREATE_FIELD_LABEL + tokens::GRID),
+            Action::CPathAbout,
+            EN.create_path_tip,
+        );
+    }
+    h
 }
 
 /// The Account row (F98), for a kind whose path has an account: its

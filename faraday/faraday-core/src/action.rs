@@ -551,6 +551,9 @@ pub enum Action {
     /// The info button after "codex32" on the Backup card: shows its
     /// tooltip at once (F112, F240).
     CBackupAbout,
+    /// The info button after BIP-48 on the multisig path row: shows its
+    /// tooltip at once (F287).
+    CPathAbout,
     /// A single key's Backup card: how its key is backed up, by place in
     /// `BackupForm::ALL` (F240).
     CBackupForm(u8),
@@ -1762,6 +1765,7 @@ impl Faraday {
             | Action::CMoreKinds
             | Action::CMoreBackup
             | Action::CBackupAbout
+            | Action::CPathAbout
             | Action::CBackupForm(..)
             | Action::CM(..)
             | Action::CN(..)

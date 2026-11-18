@@ -1394,3 +1394,64 @@ fn cancelling_the_sheet_leaves_create_on_keys_with_no_wallet() {
     assert!(c.built.is_none());
     assert_eq!(c.open, Some(cstep::KEYS));
 }
+
+// ---- The info button after BIP-48 on the multisig path row (F287) ----
+
+const PATH_TIP: &str = "BIP-48 is the standard path for a multisig wallet, the one most wallets use. BIP-87 is a newer path, the same for every script type; fewer wallets support it.";
+
+fn on_quorum_of(kind: NewKind) -> Faraday {
+    let mut app = testkit::started();
+    app.press(Action::CreateWallet);
+    crate::common::ckind(&mut app, kind_index(kind));
+    app.press(Action::CNext(cstep::KIND));
+    let _ = app.frame();
+    app
+}
+
+fn path_tip_shows(app: &mut Faraday) -> bool {
+    app.drawn_texts().join(" ").contains(PATH_TIP)
+}
+
+#[test]
+fn a_press_on_the_info_button_after_bip48_shows_its_tooltip_until_the_next_press_or_escape() {
+    let mut app = on_quorum_of(NewKind::Multi);
+    assert!(app.offers(Action::CPathAbout), "the info button is there");
+    assert!(!path_tip_shows(&mut app));
+    let before = (app.create().unwrap().at_bip87(), app.create().unwrap().open);
+    app.press(Action::CPathAbout);
+    assert!(path_tip_shows(&mut app), "at once");
+    assert_eq!(
+        (app.create().unwrap().at_bip87(), app.create().unwrap().open),
+        before,
+        "nothing else changes"
+    );
+    app.event(Event::Key(Key::Escape));
+    assert!(!path_tip_shows(&mut app), "Escape puts it away");
+    app.press(Action::CPathAbout);
+    assert!(path_tip_shows(&mut app));
+    app.event(Event::Touch {
+        x: 5,
+        y: 5,
+        phase: faraday_shell_api::TouchPhase::Down,
+    });
+    assert!(!path_tip_shows(&mut app), "the next press puts it away");
+}
+
+#[test]
+fn the_info_button_stays_beside_the_segmented_button_once_change_is_pressed() {
+    let mut app = on_quorum_of(NewKind::Multi);
+    app.press(Action::CMultiPathChange);
+    let _ = app.frame();
+    assert!(app.offers(Action::CMultiPath(true)), "the choice is open");
+    assert!(app.offers(Action::CPathAbout));
+    app.press(Action::CPathAbout);
+    assert!(path_tip_shows(&mut app));
+}
+
+#[test]
+fn a_single_key_and_a_legacy_multisig_have_no_info_button_on_their_path() {
+    let app = on_quorum_of(NewKind::NativeSegwit);
+    assert!(!app.offers(Action::CPathAbout));
+    let app = on_quorum_of(NewKind::MultiLegacy);
+    assert!(!app.offers(Action::CPathAbout));
+}

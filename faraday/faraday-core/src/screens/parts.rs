@@ -514,15 +514,32 @@ fn word_at(
 /// other press.
 fn shares_tip(ui: &mut Ui, (word, word_w, end, mid): (f32, f32, f32, f32), (y, h): (f32, f32)) {
     use faraday_ui::tooltip::TipKind;
-    use tokens::{ICON_BUTTON, ICON_SMALL, shape_full};
     let a = Action::CBackupAbout;
+    // The button first: the tooltip stands over it.
+    info_button(ui, (end, mid), a, EN.create_backup_tip);
+    ui.tip_anchor((word, y, word_w, h), a, EN.create_backup_tip, TipKind::Rich);
+}
+
+/// Material's info icon button (an `ICON_BUTTON` round, an `ICON_SMALL`
+/// glyph in the secondary ink, a `TOUCH` target taking the press only on
+/// the button) with its left edge at `end`, centred on `mid`, and the
+/// rich tooltip `tip` it shows: at once at a press of `action`, and on
+/// rest or a long press. Returns the target's (x, y, side).
+pub(super) fn info_button(
+    ui: &mut Ui,
+    (end, mid): (f32, f32),
+    action: Action,
+    tip: &'static str,
+) -> (f32, f32, f32) {
+    use faraday_ui::tooltip::TipKind;
+    use tokens::{ICON_BUTTON, ICON_SMALL, shape_full};
     // The button is a full touch target around the icon button.
     let side = ui.touch.max(ICON_BUTTON);
     let (bx, by) = (end - (side - ICON_BUTTON) / 2.0, mid - side / 2.0);
     ui.press(
         Shape::new(bx, by, side, side, shape_full(side)),
         Role::OnSurface.paint(),
-        a,
+        action,
     );
     ui.icon(
         bx + (side - ICON_BUTTON) / 2.0,
@@ -532,10 +549,8 @@ fn shares_tip(ui: &mut Ui, (word, word_w, end, mid): (f32, f32, f32, f32), (y, h
         ICON_SMALL,
         Role::OnSurfaceVariant,
     );
-    // The button first: the tooltip stands over it.
-    let tip = EN.create_backup_tip;
-    ui.tip_anchor((bx, by, side, side), a, tip, TipKind::Rich);
-    ui.tip_anchor((word, y, word_w, h), a, tip, TipKind::Rich);
+    ui.tip_anchor((bx, by, side, side), action, tip, TipKind::Rich);
+    (bx, by, side)
 }
 
 /// `s` broken at its spaces into lines no wider than `max` in `size`, a

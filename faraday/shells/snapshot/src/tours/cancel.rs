@@ -24,6 +24,13 @@ pub(crate) fn cancel_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::CKind(multi));
     t.press(Action::CNext(cstep::KIND));
     t.shot("cancel-1-create")?;
+    // The info button after BIP-48 on the path row, its tooltip open.
+    t.press(Action::CPathAbout);
+    t.shot("cancel-1b-path-tip")?;
+    faraday_shell_api::App::event(
+        &mut t.app,
+        faraday_shell_api::Event::Key(faraday_shell_api::Key::Escape),
+    );
     // The sheet comes once an answer past Kind is given; before it Cancel
     // ends the flow at once.
     t.press(Action::CNext(cstep::QUORUM));

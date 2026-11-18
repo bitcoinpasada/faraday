@@ -1629,6 +1629,8 @@ impl Faraday {
             // The info button after "codex32" shows its tooltip at once
             // (F112, F240).
             Action::CBackupAbout => self.pointer.tip_show(Action::CBackupAbout),
+            // The info button after BIP-48 on the path row (F287).
+            Action::CPathAbout => self.pointer.tip_show(Action::CPathAbout),
             Action::CNext(k) => {
                 if let Some(c) = self.create.state.as_mut() {
                     c.done[k as usize] = true;
@@ -1779,6 +1781,7 @@ impl Faraday {
                 | Action::CMoreKinds
                 | Action::CMoreBackup
                 | Action::CBackupAbout
+                | Action::CPathAbout
                 | Action::CKind(_)
         ) {
             return;

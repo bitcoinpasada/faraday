@@ -298,3 +298,4 @@ Read this table, then only the decision you need.
 | [F284](decisions/F284.md) | A hand-started run's tests may be split over several runners | 2026-11-17 | Active | repository |
 | [F285](decisions/F285.md) | Make new parts replaces a key's Seed XOR set, and an old part still kept stays on the plan | 2026-11-17 | Active | backup |
 | [F286](decisions/F286.md) | Each key of a wallet of several keys carries a check: yours, checked by you or not checked, and the descriptor checksum is not proof | 2026-11-17 | Active | wallets |
+| [F287](decisions/F287.md) | A second explanation on a working screen: the info button and tooltip after BIP-48 on Make a new wallet's path row | 2026-11-18 | Active | design |
