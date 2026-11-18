@@ -93,6 +93,42 @@ impl Faraday {
         let c = self.compute();
         let held = self.held_keys_now(&c);
         self.session.set_waiting(held);
+        self.session.set_waiting_inputs(self.waiting_inputs());
+    }
+
+    /// A lookup unless what the held keys are worked out from changed:
+    /// [`Faraday::sync_waiting`] then, and nothing otherwise.
+    pub(crate) fn sync_waiting_if_changed(&mut self) {
+        if self.session.waiting_inputs() != Some(self.waiting_inputs()) {
+            self.sync_waiting();
+        }
+    }
+
+    /// A lookup. A sign of everything [`Faraday::held_keys_now`] reads: the
+    /// keys, the open vaults and their records' changes, the keys made
+    /// here or copied, and each flow's writes.
+    fn waiting_inputs(&self) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        for k in self.session.keys.all() {
+            k.fingerprint.hash(&mut h);
+        }
+        self.vaults.edits().hash(&mut h);
+        for o in &self.vaults.open {
+            o.id.hash(&mut h);
+        }
+        self.flows.made_here().hash(&mut h);
+        self.flows.copied().hash(&mut h);
+        for f in self.flows.iter() {
+            f.made.hash(&mut h);
+            f.restore.is_none().hash(&mut h);
+            f.wallet.as_ref().map(|w| (&w.held, &w.sealed)).hash(&mut h);
+            for s in &f.slots {
+                s.written.as_ref().map(|w| &w.files).hash(&mut h);
+            }
+            f.sealing.len().hash(&mut h);
+        }
+        h.finish()
     }
 
     /// Costs what `held_keys_stored_with` costs. The keys here that are

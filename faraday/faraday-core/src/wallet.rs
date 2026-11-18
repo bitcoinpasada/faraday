@@ -651,6 +651,9 @@ pub struct Session {
     /// The keys here whose backup is not done: a loaded key of a wallet
     /// reads "signs after its backup" (`Session::set_waiting`).
     waiting: Vec<Fingerprint>,
+    /// The sign of what `waiting` was last worked out from
+    /// (`Faraday::sync_waiting_if_changed`).
+    waiting_inputs: Option<u64>,
     /// How many wallets of the run now waiting were confirmed or
     /// cancelled already: the sheet's "{i} of {n}". Zero once none waits.
     wallet_asked_past: usize,
@@ -719,6 +722,7 @@ impl Default for Session {
             key_marks: crate::codex32_correct::KeyMarks::default(),
             wallet_asked: std::collections::VecDeque::new(),
             waiting: Vec::new(),
+            waiting_inputs: None,
             wallet_asked_past: 0,
             wallet_asked_last: 0,
             wallet_covered: None,
@@ -796,6 +800,7 @@ impl Session {
             key_marks: crate::codex32_correct::KeyMarks::default(),
             wallet_asked: std::collections::VecDeque::new(),
             waiting: Vec::new(),
+            waiting_inputs: None,
             wallet_asked_past: 0,
             wallet_asked_last: 0,
             wallet_covered: None,
@@ -4267,13 +4272,22 @@ impl Faraday {
         lines
     }
 
+    /// Takes wallet `i` out of the list, the one place a wallet leaves it:
+    /// a key tick drawn on the list before is dropped
+    /// ([`WalletsArea::list_changed`]).
+    pub(crate) fn remove_wallet(&mut self, i: usize) -> wallet::Wallet {
+        self.wallets.set_list_changed();
+        self.session.wallets.remove(i)
+    }
+
     /// Takes out the wallets a key loaded by this press shows to hold
     /// another seed's key under its fingerprint, and toasts the first one
-    /// ([`Session::drop_forged`]). A lookup unless a key was loaded.
+    /// ([`Session::drop_forged`]). A lookup unless a key was loaded or what
+    /// the held keys read changed.
     pub(crate) fn drop_forged_wallets(&mut self) {
         let c = self.compute();
         let dropped = self.session.drop_forged(&c);
-        self.sync_waiting();
+        self.sync_waiting_if_changed();
         if let Some((name, why)) = dropped.first() {
             self.wallets.set_list_changed();
             let text = Text::fill(EN.vaults_refused, &[name, why]);
@@ -4528,7 +4542,7 @@ impl Faraday {
             Action::PickKey(fp) => self.wallets.set_loose_pick(Some(fp)),
             Action::RemoveWallet(i) => {
                 if i < self.session.wallets.len() {
-                    self.session.wallets.remove(i);
+                    self.remove_wallet(i);
                     self.wallets.set_wallet(0);
                     self.spend_after_wallet_removed();
                 }

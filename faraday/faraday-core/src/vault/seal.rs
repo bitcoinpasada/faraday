@@ -853,6 +853,7 @@ fn lock_finish(app: &mut Faraday) {
     // A picture goes as what its codes hold, and as Other when none read.
     app.inbox.retain(|i| !i.dropped_at_lock());
     app.session.wipe();
+    app.wallets.set_list_changed();
     // The charts and the backup list kept across moved frames.
     app.kept.charts_drop();
     // The signing page's kept text of the Inbox's small files.

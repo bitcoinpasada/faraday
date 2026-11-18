@@ -1642,6 +1642,11 @@ impl Vaults {
         &self.store
     }
 
+    /// How many times the records were changed.
+    pub(crate) fn edits(&self) -> u64 {
+        self.edits
+    }
+
     /// Open vault `id`'s records, for reading.
     pub fn records(&self, id: VaultId) -> Records<'_> {
         self.store.records(id)
@@ -1652,6 +1657,7 @@ impl Vaults {
     /// way the records of an open vault change.
     pub fn edit<T>(&mut self, id: VaultId, change: impl FnOnce(&mut OpenVaults) -> T) -> T {
         let out = change(&mut self.store);
+        self.edits = self.edits.wrapping_add(1);
         // A secret changed in place leaves no old code showing.
         self.code = None;
         self.codes = None;
@@ -2163,6 +2169,9 @@ pub struct Vaults {
     /// closed together ([`Vaults::close`], [`Vaults::close_all`]). Read
     /// through [`Vaults::store`]; changed through [`Vaults::edit`].
     pub(super) store: OpenVaults,
+    /// How many times the records were changed ([`Vaults::edit`]): a
+    /// cheap sign that what was worked out from them is out of date.
+    edits: u64,
     /// The copies this device sealed this power-on: a vault's identifier,
     /// the digest of the copy opened and the digest of the copy its seal
     /// wrote. RAM only ([`Vaults::copy_descends`]).

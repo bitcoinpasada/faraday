@@ -286,3 +286,53 @@ fn a_tick_press_for_a_place_after_its_wallet_was_taken_out_changes_no_wallet() {
     app.press(Action::KeyTick(KeyBlockOf::Wallet(0), 0));
     assert_eq!(app.session.wallets[0].key_ticks(), [false, false]);
 }
+
+#[test]
+fn a_tick_press_for_a_place_drawn_before_remove_wallet_changes_no_wallet() {
+    let mut app = testkit::started();
+    let c = testkit::compute();
+    let p = "m/48'/1'/0'/0'";
+    for (name, a, b) in [("First", 0, 1), ("Second", 1, 2)] {
+        let d = format!(
+            "wsh(sortedmulti(2,{}/<0;1>/*,{}/<0;1>/*))",
+            testkit::key(a, p),
+            testkit::key(b, p)
+        );
+        app.session
+            .add_wallet_confirmed(&c, name, &d, "test", faraday_core::wallet::Origin::Named)
+            .expect("no key is loaded: not checked");
+    }
+    // The first wallet is removed: the press drawn at its place, with no
+    // frame since, is not for the wallet that moved up into it.
+    app.press(Action::RemoveWallet(0));
+    assert_eq!(app.session.wallets.len(), 1);
+    app.press(Action::KeyTick(KeyBlockOf::Wallet(0), 0));
+    assert_eq!(app.session.wallets[0].key_ticks(), [false, false]);
+}
+
+#[test]
+fn a_key_made_here_reads_what_is_true_once_it_is_removed_and_loaded_from_its_words() {
+    let mut app = app_with_wallet_file();
+    add_key(&mut app, 0);
+    let fp = last_fingerprint(&app);
+    testkit::mark_made_here(&mut app, fp);
+    app.press(Action::InboxLoad);
+    app.press(Action::WalletHold);
+    app.press(Action::OpenWallet(0));
+    let s = shown(&mut app);
+    assert!(s.contains("Key 1 · 9a6a2580 Waiting for its backup"), "{s}");
+    app.press(Action::RemoveKeys);
+    app.press(Action::RemoveKeysHold);
+    app.press(Action::OpenWallet(0));
+    let s = shown(&mut app);
+    assert!(!s.contains("Waiting for its backup"), "{s}");
+    // Its words typed again are still a key whose backup is not done, until it is.
+    add_key(&mut app, 0);
+    app.press(Action::OpenWallet(0));
+    assert!(shown(&mut app).contains("Key 1 · 9a6a2580 Waiting for its backup"));
+    testkit::release_made(&mut app, fp);
+    app.press(Action::OpenWallet(0));
+    let s = shown(&mut app);
+    assert!(s.contains("Key 1 · 9a6a2580 Can sign here"), "{s}");
+    assert!(!s.contains("Waiting for its backup"), "{s}");
+}

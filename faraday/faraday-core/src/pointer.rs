@@ -674,9 +674,6 @@ impl Faraday {
         self.later_all(inline);
         self.worker.set_inline(was_inline);
         self.backup_settle();
-        if self.session.shows_key_states() {
-            self.sync_waiting();
-        }
         self.after_input();
         self.out.redraw();
         self.out.commands.push_back(Command::Draw);

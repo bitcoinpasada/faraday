@@ -202,13 +202,14 @@ impl Session {
         self.waiting = held;
     }
 
-    /// Whether any wallet's key rows are kept, or a wallet waits to be
-    /// confirmed, or a key is marked as not backed up: the rows may need
-    /// the words of `set_waiting` worked out again.
-    pub(crate) fn shows_key_states(&self) -> bool {
-        !self.waiting.is_empty()
-            || !self.wallet_asked.is_empty()
-            || self.wallets.iter().any(|w| !w.key_checks.rows().is_empty())
+    /// The sign of what the held keys were last worked out from.
+    pub(crate) fn waiting_inputs(&self) -> Option<u64> {
+        self.waiting_inputs
+    }
+
+    /// Notes the sign of what the held keys were just worked out from.
+    pub(crate) fn set_waiting_inputs(&mut self, inputs: u64) {
+        self.waiting_inputs = Some(inputs);
     }
 
     /// Toggles the person's tick of key `key` of wallet `wallet` where the

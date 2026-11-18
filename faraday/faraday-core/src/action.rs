@@ -1161,6 +1161,7 @@ impl Faraday {
         self.import.clear_all();
         self.inbox.retain(|i| !i.dropped_at_lock());
         self.session.wipe();
+        self.wallets.set_list_changed();
         self.own_wipe();
         self.lock_secrets_off_screen();
         self.out.storage_out.push_back(StorageCommand::ForgetBoxes);

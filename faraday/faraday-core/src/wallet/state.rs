@@ -347,8 +347,8 @@ pub(crate) struct WalletsArea {
     /// The key in no wallet chosen on the Wallets tab, by fingerprint,
     /// when several are loaded and none of them in a wallet.
     loose_pick: Option<[u8; 4]>,
-    /// Set when a wallet was taken out of the list during the event that
-    /// is being handled.
+    /// Set when a wallet was taken out of the list since the last frame
+    /// ([`Faraday::remove_wallet`]).
     list_changed: bool,
     /// The chosen wallet's new name, while it is typed.
     renaming: Option<Text>,
@@ -370,12 +370,13 @@ impl WalletsArea {
         self.list_changed = true;
     }
 
-    /// Whether a wallet was taken out since the event began.
+    /// Whether a wallet was taken out since the last frame.
     pub(crate) fn list_changed(&self) -> bool {
         self.list_changed
     }
 
-    /// Clears the mark, as an event begins.
+    /// Clears the mark, as a frame is drawn: presses from then on are
+    /// drawn on the list as it is.
     pub(crate) fn clear_list_changed(&mut self) {
         self.list_changed = false;
     }

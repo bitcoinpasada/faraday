@@ -1434,7 +1434,7 @@ impl Faraday {
                 return false;
             }
         };
-        let kept = self.session.wallets.remove(w);
+        let kept = self.remove_wallet(w);
         let name = kept.name.clone();
         match self.session.add_wallet(
             &c,
@@ -1544,7 +1544,7 @@ impl Faraday {
             .spend_backup_wallet()
             .filter(|_| self.spend_backup_guessed_wallet())
         {
-            self.session.wallets.remove(w);
+            self.remove_wallet(w);
         }
         // Only a wallet guessed from Spend from a backup's own typed words is dropped
         // here; one guessed from Seeds' typed seeds (`Origin::TypedSeeds`)
@@ -2036,6 +2036,7 @@ impl Faraday {
         let before = self.session.wallets.len();
         self.session.wallets.retain(|w| w.source != WORDS_SOURCE);
         if self.session.wallets.len() != before {
+            self.wallets.set_list_changed();
             if self
                 .spend_backup
                 .state
