@@ -206,3 +206,38 @@ fn my_seed_makes_my_wallets_passphrase_fields_bring_the_keyboard_up_when_pressed
         assert!(app.keyboard_top().is_some(), "{w:?}: the second field");
     }
 }
+
+#[test]
+fn a_new_keys_typed_rolls_bring_the_keyboard_up_when_the_typed_button_or_the_box_is_pressed() {
+    use faraday_core::keygen::{Start, Way};
+    use faraday_ui::keyboard::OskPress;
+    for w in WINDOWS {
+        let mut app = window(w);
+        app.press(Action::Entry(None));
+        app.press(Action::KeyGen(None));
+        app.press(Action::KStart(Start::Make.index()));
+        app.press(Action::KWords(12));
+        app.press(Action::KNext);
+        app.press(Action::KWay(Way::Coins.index()));
+        app.press(Action::KNext);
+        app.press(Action::KByDie(true));
+        let _ = app.frame();
+        assert!(app.keyboard_top().is_none(), "{w:?}: down first");
+        tap(&mut app, Action::KTyping(true));
+        assert!(app.keyboard_top().is_some(), "{w:?}: Typed brings it up");
+        app.press(Action::Osk(OskPress::Hide));
+        let _ = app.frame();
+        assert!(app.keyboard_top().is_none(), "{w:?}: put away");
+        let (x, y, fw, fh) = app.focused_field().expect("the rolls' box");
+        for phase in [TouchPhase::Down, TouchPhase::Up] {
+            app.event(Event::Touch {
+                x: (x + fw / 2) as u16,
+                y: (y + fh / 2) as u16,
+                phase,
+            });
+        }
+        let _ = app.frame();
+        let _ = app.frame();
+        assert!(app.keyboard_top().is_some(), "{w:?}: the box brings it up");
+    }
+}

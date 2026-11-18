@@ -1481,6 +1481,10 @@ impl Faraday {
             Screen::KeyGen => self.keygen.state().is_some_and(|k| {
                 !k.locked
                     && ((k.focus.is_some() && k.open == Some(crate::keygen::kstep::KEY))
+                        // The box of rolls typed: its keys are the keyboard's.
+                        || (k.open == Some(crate::keygen::kstep::ENTER)
+                            && k.typing
+                            && k.flip_or_roll())
                         || (k.open == Some(crate::keygen::kstep::TYPED)
                             && (self.entry.state().form != crate::forms::Form::Words
                                 || self.entry.state().keys.is_none())))
