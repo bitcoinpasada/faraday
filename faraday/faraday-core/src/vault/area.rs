@@ -1647,7 +1647,7 @@ impl Vaults {
     }
 
     /// The open vaults' records, for reading. Every change goes through
-    /// [`Vaults::edit`].
+    /// [`Vaults::edit`] or [`Vaults::edit_keeping_descriptions`].
     pub fn store(&self) -> &OpenVaults {
         &self.store
     }
@@ -1663,8 +1663,9 @@ impl Vaults {
     }
 
     /// Changes open vault `id`'s records with `change`, which has the
-    /// store to edit, and drops what was read of them ([`Read`]). The one
-    /// way the records of an open vault change.
+    /// store to edit, and drops what was read of them ([`Read`]). With
+    /// [`Vaults::edit_keeping_descriptions`], the two ways the records of
+    /// an open vault change.
     pub fn edit<T>(&mut self, id: VaultId, change: impl FnOnce(&mut OpenVaults) -> T) -> T {
         let out = change(&mut self.store);
         self.edits = self.edits.wrapping_add(1);
@@ -1682,7 +1683,7 @@ impl Vaults {
     /// of a key): the descriptions read are kept for the next read, which
     /// parses none again, and nothing that follows the keys and records
     /// ([`Vaults::edits`]) is asked to work again.
-    pub fn edit_keeping_descriptions<T>(
+    pub(crate) fn edit_keeping_descriptions<T>(
         &mut self,
         id: VaultId,
         change: impl FnOnce(&mut OpenVaults) -> T,
@@ -1937,7 +1938,8 @@ pub struct OpenVault {
     /// wallets with their seeds.
     pub each_shown: bool,
     /// What is read of its records and what its searches find
-    /// ([`Kept`]); dropped by every edit.
+    /// ([`Kept`]); dropped by every edit, except that
+    /// [`Vaults::edit_keeping_descriptions`] keeps the parsed descriptions.
     pub(super) read: Kept,
     /// The SHA-256 of the slot as the file it was opened from holds it,
     /// kept at unlock ([`super::seals`]).

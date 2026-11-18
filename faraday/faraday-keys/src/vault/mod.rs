@@ -1060,7 +1060,8 @@ struct Slot {
     /// Whether each record was changed since it was read, by place.
     dirty: Vec<bool>,
     /// Whether each record was changed and never checked for the seal, by
-    /// place: set by an edit that runs no check, cleared when a check
+    /// place: set by an edit that runs no check (not by
+    /// `touch_field`, which leaves it as it was), cleared when a check
     /// passes. The next check takes these in with its own changes, so an
     /// edit is checked as one change however many came before.
     unchecked: Vec<Cell<bool>>,
@@ -1137,8 +1138,10 @@ impl Slot {
         self.changed();
     }
 
-    /// Record `i` was changed in a field no check reads (the places of the
-    /// keys ticked as checked): it counts as changed, and whether a check
+    /// Record `i` was changed in the field of the keys ticked as checked. No
+    /// check can refuse what `set_keys_checked` writes (ASCII, at most
+    /// `CHECKED_MAX_LEN` bytes), so the record's checked state need not
+    /// change: it counts as changed, and whether a check
     /// of it is still due stays as it was, so the next room check does not
     /// read its wallet again.
     fn touch_field(&mut self, i: usize) {

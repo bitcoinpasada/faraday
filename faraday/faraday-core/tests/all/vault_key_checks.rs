@@ -488,3 +488,61 @@ fn a_press_on_a_key_that_is_yours_changes_no_record() {
     let app = reloaded_from_the_record(app);
     assert_eq!(checked_keys(&app), [1, 2]);
 }
+
+fn shown(app: &mut Faraday) -> String {
+    let _ = app.frame();
+    app.drawn_texts().join(" | ")
+}
+
+#[test]
+fn a_wallet_replacing_another_after_a_tick_is_shown_as_it_is() {
+    let c = testkit::compute();
+    let mut app = unlocked(vec![("held.kdbx".to_string(), held_file())]);
+    app.press(Action::Vault(V::Item(0)));
+    app.press(Action::Vault(V::Load));
+    assert_eq!(app.session.wallets.len(), 1);
+    app.press(Action::Nav(Screen::VaultContents));
+    let before = shown(&mut app);
+    app.press(Action::KeyTick(
+        faraday_core::wallet::KeyBlockOf::Wallet(0),
+        0,
+    ));
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::Category(1)));
+    app.press(Action::Vault(V::Item(0)));
+    app.press(Action::Vault(V::HoldDelete));
+    let p = "m/48'/1'/0'/0'";
+    let other = format!(
+        "wsh(sortedmulti(3,{}/<0;1>/*,{}/<0;1>/*,{}/<0;1>/*))",
+        testkit::key(0, p),
+        testkit::key(1, p),
+        testkit::key(2, p)
+    );
+    let w = app
+        .session
+        .add_wallet_confirmed(
+            &c,
+            "Replacement",
+            &other,
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .unwrap();
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::AddKind(1)));
+    app.press(Action::Vault(V::SaveWallet(w)));
+    app.press(Action::Nav(Screen::VaultContents));
+    let after = shown(&mut app);
+    assert!(
+        before.contains("Twice") && before.contains("2 of 3"),
+        "{before}"
+    );
+    assert!(
+        after.contains("Replacement") && after.contains("3 of 3"),
+        "{after}"
+    );
+    assert!(
+        !after.contains("Twice") && !after.contains("2 of 3"),
+        "{after}"
+    );
+}
