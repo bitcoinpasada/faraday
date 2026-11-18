@@ -2866,8 +2866,11 @@ part until the person says otherwise: the section lists each by number
 and place ("Old part 2 · Place 2") with **I destroyed it**, which takes
 it off the plan, and **Still kept**, which leaves it there, marked; a
 kept part's chart sheet offers I destroyed it later: it leaves the
-plan in every open vault that keeps it, and while Back up is open it
-leaves the flow's plan, which the flow's save writes. A part the plan
+plan in every open vault that keeps it (a vault that does not keep the
+plan gets none, and the device's own record changes only once a vault
+holds the change), and while Back up is open on the wallet it leaves the
+flow's plan too, with the flow's other edits kept; at the checklist the
+flow's save writes it. A part the plan
 never placed is not asked about. A kept part's chip reads "Old part 2 ·
 still kept", the chart's line and sheet title "Seed 1: Old part 2 · still
 kept", all with the number the section gives, in a group of its own under

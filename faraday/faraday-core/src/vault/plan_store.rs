@@ -248,11 +248,17 @@ impl VaultArea {
         let Some(open) = self.open.get(v) else {
             return Vec::new();
         };
-        let spots = plan::place_map(c, shape, answers).len();
         let want = wallet::same_wallet(w.policy());
         self.described_of(c, open.id, kind::PLAN)
             .find(|(_, r, d)| *d.same == *want && reads_for(d, *r, w.policy()))
-            .map(|(_, r, _)| {
+            .map(|(_, r, d)| {
+                // The spots the record itself was made with, else the given
+                // plan's.
+                let own = r
+                    .public_text(field::PLAN_ANSWERS)
+                    .and_then(|t| answers_in_order(d, t, w.policy()))
+                    .and_then(|t| plan::Answers::from_text(shape, &t));
+                let spots = plan::place_map(c, shape, own.as_ref().unwrap_or(answers)).len();
                 r.public_all(field::PLAN_HOLDS)
                     .skip(spots)
                     .map(faraday_text::Text::from_utf8_lossy)

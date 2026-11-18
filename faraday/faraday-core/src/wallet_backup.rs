@@ -4008,7 +4008,8 @@ impl Faraday {
     /// 11, over the one it kept for the wallet: `answers`, the places'
     /// `names`, what each spot holds, work a later plan dropped
     /// (`extras`), and the notes on its map (§9.5): `notes`, or those the
-    /// record kept.
+    /// record kept. Whether the vault holds that plan after: false when
+    /// nothing was written (a toast says why), true when nothing changed.
     pub(crate) fn plan_store(
         &mut self,
         v: usize,
@@ -4017,13 +4018,13 @@ impl Faraday {
         names: &[Text],
         extras: &[Text],
         notes: Option<&[plan::Note]>,
-    ) {
+    ) -> bool {
         let c = self.compute();
         let Some(w) = self.session.wallets.get(wi) else {
-            return;
+            return false;
         };
         let Some(open) = self.vaults.open.get(v) else {
-            return;
+            return false;
         };
         let (id, name) = (open.id, open.name.clone());
         let (names, extras): (Vec<_>, Vec<_>) = (
@@ -4041,17 +4042,18 @@ impl Faraday {
             notes,
         };
         let Some(made) = self.vaults.plan_record(&c, v, &src) else {
-            return;
+            return true;
         };
         if made.refused {
             self.toast(EN.plan_store_other_key_order);
-            return;
+            return false;
         }
         let old = self.vaults.plan_take(id, &made.ours);
         let said = Text::fill(EN.plan_store_the_plan, &[&name]);
         let fitted = self.vault_push_in(v, made.record, &said);
         self.vaults.plan_restore(id, old, fitted);
         self.vaults.seals_write(&c, v);
+        fitted
     }
 }
 

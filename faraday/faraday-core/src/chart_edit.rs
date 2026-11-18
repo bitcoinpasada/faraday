@@ -294,13 +294,43 @@ impl Faraday {
         let Some((mut answers, names)) = crate::wallet_backup::plan_now(&c, self, w) else {
             return;
         };
-        let Some(wallet) = self.session.wallets.get(w) else {
-            return;
-        };
         let shape = self.plan_shape_now(w);
         let before = answers.clone();
         answers.destroy_kept(i, fp);
-        // The device's own record of the plan draws the chart first.
+        // Each open vault that keeps the wallet's plan, the one the chart
+        // is drawn from first, holds it without the part, with the lines
+        // it already holds of other vaults' seeds. The device's record
+        // follows once a vault holds it, or when no vault keeps the plan.
+        let mut vaults = self.plan_vaults_of(&c, w);
+        if let Some(at) = vaults.iter().position(|&o| o == v) {
+            vaults.swap(0, at);
+        }
+        let mut written = vaults.is_empty();
+        for o in vaults {
+            let Some(wallet) = self.session.wallets.get(w) else {
+                return;
+            };
+            let notes = self.plan_notes(&c, wallet, Some(o));
+            let notes = crate::plan::xor::notes_after_destroyed(&notes, i, fp);
+            let extras = self.vaults.plan_extras_of(&c, o, wallet, &shape, &before);
+            written |= self.plan_store(o, w, &answers, &names, &extras, Some(&notes));
+        }
+        if written {
+            self.chart_destroyed_record(w, &answers);
+        }
+        // The open Back up keeps its unsaved edits, without the part.
+        if self.backup.state().is_some_and(|b| b.wallet == w) {
+            self.backup
+                .change_answers(&shape, &|a, _| a.destroy_kept(i, fp));
+        }
+    }
+
+    /// The device's own record of wallet `w`'s plan, held without the part
+    /// the plan `answers` lost.
+    fn chart_destroyed_record(&mut self, w: usize, answers: &crate::plan::Answers) {
+        let Some(wallet) = self.session.wallets.get(w) else {
+            return;
+        };
         let sum = Text::of(wallet.checksum());
         let mut records = self.backups_area.records().to_vec();
         if let Some(r) = records
@@ -309,20 +339,6 @@ impl Faraday {
         {
             r.answers = Text::of(&answers.to_text());
             self.backups_area.set_records(records);
-        }
-        // Each open vault that keeps the wallet's plan, the one the chart
-        // is drawn from first, holds it without the part, with the lines
-        // it already holds of other vaults' seeds.
-        let mut vaults = vec![v];
-        vaults.extend(self.plan_vaults_of(&c, w).into_iter().filter(|&o| o != v));
-        for o in vaults {
-            let Some(wallet) = self.session.wallets.get(w) else {
-                return;
-            };
-            let notes = self.plan_notes(&c, wallet, Some(o));
-            let notes = crate::plan::xor::notes_after_destroyed(&notes, i, fp);
-            let extras = self.vaults.plan_extras_of(&c, o, wallet, &shape, &before);
-            self.plan_store(o, w, &answers, &names, &extras, Some(&notes));
         }
     }
 
