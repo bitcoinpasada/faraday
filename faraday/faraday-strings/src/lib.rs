@@ -9,7 +9,7 @@
 pub mod bip;
 mod en;
 
-pub use en::{EN, Strings};
+pub use en::{EN, Strings, zones};
 
 /// Fills a template's `{}` placeholders from `args`, in order. A
 /// placeholder with no argument is dropped; a spare argument is ignored.
