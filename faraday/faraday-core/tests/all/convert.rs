@@ -2019,7 +2019,9 @@ fn make_default(app: &mut Faraday, name: &str) -> String {
 
 #[test]
 fn an_aezeeds_entropy_is_the_seed_and_every_row_reads_back_to_it() {
-    let mut app = on_mainnet();
+    // LND's cipher seed is a public sample, which Mainnet refuses: it is
+    // read on the test network.
+    let mut app = testkit::started();
     open(&mut app);
     read_aezeed(&mut app, AEZEED, "");
     assert_eq!(app.screen, Screen::Convert);
@@ -2032,13 +2034,13 @@ fn an_aezeeds_entropy_is_the_seed_and_every_row_reads_back_to_it() {
         Some(AEZEED_ENTROPY)
     );
     app.press(Action::Convert(C::Step(cstep::TO)));
-    let xprv = make(&mut app, "xprv").unwrap();
+    let tprv = make(&mut app, "xprv").unwrap();
     let expected = faraday_bip::keys::MasterKey::from_seed_bytes(
         &c,
         &faraday_crypto::Secret::new(faraday_crypto::SeedBytes::new(&entropy).unwrap()),
-        faraday_bip::keys::Network::Mainnet,
+        faraday_bip::keys::Network::Testnet,
     );
-    assert_eq!(xprv, expected.xpriv_ascii().as_str());
+    assert_eq!(tprv, expected.xpriv_ascii().as_str());
 
     app.press(Action::Convert(C::Step(cstep::TO)));
     let slip = make(&mut app, "SLIP-39, 1 of 1").unwrap();
@@ -2063,7 +2065,9 @@ fn an_aezeeds_entropy_is_the_seed_and_every_row_reads_back_to_it() {
 
 #[test]
 fn the_aezeeds_result_says_its_birthday_and_what_it_covers() {
-    let mut app = on_mainnet();
+    // LND's cipher seed is a public sample, which Mainnet refuses: it is
+    // read on the test network.
+    let mut app = testkit::started();
     open(&mut app);
     read_aezeed(&mut app, AEZEED_PASS, "!very_safe_55345_password*");
     assert_eq!(app.screen, Screen::Convert);
@@ -2073,7 +2077,7 @@ fn the_aezeeds_result_says_its_birthday_and_what_it_covers() {
     assert!(texts.contains("2018-03-22"), "{texts}");
     assert!(texts.contains("On-chain coins only"), "{texts}");
     assert!(
-        texts.contains("m/84'/0'/0'") && texts.contains("m/1017'"),
+        texts.contains("m/84'/1'/0'") && texts.contains("m/1017'"),
         "{texts}"
     );
     assert!(!texts.contains("same as the source"), "{texts}");
