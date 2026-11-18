@@ -1946,6 +1946,17 @@ pub fn backup_as(app: &mut crate::Faraday, preset: crate::plan::Preset) {
             }
         }
     }
+    // The wallet's sheet back on the paper where the preset keeps it (a
+    // wallet of words alone starts without it).
+    for p in 0..plan::places_of(&want) {
+        if held(&want, At::Place(p)).contains(&What::Sheet)
+            && !held(&now(app), At::Place(p)).contains(&What::Sheet)
+        {
+            for t in things_of(What::Sheet) {
+                add_to(app, t, &|z| z == Zone::Paper(p));
+            }
+        }
+    }
     // The SeedQR off the paper where the preset keeps the words alone.
     let m = now(app);
     for p in 0..plan::places_of(&m) {

@@ -2457,6 +2457,9 @@ impl Faraday {
             Some(wf) => {
                 crate::plan::codex32::standard_over(c, &wf.shape, &sets, wf.answers.clone())
             }
+            // The seed alone gives the wallet back: Paper only, no sheet
+            // (`docs/BACKUP-FLOW.md` §19.3).
+            None if shape.words_alone() => crate::plan::Ready::PaperOnly.answers(shape),
             None => crate::plan::codex32::standard(c, shape, &sets),
         }
     }

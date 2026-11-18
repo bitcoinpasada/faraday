@@ -1016,6 +1016,37 @@ fn more_ways_to_back_up_opens_the_board_with_nothing_asked_twice() {
 }
 
 #[test]
+fn more_ways_after_the_match_asks_nothing_new_on_the_checklist() {
+    let c = testkit::compute();
+    let mut app = device(Vec::new());
+    let w = quick_open(&mut app);
+    quick_match(&mut app, w);
+    app.press(Action::BQuick(Quick::More));
+    app.press(Action::BChecklist);
+    let items = app.backup_items_now(&c);
+    assert_eq!(items, vec![Item::Templates, Item::Copy(0), Item::Envelopes]);
+    for item in items {
+        assert!(done(&app, item), "{item:?} is asked again");
+    }
+}
+
+#[test]
+fn the_board_more_ways_opens_before_the_match_has_paper_only_selected() {
+    let c = testkit::compute();
+    let mut app = device(Vec::new());
+    let _ = quick_open(&mut app);
+    app.press(Action::BQuick(Quick::More));
+    let b = app.backup().unwrap();
+    assert!(!b.quick);
+    assert_eq!(b.q, Some(qstep::BOARD));
+    app.press(Action::BChecklist);
+    assert_eq!(
+        app.backup_items_now(&c),
+        vec![Item::Templates, Item::Copy(0), Item::Envelopes]
+    );
+}
+
+#[test]
 fn continue_the_backup_reopens_the_quick_screen_left() {
     let mut app = device(Vec::new());
     let w = quick_open(&mut app);
