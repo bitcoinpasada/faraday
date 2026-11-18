@@ -1451,6 +1451,26 @@ fn a_witness_script_added_to_an_input_is_stated_when_it_hashes_to_the_program() 
 }
 
 #[test]
+fn a_witness_script_is_not_stated_by_a_witness_utxo_beside_a_false_previous_transaction() {
+    let (mut sent, _) = sent_spending(p2wsh_of(&script_of(0x51)), Held::Both);
+    let tx = sent.inner_mut().inputs[0]
+        .non_witness_utxo
+        .as_mut()
+        .unwrap();
+    tx.lock_time = bitcoin::absolute::LockTime::from_consensus(7);
+    let sent = reparse(&sent);
+    let report = adding(&sent, |i| i.witness_script = Some(script_of(0x51)));
+    assert!(
+        report.findings.iter().any(|f| f.kind
+            == Kind::FieldAdded(FieldName::Compared(Field::WitnessScript))
+            && f.at == Where::Input(0)),
+        "{:?}",
+        report.findings
+    );
+    assert!(report.info.is_empty(), "{:?}", report.info);
+}
+
+#[test]
 fn a_witness_script_of_a_p2sh_p2wsh_input_is_anchored_without_a_redeem_script() {
     let ws = script_of(0x51);
     let spk = ScriptBuf::new_p2sh(&p2wsh_of(&ws).script_hash());

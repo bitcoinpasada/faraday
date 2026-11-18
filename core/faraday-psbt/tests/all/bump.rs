@@ -231,6 +231,66 @@ fn finished_original_gets_its_fee_from_the_replacement() {
     assert_eq!(ids(&b), ["U4"]);
 }
 
+/// A finished transaction of the original's payment: no amounts stated.
+fn finished_original() -> Psbt {
+    edit(&original(), |x| {
+        for i in &mut x.inputs {
+            i.witness_utxo = None;
+            i.non_witness_utxo = None;
+            i.bip32_derivation.clear();
+            i.final_script_witness = Some(Witness::from_slice(&[vec![1u8; 71], vec![2u8; 33]]));
+        }
+        for o in &mut x.outputs {
+            o.bip32_derivation.clear();
+        }
+    })
+}
+
+/// The replacement with a previous transaction that is not the one its
+/// input spends (another txid, the same outputs), with or without the
+/// `witness_utxo` beside it.
+fn false_previous(keep_witness_utxo: bool) -> Psbt {
+    edit(&bumped(1_000), |x| {
+        for i in &mut x.inputs {
+            if let Some(tx) = &mut i.non_witness_utxo {
+                tx.lock_time = bitcoin::absolute::LockTime::from_consensus(7);
+            }
+            if !keep_witness_utxo {
+                i.witness_utxo = None;
+            }
+        }
+    })
+}
+
+#[test]
+fn a_false_previous_transaction_gives_the_finished_original_no_fee() {
+    for keep in [true, false] {
+        let mut orig = finished_original();
+        let r = false_previous(keep);
+        bump::fill_amounts(&mut orig, &r);
+        assert_eq!(orig.inner().inputs[0].witness_utxo, None);
+        let b = judge(&orig, &r, true).unwrap();
+        assert_eq!(b.result, Outcome::CannotTell);
+        assert_eq!(
+            b.lines,
+            vec![Line::AmountNotStated(outpoint(&original(), 0))]
+        );
+        assert_eq!(b.original_fee, None);
+        assert_eq!(b.replacement_fee, None);
+    }
+}
+
+#[test]
+fn a_right_previous_transaction_still_gives_the_finished_original_its_fee() {
+    let mut orig = finished_original();
+    let r = bumped(1_000);
+    assert!(r.inner().inputs[0].non_witness_utxo.is_some());
+    bump::fill_amounts(&mut orig, &r);
+    let b = judge(&orig, &r, true).unwrap();
+    assert_eq!(b.result, Outcome::OnlyFee);
+    assert_eq!(b.original_fee.unwrap().sat, 1_000);
+}
+
 #[test]
 fn payments_swapped_between_positions_and_reordered() {
     let two = |a, b, change| {

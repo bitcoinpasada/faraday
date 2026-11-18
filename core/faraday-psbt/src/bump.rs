@@ -471,21 +471,14 @@ pub fn judge(original: Side<'_>, replacement: Side<'_>, loaded: &[Fingerprint]) 
     })
 }
 
-/// The output an input spends as the PSBT states it, without checking
-/// the previous transaction's id: the `witness_utxo`, else the output the
-/// `non_witness_utxo` holds at the outpoint.
+/// Costs a txid. The output an input spends as the PSBT states it, read
+/// as the inspection reads it ([`crate::classify::spent_output`]): the
+/// output of a `non_witness_utxo` of the txid spent, else the
+/// `witness_utxo` where there is no previous transaction. A previous
+/// transaction of another txid, or without the output, states nothing,
+/// beside a `witness_utxo` or not.
 fn stated(psbt: &bitcoin::Psbt, index: usize) -> Option<TxOut> {
-    let input = psbt.inputs.get(index)?;
-    if let Some(out) = &input.witness_utxo {
-        return Some(out.clone());
-    }
-    let vout = psbt.unsigned_tx.input.get(index)?.previous_output.vout;
-    input
-        .non_witness_utxo
-        .as_ref()?
-        .output
-        .get(vout as usize)
-        .cloned()
+    crate::classify::spent_output(psbt, index).cloned()
 }
 
 /// Sets the `witness_utxo` of each input of `original` that states no

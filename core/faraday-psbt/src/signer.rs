@@ -1627,17 +1627,13 @@ fn stated_field(sent: &Psbt, returned: &Psbt, at: Where, field: Field) -> Option
     }
 }
 
-/// The output input `i` spends, from Sent's own UTXO fields only: a
-/// non-witness UTXO with the previous txid, or a witness UTXO.
+/// Costs a txid. The output input `i` spends, from Sent's own UTXO fields
+/// only, as the inspection reads it: the output of a non-witness UTXO of
+/// the previous txid, else the witness UTXO where there is no previous
+/// transaction. A previous transaction of another txid, or without the
+/// output, states nothing, and the witness UTXO beside it is no answer.
 fn sent_spent_output(sent: &Psbt, i: usize) -> Option<&bitcoin::TxOut> {
-    let input = sent.inner().inputs.get(i)?;
-    let previous = sent.unsigned_tx().input.get(i)?.previous_output;
-    if let Some(tx) = &input.non_witness_utxo
-        && tx.compute_txid() == previous.txid
-    {
-        return tx.output.get(previous.vout as usize);
-    }
-    input.witness_utxo.as_ref()
+    crate::classify::spent_output(sent.inner(), i)
 }
 
 /// Two signatures are the same one's: the same key, leaf and algorithm,

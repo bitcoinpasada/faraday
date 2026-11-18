@@ -47,6 +47,26 @@ fn pay_other() -> Vec<u8> {
     psbt.to_base64().into_bytes()
 }
 
+/// The Core replacement whose inputs carry a previous transaction that is
+/// not the one they spend (another lock time, so another txid), with the
+/// `witness_utxo` beside it kept or dropped.
+fn false_previous(keep_witness_utxo: bool) -> Vec<u8> {
+    let c = testkit::compute();
+    let text = String::from_utf8(vector("bump-core-replacement.psbt")).unwrap();
+    let mut psbt = faraday_psbt::Psbt::parse_base64(&c, text.trim()).unwrap();
+    for input in &mut psbt.inner_mut().inputs {
+        let tx = input
+            .non_witness_utxo
+            .as_mut()
+            .expect("Core's replacement holds the previous transaction");
+        tx.lock_time = faraday_bip::bitcoin::absolute::LockTime::from_consensus(7);
+        if !keep_witness_utxo {
+            input.witness_utxo = None;
+        }
+    }
+    psbt.to_base64().into_bytes()
+}
+
 fn files(list: &[(&str, Vec<u8>)]) -> Vec<(String, Vec<u8>)> {
     list.iter()
         .map(|(n, b)| (n.to_string(), b.clone()))
@@ -247,4 +267,23 @@ fn a_replacement_that_pays_another_address_shows_its_lines_and_signing_goes_on()
     let s = app.spend().unwrap();
     assert!(s.refused.is_none(), "{:?}", s.refused);
     assert!(s.steps.contains(&step::SIGN));
+}
+
+#[test]
+fn a_false_previous_transaction_gives_the_finished_original_no_fee() {
+    for keep in [true, false] {
+        let list = [
+            ("false-replacement.psbt", false_previous(keep)),
+            ("bump-core-original.tx", vector("bump-core-original.tx")),
+        ];
+        let mut app = reviewing(&list, "false-replacement.psbt");
+        let from = ["bump-core-original.tx"];
+        let only = fill(EN.bump_only_fee_from, &from);
+        assert!(!shows(&mut app, &only), "{:?}", texts(&mut app));
+        assert!(
+            !has_part(&mut app, "in the original"),
+            "{:?}",
+            texts(&mut app)
+        );
+    }
 }
