@@ -83,7 +83,10 @@ fn a_press_on_a_bar_or_field_that_takes_typing_brings_the_keyboard_up_and_again_
         app.press(Action::Sweep(faraday_core::seeds::sweep::SweepAction::Open));
         let _ = app.frame();
         assert!(app.keyboard_top().is_none(), "{w:?}: sweep down first");
-        tap(&mut app, Action::Sweep(faraday_core::seeds::sweep::SweepAction::Field));
+        tap(
+            &mut app,
+            Action::Sweep(faraday_core::seeds::sweep::SweepAction::Field),
+        );
         assert!(app.keyboard_top().is_some(), "{w:?}: the sweep field");
 
         // The guide's contents, a sheet whose Find takes typing at once.
