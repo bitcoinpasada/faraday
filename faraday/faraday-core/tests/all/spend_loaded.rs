@@ -122,11 +122,20 @@ fn a_wallet_made_here_with_its_keys_loaded_asks_for_no_seeds() {
             faraday_core::wallet::Origin::Statement,
         )
         .unwrap();
-    // With every key checked the review shows no block of keys.
-    for k in 0..app.session.wallets[0].key_checks().len() {
-        let of = faraday_core::wallet::KeyBlockOf::Wallet(0);
-        app.press(Action::KeyTick(of, k as u8));
-    }
+    // The keys not checked show their block above Who signs: a display
+    // tall enough that nothing of the page is below the fold.
+    app.event(Event::Display(DisplayInfo {
+        width: 1366,
+        height: 4000,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
     app.press(Action::Nav(Screen::SpendBackup));
     app.press(Action::SpendBackup(F::SpendFrom(0)));
     let _ = app.frame();

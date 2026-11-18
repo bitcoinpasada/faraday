@@ -343,7 +343,8 @@ pub(crate) fn keys_caution_text(wallet: &super::Wallet) -> Option<Text> {
 }
 
 /// What a spend's review shows of the wallet's keys: the block in full,
-/// tickable, while a key is not checked; one green line once none is;
+/// tickable, while a key is not checked or is wrong; one green line once
+/// every key is checked;
 /// nothing for a wallet of one key. Returns the height, the gap under it
 /// included.
 pub(crate) fn draw_review_keys(
@@ -352,11 +353,13 @@ pub(crate) fn draw_review_keys(
     ui: &mut Ui,
     (x, y, w): (f32, f32, f32),
 ) -> f32 {
-    if wallet.keys_unchecked() > 0 {
-        return draw_key_block(wallet, of, ui, (x, y, w)) + GAP_SMALL;
-    }
-    if wallet.key_checks().is_empty() {
+    let rows = wallet.key_rows();
+    if rows.len() < 2 {
         return 0.0;
     }
-    ui.wrap_as((x, y, w), BODY_M, Role::Ok, EN.keycheck_line_all) + GAP
+    // The count line's rule: green only where it reads green.
+    match line_of(rows) {
+        Some((text, Role::Ok)) => ui.wrap_as((x, y, w), BODY_M, Role::Ok, &text) + GAP,
+        _ => draw_key_block(wallet, of, ui, (x, y, w)) + GAP_SMALL,
+    }
 }

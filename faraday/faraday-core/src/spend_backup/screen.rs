@@ -1585,6 +1585,7 @@ fn loaded_in_sparrow(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         EN.spend_backup_receive_address,
     );
     cy += ui.advance_as(LABEL_L, 22.0);
+    cy += crate::screens::keys_caution(ui, wl, (x, cy, w));
     let (addr, held) = app.receive_line(wl, false, 0);
     let open = (!held).then_some(Action::ShowCode(crate::Code::Receive(i, 0)));
     let role = if held { Role::Warning } else { Role::OnSurface };
@@ -1737,6 +1738,7 @@ fn check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     ] {
         ui.text_as(x, cy, LABEL_L, Role::OnSurfaceVariant, head);
         cy += ui.line_as(LABEL_L) + faraday_draw::tokens::GAP_SMALL;
+        cy += crate::screens::keys_caution(ui, wl, (x, cy, w));
         for k in 0..n {
             let (a, held) = app.receive_line(wl, change, k);
             let col = if held { Role::Warning } else { Role::OnSurface };

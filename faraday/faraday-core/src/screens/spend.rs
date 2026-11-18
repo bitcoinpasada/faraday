@@ -875,6 +875,7 @@ impl StepView<'_> {
             Some(wl) => {
                 // Where an address starts beside its label.
                 let beside = 96.0;
+                cy += super::parts::keys_caution(ui, wl, (x, cy, w));
                 for (label, change, idx) in [
                     (EN.step_receive_0_0, false, 0),
                     (EN.step_receive_0_1, false, 1),

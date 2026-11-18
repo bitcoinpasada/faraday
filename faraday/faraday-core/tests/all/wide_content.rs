@@ -119,11 +119,6 @@ fn a_wallet_cards_first_receive_address_is_drawn_on_one_line() {
     app.press(Action::Nav(Screen::Wallets));
     for i in 0..app.session.wallets.len() {
         app.press(Action::PickWallet(i));
-        // With every key checked there is no caution over the address.
-        for k in 0..app.session.wallets[i].key_checks().len() {
-            let of = faraday_core::wallet::KeyBlockOf::Wallet(i as u16);
-            app.press(Action::KeyTick(of, k as u8));
-        }
         let _ = app.frame();
         let texts: Vec<String> = app
             .drawn_text_boxes()
@@ -135,7 +130,13 @@ fn a_wallet_cards_first_receive_address_is_drawn_on_one_line() {
             .iter()
             .position(|t| t == "First receive address · 0/0")
             .expect("the first receive address's label");
-        let line: String = texts[at + 1].split_whitespace().collect();
+        // The first line after the label that starts as an address: a
+        // caution over it, where keys are not checked, is not it.
+        let line: String = texts[at + 1..]
+            .iter()
+            .map(|t| t.split_whitespace().collect::<String>())
+            .find(|t| t.starts_with("bc1") || t.starts_with("tb1"))
+            .expect("the address after its label");
         assert!(line.starts_with("bc1") || line.starts_with("tb1"), "{line}");
         assert!(
             line.len() == 42 || line.len() == 62,
