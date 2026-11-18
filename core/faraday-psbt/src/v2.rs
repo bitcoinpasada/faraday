@@ -188,8 +188,8 @@ pub enum Error {
     TrailingBytes,
     /// `PSBT_GLOBAL_VERSION` is absent or not 2.
     Version,
-    /// A field BIP-370 requires is absent, or has the wrong length; the
-    /// text names it.
+    /// A field BIP-370 requires is absent, has the wrong length, or
+    /// carries key data it is defined without; the text names it.
     Field(&'static str),
     /// `PSBT_GLOBAL_UNSIGNED_TX` is present, which version 2 excludes.
     UnsignedTx,
@@ -376,11 +376,13 @@ pub(crate) fn read_map(bytes: &[u8], at: &mut usize) -> Result<Map, Error> {
     Ok(map)
 }
 
-/// The version 2 fields BIP-370 defines with no key data, by map: a
-/// pair of one of these types whose key is longer than the type byte is
-/// refused by both readers, as Bitcoin Core and HWI refuse it. BIP-375's
-/// fields carry key data and are not listed.
+/// The fields BIP-370 defines with no key data, by map, and the unsigned
+/// transaction's type, which BIP-174 defines with none: a pair of one of
+/// these types whose key is longer than the type byte is refused by both
+/// readers, as Bitcoin Core and HWI refuse it. BIP-375's fields are not
+/// listed: a file with one is refused when read for signing.
 const GLOBAL_UNKEYED: &[(u8, &str)] = &[
+    (GLOBAL_UNSIGNED_TX, "PSBT_GLOBAL_UNSIGNED_TX"),
     (GLOBAL_TX_VERSION, "PSBT_GLOBAL_TX_VERSION"),
     (GLOBAL_FALLBACK_LOCKTIME, "PSBT_GLOBAL_FALLBACK_LOCKTIME"),
     (GLOBAL_INPUT_COUNT, "PSBT_GLOBAL_INPUT_COUNT"),

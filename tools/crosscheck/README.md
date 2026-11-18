@@ -756,14 +756,14 @@ difference"), and says why.
     decides them (the stream ending inside a map checked, as the
     specification marked it not checked).
   - PSBT version 2 (`faraday_psbt::v2`): a BIP-370 key with key data is
-    an unknown key; BIP-174's and BIP-371's fields inside are checked
-    only when the PSBT is bridged to version 0, except a taproot
-    signature whose sighash byte is 0, refused on reading. HWI checks
-    them on reading; the area requires HWI and btclib to read the PSBT
-    without those pairs, to Faraday's locktime and transaction. Where
-    HWI reads a value shorter than its length says and makes a version 0
-    PSBT of it, which Faraday does not, Core must refuse the version 0
-    PSBT of the PSBT's own pairs, and btclib refuses the PSBT.
+    refused, as HWI refuses it; BIP-174's and BIP-371's fields inside
+    are checked only when the PSBT is bridged to version 0, except a
+    taproot signature whose sighash byte is 0, refused on reading. HWI
+    checks them on reading; the area requires HWI and btclib to read the
+    PSBT without those pairs, to Faraday's locktime and transaction.
+    Where HWI reads a value shorter than its length says and makes a
+    version 0 PSBT of it, which Faraday does not, Core must refuse the
+    version 0 PSBT of the PSBT's own pairs, and btclib refuses the PSBT.
   - btclib reads some PSBTs that Core and Faraday refuse (a key with key
     data on a field that takes none, for one): btclib is not asked to
     refuse what Core refuses, only what Core and HWI read and Faraday

@@ -86,8 +86,8 @@ Still Faraday's own, and counted as known differences:
   Faraday does, and btclib refuses each, which decides them. The area
   holds no rule of its own for them.
 - Faraday's version 2 reader leaves BIP-174's and BIP-371's fields to the
-  bridge to version 0 and reads a BIP-370 key with key data as an
-  unknown key. Where HWI refuses such a PSBT, HWI must read it once those
+  bridge to version 0 and refuses a BIP-370 key with key data, as HWI
+  does. Where HWI refuses a PSBT Faraday reads, HWI must read it once those
   pairs are taken out (`faraday_leaves`), to the same locktime and
   transaction, and so must btclib. Where HWI takes a field's value
   shorter than its length says and writes it out repaired, and Faraday
@@ -363,8 +363,9 @@ OUTPUT_SHARED = {0x00, 0x01, 0x02, 0x05, 0x06, 0x07}
 
 def faraday_leaves(raw):
     """The version 2 PSBT without the pairs Faraday's reader does not
-    read: BIP-174's and BIP-371's fields, and BIP-370's keys with key
-    data (unknown keys to it). None when it cannot be split."""
+    read: BIP-174's and BIP-371's fields (a BIP-370 key with key data is
+    left out too, though Faraday refuses a PSBT that holds one). None
+    when it cannot be split."""
     try:
         maps, n_in = split(raw)
     except Refused:
@@ -1005,8 +1006,8 @@ class Psbt(Area):
             'a map checked, as the specification marked it not checked).'
         ),
         (
-            'PSBT version 2 (`faraday_psbt::v2`): a BIP-370 key with key data is an unknown'
-            " key; BIP-174's and BIP-371's fields inside are checked only when the PSBT is "
+            'PSBT version 2 (`faraday_psbt::v2`): a BIP-370 key with key data is refused,'
+            " as HWI refuses it; BIP-174's and BIP-371's fields inside are checked only when the PSBT is "
             'bridged to version 0, except a taproot signature whose sighash byte is 0, '
             'refused on reading. HWI checks them on reading; the area requires HWI and '
             "btclib to read the PSBT without those pairs, to Faraday's locktime and "
