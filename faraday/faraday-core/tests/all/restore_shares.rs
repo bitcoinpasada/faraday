@@ -210,3 +210,81 @@ fn a_vaults_sheet_of_a_wallet_without_the_keys_in_hand_is_not_taken() {
     assert!(app.restore().and_then(|r| r.wallet).is_none(), "a wallet");
     assert_eq!(app.session.wallets.len(), wallets);
 }
+
+/// A Taproot multisig's descriptor from the test kits, without its checksum.
+fn taproot_descriptor() -> String {
+    let k = testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "taproot-multisig")
+        .expect("kit");
+    k.descriptor.split('#').next().unwrap().to_string()
+}
+
+/// `sheet` with the value of its first key line made by `key`.
+fn with_key(sheet: &str, key: impl Fn(&str) -> String) -> String {
+    let mut done = false;
+    let mut out = String::new();
+    for line in sheet.lines() {
+        match line.split_once(": ") {
+            Some((label, value)) if label.len() == 8 && !done => {
+                done = true;
+                out.push_str(&format!("{label}: {}\n", key(value)));
+            }
+            _ => {
+                out.push_str(line);
+                out.push('\n');
+            }
+        }
+    }
+    out
+}
+
+/// `sheet` with its first `Derivation:` value replaced by `path`.
+fn with_path(sheet: &str, path: &str) -> String {
+    let mut done = false;
+    let mut out = String::new();
+    for line in sheet.lines() {
+        if line.starts_with("Derivation: ") && !done {
+            done = true;
+            out.push_str(&format!("Derivation: {path}\n"));
+        } else {
+            out.push_str(line);
+            out.push('\n');
+        }
+    }
+    out
+}
+
+/// A key value that is more than one key, or a key with descriptor text
+/// after it, and a derivation that is more than a path, make a sheet
+/// unreadable: no wallet is built from it, whether the sheets are of a
+/// Taproot multisig or of a Coldcard-format one.
+#[test]
+fn a_sheet_whose_key_or_derivation_holds_more_than_one_is_refused() {
+    for descriptor in [taproot_descriptor(), two_of_three(0)] {
+        let (good, _) = sheets("Savings", &descriptor);
+        assert!(merge(&good[..2]).expect("merges").whole.is_some());
+        let other = good[1]
+            .lines()
+            .find_map(|l| l.split_once(": ").filter(|(k, _)| k.len() == 8))
+            .map(|(_, v)| v.to_string())
+            .expect("a key line");
+        for i in 0..3 {
+            let sheet = with_key(&good[0], |v| match i {
+                0 => format!("{v}/<0;1>/*,[11223344/48h/0h/0h/2h]{other}"),
+                1 => format!("{v}/<0;1>/*"),
+                _ => format!("{v},{other}"),
+            });
+            assert!(merge(&[sheet, good[1].clone()]).is_err());
+        }
+        for path in [
+            "m/48'/1'/0']xpub,[11223344/48'",
+            "m/48'/1'/0',[11223344/48'",
+            "m/48'/1'/0'/2']",
+            other.as_str(),
+        ] {
+            let sheet = with_path(&good[0], path);
+            assert!(merge(&[sheet, good[1].clone()]).is_err(), "{path}");
+        }
+    }
+}

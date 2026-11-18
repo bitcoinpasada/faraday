@@ -39,6 +39,16 @@ pub struct ConfigParts {
 /// copied fifteen times.
 const MAX_DERIVATION_LEN: usize = 1 + 255 * 12;
 
+/// Whether `v` is a derivation path alone: `m`, or steps with an optional
+/// leading `m/`, `'` or `h` marking the hardened ones. A share without a
+/// `Derivation:` line has none, so empty passes.
+fn is_path(v: &str) -> bool {
+    use std::str::FromStr as _;
+    let v = v.strip_prefix(['m', 'M']).unwrap_or(v);
+    let body = v.strip_prefix('/').unwrap_or(v);
+    body.is_empty() || faraday_bip::bitcoin::bip32::DerivationPath::from_str(body).is_ok()
+}
+
 /// Reads a multisig config's lines without requiring every key. A
 /// policy of more than [`multisig_config::MAX_KEYS`] keys, more key
 /// lines than the policy names, a sixteenth key line or a derivation longer than a BIP-32 path can be is refused,
@@ -66,12 +76,17 @@ pub fn parts(text: &str) -> Option<ConfigParts> {
                 if v.len() > MAX_DERIVATION_LEN {
                     return None;
                 }
+                if !is_path(v) {
+                    return None;
+                }
                 derivation = Text::of(v);
             }
             fp if fp.len() == 8 && fp.chars().all(|c| c.is_ascii_hexdigit()) => {
                 if keys.len() == multisig_config::MAX_KEYS {
                     return None;
                 }
+                // One extended public key, as a Coldcard file reads it.
+                faraday_bip::slip132::decode(v).ok()?;
                 keys.push((Text::of(fp), derivation.clone(), Text::of(v)));
             }
             _ => {}
@@ -1478,11 +1493,12 @@ mod tests {
     /// add up to more keys than the policy are refused.
     #[test]
     fn a_config_is_read_up_to_fifteen_keys_and_refused_past_them() {
+        const KEY: &str = "xpub6EeqK2JLwngrHJEQ4X4iqrySZV9qU3TgwMgf6NStLZa37AfNiHTtTE9ji1F9YQDLArJMLy8sw3Q2samVj5VQQjaaUHr5z2Hz57NWHJCfh31";
         let config = |n: usize, lines: usize, derivation: &str| {
             use std::fmt::Write as _;
             let mut s = text!("Policy: 2 of {n}\nFormat: P2WSH\nDerivation: {derivation}\n");
             for i in 0..lines {
-                let _ = writeln!(s, "{i:08x}: xpub{i}");
+                let _ = writeln!(s, "{i:08x}: {KEY}");
             }
             s
         };
@@ -1498,7 +1514,7 @@ mod tests {
             use std::fmt::Write as _;
             let mut s = Text::of("Policy: 2 of 3\nFormat: P2WSH\nDerivation: m/0\n");
             for i in first..first + 2 {
-                let _ = writeln!(s, "{i:08x}: xpub{i}");
+                let _ = writeln!(s, "{i:08x}: {KEY}");
             }
             s
         };
