@@ -189,6 +189,10 @@ jobs:
           deps: build-tests
       - name: Compile the tests and archive them
         run: cargo nextest archive --locked --workspace --archive-file nextest-archive.tar.zst
+      # The vendored QR reader is not a workspace member, so the archive
+      # leaves out its own tests; they are quick and run here.
+      - name: Run the vendored QR reader's tests
+        run: cargo nextest run --locked -p rqrr
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: nextest-archive

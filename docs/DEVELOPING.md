@@ -131,7 +131,7 @@ recipe (F243, F284), nothing else.
 
 ```
 just                      the tests, then every lint run to the end (lint-all)
-just test                 the tests alone (nextest, then the doc tests)
+just test                 the tests alone (nextest over the workspace, then the vendored QR reader's own, then the doc tests)
 just test-doc             the doc tests alone
 just test-i686            the tests of the parser crates (sb, fat, files, disk, codec, psbt, bip) as a 32-bit program, as the Pi runs them
 just lint                 clippy with warnings as errors, fmt, and the repository's lints, in five parts:
@@ -160,7 +160,7 @@ GitHub Actions runs `just` on every push to main and every pull
 request (`.github/workflows/check.yml`, F183), on Ubuntu 26.04 with
 the tools above at the versions it names, spread over twenty-five jobs:
 one compiles the tests once and archives them (`cargo nextest
-archive`), fourteen each run a fourteenth of them (`--partition
+archive`, and the vendored QR reader's own tests, which are not in the workspace), fourteen each run a fourteenth of them (`--partition
 hash:k/14`, a failed test run once more and named in the job's summary when it then passes: `.config/nextest.toml`), and the doc tests, the parser crates' tests on a 32-bit
 target and the five parts of `just lint` run
 beside them, after a first job that does nothing on a pull request or a run

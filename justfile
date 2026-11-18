@@ -8,9 +8,12 @@ default: test test-i686 lint-all
 # the test binaries in parallel where `cargo test` runs them one after
 # another; it does not run doc tests, so those
 # follow. `cargo install cargo-nextest --locked` puts it on a machine.
+# `third_party/rqrr` is vendored and not a workspace member, so `--workspace`
+# leaves it out: its own tests run in a second command.
 [group('test')]
 test: && test-doc
     cargo nextest run --locked --workspace
+    cargo nextest run --locked -p rqrr
 
 # The doc tests alone.
 [group('test')]
