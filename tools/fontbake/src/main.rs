@@ -179,12 +179,15 @@ const ICONS: &[u32] = &[
 /// Icons whose outline is a Material Symbols SVG path, kept in
 /// `tools/fonts/material-symbols/` (Apache License 2.0,
 /// `tools/fonts/LICENSE-material-symbols.txt`): code point and file. The
-/// SVG's 960-unit box is the icon face's em.
-const SVG_ICONS: &[(u32, &str)] = &[
-    (0xE930, "material-symbols/fact_check_fill1_24px.svg"),
-    (0xE931, "material-symbols/push_pin_24px.svg"),
-    (0xE932, "material-symbols/push_pin_fill1_24px.svg"),
-    (0xE933, "material-symbols/verified_user_fill1_24px.svg"),
+/// SVG's 960-unit box is the icon face's em. The third field enlarges the
+/// glyph about the em's centre: Material Symbols leaves a margin inside its
+/// box, so a shield's ink is 0.83 em tall where Font Awesome's house, lock
+/// and file are 1.0 em, and the shield at 1.2 times matches them.
+const SVG_ICONS: &[(u32, &str, f32)] = &[
+    (0xE930, "material-symbols/fact_check_fill1_24px.svg", 1.0),
+    (0xE931, "material-symbols/push_pin_24px.svg", 1.0),
+    (0xE932, "material-symbols/push_pin_fill1_24px.svg", 1.0),
+    (0xE933, "material-symbols/verified_user_fill1_24px.svg", 1.2),
 ];
 
 /// The mono face: Iosevka's default Regular cut, SIL OFL 1.1
@@ -349,6 +352,9 @@ struct Outline {
 struct Collector {
     out: Vec<u8>,
     scale: f64,
+    /// Added to every coordinate after scaling, in the file's font units;
+    /// zero except for a glyph that is enlarged about the em's centre.
+    shift: (f64, f64),
     open: bool,
 }
 
@@ -357,14 +363,20 @@ impl Collector {
         Collector {
             out: Vec::new(),
             scale,
+            shift: (0.0, 0.0),
             open: false,
         }
     }
 
     fn push(&mut self, tag: u8, coords: &[f32]) {
         self.out.push(tag);
-        for &v in coords {
-            let u = (f64::from(v) * self.scale).round();
+        for (i, &v) in coords.iter().enumerate() {
+            let shift = if i % 2 == 0 {
+                self.shift.0
+            } else {
+                self.shift.1
+            };
+            let u = (f64::from(v) * self.scale + shift).round();
             let u = i16::try_from(u as i64).expect("coordinate fits font units");
             self.out.extend_from_slice(&u.to_le_bytes());
         }
@@ -517,10 +529,14 @@ fn svg_tokens(d: &str) -> Vec<Result<f32, char>> {
 /// An SVG icon as a glyph: the path's commands M L H V Q T Z, absolute
 /// and relative, in a box `size` units square whose top is `-size`
 /// (Material Symbols' `0 -960 960 960`), scaled to `upem` and flipped to
-/// y up.
-fn outline_svg(svg: &str, size: f32, upem: u16) -> Outline {
-    let scale = f64::from(upem) / f64::from(size);
+/// y up, then enlarged by `fit` about the box's centre.
+fn outline_svg(svg: &str, size: f32, fit: f32, upem: u16) -> Outline {
+    let unit = f64::from(upem) / f64::from(size);
+    let scale = unit * f64::from(fit);
+    // The enlargement keeps the box's centre (half the em) where it was.
+    let centre = f64::from(upem) / 2.0 * (1.0 - f64::from(fit));
     let mut collector = Collector::new(scale);
+    collector.shift = (centre, centre);
     let (mut x0, mut y0, mut x1, mut y1) = (f32::MAX, f32::MAX, f32::MIN, f32::MIN);
     let mut note = |x: f32, y: f32| {
         x0 = x0.min(x);
@@ -611,10 +627,10 @@ fn outline_svg(svg: &str, size: f32, upem: u16) -> Outline {
     Outline {
         advance: upem,
         bbox: [
-            rescale(x0, scale),
-            rescale(y0, scale),
-            rescale(x1, scale),
-            rescale(y1, scale),
+            rescale(x0, scale) + centre.round() as i16,
+            rescale(y0, scale) + centre.round() as i16,
+            rescale(x1, scale) + centre.round() as i16,
+            rescale(y1, scale) + centre.round() as i16,
         ],
         commands: collector.out,
     }
@@ -776,10 +792,10 @@ fn ensure_iosevka(fonts_dir: &Path) {
 
 /// The SVG icon at code point `c`, if it is one of [`SVG_ICONS`].
 fn svg_icon(fonts_dir: &Path, c: char, upem: u16) -> Option<Outline> {
-    let (_, file) = SVG_ICONS.iter().find(|(cp, _)| *cp == c as u32)?;
+    let (_, file, fit) = SVG_ICONS.iter().find(|(cp, _, _)| *cp == c as u32)?;
     let svg =
         fs::read_to_string(fonts_dir.join(file)).unwrap_or_else(|e| panic!("read {file}: {e}"));
-    Some(outline_svg(&svg, 960.0, upem))
+    Some(outline_svg(&svg, 960.0, *fit, upem))
 }
 
 fn main() {
