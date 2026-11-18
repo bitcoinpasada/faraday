@@ -391,11 +391,33 @@ fn transfer_is_offered_only_in_the_online_app() {
     let dir = downloads("offline");
     let path = dir.join("a.psbt");
     fs::write(&path, b"x").unwrap();
-    // A small panel tall enough that Home's last tile is on screen.
+    // A small panel, where Home is a page taller than the window and the
+    // last tile is reached by scrolling.
     for (w, h, dpi) in [(1280, 800, 160), (480, 1600, 286)] {
         let mut app = desktop();
         display(&mut app, w, h, dpi);
         let _ = app.frame();
+        let shown = |app: &Faraday| {
+            app.where_offered(Action::Nav(Screen::Transfer))
+                .is_some_and(|(_, y)| y < h)
+        };
+        for _ in 0..80 {
+            if shown(&app) {
+                break;
+            }
+            app.event(Event::Scroll {
+                x: w / 2,
+                y: 70,
+                dy: 60,
+            });
+            app.event(Event::ScrollEnd { x: w / 2, y: 70 });
+            let _ = app.frame();
+        }
+        assert!(
+            shown(&app),
+            "{w}x{h}: {:?}",
+            app.where_offered(Action::Nav(Screen::Transfer))
+        );
         assert!(app.offers(Action::Nav(Screen::Transfer)), "{w}x{h}");
 
         let mut device = Faraday::new();
