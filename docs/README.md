@@ -54,7 +54,7 @@ need. Each document's header says what kind it is:
 | How does text get larger for people who need it? | `docs/TEXT-SIZE.md` |
 | Where does the caret go in a text field, and how is it moved? | `docs/TEXT-CURSOR.md` |
 | How is a screen laid out at each window size, from the Pi to a monitor? | `docs/LAYOUT.md` |
-| What does Home show at each size, and in which order do the destinations stand? | `docs/HOME.md` (specified); what is built, `docs/LAYOUT.md` §3, §4 |
+| What does Home show at each size, and in which order do the destinations stand? | `docs/HOME.md`; the layouts' rules, `docs/LAYOUT.md` §3, §4 |
 | Which way up is a 7-inch or 10-inch panel, and how are its screen and touch turned? | `docs/ORIENTATION.md` |
 | How does Faraday Demo show its screens at another screen's size? | `docs/DESKTOP-HOST.md` §10 |
 | What stands outside the app on Faraday Demo: the sticks, the size, Practice's aids? | `docs/DESKTOP-HOST.md` |
@@ -107,6 +107,7 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 - `docs/GPG-PAPERKEY.md`: Restore a GPG key from its paperkey. Built (F169, F215): reading a paperkey and a certificate, the restore and its tests against paperkey and GnuPG in `faraday-pgp`; the restore set in `faraday-keys`; the flow in faraday-core, `faraday/faraday-core/src/backup_flow/gpg_restore.rs` and its screen; the public key and the paperkey scanned as codes, and the paperkey shown as a code.
 - `docs/GUIDE-IN-APP.md`: The guide: one guide, in the app, opened where the person is. Built (F247).
 - `docs/HARDWARE.md`: Hardware: boards, platforms and screens. Built: every platform and screen Faraday is built for, and the boards considered and not supported.
+- `docs/HOME.md`: Home at each layout. Built: the wide layout's Home, the phone-size window's and the rail's windows' (one column with the search bar and the places), and the Pi's menu.
 - `docs/IMPACT.md`: Impact: what a change brings with it. Built (F149, narrowed by F258).
 - `docs/KEF.md`: KEF: Krux's encrypted code, read in full and written in two versions. Built (F219, amended by F261).
 - `docs/KERNEL-PATCHES.md`: The kernel patches the images carry. Built.
@@ -143,7 +144,6 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 - `docs/DRAW-COST.md`: Cheaper drawing: what is left. Specified; none of it is built and none of it is timed.
 - `docs/FLOWS.md`: Flows. Built but for the items under Open; the code is the record where it differs.
 - `docs/FRAMES.md`: Frames at the panel's rate. Specified; the first two steps of §3 are built (`Ui::region`, the whole-pixel offset, the pages and panes laid out from offset 0 and the content layer; the moved frame with `moved.rs`, `Out::redraw` and `Out::moved`, `Parts::moved` and the two tests of §3.2 and §3.4, opted in by the small panel's Settings, Wallets, a wallet's page, Files, Vault contents, Backups, the backup board and checklist and the step columns the test walks, and by the wide Wallets, Vault contents, Settings, Backups and those step-column pages), and so are the Pi's frame written without a conversion (§5, the kernel patch and the shell's red-first depth; its figure on a card is not yet taken), the framebuffer write's first three points (§6) and the face kept per size, `Ui::wrap_lines` linear in its words and Home's backup count and a wallet's backup line worked out without every wallet's map, the signing page's text lines kept by file, the Backups screen's list and the wallet chart kept across moved frames and the shell's calls to the disk process on a thread of their own, of §7; the stick shell takes the moved frame (§3.7: `Presenter::present_moved`, in ordinary memory, with the panel written bands rather than a span), and the frame drawn in bands across the cores (§4: `faraday-core`'s `bands.rs`, in every whole frame; a moved frame paints its strip as it is called); and the stick's centred window on a larger screen (§6, `faraday.window=`); the rest is not.
-- `docs/HOME.md`: Home at every size. Specified.
 - `docs/IMAGES.md`: Images for each piece of hardware. Specified (F185, F186), the PC's one build, the Pi's one build, the one Pi image for an HDMI screen and the 2.8-inch (its screen directories, overlays, boot script and kernel options) and the release's files and image list built.
 - `docs/INTEROP.md`: Interoperability with other wallets. Tested; §2 lists what works; §5 is built except Electrum seed words.
 - `docs/MOTION.md`: Scrolling, motion and appearance. Built; not yet checked by the owner on hardware.

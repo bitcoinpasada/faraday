@@ -669,7 +669,7 @@ headings do not fit, and on the phone-size window): **Make a new
 wallet**, **Restore an existing wallet** and **Spend from a backup**,
 each pressed as a whole; once anything is loaded they are gone. **Backups** follows
 once a wallet is known. Check is no tile on the wide layout: the sidebar
-lists it (F255, F275). `docs/HOME.md` has the design for every size. Vaults has no tile: it is in the sidebar, the rail, the
+lists it (F255, F275). `docs/HOME.md` describes Home at each layout. Vaults has no tile: it is in the sidebar, the rail, the
 bar and the Pi's Home menu, and Create a vault is on Vaults. A stick
 attached and not yet visited leads Home as "Files on {stick}", opening
 Files; Home has no Stick visit tile. Create,

@@ -179,8 +179,8 @@ way or waiting (`docs/FLOWS.md`, Home), then the tiles in a grid.
   for Vaults (`docs/FLOWS.md`, Home; F255).
 - **Scan** stays the floating button at the bottom-right, and the top page of Check, Wallets, Files, Vaults and Tools carries it too (§15).
 
-One Home for every size, the destinations in one order, is specified in
-`docs/HOME.md`.
+Home is drawn by layout, three Homes, and the destinations stand in one
+order: `docs/HOME.md`.
 
 ## 5. Panes
 
