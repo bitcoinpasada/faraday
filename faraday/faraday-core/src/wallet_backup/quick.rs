@@ -22,6 +22,8 @@ pub enum Quick {
     Wrote,
     /// Done: on to the end card.
     Done,
+    /// Blank template: the sheet that says what to print.
+    Template,
     /// More ways to back up: the board.
     More,
 }
@@ -62,6 +64,7 @@ impl WalletBackupArea {
         }
         if let Some(b) = self.state.as_mut() {
             b.quick = false;
+            b.quick_done = false;
             b.quick_shown = false;
             b.board = crate::board::BoardState::default();
         }

@@ -2157,8 +2157,9 @@ the board in Customize backup.
 2. **Back up now**, at the foot of Make a new wallet's Check once
    the wallet is checked (Make a new wallet has no Back up card since
    the owner's call of 2026-10-26), and Restore's **Back up this
-   wallet**, open Back up on the wallet just made, on the board as item
-   1 says.
+   wallet**, open Back up on the wallet just made: on the quick paper
+   backup (§19) where the wallet takes it, else on the board as item 1
+   says.
 3. **The read-only board** shows two secondary buttons where Customize
    backup is today (the right-hand column; in the narrow column where
    **Add** stands), in this order, with no text above them:
@@ -2908,9 +2909,7 @@ backup and loses no choice the board has. The short path is the ready
 plan Paper only (§17.25), taken without the board, for a single key
 backed up as words; the plan it records is the one the board would have
 made, so everything that reads a plan reads it as it reads Paper only.
-
-**Open:** designed, not built. Nothing of this section is drawn or
-taken; Back up opens on the board as §17.21 item 1 says.
+It is built as the sections below say.
 
 ### 19.1 Which wallets take it
 
@@ -3113,18 +3112,3 @@ the full checklist either, and the typed check is the one check.
   typed check opening, leaving and a lock, as the copy item hides it now.
 - The one place reads on the end card as the plan's check reads it
   everywhere (§19.4).
-
-### 19.11 Files that change when built
-
-`faraday/faraday-core/src/screens/backup.rs` (the two screens, the
-Blank template sheet, More ways to back up, the end card's address row); `faraday/faraday-core/src/wallet_backup.rs` and
-`faraday/faraday-core/src/create.rs` (opening on the checklist for a
-wallet of §19.1, the short path's state and its leaving and coming
-back, and the two presses recorded at step 2's match);
-`faraday/faraday-plan/src/lib.rs` and
-`faraday/faraday-core/src/plan/ready.rs` (Paper only's words alone for
-a wallet whose seed alone gives it back); the strings in
-`faraday/faraday-strings/src/en/screens_backup.rs`; the guide's
-`docs/guide/create.md` and Back up's page; and their tests in
-`faraday/faraday-core/tests/all/` (backup_checklist, backup_flow_wallet,
-backup_plan).

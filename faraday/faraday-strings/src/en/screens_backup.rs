@@ -138,6 +138,9 @@ macro_rules! words_screens_backup {
     /// Row of both screens of the quick paper backup, and of its end: the
     /// board.
     quick_more_ways: "More ways to back up",
+    /// Button beside Show the seed on the quick paper backup, and the
+    /// title of the sheet it opens.
+    quick_template: "Blank template",
     // ----- plan(faraday-core/src/screens/backup.rs) -----
     /// Line in `plan_body`.
     plan_a_key_made_here: "A key made here signs only once this backup is done.",

@@ -61,6 +61,7 @@ pub(crate) mod plan;
 pub(crate) mod public;
 pub(crate) mod qr;
 pub(crate) mod qr_tool;
+pub(crate) mod quick;
 pub(crate) mod randomness;
 pub(crate) mod register;
 pub(crate) mod restore;
@@ -134,6 +135,7 @@ pub(crate) const TOURS: &[(&str, TourFn)] = &[
     ("core-wallet", TourFn::Plain(core_wallet::core_wallet_tour)),
     ("kept", TourFn::Costly(kept::kept_tour)),
     ("again", TourFn::Plain(again::again_tour)),
+    ("quick", TourFn::Plain(quick::quick_tour)),
     ("plan", TourFn::Costly(plan::plan_tour)),
     ("board", TourFn::Costly(board::board_tour)),
     ("boardunsorted", TourFn::Costly(board::board_unsorted_tour)),

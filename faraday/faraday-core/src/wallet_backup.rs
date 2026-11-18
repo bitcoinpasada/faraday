@@ -708,6 +708,9 @@ pub struct BackupState {
     /// The seed was shown on the quick backup's first screen: **I wrote
     /// them down** is offered.
     pub quick_shown: bool,
+    /// The backup was the quick one and its words matched: the end card
+    /// adds the first receive address.
+    pub quick_done: bool,
 }
 
 /// A wallet, a slot and whether it is the BIP 129 record: which account
@@ -4235,6 +4238,7 @@ impl Faraday {
                 self.quick_try(c);
             }
             Quick::Card => {}
+            Quick::Template => self.sheet = Some(crate::Sheet::QuickTemplate),
             Quick::Show => {
                 // The first screen, with the words shown.
                 if let Some(b) = self.backup.state.as_mut().filter(|b| b.quick) {
@@ -4265,6 +4269,7 @@ impl Faraday {
                 let matched = self.quick_matched_now();
                 if matched && let Some(b) = self.backup.state.as_mut() {
                     b.quick = false;
+                    b.quick_done = true;
                     b.open = None;
                 }
             }

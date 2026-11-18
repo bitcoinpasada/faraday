@@ -19,7 +19,7 @@ use faraday_draw::widgets::Icon;
 use faraday_keys::Reveal;
 use faraday_ui::parts::{button_rows, section_label, wrap_buttons};
 
-mod quick;
+pub(super) mod quick;
 
 /// The rows of the software question.
 pub(crate) const SOFTWARE_ROWS: [&str; 5] = [
@@ -628,6 +628,48 @@ pub(crate) enum From {
     Restore,
 }
 
+/// The templates item's line: what is printed from Faraday Starter, on
+/// the online computer, before the copies by hand (nothing is made here),
+/// one clause per form. The item and the quick backup's sheet say it.
+pub(crate) fn templates_line(app: &View, b: &crate::wallet_backup::BackupState) -> String {
+    // Printed from Faraday Starter, on the online computer, before
+    // the copies by hand: nothing is made here.
+    let shape = app.plan_shape(b.wallet);
+    let copy = match (
+        b.answers.seeds[crate::plan::seeds::WORDS],
+        b.answers.seeds[crate::plan::seeds::SEEDQR],
+    ) {
+        (true, true) => EN.item_templates_both,
+        (false, true) => EN.item_templates_seedqr,
+        _ => EN.item_templates_words,
+    };
+    // One clause per form: the words' sheets, then each codex32
+    // length's (`docs/CODEX32.md` §9.3).
+    let mapped = app.plan_mapped(&shape, &b.answers);
+    let words_n = crate::plan::templates_on(&shape, &mapped);
+    let c32 = crate::plan::codex32::templates_of(&b.answers, &mapped);
+    let kef = kef_templates(app, &shape, &mapped);
+    let mut clauses: Vec<String> = Vec::new();
+    if words_n > 0 || (c32.is_empty() && kef.is_empty()) {
+        clauses.push(fill(
+            EN.item_templates_starter,
+            &[&words_n.max(1).to_string(), &b.words.to_string(), copy],
+        ));
+    }
+    for (len, copy, n) in c32 {
+        clauses.push(c32_templates_clause(clauses.is_empty(), len, copy, n));
+    }
+    for (side, n) in kef {
+        let (n, side) = (n.to_string(), side.to_string());
+        clauses.push(if clauses.is_empty() {
+            fill(EN.kef_templates_starter, &[&n, &side, &side])
+        } else {
+            fill(EN.kef_templates_clause, &[&n, &side, &side])
+        });
+    }
+    clauses.join("; ")
+}
+
 /// The end card of Make a new wallet, Back up and Restore: a title with
 /// the wallet's name, where its backup stands, one filled button (Back up
 /// now while there is no backup, otherwise Show wallet QR), Open the
@@ -709,6 +751,10 @@ pub(crate) fn wallet_done(
             glance::draw_with(ui, &g, Direction::WalletFirst, x, cy, w, (false, false))
         };
         cy += 16.0;
+    }
+    let quick_done = from == From::Backup && app.backup().is_some_and(|b| b.quick_done);
+    if quick_done && !app.receive_held(wl) {
+        cy += super::wallets::first_receive_row(app, ui, (x, cy, w), wallet) + T::GAP;
     }
     let primary = if backed || from == From::Restore {
         (EN.wallets_show_wallet, Action::QrWallet(wallet))
@@ -947,42 +993,7 @@ fn backup_body(app: &View, ui: &mut Ui, item: Item, x: f32, y: f32, w: f32) -> f
                 ) + 8.0;
             }
             cy += 52.0;
-            // Printed from Faraday Starter, on the online computer, before
-            // the copies by hand: nothing is made here.
-            let shape = app.plan_shape(b.wallet);
-            let copy = match (
-                b.answers.seeds[crate::plan::seeds::WORDS],
-                b.answers.seeds[crate::plan::seeds::SEEDQR],
-            ) {
-                (true, true) => EN.item_templates_both,
-                (false, true) => EN.item_templates_seedqr,
-                _ => EN.item_templates_words,
-            };
-            // One clause per form: the words' sheets, then each codex32
-            // length's (`docs/CODEX32.md` §9.3).
-            let mapped = app.plan_mapped(&shape, &b.answers);
-            let words_n = crate::plan::templates_on(&shape, &mapped);
-            let c32 = crate::plan::codex32::templates_of(&b.answers, &mapped);
-            let kef = kef_templates(app, &shape, &mapped);
-            let mut clauses: Vec<String> = Vec::new();
-            if words_n > 0 || (c32.is_empty() && kef.is_empty()) {
-                clauses.push(fill(
-                    EN.item_templates_starter,
-                    &[&words_n.max(1).to_string(), &b.words.to_string(), copy],
-                ));
-            }
-            for (len, copy, n) in c32 {
-                clauses.push(c32_templates_clause(clauses.is_empty(), len, copy, n));
-            }
-            for (side, n) in kef {
-                let (n, side) = (n.to_string(), side.to_string());
-                clauses.push(if clauses.is_empty() {
-                    fill(EN.kef_templates_starter, &[&n, &side, &side])
-                } else {
-                    fill(EN.kef_templates_clause, &[&n, &side, &side])
-                });
-            }
-            let line = clauses.join("; ");
+            let line = templates_line(app, b);
             cy += ui.wrap_as((x, cy, w), BODY_M, Role::OnSurface, &line) + 16.0;
             if item_next(app, ui, x, cy, w, item) {
                 cy += 48.0;

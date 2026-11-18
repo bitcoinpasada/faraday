@@ -520,6 +520,8 @@ pub enum Sheet {
     LaterAsk,
     /// A checked stick's sheet (`backup_flow/stick_sheet.rs`).
     StickSheet,
+    /// **Blank template** of the quick paper backup: what to print (`docs/BACKUP-FLOW.md` §19.2).
+    QuickTemplate,
     /// A seed the camera read, asking how it loads: with no passphrase or with one (`seed_read`).
     SeedRead,
     /// A Krux encrypted code: its passphrase, the bar while it opens, what came out (`seeds/kef`).

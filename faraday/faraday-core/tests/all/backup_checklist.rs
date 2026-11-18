@@ -1096,3 +1096,45 @@ fn a_passphrase_wallet_opens_on_the_board() {
     assert!(!b.quick);
     assert_eq!(b.q, Some(qstep::BOARD));
 }
+
+#[test]
+fn the_blank_template_sheet_names_what_to_print_and_closes_back_to_the_screen() {
+    let mut app = device(Vec::new());
+    quick_open(&mut app);
+    let _ = app.frame();
+    assert!(app.offers(Action::BQuick(Quick::Template)));
+    app.press(Action::BQuick(Quick::Template));
+    let _ = app.frame();
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::QuickTemplate));
+    assert!(crate::common::has(&mut app, "Blank template"));
+    assert!(crate::common::has_part(&mut app, "from Faraday Starter"));
+    assert!(app.offers(Action::Cancel));
+    app.press(Action::Cancel);
+    let _ = app.frame();
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.screen, Screen::Backup);
+    assert!(app.offers(Action::BQuick(Quick::Template)));
+}
+
+#[test]
+fn the_quick_backups_end_card_adds_the_first_receive_address_and_it_opens_its_code() {
+    let mut app = device(Vec::new());
+    let w = quick_open(&mut app);
+    quick_match(&mut app, w);
+    assert!(done(&app, Item::Copy(0)), "the typed words did not match");
+    app.press(Action::BQuick(Quick::Done));
+    assert!(
+        app.backup().is_some_and(|b| b.quick_done),
+        "Done did not end the quick path"
+    );
+    assert!(
+        shown_anywhere(&mut app, "First receive address · 0/0"),
+        "the end card has the address row"
+    );
+    assert!(offered_anywhere(
+        &mut app,
+        Action::ShowCode(faraday_core::Code::Receive(w, 0))
+    ));
+    app.press(Action::ShowCode(faraday_core::Code::Receive(w, 0)));
+    assert!(app.qr().is_some(), "the code opens");
+}

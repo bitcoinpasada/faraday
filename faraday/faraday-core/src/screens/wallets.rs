@@ -388,6 +388,43 @@ fn bar_head(app: &View, ui: &mut Ui, cw: f32) -> f32 {
     )
 }
 
+/// The wallet's **First receive address** label and its row, which opens
+/// the address's code unless it is held back. The wallet card and the
+/// quick backup's end card draw it. Returns its height.
+pub(crate) fn first_receive_row(
+    app: &View,
+    ui: &mut Ui,
+    (ix, y, iw): (f32, f32, f32),
+    wallet: usize,
+) -> f32 {
+    let Some(wlt) = app.session.wallets.get(wallet) else {
+        return 0.0;
+    };
+    let mut cy = y;
+    ui.text_as(
+        ix,
+        cy,
+        LABEL_M,
+        Role::OnSurfaceVariant,
+        EN.wallets_first_receive,
+    );
+    cy += ui.line_as(LABEL_M) + faraday_draw::tokens::GRID;
+    let (addr, held) = app.receive_line(wlt, false, 0);
+    // The row opens the address's code, unless it is held back.
+    let open = (!held).then_some(Action::ShowCode(crate::Code::Receive(wallet, 0)));
+    let room = if held { 0.0 } else { tokens::ROW_CHEVRON_ROOM };
+    // On one line where the smaller size fits it: an address split over
+    // two lines can be read as whole from its first.
+    let size = if ui.measure_as(BODY_L.mono(), &addr) <= iw - room {
+        BODY_L.mono()
+    } else {
+        BODY_M.mono()
+    };
+    let role = if held { Role::Warning } else { Role::OnSurface };
+    cy += crate::screens::address_press(ui, (ix, cy, iw), (size, role), &addr, open) + 8.0;
+    cy - y
+}
+
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use faraday_draw::tokens::MARGIN_WIDE;
     if ui.compact && crate::panes::screen::shown(app, Screen::Wallets) {
@@ -723,30 +760,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         cy += missing_keys_line(app, ui, &slots, Screen::Wallets, ix, cy, iw);
     }
     cy += 16.0;
-    ui.text_as(
-        ix,
-        cy,
-        LABEL_M,
-        Role::OnSurfaceVariant,
-        EN.wallets_first_receive,
-    );
-    cy += ui.line_as(LABEL_M) + faraday_draw::tokens::GRID;
-    let (addr, held) = app.receive_line(wlt, false, 0);
-    // The row opens the address's code, unless it is held back.
-    let open = (!held).then_some(Action::ShowCode(crate::Code::Receive(
-        app.wallets.wallet(),
-        0,
-    )));
-    let room = if held { 0.0 } else { tokens::ROW_CHEVRON_ROOM };
-    // On one line where the smaller size fits it: an address split over
-    // two lines can be read as whole from its first.
-    let size = if ui.measure_as(BODY_L.mono(), &addr) <= iw - room {
-        BODY_L.mono()
-    } else {
-        BODY_M.mono()
-    };
-    let role = if held { Role::Warning } else { Role::OnSurface };
-    cy += crate::screens::address_press(ui, (ix, cy, iw), (size, role), &addr, open) + 8.0;
+    cy += first_receive_row(app, ui, (ix, cy, iw), app.wallets.wallet());
     let content = cy - top;
     let max = (content - (view_h - (top - view_top))).max(0.0);
     ui.region_close(held_open, max);

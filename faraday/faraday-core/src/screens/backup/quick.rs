@@ -20,16 +20,27 @@ pub(super) fn draw(
         Step::Write => EN.quick_write_title,
         Step::Check => EN.quick_check_title,
     };
-    let cards = [flow::Card {
+    let card = |title: &str, done: bool, toggle: Action| flow::Card {
         title: String::from(title),
         summary: String::new(),
         mono: false,
-        done: false,
-        open: true,
+        done,
+        open: !done,
         default: false,
-        toggle: Action::BQuick(Quick::Card),
+        toggle,
         lead: None,
-    }];
+    };
+    // The check is the second step: the first stands before it, done,
+    // and its press goes back to the words.
+    let mut cards = Vec::new();
+    if b.quick_step == Step::Check {
+        cards.push(card(
+            EN.quick_write_title,
+            true,
+            Action::BQuick(Quick::Show),
+        ));
+    }
+    cards.push(card(title, false, Action::BQuick(Quick::Card)));
     let mut body = |ui: &mut Ui, _: usize, x: f32, y: f32, w: f32| body(app, ui, x, y, w);
     let mut foot = |ui: &mut Ui, x: f32, y: f32, w: f32| foot(app, ui, x, y, w);
     let (next, again) =
@@ -114,11 +125,19 @@ fn write_body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             Action::BQuick(Quick::Show)
         },
     );
-    // The Blank template button goes beside Show the seed, after `bw`.
+    let tw = ui.button(
+        x + bw + T::GAP,
+        cy,
+        None,
+        BUTTON_H,
+        EN.quick_template,
+        Style::Ghost,
+        Action::BQuick(Quick::Template),
+    );
     let (ix, iy) = if ui.compact {
         (x, cy + T::TOUCH)
     } else {
-        (x + bw + T::GAP, cy)
+        (x + bw + T::GAP + tw + T::GAP, cy)
     };
     let info = fill(
         EN.backup_words,
@@ -199,4 +218,20 @@ fn foot(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         fy += T::TOUCH;
     }
     fy - y
+}
+
+/// The sheet of **Blank template**: the templates item's line, and Close.
+pub(crate) fn template_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
+    let Some(b) = app.backup() else {
+        return;
+    };
+    let line = templates_line(app, b);
+    let actions = [(EN.nav_close, Style::Primary, Action::Cancel)];
+    crate::compact::dialog(
+        ui,
+        (w, h, T::DIALOG_MAX),
+        (Icon::Info.into(), Role::Primary.paint(), EN.quick_template),
+        &mut |ui, x, y, iw| ui.wrap_as((x, y, iw), BODY_M, Role::OnSurface, &line),
+        &actions,
+    );
 }

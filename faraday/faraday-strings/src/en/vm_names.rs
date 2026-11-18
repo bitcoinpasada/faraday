@@ -390,11 +390,11 @@ macro_rules! words_vm_names {
     /// Templates item of the checklist: print them from Faraday Starter. The count, the words, the copy form.
     item_templates_starter: "Print {} from Faraday Starter: Blank templates, {} words, {}",
     /// Templates item: the copy is the words alone.
-    item_templates_words: "Words",
+    item_templates_words: "words",
     /// Templates item: the copy is the SeedQR alone.
     item_templates_seedqr: "SeedQR",
     /// Templates item: the copy is the words and the SeedQR.
-    item_templates_both: "Both",
+    item_templates_both: "both",
     /// Foot of the Templates item, a press.
     item_action_done: "Done",
     /// Heading of a Bitcoin wallet's flow.

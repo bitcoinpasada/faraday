@@ -349,6 +349,7 @@ walks! {
     walk_core_wallet = Some("core-wallet"),
     walk_kept = Some("kept"),
     walk_again = Some("again"),
+    walk_quick = Some("quick"),
     walk_plan = Some("plan"),
     walk_board = Some("board"),
     walk_boardunsorted = Some("boardunsorted"),
