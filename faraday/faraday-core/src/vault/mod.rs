@@ -2246,9 +2246,15 @@ impl Faraday {
     }
 
     fn vault_save_wallet(&mut self, k: usize) {
+        let c = self.compute();
         let Some(w) = self.session.wallets.get(k) else {
             return;
         };
+        // A wallet the vault holds already, its keys in whatever order, is
+        // not saved a second time.
+        if crate::vault::screen::vault_has_wallet(&c, self, self.vaults.current, w) {
+            return;
+        }
         // A silent payments wallet is its record: it has no descriptor
         // that reads back as it.
         let text = match w.policy().silent() {

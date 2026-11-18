@@ -168,14 +168,7 @@ pub(crate) fn stick_save_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 
 /// The session's keys or wallets that are not yet in this vault, each
 /// with Save.
-pub(super) fn save_panel(
-    app: &View,
-    ui: &mut Ui,
-    v: &vault::OpenVault,
-    dx: f32,
-    mut dy: f32,
-    dw: f32,
-) -> f32 {
+pub(super) fn save_panel(app: &View, ui: &mut Ui, dx: f32, mut dy: f32, dw: f32) -> f32 {
     let (muted, ink) = (Role::OnSurfaceVariant, Role::OnSurface);
     let keys = app.vaults.category == 0;
     ui.text_as(
@@ -264,13 +257,9 @@ pub(super) fn save_panel(
             dy += ui.advance_as(BODY_S, 30.0);
         }
     } else {
-        let held: Vec<faraday_text::Text> = app
-            .described_of(v.id, kind::WALLET)
-            .iter()
-            .map(|(_, _, d)| d.policy.to_descriptor())
-            .collect();
+        let cur = app.vaults.current;
         for (k, wl) in app.session.wallets.iter().enumerate() {
-            if held.contains(&wl.policy().to_descriptor()) {
+            if app.vault_has_wallet(cur, wl) {
                 continue;
             }
             any = true;

@@ -182,8 +182,6 @@ NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs 
 #       a plan record's places, vault names and labels
 #   faraday/faraday-core/src/vault/keep.rs
 #       the vault names a save goes into
-#   faraday/faraday-core/src/vault/screen/save.rs
-#       file names, sizes, hashes and the time for signing
 #   faraday/faraday-core/src/stick/wipe.rs
 #       the files chosen to delete, percentages and minutes
 #   faraday/faraday-core/src/stick/mod.rs
@@ -282,7 +280,6 @@ faraday/faraday-core/src/vault/summaries.rs
 faraday/faraday-core/src/vault/seals.rs
 faraday/faraday-core/src/vault/plan_store.rs
 faraday/faraday-core/src/vault/keep.rs
-faraday/faraday-core/src/vault/screen/save.rs
 faraday/faraday-core/src/stick/wipe.rs
 faraday/faraday-core/src/stick/mod.rs
 faraday/faraday-core/src/stick/settings.rs

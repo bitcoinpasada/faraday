@@ -714,18 +714,6 @@ impl View<'_> {
         self.kept(|c| self.app.wallet_sticks_done(c))
     }
 
-    /// Each record of kind `k` of open vault `id` with the wallet
-    /// description it holds ([`crate::vault::Vaults::described_of`]), as
-    /// the vault keeps them read. Costs a parse of each description the
-    /// first time after a change.
-    pub(crate) fn described_of(
-        &self,
-        id: VaultId,
-        k: u8,
-    ) -> Vec<(usize, RecordView<'_>, &crate::vault::Described)> {
-        self.kept(|c| self.app.vaults.described_of(c, id, k).collect())
-    }
-
     /// Whether open vault `v` holds a wallet with `w`'s descriptor
     /// ([`crate::vault::screen::vault_has_wallet`]), from its records as
     /// the vault keeps them read. Costs a parse of each description the

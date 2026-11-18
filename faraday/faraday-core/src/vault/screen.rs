@@ -2525,7 +2525,7 @@ fn detail(
         return prompt_pane(app, ui, p, (dx, dy, dw));
     }
     if app.vaults.saving {
-        return save_panel(app, ui, v, dx, dy, dw);
+        return save_panel(app, ui, dx, dy, dw);
     }
     if app.vaults.sb_images {
         return images_panel(app, ui, dx, dy, dw);

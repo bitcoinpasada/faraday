@@ -735,3 +735,47 @@ fn a_key_with_a_passphrase_saved_plain_is_not_offered_or_saved_again() {
     app.press(Action::Vault(V::SaveKey(k)));
     assert_eq!(vault_now(&app).0, records + 1, "a second Save adds nothing");
 }
+
+/// A sortedmulti wallet the vault holds, loaded again with two of its keys
+/// swapped, is the same wallet: the Save panel does not offer it and Save
+/// adds no record.
+#[test]
+fn a_wallet_loaded_with_its_keys_swapped_is_not_offered_or_saved_again() {
+    let mut app = opened();
+    let c = testkit::compute();
+    let kit = testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "savings")
+        .unwrap();
+    let text = kit.descriptor.split('#').next().unwrap().to_string();
+    let (head, rest) = text.split_once("sortedmulti(").expect("sortedmulti");
+    let inner = rest.strip_suffix("))").expect("closes");
+    let mut parts: Vec<&str> = inner.split(',').collect();
+    assert!(parts.len() >= 3, "a threshold and two keys");
+    parts.swap(1, 2);
+    let swapped = format!("{head}sortedmulti({}))", parts.join(","));
+    assert_ne!(swapped, text);
+    let k = app
+        .session
+        .add_wallet_confirmed(
+            &c,
+            "Savings",
+            &swapped,
+            "Test wallet",
+            faraday_core::wallet::Origin::Named,
+        )
+        .expect("reads");
+    app.press(Action::Vault(V::Category(1)));
+    app.press(Action::Vault(V::Add));
+    if !app.vaults().saving {
+        app.press(Action::Vault(V::Add));
+    }
+    let _ = app.frame();
+    assert!(
+        !app.offers(Action::Vault(V::SaveWallet(k))),
+        "the same wallet is offered"
+    );
+    let before = vault_now(&app);
+    app.press(Action::Vault(V::SaveWallet(k)));
+    assert_eq!(vault_now(&app), before, "Save added a record");
+}

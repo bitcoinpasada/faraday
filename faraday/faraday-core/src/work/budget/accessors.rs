@@ -222,12 +222,6 @@ fn reads(app: &Faraday) -> Vec<Read> {
             }),
         ),
         (
-            "described_of",
-            Box::new(move |v| {
-                let _ = v.described_of(v.vaults.open[o].id, kind::WALLET);
-            }),
-        ),
-        (
             "vault_has_wallet",
             Box::new(move |v| {
                 let _ = v.vault_has_wallet(o, &v.session.wallets[w]);
