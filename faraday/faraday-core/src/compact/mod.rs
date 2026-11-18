@@ -1424,6 +1424,19 @@ impl Faraday {
         if self.sheet == Some(crate::Sheet::Guide) {
             return self.guide_find_here() && self.guide.state().find_focus;
         }
+        // The sheets that read a key or a backup: their field takes typing
+        // as the page's do.
+        if matches!(
+            self.sheet,
+            Some(
+                crate::Sheet::Chart
+                    | crate::Sheet::SeedRead
+                    | crate::Sheet::KefRead
+                    | crate::Sheet::Sweep
+            )
+        ) {
+            return self.typing_field();
+        }
         if self.sheet.is_some() {
             return false;
         }
@@ -1675,6 +1688,7 @@ impl Faraday {
         ) {
             self.vaults.set_focus(None);
         }
+        self.seed_read.blur();
         self.set_time.clear_focus();
         self.create.clear_pass_focus();
         self.guide.focus_find(false);

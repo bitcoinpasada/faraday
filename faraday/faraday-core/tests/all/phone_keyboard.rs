@@ -76,5 +76,14 @@ fn a_press_on_a_bar_or_field_that_takes_typing_brings_the_keyboard_up_and_again_
         app.press(Action::LAezeed);
         tap(&mut app, Action::TypeHere(Here::Aezeed));
         assert!(app.keyboard_top().is_some(), "{w:?}: the aezeed");
+
+        // Sweep's sheet: its field was focused as it opened, so the
+        // keyboard is down until the field is pressed.
+        let mut app = window(w);
+        app.press(Action::Sweep(faraday_core::seeds::sweep::SweepAction::Open));
+        let _ = app.frame();
+        assert!(app.keyboard_top().is_none(), "{w:?}: sweep down first");
+        tap(&mut app, Action::Sweep(faraday_core::seeds::sweep::SweepAction::Field));
+        assert!(app.keyboard_top().is_some(), "{w:?}: the sweep field");
     }
 }

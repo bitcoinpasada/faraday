@@ -131,6 +131,11 @@ impl KefRead {
         }
     }
 
+    /// The passphrase field is left unfocused.
+    pub(crate) fn blur(&mut self) {
+        self.focus = false;
+    }
+
     /// The text typing goes to.
     pub(crate) fn field(&self) -> Option<&SecretText> {
         (self.stage == Stage::Ask && self.focus).then_some(&self.pass)

@@ -359,6 +359,20 @@ pub(crate) struct SeedsArea {
 }
 
 impl SeedsArea {
+    /// A sheet's field focused by itself is left unfocused: on a small
+    /// panel typing goes there once the field is pressed.
+    pub(crate) fn blur(&mut self) {
+        if let Some(s) = self.sweep.as_mut() {
+            s.typing = false;
+        }
+        if let Some(s) = self.state.as_mut() {
+            s.focus = None;
+        }
+        if let Some(k) = self.kef.as_mut() {
+            k.blur();
+        }
+    }
+
     /// The sheet's state, while it is open.
     pub(crate) fn state(&self) -> Option<&read::SeedRead> {
         self.state.as_ref()
