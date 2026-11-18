@@ -144,10 +144,11 @@ pub fn input_participants(input: &Input) -> Result<Vec<Participants>, Error> {
     read_participants(&of_type(&input.unknown, IN_PARTICIPANT_PUBKEYS))
 }
 
-/// Whether `musig.rs`'s own reader accepts this one pair of an input's
-/// BIP-373 types (so `inspect` counts it as read), and false for any
-/// other type, a malformed pair and a script-path entry, which is
-/// well-formed but not read by Faraday.
+/// Costs a point decode per key in the pair. Whether `musig.rs`'s own
+/// reader accepts this one pair of an input's BIP-373 types (so
+/// `inspect` counts it as accepted), and false for any other type, a
+/// malformed pair and a script-path entry, which is well-formed but not
+/// accepted by Faraday.
 pub(crate) fn input_pair_is_read(key: &raw::Key, value: &Vec<u8>) -> bool {
     match key.type_value {
         IN_PARTICIPANT_PUBKEYS => read_participants(&[(key, value)]).is_ok(),
@@ -157,8 +158,9 @@ pub(crate) fn input_pair_is_read(key: &raw::Key, value: &Vec<u8>) -> bool {
     }
 }
 
-/// The same for an output, whose only BIP-373 type is the participants
-/// field: an input's type on an output is read nowhere.
+/// Costs a point decode per key in the pair. The same for an output,
+/// whose only BIP-373 type is the participants field: an input's type
+/// on an output is accepted nowhere.
 pub(crate) fn output_pair_is_read(key: &raw::Key, value: &Vec<u8>) -> bool {
     key.type_value == OUT_PARTICIPANT_PUBKEYS && read_participants(&[(key, value)]).is_ok()
 }

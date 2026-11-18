@@ -445,6 +445,17 @@ fn a_false_previous_transaction_gives_a_finished_transaction_no_fee() {
         read(&mut app, &vector("bump-core-original.tx"));
         app.press(Action::SignerCheck(SignerPress::Scan(Slot::Returned)));
         read(&mut app, &false_previous(keep));
+        // The pair is Bitcoin Core's regtest: with its key loaded the
+        // verdict would be "only the fee is raised" if the amounts held.
+        app.session.follow(Some(Network::Regtest)).unwrap();
+        let c = testkit::compute();
+        app.session.keys.add_words(&c, ABANDON, "", None).unwrap();
+        app.press(Action::SignerCheck(SignerPress::Card(2)));
+        assert!(
+            shows(&mut app, EN.bump_cannot_tell),
+            "{:?}",
+            texts(&mut app)
+        );
         assert!(!shows(&mut app, EN.bump_only_fee), "{:?}", texts(&mut app));
         assert!(holding(&mut app, "in the original").is_empty());
     }

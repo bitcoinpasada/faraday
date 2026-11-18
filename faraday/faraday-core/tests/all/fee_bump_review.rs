@@ -280,6 +280,8 @@ fn a_false_previous_transaction_gives_the_finished_original_no_fee() {
         let from = ["bump-core-original.tx"];
         let only = fill(EN.bump_only_fee_from, &from);
         assert!(!shows(&mut app, &only), "{:?}", texts(&mut app));
+        let cannot = fill(EN.bump_cannot_tell_from, &from);
+        assert!(shows(&mut app, &cannot), "{:?}", texts(&mut app));
         assert!(
             !has_part(&mut app, "in the original"),
             "{:?}",

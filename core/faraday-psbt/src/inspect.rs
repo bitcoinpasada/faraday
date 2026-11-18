@@ -1940,12 +1940,16 @@ pub(crate) fn musig_round(
     }
 }
 
-/// Pairs in any `unknown` or `proprietary` map of the PSBT, less the
-/// BIP-373 pairs `musig.rs` reads. A pair of a BIP-373 type that its
-/// reader refuses (a wrong key or value size, a key that is no point)
-/// is used nowhere, so it counts; so does a script-path entry (a
-/// 98-byte key), which is well-formed but not read by Faraday. This runs
-/// once while inspecting, not while drawing, so the points are parsed.
+/// Costs a point decode per key of each BIP-373 pair. Pairs in any
+/// `unknown` or `proprietary` map of the PSBT, less the BIP-373 pairs
+/// `musig.rs` accepts. A pair of a BIP-373 type that its reader refuses
+/// (a wrong key or value size, a key that is no point) is used nowhere,
+/// so it counts; so does a script-path entry (a 98-byte key), which is
+/// well-formed but not accepted by Faraday. A well-formed pair beside a
+/// malformed one of its type, or on an input that is not a MuSig2
+/// input, is accepted by the reader but used nowhere and is not
+/// counted. This runs once while inspecting, not while drawing, so the
+/// points are parsed.
 fn unread_fields(psbt: &bitcoin::Psbt) -> usize {
     use crate::musig::{input_pair_is_read, output_pair_is_read};
     let global = psbt.unknown.len() + psbt.proprietary.len();

@@ -446,8 +446,8 @@ never leave in a PSBT, so one on a Returned PSBT is P3 like any other.
 ### 6.7 The file's bytes
 
 The Returned file, base64 decoded where it is text, is longer than its
-fields written out again: bytes after the last map, or a length written
-in more bytes than it needs. A map written in another order is the same
+fields written out again: bytes after the last map. A length written in
+more bytes than it needs is refused by the parser (below), not E1. A map written in another order is the same
 length, and is no finding.
 
 | Id | Level | Wording |
@@ -644,7 +644,7 @@ change each, and committed:
 | unknown-sent, unknown-changed | an unknown pair on Sent, its value two bytes longer on Returned | P2 |
 | proprietary-added | core-signed plus an input proprietary pair | P3 |
 | osk-added | core-signed plus an `osk` record | P3 |
-| trailing | core-signed with eight bytes after the last map | refused at read (the parser refuses it, as it refuses a length written in more bytes than it needs, raw or base64; E1 is for bytes that parse with the Returned PSBT: a key written as 65 bytes in a version 0 file, or a version 2 key length written in more bytes than it needs, which the tests below build) |
+| trailing | core-signed with eight bytes after the last map | refused at read (the parser refuses it, as it refuses a length written in more bytes than it needs, raw or base64; E1 is for bytes that parse with the Returned PSBT: a key written as 65 bytes in a version 0 file, which the tests below build; a version 2 pair written longer than it needs is refused at read) |
 
 Cases with no fixture file are built in the test from these fixtures, and
 each asserts its exact findings at their levels: a signature added beside
