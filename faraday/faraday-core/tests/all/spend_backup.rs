@@ -1263,3 +1263,46 @@ fn no_money_again_after_the_next_way_was_cancelled_lists_the_way_once() {
     let text = drawn(&mut app);
     assert_eq!(text.matches("· no money").count(), 1, "{text}");
 }
+
+/// The answer to Check the money is about the wallet it was given for: choosing
+/// another wallet opens the page again.
+#[test]
+fn choosing_another_wallet_asks_the_money_check_again() {
+    let mut app = with_files(vec![vault_file(), savings_psbt()], Vec::new());
+    unlock_on_tab(&mut app);
+    let savings = wallet_at(&app, "Savings");
+    let other = (0..app.session.wallets.len())
+        .find(|&i| i != savings)
+        .unwrap();
+    app.press(Action::SpendBackup(F::Choose(savings)));
+    app.press(Action::SpendBackup(F::Next(page::CHECK)));
+    assert!(app.spend_backup_page_done(page::CHECK));
+    app.press(Action::SpendBackup(F::Choose(other)));
+    assert_eq!(app.spend_backup_wallet(), Some(other));
+    assert!(
+        !app.spend_backup_page_done(page::CHECK),
+        "the answer for one wallet carried to another"
+    );
+}
+
+/// A transaction of another wallet does not carry the answer to its spend.
+#[test]
+fn a_transaction_of_another_wallet_leaves_its_check_unanswered() {
+    let mut app = with_files(vec![vault_file(), savings_psbt()], Vec::new());
+    unlock_on_tab(&mut app);
+    let savings = wallet_at(&app, "Savings");
+    let other = (0..app.session.wallets.len())
+        .find(|&i| i != savings)
+        .unwrap();
+    app.press(Action::SpendBackup(F::Choose(other)));
+    app.press(Action::SpendBackup(F::Next(page::CHECK)));
+    let at = inbox_at(&app, "savings-unsigned.psbt");
+    app.press(Action::SpendBackup(F::UsePsbt(at)));
+    assert_eq!(app.spend_backup_wallet(), Some(savings));
+    assert!(!app.spend_backup_page_done(page::CHECK));
+    let s = app.spend().unwrap();
+    assert!(
+        !s.done[step::CHECK as usize],
+        "the check was marked done for a wallet it was never shown for"
+    );
+}

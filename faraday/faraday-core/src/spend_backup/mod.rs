@@ -759,9 +759,8 @@ impl Faraday {
                 self.spend_backup_rebuild(true);
             }
             F::Choose(i) => {
-                if let Some(w) = self.session.wallets.get(i) {
-                    self.spend_backup.state.wallet = Some(Text::of(&w.name));
-                    self.wallets.set_wallet(i);
+                if i < self.session.wallets.len() {
+                    self.spend_backup_set_wallet(i);
                     if self.spend_backup.state.open == Some(Open::Page(page::HOLDING)) {
                         self.spend_backup_advance(page::HOLDING);
                     }
@@ -777,23 +776,16 @@ impl Faraday {
                 }
             }
             F::SpendFrom(i) => {
-                let Some(w) = self.session.wallets.get(i) else {
+                if i >= self.session.wallets.len() {
                     return;
-                };
-                // Another wallet's pages said nothing of this one.
-                if self.spend_backup.state.wallet.as_deref() != Some(w.name.as_str()) {
-                    self.spend_backup.state.closed[page::CHECK as usize] = false;
-                    self.spend_backup.state.closed[page::WRITE as usize] = false;
-                    self.spend_backup.state.addresses = 0;
                 }
                 // Another wallet's spend gives way, as a new Sign does;
                 // its PSBT stays in Files.
                 if self.wallets.spend().is_some_and(|s| s.wallet != Some(i)) {
                     self.wallets.clear_spend();
                 }
+                self.spend_backup_set_wallet(i);
                 let w = &self.session.wallets[i];
-                self.spend_backup.state.wallet = Some(Text::of(&w.name));
-                self.wallets.set_wallet(i);
                 self.spend_backup.state.from_card = true;
                 self.spend_backup.state.help = false;
                 self.screen = Screen::SpendBackup;
@@ -935,9 +927,22 @@ impl Faraday {
                 .and_then(|p| self.session.spends_from(&c, p))
         };
         if let Some(i) = only.or_else(by_psbt) {
-            self.spend_backup.state.wallet = Some(Text::of(&self.session.wallets[i].name));
-            self.wallets.set_wallet(i);
+            self.spend_backup_set_wallet(i);
         }
+    }
+
+    /// Chooses the wallet at `i` of the session. Another wallet's pages
+    /// said nothing of this one: choosing a different wallet opens the
+    /// money check and the write page again.
+    fn spend_backup_set_wallet(&mut self, i: usize) {
+        let chosen = Text::of(&self.session.wallets[i].name);
+        if self.spend_backup.state.wallet.as_ref() != Some(&chosen) {
+            self.spend_backup.state.closed[page::CHECK as usize] = false;
+            self.spend_backup.state.closed[page::WRITE as usize] = false;
+            self.spend_backup.state.addresses = 0;
+        }
+        self.spend_backup.state.wallet = Some(chosen);
+        self.wallets.set_wallet(i);
     }
 
     /// After a wallet arrives: chosen when it is the only one, and the
@@ -1458,8 +1463,7 @@ impl Faraday {
             crate::wallet::Origin::TypedSeeds,
         ) {
             Ok(i) => {
-                self.spend_backup.state.wallet = Some(Text::of(&self.session.wallets[i].name));
-                self.wallets.set_wallet(i);
+                self.spend_backup_set_wallet(i);
             }
             // A cosigner's key no loaded key gives holds this guess back
             // for its sheet: the guess before stays until the hold, which
@@ -1624,8 +1628,7 @@ impl Faraday {
             crate::wallet::Origin::TypedWords,
         ) {
             Ok(i) => {
-                self.spend_backup.state.wallet = Some(name);
-                self.wallets.set_wallet(i);
+                self.spend_backup_set_wallet(i);
             }
             Err(e) => self.spend_backup.state.error = Some(e.text()),
         }
@@ -1663,8 +1666,7 @@ impl Faraday {
             .add_wallet(&c, &name, &text, &source, crate::wallet::Origin::Named)
         {
             Ok(i) => {
-                self.spend_backup.state.wallet = Some(Text::of(&self.session.wallets[i].name));
-                self.wallets.set_wallet(i);
+                self.spend_backup_set_wallet(i);
                 self.spend_backup_described_in();
                 self.refresh_spend();
                 self.spend_backup_opened();
@@ -1731,9 +1733,7 @@ impl Faraday {
                         crate::wallet::Origin::Named,
                     ) {
                         Ok(i) => {
-                            self.spend_backup.state.wallet =
-                                Some(Text::of(&self.session.wallets[i].name));
-                            self.wallets.set_wallet(i);
+                            self.spend_backup_set_wallet(i);
                             self.spend_backup_described_in();
                             self.refresh_spend();
                             self.spend_backup_opened();
@@ -1805,10 +1805,9 @@ impl Faraday {
         // The wallet the transaction spends from is the one chosen.
         let w = self.wallets.spend().and_then(|s| s.wallet);
         if let Some(w) = w
-            && let Some(wl) = self.session.wallets.get(w)
+            && w < self.session.wallets.len()
         {
-            self.spend_backup.state.wallet = Some(Text::of(&wl.name));
-            self.wallets.set_wallet(w);
+            self.spend_backup_set_wallet(w);
         }
         // The addresses are checked on the tab's own page, Check the
         // money: the spend's Check is done only once the person did it.
