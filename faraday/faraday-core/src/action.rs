@@ -1262,11 +1262,15 @@ impl Faraday {
         }
         // A chart's sheet leads into a flow: whatever its rows press, the
         // sheet goes first. Its field's own presses (a press on the field,
-        // the keyboard's) stay in the sheet.
+        // the keyboard's) stay in the sheet, and so does a tick, which
+        // edits what the sheet shows and leads into no flow.
         if self.sheet == Some(Sheet::Chart)
             && !matches!(
                 action,
-                Action::Chart(_) | Action::Osk(_) | Action::TypeHere(crate::edit::Here::Chart)
+                Action::Chart(_)
+                    | Action::Osk(_)
+                    | Action::TypeHere(crate::edit::Here::Chart)
+                    | Action::KeyTick(..)
             )
         {
             self.sheet = None;

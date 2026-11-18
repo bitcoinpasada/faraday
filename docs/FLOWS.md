@@ -1115,7 +1115,7 @@ The flow's cards, steps and rules are in `docs/BACKUP-FLOW.md` (§4, the steps; 
 
 Every flow, entry point and step, and the rules this file's rules rest on, are in `docs/WALLETS.md` (§11, the rules).
 
-A wallet of several keys that has a key not checked (F286) shows a second line on its chart node, "2 keys not checked" in the caution tone; its own sheet shows the key block, tickable, under the Descriptor row; its receive addresses carry the caution line "2 keys of this wallet are not checked" (`docs/WALLETS.md` §3.5).
+A wallet of several keys that has a key not checked (F286) shows a second line on its chart node, "2 keys not checked" in the caution tone; its own sheet shows the key block, tickable, under the Descriptor row and the first addresses, and a tick there leaves the sheet open; its receive addresses carry the caution line "2 keys of this wallet are not checked" (`docs/WALLETS.md` §3.5).
 
 ## Spend tab
 
@@ -2312,7 +2312,7 @@ as if it held), the line coming from the reader where it has one:
 **The Result.** First the rows of the confirmation sheet (F254), drawn
 by the same code as the sheet's body, so that the person learns one
 layout, with the key marks and ticks of F286 (a wallet loaded here shows
-that wallet's marks; not built):
+that wallet's marks):
 
 - the **shape** in the wallet's own words (`Session::shape`): "2 of 3 ·
   native SegWit multisig", "2 of 3 · Taproot multisig", "3 of 3 ·

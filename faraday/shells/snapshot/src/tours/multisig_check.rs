@@ -75,12 +75,8 @@ pub(crate) fn multisig_check_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Entry(None));
     t.type_key(0);
     t.press(Action::OpenWallet(w));
-    // A press on a tick closes a chart's sheet on a narrow window, so the
-    // sheet is opened again, as a person would, before each frame.
+    t.press(Action::Chart(C::Open(Press::Loaded(w), Target::Wallet)));
     let sheet = |t: &mut Tour, name: &str| {
-        if t.app.sheet.is_none() {
-            t.press(Action::Chart(C::Open(Press::Loaded(w), Target::Wallet)));
-        }
         crate::tour::scroll_to(t, Action::KeyTick(of, 2));
         crate::tour::scroll(t, 120);
         t.shot(name)

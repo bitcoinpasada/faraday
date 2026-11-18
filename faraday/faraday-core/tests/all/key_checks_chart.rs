@@ -10,11 +10,15 @@ use faraday_core::{Action, Faraday, Sheet, testkit};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
 fn device() -> Faraday {
+    device_at(1440, 900)
+}
+
+fn device_at(width: u16, height: u16) -> Faraday {
     let mut app = Faraday::new();
     testkit::move_to(&mut app.session, testkit::NET).unwrap();
     app.event(Event::Display(DisplayInfo {
-        width: 1440,
-        height: 900,
+        width,
+        height,
         dpi: 160,
         inset_bottom: 0,
         inset_top: 0,
@@ -105,6 +109,24 @@ fn the_node_and_the_sheet_count_the_keys_not_checked_and_a_tick_there_updates_bo
         assert!(!s.contains("keys not checked"), "{s}");
         assert!(!s.contains("1 key not checked"), "{s}");
     }
+}
+
+#[test]
+fn a_tick_on_a_one_column_layout_leaves_the_sheet_open_with_the_key_checked() {
+    let mut app = device_at(480, 640);
+    let w = two_unchecked(&mut app);
+    open_wallet_sheet(&mut app, w, Target::Wallet);
+    let s = all_with(&mut app, "2 keys not checked");
+    assert!(s.contains("2 keys not checked"), "{s}");
+    app.press(Action::KeyTick(KeyBlockOf::Wallet(w as u16), 1));
+    assert_eq!(app.sheet, Some(Sheet::Chart));
+    let s = all_with(&mut app, "1 key not checked");
+    assert!(s.contains("1 key not checked"), "{s}");
+    assert_eq!(s.matches("Not checked").count(), 1, "{s}");
+    app.press(Action::KeyTick(KeyBlockOf::Wallet(w as u16), 2));
+    assert_eq!(app.sheet, Some(Sheet::Chart));
+    let s = all_with(&mut app, "Every key checked");
+    assert!(s.contains("Every key checked"), "{s}");
 }
 
 #[test]
