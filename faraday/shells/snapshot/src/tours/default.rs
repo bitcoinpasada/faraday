@@ -266,6 +266,12 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     } else {
         t.shot("home-empty")?;
     }
+    // The list of what was plugged in at start is dismissed; the pages
+    // below are shown without it.
+    if medium == Medium::Stick {
+        t.app.event(Event::Key(Key::Escape));
+        t.pump();
+    }
     // Settings' Time section, and Set the time with the clock not known
     // yet.
     t.press(Action::Nav(Screen::Settings));
@@ -275,7 +281,11 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     // The list of zones, which the zone row opens.
     t.press(Action::TzList(true));
     t.shot("set-time-zones")?;
+    // A zone chosen: the page with it set. No time is typed: a focused
+    // field brings up the keyboard, whose keys are another page's shot.
+    t.press(Action::TzSet(-540));
     t.press(Action::TzList(false));
+    t.shot("set-time-zone-chosen")?;
     t.press(Action::SetTimeBack);
     t.press(Action::Nav(Screen::Home));
     // A stick arrives while nothing secret is held: the visit.

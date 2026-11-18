@@ -16,8 +16,12 @@ use faraday_ui::parts::{section_label, wrap_buttons};
 /// that keep it. Single-choice, as the app's other pick lists are
 /// (Material 3, Lists: a list of single-choice items with a radio
 /// button).
-fn zone_row(ui: &mut Ui, (x, y, w): (f32, f32, f32), (min, clue): (i16, &str), on: bool) {
-    let h = FIELD;
+/// Returns the height it takes: the cities wrap to as many lines as they
+/// need, and the row grows with them.
+fn zone_row(ui: &mut Ui, (x, y, w): (f32, f32, f32), (min, clue): (i16, &str), on: bool) -> f32 {
+    let line_w = w - TOUCH - PAD;
+    let ly = y + FIELD / 2.0 + GAP_SMALL;
+    let h = FIELD.max(ly - y + ui.wrap_height_as(BODY_S, clue, line_w) + GAP);
     ui.fill(
         x,
         y,
@@ -27,7 +31,7 @@ fn zone_row(ui: &mut Ui, (x, y, w): (f32, f32, f32), (min, clue): (i16, &str), o
         selected_or(on, Role::SurfaceContainerHighest),
     );
     ui.stroke(x, y, w, h, SHAPE_S, selected_or(on, Role::OutlineVariant));
-    let (cx, cy) = (x + PAD + GAP, y + h / 2.0);
+    let (cx, cy) = (x + PAD + GAP, y + FIELD / 2.0);
     ui.dot(cx, cy, GAP, on_selected(on, Role::OutlineVariant));
     if !on {
         ui.dot(cx, cy, GAP - 2.0, Role::SurfaceContainerHighest);
@@ -41,16 +45,14 @@ fn zone_row(ui: &mut Ui, (x, y, w): (f32, f32, f32), (min, clue): (i16, &str), o
         on_selected(on, Role::OnSurface),
         &name,
     );
-    let line = ui.fit_as(BODY_S, clue, w - TOUCH - PAD);
-    let ly = cy + GAP_SMALL;
-    ui.text_as(
-        x + TOUCH,
-        ly,
+    ui.wrap_as(
+        (x + TOUCH, ly, line_w),
         BODY_S,
         on_selected(on, Role::OnSurfaceVariant),
-        &line,
+        clue,
     );
     ui.press_box(x, y, w, h, Action::TzSet(min));
+    h
 }
 
 /// The list of zones in place of the fields: one row for each offset in
@@ -69,8 +71,7 @@ fn zone_list(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), (x, w): (f32
     let mut y = top;
     let chosen = app.tz_chosen();
     for &(min, clue) in faraday_strings::zones::ZONES {
-        zone_row(ui, (x, y, w), (min, clue), chosen == Some(min));
-        y += FIELD + GAP_SMALL;
+        y += zone_row(ui, (x, y, w), (min, clue), chosen == Some(min)) + GAP_SMALL;
     }
     y += GAP;
     section_label(ui, x, y, EN.set_time_other_offset);

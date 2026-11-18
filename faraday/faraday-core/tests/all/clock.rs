@@ -9,6 +9,7 @@ use crate::common::type_text;
 use faraday_core::set_time::Focus;
 use faraday_core::stick::settings::FILE;
 use faraday_core::testkit;
+use faraday_core::testkit::Plain as _;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, StickInfo, StorageCommand, StorageEvent};
 use faraday_shell_api::{
@@ -179,6 +180,23 @@ fn setting_the_time_by_hand_corrects_a_clock_before_2020() {
     app.press(Action::Vault(V::Category(4)));
     make_gpg_key(&mut app);
     assert_eq!(gpg_created(&app), 1_791_720_120);
+}
+
+/// A zone's row in the list shows every city that keeps it, however many
+/// there are: none is cut short.
+#[test]
+fn the_zone_list_shows_every_city_of_a_zone() {
+    let mut app = vault_app(Some(1000));
+    app.press(Action::Nav(Screen::Settings));
+    crate::common::settings_section(&mut app, "Time");
+    app.press(Action::OpenSetTime);
+    app.press(Action::TzList(true));
+    let _ = app.frame();
+    let shown = app.drawn_texts().plain().to_vec().join(" ");
+    assert!(
+        shown.contains("Los Angeles in winter, Vancouver in winter, Anchorage in summer"),
+        "{shown}"
+    );
 }
 
 /// Set time's fields take an edit where the caret is: the arrow keys
