@@ -513,6 +513,24 @@ fn a_stick_plugged_in_after_a_passphrase_was_typed_locks_and_closes_the_sheet() 
 }
 
 #[test]
+fn storage_only_the_kernel_shows_closes_the_passphrase_sheet() {
+    let mut app = scanner();
+    asking(&mut app);
+    app.storage(StorageEvent::Attached(true));
+    closed(&mut app);
+}
+
+#[test]
+fn storage_only_the_kernel_shows_after_a_passphrase_was_typed_locks() {
+    let mut app = scanner();
+    asking(&mut app);
+    type_text(&mut app, "key");
+    app.storage(StorageEvent::Attached(true));
+    closed(&mut app);
+    assert_eq!(app.sheet, Some(Sheet::Lock));
+}
+
+#[test]
 fn a_stick_plugged_in_while_the_code_opens_stops_the_work_and_closes_the_sheet() {
     let mut app = scanner();
     working(&mut app);

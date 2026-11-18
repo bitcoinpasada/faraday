@@ -217,6 +217,24 @@ fn a_seed_pasted_into_what_do_you_have_asks_how_it_loads() {
 }
 
 #[test]
+fn storage_only_the_kernel_shows_stops_the_seed_sheets_passphrase_typing() {
+    let mut app = desktop();
+    app.press(Action::ScanSeed);
+    paste(&mut app, &testkit::test_words("bacon"), false);
+    assert_eq!(app.sheet, Some(Sheet::SeedRead));
+    app.press(Action::SeedRead(Choice::AddPass));
+    app.press(Action::SeedRead(Choice::Field(0)));
+    type_text(&mut app, "before");
+    app.storage(StorageEvent::Attached(true));
+    type_text(&mut app, "after");
+    app.press(Action::SeedRead(Choice::Field(0)));
+    type_text(&mut app, "after");
+    let s = app.seed_read().expect("the sheet stays");
+    assert!(s.pass.is_empty(), "the field took typing with storage in");
+    assert!(s.focus.is_none());
+}
+
+#[test]
 fn a_private_key_pasted_into_a_seed_scanner_is_still_refused() {
     let mut app = desktop();
     app.press(Action::ScanSeed);

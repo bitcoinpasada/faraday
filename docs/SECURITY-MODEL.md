@@ -149,6 +149,11 @@ internal error rather than carrying on.
     no typing and no key is loaded; every field of a vault entry or note
     counts as a passphrase field, and an entry or note is not opened for
     editing, since that puts its secrets in the form.
+    This holds for a stick the disk process lists and for storage only
+    the kernel shows (a card reader, or a stick not yet listed): either
+    closes the Krux passphrase sheet and empties the seed read's
+    passphrase pair, which takes no typing until it is out, and a
+    process that is not clean is asked to lock first.
 
   What the kernel does read from such a stick is its USB descriptors and
   its partition table. Its storage interface is the only one authorised,

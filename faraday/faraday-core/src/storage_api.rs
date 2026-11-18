@@ -2,7 +2,7 @@
 //! about them, and what the app asks it to do.
 
 use crate::Unrenamed;
-use crate::{Faraday, Item, Sheet, stick, vault};
+use crate::{Faraday, Item, stick};
 use faraday_shell_api::Command;
 use faraday_text::Text;
 use zeroize::Zeroizing;
@@ -1098,18 +1098,14 @@ impl Faraday {
         let noun = attached.then(|| self.medium.noun());
         self.session.keys.set_stick_attached(noun);
         if attached {
-            if matches!(
-                self.vaults.focus,
-                Some(vault::Focus::Passphrase | vault::Focus::Phrase(..) | vault::Focus::Dice)
-            ) {
-                self.vaults.set_focus(None);
+            stick::events::secrets_close(self);
+            // Any other than a clean process locks first, as for a
+            // listed stick.
+            if !self.clean() {
+                self.lock_sheet_replaces_devices();
             }
-            stick::tools_lose_secrets(self, false);
-        } else if self.sheet == Some(Sheet::Pull) {
-            self.sheet = None;
-            if let Some(a) = self.visit.take_pull() {
-                self.act(a);
-            }
+        } else {
+            stick::events::nothing_in_the_way(self, true);
         }
     }
 

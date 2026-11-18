@@ -332,7 +332,24 @@ impl Faraday {
         }
     }
 
+    /// A stick is in the way: the passphrase pair takes no typing, and
+    /// what was typed into it and the key it made are dropped.
+    pub(crate) fn seed_read_stick_arrived(&mut self) {
+        if let Some(s) = self.seed_read.state.as_mut() {
+            s.focus = None;
+            s.pass = SecretText::new();
+            s.pass2 = SecretText::new();
+            s.with = None;
+        }
+    }
+
     pub(crate) fn seed_read_act(&mut self, choice: Choice) {
+        // A press on a passphrase field does not focus it with a stick in.
+        if matches!(choice, Choice::Field(_)) && self.stick.in_the_way() {
+            let line = crate::stick::keys_load(self.medium);
+            self.toast(&line);
+            return;
+        }
         // A passphrase field waits for the stick to be out.
         if choice == Choice::Kef && !self.may_load_keys() {
             return;

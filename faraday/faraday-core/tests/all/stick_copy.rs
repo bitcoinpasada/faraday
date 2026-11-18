@@ -831,6 +831,40 @@ fn copy_and_load_brings_in_a_secret_the_person_ticked_and_loads_it_on_pulling_th
 }
 
 #[test]
+fn a_load_waiting_on_a_card_reader_runs_when_the_reader_is_pulled_not_the_card() {
+    let mut app = testkit::started();
+    let words = kit_ending("-words.txt");
+    let a = Stick::new("a", std::slice::from_ref(&words));
+    attach(&mut app, &[&a]);
+    tick(&mut app, &words.0);
+    app.press(Action::VisitCopyAndLoad);
+    pump(&mut app, &[&a]);
+    app.storage(StorageEvent::Attached(true));
+    // The card is pulled; the reader is still in.
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    assert!(app.session.keys.is_empty(), "loaded with the reader in");
+    assert!(!app.visit().load_after.is_empty(), "the load was dropped");
+    app.storage(StorageEvent::Attached(false));
+    assert_eq!(app.session.keys.len(), 1, "the key did not load");
+}
+
+#[test]
+fn a_load_waiting_runs_once_when_the_kernel_clears_before_the_list() {
+    let mut app = testkit::started();
+    let words = kit_ending("-words.txt");
+    let a = Stick::new("a", std::slice::from_ref(&words));
+    attach(&mut app, &[&a]);
+    tick(&mut app, &words.0);
+    app.press(Action::VisitCopyAndLoad);
+    pump(&mut app, &[&a]);
+    app.storage(StorageEvent::Attached(true));
+    app.storage(StorageEvent::Attached(false));
+    assert!(app.session.keys.is_empty(), "loaded with the stick listed");
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    assert_eq!(app.session.keys.len(), 1, "the key did not load once");
+}
+
+#[test]
 fn pressing_copy_twice_on_an_own_ticked_secret_logs_nothing_dropped() {
     let mut app = testkit::started();
     let words = kit_ending("-words.txt");

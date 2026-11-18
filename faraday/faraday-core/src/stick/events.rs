@@ -399,49 +399,11 @@ pub(crate) fn sticks_changed(app: &mut Faraday, sticks: Vec<StickInfo>) {
     if app.stick.is_empty() {
         app.stick.set_held(false);
         app.stick.set_not_now(false);
-        if app.sheet == Some(Sheet::Lock) {
-            app.sheet = None;
-            app.visit.set_lock_to_write(None);
-        }
-        // A passphrase waiting on the stick takes typing now.
-        if app.screen == Screen::Unlock
-            && app.vaults.focus.is_none()
-            && app.vault_files().iter().any(|f| f.open.is_none())
-        {
-            app.vaults.set_focus(Some(vault::Focus::Passphrase));
-        }
-        app.visit_pulled();
-        if had {
-            let loaded = app.load_after_pull() + app.import_load_after_pull();
-            let said = if loaded == 0 {
-                faraday_text::Text::fill(EN.sticks_changed_removed_only, &[app.medium.cap()])
-            } else {
-                faraday_text::Text::fill(
-                    EN.sticks_changed_removed,
-                    &[
-                        app.medium.cap(),
-                        &faraday_text::Text::num(loaded as u64),
-                        (if loaded == 1 {
-                            EN.sticks_changed_key
-                        } else {
-                            EN.sticks_changed_keys
-                        }),
-                    ],
-                )
-            };
-            app.toast(&said);
-        }
-        app.import_stick_gone();
-        // What was pressed with the stick in carries on, and the
-        // reminders the sheet listed are seen.
-        if app.sheet == Some(Sheet::Pull) {
-            app.sheet = None;
-            if let Some(a) = app.visit.take_pull() {
-                if app.devices.held.is_empty() {
-                    app.devices.understand();
-                }
-                app.act(a);
-            }
+        // With the kernel still showing storage (a card reader, now
+        // empty) nothing is out of the way yet: `storage_attached(false)`
+        // runs the step when it is.
+        if !app.stick.in_the_way() {
+            nothing_in_the_way(app, had);
         }
         return;
     }
@@ -461,13 +423,64 @@ pub(crate) fn sticks_changed(app: &mut Faraday, sticks: Vec<StickInfo>) {
     stick_arrived(app);
 }
 
-/// A stick arrived, or one held back is taken now.
-pub(crate) fn stick_arrived(app: &mut Faraday) {
-    let c = app.compute();
-    // A stick arrived. Only a clean process takes it; any other locks
-    // first (`docs/FLOWS.md`). No passphrase field takes typing while
-    // it is attached.
+/// Nothing is in the way now: no stick is listed and the kernel shows no
+/// storage. Run once, by whichever of the listing and the kernel's view
+/// makes it so; what waited on the stick carries on. `had` is whether
+/// something was in the way before.
+pub(crate) fn nothing_in_the_way(app: &mut Faraday, had: bool) {
+    if app.sheet == Some(Sheet::Lock) {
+        app.sheet = None;
+        app.visit.set_lock_to_write(None);
+    }
+    // A passphrase waiting on the stick takes typing now.
+    if app.screen == Screen::Unlock
+        && app.vaults.focus.is_none()
+        && app.vault_files().iter().any(|f| f.open.is_none())
+    {
+        app.vaults.set_focus(Some(vault::Focus::Passphrase));
+    }
+    app.visit_pulled();
+    if had {
+        let loaded = app.load_after_pull() + app.import_load_after_pull();
+        let said = if loaded == 0 {
+            faraday_text::Text::fill(EN.sticks_changed_removed_only, &[app.medium.cap()])
+        } else {
+            faraday_text::Text::fill(
+                EN.sticks_changed_removed,
+                &[
+                    app.medium.cap(),
+                    &faraday_text::Text::num(loaded as u64),
+                    (if loaded == 1 {
+                        EN.sticks_changed_key
+                    } else {
+                        EN.sticks_changed_keys
+                    }),
+                ],
+            )
+        };
+        app.toast(&said);
+    }
+    app.import_stick_gone();
+    // What was pressed with the stick in carries on, and the
+    // reminders the sheet listed are seen.
+    if app.sheet == Some(Sheet::Pull) {
+        app.sheet = None;
+        if let Some(a) = app.visit.take_pull() {
+            if app.devices.held.is_empty() {
+                app.devices.understand();
+            }
+            app.act(a);
+        }
+    }
+}
+
+/// What a stick in the way closes, whichever event shows it (the disk
+/// process's listing or the kernel's view): the Krux passphrase sheet, the
+/// seed read's passphrase pair, the vaults' secret fields and the tools'
+/// secret fields.
+pub(crate) fn secrets_close(app: &mut Faraday) {
     seeds::kef::kef_stick_arrived(app);
+    app.seed_read_stick_arrived();
     if matches!(
         app.vaults.focus,
         Some(vault::Focus::Passphrase | vault::Focus::Phrase(..) | vault::Focus::Dice)
@@ -475,6 +488,15 @@ pub(crate) fn stick_arrived(app: &mut Faraday) {
         app.vaults.set_focus(None);
     }
     stick::tools_lose_secrets(app, false);
+}
+
+/// A stick arrived, or one held back is taken now.
+pub(crate) fn stick_arrived(app: &mut Faraday) {
+    let c = app.compute();
+    // A stick arrived. Only a clean process takes it; any other locks
+    // first (`docs/FLOWS.md`). No passphrase field takes typing while
+    // it is attached.
+    secrets_close(app);
     // The backup flow on screen takes the stick: never the visit, at any
     // step (`docs/BACKUP-FLOW.md` §5).
     if app.flow_stick_arrived() {

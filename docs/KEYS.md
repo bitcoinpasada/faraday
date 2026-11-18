@@ -47,7 +47,9 @@ boundary is.
 - **No key joins while a stick is attached.** Every way of adding a key
   refuses, before anything is derived, while faraday-core says a stick
   is attached (`Keys::set_stick_attached`, set where the sticks the
-  shell reports change; `docs/SECURITY-MODEL.md`).
+  shell lists change and where the kernel's view of attached storage
+  changes, which also sees a stick the listing does not show;
+  `docs/SECURITY-MODEL.md`).
 - **Leaving.** Key material leaves only through `reveal(id, Reveal::…)`.
   It returns a guard that borrows the store and wipes its copy on drop.
   The list of reasons is closed, sixteen `Reveal` variants

@@ -1038,7 +1038,8 @@ impl Faraday {
     }
 
     /// Loads the key an Inbox file's words spell, the same as typing them
-    /// into Add a key. Refused with no stick attached.
+    /// into Add a key. Refused while a stick is attached (listed, or shown by
+    /// the kernel) and before the self-test has passed.
     pub(crate) fn load_key(&mut self, index: usize) -> bool {
         let c = self.compute();
         if !self.may_load_keys() {
