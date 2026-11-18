@@ -736,7 +736,8 @@ impl OpenVaults {
         }
     }
 
-    /// Costs a parse of the words of each key in `added`. The keys added
+    /// Costs a parse of the words of each key in `added`, none when no open
+    /// vault holds a record of words. The keys added
     /// since `Keys::take_added` last said (typed, scanned, read from a file,
     /// a codex32 or SLIP-39 set, a BIP-85 child, a vault's load) are
     /// matched to the open vaults' key records of words by the words, as
@@ -746,6 +747,16 @@ impl OpenVaults {
     /// the parent's mark gives. No PBKDF2: a key with no words is marked
     /// only when its fingerprint was marked already.
     pub fn note_made_online_added(&self, c: &Compute, keys: &mut Keys, added: &[Fingerprint]) {
+        // No record of words in any open vault: nothing to match, so no
+        // parse.
+        if !self
+            .slots
+            .iter()
+            .flat_map(|s| s.records.iter())
+            .any(|r| r.kind == kind::KEY)
+        {
+            return;
+        }
         for fp in added {
             let Some(i) = keys.position(*fp) else {
                 continue;

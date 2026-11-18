@@ -1423,6 +1423,9 @@ mod aezeed_source {
     //! and converts as the seed LND takes its 16 bytes of entropy to be
     //! (LND's `cipherseed_test.go`, `tools/reference/aezeed/README.md`).
 
+    // LND's cipher seed is a public sample, which Mainnet refuses: the
+    // tests hold it on the test network.
+
     use super::*;
     use faraday_keys::lightning::AEZEED_WORDS;
 
@@ -1451,7 +1454,7 @@ mod aezeed_source {
     #[test]
     fn the_entropy_is_the_bip_32_seed_and_each_target_reads_back_to_it() {
         let c = compute();
-        let mut keys = Keys::default();
+        let mut keys = Keys::on(Network::Testnet);
         hold(&mut keys, WORDS, "").unwrap();
         assert_eq!(keys.len(), 0);
         let i = Keys::AEZEED_SOURCE;
@@ -1460,7 +1463,7 @@ mod aezeed_source {
         let master = MasterKey::from_seed_bytes(
             &c,
             &faraday_crypto::Secret::new(faraday_crypto::SeedBytes::new(&entropy).unwrap()),
-            Network::Mainnet,
+            Network::Testnet,
         );
         assert_eq!(
             keys.source_info(i).unwrap().fingerprint,
@@ -1515,14 +1518,14 @@ mod aezeed_source {
 
     #[test]
     fn the_birthday_is_the_one_the_vector_carries() {
-        let mut keys = Keys::default();
+        let mut keys = Keys::on(Network::Testnet);
         hold(&mut keys, WITH_PASSPHRASE, "!very_safe_55345_password*").unwrap();
         assert_eq!(keys.aezeed_birthday(), Some((2018, 3, 22)));
     }
 
     #[test]
     fn a_wrong_passphrase_or_a_bad_checksum_holds_nothing() {
-        let mut keys = Keys::default();
+        let mut keys = Keys::on(Network::Testnet);
         assert!(hold(&mut keys, WORDS, "wrong").is_err());
         let mut words: Vec<&str> = WORDS.split(' ').collect();
         words[23] = "abandon";
@@ -1533,7 +1536,7 @@ mod aezeed_source {
 
     #[test]
     fn a_stick_attached_holds_nothing() {
-        let mut keys = Keys::default();
+        let mut keys = Keys::on(Network::Testnet);
         keys.set_stick_attached(Some("stick"));
         assert!(hold(&mut keys, WORDS, "").is_err());
         assert!(keys.aezeed_birthday().is_none());
@@ -1544,7 +1547,7 @@ mod aezeed_source {
     #[test]
     fn only_the_conversions_reach_it() {
         let c = compute();
-        let mut keys = Keys::default();
+        let mut keys = Keys::on(Network::Testnet);
         hold(&mut keys, WORDS, "").unwrap();
         let path = "m/84'/0'/0'".parse().unwrap();
         assert!(keys.xpub_at(&c, Keys::AEZEED_SOURCE, &path).is_none());
@@ -1557,7 +1560,7 @@ mod aezeed_source {
     #[test]
     fn forgetting_or_clearing_drops_it() {
         let c = compute();
-        let mut keys = Keys::default();
+        let mut keys = Keys::on(Network::Testnet);
         hold(&mut keys, WORDS, "").unwrap();
         assert!(keys.holds_secret());
         keys.aezeed_forget();

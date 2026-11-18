@@ -166,8 +166,8 @@ const UNLOCK: Table = &[
 const LOAD: Table = &[
     (
         Work::WordsParse,
-        2,
-        "the vault's seed read from its record as the press starts the job (OpenVaults::load_job), then parsed again in the job as it is loaded (KeysJob::run)",
+        3,
+        "the vault's seed read from its record as the press starts the job (OpenVaults::load_job), then parsed again in the job as it is loaded (KeysJob::run); the key the job added, parsed once more to match its words to the open vaults' key records for their made-online mark (OpenVaults::note_made_online_added)",
     ),
     (
         Work::Kdf,

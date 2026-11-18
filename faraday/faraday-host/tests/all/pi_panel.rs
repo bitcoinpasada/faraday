@@ -2174,7 +2174,7 @@ fn on_the_pi_chosen_pointer_and_keys_keeps_its_check_inside_its_chip() {
 fn on_the_pi_change_passphrase_is_inside_its_button() {
     let mut rig = rig(
         On::Stick,
-        Mode::Mainnet,
+        Mode::Testnet,
         vec![("vault.kdbx".into(), testkit::test_vault().unwrap())],
     );
     rig.press(Action::Nav(Screen::Vaults));

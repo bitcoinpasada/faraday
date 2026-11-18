@@ -243,8 +243,11 @@ fn the_published_sheet_answers_escape_and_the_mouse_back_as_its_cancel_does_by_s
     sheet_closes_alike(
         || {
             let mut app = testkit::started();
+            testkit::move_to(&mut app.session, faraday_bip::keys::Network::Mainnet).unwrap();
             app.press(Action::Entry(None));
-            let words = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+            // BIP-39's second vector: published, not a sample Mainnet refuses.
+            let words =
+                "legal winner thank year wave sausage worth useful legal winner thank yellow";
             for c in words.chars() {
                 app.event(Event::Key(Key::Char(c)));
             }
