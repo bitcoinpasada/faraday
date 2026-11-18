@@ -2931,7 +2931,7 @@ A multisig never takes it: its plan needs a place per key and the
 description at each, which is the board's work. A key backed up as
 codex32 shares never takes it: its standard way is a string per place
 (§17.21 item 13), which is not one copy of words. A person who wants the
-board from the start presses **More ways to back up** on the first
+board from the start presses **Make a backup plan** on the first
 screen of the short path: one press.
 
 ### 19.2 Screen by screen
@@ -2943,13 +2943,25 @@ opens on the checklist instead, with the plan already made as Paper only
 (as **Make the checklist** makes it from the board). Back up's step
 cards (wide) or pages (small) are the checklist's, as today.
 
-1. **Write the words down.** The copy item of §10.2 (`Item::Copy`),
-   first half: its title is the item's own ("Copy seed {} by hand"),
+1. **Make a copy.** The copy item of §10.2 (`Item::Copy`), first half:
    its body **Show the seed** and the words' grid as today. Beside
-   **Show the seed**, a text button **Blank template**, which opens the
-   templates item's line ("Print 1 from Faraday Starter: Blank
-   templates, 12 words, words") as a sheet with **Close**; nothing is
-   pressed to pass it. Under the item, one row, **More ways to back up**.
+   **Show the seed**, **Show the SeedQR** and a text button **Blank
+   template**, which opens the templates item's line ("Print 1 from
+   Faraday Starter: Blank templates, 12 words, words") as a sheet with
+   **Close**; nothing is pressed to pass it; where the column is narrow
+   the three wrap as a button row does. **Show the SeedQR** is the
+   board's SeedQR answer made from here: the plan keeps the seed's
+   SeedQR beside its words at its one place (Paper only with the SeedQR
+   added, so `Ready::is` no longer reads it as Paper only; saved when
+   pressed), the seed is shown, and above the words the copy item's own
+   SeedQR block is drawn (`seedqr_block`, one block for both screens):
+   Standard or Compact SeedQR, the ruled grid to copy by hand, and for a
+   seed in another word list than English the board's line that SeedQR
+   is for English words only. No item is new: the check is the board's
+   (§17.24), the words typed back and, where a camera is listed, the
+   drawn grid scanned; the foot's **Done** and the match's completion of
+   the plan read the copy item's own done, so with a SeedQR they wait
+   for both. Under the item, one row, **Make a backup plan**.
    The foot is **I wrote them down**, filled, offered once the seed has
    been shown; it hides the seed and moves on.
 2. **Check my copy.** The same item's second half: the typed check of
@@ -2974,9 +2986,9 @@ is made, and the full checklist shows it as one item, done. Leaving the
 short path between its two screens and coming back opens on the screen
 left: on step 2 if the seed was hidden by **I wrote them down**.
 
-### 19.3 More ways to back up
+### 19.3 Make a backup plan
 
-**More ways to back up** opens the board exactly as a new plan opens it
+**Make a backup plan** opens the board exactly as a new plan opens it
 today (§17.21 item 1, §17.25): read-only with Paper only selected, the
 ready plans, **Add watch-only software** and **Customize backup**. It is
 the board's Change the plan (§17.21 item 11), so everything it offers is
@@ -2990,7 +3002,8 @@ pressed before the match, the copy and the two presses are still to do,
 each as today.
 
 The row is offered on both short-path screens and, as **Change the
-plan**, on the end card. Once pressed, the wallet's backup is the board's
+plan**, on the end card. Pressed after **Show the SeedQR**, the board
+opens on the plan with the SeedQR kept. Once pressed, the wallet's backup is the board's
 for good: coming back to it opens the board or the checklist as left,
 never the short path again.
 
@@ -3083,7 +3096,14 @@ plan today, and neither changes.
 - **The one copy.** §17.19's muted fact, nothing added (§19.4). Not
   taken: a warning line with an action to add a place; lifting the
   single key's cap of one place.
-- **The check.** Step 2 is the typed check only, the one §18.3 dates.
+- **A KEF encrypted backup from the first screen.** Not built. A Krux
+  code is its own item (`Item::KefCode`, `docs/KEF.md` §15.1) on a
+  place of its own kind, paper or a stick's file, with its own form for
+  the passphrase and the code made, and a check of its own. §19.2 does
+  not settle which of the two the short path's one place keeps it as,
+  nor what checked means here.
+- **The check.** Step 2 is the typed check, the one §18.3 dates, and the
+  SeedQR's scan once **Show the SeedQR** was pressed.
   Make a new key's quiz (four words to pick from per position) is not
   offered beside it.
 - **Which wallets.** A key with a passphrase opens on the board (§19.1).
@@ -3100,7 +3120,7 @@ the state, nothing explains on a working screen. **I wrote them down** is a pres
 nothing, as Make a new key's of the same name; it only hides the seed,
 and the item passes only on step 2's match. No check is done for the
 person: the two presses recorded at the match (§19.5) check nothing on
-the full checklist either, and the typed check is the one check.
+the full checklist either, and the typed check is the one check (with a SeedQR, its scan too).
 
 ### 19.10 Security
 

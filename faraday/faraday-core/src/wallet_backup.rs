@@ -4266,11 +4266,17 @@ impl Faraday {
                 self.copy_check_open();
             }
             Quick::Done => {
-                let matched = self.quick_matched_now();
+                let matched = self.quick_matched_now(c);
                 if matched && let Some(b) = self.backup.state.as_mut() {
                     b.quick = false;
                     b.quick_done = true;
                     b.open = None;
+                }
+            }
+            Quick::SeedQr => {
+                if self.backup.quick_seedqr() {
+                    self.plan_save();
+                    self.backups_sync();
                 }
             }
             // The board, as a new plan opens it; Change the plan's own
@@ -4297,22 +4303,17 @@ impl Faraday {
         }
     }
 
-    /// Whether the words of the backup's key matched in this backup.
-    fn quick_matched_now(&self) -> bool {
-        let Some(b) = self.backup.state() else {
-            return false;
-        };
-        self.session.keys.info(b.key).is_some_and(|k| {
-            b.checked
-                .contains(&(k.fingerprint.0, plan::CopyForm::Words))
-        })
+    /// Whether the copy item is done in this backup: the words typed
+    /// back, and the SeedQR scanned where the plan keeps one.
+    fn quick_matched_now(&self, c: &Compute) -> bool {
+        self.backup_item_done_now(c, plan::Item::Copy(0))
     }
 
-    /// Seed `fp`'s words matched: on the short path that completes the
-    /// backup, the presses of the templates and the envelopes recorded
-    /// before the key is released.
-    pub(crate) fn quick_matched(&mut self, form: plan::CopyForm) {
-        if form == plan::CopyForm::Words && self.backup.quick_complete() {
+    /// A copy of seed `fp` matched: once the copy item is done, on the
+    /// short path that completes the backup, the presses of the templates
+    /// and the envelopes recorded before the key is released.
+    pub(crate) fn quick_matched(&mut self, c: &Compute) {
+        if self.backup.is_quick() && self.quick_matched_now(c) && self.backup.quick_complete() {
             self.backups_marked();
         }
     }

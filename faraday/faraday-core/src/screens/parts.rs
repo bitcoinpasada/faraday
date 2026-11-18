@@ -2213,6 +2213,18 @@ fn copy_whole(ui: &mut Ui, (x, y): (f32, f32), cell: f32, g: &CopyGrid<'_>, pin:
     };
     for i in 0..marks {
         let (mx, my, mw, mh) = mark_at(i);
+        // A block at the right or bottom edge is short where the grid
+        // does not divide by the block: its press reaches out to the
+        // touch floor into the room beside or under the grid.
+        let (mw, mh) = if g.rows {
+            (mw, mh)
+        } else {
+            let (ew, eh) = (gx + side - (mx + mw), gy + side - (my + mh));
+            (
+                if ew < 0.5 { mw.max(ui.touch) } else { mw },
+                if eh < 0.5 { mh.max(ui.touch) } else { mh },
+            )
+        };
         ui.press_box(mx, my, mw, mh, (g.pick)(i));
     }
     for row in 0..n {

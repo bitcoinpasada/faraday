@@ -962,7 +962,7 @@ fn the_quick_screens_offer_i_wrote_them_down_only_after_show_the_seed_and_done_o
     let mut app = device(Vec::new());
     let w = quick_open(&mut app);
     let _ = app.frame();
-    assert!(crate::common::has(&mut app, "Write the words down"));
+    assert!(crate::common::has(&mut app, "Make a copy"));
     assert!(app.offers(Action::BQuick(Quick::Show)));
     assert!(app.offers(Action::BQuick(Quick::More)));
     assert!(!app.offers(Action::BQuick(Quick::Wrote)));
@@ -976,6 +976,35 @@ fn the_quick_screens_offer_i_wrote_them_down_only_after_show_the_seed_and_done_o
     quick_match(&mut app, w);
     let _ = app.frame();
     assert!(app.offers(Action::BQuick(Quick::Done)));
+}
+
+#[test]
+fn show_the_seedqr_on_the_quick_screen_shows_the_seed_and_its_grid_and_the_match_still_completes() {
+    let c = testkit::compute();
+    let mut app = device(Vec::new());
+    let w = quick_open(&mut app);
+    let _ = app.frame();
+    assert!(app.offers(Action::BQuick(Quick::SeedQr)));
+    assert!(!app.offers(Action::BCompact(true)), "no SeedQR before it");
+    app.press(Action::BQuick(Quick::SeedQr));
+    let _ = app.frame();
+    assert!(app.backup().is_some_and(|b| b.quick && b.reveal));
+    assert!(
+        app.offers(Action::BCompact(true)),
+        "the SeedQR is not shown"
+    );
+    assert_eq!(
+        app.backup_items_now(&c),
+        vec![Item::Templates, Item::Copy(0), Item::Envelopes],
+        "no new item"
+    );
+    // The words typed back are the check, with no camera to scan with.
+    quick_match(&mut app, w);
+    let _ = app.frame();
+    assert!(app.offers(Action::BQuick(Quick::Done)));
+    for item in app.backup_items_now(&c) {
+        assert!(done(&app, item), "{item:?} is not done");
+    }
 }
 
 #[test]
@@ -1028,6 +1057,19 @@ fn more_ways_after_the_match_asks_nothing_new_on_the_checklist() {
     for item in items {
         assert!(done(&app, item), "{item:?} is asked again");
     }
+}
+
+#[test]
+fn make_a_backup_plan_opens_the_board_with_the_seedqr_kept() {
+    let mut app = device(Vec::new());
+    let _ = quick_open(&mut app);
+    let _ = app.frame();
+    assert!(crate::common::has(&mut app, "Make a backup plan"));
+    app.press(Action::BQuick(Quick::SeedQr));
+    app.press(Action::BQuick(Quick::More));
+    let b = app.backup().unwrap();
+    assert!(!b.quick);
+    assert_eq!(b.q, Some(qstep::BOARD));
 }
 
 #[test]

@@ -5,8 +5,8 @@ use faraday_core::testkit;
 use faraday_core::wallet_backup::quick::Quick;
 use faraday_core::{Action, Code, cstep};
 
-/// The quick paper backup of a single key made here: Write the words
-/// down before and after Show the seed, the Blank template sheet, Check
+/// The quick paper backup of a single key made here: Make a copy
+/// before and after Show the seed, the Blank template sheet, Check
 /// my copy, and the end card with the first receive address.
 pub(crate) fn quick_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Entry(None));
@@ -28,6 +28,8 @@ pub(crate) fn quick_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::BQuick(Quick::Template));
     t.shot("quick-3-blank-template")?;
     t.press(Action::Cancel);
+    t.press(Action::BQuick(Quick::SeedQr));
+    t.shot("quick-3b-seedqr")?;
     t.press(Action::BQuick(Quick::Wrote));
     t.shot("quick-4-check")?;
     type_words(t, None)?;

@@ -24,14 +24,17 @@ pub enum Quick {
     Done,
     /// Blank template: the sheet that says what to print.
     Template,
-    /// More ways to back up: the board.
+    /// Show the SeedQR: the plan keeps the seed's SeedQR beside its words
+    /// and the first screen shows both.
+    SeedQr,
+    /// Make a backup plan: the board.
     More,
 }
 
 /// Which of the two screens is open.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum Step {
-    /// Write the words down.
+    /// Make a copy.
     #[default]
     Write,
     /// Check my copy.
@@ -68,6 +71,27 @@ impl WalletBackupArea {
             b.quick_shown = false;
             b.board = crate::board::BoardState::default();
         }
+    }
+
+    /// The plan keeps the seed's SeedQR beside its words, as the board's
+    /// SeedQR answer does (`docs/BACKUP-FLOW.md` §19.2), and the first
+    /// screen shows the seed. Whether the short path made it.
+    pub(super) fn quick_seedqr(&mut self) -> bool {
+        let Some(b) = self.state.as_mut().filter(|b| b.quick) else {
+            return false;
+        };
+        // The short path's plan is the preset's: answers, no map.
+        if b.answers.map.is_some() {
+            return false;
+        }
+        b.answers.seeds[plan::seeds::SEEDQR] = true;
+        b.quick_step = Step::Write;
+        b.scanned = None;
+        b.check = None;
+        b.check_at = None;
+        b.reveal = true;
+        b.quick_shown = true;
+        true
     }
 
     /// The copy item stays the open one while the short path is under

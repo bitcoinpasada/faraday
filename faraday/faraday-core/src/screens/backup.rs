@@ -1068,43 +1068,7 @@ fn backup_body(app: &View, ui: &mut Ui, item: Item, x: f32, y: f32, w: f32) -> f
             if b.reveal && b.check.is_none() {
                 let lang = key.language;
                 cy += super::parts::seed_word_grid(app, ui, (x, cy, w), b.key);
-                // SeedQR numbers the English list's words: another list's
-                // words have no SeedQR another signer would read right.
-                if forms.seedqr && lang != faraday_bip::bip39::Language::English {
-                    cy += ui.wrap_as(
-                        (x, cy, w),
-                        BODY_S,
-                        Role::OnSurfaceVariant,
-                        EN.backup_seedqr_english_only,
-                    ) + 12.0;
-                } else if forms.seedqr {
-                    // The SeedQR as a ruled grid to copy.
-                    let items: Vec<(&str, Style, Action)> = [
-                        (EN.backup_standard_seedqr, false),
-                        (EN.backup_compact_seedqr, true),
-                    ]
-                    .into_iter()
-                    .map(|(label, c)| {
-                        let style = Style::chosen(b.compact == c);
-                        (label, style, Action::BCompact(c))
-                    })
-                    .collect();
-                    cy += wrap_buttons(ui, x, cy, w, 34.0, &items) + 6.0;
-                    // Worked out when the seed was shown, held until hidden (F195).
-                    if let Some(mx) = app.backup_seedqr(b.compact) {
-                        // Grey where the blank sheet prints the square.
-                        let g = crate::screens::CopyGrid {
-                            m: mx,
-                            printed: crate::wallet_backup::structural_fixed,
-                            lettered: false,
-                            rows: b.rows,
-                            pin: b.pin,
-                            pick: Action::BPin,
-                            mode: Action::BRows,
-                        };
-                        cy += crate::screens::copy_grid(ui, x, cy, w, &g);
-                    }
-                }
+                cy += seedqr_block(app, ui, (x, cy, w), forms.seedqr, lang);
                 cy += paper_section(app, ui, x, cy, w);
             }
             // The copy checked: its words typed back, or its SeedQR
@@ -1815,6 +1779,61 @@ fn item_action(app: &View, n: Item) -> (String, Action) {
         ),
         Item::Envelopes => next,
     }
+}
+
+/// The SeedQR of the seed shown, to copy by hand, where the plan keeps
+/// one: the English-only line for another list's words, else the
+/// Standard and Compact choice and the ruled grid. Shared by the copy item
+/// and the quick paper backup's first screen. Its height.
+pub(super) fn seedqr_block(
+    app: &View,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    seedqr: bool,
+    lang: faraday_bip::bip39::Language,
+) -> f32 {
+    let Some(b) = app.backup() else {
+        return 0.0;
+    };
+    let mut cy = y;
+    // SeedQR numbers the English list's words: another list's
+    // words have no SeedQR another signer would read right.
+    if seedqr && lang != faraday_bip::bip39::Language::English {
+        cy += ui.wrap_as(
+            (x, cy, w),
+            BODY_S,
+            Role::OnSurfaceVariant,
+            EN.backup_seedqr_english_only,
+        ) + 12.0;
+    } else if seedqr {
+        // The SeedQR as a ruled grid to copy.
+        let items: Vec<(&str, Style, Action)> = [
+            (EN.backup_standard_seedqr, false),
+            (EN.backup_compact_seedqr, true),
+        ]
+        .into_iter()
+        .map(|(label, c)| {
+            let style = Style::chosen(b.compact == c);
+            (label, style, Action::BCompact(c))
+        })
+        .collect();
+        cy += wrap_buttons(ui, x, cy, w, 34.0, &items) + 6.0;
+        // Worked out when the seed was shown, held until hidden (F195).
+        if let Some(mx) = app.backup_seedqr(b.compact) {
+            // Grey where the blank sheet prints the square.
+            let g = crate::screens::CopyGrid {
+                m: mx,
+                printed: crate::wallet_backup::structural_fixed,
+                lettered: false,
+                rows: b.rows,
+                pin: b.pin,
+                pick: Action::BPin,
+                mode: Action::BRows,
+            };
+            cy += crate::screens::copy_grid(ui, x, cy, w, &g);
+        }
+    }
+    cy - y
 }
 
 /// Whether seed `i`'s copy item offers Keep the words only

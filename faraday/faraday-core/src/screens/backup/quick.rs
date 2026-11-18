@@ -59,15 +59,10 @@ pub(super) fn draw(
     }
 }
 
-/// Whether the key's words matched in this backup.
+/// Whether the copy item is done: the words typed back, and the SeedQR
+/// scanned where the plan keeps one.
 fn matched(app: &View) -> bool {
-    let Some(b) = app.backup() else {
-        return false;
-    };
-    app.session.keys.info(b.key).is_some_and(|k| {
-        b.checked
-            .contains(&(k.fingerprint.0, crate::plan::CopyForm::Words))
-    })
+    app.backup_item_done(crate::plan::Item::Copy(0))
 }
 
 /// The open card's body: the screen's own, then More ways to back up.
@@ -103,42 +98,29 @@ fn write_body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     };
     let word_count = usize::from(key.word_count.unwrap_or(0));
     let mut cy = y;
-    let bw = ui.button(
-        x,
-        cy,
-        None,
-        BUTTON_H,
-        if b.reveal {
-            EN.backup_hide_the_seed
-        } else {
-            EN.backup_show_the_seed
-        },
-        if b.reveal {
-            Style::Secondary
-        } else {
-            Style::Tonal
-        },
-        // The first press records that the seed was shown.
-        if b.reveal {
-            Action::BReveal
-        } else {
-            Action::BQuick(Quick::Show)
-        },
-    );
-    let tw = ui.button(
-        x + bw + T::GAP,
-        cy,
-        None,
-        BUTTON_H,
-        EN.quick_template,
-        Style::Ghost,
-        Action::BQuick(Quick::Template),
-    );
-    let (ix, iy) = if ui.compact {
-        (x, cy + T::TOUCH)
+    // Show the seed, its SeedQR and the blank template, wrapping where
+    // the column is narrow; the key's line under them.
+    let (show, style, action) = if b.reveal {
+        (EN.backup_hide_the_seed, Style::Secondary, Action::BReveal)
     } else {
-        (x + bw + T::GAP + tw + T::GAP, cy)
+        // The first press records that the seed was shown.
+        (
+            EN.backup_show_the_seed,
+            Style::Tonal,
+            Action::BQuick(Quick::Show),
+        )
     };
+    let actions = [
+        (show, style, action),
+        (EN.quick_seedqr, Style::Tonal, Action::BQuick(Quick::SeedQr)),
+        (
+            EN.quick_template,
+            Style::Ghost,
+            Action::BQuick(Quick::Template),
+        ),
+    ];
+    cy += wrap_buttons(ui, x, cy, w, BUTTON_H, &actions);
+    let (ix, iy) = (x, cy);
     let info = fill(
         EN.backup_words,
         &[
@@ -150,6 +132,10 @@ fn write_body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     ui.text_mid_as((ix, iy, BUTTON_H), BODY_S, Role::OnSurfaceVariant, &info);
     cy = iy + BUTTON_H + T::GAP;
     if b.reveal && b.check.is_none() {
+        // The SeedQR first, where Show the SeedQR leaves the eye: the
+        // words' grid is long.
+        let seedqr = app.copy_forms(b, 0).seedqr;
+        cy += seedqr_block(app, ui, (x, cy, w), seedqr, key.language);
         cy += super::super::parts::seed_word_grid(app, ui, (x, cy, w), b.key);
     }
     cy + T::GAP - y

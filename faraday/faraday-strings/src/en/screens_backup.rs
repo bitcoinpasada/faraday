@@ -129,15 +129,18 @@ macro_rules! words_screens_backup {
     backup_done: "Done",
     // ----- the quick paper backup (faraday-core/src/screens/backup/quick.rs) -----
     /// Title of the quick paper backup's first screen.
-    quick_write_title: "Write the words down",
+    quick_write_title: "Make a copy",
     /// Title of the quick paper backup's second screen.
     quick_check_title: "Check my copy",
     /// Foot of the quick paper backup's first screen, once the seed was
     /// shown.
     quick_wrote_them: "I wrote them down",
-    /// Row of both screens of the quick paper backup, and of its end: the
+    /// Row of both screens of the quick paper backup: the backup plan's
     /// board.
-    quick_more_ways: "More ways to back up",
+    quick_more_ways: "Make a backup plan",
+    /// Button beside Show the seed on the quick paper backup: the seed's
+    /// SeedQR to copy by hand.
+    quick_seedqr: "Show the SeedQR",
     /// Button beside Show the seed on the quick paper backup, and the
     /// title of the sheet it opens.
     quick_template: "Blank template",
