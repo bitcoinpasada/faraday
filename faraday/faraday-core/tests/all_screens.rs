@@ -103,6 +103,8 @@ mod orientation;
 mod outside;
 #[path = "all/pass_steps.rs"]
 mod pass_steps;
+#[path = "all/phone_keyboard.rs"]
+mod phone_keyboard;
 #[path = "all/pictures.rs"]
 mod pictures;
 #[path = "all/public_files_worker.rs"]
