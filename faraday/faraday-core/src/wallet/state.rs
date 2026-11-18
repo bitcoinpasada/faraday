@@ -347,6 +347,9 @@ pub(crate) struct WalletsArea {
     /// The key in no wallet chosen on the Wallets tab, by fingerprint,
     /// when several are loaded and none of them in a wallet.
     loose_pick: Option<[u8; 4]>,
+    /// Set when a wallet was taken out of the list during the event that
+    /// is being handled.
+    list_changed: bool,
     /// The chosen wallet's new name, while it is typed.
     renaming: Option<Text>,
     /// Design units scrolled past in the wallet card's body, on a desktop.
@@ -359,6 +362,22 @@ impl WalletsArea {
     /// The wallet chosen on the Wallets tab.
     pub(crate) fn wallet(&self) -> usize {
         self.wallet
+    }
+
+    /// Marks that a wallet was taken out of the list during this event, so
+    /// a press drawn on the list before it is dropped.
+    pub(crate) fn set_list_changed(&mut self) {
+        self.list_changed = true;
+    }
+
+    /// Whether a wallet was taken out since the event began.
+    pub(crate) fn list_changed(&self) -> bool {
+        self.list_changed
+    }
+
+    /// Clears the mark, as an event begins.
+    pub(crate) fn clear_list_changed(&mut self) {
+        self.list_changed = false;
     }
 
     /// Chooses wallet `i`.

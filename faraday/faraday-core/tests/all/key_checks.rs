@@ -191,3 +191,98 @@ fn a_key_loaded_from_words_reads_can_sign_in_a_wallet_beside_a_key_made_here() {
     assert!(s.contains("Yours, signs after its backup"), "{s}");
     assert!(s.contains("1 key not checked"), "{s}");
 }
+
+/// The same wallet as `multisig()` with its keys listed in the other order.
+fn multisig_reversed() -> String {
+    let p = "m/48'/1'/0'/0'";
+    format!(
+        "wsh(sortedmulti(2,{}/<0;1>/*,{}/<0;1>/*,{}/<0;1>/*))",
+        testkit::key(2, p),
+        testkit::key(1, p),
+        testkit::key(0, p)
+    )
+}
+
+#[test]
+fn a_tick_on_a_sheet_for_the_loaded_wallet_in_another_order_lands_on_the_same_key() {
+    let mut app = app_with_wallet_file();
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![
+            (
+                "a-wallet.txt".to_string(),
+                multisig().descriptor.into_bytes(),
+            ),
+            ("b-wallet.txt".to_string(), multisig_reversed().into_bytes()),
+        ]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    // The sheet asks for the keys last first; while it waits, the same wallet
+    // arrives written in the other order, with a tick of its own.
+    app.press(Action::LoadWallet(1));
+    assert_eq!(app.sheet, Some(Sheet::WalletConfirm));
+    app.session
+        .add_wallet_confirmed(
+            &testkit::compute(),
+            "Ticked",
+            &multisig().descriptor,
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .unwrap();
+    app.session.tick_key(0, 1);
+    let third = app.session.wallets[0].policy().keys()[2].fingerprint();
+    // The sheet's first key is the loaded wallet's third.
+    tick(&mut app, 0);
+    app.press(Action::WalletHold);
+    assert_eq!(app.session.wallets.len(), 1);
+    let w = &app.session.wallets[0];
+    assert_eq!(w.policy().keys()[2].fingerprint(), third);
+    assert_eq!(w.key_ticks(), [false, true, true]);
+    assert_eq!(
+        w.key_checks(),
+        [KeyCheck::Unchecked, KeyCheck::Checked, KeyCheck::Checked]
+    );
+}
+
+#[test]
+fn a_tick_press_for_a_place_after_its_wallet_was_taken_out_changes_no_wallet() {
+    let mut app = testkit::started();
+    let c = testkit::compute();
+    let p = "m/48'/1'/0'/0'";
+    let own = testkit::key(0, p);
+    let forged_key = format!(
+        "{}]{}",
+        own.split_once(']').unwrap().0,
+        testkit::key(1, p).split_once(']').unwrap().1
+    );
+    let forged = format!(
+        "wsh(sortedmulti(2,{forged_key}/<0;1>/*,{}/<0;1>/*))",
+        testkit::key(2, p)
+    );
+    let real = format!(
+        "wsh(sortedmulti(2,{}/<0;1>/*,{}/<0;1>/*))",
+        testkit::key(1, p),
+        testkit::key(2, p)
+    );
+    for (name, d) in [("Forged", &forged), ("Real", &real)] {
+        app.session
+            .add_wallet_confirmed(&c, name, d, "test", faraday_core::wallet::Origin::Named)
+            .expect("no key is loaded: not checked");
+    }
+    app.session
+        .keys
+        .add_words(
+            &c,
+            &testkit::test_words(testkit::TEST_SEEDS[0].0),
+            "Bacon",
+            None,
+        )
+        .expect("the key");
+    // The forged wallet is taken out: the press drawn at its place, with no
+    // frame since, is not for the wallet that moved up into it.
+    app.press(Action::Back);
+    assert_eq!(app.session.wallets.len(), 1);
+    app.press(Action::KeyTick(KeyBlockOf::Wallet(0), 0));
+    assert_eq!(app.session.wallets[0].key_ticks(), [false, false]);
+}

@@ -304,6 +304,12 @@ impl Wallet {
         self.key_checks.set_ticks(ticks);
     }
 
+    /// Merges the ticks of a sheet that asked about `from` into this
+    /// wallet's, key by key ([`KeyChecks::merge_ticks`]).
+    pub(crate) fn merge_key_ticks(&mut self, from: &WalletPolicy, ticks: &[bool]) {
+        self.key_checks.merge_ticks(&self.policy, from, ticks);
+    }
+
     /// The rows of the keys as drawn.
     pub(crate) fn key_rows(&self) -> &[confirm::KeyRow] {
         self.key_checks.rows()
@@ -4056,6 +4062,7 @@ impl Faraday {
         // in any other way is added here, and the toast says so.
         let descriptor = same_wallet(&ask.policy);
         let ticks = ask.rows.ticks();
+        let asked = ask.policy.clone();
         if let Some((press, inbox)) = ask.replay
             && inbox == self.inbox_print()
         {
@@ -4066,7 +4073,7 @@ impl Faraday {
                 .iter_mut()
                 .find(|w| same_wallet(&w.policy) == descriptor)
             {
-                w.set_key_ticks(&ticks);
+                w.merge_key_ticks(&asked, &ticks);
                 return;
             }
         }
@@ -4076,6 +4083,7 @@ impl Faraday {
             .add_policy(&c, &ask.name, ask.policy, &ask.source, ask.origin)
         {
             Ok(i) if ask.restore && self.restore.state().is_some() => {
+                self.session.wallets[i].merge_key_ticks(&asked, &ticks);
                 self.restore_added(i, ask.origin);
                 if ask.origin == Origin::TypedSeeds {
                     // Made from the typed seeds, as Make would have.
@@ -4084,7 +4092,7 @@ impl Faraday {
                 }
             }
             Ok(i) => {
-                self.session.wallets[i].set_key_ticks(&ticks);
+                self.session.wallets[i].merge_key_ticks(&asked, &ticks);
                 self.wallets.set_wallet(i);
                 self.refresh_spend();
                 self.toast_added(i);
@@ -4112,6 +4120,9 @@ impl Faraday {
         match of {
             KeyBlockOf::Asked => self.session.ask_tick(key),
             KeyBlockOf::Register => self.wallets.register_tick(key),
+            // A wallet taken out since the frame the press was drawn on
+            // leaves the next one at its place: the press is dropped.
+            KeyBlockOf::Wallet(_) if self.wallets.list_changed() => {}
             KeyBlockOf::Wallet(i) => self.session.tick_key(usize::from(i), key),
             KeyBlockOf::Check => match self.tools.mscheck.of_wallet() {
                 Some(i) => self.session.tick_key(i, key),
@@ -4162,12 +4173,14 @@ impl Faraday {
                     |fp: Fingerprint, path: &faraday_bip::bitcoin::bip32::DerivationPath| {
                         keys.xpub_at(&c, keys.position(fp)?, path)
                     };
+                let mut asked = None;
                 let added = faraday_psbt::register(&c, &psbt, &offer, reading, &yours)
                     .map_err(|r| (Text::of(&crate::register::refusal_text(r, &offer)), false))
                     .and_then(|policy| {
                         // The hold, after every check, is the wallet's
                         // confirmation: no second sheet.
                         self.session.wallet_confirmed_by_register(&policy);
+                        asked = Some(policy.clone());
                         self.session
                             .add_policy(&c, &name, policy, &source, Origin::Named)
                             .map_err(|e| (e.text(), e == Refusal::Unconfirmed))
@@ -4179,7 +4192,9 @@ impl Faraday {
                         self.sheet = None;
                     }
                     Ok(i) => {
-                        self.session.wallets[i].set_key_ticks(&ticks);
+                        if let Some(asked) = &asked {
+                            self.session.wallets[i].merge_key_ticks(asked, &ticks);
+                        }
                         self.wallets.close_register();
                         self.sheet = None;
                         self.wallets.set_wallet(i);
@@ -4260,6 +4275,7 @@ impl Faraday {
         let dropped = self.session.drop_forged(&c);
         self.sync_waiting();
         if let Some((name, why)) = dropped.first() {
+            self.wallets.set_list_changed();
             let text = Text::fill(EN.vaults_refused, &[name, why]);
             self.wallets.set_wallet(0);
             self.spend_after_wallet_removed();

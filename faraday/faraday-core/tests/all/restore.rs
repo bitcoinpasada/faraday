@@ -401,6 +401,33 @@ fn two_seeds_and_a_cosigners_xpub_make_the_two_of_three() {
     );
 }
 
+/// A key ticked on the sheet of a wallet made from typed seeds is kept by
+/// the wallet added.
+#[test]
+fn a_key_ticked_on_the_restore_sheet_stays_ticked_on_the_wallet() {
+    let mut app = two_of_three_from_seeds();
+    type_seed(&mut app, &testkit::test_words("bacon"));
+    type_seed(&mut app, &testkit::test_words("zebra"));
+    app.press(Action::Slide(SLIDE_N, 2));
+    app.event(Event::Key(Key::Right));
+    app.press(Action::Seeds(S::Focus(Focus::Cosigner(0))));
+    type_text(&mut app, &testkit::key(2, MULTI_PATH));
+    app.event(Event::Key(Key::Enter));
+    app.press(Action::Seeds(S::Make));
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::WalletConfirm));
+    for key in 0..3 {
+        app.press(Action::KeyTick(
+            faraday_core::wallet::KeyBlockOf::Asked,
+            key,
+        ));
+    }
+    app.press(Action::WalletHold);
+    let w = made(&app);
+    let ticks = app.session.wallets[w].key_ticks();
+    assert_eq!(ticks.iter().filter(|t| **t).count(), 1, "{ticks:?}");
+    assert_eq!(app.session.wallets[w].keys_unchecked(), 0);
+}
+
 /// Whether a closed card titled `title` reads `summary` under it.
 fn summary_is(app: &mut Faraday, title: &str, summary: &str) -> bool {
     app.drawn_texts()

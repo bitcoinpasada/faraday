@@ -142,6 +142,32 @@ impl KeyChecks {
         }
     }
 
+    /// Merges the ticks a sheet took (`ticks`, one per key of `from`, the
+    /// policy the sheet asked about) into the person's ticks of `policy`,
+    /// the policy of the wallet that was added or was already loaded. A
+    /// key is matched by itself (fingerprint, path and extended key all
+    /// equal), never by its place, since the same wallet can list its keys
+    /// in another order; a tick the wallet has stays, and a key of `from`
+    /// that no key of `policy` equals ticks nothing.
+    pub(crate) fn merge_ticks(
+        &mut self,
+        policy: &WalletPolicy,
+        from: &WalletPolicy,
+        ticks: &[bool],
+    ) {
+        if self.ticks.len() != policy.keys().len() || from.keys().len() != ticks.len() {
+            return;
+        }
+        for (key, _) in from.keys().iter().zip(ticks).filter(|(_, t)| **t) {
+            for (mine, tick) in policy.keys().iter().zip(self.ticks.iter_mut()) {
+                if mine == key {
+                    *tick = true;
+                }
+            }
+        }
+        self.apply();
+    }
+
     /// Toggles the tick of key `i` where the person's tick decides it.
     pub(crate) fn tick(&mut self, i: usize) {
         if matches!(

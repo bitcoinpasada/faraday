@@ -1409,6 +1409,8 @@ impl App for Faraday {
     }
 
     fn frame(&mut self) -> Frame<'_> {
+        // Presses from here on are drawn on the list as it now is.
+        self.wallets.clear_list_changed();
         if let Some(only_moved) = self.out.take_wanted() {
             self.before_frame();
             self.render(only_moved);
