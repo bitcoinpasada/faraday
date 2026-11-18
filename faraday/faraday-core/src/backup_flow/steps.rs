@@ -1629,7 +1629,7 @@ impl Faraday {
         let Some(r) = self.flows[i].live.reading.clone() else {
             return;
         };
-        let now = self.clock_now();
+        let now = self.checked_now();
         let slot = r.slot;
         let place = self.flows[i]
             .slots
@@ -3160,7 +3160,7 @@ impl Faraday {
         done: Vec<(Text, [u8; 32])>,
     ) {
         let c = self.compute();
-        let time = self.clock_now();
+        let time = self.checked_now();
         let done: Vec<(Text, [u8; 32])> = done
             .into_iter()
             .map(|(n, h)| (n, self.hash_to_keep(&c, h)))

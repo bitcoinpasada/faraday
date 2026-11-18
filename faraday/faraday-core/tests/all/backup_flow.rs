@@ -174,6 +174,32 @@ fn an_empty_stick_is_bound_to_the_new_vault_with_no_question() {
     assert!(app.inbox().is_empty());
 }
 
+/// The first of two empty sticks bound to a new vault, on a clock the
+/// person has checked or not.
+fn bound_time(checked: bool) -> Option<u64> {
+    let mut shell = Shell::light();
+    empties(&mut shell, 2);
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    if checked {
+        keep_time(&mut app);
+    }
+    start(&mut app, Kind::Gpg);
+    through_where(&mut shell, &mut app);
+    shell.plug(&mut app, "S1");
+    shell.flow(&mut app, F::Tap);
+    app.flow().unwrap().slots[0]
+        .bound
+        .clone()
+        .expect("bound")
+        .at
+}
+
+#[test]
+fn a_bound_place_keeps_a_time_only_from_a_clock_the_person_checked() {
+    assert!(bound_time(true).is_some());
+    assert_eq!(bound_time(false), None);
+}
+
 #[test]
 fn a_stick_with_vaults_asks_which_and_copies_in_only_that_one() {
     let mut shell = Shell::light();
@@ -930,6 +956,21 @@ fn home_leads_with_the_backup_not_finished_and_the_power_sheet_lists_it() {
     app.press(Action::Flow(F::Show(k)));
     assert_eq!(app.screen, Screen::BackupFlow);
     assert_eq!(step(&app), Step::Write);
+}
+
+#[test]
+fn written_sticks_carry_the_time_of_the_clock_the_person_checked() {
+    // Making the key asks for the time first, so a write is always on a
+    // checked clock.
+    let mut shell = Shell::light();
+    let mut app = gpg_locked(&mut shell);
+    write_all(&mut shell, &mut app, &[("S1", false), ("S2", true)]);
+    assert_eq!(step(&app), Step::Done);
+    let times: Vec<Option<u64>> = (app.flow().unwrap().slots.iter())
+        .filter_map(|s| s.written.as_ref().map(|w| w.time))
+        .collect();
+    assert_eq!(times.len(), 2);
+    assert!(times.iter().all(Option::is_some), "{times:?}");
 }
 
 #[test]
