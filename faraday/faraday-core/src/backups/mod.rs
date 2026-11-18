@@ -4087,8 +4087,9 @@ impl Faraday {
     /// a parent, for each key held. The codex32 share records of
     /// every open vault gathered towards their keys (`docs/CODEX32.md`
     /// §9.5): a key held keeps its strings, and a key `k` strings of one
-    /// set make across the open vaults loads, its fingerprint said. Only
-    /// where keys may load.
+    /// set make across the open vaults loads, its fingerprint said. Only the
+    /// gathering waits for where keys may load; the marks and parent links
+    /// of `note_made_online_keys` are noted everywhere.
     pub(crate) fn vault_gather_codex32(&mut self) {
         let c = self.compute();
         // A mark noted only makes the key held more careful, so it is noted

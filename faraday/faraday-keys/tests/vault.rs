@@ -2333,7 +2333,8 @@ fn a_key_held_already_takes_the_mark_of_a_share_record_without_any_share_gathere
     for online in [false, true] {
         let mut store = store();
         let (id, _) = store.unlock(&c, empty(&c, "pass"), "pass").expect("opens");
-        // One share of a set that needs more: nothing could load or gather.
+        // A threshold-0 share is the secret itself: no other share is needed,
+        // and the pass here gathers nothing.
         let mut r = Record::new(kind::CODEX32_SHARE)
             .with(
                 field::CODEX32_STRING,
@@ -2361,4 +2362,56 @@ fn a_child_of_a_key_written_online_is_written_online_too() {
     keys.note_made_online(parent);
     keys.note_child(parent, child);
     assert!(keys.made_online(child));
+}
+
+/// A store with one key record of `ABANDON`'s words, marked made online.
+fn marked_abandon_store(c: &Compute) -> OpenVaults {
+    let m = Mnemonic::parse(c, Language::English, ABANDON).expect("words");
+    let mut r = Record::new(kind::KEY).with(field::KEY, &faraday_vault::records::words_payload(&m));
+    faraday_vault::records::mark_made_online(&mut r);
+    let mut store = store();
+    let (id, _) = store.unlock(c, empty(c, "pass"), "pass").expect("opens");
+    store.insert(id, r).expect("kept");
+    store
+}
+
+#[test]
+fn a_key_held_from_a_seed_takes_the_mark_of_the_record_of_its_words() {
+    let c = compute();
+    let m = Mnemonic::parse(&c, Language::English, ABANDON).expect("words");
+    let seed = m.to_seed(&c, b"").expect("seed");
+    let mut keys = Keys::on(Network::Mainnet);
+    let fp = keys.add_seed(&c, seed.expose(), "").expect("a key");
+    assert!(!keys.made_online(fp));
+    marked_abandon_store(&c).note_made_online_keys(&c, &mut keys);
+    assert!(keys.made_online(fp));
+}
+
+#[test]
+fn the_same_words_under_any_passphrase_take_a_mark_and_a_later_key_with_its_fingerprint_does() {
+    let c = compute();
+    let mut keys = Keys::on(Network::Mainnet);
+    let plain = keys
+        .add_words_with(&c, ABANDON, "", "", None)
+        .expect("a key");
+    let other = keys
+        .add_words_with(&c, ABANDON, "other", "", None)
+        .expect("a key");
+    keys.note_made_online(plain);
+    assert!(
+        keys.made_online(other),
+        "the same words, another passphrase"
+    );
+    // A fingerprint no key held has is remembered for a key added later.
+    let mut later = Keys::on(Network::Mainnet);
+    later.note_made_online(plain);
+    let fp = later
+        .add_words_with(&c, ABANDON, "", "", None)
+        .expect("a key");
+    assert!(later.made_online(fp));
+    later.clear();
+    let fp = later
+        .add_words_with(&c, ABANDON, "", "", None)
+        .expect("a key");
+    assert!(!later.made_online(fp), "Lock forgets it");
 }

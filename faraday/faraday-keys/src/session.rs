@@ -424,6 +424,9 @@ pub struct Keys {
     /// Keys a vault says were written by Faraday Demo on an online
     /// computer ([`Keys::note_made_online`]): public fingerprints.
     made_online: Vec<Fingerprint>,
+    /// Fingerprints a vault marked made online that no key held had when
+    /// noted: a key with one added later takes the mark. Cleared at Lock.
+    made_online_pending: Vec<Fingerprint>,
     /// Keys loaded from a vault ([`Keys::note_from_vault`]): public
     /// fingerprints.
     from_vault: Vec<Fingerprint>,
@@ -452,6 +455,7 @@ impl Keys {
             kept_published: Vec::new(),
             published_children: Vec::new(),
             made_online: Vec::new(),
+            made_online_pending: Vec::new(),
             from_vault: Vec::new(),
         }
     }
@@ -550,6 +554,12 @@ impl Keys {
     fn push(&mut self, c: &Compute, entry: Entry) {
         self.entries.push(entry);
         self.blind_key(c, self.entries.len() - 1);
+        // A mark a vault gave this fingerprint before the key was held.
+        let fp = self.entries[self.entries.len() - 1].info.fingerprint;
+        if self.made_online_pending.contains(&fp) {
+            self.insert_made_online(fp);
+            self.carry_child_marks();
+        }
     }
 
     /// A stick is attached, called `noun`, or none is (`None`): while one
@@ -776,8 +786,39 @@ impl Keys {
 
     /// Notes that the vault the key `fp` was loaded from says it was
     /// written by Faraday Demo on an online computer.
+    ///
+    /// Every held key with the same words takes the mark, under any
+    /// passphrase, and a fingerprint no key held has is remembered until
+    /// Lock, for a key with it added later.
     pub fn note_made_online(&mut self, fp: Fingerprint) {
         self.insert_made_online(fp);
+        match self.position(fp) {
+            Some(i) => {
+                let same: Vec<Fingerprint> = match self.entries[i].key.words.as_deref() {
+                    Some(w) => self
+                        .entries
+                        .iter()
+                        .filter(|e| {
+                            e.key
+                                .words
+                                .as_deref()
+                                .is_some_and(|x| x.split_whitespace().eq(w.split_whitespace()))
+                        })
+                        .map(|e| e.info.fingerprint)
+                        .collect(),
+                    None => Vec::new(),
+                };
+                for f in same {
+                    self.insert_made_online(f);
+                }
+            }
+            None => {
+                if !self.made_online_pending.contains(&fp) {
+                    // `extend`, not `push`: see `keep_published`.
+                    self.made_online_pending.extend([fp]);
+                }
+            }
+        }
         // Every key loaded as a child of it was written there too, however
         // the two were ordered when loaded.
         self.carry_child_marks();
@@ -1166,6 +1207,7 @@ impl Keys {
         self.kept_published.clear();
         self.published_children.clear();
         self.made_online.clear();
+        self.made_online_pending.clear();
         self.from_vault.clear();
     }
 
@@ -2020,6 +2062,11 @@ impl Keys {
             message,
             format,
         ))
+    }
+
+    /// Whether key `i` holds its words (a key from a seed holds none).
+    pub fn has_words(&self, i: usize) -> bool {
+        self.entries.get(i).is_some_and(|e| e.key.words.is_some())
     }
 
     /// Costs a parse of the words. Whether key `i`'s words, as a vault key

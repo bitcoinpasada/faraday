@@ -732,7 +732,7 @@ fn a_child_seed_loaded_with_a_passphrase_after_its_online_parent_is_held() {
 /// The child's words typed, then two plain unlocks, the vault with its
 /// record naming the parent and the vault with the marked parent's shares,
 /// in either order: nothing is loaded by hand.
-fn words_typed_then_plain_unlocks(child_vault_first: bool) {
+fn words_typed_then_plain_unlocks(child_vault_first: bool, passphrase: Option<&str>) {
     use crate::codex32_kept::vault_of;
     let (child, marked) = child_and_marked_shares();
     // The child's own words, typed on the device before any vault opens.
@@ -760,7 +760,10 @@ fn words_typed_then_plain_unlocks(child_vault_first: bool) {
         ),
         ("bank.kdbx".into(), vault_of("bank phrase", marked, 4)),
     ]);
-    typed(&mut app, &words);
+    match passphrase {
+        Some(p) => typed_with(&mut app, &words, p),
+        None => typed(&mut app, &words),
+    }
     assert_eq!(app.session.keys.len(), 1);
     // The key is held, so each unlock offers nothing to load.
     let child = ("child.kdbx", "child phrase");
@@ -770,8 +773,15 @@ fn words_typed_then_plain_unlocks(child_vault_first: bool) {
     } else {
         (bank, child)
     };
-    unlock_loading(&mut app, first.0, first.1);
-    unlock_loading(&mut app, second.0, second.1);
+    // Typed under a passphrase the record does not name, the child's record
+    // is of another key: its vault is unlocked without loading it.
+    for (name, phrase) in [first, second] {
+        if passphrase.is_some() && name == child.0 {
+            unlock_without_loading(&mut app, name, phrase);
+        } else {
+            unlock_loading(&mut app, name, phrase);
+        }
+    }
     caution(&mut app);
     assert_eq!(
         app.sheet,
@@ -800,12 +810,18 @@ fn typed_with(app: &mut Faraday, words: &str, passphrase: &str) {
 
 #[test]
 fn words_typed_before_a_vault_record_naming_their_parent_are_held_when_the_parent_is_marked() {
-    words_typed_then_plain_unlocks(true);
+    words_typed_then_plain_unlocks(true, None);
 }
 
 #[test]
-fn words_typed_after_the_marked_parent_loads_are_held_when_a_vault_record_names_it() {
-    words_typed_then_plain_unlocks(false);
+fn words_typed_are_held_when_the_marked_parent_s_vault_is_unlocked_before_the_record_naming_it() {
+    words_typed_then_plain_unlocks(false, None);
+}
+
+#[test]
+fn words_typed_with_a_passphrase_are_held_when_a_record_without_one_names_their_parent() {
+    words_typed_then_plain_unlocks(true, Some("Q"));
+    words_typed_then_plain_unlocks(false, Some("Q"));
 }
 
 #[test]
@@ -823,6 +839,31 @@ fn a_held_key_is_held_whatever_passphrase_it_was_typed_with_when_a_vault_marks_i
     assert_eq!(app.session.keys.len(), 1);
     // A plain unlock: nothing is loaded from the vault by hand.
     unlock_without_loading(&mut app, "made.kdbx", PHRASE);
+    caution(&mut app);
+    assert_eq!(app.sheet, Some(Sheet::Published));
+    app.press(Action::PublishedKeep);
+    assert_eq!(
+        app.sheet,
+        Some(Sheet::Published),
+        "a press does not keep it"
+    );
+}
+
+#[test]
+fn words_typed_after_a_marked_vault_is_unlocked_are_held() {
+    let words = fresh();
+    let file = testkit::kdbx_vault(
+        "Made",
+        PHRASE,
+        7,
+        vec![key_record(&words, Some(MADE_ONLINE))],
+    )
+    .unwrap();
+    let mut app = process(vec![("made.kdbx".into(), file)], Network::Mainnet);
+    unlock_without_loading(&mut app, "made.kdbx", PHRASE);
+    assert_eq!(app.session.keys.len(), 0);
+    typed(&mut app, &words);
+    assert_eq!(app.session.keys.len(), 1);
     caution(&mut app);
     assert_eq!(app.sheet, Some(Sheet::Published));
     app.press(Action::PublishedKeep);
