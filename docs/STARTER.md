@@ -306,11 +306,45 @@ the screen's one primary button, then the other cards (owner, D12:
 Home leads with the next step for this computer's state, not with a
 menu).
 
-**This computer** (a card): maker and model (§7.1); whether Secure
-Boot is on (F33: no line on BitLocker, §6.2). On a
-computer that cannot start a Faraday stick (§7.1: an ARM computer, or
-one that started in legacy BIOS mode), one line says so; Make a stick
-stays, for another computer.
+**This computer** (a card): maker and model (§7.1), then, before a
+stick is written or a restart is tried, whether this computer can start
+Faraday, as one summary line above a short list of checks (owner,
+2026-11-17). The summary line reads **This
+computer can start Faraday**, **This computer can start Faraday,
+without a camera**, or **This computer cannot start Faraday**: cannot
+while any row is red, without a camera while the Camera row reads none found or not usable
+and nothing is red, can otherwise (a camera that could not be checked
+leaves the line as it is). A step to take (Secure Boot on, BitLocker
+on) is amber and does not change the line: it is not a failure. Make a
+stick stays on a computer that cannot start Faraday, for another
+computer. §7.1 says what each row reads.
+
+| Row | State shown | Colour | Action beside it |
+|---|---|---|---|
+| **Start mode**, always | **UEFI** | green | none |
+| | **Legacy BIOS: not compatible** (the stick starts in UEFI mode only) | red | none |
+| **Secure Boot**, always | **Off** | green | none |
+| | **On** | amber | the card's **Restart into the BIOS** (below) |
+| | **Not read** | amber | none |
+| **Camera**, always | **Should work on the stick** | green | none |
+| | **None found: files go by stick**, **Not usable on the stick: files go by stick** | amber | none |
+| | **Could not be checked** | amber | none |
+| **Processor**, only on ARM | **ARM: not compatible** (on a Snapdragon laptop the x86-64 Starter runs under emulation, and the stick cannot start there) | red | none |
+| A virtual machine, a TV or a KVM switch, only when found (§3.1a, the findings the Starter already makes) | the finding | red | the restart stays held, as there |
+| **BitLocker**, Windows only, only while on (§6.2) | **On** | amber | none on the card: the Start page's **Temporarily suspend BitLocker** step |
+
+The Camera row follows what the stick needs (`docs/HARDWARE.md` §4): a
+USB video camera, plugged in or built in, that offers uncompressed
+frames; a MIPI camera does not count. Amber on the Camera row means
+files go by stick (Transfer, §8) rather than by the camera; it never
+stops Faraday starting. Green claims no more than the rule knows: the
+row says **Should work on the stick**, never that it works. There is no
+test button (owner, 2026-11-17): a live test would show only that the
+Starter can open the camera through this operating system's drivers,
+not that the stick, with its own, can. The processor is not shown
+unless it is ARM. The Starter publishes no list of tried computers, and
+does not sign the stick's boot file so that Secure Boot could stay on
+(§7.7).
 
 **The checklist.** Each item carries its state, read live each time
 Home is drawn, never from a file the Starter keeps (§5.1). One item is
@@ -1812,11 +1846,28 @@ Read locally, shown only on this computer, sent nowhere.
 | Started in UEFI mode | `GetFirmwareType` | `/sys/firmware/efi` exists |
 | Secure Boot | `HKLM\SYSTEM\CurrentControlSet\Control\SecureBoot\State\UEFISecureBootEnabled` | the `SecureBoot-8be4df61-…` variable under `/sys/firmware/efi/efivars`, readable by every user |
 | ARM | `IsWow64Process2`'s native machine | `uname -m` |
+| Camera for the stick | the present devices of Windows' Camera and Image classes: how each is attached (USB or not) and its driver (the USB video class driver, `usbvideo`, or not); frame formats are not read | the video devices under `/sys/class/video4linux`: the driver bound to each (`uvcvideo` or not) and the formats in the USB descriptors of its device, read from sysfs |
 | Encryption | another product only (§6.4); BitLocker is not read (F33) | §6.4 |
 
 An ARM computer cannot start the x86_64 stick (Windows on Snapdragon
-laptops); one started in legacy BIOS mode needs UEFI turned on first,
-which its maker's page covers.
+laptops, where the Starter itself runs under emulation); one started in
+legacy BIOS mode needs UEFI turned on first, which its maker's page
+covers. These feed the checks on Home's This computer card (§3.1).
+
+**The Camera row** applies the rule of
+`docs/HARDWARE.md` §4 to what is attached now: a USB video camera that
+offers uncompressed frames, plugged in or built in, not a MIPI camera.
+On Linux a video device counts when the `uvcvideo` driver is bound to
+it (a MIPI camera shows another driver, or none) and the format
+descriptors of its USB device, read from sysfs, list an uncompressed
+format (not only Motion JPEG or H.264). On Windows a camera counts when
+it is attached over USB and runs the USB video class driver; its
+formats are not read there, so a USB camera that offers only compressed
+frames, or an infrared one, also reads green. A computer with no such device reads **None found: files go by
+stick**; one with only a camera that fails the rule reads **Not usable
+on the stick: files go by stick**; a read that fails reads **Could not
+be checked**. Nothing opens the camera: the checks read descriptors and
+driver names only.
 
 On a Mac running Linux or Windows, what kind of Mac it is (T2, 32-bit
 firmware, the Apple chip) comes from the Starter's table of model
@@ -2254,7 +2305,10 @@ Windows); no disk chosen until tapped; a stick that is not the
 confirmed one refused; keep data offered only for a Faraday stick,
 refusing the same build string and warning on an older one, and never
 writing past the boot partition (against a regular file holding a
-stick image, as `stick-boot.sh` allows); Home's checklist showing the
+stick image, as `stick-boot.sh` allows); Home's checks of this computer (the summary line for
+can, can without a camera and cannot; the Camera row for a USB
+uncompressed-format camera, an MIPI one and none; Legacy BIOS and ARM red)
+and its checklist showing the
 next step for each state (no stick, stick attached, Windows with
 Secure Boot off; F33); install writing
 exactly §5.2's files into a temporary home, and uninstall removing
