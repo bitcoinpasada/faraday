@@ -38,6 +38,8 @@ use faraday_ui::keyboard::OskPress;
 use zeroize::Zeroize;
 
 pub(crate) mod kef;
+pub mod quick;
+use quick::{Quick, Step};
 mod shown;
 
 /// The public files of wallet `w` that are under Public files' More
@@ -698,6 +700,14 @@ pub struct BackupState {
     pub keeps: crate::vault::keep::Left,
     /// The forms of the Krux code items opened, by seed (`kef.rs`).
     pub(crate) kef: Vec<(usize, crate::kef_form::KefForm)>,
+    /// On the quick paper backup's two screens (`docs/BACKUP-FLOW.md`
+    /// §19): the plan is Paper only, made, and the checklist is not drawn.
+    pub quick: bool,
+    /// The quick backup's screen that is open.
+    pub quick_step: quick::Step,
+    /// The seed was shown on the quick backup's first screen: **I wrote
+    /// them down** is offered.
+    pub quick_shown: bool,
 }
 
 /// A wallet, a slot and whether it is the BIP 129 record: which account
@@ -721,6 +731,10 @@ pub(crate) struct WalletBackupArea {
     /// The wallet whose shares' files a slider that changes them asks to
     /// have made again, once it is let go (`docs/WORKERS.md` §2.1).
     omit_remake: Option<usize>,
+    /// The wallets, by checksum, whose backup took More ways to back up
+    /// or Change the plan: the quick paper backup is not offered for them
+    /// again (`docs/BACKUP-FLOW.md` §19.3). Public.
+    more_ways: Vec<Text>,
 }
 
 impl WalletBackupArea {
@@ -1811,9 +1825,13 @@ impl Faraday {
                         .into_iter()
                         .find(|&it| !self.backup_item_done_now(c, it));
                     self.backup_item_open(first);
+                    // The short path shows its copy item, not the first
+                    // item not done.
+                    self.backup.quick_keeps_open();
                     self.screen = Screen::Backup;
                 }
             }
+            Action::BQuick(q) => self.quick_act(q, c),
             Action::Backup(i) => {
                 if i < self.session.wallets.len() {
                     let keys = self.backup_keys(i);
@@ -1960,6 +1978,8 @@ impl Faraday {
                 // What the checklist has put in vaults so far, should the
                 // new plan drop it.
                 self.backup_prior();
+                // The wallet's backup is the board's for good.
+                self.quick_leave(c);
                 // On the board, the first card, at the top: as a new plan
                 // opens (`docs/BACKUP-FLOW.md` §17.21 item 11).
                 self.backup.back_to_plan(Some(qstep::BOARD));
@@ -4112,6 +4132,165 @@ pub(crate) fn made_from_seed_line(wl: &Wallet) -> Option<Text> {
         ),
         None => Text::fill(EN.restore_made_from_seed_path, &[&*shape, &*full]),
     })
+}
+
+/// The quick paper backup's presses (`docs/BACKUP-FLOW.md` §19).
+impl Faraday {
+    /// Costs what `quick_takes` costs. Right after Back up opened the
+    /// board for a wallet: where the wallet takes the short path, it opens
+    /// on the checklist with Paper only made, on the first screen.
+    pub(crate) fn quick_try(&mut self, c: &Compute) {
+        let Some(b) = self.backup.state() else {
+            return;
+        };
+        // A plan the wallet's vault kept opens as it was kept.
+        if b.stage != BStage::Plan || b.q != Some(qstep::BOARD) || b.quick {
+            return;
+        }
+        if !self.quick_takes(c, b.wallet) {
+            return;
+        }
+        // The checklist is made as Make the checklist makes it.
+        self.backup_extras();
+        crate::wallet_backup::kef::plan_made(self);
+        self.plan_save();
+        self.backup.quick_begin();
+        self.backups_sync();
+    }
+
+    /// Costs what `plan_shape_now`, `c32_sets` and `backup_items_now`
+    /// cost. Whether wallet `w` takes the short path (`docs/BACKUP-FLOW.md`
+    /// §19.1): one key with its words here and no passphrase, whose seed
+    /// alone gives the wallet back, with no vault before the keys, no
+    /// codex32, Seed XOR or SLIP-39 set, its words not already checked and
+    /// More ways to back up never pressed for it.
+    fn quick_takes(&self, c: &Compute, w: usize) -> bool {
+        let Some(wallet) = self.session.wallets.get(w) else {
+            return false;
+        };
+        let shape = self.plan_shape_now(w);
+        let one_seed = matches!(
+            shape.seeds.as_slice(),
+            [s] if s.here && !s.passphrase && !s.shares
+        );
+        if shape.keys != 1
+            || !one_seed
+            || shape.seed_alone_fails
+            || shape.vaults > 0
+            || shape.splits
+        {
+            return false;
+        }
+        if self
+            .backup
+            .more_ways
+            .iter()
+            .any(|s| s.as_str() == wallet.checksum())
+        {
+            return false;
+        }
+        if self.c32_sets(w).iter().any(Option::is_some) {
+            return false;
+        }
+        let (xor, slip39) = self.set_facts(w);
+        if xor.iter().any(Option::is_some) || slip39.iter().any(Option::is_some) {
+            return false;
+        }
+        // The words typed in a seed's own form only.
+        let keys = self.backup_keys(w);
+        let [k] = keys.as_slice() else {
+            return false;
+        };
+        let Some(info) = self.session.keys.info(*k) else {
+            return false;
+        };
+        if self.backups_checked(w).contains(&info.fingerprint.0) {
+            return false;
+        }
+        // The short path ends in Paper only's three items.
+        let items = self.backup_items_now(c);
+        items.contains(&plan::Item::Copy(0))
+    }
+
+    /// A press of the short path.
+    pub(crate) fn quick_act(&mut self, q: Quick, c: &Compute) {
+        match q {
+            Quick::Open(w) => {
+                self.act(Action::Backup(w));
+                self.quick_try(c);
+            }
+            Quick::Card => {}
+            Quick::Show => {
+                // The first screen, with the words shown.
+                if let Some(b) = self.backup.state.as_mut().filter(|b| b.quick) {
+                    b.quick_step = Step::Write;
+                    b.check = None;
+                    b.check_at = None;
+                    b.reveal = true;
+                    b.quick_shown = true;
+                }
+            }
+            Quick::Wrote => {
+                // A press that checks nothing: the words are put away and
+                // the typed check opens on the second screen.
+                let shown = self
+                    .backup
+                    .state()
+                    .is_some_and(|b| b.quick && b.quick_shown);
+                if !shown {
+                    return;
+                }
+                if let Some(b) = self.backup.state.as_mut() {
+                    b.quick_step = Step::Check;
+                    b.reveal = false;
+                }
+                self.copy_check_open();
+            }
+            Quick::Done => {
+                let matched = self.quick_matched_now();
+                if matched && let Some(b) = self.backup.state.as_mut() {
+                    b.quick = false;
+                    b.open = None;
+                }
+            }
+            // The board, as a new plan opens it; Change the plan's own
+            // press records that the wallet's backup is the board's.
+            Quick::More => self.act(Action::BPlan),
+        }
+    }
+
+    /// More ways to back up, or Change the plan: the board, for good.
+    pub(crate) fn quick_leave(&mut self, _c: &Compute) {
+        let Some(sum) = self
+            .backup
+            .state()
+            .and_then(|b| self.session.wallets.get(b.wallet))
+            .map(|w| Text::of(w.checksum()))
+        else {
+            return;
+        };
+        self.backup.quick_left_for(&sum);
+    }
+
+    /// Whether the words of the backup's key matched in this backup.
+    fn quick_matched_now(&self) -> bool {
+        let Some(b) = self.backup.state() else {
+            return false;
+        };
+        self.session.keys.info(b.key).is_some_and(|k| {
+            b.checked
+                .contains(&(k.fingerprint.0, plan::CopyForm::Words))
+        })
+    }
+
+    /// Seed `fp`'s words matched: on the short path that completes the
+    /// backup, the presses of the templates and the envelopes recorded
+    /// before the key is released.
+    pub(crate) fn quick_matched(&mut self, form: plan::CopyForm) {
+        if form == plan::CopyForm::Words && self.backup.quick_complete() {
+            self.backups_marked();
+        }
+    }
 }
 
 #[cfg(test)]

@@ -1121,6 +1121,8 @@ impl Faraday {
     pub(crate) fn copy_matched(&mut self, fp: [u8; 4], form: crate::plan::CopyForm) {
         let c = self.compute();
         self.backup.note_checked(fp, form);
+        // On the quick paper backup the match completes the checklist.
+        self.quick_matched(form);
         self.copy_dating(&c, fp, form);
         if !self.seed_copy_checked(&c, fp) {
             return;

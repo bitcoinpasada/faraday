@@ -127,7 +127,18 @@ macro_rules! words_screens_backup {
     backup_back_to_wallet: "Back to the wallet",
     /// Text in `backup_body`.
     backup_done: "Done",
-    // ----- plan (faraday-core/src/screens/backup.rs) -----
+    // ----- the quick paper backup (faraday-core/src/screens/backup/quick.rs) -----
+    /// Title of the quick paper backup's first screen.
+    quick_write_title: "Write the words down",
+    /// Title of the quick paper backup's second screen.
+    quick_check_title: "Check my copy",
+    /// Foot of the quick paper backup's first screen, once the seed was
+    /// shown.
+    quick_wrote_them: "I wrote them down",
+    /// Row of both screens of the quick paper backup, and of its end: the
+    /// board.
+    quick_more_ways: "More ways to back up",
+    // ----- plan(faraday-core/src/screens/backup.rs) -----
     /// Line in `plan_body`.
     plan_a_key_made_here: "A key made here signs only once this backup is done.",
     /// Line on the board and the plan's map for a key loaded here that is kept

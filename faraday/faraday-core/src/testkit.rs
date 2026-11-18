@@ -1835,6 +1835,11 @@ pub fn backup_as(app: &mut crate::Faraday, preset: crate::plan::Preset) {
     };
     let held = |m: &[Spot], at: At| plan::holds_at(m, at);
     let press_q = |app: &mut crate::Faraday| app.press(Action::BQ(crate::qstep::BOARD));
+    // A wallet on the quick paper backup takes More ways to back up to
+    // reach the board.
+    if app.backup().is_some_and(|b| b.quick) {
+        app.press(Action::BQuick(crate::wallet_backup::quick::Quick::More));
+    }
     // The ⋮ menu of `t` in the list, and the first box it offers that
     // `pick` takes.
     let add_to = |app: &mut crate::Faraday, t: Thing, pick: &dyn Fn(Zone) -> bool| {

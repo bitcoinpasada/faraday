@@ -464,6 +464,8 @@ pub enum Action {
     BKey(usize),
     /// Show or hide the words.
     BReveal,
+    /// A press of the quick paper backup (`docs/BACKUP-FLOW.md` §19).
+    BQuick(crate::wallet_backup::quick::Quick),
     /// Standard or compact SeedQR.
     BCompact(bool),
     /// Mark this block of the SeedQR grid, or this row where it is marked
@@ -1679,6 +1681,7 @@ impl Faraday {
             | Action::BNext(..)
             | Action::BKey(..)
             | Action::BReveal
+            | Action::BQuick(..)
             | Action::BXor(..)
             | Action::BPartCheck(..)
             | Action::BOldDestroy(..)

@@ -19,6 +19,8 @@ use faraday_draw::widgets::Icon;
 use faraday_keys::Reveal;
 use faraday_ui::parts::{button_rows, section_label, wrap_buttons};
 
+mod quick;
+
 /// The rows of the software question.
 pub(crate) const SOFTWARE_ROWS: [&str; 5] = [
     EN.app_sparrow,
@@ -403,6 +405,10 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let scroll = b.scroll;
     ui.chip_at = None;
+    // The quick paper backup has screens of its own.
+    if b.quick {
+        return quick::draw(app, ui, &col, (x0, cw, h), (panel_w, pick));
+    }
     let all_done = checklist && marks.iter().all(|&d| d);
     let (next, again) = {
         let app_ref: &View = app;
@@ -738,7 +744,7 @@ pub(crate) fn wallet_done(
         items.push((
             EN.restore_back_up_button,
             Style::Secondary,
-            Action::Backup(wallet),
+            Action::BQuick(crate::wallet_backup::quick::Quick::Open(wallet)),
         ));
     }
     if from == From::Restore && crate::create::NewKind::of(wl.policy()).is_some() {

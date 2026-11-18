@@ -1664,6 +1664,8 @@ impl Faraday {
                 if let Some(i) = self.create.state.as_ref().and_then(|c| c.built) {
                     self.act(Action::Backup(i));
                     self.backup.set_from_create();
+                    let c = self.compute();
+                    self.quick_try(&c);
                 }
             }
             Action::CExistingVault(on) => self.create_existing_vault(on),

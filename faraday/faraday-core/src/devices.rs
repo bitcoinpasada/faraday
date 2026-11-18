@@ -600,6 +600,7 @@ impl Faraday {
                     action,
                     Action::BKey(_)
                         | Action::BReveal
+                        | Action::BQuick(crate::wallet_backup::quick::Quick::Show)
                         | Action::BFile
                         | Action::KShow
                         | Action::LShow
