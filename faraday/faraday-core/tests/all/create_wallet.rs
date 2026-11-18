@@ -1501,3 +1501,59 @@ fn a_single_key_and_a_legacy_multisig_have_no_info_button_on_their_path() {
     let app = on_quorum_of(NewKind::MultiLegacy);
     assert!(!app.offers(Action::CPathAbout));
 }
+
+// A boot stick left in warns before a key is made; pulling it goes on in
+// the wallet, as when it was pulled beforehand.
+
+fn boot_stick(on: bool) -> faraday_core::StorageEvent {
+    faraday_core::StorageEvent::Sticks(if on {
+        vec![faraday_core::StickInfo {
+            make: Default::default(),
+            serial: None,
+            id: faraday_text::Text::of("a"),
+            label: faraday_text::Text::of("STICK"),
+            boot: true,
+            files: Vec::new(),
+            vaults: Vec::new(),
+        }]
+    } else {
+        Vec::new()
+    })
+}
+
+/// The key made on the Keys card, in the wallet's own flow.
+fn making_on_the_card(app: &Faraday) -> bool {
+    app.screen == Screen::Create && app.keygen().is_some_and(|k| k.on_card)
+}
+
+#[test]
+fn a_single_key_made_with_the_stick_pulled_at_the_warning_stays_in_the_wallet() {
+    let mut app = testkit::started();
+    app.storage(boot_stick(true));
+    app.press(Action::CreateWallet);
+    crate::common::ckind(&mut app, 0);
+    app.press(Action::CNext(cstep::KIND));
+    let _ = app.frame();
+    assert!(!making_on_the_card(&app), "the stick is in the way");
+    app.press(Action::KeyGen(Some(0)));
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::Pull));
+    app.storage(boot_stick(false));
+    assert_eq!(app.sheet, None);
+    assert!(making_on_the_card(&app), "{:?}", app.screen);
+}
+
+#[test]
+fn a_multisig_key_made_with_the_stick_pulled_at_the_warning_stays_in_the_wallet() {
+    let mut app = testkit::started();
+    app.storage(boot_stick(true));
+    app.press(Action::CreateWallet);
+    crate::common::ckind(&mut app, multi_index());
+    app.press(Action::CNext(cstep::KIND));
+    app.press(Action::CNext(cstep::QUORUM));
+    let _ = app.frame();
+    app.press(Action::KeyOnCard(0));
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::Pull));
+    app.storage(boot_stick(false));
+    assert_eq!(app.sheet, None);
+    assert!(making_on_the_card(&app), "{:?}", app.screen);
+}

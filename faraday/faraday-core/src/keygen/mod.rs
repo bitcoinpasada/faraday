@@ -1175,13 +1175,27 @@ impl crate::Faraday {
         self.keygen.state()
     }
 
+    /// What waits for the stick to be pulled when `action` was pressed
+    /// with it in. New key on the Keys card of Make a new wallet waits as
+    /// the card's own making, so it opens there as it does when the stick
+    /// was out beforehand, never in the separate flow.
+    pub(crate) fn keygen_pull_action(&self, action: crate::Action) -> crate::Action {
+        match action {
+            crate::Action::KeyGen(Some(s)) if Some(s) == self.keygen_card_slot() => {
+                crate::Action::KeyOnCard(s)
+            }
+            a => a,
+        }
+    }
+
     /// Opens the flow, for a Create slot or for the session.
     pub(crate) fn keygen_open(&mut self, slot: Option<u8>) {
         if !self.may_load_keys() {
             // The stick in the way waits under the Pull sheet, and the
             // flow opens once it is out.
             if self.selftest_passed() && self.stick.in_the_way() {
-                self.visit.set_pull(crate::Action::KeyGen(slot));
+                self.visit
+                    .set_pull(self.keygen_pull_action(crate::Action::KeyGen(slot)));
                 self.sheet = Some(crate::Sheet::Pull);
             } else {
                 self.toast(&Text::fill(

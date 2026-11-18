@@ -1289,7 +1289,7 @@ impl Faraday {
                 && self.stick.in_the_way()
                 && stick::pull_what(self, action).is_some();
             if pull && self.devices.held.is_empty() {
-                self.visit.set_pull(action);
+                self.visit.set_pull(self.keygen_pull_action(action));
                 self.sheet = Some(Sheet::Pull);
                 return;
             }
@@ -1302,7 +1302,7 @@ impl Faraday {
             && self.stick.in_the_way()
             && stick::pull_what(self, action).is_some()
         {
-            self.visit.set_pull(action);
+            self.visit.set_pull(self.keygen_pull_action(action));
             self.sheet = Some(Sheet::Pull);
             return;
         }
