@@ -4,27 +4,42 @@
 //! only reads. Check a multisig setup's Result shows the same rows, and
 //! the register sheet too.
 
+use super::keycheck::{KeyBlockOf, KeyCheck, draw_keys};
 use super::{Origin, Session, Wallet, fp_text};
 use crate::strings::EN;
 use crate::ui::Ui;
 use crate::ui::pal::Role;
-use faraday_bip::bitcoin::bip32::{ChildNumber, DerivationPath};
+use faraday_bip::bitcoin::bip32::{ChildNumber, DerivationPath, Xpub};
 use faraday_bip::keys::Fingerprint;
-use faraday_bip::policy::WalletPolicy;
+use faraday_bip::policy::{PolicyKey, WalletPolicy};
 use faraday_crypto::work::Compute;
 use faraday_draw::tokens::{BODY_M, GAP};
 use faraday_text::Text;
 
-/// What a cosigner's row says of the keys loaded here.
+/// What a cosigner's row says of the keys loaded here and of the person.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Mark {
-    /// No key loaded here is it.
-    None,
     /// A loaded key's extended key at the path; `true` at a single-key
     /// account's path.
     Yours(bool),
+    /// The person ticked it as compared with its own device.
+    Checked,
+    /// Nothing vouches for it.
+    Unchecked,
     /// The fingerprint is a loaded key's, the key at the path is not.
     Wrong(Text),
+}
+
+impl Mark {
+    /// The state this mark shows.
+    pub(crate) fn state(&self) -> KeyCheck {
+        match self {
+            Mark::Yours(_) => KeyCheck::Yours,
+            Mark::Checked => KeyCheck::Checked,
+            Mark::Unchecked => KeyCheck::Unchecked,
+            Mark::Wrong(_) => KeyCheck::Wrong,
+        }
+    }
 }
 
 /// One cosigner's row.
@@ -65,28 +80,7 @@ impl Rows {
     /// and holds, not worked out.
     pub(crate) fn of(session: &Session, c: &Compute, policy: &WalletPolicy, given: bool) -> Rows {
         let wallet = Wallet::new("", policy.clone(), "", Origin::Named);
-        let keys = policy
-            .keys()
-            .iter()
-            .enumerate()
-            .map(|(i, k)| {
-                let fp = k.fingerprint();
-                let path = k.path();
-                let mark = match (fp, path) {
-                    (Some(fp), Some(path)) => mark_of(session, c, k.xpub(), fp, path),
-                    _ => Mark::None,
-                };
-                KeyRow {
-                    number: Text::fill(EN.mscheck_key, &[&Text::num(i as u64 + 1)]),
-                    fingerprint: fp.map(fp_text).unwrap_or_default(),
-                    path: path
-                        .map(|p| Text::of(&crate::register::path_text(p)))
-                        .unwrap_or_default(),
-                    xpub: groups_of_four(&k.xpub().to_string()),
-                    mark,
-                }
-            })
-            .collect();
+        let keys = key_rows(session, c, policy, &Gives::new());
         let repeats = faraday_bip::descriptor::checksum_facts(c, &policy.to_descriptor())
             .map(|f| f.repeated)
             .unwrap_or_default()
@@ -112,11 +106,73 @@ impl Rows {
         }
     }
 
+    /// Toggles the person's tick of key `i` where it is theirs to tick.
+    pub(crate) fn tick(&mut self, i: usize) {
+        if let Some(k) = self.keys.get_mut(i) {
+            k.mark = match k.mark {
+                Mark::Unchecked => Mark::Checked,
+                Mark::Checked => Mark::Unchecked,
+                _ => return,
+            };
+        }
+    }
+
+    /// The person's ticks, one per key.
+    pub(crate) fn ticks(&self) -> Vec<bool> {
+        self.keys.iter().map(|k| k.mark == Mark::Checked).collect()
+    }
+
     /// Whether a key not of the wallet spends it alone: the sheet's head,
     /// key path line and hold are in the error tone.
     pub(crate) fn danger(&self) -> bool {
         self.key_path.as_ref().is_some_and(|(_, d)| *d)
     }
+}
+
+/// What loaded keys gave at origin paths, worked out already: by the
+/// fingerprint of the key and the path, so that no derivation is made twice.
+pub(crate) type Gives = Vec<(Fingerprint, DerivationPath, Option<Xpub>)>;
+
+/// Costs a key derivation where a loaded key is `k`'s and `memo` does not
+/// have what it gives: the row of key `i` of a policy, its mark what the
+/// loaded keys give, or unchecked.
+pub(crate) fn key_row(
+    session: &Session,
+    c: &Compute,
+    memo: &Gives,
+    i: usize,
+    k: &PolicyKey,
+) -> KeyRow {
+    let fp = k.fingerprint();
+    let path = k.path();
+    let mark = match (fp, path) {
+        (Some(fp), Some(path)) => mark_of(session, c, memo, k.xpub(), fp, path),
+        _ => Mark::Unchecked,
+    };
+    KeyRow {
+        number: Text::fill(EN.mscheck_key, &[&Text::num(i as u64 + 1)]),
+        fingerprint: fp.map(fp_text).unwrap_or_default(),
+        path: path
+            .map(|p| Text::of(&crate::register::path_text(p)))
+            .unwrap_or_default(),
+        xpub: groups_of_four(&k.xpub().to_string()),
+        mark,
+    }
+}
+
+/// Costs what [`key_row`] costs for each key of `policy`.
+pub(crate) fn key_rows(
+    session: &Session,
+    c: &Compute,
+    policy: &WalletPolicy,
+    memo: &Gives,
+) -> Vec<KeyRow> {
+    policy
+        .keys()
+        .iter()
+        .enumerate()
+        .map(|(i, k)| key_row(session, c, memo, i, k))
+        .collect()
 }
 
 /// A lookup: whether every key of `policy` has a fingerprint and an
@@ -148,14 +204,19 @@ fn path_is_single_account(path: &DerivationPath) -> bool {
 fn mark_of(
     session: &Session,
     c: &Compute,
-    cosigner: &faraday_bip::bitcoin::bip32::Xpub,
+    memo: &Gives,
+    cosigner: &Xpub,
     fp: Fingerprint,
     path: &DerivationPath,
 ) -> Mark {
     let Some(i) = session.keys.position(fp) else {
-        return Mark::None;
+        return Mark::Unchecked;
     };
-    match session.keys.xpub_at(c, i, path) {
+    let gives = match memo.iter().find(|(f, p, _)| *f == fp && p == path) {
+        Some((_, _, x)) => *x,
+        None => session.keys.xpub_at(c, i, path),
+    };
+    match gives {
         Some(x) if x.public_key == cosigner.public_key && x.chain_code == cosigner.chain_code => {
             Mark::Yours(path_is_single_account(path))
         }
@@ -174,25 +235,38 @@ pub(crate) fn groups_of_four(text: &str) -> Text {
 }
 
 /// Draws `r`'s rows at `(x, y)`, `w` wide: the shape, repeated keys, each
-/// cosigner (number, fingerprint, path, the whole key, its mark), the
+/// cosigner (number, fingerprint, path, the whole key, its state), the
 /// checksum and the key path line; a cosigner whose place is in `seeded`
-/// says it is the seed given. Returns the height. The one drawing
-/// of these rows: the confirmation sheet's, the register sheet's and
-/// Check a multisig setup's Result.
-pub(crate) fn draw_rows(r: &Rows, seeded: &[usize], ui: &mut Ui, at: (f32, f32, f32)) -> f32 {
-    draw_rows_with(r, seeded, true, ui, at)
+/// says it is the seed given. A press on a key the person ticks toggles
+/// the tick in `of`. Returns the height. The one drawing of these rows:
+/// the confirmation sheet's, the register sheet's and Check a multisig
+/// setup's Result.
+pub(crate) fn draw_rows(
+    r: &Rows,
+    seeded: &[usize],
+    of: KeyBlockOf,
+    ui: &mut Ui,
+    at: (f32, f32, f32),
+) -> f32 {
+    draw_rows_with(r, seeded, true, of, ui, at)
 }
 
 /// `draw_rows` without the shape line, for the sheet that states the
 /// shape itself, with the order of the keys.
-pub(crate) fn draw_rows_without_shape(r: &Rows, ui: &mut Ui, at: (f32, f32, f32)) -> f32 {
-    draw_rows_with(r, &[], false, ui, at)
+pub(crate) fn draw_rows_without_shape(
+    r: &Rows,
+    of: KeyBlockOf,
+    ui: &mut Ui,
+    at: (f32, f32, f32),
+) -> f32 {
+    draw_rows_with(r, &[], false, of, ui, at)
 }
 
 fn draw_rows_with(
     r: &Rows,
     seeded: &[usize],
     shape: bool,
+    of: KeyBlockOf,
     ui: &mut Ui,
     (x, y, w): (f32, f32, f32),
 ) -> f32 {
@@ -205,29 +279,8 @@ fn draw_rows_with(
     for line in &r.repeats {
         cy += ui.wrap_as((x, y + cy, w), BODY_M, Role::Error, line) + GAP;
     }
-    for (i, k) in r.keys.iter().enumerate() {
-        let head = format!("{} · {}", &*k.fingerprint, &*k.path);
-        cy += kv(ui, x, y + cy, w, &k.number, &head, Role::OnSurface);
-        cy += ui.wrap_as((x, y + cy, w), BODY_M.mono(), Role::OnSurface, &k.xpub);
-        match &k.mark {
-            Mark::None => {}
-            Mark::Yours(single) => {
-                let line = if *single {
-                    EN.mscheck_yours_single
-                } else {
-                    EN.mscheck_yours
-                };
-                cy += ui.wrap_as((x, y + cy, w), BODY_M, Role::Ok, line);
-            }
-            Mark::Wrong(line) => {
-                cy += ui.wrap_as((x, y + cy, w), BODY_M, Role::Error, line);
-            }
-        }
-        if seeded.contains(&i) {
-            cy += ui.wrap_as((x, y + cy, w), BODY_M, Role::Ok, EN.mscheck_this_seed);
-        }
-        cy += GAP;
-    }
+    cy += draw_keys(&r.keys, seeded, of, r.keys.len() > 1, ui, (x, y + cy, w));
+    // A typing check, not proof: the quieter tone.
     cy += kv(
         ui,
         x,
@@ -235,7 +288,7 @@ fn draw_rows_with(
         w,
         EN.mscheck_checksum,
         &r.checksum,
-        Role::OnSurface,
+        Role::OnSurfaceVariant,
     );
     if let Some((line, danger)) = &r.key_path {
         let tone = if *danger {

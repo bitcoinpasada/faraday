@@ -118,6 +118,19 @@ fn a_wallet_another_key_spends_alone_is_added_only_after_the_hold() {
         shown.contains("can spend everything alone"),
         "the sheet keeps the danger line: {shown}"
     );
+    // The body scrolls: the hold is below the keys.
+    let mut shown = shown;
+    for _ in 0..10 {
+        if shown.contains("Hold to add this wallet") {
+            break;
+        }
+        app.event(faraday_shell_api::Event::Scroll {
+            x: 400,
+            y: 384,
+            dy: 300,
+        });
+        shown = screen(&mut app);
+    }
     assert!(shown.contains("Hold to add this wallet"), "{shown}");
 
     // Cancel: nothing is added, and nothing waits.

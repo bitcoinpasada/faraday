@@ -551,9 +551,23 @@ macro_rules! words_sweep {
     /// Check a multisig setup: a cosigner's label. `{}`: its number.
     mscheck_key: "Key {}",
     /// Check a multisig setup: a cosigner a key loaded here is.
-    mscheck_yours: "Yours",
+    mscheck_yours: "Yours, can sign",
     /// Check a multisig setup: a cosigner that is a single-key account of a key loaded here.
-    mscheck_yours_single: "Yours · your single-key account",
+    mscheck_yours_single: "Yours, can sign · your single-key account",
+    /// A key of a wallet of several keys that the person ticked as compared with its own device.
+    keycheck_checked: "Checked by you",
+    /// A key of a wallet of several keys that nothing vouches for; a press ticks it.
+    keycheck_unchecked: "Not checked",
+    /// Under a wallet's keys: one key is not checked.
+    keycheck_line_one: "1 key not checked · compare it with its own device",
+    /// Under a wallet's keys: several keys are not checked. `{}`: how many.
+    keycheck_line_many: "{} keys not checked · compare each with its own device",
+    /// Under a wallet's keys: every key is checked.
+    keycheck_line_all: "Every key checked",
+    /// A wallet was added with one key not checked. `{}`: its name.
+    keycheck_added_one: "{} added · 1 key not checked",
+    /// A wallet was added with keys not checked. `{}`: its name, then how many.
+    keycheck_added_many: "{} added · {} keys not checked",
     /// Check a multisig setup: a cosigner under a loaded key's fingerprint that is not that key. `{}`: the fingerprint, then the path.
     mscheck_wrong_key: "The fingerprint is {}'s; the key at {} is not",
     /// Check a multisig setup: the quorum's label.

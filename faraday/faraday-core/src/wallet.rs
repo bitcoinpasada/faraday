@@ -42,6 +42,13 @@ pub use account::{Account, AccountAsk};
 mod confirm;
 pub use confirm::Rows;
 pub(crate) use confirm::{draw_rows, draw_rows_without_shape};
+mod keycheck;
+#[allow(
+    unused_imports,
+    reason = "the screens that draw an added wallet's keys use it"
+)]
+pub(crate) use keycheck::draw_key_block;
+pub use keycheck::{KeyBlockOf, KeyCheck};
 mod state;
 pub use state::SpendState;
 pub(crate) use state::{SPEND_STEPS, SpendSteps, WalletsArea};
@@ -174,6 +181,9 @@ pub struct Wallet {
     /// The fingerprints of the keys loaded when its keys were last
     /// checked against them ([`Session::drop_forged`]).
     checked: Vec<Fingerprint>,
+    /// What vouches for each key of a wallet of several keys
+    /// ([`Wallet::key_checks`]).
+    key_checks: keycheck::KeyChecks,
     /// The spend paths, read once from the policy when it is set
     /// ([`Wallet::waits`]).
     waits: Waits,
@@ -266,7 +276,37 @@ impl Wallet {
             scripts: std::cell::RefCell::new(Vec::new()),
             same: std::cell::OnceCell::new(),
             checked: Vec::new(),
+            key_checks: keycheck::KeyChecks::default(),
         }
+    }
+
+    /// What vouches for each key of the policy, in its order, worked out
+    /// when the wallet was added and when a key was loaded or removed:
+    /// none for a wallet of one key.
+    pub fn key_checks(&self) -> &[KeyCheck] {
+        self.key_checks.states()
+    }
+
+    /// How many keys nothing vouches for.
+    pub fn keys_unchecked(&self) -> usize {
+        self.key_checks.unchecked()
+    }
+
+    /// The person's ticks only, one per key (none for a wallet of one
+    /// key), for a vault to keep.
+    pub fn key_ticks(&self) -> Vec<bool> {
+        self.key_checks.ticks()
+    }
+
+    /// Takes `ticks` as the person's, one per key; a slice of another
+    /// length is ignored.
+    pub fn set_key_ticks(&mut self, ticks: &[bool]) {
+        self.key_checks.set_ticks(ticks);
+    }
+
+    /// The rows of the keys as drawn.
+    pub(crate) fn key_rows(&self) -> &[confirm::KeyRow] {
+        self.key_checks.rows()
     }
 
     /// The wallet's spend paths and the shortest relative wait, kept
@@ -287,6 +327,7 @@ impl Wallet {
             scripts: std::cell::RefCell::new(self.scripts.borrow().clone()),
             same: self.same.clone(),
             checked: Vec::new(),
+            key_checks: self.key_checks.clone(),
             waits: self.waits.clone(),
         }
     }
@@ -863,6 +904,7 @@ impl Session {
         policy: &WalletPolicy,
         only: Option<&[Fingerprint]>,
         derived: &faraday_keys::job::Derived,
+        memo: &mut confirm::Gives,
     ) -> Option<Fingerprint> {
         for key in policy.keys() {
             let (Some(fp), Some(path)) = (key.fingerprint(), key.path()) else {
@@ -880,6 +922,7 @@ impl Session {
                 Some(x) => Some(*x),
                 None => self.keys.xpub_at(c, i, path),
             };
+            memo.push((fp, path.clone(), gives));
             if !gives.is_some_and(|x| {
                 x.public_key == key.xpub().public_key && x.chain_code == key.xpub().chain_code
             }) {
@@ -902,22 +945,37 @@ impl Session {
         let mut dropped = Vec::new();
         let mut i = 0;
         while i < self.wallets.len() {
+            if self.wallets[i].checked == now {
+                i += 1;
+                continue;
+            }
             let new: Vec<Fingerprint> = now
                 .iter()
                 .copied()
                 .filter(|f| !self.wallets[i].checked.contains(f))
                 .collect();
-            if new.is_empty() {
-                i += 1;
-                continue;
-            }
-            match self.forged_key(c, &self.wallets[i].policy, Some(&new), &Default::default()) {
+            let mut memo = confirm::Gives::new();
+            let forged = if new.is_empty() {
+                None
+            } else {
+                self.forged_key(
+                    c,
+                    &self.wallets[i].policy,
+                    Some(&new),
+                    &Default::default(),
+                    &mut memo,
+                )
+            };
+            match forged {
                 Some(fp) => {
                     let w = self.wallets.remove(i);
                     let why = Refusal::NotYourKey(fp_text(fp)).text();
                     dropped.push((w.name, why));
                 }
                 None => {
+                    // A key loaded or removed: what the keys give is
+                    // worked out again, the person's ticks kept.
+                    self.refresh_key_checks(c, i, (&now, &new), &memo);
                     self.wallets[i].checked.clone_from(&now);
                     i += 1;
                 }
@@ -1031,7 +1089,8 @@ impl Session {
         if musig_one_seed(&policy) {
             return Err(Refusal::MuSigOneSeed);
         }
-        if let Some(fp) = self.forged_key(c, &policy, None, derived) {
+        let mut memo = confirm::Gives::new();
+        if let Some(fp) = self.forged_key(c, &policy, None, derived, &mut memo) {
             return Err(Refusal::NotYourKey(faraday_text::Text::of(&fp_text(fp))));
         }
         let descriptor = same_wallet(&policy);
@@ -1073,10 +1132,20 @@ impl Session {
             return Err(Refusal::Unconfirmed);
         }
         self.follow(policy_network(&policy, self.network()))?;
+        let key_checks = keycheck::KeyChecks::of(self, c, &policy, &memo);
         let mut wallet = Wallet::new(name, policy, source, origin);
+        wallet.key_checks = key_checks;
         wallet.checked = self.keys.all().map(|k| k.fingerprint).collect();
         self.wallets.push(wallet);
         Ok(self.wallets.len() - 1)
+    }
+
+    /// Toggles the person's tick of key `key` in the rows of the wallet
+    /// whose sheet is next.
+    pub(crate) fn ask_tick(&mut self, key: usize) {
+        if let Some(a) = self.wallet_asked.front_mut() {
+            a.rows.tick(key);
+        }
     }
 
     /// The wallet whose sheet is next, if one waits.
@@ -3981,16 +4050,18 @@ impl Faraday {
         // have, while Files holds what it held; a wallet that came
         // in any other way is added here, and the toast says so.
         let descriptor = same_wallet(&ask.policy);
+        let ticks = ask.rows.ticks();
         if let Some((press, inbox)) = ask.replay
             && inbox == self.inbox_print()
         {
             self.act(press);
-            if self
+            if let Some(w) = self
                 .session
                 .wallets
-                .iter()
-                .any(|w| same_wallet(&w.policy) == descriptor)
+                .iter_mut()
+                .find(|w| same_wallet(&w.policy) == descriptor)
             {
+                w.set_key_ticks(&ticks);
                 return;
             }
         }
@@ -4008,12 +4079,36 @@ impl Faraday {
                 }
             }
             Ok(i) => {
-                let name = self.session.wallets[i].name.clone();
+                self.session.wallets[i].set_key_ticks(&ticks);
                 self.wallets.set_wallet(i);
                 self.refresh_spend();
-                self.toast(&Text::fill(EN.wallet_confirm_added, &[&name]));
+                self.toast_added(i);
             }
             Err(e) => self.toast(&e.text()),
+        }
+    }
+
+    /// Toasts that wallet `i` was added, and how many of its keys nothing
+    /// vouches for.
+    pub(crate) fn toast_added(&mut self, i: usize) {
+        let w = &self.session.wallets[i];
+        let text = match w.keys_unchecked() {
+            0 => Text::fill(EN.wallet_confirm_added, &[&w.name]),
+            1 => Text::fill(EN.keycheck_added_one, &[&w.name]),
+            n => Text::fill(EN.keycheck_added_many, &[&w.name, &Text::num(n as u64)]),
+        };
+        self.toast(&text);
+    }
+
+    /// Toggles the person's tick of key `key` in the rows `of` names,
+    /// where the tick is theirs to make.
+    pub(crate) fn key_tick(&mut self, of: KeyBlockOf, key: u8) {
+        let key = usize::from(key);
+        match of {
+            KeyBlockOf::Asked => self.session.ask_tick(key),
+            KeyBlockOf::Register => self.wallets.register_tick(key),
+            KeyBlockOf::Wallet(i) => self.session.tick_key(usize::from(i), key),
+            KeyBlockOf::Check => self.tools.mscheck.tick(key),
         }
     }
 
@@ -4050,6 +4145,7 @@ impl Faraday {
                 };
                 let name = ask.name_or(&crate::register::name_of_file(&s.spend.source));
                 let reading = ask.reading;
+                let ticks = ask.rows.as_ref().map(Rows::ticks).unwrap_or_default();
                 let (source, psbt, offer) =
                     (s.spend.source.clone(), s.spend.psbt.clone(), offer.clone());
                 let c = self.compute();
@@ -4075,6 +4171,7 @@ impl Faraday {
                         self.sheet = None;
                     }
                     Ok(i) => {
+                        self.session.wallets[i].set_key_ticks(&ticks);
                         self.wallets.close_register();
                         self.sheet = None;
                         self.wallets.set_wallet(i);

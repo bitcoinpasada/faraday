@@ -2745,7 +2745,13 @@ pub(super) fn wallet_confirm_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 Role::OnSurface,
             );
             cy += T::GAP_SMALL;
-            cy += crate::wallet::draw_rows(&ask.rows, &[], ui, (x, cy, iw));
+            cy += crate::wallet::draw_rows(
+                &ask.rows,
+                &[],
+                crate::wallet::KeyBlockOf::Asked,
+                ui,
+                (x, cy, iw),
+            );
             cy += ui.wrap_as(
                 (x, cy, iw),
                 BODY_S,

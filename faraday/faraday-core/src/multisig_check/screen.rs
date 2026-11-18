@@ -219,7 +219,13 @@ fn rows(r: &Shown, seed: Option<&SeedAnswer>, ui: &mut Ui, (x, y, w): (f32, f32,
         Some(SeedAnswer::Key(ours, _)) => ours,
         _ => &[],
     };
-    let mut cy = crate::wallet::draw_rows(&r.rows, ours, ui, (x, y, w));
+    let mut cy = crate::wallet::draw_rows(
+        &r.rows,
+        ours,
+        crate::wallet::KeyBlockOf::Check,
+        ui,
+        (x, y, w),
+    );
     if let Some(q) = &r.quorum {
         cy += kv(ui, x, y + cy, w, EN.mscheck_quorum, q, Role::OnSurface);
     }

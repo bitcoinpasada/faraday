@@ -139,6 +139,13 @@ impl MsArea {
         self.state.as_ref()
     }
 
+    /// The person's tick of key `key` in the Result's rows.
+    pub(crate) fn tick(&mut self, key: usize) {
+        if let Some(s) = self.state.as_mut().and_then(|s| s.shown.as_mut()) {
+            s.rows.tick(key);
+        }
+    }
+
     pub(crate) fn set_scroll(&mut self, to: flow::Scroll) {
         if let Some(s) = self.state.as_mut() {
             s.scroll = to;

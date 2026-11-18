@@ -827,6 +827,18 @@ impl WalletsArea {
         }
     }
 
+    /// The person's tick of key `key` on the register sheet's rows.
+    pub(crate) fn register_tick(&mut self, key: usize) {
+        if let Some(rows) = self
+            .spend
+            .as_mut()
+            .and_then(|s| s.register.as_mut())
+            .and_then(|a| a.rows.as_mut())
+        {
+            rows.tick(key);
+        }
+    }
+
     /// The register sheet's name field is being typed in.
     pub(crate) fn register_typing(&mut self) {
         if let Some(ask) = self.spend.as_mut().and_then(|s| s.register.as_mut()) {

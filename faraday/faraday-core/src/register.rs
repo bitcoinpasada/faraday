@@ -239,7 +239,12 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             }
             cy += T::GAP_SMALL;
             if let Some(rows) = &ask.rows {
-                cy += crate::wallet::draw_rows_without_shape(rows, ui, (x, cy, iw));
+                cy += crate::wallet::draw_rows_without_shape(
+                    rows,
+                    crate::wallet::KeyBlockOf::Register,
+                    ui,
+                    (x, cy, iw),
+                );
                 cy += ui.wrap_as(
                     (x, cy, iw),
                     BODY_S,

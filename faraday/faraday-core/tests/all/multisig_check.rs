@@ -502,7 +502,7 @@ fn add_this_wallet_asks_the_sheet_and_the_hold_loads_it_here() {
     let name = app.session.wallets[0].name.to_string();
     assert!(has_part(&mut app, &format!("Loaded here as {name}")));
     assert!(!has_part(&mut app, "Add this wallet"));
-    assert!(has_part(&mut app, "Open the wallet"));
+    assert!(shows(&mut app, "Open the wallet"));
     app.press(Action::OpenWallet(0));
     assert_eq!(app.screen, Screen::Wallets);
 }

@@ -18,7 +18,7 @@ Opened from Tools, the tool opens the setup in Files when exactly one waits ther
 
 **Key:** multisig-check.result
 
-The shape of the wallet, then each cosigner's fingerprint, path and whole extended public key, in groups of four, in the descriptor's order. **Yours** marks a cosigner that a key loaded here is. The descriptor checksum says whether the setup gave one and it held, or that it was worked out here. **Quorum** shows where the shape does not state one, as seeds; **Ways to spend** lists each way a script tree or a miniscript is spent. The first receive address is the one every coordinator shows when the wallet is set up.
+The shape of the wallet, then each cosigner's fingerprint, path and whole extended public key, in groups of four, in the descriptor's order. **Yours, can sign** marks a cosigner that a key loaded here is. The descriptor checksum says whether the setup gave one and it held, or that it was worked out here. **Quorum** shows where the shape does not state one, as seeds; **Ways to spend** lists each way a script tree or a miniscript is spent. The first receive address is the one every coordinator shows when the wallet is set up.
 
 **Add this wallet** loads it here; the button then reads **Open the wallet**.
 

@@ -749,10 +749,9 @@ impl Faraday {
             .add_policy(&c, &ask.name, policy, &ask.source, ask.origin)
         {
             Ok(i) => {
-                let name = self.session.wallets[i].name.clone();
                 self.wallets.set_wallet(i);
                 self.refresh_spend();
-                self.toast(&Text::fill(EN.wallet_confirm_added, &[&name]));
+                self.toast_added(i);
             }
             // Held for its sheet, which opens next.
             Err(crate::wallet::Refusal::Unconfirmed) => {}

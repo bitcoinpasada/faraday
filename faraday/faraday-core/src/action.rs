@@ -232,6 +232,9 @@ pub enum Action {
     WalletHold,
     /// The wallet confirmation sheet's Cancel: the waiting wallet is not added, and the next one waits.
     WalletCancel,
+    /// A press on a key of a wallet that the person's tick decides: its
+    /// tick toggles in the rows the block names, at the key's place.
+    KeyTick(crate::wallet::KeyBlockOf, u8),
     /// The published-words sheet's **Remove**: the key is dropped.
     PublishedRemove,
     /// The published-words sheet's **Keep for testing**: the key stays.
@@ -1602,6 +1605,7 @@ impl Faraday {
             | Action::IdleLock(..)
             | Action::IdleOff(..)) => self.power_act(a, &c),
             a @ (Action::WalletHold | Action::WalletCancel) => self.confirm_act(a),
+            Action::KeyTick(of, key) => self.key_tick(of, key),
             a @ (Action::PublishedRemove | Action::PublishedKeep | Action::PublishedHold) => {
                 self.published_act(a)
             }
