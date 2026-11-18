@@ -14,7 +14,7 @@ Make a new wallet is one card per step: Kind, Keys, Check and then Back up. The 
 
 Choose the kind of wallet: it sets how the wallet locks its coins and what its addresses look like. Choosing a row opens the next card.
 
-**Single key** is ticked when the page opens: one key signing, with bc1q addresses, the kind most wallets make; pressing it takes it and opens the next card. **Multisig** needs a quorum of several keys. **More kinds** opens the rest. **Single key · Taproot** gives bc1p addresses. **Single key · nested SegWit** and **Multisig · nested SegWit** give 3 addresses, for services that cannot pay bc1. **Single key · legacy** (1 addresses) and **Multisig · legacy** (3 addresses) are for old software only. **Multisig · Taproot** is a quorum on one Taproot script leaf. **All keys · MuSig2** needs every key to sign and appears on chain as one Taproot key. **Start over** forgets a wallet part made.
+Neither kind is ticked when the page opens; a press on one takes it and opens the next card. **Single key** is one key signing, with bc1q addresses, the kind most wallets make. **Multisig** needs a quorum of several keys. **More kinds** opens the rest. **Single key · Taproot** gives bc1p addresses. **Single key · nested SegWit** and **Multisig · nested SegWit** give 3 addresses, for services that cannot pay bc1. **Single key · legacy** (1 addresses) and **Multisig · legacy** (3 addresses) are for old software only. **Multisig · Taproot** is a quorum on one Taproot script leaf. **All keys · MuSig2** needs every key to sign and appears on chain as one Taproot key. **Start over** forgets a wallet part made.
 
 ## Backup
 

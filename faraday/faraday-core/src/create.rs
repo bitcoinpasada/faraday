@@ -987,9 +987,9 @@ pub struct CreateState {
     /// The kind.
     pub kind: NewKind,
     /// No kind is ticked yet, `kind` only standing in: Make a new wallet
-    /// opened by Move money, where the person chooses (owner,
-    /// 2026-10-24; `docs/CODEX32.md` §6.9). A row chosen clears it; Next
-    /// does nothing until then.
+    /// opens so, and so does Move money's (owner, 2026-10-24, 2026-11-18;
+    /// `docs/CODEX32.md` §6.9). A row chosen clears it; Next does nothing
+    /// until then. A flow begun with its kind decided leaves it false.
     pub kind_unchosen: bool,
     /// Signatures needed.
     pub m: usize,
@@ -1579,9 +1579,9 @@ impl Faraday {
                 self.screen = Screen::Create;
             }
             Action::CreateWallet | Action::CreateOver => {
-                // Create opens on Kind, open, with Single key ticked and
-                // Words the Backup card's answer: a press on the ticked
-                // row takes the default.
+                // Create opens on Kind, open, with no row ticked: the
+                // person chooses, and Next waits for it. Words is the
+                // Backup card's answer once a single key is chosen.
                 // Back goes where it was opened from, Home or Wallets.
                 let done = [false; cstep::COUNT];
                 let owner = self.fresh_owner();
@@ -1590,6 +1590,7 @@ impl Faraday {
                     done,
                     open: Some(cstep::KIND),
                     kind: NewKind::NativeSegwit,
+                    kind_unchosen: true,
                     backup: Some(BackupForm::Words),
                     // Start over keeps it.
                     from_home: self.screen == Screen::Home

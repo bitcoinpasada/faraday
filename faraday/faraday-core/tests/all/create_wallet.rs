@@ -53,6 +53,52 @@ fn a_fresh_create_opens_with_kind_closed_on_single_key() {
 }
 
 #[test]
+fn a_fresh_create_opens_with_neither_kind_ticked_and_no_way_on() {
+    let mut app = testkit::started();
+    app.press(Action::CreateWallet);
+    let c = app.create().expect("create");
+    assert!(c.kind_unchosen, "no kind is ticked");
+    assert_eq!(c.open, Some(cstep::KIND), "Kind is open");
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "Single key"), "{texts:?}");
+    assert!(texts.iter().any(|t| t == "Multisig"), "{texts:?}");
+    assert!(
+        !texts.iter().any(|t| t == "Words (BIP-39)"),
+        "no card past Kind shows a kind's answer: {texts:?}"
+    );
+    app.press(Action::CNext(cstep::KIND));
+    let c = app.create().unwrap();
+    assert!(c.kind_unchosen, "Next does nothing until a row is pressed");
+    assert_eq!(c.open, Some(cstep::KIND));
+    assert!(!c.done[cstep::KIND as usize]);
+}
+
+#[test]
+fn pressing_single_key_or_multisig_ticks_it_and_moves_on() {
+    let mut app = testkit::started();
+    app.press(Action::CreateWallet);
+    crate::common::ckind(&mut app, 0);
+    let c = app.create().unwrap();
+    assert!(!c.kind_unchosen);
+    assert_eq!(c.kind, NewKind::NativeSegwit);
+    assert_eq!(c.open, Some(cstep::KEYS));
+    app.press(Action::CStep(cstep::KIND));
+    assert_eq!(
+        app.create().map(|c| c.kind_unchosen),
+        Some(false),
+        "the choice is kept"
+    );
+
+    let mut app = testkit::started();
+    app.press(Action::CreateWallet);
+    app.press(Action::CKind(multi_index()));
+    let c = app.create().unwrap();
+    assert!(!c.kind_unchosen);
+    assert_eq!(c.kind, NewKind::Multi);
+    assert_eq!(c.open, Some(cstep::QUORUM));
+}
+
+#[test]
 fn a_kind_pressed_moves_on_and_its_head_reopens_it_keeping_the_choice() {
     let mut app = opened();
     app.press(Action::CStep(cstep::KIND));

@@ -169,7 +169,7 @@ Sources read for it, each as data and none vendored:
     2026-10-24): the person moves money to a wallet of their choosing,
     so Faraday does not guess. The rows are in the same order; Next waits
     until a row is chosen, and a row chosen moves on as any does. A
-    new wallet opened on its own ticks Single key (§6.9).
+    new wallet opened on its own has no row ticked either (§6.9).
     Its key record keeps the codex32 set for the backup plan (§9.4), and
     the board names a backup-in-shares seed placed whole in a vault
     (§9.5, §9.6).
@@ -1154,16 +1154,16 @@ as an answer of its own, each row stating plainly what it is.
 
 **Make a new wallet's Kind card** (FLOWS, Make a new wallet; DESIGN
 §4.2, Option row) asks only who signs. The flow opens on it, open, with
-Single key ticked (§1.1 items 24 and 25):
+no row ticked (§1.1 items 24 and 25):
 
 - **Single key**: "One key signs; bc1q addresses, what most wallets make".
 - **Multisig**: "3 keys, any 2 sign; bc1q addresses", the quorum's counts.
 - **More kinds**: the address types (Single key Taproot, nested,
   legacy; Multisig nested, legacy, Taproot) and MuSig2.
 
-Whatever opens Create (Home, Wallets, Start over) ticks Single key; a
-chart's **Move the money** leaves the card with no row ticked: the
-person chooses, and Next waits until they have. A Tools tile that opens Create with a kind
+Whatever opens Create (Home, Wallets, Start over, a chart's **Move the
+money**) leaves the card with no row ticked: the person chooses, and
+Next waits until they have. A Tools tile that opens Create with a kind
 chosen ticks that kind. A row pressed opens the next card, as any row
 does (F103).
 

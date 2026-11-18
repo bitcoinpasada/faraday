@@ -117,14 +117,13 @@ const NAME: &str = "Shares (codex32)";
 const TIP: &str = "codex32 is the only method that makes a seed and its shares fully by hand, the checksum included.";
 
 #[test]
-fn kind_shows_single_key_and_multisig_with_single_key_ticked_and_no_shares_row() {
+fn kind_shows_single_key_and_multisig_with_none_ticked_and_no_shares_row() {
     let mut app = app();
     app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::CreateWallet);
     let c = app.create().expect("Make a new wallet");
     assert_eq!(c.open, Some(cstep::KIND), "Kind is open");
-    assert!(!c.kind_unchosen, "Single key is ticked");
-    assert_eq!(c.kind, NewKind::NativeSegwit);
+    assert!(c.kind_unchosen, "no kind is ticked");
     let texts = app.drawn_texts();
     let at = |name: &str| texts.iter().position(|t| t == name);
     let (single, multi) = (

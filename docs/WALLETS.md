@@ -381,8 +381,8 @@ before).
 | Recovery | Kind → Primary keys → **Recovery paths** (up to three, each with keys and a timelock) → Check → Back up |
 
 Create's cards are Kind · Quorum · Keys · Check · Back up (2026-10-10,
-`docs/history/SIMPLIFY.md` §2.3). Create opens with Kind open, whatever opened
-it — Wallets, Home, or a Tools tile with its kind already ticked
+`docs/history/SIMPLIFY.md` §2.3). Create opens with Kind open and no row ticked, whatever opened
+it — Wallets or Home — and Next waits for a row; a Tools tile opens it with its kind already ticked
 (2026-10-10, `docs/history/NEW-WALLET.md` §2.1, reversing `docs/history/SIMPLIFY.md` §2.1 for
 this flow only); Kind's Continue closes it as done and opens the next
 card. Keys' Continue makes the wallet and opens Check; there is no card

@@ -586,19 +586,19 @@ fn move_money_opens_kind_with_no_kind_ticked_and_next_waits_for_one() {
     let c = app.create().unwrap();
     assert_eq!((c.kind, c.kind_unchosen), (NewKind::Multi, false));
     assert_eq!(c.open, Some(cstep::QUORUM), "Multisig's Quorum");
-    // Make a new wallet on its own opens with Single key ticked.
+    // Make a new wallet on its own opens with no kind ticked either.
     app.press(Action::CreateOver);
-    assert!(!app.create().unwrap().kind_unchosen);
+    assert!(app.create().unwrap().kind_unchosen);
 }
 
 #[test]
-fn create_from_home_ticks_single_key_and_a_press_on_it_moves_on() {
+fn create_from_home_ticks_nothing_and_a_press_on_single_key_moves_on() {
     use faraday_core::create::NewKind;
     use faraday_core::cstep;
     let mut app = desktop();
     app.press(Action::CreateWallet);
     let c = app.create().unwrap();
-    assert!(!c.kind_unchosen, "Single key is ticked");
+    assert!(c.kind_unchosen, "no kind is ticked");
     assert_eq!(c.open, Some(cstep::KIND));
     let texts = app.drawn_texts();
     let at = |s: &str| texts.iter().position(|t| t == s);

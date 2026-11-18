@@ -124,6 +124,7 @@ pub(crate) fn create_from_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     // A fresh single-key wallet: Check's Path, and Change back to the
     // Account row at the head of Keys (F98).
     t.press(Action::CreateOver);
+    t.press(Action::CKind(0));
     t.press(Action::CNext(cstep::KIND));
     let fp = t.app.session.keys[0].fingerprint.0;
     t.press(Action::CSlotHere(0, fp));
@@ -137,6 +138,7 @@ pub(crate) fn create_from_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     // key shows them, part way as the window starts them (typed on a wide
     // one, buttons on a small panel), typed, and every roll in.
     t.press(Action::CreateOver);
+    t.press(Action::CKind(0));
     t.press(Action::CNext(cstep::KIND));
     t.press(Action::CBackupForm(
         faraday_core::create::BackupForm::Words.index(),

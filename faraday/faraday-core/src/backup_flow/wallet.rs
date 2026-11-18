@@ -2128,6 +2128,11 @@ impl Faraday {
         let Some(c) = self.create.state() else {
             return Vec::new();
         };
+        // No kind chosen yet: the cards that depend on it wait, Kind alone
+        // shows.
+        if c.kind_unchosen {
+            return vec![cstep::KIND];
+        }
         let mut v = crate::create_steps(c.kind);
         // A wallet made from another takes its keys: there is no backup
         // to choose (F240).
