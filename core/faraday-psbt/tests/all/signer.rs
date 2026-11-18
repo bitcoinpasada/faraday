@@ -2545,7 +2545,7 @@ fn bytes_past_the_last_map_of_a_version_2_file_are_unaccounted() {
 }
 
 #[test]
-fn a_version_2_pair_written_longer_than_it_needs_is_unaccounted() {
+fn a_version_2_pair_written_longer_than_it_needs_is_refused_and_never_clean() {
     let (sent, returned) = core_v2_pair();
     let c = Compute::unchecked();
     // The global map's first key (one byte, 0x02) written as 0xfd 0x01 0x00.
@@ -2553,8 +2553,8 @@ fn a_version_2_pair_written_longer_than_it_needs_is_unaccounted() {
     assert_eq!(bytes[5], 0x01);
     bytes.splice(5..6, [0xfd, 0x01, 0x00]);
     assert!(
-        PsbtV2::parse_bytes(&c, &bytes).is_ok(),
-        "the parser takes it"
+        PsbtV2::parse_bytes(&c, &bytes).is_err(),
+        "the parser refuses it"
     );
     let report = run_files(
         &sent.to_v0(&c).unwrap(),
@@ -2563,14 +2563,7 @@ fn a_version_2_pair_written_longer_than_it_needs_is_unaccounted() {
         &bytes,
         &[],
     );
-    assert!(
-        report
-            .findings
-            .iter()
-            .any(|f| f.kind == Kind::UnaccountedBytes { count: 2 }),
-        "{:?}",
-        found(&report)
-    );
+    assert!(!matches!(report.verdict, Verdict::Clean { .. }));
 }
 
 #[test]

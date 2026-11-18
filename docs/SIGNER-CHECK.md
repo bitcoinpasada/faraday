@@ -462,8 +462,9 @@ the file has one, is what the file's own length is held to. For a version
 2 file the length is the version 0 form's, less the
 `PSBT_GLOBAL_UNSIGNED_TX` pair `to_v0` wrote, plus every pair only version
 2 has, written out again (§6.5 compares them all, so they are accounted
-for); bytes past the last map, or a pair written longer than it needs,
-are E1. A file whose maps cannot be read at all is `Kind::Unnamed` at
+for); bytes past the last map are E1. A pair whose length is written in
+more bytes than it needs is refused by the parser, as below. A file
+whose maps cannot be read at all is `Kind::Unnamed` at
 Danger, never clean, worded "{where}: {field} differs in a way the check
 does not name" (`signer_unnamed` in `en/`).
 

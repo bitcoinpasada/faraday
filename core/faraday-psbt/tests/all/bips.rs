@@ -457,3 +457,58 @@ fn a_signing_pass_brings_back_its_signatures_and_nothing_else() {
     assert_eq!(added, (vec![0x07], vec![0x51]));
     assert_eq!(write(&m), bytes, "nothing else changed");
 }
+
+/// `bytes` with the compact size at `at` (one byte, below 0xfd) written
+/// as `fd`, `fe` or `ff` and the same value.
+fn widened(bytes: &[u8], at: usize, marker: u8) -> Vec<u8> {
+    let n = usize::from(bytes[at]);
+    assert!(n < 0xfd);
+    let width = match marker {
+        0xfd => 2,
+        0xfe => 4,
+        _ => 8,
+    };
+    let mut out = bytes[..at].to_vec();
+    out.push(marker);
+    out.extend_from_slice(&n.to_le_bytes()[..width]);
+    out.extend_from_slice(&bytes[at + 1..]);
+    out
+}
+
+/// Where the first key length and its value length sit, after the magic.
+fn first_pair_lengths(b: &[u8]) -> (usize, usize) {
+    let mut at = 5;
+    let key_len_at = at;
+    let k = compact(b, &mut at);
+    at += k;
+    (key_len_at, at)
+}
+
+#[test]
+fn a_compact_size_not_in_its_shortest_form_is_refused() {
+    let c = Compute::unchecked();
+    let v2 = case("1 input, 2 output PSBTv2, required fields only");
+    assert!(PsbtV2::parse_bytes(&c, &v2).is_ok());
+    let (key_at, value_at) = first_pair_lengths(&v2);
+    for at in [key_at, value_at] {
+        for marker in [0xfd, 0xfe, 0xff] {
+            let bytes = widened(&v2, at, marker);
+            assert!(
+                PsbtV2::parse_bytes(&c, &bytes).is_err(),
+                "version 2, length at {at}, marker {marker:#04x}"
+            );
+        }
+    }
+    let v0 = case("PSBT with one P2TR key only input with internal key and its derivation path");
+    assert!(Psbt::parse_bytes(&c, &v0).is_ok());
+    let (key_at, value_at) = first_pair_lengths(&v0);
+    for at in [key_at, value_at] {
+        for marker in [0xfd, 0xfe, 0xff] {
+            let bytes = widened(&v0, at, marker);
+            assert!(
+                Psbt::parse_bytes(&c, &bytes).is_err(),
+                "version 0, length at {at}, marker {marker:#04x}"
+            );
+        }
+    }
+}

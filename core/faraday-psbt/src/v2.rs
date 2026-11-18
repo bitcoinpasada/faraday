@@ -179,6 +179,8 @@ pub enum Error {
     NotPsbt,
     /// The bytes end inside a map.
     Truncated,
+    /// A compact size is not written in its shortest form.
+    NonMinimalSize,
     /// A key appears twice in one map.
     DuplicateKey,
     /// Bytes follow the last map.
@@ -313,18 +315,34 @@ impl Reader<'_> {
         Ok(slice)
     }
 
+    /// A compact size, which must be written in its shortest form (as
+    /// Bitcoin Core and rust-bitcoin require): `fd` holds at least
+    /// 0xfd, `fe` over 0xffff and `ff` over 0xffff_ffff.
     fn compact(&mut self) -> Result<u64, Error> {
         let first = self.take(1)?[0];
-        Ok(match first {
-            0xfd => u64::from(u16::from_le_bytes(
-                self.take(2)?.try_into().expect("two bytes"),
-            )),
-            0xfe => u64::from(u32::from_le_bytes(
-                self.take(4)?.try_into().expect("four bytes"),
-            )),
-            0xff => u64::from_le_bytes(self.take(8)?.try_into().expect("eight bytes")),
-            n => u64::from(n),
-        })
+        let (value, least) = match first {
+            0xfd => (
+                u64::from(u16::from_le_bytes(
+                    self.take(2)?.try_into().expect("two bytes"),
+                )),
+                0xfd,
+            ),
+            0xfe => (
+                u64::from(u32::from_le_bytes(
+                    self.take(4)?.try_into().expect("four bytes"),
+                )),
+                0x1_0000,
+            ),
+            0xff => (
+                u64::from_le_bytes(self.take(8)?.try_into().expect("eight bytes")),
+                0x1_0000_0000,
+            ),
+            n => return Ok(u64::from(n)),
+        };
+        if value < least {
+            return Err(Error::NonMinimalSize);
+        }
+        Ok(value)
     }
 
     fn map(&mut self) -> Result<Map, Error> {
