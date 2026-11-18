@@ -240,8 +240,8 @@ non-cryptographic and live in `faraday-core`:
   A PSBT that carries its cosigners' extended keys (BIP 174's global
   xpubs) and spends one `multi` shape offers **Register this wallet**:
   its shape, a name, and the confirmation sheet's rows (each cosigner's
-  fingerprint, path and whole key, which is yours, and the checksum of
-  the reading chosen), and a hold, the wallet's one confirmation (F254),
+  fingerprint, path and whole key, which is yours or checked, F286, and
+  the checksum of the reading chosen), and a hold, the wallet's one confirmation (F254),
   that adds the wallet once its descriptor gives every input's script and
   every change output's that claims it and one of its keys is a loaded
   key's own ("None of these keys is yours" otherwise); where the spend
@@ -289,6 +289,47 @@ vault holds (loaded at unlock, loaded later from the open vault or
 restored from it); and the public samples Load samples adds. Several
 held at once are asked one after another, "{i} of {n}", and Cancel
 drops only the wallet on the sheet.
+
+**Each key carries a check** (F286). The sheet's keys, and everywhere
+else a wallet of several keys shows them, are one block
+(`faraday/faraday-core/src/wallet/confirm.rs`): per key its number,
+fingerprint, path and whole extended key, and a state. A green check
+"Yours, can sign" is a key Faraday derived from a loaded seed ("Yours,
+can sign · your single-key account" for a key at a single-key account
+path); a green check "Checked by you" is one the person ticked; a grey
+circle "Not checked" is one nothing vouches for, which a press ticks and
+another unticks; a red cross is a key whose fingerprint is a loaded key's
+and which is not that key. Under the keys one line, grey "2 keys not
+checked · compare each with its own device" or green "Every key checked";
+the descriptor checksum stays the last row, in the quieter tone: it is 40
+bits, a typing check, and a wallet with the same eight characters can be
+made, so it is not proof. Ticking is optional and the hold adds the wallet
+whatever is ticked; the confirmation reads "{name} added" or "{name} added
+· 2 keys not checked".
+
+After it is added, "Not checked" stays with the wallet for the session:
+its node on the chart carries a second line, "2 keys not checked", in the
+caution tone; its own sheet shows the block, tickable, under the
+Descriptor row; receive addresses (first addresses, an address's code)
+carry the caution line "2 keys of this wallet are not checked" and are not
+held back; a spend's review shows the block while any key is grey and one
+green line "Every key checked" once none is. A seed loaded later checks
+every loaded wallet again: a matching key turns green by itself and earlier
+ticks stay; a wallet with a key that claims the seed's fingerprint and is
+not its key is taken out of the session with a notice
+(`Session::drop_forged`). A vault keeps the ticks in a field of the
+wallet's own record, so an unchecked wallet saved into a vault does not
+come back looking checked; a wallet loaded from a vault still skips the
+sheet. A single-key wallet shows no block, a wallet whose keys are all the
+person's is green at once, and a lock ends the ticks no vault holds. The
+states are worked out when a wallet is added and when a key is loaded or
+removed, never while drawing.
+
+**Open:** nothing of this is built yet: the sheet shows each key and
+the checksum as F254 describes, with no state, tick, chart line, caution
+line, review block or vault field. Not decided: further ways the device
+turns a grey key green (an open vault that holds the key, the key scanned
+from the cosigner's own screen or the paper backup's code).
 
 ## 4. Spending
 

@@ -23,3 +23,21 @@ The shape of the wallet, then each cosigner's fingerprint, path and whole extend
 **Add this wallet** loads it here; the button then reads **Open the wallet**.
 
 The result is what the setup says. It does not show that a signer holds a key or that a coordinator stored the same setup: each device's own screen says that.
+
+## Marks
+
+**Key:** multisig-check.marks
+
+Each key has a mark. A green check with **Yours, can sign** is a key this device worked out from a seed loaded here. A green check with **Checked by you** is a key you ticked. A grey circle with **Not checked** is a key nothing here vouches for. A red cross is a key that claims the fingerprint of a key loaded here and is not that key: do not use the wallet. Under the keys a line says how many are not checked, or **Every key checked**.
+
+## Ticking a key
+
+**Key:** multisig-check.tick
+
+To tick a key, compare it, in full, with what its own device shows for that signer, then press it; press again to untick. Ticking is optional and the wallet can be added with keys not checked, but the wallet then shows that for the rest of the session, on its chart node, beside its receive addresses and in the review of a spend. Lock ends it unless a vault holds the wallet.
+
+## The checksum
+
+**Key:** multisig-check.checksum
+
+The descriptor checksum is a typing check: it catches a slip when you copy a descriptor. It is not proof, because a different wallet with the same eight characters can be made. Compare the keys, not only the checksum.

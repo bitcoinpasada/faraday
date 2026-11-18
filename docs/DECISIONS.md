@@ -270,7 +270,7 @@ Read this table, then only the decision you need.
 | [F251](history/decisions/F251.md) | The check does not type-check the Starter's macOS code while macOS is paused; the `lint-macos` recipe stays, run by hand | 2026-11-12 | Superseded by F257 | repository |
 | [F252](history/decisions/F252.md) | A shell can no longer fix a session's network; the website demo that used it is gone | 2026-11-12 | Superseded by F268 | platforms |
 | [F253](decisions/F253.md) | A function has no line limit; a cognitive-complexity ceiling and a review keep it to one job | 2026-11-14 | Active | repository |
-| [F254](decisions/F254.md) | An output is change only of the wallet the inputs spend, and a wallet of several keys comes in only through one sheet that shows its keys | 2026-11-14 | Active | wallets |
+| [F254](decisions/F254.md) | An output is change only of the wallet the inputs spend, and a wallet of several keys comes in only through one sheet that shows its keys | 2026-11-14 | Amended by F286 | wallets |
 | [F255](decisions/F255.md) | Check takes Create a vault's place on Home and is a place of its own in the sidebar | 2026-11-14 | Amended by F275, F277 | design |
 | [F257](decisions/F257.md) | What nobody can run or reach leaves the tree: the macOS code, silent-payment sending, the Liana-shape recovery builder, own-against-own cross-check areas, the typed YubiKey secret and Guided mode's walk-through | 2026-11-14 | Active | repository |
 | [F258](decisions/F258.md) | The impact registry keeps only the pairs and what reads them; review rules are a checklist in the reviewer's file and the area documents | 2026-11-14 | Active | repository |
@@ -297,3 +297,4 @@ Read this table, then only the decision you need.
 | [F283](decisions/F283.md) | Which of the plan's vaults keep a copy of the backup plan is the person's choice | 2026-11-17 | Active | backup |
 | [F284](decisions/F284.md) | A hand-started run's tests may be split over several runners | 2026-11-17 | Active | repository |
 | [F285](decisions/F285.md) | Make new parts replaces a key's Seed XOR set, and an old part still kept stays on the plan | 2026-11-17 | Active | backup |
+| [F286](decisions/F286.md) | Each key of a wallet of several keys carries a check: yours, checked by you or not checked, and the descriptor checksum is not proof | 2026-11-17 | Active | wallets |
