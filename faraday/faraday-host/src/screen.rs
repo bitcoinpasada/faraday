@@ -1062,7 +1062,23 @@ fn menu(
         }
     };
     let whole = rows.iter().map(row_h).sum::<f32>() + 2.0 * t::GAP;
-    let mw = t::HOST_MENU_W.min(w - 2.0 * t::PAD);
+    // Material's menu is as wide as its widest row needs, from its
+    // minimum up to the window's margins: a row's name and its trailing
+    // text never overlap.
+    let need = rows
+        .iter()
+        .filter(|r| r.press.is_some())
+        .map(|r| {
+            let lead = t::PAD + t::ICON_SMALL + if r.dot.is_some() { DOT_ROOM } else { 0.0 };
+            let note = if r.note.is_empty() {
+                0.0
+            } else {
+                t::GAP + ui.measure_as(t::BODY_M, &r.note)
+            };
+            lead + ui.measure_as(t::LABEL_L, &r.label) + note + t::PAD
+        })
+        .fold(0.0_f32, f32::max);
+    let mw = t::HOST_MENU_W.max(need).min(w - 2.0 * t::PAD);
     let mx = x.unwrap_or(t::PAD).min(w - t::PAD - mw).max(t::PAD);
     let bottom = top - t::GAP_SMALL;
     let mh = whole.min(bottom - t::PAD).max(t::HOST_MENU_ROW);
