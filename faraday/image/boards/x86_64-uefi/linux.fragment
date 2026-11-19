@@ -397,8 +397,6 @@ CONFIG_PROC_MEM_NO_FORCE=y
 # CONFIG_DEVPORT is not set
 # The vsyscall page, which no static musl binary calls.
 CONFIG_LEGACY_VSYSCALL_NONE=y
-# Pushing characters into a terminal's input queue from a process.
-# CONFIG_LEGACY_TIOCSTI is not set
 # Raw HID access. Keyboards, touchpads and mice reach the shell through
 # evdev, and nothing reads a HID report itself.
 # CONFIG_HIDRAW is not set
@@ -467,3 +465,7 @@ CONFIG_LEGACY_VSYSCALL_NONE=y
 # CONFIG_NVRAM is not set
 # CONFIG_PCCARD is not set
 # CONFIG_PSTORE is not set
+# Huge pages as a filesystem, and disk quotas: the app maps nothing huge
+# and no disk filesystem is mounted.
+# CONFIG_HUGETLBFS is not set
+# CONFIG_QUOTA is not set

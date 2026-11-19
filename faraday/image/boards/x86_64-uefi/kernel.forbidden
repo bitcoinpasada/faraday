@@ -45,7 +45,6 @@ MODIFY_LDT_SYSCALL      16-bit segments, for Wine and DOSEMU
 X86_16BIT               as MODIFY_LDT_SYSCALL
 X86_IOPL_IOPERM         raw I/O port access from a process
 DEVPORT                 /dev/port, DEVMEM's sibling for I/O ports
-LEGACY_TIOCSTI          pushing characters into a terminal's input queue from a process
 HIDRAW                  raw HID reports; input reaches the shell through evdev
 USB_HIDDEV              as HIDRAW
 VIRTIO                  a PCIe device can present virtio IDs, and VIRTIO_BLK is a block device on a machine whose only storage is the stick
@@ -86,3 +85,5 @@ CHR_DEV_SG              raw SCSI commands from a process to any disk
 NVRAM                   /dev/nvram, the real-time clock's battery-backed memory, a byte store no process here reads or writes
 PCCARD                  CardBus and PC Card sockets, a bus whose cards can read memory, on a laptop with no such socket
 YENTA                   the CardBus bridge driver, which follows PCCARD
+HUGETLBFS               huge pages as a filesystem, which memfd_create also reaches; nothing here maps a huge page
+QUOTA                   disk quotas, on a device that mounts no disk filesystem

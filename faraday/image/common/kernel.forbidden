@@ -73,3 +73,15 @@ COREDUMP            a core dump is the app's memory written to a file, and the o
 
 PSTORE              a panic's message and the console log kept in RAM or firmware storage, which outlives power-off on a machine that has such a store, and is a place a secret in a message would stay
 BLK_DEV_BSG         raw SCSI commands through the block layer, the same reach as CHR_DEV_SG by another node
+
+# What the defconfigs build in that nothing here uses (read off each board's built configuration).
+LEGACY_TIOCSTI      pushing characters into a terminal's input queue from a process
+UEVENT_HELPER       a program the kernel runs as root on every device event; rcS runs mdev once and sets none
+FANOTIFY            filesystem-wide event watching; nothing here watches a file
+FHANDLE             opening a file by handle instead of by path; nothing here serves files
+SECCOMP             nothing here sets a seccomp mode or filter (faraday-grant has none)
+TTY_PRINTK          /dev/ttyprintk, a process writing into the kernel log
+INPUT_MOUSEDEV      /dev/input/mice, every pointer's moves again beside evdev, which is what the shell reads
+LATENCYTOP          per-task kernel latency records in /proc
+AUTOFS_FS           the automounter; nothing is mounted on access
+BSD_PROCESS_ACCT    process accounting; nothing collects it

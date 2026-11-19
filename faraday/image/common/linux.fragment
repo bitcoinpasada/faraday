@@ -319,3 +319,25 @@ CONFIG_LSM="lockdown,yama"
 # writable filesystem is the exchange partition. The shell aborts on a
 # panic, which is a signal that dumps core wherever the limit allows it.
 # CONFIG_COREDUMP is not set
+
+# ---- what the defconfigs build in that nothing here uses ----
+# Read off each board's built configuration. Each is an interface a
+# process reaches, and neither the shell, BusyBox, rcS nor faraday-grant
+# uses any of them: pushing characters into a terminal's input queue; a
+# program the kernel runs as root on every device event (rcS runs
+# `mdev -s` once and sets no hotplug helper); filesystem-wide event
+# watching; opening a file by handle; seccomp, which nothing here sets up
+# (faraday-grant has no filter); /dev/ttyprintk, a process writing into
+# the kernel log; /dev/input/mice, a second copy of every pointer's moves
+# beside evdev; per-task kernel latency records; the automounter; and
+# process accounting.
+# CONFIG_LEGACY_TIOCSTI is not set
+# CONFIG_UEVENT_HELPER is not set
+# CONFIG_FANOTIFY is not set
+# CONFIG_FHANDLE is not set
+# CONFIG_SECCOMP is not set
+# CONFIG_TTY_PRINTK is not set
+# CONFIG_INPUT_MOUSEDEV is not set
+# CONFIG_LATENCYTOP is not set
+# CONFIG_AUTOFS_FS is not set
+# CONFIG_BSD_PROCESS_ACCT is not set

@@ -329,3 +329,7 @@ CONFIG_NULL_TTY=y
 # CONFIG_LDISC_AUTOLOAD is not set
 # CONFIG_DEVPORT is not set
 # CONFIG_BLK_DEV_BSG is not set
+# The performance counters. PERF_EVENTS stays on after the merge only because
+# the defconfig's PROFILING set it first; PROFILING is forbidden, and nothing
+# here counts events. (x86 selects it for the architecture and keeps it.)
+# CONFIG_PERF_EVENTS is not set

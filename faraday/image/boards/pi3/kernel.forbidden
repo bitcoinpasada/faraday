@@ -71,3 +71,4 @@ USB_ACM                 as USB_SERIAL
 
 LDISC_AUTOLOAD          a terminal line discipline loaded because a process asked for it
 DEVPORT                 /dev/port, DEVMEM's sibling for I/O ports
+PERF_EVENTS             perf_event_open, a large interface any process reaches; nothing here counts events
