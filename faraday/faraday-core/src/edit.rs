@@ -401,6 +401,7 @@ impl Faraday {
                 });
             }
             Here::HomeFind => self.tools.focus_home_find(),
+            Here::Find => self.tools.focus_catalog_find(),
             Here::GuideFind => self.guide.focus_find(true),
             Here::SilentName | Here::SilentDomain => {
                 self.silent.focus_dns(h == Here::SilentDomain);
@@ -1186,6 +1187,9 @@ impl Faraday {
         // one that shows its caret.
         if a == Action::TypeHere(Here::HomeFind) {
             self.tools.focus_home_find();
+        }
+        if a == Action::TypeHere(Here::Find) {
+            self.tools.focus_catalog_find();
         }
         if let Action::TypeHere(h @ (Here::Keyed | Here::CheckKeyed)) = a {
             if let Some(i) = index(self, x) {

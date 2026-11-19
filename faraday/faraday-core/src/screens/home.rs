@@ -883,6 +883,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32) {
         ui,
         (x0 + (cw - sw) / 2.0, y, sw),
         (!pinned).then_some(head),
+        super::catalog::Bar::Home,
     );
     if pinned {
         if app.tools.home_find().is_empty() {
@@ -893,7 +894,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32) {
         top = y;
     }
     if !app.tools.home_find().is_empty() {
-        y += super::catalog::home_results(app, ui, (x, y), width, false);
+        y += super::catalog::home_results(app, ui, (x, y), width, false, super::catalog::Bar::Home);
     }
     let content = y - top + faraday_draw::tokens::HOME_RESULTS_FOOT;
     app.scroll.content_h().set(content);

@@ -19,7 +19,6 @@ pub(crate) use super::settings::rows::{ROWS, Row};
 /// Tools: every flow by group, as many tiles to a row as fit and at
 /// least three, in a page at most `TRANSFER_W` wide; Find a tool narrows them as it is typed.
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
-    use crate::catalog::{GROUPS, TILES, matches};
     // A small panel has the name in its bar, Find across the panel, and a
     // tile a row.
     let compact = ui.compact;
@@ -39,36 +38,40 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         super::bar_head(ui, None, EN.catalog_tools)
     };
     let mut y = top;
-    // Find a tool: typing on this page goes here.
-    let fw = if compact {
+    // The search bar Home draws: typing on this page goes here, and while
+    // something is typed Home's results stand in place of the tiles.
+    let sw = if compact {
         width
     } else {
-        320.0f32.min(width * 0.4)
+        width.min(faraday_draw::tokens::LEAD_MAX)
     };
-    let fx = x + width - fw;
-    let here = Action::TypeHere(crate::edit::Here::Find);
-    search_field(
+    y += home_search_bar(
+        app,
         ui,
-        (fx, y - 2.0, fw),
-        (app.tools.find(), EN.catalog_find_a_tool),
-        here,
+        (x + (width - sw) / 2.0, y - 2.0, sw),
+        None,
+        Bar::Tools,
     );
-    y += if compact { 54.0 } else { 64.0 };
+    if app.tools.find().is_empty() {
+        y += tiles_by_group(app, ui, (x, y), width, compact);
+    } else {
+        y += home_results(app, ui, (x, y), width, compact, Bar::Tools);
+    }
+    app.scroll.content_h().set(y - top + 40.0);
+    ui.region_close(open, app.scroll.content_h().get() - h);
+}
+
+/// Every tile of Tools under its group's name, from (`x`, `y`), `width`
+/// wide. Returns the height it takes.
+fn tiles_by_group(app: &View, ui: &mut Ui, (x, y): (f32, f32), width: f32, compact: bool) -> f32 {
+    use crate::catalog::{GROUPS, TILES};
     let g = grid(compact, width);
-    let tw3 = g.tile_w;
-    let mut any = false;
+    let mut used = 0.0;
     for group in GROUPS {
-        let tiles: Vec<(usize, &crate::catalog::Tile)> = TILES
+        let faces: Vec<Face> = TILES
             .iter()
             .enumerate()
-            .filter(|(_, t)| t.group == group && matches(t, app.tools.find()))
-            .collect();
-        if tiles.is_empty() {
-            continue;
-        }
-        any = true;
-        let faces: Vec<Face> = tiles
-            .iter()
+            .filter(|(_, t)| t.group == group)
             .map(|(i, tile)| {
                 let need = app.tile_need(tile.go);
                 Face {
@@ -77,46 +80,13 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     warn: need.is_some(),
                     tags: &[],
                     opens: app.tile_opens(tile.go),
-                    action: Action::Catalog(*i as u8),
+                    action: Action::Catalog(i as u8),
                 }
             })
             .collect();
-        y += section(ui, (x, y), &g, group, &faces);
+        used += section(ui, (x, y + used), &g, group, &faces);
     }
-    // The rows of Settings the same words find, under Settings' name.
-    let found = crate::tools::search::hits(app.tools.find());
-    let settings: Vec<u8> = found
-        .iter()
-        .filter_map(|h| match h {
-            crate::tools::search::Hit::Setting(i) => Some(*i),
-            _ => None,
-        })
-        .collect();
-    if !settings.is_empty() {
-        any = true;
-        section_label(ui, x, y, EN.settings_settings);
-        y += ui.line_as(faraday_draw::tokens::TITLE_S) + faraday_draw::tokens::GRID;
-        for i in settings {
-            y += setting_hit(ui, (x, y, tw3), i);
-        }
-    }
-    // The guide's words the same words find, each opening its definition.
-    y += word_hits(ui, (x, y, tw3), &found);
-    any |= found
-        .iter()
-        .any(|h| matches!(h, crate::tools::search::Hit::Word(_)));
-    if !any {
-        ui.text_as(
-            x,
-            y,
-            BODY_M,
-            Role::OnSurfaceVariant,
-            EN.catalog_no_tool_matches,
-        );
-        y += ui.advance_as(BODY_M, 30.0);
-    }
-    app.scroll.content_h().set(y - top + 40.0);
-    ui.region_close(open, app.scroll.content_h().get() - h);
+    used
 }
 
 /// A setting found by [`crate::tools::search::hits`], drawn from (x, y),
@@ -169,7 +139,15 @@ pub(crate) fn word_hits(
     cy - y
 }
 
-/// Home's search bar at (`x`, `y`), `w` wide: Material's search bar, as
+/// Which page a search bar and its results belong to: each keeps its own
+/// typed text.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Bar {
+    Home,
+    Tools,
+}
+
+/// The search bar of Home and of Tools at (`x`, `y`), `w` wide: Material's search bar, as
 /// the vault's is drawn (a full-round `SurfaceContainerHigh` field, the
 /// magnifying glass leading, the hint until something is typed, a
 /// trailing × that clears while it holds text). Typing lands in it with
@@ -184,15 +162,28 @@ pub(crate) fn home_search_bar(
     ui: &mut Ui,
     (x, y, w): (f32, f32, f32),
     page_top: Option<f32>,
+    on: Bar,
 ) -> f32 {
     use faraday_draw::tokens::{
         BODY_L, GAP, GAP_SMALL, SEARCH_BAR_H, SEARCH_GLYPH, SEARCH_ICON, SEARCH_INSET, TITLE_M,
         TOUCH,
     };
-    let typed = app.tools.home_find();
-    let here = Action::TypeHere(crate::edit::Here::HomeFind);
+    let (typed, here, focused) = match on {
+        Bar::Home => (
+            app.tools.home_find(),
+            Action::TypeHere(crate::edit::Here::HomeFind),
+            app.tools.home_focused(),
+        ),
+        Bar::Tools => (
+            app.tools.find(),
+            Action::TypeHere(crate::edit::Here::Find),
+            app.tools.catalog_focused(),
+        ),
+    };
     let h = SEARCH_BAR_H;
-    app.tools.note_home_bar(page_top.map_or(0.0, |top| y - top));
+    if on == Bar::Home {
+        app.tools.note_home_bar(page_top.map_or(0.0, |top| y - top));
+    }
     ui.fill(x, y, w, h, h / 2.0, Role::SurfaceContainerHigh);
     // The state layer takes the pill's own shape, not the default corner.
     ui.press(
@@ -214,7 +205,7 @@ pub(crate) fn home_search_bar(
     if typed.is_empty() {
         let shown = ui.fit_as(BODY_L, EN.home_search_hint, room);
         ui.text_mid_as((tx, y, h), BODY_L, Role::OnSurfaceVariant, &shown);
-        if app.tools.home_focused() {
+        if focused {
             let ch = faraday_draw::tokens::CARET_MIN;
             ui.caret(tx, y + (h - ch) / 2.0, ch);
         }
@@ -248,7 +239,7 @@ pub(crate) fn home_search_bar(
     h + GAP
 }
 
-/// What Home shows in place of itself while something is typed in its
+/// What Home, or Tools, shows in place of itself while something is typed in its
 /// search bar: the matching tiles as buttons, then the rows of Settings, from (`x`, `y`), `width`
 /// wide, each opening as the Tools tile does, or a line saying none
 /// matches. Returns the height it takes.
@@ -258,10 +249,14 @@ pub(crate) fn home_results(
     (x, y): (f32, f32),
     width: f32,
     compact: bool,
+    on: Bar,
 ) -> f32 {
     use crate::catalog::TILES;
     use crate::tools::search::{Hit, hits};
-    let found = hits(app.tools.home_find());
+    let found = hits(match on {
+        Bar::Home => app.tools.home_find(),
+        Bar::Tools => app.tools.find(),
+    });
     if found.is_empty() {
         ui.text_as(
             x,

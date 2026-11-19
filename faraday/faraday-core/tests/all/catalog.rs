@@ -323,3 +323,15 @@ fn a_word_nothing_has_says_no_tool_matches() {
     assert!(app.drawn_texts().iter().any(|t| t == "No tool matches"));
     assert!(setting_button(&mut app).is_none());
 }
+
+#[test]
+fn tools_search_shows_the_settings_row_among_its_results_and_clearing_brings_the_tiles_back() {
+    let mut app = shown();
+    type_find(&mut app, "theme");
+    assert!(setting_button(&mut app).is_some());
+    assert!(app.hit_box(Action::Catalog(0)).is_none());
+    app.event(Event::Key(Key::Escape));
+    let _ = app.frame();
+    assert!(setting_button(&mut app).is_none());
+    assert!(app.hit_box(Action::Catalog(0)).is_some());
+}

@@ -1407,6 +1407,10 @@ impl Faraday {
             | Action::LVault
             | Action::LOut
             | Action::LAnother => self.lightning_act(action),
+            Action::HomeSearchClear if self.screen == Screen::Catalog => {
+                self.tools.clear_catalog_find();
+                self.tools.focus_catalog_find();
+            }
             Action::HomeSearchClear => {
                 self.tools.clear_home_find();
                 self.tools.focus_home_find();

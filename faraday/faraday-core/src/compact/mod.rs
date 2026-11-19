@@ -790,6 +790,7 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 ui,
                 (M, y, inner),
                 (!pinned).then_some(0.0),
+                crate::screens::catalog::Bar::Home,
             );
             if pinned {
                 let clip = ui.rect(0.0, y, w, (view_h - y).max(0.0));
@@ -797,7 +798,14 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 top = y;
             }
             if typed {
-                y += crate::screens::catalog::home_results(app, ui, (M, y), inner, true);
+                y += crate::screens::catalog::home_results(
+                    app,
+                    ui,
+                    (M, y),
+                    inner,
+                    true,
+                    crate::screens::catalog::Bar::Home,
+                );
                 y += faraday_draw::tokens::HOME_RESULTS_FOOT;
             }
         }};

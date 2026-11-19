@@ -173,6 +173,9 @@ pub struct ToolsArea {
     tools: Option<ToolsState>,
     /// What is typed in Tools' Find a tool.
     catalog_find: Text,
+    /// Whether Tools' search bar has been pressed, so it shows its caret
+    /// while empty.
+    catalog_focus: bool,
     /// What is typed in Home's search bar, kept beside Tools' own.
     home_find: Text,
     /// Whether Home's search bar has been pressed, so it shows its caret
@@ -279,6 +282,22 @@ impl ToolsArea {
     /// Takes the ask of [`ToolsArea::follow_home_find`].
     pub(crate) fn take_home_follow(&self) -> bool {
         self.home_follow.replace(false)
+    }
+
+    /// Clears Tools' search bar, so Tools shows its tiles again.
+    pub(crate) fn clear_catalog_find(&mut self) {
+        self.catalog_find.clear();
+        self.catalog_focus = false;
+    }
+
+    /// Whether Tools' search bar has been pressed and shows its caret.
+    pub(crate) fn catalog_focused(&self) -> bool {
+        self.catalog_focus
+    }
+
+    /// Focuses Tools' search bar, as a press on it does.
+    pub(crate) fn focus_catalog_find(&mut self) {
+        self.catalog_focus = true;
     }
 
     /// Focuses Home's search bar, as a press on it does.

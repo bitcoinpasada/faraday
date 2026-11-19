@@ -58,7 +58,7 @@ pub(crate) fn home_search_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::Home));
     t.shot("home-search-stick")?;
     t.sticks(false);
-    // A phone window has no search bar on Home: Tools' Find a tool offers the word.
+    // Tools' search bar, the same as Home's, offers the word.
     t.press(Action::Nav(Screen::Catalog));
     type_text(t, "seal");
     t.shot("tools-find-word")?;

@@ -927,7 +927,6 @@ macro_rules! words_common {
     /// Title in `catalog_screen`.
     catalog_tools: "Tools",
     /// Text in `catalog_screen`.
-    catalog_find_a_tool: "Find a tool: a name, a BIP number",
     /// Line in `catalog_screen`.
     catalog_no_tool_matches: "No tool matches",
     // ----- app (faraday-core/src/screens/) -----
