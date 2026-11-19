@@ -1453,13 +1453,19 @@ impl Faraday {
     }
 }
 
-// Nothing secret: the shares chosen are the names of Inbox files, which
-// the Inbox answers for, and the seeds' state holds fingerprints and
-// cosigners' public keys (the seeds are the session's keys). A restore's
-// vaults are written to their sticks while it is open. A lock drops it.
+// What is typed in a cosigner's box is held: it takes any text, a key
+// that is not an account key among it. The rest is not secret: the shares
+// chosen are the names of Inbox files, which the Inbox answers for, and
+// the seeds' state holds fingerprints (the seeds are the session's keys).
+// A restore's vaults are written to their sticks while it is open. A lock
+// drops it.
 impl crate::at_lock::AtLock for RestoreArea {
     fn holds(&self) -> crate::at_lock::Holds {
-        crate::at_lock::Holds::NOTHING
+        crate::at_lock::Holds::typed(
+            self.state()
+                .and_then(|r| r.seeds.as_ref())
+                .is_some_and(|s| s.cosigner_typed()),
+        )
     }
     fn lock(&mut self) {
         self.clear();

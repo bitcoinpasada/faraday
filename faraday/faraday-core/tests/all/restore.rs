@@ -1465,3 +1465,31 @@ fn a_one_column_words_page_always_ends_with_the_passphrase_and_add_a_key() {
         assert!(text.contains(line), "{line} is missing: {text}");
     }
 }
+
+/// A cosigner's box takes any text, an extended private key among it: it
+/// is held, so the app is not clean and a stick plugged in is not handed
+/// out until Lock.
+#[test]
+fn a_key_typed_in_a_cosigners_box_is_held_and_no_stick_is_handed_out() {
+    let mut app = two_of_three_from_seeds();
+    assert!(app.clean(), "nothing is typed yet");
+    app.press(Action::Seeds(S::Focus(Focus::Cosigner(0))));
+    type_text(
+        &mut app,
+        "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi",
+    );
+    assert!(testkit::secret_typed(&app), "typed text is not counted");
+    assert!(!app.clean(), "typed text is counted clean");
+    app.storage(faraday_core::StorageEvent::Sticks(vec![
+        faraday_core::StickInfo {
+            make: Default::default(),
+            serial: None,
+            id: faraday_text::Text::of("stick"),
+            label: faraday_text::Text::of("STICK"),
+            boot: false,
+            files: Vec::new(),
+            vaults: Vec::new(),
+        },
+    ]));
+    assert_eq!(app.sheet, Some(Sheet::Lock), "the stick was handed out");
+}

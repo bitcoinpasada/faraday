@@ -2165,7 +2165,7 @@ pub fn toggle(app: &Faraday, id: CardId) -> Action {
 // The seeds typed for Spend from a backup.
 impl crate::at_lock::AtLock for SpendBackupArea {
     fn holds(&self) -> crate::at_lock::Holds {
-        crate::at_lock::Holds::typed(self.state.seeds.cosigners.iter().any(|c| !c.is_empty()))
+        crate::at_lock::Holds::typed(self.state.seeds.cosigner_typed())
     }
     fn lock(&mut self) {
         self.state.seeds = crate::seeds::SeedsState::default();

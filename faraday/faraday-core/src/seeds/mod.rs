@@ -127,6 +127,12 @@ pub struct SeedsState {
 }
 
 impl SeedsState {
+    /// Whether a cosigner's box holds anything: it takes any text, so a
+    /// key that is not an account key can be in it.
+    pub(crate) fn cosigner_typed(&self) -> bool {
+        self.cosigners.iter().any(|c| !c.is_empty())
+    }
+
     /// The kinds a wallet of this many keys can be.
     pub fn kinds(&self) -> &'static [NewKind] {
         if self.n <= 1 { &SINGLE } else { &MULTI }
