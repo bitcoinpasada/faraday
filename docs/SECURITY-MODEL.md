@@ -258,7 +258,10 @@ internal error rather than carrying on.
   RAM under `/run`, `/dev`, `/proc` or `/sys`. The initramfs's own root is
   remounted read-only in place, which keeps the boot one plain script
   with no second root to switch to; only init and its root shell loops
-  could make it writable again, and they read nothing from outside.
+  could make it writable again, and they read nothing from outside. A
+  remount that does not take does not stop boot: the self-test fails
+  when `/` is not `ro` in `/proc/mounts` on the image, which blocks the
+  app at start.
 - Nothing is written to the computer. There is no driver for its disk
   and no access to its firmware variables.
 - **The nonce history in a vault.** An opened vault's entries name each

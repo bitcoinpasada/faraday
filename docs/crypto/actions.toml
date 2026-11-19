@@ -671,7 +671,7 @@ completeness = "SHA-256, HMAC-SHA256 and -SHA512, PBKDF2 through vetted crates; 
 id = "selftest"
 section = 5
 what = "Start-up self-test (`core/faraday-selftest`)"
-completeness = "Eight fixed-vector checks before any key is accepted"
+completeness = "Eight fixed-vector checks and, on the device image, that the root filesystem is read-only, before any key is accepted"
 
 [[row]]
 id = "starter-image"
@@ -9135,6 +9135,7 @@ functions = [
   "core/faraday-selftest/src/lib.rs::schnorr_vector",
   "core/faraday-selftest/src/lib.rs::scrypt_vector",
   "core/faraday-selftest/src/lib.rs::argon2id_vector",
+  "core/faraday-selftest/src/lib.rs::root_read_only",
   "core/faraday-crypto/src/argon2.rs::argon2id",
 ]
 code = ["core/faraday-selftest/src/lib.rs::run"]
@@ -9173,6 +9174,7 @@ selftest = [
   "schnorr_vector",
   "scrypt_vector",
   "argon2id_vector",
+  "root_read_only",
 ]
 not_crosschecked = "It checks the app's own functions against fixed published answers; the functions it calls are cross-checked in the bip39, bip32, addr, sign, lightning and vault areas."
 fuzz_none = "It takes no input."

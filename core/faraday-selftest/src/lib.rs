@@ -25,6 +25,7 @@
 #![no_std]
 
 extern crate alloc;
+extern crate std;
 
 use alloc::vec::Vec;
 use core::str::FromStr;
@@ -49,7 +50,7 @@ pub struct Check {
 }
 
 /// The checks, in the order they run.
-pub const CHECKS: [Check; 8] = [
+pub const CHECKS: [Check; 9] = [
     Check {
         name: "BIP-39 vector (entropy → words → seed)",
         run: bip39_vector,
@@ -81,6 +82,10 @@ pub const CHECKS: [Check; 8] = [
     Check {
         name: "Argon2id",
         run: argon2id_vector,
+    },
+    Check {
+        name: "Root filesystem read-only",
+        run: root_read_only,
     },
 ];
 
@@ -120,6 +125,40 @@ const BIP39_MNEMONIC: &str =
     "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
 const BIP39_SEED: &str = "c55257c360c07c72029aebc1b53c05ed0362ada38ead3e3e9efa3708e53495531f09a6987599d18264c1e1c92f2cf141630c7a3c4ab7c81b2f001698e7463b04";
 const BIP39_PASSPHRASE: &[u8] = b"TREZOR";
+
+/// Where the image's boot script leaves its mark before it remounts the
+/// root read-only: present only on the device image.
+const IMAGE_MARK: &str = "/run/faraday-stateless";
+/// The kernel's list of mounts.
+const MOUNTS: &str = "/proc/mounts";
+
+/// Costs a file read: on the device image, the root filesystem is
+/// mounted read-only (a remount the boot script could not make leaves it
+/// writable, which nothing else would show). Anywhere else there is no
+/// such image and this passes.
+fn root_read_only(_c: &Compute) -> bool {
+    if !std::path::Path::new(IMAGE_MARK).exists() {
+        return true;
+    }
+    match std::fs::read_to_string(MOUNTS) {
+        Ok(mounts) => root_is_read_only(&mounts),
+        Err(_) => false,
+    }
+}
+
+/// `mounts` (in `/proc/mounts`'s layout) lists `/` read-only. The last
+/// entry for `/` is the one in force; none at all fails.
+fn root_is_read_only(mounts: &str) -> bool {
+    mounts
+        .lines()
+        .filter_map(|l| {
+            let mut f = l.split_whitespace();
+            let (_dev, at, _kind, opts) = (f.next()?, f.next()?, f.next()?, f.next()?);
+            (at == "/").then_some(opts)
+        })
+        .next_back()
+        .is_some_and(|opts| opts.split(',').any(|o| o == "ro"))
+}
 
 /// Costs a PBKDF2 (through `to_seed`).
 fn bip39_vector(c: &Compute) -> bool {
@@ -358,6 +397,25 @@ mod tests {
     fn every_check_passes_on_its_own() {
         let c = Compute::unchecked();
         assert_eq!(run(&c), Ok(CHECKS.len()));
+    }
+
+    #[test]
+    fn a_root_filesystem_still_writable_fails() {
+        let ro = "rootfs / rootfs ro,size=1024k 0 0\nproc /proc proc rw,nosuid 0 0\n\
+                  tmpfs /run tmpfs rw,nosuid,nodev,noexec 0 0\n";
+        assert!(root_is_read_only(ro));
+        let rw = "rootfs / rootfs rw,size=1024k 0 0\nproc /proc proc rw,nosuid 0 0\n";
+        assert!(!root_is_read_only(rw));
+        assert!(!root_is_read_only("proc /proc proc rw 0 0\n"));
+        assert!(!root_is_read_only(""));
+        // A mount whose name merely contains "ro" is not read-only.
+        assert!(!root_is_read_only(
+            "rootfs / rootfs rw,errors=remount-ro 0 0\n"
+        ));
+        // The mount in force is the last one listed for `/`.
+        assert!(!root_is_read_only(
+            "rootfs / rootfs ro 0 0\ntmpfs / tmpfs rw 0 0\n"
+        ));
     }
 
     #[test]

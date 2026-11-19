@@ -1505,7 +1505,8 @@ no login, nothing listening.
   that cannot be wiped — the SoC's OTP — has no write path in this image.
 - **No swap, no writable root**, no persistent state of any kind. Every boot
   starts from the same bytes; rcS remounts the root read-only once boot
-  setup is done, and what runs after it writes only to `/run`, a RAM
+  setup is done (the self-test fails when `/` is not `ro` in
+  `/proc/mounts`, so a remount that did not take blocks the app), and what runs after it writes only to `/run`, a RAM
   filesystem of its own, and to `/dev`, `/proc` and `/sys`. The only thing the running device writes is
   the file a user asked to save, onto the second partition; a dev card
   also writes its timings there.

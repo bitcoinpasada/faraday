@@ -128,5 +128,8 @@ fi
 # at every lock. Only init and its root shell loops, which read nothing
 # from outside, could mount it writable again; the helpers above dropped
 # every capability but CAP_CHOWN before reading anything.
+# The self-test finds this mark and then fails when / is not "ro" in
+# /proc/mounts, so a remount that did not take is shown at start.
+: > /run/faraday-stateless
 mount -o remount,ro / ||
     echo "faraday rcS: the root filesystem stays writable" > /dev/kmsg
