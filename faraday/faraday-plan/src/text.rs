@@ -89,6 +89,11 @@ impl Answers {
         for x in &self.xor_old {
             out.push_str(&x.to_old_line());
         }
+        // The old SLIP-39 sets whose shares are still kept (F293): public
+        // facts only. A plan with none writes nothing here.
+        for z in &self.slip39_old {
+            out.push_str(&z.to_old_line());
+        }
         // The sets rotated away (`docs/CODEX32.md` §9.7): seed, threshold
         // and identifier, never a string.
         for (i, k, id) in &self.rotated {
@@ -168,6 +173,7 @@ pub fn what_code(w: What) -> Text {
         What::XorPart(i, j) => text!("xorp{i}.{j}"),
         What::XorKept(i, fp) => text!("xork{i}.{}", &*fp_code(fp)),
         What::Slip39Share(i, g, m) => text!("slip{i}.{g}.{m}"),
+        What::Slip39Kept(i, id, g, m) => text!("slipk{i}.{id}.{g}.{m}"),
     }
 }
 
@@ -182,6 +188,16 @@ fn set_piece_read(s: &str) -> Option<What> {
     if let Some(rest) = s.strip_prefix("xorp") {
         let (i, j) = rest.split_once('.')?;
         return Some(What::XorPart(i.parse().ok()?, j.parse().ok()?));
+    }
+    if let Some(rest) = s.strip_prefix("slipk") {
+        let mut f = rest.split('.');
+        let w = What::Slip39Kept(
+            f.next()?.parse().ok()?,
+            f.next()?.parse().ok()?,
+            f.next()?.parse().ok()?,
+            f.next()?.parse().ok()?,
+        );
+        return f.next().is_none().then_some(w);
     }
     let mut f = s.strip_prefix("slip")?.split('.');
     let w = What::Slip39Share(
@@ -602,6 +618,13 @@ fn place_line<'a>(
             }
             a.slip39.push(f);
         }
+        // An old SLIP-39 set of a seed whose shares are still kept (F293).
+        "slip39old" => {
+            let f = slip39::Slip39::from_value(value, shape.seeds.len())?;
+            if !a.add_old_slip39(f) {
+                return None;
+            }
+        }
         // A SeedQR drawn in part (§14.7 item 3).
         "part" => {
             let (p, i) = value.split_once(' ')?;
@@ -741,7 +764,8 @@ fn read_map(a: &mut Answers, shape: &Shape, lines: Vec<(At, Vec<&str>)>) -> Opti
             | What::KefCodePaper(i)
             | What::XorPart(i, _)
             | What::XorKept(i, _)
-            | What::Slip39Share(i, _, _) => i < shape.seeds.len(),
+            | What::Slip39Share(i, _, _)
+            | What::Slip39Kept(i, _, _, _) => i < shape.seeds.len(),
             _ => true,
         };
         let sticks_ok = edited.iter().all(|s| match s.at {
@@ -764,6 +788,10 @@ fn read_map(a: &mut Answers, shape: &Shape, lines: Vec<(At, Vec<&str>)>) -> Opti
                 }
                 What::Slip39Share(i, g, m) => {
                     matches!(s.at, At::Place(_)) && a.slip39(i).is_some_and(|z| z.has_member(g, m))
+                }
+                What::Slip39Kept(i, id, g, m) => {
+                    matches!(s.at, At::Place(_))
+                        && a.old_slip39_with(i, id).is_some_and(|z| z.has_member(g, m))
                 }
                 _ => true,
             })
@@ -831,7 +859,8 @@ impl What {
             | What::KefCodePaper(i)
             | What::XorPart(i, _)
             | What::XorKept(i, _)
-            | What::Slip39Share(i, _, _) => Some(i),
+            | What::Slip39Share(i, _, _)
+            | What::Slip39Kept(i, _, _, _) => Some(i),
             _ => None,
         }
     }
@@ -869,6 +898,7 @@ impl What {
             What::XorPart(_, j) => What::XorPart(n, j),
             What::XorKept(_, fp) => What::XorKept(n, fp),
             What::Slip39Share(_, g, m) => What::Slip39Share(n, g, m),
+            What::Slip39Kept(_, id, g, m) => What::Slip39Kept(n, id, g, m),
             other => other,
         })
     }
@@ -913,7 +943,7 @@ pub fn renumber_seeds(text: &str, map: &[usize]) -> Option<Text> {
                 text!("vault {v} {}", &*flags.into_iter().collect::<Text>())
             }
             // The seed, then what is not one.
-            "pass" | "codex32" | "xor" | "xorold" | "slip39" | "rotated" => {
+            "pass" | "codex32" | "xor" | "xorold" | "slip39" | "slip39old" | "rotated" => {
                 let (i, rest) = value.split_once(' ')?;
                 text!("{name} {} {rest}", seed(i)?)
             }

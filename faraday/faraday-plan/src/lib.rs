@@ -346,6 +346,12 @@ pub struct Answers {
     /// Each seed kept as a SLIP-39 set: the set's public facts
     /// (`docs/decisions/F276.md`).
     pub slip39: Vec<slip39::Slip39>,
+    /// Each seed's old SLIP-39 sets whose shares the plan still keeps
+    /// (`docs/decisions/F293.md`), oldest first: the set whole, so a kept
+    /// share is named by its set's identifier. At most
+    /// [`xor::MAX_OLD_SETS`] a seed, an identifier in one of them; a set
+    /// with no share on the map is dropped.
+    pub slip39_old: Vec<slip39::Slip39>,
     /// The codex32 sets of a seed rotated away (**Rotate the set**,
     /// `docs/CODEX32.md` §9.7), each as (seed, threshold, identifier): a
     /// save takes the strings of these sets, and of no other, out of a
@@ -379,6 +385,7 @@ impl Default for Answers {
             xor: Vec::new(),
             xor_old: Vec::new(),
             slip39: Vec::new(),
+            slip39_old: Vec::new(),
             rotated: Vec::new(),
             unkept: Vec::new(),
         }
@@ -419,6 +426,7 @@ impl Answers {
             xor: Vec::new(),
             xor_old: Vec::new(),
             slip39: Vec::new(),
+            slip39_old: Vec::new(),
             rotated: Vec::new(),
             unkept: Vec::new(),
         };
@@ -1360,6 +1368,12 @@ pub enum What {
     /// Member `m` of group `g` of seed `i`'s SLIP-39 set, written on
     /// paper at a place (`docs/decisions/F276.md`).
     Slip39Share(usize, usize, usize),
+    /// An old SLIP-39 share of seed `i` still kept (`docs/decisions/F293.md`):
+    /// seed, its old set's identifier, group and member, each from 0 but
+    /// the identifier: written on paper at a place. It has no check of its
+    /// own; the old set rebuilds the seed while its thresholds are met by
+    /// kept shares.
+    Slip39Kept(usize, u16, usize, usize),
 }
 
 /// How what is kept may be read.
@@ -1456,7 +1470,9 @@ impl What {
                 Text::fill(EN.plan_xor_part, &[seed(i), &Text::num(j as u64 + 1)])
             }
             What::XorKept(i, fp) => Text::fill(EN.plan_xor_kept, &[seed(i), &fp_code(fp)]),
-            What::Slip39Share(i, g, m) => Text::fill(
+            // The strings of a kept share come with the screens; until
+            // then it reads as the share it was.
+            What::Slip39Share(i, g, m) | What::Slip39Kept(i, _, g, m) => Text::fill(
                 EN.plan_slip39_share,
                 &[seed(i), &Text::num(g as u64 + 1), &Text::num(m as u64 + 1)],
             ),
@@ -1933,7 +1949,8 @@ impl Have {
             | What::Codex32QrFile(..)
             | What::XorPart(..)
             | What::XorKept(..)
-            | What::Slip39Share(..) => {
+            | What::Slip39Share(..)
+            | What::Slip39Kept(..) => {
                 self.seen.push(what);
                 for i in self.needs.rebuilt(&self.seen) {
                     if let Some(s) = self.seeds.get_mut(i) {

@@ -166,6 +166,11 @@ impl Answers {
                 .iter()
                 .any(|&fp| on.contains(&What::XorKept(x.seed, fp)))
         });
+        self.slip39_old.retain(|z| {
+            on.iter().any(|w| {
+                matches!(*w, What::Slip39Kept(i, id, _, _) if i == z.seed && id == z.identifier)
+            })
+        });
     }
 
     /// Seed `i`'s Seed XOR set replaced by `new` (**Make new parts**,
