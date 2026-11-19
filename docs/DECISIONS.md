@@ -300,3 +300,4 @@ Read this table, then only the decision you need.
 | [F286](decisions/F286.md) | Each key of a wallet of several keys carries a check: yours, checked by you or not checked, and the descriptor checksum is not proof | 2026-11-17 | Active | wallets |
 | [F287](decisions/F287.md) | A second explanation on a working screen: the info button and tooltip after BIP-48 on Make a new wallet's path row | 2026-11-18 | Active | design |
 | [F288](decisions/F288.md) | While a wallet is being made, every way of making its key opens inside Make a new wallet | 2026-11-18 | Active | wallets |
+| [F291](decisions/F291.md) | Home shows what is loaded, under its search bar and the first actions; the sidebar no longer lists keys and wallets | 2026-11-19 | Active | design |
