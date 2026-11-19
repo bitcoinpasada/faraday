@@ -33,10 +33,11 @@
 //! # Why this crate may use `unsafe`
 //!
 //! The workspace forbids `unsafe`; this binary is the second exception,
-//! after `faraday-v4l2`, and its `Cargo.toml` says so. Changing a
-//! node's owner and mode, changing user and giving up capabilities are
-//! system calls `std` has no wrapper for. Every `unsafe` block is one call
-//! through `libc`, with plain integers or a buffer that outlives it.
+//! after `faraday-v4l2`, and its `Cargo.toml` says so. Changing user and
+//! giving up capabilities are system calls `std` has no wrapper for.
+//! Every `unsafe` block is one call through `libc`, with plain integers
+//! or a buffer that outlives it. Changing a node's owner and mode is
+//! `std`'s `chown` and `set_permissions`, in safe code.
 
 /// A line on stderr that is never fatal: once `rcS` has ended, the
 /// console this process was started on may refuse writes, and
@@ -48,8 +49,7 @@ macro_rules! say {
     }};
 }
 
-use std::ffi::CString;
-use std::os::unix::ffi::OsStrExt;
+use std::os::unix::fs::{PermissionsExt as _, chown};
 use std::path::Path;
 use std::process::ExitCode;
 use std::time::Duration;
@@ -70,10 +70,6 @@ const OSRELEASE: &str = "/proc/sys/kernel/osrelease";
 
 const CAP_CHOWN: u32 = 0;
 
-fn c_path(p: &Path) -> std::io::Result<CString> {
-    CString::new(p.as_os_str().as_bytes()).map_err(|_| std::io::Error::other("a path with a NUL"))
-}
-
 fn check(r: libc::c_int) -> std::io::Result<()> {
     if r == 0 {
         Ok(())
@@ -82,40 +78,35 @@ fn check(r: libc::c_int) -> std::io::Result<()> {
     }
 }
 
+/// `chmod(2)` on a path, following a symbolic link as `chown` does.
+fn set_mode(node: &Path, mode: u32) -> std::io::Result<()> {
+    std::fs::set_permissions(node, std::fs::Permissions::from_mode(mode))
+}
+
 /// The real changes of ownership.
 struct Chown;
 
 impl Owner for Chown {
     fn take(&mut self, node: &Path) -> std::io::Result<()> {
-        let p = c_path(node)?;
-        // SAFETY: `p` is a NUL-terminated path that outlives both calls.
-        check(unsafe { libc::chown(p.as_ptr(), GRANT_ID, GRANT_ID) })?;
-        // SAFETY: as above.
-        check(unsafe { libc::chmod(p.as_ptr(), 0o600) })
+        chown(node, Some(GRANT_ID), Some(GRANT_ID))?;
+        set_mode(node, 0o600)
     }
 
     fn give(&mut self, node: &Path) -> std::io::Result<()> {
-        let p = c_path(node)?;
-        // SAFETY: as in `take`.
-        check(unsafe { libc::chown(p.as_ptr(), DISK_ID, DISK_ID) })
+        chown(node, Some(DISK_ID), Some(DISK_ID))
     }
 
     fn authorize(&mut self, attr: &Path) -> std::io::Result<()> {
-        let p = c_path(attr)?;
-        // SAFETY: as in `take`.
-        check(unsafe { libc::chown(p.as_ptr(), GRANT_ID, GRANT_ID) })?;
+        chown(attr, Some(GRANT_ID), Some(GRANT_ID))?;
         std::fs::write(attr, b"1")
     }
 
     fn assign(&mut self, node: &Path, uid: u32, gid: u32, mode: u32) -> std::io::Result<()> {
-        let p = c_path(node)?;
-        // SAFETY: as in `take`: the helper's own first, so it may set the
-        // mode, then the owners `/etc/mdev.conf` names.
-        check(unsafe { libc::chown(p.as_ptr(), GRANT_ID, GRANT_ID) })?;
-        // SAFETY: as above.
-        check(unsafe { libc::chmod(p.as_ptr(), mode as libc::mode_t) })?;
-        // SAFETY: as above.
-        check(unsafe { libc::chown(p.as_ptr(), uid, gid) })
+        // The helper's own first, so it may set the mode, then the owners
+        // `/etc/mdev.conf` names.
+        chown(node, Some(GRANT_ID), Some(GRANT_ID))?;
+        set_mode(node, mode)?;
+        chown(node, Some(uid), Some(gid))
     }
 
     fn owner_of(&mut self, node: &Path) -> std::io::Result<(u32, u32)> {
@@ -125,16 +116,12 @@ impl Owner for Chown {
     }
 
     fn probe(&mut self, drivers_probe: &Path, interface: &str) -> std::io::Result<()> {
-        let p = c_path(drivers_probe)?;
-        // SAFETY: as in `take`.
-        check(unsafe { libc::chown(p.as_ptr(), GRANT_ID, GRANT_ID) })?;
+        chown(drivers_probe, Some(GRANT_ID), Some(GRANT_ID))?;
         std::fs::write(drivers_probe, interface.as_bytes())
     }
 
     fn back(&mut self, node: &Path) -> std::io::Result<()> {
-        let p = c_path(node)?;
-        // SAFETY: as in `take`.
-        check(unsafe { libc::chown(p.as_ptr(), 0, 0) })
+        chown(node, Some(0), Some(0))
     }
 }
 

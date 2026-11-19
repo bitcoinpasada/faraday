@@ -95,7 +95,6 @@ const NOT_COMPUTING: &[&str] = &[
     "Zeroize",
     "ZeroizeOnDrop",
     "Zeroizing",
-    "WipeOnFree",
     "Pinned",
     "Argon2FileCost",
     "pin_failure_to_report",

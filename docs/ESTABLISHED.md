@@ -379,7 +379,7 @@ unwiped. A change that holds both in `Zeroizing` (the PRK out of
 `GenericHkdfExtract::finalize` and `GenericHkdf::new`, `prev` in
 `expand_multi_info`) is proposed to RustCrypto/KDFs (owner, 2026-10-31).
 
-The same class of upstream issue, on the stack, where `WipeOnFree` does not reach: hmac 0.13.0's key setup (`get_der_key`'s
+The same class of upstream issue, on the stack: hmac 0.13.0's key setup (`get_der_key`'s
 block and hash, `new_from_slice`'s key XOR ipad and opad) and pbkdf2
 0.13.0's U_i are stack arrays never wiped, and hmac's `zeroize` feature
 reaches only the hash cores. They hold the seed sentence's key block at
@@ -457,10 +457,7 @@ builds on bitcoin 0.33 yet".
 
 ### 7.3 AUDIT §1: what `faraday-crypto` holds
 
-`faraday-crypto`'s row names neither `crc32` nor `WipeOnFree`, both in
-the crate. It names them: "CRC-32 (UR, PNG, the Starter's GPT)" and
-"`WipeOnFree`, a global allocator that wipes what it frees, installed by
-no binary (F181)".
+`faraday-crypto`'s row names `crc32`: "CRC-32 (UR, PNG, the Starter's GPT)".
 
 ### 7.4 The QR encoder's module doc
 

@@ -501,7 +501,6 @@ establishes them (`docs/ESTABLISHED.md` §1.2). The tables are written by
 
 | Piece | Where | Note | Decision |
 |---|---|---|---|
-| WipeOnFree, the allocator that wipes what it frees | `faraday-crypto::wipe` | No wiping allocator comes from a publisher Faraday's dependency review trusts; this one is installed in no shipped program (F181). | F180 |
 | BIP-327 MuSig2, with BIP-328 and BIP-390 | `faraday-bip::musig` | libsecp256k1's MuSig2 is in rust-secp256k1 0.32 and later; bitcoin 0.32, which Faraday uses, is on 0.29, and no miniscript release builds on bitcoin 0.33 yet. | F178 |
 | OpenTimestamps proof reader and walk | `faraday-ots` | No Rust implementation of the OpenTimestamps proof format is established; Faraday's follows python-opentimestamps and is tested against that project's example proofs. | F230 |
 | AEZ v5 and aezeed, with aezeed's CRC-32C | `faraday-bip::aez`, `faraday-bip::aezeed` | No maintained Rust implementation of AEZ exists; Faraday's follows the Go code LND uses and is tested against LND's vectors. Its AES round is the aes crate's and its BLAKE2b the blake2 crate's. | F178 |

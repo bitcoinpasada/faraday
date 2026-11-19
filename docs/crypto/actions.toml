@@ -1516,12 +1516,6 @@ libraries = [
 ]
 adds = "Each key's signing context is randomized from the session's randomness, again whenever it changes (a key a signing job holds is randomized as soon as the job's answer is applied or dropped), each key's blind drawn by HKDF-Expand under a count so no two are the same; pinned pages hold a long-lived secret apart from other data and are asked to stay out of swap; words, passphrases and seeds are values wiped on drop."
 
-[[action.implementation.written_here]]
-what = "WipeOnFree, the allocator that wipes what it frees (`faraday-crypto::wipe`)"
-why = "none-established"
-note = "No wiping allocator comes from a publisher Faraday's dependency review trusts; this one is installed in no shipped program (F181)."
-decision = "F180"
-
 [action.checked]
 tests = [
   "faraday/faraday-core/tests/all/blinding.rs::a_key_joining_the_session_is_blinded_from_the_sessions_seed",

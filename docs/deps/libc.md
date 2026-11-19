@@ -58,9 +58,8 @@ workspace's; no new crate enters the lock file.
 
 **Why it is needed.** `docs/SECURITY-MODEL.md` "When root is used": the helper starts as root, keeps
 `CAP_CHOWN` alone, drops to its own user, empties its bounding set and
-sets no-new-privileges, then changes the owner of partition nodes. `std`
-offers none of these: `chown` and `chmod` on a path through `libc::chown`
-and `libc::chmod`; `prctl` for the bounding set, the ambient set,
+sets no-new-privileges, then changes the owner of partition nodes (with
+`std`'s `chown` and `set_permissions`). `std` offers none of these: `prctl` for the bounding set, the ambient set,
 keep-capabilities and no-new-privileges; `setgroups`, `setgid` and
 `setuid`; `syscall(SYS_capset)` for the capability sets. From `libc` it
 takes those declarations and `SYS_capset`.

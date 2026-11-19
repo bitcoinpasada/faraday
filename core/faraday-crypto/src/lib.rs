@@ -8,14 +8,10 @@
 //! - [`Pinned`]: hold a long-lived secret on pages of its own that the
 //!   kernel is asked not to write to swap. Its five small
 //!   `unsafe` blocks — the page-aligned allocation, its release, the two
-//!   dereferences and the `mlock`/`munlock` pair — are, with
-//!   [`WipeOnFree`]'s, the crate's audited `unsafe` and the only `unsafe`
-//!   in the core. The syscalls
+//!   dereferences and the `mlock`/`munlock` pair — are
+//!   the crate's audited `unsafe` and the only `unsafe` in the core. The syscalls
 //!   themselves are behind the `pin-pages` feature, which the desktop
 //!   and Pi shells turn on and the browser and Android builds leave off.
-//! - [`WipeOnFree`]: a global allocator wrapper a binary may install,
-//!   which zeroes every heap block as it is freed, for the copies of a
-//!   secret that other code makes and frees out of `zeroize`'s reach.
 //! - Hashes and KDFs: [`sha256`], [`sha512`], [`hmac_sha256`], [`hmac_sha512`],
 //!   [`pbkdf2_hmac_sha256`], [`pbkdf2_hmac_sha512`], [`blake2b`] and
 //!   [`scrypt`] are the only entry points the rest of the core uses, so
@@ -50,7 +46,6 @@ pub mod hex;
 mod pinned;
 mod scrypt;
 mod secret;
-mod wipe;
 pub mod work;
 
 pub use argon2::{
@@ -68,5 +63,4 @@ pub use hash::{
 pub use pinned::{Pinned, pin_failure_to_report};
 pub use scrypt::{Error as ScryptError, scrypt};
 pub use secret::{MAX_MNEMONIC_WORDS, MAX_SEED_LEN, MnemonicBytes, Secret, SeedBytes};
-pub use wipe::WipeOnFree;
 pub use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};

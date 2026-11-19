@@ -312,7 +312,7 @@ Outside tests, a function is **cryptographic** when:
    `[[not_crypto]]` absorb what is not cryptographic. A path into
    `faraday-crypto` counts unless its first name is one of the inventory's
    `NOT_COMPUTING`: `work` (the compute token), `hex` (base16 text), `Secret`, `Zeroize`,
-   `ZeroizeOnDrop`, `Zeroizing`, `WipeOnFree`, `Pinned` and
+   `ZeroizeOnDrop`, `Zeroizing`, `Pinned` and
    `pin_failure_to_report`, which compute nothing. Without that, every
    function that names `Compute` would meet rule 3.
 4. **Public reach** (the crates of rule 1): it is `pub` and, through

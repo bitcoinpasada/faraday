@@ -79,7 +79,7 @@ Read for the area a change is in; no trailer attests it.
 - A cost stated in SPEED.md or COMPUTE.md says how it was measured, or says it was not measured (F238).
 - A value kept on the state for drawing has its invariant written where it lives and a test that changes the source.
 - Work added while drawing or after every event is timed once in a late-flow session for the batch, before it is pushed.
-- No shipped program installs WipeOnFree or another global allocator; installing one is a new decision, made with its timings, peak memory, the suite run with it, Miri and a fuzz target.
+- No shipped program installs a global allocator; installing one is a new decision, made with its timings, peak memory, the suite run with it, Miri and a fuzz target.
 - A press whose work takes longer than a tenth of a second on a Pi 3B+ at 1400 MHz is a job on the core's worker, shorter work runs in the press; a press added to `slow`'s list, or moved on it, says which side of the line it is on and how that was measured.
 - A page that shows a secret the person chose to show holds it while shown, wipes it when hidden, on leaving the page and at a lock, and its budget state draws it twice with the second frame working out nothing.
 
