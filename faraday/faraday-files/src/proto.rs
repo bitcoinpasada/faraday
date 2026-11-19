@@ -164,6 +164,15 @@ pub enum Request {
         /// The name as typed; the disk process writes it as FAT holds it.
         label: Text,
     },
+    /// The first request of an app's conversation with the disk process,
+    /// carrying a number the app drew at random. The disk process forgets
+    /// what an earlier conversation left (pieces held for a write) and
+    /// answers [`Response::Opened`] with the same number; the app drops
+    /// every frame that comes before that answer.
+    Open {
+        /// The conversation's number.
+        token: u64,
+    },
 }
 
 impl std::fmt::Debug for Request {
@@ -181,6 +190,7 @@ impl std::fmt::Debug for Request {
             Request::MakeEmpty { .. } => "MakeEmpty", // not shown: Debug text
             Request::Rename { .. } => "Rename",       // not shown: Debug text
             Request::Name { .. } => "Name",           // not shown: Debug text
+            Request::Open { .. } => "Open",           // not shown: Debug text
         })
     }
 }
@@ -191,6 +201,7 @@ impl PartialEq for Request {
         use Request::*;
         match (self, other) {
             (List, List) => true,
+            (Open { token: a }, Open { token: b }) => a == b,
             (
                 Read {
                     stick: s1,
@@ -477,6 +488,8 @@ pub enum Response {
         /// That file is the same vault, by identity.
         same_vault: bool,
     },
+    /// The conversation is open: the number the request carried.
+    Opened(u64),
     /// Why the request failed.
     Failed(Text),
 }
@@ -604,6 +617,11 @@ impl Request {
     pub fn encode(&self) -> Vec<u8> {
         let o = match self {
             Request::List => Out::tag(1),
+            Request::Open { token } => {
+                let mut o = Out::tag(13);
+                o.0.extend_from_slice(&token.to_le_bytes());
+                o
+            }
             Request::Read { stick, name } => {
                 let mut o = Out::tag(2);
                 o.str(stick);
@@ -737,6 +755,7 @@ impl Request {
         let mut i = In(b);
         let mut r = match i.u8()? {
             1 => Request::List,
+            13 => Request::Open { token: i.u64()? },
             2 => Request::Read {
                 stick: i.str()?,
                 name: i.str()?,
@@ -940,6 +959,11 @@ impl Response {
                 o
             }
             Response::Renamed => Out::tag(0x88),
+            Response::Opened(token) => {
+                let mut o = Out::tag(0x8E);
+                o.0.extend_from_slice(&token.to_le_bytes());
+                o
+            }
             Response::WriteNameTaken { on_stick, sha } => name_taken_frame(on_stick, sha),
             Response::NameTaken { same_vault } => {
                 let mut o = Out::tag(0x89);
@@ -1031,6 +1055,7 @@ impl Response {
                 done: i.u8()? != 0,
             },
             0x88 => Response::Renamed,
+            0x8E => Response::Opened(i.u64()?),
             0x8A => Response::WriteNameTaken {
                 on_stick: i.str()?,
                 sha: match i.u8()? {
@@ -1134,6 +1159,7 @@ mod tests {
     fn every_request_reads_back_as_written() {
         let requests = [
             Request::List,
+            Request::Open { token: 7 },
             Request::Read {
                 stick: Text::of("sdb1@7"),
                 name: Text::of("savings-unsigned.psbt"),
@@ -1254,6 +1280,7 @@ mod tests {
                 done: false,
             },
             Response::Renamed,
+            Response::Opened(0x0123_4567_89AB_CDEF),
             Response::NameTaken { same_vault: true },
             Response::NameTaken { same_vault: false },
             Response::Failed(Text::of("the stick is full")),

@@ -868,6 +868,12 @@ impl Disks {
                     Err(faraday_files::Unrenamed::Failed(why)) => Response::Failed(why),
                 };
             }
+            Request::Open { token } => {
+                // An app has come, and what an earlier one left is not
+                // part of what this one writes.
+                self.forget_held();
+                return Response::Opened(token);
+            }
             Request::Name { stick, label } => {
                 let named = self
                     .place(&stick)

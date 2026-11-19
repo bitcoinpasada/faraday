@@ -123,6 +123,8 @@ fn serve(
     let tx = OpenOptions::new().write(true).open(responses)?;
     *now.lock().unwrap_or_else(PoisonError::into_inner) = Some((talk, tx));
     // Pieces an earlier shell left are not part of what this one writes.
+    // A lock that came while a request was being served shows no end of
+    // the requests pipe: the new app's `Open` request forgets them then.
     disks.forget_held();
     let served = serve_on(c, disks, &mut rx, talk, now, pictures);
     // A shell that has gone (an app stopped, a stick pulled) leaves no

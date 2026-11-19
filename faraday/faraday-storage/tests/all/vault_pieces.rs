@@ -39,6 +39,7 @@ fn serve(requests: PathBuf, responses: PathBuf, files: HashMap<String, Vec<u8>>)
     let mut held: Vec<u8> = Vec::new();
     while let Ok(Some((seq, frame))) = receive(&mut rx) {
         let answer = match Request::decode(&frame).unwrap() {
+            Request::Open { token } => Response::Opened(token),
             Request::Piece { at, bytes, .. } => {
                 assert_eq!(at as usize, held.len(), "pieces come in order");
                 held.extend_from_slice(&bytes);

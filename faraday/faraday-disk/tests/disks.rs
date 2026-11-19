@@ -867,9 +867,13 @@ fn a_write_cut_off_part_way_never_joins_the_next_one() {
     d.handle(&c, piece(&stick, "w.bin", 0, 3000, &[1; 2000]));
     let short = d.handle(&c, last(&stick, "w.bin", 3000, &[2; 500]));
     assert!(matches!(short, Response::Failed(_)), "{short:?}");
-    // A new app process drops what was held.
+    // A new app, opening its conversation while the old one's pieces are
+    // held, is told so and finds none of them.
     d.handle(&c, piece(&stick, "x.bin", 0, 3000, &[1; 2000]));
-    d.forget_held();
+    assert_eq!(
+        d.handle(&c, Request::Open { token: 9 }),
+        Response::Opened(9)
+    );
     let alone = d.handle(&c, last(&stick, "x.bin", 1000, &[3; 1000]));
     assert!(matches!(alone, Response::Written(_)), "{alone:?}");
     assert_eq!(read_all(&mut d, &c, &stick, "x.bin"), vec![3; 1000]);

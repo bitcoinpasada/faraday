@@ -1354,26 +1354,53 @@ const ASK_READ_PART: std::time::Duration = std::time::Duration::from_secs(120);
 /// (`MAX_PIXELS`) takes seconds on a Pi.
 const ASK_PICTURE: std::time::Duration = std::time::Duration::from_secs(60);
 
+/// Eight bytes from `/dev/urandom`. Costs a file read.
+fn random_u64() -> std::io::Result<u64> {
+    use std::io::Read;
+    let mut b = [0u8; 8];
+    fs::File::open("/dev/urandom")?.read_exact(&mut b)?;
+    Ok(u64::from_le_bytes(b))
+}
+
 impl DiskProcess {
     /// Opens the two FIFOs. Both are opened read-write, which on a FIFO
     /// never waits for the other end: a disk process that is not up yet
     /// answers when it is.
     pub fn open(requests: &Path, responses: &Path) -> std::io::Result<DiskProcess> {
         let rw = |p: &Path| fs::OpenOptions::new().read(true).write(true).open(p);
-        let tx = rw(requests)?;
+        let mut tx = rw(requests)?;
         let mut rx = rw(responses)?;
+        // A new conversation, told apart from an earlier app's by a number
+        // drawn at random: the disk process forgets what that one left, and
+        // every frame before its answer to this one is the earlier app's,
+        // dropped. A number that cannot be drawn is no conversation.
+        let token = random_u64()?;
+        let seq = u32::try_from(token >> 32).unwrap_or(0);
+        let mut opening = faraday_files::proto::Request::Open { token }.encode();
+        let opened = faraday_files::proto::send(&mut tx, seq, &opening);
+        zeroize::Zeroize::zeroize(&mut opening);
+        opened?;
         let (send, answers) = std::sync::mpsc::channel();
         std::thread::spawn(move || {
-            while let Ok(Some(frame)) = faraday_files::proto::receive(&mut rx) {
-                if send.send(frame).is_err() {
+            let mut open = false;
+            while let Ok(Some((seq, mut frame))) = faraday_files::proto::receive(&mut rx) {
+                if !open {
+                    open = faraday_files::proto::Response::decode(&frame)
+                        == Ok(faraday_files::proto::Response::Opened(token));
+                    zeroize::Zeroize::zeroize(&mut frame);
+                    continue;
+                }
+                if send.send((seq, frame)).is_err() {
                     return;
                 }
             }
+            // The reader ends here, and with it the channel: `drain` and
+            // `ask` see it and fail what waits, at once.
         });
         Ok(DiskProcess {
             tx,
             answers,
-            seq: 0,
+            seq,
             problems: Vec::new(),
             waiting: Vec::new(),
             pictures: std::collections::VecDeque::new(),
@@ -1384,6 +1411,27 @@ impl DiskProcess {
             transfers_done: Vec::new(),
             hashing: Vec::new(),
         })
+    }
+
+    /// Takes every answer that has come, and fails at once what waits on a
+    /// reader that has ended (a frame that cannot be read leaves the pipe
+    /// out of step: nothing more is read from it).
+    fn drain(&mut self) {
+        use std::sync::mpsc::TryRecvError;
+        loop {
+            match self.answers.try_recv() {
+                Ok((seq, frame)) => self.aside(seq, frame),
+                Err(TryRecvError::Empty) => return,
+                Err(TryRecvError::Disconnected) => break,
+            }
+        }
+        if let Some(f) = self.transfer.take() {
+            self.finish(f.what, Text::of(EN.storage_disk_silent));
+        }
+        if let Some((_, stick, name, _)) = self.picture.take() {
+            let why = Text::of(EN.storage_disk_silent);
+            self.pictures_done.push((stick, name, Err(why)));
+        }
     }
 
     /// An answer that is not to the request asked now: the picture's,
@@ -2048,9 +2096,7 @@ impl Sticks for DiskProcess {
     }
 
     fn transferred(&mut self) -> Vec<Transferred> {
-        while let Ok((seq, frame)) = self.answers.try_recv() {
-            self.aside(seq, frame);
-        }
+        self.drain();
         self.step_transfer();
         std::mem::take(&mut self.transfers_done)
     }
@@ -2081,9 +2127,7 @@ impl Sticks for DiskProcess {
 
     fn pictures_read(&mut self) -> Vec<PictureRead> {
         use faraday_files::proto::{Request, send};
-        while let Ok((seq, frame)) = self.answers.try_recv() {
-            self.aside(seq, frame);
-        }
+        self.drain();
         if self
             .picture
             .as_ref()
