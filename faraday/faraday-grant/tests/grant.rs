@@ -6,7 +6,7 @@ use std::os::unix::fs::symlink;
 use std::path::{Path, PathBuf};
 
 use faraday_boot::medium::Record;
-use faraday_grant::{Decision, Finder, GIVE_UP, Grant, Owner, SETTLE};
+use faraday_grant::{Decision, FINDER_ID, Finder, GIVE_UP, Grant, Owner, SETTLE, wait_diskseq};
 
 /// Who owns each node, as the helper left it.
 #[derive(Default)]
@@ -16,21 +16,24 @@ struct Owners {
     probed: Vec<String>,
     /// Webcams whose camera came up, by device.
     cameras: Vec<String>,
-    /// Who each input or video node was given to.
+    /// Who owns each node by user and group, where the helper changed it.
     assigned: std::collections::BTreeMap<String, (u32, u32)>,
 }
 
 impl Owner for &mut Owners {
     fn take(&mut self, node: &Path) -> std::io::Result<()> {
         self.by_node.insert(name(node), "grant");
+        self.assigned.insert(name(node), (202, 202));
         Ok(())
     }
     fn give(&mut self, node: &Path) -> std::io::Result<()> {
         self.by_node.insert(name(node), "disk");
+        self.assigned.insert(name(node), (201, 201));
         Ok(())
     }
     fn back(&mut self, node: &Path) -> std::io::Result<()> {
         self.by_node.insert(name(node), "root");
+        self.assigned.insert(name(node), (0, 0));
         Ok(())
     }
     fn assign(&mut self, node: &Path, uid: u32, gid: u32, _mode: u32) -> std::io::Result<()> {
@@ -731,4 +734,87 @@ fn the_boot_partition_of_a_stick_numbered_from_two_is_kept_back() {
     }
     let owner = owners.by_node.get("sdb2").copied();
     assert!(matches!(owner, None | Some("root")), "{owner:?}");
+}
+
+#[test]
+fn the_finder_may_read_a_sticks_boot_partition_and_no_other_node() {
+    let m = Machine::new("finder-reach");
+    // A Faraday stick; a disk laid out as one whose first partition has no
+    // boot name; an ordinary stick.
+    m.stick("1-1", "sda", "3", Some(RELEASE));
+    m.stick("1-2", "sdb", "5", None);
+    fs::write(
+        m.root
+            .join("sys/devices/pci0/usb1/1-2/host0/block/sdb/sdb1/uevent"),
+        "PARTNAME=\n",
+    )
+    .unwrap();
+    m.disk("pci0/usb1/1-3/block", "sdc", &[("", sector("PHOTOS"))]);
+    m.clean(true);
+    let finder = Some(&(0, FINDER_ID));
+    let mut owners = Owners::default();
+    // While the finder looks, the first partitions of both are its to read.
+    m.record("layout\n");
+    m.grant(&mut owners).tick();
+    assert_eq!(owners.assigned.get("sda1"), finder);
+    assert_eq!(owners.assigned.get("sdb1"), finder);
+    for other in ["sda2", "sdb2", "sdc1"] {
+        assert_ne!(owners.assigned.get(other), finder, "{other}");
+    }
+    // Found: the one partition handed out is the disk process's alone.
+    m.record("/dev/sda2 3\n");
+    m.grant(&mut owners).tick();
+    assert_eq!(owners.assigned.get("sda1"), finder);
+    assert_eq!(owners.assigned.get("sdb1"), Some(&(201, 201)));
+    // Taken back when the marker goes, it is the finder's to read again.
+    {
+        let mut g = m.grant(&mut owners);
+        g.tick();
+        m.clean(false);
+        g.tick();
+    }
+    assert_eq!(owners.assigned.get("sdb1"), finder);
+}
+
+/// The Pi's card's `diskseq` in a stand-in `/sys`, not there yet.
+fn card_seq(m: &Machine) -> PathBuf {
+    let dir = m.root.join("sys/class/block/mmcblk0");
+    fs::create_dir_all(&dir).unwrap();
+    dir.join("diskseq")
+}
+
+#[test]
+fn the_pis_card_coming_up_late_is_recorded_with_its_number() {
+    let m = Machine::new("card-late");
+    let seq = card_seq(&m);
+    let late = seq.clone();
+    let card = std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(200));
+        fs::write(late, "9\n").unwrap();
+    });
+    let read = wait_diskseq(
+        &seq,
+        std::time::Duration::from_secs(5),
+        std::time::Duration::from_millis(10),
+    );
+    card.join().unwrap();
+    assert_eq!(
+        Record::card("/dev/mmcblk0p2\n", &read).text(),
+        "/dev/mmcblk0p2 9\n"
+    );
+}
+
+#[test]
+fn the_pis_card_that_never_has_a_number_is_recorded_by_its_node_alone() {
+    let m = Machine::new("card-never");
+    let seq = card_seq(&m);
+    let read = wait_diskseq(
+        &seq,
+        std::time::Duration::from_millis(200),
+        std::time::Duration::from_millis(10),
+    );
+    assert_eq!(
+        Record::card("/dev/mmcblk0p2\n", &read).text(),
+        "/dev/mmcblk0p2\n"
+    );
 }

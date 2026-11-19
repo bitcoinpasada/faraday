@@ -448,9 +448,11 @@ partition now (`/etc/faraday/exchange`, written by
 and `LABEL=FARADAYDATA` goes from the PC's `board.conf`. On the Pi `rcS`
 runs `faraday-grant --find-boot` to its end before init goes on, and it
 writes the node again with the sequence number the kernel gave the card's
-disk (`/dev/mmcblk0p2 3`), as for a stick; the attached check leaves the
+disk (`/dev/mmcblk0p2 3`), as for a stick, waiting up to five seconds for
+a card that comes up after init has started; the attached check leaves the
 card out only while its number is that one, and a record with a node and
-no number leaves nothing out.
+no number leaves nothing out. If the finder fails or writes nothing, the
+image's own record stays.
 
 **What is kept back.** `faraday-grant` keeps back the first partition of
 the boot medium, and every partition whose GPT name is `EFI system

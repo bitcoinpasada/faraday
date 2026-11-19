@@ -77,8 +77,11 @@ impl Record {
     /// The Pi's own card as start finds it: the image's record `baked`
     /// (a node, no number) with the sequence number `diskseq` the kernel
     /// gave the card's disk. Without a readable number it is the node
-    /// alone, which counts nothing as the boot disk. Anything but a node
-    /// of the card's own is [`Record::Waiting`].
+    /// alone, which fails closed both ways: the grant helper and the disk
+    /// process keep the disk of that name back ([`Record::is_boot_disk`]),
+    /// and the attached check leaves no disk out, so the card counts as
+    /// attached. Anything but a node of the card's own is
+    /// [`Record::Waiting`].
     #[must_use]
     pub fn card(baked: &str, diskseq: &str) -> Record {
         match Record::parse(baked) {

@@ -5,7 +5,9 @@
 #
 # The kernel mounts devtmpfs on /dev itself (CONFIG_DEVTMPFS_MOUNT), and
 # `mdev -s` applies /etc/mdev.conf's owners once. A stick's partition node
-# stays root's, mode 0600 or 0660, until faraday-grant decides.
+# stays root's, mode 0600 or 0660, until faraday-grant decides; the first
+# partition of a disk laid out as a Faraday stick it makes readable to the
+# finder's group (root:offind 0640) while it is not handed out.
 #
 # Upstream's mounts at 96e2144: nothing on
 # /proc, /sys or /dev is a program or a set-uid file, so none of the three
@@ -70,9 +72,10 @@ chmod 0750 /run/faraday-disk
 # stick with a Faraday stick's layout whose boot partition holds the
 # running build, and writes its data partition's node there, or that none
 # or two were found; on the Pi it names the card already and this adds
-# the card's disk sequence number. Before it reads anything it drops to its own user, offind, keeping
-# only the right to read the partition nodes: it writes the record in its
-# own directory, which the record becomes a link into, and nothing of
+# the card's disk sequence number. Before it reads anything it drops to its
+# own user and group, offind, with no capability: of /dev it reads only
+# the nodes the grant helper gives its group, and it writes the record in
+# its own directory, which the record becomes a link into, and nothing of
 # root's. Until it has written, the grant helper hands nothing out.
 if [ "$(cat /etc/faraday/exchange)" = layout ]; then
     mkdir -m 0755 /run/faraday-find
@@ -84,11 +87,13 @@ if [ "$(cat /etc/faraday/exchange)" = layout ]; then
     /usr/bin/faraday-grant --find-boot 2>/dev/kmsg &
 else
     # The Pi: the record names the card's data partition; this adds the
-    # card's disk sequence number, and is done before init goes on.
+    # card's disk sequence number, and is done before init goes on. If it
+    # failed or wrote nothing, the image's own record stays.
     mkdir -m 0755 /run/faraday-find
     chown offind:offind /run/faraday-find
-    /usr/bin/faraday-grant --find-boot 2>/dev/kmsg
-    ln -sf /run/faraday-find/exchange /etc/faraday/exchange
+    /usr/bin/faraday-grant --find-boot 2>/dev/kmsg &&
+        [ -f /run/faraday-find/exchange ] &&
+        ln -sf /run/faraday-find/exchange /etc/faraday/exchange
 fi
 
 # The grant helper starts as root and gives up all but CAP_CHOWN before it

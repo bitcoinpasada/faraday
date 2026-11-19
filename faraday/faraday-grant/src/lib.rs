@@ -139,6 +139,10 @@ fn boot_disk(disk: &Path, record: &Record) -> bool {
     record.is_boot_disk(children.iter().map(|c| c.0.as_str()), &seq)
 }
 
+/// The finder's own user and group (`offind`, users.table): the group the
+/// helper gives the nodes it reads.
+pub const FINDER_ID: u32 = 203;
+
 /// What became of a partition.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Decision {
@@ -382,6 +386,27 @@ impl<O: Owner> Grant<O> {
         }
     }
 
+    /// The first partition of each USB disk with a Faraday stick's layout,
+    /// the one node the finder opens, made readable to its group
+    /// (`root:offind 0640`) while it is not handed out: the finder keeps
+    /// no capability, so it reads no other node, nor any other file of
+    /// root's or the app's. Not the Pi's card: the finder reads no node of
+    /// it. A node of the disk process's stays its own, and one handed out
+    /// later is no longer the finder's to read.
+    fn finder_tick(&mut self) {
+        for c in usb_disks(&self.sys, &self.dev).1 {
+            let mine = self.decided.values().any(|(node, d)| {
+                node == &c.boot && matches!(d, Decision::Handed | Decision::Failed)
+            });
+            if mine {
+                continue;
+            }
+            if self.owner.owner_of(&c.boot).ok() != Some((0, FINDER_ID)) {
+                let _ = self.owner.assign(&c.boot, 0, FINDER_ID, 0o640);
+            }
+        }
+    }
+
     /// One look at the machine.
     pub fn tick(&mut self) {
         self.usb_tick();
@@ -427,6 +452,7 @@ impl<O: Owner> Grant<O> {
             };
             self.decided.insert(id, (node, d));
         }
+        self.finder_tick();
     }
 }
 
@@ -451,6 +477,58 @@ struct Candidate {
     boot: PathBuf,
     /// Its second partition's name.
     data: String,
+}
+
+/// The whole disks on the USB bus under `sys`, and those among them with a
+/// Faraday stick's layout as `/sys` states it, their nodes under `dev`.
+/// The finder reads these candidates' first partitions, and the helper
+/// lets it ([`Grant::tick`]): one test, so the two cannot drift apart.
+fn usb_disks(sys: &Path, dev: &Path) -> (Vec<String>, Vec<Candidate>) {
+    let mut all = Vec::new();
+    let mut out = Vec::new();
+    let Ok(entries) = fs::read_dir(sys.join("class/block")) else {
+        return (all, out);
+    };
+    for e in entries.flatten() {
+        let name = e.file_name().to_string_lossy().into_owned();
+        let Some(dir) = resolve(&e.path()) else {
+            continue;
+        };
+        let on_usb = dir
+            .components()
+            .any(|c| c.as_os_str().to_str().is_some_and(|s| s.starts_with("usb")));
+        if dir.join("partition").exists() || !on_usb {
+            continue;
+        }
+        let seq = fs::read_to_string(dir.join("diskseq"))
+            .unwrap_or_default()
+            .trim()
+            .to_string();
+        let id = format!("{name}#{seq}");
+        all.push(id.clone());
+        let parts = partitions(&dir);
+        let spans: Vec<Span> = parts
+            .iter()
+            .filter_map(|(_, d, _)| {
+                Some(Span {
+                    start: read_u64(&d.join("start"))?,
+                    size: read_u64(&d.join("size"))?,
+                })
+            })
+            .collect();
+        let sectors = read_u64(&dir.join("size")).unwrap_or(0);
+        if spans.len() != parts.len() || !layout::is_stick(&spans, layout::last_usable(sectors)) {
+            continue;
+        }
+        out.push(Candidate {
+            id,
+            seq,
+            boot: dev.join(&parts[0].0),
+            data: parts[1].0.clone(),
+        });
+    }
+    all.sort();
+    (all, out)
 }
 
 /// The finder (`docs/STICK-IDENTITY.md` §5.2): which USB disk is the
@@ -479,57 +557,6 @@ impl Finder {
             seen: Vec::new(),
             changed: Duration::ZERO,
         }
-    }
-
-    /// The whole disks on the USB bus, and those among them with a
-    /// Faraday stick's layout as `/sys` states it.
-    fn disks(&self) -> (Vec<String>, Vec<Candidate>) {
-        let mut all = Vec::new();
-        let mut out = Vec::new();
-        let Ok(entries) = fs::read_dir(self.sys.join("class/block")) else {
-            return (all, out);
-        };
-        for e in entries.flatten() {
-            let name = e.file_name().to_string_lossy().into_owned();
-            let Some(dir) = resolve(&e.path()) else {
-                continue;
-            };
-            let on_usb = dir
-                .components()
-                .any(|c| c.as_os_str().to_str().is_some_and(|s| s.starts_with("usb")));
-            if dir.join("partition").exists() || !on_usb {
-                continue;
-            }
-            let seq = fs::read_to_string(dir.join("diskseq"))
-                .unwrap_or_default()
-                .trim()
-                .to_string();
-            let id = format!("{name}#{seq}");
-            all.push(id.clone());
-            let parts = partitions(&dir);
-            let spans: Vec<Span> = parts
-                .iter()
-                .filter_map(|(_, d, _)| {
-                    Some(Span {
-                        start: read_u64(&d.join("start"))?,
-                        size: read_u64(&d.join("size"))?,
-                    })
-                })
-                .collect();
-            let sectors = read_u64(&dir.join("size")).unwrap_or(0);
-            if spans.len() != parts.len() || !layout::is_stick(&spans, layout::last_usable(sectors))
-            {
-                continue;
-            }
-            out.push(Candidate {
-                id,
-                seq,
-                boot: self.dev.join(&parts[0].0),
-                data: parts[1].0.clone(),
-            });
-        }
-        all.sort();
-        (all, out)
     }
 
     /// Costs a read of up to 64 MiB: whether the boot partition at `node`
@@ -565,7 +592,7 @@ impl Finder {
     /// this build is found once the USB disks have stayed the same for
     /// [`SETTLE`]; none, or two, once [`GIVE_UP`] has passed.
     pub fn look(&mut self, now: Duration) -> Option<Record> {
-        let (all, candidates) = self.disks();
+        let (all, candidates) = usb_disks(&self.sys, &self.dev);
         if all != self.seen {
             self.seen = all;
             self.changed = now;
@@ -604,5 +631,24 @@ impl Finder {
             },
             _ => Record::Two,
         })
+    }
+}
+
+/// The disk sequence number at `path` (a disk's `diskseq` in `/sys`), read
+/// every `step` until it is a number or `limit` has passed: a disk the
+/// kernel has not brought up yet has none. What was last read, perhaps
+/// nothing, once the limit passes.
+pub fn wait_diskseq(path: &Path, limit: Duration, step: Duration) -> String {
+    let start = std::time::Instant::now();
+    loop {
+        let seq = fs::read_to_string(path).unwrap_or_default();
+        let t = seq.trim();
+        if !t.is_empty() && t.bytes().all(|b| b.is_ascii_digit()) {
+            return seq;
+        }
+        if start.elapsed() >= limit {
+            return seq;
+        }
+        std::thread::sleep(step);
     }
 }

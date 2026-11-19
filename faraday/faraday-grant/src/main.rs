@@ -22,11 +22,13 @@
 //! `--find-boot`, which `rcS` starts beside it, finds the stick the PC
 //! started from (`docs/STICK-IDENTITY.md` §5.2) when the medium's record,
 //! `/etc/faraday/exchange`, says `layout`, and writes what it found there
-//! in its place; on the Pi, whose record names the card, it ends at once.
-//! Before it reads anything else it drops to a user of its own
-//! (`offind`, 203) with no supplementary groups, keeping
-//! `CAP_DAC_READ_SEARCH` alone, so it may read the partition nodes, which
-//! stay root's, and write nothing of root's; no-new-privileges set. On a
+//! in its place; on the Pi, whose record names the card, it adds the card's
+//! sequence number, waiting a few seconds for one that comes up late.
+//! Before it reads anything else it drops to a user and group of its own
+//! (`offind`, 203) with no supplementary groups and no capability, and
+//! no-new-privileges set: it writes nothing of root's, and of `/dev` reads
+//! only what the helper gives its group, the first partition of a USB disk
+//! with a Faraday stick's layout while it is not handed out. On a
 //! PC `rcS` has made the record a link into `/run/faraday-find`, its own
 //! directory, where it writes. It reads `/sys`, and of a USB disk with a
 //! Faraday stick's layout its first partition, up to 64 MiB, for the
@@ -58,12 +60,12 @@ use std::process::ExitCode;
 use std::time::Duration;
 
 use faraday_boot::medium::{LAYOUT, Record};
-use faraday_grant::{Finder, Grant, Owner};
+use faraday_grant::{FINDER_ID, Finder, Grant, Owner, wait_diskseq};
 
 /// The helper's own account (users.table).
 const GRANT_ID: u32 = 202;
 /// The finder's own account.
-const FIND_ID: u32 = 203;
+const FIND_ID: u32 = FINDER_ID;
 /// The disk process's account.
 const DISK_ID: u32 = 201;
 /// Where the app publishes that it is clean.
@@ -75,9 +77,15 @@ const OSRELEASE: &str = "/proc/sys/kernel/osrelease";
 /// Where the record's link leads on a PC: the finder's own directory,
 /// made by `rcS`, where it may rename a record into place.
 const FOUND: &str = "/run/faraday-find/exchange";
+/// How long the Pi's finder waits for its card to have a sequence number.
+/// The Pi boots from an initramfs, so the kernel starts `/init` without
+/// waiting for the card to be detected, and nothing in `rcS` before the
+/// finder waits for it. `rcS` waits for the finder, so this is also the
+/// most a late card holds the boot up. A card still without a number then
+/// gives a record of the node alone, which fails closed.
+const CARD_WAIT: Duration = Duration::from_secs(5);
 
 const CAP_CHOWN: u32 = 0;
-const CAP_DAC_READ_SEARCH: u32 = 2;
 
 fn check(r: libc::c_int) -> std::io::Result<()> {
     if r == 0 {
@@ -231,7 +239,7 @@ fn find_boot() -> ExitCode {
     if baked.trim() != LAYOUT {
         return find_card(&baked);
     }
-    if let Err(e) = drop_privilege(FIND_ID, 1 << CAP_DAC_READ_SEARCH) {
+    if let Err(e) = drop_privilege(FIND_ID, 0) {
         say!("faraday-grant: cannot give up privilege: {e}");
         return ExitCode::FAILURE;
     }
@@ -286,8 +294,11 @@ fn find_card(baked: &str) -> ExitCode {
         say!("faraday-grant: cannot give up privilege: {e}");
         return ExitCode::FAILURE;
     }
-    let seq =
-        std::fs::read_to_string(format!("/sys/class/block/{disk}/diskseq")).unwrap_or_default();
+    let seq = wait_diskseq(
+        Path::new(&format!("/sys/class/block/{disk}/diskseq")),
+        CARD_WAIT,
+        Duration::from_millis(100),
+    );
     let r = Record::card(baked, &seq);
     let new = format!("{FOUND}.new");
     if let Err(e) = std::fs::write(&new, r.text()).and_then(|()| std::fs::rename(&new, FOUND)) {
