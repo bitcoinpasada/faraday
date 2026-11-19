@@ -943,10 +943,10 @@ impl Faraday {
     }
 
     /// Moves only. An item made by `Item::new` to the Outbox, over the file
-    /// of its name.
+    /// of its name. A secret file is refused, in every build: it enters the
+    /// Outbox only through `outbox_secret`.
     pub(crate) fn put_item(&mut self, item: crate::Item) {
         if item.exposure() == crate::secrets::Exposure::Secret {
-            debug_assert!(false, "a secret reached put_outbox: {}", &*item.name);
             return;
         }
         self.outbox.retain(|i| i.name != item.name);
@@ -2152,5 +2152,21 @@ impl Faraday {
             .filter(|i| i.copy_ack().is_none())
             .map(|i| faraday_text::Text::of(&i.name))
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn a_secret_file_is_not_put_in_the_outbox_beside_a_public_one() {
+        let mut app = crate::testkit::started();
+        let c = crate::testkit::compute();
+        let before = app.outbox.len();
+        let mut secret = crate::Item::new(&c, "key.txt", b"secret".to_vec());
+        secret.secret = true;
+        app.put_item(secret);
+        assert_eq!(app.outbox.len(), before);
+        app.put_item(crate::Item::new(&c, "note.txt", b"hello".to_vec()));
+        assert_eq!(app.outbox.len(), before + 1);
     }
 }
