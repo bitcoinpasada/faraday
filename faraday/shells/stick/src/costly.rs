@@ -192,6 +192,10 @@ impl Sticks for Timed<'_> {
         done
     }
 
+    fn busy(&self) -> bool {
+        self.sticks.busy()
+    }
+
     fn hash_later(&mut self, stick: &str, name: &str) -> bool {
         self.sticks.hash_later(stick, name)
     }

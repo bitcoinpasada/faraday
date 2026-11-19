@@ -142,6 +142,9 @@ fn slow_write_server(requests: PathBuf, responses: PathBuf, go: mpsc::Receiver<(
         let answer = match req {
             Request::Open { token } => Response::Opened(token),
             Request::List => Response::Sticks(Vec::new()),
+            Request::Piece { bytes, .. } => Response::Held(bytes.len() as u64),
+            Request::Write { .. } => Response::Written(Text::of("Passwords.kdbx")),
+            Request::Space { .. } => Response::Space { free: 5, size: 9 },
             _ => Response::Failed(Text::of("not asked")),
         };
         send(&mut tx, seq, &answer.encode()).unwrap();
@@ -149,7 +152,7 @@ fn slow_write_server(requests: PathBuf, responses: PathBuf, go: mpsc::Receiver<(
 }
 
 #[test]
-fn a_request_during_a_slow_vault_write_is_refused_at_once() {
+fn a_vault_write_in_pieces_says_it_is_busy_until_it_ends_and_then_requests_are_answered() {
     let dir = scratch("slow-write");
     let requests = fifo(&dir, "requests");
     let responses = fifo(&dir, "responses");
@@ -173,17 +176,10 @@ fn a_request_during_a_slow_vault_write_is_refused_at_once() {
     assert!(asked.is_ok());
     assert!(disk.transferred().is_empty(), "the write is under way");
 
-    // A listing meanwhile does not wait out the write: it is refused now
-    // (it waited the 15 s of an ask and said the disk process was silent).
-    let started = std::time::Instant::now();
-    let listed = disk.list();
-    assert!(listed.is_err());
-    assert!(
-        started.elapsed() < std::time::Duration::from_secs(2),
-        "refused at once, not after a wait"
-    );
+    // The shell leaves its requests queued while the disk says it is busy,
+    // so none is sent behind the piece in flight and none is refused.
+    assert!(disk.busy());
 
-    // The write itself goes on and ends with the disk process's answer.
     go.send(()).unwrap();
     let started = std::time::Instant::now();
     let mut done = Vec::new();
@@ -192,8 +188,12 @@ fn a_request_during_a_slow_vault_write_is_refused_at_once() {
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
     assert_eq!(done.len(), 1);
-    // With the transfer over, a listing is answered.
+    assert!(matches!(&done[0], Transferred::Write { result: Ok(_), .. }));
+    // With the write over the disk is free, and a listing and the space
+    // are answered.
+    assert!(!disk.busy());
     assert!(disk.list().is_ok());
+    assert_eq!(disk.space("s").unwrap(), (5, 9));
 
     drop(disk);
     drop(server);

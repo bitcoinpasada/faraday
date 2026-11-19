@@ -156,6 +156,12 @@ pub trait Sticks {
     fn transferred(&mut self) -> Vec<Transferred> {
         Vec::new()
     }
+    /// Whether a vault is being transferred or waits to be: a request made
+    /// now would wait behind it, so the app's requests are left queued
+    /// until it is over ([`serve_with`]).
+    fn busy(&self) -> bool {
+        false
+    }
     /// Starts the read of a vault for its SHA-256 off the shell's thread;
     /// false where this place does not, and the file is read now.
     fn hash_later(&mut self, _stick: &str, _name: &str) -> bool {
@@ -905,7 +911,9 @@ pub fn serve_with(
         for done in sticks.transferred() {
             delivered(app, sticks, &mut said, done);
         }
-        if !app.storage_pending() {
+        if !app.storage_pending() || sticks.busy() {
+            // Requests left queued while a vault is in pieces are served
+            // on a pass after it: the shell serves on every pass.
             break;
         }
         serve_queued(app, boxes, host, print, sticks, &mut said);
@@ -999,7 +1007,13 @@ fn serve_queued(
     sticks: &mut dyn Sticks,
     said: &mut Vec<Text>,
 ) {
-    while let Some(c) = app.poll_storage() {
+    // A request is taken only while no vault is in pieces: behind it, it
+    // would wait the length of a slow piece holding the disk's lock, and
+    // refused it would read as the stick failing. Left in the app's queue
+    // it is served on a later pass.
+    while !sticks.busy()
+        && let Some(c) = app.poll_storage()
+    {
         match c {
             StorageCommand::Read { stick, name } => {
                 let read = Transfer::Read {
@@ -1793,16 +1807,17 @@ impl DiskProcess {
     ) -> Result<faraday_files::proto::Response, Text> {
         use faraday_files::proto::{Request, Response, send};
         // The disk process serves one request at a time: a transfer's piece
-        // in flight is answered first, and this request would wait out its
-        // time (a vault write takes minutes on a slow stick) while the
-        // caller holds the disk's lock and the loop's frames wait behind
-        // it. It is refused at once instead; nothing is sent.
+        // in flight is answered first. The app's requests are not made
+        // while one is ([`serve_with`] leaves them queued) and the shell's
+        // thread waits for it ([`Sticks::busy`]); a request that still
+        // comes is refused at once, nothing sent, rather than wait out a
+        // slow piece holding the disk's lock.
         self.drain();
-        if self.transfer.is_some() {
-            return Err(Text::of(EN.storage_stick_busy));
-        }
         if self.dead {
             return Err(Text::of(EN.storage_disk_silent));
+        }
+        if self.transfer.is_some() {
+            return Err(Text::of(EN.storage_stick_busy));
         }
         self.seq = self.seq.wrapping_add(1);
         let mut encoded = req.encode();
@@ -2133,6 +2148,10 @@ impl Sticks for DiskProcess {
         self.drain();
         self.step_transfer();
         std::mem::take(&mut self.transfers_done)
+    }
+
+    fn busy(&self) -> bool {
+        self.transfer.is_some() || !self.transfers.is_empty()
     }
 
     fn hash_later(&mut self, stick: &str, name: &str) -> bool {

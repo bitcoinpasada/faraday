@@ -24,7 +24,7 @@ use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 use faraday_core::StickInfo;
-use faraday_storage::DiskProcess;
+use faraday_storage::{DiskProcess, Sticks};
 
 use crate::panel::lock;
 use crate::system::System;
@@ -241,12 +241,31 @@ impl Work {
     }
 }
 
+/// How long a job waits for a vault in pieces to end before it makes its
+/// call all the same (and is refused at once as the stick being busy).
+const IDLE_WAIT: Duration = Duration::from_secs(15);
+
+/// The disk once no vault is in pieces: a call made behind one would wait
+/// out its pieces holding the lock. The lock is let go between looks, so
+/// the loop goes on with the vault. Past [`IDLE_WAIT`], as it is.
+fn idle(disk: &Disk) -> MutexGuard<'_, DiskProcess> {
+    let until = Instant::now() + IDLE_WAIT;
+    loop {
+        let held = lock(disk);
+        if !held.busy() || Instant::now() >= until {
+            return held;
+        }
+        drop(held);
+        thread::sleep(Duration::from_millis(50));
+    }
+}
+
 /// One job, on the thread.
 fn run(disk: &Disk, job: Job) -> Reply {
     match job {
-        Job::List { hide_waiting } => Reply::Listed(list(&mut lock(disk), hide_waiting)),
+        Job::List { hide_waiting } => Reply::Listed(list(&mut idle(disk), hide_waiting)),
         Job::Timings { stick, name, text } => Reply::Timings(
-            lock(disk)
+            idle(disk)
                 .write_copies(&stick, &name, text.as_bytes(), &[], true, false)
                 .is_ok(),
         ),
@@ -257,7 +276,7 @@ fn run(disk: &Disk, job: Job) -> Reply {
             blocks.push_str(&devnodes::block(Path::new("/")));
             let text = bootreport::compose(&kernel, &r.inventory, &blocks, r.elapsed);
             let start = Instant::now();
-            let wrote = lock(disk)
+            let wrote = idle(disk)
                 .write_copies(&r.stick, &r.name, text.as_bytes(), &[], true, false)
                 .map(drop)
                 .map_err(|e| String::from(&*e));
