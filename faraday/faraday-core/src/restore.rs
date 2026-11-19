@@ -1194,12 +1194,15 @@ impl Faraday {
             .filter_map(|s| s.fingerprint.map(|f| Text::of(&fp_text(f))))
             .collect();
         let open = &self.vaults.open[v];
+        // Keys load only where they may: with a stick attached, or before
+        // the self-test has passed, the wallet comes alone.
+        let may = self.may_load_keys();
         let keep: BTreeSet<usize> = self
             .vaults
             .records(open.id)
             .of(kind::KEY)
             .filter(|(_, k)| {
-                vault::screen::key_fingerprint(&c, self, *k)
+                may && vault::screen::key_fingerprint(&c, self, *k)
                     .is_some_and(|fp| want.iter().any(|w| *w == *fp))
             })
             .map(|(i, _)| i)

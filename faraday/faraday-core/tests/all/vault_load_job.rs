@@ -569,6 +569,29 @@ fn restore_pressed() -> Faraday {
     app
 }
 
+/// With a stick attached, Restore from a vault brings the wallet and no
+/// key, and no seed load starts.
+#[test]
+fn restore_from_a_vault_with_a_stick_attached_loads_no_key() {
+    let mut app = app_with(wallet_and_key());
+    let r = wallet_index(&app);
+    app.press(Action::Vault(V::LoadNotNow));
+    app.press(Action::RestoreWallet);
+    app.storage(StorageEvent::Sticks(vec![faraday_core::StickInfo {
+        make: Default::default(),
+        serial: None,
+        id: faraday_text::Text::of("a"),
+        label: faraday_text::Text::of("STICK"),
+        boot: false,
+        files: Vec::new(),
+        vaults: Vec::new(),
+    }]));
+    app.press(Action::RFromVault(0, r));
+    assert!(app.busy().is_none(), "no seed load started");
+    testkit::settle(&mut app);
+    assert!(app.session.keys.is_empty(), "no key loaded");
+}
+
 #[test]
 fn restore_from_a_vault_left_before_its_answer_adds_no_key() {
     for (name, action) in LEAVES {
