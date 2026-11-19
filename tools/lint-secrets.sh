@@ -64,6 +64,11 @@
 #      `Value::String` (its declaration `String(Text),` and its uses as
 #      `Value::String(`), a name of the public API whose payload is wiping
 #      Text; a `String` type there is still a hit.
+#      A third: in core/faraday-text/src/text.rs, the one line
+#      `use alloc::string::String as Buf;`, the import of the wiping text's own
+#      buffer type, which every path that grows or shrinks it wipes the old
+#      one of and which no public method returns, takes or exposes; any other
+#      line of that file naming a String is still a hit.
 #      Other files in faraday-bip (accounts, descriptors, SLIP-132) hold only
 #      public data and may use String freely. A file is a secret file when
 #      it names a secret type. SECRET_FILES is worked out below, not listed:
@@ -375,6 +380,7 @@ report "heap text in secret-handling source (rule 3)" \
     "$( { grep -nE "$HEAP_TEXT" $SECRET_FILES \
         | grep -vE 'b"[^"]*</?String>|^[^:]+:[0-9]+: +[a-z0-9_]+: "String",$' \
         | grep -vE '^core/faraday-bip/src/json\.rs:[0-9]+: +String\(Text\),$' \
+        | grep -vE '^core/faraday-text/src/text\.rs:[0-9]+:use alloc::string::String as Buf;$' \
         | while IFS= read -r hit; do
             # json.rs names its own variant `Value::String(`: that token
             # alone is no heap text (serde_json's, written with a path

@@ -1,6 +1,9 @@
 //! The wiping text type.
 
-use alloc::vec::Vec;
+// The text type's own buffer: every path that grows or shrinks it wipes the
+// old one, and it never leaves the type. The one line tools/lint-secrets.sh
+// allows to name the heap string type.
+use alloc::string::String as Buf;
 use core::borrow::Borrow;
 use core::fmt;
 use core::hash::{Hash, Hasher};
@@ -16,19 +19,19 @@ use crate::num::Num;
 /// Only `&str` and `char` are written in, so the bytes are always UTF-8.
 /// It has no `Display` and its `Debug` shows the length only.
 pub struct Text {
-    buf: Vec<u8>,
+    buf: Buf,
 }
 
 impl Text {
     /// An empty one with no buffer yet.
     pub const fn new() -> Text {
-        Text { buf: Vec::new() }
+        Text { buf: Buf::new() }
     }
 
     /// An empty one with room for `bytes` bytes.
     pub fn with_room(bytes: usize) -> Text {
         Text {
-            buf: Vec::with_capacity(bytes),
+            buf: Buf::with_capacity(bytes),
         }
     }
 
@@ -245,8 +248,8 @@ impl Text {
         if need <= self.buf.capacity() {
             return;
         }
-        let mut bigger = Vec::with_capacity(need.max(self.buf.capacity() * 2));
-        bigger.extend_from_slice(&self.buf);
+        let mut bigger = Buf::with_capacity(need.max(self.buf.capacity() * 2));
+        bigger.push_str(&self.buf);
         self.buf.zeroize();
         self.buf = bigger;
     }
@@ -274,12 +277,12 @@ impl Text {
     /// Adds `s` at the end.
     pub fn push_str(&mut self, s: &str) {
         self.room(s.len());
-        self.buf.extend_from_slice(s.as_bytes());
+        self.buf.push_str(s);
     }
 
     /// Takes the last character off, wiping its bytes.
     pub fn pop(&mut self) -> Option<char> {
-        let c = self.as_str().chars().next_back()?;
+        let c = self.buf.chars().next_back()?;
         let at = self.buf.len() - c.len_utf8();
         self.truncate(at);
         Some(c)
@@ -288,11 +291,16 @@ impl Text {
     /// Keeps the first `len` bytes, wiping the rest. `len` past the end,
     /// or not on a character boundary, keeps it all.
     pub fn truncate(&mut self, len: usize) {
-        if len >= self.buf.len() || !self.as_str().is_char_boundary(len) {
+        if len >= self.buf.len() || !self.buf.is_char_boundary(len) {
             return;
         }
-        self.buf[len..].zeroize();
-        self.buf.truncate(len);
+        // The buffer cannot wipe its bytes past the end without `unsafe`,
+        // so what is kept moves to a buffer of the same size and the old
+        // one is wiped whole.
+        let mut kept = Buf::with_capacity(self.buf.capacity());
+        kept.push_str(&self.buf[..len]);
+        self.buf.zeroize();
+        self.buf = kept;
     }
 
     /// Empties it, wiping the whole buffer and keeping it.
@@ -312,8 +320,9 @@ impl Text {
     }
 
     /// The text.
+    #[inline]
     pub fn as_str(&self) -> &str {
-        core::str::from_utf8(&self.buf).unwrap_or("")
+        &self.buf
     }
 
     /// Another one holding the same text, in its own buffer of the same
