@@ -240,11 +240,13 @@ impl Faraday {
 
     /// A file ticked or unticked, by its place on the stick.
     pub(crate) fn delete_pick(&mut self, k: usize) {
-        let name = self
-            .stick
-            .get(self.visit.stick)
-            .and_then(|s| s.files.get(k))
-            .map(|(n, _)| String::from(&**n));
+        let name = self.stick.delete_ask.as_ref().and_then(|d| {
+            self.stick
+                .iter()
+                .find(|s| s.id == d.stick)
+                .and_then(|s| s.files.get(k))
+                .map(|(n, _)| String::from(&**n))
+        });
         let (Some(d), Some(name)) = (self.stick.delete_ask.as_mut(), name) else {
             return;
         };
@@ -320,7 +322,12 @@ impl Faraday {
         match failed {
             None => {
                 self.flow_copy_gone(stick, Some(name));
-                self.visit.inn_retain(|n| n != name);
+                // A copy tick of the same name on the stick shown stays
+                // when the file went from another stick.
+                let shown = self.stick.get(self.visit.stick).map(|s| &s.id);
+                if shown.is_none_or(|id| **id == *stick) {
+                    self.visit.inn_retain(|n| n != name);
+                }
                 self.visit.unprotected_gone(stick, name);
                 let said = if zeroed {
                     EN.stick_wipe_deleted
@@ -489,7 +496,8 @@ pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     };
     let files: &[(Text, u64)] = app
         .stick
-        .get(app.visit.stick)
+        .iter()
+        .find(|s| s.id == d.stick)
         .map_or(&[], |s| s.files.as_slice());
     let title = fill(EN.stick_wipe_delete_files, &[&*d.label]);
     let n = d.chosen.len();

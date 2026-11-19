@@ -668,6 +668,57 @@ fn chosen_files_are_deleted_only_from_the_sheet() {
     assert!(text.contains("spend-01.psbt deleted"), "{text}");
 }
 
+/// Files ticked to delete on one stick are deleted from that stick only:
+/// another stick with files of the same names listed before it, a place
+/// on the sheet is a place on the first stick, and nothing ticked on the
+/// second one is unticked by the first one's delete.
+#[test]
+fn files_ticked_for_deletion_on_a_pulled_stick_touch_nothing_on_another() {
+    let mut app = with_stick(2);
+    asked(&mut app);
+    app.press(Action::DeleteFiles);
+    asked(&mut app);
+    app.press(Action::DeletePick(1));
+    let other = |files: &[&str]| StickInfo {
+        make: Default::default(),
+        serial: None,
+        id: faraday_text::Text::of("T"),
+        label: faraday_text::Text::of("OTHERSTICK"),
+        boot: false,
+        files: files
+            .iter()
+            .map(|n| (faraday_text::Text::of(n), 300))
+            .collect(),
+        vaults: Vec::new(),
+    };
+    let first = app.sticks()[0].clone();
+    app.storage(StorageEvent::Sticks(vec![
+        other(&["notes.docx", "spend-01.psbt", "spend-00.psbt"]),
+        first,
+    ]));
+    asked(&mut app);
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::Delete));
+    // The sheet still lists the first stick's files, so a place on it is
+    // not a place on the second stick.
+    app.press(Action::DeletePick(0));
+    app.press(Action::DeleteGo);
+    assert_eq!(
+        asked(&mut app),
+        vec![StorageCommand::Wipe {
+            stick: faraday_text::Text::of("S"),
+            name: faraday_text::Text::of("spend-01.psbt")
+        }]
+    );
+    app.storage(StorageEvent::Wiped {
+        stick: faraday_text::Text::of("S"),
+        name: faraday_text::Text::of("spend-01.psbt"),
+    });
+    assert!(
+        app.visit().inn.contains("spend-01.psbt"),
+        "the second stick's file stays ticked"
+    );
+}
+
 #[test]
 fn a_delete_that_left_the_bytes_says_only_the_name_went() {
     let mut app = with_stick(2);
