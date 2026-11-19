@@ -990,7 +990,7 @@ fn line(ctx: &Ctx<'_>, n: u8, j: u8) -> Option<View> {
                 ctx.doing(Step::PartCheck(i, p)),
             ));
         }
-        What::Slip39Share(..) => {}
+        What::Slip39Share(..) | What::Slip39Kept(..) => {}
         // A kept old part has no check: its sheet takes it off the plan
         // once it is destroyed (`docs/decisions/F285.md`).
         What::XorKept(s, fp) => {

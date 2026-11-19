@@ -450,6 +450,8 @@ pub(crate) fn things_of(w: What) -> Vec<Thing> {
         What::XorPart(i, j) => vec![Thing::Part(i, j)],
         What::Slip39Share(i, g, m) => vec![Thing::Slip(i, g, m)],
         What::XorKept(i, fp) => vec![Thing::Kept(i, fp)],
+        // A kept SLIP-39 share has no board thing until its screens come.
+        What::Slip39Kept(..) => Vec::new(),
     }
 }
 

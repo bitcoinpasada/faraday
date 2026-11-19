@@ -992,7 +992,7 @@ fn backup_nodes(
                 ),
             ],
         ),
-        What::XorPart(..) | What::Slip39Share(..) => what.label(shape, ""),
+        What::XorPart(..) | What::Slip39Share(..) | What::Slip39Kept(..) => what.label(shape, ""),
     };
     // The small panel names the keys a vault's stick opens.
     let keys_label = |what: What| match what {
@@ -2398,7 +2398,7 @@ pub(crate) fn thing_label(g: Option<&Glance>, what: What) -> Text {
                 &faraday_crypto::hex::encode_string(&fp),
             ],
         ),
-        What::Slip39Share(i, g, m) => Text::fill(
+        What::Slip39Share(i, g, m) | What::Slip39Kept(i, _, g, m) => Text::fill(
             EN.plan_slip39_share,
             &[
                 &Text::num(number(i) as u64),
