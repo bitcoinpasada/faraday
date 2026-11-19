@@ -475,3 +475,18 @@ fn scan_a_seedqr_takes_a_codex32qr_code_into_the_codex32_form() {
     enter(&mut app);
     assert_eq!(app.session.keys.len(), 1, "{:?}", error(&app));
 }
+
+/// A share scanned by the camera and waiting for the rest of its set is a
+/// secret held: no stick is handed out for writing while it is.
+#[test]
+fn a_share_scanned_and_waiting_for_the_rest_is_not_clean() {
+    let mut app = testkit::started();
+    assert!(app.clean(), "a fresh start is clean");
+    app.press(Action::Entry(None));
+    app.press(Action::ScanSeed);
+    app.event(Event::Scanned {
+        bytes: SHARE_A.to_uppercase().into_bytes(),
+    });
+    assert_eq!(testkit::entry(&app).parts.codex32.len(), 1);
+    assert!(!app.clean(), "one share is held");
+}

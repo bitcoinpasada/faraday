@@ -78,6 +78,11 @@ impl Default for Parts {
 }
 
 impl Parts {
+    /// Whether any share, string or part is in: each is a secret held.
+    pub fn holds_any(&self) -> bool {
+        !self.slip39.is_empty() || !self.codex32.is_empty() || self.xor.parts() > 0
+    }
+
     /// One line per part collected, for the list on screen: what it is,
     /// never its words.
     pub fn lines(&self, form: Form) -> Vec<Text> {

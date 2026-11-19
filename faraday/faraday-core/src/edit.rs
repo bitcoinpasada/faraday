@@ -818,6 +818,7 @@ impl Faraday {
             || self.secrets.out().is_some_and(|o| !o.to_visit)
             || self.lightning.state().is_some()
             || !self.entry.state().typed.is_empty()
+            || self.entry.state().parts.holds_any()
             || !self.entry.state().passphrase.is_empty()
             || !self.entry.state().again.is_empty()
             || !self.vaults.passphrase.text.is_empty()
