@@ -263,3 +263,24 @@ fn a_second_vault_that_the_memory_free_after_the_first_seal_cannot_hold_stays_op
     assert!(app.toast_text().is_some_and(|t| t.starts_with("Needs ")));
     assert!(!app.restart_requested());
 }
+
+#[test]
+fn a_seal_that_never_returns_does_not_keep_the_device_open() {
+    let mut app = two_changed();
+    testkit::hold_worker();
+    app.event(Event::Tick { now_ms: 0 });
+    app.event(Event::Tick { now_ms: 30 * MIN });
+    assert!(app.busy().is_some(), "the idle lock did not start a seal");
+    // Under the limit the lock waits for the seal.
+    app.event(Event::Tick {
+        now_ms: 30 * MIN + 4 * MIN,
+    });
+    assert!(!app.restart_requested());
+    // Past it the device locks, the changes lost.
+    app.event(Event::Tick {
+        now_ms: 30 * MIN + 6 * MIN,
+    });
+    assert!(app.restart_requested(), "the lock waited for ever");
+    testkit::release_worker();
+    testkit::settle_stale(&mut app);
+}

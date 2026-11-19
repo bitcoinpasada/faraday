@@ -1899,6 +1899,11 @@ impl Faraday {
     /// The idle timers. Returns whether the screen
     /// changed.
     pub(crate) fn idle_tick(&mut self, now_ms: u64) -> bool {
+        // A seal that never returns must not keep the device open.
+        if crate::vault::seal::seal_overdue(self, now_ms) {
+            crate::vault::seal::seal_given_up(self);
+            return true;
+        }
         if self.hold_idle(now_ms) {
             return false;
         }

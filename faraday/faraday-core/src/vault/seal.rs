@@ -90,6 +90,37 @@ impl SealWork {
     }
 }
 
+/// The longest one vault's seal may run before the lock gives it up, ms.
+/// The seal is one Argon2id run at the vault's memory step (three passes)
+/// and the document's write, all on the worker with nothing awaited. The
+/// longest honest one measured is 17.2 s for 512 MiB on a Pi 3B+
+/// (`docs/VAULT.md` §3.1's table), time in step with memory, so a 1 GiB
+/// step is about 35 s and a 128 MiB document's write a few seconds more;
+/// five minutes is several times that on the slowest computer a step
+/// fits, and still ends a seal that will never return.
+pub(crate) const SEAL_LIMIT_MS: u64 = 5 * 60_000;
+
+/// Whether the seal running has passed [`SEAL_LIMIT_MS`].
+pub(crate) fn seal_overdue(app: &Faraday, now_ms: u64) -> bool {
+    sealing(app)
+        && app.busy().is_some_and(|b| {
+            b.kind == crate::worker::Kind::VaultSeal
+                && now_ms.saturating_sub(b.began_ms) > SEAL_LIMIT_MS
+        })
+}
+
+/// A seal that never returned: its answer is dropped, every vault still
+/// open is let go unsealed with its changes lost (the Locked sheet says
+/// so after the restart), and the lock finishes, the device restarting.
+/// The lock never waits on a seal for ever.
+pub(crate) fn seal_given_up(app: &mut Faraday) {
+    app.job_locked();
+    lock_secrets_off_screen(app);
+    app.vaults.set_changes_lost();
+    app.vaults.state.sealing = None;
+    lock_finish(app);
+}
+
 /// Whether a lock's seals are under way.
 pub(crate) fn sealing(app: &Faraday) -> bool {
     app.vaults.state.sealing.is_some()
