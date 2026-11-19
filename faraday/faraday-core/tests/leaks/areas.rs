@@ -20,7 +20,9 @@ use faraday_core::kef_tool::{KefToolAction, Pick};
 use faraday_core::seed_check::SeedAction as S;
 use faraday_core::testkit::KindText as _;
 use faraday_core::vault::VaultAction as V;
-use faraday_core::{Action, Area, Ask, Faraday, Screen, StorageEvent, catalog, testkit};
+use faraday_core::{
+    Action, Area, Ask, Faraday, Screen, StickInfo, StorageCommand, StorageEvent, catalog, testkit,
+};
 use faraday_leak_scan::Form;
 use faraday_shell_api::{App, EntropyBytes, Event, Key};
 use zeroize::Zeroizing;
@@ -283,6 +285,37 @@ fn transfer_in_parts(app: &mut Faraday) {
     app.press(Action::Scan);
     read(app, first_part().as_bytes());
     app.press(Action::Cancel);
+}
+
+/// A stick holding the first part of a transfer as a picture, copied in:
+/// the part is kept while the rest is awaited.
+fn part_read_from_a_stick_picture(app: &mut Faraday) {
+    app.storage(StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
+        serial: None,
+        id: faraday_text::Text::of("a"),
+        label: faraday_text::Text::of("A"),
+        boot: false,
+        files: vec![(faraday_text::Text::of("part-1-of-2.png"), 9)],
+        vaults: Vec::new(),
+    }]));
+    app.press(Action::Nav(Screen::Files));
+    let _ = app.frame();
+    app.press(Action::VisitCopy);
+    let mut asked = false;
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::ReadQr { stick, name } = c {
+            asked = true;
+            app.storage(StorageEvent::QrRead {
+                stick,
+                name,
+                bytes: Zeroizing::new(b"the picture".to_vec()),
+                payloads: Zeroizing::new(vec![first_part().as_bytes().to_vec()]),
+            });
+        }
+    }
+    assert!(asked, "the picture was read for its codes");
+    let _ = app.frame();
 }
 
 fn convert_a_seed(app: &mut Faraday) {
@@ -585,15 +618,16 @@ fn flows(area: Area) -> Vec<Flow> {
         Area::Fresh => vec![],
         // Reads of the session's own keys, or public contents: a message and
         // its signature, a code on show, an explorer's lines, a decode check,
-        // a spend's PSBT, a stick visit's name question, the files the boot
+        // a spend's PSBT, the files the boot
         // stick brought, and Faraday Demo's transfer text.
-        Area::Decode
-        | Area::Explore
-        | Area::Qr
-        | Area::Message
-        | Area::Wallets
-        | Area::Visit
-        | Area::Import => vec![],
+        Area::Decode | Area::Explore | Area::Qr | Area::Message | Area::Wallets | Area::Import => {
+            vec![]
+        }
+        // A part read from a stick's picture is held until Lock.
+        Area::Visit => vec![typed(
+            "a transfer part read from a stick's pictures",
+            part_read_from_a_stick_picture,
+        )],
         #[cfg(feature = "demo")]
         Area::Transfer => vec![],
         Area::Glance => vec![typed(
