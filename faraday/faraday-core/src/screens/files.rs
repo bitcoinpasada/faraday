@@ -1301,7 +1301,7 @@ type Note = Option<(Text, crate::ui::Paint)>;
 /// many keys are in hand instead of offering a button.
 pub(super) fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Buttons, Note) {
     let mut out: Vec<(Text, Style, Action)> = Vec::new();
-    let mut note = None;
+    let note: Option<(Text, crate::ui::Paint)> = None;
     // What goes into a vault shows only while one is open (F60); the
     // vault's own row unlocks it.
     let vault_open = app.vault_way(Screen::Files).is_none();
@@ -1384,29 +1384,16 @@ pub(super) fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Button
             ));
         }
         FileKind::Share => {
-            let texts: Vec<Text> = app
+            let n = app
                 .inbox
                 .iter()
                 .filter(|i| i.kind == FileKind::Share)
-                .map(|i| Text::from_utf8_lossy(&i.bytes))
-                .collect();
-            match crate::restore::merge(&texts) {
-                Ok(m) if m.whole.is_some() => out.push((
-                    Text::fill(EN.inbox_actions_restore, &[&text!("{}", texts.len())]),
-                    Style::Primary,
-                    Action::RestoreShares,
-                )),
-                Ok(m) => {
-                    note = Some((
-                        Text::fill(
-                            EN.inbox_actions_of_keys,
-                            &[&text!("{}", m.have.len()), &text!("{}", m.n)],
-                        ),
-                        Role::Warning.paint(),
-                    ))
-                }
-                Err(e) => note = Some((Text::of(&e), Role::Error.paint())),
-            }
+                .count();
+            out.push((
+                Text::fill(EN.inbox_actions_restore, &[&text!("{}", n)]),
+                Style::Primary,
+                Action::RestoreShares,
+            ));
         }
         FileKind::Words => {
             out.push((

@@ -362,8 +362,10 @@ fn files_restores_a_wallet_from_its_shares() {
         "Files does not offer the restore"
     );
     app.press(Action::RestoreShares);
+    // Restore opens on its Description card, the shares ticked, and the
+    // wallet is read from them.
+    assert_eq!(app.screen, Screen::Restore);
     faraday_core::testkit::confirm_wallets(&mut app);
-    assert_eq!(app.screen, Screen::Wallets);
     assert_eq!(app.session.wallets.len(), 1);
     assert_eq!(
         app.session.address(&c, &app.session.wallets[0], false, 0),

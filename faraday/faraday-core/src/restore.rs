@@ -678,7 +678,7 @@ impl Faraday {
     }
 
     /// Costs what the actions below cost, the keys' and wallets' work among
-    /// it: handles the Restore wallet flow's actions (`Action::R*`, `RestoreWallet`, `RestoreShares`, `KeyWallet`).
+    /// it: handles the Restore wallet flow's actions (`Action::R*`, `RestoreWallet`, `RestoreShares`, `RestoreShareAt`, `KeyWallet`).
     pub(crate) fn restore_act(&mut self, action: Action, c: &Compute) {
         match action {
             Action::RFromVault(v, r) => self.restore_from_vault(v, r),
@@ -867,35 +867,16 @@ impl Faraday {
                 self.screen = Screen::Restore;
             }
             Action::RestoreShares => {
-                let texts: Vec<Text> = self
+                let shares: Vec<usize> = self
                     .inbox
                     .iter()
-                    .filter(|i| i.kind == FileKind::Share)
-                    .map(|i| Text::from_utf8_lossy(&i.bytes))
+                    .enumerate()
+                    .filter(|(_, i)| i.kind == FileKind::Share)
+                    .map(|(k, _)| k)
                     .collect();
-                match restore::merge(&texts).map(|m| (m.whole, m.name)) {
-                    Ok((Some(whole), name)) => {
-                        let name = rebuilt_name(c, &whole, name);
-                        match self.session.add_wallet(
-                            c,
-                            &name,
-                            &whole,
-                            EN.act_its_shares,
-                            wallet::Origin::Named,
-                        ) {
-                            Ok(i) => {
-                                self.wallets.set_wallet(i);
-                                self.screen = Screen::Wallets;
-                                self.refresh_spend();
-                                self.toast(&Text::fill(EN.act_restored_from_shares, &[&name]));
-                            }
-                            Err(e) => self.toast(&e.text()),
-                        }
-                    }
-                    Ok((None, _)) => self.toast(EN.act_keys_missing),
-                    Err(e) => self.toast(&e),
-                }
+                self.restore_open_on_shares(&shares);
             }
+            Action::RestoreShareAt(k) => self.restore_open_on_shares(&[k]),
             // `act_inner` passes only the actions matched above.
             _ => unreachable!(),
         }
@@ -1056,6 +1037,56 @@ impl Faraday {
         if let Some(s) = self.restore.state.as_mut().and_then(|r| r.seeds.as_mut()) {
             s.drop_key(fp.0);
         }
+    }
+
+    /// Restore opened on its Description card with the Files shares `at`
+    /// ticked, each only where it agrees with those ticked before it (one
+    /// wallet's shares); a Restore already open and not yet made keeps
+    /// what it has. The wallet is made at once when the shares ticked and
+    /// those in the open vaults hold every key, as a share read while
+    /// Restore waits does.
+    fn restore_open_on_shares(&mut self, at: &[usize]) {
+        let c = self.compute();
+        let mut r = match self.restore.state.take() {
+            Some(r) if !r.described && !r.done[rstep::SEEDS as usize] => r,
+            _ => RestoreState {
+                owner: self.fresh_owner(),
+                opener: Some(self.screen),
+                ..RestoreState::new()
+            },
+        };
+        let mut texts = self.restore_texts_of(&r);
+        for &k in at {
+            let Some(i) = self.inbox.get(k).filter(|i| i.kind == FileKind::Share) else {
+                continue;
+            };
+            if r.shares.iter().any(|s| i.name == s.as_str()) {
+                continue;
+            }
+            let mut trial = texts.clone();
+            trial.push(Text::from_utf8_lossy(&i.bytes));
+            if restore::merge(&trial).is_ok() {
+                texts = trial;
+                r.shares.push(Text::of(&i.name));
+            }
+        }
+        r.open = Some(rstep::DESCRIPTION);
+        r.scroll.follow = true;
+        self.restore.state = Some(r);
+        self.screen = Screen::Restore;
+        let whole = restore::merge(&self.restore_share_texts(&c)).is_ok_and(|m| m.whole.is_some());
+        if whole {
+            self.act(Action::RRebuild);
+        }
+    }
+
+    /// The texts of the Files shares a Restore has ticked.
+    fn restore_texts_of(&self, r: &RestoreState) -> Vec<Text> {
+        self.inbox
+            .iter()
+            .filter(|i| r.shares.iter().any(|s| i.name == s.as_str()))
+            .map(|i| Text::from_utf8_lossy(&i.bytes))
+            .collect()
     }
 
     /// A description or a share read by the camera while Restore waits

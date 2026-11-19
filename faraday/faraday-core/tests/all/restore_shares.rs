@@ -474,3 +474,24 @@ fn a_taproot_multisig_from_its_sheets_keeps_its_name_in_spend_from_a_backup() {
     assert_eq!(app.session.wallets.len(), 1, "{:?}", app.toast_text());
     assert_eq!(&*app.session.wallets[0].name, "Fund");
 }
+
+/// Files' Restore button with the sheets of two wallets, or one sheet of
+/// three, opens Restore on its Description card instead of refusing or
+/// toasting: the sheets of one wallet are ticked and the wallet waits for
+/// the rest.
+#[test]
+fn files_restore_button_opens_restore_with_one_wallets_sheets() {
+    let (a, _) = sheets("Savings", &two_of_three(0));
+    let (b, _) = sheets("Holiday", &two_of_three(1));
+    let mut app = device(vec![
+        ("savings-share-1.txt".to_string(), a[0].clone().into_bytes()),
+        ("holiday-share-1.txt".to_string(), b[0].clone().into_bytes()),
+        ("holiday-share-2.txt".to_string(), b[1].clone().into_bytes()),
+    ]);
+    app.press(Action::Nav(Screen::Files));
+    let _ = app.frame();
+    assert!(app.offers(Action::RestoreShares));
+    app.press(Action::RestoreShares);
+    assert_eq!(app.screen, Screen::Restore);
+    assert!(app.toast_text().is_none(), "{:?}", app.toast_text());
+}

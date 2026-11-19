@@ -935,8 +935,11 @@ pub enum Action {
     Seeds(seeds::SeedsAction),
     /// A slider pressed, dragged or stepped: which slider, the value.
     Slide(u8, u8),
-    /// Rebuild the wallet from every share in the Inbox, and open it.
+    /// Restore's Description card with the shares in Files ticked.
     RestoreShares,
+    /// Restore's Description card with the share Files holds at this
+    /// index ticked (a share just scanned).
+    RestoreShareAt(usize),
     /// Read QR codes with the camera into Files.
     Scan,
     /// Read QR codes for what the opener asks for (`docs/SCANNING.md`
@@ -1695,7 +1698,8 @@ impl Faraday {
             | Action::RRebuild
             | Action::RSeeds
             | Action::KeyWallet(..)
-            | Action::RestoreShares) => self.restore_act(a, &c),
+            | Action::RestoreShares
+            | Action::RestoreShareAt(..)) => self.restore_act(a, &c),
             a @ Action::Cancel => self.cancel_act(a),
             Action::File(p) => self.file_act(p),
             Action::About(k) => self.panel.toggle_about(self.screen, k),

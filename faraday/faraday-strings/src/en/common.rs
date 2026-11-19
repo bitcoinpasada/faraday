@@ -201,10 +201,6 @@ macro_rules! words_common {
     act_restored_wallet: "Restored wallet",
     /// Text in `act`.
     act_its_shares: "its shares",
-    /// Toast in `act`. `{}`: `name`.
-    act_restored_from_shares: "{} restored from its shares",
-    /// Toast in `act`.
-    act_keys_missing: "Not every key is in hand yet",
     /// Text in `act`.
     act_signed_psbt: "Signed PSBT",
     /// Text in `act`.

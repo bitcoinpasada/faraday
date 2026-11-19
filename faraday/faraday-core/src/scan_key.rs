@@ -1764,7 +1764,7 @@ impl Faraday {
                 use crate::backup_flow::steps::{FlowAction, RestorePress};
                 self.act(Action::Flow(FlowAction::Restore(RestorePress::From(at))));
             }
-            Way::Restore => self.act(Action::RestoreShares),
+            Way::Restore => self.act(Action::RestoreShareAt(at)),
             Way::Check => self.act(Action::CheckMessage(at)),
             Way::Note => self.act(Action::Vault(crate::vault::VaultAction::AddFile(at))),
             _ => self.toast(&Text::fill(EN.scanned_is_in_files, &[&name])),

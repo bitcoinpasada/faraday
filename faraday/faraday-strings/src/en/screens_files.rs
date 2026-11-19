@@ -268,7 +268,7 @@ macro_rules! words_screens_files {
     inbox_actions_decode: "Decode",
     /// Text in `inbox_actions`: a signed PSBT or finished transaction to check rather than sign.
     inbox_actions_nonce_check: "Nonce check",
-    /// Text in `inbox_actions`. `{}`: `texts.len()`.
+    /// Text in `inbox_actions`. `{}`: the share files.
     inbox_actions_restore: "Restore the wallet · {} shares",
     /// Note in `inbox_actions`. `{}`: `m.have.len()`, `m.n`.
     inbox_actions_of_keys: "{} of {} keys in hand",

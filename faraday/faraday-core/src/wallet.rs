@@ -627,6 +627,7 @@ pub fn replays(action: Action) -> bool {
             | Action::RUse(_)
             | Action::RRebuild
             | Action::RestoreShares
+            | Action::RestoreShareAt(_)
             | Action::Seeds(crate::seeds::SeedsAction::Make)
             | Action::CNext(crate::cstep::KEYS)
             | Action::SpendBackup(F::UseWallet(_) | F::Rebuild | F::GuessWay(_))
