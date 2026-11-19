@@ -13,7 +13,7 @@ use crate::common::{shown, type_text};
 use faraday_core::board::{BoardPress as BP, Thing, Zone};
 use faraday_core::glance::sheet::{ChartAction as C, Step, Target};
 use faraday_core::glance::{Backup, BackupNode, Glance, Press};
-use faraday_core::plan::{At, Found, Lost, Mark, What};
+use faraday_core::plan::{self, At, Found, Lost, Mark, What};
 use faraday_core::testkit::KindText;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, BStage, Faraday, Screen, Sheet, StorageCommand, StorageEvent, testkit};
@@ -379,6 +379,29 @@ fn a_vault_stick_moved_to_another_place_on_the_board_takes_its_checked_date_with
     crate::common::board(&mut app, BP::Zone(Zone::Card(0)));
     keep_changes(&mut app);
     assert_eq!(stick_checked(&app, w, "Place 1"), date);
+}
+
+#[test]
+fn a_vault_stick_taken_off_the_board_loses_its_checked_date_when_put_back() {
+    let (mut app, w) = single_key_with_vault();
+    clock_kept(&mut app);
+    let press = Press::Loaded(w);
+    let (n, _) = line_of(&app, w, "Place 2", "Vault 1 stick");
+    app.press(Action::Chart(C::Checked(press, n)));
+    assert!(stick_checked(&app, w, "Place 2").is_some());
+    change_in_plan(&mut app, press, Some((At::Place(1), None)));
+    let (shape, a) = app.board_plan().expect("the board's plan");
+    let s = plan::stored_map(&shape, &a)
+        .iter()
+        .find_map(|x| match x.at {
+            At::Stick(1, s) if x.holds.iter().any(|(w, _)| *w == What::VaultStick(0)) => Some(s),
+            _ => None,
+        })
+        .expect("a stick at Place 2 holding the vault");
+    crate::common::board(&mut app, BP::RemoveStick(1, s));
+    put(&mut app, Thing::Vault(0), Zone::Card(1));
+    keep_changes(&mut app);
+    assert_eq!(stick_checked(&app, w, "Place 2"), None);
 }
 
 #[test]

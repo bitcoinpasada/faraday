@@ -2268,11 +2268,28 @@ impl Faraday {
                 if locked && files {
                     return self.toast(EN.backup_flow_files_after_lock);
                 }
+                let held = self.board_plan().map_or_else(Vec::new, |(shape, a)| {
+                    plan::holds_at(&plan::stored_map(&shape, &a), At::Stick(p, s))
+                });
                 self.board_change(&|a, shape| {
                     map_edit(a, shape, |m| {
                         plan::edited(&m, plan::Edit::Clear(At::Stick(p, s)), &[])
                     })
                 });
+                // The notes of what the stick held (kept on its place) go
+                // with it, unless the place still keeps the thing.
+                if let Some((shape, a)) = self.board_plan() {
+                    let after = plan::stored_map(&shape, &a);
+                    for w in held {
+                        let kept = after.iter().any(|x| {
+                            matches!(x.at, At::Place(q) | At::Stick(q, _) if q == p)
+                                && x.holds.iter().any(|(h, _)| *h == w)
+                        });
+                        if !kept {
+                            self.backup.edited(plan::Edit::Drop(At::Stick(p, s), w));
+                        }
+                    }
+                }
             }
             BoardPress::RemoveEmpty(p) => {
                 set(self, None);
