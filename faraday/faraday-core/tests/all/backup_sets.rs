@@ -406,3 +406,178 @@ fn back_ups_own_seed_xor_split_is_on_the_plan_one_part_to_a_place() {
         assert_eq!(at, vec![j], "part {} is a chip at its own place", j + 1);
     }
 }
+
+// ---- kept old SLIP-39 shares and the refused line (F293) ----
+
+fn slip_facts(identifier: u16) -> v39::Slip39Facts {
+    v39::Slip39Facts {
+        identifier,
+        exponent: 1,
+        threshold: 1,
+        groups: vec![v39::Group {
+            threshold: 2,
+            count: 3,
+            made: 0b111,
+        }],
+    }
+}
+
+/// Back up on a key whose set is 77, its plan then taking set 78 as the
+/// key's: the three shares of set 77 the plan placed are kept old shares.
+fn backup_with_kept_shares() -> Faraday {
+    let mut app = backup_of_split_key(None, Some(slip_facts(77)));
+    let shape = app.plan_shape_now(0);
+    testkit::change_backup_answers(&mut app, |a| {
+        plan::sets::sync(a, &shape, &[], &[Some(slip_facts(78))]);
+    });
+    app
+}
+
+/// Whether the section of other paper forms, opened, draws `line`.
+fn section_shows(app: &mut Faraday, line: &str) -> bool {
+    if !app.backup().unwrap().reveal {
+        app.press(Action::BChecklist);
+        testkit::backup_open_item(app, plan::Item::Copy(0));
+        app.press(Action::BReveal);
+    }
+    let mut seen: Vec<String> = Vec::new();
+    for _ in 0..40 {
+        let t = crate::common::texts(app);
+        if t.iter().any(|t| t.contains(line)) {
+            return true;
+        }
+        seen.extend(t);
+        for x in [600, 1326] {
+            app.event(Event::Scroll { x, y: 400, dy: 150 });
+        }
+    }
+    seen.dedup();
+    eprintln!("not drawn: {line:?} among {seen:?}");
+    false
+}
+
+fn kept_count(app: &Faraday) -> usize {
+    let a = &app.backup().unwrap().answers;
+    let shape = app.plan_shape_now(0);
+    plan::stored_map(&shape, a)
+        .into_iter()
+        .flat_map(|s| s.holds.into_iter().map(|(w, _)| w))
+        .filter(|w| matches!(w, What::Slip39Kept(..)))
+        .count()
+}
+
+#[test]
+fn the_board_shows_an_old_slip39_set_as_a_group_of_its_own_with_a_chip_per_kept_share() {
+    let mut app = backup_with_kept_shares();
+    app.press(Action::BQ(qstep::BOARD));
+    app.press(Action::Board(BoardPress::Customize));
+    app.press(Action::Board(BoardPress::OpenList));
+    app.settle();
+    let mut all: Vec<String> = Vec::new();
+    let mut head = false;
+    let mut chip = false;
+    for _ in 0..40 {
+        let t = crate::common::texts(&mut app);
+        all.extend(t.iter().cloned());
+        head |= t.iter().any(|s| s.contains("SLIP-39 · old set"));
+        chip |= t.iter().any(|s| s == "Old group 1 share 2 · still kept");
+        if head && chip {
+            break;
+        }
+        for x in [600, 1326] {
+            app.event(Event::Scroll { x, y: 400, dy: 150 });
+        }
+    }
+    all.dedup();
+    assert!(head && chip, "the old set and its chip are listed: {all:?}");
+}
+
+#[test]
+fn kept_old_shares_do_not_count_toward_the_current_sets_shares() {
+    let app = backup_with_kept_shares();
+    let a = &app.backup().unwrap().answers;
+    let shape = app.plan_shape_now(0);
+    // The key's set is the plan's current one, not placed yet: no share
+    // of it is on the map, though three old ones are kept.
+    let placed = plan::stored_map(&shape, a)
+        .into_iter()
+        .flat_map(|s| s.holds.into_iter().map(|(w, _)| w))
+        .filter(|w| matches!(w, What::Slip39Share(..)))
+        .count();
+    assert_eq!(placed, 0);
+    assert_eq!(kept_count(&app), 3);
+}
+
+#[test]
+fn the_section_lists_each_kept_share_and_says_the_old_shares_rebuild_the_key() {
+    let mut app = backup_with_kept_shares();
+    assert!(section_shows(&mut app, "Old share: group 1 share 1 · "));
+    assert!(section_shows(&mut app, "Old shares still kept: "));
+    assert!(section_shows(
+        &mut app,
+        "The old shares still kept rebuild this key."
+    ));
+    assert!(section_shows(&mut app, "I destroyed it"));
+}
+
+#[test]
+fn i_destroyed_it_in_the_section_takes_the_share_off_the_plan() {
+    let mut app = backup_with_kept_shares();
+    app.press(Action::BSlipDestroy(0));
+    assert_eq!(kept_count(&app), 2);
+    // Two of three shares still meet the group's threshold.
+    assert!(section_shows(
+        &mut app,
+        "The old shares still kept rebuild this key."
+    ));
+    app.press(Action::BSlipDestroy(0));
+    assert_eq!(kept_count(&app), 1);
+    assert!(!section_shows(&mut app, "rebuild this key"));
+}
+
+#[test]
+fn a_plan_that_cannot_keep_the_old_slip39_set_says_it_keeps_its_own() {
+    let mut app = backup_of_split_key(None, Some(slip_facts(77)));
+    let shape = app.plan_shape_now(0);
+    testkit::change_backup_answers(&mut app, |a| {
+        a.set_slip39(
+            &shape,
+            0,
+            Some(Slip39 {
+                seed: 0,
+                identifier: 5,
+                exponent: 1,
+                group_threshold: 1,
+                groups: vec![Group {
+                    threshold: 2,
+                    count: 3,
+                    made: vec![0, 1, 2],
+                }],
+            }),
+        );
+    });
+    assert!(section_shows(
+        &mut app,
+        "This plan keeps another set than the key's. Destroy old shares to take the key's set."
+    ));
+}
+
+#[test]
+fn a_plan_that_cannot_keep_the_old_seed_xor_set_says_it_keeps_its_own() {
+    let mut app = backup_of_split_key(Some(three_parts()), None);
+    let shape = app.plan_shape_now(0);
+    testkit::change_backup_answers(&mut app, |a| {
+        a.set_xor(
+            &shape,
+            0,
+            Some(Xor {
+                seed: 0,
+                parts: vec![[1, 1, 1, 1], [2, 2, 2, 2]],
+            }),
+        );
+    });
+    assert!(section_shows(
+        &mut app,
+        "This plan keeps another set than the key's. Destroy old parts to take the key's set."
+    ));
+}

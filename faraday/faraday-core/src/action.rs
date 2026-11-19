@@ -709,6 +709,11 @@ pub enum Action {
     BOldDestroy(u8),
     /// Still kept: the kept old Seed XOR part, by its number, stays.
     BOldKeep(u8),
+    /// I destroyed it: the kept old SLIP-39 share, by its number among
+    /// those the plan keeps, leaves the plan.
+    BSlipDestroy(u8),
+    /// Still kept: the kept old SLIP-39 share, by its number, stays.
+    BSlipKeep(u8),
     /// Put the other paper form away.
     BPaperHide,
     /// Read with this camera, by its place in the shell's list.
@@ -1720,6 +1725,8 @@ impl Faraday {
             | Action::BPartCheck(..)
             | Action::BOldDestroy(..)
             | Action::BOldKeep(..)
+            | Action::BSlipDestroy(..)
+            | Action::BSlipKeep(..)
             | Action::BPaperHide
             | Action::BCompact(..)
             | Action::BPin(..)

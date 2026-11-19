@@ -551,6 +551,12 @@ pub enum NoteFix {
     NewParts(usize, plan::xor::Xor),
     /// Seed `.0`'s kept old part with fingerprint `.1` was destroyed.
     Destroyed(usize, [u8; 4]),
+    /// Seed `.0`'s SLIP-39 set was replaced: its shares' notes go to the
+    /// kept old shares of set `.1`.
+    NewShares(usize, plan::slip39::Slip39),
+    /// Seed `.0`'s kept old SLIP-39 share (old set `.1`, group `.2`,
+    /// member `.3`) was destroyed.
+    DestroyedSlip(usize, u16, usize, usize),
 }
 
 /// The backup flow's state.
@@ -637,6 +643,9 @@ pub struct BackupState {
     /// The kept old Seed XOR parts, by seed and fingerprint, the person
     /// answered **Still kept** for (`docs/decisions/F285.md`).
     pub old_kept: Vec<(usize, [u8; 4])>,
+    /// The kept old SLIP-39 shares the person answered **Still kept**
+    /// for: seed, old set's identifier, group, member (F293).
+    pub slip_kept: Vec<(usize, u16, usize, usize)>,
     /// What Make new parts and I destroyed it did to the map, for the
     /// notes to follow when the plan is saved.
     pub note_fixes: Vec<NoteFix>,
@@ -829,6 +838,29 @@ impl WalletBackupArea {
         if let Some(b) = self.state.as_mut() {
             b.old_kept.retain(|k| *k != (seed, fp));
             b.note_fixes.push(NoteFix::Destroyed(seed, fp));
+        }
+    }
+
+    /// The kept old part or share `w` was destroyed.
+    pub(crate) fn kept_destroyed(&mut self, w: plan::What) {
+        match w {
+            plan::What::XorKept(i, fp) => self.old_part_destroyed(i, fp),
+            plan::What::Slip39Kept(i, id, g, m) => {
+                if let Some(b) = self.state.as_mut() {
+                    b.slip_kept.retain(|k| *k != (i, id, g, m));
+                    b.note_fixes.push(NoteFix::DestroyedSlip(i, id, g, m));
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Seed `seed`'s kept old share answered Still kept.
+    pub(crate) fn old_share_kept(&mut self, k: (usize, u16, usize, usize)) {
+        if let Some(b) = self.state.as_mut()
+            && !b.slip_kept.contains(&k)
+        {
+            b.slip_kept.push(k);
         }
     }
 
@@ -1863,11 +1895,28 @@ impl Faraday {
                     // open vault, as it was; else the board open on The
                     // standard way, read-only until Customize backup
                     // (`docs/BACKUP-FLOW.md` §17.6), with a setup's sticks.
+                    let mut note_fixes = Vec::new();
                     let (answers, names, q) = match self.plan_load(c, i, &shape) {
                         Some((mut a, names)) => {
                             plan::codex32::sync(&mut a, &shape, &self.c32_sets(i));
                             let (xor, slip39) = self.set_facts(i);
+                            // The sets the plan holds now: one the key's
+                            // set replaces becomes kept old shares, and
+                            // their notes follow (F293).
+                            let before: Vec<_> = shape
+                                .here()
+                                .into_iter()
+                                .filter_map(|s| a.slip39(s).cloned())
+                                .collect();
                             plan::sets::sync(&mut a, &shape, &xor, &slip39);
+                            for old in before {
+                                let now = a.slip39(old.seed).map(|z| z.identifier);
+                                if now != Some(old.identifier)
+                                    && a.old_slip39_with(old.seed, old.identifier).is_some()
+                                {
+                                    note_fixes.push(NoteFix::NewShares(old.seed, old));
+                                }
+                            }
                             (a, names, None)
                         }
                         // A key with a codex32 set places that set: one
@@ -1917,6 +1966,7 @@ impl Faraday {
                         checked,
                         key: first_key,
                         words,
+                        note_fixes,
                         ..BackupState::default()
                     });
                     self.screen = Screen::Backup;
@@ -2042,6 +2092,8 @@ impl Faraday {
             Action::BXor(n) => self.paper_xor(n),
             Action::BOldDestroy(i) => self.old_part_destroy(i),
             Action::BOldKeep(i) => self.old_part_keep(i),
+            Action::BSlipDestroy(i) => self.old_share_destroy(i),
+            Action::BSlipKeep(i) => self.old_share_keep(i),
             Action::BPartCheck(i) => self.part_check_open(i),
             Action::BC32(p) => self.backup_c32(p, c),
             Action::BCheck => self.copy_check_open(),
@@ -2615,6 +2667,34 @@ impl Faraday {
         true
     }
 
+    /// The kept old SLIP-39 share `i` of the backup's plan: I destroyed it
+    /// takes it off the plan.
+    fn old_share_destroy(&mut self, i: u8) {
+        let Some((seed, id, g, m, _)) = self
+            .backup
+            .state()
+            .and_then(|b| kept_old_shares(b).get(usize::from(i)).copied())
+        else {
+            return;
+        };
+        let shape = self.plan_shape_now(self.backup.state().map_or(0, |b| b.wallet));
+        self.backup
+            .change_answers(&shape, &|a, _| a.destroy_kept_slip39(seed, id, g, m));
+        self.backup
+            .kept_destroyed(plan::What::Slip39Kept(seed, id, g, m));
+    }
+
+    /// The kept old SLIP-39 share `i` answered Still kept.
+    fn old_share_keep(&mut self, i: u8) {
+        if let Some((seed, id, g, m, _)) = self
+            .backup
+            .state()
+            .and_then(|b| kept_old_shares(b).get(usize::from(i)).copied())
+        {
+            self.backup.old_share_kept((seed, id, g, m));
+        }
+    }
+
     /// The kept old part `i` of the backup's plan: I destroyed it takes it
     /// off the plan.
     fn old_part_destroy(&mut self, i: u8) {
@@ -2642,6 +2722,22 @@ impl Faraday {
             self.backup.old_part_kept(seed, fp);
         }
     }
+}
+
+/// The kept old SLIP-39 shares the plan's map has at places, in the
+/// map's order: seed, old set's identifier, group, member and place.
+pub(crate) fn kept_old_shares(b: &BackupState) -> Vec<(usize, u16, usize, usize, usize)> {
+    let mut out = Vec::new();
+    for spot in b.answers.map.iter().flatten() {
+        if let plan::At::Place(p) = spot.at {
+            for (w, _) in &spot.holds {
+                if let Some((i, id, g, m)) = plan::slip39::kept_share_of(*w) {
+                    out.push((i, id, g, m, p));
+                }
+            }
+        }
+    }
+    out
 }
 
 /// The kept old Seed XOR parts the plan's map has at places, in the
@@ -3924,6 +4020,10 @@ impl Faraday {
             Some(fixes.iter().fold(n, |n, f| match f {
                 NoteFix::NewParts(i, old) => plan::xor::notes_after_new_parts(&n, *i, old),
                 NoteFix::Destroyed(i, fp) => plan::xor::notes_after_destroyed(&n, *i, *fp),
+                NoteFix::NewShares(i, old) => plan::slip39::notes_after_new_shares(&n, *i, old),
+                NoteFix::DestroyedSlip(i, id, g, m) => {
+                    plan::slip39::notes_after_destroyed_slip39(&n, *i, *id, *g, *m)
+                }
             }))
         };
         let notes = notes_in(self, v);

@@ -273,7 +273,7 @@ impl Faraday {
     /// backup flow is open on the wallet's checklist the plan is the
     /// flow's unsaved one: the part leaves it as the flow's own
     /// I destroyed it does, and the flow's save writes it with its notes.
-    pub(crate) fn chart_destroyed(&mut self, press: Press, i: usize, fp: [u8; 4]) {
+    pub(crate) fn chart_destroyed(&mut self, press: Press, kept: crate::plan::What) {
         let c = self.compute();
         let Some(w) = self.press_wallet(press) else {
             return;
@@ -284,8 +284,8 @@ impl Faraday {
         {
             let shape = self.plan_shape_now(w);
             self.backup
-                .change_answers(&shape, &|a, _| a.destroy_kept(i, fp));
-            self.backup.old_part_destroyed(i, fp);
+                .change_answers(&shape, &|a, _| destroy_kept_what(a, kept));
+            self.backup.kept_destroyed(kept);
             return;
         }
         let Some(v) = self.notes_vault(&c, press, w) else {
@@ -296,7 +296,7 @@ impl Faraday {
         };
         let shape = self.plan_shape_now(w);
         let before = answers.clone();
-        answers.destroy_kept(i, fp);
+        destroy_kept_what(&mut answers, kept);
         // Each open vault that keeps the wallet's plan, the one the chart
         // is drawn from first, holds it without the part, with the lines
         // it already holds of other vaults' seeds. The device's record
@@ -311,7 +311,7 @@ impl Faraday {
                 return;
             };
             let notes = self.plan_notes(&c, wallet, Some(o));
-            let notes = crate::plan::xor::notes_after_destroyed(&notes, i, fp);
+            let notes = notes_after_destroyed_what(&notes, kept);
             let extras = self.vaults.plan_extras_of(&c, o, wallet, &shape, &before);
             written |= self.plan_store(o, w, &answers, &names, &extras, Some(&notes));
         }
@@ -322,8 +322,8 @@ impl Faraday {
         // its save drops the part's notes if no vault did here.
         if self.backup.state().is_some_and(|b| b.wallet == w) {
             self.backup
-                .change_answers(&shape, &|a, _| a.destroy_kept(i, fp));
-            self.backup.old_part_destroyed(i, fp);
+                .change_answers(&shape, &|a, _| destroy_kept_what(a, kept));
+            self.backup.kept_destroyed(kept);
         }
     }
 
@@ -398,7 +398,10 @@ impl Faraday {
             .filter(|(_, w)| {
                 !matches!(
                     w,
-                    What::XorPart(..) | What::XorKept(..) | What::Slip39Share(..)
+                    What::XorPart(..)
+                        | What::XorKept(..)
+                        | What::Slip39Share(..)
+                        | What::Slip39Kept(..)
                 )
             })
             .collect();
@@ -735,4 +738,29 @@ pub(crate) fn moving_to_on(r: &impl glance::Reads, w: usize) -> Option<(Text, Te
         Text::of(&nw.name),
         Text::of(&crate::held::receive_line_on(r, nw, false, 0).0),
     ))
+}
+
+/// Kept old part or share `kept` taken off `a`.
+fn destroy_kept_what(a: &mut crate::plan::Answers, kept: crate::plan::What) {
+    use crate::plan::What;
+    match kept {
+        What::XorKept(i, fp) => a.destroy_kept(i, fp),
+        What::Slip39Kept(i, id, g, m) => a.destroy_kept_slip39(i, id, g, m),
+        _ => {}
+    }
+}
+
+/// `notes` without those on the destroyed kept old part or share `kept`.
+fn notes_after_destroyed_what(
+    notes: &[crate::plan::Note],
+    kept: crate::plan::What,
+) -> Vec<crate::plan::Note> {
+    use crate::plan::What;
+    match kept {
+        What::XorKept(i, fp) => crate::plan::xor::notes_after_destroyed(notes, i, fp),
+        What::Slip39Kept(i, id, g, m) => {
+            crate::plan::slip39::notes_after_destroyed_slip39(notes, i, id, g, m)
+        }
+        _ => notes.to_vec(),
+    }
 }

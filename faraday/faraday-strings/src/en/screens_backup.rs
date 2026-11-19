@@ -316,6 +316,16 @@ macro_rules! words_screens_backup {
     paper_old_kept_at: "Old parts still kept: {}",
     /// Line in `paper_section`.
     paper_old_whole: "Every old part is still kept: together they rebuild this key.",
+    /// Row in `paper_section`. `{}`: the old share's group, its share, the place it is kept at.
+    paper_old_share_row: "Old share: group {} share {} · {}",
+    /// Line in `paper_section`. `{}`: the places the old shares are kept at, by name.
+    paper_old_shares_kept_at: "Old shares still kept: {}",
+    /// Line in `paper_section`, while an old SLIP-39 set still rebuilds the key.
+    paper_old_shares_rebuild: "The old shares still kept rebuild this key.",
+    /// Line in `paper_section`: the plan cannot keep the key's SLIP-39 set's old one.
+    paper_slip39_not_taken: "This plan keeps another set than the key's. Destroy old shares to take the key's set.",
+    /// Line in `paper_section`: the plan cannot keep the key's Seed XOR set's old one.
+    paper_xor_not_taken: "This plan keeps another set than the key's. Destroy old parts to take the key's set.",
     /// Toast in `paper_section`: Make new parts that the plan cannot keep.
     paper_old_too_many: "The plan keeps no more old parts. Destroy some old parts first.",
     /// Line in `paper_section`. `{}`: the word's place, the part's number.
@@ -416,6 +426,10 @@ macro_rules! words_screens_backup {
     board_xor_old_head: "{} · Seed XOR · old set",
     /// An old part's chip, still kept.
     board_xor_old_chip: "Old part {} · still kept",
+    /// The group head of a key's old SLIP-39 set. `{}`: the seed.
+    board_slip39_old_head: "{} · SLIP-39 · old set",
+    /// An old share's chip, still kept. `{}`: the group, the share.
+    board_slip39_old_chip: "Old group {} share {} · still kept",
     /// A part's chip under its group. `{}`: the part's number.
     board_xor_part: "Part {}",
     /// A share's chip under its group. `{}`: the group, the share.

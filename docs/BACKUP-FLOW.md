@@ -2943,11 +2943,8 @@ as a plan it cannot read. A kept share records public facts and a place,
 never a word.
 
 **Open:** a SLIP-39 share has no fingerprint of its own kept, so a share's
-copy is not checked here. Kept old SLIP-39 shares are not built: a plan
-whose SLIP-39 set is not its key's still keeps its own set and says
-nothing, Back up's section has no SLIP-39 part, the Seed XOR section
-does not yet say when the plan keeps its own set, and Rotate the set in
-Convert does not yet record the new set on the key.
+copy is not checked here. Rotate the set in Convert does not yet record
+the new set on the key.
 
 ## 19. The quick paper backup (owner, 2026-11-17)
 

@@ -2333,7 +2333,121 @@ fn paper_section(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             cy += 44.0;
         }
     }
-    cy + old_parts(app, ui, x, cy, w) - y
+    cy += old_parts(app, ui, x, cy, w);
+    cy += xor_not_taken(app, ui, x, cy, w);
+    cy += old_shares(app, ui, x, cy, w);
+    cy - y
+}
+
+/// The line that says the plan keeps a set of its own, not the key's:
+/// `paper_xor_not_taken` or `paper_slip39_not_taken` (`docs/decisions/F293.md`).
+fn not_taken(ui: &mut Ui, x: f32, y: f32, w: f32, line: &str) -> f32 {
+    ui.wrap_as((x, y, w), BODY_S, Role::Warning, line) + T::GAP
+}
+
+/// The Seed XOR part's line that the plan keeps another set than the
+/// key's, when it cannot keep the old one.
+fn xor_not_taken(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let Some(b) = app.backup() else {
+        return 0.0;
+    };
+    let seeds = app.backup_seed_list(b.wallet);
+    let Some(seed) = seeds.iter().position(|(_, k)| *k == Some(b.key)) else {
+        return 0.0;
+    };
+    match app.session.keys.info(b.key).and_then(|k| k.xor.as_ref()) {
+        Some(f) if crate::plan::sets::keeps_own_xor(&b.answers, seed, f) => {
+            not_taken(ui, x, y, w, EN.paper_xor_not_taken)
+        }
+        _ => 0.0,
+    }
+}
+
+/// The kept old SLIP-39 shares of the key the backup is on: each one's
+/// group, share and place with I destroyed it and Still kept, then where
+/// they are, and whether an old set still rebuilds the key; and the line
+/// that the plan cannot keep the old set (`docs/decisions/F293.md`).
+fn old_shares(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let Some(b) = app.backup() else {
+        return 0.0;
+    };
+    let seeds = app.backup_seed_list(b.wallet);
+    let Some(seed) = seeds.iter().position(|(_, k)| *k == Some(b.key)) else {
+        return 0.0;
+    };
+    let mut cy = y;
+    let info = app.session.keys.info(b.key);
+    let kept: Vec<_> = crate::wallet_backup::kept_old_shares(b)
+        .into_iter()
+        .enumerate()
+        .filter(|(_, (s, ..))| *s == seed)
+        .collect();
+    if !kept.is_empty() {
+        let mut at: Vec<usize> = Vec::new();
+        for (n, (_, id, g, m, p)) in &kept {
+            let name = app.place_name(*p);
+            let line = fill(
+                EN.paper_old_share_row,
+                &[&(g + 1).to_string(), &(m + 1).to_string(), &name],
+            );
+            cy += ui.wrap_as((x, cy, w), BODY_S, Role::OnSurface, &line) + T::GAP;
+            let n = (*n).min(255) as u8;
+            let mut row = vec![(
+                EN.paper_old_destroyed.to_string(),
+                Style::Secondary,
+                Action::BSlipDestroy(n),
+            )];
+            if b.slip_kept.contains(&(seed, *id, *g, *m)) {
+                cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Ok, EN.paper_old_kept) + T::GAP;
+            } else {
+                row.push((
+                    EN.paper_old_kept.to_string(),
+                    Style::Secondary,
+                    Action::BSlipKeep(n),
+                ));
+            }
+            cy += button_rows(ui, x, cy, w, &row);
+            if !at.contains(p) {
+                at.push(*p);
+            }
+        }
+        let names: Vec<String> = at.iter().map(|&p| (&*app.place_name(p)).into()).collect();
+        let line = fill(EN.paper_old_shares_kept_at, &[&names.join(", ")]);
+        cy += ui.wrap_as((x, cy, w), BODY_S, Role::OnSurfaceVariant, &line) + T::GAP;
+        // An old set rebuilds the key while its group threshold of groups
+        // each keep their member threshold of shares.
+        let rebuilds = b.answers.old_slip39_sets(seed).any(|z| {
+            let full = z
+                .groups
+                .iter()
+                .enumerate()
+                .filter(|&(g, grp)| {
+                    let got = kept
+                        .iter()
+                        .filter(|(_, (_, id, kg, m, _))| {
+                            *id == z.identifier && *kg == g && z.has_member(g, *m)
+                        })
+                        .count();
+                    got >= usize::from(grp.threshold)
+                })
+                .count();
+            full >= usize::from(z.group_threshold)
+        });
+        if rebuilds {
+            cy += ui.wrap_as(
+                (x, cy, w),
+                BODY_S,
+                Role::OnSurfaceVariant,
+                EN.paper_old_shares_rebuild,
+            ) + T::GAP;
+        }
+    }
+    if let Some(f) = info.and_then(|k| k.slip39.as_ref())
+        && crate::plan::sets::keeps_own_slip39(&b.answers, seed, f)
+    {
+        cy += not_taken(ui, x, cy, w, EN.paper_slip39_not_taken);
+    }
+    cy - y
 }
 
 /// The kept old Seed XOR parts of the key the backup is on: each one's

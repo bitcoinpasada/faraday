@@ -943,7 +943,12 @@ Back up's Make new parts replaces the Seed XOR set with a new one (F285): the
 record keeps the new set only, in the same layout, and the old parts the
 plan placed are the plan's (`faraday.plan.{n}`: `xorold` lines and `xork`
 spot tokens, a plan with none the same bytes as before; an older Faraday
-reads one with either as a plan it cannot read and keeps it as read). In the binary
+reads one with either as a plan it cannot read and keeps it as read). A plan
+whose SLIP-39 set is not its key's keeps its placed shares the same way
+(F293): a `slip39old` line (the `slip39` line's value) for the old set
+and a `slipk{seed}.{identifier}.{group}.{member}` spot token for each kept
+share, a plan with none the same bytes as before; the key's
+`faraday.slip39` keeps the current set only. In the binary
 key record they are fields 7 (`faraday.xor`) and 8 (`faraday.slip39`),
 `faraday-vault/src/xor.rs` and `slip39.rs` giving their layouts. A record
 without them reads as it always did. An older Faraday that does not know

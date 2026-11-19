@@ -2523,6 +2523,77 @@ fn a_kept_old_parts_sheet_destroys_it() {
     }
 }
 
+/// A vault wallet whose key has a SLIP-39 set (2 of 3, identifier 77) the
+/// saved plan places, then Back up's plan taking another set as the key's
+/// (F293): the plan's three placed shares read as kept old shares.
+fn kept_old_shares() -> (Faraday, usize) {
+    let mut app = desktop();
+    let w = one_key_wait(&mut app, "", None);
+    fresh_vault(&mut app);
+    clock_kept(&mut app);
+    let facts = |identifier| faraday_vault::slip39::Slip39Facts {
+        identifier,
+        exponent: 1,
+        threshold: 1,
+        groups: vec![faraday_vault::slip39::Group {
+            threshold: 2,
+            count: 3,
+            made: 0b111,
+        }],
+    };
+    assert!(app.session.keys.set_slip39(0, Some(facts(77))));
+    // The plan Back up opens with places the set, saved in the vault.
+    app.press(Action::Backup(w));
+    app.press(Action::BChecklist);
+    app.press(Action::BVaultSave(0));
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::AddKind(1)));
+    app.press(Action::Vault(V::SaveWallet(w)));
+    app.press(Action::OpenWallet(w));
+    app.press(Action::Backup(w));
+    app.press(Action::BChecklist);
+    let shape = app.plan_shape_now(w);
+    testkit::change_backup_answers(&mut app, |a| {
+        faraday_core::plan::sets::sync(a, &shape, &[], &[Some(facts(78))]);
+        assert_eq!(a.old_slip39_sets(0).count(), 1, "the old set is kept");
+    });
+    app.press(Action::BVaultSave(0));
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::SaveWallet(w)));
+    app.press(Action::OpenWallet(w));
+    testkit::backup_drop(&mut app);
+    let _ = app.frame();
+    (app, w)
+}
+
+#[test]
+fn a_kept_old_shares_sheet_destroys_it() {
+    let (mut app, w) = kept_old_shares();
+    for (answers, _) in plan_texts_in(&app, 0) {
+        assert!(answers.contains("slipk0.77.0.1"), "{answers}");
+        assert!(answers.contains("slip39old"), "{answers}");
+    }
+    let (node, k) = line_holding(&app, w, What::Slip39Kept(0, 77, 0, 1));
+    assert_eq!(node.checked[k], None);
+    app.press(Action::Chart(C::DestroyedSlip(
+        Press::Loaded(w),
+        0,
+        77,
+        0,
+        1,
+    )));
+    let _ = app.frame();
+    for n in nodes(&chart(&app, w)) {
+        assert!(
+            !n.whats.contains(&What::Slip39Kept(0, 77, 0, 1)),
+            "the destroyed share is off the plan: {n:?}"
+        );
+    }
+    // The other old shares are still kept.
+    line_holding(&app, w, What::Slip39Kept(0, 77, 0, 0));
+    line_holding(&app, w, What::Slip39Kept(0, 77, 0, 2));
+}
+
 #[test]
 fn mark_checked_never_dates_a_kept_part() {
     let (mut app, w, old) = kept_old_parts();

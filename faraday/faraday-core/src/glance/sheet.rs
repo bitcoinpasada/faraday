@@ -129,6 +129,9 @@ pub enum ChartAction {
     /// A kept old Seed XOR part of seed `i` with this fingerprint
     /// destroyed: off the plan.
     Destroyed(Press, usize, [u8; 4]),
+    /// A kept old SLIP-39 share destroyed: seed, old set's identifier,
+    /// group, member.
+    DestroyedSlip(Press, usize, u16, usize, usize),
 }
 
 /// One action row of a sheet.
@@ -990,7 +993,7 @@ fn line(ctx: &Ctx<'_>, n: u8, j: u8) -> Option<View> {
                 ctx.doing(Step::PartCheck(i, p)),
             ));
         }
-        What::Slip39Share(..) | What::Slip39Kept(..) => {}
+        What::Slip39Share(..) => {}
         // A kept old part has no check: its sheet takes it off the plan
         // once it is destroyed (`docs/decisions/F285.md`).
         What::XorKept(s, fp) => {
@@ -998,6 +1001,13 @@ fn line(ctx: &Ctx<'_>, n: u8, j: u8) -> Option<View> {
                 EN.glance_sheet_destroyed_it,
                 EN.glance_sheet_destroyed_detail,
                 ctx.chart_do(ChartAction::Destroyed(press, s, fp)),
+            ));
+        }
+        What::Slip39Kept(s, id, g, m) => {
+            rows.push(row(
+                EN.glance_sheet_destroyed_it,
+                EN.glance_sheet_destroyed_detail,
+                ctx.chart_do(ChartAction::DestroyedSlip(press, s, id, g, m)),
             ));
         }
         What::Sheet => {
@@ -1652,7 +1662,11 @@ impl Faraday {
             ChartAction::PassTry(press) => self.chart_pass_try(press),
             ChartAction::MoveMoney(press) => self.chart_move_money(press),
             ChartAction::Destroyed(press, i, fp) => {
-                self.chart_destroyed(press, i, fp);
+                self.chart_destroyed(press, plan::What::XorKept(i, fp));
+                self.close_chart();
+            }
+            ChartAction::DestroyedSlip(press, i, id, g, m) => {
+                self.chart_destroyed(press, plan::What::Slip39Kept(i, id, g, m));
                 self.close_chart();
             }
             ChartAction::Do(press, step) => {

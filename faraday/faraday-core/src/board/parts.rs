@@ -97,6 +97,33 @@ pub(crate) fn groups(shape: &Shape, a: &Answers, entry: &dyn Fn(Thing) -> Entry)
                 strings: chips,
             });
         }
+        // Each old SLIP-39 set whose shares the plan keeps: a group of
+        // its own, a chip per kept share still on the map.
+        for z in a.old_slip39_sets(i) {
+            let mut chips = Vec::new();
+            for (g, grp) in z.groups.iter().enumerate() {
+                for &m in &grp.made {
+                    let m = usize::from(m);
+                    let e = entry(Thing::SlipKept(i, z.identifier, g, m));
+                    if !e.count.is_empty() {
+                        chips.push(Entry {
+                            name: fill(
+                                EN.board_slip39_old_chip,
+                                &[&(g + 1).to_string(), &(m + 1).to_string()],
+                            ),
+                            ..e
+                        });
+                    }
+                }
+            }
+            if !chips.is_empty() {
+                out.push(C32Group {
+                    seed: i,
+                    head: fill(EN.board_slip39_old_head, &[seed]),
+                    strings: chips,
+                });
+            }
+        }
     }
     out
 }
