@@ -167,12 +167,12 @@ with = ["docs/history/decisions/{f}.md", "docs/history/{f}.md"]
 
 [[rule]]
 id = "keys.new-reveal"
-title = "a new reveal is listed in KEYS.md and AUDIT.md"
+title = "a new reveal is listed in KEYS.md and AUDIT.md and names its leak flow in the leak tests' reveals.rs"
 source = ["docs/KEYS.md §2"]
 when = ["faraday/faraday-keys/src/session.rs"]
 lines = '^\+ {4}[A-Z][A-Za-z0-9]*(\(.*\))?,'
 kind = "pair"
-with_each = ["docs/KEYS.md", "docs/AUDIT.md"]
+with_each = ["docs/KEYS.md", "docs/AUDIT.md", "faraday/faraday-core/tests/leaks/reveals.rs"]
 
 [[rule]]
 id = "structure.ratchet-raised"

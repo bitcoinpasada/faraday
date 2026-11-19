@@ -91,6 +91,7 @@ lint-repo:
     tools/lint-tokens.sh
     python3 -I -B tools/lint-docs.py
     python3 -I -B tools/lint-layout.py
+    python3 -I -B tools/lint-leak-reveals.py
     tools/lint-tree.sh
     # Each fuzz crate's README table lists exactly its targets.
     python3 -I -B tools/lint-fuzz-parsers.py

@@ -153,6 +153,17 @@ the planting of the secret to the end of the flow:
   no freed block holds the file or a part of it. The picture reader is not
   run there: the png and rqrr libraries free their own buffers unwiped.
 
+- **Every reveal:** each reason a secret leaves the store
+  (`faraday_keys::Reveal`, and the `Part` of the three that carry one) has
+  an arm in `tests/leaks/reveals.rs`, which matches with no wildcard arm
+  and names the flows that reach it: a test of this binary or a flow label
+  of `areas.rs`. The Explore eyes (a key's seed, the extended keys, an
+  address's key) and a SeedQR on the quick backup are flows of that file.
+  The typed-text eyes and the hides sit inside the flows of an area above;
+  a Krux code opened by a worker holds nothing across a frame (the
+  Worker area's arm). The names are held, not the reach: a flow renamed
+  fails the lint, a flow that stops calling its reason does not.
+
 A flow that handles a secret is added to this list (§10). The sessions
 of the `work/budget` tests are the model: the secret is planted once, in
 the heaviest session the flow reaches.
@@ -292,6 +303,9 @@ Held by `just lint` and the tests:
 - a change to a flow that touches a secret (§4's list, and the files of
   `faraday-keys`, `faraday-vault` and the seed and backup screens) runs
   under the leak tests and the tour check;
+- a reason a secret leaves the store (`Reveal`, `Part`) has an arm naming
+  its leak flow (`tools/lint-leak-reveals.py`, with the compiler's match
+  in `tests/leaks/reveals.rs`);
 - a secret type follows §6, through clippy and `lint-secrets`;
 - a manifest never lists the allocator, `faraday-leak-scan`, outside a
   `dev-dependencies` table (`lint-secrets`, rule 6).

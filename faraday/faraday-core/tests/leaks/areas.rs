@@ -310,7 +310,7 @@ fn bip85_child(app: &mut Faraday) {
 
 /// A one-key wallet over the loaded key, as the chart and the backup
 /// flow open from.
-fn wallet_over_key(app: &mut Faraday) -> usize {
+pub(crate) fn wallet_over_key(app: &mut Faraday) -> usize {
     let c = testkit::compute();
     let text = faraday_core::create::NewKind::NativeSegwit
         .key_text(&c, app.session.keys.master_for_tests(0))
