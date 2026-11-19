@@ -97,7 +97,7 @@ Read this table, then only the decision you need.
 | [F78](history/decisions/F78.md) | A window's layout does not follow the compositor's scale above 1.5 | 2026-10-22 | Replaced by F101 | design |
 | [F79](decisions/F79.md) | Faraday's crypto is cross-checked against Python references, offline, at build time | 2026-10-22 | Amended by F160, F192, F197 | crypto |
 | [F80](decisions/F80.md) | A stick or Pi card has a 64 MiB boot and a 128 MiB FAT32 data partition | 2026-10-22 | Amended by F128, F174, F182 | stick |
-| [F81](decisions/F81.md) | Modes: a pressable pill, Practice on testnet, samples at every step | 2026-10-22 | Amended by F119, F143, F247 | design |
+| [F81](decisions/F81.md) | Modes: a pressable pill, Practice on testnet, samples at every step | 2026-10-22 | Amended by F119, F143, F247, F292 | design |
 | [F82](decisions/F82.md) | A first start opens Steps only; Guided is a choice | 2026-10-22 | Amended by F257 | design |
 | [F83](history/decisions/F83.md) | Faraday Demo is inside the Starter, and not published on its own | 2026-10-23 | Superseded by F126 | release |
 | [F84](decisions/F84.md) | Check a signer fails closed; unknown fields are findings there and Info in a review | 2026-10-23 | Active | crypto |
@@ -301,3 +301,4 @@ Read this table, then only the decision you need.
 | [F287](decisions/F287.md) | A second explanation on a working screen: the info button and tooltip after BIP-48 on Make a new wallet's path row | 2026-11-18 | Active | design |
 | [F288](decisions/F288.md) | While a wallet is being made, every way of making its key opens inside Make a new wallet | 2026-11-18 | Active | wallets |
 | [F291](decisions/F291.md) | Home shows what is loaded, under its search bar and the first actions; the sidebar no longer lists keys and wallets | 2026-11-19 | Active | design |
+| [F292](decisions/F292.md) | A control Practice refuses answers a press with one toast | 2026-11-19 | Active | design |
