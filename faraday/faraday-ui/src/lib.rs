@@ -582,6 +582,13 @@ pub struct Ui<'a, A> {
     /// screen asked for: what the app refuses while it is in this state
     /// (the demo's actions that would make a secret, `docs/DEMO.md` §7).
     pub dimmed: Vec<A>,
+    /// Dimmed actions that still take a pointer or touch press, so the
+    /// app can say why it refuses them (`docs/decisions/F292.md`). Each is
+    /// drawn exactly as if it were in [`Ui::dimmed`] (no hover, focus or
+    /// pressed layer, not in the keyboard's order) but its press region is
+    /// recorded. An app lists here only the actions it refuses on
+    /// purpose; every other dimmed control takes no press.
+    pub dimmed_answer: Vec<A>,
     /// While set, every action it returns false for is drawn dimmed and
     /// takes no press, as if it were in [`Ui::dimmed`]: a screen whose
     /// job is running keeps only Back, Cancel and Lock live
@@ -713,6 +720,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             focus_action: None,
             label_at: None,
             dimmed: Vec::new(),
+            dimmed_answer: Vec::new(),
             keep_live: None,
             reach: Vec::new(),
             primaries: 0,
@@ -1830,7 +1838,23 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
 
     /// Whether `action` is drawn dimmed and takes no press this frame.
     pub(crate) fn is_dimmed(&self, action: &A) -> bool {
-        self.dimmed.contains(action) || self.keep_live.is_some_and(|live| !live(action))
+        self.dimmed.contains(action)
+            || self.dimmed_answer.contains(action)
+            || self.keep_live.is_some_and(|live| !live(action))
+    }
+
+    /// Records the press region of a dimmed action the app answers
+    /// ([`Ui::dimmed_answer`]): no layer, no ring and no place in the
+    /// keyboard's order, only a target for the press.
+    pub(crate) fn answer_hit(&mut self, (x, y, w, h): (f32, f32, f32, f32), action: A) {
+        if self.around || !self.dimmed_answer.contains(&action) {
+            return;
+        }
+        let clip = self.hit_clip.unwrap_or_else(|| self.seen_clip());
+        let rect = self.rect(x, y, w, h).intersect(&clip);
+        if rect.w > 0 && rect.h > 0 {
+            self.hits.push((rect, action));
+        }
     }
 
     /// Makes a region pressable: the part of it inside the clip, so what
@@ -1848,6 +1872,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             if !self.around {
                 self.fade_later((x, y, w, h), action);
             }
+            self.answer_hit((x, y, w, h), action);
             return;
         }
         let clip = self.hit_clip.unwrap_or_else(|| self.seen_clip());
@@ -2142,6 +2167,8 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
                 Some(why) => self.press_unpressed(shape, fg, why, action),
                 None => self.press(shape, fg, action),
             }
+        } else {
+            self.answer_hit((x, y, width, h), action);
         }
         // At a larger text size a label wider than its button fits down
         // to Standard, and is shortened there only where it still does

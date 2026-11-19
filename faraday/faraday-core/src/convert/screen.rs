@@ -190,18 +190,7 @@ fn from_card(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f3
             Action::Convert(C::SetSource),
         ),
     ];
-    if !app.makes_secrets() {
-        ui.dimmed.push(Action::Convert(C::SetSource));
-    }
     cy += button_rows(ui, x, cy, w, &ways);
-    if !app.makes_secrets() {
-        cy += ui.wrap_as(
-            (x, cy, w),
-            BODY_S,
-            Role::OnSurfaceVariant,
-            EN.convert_set_practice,
-        ) + GAP;
-    }
     if s.set.is_some() {
         cy += set_entry(app, s, ui, (x, cy, w));
     }

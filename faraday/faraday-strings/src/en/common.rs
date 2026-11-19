@@ -1227,6 +1227,8 @@ macro_rules! words_common {
     // ----- modes (faraday-core/src/modes/mod.rs) -----
     /// Text in `Mode::name`.
     mode_demo: "Practice",
+    /// What a press on an action Practice refuses answers, and a tile that needs a private key there.
+    practice_refused: "Not available in Practice: this is an online computer",
     /// The pill in Practice: the mode and its network.
     mode_demo_pill: "Practice · Testnet",
     /// Title of the mode sheet.

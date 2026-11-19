@@ -23,7 +23,7 @@ impl Faraday {
 
     /// Whether `action` is one the demo refuses as it stands now: an
     /// action of `docs/DEMO.md` §4. Its screen draws it dimmed and a press
-    /// does nothing.
+    /// shows one toast and does nothing else (F292).
     pub fn demo_refuses(&self, action: Action) -> bool {
         if self.makes_secrets() {
             return false;
@@ -69,6 +69,8 @@ impl Faraday {
             // published one.
             Action::LShow | Action::LVault | Action::LOut => true,
             Action::SScanVault | Action::SScanOut | Action::SDescriptorOut(_) => true,
+            // A set's shares are a key typed in; Practice takes none (F292).
+            Action::Convert(crate::convert::ConvertAction::SetSource) => true,
             // The way to a vault to keep one of those.
             Action::Vault(V::CreateFrom(s) | V::OpenFrom(_, s) | V::ListFrom(s)) => {
                 matches!(s, Screen::Bip85 | Screen::Lightning | Screen::Silent)
@@ -78,7 +80,9 @@ impl Faraday {
     }
 
     /// Every action the frame draws dimmed now: those of
-    /// [`Faraday::demo_refuses`] the screens can draw.
+    /// [`Faraday::demo_refuses`] drawn as buttons. The eyes and Show
+    /// buttons, and the scan key's and descriptor's outputs, are drawn as
+    /// usual and answer a press with the toast (F292).
     pub(crate) fn demo_dimmed(&self) -> Vec<Action> {
         if self.makes_secrets() {
             return Vec::new();
@@ -89,16 +93,13 @@ impl Faraday {
             Action::KNext,
             Action::KLock,
             Action::Flow(F::Make),
-            Action::PShow,
             Action::PVault,
             Action::PLoad,
             Action::POut,
             Action::CNext(crate::cstep::KEYS),
-            Action::LShow,
             Action::LVault,
             Action::LOut,
-            Action::SScanVault,
-            Action::SScanOut,
+            Action::Convert(crate::convert::ConvertAction::SetSource),
         ];
         all.push(Action::Flow(F::Restore(R::Sheet)));
         all.push(Action::Flow(F::Restore(R::Restore)));

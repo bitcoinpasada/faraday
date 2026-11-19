@@ -291,8 +291,6 @@ macro_rules! words_bip85 {
     convert_set_source: "A SLIP-39 set",
     /// From's summary with a set held. `{}`: its identifier.
     convert_set_summary: "SLIP-39 set {}",
-    /// Under From's set button in Practice, and the refusal there.
-    convert_set_practice: "Not offered in Practice",
     /// Label of the set entry's field.
     convert_set_field: "Type one share",
     /// Button that holds the share typed.

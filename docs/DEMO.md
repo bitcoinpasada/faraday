@@ -50,7 +50,7 @@ is false while `Keys::demo()` is true (Practice) and true otherwise. Every
 action in §4 asks it, in two places: the screen draws the action with
 `Style::Disabled`, and the action's handler does nothing when it is
 false, so a key press, a click, a shell message or a test's action all
-meet the same refusal. No action in §4 has a path around it.
+meet the same refusal, which is one toast (§7). No action in §4 has a path around it.
 
 **Test networks in Faraday Demo** keep F81's rules: any seed, real
 addresses, no warning sheet. `Keys::demo()` is false there, so every
@@ -197,6 +197,7 @@ See `docs/MODES.md` §7.2.
 | Seed XOR, codex32 and SLIP-39 splits of a public seed | Disabled | The parts are fresh randomness; a person copying them would hold something that looks like a real backup |
 | A single codex32 string of a public seed (k = 0, the secret alone), where offered | Open | Another spelling of a public seed, with no randomness |
 | KeePass export, sealed files | Open | Encryption of what is held, under `faraday` from its chip or one the person types (§5.4). The KeePass export's passphrase is typed by the person, masked with the eye, and its minimum of 8 characters holds (§5.4) |
+| Convert's **A SLIP-39 set** source | Disabled | A set's shares are typed in as a key; Practice takes none (F292) |
 | Vanity address's passphrase dial | Disabled | It makes a new key under a passphrase; Practice refuses that key anyway |
 
 ## 7. How a disabled action looks
@@ -209,8 +210,13 @@ See `docs/MODES.md` §7.2.
   for a condition they cannot change with its label alone. In Practice
   nothing on the screen changes it, so no "Not in Practice" appears.
   Working screens carry no explanation (CLAUDE.md).
-- A press on it does nothing (DESIGN §4.11, Dimmed). It opens no Pull
-  sheet and no vault lead.
+- A press on it shows one toast, "Not available in Practice: this is an
+  online computer" (F292), and does nothing else: no Pull sheet, no vault
+  lead, no reveal, nothing saved or shown. It is the exception DESIGN
+  §4.11 names to a dimmed control taking no press, and only for the actions
+  of §4. A refused button is drawn so; a refused eye or Show button (BIP-85's
+  value, the node key, the scan key and the descriptor's output) is drawn
+  as usual and answers a press with the same toast. Sweep's tile and Convert's Set source say the same.
 - **Where the reason is.** Practice's Learn page
   comes first in the info button's list on every screen of §4, as it
   does today on Home, Entry, New key and Settings. Its "New key in the
@@ -224,7 +230,7 @@ See `docs/MODES.md` §7.2.
 stick being in, and decision 10 shows no disabled button where a vault
 is needed. Both stand. Practice adds one exception: while
 `Session::demo()` is true, an action listed in §4 is drawn dimmed, with
-no reason, and does nothing. It is the only action in Faraday dimmed for
+no reason, and a press on it shows the toast. It is the only action in Faraday dimmed for
 a condition the person cannot change on the device. A Tools tile that
 leads to one of these screens is not dimmed: "Make a vault first" and
 "Unlock a vault first" still lead into the vault and back (decision 10),

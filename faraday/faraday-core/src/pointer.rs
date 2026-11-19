@@ -816,6 +816,12 @@ impl Faraday {
         self.pointer.offers(action)
     }
 
+    /// Whether the last frame drawn offers `action` as a live control: not
+    /// one drawn dimmed that only answers a press with a toast (F292).
+    pub fn offers_live(&self, action: Action) -> bool {
+        self.pointer.offers(action) && !self.demo_dimmed().contains(&action)
+    }
+
     /// Where the last frame drawn offers `action`, in pixels: the middle
     /// of where it can be pressed, for tests that touch it.
     pub fn where_offered(&self, action: Action) -> Option<(u16, u16)> {

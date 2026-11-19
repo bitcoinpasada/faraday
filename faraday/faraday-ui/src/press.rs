@@ -190,7 +190,8 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// A press whose layer and ring `draw` lays itself, for the few
     /// controls whose layer is not their box (a switch's handle, a menu
     /// item's inset ring); the press is taken on `target`. A dimmed
-    /// action draws and takes nothing.
+    /// action draws and takes nothing, unless the app answers it
+    /// ([`Ui::dimmed_answer`]).
     pub(crate) fn press_custom(
         &mut self,
         target: (f32, f32, f32, f32),
@@ -199,6 +200,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     ) {
         if self.is_dimmed(&action) {
             self.fade_later(target, action);
+            self.answer_hit(target, action);
             return;
         }
         draw(self);

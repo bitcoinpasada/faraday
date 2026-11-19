@@ -1255,9 +1255,10 @@ impl Faraday {
             }
             return;
         }
-        // In the demo an action that would make a secret does nothing:
-        // no sheet, no lead, no toast (`docs/DEMO.md` §2, §7).
+        // In the demo an action that would make a secret makes nothing:
+        // no sheet, no lead, one toast that says why (`docs/DEMO.md` §2, §7).
         if self.demo_refuses(action) {
+            self.toast(EN.practice_refused);
             return;
         }
         if self.stick_bar_press(action) {

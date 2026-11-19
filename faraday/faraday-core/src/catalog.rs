@@ -631,7 +631,7 @@ impl Faraday {
             Go::Backup if self.session.wallets.get(self.wallets.wallet()).is_none() => {
                 EN.catalog_load_a_wallet
             }
-            Go::Sweep if !self.makes_secrets() => EN.sweep_practice,
+            Go::Sweep if !self.makes_secrets() => EN.practice_refused,
             Go::SignMessage if self.session.message_wallets().is_empty() => {
                 EN.catalog_needs_a_single
             }

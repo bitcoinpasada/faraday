@@ -24,8 +24,6 @@ macro_rules! words_sweep {
     sweep_mainnet_key: "This is a mainnet key, and this session is on {}",
     /// A test network's WIF on Mainnet.
     sweep_test_key: "This key is for the test networks, and this session is on Mainnet",
-    /// Practice's refusal: the tile's need and the scanner's note.
-    sweep_practice: "Practice sweeps no private key",
     /// A private key scanned on a scanner that does not sweep.
     sweep_elsewhere: "That is a private key. Sweep a private key, in Tools, takes it",
     /// The key, named by its legacy address. `{}`: the address.

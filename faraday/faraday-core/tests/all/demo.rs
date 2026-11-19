@@ -16,7 +16,9 @@ use faraday_core::testkit::{self, Kit};
 use faraday_core::vanity::VanityAction as VA;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, Sheet, demo, qstep};
-use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
+use faraday_shell_api::{
+    App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware, TouchPhase,
+};
 use faraday_vault::records::kind;
 
 /// The passphrase of the empty vault in Files.
@@ -118,7 +120,25 @@ fn records(app: &Faraday, k: u8) -> usize {
 
 /// Whether the frame drawn now offers `a`.
 fn offered(app: &mut Faraday, a: Action) -> bool {
-    crate::common::offered(app, a)
+    let _ = app.frame();
+    app.offers_live(a)
+}
+
+/// The toast a press on a refused action shows (F292).
+const REFUSED: &str = "Not available in Practice: this is an online computer";
+
+/// Presses `a` where the last frame drew it, as a finger does, and returns
+/// the toast it left.
+fn tap(app: &mut Faraday, a: Action) -> Option<String> {
+    let _ = app.frame();
+    let (x, y) = app
+        .where_offered(a)
+        .unwrap_or_else(|| panic!("{a:?} is not on screen"));
+    for phase in [TouchPhase::Down, TouchPhase::Up] {
+        app.event(Event::Touch { x, y, phase });
+    }
+    let _ = app.frame();
+    app.toast_text().map(str::to_string)
 }
 
 fn shown(app: &mut Faraday, text: &str) -> bool {
@@ -285,7 +305,7 @@ fn backing_up(app: &mut Faraday) -> usize {
 fn offered_anywhere(app: &mut Faraday, a: Action) -> bool {
     for _ in 0..20 {
         app.settle();
-        if offered(app, a) {
+        if crate::common::offered(app, a) {
             return true;
         }
         app.event(Event::Scroll {
@@ -308,8 +328,8 @@ fn in_the_demo_seed_xor_is_dimmed_and_makes_nothing() {
         "the splits are drawn"
     );
     for a in SPLITS {
-        assert!(!offered_anywhere(&mut app, a), "{a:?} is offered");
-        app.press(a);
+        assert!(offered_anywhere(&mut app, a), "{a:?} is not drawn");
+        assert_eq!(tap(&mut app, a).as_deref(), Some(REFUSED), "{a:?}");
         assert!(app.backup().unwrap().paper.is_none(), "{a:?} made parts");
     }
     assert!(app.outbox.iter().all(|i| !i.name.contains("xor")));
@@ -449,8 +469,11 @@ fn in_the_demo_derive_with_bip85_shows_no_value_for_any_application() {
         let entries = records(&app, kind::ENTRY) + records(&app, kind::NOTE);
         let keys = app.session.keys.len();
         for p in [Action::PShow, Action::PVault, Action::PLoad, Action::POut] {
-            assert!(!offered(&mut app, p), "{p:?} offered for app {a}");
-            app.press(p);
+            if app.offers(p) {
+                assert_eq!(tap(&mut app, p).as_deref(), Some(REFUSED), "{p:?}, app {a}");
+            } else {
+                app.press(p);
+            }
         }
         assert!(app.bip85_value(&c).is_none(), "a value for app {a}");
         assert!(app.bip85().is_some_and(|b| !b.shown));
@@ -467,6 +490,12 @@ fn in_the_demo_derive_with_bip85_shows_no_value_for_any_application() {
     bip85_value(&mut app, 0);
     assert!(offered(&mut app, Action::PShow));
     assert!(app.bip85_value(&c).is_some());
+    assert_ne!(
+        tap(&mut app, Action::PShow).as_deref(),
+        Some(REFUSED),
+        "the eye answers a press"
+    );
+    assert!(app.bip85().is_some_and(|b| b.shown), "the eye reveals");
 }
 
 // ---------------------------------------------------------------------
@@ -521,10 +550,9 @@ fn in_the_demo_a_lightning_node_key_stays_in_faraday() {
     let mut app = app_on(true);
     // The cipher seed row is open: only LND's published seed is taken.
     assert_eq!(lightning(&mut app), [true, false, false]);
-    // Show is dimmed too, and pressing it puts no private key on screen.
-    assert!(!offered(&mut app, Action::LShow), "Show is offered");
+    // Show is drawn as usual; pressing it puts no private key on screen.
     let files = app.outbox.len();
-    app.press(Action::LShow);
+    assert_eq!(tap(&mut app, Action::LShow).as_deref(), Some(REFUSED));
     assert!(!app.lightning().unwrap().shown, "the private key is shown");
     let private = {
         let n = app.lightning().unwrap().node.as_ref().unwrap();
@@ -576,10 +604,12 @@ fn scan_key(app: &mut Faraday) -> [bool; 2] {
 #[test]
 fn in_the_demo_a_scan_key_stays_in_faraday() {
     let mut app = app_on(true);
-    assert_eq!(scan_key(&mut app), [false; 2]);
+    // Both are drawn as usual and answer a press with the toast.
+    assert_eq!(scan_key(&mut app), [true; 2]);
     let notes = records(&app, kind::NOTE);
-    app.press(Action::SScanVault);
-    app.press(Action::SScanOut);
+    for a in [Action::SScanVault, Action::SScanOut] {
+        assert_eq!(tap(&mut app, a).as_deref(), Some(REFUSED), "{a:?}");
+    }
     assert_eq!(records(&app, kind::NOTE), notes);
     assert_eq!(app.sheet, None);
     assert!(app.outbox.is_empty());

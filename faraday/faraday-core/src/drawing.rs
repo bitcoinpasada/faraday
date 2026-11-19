@@ -830,6 +830,7 @@ impl Faraday {
                 ui.focused = focused;
                 ui.tips.shown = self.pointer.tip_shown();
                 ui.dimmed = self.demo_dimmed();
+                ui.dimmed_answer = ui.dimmed.clone();
                 ui.keep_live = self.keep_live();
                 ui.keep_content = true;
                 ui.moved = plan.take();

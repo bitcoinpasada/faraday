@@ -739,7 +739,7 @@ impl Faraday {
         match a {
             SweepAction::Open => {
                 if !self.makes_secrets() {
-                    self.toast(EN.sweep_practice);
+                    self.toast(EN.practice_refused);
                     return;
                 }
                 self.session.keys.sweep_forget();
@@ -818,7 +818,7 @@ impl Faraday {
                 )),
             }
         } else {
-            Some(Text::of(EN.sweep_practice))
+            Some(Text::of(EN.practice_refused))
         };
         if let Some(why) = why {
             if self.sheet == Some(Sheet::Scan) && self.camera.scan().is_some() {

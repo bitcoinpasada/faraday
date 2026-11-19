@@ -119,7 +119,7 @@ fn free_member(f: &SetFacts, group: u8, from: u8, step: i8) -> u8 {
 pub(crate) fn refused_text(r: &SetRefused, medium: crate::Medium) -> Text {
     match r {
         SetRefused::Stick(_) => Text::of(&crate::stick::keys_load(medium)),
-        SetRefused::Practice => Text::of(EN.convert_set_practice),
+        SetRefused::Practice => Text::of(EN.practice_refused),
         SetRefused::Sample => Text::of(EN.published_sample_line),
         SetRefused::Share(e) => faraday_strings::bip::slip39_error(e),
         SetRefused::NotGiven => Text::of(EN.convert_not_given),
