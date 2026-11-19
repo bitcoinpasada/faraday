@@ -2562,3 +2562,123 @@ fn a_wallets_ticked_keys_survive_a_seal_and_a_copy_and_are_set_by_name() {
     assert!(ticks(&store, again, AT).is_empty());
     assert!(!store.set_keys_checked(again, 0, &[0]), "the label");
 }
+
+/// What a person sees once a vault's marked words and a key meet: the
+/// matching a press does at unlock and after every key added, and the job
+/// that fingerprints the marked words records (run to its end here).
+fn match_marks(
+    c: &Compute,
+    store: &OpenVaults,
+    keys: &mut Keys,
+    added: &[faraday_bip::keys::Fingerprint],
+) {
+    store.note_made_online_added(c, keys, added);
+    if let Some(job) = store.made_online_job(c, keys, added) {
+        store.note_made_online_done(keys, job.run(c));
+    }
+}
+
+#[test]
+fn a_child_of_marked_words_held_nowhere_shows_the_made_online_caution() {
+    let c = compute();
+    let store = marked_abandon_store(&c);
+    let parent = Keys::on(Network::Mainnet)
+        .add_words_with(&c, ABANDON, "", "", None)
+        .expect("a key");
+    let mut keys = Keys::on(Network::Mainnet);
+    let child = keys
+        .add_words_with(
+            &c,
+            "legal winner thank year wave sausage worth useful legal winner thank yellow",
+            "",
+            "",
+            None,
+        )
+        .expect("a key");
+    let of = faraday_vault::child::ChildOf {
+        parent: parent.0,
+        language: 0,
+        words: 12,
+        index: 3,
+    };
+    assert!(keys.set_child_of(0, Some(of)));
+    store.note_made_online_keys(&c, &mut keys);
+    let added = keys.take_added();
+    match_marks(&c, &store, &mut keys, &added);
+    assert!(
+        keys.made_online(child),
+        "the child carries its parent's mark"
+    );
+    assert_eq!(keys.published_pending(), Some(child));
+}
+
+#[test]
+fn a_seed_without_words_added_after_the_unlock_takes_the_mark_of_its_words() {
+    let c = compute();
+    let store = marked_abandon_store(&c);
+    let m = Mnemonic::parse(&c, Language::English, ABANDON).expect("words");
+    let seed = m.to_seed(&c, b"").expect("seed");
+    let mut keys = Keys::on(Network::Mainnet);
+    store.note_made_online_keys(&c, &mut keys);
+    let fp = keys.add_seed(&c, seed.expose(), "").expect("a key");
+    let added = keys.take_added();
+    match_marks(&c, &store, &mut keys, &added);
+    assert!(keys.made_online(fp));
+    assert_eq!(keys.published_pending(), Some(fp));
+}
+
+#[test]
+fn the_marked_words_are_fingerprinted_once_and_a_child_loaded_after_is_marked() {
+    let c = compute();
+    let store = marked_abandon_store(&c);
+    let parent = Keys::on(Network::Mainnet)
+        .add_words_with(&c, ABANDON, "", "", None)
+        .expect("a key");
+    let mut keys = Keys::on(Network::Mainnet);
+    let none: [faraday_bip::keys::Fingerprint; 0] = [];
+    assert!(
+        store.made_online_job(&c, &keys, &none).is_none(),
+        "no key asks"
+    );
+    let held = keys.add_seed(&c, &[9; 16], "").expect("a key");
+    assert!(
+        store.made_online_job(&c, &keys, &none).is_none(),
+        "no parent named"
+    );
+    let of = faraday_vault::child::ChildOf {
+        parent: parent.0,
+        language: 0,
+        words: 12,
+        index: 3,
+    };
+    let child = keys
+        .add_words_with(
+            &c,
+            "legal winner thank year wave sausage worth useful legal winner thank yellow",
+            "",
+            "",
+            None,
+        )
+        .expect("a key");
+    assert!(keys.set_child_of(1, Some(of)));
+    let job = store.made_online_job(&c, &keys, &none).expect("a job");
+    assert!(
+        store.made_online_job(&c, &keys, &none).is_none(),
+        "once per set"
+    );
+    store.note_made_online_done(&mut keys, job.run(&c));
+    assert!(keys.made_online(child));
+    assert!(!keys.made_online(held));
+    // A child loaded after the job ends is marked as it is loaded.
+    let later = keys
+        .add_words_with(
+            &c,
+            "letter advice cage absurd amount doctor acoustic avoid letter advice cage above",
+            "",
+            "",
+            None,
+        )
+        .expect("a key");
+    assert!(keys.set_child_of(2, Some(of)));
+    assert!(keys.made_online(later));
+}

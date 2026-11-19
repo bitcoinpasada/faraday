@@ -658,7 +658,9 @@ impl OpenVaults {
     /// not (a key added later with it is marked already, until Lock). A
     /// marked record of words is matched to a key by its words, held now or
     /// added later ([`Self::note_made_online_added`]): no PBKDF2 here for
-    /// a key not held. Every key the session holds with the words of such a
+    /// a key not held; the fingerprints of those records, for a key
+    /// with no words or a parent held nowhere, are worked out in a job
+    /// ([`Self::made_online_job`]). Every key the session holds with the words of such a
     /// record takes its mark and, where it has none, its parent link, with
     /// the parent's mark, for any passphrase of the words
     /// ([`Keys::note_made_online`]); a key with no words is matched by its
@@ -744,8 +746,9 @@ impl OpenVaults {
     /// [`Self::note_made_online_keys`] matches the keys held at unlock: a
     /// marked record of the words marks the key, under any passphrase, and
     /// a record of them naming a parent gives it the parent link and what
-    /// the parent's mark gives. No PBKDF2: a key with no words is marked
-    /// only when its fingerprint was marked already.
+    /// the parent's mark gives. No PBKDF2 here: a key with no words is
+    /// marked when its fingerprint was marked already, or when the job of
+    /// [`Self::made_online_job`] names it.
     pub fn note_made_online_added(&self, c: &Compute, keys: &mut Keys, added: &[Fingerprint]) {
         // No record of words in any open vault: nothing to match, so no
         // parse.
@@ -777,6 +780,72 @@ impl OpenVaults {
                     keys.note_made_online(*fp);
                 }
             }
+        }
+    }
+
+    /// Costs a parse of the words of each marked record of words, only when
+    /// a job is needed. The job that works out those records' fingerprints,
+    /// under the passphrase each keeps or none (a PBKDF2 for each, in
+    /// [`MadeOnlineJob::run`]), when it is needed and not done for this set
+    /// of open vaults: a key held names a parent that is held nowhere
+    /// (or held with no words) and unmarked, or a key in `added` has no
+    /// words and is unmarked. Answers `None` otherwise, and for every call
+    /// after the job was made, until a vault opens or closes.
+    /// [`Self::note_made_online_done`] takes its answer.
+    pub fn made_online_job(
+        &self,
+        c: &Compute,
+        keys: &Keys,
+        added: &[Fingerprint],
+    ) -> Option<MadeOnlineJob> {
+        if self.slots.is_empty() || self.marked_done.get() == Some(self.epoch) {
+            return None;
+        }
+        let orphan = (0..keys.len())
+            .filter_map(|i| keys.info(i).and_then(|k| k.child_of))
+            .map(|o| Fingerprint(o.parent))
+            .any(|p| !keys.made_online(p) && keys.position(p).is_none_or(|i| !keys.has_words(i)));
+        let wordless = added.iter().any(|fp| {
+            !keys.made_online(*fp) && keys.position(*fp).is_some_and(|i| !keys.has_words(i))
+        });
+        if !orphan && !wordless {
+            return None;
+        }
+        let records: Vec<_> = self
+            .slots
+            .iter()
+            .flat_map(|s| s.records.iter())
+            .filter(|r| r.kind == kind::KEY && faraday_vault::records::is_made_online(r))
+            .filter_map(|r| {
+                let m = record_words(c, r)?;
+                let pass = crate::texts::wiped_bytes(
+                    r.text(field::KEY_PASSPHRASE).unwrap_or("").as_bytes(),
+                );
+                Some((m, pass))
+            })
+            .collect();
+        if records.is_empty() {
+            return None;
+        }
+        self.marked_done.set(Some(self.epoch));
+        Some(MadeOnlineJob {
+            epoch: self.epoch,
+            network: keys.network(),
+            records,
+        })
+    }
+
+    /// Notes each fingerprint a [`MadeOnlineJob`] worked out as made online
+    /// ([`Keys::note_made_online`]): a key held with it takes the mark, one
+    /// not held takes it when added, until Lock, and a child of it, loaded
+    /// before or after, takes it from its parent. An answer for a set of
+    /// open vaults that has changed since is dropped.
+    pub fn note_made_online_done(&self, keys: &mut Keys, done: MadeOnlineDone) {
+        if done.epoch != self.epoch {
+            return;
+        }
+        for fp in done.prints {
+            keys.note_made_online(fp);
         }
     }
 

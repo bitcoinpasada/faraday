@@ -853,3 +853,43 @@ impl KeysJob {
         Some((*found.get(w.chosen).or_else(|| found.first())?).clone())
     }
 }
+
+/// The costly part of finding what a vault's marked records of words
+/// stand for ([`crate::vault::OpenVaults::made_online_job`]): the
+/// fingerprint of each, under the passphrase the record keeps or none.
+/// The words stay in this job and wipe as it drops; its answer holds
+/// fingerprints only.
+pub struct MadeOnlineJob {
+    pub(crate) epoch: u64,
+    pub(crate) network: Network,
+    /// Each marked record's words and the passphrase it keeps.
+    pub(crate) records: Vec<(faraday_bip::bip39::Mnemonic, Zeroizing<Vec<u8>>)>,
+}
+
+/// The fingerprints a [`MadeOnlineJob`] worked out: public.
+pub struct MadeOnlineDone {
+    pub(crate) epoch: u64,
+    pub(crate) prints: Vec<Fingerprint>,
+}
+
+impl MadeOnlineJob {
+    /// Costs a PBKDF2 and a master key for each record the job holds.
+    pub fn run(self, c: &Compute) -> MadeOnlineDone {
+        let prints = self
+            .records
+            .iter()
+            .filter_map(|(m, p)| {
+                crate::identity::fingerprint(
+                    c,
+                    crate::identity::Material::Words(m),
+                    text(p),
+                    self.network,
+                )
+            })
+            .collect();
+        MadeOnlineDone {
+            epoch: self.epoch,
+            prints,
+        }
+    }
+}

@@ -272,6 +272,10 @@ impl Faraday {
             Done::OtsHash(d) => crate::ots_check::hashed(self, *d),
             Done::CoreWalletRead(d) => crate::core_wallet::tool::read_done(self, *d),
             Done::SeedCompare(d) => crate::seed_check::compare_done(self, *d),
+            Done::MadeOnline(d) => self
+                .vaults
+                .store()
+                .note_made_online_done(&mut self.session.keys, *d),
             Done::QrSeal(d) => crate::qr_tool::sealed(self, *d),
             Done::QrOpen(d) => crate::qr_tool::opened(self, *d),
             Done::KefSeal(d) => {
