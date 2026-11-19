@@ -37,3 +37,10 @@ LOCK_DOWN_KERNEL_FORCE_CONFIDENTIALITY at its strictest level, and not one a pro
 
 # USB (docs/SECURITY-MODEL.md).
 USB_DEFAULT_AUTHORIZATION_MODE=2      only hard-wired USB devices are authorised without faraday-grant, even if the command line loses usbcore.authorized_default
+
+# The kernel's own self-protection, which each defconfig turns on by default.
+STACKPROTECTOR_STRONG                 a kernel stack overrun past an array is caught at the function's return
+STRICT_KERNEL_RWX                     the kernel's code is read-only and its data is not executable
+VMAP_STACK                            kernel stacks have guard pages, so an overrun faults instead of writing into the next stack
+INIT_STACK_ALL_ZERO                   every kernel stack variable is zeroed before use, so none carries an earlier call's data
+CPU_MITIGATIONS                       the mitigations for the CPU's own speculation and data-sampling bugs are built

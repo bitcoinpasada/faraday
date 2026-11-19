@@ -41,3 +41,9 @@ GPIO_RASPBERRYPI_EXP   the 3B+'s HDMI hotplug line, behind the firmware's GPIO e
 I2C_GPIO               the bit-banged I2C bus the 2.8-inch's touch overlay declares
 I2C_BCM2835            the SoC's I2C, which carries the HDMI screen's EDID
 TOUCHSCREEN_GOODIX     the 2.8-inch's GT911
+
+# The kernel's own self-protection on 32-bit ARM, on by default in this tree.
+STACKPROTECTOR_PER_TASK   each task has its own stack canary, so learning one does not give them all
+HARDEN_BRANCH_PREDICTOR   the branch predictor is cleared on a switch where a process could train it against the kernel
+HARDEN_BRANCH_HISTORY     the same for the branch history (Spectre-BHB)
+CPU_SW_DOMAIN_PAN         the kernel cannot read or write a process's memory outside its copy routines

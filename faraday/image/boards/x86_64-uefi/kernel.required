@@ -57,3 +57,9 @@ ARCH_MMAP_RND_BITS=32           mmap and the stack are randomised with the most 
 PROC_MEM_NO_FORCE               a write through /proc/PID/mem respects page protections; it is never forced
 LEGACY_VSYSCALL_NONE            no vsyscall page; a static musl binary never calls it
 CPU_FREQ_DEFAULT_GOV_SCHEDUTIL  a CPU on a passive cpufreq driver runs at its booted clock under the defconfig's userspace governor
+
+# The kernel's own self-protection on x86, on by default in x86_64_defconfig.
+RANDOMIZE_BASE                  the kernel is loaded at a random address each boot
+RANDOMIZE_MEMORY                and its direct map, vmalloc and vmemmap regions start at random addresses
+MITIGATION_PAGE_TABLE_ISOLATION a process's page tables do not map the kernel (Meltdown)
+DEBUG_WX                        the boot warns if any kernel mapping is both writable and executable

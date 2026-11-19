@@ -353,3 +353,15 @@ CONFIG_LSM="lockdown,yama"
 # the card) still leaves a device plugged in after boot unauthorised until
 # faraday-grant decides (docs/SECURITY-MODEL.md).
 CONFIG_USB_DEFAULT_AUTHORIZATION_MODE=2
+
+# ---- the kernel's own self-protection, named so a defconfig cannot drop it ----
+# Stack canaries in every function with an array or an address taken; the
+# kernel's code read-only and its data not executable; kernel stacks in
+# vmalloc space with guard pages, so an overrun faults instead of writing
+# into the next one; every stack variable zeroed before use (gcc 12 has the
+# option); and the CPU bug mitigations the architecture offers.
+CONFIG_STACKPROTECTOR_STRONG=y
+CONFIG_STRICT_KERNEL_RWX=y
+CONFIG_VMAP_STACK=y
+CONFIG_INIT_STACK_ALL_ZERO=y
+CONFIG_CPU_MITIGATIONS=y

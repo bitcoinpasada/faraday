@@ -468,3 +468,12 @@ CONFIG_LEGACY_VSYSCALL_NONE=y
 # and no disk filesystem is mounted.
 # CONFIG_HUGETLBFS is not set
 # CONFIG_QUOTA is not set
+
+# ---- the kernel's own self-protection on x86, named so a defconfig cannot drop it ----
+# The kernel's place in memory and the layout of its memory regions chosen
+# at random each boot, page-table isolation, and a boot-time check that no
+# mapping is both writable and executable.
+CONFIG_RANDOMIZE_BASE=y
+CONFIG_RANDOMIZE_MEMORY=y
+CONFIG_MITIGATION_PAGE_TABLE_ISOLATION=y
+CONFIG_DEBUG_WX=y
