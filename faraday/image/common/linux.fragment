@@ -341,3 +341,10 @@ CONFIG_LSM="lockdown,yama"
 # CONFIG_LATENCYTOP is not set
 # CONFIG_AUTOFS_FS is not set
 # CONFIG_BSD_PROCESS_ACCT is not set
+
+# ---- USB: only hard-wired devices authorised without faraday-grant ----
+# The same default as usbcore.authorized_default=2 on each board's command
+# line, built in, so a command line without the word (the Pi's is a file on
+# the card) still leaves a device plugged in after boot unauthorised until
+# faraday-grant decides (docs/SECURITY-MODEL.md).
+CONFIG_USB_DEFAULT_AUTHORIZATION_MODE=2

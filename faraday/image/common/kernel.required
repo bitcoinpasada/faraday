@@ -32,3 +32,6 @@ SECURITY_YAMA                         rcS sets ptrace_scope to 3: no process tra
 SECURITY_LOCKDOWN_LSM                 one switch for every interface that reads or writes kernel memory or raw hardware
 SECURITY_LOCKDOWN_LSM_EARLY           on before anything else starts
 LOCK_DOWN_KERNEL_FORCE_CONFIDENTIALITY at its strictest level, and not one a process can lower
+
+# USB (docs/SECURITY-MODEL.md).
+USB_DEFAULT_AUTHORIZATION_MODE=2      only hard-wired USB devices are authorised without faraday-grant, even if the command line loses usbcore.authorized_default

@@ -6,3 +6,5 @@ random.trust_cpu=off        nothing in a CPU is credited (docs/OWN-RANDOMNESS.md
 random.trust_bootloader=off the firmware's seed is not credited (patch 0004 makes this the default as well)
 
 console=ttynull             the kernel's console is the null one: no kernel line, a panic's message included, leaves on the GPIO header's serial port
+
+usbcore.authorized_default=2 only hard-wired USB devices are authorised without faraday-grant; the kernel's own default (USB_DEFAULT_AUTHORIZATION_MODE) is the same
