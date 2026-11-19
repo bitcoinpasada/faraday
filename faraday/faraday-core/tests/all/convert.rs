@@ -2470,6 +2470,67 @@ fn a_rotated_set_recovers_the_same_secret_with_the_same_passphrase() {
     assert!(app.session.keys.is_empty(), "the set is no key");
 }
 
+/// Loads a key whose recorded SLIP-39 set is the typed set's facts, with
+/// only shares 1 and 2 of the group recorded as made and the identifier
+/// changed by `identifier_shift` (an exclusive-or), rotates the typed
+/// SET_A and SET_B and saves the new shares written. Returns the key's
+/// recorded members made of its group before and after.
+fn rotate_saved_with_key_set(identifier_shift: u16) -> (u16, u16) {
+    let mut app = mainnet();
+    let c = testkit::compute();
+    app.session.keys.add_words(&c, ABOUT, "Test", None).unwrap();
+    open(&mut app);
+    type_set(&mut app, &[SET_A, SET_B]);
+    let f = app.session.keys.slip39_set_facts().unwrap().clone();
+    let held = faraday_vault::slip39::Slip39Facts {
+        identifier: f.identifier ^ identifier_shift,
+        exponent: f.iteration_exponent,
+        threshold: f.group_threshold,
+        groups: f
+            .groups
+            .iter()
+            .map(|g| faraday_vault::slip39::Group {
+                threshold: g.threshold,
+                count: 3,
+                made: 0b011,
+            })
+            .collect(),
+    };
+    assert!(app.session.keys.set_slip39(0, Some(held)));
+    app.press(Action::Convert(C::SetAct(convert::SetAct::Rotate)));
+    for m in [0, 2] {
+        app.press(Action::Convert(C::Destroy(0, m)));
+    }
+    app.press(Action::Convert(C::DestroyOthers));
+    feed_many(&mut app, 40);
+    app.press(Action::Convert(C::Make));
+    settle(&mut app);
+    let before = app.session.keys[0].slip39.as_ref().unwrap().groups[0].made;
+    save_and_write(&mut app);
+    (
+        before,
+        app.session.keys[0].slip39.as_ref().unwrap().groups[0].made,
+    )
+}
+
+/// A saved Rotate records the new set on the loaded key whose recorded
+/// set is the one rotated, in place of it.
+#[test]
+fn a_rotated_set_saved_replaces_the_set_its_key_records() {
+    let (before, after) = rotate_saved_with_key_set(0);
+    assert_ne!(
+        before, after,
+        "the new set, with all its shares made, replaces it"
+    );
+}
+
+/// A rotated set that no loaded key records is recorded nowhere.
+#[test]
+fn a_rotated_set_no_loaded_key_holds_is_recorded_nowhere() {
+    let (before, after) = rotate_saved_with_key_set(1);
+    assert_eq!(before, after, "another set's key is left as it was");
+}
+
 /// With as many lost or exposed shares as a group needs, rotating is not
 /// enough: nothing is made however many are destroyed, until the count
 /// falls below the limit.

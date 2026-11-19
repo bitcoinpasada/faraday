@@ -1681,6 +1681,20 @@ impl Keys {
         }
     }
 
+    /// Replaces the SLIP-39 set key `i` has with `set` (Convert's Rotate
+    /// the set, `docs/decisions/F293.md`): public facts only. A lookup;
+    /// refused (false) for no such key, a key with no set (that is
+    /// [`Keys::set_slip39`]), or facts the vault's layout cannot hold.
+    pub fn replace_slip39(&mut self, i: usize, set: faraday_vault::slip39::Slip39Facts) -> bool {
+        match self.entries.get_mut(i) {
+            Some(e) if e.info.slip39.is_some() && set.is_sound() => {
+                e.info.slip39 = Some(set);
+                true
+            }
+            _ => false,
+        }
+    }
+
     /// Costs a parse of each string and, for each one not yet proved, what
     /// `codex32_find` costs: for each of at most 16 choices of strings, an
     /// interpolation, an HMAC-SHA512 and an elliptic-curve multiplication.

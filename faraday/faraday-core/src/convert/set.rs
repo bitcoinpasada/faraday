@@ -495,6 +495,7 @@ pub fn file(id: u16, x: &SetState) -> Text {
 
 /// Offers what was made on the secret sheet.
 pub(crate) fn save(app: &mut Faraday) {
+    let c = app.compute();
     let area = &app.tools.convert;
     let (Some(held), Some(s), Some(f)) = (
         area.held.as_ref(),
@@ -505,31 +506,42 @@ pub(crate) fn save(app: &mut Faraday) {
     };
     let Some(x) = s.set.as_ref() else { return };
     let n = held.count();
+    let mut rotated = None;
     // One file for each share, never the whole set in one: each takes its
     // own set identifier's name and its number of the set.
     let files: Vec<(Text, Zeroizing<Vec<u8>>)> = match held {
-        Value::Set(parts) => parts
-            .iter()
-            .enumerate()
-            .map(|(i, p)| {
-                let mut bytes = Zeroizing::new(Vec::with_capacity(p.len() + 1));
-                bytes.extend_from_slice(p.as_bytes());
-                bytes.push(b'\n');
-                let id = faraday_bip::slip39::Share::parse(p.as_str())
-                    .ok()
-                    .map_or(f.identifier, |sh| sh.identifier());
-                let mut name = file(id, x);
-                if n > 1 {
-                    name = text!(
-                        "{}-share-{}-of-{}.txt",
-                        name.trim_end_matches(".txt"),
-                        i + 1,
-                        n
-                    );
-                }
-                (name, bytes)
-            })
-            .collect(),
+        Value::Set(parts) => {
+            if x.act == Some(SetAct::Rotate)
+                && let Some(Made::Slip39(new)) = facts_of(&c, super::Target::SlipSet, parts)
+            {
+                rotated = Some(Made::Slip39Rotated {
+                    old: Box::new(f.clone()),
+                    new,
+                });
+            }
+            parts
+                .iter()
+                .enumerate()
+                .map(|(i, p)| {
+                    let mut bytes = Zeroizing::new(Vec::with_capacity(p.len() + 1));
+                    bytes.extend_from_slice(p.as_bytes());
+                    bytes.push(b'\n');
+                    let id = faraday_bip::slip39::Share::parse(p.as_str())
+                        .ok()
+                        .map_or(f.identifier, |sh| sh.identifier());
+                    let mut name = file(id, x);
+                    if n > 1 {
+                        name = text!(
+                            "{}-share-{}-of-{}.txt",
+                            name.trim_end_matches(".txt"),
+                            i + 1,
+                            n
+                        );
+                    }
+                    (name, bytes)
+                })
+                .collect()
+        }
         Value::Text(t) => vec![(
             file(f.identifier, x),
             Zeroizing::new(t.as_str().as_bytes().to_vec()),
@@ -553,6 +565,8 @@ pub(crate) fn save(app: &mut Faraday) {
     {
         out.gives = need.gives(out.also.len() + 1, false);
     }
+    // The fingerprint is not used: the key is the one that holds the set.
+    out.made = rotated.map(|m| ([0; 4], m));
     out.keep = if out.also.is_empty() {
         crate::secrets::Keep::Note
     } else {
@@ -568,6 +582,16 @@ pub(crate) enum Made {
     /// A SLIP-39 set: identifier, exponent, thresholds, and each group's
     /// size and members made.
     Slip39(faraday_vault::slip39::Slip39Facts),
+    /// A SLIP-39 set Rotate made of the set typed in (`old`): it replaces
+    /// the facts of the loaded key whose recorded set is that set, and is
+    /// recorded nowhere when no loaded key holds it
+    /// (`docs/decisions/F293.md`).
+    Slip39Rotated {
+        /// The set typed in and rotated.
+        old: Box<SetFacts>,
+        /// The new set.
+        new: faraday_vault::slip39::Slip39Facts,
+    },
 }
 
 /// The public header fields of one share.
@@ -651,10 +675,22 @@ pub(crate) fn facts_of(
 
 /// Records `made` on the loaded key with fingerprint `fp`. A key keeps
 /// one set of a kind (`docs/VAULT.md` §7): the first stays, and a second
-/// is left unrecorded (the way on is that set's Replace or Rotate). A
+/// is left unrecorded, except a SLIP-39 set Rotate made, which replaces the
+/// recorded set it rotated (`docs/decisions/F293.md`). A
 /// fingerprint that is no loaded key, or facts the vault's layout cannot
 /// hold, record nothing.
 pub(crate) fn record(keys: &mut faraday_keys::Keys, fp: [u8; 4], made: Made) {
+    if let Made::Slip39Rotated { old, new } = made {
+        // The key is the one whose recorded set is the set rotated; the
+        // fingerprint is not used.
+        if let Some(i) = keys
+            .all()
+            .position(|k| k.slip39.as_ref().is_some_and(|r| same_set(r, &old)))
+        {
+            keys.replace_slip39(i, new);
+        }
+        return;
+    }
     let Some(i) = keys.all().position(|k| k.fingerprint.0 == fp) else {
         return;
     };
@@ -665,5 +701,22 @@ pub(crate) fn record(keys: &mut faraday_keys::Keys, fp: [u8; 4], made: Made) {
         Made::Slip39(f) => {
             keys.set_slip39(i, Some(f));
         }
+        Made::Slip39Rotated { .. } => {}
     }
+}
+
+/// Whether a key's recorded set is the set typed in: the same identifier,
+/// iteration exponent, group threshold, group count and, for each group
+/// typed, member threshold.
+fn same_set(recorded: &faraday_vault::slip39::Slip39Facts, typed: &SetFacts) -> bool {
+    recorded.identifier == typed.identifier
+        && recorded.exponent == typed.iteration_exponent
+        && recorded.threshold == typed.group_threshold
+        && recorded.groups.len() == usize::from(typed.group_count)
+        && typed.groups.iter().all(|g| {
+            recorded
+                .groups
+                .get(usize::from(g.index))
+                .is_some_and(|r| r.threshold == g.threshold)
+        })
 }
