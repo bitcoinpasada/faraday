@@ -252,9 +252,10 @@ impl Faraday {
             // An answer may have loaded or dropped a key.
             self.signer_check_sync();
         } else if let Done::MadeOnline(d) = done {
-            // Back left the busy screen, but the marks are public
-            // fingerprints, checked against the vaults open now, and no
-            // second job runs for them: taken, or the caution is lost.
+            // Back does not stop this job, but another way of making it
+            // stale may: the marks are public fingerprints, checked against
+            // the vaults open now, and no second job runs for them, so they
+            // are taken, or the caution is lost.
             self.vaults
                 .store()
                 .note_made_online_done(&mut self.session.keys, *d);
@@ -344,6 +345,9 @@ impl Faraday {
             // A seal is not made stale: its job keeps the vault's slot, marked
             // sealing, and its file is made whatever the person presses.
             A::Back | A::Cancel if self.sealing() => false,
+            // Nor the check of the made-online marks: until its answer is in,
+            // a key saved would be written without its mark.
+            A::Back | A::Cancel if self.checking_marks() => false,
             A::Back | A::Cancel => {
                 crate::qr_tool::seal_stopped(self);
                 crate::qr_tool::open_stopped(self);
@@ -355,6 +359,14 @@ impl Faraday {
             }
             _ => stays_live(&action),
         }
+    }
+
+    /// Whether the job running works out the open vaults' made-online
+    /// fingerprints (`Job::MadeOnline`): like a seal, it is not made stale.
+    fn checking_marks(&self) -> bool {
+        self.worker
+            .busy()
+            .is_some_and(|b| b.kind == crate::worker::Kind::MadeOnline)
     }
 
     /// What follows a storage event, `screen` the one it came to. A stick
@@ -374,6 +386,7 @@ impl Faraday {
         }
         let moved = self.worker.busy().is_some()
             && !self.sealing()
+            && !self.checking_marks()
             && self
                 .worker
                 .origin()

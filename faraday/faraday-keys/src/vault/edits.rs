@@ -235,12 +235,14 @@ impl OpenVaults {
         if is_held_key(&s.records, &record) {
             return None;
         }
+        let marked = is_marked_words(&record);
         s.records.push(record);
         s.origin.push(Origin::New);
         s.dirty.push(true);
         s.facts.push(OnceCell::new());
         s.unchecked.push(Cell::new(true));
         s.changed();
+        self.marks_changed(marked);
         Some(s.records.len() - 1)
     }
 
@@ -251,12 +253,15 @@ impl OpenVaults {
             return false;
         };
         let at = at.min(s.records.len());
-        s.records.insert(at, record.into_record());
+        let record = record.into_record();
+        let marked = is_marked_words(&record);
+        s.records.insert(at, record);
         s.origin.insert(at, Origin::New);
         s.dirty.insert(at, true);
         s.facts.insert(at, OnceCell::new());
         s.unchecked.insert(at, Cell::new(true));
         s.changed();
+        self.marks_changed(marked);
         true
     }
 
@@ -268,9 +273,21 @@ impl OpenVaults {
         let Some(r) = s.records.get_mut(i) else {
             return false;
         };
-        *r = record.into_record();
+        let record = record.into_record();
+        let marked = is_marked_words(r) || is_marked_words(&record);
+        *r = record;
         s.touch(i);
+        self.marks_changed(marked);
         true
+    }
+
+    /// A marked record of words came or went: the made-online
+    /// fingerprints of this set of open vaults are worked out again
+    /// ([`Self::made_online_job`]).
+    fn marks_changed(&self, marked: bool) {
+        if marked {
+            self.marked_done.set(None);
+        }
     }
 
     /// Takes the codex32 set (`field::KEY_CODEX32`) or the BIP-85 origin
@@ -728,6 +745,12 @@ impl OpenVaults {
 }
 
 /// Whether `records` hold a key record identical to `record`.
+/// Whether `record` is a key record marked made on an online computer: the
+/// records [`OpenVaults::made_online_job`] fingerprints.
+fn is_marked_words(record: &Record) -> bool {
+    record.kind == kind::KEY && faraday_vault::records::is_made_online(record)
+}
+
 fn is_held_key(records: &[Record], record: &Record) -> bool {
     record.kind == kind::KEY
         && records.iter().any(|o| {

@@ -1124,15 +1124,20 @@ fn a_64_byte_seed_added_after_the_unlock_is_held_when_a_vault_marks_its_words() 
 }
 
 #[test]
-fn a_64_byte_seed_is_held_when_back_leaves_the_screen_checking_the_keys() {
+fn back_does_not_stop_checking_the_keys_and_the_64_byte_seed_is_held() {
     let words = fresh();
     let mut app = marked_open_no_key(&words);
     type_seed_string(&mut app, &seed_string_of(&words));
     assert_eq!(app.session.keys.len(), 1);
-    // The key is in, so the job running is the one checking the keys.
-    assert!(app.busy().is_some(), "Checking the keys is not showing");
+    let checking = |a: &Faraday| {
+        a.busy()
+            .is_some_and(|b| b.line == faraday_strings::EN.working_check_marks)
+    };
+    assert!(checking(&app), "Checking the keys is not showing");
+    // A key saved before the check ends would be written unmarked, so Back
+    // leaves the check running, as it does a seal.
     app.press(Action::Back);
-    assert!(app.busy().is_none(), "Back did not leave the busy screen");
+    assert!(checking(&app), "Back stopped the check");
     settle(&mut app, |a| {
         a.session.keys.made_online(a.session.keys[0].fingerprint)
     });
