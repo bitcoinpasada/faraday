@@ -191,6 +191,7 @@ counting would keep every session unclean:
 | `vanity` (the address search) | typed while open; Lock clears it | a find names a passphrase |
 | `drawing`, `kept`, `canvas` (what frames keep) | nothing; Lock empties `drawing`, drops `kept`'s charts and makes `canvas` forget its glyphs | always filled; `kept` keeps the public descriptions the save reads after the lock |
 | `memory` (nonces and signed amounts) | public | the nonce history must reach a vault: wiping it would let a nonce be reused |
+| `restore` (Restore a wallet) | nothing; Lock clears it | §2's "seed shares" are the names of Inbox share files, which are public and the Inbox's to answer for; the seeds typed are the session's keys, and what the restore keeps of them is fingerprints and cosigners' public keys. Counting it would hold back the sticks a restore's vaults are written to |
 | `visit` (a stick visit) | nothing; Lock drops the name question | its files are the Inbox's and Outbox's |
 | `outbox`, `later`, `backups_area`, `silent` | public | kept for the fresh process by design, or holding nothing secret |
 | `worker` (background jobs) | typed while an opened Krux code waits for a screen to take it; Lock drops it | |
@@ -220,7 +221,7 @@ that owns the fact answers it: `entry` answers for what is typed in it,
 
 **What changes for a person.** Clean and lockable, derived from every
 area, count what §2 marks **no**: Convert a seed, a new vault's
-passphrases, restore's shares, a BIP-85 child, the calculator's typed
+passphrases, a BIP-85 child, the calculator's typed
 line, Spend from a backup. A stick is held back while one of them holds
 a secret, and an idle session with only typed words or a tool's secret
 warns and locks at the lock time rather than powering off at the
@@ -295,8 +296,9 @@ impl AtLock for InboxArea {
 }
 ```
 
-A seed file read from a stick counts toward the idle lock and is dropped
-at Lock, but it does not make the process unclean: reading one does not
+A file read from a stick that may hold a secret (a seed file, or text
+Faraday cannot tell) counts toward the idle lock, so an idle session
+holding one locks rather than powering off, and is dropped at Lock, but it does not make the process unclean: reading one does not
 taint the process, and counting it as typed would hold back the stick it
 is being copied to, which copying a file between sticks needs open
 (`docs/FLOWS.md`, the visit's own exemption). A potential's typed

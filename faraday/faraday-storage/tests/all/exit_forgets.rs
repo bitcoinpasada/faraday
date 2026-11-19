@@ -126,7 +126,9 @@ fn the_power_sheet_leaves_no_file_when_it_is_not_asked_first() {
 #[test]
 fn the_idle_power_off_leaves_no_file_in_the_ram_directory() {
     let dir = scratch("idle");
-    let (mut app, mut boxes) = with_boxes(&dir, false, b"meeting notes");
+    // A public file: one that may hold a secret is dropped by a lock, so
+    // the idle lock would come in place of the power-off.
+    let (mut app, mut boxes) = with_boxes(&dir, false, testkit::savings().as_bytes());
     app.press(Action::IdleOff(1));
     serve_with(&mut app, &mut boxes, None, &mut Dirs::default());
     let start = app.now_ms();
