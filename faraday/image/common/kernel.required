@@ -23,6 +23,8 @@ FORTIFY_SOURCE                        the kernel's memory and string functions a
 SLAB_FREELIST_HARDENED                a corrupted slab free list is detected
 SLAB_FREELIST_RANDOM                  where a slab object lands is not predictable
 SHUFFLE_PAGE_ALLOCATOR                nor where a page lands
+RANDOM_KMALLOC_CACHES                 kernel heap caches split by call site, so one object is not placed beside another of a different kind
+LIST_HARDENED                         a corrupted kernel list is detected when it is walked
 BUG_ON_DATA_CORRUPTION                detected corruption stops the kernel instead of being stepped over
 SCHED_STACK_END_CHECK                 so does an overrun kernel stack
 PANIC_ON_OOPS                         a kernel that has oopsed is in a state nobody chose; on a signer, stopping is the safe result

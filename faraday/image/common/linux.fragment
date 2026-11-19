@@ -250,6 +250,11 @@ CONFIG_SLAB_FREELIST_HARDENED=y
 CONFIG_SLAB_FREELIST_RANDOM=y
 CONFIG_SHUFFLE_PAGE_ALLOCATOR=y
 # CONFIG_SLAB_MERGE_DEFAULT is not set
+# Kernel heap caches split by call site, so an object is not placed beside
+# one of a different kind, and kernel lists checked for corruption when they
+# are walked. Neither depends on the architecture.
+CONFIG_RANDOM_KMALLOC_CACHES=y
+CONFIG_LIST_HARDENED=y
 
 # Corruption the kernel detects stops it rather than being stepped over,
 # and an oops is a panic. A kernel that has oopsed is in a state nobody

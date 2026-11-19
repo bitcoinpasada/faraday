@@ -363,11 +363,10 @@ CONFIG_MSDOS_PARTITION=y
 # CONFIG_COREDUMP is not set
 
 # ---- hardening only x86 has ----
-# Kernel heap caches split by call site, list corruption checks, and a
-# random offset for the kernel stack on every system call, on by default
-# rather than on request. The Pi's kernel has none of the three.
-CONFIG_RANDOM_KMALLOC_CACHES=y
-CONFIG_LIST_HARDENED=y
+# A random offset for the kernel stack on every system call, on by default
+# rather than on request; 32-bit ARM does not offer it. The heap caches
+# split by call site and the list corruption checks are in the common
+# fragment.
 CONFIG_RANDOMIZE_KSTACK_OFFSET_DEFAULT=y
 
 # Address-space and process-memory hardening, at the kernel's strictest
