@@ -2440,11 +2440,12 @@ fn run(args: Args) -> Result<Exit, String> {
     }
     if !restart {
         // Not a lock: nothing waits for a next process. What the app's own
-        // command did not remove goes, and no picture is left in the
-        // framebuffer for the firmware or a warm start.
+        // command did not remove goes.
         shell.boxes.forget();
-        shell.blank();
     }
+    // No picture is left in the framebuffer: not for the firmware or a warm
+    // start, and not for a lock, whose next process draws only later.
+    shell.blank();
     Ok(if restart {
         Exit::Lock
     } else if restart_computer {

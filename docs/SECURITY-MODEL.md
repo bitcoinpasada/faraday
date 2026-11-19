@@ -260,6 +260,8 @@ internal error rather than carrying on.
      (built into the kernel as its default, and set on the command line
      as well). This also covers copies step 1 cannot reach, such as
      temporary values a library left on the stack.
+     The panel is blanked as the process exits, so the last screen
+     is not left showing until the next process draws.
 
   Seed-word files and other secret files copied in from a stick are
   removed from RAM at the same time. Files, From the stick and For the
