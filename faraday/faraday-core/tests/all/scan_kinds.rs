@@ -419,6 +419,28 @@ fn a_totp_code_read_at_add_a_keys_scanner_goes_into_the_open_vaults_new_entry() 
     assert!(app.vaults().form.is_some(), "no entry form opened");
 }
 
+/// A stick that arrives while the read card is up keeps the setup code
+/// out of the vault's form until it is out.
+#[test]
+fn with_a_stick_in_the_cards_add_to_vault_waits_for_it_to_be_out() {
+    let mut app = with_vault();
+    open(&mut app, Opened::AddAKey);
+    read(&mut app, TOTP.as_bytes());
+    assert_eq!(card(&app).unwrap().2, vec!["Add to vault".to_string()]);
+    app.storage(StorageEvent::Sticks(vec![
+        crate::common::Disk::empty("s1", "STICK").info(),
+    ]));
+    app.press(Action::ReadGo(0));
+    assert!(
+        card(&app).is_some(),
+        "the way over was taken with a stick in"
+    );
+    assert!(app.vaults().form.is_none(), "the code filled a form");
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    app.press(Action::ReadGo(0));
+    assert!(app.vaults().form.is_some(), "no entry form opened");
+}
+
 /// Scan the PSBT on the Spend tab (`docs/SCANNING.md` §4.5): a TOTP
 /// setup code or a SeedQR read there shows the card naming it and none
 /// of its secret; Scan again turns the camera back on in the same

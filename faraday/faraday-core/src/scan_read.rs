@@ -548,7 +548,10 @@ impl Way {
     /// Whether it loads a key or opens a passphrase field for one (a Krux
     /// code), and so waits for the stick to be out.
     pub(crate) fn loads_a_key(&self) -> bool {
-        matches!(self, Way::Key | Way::Share | Way::Sweep | Way::Open)
+        matches!(
+            self,
+            Way::Key | Way::Share | Way::Sweep | Way::Open | Way::AddTo(_)
+        )
     }
 }
 
