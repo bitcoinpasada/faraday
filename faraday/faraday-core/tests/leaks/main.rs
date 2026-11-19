@@ -23,6 +23,7 @@ mod entries;
 mod forms;
 mod planted;
 mod readers;
+mod reveal_flows;
 mod reveals;
 mod scan;
 mod seed_load;

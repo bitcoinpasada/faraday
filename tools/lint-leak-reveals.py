@@ -9,6 +9,8 @@ the flows of each arm. This reads the enums and the arms and fails on:
 - a variant of `Reveal` or `Part` with no arm in the file;
 - an arm with no flow, unless it is in a part function (`vault_entry`,
   `outbox_file`, `backup_stick`: a part the app never asks for there);
+- an empty arm of a part function for a `Reveal::X(Part::Y)` that appears in
+  `faraday/*/src` (the app does ask it; the empty list says it never does);
 - a flow name that is no `#[test]` function of tests/leaks/ and no flow
   label of areas.rs.
 """
@@ -18,6 +20,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 KEYS = ROOT / "faraday/faraday-keys/src/session.rs"
+# Reveals the app asks that have no leak flow yet: (function, part). The
+# lint fails when one of these gets a flow, so the entry is removed.
+GAPS = {
+    ("vault_entry", "Passphrase"),
+    ("vault_entry", "Codex32"),
+    ("backup_stick", "Codex32"),
+}
 LEAKS = ROOT / "faraday/faraday-core/tests/leaks"
 
 
@@ -46,6 +55,16 @@ def arms(src: str, fn: str) -> dict[str, list[str]]:
     return out
 
 
+def asked(fn: str, part: str) -> str | None:
+    """The first file in faraday/*/src that builds Reveal::<kind>(Part::<part>)."""
+    kind = {"vault_entry": "VaultEntry", "outbox_file": "OutboxFile", "backup_stick": "BackupStick"}[fn]
+    pat = re.compile(r"Reveal::%s\(\s*(?:faraday_keys::)?Part::%s\s*,?\s*\)" % (kind, part))
+    for f in sorted((ROOT / "faraday").glob("*/src/**/*.rs")):
+        if pat.search(f.read_text()):
+            return str(f.relative_to(ROOT))
+    return None
+
+
 def main() -> int:
     keys = KEYS.read_text()
     reveals = (LEAKS / "reveals.rs").read_text()
@@ -67,6 +86,11 @@ def main() -> int:
         for v in want:
             if v not in got:
                 bad.append(f"{fn}: no arm for {v}")
+            elif (fn, v) in GAPS:
+                if got[v]:
+                    bad.append(f"{fn}: {v} has a flow now; remove it from GAPS")
+            elif not needs_flow and not got[v] and (w := asked(fn, v)):
+                bad.append(f"{fn}: {v} is empty but {w} reveals it")
             elif needs_flow and not got[v] and v not in ("VaultEntry", "OutboxFile", "BackupStick"):
                 bad.append(f"{fn}: {v} names no flow")
         for v, names in got.items():

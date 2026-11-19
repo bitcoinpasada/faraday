@@ -48,7 +48,7 @@ fn vault_forms() -> Vec<Form> {
 }
 
 /// Unlocks place `at` of the Vaults list, the Load sheet answered Not now.
-fn unlock(app: &mut Faraday, at: usize) {
+pub(crate) fn unlock(app: &mut Faraday, at: usize) {
     let before = app.vaults().open.len();
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(at)));
@@ -72,7 +72,7 @@ fn unlock(app: &mut Faraday, at: usize) {
 }
 
 /// The page of the vault's first item of `category`, drawn.
-fn open_item(app: &mut Faraday, category: usize) {
+pub(crate) fn open_item(app: &mut Faraday, category: usize) {
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::Category(category)));
     app.press(Action::Vault(V::Item(0)));
@@ -92,6 +92,10 @@ fn a_vaults_entries_listed_and_opened_leave_no_copy_after_lock() {
         let _ = app.frame();
     }
     open_item(&mut app, 0);
+    app.press(Action::Vault(V::Reveal(0)));
+    let _ = app.frame();
+    app.press(Action::Vault(V::Reveal(0)));
+    let _ = app.frame();
     open_item(&mut app, 2);
     crate::seed_load::lock(&mut app);
     finish("vault entries opened", armed, true);
@@ -393,7 +397,7 @@ fn a_krux_note_used_as_a_passphrase_leaves_no_copy_after_lock() {
 
 /// The key of `tools/vectors/paperkey/faraday-key.txt`: the seeds it was
 /// made from.
-fn paper_seeds() -> ([u8; 32], [u8; 32]) {
+pub(crate) fn paper_seeds() -> ([u8; 32], [u8; 32]) {
     let (mut primary, mut subkey) = ([0x11; 32], [0x22; 32]);
     primary[0] = 0;
     subkey[..2].fill(0);

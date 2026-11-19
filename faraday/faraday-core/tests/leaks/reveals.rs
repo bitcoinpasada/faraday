@@ -32,8 +32,12 @@ fn flows(why: Reveal) -> &'static [&'static str] {
         Reveal::CopyByHand => &["a Krux code's passphrase in a backup"],
         Reveal::PaperForm => &["Convert a seed"],
         Reveal::Bip85Child => &["BIP-85 child"],
-        Reveal::LightningKey => &["a secret on its sheet"],
-        Reveal::GpgPaperkey => &["a_gpg_key_restored_from_its_paperkey_leaves_no_copy"],
+        Reveal::LightningKey => {
+            &["a_lightning_key_shown_and_put_in_a_vault_leaves_no_copy_after_lock"]
+        }
+        Reveal::GpgPaperkey => &[
+            "a_vaults_gpg_key_shown_by_its_eye_and_its_revocation_let_out_leave_no_copy_after_lock",
+        ],
         Reveal::VaultEntry(p) => vault_entry(p),
         Reveal::OutboxFile(p) => outbox_file(p),
         Reveal::BackupStick(p) => backup_stick(p),
@@ -46,16 +50,16 @@ fn flows(why: Reveal) -> &'static [&'static str] {
 }
 
 /// The parts of a vault record put on screen, into a form or a record.
+/// `Passphrase` and `Codex32` have no flow yet (the lint lists them).
 fn vault_entry(p: Part) -> &'static [&'static str] {
     match p {
-        Part::Words
-        | Part::Passphrase
-        | Part::Password
-        | Part::Totp
-        | Part::Note
-        | Part::EntryNotes => &["a_vaults_entries_listed_and_opened_leave_no_copy_after_lock"],
-        Part::Codex32 => &["a_vaults_entry_copied_to_another_vault_leaves_no_copy_after_lock"],
-        Part::SeedQr | Part::Revocation | Part::ScanKey | Part::NodeKey | Part::KeyFile => &[],
+        Part::Words | Part::Password | Part::Totp | Part::EntryNotes => {
+            &["a_vaults_entries_listed_and_opened_leave_no_copy_after_lock"]
+        }
+        Part::Note => &["a_vaults_note_listed_and_opened_leaves_no_copy_after_lock"],
+        Part::NodeKey => &["a_lightning_key_shown_and_put_in_a_vault_leaves_no_copy_after_lock"],
+        Part::ScanKey => &["a_scan_key_put_in_a_vault_and_let_out_leaves_no_copy_after_lock"],
+        Part::Passphrase | Part::Codex32 | Part::SeedQr | Part::Revocation | Part::KeyFile => &[],
     }
 }
 
@@ -66,18 +70,17 @@ fn outbox_file(p: Part) -> &'static [&'static str] {
             &["a_seed_file_let_out_unprotected_leaves_no_copy_after_lock"]
         }
         Part::NodeKey => &["a secret on its sheet"],
-        Part::Password
-        | Part::Totp
-        | Part::Note
-        | Part::EntryNotes
-        | Part::Revocation
-        | Part::ScanKey
-        | Part::Codex32
-        | Part::KeyFile => &[],
+        Part::ScanKey => &["a_scan_key_put_in_a_vault_and_let_out_leaves_no_copy_after_lock"],
+        Part::Revocation => &[
+            "a_vaults_gpg_key_shown_by_its_eye_and_its_revocation_let_out_leave_no_copy_after_lock",
+        ],
+        Part::KeyFile => &["a_key_file_made_for_a_vault_leaves_no_copy_after_lock"],
+        Part::Password | Part::Totp | Part::Note | Part::EntryNotes | Part::Codex32 => &[],
     }
 }
 
-/// The parts the backup flow writes to a stick.
+/// The parts the backup flow writes to a stick. `Codex32` has no flow yet
+/// (the lint lists it).
 fn backup_stick(p: Part) -> &'static [&'static str] {
     match p {
         Part::Words | Part::Passphrase | Part::SeedQr => {

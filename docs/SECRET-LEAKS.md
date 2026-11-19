@@ -159,10 +159,17 @@ the planting of the secret to the end of the flow:
   and names the flows that reach it: a test of this binary or a flow label
   of `areas.rs`. The Explore eyes (a key's seed, the extended keys, an
   address's key) and a SeedQR on the quick backup are flows of that file.
+  The vault GPG key's eye and revocation, a note, a Lightning key, a scan
+  key and a key file are flows of `reveal_flows.rs`.
   The typed-text eyes and the hides sit inside the flows of an area above;
   a Krux code opened by a worker holds nothing across a frame (the
-  Worker area's arm). The names are held, not the reach: a flow renamed
-  fails the lint, a flow that stops calling its reason does not.
+  Worker area's arm). A part arm left empty fails the lint when the
+  source builds that `Reveal::X(Part::Y)` (a grep of `faraday/*/src`),
+  except the few listed in the lint's `GAPS`, which have no flow yet and
+  fail it once they get one. The names are held, not the reach: a flow
+  renamed fails the lint, a flow that stops calling its reason does not.
+  Each name was traced to its call when written, and the lint cannot see
+  that a flow still reaches it.
 
 A flow that handles a secret is added to this list (§10). The sessions
 of the `work/budget` tests are the model: the secret is planted once, in
