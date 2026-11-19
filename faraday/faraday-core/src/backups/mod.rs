@@ -4111,11 +4111,7 @@ impl Faraday {
         if self.worker.busy().is_some() {
             return;
         }
-        if let Some(job) = self
-            .vaults
-            .store()
-            .made_online_job(&c, &self.session.keys)
-        {
+        if let Some(job) = self.vaults.store().made_online_job(&c, &self.session.keys) {
             self.start(
                 crate::worker::Job::MadeOnline(Box::new(job)),
                 EN.working_check_marks,

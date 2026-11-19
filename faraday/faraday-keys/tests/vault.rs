@@ -2666,10 +2666,7 @@ fn the_marked_words_are_fingerprinted_once_and_a_child_loaded_after_is_marked() 
         .expect("a key");
     assert!(keys.set_child_of(1, Some(of)));
     let job = store.made_online_job(&c, &keys).expect("a job");
-    assert!(
-        store.made_online_job(&c, &keys).is_none(),
-        "once per set"
-    );
+    assert!(store.made_online_job(&c, &keys).is_none(), "once per set");
     store.note_made_online_done(&mut keys, job.run(&c));
     assert!(keys.made_online(child));
     assert!(!keys.made_online(held));
