@@ -1,15 +1,16 @@
-//! One tour over every place that can hold a typed or scanned secret
-//! (`docs/SECRET-LEAKS.md` §4). A row plants a test secret there through
-//! the app's own input and then:
+//! The leak tour by area (`docs/AT-LOCK.md` §7, `docs/SECRET-LEAKS.md`
+//! §4). [`flows`] matches on [`Area`] with no wildcard arm, so a new area
+//! does not compile here until it has a flow, or says it holds no secret.
+//! A flow plants a test secret in its area through the app's own input
+//! and then:
 //!
-//! 1. the app is not counted clean while it is held;
+//! 1. the app is not counted clean while it is held, and the idle warning
+//!    comes;
 //! 2. Lock, the save failed (the old app is moved to a fresh one in the
 //!    same process, `Faraday::carry_unkept_lock`): no live block holds a
 //!    form of any test secret, in the old app before it is dropped and in
 //!    the fresh one;
 //! 3. the same with an ordinary lock.
-//!
-//! The rows are a plain list of (name, plant function), `rows!` below.
 
 use crate::common::{Disk, lock, type_text};
 use crate::forms::{self, PHRASE};
@@ -18,7 +19,7 @@ use faraday_core::convert::ConvertAction as C;
 use faraday_core::kef_tool::{KefToolAction, Pick};
 use faraday_core::seed_check::SeedAction as S;
 use faraday_core::vault::VaultAction as V;
-use faraday_core::{Action, Ask, Faraday, Screen, StorageEvent, catalog, testkit};
+use faraday_core::{Action, Area, Ask, Faraday, Screen, StorageEvent, catalog, testkit};
 use faraday_leak_scan::Form;
 use faraday_shell_api::{App, EntropyBytes, Event, Key};
 use zeroize::Zeroizing;
@@ -177,6 +178,66 @@ fn vault_dice(app: &mut Faraday) {
     type_text(app, ROLLS);
 }
 
+fn secret_sheet(app: &mut Faraday) {
+    load_seed(app);
+    app.press(Action::Lightning);
+    let fp = app.session.keys[0].fingerprint.0;
+    app.press(Action::LKey(fp));
+    app.press(Action::LOut);
+    app.press(Action::SecretUnprotected);
+    app.press(Action::SecretHold);
+}
+
+fn inbox_passphrase(app: &mut Faraday) {
+    let mut file = Zeroizing::new(Vec::with_capacity(PHRASE.len() + 1));
+    file.extend_from_slice(PHRASE.as_bytes());
+    file.push(b'\n');
+    testkit::inbox_file(app, "words.txt", file.to_vec());
+    let c = testkit::compute();
+    let fp = app.inbox_found_now(&c).potential()[0].fingerprint;
+    app.press(Action::PotentialOpen(fp.0));
+    app.press(Action::PotentialType);
+    type_text(app, MARKER);
+}
+
+fn create_passphrase(app: &mut Faraday) {
+    load_seed(app);
+    let fp = app.session.keys[0].fingerprint.0;
+    app.press(Action::CreateWallet);
+    crate::common::ckind(app, 0);
+    app.press(Action::CNext(faraday_core::cstep::KIND));
+    app.press(Action::Nav(Screen::Create));
+    app.press(Action::CSlotHere(0, fp));
+    app.press(Action::CPassOpen(0));
+    type_text(app, MARKER);
+    app.press(Action::CPassField(1));
+    type_text(app, MARKER);
+}
+
+fn keygen_passphrase(app: &mut Faraday) {
+    app.press(Action::CreateWallet);
+    crate::common::ckind(app, 0);
+    app.press(Action::CNext(faraday_core::cstep::KIND));
+    app.press(Action::KWords(12));
+    for _ in 0..400 {
+        if app.keygen().is_some_and(|k| k.ready()) {
+            break;
+        }
+        let before = app.keygen().map_or(0, |k| k.dice.len());
+        for f in 1..=6u8 {
+            app.press(Action::KRoll(f));
+            if app.keygen().is_some_and(|k| k.dice.len() > before) {
+                break;
+            }
+        }
+    }
+    app.press(Action::KNext);
+    app.press(Action::KPassField(0));
+    type_text(app, MARKER);
+    app.press(Action::KPassField(1));
+    type_text(app, MARKER);
+}
+
 fn read(app: &mut Faraday, code: &[u8]) {
     app.event(Event::Scanned {
         bytes: code.to_vec(),
@@ -252,7 +313,7 @@ fn spend_from_a_backup(app: &mut Faraday) {
     app.press(Action::EntryAdd);
 }
 
-/// How the row's secret is counted while it is held.
+/// How the flow's secret is counted while it is held.
 #[derive(Clone, Copy)]
 enum Held {
     /// On its way: typed, scanned or shown in a tool.
@@ -261,7 +322,7 @@ enum Held {
     Kept,
 }
 
-/// How the row's lock goes.
+/// How the lock goes.
 #[derive(Clone, Copy)]
 enum Lock {
     /// The save fails: a fresh app is built over what the old one carries.
@@ -269,7 +330,134 @@ enum Lock {
     Ordinary,
 }
 
-fn run(name: &str, plant: fn(&mut Faraday), held: Held, how: Lock) {
+/// One flow of an area: its name, what plants the secret and how it is
+/// counted.
+#[derive(Clone, Copy)]
+struct Flow {
+    name: &'static str,
+    plant: fn(&mut Faraday),
+    held: Held,
+    /// Whether the idle warning comes: not while Make a new wallet holds
+    /// the idle lock until its keys are kept somewhere.
+    warns: bool,
+}
+
+const fn typed(name: &'static str, plant: fn(&mut Faraday)) -> Flow {
+    Flow {
+        name,
+        plant,
+        held: Held::Typed,
+        warns: true,
+    }
+}
+
+/// A flow in Make a new wallet, which holds the idle lock.
+const fn typed_in_make(name: &'static str, plant: fn(&mut Faraday)) -> Flow {
+    Flow {
+        name,
+        plant,
+        held: Held::Typed,
+        warns: false,
+    }
+}
+
+const fn kept(name: &'static str, plant: fn(&mut Faraday)) -> Flow {
+    Flow {
+        name,
+        plant,
+        held: Held::Kept,
+        warns: true,
+    }
+}
+
+/// The flows that cover an area. An area that holds no secret of its own
+/// has none, and its arm says why.
+fn flows(area: Area) -> Vec<Flow> {
+    match area {
+        // What frames keep: always filled, public descriptions and glyphs.
+        Area::Canvas | Area::Drawing | Area::Kept => vec![],
+        Area::Tools => vec![
+            typed("Krux code tool", krux_code),
+            typed("Bitcoin Core wallet tool", core_wallet),
+            typed("seed check", seed_check),
+            typed("calculator", calculator),
+            typed("Convert a seed", convert_a_seed),
+        ],
+        Area::Lightning => vec![typed("Lightning", lightning)],
+        Area::Vanity => vec![typed("Vanity", vanity)],
+        Area::SeedRead => vec![typed("Sweep", sweep)],
+        Area::Entry => vec![
+            typed("restore's typed words", restore_typed_words),
+            typed("a codex32 part", codex32_part),
+        ],
+        Area::Vaults => vec![
+            typed("new vault's passphrases", vault_passphrases),
+            typed("new vault's dice rolls", vault_dice),
+        ],
+        Area::Camera => vec![
+            typed("TOTP setup code carried to Unlock", totp_carried_to_unlock),
+            typed("read card under the Pull sheet", card_under_pull_sheet),
+            typed("transfer kept in parts", transfer_in_parts),
+        ],
+        Area::Bip85 => vec![typed("BIP-85 child", bip85_child)],
+        Area::SpendBackup => vec![kept("Spend from a backup", spend_from_a_backup)],
+        Area::Session => vec![kept("a key loaded", load_seed)],
+        Area::Secrets => vec![typed("a secret on its sheet", secret_sheet)],
+        Area::Inbox => vec![typed("a seed file's passphrase", inbox_passphrase)],
+        Area::Create => vec![typed_in_make(
+            "a key's passphrase in Make a new wallet",
+            create_passphrase,
+        )],
+        Area::KeyGen => vec![typed_in_make(
+            "a passphrase on the Keys card after rolls",
+            keygen_passphrase,
+        )],
+        // A word looked up is one word of a public list, which §3 of
+        // `docs/SECRET-LEAKS.md` never searches for alone.
+        Area::WordList => vec![],
+        // Randomness the person added is mixed with the system's and is not
+        // a secret alone.
+        Area::Fresh => vec![],
+        // Reads of the session's own keys, or public contents: a message and
+        // its signature, a code on show, an explorer's lines, a decode check,
+        // a spend's PSBT, a stick visit's name question, the files the boot
+        // stick brought, and Faraday Demo's transfer text.
+        Area::Decode
+        | Area::Explore
+        | Area::Qr
+        | Area::Message
+        | Area::Wallets
+        | Area::Visit
+        | Area::Import => vec![],
+        #[cfg(feature = "demo")]
+        Area::Transfer => vec![],
+        // No flow yet: the passphrase typed on the At a glance sheet, restore's
+        // typed shares, the backup flow's copy typed back, the GPG restore's
+        // typed lines and a Krux code opened for a screen.
+        Area::Glance | Area::Restore | Area::Backup | Area::Flows | Area::Worker => vec![],
+    }
+}
+
+fn idle_warns(app: &mut Faraday, name: &str) {
+    let from = app.now_ms();
+    app.event(Event::Tick { now_ms: from });
+    app.event(Event::Tick {
+        now_ms: from + 26 * 60_000,
+    });
+    assert_eq!(
+        app.sheet,
+        Some(faraday_core::Sheet::IdleWarn),
+        "{name}: no idle warning"
+    );
+}
+
+fn run(flow: Flow, how: Lock) {
+    let Flow {
+        name,
+        plant,
+        held,
+        warns,
+    } = flow;
     let forms = all_forms();
     let armed = arm(&forms);
     let mut app = testkit::started();
@@ -281,6 +469,9 @@ fn run(name: &str, plant: fn(&mut Faraday), held: Held, how: Lock) {
     assert!(!app.clean(), "{name}: counted clean while it is held");
     let planted = armed.scan_live();
     assert!(!planted.is_empty(), "{name}: the plant holds no form");
+    if warns {
+        idle_warns(&mut app, name);
+    }
     lock(&mut app);
     match how {
         Lock::Ordinary => {
@@ -306,55 +497,21 @@ fn run(name: &str, plant: fn(&mut Faraday), held: Held, how: Lock) {
     }
 }
 
-/// A row's [`Held`]: typed unless it says otherwise.
-macro_rules! held {
-    () => {
-        Held::Typed
-    };
-    ($h:ident) => {
-        Held::$h
-    };
+/// Every flow of every area, locked the way `how` says.
+fn every_area(how: Lock) {
+    for &area in Area::ALL {
+        for flow in flows(area) {
+            run(flow, how);
+        }
+    }
 }
 
-/// The rows: (name, plant function, and `(Kept)` for a key the session
-/// keeps). Two tests a row, so a row that
-/// fails alone can be ignored alone.
-macro_rules! rows {
-    ($($(#[$m:meta])* $id:ident = $plant:ident $(($held:ident))?;)*) => {
-        $(
-            mod $id {
-                use super::*;
-                $(#[$m])*
-                #[test]
-                fn a_lock_whose_save_failed_leaves_no_copy_in_either_app() {
-                    run(stringify!($id), $plant, held!($($held)?), Lock::Unkept);
-                }
-                $(#[$m])*
-                #[test]
-                fn an_ordinary_lock_leaves_no_copy() {
-                    run(stringify!($id), $plant, held!($($held)?), Lock::Ordinary);
-                }
-            }
-        )*
-    };
+#[test]
+fn a_lock_whose_save_failed_leaves_no_copy_in_either_app() {
+    every_area(Lock::Unkept);
 }
 
-rows! {
-    krux_code_tool = krux_code;
-    bitcoin_core_wallet_tool = core_wallet;
-    seed_check = seed_check;
-    lightning = lightning;
-    vanity = vanity;
-    sweep = sweep;
-    calculator = calculator;
-    restore_typed_words = restore_typed_words;
-    codex32_part = codex32_part;
-    new_vault_passphrases = vault_passphrases;
-    new_vault_dice_rolls = vault_dice;
-    totp_setup_code_carried_to_unlock = totp_carried_to_unlock;
-    read_card_under_the_pull_sheet = card_under_pull_sheet;
-    transfer_kept_in_parts = transfer_in_parts;
-    convert_a_seed = convert_a_seed;
-    bip85_child = bip85_child;
-    spend_from_a_backup = spend_from_a_backup(Kept);
+#[test]
+fn an_ordinary_lock_leaves_no_copy() {
+    every_area(Lock::Ordinary);
 }

@@ -1,8 +1,7 @@
 # What holds a secret: one rule for clean, the idle lock and Lock
 
-**Kind:** Spec
-**Status:** Built, but for the leak tour that walks every area by name: the `AtLock` trait and `Public` marker (`faraday-core/src/at_lock.rs`), the exhaustive listing of `Faraday` and of `ToolsArea`, and the clean state, the idle lock's test and Lock's clears derived from it (§4 to §6).
-**Open:** the leak tour that matches on `Area` with no wildcard, so a new area does not compile there until it has a flow (§7); until it is built, the list of places in `faraday-core/tests/leaks/every_place.rs` is the tour.
+**Kind:** Reference
+**Status:** Built: the `AtLock` trait and `Public` marker (`faraday-core/src/at_lock.rs`), the exhaustive listing of `Faraday` and of `ToolsArea`, the clean state, the idle lock's test and Lock's clears derived from it (§4 to §6), and the leak tour that walks every area by name (§7).
 
 ## 1. The requirement
 
@@ -21,9 +20,7 @@ statement, and from nothing else:
 - **the lock's clears**: what `lock_finish` (`faraday-core/src/vault/seal.rs`)
   wipes before the process ends.
 
-Each was a list written by hand (`secret_typed`, `Faraday::holds_secret`,
-`lockable` and the calls in `lock_finish`); §2 shows where they
-disagreed. Each is now one line over `Faraday::holds()` (§4).
+Each is one line over `Faraday::holds()` (§4).
 
 **Why the clears matter though the process ends.** Lock is two steps
 (`docs/SECURITY-MODEL.md`, "What locking wipes"): the application drops
@@ -38,51 +35,11 @@ could not be kept), and then the same process goes on. The Demo shell
 serves the saved state to a fresh app in the same process
 (`shells/demo/src/lib.rs`, `Command::Exit` with `restart_requested`).
 
-## 2. The three lists today, field by field
+## 2. The three lists before the rule
 
-Read from the code before the rule, when the three were lists by hand;
-the table stays as the field-by-field reading each area's impl was
-written from, and §4 says what each row "to be decided by the area"
-became. "Clean" is `secret_typed` or `holds_secret`; "Lockable" is
-`lockable`; "Lock" is a call in `lock_finish`. A field not named holds nothing secret (layout, settings,
-timers, device status, the guide, search text) or is cleared by all three
-alike.
-
-| Field | What secret it can hold | Clean | Lockable | Lock |
-|---|---|---|---|---|
-| `lightning` | words, passphrase, the node key | yes (any state) | no | **no** |
-| `tools.seed_check` (My seed makes my wallet) | words, passphrase | yes | no | **no** |
-| `tools.kef_tool` (the Krux code tool) | the typed code, its passphrase, the opened payload | yes | no | **no** |
-| `tools.core_wallet` (Read a Bitcoin Core wallet) | the passphrase; the file read | passphrase only | no | **no** |
-| `tools.tools` (the calculator's typed line) | an extended private key typed and refused | **no** | no | **no** |
-| `tools.mscheck` (Check a multisig setup) | a seed answer | **no** | no | **no** |
-| `tools.convert` (Convert a seed) | the typed seed, the value held | **no** | no | yes |
-| `spend_backup` (Spend from a backup, and its Sweep) | the seeds typed for it | **no** | no | **no** |
-| `vanity` | a passphrase a find names, on show | **no** | no | **no**; to be decided by the area: whether its search state keeps the passphrase |
-| `silent` (silent payments) | none: a fingerprint and the DNS record's text | no | no | no; public, not a disagreement |
-| `camera` | a frame on the Scan sheet, which may picture a seed | through the Scan sheet only | no | **no** (closed by the hide before it) |
-| `camera.parts` | a transfer in parts (BBQr, numbered, UR) half read, kept after the sheet closes | **no** | no | **no** |
-| `camera.carried` | a TOTP setup code carried to Unlock | **no** | no | **no** |
-| `camera.scan`'s read card | the code a card read, waiting under the Pull or devices sheet for Scan again | **no** (the Scan sheet is not up) | no | **no** |
-| `vaults`' dice rolls for Create a vault | the rolls that fix the new vault's passphrase, kept after the form closes | **no** | no | **no** |
-| `inbox` | seed files from a stick; a seed being made a wallet and its passphrase | the potential's passphrase only | no | the files dropped at lock, not the potential |
-| `vaults` | open records, the unlock passphrase, the prompt, a new vault's phrases | yes | open vaults | the signing text only; the rest by the seal's end |
-| `create` (a new vault's passphrases) | passphrase, again | **no** | no | yes |
-| `restore` | seed shares | **no** | no | yes |
-| `bip85` | a child key or its words | **no** | no | yes |
-| `keygen`, `entry`, `seed_read`, `secrets`, `backup` | words, rolls, passphrases, codes | yes | no | yes |
-| `session` | the keys | yes | yes, and its wallets | yes |
-| `wallets` | none: a spend is public | no | yes (a spend) | yes |
-| `fresh` (own randomness) | the session's seed and pool | **no** | no | what was added only; to be decided by the area: the seed and the pool |
-| `flows` (backup flows) | a flow's seed and restore data | **no** | no | by the lock's flows step before `lock_finish` |
-| `drawing`, `kept`, `canvas` | text and glyphs kept for frames | no | no | charts only; to be decided by each area |
-| `memory`, `visit`, `outbox`, `later`, `worker`, `backups_area`, `transfer` (Demo) | to be decided by each area | no | no | `visit`'s name question only |
-
-Each bold **no** beside a secret is a field one list counts and another
-does not. Lockable reads no typed secret at all: a session that has only
-typed words, or only a tool's state, never warns or locks when idle; on
-the device it powers off at the power-off time instead, and in Faraday
-Demo, which never powers itself off, it stays.
+Clean, lockable and Lock's clears were once three lists written by hand,
+and they disagreed field by field. The rule replaced them; §4 says what
+each area counts now. Git keeps the table.
 
 ## 3. The way chosen
 
@@ -315,8 +272,9 @@ changed; `more::drop_gone`; `save_boxes_for_lock`; then `restart` and
 `Command::Exit` last. Nothing else in it is one area's: an area's clear
 is the body of that area's `lock`, and a sub-area's (a tool's) is
 reached through its holder's. Each `holds_secret` an area had (`seeds`,
-Krux form) is that area's `holds`, widened to everything its `lock`
-wipes (the QR vault tool's made code; the Core wallet tool's file).
+`seed_check`, `kef_tool`, `core_wallet`, `wallet_backup`'s Krux form) is
+that area's `holds`, widened to everything its `lock` wipes (the Core
+wallet tool's file).
 
 ## 7. What holds the rule
 
@@ -337,17 +295,17 @@ No test states it: a test does not state a design rule.
   clean process (`tests/all/backup_flow.rs`), the visit's write on a clean
   visit (`tests/all/visit.rs`).
 
-**The leak tour, the one part not built.** Until it is, the tour of
-`faraday-core/tests/leaks/every_place.rs` plants a secret in each place
-that can hold a typed or scanned one, from a list, and runs both locks.
-The macro also writes `pub enum Area { … }`, one name
-per field in `areas`, and `Area::ALL` (under the `testkit` feature). A
-leak test, `faraday-core/tests/leaks/areas.rs`, matches on `Area` with no
-wildcard arm, so a new area does not compile there until it has a flow:
-for each area, the flow opens its screen through the testkit and plants
-the §3 secret of `docs/SECRET-LEAKS.md` as a person would (typed, scanned
-or loaded), checks that the session is no longer clean and that the idle
-warning comes, presses Lock, and scans every live block. An area that
-holds no secret of its own (a wallet's session state) has an arm that
-says so and plants nothing. The flows join §4's list of
-`docs/SECRET-LEAKS.md`, and the `Area` arm names the flow that covers it.
+**The leak tour** (`faraday-core/tests/leaks/areas.rs`). The macro also
+writes `pub enum Area { … }`, one name per field in `areas`, and
+`Area::ALL` (under the `testkit` feature). `flows` in `areas.rs` matches on
+`Area` with no wildcard arm, so a new area does not compile there until it
+has a flow or an arm that says why it plants nothing. For each flow the
+tour opens the area's screen through the testkit and plants the §3 secret of
+`docs/SECRET-LEAKS.md` as a person would (typed, scanned or loaded), then
+checks that the session is not clean and that the idle warning comes (not
+in Make a new wallet, which holds the idle lock until its keys are kept),
+presses Lock, the save failed (a fresh app is built over what the old one
+carries) and again an ordinary lock, and scans every live block in the old
+app before it is dropped and in the fresh one. An area that holds no secret
+of its own has an arm that says so and plants nothing. The flows are in
+§4's list of `docs/SECRET-LEAKS.md`, and each `Area` arm names its flows.

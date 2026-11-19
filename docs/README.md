@@ -94,6 +94,7 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 
 **Reference**
 
+- `docs/AT-LOCK.md`: What holds a secret: one rule for clean, the idle lock and Lock. Built: the `AtLock` trait and `Public` marker (`faraday-core/src/at_lock.rs`), the exhaustive listing of `Faraday` and of `ToolsArea`, the clean state, the idle lock's test and Lock's clears derived from it (§4 to §6), and the leak tour that walks every area by name (§7).
 - `docs/AUDIT.md`: What is cryptography, and where it lives. Built (the key boundary, F70).
 - `docs/BACKUP-FLOW.md`: The backup flow. Built: GPG keys, the Secure Boot keys and the Bitcoin wallet.
 - `docs/CODEX32.md`: Codex32: making, checking and repairing shares. Built.
@@ -141,7 +142,6 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 
 **Spec**
 
-- `docs/AT-LOCK.md`: What holds a secret: one rule for clean, the idle lock and Lock. Built, but for the leak tour that walks every area by name: the `AtLock` trait and `Public` marker (`faraday-core/src/at_lock.rs`), the exhaustive listing of `Faraday` and of `ToolsArea`, and the clean state, the idle lock's test and Lock's clears derived from it (§4 to §6).
 - `docs/AUDIT-SUBMISSIONS.md`: Audits: the request, the submission and the record. Built (F19), except the Audits page's part of §10 (F160).
 - `docs/DESIGN.md`: Design system. Built but for the items under Open.
 - `docs/DRAW-COST.md`: Cheaper drawing: what is left. Specified; none of it is built and none of it is timed.

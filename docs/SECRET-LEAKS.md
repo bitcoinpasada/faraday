@@ -113,17 +113,21 @@ the planting of the secret to the end of the flow:
 - **A lock whose save failed:** a key loaded, Lock pressed, the old app
   dropped and a fresh one built in the same process over what it carried;
   no live block holds the seed (`tests/leaks/unkept_lock.rs`).
-- **Every place that can hold a secret:** one row each for the Krux code,
-  Bitcoin Core wallet, QR and Lightning tools, the seed check, Vanity,
-  Sweep, the calculator, restore's typed words and a codex32 part, a new
-  vault's passphrases and dice rolls, a TOTP setup code carried to Unlock,
-  a read card waiting under the Pull sheet, a transfer kept in parts,
-  Convert a seed, a BIP-85 child and Spend from a backup. Each row plants
-  its secret through the app's input, checks the app is not counted clean,
-  then locks twice (the save failed, so a fresh app is built over what the
-  old one carried; and an ordinary lock) and scans every live block, in the
-  old app before it is dropped and in the fresh one
-  (`tests/leaks/every_place.rs`).
+- **Every area that can hold a secret:** one arm of `flows` for each
+  `Area` (`tests/leaks/areas.rs`, which does not compile until a new area
+  has one). The flows: the Krux code, Bitcoin Core wallet and seed
+  check tools, the calculator and Convert a seed (Tools); Lightning;
+  Vanity; Sweep (seed read); restore's typed words and a codex32 part
+  (Entry); a new vault's passphrases and dice rolls (Vaults); a TOTP setup
+  code carried to Unlock, a read card waiting under the Pull sheet and a
+  transfer kept in parts (Camera); a BIP-85 child; Spend from a backup; a
+  key loaded (Session); a secret on its sheet (Secrets); a seed file's
+  passphrase (Inbox); a key's passphrase in Make a new wallet (Create) and
+  on the Keys card after rolls (KeyGen). Each plants its secret through
+  the app's input, checks the app is not counted clean and that the idle
+  warning comes, then locks twice (the save failed, so a fresh app is built
+  over what the old one carried; and an ordinary lock) and scans every live
+  block, in the old app before it is dropped and in the fresh one.
 - **Backup:** a codex32 set, SLIP-39 shares and a SeedQR written and
   checked.
 - **The vault readers:** a vault's entries listed, opened and copied.
