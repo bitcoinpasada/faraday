@@ -762,6 +762,47 @@ fn a_signed_message_holding_a_secret_beside_other_text_is_a_secret_file() {
     }
 }
 
+const SEED12: &str =
+    "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+
+/// A multisig share sheet of one key of three, with `extra` lines after it.
+fn share_sheet(extra: &str) -> String {
+    let k = testkit::key(0, "m/48'/1'/0'/2'");
+    let (origin, xpub) = k.trim_start_matches('[').split_once(']').unwrap();
+    let (fp, path) = origin.split_once('/').unwrap();
+    format!(
+        "Name: Split\nPolicy: 2 of 3\nFormat: P2WSH\nDerivation: m/{path}\n{}: {xpub}\n{extra}",
+        fp.to_uppercase()
+    )
+}
+
+/// A share sheet is public; one with a seed in a comment or in a line the
+/// reader does not know is a secret file, dropped at a lock.
+#[test]
+fn a_share_sheet_with_a_seed_in_a_comment_or_unknown_line_is_a_secret_file() {
+    let c = testkit::compute();
+    let kind = |t: &str| faraday_core::wallet::classify(&c, "share.txt", t.as_bytes());
+    assert_eq!(kind(&share_sheet("")), FileKind::Share);
+    assert_eq!(
+        kind(&share_sheet(
+            "# Printed for the safe at the bank, second floor, keep it dry.\n"
+        )),
+        FileKind::Share
+    );
+    for extra in [
+        format!("# {SEED12}\n"),
+        format!("seed: {SEED12}\n"),
+        format!("Note: \"{SEED12}\"\n"),
+        format!("# my seed is {SEED12}. keep it safe\n"),
+        "# xprv9s21ZrQH143K2nNuAbfWPHBtfiSCS14XQgb3otW4pX655q58EEZeC8zmjEUwucBu9dPnxdpbZLCn57yx45RBkwJHnwHFjZK4XPJ8SyeYjYg\n"
+            .to_string(),
+    ] {
+        let t = share_sheet(&extra);
+        assert_ne!(kind(&t), FileKind::Share, "{extra}");
+        assert_ne!(kind(&t), FileKind::Message, "{extra}");
+    }
+}
+
 /// A wallet card's first receive address opens its code: the address as
 /// the card prints it, whole under the code, with no picture
 /// (`docs/QR.md` §7).

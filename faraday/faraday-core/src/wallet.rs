@@ -2336,6 +2336,112 @@ fn secret_body_kind(c: &Compute, body: &str) -> Option<FileKind> {
     .then_some(FileKind::SecretWallet)
 }
 
+/// A line without its comment marks, however many.
+fn bare(l: &str) -> &str {
+    l.trim()
+        .trim_start_matches(|ch: char| ch == '#' || ch.is_whitespace())
+}
+
+/// The pieces of a line a secret can sit in beside other text: each
+/// white-space separated word, cut at quotes, commas and brackets, and
+/// what follows a label's colon. At most 64.
+fn fragments(l: &str) -> impl Iterator<Item = &str> {
+    l.split(|ch: char| {
+        ch.is_whitespace()
+            || matches!(
+                ch,
+                '"' | '\''
+                    | '`'
+                    | '\u{201c}'
+                    | '\u{201d}'
+                    | ','
+                    | ';'
+                    | '('
+                    | ')'
+                    | '['
+                    | ']'
+                    | '<'
+                    | '>'
+            )
+    })
+    .filter(|f| !f.is_empty())
+    .flat_map(|f| {
+        std::iter::once(f).chain(
+            f.split_once(':')
+                .map(|(_, r)| r)
+                .filter(|r| !r.is_empty() && !r.starts_with("//")),
+        )
+    })
+    .take(64)
+}
+
+/// Costs `secret_text` on the line and on each fragment of it, and a
+/// part's parse of each. Whether one line is a secret by itself, as the
+/// whole line or after a label, in quotes or beside prose.
+fn line_is_secret(c: &Compute, l: &str) -> bool {
+    let is = |t: &str| {
+        !too_short_to_be_secret(t)
+            && (faraday_intake::secret_text(c, t).is_some()
+                || faraday_intake::is_otpauth_migration(t)
+                || crate::inbox::part_of(t).is_some())
+    };
+    is(bare(l)) || fragments(bare(l)).any(is)
+}
+
+/// Costs a `line_is_secret` on each line, a seed part's parse of each
+/// two or three lines joined, and a `words_across` over the lines.
+/// Whether `lines` hold a secret: a line that is one or has one in it, a
+/// SLIP-39 share wrapped over lines, or a seed's words among other text,
+/// punctuation read as a space.
+fn lines_hold_secret(c: &Compute, lines: &[&str]) -> bool {
+    if lines.iter().any(|l| line_is_secret(c, l)) {
+        return true;
+    }
+    let bares: Vec<&str> = lines
+        .iter()
+        .map(|l| bare(l))
+        .filter(|l| !l.is_empty())
+        .collect();
+    for n in [2, 3] {
+        for w in bares.windows(n) {
+            let joined = Text::joined(w, " ");
+            if crate::inbox::part_of(joined.as_str()).is_some() {
+                return true;
+            }
+        }
+    }
+    let spaced: Vec<Text> = lines
+        .iter()
+        .map(|l| {
+            let mut t = Text::with_room(l.len());
+            for ch in bare(l).chars() {
+                t.push(if ch.is_ascii_punctuation() { ' ' } else { ch });
+            }
+            t
+        })
+        .collect();
+    words_across(spaced.iter().map(Text::as_str))
+}
+
+/// The lines of a multisig share that `restore::parts` does not read as a
+/// quorum, a path or a key: comments, a name, a format and any other key.
+fn share_skipped_lines(text: &str) -> Vec<&str> {
+    text.lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+        .filter(|l| {
+            let Some((k, _)) = l.split_once(':') else {
+                return true;
+            };
+            let k = k.trim();
+            l.starts_with('#')
+                || !(k.eq_ignore_ascii_case("policy")
+                    || k.eq_ignore_ascii_case("derivation")
+                    || (k.len() == 8 && k.chars().all(|ch| ch.is_ascii_hexdigit())))
+        })
+        .collect()
+}
+
 /// Costs a `read_keys` on the line: base58 decodes. Whether a line of a
 /// key file is a key `read_keys` reads.
 fn is_key_line(line: &str) -> bool {
@@ -2513,6 +2619,11 @@ pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
                 .into();
         }
         if crate::restore::is_share(text) {
+            // `parts` skips comments and lines it does not know: a seed
+            // there makes the file a secret one.
+            if lines_hold_secret(c, &share_skipped_lines(text)) {
+                return FileKind::SecretWallet.into();
+            }
             return FileKind::Share.into();
         }
         if faraday_intake::wallet::holds_secret(text) {
