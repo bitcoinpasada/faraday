@@ -264,7 +264,10 @@ read that the scanner hands over or names, and on Home's Scan after
 every read whose destination is a press away (§5.4). The camera turns
 off while it shows; **Scan again** turns it back on. A stick plugged in
 while a card holds a secret is held back, as it is while the camera is
-on, until the card is gone.
+on, until the card is gone. With a stick in, **Scan again** on a card
+that holds a secret asks for Lock; pulling the stick while that ask is
+up closes it and turns the camera on, as with no stick in (nothing is
+handed out and the secret stays held until Lock).
 
 Checked against Material 3's Dialogs (a basic dialog: headline,
 supporting text, actions; "purposefully interruptive, so they should be

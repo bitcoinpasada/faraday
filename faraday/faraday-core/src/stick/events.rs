@@ -428,9 +428,17 @@ pub(crate) fn sticks_changed(app: &mut Faraday, sticks: Vec<StickInfo>) {
 /// makes it so; what waited on the stick carries on. `had` is whether
 /// something was in the way before.
 pub(crate) fn nothing_in_the_way(app: &mut Faraday, had: bool) {
+    // The read card's Scan again, asked for Lock while the stick was in,
+    // carries on once it is out: the camera turns on as with no stick.
+    let scan_again = app.sheet == Some(Sheet::Lock)
+        && matches!(app.visit.pull(), Some(crate::Action::ReadAgain));
     if app.sheet == Some(Sheet::Lock) {
         app.sheet = None;
         app.visit.set_lock_to_write(None);
+    }
+    if scan_again {
+        app.visit.clear_pull();
+        app.act(crate::Action::ReadAgain);
     }
     // A passphrase waiting on the stick takes typing now.
     if app.screen == Screen::Unlock

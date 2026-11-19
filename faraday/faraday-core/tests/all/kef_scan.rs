@@ -578,7 +578,8 @@ fn open_waits_on_the_card_while_a_stick_is_plugged_in() {
 }
 
 #[test]
-fn scan_again_with_a_card_held_and_a_stick_in_asks_for_lock_and_keeps_the_camera_off() {
+fn scan_again_with_a_card_held_and_a_stick_in_asks_for_lock_and_turns_the_camera_on_when_the_stick_is_pulled()
+ {
     let mut app = scanner();
     let (code, _) = vector("ctr");
     read(&mut app, &code);
@@ -590,12 +591,28 @@ fn scan_again_with_a_card_held_and_a_stick_in_asks_for_lock_and_keeps_the_camera
     // sheet, not Pull.
     assert_eq!(app.sheet, Some(Sheet::Lock));
     assert!(app.scan().is_some_and(|s| s.card.is_some()));
-    // The stick coming out drops the Lock ask but does not run the press:
-    // the card's code is still held and the camera stays off.
+    // The stick coming out closes the Lock ask and carries the press on:
+    // the camera turns on and the card is gone, as with no stick in.
     app.storage(StorageEvent::Sticks(Vec::new()));
+    assert!(std::iter::from_fn(|| app.poll_command()).any(|c| c == Command::CameraOn));
+    assert_eq!(app.sheet, Some(Sheet::Scan));
+    assert!(app.scan().is_some_and(|s| s.card.is_none()));
+    assert!(!app.clean());
+}
+
+#[test]
+fn lock_pressed_on_the_scan_again_ask_locks() {
+    let mut app = scanner();
+    let (code, _) = vector("ctr");
+    read(&mut app, &code);
+    app.storage(stick());
+    app.press(Action::ReadAgain);
+    assert_eq!(app.sheet, Some(Sheet::Lock));
+    while app.poll_command().is_some() {}
+    app.press(Action::Lock);
+    // Locking wipes the card and does not turn the camera on.
     assert!(!std::iter::from_fn(|| app.poll_command()).any(|c| c == Command::CameraOn));
-    assert_eq!(app.sheet, None);
-    assert!(app.scan().is_some_and(|s| s.card.is_some()));
+    assert!(app.scan().is_none_or(|s| s.card.is_none()));
 }
 
 /// A note carried as a passphrase, the seed scanner up.
