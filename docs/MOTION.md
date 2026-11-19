@@ -210,24 +210,22 @@ shell sends `Wheel` for `LineDelta`, `Scroll` for `PixelDelta`,
   still a tap.
 - `faraday --timings` prints once a second what the frames cost on the
   machine it runs on: the wait for the window's buffer (the compositor
-  still holding it, which no other figure shows, yet is part of the gap
-  the fade gate times), the render, the copy into the window, and the
+  still holding it, which no other figure shows), the render, the copy into the window, and the
   time from one frame to the next while something moved. A
   frame-to-frame mean near the screen's period with a worst case under
   twice it is a motion with no dropped frame. With it, a second line
   says what fades did over the same second, as the dev stick's `fade`
-  line does (`Faraday::take_fade_counts`): changes that faded, were
-  drawn at once for slow steps or for reduce motion, the steps blended,
-  the recent step gaps' median and how many are known, and whether the
-  next change fades (2026-10-29).
+  line does (`Faraday::take_fade_counts`): changes that faded or were
+  drawn at once for reduce motion, the steps blended, the recent step
+  gaps' median and worst and how many are known (2026-10-29).
 - The dev stick's `--timings` (`docs/IMAGES.md` §10.6) writes a
   block every five seconds to `faraday-timings.txt` on the boot stick:
   a frame drawn in full against a fade's blended step (`frame`,
   `blend`), how many frames went out at each step of the frame grid
   (`grid`), the first CPU's clock while drawing with its cpufreq driver
-  and governor in the header (`clock`), and what fades did (`fade`: changes that faded, were drawn
-  at once for slow steps or for reduce motion, the recent step gaps'
-  median, and whether the next change fades; `Faraday::take_fade_counts`).
+  and governor in the header (`clock`), and what fades did (`fade`: changes that faded or were drawn
+  at once for reduce motion, the steps, the recent step gaps' median and
+  worst; `Faraday::take_fade_counts`).
   Where a pass's time goes beyond the buckets: a `part` row for the
   input rescan, the stick scan, the timings and boot reports as whole
   calls and each write of the clock, and a `slowest` line with
@@ -362,8 +360,7 @@ extent; a motion left from another screen or sheet is stopped.
     standard curve (`motion::ease_move`),
     since every pixel changes colour: it is a change like any other to
     `Faraday::fade_begin` (the theme is part of what a frame drew), so
-    it is at once with reduce motion and on a machine whose fades are
-    gated off, runs to its end, and a second theme pressed mid-fade
+    it is at once with reduce motion, runs to its end, and a second theme pressed mid-fade
     starts from the frame on screen;
   - a change of screen or sheet, of the Learn sheet's tab, or of Learn's
     supporting pane (it opening, closing or changing its tab, which
@@ -401,33 +398,19 @@ extent; a motion left from another screen or sheet is stopped.
     a passphrase, a prompt's line: `Faraday::secret_typed`; the vault
     page's sign list with a file's text shown: `Faraday::secret_shown`), so no
     image of it is kept to fade from (`docs/SECRET-LEAKS.md` §5). At
-    once with reduce motion, and at once on a machine whose fades come
-    in steps too far apart to read as one: the core times the gap
-    between each two steps of a fade that follow one another (not the
-    frame that shows the change, not a frame drawn in full, not any
-    other motion, and not the steps of a change of theme, whose first
-    frames are slow on a small machine: those still fade, but are not
-    timed towards turning fades off), keeps the last nine with when each was taken, and
-    turns fades off when the median of those under 30 s old
-    (`motion::FADE_GAPS_FRESH_MS`), once five are known, is over 55 ms
-    (`motion::FADE_GAP_MS`, `Fade::step_timed`): the steps a fade can
-    carry, four in its 200 ms, a step every third refresh at 60 Hz
-    (50 ms), with room for whole milliseconds' ticks, which read three
-    refreshes as 50 or 51 ms (owner, 2026-10-29; it was 35 ms, worse than
-    30 Hz, which a large window at 60 Hz crossed whenever a step slipped
-    from two refreshes to three). Off,
-    they stay off at least 10 s (`motion::FADE_HOLD_MS`) and come back
-    only after 24 frames in a row, each drawn or blended within 35 ms of
-    the one before (`motion::FADE_ON_RUN`, `motion::FADE_ON_GAP_MS`,
-    `Fade::shown`; unchanged on 2026-10-29): a frame
-    further apart breaks the run, a pause over 100 ms
-    (`motion::FADE_PAUSE_MS`) neither counts nor breaks it, and time
-    alone brings nothing back. Turning off and turning on take different
-    evidence and the hold keeps them apart, so the gate cannot flap from
-    one change to the next, as it did when slow gaps were simply
-    forgotten after 30 s (the desktop app, 2026-10-26: fades for a few
-    changes, then none, then back a while later). A new display size
-    starts again with fades on. A fade under way runs to its end.
+    once with reduce motion, and only then: a machine that shows a fade's
+    steps far apart shows steps (2026-11-16; a gate that turned fades off
+    when the median step gap was over 55 ms, and back on after a run of
+    fast frames, is deleted). The core still times the gap between each
+    two steps of a fade that follow one another (not the frame that shows
+    the change, not a frame drawn in full, not any other motion, and not
+    the steps of a change of theme, whose first frames are slow on a
+    small machine), keeps the last nine with when each was taken, and
+    reports the median and worst of those under 30 s old
+    (`motion::FADE_GAPS_KEPT`, `motion::FADE_GAPS_FRESH_MS`,
+    `Fade::step_timed`, `Faraday::take_fade_counts`) in the timings
+    lines, which say how smooth fades are on a machine. They change
+    nothing. A new display size starts the gaps again.
 
     Why (2026-10-22, owner: fades on the sidebar's items, none on
     opening Learn, and none on switching tabs after). Each frame of a
@@ -469,8 +452,7 @@ extent; a motion left from another screen or sheet is stopped.
     colour over short 4 on the standard curve; a stick pill the app asks
     for pulses three times, then holds its highlight; the one die tumbles
     for short 4 after its values are entered. Each is at once (the pulse
-    a steady highlight) under Reduce motion and while the gate below has
-    fades off, and each asks for frames only while it runs;
+    a steady highlight) under Reduce motion, and each asks for frames only while it runs;
   - the codex32 checksum worksheet's view follows the entry's work
     (`docs/CODEX32.md` §7.5, owner 2026-10-24) as smoothly as the
     fades: the place is worked out once when the front moves, and the

@@ -739,14 +739,10 @@ a few changes, stopped, and came back a while later.
    row where nothing changed. Each pixel is read as one word and
    shifted. A buffer of unknown age, a new size or a failed present
    takes the whole frame.
-4. The fade gate cannot flap (`docs/MOTION.md` §3.5): fades turn off
-   on a median of slow steps as before, but come back only after 10 s
-   and 24 frames in a row each within 35 ms of the last, where before
-   the slow steps were forgotten after 30 s and the next change faded
-   again. On the laptop the Demo's frames, drawn all the time and each
-   taking 14–34 ms, would come two refreshes apart or more, past 35 ms,
-   so a fade's median step went over, fades went off, and 30 s later
-   they were on again.
+4. Fades follow Reduce motion alone: the gate that turned them off on a
+   median of slow steps, and back on after a run of fast frames, is
+   deleted (`docs/MOTION.md` §3.5). The steps' gaps are still timed and
+   shown in the timings lines.
 
 **Measured** (the build machine and the laptop, release, best of 30,
 one 1892 × 2085 frame of Faraday on Home; a probe kept outside the
@@ -783,16 +779,11 @@ gave; the app above and the strip at the foot fill the window; through
 one buffer and through two taken in turn, 400 frames each with a few
 rows changed, the buffer shown holds every frame whole and the damage
 is exactly the rows that changed; a new size or a buffer of unknown age
-takes the whole frame); `fade::tests` and
-`transitions::a_machine_slow_for_a_while_fades_again_once_its_frames_come_fast`
-(slow steps turn fades off; one fast frame, a short run or a run a
-frame short does not bring them back, nor does waiting; a run of 24
-after the hold does; frames at 60 Hz with a missed refresh, or at
-30 Hz, never turn them off).
+takes the whole frame); `fade::tests`.
 
 The stick and the Pi share none of 1 to 3: their shell holds Faraday
 without the host, writes only the rows that changed (§11.1) and does
-not use `faraday-window`. They share 4, the gate being Faraday's own.
+not use `faraday-window`. They share 4, which is Faraday's own.
 
 ## 13. Fades in a large window (2026-10-29)
 
@@ -801,9 +792,11 @@ The owner's report: in Faraday Demo in a large window (up to
 then stop for the session. A fade's step blended the whole canvas,
 hashed and converted every row of the window and gave the compositor
 every row, so in a window of 4 Mpx and more its steps came two
-refreshes apart and three whenever one slipped, past the gate's 35 ms;
-and fades, once off, come back only on a run of fast frames drawn in
-full, which such a window rarely shows (`docs/MOTION.md` §3.5).
+refreshes apart and three whenever one slipped, past the gate's 35 ms
+then; the gate turned fades off and brought them back only on a run of fast
+frames drawn in full, which such a window rarely shows. Fades now follow
+Reduce motion alone, and the steps' gaps are still timed and shown in the
+timings lines (`docs/MOTION.md` §3.5).
 
 **Changed** (owner, 2026-10-29).
 
@@ -813,8 +806,8 @@ full, which such a window rarely shows (`docs/MOTION.md` §3.5).
    (`Parts::changed`, `faraday-window` `Shown`; `docs/MOTION.md` §3.5).
    A frame drawn in full costs what it did: the bands are noted in the
    pass that blended the whole canvas before.
-2. The gate turns fades off when the median step is over 55 ms, the
-   steps a fade can carry, not 35 ms; the way back on is unchanged.
+2. The gate then turned fades off when the median step was over 55 ms, the
+   steps a fade can carry, not 35 ms (since deleted, item 4 of §12).
 3. The desktop's `--timings` prints the wait for the window's buffer
    and a line of what fades did (`docs/MOTION.md` §3.2).
 
@@ -837,8 +830,8 @@ its blend costs about 1.9 ns a pixel against 33 MB frames. On a machine
 that blends at half the build machine's speed, a change of screen's
 step at 4K should come in about 20 ms plus the compositor's upload,
 inside two refreshes, and a change of theme's in about 40, inside three
-and the gate's 55 ms. That is an estimate, not run: `faraday --timings`
-on such a machine says what a step costs and whether fades stay on.
+and the 55 ms the gate then allowed. That is an estimate, not run: `faraday --timings`
+on such a machine says what a step costs and how far apart the steps come.
 
 **Tested.** `canvas::tests::a_fades_later_steps_over_the_bands_that_differ_show_what_a_whole_blend_shows`;
 `view::tests::faraday_demos_window_shows_every_step_of_its_fades_whole`
@@ -848,9 +841,8 @@ frame copied through two buffers equal to the whole frame copied) and
 `fade::tests::a_step_after_a_frame_drawn_in_full_mid_fade_is_part_of_the_way_everywhere`
 (the pointer over the sidebar mid-fade, where the two screens agree:
 the bands are noted again with the new frame kept, and the next step
-shows every byte as a whole blend does), `fade::tests::steps_and_frames_a_third_refresh_apart_leave_fades_on`
-and `transitions::a_large_window_whose_frames_come_every_third_refresh_still_fades`;
-the existing gate tests, with slow steps now 70 ms apart.
+shows every byte as a whole blend does);
+`transitions::a_machine_whose_fades_come_in_steps_still_fades_and_times_the_steps`.
 
 ## 14. Checklist for a change
 

@@ -62,39 +62,11 @@ pub(crate) const THEME_FADE_MS: u64 = tokens::MOTION_MEDIUM3;
 /// front to its new place (`docs/CODEX32.md` §7.5), eased as a change of
 /// theme is: Material's medium 2, as a step card opening moves the page.
 pub(crate) const SHEET_FOLLOW_MS: u64 = tokens::MOTION_MEDIUM2;
-/// The widest the median gap between a fade's steps may be for it still
-/// to read as one: the steps a fade can carry, four in [`FADE_MS`], a
-/// step every third refresh at 60 Hz (50 ms), with room for whole
-/// milliseconds' ticks, which read three refreshes as 50 or 51 ms
-/// (owner, 2026-10-29). Steps further apart are steps of brightness, and
-/// the change is drawn at once instead.
-pub(crate) const FADE_GAP_MS: f32 = 55.0;
-/// While fades are off, the widest a frame's gap from the one before may
-/// be for it to count towards turning them back on ([`FADE_ON_RUN`]):
-/// 30 Hz or better, as before the limit above was widened, so they come
-/// back as they did (owner, 2026-10-29).
-pub(crate) const FADE_ON_GAP_MS: u64 = 35;
-/// How many recent frame gaps the median is taken over.
+/// How many recent gaps between a fade's steps are kept for the timings.
 pub(crate) const FADE_GAPS_KEPT: usize = 9;
-/// How many gaps must be known before a machine is judged too slow to
-/// fade.
-pub(crate) const FADE_GAPS_KNOWN: usize = 5;
-/// How long a gap between a fade's steps is remembered while fades are
-/// on: a slow step this far past no longer counts towards turning them
-/// off.
+/// How long a gap between a fade's steps is remembered: an older one no
+/// longer counts in the timings' median and worst.
 pub(crate) const FADE_GAPS_FRESH_MS: u64 = 30_000;
-/// Fades turned off stay off at least this long, however fast the frames
-/// after, so the gate cannot flap from one change of screen to the next.
-pub(crate) const FADE_HOLD_MS: u64 = 10_000;
-/// Fades turned off come back on only after this many frames in a row,
-/// each drawn within [`FADE_ON_GAP_MS`] of the one before: a sustained run
-/// of frames the machine shows fast, not one fast frame. A frame further
-/// apart breaks the run; a pause longer than [`FADE_PAUSE_MS`] neither
-/// counts nor breaks it.
-pub(crate) const FADE_ON_RUN: u16 = 24;
-/// A gap between two frames longer than this is a pause, not a slow
-/// frame: nothing was moving.
-pub(crate) const FADE_PAUSE_MS: u64 = 100;
 /// The step the fade's first frame after the change is taken to be.
 pub(crate) const FADE_FIRST_STEP_MS: u64 = 16;
 

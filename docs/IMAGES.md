@@ -891,14 +891,11 @@ the passes that drew (the header names its cpufreq driver and governor),
 a `steps` line lists each fade step that followed another as the gap
 since it, what its pass cost and the step chosen after it, in ms, and a
 `fade` line says how many changes faded,
-were drawn at once because the last fades' steps came too far apart
-(`skipped`) or because reduce motion is on (`reduced`), how many fade
-steps were blended, how many recent step gaps are known and their median,
-and whether the next change would fade (`docs/MOTION.md` §3.5); the line
-also gives the longest of those gaps (`worst_ms`), the most bands a
-blend was split in (`bands`, 0 when no step ran) and, after `on` or
-`off`, `was on` or `was off` when the gate changed since the last
-block, so a change is placed within five seconds. The header names the
+were drawn at once because reduce motion is on (`reduced`), how many
+fade steps were blended, how many recent step gaps are known and their
+median (`docs/MOTION.md` §3.5); the line also gives the longest of those
+gaps (`worst_ms`) and the most bands a blend was split in (`bands`, 0
+when no step ran). The header names the
 panel's size and its pixel count. A fade's step is told apart in the
 file by its `blend` bucket (the core's blend alone, the bands' threads
 included), `convert` and `write` (the copy out), and the `steps` line's

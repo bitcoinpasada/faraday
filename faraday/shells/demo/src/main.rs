@@ -168,8 +168,6 @@ struct Shell {
     text: Option<faraday_core::ui::TextSize>,
     /// The app, held by Faraday Demo's host (`docs/DESKTOP-HOST.md`).
     app: Option<AppHost>,
-    /// Whether the fade gate was on at the last line of `--timings`.
-    gate: Option<bool>,
     /// When a slow frame or event was last printed.
     last_slow: Option<Instant>,
 }
@@ -371,25 +369,15 @@ impl Shell {
             // second (`docs/MOTION.md` §3.2).
             let f = app.app.take_fade_counts();
             let gap = |g: Option<u16>| g.map_or_else(|| "-".to_owned(), |g| g.to_string());
-            let was = match self.gate.replace(f.on) {
-                Some(before) if before != f.on => Some(before),
-                _ => None,
-            };
             eprintln!(
-                "faraday: fades · started {} · skipped {} · reduced {} · steps {} · median gap {} ms of {} · worst gap {} ms · bands {} · {}{} · {}x{} px",
+                "faraday: fades · started {} · reduced {} · steps {} · median gap {} ms of {} · worst gap {} ms · bands {} · {}x{} px",
                 f.started,
-                f.skipped,
                 f.reduced,
                 f.steps,
                 gap(f.median_gap_ms),
                 f.gaps_known,
                 gap(f.worst_gap_ms),
                 f.bands,
-                if f.on { "on" } else { "off" },
-                was.map_or_else(String::new, |b| format!(
-                    " (was {})",
-                    if b { "on" } else { "off" }
-                )),
                 core.shown.0,
                 core.shown.1,
             );
@@ -696,7 +684,6 @@ fn main() -> ExitCode {
         } else {
             AppHost::new(app)
         }),
-        gate: None,
         last_slow: None,
     };
     let core = Core::new(o.size, o.timings, Lens::new(Camera::new(None, false)));

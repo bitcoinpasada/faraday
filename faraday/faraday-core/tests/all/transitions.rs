@@ -1,10 +1,8 @@
 //! How changes show (`docs/MOTION.md` §3.5): a new screen fades in over
 //! the old one and is then still, and so does the guide sheet, its tabs
-//! and its closing; at once with reduce motion, and on a machine whose
-//! fades come in steps too far apart to read as one, until its frames
-//! come fast again for a while; a slow moment, or a page slow to draw,
-//! leaves fades on; a step card grows open and comes to rest where it
-//! would have jumped to.
+//! and its closing; at once with reduce motion only, however far apart a
+//! machine shows a fade's steps, which is timed for the timings; a step
+//! card grows open and comes to rest where it would have jumped to.
 
 use faraday_core::ui::{Contrast, Mode, Theme, ThemeName};
 use faraday_core::{Action, Faraday, Screen, StorageEvent, testkit};
@@ -170,8 +168,9 @@ fn fades(app: &mut Faraday, press: Action, now: u64) -> bool {
 }
 
 #[test]
-fn a_machine_whose_fades_come_in_steps_gets_the_new_screen_at_once() {
+fn a_machine_whose_fades_come_in_steps_still_fades_and_times_the_steps() {
     let mut app = shown();
+    let _ = app.take_fade_counts();
     // Fades whose steps come 70 ms apart, past four refreshes at 60 Hz,
     // as on a slow machine.
     let mut now = 1_000;
@@ -184,124 +183,12 @@ fn a_machine_whose_fades_come_in_steps_gets_the_new_screen_at_once() {
         app.press(Action::Nav(screen));
         now = every(&mut app, now + 70, now + 420, 70);
     }
+    let counts = app.take_fade_counts();
+    assert!(counts.gaps_known > 0, "the steps' gaps are timed");
+    assert_eq!(counts.median_gap_ms, Some(70));
     assert!(
-        !fades(&mut app, Action::Nav(Screen::Settings), now),
-        "no fade: it would show as steps"
-    );
-    assert!(
-        !fades(&mut app, Action::Nav(Screen::Home), now + 2_000),
-        "and still none at the next change"
-    );
-}
-
-#[test]
-fn a_large_window_whose_frames_come_every_third_refresh_still_fades() {
-    let mut app = shown();
-    // Fades whose steps, and the frames drawn in full between them, come
-    // 50 ms apart, as in a large window at 60 Hz; the page scrolled at
-    // the same pace between them.
-    let mut now = 1_000;
-    for screen in [
-        Screen::Settings,
-        Screen::Home,
-        Screen::Settings,
-        Screen::Home,
-    ] {
-        app.press(Action::Nav(screen));
-        now = every(&mut app, now + 50, now + 400, 50);
-        now = scrolled(&mut app, now + 50, 50, 16);
-    }
-    assert!(
-        fades(&mut app, Action::Nav(Screen::Settings), now + 200),
+        fades(&mut app, Action::Nav(Screen::Settings), now),
         "the next change of screen fades"
-    );
-}
-
-#[test]
-fn a_slow_moment_does_not_leave_fades_off() {
-    let mut app = shown();
-    let mut now = 1_000;
-    // A fade whose first frame is slow and a step of it slow again, as
-    // when a sheet opens on a frosted page with the machine busy.
-    app.press(Action::Guide);
-    let _ = frames(&mut app, now + 16, now + 16);
-    for gap in [120, 16, 90, 16, 16, 16, 16, 16, 16, 16, 16, 16] {
-        now += gap;
-        let _ = frames(&mut app, now, now);
-    }
-    app.press(Action::Cancel);
-    let _ = frames(&mut app, now + 16, now + 600);
-    now += 600;
-    // A page that is slow to draw, scrolled: its frames come 50 ms
-    // apart, which says what the page costs, not what a fade does.
-    app.press(Action::Nav(Screen::Settings));
-    let _ = frames(&mut app, now + 16, now + 600);
-    now += 600;
-    app.event(Event::Wheel {
-        x: 700,
-        y: 400,
-        dy: 48,
-    });
-    now = every(&mut app, now + 50, now + 800, 50);
-    assert!(
-        fades(&mut app, Action::Nav(Screen::Home), now),
-        "the next change of screen fades"
-    );
-}
-
-/// The page scrolled a notch each tick, down then up, every `step` ms
-/// from `from` for `ticks` ticks, each frame drawn as a shell does;
-/// returns the time of the last tick.
-fn scrolled(app: &mut Faraday, from: u64, step: u64, ticks: u64) -> u64 {
-    let mut now = from;
-    for i in 0..ticks {
-        now = from + i * step;
-        app.event(Event::Tick { now_ms: now });
-        let dy = if (i / 8) % 2 == 0 { 48 } else { -48 };
-        app.event(Event::Wheel { x: 700, y: 400, dy });
-        while app.poll_command().is_some() {}
-        let _ = app.frame();
-    }
-    now
-}
-
-#[test]
-fn a_machine_slow_for_a_while_fades_again_once_its_frames_come_fast() {
-    let mut app = shown();
-    let mut now = 1_000;
-    for screen in [
-        Screen::Settings,
-        Screen::Home,
-        Screen::Settings,
-        Screen::Home,
-    ] {
-        app.press(Action::Nav(screen));
-        now = every(&mut app, now + 70, now + 420, 70);
-    }
-    assert!(!fades(&mut app, Action::Nav(Screen::Settings), now));
-    // Half a minute on, with nothing moving: time alone brings no fade
-    // back, so the gate does not flap.
-    now = every(&mut app, now + 1_050, now + 33_000, 50);
-    assert!(
-        !fades(&mut app, Action::Nav(Screen::Home), now),
-        "no fade after a wait alone"
-    );
-    // The page scrolled with its frames 40 ms apart: still none.
-    app.press(Action::Nav(Screen::Settings));
-    now = every(&mut app, now + 1_016, now + 1_400, 16);
-    now = scrolled(&mut app, now + 200, 40, 60);
-    assert!(
-        !fades(&mut app, Action::Nav(Screen::Home), now + 200),
-        "no fade after slow frames"
-    );
-    // Then a second of it a refresh apart, as a machine no longer busy
-    // shows it.
-    app.press(Action::Nav(Screen::Settings));
-    now = every(&mut app, now + 1_216, now + 1_600, 16);
-    now = scrolled(&mut app, now + 200, 16, 60);
-    assert!(
-        fades(&mut app, Action::Nav(Screen::Home), now + 200),
-        "fades again"
     );
 }
 

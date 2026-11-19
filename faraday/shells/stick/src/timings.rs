@@ -221,8 +221,6 @@ pub struct Timings {
     /// gap since that one, what the pass cost, and the step chosen after
     /// it, in milliseconds; the first `FADE_STEPS_KEPT`.
     fade_steps: Vec<(u16, u16, u16)>,
-    /// Whether the fade gate was on at the last block.
-    gate: Option<bool>,
     /// Every block so far, for a medium written whole each time.
     kept: String,
     /// The shell's clock when the whole file was last written.
@@ -288,13 +286,12 @@ impl Timings {
             clock: (0, 0, 0),
             raised: 0,
             fade_steps: Vec::new(),
-            gate: None,
             next: INTERVAL,
             header: format!(
                 "faraday {version} panel {width}x{height} pixels {} \
                  columns: bucket count mean_ms worst_ms\n\
                  costly work columns: work count mean_ms worst_ms kind (the costliest an event did)\n\
-                 fade columns: started skipped reduced steps gaps median_ms worst_ms (step gaps) bands (most a blend was split in) on or off (the gate; \"was\" when it changed since the last block); blend is the core's work for a step, move_kept, compare, convert_keep and write the rest\n\
+                 fade columns: started reduced steps gaps median_ms worst_ms (step gaps) bands (most a blend was split in); blend is the core's work for a step, move_kept, compare, convert_keep and write the rest\n\
                  cpu0 driver {} governor {} min_khz {} max_khz {}\n\
                  parts columns: part count mean_ms worst_ms name (calls outside the buckets; clockwrite is a write of the CPU's lowest clock, inside a pass)\n\
                  moved and whole columns: kind count frame_mean_ms frame_worst_ms write_mean_ms write_worst_ms (passes that drew a moved or a whole frame)\n\
@@ -668,8 +665,8 @@ impl Timings {
         out
     }
 
-    /// The `fade` line: what the fades did, the gate's state and, when it
-    /// changed since the last block, what it was.
+    /// The `fade` line: what the fades did and how far apart their steps
+    /// came.
     fn fade_line(&mut self, f: FadeCounts) -> String {
         let median = f
             .median_gap_ms
@@ -677,21 +674,9 @@ impl Timings {
         let worst = f
             .worst_gap_ms
             .map_or_else(|| "-".to_owned(), |g| g.to_string());
-        let was = match self.gate.replace(f.on) {
-            Some(before) if before != f.on => {
-                format!(" was {}", if before { "on" } else { "off" })
-            }
-            _ => String::new(),
-        };
         format!(
-            "fade     started {} skipped {} reduced {} steps {} gaps {} median_ms {median} worst_ms {worst} bands {} {}{was}\n",
-            f.started,
-            f.skipped,
-            f.reduced,
-            f.steps,
-            f.gaps_known,
-            f.bands,
-            if f.on { "on" } else { "off" },
+            "fade     started {} reduced {} steps {} gaps {} median_ms {median} worst_ms {worst} bands {}\n",
+            f.started, f.reduced, f.steps, f.gaps_known, f.bands,
         )
     }
 
@@ -1017,25 +1002,22 @@ mod tests {
     }
 
     #[test]
-    fn the_fade_line_says_the_worst_gap_the_bands_and_when_the_gate_changed() {
+    fn the_fade_line_says_the_step_gaps_and_the_bands() {
         let mut t = Timings::new("0.0.0", 480, 640);
-        let counts = |on| FadeCounts {
+        let counts = FadeCounts {
             started: 1,
             steps: 9,
             gaps_known: 5,
             median_gap_ms: Some(30),
             worst_gap_ms: Some(80),
             bands: 4,
-            on,
             ..FadeCounts::default()
         };
-        let first = t.block(Duration::from_secs(5), Some(counts(true)));
+        let first = t.block(Duration::from_secs(5), Some(counts));
         assert!(
-            first.contains("median_ms 30 worst_ms 80 bands 4 on\n"),
+            first.contains("gaps 5 median_ms 30 worst_ms 80 bands 4\n"),
             "{first}"
         );
-        let next = t.block(Duration::from_secs(10), Some(counts(false)));
-        assert!(next.contains("bands 4 off was on\n"), "{next}");
         assert!(first.contains("pixels 307200"), "{first}");
     }
 

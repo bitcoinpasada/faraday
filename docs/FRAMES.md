@@ -419,7 +419,7 @@ frame. A moved frame (§3) paints a strip, which bands barely help.
   that blends on the main thread alone. A pixel is blended from the same
   pixel of the two frames alone, so any count of bands gives the same
   pixels and the same changed rectangles as one. This keeps a step of a
-  fade in a large window under the fade gate's limit (`docs/MOTION.md`
+  fade in a large window short of steps far apart (`docs/MOTION.md`
   §3.5), which is not changed.
 - No new dependency: `std::thread` alone.
 
