@@ -188,6 +188,8 @@ macro_rules! words_screens_backup {
     wallet_done_restored: "Wallet restored · {}",
     /// Value of the Backup line in `wallet_done` before any backup.
     wallet_done_not_made: "not made",
+    /// Value of the Backup line in `wallet_done` after Restore: the paper backup exists, the app has no record of it.
+    wallet_done_not_recorded: "not recorded here",
     /// Label of the source line in `wallet_done` after Restore.
     wallet_done_restored_from: "Restored from",
     /// Value of the source line in `wallet_done`: the wallet came from its description.

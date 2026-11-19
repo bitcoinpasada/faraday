@@ -404,10 +404,12 @@ pub struct RestoreState {
     pub more_kinds: bool,
     /// The description's keys marked Not here, by place.
     pub absent: Vec<u8>,
-    /// Open from a key on Wallets: Back goes to Wallets.
+    /// Made from a loaded key (its row's From this key): the wallet is
+    /// made, not restored.
     pub from_key: bool,
-    /// Open from Home: Back goes to Home.
-    pub from_home: bool,
+    /// The screen Restore was opened from: Back and Done go there. None
+    /// is Wallets start.
+    pub opener: Option<Screen>,
     /// Whether vaults are part of the backup and how many; with yes, the
     /// sticks and the vaults come before the seeds are typed
     /// (`docs/BACKUP-FLOW.md` §11).
@@ -417,6 +419,17 @@ pub struct RestoreState {
     /// Opened by a check that found no wallet loaded: the check, and the
     /// screen it was opened from. The wallet read here returns to it.
     pub then: Option<(Check, Screen)>,
+}
+
+impl RestoreState {
+    /// Where Back and Done go: the check's screen, the screen Restore was
+    /// opened from, or Wallets start.
+    pub fn back_to(&self) -> Screen {
+        match self.then {
+            Some((_, from)) => from,
+            None => self.opener.unwrap_or(Screen::WalletsStart),
+        }
+    }
 }
 
 /// A check that leads into loading a wallet when none is loaded, and
@@ -661,7 +674,7 @@ impl Faraday {
                 let owner = self.fresh_owner();
                 self.restore.state = Some(RestoreState {
                     owner,
-                    from_home: self.screen == Screen::Home,
+                    opener: Some(self.screen),
                     ..RestoreState::new()
                 });
                 self.screen = Screen::Restore;
@@ -880,6 +893,7 @@ impl Faraday {
                     owner: self.fresh_owner(),
                     seeds: Some(s),
                     from_key: true,
+                    opener: Some(self.screen),
                     ..RestoreState::default()
                 };
                 for k in [rstep::KIND, rstep::QUORUM, rstep::DESCRIPTION] {

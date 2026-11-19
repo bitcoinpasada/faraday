@@ -587,13 +587,7 @@ impl Faraday {
                     return;
                 };
                 self.flow_drop_unmade(self.wallet_flow_of_owner(r.owner));
-                if let Some((_, from)) = r.then {
-                    Action::Nav(from)
-                } else if r.from_home {
-                    Action::Nav(Screen::Home)
-                } else {
-                    Action::Nav(Screen::WalletsStart)
-                }
+                Action::Nav(r.back_to())
             }
             Going::Backup => {
                 let i = self.wallet_flow_of_backup();

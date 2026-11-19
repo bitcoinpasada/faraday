@@ -698,9 +698,13 @@ pub(crate) fn wallet_done(
             .as_ref()
             .is_some_and(|g| matches!(g.backup, Backup::Plan { .. })),
     };
+    // A wallet made from a loaded key is made here, not restored.
+    let restore = app.restore.state().filter(|_| from == From::Restore);
+    let made_here = restore.is_some_and(|r| r.from_key);
     let title = match from {
         From::Create => EN.wallet_done_made,
         From::Backup => EN.wallet_done_backup,
+        From::Restore if made_here => EN.wallet_done_made,
         From::Restore => EN.wallet_done_restored,
     };
     let mut cy = y;
@@ -714,8 +718,8 @@ pub(crate) fn wallet_done(
     cy += 40.0;
     ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, &Session::shape(wl));
     cy += ui.advance_as(BODY_S, BUTTON_H) + T::GAP;
-    if from == From::Restore {
-        let source = if app.restore.state().is_some_and(|r| r.described) {
+    if from == From::Restore && !made_here {
+        let source = if restore.is_some_and(|r| r.described) {
             EN.wallet_done_from_description
         } else {
             EN.wallet_done_from_seeds
@@ -734,13 +738,13 @@ pub(crate) fn wallet_done(
     if !backed {
         let label_w = ui.measure_as(BODY_S, EN.create_backup) + T::GAP + T::GAP;
         ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, EN.create_backup);
-        ui.text_as(
-            x + label_w,
-            cy,
-            BODY_S,
-            Role::Warning,
-            EN.wallet_done_not_made,
-        );
+        // A restored wallet has its paper backup: only the record is missing.
+        let (role, value) = if from == From::Restore && !made_here {
+            (Role::OnSurface, EN.wallet_done_not_recorded)
+        } else {
+            (Role::Warning, EN.wallet_done_not_made)
+        };
+        ui.text_as(x + label_w, cy, BODY_S, role, value);
         cy += ui.advance_as(BODY_S, BUTTON_H) + T::GAP;
     } else if let Some(g) = glance {
         if let Backup::Plan { check, .. } = &g.backup {
@@ -757,7 +761,9 @@ pub(crate) fn wallet_done(
     if quick_done && !app.receive_held(wl) {
         cy += super::wallets::first_receive_row(app, ui, (x, cy, w), wallet) + T::GAP;
     }
-    let primary = if backed || from == From::Restore {
+    let primary = if let Some(r) = restore {
+        (EN.app_done, Action::Nav(r.back_to()))
+    } else if backed {
         (EN.wallets_show_wallet, Action::QrWallet(wallet))
     } else {
         let action = if from == From::Create {
@@ -774,6 +780,13 @@ pub(crate) fn wallet_done(
         ui.pin = Some((faraday_text::Text::of(primary.0), Style::Primary, primary.1));
     } else {
         items.push((primary.0, Style::Primary, primary.1));
+    }
+    if from == From::Restore {
+        items.push((
+            EN.wallets_show_wallet,
+            Style::Secondary,
+            Action::QrWallet(wallet),
+        ));
     }
     let spend = (from == From::Restore).then(|| app.spend_button(wallet));
     if let Some((label, action)) = &spend {

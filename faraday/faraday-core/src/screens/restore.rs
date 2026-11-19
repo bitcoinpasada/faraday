@@ -97,23 +97,25 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         w: col_w,
         h,
         // Back where it was opened from.
-        back: Some(app.named_back(if let Some((_, from)) = r.then {
+        back: Some(app.named_back({
+            let to = r.back_to();
             (
-                match from {
+                match to {
                     Screen::Catalog => EN.restore_tools,
                     Screen::Decode => EN.restore_decode,
+                    Screen::Home => EN.restore_home,
+                    Screen::Backups => EN.backups_backups,
+                    Screen::Wallets | Screen::WalletsStart => EN.restore_wallets,
                     _ => EN.restore_back,
                 },
-                Action::Nav(from),
+                Action::Nav(to),
             )
-        } else if r.from_home {
-            (EN.restore_home, Action::Nav(Screen::Home))
-        } else if r.from_key {
-            (EN.restore_wallets, Action::Nav(Screen::Wallets))
-        } else {
-            (EN.restore_wallets, Action::Nav(Screen::WalletsStart))
         })),
-        heading: EN.restore_title,
+        heading: if r.from_key {
+            EN.create_make_a_new_wallet
+        } else {
+            EN.restore_title
+        },
         wrap_closed: false,
         total_fixed: false,
         all_shown: false,

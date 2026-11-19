@@ -655,6 +655,8 @@ fn done_is_the_end_card_with_a_spend_the_backup_and_another_wallet() {
     for said in [
         "Wallet restored",
         "Restored from",
+        "Done",
+        "not recorded here",
         "Show wallet QR",
         "Spend from this wallet",
         "Back up this wallet",
@@ -674,6 +676,68 @@ fn done_is_the_end_card_with_a_spend_the_backup_and_another_wallet() {
     // Restored seeds are backed up already: the spend opens at once.
     app.press(Action::SpendBackup(F::SpendFrom(w)));
     assert_eq!(app.screen, Screen::SpendBackup);
+}
+
+/// Back from a Restore opened from Backups, Tools or Home goes to that
+/// screen, and so does Done on the end card.
+#[test]
+fn back_and_done_return_to_where_restore_was_opened() {
+    for from in [Screen::Backups, Screen::Catalog, Screen::Home] {
+        let mut app = shown();
+        app.press(Action::Nav(from));
+        assert_eq!(app.screen, from);
+        app.press(Action::RestoreWallet);
+        assert_eq!(app.screen, Screen::Restore);
+        let _ = app.frame();
+        assert!(app.offers(Action::Nav(from)), "no Back to {from:?}");
+        app.press(Action::Nav(from));
+        assert_eq!(app.screen, from);
+    }
+    let mut app = two_of_three_from_seeds();
+    app.press(Action::Nav(Screen::Backups));
+    app.press(Action::RestoreWallet);
+    app.press(Action::RKind(MULTI));
+    app.press(Action::RNext(KIND));
+    app.press(Action::RNext(QUORUM));
+    app.press(Action::RSeeds);
+    app.press(Action::RVaults(false));
+    app.press(Action::RNext(WHERE));
+    type_seed(&mut app, &testkit::test_words("bacon"));
+    type_seed(&mut app, &testkit::test_words("zebra"));
+    type_seed(&mut app, &testkit::test_words("summer"));
+    app.press(Action::Seeds(S::Make));
+    faraday_core::testkit::confirm_wallets(&mut app);
+    app.press(Action::RNext(CHECK));
+    assert_eq!(app.restore().unwrap().open, Some(DONE));
+    assert!(drawn(&mut app).contains("Done"));
+    app.press(Action::Nav(Screen::Backups));
+    assert_eq!(app.screen, Screen::Backups);
+}
+
+/// A wallet made from a loaded key is made, not restored.
+#[test]
+fn a_wallet_from_a_loaded_key_ends_on_wallet_made() {
+    let mut app = shown();
+    app.press(Action::Nav(Screen::Wallets));
+    app.press(Action::Entry(None));
+    for c in ABANDON.chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
+    let _ = app.frame();
+    let fp = app.session.keys.all().next().unwrap().fingerprint.0;
+    app.press(Action::Nav(Screen::Wallets));
+    app.press(Action::KeyWallet(fp, 1));
+    app.press(Action::Seeds(S::Make));
+    faraday_core::testkit::confirm_wallets(&mut app);
+    app.press(Action::RNext(CHECK));
+    assert_eq!(app.restore().unwrap().open, Some(DONE));
+    let text = drawn(&mut app);
+    assert!(text.contains("Wallet made"), "{text}");
+    assert!(!text.contains("Restored from"), "{text}");
+    assert!(!text.contains("Wallet restored"), "{text}");
+    assert!(!text.contains("not recorded here"), "{text}");
 }
 
 /// Done, after It matches on a single key restored with no vaults.
