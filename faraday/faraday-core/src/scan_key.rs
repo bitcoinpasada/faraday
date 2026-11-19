@@ -231,6 +231,12 @@ impl Camera {
             })
     }
 
+    /// Whether a transfer's parts are kept; parts read so far
+    /// cannot be classed, so they count as secret.
+    pub(crate) fn holds_parts(&self) -> bool {
+        self.parts.is_some()
+    }
+
     /// The code carried, once.
     pub(crate) fn take_carried(&mut self) -> Option<Text> {
         self.carried.take()

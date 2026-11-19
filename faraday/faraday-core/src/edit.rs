@@ -862,6 +862,9 @@ impl Faraday {
             || self.camera.holds_carried()
             // A read card's code waits under whatever sheet came over it.
             || self.camera.holds_card_secret()
+            // A transfer in parts kept after the camera closed; it
+            // cannot be classed, so it counts.
+            || self.camera.holds_parts()
     }
 
     /// Whether the field typing goes to is one of several lines, where

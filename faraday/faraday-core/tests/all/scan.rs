@@ -1105,3 +1105,13 @@ fn a_codex32_secret_read_at_creates_scan_its_xpub_becomes_the_slots_key() {
     let fp = app.session.keys[0].fingerprint.0;
     assert_eq!(slot(&app, 1), faraday_core::create::Source::Here(fp));
 }
+
+#[test]
+fn a_transfer_half_scanned_and_kept_after_the_camera_closes_is_not_clean() {
+    let psbt = testkit::unsigned(&kit("spending")).unwrap().to_bytes();
+    let parts = faraday_qr::bbqr::encode('P', &psbt, 60).unwrap();
+    let mut app = scanning(Vec::new());
+    scan(&mut app, &parts[0]);
+    app.press(Action::Cancel);
+    assert!(!app.clean(), "the parts read are kept");
+}
