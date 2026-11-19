@@ -745,13 +745,13 @@ impl OpenVaults {
     }
 }
 
-/// Whether `records` hold a key record identical to `record`.
 /// Whether `record` is a key record marked made on an online computer: the
 /// records [`OpenVaults::made_online_job`] fingerprints.
 fn is_marked_words(record: &Record) -> bool {
     record.kind == kind::KEY && faraday_vault::records::is_made_online(record)
 }
 
+/// Whether `records` hold a key record identical to `record`.
 fn is_held_key(records: &[Record], record: &Record) -> bool {
     record.kind == kind::KEY
         && records.iter().any(|o| {

@@ -374,8 +374,8 @@ impl Faraday {
     /// would; otherwise a device still waiting comes back up once no other
     /// sheet is. Then, if the event moved the screen or the sheet away
     /// from where the running job was started, its answer is made stale and
-    /// dropped where it arrives, as Back does, once for every job
-    /// (`docs/WORKERS.md` §4).
+    /// dropped where it arrives, as Back does, for every job but a seal and
+    /// the check of the made-online marks (`docs/WORKERS.md` §4).
     pub(crate) fn storage_left(&mut self, screen: crate::Screen) {
         if self.screen != screen {
             self.after_input();
@@ -446,8 +446,13 @@ impl Faraday {
         self.worker.kef_clear();
     }
 
-    /// A lock: the running job's answer has nowhere to go.
+    /// A lock: the running job's answer has nowhere to go. A check of the
+    /// made-online marks is asked for again: a lock that stops at the Lock
+    /// sheet keeps the vaults open, and the press that follows starts it.
     pub(crate) fn job_locked(&mut self) {
+        if self.checking_marks() {
+            self.vaults.store().made_online_again();
+        }
         self.worker.locked();
         self.worker.kef_clear();
         self.worker.set_busy(None);
