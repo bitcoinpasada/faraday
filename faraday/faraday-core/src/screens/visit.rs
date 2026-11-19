@@ -584,11 +584,12 @@ fn list_row(app: &View, ui: &mut Ui, (x, colw, ry): (f32, f32, f32), r: ListRow)
     }
     // Its ⋮ at the right end (F54), its main action before it.
     // A row with no ⋮ keeps its place, so its button stays off the scrollbar.
-    let mut dw = 40.0;
+    // The ⋮ ends 20 from the card's edge, clear of the scrollbar.
+    let mut dw = 48.0;
     if let Some((l, st, a)) = r.main {
         let bw = ui.measure_as(TITLE_S, &l) + 2.0 * BUTTON_PAD;
         ui.button(
-            x + colw - 12.0 - dw + GRID - bw,
+            x + colw - 12.0 - dw - bw,
             ry + GRID,
             Some(bw),
             VISIT_ROW_BUTTON_H,
@@ -618,7 +619,7 @@ fn list_row(app: &View, ui: &mut Ui, (x, colw, ry): (f32, f32, f32), r: ListRow)
         ui.press_box(x + 12.0, ry, colw - 24.0 - dw, 50.0, action);
     }
     if let Some(menu) = r.menu {
-        crate::file_menu::dots(app, ui, x + colw - 12.0 - 32.0, ry + GRID, 32.0, menu);
+        crate::file_menu::dots(app, ui, x + colw - 20.0 - 32.0, ry + GRID, 32.0, menu);
     }
     ui.rule(x + 20.0, ry + 52.0, colw - 40.0, Role::OutlineVariant);
 }
@@ -1060,7 +1061,15 @@ fn on_the_stick(
         let sub = ui.fit_as(BODY_S, &sub, colw - room);
         ui.text_as(ix + 54.0, ry + 28.0, BODY_S, Role::OnSurfaceVariant, &sub);
         if kind.is_some() {
-            ui.press_box(ix + 12.0, ry, colw - 24.0 - dw, 50.0, Action::VisitIn(k));
+            // Ends clear of the ⋮'s touch target.
+            let gap = if menu { GRID } else { 0.0 };
+            ui.press_box(
+                ix + 12.0,
+                ry,
+                colw - 24.0 - dw - gap,
+                50.0,
+                Action::VisitIn(k),
+            );
         }
         if menu {
             crate::file_menu::dots(

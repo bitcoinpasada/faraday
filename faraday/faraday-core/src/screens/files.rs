@@ -44,7 +44,10 @@ pub(super) fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f3
     let xrows = found.xpubs.len().min(ROWS);
     let mut h = 52.0;
     if !wallets.is_empty() {
-        h += 26.0 + wrows as f32 * 38.0 + if wallets.len() > ROWS { 22.0 } else { 0.0 } + 54.0;
+        h += 26.0
+            + wrows as f32 * summary_pitch(wallets.len())
+            + if wallets.len() > ROWS { 22.0 } else { 0.0 }
+            + 54.0;
     }
     if !potential.is_empty() {
         h += 26.0 + prows as f32 * 42.0 + if potential.len() > ROWS { 22.0 } else { 0.0 } + 10.0;
@@ -74,13 +77,14 @@ pub(super) fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f3
         );
         ty += ui.advance_as(LABEL_L, 26.0);
         let many = wallets.len() > 1;
+        let pitch = summary_pitch(wallets.len());
         for (i, fw) in wallets.iter().enumerate().take(ROWS) {
             let chosen = !app.inbox.skip().contains(&fw.descriptor);
             let mut rx = x + 20.0;
             if many {
                 // Ends clear of the list's scrollbar, whose touch target reaches in.
                 let room = w - t::SUMMARY_PAD - t::SUMMARY_PAD - t::GRID;
-                ui.press_box(x + 16.0, ty, room, 34.0, Action::InboxChoose(i));
+                ui.press_box(x + 16.0, ty - 7.0, room, pitch, Action::InboxChoose(i));
                 ui.checkbox(rx, ty + 8.0, chosen, true);
                 rx += 28.0;
             }
@@ -152,7 +156,7 @@ pub(super) fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f3
                     tag,
                 );
             }
-            ty += 38.0;
+            ty += pitch;
         }
         if wallets.len() > ROWS {
             ui.text_mid_as(
@@ -326,6 +330,12 @@ pub(super) fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f3
         }
     }
     h
+}
+
+/// A wallet row's height in the open summary: with several wallets each is a
+/// press box of its own, and a row is as tall as the touch floor.
+fn summary_pitch(wallets: usize) -> f32 {
+    if wallets > 1 { 48.0 } else { 38.0 }
 }
 
 /// The Inbox summary card's heading at `(x, y, w)`: its icon, its title and,
