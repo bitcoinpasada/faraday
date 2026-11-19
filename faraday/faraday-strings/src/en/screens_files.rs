@@ -52,25 +52,11 @@ macro_rules! words_screens_files {
     /// Text in `add_to_vault`.
     add_to_vault_button: "Add to vault",
     // ----- restore_shares_button (faraday-core/src/screens/files.rs) -----
-    /// Text in `restore_shares_button`. `{}`: `texts.len()`.
-    restore_shares_button_restore: "Restore the wallet · {} shares",
-    /// Text in `restore_shares_button`. `{}`: `m.have.len()`, `m.n`.
-    restore_shares_button_progress: "{} of {} keys in hand",
     // ----- files (faraday-core/src/screens/files.rs) -----
     /// Title in `files`.
     files_files: "Files",
-    /// Button in `files`.
-    files_add_to_signatures: "Add to signatures",
-    /// Text in `files`.
-    files_import_into_vault: "Import into the vault",
     /// Text in `files`.
     files_contents: "Contents",
-    /// Text in `files`.
-    files_unlock: "Unlock",
-    /// Button in `files`.
-    files_sign: "Sign",
-    /// Button in `files`.
-    files_load_the_wallet: "Load the wallet",
     /// Button in `files`.
     files_decode: "Decode",
     /// Choice in a text file's ⋮: the file as the message to sign.
@@ -79,20 +65,16 @@ macro_rules! words_screens_files {
     files_check_an_address: "Check an address",
     /// Row in the Details sheet of a PSBT Faraday did not open: why.
     details_refused: "Not opened",
-    /// Button in `files`: a signed PSBT or finished transaction to check rather than sign.
-    files_nonce_check: "Nonce check",
-    /// Button in `files`.
-    files_load_this_key: "Load this key",
-    /// Button in `files`.
-    files_check_the_signature: "Check the signature",
-    /// Files: a SQLite database's row button.
-    files_read_core_wallet: "Read the wallet",
     /// Text in `files_compact`. `{}`: `app.medium.a()`.
     files_waiting_medium: "Waiting for {}",
     /// Text in `stick_status` and `pull_sheet`: the kernel shows storage attached that the disk process has not listed. `{}`: `app.medium.noun()`.
     files_attached_unreadable: "A {} is attached and cannot be read",
     /// Text in `files_compact`. `{}`: `app.medium.cap()`.
     files_attached_lock: "{} attached · lock to use it",
+    /// Text in `on_no_stick`: the On the stick card while a stick is in and something is held. `{}`: `app.medium.noun()`.
+    files_lock_to_use: "Lock to use the {}",
+    /// Button in `on_no_stick`.
+    files_lock: "Lock",
     /// Button in `files_compact`.
     files_scan_a_qr_code: "Scan a QR code",
     /// Line in `files_compact`.

@@ -49,19 +49,32 @@ fn wheel(app: &mut Faraday, x: u16, y: u16) {
 }
 
 #[test]
-fn for_the_stick_scrolls_alone() {
+fn in_faraday_scrolls_under_the_pointer() {
     let mut app = files();
-    wheel(&mut app, 800, 600);
-    assert!(app.files_out_offset() > 0.0, "For the stick did not move");
-    assert_eq!(app.list_offset, 0.0, "From the stick moved with it");
+    let first = drawn(&mut app, "out-0.txt").expect("In Faraday's first file");
+    wheel(&mut app, (first.0 + 100) as u16, (first.1 + 200) as u16);
+    assert!(
+        drawn(&mut app, "out-0.txt").is_none(),
+        "In Faraday did not move"
+    );
 }
 
 #[test]
-fn from_the_stick_scrolls_alone() {
+fn with_no_stick_on_the_stick_is_empty_and_does_not_scroll() {
     let mut app = files();
-    wheel(&mut app, 500, 600);
-    assert!(app.list_offset > 0.0, "From the stick did not move");
-    assert_eq!(app.files_out_offset(), 0.0, "For the stick moved with it");
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t.starts_with("Waiting for")),
+        "{texts:?}"
+    );
+    let before = drawn(&mut app, "out-0.txt").expect("In Faraday's first file");
+    // The right card's side of the page.
+    wheel(&mut app, 1100, 500);
+    assert_eq!(
+        drawn(&mut app, "out-0.txt"),
+        Some(before),
+        "In Faraday moved under the empty card"
+    );
 }
 
 /// The stick's 7-inch panel in landscape, 964 × 565 dp beside the rail:

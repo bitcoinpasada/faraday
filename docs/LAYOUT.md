@@ -47,7 +47,7 @@ Faraday's places: **Home, Check, Wallets, Files, Vaults, Tools** (the
 destinations a person moves between; Check on the rails and the Pi's
 Home menu only, F255), **Guide** and **Settings** (opened,
 then closed), **Lock**, and **Transfer**, which appears in the desktop
-app. A stick is no destination: it is a pane of Files (F235).
+app. A stick is no destination: it is a card of Files (F235, F290).
 
 | Class | Navigation | Guide, Settings, Lock |
 |---|---|---|
@@ -61,11 +61,12 @@ app. A stick is no destination: it is a pane of Files (F235).
 the expanded rail after Tools, on the bar in place of Tools (Tools stays
 on Home's grid). The bar never gives Tools up for a stick.
 
-**The stick in Files** (F235): from expanded windows up the stick pane
-stands beside Files' lists; on compact and medium windows Files has
-primary tabs **In Faraday · On {stick}** while a stick is open, and a
-stick's arrival opens the On tab; on the Pi each tab draws its column as
-the Pi's compact pages do.
+**The stick in Files** (F235, F290): Files is one page whether a stick is
+in or not, two cards from under the top app bar to the page's foot, **In
+Faraday** and **On the stick**: side by side from expanded windows up;
+on compact and medium windows primary tabs **In Faraday · On {stick}**,
+both always present; on the Pi each tab draws its column as the Pi's
+compact pages do.
 
 **What the sidebar lists** besides its tabs (flows in progress with
 their open step, the loaded keys, the wallets, the sticks
@@ -93,8 +94,8 @@ name and its way back to the bar as it is drawn (`screens::bar_head`),
 the same way back its back link took; a page with none, a destination,
 shows its name alone. The mode pill, the keyboard button and the ? stand
 at the bar's right end, Files' stick chip left of them; what stood beside
-a page's title (Files' Scan and its in-memory pill, Vaults' Create a
-vault, a vault's state, Rename and Lock, the stick pane's chips, Tools'
+a page's title (Vaults' Create a
+vault, a vault's state, Rename and Lock, Tools'
 Find) leads the page under the bar. List and detail panes start under
 it (`PANE_TOP_BAR`), every other page `PAGE_TOP_BAR` under it. Over a
 step flow the bar carries the flow's name and way back, Cancel and the
@@ -762,12 +763,12 @@ Moved out with the step-through (F260): nothing of it is left to place.
 | Screen | Rule |
 |---|---|
 | Home | the feed (§4) across the work width: as many `TILE_MIN` columns as fit, tiles at their size, the rest of a short row empty; Scan at the right edge (§15) |
-| Wallets, Files, Vaults, Backups | list and detail (§5, L4) in the whole page area: the list `LIST_PANE` at the start, the detail beside it to the right margin; the detail's reading parts at `COLUMN_MAX`, its chart and tables in the detail's width. Files' two lists ("From the stick", "For the stick") are two list panes side by side; its stick status chip moves to the top strip's row. The bar of a wallet beside the list names the page and has no back arrow or "Back to Wallets" line, as the list is in view (Material's list-detail shows a back only where one pane hides the other); where the card stands alone, or the trail leads elsewhere ("Back to Home"), the line stays |
+| Wallets, Files, Vaults, Backups | list and detail (§5, L4) in the whole page area: the list `LIST_PANE` at the start, the detail beside it to the right margin; the detail's reading parts at `COLUMN_MAX`, its chart and tables in the detail's width. Files is two cards from under the bar to the page's foot, In Faraday and On the stick (F290); its stick status chip is in the top bar. The bar of a wallet beside the list names the page and has no back arrow or "Back to Wallets" line, as the list is in view (Material's list-detail shows a back only where one pane hides the other); where the card stands alone, or the trail leads elsewhere ("Back to Home"), the line stays |
 | The structure chart (a wallet's detail, the chart sheet) | wide content in the detail's width; its nodes keep their size (§8); the wallet's buttons under the chart, not at the card's foot. A node's sheet is Material's standard side sheet at the window's right edge, `SIDE_SHEET_W` wide, the page's room narrowed by it so the chart and its highlighted lines stand beside it (DESIGN §4.16), and where the room left cannot hold the list pane and a card at least as wide beside it (`panes::screen::fits`), the wallet's card stands alone in it, as on a medium window, until the sheet closes; on the rail's and the bar's windows the centred sheet or the panel's page, as before |
 | Back on a compact window | closes what is open on the page before it leaves it: the search view of a vault's items or of the codes (the bar's back arrow, naming the list, and the system Back close it as Done and Escape do, the query kept and the list filtered), then a Settings section to the list |
 | Tools | reading content in its own area (`READING_TOOLS_W`), centred: its `TOOLS_COLUMN_W` column after its inset |
 | The tools' catalogue | a grid of tiles, wide content: as many columns as `CATALOG_TILE_MIN` leaves room for, never fewer than `CATALOG_COLUMNS_MIN`, each at the row's share, in a page at most `TRANSFER_W` wide, centred in the room beside the navigation (`READING_TRANSFER_W`; owner, 2026-11-18); a tile shows its name and line, its standards only as what Find searches |
-| Transfer, Files with a stick open | reading content, each in its own area centred in the room: Transfer's Send and Receive side by side, `TRANSFER_W` at most (`READING_TRANSFER_W`); Files with a stick open, its lists and the stick pane, each at most `COLUMN_MAX`, `VISIT_GAP` apart (`READING_VISIT_W`); each between two `PAGE_INSET`s |
+| Transfer, Files | reading content, each in its own area centred in the room: Transfer's Send and Receive side by side, `TRANSFER_W` at most (`READING_TRANSFER_W`); Files, its two cards, each at most `COLUMN_MAX`, `VISIT_GAP` apart (`READING_VISIT_W`); each between two `PAGE_INSET`s |
 | The backup board | wide content: the places laid out in as many columns as the work width holds at the board's place width, so three places stand side by side at 2560 and two at 1920; the board's lists (seeds, vaults, watch-only software) a supporting pane at the right edge (§15); the page it is on (Back up, a wallet's backup flow) starts at the navigation on every card, so its cards stand still when the board's card opens, and the open card's rules run the work width (§14) |
 | Explore | reading content: the path field as wide as a path (§8), the values in mono in the column, wrapping in groups; the addresses table as wide as its columns, at the start |
 | Spend and every step flow | reading content in the column, centred (§14); a table in a step (Spend's transaction) as wide as its columns; on extra-large Guide in the supporting pane (§6, L6) |

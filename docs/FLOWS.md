@@ -38,7 +38,7 @@ xpub file", **Scan its xpub** (decision 58).
 
 **From the stick, For the stick** (decision 1). Files' two halves are
 named by direction, **From the stick** and **For the stick** ("From the
-card or stick", "For the card or stick" on the Pi), on Files, the stick pane, the
+card or stick", "For the card or stick" on the Pi), on Files, the On the stick card, the
 sheets and every button; no screen says "Inbox" or "Outbox", which
 remain the code's names only.
 
@@ -298,7 +298,7 @@ done.
 
 ### A ⋮ on every file; Rename (decision 61, F54)
 
-Every file row, in Files, with the stick pane, keeps the one action it
+Every file row, in Files, keeps the one action it
 is for as a visible button and puts the rest behind a ⋮ at its right
 end, as the backup board's chips do (`docs/BACKUP-FLOW.md` §17.20: a
 popup under the ⋮, the sheet on the small panel, keyboard reachable, a
@@ -347,7 +347,7 @@ menu.
    **Rename**), nor the reverse.
 3. **From the stick has no Rename**: its files are Faraday's copies of
    files on a stick, renamed on the stick itself (item 4).
-4. **On the stick (the stick pane).** Every file row Faraday lists has a
+4. **On the stick (its card in Files).** Every file row Faraday lists has a
    ⋮ with **Rename**, **Delete from the stick** and **Details**; the
    computer's own files (decision 54) and the settings file have none.
    **Rename** is the same popup, renaming the file on the stick in place:
@@ -850,15 +850,19 @@ then what happens; decision 28) →
 **A stick or card inserted while locked, or with no vault open** → Files
 on the stick directly.
 
-**The stick in Files** (F235). A stick open to Faraday, attached with
-nothing held, is a pane of Files: the stick's files beside Files' own
-lists from expanded windows up, and primary tabs **In Faraday · On
-{stick}** below that, the arrival opening the On tab. Files' rows take a
-checkbox for writing while it is open, and the buttons below stand under
-the lists. Rail, bar and status strip keep their destinations (the rails six with Check, the bar five; F255); the
+**The stick in Files** (F235, F290). Files is one page whether a stick is
+in or not: two cards, **In Faraday** and **On the stick**, side by side
+from expanded windows up and as primary tabs below that, both always
+present. A stick open to Faraday, attached with nothing held, fills the On
+the stick card with its files, Rename stick and the stick chooser in its
+heading and Delete files, Import and Import and load at its foot. With
+no stick it is an empty state, "Waiting for {stick}", with no buttons.
+Files' rows take a checkbox for writing while a stick is open, and Write
+stands at the foot of In Faraday; with none, that foot says files stay in
+memory until power-off. Rail, bar and status strip keep their destinations (the rails six with Check, the bar five; F255); the
 stick has no page of its own, and "a stick visit" is the act of having a
-stick open. With something held the stick is not open: Files shows "Lock
-to use {stick}" and no pane.
+stick open. With something held the stick is not open: the On the stick
+card shows "Lock to use {stick}" and a Lock button.
 - **In Faraday** (the lists):
 - **In Faraday** (left): chosen files written, read back, compared:
   those For the stick, then those from it under **From the stick** (below).
@@ -963,13 +967,11 @@ to use {stick}" and no pane.
   boundary. A computer's own files (dot-files and Windows' own,
   `docs/STARTER.md` §4.4) are never offered or deleted one by one, and
   the boot partition is never touched.
-- The title's chip says where pulling the stick goes (decision 30):
-  "Then: Unlock" when a vault was sealed for it (For the stick, or on the
-  last write's receipt), "Then: {flow}" when the stick came in during
-  one, else "Then: Home" →
-  **Remove the stick** → once gone → **Unlock**, with the vault sealed for
-  the stick, or the flow it came in during; with neither, the person stays
-  on Files, and the chip and the pane go.
+- Pulling the stick (decision 30, F290): once it is gone the person goes to
+  **Unlock**, with the vault sealed for the stick (For the stick, or on the
+  last write's receipt), or back to the flow the stick came in during; with
+  neither, the person stays on Files and only the On the stick card goes
+  back to its empty state. No chip or banner on Files announces any of it.
 
 **A stick pulled during a write** → the write is reported failed, the file
 stays For the stick, and Files says to put the stick back.

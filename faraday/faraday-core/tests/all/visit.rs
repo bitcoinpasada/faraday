@@ -496,7 +496,7 @@ fn visiting(outbox: Files) -> Faraday {
 }
 
 #[test]
-fn the_stick_pane_says_then_home_and_pulling_stays_on_files() {
+fn files_says_no_then_chip_and_pulling_stays_on_files() {
     let wallet = faraday_core::testkit::files()
         .unwrap()
         .into_iter()
@@ -504,25 +504,25 @@ fn the_stick_pane_says_then_home_and_pulling_stays_on_files() {
         .unwrap();
     let mut app = visiting(vec![wallet]);
     let texts = app.drawn_texts();
-    assert!(texts.iter().any(|t| t == "Then: Home"), "{texts:?}");
+    assert!(!texts.iter().any(|t| t.starts_with("Then:")), "{texts:?}");
     app.storage(StorageEvent::Sticks(Vec::new()));
     assert_eq!(app.screen, Screen::Files, "nothing sends on: Files stays");
     let texts = app.drawn_texts();
     assert!(
-        !texts.iter().any(|t| t.starts_with("Then:")),
-        "the pane closes with the stick: {texts:?}"
+        texts.iter().any(|t| t.starts_with("Waiting for")),
+        "only On the stick goes back to its empty state: {texts:?}"
     );
 }
 
 #[test]
-fn a_visit_for_a_vault_sealed_at_lock_says_then_unlock_and_goes_there() {
+fn a_visit_for_a_vault_sealed_at_lock_goes_to_unlock_with_no_chip() {
     let vault = (
         "vault.kdbx".to_string(),
         faraday_core::testkit::test_vault().unwrap(),
     );
     let mut app = visiting(vec![vault]);
     let texts = app.drawn_texts();
-    assert!(texts.iter().any(|t| t == "Then: Unlock"), "{texts:?}");
+    assert!(!texts.iter().any(|t| t.starts_with("Then:")), "{texts:?}");
     app.storage(StorageEvent::Sticks(Vec::new()));
     assert_eq!(app.screen, Screen::Unlock);
 }
@@ -1583,7 +1583,7 @@ fn a_stick_arriving_opens_files_with_the_stick_pane() {
     let _ = app.frame();
     assert!(app.offers(Action::VisitCopy), "Import is on Files");
     let texts = app.drawn_texts();
-    assert!(texts.iter().any(|t| t == "Then: Home"), "{texts:?}");
+    assert!(!texts.iter().any(|t| t.starts_with("Then:")), "{texts:?}");
 }
 
 /// The bar and the rail keep the same destinations as a stick comes and
@@ -1716,4 +1716,66 @@ fn scrolling_the_stick_list_leaves_the_page_where_it_was() {
     wheel(&mut app, over, 3000);
     assert!(app.visit_in_offset() > 0.0, "the stick's list did not move");
     assert_eq!(app.list_offset, 0.0, "the page moved with the list");
+}
+
+/// Where the text `want` is drawn, its first box (x, y, w, h), pixels.
+fn drawn_at(app: &mut Faraday, want: &str) -> Option<(i32, i32, i32, i32)> {
+    let _ = app.frame();
+    app.drawn_text_boxes()
+        .into_iter()
+        .find(|(t, _)| t == want)
+        .map(|(_, b)| b)
+}
+
+#[test]
+fn files_draws_both_cards_with_a_stick_and_without_one() {
+    let mut with = visiting(Vec::new());
+    for want in ["In Faraday", "On the stick"] {
+        assert!(drawn_at(&mut with, want).is_some(), "{want} with a stick");
+    }
+    with.storage(StorageEvent::Sticks(Vec::new()));
+    for want in ["In Faraday", "On the stick"] {
+        assert!(drawn_at(&mut with, want).is_some(), "{want} with no stick");
+    }
+    let texts = with.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t.starts_with("Waiting for")),
+        "{texts:?}"
+    );
+}
+
+#[test]
+fn with_no_stick_on_the_stick_has_no_buttons() {
+    let mut app = visiting(Vec::new());
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    let _ = app.frame();
+    for (what, action) in [
+        ("Import", Action::VisitCopy),
+        ("Delete files", Action::DeleteFiles),
+        ("Import and load", Action::VisitCopyAndLoad),
+        ("Write", Action::VisitWrite),
+    ] {
+        assert!(!app.offers(action), "{what} is offered with no stick");
+    }
+    let texts = app.drawn_texts();
+    assert!(
+        !texts.iter().any(|t| t.starts_with("Rename")),
+        "Rename stick with no stick: {texts:?}"
+    );
+    assert!(
+        texts.iter().any(|t| t.starts_with("In memory")),
+        "In Faraday's foot says files stay in memory: {texts:?}"
+    );
+}
+
+#[test]
+fn rename_stick_is_in_the_heading_of_on_the_stick() {
+    let mut app = visiting(Vec::new());
+    let head = drawn_at(&mut app, "On the stick").expect("the card's heading");
+    let rename = drawn_at(&mut app, "Rename stick").expect("Rename stick");
+    assert!(rename.0 > head.0, "Rename stick is right of the heading");
+    assert!(
+        (rename.1 - head.1).abs() < head.3 * 2,
+        "on the heading's row"
+    );
 }

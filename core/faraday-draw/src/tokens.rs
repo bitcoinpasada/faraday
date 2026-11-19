@@ -1073,6 +1073,14 @@ pub const VISIT_NAME_MIN: f32 = 120.0;
 /// A row's main action in the stick pane: shorter than a button, so it
 /// sits inside the row's height.
 pub const VISIT_ROW_BUTTON_H: f32 = 32.0;
+/// Files' cards: the heading over a card's list.
+pub const VISIT_CARD_HEAD: f32 = 62.0;
+/// Files' cards: the room under a list for the foot's buttons.
+pub const VISIT_CARD_FOOT: f32 = 70.0;
+/// Files' cards: the top of the foot's buttons above the card's bottom.
+pub const VISIT_FOOT_ROW: f32 = 62.0;
+/// Files' In Faraday card: a group's heading row in its list.
+pub const VISIT_GROUP_HEAD: f32 = 36.0;
 /// A stick visit's reading area: its two lists, each at most
 /// `COLUMN_MAX`, the gap between them, between two `PAGE_INSET`s.
 pub const READING_VISIT_W: f32 = 2.0 * COLUMN_MAX + VISIT_GAP + 2.0 * PAGE_INSET;

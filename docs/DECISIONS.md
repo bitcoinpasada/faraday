@@ -251,7 +251,7 @@ Read this table, then only the decision you need.
 | [F232](decisions/F232.md) | A BOLT 12 offer is read in Decode a Lightning invoice, read only, through a reader of Faraday's own, checked against Core Lightning's code | 2026-11-10 | Amended by F247 | formats |
 | [F233](decisions/F233.md) | Compare two PSBTs lists their differences without judging them; a fee bump is said only on Faraday's own rule, failing closed | 2026-11-10 | Amended by F270 | signing |
 | [F234](decisions/F234.md) | Work kept out of the app is held by reachability, not by a cargo feature | 2026-11-10 | Amended by F257 | wallets |
-| [F235](decisions/F235.md) | The stick is shown in Files, and the stick visit is no destination | 2026-11-10 | Amended by F255 | stick |
+| [F235](decisions/F235.md) | The stick is shown in Files, and the stick visit is no destination | 2026-11-10 | Amended by F255, F290 | stick |
 | [F236](decisions/F236.md) | The online apps' Send text tool shows any text as a QR code except a secret, by a rule of Faraday's own that fails closed; bare hex is let through | 2026-11-10 | Active | QR |
 | [F237](history/decisions/F237.md) | Transfer calls Read the words and does not offer it; the screens_not count is 23 | 2026-11-10 | Superseded by F268 | crypto |
 | [F238](decisions/F238.md) | Named costly operations are held by an instruction count in the check: more than 25% over fails, a count is raised only in a commit that says why; a stated cost says how it was measured | 2026-11-10 | Active | speed |
@@ -300,6 +300,7 @@ Read this table, then only the decision you need.
 | [F286](decisions/F286.md) | Each key of a wallet of several keys carries a check: yours, checked by you or not checked, and the descriptor checksum is not proof | 2026-11-17 | Active | wallets |
 | [F287](decisions/F287.md) | A second explanation on a working screen: the info button and tooltip after BIP-48 on Make a new wallet's path row | 2026-11-18 | Active | design |
 | [F288](decisions/F288.md) | While a wallet is being made, every way of making its key opens inside Make a new wallet | 2026-11-18 | Active | wallets |
+| [F290](decisions/F290.md) | One Files page whether a stick is in or not | 2026-11-19 | Active | stick |
 | [F291](decisions/F291.md) | Home shows what is loaded, under its search bar and the first actions; the sidebar no longer lists keys and wallets | 2026-11-19 | Active | design |
 | [F292](decisions/F292.md) | A control Practice refuses answers a press with one toast | 2026-11-19 | Active | design |
 | [F293](decisions/F293.md) | A plan whose SLIP-39 set is not its key's keeps that set's placed shares as kept old shares | 2026-11-19 | Active | backup |
