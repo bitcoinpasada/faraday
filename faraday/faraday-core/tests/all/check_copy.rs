@@ -293,6 +293,17 @@ fn a_words_only_plan_with_a_camera_opens_the_typed_check_not_the_camera() {
     );
 }
 
+/// Words typed back in Check my copy are a typed secret until Lock.
+#[test]
+fn words_typed_in_check_my_copy_are_counted_as_typed() {
+    let mut app = backing_up(FORUM, false, WORDS_ONLY);
+    app.press(Action::BCheck);
+    assert!(!testkit::secret_typed(&app), "nothing is typed yet");
+    testkit::type_words(&mut app, "forum undo fragile");
+    assert!(!seeds_done(&app));
+    assert!(testkit::secret_typed(&app), "the typed words are not held");
+}
+
 #[test]
 fn one_wrong_word_is_named_and_the_right_word_and_the_rest_complete_it() {
     let mut app = backing_up(ATTACK, true, WORDS_ONLY);

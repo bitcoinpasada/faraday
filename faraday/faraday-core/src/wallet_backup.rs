@@ -4474,10 +4474,20 @@ impl Faraday {
     }
 }
 
-// The checklist's seed on show and its Krux code form.
+// The checklist's seed on show, its Krux code form and the copy check's
+// typed words.
 impl crate::at_lock::AtLock for WalletBackupArea {
     fn holds(&self) -> crate::at_lock::Holds {
-        crate::at_lock::Holds::typed(self.kef_holds_secret() || self.shown.is_some())
+        crate::at_lock::Holds::typed(
+            self.kef_holds_secret()
+                || self.shown.is_some()
+                // The words typed back in Check my copy, on either keyboard.
+                || self.state.as_ref().is_some_and(|s| {
+                    s.check.as_ref().is_some_and(|c| {
+                        !c.typed.is_empty() || c.keys.as_deref().is_some_and(|k| k.holds_any())
+                    })
+                }),
+        )
     }
     fn lock(&mut self) {
         self.close();
