@@ -29,6 +29,15 @@
 //! inherit the page's size and alignment. Moving this one copies a
 //! pointer.
 //!
+//! **Plain data only.** `T` is bound by [`Pod`], a sealed marker: the
+//! page's copy is made bit for bit and the source zeroized in place,
+//! which is only sound for a type that owns nothing outside its own
+//! bytes, since zeroizing the source would free what the page's copy
+//! still points at. `Pod` is implemented for exactly byte and word
+//! arrays and for [`Plain`], a wrapper that takes only a `Copy` value (no
+//! destructor, no heap pointer). The compiler refuses the rest, and no
+//! secret type has to become `Copy` to be pinned.
+//!
 //! **Nothing is left where the value came from.** Construction copies
 //! the bytes onto the page and then zeroizes the source, so a value
 //! handed to [`Pinned::new`] does not survive in the caller's frame as a
@@ -92,6 +101,51 @@ pub fn pin_failure_to_report() -> bool {
         .is_ok()
 }
 
+mod sealed {
+    pub trait Sealed {}
+}
+
+/// Plain data: a type that owns nothing outside its own bytes, so that
+/// copying it onto a pinned page and zeroizing the original leaves no
+/// pointer to freed memory. Sealed; see [`Pinned`].
+pub trait Pod: sealed::Sealed + Zeroize {}
+
+impl<T: Copy + Zeroize, const N: usize> sealed::Sealed for [T; N] {}
+impl<T: Copy + Zeroize, const N: usize> Pod for [T; N] {}
+
+/// A `Copy` value that a [`Pinned`] page can hold, with the way to erase
+/// it. `Copy` means it has no destructor and owns no memory; the value
+/// is a secret type's plain bytes (a key from another library), and
+/// `erase` is its own wipe, which must overwrite the bytes of the value
+/// itself.
+pub struct Plain<T: Copy> {
+    value: T,
+    erase: fn(&mut T),
+}
+
+impl<T: Copy> Plain<T> {
+    /// Wraps `value` with the function that erases it.
+    #[inline]
+    pub fn new(value: T, erase: fn(&mut T)) -> Self {
+        Plain { value, erase }
+    }
+
+    /// Borrows the value.
+    #[inline]
+    pub fn get(&self) -> &T {
+        &self.value
+    }
+}
+
+impl<T: Copy> Zeroize for Plain<T> {
+    fn zeroize(&mut self) {
+        (self.erase)(&mut self.value);
+    }
+}
+
+impl<T: Copy> sealed::Sealed for Plain<T> {}
+impl<T: Copy> Pod for Plain<T> {}
+
 /// A value that is zeroized when dropped and lives on pages of its own
 /// that the kernel is asked to keep out of swap.
 ///
@@ -101,7 +155,7 @@ pub fn pin_failure_to_report() -> bool {
 /// constant-time equality where `T: AsRef<[u8]>`. Use it for the secrets
 /// a session holds for as long as a key is loaded; a value that lives for
 /// the length of one function is not worth a page.
-pub struct Pinned<T: Zeroize> {
+pub struct Pinned<T: Pod> {
     /// One initialised `T`, in an allocation of whole pages made by
     /// [`raw::hold`] and freed by [`raw::release`] under the same
     /// [`layout`]. Nothing else points at it or frees it, so it is live
@@ -111,7 +165,7 @@ pub struct Pinned<T: Zeroize> {
     owned: PhantomData<T>,
 }
 
-impl<T: Zeroize> Pinned<T> {
+impl<T: Pod> Pinned<T> {
     /// Puts `value` on pages of its own and pins them, and zeroizes
     /// `value` where it stood.
     ///
@@ -178,32 +232,32 @@ impl<T: Zeroize> Pinned<T> {
     }
 }
 
-impl<T: Zeroize> Drop for Pinned<T> {
+impl<T: Pod> Drop for Pinned<T> {
     fn drop(&mut self) {
         self.expose_mut().zeroize();
         raw::release(self.ptr);
     }
 }
 
-impl<T: Zeroize> Zeroize for Pinned<T> {
+impl<T: Pod> Zeroize for Pinned<T> {
     fn zeroize(&mut self) {
         self.expose_mut().zeroize();
     }
 }
 
-impl<T: Zeroize> ZeroizeOnDrop for Pinned<T> {}
+impl<T: Pod> ZeroizeOnDrop for Pinned<T> {}
 
 // SAFETY: a `Pinned<T>` uniquely owns its allocation, as a `Box<T>` does
 // (see `ptr`), and the pages it holds are not tied to a thread. It is
 // `Send` and `Sync` exactly when `T` is, so a signing job on the worker
 // can share a key the store holds through an `Arc` (`docs/WORKERS.md` §6).
 #[allow(unsafe_code)]
-unsafe impl<T: Zeroize + Send> Send for Pinned<T> {}
+unsafe impl<T: Pod + Send> Send for Pinned<T> {}
 // SAFETY: as for `Send`; shared access only reads through `expose`.
 #[allow(unsafe_code)]
-unsafe impl<T: Zeroize + Sync> Sync for Pinned<T> {}
+unsafe impl<T: Pod + Sync> Sync for Pinned<T> {}
 
-impl<T: Zeroize + AsRef<[u8]>> PartialEq for Pinned<T> {
+impl<T: Pod + AsRef<[u8]>> PartialEq for Pinned<T> {
     /// Constant-time comparison of the byte representations, as
     /// [`Secret`](crate::Secret) compares.
     fn eq(&self, other: &Self) -> bool {
@@ -211,7 +265,7 @@ impl<T: Zeroize + AsRef<[u8]>> PartialEq for Pinned<T> {
     }
 }
 
-impl<T: Zeroize + AsRef<[u8]>> Eq for Pinned<T> {}
+impl<T: Pod + AsRef<[u8]>> Eq for Pinned<T> {}
 
 /// The pages themselves: taken, pinned, released.
 mod raw {
@@ -219,25 +273,24 @@ mod raw {
     use core::sync::atomic::Ordering;
 
     use alloc::alloc::{alloc, dealloc, handle_alloc_error};
-    use zeroize::Zeroize;
 
-    use super::{PIN_FAILURE, layout};
+    use super::{PIN_FAILURE, Pod, layout};
 
     /// Moves `value` into whole pages of its own and pins them, leaving
     /// nothing behind: the bytes are copied to the page, the source is
-    /// zeroized where it stands, and its destructor is not run, because
-    /// what it owned belongs to the page now. A plain `ptr::write` would
+    /// zeroized where it stands. A plain `ptr::write` would
     /// leave the caller's copy in the frame for a memory image to find.
     ///
-    /// This is why `T: Zeroize` means what it says here: `zeroize` must
-    /// overwrite the bytes of the `T` itself and not reach through a
-    /// pointer it owns, since the page's copy holds the same pointer.
-    /// Every `T` pinned in this crate is plain bytes.
+    /// `T: Pod` is what makes that sound: a `Pod` type owns nothing
+    /// outside its own bytes and has no destructor, so zeroizing the
+    /// source cannot free anything the page's copy still points at, and
+    /// the page needs no destructor run when it goes. The type holds the
+    /// rule; a type that owns memory (a `Vec`, a `Box`) does not compile.
     ///
     /// A refused allocation aborts, as any other allocation here does; a
     /// refused `mlock` is noted and carried on from.
     #[allow(unsafe_code)]
-    pub fn hold<T: Zeroize>(mut value: T) -> NonNull<T> {
+    pub fn hold<T: Pod>(mut value: T) -> NonNull<T> {
         let layout = layout::<T>();
         // SAFETY: `layout` has a non-zero size — a whole number of pages,
         // at least one — so `alloc` may be called with it. It returns
@@ -248,9 +301,8 @@ mod raw {
         // live, initialised, owned `T`, so `size_of::<T>()` bytes may be
         // read from it, and it cannot overlap an allocation made after
         // it. After the copy the allocation holds one initialised `T`,
-        // which is what the returned pointer promises its caller, and
-        // the source is forgotten below rather than dropped, so only one
-        // of the two is ever owned.
+        // which is what the returned pointer promises its caller; `T` is
+        // `Copy`, so the copy leaves the source a valid `T` to zeroize.
         let held = unsafe {
             let ptr = alloc(layout).cast::<T>();
             if ptr.is_null() {
@@ -260,7 +312,6 @@ mod raw {
             NonNull::new_unchecked(ptr)
         };
         value.zeroize();
-        core::mem::forget(value);
         if !sys::lock(held.as_ptr().cast(), layout.size()) {
             let _ = PIN_FAILURE.compare_exchange(0, 1, Ordering::Relaxed, Ordering::Relaxed);
         }
@@ -270,19 +321,17 @@ mod raw {
     /// Unpins and frees the pages `held` occupies. The caller has
     /// zeroized the value; nothing else reads it afterwards.
     #[allow(unsafe_code)]
-    pub fn release<T: Zeroize>(held: NonNull<T>) {
+    pub fn release<T: Pod>(held: NonNull<T>) {
         let layout = layout::<T>();
         // SAFETY: `held` came from `hold` and names an allocation of
         // `layout.size()` bytes aligned to `PAGE`, made by the global
         // allocator under this same layout, so it may be freed under it.
         // It holds one `T`, initialised by `hold` and zeroized by the
-        // caller, which is dropped in place before the allocation goes:
-        // zeroizing a `T` erases what it holds, not what it owns, so a
-        // `T` with a destructor still needs it run. `release` runs once,
-        // from `Pinned::drop`, on a value that is going away, so nothing
+        // caller; `T: Copy` has no destructor, so there is nothing to
+        // run before the allocation goes. `release` runs once, from
+        // `Pinned::drop`, on a value that is going away, so nothing
         // reads the allocation afterwards.
         unsafe {
-            core::ptr::drop_in_place(held.as_ptr());
             sys::unlock(held.as_ptr().cast(), layout.size());
             dealloc(held.as_ptr().cast(), layout);
         }

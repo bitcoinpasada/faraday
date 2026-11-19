@@ -47,7 +47,7 @@ use bitcoin::NetworkKind;
 use bitcoin::bip32::Xpriv;
 use bitcoin::secp256k1::{All, Secp256k1};
 use faraday_crypto::work::{Compute, Work};
-use faraday_crypto::{Pinned, Secret, SeedBytes, Zeroize, hmac_sha512};
+use faraday_crypto::{Pinned, Plain, Secret, SeedBytes, Zeroize, hmac_sha512};
 
 pub use bitcoin::bip32::{ChildNumber, DerivationPath, Xpub};
 pub use bitcoin::secp256k1::SecretKey;
@@ -448,14 +448,12 @@ fn erase(xpriv: &mut Xpriv) {
     AsMut::<[u8; 32]>::as_mut(&mut xpriv.chain_code).zeroize();
 }
 
-/// An `Xpriv` that a [`Pinned`] page can hold: erasing it is zeroizing
-/// it, by the same best-effort rule as [`MasterKey`]'s drop.
-struct XprivCell(Xpriv);
+/// An `Xpriv` that a [`Pinned`] page can hold: erasing it is [`erase`],
+/// by the same best-effort rule as [`MasterKey`]'s drop.
+type XprivCell = Plain<Xpriv>;
 
-impl Zeroize for XprivCell {
-    fn zeroize(&mut self) {
-        erase(&mut self.0);
-    }
+fn xpriv_cell(xpriv: Xpriv) -> XprivCell {
+    Plain::new(xpriv, erase)
 }
 
 /// The BIP-32 master private key for one network.
@@ -486,7 +484,7 @@ pub struct MasterKey {
 impl MasterKey {
     /// The extended private key itself.
     fn xpriv(&self) -> &Xpriv {
-        &self.xpriv.expose().0
+        self.xpriv.expose().get()
     }
 
     /// Wraps `xpriv` on a pinned page and erases it where it stood, so
@@ -496,7 +494,7 @@ impl MasterKey {
         let secp = blinded_context(xpriv.chain_code.as_bytes());
         let fingerprint = xpriv.fingerprint(&secp).into();
         let held = MasterKey {
-            xpriv: Pinned::new(XprivCell(*xpriv)),
+            xpriv: Pinned::new(xpriv_cell(*xpriv)),
             network,
             secp,
             fingerprint,
@@ -664,7 +662,7 @@ impl MasterKey {
             reason = "the context is a copy of the blinded one, which the new key needs"
         )]
         let held = MasterKey {
-            xpriv: Pinned::new(XprivCell(xpriv)),
+            xpriv: Pinned::new(xpriv_cell(xpriv)),
             network,
             secp: self.secp.clone(),
             fingerprint: self.fingerprint,

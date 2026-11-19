@@ -60,7 +60,7 @@ pub use hash::{
     pbkdf2_hmac_sha256, pbkdf2_hmac_sha256_block, pbkdf2_hmac_sha512, sha256, sha256_whole, sha512,
     sha512_again, sha512_into,
 };
-pub use pinned::{Pinned, pin_failure_to_report};
+pub use pinned::{Pinned, Plain, Pod, pin_failure_to_report};
 pub use scrypt::{Error as ScryptError, scrypt};
 pub use secret::{MAX_MNEMONIC_WORDS, MAX_SEED_LEN, MnemonicBytes, Secret, SeedBytes};
 pub use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};

@@ -4,9 +4,9 @@
 use core::sync::atomic::{AtomicUsize, Ordering};
 
 use faraday_crypto::{
-    HKDF_SHA256_MAX, Pinned, Secret, Zeroize, ZeroizeOnDrop, hkdf_sha256, hkdf_sha256_expand,
-    hmac_sha256, hmac_sha512, pbkdf2_hmac_sha256, pbkdf2_hmac_sha256_block, pbkdf2_hmac_sha512,
-    sha256, work::Compute,
+    HKDF_SHA256_MAX, Pinned, Plain, Secret, Zeroize, ZeroizeOnDrop, hkdf_sha256,
+    hkdf_sha256_expand, hmac_sha256, hmac_sha512, pbkdf2_hmac_sha256, pbkdf2_hmac_sha256_block,
+    pbkdf2_hmac_sha512, sha256, work::Compute,
 };
 
 fn unhex(s: &str) -> Vec<u8> {
@@ -113,18 +113,15 @@ fn pinned_holds_what_was_put_in_it() {
     assert!(moved != Pinned::new([0u8; 32]));
 }
 
-/// A secret that reports every time it is wiped, so that a test can see
-/// what putting one on a pinned page leaves behind.
-#[derive(Default)]
-struct Counted([u8; 32]);
-
 static ZEROIZED: AtomicUsize = AtomicUsize::new(0);
 
-impl Zeroize for Counted {
-    fn zeroize(&mut self) {
-        self.0.zeroize();
+/// A secret that reports every time it is wiped, so that a test can see
+/// what putting one on a pinned page leaves behind.
+fn counted(bytes: [u8; 32]) -> Plain<[u8; 32]> {
+    Plain::new(bytes, |b| {
+        b.zeroize();
         ZEROIZED.fetch_add(1, Ordering::SeqCst);
-    }
+    })
 }
 
 /// A secret handed to a pinned page does not stay behind in the frame it
@@ -132,13 +129,13 @@ impl Zeroize for Counted {
 #[test]
 fn pinning_a_value_wipes_where_it_came_from() {
     let before = ZEROIZED.load(Ordering::SeqCst);
-    let held = Pinned::new(Counted([0x5au8; 32]));
+    let held = Pinned::new(counted([0x5au8; 32]));
     assert_eq!(
         ZEROIZED.load(Ordering::SeqCst),
         before + 1,
         "the value handed in is wiped once"
     );
-    assert_eq!(held.expose().0, [0x5au8; 32], "and the page holds it");
+    assert_eq!(*held.expose().get(), [0x5au8; 32], "and the page holds it");
     drop(held);
     assert_eq!(
         ZEROIZED.load(Ordering::SeqCst),

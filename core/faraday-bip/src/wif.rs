@@ -25,7 +25,7 @@ use bitcoin::NetworkKind;
 use bitcoin::secp256k1::{All, PublicKey, Secp256k1, SecretKey};
 use bitcoin::{CompressedPublicKey, ScriptBuf};
 use faraday_crypto::work::{Compute, Work};
-use faraday_crypto::{Pinned, Zeroize, hmac_sha512};
+use faraday_crypto::{Pinned, Plain, Zeroize, hmac_sha512};
 
 /// The version byte of a mainnet WIF.
 pub const MAINNET: u8 = 0x80;
@@ -53,12 +53,10 @@ const BLIND_LABEL: &[u8] = b"faraday-wif-blind";
 
 /// A `SecretKey` that a [`Pinned`] page can hold: erasing it is
 /// `non_secure_erase`, a volatile write.
-struct KeyCell(SecretKey);
+type KeyCell = Plain<SecretKey>;
 
-impl Zeroize for KeyCell {
-    fn zeroize(&mut self) {
-        self.0.non_secure_erase();
-    }
+fn key_cell(key: SecretKey) -> KeyCell {
+    Plain::new(key, SecretKey::non_secure_erase)
 }
 
 /// One private key read from a WIF, with its public key and the form
@@ -110,7 +108,7 @@ impl SingleKey {
             inner: PublicKey::from_secret_key(&secp, &key),
             compressed,
         };
-        let secret = Pinned::new(KeyCell(key));
+        let secret = Pinned::new(key_cell(key));
         key.non_secure_erase();
         Ok(SingleKey {
             secret,
@@ -161,7 +159,7 @@ impl SingleKey {
 
     /// The private key, for the signer (`faraday_psbt::sweep`).
     pub fn secret_key(&self) -> &SecretKey {
-        &self.secret.expose().0
+        self.secret.expose().get()
     }
 
     /// The signing context this key's operations run in, blinded for
