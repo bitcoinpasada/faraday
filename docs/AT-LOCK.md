@@ -309,3 +309,6 @@ carries) and again an ordinary lock, and scans every live block in the old
 app before it is dropped and in the fresh one. An area that holds no secret
 of its own has an arm that says so and plants nothing. The flows are in
 §4's list of `docs/SECRET-LEAKS.md`, and each `Area` arm names its flows.
+Every area that holds a secret has a flow but Worker, whose opened Krux
+code is taken or dropped in the step its answer arrives, so no test can
+catch one waiting.

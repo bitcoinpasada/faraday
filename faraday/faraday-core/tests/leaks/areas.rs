@@ -18,6 +18,7 @@ use crate::{arm, finish};
 use faraday_core::convert::ConvertAction as C;
 use faraday_core::kef_tool::{KefToolAction, Pick};
 use faraday_core::seed_check::SeedAction as S;
+use faraday_core::testkit::KindText as _;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Area, Ask, Faraday, Screen, StorageEvent, catalog, testkit};
 use faraday_leak_scan::Form;
@@ -48,6 +49,7 @@ fn first_part() -> Zeroizing<String> {
 fn all_forms() -> Vec<Form> {
     let mut f = forms::seed_forms("");
     f.extend(forms::bip85_child_forms());
+    f.extend(paperkey_forms());
     const CHARSET: &[u8] = b"qpzry9x8gf2tvdw0s3jn54khce6mua7l";
     f.push(Form::new(
         "codex32 share A data symbols",
@@ -306,6 +308,169 @@ fn bip85_child(app: &mut Faraday) {
     let _ = app.frame();
 }
 
+/// A one-key wallet over the loaded key, as the chart and the backup
+/// flow open from.
+fn wallet_over_key(app: &mut Faraday) -> usize {
+    let c = testkit::compute();
+    let text = faraday_core::create::NewKind::NativeSegwit
+        .key_text(&c, app.session.keys.master_for_tests(0))
+        .expect("the key's text");
+    app.session
+        .add_wallet_confirmed(
+            &c,
+            "Spending",
+            &format!("wpkh({}/<0;1>/*)", &*text),
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .expect("the wallet")
+}
+
+fn glance_passphrase(app: &mut Faraday) {
+    load_seed(app);
+    let w = wallet_over_key(app);
+    app.press(Action::OpenWallet(w));
+    app.press(Action::ReduceMotion(true));
+    let _ = app.frame();
+    // From the key, on no line (`NO_LINE`).
+    app.press(Action::Chart(
+        faraday_core::glance::sheet::ChartAction::Open(
+            faraday_core::glance::Press::Loaded(w),
+            faraday_core::glance::sheet::Target::PassCheck(0, u8::MAX, u8::MAX),
+        ),
+    ));
+    crate::common::a_moment(app);
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::Chart), "no sheet");
+    type_text(app, MARKER);
+}
+
+fn restore_typed_shares(app: &mut Faraday) {
+    use faraday_core::rstep::{KIND, QUORUM, WHERE};
+    app.press(Action::RestoreWallet);
+    app.press(Action::RKind(4));
+    app.press(Action::RNext(KIND));
+    app.press(Action::RNext(QUORUM));
+    app.press(Action::RSeeds);
+    app.press(Action::RVaults(false));
+    app.press(Action::RNext(WHERE));
+    app.press(Action::RSlotWords);
+    type_text(app, PHRASE);
+}
+
+fn backup_krux_form(app: &mut Faraday) {
+    use faraday_core::kef_form::KefAct;
+    use faraday_core::kef_tool::KefToolAction as K;
+    use faraday_core::wallet_backup::quick::Quick;
+    load_seed(app);
+    // The code's passphrase form needs the randomness a person adds.
+    for i in 0..8u8 {
+        app.event(Event::Entropy(EntropyBytes::new([0x40 + i; 32])));
+    }
+    let w = wallet_over_key(app);
+    app.press(Action::BQuick(Quick::Open(w)));
+    app.press(Action::BQuick(Quick::Code));
+    app.press(Action::BQuick(Quick::Show));
+    app.press(Action::BQuick(Quick::Wrote));
+    testkit::type_words(app, PHRASE);
+    let _ = app.frame();
+    app.press(Action::BQuick(Quick::Next));
+    let _ = app.frame();
+    app.press(Action::KefTool(K::Backup(KefAct::Field)));
+    type_text(app, MARKER);
+    app.press(Action::KefTool(K::Backup(KefAct::FieldAgain)));
+    type_text(app, MARKER);
+}
+
+/// The GPG restore's secrets: the seeds of the key paperkey printed
+/// `PRINTED` for, and the lines of its paperkey.
+const PRINTED: &str = include_str!("../../../../tools/vectors/paperkey/faraday-key.txt");
+
+fn paperkey_lines() -> Vec<&'static str> {
+    PRINTED
+        .lines()
+        .filter(|l| !l.starts_with('#') && !l.trim().is_empty())
+        .collect()
+}
+
+fn paperkey_forms() -> Vec<Form> {
+    let (mut primary, mut subkey) = ([0x11u8; 32], [0x22u8; 32]);
+    primary[0] = 0;
+    subkey[..2].fill(0);
+    let mut f = vec![
+        Form::new("GPG primary seed", primary.to_vec()),
+        Form::new("GPG subkey seed", subkey.to_vec()),
+    ];
+    for (i, l) in paperkey_lines().iter().take(2).enumerate() {
+        f.push(Form::new(
+            if i == 0 {
+                "paperkey line 1"
+            } else {
+                "paperkey line 2"
+            },
+            l.as_bytes().to_vec(),
+        ));
+    }
+    f
+}
+
+/// The GPG restore at its lines, two of them typed: the public key is a
+/// file, the plan is Make's, the sticks and the vault are made.
+fn gpg_restore_lines(app: &mut Faraday) {
+    use faraday_core::backup_flow::steps::{FlowAction as F, RestorePress as R};
+    use faraday_core::file_menu::{FilePress, Row};
+    use faraday_pgp::{Armor, armor};
+    let (mut primary, mut subkey) = ([0x11u8; 32], [0x22u8; 32]);
+    primary[0] = 0;
+    subkey[..2].fill(0);
+    let made = faraday_keys::gpg::create(
+        &Zeroizing::new(primary),
+        &Zeroizing::new(subkey),
+        1_780_000_000,
+        faraday_text::Text::of("Test Person <test@example.com>"),
+        2 * 31_536_000,
+    );
+    let cert = "test-person.asc";
+    let file = armor(Armor::PublicKey, &made.certificate);
+    let mut shell = crate::common::Shell::light();
+    for n in ["S1", "S2"] {
+        shell.add(Disk::empty(n, "KEYSTICK"));
+    }
+    *app = crate::common::process(
+        vec![(cert.to_string(), file.as_bytes().to_vec())],
+        Vec::new(),
+        Vec::new(),
+    );
+    crate::common::keep_time(app);
+    app.press(Action::Nav(Screen::Files));
+    let at = app
+        .inbox()
+        .iter()
+        .position(|i| i.name == cert)
+        .expect("the certificate");
+    let _ = app.frame();
+    app.press(Action::File(FilePress::Menu(Row::In(at))));
+    app.press(Action::Flow(F::Restore(R::From(at))));
+    assert_eq!(app.screen, Screen::BackupFlow, "the restore did not open");
+    shell.flow(app, F::Continue);
+    for (disk, hold) in [("S1", false), ("S2", true)] {
+        shell.plug(app, disk);
+        shell.flow(app, if hold { F::Hold } else { F::Tap });
+        shell.pull(app, disk);
+    }
+    crate::common::create_vault(&mut shell, app, 0, "first vault phrase");
+    assert_eq!(
+        app.flow().expect("a flow").step,
+        faraday_core::backup_flow::Step::Make,
+        "not at the lines"
+    );
+    for l in paperkey_lines() {
+        for c in l.chars() {
+            app.event(Event::Key(Key::Char(c)));
+        }
+        app.event(Event::Key(Key::Enter));
+    }
+}
+
 fn spend_from_a_backup(app: &mut Faraday) {
     app.press(Action::Nav(Screen::SpendBackup));
     app.press(Action::Entry(None));
@@ -431,10 +596,21 @@ fn flows(area: Area) -> Vec<Flow> {
         | Area::Import => vec![],
         #[cfg(feature = "demo")]
         Area::Transfer => vec![],
-        // No flow yet: the passphrase typed on the At a glance sheet, restore's
-        // typed shares, the backup flow's copy typed back, the GPG restore's
-        // typed lines and a Krux code opened for a screen.
-        Area::Glance | Area::Restore | Area::Backup | Area::Flows | Area::Worker => vec![],
+        Area::Glance => vec![typed(
+            "a passphrase on the At a glance sheet",
+            glance_passphrase,
+        )],
+        Area::Restore => vec![typed("restore's typed seed", restore_typed_shares)],
+        Area::Backup => vec![typed(
+            "a Krux code's passphrase in a backup",
+            backup_krux_form,
+        )],
+        Area::Flows => vec![typed("the GPG restore's typed lines", gpg_restore_lines)],
+        // A Krux code opened is taken by the screen that asked for it in the
+        // same step the answer arrives, and an answer whose screen is gone
+        // (or whose job was stopped) is dropped on arrival, so nothing
+        // waits across a frame to be planted.
+        Area::Worker => vec![],
     }
 }
 

@@ -123,7 +123,13 @@ the planting of the secret to the end of the flow:
   transfer kept in parts (Camera); a BIP-85 child; Spend from a backup; a
   key loaded (Session); a secret on its sheet (Secrets); a seed file's
   passphrase (Inbox); a key's passphrase in Make a new wallet (Create) and
-  on the Keys card after rolls (KeyGen). Each plants its secret through
+  on the Keys card after rolls (KeyGen); a passphrase typed on the At a
+  glance sheet (Glance); a seed typed into a restore's slot (Restore); a
+  Krux code's passphrase on the backup's code card (Backup); the GPG
+  restore's typed paperkey lines (Flows). A Krux code opened waits in the
+  worker for no screen that can be planted: the screen that asked takes the
+  answer in the step it arrives and an answer with no screen is dropped
+  (Worker). Each plants its secret through
   the app's input, checks the app is not counted clean and that the idle
   warning comes, then locks twice (the save failed, so a fresh app is built
   over what the old one carried; and an ordinary lock) and scans every live
