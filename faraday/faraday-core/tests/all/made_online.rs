@@ -1129,7 +1129,10 @@ fn a_64_byte_seed_is_held_when_back_leaves_the_screen_checking_the_keys() {
     let mut app = marked_open_no_key(&words);
     type_seed_string(&mut app, &seed_string_of(&words));
     assert_eq!(app.session.keys.len(), 1);
+    // The key is in, so the job running is the one checking the keys.
+    assert!(app.busy().is_some(), "Checking the keys is not showing");
     app.press(Action::Back);
+    assert!(app.busy().is_none(), "Back did not leave the busy screen");
     settle(&mut app, |a| {
         a.session.keys.made_online(a.session.keys[0].fingerprint)
     });
