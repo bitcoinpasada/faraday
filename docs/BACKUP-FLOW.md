@@ -2830,13 +2830,14 @@ from the wallet's shape.
 **Open:** the buttons are not yet drawn; the board takes the press
 (`board/plans.rs` holds the list the screen draws).
 
-### 17.26 Seed XOR parts and SLIP-39 shares on the board (F276)
+### 17.26 Seed XOR parts and SLIP-39 shares on the board (F276, F285, F293)
 
 A key's Seed XOR set and SLIP-39 set (their public facts, kept with the
 key: `docs/VAULT.md` §7) are read by the wallet's plan when Back up
 opens, as a codex32 set is (§17.23): a set the plan has none of that
-kind for becomes the key's form; a set the plan has stays, one of a kind
-per key. A plan that starts here (the board's standard way) also places
+kind for becomes the key's form, and a set the plan has that is not the
+key's gives way to it, its placed parts or shares kept as old ones, as
+below, unless the plan cannot keep them. A plan that starts here (the board's standard way) also places
 the parts, one to a place and further parts at places of their own; a
 saved plan reads with the set's parts not placed yet.
 
@@ -2897,12 +2898,53 @@ same bytes as before; an older Faraday reads one with them as a plan it
 cannot read. The key's own record keeps the new set only (`docs/VAULT.md`
 §7). A plan whose set differs from its key's (another wallet's plan of the
 same key) reads its placed parts as kept old parts and takes the key's
-set, not placed yet. Convert a seed still records a set only on a key
+set, not placed yet, unless it cannot keep them (four old sets of the
+seed already, or a part's fingerprint already in one): then the plan keeps
+its own set until older kept parts are destroyed. Convert a seed still records a set only on a key
 that has none. A kept part records a fingerprint and a place, never a
 word.
 
+**Kept old SLIP-39 shares** (F293). Two SLIP-39 sets are the same set
+when their identifier, iteration exponent, group threshold, group count
+and each group's member threshold agree; which members were made is not
+compared, so a share the plan placed of the key's own set that the key's
+facts do not list stays placed, a share of the set, and the plan's set
+lists it as made. A plan whose SLIP-39 set is not the same set as its
+key's (another wallet's plan, a set rotated in Convert, a second split)
+keeps its placed shares at their places as kept old shares and takes the
+key's set, not placed yet. Rotate the set in Convert, saved, records the
+new set on the loaded key whose recorded set it rotated. A kept share is
+named by its seed, its old set's identifier, its group and its member, on
+a spot line `slipk{seed}.{identifier}.{group}.{member}`, beside the old
+set kept whole as `slip39old` with the `slip39` line's value. A seed's
+old SLIP-39 sets have distinct identifiers and are at most four; a plan
+that cannot keep one more keeps its own set, and the section reads "This
+plan keeps another set than the key's. Destroy old shares to take the
+key's set." A key's set that is one of the plan's old sets leaves the plan
+as it is. An old set's line goes once none of its shares is on the map.
+
+An old set rebuilds the key while its group threshold of groups each has
+its member threshold of kept shares on the plan, and then counts for a
+place lost and for what a finder holds; a kept share counts for its own
+old set only, and old and new shares never combine. A kept share has no
+checklist item and no Check my copy. Back up's other paper forms section
+has a SLIP-39 part while the plan has a SLIP-39 set or kept shares: each
+kept share as "Old share: group 1 share 2 · Place 2" with **I destroyed
+it** and **Still kept**, then "Old shares still kept: Place 1, Place 3",
+and "The old shares still kept rebuild this key." while an old set does.
+A kept share's chart sheet offers I destroyed it later, as a kept part's
+does. On the board the old set is its own group, "SLIP-39 · old set",
+its chips "Old group 1 share 2 · still kept", the chart's line and sheet
+title "Seed 1: Old group 1 share 2 · still kept". A plan without a kept
+share is the same bytes as before; an older Faraday reads one with them
+as a plan it cannot read. A kept share records public facts and a place,
+never a word.
+
 **Open:** a SLIP-39 share has no fingerprint of its own kept, so a share's
-copy is not checked here.
+copy is not checked here. Kept old SLIP-39 shares are not built: a plan
+whose SLIP-39 set is not its key's still keeps its own set and says
+nothing, Back up's section has no SLIP-39 part, and Rotate the set in
+Convert does not yet record the new set on the key.
 
 ## 19. The quick paper backup (owner, 2026-11-17)
 

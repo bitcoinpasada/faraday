@@ -302,3 +302,4 @@ Read this table, then only the decision you need.
 | [F288](decisions/F288.md) | While a wallet is being made, every way of making its key opens inside Make a new wallet | 2026-11-18 | Active | wallets |
 | [F291](decisions/F291.md) | Home shows what is loaded, under its search bar and the first actions; the sidebar no longer lists keys and wallets | 2026-11-19 | Active | design |
 | [F292](decisions/F292.md) | A control Practice refuses answers a press with one toast | 2026-11-19 | Active | design |
+| [F293](decisions/F293.md) | A plan whose SLIP-39 set is not its key's keeps that set's placed shares as kept old shares | 2026-11-19 | Active | backup |
