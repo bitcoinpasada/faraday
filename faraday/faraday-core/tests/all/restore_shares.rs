@@ -63,6 +63,30 @@ fn sheets_of_different_names_do_not_merge() {
     assert!(merge(&[a[0].clone(), renamed]).is_err());
 }
 
+/// A wallet named with a `#` is split into sheets and restored: the name
+/// that comes back is the one on the sheets, read as the setup file the
+/// merged sheets make is read, and it is not cut at the `#` nor lost.
+#[test]
+fn a_wallet_name_with_a_hash_survives_split_sheets() {
+    let c = testkit::compute();
+    for name in ["Fund #2", "#2", "A#B"] {
+        let (a, _) = sheets(name, &two_of_three(0));
+        let whole = merge(&a[..2]).expect("merges").whole.expect("whole");
+        let (_, back) = faraday_bip::multisig_config::parse_named(&c, &whole).expect("reads");
+        let back = back.expect("the name is there");
+        assert!(
+            !back.contains('#') && back.trim() == back.as_str().trim(),
+            "{name}: {}",
+            &*back
+        );
+        assert_eq!(
+            &*back,
+            name.replace('#', "").as_str(),
+            "{name}: the name with the `#` left out"
+        );
+    }
+}
+
 /// Sheets with no `Format:` line are P2SH, as a whole setup file without
 /// one is (F263): merged, they rebuild the bare `sh(sortedmulti(...))`.
 #[test]

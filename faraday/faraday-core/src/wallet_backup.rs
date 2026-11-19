@@ -224,7 +224,7 @@ fn config(wallet: &Wallet, only: Option<&[usize]>, format: &str, head: &str) -> 
     }
     out.push_str(&text!(
         "#\nName: {}\nPolicy: {m} of {n}\nFormat: {format}\n",
-        &*sanitize(&wallet.name)
+        &*config_name(&wallet.name)
     ));
     for (i, key) in wallet.policy().keys().iter().enumerate() {
         if only.is_some_and(|keep| !keep.contains(&i)) {
@@ -270,6 +270,13 @@ pub fn wallet_json(name: &str, policy: &faraday_bip::policy::WalletPolicy) -> Te
         &*label,
         &*policy.to_descriptor_checksummed()
     )
+}
+
+/// The name as a `Name:` line of a setup file carries it: sanitized, and
+/// without `#`, which Coldcard's reader and Faraday's both read as the
+/// start of a comment, so a name written with one comes back cut.
+fn config_name(name: &str) -> Text {
+    sanitize(name).chars().filter(|c| *c != '#').collect()
 }
 
 fn sanitize(name: &str) -> Text {
