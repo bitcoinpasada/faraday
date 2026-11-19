@@ -2412,6 +2412,7 @@ pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
         // not handed to bitcoin's address parser, which would decode it
         // into a buffer of its own.
         if let Some(m) = faraday_psbt::message::parse_signed(text)
+            && !text_may_be_secret(c, m.message.as_str())
             && m.address.len() >= 14
             && !m.address.contains(char::is_whitespace)
             && m.address

@@ -657,6 +657,40 @@ fn files_show_as_qr_is_the_file_and_offers_no_picture() {
     assert_eq!(app.outbox.len(), 1);
 }
 
+/// A signed message goes as its own text, public; one whose body is a
+/// seed's words is not a signed message to Faraday and does not go so.
+#[test]
+fn a_signed_message_holding_seed_words_does_not_go_as_the_message() {
+    const SIGNATURE: &str =
+        "H9L5yLFjti0QTHhPyFrZCT1V/MMnBtXKmoiKDZ78NDBjERki6ZTQZdSMCtkgoNmp17By9ItJr8o7ChX0XxY91nk=";
+    let c = testkit::compute();
+    let signed =
+        |body: &str| format!("bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu\n{SIGNATURE}\n{body}\n");
+    let ordinary = signed("Pay the invoice by Friday.");
+    let seed = signed(
+        "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+    );
+    assert_eq!(
+        faraday_core::wallet::classify(&c, "message.txt", ordinary.as_bytes()),
+        FileKind::Message
+    );
+    assert_ne!(
+        faraday_core::wallet::classify(&c, "message.txt", seed.as_bytes()),
+        FileKind::Message
+    );
+    let mut app = testkit::started();
+    app.storage(StorageEvent::Restored {
+        inbox: Vec::new(),
+        outbox: faraday_core::files_from(vec![(
+            faraday_text::Text::of("message.txt"),
+            ordinary.clone().into_bytes(),
+        )]),
+        kept: Vec::new(),
+    });
+    app.press(Action::QrOutbox(0));
+    assert_eq!(shown(&app), ordinary);
+}
+
 /// A wallet card's first receive address opens its code: the address as
 /// the card prints it, whole under the code, with no picture
 /// (`docs/QR.md` §7).
