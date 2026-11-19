@@ -96,7 +96,9 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// The ten themes as filter chips from (x, y), wrapping in `w`; the
     /// chosen one is `current`'s. `action` names what a press on a chip
     /// does, given the scheme it would choose: that theme in `current`'s
-    /// mode and contrast. Returns the height used.
+    /// mode and contrast. Rows are [`TOUCH`] apart, so each chip's
+    /// target, grown to [`TOUCH`], meets the next row's and is not cut.
+    /// Returns the height used.
     pub(crate) fn theme_chips(
         &mut self,
         (x, y, w): (f32, f32, f32),
@@ -108,7 +110,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             let cw = self.theme_chip_width(name);
             if cx > x && cx + cw > x + w {
                 cx = x;
-                cy += FILTER_CHIP_H + FILTER_CHIP_GAP;
+                cy += TOUCH;
             }
             let pick = Theme::new(name, current.mode, current.contrast);
             cx +=
