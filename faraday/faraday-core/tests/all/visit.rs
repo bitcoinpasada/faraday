@@ -698,16 +698,22 @@ fn files_ticked_for_deletion_on_a_pulled_stick_touch_nothing_on_another() {
     ]));
     asked(&mut app);
     assert_eq!(app.sheet, Some(faraday_core::Sheet::Delete));
-    // The sheet still lists the first stick's files, so a place on it is
-    // not a place on the second stick.
+    // The sheet still lists the first stick's files, so its first place
+    // is spend-00.psbt on the first stick, not notes.docx on the second.
     app.press(Action::DeletePick(0));
     app.press(Action::DeleteGo);
     assert_eq!(
         asked(&mut app),
-        vec![StorageCommand::Wipe {
-            stick: faraday_text::Text::of("S"),
-            name: faraday_text::Text::of("spend-01.psbt")
-        }]
+        vec![
+            StorageCommand::Wipe {
+                stick: faraday_text::Text::of("S"),
+                name: faraday_text::Text::of("spend-01.psbt")
+            },
+            StorageCommand::Wipe {
+                stick: faraday_text::Text::of("S"),
+                name: faraday_text::Text::of("spend-00.psbt")
+            }
+        ]
     );
     app.storage(StorageEvent::Wiped {
         stick: faraday_text::Text::of("S"),
