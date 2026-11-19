@@ -98,6 +98,7 @@ fn what_is_not_a_set_is_not_written_and_a_record_holding_it_is_refused() {
         }),
         bad(&|s| s.threshold = 3),
         bad(&|s| s.threshold = 0),
+        bad(&|s| s.threshold = 1),
         bad(&|s| s.groups[0].threshold = 4),
         bad(&|s| s.groups[0].count = 17),
         bad(&|s| s.groups[0].made = 0b1000),
@@ -154,6 +155,13 @@ fn custom_data_that_is_not_a_set_is_refused_naming_the_key() {
     let ok =
         "{id = 1, exponent = 0, threshold = 1, groups = [{threshold = 2, count = 2, made = [0]}]}";
     assert_eq!(read_slip39_facts(ok.as_bytes()).unwrap().groups[0].made, 1);
+    assert_eq!(
+        slip(
+            "{id = 1, exponent = 0, threshold = 1, groups = [{threshold = 2, count = 2, made = [0]}, \
+             {threshold = 2, count = 2, made = [0]}]}"
+        ),
+        (Why::BadSplit, "".into())
+    );
     assert_eq!(
         slip(
             "{id = 1, exponent = 0, threshold = 1, groups = [{threshold = 2, count = 2, made = [2]}]}"

@@ -84,7 +84,13 @@ fn slip39() -> impl Strategy<Value = Slip39> {
             seed: 0,
             identifier,
             exponent,
-            group_threshold: u8::try_from(1 + at.index(groups.len())).unwrap(),
+            // A group threshold of 1 is only for a set of one group.
+            group_threshold: u8::try_from(if groups.len() == 1 {
+                1
+            } else {
+                2 + at.index(groups.len() - 1)
+            })
+            .unwrap(),
             groups,
         })
 }
@@ -127,6 +133,24 @@ proptest! {
         }
         let text = saved(|a, s| a.set_slip39(s, 0, Some(bad.clone())));
         prop_assert!(read(&text).is_none(), "{:?}", bad);
+    }
+
+    /// A group threshold of 1 with more than one group is not a set Faraday
+    /// makes and is refused; with one group it reads back.
+    #[test]
+    fn a_slip39_group_threshold_of_one_is_for_one_group_only(set in slip39()) {
+        let mut one = set.clone();
+        one.groups.truncate(1);
+        one.group_threshold = 1;
+        let text = saved(|a, s| a.set_slip39(s, 0, Some(one.clone())));
+        let a = read(&text).expect("the plan reads");
+        prop_assert_eq!(a.slip39(0), Some(&one));
+        let mut many = set;
+        let first = many.groups[0].clone();
+        many.groups = vec![first.clone(), first];
+        many.group_threshold = 1;
+        let text = saved(|a, s| a.set_slip39(s, 0, Some(many.clone())));
+        prop_assert!(read(&text).is_none(), "{:?}", many);
     }
 }
 

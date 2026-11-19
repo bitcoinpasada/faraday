@@ -933,7 +933,7 @@ master fingerprint, eight lower-case hex digits, in the order of the
 parts, two to four of them (Seed XOR makes at most four). A seed's `faraday.slip39` is the plain facts of
 the one SLIP-39 set it was split into, as one TOML inline table: `id`, the
 set's identifier (0 to 32767); `exponent`, the iteration exponent (0 to
-15, the four bits the share holds); `threshold`, how many groups recover the seed; `groups`, an array of
+15, the four bits the share holds); `threshold`, how many groups recover the seed (1 only with one group, Faraday's own rule, since every set it makes is so); `groups`, an array of
 one to 16 inline tables, `threshold` (1 to its `count`; a member threshold
 of 1 needs `count` 1, as SLIP-39 itself requires), `count` (1 to 16)
 and `made`, the member indices made (0 up to one below `count`, each once).

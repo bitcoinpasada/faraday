@@ -84,13 +84,16 @@ impl Slip39 {
         full >= usize::from(self.group_threshold)
     }
 
-    /// The set's own soundness: SLIP-39's limits on its numbers.
+    /// The set's own soundness: SLIP-39's limits on its numbers, and a
+    /// group threshold of 1 only with one group, as every set Faraday
+    /// makes is.
     fn is_sound(&self) -> bool {
         let gt = usize::from(self.group_threshold);
         self.identifier < 1 << 15
             && self.exponent <= faraday_bip::slip39::MAX_ITERATION_EXPONENT
             && (1..=MAX).contains(&self.groups.len())
             && (1..=self.groups.len()).contains(&gt)
+            && (gt > 1 || self.groups.len() == 1)
             && self.groups.iter().all(|g| {
                 (1..=MAX).contains(&usize::from(g.count))
                     && (1..=g.count).contains(&g.threshold)

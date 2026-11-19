@@ -53,6 +53,7 @@ impl Slip39Facts {
             && self.exponent <= faraday_bip::slip39::MAX_ITERATION_EXPONENT
             && (1..=usize::from(MAX)).contains(&n)
             && (1..=n).contains(&usize::from(self.threshold))
+            && (self.threshold > 1 || n == 1)
             && self.groups.iter().all(|g| {
                 (1..=MAX).contains(&g.count)
                     && (1..=g.count).contains(&g.threshold)
