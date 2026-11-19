@@ -226,6 +226,10 @@ pub fn touch(window: Window) -> f32 {
         TOUCH
     }
 }
+/// The end card's title icon.
+pub const END_TITLE_ICON: f32 = 24.0;
+/// The room an end card's title leaves for its icon.
+pub const END_TITLE_INDENT: f32 = 32.0;
 /// Icon size inside a menu row or a tile.
 pub const ICON: f32 = 28.0;
 /// Icon size inside a list row or an app bar.

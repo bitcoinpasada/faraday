@@ -708,14 +708,18 @@ pub(crate) fn wallet_done(
         From::Restore => EN.wallet_done_restored,
     };
     let mut cy = y;
-    ui.icon(x, cy, 24.0, Icon::Success, 13.0, Role::Ok);
-    ui.text_mid_as(
-        (x + 32.0, cy, 24.0),
-        TITLE_M,
-        Role::Ok,
-        &fill(title, &[&wl.name]),
-    );
-    cy += 40.0;
+    ui.icon(x, cy, T::END_TITLE_ICON, Icon::Success, 13.0, Role::Ok);
+    let title = fill(title, &[&wl.name]);
+    let laid = ui.wrapped_as(TITLE_M, &title, w - T::END_TITLE_INDENT);
+    let line = ui.line_as(TITLE_M);
+    // One line stays centred on the icon; a long name wraps below it.
+    let ty = if laid.h > line {
+        cy
+    } else {
+        cy + (T::END_TITLE_ICON - line) / 2.0
+    };
+    ui.draw_wrapped((x + T::END_TITLE_INDENT, ty), Role::Ok, &laid);
+    cy += laid.h.max(T::END_TITLE_ICON) + T::GAP + T::GAP;
     ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, &Session::shape(wl));
     cy += ui.advance_as(BODY_S, BUTTON_H) + T::GAP;
     if from == From::Restore && !made_here {

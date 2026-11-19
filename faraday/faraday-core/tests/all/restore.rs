@@ -740,6 +740,27 @@ fn a_wallet_from_a_loaded_key_ends_on_wallet_made() {
     assert!(!text.contains("not recorded here"), "{text}");
 }
 
+/// At 480 wide the end card's title wraps under a long wallet name and
+/// nothing on the card runs past its side.
+#[test]
+fn the_end_cards_title_stays_inside_the_card_with_a_long_wallet_name() {
+    let mut app = compact_slot();
+    type_seed(&mut app, &testkit::test_words("bacon"));
+    type_seed(&mut app, &testkit::test_words("zebra"));
+    type_seed(&mut app, &testkit::test_words("summer"));
+    app.press(Action::Seeds(S::Make));
+    faraday_core::testkit::confirm_wallets(&mut app);
+    let w = made(&app);
+    app.session.wallets[w].name =
+        faraday_text::Text::of("savings-wallet-for-the-family-trust-2026-long");
+    app.press(Action::RNext(CHECK));
+    assert_eq!(app.restore().unwrap().open, Some(DONE));
+    let text = drawn(&mut app);
+    assert!(text.contains("Wallet restored"), "{text}");
+    let past = app.drawn_past_sides();
+    assert!(past.is_empty(), "{past:?}");
+}
+
 /// Done, after It matches on a single key restored with no vaults.
 fn single_key_done() -> (Faraday, usize) {
     let mut shell = crate::common::Shell::new();
