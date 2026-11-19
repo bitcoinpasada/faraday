@@ -13,7 +13,8 @@ use crate::wallet::FileKind;
 use crate::{Action, Faraday};
 use faraday_draw::tokens::{
     BODY_M, BODY_S, BUTTON_H, BUTTON_PAD, GAP_SMALL, GRID, LABEL_L, LABEL_M, ROW, TITLE_M, TITLE_S,
-    VISIT_CARD_FOOT, VISIT_CARD_HEAD, VISIT_FOOT_ROW, VISIT_GROUP_HEAD, VISIT_ROW_BUTTON_H,
+    VISIT_CARD_FOOT, VISIT_CARD_HEAD, VISIT_COMPACT_HEAD, VISIT_FOOT_ROW, VISIT_FOOT_TEXT_LESS,
+    VISIT_GROUP_HEAD, VISIT_NOTE_ICON, VISIT_NOTE_TEXT_X, VISIT_ROW_BUTTON_H,
 };
 use faraday_draw::widgets::Icon;
 use faraday_text::Text;
@@ -224,18 +225,46 @@ fn out_groups() -> [(crate::secrets::Exposure, &'static str, Role); 3] {
 /// files stay in memory.
 fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32), usable: bool) {
     ui.card(x, y, colw, colh, Role::OutlineVariant);
-    ui.icon(x + 20.0, y + 20.0, 22.0, Icon::Export, 14.0, Role::Primary);
-    ui.text_mid_as(
-        (x + 50.0, y + 20.0, 22.0),
-        TITLE_M,
-        Role::OnSurface,
-        EN.visit_in_faraday,
-    );
+    // A small panel's tab names the card, so its heading is left out and
+    // only the controls that stood in it remain.
+    let compact = ui.compact;
+    if !compact {
+        ui.icon(x + 20.0, y + 20.0, 22.0, Icon::Export, 14.0, Role::Primary);
+        ui.text_mid_as(
+            (x + 50.0, y + 20.0, 22.0),
+            TITLE_M,
+            Role::OnSurface,
+            EN.visit_in_faraday,
+        );
+    }
     if usable {
         visit_select_all(ui, x + colw, y, visit_all_out(app), Action::VisitOutAll);
     }
-    let list_top = y + VISIT_CARD_HEAD;
-    let track_h = (colh - VISIT_CARD_HEAD - VISIT_CARD_FOOT).max(ROW);
+    let head = match (compact, usable) {
+        (false, _) => VISIT_CARD_HEAD,
+        (true, true) => VISIT_COMPACT_HEAD,
+        (true, false) => GRID,
+    };
+    // A small panel puts the foot lines at the end of the list, wrapped, so
+    // the list has the card's height.
+    let note = Text::fill(EN.files_power_off_asks, &[app.medium.for_the()]);
+    let tail = compact && !usable;
+    let tail_h = tail.then(|| {
+        let tw = colw - VISIT_FOOT_TEXT_LESS;
+        let mut h = ui.wrap_height_as(BODY_S, EN.files_in_memory_emptied, tw);
+        if !app.outbox.is_empty() {
+            h += GAP_SMALL + ui.wrap_height_as(BODY_S, &note, tw);
+        }
+        h + GRID
+    });
+    let tail_h = tail_h.unwrap_or_default();
+    let foot_h = if tail {
+        VISIT_CARD_FOOT - VISIT_FOOT_ROW
+    } else {
+        VISIT_CARD_FOOT
+    };
+    let list_top = y + head;
+    let track_h = (colh - head - foot_h).max(ROW);
     let shown = app.visit_inbox_shown();
     let receipt_h = app
         .visit
@@ -264,7 +293,8 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
         }
         + VISIT_GROUP_HEAD
         + shown.len().max(1) as f32 * ROW
-        + receipt_h;
+        + receipt_h
+        + tail_h;
     let max_shift = (all_h - track_h).max(0.0);
     let shift = app.visit.out_offset.min(max_shift);
     let clip = ui.rect(x, list_top, colw, track_h);
@@ -437,6 +467,26 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
     if let Some(r) = app.visit.receipt().as_ref() {
         super::files::receipt_rows(ui, r, app.tz_min(), x + 22.0, ry + GAP_SMALL, colw - 44.0);
     }
+    if tail {
+        let tw = colw - VISIT_FOOT_TEXT_LESS;
+        let mut ty = ry + receipt_h + GRID;
+        let (ox, oy, ow, og) = VISIT_NOTE_ICON;
+        ui.icon(x + ox, ty + oy, ow, Icon::Power, og, Role::OnSurfaceVariant);
+        ty += ui.wrap_as(
+            (x + VISIT_NOTE_TEXT_X, ty, tw),
+            BODY_S,
+            Role::OnSurfaceVariant,
+            EN.files_in_memory_emptied,
+        );
+        if !app.outbox.is_empty() {
+            ui.wrap_as(
+                (x + VISIT_NOTE_TEXT_X, ty + GAP_SMALL, tw),
+                BODY_S,
+                Role::OnSurfaceVariant,
+                &note,
+            );
+        }
+    }
     ui.region_close(open, max_shift);
     visit_list_bar(
         app,
@@ -472,7 +522,7 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
             Style::Primary.when(nout > 0),
             Action::VisitWrite,
         );
-    } else {
+    } else if !tail {
         // Nothing to write to: what is here stays in memory.
         ui.icon(
             x + 20.0,
@@ -490,13 +540,7 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
             EN.files_in_memory_emptied,
         );
         if !app.outbox.is_empty() {
-            ui.text_as(
-                x + 46.0,
-                fy + 26.0,
-                BODY_S,
-                Role::OnSurfaceVariant,
-                &Text::fill(EN.files_power_off_asks, &[app.medium.for_the()]),
-            );
+            ui.text_as(x + 46.0, fy + 26.0, BODY_S, Role::OnSurfaceVariant, &note);
         }
     }
 }
@@ -551,21 +595,30 @@ fn on_the_stick(
     stick: Option<&crate::storage_api::StickInfo>,
 ) {
     ui.card(ix, y, colw, colh, Role::OutlineVariant);
-    ui.icon(
-        ix + 20.0,
-        y + 20.0,
-        22.0,
-        Icon::Download,
-        14.0,
-        Role::Primary,
-    );
-    ui.text_mid_as(
-        (ix + 50.0, y + 20.0, 22.0),
-        TITLE_M,
-        Role::OnSurface,
-        app.medium.on_box(),
-    );
-    let mut top = y + VISIT_CARD_HEAD;
+    // A small panel's tab names the card: no heading, and room above the
+    // list only for the stick chips.
+    let compact = ui.compact;
+    if !compact {
+        ui.icon(
+            ix + 20.0,
+            y + 20.0,
+            22.0,
+            Icon::Download,
+            14.0,
+            Role::Primary,
+        );
+        ui.text_mid_as(
+            (ix + 50.0, y + 20.0, 22.0),
+            TITLE_M,
+            Role::OnSurface,
+            app.medium.on_box(),
+        );
+    }
+    let mut top = y + match (compact, stick.is_some()) {
+        (false, _) => VISIT_CARD_HEAD,
+        (true, true) => VISIT_COMPACT_HEAD,
+        (true, false) => GRID,
+    };
     if stick.is_some() {
         stick_heading(app, ui, (ix + colw - 20.0, y));
     }

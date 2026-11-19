@@ -1048,7 +1048,7 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         ty - y + 6.0
     };
     let h = measured(ui, |ui| draw(ui));
-    ui.card(x, y, w, h, Role::OutlineVariant);
+    // Its heading is a section of the card it stands in, not a card of its own.
     draw(ui);
     h
 }

@@ -24,6 +24,7 @@ small_240x320 Backup Board 17
 small_240x320 Backup KefTool 48
 small_240x320 CreateVault WordList 3
 small_240x320 Entry EntryCandidate 17
+small_240x320 Files VisitStick 1
 small_240x320 KeyGen WordList 3
 small_240x320 Settings Theme 42
 small_240x320 Wallets PickKey 1
@@ -32,6 +33,9 @@ small_480x640 Backup Board 17
 small_480x640 Backup KefTool 48
 small_480x640 CreateVault WordList 3
 small_480x640 Entry EntryCandidate 17
+small_480x640 Files DeleteFiles 1
+small_480x640 Files VisitInAll 1
+small_480x640 Files VisitStick 1
 small_480x640 KeyGen Codex32 9
 small_480x640 KeyGen WordList 3
 small_480x640 Settings Theme 52
@@ -68,6 +72,7 @@ stick_1024x600 Entry Osk 38
 stick_1024x600 Explore Osk 27
 stick_1024x600 Files DeletePick 4
 stick_1024x600 Files Osk 38
+stick_1024x600 Files VisitStick 1
 stick_1024x600 Home Osk 38
 stick_1024x600 Invoice Osk 38
 stick_1024x600 KefTool Osk 38
