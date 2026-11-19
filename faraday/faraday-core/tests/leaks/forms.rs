@@ -129,3 +129,36 @@ pub fn entry_forms() -> Vec<Form> {
         Form::new("TOTP secret (bytes)", b"TestSecretSupererels".to_vec()),
     ]
 }
+
+/// The test seed's standard SeedQR: each word's index as four digits.
+pub fn seedqr_text() -> String {
+    let c = testkit::compute();
+    let m = Mnemonic::parse(&c, Language::English, PHRASE).expect("the vector's words");
+    m.indices().iter().map(|i| format!("{i:04}")).collect()
+}
+
+/// The forms of the 12-word BIP-85 child at index 7 of the test seed.
+pub fn bip85_child_forms() -> Vec<Form> {
+    let c = testkit::compute();
+    let m = Mnemonic::parse(&c, Language::English, PHRASE).expect("the vector's words");
+    let seed = m.to_seed(&c, b"").expect("no passphrase");
+    let master = MasterKey::from_seed(&c, &seed, Network::Mainnet);
+    let child =
+        faraday_bip::bip85::child_mnemonic(&c, &master, Language::English, 12, 7).expect("a child");
+    let words: Vec<&str> = child
+        .indices()
+        .iter()
+        .map(|&i| Language::English.word(i))
+        .collect();
+    vec![
+        Form::new("BIP-85 child phrase", words.join(" ").into_bytes()),
+        Form::new(
+            "BIP-85 child indices (u16, little endian)",
+            child
+                .indices()
+                .iter()
+                .flat_map(|i| i.to_le_bytes())
+                .collect(),
+        ),
+    ]
+}

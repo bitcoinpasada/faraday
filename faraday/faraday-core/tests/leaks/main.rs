@@ -18,6 +18,7 @@ mod codex32;
 #[path = "../all/common.rs"]
 mod common;
 mod entries;
+mod every_place;
 mod forms;
 mod planted;
 mod readers;
