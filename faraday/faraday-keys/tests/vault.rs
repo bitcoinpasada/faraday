@@ -2573,7 +2573,7 @@ fn match_marks(
     added: &[faraday_bip::keys::Fingerprint],
 ) {
     store.note_made_online_added(c, keys, added);
-    if let Some(job) = store.made_online_job(c, keys, added) {
+    if let Some(job) = store.made_online_job(c, keys) {
         store.note_made_online_done(keys, job.run(c));
     }
 }
@@ -2635,15 +2635,19 @@ fn the_marked_words_are_fingerprinted_once_and_a_child_loaded_after_is_marked() 
         .add_words_with(&c, ABANDON, "", "", None)
         .expect("a key");
     let mut keys = Keys::on(Network::Mainnet);
-    let none: [faraday_bip::keys::Fingerprint; 0] = [];
+    assert!(store.made_online_job(&c, &keys).is_none(), "no key asks");
+    let held = keys
+        .add_words_with(
+            &c,
+            "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong",
+            "",
+            "",
+            None,
+        )
+        .expect("a key");
     assert!(
-        store.made_online_job(&c, &keys, &none).is_none(),
-        "no key asks"
-    );
-    let held = keys.add_seed(&c, &[9; 16], "").expect("a key");
-    assert!(
-        store.made_online_job(&c, &keys, &none).is_none(),
-        "no parent named"
+        store.made_online_job(&c, &keys).is_none(),
+        "a key with words and no parent named"
     );
     let of = faraday_vault::child::ChildOf {
         parent: parent.0,
@@ -2661,9 +2665,9 @@ fn the_marked_words_are_fingerprinted_once_and_a_child_loaded_after_is_marked() 
         )
         .expect("a key");
     assert!(keys.set_child_of(1, Some(of)));
-    let job = store.made_online_job(&c, &keys, &none).expect("a job");
+    let job = store.made_online_job(&c, &keys).expect("a job");
     assert!(
-        store.made_online_job(&c, &keys, &none).is_none(),
+        store.made_online_job(&c, &keys).is_none(),
         "once per set"
     );
     store.note_made_online_done(&mut keys, job.run(&c));

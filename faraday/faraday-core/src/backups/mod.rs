@@ -4114,7 +4114,7 @@ impl Faraday {
         if let Some(job) = self
             .vaults
             .store()
-            .made_online_job(&c, &self.session.keys, &added)
+            .made_online_job(&c, &self.session.keys)
         {
             self.start(
                 crate::worker::Job::MadeOnline(Box::new(job)),
