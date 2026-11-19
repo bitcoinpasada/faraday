@@ -296,3 +296,68 @@ fn a_word_taken_earlier_is_edited_in_its_cell_and_the_rest_kept() {
     app.press(Action::EntryCandidate(other as u8));
     assert_eq!(words(&app), (vec![first[0], picked, first[2]], false));
 }
+
+fn started_at(width: u16, height: u16) -> Faraday {
+    let mut app = faraday_core::testkit::started();
+    app.event(faraday_shell_api::Event::Display(
+        faraday_shell_api::DisplayInfo {
+            width,
+            height,
+            dpi: 160,
+            inset_bottom: 0,
+            inset_top: 0,
+            buttons: 0,
+            camera_fixed: false,
+            secure: faraday_shell_api::SecureHardware::None,
+            boot: faraday_shell_api::BootState::Unknown,
+            memory_mib: None,
+        },
+    ));
+    let _ = app.frame();
+    app
+}
+
+fn stick_in(app: &mut Faraday) {
+    app.storage(faraday_core::StorageEvent::Sticks(vec![
+        faraday_core::StickInfo {
+            make: Default::default(),
+            serial: None,
+            id: faraday_text::Text::of("a"),
+            label: faraday_text::Text::of("STICK"),
+            boot: false,
+            files: Vec::new(),
+            vaults: Vec::new(),
+        },
+    ]));
+    let _ = app.frame();
+}
+
+/// A seed word typed on the word keyboard is a secret held: the device is
+/// not clean and no stick is handed out for writing.
+#[test]
+fn a_seed_word_typed_on_the_word_keyboard_is_not_clean() {
+    for (w, h, lang) in [
+        (480, 640, Language::English),
+        (1280, 800, Language::Japanese),
+    ] {
+        let mut app = started_at(w, h);
+        assert!(app.clean());
+        app.press(Action::Entry(None));
+        if lang != Language::English {
+            let at = faraday_core::forms::LANGUAGES
+                .iter()
+                .position(|l| *l == lang)
+                .unwrap();
+            app.press(Action::EntryLanguage(at as u8));
+        }
+        let _ = app.frame();
+        assert!(
+            faraday_core::testkit::entry(&app).keys.is_some(),
+            "{lang:?}"
+        );
+        type_on_keys(&mut app, lang, 5);
+        assert!(!app.clean(), "{lang:?}: a word is held");
+        stick_in(&mut app);
+        assert!(!app.clean(), "{lang:?}: a stick is not handed out");
+    }
+}

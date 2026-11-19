@@ -474,6 +474,15 @@ impl WordEntry {
         EntryList::Bip39(self.lang)
     }
 
+    /// Whether any word is taken or any key typed of one, among those
+    /// held aside for an edit too: a typed secret.
+    pub fn holds_any(&self) -> bool {
+        self.committed > 0
+            || self.held_n > 0
+            || !self.prefix.as_chars().is_empty()
+            || !self.held_prefix.as_chars().is_empty()
+    }
+
     /// Number of committed words.
     pub fn committed(&self) -> usize {
         usize::from(self.committed)

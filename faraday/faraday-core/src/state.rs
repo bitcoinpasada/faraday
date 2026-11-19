@@ -2096,7 +2096,8 @@ impl crate::at_lock::AtLock for EntryArea {
             !e.typed.is_empty()
                 || e.parts.holds_any()
                 || !e.passphrase.is_empty()
-                || !e.again.is_empty(),
+                || !e.again.is_empty()
+                || e.keys.as_deref().is_some_and(|k| k.holds_any()),
         )
     }
     fn lock(&mut self) {

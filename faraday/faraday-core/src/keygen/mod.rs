@@ -504,6 +504,7 @@ impl KeyGen {
     pub(crate) fn entered_any(&self, entry: &crate::EntryState) -> bool {
         self.entered_own()
             || !entry.typed.is_empty()
+            || entry.keys.as_deref().is_some_and(|k| k.holds_any())
             || !entry.parts.slip39.is_empty()
             || !entry.parts.codex32.is_empty()
             || !entry.parts.xor.is_empty()
