@@ -137,8 +137,7 @@ impl Answers {
 /// `a` brought in step with the Seed XOR and SLIP-39 sets its keys keep
 /// (`docs/decisions/F276.md`): a seed here whose key has a set of a kind
 /// and whose plan has none of that kind takes it, its parts not placed
-/// yet. One set of a kind per seed: a set the plan has that is not its
-/// key's gives way to the key's.
+/// yet. One set of a kind per seed: a set the plan already has stays.
 /// `xor` and `slip39` are each seed's set, where its key has one.
 pub fn sync(
     a: &mut Answers,
@@ -168,23 +167,9 @@ pub fn sync(
     for (i, f) in slip39.iter().enumerate() {
         if let Some(f) = f
             && here(i)
+            && a.slip39(i).is_none()
         {
-            let set = slip39::Slip39::of_facts(i, f);
-            match a.slip39(i) {
-                Some(cur) if *cur == set => {}
-                // A plan whose set is not its key's, as a codex32 form
-                // that is not the key's: the key's set is the plan's.
-                // Shares placed of a set with another identifier are of
-                // no set of this key and leave the map; of the same set,
-                // those the key's set made stay.
-                Some(cur) => {
-                    if cur.identifier != set.identifier {
-                        a.set_slip39(shape, i, None);
-                    }
-                    a.set_slip39(shape, i, Some(set));
-                }
-                None => a.set_slip39(shape, i, Some(set)),
-            }
+            a.set_slip39(shape, i, Some(slip39::Slip39::of_facts(i, f)));
         }
     }
 }
@@ -262,73 +247,5 @@ mod tests {
         assert!(needs.rebuilt(&seen).is_empty());
         let both = [What::XorPart(0, 0), What::XorPart(0, 1)];
         assert_eq!(needs.rebuilt(&both), vec![0]);
-    }
-
-    fn shape() -> Shape {
-        Shape {
-            m: 1,
-            paths: Vec::new(),
-            keys: 1,
-            seeds: vec![Seed {
-                name: faraday_text::Text::of("a"),
-                here: true,
-                shares: false,
-                passphrase: false,
-            }],
-            splits: false,
-            vaults: 0,
-            seed_alone_fails: false,
-        }
-    }
-
-    fn facts(identifier: u16, made: u16) -> faraday_vault::slip39::Slip39Facts {
-        faraday_vault::slip39::Slip39Facts {
-            identifier,
-            exponent: 0,
-            threshold: 1,
-            groups: vec![faraday_vault::slip39::Group {
-                threshold: 2,
-                count: 3,
-                made,
-            }],
-        }
-    }
-
-    fn placed(a: &Answers, sh: &Shape) -> usize {
-        stored_map(sh, a)
-            .iter()
-            .flat_map(|s| s.holds.iter().map(|(w, _)| *w))
-            .filter(|w| matches!(w, What::Slip39Share(..)))
-            .count()
-    }
-
-    #[test]
-    fn a_plan_whose_slip39_set_is_not_its_keys_takes_the_keys() {
-        let sh = shape();
-        let mut a = Answers::defaults(&sh);
-        sync(&mut a, &sh, &[], &[Some(facts(5, 0b111))]);
-        let key = |f| Some(slip39::Slip39::of_facts(0, &f));
-        assert_eq!(a.slip39(0).cloned(), key(facts(5, 0b111)));
-        sync(&mut a, &sh, &[], &[Some(facts(9, 0b011))]);
-        assert_eq!(a.slip39(0).cloned(), key(facts(9, 0b011)));
-    }
-
-    #[test]
-    fn shares_placed_of_another_slip39_set_leave_the_map() {
-        let sh = shape();
-        let mut a = Answers::defaults(&sh);
-        sync_placed(&mut a, &sh, &[], &[Some(facts(5, 0b111))]);
-        assert_eq!(placed(&a, &sh), 3);
-        sync(&mut a, &sh, &[], &[Some(facts(9, 0b111))]);
-        assert_eq!(placed(&a, &sh), 0);
-    }
-
-    #[test]
-    fn shares_the_keys_set_did_not_make_leave_the_map() {
-        let sh = shape();
-        let mut a = Answers::defaults(&sh);
-        sync_placed(&mut a, &sh, &[], &[Some(facts(5, 0b111))]);
-        sync(&mut a, &sh, &[], &[Some(facts(5, 0b011))]);
-        assert_eq!(placed(&a, &sh), 2);
     }
 }
