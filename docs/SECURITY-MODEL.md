@@ -48,6 +48,15 @@ to the others in `/proc`.
 - **`faraday-grant`** starts as root and, before it reads anything,
   drops to its own user keeping only `CAP_CHOWN`, empties its capability
   bounding set and sets no-new-privileges.
+- **`faraday-grant --find-boot`**, the finder of the stick a PC started
+  from (`docs/STICK-IDENTITY.md` §5.2), starts as root and, before it
+  reads anything but the medium's record, drops to its own user keeping
+  only `CAP_DAC_READ_SEARCH`, to read the USB disks' partition nodes,
+  which stay root's; it empties its bounding set and sets
+  no-new-privileges. It writes the record in `/run/faraday-find`, its
+  own directory, which `rcS` links `/etc/faraday/exchange` to. It goes
+  on looking while no stick of this build is found, as that user; on the
+  Pi it ends at once.
 - **After boot**, the root processes are init and two shell loops: one
   restarts the application under its user each time it locks, the other
   restarts `faraday-disk` under its user if it exits. When the

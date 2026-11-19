@@ -679,3 +679,56 @@ fn every_boot_partition_is_kept_back_and_nothing_goes_before_the_medium_is_known
         assert!(matches!(owner, None | Some("root")), "{node}: {owner:?}");
     }
 }
+
+/// A stick as [`Machine::stick`] makes one whose partition table leaves its
+/// first entry empty: its two partitions are numbered 2 and 3.
+fn stick_from_entry_two(m: &Machine, port: &str, disk: &str, seq: &str, release: &str) {
+    m.stick(port, disk, seq, Some(release));
+    let d = m
+        .root
+        .join(format!("sys/devices/pci0/usb1/{port}/host0/block"))
+        .join(disk);
+    for k in [2, 1] {
+        let (old, new) = (format!("{disk}{k}"), format!("{disk}{}", k + 1));
+        fs::rename(d.join(&old), d.join(&new)).unwrap();
+        fs::write(d.join(&new).join("partition"), format!("{}\n", k + 1)).unwrap();
+        fs::rename(m.root.join("dev").join(&old), m.root.join("dev").join(&new)).unwrap();
+        let block = m.root.join("sys/class/block");
+        let target = fs::read_link(block.join(&old)).unwrap();
+        fs::remove_file(block.join(&old)).unwrap();
+        symlink(target.with_file_name(&new), block.join(&new)).unwrap();
+    }
+}
+
+#[test]
+fn the_boot_partition_of_a_stick_numbered_from_two_is_kept_back() {
+    let m = Machine::new("from-two");
+    // A device laid out as a stick of this build, its boot partition with
+    // no boot name, in the second and third entries of its table.
+    stick_from_entry_two(&m, "1-1", "sdb", "5", RELEASE);
+    fs::write(
+        m.root
+            .join("sys/devices/pci0/usb1/1-1/host0/block/sdb/sdb2/uevent"),
+        "PARTNAME=\n",
+    )
+    .unwrap();
+    let record = settled(&mut m.finder(RELEASE));
+    assert_eq!(
+        record,
+        Record::Found {
+            partition: "sdb3".into(),
+            diskseq: Some("5".into())
+        }
+    );
+    m.record(&record.text());
+    m.clean(true);
+    let mut owners = Owners::default();
+    {
+        let mut g = m.grant(&mut owners);
+        g.tick();
+        assert_eq!(g.decided["sdb2#5"].1, Decision::Boot);
+        assert_eq!(g.decided["sdb3#5"].1, Decision::Handed);
+    }
+    let owner = owners.by_node.get("sdb2").copied();
+    assert!(matches!(owner, None | Some("root")), "{owner:?}");
+}

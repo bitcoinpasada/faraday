@@ -13,7 +13,9 @@
 # card and nowhere else. The shell is /bin/false.
 faraday 200 faraday 200 * - /bin/false - the account the app runs as
 # Faraday (docs/SECURITY-MODEL.md "One program, not a desktop"): the disk process reads and writes the sticks
-# faraday-grant hands it, and the grant helper drops to its own account
-# with CAP_CHOWN alone. Neither can be logged into.
+# faraday-grant hands it, the grant helper drops to its own account
+# with CAP_CHOWN alone, and the boot-stick finder to its own with
+# CAP_DAC_READ_SEARCH alone. None can be logged into.
 ofdisk 201 ofdisk 201 * - /bin/false - the disk process
 ofgrant 202 ofgrant 202 * - /bin/false - the grant helper
+offind 203 offind 203 * - /bin/false - the boot-stick finder

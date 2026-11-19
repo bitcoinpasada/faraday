@@ -70,8 +70,16 @@ chmod 0750 /run/faraday-disk
 # stick with a Faraday stick's layout whose boot partition holds the
 # running build, and writes its data partition's node there, or that none
 # or two were found; on the Pi it names the card already and this ends at
-# once. It gives up every capability before it reads anything. Until it
-# has written, the grant helper hands nothing out.
+# once. Before it reads anything it drops to its own user, offind, keeping
+# only the right to read the partition nodes: it writes the record in its
+# own directory, which the record becomes a link into, and nothing of
+# root's. Until it has written, the grant helper hands nothing out.
+if [ "$(cat /etc/faraday/exchange)" = layout ]; then
+    mkdir -m 0755 /run/faraday-find
+    echo layout > /run/faraday-find/exchange
+    chown offind:offind /run/faraday-find /run/faraday-find/exchange
+    ln -sf /run/faraday-find/exchange /etc/faraday/exchange
+fi
 /usr/bin/faraday-grant --find-boot 2>/dev/kmsg &
 
 # The grant helper starts as root and gives up all but CAP_CHOWN before it

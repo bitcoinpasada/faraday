@@ -93,11 +93,15 @@ const PI_BOOT: &str = "mmcblk0p1";
 
 /// Whether `/sys` and the medium's record say this is a boot partition:
 /// the Pi's own card's first, one named as a boot partition is, or the
-/// first partition of the medium the machine started from.
+/// first partition of the medium the machine started from. First is the
+/// lowest number on that disk, as the finder takes it: a partition table
+/// may leave its first entry empty, and its first partition is then `2`.
 fn is_boot(name: &str, dir: &Path, record: &Record) -> bool {
     name == PI_BOOT
         || partname(dir).is_some_and(|n| layout::is_boot_name(&n))
-        || (number(dir) == Some(1) && dir.parent().is_some_and(|d| boot_disk(d, record)))
+        || dir.parent().is_some_and(|d| {
+            boot_disk(d, record) && partitions(d).first().is_some_and(|p| p.1 == dir)
+        })
 }
 
 /// The partition's number on its disk, as `/sys` states it.
