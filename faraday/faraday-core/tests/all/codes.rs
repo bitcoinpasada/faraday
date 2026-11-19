@@ -803,6 +803,49 @@ fn a_share_sheet_with_a_seed_in_a_comment_or_unknown_line_is_a_secret_file() {
     }
 }
 
+/// A signed message whose body holds a seed or a share in any shape is a
+/// secret file; prose with many seed-list words and an ordinary message
+/// stay a public message.
+#[test]
+fn a_signed_message_with_a_secret_in_any_shape_is_a_secret_file() {
+    const SIGNATURE: &str =
+        "H9L5yLFjti0QTHhPyFrZCT1V/MMnBtXKmoiKDZ78NDBjERki6ZTQZdSMCtkgoNmp17By9ItJr8o7ChX0XxY91nk=";
+    let c = testkit::compute();
+    let kind = |body: &str| {
+        let signed = format!("bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu\n{SIGNATURE}\n{body}\n");
+        faraday_core::wallet::classify(&c, "message.txt", signed.as_bytes())
+    };
+    let commas = SEED12.replace(' ', ", ");
+    let slip = [
+        "shadow pistol academic always adequate wildlife fancy gross oasis cylinder",
+        "mustang wrist rescue view short owner flip making coding armed",
+    ];
+    let slip_one = slip.join(" ");
+    let codex32 = "ms10testsxxxxxxxxxxxxxxxxxxxxxxxxxx4nzvca9cmczlw";
+    let migration = "otpauth-migration://offline?data=CjEKCkhlbGxvId6tvu8SGEV4YW1wbGU6YWxpY2VAZ29vZ2xlLmNvbRoHRXhhbXBsZSABKAEwAhABGAEgACjd";
+    for body in [
+        format!("My seed is {SEED12}. Keep it safe."),
+        format!("My seed is \"{SEED12}\""),
+        commas,
+        format!("Share A: {codex32}"),
+        format!("Scan this: {migration}"),
+        format!("Backup:\n{}\n{}", slip[0], slip[1]),
+        format!("# # {SEED12}"),
+        format!("Notes\n{migration}"),
+        format!("Notes, thanks\n{slip_one}"),
+        format!("Notes, thanks\nShare 1 {codex32}"),
+    ] {
+        assert_ne!(kind(&body), FileKind::Message, "{body}");
+    }
+    for body in [
+        "Pay the invoice by Friday.",
+        "Please sign and send the letter about the army, the actor, the access and the actual account. Another address is above, again.",
+        "Abandon ability able about above absent absorb abstract absurd abuse access accident account accuse achieve acid acoustic acquire across act action actor actress actual adapt add",
+    ] {
+        assert_eq!(kind(body), FileKind::Message, "{body}");
+    }
+}
+
 /// A wallet card's first receive address opens its code: the address as
 /// the card prints it, whole under the code, with no picture
 /// (`docs/QR.md` §7).

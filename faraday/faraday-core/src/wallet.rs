@@ -2314,25 +2314,9 @@ fn secret_body_kind(c: &Compute, body: &str) -> Option<FileKind> {
     {
         return Some(FileKind::Entries);
     }
-    // A line is read without its comment mark, and its words without the
-    // punctuation that ends it.
-    fn bare(l: &str) -> &str {
-        l.trim().trim_start_matches('#').trim()
-    }
-    let line_is_secret = |l: &str| {
-        let l = bare(l);
-        !too_short_to_be_secret(l)
-            && (faraday_intake::secret_text(c, l).is_some()
-                || faraday_intake::is_otpauth_migration(l)
-                || crate::inbox::part_of(l).is_some())
-    };
     (faraday_intake::secret_text(c, body).is_some()
         || faraday_intake::wallet::holds_secret(body)
-        || body.lines().any(line_is_secret)
-        || words_across(
-            body.lines()
-                .map(|l| bare(l).trim_end_matches(|ch: char| ch.is_ascii_punctuation())),
-        ))
+        || lines_hold_secret(c, &body.lines().collect::<Vec<_>>()))
     .then_some(FileKind::SecretWallet)
 }
 
