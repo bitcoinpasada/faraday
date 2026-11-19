@@ -1145,17 +1145,19 @@ impl Faraday {
     /// exists; the shell's own copy went as the save wrote it. Called on
     /// the app about to be dropped, with the mode read before.
     pub fn carry_unkept_lock(&mut self) -> Carried {
-        let take =
-            |items: Vec<Item>| -> Files { items.into_iter().map(|i| (i.name, i.bytes)).collect() };
-        let n = self.inbox.len();
-        let inbox = take((0..n).map(|_| self.inbox.remove(0)).collect());
-        let outbox = take(std::mem::take(&mut self.outbox));
+        // Read before the files move out: which Outbox files are secret
+        // and what each picture holds are worked out from them.
         // A mode change keeps nothing but the mode, as its save sent.
         let kept = if self.mode_changing() {
             Vec::new()
         } else {
             self.kept()
         };
+        let take =
+            |items: Vec<Item>| -> Files { items.into_iter().map(|i| (i.name, i.bytes)).collect() };
+        let n = self.inbox.len();
+        let inbox = take((0..n).map(|_| self.inbox.remove(0)).collect());
+        let outbox = take(std::mem::take(&mut self.outbox));
         Carried {
             restored: StorageEvent::Restored {
                 inbox,

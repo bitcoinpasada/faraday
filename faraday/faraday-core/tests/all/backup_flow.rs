@@ -2694,6 +2694,26 @@ fn a_lock_that_cannot_keep_a_waiting_backup_starts_a_fresh_app_that_writes_no_st
     let mut app = to_make(&mut shell, Kind::Gpg);
     make_key(&mut shell, &mut app, &GPG_FIELDS);
     shell.flow(&mut app, F::MadeContinue);
+    // A secret file let out into the Outbox.
+    app.outbox.push(faraday_core::Item {
+        name: faraday_text::Text::of("let-out.txt"),
+        bytes: (b"a key's text".to_vec()).into(),
+        kind: faraday_core::wallet::FileKind::Text,
+        secret: true,
+        picture: None,
+        sha: None,
+        facts: None,
+        wallet: None,
+        psbt: None,
+        outpoints: Vec::new(),
+        unsigned_txid: None,
+    });
+    let secret_out = |app: &Faraday| {
+        app.outbox
+            .iter()
+            .find(|i| i.name.as_str() == "let-out.txt")
+            .map(|i| i.secret)
+    };
     let mut app = shell.lock_unkept(&mut app);
     assert!(
         app.toast_text()
@@ -2701,9 +2721,19 @@ fn a_lock_that_cannot_keep_a_waiting_backup_starts_a_fresh_app_that_writes_no_st
     );
     assert!(!app.clean(), "the process held the keys");
     assert_eq!(step(&app), Step::Write);
+    assert_eq!(
+        secret_out(&app),
+        Some(true),
+        "a secret file became public when the save failed"
+    );
     // At the next lock whose save works, a real restart comes up clean.
     let app = shell.lock(&mut app);
     assert_eq!(step(&app), Step::Write);
+    assert_eq!(
+        secret_out(&app),
+        Some(true),
+        "a secret file became public at the next lock"
+    );
     let mut app = app;
     assert!(app.clean());
 }

@@ -415,6 +415,37 @@ fn with_two_sticks_in_at_once_a_file_goes_from_one_to_the_other() {
     assert_eq!(wrote[0].2, share.1);
 }
 
+/// One picture of a transfer in two parts, read from a stick, is held as
+/// a secret until Lock: the process is not clean, and Lock lets it go.
+#[test]
+fn a_part_of_a_transfer_read_from_a_picture_is_held_until_lock() {
+    let c = testkit::compute();
+    let words = b"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+    let mut e = faraday_codec::ur::Encoder::bytes(words, 60).expect("encoder");
+    assert_eq!(e.fragment_count(), 2);
+    let part = String::from(&*e.next_part());
+    let matrix = faraday_codec::qr::encode(
+        &c,
+        faraday_codec::Payload::Bytes(part.as_bytes()),
+        faraday_codec::Ecc::Low,
+    )
+    .expect("a code");
+    let png = (
+        "part-1-of-2.png".to_string(),
+        faraday_codec::png::qr_png(&matrix, 4),
+    );
+    let mut app = testkit::started();
+    let a = Stick::new("a", std::slice::from_ref(&png));
+    attach(&mut app, &[&a]);
+    assert!(app.clean(), "nothing is held before the picture is read");
+    copy_in(&mut app, &[&a], &[&png.0]);
+    assert!(!app.clean(), "a part read from a picture is not held");
+    app.press(Action::Lock);
+    testkit::settle(&mut app);
+    while app.poll_storage().is_some() {}
+    assert!(app.clean(), "a part of a transfer outlived Lock");
+}
+
 #[test]
 fn a_picture_keeps_what_its_codes_hold_across_a_lock_and_a_seedqr_does_not_outlive_it() {
     let mut app = testkit::started();

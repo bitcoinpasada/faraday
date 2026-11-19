@@ -2158,9 +2158,16 @@ impl Faraday {
 // A visit's files are the Inbox's and the Outbox's; a vault write waiting for its name's answer is not kept.
 impl crate::at_lock::AtLock for VisitArea {
     fn holds(&self) -> crate::at_lock::Holds {
-        crate::at_lock::Holds::NOTHING
+        // A transfer in parts read from pictures cannot be classed, so it
+        // counts as held, as the camera's parts do.
+        crate::at_lock::Holds::typed(
+            self.pictures_scan
+                .as_ref()
+                .is_some_and(crate::ScanState::in_parts),
+        )
     }
     fn lock(&mut self) {
+        self.pictures_scan = None;
         self.name_taken_clear();
     }
 }

@@ -118,6 +118,12 @@ pub(crate) fn seal_given_up(app: &mut Faraday) {
     lock_secrets_off_screen(app);
     app.vaults.set_changes_lost();
     app.vaults.state.sealing = None;
+    app.vaults.state.close_all();
+    app.nonces_sync_open();
+    app.vaults.state.form = None;
+    drop_vault_dialog(app);
+    app.vaults.state.load = None;
+    app.vaults.state.pass_seeds = None;
     lock_finish(app);
 }
 
