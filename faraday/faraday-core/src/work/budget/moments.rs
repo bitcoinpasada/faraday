@@ -62,6 +62,11 @@ const STARTUP: Table = &[
         20,
         "each of the test stick's 20 PSBTs parsed once as it comes in, its summary kept (Item::psbt)",
     ),
+    (
+        Work::WordsParse,
+        3,
+        "the classifier reads the comment and unknown lines of the test stick's multisig share files for a seed hidden in them (lines_hold_secret), which tries the words' parse on a line of twelve, fifteen, eighteen, twenty-one or twenty-four words: 3 parses, as the budget test counted them",
+    ),
 ];
 
 #[test]

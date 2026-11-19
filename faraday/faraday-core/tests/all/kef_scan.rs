@@ -499,7 +499,9 @@ fn a_stick_plugged_in_while_the_passphrase_is_asked_closes_the_sheet() {
     asking(&mut app);
     app.storage(stick());
     closed(&mut app);
-    assert_eq!(app.screen, Screen::Files);
+    // The read card still waits in the scanner and counts as held, so the
+    // stick is not handed out: Lock is asked, as after a typed passphrase.
+    assert_eq!(app.sheet, Some(Sheet::Lock));
 }
 
 #[test]
@@ -576,7 +578,7 @@ fn open_waits_on_the_card_while_a_stick_is_plugged_in() {
 }
 
 #[test]
-fn scan_again_waits_on_the_card_for_the_stick_to_be_out_then_turns_the_camera_on() {
+fn scan_again_with_a_card_held_and_a_stick_in_asks_for_lock_and_keeps_the_camera_off() {
     let mut app = scanner();
     let (code, _) = vector("ctr");
     read(&mut app, &code);
@@ -584,14 +586,16 @@ fn scan_again_waits_on_the_card_for_the_stick_to_be_out_then_turns_the_camera_on
     while app.poll_command().is_some() {}
     app.press(Action::ReadAgain);
     assert!(!std::iter::from_fn(|| app.poll_command()).any(|c| c == Command::CameraOn));
-    // The press waits under the Pull sheet, as every Scan does, and runs
-    // when the stick is out.
-    assert_eq!(app.sheet, Some(Sheet::Pull));
+    // The read card is a held secret, so the press waits under the Lock
+    // sheet, not Pull.
+    assert_eq!(app.sheet, Some(Sheet::Lock));
     assert!(app.scan().is_some_and(|s| s.card.is_some()));
+    // The stick coming out drops the Lock ask but does not run the press:
+    // the card's code is still held and the camera stays off.
     app.storage(StorageEvent::Sticks(Vec::new()));
-    assert!(std::iter::from_fn(|| app.poll_command()).any(|c| c == Command::CameraOn));
-    assert_eq!(app.sheet, Some(Sheet::Scan));
-    assert!(app.scan().is_some_and(|s| s.card.is_none()));
+    assert!(!std::iter::from_fn(|| app.poll_command()).any(|c| c == Command::CameraOn));
+    assert_eq!(app.sheet, None);
+    assert!(app.scan().is_some_and(|s| s.card.is_some()));
 }
 
 /// A note carried as a passphrase, the seed scanner up.
