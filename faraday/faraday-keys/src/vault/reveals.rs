@@ -793,11 +793,7 @@ impl OpenVaults {
     /// another job ran is still found). Answers `None` otherwise, and for every call
     /// after the job was made, until a vault opens or closes.
     /// [`Self::note_made_online_done`] takes its answer.
-    pub fn made_online_job(
-        &self,
-        c: &Compute,
-        keys: &Keys,
-    ) -> Option<MadeOnlineJob> {
+    pub fn made_online_job(&self, c: &Compute, keys: &Keys) -> Option<MadeOnlineJob> {
         if self.slots.is_empty() || self.marked_done.get() == Some(self.epoch) {
             return None;
         }
@@ -806,7 +802,10 @@ impl OpenVaults {
             .map(|o| Fingerprint(o.parent))
             .any(|p| !keys.made_online(p) && keys.position(p).is_none_or(|i| !keys.has_words(i)));
         let wordless = (0..keys.len()).any(|i| {
-            !keys.has_words(i) && keys.info(i).is_some_and(|k| !keys.made_online(k.fingerprint))
+            !keys.has_words(i)
+                && keys
+                    .info(i)
+                    .is_some_and(|k| !keys.made_online(k.fingerprint))
         });
         if !orphan && !wordless {
             return None;
@@ -824,10 +823,12 @@ impl OpenVaults {
                 Some((m, pass))
             })
             .collect();
+        // Once per set of open vaults, a job or none: with no marked
+        // record of words there is nothing to find until the set changes.
+        self.marked_done.set(Some(self.epoch));
         if records.is_empty() {
             return None;
         }
-        self.marked_done.set(Some(self.epoch));
         Some(MadeOnlineJob {
             epoch: self.epoch,
             network: keys.network(),
@@ -839,7 +840,9 @@ impl OpenVaults {
     /// ([`Keys::note_made_online`]): a key held with it takes the mark, one
     /// not held takes it when added, until Lock, and a child of it, loaded
     /// before or after, takes it from its parent. An answer for a set of
-    /// open vaults that has changed since is dropped.
+    /// open vaults that has changed since is dropped; one whose busy screen
+    /// was left with Back is still taken (the app does so), since no
+    /// second job runs for this set.
     pub fn note_made_online_done(&self, keys: &mut Keys, done: MadeOnlineDone) {
         if done.epoch != self.epoch {
             return;

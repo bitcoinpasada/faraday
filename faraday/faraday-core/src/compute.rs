@@ -176,7 +176,10 @@ impl Faraday {
             self.drop_forged_wallets();
         }
         // Keys an answer added are matched to the open vaults at once: no
-        // press or tick sees one unmarked. Nothing added costs a lookup.
+        // press or tick sees one unmarked. Nothing added costs a lookup,
+        // and a look over the keys held for one asking for the marked
+        // records' fingerprints, which are worked out once per set of
+        // open vaults.
         self.note_added_keys();
         any
     }
@@ -248,6 +251,13 @@ impl Faraday {
             self.apply_done(done);
             // An answer may have loaded or dropped a key.
             self.signer_check_sync();
+        } else if let Done::MadeOnline(d) = done {
+            // Back left the busy screen, but the marks are public
+            // fingerprints, checked against the vaults open now, and no
+            // second job runs for them: taken, or the caution is lost.
+            self.vaults
+                .store()
+                .note_made_online_done(&mut self.session.keys, *d);
         } else {
             // Made stale by Back: dropped, and wiped as it drops.
             drop(done);
