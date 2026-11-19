@@ -2760,3 +2760,22 @@ fn a_vault_unticked_after_a_save_loses_its_plan_copy_at_the_lock_and_keeps_its_k
         "Vault 1 keeps the plan: {found:?}"
     );
 }
+
+/// A plan of 64 seeds whose only way to spend is the 64th seed: the place
+/// holding it spends alone.
+#[test]
+fn a_plan_of_64_seeds_counts_its_last_seed_toward_reaching_the_money() {
+    let c = faraday_core::testkit::compute();
+    let shape = Shape {
+        m: 1,
+        paths: vec![1 << 63],
+        keys: 64,
+        seeds: (0..64).map(|i| seed(&format!("s{i}"), true)).collect(),
+        splits: false,
+        vaults: 0,
+        seed_alone_fails: false,
+    };
+    let a = Answers::defaults(&shape);
+    let r = faraday_core::plan::reach(&c, &shape, &a, 63).expect("place 63 keeps a seed");
+    assert_eq!((r.more, r.of, r.cut), (0, 1, false));
+}

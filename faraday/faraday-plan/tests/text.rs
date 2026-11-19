@@ -147,3 +147,25 @@ fn the_vaults_left_out_of_keeping_the_plan_read_back_and_none_adds_no_line() {
     assert_eq!(back.to_text().as_str(), text);
     assert!(read(&with("unkept 1,x")).is_none());
 }
+
+fn many(n: usize) -> Shape {
+    let mut s = shape();
+    s.seeds = (0..n)
+        .map(|i| Seed {
+            name: Text::of(&format!("s{i}")),
+            here: true,
+            shares: false,
+            passphrase: false,
+        })
+        .collect();
+    s.m = n;
+    s.keys = n;
+    s
+}
+
+#[test]
+fn a_plan_of_65_seeds_is_refused_when_read() {
+    let s = many(65);
+    let text = String::from(&*Answers::defaults(&s).to_text());
+    assert!(Answers::from_text(&s, &text).is_none());
+}

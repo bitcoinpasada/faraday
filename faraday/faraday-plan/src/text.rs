@@ -368,7 +368,7 @@ impl Answers {
     /// seed, with one `sticks` line and no `vault` line, reads as one
     /// vault holding every seed here, its stick at the places ticked.
     pub fn from_text(shape: &Shape, text: &str) -> Option<Answers> {
-        if shape.vaults > crate::MAX_VAULTS {
+        if shape.vaults > crate::MAX_VAULTS || shape.seeds.len() > crate::MAX_SEEDS {
             return None;
         }
         let mut a = Answers::defaults(shape);

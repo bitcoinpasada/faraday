@@ -38,6 +38,11 @@ pub const CHECKLIST_SEEDS: usize = 28;
 /// up to this many. A plan past it is refused.
 pub const MAX_VAULTS: usize = 128;
 
+/// The most seeds a plan holds: which seeds are in hand is kept as one
+/// 64-bit mask, so a seed past the 64th could never count toward a spend.
+/// A plan past it is refused.
+pub const MAX_SEEDS: usize = 64;
+
 /// The most sticks a plan holds, which have no item numbers of their own.
 pub const MAX_STICKS: usize = 1024;
 
