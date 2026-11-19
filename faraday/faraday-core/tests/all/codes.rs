@@ -762,6 +762,76 @@ fn a_signed_message_holding_a_secret_beside_other_text_is_a_secret_file() {
     }
 }
 
+/// Published BIP-39 vectors in two other lists (`tools/vectors/bip39`):
+/// Spanish (entropy of zeros) and Japanese (`test_JP_BIP39.json`, whose
+/// words are joined by the ideographic space).
+const SEED_SPANISH: &str =
+    "ábaco ábaco ábaco ábaco ábaco ábaco ábaco ábaco ábaco ábaco ábaco abierto";
+const SEED_JAPANESE: &str = "あいこくしん\u{3000}あいこくしん\u{3000}あいこくしん\u{3000}あいこくしん\u{3000}あいこくしん\u{3000}あいこくしん\u{3000}あいこくしん\u{3000}あいこくしん\u{3000}あいこくしん\u{3000}あいこくしん\u{3000}あいこくしん\u{3000}あおぞら";
+
+/// The layouts of `hidden_secret_comments` for a seed in another list,
+/// where they apply: beside a label, one word to a line with its place,
+/// wrapped over lines and in capitals.
+fn hidden_seed_comments(seed: &str) -> Vec<String> {
+    let words: Vec<&str> = seed.split_whitespace().collect();
+    let wrapped: String = words
+        .chunks(5)
+        .map(|c| format!("# {}\n", c.join(" ")))
+        .collect();
+    let numbered: String = words
+        .iter()
+        .enumerate()
+        .map(|(i, w)| format!("# {}. {w}\n", i + 1))
+        .collect();
+    vec![
+        format!("# seed: {seed} here\n"),
+        format!("# {}\n", words.join(" ")),
+        wrapped,
+        numbered,
+        format!("# Seed: {} here\n", seed.to_uppercase()),
+    ]
+}
+
+/// A seed in Spanish or Japanese beside other text is a secret file, as
+/// one in English is: in a share sheet's comment, in a signed message and
+/// alone in a text file.
+#[test]
+fn a_seed_in_another_language_beside_other_text_is_a_secret_file() {
+    const SIGNATURE: &str =
+        "H9L5yLFjti0QTHhPyFrZCT1V/MMnBtXKmoiKDZ78NDBjERki6ZTQZdSMCtkgoNmp17By9ItJr8o7ChX0XxY91nk=";
+    let c = testkit::compute();
+    for seed in [SEED_SPANISH, SEED_JAPANESE] {
+        assert_eq!(
+            faraday_core::wallet::classify(&c, "seed.txt", seed.as_bytes()),
+            FileKind::Words,
+            "{seed}"
+        );
+        for extra in hidden_seed_comments(seed) {
+            assert_ne!(
+                faraday_core::wallet::classify(&c, "share.txt", share_sheet(&extra).as_bytes()),
+                FileKind::Share,
+                "{extra}"
+            );
+            let signed =
+                format!("bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu\n{SIGNATURE}\n{extra}");
+            assert_ne!(
+                faraday_core::wallet::classify(&c, "message.txt", signed.as_bytes()),
+                FileKind::Message,
+                "{extra}"
+            );
+        }
+    }
+    // Ordinary Spanish words in a comment stay public.
+    assert_eq!(
+        faraday_core::wallet::classify(
+            &c,
+            "share.txt",
+            share_sheet("# ábaco abierto abogado abono aborto abrazo abrir abuelo\n").as_bytes()
+        ),
+        FileKind::Share
+    );
+}
+
 const SEED12: &str =
     "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
 

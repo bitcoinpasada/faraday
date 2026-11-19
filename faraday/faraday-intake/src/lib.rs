@@ -156,7 +156,7 @@ fn holds_extended_private_key(text: &str) -> bool {
     })
 }
 
-/// Costs what `parse` costs, plus one scan of the text for an extended
+/// Costs what `parse` costs in each of the ten lists, plus one scan of the text for an extended
 /// private key: at most 111 bytes compared at each position, so linear in
 /// the text's length (by its loop, not timed). Whether scanned text is a secret, and
 /// which: a seed's words, an extended private key, with or without its
@@ -168,7 +168,11 @@ fn holds_extended_private_key(text: &str) -> bool {
 pub fn secret_text(c: &Compute, text: &str) -> Option<TextSecret> {
     let t = text.trim();
     let words = t.split_whitespace().count();
-    if matches!(words, 12 | 15 | 18 | 21 | 24) && Mnemonic::parse(c, Language::English, t).is_ok() {
+    if matches!(words, 12 | 15 | 18 | 21 | 24)
+        && Language::ALL
+            .iter()
+            .any(|&l| Mnemonic::parse(c, l, t).is_ok())
+    {
         return Some(TextSecret::Words);
     }
     let key = t.split(']').next_back().unwrap_or(t);

@@ -527,6 +527,39 @@ pub fn typed_mnemonic(lang: Language, typed: &str) -> Result<Mnemonic, Text> {
     faraday_keys::words::from_indices(lang, &idx).map_err(|e| faraday_strings::bip::bip39_error(&e))
 }
 
+/// The index of `word` on a list other than English, as the list spells
+/// it (decomposed, or composed as it is read) and in any case. Costs a hash lookup (the
+/// lists are built once, from the published ones). None for a word on no
+/// list, and for one longer than any listed word.
+pub(crate) fn other_list_index(lang: Language, word: &str) -> Option<u16> {
+    use std::collections::HashMap;
+    use std::sync::OnceLock;
+    static LISTS: OnceLock<Vec<HashMap<&'static str, u16>>> = OnceLock::new();
+    let lists = LISTS.get_or_init(|| {
+        Language::ALL
+            .iter()
+            .map(|&l| {
+                let mut m = HashMap::with_capacity(4096);
+                for i in 0..2048u16 {
+                    m.insert(l.word_nfkd(i), i);
+                    m.insert(l.word_display(i), i);
+                }
+                m
+            })
+            .collect()
+    });
+    let at = Language::ALL.iter().position(|&l| l == lang)?;
+    // The word in lower case, in room that is wiped when dropped.
+    let mut key = Text::with_room(64);
+    for c in word.chars().flat_map(char::to_lowercase) {
+        if key.as_str().len() + c.len_utf8() > 64 {
+            return None;
+        }
+        key.push(c);
+    }
+    lists[at].get(key.as_str()).copied()
+}
+
 /// Whether the keys typed for the word in progress on `w` already type
 /// one word whole, with no other word on the list starting the same
 /// way: the point at which typing takes it as Tab would. A read list's

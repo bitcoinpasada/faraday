@@ -2286,7 +2286,7 @@ fn text_may_be_secret(c: &Compute, text: &str) -> bool {
         return false;
     }
     faraday_intake::secret_text(c, text).is_some()
-        || crate::forms::typed_mnemonic(Language::English, &crate::forms::file_words(text)).is_ok()
+        || seed_in_words(c, &crate::forms::file_words(text))
         || crate::restore::is_share(text)
         || crate::inbox::part_of(text).is_some()
 }
@@ -2306,7 +2306,7 @@ fn secret_body_kind(c: &Compute, body: &str) -> Option<FileKind> {
     if crate::inbox::part_of(body).is_some() {
         return Some(FileKind::SeedPart);
     }
-    if crate::forms::typed_mnemonic(Language::English, &crate::forms::file_words(body)).is_ok() {
+    if seed_in_words(c, &crate::forms::file_words(body)) {
         return Some(FileKind::Words);
     }
     if faraday_codec::classify::looks_like_entries(body)
@@ -2493,25 +2493,39 @@ fn is_key_line(line: &str) -> bool {
 /// words too. Each part is read as a file's words are (place numbers
 /// dropped).
 fn words_across<'a>(parts: impl Iterator<Item = &'a str>) -> bool {
+    // The words of every part, each part read as a file's words are,
+    // held in wiping room.
+    let parts: Vec<Text> = parts.map(crate::forms::file_words).collect();
+    Language::ALL
+        .iter()
+        .any(|&lang| words_across_in(lang, &parts))
+}
+
+/// Costs what `words_across` costs for one list. Whether the words in
+/// `parts` hold a seed written in `lang`'s list.
+fn words_across_in(lang: Language, parts: &[Text]) -> bool {
     // The word numbers of the run: a wiping buffer sized once.
     let mut run = zeroize::Zeroizing::new(Vec::<u16>::with_capacity(25));
     let mut overlong = false;
     let mut seen = 0usize;
     for part in parts {
-        let words = crate::forms::file_words(part);
-        for w in words.as_str().split_whitespace() {
-            // The list's words are 3 to 8 ASCII letters, read in any case
-            // as a mnemonic is, folded in a buffer of the word's own size.
-            let mut low = [0u8; 8];
-            let index = if (3..=8).contains(&w.len()) && w.bytes().all(|b| b.is_ascii_alphabetic())
-            {
-                low[..w.len()].copy_from_slice(w.as_bytes());
-                low.make_ascii_lowercase();
-                std::str::from_utf8(&low[..w.len()])
-                    .ok()
-                    .and_then(|l| crate::forms::typed_index(Language::English, l))
+        for w in part.as_str().split_whitespace() {
+            let index = if lang == Language::English {
+                // The list's words are 3 to 8 ASCII letters, read in any
+                // case as a mnemonic is, folded in a buffer of the word's
+                // own size.
+                let mut low = [0u8; 8];
+                if (3..=8).contains(&w.len()) && w.bytes().all(|b| b.is_ascii_alphabetic()) {
+                    low[..w.len()].copy_from_slice(w.as_bytes());
+                    low.make_ascii_lowercase();
+                    std::str::from_utf8(&low[..w.len()])
+                        .ok()
+                        .and_then(|l| crate::forms::typed_index(Language::English, l))
+                } else {
+                    None
+                }
             } else {
-                None
+                crate::forms::other_list_index(lang, w)
             };
             let Some(i) = index else {
                 run.clear();
@@ -2536,8 +2550,7 @@ fn words_across<'a>(parts: impl Iterator<Item = &'a str>) -> bool {
             run.push(i);
             for n in [12, 15, 18, 21, 24] {
                 if run.len() >= n
-                    && faraday_keys::words::from_indices(Language::English, &run[run.len() - n..])
-                        .is_ok()
+                    && faraday_keys::words::from_indices(lang, &run[run.len() - n..]).is_ok()
                 {
                     return true;
                 }
@@ -2545,6 +2558,18 @@ fn words_across<'a>(parts: impl Iterator<Item = &'a str>) -> bool {
         }
     }
     false
+}
+
+/// Costs a parse of the words in each list. Whether `words` (as
+/// [`crate::forms::file_words`] gives them) are a seed in any list the
+/// device imports: English as typed, any other as a sentence is parsed.
+fn seed_in_words(c: &Compute, words: &str) -> bool {
+    crate::forms::typed_mnemonic(Language::English, words).is_ok()
+        || (matches!(words.split_whitespace().count(), 12 | 15 | 18 | 21 | 24)
+            && Language::ALL
+                .iter()
+                .filter(|&&l| l != Language::English)
+                .any(|&l| faraday_keys::words::parse(c, l, words).is_ok()))
 }
 
 /// Costs what `classify_read` costs. Says what a file holds.
@@ -2711,8 +2736,7 @@ pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
             }
             return FileKind::Key.into();
         }
-        if crate::forms::typed_mnemonic(Language::English, &crate::forms::file_words(text)).is_ok()
-        {
+        if seed_in_words(c, &crate::forms::file_words(text)) {
             return FileKind::Words.into();
         }
         // Google Authenticator's export holds every TOTP secret of the
