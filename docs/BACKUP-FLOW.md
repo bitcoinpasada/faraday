@@ -2835,8 +2835,10 @@ from the wallet's shape.
 A key's Seed XOR set and SLIP-39 set (their public facts, kept with the
 key: `docs/VAULT.md` §7) are read by the wallet's plan when Back up
 opens, as a codex32 set is (§17.23): a set the plan has none of that
-kind for becomes the key's form; a set the plan has stays, one of a kind
-per key. A plan that starts here (the board's standard way) also places
+kind for becomes the key's form; a set the plan has that is not the
+key's gives way to the key's (shares placed of a SLIP-39 set with another
+identifier leave the plan, and of the same set those the key's set did not
+make), one of a kind per key. A plan that starts here (the board's standard way) also places
 the parts, one to a place and further parts at places of their own; a
 saved plan reads with the set's parts not placed yet.
 
