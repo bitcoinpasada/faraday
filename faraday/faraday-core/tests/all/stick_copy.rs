@@ -440,10 +440,19 @@ fn a_part_of_a_transfer_read_from_a_picture_is_held_until_lock() {
     assert!(app.clean(), "nothing is held before the picture is read");
     copy_in(&mut app, &[&a], &[&png.0]);
     assert!(!app.clean(), "a part read from a picture is not held");
-    app.press(Action::Lock);
-    testkit::settle(&mut app);
-    while app.poll_storage().is_some() {}
-    assert!(app.clean(), "a part of a transfer outlived Lock");
+    assert!(
+        !testkit::holds_nothing(&app),
+        "a part read from a picture is not held"
+    );
+    // A lock restarts the process: the old app lets go of what it held,
+    // and the app that comes up in its place is clean.
+    let mut shell = crate::common::Shell::light();
+    let mut fresh = shell.lock(&mut app);
+    assert!(
+        testkit::holds_nothing(&app),
+        "a part of a transfer outlived Lock"
+    );
+    assert!(fresh.clean(), "a part of a transfer outlived the restart");
 }
 
 #[test]

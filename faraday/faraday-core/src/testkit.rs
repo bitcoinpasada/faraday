@@ -2534,6 +2534,11 @@ pub fn read_memory_as(app: &mut crate::Faraday, figures: &[u32]) {
     });
 }
 
+/// Whether the app holds nothing a lock wipes in any area (`docs/AT-LOCK.md`).
+pub fn holds_nothing(app: &crate::Faraday) -> bool {
+    !app.lockable()
+}
+
 /// Waits for the job the worker runs and applies its answer, as the
 /// next tick of a shell does (`docs/WORKERS.md` §3.2).
 pub fn settle(app: &mut crate::Faraday) {
