@@ -16,6 +16,8 @@ pub enum Slot {
     Page,
     /// Stick visit's Outbox list (`VisitState::out_offset`).
     VisitOut,
+    /// The stick's own list in the Files visit.
+    VisitIn,
     /// The wallet card's body on a desktop (`Faraday::card_offset`).
     Card,
     /// Vault contents' item on a desktop (`VaultArea::item_offset`, `faraday-core`).

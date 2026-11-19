@@ -499,6 +499,9 @@ pub(crate) struct Scroll {
     /// clamps it to how far they go ([`Scroll::drew`]), so a list that
     /// shrank leaves no offset past its end.
     sidebar: f32,
+    /// How far the stick's list in the Files visit is scrolled, units:
+    /// its own, not the page's ([`Faraday::list_offset`]).
+    visit_in: f32,
 }
 
 impl Default for Scroll {
@@ -515,6 +518,7 @@ impl Default for Scroll {
             drag_x: 0,
             panes: crate::panes::Panes::default(),
             sidebar: 0.0,
+            visit_in: 0.0,
         }
     }
 }
@@ -523,6 +527,16 @@ impl Scroll {
     /// The list pane's state (`docs/LAYOUT.md` §5).
     pub(crate) fn panes(&self) -> &crate::panes::Panes {
         &self.panes
+    }
+
+    /// The stick's list in the Files visit scrolled to `y` units.
+    pub(crate) fn set_visit_in_offset(&mut self, y: f32) {
+        self.visit_in = y;
+    }
+
+    /// How far the stick's list in the Files visit is scrolled, units.
+    pub(crate) fn visit_in_offset(&self) -> f32 {
+        self.visit_in
     }
 
     /// The sidebar's lists of keys and wallets scrolled to `y` units.
@@ -691,6 +705,7 @@ impl Scroll {
         let reach = !compact && sheet_none;
         match self.region {
             ui::Slot::VisitOut if screen == Screen::Files && reach => ui::Slot::VisitOut,
+            ui::Slot::VisitIn if screen == Screen::Files && reach => ui::Slot::VisitIn,
             ui::Slot::Card if screen == Screen::Wallets && reach => ui::Slot::Card,
             ui::Slot::VaultItem if screen == Screen::VaultContents && reach => ui::Slot::VaultItem,
             // Files' two lists stand side by side on the rail's windows
@@ -1207,6 +1222,7 @@ impl Faraday {
     fn scroll_place(&mut self) -> Option<Place> {
         match self.slot() {
             ui::Slot::VisitOut => Some(Place::VisitOut),
+            ui::Slot::VisitIn => Some(Place::VisitIn),
             ui::Slot::Card => Some(Place::Card),
             ui::Slot::VaultItem => Some(Place::VaultItem),
             ui::Slot::FilesOut => Some(Place::FilesOut),
@@ -1311,6 +1327,7 @@ impl Faraday {
         let y = |o: Option<f32>| o.unwrap_or(0.0);
         match place {
             Place::VisitOut => self.visit.out_offset(),
+            Place::VisitIn => self.scroll.visit_in_offset(),
             Place::Card => self.wallets.card_offset(),
             Place::VaultItem => self.vaults.item_offset(),
             Place::FilesOut => *self.visit.files_out_offset(),
@@ -1351,6 +1368,7 @@ impl Faraday {
     fn set_place_offset(&mut self, place: Place, to: f32) {
         match place {
             Place::VisitOut => self.visit.set_out_offset(to),
+            Place::VisitIn => self.scroll.set_visit_in_offset(to),
             Place::Card => self.wallets.set_card_offset(to),
             Place::VaultItem => self.vaults.set_item_offset(to),
             Place::FilesOut => self.visit.set_files_out_offset(to),
@@ -1398,6 +1416,7 @@ impl Faraday {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Place {
     VisitOut,
+    VisitIn,
     Card,
     VaultItem,
     FilesOut,
@@ -1442,6 +1461,11 @@ impl Faraday {
             .slot(self.screen, self.sheet.is_none(), self.compact, || {
                 self.board_shown()
             })
+    }
+
+    /// How far the stick's list in the Files visit is scrolled, units.
+    pub fn visit_in_offset(&self) -> f32 {
+        self.scroll.visit_in_offset()
     }
 
     /// The regions the last frame drew that can be reached now, last

@@ -609,6 +609,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let clip = ui.rect(x, list_top, colw, track_h);
     let open = ui.region_open(
         Region::beside(crate::ui::Slot::VisitOut, clip, app.visit.out_offset)
+            .on(Role::SurfaceContainerLow)
             .own_bar()
             .from_zero(shift),
     );
@@ -827,13 +828,18 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     );
     let total = stick.files.len();
     let max_shift = (total as f32 * ROW - track_h).max(0.0);
-    let shift = app.list_offset.min(max_shift);
+    let shift = app.scroll.visit_in_offset().min(max_shift);
     // Everything comes in by default: Unselect all, while any is ticked.
     if !app.visit.inn.is_empty() {
         visit_unselect_all(ui, ix + colw, y);
     }
     let clip = ui.rect(ix, list_top, colw, track_h);
-    let open = ui.region_open(Region::page(clip).own_bar().from_zero(shift));
+    let open = ui.region_open(
+        Region::beside(crate::ui::Slot::VisitIn, clip, app.scroll.visit_in_offset())
+            .on(Role::SurfaceContainerLow)
+            .own_bar()
+            .from_zero(shift),
+    );
     for (k, (name, size)) in stick.files.iter().enumerate() {
         let ry = list_top + k as f32 * ROW;
         // A row scrolled out of the list's sight is passed over.

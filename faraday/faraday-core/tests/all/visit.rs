@@ -129,14 +129,15 @@ fn dragging_the_scrollbar_to_the_bottom_shows_the_end_of_a_long_list() {
         y: (top + h + 40) as u16,
         phase: TouchPhase::Move,
     });
-    assert_eq!(app.list_offset, max, "the list is not at its end");
+    assert_eq!(app.visit_in_offset(), max, "the list is not at its end");
     app.event(Event::Touch {
         x,
         y: top as u16,
         phase: TouchPhase::Move,
     });
     assert_eq!(
-        app.list_offset, 0.0,
+        app.visit_in_offset(),
+        0.0,
         "dragging back up does not reach the top"
     );
     app.event(Event::Touch {
@@ -228,7 +229,7 @@ fn the_wheel_over_the_outbox_brings_its_last_file_into_reach_and_leaves_the_stic
     );
     let over = app.where_offered(Action::VisitOut(0)).unwrap();
     wheel(&mut app, over, 3000);
-    assert_eq!(app.list_offset, 0.0, "the stick's file list moved");
+    assert_eq!(app.visit_in_offset(), 0.0, "the stick's file list moved");
     let last = app
         .where_offered(Action::VisitOut(19))
         .expect("the last Outbox file cannot be scrolled to");
@@ -248,7 +249,10 @@ fn the_wheel_over_the_stick_files_moves_them_and_not_the_outbox() {
     let mut app = with_outbox(with_stick(30), 20, false);
     let over = app.where_offered(Action::VisitIn(0)).unwrap();
     wheel(&mut app, over, 3000);
-    assert!(app.list_offset > 0.0, "the stick's file list did not move");
+    assert!(
+        app.visit_in_offset() > 0.0,
+        "the stick's file list did not move"
+    );
     assert_eq!(app.visit().out_offset, 0.0, "the Outbox list moved");
     assert!(app.offers(Action::VisitIn(29)));
     assert!(app.offers(Action::VisitOut(0)));
@@ -341,7 +345,7 @@ fn a_finger_dragged_on_the_outbox_moves_it_and_not_the_stick_list() {
         phase: TouchPhase::Up,
     });
     assert!(app.visit().out_offset > 0.0, "the Outbox did not move");
-    assert_eq!(app.list_offset, 0.0, "the stick's file list moved");
+    assert_eq!(app.visit_in_offset(), 0.0, "the stick's file list moved");
     assert!(
         app.visit().out.contains("backup-03.pdf"),
         "the drag ticked or unticked the file it started on"
@@ -1703,4 +1707,13 @@ fn a_wallet_of_several_keys_loaded_on_a_visit_comes_back_to_the_visit_after_the_
     assert_eq!(app.sheet, None);
     assert_eq!(app.screen, Screen::Files);
     assert_eq!(app.session.wallets.len(), 1);
+}
+
+#[test]
+fn scrolling_the_stick_list_leaves_the_page_where_it_was() {
+    let mut app = with_outbox(with_stick(30), 20, false);
+    let over = app.where_offered(Action::VisitIn(0)).unwrap();
+    wheel(&mut app, over, 3000);
+    assert!(app.visit_in_offset() > 0.0, "the stick's list did not move");
+    assert_eq!(app.list_offset, 0.0, "the page moved with the list");
 }

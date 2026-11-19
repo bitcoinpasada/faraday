@@ -388,6 +388,21 @@ pub(crate) fn field_action(a: Action) -> bool {
 }
 
 impl Faraday {
+    /// A stick visit column's scrollbar held at pixel row `y`: the
+    /// stick's list keeps its own offset, the Outbox's is the visit's.
+    fn visit_bar_drag(&mut self, column: crate::Column, y: i32) {
+        if column != crate::Column::Stick {
+            self.visit_drag(column, y);
+            return;
+        }
+        let Some((top, h, thumb, max)) = self.visit.bar(column).get() else {
+            return;
+        };
+        let room = (h - thumb).max(1) as f32;
+        let at = ((y - top) as f32 - thumb as f32 / 2.0).clamp(0.0, room);
+        self.scroll.set_visit_in_offset(at / room * max);
+    }
+
     /// The wheel, a trackpad or a finger starts at (x, y): the region
     /// under it is the one they move (the innermost, where one region
     /// stands inside another), the page's when none is.
@@ -461,7 +476,7 @@ impl Faraday {
                     self.pointer.set_drag(None);
                 }
                 if let Some((Action::VisitBar(c), _)) = found {
-                    self.visit_drag(c, y);
+                    self.visit_bar_drag(c, y);
                 }
             }
             TouchPhase::Move => {
@@ -523,7 +538,7 @@ impl Faraday {
                 }
                 // The scrollbar follows the finger anywhere once held.
                 if let Some(c) = held_bar {
-                    self.visit_drag(c, y);
+                    self.visit_bar_drag(c, y);
                     self.out.redraw();
                     self.out.commands.push_back(Command::Draw);
                 } else if let Some((_, r)) = self.pointer.pressed()
