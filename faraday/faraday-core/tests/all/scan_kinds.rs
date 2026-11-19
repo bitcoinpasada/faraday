@@ -898,3 +898,18 @@ fn a_setup_code_carried_to_unlock_keeps_the_app_from_counting_clean() {
     assert_eq!(app.screen, Screen::Unlock);
     assert!(!app.clean(), "the setup code is held");
 }
+
+#[test]
+fn a_secret_read_card_keeps_the_app_from_counting_clean_even_under_the_pull_sheet() {
+    let mut app = testkit::started();
+    app.press(Action::Nav(Screen::SpendBackup));
+    app.press(Action::ScanFor(Ask::SpendPsbt));
+    read(&mut app, SEEDQR.as_bytes());
+    assert_eq!(card(&app).unwrap().0, "A SeedQR");
+    assert!(!app.clean(), "the card holds a seed");
+    app.storage(StorageEvent::Sticks(vec![
+        crate::common::Disk::empty("s1", "STICK").info(),
+    ]));
+    app.press(Action::ReadGo(0));
+    assert!(!app.clean(), "a seed is held under whatever sheet is up");
+}

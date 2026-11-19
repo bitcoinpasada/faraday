@@ -860,6 +860,8 @@ impl Faraday {
                 .is_some_and(|d| !d.1.text.is_empty())
             // A setup code carried to Unlock.
             || self.camera.holds_carried()
+            // A read card's code waits under whatever sheet came over it.
+            || self.camera.holds_card_secret()
     }
 
     /// Whether the field typing goes to is one of several lines, where

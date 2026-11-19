@@ -214,6 +214,23 @@ impl Camera {
         self.carried.is_some()
     }
 
+    /// Whether a read card holds a secret: a secret kind, a masked text,
+    /// or a kind that cannot be told public counts.
+    pub(crate) fn holds_card_secret(&self) -> bool {
+        use crate::scan_read::Kind;
+        self.scan
+            .as_ref()
+            .and_then(|s| s.card.as_ref())
+            .is_some_and(|c| {
+                c.kind.secret()
+                    || c.masked.is_some()
+                    || matches!(
+                        c.kind,
+                        Kind::Text | Kind::Unreadable | Kind::Kef | Kind::QrVault
+                    )
+            })
+    }
+
     /// The code carried, once.
     pub(crate) fn take_carried(&mut self) -> Option<Text> {
         self.carried.take()
