@@ -133,16 +133,21 @@ fn pixels(app: &mut Faraday) -> Vec<u8> {
 fn a_wheel_notch_glides_and_lands_on_its_pixels() {
     let mut app = long_files(1280, 800);
     wheel(&mut app, 48);
-    assert_eq!(app.list_offset, 0.0, "nothing moves before the next frame");
+    assert_eq!(
+        app.in_faraday_offset(),
+        0.0,
+        "nothing moves before the next frame"
+    );
     tick(&mut app, 1_016);
-    let first = app.list_offset;
+    let first = app.in_faraday_offset();
     assert!(
         first > 0.0 && first < WHEEL_NOTCH,
         "the first frame is part of the way: {first}"
     );
     run(&mut app, 1_016, 400);
     assert_eq!(
-        app.list_offset, WHEEL_NOTCH,
+        app.in_faraday_offset(),
+        WHEEL_NOTCH,
         "a notch is its distance in units, one unit a pixel here"
     );
 }
@@ -155,7 +160,7 @@ fn notches_in_quick_succession_add_up() {
     wheel(&mut app, 48);
     wheel(&mut app, 48);
     run(&mut app, 1_016, 500);
-    assert_eq!(app.list_offset, 3.0 * WHEEL_NOTCH, "three notches");
+    assert_eq!(app.in_faraday_offset(), 3.0 * WHEEL_NOTCH, "three notches");
 }
 
 #[test]
@@ -164,7 +169,7 @@ fn the_wheel_stops_hard_at_the_top() {
     let rest = pixels(&mut app);
     wheel(&mut app, -48);
     tick(&mut app, 1_016);
-    assert_eq!(app.list_offset, 0.0);
+    assert_eq!(app.in_faraday_offset(), 0.0);
     assert!(
         pixels(&mut app) == rest,
         "a wheel at an end shows no stretch"
@@ -180,11 +185,11 @@ fn every_offset_is_a_whole_number_of_pixels() {
     for _ in 0..20 {
         now += 16;
         tick(&mut app, now);
-        let px = app.list_offset * 1.2;
+        let px = app.in_faraday_offset() * 1.2;
         assert!((px - px.round()).abs() < 1e-3, "{px} pixels");
     }
     // A notch lands on the whole pixel nearest its distance.
-    assert!((app.list_offset * 1.2 - WHEEL_NOTCH * 1.2).abs() <= 0.5);
+    assert!((app.in_faraday_offset() * 1.2 - WHEEL_NOTCH * 1.2).abs() <= 0.5);
 }
 
 #[test]
@@ -196,16 +201,16 @@ fn a_flick_coasts_on_after_the_fingers_lift_and_comes_to_rest() {
         now += 16;
         tick(&mut app, now);
     }
-    let lifted = app.list_offset;
+    let lifted = app.in_faraday_offset();
     assert_eq!(lifted, 144.0, "a pan moves the content as the fingers do");
     app.event(Event::ScrollEnd { x: 600, y: 400 });
     now = run(&mut app, now, 200);
-    let coasted = app.list_offset;
+    let coasted = app.in_faraday_offset();
     assert!(coasted > lifted + 50.0, "it kept going: {coasted}");
     now = run(&mut app, now, 3_000);
-    let settled = app.list_offset;
+    let settled = app.in_faraday_offset();
     run(&mut app, now, 500);
-    assert_eq!(app.list_offset, settled, "and stopped");
+    assert_eq!(app.in_faraday_offset(), settled, "and stopped");
 }
 
 #[test]
@@ -220,7 +225,7 @@ fn fingers_that_stop_before_they_lift_do_not_coast() {
     now = run(&mut app, now, 200);
     app.event(Event::ScrollEnd { x: 600, y: 400 });
     run(&mut app, now, 500);
-    assert_eq!(app.list_offset, 144.0);
+    assert_eq!(app.in_faraday_offset(), 144.0);
 }
 
 #[test]
@@ -229,7 +234,7 @@ fn pulling_past_the_top_stretches_and_springs_back() {
     let rest = pixels(&mut app);
     scroll(&mut app, -80);
     tick(&mut app, 1_016);
-    assert_eq!(app.list_offset, 0.0);
+    assert_eq!(app.in_faraday_offset(), 0.0);
     assert!(pixels(&mut app) != rest, "the list shows pulled down");
     app.event(Event::ScrollEnd { x: 600, y: 400 });
     // The spring and the scrollbar's fade are both over in two seconds.
@@ -244,11 +249,11 @@ fn past_the_end_a_pan_back_moves_at_once() {
     tick(&mut app, 1_016);
     app.event(Event::ScrollEnd { x: 600, y: 400 });
     run(&mut app, 1_016, 800);
-    let end = app.list_offset;
+    let end = app.in_faraday_offset();
     assert!(end > 0.0 && end < 30_000.0, "it stops at the end: {end}");
     scroll(&mut app, -10);
     assert_eq!(
-        app.list_offset,
+        app.in_faraday_offset(),
         end - 10.0,
         "with nothing to scroll back first"
     );
@@ -264,55 +269,52 @@ fn a_finger_dragged_on_a_touchscreen_scrolls_and_presses_nothing() {
     touch(&mut app, 500, TouchPhase::Down);
     touch(&mut app, 450, TouchPhase::Move);
     touch(&mut app, 400, TouchPhase::Move);
-    assert_eq!(app.list_offset, 100.0);
+    assert_eq!(app.in_faraday_offset(), 100.0);
     touch(&mut app, 400, TouchPhase::Up);
     assert_eq!(app.screen, Screen::Files, "the lift pressed nothing");
 }
 
+/// Files' lists draw their own bar, always shown (F290): after a wheel
+/// notch glides in, the list rests looking as one panned to the same place.
 #[test]
-fn a_scrollbar_shows_while_the_content_moves_and_then_fades() {
+fn a_wheel_notch_leaves_the_list_looking_as_a_pan_to_the_same_place_does() {
     let mut app = long_files(1280, 800);
     let rest = pixels(&mut app);
     wheel(&mut app, 48);
-    let now = run(&mut app, 1_000, 300);
-    let moved = pixels(&mut app);
-    // The same list put at the same place and left to rest: no bar.
+    run(&mut app, 1_000, 1_800);
+    let end = pixels(&mut app);
     let mut still = long_files(1280, 800);
-    still.list_offset = 56.0;
-    scroll(&mut still, 0);
+    scroll(&mut still, 56);
+    tick(&mut still, 1_016);
     run(&mut still, 1_000, 1_500);
     let still = pixels(&mut still);
-    assert!(moved != still, "a bar shows beside the moving list");
-    run(&mut app, now, 1_500);
-    let end = pixels(&mut app);
-    assert!(end == still, "and is gone once it rests");
-    assert!(rest != still);
+    assert!(end == still, "the glide leaves nothing of itself behind");
+    assert!(rest != still, "the list moved, and its bar with it");
 }
 
 #[test]
-fn a_small_panel_shows_no_scrollbar_and_its_right_edge_scrolls_the_page() {
+fn a_small_panel_scrolls_the_files_list_by_a_finger_and_a_notch() {
     let mut app = long_files(480, 640);
     assert!(app.is_compact());
     wheel(&mut app, 48);
     run(&mut app, 1_000, 300);
-    let moved = pixels(&mut app);
+    assert_eq!(app.in_faraday_offset(), WHEEL_NOTCH);
     let mut still = long_files(480, 640);
-    still.list_offset = 56.0;
-    scroll(&mut still, 0);
+    scroll(&mut still, 56);
+    tick(&mut still, 1_016);
     run(&mut still, 1_000, 300);
-    assert!(moved == pixels(&mut still), "no bar beside the moving list");
-    // A finger at the right edge drags the page as anywhere else does.
+    // A finger in the list drags it as anywhere else does.
     let touch = |app: &mut Faraday, y: u16, phase| {
-        app.event(Event::Touch { x: 476, y, phase });
+        app.event(Event::Touch { x: 240, y, phase });
         while app.poll_command().is_some() {}
     };
-    let at = still.list_offset;
+    let at = still.in_faraday_offset();
     touch(&mut still, 500, TouchPhase::Down);
-    assert_eq!(still.list_offset, at, "a press there moves nothing");
+    assert_eq!(still.in_faraday_offset(), at, "a press there moves nothing");
     touch(&mut still, 450, TouchPhase::Move);
     touch(&mut still, 400, TouchPhase::Move);
     touch(&mut still, 400, TouchPhase::Up);
-    assert_eq!(still.list_offset, at + 100.0);
+    assert_eq!(still.in_faraday_offset(), at + 100.0);
 }
 
 #[test]
@@ -333,21 +335,21 @@ fn with_reduce_motion_a_notch_moves_at_once_and_nothing_stretches() {
     app.press(Action::ReduceMotion(true));
     let _ = app.frame();
     wheel(&mut app, 48);
-    assert_eq!(app.list_offset, 56.0, "no glide");
+    assert_eq!(app.in_faraday_offset(), 56.0, "no glide");
     wheel(&mut app, -48);
     let rest = pixels(&mut app);
     scroll(&mut app, -80);
     tick(&mut app, 1_016);
-    assert_eq!(app.list_offset, 0.0);
+    assert_eq!(app.in_faraday_offset(), 0.0);
     assert!(
         pixels(&mut app) == rest,
         "a pull past the top shows nothing"
     );
 }
 
-/// Files on a 1280 × 800 panel, From the stick taller than its pane: it
-/// scrolls, its bar at the pane's right edge, 636 dp across (the 240 dp
-/// rail, the 24 dp margin, the 360 dp pane and half the spacer).
+/// Files on a 1280 × 800 panel, In Faraday taller than its card: it
+/// scrolls, its bar at the card's right edge, 742 dp across (the 240 dp
+/// rail, the 24 dp margin and the left card of two).
 fn files_page() -> Faraday {
     let mut app = long_files(1280, 800);
     // At rest, as a driver that reads pixels does.
@@ -361,19 +363,19 @@ fn files_page() -> Faraday {
 fn the_scrollbar_can_be_held_and_dragged_with_a_pointer_or_a_finger() {
     let mut app = files_page();
     let touch = |app: &mut Faraday, y: u16, phase| {
-        app.event(Event::Touch { x: 630, y, phase });
+        app.event(Event::Touch { x: 742, y, phase });
         while app.poll_command().is_some() {}
         let _ = app.frame();
     };
     // Pressed low on the track: the page goes there at once.
-    touch(&mut app, 700, TouchPhase::Down);
-    let low = app.list_offset;
+    touch(&mut app, 600, TouchPhase::Down);
+    let low = app.in_faraday_offset();
     assert!(low > 0.0, "the page moved down");
     // Dragged to the top: it follows, and stops at the top.
     touch(&mut app, 400, TouchPhase::Move);
-    assert!(app.list_offset < low);
+    assert!(app.in_faraday_offset() < low);
     touch(&mut app, 0, TouchPhase::Move);
-    assert_eq!(app.list_offset, 0.0);
+    assert_eq!(app.in_faraday_offset(), 0.0);
     touch(&mut app, 0, TouchPhase::Up);
     assert_eq!(app.screen, Screen::Files, "nothing under it was pressed");
 }
@@ -382,7 +384,7 @@ fn the_scrollbar_can_be_held_and_dragged_with_a_pointer_or_a_finger() {
 fn the_scrollbar_shows_while_the_pointer_is_over_it() {
     let mut app = files_page();
     let rest = pixels(&mut app);
-    app.event(Event::Hover { x: 630, y: 400 });
+    app.event(Event::Hover { x: 742, y: 400 });
     assert!(pixels(&mut app) != rest, "the bar shows");
     // Still there after it would have faded from a scroll.
     let now = run(&mut app, 1_000, 2_000);

@@ -1035,6 +1035,11 @@ impl Faraday {
         *self.visit.files_out_offset()
     }
 
+    /// How far Files' In Faraday list is scrolled.
+    pub fn in_faraday_offset(&self) -> f32 {
+        self.visit.out_offset()
+    }
+
     /// What the visit's Write writes, the settings file aside: each
     /// chosen Outbox file, then each chosen Inbox file the visit lists,
     /// with its bytes and whether it came from the Inbox.

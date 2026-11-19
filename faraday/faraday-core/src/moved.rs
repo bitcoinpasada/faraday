@@ -334,7 +334,6 @@ mod tests {
                 "Settings Page",
                 "Wallets Page",
                 "Wallet chart Page",
-                "Files Page",
                 "Vault contents Page",
                 "Backup checklist Page",
                 "Backups Page",

@@ -419,9 +419,9 @@ fn no_screen_or_sheet_calls_either_half_inbox_or_outbox() {
             .collect();
         assert!(bad.is_empty(), "{w}x{h}: {bad:?}");
         assert!(
-            all.iter().any(|(_, t)| t == "From the stick")
-                && all.iter().any(|(_, t)| t == "For the stick"),
-            "{w}x{h}: Files does not name its halves by direction"
+            all.iter().any(|(_, t)| t == "In Faraday")
+                && all.iter().any(|(_, t)| t == "On the stick"),
+            "{w}x{h}: Files does not name its two cards In Faraday and On the stick"
         );
     }
 }
@@ -451,7 +451,10 @@ fn a_copy_of_an_open_vault_under_another_name_is_that_vault() {
     let _ = app.frame();
     let texts = app.drawn_texts();
     let contents = texts.iter().filter(|t| t.as_str() == "Contents").count();
-    assert_eq!(contents, 2, "b.kdbx and its copy are both open: {texts:?}");
+    // The open vault's own row, and b.kdbx and its copy.
+    assert_eq!(contents, 3, "b.kdbx and its copy are both open: {texts:?}");
+    let unlock = texts.iter().filter(|t| t.as_str() == "Unlock").count();
+    assert_eq!(unlock, 1, "only a.kdbx is locked: {texts:?}");
 }
 
 /// A file read from a stick under a name Files already holds, with other
@@ -530,7 +533,10 @@ fn a_vault_row_names_its_own_vault_not_another_of_its_name() {
     let _ = app.frame();
     let texts = app.drawn_texts();
     assert!(texts.iter().any(|t| t == "Unlock"), "{texts:?}");
-    assert!(!texts.iter().any(|t| t == "Contents"), "{texts:?}");
+    // Contents is the open vault A's own row in In Faraday; the From the
+    // stick row of the other vault of that name offers Unlock only.
+    let contents = texts.iter().filter(|t| t.as_str() == "Contents").count();
+    assert_eq!(contents, 1, "{texts:?}");
 }
 
 /// A vault written to a stick stays in Files as the stick holds it; a

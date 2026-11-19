@@ -1427,6 +1427,11 @@ pub(super) fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Button
                 Action::CheckMessage(k),
             ));
         }
+        FileKind::Key => out.push((
+            Text::of(EN.read_go_use_key),
+            Style::Primary,
+            Action::CreateWallet,
+        )),
         FileKind::CoreWallet => {
             out.push((
                 Text::of(EN.inbox_actions_read_wallet),

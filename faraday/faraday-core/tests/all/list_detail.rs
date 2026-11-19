@@ -296,8 +296,8 @@ fn files_shows_its_two_lists_side_by_side_and_the_stick_in_the_top_row() {
             .max_by_key(|b| b.1)
             .expect("on the page")
     };
-    let from = page(boxes(&mut app, "From the stick"));
-    let for_ = page(boxes(&mut app, "For the stick"));
+    let from = page(boxes(&mut app, "In Faraday"));
+    let for_ = page(boxes(&mut app, "On the stick"));
     assert_eq!(from.1, for_.1, "the two lists' titles on one line");
     assert!(for_.0 > from.0, "{from:?} {for_:?}");
     let waiting = boxes(&mut app, "Waiting for a stick");

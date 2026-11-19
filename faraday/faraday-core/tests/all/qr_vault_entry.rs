@@ -132,7 +132,16 @@ fn a_qr_vault_file_in_the_outbox_reads_as_sealed() {
     let _ = app.frame();
     let texts = app.drawn_texts();
     assert!(texts.iter().any(|t| t == "Written sealed"), "{texts:?}");
-    assert!(!texts.iter().any(|t| t == "Public"), "{texts:?}");
+    // The settings file stands under Public; the QR vault's file stands
+    // under Written sealed, after it.
+    let boxes = app.drawn_text_boxes();
+    let y = |name: &str| boxes.iter().find(|(t, _)| t == name).map(|(_, b)| b.1);
+    let (sealed, row) = (y("Written sealed").unwrap(), y("note.pgp").unwrap());
+    assert!(row > sealed, "the file stands under Written sealed");
+    assert!(
+        y("Public").is_none_or(|public| public < sealed),
+        "the file stands under Public"
+    );
 }
 
 #[test]
