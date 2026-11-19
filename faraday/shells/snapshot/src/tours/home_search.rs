@@ -10,8 +10,8 @@ use faraday_shell_api::{App, Event};
 pub(crate) fn home_search_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::Home));
     let find = Action::TypeHere(Here::HomeFind);
-    // The bar stands under the actions and does not scroll; the Pi's small
-    // panel has none (its Home is the menu).
+    // The bar stands first and does not scroll on the wide layout and the
+    // rail's windows; the Pi's small panel has none (its Home is the menu).
     t.app.settle();
     let _ = t.app.frame();
     let mut scrolled = 0;

@@ -5,53 +5,63 @@
 
 Home is the first page after the self-test and after every lock, and
 the page a person comes back to between jobs. It answers what is loaded,
-what is the next thing to do and, on the wide layout, how to sign for
-each wallet loaded. A person who has loaded nothing is shown the ways to
-start instead.
+what is the next thing to do and, on the wide layout and the rail's
+windows, which keys and wallets are in it. The ways to start stand
+whether or not anything is loaded.
 
 Home is drawn by layout, not by one model:
 
 - **The wide layout** (1280 by 800 and up, the expanded rail):
-  `faraday-core`'s `screens/home.rs`. The sidebar carries what is loaded
-  and the places, so the page holds the lead, the wallets, the first
-  actions and the search bar.
+  `faraday-core`'s `screens/home.rs`. The sidebar carries the places, so
+  the page holds the search bar, the lead, the first actions, the loaded
+  wallets beside Backups and the Keys section.
 - **The Pi's menu** (the Pi's 480 by 640 panel, no navigation component)
   and **the one-column windows with navigation** (the rail's and the
-  phone-size window's bar): `compact/mod.rs`. A box of what is loaded,
-  one row for the lead, the first actions where there is a search bar,
-  and the places as tiles.
+  phone-size window's bar): `compact/mod.rs`. On the Pi's menu and the
+  phone-size window a box of what is loaded, one row for the lead, the
+  first actions where there is a search bar, and the places as tiles; on
+  the rail's windows the search bar, the lead, the first actions, the same
+  wallets-and-Backups row and Keys section as the wide layout, and the
+  places.
 
-The phone-size window differs from the rail's in two things: its search
-bar is first, under the box of what is loaded, and a search typed takes
-the page; and it always stacks the first actions. The Pi's menu has no
-search bar and no first actions.
+The phone-size window differs from the rail's: its search bar is first,
+under the box of what is loaded, the first actions stand only while
+nothing is loaded and are always stacked, and it has the box instead of
+the row and the Keys section. The Pi's menu has no search bar and no first
+actions.
 
 ## 1. The parts, in order
 
 **The wide layout:**
 
-1. **The lead** (§2): a card with one filled button. None when nothing
+1. **The search bar** (§5), centred, first and still while the page under
+   it scrolls; a search typed takes the page.
+2. **The lead** (§2): a card with one filled button. None when nothing
    waits and something is loaded.
-2. **Wallets** (§3): each loaded wallet as a card with **Sign**.
-3. **The three first actions** (§5), only while nothing is loaded.
-4. **The Backups row** while a wallet is known (§3).
-5. **The search bar** (§5), centred.
+3. **The three first actions** (§5), always.
+4. **Wallets** (§3): each loaded wallet and the Backups tile, one small
+   style, side by side.
+5. **Keys** (§3): each key held, in the same style.
 6. **Scan**, the floating button at the bottom right.
 
-**The Pi's menu, the rail's windows and the phone-size window:**
+**The Pi's menu, the rail's windows and the phone-size window** (the
+rail's windows differ as the list says):
 
 1. On the Pi's menu only, the head (the mark and the name, off mainnet
    the mode pill); on the rail's and the phone-size windows the top app
    bar carries the name.
 2. **What is loaded** (§4): one box, not drawn while it has nothing to
-   show.
-3. On the phone-size window only, **the search bar** (§5), with a typed
-   search's results taking the page.
+   show; not on the rail's windows, where §3's row and Keys section
+   stand in its place, further down.
+3. On the phone-size window and the rail's windows, **the search bar**
+   (§5), first on the rail's windows, with a typed search's results taking
+   the page.
 4. A card for the vaults open, while any is.
 5. **The lead** (§2): one row.
-6. **The three first actions** (§5), only while nothing is loaded, and not
-   on the Pi's menu.
-7. On the rail's windows, **the search bar**.
+6. **The three first actions** (§5), only while nothing is loaded (always
+   on the rail's windows), and not on the Pi's menu.
+7. On the rail's windows, **the wallets and Backups, then the Keys
+   section** (§3).
 8. **The places** (§6) as tiles; then, on the Pi's menu only, Lock (while
    something is held) and Power off; the rail's windows have them on the
    rail, the phone-size window's Lock in the top app bar and its ⋮ menu.
@@ -106,17 +116,22 @@ Wallets offers **Make a wallet from this key**, `docs/WALLETS.md` §1), and
 but on the rail's windows and the phone-size window it is the first of
 the three first actions and nothing leads.
 
-## 3. Wallets on Home (the wide layout)
+## 3. Wallets and keys on Home (the wide layout and the rail's windows)
 
-Under the lead, a section headed **Wallets**, one card for each wallet in
-the session, in the sidebar's order (the wallets the keys here sign for
-alone first, then those with some keys here, then watch-only), in a grid,
-each card at least `TILE_MIN` wide and wide enough for its button.
+Under the first actions, a section headed **Wallets**: one small tile for
+each wallet in the session, in the sidebar's order (the wallets the keys
+here sign for alone first, then those with some keys here, then
+watch-only), and, while any wallet is known, the **Backups** tile last,
+side by side in one grid, each tile at least `TILE_MIN` wide and wide
+enough for its longest line. They are one small style: the icon, the name
+and one line under it, the whole tile the press.
 
-Each card: the wallet icon, the wallet's name, one line under it, and at
-its end **Sign**, Material's outlined button. The card itself opens the
-wallet's card on Wallets (`Action::OpenWallet`), as the name in the
-sidebar does.
+A wallet's tile: the wallet icon, the wallet's name and one line. The
+tile opens the wallet's card on Wallets (`Action::OpenWallet`), as the
+name in the sidebar does. Home has no Sign button: the card on Wallets and
+the lead carry what signs next. Home has no Receive button either:
+Faraday is an offline signer, and the wallet's card on Wallets keeps its
+"First receive address" line.
 
 - **The line** says the one thing that matters now, the first that
   applies: "Signatures {n} of {m}" while its spend is under way; "A PSBT
@@ -124,23 +139,27 @@ sidebar does.
   made here waits for its backup; else its shape as the sidebar row gives
   it ("single key", "2 of 3", or the line for a wallet another key
   spends).
-- **Sign** does what the wallet card's first button does (`spend_button`):
-  finish the backup first, carry on its spend, sign its PSBT in Files, or
-  spend from it.
 
-Home has no Receive button: Faraday is an offline signer, and the wallet's
-card on Wallets keeps its "First receive address" line.
+The Backups tile: "Backups" and "{n} not backed up" or "{n} with a plan",
+opening Backups. On the rail's windows the places have no Backups tile of
+their own, this one stands for it.
 
-After the wallets, while any wallet is known, one **Backups** tile:
-"Backups" and "{n} not backed up" or "{n} with a plan", opening Backups.
+Then a section headed **Keys**, in the same grid and style: one tile for
+each key held, its fingerprint and, under it, its name (none when the
+name is the fingerprint) and the word "passphrase" after it when the key
+was loaded with one: the same words without it are another key. A press
+opens the key in Explore, as the sidebar's key row does. Many wallets or
+keys flow on into further rows and the page scrolls with them.
 
-The one-column Homes have no wallet cards: they name each wallet in the
-box of what is loaded (§4), and the places carry a Backups tile (§6.2).
+The Pi's menu and the phone-size window have no such tiles: they name each
+wallet and key in the box of what is loaded (§4), and the places carry a
+Backups tile (§6.2).
 
-## 4. What is loaded (the one-column Homes)
+## 4. What is loaded (the Pi's menu and the phone-size window)
 
-One box, drawn on the Pi's menu, the rail's windows and the phone-size
-window, in the order below, laid out as lines side by side and wrapping to
+One box, drawn on the Pi's menu and the phone-size window (the rail's
+windows have §3's row and Keys section instead, with no files line, and
+a flow in progress is a chip over the page, `docs/LAYOUT.md` §3), in the order below, laid out as lines side by side and wrapping to
 rows; each line opens what its sidebar row opens:
 
 - each flow in progress, its name and "in progress", resuming it;
@@ -159,40 +178,33 @@ The vaults open are not in the box: a card of their own follows it,
 The box is not drawn while it has nothing to show (`loaded_empty`): no
 flow, key, wallet, file brought in or waiting, stick or import waiting; a
 new person's first card is then the lead or the first actions. The wide
-layout has no box: the sidebar's lists are it (`docs/LAYOUT.md` §3).
+layout has no box: §3's row and Keys section are it.
 
 ## 5. The first actions and the search bar
 
-While nothing is loaded, the three first actions stand under the title on
-the wide layout and the rail's windows, after the lead when a job waits,
-and under the search bar on the phone-size window: **Make a new wallet**,
-**Restore an existing wallet** and **Spend from a backup**. They are three
-like buttons with their heading only, no small line, no label over them,
-no pill: the whole button is the press. On the wide layout they always
-stand as one row of three equal columns, a heading too long for its column
-wrapping onto a second line, the three buttons one height. On the rail's
-windows they stand as a row where three columns leave every heading room
-within two lines, else one under the other at full width. The phone-size
-window always stacks them. The Pi's menu has none.
+The three first actions stand on the wide layout and the rail's windows
+always, whether or not anything is loaded, under the search bar and after
+the lead when a job waits; on the phone-size window only while nothing is
+loaded, under the search bar: **Make a new wallet**, **Restore an existing
+wallet** and **Spend from a backup**. They are three like buttons with
+their heading only, no small line, no label over them, no pill: the whole
+button is the press. On the wide layout they always stand as one row of
+three equal columns, a heading too long for its column wrapping onto a
+second line, the three buttons one height. On the rail's windows they
+stand as a row where three columns leave every heading room within two
+lines, else one under the other at full width. The phone-size window
+always stacks them. The Pi's menu has none.
 
 The search bar shows the search icon and the word "Search", on every
-layout but the Pi's menu. On the phone-size window it is at the top,
-directly under the box of what is loaded, above the lead and the three
-actions; while something is typed its results take the page and the lead,
-the actions and the places are not drawn until the
-search is cleared. On the wide layout it is under the first actions, or
-under the Backups tile once something is loaded, centred and at most
-`LEAD_MAX` wide; on the rail's windows under the first actions at full
-width. Typing in it there changes nothing above it, neither what is drawn
-nor where: only the results under the bar scroll. That holds where the
-content above the bar leaves room under it for about three rows of
-results (`home_pinned`); on a window too short for that, the whole page
-scrolls as one, the same content in the same order. A press in the bar
-shows its caret, which blinks.
-
-Once anything is loaded, the three actions are gone: their ways in stay
-on Wallets (Make a new wallet, Restore an existing wallet, Spend from a
-backup, Add a key; `docs/WALLETS.md`).
+layout but the Pi's menu. It is at the top of the page, on the wide layout
+centred and at most `LEAD_MAX` wide, on the rail's windows at full width,
+and stays where it is while the page under it scrolls. On the phone-size
+window it is directly under the box of what is loaded and, where the
+window leaves room for about three rows of results (`home_pinned`), stays
+too; else the whole page scrolls as one. On every layout with the bar,
+while something is typed its results take the page: the lead, the first
+actions, the wallets, the keys, Backups and the places are not drawn until
+the search is cleared. A press in the bar shows its caret, which blinks.
 
 ## 6. The places
 
@@ -269,23 +281,24 @@ beside Power off.
 +-------------+----------------------------------------------------------+
 | FARADAY     | Home                                      (Testnet)  ?   |
 | OFFLINE     |                                                          |
-| Home        | +-----------------+ +-----------------+ +--------------+ |
-| Check       | | [w] Make a new  | | [r] Restore an  | | [s] Spend    | |
-| Wallets     | |     wallet      | |     existing    | |     from a   | |
-| Files       | |                 | |     wallet      | |     backup   | |
-| Vaults      | +-----------------+ +-----------------+ +--------------+ |
-| Tools       |                                                          |
-| Guide       |        ( search  Search                           )      |
+| Home        |        ( search  Search                           )      |
+| Check       |                                                          |
+| Wallets     | +-----------------+ +-----------------+ +--------------+ |
+| Files       | | [w] Make a new  | | [r] Restore an  | | [s] Spend    | |
+| Vaults      | |     wallet      | |     existing    | |     from a   | |
+| Tools       | |                 | |     wallet      | |     backup   | |
+| Guide       | +-----------------+ +-----------------+ +--------------+ |
 | Settings    |                                                          |
 |             |                                                [ Scan ]  |
 | [Power off] |                                                          |
 +-------------+----------------------------------------------------------+
 ```
 
-A job waiting (an import, say) stands as its card above the row; the
-plain Import card has no pill and is pressed whole. Typing in the search
-bar leaves the card, the row and the bar where they are; the results show
-and scroll under the bar.
+A job waiting (an import, say) stands as its card between the bar and the
+row; the plain Import card has no pill and is pressed whole. Typing in the
+search bar leaves the bar where it is and takes the page: the card, the
+row and everything under them are not drawn, the results show and scroll
+under the bar.
 
 ### 7.3 The wide layout, 1280 by 800, keys and wallets loaded
 
@@ -293,24 +306,31 @@ and scroll under the bar.
 +-------------+----------------------------------------------------------+
 | FARADAY     | Home                                      (Testnet)  ?   |
 | OFFLINE     |                                                          |
-| Home        | +----------------------------------------------+         |
-| Check       | | [s] inheritance.psbt               [ Sign ]  |         |
-| Wallets     | |     From Files                               |         |
-| Files    77 | +----------------------------------------------+         |
-| Vaults open | Wallets                                                  |
-| Tools       | +--------------------------+ +--------------------------+|
-| Guide       | | Savings                  | | Spending                 ||
-| Settings    | | A PSBT to sign           | | single key               ||
-| ----------- | |                  (Sign)  | |                  (Sign)  ||
-| Keys      3 | +--------------------------+ +--------------------------+|
-|  9a6a2580   | +--------------------------+ +--------------------------+|
-|  5d388376   | | Taproot                  | | Legacy multisig          ||
-| Wallets  11 | | single key               | | 2 of 3 · watch only      ||
-|  ...        | |                  (Sign)  | |                  (Sign)  ||
-| [Lock]      | +--------------------------+ +--------------------------+|
-| [Power off] | Backups · 1 not backed up                     >  [ Scan ]|
+| Home        |        ( search  Search                           )      |
+| Check       | +----------------------------------------------+         |
+| Wallets     | | [s] inheritance.psbt               [ Sign ]  |         |
+| Files    77 | |     From Files                               |         |
+| Vaults open | +----------------------------------------------+         |
+| Tools       | +-----------+ +-----------+ +-----------------------+    |
+| Guide       | | Make a    | | Restore an| | Spend from a backup   |    |
+| Settings    | +-----------+ +-----------+ +-----------------------+    |
+|             | Wallets                                                  |
+|             | +-----------+ +-----------+ +-----------+ +----------+  |
+| [Lock]      | | Savings   | | Spending  | | Taproot   | | Backups  |  |
+| [Power off] | | A PSBT to | | single key| | single key| | 1 not    |  |
+|             | | sign      | |           | |           | | backed up|  |
+|             | +-----------+ +-----------+ +-----------+ +----------+  |
+|             | Keys                                                     |
+|             | +-----------+ +-----------+ +-----------+                |
+|             | | 9a6a2580  | | 5d388376  | | c3a1f20e  |   [ Scan ]    |
+|             | |           | | passphrase| | savings   |                |
+|             | +-----------+ +-----------+ +-----------+                |
 +-------------+----------------------------------------------------------+
 ```
+
+Many wallets or keys flow on into more rows and the page scrolls under the
+bar. On the rail's windows the same row and Keys section stand under the
+first actions at full width, in place of the box of what is loaded.
 
 ### 7.4 The phone-size window, nothing loaded
 
@@ -336,9 +356,9 @@ and scroll under the bar.
 While something is typed the results alone fill the page under the bar.
 Only what is under the search bar scrolls, until the window is too short
 to leave room under the bar for about three rows of results; then the
-whole page scrolls (§5). The rail's windows draw the same page with the search
-bar under the first actions, the rail beside it carrying Lock and Power
-off.
+whole page scrolls (§5). The rail's windows draw the search bar first and
+the first actions always, then the lead, the row of wallets and Backups
+and the Keys section, the rail beside it carrying Lock and Power off.
 
 ## 8. Strings
 
@@ -375,10 +395,14 @@ the bar), and the canonical Feed layout (the wide Home's grid).
 
 What a person would notice: with nothing loaded the three first actions
 show as headings only, each pressed as a whole, and a job waiting leads;
-the wide Home's first actions and search bar stay where they were while a
-search is typed, and on the phone-size window a search typed takes the
-page; a Home taller than its window scrolls to its places; Home offers
-Scan, Backups once a wallet is known and the lead for each of the jobs of
-§2; the Pi's menu puts Wallets left of Check and the phone keeps Check
-first. The destinations' order is a design rule, held by review and the
-renders, not by a test.
+with a wallet loaded the three first actions still stand and each opens
+its flow; a loaded wallet is a small tile that opens its card, with no
+Sign; a key on Home opens Explore and one loaded with a passphrase says
+so; the wide Home's search bar stays where it was while a search is typed,
+the typed search takes the page and clearing it brings the rest back, and
+on the phone-size window a search typed takes the page; a Home taller than
+its window keeps the bar still or scrolls to its places; Home offers Scan,
+Backups once a wallet is known and the lead for each of the jobs of §2;
+the Pi's menu puts Wallets left of Check and the phone keeps Check first.
+The destinations' order is a design rule, held by review and the renders,
+not by a test.

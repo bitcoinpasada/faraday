@@ -737,18 +737,23 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let inner = w - 2.0 * M;
     let beside = app.nav().beside();
     let prompts = prompts(app);
-    let first = bars && crate::screens::nothing_loaded(app);
+    let rail = app.nav() == crate::nav::Nav::Rail;
+    // The first actions stand on the rail's windows always, not while
+    // nothing is loaded (`docs/HOME.md` §5).
+    let first = rail || (bars && crate::screens::nothing_loaded(app));
     let vaults = app.vaults.open.len();
     let card = vaults > 0;
     let l1 = ui.line_as(LABEL_L);
     // The card as tall as its line needs (`docs/TEXT-SIZE.md` §5).
     let card_h = ui.row_height(52.0, l1, faraday_draw::tokens::GRID);
     // The phone-size window has the search bar first, under the box of what
-    // is loaded, and a search typed takes the whole page; the rail's windows
-    // have it under the first actions. The Pi has none.
+    // is loaded, and the rail's windows first of all; a search typed takes
+    // the whole page on both. The Pi has none.
     let phone = app.nav() == crate::nav::Nav::Bar;
     let typed = bars && !app.tools.home_find().is_empty();
-    let shown = !crate::nav::screen::loaded_empty(app);
+    // The rail's windows have the loaded wallets and keys as tiles of their
+    // own (`crate::screens::loaded`), not this box.
+    let shown = !rail && !crate::nav::screen::loaded_empty(app);
     let mut above = 12.0;
     if shown {
         above += crate::nav::screen::loaded_card_h(app, ui, inner) + 10.0;
@@ -765,7 +770,8 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
             above += first_actions_h(app, ui, inner);
         }
     }
-    let pinned = bars && crate::screens::home_pinned(above, view_h, TILE_H_GRID + 8.0);
+    // The rail's windows keep the bar still always.
+    let pinned = rail || (bars && crate::screens::home_pinned(above, view_h, TILE_H_GRID + 8.0));
     let mut open = (!pinned).then(|| {
         let clip = ui.rect(0.0, 0.0, w, view_h);
         ui.region_open(Region::page(clip).from_zero(app.list_offset))
@@ -810,12 +816,12 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
             }
         }};
     }
-    if phone {
+    if phone || rail {
         search!();
     }
-    // A search typed on the phone-size window takes the page: nothing
-    // under the bar is drawn.
-    let rest = !(phone && typed);
+    // A search typed on the phone-size window and on the rail's windows
+    // takes the page: nothing under the bar is drawn.
+    let rest = !((phone || rail) && typed);
     if card && rest {
         y += vaults_card(app, ui, y, inner);
     }
@@ -857,7 +863,10 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     if rest && first {
         y += first_actions(app, ui, y, inner);
     }
-    if bars && !phone {
+    if rest && rail {
+        y += crate::screens::loaded(app, ui, (M, y), inner, 8.0);
+    }
+    if bars && !phone && !rail {
         search!();
     }
 
@@ -1036,7 +1045,11 @@ fn places(app: &View, ui: &mut Ui, y: f32, inner: f32, rest: bool) -> f32 {
             )
         }
     };
-    let tiles = if rest { tiles(app) } else { Vec::new() };
+    let mut tiles = if rest { tiles(app) } else { Vec::new() };
+    // The rail's windows have Backups in the row of what is loaded.
+    if app.nav() == crate::nav::Nav::Rail {
+        tiles.retain(|t| t.3 != Action::Nav(Screen::Backups));
+    }
     let heights: Vec<f32> = tiles.iter().map(|t| wraps(ui, &t.2).1).collect();
     let row_h = |r: usize| {
         heights

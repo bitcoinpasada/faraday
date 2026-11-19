@@ -1016,8 +1016,8 @@ fn with_nothing_loaded_the_three_first_actions_stand_as_headings_only() {
     }
 }
 
-/// A key no wallet uses leads with Make a wallet from it, and Start's
-/// tiles are gone.
+/// A key no wallet uses leads with Make a wallet from it, and the three
+/// first actions stand under it.
 #[test]
 fn a_key_with_no_wallet_leads_with_make_a_wallet() {
     let mut app = shown();
@@ -1029,25 +1029,127 @@ fn a_key_with_no_wallet_leads_with_make_a_wallet() {
     let texts = app.drawn_texts();
     assert!(texts.iter().any(|t| t == "No wallet uses it"), "{texts:?}");
     assert!(app.offers(Action::KeyWallet(fp, 1)));
-    assert!(!app.offers(Action::RestoreWallet), "Start is gone");
-    assert!(!app.offers(Action::CreateWallet), "Make is not the lead");
+    for a in FIRST {
+        assert!(app.offers(a), "{a:?} stands beside the lead");
+    }
 }
 
-/// A loaded wallet shows its card with Sign, which opens what the wallet
-/// card's first button opens, and Start's tiles are gone.
+/// With a wallet loaded the three first actions still stand, there is no
+/// Sign button, and a press on the wallet's tile opens its card.
 #[test]
-fn a_loaded_wallet_shows_sign_and_start_is_gone() {
-    use faraday_core::spend_backup::SpendBackupAction as F;
+fn a_loaded_wallet_is_a_small_tile_that_opens_its_card_and_the_first_actions_stay() {
     let mut app = with_a_wallet();
     let texts = app.drawn_texts();
-    assert!(texts.iter().any(|t| t == "Sign"), "{texts:?}");
-    assert!(!texts.iter().any(|t| t == "Receive"), "{texts:?}");
-    assert!(!texts.iter().any(|t| t == "Start"), "{texts:?}");
-    assert!(!app.offers(Action::RestoreWallet));
-    assert!(!app.offers(Action::CreateWallet));
-    assert!(app.offers(Action::OpenWallet(0)));
-    tap(&mut app, Action::SpendBackup(F::SpendFrom(0)));
-    assert_eq!(app.screen, Screen::SpendBackup);
+    assert!(!texts.iter().any(|t| t == "Sign"), "{texts:?}");
+    for a in FIRST {
+        assert!(app.offers(a), "{a:?} stands with a wallet loaded");
+    }
+    assert!(app.offers(Action::Nav(Screen::Backups)));
+    tap(&mut app, Action::OpenWallet(0));
+    assert_eq!(app.screen, Screen::Wallets);
+}
+
+/// With a wallet loaded each first action still opens its flow, on the
+/// wide layout and on the rail's windows.
+#[test]
+fn with_a_wallet_loaded_each_first_action_opens_its_flow() {
+    let flows = [Screen::Create, Screen::Restore, Screen::SpendBackup];
+    for (width, height) in [(1280, 800), (720, 900)] {
+        for (action, screen) in FIRST.into_iter().zip(flows) {
+            let mut app = short_with_a_wallet(width, height);
+            tap(&mut app, action);
+            assert_eq!(app.screen, screen, "{width}x{height} {action:?}");
+        }
+    }
+}
+
+/// A key on Home says its fingerprint, a passphrase key says so, and a
+/// press opens it in Explore.
+#[test]
+fn a_key_on_home_opens_explore_and_a_passphrase_key_says_so() {
+    for (width, height) in [(1280, 800), (720, 900)] {
+        let mut app = on_test_net(width, height);
+        tap(&mut app, Action::Scan);
+        read(&mut app, SEEDQR.as_bytes());
+        without_passphrase(&mut app);
+        let fp = app.session.keys[0].fingerprint.0;
+        app.press(Action::Nav(Screen::Home));
+        let texts = app.drawn_texts();
+        assert!(texts.iter().any(|t| t == "Keys"), "{width}: {texts:?}");
+        assert!(
+            !texts.iter().any(|t| t.contains("passphrase")),
+            "{width}: no passphrase mark: {texts:?}"
+        );
+        assert!(app.offers(Action::ExploreKey(fp)));
+        tap(&mut app, Action::ExploreKey(fp));
+        assert_eq!(app.screen, Screen::Explore, "{width}");
+    }
+}
+
+#[test]
+fn a_key_loaded_with_a_passphrase_is_marked_on_home() {
+    let mut app = on_test_net(1280, 800);
+    tap(&mut app, Action::Scan);
+    read(&mut app, SEEDQR.as_bytes());
+    app.press(Action::SeedRead(faraday_core::seeds::read::Choice::AddPass));
+    for field in [0, 1] {
+        app.press(Action::SeedRead(faraday_core::seeds::read::Choice::Field(
+            field,
+        )));
+        for c in "extra".chars() {
+            app.event(Event::Key(faraday_shell_api::Key::Char(c)));
+        }
+    }
+    faraday_core::testkit::pause(&mut app);
+    app.press(Action::SeedRead(
+        faraday_core::seeds::read::Choice::WithPass,
+    ));
+    faraday_core::testkit::keep_published(&mut app);
+    let _ = app.frame();
+    app.press(Action::Nav(Screen::Home));
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t.contains("passphrase")),
+        "the key says so: {texts:?}"
+    );
+}
+
+/// A search typed takes the page: the first actions, wallets, keys and
+/// Backups are not drawn, and clearing it brings them back.
+#[test]
+fn a_search_typed_on_the_wide_home_takes_the_page_and_clearing_it_brings_the_rest_back() {
+    for (width, height) in [(1280, 800), (720, 900)] {
+        let mut app = short_with_a_wallet(width, height);
+        tap(&mut app, Action::Scan);
+        read(&mut app, SEEDQR.as_bytes());
+        without_passphrase(&mut app);
+        let fp = app.session.keys[0].fingerprint.0;
+        app.press(Action::Nav(Screen::Home));
+        // The wide layout's sidebar still lists keys and wallets.
+        let rest: Vec<Action> = if width > 1000 {
+            vec![Action::CreateWallet]
+        } else {
+            vec![
+                Action::CreateWallet,
+                Action::OpenWallet(0),
+                Action::Nav(Screen::Backups),
+                Action::ExploreKey(fp),
+            ]
+        };
+        for &a in &rest {
+            assert!(app.offers(a), "{width}: {a:?}");
+        }
+        type_on_home(&mut app, "send");
+        for &a in &rest {
+            assert!(!app.offers(a), "{width}: {a:?} is gone while typed");
+        }
+        assert!(app.where_offered(Action::Catalog(sign_tile())).is_some());
+        app.event(Event::Key(faraday_shell_api::Key::Escape));
+        let _ = app.frame();
+        for &a in &rest {
+            assert!(app.offers(a), "{width}: {a:?} is back");
+        }
+    }
 }
 
 fn window(width: u16, height: u16, dpi: u16) -> Faraday {
@@ -1217,15 +1319,6 @@ fn phone() -> Faraday {
     window(400, 800, 160)
 }
 
-/// The hit boxes of the three first actions and of `more`.
-fn boxes(app: &Faraday, more: Action) -> Vec<Option<(u16, u16, u16, u16)>> {
-    FIRST
-        .iter()
-        .chain([&more])
-        .map(|a| app.hit_box(*a))
-        .collect()
-}
-
 #[test]
 fn with_nothing_loaded_each_first_action_is_pressed_as_a_whole() {
     let flows = [Screen::Create, Screen::Restore, Screen::SpendBackup];
@@ -1255,27 +1348,27 @@ fn the_pi_s_menu_puts_wallets_left_of_check_and_a_phone_keeps_check_first() {
     assert!(c.1 < w.1, "Check is in the page, Wallets on the bar below");
 }
 
+/// The bar stands first and stays where it is while a search is typed and
+/// its results scroll; the first actions are not drawn then.
 #[test]
-fn the_wide_homes_first_actions_and_bar_stay_where_they_were_while_a_search_is_typed() {
+fn the_wide_homes_bar_stays_where_it_was_while_a_search_is_typed() {
     let bar = Action::TypeHere(faraday_core::edit::Here::HomeFind);
-    {
-        let make = wide;
-        let mut app = make();
-        let before = boxes(&app, bar);
-        assert!(before.iter().all(Option::is_some));
-        type_on_home(&mut app, "send");
-        assert_eq!(before, boxes(&app, bar));
-        // Scrolling the results moves none of them either.
-        app.event(Event::Scroll {
-            x: 300,
-            y: 700,
-            dy: 3000,
-        });
-        let _ = app.frame();
-        assert_eq!(before, boxes(&app, bar));
-        tap(&mut app, Action::CreateWallet);
-        assert_eq!(app.screen, Screen::Create);
-    }
+    let mut app = wide();
+    let before = app.hit_box(bar);
+    assert!(before.is_some());
+    let first = app.hit_box(FIRST[0]).unwrap();
+    assert!(before.unwrap().1 < first.1, "the bar is above the actions");
+    type_on_home(&mut app, "send");
+    assert_eq!(before, app.hit_box(bar));
+    assert!(!app.offers(Action::CreateWallet));
+    // Scrolling the results moves the bar no more.
+    app.event(Event::Scroll {
+        x: 300,
+        y: 700,
+        dy: 3000,
+    });
+    let _ = app.frame();
+    assert_eq!(before, app.hit_box(bar));
 }
 
 /// Home with the boot stick's import waiting and nothing loaded.
@@ -1294,20 +1387,21 @@ fn with_an_import_waiting(make: fn() -> Faraday) -> Faraday {
 }
 
 #[test]
-fn the_import_lead_is_a_card_with_no_pill_and_typing_a_search_leaves_it_and_the_row() {
+fn the_import_lead_is_a_card_with_no_pill_and_typing_a_search_leaves_it_and_the_actions_out() {
     let open = faraday_core::boot_import::OPEN;
-    {
-        let make = wide;
-        let mut app = with_an_import_waiting(make);
-        let texts = app.drawn_texts();
-        assert!(!texts.iter().any(|t| t == "Import"), "no pill: {texts:?}");
-        let before = boxes(&app, open);
-        assert!(before.iter().all(Option::is_some), "{before:?}");
-        type_on_home(&mut app, "send");
-        assert_eq!(before, boxes(&app, open));
-        tap(&mut app, open);
-        assert!(app.sheet.is_some());
-    }
+    let mut app = with_an_import_waiting(wide);
+    let texts = app.drawn_texts();
+    assert!(!texts.iter().any(|t| t == "Import"), "no pill: {texts:?}");
+    assert!(app.offers(open));
+    let bar = Action::TypeHere(faraday_core::edit::Here::HomeFind);
+    let before = app.hit_box(bar);
+    type_on_home(&mut app, "send");
+    assert!(!app.offers(open), "the lead is not drawn while typed");
+    assert_eq!(before, app.hit_box(bar));
+    app.event(Event::Key(faraday_shell_api::Key::Escape));
+    let _ = app.frame();
+    tap(&mut app, open);
+    assert!(app.sheet.is_some());
 }
 
 #[test]
@@ -1352,12 +1446,8 @@ fn a_press_in_homes_search_bar_shows_a_blinking_caret_and_at_rest_none_shows() {
 }
 
 /// A window of `width` by `height` at 160 dpi with the test wallet loaded.
-fn short_with_a_wallet(width: u16, height: u16) -> Faraday {
-    let wallet = faraday_core::testkit::files()
-        .unwrap()
-        .into_iter()
-        .find(|(n, _)| n == "spending-wallet.txt")
-        .unwrap();
+/// A Testnet app in a `width` by `height` window at 160 dpi.
+fn on_test_net(width: u16, height: u16) -> Faraday {
     let mut app = faraday_core::testkit::new_on_test_net();
     app.event(Event::Display(DisplayInfo {
         width,
@@ -1371,6 +1461,17 @@ fn short_with_a_wallet(width: u16, height: u16) -> Faraday {
         boot: faraday_shell_api::BootState::Unknown,
         memory_mib: None,
     }));
+    let _ = app.frame();
+    app
+}
+
+fn short_with_a_wallet(width: u16, height: u16) -> Faraday {
+    let wallet = faraday_core::testkit::files()
+        .unwrap()
+        .into_iter()
+        .find(|(n, _)| n == "spending-wallet.txt")
+        .unwrap();
+    let mut app = on_test_net(width, height);
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![("spending-wallet.txt".to_string(), wallet.1)]),
         outbox: Vec::new(),
@@ -1413,35 +1514,38 @@ fn scrolled_to(app: &mut Faraday, width: u16, height: u16, action: Action) -> bo
     false
 }
 
-/// A Home taller than its window scrolls as one page, the bar and what is
-/// under it reachable, with a search typed or not.
+/// On a short wide window the bar stays in view and what is under it
+/// scrolls, a search typed or not; on a short phone window the whole page
+/// scrolls as one, the bar and its results reachable.
 #[test]
-fn a_home_taller_than_its_window_scrolls_to_the_search_bar_and_its_results() {
+fn a_home_taller_than_its_window_keeps_the_bar_still_or_scrolls_to_it() {
     let bar = Action::TypeHere(faraday_core::edit::Here::HomeFind);
-    for (width, height) in [(1366, 140), (400, 500)] {
-        let mut app = short_with_a_wallet(width, height);
-        // On the short wide window the bar starts below it; on the phone
-        // it starts in view and the results are what is out of it.
-        if width > 1000 {
-            assert!(
-                !on_screen(&app, bar, height),
-                "{width}x{height}: the bar is below the window: {:?}",
-                app.where_offered(bar)
-            );
-        }
-        assert!(
-            scrolled_to(&mut app, width, height, bar),
-            "{width}x{height}: the bar is out of reach"
-        );
-        // Typed on a keyboard of the person's own: the on-screen one,
-        // taller than a window this short, would cover all of it.
-        type_on_home(&mut app, "send");
-        assert_eq!(faraday_core::testkit::home_find(&app), "send");
-        assert!(
-            scrolled_to(&mut app, width, height, Action::Catalog(sign_tile())),
-            "{width}x{height}: the result is out of reach"
-        );
-    }
+    let mut app = short_with_a_wallet(1366, 320);
+    assert!(on_screen(&app, bar, 320), "the bar is in view");
+    let before = app.hit_box(bar);
+    assert!(
+        scrolled_to(&mut app, 1366, 320, Action::Nav(Screen::Backups)),
+        "Backups is out of reach"
+    );
+    assert_eq!(before, app.hit_box(bar), "the bar stays");
+    type_on_home(&mut app, "send");
+    assert!(
+        scrolled_to(&mut app, 1366, 320, Action::Catalog(sign_tile())),
+        "the result is out of reach"
+    );
+    assert_eq!(before, app.hit_box(bar), "the bar stays");
+
+    let mut app = short_with_a_wallet(400, 500);
+    assert!(
+        scrolled_to(&mut app, 400, 500, bar),
+        "the bar is out of reach"
+    );
+    type_on_home(&mut app, "send");
+    assert_eq!(faraday_core::testkit::home_find(&app), "send");
+    assert!(
+        scrolled_to(&mut app, 400, 500, Action::Catalog(sign_tile())),
+        "the result is out of reach"
+    );
 }
 
 /// On the phone-size window the places under the bar stay reachable by

@@ -21,7 +21,7 @@ faraday/faraday-core/src/screens/check_message.rs 30
 faraday/faraday-core/src/screens/create.rs 30
 faraday/faraday-core/src/screens/entry.rs 79
 faraday/faraday-core/src/screens/files.rs 283
-faraday/faraday-core/src/screens/home.rs 11
+faraday/faraday-core/src/screens/home.rs 7
 faraday/faraday-core/src/screens/message.rs 29
 faraday/faraday-core/src/screens/parts.rs 215
 faraday/faraday-core/src/screens/pass_pair.rs 1

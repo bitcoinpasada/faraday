@@ -62,8 +62,10 @@ macro_rules! words_screens_home {
     home_card_no_wallet_uses_it: "No wallet uses it",
     /// The head of the wallets on Home.
     home_wallets: "Wallets",
-    /// A wallet card's button.
-    home_card_sign: "Sign",
+    /// The head of the keys on Home.
+    home_keys: "Keys",
+    /// A key's line on Home when it was loaded with a passphrase; the same words without it are another key.
+    home_key_passphrase: "passphrase",
     /// A wallet card's line while its spend is under way. `{}`: signatures, needed.
     home_card_signatures: "Signatures {} of {}",
     /// A wallet card's line while Files holds a PSBT for it.

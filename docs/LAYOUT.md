@@ -144,7 +144,8 @@ Home is Material's feed layout: the lead tile while something is under
 way or waiting (`docs/FLOWS.md`, Home), then the tiles in a grid.
 
 - **The box of what is loaded** (every window without the expanded
-  rail, the small panel included): one card, the sidebar's rows as plain
+  rail, the small panel included, but not the rail's windows, which have
+  `docs/HOME.md` §3's wallets-and-Keys tiles instead): one card, the sidebar's rows as plain
   lines in it, at the top, under the mark and name on the small panel
   (§3). The small panel's summary card under it stands only while
   vaults are open; its menu follows it. On the 480 by 640 panel with a
@@ -152,8 +153,8 @@ way or waiting (`docs/FLOWS.md`, Home), then the tiles in a grid.
   rest scrolls.
 - **The search bar** (every window but the small panel's menu, the
   Pi's compact, short Home; checked against Material's Search bar,
-  m3.material.io, Components, Search): a search bar under
-  Home's buttons, centred on the wide layout, drawn as the vault's is (`SEARCH_BAR_H`, 56 dp, fully rounded,
+  m3.material.io, Components, Search): a search bar at the top of the
+  page, still while the page scrolls under it, centred on the wide layout, drawn as the vault's is (`SEARCH_BAR_H`, 56 dp, fully rounded,
   `SurfaceContainerHigh`, the magnifying glass leading), full width on the
   one-column layouts, with the hint "Search" and, on the phone-size
   window, at the top of the page under the box of what is loaded.
@@ -161,15 +162,16 @@ way or waiting (`docs/FLOWS.md`, Home), then the tiles in a grid.
   it is empty once it is pressed), Escape or its × clears it. Its hover
   layer takes the bar's rounded shape.
   Something typed shows the matching tiles of Tools as buttons under
-  the bar, Home's buttons above it staying and not moving (only the
-  results scroll, where the window leaves room under the bar for about
-  three rows; else the whole page scrolls as one), a line saying none
-  matches when none does; a result opens as its Tools tile does and
+  the bar and takes the page: the lead, the first actions, the wallets,
+  the keys and Backups are not drawn until it is cleared (only the
+  results scroll; the phone-size window keeps the whole page scrolling
+  as one where it leaves no room under the bar for about three rows), a
+  line saying none matches when none does; a result opens as its Tools tile does and
   clears the search.
-- **The first actions** (nothing loaded; every window but the small
-  panel's menu): **Make a new wallet**, **Restore an existing wallet** and
+- **The first actions** (every window but the small panel's menu; on the
+  phone-size window only while nothing is loaded): **Make a new wallet**, **Restore an existing wallet** and
   **Spend from a backup** as like buttons, heading only, the whole button
-  the press, above the bar (on the phone-size window, under it): on the
+  the press, under the bar: on the
   wide layout always one row of three equal columns, a long heading
   wrapping to a second line; on the rail's windows one row where three
   columns leave each heading room within two lines, else one under the

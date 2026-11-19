@@ -367,8 +367,8 @@ pub(crate) fn home_lead(app: &View, skip_shown: bool) -> Option<LeadCard> {
     None
 }
 
-/// A wallet's card on Home (`docs/HOME.md` §3): its name, the one line
-/// that matters now and what its Sign button does.
+/// A wallet's tile on Home (`docs/HOME.md` §3): its name and the one line
+/// that matters now.
 #[derive(Debug, Clone)]
 pub(crate) struct WalletCard {
     /// The wallet's place in the session.
@@ -378,8 +378,6 @@ pub(crate) struct WalletCard {
     /// The first of: its spend's signatures, "A PSBT to sign", "Not
     /// backed up", its shape.
     pub line: String,
-    /// What Sign does: the wallet card's first button.
-    pub sign: Action,
 }
 
 /// The wallets in the session, in the sidebar's order (the ones the keys
@@ -429,30 +427,78 @@ fn wallet_card(app: &View, i: usize) -> WalletCard {
         index: i,
         name: w.name.to_string(),
         line,
-        sign: app.spend_button(i).1,
     }
 }
 
-/// Home's tiles, under the wallets: Backups once a wallet is known. The
-/// first-run actions are no tiles, they stand in one row under the title
-/// ([`first_actions`]); Check is no tile here either: the sidebar lists
-/// it (F275).
-pub(crate) fn home_ways(app: &View) -> Vec<(Glyph, &'static str, String, Action)> {
-    let mut t = Vec::new();
+/// One of Home's small tiles: its icon, its name, the line under it
+/// (empty for none) and what a press opens.
+pub(crate) struct Tile {
+    pub icon: Glyph,
+    pub label: String,
+    pub sub: String,
+    pub action: Action,
+}
+
+/// The row of what is loaded and known (`docs/HOME.md` §3): each wallet
+/// in the session, then Backups once a wallet is known. The first-run
+/// actions are no tiles, they stand in one row ([`first_actions`]); Check
+/// is no tile here either: the sidebar lists it (F275).
+pub(crate) fn home_row(app: &View) -> Vec<Tile> {
+    let mut t: Vec<Tile> = home_wallets(app)
+        .into_iter()
+        .map(|c| Tile {
+            icon: Glyph::Icon(Icon::Wallet),
+            label: c.name,
+            sub: c.line,
+            action: Action::OpenWallet(c.index),
+        })
+        .collect();
     let (known, without) = app.backup_counts();
     if known > 0 {
-        t.push((
-            Glyph::Icon(Icon::Shield),
-            EN.home_ways_backups,
-            if without == 0 {
+        t.push(Tile {
+            icon: Glyph::Icon(Icon::Shield),
+            label: EN.home_ways_backups.to_string(),
+            sub: if without == 0 {
                 fill(EN.home_ways_with_a_plan, &[&known.to_string()])
             } else {
                 fill(EN.home_ways_not_backed, &[&without.to_string()])
             },
-            Action::Nav(Screen::Backups),
-        ));
+            action: Action::Nav(Screen::Backups),
+        });
     }
     t
+}
+
+/// The Keys section (`docs/HOME.md` §3): each key held, by its fingerprint
+/// and, under it, its name (none when it is named by its fingerprint) and
+/// the passphrase mark when it has one; a press opens it in Explore, as the
+/// sidebar's key row does.
+pub(crate) fn home_keys(app: &View) -> Vec<Tile> {
+    app.session
+        .keys
+        .all()
+        .map(|k| {
+            let fp = crate::wallet::fp_text(k.fingerprint);
+            let name = crate::bip85::key_name(k);
+            let mut sub = if name.eq_ignore_ascii_case(&fp) {
+                String::new()
+            } else {
+                name.into_owned()
+            };
+            if k.has_passphrase {
+                if !sub.is_empty() {
+                    sub.push_str(" · ");
+                }
+                sub.push_str(EN.home_key_passphrase);
+            }
+            Tile {
+                icon: Glyph::Icon(Icon::Keys),
+                label: String::from(&*fp),
+                sub,
+                action: Action::ExploreKey(k.fingerprint.0),
+            }
+        })
+        .collect()
 }
 
 /// Home's tile grid in a row `width` wide with `gap` between tiles:
@@ -467,20 +513,15 @@ pub(crate) fn tile_grid(width: f32, gap: f32, min: f32) -> (usize, f32) {
 }
 
 /// The tile grid's columns and each tile's width for `ways`.
-fn tile_cols(
-    ways: &[(Glyph, &'static str, String, Action)],
-    ui: &Ui,
-    width: f32,
-    gap: f32,
-) -> (usize, f32) {
+fn tile_cols(ways: &[Tile], ui: &Ui, width: f32, gap: f32) -> (usize, f32) {
     // As many columns as `TILE_MIN` leaves room for, a row with fewer
     // tiles than columns leaving the rest empty. A tile is wide enough for
     // its longest line, so no name is cut.
     let need = ways
         .iter()
-        .map(|(_, label, sub, _)| {
-            ui.measure_as(TITLE_M, label)
-                .max(ui.measure_as(BODY_S, sub))
+        .map(|t| {
+            ui.measure_as(TITLE_M, &t.label)
+                .max(ui.measure_as(BODY_S, &t.sub))
         })
         .fold(0.0, f32::max)
         + HOME_TILE_TEXT_X
@@ -488,27 +529,42 @@ fn tile_cols(
     tile_grid(width, gap, need)
 }
 
-/// The height the tile grid takes, the gap under it counted.
-fn tiles_h(ways: &[(Glyph, &'static str, String, Action)], ui: &Ui, width: f32, gap: f32) -> f32 {
-    let (cols, _) = tile_cols(ways, ui, width, gap);
+/// The tile grid with its top left at `(x, y)`, `width` wide. Returns the
+/// height it takes, the gap under it counted.
+fn tiles(ways: &[Tile], ui: &mut Ui, (x, y): (f32, f32), width: f32, gap: f32) -> f32 {
+    let (cols, tilew) = tile_cols(ways, ui, width, gap);
+    for (i, t) in ways.iter().enumerate() {
+        let tx = x + (i % cols) as f32 * (tilew + gap);
+        let ty = y + (i / cols) as f32 * (TILE_H + gap);
+        let icon = (t.icon, t.label.as_str(), t.sub.as_str());
+        tile(ui, (tx, ty, tilew), TILE_H, icon, t.action);
+    }
     ways.len().div_ceil(cols) as f32 * (TILE_H + gap)
 }
 
-/// The tile grid with its top left at `at`, `width` wide.
-fn tiles(
-    ways: &[(Glyph, &'static str, String, Action)],
-    ui: &mut Ui,
-    (x, y): (f32, f32),
-    width: f32,
-    gap: f32,
-) -> f32 {
-    let (cols, tilew) = tile_cols(ways, ui, width, gap);
-    for (i, (icon, label, sub, action)) in ways.iter().enumerate() {
-        let tx = x + (i % cols) as f32 * (tilew + gap);
-        let ty = y + (i / cols) as f32 * (TILE_H + gap);
-        tile(ui, (tx, ty, tilew), TILE_H, (*icon, label, sub), *action);
+/// What is loaded, in Home's one small style, from `(x, y)`, `width` wide
+/// (`docs/HOME.md` §3): the loaded wallets beside the Backups tile, then
+/// the Keys section; many of either flow on into further rows and the page
+/// scrolls. The wide layout and the rail's windows both draw it. Returns
+/// the height it takes.
+pub(crate) fn loaded(app: &View, ui: &mut Ui, (x, y): (f32, f32), width: f32, gap: f32) -> f32 {
+    let label_h = ui.advance_as(faraday_draw::tokens::TITLE_S, 30.0);
+    let mut used = 0.0;
+    let row = home_row(app);
+    if !row.is_empty() {
+        if !app.session.wallets.is_empty() {
+            section_label(ui, x, y + used, EN.home_wallets);
+            used += label_h;
+        }
+        used += tiles(&row, ui, (x, y + used), width, gap);
     }
-    tiles_h(ways, ui, width, gap)
+    let keys = home_keys(app);
+    if !keys.is_empty() {
+        section_label(ui, x, y + used, EN.home_keys);
+        used += label_h;
+        used += tiles(&keys, ui, (x, y + used), width, gap);
+    }
+    used
 }
 
 /// One tile at (`tx`, `ty`), `tilew` wide and `TILE_H` tall: its icon, its
@@ -743,162 +799,47 @@ fn lead_card(ui: &mut Ui, card: &LeadCard, (x, y): (f32, f32), width: f32) -> f3
     lead_h
 }
 
-/// The wallet grid's columns, each card's width and the Sign button's.
-fn wallet_grid(ui: &Ui, cards: &[WalletCard], width: f32, gap: f32) -> (usize, f32, f32) {
-    let bw = ui.button_width(EN.home_card_sign, Style::Secondary);
-    let need = cards
-        .iter()
-        .map(|c| {
-            ui.measure_as(TITLE_M, &c.name)
-                .max(ui.measure_as(BODY_S, &c.line))
-        })
-        .fold(0.0, f32::max)
-        + bw
-        + 3.0 * HOME_TILE_INSET;
-    let (cols, w) = tile_grid(width, gap, need);
-    (cols, w, bw)
-}
-
-/// The height the wallets' grid takes, the gap under it counted.
-fn wallet_cards_h(ui: &Ui, cards: &[WalletCard], width: f32, gap: f32) -> f32 {
-    let (cols, ..) = wallet_grid(ui, cards, width, gap);
-    cards.len().div_ceil(cols) as f32 * (TILE_H + gap)
-}
-
 /// Whether the page down to Home's search bar stays still while a search
 /// is typed, only the results under it scrolling: where `above` (what
 /// stands over the bar, units) and the bar leave `window` room for
 /// `HOME_RESULTS_ROWS` rows of `row` under them. Where they do not, the
-/// whole page scrolls as one, the same content in the same order. The one
-/// place that chooses, for the wide and the compact Home alike.
+/// whole page scrolls as one, the same content in the same order. Only the
+/// phone-size window chooses: the wide layout and the rail's windows always
+/// keep the bar still.
 pub(crate) fn home_pinned(above: f32, window: f32, row: f32) -> bool {
     use faraday_draw::tokens::{HOME_RESULTS_ROWS, SEARCH_BAR_H};
     above + SEARCH_BAR_H + HOME_RESULTS_ROWS * row <= window
 }
 
-/// The wallets' cards in a grid at `(x, y)`, `width` wide: the name, the
-/// line under it, and Sign at the card's end (`docs/HOME.md` §3). The card
-/// opens the wallet on Wallets. Returns the grid's height.
-fn wallet_cards(
-    ui: &mut Ui,
-    cards: &[WalletCard],
-    (x, y): (f32, f32),
-    width: f32,
-    gap: f32,
-) -> f32 {
-    let sign = EN.home_card_sign;
-    let (cols, w, bw) = wallet_grid(ui, cards, width, gap);
-    for (i, c) in cards.iter().enumerate() {
-        let cx = x + (i % cols) as f32 * (w + gap);
-        let cy = y + (i / cols) as f32 * (TILE_H + gap);
-        ui.fill(cx, cy, w, TILE_H, SHAPE_M, Role::SurfaceContainerLow);
-        ui.stroke(cx, cy, w, TILE_H, SHAPE_M, Role::OutlineVariant);
-        let room = w - bw - 3.0 * HOME_TILE_INSET;
-        ui.press(
-            Shape::new(cx, cy, w - bw - 2.0 * HOME_TILE_INSET, TILE_H, SHAPE_M),
-            Role::OnSurface.paint(),
-            Action::OpenWallet(c.index),
-        );
-        let name = ui.fit_as(TITLE_M, &c.name, room);
-        ui.text_as(
-            cx + HOME_TILE_INSET,
-            cy + 20.0,
-            TITLE_M,
-            Role::OnSurface,
-            &name,
-        );
-        let line = ui.fit_as(BODY_S, &c.line, room);
-        ui.text_as(
-            cx + HOME_TILE_INSET,
-            cy + 46.0,
-            BODY_S,
-            Role::OnSurfaceVariant,
-            &line,
-        );
-        ui.button(
-            cx + w - HOME_TILE_INSET - bw,
-            cy + (TILE_H - BUTTON_H) / 2.0,
-            Some(bw),
-            BUTTON_H,
-            sign,
-            Style::Secondary,
-            c.sign,
-        );
-    }
-    let rows = cards.len().div_ceil(cols);
-    rows as f32 * (TILE_H + gap)
-}
-
 /// Home on the wide layout, named by the top app bar (`docs/HOME.md`):
-/// the lead, the wallets loaded each with Sign, the three first-run
-/// actions while nothing is loaded, and the tiles (Backups), a feed
-/// across the work width (`docs/LAYOUT.md` §4, §17): from the page's start
-/// to `MARGIN_WIDE` from its end, then the search bar. Typing in the bar
-/// changes nothing above it, neither what is drawn nor where; only the
-/// results under it scroll.
+/// the search bar first, centred and standing still, and under it, across
+/// the work width (`docs/LAYOUT.md` §4, §17), from the page's start to
+/// `MARGIN_WIDE` from its end, the lead, the three first actions, the
+/// loaded wallets beside Backups and the Keys section, scrolling. While
+/// something is typed its results take the page.
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32) {
     let x = x0 + 56.0;
     let width = cw - (x - x0) - MARGIN_WIDE;
     let head = super::bar_head(ui, None, EN.home_home);
     let gap = 16.0;
     let h = ui.c.height() as f32 / ui.f;
-    let lead = home_lead(app, false);
-    let wallets = home_wallets(app);
-    let ways = home_ways(app);
-    let first = nothing_loaded(app);
-    let label_h = ui.advance_as(faraday_draw::tokens::TITLE_S, 30.0);
-    let mut above = head + tiles_h(&ways, ui, width, gap);
-    if lead.is_some() {
-        above += HOME_LEAD_H + gap;
-    }
-    if !wallets.is_empty() {
-        above += label_h + wallet_cards_h(ui, &wallets, width, gap);
-    }
-    if first {
-        above += actions_h(ui, width, gap);
-    }
-    // Where the page is taller than the window the whole page scrolls.
-    let pinned = home_pinned(above, h, TILE_H + gap);
-    let mut open = (!pinned).then(|| {
-        let clip = ui.rect(x0, head, cw, (h - head).max(0.0));
-        ui.region_open(crate::ui::Region::page(clip).from_zero(app.list_offset))
-    });
-    let mut y = head;
-    let mut top = head;
-    if let Some(card) = &lead {
-        y += lead_card(ui, card, (x, y), width) + gap;
-    }
-    if !wallets.is_empty() {
-        section_label(ui, x, y, EN.home_wallets);
-        y += label_h;
-        y += wallet_cards(ui, &wallets, (x, y), width, gap);
-    }
-    if first {
-        y += actions(ui, (x, y), width, gap);
-    }
-    y += tiles(&ways, ui, (x, y), width, gap);
     let sw = width.min(LEAD_MAX);
-    y += super::catalog::home_search_bar(
-        app,
-        ui,
-        (x0 + (cw - sw) / 2.0, y, sw),
-        (!pinned).then_some(head),
-        super::catalog::Bar::Home,
-    );
-    if pinned {
-        if app.tools.home_find().is_empty() {
-            return;
+    let bar = super::catalog::home_search_bar(app, ui, (x0 + (cw - sw) / 2.0, head, sw), None, super::catalog::Bar::Home);
+    // The bar's own gap under it and half of Home's again.
+    let top = head + bar + gap / 2.0;
+    let clip = ui.rect(x0, top, cw, (h - top).max(0.0));
+    let open = ui.region_open(crate::ui::Region::page(clip).from_zero(app.list_offset));
+    let mut y = top;
+    if app.tools.home_find().is_empty() {
+        if let Some(card) = home_lead(app, false) {
+            y += lead_card(ui, &card, (x, y), width) + gap;
         }
-        let clip = ui.rect(x0, y, cw, (h - y).max(0.0));
-        open = Some(ui.region_open(crate::ui::Region::page(clip).from_zero(app.list_offset)));
-        top = y;
-    }
-    if !app.tools.home_find().is_empty() {
+        y += actions(ui, (x, y), width, gap);
+        y += loaded(app, ui, (x, y), width, gap);
+    } else {
         y += super::catalog::home_results(app, ui, (x, y), width, false, super::catalog::Bar::Home);
     }
     let content = y - top + faraday_draw::tokens::HOME_RESULTS_FOOT;
     app.scroll.content_h().set(content);
-    if let Some(open) = open {
-        ui.region_close(open, content - (h - top));
-    }
+    ui.region_close(open, content - (h - top));
 }
