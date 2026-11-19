@@ -857,7 +857,7 @@ the existing gate tests, with slow steps now 70 ms apart.
 Read by whoever makes or reviews a change in this area; no script holds these.
 
 - A value kept on the state for drawing has its invariant written where it lives and a test that changes the source.
-- There is no wiping allocator; it is not measured and not proposed again (F281 point 5).
+- No shipped program installs a global allocator (F181 point 1); there is no wiping allocator, and it is not measured and not proposed again (F281 point 5).
 - A press whose work takes longer than a tenth of a second on a Pi 3B+ at 1400 MHz is a job on the core's worker, shorter work runs in the press; a press added to `slow`'s list, or moved on it, says which side of the line it is on and how that was measured.
 - A page that shows a secret the person chose to show holds it while shown, wipes it when hidden, on leaving the page and at a lock, and its budget state draws it twice with the second frame working out nothing.
 

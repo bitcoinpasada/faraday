@@ -33,9 +33,9 @@
 //! page's copy is made bit for bit and the source zeroized in place,
 //! which is only sound for a type that owns nothing outside its own
 //! bytes, since zeroizing the source would free what the page's copy
-//! still points at. `Pod` is implemented for exactly byte and word
-//! arrays and for [`Plain`], a wrapper that takes only a `Copy` value (no
-//! destructor, no heap pointer). The compiler refuses the rest, and no
+//! still points at. `Pod` is implemented for arrays of `Copy` values
+//! and for [`Plain`], a wrapper that takes only a `Copy` value: none of
+//! them has a destructor or owns memory. The compiler refuses the rest, and no
 //! secret type has to become `Copy` to be pinned.
 //!
 //! **Nothing is left where the value came from.** Construction copies
@@ -301,8 +301,9 @@ mod raw {
         // live, initialised, owned `T`, so `size_of::<T>()` bytes may be
         // read from it, and it cannot overlap an allocation made after
         // it. After the copy the allocation holds one initialised `T`,
-        // which is what the returned pointer promises its caller; `T` is
-        // `Copy`, so the copy leaves the source a valid `T` to zeroize.
+        // which is what the returned pointer promises its caller; every `Pod`
+        // type has no drop glue and owns nothing, so the copy leaves the
+        // source a valid `T` to zeroize, and dropping it does nothing.
         let held = unsafe {
             let ptr = alloc(layout).cast::<T>();
             if ptr.is_null() {
@@ -327,7 +328,7 @@ mod raw {
         // `layout.size()` bytes aligned to `PAGE`, made by the global
         // allocator under this same layout, so it may be freed under it.
         // It holds one `T`, initialised by `hold` and zeroized by the
-        // caller; `T: Copy` has no destructor, so there is nothing to
+        // caller; no `Pod` type has drop glue, so there is nothing to
         // run before the allocation goes. `release` runs once, from
         // `Pinned::drop`, on a value that is going away, so nothing
         // reads the allocation afterwards.
