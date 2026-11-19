@@ -1808,14 +1808,23 @@ impl Faraday {
             if now.contains(&w) {
                 continue;
             }
-            let edit = match at_to {
-                Some(t)
-                    if plan::holds_at(&after, t).contains(&w)
-                        && !plan::holds_at(&before, t).contains(&w) =>
-                {
-                    Edit::Move(at_from, w, t)
-                }
-                _ => Edit::Drop(at_from, w),
+            // What now holds it where it was not held: the zone's spot, or,
+            // for a thing kept on a stick dropped on a place's card, the
+            // place's stick it went to.
+            let arrived = |t: At| {
+                plan::holds_at(&after, t).contains(&w) && !plan::holds_at(&before, t).contains(&w)
+            };
+            let spot = at_to.and_then(|t| match t {
+                _ if arrived(t) => Some(t),
+                At::Place(p) => after
+                    .iter()
+                    .map(|s| s.at)
+                    .find(|&a| matches!(a, At::Stick(q, _) if q == p) && arrived(a)),
+                _ => None,
+            });
+            let edit = match spot {
+                Some(t) => Edit::Move(at_from, w, t),
+                None => Edit::Drop(at_from, w),
             };
             self.backup.edited(edit);
         }

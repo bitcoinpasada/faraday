@@ -3907,15 +3907,22 @@ impl Note {
 }
 
 /// The notes as they follow an edit of the map: a thing dropped loses
-/// its notes, a thing moved takes them with it, and a place removed
+/// its notes, a thing moved takes them with it (a thing kept on a stick has
+/// its notes on the stick's place), and a place removed
 /// takes its things' notes to where they went, the places after it
 /// numbered down one.
 pub fn notes_after(notes: &[Note], edit: Edit, dest: &[(What, Option<usize>)]) -> Vec<Note> {
+    // A note of a thing kept on a stick is on its place, as the chart marks
+    // it; the board's edits name the stick.
+    let here = |a: At| match a {
+        At::Stick(p, _) => At::Place(p),
+        a => a,
+    };
     let moved = |at: At, w: What| -> Option<At> {
         match edit {
-            Edit::Drop(a, x) if a == at && x == w => None,
+            Edit::Drop(a, x) if here(a) == here(at) && x == w => None,
             Edit::Clear(a) if a == at => None,
-            Edit::Move(a, x, to) if a == at && x == w => Some(to),
+            Edit::Move(a, x, to) if here(a) == here(at) && x == w => Some(here(to)),
             Edit::RemovePlace(p) => match at {
                 At::Place(q) if q == p => dest
                     .iter()

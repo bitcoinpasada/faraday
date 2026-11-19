@@ -356,6 +356,31 @@ fn a_move_on_the_board_from_the_chart_is_made_once_the_changes_are_kept() {
     assert_eq!(vault.stick.as_deref(), Some("Stick at Place 1"));
 }
 
+/// The date a stick's line shows on place `place`, as the chart shows it.
+fn stick_checked(app: &Faraday, w: usize, place: &str) -> Option<String> {
+    let (_, j) = line_of(app, w, place, "Vault 1 stick");
+    let (_, node) = node_of(app, w, place);
+    node.checked[j as usize].as_deref().map(String::from)
+}
+
+#[test]
+fn a_vault_stick_moved_to_another_place_on_the_board_takes_its_checked_date_with_it() {
+    let (mut app, w) = single_key_with_vault();
+    clock_kept(&mut app);
+    let press = Press::Loaded(w);
+    let (n, j) = line_of(&app, w, "Place 2", "Vault 1 stick");
+    app.press(Action::Chart(C::Checked(press, n)));
+    let date = stick_checked(&app, w, "Place 2");
+    assert!(date.is_some(), "the stick's line has no date to follow");
+    open(&mut app, press, Target::Line(n, j));
+    let sel = Some((At::Place(1), Some(What::VaultStick(0))));
+    app.press(Action::Chart(C::Do(press, Step::Change(sel))));
+    app.settle();
+    crate::common::board(&mut app, BP::Zone(Zone::Card(0)));
+    keep_changes(&mut app);
+    assert_eq!(stick_checked(&app, w, "Place 1"), date);
+}
+
 #[test]
 fn a_change_that_makes_a_check_line_worse_is_seen_on_the_chart_once_kept() {
     let (mut app, w) = single_key_with_vault();
