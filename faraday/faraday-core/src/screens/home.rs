@@ -824,7 +824,13 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32) {
     let gap = 16.0;
     let h = ui.c.height() as f32 / ui.f;
     let sw = width.min(LEAD_MAX);
-    let bar = super::catalog::home_search_bar(app, ui, (x0 + (cw - sw) / 2.0, head, sw), None, super::catalog::Bar::Home);
+    let bar = super::catalog::home_search_bar(
+        app,
+        ui,
+        (x0 + (cw - sw) / 2.0, head, sw),
+        None,
+        super::catalog::Bar::Home,
+    );
     // The bar's own gap under it and half of Home's again.
     let top = head + bar + gap / 2.0;
     let clip = ui.rect(x0, top, cw, (h - top).max(0.0));

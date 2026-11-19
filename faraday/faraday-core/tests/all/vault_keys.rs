@@ -283,6 +283,11 @@ fn a_loaded_seeds_page_leads_on_to_its_key() {
     let _ = app.frame();
     app.press(Action::Vault(V::AddKind(0)));
     app.press(Action::Vault(V::SaveKey(0)));
+    app.press(Action::Vault(V::ItemBack));
+    let _ = app.frame();
+    app.press(Action::Vault(V::Category(0)));
+    let _ = app.frame();
+    app.press(Action::Vault(V::Item(0)));
     let _ = app.frame();
     let fp = app.session.keys.all().next().unwrap().fingerprint.0;
     assert!(app.offers(Action::ExploreKey(fp)), "Open the key");
