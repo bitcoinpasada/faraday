@@ -72,7 +72,10 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         let tx = x + (cw - w) / 2.0;
         let lift = self.above_fab(tx, w, foot - TOAST_MARGIN);
         let ty = foot - TOAST_MARGIN - lift - h + rise;
-        self.shadow_faded((tx, ty, w, h, SHAPE_XS), ELEVATION_FAB, shown);
+        // The shadow's ring reaches under the fill's edge: at a linear
+        // share of its strength it shows through the thinning fill as a
+        // dark rim. To the sixth power, it is gone before the fill is.
+        self.shadow_faded((tx, ty, w, h, SHAPE_XS), ELEVATION_FAB, shown.powi(6));
         self.wash(tx, ty, w, h, SHAPE_XS, fade(SNACKBAR_FILL));
         let mut y = ty + (h - lines as f32 * lh) / 2.0;
         let mut from = 0;

@@ -684,6 +684,47 @@ fn pixel(canvas: &Canvas, x: f32, y: f32) -> Color {
     Color::rgb(f.rgba[i], f.rgba[i + 1], f.rgba[i + 2])
 }
 
+/// A toast fading out or in goes as one surface: at no step is its rim
+/// (the fill just inside its edge, or the page just outside it) further
+/// from the page than the fill is in its middle (give or take rounding), in a light and a dark
+/// theme.
+#[test]
+fn a_fading_toast_has_no_rim_standing_out_from_its_fill() {
+    let draw = |theme: Theme, shown: f32| {
+        let mut canvas = canvas();
+        let mut hits = Vec::new();
+        {
+            let mut ui: Ui<u8> = Ui::new(&mut canvas, 1.0, &mut hits, None);
+            ui.theme = theme;
+            ui.clear(Role::Surface);
+            ui.snackbar((0.0, 640.0, 480.0), "Stick removed", shown, 0.0);
+        }
+        canvas
+    };
+    let grey = |c: Color| i32::from(c.r) + i32::from(c.g) + i32::from(c.b);
+    for mode in [Mode::Light, Mode::Dark] {
+        let theme = Theme::new(ThemeName::Cobalt, mode, Contrast::Standard);
+        let (page, fill) = (theme.role(Role::Surface), theme.role(Role::InverseSurface));
+        let full = draw(theme, 1.0);
+        let y = 440.0;
+        let left = (0..320)
+            .find(|x| pixel(&full, *x as f32, y) == fill)
+            .expect("the toast's fill");
+        for shown in [0.6, 0.3, 0.1] {
+            let c = draw(theme, shown);
+            let away = |x: i32| (grey(pixel(&c, x as f32, y)) - grey(page)).abs();
+            let middle = away(left + 12);
+            for x in (left - 8)..(left + 4) {
+                assert!(
+                    away(x) <= middle + 6,
+                    "{mode:?} at {shown}: x {x} is {} from the page, the fill {middle}",
+                    away(x)
+                );
+            }
+        }
+    }
+}
+
 /// Settings' theme chips: the chosen one alone looks different from the
 /// others, in every scheme; the rest look the same whichever is chosen.
 #[test]
