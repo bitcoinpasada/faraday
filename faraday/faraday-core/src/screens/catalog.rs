@@ -14,7 +14,7 @@ use faraday_draw::tokens::{
 };
 use faraday_ui::parts::section_label;
 
-pub(crate) use super::settings::rows::{ROWS, Row};
+pub(crate) use super::settings::{card, cards_matching};
 
 /// Tools: every flow by group, as many tiles to a row as fit and at
 /// least three, in a page at most `TRANSFER_W` wide; Find a tool narrows them as it is typed.
@@ -87,23 +87,6 @@ fn tiles_by_group(app: &View, ui: &mut Ui, (x, y): (f32, f32), width: f32, compa
         used += section(ui, (x, y + used), &g, group, &faces);
     }
     used
-}
-
-/// A setting found by [`crate::tools::search::hits`], drawn from (x, y),
-/// `w` wide, as Material's list item: its label and the section it is in,
-/// a press of which opens Settings at it. Returns its height. Tools' Find
-/// and Home's search both draw it.
-pub(crate) fn setting_hit(ui: &mut Ui, at: (f32, f32, f32), i: u8) -> f32 {
-    let Some(row) = crate::tools::search::row(i) else {
-        return 0.0;
-    };
-    let item = crate::panes::screen::Item {
-        headline: row.label,
-        supporting: row.section(),
-        trailing: None,
-        action: Action::SettingAt(i),
-    };
-    crate::panes::screen::list_item(ui, at, &item, false)
 }
 
 /// The guide's words among `found`, from (x, y), `w` wide, under their
@@ -240,7 +223,7 @@ pub(crate) fn home_search_bar(
 }
 
 /// What Home, or Tools, shows in place of itself while something is typed in its
-/// search bar: the matching tiles as buttons, then the rows of Settings, from (`x`, `y`), `width`
+/// search bar: the matching tiles as buttons, then the cards of Settings, drawn as on Settings, from (`x`, `y`), `width`
 /// wide, each opening as the Tools tile does, or a line saying none
 /// matches. Returns the height it takes.
 pub(crate) fn home_results(
@@ -272,7 +255,7 @@ pub(crate) fn home_results(
         .iter()
         .filter_map(|hit| match *hit {
             Hit::Tile(i) => Some((i, &TILES[i])),
-            Hit::Setting(_) | Hit::Word(_) => None,
+            Hit::Card(_) | Hit::Word(_) => None,
         })
         .map(|(i, tile)| {
             let need = app.tile_need(tile.go);
@@ -288,8 +271,8 @@ pub(crate) fn home_results(
         .collect();
     let mut used = g.draw_rows(ui, (x, y), &faces);
     for hit in &found {
-        if let Hit::Setting(i) = *hit {
-            used += setting_hit(ui, (x, y + used, width), i);
+        if let Hit::Card(i) = *hit {
+            used += card(app, ui, i, (x, y + used, width));
         }
     }
     used + word_hits(ui, (x, y + used, width), &found)

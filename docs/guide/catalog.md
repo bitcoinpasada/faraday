@@ -6,7 +6,7 @@
 **Key:** catalog
 **Words:** key, seed, descriptor, quorum, share, seed-xor, vault, practice
 
-Every flow of the app on one page, in groups of tiles, **Common** first (**Sign a transaction**, **Make a new wallet**, **Add a key**, **Make a new key** and **Check**). The **Search** bar at the top, the same as Home's, takes a name, a BIP number or an everyday word and, while something is typed, shows in place of the tiles those whose name, line, group, standards or everyday words hold every word typed ("send", "receive", "recover", "verify", "2FA" and "seed phrase" find the tools a newcomer means by them), and lists the settings the words find, a press of one opening Settings at it, and under **Words** the glossary words they find, a press of one opening the guide at its definition; **No tool matches** shows when nothing is found, and the × clears the bar and the tiles return.
+Every flow of the app on one page, in groups of tiles, **Common** first (**Sign a transaction**, **Make a new wallet**, **Add a key**, **Make a new key** and **Check**). The **Search** bar at the top, the same as Home's, takes a name, a BIP number or an everyday word and, while something is typed, shows in place of the tiles those whose name, line, group, standards or everyday words hold every word typed ("send", "receive", "recover", "verify", "2FA" and "seed phrase" find the tools a newcomer means by them), and shows the Settings cards that hold the words, each working there as on Settings, and under **Words** the glossary words they find, a press of one opening the guide at its definition; **No tool matches** shows when nothing is found, and the × clears the bar and the tiles return.
 
 ## Keys and seeds: making and restoring
 

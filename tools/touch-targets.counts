@@ -2,11 +2,13 @@ desktop_1280x800 Backup BC32 22
 desktop_1280x800 Backup BReveal 1
 desktop_1280x800 Backup Board 46
 desktop_1280x800 BackupFlow Board 6
+desktop_1280x800 Catalog Theme 8
 desktop_1280x800 CreateVault WordList 21
 desktop_1280x800 Entry EntryCandidate 17
 desktop_1280x800 Entry EntryKey 55
 desktop_1280x800 Entry EntryKeyBack 1
 desktop_1280x800 Files DeletePick 7
+desktop_1280x800 Home Theme 8
 desktop_1280x800 KeyGen WordList 53
 desktop_1280x800 Restore RShare 2
 desktop_1280x800 Restore Slide 14
@@ -22,6 +24,7 @@ desktop_1280x800 Wallets PickKey 2
 desktop_1280x800 WalletsStart OpenWallet 2
 small_240x320 Backup Board 17
 small_240x320 Backup KefTool 48
+small_240x320 Catalog Theme 4
 small_240x320 CreateVault WordList 3
 small_240x320 Entry EntryCandidate 17
 small_240x320 KeyGen WordList 3
@@ -30,6 +33,7 @@ small_240x320 Wallets PickKey 1
 small_480x640 Backup BC32 1
 small_480x640 Backup Board 17
 small_480x640 Backup KefTool 48
+small_480x640 Catalog Theme 4
 small_480x640 CreateVault WordList 3
 small_480x640 Entry EntryCandidate 17
 small_480x640 KeyGen Codex32 9
@@ -56,6 +60,7 @@ stick_1024x600 Backup EntryKeyBack 1
 stick_1024x600 Backup Osk 38
 stick_1024x600 BackupFlow Osk 38
 stick_1024x600 Catalog Osk 38
+stick_1024x600 Catalog Theme 9
 stick_1024x600 Convert Osk 38
 stick_1024x600 Create Osk 38
 stick_1024x600 CreateVault Osk 38
@@ -69,6 +74,7 @@ stick_1024x600 Explore Osk 27
 stick_1024x600 Files DeletePick 4
 stick_1024x600 Files Osk 38
 stick_1024x600 Home Osk 38
+stick_1024x600 Home Theme 9
 stick_1024x600 Invoice Osk 38
 stick_1024x600 KefTool Osk 38
 stick_1024x600 KeyGen KGroup 2

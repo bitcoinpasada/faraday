@@ -202,7 +202,14 @@ window leaves room for about three rows of results (`home_pinned`), stays
 too; else the whole page scrolls as one. On every layout with the bar,
 while something is typed its results take the page: the lead, the first
 actions, the wallets, the keys, Backups and the places are not drawn until
-the search is cleared. A press in the bar shows its caret, which blinks.
+the search is cleared. The results are the matching tools, then every
+Settings card with a word typed on it (its title, labels, options' names
+and values' words, taken from the strings the card draws), each shown as
+the whole card, drawn and pressable as on Settings, so a change made in it
+is the same change; then the glossary words. "appearance", "contrast" and
+"orange" (a theme's name) give the Appearance card, "time" the Time card,
+"about" the About card. Tools' bar shows the same. A press in the bar
+shows its caret, which blinks.
 
 ## 6. The places
 

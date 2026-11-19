@@ -5,8 +5,8 @@ use faraday_core::edit::Here;
 use faraday_core::{Action, Screen};
 use faraday_shell_api::{App, Event};
 
-/// Home's search bar with nothing typed, with "send" typed, with "theme" typed
-/// (a setting shows), with "quorum" typed (a glossary word shows) and with a word nothing has.
+/// Home's search bar with nothing typed, with "send" typed, with "theme", "orange" and "time" typed
+/// (a Settings card shows), with "quorum" typed (a glossary word shows) and with a word nothing has.
 pub(crate) fn home_search_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::Home));
     let find = Action::TypeHere(Here::HomeFind);
@@ -46,6 +46,12 @@ pub(crate) fn home_search_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::HomeSearchClear);
     type_text(t, "theme");
     t.shot("home-search-theme")?;
+    t.press(Action::HomeSearchClear);
+    type_text(t, "orange");
+    t.shot("home-search-orange")?;
+    t.press(Action::HomeSearchClear);
+    type_text(t, "time");
+    t.shot("home-search-time")?;
     t.press(Action::HomeSearchClear);
     type_text(t, "quorum");
     t.shot("home-search-word")?;

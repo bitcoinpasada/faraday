@@ -1262,17 +1262,40 @@ fn the_pis_home_has_no_search() {
     assert!(app.where_offered(Action::Catalog(sign_tile())).is_none());
 }
 
+fn shows_card(app: &mut Faraday, title: &str) -> bool {
+    app.drawn_texts().iter().any(|t| t == title)
+}
+
 #[test]
-fn theme_typed_on_home_shows_the_theme_setting() {
+fn home_shows_a_settings_card_for_any_word_on_it() {
+    for (word, card) in [
+        ("appearance", "Appearance"),
+        ("contrast", "Appearance"),
+        ("orange", "Appearance"),
+        ("time", "Time"),
+        ("about", "About"),
+    ] {
+        for mut app in [shown(), window(400, 800, 160)] {
+            type_on_home(&mut app, word);
+            assert!(shows_card(&mut app, card), "{word}");
+        }
+    }
+}
+
+#[test]
+fn a_change_made_on_a_card_in_homes_results_shows_on_settings() {
     for mut app in [shown(), window(400, 800, 160)] {
-        type_on_home(&mut app, "theme");
-        let button = (0..64u8)
-            .map(Action::SettingAt)
-            .find(|&a| app.hit_box(a).is_some())
-            .expect("a setting button for theme");
-        tap(&mut app, button);
-        assert_eq!(app.screen, Screen::Settings);
-        assert!(faraday_core::testkit::home_find(&app).is_empty());
+        type_on_home(&mut app, "contrast");
+        let mut high = app.theme();
+        high.contrast = faraday_core::ui::Contrast::High;
+        tap(&mut app, Action::Theme(high));
+        assert_eq!(app.theme().contrast, faraday_core::ui::Contrast::High);
+        app.press(Action::Nav(Screen::Settings));
+        crate::common::settings_section(&mut app, "Appearance");
+        let mut standard = high;
+        standard.contrast = faraday_core::ui::Contrast::Standard;
+        assert!(app.offers(Action::Theme(standard)));
+        assert_eq!(app.theme().contrast, faraday_core::ui::Contrast::High);
     }
 }
 

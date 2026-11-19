@@ -229,13 +229,6 @@ fn type_find(app: &mut Faraday, text: &str) {
     let _ = app.frame();
 }
 
-/// The button Find a tool shows for a setting, the one the person presses.
-fn setting_button(app: &mut Faraday) -> Option<Action> {
-    (0..64u8)
-        .map(Action::SettingAt)
-        .find(|&a| app.hit_box(a).is_some())
-}
-
 fn shown_words(app: &mut Faraday) -> Vec<String> {
     app.drawn_texts()
         .iter()
@@ -261,59 +254,63 @@ fn compact() -> Faraday {
     app
 }
 
+/// Whether the results hold the Settings card titled `title`.
+fn shows_card(app: &mut Faraday, title: &str) -> bool {
+    shown_words(app).iter().any(|t| t == title)
+}
+
 #[test]
-fn find_a_tool_finds_the_theme_setting_by_name_and_by_everyday_word() {
-    for word in ["theme", "dark"] {
+fn find_a_tool_shows_a_settings_card_for_any_word_on_it() {
+    for (word, card) in [
+        ("appearance", "Appearance"),
+        ("contrast", "Appearance"),
+        ("orange", "Appearance"),
+        ("time", "Time"),
+        ("about", "About"),
+    ] {
         let mut app = shown();
         type_find(&mut app, word);
-        assert!(setting_button(&mut app).is_some(), "{word}");
-        assert!(app.drawn_texts().iter().any(|t| t == "Theme"), "{word}");
+        assert!(shows_card(&mut app, card), "{word}");
         assert!(!app.drawn_texts().iter().any(|t| t == "No tool matches"));
     }
 }
 
 #[test]
-fn a_found_setting_opens_settings_on_its_section_on_a_wide_window() {
+fn a_card_in_tools_results_changes_the_same_setting_as_on_settings() {
     let mut app = shown();
-    type_find(&mut app, "theme");
-    let go = setting_button(&mut app).expect("the theme setting");
-    app.press(go);
+    type_find(&mut app, "contrast");
+    let mut high = app.theme();
+    high.contrast = faraday_core::ui::Contrast::High;
+    assert!(app.offers(Action::Theme(high)));
+    app.press(Action::Theme(high));
     crate::common::settle(&mut app, 1);
-    assert_eq!(app.screen, Screen::Settings);
-    assert!(app.drawn_texts().iter().any(|t| t == "Reduce motion"));
-}
-
-#[test]
-fn a_found_setting_far_down_settings_is_scrolled_into_view() {
-    let mut app = shown();
-    type_find(&mut app, "licence");
-    let go = setting_button(&mut app).expect("About's row");
-    app.press(go);
-    crate::common::settle(&mut app, 1);
-    assert_eq!(app.screen, Screen::Settings);
-    let at = app
-        .drawn_text_boxes()
-        .into_iter()
-        .find(|(t, _)| t == "About")
-        .map(|(_, r)| r)
-        .unwrap_or_else(|| panic!("About's card: {:?}", shown_words(&mut app)));
+    assert_eq!(app.theme().contrast, faraday_core::ui::Contrast::High);
+    app.press(Action::Nav(Screen::Settings));
+    let _ = app.frame();
+    assert_eq!(app.theme().contrast, faraday_core::ui::Contrast::High);
+    let mut standard = high;
+    standard.contrast = faraday_core::ui::Contrast::Standard;
     assert!(
-        (0..768).contains(&at.1),
-        "About's card is on screen: {at:?}"
+        app.offers(Action::Theme(standard)),
+        "Settings shows the change"
     );
 }
 
 #[test]
-fn a_found_setting_opens_its_section_as_a_page_on_a_small_window() {
+fn a_card_in_the_results_stands_on_a_small_window_too() {
     let mut app = compact();
-    type_find(&mut app, "font");
-    let go = setting_button(&mut app).expect("Text size");
-    app.press(go);
+    type_find(&mut app, "text size");
+    assert!(shows_card(&mut app, "Appearance"));
+    let was = app.theme();
+    let other = faraday_core::ui::ThemeName::ALL
+        .into_iter()
+        .find(|&n| n != was.name)
+        .expect("more than one theme");
+    let pick = faraday_core::ui::Theme::new(other, was.mode, was.contrast);
+    assert!(app.offers(Action::Theme(pick)));
+    app.press(Action::Theme(pick));
     crate::common::settle(&mut app, 1);
-    assert_eq!(app.screen, Screen::Settings);
-    let texts = shown_words(&mut app);
-    assert!(texts.iter().any(|t| t == "Theme"), "{texts:?}");
-    assert_eq!(app.back_link(), Some(Action::SettingsSection(None)));
+    assert_eq!(app.theme().name, other);
 }
 
 #[test]
@@ -321,17 +318,17 @@ fn a_word_nothing_has_says_no_tool_matches() {
     let mut app = shown();
     type_find(&mut app, "zzqxv");
     assert!(app.drawn_texts().iter().any(|t| t == "No tool matches"));
-    assert!(setting_button(&mut app).is_none());
+    assert!(!shows_card(&mut app, "Appearance"));
 }
 
 #[test]
-fn tools_search_shows_the_settings_row_among_its_results_and_clearing_brings_the_tiles_back() {
+fn tools_search_shows_a_settings_card_among_its_results_and_clearing_brings_the_tiles_back() {
     let mut app = shown();
     type_find(&mut app, "theme");
-    assert!(setting_button(&mut app).is_some());
+    assert!(shows_card(&mut app, "Appearance"));
     assert!(app.hit_box(Action::Catalog(0)).is_none());
     app.event(Event::Key(Key::Escape));
     let _ = app.frame();
-    assert!(setting_button(&mut app).is_none());
+    assert!(!shows_card(&mut app, "Appearance"));
     assert!(app.hit_box(Action::Catalog(0)).is_some());
 }
