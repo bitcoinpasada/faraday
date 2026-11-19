@@ -516,6 +516,47 @@ fn a_description_read_first_asks_about_vaults_before_the_seeds() {
     );
 }
 
+/// A seed loaded for a wallet that has its key in two slots fills both:
+/// neither reads "Not here" after it.
+#[test]
+fn a_seed_filling_two_slots_of_the_wallet_clears_both_not_here_marks() {
+    let c = faraday_core::testkit::compute();
+    let d = format!(
+        "wsh(sortedmulti(2,{}/<0;1>/*,{}/<0;1>/*,{}/<0;1>/*))",
+        testkit::key(0, MULTI_PATH),
+        testkit::key(0, "m/48'/1'/1'/2'"),
+        testkit::key(1, MULTI_PATH)
+    );
+    let d = faraday_bip::policy::WalletPolicy::parse_any(&c, &d)
+        .map(|w| String::from(&*w.to_descriptor_checksummed()))
+        .unwrap_or(d);
+    let mut app = shown();
+    app.press(Action::RestoreWallet);
+    app.press(Action::RKind(MULTI));
+    app.press(Action::RNext(KIND));
+    app.press(Action::Scan);
+    app.event(Event::Scanned {
+        bytes: d.into_bytes(),
+    });
+    faraday_core::testkit::confirm_wallets(&mut app);
+    app.press(Action::RVaults(false));
+    app.press(Action::RNext(WHERE));
+    let w = app.restore().unwrap().wallet.unwrap();
+    let slots = app.session.slots(&app.session.wallets[w]).len();
+    assert_eq!(slots, 3);
+    for k in 0..3u8 {
+        app.press(Action::RAbsent(k));
+    }
+    assert_eq!(app.restore().unwrap().absent.len(), 3);
+    type_seed(&mut app, &testkit::test_words("bacon"));
+    assert_eq!(app.restore().unwrap().error, None);
+    assert_eq!(
+        app.restore().unwrap().absent,
+        vec![2],
+        "only the slot of the other key is Not here"
+    );
+}
+
 /// Restore asked for 129 vaults sets up 128.
 #[test]
 fn restore_asked_for_129_vaults_gets_128() {

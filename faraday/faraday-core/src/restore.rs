@@ -1034,22 +1034,26 @@ impl Faraday {
             return;
         }
         // Matched: its slot reads "Key k of the wallet" and is here.
-        let place = self
+        let places: Vec<usize> = self
             .restore
             .state()
             .and_then(|r| r.wallet.filter(|_| r.described))
             .and_then(|i| self.session.wallets.get(i))
-            .and_then(|w| {
+            .map(|w| {
                 self.session
                     .slots(w)
                     .iter()
-                    .position(|s| s.fingerprint == Some(fp))
-            });
+                    .enumerate()
+                    .filter(|(_, s)| s.fingerprint == Some(fp))
+                    .map(|(k, _)| k)
+                    .collect()
+            })
+            .unwrap_or_default();
         let Some(r) = self.restore.state.as_mut() else {
             return;
         };
-        if let Some(k) = place {
-            r.absent.retain(|&a| usize::from(a) != k);
+        if !places.is_empty() {
+            r.absent.retain(|&a| !places.contains(&usize::from(a)));
         } else if !r.described
             && let Some(s) = r.seeds.as_mut()
         {
