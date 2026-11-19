@@ -904,6 +904,14 @@ fn lock_finish(app: &mut Faraday) {
     app.bip85.clear();
     app.tools.convert.clear();
     app.tools.seed_check.clear();
+    app.tools.kef_tool.clear();
+    app.tools.core_wallet.clear();
+    app.tools.clear_calculator();
+    app.lightning.clear();
+    app.vanity.clear();
+    app.seed_read.clear_sweep();
+    *app.spend_backup.seeds_mut() = crate::seeds::SeedsState::default();
+    app.camera.clear_kept();
     app.explore.clear();
     app.secrets.clear();
     app.entry.reset();
@@ -913,3 +921,7 @@ fn lock_finish(app: &mut Faraday) {
     app.restart = true;
     app.out.commands.push_back(Command::Exit);
 }
+
+#[cfg(test)]
+#[path = "lock_clears.rs"]
+mod lock_clears;

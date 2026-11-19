@@ -401,6 +401,11 @@ impl SeedsArea {
         self.carried_pass = None;
     }
 
+    /// Forgets the Sweep sheet and the private key typed on it.
+    pub(crate) fn clear_sweep(&mut self) {
+        self.sweep = None;
+    }
+
     /// The Krux code sheet's state, while it is open.
     pub(crate) fn kef(&self) -> Option<&crate::seeds::kef::KefRead> {
         self.kef.as_ref()

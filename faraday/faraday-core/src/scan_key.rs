@@ -238,6 +238,12 @@ impl Camera {
         }
     }
 
+    /// Forgets a transfer in parts kept and a TOTP setup code carried.
+    pub(crate) fn clear_kept(&mut self) {
+        self.parts = None;
+        self.carried = None;
+    }
+
     /// The transfer in parts kept, once.
     pub(crate) fn take_parts(
         &mut self,

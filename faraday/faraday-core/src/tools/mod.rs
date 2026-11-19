@@ -332,6 +332,11 @@ impl ToolsArea {
         });
     }
 
+    /// Forgets the open calculator and what was typed in it.
+    pub(crate) fn clear_calculator(&mut self) {
+        self.tools = None;
+    }
+
     /// Drops what a screen left behind: Tools' calculator unless Tools is
     /// on screen, an invoice's text unless its screen is.
     pub(crate) fn tidy(&mut self, screen: Screen, card_open: impl Fn(usize) -> bool) {
