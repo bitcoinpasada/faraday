@@ -13,8 +13,9 @@
 //! every hardened mark is written `h`, as Core writes it.
 
 use faraday_bip::bitcoin::base58;
-use faraday_bip::bitcoin::hashes::{Hash, hash160, sha256d as hash256};
+use faraday_bip::bitcoin::hashes::{Hash, hash160};
 use faraday_bip::descriptor::descriptor_checksum;
+use faraday_bip::xkey;
 use faraday_text::{Text, text};
 use zeroize::Zeroizing;
 
@@ -151,45 +152,17 @@ fn path_text(steps: &[u32]) -> Text {
     out
 }
 
-const BASE58: &[u8; 58] = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
-
 /// The 78 bytes of an extended key written in base58check, or `None` where
 /// the text is not base58, its checksum fails or it does not decode to 82
-/// bytes. The same as `base58::decode_check` with a 78-byte result, but
-/// the work is in wiped memory: a decoded key holds a chain code, and the
-/// library's decoding frees its buffer unwiped.
+/// bytes. The decoding is `faraday_bip::xkey::decode_check`, which works in
+/// wiped memory: a decoded key holds a chain code.
 pub(crate) fn extended_key_bytes(text: &str) -> Option<Zeroizing<[u8; 78]>> {
-    const TOTAL: usize = 82;
-    // The number so far, least significant byte first.
-    let mut number = Zeroizing::new([0u8; TOTAL]);
-    let mut used = 0usize;
-    for ch in text.bytes() {
-        let mut carry = BASE58.iter().position(|&b| b == ch)?;
-        for byte in &mut number[..used] {
-            carry += usize::from(*byte) * 58;
-            *byte = (carry & 0xFF) as u8;
-            carry >>= 8;
-        }
-        while carry > 0 {
-            *number.get_mut(used)? = (carry & 0xFF) as u8;
-            used += 1;
-            carry >>= 8;
-        }
-    }
-    let zeros = text.bytes().take_while(|&b| b == b'1').count();
-    if zeros + used != TOTAL {
-        return None;
-    }
-    let mut bytes = Zeroizing::new([0u8; TOTAL]);
-    for (to, from) in bytes[zeros..].iter_mut().zip(number[..used].iter().rev()) {
-        *to = *from;
-    }
-    let (payload, check) = bytes.split_at(78);
-    if hash256::Hash::hash(payload).to_byte_array()[..4] != *check {
-        return None;
-    }
+    let decoded = xkey::decode_check(text)?;
     let mut key = Zeroizing::new([0u8; 78]);
-    key.copy_from_slice(payload);
+    if decoded.len() != key.len() {
+        return None;
+    }
+    key.copy_from_slice(&decoded);
     Some(key)
 }
 

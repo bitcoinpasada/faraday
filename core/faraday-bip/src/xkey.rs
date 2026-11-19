@@ -83,7 +83,7 @@ pub enum Error {
 /// same as `base58::decode_check`, but every buffer is sized once from the
 /// text's length and wiped when it goes: that decoder frees its own
 /// unwiped, and the text may be a private key.
-pub(crate) fn decode_check(s: &str) -> Option<Zeroizing<Vec<u8>>> {
+pub fn decode_check(s: &str) -> Option<Zeroizing<Vec<u8>>> {
     const ALPHABET: &[u8; 58] = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
     // log256(58) is under 0.733, so this many bytes hold any value of the
     // digits after the leading ones.
