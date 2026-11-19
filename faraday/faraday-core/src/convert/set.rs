@@ -682,7 +682,12 @@ pub(crate) fn facts_of(
 pub(crate) fn record(keys: &mut faraday_keys::Keys, fp: [u8; 4], made: Made) {
     if let Made::Slip39Rotated { old, new } = made {
         // The key is the one whose recorded set is the set rotated; the
-        // fingerprint is not used.
+        // fingerprint is not used. A set with the identifier it had (not
+        // extendable) is not recorded: its new shares do not combine with
+        // the old, and a plan would read both as one set.
+        if new.identifier == old.identifier {
+            return;
+        }
         if let Some(i) = keys
             .all()
             .position(|k| k.slip39.as_ref().is_some_and(|r| same_set(r, &old)))

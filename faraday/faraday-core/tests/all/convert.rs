@@ -2513,15 +2513,37 @@ fn rotate_saved_with_key_set(identifier_shift: u16) -> (u16, u16) {
     )
 }
 
-/// A saved Rotate records the new set on the loaded key whose recorded
-/// set is the one rotated, in place of it.
+/// A saved Rotate of a set Faraday split itself (extendable, so the new
+/// set draws a new identifier) records the new set on the key that holds
+/// the set rotated, in place of it.
 #[test]
-fn a_rotated_set_saved_replaces_the_set_its_key_records() {
+fn a_rotated_extendable_set_saved_replaces_the_set_its_key_records() {
+    let seed = unhex("b43ceb7e57a0ea8766221624d01b0864");
+    let mut app = slip_opened(&seed);
+    let set = make_set(&mut app, SLIP_SET).unwrap();
+    save_and_write(&mut app);
+    let before = app.session.keys[0].slip39.as_ref().unwrap().identifier;
+    let typed: Vec<&str> = set[..2].iter().map(String::as_str).collect();
+    type_set(&mut app, &typed);
+    app.press(Action::Convert(C::SetAct(convert::SetAct::Rotate)));
+    for m in 0..2 {
+        app.press(Action::Convert(C::Destroy(0, m)));
+    }
+    app.press(Action::Convert(C::DestroyOthers));
+    feed_many(&mut app, 40);
+    app.press(Action::Convert(C::Make));
+    settle(&mut app);
+    save_and_write(&mut app);
+    let after = app.session.keys[0].slip39.as_ref().unwrap().identifier;
+    assert_ne!(before, after, "the new set's identifier is on the key");
+}
+
+/// A rotated set that keeps its identifier (not extendable: its new
+/// shares do not combine with the old) is recorded nowhere.
+#[test]
+fn a_rotated_set_that_is_not_extendable_records_nothing_on_the_key() {
     let (before, after) = rotate_saved_with_key_set(0);
-    assert_ne!(
-        before, after,
-        "the new set, with all its shares made, replaces it"
-    );
+    assert_eq!(before, after, "the key is left as it was");
 }
 
 /// A rotated set that no loaded key records is recorded nowhere.
