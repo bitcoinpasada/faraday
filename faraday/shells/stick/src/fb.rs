@@ -126,7 +126,7 @@ impl Geometry {
         Some((inside, at))
     }
 
-    /// Reads `virtual_size`, `bits_per_pixel` and `stride` from a sysfs
+    /// Reads `modes`, `virtual_size`, `bits_per_pixel` and `stride` from a sysfs
     /// framebuffer directory (`/sys/class/graphics/fb0`).
     ///
     /// Every field must be there and make sense; a framebuffer we cannot
@@ -138,12 +138,17 @@ impl Geometry {
             .and_then(|n| n.to_str())
             .unwrap_or("the framebuffer")
             .to_string();
+        // `virtual_size` is the memory's size, not the screen's: efifb sets
+        // its height to the memory length over the line length, often twice
+        // the visible height. The visible size is a mode of `modes`.
         let size = read_numbers(&dir.join("virtual_size"))
             .ok_or_else(|| format!("{name} does not say how many pixels it has"))?;
-        let (w, h) = match (size.first(), size.get(1)) {
+        let (vw, vh) = match (size.first(), size.get(1)) {
             (Some(&w), Some(&h)) => (w, h),
             _ => return Err(format!("{name} does not say how many pixels it has")),
         };
+        let (w, h) = visible_mode(dir, vw, vh)
+            .ok_or_else(|| format!("{name} does not say how many pixels it shows"))?;
         let bits = read_numbers(&dir.join("bits_per_pixel"))
             .and_then(|v| v.first().copied())
             .and_then(|b| u32::try_from(b).ok())
@@ -178,6 +183,24 @@ impl Geometry {
             stride,
         })
     }
+}
+
+/// The visible size: of the modes in `modes` (lines such as
+/// `U:1920x1080p-0`) those no wider or taller than the virtual size and as
+/// wide as it, the tallest. `None` when there is none.
+fn visible_mode(dir: &Path, vw: i64, vh: i64) -> Option<(i64, i64)> {
+    let text = fs::read_to_string(dir.join("modes")).ok()?;
+    text.lines()
+        .filter_map(|line| {
+            let size = line.split_once(':')?.1;
+            let size = size
+                .split(|c: char| !c.is_ascii_digit() && c != 'x')
+                .next()?;
+            let (w, h) = size.split_once('x')?;
+            Some((w.parse::<i64>().ok()?, h.parse::<i64>().ok()?))
+        })
+        .filter(|&(w, h)| w == vw && h > 0 && h <= vh)
+        .max_by_key(|&(_, h)| h)
 }
 
 /// Whether the framebuffer is the Pi's vc4 fbdev emulation, which
@@ -686,6 +709,7 @@ mod tests {
     fn geometry_comes_from_sysfs() {
         let dir = dir("fb0");
         std::fs::write(dir.join("virtual_size"), "480,640\n").expect("write");
+        std::fs::write(dir.join("modes"), "U:480x640p-0\n").expect("write");
         std::fs::write(dir.join("bits_per_pixel"), "16\n").expect("write");
         std::fs::write(dir.join("stride"), "960\n").expect("write");
         assert_eq!(
@@ -713,9 +737,35 @@ mod tests {
     }
 
     #[test]
+    fn a_framebuffer_taller_in_memory_than_on_screen_is_laid_out_for_the_screen() {
+        let dir = dir("fbtall");
+        std::fs::write(dir.join("virtual_size"), "1920,2160\n").expect("write");
+        std::fs::write(dir.join("modes"), "U:1920x1080p-0\n").expect("write");
+        std::fs::write(dir.join("bits_per_pixel"), "32\n").expect("write");
+        std::fs::write(dir.join("stride"), "7680\n").expect("write");
+        assert_eq!(
+            Geometry::from_sysfs(&dir),
+            Ok(Geometry {
+                width: 1920,
+                height: 1080,
+                depth: Depth::Bgra8888,
+                stride: 7680,
+            })
+        );
+        // No mode, no guess.
+        std::fs::remove_file(dir.join("modes")).expect("remove");
+        assert_eq!(
+            Geometry::from_sysfs(&dir),
+            Err(String::from("fb0 does not say how many pixels it shows"))
+        );
+        clean(&dir);
+    }
+
+    #[test]
     fn the_pis_thirty_two_bit_framebuffer_is_red_first_and_any_other_is_blue_first() {
         let dir = dir("fb32");
         std::fs::write(dir.join("virtual_size"), "1920,1080\n").expect("write");
+        std::fs::write(dir.join("modes"), "U:1920x1080p-0\n").expect("write");
         std::fs::write(dir.join("bits_per_pixel"), "32\n").expect("write");
         std::fs::write(dir.join("stride"), "7680\n").expect("write");
         let depth = |dir: &std::path::Path| Geometry::from_sysfs(dir).map(|g| g.depth);
@@ -734,6 +784,7 @@ mod tests {
     fn a_twenty_four_bit_framebuffer_is_blue_first_unless_it_says_otherwise() {
         let dir = dir("fb24");
         std::fs::write(dir.join("virtual_size"), "1366,768\n").expect("write");
+        std::fs::write(dir.join("modes"), "U:1366x768p-0\n").expect("write");
         std::fs::write(dir.join("bits_per_pixel"), "24\n").expect("write");
         assert_eq!(
             Geometry::from_sysfs(&dir),
@@ -760,6 +811,7 @@ mod tests {
     fn a_depth_this_shell_cannot_write_says_so() {
         let dir = dir("fb30");
         std::fs::write(dir.join("virtual_size"), "1920,1080\n").expect("write");
+        std::fs::write(dir.join("modes"), "U:1920x1080p-0\n").expect("write");
         std::fs::write(dir.join("bits_per_pixel"), "30\n").expect("write");
         assert_eq!(
             Geometry::from_sysfs(&dir),
