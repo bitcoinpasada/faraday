@@ -805,6 +805,15 @@ impl Faraday {
                 }
                 self.act(Action::Entry(None));
             }
+            Action::RSlotForms => {
+                if let Some(r) = self.restore.state.as_mut() {
+                    r.error = None;
+                }
+                self.act(Action::Entry(None));
+                if self.screen == Screen::Entry {
+                    self.entry.show_other_forms();
+                }
+            }
             Action::RSlotScan => {
                 if self.may_load_keys() {
                     if let Some(r) = self.restore.state.as_mut() {

@@ -74,7 +74,7 @@ pub(crate) use parts::{
 pub(crate) use parts::{
     camera_row, card_pad, coin_pad, dice_pad, dice_pad_fit, key_path_line, word_cell_edge,
 };
-pub(crate) use restore::RSTEPS;
+pub(crate) use restore::{RSTEPS, open_slot_key};
 pub(crate) use settings::display_section as settings_display_section;
 pub(crate) use settings::open_head as settings_open;
 pub(crate) use settings::part_guide_key as settings_guide_key;

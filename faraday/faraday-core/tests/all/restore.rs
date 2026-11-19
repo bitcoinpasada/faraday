@@ -1375,3 +1375,72 @@ fn a_key_already_loaded_typed_into_a_slot_fills_it() {
     let s = app.restore().unwrap().seeds.as_ref().unwrap();
     assert!(s.keys.contains(&bacon.0), "the slot is filled");
 }
+
+/// Restore's slot, one-column panel: the window is 480 by 640.
+fn compact_slot() -> Faraday {
+    let mut app = two_of_three_from_seeds();
+    app.event(Event::Display(DisplayInfo {
+        width: 480,
+        height: 640,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app
+}
+
+#[test]
+fn the_slots_shares_button_opens_add_a_key_with_the_other_forms_shown() {
+    let mut app = two_of_three_from_seeds();
+    assert!(
+        drawn(&mut app).contains("Shares or another form"),
+        "{}",
+        drawn(&mut app)
+    );
+    app.press(Action::RSlotForms);
+    assert_eq!(app.screen, Screen::Entry);
+    let text = drawn(&mut app);
+    for name in ["SLIP-39 shares", "Seed XOR parts"] {
+        assert!(text.contains(name), "{name} is not shown: {text}");
+    }
+}
+
+#[test]
+fn add_a_key_from_a_slot_names_its_key_and_offers_no_new_key() {
+    for compact in [false, true] {
+        let mut app = if compact {
+            compact_slot()
+        } else {
+            two_of_three_from_seeds()
+        };
+        app.press(Action::RSlotWords);
+        assert_eq!(app.screen, Screen::Entry);
+        let text = drawn(&mut app);
+        assert!(
+            !text.contains("Make a new key"),
+            "compact {compact}: {text}"
+        );
+        assert!(
+            text.contains("Add a key · 1") || text.contains("For key 1"),
+            "compact {compact}: {text}"
+        );
+    }
+}
+
+#[test]
+fn a_one_column_words_page_always_ends_with_the_passphrase_and_add_a_key() {
+    let mut app = compact_slot();
+    app.press(Action::RSlotForms);
+    // Back to the words chip: the page is reset, with no word keyboard.
+    app.press(Action::EntryForm(1));
+    app.press(Action::EntryForm(0));
+    let text = drawn(&mut app);
+    for line in ["BIP-39 passphrase", "Add a key"] {
+        assert!(text.contains(line), "{line} is missing: {text}");
+    }
+}

@@ -678,7 +678,8 @@ fn entry_for(app: &View) -> Option<String> {
     });
     let round = es.c32_round.as_ref();
     let round = round.map(|w| fill(EN.c32_round_heading, &[&w.share(), &w.id_text()]));
-    round.or(wanted).or(for_wallet)
+    let slot = crate::screens::open_slot_key(app).map(|k| fill(EN.compact_for_key, &[&k]));
+    round.or(wanted).or(slot).or(for_wallet)
 }
 
 /// Add a key on a small panel. Words: what is being typed, the words it
@@ -737,10 +738,6 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         crate::screens::entry_scan(app),
     );
     y += 48.0;
-    if es.keys.is_none() {
-        entry_words(app, ui, x, y, iw, true);
-        return;
-    }
     y = entry_words(app, ui, x, y, iw, true);
     y += entry_pass(app, ui, (x, y, iw), EN.compact_bip_39_passphrase);
     // Add key is pinned at the foot.
@@ -756,20 +753,19 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         add,
         Action::EntryAdd,
     ));
-    y += stack(
-        ui,
-        x,
-        y,
-        iw,
-        &[
+    // A Restore slot is filled from a backup: no new key is offered there.
+    let mut foot = vec![(EN.compact_clear, Style::Ghost, Action::EntryClear)];
+    if es.back != Some(crate::Screen::Restore) {
+        foot.insert(
+            0,
             (
                 EN.compact_make_a_new_key,
                 Style::Secondary,
                 Action::KeyGen(None),
             ),
-            (EN.compact_clear, Style::Ghost, Action::EntryClear),
-        ],
-    );
+        );
+    }
+    y += stack(ui, x, y, iw, &foot);
     crate::screens::entry_stick(app, ui, x, y + 4.0);
     y += 44.0;
     finish(app, ui, h, y - top + 8.0);

@@ -44,12 +44,16 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // The round's codex32 string, typed in place (`docs/CODEX32.md` §9.5).
     let round = app.entry.state().c32_round.as_ref();
     let round = round.map(|w| Text::fill(EN.c32_round_heading, &[&w.share(), &w.id_text()]));
+    let slot = super::open_slot_key(app);
     let heading = match (app.entry.state().wanted, for_wallet) {
         _ if round.is_some() => round.unwrap_or_default(),
         (Some(fp), _) => Text::fill(
             EN.entry_add_key,
             &[&fp_text(faraday_bip::keys::Fingerprint(fp))],
         ),
+        (None, _) if slot.is_some() => {
+            Text::fill(EN.entry_add_key, &[slot.as_deref().unwrap_or_default()])
+        }
         (None, Some(name)) => Text::fill(EN.entry_add_key_title, &[name]),
         (None, None) if app.entry.state().form != crate::forms::Form::Words => {
             Text::fill(EN.entry_add_a_key_n, &[app.entry.state().form.name()])
@@ -505,19 +509,23 @@ fn entry_finish(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) -> 
         Action::EntryClear,
     );
     let new_x = x + 152.0 + clear_w + 8.0;
-    let new_w = ui.button(
-        new_x,
-        by,
-        None,
-        BUTTON_H,
-        EN.entry_finish_new_key,
-        Style::Secondary,
-        Action::KeyGen(None),
-    );
+    // A Restore slot is filled from a backup: making a new key is not
+    // offered there.
+    let new_w = (app.entry.state().back != Some(Screen::Restore)).then(|| {
+        ui.button(
+            new_x,
+            by,
+            None,
+            BUTTON_H,
+            EN.entry_finish_new_key,
+            Style::Secondary,
+            Action::KeyGen(None),
+        )
+    });
     keys_hint(
         ui,
         (x, width),
-        (new_x + new_w + 20.0, by),
+        (new_w.map_or(new_x, |w| new_x + w + 20.0), by),
         EN.entry_finish_keys_hint,
     )
 }

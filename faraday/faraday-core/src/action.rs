@@ -923,6 +923,9 @@ pub enum Action {
     /// The open slot's **Type the words**: Add a key, which asks the
     /// passphrase.
     RSlotWords,
+    /// The open slot's **Shares or another form**: Add a key with the
+    /// SLIP-39, codex32 and Seed XOR chips shown.
+    RSlotForms,
     /// The open slot's **Scan a SeedQR**, whose sheet asks the
     /// passphrase.
     RSlotScan,
@@ -1679,6 +1682,7 @@ impl Faraday {
             | Action::RAbsent(..)
             | Action::RSlotWords
             | Action::RSlotScan
+            | Action::RSlotForms
             | Action::RUse(..)
             | Action::RShare(..)
             | Action::RRebuild

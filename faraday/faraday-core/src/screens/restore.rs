@@ -661,6 +661,11 @@ fn restore_open_slot(
             Style::Secondary,
             Action::RSlotScan,
         ),
+        (
+            EN.restore_open_slot_forms.to_string(),
+            Style::Secondary,
+            Action::RSlotForms,
+        ),
     ];
     crate::seeds::screen::more_ways(app, here, true, &mut labels);
     if let Some((label, action)) = extra {
@@ -848,4 +853,33 @@ fn restore_sources_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
     ui.rule(x, cy - 6.0, w, Role::OutlineVariant);
     cy += 10.0;
     cy - y
+}
+
+/// The key Add a key is for when Restore's open slot opened it: the
+/// fingerprint of the description's first key not here, or the number of
+/// the slot a wallet made from the seeds fills next. `None` elsewhere.
+pub(crate) fn open_slot_key(app: &View) -> Option<String> {
+    if app.entry.state().back != Some(Screen::Restore) {
+        return None;
+    }
+    let r = app.restore.state()?;
+    if r.described {
+        let wl = r.wallet.and_then(|i| app.session.wallets.get(i))?;
+        let slots = app.session.slots(wl);
+        let (k, slot) = slots
+            .iter()
+            .enumerate()
+            .find(|(k, s)| s.held_by.is_none() && !r.absent.contains(&(*k as u8)))?;
+        return Some(
+            slot.fingerprint
+                .map_or_else(|| (k + 1).to_string(), |f| fp_text(f).to_string()),
+        );
+    }
+    let s = r.seeds.as_ref()?;
+    let first = s
+        .cosigners
+        .iter()
+        .position(|t| t.trim().is_empty())
+        .unwrap_or(0);
+    Some((app.seeds_here(s).len() + first + 1).to_string())
 }
