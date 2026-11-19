@@ -652,6 +652,55 @@ mod signing {
     }
 
     #[test]
+    fn a_transaction_of_inputs_each_stating_twenty_places_derives_a_bounded_number_of_scripts() {
+        use faraday_core::wallet::Spend;
+        use faraday_core::work::{Work, since, snapshot};
+        let mut app = unsigned_spend();
+        testkit::steps_before_sign_done(&mut app);
+        app.press(Action::SignHere);
+        let c = testkit::compute();
+        let mut crafted = app.spend().unwrap().spend.psbt.clone();
+        let inner = crafted.inner_mut();
+        let (tx_in, mut input) = (inner.unsigned_tx.input[0].clone(), inner.inputs[0].clone());
+        let fp = faraday_bip::bitcoin::bip32::Fingerprint::from([9, 9, 9, 9]);
+        let mut x = [0u8; 33];
+        x[0] = 2;
+        let mut n = 0u32;
+        let mut stuffed = Vec::new();
+        for _ in 0..2000 {
+            let mut one = input.clone();
+            one.bip32_derivation.clear();
+            one.tap_key_origins.clear();
+            while one.bip32_derivation.len() < 20 {
+                x[29..33].copy_from_slice(&n.to_be_bytes());
+                n += 1;
+                let Ok(key) = faraday_bip::bitcoin::secp256k1::PublicKey::from_slice(&x) else {
+                    continue;
+                };
+                let path = format!("m/84'/1'/0'/0/{}", 1000 + n);
+                one.bip32_derivation
+                    .insert(key, (fp, path.parse().unwrap()));
+            }
+            stuffed.push(one);
+        }
+        input = stuffed[0].clone();
+        inner.inputs = stuffed;
+        inner.unsigned_tx.input = vec![tx_in; inner.inputs.len()];
+        assert_eq!(input.bip32_derivation.len(), 20);
+        let spend = Spend::new(crafted, "crafted");
+        // A fresh copy keeps no scripts, as a worker's does.
+        let copy = app.session.job_copy();
+        let inspection = copy.inspect(&c, &spend.psbt);
+        let before = snapshot();
+        let _ = spend.signing(&c, &copy, Some(&inspection), None);
+        let derived = since(&before).of(Work::WalletMatch);
+        assert!(
+            derived <= 9000,
+            "{derived} scripts derived for 2000 stuffed inputs"
+        );
+    }
+
+    #[test]
     fn a_wallet_takes_home_the_scripts_its_copy_derived() {
         use faraday_core::work::{Work, since, snapshot};
         let app = unsigned_spend();

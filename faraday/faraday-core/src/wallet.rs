@@ -1901,17 +1901,35 @@ impl Session {
         self.wallet_at(c, spk, places)
     }
 
-    /// Costs what `script_at` costs. The loaded wallet whose script input
-    /// `i` of `inner` spends, by the places that input's own key origins
-    /// state: each input has its own wallet.
-    pub(crate) fn wallet_of_input(
+    /// Costs what `script_at` costs, for at most [`MAX_PSBT_PLACES`]
+    /// places in all. For each input of `inner` not yet final, the loaded
+    /// wallet whose script it spends, by the places that input's own key
+    /// origins state (each input has its own wallet); an input of no known
+    /// owner has none, and so has every input once the places read so far
+    /// across the PSBT reach the bound, so a PSBT stuffed with inputs that
+    /// each state many places cannot make a check derive in proportion to
+    /// its size.
+    pub(crate) fn wallets_of_open_inputs(
         &self,
         c: &Compute,
         inner: &faraday_bip::bitcoin::Psbt,
-        i: usize,
-    ) -> Option<usize> {
-        let (spk, places) = input_place(inner, i)?;
-        self.wallet_at(c, &spk, &places)
+    ) -> Vec<Option<usize>> {
+        let mut room = MAX_PSBT_PLACES;
+        (0..inner.inputs.len())
+            .map(|i| {
+                let input = &inner.inputs[i];
+                if input.final_script_sig.is_some() || input.final_script_witness.is_some() {
+                    return None;
+                }
+                let (spk, places) = input_place(inner, i)?;
+                if places.len() > room {
+                    room = 0;
+                    return None;
+                }
+                room -= places.len();
+                self.wallet_at(c, &spk, &places)
+            })
+            .collect()
     }
 
     /// Costs what `script_at` costs. The first loaded wallet whose script at
@@ -1995,6 +2013,12 @@ impl PsbtSeen {
 /// one; 20 leaves room for stray origins. Past it the input's places are
 /// not read.
 const MAX_INPUT_PLACES: usize = 20;
+
+/// The most places read across all the inputs of one PSBT when each is
+/// matched to its wallet. A real spend states one or two places an input
+/// and the network's standard size limit allows a few thousand inputs;
+/// past this the remaining inputs are matched to no wallet.
+const MAX_PSBT_PLACES: usize = 8192;
 
 /// Costs a classify. Input `i`'s spent script, and each `(change, index)`
 /// its key origins state; no place at all when they state more than
@@ -3034,13 +3058,7 @@ impl Spend {
         // Each open input's own wallet: the one that holds the script it
         // spends, by the places its own origins state. An input of no
         // known owner has none.
-        let owners: Vec<Option<usize>> = (0..inner.inputs.len())
-            .map(|i| {
-                open.contains(&i)
-                    .then(|| session.wallet_of_input(c, inner, i))
-                    .flatten()
-            })
-            .collect();
+        let owners: Vec<Option<usize>> = session.wallets_of_open_inputs(c, inner);
         let is_musig = |w: usize| Kind::of(&session.wallets[w].policy) == Kind::MuSig;
         let mut per_input: Vec<Vec<Fingerprint>> = vec![Vec::new(); inner.inputs.len()];
         let mut tallies: Vec<Option<Tally>> = vec![None; inner.inputs.len()];

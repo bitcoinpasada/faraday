@@ -127,8 +127,7 @@ impl SignWork {
     }
 }
 
-/// Costs what `Session::wallet_of_input` costs for each input still to
-/// sign, once: `one_wallet` keeps that answer for the later calls of one
+/// Costs what `Session::wallets_of_open_inputs` costs, once: `one_wallet` keeps that answer for the later calls of one
 /// press. Whether step `n` of the open spend has nothing to decide, so that
 /// Continue on the one before it carries on past it. Only Check and Signers
 /// can have none: Check where no wallet is known (there are no addresses to
@@ -168,12 +167,13 @@ pub(crate) fn nothing_to_decide(
             // wallet's inputs are not among the ones counted here.
             *one_wallet.get_or_insert_with(|| {
                 let inner = s.spend.psbt.inner();
+                let owners = app.session.wallets_of_open_inputs(c, inner);
                 (0..inner.inputs.len())
                     .filter(|&i| {
                         let input = &inner.inputs[i];
                         input.final_script_sig.is_none() && input.final_script_witness.is_none()
                     })
-                    .all(|i| app.session.wallet_of_input(c, inner, i) == s.wallet)
+                    .all(|i| owners[i] == s.wallet)
             })
         }
         _ => false,
