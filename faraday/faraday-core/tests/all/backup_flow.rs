@@ -2689,23 +2689,23 @@ fn a_stick_not_handed_out_yet_shows_no_problem_once_it_is() {
 }
 
 #[test]
-fn a_lock_that_cannot_keep_a_waiting_backup_does_not_go_ahead() {
+fn a_lock_that_cannot_keep_a_waiting_backup_starts_a_fresh_app_that_writes_no_stick() {
     let mut shell = Shell::light();
     let mut app = to_make(&mut shell, Kind::Gpg);
     make_key(&mut shell, &mut app, &GPG_FIELDS);
     shell.flow(&mut app, F::MadeContinue);
-    shell.fail_save = true;
-    app.press(Action::Lock);
-    shell.pump(&mut app);
-    assert!(!app.restart_requested(), "the lock was refused");
+    let mut app = shell.lock_unkept(&mut app);
     assert!(
         app.toast_text()
-            .is_some_and(|t| t.contains("Sealed, not restarted"))
+            .is_some_and(|t| t.contains("Locked without a restart"))
     );
-    // With the state kept again, it goes.
-    shell.fail_save = false;
+    assert!(!app.clean(), "the process held the keys");
+    assert_eq!(step(&app), Step::Write);
+    // At the next lock whose save works, a real restart comes up clean.
     let app = shell.lock(&mut app);
     assert_eq!(step(&app), Step::Write);
+    let mut app = app;
+    assert!(app.clean());
 }
 
 #[test]

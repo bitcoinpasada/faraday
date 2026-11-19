@@ -14,6 +14,21 @@ pub type Files = Vec<(Text, Zeroizing<Vec<u8>>)>;
 /// What the app keeps for itself across a lock: each entry's name and bytes.
 pub type Kept = Files;
 
+/// What a lock whose save failed hands from the old app to the new one in
+/// the same process ([`Faraday::carry_unkept_lock`]).
+pub struct Carried {
+    restored: StorageEvent,
+    mode: crate::Mode,
+    input_carry: [usize; 3],
+}
+
+impl Carried {
+    /// The mode the new app starts in.
+    pub fn mode(&self) -> crate::Mode {
+        self.mode
+    }
+}
+
 /// Files from bytes taken as they are: `Vec<u8>` or already wiping, under
 /// names given as `&str` or already `Text`.
 pub fn files_from<N: AsRef<str>, B: Into<Zeroizing<Vec<u8>>>>(files: Vec<(N, B)>) -> Files {
@@ -250,7 +265,8 @@ pub enum StorageEvent {
         reason: Text,
     },
     /// What the app asked to be kept across a lock could not be kept. A
-    /// lock with a key that waits for its backup does not go ahead.
+    /// lock with a key that waits for its backup does not restart the
+    /// process: a fresh app is built in it ([`Faraday::carry_unkept_lock`]).
     NotKept,
     /// A file deleted from a stick, zeros over it first.
     Wiped {
@@ -1121,6 +1137,46 @@ impl Faraday {
             outbox: pack(&self.outbox),
             kept,
         });
+    }
+
+    /// After a lock whose save failed with keys waiting for their backup:
+    /// what the next app in this process is built over. The Inbox and the
+    /// Outbox are moved out of this app, not copied, so no second copy
+    /// exists; the shell's own copy went as the save wrote it. Called on
+    /// the app about to be dropped, with the mode read before.
+    pub fn carry_unkept_lock(&mut self) -> Carried {
+        let take =
+            |items: Vec<Item>| -> Files { items.into_iter().map(|i| (i.name, i.bytes)).collect() };
+        let n = self.inbox.len();
+        let inbox = take((0..n).map(|_| self.inbox.remove(0)).collect());
+        let outbox = take(std::mem::take(&mut self.outbox));
+        // A mode change keeps nothing but the mode, as its save sent.
+        let kept = if self.mode_changing() {
+            Vec::new()
+        } else {
+            self.kept()
+        };
+        Carried {
+            restored: StorageEvent::Restored {
+                inbox,
+                outbox,
+                kept,
+            },
+            mode: self.mode_after_restart(),
+            input_carry: self.input_carry(),
+        }
+    }
+
+    /// Starts this fresh app over what [`Faraday::carry_unkept_lock`]
+    /// carried, in the process that ran the old one. The process kept
+    /// what the old app held, so this app is tainted for its whole life:
+    /// no stick is handed out until a restart that works.
+    pub fn start_unrestarted(&mut self, carried: Carried) {
+        self.set_input_carry(carried.input_carry);
+        self.session = crate::wallet::Session::on(carried.mode.network());
+        self.storage(carried.restored);
+        self.tainted = true;
+        self.toast(crate::EN.toast_lock_unrestarted);
     }
 
     /// No stick is in.

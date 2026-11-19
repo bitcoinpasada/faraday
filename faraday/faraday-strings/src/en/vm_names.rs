@@ -373,8 +373,9 @@ macro_rules! words_vm_names {
     backup_flow_dropped: "A kept backup did not read and was dropped",
     /// A stick whose room cannot be asked for: it cannot be read.
     backup_flow_unreadable: "This {} cannot be read. Use another {}",
-    /// Toast: a lock was refused because a waiting backup could not be kept.
-    toast_lock_not_kept: "A backup waits and could not be kept. Sealed, not restarted",
+    /// Toast: a lock's save failed with a backup waiting, so the process did
+    /// not restart.
+    toast_lock_unrestarted: "Locked without a restart. No stick can be written until the next lock",
     /// Button on Where: the place also keeps this vault's stick.
     backup_flow_also: "Also {}",
     /// Button on Where: this place's stick carries the key's public files.

@@ -223,6 +223,7 @@ enum HeldInput {
 }
 
 /// A held-back device as the app is told of it.
+#[derive(Clone)]
 struct Announce {
     /// The shell's number for it.
     id: u32,
@@ -857,6 +858,17 @@ struct Shell {
     held: std::collections::BTreeMap<u32, Hold>,
     /// Held-back devices found before the app was there to be told.
     announce: Vec<Announce>,
+    /// What the app is told of each held-back device, kept so a fresh app
+    /// in this process hears of every one again ([`Shell::start_again`]).
+    held_as: std::collections::BTreeMap<u32, Announce>,
+    /// What the firmware passed at boot, for a fresh app.
+    boot_params: Vec<u8>,
+    /// The HDMI screen's EDID, for a fresh app.
+    drm_edid: Vec<u8>,
+    /// Whether the screen is an HDMI one.
+    hdmi: bool,
+    /// The note a fresh app's worker wakes the loop with.
+    wake_tx: WakeTx,
     /// What the app was last told of what input is trusted
     /// (`StorageEvent::InputTrust`: can point, types); it starts as the
     /// app has it.
@@ -1002,6 +1014,7 @@ impl Shell {
             }
             if !device.trusted {
                 self.held.insert(id, Hold::Pending);
+                self.held_as.insert(id, Announce::of(id, &device));
                 self.announce.push(Announce::of(id, &device));
             }
             if (device.mouse || device.touchpad) && self.cursor.is_none() {
@@ -1100,6 +1113,7 @@ impl Shell {
     /// The part of [`input_ended`](Self::input_ended) before the app is
     /// told whether input is still trusted.
     fn input_ended_inner(&mut self, id: u32) {
+        self.held_as.remove(&id);
         if self.held.remove(&id).is_some()
             && let Some(app) = self.app.as_mut()
         {
@@ -1708,18 +1722,77 @@ impl Shell {
                     }
                 }
             }
+            let mut rebuild = false;
             if let Some(locking) = self.app.as_ref().map(|app| app.restart_requested()) {
                 self.serve_storage();
                 if self.app.as_ref().is_some_and(|app| app.restart_requested()) {
                     self.restart = true;
                 } else if locking {
-                    // The lock was refused: the state could not be kept.
+                    // The state could not be kept: this process does not
+                    // restart, and a fresh app takes the old one's place.
                     self.done = false;
+                    rebuild = true;
                 }
+            }
+            if rebuild {
+                self.start_again();
             }
             self.publish_clean();
             self.take_input_decisions();
         }
+    }
+
+    /// The lock's save failed with keys waiting for their backup: this
+    /// process does not restart, so a fresh app takes the old one's place,
+    /// built over what the old one carries, and the shell forgets what it
+    /// had told or let through for the old one. The old app is dropped
+    /// first. A held-back device let in during the old session is asked
+    /// about again, as in a fresh process.
+    fn start_again(&mut self) {
+        let Some(app) = self.app.as_mut() else { return };
+        let carried = app.carry_unkept_lock();
+        self.app = None;
+        self.camera.off();
+        self.scanner = None;
+        for flag in self.believed.values() {
+            flag.store(false, Ordering::SeqCst);
+        }
+        for hold in self.held.values_mut() {
+            *hold = Hold::Pending;
+        }
+        self.announce = self
+            .held
+            .keys()
+            .filter_map(|id| self.held_as.get(id).cloned())
+            .collect();
+        self.trust_told = (true, false);
+        self.attached_told = None;
+        self.boot_medium = BootMedium::Known;
+        self.usb = None;
+        self.sticks.clear();
+        self.clean = None;
+        self.dirty = true;
+        self.app = Some(fresh_app(
+            &self.boot_params,
+            &self.drm_edid,
+            self.hdmi,
+            self.wake_tx.clone(),
+        ));
+        let display = self.display_info();
+        self.send(Event::Display(display));
+        if self.setup.offered {
+            let native = self.setup.native();
+            self.send(Event::RotationOffered { native });
+        }
+        if self.hdmi {
+            self.send(Event::ExternalScreen);
+        }
+        if let Some(app) = self.app.as_mut() {
+            app.start_unrestarted(carried);
+        }
+        self.scan_sticks(true);
+        self.take_input_decisions();
+        self.flush();
     }
 
     /// Tells the app about held-back devices it has not heard of, and takes
@@ -2252,42 +2325,10 @@ fn run(args: Args) -> Result<Exit, String> {
     let work = disk.clone().and_then(diskwork::Work::start);
     let mut shell = Shell {
         app: Some({
-            let mut app = Faraday::new();
-            app.set_memory_reader(faraday_storage::memory_available_mib);
-            app.set_wake(work::wake(work_tx));
-            app.medium = medium();
+            let mut app = fresh_app(&boot_params, &drm_edid, hdmi, work_tx.clone());
             app.set_input_carry(input_counts_at_start(Path::new(BOXES)));
             app.session =
                 faraday_core::wallet::Session::on(mode_at_start(Path::new(BOXES)).network());
-            if app.medium == Medium::SdCard && hdmi {
-                // A Pi with an HDMI screen: its EDID says whether it is a
-                // TV or a KVM. A 2.8-inch or DSI panel has none, and no
-                // reminder.
-                app.devices = faraday_core::devices::DeviceCheck::hdmi_screen()
-                    .with_edid(screen_block(&drm_edid));
-            }
-            if app.medium == Medium::Stick {
-                app.secure_boot = SecureBootAtStart::from_boot_params(&boot_params);
-                let read = |p: &str| {
-                    std::fs::read_to_string(p)
-                        .map(|m| faraday_text::Text::of(m.trim()))
-                        .unwrap_or_default()
-                };
-                app.maker = read(SYS_VENDOR);
-                app.maker_family = read(PRODUCT_FAMILY);
-                app.maker_model = read(PRODUCT_NAME);
-                // What the machine says of itself, once: a virtual
-                // machine, whether its screen is a separate one, and
-                // the screen's EDID as the firmware passed it.
-                let text = |p: &str| std::fs::read_to_string(p).unwrap_or_default();
-                app.devices = faraday_core::devices::DeviceCheck::machine(
-                    &text(CPUINFO),
-                    &app.maker,
-                    &text(PRODUCT_NAME),
-                    &text(CHASSIS_TYPE),
-                )
-                .with_edid(faraday_paper::edid::from_boot_params(&boot_params));
-            }
             app
         }),
         boxes: Boxes::Dir(PathBuf::from(BOXES)),
@@ -2306,7 +2347,12 @@ fn run(args: Args) -> Result<Exit, String> {
         usb: None,
         screen: (!args.off_device).then(|| drm_edid.clone()),
         held: initial.iter().map(|a| (a.id, Hold::Pending)).collect(),
+        held_as: initial.iter().map(|a| (a.id, a.clone())).collect(),
         announce: initial,
+        boot_params: boot_params.clone(),
+        drm_edid: drm_edid.clone(),
+        hdmi,
+        wake_tx: work_tx.clone(),
         trust_told: (true, false),
         restart: false,
         panel,
@@ -2873,6 +2919,45 @@ fn take_in_wakes(shell: &mut Shell, wakes: Vec<Wake>) -> Vec<Wake> {
     shell.start_window_tick();
     collapse_moves(&mut batch);
     batch
+}
+
+/// A new app as a process starts it: what the machine says of itself, the
+/// medium and the wake, and nothing of any earlier session.
+fn fresh_app(boot_params: &[u8], drm_edid: &[u8], hdmi: bool, wake_tx: WakeTx) -> Faraday {
+    let mut app = Faraday::new();
+    app.set_memory_reader(faraday_storage::memory_available_mib);
+    app.set_wake(work::wake(wake_tx));
+    app.medium = medium();
+    if app.medium == Medium::SdCard && hdmi {
+        // A Pi with an HDMI screen: its EDID says whether it is a
+        // TV or a KVM. A 2.8-inch or DSI panel has none, and no
+        // reminder.
+        app.devices =
+            faraday_core::devices::DeviceCheck::hdmi_screen().with_edid(screen_block(drm_edid));
+    }
+    if app.medium == Medium::Stick {
+        app.secure_boot = SecureBootAtStart::from_boot_params(boot_params);
+        let read = |p: &str| {
+            std::fs::read_to_string(p)
+                .map(|m| faraday_text::Text::of(m.trim()))
+                .unwrap_or_default()
+        };
+        app.maker = read(SYS_VENDOR);
+        app.maker_family = read(PRODUCT_FAMILY);
+        app.maker_model = read(PRODUCT_NAME);
+        // What the machine says of itself, once: a virtual
+        // machine, whether its screen is a separate one, and
+        // the screen's EDID as the firmware passed it.
+        let text = |p: &str| std::fs::read_to_string(p).unwrap_or_default();
+        app.devices = faraday_core::devices::DeviceCheck::machine(
+            &text(CPUINFO),
+            &app.maker,
+            &text(PRODUCT_NAME),
+            &text(CHASSIS_TYPE),
+        )
+        .with_edid(faraday_paper::edid::from_boot_params(boot_params));
+    }
+    app
 }
 
 /// Whether the pass is the last: the panic chord held long enough, from

@@ -734,6 +734,38 @@ impl Shell {
         self.lock_with(app, false)
     }
 
+    /// A lock whose save failed with keys waiting for their backup: the
+    /// shell builds a fresh app in the same process over what the old one
+    /// carries, as the stick shell does.
+    pub fn lock_unkept(&mut self, app: &mut Faraday) -> Faraday {
+        top_up(app);
+        app.press(Action::Lock);
+        faraday_core::testkit::settle(app);
+        self.fail_save = true;
+        self.pump(app);
+        self.fail_save = false;
+        assert!(
+            !app.restart_requested(),
+            "the save failed and the lock stood"
+        );
+        let carried = app.carry_unkept_lock();
+        let mut fresh = faraday_core::testkit::new_on_test_net();
+        display(&mut fresh);
+        for i in 0..8u8 {
+            fresh.event(Event::Entropy(EntropyBytes::new([0x50 + i; 32])));
+        }
+        fresh.start_unrestarted(carried);
+        if let Some(available_mib) = FREE_MIB.with(std::cell::Cell::get) {
+            fresh.storage(StorageEvent::Memory { available_mib });
+        }
+        fresh.storage(StorageEvent::Clock { unix_secs: CLOCK });
+        faraday_core::testkit::vault_speed(&mut fresh, Some(180));
+        fresh.press(Action::OpenSetTime);
+        fresh.press(Action::SetTimeKeep);
+        self.pump(&mut fresh);
+        fresh
+    }
+
     fn lock_with(&mut self, app: &mut Faraday, seen: bool) -> Faraday {
         self.lock_by(app, Action::Lock, seen)
     }

@@ -26,6 +26,7 @@ mod seed_load;
 mod sign;
 mod stick_visit;
 mod storage_events;
+mod unkept_lock;
 mod ur_message;
 mod vault_names;
 mod wallet_files;

@@ -1,7 +1,6 @@
 //! What the idle lock keeps: when input last came, the idle time carried
 //! over a lock, and what the warning has shown.
 
-use crate::strings::EN;
 use crate::{Faraday, Sheet};
 use faraday_crypto::work::Compute;
 
@@ -255,12 +254,13 @@ impl Faraday {
     }
 
     /// The state could not be kept. A lock that would lose the keys that
-    /// wait for their backup does not go ahead.
+    /// wait for their backup does not restart the process: the shell
+    /// builds a fresh app in it over what this one carries
+    /// ([`Faraday::carry_unkept_lock`]).
     pub(crate) fn not_kept(&mut self) {
         if self.restart && self.flows.iter().any(|f| f.waiting()) {
             self.restart = false;
             self.next_mode.clear();
-            self.toast(EN.toast_lock_not_kept);
         }
     }
 

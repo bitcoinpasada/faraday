@@ -263,6 +263,16 @@ internal error rather than carrying on.
      The panel is blanked as the process exits, so the last screen
      is not left showing until the next process draws.
 
+  When the Inbox and Outbox cannot be saved and keys wait for their
+  backup, the process does not exit, since the files and the backup's
+  state would be lost. The old application is dropped and a fresh one is
+  built in the same process over the Inbox, Outbox and kept settings it
+  carries (moved, not copied); a toast says so. Step 2 does not happen
+  then, so the process stays marked as not clean for the life of that
+  application: no stick is handed to the disk process and every
+  partition is taken back, until the next lock whose save works, or a
+  power-off. Devices held back as new are asked about again.
+
   Seed-word files and other secret files copied in from a stick are
   removed from RAM at the same time. Files, From the stick and For the
   stick, which hold only public or encrypted files, are kept for the

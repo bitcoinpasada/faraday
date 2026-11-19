@@ -110,6 +110,9 @@ the planting of the secret to the end of the flow:
   opened, and the file vault, with a Lock pressed while the
   seal runs.
 - **Lock:** each of the above ended by Lock, with the scan of §1.2.
+- **A lock whose save failed:** a key loaded, Lock pressed, the old app
+  dropped and a fresh one built in the same process over what it carried;
+  no live block holds the seed (`tests/leaks/unkept_lock.rs`).
 - **Backup:** a codex32 set, SLIP-39 shares and a SeedQR written and
   checked.
 - **The vault readers:** a vault's entries listed, opened and copied.

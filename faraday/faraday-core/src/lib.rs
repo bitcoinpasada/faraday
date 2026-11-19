@@ -283,7 +283,7 @@ pub use stick::folders::{BOOT_FOLDER, FIRST_BACKUP, backup_folder};
 pub use stick::pills::{Pill, SticksWanted};
 pub use stick::visit_taken::VisitState;
 pub use storage_api::{
-    BootMedium, Files, Kept, OnTaken, StickInfo, StickMake, StorageCommand, StorageEvent,
+    BootMedium, Carried, Files, Kept, OnTaken, StickInfo, StickMake, StorageCommand, StorageEvent,
     files_from, kept_from,
 };
 pub use version::{
