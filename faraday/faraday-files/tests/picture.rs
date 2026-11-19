@@ -93,3 +93,23 @@ fn a_code_is_read_dark_on_light_and_light_on_dark() {
         );
     }
 }
+
+/// A picture of the largest size with so many codes that the answer would
+/// not fit the pipe's frame is answered at once with a reason, not with a
+/// frame the pipe refuses; the same picture with a few codes is answered
+/// with them.
+#[test]
+fn picture_with_too_many_codes_is_answered_with_a_reason() {
+    use faraday_files::{fit_picture_answer, proto::Response};
+    let bytes = vec![0u8; faraday_files::MAX_READ as usize];
+    let few = vec![vec![7u8; 2953]; 10];
+    assert!(matches!(
+        fit_picture_answer(bytes.clone(), few),
+        Response::Qr { codes, .. } if codes.len() == 10
+    ));
+    let many = vec![vec![7u8; 2953]; 400];
+    match fit_picture_answer(bytes, many) {
+        Response::Failed(why) => assert!(why.contains("too many codes")),
+        _ => panic!("an answer over the frame limit must be Failed"),
+    }
+}

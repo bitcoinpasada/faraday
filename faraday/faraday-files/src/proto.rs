@@ -26,7 +26,9 @@ use faraday_text::Text;
 use zeroize::Zeroizing;
 
 /// The largest frame either side sends or takes: the largest file plus
-/// room for its name, or for a picture's codes beside its bytes.
+/// room for its name, or for a picture's codes beside its bytes. A picture
+/// whose codes would not fit beside its bytes is answered
+/// [`Response::Failed`] (`fit_picture_answer`), not sent.
 pub const MAX_FRAME: u32 = super::MAX_READ as u32 + 1024 * 1024;
 
 /// The most bytes one piece of a vault's file carries (F206 point 7): a

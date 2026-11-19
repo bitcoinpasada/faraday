@@ -1527,7 +1527,31 @@ pub fn picture_answer(c: &Compute, bytes: Vec<u8>) -> proto::Response {
     // Moved into the answer, which wipes them when it is dropped.
     let mut codes = qr_in_png(c, &bytes).unwrap_or_default();
     let codes = std::mem::take(&mut *codes);
-    proto::Response::Qr { bytes, codes }
+    fit_picture_answer(bytes, codes)
+}
+
+/// A picture's answer ([`proto::Response::Qr`]) when its frame fits
+/// [`proto::MAX_FRAME`]; else the picture and its codes are wiped and the
+/// answer is [`proto::Response::Failed`], so that the shell says so at once
+/// instead of waiting for a frame the pipe would refuse.
+pub fn fit_picture_answer(bytes: Vec<u8>, codes: Vec<Vec<u8>>) -> proto::Response {
+    let mut answer = proto::Response::Qr { bytes, codes };
+    // The frame is the tag, the picture's length and bytes, the count and
+    // each code's length and bytes; the pipe's own header is beside it.
+    let size = match &answer {
+        proto::Response::Qr { bytes, codes } => codes
+            .iter()
+            .fold(bytes.len().saturating_add(1 + 4 + 2), |a, c| {
+                a.saturating_add(4).saturating_add(c.len())
+            }),
+        _ => 0,
+    };
+    if u32::try_from(size).is_ok_and(|n| n <= proto::MAX_FRAME) {
+        answer
+    } else {
+        answer.wipe();
+        proto::Response::Failed(Text::of(EN.files_picture_codes_many))
+    }
 }
 
 /// The width times the height a PNG's IHDR states, `None` when the bytes

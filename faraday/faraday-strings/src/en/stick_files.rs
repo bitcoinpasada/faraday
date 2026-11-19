@@ -111,6 +111,9 @@ macro_rules! words_stick_files {
     files_not_on_stick: "{} is not on the stick",
     /// Why a picture was not read for codes: it is over the largest.
     files_picture_large: "the image is too large",
+    /// Why a picture was refused: its codes and the picture together are
+    /// more than the disk process can pass on.
+    files_picture_codes_many: "the picture holds too many codes to read",
     /// Why a picture was not read for codes: it is not a PNG Faraday
     /// reads.
     files_picture_unread: "the picture could not be read",
