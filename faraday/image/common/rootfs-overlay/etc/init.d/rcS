@@ -17,6 +17,12 @@
 mount -t proc -o nosuid,nodev,noexec,hidepid=invisible proc /proc
 mount -t sysfs -o nosuid,nodev,noexec sysfs /sys
 mount -o remount,nosuid,noexec /dev
+# /run, where everything written after boot goes (docs/SECURITY-MODEL.md
+# "Stateless"): a RAM filesystem of its own, mounted before anything is made
+# in it, on which nothing is a program, a device or a set-uid file. The root
+# filesystem goes read-only at the end of this script.
+mkdir -p /run
+mount -t tmpfs -o nosuid,nodev,noexec,mode=0755 tmpfs /run
 # The screen (docs/IMAGES.md §3.4): on an image that lists screens, the
 # script finds the one attached, loads its overlays while configfs is
 # mounted, unmounts it again, and writes the shell's arguments for it to
@@ -115,3 +121,12 @@ fi
         sleep 1
     done
 ) &
+
+# The root filesystem goes read-only (docs/SECURITY-MODEL.md "Stateless"):
+# from here on what is written is in /run, /dev, /proc or /sys, and nothing
+# that runs can change a program, a library or the inittab init reads again
+# at every lock. Only init and its root shell loops, which read nothing
+# from outside, could mount it writable again; the helpers above dropped
+# every capability but CAP_CHOWN before reading anything.
+mount -o remount,ro / ||
+    echo "faraday rcS: the root filesystem stays writable" > /dev/kmsg

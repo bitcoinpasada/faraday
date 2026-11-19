@@ -33,9 +33,11 @@ to the others in `/proc`.
 
 - **At boot.** The kernel starts BusyBox init as root. The boot script
   mounts `/proc`, `/sys` and `/dev` with nothing on them executable,
-  sets the kernel's ptrace restriction, hides kernel addresses, sets the
-  USB authorisation policy, creates the RAM directories and pipes the
-  programs use, and starts the other two programs. It mounts no
+  mounts a RAM filesystem of its own on `/run` (no programs, devices or
+  set-uid files), sets the kernel's ptrace restriction, hides kernel
+  addresses, sets the USB authorisation policy, creates the directories
+  and pipes the programs use in `/run`, starts the other two programs
+  and, last, remounts the root filesystem read-only. It mounts no
   storage.
 - **On the Pi, the screen script** (`/etc/init.d/screen`,
   `docs/IMAGES.md` §3.4) runs as root from the boot script before
@@ -250,7 +252,13 @@ internal error rather than carrying on.
 
 - The root filesystem is linked into the kernel image. The firmware loads
   that one file into RAM, and nothing is mounted from the boot medium
-  afterwards.
+  afterwards. Once boot setup is done it is read-only: a program, a
+  library or the inittab init reads again at every lock cannot be
+  replaced, by a helper or by the app. What is written after that is in
+  RAM under `/run`, `/dev`, `/proc` or `/sys`. The initramfs's own root is
+  remounted read-only in place, which keeps the boot one plain script
+  with no second root to switch to; only init and its root shell loops
+  could make it writable again, and they read nothing from outside.
 - Nothing is written to the computer. There is no driver for its disk
   and no access to its firmware variables.
 - **The nonce history in a vault.** An opened vault's entries name each

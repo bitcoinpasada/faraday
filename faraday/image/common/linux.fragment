@@ -36,6 +36,9 @@ CONFIG_DEVTMPFS_MOUNT=y
 CONFIG_BLK_DEV_INITRD=y
 CONFIG_RD_GZIP=y
 CONFIG_INITRAMFS_COMPRESSION_GZIP=y
+# /run's RAM filesystem: rcS remounts the root read-only once boot setup
+# is done, and what is written after that is written there.
+CONFIG_TMPFS=y
 
 # ---- console ----
 # The release image's console is the null one (ttynull, named on each board's

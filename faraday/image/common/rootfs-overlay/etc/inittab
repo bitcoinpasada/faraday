@@ -2,8 +2,11 @@
 # exits 75 when it locks, and a fresh process starts with nothing of the
 # old one's memory (docs/SECURITY-MODEL.md "Stateless"); any other exit ends the loop, and init
 # restarts the computer when the app's last status was 76 (Restart on the
-# power sheet) and powers off otherwise. /run/faraday holds the Inbox
-# and Outbox between processes, readable by the app's user alone. rcS
+# power sheet) and powers off otherwise. rcS mounts /run, a RAM filesystem
+# of its own, and leaves the root filesystem read-only, so this inittab
+# and the app it starts again stay as the image made them; /run/faraday
+# holds the Inbox and Outbox between processes, readable by the app's
+# user alone. rcS
 # runs the screen script (what it found is in /run/faraday-screen/args,
 # read after /etc/faraday/args), starts the grant helper and the disk process (docs/SECURITY-MODEL.md "When root is used").
 # The app starts in a session of its own with its input from /dev/null, so it

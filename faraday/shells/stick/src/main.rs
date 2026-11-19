@@ -316,7 +316,8 @@ const CMDLINE: &str = "/proc/cmdline";
 const DEFAULT_FILES: &str = "/mnt/microsd";
 
 /// Where the Inbox and Outbox wait between processes. The inittab makes
-/// it, owned by the app's user, in the RAM root filesystem.
+/// it, owned by the app's user, on `/run`'s RAM filesystem: the root
+/// filesystem is read-only once boot setup is done.
 const BOXES: &str = "/run/faraday";
 
 /// The file in [`BOXES`] that carries the mode across a lock.
