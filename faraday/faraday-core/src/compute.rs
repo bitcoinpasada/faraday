@@ -252,10 +252,10 @@ impl Faraday {
             // An answer may have loaded or dropped a key.
             self.signer_check_sync();
         } else if let Done::MadeOnline(d) = done {
-            // Back does not stop this job, but another way of making it
-            // stale may: the marks are public fingerprints, checked against
-            // the vaults open now, and no second job runs for them, so they
-            // are taken, or the caution is lost.
+            // Back does not stop this job, but a Lock that stops at the Lock
+            // sheet makes it stale: the marks are public fingerprints,
+            // checked against the vaults open now, so they are taken even
+            // when stale, and the Lock has asked for the job again.
             self.vaults
                 .store()
                 .note_made_online_done(&mut self.session.keys, *d);
