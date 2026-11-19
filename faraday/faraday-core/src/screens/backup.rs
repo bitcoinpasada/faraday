@@ -2417,21 +2417,12 @@ fn old_shares(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         // An old set rebuilds the key while its group threshold of groups
         // each keep their member threshold of shares.
         let rebuilds = b.answers.old_slip39_sets(seed).any(|z| {
-            let full = z
-                .groups
+            let got: Vec<(usize, usize)> = kept
                 .iter()
-                .enumerate()
-                .filter(|&(g, grp)| {
-                    let got = kept
-                        .iter()
-                        .filter(|(_, (_, id, kg, m, _))| {
-                            *id == z.identifier && *kg == g && z.has_member(g, *m)
-                        })
-                        .count();
-                    got >= usize::from(grp.threshold)
-                })
-                .count();
-            full >= usize::from(z.group_threshold)
+                .filter(|(_, (_, id, ..))| *id == z.identifier)
+                .map(|(_, (_, _, kg, m, _))| (*kg, *m))
+                .collect();
+            z.rebuilt_by(&got)
         });
         if rebuilds {
             cy += ui.wrap_as(

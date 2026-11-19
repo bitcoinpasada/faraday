@@ -2943,8 +2943,7 @@ as a plan it cannot read. A kept share records public facts and a place,
 never a word.
 
 **Open:** a SLIP-39 share has no fingerprint of its own kept, so a share's
-copy is not checked here. Rotate the set in Convert does not yet record
-the new set on the key.
+copy is not checked here.
 
 ## 19. The quick paper backup (owner, 2026-11-17)
 

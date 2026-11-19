@@ -84,7 +84,7 @@ impl Slip39 {
 
     /// Whether the shares `got`, as (group, member), rebuild the seed:
     /// enough members of enough groups.
-    pub(crate) fn rebuilt_by(&self, got: &[(usize, usize)]) -> bool {
+    pub fn rebuilt_by(&self, got: &[(usize, usize)]) -> bool {
         let full = self
             .groups
             .iter()

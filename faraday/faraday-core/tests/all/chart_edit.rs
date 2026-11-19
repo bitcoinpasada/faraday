@@ -2550,13 +2550,11 @@ fn kept_old_shares() -> (Faraday, usize) {
     app.press(Action::Vault(V::AddKind(1)));
     app.press(Action::Vault(V::SaveWallet(w)));
     app.press(Action::OpenWallet(w));
+    // As a saved Rotate does: the key's set becomes another set, and Back
+    // up opens on it.
+    assert!(app.session.keys.replace_slip39(0, facts(78)));
     app.press(Action::Backup(w));
     app.press(Action::BChecklist);
-    let shape = app.plan_shape_now(w);
-    testkit::change_backup_answers(&mut app, |a| {
-        faraday_core::plan::sets::sync(a, &shape, &[], &[Some(facts(78))]);
-        assert_eq!(a.old_slip39_sets(0).count(), 1, "the old set is kept");
-    });
     app.press(Action::BVaultSave(0));
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::SaveWallet(w)));
