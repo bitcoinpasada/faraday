@@ -338,7 +338,7 @@ faraday-stick-image: faraday-stick-bin
 # For development, not offered to users (docs/DEVELOPING.md): writes the stick
 # image's boot partition over the first partition of a Faraday stick,
 # leaving its data partition, vaults and settings as they are.
-# Refuses a disk that is not removable on USB, has anything mounted, or
+# Refuses a disk that is not on USB, has anything mounted, or
 # whose partition table does not have a Faraday stick's layout
 # (docs/STICK-IDENTITY.md §5.1); the device is typed
 # back; it reads back and compares. dev=1 writes the -dev image's.

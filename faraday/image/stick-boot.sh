@@ -9,7 +9,8 @@
 #
 # The target is a whole USB disk (/dev/sdX) or, for testing, a regular
 # file holding a stick image. It refuses unless:
-#   - a disk is a whole disk, removable and on USB;
+#   - a disk is a whole disk on USB (its removable flag plays no part: many USB
+#     sticks and SSDs report themselves fixed);
 #   - no partition of it is mounted or used as swap (a file: it is not
 #     attached to a loop device);
 #   - its partition table has a Faraday stick's layout
@@ -75,8 +76,6 @@ if [ -b "$target" ]; then
     [ "$(lsblk -dno TYPE "$target")" = "disk" ] \
         || die "$target is not a whole disk; give /dev/sdX, not a partition"
     name="$(basename "$target")"
-    [ "$(cat "/sys/block/$name/removable" 2>/dev/null)" = "1" ] \
-        || die "$target is not removable"
     [ "$(lsblk -dno TRAN "$target")" = "usb" ] || die "$target is not on USB"
     if lsblk -no MOUNTPOINTS "$target" | grep -q .; then
         die "$target has a mounted partition ($(lsblk -no MOUNTPOINTS "$target" | grep . | tr '\n' ' ')); unmount it first"
