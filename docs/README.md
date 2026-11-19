@@ -141,6 +141,7 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 
 **Spec**
 
+- `docs/AT-LOCK.md`: What holds a secret: one rule for clean, the idle lock and Lock. Specified; none of it is built: the clean state, the idle lock's test and Lock's clears are still three lists kept by hand.
 - `docs/AUDIT-SUBMISSIONS.md`: Audits: the request, the submission and the record. Built (F19), except the Audits page's part of §10 (F160).
 - `docs/DESIGN.md`: Design system. Built but for the items under Open.
 - `docs/DRAW-COST.md`: Cheaper drawing: what is left. Specified; none of it is built and none of it is timed.
