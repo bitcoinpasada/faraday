@@ -2900,7 +2900,9 @@ cannot read. The key's own record keeps the new set only (`docs/VAULT.md`
 same key) reads its placed parts as kept old parts and takes the key's
 set, not placed yet, unless it cannot keep them (four old sets of the
 seed already, or a part's fingerprint already in one): then the plan keeps
-its own set until older kept parts are destroyed. Convert a seed still records a set only on a key
+its own set until older kept parts are destroyed, and the section reads
+"This plan keeps another set than the key's. Destroy old parts to take
+the key's set." (F293). Convert a seed still records a set only on a key
 that has none. A kept part records a fingerprint and a place, never a
 word.
 
@@ -2943,7 +2945,8 @@ never a word.
 **Open:** a SLIP-39 share has no fingerprint of its own kept, so a share's
 copy is not checked here. Kept old SLIP-39 shares are not built: a plan
 whose SLIP-39 set is not its key's still keeps its own set and says
-nothing, Back up's section has no SLIP-39 part, and Rotate the set in
+nothing, Back up's section has no SLIP-39 part, the Seed XOR section
+does not yet say when the plan keeps its own set, and Rotate the set in
 Convert does not yet record the new set on the key.
 
 ## 19. The quick paper backup (owner, 2026-11-17)
