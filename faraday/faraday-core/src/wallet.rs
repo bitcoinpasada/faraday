@@ -2245,6 +2245,51 @@ fn text_may_be_secret(c: &Compute, text: &str) -> bool {
         || crate::inbox::part_of(text).is_some()
 }
 
+/// Costs what `text_may_be_secret` costs on the body and on each of its
+/// lines, and a `words_across` over them. The kind a signed message's
+/// file takes when its body holds a secret: a seed's words, a seed part
+/// or entries as in a plain text file, and a secret wallet file for a
+/// private key, an Electrum file with a seed, or a seed, a seed part or an
+/// authenticator's export beside other text, a `#` line among them. None
+/// for any other body, a multisig share among them, which holds public
+/// keys and stays a message.
+fn secret_body_kind(c: &Compute, body: &str) -> Option<FileKind> {
+    if too_short_to_be_secret(body.trim()) {
+        return None;
+    }
+    if crate::inbox::part_of(body).is_some() {
+        return Some(FileKind::SeedPart);
+    }
+    if crate::forms::typed_mnemonic(Language::English, &crate::forms::file_words(body)).is_ok() {
+        return Some(FileKind::Words);
+    }
+    if faraday_codec::classify::looks_like_entries(body)
+        || faraday_intake::is_otpauth_migration(body)
+    {
+        return Some(FileKind::Entries);
+    }
+    // A line is read without its comment mark, and its words without the
+    // punctuation that ends it.
+    fn bare(l: &str) -> &str {
+        l.trim().trim_start_matches('#').trim()
+    }
+    let line_is_secret = |l: &str| {
+        let l = bare(l);
+        !too_short_to_be_secret(l)
+            && (faraday_intake::secret_text(c, l).is_some()
+                || faraday_intake::is_otpauth_migration(l)
+                || crate::inbox::part_of(l).is_some())
+    };
+    (faraday_intake::secret_text(c, body).is_some()
+        || faraday_intake::wallet::holds_secret(body)
+        || body.lines().any(line_is_secret)
+        || words_across(
+            body.lines()
+                .map(|l| bare(l).trim_end_matches(|ch: char| ch.is_ascii_punctuation())),
+        ))
+    .then_some(FileKind::SecretWallet)
+}
+
 /// Costs a `read_keys` on the line: base58 decodes. Whether a line of a
 /// key file is a key `read_keys` reads.
 fn is_key_line(line: &str) -> bool {
@@ -2412,14 +2457,17 @@ pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
         // not handed to bitcoin's address parser, which would decode it
         // into a buffer of its own.
         if let Some(m) = faraday_psbt::message::parse_signed(text)
-            && !text_may_be_secret(c, m.message.as_str())
             && m.address.len() >= 14
             && !m.address.contains(char::is_whitespace)
             && m.address
                 .parse::<faraday_bip::bitcoin::Address<_>>()
                 .is_ok()
         {
-            return FileKind::Message.into();
+            // The body is checked for a secret only here, so a text file
+            // that is no signed message does not pay for it.
+            return secret_body_kind(c, m.message.as_str())
+                .unwrap_or(FileKind::Message)
+                .into();
         }
         if crate::restore::is_share(text) {
             return FileKind::Share.into();

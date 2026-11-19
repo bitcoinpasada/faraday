@@ -62,11 +62,6 @@ const STARTUP: Table = &[
         20,
         "each of the test stick's 20 PSBTs parsed once as it comes in, its summary kept (Item::psbt)",
     ),
-    (
-        Work::WordsParse,
-        2,
-        "the body of each of the test stick's two signed messages read as seed words once as it comes in, so that one holding a seed is not taken for a public signed message (classify_read); counted by this test",
-    ),
 ];
 
 #[test]

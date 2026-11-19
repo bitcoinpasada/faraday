@@ -341,6 +341,26 @@ fn a_sheet_whose_derivation_is_not_a_plain_path_is_not_a_share() {
     }
 }
 
+/// A signed message whose body is a split sheet stays a signed message:
+/// a sheet holds public keys only, and the file is not taken for a sheet
+/// to restore from.
+#[test]
+fn a_signed_message_holding_a_sheet_stays_a_message() {
+    const SIGNATURE: &str =
+        "H9L5yLFjti0QTHhPyFrZCT1V/MMnBtXKmoiKDZ78NDBjERki6ZTQZdSMCtkgoNmp17By9ItJr8o7ChX0XxY91nk=";
+    let c = testkit::compute();
+    let (good, _) = sheets("Savings", &two_of_three(0));
+    assert!(is_share(&good[0]));
+    let signed = format!(
+        "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu\n{SIGNATURE}\n{}\n",
+        good[0]
+    );
+    assert_eq!(
+        faraday_core::wallet::classify(&c, "message.txt", signed.as_bytes()),
+        faraday_core::wallet::FileKind::Message
+    );
+}
+
 /// Sheets with `m`, `m/`, hardened and unhardened steps and `h` marks
 /// still merge into a whole wallet.
 #[test]

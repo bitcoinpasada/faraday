@@ -691,6 +691,77 @@ fn a_signed_message_holding_seed_words_does_not_go_as_the_message() {
     assert_eq!(shown(&app), ordinary);
 }
 
+/// A signed message holding a seed is a secret file as the same words in a
+/// plain text file are: its code is marked secret and offers no picture.
+#[test]
+fn a_signed_message_holding_a_seed_is_a_secret_file() {
+    const SIGNATURE: &str =
+        "H9L5yLFjti0QTHhPyFrZCT1V/MMnBtXKmoiKDZ78NDBjERki6ZTQZdSMCtkgoNmp17By9ItJr8o7ChX0XxY91nk=";
+    let c = testkit::compute();
+    let words12 = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+    let words24 = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
+    for words in [words12, words24] {
+        let signed = format!("bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu\n{SIGNATURE}\n{words}\n");
+        let plain = format!("{words}\n");
+        let kind = faraday_core::wallet::classify(&c, "message.txt", signed.as_bytes());
+        assert_eq!(
+            kind,
+            faraday_core::wallet::classify(&c, "words.txt", plain.as_bytes())
+        );
+        let mut app = testkit::started();
+        app.storage(StorageEvent::Restored {
+            inbox: Vec::new(),
+            outbox: faraday_core::files_from(vec![(
+                faraday_text::Text::of("message.txt"),
+                signed.into_bytes(),
+            )]),
+            kept: Vec::new(),
+        });
+        app.press(Action::QrOutbox(0));
+        let q = app.qr().expect("no QR");
+        assert!(q.secret);
+        assert!(!q.offers_png());
+    }
+}
+
+/// A signed message whose body holds a seed beside other text, an
+/// authenticator's secret or an extended private key on a line of its own
+/// is a secret file too, never a message.
+#[test]
+fn a_signed_message_holding_a_secret_beside_other_text_is_a_secret_file() {
+    const SIGNATURE: &str =
+        "H9L5yLFjti0QTHhPyFrZCT1V/MMnBtXKmoiKDZ78NDBjERki6ZTQZdSMCtkgoNmp17By9ItJr8o7ChX0XxY91nk=";
+    let c = testkit::compute();
+    let words = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+    let xprv = "xprv9s21ZrQH143K2nNuAbfWPHBtfiSCS14XQgb3otW4pX655q58EEZeC8zmjEUwucBu9dPnxdpbZLCn57yx45RBkwJHnwHFjZK4XPJ8SyeYjYg";
+    for body in [
+        format!("My seed, keep it safe:\n{words}\nThank you."),
+        "Scan this:\notpauth://totp/Example:alice?secret=JBSWY3DPEHPK3PXP&issuer=Example"
+            .to_string(),
+        format!("The key is\n{xprv}\nfor the old wallet."),
+        format!("Name: Savings\n# {words}\nPolicy: 2 of 3"),
+        format!("The words are\n{words}."),
+    ] {
+        let signed = format!("bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu\n{SIGNATURE}\n{body}\n");
+        let mut app = testkit::started();
+        app.storage(StorageEvent::Restored {
+            inbox: Vec::new(),
+            outbox: faraday_core::files_from(vec![(
+                faraday_text::Text::of("message.txt"),
+                signed.clone().into_bytes(),
+            )]),
+            kept: Vec::new(),
+        });
+        assert_ne!(
+            faraday_core::wallet::classify(&c, "message.txt", signed.as_bytes()),
+            FileKind::Message,
+            "{body}"
+        );
+        app.press(Action::QrOutbox(0));
+        assert!(app.qr().expect("no QR").secret, "{body}");
+    }
+}
+
 /// A wallet card's first receive address opens its code: the address as
 /// the card prints it, whole under the code, with no picture
 /// (`docs/QR.md` §7).
