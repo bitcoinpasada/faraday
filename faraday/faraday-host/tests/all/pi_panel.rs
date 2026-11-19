@@ -2254,7 +2254,7 @@ fn on_the_pi_unlock_on_a_wallet_is_lined_up_with_the_buttons_around_it() {
 fn on_the_small_panel_an_open_vaults_row_in_files_and_homes_backups_summary_read_whole() {
     let mut rig = rig(
         On::Stick,
-        Mode::Mainnet,
+        Mode::Testnet,
         vec![(
             "a-long-vault-name-for-the-family.kdbx".into(),
             testkit::test_vault().unwrap(),
