@@ -333,11 +333,15 @@ fn the_description_scanned_first_fills_the_quorum_and_refuses_what_is_not_its_ke
     assert_eq!(app.restore().unwrap().open, Some(SEEDS));
     let keys = app.session.keys.len();
 
-    // A seed of another wallet.
-    type_seed(&mut app, ABANDON);
-    assert_eq!(app.restore().unwrap().error.as_deref(), Some(NOT_A_KEY));
+    // A seed of another wallet: refused on Add a key, words kept.
+    app.press(Action::RSlotWords);
+    type_text(&mut app, ABANDON);
+    app.press(Action::EntryAdd);
+    assert_eq!(app.screen, Screen::Entry);
     assert_eq!(app.session.keys.len(), keys, "the stranger was taken");
     assert!(drawn(&mut app).contains(NOT_A_KEY));
+    app.event(Event::Key(Key::Escape));
+    assert_eq!(app.screen, Screen::Restore);
 
     // The right seed scanned, with a passphrase the wallet's key does
     // not have: the sheet says so and stays, nothing loaded.
@@ -1119,8 +1123,11 @@ fn a_seed_with_a_slots_fingerprint_but_not_its_key_is_refused() {
     app.press(Action::RNext(WHERE));
     assert_eq!(app.restore().unwrap().open, Some(SEEDS));
     let keys = app.session.keys.len();
-    type_seed(&mut app, &testkit::test_words("zebra"));
-    assert_eq!(app.restore().unwrap().error.as_deref(), Some(NOT_A_KEY));
+    app.press(Action::RSlotWords);
+    type_text(&mut app, &testkit::test_words("zebra"));
+    app.press(Action::EntryAdd);
+    assert_eq!(app.screen, Screen::Entry);
+    assert_eq!(testkit::entry(&app).error.as_deref(), Some(NOT_A_KEY));
     assert_eq!(app.session.keys.len(), keys, "the seed was taken");
 }
 
@@ -1230,4 +1237,77 @@ fn check_names_what_it_matches_compares() {
         "the addresses are compared against the wallet software: {texts}"
     );
     assert!(texts.contains("It matches"), "{texts}");
+}
+
+/// Restore on the saved 2-of-3, open on its seeds.
+fn described_to_seeds() -> Faraday {
+    let mut app = shown();
+    app.press(Action::RestoreWallet);
+    app.press(Action::Scan);
+    app.event(Event::Scanned {
+        bytes: testkit::savings().into_bytes(),
+    });
+    faraday_core::testkit::confirm_wallets(&mut app);
+    app.press(Action::RVaults(false));
+    app.press(Action::RNext(WHERE));
+    assert_eq!(app.restore().unwrap().open, Some(SEEDS));
+    app
+}
+
+#[test]
+fn restore_refusing_typed_words_stays_on_add_a_key_with_the_words_and_passphrase() {
+    let mut app = described_to_seeds();
+    let keys = app.session.keys.len();
+    app.press(Action::RSlotWords);
+    type_text(&mut app, ABANDON);
+    app.press(Action::EntryPassphrase);
+    type_text(&mut app, "TREZOR");
+    app.press(Action::PassEye);
+    app.press(Action::EntryAdd);
+    assert_eq!(app.screen, Screen::Entry, "the refusal stays on Add a key");
+    let e = testkit::entry(&app);
+    assert_eq!(e.typed.as_str().trim(), ABANDON, "the words are kept");
+    assert_eq!(e.passphrase.as_str(), "TREZOR", "the passphrase is kept");
+    assert_eq!(e.error.as_deref(), Some(NOT_A_KEY));
+    assert_eq!(app.session.keys.len(), keys);
+}
+
+#[test]
+fn restore_refusing_seed_xor_parts_loads_no_key() {
+    let mut app = described_to_seeds();
+    let keys = app.session.keys.len();
+    app.press(Action::RSlotWords);
+    app.press(Action::EntryForm(3));
+    for part in [
+        "accident stock globe super snake hero sample law fit blade scale silly",
+        "insect shoe rescue viable grab then adult rigid funny forget peace napkin",
+    ] {
+        type_text(&mut app, part);
+        app.event(Event::Key(Key::Enter));
+    }
+    app.event(Event::Key(Key::Enter));
+    assert_eq!(app.screen, Screen::Entry, "the refusal stays on Add a key");
+    assert_eq!(testkit::entry(&app).error.as_deref(), Some(NOT_A_KEY));
+    assert_eq!(app.session.keys.len(), keys, "the refused key was loaded");
+}
+
+#[test]
+fn a_key_already_loaded_typed_into_a_slot_fills_it() {
+    let mut app = shown();
+    app.press(Action::Entry(None));
+    type_text(&mut app, &testkit::test_words("bacon"));
+    app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
+    let bacon = app.session.keys[0].fingerprint;
+    app.press(Action::RestoreWallet);
+    app.press(Action::RKind(MULTI));
+    app.press(Action::RNext(KIND));
+    app.press(Action::RNext(QUORUM));
+    app.press(Action::RSeeds);
+    app.press(Action::RVaults(false));
+    app.press(Action::RNext(WHERE));
+    type_seed(&mut app, &testkit::test_words("bacon"));
+    assert_eq!(app.session.keys.len(), 1, "no second copy");
+    let s = app.restore().unwrap().seeds.as_ref().unwrap();
+    assert!(s.keys.contains(&bacon.0), "the slot is filled");
 }

@@ -1093,10 +1093,16 @@ impl Faraday {
         if back == Some(Screen::Restore)
             && let Some(why) = self.restore_refusal_typed(&c, &m)
         {
-            self.restore.set_error(why);
-            self.entry.reset();
-            crate::pass_eye::done(self);
-            self.screen = Screen::Restore;
+            // Scanned over Restore, there is no Add a key to stay on;
+            // typed, the words and passphrase stay with the refusal by
+            // the passphrase.
+            if self.screen == Screen::Restore {
+                self.restore.set_error(why);
+                self.entry.reset();
+                crate::pass_eye::done(self);
+            } else {
+                self.entry.set_error(why);
+            }
             return;
         }
         let pass = crate::secret_text::SecretText::of(self.entry.state().passphrase.as_str());
@@ -1135,6 +1141,27 @@ impl Faraday {
                     self.refresh_spend();
                     self.screen = Screen::SpendBackup;
                     self.spend_backup_key_added();
+                }
+            }
+            // A seed already loaded is taken as given by a Restore slot
+            // and by Wallets, which go on as for a key just loaded.
+            Err(crate::wallet::Refusal::Duplicate(_))
+                if matches!(back, Some(Screen::Restore | Screen::Wallets) | None) =>
+            {
+                if let Ok(fp) = faraday_keys::identity::fingerprint_of_mnemonic(
+                    &c,
+                    &m,
+                    &self.entry.state().passphrase,
+                ) {
+                    self.seeds_took(fp, back);
+                    self.entry.reset();
+                    crate::pass_eye::done(self);
+                    self.refresh_spend();
+                    self.screen = match back {
+                        Some(s) => s,
+                        None if self.wallets.spend().is_some() => Screen::Spend,
+                        None => Screen::Wallets,
+                    };
                 }
             }
             // A SeedQR scanned on Restore: the refusal shows there.

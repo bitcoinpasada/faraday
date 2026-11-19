@@ -1319,6 +1319,7 @@ functions = [
   "faraday/faraday-core/src/create.rs::bip87_of",
   "faraday/faraday-core/src/create.rs::path_spec",
   "faraday/faraday-core/src/restore.rs::Faraday::restore_refusal_typed",
+  "faraday/faraday-core/src/restore.rs::Faraday::restore_refusal_of",
   "faraday/faraday-core/src/restore.rs::Faraday::restore_took",
   "faraday/faraday-keys/src/seed_check.rs::Keys::check_xpub_at",
   "faraday/faraday-keys/src/seed_check.rs::Keys::check_xpub_without_passphrase_at",

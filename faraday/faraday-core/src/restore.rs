@@ -990,11 +990,22 @@ impl Faraday {
         m: &faraday_bip::bip39::Mnemonic,
     ) -> Option<Text> {
         let pass = self.entry.state().passphrase.as_str();
-        let fp = faraday_keys::identity::fingerprint_of_mnemonic(c, m, pass).ok()?;
+        self.restore_refusal_of(c, || faraday_keys::identity::Material::Words(m), pass)
+    }
+
+    /// Costs what [`Faraday::restore_refusal_typed`] costs. Why Restore
+    /// does not take the key `material` makes with `pass`, if it does not,
+    /// before anything is loaded.
+    pub(crate) fn restore_refusal_of<'a>(
+        &self,
+        c: &Compute,
+        material: impl Fn() -> faraday_keys::identity::Material<'a>,
+        pass: &str,
+    ) -> Option<Text> {
         let network = self.session.network();
+        let fp = faraday_keys::identity::fingerprint(c, material(), pass, network)?;
         let at = |p: &faraday_bip::bitcoin::bip32::DerivationPath| {
-            let words = faraday_keys::identity::Material::Words(m);
-            faraday_keys::identity::xpub_at(c, words, pass, network, p)
+            faraday_keys::identity::xpub_at(c, material(), pass, network, p)
         };
         self.restore_refusal(fp, Some(&at))
     }

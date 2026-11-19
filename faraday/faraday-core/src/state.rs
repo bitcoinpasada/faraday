@@ -1699,6 +1699,14 @@ impl Faraday {
         if let Some(kind) = self.form_makes_more() {
             return self.keygen_codex32_given(kind);
         }
+        // Restore takes only a key it fills a slot with: refused before
+        // anything is loaded, the parts and passphrase stay on the form.
+        if self.entry.state().back == Some(crate::Screen::Restore)
+            && let Some(why) = self.form_restore_refusal()
+        {
+            self.entry.set_error(why);
+            return;
+        }
         let mark = self.entry.state().correction.key_mark();
         match self.form_key() {
             Ok(fp) => {
@@ -1720,6 +1728,32 @@ impl Faraday {
                 }
             }
             Err(e) => self.entry.set_error(e),
+        }
+    }
+
+    /// Costs what making the key of the parts costs. Why Restore does not
+    /// take the key the parts typed make, if it does not; `None` too when
+    /// the parts make no key yet (loading says why).
+    fn form_restore_refusal(&mut self) -> Option<faraday_text::Text> {
+        use faraday_keys::identity::Material;
+        let c = self.compute();
+        let st = self.entry.state();
+        let pass = st.passphrase.as_str();
+        match st.form {
+            Form::Slip39 => {
+                let seed = faraday_keys::slip39_seed(&c, &st.parts.slip39, pass.as_bytes()).ok()?;
+                self.restore_refusal_of(&c, || Material::Seed(&seed), "")
+            }
+            Form::Codex32 => {
+                let seed = faraday_keys::codex32_seed(&st.parts.codex32).ok()?;
+                self.restore_refusal_of(&c, || Material::Seed(&seed), "")
+            }
+            Form::Xor => {
+                let e = st.parts.xor.entropy().ok()?;
+                let m = faraday_keys::words::from_entropy(Language::English, e.as_bytes()).ok()?;
+                self.restore_refusal_of(&c, || Material::Words(&m), pass)
+            }
+            Form::Words => None,
         }
     }
 
