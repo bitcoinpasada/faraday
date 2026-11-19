@@ -788,15 +788,15 @@ impl OpenVaults {
     /// under the passphrase each keeps or none (a PBKDF2 for each, in
     /// [`MadeOnlineJob::run`]), when it is needed and not done for this set
     /// of open vaults: a key held names a parent that is held nowhere
-    /// (or held with no words) and unmarked, or a key in `added` has no
-    /// words and is unmarked. Answers `None` otherwise, and for every call
+    /// (or held with no words) and unmarked, or a key held has no words and
+    /// is unmarked (however long ago it was added: a key added while
+    /// another job ran is still found). Answers `None` otherwise, and for every call
     /// after the job was made, until a vault opens or closes.
     /// [`Self::note_made_online_done`] takes its answer.
     pub fn made_online_job(
         &self,
         c: &Compute,
         keys: &Keys,
-        added: &[Fingerprint],
     ) -> Option<MadeOnlineJob> {
         if self.slots.is_empty() || self.marked_done.get() == Some(self.epoch) {
             return None;
@@ -805,8 +805,8 @@ impl OpenVaults {
             .filter_map(|i| keys.info(i).and_then(|k| k.child_of))
             .map(|o| Fingerprint(o.parent))
             .any(|p| !keys.made_online(p) && keys.position(p).is_none_or(|i| !keys.has_words(i)));
-        let wordless = added.iter().any(|fp| {
-            !keys.made_online(*fp) && keys.position(*fp).is_some_and(|i| !keys.has_words(i))
+        let wordless = (0..keys.len()).any(|i| {
+            !keys.has_words(i) && keys.info(i).is_some_and(|k| !keys.made_online(k.fingerprint))
         });
         if !orphan && !wordless {
             return None;
