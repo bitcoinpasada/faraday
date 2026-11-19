@@ -1453,6 +1453,19 @@ impl Faraday {
     }
 }
 
+// Seed shares typed.
+impl crate::at_lock::AtLock for RestoreArea {
+    fn holds(&self) -> crate::at_lock::Holds {
+        crate::at_lock::Holds::typed(self.state.as_ref().is_some_and(|r| {
+            r.shares.iter().any(|s| !s.is_empty()) || r.seeds.is_some()
+        }))
+    }
+    fn lock(&mut self) {
+        self.clear();
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;

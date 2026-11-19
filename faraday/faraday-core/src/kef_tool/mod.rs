@@ -546,3 +546,13 @@ impl crate::trail::StepFlow for KefToolSteps {
         screen::TITLES[usize::from(k)]
     }
 }
+
+// The typed code, its passphrase, the opened payload.
+impl crate::at_lock::AtLock for KefToolArea {
+    fn holds(&self) -> crate::at_lock::Holds {
+        crate::at_lock::Holds::typed(self.state().is_some_and(KefToolState::holds_secret))
+    }
+    fn lock(&mut self) {
+        self.clear();
+    }
+}

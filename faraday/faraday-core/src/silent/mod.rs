@@ -199,6 +199,9 @@ pub(crate) struct SilentArea {
     state: Option<SilentState>,
 }
 
+/// Holds nothing a lock wipes: a fingerprint and the DNS record's text.
+impl crate::at_lock::Public for SilentArea {}
+
 impl SilentArea {
     /// The flow's state, while it is open.
     pub(crate) fn state(&self) -> Option<&SilentState> {

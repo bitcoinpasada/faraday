@@ -236,3 +236,13 @@ impl SeedArea {
         self.state = None;
     }
 }
+
+// Words and passphrase typed.
+impl crate::at_lock::AtLock for SeedArea {
+    fn holds(&self) -> crate::at_lock::Holds {
+        crate::at_lock::Holds::typed(self.state().is_some_and(crate::seed_check::SeedState::holds_secret))
+    }
+    fn lock(&mut self) {
+        self.clear();
+    }
+}

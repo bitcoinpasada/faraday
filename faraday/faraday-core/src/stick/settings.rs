@@ -84,6 +84,9 @@ pub(crate) struct Settings {
     hosted: bool,
 }
 
+/// Holds nothing a lock wipes: the settings, kept across a lock.
+impl crate::at_lock::Public for Settings {}
+
 impl Default for Settings {
     fn default() -> Self {
         Self {

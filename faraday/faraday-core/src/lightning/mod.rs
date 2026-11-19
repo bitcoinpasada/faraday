@@ -806,3 +806,14 @@ pub(crate) fn could_be_hsm(kind: crate::wallet::FileKind, len: usize) -> bool {
     ) && (faraday_keys::hsm_secret::PLAIN_LEN..=faraday_keys::hsm_secret::MNEMONIC_MAX_LEN)
         .contains(&len)
 }
+
+// A Lightning node's keys.
+impl crate::at_lock::AtLock for LightningArea {
+    fn holds(&self) -> crate::at_lock::Holds {
+        // Any state: the words, the passphrase or the node key.
+        crate::at_lock::Holds::typed(self.state.is_some())
+    }
+    fn lock(&mut self) {
+        self.clear();
+    }
+}

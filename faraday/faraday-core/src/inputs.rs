@@ -233,6 +233,9 @@ pub(crate) struct InputsArea {
     notice: Option<Text>,
 }
 
+/// Holds nothing a lock wipes: the input devices, carried across a lock.
+impl crate::at_lock::Public for InputsArea {}
+
 /// How long the list of what was plugged in at start shows, from the
 /// first frame that draws it, in milliseconds, unless its × or Escape
 /// takes it away first.

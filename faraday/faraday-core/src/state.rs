@@ -2087,3 +2087,29 @@ impl Faraday {
         }
     }
 }
+
+// Words, parts and passphrases typed.
+impl crate::at_lock::AtLock for EntryArea {
+    fn holds(&self) -> crate::at_lock::Holds {
+        let e = &self.state;
+        crate::at_lock::Holds::typed(
+            !e.typed.is_empty()
+                || e.parts.holds_any()
+                || !e.passphrase.is_empty()
+                || !e.again.is_empty(),
+        )
+    }
+    fn lock(&mut self) {
+        self.reset();
+    }
+}
+
+// A message to sign and its signature are public; a lock drops them.
+impl crate::at_lock::AtLock for MessageArea {
+    fn holds(&self) -> crate::at_lock::Holds {
+        crate::at_lock::Holds::NOTHING
+    }
+    fn lock(&mut self) {
+        self.clear();
+    }
+}

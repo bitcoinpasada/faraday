@@ -1289,3 +1289,13 @@ pub const OPEN: Action = Action::Import(ImportAction::Open);
 
 /// The press that closes it for later: Later.
 pub const LATER: Action = Action::Import(ImportAction::Later);
+
+// What the boot stick brought and was not imported: its bytes are wiped as it drops.
+impl crate::at_lock::AtLock for BootImportArea {
+    fn holds(&self) -> crate::at_lock::Holds {
+        crate::at_lock::Holds::session(self.state.is_some())
+    }
+    fn lock(&mut self) {
+        self.clear_all();
+    }
+}

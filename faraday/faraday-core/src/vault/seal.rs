@@ -872,50 +872,18 @@ pub(crate) fn sealed(app: &mut Faraday, done: SealDone) {
     seal_next(app);
 }
 
-/// The rest of a lock, after the last seal: the wipes.
+/// The rest of a lock, after the last seal: the wipes, then the saves.
+/// Every area's own clears are its lock (`docs/AT-LOCK.md`); what is
+/// here is not one area's. The session's seed goes with own randomness,
+/// after the lock's last seal drew from it.
 fn lock_finish(app: &mut Faraday) {
-    // What the boot stick brought and was not imported is not kept:
-    // its bytes are wiped as it drops.
-    app.import.clear_all();
-    // A vault write waiting for its name's answer is not kept.
-    app.visit.name_taken_clear();
-    // Nothing secret copied in outlives the process that read it
-    // (`docs/VAULT.md`): the next process is clean, and these would be
-    // in its memory and in `/run/faraday`. They are still on the stick
-    // they came from.
-    // A picture goes as what its codes hold, and as Other when none read.
-    app.inbox.retain(|i| !i.dropped_at_lock());
-    app.session.wipe();
+    app.lock_areas();
+    debug_assert!(
+        !app.holds().any(),
+        "an area's lock left what it holds: {:?}",
+        app.holds()
+    );
     app.wallets.set_list_changed();
-    // The charts and the backup list kept across moved frames.
-    app.kept.charts_drop();
-    // The signing page's kept text of the Inbox's small files.
-    app.vaults.drop_sign_text();
-    app.own_wipe();
-    app.seed_wipe();
-    app.wallets.clear_spend();
-    app.seed_read.clear();
-    app.decode.clear_check();
-    app.backup.close();
-    app.message.clear();
-    app.create.clear();
-    app.restore.clear();
-    app.keygen.forget();
-    app.wordlist.clear();
-    app.bip85.clear();
-    app.tools.convert.clear();
-    app.tools.seed_check.clear();
-    app.tools.kef_tool.clear();
-    app.tools.core_wallet.clear();
-    app.tools.clear_calculator();
-    app.lightning.clear();
-    app.vanity.clear();
-    app.seed_read.clear_sweep();
-    *app.spend_backup.seeds_mut() = crate::seeds::SeedsState::default();
-    app.camera.clear_kept();
-    app.explore.clear();
-    app.secrets.clear();
-    app.entry.reset();
     // A made key file of a vault let go unsealed does not go with the boxes.
     super::more::drop_gone(app);
     app.save_boxes_for_lock();

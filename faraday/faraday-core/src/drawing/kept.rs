@@ -1107,3 +1107,13 @@ impl crate::glance::Reads for View<'_> {
         View::psbt_for(self, w)
     }
 }
+
+// Public descriptions kept across frames, read by the save after a lock; a lock drops the charts.
+impl crate::at_lock::AtLock for Kept {
+    fn holds(&self) -> crate::at_lock::Holds {
+        crate::at_lock::Holds::NOTHING
+    }
+    fn lock(&mut self) {
+        self.charts_drop();
+    }
+}

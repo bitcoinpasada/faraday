@@ -70,6 +70,9 @@ pub struct ModesArea {
     next_mode: Option<Mode>,
 }
 
+/// Holds nothing a lock wipes: the mode to restart in.
+impl crate::at_lock::Public for ModesArea {}
+
 impl ModesArea {
     /// The mode chosen, once the lock for it is asked.
     pub(crate) fn choose(&mut self, m: Mode) {

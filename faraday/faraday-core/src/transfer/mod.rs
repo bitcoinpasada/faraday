@@ -648,3 +648,15 @@ impl Faraday {
         }
     }
 }
+
+// Transfer, in Faraday Demo.
+impl crate::at_lock::AtLock for TransferArea {
+    fn holds(&self) -> crate::at_lock::Holds {
+        // The online app's side: never clean of the network, and none of it
+        // the device's secret.
+        crate::at_lock::Holds::NOTHING
+    }
+    fn lock(&mut self) {
+        self.clear_text();
+    }
+}

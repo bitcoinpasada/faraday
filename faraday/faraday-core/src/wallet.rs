@@ -4989,6 +4989,21 @@ impl Faraday {
     }
 }
 
+// The session's keys, and its wallets.
+impl crate::at_lock::AtLock for Session {
+    fn holds(&self) -> crate::at_lock::Holds {
+        crate::at_lock::Holds {
+            kept: self.keys.holds_secret(),
+            typed: false,
+            session: !self.wallets.is_empty(),
+        }
+    }
+    fn lock(&mut self) {
+        self.wipe();
+    }
+}
+
+
 #[cfg(test)]
 mod partial_tests;
 

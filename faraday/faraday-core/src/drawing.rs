@@ -992,3 +992,13 @@ impl Faraday {
         self.fresh_ask();
     }
 }
+
+// The frame's worked-out values: always filled, so nothing to count; a lock empties them.
+impl crate::at_lock::AtLock for Drawing {
+    fn holds(&self) -> crate::at_lock::Holds {
+        crate::at_lock::Holds::NOTHING
+    }
+    fn lock(&mut self) {
+        self.clear();
+    }
+}

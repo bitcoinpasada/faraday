@@ -774,3 +774,16 @@ fn plain_files(m: &[crate::plan::Spot]) -> Vec<(usize, crate::plan::What)> {
         .filter(|(_, w)| crate::backup_flow::wallet_files::is_secret_file(*w))
         .collect()
 }
+
+// A secret on its way out.
+impl crate::at_lock::AtLock for SecretsArea {
+    fn holds(&self) -> crate::at_lock::Holds {
+        // A secret sheet for an Inbox file on its way to another stick holds a
+        // copy of what the Inbox already holds, and the stick it goes to
+        // must stay open (`docs/FLOWS.md`).
+        crate::at_lock::Holds::typed(self.out.as_ref().is_some_and(|o| !o.to_visit))
+    }
+    fn lock(&mut self) {
+        self.clear();
+    }
+}

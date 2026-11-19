@@ -590,3 +590,14 @@ impl crate::trail::StepFlow for VanitySteps {
 pub fn fp(fp: [u8; 4]) -> String {
     String::from(&*crate::wallet::fp_text(Fingerprint(fp)))
 }
+
+// The search and what it found.
+impl crate::at_lock::AtLock for VanityArea {
+    fn holds(&self) -> crate::at_lock::Holds {
+        // A find names a passphrase.
+        crate::at_lock::Holds::typed(self.state.is_some())
+    }
+    fn lock(&mut self) {
+        self.clear();
+    }
+}

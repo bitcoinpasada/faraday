@@ -56,6 +56,9 @@ pub(crate) struct Pointer {
     cut: Vec<(Rect, Action)>,
 }
 
+/// Holds nothing a lock wipes: where the pointer is and what it presses.
+impl crate::at_lock::Public for Pointer {}
+
 impl Pointer {
     pub(crate) fn new() -> Self {
         Self {

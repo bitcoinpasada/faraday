@@ -623,11 +623,6 @@ impl Faraday {
         self.keygen.own_changed(false);
     }
 
-    /// The lock drops the session's seed (`Fresh::seed_wipe`).
-    pub(crate) fn seed_wipe(&mut self) {
-        self.fresh.seed_wipe();
-    }
-
     /// The status line (`docs/OWN-RANDOMNESS.md` §2.4) of Settings'
     /// Randomness row and Add randomness: the system's source, then what
     /// the person added. A lookup and a format.
@@ -1042,6 +1037,21 @@ impl Faraday {
         }
     }
 }
+
+// Own randomness and the session's seed.
+impl crate::at_lock::AtLock for Fresh {
+    fn holds(&self) -> crate::at_lock::Holds {
+        // The session's seed and pool fill in ordinary use: counting them
+        // would keep every process unclean. Randomness the person added is
+        // the session's: mixed with the system's, it is not a secret alone.
+        crate::at_lock::Holds::session(self.own.acc.is_some())
+    }
+    fn lock(&mut self) {
+        self.own_wipe();
+        self.seed_wipe();
+    }
+}
+
 
 #[cfg(test)]
 mod tests {

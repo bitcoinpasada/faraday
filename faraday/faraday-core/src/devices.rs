@@ -319,6 +319,9 @@ pub struct DeviceCheck {
     pub(crate) after: Option<Action>,
 }
 
+/// Holds nothing a lock wipes: the devices plugged in.
+impl crate::at_lock::Public for DeviceCheck {}
+
 impl DeviceCheck {
     /// The machine as the shell read it once at start: `/proc/cpuinfo`,
     /// `sys_vendor`, `product_name` and `chassis_type`.

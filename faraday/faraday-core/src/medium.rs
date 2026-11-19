@@ -19,6 +19,9 @@ pub enum Medium {
     SdCard,
 }
 
+/// Holds nothing a lock wipes: what the app runs from.
+impl crate::at_lock::Public for Medium {}
+
 impl Medium {
     /// The noun mid-sentence: "stick", "card or stick".
     pub const fn noun(self) -> &'static str {

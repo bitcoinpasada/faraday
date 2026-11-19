@@ -935,3 +935,14 @@ pub(crate) fn vault_seeds(c: &Compute, app: &Faraday) -> Vec<(usize, usize, Text
     }
     out
 }
+
+// The seed sheet and the Sweep sheet.
+impl crate::at_lock::AtLock for SeedsArea {
+    fn holds(&self) -> crate::at_lock::Holds {
+        crate::at_lock::Holds::typed(self.holds_secret())
+    }
+    fn lock(&mut self) {
+        self.clear();
+        self.clear_sweep();
+    }
+}

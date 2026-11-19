@@ -73,6 +73,9 @@ pub(crate) struct Trail {
     step_landed: Option<(Screen, u8)>,
 }
 
+/// Holds nothing a lock wipes: the screens gone through, for Back.
+impl crate::at_lock::Public for Trail {}
+
 impl Trail {
     /// Notes `here` as the screen the input being handled found, once
     /// per input.

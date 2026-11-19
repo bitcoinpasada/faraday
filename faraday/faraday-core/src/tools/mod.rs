@@ -332,11 +332,6 @@ impl ToolsArea {
         });
     }
 
-    /// Forgets the open calculator and what was typed in it.
-    pub(crate) fn clear_calculator(&mut self) {
-        self.tools = None;
-    }
-
     /// Drops what a screen left behind: Tools' calculator unless Tools is
     /// on screen, an invoice's text unless its screen is.
     pub(crate) fn tidy(&mut self, screen: Screen, card_open: impl Fn(usize) -> bool) {
@@ -821,5 +816,71 @@ impl Faraday {
             self.sheet = None;
         }
         self.out.redraw();
+    }
+}
+
+// An area that holds areas: its own fields are listed with no rest
+// pattern, so a new tool does not compile until it says what Lock does
+// with it (`docs/AT-LOCK.md` §5).
+impl crate::at_lock::AtLock for ToolsArea {
+    fn holds(&self) -> crate::at_lock::Holds {
+        use crate::at_lock::{public, AtLock as A, Holds};
+        let ToolsArea {
+            tools,
+            catalog_find,
+            home_find,
+            home_focus,
+            home_bar_y,
+            home_follow,
+            convert,
+            kef_tool,
+            ots,
+            seed_check,
+            mscheck,
+            core_wallet,
+            invoice,
+            address_check,
+        } = self;
+        public(catalog_find);
+        public(home_find);
+        public(home_focus);
+        public(home_bar_y);
+        public(home_follow);
+        public(ots);
+        public(invoice);
+        public(address_check);
+        // The calculator's typed line: an extended private key typed is
+        // refused, but it was typed.
+        Holds::typed(tools.as_ref().is_some_and(|t| !t.typed.is_empty()))
+            .or(A::holds(convert))
+            .or(A::holds(kef_tool))
+            .or(A::holds(seed_check))
+            .or(A::holds(mscheck))
+            .or(A::holds(core_wallet))
+    }
+    fn lock(&mut self) {
+        use crate::at_lock::AtLock as A;
+        let ToolsArea {
+            tools,
+            catalog_find: _,
+            home_find: _,
+            home_focus: _,
+            home_bar_y: _,
+            home_follow: _,
+            convert,
+            kef_tool,
+            ots: _,
+            seed_check,
+            mscheck,
+            core_wallet,
+            invoice: _,
+            address_check: _,
+        } = self;
+        *tools = None;
+        A::lock(convert);
+        A::lock(kef_tool);
+        A::lock(seed_check);
+        A::lock(mscheck);
+        A::lock(core_wallet);
     }
 }

@@ -502,6 +502,16 @@ impl KeyGen {
     /// words, shares or strings typed into `entry`, the form the flow
     /// types into. Only lookups.
     pub(crate) fn entered_any(&self, entry: &crate::EntryState) -> bool {
+        self.entered_own()
+            || !entry.typed.is_empty()
+            || !entry.parts.slip39.is_empty()
+            || !entry.parts.codex32.is_empty()
+            || !entry.parts.xor.is_empty()
+    }
+
+    /// [`KeyGen::entered_any`] but for the entry's own: the rolls, the
+    /// key made, its passphrases and a codex32 string's making.
+    pub(crate) fn entered_own(&self) -> bool {
         let randomness = !self.dice.is_empty()
             || !self.coins.is_empty()
             || !self.cards.is_empty()
@@ -510,12 +520,7 @@ impl KeyGen {
             || !self.mixed.is_empty()
             || !self.entered.is_empty();
         let made = self.mnemonic.is_some() || self.secret.is_some() || self.parts_in > 0;
-        let typed = !self.passphrase.is_empty()
-            || !self.passphrase2.is_empty()
-            || !entry.typed.is_empty()
-            || !entry.parts.slip39.is_empty()
-            || !entry.parts.codex32.is_empty()
-            || !entry.parts.xor.is_empty();
+        let typed = !self.passphrase.is_empty() || !self.passphrase2.is_empty();
         randomness
             || made
             || typed

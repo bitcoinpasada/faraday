@@ -56,7 +56,6 @@ alike.
 | `tools.tools` (the calculator's typed line) | an extended private key typed and refused | **no** | no | **no** |
 | `tools.mscheck` (Check a multisig setup) | a seed answer | **no** | no | **no** |
 | `tools.convert` (Convert a seed) | the typed seed, the value held | **no** | no | yes |
-| `tools.qr_tool` (the QR vault tool) | note, passphrase, the made code | note and passphrase only, not the code | no | yes |
 | `spend_backup` (Spend from a backup, and its Sweep) | the seeds typed for it | **no** | no | **no** |
 | `vanity` | a passphrase a find names, on show | **no** | no | **no**; to be decided by the area: whether its search state keeps the passphrase |
 | `silent` (silent payments) | none: a fingerprint and the DNS record's text | no | no | no; public, not a disagreement |
@@ -251,23 +250,23 @@ compile error here:
 impl AtLock for ToolsArea {
     fn holds(&self) -> Holds {
         let ToolsArea { tools, catalog_find, home_find, home_focus, home_bar_y,
-                        home_follow, convert, kef_tool, qr_tool, ots, seed_check,
-                        mscheck, core_wallet, invoice, address_check } = self;
+                        home_follow, convert, kef_tool, ots, seed_check, mscheck,
+                        core_wallet, invoice, address_check } = self;
         public(catalog_find); public(home_find); public(home_focus);
         public(home_bar_y); public(home_follow); public(ots); public(invoice);
         public(address_check);
         let calc = Holds { typed: tools.as_ref().is_some_and(|t| !t.typed.is_empty()),
                            ..Holds::NOTHING };
-        calc.or(convert.holds()).or(kef_tool.holds()).or(qr_tool.holds())
+        calc.or(convert.holds()).or(kef_tool.holds())
             .or(seed_check.holds()).or(mscheck.holds()).or(core_wallet.holds())
     }
     fn lock(&mut self) {
         let ToolsArea { tools, catalog_find: _, home_find: _, home_focus: _,
-                        home_bar_y: _, home_follow: _, convert, kef_tool, qr_tool,
+                        home_bar_y: _, home_follow: _, convert, kef_tool,
                         ots: _, seed_check, mscheck, core_wallet, invoice: _,
                         address_check: _ } = self;
         *tools = None;
-        convert.lock(); kef_tool.lock(); qr_tool.lock(); seed_check.lock();
+        convert.lock(); kef_tool.lock(); seed_check.lock();
         mscheck.lock(); core_wallet.lock();
     }
 }
@@ -322,12 +321,12 @@ A clear added to `lock_finish` today (`app.lightning.clear()`, a tool's
 `clear()`) is one area's lock written in the wrong place. When the trait
 is built, each such line becomes the body of that area's `lock` and is
 deleted from `lock_finish`; a line that clears a sub-field
-(`app.tools.qr_tool.clear()`) becomes the body of the sub-area's `lock`,
+(`app.tools.kef_tool.clear()`) becomes the body of the sub-area's `lock`,
 reached through its holder's. The same goes for each `holds_secret` an
-area has today (`seeds`, `seed_check`, `kef_tool`, `qr_tool`,
+area has today (`seeds`, `seed_check`, `kef_tool`,
 `core_wallet`, `wallet_backup`'s Krux form): it becomes the area's
-`holds`, widened to everything the area's `lock` wipes (the QR vault
-tool's made code; the Core wallet tool's file).
+`holds`, widened to everything the area's `lock` wipes (the Core
+wallet tool's file).
 
 ## 7. What holds the rule
 
@@ -339,9 +338,7 @@ No test states it: a test does not state a design rule.
 
 - the leak flows that end in Lock, with the scan of every live block
   (`faraday-core/tests/leaks/`, `docs/SECRET-LEAKS.md` §1 point 2, §4);
-- the tests that a lock wipes an area's state: the QR vault tool's
-  (`tests/all/qr_tool.rs`, a lock wipes what was typed, a lock forgets
-  what was opened), own randomness's, the GPG restore's, the sidebar's, the
+- the tests that a lock wipes an area's state: own randomness's, the GPG restore's, the sidebar's, the
   visit's questions, a vault's kept and wiped lines (`tests/all/vault_seal.rs`)
   and Spend from a backup after Lock (`tests/all/spend_backup.rs`);
 - the idle tests for lockable (`tests/all/idle.rs`);

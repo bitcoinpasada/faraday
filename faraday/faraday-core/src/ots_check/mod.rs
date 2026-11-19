@@ -194,6 +194,9 @@ pub struct OtsArea {
     state: Option<OtsState>,
 }
 
+/// Holds nothing a lock wipes: a timestamp proof being checked.
+impl crate::at_lock::Public for OtsArea {}
+
 impl OtsArea {
     /// The state, while the tool is open.
     pub fn state(&self) -> Option<&OtsState> {

@@ -111,9 +111,10 @@ impl Faraday {
 }
 
 impl Faraday {
-    /// Whether anything secret is in memory: a key, or an open vault.
+    /// Whether anything secret is kept in memory: a key, or an open vault
+    /// (`docs/AT-LOCK.md`).
     pub fn holds_secret(&self) -> bool {
-        self.session.keys.holds_secret() || !self.vaults.open.is_empty()
+        self.holds().kept
     }
 
     /// Costs a parse of each key's words. The session's keys and wallets

@@ -1409,6 +1409,9 @@ pub(crate) struct CompactArea {
     about_open: Option<(Screen, u8)>,
 }
 
+/// Holds nothing a lock wipes: the small panel's layout.
+impl crate::at_lock::Public for CompactArea {}
+
 impl CompactArea {
     /// The walk-through shown: the screen, and the step's place.
     pub(crate) fn about_open(&self) -> Option<(Screen, u8)> {

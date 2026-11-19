@@ -1591,3 +1591,13 @@ pub(crate) fn open_tile(app: &mut Faraday) {
         app.screen = Screen::Decode;
     }
 }
+
+// A decoded transaction is public; a lock drops the check under way.
+impl crate::at_lock::AtLock for DecodeArea {
+    fn holds(&self) -> crate::at_lock::Holds {
+        crate::at_lock::Holds::NOTHING
+    }
+    fn lock(&mut self) {
+        self.clear_check();
+    }
+}

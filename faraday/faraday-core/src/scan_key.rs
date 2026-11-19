@@ -2602,3 +2602,24 @@ fn ur_item(
         }
     })
 }
+
+// What the camera read and keeps.
+impl crate::at_lock::AtLock for Camera {
+    fn holds(&self) -> crate::at_lock::Holds {
+        crate::at_lock::Holds::typed(
+            // A setup code carried to Unlock.
+            self.holds_carried()
+            // A read card's code waits under whatever sheet came over it.
+                || self.holds_card_secret()
+            // A transfer in parts kept after the camera closed; it cannot be
+            // classed, so it counts.
+                || self.holds_parts(),
+        )
+    }
+    fn lock(&mut self) {
+        self.clear_kept();
+        if let Some(s) = self.scan.as_mut() {
+            s.card = None;
+        }
+    }
+}

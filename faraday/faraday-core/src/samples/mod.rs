@@ -624,6 +624,12 @@ pub struct SamplesArea {
     krux_next: bool,
 }
 
+/// Holds nothing a lock wipes: which sample is shown.
+impl crate::at_lock::Public for SamplesArea {}
+
+/// The samples are built in and public.
+impl crate::at_lock::Public for &'static Samples {}
+
 impl SamplesArea {
     /// Whether the seed scanner's next Sample press gives the Krux code.
     pub(crate) fn krux_next(&self) -> bool {

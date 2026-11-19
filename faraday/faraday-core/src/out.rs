@@ -26,6 +26,9 @@ pub(crate) struct Out {
     pub(crate) toast_at: Option<u64>,
 }
 
+/// Holds nothing a lock wipes: the commands, taken by the shell every frame, and the toast.
+impl crate::at_lock::Public for Out {}
+
 impl Out {
     pub(crate) fn new() -> Self {
         Self {

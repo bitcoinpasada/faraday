@@ -83,6 +83,9 @@ pub(crate) struct Fade {
     marks: crate::leaks::Marks,
 }
 
+/// Holds nothing a lock wipes: the fade's timing.
+impl crate::at_lock::Public for Fade {}
+
 impl Fade {
     /// How far through the fade under way the blend is, 0 to 1, and
     /// whether the fade is over: a change of theme is eased over

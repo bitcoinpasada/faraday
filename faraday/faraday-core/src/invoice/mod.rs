@@ -79,6 +79,9 @@ pub(crate) struct InvoiceArea {
     state: Option<InvoiceState>,
 }
 
+/// Holds nothing a lock wipes: a Lightning invoice typed, public.
+impl crate::at_lock::Public for InvoiceArea {}
+
 impl InvoiceArea {
     /// The screen's state, while it is open.
     pub(crate) fn state(&self) -> Option<&InvoiceState> {

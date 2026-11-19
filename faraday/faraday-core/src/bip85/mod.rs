@@ -778,3 +778,13 @@ impl crate::trail::StepFlow for Bip85Steps {
         one.then_some(crate::Action::PNext)
     }
 }
+
+// A BIP-85 child.
+impl crate::at_lock::AtLock for Bip85Area {
+    fn holds(&self) -> crate::at_lock::Holds {
+        crate::at_lock::Holds::typed(self.held.is_some())
+    }
+    fn lock(&mut self) {
+        self.clear();
+    }
+}

@@ -208,6 +208,9 @@ pub(crate) struct StickArea {
     attached: bool,
 }
 
+/// Holds nothing a lock wipes: the stick's status; its files are the Inbox's and the Outbox's.
+impl crate::at_lock::Public for StickArea {}
+
 impl std::ops::Deref for StickArea {
     type Target = Vec<StickInfo>;
     fn deref(&self) -> &Vec<StickInfo> {

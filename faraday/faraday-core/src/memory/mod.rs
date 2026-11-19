@@ -150,6 +150,9 @@ pub(crate) struct MemoryArea {
     checked_wallets: Vec<String>,
 }
 
+/// Holds nothing a lock wipes: the public nonces and amounts signed; its entries must reach a vault, so a lock keeps them.
+impl crate::at_lock::Public for MemoryArea {}
+
 impl Default for MemoryArea {
     fn default() -> Self {
         MemoryArea {

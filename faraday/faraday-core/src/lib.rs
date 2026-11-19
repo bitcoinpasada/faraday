@@ -129,6 +129,7 @@
 
 // The shell's protocol and the app's types: storage, version, actions, QR view, receipt, state.
 mod action;
+mod at_lock;
 pub mod address_check;
 mod address_find;
 mod qr_view;
@@ -254,6 +255,8 @@ pub mod tools;
 pub mod wordlist;
 
 pub use action::Action;
+#[cfg(feature = "testkit")]
+pub use at_lock::Area;
 pub use compact::OskPress;
 pub use create::CreateState;
 pub use decode::DecodeState;
@@ -411,6 +414,9 @@ pub enum Screen {
     BackupFlow,
 }
 
+/// Holds nothing a lock wipes: which screen is up.
+impl crate::at_lock::Public for Screen {}
+
 /// A screen and the sheet over it, if any.
 type ScreenKey = (Screen, Option<Sheet>);
 /// A scrolled region: the screen and sheet, and which of their regions.
@@ -433,6 +439,9 @@ struct Disclosed {
     /// The change is under way.
     moving: bool,
 }
+
+/// Holds nothing a lock wipes: which notice was read.
+impl crate::at_lock::Public for Disclosed {}
 
 /// A file named as Faraday names a seed it writes out: its words, its SeedQR, a BIP-85 child.
 fn seed_by_name(name: &str) -> bool {
@@ -612,6 +621,9 @@ pub enum Sheet {
     /// **Restore a GPG key**: the public keys in Files.
     GpgRestore,
 }
+
+/// Holds nothing a lock wipes: which sheet is up.
+impl crate::at_lock::Public for Sheet {}
 
 pub(crate) use picture::{picture_names, picture_payloads};
 
@@ -1062,6 +1074,10 @@ enum Later {
     Key(KeyIn),
     Vault(vault::Work, bool),
 }
+
+/// Holds nothing a lock wipes: a key press or a vault's work waiting for
+/// the tick after a frame; what it acts on is held by its area.
+impl at_lock::Public for Later {}
 
 pub use inbox::file_stem;
 pub(crate) use inbox::{result_stem, stem};

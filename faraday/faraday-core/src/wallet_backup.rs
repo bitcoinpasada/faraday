@@ -4474,6 +4474,17 @@ impl Faraday {
     }
 }
 
+// The checklist's seed on show and its Krux code form.
+impl crate::at_lock::AtLock for WalletBackupArea {
+    fn holds(&self) -> crate::at_lock::Holds {
+        crate::at_lock::Holds::typed(self.kef_holds_secret() || self.shown.is_some())
+    }
+    fn lock(&mut self) {
+        self.close();
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -504,6 +504,9 @@ pub(crate) struct Scroll {
     visit_in: f32,
 }
 
+/// Holds nothing a lock wipes: a scroll's motion.
+impl crate::at_lock::Public for Scroll {}
+
 impl Default for Scroll {
     fn default() -> Self {
         let home = ((Screen::Home, None), ui::Slot::Page);

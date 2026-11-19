@@ -657,6 +657,18 @@ impl Faraday {
     }
 }
 
+// Explore's addresses.
+impl crate::at_lock::AtLock for ExploreArea {
+    fn holds(&self) -> crate::at_lock::Holds {
+        // It reads a key of the session's, which counts it.
+        crate::at_lock::Holds::NOTHING
+    }
+    fn lock(&mut self) {
+        self.clear();
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;

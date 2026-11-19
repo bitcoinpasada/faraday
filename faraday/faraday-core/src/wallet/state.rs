@@ -1058,3 +1058,13 @@ impl crate::trail::StepFlow for SpendSteps {
         crate::screens::SPEND_TITLES[usize::from(k)]
     }
 }
+
+// A spend under way.
+impl crate::at_lock::AtLock for WalletsArea {
+    fn holds(&self) -> crate::at_lock::Holds {
+        crate::at_lock::Holds::session(self.spend().is_some())
+    }
+    fn lock(&mut self) {
+        self.clear_spend();
+    }
+}

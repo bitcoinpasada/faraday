@@ -181,6 +181,9 @@ pub(crate) struct AddressCheckArea {
     held_for: Option<usize>,
 }
 
+/// Holds nothing a lock wipes: an address typed, public.
+impl crate::at_lock::Public for AddressCheckArea {}
+
 impl AddressCheckArea {
     /// Keeps the page while wallet `i`'s card is on show.
     pub(crate) fn hold_for(&mut self, i: usize) {

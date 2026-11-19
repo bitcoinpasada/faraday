@@ -711,6 +711,19 @@ pub(super) fn own_name(files: &[Text], n: &str) -> bool {
     })
 }
 
+// A backup flow's restore.
+impl crate::at_lock::AtLock for BackupFlowArea {
+    fn holds(&self) -> crate::at_lock::Holds {
+        // The flows themselves go on across a lock (`lock_flows`); a GPG
+        // restore's typed lines do not.
+        crate::at_lock::Holds::typed(self.restoring.is_some())
+    }
+    fn lock(&mut self) {
+        self.restore_wipe();
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::own_name;

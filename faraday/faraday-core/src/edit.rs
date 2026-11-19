@@ -50,6 +50,9 @@ pub(crate) struct TypingArea {
     pub(crate) hardware_key: bool,
 }
 
+/// Holds nothing a lock wipes: the caret and the fields' places; what is typed is held by the field's area.
+impl crate::at_lock::Public for TypingArea {}
+
 impl TypingArea {
     pub(crate) fn new() -> Self {
         Self {
@@ -804,68 +807,11 @@ impl Faraday {
         })
     }
 
-    /// Whether anything secret is being typed: seed words, a BIP-39 or
-    /// vault passphrase, a prompt's line. A secret sheet for an Inbox file
-    /// on its way to another stick does not count: it holds a copy of
-    /// what the Inbox already holds, and the stick it goes to must stay
-    /// open (`docs/FLOWS.md`).
+    /// Whether anything secret is on its way: typed, rolled, scanned,
+    /// shown or opened in a tool, as every area answers it
+    /// ([`crate::at_lock::AtLock`], `docs/AT-LOCK.md`).
     pub(crate) fn secret_typed(&self) -> bool {
-        // The making on Make a new wallet's Keys card is open from the start
-        // and holds nothing until something is rolled or typed in.
-        self.keygen
-            .state()
-            .is_some_and(|k| !k.on_card || k.entered_any(self.entry.state()))
-            || self.secrets.out().is_some_and(|o| !o.to_visit)
-            || self.lightning.state().is_some()
-            || !self.entry.state().typed.is_empty()
-            || self.entry.state().parts.holds_any()
-            || !self.entry.state().passphrase.is_empty()
-            || !self.entry.state().again.is_empty()
-            || !self.vaults.passphrase.text.is_empty()
-            || self
-                .inbox
-                .potential()
-                .is_some_and(|p| !p.passphrase.is_empty())
-            || self
-                .vaults
-                .prompt
-                .as_ref()
-                .is_some_and(|p| !p.text.text.is_empty())
-            || self.seed_read.holds_secret()
-            || self
-                .tools
-                .core_wallet
-                .state()
-                .is_some_and(crate::core_wallet::tool::CoreWalletState::holds_secret)
-            || self
-                .tools
-                .seed_check
-                .state()
-                .is_some_and(crate::seed_check::SeedState::holds_secret)
-            || self.backup.kef_holds_secret()
-            || self
-                .tools
-                .kef_tool
-                .state()
-                .is_some_and(crate::kef_tool::KefToolState::holds_secret)
-            || self.vaults.create.as_ref().is_some_and(|c| {
-                c.phrases
-                    .iter()
-                    .any(|(a, b)| !a.text.is_empty() || !b.text.is_empty())
-            })
-            // Create a vault's dice rolls: the passphrase they make.
-            || self
-                .vaults
-                .dice
-                .open()
-                .is_some_and(|d| !d.1.text.is_empty())
-            // A setup code carried to Unlock.
-            || self.camera.holds_carried()
-            // A read card's code waits under whatever sheet came over it.
-            || self.camera.holds_card_secret()
-            // A transfer in parts kept after the camera closed; it
-            // cannot be classed, so it counts.
-            || self.camera.holds_parts()
+        self.holds().typed
     }
 
     /// Whether the field typing goes to is one of several lines, where

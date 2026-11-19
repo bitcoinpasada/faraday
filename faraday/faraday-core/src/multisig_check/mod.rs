@@ -701,3 +701,13 @@ impl crate::trail::StepFlow for MsSteps {
         screen::TITLES[usize::from(k)]
     }
 }
+
+// A seed answer.
+impl crate::at_lock::AtLock for MsArea {
+    fn holds(&self) -> crate::at_lock::Holds {
+        crate::at_lock::Holds::typed(self.state.as_ref().is_some_and(|m| m.seed.is_some()))
+    }
+    fn lock(&mut self) {
+        self.clear();
+    }
+}

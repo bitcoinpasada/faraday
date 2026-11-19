@@ -2436,3 +2436,13 @@ fn c32_label(key: usize, j: usize) -> Text {
 fn fp_text(f: faraday_bip::keys::Fingerprint) -> Text {
     Text::of(&fp_string(f))
 }
+
+// A passphrase typed to be checked.
+impl crate::at_lock::AtLock for GlanceArea {
+    fn holds(&self) -> crate::at_lock::Holds {
+        crate::at_lock::Holds::typed(!self.work.secret.is_empty())
+    }
+    fn lock(&mut self) {
+        self.work.secret = crate::secret_text::SecretText::default();
+    }
+}

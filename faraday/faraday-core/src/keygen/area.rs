@@ -676,3 +676,20 @@ impl KeyGenArea {
         }
     }
 }
+
+// A key being made.
+impl crate::at_lock::AtLock for KeyGenArea {
+    fn holds(&self) -> crate::at_lock::Holds {
+        // The making on Make a new wallet's Keys card is open from the start
+        // and holds nothing until something is rolled or typed in; what is
+        // typed in the entry is the entry's to answer.
+        crate::at_lock::Holds::typed(
+            self.state
+                .as_ref()
+                .is_some_and(|k| !k.on_card || k.entered_own()),
+        )
+    }
+    fn lock(&mut self) {
+        self.forget();
+    }
+}

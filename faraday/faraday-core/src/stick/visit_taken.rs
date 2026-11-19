@@ -2155,6 +2155,17 @@ impl Faraday {
     }
 }
 
+// A visit's files are the Inbox's and the Outbox's; a vault write waiting for its name's answer is not kept.
+impl crate::at_lock::AtLock for VisitArea {
+    fn holds(&self) -> crate::at_lock::Holds {
+        crate::at_lock::Holds::NOTHING
+    }
+    fn lock(&mut self) {
+        self.name_taken_clear();
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
     #[test]

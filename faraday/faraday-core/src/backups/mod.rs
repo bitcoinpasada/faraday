@@ -539,6 +539,9 @@ pub(crate) struct BackupsArea {
     undated: Vec<Held>,
 }
 
+/// Holds nothing a lock wipes: the backup list's public records.
+impl crate::at_lock::Public for BackupsArea {}
+
 /// The copy of a vault a stick check was made from: the vault's
 /// identifier and the digest of the copy the stick held.
 pub(crate) type CopyRead = ([u8; 32], [u8; 32]);

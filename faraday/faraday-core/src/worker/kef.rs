@@ -179,6 +179,11 @@ impl KefArea {
         self.opened = None;
     }
 
+    /// Whether an opened code's answer waits for a screen to take it.
+    pub(crate) fn holds_opened(&self) -> bool {
+        self.opened.is_some()
+    }
+
     pub(crate) fn sealed_done(&mut self, done: SealDone) {
         self.progress = None;
         self.sealed = Some(done.sealed);

@@ -52,6 +52,9 @@ pub struct Item {
     pub unsigned_txid: Option<faraday_bip::bitcoin::Txid>,
 }
 
+/// Holds nothing a lock wipes: a file of the Inbox or the Outbox, kept across a lock for the fresh process.
+impl crate::at_lock::Public for Item {}
+
 /// Prints the name, the byte count and the `secret` flag, never the bytes:
 /// a file can be a secret.
 impl std::fmt::Debug for Item {

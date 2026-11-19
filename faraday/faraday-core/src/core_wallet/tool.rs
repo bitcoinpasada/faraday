@@ -152,9 +152,9 @@ impl CoreWalletState {
         }
     }
 
-    /// Whether the tool holds a passphrase typed.
+    /// Whether the tool holds a passphrase typed or the file read.
     pub(crate) fn holds_secret(&self) -> bool {
-        !self.passphrase.text.is_empty()
+        !self.passphrase.text.is_empty() || self.file.is_some()
     }
 
     /// Whether the passphrase field has focus.
@@ -822,5 +822,15 @@ impl crate::trail::StepFlow for CoreWalletSteps {
             cstep::FILE => EN.core_wallet_card_file,
             _ => EN.core_wallet_card_result,
         }
+    }
+}
+
+// The passphrase and the file read.
+impl crate::at_lock::AtLock for CoreWalletArea {
+    fn holds(&self) -> crate::at_lock::Holds {
+        crate::at_lock::Holds::typed(self.state().is_some_and(CoreWalletState::holds_secret))
+    }
+    fn lock(&mut self) {
+        self.clear();
     }
 }

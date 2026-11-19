@@ -4155,3 +4155,32 @@ pub(super) fn read_only_line(why: &fv::file::ReadOnly) -> &'static str {
         fv::file::ReadOnly::Ambiguous(_) => EN.vault_read_only_settings,
     }
 }
+
+// Open vaults are kept; what is typed for one is on its way.
+impl crate::at_lock::AtLock for VaultArea {
+    fn holds(&self) -> crate::at_lock::Holds {
+        crate::at_lock::Holds {
+            kept: !self.open.is_empty(),
+            typed: !self.passphrase.text.is_empty()
+                || self.prompt.as_ref().is_some_and(|p| !p.text.text.is_empty())
+                || self.create.as_ref().is_some_and(|c| {
+                    c.phrases
+                        .iter()
+                        .any(|(a, b)| !a.text.is_empty() || !b.text.is_empty())
+                })
+                // Create a vault's dice rolls: the passphrase they make.
+                || self.dice.open().is_some_and(|d| !d.1.text.is_empty()),
+            session: false,
+        }
+    }
+    fn lock(&mut self) {
+        // The open vaults are closed by the seal's end; what the Locked sheet
+        // and the save read (the summaries, what was lost) stays.
+        self.drop_sign_text();
+        let s = &mut self.state;
+        s.passphrase = TextBox::default();
+        s.prompt = None;
+        s.create = None;
+        s.dice.close();
+    }
+}

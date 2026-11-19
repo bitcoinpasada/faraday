@@ -16,7 +16,6 @@ use crate::forms::{self, PHRASE};
 use crate::{arm, finish};
 use faraday_core::convert::ConvertAction as C;
 use faraday_core::kef_tool::{KefToolAction, Pick};
-use faraday_core::qr_tool::{Field, QrToolAction as Q};
 use faraday_core::seed_check::SeedAction as S;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Ask, Faraday, Screen, StorageEvent, catalog, testkit};
@@ -104,15 +103,6 @@ fn core_wallet(app: &mut Faraday) {
     app.press(Action::CoreWallet(
         faraday_core::core_wallet::tool::CoreWalletAction::Focus,
     ));
-    type_text(app, MARKER);
-}
-
-fn qr_tool(app: &mut Faraday) {
-    open_tile(app, "QR vault");
-    app.press(Action::QrTool(Q::Pick(faraday_core::qr_tool::Pick::Note)));
-    type_text(app, MARKER);
-    app.press(Action::QrTool(Q::Next));
-    app.press(Action::QrTool(Q::Focus(Field::Pass)));
     type_text(app, MARKER);
 }
 
@@ -317,7 +307,6 @@ macro_rules! rows {
 rows! {
     krux_code_tool = krux_code;
     bitcoin_core_wallet_tool = core_wallet;
-    qr_tool = qr_tool;
     seed_check = seed_check;
     lightning = lightning;
     vanity = vanity;

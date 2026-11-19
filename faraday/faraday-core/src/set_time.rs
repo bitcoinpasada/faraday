@@ -38,6 +38,9 @@ pub(crate) struct SetTimeArea {
     zones: bool,
 }
 
+/// Holds nothing a lock wipes: the clock being set.
+impl crate::at_lock::Public for SetTimeArea {}
+
 impl Default for SetTimeArea {
     fn default() -> Self {
         SetTimeArea {

@@ -881,6 +881,9 @@ pub(crate) struct GuideArea {
     followed: &'static str,
 }
 
+/// Holds nothing a lock wipes: the guide's page.
+impl crate::at_lock::Public for GuideArea {}
+
 impl GuideArea {
     /// The sheet's state.
     pub(crate) fn state(&self) -> &GuideState {

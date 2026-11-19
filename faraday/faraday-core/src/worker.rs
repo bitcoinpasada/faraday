@@ -550,3 +550,13 @@ fn worker_loop(rx: &Receiver<Asked>, tx: &Sender<Answer>, wake: &Waker) {
         }
     }
 }
+
+// An opened Krux code, held until a screen takes it.
+impl crate::at_lock::AtLock for Worker {
+    fn holds(&self) -> crate::at_lock::Holds {
+        crate::at_lock::Holds::typed(self.kef.holds_opened())
+    }
+    fn lock(&mut self) {
+        self.kef.clear();
+    }
+}

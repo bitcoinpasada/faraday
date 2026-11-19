@@ -319,3 +319,18 @@ impl WordListState {
         self.follow = true;
     }
 }
+
+// The word list.
+impl crate::at_lock::AtLock for WordListArea {
+    fn holds(&self) -> crate::at_lock::Holds {
+        // A word looked up may be one of a seed's.
+        crate::at_lock::Holds::typed(
+            self.state
+                .as_ref()
+                .is_some_and(|w| !w.find.is_empty() || w.mark.is_some()),
+        )
+    }
+    fn lock(&mut self) {
+        self.clear();
+    }
+}

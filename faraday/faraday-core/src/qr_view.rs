@@ -1625,3 +1625,14 @@ impl Faraday {
         }
     }
 }
+
+// The code on show.
+impl crate::at_lock::AtLock for QrArea {
+    fn holds(&self) -> crate::at_lock::Holds {
+        // The code on show comes from a vault or a key, which count it.
+        crate::at_lock::Holds::NOTHING
+    }
+    fn lock(&mut self) {
+        self.close();
+    }
+}

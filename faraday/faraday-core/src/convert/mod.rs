@@ -1836,3 +1836,18 @@ impl crate::trail::StepFlow for ConvertSteps {
         screen::TITLES[usize::from(k)]
     }
 }
+
+// The value held and what is typed for it.
+impl crate::at_lock::AtLock for ConvertArea {
+    fn holds(&self) -> crate::at_lock::Holds {
+        crate::at_lock::Holds::typed(
+            self.held.is_some()
+                || self.shown_text.is_some()
+                || self.check.is_some()
+                || !self.set_typed.is_empty(),
+        )
+    }
+    fn lock(&mut self) {
+        self.clear();
+    }
+}

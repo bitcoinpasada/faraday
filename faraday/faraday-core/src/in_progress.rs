@@ -68,6 +68,9 @@ pub(crate) struct InProgress {
     begun: Vec<(Going, Screen)>,
 }
 
+/// Holds nothing a lock wipes: which flows were begun, by screen.
+impl crate::at_lock::Public for InProgress {}
+
 impl InProgress {
     /// Where flow `g` stands in the order begun; `usize::MAX` for one not
     /// noted yet (a flow kept across a lock, before the first press).

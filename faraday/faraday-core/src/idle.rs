@@ -37,6 +37,9 @@ pub(crate) struct Idle {
     under: Option<crate::Sheet>,
 }
 
+/// Holds nothing a lock wipes: the idle timers and the sheet the warning came over.
+impl crate::at_lock::Public for Idle {}
+
 impl Idle {
     pub(crate) fn new() -> Self {
         Self {
@@ -150,7 +153,8 @@ pub(crate) fn lock_at(lock_min: u16) -> Option<(u64, u64)> {
 
 impl Faraday {
     pub(crate) fn note_secrets(&mut self) {
-        if self.holds_secret() || self.secret_typed() {
+        let h = self.holds();
+        if h.kept || h.typed {
             self.tainted = true;
         }
     }
@@ -171,40 +175,14 @@ impl Faraday {
     /// [`Faraday::clean`] without noting anything: whether this process has
     /// held or typed no secret, as the screen draws it.
     pub(crate) fn clean_now(&self) -> bool {
-        !self.tainted && !self.camera_on() && !self.holds_secret() && !self.secret_typed()
-    }
-
-    /// Whether a tool holds something typed that is secret.
-    fn tools_hold_secret(&self) -> bool {
-        self.tools
-            .core_wallet
-            .state()
-            .is_some_and(crate::core_wallet::tool::CoreWalletState::holds_secret)
-            || self
-                .tools
-                .seed_check
-                .state()
-                .is_some_and(crate::seed_check::SeedState::holds_secret)
-            || self
-                .tools
-                .kef_tool
-                .state()
-                .is_some_and(crate::kef_tool::KefToolState::holds_secret)
-            || self
-                .tools
-                .qr_tool
-                .state()
-                .is_some_and(crate::qr_tool::QrToolState::holds_secret)
+        let h = self.holds();
+        !self.tainted && !self.camera_on() && !h.kept && !h.typed
     }
 
     /// Whether locking would wipe anything: a key, a vault, a wallet, a
-    /// spend or a secret typed in a tool.
+    /// spend, or a secret on its way in any area (`docs/AT-LOCK.md`).
     pub(crate) fn lockable(&self) -> bool {
-        self.holds_secret()
-            || self.tools_hold_secret()
-            || !self.vaults.open.is_empty()
-            || !self.session.wallets.is_empty()
-            || self.wallets.spend().is_some()
+        self.holds().any()
     }
 
     /// Puts the idle warning away: the sheet it came over comes back,

@@ -16,6 +16,9 @@ pub enum SecureBootAtStart {
     On,
 }
 
+/// Holds nothing a lock wipes: Secure Boot's state at start.
+impl crate::at_lock::Public for SecureBootAtStart {}
+
 /// Where the byte is in the boot parameters (`struct boot_params`,
 /// `secure_boot` in the x86 boot protocol).
 const SECURE_BOOT_OFFSET: usize = 0x1ec;
