@@ -156,23 +156,108 @@ fn holds_extended_private_key(text: &str) -> bool {
     })
 }
 
-/// Costs what `parse` costs in each of the ten lists, plus one scan of the text for an extended
-/// private key: at most 111 bytes compared at each position, so linear in
-/// the text's length (by its loop, not timed). Whether scanned text is a secret, and
-/// which: a seed's words, an extended private key, with or without its
-/// origin, a silent payments spend key, or a WIF key (a base58 checksum).
+/// The lists other than English that hold `word`, as (the list's place in
+/// `Language::ALL`, the word's index), the word read as the list spells it
+/// (decomposed, or composed as it is read) and in any case. Costs one hash
+/// lookup for all lists at once (the index is built once, on first use,
+/// from the published lists). Empty for a word on no list, and for one
+/// longer than any listed word.
+pub fn other_list_entries(word: &str) -> &'static [(u8, u16)] {
+    use std::collections::HashMap;
+    use std::hash::{BuildHasherDefault, Hasher};
+    use std::sync::OnceLock;
+    /// FNV-1a: the keys are the published lists' words, fixed, and a
+    /// lookup is made for every word of a text read, so it is kept short.
+    #[derive(Default)]
+    struct Fnv(u64);
+    impl Hasher for Fnv {
+        fn finish(&self) -> u64 {
+            self.0
+        }
+        fn write(&mut self, bytes: &[u8]) {
+            let mut h = if self.0 == 0 {
+                0xcbf2_9ce4_8422_2325
+            } else {
+                self.0
+            };
+            for &b in bytes {
+                h = (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3);
+            }
+            self.0 = h;
+        }
+    }
+    type Index = HashMap<&'static str, Vec<(u8, u16)>, BuildHasherDefault<Fnv>>;
+    static INDEX: OnceLock<Index> = OnceLock::new();
+    let index = INDEX.get_or_init(|| {
+        let mut m = Index::with_capacity_and_hasher(32768, Default::default());
+        for (at, &l) in Language::ALL.iter().enumerate() {
+            if l == Language::English {
+                continue;
+            }
+            for i in 0..2048u16 {
+                for w in [l.word_nfkd(i), l.word_display(i)] {
+                    let e = m.entry(w).or_default();
+                    if !e.contains(&(at as u8, i)) {
+                        e.push((at as u8, i));
+                    }
+                }
+            }
+        }
+        m
+    });
+    // The word in lower case, in a buffer on the stack.
+    let mut key = [0u8; 64];
+    let mut n = 0;
+    if word.len() <= key.len() && word.is_ascii() {
+        n = word.len();
+        key[..n].copy_from_slice(word.as_bytes());
+        key[..n].make_ascii_lowercase();
+    } else {
+        for c in word.chars().flat_map(char::to_lowercase) {
+            if n + c.len_utf8() > key.len() {
+                return &[];
+            }
+            n += c.encode_utf8(&mut key[n..]).len();
+        }
+    }
+    match std::str::from_utf8(&key[..n]) {
+        Ok(k) => index.get(k).map_or(&[], Vec::as_slice),
+        Err(_) => &[],
+    }
+}
+
+/// Costs a parse in English and in each other list that holds at least
+/// half of the `words` words of `t`. Whether `t` is a mnemonic in any list.
 #[expect(
     clippy::disallowed_methods,
     reason = "reads text as it arrives and keeps none of it (docs/KEYS.md section 2): faraday-keys depends on this crate"
 )]
+fn words_in_any_list(c: &Compute, t: &str, words: usize) -> bool {
+    if Mnemonic::parse(c, Language::English, t).is_ok() {
+        return true;
+    }
+    let mut on_list = vec![0usize; Language::ALL.len()];
+    for w in t.split_whitespace() {
+        for e in other_list_entries(w) {
+            on_list[e.0 as usize] += 1;
+        }
+    }
+    Language::ALL
+        .iter()
+        .enumerate()
+        .filter(|&(at, &l)| l != Language::English && on_list[at] * 2 >= words)
+        .any(|(_, &l)| Mnemonic::parse(c, l, t).is_ok())
+}
+
+/// Costs what `parse` costs in English and in each list that holds half the words, plus one scan of the text for an extended
+/// private key: at most 111 bytes compared at each position, so linear in
+/// the text's length (by its loop, not timed). Whether scanned text is a secret, and
+/// which: a seed's words, an extended private key, with or without its
+/// origin, a silent payments spend key, or a WIF key (a base58 checksum).
 pub fn secret_text(c: &Compute, text: &str) -> Option<TextSecret> {
     let t = text.trim();
     let words = t.split_whitespace().count();
-    if matches!(words, 12 | 15 | 18 | 21 | 24)
-        && Language::ALL
-            .iter()
-            .any(|&l| Mnemonic::parse(c, l, t).is_ok())
-    {
+    if matches!(words, 12 | 15 | 18 | 21 | 24) && words_in_any_list(c, t, words) {
         return Some(TextSecret::Words);
     }
     let key = t.split(']').next_back().unwrap_or(t);

@@ -2496,9 +2496,19 @@ fn words_across<'a>(parts: impl Iterator<Item = &'a str>) -> bool {
     // The words of every part, each part read as a file's words are,
     // held in wiping room.
     let parts: Vec<Text> = parts.map(crate::forms::file_words).collect();
-    Language::ALL
-        .iter()
-        .any(|&lang| words_across_in(lang, &parts))
+    // One pass counts, for each list, the words that are on it; a list
+    // with fewer than 12 of them cannot hold a seed and is not walked.
+    let mut on_list = vec![0usize; Language::ALL.len()];
+    for part in &parts {
+        for w in part.as_str().split_whitespace() {
+            for e in crate::forms::other_list_entries(w) {
+                on_list[e.0 as usize] += 1;
+            }
+        }
+    }
+    Language::ALL.iter().enumerate().any(|(at, &lang)| {
+        (lang == Language::English || on_list[at] >= 12) && words_across_in(lang, &parts)
+    })
 }
 
 /// Costs what `words_across` costs for one list. Whether the words in
@@ -2560,16 +2570,30 @@ fn words_across_in(lang: Language, parts: &[Text]) -> bool {
     false
 }
 
-/// Costs a parse of the words in each list. Whether `words` (as
+/// Costs a parse of the words in each list that holds half of them. Whether `words` (as
 /// [`crate::forms::file_words`] gives them) are a seed in any list the
 /// device imports: English as typed, any other as a sentence is parsed.
 fn seed_in_words(c: &Compute, words: &str) -> bool {
-    crate::forms::typed_mnemonic(Language::English, words).is_ok()
-        || (matches!(words.split_whitespace().count(), 12 | 15 | 18 | 21 | 24)
-            && Language::ALL
-                .iter()
-                .filter(|&&l| l != Language::English)
-                .any(|&l| faraday_keys::words::parse(c, l, words).is_ok()))
+    if crate::forms::typed_mnemonic(Language::English, words).is_ok() {
+        return true;
+    }
+    let n = words.split_whitespace().count();
+    if !matches!(n, 12 | 15 | 18 | 21 | 24) {
+        return false;
+    }
+    // One lookup per word counts it for every list; only a list that holds
+    // at least half of the words is parsed.
+    let mut on_list = vec![0usize; Language::ALL.len()];
+    for w in words.split_whitespace() {
+        for e in crate::forms::other_list_entries(w) {
+            on_list[e.0 as usize] += 1;
+        }
+    }
+    Language::ALL
+        .iter()
+        .enumerate()
+        .filter(|&(at, &l)| l != Language::English && on_list[at] * 2 >= n)
+        .any(|(_, &l)| faraday_keys::words::parse(c, l, words).is_ok())
 }
 
 /// Costs what `classify_read` costs. Says what a file holds.
