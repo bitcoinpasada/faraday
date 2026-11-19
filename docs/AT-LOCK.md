@@ -1,8 +1,8 @@
 # What holds a secret: one rule for clean, the idle lock and Lock
 
 **Kind:** Spec
-**Status:** Specified; none of it is built: the clean state, the idle lock's test and Lock's clears are still three lists kept by hand.
-**Open:** the `AtLock` trait, the exhaustive listing of `Faraday` and of each area that holds areas, the three answers derived from it, and the leak tour that walks it (§3 to §7)
+**Status:** Built, but for the leak tour that walks every area by name: the `AtLock` trait and `Public` marker (`faraday-core/src/at_lock.rs`), the exhaustive listing of `Faraday` and of `ToolsArea`, and the clean state, the idle lock's test and Lock's clears derived from it (§4 to §6).
+**Open:** the leak tour that matches on `Area` with no wildcard, so a new area does not compile there until it has a flow (§7); until it is built, the list of places in `faraday-core/tests/leaks/every_place.rs` is the tour.
 
 ## 1. The requirement
 
@@ -21,10 +21,9 @@ statement, and from nothing else:
 - **the lock's clears**: what `lock_finish` (`faraday-core/src/vault/seal.rs`)
   wipes before the process ends.
 
-Today each is a list written by hand: `secret_typed`
-(`faraday-core/src/edit.rs`) and `Faraday::holds_secret`
-(`faraday-core/src/vault/mod.rs`) for clean, `lockable` for the idle lock,
-and the calls in `lock_finish`. §2 shows where they disagree.
+Each was a list written by hand (`secret_typed`, `Faraday::holds_secret`,
+`lockable` and the calls in `lock_finish`); §2 shows where they
+disagreed. Each is now one line over `Faraday::holds()` (§4).
 
 **Why the clears matter though the process ends.** Lock is two steps
 (`docs/SECURITY-MODEL.md`, "What locking wipes"): the application drops
@@ -41,9 +40,11 @@ serves the saved state to a fresh app in the same process
 
 ## 2. The three lists today, field by field
 
-Read from the code at the time of writing. "Clean" is `secret_typed` or
-`holds_secret`; "Lockable" is `lockable`; "Lock" is a call in
-`lock_finish`. A field not named holds nothing secret (layout, settings,
+Read from the code before the rule, when the three were lists by hand;
+the table stays as the field-by-field reading each area's impl was
+written from, and §4 says what each row "to be decided by the area"
+became. "Clean" is `secret_typed` or `holds_secret`; "Lockable" is
+`lockable`; "Lock" is a call in `lock_finish`. A field not named holds nothing secret (layout, settings,
 timers, device status, the guide, search text) or is cleared by all three
 alike.
 
@@ -83,31 +84,16 @@ typed words, or only a tool's state, never warns or locks when idle; on
 the device it powers off at the power-off time instead, and in Faraday
 Demo, which never powers itself off, it stays.
 
-## 3. The two ways, against the requirement
+## 3. The way chosen
 
-**Whole areas set to `Default` in `lock_finish`** (tools, vanity,
-silent, lightning, spend backup, the camera, keeping their few public
-fields). It closes today's gaps in the lock's list, and a field added
-inside one of those areas is cleared without anyone listing it. It does
-not meet the requirement: a new top-level field of `Faraday`, or an area
-not named, passes, and clean and lockable stay lists by hand. It
-answers only the third of §1's answers.
-
-**One trait per area, called from an exhaustive destructuring of
-`Faraday` with no rest pattern** (`let Faraday { canvas, f, …, transfer, … } = self;`
-with no `..`). A new field is a compile error in that pattern until it
-is written there either as an area that answers the trait or as public.
-It meets the requirement only if it recurses: the tools the survey found
-missed (the Krux code tool, the Core wallet tool, the seed check) are
-fields of `ToolsArea`, not of `Faraday`, so **every area that holds
-areas destructures its own struct the same way**. The `Default` reset is
-then the usual body of an area's `lock`, keeping its public fields by
-name, so the first way is the inside of the second, not its rival.
-
-**Recommended: the trait with exhaustive destructuring, recursing into
-every area that holds areas, with the `Default` reset as the body of
-`lock`.** `Faraday` has about ninety fields; the `demo`-only `transfer`
-is written in the pattern under its own `#[cfg(feature = "demo")]`.
+One trait per area, called from an exhaustive destructuring of `Faraday`
+with no rest pattern, so a new field is a compile error until it is
+written there either as an area that answers the trait or as public.
+Every area that holds areas destructures its own struct the same way
+(`ToolsArea` holds the Krux code, Bitcoin Core wallet and seed check
+tools). Resetting an area to its `Default`, keeping its public fields by
+name, is the usual body of its `lock`. The `demo`-only `transfer` is
+written in the pattern under its own `#[cfg(feature = "demo")]`.
 
 ## 4. The trait
 
@@ -125,8 +111,9 @@ pub(crate) struct Holds {
     /// tool. Makes the process not clean; read by the fade as
     /// `secret_typed`.
     pub typed: bool,
-    /// Something a lock wipes that is not secret: a wallet of the
-    /// session, a spend under way.
+    /// Something a lock wipes that is not secret, or not one the process
+    /// is tainted by: a wallet of the session, a spend under way, a file
+    /// the Inbox drops at Lock.
     pub session: bool,
 }
 
@@ -145,7 +132,7 @@ pub(crate) trait AtLock {
     /// What it holds now.
     fn holds(&self) -> Holds;
     /// Lock: everything it holds for the session goes; a public setting
-    /// it keeps across a lock stays.
+    /// it keeps across a lock stays. After it, `holds` answers nothing.
     fn lock(&mut self);
 }
 
@@ -156,62 +143,62 @@ pub(crate) trait Public {}
 impl Public for bool {}
 impl Public for f32 {}
 impl Public for u64 {}
+impl Public for faraday_text::Text {}
 impl<T: Public> Public for Option<T> {}
-impl<T: Public> Public for std::cell::Cell<T> {}
-// … the other plain types the struct holds, each by name.
+impl<T: Public> Public for Vec<T> {}
+impl<T: Public + Copy> Public for std::cell::Cell<T> {}
+// … the other types the struct holds, each by name beside its type.
 
 pub(crate) fn public<T: Public>(_: &T) {}
 ```
 
-The listing of `Faraday`, one for reading and one for the lock. Each is
-compile-checked against the struct; both are written from one macro so
-they cannot classify a field differently:
+The listing of `Faraday`, one for reading (`Faraday::holds`) and one
+for the lock (`Faraday::lock_areas`), both destructuring the struct with
+no rest pattern, is written by one macro, `faraday_areas!`, from one
+list, so they cannot classify a field differently. The same list writes
+`pub enum Area` and `Area::ALL` (under the `testkit` feature, §7). An
+area is written `field => Variant`, since `macro_rules!` cannot change a
+name's case:
 
 ```rust
-macro_rules! faraday_areas {
-    (public: [$($p:ident),* $(,)?], areas: [$($a:ident),* $(,)?],
-     demo: [$($d:ident),* $(,)?]) => {
-        impl Faraday {
-            /// What every area holds.
-            pub(crate) fn holds(&self) -> Holds {
-                let Faraday { $($p,)* $($a,)* #[cfg(feature = "demo")] $($d,)* } = self;
-                $( public($p); )*
-                let mut h = Holds::NOTHING;
-                $( h = h.or(AtLock::holds($a)); )*
-                #[cfg(feature = "demo")]
-                $( h = h.or(AtLock::holds($d)); )*
-                h
-            }
-            /// Lock's clears, area by area.
-            pub(crate) fn lock_areas(&mut self) {
-                let Faraday { $($p,)* $($a,)* #[cfg(feature = "demo")] $($d,)* } = self;
-                $( let _ = $p; )*
-                $( AtLock::lock($a); )*
-                #[cfg(feature = "demo")]
-                $( AtLock::lock($d); )*
-            }
-        }
-    };
-}
-
 faraday_areas! {
     public: [f, w, h, compact, pointer, out, clock_drawn, restart, restart_computer,
              last_display, settings, set_time, idle, tainted, inputs, now_ms, screen,
-             sheet, sheet_offset, panel, stick, pin_h, list_offset, glance, scroll,
-             guide, typing, trail, disclosed, fade, selftest, online, seed_line, held,
+             sheet, sheet_offset, panel, stick, pin_h, list_offset, scroll, guide,
+             typing, trail, disclosed, fade, selftest, online, seed_line, held,
              shell_sticks, clipboard, medium, secure_boot, maker, maker_family,
-             maker_model, devices, next_mode, samples, sample_area, in_progress],
-    areas: [canvas, drawing, kept, vaults, memory, backups_area, fresh, session,
-            decode, inbox, outbox, entry, wallets, visit, import, qr, spend_backup,
-            vanity, backup, message, create, restore, keygen, wordlist, bip85, silent,
-            explore, lightning, tools, secrets, camera, seed_read, later, worker, flows],
-    demo: [transfer],
+             maker_model, devices, next_mode, samples, sample_area, in_progress,
+             outbox, memory, backups_area, silent, later],
+    areas: [canvas => Canvas, drawing => Drawing, kept => Kept, vaults => Vaults,
+            fresh => Fresh, session => Session, decode => Decode, inbox => Inbox,
+            entry => Entry, wallets => Wallets, visit => Visit, import => Import,
+            glance => Glance, qr => Qr, spend_backup => SpendBackup, vanity => Vanity,
+            backup => Backup, message => Message, create => Create, restore => Restore,
+            keygen => KeyGen, wordlist => WordList, bip85 => Bip85, explore => Explore,
+            lightning => Lightning, tools => Tools, secrets => Secrets, camera => Camera,
+            seed_read => SeedRead, worker => Worker, flows => Flows],
+    demo: [transfer => Transfer],
 }
 ```
 
-The split between `public` and `areas` above is §2's reading; each area
-named "to be decided by the area" in §2 is decided where its impl is
-written, and moves to `public` only with a `Public` impl beside its type.
+Where §2 left a row "to be decided by the area", the impl decides it,
+failing closed (unsure means it counts and Lock clears it), except where
+counting would keep every session unclean:
+
+| Area | What it counts, and what its lock does | Why |
+|---|---|---|
+| `fresh` (own randomness, the session's seed) | session (lockable) only while the person has added randomness; Lock wipes it and the seed | the seed and pool fill in ordinary use; randomness added is mixed with the system's and is not a secret on its own |
+| `vanity` (the address search) | typed while open; Lock clears it | a find names a passphrase |
+| `drawing`, `kept`, `canvas` (what frames keep) | nothing; Lock empties `drawing`, drops `kept`'s charts and makes `canvas` forget its glyphs | always filled; `kept` keeps the public descriptions the save reads after the lock |
+| `memory` (nonces and signed amounts) | public | the nonce history must reach a vault: wiping it would let a nonce be reused |
+| `visit` (a stick visit) | nothing; Lock drops the name question | its files are the Inbox's and Outbox's |
+| `outbox`, `later`, `backups_area`, `silent` | public | kept for the fresh process by design, or holding nothing secret |
+| `worker` (background jobs) | typed while an opened Krux code waits for a screen to take it; Lock drops it | |
+| `transfer` (Faraday Demo only) | nothing; Lock empties its text | it is the online side, holding nothing of the device's |
+| `glance` (the PassCheck sheet) | typed while its passphrase is typed; Lock wipes it | it holds a typed passphrase, so it is an area, not public |
+| `import` (what the boot stick brought) | session; Lock drops it | |
+| `explore`, `qr`, `decode`, `message` | nothing; Lock clears them | they read a key or vault that already counts, or public contents |
+| `wordlist` | typed while a word is searched for or marked | it may be a word of a seed |
 
 The three answers, each one line:
 
@@ -219,11 +206,11 @@ The three answers, each one line:
 pub fn holds_secret(&self) -> bool { self.holds().kept }
 pub(crate) fn secret_typed(&self) -> bool { self.holds().typed }
 pub(crate) fn lockable(&self) -> bool { self.holds().any() }
-// clean_now: !tainted && !camera_on() && !(kept || typed); camera_on is
-// the camera's own `typed` once the camera area answers it: a frame
-// on the Scan sheet, its parts half read, a code carried to Unlock and a
-// read card waiting under another sheet all count, whether or not the
-// Scan sheet is up.
+// clean_now: !tainted && !camera_on() && !(kept || typed). The camera
+// area's `typed` counts its parts half read, a code carried to Unlock and
+// a read card waiting under another sheet; camera_on stays beside it for
+// a frame on the Scan sheet, since it reads the sheet and Faraday Demo's
+// Transfer, which are not the camera area's.
 ```
 
 Where one area's answer needs another's (Make a new wallet's Keys card
@@ -232,13 +219,14 @@ that owns the fact answers it: `entry` answers for what is typed in it,
 `keygen` for its own rolls and card. No answer reads a sibling.
 
 **What changes for a person.** Clean and lockable, derived from every
-area, count what §2 marks **no** today: Convert a seed, a new vault's
+area, count what §2 marks **no**: Convert a seed, a new vault's
 passphrases, restore's shares, a BIP-85 child, the calculator's typed
 line, Spend from a backup. A stick is held back while one of them holds
 a secret, and an idle session with only typed words or a tool's secret
 warns and locks at the lock time rather than powering off at the
 power-off time (and in Faraday Demo it locks rather than staying). This
-is the intended change: it is what the requirement asks.
+is the intended change: it is what the requirement asks (owner,
+2026-11-19).
 
 ## 5. Three areas in full
 
@@ -291,42 +279,42 @@ What is public or encrypted stays for the fresh process; the rest goes:
 impl AtLock for InboxArea {
     fn holds(&self) -> Holds {
         Holds {
-            typed: self.potential().is_some()
-                || self.files().iter().any(|i| i.dropped_at_lock()),
-            session: false,
             kept: false,
+            // A seed being made a wallet: its passphrase is typed.
+            typed: self.potential().is_some_and(|p| !p.passphrase.is_empty()),
+            // A seed file read from a stick: Lock drops it.
+            session: self.potential().is_some()
+                || self.files().iter().any(|i| i.dropped_at_lock()),
         }
     }
     fn lock(&mut self) {
         // A picture goes as what its codes hold, and as Other when none read.
         self.retain(|i| !i.dropped_at_lock());
         self.clear_potential();
-        self.hide_secrets();
     }
 }
 ```
 
-Each counts the Inbox's secret files as typed: today they taint the
-process when read and are dropped at Lock, and the Inbox answers both.
+A seed file read from a stick counts toward the idle lock and is dropped
+at Lock, but it does not make the process unclean: reading one does not
+taint the process, and counting it as typed would hold back the stick it
+is being copied to, which copying a file between sticks needs open
+(`docs/FLOWS.md`, the visit's own exemption). A potential's typed
+passphrase counts as typed.
 
-## 6. `lock_finish` after the rule, and the clears being added now
+## 6. `lock_finish` after the rule
 
-`lock_finish` keeps, in its order, the steps that are not one area's:
-the boot import's and visit's wipes where they read another area, the
-signing text and `more::drop_gone` before `save_boxes_for_lock`, the
-wallet list marked changed, then `restart` and `Command::Exit` last. In
-place of its list of area calls it calls `self.lock_areas()`.
-
-A clear added to `lock_finish` today (`app.lightning.clear()`, a tool's
-`clear()`) is one area's lock written in the wrong place. When the trait
-is built, each such line becomes the body of that area's `lock` and is
-deleted from `lock_finish`; a line that clears a sub-field
-(`app.tools.kef_tool.clear()`) becomes the body of the sub-area's `lock`,
-reached through its holder's. The same goes for each `holds_secret` an
-area has today (`seeds`, `seed_check`, `kef_tool`,
-`core_wallet`, `wallet_backup`'s Krux form): it becomes the area's
-`holds`, widened to everything the area's `lock` wipes (the Core
-wallet tool's file).
+`lock_finish` (`faraday-core/src/vault/seal.rs`) runs after the lock's
+last seal, so its draws from own randomness come before the session's
+seed is wiped. In order: `self.lock_areas()`; in a debug build, a check
+that no area still holds what it reported (so every lock in the tests
+checks each area's `lock` against its `holds`); the wallet list marked
+changed; `more::drop_gone`; `save_boxes_for_lock`; then `restart` and
+`Command::Exit` last. Nothing else in it is one area's: an area's clear
+is the body of that area's `lock`, and a sub-area's (a tool's) is
+reached through its holder's. Each `holds_secret` an area had (`seeds`,
+Krux form) is that area's `holds`, widened to everything its `lock`
+wipes (the QR vault tool's made code; the Core wallet tool's file).
 
 ## 7. What holds the rule
 
@@ -347,7 +335,10 @@ No test states it: a test does not state a design rule.
   clean process (`tests/all/backup_flow.rs`), the visit's write on a clean
   visit (`tests/all/visit.rs`).
 
-**The leak tour.** The macro also writes `pub enum Area { … }`, one name
+**The leak tour, the one part not built.** Until it is, the tour of
+`faraday-core/tests/leaks/every_place.rs` plants a secret in each place
+that can hold a typed or scanned one, from a list, and runs both locks.
+The macro also writes `pub enum Area { … }`, one name
 per field in `areas`, and `Area::ALL` (under the `testkit` feature). A
 leak test, `faraday-core/tests/leaks/areas.rs`, matches on `Area` with no
 wildcard arm, so a new area does not compile there until it has a flow:

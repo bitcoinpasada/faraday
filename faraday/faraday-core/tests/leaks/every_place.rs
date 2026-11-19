@@ -21,6 +21,7 @@ use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Ask, Faraday, Screen, StorageEvent, catalog, testkit};
 use faraday_leak_scan::Form;
 use faraday_shell_api::{App, EntropyBytes, Event, Key};
+use zeroize::Zeroizing;
 
 /// Typed into the places that take any text.
 const MARKER: &str = "Obsidian-Falcon-Truffle-6620-Juniper-Walrus-Cinder-81";
@@ -31,11 +32,15 @@ const WIF: &str = "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn";
 /// BIP 93's vector 2, share A.
 const CODEX32_A: &str = "ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm";
 
-/// The first part of the test seed's words as a BBQr transfer.
-fn first_part() -> String {
-    let parts = faraday_qr::bbqr::encode('U', PHRASE.as_bytes(), 60).expect("parts");
+/// The bytes of the test seed's words a BBQr part holds.
+const PART_BYTES: usize = 60;
+
+/// The first part of the test seed's words as a BBQr transfer, wiped
+/// when dropped, as a scanner's own copy would be.
+fn first_part() -> Zeroizing<String> {
+    let parts = faraday_qr::bbqr::encode('U', PHRASE.as_bytes(), PART_BYTES).expect("parts");
     assert!(parts.len() > 1, "the transfer is in parts");
-    String::from(parts[0].as_str())
+    Zeroizing::new(String::from(parts[0].as_str()))
 }
 
 /// Every form of every test secret the rows plant.
@@ -58,10 +63,15 @@ fn all_forms() -> Vec<Form> {
         ("codex32 share A after ms1", CODEX32_A[3..].to_string()),
         ("SeedQR digits", forms::seedqr_text()),
         ("TOTP setup code", forms::TOTP_URI.to_string()),
-        ("BBQr part", first_part()),
+        ("BBQr part", String::from(first_part().as_str())),
     ] {
         f.push(Form::new(name, text.into_bytes()));
     }
+    // What a part kept while the rest is awaited holds: its data read.
+    f.push(Form::new(
+        "BBQr part's data",
+        PHRASE.as_bytes()[..PART_BYTES].to_vec(),
+    ));
     f
 }
 
@@ -198,7 +208,7 @@ fn totp_carried_to_unlock(app: &mut Faraday) {
 fn card_under_pull_sheet(app: &mut Faraday) {
     app.press(Action::Nav(Screen::SpendBackup));
     app.press(Action::ScanFor(Ask::SpendPsbt));
-    read(app, forms::seedqr_text().as_bytes());
+    read(app, Zeroizing::new(forms::seedqr_text()).as_bytes());
     assert!(app.scan().is_some_and(|s| s.card.is_some()), "no card");
     app.storage(StorageEvent::Sticks(vec![
         Disk::empty("s1", "STICK").info(),
@@ -231,6 +241,8 @@ fn bip85_child(app: &mut Faraday) {
     app.press(Action::PNext);
     app.event(Event::Key(Key::Char('7')));
     app.press(Action::PNext);
+    app.press(Action::PShow);
+    let _ = app.frame();
 }
 
 fn spend_from_a_backup(app: &mut Faraday) {
@@ -238,6 +250,15 @@ fn spend_from_a_backup(app: &mut Faraday) {
     app.press(Action::Entry(None));
     type_text(app, PHRASE);
     app.press(Action::EntryAdd);
+}
+
+/// How the row's secret is counted while it is held.
+#[derive(Clone, Copy)]
+enum Held {
+    /// On its way: typed, scanned or shown in a tool.
+    Typed,
+    /// A key the session keeps.
+    Kept,
 }
 
 /// How the row's lock goes.
@@ -248,12 +269,15 @@ enum Lock {
     Ordinary,
 }
 
-fn run(name: &str, plant: fn(&mut Faraday), how: Lock) {
+fn run(name: &str, plant: fn(&mut Faraday), held: Held, how: Lock) {
     let forms = all_forms();
     let armed = arm(&forms);
     let mut app = testkit::started();
     plant(&mut app);
-    assert!(testkit::secret_typed(&app), "{name}: not counted as typed");
+    match held {
+        Held::Typed => assert!(testkit::secret_typed(&app), "{name}: not counted as typed"),
+        Held::Kept => assert!(app.holds_secret(), "{name}: not counted as kept"),
+    }
     assert!(!app.clean(), "{name}: counted clean while it is held");
     let planted = armed.scan_live();
     assert!(!planted.is_empty(), "{name}: the plant holds no form");
@@ -282,22 +306,33 @@ fn run(name: &str, plant: fn(&mut Faraday), how: Lock) {
     }
 }
 
-/// The rows: (name, plant function). Two tests a row, so a row that
+/// A row's [`Held`]: typed unless it says otherwise.
+macro_rules! held {
+    () => {
+        Held::Typed
+    };
+    ($h:ident) => {
+        Held::$h
+    };
+}
+
+/// The rows: (name, plant function, and `(Kept)` for a key the session
+/// keeps). Two tests a row, so a row that
 /// fails alone can be ignored alone.
 macro_rules! rows {
-    ($($(#[$m:meta])* $id:ident = $plant:ident;)*) => {
+    ($($(#[$m:meta])* $id:ident = $plant:ident $(($held:ident))?;)*) => {
         $(
             mod $id {
                 use super::*;
                 $(#[$m])*
                 #[test]
                 fn a_lock_whose_save_failed_leaves_no_copy_in_either_app() {
-                    run(stringify!($id), $plant, Lock::Unkept);
+                    run(stringify!($id), $plant, held!($($held)?), Lock::Unkept);
                 }
                 $(#[$m])*
                 #[test]
                 fn an_ordinary_lock_leaves_no_copy() {
-                    run(stringify!($id), $plant, Lock::Ordinary);
+                    run(stringify!($id), $plant, held!($($held)?), Lock::Ordinary);
                 }
             }
         )*
@@ -311,20 +346,15 @@ rows! {
     lightning = lightning;
     vanity = vanity;
     sweep = sweep;
-    #[ignore = "counted from the one rule, not yet built"]
     calculator = calculator;
     restore_typed_words = restore_typed_words;
     codex32_part = codex32_part;
-    #[ignore = "counted from the one rule, not yet built"]
     new_vault_passphrases = vault_passphrases;
-    #[ignore = "the dice rolls of Create a vault stay in a live block of 512 bytes after Lock, in the old app"]
     new_vault_dice_rolls = vault_dice;
     totp_setup_code_carried_to_unlock = totp_carried_to_unlock;
     read_card_under_the_pull_sheet = card_under_pull_sheet;
     transfer_kept_in_parts = transfer_in_parts;
-    #[ignore = "counted from the one rule, not yet built"]
     convert_a_seed = convert_a_seed;
-    #[ignore = "counted from the one rule, not yet built"]
     bip85_child = bip85_child;
-    spend_from_a_backup = spend_from_a_backup;
+    spend_from_a_backup = spend_from_a_backup(Kept);
 }

@@ -791,7 +791,10 @@ all** above them →
 **Lock** (sidebar, a vault's page, or 30 minutes idle at first, set in
 Settings, F58; a warning comes up to 5 minutes before an idle lock) →
 the lock sheet (decision 28, below) → vaults sealed For the stick → the
-Wallets session wiped → app restarts → Unlock. The idle power-off comes
+Wallets session wiped → app restarts → Unlock. The idle lock comes while
+anything a lock wipes is held (`docs/AT-LOCK.md`): a key, an open vault,
+a wallet's spend, or a secret typed, scanned or shown in a tool, in
+Faraday Demo too. The idle power-off comes
 60 minutes after the last input at first (F58), counted across the lock,
 so 30 minutes after an idle lock; it comes only with nothing For the
 stick: with anything there, or a backup flow not finished (decision 59),

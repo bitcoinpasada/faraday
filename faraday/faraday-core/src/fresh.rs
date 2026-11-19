@@ -1052,7 +1052,6 @@ impl crate::at_lock::AtLock for Fresh {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

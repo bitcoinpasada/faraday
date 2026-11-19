@@ -668,7 +668,6 @@ impl crate::at_lock::AtLock for ExploreArea {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

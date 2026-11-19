@@ -824,7 +824,7 @@ impl Faraday {
 // with it (`docs/AT-LOCK.md` §5).
 impl crate::at_lock::AtLock for ToolsArea {
     fn holds(&self) -> crate::at_lock::Holds {
-        use crate::at_lock::{public, AtLock as A, Holds};
+        use crate::at_lock::{AtLock as A, Holds, public};
         let ToolsArea {
             tools,
             catalog_find,

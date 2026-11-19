@@ -1935,12 +1935,14 @@ impl crate::at_lock::AtLock for InboxArea {
     fn holds(&self) -> crate::at_lock::Holds {
         crate::at_lock::Holds {
             kept: false,
-            typed: self.potential.as_ref().is_some_and(|p| !p.passphrase.is_empty()),
+            typed: self
+                .potential
+                .as_ref()
+                .is_some_and(|p| !p.passphrase.is_empty()),
             // A seed file read from a stick does not taint the process: it
             // may be copied to another stick, which must stay open
             // (`docs/FLOWS.md`). A lock drops it.
-            session: self.potential.is_some()
-                || self.files.items.iter().any(Item::dropped_at_lock),
+            session: self.potential.is_some() || self.files.items.iter().any(Item::dropped_at_lock),
         }
     }
     fn lock(&mut self) {

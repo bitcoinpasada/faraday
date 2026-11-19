@@ -2593,9 +2593,11 @@ impl crate::trail::StepFlow for CreateSteps {
 // A new vault's passphrases.
 impl crate::at_lock::AtLock for CreateArea {
     fn holds(&self) -> crate::at_lock::Holds {
-        crate::at_lock::Holds::typed(self.state.as_ref().is_some_and(|c| {
-            !c.pass.is_empty() || !c.pass2.is_empty() || c.before_made.is_some()
-        }))
+        crate::at_lock::Holds::typed(
+            self.state.as_ref().is_some_and(|c| {
+                !c.pass.is_empty() || !c.pass2.is_empty() || c.before_made.is_some()
+            }),
+        )
     }
     fn lock(&mut self) {
         self.clear();

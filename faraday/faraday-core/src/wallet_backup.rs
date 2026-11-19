@@ -4484,7 +4484,6 @@ impl crate::at_lock::AtLock for WalletBackupArea {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

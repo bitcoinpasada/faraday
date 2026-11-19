@@ -2165,7 +2165,6 @@ impl crate::at_lock::AtLock for VisitArea {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     #[test]

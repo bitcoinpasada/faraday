@@ -158,8 +158,8 @@ macro_rules! faraday_areas {
         #[cfg(feature = "testkit")]
         #[derive(Clone, Copy, Debug, PartialEq, Eq)]
         pub enum Area {
-            $( #[doc = concat!("`Faraday::", stringify!($a), "`.")] $v, )*
-            $( #[doc = concat!("`Faraday::", stringify!($d), "`.")] #[cfg(feature = "demo")] $dv, )*
+            $( #[doc = stringify!($a)] $v, )*
+            $( #[doc = stringify!($d)] #[cfg(feature = "demo")] $dv, )*
         }
 
         #[cfg(feature = "testkit")]

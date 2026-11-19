@@ -723,7 +723,6 @@ impl crate::at_lock::AtLock for BackupFlowArea {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::own_name;

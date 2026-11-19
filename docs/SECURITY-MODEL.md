@@ -248,7 +248,12 @@ internal error rather than carrying on.
 - **What locking wipes, and how.** Locking seals every open vault into
   For the stick and then clears memory in two steps:
   1. The application drops every key, seed, passphrase and decrypted
-     record it holds. Each is kept in a type that overwrites its memory
+     record it holds. What it holds is one rule over every area of its
+     state (`docs/AT-LOCK.md`): each area says what it holds and what
+     Lock wipes of it, and a new area does not build until it does. The
+     same answer decides whether the process is clean (a stick handed to
+     the disk process) and whether the idle lock comes: a key, an open
+     vault, or a secret typed, scanned or shown in a tool. Each is kept in a type that overwrites its memory
      with zeros when it is dropped (the `zeroize` crate's volatile
      writes, which the compiler cannot optimise away). Typed words and
      passphrases are kept in a buffer that also wipes the old copy
