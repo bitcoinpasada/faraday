@@ -1989,8 +1989,17 @@ impl PsbtSeen {
     }
 }
 
+/// The most distinct places (`(change, index)`) one input's key origins may
+/// state. A wallet's keys are read as `/<0;1>/*`, so all of an input's
+/// keys are derived at one place of its wallet and a real input states
+/// one; 20 leaves room for stray origins. Past it the input's places are
+/// not read.
+const MAX_INPUT_PLACES: usize = 20;
+
 /// Costs a classify. Input `i`'s spent script, and each `(change, index)`
-/// its key origins state.
+/// its key origins state; no place at all when they state more than
+/// [`MAX_INPUT_PLACES`], so an input stuffed with origins derives nothing
+/// and is matched to no wallet.
 fn input_place(
     inner: &faraday_bip::bitcoin::Psbt,
     i: usize,
@@ -2008,6 +2017,9 @@ fn input_place(
         if n.len() >= 2 {
             let (chain, index) = (n[n.len() - 2], n[n.len() - 1]);
             if chain <= 1 && !places.contains(&(chain == 1, index)) {
+                if places.len() == MAX_INPUT_PLACES {
+                    return Some((spk, Vec::new()));
+                }
                 places.push((chain == 1, index));
             }
         }

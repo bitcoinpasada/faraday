@@ -614,6 +614,44 @@ mod signing {
     }
 
     #[test]
+    fn a_transaction_with_thousands_of_key_origins_on_its_first_input_derives_a_bounded_number_of_scripts()
+     {
+        use faraday_core::work::{Work, since, snapshot};
+        let mut app = unsigned_spend();
+        testkit::steps_before_sign_done(&mut app);
+        app.press(Action::SignHere);
+        let c = testkit::compute();
+        let ordinary = app.spend().unwrap().spend.psbt.clone();
+        let own = app.session.wallet_for(&c, &ordinary);
+        assert!(own.is_some(), "the ordinary spend matches its wallet");
+
+        let mut crafted = ordinary.clone();
+        let input = &mut crafted.inner_mut().inputs[0];
+        let fp = faraday_bip::bitcoin::bip32::Fingerprint::from([9, 9, 9, 9]);
+        let mut x = [0u8; 33];
+        x[0] = 2;
+        let mut n = 0u32;
+        while input.bip32_derivation.len() < 3000 {
+            x[29..33].copy_from_slice(&n.to_be_bytes());
+            n += 1;
+            let Ok(key) = faraday_bip::bitcoin::secp256k1::PublicKey::from_slice(&x) else {
+                continue;
+            };
+            let path = format!("m/84'/1'/0'/0/{}", 1000 + n);
+            input
+                .bip32_derivation
+                .insert(key, (fp, path.parse().unwrap()));
+        }
+        assert!(input.bip32_derivation.len() > 2000);
+        // A fresh copy keeps no scripts, as a worker's does.
+        let copy = app.session.job_copy();
+        let before = snapshot();
+        let _ = copy.wallet_for(&c, &crafted);
+        let derived = since(&before).of(Work::WalletMatch);
+        assert!(derived <= 64, "{derived} scripts derived for one input");
+    }
+
+    #[test]
     fn a_wallet_takes_home_the_scripts_its_copy_derived() {
         use faraday_core::work::{Work, since, snapshot};
         let app = unsigned_spend();
