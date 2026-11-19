@@ -152,6 +152,9 @@ pub(crate) fn secrets_off_screen_but_vaults(app: &mut Faraday) {
 pub(crate) fn lock_secrets_off_screen(app: &mut Faraday) {
     secrets_off_screen(app);
     app.backup.drop_paper();
+    if let Some(c) = app.canvas.as_mut() {
+        c.forget_glyphs();
+    }
 }
 
 /// Remembers a lock asked for while a seal runs, to be done when it ends

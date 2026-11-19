@@ -135,3 +135,13 @@ fn a_lock_leaves_no_secret_file_from_a_stick_in_the_inbox() {
         "the words and the text are wiped with the session; the public wallet and the sealed vault stay"
     );
 }
+
+#[test]
+fn a_lock_leaves_no_drawn_characters_in_the_glyph_cache() {
+    let mut app = device(Vec::new());
+    add_key(&mut app, 0);
+    let _ = app.drawn_texts();
+    assert!(app.canvas().expect("a canvas").cached_glyphs() > 0);
+    app.press(Action::Lock);
+    assert_eq!(app.canvas().expect("a canvas").cached_glyphs(), 0);
+}

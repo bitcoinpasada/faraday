@@ -414,6 +414,11 @@ impl GlyphCache {
         GlyphCache::default()
     }
 
+    /// How many bitmaps it holds.
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+
     /// Drops every cached bitmap.
     pub fn clear(&mut self) {
         self.entries.clear();

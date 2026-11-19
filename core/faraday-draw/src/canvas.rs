@@ -402,6 +402,17 @@ impl Canvas {
         self.cut.truncate(mark);
     }
 
+    /// Drops every cached glyph bitmap: the cache says which characters
+    /// were drawn, so nothing of a shown secret stays in it past Lock.
+    pub fn forget_glyphs(&mut self) {
+        self.glyphs.clear();
+    }
+
+    /// How many glyph bitmaps the cache holds.
+    pub fn cached_glyphs(&self) -> usize {
+        self.glyphs.len()
+    }
+
     /// Notes a shape drawn as `kind` in `rect`, pixels, while recording
     /// is on: one a person reads as a whole, such as a progress
     /// indicator, which its fills alone do not say.
@@ -1914,6 +1925,17 @@ mod tests {
         c.clear(Color::BLACK);
         c.text(2, 2, "abc 123", Font::regular(16.0), Color::WHITE);
         assert_eq!(c.frame().rgba, &first[..]);
+    }
+
+    /// What was drawn is not kept in the glyph cache once it is dropped.
+    #[test]
+    fn forgetting_the_glyphs_empties_the_cache() {
+        let mut c = canvas();
+        c.clear(Color::BLACK);
+        c.text(2, 2, "abc", Font::regular(16.0), Color::WHITE);
+        assert!(c.cached_glyphs() > 0);
+        c.forget_glyphs();
+        assert_eq!(c.cached_glyphs(), 0);
     }
 
     #[test]
