@@ -791,7 +791,8 @@ impl OpenVaults {
     /// (or held with no words) and unmarked, or a key held has no words and
     /// is unmarked (however long ago it was added: a key added while
     /// another job ran is still found). Answers `None` otherwise, and for every call
-    /// after the job was made, until a vault opens or closes.
+    /// after the job was made, until a vault opens or closes or a lock
+    /// stops ([`Self::made_online_again`]).
     /// [`Self::note_made_online_done`] takes its answer.
     pub fn made_online_job(&self, c: &Compute, keys: &Keys) -> Option<MadeOnlineJob> {
         if self.slots.is_empty() || self.marked_done.get() == Some(self.epoch) {
@@ -840,8 +841,9 @@ impl OpenVaults {
     /// ([`Keys::note_made_online`]): a key held with it takes the mark, one
     /// not held takes it when added, until Lock, and a child of it, loaded
     /// before or after, takes it from its parent. An answer for a set of
-    /// open vaults that has changed since is dropped; Back leaves the job
-    /// running (the app does so), since no second job runs for this set.
+    /// open vaults that has changed since is dropped; any other is taken,
+    /// a stale one too (Back leaves the job running; a Lock that stops asks
+    /// for it again).
     pub fn note_made_online_done(&self, keys: &mut Keys, done: MadeOnlineDone) {
         if done.epoch != self.epoch {
             return;
@@ -852,8 +854,8 @@ impl OpenVaults {
     }
 
     /// The job of [`Self::made_online_job`] is to be made again for this
-    /// set of open vaults: its answer was dropped (a lock that stopped with
-    /// the vaults open).
+    /// set of open vaults: its busy screen went with a lock that stopped
+    /// with the vaults open, so a key could be saved before its answer.
     pub fn made_online_again(&self) {
         self.marked_done.set(None);
     }
