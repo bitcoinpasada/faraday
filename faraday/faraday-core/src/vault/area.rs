@@ -3118,13 +3118,13 @@ pub const LABEL_MAX: usize = 64;
 /// The file name, less `.kdbx`, a vault named `typed` is written under:
 /// letters, digits, hyphens and underscores, spaces made hyphens,
 /// anything else left out; `vault` when that leaves nothing, and a
-/// Windows device name (`con`, `com1`) with `-vault` after it.
+/// Windows device name (`con`, `com0`, `lpt9`) with `-vault` after it.
 pub fn vault_stem(typed: &str) -> Text {
     /// Whether Windows takes a name for a device, in any case.
     fn windows_device(name: &str) -> bool {
         let n = name.as_bytes();
         let numbered = |prefix: &[u8]| {
-            n.len() == 4 && n[..3].eq_ignore_ascii_case(prefix) && matches!(n[3], b'1'..=b'9')
+            n.len() == 4 && n[..3].eq_ignore_ascii_case(prefix) && n[3].is_ascii_digit()
         };
         ["con", "prn", "aux", "nul"]
             .iter()
