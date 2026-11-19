@@ -72,3 +72,12 @@ fn twelve_words_that_are_not_a_valid_seed_are_not_a_secret() {
     let eleven = words.rsplit_once(' ').unwrap().0;
     assert_eq!(secret_text(&c, eleven), None);
 }
+
+#[test]
+fn a_wif_private_key_is_a_secret_and_a_changed_one_is_not() {
+    let c = crate::common::compute();
+    let wif = "L1aW4aubDFB7yfras2S1mN3bqg9nwySY8nkoLmJebSLD5BWv3ENZ";
+    assert_eq!(secret_text(&c, wif), Some(TextSecret::Wif));
+    let bad = wif.replace("ENZ", "ENY");
+    assert_eq!(secret_text(&c, &bad), None);
+}

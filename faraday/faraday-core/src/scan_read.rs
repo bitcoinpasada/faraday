@@ -224,6 +224,7 @@ pub(crate) fn secret_text_kind(c: &Compute, text: &str) -> Option<Kind> {
         Some(faraday_intake::TextSecret::Words) => return Some(Kind::SeedWords),
         Some(faraday_intake::TextSecret::ExtendedPrivateKey) => return Some(Kind::Xprv),
         Some(faraday_intake::TextSecret::SilentSpendKey) => return Some(Kind::SpendKey),
+        Some(faraday_intake::TextSecret::Wif) => return Some(Kind::Wif),
         None => {}
     }
     let words: Vec<&str> = t.split_whitespace().collect();

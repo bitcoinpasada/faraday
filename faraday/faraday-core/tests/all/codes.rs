@@ -803,6 +803,75 @@ fn a_share_sheet_with_a_seed_in_a_comment_or_unknown_line_is_a_secret_file() {
     }
 }
 
+const SLIP20: &str = "shadow pistol academic always adequate wildlife fancy gross oasis cylinder mustang wrist rescue view short owner flip making coding armed";
+const SLIP33: &str = "wildlife deal beard romp alcohol space mild usual clothes union nuclear testify course research heat listen task location thank hospital slice smell failure fawn helpful priest ambition average recover lecture process dough stadium";
+const WIF: &str = "L1aW4aubDFB7yfras2S1mN3bqg9nwySY8nkoLmJebSLD5BWv3ENZ";
+
+/// Comment lines carrying a secret in a layout that is easy to miss:
+/// capitals, a share over many or numbered lines, a seed numbered one
+/// word to a line, a WIF key.
+fn hidden_secret_comments() -> Vec<String> {
+    let wrapped = |words: &str, per: usize| {
+        words
+            .split(' ')
+            .collect::<Vec<_>>()
+            .chunks(per)
+            .map(|c| format!("# {}\n", c.join(" ")))
+            .collect::<String>()
+    };
+    let numbered = |words: &str| {
+        words
+            .split(' ')
+            .enumerate()
+            .map(|(i, w)| format!("# {}. {w}\n", i + 1))
+            .collect::<String>()
+    };
+    vec![
+        format!("# Seed: {} here\n", SEED12.to_uppercase()),
+        numbered(SEED12),
+        wrapped(SLIP20, 5),
+        wrapped(SLIP33, 8),
+        numbered(SLIP20),
+        numbered(SLIP33),
+        format!("# Share: {}\n", SLIP33.to_uppercase()),
+        format!("# key: {WIF}\n"),
+    ]
+}
+
+/// A share file with a secret in a comment, in any of these layouts, is
+/// a secret file; a comment of ordinary words stays public.
+#[test]
+fn a_share_sheet_with_a_hidden_secret_in_a_comment_is_a_secret_file() {
+    let c = testkit::compute();
+    let kind = |t: &str| faraday_core::wallet::classify(&c, "share.txt", t.as_bytes());
+    for extra in hidden_secret_comments() {
+        let t = share_sheet(&extra);
+        assert_ne!(kind(&t), FileKind::Share, "{extra}");
+    }
+    assert_eq!(
+        kind(&share_sheet(
+            "# academic always wildlife fancy gross oasis cylinder\n"
+        )),
+        FileKind::Share
+    );
+}
+
+/// The same layouts in a signed message's body make a secret file.
+#[test]
+fn a_signed_message_with_a_hidden_secret_is_a_secret_file() {
+    const SIGNATURE: &str =
+        "H9L5yLFjti0QTHhPyFrZCT1V/MMnBtXKmoiKDZ78NDBjERki6ZTQZdSMCtkgoNmp17By9ItJr8o7ChX0XxY91nk=";
+    let c = testkit::compute();
+    for body in hidden_secret_comments() {
+        let signed = format!("bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu\n{SIGNATURE}\n{body}");
+        assert_ne!(
+            faraday_core::wallet::classify(&c, "message.txt", signed.as_bytes()),
+            FileKind::Message,
+            "{body}"
+        );
+    }
+}
+
 /// A signed message whose body holds a seed or a share in any shape is a
 /// secret file; prose with many seed-list words and an ordinary message
 /// stay a public message.

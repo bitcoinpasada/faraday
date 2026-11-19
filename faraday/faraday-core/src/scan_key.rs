@@ -760,7 +760,8 @@ pub(crate) fn pasted_secret(c: &Compute, text: &str, seeds: bool) -> Option<&'st
         Some(faraday_intake::TextSecret::Words) if !seeds => return Some(EN.pasted_words),
         Some(
             faraday_intake::TextSecret::ExtendedPrivateKey
-            | faraday_intake::TextSecret::SilentSpendKey,
+            | faraday_intake::TextSecret::SilentSpendKey
+            | faraday_intake::TextSecret::Wif,
         ) => {
             return Some(EN.pasted_private_key);
         }

@@ -105,6 +105,23 @@ pub enum TextSecret {
     /// BIP-392's silent payments spend private key, `spspend1q…` or
     /// `tspspend1q…`, alone or in an `sp()` descriptor.
     SilentSpendKey,
+    /// A WIF private key.
+    Wif,
+}
+
+/// Costs a base58 checksum when the text has the shape of a WIF (51 or
+/// 52 base58 characters, a version's first character), else nothing.
+/// Whether `text` is a WIF private key, mainnet or test.
+fn is_wif_key(text: &str) -> bool {
+    const BASE58: &[u8] = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+    let b = text.as_bytes();
+    matches!(b.len(), 51 | 52)
+        && matches!(b[0], b'5' | b'K' | b'L' | b'9' | b'c')
+        && b.iter().all(|c| BASE58.contains(c))
+        && faraday_bip::bitcoin::base58::decode_check(text).is_ok_and(|p| {
+            let p = Zeroizing::new(p);
+            matches!(p[0], 0x80 | 0xef) && (p.len() == 33 || (p.len() == 34 && p[33] == 1))
+        })
 }
 
 /// Whether `text` holds BIP-392's silent payments spend private key
@@ -143,7 +160,7 @@ fn holds_extended_private_key(text: &str) -> bool {
 /// private key: at most 111 bytes compared at each position, so linear in
 /// the text's length (by its loop, not timed). Whether scanned text is a secret, and
 /// which: a seed's words, an extended private key, with or without its
-/// origin, or a silent payments spend key.
+/// origin, a silent payments spend key, or a WIF key (a base58 checksum).
 #[expect(
     clippy::disallowed_methods,
     reason = "reads text as it arrives and keeps none of it (docs/KEYS.md section 2): faraday-keys depends on this crate"
@@ -158,7 +175,10 @@ pub fn secret_text(c: &Compute, text: &str) -> Option<TextSecret> {
     if PRIVATE_PREFIXES.iter().any(|p| key.starts_with(p)) || holds_extended_private_key(t) {
         return Some(TextSecret::ExtendedPrivateKey);
     }
-    holds_spend_key(t).then_some(TextSecret::SilentSpendKey)
+    if holds_spend_key(t) {
+        return Some(TextSecret::SilentSpendKey);
+    }
+    is_wif_key(t).then_some(TextSecret::Wif)
 }
 
 /// A whole transfer as it is kept: a name when it brought one, an

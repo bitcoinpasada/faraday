@@ -2394,6 +2394,9 @@ fn lines_hold_secret(c: &Compute, lines: &[&str]) -> bool {
             }
         }
     }
+    if slip39_across(bares.iter().copied()) {
+        return true;
+    }
     let spaced: Vec<Text> = lines
         .iter()
         .map(|l| {
@@ -2405,6 +2408,53 @@ fn lines_hold_secret(c: &Compute, lines: &[&str]) -> bool {
         })
         .collect();
     words_across(spaced.iter().map(Text::as_str))
+}
+
+/// Costs `slip39::index_of` for each word of 4 to 8 letters, and a
+/// checksum for each of the 14 lengths at every word of a run (a run past
+/// 48 is dropped). Whether the words among `parts` hold a SLIP-39 share:
+/// a run of consecutive list words in any case, broken by any other
+/// token (a place number does not break it), whose last 20 to 33 are a
+/// share, however many lines it is over.
+fn slip39_across<'a>(parts: impl Iterator<Item = &'a str>) -> bool {
+    use faraday_bip::slip39;
+    let mut run = zeroize::Zeroizing::new(Vec::<u16>::with_capacity(slip39::MAX_WORDS));
+    let mut seen = 0usize;
+    for part in parts {
+        let words = crate::forms::file_words(part);
+        for w in words.as_str().split_whitespace() {
+            let mut low = [0u8; 8];
+            let index = if (4..=8).contains(&w.len()) && w.bytes().all(|b| b.is_ascii_alphabetic())
+            {
+                low[..w.len()].copy_from_slice(w.as_bytes());
+                low.make_ascii_lowercase();
+                std::str::from_utf8(&low[..w.len()])
+                    .ok()
+                    .and_then(slip39::index_of)
+            } else {
+                None
+            };
+            let Some(i) = index else {
+                run.clear();
+                seen = 0;
+                continue;
+            };
+            seen += 1;
+            if seen > 48 {
+                continue;
+            }
+            if run.len() == slip39::MAX_WORDS {
+                run.remove(0);
+            }
+            run.push(i);
+            for n in slip39::MIN_WORDS..=slip39::MAX_WORDS {
+                if run.len() >= n && slip39::Share::from_indices(&run[run.len() - n..]).is_ok() {
+                    return true;
+                }
+            }
+        }
+    }
+    false
 }
 
 /// The lines of a multisig share that `restore::parts` does not read as a
@@ -2450,9 +2500,16 @@ fn words_across<'a>(parts: impl Iterator<Item = &'a str>) -> bool {
     for part in parts {
         let words = crate::forms::file_words(part);
         for w in words.as_str().split_whitespace() {
-            // The list's words are 3 to 8 lowercase ASCII letters.
-            let index = if (3..=8).contains(&w.len()) && w.bytes().all(|b| b.is_ascii_lowercase()) {
-                crate::forms::typed_index(Language::English, w)
+            // The list's words are 3 to 8 ASCII letters, read in any case
+            // as a mnemonic is, folded in a buffer of the word's own size.
+            let mut low = [0u8; 8];
+            let index = if (3..=8).contains(&w.len()) && w.bytes().all(|b| b.is_ascii_alphabetic())
+            {
+                low[..w.len()].copy_from_slice(w.as_bytes());
+                low.make_ascii_lowercase();
+                std::str::from_utf8(&low[..w.len()])
+                    .ok()
+                    .and_then(|l| crate::forms::typed_index(Language::English, l))
             } else {
                 None
             };

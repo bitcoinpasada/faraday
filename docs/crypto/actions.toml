@@ -7378,6 +7378,7 @@ functions = [
   "faraday/faraday-core/src/scan_key.rs::pasted_secret",
   "faraday/faraday-core/src/wallet.rs::text_may_be_secret",
   "faraday/faraday-keys/src/identity.rs::is_wif",
+  "faraday/faraday-intake/src/lib.rs::is_wif_key",
   "faraday/faraday-core/src/seed_check/compare.rs::refusal",
   "faraday/faraday-core/src/seed_check/compare.rs::refuse_secret",
 ]
