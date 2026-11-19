@@ -67,6 +67,23 @@ fn an_unnamed_vault_is_vault_kdbx_and_a_second_of_one_name_is_numbered() {
 }
 
 #[test]
+fn the_file_line_of_a_second_vault_of_one_name_shows_the_numbered_name() {
+    use faraday_core::testkit::Plain;
+    let mut app = started();
+    make(&mut app, "Savings");
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Create));
+    app.press(Action::Vault(V::CName));
+    type_text(&mut app, "Savings");
+    let texts = app.drawn_texts().plain();
+    assert!(
+        texts.iter().any(|t| t == "File Savings-2.kdbx"),
+        "{texts:?}"
+    );
+    assert!(!texts.iter().any(|t| t == "File Savings.kdbx"), "{texts:?}");
+}
+
+#[test]
 fn a_vault_is_not_offered_as_a_qr_code() {
     let mut app = started();
     make(&mut app, "");

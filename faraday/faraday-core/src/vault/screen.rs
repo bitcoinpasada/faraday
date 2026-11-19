@@ -1284,7 +1284,12 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                 app.vaults.focus == Some(Focus::Name),
                 va(V::CName),
             );
-            let file = Text::fill(EN.vault_file_kdbx, &[&vault::vault_stem(&c.name.text)]);
+            // The name the file will get: numbered when a file of the name is held.
+            let free = app.free_vault_name(&vault::vault_stem(&c.name.text));
+            let file = Text::fill(
+                EN.vault_file_kdbx,
+                &[free.strip_suffix(".kdbx").unwrap_or(&free)],
+            );
             if nw + 16.0 + ui.measure_as(BODY_S, &file) <= w {
                 ui.text_mid_as((x + nw + 16.0, cy, FIELD_H), BODY_S, muted, &file);
                 cy += FIELD_H + 16.0;
