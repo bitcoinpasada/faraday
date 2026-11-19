@@ -1302,6 +1302,10 @@ pub struct DiskProcess {
     transfers_done: Vec<Transferred>,
     /// Vaults read for their SHA-256, not yet answered.
     hashing: Vec<(Text, Text)>,
+    /// The reader has ended: nothing more is read, so nothing more is
+    /// written (a large request would block on the full pipe, holding the
+    /// disk's lock). Every ask fails at once.
+    dead: bool,
 }
 
 /// A transfer the disk process is at, with the piece asked now.
@@ -1394,8 +1398,11 @@ impl DiskProcess {
                     return;
                 }
             }
-            // The reader ends here, and with it the channel: `drain` and
-            // `ask` see it and fail what waits, at once.
+            // The reader ends here only for a frame that cannot be read (the
+            // responses pipe is open for writing here too, so a disk process
+            // that stops or restarts is no end of file), and with it the
+            // channel: `drain` and `ask` see it, fail what waits at once and
+            // write nothing more.
         });
         Ok(DiskProcess {
             tx,
@@ -1410,12 +1417,14 @@ impl DiskProcess {
             transfer: None,
             transfers_done: Vec::new(),
             hashing: Vec::new(),
+            dead: false,
         })
     }
 
     /// Takes every answer that has come, and fails at once what waits on a
     /// reader that has ended (a frame that cannot be read leaves the pipe
-    /// out of step: nothing more is read from it).
+    /// out of step: nothing more is read from it). A transfer whose answer
+    /// has come goes on to [`Self::step_transfer`].
     fn drain(&mut self) {
         use std::sync::mpsc::TryRecvError;
         loop {
@@ -1425,8 +1434,13 @@ impl DiskProcess {
                 Err(TryRecvError::Disconnected) => break,
             }
         }
+        self.dead = true;
         if let Some(f) = self.transfer.take() {
-            self.finish(f.what, Text::of(EN.storage_disk_silent));
+            if f.answer.is_some() {
+                self.transfer = Some(f);
+            } else {
+                self.finish(f.what, Text::of(EN.storage_disk_silent));
+            }
         }
         if let Some((_, stick, name, _)) = self.picture.take() {
             let why = Text::of(EN.storage_disk_silent);
@@ -1542,8 +1556,13 @@ impl DiskProcess {
                 )
             }
         };
-        self.seq = self.seq.wrapping_add(1);
         let mut req = req;
+        if self.dead {
+            req.wipe();
+            self.finish(going, Text::of(EN.storage_disk_silent));
+            return;
+        }
+        self.seq = self.seq.wrapping_add(1);
         let mut encoded = req.encode();
         let sent = send(&mut self.tx, self.seq, &encoded);
         zeroize::Zeroize::zeroize(&mut encoded);
@@ -1782,6 +1801,9 @@ impl DiskProcess {
         if self.transfer.is_some() {
             return Err(Text::of(EN.storage_stick_busy));
         }
+        if self.dead {
+            return Err(Text::of(EN.storage_disk_silent));
+        }
         self.seq = self.seq.wrapping_add(1);
         let mut encoded = req.encode();
         let sent = send(&mut self.tx, self.seq, &encoded);
@@ -1807,7 +1829,10 @@ impl DiskProcess {
                     self.aside(seq, other);
                     continue;
                 }
-                Err(_) => return Err(Text::of(EN.storage_disk_silent)),
+                Err(e) => {
+                    self.dead |= e == std::sync::mpsc::RecvTimeoutError::Disconnected;
+                    return Err(Text::of(EN.storage_disk_silent));
+                }
             }
         }
     }
@@ -2149,6 +2174,11 @@ impl Sticks for DiskProcess {
         if self.picture.is_none()
             && let Some((stick, name)) = self.pictures.pop_front()
         {
+            if self.dead {
+                let why = Text::of(EN.storage_disk_silent);
+                self.pictures_done.push((stick, name, Err(why)));
+                return std::mem::take(&mut self.pictures_done);
+            }
             self.seq = self.seq.wrapping_add(1);
             let req = Request::ReadQr {
                 stick: stick.clone(),

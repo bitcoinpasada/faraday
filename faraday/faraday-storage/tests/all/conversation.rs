@@ -199,3 +199,38 @@ fn a_request_during_a_slow_vault_write_is_refused_at_once() {
     drop(server);
     let _ = std::fs::remove_dir_all(dir);
 }
+
+#[test]
+fn after_the_reader_ends_a_large_write_fails_at_once_and_does_not_block() {
+    let dir = scratch("dead-write");
+    let requests = fifo(&dir, "requests");
+    let responses = fifo(&dir, "responses");
+    let mut disk = DiskProcess::open(&requests, &responses).unwrap();
+    // A frame that cannot be read ends the reader; nobody reads requests.
+    let mut tx = rw(&responses);
+    tx.write_all(&[0xff; 8]).unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(200));
+
+    let started = std::time::Instant::now();
+    assert!(disk.list().is_err());
+    let asked = disk.transfer_later(Transfer::Write {
+        stick: Text::of("s"),
+        name: Text::of("Passwords.kdbx"),
+        bytes: zeroize::Zeroizing::new(vec![7u8; 4 * faraday_files::proto::PIECE]),
+        copies: Vec::new(),
+        replace: false,
+        renamed: false,
+        on_taken: faraday_files::OnTaken::Beside,
+    });
+    assert!(asked.is_ok());
+    let mut done = Vec::new();
+    while done.is_empty() && started.elapsed() < std::time::Duration::from_secs(5) {
+        done = disk.transferred();
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert_eq!(done.len(), 1);
+    assert!(matches!(&done[0], Transferred::Write { result, .. } if result.is_err()));
+    assert!(started.elapsed() < std::time::Duration::from_secs(5));
+
+    let _ = std::fs::remove_dir_all(dir);
+}

@@ -115,13 +115,13 @@ fn serve(
     disks: &mut Disks,
     requests: &Path,
     responses: &Path,
-    talk: u64,
+    talk: &mut u64,
     now: &Now,
     pictures: &Sender<(u64, u32, Vec<u8>)>,
 ) -> std::io::Result<()> {
     let mut rx = File::open(requests)?;
     let tx = OpenOptions::new().write(true).open(responses)?;
-    *now.lock().unwrap_or_else(PoisonError::into_inner) = Some((talk, tx));
+    *now.lock().unwrap_or_else(PoisonError::into_inner) = Some((*talk, tx));
     // Pieces an earlier shell left are not part of what this one writes.
     // A lock that came while a request was being served shows no end of
     // the requests pipe: the new app's `Open` request forgets them then.
@@ -140,7 +140,7 @@ fn serve_on(
     c: &Compute,
     disks: &mut Disks,
     rx: &mut File,
-    talk: u64,
+    talk: &mut u64,
     now: &Now,
     pictures: &Sender<(u64, u32, Vec<u8>)>,
 ) -> std::io::Result<()> {
@@ -157,7 +157,7 @@ fn serve_on(
                 match disks.handle(c, Request::Read { stick, name }) {
                     Response::Bytes(bytes) => {
                         if let Err(mpsc::SendError((_, _, mut bytes))) =
-                            pictures.send((talk, seq, bytes))
+                            pictures.send((*talk, seq, bytes))
                         {
                             zeroize::Zeroize::zeroize(&mut bytes);
                             Response::Failed(Text::of(EN.disk_pictures_busy))
@@ -167,6 +167,19 @@ fn serve_on(
                     }
                     other => other,
                 }
+            }
+            // A new app's opening is a conversation of its own: a picture the
+            // old app asked, answered after this, is dropped by the pictures
+            // thread (or not decoded at all).
+            Ok(req @ Request::Open { .. }) => {
+                let answer = disks.handle(c, req);
+                let mut guard = now.lock().unwrap_or_else(PoisonError::into_inner);
+                *talk = talk.wrapping_add(1);
+                if let Some((t, _)) = guard.as_mut() {
+                    *t = *talk;
+                }
+                drop(guard);
+                answer
             }
             Ok(req) => {
                 let answer = disks.handle(c, req);
@@ -192,14 +205,14 @@ fn serve_on(
             Err(_) => {
                 answer_to(
                     now,
-                    talk,
+                    *talk,
                     seq,
                     Response::Failed(Text::of(EN.disk_malformed)),
                 )?;
                 return Ok(());
             }
         };
-        answer_to(now, talk, seq, answer)?;
+        answer_to(now, *talk, seq, answer)?;
     }
     Ok(())
 }
@@ -242,13 +255,13 @@ fn main() -> ExitCode {
     // Each shell served is a conversation of its own.
     let mut talk = 0u64;
     loop {
-        talk += 1;
+        talk = talk.wrapping_add(1);
         if let Err(e) = serve(
             &c,
             &mut disks,
             Path::new(&args[1]),
             Path::new(&args[2]),
-            talk,
+            &mut talk,
             &now,
             &jobs,
         ) {
