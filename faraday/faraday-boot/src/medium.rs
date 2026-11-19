@@ -3,7 +3,11 @@
 //! `faraday-grant`, the disk process and the stick shell read it.
 //!
 //! The image writes the file. On the Pi it names the board's own card's
-//! data partition, `/dev/mmcblk0p2`, which is always that node. On a PC
+//! data partition, `/dev/mmcblk0p2`, which is always that node; at start
+//! `faraday-grant --find-boot` writes in its place the node and the
+//! sequence number the kernel gave the card's disk (`/dev/mmcblk0p2 3`),
+//! so a card put into the slot later is another disk. A record with a
+//! node and no number leaves no disk out of what counts as attached. On a PC
 //! it says `layout`: at start `faraday-grant --find-boot` looks for the
 //! stick, and writes in its place the data partition's node and the
 //! sequence number the kernel gave its disk (`/dev/sdb2 7`), so a stick
@@ -29,7 +33,8 @@ pub enum Record {
         /// Its node's name under `/dev`: `sdb2`, `mmcblk0p2`.
         partition: String,
         /// The kernel's sequence number for its disk, where the node is
-        /// not fixed; `None` for the Pi's own card.
+        /// not fixed; `None` where it could not be read, or in the
+        /// image's own record on a Pi before start has added it.
         diskseq: Option<String>,
     },
     /// No USB disk with a Faraday stick's layout holds this build.
@@ -66,6 +71,29 @@ impl Record {
                 }
                 _ => Record::Waiting,
             },
+        }
+    }
+
+    /// The Pi's own card as start finds it: the image's record `baked`
+    /// (a node, no number) with the sequence number `diskseq` the kernel
+    /// gave the card's disk. Without a readable number it is the node
+    /// alone, which counts nothing as the boot disk. Anything but a node
+    /// of the card's own is [`Record::Waiting`].
+    #[must_use]
+    pub fn card(baked: &str, diskseq: &str) -> Record {
+        match Record::parse(baked) {
+            Record::Found {
+                partition,
+                diskseq: None,
+            } if partition.starts_with("mmcblk") => {
+                let seq = diskseq.trim();
+                let ok = !seq.is_empty() && seq.bytes().all(|b| b.is_ascii_digit());
+                Record::Found {
+                    partition,
+                    diskseq: ok.then(|| seq.to_string()),
+                }
+            }
+            _ => Record::Waiting,
         }
     }
 
@@ -107,5 +135,36 @@ impl Record {
         };
         want.as_deref().is_none_or(|w| w == diskseq.trim())
             && children.into_iter().any(|c| c == partition)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_pis_card_is_recorded_with_its_number() {
+        let r = Record::card("/dev/mmcblk0p2\n", "5\n");
+        assert_eq!(r.text(), "/dev/mmcblk0p2 5\n");
+        assert!(r.is_boot_disk(["mmcblk0p2"], "5"));
+        assert!(!r.is_boot_disk(["mmcblk0p2"], "6"));
+    }
+
+    #[test]
+    fn a_card_whose_number_cannot_be_read_is_recorded_without_one() {
+        assert_eq!(
+            Record::card("/dev/mmcblk0p2\n", "").text(),
+            "/dev/mmcblk0p2\n"
+        );
+        assert_eq!(
+            Record::card("/dev/mmcblk0p2\n", "x").text(),
+            "/dev/mmcblk0p2\n"
+        );
+    }
+
+    #[test]
+    fn only_the_pis_own_card_is_recorded_this_way() {
+        assert_eq!(Record::card("layout\n", "5"), Record::Waiting);
+        assert_eq!(Record::card("/dev/sdb2 7\n", "5"), Record::Waiting);
     }
 }

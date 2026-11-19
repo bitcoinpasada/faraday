@@ -17,10 +17,11 @@ use std::path::{Path, PathBuf};
 /// the `boot` partition is on is left out, with the USB port it is behind:
 /// the medium the machine started from is not a stick that was attached.
 /// Where the record holds a `diskseq` it is that disk only while its
-/// `diskseq` is the recorded one, so a stick that took the boot stick's
-/// name after it was pulled is attached; the Pi's own card has none
-/// recorded and is known by its name alone. An empty card-reader slot
-/// (size 0) is not storage.
+/// `diskseq` is the recorded one, the Pi's own card included, so a stick
+/// or card that took the boot medium's name after it was pulled is
+/// attached, as is one whose `diskseq` cannot be read. A record with no
+/// `diskseq` leaves nothing out. An empty card-reader slot (size 0) is not
+/// storage.
 pub fn attached(
     sys_block: &Path,
     usb_root: &Path,
@@ -29,8 +30,7 @@ pub fn attached(
     let boot_disk = boot.and_then(|(p, seq)| {
         let disk = disk_of(sys_block, p)?;
         let now = fs::read_to_string(disk.join("diskseq")).unwrap_or_default();
-        seq.is_none_or(|seq| now.trim() == seq.trim())
-            .then_some(disk)
+        (seq?.trim() == now.trim()).then_some(disk)
     });
     let boot_port = boot_disk
         .as_ref()
@@ -246,9 +246,45 @@ mod tests {
         let root = tree("pi");
         let card = disk(&root, "soc/mmc/block", "mmcblk0", 1000);
         partition(&root, &card, "mmcblk0p2");
-        assert!(look(&root, Some(("mmcblk0p2", None))).is_empty());
+        put(&card.join("diskseq"), "3\n");
+        assert!(look(&root, Some(("mmcblk0p2", Some("3")))).is_empty());
         disk(&root, "soc/usb1/1-1/1-1:1.0/host0/block", "sda", 1000);
-        assert_eq!(look(&root, Some(("mmcblk0p2", None))), ["sda"]);
+        assert_eq!(look(&root, Some(("mmcblk0p2", Some("3")))), ["sda"]);
+    }
+
+    #[test]
+    fn a_different_card_in_the_pis_slot_is_attached() {
+        let root = tree("pi-other");
+        let card = disk(&root, "soc/mmc/block", "mmcblk0", 1000);
+        partition(&root, &card, "mmcblk0p2");
+        put(&card.join("diskseq"), "9\n");
+        assert_eq!(
+            look(&root, Some(("mmcblk0p2", Some("3")))),
+            ["mmcblk0", "mmcblk0p2"]
+        );
+    }
+
+    #[test]
+    fn a_card_whose_number_cannot_be_read_is_attached() {
+        let root = tree("pi-unreadable");
+        let card = disk(&root, "soc/mmc/block", "mmcblk0", 1000);
+        partition(&root, &card, "mmcblk0p2");
+        assert_eq!(
+            look(&root, Some(("mmcblk0p2", Some("3")))),
+            ["mmcblk0", "mmcblk0p2"]
+        );
+    }
+
+    #[test]
+    fn a_record_with_no_card_number_leaves_the_card_attached() {
+        let root = tree("pi-old");
+        let card = disk(&root, "soc/mmc/block", "mmcblk0", 1000);
+        partition(&root, &card, "mmcblk0p2");
+        put(&card.join("diskseq"), "3\n");
+        assert_eq!(
+            look(&root, Some(("mmcblk0p2", None))),
+            ["mmcblk0", "mmcblk0p2"]
+        );
     }
 
     #[test]

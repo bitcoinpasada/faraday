@@ -133,7 +133,12 @@ internal error rather than carrying on.
     and the USB interface classes) at every scan, not from the disk
     process: a disk process that is slow, never answers or leaves a disk
     out of its list (no partitions, a boot-named partition) does not let a
-    passphrase be typed or a key be loaded with a stick in. Files and the
+    passphrase be typed or a key be loaded with a stick in. The disk the
+    machine started from is left out only while its kernel sequence number
+    is the one the boot record holds, on the Pi's own card as on a stick,
+    so a different card put into the Pi's slot counts as attached, as does
+    one whose number cannot be read; a record with no number leaves nothing
+    out. Files and the
     Pull sheet say a stick is attached and cannot be read.
   - No removable storage is accessible while any secret is in memory.
     The boot stick comes out before a vault is unlocked. To write a vault

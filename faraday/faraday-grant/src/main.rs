@@ -227,8 +227,9 @@ fn drop_privilege(id: u32, keep: u32) -> std::io::Result<()> {
 /// goes on looking, a second a time, and writes again once one, or two,
 /// of this build are found. A stick found, or two, is final.
 fn find_boot() -> ExitCode {
-    if !std::fs::read_to_string(RECORD).is_ok_and(|r| r.trim() == LAYOUT) {
-        return ExitCode::SUCCESS;
+    let baked = std::fs::read_to_string(RECORD).unwrap_or_default();
+    if baked.trim() != LAYOUT {
+        return find_card(&baked);
     }
     if let Err(e) = drop_privilege(FIND_ID, 1 << CAP_DAC_READ_SEARCH) {
         say!("faraday-grant: cannot give up privilege: {e}");
@@ -264,6 +265,36 @@ fn find_boot() -> ExitCode {
             None => std::thread::sleep(Duration::from_millis(250)),
         }
     }
+}
+
+/// On a Pi the image names the card's data partition; this adds the
+/// sequence number the kernel gave the card's disk, so a card put into the
+/// slot later is not taken for it. Runs to its end before init goes on.
+/// Anything but the card's own node is left as it is.
+fn find_card(baked: &str) -> ExitCode {
+    let Record::Found { partition, .. } = Record::parse(baked) else {
+        return ExitCode::SUCCESS;
+    };
+    let Some(disk) = partition
+        .split('p')
+        .next()
+        .filter(|_| partition.starts_with("mmcblk"))
+    else {
+        return ExitCode::SUCCESS;
+    };
+    if let Err(e) = drop_privilege(FIND_ID, 0) {
+        say!("faraday-grant: cannot give up privilege: {e}");
+        return ExitCode::FAILURE;
+    }
+    let seq =
+        std::fs::read_to_string(format!("/sys/class/block/{disk}/diskseq")).unwrap_or_default();
+    let r = Record::card(baked, &seq);
+    let new = format!("{FOUND}.new");
+    if let Err(e) = std::fs::write(&new, r.text()).and_then(|()| std::fs::rename(&new, FOUND)) {
+        say!("faraday-grant: cannot write {FOUND}: {e}");
+        return ExitCode::FAILURE;
+    }
+    ExitCode::SUCCESS
 }
 
 fn main() -> ExitCode {
