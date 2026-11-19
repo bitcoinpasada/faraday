@@ -840,9 +840,8 @@ impl OpenVaults {
     /// ([`Keys::note_made_online`]): a key held with it takes the mark, one
     /// not held takes it when added, until Lock, and a child of it, loaded
     /// before or after, takes it from its parent. An answer for a set of
-    /// open vaults that has changed since is dropped; one whose busy screen
-    /// was left with Back is still taken (the app does so), since no
-    /// second job runs for this set.
+    /// open vaults that has changed since is dropped; Back leaves the job
+    /// running (the app does so), since no second job runs for this set.
     pub fn note_made_online_done(&self, keys: &mut Keys, done: MadeOnlineDone) {
         if done.epoch != self.epoch {
             return;
@@ -850,6 +849,13 @@ impl OpenVaults {
         for fp in done.prints {
             keys.note_made_online(fp);
         }
+    }
+
+    /// The job of [`Self::made_online_job`] is to be made again for this
+    /// set of open vaults: its answer was dropped (a lock that stopped with
+    /// the vaults open).
+    pub fn made_online_again(&self) {
+        self.marked_done.set(None);
     }
 
     /// Costs a parse of each codex32 share record's string and, for each
