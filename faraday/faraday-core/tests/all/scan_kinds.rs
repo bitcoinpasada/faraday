@@ -886,3 +886,15 @@ fn every_scanner_refuses_seed_words_of_every_list_in_any_form_pasted() {
         }
     }
 }
+
+#[test]
+fn a_setup_code_carried_to_unlock_keeps_the_app_from_counting_clean() {
+    let mut app = testkit::started();
+    vault_in_files(&mut app);
+    app.press(Action::Nav(Screen::SpendBackup));
+    app.press(Action::ScanFor(Ask::SpendPsbt));
+    read(&mut app, TOTP.as_bytes());
+    app.press(Action::ReadGo(0));
+    assert_eq!(app.screen, Screen::Unlock);
+    assert!(!app.clean(), "the setup code is held");
+}

@@ -209,6 +209,11 @@ impl Camera {
         self.slot.take()
     }
 
+    /// Whether a code carried through an unlock is held.
+    pub(crate) fn holds_carried(&self) -> bool {
+        self.carried.is_some()
+    }
+
     /// The code carried, once.
     pub(crate) fn take_carried(&mut self) -> Option<Text> {
         self.carried.take()

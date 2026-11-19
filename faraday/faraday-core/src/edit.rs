@@ -858,6 +858,8 @@ impl Faraday {
                 .dice
                 .open()
                 .is_some_and(|d| !d.1.text.is_empty())
+            // A setup code carried to Unlock.
+            || self.camera.holds_carried()
     }
 
     /// Whether the field typing goes to is one of several lines, where
