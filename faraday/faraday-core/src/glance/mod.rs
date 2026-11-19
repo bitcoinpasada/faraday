@@ -1897,7 +1897,7 @@ pub(crate) fn draw(
     y: f32,
     width: f32,
 ) -> f32 {
-    draw_with(ui, g, direction, x, y, width, (true, true))
+    draw_with(ui, g, direction, x, y, width, (true, false))
 }
 
 /// [`draw`], with the check strip only when `check`: the end of the

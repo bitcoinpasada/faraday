@@ -1181,8 +1181,8 @@ rule of its flow.
   is made, else the one recorded this power-on (kept across a lock),
   else an open vault's. No plan: "No backup plan" with **Back up**; a
   plan in a locked vault not remembered: "Plan in {vault}, locked" with
-  **Unlock**. Every node, and every line of what a backup node holds,
-  opens its sheet (below); while the wallet is short of keys a
+  **Unlock**. Every node opens its sheet (below), which lists each line
+  of what a backup node holds, each a touch target tall; while the wallet is short of keys a
   key not here reads **Not here**, and one an open vault holds keeps
   **Load from vault** as a line of its own; the one way to scan any
   missing key is the signatures bar's **Scan a key**. The card's
@@ -1203,8 +1203,8 @@ rule of its flow.
   365 days" (without "about" for a wait in 512-second units), in the
   warning tone once the age reaches the margin.
 - **The chart's sheets** (decision 44). A press on a node of the chart,
-  on the card or in an open vault, or on a line of what a backup node
-  holds, opens a sheet (DESIGN §4.16): its title, what it is and where
+  on the card or in an open vault, or a line in a backup node's sheet,
+  opens a sheet (DESIGN §4.16): its title, what it is and where
   (Shape and Checksum; Where, Its seed is at; Stick, Found alone, Seen
   here; Kept at), then its actions as menu rows, each leading into the
   flow that does it, and Close (Back on a small panel, where the sheet is

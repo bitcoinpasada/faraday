@@ -393,7 +393,7 @@ fn at_1920_the_list_stays_beside_the_wallet_card_and_a_places_sheet() {
 }
 
 #[test]
-fn a_line_inside_a_place_opens_its_own_sheet() {
+fn a_line_in_a_places_sheet_opens_its_own_sheet() {
     let mut app = desktop();
     let w = two_of_three(&mut app);
     planned(&mut app, w, 1);
@@ -403,7 +403,12 @@ fn a_line_inside_a_place_opens_its_own_sheet() {
         .position(|n| n.name == "Place 3")
         .unwrap() as u8;
     let line = Action::Chart(C::Open(press, Target::Line(at, 0)));
-    assert!(app.offers(line), "the line is not pressable on the chart");
+    assert!(
+        !app.offers(line),
+        "the line is pressed on its own on the chart"
+    );
+    open(&mut app, press, Target::Node(at));
+    assert!(app.offers(line), "the place's sheet does not list the line");
     open(&mut app, press, Target::Line(at, 0));
     assert!(shown(&mut app, "Wallet sheet"));
     assert!(shown(&mut app, "Print it again"));
