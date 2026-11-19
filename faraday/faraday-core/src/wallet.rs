@@ -26,7 +26,7 @@ pub(crate) const START_NETWORK: Network = Network::Mainnet;
 // The description reader (`faraday-intake`),
 // at the paths this crate has always had them.
 pub use faraday_intake::wallet::{
-    Refusal, network_name, network_of_key, policy_network, wallet_name,
+    Refusal, WALLET_NAME_MAX, network_name, network_of_key, policy_network, wallet_name,
 };
 
 pub use faraday_keys::identity::master_id;
@@ -76,17 +76,30 @@ pub(crate) use faraday_intake::wallet::{carried_name, network_of_kind};
 /// classifies it. A name under 26 bytes is no key or seed and is not
 /// checked (the shortest is 12 words); 16 or 32 bytes of plain text are
 /// not read as a compact seed QR, as the name of a wallet is text.
-pub(crate) fn safe_name<'a>(c: &Compute, name: &'a str) -> &'a str {
+pub(crate) fn safe_name(c: &Compute, name: &str) -> Text {
     use crate::scan_read::Kind;
     use crate::text_check::{TextCheck, check};
-    if name.trim().len() < 26 {
-        return name;
+    let default = || Text::of(EN.wallet_default_name);
+    // The secret check reads the name as given and the whole line it
+    // makes (a dropped character inside a word does not hide it), before
+    // it is cut short.
+    let line = faraday_intake::wallet::one_line(name);
+    for (i, text) in [name, &*line].into_iter().enumerate() {
+        if text.trim().len() >= 26 && (i == 0 || text != name) {
+            match check(c, text) {
+                TextCheck::Secret(Kind::CompactSeedQr) => {}
+                TextCheck::Secret(_) | TextCheck::Inside(_) | TextCheck::TooLong => {
+                    return default();
+                }
+                _ => {}
+            }
+        }
     }
-    match check(c, name) {
-        TextCheck::Secret(Kind::CompactSeedQr) => name,
-        TextCheck::Secret(_) | TextCheck::Inside(_) => EN.wallet_default_name,
-        _ => name,
+    let name = wallet_name(&line);
+    if name.is_empty() {
+        return default();
     }
+    Text::of(&name)
 }
 
 /// The most scripts a wallet keeps ([`Wallet::script_at`]); the next one
@@ -884,7 +897,7 @@ impl Session {
         origin: Origin,
         confirm: bool,
     ) -> Result<usize, Refusal> {
-        let name = safe_name(c, name);
+        let name = &*safe_name(c, name);
         let read = read_wallet(c, text)?;
         let policy = self.account_of(c, text, read, (name, source, origin))?;
         self.add_checked(
@@ -1083,7 +1096,7 @@ impl Session {
         derived: &faraday_keys::job::Derived,
         confirm: bool,
     ) -> Result<usize, Refusal> {
-        let name = safe_name(c, name);
+        let name = &*safe_name(c, name);
         if let Some(w) = policy.silent()
             && crate::silent::check_record(c, &self.keys, w).0
                 == crate::silent::RecordCheck::Differs

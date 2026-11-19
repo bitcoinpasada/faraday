@@ -68,6 +68,45 @@ fn a_wallet_file_whose_label_runs_over_lines_loads_under_a_one_line_name_and_its
     assert!(pdf::sheet(&c, &sheet).is_ok());
 }
 
+/// The name a wallet is loaded under from a Specter wallet file whose
+/// label is `label` (a JSON string's text).
+fn name_loaded_from_label(label: &str) -> String {
+    let file = format!(
+        "{{\n  \"label\": \"{label}\",\n  \"blockheight\": 0,\n  \"descriptor\": \"{}\"\n}}\n",
+        testkit::savings()
+    );
+    let mut app = testkit::started();
+    app.session = testkit::session();
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![(
+            faraday_text::Text::of("savings.json"),
+            file.into_bytes(),
+        )]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    testkit::load_wallet(&mut app, 0);
+    assert_eq!(app.session.wallets.len(), 1);
+    app.session.wallets[0].name.as_str().to_string()
+}
+
+#[test]
+fn a_wallet_file_with_a_2000_character_name_loads_under_a_name_of_at_most_64_bytes() {
+    let name = name_loaded_from_label(&"Savings ".repeat(250));
+    assert!(name.starts_with("Savings"), "{name:?}");
+    assert!(name.len() <= 64 && name.len() > 32, "{name:?}");
+    assert_eq!(name.trim(), name);
+}
+
+#[test]
+fn a_wallet_file_name_with_control_and_direction_characters_loads_without_them() {
+    let name = name_loaded_from_label("Sav\\u0007ings\\u202e\\u200b txt\\u2066");
+    assert_eq!(name, "Savings txt");
+    // A label of nothing printable is no label: the file's own name.
+    let name = name_loaded_from_label("\\u202e\\u200b\\u0007");
+    assert_eq!(name, "Savings");
+}
+
 #[test]
 fn a_share_sheet_holds_only_the_shares_lines_whatever_the_wallet_is_called() {
     let c = testkit::compute();
@@ -171,4 +210,63 @@ fn a_vault_wallet_named_over_two_lines_reads_as_a_one_line_name() {
         vec![&*w.policy().to_descriptor_checksummed()],
         "{sheet}"
     );
+}
+
+/// A 24-word seed, as a wallet file's label.
+const SEED_24: &str = "abandon abandon abandon abandon abandon abandon abandon abandon \
+     abandon abandon abandon abandon abandon abandon abandon abandon \
+     abandon abandon abandon abandon abandon abandon abandon art";
+
+#[test]
+fn a_wallet_file_whose_label_is_a_seed_loads_under_the_default_name() {
+    let name = name_loaded_from_label(SEED_24);
+    assert!(!name.contains("abandon"), "{name:?}");
+    assert!(!name.is_empty());
+}
+
+/// The same file loaded with everything the Inbox found, where the name
+/// comes from the Inbox's list.
+#[test]
+fn a_wallet_file_whose_label_is_a_seed_loads_from_the_inbox_under_the_default_name() {
+    let file = format!(
+        "{{\n  \"label\": \"{SEED_24}\",\n  \"blockheight\": 0,\n  \"descriptor\": \"{}\"\n}}\n",
+        testkit::savings()
+    );
+    let mut app = testkit::started();
+    app.session = testkit::session();
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![(
+            faraday_text::Text::of("savings.json"),
+            file.into_bytes(),
+        )]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.press(faraday_core::Action::InboxLoad);
+    testkit::confirm_wallets(&mut app);
+    assert_eq!(app.session.wallets.len(), 1);
+    let name = app.session.wallets[0].name.as_str();
+    assert!(!name.contains("abandon"), "{name:?}");
+}
+
+#[test]
+fn a_wallet_file_whose_label_is_a_seed_with_a_direction_mark_inside_a_word_loads_under_the_default_name()
+ {
+    let name = name_loaded_from_label(&SEED_24.replacen("abandon", "aban\\u200edon", 1));
+    assert!(!name.contains("aban"), "{name:?}");
+    assert!(!name.is_empty());
+}
+
+#[test]
+fn an_account_wallet_made_from_a_wallet_with_a_64_byte_name_keeps_its_account() {
+    use faraday_core::create::{FromWallet, NewKind};
+    let from = FromWallet {
+        name: faraday_text::Text::of(&"n".repeat(64)),
+        kind: NewKind::NativeSegwit,
+        ..FromWallet::default()
+    };
+    let name = from.name_at(NewKind::NativeSegwit, 7);
+    assert!(name.ends_with(" · account 7"), "{name:?}");
+    assert!(name.len() <= 64, "{name:?}");
+    assert!(name.starts_with("nnnn"), "{name:?}");
 }

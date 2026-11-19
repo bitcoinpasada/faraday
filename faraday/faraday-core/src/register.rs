@@ -61,7 +61,12 @@ impl RegisterAsk {
             return false;
         }
         match key {
-            KeyIn::Char(c) if !c.is_control() => self.name.push(c),
+            // A character key is the field's, even when the name is full.
+            KeyIn::Char(c) if !c.is_control() => {
+                if self.name.len() + c.len_utf8() <= crate::wallet::WALLET_NAME_MAX {
+                    self.name.push(c)
+                }
+            }
             KeyIn::Backspace => {
                 self.name.pop();
             }

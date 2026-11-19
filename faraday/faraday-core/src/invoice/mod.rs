@@ -235,10 +235,10 @@ fn hex(bytes: &[u8]) -> String {
     String::from(&*faraday_crypto::hex::encode_string(bytes))
 }
 
-/// Text an invoice or offer carries, as one line: the rule a wallet's name
-/// gets, so a line break in it cannot draw as another row.
+/// Text an invoice or offer carries, as one line: the line rule a wallet's
+/// name gets (no length bound), so a line break in it cannot draw as another row.
 fn one_line(text: &str) -> String {
-    faraday_intake::wallet::wallet_name(text).into_owned()
+    faraday_intake::wallet::one_line(text).into_owned()
 }
 
 /// The lines an invoice shows, in the order they are drawn.

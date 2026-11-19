@@ -572,7 +572,14 @@ impl FromWallet {
         } else {
             kind.name()
         };
-        Text::fill(EN.create_at_account, &[base, &Text::num(account as u64)])
+        let account = Text::num(account as u64);
+        // The suffix stays whole: the wallet's own part is what is cut.
+        let suffix = Text::fill(EN.create_at_account, &["", &account]).len();
+        let base = faraday_intake::wallet::cut_to(
+            base,
+            faraday_intake::wallet::WALLET_NAME_MAX.saturating_sub(suffix),
+        );
+        Text::fill(EN.create_at_account, &[base, &account])
     }
 }
 

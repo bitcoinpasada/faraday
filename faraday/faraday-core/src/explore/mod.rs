@@ -628,7 +628,13 @@ impl Faraday {
         if made.is_none() || made != gives {
             return Err(Text::fill(EN.made_wallet_differs, &[&path]));
         }
-        let name = Text::fill(EN.made_wallet_name, &[&key_name, &path]);
+        // The path stays whole: the key's own part is what is cut.
+        let tail = Text::fill(EN.made_wallet_name, &["", &path]).len();
+        let key_name = faraday_intake::wallet::cut_to(
+            &key_name,
+            faraday_intake::wallet::WALLET_NAME_MAX.saturating_sub(tail),
+        );
+        let name = Text::fill(EN.made_wallet_name, &[key_name, &path]);
         let i = self
             .session
             .add_wallet(

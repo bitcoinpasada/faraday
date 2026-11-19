@@ -249,6 +249,30 @@ fn the_name_typed_is_the_wallet_name() {
 }
 
 #[test]
+fn a_name_typed_past_64_bytes_is_kept_to_its_first_64() {
+    let mut app = with_spend(&testkit::unsigned_with_xpubs(&savings()).unwrap());
+    app.press(Action::RegisterOpen);
+    app.press(Action::RegisterField);
+    for _ in 0.."Savings Unsigned".len() {
+        app.event(Event::Key(Key::Backspace));
+    }
+    for _ in 0..64 {
+        app.event(Event::Key(Key::Char('a')));
+    }
+    app.event(Event::Key(Key::Char('b')));
+    // Tab moves the keyboard to a control and the field keeps the typing.
+    app.event(Event::Key(Key::Tab));
+    app.event(Event::Key(Key::Char(' ')));
+    app.event(Event::Key(Key::Enter));
+    assert_eq!(app.sheet, Some(Sheet::Register));
+    app.press(Action::RegisterHold);
+    assert_eq!(app.session.wallets.len(), 1);
+    let w = &app.session.wallets[0];
+    assert_eq!(w.name, "a".repeat(64).as_str());
+    assert_eq!(w.key_ticks(), [false, false, false]);
+}
+
+#[test]
 fn global_xpubs_that_do_not_give_the_input_are_refused_by_name() {
     let kit = savings();
     let mut psbt = testkit::unsigned_with_xpubs(&kit).unwrap();

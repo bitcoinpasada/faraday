@@ -7,7 +7,7 @@
 //! (`faraday-strings`). Moved here from `faraday-core`'s `wallet` module,
 //! which re-exports it.
 
-pub use crate::names::wallet_name;
+pub use crate::names::{WALLET_NAME_MAX, cut_to, one_line, wallet_name};
 use crate::{caravan, electrum, single_key, specter_diy};
 use faraday_bip::json::{self, Value};
 use faraday_bip::keys::Network;
@@ -725,7 +725,7 @@ pub fn json_label(text: &str) -> Option<Text> {
         return None;
     }
     let file = json::parse(text).ok()?;
-    let label = wallet_name(file.find("label")?.as_str()?);
+    let label = one_line(file.find("label")?.as_str()?);
     (!label.is_empty()).then(|| Text::of(&label))
 }
 

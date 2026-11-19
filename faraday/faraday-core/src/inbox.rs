@@ -1151,14 +1151,19 @@ impl Faraday {
         found
     }
 
-    /// The name a wallet file gives its wallet: a wallet .json's label or
-    /// an addwallet command's name, or the file's name in words.
-    pub(crate) fn inbox_wallet_name(&self, index: usize) -> Text {
-        self.wallet_name_in(&self.inbox, index)
+    /// The name a wallet file among `items` gives its wallet: a wallet
+    /// .json's label or an addwallet command's name, or the file's name in
+    /// words.
+    pub(crate) fn wallet_name_in(&self, items: &[Item], index: usize) -> Text {
+        Text::of(&crate::wallet::wallet_name(
+            &self.whole_wallet_name_in(items, index),
+        ))
     }
 
-    /// [`Faraday::inbox_wallet_name`] for a file among `items`.
-    pub(crate) fn wallet_name_in(&self, items: &[Item], index: usize) -> Text {
+    /// [`Faraday::wallet_name_in`] before it is cut to a name's length: what
+    /// a wallet is added under, so that the check of a name that is secret
+    /// text reads all of it.
+    fn whole_wallet_name_in(&self, items: &[Item], index: usize) -> Text {
         let Some(item) = items.get(index) else {
             return Text::new();
         };
@@ -1177,7 +1182,7 @@ impl Faraday {
             words.push_str(&Text::first_uppercase(w));
         }
         let carried = crate::wallet::carried_name(&text).map_or(words, |t| Text::of(&t));
-        Text::of(&crate::wallet::wallet_name(&carried))
+        Text::of(&faraday_intake::wallet::one_line(&carried))
     }
 
     /// Loads the chosen wallets the Inbox describes, each with the seeds
@@ -1242,7 +1247,7 @@ impl Faraday {
         for w in &chosen {
             let (name, text) = match w.files.first() {
                 Some(k) => (
-                    self.wallet_name_in(items, *k),
+                    self.whole_wallet_name_in(items, *k),
                     Text::from_utf8_lossy(&items[*k].bytes),
                 ),
                 None => (w.name.clone(), w.descriptor.clone()),
@@ -1283,7 +1288,7 @@ impl Faraday {
             }
             let (name, text, source) = match w.files.first() {
                 Some(k) => (
-                    self.inbox_wallet_name(*k),
+                    self.whole_wallet_name_in(&self.inbox, *k),
                     Text::from_utf8_lossy(&self.inbox[*k].bytes),
                     Text::of(&self.inbox[*k].name),
                 ),

@@ -278,3 +278,20 @@ fn a_scanned_offer_opens_the_tool_decoded() {
     assert_eq!(app.screen, Screen::Invoice);
     assert_eq!(value(&app, "Amount").as_deref(), Some("100.00 USD"));
 }
+
+/// An offer with a 76-byte description and a 78-byte issuer line, and a
+/// compressed generator point as its key (BOLT #12's wire form, which has no checksum).
+const LONG_OFFER: &str = "lno1pfxyzgryv4ekxunfwp6xjmmwypmk2mrvyphhvetjypekj7r50ykkvmm4wgsxy7t5v4ejqmr0denjcgrndusxjapqd9ejqmn0wssxxat5ypeksmmjwssxzapqv9kxcyjwg9hzq6tnwd6k2u3qd35kuefqw35xzapqd9ejqctvwdhjqam9d3kzqmmkv4ezqumf0p68jttxda6hygrz096x2ueqd3hkueevyp6x7grzv5s8x6r0wahzqamgdakx293pqfumuen7l8wthtz45p3ftn58pvrs9xlumvkuu2xet8egzkcklqtes";
+
+#[test]
+fn an_offer_description_and_issuer_over_64_bytes_are_shown_whole() {
+    let app = decoded(LONG_OFFER);
+    assert_eq!(
+        value(&app, "Description").as_deref(),
+        Some("A description well over sixty-four bytes long, so it is not cut short at all")
+    );
+    assert_eq!(
+        value(&app, "Issuer, in its own words").as_deref(),
+        Some("An issuer line that is also well over sixty-four bytes long, to be shown whole")
+    );
+}

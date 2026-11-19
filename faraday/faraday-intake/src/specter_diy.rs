@@ -31,11 +31,11 @@ pub fn split(text: &str) -> Option<(&str, &str)> {
 }
 
 /// The wallet's name an `addwallet` command carries, as one line of
-/// text ([`crate::wallet::wallet_name`]); `None` when `text` is no such
+/// text ([`crate::wallet::one_line`]); `None` when `text` is no such
 /// command or its name is blank.
 pub fn name(text: &str) -> Option<String> {
     let (name, _) = split(text)?;
-    let name = crate::wallet::wallet_name(name);
+    let name = crate::wallet::one_line(name);
     (!name.is_empty()).then(|| name.into_owned())
 }
 
@@ -65,6 +65,6 @@ pub fn command(name: &str, policy: &WalletPolicy) -> Option<String> {
     };
     Some(format!(
         "{PREFIX}{}&{descriptor}",
-        crate::wallet::wallet_name(name)
+        crate::wallet::one_line(name)
     ))
 }
