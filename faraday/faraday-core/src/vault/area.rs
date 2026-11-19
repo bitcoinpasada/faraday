@@ -413,6 +413,7 @@ impl VaultArea {
     /// Create a vault closed, typing nowhere.
     pub(crate) fn drop_create(&mut self) {
         self.state.create = None;
+        self.state.dice.close();
         self.state.focus = None;
     }
 

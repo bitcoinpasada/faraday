@@ -587,3 +587,17 @@ fn a_vault_waits_for_its_passphrase_typed_twice_alike() {
     let _ = app.frame();
     assert!(app.offers(Action::Vault(V::CGo)), "Create is on");
 }
+
+#[test]
+fn dice_rolled_for_a_vaults_passphrase_keep_the_app_from_counting_clean_until_the_form_closes() {
+    let mut app = on_create_vault();
+    assert!(app.clean());
+    app.press(Action::Vault(V::Dice(0)));
+    type_text(&mut app, "12345");
+    assert!(app.vaults().dice.open().is_some());
+    assert!(!app.clean(), "rolls are held");
+    app.press(Action::CancelFlow);
+    app.press(Action::CancelFlowNow);
+    assert!(app.vaults().create.is_none(), "the form closed");
+    assert!(app.vaults().dice.open().is_none(), "the rolls are gone");
+}

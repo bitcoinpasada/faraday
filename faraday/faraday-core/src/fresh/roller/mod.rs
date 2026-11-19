@@ -89,7 +89,8 @@ pub enum Sim {
     All,
 }
 
-/// The roller's state. Holds no entry: only the die, the choice and which
+/// The roller's state. Holds no entry, but the last value it landed stays
+/// in `face` until `reset`, along with the die, the choice and which
 /// positions it made.
 #[derive(Default)]
 pub struct Roller {

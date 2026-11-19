@@ -852,6 +852,12 @@ impl Faraday {
                     .iter()
                     .any(|(a, b)| !a.text.is_empty() || !b.text.is_empty())
             })
+            // Create a vault's dice rolls: the passphrase they make.
+            || self
+                .vaults
+                .dice
+                .open()
+                .is_some_and(|d| !d.1.text.is_empty())
     }
 
     /// Whether the field typing goes to is one of several lines, where

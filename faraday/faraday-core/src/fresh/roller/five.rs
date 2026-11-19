@@ -133,8 +133,9 @@ impl Sheet {
     }
 }
 
-/// The five-dice roller's state. Holds no entry: only the dice, the
-/// choice and which faces it made.
+/// The five-dice roller's state. Holds no entry, but the last value it
+/// landed stays in `face` until `reset`, along with the dice, the choice
+/// and which faces it made.
 pub struct FiveRoller {
     reach: Reach,
     /// The dice's faces, 2 to 20: six unless the host says otherwise.
