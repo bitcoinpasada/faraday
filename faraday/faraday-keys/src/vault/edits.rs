@@ -242,8 +242,9 @@ impl OpenVaults {
         s.facts.push(OnceCell::new());
         s.unchecked.push(Cell::new(true));
         s.changed();
+        let at = s.records.len() - 1;
         self.marks_changed(marked);
-        Some(s.records.len() - 1)
+        Some(at)
     }
 
     /// Puts `record` at place `at` in open vault `id`, the records from
