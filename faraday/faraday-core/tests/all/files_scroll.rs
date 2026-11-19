@@ -95,32 +95,32 @@ fn drawn(app: &mut Faraday, want: &str) -> Option<(i32, i32, i32, i32)> {
 }
 
 #[test]
-fn beside_the_rail_for_the_stick_scrolls_alone() {
+fn beside_the_rail_in_faraday_scrolls_alone() {
     let mut app = seven_inch();
-    let first = drawn(&mut app, "in-0.txt").expect("From the stick's first file");
-    wheel(&mut app, 800, 500);
-    assert!(app.files_out_offset() > 0.0, "For the stick did not move");
-    assert_eq!(app.list_offset, 0.0, "the page moved with it");
-    assert_eq!(
-        drawn(&mut app, "in-0.txt"),
-        Some(first),
-        "From the stick moved with it"
-    );
+    let first = drawn(&mut app, "out-0.txt").expect("In Faraday's first file");
+    wheel(&mut app, (first.0 + 100) as u16, (first.1 + 20) as u16);
     assert!(
         drawn(&mut app, "out-0.txt").is_none(),
-        "For the stick's first file is scrolled out of its pane"
+        "In Faraday did not move {first:?} {:?} off {}",
+        app.drawn_texts()
+            .iter()
+            .map(|t| t.to_string())
+            .collect::<Vec<_>>(),
+        app.list_offset
     );
 }
 
 #[test]
-fn beside_the_rail_from_the_stick_scrolls_alone() {
+fn beside_the_rail_the_inbox_files_come_after_the_outbox_in_the_same_card() {
     let mut app = seven_inch();
-    wheel(&mut app, 200, 500);
-    assert!(app.list_offset > 0.0, "From the stick did not move");
-    assert_eq!(app.files_out_offset(), 0.0, "For the stick moved with it");
-    let (_, y, ..) = drawn(&mut app, "out-0.txt").expect("For the stick's first file");
     assert!(
-        y > 0,
-        "For the stick's first file stands in its pane, at {y}"
+        drawn(&mut app, "in-19.txt").is_none(),
+        "the Inbox is further down"
+    );
+    let first = drawn(&mut app, "out-0.txt").expect("In Faraday's first file");
+    wheel(&mut app, (first.0 + 100) as u16, (first.1 + 20) as u16);
+    assert!(
+        drawn(&mut app, "in-19.txt").is_some(),
+        "the Inbox did not come into view"
     );
 }

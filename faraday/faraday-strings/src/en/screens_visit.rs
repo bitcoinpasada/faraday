@@ -10,18 +10,10 @@ macro_rules! words_screens_visit {
     visit_unselect_all: "Unselect all",
     /// Line in `visit_compact`.
     visit_select_all: "Select all",
-    /// Text in `visit`. `{}`: `app.medium.noun()`, `app.medium.noun()`, `app.medium.noun()`.
-    visit_write_what_waits: "Write what waits for the {} and copy in what you need from it. Each file written is read back and compared before it counts. Remove the {} when you are done: keys load only with no {} attached.",
-    /// Text in `visit`. `{}`: `app.medium.noun()`.
-    visit_no_attached: "No {} attached",
     /// Text in `visit`.
     visit_in_faraday: "In Faraday",
     /// Text in `visit`.
     visit_public: "Public",
-    /// Text in `visit`.
-    visit_sealed: "Sealed",
-    /// Text in `visit`.
-    visit_unprotected_secret: "Unprotected secret",
     /// Text in `visit`. `{}`: `app.medium.for_the()`.
     visit_nothing_waits: "Nothing waits {}",
     /// Text in `visit`. `{}`: `nout`, `if nout == 1 { EN.visit_file } else {…`.

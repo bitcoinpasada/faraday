@@ -65,59 +65,35 @@ macro_rules! words_screens_files {
     files_check_an_address: "Check an address",
     /// Row in the Details sheet of a PSBT Faraday did not open: why.
     details_refused: "Not opened",
-    /// Text in `files_compact`. `{}`: `app.medium.a()`.
+    /// Text in `files`. `{}`: `app.medium.a()`.
     files_waiting_medium: "Waiting for {}",
     /// Text in `stick_status` and `pull_sheet`: the kernel shows storage attached that the disk process has not listed. `{}`: `app.medium.noun()`.
     files_attached_unreadable: "A {} is attached and cannot be read",
-    /// Text in `files_compact`. `{}`: `app.medium.cap()`.
+    /// Text in `files`. `{}`: `app.medium.cap()`.
     files_attached_lock: "{} attached · lock to use it",
     /// Text in `on_no_stick`: the On the stick card while a stick is in and something is held. `{}`: `app.medium.noun()`.
     files_lock_to_use: "Lock to use the {}",
     /// Button in `on_no_stick`.
     files_lock: "Lock",
-    /// Button in `files_compact`.
-    files_scan_a_qr_code: "Scan a QR code",
-    /// Line in `files_compact`.
+    /// Line in `files`.
     files_in_memory_emptied: "In memory · emptied at power-off",
-    /// Text in `files_compact`.
-    files_locked: "locked",
-    /// Text in `files_compact`.
+    /// Text in `files`.
     files_open: "open",
-    /// Text in `files_compact`. `{}`: `app.medium.a()`.
+    /// Text in `files`. `{}`: `app.medium.a()`.
     files_empty_files_are: "Empty · files are copied in on {} visit",
-    /// Text in `files_compact`.
+    /// Text in `files`.
     files_public: "Public",
-    /// Text in `files_compact`.
-    files_anyone_may_read: "Anyone may read these",
-    /// Text in `files_compact`.
+    /// Text in `files`.
     files_written_sealed: "Written sealed",
-    /// Text in `files_compact`. `{}`: `app.medium.a()`.
-    files_sealed_under: "Sealed under their passphrases before they reach {}",
-    /// Text in `files_compact`.
+    /// Text in `files`.
     files_unprotected_secrets: "Unprotected secrets",
-    /// Text in `files_compact`. `{}`: `app.medium.noun()`.
-    files_anyone_who_has: "Anyone who has the {} can use these",
-    /// Text in `files_compact`. `{}`: `v.changes`, `if v.changes == 1 { EN.files_change }…`.
-    files_vault_open_unsaved: "Vault, open · {} unsaved {} · sealed and locked at Lock",
-    /// Text in `files_compact`.
-    files_change: "change",
-    /// Text in `files_compact`.
-    files_changes: "changes",
-    /// Text in `files_compact`.
-    files_vault_open_sealed: "Vault, open · sealed and locked at Lock",
-    /// Text in `files_compact`.
-    files_unprotected: "Unprotected",
-    /// Text in `files_compact`.
-    files_written_after: "Written after Lock",
-    /// Text in `files_compact`.
-    files_ready: "Ready",
-    /// Text in `files_compact`.
+    /// Text in `files`.
     files_make_pdf: "Make PDF",
-    /// Text in `files_compact`.
+    /// Text in `files`.
     files_show_as_qr: "Show as QR",
-    /// Text in `files_compact`.
+    /// Text in `files`.
     files_remove: "Remove",
-    /// Text in `files_compact`: the ⋮ menu's last choice on a file no stick holds.
+    /// Text in `files`: the ⋮ menu's last choice on a file no stick holds.
     files_delete: "Delete",
     /// Title of the sheet that asks first. `{}`: the file's name.
     outbox_delete_title: "Delete {}?",
@@ -133,12 +109,8 @@ macro_rules! words_screens_files {
     outbox_delete_hold_file: "Hold to delete the file",
     /// The cancel in that sheet.
     outbox_delete_cancel: "Cancel",
-    /// Line in `files_compact`.
-    files_empty: "Empty",
-    /// Text in `files_compact`. `{}`: `app.medium.for_the()`.
+    /// Text in `files`. `{}`: `app.medium.for_the()`.
     files_power_off_asks: "Power off asks first while files wait {}",
-    /// Text in `files_compact`. `{}`: `app.medium.from_box()`, `app.medium.nouns()`, `app.medium.for_box()`.
-    files_holds_what_was: "{} holds what was copied in; {} holds what waits to be written. Both are emptied at power-off. A secret goes out unprotected only after a warning.",
     // ----- receipt_rows (faraday-core/src/screens/files.rs) -----
     /// Text in `receipt_rows`.
     receipt_rows_verified: "verified",

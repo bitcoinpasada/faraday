@@ -465,9 +465,16 @@ fn no_file_row_shows_a_remove_button() {
         let _ = app.frame();
         assert!(!app.offers(Action::InboxRemove(0)), "compact {compact}");
         assert!(!app.offers(Action::OutboxRemove(0)), "compact {compact}");
-        assert!(app.offers(Action::File(FilePress::Menu(Row::In(0)))));
-        // On the small panel For the stick is further down the page.
-        assert!(compact || app.offers(Action::File(FilePress::Menu(Row::Out(0)))));
+        // On the small panel In Faraday's one card shows few rows at a
+        // time, the files further down.
+        assert!(
+            compact || app.offers(Action::File(FilePress::Menu(Row::Out(0)))),
+            "For the stick's menu"
+        );
+        assert!(
+            compact || app.offers(Action::File(FilePress::Menu(Row::In(0)))),
+            "From the stick's menu"
+        );
         assert!(!app.drawn_texts().iter().any(|t| t == "Remove"));
     }
 }

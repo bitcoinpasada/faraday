@@ -2,7 +2,7 @@
 //! own lists from expanded windows up, and below that Material's primary
 //! tabs In Faraday and On the stick.
 
-use super::parts::{kind_line, pull_line, size_text, written_and_checked};
+use super::parts::{kind_line, size_text, written_and_checked};
 use crate::drawing::View;
 use crate::strings::EN;
 use crate::ui::Region;
@@ -13,493 +13,40 @@ use crate::wallet::FileKind;
 use crate::{Action, Faraday};
 use faraday_draw::tokens::{
     BODY_M, BODY_S, BUTTON_H, BUTTON_PAD, GAP_SMALL, GRID, LABEL_L, LABEL_M, ROW, TITLE_M, TITLE_S,
-    VISIT_CARD_FOOT, VISIT_CARD_HEAD, VISIT_FOOT_ROW, VISIT_GROUP_HEAD, VISIT_NAME_MIN,
-    VISIT_ROW_BUTTON_H,
+    VISIT_CARD_FOOT, VISIT_CARD_HEAD, VISIT_FOOT_ROW, VISIT_GROUP_HEAD, VISIT_ROW_BUTTON_H,
 };
 use faraday_draw::widgets::Icon;
 use faraday_text::Text;
-use faraday_ui::parts::wrap_buttons;
 
-/// [`visit`] on a small panel: one scrolled column. The sticks, what is
-/// left to do, then what to write and what to import, each a list with
-/// its buttons under it.
-fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
-    use crate::compact::M;
-    use crate::compact::screen::finish;
-    let (x, w) = (x0 + M, cw - 2.0 * M);
-    ui.page_begin((x0, cw, h), app.list_offset);
-    let top = 12.0;
-    let mut y = top;
-    app.visit.bar(crate::Column::Outbox).set(None);
-    app.visit.bar(crate::Column::Stick).set(None);
-    let Some(stick) = app.stick.get(app.visit.stick) else {
-        ui.text_as(
-            x,
-            y,
-            BODY_M,
-            Role::OnSurfaceVariant,
-            &Text::fill(EN.visit_no_attached, &[app.medium.noun()]),
-        );
-        return;
-    };
-    // Material's primary tabs: In Faraday, On the stick.
-    let on_stick = app.visit.tab_stick;
-    let on_label = Text::fill(EN.backups_on_stick, &[&stick.label]);
-    y += ui.tabs(
-        (x, y, w, faraday_draw::tokens::TAB_H),
-        faraday_ui::tabs::TabKind::Primary,
-        &[
-            faraday_ui::tabs::Tab {
-                label: EN.visit_in_faraday,
-                on: !on_stick,
-                done: false,
-                action: Action::VisitTab(crate::Column::Outbox),
-            },
-            faraday_ui::tabs::Tab {
-                label: &on_label,
-                on: on_stick,
-                done: false,
-                action: Action::VisitTab(crate::Column::Stick),
-            },
-        ],
-    ) + 12.0;
-    // Where pulling the stick goes.
-    let then = ui.fit_as(BODY_S, &app.visit_then(), w - 34.0);
-    ui.chip(
-        x,
-        y,
-        &then,
-        Role::OnSecondaryContainer,
-        Role::SecondaryContainer,
-    );
-    y += 36.0;
-    // One button per stick, the chosen one filled.
-    if app.stick.len() > 1 {
-        let items: Vec<(&str, Style, Action)> = app
-            .stick
-            .iter()
-            .enumerate()
-            .map(|(k, st)| {
-                let style = Style::chosen(k == app.visit.stick);
-                (st.label.as_str(), style, Action::VisitStick(k))
-            })
-            .collect();
-        y += wrap_buttons(ui, x, y, w, BUTTON_H, &items) + GAP_SMALL;
-    } else {
-        ui.text_as(x, y, LABEL_L, Role::OnSurfaceVariant, &stick.label);
-        y += ui.advance_as(LABEL_L, 26.0);
-    }
-    if let Some(line) = super::files::boot_medium_line(app) {
-        y += ui.wrap_as((x, y, w), BODY_M, Role::Error, line) + GRID;
-    }
-    // What is left to do: pull the stick, and where the copied files went.
-    y += crate::vault::screen::stick_banner(ui, x, y, w, &pull_line(app));
-    if signed_end(app) {
-        y += super::spend::end_card(app, ui, (x, y, w), 0) + GAP_SMALL;
-    }
-    if let Some((line, _)) = app.visit.unprotected_of(&stick.id) {
-        y += ui.wrap_as((x, y, w), BODY_M, Role::Error, line) + GAP_SMALL;
-        y += wrap_buttons(
-            ui,
-            x,
-            y,
-            w,
-            BUTTON_H,
-            &[(
-                EN.unprotected_delete,
-                Style::Secondary,
-                Action::DeleteUnprotected,
-            )],
-        ) + GAP_SMALL;
-    }
-    for (line, ok) in app.visit.log.iter().rev().take(2) {
-        let c = if *ok { Role::Ok } else { Role::Error };
-        y += ui.wrap_as((x, y, w), BODY_M, c, line) + 6.0;
-    }
-    y += GRID;
-    if !on_stick {
-        return visit_compact_in(app, ui, (x, y, w), (top, h));
-    }
-
-    // Import into the Inbox.
-    ui.icon(x, y, 20.0, Icon::Download, 13.0, Role::Primary);
-    ui.text_mid_as(
-        (x + 28.0, y - GAP_SMALL, 28.0),
-        TITLE_M,
-        Role::OnSurface,
-        app.medium.on_box(),
-    );
-    y += 34.0;
-    // Everything comes in by default: Unselect all, while any is ticked.
-    if !app.visit.inn.is_empty() {
-        let t = EN.visit_unselect_all;
-        let tw = ui.measure_as(LABEL_L, t);
-        ui.text_as(x, y + 2.0, LABEL_L, Role::Primary, t);
-        ui.press_box(x - 6.0, y - 6.0, tw + 12.0, 34.0, Action::VisitInAll);
-        y += 34.0;
-    }
-    for (k, (name, size)) in stick.files.iter().enumerate() {
-        // A file larger than the disk process reads is listed, not read.
-        let why = stick.unread_why(&app.vaults, name, *size);
-        let big = why.is_some();
-        let kind = stick.kind_of(name).filter(|_| !big);
-        let on = app.visit.inn.contains(name.as_str());
-        ui.checkbox(x + 2.0, y + 10.0, on, kind.is_some());
-        let fg = if kind.is_some() {
-            Role::OnSurface.paint()
-        } else {
-            crate::ui::off()
-        };
-        // Its ⋮ at the right end (decision 61 item 4).
-        let menu = Faraday::stick_row_menu(name);
-        let dw = if menu { 32.0 + GRID } else { 0.0 };
-        let held = app.inbox_holds(name, *size);
-        let tag = EN.visit_in_faraday;
-        let tw = if held {
-            ui.measure_as(LABEL_M, tag) + GRID
-        } else {
-            0.0
-        };
-        let n = ui.fit_as(BODY_M.mono(), name, w - 32.0 - tw - dw);
-        ui.text_as(x + 32.0, y + GAP_SMALL, BODY_M.mono(), fg, &n);
-        if held {
-            ui.text_right_as(
-                (x + w - dw, y + 2.0, 20.0),
-                LABEL_M,
-                Role::OnSurfaceVariant,
-                tag,
-            );
-        }
-        let sub = match kind {
-            // Asked for: a picture's codes take a moment.
-            Some(_) if app.visit.reading.contains(name.as_str()) => {
-                Text::fill(EN.visit_being_read, &[&size_text(*size)])
-            }
-            Some(k) => kind_and_size(k, *size),
-            None if big => why.map(|w| Text::of(&w)).unwrap_or_default(),
-            // Read at boot, not copied in.
-            None => Text::of(EN.visit_settings),
-        };
-        let sub = ui.fit_as(BODY_S, &sub, w - 32.0 - dw);
-        ui.text_as(
-            x + 32.0,
-            y + 26.0,
-            BODY_S,
-            if kind.is_some() {
-                Role::OnSurfaceVariant.paint()
-            } else {
-                crate::ui::off()
-            },
-            &sub,
-        );
-        if kind.is_some() {
-            ui.press_box(x - GAP_SMALL, y, w + GRID - dw, 48.0, Action::VisitIn(k));
-        }
-        if menu {
-            crate::file_menu::dots(
-                app,
-                ui,
-                x + w - 32.0,
-                y + GRID,
-                32.0,
-                crate::file_menu::Row::Stick(k),
-            );
-        }
-        y += 50.0;
-        ui.rule(x, y, w, Role::OutlineVariant);
-        y += 6.0;
-    }
-    if stick.files.is_empty() {
-        let none = Text::fill(EN.visit_no_files, &[app.medium.noun()]);
-        ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, &none);
-        y += ui.advance_as(BODY_S, 28.0);
-    }
-    // Delete files: the one way into deleting from the stick; and the
-    // stick's own name (`docs/STICK-IDENTITY.md` §6).
-    let rename = Text::fill(EN.stick_name_button, &[app.medium.noun()]);
-    y += wrap_buttons(
-        ui,
-        x,
-        y,
-        w,
-        BUTTON_H,
-        &[
-            (EN.visit_delete_files, Style::Ghost, Action::DeleteFiles),
-            (&rename, Style::Ghost, NAME_STICK),
-        ],
-    );
-    let nin = app.visit.inn.len();
-    let enabled = nin > 0;
-    let label = Text::fill(
-        EN.visit_import,
-        &[
-            &Text::num(nin as u64),
-            (if nin == 1 {
-                EN.visit_file
-            } else {
-                EN.visit_files
-            }),
-        ],
-    );
-    y += 6.0;
-    let sign = app.visit.sign_file().cloned();
-    let sign_label = sign
-        .as_ref()
-        .map(|n| Text::fill(EN.visit_import_and_sign, &[n]));
-    let (primary_label, primary_action) = match &sign_label {
-        Some(l) => (l.as_str(), Action::VisitCopyAndSign),
-        None => (EN.visit_import_and_load, Action::VisitCopyAndLoad),
-    };
-    y += wrap_buttons(
-        ui,
-        x,
-        y,
-        w,
-        BUTTON_H,
-        &[
-            (
-                &label,
-                if enabled {
-                    Style::Secondary
-                } else {
-                    Style::Disabled
-                },
-                Action::VisitCopy,
-            ),
-            (primary_label, Style::Primary.when(enabled), primary_action),
-        ],
-    ) + 12.0;
-    finish(app, ui, h, y - top + 16.0);
-}
-
-/// [`visit_compact`]'s In Faraday tab: what is written to the stick, the
-/// Outbox and copies from the Inbox, from (x, y) `w` wide.
-fn visit_compact_in(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), (top, h): (f32, f32)) {
-    use crate::compact::screen::{about, finish};
-    let mut y = y;
-    if let Some(r) = app.visit.receipt().as_ref() {
-        y += super::files::receipt_rows(ui, r, app.tz_min(), x, y, w) + GRID;
-    }
-    // Write to the stick: the Outbox, and copies from the Inbox.
-    ui.icon(x, y, 20.0, Icon::Export, 13.0, Role::Primary);
-    ui.text_mid_as(
-        (x + 28.0, y - GAP_SMALL, 28.0),
-        TITLE_M,
-        Role::OnSurface,
-        EN.visit_in_faraday,
-    );
-    y += 34.0;
-    // The settings, which are not an Outbox file.
-    let settings_on = app.visit_settings_on();
-    let all = visit_all_out(app);
-    ui.checkbox(x + 2.0, y + GAP_SMALL, all, true);
-    ui.text_as(
-        x + 32.0,
-        y + 2.0,
-        LABEL_L,
-        Role::OnSurfaceVariant,
-        EN.visit_select_all,
-    );
-    ui.press_box(x - GAP_SMALL, y - 6.0, w + GRID, 34.0, Action::VisitOutAll);
-    y += 34.0;
-    let row = |ui: &mut Ui,
-               y: f32,
-               on: bool,
-               name: &str,
-               line: &str,
-               tag: (&str, crate::ui::Paint),
-               (action, menu, main): RowParts| {
-        // No action: the stick holds the file already, drawn greyed.
-        let held = action.is_none();
-        ui.checkbox(x + 2.0, y + 10.0, on && !held, !held);
-        // Its ⋮ at the right end (F54), its main action before it where
-        // the name keeps its room (the Pi's column drops it).
-        let dw = if menu.is_some() { 40.0 } else { 0.0 };
-        let main = main.filter(|(l, ..)| {
-            let bw = ui.measure_as(TITLE_S, l) + 2.0 * BUTTON_PAD;
-            w - 32.0 - dw - bw - ui.measure_as(LABEL_M, tag.0) - 16.0 >= VISIT_NAME_MIN
-        });
-        let bw = main.as_ref().map_or(0.0, |(l, ..)| {
-            ui.measure_as(TITLE_S, l) + 2.0 * BUTTON_PAD + GRID
-        });
-        if let Some((l, st, a)) = main {
-            ui.button(
-                x + w - dw - bw + GRID,
-                y + GRID,
-                Some(bw - GRID),
-                VISIT_ROW_BUTTON_H,
-                &l,
-                st,
-                a,
-            );
-        }
-        let dw = dw + bw;
-        let tw = ui.measure_as(LABEL_M, tag.0) + GRID + dw;
-        let n = ui.fit_as(BODY_M.mono(), name, w - 32.0 - tw);
-        ui.text_as(
-            x + 32.0,
-            y + GAP_SMALL,
-            BODY_M.mono(),
-            if held {
-                crate::ui::off()
-            } else {
-                Role::OnSurface.paint()
-            },
-            &n,
-        );
-        ui.text_right_as((x + w - dw, y + 2.0, 20.0), LABEL_M, tag.1, tag.0);
-        let l = ui.fit_as(BODY_S, line, w - 32.0 - dw);
-        ui.text_as(
-            x + 32.0,
-            y + 26.0,
-            BODY_S,
-            if held {
-                crate::ui::off()
-            } else {
-                Role::OnSurfaceVariant.paint()
-            },
-            &l,
-        );
-        if let Some(action) = action {
-            ui.press_box(x - GAP_SMALL, y, w + GRID - dw, 48.0, action);
-        }
-        if let Some(menu) = menu {
-            crate::file_menu::dots(app, ui, x + w - 32.0, y + GRID, 32.0, menu);
-        }
-        ui.rule(x, y + 50.0, w, Role::OutlineVariant);
-        56.0
-    };
-    y += row(
-        ui,
-        y,
-        settings_on,
-        crate::stick::settings::FILE,
-        EN.visit_settings,
-        (EN.visit_public, Role::OnSurfaceVariant.paint()),
-        (Some(Action::VisitSettings), None, None),
-    );
-    for (k, item) in app.outbox.iter().enumerate() {
-        let on = app.visit.out.contains(&*item.name);
-        let held = app.in_the_backup(&item.name);
-        let tag = match item.exposure() {
-            _ if held => (
-                crate::strings::EN.backup_flow_in_the_backup,
-                Role::OnSurfaceVariant.paint(),
-            ),
-            crate::secrets::Exposure::Public => (EN.visit_public, Role::OnSurfaceVariant.paint()),
-            crate::secrets::Exposure::Sealed => (EN.visit_sealed, Role::Ok.paint()),
-            crate::secrets::Exposure::Secret => (EN.visit_unprotected_secret, Role::Error.paint()),
-        };
-        y += row(
-            ui,
-            y,
-            on,
-            &item.name,
-            &kind_line(item.kind, item.bytes.len()),
-            tag,
-            (
-                (!held).then_some(Action::VisitOut(k)),
-                Some(crate::file_menu::Row::Out(k)),
-                None,
-            ),
-        );
-    }
-    if app.outbox.is_empty() {
-        ui.text_as(
-            x,
-            y,
-            BODY_S,
-            Role::OnSurfaceVariant,
-            &Text::fill(EN.visit_nothing_waits, &[app.medium.for_the()]),
-        );
-        y += ui.advance_as(BODY_S, 28.0);
-    }
-    let shown = app.visit_inbox_shown();
-    if !shown.is_empty() {
-        ui.text_mid_as(
-            (x, y, 30.0),
-            LABEL_L,
-            Role::OnSurfaceVariant,
-            app.medium.from_box(),
-        );
-        y += 32.0;
-        for &(k, held) in &shown {
-            let item = &app.inbox[k];
-            y += row(
-                ui,
-                y,
-                app.visit.from_inbox.contains(&*item.name),
-                &item.name,
-                &visit_inbox_line(item),
-                if held {
-                    (app.medium.on_this_box(), Role::OnSurfaceVariant.paint())
-                } else {
-                    visit_inbox_tag(item)
-                },
-                (
-                    (!held).then_some(Action::VisitInbox(k)),
-                    Some(crate::file_menu::Row::In(k)),
-                    main_action(app, k, item),
-                ),
-            );
-        }
-    }
-    let nout = visit_write_count(app);
-    let label = Text::fill(
-        EN.visit_write,
-        &[
-            &Text::num(nout as u64),
-            (if nout == 1 {
-                EN.visit_file
-            } else {
-                EN.visit_files
-            }),
-        ],
-    );
-    y += 6.0;
-    ui.button(
-        x,
-        y,
-        Some(w),
-        BUTTON_H,
-        &label,
-        Style::Primary.when(nout > 0),
-        Action::VisitWrite,
-    );
-    y += 54.0;
-    y += about(
-        ui,
-        x,
-        y,
-        w,
-        &Text::fill(
-            EN.visit_write_what_waits,
-            &[app.medium.noun(), app.medium.noun(), app.medium.noun()],
-        ),
-    );
-    finish(app, ui, h, y - top + 16.0);
-}
-
-/// Files from expanded windows up: the same two cards whether a stick is
-/// in or not, In Faraday and On the stick, from under the top app bar to
-/// the page's foot (F290).
+/// Files: the same two cards whether a stick is in or not, In Faraday and
+/// On the stick, from under the top app bar to the page's foot (F290).
+/// From expanded windows up they stand side by side; below that they are
+/// Material's primary tabs and one card shows at a time.
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
-    if ui.compact {
-        return visit_compact(app, ui, x0, cw, h);
-    }
     use faraday_draw::tokens::{
-        FAB_H, PAGE_INSET, READING_VISIT_W, VISIT_GAP, VISIT_NOTICE_BUTTON_PAD, VISIT_NOTICE_GAP,
-        VISIT_NOTICE_H,
+        FAB_H, PAGE_INSET, READING_VISIT_W, TAB_H, VISIT_GAP, VISIT_NOTICE_BUTTON_PAD,
+        VISIT_NOTICE_GAP, VISIT_NOTICE_H,
     };
+    let compact = ui.compact;
     // The two columns keep the width they read at, centred in Files' room.
     let cw_all = cw;
-    let cw = cw.min(READING_VISIT_W);
+    let cw = if compact { cw } else { cw.min(READING_VISIT_W) };
     let x0 = x0 + (cw_all - cw) / 2.0;
-    let x = x0 + PAGE_INSET;
-    let width = cw - 2.0 * PAGE_INSET;
+    let (x, width) = if compact {
+        (x0 + crate::compact::M, cw - 2.0 * crate::compact::M)
+    } else {
+        (x0 + PAGE_INSET, cw - 2.0 * PAGE_INSET)
+    };
     // The top app bar names the page and carries the stick's status chip;
-    // the cards begin under it.
-    let y = super::bar_head(ui, None, EN.files_files) + GAP_SMALL;
+    // the cards begin under it. A small panel's page head is drawn apart:
+    // its cards begin under the tabs.
+    let mut y = if compact {
+        app.visit.bar(crate::Column::Outbox).set(None);
+        app.visit.bar(crate::Column::Stick).set(None);
+        12.0
+    } else {
+        super::bar_head(ui, None, EN.files_files) + GAP_SMALL
+    };
     // A stick in with nothing held: its files can be written to and read.
     let usable = app.stick_pane();
     let stick = app.stick.get(app.visit.stick).filter(|_| usable);
@@ -515,11 +62,47 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let end_h = if usable { end_room(app) } else { 0.0 };
     let log_h = if app.visit.log.is_empty() { 0.0 } else { 44.0 };
-    let colw = (width - VISIT_GAP) / 2.0;
-    // The cards end above the Scan button, which stands at the page's foot.
-    let colh = (h - y - FAB_H - PAGE_INSET - notice_h - end_h - log_h).max(0.0);
-    in_faraday(app, ui, (x, y, colw, colh), usable);
-    on_the_stick(app, ui, (x + colw + VISIT_GAP, y, colw, colh), stick);
+    if compact {
+        let on_stick = app.visit.tab_stick;
+        let on_label = match stick.or_else(|| app.stick.get(app.visit.stick)) {
+            Some(st) => Text::fill(EN.backups_on_stick, &[&st.label]),
+            None => Text::of(app.medium.on_box()),
+        };
+        y += ui.tabs(
+            (x, y, width, TAB_H),
+            faraday_ui::tabs::TabKind::Primary,
+            &[
+                faraday_ui::tabs::Tab {
+                    label: EN.visit_in_faraday,
+                    on: !on_stick,
+                    done: false,
+                    action: Action::VisitTab(crate::Column::Outbox),
+                },
+                faraday_ui::tabs::Tab {
+                    label: &on_label,
+                    on: on_stick,
+                    done: false,
+                    action: Action::VisitTab(crate::Column::Stick),
+                },
+            ],
+        ) + GAP_SMALL;
+    }
+    let colw = if compact {
+        width
+    } else {
+        (width - VISIT_GAP) / 2.0
+    };
+    // The cards end above the Scan button, which stands at the page's foot
+    // (a small panel has none: its Scan button is the navigation's).
+    let fab = if compact { 0.0 } else { FAB_H + PAGE_INSET };
+    let colh = (h - y - fab - notice_h - end_h - log_h).max(0.0);
+    if !compact || !app.visit.tab_stick {
+        in_faraday(app, ui, (x, y, colw, colh), usable);
+    }
+    if !compact || app.visit.tab_stick {
+        let sx = if compact { x } else { x + colw + VISIT_GAP };
+        on_the_stick(app, ui, (sx, y, colw, colh), stick);
+    }
     let foot = y + colh;
     if let Some(line) = notice {
         let label = EN.unprotected_delete;
@@ -1192,15 +775,6 @@ fn on_no_stick(app: &View, ui: &mut Ui, (x, top, w, h): (f32, f32, f32, f32)) {
     );
 }
 
-/// Whether everything Select all chooses on a visit's write list is
-/// chosen: the settings, every Outbox file but an unprotected secret, and
-/// every public or sealed Inbox file listed.
-/// A pane row's press, its ⋮ menu and its main action.
-type RowParts = (
-    Option<Action>,
-    Option<crate::file_menu::Row>,
-    Option<(Text, Style, Action)>,
-);
 /// An Inbox file's main action in its row, as Files offers it, except
 /// unlocking a vault while a stick is in: that waits until it is pulled.
 fn main_action(app: &View, k: usize, item: &crate::Item) -> Option<(Text, Style, Action)> {
@@ -1270,6 +844,9 @@ fn kind_and_size(kind: &str, size: u64) -> Text {
     out
 }
 
+/// Whether everything Select all chooses on a visit's write list is
+/// chosen: the settings, every Outbox file but an unprotected secret, and
+/// every public or sealed Inbox file listed.
 fn visit_all_out(app: &View) -> bool {
     app.visit_settings_on()
         && app

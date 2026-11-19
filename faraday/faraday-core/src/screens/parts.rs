@@ -1162,32 +1162,6 @@ pub(super) fn written_and_checked(app: &View) -> bool {
             .is_some_and(|r| !r.files.is_empty() && r.files.iter().all(|f| f.verified))
 }
 
-/// What pulling the stick does next: the keys an Import and load copied
-/// in load, or the vault it brought asks for its passphrase.
-pub(super) fn pull_line(app: &View) -> Text {
-    // Only words copied in for Import and load are keys waiting to load.
-    let n = app
-        .inbox
-        .iter()
-        .filter(|i| i.kind == FileKind::Words && app.visit.load_after.contains(&*i.name))
-        .count();
-    let vault = app
-        .vault_files()
-        .into_iter()
-        .find(|f| f.open.is_none() && !f.in_outbox)
-        .map(|f| f.name);
-    let noun = app.medium.noun();
-    match (n, vault) {
-        (0, Some(v)) if !app.holds_secret() => {
-            Text::fill(EN.pull_line_remove_to_unlock, &[noun, &v])
-        }
-        (0, _) if written_and_checked(app) => Text::fill(EN.pull_line_written_checked, &[noun]),
-        (0, _) => Text::fill(EN.pull_line_remove_when_done, &[noun]),
-        (1, _) => Text::fill(EN.pull_line_1_key_copied, &[noun]),
-        (n, _) => Text::fill(EN.pull_line_keys_copied, &[&Text::num(n as u64), noun]),
-    }
-}
-
 /// How a grid of word cells is drawn: as many as `boxes`, a word taken
 /// as bullets when `masked`, the caret at the word being typed when
 /// `caret`.

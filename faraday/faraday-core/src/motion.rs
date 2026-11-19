@@ -704,8 +704,9 @@ impl Scroll {
     ) -> ui::Slot {
         let reach = !compact && sheet_none;
         match self.region {
-            ui::Slot::VisitOut if screen == Screen::Files && reach => ui::Slot::VisitOut,
-            ui::Slot::VisitIn if screen == Screen::Files && reach => ui::Slot::VisitIn,
+            // Files' card is a list of its own on a small panel too.
+            ui::Slot::VisitOut if screen == Screen::Files && sheet_none => ui::Slot::VisitOut,
+            ui::Slot::VisitIn if screen == Screen::Files && sheet_none => ui::Slot::VisitIn,
             ui::Slot::Card if screen == Screen::Wallets && reach => ui::Slot::Card,
             ui::Slot::VaultItem if screen == Screen::VaultContents && reach => ui::Slot::VaultItem,
             // Files' two lists stand side by side on the rail's windows

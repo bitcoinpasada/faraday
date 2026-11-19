@@ -91,17 +91,6 @@ macro_rules! words_screens_parts {
     kind_name_secret_key: "Key file with a secret",
     /// Text in `kind_name`.
     kind_name_file: "File",
-    // ----- pull_line (faraday-core/src/screens/parts.rs) -----
-    /// Text in `pull_line`. `{}`: `noun`, `v`.
-    pull_line_remove_to_unlock: "Remove the {} to unlock {}",
-    /// Text in `pull_line`, once the files For the stick are written and read back. `{}`: `noun`.
-    pull_line_written_checked: "Written and checked · pull the {}",
-    /// Text in `pull_line`. `{}`: `noun`.
-    pull_line_remove_when_done: "Remove the {} when you are done",
-    /// Text in `pull_line`. `{}`: `noun`.
-    pull_line_1_key_copied: "1 key copied in · remove the {} to load it",
-    /// Text in `pull_line`. `{}`: `n`, `noun`.
-    pull_line_keys_copied: "{} keys copied in · remove the {} to load them",
     // ----- word_keys (faraday-core/src/screens/parts.rs) -----
     /// Button in `word_keys`.
     word_keys_shift: "Shift",

@@ -1681,10 +1681,13 @@ impl Faraday {
         self.screen == Screen::Files && !self.stick.is_empty() && !self.holds_secret()
     }
 
-    /// The last stick pulled: Files goes where the pane's chip said (F235).
+    /// The last stick pulled: Files stays on Files, only On the stick going
+    /// back to its empty state; a flow the stick came in during, or a vault
+    /// sealed for the visit, takes the person back to it, to the flow or to
+    /// Unlock (F290).
     pub(crate) fn visit_pulled(&mut self) {
         if self.screen == Screen::Files {
-            // Where the pane's chip said it goes (F235).
+            // A vault sealed for the visit opens again, unless a flow waits.
             let unlock = self
                 .visit
                 .after_visit()
@@ -2091,19 +2094,6 @@ impl Faraday {
                         .as_ref()
                         .is_some_and(|r| r.wrote(&f.name)))
         })
-    }
-
-    /// The stick visit's chip: where pulling
-    /// the stick goes. Back to the flow the stick came in during, Unlock
-    /// when a vault was sealed for the visit, else Home.
-    pub fn visit_then(&self) -> faraday_text::Text {
-        match *self.visit.after_visit() {
-            Some(s) => faraday_text::Text::fill(EN.visit_then_then, &[self.back_name(s)]),
-            None if self.visit_unlocks().is_some() => {
-                faraday_text::Text::of(EN.visit_then_then_unlock)
-            }
-            None => faraday_text::Text::of(EN.visit_then_then_home),
-        }
     }
 
     /// Every Outbox file a visit may write unasked: all but an

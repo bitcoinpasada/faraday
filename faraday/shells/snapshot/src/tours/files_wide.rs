@@ -54,6 +54,10 @@ pub(crate) fn files_wide_tour(t: &mut Tour) -> Result<(), String> {
     crate::tour::not_now_load(t);
     t.press(Action::Nav(Screen::Files));
     t.shot("files-no-stick")?;
+    // A small window's On the stick tab with nothing in.
+    t.press(Action::VisitTab(faraday_core::Column::Stick));
+    t.shot("files-stick-tab-waiting")?;
+    t.press(Action::VisitTab(faraday_core::Column::Outbox));
     if t.app.offers(Action::InboxSummary) {
         t.press(Action::InboxSummary);
         t.shot("files-summary-open")?;
@@ -65,5 +69,7 @@ pub(crate) fn files_wide_tour(t: &mut Tour) -> Result<(), String> {
         t.press(Action::Cancel);
     }
     t.press(Action::Nav(Screen::Files));
-    t.shot("files-stick-locked")
+    t.shot("files-stick-locked")?;
+    t.press(Action::VisitTab(faraday_core::Column::Stick));
+    t.shot("files-stick-tab-locked")
 }

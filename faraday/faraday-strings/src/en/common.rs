@@ -165,13 +165,6 @@ macro_rules! words_common {
     pull_what_load_samples: "load the samples",
     /// The Lock sheet's last section when the lock is a mode change.
     lock_mode_keeps_nothing: "A mode change keeps nothing but the mode: Files, For the stick, keys and wallets are emptied.",
-    // ----- visit_then (faraday-core/src/lib.rs) -----
-    /// Text in `visit_then`. `{}`: `self.back_name(s)`.
-    visit_then_then: "Then: {}",
-    /// Text in `visit_then`.
-    visit_then_then_unlock: "Then: Unlock",
-    /// Text in `visit_then`.
-    visit_then_then_home: "Then: Home",
     // ----- start_spend (faraday-core/src/lib.rs) -----
     /// Toast in `start_spend`.
     start_spend_not_a_psbt: "Not a PSBT",

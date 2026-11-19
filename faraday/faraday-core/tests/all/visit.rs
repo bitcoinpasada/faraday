@@ -527,6 +527,54 @@ fn a_visit_for_a_vault_sealed_at_lock_goes_to_unlock_with_no_chip() {
     assert_eq!(app.screen, Screen::Unlock);
 }
 
+#[test]
+fn compact_files_has_both_tabs_with_and_without_a_stick() {
+    let mut app = with_stick_at(3, (480, 640, 286));
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "In Faraday"), "{texts:?}");
+    assert!(texts.iter().any(|t| t == "On TESTSTICK"), "{texts:?}");
+    assert!(!texts.iter().any(|t| t.starts_with("Then:")), "{texts:?}");
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    assert_eq!(app.screen, Screen::Files);
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "In Faraday"), "{texts:?}");
+    assert!(texts.iter().any(|t| t == "On the stick"), "{texts:?}");
+}
+
+#[test]
+fn compact_on_the_stick_tab_with_no_stick_says_waiting() {
+    let mut app = with_stick_at(3, (480, 640, 286));
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    app.press(Action::VisitTab(Column::Stick));
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t.starts_with("Waiting for")),
+        "{texts:?}"
+    );
+    assert!(!app.offers(Action::DeleteFiles), "no stick buttons");
+}
+
+#[test]
+fn a_stick_pulled_in_the_middle_of_a_flow_returns_to_it_with_no_chip() {
+    let mut app = faraday_core::testkit::new_on_test_net();
+    app.press(Action::Nav(Screen::Restore));
+    assert_eq!(app.screen, Screen::Restore);
+    app.storage(StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
+        serial: None,
+        id: faraday_text::Text::of("S"),
+        label: faraday_text::Text::of("TESTSTICK"),
+        boot: false,
+        files: Vec::new(),
+        vaults: Vec::new(),
+    }]));
+    assert_eq!(app.screen, Screen::Files);
+    let texts = app.drawn_texts();
+    assert!(!texts.iter().any(|t| t.starts_with("Then:")), "{texts:?}");
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    assert_eq!(app.screen, Screen::Restore);
+}
+
 /// What the app asked the storage to do since last asked.
 fn asked(app: &mut Faraday) -> Vec<StorageCommand> {
     std::iter::from_fn(|| app.poll_storage()).collect()
