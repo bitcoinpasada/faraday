@@ -51,9 +51,7 @@ The Raspberry Pi reads sticks alike; its screens say "SD card" for "stick".
 
 **Key:** files.open-vaults
 
-One panel per open vault, with **Wallets with their seeds** first. With several wallets, tick the ones you want; **Select all** ticks every one. A wallet shows how many of its keys are in this vault, and **Ready to sign once loaded** when it has enough.
-
-**Load** is named for the choice, such as **Load wallet with keys**, **Load 1 wallet with keys** or **Load 2 wallets with keys**; with nothing chosen it reads **Nothing chosen**. **Each seed and wallet** lists every item of the vault, and **Hide each seed and wallet** closes the list. Once loaded, the panel reads **Everything is loaded** and **Go to Wallets** opens Wallets.
+An open vault has a row in the **In Faraday** list, with **Contents**, which opens it in Vaults. Its ⋮ menu holds **Load wallet with keys**, which loads the vault's wallets together with their seeds; with several it reads **Load 2 wallets with keys**, and with none left to load the menu offers nothing. Choosing which wallets, and listing each seed and wallet, are done in Vaults.
 
 ## What the Inbox gives
 

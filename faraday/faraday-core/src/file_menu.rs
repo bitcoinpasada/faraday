@@ -45,6 +45,8 @@ pub enum Row {
     Out(usize),
     /// A file on the stick the visit shows, by its place in its listing.
     Stick(usize),
+    /// An open vault's row on Files, by its place among the open vaults.
+    Vault(usize),
 }
 
 /// A press about a file row's ⋮ (`docs/FLOWS.md` decision 61).
@@ -232,6 +234,14 @@ impl Faraday {
                     String::from(&*crate::screens::kind_line(i.kind, i.bytes.len())),
                 )
             }),
+            Row::Vault(v) => {
+                let open = self.vaults.open.get(v)?;
+                Some((
+                    String::from(&*open.name),
+                    0,
+                    String::from(&*open.label(self.vaults.store())),
+                ))
+            }
             Row::Stick(k) => {
                 let (name, size) = self.stick_file(k)?;
                 let stick = self.stick.get(self.visit.stick);
@@ -352,6 +362,25 @@ impl Faraday {
                 };
                 out.push((word.to_string(), Action::OutboxRemove(k)));
             }
+            Row::Vault(v) => {
+                let c = self.compute();
+                let pending: Vec<_> = self
+                    .vault_wallets_with_keys(&c, v)
+                    .into_iter()
+                    .filter(|w| !w.done)
+                    .collect();
+                let chosen = pending.iter().filter(|w| w.chosen).count();
+                let label = match (chosen, pending.len()) {
+                    (0, _) => return out,
+                    (1, 1) => EN.vault_load_wallet_keys.to_string(),
+                    (1, _) => EN.vault_load_1_wallet.to_string(),
+                    (n, _) => fill(EN.vault_load_wallets, &[&n.to_string()]),
+                };
+                out.push((
+                    label,
+                    Action::Vault(crate::vault::VaultAction::LoadWithKeys(v)),
+                ));
+            }
             Row::Stick(k) => {
                 if !self
                     .stick_file(k)
@@ -442,7 +471,7 @@ impl Faraday {
                 let item = match row {
                     Row::In(k) => self.inbox.get(k),
                     Row::Out(k) => self.outbox.get(k),
-                    Row::Stick(_) => return,
+                    Row::Stick(_) | Row::Vault(_) => return,
                 };
                 if let Some(item) = item {
                     let (name, bytes, kind) = (item.name.clone(), item.bytes.clone(), item.kind);
@@ -491,6 +520,7 @@ impl Faraday {
         let (sha, stick) = match row {
             Row::In(k) => (self.inbox.get(k).map(|i| Ok(sha256(&c, &i.bytes))), None),
             Row::Out(k) => (self.outbox.get(k).map(|i| Ok(sha256(&c, &i.bytes))), None),
+            Row::Vault(_) => (None, None),
             Row::Stick(_) => {
                 let id = self.stick.get(self.visit.stick).map(|s| s.id.clone());
                 if let Some(id) = &id {
@@ -641,7 +671,7 @@ impl Faraday {
                     });
                 }
             }
-            Named::File(Row::In(_)) => {}
+            Named::File(Row::In(_) | Row::Vault(_)) => {}
         }
     }
 

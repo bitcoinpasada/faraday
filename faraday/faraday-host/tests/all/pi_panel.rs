@@ -2251,7 +2251,7 @@ fn on_the_pi_unlock_on_a_wallet_is_lined_up_with_the_buttons_around_it() {
 }
 
 #[test]
-fn on_the_small_panel_a_vaults_header_in_files_and_homes_backups_summary_read_whole() {
+fn on_the_small_panel_an_open_vaults_row_in_files_and_homes_backups_summary_read_whole() {
     let mut rig = rig(
         On::Stick,
         Mode::Mainnet,
@@ -2271,10 +2271,32 @@ fn on_the_small_panel_a_vaults_header_in_files_and_homes_backups_summary_read_wh
     }
     rig.press(Action::Nav(Screen::Files));
     rig.settle();
-    let texts = rig.drawn_texts();
+    // The open vault's row, further down the list, wraps its name onto a
+    // second line.
+    let mut texts: Vec<String> = Vec::new();
+    let mut all: Vec<String> = Vec::new();
+    let (sx, sy) = (rig.w / 2, rig.h / 2);
+    for _ in 0..40 {
+        let drawn: Vec<String> = rig.drawn_texts().iter().map(|t| t.to_string()).collect();
+        let found = drawn.iter().any(|t| t == "Contents");
+        all.extend(drawn.iter().cloned());
+        texts = drawn;
+        if found {
+            break;
+        }
+        rig.event(Event::Scroll {
+            x: sx,
+            y: sy,
+            dy: 100,
+        });
+        rig.settle();
+    }
     assert!(
-        texts.iter().any(|t| t.ends_with("vault · open")) && !texts.iter().any(|t| t.contains('…')),
-        "the vault card's header is cut: {texts:?}"
+        texts
+            .join("")
+            .contains("a-long-vault-name-for-the-family.kdbx")
+            && !texts.iter().any(|t| t.contains('…')),
+        "the open vault's row is cut: {texts:?}, all seen {all:?}"
     );
     rig.press(Action::Nav(Screen::Home));
     rig.settle();

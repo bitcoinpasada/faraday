@@ -10,6 +10,7 @@
     reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
 )]
 
+use faraday_core::file_menu::{FilePress, Row};
 use faraday_core::testkit::Plain;
 use faraday_core::vault::{SlotOf, VaultAction as V};
 use faraday_core::{Action, Faraday, Screen, StorageEvent, testkit};
@@ -180,6 +181,9 @@ fn a_vaults_wallets_load_with_their_seeds_in_one_press() {
         together.iter().any(|w| w.name == "Spending"),
         "Spending and test key 1 are in the test vault together"
     );
+    // The open vault's row on Files: its ⋮ offers the load.
+    let _ = app.frame();
+    app.press(Action::File(FilePress::Menu(Row::Vault(0))));
     let _ = app.frame();
     assert!(app.offers(Action::Vault(V::LoadWithKeys(0))));
     app.press(Action::Vault(V::LoadWithKeys(0)));

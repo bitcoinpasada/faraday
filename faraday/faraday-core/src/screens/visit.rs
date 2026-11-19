@@ -155,26 +155,59 @@ struct ListRow<'a> {
     menu: Option<crate::file_menu::Row>,
     /// Its main action, before the ⋮.
     main: Option<(Text, Style, Action)>,
+    /// The name wraps onto more lines rather than ending in "…".
+    wrap: bool,
 }
 
 /// One [`ListRow`] in a card `colw` wide at `x`, its top at `ry`.
-fn list_row(app: &View, ui: &mut Ui, (x, colw, ry): (f32, f32, f32), r: ListRow) {
-    // A row scrolled out of the list's sight is passed over.
-    if !ui.shows(ry, ROW) {
-        return;
-    }
+/// A row's left margin, its ⋮'s width and its main button's width with
+/// the gap before it.
+fn row_parts(ui: &Ui, r: &ListRow) -> (f32, f32, f32) {
     let lead = if r.ticked.is_some() { 54.0 } else { 22.0 };
+    let main = r
+        .main
+        .as_ref()
+        .map(|(l, ..)| ui.measure_as(TITLE_S, l) + 2.0 * BUTTON_PAD + GRID)
+        .unwrap_or_default();
+    (lead, 48.0, main)
+}
+
+/// The room of a row's name.
+fn name_room(ui: &Ui, r: &ListRow, colw: f32) -> f32 {
+    let (lead, menu, main) = row_parts(ui, r);
+    let tw = ui.measure_as(LABEL_M, r.tag.0) + 12.0 + menu + main;
+    colw - lead - 20.0 - tw
+}
+
+/// What a wrapped name adds to a row's height: its lines beyond the first.
+fn extra_h(ui: &Ui, r: &ListRow, colw: f32) -> f32 {
+    if !r.wrap {
+        return f32::default();
+    }
+    let lines = ui.wrapped_as(BODY_M.mono(), r.name, name_room(ui, r, colw));
+    let one = ui.line_as(BODY_M.mono());
+    lines.h.max(one) - one
+}
+
+fn list_row(app: &View, ui: &mut Ui, (x, colw, ry): (f32, f32, f32), r: ListRow) -> f32 {
+    let extra = extra_h(ui, &r, colw);
+    // A row scrolled out of the list's sight is passed over.
+    if !ui.shows(ry, ROW + extra) {
+        return ROW + extra;
+    }
+    let (lead, menu, main) = row_parts(ui, &r);
+    let room = name_room(ui, &r, colw);
     if let Some(on) = r.ticked {
         ui.checkbox(x + 22.0, ry + 15.0, on && !r.greyed, !r.greyed);
     }
     // Its ⋮ at the right end (F54), its main action before it.
     // A row with no ⋮ keeps its place, so its button stays off the scrollbar.
     // The ⋮ ends 20 from the card's edge, clear of the scrollbar.
-    let mut dw = 48.0;
+    let dw = menu + main;
     if let Some((l, st, a)) = r.main {
-        let bw = ui.measure_as(TITLE_S, &l) + 2.0 * BUTTON_PAD;
+        let bw = main - GRID;
         ui.button(
-            x + colw - 12.0 - dw - bw,
+            x + colw - 12.0 - menu - bw,
             ry + GRID,
             Some(bw),
             VISIT_ROW_BUTTON_H,
@@ -182,18 +215,22 @@ fn list_row(app: &View, ui: &mut Ui, (x, colw, ry): (f32, f32, f32), r: ListRow)
             st,
             a,
         );
-        dw += bw + GRID;
     }
-    let tw = ui.measure_as(LABEL_M, r.tag.0) + 12.0 + dw;
-    let name = ui.fit_as(BODY_M.mono(), r.name, colw - lead - 20.0 - tw);
     let (ink, sub) = if r.greyed {
         (crate::ui::off(), crate::ui::off())
     } else {
         (Role::OnSurface.paint(), Role::OnSurfaceVariant.paint())
     };
-    ui.text_as(x + lead, ry + 6.0, BODY_M.mono(), ink, &name);
+    let at = (x + lead, ry + 6.0);
+    if r.wrap {
+        let lines = ui.wrapped_as(BODY_M.mono(), r.name, room);
+        ui.draw_wrapped(at, ink, &lines);
+    } else {
+        let name = ui.fit_as(BODY_M.mono(), r.name, room);
+        ui.text_as(at.0, at.1, BODY_M.mono(), ink, &name);
+    }
     let line = ui.fit_as(BODY_S, r.line, colw - lead - 36.0 - dw);
-    ui.text_as(x + lead, ry + 28.0, BODY_S, sub, &line);
+    ui.text_as(x + lead, ry + 28.0 + extra, BODY_S, sub, &line);
     ui.text_right_as(
         (x + colw - 20.0 - dw, ry + 6.0, 20.0),
         LABEL_M,
@@ -206,7 +243,36 @@ fn list_row(app: &View, ui: &mut Ui, (x, colw, ry): (f32, f32, f32), r: ListRow)
     if let Some(menu) = r.menu {
         crate::file_menu::dots(app, ui, x + colw - 20.0 - 32.0, ry + GRID, 32.0, menu);
     }
-    ui.rule(x + 20.0, ry + 52.0, colw - 40.0, Role::OutlineVariant);
+    ui.rule(
+        x + 20.0,
+        ry + 52.0 + extra,
+        colw - 40.0,
+        Role::OutlineVariant,
+    );
+    ROW + extra
+}
+
+fn open_label(app: &View, v: usize) -> faraday_text::Text {
+    app.vaults.open[v].label(app.vaults.store())
+}
+
+/// An open vault's row: its name wraps rather than ending in "…".
+fn vault_row<'a>(app: &'a View, v: usize, line: &'a str) -> ListRow<'a> {
+    ListRow {
+        name: &app.vaults.open[v].name,
+        line,
+        tag: (EN.files_open, Role::Ok.paint()),
+        ticked: None,
+        greyed: false,
+        action: None,
+        menu: Some(crate::file_menu::Row::Vault(v)),
+        main: Some((
+            Text::of(EN.files_contents),
+            Style::Secondary,
+            Action::Vault(crate::vault::VaultAction::Show(v)),
+        )),
+        wrap: true,
+    }
 }
 
 /// The Outbox's groups by who may read them, in the order In Faraday lists
@@ -283,7 +349,9 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
         .filter(|(e, ..)| app.outbox.iter().any(|i| i.exposure() == *e))
         .count();
     let all_h = summary_room
-        + app.vaults.open.len() as f32 * ROW
+        + (0..app.vaults.open.len())
+            .map(|v| ROW + extra_h(ui, &vault_row(app, v, ""), colw))
+            .sum::<f32>()
         + ROW
         + groups as f32 * VISIT_GROUP_HEAD
         + app.outbox.len() as f32 * ROW
@@ -311,28 +379,9 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
         super::files::inbox_panel(app, ui, x + 12.0, ry, colw - 24.0);
         ry += summary_room;
     }
-    for (v, vault) in app.vaults.open.iter().enumerate() {
-        let line = vault.label(app.vaults.store());
-        list_row(
-            app,
-            ui,
-            (x, colw, ry),
-            ListRow {
-                name: &vault.name,
-                line: &line,
-                tag: (EN.files_open, Role::Ok.paint()),
-                ticked: None,
-                greyed: false,
-                action: None,
-                menu: None,
-                main: Some((
-                    Text::of(EN.files_contents),
-                    Style::Secondary,
-                    Action::Vault(crate::vault::VaultAction::Show(v)),
-                )),
-            },
-        );
-        ry += ROW;
+    for v in 0..app.vaults.open.len() {
+        let line = open_label(app, v);
+        ry += list_row(app, ui, (x, colw, ry), vault_row(app, v, &line));
     }
     // The settings, which are not an Outbox file.
     if ui.shows(ry, ROW) {
@@ -398,6 +447,7 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
                     action: (usable && !held).then_some(Action::VisitOut(k)),
                     menu: Some(crate::file_menu::Row::Out(k)),
                     main: None,
+                    wrap: false,
                 },
             );
             ry += ROW;
@@ -451,6 +501,7 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
                 action: (usable && !held).then_some(Action::VisitInbox(k)),
                 menu: Some(crate::file_menu::Row::In(k)),
                 main: main_action(app, k, item),
+                wrap: false,
             },
         );
         ry += ROW;
