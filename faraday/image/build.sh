@@ -489,12 +489,25 @@ fi
 
 # The same for the keymap: external.mk empties the tree's keymap when it is
 # unpacked, so a tree unpacked before that keeps the kernel's own. Empty it
-# and have the kernel compiled again.
-if [ -n "$linux_dir" ] && [ -f "$linux_dir/drivers/tty/vt/defkeymap.c_shipped" ] \
-        && ! python3 "$image/common/empty-keymap.py" check "$linux_dir/drivers/tty/vt/defkeymap.c_shipped" 2>/dev/null; then
-    echo "==> the kernel's keymap is not empty"
-    python3 "$image/common/empty-keymap.py" write "$linux_dir/drivers/tty/vt/defkeymap.c_shipped"
-    make -C /output linux-clean-for-rebuild
+# and have the kernel compiled again. A kernel build copies that file to
+# defkeymap.c, and the config check below reads both before the kernel is
+# built, so a copy an earlier build made of the kernel's own keymap is
+# removed: the build makes it again from the empty one.
+if [ -n "$linux_dir" ] && [ -f "$linux_dir/drivers/tty/vt/defkeymap.c_shipped" ]; then
+    keymap_changed=0
+    if ! python3 "$image/common/empty-keymap.py" check "$linux_dir/drivers/tty/vt/defkeymap.c_shipped" 2>/dev/null; then
+        python3 "$image/common/empty-keymap.py" write "$linux_dir/drivers/tty/vt/defkeymap.c_shipped"
+        keymap_changed=1
+    fi
+    if [ -f "$linux_dir/drivers/tty/vt/defkeymap.c" ] \
+            && ! python3 "$image/common/empty-keymap.py" check "$linux_dir/drivers/tty/vt/defkeymap.c" 2>/dev/null; then
+        rm -f "$linux_dir/drivers/tty/vt/defkeymap.c"
+        keymap_changed=1
+    fi
+    if [ "$keymap_changed" = 1 ]; then
+        echo "==> the kernel's keymap is not empty"
+        make -C /output linux-clean-for-rebuild
+    fi
 fi
 
 # ---- the kernel tarball is the one the board pinned.
