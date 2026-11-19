@@ -1076,11 +1076,23 @@ pub const VISIT_ROW_BUTTON_H: f32 = 32.0;
 /// Files' cards: the heading over a card's list.
 pub const VISIT_CARD_HEAD: f32 = 62.0;
 /// Files' cards: the room under a list for the foot's buttons.
-pub const VISIT_CARD_FOOT: f32 = 70.0;
+pub const VISIT_CARD_FOOT: f32 = 88.0;
 /// Files' cards: the top of the foot's buttons above the card's bottom.
 pub const VISIT_FOOT_ROW: f32 = 62.0;
 /// Files' In Faraday card: a group's heading row in its list.
 pub const VISIT_GROUP_HEAD: f32 = 36.0;
+/// The Inbox summary card's side padding, and where its heading text starts,
+/// its top and its height.
+pub const SUMMARY_PAD: f32 = 20.0;
+/// See [`SUMMARY_PAD`].
+pub const SUMMARY_HEAD_X: f32 = 48.0;
+/// See [`SUMMARY_PAD`].
+pub const SUMMARY_HEAD_Y: f32 = 14.0;
+/// See [`SUMMARY_PAD`].
+pub const SUMMARY_HEAD_H: f32 = 28.0;
+/// The Inbox summary taller than this is folded to one line, which opens it
+/// whole: more than two wallets, or a few kinds of file.
+pub const VISIT_SUMMARY_FOLD_H: f32 = 216.0;
 /// A stick visit's reading area: its two lists, each at most
 /// `COLUMN_MAX`, the gap between them, between two `PAGE_INSET`s.
 pub const READING_VISIT_W: f32 = 2.0 * COLUMN_MAX + VISIT_GAP + 2.0 * PAGE_INSET;

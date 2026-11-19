@@ -583,7 +583,8 @@ fn list_row(app: &View, ui: &mut Ui, (x, colw, ry): (f32, f32, f32), r: ListRow)
         ui.checkbox(x + 22.0, ry + 15.0, on && !r.greyed, !r.greyed);
     }
     // Its ⋮ at the right end (F54), its main action before it.
-    let mut dw = if r.menu.is_some() { 40.0 } else { 8.0 };
+    // A row with no ⋮ keeps its place, so its button stays off the scrollbar.
+    let mut dw = 40.0;
     if let Some((l, st, a)) = r.main {
         let bw = ui.measure_as(TITLE_S, &l) + 2.0 * BUTTON_PAD;
         ui.button(
@@ -804,15 +805,25 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
         app.medium.from_box(),
     );
     ry += VISIT_GROUP_HEAD;
+    // An incomplete share's "n of m keys" says so on its row.
+    let share_note = shown
+        .iter()
+        .any(|&(k, _)| app.inbox[k].kind == FileKind::Share)
+        .then(|| share_note(app))
+        .flatten();
     for &(k, held) in &shown {
         let item = &app.inbox[k];
+        let mut line = visit_inbox_line(item);
+        if let (FileKind::Share, Some(note)) = (item.kind, &share_note) {
+            line = faraday_text::text!("{} · {}", &*line, &**note);
+        }
         list_row(
             app,
             ui,
             (x, colw, ry),
             ListRow {
                 name: &item.name,
-                line: &visit_inbox_line(item),
+                line: &line,
                 tag: if held {
                     (app.medium.on_this_box(), Role::OnSurfaceVariant.paint())
                 } else if usable {
@@ -1293,6 +1304,28 @@ fn visit_inbox_line(item: &crate::Item) -> Text {
         ),
         Some(k) => Text::fill(EN.visit_inbox_line_png, &[&kind_line(k, item.bytes.len())]),
         None => kind_line(item.kind, item.bytes.len()),
+    }
+}
+
+/// What the Inbox's split-sheet shares say together while they do not make
+/// the wallet: how many keys are in hand, or why they do not fit.
+fn share_note(app: &View) -> Option<Text> {
+    let texts: Vec<Text> = app
+        .inbox
+        .iter()
+        .filter(|i| i.kind == FileKind::Share)
+        .map(|i| Text::from_utf8_lossy(&i.bytes))
+        .collect();
+    match crate::restore::merge(&texts) {
+        Ok(m) if m.whole.is_some() => None,
+        Ok(m) => Some(Text::fill(
+            EN.inbox_actions_of_keys,
+            &[
+                &faraday_text::text!("{}", m.have.len()),
+                &faraday_text::text!("{}", m.n),
+            ],
+        )),
+        Err(e) => Some(Text::of(&e)),
     }
 }
 

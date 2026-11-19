@@ -238,6 +238,8 @@ pub(crate) struct InboxArea {
     /// makes (the potential wallet's, a seed read's), until the key is
     /// worked out once typing has paused ([`crate::motion::TYPED_PAUSE_MS`]).
     typed_at: Option<u64>,
+    /// The Files page's Inbox summary shown whole although it is long.
+    summary_open: bool,
 }
 
 impl std::ops::Deref for InboxArea {
@@ -358,6 +360,11 @@ impl InboxArea {
     /// Replaces all the files.
     pub(crate) fn replace(&mut self, files: InboxFiles) {
         self.files = files;
+    }
+
+    /// The Inbox summary on Files is open whole, not folded to a line.
+    pub(crate) fn summary_open(&self) -> bool {
+        self.summary_open
     }
 
     /// The wallets left out of the next load, by descriptor.
@@ -1745,6 +1752,7 @@ impl Faraday {
                     ],
                 ));
             }
+            Action::InboxSummary => self.inbox.summary_open = !self.inbox.summary_open,
             Action::InboxChoose(i) => {
                 if let Some(w) = self.inbox_found_now(c).to_load().get(i) {
                     let d = w.descriptor.duplicate();

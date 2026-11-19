@@ -332,6 +332,7 @@ walks! {
     walk_seeds = Some("seeds"),
     walk_keys = Some("keys"),
     walk_visit = Some("visit"),
+    walk_files_wide = Some("files-wide"),
     walk_copy = Some("copy"),
     walk_scan = Some("scan"),
     walk_public = Some("public"),

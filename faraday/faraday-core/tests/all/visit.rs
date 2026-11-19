@@ -1779,3 +1779,63 @@ fn rename_stick_is_in_the_heading_of_on_the_stick() {
         "on the heading's row"
     );
 }
+
+/// Files with no stick in, `inbox` in the Inbox.
+fn in_files(inbox: Files) -> Faraday {
+    let mut app = process((inbox, Vec::new(), Vec::new()), None);
+    app.press(Action::Nav(Screen::Files));
+    let _ = app.frame();
+    app
+}
+
+#[test]
+fn a_long_inbox_summary_is_one_line_that_opens_whole() {
+    // Every wallet of the test stick in the Inbox: a long summary.
+    let mut app = in_files(faraday_core::testkit::files().unwrap());
+    assert!(
+        app.offers(Action::InboxSummary),
+        "folded: a Show to open it"
+    );
+    assert!(
+        !app.offers(Action::InboxLoad),
+        "its Load is inside, folded away"
+    );
+    app.press(Action::InboxSummary);
+    let _ = app.frame();
+    assert!(app.offers(Action::InboxLoad), "open: its Load shows");
+    app.press(Action::InboxSummary);
+    let _ = app.frame();
+    assert!(!app.offers(Action::InboxLoad), "folded again");
+}
+
+#[test]
+fn a_short_inbox_summary_stands_open() {
+    let one = faraday_core::testkit::files()
+        .unwrap()
+        .into_iter()
+        .filter(|(n, _)| n == "spending-wallet.txt")
+        .collect();
+    let mut app = in_files(one);
+    let _ = app.frame();
+    assert!(app.offers(Action::InboxLoad));
+    assert!(!app.offers(Action::InboxSummary), "nothing to fold");
+}
+
+#[test]
+fn an_incomplete_share_says_how_many_keys_are_in_hand_on_its_row() {
+    let kit = faraday_core::testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "savings")
+        .unwrap();
+    let share = faraday_core::testkit::public_files(kit.name, &kit.descriptor)
+        .unwrap()
+        .into_iter()
+        .find(|(n, _)| n == "savings-share-1-of-3.txt")
+        .unwrap();
+    let mut app = in_files(vec![share]);
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t.contains("keys in hand")),
+        "one share of a 2 of 3: {texts:?}"
+    );
+}

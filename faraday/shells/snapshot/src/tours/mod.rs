@@ -29,6 +29,7 @@ pub(crate) mod default;
 pub(crate) mod desktop;
 pub(crate) mod devices;
 pub(crate) mod dice_five;
+pub(crate) mod files_wide;
 pub(crate) mod first;
 pub(crate) mod flow;
 pub(crate) mod from_vault;
@@ -112,6 +113,7 @@ pub(crate) const TOURS: &[(&str, TourFn)] = &[
     ("seeds", TourFn::Plain(seeds::seeds_tour)),
     ("keys", TourFn::Plain(keys::keys_tour)),
     ("visit", TourFn::Costly(visit::visit_tour)),
+    ("files-wide", TourFn::Plain(files_wide::files_wide_tour)),
     ("copy", TourFn::Costly(copy::copy_tour)),
     ("scan", TourFn::Plain(devices::scan_tour)),
     ("public", TourFn::Costly(public::public_tour)),

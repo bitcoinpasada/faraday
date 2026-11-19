@@ -20,7 +20,7 @@ faraday/faraday-core/src/screens/catalog.rs 24
 faraday/faraday-core/src/screens/check_message.rs 30
 faraday/faraday-core/src/screens/create.rs 30
 faraday/faraday-core/src/screens/entry.rs 79
-faraday/faraday-core/src/screens/files.rs 345
+faraday/faraday-core/src/screens/files.rs 340
 faraday/faraday-core/src/screens/home.rs 11
 faraday/faraday-core/src/screens/message.rs 29
 faraday/faraday-core/src/screens/parts.rs 215
@@ -32,7 +32,7 @@ faraday/faraday-core/src/screens/settings.rs 16
 faraday/faraday-core/src/screens/sheets.rs 205
 faraday/faraday-core/src/screens/sidebar.rs 51
 faraday/faraday-core/src/screens/spend.rs 250
-faraday/faraday-core/src/screens/visit.rs 206
+faraday/faraday-core/src/screens/visit.rs 205
 faraday/faraday-core/src/screens/wallets.rs 118
 faraday/faraday-core/src/screens/wallets_start.rs 61
 faraday/faraday-core/src/seeds/screen.rs 62

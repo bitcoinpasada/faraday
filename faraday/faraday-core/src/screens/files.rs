@@ -55,21 +55,13 @@ pub(super) fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f3
     if !found.waiting.is_empty() {
         h += 26.0 + qrows as f32 * 40.0 + 6.0;
     }
+    // Long, it is one line that opens it whole (an expandable row).
+    let long = h > t::VISIT_SUMMARY_FOLD_H;
+    if long && !app.inbox.summary_open() {
+        return inbox_panel_folded(app, ui, (x, y, w), (wallets.len(), potential.len()));
+    }
     ui.card(x, y, w, h, Role::OutlineVariant);
-    ui.icon(
-        x + 20.0,
-        y + 18.0,
-        20.0,
-        Icon::Download,
-        13.0,
-        Role::Primary,
-    );
-    ui.text_mid_as(
-        (x + 48.0, y + 14.0, 28.0),
-        TITLE_M,
-        Role::OnSurface,
-        app.medium.from_box(),
-    );
+    summary_head(app, ui, (x, y, w), long.then_some(EN.visit_summary_hide));
     let mut ty = y + 52.0;
     let may = app.may_load_keys();
     if !wallets.is_empty() {
@@ -86,7 +78,9 @@ pub(super) fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f3
             let chosen = !app.inbox.skip().contains(&fw.descriptor);
             let mut rx = x + 20.0;
             if many {
-                ui.press_box(x + 16.0, ty, w - 32.0, 34.0, Action::InboxChoose(i));
+                // Ends clear of the list's scrollbar, whose touch target reaches in.
+                let room = w - t::SUMMARY_PAD - t::SUMMARY_PAD - t::GRID;
+                ui.press_box(x + 16.0, ty, room, 34.0, Action::InboxChoose(i));
                 ui.checkbox(rx, ty + 8.0, chosen, true);
                 rx += 28.0;
             }
@@ -126,7 +120,14 @@ pub(super) fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f3
                     }),
                 ],
             );
-            let line = ui.fit_as(BODY_S, &line, w - nw - 260.0);
+            // Its line ends before the ready tag, when it has one.
+            let tag_w = if fw.seeds_here >= fw.needed {
+                ui.measure_as(LABEL_M, EN.inbox_panel_ready_to_sign) + t::SUMMARY_PAD
+            } else {
+                0.0
+            };
+            let room = w - nw - 5.0 * t::SUMMARY_PAD - tag_w;
+            let line = ui.fit_as(BODY_S, &line, room.max(0.0));
             ui.text_mid_as(
                 (rx + 40.0 + nw, ty, 34.0),
                 BODY_S,
@@ -324,6 +325,75 @@ pub(super) fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f3
             ty += 40.0;
         }
     }
+    h
+}
+
+/// The Inbox summary card's heading at `(x, y, w)`: its icon, its title and,
+/// at the right end, `toggle` when the summary is long, which folds or opens
+/// it. Returns where the title ends.
+fn summary_head(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), toggle: Option<&str>) -> f32 {
+    let pad = t::SUMMARY_PAD;
+    ui.icon(x + pad, y + 18.0, 20.0, Icon::Download, 13.0, Role::Primary);
+    let at = (y + t::SUMMARY_HEAD_Y, t::SUMMARY_HEAD_H);
+    let tw = ui.text_mid_as(
+        (x + t::SUMMARY_HEAD_X, at.0, at.1),
+        TITLE_M,
+        Role::OnSurface,
+        app.medium.from_box(),
+    );
+    if let Some(label) = toggle {
+        let lw = ui.measure_as(LABEL_L, label);
+        // Clear of the list's scrollbar, whose touch target reaches in.
+        let sx = x + w - pad - pad - lw;
+        ui.text_mid_as((sx, at.0, at.1), LABEL_L, Role::Primary, label);
+        let (px, pw) = (sx - t::GRID, lw + 2.0 * t::GRID);
+        ui.press_box(
+            px,
+            at.0 - t::GAP_SMALL,
+            pw,
+            at.1 + t::GRID,
+            Action::InboxSummary,
+        );
+    }
+    tw
+}
+
+/// The long Inbox summary folded to one row, `(x, y, w)`: its heading, what
+/// it holds in one line, and Show. Returns its height.
+fn inbox_panel_folded(
+    app: &View,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    (wallets, potential): (usize, usize),
+) -> f32 {
+    let found = app.inbox_found();
+    let h = t::ROW;
+    ui.card(x, y, w, h, Role::OutlineVariant);
+    let tw = summary_head(app, ui, (x, y, w), Some(EN.visit_summary_show));
+    let mut parts: Vec<Text> = Vec::new();
+    for (label, n) in [
+        (EN.inbox_panel_wallets, wallets),
+        (EN.inbox_panel_loose_keys, potential),
+        (EN.inbox_panel_loose_xpubs, found.xpubs.len()),
+        (EN.inbox_panel_not_complete, found.waiting.len()),
+    ] {
+        if n > 0 {
+            parts.push(text!("{} {}", label, n));
+        }
+    }
+    let line = Text::joined(&parts, " · ");
+    let toggle = ui.measure_as(LABEL_L, EN.visit_summary_show);
+    let from = t::SUMMARY_HEAD_X + tw + t::SUMMARY_PAD;
+    let pad = t::SUMMARY_PAD;
+    let room = (w - from - toggle - pad - pad - pad).max(0.0);
+    let line = ui.fit_as(BODY_S, &line, room);
+    let at = (y + t::SUMMARY_HEAD_Y, t::SUMMARY_HEAD_H);
+    ui.text_mid_as(
+        (x + from, at.0, at.1),
+        BODY_S,
+        Role::OnSurfaceVariant,
+        &line,
+    );
     h
 }
 

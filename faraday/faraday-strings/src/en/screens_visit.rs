@@ -101,6 +101,11 @@ macro_rules! words_screens_visit {
     visit_inbox_tag_may: "May be a secret",
     /// Text in `visit_inbox_tag`.
     visit_inbox_tag_secret: "Secret",
+    // ----- the Inbox summary's fold (faraday-core/src/screens/files.rs) -----
+    /// Text on the folded Inbox summary: opens it.
+    visit_summary_show: "Show",
+    /// Text on the open long Inbox summary: folds it.
+    visit_summary_hide: "Hide",
     // ----- visit_select_all (faraday-core/src/screens/visit.rs) -----
     /// Text in `visit_select_all`.
     visit_select_all_select: "Select all",

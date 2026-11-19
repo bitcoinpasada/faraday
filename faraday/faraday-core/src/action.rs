@@ -967,6 +967,8 @@ pub enum Action {
     InboxLoad,
     /// Leave out, or take back, the Inbox's wallet n in its next load.
     InboxChoose(usize),
+    /// Open the Files page's long Inbox summary whole, or fold it to a line.
+    InboxSummary,
     /// Make the seed with this fingerprint a wallet.
     PotentialOpen([u8; 4]),
     /// Make the Inbox's account xpub n a watch-only wallet.
@@ -1594,6 +1596,7 @@ impl Faraday {
             | Action::OutboxDeleteHold
             | Action::InboxLoad
             | Action::InboxChoose(..)
+            | Action::InboxSummary
             | Action::PotentialOpen(..)
             | Action::XpubOpen(..)
             | Action::PotentialKind(..)
