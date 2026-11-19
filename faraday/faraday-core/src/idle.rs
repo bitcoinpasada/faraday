@@ -174,10 +174,34 @@ impl Faraday {
         !self.tainted && !self.camera_on() && !self.holds_secret() && !self.secret_typed()
     }
 
-    /// Whether locking would wipe anything: a key, a vault, a wallet or a
-    /// spend.
+    /// Whether a tool holds something typed that is secret.
+    fn tools_hold_secret(&self) -> bool {
+        self.tools
+            .core_wallet
+            .state()
+            .is_some_and(crate::core_wallet::tool::CoreWalletState::holds_secret)
+            || self
+                .tools
+                .seed_check
+                .state()
+                .is_some_and(crate::seed_check::SeedState::holds_secret)
+            || self
+                .tools
+                .kef_tool
+                .state()
+                .is_some_and(crate::kef_tool::KefToolState::holds_secret)
+            || self
+                .tools
+                .qr_tool
+                .state()
+                .is_some_and(crate::qr_tool::QrToolState::holds_secret)
+    }
+
+    /// Whether locking would wipe anything: a key, a vault, a wallet, a
+    /// spend or a secret typed in a tool.
     pub(crate) fn lockable(&self) -> bool {
         self.holds_secret()
+            || self.tools_hold_secret()
             || !self.vaults.open.is_empty()
             || !self.session.wallets.is_empty()
             || self.wallets.spend().is_some()

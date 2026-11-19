@@ -168,6 +168,30 @@ fn never_means_never() {
     assert!(!tick(&mut app, 120 * MIN).contains(&Command::Exit));
 }
 
+/// A tool holding something typed that is secret, with no key or vault
+/// loaded, is warned and locked like any other session.
+#[test]
+fn a_secret_typed_in_a_tool_is_locked_at_thirty_minutes_with_no_key_loaded() {
+    use faraday_core::kef_tool::{KefToolAction as K, Pick};
+    let mut app = testkit::started();
+    app.press(Action::Nav(Screen::Catalog));
+    let tile = faraday_core::catalog::TILES
+        .iter()
+        .position(|t| t.name == "Krux code")
+        .unwrap();
+    app.press(Action::Catalog(tile as u8));
+    app.press(Action::KefTool(K::Pick(Pick::Type)));
+    for c in "a note for later".chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    assert!(testkit::secret_typed(&app));
+    tick(&mut app, 0);
+    tick(&mut app, 25 * MIN);
+    assert_eq!(app.sheet, Some(Sheet::IdleWarn));
+    assert!(tick(&mut app, 30 * MIN).contains(&Command::Exit));
+    assert!(app.restart_requested());
+}
+
 #[test]
 fn after_an_idle_lock_the_machine_powers_off_at_sixty_minutes() {
     let mut app = after_idle_lock(Vec::new());
