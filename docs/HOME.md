@@ -119,7 +119,7 @@ the three first actions and nothing leads.
 ## 3. Wallets and keys on Home (the wide layout and the rail's windows)
 
 Under the first actions, a section headed **Wallets**: one small tile for
-each wallet in the session, in the sidebar's order (the wallets the keys
+each wallet in the session, ranked (the wallets the keys
 here sign for alone first, then those with some keys here, then
 watch-only), and, while any wallet is known, the **Backups** tile last,
 side by side in one grid, each tile at least `TILE_MIN` wide and wide
@@ -127,8 +127,7 @@ enough for its longest line. They are one small style: the icon, the name
 and one line under it, the whole tile the press.
 
 A wallet's tile: the wallet icon, the wallet's name and one line. The
-tile opens the wallet's card on Wallets (`Action::OpenWallet`), as the
-name in the sidebar does. Home has no Sign button: the card on Wallets and
+tile opens the wallet's card on Wallets (`Action::OpenWallet`), (the sidebar lists no wallets). Home has no Sign button: the card on Wallets and
 the lead carry what signs next. Home has no Receive button either:
 Faraday is an offline signer, and the wallet's card on Wallets keeps its
 "First receive address" line.
@@ -136,8 +135,7 @@ Faraday is an offline signer, and the wallet's card on Wallets keeps its
 - **The line** says the one thing that matters now, the first that
   applies: "Signatures {n} of {m}" while its spend is under way; "A PSBT
   to sign" while Files holds a PSBT for it; "Not backed up" while a key
-  made here waits for its backup; else its shape as the sidebar row gives
-  it ("single key", "2 of 3", or the line for a wallet another key
+  made here waits for its backup; else its shape ("single key", "2 of 3", or the line for a wallet another key
   spends).
 
 The Backups tile: "Backups" and "{n} not backed up" or "{n} with a plan",
@@ -148,7 +146,7 @@ Then a section headed **Keys**, in the same grid and style: one tile for
 each key held, its fingerprint and, under it, its name (none when the
 name is the fingerprint) and the word "passphrase" after it when the key
 was loaded with one: the same words without it are another key. A press
-opens the key in Explore, as the sidebar's key row does. Many wallets or
+opens the key in Explore. The sidebar lists neither wallets nor keys. Many wallets or
 keys flow on into further rows and the page scrolls with them.
 
 The Pi's menu and the phone-size window have no such tiles: they name each

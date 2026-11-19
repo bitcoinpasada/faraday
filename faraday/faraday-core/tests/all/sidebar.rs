@@ -1,7 +1,5 @@
-//! The sidebar names what is loaded in two groups, keys and wallets,
-//! as far up as the last tab; where they do not fit, they scroll within
-//! the sidebar, and each row opens what it names. Its Files row names
-//! the stage of the session. Under its tab, each flow in progress has a
+//! The sidebar lists the tabs and lists neither keys nor wallets (they
+//! are on Home). Its Files row names the stage of the session. Under its tab, each flow in progress has a
 //! row, its name and open step, which returns to it as it was left.
 
 #![expect(
@@ -88,137 +86,6 @@ fn the_sidebar_offers_guide_and_opens_the_guide_sheet() {
 fn the_sidebar_has_no_spend_row() {
     let app = with(0, 0);
     assert!(!app.offers(Action::Nav(Screen::SpendBackup)));
-}
-
-#[test]
-fn a_few_are_each_named_and_open_what_they_name() {
-    // Rows are a touch target tall, so five need a taller panel.
-    let mut app = with_height(3, 2, 1200);
-    for k in 0..3 {
-        assert!(
-            app.offers(Action::ExploreKey(fp(&app, k))),
-            "seed {k} not listed"
-        );
-    }
-    for w in 0..2 {
-        assert!(app.offers(Action::OpenWallet(w)), "wallet {w} not listed");
-    }
-    assert!(!app.offers(Action::Explore), "a '+ more' row");
-    let first = fp(&app, 0);
-    app.press(Action::ExploreKey(first));
-    assert_eq!(app.screen, Screen::Explore);
-    assert_eq!(app.explore().and_then(|e| e.key), Some(first));
-}
-
-/// Over the sidebar's lists, at (x, y) pixels: the wheel turned `notches`
-/// notches down, each 48 pixels as the shells send them, and the motion
-/// left to come to rest.
-fn wheel_at(app: &mut Faraday, (x, y): (u16, u16), notches: usize) {
-    for _ in 0..notches {
-        app.event(Event::Wheel { x, y, dy: 48 });
-    }
-    app.settle();
-    let _ = app.frame();
-}
-
-/// Where the sidebar's lists are, in pixels: on the first key's row.
-fn lists_at(app: &Faraday) -> (u16, u16) {
-    app.where_offered(Action::ExploreKey(fp(app, 0))).unwrap()
-}
-
-/// Many keys and wallets, more than the sidebar has room for: the first
-/// rows show, and the wheel over the lists brings the last key's row
-/// and the last wallet's into view, each of which opens what it names.
-#[test]
-fn many_scroll_within_the_sidebar_to_their_last_rows() {
-    let mut app = with(30, 12);
-    assert!(app.offers(Action::ExploreKey(fp(&app, 0))));
-    let last = fp(&app, 29);
-    assert!(
-        !app.offers(Action::ExploreKey(last)),
-        "every key is in view: the lists would cover the tabs"
-    );
-    assert!(!app.offers(Action::Explore), "a '+ more' row");
-    let at = lists_at(&app);
-    let mut reached = false;
-    for _ in 0..40 {
-        wheel_at(&mut app, at, 1);
-        if app.offers(Action::ExploreKey(last)) {
-            reached = true;
-            break;
-        }
-    }
-    assert!(reached, "the last key is never reached");
-    assert!(
-        !app.offers(Action::ExploreKey(fp(&app, 0))),
-        "the first key still in view"
-    );
-    assert!(app.offers(Action::Nav(Screen::Home)), "the tabs stay");
-    assert!(app.offers(Action::PowerAsk), "the foot stays");
-    wheel_at(&mut app, at, 40);
-    assert!(app.offers(Action::OpenWallet(11)), "the last wallet");
-    app.press(Action::OpenWallet(11));
-    assert_eq!(app.screen, Screen::Wallets);
-}
-
-#[test]
-fn a_key_scrolled_to_opens_what_it_names() {
-    let mut app = with(30, 0);
-    let k = 20;
-    let at = lists_at(&app);
-    for _ in 0..40 {
-        if app.offers(Action::ExploreKey(fp(&app, k))) {
-            break;
-        }
-        wheel_at(&mut app, at, 1);
-    }
-    let fp_k = fp(&app, k);
-    assert!(
-        app.offers(Action::ExploreKey(fp_k)),
-        "key {k} never in view"
-    );
-    app.press(Action::ExploreKey(fp_k));
-    assert_eq!(app.screen, Screen::Explore);
-    assert_eq!(app.explore().and_then(|e| e.key), Some(fp_k));
-}
-
-/// Scrolled to the end of a long list that then shrinks, the lists
-/// stand at their new end: the first key, alone now, is in view.
-#[test]
-fn the_lists_scrolled_to_their_end_follow_a_list_that_shrinks() {
-    let mut app = with(30, 0);
-    let at = lists_at(&app);
-    wheel_at(&mut app, at, 80);
-    assert!(app.offers(Action::ExploreKey(fp(&app, 29))));
-    assert!(!app.offers(Action::ExploreKey(fp(&app, 0))));
-    while app.session.keys.len() > 1 {
-        app.session.keys.remove(1);
-    }
-    app.press(Action::Nav(Screen::Files));
-    let _ = app.frame();
-    assert!(app.offers(Action::ExploreKey(fp(&app, 0))), "the one key");
-    // Many again: the lists start from the top, where the shrink left
-    // them, not from the end they were scrolled to before it.
-    let c = testkit::compute();
-    for i in 1..30u8 {
-        let m = Mnemonic::from_entropy(Language::English, &[i + 1; 16]).unwrap();
-        let words: Vec<&str> = m
-            .indices()
-            .iter()
-            .map(|&w| Language::English.words()[usize::from(w)])
-            .collect();
-        app.session
-            .keys
-            .add_words(&c, &words.join(" "), &format!("Seed {i}"), None)
-            .unwrap();
-    }
-    app.press(Action::Nav(Screen::Home));
-    let _ = app.frame();
-    assert!(
-        app.offers(Action::ExploreKey(fp(&app, 0))),
-        "not at the top"
-    );
-    assert!(!app.offers(Action::ExploreKey(fp(&app, 29))));
 }
 
 /// Files brought in from the stick are not "to write": the Files tab
@@ -308,68 +175,6 @@ fn the_files_tab_says_how_many_wait_to_be_written() {
         unsigned_txid: None,
     });
     assert!(crate::common::has(&mut app, "1 to write"));
-}
-
-#[test]
-fn a_wallet_the_seeds_here_sign_for_stays_in_view_among_many() {
-    let c = testkit::compute();
-    let mut app = with_height(2, 0, 1000);
-    let text_of = |app: &Faraday, k: usize, a: u32| {
-        faraday_core::create::NewKind::NativeSegwit
-            .key_text_at(&c, app.session.keys.master_for_tests(k), a)
-            .unwrap()
-    };
-    // Twelve wallets over the second seed, then one over the first.
-    for a in 0..12u32 {
-        let d = format!("wpkh({}/<0;1>/*)", &*text_of(&app, 1, a));
-        app.session
-            .add_wallet_confirmed(
-                &c,
-                &format!("Watched {a}"),
-                &d,
-                "test",
-                faraday_core::wallet::Origin::Named,
-            )
-            .unwrap();
-    }
-    let d = format!("wpkh({}/<0;1>/*)", &*text_of(&app, 0, 0));
-    app.session
-        .add_wallet_confirmed(&c, "Ready", &d, "test", faraday_core::wallet::Origin::Named)
-        .unwrap();
-    // The second seed leaves: its twelve wallets are watch-only now.
-    app.session.keys.remove(1);
-    app.press(Action::Nav(Screen::Files));
-    let _ = app.frame();
-    assert!(
-        app.offers(Action::OpenWallet(12)),
-        "the wallet that can sign is out of view"
-    );
-    assert!(!app.offers(Action::OpenWallet(11)), "every wallet in view");
-}
-
-/// A key loaded with a passphrase says so on its row: the same words
-/// without it are another key, listed apart.
-#[test]
-fn a_key_with_a_passphrase_says_so() {
-    let c = testkit::compute();
-    let mut app = with_height(1, 0, 1400);
-    let words = app
-        .session
-        .keys
-        .reveal(0, faraday_keys::Reveal::Words)
-        .to_string();
-    app.session
-        .keys
-        .add_words_with(&c, &words, "TREZOR", "Seed 0", None)
-        .unwrap();
-    let _ = app.frame();
-    let texts = app.drawn_texts();
-    assert!(texts.iter().any(|t| t == "Keys"), "{texts:?}");
-    assert_eq!(
-        texts.iter().filter(|t| *t == "passphrase").count(),
-        1,
-        "only the passphrase key is tagged: {texts:?}"
-    );
 }
 
 // ---- flows in progress (`docs/FLOWS.md`, Flows in progress; F41) ----
@@ -903,4 +708,28 @@ fn a_backup_flow_with_its_key_made_offers_no_cancel() {
     assert_eq!(app.screen, Screen::BackupFlow, "the flow stays on screen");
     assert!(app.backup_flows()[i].made, "the flow is kept");
     assert!(row_on_settings(&mut app, Going::Flow(i)), "its row stays");
+}
+
+/// With keys and wallets loaded the sidebar has no row for any of them (they
+/// are on Home), and a flow in progress still has its row.
+#[test]
+fn the_sidebar_shows_no_key_or_wallet_rows_and_a_flow_in_progress_keeps_its_row() {
+    let mut app = with_height(2, 2, 1200);
+    for k in 0..2 {
+        assert!(!app.offers(Action::ExploreKey(fp(&app, k))), "key {k}");
+    }
+    for w in 0..2 {
+        assert!(!app.offers(Action::OpenWallet(w)), "wallet {w}");
+    }
+    assert!(!crate::common::has(&mut app, "Keys"));
+    assert!(app.offers(Action::Nav(Screen::Home)), "the tabs stay");
+    assert!(app.offers(Action::PowerAsk), "the foot stays");
+
+    let mut app = create_at_places();
+    app.press(Action::Nav(Screen::Settings));
+    let _ = app.frame();
+    for k in 0..3 {
+        assert!(!app.offers(Action::ExploreKey(fp(&app, k))), "key {k}");
+    }
+    assert!(offered(&mut app, Action::Resume(Going::Create)));
 }

@@ -28,12 +28,12 @@ origin, `[fingerprint/path]xpub`, is an **xpub**, and a wallet's
 description is a **descriptor** (or its split sheets). No file name,
 label or sentence calls an xpub or a descriptor a key; the test stick's
 files are named `seed-…` and `xpub-…`. The lists of what is loaded say
-Keys: the sidebar's **Keys**, Files' **Keys with no wallet**, the Spend
+Keys: Home's **Keys**, Files' **Keys with no wallet**, the Spend
 tab's **Keys with no wallet loaded**, Restore's **Keys** card, counts
 such as "2 of 3 keys here" and **Load 2 keys**. The words stay seeds:
 Scan a SeedQR, I have the seed, "Key 1 seed", the seed sheet. A key
-loaded with a passphrase is marked **passphrase** at the end of its
-sidebar row. A key's xpub is its own: **Its xpub**, "waiting for its
+loaded with a passphrase is marked **passphrase** on its
+tile on Home. A key's xpub is its own: **Its xpub**, "waiting for its
 xpub file", **Scan its xpub** (decision 58).
 
 **From the stick, For the stick** (decision 1). Files' two halves are
@@ -1408,7 +1408,7 @@ The steps:
    F146). A key recorded as a BIP-85 child seed shows **A BIP-85 child
    seed** after it, once for that wallet, as Create does (F166).
 
-The default name is the key's name as Explore's key row and the sidebar
+The default name is the key's name as Explore's key row and Home's key tile
 give it (`bip85::key_name`) and the account's path: "Main · m/84h/0h/3h",
 "73c5da0a · m/84h/0h/0h". The card's **Rename** changes it as for any
 wallet.
@@ -1572,8 +1572,7 @@ the small Home's tiles; `Action::Resume`.
 2. **The row is lit while its flow is on screen**, and its tab is not;
    on any other screen the tab is lit as today.
 3. **What a row never shows**: a key's words, a passphrase, or any value
-   the flow holds. A wallet's or key's name, already in the sidebar's
-   lists, may be its name.
+   the flow holds. A wallet's or key's name, already on Home, may be its name.
 4. **Room.** Rows are added after their tab, in the order the flows
    were started; the seeds and wallets groups at the foot give up rows
    as they do today (`sidebar_caps`). A flow that keeps nothing when
@@ -2188,7 +2187,7 @@ through public reads. At the end the person chooses:
 - **Keep this key** loads it into the session's keys as Add a key loads
   a typed key (`Keys::add_words_with`, its words and passphrase, the
   label Add a key gives it): it is then the same as a key loaded by Add a
-  key (`docs/KEYS.md`), in the sidebar by its fingerprint with its
+  key (`docs/KEYS.md`), on Home by its fingerprint with its
   "passphrase" mark, a signer for the session's wallets, its words
   behind their reveals, and dropped at a lock or power-off as every
   loaded key is. It leaves with Add a key's toast "Key {fingerprint}

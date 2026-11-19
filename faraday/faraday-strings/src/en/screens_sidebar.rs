@@ -24,14 +24,10 @@ macro_rules! words_screens_sidebar {
     sidebar_to_write_n: "{} to write",
     /// Row in `sidebar`.
     sidebar_guide: "Guide",
-    /// Text in `sidebar`.
-    sidebar_passphrase: "passphrase",
     /// Text in `more`. `{}`: `n - i`.
     sidebar_more: "+ {} more",
     /// A flow in progress's line in Home's box of what is loaded.
     home_in_progress: "in progress",
-    /// Text in `sidebar`.
-    sidebar_keys: "Keys",
     /// Text in `sidebar`. `{}`: `m`, `n`.
     sidebar_count: "{} of {}",
     /// Text in `sidebar`.

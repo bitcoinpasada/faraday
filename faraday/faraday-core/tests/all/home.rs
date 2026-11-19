@@ -6,6 +6,7 @@
 //! Home's Scan takes a seed to Add a key, and anything else where it
 //! went before.
 
+use faraday_core::testkit::KindText;
 use faraday_core::{Action, Faraday, OskPress, Screen, Sheet, StickInfo, StorageEvent};
 use faraday_shell_api::{App, Command, DisplayInfo, Event, TouchPhase};
 
@@ -1628,4 +1629,142 @@ fn on_a_1280_wide_window_the_three_first_actions_stand_side_by_side_and_none_is_
     assert!(boxes.iter().all(|b| b.2.abs_diff(boxes[0].2) <= 1));
     let texts = app.drawn_texts();
     assert!(!texts.iter().any(|t| t.ends_with('…')), "{texts:?}");
+}
+
+// ---- what is loaded is on Home, not in the sidebar ----
+
+/// `seeds` seeds and `wallets` single-key wallets over the first of them,
+/// on Home, in a `width` by `height` window.
+fn loaded(seeds: u8, wallets: usize, width: u16, height: u16) -> Faraday {
+    use faraday_bip::bip39::Language;
+    let c = faraday_core::testkit::compute();
+    let mut app = on_test_net(width, height);
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(Vec::<(String, Vec<u8>)>::new()),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    let _ = app.frame();
+    for i in 0..seeds {
+        let m = faraday_keys::words::from_entropy(Language::English, &[i + 1; 16]).unwrap();
+        let words: Vec<&str> = m
+            .indices()
+            .iter()
+            .map(|&w| Language::English.words()[usize::from(w)])
+            .collect();
+        app.session
+            .keys
+            .add_words(&c, &words.join(" "), &format!("Seed {i}"), None)
+            .unwrap();
+    }
+    for a in 0..wallets {
+        add_wallet_over(&mut app, 0, a as u32, &format!("Wallet {a}"));
+    }
+    app.press(Action::Nav(Screen::Home));
+    let _ = app.frame();
+    app
+}
+
+/// A single-key wallet named `name` over account `a` of key `k`.
+fn add_wallet_over(app: &mut Faraday, k: usize, a: u32, name: &str) {
+    let c = faraday_core::testkit::compute();
+    let text = faraday_core::create::NewKind::NativeSegwit
+        .key_text_at(&c, app.session.keys.master_for_tests(k), a)
+        .unwrap();
+    let d = format!("wpkh({}/<0;1>/*)", &*text);
+    app.session
+        .add_wallet_confirmed(&c, name, &d, "test", faraday_core::wallet::Origin::Named)
+        .unwrap_or_else(|e| panic!("{d}: {}", &*e.text()));
+}
+
+fn key_fp(app: &Faraday, k: usize) -> [u8; 4] {
+    app.session.keys[k].fingerprint.0
+}
+
+/// Each loaded key and wallet is on the wide Home, named, and opens what it
+/// names: a key Explore, a wallet its card.
+#[test]
+fn a_few_loaded_keys_and_wallets_are_each_on_home_and_open_what_they_name() {
+    let mut app = loaded(3, 2, 1366, 1200);
+    for k in 0..3 {
+        assert!(app.offers(Action::ExploreKey(key_fp(&app, k))), "key {k}");
+    }
+    for w in 0..2 {
+        assert!(app.offers(Action::OpenWallet(w)), "wallet {w}");
+    }
+    let first = key_fp(&app, 0);
+    tap(&mut app, Action::ExploreKey(first));
+    assert_eq!(app.screen, Screen::Explore);
+    assert_eq!(app.explore().and_then(|e| e.key), Some(first));
+    app.press(Action::Nav(Screen::Home));
+    let _ = app.frame();
+    tap(&mut app, Action::OpenWallet(1));
+    assert_eq!(app.screen, Screen::Wallets);
+}
+
+/// Many keys and wallets scroll with Home's page to their last one, and each
+/// opens what it names.
+#[test]
+fn many_keys_and_wallets_scroll_with_home_to_their_last_ones() {
+    let win = (1366, 800);
+    let mut app = loaded(30, 12, win.0, win.1);
+    let last = key_fp(&app, 29);
+    assert!(
+        !on_screen(&app, Action::ExploreKey(last), win.1),
+        "every key in view"
+    );
+    assert!(scrolled_to(
+        &mut app,
+        win.0,
+        win.1,
+        Action::ExploreKey(last)
+    ));
+    tap(&mut app, Action::ExploreKey(last));
+    assert_eq!(app.screen, Screen::Explore);
+    assert_eq!(app.explore().and_then(|e| e.key), Some(last));
+
+    let mut app = loaded(30, 12, win.0, win.1);
+    assert!(scrolled_to(&mut app, win.0, win.1, Action::OpenWallet(11)));
+    tap(&mut app, Action::OpenWallet(11));
+    assert_eq!(app.screen, Screen::Wallets);
+}
+
+/// A wallet the seeds here sign for stays reachable among many that are
+/// watch-only: it is among the first on Home.
+#[test]
+fn a_wallet_the_seeds_here_sign_for_is_reached_on_home_among_many() {
+    let mut app = loaded(2, 0, 1366, 1000);
+    for a in 0..12u32 {
+        add_wallet_over(&mut app, 1, a, &format!("Watched {a}"));
+    }
+    add_wallet_over(&mut app, 0, 0, "Ready");
+    // The second seed leaves: its twelve wallets are watch-only now.
+    app.session.keys.remove(1);
+    app.press(Action::Nav(Screen::Home));
+    let _ = app.frame();
+    assert!(on_screen(&app, Action::OpenWallet(12), 1000));
+    tap(&mut app, Action::OpenWallet(12));
+    assert_eq!(app.screen, Screen::Wallets);
+}
+
+/// Home scrolled to the end of a long list of keys that then shrinks stands
+/// at the new end: the one key left is in view.
+#[test]
+fn home_scrolled_to_the_end_of_many_keys_follows_a_list_that_shrinks() {
+    let win = (1366, 800);
+    let mut app = loaded(30, 0, win.0, win.1);
+    let last = key_fp(&app, 29);
+    assert!(scrolled_to(
+        &mut app,
+        win.0,
+        win.1,
+        Action::ExploreKey(last)
+    ));
+    while app.session.keys.len() > 1 {
+        app.session.keys.remove(1);
+    }
+    app.press(Action::Nav(Screen::Files));
+    app.press(Action::Nav(Screen::Home));
+    let _ = app.frame();
+    assert!(on_screen(&app, Action::ExploreKey(key_fp(&app, 0)), win.1));
 }

@@ -380,7 +380,7 @@ pub(crate) struct WalletCard {
     pub line: String,
 }
 
-/// The wallets in the session, in the sidebar's order (the ones the keys
+/// The wallets in the session, ranked (the ones the keys
 /// here sign for alone first, then those with some keys here, then
 /// watch-only), each as its Home card.
 pub(crate) fn home_wallets(app: &View) -> Vec<WalletCard> {

@@ -73,8 +73,7 @@ with Show, and Hide folds it again. An incomplete share's row says how many
 keys are in hand on its supporting line.
 
 **What the sidebar lists** besides its tabs (flows in progress with
-their open step, the loaded keys, the wallets, the sticks
-attached) stays on the expanded rail. Where there is no expanded
+their open step, the sticks attached; the loaded keys and wallets are on Home, `docs/HOME.md` §3) stays on the expanded rail. Where there is no expanded
 rail, it is **Home's box of what is loaded** (§4): one card with the same
 rows as plain lines, at the top of Home (on the small panel under its
 mark and name), each opening what its sidebar row opens. A flow in
@@ -145,7 +144,7 @@ way or waiting (`docs/FLOWS.md`, Home), then the tiles in a grid.
 
 - **The box of what is loaded** (every window without the expanded
   rail, the small panel included, but not the rail's windows, which have
-  `docs/HOME.md` §3's wallets-and-Keys tiles instead): one card, the sidebar's rows as plain
+  `docs/HOME.md` §3's wallets-and-Keys tiles instead): one card, the loaded wallets and keys as plain
   lines in it, at the top, under the mark and name on the small panel
   (§3). The small panel's summary card under it stands only while
   vaults are open; its menu follows it. On the 480 by 640 panel with a
