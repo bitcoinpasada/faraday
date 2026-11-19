@@ -13,8 +13,9 @@ use crate::wallet::FileKind;
 use crate::{Action, Faraday};
 use faraday_draw::tokens::{
     BODY_M, BODY_S, BUTTON_H, BUTTON_PAD, GAP_SMALL, GRID, LABEL_L, LABEL_M, ROW, TITLE_M, TITLE_S,
-    VISIT_CARD_FOOT, VISIT_CARD_HEAD, VISIT_COMPACT_HEAD, VISIT_FOOT_ROW, VISIT_FOOT_TEXT_LESS,
-    VISIT_GROUP_HEAD, VISIT_NOTE_ICON, VISIT_NOTE_TEXT_X, VISIT_ROW_BUTTON_H,
+    TOUCH, VISIT_CARD_FOOT, VISIT_CARD_HEAD, VISIT_CHIP_PRESS_RISE, VISIT_COMPACT_HEAD,
+    VISIT_FOOT_ROW, VISIT_FOOT_TEXT_LESS, VISIT_GROUP_HEAD, VISIT_NOTE_ICON, VISIT_NOTE_TEXT_X,
+    VISIT_ROW_BUTTON_H,
 };
 use faraday_draw::widgets::Icon;
 use faraday_text::Text;
@@ -569,7 +570,14 @@ fn stick_heading(app: &View, ui: &mut Ui, (right, y): (f32, f32)) {
         ui.stroke(chx, chy, wdt, 32.0, 16.0, edge);
         let ink = on_selected(current, Role::OnSurface);
         ui.text_mid_as((chx + 14.0, chy, 32.0), LABEL_L, ink, &label);
-        ui.press_box(chx, chy, wdt, 32.0, Action::VisitStick(k));
+        // The press box is the touch floor tall, around the 32 px chip.
+        ui.press_box(
+            chx,
+            chy - VISIT_CHIP_PRESS_RISE,
+            wdt,
+            TOUCH,
+            Action::VisitStick(k),
+        );
         chx -= GRID;
     }
     let rename = Text::fill(EN.stick_name_button, &[app.medium.noun()]);
@@ -743,7 +751,9 @@ fn on_the_stick(
     // Delete files: the one way into deleting from the stick, a grid step
     // above the buttons at the foot so their touch targets keep apart;
     // Unselect all at the row's right end, while any file is ticked.
-    let zy = y + colh - VISIT_FOOT_ROW - BUTTON_H - GRID;
+    // On a small panel a second grid step more, so the button's target reaches
+    // the floor between the list's end and the foot.
+    let zy = y + colh - VISIT_FOOT_ROW - BUTTON_H - GRID - if ui.compact { GRID } else { 0.0 };
     ui.button(
         ix + 20.0,
         zy,
@@ -1004,7 +1014,7 @@ fn visit_unselect_all(ui: &mut Ui, right: f32, y: f32) {
     let lw = ui.measure_as(LABEL_L, label);
     let sx = right - 24.0 - lw;
     ui.text_mid_as((sx, y + 16.0, 30.0), LABEL_L, Role::Primary, label);
-    ui.press_box(sx - GRID, y + 12.0, lw + 16.0, 38.0, Action::VisitInAll);
+    ui.press_box(sx - GRID, y + 7.0, lw + 16.0, TOUCH, Action::VisitInAll);
 }
 
 /// A stick visit column's list's scrollbar, which a finger or the mouse

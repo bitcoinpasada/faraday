@@ -1079,9 +1079,12 @@ pub const VISIT_CARD_HEAD: f32 = 62.0;
 pub const VISIT_CARD_FOOT: f32 = 88.0;
 /// Files' cards: the top of the foot's buttons above the card's bottom.
 pub const VISIT_FOOT_ROW: f32 = 62.0;
+/// Files' stick chips: how far their press box rises above the chip, to
+/// reach the touch floor.
+pub const VISIT_CHIP_PRESS_RISE: f32 = 8.0;
 /// Files' cards on a small panel: the room over a list for the controls
 /// that stood in the heading, which the tab now names.
-pub const VISIT_COMPACT_HEAD: f32 = 50.0;
+pub const VISIT_COMPACT_HEAD: f32 = 56.0;
 /// Files' In Faraday card: what a foot line leaves of the card's width
 /// (its icon's column and the card's right edge).
 pub const VISIT_FOOT_TEXT_LESS: f32 = 66.0;
