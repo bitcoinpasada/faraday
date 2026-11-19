@@ -1789,7 +1789,8 @@ pub const C32_CHECK: f32 = 18.0;
 /// A Codex32QR to copy by hand (`docs/CODEX32.md` §9.5): the room beside
 /// and above the whole grid for its blocks' letters and numbers.
 pub const C32_GRID_LABEL: f32 = 16.0;
-/// The whole grid's largest side; a narrower column draws it smaller.
+/// The whole grid's largest side, more where a block would be under the
+/// touch floor in it; a narrower column draws it smaller.
 pub const C32_GRID_MAX: f32 = 320.0;
 /// The block shown large: its largest side, the block and a square of
 /// its neighbours on each side.

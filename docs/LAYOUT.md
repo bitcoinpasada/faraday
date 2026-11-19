@@ -600,7 +600,9 @@ least to it: the dice sheet while a character is rolled, the worksheet
 otherwise. The
 Codex32QR copy grid (`copy_grid`,
 `faraday/faraday-core/src/screens/parts.rs`) already sizes its cells
-from its width up to `C32_GRID_MAX` and stands its zoom beside the grid
+from its width up to `C32_GRID_MAX` (more where a block of five cells
+would be under the 48 px touch floor, so a 33 x 33 code gets 10 px cells
+and 50 px blocks) and stands its zoom beside the grid
 where the width holds both: given the work width in place of the
 column's, it gains the same way.
 

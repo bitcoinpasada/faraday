@@ -2114,14 +2114,13 @@ pub(crate) fn copy_grid(ui: &mut Ui, x: f32, y: f32, w: f32, g: &CopyGrid<'_>) -
     let lab = tokens::C32_GRID_LABEL;
     let ring = (COPY_BLOCK + 2) as f32;
     let zoom_min = lab + ring * tokens::C32_ZOOM_MIN_CELL;
-    let beside = !g.rows && w >= lab + tokens::C32_GRID_MAX + tokens::GAP + zoom_min;
+    // The grid's largest side: the token, or more where a block of
+    // `COPY_BLOCK` cells would be under the touch floor in it.
+    let grid_max = tokens::C32_GRID_MAX.max((ui.touch / COPY_BLOCK as f32).ceil() * n as f32);
+    let beside = !g.rows && w >= lab + grid_max + tokens::GAP + zoom_min;
     // Beside: the whole grid at its largest, the block large in the rest.
-    let whole_w = if beside {
-        lab + tokens::C32_GRID_MAX
-    } else {
-        w
-    };
-    let cell = ((whole_w - lab).min(tokens::C32_GRID_MAX) / n as f32).floor();
+    let whole_w = if beside { lab + grid_max } else { w };
+    let cell = ((whole_w - lab).min(grid_max) / n as f32).floor();
     let whole_h = copy_whole(ui, (x, cy), cell, g, pin);
     let mut below = cy + whole_h + tokens::GAP;
     if !g.rows {
