@@ -301,3 +301,9 @@ flag; `out_of_work` also reports true once it is set, so a search the
 caller no longer wants ends at its next budget check instead of spending the
 rest of the frame's budget. The scanner's worker sets it when the scan
 sheet closes.
+
+**`BresenhamScan::next` stops at the last point** (`src/geometry.rs`).
+Upstream stepped once more after yielding the last point, which overflows
+when the end point's main coordinate is `i32::MAX` or `i32::MIN` (a panic in a
+debug or fuzz build). The scan now ends without that step; the points it
+yields are the same.

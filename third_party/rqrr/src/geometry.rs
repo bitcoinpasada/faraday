@@ -183,6 +183,13 @@ impl Iterator for BresenhamScan {
             y: self.y,
         };
 
+        if self.i == self.d {
+            // The last point: nothing is stepped past it (the step would
+            // overflow when the end lies at the edge of `i32`).
+            self.i += 1;
+            return Some(ret);
+        }
+
         self.a += self.n;
         let (dom, non) = match (self.x_dom, &mut self.x, &mut self.y) {
             (true, x, y) => (x, y),
@@ -233,6 +240,27 @@ mod tests {
         for (i, p) in scan_right.enumerate() {
             assert_eq!(100, p.y);
             assert_eq!(300 - i as i32, p.x);
+        }
+    }
+
+    #[test]
+    fn test_bresenham_ends_at_i32_edge() {
+        let p = |x, y| Point { x, y };
+        let max = i32::MAX;
+        let min = i32::MIN;
+        let ends = [
+            (p(max - 3, 5), p(max, 5)),
+            (p(5, max - 3), p(5, max)),
+            (p(max - 4, max - 2), p(max, max)),
+            (p(min + 3, 5), p(min, 5)),
+            (p(5, min + 3), p(5, min)),
+            (p(min + 4, min + 2), p(min, min)),
+        ];
+        for (from, to) in ends {
+            let points: Vec<Point> = BresenhamScan::new(&from, &to).unwrap().collect();
+            assert_eq!(points.first(), Some(&from));
+            assert_eq!(points.last(), Some(&to));
+            assert_eq!(points.len(), 4.max((to.x - from.x).unsigned_abs() as usize + 1));
         }
     }
 
