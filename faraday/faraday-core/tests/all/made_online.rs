@@ -1070,3 +1070,71 @@ fn words_typed_under_a_passphrase_are_held_when_the_same_words_are_typed_after_t
         assert!(app.session.keys.made_online(fp), "key {i} is not marked");
     }
 }
+
+/// The codex32 string of the 64-byte seed `words` make, as it is typed.
+fn seed_string_of(words: &str) -> String {
+    let c = testkit::compute();
+    let m = faraday_bip::bip39::Mnemonic::parse(&c, faraday_bip::bip39::Language::English, words)
+        .unwrap();
+    let seed = m.to_seed(&c, b"").unwrap();
+    faraday_bip::codex32::Codex32::from_seed(0, *b"test", seed.expose())
+        .unwrap()
+        .encode()
+        .as_str()
+        .to_owned()
+}
+
+/// A Mainnet device with a vault marking `words` as made online, opened
+/// with no key held.
+fn marked_open_no_key(words: &str) -> Faraday {
+    let file = testkit::kdbx_vault(
+        "Made",
+        PHRASE,
+        7,
+        vec![key_record(words, Some(MADE_ONLINE))],
+    )
+    .unwrap();
+    let mut app = process(vec![("made.kdbx".into(), file)], Network::Mainnet);
+    unlock_without_loading(&mut app, "made.kdbx", PHRASE);
+    assert_eq!(app.session.keys.len(), 0);
+    app
+}
+
+/// Types the codex32 string `s` as a key.
+fn type_seed_string(app: &mut Faraday, s: &str) {
+    app.press(Action::Entry(None));
+    app.press(Action::EntryForm(2));
+    type_text(app, s);
+    app.event(Event::Key(faraday_shell_api::Key::Enter));
+}
+
+#[test]
+fn a_64_byte_seed_added_after_the_unlock_is_held_when_a_vault_marks_its_words() {
+    let words = fresh();
+    let mut app = marked_open_no_key(&words);
+    type_seed_string(&mut app, &seed_string_of(&words));
+    assert_eq!(app.session.keys.len(), 1);
+    settle(&mut app, |a| {
+        a.session.keys.made_online(a.session.keys[0].fingerprint)
+    });
+    let fp = app.session.keys[0].fingerprint;
+    assert!(app.session.keys.made_online(fp), "the key is not marked");
+    caution(&mut app);
+    assert_eq!(app.sheet, Some(Sheet::Published));
+}
+
+#[test]
+fn a_64_byte_seed_is_held_when_back_leaves_the_screen_checking_the_keys() {
+    let words = fresh();
+    let mut app = marked_open_no_key(&words);
+    type_seed_string(&mut app, &seed_string_of(&words));
+    assert_eq!(app.session.keys.len(), 1);
+    app.press(Action::Back);
+    settle(&mut app, |a| {
+        a.session.keys.made_online(a.session.keys[0].fingerprint)
+    });
+    let fp = app.session.keys[0].fingerprint;
+    assert!(app.session.keys.made_online(fp), "the key is not marked");
+    caution(&mut app);
+    assert_eq!(app.sheet, Some(Sheet::Published));
+}
