@@ -8445,6 +8445,7 @@ functions = [
   "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::load_key_with_passphrase",
   "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::note_made_online_keys",
   "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::note_made_online_added",
+  "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::made_online_job",
   "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::passphrase_kept_for",
   "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::warm",
   "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::word_count",

@@ -45,7 +45,7 @@ pub use items::Related;
 use zeroize::Zeroizing;
 
 use crate::identity::{Material, fingerprint};
-use crate::job::{KeysJob, SeedToLoad, WordsToLoad};
+use crate::job::{KeysJob, MadeOnlineDone, MadeOnlineJob, SeedToLoad, WordsToLoad};
 use crate::session::{Held, Keys, Part, Reveal, Revealed, WordsId, words_id};
 
 /// The fields of a GPG record (type 7), by number
@@ -1536,6 +1536,12 @@ pub struct OpenVaults {
     /// The made vault's unlock parts, kept for its unlock
     /// ([`OpenVaults::hold_made_parts`]); wiped by [`OpenVaults::clear`].
     pub(crate) made_parts: Option<crate::parts::UnlockParts>,
+    /// Changes whenever a vault opens or closes: the open set the marked
+    /// records' fingerprints were worked out for
+    /// ([`OpenVaults::made_online_job`]).
+    epoch: u64,
+    /// The `epoch` a job of those fingerprints was started for.
+    marked_done: Cell<Option<u64>>,
 }
 
 type Codex32 = faraday_bip::codex32::Codex32;

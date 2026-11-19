@@ -58,6 +58,8 @@ pub enum Kind {
     /// A key, an address or a wallet compared with a seed's in My seed
     /// makes my wallet: a PBKDF2 and up to 200 key derivations.
     SeedCompare,
+    /// An open vault's marked records of words fingerprinted: a PBKDF2 each.
+    MadeOnline,
 }
 
 impl Kind {
@@ -83,6 +85,7 @@ impl Kind {
             | Kind::KefTime
             | Kind::OtsHash
             | Kind::CoreWalletRead
+            | Kind::MadeOnline
             | Kind::SeedCompare => false,
         }
     }
@@ -126,6 +129,7 @@ pub(crate) enum Job {
     OtsHash(Box<crate::ots_check::HashWork>),
     CoreWalletRead(Box<crate::core_wallet::tool::ReadWork>),
     SeedCompare(Box<crate::seed_check::CompareWork>),
+    MadeOnline(Box<faraday_keys::job::MadeOnlineJob>),
 }
 
 /// What a job gives back.
@@ -149,6 +153,7 @@ pub(crate) enum Done {
     OtsHash(Box<crate::ots_check::HashDone>),
     CoreWalletRead(Box<crate::core_wallet::tool::ReadDone>),
     SeedCompare(Box<crate::seed_check::CompareDone>),
+    MadeOnline(Box<faraday_keys::job::MadeOnlineDone>),
 }
 
 impl Job {
@@ -173,6 +178,7 @@ impl Job {
             Job::OtsHash(_) => Kind::OtsHash,
             Job::CoreWalletRead(_) => Kind::CoreWalletRead,
             Job::SeedCompare(_) => Kind::SeedCompare,
+            Job::MadeOnline(_) => Kind::MadeOnline,
         }
     }
 
@@ -198,6 +204,7 @@ impl Job {
             Job::OtsHash(j) => Done::OtsHash(Box::new(j.run(c))),
             Job::CoreWalletRead(j) => Done::CoreWalletRead(Box::new(j.run(c))),
             Job::SeedCompare(j) => Done::SeedCompare(Box::new(j.run(c))),
+            Job::MadeOnline(j) => Done::MadeOnline(Box::new(j.run(c))),
         }
     }
 }

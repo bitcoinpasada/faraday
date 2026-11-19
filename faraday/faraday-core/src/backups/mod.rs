@@ -4091,18 +4091,36 @@ impl Faraday {
     /// Costs a parse of the words of each key added since the last call.
     /// Every key added, whichever way, is matched to the open vaults'
     /// records of its words: the mark a record gives, and the parent it
-    /// names ([`faraday_keys::OpenVaults::note_made_online_added`]). Run
+    /// names ([`faraday_keys::OpenVaults::note_made_online_added`]); and the
+    /// job that fingerprints their marked records starts when one is needed
+    /// ([`faraday_keys::OpenVaults::made_online_job`]: a PBKDF2 for each
+    /// marked record of words, once per set of open vaults). Run
     /// after every press and every answer that can add a key, and before a
     /// key is saved.
     pub(crate) fn note_added_keys(&mut self) {
         let added = self.session.keys.take_added();
-        if added.is_empty() {
+        let c = self.compute();
+        if !added.is_empty() {
+            self.vaults
+                .store()
+                .note_made_online_added(&c, &mut self.session.keys, &added);
+        }
+        // A key with no words, or one whose parent no key held has, meets a
+        // marked record of words only by its fingerprint: worked out once
+        // per set of open vaults, as a job, and only when needed.
+        if self.worker.busy().is_some() {
             return;
         }
-        let c = self.compute();
-        self.vaults
+        if let Some(job) = self
+            .vaults
             .store()
-            .note_made_online_added(&c, &mut self.session.keys, &added);
+            .made_online_job(&c, &self.session.keys, &added)
+        {
+            self.start(
+                crate::worker::Job::MadeOnline(Box::new(job)),
+                EN.working_check_marks,
+            );
+        }
     }
 
     /// Costs what `gather_codex32` costs, and what `note_made_online_keys`

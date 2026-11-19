@@ -107,6 +107,7 @@ impl OpenVaults {
             unreadable,
         } = built;
         let records_len = records.len();
+        self.epoch = self.epoch.wrapping_add(1);
         #[expect(
             clippy::disallowed_methods,
             reason = "an Arc count of the copy room, not a copy of a key"
@@ -162,11 +163,13 @@ impl OpenVaults {
     /// Closes open vault `id`: its records are wiped.
     pub fn close(&mut self, id: VaultId) {
         self.slots.retain(|s| s.id != id);
+        self.epoch = self.epoch.wrapping_add(1);
     }
 
     /// Closes every open vault.
     pub fn clear(&mut self) {
         self.slots.clear();
+        self.epoch = self.epoch.wrapping_add(1);
         self.made_parts = None;
     }
 
@@ -489,6 +492,7 @@ impl OpenVaults {
     pub fn seal_ended(&mut self, id: VaultId, ok: bool) {
         if ok {
             self.slots.retain(|s| s.id != id);
+            self.epoch = self.epoch.wrapping_add(1);
         } else if let Some(s) = self.slots.iter_mut().find(|s| s.id == id) {
             s.sealing = false;
         }

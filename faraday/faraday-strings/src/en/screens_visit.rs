@@ -61,6 +61,8 @@ macro_rules! words_screens_visit {
     working_samples: "Loading the samples",
     /// The line of the job that loads the seeds ticked on the Load sheet.
     working_load_seeds: "Loading the seeds",
+    /// The line of the job that fingerprints a vault's marked records of words.
+    working_check_marks: "Checking the keys",
     /// The line of the job that opens a vault.
     working_vault_open: "Unlocking the vault",
     /// The line of the job that makes a vault.
