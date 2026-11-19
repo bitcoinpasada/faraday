@@ -154,6 +154,9 @@ pub struct InboxFiles {
     items: Vec<Item>,
     kept: std::cell::RefCell<Option<(SessionSeen, Found)>>,
     rebuilds: std::cell::Cell<u64>,
+    /// How many times the files were changed: a hash worked out of one
+    /// holds only while this is what it was.
+    edits: u64,
 }
 
 /// The session as [`InboxFiles`]' kept copy was worked out from it.
@@ -322,6 +325,12 @@ impl InboxArea {
         self.files.changed()[at].bytes = bytes.into();
     }
 
+    /// Writes `bytes` over the contents of file `at`, in place.
+    #[cfg(feature = "testkit")]
+    pub(crate) fn overwrite_bytes(&mut self, at: usize, bytes: &[u8]) {
+        self.files.changed()[at].bytes.copy_from_slice(bytes);
+    }
+
     /// Flips the lowest bit of byte `i` of file `at`.
     #[cfg(feature = "testkit")]
     pub(crate) fn flip_byte(&mut self, at: usize, i: usize) {
@@ -437,6 +446,14 @@ impl Faraday {
     }
 }
 
+impl InboxFiles {
+    /// How many times the files were changed; a cached hash of a file
+    /// holds only while this is the same.
+    pub(crate) fn edits(&self) -> u64 {
+        self.edits
+    }
+}
+
 impl std::ops::Deref for InboxFiles {
     type Target = Vec<Item>;
     fn deref(&self) -> &Vec<Item> {
@@ -449,6 +466,7 @@ impl std::ops::Deref for InboxFiles {
 impl InboxFiles {
     fn changed(&mut self) -> &mut Vec<Item> {
         *self.kept.get_mut() = None;
+        self.edits += 1;
         &mut self.items
     }
 

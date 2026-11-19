@@ -3254,10 +3254,10 @@ impl Faraday {
             if it.name.ends_with(".asc") {
                 continue;
             }
-            let probe = gpg::probe_of(&it.bytes);
+            let edits = self.inbox.edits();
             let (hash, text) = match seen
                 .iter()
-                .find(|s| it.name == s.name.as_str() && s.probe == probe)
+                .find(|s| it.name == s.name.as_str() && s.edits == edits)
             {
                 Some(s) => (s.hash, s.text.clone()),
                 // Kept on the state (`sign_seen`) once worked out.
@@ -3265,7 +3265,7 @@ impl Faraday {
             };
             keep.push(gpg::Seen {
                 name: faraday_text::Text::of(&it.name),
-                probe,
+                edits,
                 hash,
                 text: text.clone(),
             });

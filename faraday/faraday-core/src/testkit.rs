@@ -2247,6 +2247,13 @@ pub fn inbox_set_bytes(app: &mut crate::Faraday, at: usize, bytes: Vec<u8>) {
     app.inbox.set_bytes(at, bytes);
 }
 
+/// Writes `bytes` over the contents of Inbox file `at`, which must be as
+/// long: the same buffer at the same address, as a file replaced by one of
+/// the same name and size may land in.
+pub fn inbox_overwrite_bytes(app: &mut crate::Faraday, at: usize, bytes: &[u8]) {
+    app.inbox.overwrite_bytes(at, bytes);
+}
+
 /// Flips the lowest bit of byte `i` of Inbox file `at`.
 pub fn inbox_flip_byte(app: &mut crate::Faraday, at: usize, i: usize) {
     app.inbox.flip_byte(at, i);

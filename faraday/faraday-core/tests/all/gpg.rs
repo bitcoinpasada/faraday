@@ -1214,6 +1214,31 @@ fn the_signature_code_signs_nothing_over_a_file_changed_since() {
     );
 }
 
+/// A file replaced in the Inbox by one of the same name and size, equal in
+/// its first and last 32 bytes, is the new file to the page: the signature
+/// code it gives is signed, not refused as a changed file.
+#[test]
+fn a_file_replaced_by_one_of_the_same_size_and_ends_signs_as_the_new_file() {
+    let c = faraday_core::testkit::compute();
+    let mut app = signing();
+    let k = app
+        .inbox()
+        .iter()
+        .position(|i| i.name == "SHA256SUMS")
+        .unwrap();
+    let old = app.inbox()[k].bytes.to_vec();
+    assert!(old.len() > 64);
+    // The page has listed and hashed the old file.
+    let _ = app.signature_code(&c, "SHA256SUMS").unwrap();
+    let mut new = old.clone();
+    // Byte 32 is in neither the first nor the last 32.
+    new[32] ^= 1;
+    testkit::inbox_overwrite_bytes(&mut app, k, &new);
+    let code = app.signature_code(&c, "SHA256SUMS").unwrap();
+    app.press(Action::ShowCode(code));
+    assert!(app.qr().is_some(), "the replaced file was not signed");
+}
+
 /// Renew asks for the term: nothing is renewed until one is chosen, and
 /// the term is counted from the clock, in GnuPG's years of 365 days. The
 /// record's certificate and the Export file change together.

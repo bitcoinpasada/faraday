@@ -188,13 +188,14 @@ pub struct GpgFile {
 }
 
 /// What the signing page remembers of a file so that it is hashed once: the
-/// file's name, size, place in memory and both ends. A file that a stick
-/// visit replaced differs in one of them; the hash is taken again at
-/// signing in any case.
+/// file's name and how many times the Inbox's files had been changed. Any
+/// change to them, a file replaced by one of the same name and size
+/// included, takes the hash again; it is taken again at signing in any
+/// case.
 #[derive(Debug, Clone)]
 pub struct Seen {
     pub(crate) name: Text,
-    pub(crate) probe: (usize, usize, Vec<u8>),
+    pub(crate) edits: u64,
     pub(crate) hash: [u8; 32],
     pub(crate) text: Option<Text>,
 }
@@ -267,12 +268,6 @@ impl SignWrap {
                 .any(|f| f.text.as_deref() == Some(e.text.as_str()))
         });
     }
-}
-
-pub(crate) fn probe_of(bytes: &[u8]) -> (usize, usize, Vec<u8>) {
-    let mut ends = bytes[..bytes.len().min(32)].to_vec();
-    ends.extend_from_slice(&bytes[bytes.len().saturating_sub(32)..]);
-    (bytes.len(), bytes.as_ptr() as usize, ends)
 }
 
 /// A small text file's text: UTF-8, printable, a few lines.
