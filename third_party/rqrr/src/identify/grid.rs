@@ -238,7 +238,7 @@ fn rotate_capstone(cap: &mut CapStone, h0: &Point, hd: &Point) -> Option<()> {
 // * which is nearest the centre of the code. Using these points, we do
 // * a horizontal and a vertical timing scan.
 // */
-fn measure_timing_pattern<S>(img: &PreparedImage<S>, caps: &CapStoneGroup) -> Option<usize>
+fn measure_timing_pattern<S>(img: &mut PreparedImage<S>, caps: &CapStoneGroup) -> Option<usize>
 where
     S: ImageBuffer,
 {
@@ -262,13 +262,18 @@ where
     Some(ver * 4 + 17)
 }
 
-fn timing_scan<S>(img: &PreparedImage<S>, p0: &Point, p1: &Point) -> Option<usize>
+fn timing_scan<S>(img: &mut PreparedImage<S>, p0: &Point, p1: &Point) -> Option<usize>
 where
     S: ImageBuffer,
 {
     let mut count = 0;
     let mut previous = None;
     for p in geometry::BresenhamScan::new(p0, p1)? {
+        // Each step is charged to the frame's budget, so a scan between
+        // far-apart points on a crafted frame ends with no read.
+        if !img.spend(1) {
+            return None;
+        }
         let pixel = img.get_pixel_at_point(p);
         if let Some(previous) = previous {
             if previous != pixel {

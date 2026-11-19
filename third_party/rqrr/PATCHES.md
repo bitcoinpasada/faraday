@@ -307,3 +307,8 @@ Upstream stepped once more after yielding the last point, which overflows
 when the end point's main coordinate is `i32::MAX` or `i32::MIN` (a panic in a
 debug or fuzz build). The scan now ends without that step; the points it
 yields are the same.
+
+**The timing-pattern scan is charged to the work budget** (`src/identify/grid.rs`).
+`timing_scan` spends one unit of the frame's budget for each point it
+steps, as the other scan steps do, so a scan between far-apart points
+ends with no read instead of running to the end of the line.
