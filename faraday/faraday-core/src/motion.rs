@@ -1275,10 +1275,12 @@ impl Faraday {
             // Entry scrolls on the wide layout too, not only compact: the
             // word grid can run to 24 cells, taller than the window.
             | Screen::Entry => Place::Screen,
+            // Home scrolls on the wide layout too: its loaded keys and
+            // wallets flow on into rows taller than the room under the bar.
+            Screen::Home => Place::Screen,
             #[cfg(feature = "demo")]
             Screen::Transfer => Place::Screen,
-            Screen::Home
-            | Screen::CheckMessage
+            Screen::CheckMessage
             | Screen::Vaults
             | Screen::Unlock
             | Screen::VaultContents
@@ -1312,8 +1314,7 @@ impl Faraday {
             Screen::Create => self.create.scroll_y().map(|_| Place::Create)?,
             Screen::Restore => self.restore.scroll_y().map(|_| Place::Restore)?,
             // The screens above that scroll as the page only when compact.
-            Screen::Home
-            | Screen::CheckMessage
+            Screen::CheckMessage
             | Screen::Vaults
             | Screen::Unlock
             | Screen::VaultContents

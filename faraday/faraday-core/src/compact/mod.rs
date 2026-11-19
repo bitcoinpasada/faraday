@@ -788,6 +788,11 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     if shown {
         y += crate::nav::screen::loaded_card(app, ui, M, y, inner) + 10.0;
     }
+    // The rail's windows have no box: a chip for each flow in progress
+    // stands over the page, as on every other destination.
+    if rail {
+        y += crate::nav::screen::flow_chips(app, ui, M, y, inner);
+    }
     // The search bar and, while something is typed, its results.
     macro_rules! search {
         () => {{
