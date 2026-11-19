@@ -430,8 +430,10 @@ fn paperkey_forms() -> Vec<Form> {
     primary[0] = 0;
     subkey[..2].fill(0);
     let mut f = vec![
-        Form::new("GPG primary seed", primary.to_vec()),
-        Form::new("GPG subkey seed", subkey.to_vec()),
+        // As the paperkey holds a seed: an OpenPGP integer, its leading
+        // zero bytes left off.
+        Form::new("GPG primary seed", primary[1..].to_vec()),
+        Form::new("GPG subkey seed", subkey[2..].to_vec()),
     ];
     for (i, l) in paperkey_lines().iter().take(2).enumerate() {
         f.push(Form::new(
