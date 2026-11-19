@@ -2546,11 +2546,78 @@ fn a_rotated_set_that_is_not_extendable_records_nothing_on_the_key() {
     assert_eq!(before, after, "the key is left as it was");
 }
 
-/// A rotated set that no loaded key records is recorded nowhere.
+/// Saves a Faraday-made (extendable) set, then rotates it typed again and
+/// saves: `before` runs after the first save, with the app, and may change
+/// what keys record; returns the app after the second save.
+fn rotate_extendable(before: impl FnOnce(&mut Faraday)) -> Faraday {
+    let seed = unhex("b43ceb7e57a0ea8766221624d01b0864");
+    let mut app = slip_opened(&seed);
+    let set = make_set(&mut app, SLIP_SET).unwrap();
+    save_and_write(&mut app);
+    before(&mut app);
+    let typed: Vec<&str> = set[..2].iter().map(String::as_str).collect();
+    type_set(&mut app, &typed);
+    app.press(Action::Convert(C::SetAct(convert::SetAct::Rotate)));
+    for m in 0..2 {
+        app.press(Action::Convert(C::Destroy(0, m)));
+    }
+    app.press(Action::Convert(C::DestroyOthers));
+    feed_many(&mut app, 40);
+    app.press(Action::Convert(C::Make));
+    settle(&mut app);
+    save_and_write(&mut app);
+    app
+}
+
+fn other_set(f: &faraday_vault::slip39::Slip39Facts) -> faraday_vault::slip39::Slip39Facts {
+    faraday_vault::slip39::Slip39Facts {
+        identifier: f.identifier ^ 1,
+        ..f.clone()
+    }
+}
+
+/// A rotated extendable set that no loaded key records is recorded nowhere.
 #[test]
 fn a_rotated_set_no_loaded_key_holds_is_recorded_nowhere() {
-    let (before, after) = rotate_saved_with_key_set(1);
-    assert_eq!(before, after, "another set's key is left as it was");
+    let mut before = None;
+    let app = rotate_extendable(|app| {
+        let f = app.session.keys[0].slip39.clone().unwrap();
+        before = Some(other_set(&f));
+        assert!(app.session.keys.replace_slip39(0, other_set(&f)));
+    });
+    assert_eq!(
+        app.session.keys[0].slip39.as_ref().map(|f| f.identifier),
+        before.map(|f| f.identifier),
+        "another set's key is left as it was"
+    );
+}
+
+/// With two keys loaded, a saved Rotate changes the key that records the
+/// set rotated and no other.
+#[test]
+fn a_rotated_set_changes_only_the_key_that_records_it() {
+    let mut first = None;
+    let mut matching = None;
+    let app = rotate_extendable(|app| {
+        let f = app.session.keys[0].slip39.clone().unwrap();
+        // The key that records the set is loaded second.
+        let c = testkit::compute();
+        app.session.keys.add_words(&c, ABOUT, "Test", None).unwrap();
+        assert!(app.session.keys.replace_slip39(0, other_set(&f)));
+        assert!(app.session.keys.set_slip39(1, Some(f.clone())));
+        first = Some(other_set(&f).identifier);
+        matching = Some(f.identifier);
+    });
+    assert_eq!(
+        app.session.keys[0].slip39.as_ref().map(|f| f.identifier),
+        first,
+        "the other key is left as it was"
+    );
+    assert_ne!(
+        app.session.keys[1].slip39.as_ref().map(|f| f.identifier),
+        matching,
+        "the key that recorded the set has the new one"
+    );
 }
 
 /// With as many lost or exposed shares as a group needs, rotating is not

@@ -178,7 +178,9 @@ pub fn sync(
                 // placed parts become kept old parts and the key's set
                 // is the current one, not placed yet. A plan that cannot
                 // keep them (too many old sets) stays as it is.
-                Some(cur) if *cur != set => {
+                // A set the plan keeps as an old one already: a stale
+                // copy of the key brings nothing back.
+                Some(cur) if *cur != set && a.old_sets(i).all(|o| *o != set) => {
                     let _ = a.replace_xor(i, set);
                 }
                 Some(_) => {}

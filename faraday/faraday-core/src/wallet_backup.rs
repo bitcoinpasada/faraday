@@ -1910,10 +1910,8 @@ impl Faraday {
                                 .collect();
                             plan::sets::sync(&mut a, &shape, &xor, &slip39);
                             for old in before {
-                                let now = a.slip39(old.seed).map(|z| z.identifier);
-                                if now != Some(old.identifier)
-                                    && a.old_slip39_with(old.seed, old.identifier).is_some()
-                                {
+                                let same = a.slip39(old.seed).is_some_and(|z| z.same_set(&old));
+                                if !same && a.old_slip39_with(old.seed, old.identifier).is_some() {
                                     note_fixes.push(NoteFix::NewShares(old.seed, old));
                                 }
                             }

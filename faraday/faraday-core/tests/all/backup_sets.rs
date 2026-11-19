@@ -581,3 +581,68 @@ fn a_plan_that_cannot_keep_the_old_seed_xor_set_says_it_keeps_its_own() {
         "This plan keeps another set than the key's. Destroy old parts to take the key's set."
     ));
 }
+
+#[test]
+fn back_ups_map_by_place_says_a_kept_share_is_old() {
+    let app = backup_with_kept_shares();
+    let a = &app.backup().unwrap().answers;
+    let shape = app.plan_shape_now(0);
+    let labels: Vec<String> = plan::place_map(&testkit::compute(), &shape, a)
+        .into_iter()
+        .flat_map(|s| s.holds.into_iter().map(|(w, _)| w))
+        .map(|w| w.label(&shape, "").to_string())
+        .collect();
+    assert!(
+        labels
+            .iter()
+            .any(|l| l.contains("old SLIP-39 group 1 share 1")),
+        "{labels:?}"
+    );
+    assert!(
+        labels
+            .iter()
+            .all(|l| !l.contains("SLIP-39") || l.contains("old")),
+        "no kept share reads as a current one: {labels:?}"
+    );
+}
+
+#[test]
+fn an_old_share_beside_one_current_share_does_not_rebuild_the_key_with_it() {
+    let mut a = plan_of(
+        slip_2_of_3,
+        [vec![What::Slip39Share(0, 0, 0)], vec![], vec![]],
+    );
+    plan::sets::sync(&mut a, &shape(), &[], &[Some(slip_facts(78))]);
+    let with = |a: &Answers, extra: &[What]| {
+        let mut m = plan::stored_map(&shape(), a);
+        let p0 = m.iter().position(|s| s.at == At::Place(0)).unwrap();
+        m[p0].holds.extend(extra.iter().map(|w| (*w, Tag::Secret)));
+        let mut a = a.clone();
+        a.set_map(m);
+        plan::check(&testkit::compute(), &shape(), &a).one_place
+    };
+    // A kept old share and one share of the current 2 of 3 set: not the key.
+    assert_eq!(with(&a, &[What::Slip39Share(0, 0, 0)]), None);
+    // Two shares of the current set are.
+    assert_eq!(
+        with(
+            &a,
+            &[What::Slip39Share(0, 0, 0), What::Slip39Share(0, 0, 1)]
+        ),
+        Some(0)
+    );
+}
+
+#[test]
+fn a_stale_copy_of_the_key_does_not_bring_an_old_seed_xor_set_back() {
+    let p1 = three_parts();
+    let p2 = vxor::XorFacts {
+        parts: vec![[21, 22, 23, 24], [25, 26, 27, 28], [29, 30, 31, 32]],
+    };
+    let mut a = plan_of(xor3, [vec![What::XorPart(0, 0)], vec![], vec![]]);
+    plan::sets::sync(&mut a, &shape(), &[Some(p2.clone())], &[]);
+    let current = a.xor(0).unwrap().clone();
+    assert_eq!(current.parts, p2.parts);
+    plan::sets::sync(&mut a, &shape(), &[Some(p1)], &[]);
+    assert_eq!(a.xor(0).unwrap(), &current, "the stale key does not win");
+}

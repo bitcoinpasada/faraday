@@ -1470,10 +1470,12 @@ impl What {
                 Text::fill(EN.plan_xor_part, &[seed(i), &Text::num(j as u64 + 1)])
             }
             What::XorKept(i, fp) => Text::fill(EN.plan_xor_kept, &[seed(i), &fp_code(fp)]),
-            // The strings of a kept share come with the screens; until
-            // then it reads as the share it was.
-            What::Slip39Share(i, g, m) | What::Slip39Kept(i, _, g, m) => Text::fill(
+            What::Slip39Share(i, g, m) => Text::fill(
                 EN.plan_slip39_share,
+                &[seed(i), &Text::num(g as u64 + 1), &Text::num(m as u64 + 1)],
+            ),
+            What::Slip39Kept(i, _, g, m) => Text::fill(
+                EN.plan_slip39_kept,
                 &[seed(i), &Text::num(g as u64 + 1), &Text::num(m as u64 + 1)],
             ),
         }
