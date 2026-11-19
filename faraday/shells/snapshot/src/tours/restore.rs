@@ -42,6 +42,9 @@ pub(crate) fn restore_tour(t: &mut Tour) -> Result<(), String> {
     );
     t.press(Action::EntryAdd);
     t.shot("restore-seeds-refused")?;
+    // The refusal stays on Add a key with the words kept: back out.
+    t.app
+        .event(faraday_shell_api::Event::Key(faraday_shell_api::Key::Escape));
     let w = t
         .app
         .restore()
