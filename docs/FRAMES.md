@@ -702,7 +702,12 @@ at a time. The loop's pass over the app's file requests takes the same
 lock: with a request waiting it waits for a call that is under way and,
 the lock not being fair, for the jobs already queued for it, three
 calls at most; with none waiting it only tries the lock, and a
-busy disk skips that pass's serving, which the next pass makes.
+busy disk skips that pass's serving, which the next pass makes. While
+a vault is being written or read in pieces, a call of the thread's or
+a request of the app's that would wait behind the piece in flight is not
+sent: it fails at once as the stick being busy (the listing keeps the
+sticks last seen), so the lock is never held for the length of a slow
+write.
 The thread holds the list of sticks and the text of the two diagnostic
 files, and nothing of the app, a key or a vault. A look is asked on
 the pass it is due and its answer taken on a later pass, then told to the

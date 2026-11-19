@@ -126,3 +126,76 @@ fn a_reader_that_cannot_go_on_ends_the_waits_at_once() {
 
     let _ = std::fs::remove_dir_all(dir);
 }
+
+/// A disk process that answers the opening at once and then holds the next
+/// request, a vault's piece being written, until `go` comes.
+fn slow_write_server(requests: PathBuf, responses: PathBuf, go: mpsc::Receiver<()>) {
+    let mut rx = rw(&requests);
+    let mut tx = rw(&responses);
+    let mut held = false;
+    while let Ok(Some((seq, frame))) = receive(&mut rx) {
+        let req = Request::decode(&frame).unwrap();
+        if !held && !matches!(req, Request::Open { .. }) {
+            held = true;
+            go.recv().unwrap();
+        }
+        let answer = match req {
+            Request::Open { token } => Response::Opened(token),
+            Request::List => Response::Sticks(Vec::new()),
+            _ => Response::Failed(Text::of("not asked")),
+        };
+        send(&mut tx, seq, &answer.encode()).unwrap();
+    }
+}
+
+#[test]
+fn a_request_during_a_slow_vault_write_is_refused_at_once() {
+    let dir = scratch("slow-write");
+    let requests = fifo(&dir, "requests");
+    let responses = fifo(&dir, "responses");
+    let (go, wait) = mpsc::channel();
+    let server = {
+        let (a, b) = (requests.clone(), responses.clone());
+        std::thread::spawn(move || slow_write_server(a, b, wait))
+    };
+    let mut disk = DiskProcess::open(&requests, &responses).unwrap();
+
+    let vault = vec![7u8; faraday_files::proto::PIECE + 1];
+    let asked = disk.transfer_later(Transfer::Write {
+        stick: Text::of("s"),
+        name: Text::of("Passwords.kdbx"),
+        bytes: zeroize::Zeroizing::new(vault),
+        copies: Vec::new(),
+        replace: false,
+        renamed: false,
+        on_taken: faraday_files::OnTaken::Beside,
+    });
+    assert!(asked.is_ok());
+    assert!(disk.transferred().is_empty(), "the write is under way");
+
+    // A listing meanwhile does not wait out the write: it is refused now
+    // (it waited the 15 s of an ask and said the disk process was silent).
+    let started = std::time::Instant::now();
+    let listed = disk.list();
+    assert!(listed.is_err());
+    assert!(
+        started.elapsed() < std::time::Duration::from_secs(2),
+        "refused at once, not after a wait"
+    );
+
+    // The write itself goes on and ends with the disk process's answer.
+    go.send(()).unwrap();
+    let started = std::time::Instant::now();
+    let mut done = Vec::new();
+    while done.is_empty() && started.elapsed() < std::time::Duration::from_secs(5) {
+        done = disk.transferred();
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert_eq!(done.len(), 1);
+    // With the transfer over, a listing is answered.
+    assert!(disk.list().is_ok());
+
+    drop(disk);
+    drop(server);
+    let _ = std::fs::remove_dir_all(dir);
+}

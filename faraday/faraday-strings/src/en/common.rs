@@ -1464,6 +1464,9 @@ macro_rules! words_common {
     storage_no_download: "this device does not save downloads",
     /// The disk process gave no answer in time.
     storage_disk_silent: "the disk process does not answer",
+    /// A request made while a vault is being written or read, which the
+    /// disk process would answer only after it.
+    storage_stick_busy: "the stick is busy writing",
     /// The disk process answered with bytes that do not decode.
     storage_answer_malformed: "a malformed answer",
     /// The disk process answered a picture read with another answer.

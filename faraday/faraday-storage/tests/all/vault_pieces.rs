@@ -397,7 +397,13 @@ fn lying(requests: PathBuf, responses: PathBuf, answers: Vec<(u64, usize)>) {
     let mut rx = open(&requests);
     let mut tx = open(&responses);
     let mut answers = answers.into_iter();
-    while let Ok(Some((seq, _))) = receive(&mut rx) {
+    while let Ok(Some((seq, frame))) = receive(&mut rx) {
+        // The opening of the conversation is answered as it is, not with a
+        // part: the link takes nothing before it.
+        if let Ok(Request::Open { token }) = Request::decode(&frame) {
+            send(&mut tx, seq, &Response::Opened(token).encode()).unwrap();
+            continue;
+        }
         let (total, len) = answers.next().unwrap_or((0, 0));
         let answer = Response::Part {
             total,

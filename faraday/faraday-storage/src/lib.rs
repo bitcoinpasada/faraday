@@ -1773,6 +1773,15 @@ impl DiskProcess {
         req: &faraday_files::proto::Request,
     ) -> Result<faraday_files::proto::Response, Text> {
         use faraday_files::proto::{Request, Response, send};
+        // The disk process serves one request at a time: a transfer's piece
+        // in flight is answered first, and this request would wait out its
+        // time (a vault write takes minutes on a slow stick) while the
+        // caller holds the disk's lock and the loop's frames wait behind
+        // it. It is refused at once instead; nothing is sent.
+        self.drain();
+        if self.transfer.is_some() {
+            return Err(Text::of(EN.storage_stick_busy));
+        }
         self.seq = self.seq.wrapping_add(1);
         let mut encoded = req.encode();
         let sent = send(&mut self.tx, self.seq, &encoded);
