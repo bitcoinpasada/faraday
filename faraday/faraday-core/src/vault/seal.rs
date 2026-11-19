@@ -892,6 +892,7 @@ fn lock_finish(app: &mut Faraday) {
     // The signing page's kept text of the Inbox's small files.
     app.vaults.drop_sign_text();
     app.own_wipe();
+    app.seed_wipe();
     app.wallets.clear_spend();
     app.seed_read.clear();
     app.decode.clear_check();

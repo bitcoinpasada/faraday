@@ -414,6 +414,17 @@ impl Fresh {
         }
     }
 
+    /// The lock drops the session's seed and the count of signing draws,
+    /// and the wait for a seed starts over as at a fresh start; the pool
+    /// holds the shell's own answers, none drawn from the seed, and stays.
+    /// Called after the lock's last draw (`vault/seal.rs`).
+    pub(crate) fn seed_wipe(&mut self) {
+        self.seed = None;
+        self.sign_draws = 0;
+        self.seed_wait_from = None;
+        self.waiting = None;
+    }
+
     /// The seed a signing pass draws a MuSig2 round's secret
     /// nonces from: the session's seed hashed with a count of the
     /// passes, so a nonce shared again is never the one shared before.
@@ -610,6 +621,11 @@ impl Faraday {
     pub(crate) fn own_wipe(&mut self) {
         self.fresh.own_wipe();
         self.keygen.own_changed(false);
+    }
+
+    /// The lock drops the session's seed (`Fresh::seed_wipe`).
+    pub(crate) fn seed_wipe(&mut self) {
+        self.fresh.seed_wipe();
     }
 
     /// The status line (`docs/OWN-RANDOMNESS.md` §2.4) of Settings'
@@ -1024,5 +1040,33 @@ impl Faraday {
         if let Some(action) = self.fresh.take_ready() {
             self.act(action);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// After a lock a signing pass asks the shell again instead of drawing
+    /// from the old seed, and the draws start over.
+    #[test]
+    fn lock_drops_the_signing_seed() {
+        let mut fresh = Fresh::default();
+        let mut out = Out::new();
+        assert!(fresh.arrived([7; 32]));
+        let first = fresh.sign_seed(&mut out).expect("seeded");
+        assert!(out.commands.is_empty());
+
+        fresh.own_wipe();
+        fresh.seed_wipe();
+        assert!(fresh.sign_seed(&mut out).is_none());
+        assert!(matches!(
+            out.commands.pop_front(),
+            Some(Command::RequestEntropy)
+        ));
+
+        // The next answer seeds the session again, from the count one.
+        assert!(fresh.arrived([7; 32]));
+        assert_eq!(fresh.sign_seed(&mut out).expect("seeded"), first);
     }
 }
