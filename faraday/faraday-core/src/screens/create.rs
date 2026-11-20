@@ -44,7 +44,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         })),
         heading: EN.create_make_a_new_wallet,
         chip: None,
-        choices_y: 0.0,
+        note: None,
+        chip_tap: None,
         moves: crate::ui::Moves::Yes,
     };
     let Some(contained) = crate::trail::StepFlow::contained(&crate::create::CREATE_STEPS) else {

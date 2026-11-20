@@ -2631,7 +2631,7 @@ impl crate::flow::Contained for CreateSteps {
                     _ => reached,
                 };
                 crate::flow::Row {
-                    label: crate::screens::CSTEPS[usize::from(k)],
+                    label: faraday_text::Text::of(crate::screens::CSTEPS[usize::from(k)]),
                     value: has.then(|| card_summary(app, k)),
                     mono: false,
                     opens: k,
