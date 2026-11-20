@@ -1116,6 +1116,39 @@ fn key_2_filled(app: &Faraday) -> bool {
     )
 }
 
+/// The key typed on Add a key was loaded.
+fn typed_key_loaded(app: &Faraday) -> bool {
+    !app.session.keys.is_empty()
+}
+
+/// Create's multisig kind with Key 2 on New key's Krux code form.
+fn key_2_krux_form() -> Faraday {
+    use faraday_core::create::NewKind;
+    use faraday_core::cstep;
+    let mut app = testkit::started();
+    app.press(Action::CreateWallet);
+    app.press(Action::CStep(cstep::KIND));
+    let multi = NewKind::ALL
+        .iter()
+        .position(|k| *k == NewKind::Multi)
+        .unwrap() as u8;
+    crate::common::ckind(&mut app, multi);
+    app.press(Action::CNext(cstep::QUORUM));
+    app.press(Action::KeyGen(Some(1)));
+    app.press(Action::KStart(faraday_core::keygen::Start::Krux.index()));
+    assert_eq!(app.screen, Screen::Entry);
+    app
+}
+
+/// Reads the code at the Krux form's scanner and loads its key.
+fn load_from_the_krux_form(app: &mut Faraday, code: &[u8]) {
+    app.press(Action::ScanKef);
+    read(app, code);
+    open_with(app, "note key");
+    assert_eq!(app.sheet, Some(Sheet::SeedRead));
+    app.press(Action::SeedRead(faraday_core::seeds::read::Choice::Plain));
+}
+
 #[test]
 fn a_krux_code_cancelled_on_the_seed_sheet_leaves_no_slot_waiting() {
     let mut app = create_key_2_scanner();
@@ -1132,18 +1165,57 @@ fn a_krux_code_cancelled_on_the_seed_sheet_leaves_no_slot_waiting() {
         app.event(Event::Key(Key::Char(c)));
     }
     app.press(Action::EntryAdd);
+    assert!(typed_key_loaded(&app));
     assert!(!key_2_filled(&app));
+}
+
+#[test]
+fn a_krux_code_cancelled_on_the_scanner_keeps_key_2_waiting() {
+    let mut app = key_2_krux_form();
+    let code = sealed_raw(&mut app, &[0xa1; 32]);
+    app.press(Action::ScanKef);
+    assert_eq!(app.sheet, Some(Sheet::Scan));
+    app.press(Action::Cancel);
+    assert_eq!(app.screen, Screen::Entry);
+    load_from_the_krux_form(&mut app, &code);
+    assert!(key_2_filled(&app));
+}
+
+#[test]
+fn a_krux_code_cancelled_on_the_seed_sheet_keeps_key_2_waiting_for_a_second_read() {
+    let mut app = key_2_krux_form();
+    let code = sealed_raw(&mut app, &[0xa1; 32]);
+    app.press(Action::ScanKef);
+    read(&mut app, &code);
+    open_with(&mut app, "note key");
+    assert_eq!(app.sheet, Some(Sheet::SeedRead));
+    app.press(Action::Cancel);
+    assert_eq!(app.screen, Screen::Entry);
+    load_from_the_krux_form(&mut app, &code);
+    assert!(key_2_filled(&app));
 }
 
 #[test]
 fn a_krux_code_of_words_read_at_key_2_fills_key_2() {
     let mut app = create_key_2_scanner();
     let words = testkit::test_words(testkit::TEST_SEEDS[0].0);
-    let code = sealed(&mut app, words.as_bytes());
+    fresh(&mut app);
+    app.kef_seal(
+        Zeroizing::new(b"note key".to_vec()),
+        Zeroizing::new(words.as_bytes().to_vec()),
+        20,
+        faraday_core::worker::kef::KefId::Public(b"my words".to_vec()),
+        10_000,
+        "Working",
+    )
+    .expect("fresh bytes");
+    testkit::settle(&mut app);
+    let code = encode(Form::Base43, &app.kef_take_sealed().unwrap().unwrap()).unwrap();
     read(&mut app, code.as_bytes());
     go(&mut app, "Open");
     open_with(&mut app, "note key");
     assert_eq!(app.sheet, Some(Sheet::SeedRead));
+    assert!(has_part(&mut app, "Code id my words"));
     app.press(Action::SeedRead(faraday_core::seeds::read::Choice::Plain));
     assert!(key_2_filled(&app));
 }
@@ -1163,20 +1235,7 @@ fn cancel_on_a_krux_codes_passphrase_leaves_the_flow_where_it_was() {
 
 #[test]
 fn back_out_of_a_krux_form_opened_for_a_slot_leaves_no_slot_waiting() {
-    use faraday_core::create::NewKind;
-    use faraday_core::cstep;
-    let mut app = testkit::started();
-    app.press(Action::CreateWallet);
-    app.press(Action::CStep(cstep::KIND));
-    let multi = NewKind::ALL
-        .iter()
-        .position(|k| *k == NewKind::Multi)
-        .unwrap() as u8;
-    crate::common::ckind(&mut app, multi);
-    app.press(Action::CNext(cstep::QUORUM));
-    app.press(Action::KeyGen(Some(1)));
-    app.press(Action::KStart(faraday_core::keygen::Start::Krux.index()));
-    assert_eq!(app.screen, Screen::Entry);
+    let mut app = key_2_krux_form();
     app.press(Action::Back);
     assert_eq!(app.screen, Screen::Create);
     app.press(Action::Entry(None));
@@ -1184,5 +1243,20 @@ fn back_out_of_a_krux_form_opened_for_a_slot_leaves_no_slot_waiting() {
         app.event(Event::Key(Key::Char(c)));
     }
     app.press(Action::EntryAdd);
+    assert!(typed_key_loaded(&app));
+    assert!(!key_2_filled(&app));
+}
+
+#[test]
+fn home_from_a_krux_form_opened_for_a_slot_leaves_no_slot_waiting() {
+    let mut app = key_2_krux_form();
+    app.press(Action::Nav(Screen::Home));
+    assert_eq!(app.screen, Screen::Home);
+    app.press(Action::Entry(None));
+    for c in testkit::test_words(testkit::TEST_SEEDS[0].0).chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.press(Action::EntryAdd);
+    assert!(typed_key_loaded(&app));
     assert!(!key_2_filled(&app));
 }

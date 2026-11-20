@@ -643,9 +643,13 @@ fn kef_road_after_seed(app: &mut Faraday, plain: Zeroizing<Vec<u8>>, offer: bool
         && let Some(words) = faraday_intake::seed_in_code(&c, &plain)
     {
         drop(plain);
+        let id = app.seed_read.kef().map(|k| k.envelope.id.clone());
         app.seed_read.set_kef(None);
         app.sheet = None;
         kef_seed_lands(app, lands, &words);
+        if let Some(id) = id {
+            app.seed_read_kef_id(&id);
+        }
         return;
     }
     if names_something {
