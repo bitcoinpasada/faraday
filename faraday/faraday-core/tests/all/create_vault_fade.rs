@@ -451,11 +451,32 @@ fn a_step_left_from_the_choices_sheet_hides_the_passphrase_shown() {
     let _ = app.frame();
     let shown = |app: &Faraday| app.vaults().create.as_ref().unwrap().shown;
     assert!(shown(&app), "shown");
-    for step in [vstep::PRESET, 0] {
+    for step in [vstep::PRESET, vstep::PHRASES] {
         app.press(Action::Choices(faraday_core::ChoicesPress::Open));
         let _ = app.frame();
         app.press(Action::Choices(faraday_core::ChoicesPress::Row(step)));
         let _ = app.frame();
     }
+    assert_eq!(
+        app.vaults().create.as_ref().and_then(|c| c.open),
+        Some(vstep::PHRASES),
+        "back on Name and passphrases"
+    );
     assert!(!shown(&app), "hidden once the step was left by the sheet");
+}
+
+/// Show pressed with nothing typed, then the step left and opened again:
+/// the eye is off, so a passphrase typed then is masked (F104).
+#[test]
+fn a_step_left_with_show_on_and_nothing_typed_hides_it() {
+    let (mut app, mut clock) = on_create_vault();
+    app.press(Action::Vault(V::CShow));
+    let _ = app.frame();
+    let shown = |app: &Faraday| app.vaults().create.as_ref().unwrap().shown;
+    assert!(shown(&app), "shown");
+    app.press(Action::Vault(V::CStep(vstep::PRESET)));
+    let _ = at_rest(&mut app, &mut clock);
+    app.press(Action::Vault(V::CStep(vstep::PHRASES)));
+    let _ = at_rest(&mut app, &mut clock);
+    assert!(!shown(&app), "hidden once the step was left");
 }

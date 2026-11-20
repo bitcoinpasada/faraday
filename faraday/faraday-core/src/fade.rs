@@ -443,10 +443,10 @@ impl Faraday {
             self.live_begin(drawn_key, out);
             return;
         }
-        // A step left by a press that also changed the sheet (a row of
-        // Your choices) has no live fade to carry the release: what it
-        // showed is hidden now (F104).
-        if left.is_none() && open.is_some() && open_before.is_some() && open_before != open {
+        // A step left with no live fade to carry the release (nothing
+        // typed, or a press that also changed the sheet, a row of Your
+        // choices): what it showed is hidden now (F104).
+        if open.is_some() && open_before.is_some() && open_before != open {
             self.fade.release_owed = false;
             self.vaults.hide_on_leaving_step();
         }
