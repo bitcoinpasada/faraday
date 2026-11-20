@@ -1154,10 +1154,6 @@ pub const SPACER: f32 = 24.0;
 /// Material's default pane width.
 pub const LIST_PANE: f32 = 360.0;
 
-/// Settings' cards stand in two columns where each can be this wide
-/// (`docs/LAYOUT.md` §17): Material's default pane width.
-pub const SETTINGS_CARD_MIN: f32 = LIST_PANE;
-
 /// Where a list pane and its detail begin under the top app bar:
 /// Material's list padding.
 pub const PANE_TOP_BAR: f32 = 8.0;

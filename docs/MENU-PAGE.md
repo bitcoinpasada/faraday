@@ -1,8 +1,8 @@
 # One menu page container
 
 **Kind:** Spec
-**Status:** Specified (F298); the container is built (`screens/menu_page.rs`) and Tools, Check and Wallets start draw on it.
-**Open:** Home and Settings still draw their own page: each has its own width, columns and gaps, the one-column Home its own grid of places, and Settings its cards' column rule; the container has no body of cards yet (§6), and `TILE_MIN` and `SETTINGS_CARD_MIN` stay until they move.
+**Status:** Specified (F298); the container is built (`screens/menu_page.rs`) and Tools, Check, Wallets start and Settings draw on it.
+**Open:** Home still draws its own page: its own width, columns and gaps and the one-column Home its own grid of places; `TILE_MIN` stays until it moves.
 
 The menu pages are the pages a person picks a place or a tool from:
 Home, Tools (`Screen::Catalog`, the sidebar's Tools), Check, Wallets
@@ -203,12 +203,11 @@ two.
 - **Settings** (`screens/settings.rs`): its name, its sections' cards
   (`part`) as a cards section of at most two columns, where the second
   starts, and on a compact window the list. `draw`'s column rule
-  (`SETTINGS_CARD_MIN`, `SPACER`, `COLUMN_MAX`, `MARGIN_WIDE` there) goes.
+  (its `SPACER`, `COLUMN_MAX` and `MARGIN_WIDE` there) is gone.
 
 Tokens (`core/faraday-draw/src/tokens.rs`): `MENU_PAGE_W` and
-`MENU_GAP` are new; `CATALOG_COLUMNS_MIN`, `CATALOG_ROW_GAP`, `TILE_MIN`
-and `SETTINGS_CARD_MIN` (the same 360 as `CATALOG_TILE_MIN`) go once
-nothing reads them.
+`MENU_GAP` are new; `CATALOG_COLUMNS_MIN`, `CATALOG_ROW_GAP` and
+`TILE_MIN` go once nothing reads them (`SETTINGS_CARD_MIN` is gone).
 
 The container is shared code beside the flow container
 (`faraday/faraday-core/src/flow.rs`): a menu page module of its own,

@@ -1647,6 +1647,9 @@ pub(crate) fn word_keys(
     })
 }
 
+/// The gap [`section`] leaves under its card.
+pub(super) const SECTION_GAP: f32 = 14.0;
+
 /// A section of a small panel's page: a card with its title, measured
 /// first so its surface goes down under what `draw` puts in it at the
 /// inner (x, y, w), and drawn only where any of it is in sight: a card
@@ -1663,7 +1666,7 @@ pub(super) fn section(
     let (ix, iw) = (x + 14.0, w - 28.0);
     let inner = crate::compact::screen::measured(ui, |ui| draw(ui, ix, y + 44.0, iw));
     let h = 44.0 + inner + 12.0;
-    let taken = h + 14.0;
+    let taken = h + SECTION_GAP;
     if !ui.shows(y, h) {
         return taken;
     }

@@ -13,16 +13,24 @@ use faraday_draw::tokens::{
 use faraday_ui::parts::section_label;
 
 /// What a block draws: from `at`, `w` wide, returning its height.
-type BlockFn<'a> = Box<dyn Fn(&mut Ui, (f32, f32), f32) -> f32 + 'a>;
+pub(crate) type BlockFn<'a> = Box<dyn Fn(&mut Ui, (f32, f32), f32) -> f32 + 'a>;
 
-/// What a section holds. (A body of cards of different heights is
-/// `docs/MENU-PAGE.md` §6, built with Settings.)
+/// What a section holds.
 pub(crate) enum Body<'a> {
     /// Faces in the grid.
     Tiles(Vec<Face<'a>>),
     /// Something the page draws across its width from `at`, `w` wide,
     /// returning its height.
     Block(BlockFn<'a>),
+    /// Cards of different heights (`docs/MENU-PAGE.md` §6), each drawn in
+    /// the width it is given and returning its height: stacked in one
+    /// column, or in two where the page holds two, the cards from index
+    /// `second` on in the second. A card stays in its column as the
+    /// window changes size.
+    Cards {
+        cards: Vec<BlockFn<'a>>,
+        second: usize,
+    },
 }
 
 /// An optional label over one body.
@@ -37,6 +45,15 @@ impl<'a> Section<'a> {
         Self {
             label,
             body: Body::Tiles(faces),
+        }
+    }
+
+    /// Cards under `label`, those from `second` on in the second column
+    /// where there are two.
+    pub fn cards(label: Option<&'a str>, cards: Vec<BlockFn<'a>>, second: usize) -> Self {
+        Self {
+            label,
+            body: Body::Cards { cards, second },
         }
     }
 
@@ -193,7 +210,7 @@ fn sections_height(
 ) -> f32 {
     let faces = sections.iter().flat_map(|s| match &s.body {
         Body::Tiles(f) => f.as_slice(),
-        Body::Block(_) => &[],
+        Body::Block(_) | Body::Cards { .. } => &[],
     });
     let g = grid(width, most).matching(ui, faces);
     let mut used = 0.0;
@@ -212,7 +229,31 @@ fn sections_height(
         used += match &s.body {
             Body::Tiles(faces) => g.draw_rows(ui, (x, y + used), faces),
             Body::Block(draw) => draw(ui, (x, y + used), width),
+            Body::Cards { cards, second } => {
+                let columns = grid(width, most).per.min(2);
+                draw_cards(ui, (x, y + used, width), cards, (columns, *second))
+            }
         };
     }
     used
+}
+
+/// `cards` from `at`, `w` wide, in `columns` columns (one or two) with
+/// `MENU_GAP` between cards and between the columns, the cards from index
+/// `second` on in the second. Returns the height of the taller column.
+fn draw_cards(
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    cards: &[BlockFn],
+    (columns, second): (usize, usize),
+) -> f32 {
+    let col_w = (w - (columns as f32 - 1.0) * MENU_GAP) / columns as f32;
+    let mut used = [0.0_f32; 2];
+    for (i, card) in cards.iter().enumerate() {
+        let c = usize::from(columns > 1 && i >= second);
+        let gap = if used[c] > 0.0 { MENU_GAP } else { 0.0 };
+        let cx = x + c as f32 * (col_w + MENU_GAP);
+        used[c] += gap + card(ui, (cx, y + used[c] + gap), col_w);
+    }
+    used[0].max(used[1])
 }

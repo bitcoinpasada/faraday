@@ -1,15 +1,13 @@
 //! `Screen::Settings`: Settings and About.
 
-use super::parts::{section, tz_row};
+use super::menu_page::{BlockFn, Page, Section};
+use super::parts::{SECTION_GAP, section, tz_row};
 use crate::Action;
 use crate::drawing::View;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
-use faraday_draw::tokens::{
-    APPEARANCE_LABEL_GAP, APPEARANCE_LABEL_W, APPEARANCE_ROW_GAP, COLUMN_MAX, MARGIN_WIDE,
-    PANE_TOP_BAR, SETTINGS_CARD_MIN, SPACER,
-};
+use faraday_draw::tokens::{APPEARANCE_LABEL_GAP, APPEARANCE_LABEL_W, APPEARANCE_ROW_GAP};
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, SEGMENTED_H, TITLE_M};
 use faraday_shell_api::Orientation;
 use faraday_ui::parts::wrap_buttons;
@@ -100,7 +98,7 @@ fn part_title(p: Part) -> &'static str {
 /// gap under it.
 fn part(app: &View, ui: &mut Ui, p: Part, (x, y, w): (f32, f32, f32)) -> f32 {
     if p == Part::Mode {
-        return mode_card(app, ui, (x, y, w)) + 14.0;
+        return mode_card(app, ui, (x, y, w)) + SECTION_GAP;
     }
     section(ui, x, y, w, part_title(p), &|ui, x, y0, w| {
         part_body(app, ui, p, (x, y0, w))
@@ -487,33 +485,31 @@ pub(crate) fn open_head(app: &View) -> Option<&'static str> {
 
 /// Settings (`docs/LAYOUT.md` §17): on a compact window the list of
 /// sections, each opening as its own page (Material's list and detail
-/// one pane at a time); from medium windows up every section on one
-/// page, in two columns where the page holds two cards
-/// `SETTINGS_CARD_MIN` wide (owner, 2026-10-25).
+/// one pane at a time); from medium windows up every section a card on
+/// the menu page (`docs/MENU-PAGE.md` §8), in two columns where the page
+/// holds two: Mode to Randomness in the first, Appearance on in the
+/// second (owner, 2026-10-25).
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if crate::panes::settings_listed(app.window()) {
         return listed(app, ui, x0, cw, h);
     }
-    let room = cw - 2.0 * MARGIN_WIDE;
-    let two = room >= 2.0 * SETTINGS_CARD_MIN + SPACER;
-    let col_w = if two { (room - SPACER) / 2.0 } else { room }.min(COLUMN_MAX);
-    let across = if two { 2.0 * col_w + SPACER } else { col_w };
-    let x = x0 + (cw - across) / 2.0;
-    if !ui.compact {
-        super::bar_head(ui, None, EN.settings_settings);
-    }
-    ui.moving_page_begin((x0, cw, h), app.list_offset);
-    let top = PANE_TOP_BAR;
-    let (mut left, mut right) = (top, top);
-    for p in parts() {
-        if two && (p as u8) >= (Part::Appearance as u8) {
-            right += part(app, ui, p, (x + col_w + SPACER, right, col_w));
-        } else {
-            left += part(app, ui, p, (x, left, col_w));
-        }
-    }
-    let foot = left.max(right) + MARGIN_WIDE;
-    crate::compact::screen::finish(app, ui, h, foot);
+    let cards: Vec<BlockFn> = parts()
+        .into_iter()
+        .map(|p| {
+            // The card without the gap `part` leaves under it.
+            Box::new(move |ui: &mut Ui, (x, y): (f32, f32), w: f32| {
+                part(app, ui, p, (x, y, w)) - SECTION_GAP
+            }) as BlockFn
+        })
+        .collect();
+    let sections = [Section::cards(None, cards, Part::Appearance as usize)];
+    let page = Page {
+        name: EN.settings_settings,
+        back: false,
+        search: None,
+        most_columns: 2,
+    };
+    super::menu_page::draw(app, ui, (x0, cw, h), &page, &sections);
 }
 
 /// About's foot: the Nakamoto Institute, `w` wide. In the online app its
