@@ -46,8 +46,10 @@ enum What<'a> {
         rows: usize,
         spans: &'a mut [Option<(usize, usize)>],
     },
-    /// The pixels of these rectangles, each inside the canvas, alone.
-    Within(&'a [Rect]),
+    /// The pixels of these rectangles, each inside the canvas, alone;
+    /// where the two frames agree the pixel is written too only when
+    /// the flag is set.
+    Within(&'a [Rect], bool),
 }
 
 /// Blends the bands one after the other, on this thread.
@@ -208,6 +210,39 @@ impl Canvas {
         n: usize,
         run: &mut dyn FnMut(&mut [BlendBand<'_>]),
     ) {
+        self.within_banded(before, after, t, (bands, false), n, run);
+    }
+
+    /// Costs a pass over the pixels of `rects`, in `n` bands of the rows
+    /// they span. [`Canvas::blend_within_banded`], but every pixel of
+    /// `rects` is written, where the two frames agree too, whatever the
+    /// canvas showed there: for a step of a fade whose canvas does not
+    /// already show the frames' common pixels (a fade through, whose
+    /// middle moves between two frames).
+    pub fn blend_all_within_banded(
+        &mut self,
+        before: &[u8],
+        after: &[u8],
+        t: f32,
+        rects: &[Rect],
+        n: usize,
+        run: &mut dyn FnMut(&mut [BlendBand<'_>]),
+    ) {
+        self.within_banded(before, after, t, (rects, true), n, run);
+    }
+
+    /// [`Canvas::blend_within_banded`] with `agreeing` set in `to`'s
+    /// second field as [`Canvas::blend_all_within_banded`] has it.
+    fn within_banded(
+        &mut self,
+        before: &[u8],
+        after: &[u8],
+        t: f32,
+        to: (&[Rect], bool),
+        n: usize,
+        run: &mut dyn FnMut(&mut [BlendBand<'_>]),
+    ) {
+        let (bands, agreeing) = to;
         self.sync();
         (self.counter)(Work::FullCanvas);
         let len = self.visible().len();
@@ -240,7 +275,7 @@ impl Canvas {
                 top,
                 stride,
                 t,
-                what: What::Within(bands),
+                what: What::Within(bands, agreeing),
             })
             .collect();
         run(&mut parts);
@@ -280,7 +315,8 @@ impl BlendBand<'_> {
                     *span = s.map(|(a, b)| (a + ring, b + ring));
                 }
             }
-            What::Within(rects) => {
+            What::Within(rects, agreeing) => {
+                let agreeing = *agreeing;
                 let (y0, y1) = (top as i32, (top + rows) as i32);
                 for b in rects.iter() {
                     let (from, to) = (b.y.max(y0).max(0), b.bottom().min(y1));
@@ -297,7 +333,7 @@ impl BlendBand<'_> {
                             &self.was[at..end],
                             &self.will[at..end],
                             t,
-                            false,
+                            agreeing,
                         );
                     }
                 }

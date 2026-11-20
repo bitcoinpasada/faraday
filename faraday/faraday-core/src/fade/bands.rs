@@ -110,6 +110,25 @@ impl Bands {
         n
     }
 
+    /// Costs a pass over the pixels of `rects`, every one written.
+    /// `Canvas::blend_all_within_banded`, in bands of rows across the
+    /// cores, the first on this thread.
+    pub(crate) fn blend_all_within(
+        &self,
+        canvas: &mut Canvas,
+        (before, after): (&[u8], &[u8]),
+        t: f32,
+        rects: &[Rect],
+    ) -> usize {
+        let pixels = rects
+            .iter()
+            .map(|r| r.w.max(0) as usize * r.h.max(0) as usize)
+            .sum();
+        let n = self.bands_for_pixels(pixels);
+        canvas.blend_all_within_banded(before, after, t, rects, n, &mut blend_all);
+        n
+    }
+
     /// Costs the painting of every call waiting on `canvas`. Paints them
     /// in bands, the first on this thread.
     pub(crate) fn paint(&mut self, canvas: &mut Canvas) {
@@ -141,6 +160,25 @@ impl Bands {
                 mine.paint();
             });
         });
+    }
+}
+
+/// What of `bands` lies outside `card`, as rectangles into `out`: each
+/// band cut into the pieces round the card.
+pub(super) fn outside(bands: &[Rect], card: Rect, out: &mut Vec<Rect>) {
+    for b in bands {
+        let hit = b.intersect(&card);
+        if hit.is_empty() {
+            out.push(*b);
+            continue;
+        }
+        let pieces = [
+            Rect::new(b.x, b.y, b.w, hit.y - b.y),
+            Rect::new(b.x, hit.bottom(), b.w, b.bottom() - hit.bottom()),
+            Rect::new(b.x, hit.y, hit.x - b.x, hit.h),
+            Rect::new(hit.right(), hit.y, b.right() - hit.right(), hit.h),
+        ];
+        out.extend(pieces.into_iter().filter(|r| !r.is_empty()));
     }
 }
 

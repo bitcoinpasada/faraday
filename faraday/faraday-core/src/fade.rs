@@ -10,7 +10,7 @@ use faraday_draw::{Canvas, Rect};
 use faraday_shell_api::Command;
 
 use crate::moved::{Last, Look};
-use crate::ui::{self, Theme};
+use crate::ui::{self, Role, Theme};
 use crate::{Faraday, ScreenKey, Sheet, motion};
 
 /// A change of screen, sheet or theme fading in, with the frosted page under an
@@ -67,10 +67,23 @@ pub(crate) struct Fade {
     /// The screen and sheet the last frame drew, whether the guide's pane
     /// stood beside the page and the tab on show in the sheet or the
     /// pane, and the theme, so that a change is known at the next.
-    last_drawn: Option<(ScreenKey, (bool, usize), Theme)>,
+    last_drawn: Option<(ScreenKey, (bool, usize), Theme, Option<u8>)>,
     /// Whether the fade under way is a change of theme, which takes
     /// longer and is eased; set when a fade starts.
     theme_fade: bool,
+    /// Whether the fade under way is a change of a flow's step on the
+    /// container: the card's place fades through the page's surface, the
+    /// rest cross-fades (`docs/FLOW-CONTAINER.md` §3); set when a fade
+    /// starts.
+    step_fade: bool,
+    /// Where the last frame drew the flow's card, in pixels: what a step's
+    /// fade goes through the surface in. A rectangle, no image.
+    card: Option<Rect>,
+    /// An image of the page's surface, as large as the frames, that a
+    /// step's card goes out to and comes in from: made when the new frame
+    /// of a step's fade is first kept, empty with no step fade. One more
+    /// frame of memory while one runs; it holds nothing drawn.
+    surface: Vec<u8>,
     /// How a whole frame is painted across the cores (`bands.rs`).
     cores: bands::Bands,
     /// The last frame drawn in full was drawn while a secret was being
@@ -94,6 +107,8 @@ impl Fade {
     fn blend(&self, at: Option<u64>, now_ms: u64) -> (f32, bool) {
         let ms = if self.theme_fade {
             motion::THEME_FADE_MS
+        } else if self.step_fade {
+            motion::STEP_FADE_MS
         } else {
             motion::FADE_MS
         };
@@ -112,6 +127,62 @@ impl Fade {
         self.from = None;
         self.after = Vec::new();
         self.bands.clear();
+        self.surface = Vec::new();
+        self.step_fade = false;
+    }
+
+    /// The card's place inside `canvas`, when a step's fade goes through
+    /// the surface there.
+    fn card_in(&self, canvas: &Canvas) -> Option<Rect> {
+        let whole = Rect::new(0, 0, canvas.width(), canvas.height());
+        self.card
+            .map(|c| c.intersect(&whole))
+            .filter(|c| self.step_fade && !c.is_empty())
+    }
+
+    /// Costs a pass over the card's place. Step `t` of a step's fade, the
+    /// card's place only: the old card out to the surface over the first
+    /// part, the new one in from it over the rest, every pixel written
+    /// (`motion::step_fade`). Returns how many bands it was split in.
+    fn step_card(&self, canvas: &mut Canvas, t: f32) -> usize {
+        let (Some((before, _)), Some(card)) = (self.from.as_ref(), self.card_in(canvas)) else {
+            return 0;
+        };
+        if self.surface.is_empty() {
+            return 0;
+        }
+        let (going, e) = motion::step_fade(t);
+        let pair = if going {
+            (before.as_slice(), self.surface.as_slice())
+        } else {
+            (self.surface.as_slice(), self.after.as_slice())
+        };
+        self.cores.blend_all_within(canvas, pair, e, &[card])
+    }
+
+    /// Costs a pass over the bands. A later step of a step's fade: the
+    /// bands outside the card's place cross-fade linearly, the card's
+    /// place goes through the surface. Returns how many bands it was
+    /// split in, the larger of the two passes.
+    fn step_blend(&self, canvas: &mut Canvas, t: f32) -> usize {
+        let Some((before, _)) = self.from.as_ref() else {
+            return 0;
+        };
+        let mut outside = Vec::new();
+        match self.card_in(canvas) {
+            Some(card) => bands::outside(&self.bands, card, &mut outside),
+            None => outside.extend_from_slice(&self.bands),
+        }
+        let n = self
+            .cores
+            .blend_within(canvas, before, &self.after, t, &outside);
+        n.max(self.step_card(canvas, t))
+    }
+
+    /// Where the frame being drawn put the flow's card, in pixels, or
+    /// that it put none.
+    pub(crate) fn set_card(&mut self, card: Option<Rect>) {
+        self.card = card;
     }
 
     /// The next frame is the screen at rest, not part of the way from
@@ -250,7 +321,12 @@ impl Faraday {
         };
         let page = (pane, page);
         let theme = self.settings.theme();
-        let drawn_key = ((self.screen, self.sheet), page, theme);
+        // The step open in a flow on the container: a change of it fades
+        // through (`docs/FLOW-CONTAINER.md` §3).
+        let step = self
+            .steps_on_show()
+            .and_then(|(flow, steps)| flow.contained().and(steps.open));
+        let drawn_key = ((self.screen, self.sheet), page, theme, step);
         // Drawn in full: what asked for this frame is drawn as it is now,
         // the gap across it is not a fade's step, and what it changed is
         // not known.
@@ -267,9 +343,27 @@ impl Faraday {
             self.fade.last_drawn = Some(drawn_key);
             return;
         }
+        // Only the step differs, both are steps of a flow on the container.
+        let step_change = self.fade.last_drawn.is_some_and(|(k, p, t, s)| {
+            (k, p, t) == (drawn_key.0, drawn_key.1, drawn_key.2)
+                && s.is_some()
+                && step.is_some()
+                && s != step
+        });
+        // The step now shows or takes a secret: no frame is kept to fade
+        // from or to, as for a frame before that did
+        // (`docs/MOTION.md` §3.5).
+        if step_change && self.step_secret() {
+            self.fade.end();
+            self.fade.last_drawn = Some(drawn_key);
+            return;
+        }
         let own_motion = false;
         let fades = self.fade.last_drawn.is_some() && self.fades() && !own_motion;
-        self.fade.theme_fade = self.fade.last_drawn.is_some_and(|(_, _, t)| t != theme);
+        self.fade.theme_fade = self.fade.last_drawn.is_some_and(|(_, _, t, _)| t != theme);
+        self.fade.step_fade = step_change && fades;
+        // A fade begun over one under way goes through a new surface.
+        self.fade.surface = Vec::new();
         if self.fade.last_drawn.is_some() && !own_motion {
             let n = &mut self.fade.counts;
             match (fades, self.settings.reduce_motion()) {
@@ -372,6 +466,19 @@ impl Faraday {
         out
     }
 
+    /// Whether the state a step change opens shows or takes a secret: what
+    /// the next frame draws as a secret frame does (`Self::secret_typed`,
+    /// `Self::secret_shown`, and dice rolls on Create a vault).
+    fn step_secret(&self) -> bool {
+        self.secret_typed()
+            || self.secret_shown()
+            || self
+                .vaults
+                .dice
+                .open()
+                .is_some_and(|d| !d.1.text.is_empty())
+    }
+
     /// Whether the frame shows a file's text a secret may be in: the vault
     /// page's sign list with a file's text shown behind its eye. Reads
     /// state only.
@@ -393,6 +500,7 @@ impl Faraday {
         self.fade.secret_drawn = self.secret_typed() || self.secret_shown();
         // Whatever draws on the canvas after the frame paints as it calls.
         canvas.record_calls(false);
+        let surface = self.theme().role(Role::Surface);
         let Some((before, at)) = &self.fade.from else {
             return;
         };
@@ -401,6 +509,9 @@ impl Faraday {
             self.fade.end();
         } else {
             canvas.swap_pixels(&mut self.fade.after);
+            if self.fade.step_fade && self.fade.surface.is_empty() {
+                self.fade.surface = surface_image(self.fade.after.len(), surface);
+            }
             let inset = self.fade.edge_drawn_over;
             let n = self.fade.cores.blend_noting(
                 canvas,
@@ -409,6 +520,9 @@ impl Faraday {
                 (t, inset),
                 &mut self.fade.bands,
             );
+            // The card's place of a step's fade, over what the linear
+            // blend just wrote there.
+            let n = n.max(self.fade.step_card(canvas, t));
             self.fade.counts.bands = self.fade.counts.bands.max(n as u8);
             self.fade.due = true;
             self.out.commands.push_back(Command::Draw);
@@ -426,6 +540,10 @@ impl Faraday {
         if self.canvas.is_none() || self.fade.from.is_none() {
             return;
         }
+        let surface = self.theme().role(Role::Surface);
+        if self.fade.step_fade && self.fade.surface.is_empty() {
+            self.fade.surface = surface_image(self.fade.after.len(), surface);
+        }
         if let Some(last) = self.fade.step_at
             && self.now_ms > last
         {
@@ -439,8 +557,10 @@ impl Faraday {
         self.fade.step_at = Some(self.now_ms);
         self.fade.counts.steps += 1;
         let (t, over) = at.map_or((0.0, false), |at| self.fade.blend(Some(at), self.now_ms));
+        let card = self.fade.card_in(canvas);
         if let Some(changed) = self.fade.changed.as_mut() {
             changed.extend_from_slice(&self.fade.bands);
+            changed.extend(card);
         }
         if over {
             // The new frame at rest, as it was drawn.
@@ -448,10 +568,13 @@ impl Faraday {
             self.fade.end();
             self.fade.step_at = None;
         } else {
-            let n =
+            let n = if self.fade.step_fade {
+                self.fade.step_blend(canvas, t)
+            } else {
                 self.fade
                     .cores
-                    .blend_within(canvas, before, &self.fade.after, t, &self.fade.bands);
+                    .blend_within(canvas, before, &self.fade.after, t, &self.fade.bands)
+            };
             self.fade.counts.bands = self.fade.counts.bands.max(n as u8);
             self.fade.due = true;
             self.out.commands.push_back(Command::Draw);
@@ -657,6 +780,17 @@ impl Faraday {
             moved,
         }
     }
+}
+
+/// An image of `len` bytes of the opaque `color`, the page's surface, for
+/// a step's card to fade through.
+fn surface_image(len: usize, color: faraday_draw::Color) -> Vec<u8> {
+    [color.r, color.g, color.b, 255]
+        .iter()
+        .copied()
+        .cycle()
+        .take(len)
+        .collect()
 }
 
 #[cfg(test)]

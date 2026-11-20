@@ -856,6 +856,10 @@ impl Faraday {
                 self.pointer.set_cut(std::mem::take(&mut ui.cut));
                 follow_to = follow_to.or(ui.follow_to);
                 self.fade.keep_frost(frost_key, ui.frost.take());
+                // The card's place, for a step's fade through the surface.
+                self.fade.set_card(ui.flow_card.take().map(|(x, y, w, h)| {
+                    faraday_draw::Rect::new(ui.px(x), ui.px(y), ui.px(w), ui.px(h))
+                }));
                 layer = ui.content;
                 spoiled = ui.spoiled;
                 (ui.column, ui.focus_box, ui.focus_action)

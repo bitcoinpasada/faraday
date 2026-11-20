@@ -773,7 +773,7 @@ impl Faraday {
 
     /// The flow on show and its steps, with no sheet over it. Only
     /// lookups.
-    fn steps_on_show(&self) -> Option<(&'static dyn StepFlow, Steps)> {
+    pub(crate) fn steps_on_show(&self) -> Option<(&'static dyn StepFlow, Steps)> {
         if self.sheet.is_some() {
             return None;
         }

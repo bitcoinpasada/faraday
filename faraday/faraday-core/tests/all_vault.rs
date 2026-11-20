@@ -3,6 +3,8 @@
 #[path = "all/common.rs"]
 mod common;
 
+#[path = "all/create_vault_fade.rs"]
+mod create_vault_fade;
 #[path = "all/kdbx.rs"]
 mod kdbx;
 #[path = "all/mode_files.rs"]
