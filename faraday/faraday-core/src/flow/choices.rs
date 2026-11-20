@@ -131,3 +131,56 @@ impl Pane<'_> {
         ui.region_close(open, (y + CHOICES_INSET - h).max(0.0));
     }
 }
+
+/// The sheet over a flow on the container: its rows, headed "Your choices",
+/// as the pane draws them; a press on a row closes it and opens its step.
+/// The window's width less a margin on compact, at most twice the board's
+/// popup centred otherwise.
+pub(crate) fn sheet(app: &crate::drawing::View, ui: &mut Ui, w: f32, h: f32) {
+    let Some(flow) = app.step_flow() else {
+        return;
+    };
+    let (Some(contained), Some(steps)) = (flow.contained(), flow.steps(app)) else {
+        return;
+    };
+    let list = contained.rows(app);
+    let presses: Vec<Option<Action>> = list
+        .iter()
+        .map(|r| {
+            answers::takes_press(&steps, r)
+                .then_some(Action::Choices(crate::action::ChoicesPress::Row(r.opens)))
+        })
+        .collect();
+    let place = if ui.compact {
+        (tokens::GAP, w - 2.0 * tokens::GAP)
+    } else {
+        let sw = (w - 2.0 * tokens::BOARD_GAP).min(tokens::BOARD_POPUP_WIDTH * 2.0);
+        ((w - sw) / 2.0, sw)
+    };
+    let pad = tokens::GRID * 2.0;
+    crate::compact::scroll_sheet(ui, place, h, tokens::GAP, pad, &mut |ui, x, y, iw| {
+        let mut cy = y;
+        cy += crate::compact::sheet_head(
+            ui,
+            x,
+            cy,
+            iw,
+            faraday_draw::widgets::Icon::Checklist,
+            Role::OnSurface,
+            EN.flow_your_choices,
+        );
+        cy += rows(ui, &list, &presses, (x, cy, iw));
+        cy += crate::compact::buttons(
+            ui,
+            x,
+            cy,
+            iw,
+            &[(
+                EN.nav_close,
+                crate::ui::Style::Secondary,
+                Action::Choices(crate::action::ChoicesPress::Close),
+            )],
+        );
+        cy - y
+    });
+}

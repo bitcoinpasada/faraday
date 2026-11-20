@@ -694,7 +694,10 @@ impl Faraday {
     fn guide_pane_place_free(&self) -> bool {
         let codex32 = self.screen == Screen::KeyGen
             && self.keygen.state().is_some_and(|k| k.codex32.is_some());
-        !codex32 && !matches!(self.screen, Screen::Backup | Screen::BackupFlow)
+        // A flow on the container keeps the place for Your choices.
+        !codex32
+            && !matches!(self.screen, Screen::Backup | Screen::BackupFlow)
+            && !self.contained_on_show()
     }
 
     /// Whether the guide stands as the supporting pane this frame: open as

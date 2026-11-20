@@ -234,11 +234,13 @@ fn tools(app: &View, ui: &mut Ui, w: f32) -> f32 {
         full,
         Overflow { help: true, ..full },
         Overflow {
+            choices: true,
             help: true,
             keyboard: true,
             ..full
         },
         Overflow {
+            choices: true,
             help: true,
             keyboard: true,
             eye: true,
@@ -275,6 +277,7 @@ fn tools_from(app: &View, ui: &mut Ui, w: f32, over: Overflow) -> f32 {
     let own = app.nav() == crate::nav::Nav::Menu && crate::screens::randomness::own_at_press(app);
     let held = Overflow {
         own,
+        choices: over.choices && app.choices_offered(),
         help: over.help || own,
         keyboard: over.keyboard && keyboard.is_some(),
         keyboard_up: over.keyboard && keyboard.is_some_and(|(_, shown)| shown),
@@ -291,6 +294,9 @@ fn tools_from(app: &View, ui: &mut Ui, w: f32, over: Overflow) -> f32 {
             right = faraday_ui::nav::more(ui, right, open, EN.tip_more);
         }
         right = faraday_ui::nav::help(ui, right, Action::Guide, EN.tip_guide);
+    }
+    if !held.choices {
+        right = bar_choices(app, ui, right);
     }
     right = receiver_mark(app, ui, right);
     // The keyboard, where the page types, and to bring it back once put
@@ -351,8 +357,34 @@ pub(crate) fn bar_cancel(app: &View, ui: &mut Ui, right: f32) -> f32 {
     if !app.cancel_shown() || cancel_in_menu(app) {
         return right;
     }
-    let a = Action::CancelFlow;
-    let label = EN.flow_cancel;
+    bar_text_button(ui, right, EN.flow_cancel, Action::CancelFlow)
+}
+
+/// **Your choices** on a top app bar of a flow on the container, its right
+/// edge at `right`: an icon button with a tooltip on the small panel, a text
+/// button as Cancel's elsewhere. Returns where the next action ends.
+pub(crate) fn bar_choices(app: &View, ui: &mut Ui, right: f32) -> f32 {
+    if !app.choices_offered() {
+        return right;
+    }
+    let press = Action::Choices(crate::action::ChoicesPress::Open);
+    if app.nav() == crate::nav::Nav::Menu {
+        faraday_ui::nav::icon_action(
+            ui,
+            right,
+            Icon::Checklist,
+            press,
+            false,
+            EN.flow_your_choices,
+        )
+    } else {
+        bar_text_button(ui, right, EN.flow_your_choices, press)
+    }
+}
+
+/// A text button on a top app bar, its right edge at `right`. Returns
+/// where the next action ends.
+fn bar_text_button(ui: &mut Ui, right: f32, label: &'static str, a: Action) -> f32 {
     let cw = screen::measured(ui, |ui| {
         ui.button(0.0, 0.0, None, BUTTON_H, label, Style::Ghost, a)
     });
@@ -384,6 +416,9 @@ pub(crate) fn overflow_sheet(app: &View, ui: &mut Ui, w: f32, h: f32, held: Over
     // randomness (`docs/OWN-RANDOMNESS.md` §8.3).
     if held.own {
         lines.push(item(EN.own_add_randomness, BarTool::Own));
+    }
+    if held.choices {
+        lines.push(item(EN.flow_your_choices, BarTool::Choices));
     }
     if held.help {
         lines.push(item(EN.bar_menu_guide, BarTool::Help));
@@ -2040,6 +2075,7 @@ impl Faraday {
                 self.act_inner(match t {
                     BarTool::Cancel => Action::CancelFlow,
                     BarTool::Own => Action::Own(crate::fresh::page::Act::Open),
+                    BarTool::Choices => Action::Choices(crate::action::ChoicesPress::Open),
                     BarTool::Help => Action::Guide,
                     BarTool::Keyboard if self.osk_shown() => Action::Osk(OskPress::Hide),
                     BarTool::Keyboard => Action::Osk(OskPress::Show),

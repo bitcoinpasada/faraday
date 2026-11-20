@@ -13,6 +13,7 @@
 //! ([`choices`]) at its right. It declares what only it knows through
 //! [`Contained`].
 
+pub(crate) mod act;
 mod answers;
 mod choices;
 mod container;
@@ -57,7 +58,6 @@ pub(crate) trait Contained: crate::trail::StepFlow {
     }
     /// Whether the current step takes the whole room beside the
     /// navigation, with no pane (`docs/FLOW-CONTAINER.md` §5).
-    #[expect(dead_code, reason = "filled by the sheet's brief, which reads it")]
     fn full_width(&self, _app: &crate::Faraday) -> bool {
         false
     }

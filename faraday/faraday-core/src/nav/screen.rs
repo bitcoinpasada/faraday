@@ -195,6 +195,7 @@ pub(crate) fn app_bar(app: &View, ui: &mut Ui, w: f32, nav: Nav) -> f32 {
             }
         }
         *right = guide_tools(app, ui, *right, nav);
+        *right = crate::compact::bar_choices(app, ui, *right);
         if crate::modes::screen::shows_pill(app) {
             let pw = crate::modes::screen::pill_width(app, ui);
             let px = *right - GAP - pw;

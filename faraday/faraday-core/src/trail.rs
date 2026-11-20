@@ -722,7 +722,7 @@ impl Faraday {
 
     /// The flow with steps on show, as Back, Forward and the choices that
     /// move on see it (F103, F104). Only lookups.
-    fn step_flow(&self) -> Option<&'static dyn StepFlow> {
+    pub(crate) fn step_flow(&self) -> Option<&'static dyn StepFlow> {
         Some(match self.screen {
             Screen::Restore => &crate::restore::RESTORE_STEPS,
             Screen::Spend => &crate::wallet::SPEND_STEPS,

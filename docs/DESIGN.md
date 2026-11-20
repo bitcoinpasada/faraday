@@ -1205,6 +1205,14 @@ file and wallet rows, the cosigner and fact rows), Cards, Buttons
 (the seed's steps, as `SeedCheck` uses them) and Dialogs (the
 confirmation sheet Add this wallet opens) pages.
 
+### The Your choices sheet (`Sheet::Choices`)
+
+Built. On a one-column layout a flow on the container carries **Your
+choices** on its top app bar, left of the ? (an icon button on the small
+panel, a text button elsewhere, a row of the ⋮ menu where the bar is
+full); it opens the pane's rows as a sheet, the open step marked, a row
+opening its step and closing the sheet (`docs/FLOW-CONTAINER.md` §4).
+
 ### The wallet confirmation sheet (`Sheet::WalletConfirm`)
 
 Built. A wallet of more than one key comes in through this sheet,

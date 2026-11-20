@@ -428,9 +428,9 @@ fn the_pane_closes_at_another_screen_unless_pinned() {
     frame(&mut app);
     assert!(app.offers(Action::GuideClose), "still open on Settings");
     assert_eq!(shown(&app), "settings", "on Settings' page");
-    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Nav(Screen::Tools));
     frame(&mut app);
-    assert!(app.offers(Action::GuideClose), "and on Vaults");
+    assert!(app.offers(Action::GuideClose), "and on Tools");
 
     app.press(Action::GuideClose);
     frame(&mut app);

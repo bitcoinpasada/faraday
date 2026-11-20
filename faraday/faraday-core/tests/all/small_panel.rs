@@ -4,9 +4,10 @@
 //! longer than the panel.
 
 use faraday_core::keygen::{Group, Way};
+use faraday_core::testkit::Plain;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::vault::vstep;
-use faraday_core::{Action, Faraday, OskPress, Screen};
+use faraday_core::{Action, ChoicesPress, Faraday, OskPress, Screen, Sheet};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
 
 const W: u16 = 480;
@@ -530,4 +531,31 @@ fn the_small_home_offers_a_flow_in_progress_once_its_tile() {
 #[test]
 fn every_step_s_forward_action_is_on_a_phone_without_scrolling() {
     forward_in_view(phone(), 1206);
+}
+
+#[test]
+fn make_a_new_vault_offers_your_choices_as_a_sheet() {
+    let mut app = panel();
+    tap(&mut app, Action::Nav(Screen::Vaults));
+    assert_eq!(app.screen, Screen::CreateVault);
+    let open = |app: &Faraday| app.vaults().create.as_ref().and_then(|c| c.open);
+    app.press(Action::Vault(V::CStep(vstep::PHRASES)));
+    tap(&mut app, Action::Choices(ChoicesPress::Open));
+    assert_eq!(app.sheet, Some(Sheet::Choices));
+    let _ = app.frame();
+    let shown: Vec<String> = app
+        .drawn_text_boxes()
+        .plain()
+        .into_iter()
+        .map(|(t, _)| t)
+        .collect();
+    for row in ["Opens on", "Unlock cost", "Name and passphrase"] {
+        assert!(
+            shown.iter().any(|t| t.starts_with(row)),
+            "the sheet lists {row}: {shown:?}"
+        );
+    }
+    tap(&mut app, Action::Choices(ChoicesPress::Row(vstep::PRESET)));
+    assert_eq!(app.sheet, None, "a press on a row closes the sheet");
+    assert_eq!(open(&app), Some(vstep::PRESET), "and opens its step");
 }

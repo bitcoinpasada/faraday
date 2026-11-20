@@ -33,6 +33,8 @@ pub enum BarTool {
     /// randomness (`docs/OWN-RANDOMNESS.md` §8.3): the menu's first row after
     /// Cancel.
     Own,
+    /// **Your choices**: the flow's list as a sheet, the menu's row before the guide's.
+    Choices,
     /// The ?: the page's guide.
     Help,
     /// The keyboard button.
@@ -50,6 +52,8 @@ pub enum BarTool {
 pub struct Overflow {
     /// **Add randomness**, on the Pi's panel wherever the page offers it.
     pub own: bool,
+    /// **Your choices**, on a flow on the container, left of the ?.
+    pub choices: bool,
     /// The ?.
     pub help: bool,
     /// The keyboard button.
@@ -64,7 +68,7 @@ pub struct Overflow {
 impl Overflow {
     /// Whether it holds anything: the bar then shows its ⋮.
     pub fn any(self) -> bool {
-        self.own || self.help || self.keyboard || self.eye
+        self.own || self.choices || self.help || self.keyboard || self.eye
     }
 }
 

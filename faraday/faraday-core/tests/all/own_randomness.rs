@@ -1208,6 +1208,7 @@ fn overflow(app: &mut Faraday) -> Option<faraday_core::nav::Overflow> {
     (0u8..16)
         .map(|bits| Overflow {
             own: bits & 8 != 0,
+            choices: false,
             help: bits & 1 != 0,
             keyboard: bits & 2 != 0,
             keyboard_up: false,

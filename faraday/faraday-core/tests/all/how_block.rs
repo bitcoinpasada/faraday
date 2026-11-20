@@ -147,6 +147,7 @@ fn overflow(app: &Faraday) -> Option<Overflow> {
     for bits in 0u8..16 {
         let held = Overflow {
             own: bits & 8 != 0,
+            choices: false,
             help: bits & 1 != 0,
             keyboard: bits & 2 != 0,
             keyboard_up: false,

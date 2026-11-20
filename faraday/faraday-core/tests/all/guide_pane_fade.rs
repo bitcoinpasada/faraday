@@ -73,7 +73,7 @@ fn a_pinned_pane_following_to_another_screen_fades_once() {
     app.press(Action::Guide);
     app.press(Action::GuidePin);
     let _ = counts(&mut app);
-    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Nav(Screen::Tools));
     assert_eq!(counts(&mut app), (1, 0), "one fade for the screen and pane");
     assert!(app.offers(Action::GuideClose), "the pane followed");
 }

@@ -457,6 +457,8 @@ pub enum Action {
     BName(u8),
     /// A press on the backup board (`docs/BACKUP-FLOW.md` §17).
     Board(board::BoardPress),
+    /// The bar's **Your choices** button and its sheet (`docs/FLOW-CONTAINER.md` §4).
+    Choices(ChoicesPress),
     /// The plan made: on to the checklist, the plan saved into the open
     /// vault.
     BChecklist,
@@ -1059,6 +1061,17 @@ pub enum Action {
     TFile(usize),
 }
 
+/// A press of Your choices on a one-column layout.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ChoicesPress {
+    /// The bar's button: the sheet opens.
+    Open,
+    /// The sheet's Close.
+    Close,
+    /// A row of the sheet: it closes and the flow's step `k` opens.
+    Row(u8),
+}
+
 /// Which mark of a backup board chip a tooltip names.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MarkTip {
@@ -1496,6 +1509,9 @@ impl Faraday {
             Action::Nav(s @ (Screen::Transfer | Screen::Randomness)) => self.nav_open(s),
             #[cfg(not(feature = "demo"))]
             Action::Nav(s @ Screen::Randomness) => self.nav_open(s),
+            Action::Back if self.sheet == Some(Sheet::Choices) => {
+                self.choices_act(ChoicesPress::Close);
+            }
             Action::Back => self.back(),
             Action::Own(a) => self.own_press(a),
             Action::Resume(g) => self.flow_resume(g),
@@ -1757,6 +1773,7 @@ impl Faraday {
             | Action::BOut(..)
             | Action::BC32(..)) => self.backup_act(a, &c),
             Action::Board(p) => self.board_press(p),
+            Action::Choices(p) => self.choices_act(p),
             Action::Catalog(i) => self.catalog_go(usize::from(i)),
             Action::Check(p) => check::press(self, p),
             a @ (Action::DecodeFinished

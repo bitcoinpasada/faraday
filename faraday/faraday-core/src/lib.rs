@@ -254,7 +254,7 @@ pub mod testkit;
 pub mod tools;
 pub mod wordlist;
 
-pub use action::Action;
+pub use action::{Action, ChoicesPress};
 #[cfg(feature = "testkit")]
 pub use at_lock::Area;
 pub use compact::OskPress;
@@ -561,6 +561,8 @@ pub enum Sheet {
     CancelFlow(in_progress::Going),
     /// The same in a key flow opened from Make a new wallet (`docs/FLOWS.md`, Cancel).
     CancelKey,
+    /// Your choices, a flow on the container's answers as a list over the step: the bar's button on a one-column layout (`docs/FLOW-CONTAINER.md` §4).
+    Choices,
     /// A file row's ⋮ menu (`docs/FLOWS.md` decision 61): popup on `wide`, else a sheet.
     FileMenu,
     /// **Rename {name}**: a file For the stick, or one on the stick visited.

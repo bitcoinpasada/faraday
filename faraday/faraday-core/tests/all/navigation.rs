@@ -85,6 +85,7 @@ fn more_menu(app: &mut Faraday) -> Action {
         .map(|bits| {
             Action::NavMenu(MenuPress::Open(Some(Overflow {
                 own: bits & 1 != 0,
+                choices: false,
                 help: bits & 2 != 0,
                 keyboard: bits & 4 != 0,
                 keyboard_up: false,
