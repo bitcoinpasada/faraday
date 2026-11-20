@@ -13,13 +13,13 @@ use faraday_shell_api::{App, EntropyBytes, Event, Key};
 use faraday_ui::keyboard::OskPress;
 use faraday_vault::codex32::{SetFacts, State};
 
-const A: &str = "ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm";
-const C: &str = "ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn";
+pub(crate) const A: &str = "ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm";
+pub(crate) const C: &str = "ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn";
 const CHARSET: &[u8] = b"qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 
 /// What a share is held as: its text, the text after `ms1` as typed on
 /// the codex32 keyboard, and its data symbols (5-bit values).
-fn forms_of(name: &'static str, s: &str) -> [Form; 3] {
+pub(crate) fn forms_of(name: &'static str, s: &str) -> [Form; 3] {
     let typed = &s[3..];
     let symbols = typed
         .bytes()
@@ -37,17 +37,13 @@ fn forms_of(name: &'static str, s: &str) -> [Form; 3] {
     ]
 }
 
-/// Vector 2's key loaded from A and C, its set told, Back up opened on a
-/// single-key wallet over it and the codex32 item open.
-fn at_the_item() -> Faraday {
-    let mut app = testkit::started();
-    for i in 0..8u8 {
-        app.event(Event::Entropy(EntropyBytes::new([0x60 + i; 32])));
-    }
+/// Vector 2's key loaded from A and C, its set told, and Back up opened
+/// on a single-key wallet over it.
+pub(crate) fn key_and_backup(app: &mut Faraday) {
     app.press(Action::Entry(None));
     app.press(Action::EntryForm(2));
     for s in [A, C] {
-        type_text(&mut app, s);
+        type_text(app, s);
         app.event(Event::Key(Key::Enter));
     }
     app.event(Event::Key(Key::Enter));
@@ -81,8 +77,17 @@ fn at_the_item() -> Faraday {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    testkit::load_wallet(&mut app, 0);
+    testkit::load_wallet(app, 0);
     app.press(Action::Backup(0));
+}
+
+/// As [`key_and_backup`], the codex32 item open.
+fn at_the_item() -> Faraday {
+    let mut app = testkit::started();
+    for i in 0..8u8 {
+        app.event(Event::Entropy(EntropyBytes::new([0x60 + i; 32])));
+    }
+    key_and_backup(&mut app);
     app.press(Action::BChecklist);
     let n = Item::Codex32(0);
     if app.backup().unwrap().open == Some(Item::Templates) {

@@ -11,7 +11,7 @@ use faraday_shell_api::{App, EntropyBytes, Event};
 
 /// The test seed typed into Add a key, a one-key wallet made from it and
 /// its backup planned as `preset`, open on the seed's copy.
-fn at_the_copy(app: &mut Faraday, preset: plan::Preset) {
+pub(crate) fn at_the_copy(app: &mut Faraday, preset: plan::Preset) {
     let c = testkit::compute();
     for i in 0..8u8 {
         app.event(Event::Entropy(EntropyBytes::new([0x60 + i; 32])));

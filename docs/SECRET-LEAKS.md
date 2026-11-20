@@ -159,17 +159,28 @@ the planting of the secret to the end of the flow:
   and names the flows that reach it: a test of this binary or a flow label
   of `areas.rs`. The Explore eyes (a key's seed, the extended keys, an
   address's key) and a SeedQR on the quick backup are flows of that file.
-  The vault GPG key's eye and revocation, a note, a Lightning key, a scan
-  key and a key file are flows of `reveal_flows.rs`.
+  The vault GPG key's eye and its two revocations (the kept one and a new
+  one with a reason), a note, a Lightning key, a scan key, a key file, a
+  codex32 string and a passphrase kept in a vault by the backup, a codex32
+  string's and a SeedQR's picture made for a stick, a SeedQR picture let
+  out of the secret sheet and a vault key's Save to a stick are flows of
+  `reveal_flows.rs`.
   The typed-text eyes and the hides sit inside the flows of an area above;
   a Krux code opened by a worker holds nothing across a frame (the
   Worker area's arm). A part arm left empty fails the lint when the
-  source builds that `Reveal::X(Part::Y)` (a grep of `faraday/*/src`),
-  except the few listed in the lint's `GAPS`, which have no flow yet and
-  fail it once they get one. The names are held, not the reach: a flow
-  renamed fails the lint, a flow that stops calling its reason does not.
-  Each name was traced to its call when written, and the lint cannot see
-  that a flow still reaches it.
+  source builds that `Reveal::X(Part::Y)` (a grep of `faraday/*/src`
+  outside `faraday-keys`), except the ones in the lint's `GAPS`, which have
+  no flow that can end clean and say why; the lint prints them, and prints
+  its plain pass line only when `GAPS` is empty. A reveal that stays in
+  `GAPS` fails the lint once it gets a flow. A flow that is `#[ignore]`d
+  is no flow: the lint does not count it. The only one left is the
+  passphrase file written for a stick, a plain file the Outbox keeps after
+  Lock; the words file and the codex32 text file are the same, so their
+  reveals are reached by the picture, or the Save to a stick, made beside
+  them, which is the part of the flow that ends clean. The names are held,
+  not the reach: a flow renamed fails the lint, a flow that stops calling
+  its reason does not. Each name was traced to its call when written, and
+  the lint cannot see that a flow still reaches it.
 
 A flow that handles a secret is added to this list (§10). The sessions
 of the `work/budget` tests are the model: the secret is planted once, in
@@ -311,8 +322,9 @@ Held by `just lint` and the tests:
   `faraday-keys`, `faraday-vault` and the seed and backup screens) runs
   under the leak tests and the tour check;
 - a reason a secret leaves the store (`Reveal`, `Part`) has an arm naming
-  its leak flow (`tools/lint-leak-reveals.py`, with the compiler's match
-  in `tests/leaks/reveals.rs`);
+  its leak flow, a running test (`tools/lint-leak-reveals.py`, with the
+  compiler's match in `tests/leaks/reveals.rs`), and the lint names the
+  reveals that have none; it holds the names, not the reach;
 - a secret type follows §6, through clippy and `lint-secrets`;
 - a manifest never lists the allocator, `faraday-leak-scan`, outside a
   `dev-dependencies` table (`lint-secrets`, rule 6).

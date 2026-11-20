@@ -49,7 +49,6 @@ fn flows(why: Reveal) -> &'static [&'static str] {
 }
 
 /// The parts of a vault record put on screen, into a form or a record.
-/// `Passphrase` and `Codex32` have no flow yet (the lint lists them).
 fn vault_entry(p: Part) -> &'static [&'static str] {
     match p {
         Part::Words | Part::Password | Part::Totp | Part::EntryNotes => {
@@ -58,15 +57,25 @@ fn vault_entry(p: Part) -> &'static [&'static str] {
         Part::Note => &["a_vaults_note_listed_and_opened_leaves_no_copy_after_lock"],
         Part::NodeKey => &["a_lightning_key_shown_and_put_in_a_vault_leaves_no_copy_after_lock"],
         Part::ScanKey => &["a_scan_key_put_in_a_vault_and_let_out_leaves_no_copy_after_lock"],
-        Part::Passphrase | Part::Codex32 | Part::SeedQr | Part::Revocation | Part::KeyFile => &[],
+        Part::Passphrase => {
+            &["a_passphrase_saved_into_a_vault_by_the_backup_leaves_no_copy_after_lock"]
+        }
+        Part::Codex32 => {
+            &["a_codex32_string_saved_into_a_vault_by_the_backup_leaves_no_copy_after_lock"]
+        }
+        Part::SeedQr | Part::Revocation | Part::KeyFile => &[],
     }
 }
 
-/// The parts an unprotected file to the Outbox carries.
+/// The parts an unprotected file to the Outbox carries. The words are made
+/// with the SeedQR picture on the secret sheet, and only the picture is let
+/// out; a words file let out stays in the Outbox after Lock by design (the
+/// ignored `a_seed_file_let_out_unprotected_leaves_no_copy_after_lock`),
+/// so no flow can end clean with it. The sheet never asks the passphrase.
 fn outbox_file(p: Part) -> &'static [&'static str] {
     match p {
-        Part::Words | Part::Passphrase | Part::SeedQr => {
-            &["a_seed_file_let_out_unprotected_leaves_no_copy_after_lock"]
+        Part::Words | Part::SeedQr => {
+            &["a_seedqr_picture_let_out_unprotected_leaves_no_copy_after_lock"]
         }
         Part::NodeKey => &["a secret on its sheet"],
         Part::ScanKey => &["a_scan_key_put_in_a_vault_and_let_out_leaves_no_copy_after_lock"],
@@ -74,18 +83,28 @@ fn outbox_file(p: Part) -> &'static [&'static str] {
             "a_vaults_gpg_key_shown_by_its_eye_and_its_revocation_let_out_leave_no_copy_after_lock",
         ],
         Part::KeyFile => &["a_key_file_made_for_a_vault_leaves_no_copy_after_lock"],
-        Part::Password | Part::Totp | Part::Note | Part::EntryNotes | Part::Codex32 => &[],
+        Part::Passphrase
+        | Part::Password
+        | Part::Totp
+        | Part::Note
+        | Part::EntryNotes
+        | Part::Codex32 => &[],
     }
 }
 
-/// The parts the backup flow writes to a stick. `Codex32` has no flow yet
-/// (the lint lists it).
+/// The parts written to a stick. `Words` is reached by a vault key's Save
+/// to a stick (opened, nothing written). The backup's own words and
+/// passphrase files are plain files let out into the Outbox, where they
+/// stay after Lock by design, so no flow can end clean with them: the
+/// lint lists `Passphrase` as one with no flow (its `GAPS`). `SeedQr` and
+/// `Codex32` are reached by the pictures made for a stick; the codex32
+/// text file and the words file are the plain ones.
 fn backup_stick(p: Part) -> &'static [&'static str] {
     match p {
-        Part::Words | Part::Passphrase | Part::SeedQr => {
-            &["a_seed_file_let_out_unprotected_leaves_no_copy_after_lock"]
-        }
-        Part::Codex32
+        Part::Words => &["a_vault_keys_save_to_a_stick_opened_leaves_no_copy_after_lock"],
+        Part::SeedQr => &["a_seedqr_picture_made_for_a_stick_leaves_no_copy_after_lock"],
+        Part::Codex32 => &["a_codex32_picture_made_for_a_stick_leaves_no_copy_after_lock"],
+        Part::Passphrase
         | Part::Password
         | Part::Totp
         | Part::Note

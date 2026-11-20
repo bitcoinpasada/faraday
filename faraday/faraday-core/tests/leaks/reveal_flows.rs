@@ -2,12 +2,23 @@
 //! vault's GPG key shown by its eye and its revocation let out, a note
 //! listed and opened, a Lightning key shown and put in a vault, a Silent
 //! Payments scan key put in a vault and let out, and a key file made for
-//! a vault. Each ends by Lock.
+//! a vault, a codex32 string and a passphrase kept in a vault by the
+//! backup, a codex32 string's and a SeedQR's picture written for a stick,
+//! a seed's SeedQR picture let out, and a key's Save to a stick. Each ends
+//! by Lock.
+
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
 
 use crate::common::{device, type_text};
 use crate::forms::{PHRASE, VAULT_PASSPHRASE, seed_forms, vault_passphrase_forms};
 use crate::readers::{open_item, paper_seeds, unlock};
 use crate::{arm, finish};
+use faraday_core::backup_flow::steps::FlowAction as F;
+use faraday_core::plan::{self, At, Item, Spot, What};
+use faraday_core::seeds::read::Choice;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, Sheet, testkit};
 use faraday_leak_scan::Form;
@@ -77,6 +88,21 @@ fn gpg_flow(record: Record, probe: bool) -> Vec<Form> {
     } else {
         Vec::new()
     };
+    // A new one, with a reason, through the same sheet.
+    app.press(Action::Back);
+    assert_eq!(app.sheet, None, "the revocation sheet stayed");
+    app.press(Action::Vault(V::GpgRevocationPage));
+    assert!(app.vaults().form.is_some(), "no reason was asked");
+    app.press(Action::Vault(V::GpgReason(1)));
+    app.press(Action::Vault(V::FocusField(0)));
+    type_text(&mut app, "My key was stolen");
+    app.press(Action::Vault(V::FormSave));
+    assert_eq!(
+        app.sheet,
+        Some(Sheet::SecretOut),
+        "no new revocation was offered"
+    );
+    let _ = app.frame();
     crate::seed_load::lock(&mut app);
     found
 }
@@ -271,4 +297,242 @@ fn a_key_file_made_for_a_vault_leaves_no_copy_after_lock() {
     let armed = arm(&forms);
     key_file_flow(false);
     finish("vault key file made", armed, true);
+}
+
+/// The plan's map changed straight, as the board's presses would.
+fn board_edit(app: &mut Faraday, f: impl FnOnce(Vec<Spot>) -> Vec<Spot>) {
+    let c = testkit::compute();
+    let shape = app.plan_shape_now(app.backup().unwrap().wallet);
+    testkit::change_backup_answers(app, |a| {
+        let m = plan::map(&c, &shape, a);
+        a.set_map(f(m));
+    });
+}
+
+/// The seeds of the test vault's backup, drained of what the shell takes.
+fn settle_storage(app: &mut Faraday) {
+    while app.poll_storage().is_some() {}
+}
+
+/// Vector 2's key in a one-wallet backup, on a device holding one vault.
+fn codex32_with_vault(seed: u8) -> Faraday {
+    let file = crate::common::vault_of("Cellar", VAULT_PASSPHRASE, seed, Vec::new());
+    let mut app = device(vec![("cellar.kdbx".into(), file)]);
+    for i in 0..8u8 {
+        app.event(Event::Entropy(EntropyBytes::new([0x60 + i; 32])));
+    }
+    crate::seed_load::unlock(&mut app);
+    crate::codex32::key_and_backup(&mut app);
+    app
+}
+
+fn codex32_forms() -> Vec<Form> {
+    let mut forms = crate::codex32::forms_of("share A text", crate::codex32::A).to_vec();
+    forms.extend(crate::codex32::forms_of("share C text", crate::codex32::C));
+    forms.extend(vault_passphrase_forms());
+    forms
+}
+
+/// A codex32 string the plan keeps in the vault, saved there by the
+/// backup as a share record.
+#[test]
+fn a_codex32_string_saved_into_a_vault_by_the_backup_leaves_no_copy_after_lock() {
+    use faraday_core::board::Thing;
+    let forms = codex32_forms();
+    let armed = arm(&forms);
+    let mut app = codex32_with_vault(0x74);
+    let a = plan::codex32::index_of(b'a').unwrap();
+    crate::common::vault_at(&mut app, 0, 0, &[]);
+    crate::common::into_vault(&mut app, 0, Thing::String(0, a));
+    app.press(Action::BChecklist);
+    app.press(Action::BVaultSave(0));
+    settle_storage(&mut app);
+    assert_eq!(
+        crate::common::contents(&app, 0)
+            .iter()
+            .filter(|r| r.kind == kind::CODEX32_SHARE)
+            .count(),
+        1,
+        "no share record was kept"
+    );
+    crate::seed_load::lock(&mut app);
+    settle_storage(&mut app);
+    finish("codex32 string saved into a vault", armed, true);
+}
+
+/// The backup's Lock and write on `app`, the plain files let out as the
+/// sheet asks, then the restart: the app that locked and the fresh one.
+fn lock_and_write(mut app: Faraday) -> (Faraday, Faraday) {
+    let mut shell = crate::common::Shell::light();
+    testkit::type_passphrases(&mut app);
+    app.press(Action::BNext(Item::Envelopes));
+    shell.flow(&mut app, F::WalletLock);
+    crate::common::let_seed_files_out(&mut app);
+    shell.pump(&mut app);
+    assert!(app.restart_requested(), "locked: {:?}", app.toast_text());
+    let fresh = shell.restart();
+    assert!(!fresh.outbox.is_empty(), "no stick file was made");
+    (app, fresh)
+}
+
+/// A codex32 string's Codex32QR picture written for a stick (its text
+/// file would stay in the Outbox until sent, as a seed's words do).
+#[test]
+fn a_codex32_picture_made_for_a_stick_leaves_no_copy_after_lock() {
+    let forms = codex32_forms();
+    let armed = arm(&forms);
+    let mut app = testkit::started();
+    for i in 0..8u8 {
+        app.event(Event::Entropy(EntropyBytes::new([0x60 + i; 32])));
+    }
+    crate::codex32::key_and_backup(&mut app);
+    let a = plan::codex32::index_of(b'a').unwrap();
+    board_edit(&mut app, |m| {
+        plan::with_added(&m, At::Stick(0, 0), What::Codex32QrFile(0, a))
+    });
+    app.press(Action::BChecklist);
+    if app.backup().unwrap().open == Some(Item::Templates) {
+        app.press(Action::BNext(Item::Templates));
+    }
+    app.press(Action::BStep(Item::Codex32(0)));
+    for j in ["a", "c", "d"] {
+        let j = plan::codex32::index_of(j.as_bytes()[0]).unwrap();
+        app.press(Action::BC32(faraday_core::codex32_backup::Press::Open(
+            j as u8,
+        )));
+        app.press(Action::BC32(faraday_core::codex32_backup::Press::Skip));
+        app.press(Action::BC32(faraday_core::codex32_backup::Press::Skip));
+    }
+    let (old, fresh) = lock_and_write(app);
+    finish("codex32 picture made for a stick", armed, true);
+    drop((old, fresh));
+}
+
+/// A seed's SeedQR picture written for a stick (its words file would stay
+/// in the Outbox until sent).
+#[test]
+fn a_seedqr_picture_made_for_a_stick_leaves_no_copy_after_lock() {
+    let forms = seed_forms("");
+    let armed = arm(&forms);
+    let mut app = testkit::started();
+    crate::backup::at_the_copy(&mut app, plan::Preset::Paper);
+    app.press(Action::BReveal);
+    app.press(Action::BCheck);
+    testkit::type_words(&mut app, PHRASE);
+    board_edit(&mut app, |m| {
+        plan::with_added(&m, At::Stick(0, 0), What::SeedQrFile(0))
+    });
+    let (old, fresh) = lock_and_write(app);
+    finish("SeedQR picture made for a stick", armed, true);
+    drop((old, fresh));
+}
+
+/// A seed's SeedQR picture let out unprotected from the secret sheet,
+/// which also made the words file the sheet offers.
+#[test]
+fn a_seedqr_picture_let_out_unprotected_leaves_no_copy_after_lock() {
+    let forms = seed_forms("");
+    let armed = arm(&forms);
+    let mut app = testkit::started();
+    crate::backup::at_the_copy(&mut app, plan::Preset::Paper);
+    app.press(Action::BReveal);
+    app.press(Action::BCheck);
+    testkit::type_words(&mut app, PHRASE);
+    board_edit(&mut app, |m| {
+        plan::with_added(&m, At::Place(0), What::SeedQr(0))
+    });
+    app.press(Action::BFile);
+    assert_eq!(app.sheet, Some(Sheet::SecretOut));
+    assert!(
+        testkit::secret_out(&app).is_some_and(|o| o.forms.len() > 1),
+        "no picture was offered"
+    );
+    app.press(Action::SecretForm(1));
+    app.press(Action::SecretUnprotected);
+    app.press(Action::SecretHold);
+    assert_eq!(app.sheet, None);
+    settle_storage(&mut app);
+    crate::seed_load::lock(&mut app);
+    settle_storage(&mut app);
+    finish("SeedQR picture let out", armed, true);
+}
+
+/// A key kept in a vault, its Save to a stick opened: the words and the
+/// SeedQR are offered by name.
+#[test]
+fn a_vault_keys_save_to_a_stick_opened_leaves_no_copy_after_lock() {
+    let c = testkit::compute();
+    let m = faraday_bip::bip39::Mnemonic::parse(&c, faraday_bip::bip39::Language::English, PHRASE)
+        .expect("the vector's words");
+    let key = Record::new(kind::KEY)
+        .with(field::KEY, &faraday_vault::records::words_payload(&m))
+        .with(field::KEY_LABEL, b"Leak key");
+    let mut forms = seed_forms("");
+    forms.extend(vault_passphrase_forms());
+    let armed = arm(&forms);
+    let file = crate::common::vault_of("Cellar", VAULT_PASSPHRASE, 0x75, vec![key]);
+    let mut app = device(vec![("cellar.kdbx".into(), file)]);
+    unlock(&mut app, 0);
+    open_item(&mut app, 0);
+    app.press(Action::Vault(V::SaveToStick));
+    let _ = app.frame();
+    assert!(app.sheet.is_some(), "Save to a stick did not open");
+    crate::seed_load::lock(&mut app);
+    finish("vault key save to a stick", armed, true);
+}
+
+/// A passphrase the plan keeps in the vault, saved there by the backup
+/// as a passphrase record.
+#[test]
+fn a_passphrase_saved_into_a_vault_by_the_backup_leaves_no_copy_after_lock() {
+    use faraday_core::board::Thing;
+    use faraday_core::seeds::SeedsAction as S;
+    let forms = seed_forms(crate::forms::PASSPHRASE);
+    let mut forms = forms;
+    forms.extend(vault_passphrase_forms());
+    let armed = arm(&forms);
+    let file = crate::common::vault_of("Cellar", VAULT_PASSPHRASE, 0x76, Vec::new());
+    let mut app = device(vec![("cellar.kdbx".into(), file)]);
+    for i in 0..8u8 {
+        app.event(Event::Entropy(EntropyBytes::new([0x60 + i; 32])));
+    }
+    crate::seed_load::unlock(&mut app);
+    app.clipboard = true;
+    app.press(Action::ScanSeed);
+    crate::seed_load::paste(&mut app, faraday_text::Text::of(PHRASE));
+    app.press(Action::SeedRead(Choice::AddPass));
+    app.press(Action::SeedRead(Choice::Field(0)));
+    type_text(&mut app, crate::forms::PASSPHRASE);
+    app.press(Action::SeedRead(Choice::Field(1)));
+    type_text(&mut app, crate::forms::PASSPHRASE);
+    testkit::pause(&mut app);
+    app.press(Action::SeedRead(Choice::WithPass));
+    assert_eq!(app.session.keys.len(), 1, "no key loaded");
+    let fp = app.session.keys[0].fingerprint.0;
+    app.press(Action::KeyWallet(fp, 1));
+    app.press(Action::Seeds(S::Make));
+    assert_eq!(app.session.wallets.len(), 1, "no wallet was made");
+    app.press(Action::Backup(0));
+    testkit::backup_as(&mut app, plan::Preset::PaperVault);
+    // The seed stays on paper; only its passphrase is kept in the vault.
+    crate::common::vault_at(&mut app, 0, 0, &[]);
+    crate::common::no_paper_passphrases(&mut app);
+    crate::common::into_vault(&mut app, 0, Thing::Pass(0));
+    app.press(Action::BChecklist);
+    app.press(Action::BVaultSave(0));
+    settle_storage(&mut app);
+    assert_eq!(
+        crate::common::contents(&app, 0)
+            .iter()
+            .filter(|r| r.kind == kind::PASSPHRASE)
+            .count(),
+        1,
+        "no passphrase record was kept: {:?} {:?} {:?}",
+        crate::common::backup_held(&app, At::Vault(0)),
+        app.toast_text(),
+        app.sheet
+    );
+    crate::seed_load::lock(&mut app);
+    settle_storage(&mut app);
+    finish("passphrase saved into a vault", armed, true);
 }

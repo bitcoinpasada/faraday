@@ -11,8 +11,8 @@ the flows of each arm. This reads the enums and the arms and fails on:
   `outbox_file`, `backup_stick`: a part the app never asks for there);
 - an empty arm of a part function for a `Reveal::X(Part::Y)` that appears in
   `faraday/*/src` (the app does ask it; the empty list says it never does);
-- a flow name that is no `#[test]` function of tests/leaks/ and no flow
-  label of areas.rs.
+- a flow name that is no running `#[test]` function of tests/leaks/ (one
+  with `#[ignore]` is none) and no flow label of areas.rs.
 """
 import re
 import sys
@@ -20,12 +20,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 KEYS = ROOT / "faraday/faraday-keys/src/session.rs"
-# Reveals the app asks that have no leak flow yet: (function, part). The
-# lint fails when one of these gets a flow, so the entry is removed.
+# Reveals the app asks that have no leak flow, with why none can end clean:
+# (function, part). The lint says what is left here, and fails when one of
+# these gets a flow, so the entry is removed.
 GAPS = {
-    ("vault_entry", "Passphrase"),
-    ("vault_entry", "Codex32"),
-    ("backup_stick", "Codex32"),
+    ("backup_stick", "Passphrase"): "a passphrase file written for a stick is a plain file let out into the Outbox, which keeps it after Lock",
 }
 LEAKS = ROOT / "faraday/faraday-core/tests/leaks"
 
@@ -56,11 +55,12 @@ def arms(src: str, fn: str) -> dict[str, list[str]]:
 
 
 def asked(fn: str, part: str) -> str | None:
-    """The first file in faraday/*/src that builds Reveal::<kind>(Part::<part>)."""
+    """The first file outside faraday-keys in faraday/*/src that builds Reveal::<kind>(Part::<part>)."""
     kind = {"vault_entry": "VaultEntry", "outbox_file": "OutboxFile", "backup_stick": "BackupStick"}[fn]
     pat = re.compile(r"Reveal::%s\(\s*(?:faraday_keys::)?Part::%s\s*,?\s*\)" % (kind, part))
     for f in sorted((ROOT / "faraday").glob("*/src/**/*.rs")):
-        if pat.search(f.read_text()):
+        # faraday-keys lists the reveals it allows; it asks none.
+        if "faraday-keys" not in f.parts and pat.search(f.read_text()):
             return str(f.relative_to(ROOT))
     return None
 
@@ -72,7 +72,9 @@ def main() -> int:
     labels = set()
     for f in LEAKS.glob("*.rs"):
         t = f.read_text()
-        tests |= set(re.findall(r"#\[test\]\s*\n(?:#\[[^\n]*\]\s*\n)*(?:pub )?fn (\w+)", t))
+        for attrs, name in re.findall(r"#\[test\]\s*\n((?:#\[[^\n]*\]\s*\n)*)(?:pub )?fn (\w+)", t):
+            if "#[ignore" not in attrs:
+                tests.add(name)
     labels |= set(re.findall(r'(?:typed|typed_in_make|kept)\(\s*"([^"]+)"', (LEAKS / "areas.rs").read_text()))
     bad = []
     checks = [
@@ -102,7 +104,12 @@ def main() -> int:
         for b in bad:
             print("  " + b)
         return 1
-    print("lint-leak-reveals: every reveal reaches a leak flow")
+    if GAPS:
+        print("lint-leak-reveals: every reveal reaches a leak flow but these, which have none:")
+        for (fn, part), why in sorted(GAPS.items()):
+            print(f"  {fn} {part}: {why}")
+    else:
+        print("lint-leak-reveals: every reveal reaches a leak flow")
     return 0
 
 
