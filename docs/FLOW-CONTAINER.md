@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F296); first stage built. The container, Make a new vault on it and the fade through between its steps are built (`faraday/faraday-core/src/flow.rs`, `flow/`, `motion::STEP_FADE_MS`, `vault/screen.rs`'s `create`). Every other flow still draws today's column, `flow::Column`, finished steps stacked above the open one.
-**Open:** the other flows moved onto the container; the live fade of a step that holds a secret, which needs the owner's approval after testing and a timing on the Pi (§3), today that step swapping at once
+**Open:** the other flows moved onto the container; the live fade of a step that holds a secret (§3), built, awaiting the owner's approval after testing and a timing on the Pi
 
 Every step flow (Make a new vault, Make a new wallet, Restore an existing
 wallet, Spend from a backup, Make a new key, Back up's flows, the tools
@@ -115,13 +115,12 @@ card. A step's blend touches only the bands that differ.
   secret stays held about 48 ms past the press, and the live draw costs
   drawing time on the Pi, to be timed per `docs/SPEED.md`. It reaches main
   only on the owner's approval after testing.
-- **Today a secret's step swaps at once**: a change to a step that shows
-  or takes a secret, or from a frame drawn while one was typed or shown,
-  is drawn at once with no kept frame (MOTION §3.5). The live fade above
-  is not built. When it is, a Lock or a hide during the fade clears the
-  outgoing step's secret at once, and the release at the end of the fade
-  out is by the clock, not by a frame being drawn, so a stalled or hidden
-  window still releases it at about 48 ms.
+- **The live fade is built** (`Faraday::fade_begin`, `Fade::live_veil`,
+  `flow::container`'s outgoing card): a Lock, the idle lock or Cancel
+  during it ends it and clears everything at once. The release at the end
+  of the fade out (the vault's eye hides, `VaultArea::hide_on_leaving_step`)
+  runs at the first frame drawn after it, and the fade asks for a frame on
+  every tick; the outgoing card takes no press, field or focus.
 - A step opening no longer grows its height (MOTION §3.5's 300 ms open on
   the emphasized decelerate goes for step cards), and `Scroll::follow`'s
   glide to the open card goes: there is nothing to glide to.

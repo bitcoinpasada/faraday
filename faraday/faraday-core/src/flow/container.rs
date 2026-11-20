@@ -55,9 +55,12 @@ pub(crate) fn contained(
     let steps = flow.steps(app);
 
     // A step just opened starts at its top, at once.
+    // A fade of a step with a secret in it, drawn live: the card shows the
+    // step left while it fades out, the page where it was.
+    let out = app.live_out();
     let mut next = scroll;
     let mut moved = false;
-    if next.follow {
+    if next.follow && out.is_none() {
         next.follow = false;
         next.y = 0.0;
         moved = true;
@@ -105,8 +108,10 @@ pub(crate) fn contained(
     }
 
     if let Some(s) = steps.as_ref() {
-        let at = s.order.iter().position(|&k| Some(k) == s.open);
-        if let (Some(at), Some(&k)) = (at, s.open.as_ref()) {
+        let shown = out.filter(|k| s.order.contains(k)).or(s.open);
+        let leaving = shown != s.open;
+        let at = s.order.iter().position(|&k| Some(k) == shown);
+        if let (Some(at), Some(&k)) = (at, shown.as_ref()) {
             let count = if flow.count_fixed(app) {
                 fill(
                     EN.flow_step_count,
@@ -123,7 +128,11 @@ pub(crate) fn contained(
             ui.text_right_as((x + w, y, lh), BODY_S, Role::OnSurfaceVariant, &count);
             y += th + 10.0;
             ui.page_view = compact.then_some((view_h + next.y, view_h - top));
-            y += body(ui, k, x, y, w);
+            if leaving {
+                y += outgoing(ui, |ui| body(ui, k, x, y, w));
+            } else {
+                y += body(ui, k, x, y, w);
+            }
             ui.page_view = None;
         }
     }
@@ -178,4 +187,18 @@ fn bar(ui: &mut Ui, page: &Page, w: f32) {
     };
     let right = ui.bar_tools_x.unwrap_or(w - MARGIN_COMPACT);
     faraday_ui::nav::app_bar(ui, w, &head, right);
+}
+
+/// Draws a card that is only fading out (`Faraday::live_out`): the page
+/// takes no press, field or focus from it. Returns its height.
+fn outgoing(ui: &mut Ui, draw: impl FnOnce(&mut Ui) -> f32) -> f32 {
+    let (presses, fields, cut) = (ui.presses_mark(), ui.fields.len(), ui.cut.len());
+    let (focus_box, focus_action) = (ui.focus_box, ui.focus_action);
+    let h = draw(ui);
+    ui.presses_rewind(presses);
+    ui.fields.truncate(fields);
+    ui.cut.truncate(cut);
+    ui.focus_box = focus_box;
+    ui.focus_action = focus_action;
+    h
 }

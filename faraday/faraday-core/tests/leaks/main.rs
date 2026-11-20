@@ -33,6 +33,7 @@ mod storage_events;
 mod unkept_lock;
 mod ur_message;
 mod vault_names;
+mod vault_step_fade;
 mod wallet_files;
 
 use faraday_leak_scan::{Armed, Form};

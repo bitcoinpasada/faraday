@@ -184,19 +184,69 @@ fn with_reduce_motion_the_next_step_is_there_at_once() {
     assert!(now == rest, "the step at rest");
 }
 
-#[test]
-fn a_step_with_a_passphrase_typed_swaps_at_once_and_keeps_no_image() {
+/// The passphrase typed, at rest, on the first step.
+fn with_a_passphrase_typed() -> (Faraday, u64) {
     let (mut app, mut clock) = on_create_vault();
     app.press(Action::Vault(V::CFocus(0, false)));
     type_text(&mut app, "test phrase");
     let _ = at_rest(&mut app, &mut clock);
     let _ = app.take_fade_counts();
+    (app, clock)
+}
+
+#[test]
+fn a_step_with_a_passphrase_typed_fades_drawn_live_and_keeps_no_image() {
+    let (mut app, mut clock) = with_a_passphrase_typed();
     // The pane's Opens on row.
     app.press(Action::Vault(V::CStep(vstep::PRESET)));
-    let now = app.frame().rgba.to_vec();
-    assert_eq!(app.take_fade_counts().started, 0, "no fade");
+    let first = app.frame().rgba.to_vec();
+    assert_eq!(app.take_fade_counts().started, 1, "a fade");
     assert!(app.kept_images().is_empty(), "no image of the step is kept");
-    assert!(now == tick(&mut app, &mut clock, 16), "the step at rest");
+    let mut frames = vec![first];
+    for _ in 0..8 {
+        frames.push(tick(&mut app, &mut clock, 30));
+        assert!(app.kept_images().is_empty(), "no image of the step is kept");
+    }
+    assert!(
+        frames.windows(2).any(|w| w[0] != w[1]),
+        "the card fades through"
+    );
+    let rest = at_rest(&mut app, &mut clock);
+    assert!(rest != frames[0], "the new step is there");
+    assert!(app.kept_images().is_empty());
+}
+
+#[test]
+fn a_passphrase_shown_stays_shown_through_the_fade_out_and_is_hidden_after() {
+    let (mut app, mut clock) = with_a_passphrase_typed();
+    app.press(Action::Vault(V::CShow));
+    let _ = app.frame();
+    app.press(Action::Vault(V::CStep(vstep::PRESET)));
+    let _ = app.frame();
+    let shown = |app: &Faraday| app.vaults().create.as_ref().unwrap().shown;
+    assert!(shown(&app), "shown at the press");
+    // The fade out is 48 ms of the 300.
+    tick(&mut app, &mut clock, 16);
+    assert!(shown(&app), "shown while the card fades out");
+    tick(&mut app, &mut clock, 100);
+    assert!(!shown(&app), "hidden once the fade out ends");
+    let _ = at_rest(&mut app, &mut clock);
+    assert!(!shown(&app));
+}
+
+#[test]
+fn with_reduce_motion_a_passphrase_shown_is_hidden_at_the_step_change() {
+    let (mut app, mut clock) = with_a_passphrase_typed();
+    app.press(Action::ReduceMotion(true));
+    let _ = at_rest(&mut app, &mut clock);
+    app.press(Action::Vault(V::CShow));
+    let _ = app.frame();
+    let _ = app.take_fade_counts();
+    app.press(Action::Vault(V::CStep(vstep::PRESET)));
+    let _ = app.frame();
+    assert!(!app.vaults().create.as_ref().unwrap().shown, "hidden");
+    let counts = app.take_fade_counts();
+    assert_eq!((counts.started, counts.reduced), (0, 1));
     assert!(app.kept_images().is_empty());
 }
 

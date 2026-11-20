@@ -221,7 +221,10 @@ rightly. Leaving a sheet (closed, or giving way to another) may leave only
 what the page under it shows; leaving the page, from under a sheet too,
 leaves nothing. A fade does not start from a frame drawn while a secret
 was typed or shown (`docs/MOTION.md` §3.5), so no image of that frame is
-kept.
+kept; a step change inside a flow on the container fades drawn live with
+no image, and what the step left showed (the eye) is hidden when the fade
+out ends, so the check of a step change reads "after the fade out ends",
+not at the press.
 
 It runs on every step of those kinds, so a screen added later is
 covered without its author listing it, as the Lock-during-seal change

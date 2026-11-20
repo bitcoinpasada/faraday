@@ -351,8 +351,11 @@ extent; a motion left from another screen or sheet is stopped.
     keeps 300 ms since a card moves a smaller area than a page (F296). On a
     page scrolled it fades only the card in view and the new step starts
     at its top. With reduce motion the step is there at once. A step that
-    shows or takes a secret swaps at once, and so does a change from a
-    frame drawn while one was typed or shown (the rule below stands). A
+    shows or takes a secret, or leaves one that does, fades drawn live:
+    every step draws the card again from the state, the outgoing one
+    at a falling opacity over the first part, the new one at a rising
+    one after, and no frame is kept (the rule below stands). What the
+    step left showed is hidden when the fade out ends. A
     contained flow's card no longer grows nor glides into view; the next
     item is for every other flow's step cards;
   - a step card opens with its height growing over 300 ms, Material's
@@ -414,7 +417,8 @@ extent; a motion left from another screen or sheet is stopped.
     desktop shell answers a frame's own asks after presenting it). At
     once from a frame drawn while a secret was typed or shown (seed words,
     a passphrase, a prompt's line: `Faraday::secret_typed`; the vault
-    page's sign list with a file's text shown: `Faraday::secret_shown`), so no
+    page's sign list with a file's text shown: `Faraday::secret_shown`), but for a
+    step's change on the container, so no
     image of it is kept to fade from (`docs/SECRET-LEAKS.md` §5). At
     once with reduce motion, and only then: a machine that shows a fade's
     steps far apart shows steps (2026-11-16; a gate that turned fades off
