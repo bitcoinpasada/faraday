@@ -292,12 +292,13 @@ fn plan_draw(
         return;
     };
     let app_ref: &View = app;
+    let open_q = Some(b.q.unwrap_or(crate::qstep::PLAN));
     let mut body = |ui: &mut Ui, k: u8, x: f32, y: f32, w: f32| -> f32 {
         plan_body(app_ref, ui, ctx.as_ref(), k, x, y, w)
     };
     // Under Your choices' rows: the map and the check.
     let mut under =
-        |ui: &mut Ui, x: f32, y: f32, w: f32| -> f32 { backup_under(app_ref, ui, x, y, w) };
+        |ui: &mut Ui, x: f32, y: f32, w: f32| -> f32 { backup_under(app_ref, ui, x, y, w, open_q) };
     let (next, again, room) = flow::contained(
         ui, app_ref, contained, &page, b.scroll, &mut body, &mut under,
     );
@@ -383,7 +384,7 @@ fn checklist_draw(
     };
     // Under Your choices' rows: the map and the check.
     let mut under =
-        |ui: &mut Ui, x: f32, y: f32, w: f32| -> f32 { backup_under(app_ref, ui, x, y, w) };
+        |ui: &mut Ui, x: f32, y: f32, w: f32| -> f32 { backup_under(app_ref, ui, x, y, w, None) };
     let (next, again, room) = flow::contained(
         ui, app_ref, contained, &page, b.scroll, &mut body, &mut under,
     );
@@ -493,8 +494,12 @@ fn checklist_foot(app: &View, ui: &mut Ui, all_done: bool, x: f32, y: f32, w: f3
 }
 
 /// What stands under Your choices' rows: the map of what is kept where,
-/// and the check on it. Returns its height.
-fn backup_under(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+/// and the check on it, unless the open plan card `q` already shows them.
+/// Returns its height.
+fn backup_under(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, q: Option<u8>) -> f32 {
+    if q.is_some_and(crate::plan::cards::card_shows_map) {
+        return 0.0;
+    }
     let mut cy = y + T::GAP;
     ui.text_as(x, cy, LABEL_L, Role::OnSurfaceVariant, EN.backup_panel_map);
     cy += ui.line_as(LABEL_L) + T::GAP;
@@ -659,9 +664,9 @@ pub(crate) fn templates_line(app: &View, b: &crate::wallet_backup::BackupState) 
         b.answers.seeds[crate::plan::seeds::WORDS],
         b.answers.seeds[crate::plan::seeds::SEEDQR],
     ) {
-        (true, true) => EN.item_templates_both,
-        (false, true) => EN.item_templates_seedqr,
-        _ => EN.item_templates_words,
+        (true, true) => Some(EN.starter_tpl_both),
+        (false, true) => Some(EN.starter_tpl_seedqr),
+        _ => None,
     };
     // One clause per form: the words' sheets, then each codex32
     // length's (`docs/CODEX32.md` §9.3).
@@ -671,10 +676,12 @@ pub(crate) fn templates_line(app: &View, b: &crate::wallet_backup::BackupState) 
     let kef = crate::wallet_backup::kef::templates(app, &shape, &mapped);
     let mut clauses: Vec<String> = Vec::new();
     if words_n > 0 || (c32.is_empty() && kef.is_empty()) {
-        clauses.push(fill(
-            EN.item_templates_starter,
-            &[&words_n.max(1).to_string(), &b.words.to_string(), copy],
-        ));
+        let (n, words) = (words_n.max(1).to_string(), b.words.to_string());
+        let form = EN.starter_tpl_form_words;
+        clauses.push(match copy {
+            None => fill(EN.item_templates_starter, &[&n, form, &words]),
+            Some(c) => fill(EN.item_templates_starter_copy, &[&n, form, &words, c]),
+        });
     }
     for (len, copy, n) in c32 {
         clauses.push(c32_templates_clause(clauses.is_empty(), len, copy, n));

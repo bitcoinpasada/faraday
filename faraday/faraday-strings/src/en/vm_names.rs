@@ -388,14 +388,10 @@ macro_rules! words_vm_names {
     plan_passphrase_apart: "Keeping the passphrase in a different place from the seed is recommended.",
     /// Button beside that line.
     plan_add_passphrase: "Add a passphrase",
-    /// Templates item of the checklist: print them from Faraday Starter. The count, the words, the copy form.
-    item_templates_starter: "Print {} from Faraday Starter: Blank templates, {} words, {}",
-    /// Templates item: the copy is the words alone.
-    item_templates_words: "words",
-    /// Templates item: the copy is the SeedQR alone.
-    item_templates_seedqr: "SeedQR",
-    /// Templates item: the copy is the words and the SeedQR.
-    item_templates_both: "both",
+    /// Templates item of the checklist: print them from Faraday Starter. The count, the form, the words.
+    item_templates_starter: "Print {} from Faraday Starter: Blank templates, {}, {} words",
+    /// Templates item when the copy is not the words alone. The count, the form, the words, the copy.
+    item_templates_starter_copy: "Print {} from Faraday Starter: Blank templates, {}, {} words, {}",
     /// Foot of the Templates item, a press.
     item_action_done: "Done",
     /// Heading of a Bitcoin wallet's flow.

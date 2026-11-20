@@ -283,6 +283,12 @@ pub(crate) fn body(app: &View, ui: &mut Ui, ctx: &PlanCtx, q: u8, x: f32, y: f32
     cy - y
 }
 
+/// Whether plan card `q` is the map itself (every card but the board and
+/// the software's), so Your choices does not draw it again beside it.
+pub(crate) fn card_shows_map(q: u8) -> bool {
+    !matches!(q, qstep::BOARD | qstep::SOFTWARE)
+}
+
 /// The map: one box per place, then the vault, a stick of files, the
 /// software and the seeds on their own devices, each listing what it
 /// holds and its tag; in Back up's checklist, each line marked by its

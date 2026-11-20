@@ -433,9 +433,8 @@ fn the_blank_template_has_a_line_per_place_and_no_name() {
     );
     app.press(Action::BStep(Item::Templates));
     assert!(
-        app.drawn_texts()
-            .iter()
-            .any(|t| t.starts_with("Print 2 from Faraday Starter: Blank templates, 24 words")),
+        app.drawn_texts().iter().any(|t| t
+            .starts_with("Print 2 from Faraday Starter: Blank templates, BIP-39 words, 24 words")),
         "the Templates item says to print them from Faraday Starter: {:?}",
         app.drawn_texts()
     );
@@ -588,7 +587,7 @@ fn each_vault_is_its_own_item_and_the_second_does_not_take_the_vault_the_first_f
 type TextBox = (String, (i32, i32, i32, i32));
 
 /// What Your choices says of the item titled `title`: the line under its
-/// row, "Done" or "After: X" or "Not chosen yet".
+/// row, "Done" or "After: X" or "To do".
 fn pane_state(boxes: &[TextBox], title: &str) -> String {
     let (_, (px, _, _, _)) = boxes
         .iter()
@@ -1377,7 +1376,11 @@ fn your_choices_lists_the_items_with_their_state_and_the_map_under_them() {
     assert!(boxes.iter().any(|(t, _)| t == "Your choices"), "{boxes:?}");
     let title = "Print 1 blank template";
     let waiting = pane_state(&boxes, title);
-    assert_eq!(waiting, "Not chosen yet", "{boxes:?}");
+    assert_eq!(waiting, "To do", "{boxes:?}");
+    assert!(
+        !boxes.iter().any(|(t, _)| t == "Not chosen yet"),
+        "a checklist item is a task, not a choice: {boxes:?}"
+    );
     let (_, (_, rows_y, _, _)) = boxes
         .iter()
         .rfind(|(t, _)| t == title)
@@ -1387,6 +1390,23 @@ fn your_choices_lists_the_items_with_their_state_and_the_map_under_them() {
     assert!(
         boxes.iter().any(|(t, _)| t.starts_with("After: ")),
         "an item that waits names the one it waits for: {boxes:?}"
+    );
+}
+
+#[test]
+fn the_plan_step_has_no_map_beside_its_own_card() {
+    let mut app = device(Vec::new());
+    let w = one_key(&mut app);
+    app.press(Action::Backup(w));
+    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
+    app.press(Action::BQ(faraday_core::qstep::PLAN));
+    app.settle();
+    let _ = app.frame();
+    let boxes = app.drawn_text_boxes().plain();
+    assert!(boxes.iter().any(|(t, _)| t == "Your choices"), "{boxes:?}");
+    assert!(
+        !boxes.iter().any(|(t, _)| t == "Map"),
+        "the plan card is the map: {boxes:?}"
     );
 }
 

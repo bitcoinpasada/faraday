@@ -69,6 +69,8 @@ macro_rules! words_screens_backup {
     // ----- backup (faraday-core/src/screens/backup.rs) -----
     /// Text in `backup_screen`. `{}`: `t`.
     backup_after: "After: {}",
+    /// Value of a checklist item's row in Your choices that can be done now.
+    backup_to_do: "To do",
     /// Text in `backup_screen`.
     backup_back_up_a_wallet: "Back up a wallet",
     /// Text in `backup_screen`. `{}`: `wallet.name`.

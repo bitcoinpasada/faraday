@@ -3652,7 +3652,8 @@ impl crate::flow::Contained for BackupSteps {
                         EN.backup_after,
                         &[t.as_str()],
                     ))),
-                    _ => None,
+                    // An item that can be done now is a task, not a choice.
+                    _ => Some(Text::of(EN.backup_to_do)),
                 };
                 Row {
                     label: Text::of(&heading::item_heading(app, &shape, it)),

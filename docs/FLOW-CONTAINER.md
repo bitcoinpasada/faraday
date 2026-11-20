@@ -233,7 +233,7 @@ my wallet's, Read a Bitcoin Core wallet's) ends its last card.
 | Sign a transaction | `screens/spend.rs` | its steps, count not known | none | the six review facts (Wallet, Sends, To, Fee, Change, Transaction ID), plain lines with no press; the sequence line as the card head's note |
 | Spend from a backup | `spend_backup/screen.rs` | its steps, count not known; a card's own line at the top of its body | none | none |
 | Make a new key, Make codex32 shares | `keygen/screen.rs`, `codex32/screen.rs` | its steps, codex32's cards among them with numbers of their own in its order; the made card is the end and counts | codex32's entry while it is current | none; the dice sheet's column is the step's own |
-| Back up (a wallet's checklist and plan) | `screens/backup.rs`, `screens/backup/quick.rs` | the checklist as the first card, an item pressed fades to its card; Your choices lists the items with their state (Done, "After {item}", Not chosen yet) | the board | the map under the rows; the wallet chip is a press |
+| Back up (a wallet's checklist and plan) | `screens/backup.rs`, `screens/backup/quick.rs` | the checklist as the first card, an item pressed fades to its card; Your choices lists the items with their state (Done, "After {item}", To do) | the board | the map under the rows, except on the plan card, which is the map; the wallet chip is a press |
 | The backup flow (GPG keys, Secure Boot keys, a wallet's backup) | `backup_flow/screen.rs` | its steps, count not known; a GPG key's restore opens on the plan card (its public key at the top), Step 1 | the board | the board's list, in its own pane at the right |
 | Sign a message | `screens/message.rs` | its steps | none | none |
 | Derive with BIP-85 | `bip85/screen.rs` | its steps | none | none |
