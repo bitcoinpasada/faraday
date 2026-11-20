@@ -6824,6 +6824,7 @@ functions = [
   "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::codex32_of_seed",
   "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::codex32_count",
   "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::codex32_with_typed",
+  "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::codex32_seed_with_typed",
   "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::gather_codex32",
 ]
 code = ["core/faraday-bip/src/codex32/mod.rs::Codex32::parse", "core/faraday-bip/src/codex32/mod.rs::Codex32::split"]

@@ -1271,22 +1271,117 @@ fn a_codex32_secret_scanned_here_fills_this_tool_and_not_add_a_key() {
     );
 }
 
+const SHARE_1: &str = "shadow pistol academic always adequate wildlife fancy gross oasis cylinder mustang wrist rescue view short owner flip making coding armed";
+const SHARE_2: &str = "shadow pistol academic acid actress prayer class unknown daughter sweater depict flip twice unkind craft early superior advocate guest smoking";
+
+/// SLIP-39 vector 4's two shares typed and Enter on nothing: the shares
+/// wait on the Passphrase card.
+fn shares_waiting() -> Faraday {
+    let app = parts_typed(faraday_core::forms::Form::Slip39, &[SHARE_1, SHARE_2, ""]);
+    assert!(app.session.keys.check_facts().is_none(), "they wait");
+    app
+}
+
+#[test]
+fn words_typed_after_back_from_waiting_shares_are_read_as_words() {
+    for form in [None, Some(faraday_core::forms::Form::Xor)] {
+        let mut app = shares_waiting();
+        app.event(Event::Back);
+        match form {
+            None => {
+                app.press(Action::SeedCheck(S::Type));
+                testkit::type_words(&mut app, ABOUT);
+                app.press(Action::SeedCheck(S::Words));
+            }
+            Some(_) => {
+                // Seed XOR's two parts, typed as words are, make words.
+                let at = faraday_core::seed_check::FORMS
+                    .iter()
+                    .position(|f| *f == faraday_core::forms::Form::Xor)
+                    .unwrap();
+                app.press(Action::SeedCheck(S::Form(at as u8)));
+                for part in [
+                    "accident stock globe super snake hero sample law fit blade scale silly",
+                    "",
+                    "insect shoe rescue viable grab then adult rigid funny forget peace napkin",
+                    "",
+                ] {
+                    type_chars(&mut app, part);
+                    app.event(Event::Key(Key::Enter));
+                }
+            }
+        }
+        app.press(Action::SeedCheck(S::NoPass));
+        let mut typed = if form.is_none() {
+            with_words(ABOUT)
+        } else {
+            with_words("inner away stamp cliff position merge rubber series antique era gift force")
+        };
+        typed.press(Action::SeedCheck(S::NoPass));
+        assert_eq!(held_fingerprint(&app), held_fingerprint(&typed), "{form:?}");
+    }
+}
+
+#[test]
+fn a_seedqr_scanned_after_back_from_waiting_shares_is_the_key_checked() {
+    let mut app = shares_waiting();
+    app.event(Event::Back);
+    app.press(Action::ScanSeed);
+    // Eleven times word 0000 and word 0003: the twelve words of ABOUT.
+    app.event(Event::Scanned {
+        bytes: format!("{}0003", "0000".repeat(11)).into_bytes(),
+    });
+    let _ = app.frame();
+    app.press(Action::SeedRead(faraday_core::seeds::read::Choice::Plain));
+    let _ = app.frame();
+    let mut typed = with_words(ABOUT);
+    typed.press(Action::SeedCheck(S::NoPass));
+    assert_eq!(held_fingerprint(&app), held_fingerprint(&typed));
+    // The Passphrase header takes the SeedQR's key back to the Seed card;
+    // no shares wait to be read in its place.
+    app.press(Action::SeedCheck(S::Step(1)));
+    app.press(Action::SeedCheck(S::NoPass));
+    assert!(
+        app.session.keys.check_facts().is_none(),
+        "no old shares read"
+    );
+}
+
+#[test]
+fn keep_this_key_on_a_codex32_key_keeps_the_set_s_facts_and_strings() {
+    // BIP 93 vector 2: shares A and C of a 2 of 3 set, on the test network.
+    let mut app = seed_card();
+    testkit::move_to(&mut app.session, testkit::net()).unwrap();
+    let at = faraday_core::seed_check::FORMS
+        .iter()
+        .position(|f| *f == faraday_core::forms::Form::Codex32)
+        .unwrap();
+    app.press(Action::SeedCheck(S::Form(at as u8)));
+    for s in [
+        "ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm",
+        "ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn",
+    ] {
+        type_chars(&mut app, s);
+        app.event(Event::Key(Key::Enter));
+    }
+    app.event(Event::Key(Key::Enter));
+    app.press(Action::SeedCheck(S::Pick(Account::NativeSegwit)));
+    app.press(Action::SeedCheck(S::Keep));
+    assert_eq!(app.session.keys.len(), 1, "kept");
+    let facts = app.session.keys.info(0).unwrap().codex32.clone();
+    let facts = facts.expect("the set's facts are kept");
+    assert_eq!(facts.threshold, 2);
+    assert_eq!(facts.strings.len(), 2, "the strings typed");
+}
+
 #[test]
 fn leaving_drops_the_parts_and_the_shares_waiting() {
     for end in 0..3 {
-        let mut app = parts_typed(
-            faraday_core::forms::Form::Slip39,
-            &[
-                "shadow pistol academic always adequate wildlife fancy gross oasis cylinder mustang wrist rescue view short owner flip making coding armed",
-            ],
-        );
-        if end > 0 {
-            type_chars(
-                &mut app,
-                "shadow pistol academic acid actress prayer class unknown daughter sweater depict flip twice unkind craft early superior advocate guest smoking",
-            );
-            app.event(Event::Key(Key::Enter));
-        }
+        let mut app = if end == 0 {
+            parts_typed(faraday_core::forms::Form::Slip39, &[SHARE_1])
+        } else {
+            shares_waiting()
+        };
         assert!(testkit::entry(&app).parts.holds_any(), "end {end}");
         if end == 2 {
             app.press(Action::Lock);
@@ -1296,4 +1391,21 @@ fn leaving_drops_the_parts_and_the_shares_waiting() {
         let _ = app.frame();
         assert!(!testkit::entry(&app).parts.holds_any(), "way out {end}");
     }
+}
+
+#[test]
+fn a_codex32_secret_read_with_a_stick_in_is_refused_on_the_check() {
+    let mut app = seed_card();
+    stick_in(&mut app);
+    let at = faraday_core::seed_check::FORMS
+        .iter()
+        .position(|f| *f == faraday_core::forms::Form::Codex32)
+        .unwrap();
+    app.press(Action::SeedCheck(S::Form(at as u8)));
+    type_chars(&mut app, "ms10testsxxxxxxxxxxxxxxxxxxxxxxxxxx4nzvca9cmczlw");
+    app.event(Event::Key(Key::Enter));
+    app.event(Event::Key(Key::Enter));
+    assert!(app.session.keys.check_facts().is_none(), "no key is held");
+    let shown = texts(&mut app).join(" ").to_lowercase();
+    assert!(shown.contains("stick"), "the refusal is shown: {shown}");
 }

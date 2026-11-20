@@ -3,6 +3,10 @@
 
 use super::*;
 
+/// The strings, the master seed and the fingerprint of a codex32 key found
+/// among the strings typed and the open vaults'.
+type CodexFound = (Vec<Text>, Zeroizing<Vec<u8>>, [u8; 4]);
+
 impl OpenVaults {
     // ---- facts worked out of the key records' words ----
 
@@ -860,6 +864,80 @@ impl OpenVaults {
         self.marked_done.set(None);
     }
 
+    /// The strings and master seed of the key `typed` makes with the open
+    /// vaults' strings, and the key's fingerprint: what
+    /// [`Self::codex32_with_typed`] says, before it loads anything.
+    fn codex32_found(
+        &self,
+        c: &Compute,
+        typed: &[faraday_bip::codex32::Codex32],
+    ) -> Option<Result<CodexFound, Refusal>> {
+        let first = typed.first()?;
+        let need = usize::from(first.threshold());
+        if need < 2 || typed.len() >= need {
+            return None;
+        }
+        // Each key's records with those typed, until one makes the key
+        // its records name; never strings of two keys together.
+        let typed_texts: Vec<Text> = typed
+            .iter()
+            .map(|s| crate::texts::wiped(s.encode().as_str()))
+            .collect();
+        let fixed: Vec<&str> = typed_texts.iter().map(|t| t.as_str()).collect();
+        let mut tried = false;
+        let mut found = None;
+        for (fp, more) in self.codex32_more_of(typed) {
+            let pool: Vec<&str> = more.iter().map(|t| t.as_str()).collect();
+            let Some(made) = codex32_find(c, fp, need, &fixed, &pool) else {
+                continue;
+            };
+            tried = true;
+            if let Some((seed, picked)) = made {
+                // What made the key, then the key's other strings at
+                // indices none of those has.
+                #[expect(
+                    clippy::disallowed_methods,
+                    reason = "the copy is Zeroizing, wiped on drop"
+                )]
+                let mut texts = typed_texts.clone();
+                texts.extend(picked.into_iter().skip(typed.len()));
+                for t in more.iter() {
+                    let at = t.as_bytes().get(8);
+                    if !texts.iter().any(|x| x.as_bytes().get(8) == at) {
+                        #[expect(
+                            clippy::disallowed_methods,
+                            reason = "the copy is Zeroizing, wiped on drop"
+                        )]
+                        texts.push(t.clone());
+                    }
+                }
+                found = Some((texts, seed, fp));
+                break;
+            }
+        }
+        let Some(found) = found else {
+            return tried.then(|| {
+                Err(Refusal::Words(Text::of(
+                    faraday_strings::EN.c32_vault_other_seed,
+                )))
+            });
+        };
+        Some(Ok(found))
+    }
+
+    /// Costs what `codex32_with_typed` costs before it loads the key. The
+    /// master seed the strings typed make with the open vaults' strings of
+    /// their set, for a check that loads nothing: `None` while the strings
+    /// typed are `k` or more, or fewer than `k` are in; a refusal as
+    /// `codex32_with_typed` refuses.
+    pub fn codex32_seed_with_typed(
+        &self,
+        c: &Compute,
+        typed: &[faraday_bip::codex32::Codex32],
+    ) -> Option<Result<Zeroizing<Vec<u8>>, Refusal>> {
+        Some(self.codex32_found(c, typed)?.map(|(_, seed, _)| seed))
+    }
+
     /// Costs a parse of each codex32 share record's string and, for each
     /// set enough of them make, an interpolation, an HMAC-SHA512 and what
     /// `add_seed` costs. The strings the share records of every open vault
@@ -1132,54 +1210,9 @@ impl OpenVaults {
     ) -> Option<Result<Fingerprint, Refusal>> {
         use fv::codex32::{SetFacts, State};
         let first = typed.first()?;
-        let need = usize::from(first.threshold());
-        if need < 2 || typed.len() >= need {
-            return None;
-        }
-        // Each key's records with those typed, until one makes the key
-        // its records name; never strings of two keys together.
-        let typed_texts: Vec<Text> = typed
-            .iter()
-            .map(|s| crate::texts::wiped(s.encode().as_str()))
-            .collect();
-        let fixed: Vec<&str> = typed_texts.iter().map(|t| t.as_str()).collect();
-        let mut tried = false;
-        let mut found = None;
-        for (fp, more) in self.codex32_more_of(typed) {
-            let pool: Vec<&str> = more.iter().map(|t| t.as_str()).collect();
-            let Some(made) = codex32_find(c, fp, need, &fixed, &pool) else {
-                continue;
-            };
-            tried = true;
-            if let Some((seed, picked)) = made {
-                // What made the key, then the key's other strings at
-                // indices none of those has.
-                #[expect(
-                    clippy::disallowed_methods,
-                    reason = "the copy is Zeroizing, wiped on drop"
-                )]
-                let mut texts = typed_texts.clone();
-                texts.extend(picked.into_iter().skip(typed.len()));
-                for t in more.iter() {
-                    let at = t.as_bytes().get(8);
-                    if !texts.iter().any(|x| x.as_bytes().get(8) == at) {
-                        #[expect(
-                            clippy::disallowed_methods,
-                            reason = "the copy is Zeroizing, wiped on drop"
-                        )]
-                        texts.push(t.clone());
-                    }
-                }
-                found = Some((texts, seed, fp));
-                break;
-            }
-        }
-        let Some((texts, seed, of)) = found else {
-            return tried.then(|| {
-                Err(Refusal::Words(Text::of(
-                    faraday_strings::EN.c32_vault_other_seed,
-                )))
-            });
+        let (texts, seed, of) = match self.codex32_found(c, typed)? {
+            Ok(f) => f,
+            Err(e) => return Some(Err(e)),
         };
         let fp = match keys.add_seed(c, &seed, label) {
             Ok(fp) => fp,

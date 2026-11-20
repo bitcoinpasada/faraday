@@ -38,6 +38,9 @@ pub(crate) struct HeldCheck {
     /// The master seed the key was made of, for a key with no words;
     /// wiped as it drops.
     seed: Option<zeroize::Zeroizing<Vec<u8>>>,
+    /// The codex32 set a master seed was read from and the strings typed,
+    /// for Keep this key to keep them with the key, as Add a key does.
+    codex32: Option<(faraday_vault::codex32::SetFacts, Vec<Text>)>,
     facts: CheckFacts,
 }
 
@@ -56,6 +59,7 @@ impl HeldCheck {
             words: self.words.clone(),
             passphrase: Text::default(),
             seed: None,
+            codex32: None,
             facts: self.facts,
         }
     }
@@ -95,6 +99,7 @@ impl Keys {
             words: crate::texts::normal_words(words),
             passphrase: crate::texts::wiped(passphrase),
             seed: None,
+            codex32: None,
             facts,
         });
         Ok(facts)
@@ -119,6 +124,7 @@ impl Keys {
             words: Text::default(),
             passphrase: Text::default(),
             seed: Some(crate::texts::wiped_bytes(seed)),
+            codex32: None,
             facts,
         });
         Ok(facts)
@@ -182,19 +188,39 @@ impl Keys {
         )
     }
 
+    /// The codex32 set the check's master seed was read from, with the
+    /// strings typed, kept for [`Keys::check_keep`]; wiped with the check.
+    /// Nothing while the check holds no key.
+    pub fn check_set_codex32(&mut self, facts: faraday_vault::codex32::SetFacts, strings: &[&str]) {
+        if let Some(h) = self.check.as_mut() {
+            h.codex32 = Some((
+                facts,
+                strings.iter().map(|s| crate::texts::wiped(s)).collect(),
+            ));
+        }
+    }
+
     /// Costs what `add_words_with` costs. The key the check holds becomes
     /// one of the session's keys, as Add a key loads typed words and a
     /// passphrase (the same refusals: a stick attached, not a sample in the
     /// demo, already loaded), labelled `label`. The check's own copy is
     /// erased once it is loaded.
     pub fn check_keep(&mut self, c: &Compute, label: &str) -> Result<Fingerprint, Refusal> {
-        let Some(h) = self.check.take() else {
+        let Some(mut h) = self.check.take() else {
             return Err(Refusal::Words(Text::default()));
         };
         let fp = match &h.seed {
             Some(seed) => self.add_seed(c, seed, label),
             None => self.add_words_with(c, &h.words, &h.passphrase, label, None),
         };
+        if let Ok(fp) = &fp
+            && let Some((facts, strings)) = h.codex32.take()
+            && let Some(i) = self.position(*fp)
+        {
+            let refs: Vec<&str> = strings.iter().map(|t| t.as_str()).collect();
+            self.set_codex32(i, Some(facts));
+            self.keep_codex32(c, i, &refs);
+        }
         if fp.is_err() {
             self.check = Some(h);
         }

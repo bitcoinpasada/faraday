@@ -108,6 +108,18 @@ fn drop_all(app: &mut Faraday) {
     app.entry.reset();
 }
 
+/// Shares and parts waiting in the entry form are wiped, and with them
+/// the flag that the Passphrase card reads them: every way into the Seed
+/// card that is not the parts' own starts clean.
+fn drop_waiting(app: &mut Faraday) {
+    if st(app).is_some_and(|s| s.shares) {
+        app.entry.reset();
+        if let Some(s) = st(app) {
+            s.shares = false;
+        }
+    }
+}
+
 /// The cards from `from` on are to be taken again: what they gave is
 /// dropped, and the key too from Passphrase back.
 fn reset_from(app: &mut Faraday, from: u8) {
@@ -156,6 +168,7 @@ pub(crate) fn act(app: &mut Faraday, action: A) {
         A::Step(k) => step_to(app, k),
         A::Show(k) => open_card(app, k),
         A::Type => {
+            drop_waiting(app);
             app.entry.reset();
             if let Some(s) = st(app) {
                 s.typing = true;
@@ -258,6 +271,9 @@ pub(crate) fn act(app: &mut Faraday, action: A) {
 }
 
 fn open_card(app: &mut Faraday, k: u8) {
+    if k == step::SEED {
+        drop_waiting(app);
+    }
     if let Some(s) = st(app) {
         // A key that is not typed words has no passphrase to take again
         // without its seed, as `step_to` knows.
@@ -324,6 +340,7 @@ fn words(app: &mut Faraday) {
 /// The words, whole and with their checksum, are held until the passphrase
 /// is chosen, and the Passphrase card opens.
 fn take_words(app: &mut Faraday, text: &Text) {
+    drop_waiting(app);
     app.entry.reset();
     reset_from(app, step::PASSPHRASE);
     if let Some(s) = st(app) {
@@ -351,6 +368,7 @@ fn form_pick(app: &mut Faraday, i: u8) {
     let Some(&form) = super::FORMS.get(usize::from(i)) else {
         return;
     };
+    drop_waiting(app);
     app.entry.choose_form(form);
     if let Some(s) = st(app) {
         s.typing = true;
@@ -366,6 +384,7 @@ pub(crate) fn take_part(app: &mut Faraday, form: crate::forms::Form, text: &str)
     if !here(app) || form == crate::forms::Form::Krux || !super::FORMS.contains(&form) {
         return false;
     }
+    drop_waiting(app);
     let Some(s) = st(app) else { return false };
     if !s.typing || app.entry.state().form != form {
         app.entry.choose_form(form);
@@ -414,19 +433,37 @@ pub(crate) fn form_done(app: &mut Faraday) {
         }
         Form::Codex32 => {
             let c = app.compute();
-            let got = faraday_keys::codex32_seed(&app.entry.state().parts.codex32)
-                .map_err(|e| {
+            // The strings typed fewer than `k`, the open vaults' strings of
+            // the set make up the rest, as Add a key reads them.
+            let typed = &app.entry.state().parts.codex32;
+            let seed = match app.vaults.store().codex32_seed_with_typed(&c, typed) {
+                Some(r) => r.map_err(|e| e.text()),
+                None => faraday_keys::codex32_seed(typed).map_err(|e| {
                     Text::fill(
                         EN.forms_the_strings_do,
                         &[&faraday_strings::bip::codex32_error(&e)],
                     )
-                })
-                .and_then(|seed| {
-                    app.session
-                        .keys
-                        .check_read_seed(&c, &seed)
-                        .map_err(|e| e.text())
-                });
+                }),
+            };
+            let got = seed.and_then(|seed| {
+                app.session
+                    .keys
+                    .check_read_seed(&c, &seed)
+                    .map_err(|e| e.text())
+            });
+            if got.is_ok() {
+                // The set's facts and strings go with the key the check
+                // holds, for Keep this key to keep them as Add a key does.
+                let typed = &app.entry.state().parts.codex32;
+                if let Some(facts) = crate::forms::set_facts(typed) {
+                    let texts: Vec<Text> = typed
+                        .iter()
+                        .map(|s| Text::of(s.encode().as_str()))
+                        .collect();
+                    let refs: Vec<&str> = texts.iter().map(|t| t.as_str()).collect();
+                    app.session.keys.check_set_codex32(facts, &refs);
+                }
+            }
             seed_taken(app, got, false);
         }
         Form::Slip39 => {
@@ -577,6 +614,7 @@ fn read(app: &mut Faraday, with: bool) {
 /// Costs what `Keys::check_read` costs. A SeedQR's words and the passphrase the sheet asked for are read as
 /// the key the check holds, and the Account card opens.
 pub(crate) fn scanned(app: &mut Faraday, words: &str, pass: &str) {
+    drop_waiting(app);
     let c = app.compute();
     let got = app.session.keys.check_read(&c, words, pass);
     let ok = got.is_ok();
@@ -632,6 +670,7 @@ fn loaded(app: &mut Faraday, i: usize) {
         with_pass: info.has_passphrase,
         words: info.word_count.map(usize::from),
     };
+    drop_waiting(app);
     reset_from(app, step::PASSPHRASE);
     let Some(s) = st(app) else { return };
     s.words = SecretText::new();
@@ -1000,6 +1039,7 @@ pub(crate) fn seed_sample_open(app: &Faraday) -> bool {
 /// Practice's sample seed `words` taken as typed words: the Passphrase
 /// card opens, as after Continue.
 pub(crate) fn put_sample_words(app: &mut Faraday, words: &str) {
+    drop_waiting(app);
     reset_from(app, step::PASSPHRASE);
     if let Some(s) = st(app) {
         s.words = SecretText::of(words);

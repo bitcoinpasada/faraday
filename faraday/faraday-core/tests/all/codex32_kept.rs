@@ -1041,3 +1041,50 @@ fn the_idle_warning_leaves_a_set_actions_typing_drawn() {
         "typing is masked: {t}"
     );
 }
+
+/// A vault holding one string of vector 2's set and a second typed on the
+/// Seed card of My seed makes my wallet make the key Add a key makes of
+/// them.
+#[test]
+fn the_seed_check_reads_a_codex32_set_finished_with_an_open_vault_s_strings() {
+    use faraday_core::seed_check::SeedAction as S;
+    let mut app = device(vec![(
+        "home.kdbx".into(),
+        vault_of(PHRASE, vec![share_record(C)], 7),
+    )]);
+    unlock_on_vaults(&mut app, "home.kdbx", PHRASE);
+    app.press(Action::Nav(Screen::Catalog));
+    let tile = faraday_core::catalog::TILES
+        .iter()
+        .position(|t| t.name == "My seed makes my wallet")
+        .unwrap();
+    app.press(Action::Catalog(tile as u8));
+    let at = faraday_core::seed_check::FORMS
+        .iter()
+        .position(|f| *f == faraday_core::forms::Form::Codex32)
+        .unwrap();
+    app.press(Action::SeedCheck(S::Form(at as u8)));
+    type_text(&mut app, A);
+    app.event(Event::Key(Key::Enter));
+    app.event(Event::Key(Key::Enter));
+    let got = app
+        .session
+        .keys
+        .check_facts()
+        .expect("the check holds a key");
+    assert_eq!(got.fingerprint.to_string(), "fab6868a");
+    assert!(app.session.keys.is_empty(), "no key was loaded");
+    // Add a key reads the same strings to the same key.
+    let mut add = device(vec![(
+        "home.kdbx".into(),
+        vault_of(PHRASE, vec![share_record(C)], 7),
+    )]);
+    unlock_on_vaults(&mut add, "home.kdbx", PHRASE);
+    add.press(Action::Entry(None));
+    add.press(Action::EntryForm(2));
+    type_text(&mut add, A);
+    add.event(Event::Key(Key::Enter));
+    add.event(Event::Key(Key::Enter));
+    assert_eq!(add.session.keys.len(), 1);
+    assert_eq!(add.session.keys[0].fingerprint, got.fingerprint);
+}
