@@ -1413,6 +1413,18 @@ fn a_rev_file_a_guarded_block_and_a_comment_with_a_seed_are_not_public() {
     k2.user_ids = vec![faraday_text::Text::of(words)];
     let seeded = armor(Armor::PublicKey, &k2.certificate(1_780_000_000));
     assert_ne!(classify(&c, "k.asc", seeded.as_bytes()), FileKind::Gpg);
+    // The same seed without its accents or in capitals, in a header and in
+    // a user ID, is read as the device's scanner reads it.
+    for other in [
+        "abaco abaco abaco abaco abaco abaco abaco abaco abaco abaco abaco abierto",
+        "ABANDON ABANDON ABANDON ABANDON ABANDON ABANDON ABANDON ABANDON ABANDON ABANDON ABANDON ABOUT",
+    ] {
+        let with_header = armor_with(Armor::PublicKey, &cert, Some(other));
+        assert_ne!(classify(&c, "k.asc", with_header.as_bytes()), FileKind::Gpg);
+        k2.user_ids = vec![faraday_text::Text::of(other)];
+        let seeded = armor(Armor::PublicKey, &k2.certificate(1_780_000_000));
+        assert_ne!(classify(&c, "k.asc", seeded.as_bytes()), FileKind::Gpg);
+    }
 }
 
 /// What the app last asked the shell to keep across a lock.

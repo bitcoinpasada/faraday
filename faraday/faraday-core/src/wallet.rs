@@ -2577,7 +2577,8 @@ fn seed_in_words(c: &Compute, words: &str) -> bool {
     seed_mnemonic(c, words).is_some()
 }
 
-/// The seed `words` hold (as [`crate::forms::file_words`] gives them) and
+/// Costs a parse of the words in each list that holds half of them. The
+/// seed `words` hold (as [`crate::forms::file_words`] gives them) and
 /// is read in, found as [`seed_in_words`] finds it.
 pub(crate) fn seed_mnemonic(c: &Compute, words: &str) -> Option<faraday_bip::bip39::Mnemonic> {
     if let Ok(m) = crate::forms::typed_mnemonic(Language::English, words) {
@@ -2694,6 +2695,7 @@ pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
         }
         if let Some(block) = faraday_pgp::read_public(bytes)
             && !block.texts.iter().any(|t| text_may_be_secret(c, t))
+            && !words_across(block.texts.iter().map(Text::as_str))
         {
             return FileKind::Gpg.into();
         }
