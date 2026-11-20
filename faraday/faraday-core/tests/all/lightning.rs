@@ -10,6 +10,7 @@ use faraday_shell_api::{App, Event, Key};
 /// `tools/reference/aezeed/README.md` lists it with coin type 0's).
 const CIPHER_SEED: &str = "above judge emerge veteran reform crunch system all snap please \
     shoulder vault hurt city quarter cover enlist swear success suggest drink wagon enrich body";
+const STICK_LINE: &str = "Keys load only with no stick attached";
 const NODE_KEY: &str = "0226594d21c0862a11168ab07cdbc15e7c7af5ee561b741259e311f1614f4df3b7";
 
 /// A start on the test network, where LND's cipher seed (a public sample)
@@ -527,4 +528,50 @@ fn lnds_public_sample_cipher_seed_is_refused_on_mainnet_and_taken_on_testnet() {
     let app = read_cipher_seed(faraday_bip::keys::Network::Testnet);
     let l = app.lightning().unwrap();
     assert_eq!(hex(l.node.as_ref().expect("a node").public()), NODE_KEY);
+}
+
+fn attach_stick(app: &mut Faraday) {
+    use faraday_core::{StickInfo, StorageEvent};
+    app.storage(StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
+        serial: None,
+        id: faraday_text::Text::of("a"),
+        label: faraday_text::Text::of("STICK"),
+        boot: false,
+        files: Vec::new(),
+        vaults: Vec::new(),
+    }]));
+    if app.sheet == Some(Sheet::Lock) {
+        app.press(Action::NotNow);
+    }
+}
+
+/// With a stick attached the aezeed's words take no key, and the screen
+/// says keys load only with no stick attached.
+#[test]
+fn the_aezeed_words_take_no_typing_with_a_stick_attached() {
+    let mut app = test_started();
+    attach_stick(&mut app);
+    app.press(Action::Lightning);
+    app.press(Action::LAezeed);
+    typed(&mut app, "above judge");
+    app.event(Event::Key(Key::Enter));
+    assert_eq!(app.lightning().unwrap().typed.as_str(), "");
+    assert_eq!(app.toast_text(), Some(STICK_LINE));
+}
+
+/// Words and a passphrase typed, then a stick arrives: both are empty.
+#[test]
+fn a_stick_arriving_empties_the_aezeed_words_and_passphrase() {
+    let mut app = test_started();
+    app.press(Action::Lightning);
+    app.press(Action::LAezeed);
+    typed(&mut app, "above judge");
+    app.press(Action::LPassphrase);
+    typed(&mut app, "hunter2");
+    assert_eq!(app.lightning().unwrap().typed.as_str(), "above judge");
+    attach_stick(&mut app);
+    assert_eq!(app.screen, Screen::Lightning);
+    assert_eq!(app.lightning().unwrap().typed.as_str(), "");
+    assert_eq!(app.lightning().unwrap().passphrase.as_str(), "");
 }

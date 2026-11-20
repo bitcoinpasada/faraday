@@ -489,6 +489,7 @@ pub(crate) fn nothing_in_the_way(app: &mut Faraday, had: bool) {
 pub(crate) fn secrets_close(app: &mut Faraday) {
     seeds::kef::kef_stick_arrived(app);
     app.seed_read_stick_arrived();
+    app.lightning.stick_arrived();
     if matches!(
         app.vaults.focus,
         Some(vault::Focus::Passphrase | vault::Focus::Phrase(..) | vault::Focus::Dice)

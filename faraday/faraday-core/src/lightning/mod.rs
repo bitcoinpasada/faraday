@@ -470,6 +470,29 @@ impl LightningArea {
         }
     }
 
+    /// A stick arrived: the typed words go, and the passphrase and the
+    /// node with them.
+    pub(crate) fn stick_arrived(&mut self) {
+        if let Some(l) = self.state.as_mut() {
+            l.typed.set("");
+            l.passphrase.set("");
+            l.node = None;
+        }
+    }
+
+    /// Whether a key now would type into the words (the aezeed's or Core
+    /// Lightning's, not a file's, with the passphrase not in focus).
+    pub(crate) fn on_words(&self, screen: &Screen) -> bool {
+        *screen == Screen::Lightning
+            && self.state.as_ref().is_some_and(|l| {
+                matches!(
+                    l.source,
+                    Some(NodeSource::Aezeed | NodeSource::CoreLightning)
+                ) && l.file.is_none()
+                    && !l.on_passphrase
+            })
+    }
+
     /// Typing the aezeed and its passphrase, on `screen`. Returns whether
     /// the key was taken.
     pub(crate) fn key(&mut self, key: faraday_shell_api::Key, screen: &mut Screen) -> bool {
@@ -686,12 +709,14 @@ impl Faraday {
     /// Whether `key` is left for the tick after a frame: Enter where it
     /// reads an aezeed or Core Lightning's file or words, which scrypt,
     /// Argon2id or a PBKDF2 stretch, or ends My seed makes my wallet's
-    /// passphrase. Not
+    /// passphrase. Not with a stick attached at the words, which take no
+    /// key, and not
     /// while a job runs: then the key is refused as every key is.
     pub(crate) fn key_slow(&self, key: faraday_shell_api::Key) -> bool {
         key == faraday_shell_api::Key::Enter
             && self.worker.busy().is_none()
             && ((self.screen == Screen::Lightning
+                && !(self.stick.in_the_way() && self.lightning.on_words(&self.screen))
                 && (self.lightning_reads_aezeed()
                     || (self.sheet.is_none() && self.lightning.on_core_lightning())))
                 || crate::seed_check::enter_is_slow(self))
@@ -784,6 +809,19 @@ impl Faraday {
     /// taken. Enter reads the aezeed, on the worker.
     pub(crate) fn lightning_key(&mut self, key: faraday_shell_api::Key) -> bool {
         use faraday_shell_api::Key as K;
+        // No key types into, or goes on from, the words while a stick is
+        // attached: nothing is read and the screen says why.
+        if self.stick.in_the_way()
+            && self.lightning.on_words(&self.screen)
+            && matches!(
+                key,
+                K::Char(_) | K::Backspace | K::Delete | K::Enter | K::Tab
+            )
+        {
+            let line = crate::stick::keys_load(self.medium);
+            self.toast(&line);
+            return true;
+        }
         let reads = key == K::Enter && self.lightning_reads_aezeed();
         let words = key == K::Enter && !reads && self.lightning.on_core_lightning();
         let taken = self.lightning.key(key, &mut self.screen);
