@@ -149,6 +149,30 @@ fn a_spanish_seed_words_file_goes_into_the_vault_as_a_key() {
     );
 }
 
+/// A signed message whose body is a seed goes into the vault as a key.
+#[test]
+fn a_signed_message_whose_body_is_a_seed_goes_into_the_vault_as_a_key() {
+    let name = "message.txt".to_string();
+    let signed = "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu\nH9L5yLFjti0QTHhPyFrZCT1V/MMnBtXKmoiKDZ78NDBjERki6ZTQZdSMCtkgoNmp17By9ItJr8o7ChX0XxY91nk=\nabandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about\n";
+    let mut app = unlocked(vec![(name.clone(), signed.as_bytes().to_vec())]);
+    assert_eq!(app.inbox()[at(&app, &name)].kind, FileKind::Words);
+    let keys = app
+        .vaults()
+        .store()
+        .contents_for_tests(app.vaults().open[0].id)
+        .of(kind::KEY)
+        .count();
+    app.press(Action::Vault(V::AddFile(at(&app, &name))));
+    assert_eq!(
+        app.vaults()
+            .store()
+            .contents_for_tests(app.vaults().open[0].id)
+            .of(kind::KEY)
+            .count(),
+        keys + 1
+    );
+}
+
 /// Whether Files offers `action` anywhere down the page, moved down by
 /// key as a person would, each glide ticked through.
 fn files_offers(app: &mut Faraday, action: Action) -> bool {
