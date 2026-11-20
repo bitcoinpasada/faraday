@@ -762,9 +762,6 @@ fn a_signed_message_holding_a_secret_beside_other_text_is_a_secret_file() {
     }
 }
 
-/// Published BIP-39 vectors in two other lists (`tools/vectors/bip39`):
-/// Spanish (entropy of zeros) and Japanese (`test_JP_BIP39.json`, whose
-/// words are joined by the ideographic space).
 /// A valid French seed of one word with two accents, in the forms a person
 /// may write it with only some of its accents: the first accent left off a
 /// composed word (`bénefice`), and off a decomposed one.
@@ -813,6 +810,9 @@ fn half_accented_french_seeds() -> Vec<String> {
         .collect()
 }
 
+/// Published BIP-39 vectors in two other lists (`tools/vectors/bip39`):
+/// Spanish (entropy of zeros) and Japanese (`test_JP_BIP39.json`, whose
+/// words are joined by the ideographic space).
 const SEED_SPANISH: &str =
     "ábaco ábaco ábaco ábaco ábaco ábaco ábaco ábaco ábaco ábaco ábaco abierto";
 /// The Spanish vector as it is typed or scanned without its accents.

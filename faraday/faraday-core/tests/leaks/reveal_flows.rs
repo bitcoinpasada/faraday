@@ -179,13 +179,42 @@ fn scan_key_flow(probe: bool) -> Vec<Form> {
             "the file is not a scan key: {key:?} {:?}",
             out.name
         );
-        vec![Form::new("scan private key text", key.into_bytes())]
+        let secret = spscan_secret(&key);
+        vec![
+            Form::new("scan private key text", key.into_bytes()),
+            Form::new("scan private key", secret),
+        ]
     } else {
         Vec::new()
     };
     crate::seed_load::lock(&mut app);
     while app.poll_storage().is_some() {}
     found
+}
+
+/// The scan key's 32 bytes in a BIP-392 `spscan1q…` text: the bech32m data
+/// after the version character, 5 bits to a character, its first 32 bytes.
+fn spscan_secret(key: &str) -> Vec<u8> {
+    const ALPHABET: &str = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+    let data = key.split_once('1').expect("no separator").1;
+    let groups: Vec<u32> = data[..data.len() - 6]
+        .chars()
+        .skip(1)
+        .map(|c| ALPHABET.find(c).expect("not bech32") as u32)
+        .collect();
+    let (mut acc, mut bits, mut out) = (0u32, 0, Vec::new());
+    for g in groups {
+        acc = acc << 5 | g;
+        bits += 5;
+        while bits >= 8 {
+            bits -= 8;
+            out.push((acc >> bits) as u8);
+            acc &= (1 << bits) - 1;
+        }
+    }
+    out.truncate(32);
+    assert_eq!(out.len(), 32, "the scan key is short");
+    out
 }
 
 #[test]

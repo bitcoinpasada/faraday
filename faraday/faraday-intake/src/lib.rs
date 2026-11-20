@@ -290,14 +290,15 @@ impl Accentless {
     }
 }
 
-/// The lists other than English that hold `word`, as (the list's place in
-/// `Language::ALL`, the word's index), the word read as the list spells it
-/// (decomposed, or composed as it is read) or without its accents, as the
-/// device's typed entry and its scanner take it, and in any case. Costs one
-/// hash lookup for all lists at once, and for a word that may be an
-/// accentless form a second (the index is built once, on first use, from
-/// the published lists). Empty for a word on no list, and for one longer
-/// than any listed word.
+/// Costs one or two hash lookups for all lists at once, and for a
+/// non-ASCII word an NFKD normalization of it (the index is built once, on
+/// first use, from the published lists). The lists other than English that
+/// hold `word`, as (the list's place in `Language::ALL`, the word's
+/// index), the word read as the list spells it (decomposed, or composed
+/// as it is read), without its accents, or, for a non-ASCII word, folded
+/// by NFKD and read with only some of its accents, as the device's typed
+/// entry and its scanner take it, and in any case. Empty for a word on no
+/// list, and for one longer than any listed word.
 pub fn other_list_entries(word: &str) -> Entries {
     use std::collections::HashMap;
     use std::hash::{BuildHasherDefault, Hasher};
