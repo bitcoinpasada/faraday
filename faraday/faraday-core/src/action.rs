@@ -877,6 +877,12 @@ pub enum Action {
     CPassOpen(u8),
     /// Typing goes to that passphrase field: 0 the first, 1 the second.
     CPassField(u8),
+    /// Open or close a slot's field for an xpub typed or pasted.
+    CXpubOpen(u8),
+    /// Typing goes to the slot's xpub field.
+    CXpubField,
+    /// Take the xpub typed in the slot's field.
+    CXpubTake,
     /// Lock in the slot's key with the passphrase typed.
     CPassLock,
     /// Leave a slot for a cosigner's key, to add later.
@@ -1803,6 +1809,9 @@ impl Faraday {
             | Action::CSlotClear(..)
             | Action::CPassOpen(..)
             | Action::CPassField(..)
+            | Action::CXpubOpen(..)
+            | Action::CXpubField
+            | Action::CXpubTake
             | Action::CPassLock) => self.create_act(a, &c),
             Action::Seeds(a) => self.seeds_act(a),
             Action::Slide(id, v) => self.slide(id, v),

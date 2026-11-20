@@ -412,7 +412,7 @@ fn kind_label(kind: NewKind) -> &'static str {
     clippy::too_many_arguments,
     reason = "a field's position, width, text, hint, focus and action"
 )]
-fn field(
+pub(crate) fn field(
     ui: &mut Ui,
     x: f32,
     y: f32,

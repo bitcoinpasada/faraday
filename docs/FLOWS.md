@@ -499,7 +499,12 @@ changes. An empty multisig slot with no making (Key 2 on, or Key 1 once
 a key made here holds another slot) offers **Scan its xpub** first and
 **New words** beside it, which opens the same making in that slot; one
 making stands at a time, so opening it on another slot drops the first,
-asking when rolls or words are in.
+asking when rolls or words are in. An empty or waiting multisig slot also
+offers **Type or paste an xpub**: a field under the slot takes the key,
+read as Restore's cosigner box reads one and then as a scanned xpub is
+(its origin, the wallet's path and its network); **Use this key** or Enter
+fills the slot, and a bare xpub, a malformed one or one of the other
+network is refused with its reason under the field.
 
 **A wallet's key stays in Make a new wallet** (owner, 2026-11-18). While a wallet is being made, no press and no event
 leaves Make a new wallet for the separate New key flow. Every way of

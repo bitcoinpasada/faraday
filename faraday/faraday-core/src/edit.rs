@@ -556,6 +556,7 @@ impl Faraday {
                 self.create
                     .state()
                     .is_some_and(|c| c.pass_slot.is_some() && c.pass_focus.is_some())
+                    || self.create.state().is_some_and(|c| c.xpub_slot.is_some())
                     || self.card_pass_focus().is_some()
                     || self.card_typing_rolls()
             }
@@ -656,7 +657,8 @@ impl Faraday {
                 .card_pass_focus()
                 .map(Action::KPassField)
                 .or_else(|| self.card_typing_rolls().then_some(Action::KTyping(true)))
-                .or_else(|| self.create.state()?.pass_focus.map(Action::CPassField)),
+                .or_else(|| self.create.state()?.pass_focus.map(Action::CPassField))
+                .or_else(|| self.create.state()?.xpub_slot.map(|_| Action::CXpubField)),
             Screen::SetTime => self.set_time.focus().map(Action::SetTimeFocus),
             _ => None,
         }
@@ -744,6 +746,7 @@ impl Faraday {
             Action::KTyping(_) => &self.keygen.state()?.entered,
             Action::CPassField(0) => &self.create.state()?.pass,
             Action::CPassField(_) => &self.create.state()?.pass2,
+            Action::CXpubField => &self.create.state()?.xpub,
             Action::TypeHere(h) => self.here_text(h)?,
             Action::PotentialType => &self.inbox.potential()?.passphrase,
             Action::PotentialTypeAgain => &self.inbox.potential()?.again,

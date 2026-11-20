@@ -232,6 +232,10 @@ pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     t.press(Action::CNext(faraday_core::cstep::KIND));
     t.press(Action::CNext(faraday_core::cstep::QUORUM));
     t.press(Action::CSlotLater(0));
+    t.press(Action::CXpubOpen(0));
+    crate::tour::scroll_to(t, Action::CXpubField);
+    t.shot("wallet-flow-13a-create-key-1-type-xpub")?;
+    t.press(Action::CXpubOpen(0));
     crate::tour::scroll_to(t, Action::KeyOnCard(1));
     t.shot("wallet-flow-13b-create-key-2-new-words")?;
     t.press(Action::KeyOnCard(1));

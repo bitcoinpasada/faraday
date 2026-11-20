@@ -524,6 +524,8 @@ fn key_slot(
         cy += slot_xpub_outputs(app, ui, c, (slot, src), pass_offered, at);
         let at = (x + indent, cy, w - indent);
         cy += slot_passphrase(app, ui, c, slot, pass_offered, at);
+        let at = (x + indent, cy, w - indent);
+        cy += slot_xpub_field(ui, c, slot, at);
     }
     ui.rule(x, cy, w, Role::OutlineVariant);
     cy += 10.0;
@@ -625,6 +627,13 @@ fn slot_choices(
             Action::ScanFor(crate::Ask::Xpub(slot as u8 + 1)),
         ));
     }
+    if c.kind.multi() && matches!(src, Source::Empty | Source::Later) {
+        row.push((
+            EN.create_type_xpub.to_string(),
+            Style::chosen(c.xpub_slot == Some(slot as u8)),
+            Action::CXpubOpen(slot as u8),
+        ));
+    }
     if c.kind.multi() && *src == Source::Empty {
         row.push((
             EN.create_someone_else.to_string(),
@@ -700,6 +709,46 @@ fn slot_xpub_outputs(
         }
         cy += button_rows(ui, x, cy, w, &row);
     }
+    cy - y
+}
+
+/// The field for an xpub typed or pasted, under the slot it is for, with
+/// why the last one was refused. Nothing for another slot.
+fn slot_xpub_field(
+    ui: &mut Ui,
+    c: &crate::CreateState,
+    slot: usize,
+    (x, y, w): (f32, f32, f32),
+) -> f32 {
+    if c.xpub_slot != Some(slot as u8) {
+        return 0.0;
+    }
+    let mut cy = y;
+    crate::seeds::screen::field(
+        ui,
+        x,
+        cy,
+        w,
+        &c.xpub,
+        EN.create_type_xpub,
+        true,
+        Action::CXpubField,
+    );
+    cy += tokens::TEXT_FIELD + tokens::GAP;
+    if let Some(n) = &c.xpub_note {
+        cy += ui.wrap_as((x, cy, w), BODY_M, Role::Error, n) + tokens::GAP_SMALL;
+    }
+    let bw = ui.measure_as(TITLE_S, EN.create_use_xpub) + tokens::SETUP_CONTINUE_PAD;
+    ui.button(
+        x + w - bw,
+        cy,
+        Some(bw),
+        BUTTON_H,
+        EN.create_use_xpub,
+        Style::Primary.when(!c.xpub.trim().is_empty()),
+        Action::CXpubTake,
+    );
+    cy += tokens::FIELD;
     cy - y
 }
 

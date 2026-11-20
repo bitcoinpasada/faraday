@@ -1560,3 +1560,68 @@ fn a_multisig_key_made_with_the_stick_pulled_at_the_warning_stays_in_the_wallet(
     assert_eq!(app.sheet, None);
     assert!(making_on_the_card(&app), "{:?}", app.screen);
 }
+
+/// A 2-of-3 on the test network, its first slot open, and its xpub field
+/// opened beside it.
+fn typing_an_xpub_into_slot_zero() -> Faraday {
+    let mut app = testkit::started();
+    testkit::move_to(&mut app.session, testkit::NET).unwrap();
+    app.press(Action::CreateWallet);
+    crate::common::ckind(&mut app, multi_index());
+    app.press(Action::CNext(cstep::KIND));
+    app.press(Action::CNext(cstep::QUORUM));
+    let _ = app.frame();
+    assert!(
+        app.offers(Action::CXpubOpen(0)),
+        "an empty slot offers a typed or pasted xpub"
+    );
+    app.press(Action::CXpubOpen(0));
+    app
+}
+
+#[test]
+fn a_typed_xpub_with_its_origin_fills_the_slot() {
+    use faraday_core::create::Source;
+    let mut app = typing_an_xpub_into_slot_zero();
+    let key = testkit::key(0, &testkit::on_net("m/48'/1'/0'/2'"));
+    crate::common::type_text(&mut app, &key);
+    app.press(Action::CXpubTake);
+    let c = app.create().unwrap();
+    assert_eq!(c.slots[0], Source::Cosigner(faraday_text::Text::of(&key)));
+    assert_eq!(c.xpub_slot, None, "the field closes");
+}
+
+#[test]
+fn a_bare_xpub_typed_is_refused_for_want_of_its_origin() {
+    use faraday_core::create::Source;
+    let mut app = typing_an_xpub_into_slot_zero();
+    let key = testkit::key(0, &testkit::on_net("m/48'/1'/0'/2'"));
+    let bare = key.split_once(']').unwrap().1;
+    crate::common::type_text(&mut app, bare);
+    app.press(Action::CXpubTake);
+    let c = app.create().unwrap();
+    assert_eq!(c.slots[0], Source::Empty, "nothing fills the slot");
+    assert_eq!(
+        c.xpub_note.as_deref(),
+        Some("its key has no fingerprint and derivation path; most wallets export a key with them"),
+        "the reason a scanned bare xpub is given here too"
+    );
+}
+
+#[test]
+fn a_malformed_or_wrong_network_xpub_typed_is_refused() {
+    use faraday_core::create::Source;
+    let mut app = typing_an_xpub_into_slot_zero();
+    crate::common::type_text(&mut app, "[deadbeef/48'/1'/0'/2']xpub-not-a-key");
+    app.press(Action::CXpubTake);
+    assert_eq!(app.create().unwrap().slots[0], Source::Empty);
+    assert!(app.create().unwrap().xpub_note.is_some(), "it says why");
+    // A key of the other network.
+    let mut app = typing_an_xpub_into_slot_zero();
+    let key = testkit::key(0, "m/48'/1'/0'/2'");
+    let main = key.replacen("tpub", "xpub", 1);
+    crate::common::type_text(&mut app, &main);
+    app.press(Action::CXpubTake);
+    assert_eq!(app.create().unwrap().slots[0], Source::Empty);
+    assert!(app.create().unwrap().xpub_note.is_some(), "it says why");
+}

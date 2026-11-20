@@ -58,6 +58,10 @@ macro_rules! words_create {
     create_scan_coin: "its path's coin type is not its key's network",
     /// Why, in `create_scan_not_in_slot`. `{}`: the kind's name.
     create_scan_no_key: "none of its keys is for {}",
+    /// A slot's choice, and the hint in its field: a key typed or pasted in.
+    create_type_xpub: "Type or paste an xpub",
+    /// The button taking the xpub typed in a slot's field.
+    create_use_xpub: "Use this key",
     // ----- Make a new wallet: who signs, then a single key's Backup card (F240), and fewer presses, faraday-core/src/create.rs and screens/create.rs -----
     /// Backup card's row: the key backed up as its BIP-39 words.
     create_backup_words: "Words (BIP-39)",

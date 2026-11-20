@@ -1027,6 +1027,12 @@ pub struct CreateState {
     pub pass2: secret_text::SecretText,
     /// Which of the two fields typing goes to, if either.
     pub pass_focus: Option<u8>,
+    /// The slot whose field for a typed or pasted xpub is open.
+    pub xpub_slot: Option<u8>,
+    /// The xpub typed there.
+    pub xpub: Text,
+    /// Why the last key typed in was refused.
+    pub xpub_note: Option<Text>,
     /// Why the last Lock in did nothing.
     pub pass_note: Option<Text>,
     /// Keys locked in with a passphrase here, by fingerprint: their slot
@@ -1102,6 +1108,13 @@ impl CreateState {
     /// The person turned on Keys' row, a vault already on a stick.
     pub fn uses_existing_vault(&self) -> bool {
         self.vaults.answer == Some(true)
+    }
+
+    /// Closes the field for a typed xpub, forgetting what was typed.
+    pub(crate) fn close_xpub(&mut self) {
+        self.xpub_slot = None;
+        self.xpub.clear();
+        self.xpub_note = None;
     }
 
     /// Closes a slot's passphrase fields, forgetting what was typed.
@@ -1505,6 +1518,17 @@ impl CreateArea {
                     }
                 }
             }
+            Action::CXpubOpen(k) => {
+                if let Some(c) = self.state.as_mut() {
+                    if c.xpub_slot == Some(k) {
+                        c.close_xpub();
+                    } else if c.built.is_none() {
+                        c.close_xpub();
+                        c.close_pass();
+                        c.xpub_slot = Some(k);
+                    }
+                }
+            }
             Action::CPassField(f) => {
                 if let Some(c) = self.state.as_mut()
                     && c.pass_slot.is_some()
@@ -1758,9 +1782,12 @@ impl Faraday {
             | Action::CSlotLater(_)
             | Action::CSlotClear(_)
             | Action::CPassOpen(_)
+            | Action::CXpubOpen(_)
             | Action::CPassField(_) => {
                 self.create.edit(action);
             }
+            Action::CXpubField => {}
+            Action::CXpubTake => self.create_xpub_take(),
             Action::CPassLock => self.create_pass_lock(),
             // `act_inner` passes only the actions matched above.
             _ => unreachable!(),
@@ -2158,6 +2185,58 @@ impl Faraday {
             }
             Err(e) => cs.pass_note = Some(e),
         }
+    }
+
+    /// Takes the xpub typed in the open slot's field as a scanned one
+    /// is taken (`key_for_slot`), after the reading Restore's box gives
+    /// it ([`crate::seeds::cosigner_key`]); why not goes under the field.
+    pub(crate) fn create_xpub_take(&mut self) {
+        let Some((slot, typed)) = self
+            .create
+            .state
+            .as_ref()
+            .and_then(|c| Some((c.xpub_slot?, c.xpub.clone())))
+        else {
+            return;
+        };
+        let taken = match crate::seeds::cosigner_key(&typed) {
+            Some(key) => self.create_slot_file_key(slot, &key),
+            None => Err(Text::of(EN.seeds_not_an_account)),
+        };
+        if let Some(c) = self.create.state.as_mut() {
+            match taken {
+                Ok(()) => c.close_xpub(),
+                Err(e) => c.xpub_note = Some(e),
+            }
+        }
+    }
+
+    /// Keys typed while a Create slot's xpub field is open. Returns
+    /// whether they took the key.
+    pub(crate) fn create_xpub_key(&mut self, key: KeyIn) -> bool {
+        if self.screen != Screen::Create || self.sheet.is_some() {
+            return false;
+        }
+        let Some(c) = self.create.state.as_mut().filter(|c| c.xpub_slot.is_some()) else {
+            return false;
+        };
+        match key {
+            KeyIn::Char(ch) if !ch.is_control() && c.xpub.chars().count() < 400 => c.xpub.push(ch),
+            KeyIn::Backspace => {
+                c.xpub.pop();
+            }
+            KeyIn::Escape => {
+                c.close_xpub();
+                return true;
+            }
+            KeyIn::Enter => {
+                self.create_xpub_take();
+                return true;
+            }
+            _ => return false,
+        }
+        c.xpub_note = None;
+        true
     }
 
     /// Keys typed while a Create slot's passphrase fields have focus.

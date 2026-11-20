@@ -1278,7 +1278,11 @@ impl Faraday {
         if self.explore_key(key) || self.silent_key(key) {
             return;
         }
-        if self.bip85_key(key) || self.keygen_key(key) || self.create_pass_key(key) {
+        if self.bip85_key(key)
+            || self.keygen_key(key)
+            || self.create_pass_key(key)
+            || self.create_xpub_key(key)
+        {
             return;
         }
         if self.set_time_key(key) || self.own_key(key) {

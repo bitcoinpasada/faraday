@@ -367,6 +367,7 @@ pub(crate) fn field_action(a: Action) -> bool {
             | Action::EntryPassphraseAgain
             | Action::KPassField(_)
             | Action::CPassField(_)
+            | Action::CXpubField
             | Action::SeedRead(seeds::read::Choice::Field(_))
             | Action::KefRead(crate::seeds::kef::KefAct::Field)
             | Action::Rename
