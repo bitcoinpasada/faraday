@@ -190,12 +190,12 @@ const LOAD_CONFIG_SYMBOL: &str = "_load_config_used";
 /// A COFF object (x86-64) holding a section `.lcfg` with the `.exe`'s load
 /// configuration, `IMAGE_LOAD_CONFIG_DIRECTORY64` up to and including
 /// `DependentLoadFlags` (offset 0x4E), its `Size` the 0x50 bytes written.
-/// The flags are `LOAD_LIBRARY_SEARCH_SYSTEM32`: Windows then resolves
-/// every library the `.exe` itself imports from System32 only, never from
-/// the folder the program was started from (a download folder holds files
-/// from anywhere); the elevated copy is this same file. They do not cover
-/// what those libraries load in turn: `main` calls
-/// `SetDefaultDllDirectories` for that (`faraday-window`'s `system32`). LLD
+/// The flags are `LOAD_LIBRARY_SEARCH_SYSTEM32`, for what the libraries
+/// loaded later load in turn. They do not apply to the `.exe`'s own imports
+/// (those are mapped first): those are KnownDLLs and API sets only, with
+/// `uxtheme.dll` and `dwmapi.dll` delay-loaded and `propsys.dll` loaded by
+/// name, and `main` calls `SetDefaultDllDirectories` first
+/// (`faraday-window`'s `system32`). LLD
 /// points the image's load configuration directory at the symbol
 /// `_load_config_used`; `build.sh` fails the build when the flag is not in
 /// the finished `.exe`. The object is written here as bytes, so no

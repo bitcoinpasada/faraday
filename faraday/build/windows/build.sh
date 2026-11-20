@@ -44,10 +44,12 @@ export HOME=/root RUST_TARGET="$target"
 . /src/faraday/image/path-remap.sh
 export RUSTFLAGS="$RUSTFLAGS --remap-path-prefix=$CARGO_TARGET_DIR=/target"
 # Linked by LLD (F297), with uxtheme.dll and dwmapi.dll delay-loaded
-# (faraday/shells/window/build.rs makes their import libraries) and GNU
+# (faraday/shells/window/build.rs makes their import libraries), the
+# load configuration's DependentLoadFlags set by the linker too, and GNU
 # ld's 2 MiB reserve for the main thread's stack, which LLD halves.
 RUSTFLAGS="$RUSTFLAGS -C link-arg=-fuse-ld=lld -C link-arg=-Wl,--delayload=uxtheme.dll"
 RUSTFLAGS="$RUSTFLAGS -C link-arg=-Wl,--delayload=dwmapi.dll -C link-arg=-Wl,--stack,2097152"
+RUSTFLAGS="$RUSTFLAGS -C link-arg=-Wl,--dependent-load-flag=0x800"
 export RUSTFLAGS
 # The symbols are not needed to run it, and are most of its size.
 export CARGO_PROFILE_RELEASE_STRIP=symbols
@@ -78,24 +80,32 @@ for dll in $dlls; do
     case " $allowed " in *" $name "*) ;; *) die "$bin.exe imports $dll, which is not in the list of allowed libraries" ;; esac
 done
 # The delay-loaded libraries are exactly dwmapi.dll and uxtheme.dll, and
-# each one's import address table, which mingw-w64's delay-load helper
-# writes at first use, lies in a writable section.
-delayed="$(llvm-readobj --coff-imports "$exe" | awk '/^DelayImport/ {d = 1} /^Import \{/ {d = 0} d && $1 == "Name:" {print $2}' | tr 'A-Z' 'a-z' | sort -u | tr '\n' ' ')"
+# each one's import address table and module handle slot, which mingw-w64's
+# delay-load helper writes at first use, lie in a writable section. (The
+# readobj output is read into a variable first: a failure there stops the
+# build, where a failing command inside a for list would run the loop zero
+# times.)
+readobj="$(llvm-readobj --coff-imports "$exe")"
+delayed="$(printf '%s\n' "$readobj" | awk '/^DelayImport/ {d = 1} /^Import \{/ {d = 0} d && $1 == "Name:" {print $2}' | tr 'A-Z' 'a-z' | sort -u | tr '\n' ' ')"
 [ "$delayed" = "dwmapi.dll uxtheme.dll " ] || die "$bin.exe delay-loads: ${delayed:-nothing}, not dwmapi.dll and uxtheme.dll"
-for iat in $(llvm-readobj --coff-imports "$exe" | sed -n 's/^  ImportAddressTable: 0x//p'); do
+slots="$(printf '%s\n' "$readobj" | awk '/^DelayImport/ {d = 1} /^Import \{/ {d = 0} d && ($1 == "ModuleHandle:" || $1 == "ImportAddressTable:") {sub(/^0x/, "", $2); print $2}')"
+[ "$(printf '%s\n' "$slots" | grep -c . || true)" -eq 4 ] || die "$bin.exe's delay imports do not show two module handles and two address tables"
+for slot in $slots; do
     w="$(printf '%s\n' "$sections" | while read -r idx name size vma rest; do
         case "$idx" in [0-9]*) ;; *) continue ;; esac
         read -r flags
         r=$((16#$vma - 16#$base))
-        if [ $((16#$iat)) -ge $r ] && [ $((16#$iat)) -lt $((r + 16#$size)) ]; then
+        if [ $((16#$slot)) -ge $r ] && [ $((16#$slot)) -lt $((r + 16#$size)) ]; then
             case "$flags" in *READONLY*) echo "ro $name" ;; *) echo "w $name" ;; esac
         fi
     done)"
-    case "$w" in "w "*) ;; *) die "$bin.exe's delay-import address table at 0x$iat is not in a writable section" ;; esac
+    case "$w" in "w "*) ;; *) die "$bin.exe's delay-import slot at 0x$slot is not in a writable section" ;; esac
 done
 echo "$bin.exe delay-loads: $delayed"
 
-# DependentLoadFlags is LOAD_LIBRARY_SEARCH_SYSTEM32 (0x800): read from
+# DependentLoadFlags is LOAD_LIBRARY_SEARCH_SYSTEM32 (0x800). It does not
+# apply to the .exe's own imports (KnownDLLs and API sets only, above); it
+# is kept for what the libraries loaded later load in turn. Read from
 # the load configuration (the flags at offset 0x4e), whose Size (offset 0)
 # must reach 0x50, the end of the flags, and so must the directory's size.
 cfg="$(printf '%s\n' "$dumped" | sed -n 's/^Entry a \([0-9a-f]*\) .*Load Configuration.*/\1/p')"
@@ -110,7 +120,7 @@ structsize="$(x86_64-w64-mingw32-objdump -s --start-address="$at" --stop-address
     | sed -n 's/^ *[0-9a-f]* \([0-9a-f]\{8\}\) .*/\1/p')"
 [ "$structsize" = 50000000 ] || die "$bin.exe's load configuration Size is not 0x50 (found: ${structsize:-none})"
 [ "$flags" = 0008 ] || die "$bin.exe's DependentLoadFlags is not LOAD_LIBRARY_SEARCH_SYSTEM32 (found: ${flags:-none})"
-echo "$bin.exe: libraries are loaded from System32 only"
+echo "$bin.exe: load configuration Size 0x50, DependentLoadFlags LOAD_LIBRARY_SEARCH_SYSTEM32"
 
 # Its resources: the manifest asks for no elevation.
 # (Not grep -q: it would end the pipe early, and pipefail would take that

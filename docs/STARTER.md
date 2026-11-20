@@ -240,20 +240,21 @@ samples compiled in (F126, §5.3).
   (`faraday/build/windows/resources.rs`); and `just faraday-windows-bin
   build out/windows out/build/run faraday-demo faraday` builds it
   into `out/windows/faraday.exe` through the same checks as the Starter
-  (the default arguments build the Starter). Both programs load libraries
-  from System32 only: the `.exe` carries a load configuration with
-  `LOAD_LIBRARY_SEARCH_SYSTEM32` (written by `resources.rs`, pointed at by
-  the linker, LLD, and checked by `build.sh`, which fails the build when the
-  flag or the structure's size is wrong, an import is not on the list, or
-  the delay-loaded libraries are not exactly `uxtheme.dll` and `dwmapi.dll`
-  with a writable address table), and `main` calls `SetDefaultDllDirectories`
-  first for the libraries those load in turn, stopping the program if it
-  fails. The load configuration's flags do not apply to an `.exe`'s own
-  imports, so the program imports no library that is not a KnownDLL: winit's `uxtheme.dll` and `dwmapi.dll` are
-  delay-loaded (`faraday/shells/window/build.rs` makes their import
-  libraries, F297), loaded at first use, after that call, from System32
-  only (a missing one stops the program), and `propsys.dll` is loaded by
-  name with `LoadLibraryExW` at use, from System32 only (F297). The computer's free memory
+  (the default arguments build the Starter). Both programs map no library from their own folder at start:
+  their static imports are KnownDLLs and API sets only. `uxtheme.dll` and
+  `dwmapi.dll` (winit's) are delay-loaded (`faraday/shells/window/build.rs`
+  makes their import libraries, F297), loaded at first use under `main`'s
+  `SetDefaultDllDirectories`, so from System32 only (a missing one stops
+  the program), and `propsys.dll` is loaded by name with `LoadLibraryExW`
+  at use, from System32 only. `main` calls `SetDefaultDllDirectories` first,
+  stopping the program if it fails. The `.exe` also carries a load
+  configuration with `LOAD_LIBRARY_SEARCH_SYSTEM32` (written by
+  `resources.rs`, pointed at by the linker, LLD); it does not apply to the
+  `.exe`'s own imports, and is kept for what the libraries loaded later
+  load in turn. `build.sh` fails the build when the flag or the structure's
+  size is wrong, an import is not on the list, or the delay-loaded
+  libraries are not exactly `uxtheme.dll` and `dwmapi.dll` with their
+  address tables and module handle slots in a writable section. The computer's free memory
   is read only on Linux; elsewhere the vault offers its largest unlock
   memory and checks none against this computer. The camera module the
   desktop app shares with the Starter is §8's. The Windows Starter
