@@ -135,6 +135,15 @@ fn scan_floats_on_the_five_destinations() {
     for (w, h) in [(1280, 800), (400, 800)] {
         for screen in FIVE {
             let mut app = sized(w, h, 160);
+            // A vault file in Files: Vaults shows its page, not New vault.
+            app.storage(faraday_core::StorageEvent::Restored {
+                inbox: faraday_core::files_from(vec![(
+                    "vault.kdbx".to_string(),
+                    faraday_core::testkit::test_vault().unwrap(),
+                )]),
+                outbox: Vec::new(),
+                kept: Vec::new(),
+            });
             app.press(Action::Nav(screen));
             let _ = app.frame();
             assert!(floats_scan(&app, w, h), "{screen:?} at {w}x{h}");

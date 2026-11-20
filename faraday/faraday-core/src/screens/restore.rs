@@ -324,11 +324,11 @@ fn restore_description(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy += ui.advance_as(BODY_S, 22.0);
         for (k, name) in &shares {
             let on = r.shares.iter().any(|s| s == name);
-            ui.checkbox(x, cy + 8.0, on, true);
+            ui.checkbox(x, cy + 15.0, on, true);
             let name = ui.fit_as(BODY_M.mono(), name, w - 30.0);
-            ui.text_mid_as((x + 30.0, cy, 34.0), BODY_M.mono(), Role::OnSurface, &name);
-            ui.press_box(x, cy, w, 34.0, Action::RShare(*k));
-            cy += 38.0;
+            ui.text_mid_as((x + 30.0, cy, 48.0), BODY_M.mono(), Role::OnSurface, &name);
+            ui.press_box(x, cy, w, 48.0, Action::RShare(*k));
+            cy += 52.0;
         }
         let texts = app.restore_share_texts();
         if !texts.is_empty() {

@@ -378,14 +378,12 @@ fn glance_passphrase(app: &mut Faraday) {
 }
 
 fn restore_typed_shares(app: &mut Faraday) {
-    use faraday_core::rstep::{KIND, QUORUM, WHERE};
+    use faraday_core::rstep::{KIND, QUORUM};
     app.press(Action::RestoreWallet);
     app.press(Action::RKind(4));
     app.press(Action::RNext(KIND));
     app.press(Action::RNext(QUORUM));
     app.press(Action::RSeeds);
-    app.press(Action::RVaults(false));
-    app.press(Action::RNext(WHERE));
     app.press(Action::RSlotWords);
     type_text(app, PHRASE);
 }

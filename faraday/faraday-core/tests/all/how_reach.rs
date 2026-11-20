@@ -158,6 +158,18 @@ fn on_screen(name: &str, w: u16, h: u16, dpi: u16) -> Faraday {
             .unwrap();
         app.press(Action::Catalog(tile as u8));
     } else {
+        if name == "Vaults" {
+            // With no vault file in Files, Vaults opens New vault: the
+            // page itself needs one.
+            app.storage(StorageEvent::Restored {
+                inbox: faraday_core::files_from(vec![(
+                    faraday_text::Text::of("vault.kdbx"),
+                    testkit::test_vault().unwrap(),
+                )]),
+                outbox: Vec::new(),
+                kept: Vec::new(),
+            });
+        }
         app.press(Action::Nav(screen(name)));
     }
     app.settle();

@@ -58,6 +58,15 @@ fn on_passphrase() -> Faraday {
 fn the_button_is_offered_where_typing_goes_somewhere_and_nowhere_else() {
     let mut app = on_passphrase();
     assert!(offered(&mut app, SHOW).is_some(), "a focused field");
+    // A vault file in Files: Vaults shows its page, not New vault.
+    app.storage(faraday_core::StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![(
+            "vault.kdbx".to_string(),
+            faraday_core::testkit::test_vault().unwrap(),
+        )]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
     app.press(Action::Nav(Screen::Catalog));
     assert!(
         offered(&mut app, SHOW).is_some(),

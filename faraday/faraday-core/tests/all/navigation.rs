@@ -49,11 +49,12 @@ fn tap(app: &mut Faraday, (x, y): (u16, u16)) {
     let _ = app.frame();
 }
 
-/// The five destinations and the screen each opens.
+/// The five destinations and the screen each opens. Vaults opens New
+/// vault while Files holds no vault file.
 const FIVE: [(Screen, Screen); 5] = [
     (Screen::WalletsStart, Screen::WalletsStart),
     (Screen::Files, Screen::Files),
-    (Screen::Vaults, Screen::Vaults),
+    (Screen::Vaults, Screen::CreateVault),
     (Screen::Catalog, Screen::Catalog),
     (Screen::Home, Screen::Home),
 ];
@@ -252,6 +253,15 @@ fn a_flow_in_progress_shows_its_chip_on_every_destination() {
     for (w, h) in [(400, 800), (760, 1000), (960, 580)] {
         let mut app = on(w, h, 160);
         flow_begun(&mut app);
+        // A vault file in Files: Vaults shows its page, not New vault.
+        app.storage(StorageEvent::Restored {
+            inbox: faraday_core::files_from(vec![(
+                "vault.kdbx".to_string(),
+                testkit::test_vault().unwrap(),
+            )]),
+            outbox: Vec::new(),
+            kept: Vec::new(),
+        });
         for dest in [
             Screen::Home,
             Screen::WalletsStart,

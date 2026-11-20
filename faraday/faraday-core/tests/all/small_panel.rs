@@ -176,8 +176,8 @@ fn a_wallet_is_made_by_touch_from_a_key_rolled_on_dice() {
 #[test]
 fn a_passphrase_field_brings_the_keyboard_and_stays_above_it() {
     let mut app = panel();
+    // With no vault file in Files, Vaults opens New vault itself.
     tap(&mut app, Action::Nav(Screen::Vaults));
-    tap(&mut app, Action::Vault(V::Create));
     assert_eq!(app.screen, Screen::CreateVault);
     // It opens on Name and passphrase at its top, nothing focused and
     // the keyboard down; a tap on a field brings it up.
@@ -239,8 +239,8 @@ fn in_view(app: &mut Faraday, h: u16, action: Action) -> bool {
 /// Each step of Create a vault and Make a new wallet, opened on its own:
 /// its forward action is on the panel without scrolling.
 fn forward_in_view(mut app: Faraday, h: u16) {
+    // With no vault file in Files, Vaults opens New vault itself.
     tap(&mut app, Action::Nav(Screen::Vaults));
-    tap(&mut app, Action::Vault(V::Create));
     // The size, opened on its own; then Customise's two cards in its
     // place.
     tap(&mut app, Action::Vault(V::CStep(vstep::PRESET)));
@@ -263,14 +263,13 @@ fn forward_in_view(mut app: Faraday, h: u16) {
         in_view(&mut app, h, Action::Vault(V::CGo)),
         "Create vault, on the last step"
     );
-    // Back, by the bar, through the steps to Vaults (F104), then Home.
+    // Back, through the steps to Home, where Vaults was pressed.
     for _ in 0..8 {
         if app.screen == Screen::CreateVault {
-            tap(&mut app, Action::Nav(Screen::Vaults));
+            tap(&mut app, Action::Nav(Screen::Home));
         }
     }
-    assert_eq!(app.screen, Screen::Vaults);
-    tap(&mut app, Action::Nav(Screen::Home));
+    assert_eq!(app.screen, Screen::Home);
     tap(&mut app, Action::Nav(Screen::WalletsStart));
     tap(&mut app, Action::CreateWallet);
     // Create opens on Kind. A row is Kind's forward action: Single key
@@ -449,8 +448,8 @@ fn scan_never_covers_a_tile() {
 #[test]
 fn a_flow_s_page_title_carries_no_count() {
     let mut app = panel();
+    // With no vault file in Files, Vaults opens New vault itself.
     tap(&mut app, Action::Nav(Screen::Vaults));
-    tap(&mut app, Action::Vault(V::Create));
     let texts = app.drawn_texts();
     // Create a vault is two cards, and opens on the second: the size
     // has its default. The title wraps onto
