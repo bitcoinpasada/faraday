@@ -18,6 +18,7 @@
 //! the main thread does.
 
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, Sender, TryRecvError, channel};
 use std::sync::{Arc, Mutex, MutexGuard, TryLockError};
 use std::thread::{self, JoinHandle};
@@ -115,6 +116,9 @@ pub struct Work {
     request: Option<Sender<Job>>,
     reply: Receiver<Reply>,
     thread: Option<JoinHandle<()>>,
+    /// Set by [`Work::finish`]: a job waiting for a vault to end stops
+    /// waiting.
+    stop: Arc<AtomicBool>,
     listing: bool,
     timings: bool,
     boot_report: bool,
@@ -126,11 +130,13 @@ impl Work {
     pub fn start(disk: Disk) -> Option<Work> {
         let (request, requests) = channel::<Job>();
         let (replies, reply) = channel();
+        let stop = Arc::new(AtomicBool::new(false));
+        let stopped = Arc::clone(&stop);
         let thread = thread::Builder::new()
             .name(String::from("disk-work"))
             .spawn(move || {
                 for job in requests {
-                    if replies.send(run(&disk, job)).is_err() {
+                    if replies.send(run(&disk, &stopped, job)).is_err() {
                         return;
                     }
                 }
@@ -140,6 +146,7 @@ impl Work {
             request: Some(request),
             reply,
             thread: Some(thread),
+            stop,
             listing: false,
             timings: false,
             boot_report: false,
@@ -226,6 +233,9 @@ impl Work {
     ///
     /// When the thread panicked.
     pub fn finish(&mut self) -> Vec<Reply> {
+        // A job waiting for a vault in pieces to end would wait its full
+        // time: nothing steps the transfer any more.
+        self.stop.store(true, Ordering::Relaxed);
         self.request = None;
         if let Some(thread) = self.thread.take() {
             assert!(
@@ -248,11 +258,22 @@ const IDLE_WAIT: Duration = Duration::from_secs(15);
 /// The disk once no vault is in pieces: a call made behind one would wait
 /// out its pieces holding the lock. The lock is let go between looks, so
 /// the loop goes on with the vault. Past [`IDLE_WAIT`], as it is.
-fn idle(disk: &Disk) -> MutexGuard<'_, DiskProcess> {
-    let until = Instant::now() + IDLE_WAIT;
+fn idle<'a>(disk: &'a Disk, stop: &AtomicBool) -> MutexGuard<'a, DiskProcess> {
+    waiting(disk, stop, DiskProcess::busy, IDLE_WAIT)
+}
+
+/// [`idle`] for any handle: `busy` says whether to wait, up to `wait`, or
+/// until `stop` is set.
+fn waiting<'a, T>(
+    disk: &'a Mutex<T>,
+    stop: &AtomicBool,
+    busy: fn(&T) -> bool,
+    wait: Duration,
+) -> MutexGuard<'a, T> {
+    let until = Instant::now() + wait;
     loop {
         let held = lock(disk);
-        if !held.busy() || Instant::now() >= until {
+        if !busy(&held) || stop.load(Ordering::Relaxed) || Instant::now() >= until {
             return held;
         }
         drop(held);
@@ -261,11 +282,11 @@ fn idle(disk: &Disk) -> MutexGuard<'_, DiskProcess> {
 }
 
 /// One job, on the thread.
-fn run(disk: &Disk, job: Job) -> Reply {
+fn run(disk: &Disk, stop: &AtomicBool, job: Job) -> Reply {
     match job {
-        Job::List { hide_waiting } => Reply::Listed(list(&mut idle(disk), hide_waiting)),
+        Job::List { hide_waiting } => Reply::Listed(list(&mut idle(disk, stop), hide_waiting)),
         Job::Timings { stick, name, text } => Reply::Timings(
-            idle(disk)
+            idle(disk, stop)
                 .write_copies(&stick, &name, text.as_bytes(), &[], true, false)
                 .is_ok(),
         ),
@@ -276,7 +297,7 @@ fn run(disk: &Disk, job: Job) -> Reply {
             blocks.push_str(&devnodes::block(Path::new("/")));
             let text = bootreport::compose(&kernel, &r.inventory, &blocks, r.elapsed);
             let start = Instant::now();
-            let wrote = idle(disk)
+            let wrote = idle(disk, stop)
                 .write_copies(&r.stick, &r.name, text.as_bytes(), &[], true, false)
                 .map(drop)
                 .map_err(|e| String::from(&*e));
@@ -292,6 +313,17 @@ fn run(disk: &Disk, job: Job) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_job_waiting_for_a_vault_stops_waiting_when_the_run_ends() {
+        let m = Mutex::new(1u8);
+        let stop = AtomicBool::new(false);
+        let long = Duration::from_secs(30);
+        let started = Instant::now();
+        stop.store(true, Ordering::Relaxed);
+        drop(waiting(&m, &stop, |_| true, long));
+        assert!(started.elapsed() < Duration::from_secs(5));
+    }
 
     #[test]
     fn a_pass_with_nothing_asked_skips_a_busy_disk_and_one_asking_waits() {

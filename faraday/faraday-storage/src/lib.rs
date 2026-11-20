@@ -117,6 +117,10 @@ pub fn read_qr_png(
     faraday_files::read_qr_png(c, &mut dir(stick), name)
 }
 
+/// The app's requests for the disk process, held back while a vault is in
+/// pieces, in the app's order.
+pub type Held = std::collections::VecDeque<StorageCommand>;
+
 /// Where the sticks' files are: folders, or the disk process.
 pub trait Sticks {
     /// One file's bytes.
@@ -157,10 +161,16 @@ pub trait Sticks {
         Vec::new()
     }
     /// Whether a vault is being transferred or waits to be: a request made
-    /// now would wait behind it, so the app's requests are left queued
-    /// until it is over ([`serve_with`]).
+    /// now would wait behind it, so the app's requests for the disk process
+    /// are held until it is over ([`serve_with`]).
     fn busy(&self) -> bool {
         false
+    }
+    /// Where the requests that reach the disk process wait while
+    /// [`Sticks::busy`], in the app's order; `None` where nothing is ever
+    /// busy.
+    fn held_queue(&mut self) -> Option<&mut Held> {
+        None
     }
     /// Starts the read of a vault for its SHA-256 off the shell's thread;
     /// false where this place does not, and the file is read now.
@@ -911,9 +921,10 @@ pub fn serve_with(
         for done in sticks.transferred() {
             delivered(app, sticks, &mut said, done);
         }
-        if !app.storage_pending() || sticks.busy() {
-            // Requests left queued while a vault is in pieces are served
-            // on a pass after it: the shell serves on every pass.
+        let held = !sticks.busy() && sticks.held_queue().is_some_and(|q| !q.is_empty());
+        if !app.storage_pending() && !held {
+            // Requests held while a vault is in pieces are served on a
+            // pass after it: the shell serves on every pass.
             break;
         }
         serve_queued(app, boxes, host, print, sticks, &mut said);
@@ -998,6 +1009,41 @@ fn delivered(app: &mut Faraday, sticks: &mut dyn Sticks, said: &mut Vec<Text>, d
     app.storage(ev);
 }
 
+/// Whether a request is answered by the disk process.
+fn reaches_disk(c: &StorageCommand) -> bool {
+    !matches!(
+        c,
+        StorageCommand::Print { .. }
+            | StorageCommand::ReadHost { .. }
+            | StorageCommand::SaveDownload { .. }
+            | StorageCommand::OpenInstitute
+            | StorageCommand::OpenDownloads
+            | StorageCommand::ForgetBoxes
+            | StorageCommand::SaveBoxes { .. }
+    )
+}
+
+/// The next request to serve now: the held ones first once no vault is in
+/// pieces, then the app's; while one is, a request for the disk process is
+/// held and the next taken.
+fn next_command(app: &mut Faraday, sticks: &mut dyn Sticks) -> Option<StorageCommand> {
+    loop {
+        let busy = sticks.busy();
+        if !busy && let Some(c) = sticks.held_queue().and_then(|q| q.pop_front()) {
+            return Some(c);
+        }
+        let c = app.poll_storage()?;
+        if busy
+            && reaches_disk(&c)
+            && let Some(q) = sticks.held_queue()
+        {
+            q.push_back(c);
+            continue;
+        }
+        return Some(c);
+    }
+}
+
 /// Answers the storage requests the app has queued now.
 fn serve_queued(
     app: &mut Faraday,
@@ -1007,13 +1053,14 @@ fn serve_queued(
     sticks: &mut dyn Sticks,
     said: &mut Vec<Text>,
 ) {
-    // A request is taken only while no vault is in pieces: behind it, it
-    // would wait the length of a slow piece holding the disk's lock, and
-    // refused it would read as the stick failing. Left in the app's queue
-    // it is served on a later pass.
-    while !sticks.busy()
-        && let Some(c) = app.poll_storage()
-    {
+    // A request that reaches the disk process is held while a vault is in
+    // pieces: behind it, it would wait the length of a slow piece holding
+    // the disk's lock, and refused it would read as the stick failing. It
+    // is served on a later pass, in the app's order among the disk's.
+    // The others (the boxes, print, the host's folders) never touch the
+    // disk process and are served at once: a lock queues the boxes' save
+    // and then the exit, and the save must not be left behind.
+    while let Some(c) = next_command(app, sticks) {
         match c {
             StorageCommand::Read { stick, name } => {
                 let read = Transfer::Read {
@@ -1316,6 +1363,9 @@ pub struct DiskProcess {
     transfers_done: Vec<Transferred>,
     /// Vaults read for their SHA-256, not yet answered.
     hashing: Vec<(Text, Text)>,
+    /// The app's requests for the disk process, held while a vault is in
+    /// pieces ([`serve_with`]).
+    held: Held,
     /// The reader has ended: nothing more is read, so nothing more is
     /// written (a large request would block on the full pipe, holding the
     /// disk's lock). Every ask fails at once.
@@ -1431,6 +1481,7 @@ impl DiskProcess {
             transfer: None,
             transfers_done: Vec::new(),
             hashing: Vec::new(),
+            held: std::collections::VecDeque::new(),
             dead: false,
         })
     }
@@ -2152,6 +2203,10 @@ impl Sticks for DiskProcess {
 
     fn busy(&self) -> bool {
         self.transfer.is_some() || !self.transfers.is_empty()
+    }
+
+    fn held_queue(&mut self) -> Option<&mut Held> {
+        Some(&mut self.held)
     }
 
     fn hash_later(&mut self, stick: &str, name: &str) -> bool {

@@ -196,6 +196,10 @@ impl Sticks for Timed<'_> {
         self.sticks.busy()
     }
 
+    fn held_queue(&mut self) -> Option<&mut faraday_storage::Held> {
+        self.sticks.held_queue()
+    }
+
     fn hash_later(&mut self, stick: &str, name: &str) -> bool {
         self.sticks.hash_later(stick, name)
     }

@@ -1565,6 +1565,48 @@ impl Shell {
         }
     }
 
+    /// Answers the storage requests the app has queued. A request for the
+    /// disk process waits behind a vault in pieces; the others are served
+    /// at once ([`serve_with`]).
+    fn serve_storage(&mut self) {
+        let Some(app) = self.app.as_mut() else {
+            return;
+        };
+        let watch = costly::Watch::start(self.timings.as_ref());
+        // The disk process is one conversation: the thread that
+        // calls it for the shell holds the lock for one call. A
+        // request waiting for a stick takes its turn; with none,
+        // a busy disk skips this pass's serving rather than hold
+        // the frame.
+        let asked = app.storage_pending();
+        let mut disk = None;
+        let mut busy = false;
+        if let Some(d) = self.disk.as_ref() {
+            disk = diskwork::for_pass(d, asked);
+            busy = disk.is_none();
+        }
+        let mut sticks = costly::Timed {
+            sticks: match disk.as_deref_mut() {
+                Some(disk) => disk as &mut dyn Sticks,
+                None => &mut self.dirs,
+            },
+            timings: self.timings.as_mut(),
+        };
+        let said = if busy {
+            Vec::new()
+        } else {
+            serve_with(app, &mut self.boxes, None, &mut sticks)
+        };
+        if let (Some(w), Some(t)) = (watch, sticks.timings) {
+            w.end(t, " (stick files served)");
+        }
+        for line in said {
+            if self.verbose {
+                eprintln!("{}", &*line);
+            }
+        }
+    }
+
     /// Delivers one event and acts on every command it produces, in order.
     ///
     /// A request the shell answers becomes another event at the back of
@@ -1666,42 +1708,9 @@ impl Shell {
                     }
                 }
             }
-            if let Some(app) = self.app.as_mut() {
-                let locking = app.restart_requested();
-                let watch = costly::Watch::start(self.timings.as_ref());
-                // The disk process is one conversation: the thread that
-                // calls it for the shell holds the lock for one call. A
-                // request waiting for a stick takes its turn; with none,
-                // a busy disk skips this pass's serving rather than hold
-                // the frame.
-                let asked = app.storage_pending();
-                let mut disk = None;
-                let mut busy = false;
-                if let Some(d) = self.disk.as_ref() {
-                    disk = diskwork::for_pass(d, asked);
-                    busy = disk.is_none();
-                }
-                let mut sticks = costly::Timed {
-                    sticks: match disk.as_deref_mut() {
-                        Some(disk) => disk as &mut dyn Sticks,
-                        None => &mut self.dirs,
-                    },
-                    timings: self.timings.as_mut(),
-                };
-                let said = if busy {
-                    Vec::new()
-                } else {
-                    serve_with(app, &mut self.boxes, None, &mut sticks)
-                };
-                if let (Some(w), Some(t)) = (watch, sticks.timings) {
-                    w.end(t, " (stick files served)");
-                }
-                for line in said {
-                    if self.verbose {
-                        eprintln!("{}", &*line);
-                    }
-                }
-                if app.restart_requested() {
+            if let Some(locking) = self.app.as_ref().map(|app| app.restart_requested()) {
+                self.serve_storage();
+                if self.app.as_ref().is_some_and(|app| app.restart_requested()) {
                     self.restart = true;
                 } else if locking {
                     // The lock was refused: the state could not be kept.
@@ -2401,6 +2410,10 @@ fn run(args: Args) -> Result<Exit, String> {
     // Everything the last interval measured, before the machine goes: the
     // disk thread finishes the write it is in first.
     shell.end_work();
+    // What the app queued before it ended (the boxes' save a lock queues
+    // ahead of its exit) is served before it is dropped; a vault still in
+    // pieces is not waited for.
+    shell.serve_storage();
     shell.report(true);
     shell.write_boot_report(true);
 

@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 
 use faraday_files::proto::{Request, Response, receive, send};
+use faraday_shell_api::App;
 use faraday_storage::{DiskProcess, Sticks, Transfer, Transferred};
 use faraday_text::Text;
 
@@ -152,7 +153,7 @@ fn slow_write_server(requests: PathBuf, responses: PathBuf, go: mpsc::Receiver<(
 }
 
 #[test]
-fn a_vault_write_in_pieces_says_it_is_busy_until_it_ends_and_then_requests_are_answered() {
+fn a_call_made_during_a_vault_transfer_is_refused_as_busy_at_once() {
     let dir = scratch("slow-write");
     let requests = fifo(&dir, "requests");
     let responses = fifo(&dir, "responses");
@@ -176,9 +177,12 @@ fn a_vault_write_in_pieces_says_it_is_busy_until_it_ends_and_then_requests_are_a
     assert!(asked.is_ok());
     assert!(disk.transferred().is_empty(), "the write is under way");
 
-    // The shell leaves its requests queued while the disk says it is busy,
-    // so none is sent behind the piece in flight and none is refused.
-    assert!(disk.busy());
+    let started = std::time::Instant::now();
+    assert!(
+        disk.space("s").is_err(),
+        "refused while the vault is in pieces"
+    );
+    assert!(started.elapsed() < std::time::Duration::from_secs(1));
 
     go.send(()).unwrap();
     let started = std::time::Instant::now();
@@ -189,15 +193,130 @@ fn a_vault_write_in_pieces_says_it_is_busy_until_it_ends_and_then_requests_are_a
     }
     assert_eq!(done.len(), 1);
     assert!(matches!(&done[0], Transferred::Write { result: Ok(_), .. }));
-    // With the write over the disk is free, and a listing and the space
-    // are answered.
-    assert!(!disk.busy());
-    assert!(disk.list().is_ok());
+    // With the write over, the space is answered.
     assert_eq!(disk.space("s").unwrap(), (5, 9));
 
     drop(disk);
     drop(server);
     let _ = std::fs::remove_dir_all(dir);
+}
+
+/// Sticks that report a vault in pieces for a few passes, answer the space
+/// of a stick, and count the answers.
+struct InPieces {
+    passes: u32,
+    spaces: u32,
+    held: faraday_storage::Held,
+    dirs: faraday_storage::Dirs,
+}
+
+impl Sticks for InPieces {
+    fn read(&mut self, stick: &str, name: &str) -> Result<Vec<u8>, Text> {
+        self.dirs.read(stick, name)
+    }
+    fn write(
+        &mut self,
+        c: &faraday_crypto::work::Compute,
+        stick: &str,
+        name: &str,
+        bytes: &[u8],
+        copies: &[[u8; 32]],
+        replace: bool,
+        renamed: bool,
+        on_taken: faraday_files::OnTaken,
+    ) -> Result<Text, faraday_files::WriteRefused> {
+        self.dirs
+            .write(c, stick, name, bytes, copies, replace, renamed, on_taken)
+    }
+    fn transferred(&mut self) -> Vec<Transferred> {
+        self.passes = self.passes.saturating_sub(1);
+        Vec::new()
+    }
+    fn busy(&self) -> bool {
+        self.passes > 0
+    }
+    fn held_queue(&mut self) -> Option<&mut faraday_storage::Held> {
+        Some(&mut self.held)
+    }
+    fn wipe(&mut self, stick: &str, name: &str) -> Result<faraday_files::Wiped, Text> {
+        self.dirs.wipe(stick, name)
+    }
+    fn space(&mut self, _stick: &str) -> Result<(u64, u64), Text> {
+        self.spaces += 1;
+        Ok((5, 9))
+    }
+    fn zero_free(&mut self, stick: &str, from: u32) -> Result<(u32, u32, bool), Text> {
+        self.dirs.zero_free(stick, from)
+    }
+    fn make_empty(&mut self, stick: &str) -> Result<(), Text> {
+        self.dirs.make_empty(stick)
+    }
+    fn read_qr_later(&mut self, stick: &str, name: &str) {
+        self.dirs.read_qr_later(stick, name);
+    }
+    fn pictures_read(&mut self) -> Vec<faraday_storage::PictureRead> {
+        self.dirs.pictures_read()
+    }
+    fn rename(
+        &mut self,
+        c: &faraday_crypto::work::Compute,
+        stick: &str,
+        from: &str,
+        to: &str,
+        vaults: &[Vec<[u8; 32]>],
+    ) -> Result<(), faraday_files::Unrenamed> {
+        self.dirs.rename(c, stick, from, to, vaults)
+    }
+    fn name(&mut self, stick: &str, label: &str) -> Result<(), Text> {
+        self.dirs.name(stick, label)
+    }
+}
+
+#[test]
+fn during_a_transfer_the_boxes_are_kept_at_once_and_the_sticks_space_is_answered_after_it() {
+    let mut app = faraday_core::testkit::new_on_test_net();
+    app.storage(faraday_core::StorageEvent::Sticks(vec![
+        faraday_core::StickInfo {
+            make: Default::default(),
+            serial: None,
+            id: Text::of("s"),
+            label: Text::of("STICK"),
+            boot: false,
+            files: vec![(Text::of("a.txt"), 1)],
+            vaults: Vec::new(),
+        },
+    ]));
+    app.press(faraday_core::Action::Nav(faraday_core::Screen::Files));
+    let _ = app.frame();
+    // Delete files asks the stick for its space; a lock then keeps
+    // the boxes and exits.
+    app.press(faraday_core::Action::DeleteFiles);
+    app.press(faraday_core::Action::LockUnsealed);
+    assert!(app.restart_requested());
+
+    // What the last save left: the lock's save replaces it.
+    let mut boxes = faraday_storage::Boxes::Memory {
+        inbox: faraday_core::files_from(vec![(Text::of("old.txt"), b"x".to_vec())]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    };
+    let mut sticks = InPieces {
+        passes: 3,
+        spaces: 0,
+        held: std::collections::VecDeque::new(),
+        dirs: faraday_storage::Dirs::default(),
+    };
+    faraday_storage::serve_with(&mut app, &mut boxes, None, &mut sticks);
+    assert!(
+        matches!(&boxes, faraday_storage::Boxes::Memory { inbox, .. } if inbox.is_empty()),
+        "the boxes are kept while the vault is in pieces"
+    );
+    assert_eq!(sticks.spaces, 0, "the stick is not asked behind the vault");
+
+    faraday_storage::serve_with(&mut app, &mut boxes, None, &mut sticks);
+    assert_eq!(sticks.spaces, 1, "answered once the transfer is over");
+    faraday_storage::serve_with(&mut app, &mut boxes, None, &mut sticks);
+    assert_eq!(sticks.spaces, 1, "and once only");
 }
 
 #[test]
