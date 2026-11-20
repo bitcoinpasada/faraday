@@ -564,7 +564,7 @@ class Msg(Area):
             return ("refused", None), None
         if text[:3] in ("ful", "pof"):
             return ("valid", "bip322", FORM.get(kind)), (
-                lambda g: g == ("refused", "UnsupportedFormat"))
+                lambda g: g == ("refused", "UnsupportedVariant"))
         if kind not in ("p2wpkh", "p2tr"):
             return ("valid", "bip322", FORM.get(kind)), (
                 lambda g: g == ("refused", "UnsupportedAddress"))
