@@ -697,10 +697,19 @@ fn your_choices_stands_at_the_right_on_a_wide_window_and_a_row_opens_its_step() 
 
 #[test]
 fn a_small_panel_has_no_your_choices_pane() {
+    use faraday_core::ChoicesPress;
+    use faraday_core::vault::vstep;
     let mut app = on_create_vault();
     window(&mut app, (480, 640), 160);
     assert!(drawn_at(&mut app, "Step 2 of 2").is_some());
-    assert!(drawn_at(&mut app, "Your choices").is_none());
+    assert!(
+        !app.offers(Action::Vault(V::CStep(vstep::PRESET))),
+        "no pane: no row of Your choices opens a step"
+    );
+    assert!(
+        app.offers(Action::Choices(ChoicesPress::Open)),
+        "the bar's button opens Your choices instead"
+    );
 }
 
 #[test]
