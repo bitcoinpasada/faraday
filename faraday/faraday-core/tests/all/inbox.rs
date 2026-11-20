@@ -173,6 +173,56 @@ fn a_signed_message_whose_body_is_a_seed_goes_into_the_vault_as_a_key() {
     );
 }
 
+const SEED_24: &str = "limb sadness employ night rocket crime garden timber title eight spy stay company embark secret face fork stable mosquito lock visual bamboo decide velvet";
+
+/// The words of `file` added to the open vault: the word counts of the
+/// key records' seeds that came from it.
+fn added_key_word_counts(file: &str) -> Vec<usize> {
+    let c = testkit::compute();
+    let name = "seed.txt".to_string();
+    let mut app = unlocked(vec![(name.clone(), file.as_bytes().to_vec())]);
+    app.press(Action::Vault(V::AddFile(at(&app, &name))));
+    let id = app.vaults().open[0].id;
+    [12usize, 18, 24]
+        .into_iter()
+        .filter(|&n| {
+            let words = SEED_24
+                .split(' ')
+                .skip(24 - n)
+                .collect::<Vec<_>>()
+                .join(" ");
+            let Ok(m) =
+                faraday_keys::words::parse(&c, faraday_bip::bip39::Language::English, &words)
+            else {
+                return false;
+            };
+            let payload = faraday_vault::records::words_payload(&m);
+            app.vaults()
+                .store()
+                .contents_for_tests(id)
+                .iter()
+                .any(|r| r.kind == kind::KEY && r.field(field::KEY) == Some(&payload[..]))
+        })
+        .collect()
+}
+
+/// A 24-word seed written six words to a line goes into the vault as the
+/// 24-word key, not as its last 12 words (which also check out).
+#[test]
+fn a_seed_written_six_words_to_a_line_is_added_whole() {
+    let file = "limb sadness employ night rocket crime\ngarden timber title eight spy stay\ncompany embark secret face fork stable\nmosquito lock visual bamboo decide velvet\n";
+    assert_eq!(added_key_word_counts(file), vec![24]);
+}
+
+/// A title line before the words makes a note; it does not make the words after it a
+/// signed message's body.
+#[test]
+fn a_title_line_before_the_words_adds_no_shorter_seed() {
+    let file = "My seed\nlimb sadness employ night rocket crime\ngarden timber title eight spy stay\ncompany embark secret face fork stable\nmosquito lock visual bamboo decide velvet\n";
+    let counts = added_key_word_counts(file);
+    assert!(!counts.contains(&18), "{counts:?}");
+}
+
 /// Whether Files offers `action` anywhere down the page, moved down by
 /// key as a person would, each glide ticked through.
 fn files_offers(app: &mut Faraday, action: Action) -> bool {

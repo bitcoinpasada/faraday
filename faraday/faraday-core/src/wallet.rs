@@ -2654,6 +2654,23 @@ fn sorted_outpoints(tx: &Transaction) -> Vec<OutPoint> {
     out
 }
 
+/// Costs a parse of the first line. The text as a signed message, when
+/// its first line is an address: the one reading of "this is a signed
+/// message", for what Files calls the file and for Add to vault.
+pub(crate) fn signed_message(text: &str) -> Option<faraday_psbt::message::SignedText> {
+    // An address is at least 14 characters and has no white space; a
+    // shorter first line (a word of a seed written one to a line) is
+    // not handed to bitcoin's address parser, which would decode it
+    // into a buffer of its own.
+    faraday_psbt::message::parse_signed(text).filter(|m| {
+        m.address.len() >= 14
+            && !m.address.contains(char::is_whitespace)
+            && m.address
+                .parse::<faraday_bip::bitcoin::Address<_>>()
+                .is_ok()
+    })
+}
+
 /// Costs what [`classify`] costs, and for text, a few passes over it and
 /// a check of each line, each linear in the file's length (a file of
 /// many short lines or of one line of many short tokens costs by its
@@ -2699,17 +2716,7 @@ pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
         {
             return FileKind::Gpg.into();
         }
-        // An address is at least 14 characters and has no white space; a
-        // shorter first line (a word of a seed written one to a line) is
-        // not handed to bitcoin's address parser, which would decode it
-        // into a buffer of its own.
-        if let Some(m) = faraday_psbt::message::parse_signed(text)
-            && m.address.len() >= 14
-            && !m.address.contains(char::is_whitespace)
-            && m.address
-                .parse::<faraday_bip::bitcoin::Address<_>>()
-                .is_ok()
-        {
+        if let Some(m) = signed_message(text) {
             // The body is checked for a secret only here, so a text file
             // that is no signed message does not pay for it.
             return secret_body_kind(c, m.message.as_str())

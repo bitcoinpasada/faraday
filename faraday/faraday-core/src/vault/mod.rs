@@ -2072,7 +2072,7 @@ impl Faraday {
             FileKind::Words => {
                 // A signed message's seed is in its body, not among the
                 // address and signature lines.
-                let body = faraday_psbt::message::parse_signed(&text).and_then(|m| {
+                let body = crate::wallet::signed_message(&text).and_then(|m| {
                     crate::wallet::seed_mnemonic(&c, &crate::forms::file_words(m.message.as_str()))
                 });
                 let words = crate::forms::file_words(&text);
