@@ -180,6 +180,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let faces = ways()
             .into_iter()
             .map(|(_, name, line, action)| Face {
+                mark: crate::screens::catalog::Mark::None,
                 name,
                 line,
                 warn: false,
@@ -198,6 +199,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         back: false,
         search: None,
         most_columns: usize::MAX,
+        fixed_columns: None,
+        above: None,
+        bar_still: false,
     };
     menu_page::draw(app, ui, (x0, cw, h), &page, &sections);
 }

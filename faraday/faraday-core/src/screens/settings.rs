@@ -508,6 +508,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         back: false,
         search: None,
         most_columns: 2,
+        fixed_columns: None,
+        above: None,
+        bar_still: false,
     };
     super::menu_page::draw(app, ui, (x0, cw, h), &page, &sections);
 }

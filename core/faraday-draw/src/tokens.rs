@@ -1364,10 +1364,6 @@ pub const INPUT_PAD_LABEL_W: f32 = 72.0;
 /// the pad stands under them.
 pub const PAD_KEYS_BESIDE_MIN: f32 = 5.0;
 
-/// The narrowest a Home tile is; the grid takes as many columns as fit
-/// (`docs/LAYOUT.md` §4).
-pub const TILE_MIN: f32 = 200.0;
-
 /// The widest Home's lead tile is (`docs/LAYOUT.md` §4).
 pub const LEAD_MAX: f32 = 560.0;
 
@@ -1377,6 +1373,25 @@ pub const TILE_H: f32 = 84.0;
 /// A Home tile's height in the compact Home's grid (icon beside name).
 pub const TILE_H_GRID: f32 = 60.0;
 
+/// A face's text inset at its sides, and where a face with no icon beside
+/// it starts its text.
+pub const FACE_INSET: f32 = 16.0;
+/// A face's inset above its name (or its icon) and below its last line.
+pub const FACE_TOP: f32 = 12.0;
+/// Where a face's line starts, from its name's top.
+pub const FACE_LINE_Y: f32 = 22.0;
+/// Where a face's tags start, from its name's top.
+pub const FACE_TAGS_Y: f32 = 44.0;
+/// The gap between a face's name and its wrapped line.
+pub const FACE_LINE_GAP: f32 = 2.0;
+/// The icon box of a face whose icon stands over its text.
+pub const FACE_ABOVE_ICON: f32 = 30.0;
+/// The icon glyph in that box.
+pub const FACE_ABOVE_GLYPH: f32 = 14.0;
+/// The gap under that icon.
+pub const FACE_ABOVE_GAP: f32 = 8.0;
+/// The glyph in the wide Home tile's icon box.
+pub const HOME_TILE_GLYPH: f32 = 17.0;
 /// The wide Home tile's icon box.
 pub const HOME_TILE_ICON: f32 = 40.0;
 /// The wide Home tile's icon inset from the tile's left edge.
@@ -1399,15 +1414,6 @@ pub const GRID_TILE_INSET: f32 = 12.0;
 /// The left edge of a grid tile's text on the compact Home.
 pub const GRID_TILE_TEXT_X: f32 = 54.0;
 
-/// A Home tile's height on the small panel's menu.
-pub const TILE_H_COMPACT: f32 = 76.0;
-
-/// Where a grid tile's summary starts, under its name.
-pub const GRID_TILE_SUB_Y: f32 = 30.0;
-/// Where a menu tile's name starts, under its icon.
-pub const MENU_TILE_LABEL_Y: f32 = 48.0;
-/// The width a menu tile's summary has beside its icon before it wraps.
-pub const MENU_TILE_SUB_W: f32 = 54.0;
 /// A Home tile's inset at its sides and below a wrapped summary.
 pub const TILE_PAD: f32 = 12.0;
 

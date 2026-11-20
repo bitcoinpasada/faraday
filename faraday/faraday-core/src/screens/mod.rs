@@ -61,8 +61,8 @@ pub(crate) use faraday_ui::parts::{
 };
 pub(crate) use files::{stick_chip as files_stick_chip, vault_panel};
 pub(crate) use home::{
-    action_h, actions_col, actions_fit_a_row, actions_lines, first_actions, home_lead_beside_tiles,
-    home_pinned, loaded, nothing_loaded, tile_grid,
+    action_h, actions_col, actions_fit_a_row, actions_lines, first_actions, home_keys,
+    home_lead_beside_tiles, home_pinned, home_row, loaded_sections, nothing_loaded,
 };
 pub(crate) use message::{MESSAGE_STEPS, MSTEPS};
 pub(crate) use parts::{
@@ -153,14 +153,14 @@ fn area_of(screen: Screen) -> Area {
         Screen::Transfer => Area::Reading(faraday_draw::tokens::READING_TRANSFER_W),
         // The menu pages on the container: a page at most `MENU_PAGE_W`
         // wide, centred in the room (`docs/MENU-PAGE.md` §2).
-        Screen::Catalog | Screen::Check | Screen::WalletsStart | Screen::Settings => {
-            Area::Reading(faraday_draw::tokens::READING_MENU_W)
-        }
+        Screen::Catalog
+        | Screen::Check
+        | Screen::Home
+        | Screen::WalletsStart
+        | Screen::Settings => Area::Reading(faraday_draw::tokens::READING_MENU_W),
         // New key, which holds Make codex32 shares and its supporting
-        // pane; Home, at most `TRANSFER_W` wide as the tools' catalogue is; and
-        // the lists, a list pane and the one chosen beside it to the
+        // pane; and the lists, a list pane and the one chosen beside it to the
         // window's edge (`docs/LAYOUT.md` §5, §17).
-        Screen::Home => Area::Reading(faraday_draw::tokens::READING_TRANSFER_W),
         Screen::KeyGen => Area::Work,
         s if crate::panes::has_list(s) => Area::Work,
         // Wallets' first page and the codes are reading content; an open
@@ -654,7 +654,7 @@ fn dispatch(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
 /// [`dispatch`]'s screens.
 fn dispatch_screen(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
     match app.screen {
-        Screen::Home => home::draw(app, ui, x, cw),
+        Screen::Home => home::draw(app, ui, x, cw, h),
         Screen::WalletsStart => wallets_start::draw(app, ui, x, cw, h),
         Screen::Backup => backup::draw(app, ui, x, cw, h),
         Screen::Message => message::draw(app, ui, x, cw, h),

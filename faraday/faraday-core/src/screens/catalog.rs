@@ -3,10 +3,16 @@
 use crate::Action;
 use crate::drawing::View;
 use crate::strings::EN;
+use crate::ui::Glyph;
 use crate::ui::Shape;
 use crate::ui::Ui;
 use crate::ui::pal::*;
-use faraday_draw::tokens::{BODY_M, BODY_S, LABEL_S, TITLE_S};
+use faraday_draw::tokens::{
+    BODY_M, BODY_S, FACE_ABOVE_GAP, FACE_ABOVE_GLYPH, FACE_ABOVE_ICON, FACE_INSET, FACE_LINE_GAP,
+    FACE_LINE_Y, FACE_TAGS_Y, FACE_TOP, HOME_TILE_GLYPH, HOME_TILE_ICON, HOME_TILE_INSET,
+    HOME_TILE_TEXT_X, LABEL_S, TITLE_S,
+};
+
 use faraday_draw::tokens::{CATALOG_TILE_H as TILE_H, CATALOG_TILE_H_PLAIN as TILE_H_PLAIN};
 use faraday_ui::parts::section_label;
 
@@ -25,6 +31,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         back: false,
         search: Some(Bar::Tools),
         most_columns: usize::MAX,
+        fixed_columns: None,
+        above: None,
+        bar_still: false,
     };
     menu_page::draw(app, ui, (x0, cw, h), &page, &sections);
 }
@@ -42,6 +51,7 @@ fn tiles_by_group(app: &View) -> Vec<(&'static str, Vec<Face<'static>>)> {
                 .map(|(i, tile)| {
                     let need = app.tile_need(tile.go);
                     Face {
+                        mark: Mark::None,
                         name: tile.name,
                         line: need.unwrap_or(tile.line),
                         warn: need.is_some(),
@@ -198,7 +208,6 @@ pub(crate) fn home_results(
     ui: &mut Ui,
     (x, y): (f32, f32),
     width: f32,
-    _compact: bool,
     on: Bar,
 ) -> f32 {
     use crate::catalog::TILES;
@@ -227,6 +236,7 @@ pub(crate) fn home_results(
         .map(|(i, tile)| {
             let need = app.tile_need(tile.go);
             Face {
+                mark: Mark::None,
                 name: tile.name,
                 line: need.unwrap_or(tile.line),
                 warn: need.is_some(),
@@ -302,8 +312,23 @@ fn search_field_caret(
     }
 }
 
+/// The icon a tile has, if it has one.
+#[derive(Clone, Copy)]
+pub(crate) enum Mark {
+    /// None: the text starts at the tile's edge (Tools, Check).
+    None,
+    /// An icon in a container before the text, centred on the tile's
+    /// height (Home's wallets, keys and places).
+    Beside(Glyph),
+    /// An icon in a container over the text, for a tile too narrow to
+    /// have the text beside it (the Pi's panel Home).
+    Above(Glyph),
+}
+
 /// What a tile shows.
 pub(crate) struct Face<'a> {
+    /// Its icon.
+    pub mark: Mark,
     /// Its name.
     pub name: &'a str,
     /// The line under it.
@@ -319,10 +344,27 @@ pub(crate) struct Face<'a> {
 }
 
 impl Face<'_> {
+    /// Where the text starts from the tile's left edge.
+    fn text_x(&self) -> f32 {
+        match self.mark {
+            Mark::Beside(_) => HOME_TILE_TEXT_X,
+            Mark::None | Mark::Above(_) => FACE_INSET,
+        }
+    }
+
+    /// Where the name starts from the tile's top: under the icon where it
+    /// stands over the text.
+    fn name_y(&self) -> f32 {
+        match self.mark {
+            Mark::Above(_) => FACE_TOP + FACE_ABOVE_ICON + FACE_ABOVE_GAP,
+            Mark::None | Mark::Beside(_) => FACE_TOP,
+        }
+    }
+
     /// What the name and the line under it take over one line each at
     /// `tw3` wide: they wrap rather than end in an ellipsis.
     fn grown(&self, ui: &Ui, tw3: f32) -> (f32, f32) {
-        let room = tw3 - 32.0;
+        let room = tw3 - self.text_x() - FACE_INSET;
         let over = |role, s| (ui.wrap_height_as(role, s, room) - ui.line_as(role)).max(0.0);
         (over(TITLE_S, self.name), over(BODY_S, self.line))
     }
@@ -331,6 +373,14 @@ impl Face<'_> {
     /// tags, and a line more for each that wraps.
     pub fn height(&self, ui: &Ui, tw3: f32) -> f32 {
         let (n, l) = self.grown(ui, tw3);
+        if let Mark::Above(_) = self.mark {
+            let line = if self.line.is_empty() {
+                0.0
+            } else {
+                FACE_LINE_GAP + ui.line_as(BODY_S) + l
+            };
+            return self.name_y() + ui.line_as(TITLE_S) + n + line + FACE_TOP;
+        }
         n + l + self.base_height()
     }
 
@@ -340,6 +390,26 @@ impl Face<'_> {
         } else {
             TILE_H
         }
+    }
+
+    /// The icon in its container at `(x, y)`, `size` wide.
+    fn draw_mark(&self, ui: &mut Ui, (x, y): (f32, f32), (size, glyph_size): (f32, f32)) {
+        let (Mark::Beside(glyph) | Mark::Above(glyph)) = self.mark else {
+            return;
+        };
+        let (bg, fg) = if self.opens {
+            (
+                Role::SecondaryContainer.paint(),
+                Role::OnSecondaryContainer.paint(),
+            )
+        } else {
+            (
+                Role::OnSurface.at(faraday_draw::tokens::DISABLED_CONTAINER),
+                crate::ui::off(),
+            )
+        };
+        ui.fill(x, y, size, size, faraday_draw::tokens::SHAPE_M, bg);
+        ui.icon(x, y, size, glyph, glyph_size, fg);
     }
 
     /// Draws the tile at (`tx`, `ty`), `tw3` wide and `th` tall.
@@ -355,22 +425,47 @@ impl Face<'_> {
                 self.action,
             );
         }
+        match self.mark {
+            Mark::Beside(_) => {
+                let ib = HOME_TILE_ICON;
+                self.draw_mark(
+                    ui,
+                    (tx + HOME_TILE_INSET, ty + (th - ib) / 2.0),
+                    (ib, HOME_TILE_GLYPH),
+                );
+            }
+            Mark::Above(_) => self.draw_mark(
+                ui,
+                (tx + FACE_TOP, ty + FACE_TOP),
+                (FACE_ABOVE_ICON, FACE_ABOVE_GLYPH),
+            ),
+            Mark::None => {}
+        }
         let ink = if self.opens {
             Role::OnSurface.paint()
         } else {
             crate::ui::off()
         };
-        ui.wrap_as((tx + 16.0, ty + 12.0, tw3 - 32.0), TITLE_S, ink, self.name);
+        let (x, room) = (tx + self.text_x(), tw3 - self.text_x() - FACE_INSET);
+        // Beside an icon a tile with no line has its name centred.
+        let beside_alone = matches!(self.mark, Mark::Beside(_)) && self.line.is_empty();
+        let top = if beside_alone {
+            let block = ui.wrap_height_as(TITLE_S, self.name, room);
+            ty + (th - block) / 2.0
+        } else {
+            ty + self.name_y()
+        };
+        ui.wrap_as((x, top, room), TITLE_S, ink, self.name);
         let warn = if self.warn {
             Role::Warning
         } else {
             Role::OnSurfaceVariant
         };
-        let ly = ty + 34.0 + grow_n;
-        ui.wrap_as((tx + 16.0, ly, tw3 - 32.0), BODY_S, warn, self.line);
-        let tag_y = ty + 56.0 + grow_n + grow_l;
+        let ly = top + FACE_LINE_Y + grow_n;
+        ui.wrap_as((x, ly, room), BODY_S, warn, self.line);
+        let tag_y = top + FACE_TAGS_Y + grow_n + grow_l;
         // The standards, as small tags.
-        let mut gx = tx + 16.0;
+        let mut gx = tx + FACE_INSET;
         for tag in self.tags {
             let gw = ui.measure_as(LABEL_S.mono(), tag) + 14.0;
             if gx + gw > tx + tw3 - 12.0 {

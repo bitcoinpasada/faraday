@@ -1,5 +1,7 @@
 //! `Screen::Home`.
 
+use super::catalog::{Face, Mark};
+use super::menu_page::{self, Page, Section};
 use crate::drawing::View;
 use crate::in_progress::Going;
 use crate::strings::{EN, fill};
@@ -10,10 +12,9 @@ use crate::{Action, Screen};
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, SHAPE_M, TITLE_M};
 use faraday_draw::tokens::{
     HOME_LEAD_H, HOME_LEAD_ICON, HOME_LEAD_INSET, HOME_LEAD_SUB_Y, HOME_LEAD_TEXT_X,
-    HOME_TILE_ICON, HOME_TILE_INSET, HOME_TILE_TEXT_X, LEAD_MAX, PAGE_INSET, TILE_H, TILE_MIN,
+    HOME_TILE_ICON, HOME_TILE_INSET, HOME_TILE_TEXT_X, LEAD_MAX, MENU_GAP, TILE_H,
 };
 use faraday_draw::widgets::Icon;
-use faraday_ui::parts::section_label;
 
 /// Home's lead when nothing is under way, §1.2's rule 7: Make a new
 /// wallet.
@@ -501,70 +502,44 @@ pub(crate) fn home_keys(app: &View) -> Vec<Tile> {
         .collect()
 }
 
-/// Home's tile grid in a row `width` wide with `gap` between tiles:
-/// how many columns fit at `min` or `TILE_MIN`, whichever is wider (at
-/// least one), and the width each
-/// tile takes, which is the row's share, never under `TILE_MIN` unless
-/// the row itself is narrower. A lookup.
-pub(crate) fn tile_grid(width: f32, gap: f32, min: f32) -> (usize, f32) {
-    let min = min.max(TILE_MIN);
-    let cols = (((width + gap) / (min + gap)).floor() as usize).max(1);
-    (cols, (width - gap * (cols - 1) as f32) / cols as f32)
-}
-
-/// The tile grid's columns and each tile's width for `ways`.
-fn tile_cols(ways: &[Tile], ui: &Ui, width: f32, gap: f32) -> (usize, f32) {
-    // As many columns as `TILE_MIN` leaves room for, a row with fewer
-    // tiles than columns leaving the rest empty. A tile is wide enough for
-    // its longest line, so no name is cut.
-    let need = ways
+/// `tiles` as faces, each with its icon as `mark` places it.
+pub(crate) fn faces(tiles: &[Tile], mark: fn(Glyph) -> Mark) -> Vec<Face<'_>> {
+    tiles
         .iter()
-        .map(|t| {
-            ui.measure_as(TITLE_M, &t.label)
-                .max(ui.measure_as(BODY_S, &t.sub))
+        .map(|t| Face {
+            mark: mark(t.icon),
+            name: &t.label,
+            line: &t.sub,
+            warn: false,
+            tags: &[],
+            opens: true,
+            action: t.action,
         })
-        .fold(0.0, f32::max)
-        + HOME_TILE_TEXT_X
-        + 2.0 * HOME_TILE_INSET;
-    tile_grid(width, gap, need)
+        .collect()
 }
 
-/// The tile grid with its top left at `(x, y)`, `width` wide. Returns the
-/// height it takes, the gap under it counted.
-fn tiles(ways: &[Tile], ui: &mut Ui, (x, y): (f32, f32), width: f32, gap: f32) -> f32 {
-    let (cols, tilew) = tile_cols(ways, ui, width, gap);
-    for (i, t) in ways.iter().enumerate() {
-        let tx = x + (i % cols) as f32 * (tilew + gap);
-        let ty = y + (i / cols) as f32 * (TILE_H + gap);
-        let icon = (t.icon, t.label.as_str(), t.sub.as_str());
-        tile(ui, (tx, ty, tilew), TILE_H, icon, t.action);
-    }
-    ways.len().div_ceil(cols) as f32 * (TILE_H + gap)
-}
-
-/// What is loaded, in Home's one small style, from `(x, y)`, `width` wide
-/// (`docs/HOME.md` §3): the loaded wallets beside the Backups tile, then
-/// the Keys section; many of either flow on into further rows and the page
-/// scrolls. The wide layout and the rail's windows both draw it. Returns
-/// the height it takes.
-pub(crate) fn loaded(app: &View, ui: &mut Ui, (x, y): (f32, f32), width: f32, gap: f32) -> f32 {
-    let label_h = ui.advance_as(faraday_draw::tokens::TITLE_S, 30.0);
-    let mut used = 0.0;
-    let row = home_row(app);
+/// What is loaded as the menu page's sections (`docs/HOME.md` §3): the
+/// loaded wallets beside the Backups tile, labelled while there is a
+/// wallet, then the Keys section; many of either flow on into further rows
+/// and the page scrolls. The wide layout and the rail's windows both draw
+/// it.
+pub(crate) fn loaded_sections<'a>(
+    row: &'a [Tile],
+    keys: &'a [Tile],
+    wallets: bool,
+) -> Vec<Section<'a>> {
+    let mut sections = Vec::new();
     if !row.is_empty() {
-        if !app.session.wallets.is_empty() {
-            section_label(ui, x, y + used, EN.home_wallets);
-            used += label_h;
-        }
-        used += tiles(&row, ui, (x, y + used), width, gap);
+        let label = wallets.then_some(EN.home_wallets);
+        sections.push(Section::tiles(label, faces(row, Mark::Beside)));
     }
-    let keys = home_keys(app);
     if !keys.is_empty() {
-        section_label(ui, x, y + used, EN.home_keys);
-        used += label_h;
-        used += tiles(&keys, ui, (x, y + used), width, gap);
+        sections.push(Section::tiles(
+            Some(EN.home_keys),
+            faces(keys, Mark::Beside),
+        ));
     }
-    used
+    sections
 }
 
 /// One tile at (`tx`, `ty`), `tilew` wide and `TILE_H` tall: its icon, its
@@ -688,26 +663,25 @@ pub(crate) fn action_h(
     base.max(lines as f32 * ui.line_as(role) + 2.0 * pad)
 }
 
-/// The height the first-run actions take on the wide layout, the gap under
-/// them counted.
+/// The height the first-run actions take on the wide layout.
 fn actions_h(ui: &Ui, width: f32, gap: f32) -> f32 {
     let col = actions_col(width, gap);
     let lines = actions_lines(ui, TITLE_M, col, (HOME_TILE_TEXT_X, HOME_TILE_INSET));
-    action_h(ui, TITLE_M, lines, (TILE_H, HOME_TILE_INSET)) + gap
+    action_h(ui, TITLE_M, lines, (TILE_H, HOME_TILE_INSET))
 }
 
 /// The first-run actions with their top left at `(x, y)`, `width` wide:
 /// always one row of three equal columns, a heading too long for its
 /// column wrapping onto a second line, the three buttons one height.
-/// Returns the height they take, the gap under them counted.
+/// Returns the height they take.
 fn actions(ui: &mut Ui, (x, y): (f32, f32), width: f32, gap: f32) -> f32 {
     let col = actions_col(width, gap);
-    let h = actions_h(ui, width, gap) - gap;
+    let h = actions_h(ui, width, gap);
     for (i, (icon, label, action)) in first_actions().into_iter().enumerate() {
         let tx = x + i as f32 * (col + gap);
         tile(ui, (tx, y, col), h, (icon, label, ""), action);
     }
-    h + gap
+    h
 }
 
 /// The lead's card at `(x, y)`, at most `LEAD_MAX` wide inside `width`:
@@ -811,42 +785,35 @@ pub(crate) fn home_pinned(above: f32, window: f32, row: f32) -> bool {
     above + SEARCH_BAR_H + HOME_RESULTS_ROWS * row <= window
 }
 
-/// Home on the wide layout, named by the top app bar (`docs/HOME.md`):
-/// the search bar first, centred and standing still, and under it, in the
-/// tools' catalogue's column (`docs/LAYOUT.md` §4, §14): at most
-/// `TRANSFER_W` wide, centred in the room, the lead, the three first actions, the
-/// loaded wallets beside Backups and the Keys section, scrolling. While
-/// something is typed its results take the page.
-pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32) {
-    // The tools' catalogue's column: its inset, at most `TRANSFER_W`.
-    let x = x0 + PAGE_INSET;
-    let width = (cw - 2.0 * PAGE_INSET).min(faraday_draw::tokens::TRANSFER_W);
-    let head = super::bar_head(ui, None, EN.home_home);
-    let gap = 16.0;
-    let h = ui.c.height() as f32 / ui.f;
-    let sw = width.min(LEAD_MAX);
-    let bar = super::catalog::home_search_bar(
-        app,
-        ui,
-        (x0 + (cw - sw) / 2.0, head, sw),
-        None,
-        super::catalog::Bar::Home,
-    );
-    // The bar's own gap under it and half of Home's again.
-    let top = head + bar + gap / 2.0;
-    let clip = ui.rect(x0, top, cw, (h - top).max(0.0));
-    let open = ui.region_open(crate::ui::Region::page(clip).from_zero(app.list_offset));
-    let mut y = top;
-    if app.tools.home_find().is_empty() {
-        if let Some(card) = home_lead(app, false) {
-            y += lead_card(ui, &card, (x, y), width) + gap;
-        }
-        y += actions(ui, (x, y), width, gap);
-        y += loaded(app, ui, (x, y), width, gap);
-    } else {
-        y += super::catalog::home_results(app, ui, (x, y), width, false, super::catalog::Bar::Home);
+/// Home on the wide layout, named by the top app bar (`docs/HOME.md`),
+/// drawn by the menu page container: the search bar first, centred and
+/// standing still, and under it the lead, the three first actions as
+/// blocks across the page, the loaded wallets beside Backups and the Keys
+/// section as tiles, scrolling. While something is typed its results take
+/// the page.
+pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+    use super::catalog::Bar;
+    let lead = home_lead(app, false);
+    let (row, keys) = (home_row(app), home_keys(app));
+    let mut sections: Vec<Section> = Vec::new();
+    if let Some(card) = &lead {
+        sections.push(Section::block(None, move |ui, at, w| {
+            lead_card(ui, card, at, w)
+        }));
     }
-    let content = y - top + faraday_draw::tokens::HOME_RESULTS_FOOT;
-    app.scroll.content_h().set(content);
-    ui.region_close(open, content - (h - top));
+    sections.push(Section::block(None, |ui, at, w| {
+        actions(ui, at, w, MENU_GAP)
+    }));
+    let wallets = !app.session.wallets.is_empty();
+    sections.extend(loaded_sections(&row, &keys, wallets));
+    let page = Page {
+        name: EN.home_home,
+        back: false,
+        search: Some(Bar::Home),
+        most_columns: usize::MAX,
+        fixed_columns: None,
+        above: None,
+        bar_still: false,
+    };
+    menu_page::draw(app, ui, (x0, cw, h), &page, &sections);
 }

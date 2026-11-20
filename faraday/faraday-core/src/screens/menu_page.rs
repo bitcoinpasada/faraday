@@ -79,6 +79,22 @@ pub(crate) struct Page<'a> {
     pub search: Option<Bar>,
     /// The most columns the page takes.
     pub most_columns: usize,
+    /// Columns the page holds whatever the minimum says, where it has a
+    /// reason to (the Pi's panel Home: its places two to a row).
+    pub fixed_columns: Option<usize>,
+    /// What stands above the search bar on a one-column layout.
+    pub above: Option<Above<'a>>,
+    /// The search bar stands still whatever the window's height: the rail's
+    /// windows' Home. Elsewhere on a one-column layout it scrolls with the
+    /// page where the window leaves no room under it for about three rows.
+    pub bar_still: bool,
+}
+
+/// What a page puts above its search bar: how tall it is, known before it
+/// is drawn, and how to draw it from `at`, `w` wide.
+pub(crate) struct Above<'a> {
+    pub height: f32,
+    pub draw: BlockFn<'a>,
 }
 
 /// Where a page starts and how wide it is in an area `cw` wide from `x0`.
@@ -107,6 +123,16 @@ pub(crate) struct Grid {
 pub(crate) fn grid(width: f32, most: usize) -> Grid {
     let fit = ((width + MENU_GAP) / (CATALOG_TILE_MIN + MENU_GAP)) as usize;
     let per = fit.clamp(1, most.max(1));
+    Grid {
+        per,
+        tile_w: (width - (per as f32 - 1.0) * MENU_GAP) / per as f32,
+        tile_h: 0.0,
+    }
+}
+
+/// The grid for a page `width` wide held to exactly `per` columns.
+fn grid_columns(width: f32, per: usize) -> Grid {
+    let per = per.max(1);
     Grid {
         per,
         tile_w: (width - (per as f32 - 1.0) * MENU_GAP) / per as f32,
@@ -177,22 +203,33 @@ pub(crate) fn draw(
         let bar = page.search.unwrap_or(Bar::Tools);
         super::catalog::home_search_bar(app, ui, (x + (width - sw) / 2.0, y, sw), page_top, bar)
     };
-    let pinned = page.search.is_some() && (!compact || super::home_pinned(PANE_TOP_BAR, h, TILE_H));
+    let above_h = page.above.as_ref().map_or(0.0, |a| a.height);
+    let above = |ui: &mut Ui, y: f32| {
+        page.above
+            .as_ref()
+            .map_or(0.0, |a| (a.draw)(ui, (x, y), width))
+    };
+    let pinned = page.search.is_some()
+        && (page.bar_still || !compact || super::home_pinned(PANE_TOP_BAR + above_h, h, TILE_H));
     let mut top = 0.0;
     let mut y = PANE_TOP_BAR;
     if pinned {
-        top = PANE_TOP_BAR + search(ui, PANE_TOP_BAR, None);
+        y += above(ui, y);
+        top = y + search(ui, y, None);
         y = top;
     }
     let clip = ui.rect(x0, top, cw, (h - top).max(0.0));
     let open = ui.region_open(Region::page(clip).from_zero(app.list_offset));
-    if page.search.is_some() && !pinned {
-        y += search(ui, y, Some(0.0));
+    if !pinned {
+        y += above(ui, y);
+        if page.search.is_some() {
+            y += search(ui, y, Some(0.0));
+        }
     }
     if let (true, Some(bar)) = (typed, page.search) {
-        y += super::catalog::home_results(app, ui, (x, y), width, compact, bar);
+        y += super::catalog::home_results(app, ui, (x, y), width, bar);
     } else {
-        y += sections_height(ui, (x, y), width, page.most_columns, sections);
+        y += sections_height(ui, (x, y), width, page, sections);
     }
     let content = y - top + MARGIN_WIDE;
     app.scroll.content_h().set(content);
@@ -205,14 +242,20 @@ fn sections_height(
     ui: &mut Ui,
     (x, y): (f32, f32),
     width: f32,
-    most: usize,
+    page: &Page,
     sections: &[Section],
 ) -> f32 {
     let faces = sections.iter().flat_map(|s| match &s.body {
         Body::Tiles(f) => f.as_slice(),
         Body::Block(_) | Body::Cards { .. } => &[],
     });
-    let g = grid(width, most).matching(ui, faces);
+    let g = page
+        .fixed_columns
+        .map_or_else(
+            || grid(width, page.most_columns),
+            |n| grid_columns(width, n),
+        )
+        .matching(ui, faces);
     let mut used = 0.0;
     for (i, s) in sections.iter().enumerate() {
         if i > 0 {
@@ -230,7 +273,7 @@ fn sections_height(
             Body::Tiles(faces) => g.draw_rows(ui, (x, y + used), faces),
             Body::Block(draw) => draw(ui, (x, y + used), width),
             Body::Cards { cards, second } => {
-                let columns = grid(width, most).per.min(2);
+                let columns = grid(width, page.most_columns).per.min(2);
                 draw_cards(ui, (x, y + used, width), cards, (columns, *second))
             }
         };

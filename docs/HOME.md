@@ -15,7 +15,7 @@ Home is drawn by layout, not by one model:
   `faraday-core`'s `screens/home.rs`. The sidebar carries the places, so
   the page holds the search bar, the lead, the first actions, the loaded
   wallets beside Backups and the Keys section, in the column of Tools'
-  catalogue (at most `TRANSFER_W` wide, centred in the room, `docs/LAYOUT.md` §4).
+  catalogue (the menu page container, `docs/MENU-PAGE.md`, `docs/LAYOUT.md` §4).
 - **The Pi's menu** (the Pi's 480 by 640 panel, no navigation component)
   and **the one-column windows with navigation** (the rail's and the
   phone-size window's bar): `compact/mod.rs`. On the Pi's menu and the
@@ -123,8 +123,8 @@ Under the first actions, a section headed **Wallets**: one small tile for
 each wallet in the session, ranked (the wallets the keys
 here sign for alone first, then those with some keys here, then
 watch-only), and, while any wallet is known, the **Backups** tile last,
-side by side in one grid, each tile at least `TILE_MIN` wide and wide
-enough for its longest line. They are one small style: the icon, the name
+side by side in one grid, each tile at least `CATALOG_TILE_MIN` wide and wide
+enough for its longest line. They are one style: the icon, the name
 and one line under it, the whole tile the press.
 
 A wallet's tile: the wallet icon, the wallet's name and one line. The
@@ -229,7 +229,7 @@ Wallets before Check (§6.2, F255 amended 2026-11-18).
 
 The Pi's menu, the rail's windows and the phone-size window end the page
 with the places as tiles: two to a row on the Pi's menu, as many columns
-as `TILE_MIN` leaves room for elsewhere. In order: Check, Wallets, Backups
+as `CATALOG_TILE_MIN` leaves room for elsewhere. In order: Check, Wallets, Backups
 (while a wallet is known), Files, Vaults, Tools, Guide, Transfer (the
 desktop app, online), Settings; on the Pi's menu Wallets and Check change
 places. A tile's line under its name: Wallets, the count of wallets, or

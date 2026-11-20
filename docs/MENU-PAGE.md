@@ -1,8 +1,8 @@
 # One menu page container
 
 **Kind:** Spec
-**Status:** Specified (F298); the container is built (`screens/menu_page.rs`) and Tools, Check, Wallets start and Settings draw on it.
-**Open:** Home still draws its own page: its own width, columns and gaps and the one-column Home its own grid of places; `TILE_MIN` stays until it moves.
+**Status:** Specified (F298); the container is built (`screens/menu_page.rs`) and Tools, Check, Wallets start, Settings and Home draw on it.
+**Open:** Nothing: every menu page draws on the container.
 
 The menu pages are the pages a person picks a place or a tool from:
 Home, Tools (`Screen::Catalog`, the sidebar's Tools), Check, Wallets
@@ -167,8 +167,8 @@ under 600 dp, so it is one column there; a rail window wide enough takes
 two.
 
 - **Home** on the one-column layouts is drawn by the container too:
-  `compact::home`'s own grid of places (`places`, `tile_grid` at
-  `TILE_MIN`) goes, and its places are a tiles section. The Pi's panel
+  `compact::home`'s own grid of places is gone, and its places are a tiles
+  section. The Pi's panel
   menu (`Nav::Menu`) keeps its places two to a row, as the panel's
   navigation (`docs/LAYOUT.md` §3), with Lock and Power off at its
   foot: a page that declares it holds its two-to-a-row grid there and
@@ -193,9 +193,9 @@ two.
   results, the lead tile and the first actions as blocks across the
   page, the loaded wallets beside Backups and the Keys as tiles
   sections, and on the one-column layouts the box of what is loaded
-  above the bar. Its page width (home.rs, `draw`'s `TRANSFER_W`), `gap`,
-  `tile_grid`, `tile_cols` and `TILE_MIN` go, and `compact::home`'s
-  `places` grid and its search macro.
+  above the bar. Its own page width, `gap`,
+  `tile_grid`, `tile_cols` and `TILE_MIN` went with it, and `compact::home`'s
+  `places` grid and its search macro are gone.
 - **Wallets start** (`screens/wallets_start.rs`): its name, the five
   ways in as a tiles section, and its lists of wallets and of keys
   without a wallet as sections. Its inline copy of `page_span` and its
@@ -206,14 +206,14 @@ two.
   (its `SPACER`, `COLUMN_MAX` and `MARGIN_WIDE` there) is gone.
 
 Tokens (`core/faraday-draw/src/tokens.rs`): `MENU_PAGE_W` and
-`MENU_GAP` are new; `CATALOG_COLUMNS_MIN`, `CATALOG_ROW_GAP` and
-`TILE_MIN` go once nothing reads them (`SETTINGS_CARD_MIN` is gone).
+`MENU_GAP` are new; `CATALOG_COLUMNS_MIN` and `CATALOG_ROW_GAP` go once
+nothing reads them (`SETTINGS_CARD_MIN` and `TILE_MIN` are gone).
 
 The container is shared code beside the flow container
 (`faraday/faraday-core/src/flow.rs`): a menu page module of its own,
 `faraday/faraday-core/src/screens/menu_page.rs`, called from each page's
-`draw`. Tools, Check and Wallets start are on it; Home and Settings
-follow, and Settings' cards need §6's column stacks, which nothing has
+`draw`. Tools, Check, Wallets start and Home are on it; Settings
+follows, and its cards need §6's column stacks, which nothing has
 today.
 `docs/LAYOUT.md` §4 and §17 and `docs/DESIGN.md` §5's Home, Catalog and
 Settings rows change with the pages as each moves.

@@ -145,12 +145,11 @@ Cancel already rules (F51).
 Home is Material's feed layout: the lead tile while something is under
 way or waiting (`docs/FLOWS.md`, Home), then the tiles in a grid. On the
 windows with the page area to themselves, the whole page (the search
-bar, the lead, the first actions, the wallets and the Keys) stands in the
-column of the tools' catalogue: its inset (`PAGE_INSET`) in from each
-side, at most `TRANSFER_W` wide, centred in the room beside the
-navigation, so on a large monitor Home's tiles start and end where Tools'
-grid does, and where the room is narrower they take all of it, as Tools'
-do.
+bar, the lead, the first actions, the wallets and the Keys) is drawn by the
+menu page container (`docs/MENU-PAGE.md`): at most `MENU_PAGE_W` wide,
+`PAGE_INSET` in from each side and centred in the room beside the
+navigation, so Home's tiles start and end where Tools' grid does, and
+where the room is narrower they take all of it, as Tools' do.
 
 - **The box of what is loaded** (every window without the expanded
   rail, the small panel included, but not the rail's windows, which have
@@ -189,9 +188,11 @@ do.
   as wide as that needs and at most `LEAD_MAX` (560 dp); the plain Import
   lead has no button and is pressed whole.
 - **The tiles**: each its icon beside its name and one line under the
-  name, at least `TILE_MIN` (200 dp) wide. The grid takes as many
-  columns as fit; a row with fewer tiles than columns leaves the rest
-  empty. The tiles keep their order, the fourth Check's, always, and none
+  name, at least `CATALOG_TILE_MIN` (360 dp) wide, as every menu page's
+  tiles are (`docs/MENU-PAGE.md` §4). The grid takes as many columns as
+  fit, at least one; a row with fewer tiles than columns leaves the rest
+  empty. The Pi's panel menu keeps its places two to a row, the icon over
+  the name: the one page that holds its columns whatever the minimum. The tiles keep their order, the fourth Check's, always, and none
   for Vaults (`docs/FLOWS.md`, Home; F255).
 - **Scan** stays the floating button at the bottom-right, and the top page of Check, Wallets, Files, Vaults and Tools carries it too (§15).
 
@@ -462,8 +463,8 @@ In `core/faraday-draw/src/tokens.rs`: the class widths
 `WINDOW_EXTRA_LARGE` 1600) and heights (`WINDOW_SHORT` 480,
 `WINDOW_LOW` 600); `RAIL_W` 80, the expanded rail 240 (today's sidebar
 width), `NAV_BAR_H` 80, `APP_BAR_H` 64, `NAV_PILL_W` 56, `NAV_PILL_H`
-32; `MARGIN_COMPACT` 16, `MARGIN_WIDE` 24, `SPACER` 24; `TILE_MIN`
-200, `LEAD_MAX` 560, `LIST_PANE` 360, `COLUMN_MAX` 720, `SHEET_MAX`
+32; `MARGIN_COMPACT` 16, `MARGIN_WIDE` 24, `SPACER` 24;
+`LEAD_MAX` 560, `LIST_PANE` 360, `COLUMN_MAX` 720, `SHEET_MAX`
 560, `SUPPORT_PANE` 400, `SUPPORT_PANE_TOP` 96 (below the top-right
 strip's two 48 dp rows), `MEASURE` 70 characters; the size set and
 the type roles of §8 (`BUTTON_H`, `FIELD_H`, `LIST_1` to `LIST_3`,
@@ -824,7 +825,7 @@ below say what each draws today.
 
 | Screen | Rule |
 |---|---|
-| Home | the feed (§4) in a page at most `TRANSFER_W` wide, `PAGE_INSET` in from each side and centred in the room beside the navigation, as the tools' catalogue is (`READING_TRANSFER_W`): as many columns as fit tiles at least `TILE_MIN` wide and as wide as the longest name or line, each at the row's share, the rest of a short row empty; on the one-column layouts the places a grid at `TILE_MIN`, two to a row on the Pi's panel; Scan at the right edge (§15) |
+| Home | the feed (§4) on the menu page container: a page at most `MENU_PAGE_W` wide, `PAGE_INSET` in from each side and centred in the room beside the navigation, as Tools' is: as many columns as fit tiles at least `CATALOG_TILE_MIN` wide, each at the row's share, the rest of a short row empty; on the one-column layouts the places a grid by the same rule, two to a row on the Pi's panel; Scan at the right edge (§15) |
 | Wallets, Files, Vaults, Backups | list and detail (§5, L4) in the whole page area: the list `LIST_PANE` at the start, the detail beside it to the right margin; the detail's reading parts at `COLUMN_MAX`, its chart and tables in the detail's width. Files is two cards from under the bar to the page's foot, In Faraday and On the stick (F290); its stick status chip is in the top bar. The bar of a wallet beside the list names the page and has no back arrow or "Back to Wallets" line, as the list is in view (Material's list-detail shows a back only where one pane hides the other); where the card stands alone, or the trail leads elsewhere ("Back to Home"), the line stays |
 | The structure chart (a wallet's detail, the chart sheet) | wide content in the detail's width; its nodes keep their size (§8); the wallet's buttons under the chart, not at the card's foot. A node's sheet is Material's standard side sheet at the window's right edge, `SIDE_SHEET_W` wide, the page's room narrowed by it so the chart and its highlighted lines stand beside it (DESIGN §4.16), and where the room left cannot hold the list pane and a card at least as wide beside it (`panes::screen::fits`), the wallet's card stands alone in it, as on a medium window, until the sheet closes; on the rail's and the bar's windows the centred sheet or the panel's page, as before |
 | Back on a compact window | closes what is open on the page before it leaves it: the search view of a vault's items or of the codes (the bar's back arrow, naming the list, and the system Back close it as Done and Escape do, the query kept and the list filtered), then a Settings section to the list |

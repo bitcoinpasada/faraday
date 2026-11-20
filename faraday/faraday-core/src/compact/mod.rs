@@ -6,12 +6,8 @@
 pub(crate) mod screen;
 
 use crate::strings::EN;
-use crate::ui::Region;
 use crate::ui::{Shape, Unpressed};
-use faraday_draw::tokens::{
-    GRID_TILE_INSET, GRID_TILE_SUB_Y, GRID_TILE_TEXT_X, LEAD_MAX, MENU_TILE_LABEL_Y,
-    MENU_TILE_SUB_W, TILE_H_COMPACT, TILE_H_GRID, TILE_PAD,
-};
+use faraday_draw::tokens::{GRID_TILE_INSET, GRID_TILE_TEXT_X, LEAD_MAX, TILE_H_GRID, TILE_PAD};
 use faraday_draw::widgets::Icon;
 use faraday_text::{Text, text};
 
@@ -21,7 +17,7 @@ use crate::ui::pal::*;
 use crate::ui::{Glyph, Style, Ui};
 use crate::{Action, Faraday, Screen};
 use faraday_draw::tokens::{
-    APP_BAR_H, BODY_S, BUTTON_H, GAP_SMALL, ICON_BUTTON, LABEL_L, MARGIN_COMPACT, SHAPE_M,
+    APP_BAR_H, BUTTON_H, GAP_SMALL, ICON_BUTTON, LABEL_L, MARGIN_COMPACT, SHAPE_M,
 };
 use faraday_ui::nav::AppBar;
 pub(crate) use faraday_ui::sheet::{
@@ -744,8 +740,12 @@ pub(crate) fn keyboard_action(app: &View) -> Option<(Action, bool)> {
 /// list can be clipped above it.
 const FAB_ROOM: f32 = M + 40.0 + 8.0;
 
-/// Home: what is loaded, then a button for each place the sidebar goes.
+/// Home: what is loaded, then a button for each place the sidebar goes,
+/// drawn by the menu page container: on the Pi's panel its places two to a
+/// row.
 pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
+    use crate::screens::catalog::{Bar, Face, Mark};
+    use crate::screens::menu_page::{self, Above, Page, Section};
     // Scan floats over the foot in a strip of its own: the scrollable
     // list is clipped above it, so no tile's hit area ever falls under
     // it, at any scroll position, not only at the bottom.
@@ -757,180 +757,162 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     } else {
         h - FAB_ROOM
     };
-    // On the windows that have the search bar, the page down to the bar
-    // stays still, typing or not, and only what is under it scrolls: where
-    // the window leaves room for it (`home_pinned`), else the whole page
-    // scrolls as one, the same content in the same order.
     let bars = app.nav() != crate::nav::Nav::Menu;
     let inner = w - 2.0 * M;
     let beside = app.nav().beside();
-    let prompts = prompts(app);
     let rail = app.nav() == crate::nav::Nav::Rail;
     // The first actions stand on the rail's windows always, not while
     // nothing is loaded (`docs/HOME.md` §5).
     let first = rail || (bars && crate::screens::nothing_loaded(app));
-    let vaults = app.vaults.open.len();
-    let card = vaults > 0;
-    let l1 = ui.line_as(LABEL_L);
-    // The card as tall as its line needs (`docs/TEXT-SIZE.md` §5).
-    let card_h = ui.row_height(52.0, l1, faraday_draw::tokens::GRID);
-    // The phone-size window has the search bar first, under the box of what
-    // is loaded, and the rail's windows first of all; a search typed takes
-    // the whole page on both. The Pi has none.
-    let phone = app.nav() == crate::nav::Nav::Bar;
-    let typed = bars && !app.tools.home_find().is_empty();
     // The rail's windows have the loaded wallets and keys as tiles of their
-    // own (`crate::screens::loaded`), not this box.
+    // own (`crate::screens::loaded_sections`), not the box.
     let shown = !rail && !crate::nav::screen::loaded_empty(app);
-    let mut above = 12.0;
-    if shown {
-        above += crate::nav::screen::loaded_card_h(app, ui, inner) + 10.0;
-    }
-    if !beside {
-        above += 38.0;
-    }
-    if !phone {
-        if card {
-            above += card_h + 10.0;
-        }
-        above += prompts.len() as f32 * 52.0 + 2.0;
-        if first {
-            above += first_actions_h(app, ui, inner);
-        }
-    }
-    // The rail's windows keep the bar still always.
-    let pinned = rail || (bars && crate::screens::home_pinned(above, view_h, TILE_H_GRID + 8.0));
-    let mut open = (!pinned).then(|| {
-        let clip = ui.rect(0.0, 0.0, w, view_h);
-        ui.region_open(Region::page(clip).from_zero(app.list_offset))
-    });
-    let mut top = 0.0;
-    let mut y = top + 12.0;
-
-    // On the rail's and the bar's windows the top app bar carries the
-    // name, and the sidebar's lists lead in one box (`docs/LAYOUT.md` §3).
-    if !beside {
-        home_head(app, ui, w, y);
-        y += 38.0;
-    }
-    if shown {
-        y += crate::nav::screen::loaded_card(app, ui, M, y, inner) + 10.0;
-    }
-    // The rail's windows have no box: a chip for each flow in progress
-    // stands over the page, as on every other destination.
-    if rail {
-        y += crate::nav::screen::flow_chips(app, ui, M, y, inner);
-    }
-    // The search bar and, while something is typed, its results.
-    macro_rules! search {
-        () => {{
-            y += crate::screens::catalog::home_search_bar(
-                app,
-                ui,
-                (M, y, inner),
-                (!pinned).then_some(0.0),
-                crate::screens::catalog::Bar::Home,
-            );
-            if pinned {
-                let clip = ui.rect(0.0, y, w, (view_h - y).max(0.0));
-                open = Some(ui.region_open(Region::page(clip).from_zero(app.list_offset)));
-                top = y;
-            }
-            if typed {
-                y += crate::screens::catalog::home_results(
-                    app,
-                    ui,
-                    (M, y),
-                    inner,
-                    true,
-                    crate::screens::catalog::Bar::Home,
-                );
-                y += faraday_draw::tokens::HOME_RESULTS_FOOT;
-            }
-        }};
-    }
-    if phone || rail {
-        search!();
-    }
-    // A search typed on the phone-size window and on the rail's windows
-    // takes the page: nothing under the bar is drawn.
-    let rest = !((phone || rail) && typed);
-    if card && rest {
-        y += vaults_card(app, ui, y, inner);
-    }
-
-    // The one thing waiting, when there is one.
-    let lead_w = if app.nav() == crate::nav::Nav::Menu {
-        inner
+    let box_h = if shown {
+        crate::nav::screen::loaded_card_h(app, ui, inner) + 10.0
     } else {
-        inner.min(LEAD_MAX)
+        0.0
     };
-    for (icon, label, action, tone) in prompts.into_iter().filter(|_| rest) {
+    let head_h = if beside { 0.0 } else { 38.0 };
+    // What stands over the search bar: on the Pi's panel the mark and name
+    // and the box of what is loaded, on the phone-size window the box, on
+    // the rail's windows a chip for each flow in progress.
+    let above = Above {
+        height: head_h + box_h,
+        draw: Box::new(move |ui, (_, y), _| {
+            let mut used = 0.0;
+            if !beside {
+                home_head(app, ui, w, y);
+                used += head_h;
+            }
+            if shown {
+                used += crate::nav::screen::loaded_card(app, ui, M, y + used, inner) + 10.0;
+            }
+            if rail {
+                used += crate::nav::screen::flow_chips(app, ui, M, y + used, inner);
+            }
+            used
+        }),
+    };
+
+    let prompts = prompts(app);
+    let (row, keys) = if rail {
+        (
+            crate::screens::home_row(app),
+            crate::screens::home_keys(app),
+        )
+    } else {
+        (Vec::new(), Vec::new())
+    };
+    let mut ways = tiles(app);
+    // The rail's windows have Backups in the row of what is loaded.
+    if rail {
+        ways.retain(|t| t.3 != Action::Nav(Screen::Backups));
+    }
+    let menu = !bars;
+    let places: Vec<Face> = ways
+        .iter()
+        .map(|(icon, name, line, action, enabled)| Face {
+            mark: if menu {
+                Mark::Above(*icon)
+            } else {
+                Mark::Beside(*icon)
+            },
+            name,
+            line,
+            warn: !enabled,
+            tags: &[],
+            opens: *enabled,
+            action: *action,
+        })
+        .collect();
+
+    let mut sections: Vec<Section> = Vec::new();
+    if !app.vaults.open.is_empty() {
+        sections.push(Section::block(None, move |ui, (_, y), _| {
+            vaults_card(app, ui, y, inner) - 10.0
+        }));
+    }
+    if !prompts.is_empty() {
+        let lead_w = if menu { inner } else { inner.min(LEAD_MAX) };
+        sections.push(Section::block(None, move |ui, (_, y), _| {
+            prompt_rows(ui, &prompts, y, lead_w)
+        }));
+    }
+    if first {
+        sections.push(Section::block(None, move |ui, (_, y), _| {
+            first_actions(app, ui, y, inner) - 8.0
+        }));
+    }
+    let wallets = !app.session.wallets.is_empty();
+    sections.extend(crate::screens::loaded_sections(&row, &keys, wallets));
+    sections.push(Section::tiles(None, places));
+    // Lock and power, here on the small panel; the rail and the top app
+    // bar carry them on wider windows.
+    if !beside {
+        sections.push(Section::block(None, move |ui, (_, y), _| {
+            lock_row(app, ui, y, inner, 8.0) - 16.0
+        }));
+    }
+    // The idle lock waits for a new wallet's backup.
+    if app.lock_held() {
+        sections.push(Section::block(None, move |ui, (x, y), w| {
+            crate::screens::lock_held_pill(ui, x, y, w)
+        }));
+    }
+    let page = Page {
+        name: EN.compact_home,
+        back: false,
+        search: bars.then_some(Bar::Home),
+        most_columns: usize::MAX,
+        fixed_columns: menu.then_some(2),
+        above: Some(above),
+        bar_still: rail,
+    };
+    menu_page::draw(app, ui, (0.0, w, view_h), &page, &sections);
+
+    // Beside the rail or the bar the frame draws it at the window's edge.
+    if !app.nav().beside() {
+        ui.fab(w - M, h - M, Icon::Scan, EN.compact_scan, Action::Scan);
+    }
+}
+
+/// The one thing waiting, when there is one: each prompt in its tone's
+/// container, `lead_w` wide from `y`. Returns the height they take.
+fn prompt_rows<L: std::ops::Deref<Target = str>>(
+    ui: &mut Ui,
+    prompts: &[(Glyph, L, Option<Action>, crate::ui::Paint)],
+    y: f32,
+    lead_w: f32,
+) -> f32 {
+    let mut y0 = y;
+    for (icon, label, action, tone) in prompts {
         // In its tone's container, its icon and words in the
         // container's on-role: never a tint (`docs/DESIGN.md` §3).
-        let (bg, ink) = if tone == Role::Warning.paint() {
+        let (bg, ink) = if *tone == Role::Warning.paint() {
             (Role::WarningContainer, Role::OnWarningContainer)
         } else {
             (Role::SecondaryContainer, Role::OnSecondaryContainer)
         };
-        ui.fill(M, y, lead_w, 44.0, SHAPE_M, bg);
+        ui.fill(M, y0, lead_w, 44.0, SHAPE_M, bg);
         if let Some(a) = action {
-            ui.press(Shape::new(M, y, lead_w, 44.0, SHAPE_M), ink.paint(), a);
+            ui.press(Shape::new(M, y0, lead_w, 44.0, SHAPE_M), ink.paint(), *a);
         }
-        ui.icon(M + 8.0, y + 8.0, 28.0, icon, 14.0, ink);
-        let label = ui.fit_as(LABEL_L, &label, lead_w - 60.0);
-        ui.text_mid_as((M + 44.0, y, 44.0), LABEL_L, ink, &label);
+        ui.icon(M + 8.0, y0 + 8.0, 28.0, *icon, 14.0, ink);
+        let label = ui.fit_as(LABEL_L, label, lead_w - 60.0);
+        ui.text_mid_as((M + 44.0, y0, 44.0), LABEL_L, ink, &label);
         if action.is_some() {
             ui.icon(
                 M + lead_w - 26.0,
-                y + 12.0,
+                y0 + 12.0,
                 20.0,
                 Icon::ChevronRight,
                 9.0,
                 ink,
             );
         }
-        y += 44.0 + 8.0;
+        y0 += 44.0 + 8.0;
     }
-    y += 2.0;
-    if rest && first {
-        y += first_actions(app, ui, y, inner);
-    }
-    if rest && rail {
-        y += crate::screens::loaded(app, ui, (M, y), inner, 8.0);
-    }
-    if bars && !phone && !rail {
-        search!();
-    }
-
-    // The menu: the sidebar's places.
-    let gap = 8.0;
-    y += places(app, ui, y, inner, rest);
-
-    // Lock and power, here on the small panel; the rail and the top app
-    // bar carry them on wider windows.
-    if rest {
-        if beside {
-            y += faraday_draw::tokens::GRID;
-        } else {
-            y += lock_row(app, ui, y, inner, gap);
-        }
-    }
-    // The idle lock waits for a new wallet's backup.
-    if rest && app.lock_held() {
-        y += crate::screens::lock_held_pill(ui, M, y - 8.0, inner) + 8.0;
-    }
-
-    let content = y - top;
-    app.scroll.content_h().set(content);
-    if let Some(open) = open {
-        ui.region_close(open, content - (view_h - top));
-    }
-
-    // Beside the rail or the bar the frame draws it at the window's edge.
-    if !app.nav().beside() {
-        ui.fab(w - M, h - M, Icon::Scan, EN.compact_scan, Action::Scan);
-    }
+    y0 - y - 8.0
 }
 
 /// Whether the first-run actions stand on one row: only on the rail's
@@ -965,12 +947,6 @@ fn first_actions_grid(app: &View, ui: &Ui, inner: f32, gap: f32) -> (usize, f32)
     } else {
         (1, TILE_H_GRID)
     }
-}
-
-/// The height [`first_actions`] takes.
-fn first_actions_h(app: &View, ui: &Ui, inner: f32) -> f32 {
-    let (cols, h) = first_actions_grid(app, ui, inner, 8.0);
-    3usize.div_ceil(cols) as f32 * (h + 8.0)
 }
 
 /// The three first-run actions at `y`, heading only, the whole button the
@@ -1042,140 +1018,6 @@ fn vaults_card(app: &View, ui: &mut Ui, y: f32, inner: f32) -> f32 {
     let line = ui.fit_as(LABEL_L, &line, inner - 40.0);
     ui.text_mid_as((M + 28.0, text_top, l1), LABEL_L, Role::OnSurface, &line);
     card_h + 10.0
-}
-
-/// The sidebar's places at `y`, two to a row on the panel's menu and a
-/// grid elsewhere; none while `rest` is false. Returns the height they take.
-fn places(app: &View, ui: &mut Ui, y: f32, inner: f32, rest: bool) -> f32 {
-    // On the panel's menu two to a row; elsewhere a grid of as many
-    // columns as `TILE_MIN` leaves room for (`docs/LAYOUT.md` §4).
-    let gap = 8.0;
-    let (cols, tw) = if app.nav() == crate::nav::Nav::Menu {
-        (2, (inner - gap) / 2.0)
-    } else {
-        crate::screens::tile_grid(inner, gap, 0.0)
-    };
-    let grid = app.nav() != crate::nav::Nav::Menu;
-    let th = if grid { TILE_H_GRID } else { TILE_H_COMPACT };
-    // A summary that does not fit its line wraps under the name and its
-    // row grows to hold it; the tiles of a row stay one height.
-    let wraps = |ui: &Ui, sub: &str| -> (f32, f32) {
-        if sub.is_empty() {
-            return (0.0, th);
-        }
-        if grid {
-            let room = tw - GRID_TILE_TEXT_X - GRID_TILE_INSET;
-            if ui.measure_as(BODY_S, sub) <= room {
-                return (0.0, th);
-            }
-            let n = ui.wrap_height_as(BODY_S, sub, room);
-            (n, th.max(GRID_TILE_SUB_Y + n + TILE_PAD))
-        } else {
-            if ui.measure_as(BODY_S, sub) <= tw - MENU_TILE_SUB_W {
-                return (0.0, th);
-            }
-            let n = ui.wrap_height_as(BODY_S, sub, tw - 2.0 * TILE_PAD);
-            (
-                n,
-                th.max(MENU_TILE_LABEL_Y + ui.line_as(LABEL_L) + 2.0 + n + TILE_PAD),
-            )
-        }
-    };
-    let mut tiles = if rest { tiles(app) } else { Vec::new() };
-    // The rail's windows have Backups in the row of what is loaded.
-    if app.nav() == crate::nav::Nav::Rail {
-        tiles.retain(|t| t.3 != Action::Nav(Screen::Backups));
-    }
-    let heights: Vec<f32> = tiles.iter().map(|t| wraps(ui, &t.2).1).collect();
-    let row_h = |r: usize| {
-        heights
-            .iter()
-            .skip(r * cols)
-            .take(cols)
-            .fold(th, |m, h| m.max(*h))
-    };
-    let mut row_y = Vec::new();
-    let mut acc = y;
-    for r in 0..tiles.len().div_ceil(cols) {
-        row_y.push(acc);
-        acc += row_h(r) + gap;
-    }
-    for (i, (icon, label, sub, action, enabled)) in tiles.iter().enumerate() {
-        let tx = M + (i % cols) as f32 * (tw + gap);
-        let ty = row_y[i / cols];
-        let th = row_h(i / cols);
-        let (wrapped, _) = wraps(ui, sub);
-        ui.fill(tx, ty, tw, th, SHAPE_M, Role::SurfaceContainerLow);
-        ui.stroke(tx, ty, tw, th, SHAPE_M, Role::OutlineVariant);
-        if *enabled {
-            ui.press(
-                Shape::new(tx, ty, tw, th, SHAPE_M),
-                Role::OnSurface.paint(),
-                *action,
-            );
-        }
-        let (ibg, ifg) = if *enabled {
-            (
-                Role::SecondaryContainer.paint(),
-                Role::OnSecondaryContainer.paint(),
-            )
-        } else {
-            (
-                Role::OnSurface.at(faraday_draw::tokens::DISABLED_CONTAINER),
-                crate::ui::off(),
-            )
-        };
-        ui.fill(tx + 12.0, ty + 12.0, 30.0, 30.0, 8.0, ibg);
-        ui.icon(tx + 12.0, ty + 12.0, 30.0, *icon, 14.0, ifg);
-        let fg = if *enabled {
-            Role::OnSurface.paint()
-        } else {
-            crate::ui::off()
-        };
-        if grid {
-            // The icon beside the name, one line under it
-            // (`docs/LAYOUT.md` §4).
-            let room = tw - GRID_TILE_TEXT_X - GRID_TILE_INSET;
-            let label = ui.fit_as(LABEL_L, label, room);
-            let tx = tx + GRID_TILE_TEXT_X;
-            if sub.is_empty() {
-                ui.text_mid_as((tx, ty, th), LABEL_L, fg, &label);
-            } else {
-                ui.text_as(tx, ty + 10.0, LABEL_L, fg, &label);
-                let c = if *enabled {
-                    Role::OnSurfaceVariant
-                } else {
-                    Role::Warning
-                };
-                ui.wrap_as((tx, ty + GRID_TILE_SUB_Y, room), BODY_S, c, sub);
-            }
-        } else {
-            let label = ui.fit_as(LABEL_L, label, tw - 24.0);
-            ui.text_as(tx + 12.0, ty + 48.0, LABEL_L, fg, &label);
-            let c = if *enabled {
-                Role::OnSurfaceVariant
-            } else {
-                Role::Warning
-            };
-            if wrapped > 0.0 {
-                let sy = ty + MENU_TILE_LABEL_Y + ui.line_as(LABEL_L) + 2.0;
-                ui.wrap_as((tx + TILE_PAD, sy, tw - 2.0 * TILE_PAD), BODY_S, c, sub);
-            } else if !sub.is_empty() {
-                let sub = ui.fit_as(BODY_S, sub, tw - 54.0);
-                ui.text_right_as(
-                    (tx + tw - 10.0, ty + 12.0, 30.0),
-                    BODY_S,
-                    if *enabled {
-                        Role::OnSurfaceVariant
-                    } else {
-                        Role::Warning
-                    },
-                    &sub,
-                );
-            }
-        }
-    }
-    acc + 4.0 - y
 }
 
 /// Home's foot on the small panel at `y`: Lock, when something is held,
