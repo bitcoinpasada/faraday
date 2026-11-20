@@ -55,13 +55,14 @@ pub const SHELL_NOTCH_PX: f32 = 48.0;
 /// between 200 and 250 ms; Material's short 4.
 pub(crate) const FADE_MS: u64 = tokens::MOTION_SHORT4;
 /// How long a change of a flow's step takes to fade through: the old
-/// card out over the first `STEP_FADE_OUT` of it to the page's surface,
+/// card out over the first `STEP_FADE_OUT` of its eased progress to the page's surface,
 /// the new one in over the rest, and the frame outside the card's place
 /// cross-fading over all of it (`docs/FLOW-CONTAINER.md` §3); Material's
 /// medium 2. Not yet timed on the Pi (F238): the owner's late-flow
 /// session times it.
 pub(crate) const STEP_FADE_MS: u64 = tokens::MOTION_MEDIUM2;
-/// The part of a step's fade the old card takes to go out, 0 to 1.
+/// The part of a step's fade the old card takes to go out, 0 to 1, of
+/// the eased progress.
 pub(crate) const STEP_FADE_OUT: f32 = 0.35;
 /// How long a change of theme takes to cross-fade, eased: every pixel
 /// changes colour, so it is slower than a change of screen (the owner
@@ -197,17 +198,15 @@ pub(crate) fn ease_open(t: f32) -> f32 {
 /// How far a step's card has gone through the fade `t` of the way in
 /// (0 to 1): whether it is still going out, and how far, 0 to 1, from the
 /// old card to the page's surface when it is, from the surface to the new
-/// card when it is not. Going out is on Material's emphasized accelerate,
-/// coming in on its emphasized decelerate.
+/// card when it is not. As in Material's fade through, the whole fade is
+/// on its full emphasized easing, and the split between out and in is at
+/// `STEP_FADE_OUT` of the eased progress, both linear in it.
 pub(crate) fn step_fade(t: f32) -> (bool, f32) {
-    if t < STEP_FADE_OUT {
-        (
-            true,
-            ease(tokens::EASE_EMPHASIZED_ACCELERATE, t / STEP_FADE_OUT),
-        )
+    let e = faraday_draw::easing::ease_path(&tokens::EASE_EMPHASIZED, t);
+    if e < STEP_FADE_OUT {
+        (true, e / STEP_FADE_OUT)
     } else {
-        let rest = (t - STEP_FADE_OUT) / (1.0 - STEP_FADE_OUT);
-        (false, ease(tokens::EASE_EMPHASIZED_DECELERATE, rest))
+        (false, (e - STEP_FADE_OUT) / (1.0 - STEP_FADE_OUT))
     }
 }
 

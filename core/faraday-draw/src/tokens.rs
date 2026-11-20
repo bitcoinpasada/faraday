@@ -2135,6 +2135,26 @@ pub const EASE_EMPHASIZED_DECELERATE: Easing = [0.05, 0.7, 0.1, 1.0];
 /// Emphasized accelerate: a large part of the page leaving.
 pub const EASE_EMPHASIZED_ACCELERATE: Easing = [0.3, 0.0, 0.8, 0.15];
 
+/// An easing path: two cubic Béziers end to end, the first from (0, 0)
+/// to `join`, the second from `join` to (1, 1); each holds its two
+/// control points as x1, y1, x2, y2.
+pub struct EasingPath {
+    /// Where the first segment ends and the second begins.
+    pub join: [f32; 2],
+    /// The control points of the segment from (0, 0) to `join`.
+    pub first: [f32; 4],
+    /// The control points of the segment from `join` to (1, 1).
+    pub second: [f32; 4],
+}
+/// Material 3's emphasized easing (`motionEasingEmphasized` in
+/// material-components-android): `path(M 0,0 C 0.05,0, 0.133333,0.06,
+/// 0.166666,0.4 C 0.208333,0.82, 0.25,1, 1,1)`.
+pub const EASE_EMPHASIZED: EasingPath = EasingPath {
+    join: [0.166_666, 0.4],
+    first: [0.05, 0.0, 0.133_333, 0.06],
+    second: [0.208_333, 0.82, 0.25, 1.0],
+};
+
 /// A file the Keys card lists but cannot use: the reason's top below the row's top.
 pub const REFUSED_FILE_REASON_Y: f32 = 26.0;
 /// The name's top below the row's top.

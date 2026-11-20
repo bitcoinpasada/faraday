@@ -134,22 +134,23 @@ fn continue_fades_through_the_surface_in_300_ms() {
         .iter()
         .map(|(ms, f)| (*ms, away(f, old_ink, &surface)))
         .collect();
-    // Part of the way out at about 50 ms.
-    let (_, half) = *out.iter().find(|(ms, _)| *ms >= 50).unwrap();
+    // Part of the way out at about 30 ms.
+    let (_, half) = *out.iter().find(|(ms, _)| *ms >= 30).unwrap();
     assert!(
         half > 0 && half < at_first,
-        "the old text is closer to the surface at 50 ms: {half} of {at_first}"
+        "the old text is closer to the surface at 30 ms: {half} of {at_first}"
     );
-    // Gone, all of the card's place the surface, at about 105 ms.
+    // Gone, all of the card's place the surface, at about 48 ms (the emphasized
+    // easing is at 35% there).
     let gone = out
         .iter()
         .find(|(_, d)| *d == 0)
         .expect("the old text goes");
-    assert!((90..=125).contains(&gone.0), "gone at {} ms", gone.0);
+    assert!((40..=70).contains(&gone.0), "gone at {} ms", gone.0);
     // The new card comes in after, and the frame ends at the new step.
     let settled = tick(&mut app, &mut clock, 16);
     let new_ink = inked(&settled, width, new, &surface);
-    let before_in = seen.iter().rev().find(|(ms, _)| *ms <= 100).unwrap();
+    let before_in = seen.iter().rev().find(|(ms, _)| *ms <= 40).unwrap();
     assert_eq!(
         away(&before_in.1, new_ink, &surface),
         0,
@@ -272,18 +273,18 @@ fn on_a_scrolled_page_the_fade_stays_in_the_page_area() {
     let _ = app.frame();
     assert_eq!(app.take_fade_counts().started, 1, "a fade starts");
     tick(&mut app, &mut clock, 0);
-    // About 105 ms in (the clock starts at the first tick, 16 ms taken as
-    // passed): the old card is out, the new not yet in.
-    for _ in 0..5 {
+    // About 48 ms in (the clock starts at the first tick, 16 ms taken as
+    // passed): the old card is out, the new barely in.
+    for _ in 0..2 {
         tick(&mut app, &mut clock, 15);
     }
-    let mid = tick(&mut app, &mut clock, 14);
+    let mid = tick(&mut app, &mut clock, 2);
     for (x, y, w, h) in &lines {
         for py in *y..*y + *h {
             for px in *x..(*x + *w).min(right) {
                 let i = py as usize * width + px as usize;
                 assert!(
-                    away(&mid, i, &surface) < 12,
+                    away(&mid, i, &surface) < 40,
                     "old text at {x},{y} is still on screen at {px},{py}"
                 );
             }
