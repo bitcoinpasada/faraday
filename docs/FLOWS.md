@@ -116,10 +116,7 @@ taken into a slot of Restore or the Spend tab with words and no
 passphrase opens the same sheet: a vault may keep a seed apart from its
 passphrase.
 
-**Step cards** (decisions 16 and 34). A flow on the container (Make a new vault today, `docs/FLOW-CONTAINER.md`) shows only the open step; its finished steps are rows in Your choices, each a press back to its step, and a later answer is kept while it still fits an earlier one changed. What follows is every other flow, still drawn as a column. A flow draws no step past the current one: only the steps up to the furthest finished or open one, and at least the first not finished, are on the page (the small panel's "Step n of m" keeps the whole count, and reads "Step n" alone while the count is not known). A finished step stays above with its check and can be changed; the finished ones after it stay when it is. Back up's checklist and plan, lists of independent items, draw every item. In Sign a transaction, Back up and
-Create a vault a step card with a default opens closed and shows its
-value and **Change** in place of the chevron; the flow opens on the first
-card without one. Make a new wallet opens on Kind, open, with nothing
+**Step cards** (decisions 16 and 34; `docs/FLOW-CONTAINER.md`). Every step flow is drawn by the flow container and shows only its current step's card, at one fixed place: no step past it, no finished step above it, no closed line and no **Change**. A finished step is a row in Your choices (the pane on a wide layout, the top app bar's button and its sheet elsewhere), a press on it opens the step, and a later answer is kept while it still fits an earlier one changed. The card's head reads "Step n of m", or "Step n" while the count is not known (Sign a transaction, Back up, Restore, Spend from a backup). Back up's checklist, a list of independent items, is its first card: each item is a row of Your choices and opens its own card; an item that waits on an earlier one takes no press and reads "After {the item}". A card that asks one thing moves on at the choice (F103). Make a new wallet opens on Kind, open, with nothing
 ticked and no way on until a row is pressed, and only the Kind card
 shows until then (a single key's Backup card, Words and Shares, starts
 the same way: neither ticked, no way on until one is pressed); **It matches** on Check
@@ -129,7 +126,7 @@ old wallet's coins; a Tools tile that ticks a
 kind opens the card after it. New key opens on its first step, whatever
 opened it.
 A card that asks one thing (a kind, Yes
-or No, a format, a size) closes on the choice and opens the next, and a
+or No, a format, a size) takes the choice and opens the next, and a
 press on the option already chosen does too (F103); **Continue** stays
 under a card of several values (steppers, ticks, typing) and where the
 press is the act.
@@ -446,11 +443,11 @@ Add a key, Home's Scan), never here. A Create slot, and a flow opened
 on a form of a key held by a Tools tile, also list **Add a key you
 have**, **Type the words**, **Scan a SeedQR** and **Type codex32
 strings**, and under Other forms **Type SLIP-39 shares** and **Type
-Seed XOR parts**; closed, it shows the choice ("Make a
-new key · Codex32") and **Change** until the key is locked in. Opened
+Seed XOR parts**; Your choices shows the choice ("Make a
+new key · Codex32") until the key is locked in. Opened
 for a single key's slot (F240) Make a new key offers only the Backup
 card's form, **BIP-39 words** for Words and **Codex32** for Shares (not
-**Make SLIP-39 shares** either), and **Change** reopens the same list; opened for a multisig cosigner's slot
+**Make SLIP-39 shares** either), and the Start row of Your choices reopens the same list; opened for a multisig cosigner's slot
 it offers **BIP-39 words** only (no Codex32, and **Make SLIP-39 shares**
 is not offered there); in both, every way to add a key you have is
 offered. On its own (Tools, Wallets) every way of making is offered
@@ -464,14 +461,14 @@ words behind **Show words**, **Passphrase** and **Passphrase again**
 does (not marked made here) and fills a Create slot, and leaves the
 flow by itself, with no Words or Quiz. Make a new key on Wallets and
 its Tools tile open with Start open and nothing ticked; New key from a Create
-slot of a single key has Start answered by the Backup card, closed with
-**Change**, and opens on the next card (F103): a press on a choice takes it and opens the
-next card, and nothing moves on before one is pressed. **Change** on
-Start reopens it with its choice ticked, where a press on a choice, the
+slot of a single key has Start answered by the Backup card, its answer a
+row of Your choices, and opens on the next card (F103): a press on a choice takes it and opens the
+next card, and nothing moves on before one is pressed. The Start row
+reopens it with its choice ticked, where a press on a choice, the
 ticked one included, moves on by itself. The SLIP-39, codex32 and Seed XOR tiles open with their
-choice made and Start closed. The page is titled **Add a key**, and
+choice made, on the step after Start. The page is titled **Add a key**, and
 **Make a new key** for a Create slot and from the Add a key screen's Make a new
-key, which opens with Start closed on it. The Add a key screen (Home,
+key, which opens on the step after Start. The Add a key screen (Home,
 below) stays for a key asked for by name: a slot's fingerprint, a
 wallet's missing key, Restore's seed slots, a seed scanned from Home
 or the Spend tab, and the Add a key buttons of Convert, Explore, BIP-85
@@ -537,12 +534,12 @@ same cards New key draws, opened on Make a new wallet's own page.
   This is Material 3's full-screen step within a flow, under the flow's
   own top app bar; no step list is nested in another.
 - **Nothing asked twice.** Kind and the Backup card answer what New key's
-  Start would: Start stands closed on that answer with **Change**, which
-  offers only the forms the slot may take (BIP-39 words on a multisig
+  Start would: Start stands answered, its row in Your choices opening
+  the list, which offers only the forms the slot may take (BIP-39 words on a multisig
   slot or a single key backed up as words; codex32 shares on a single key
   backed up as shares) beside every way to add a key already held. A
-  length chosen on the Keys card is carried into Length, closed with
-  **Change**; Randomness opens with no way chosen, since Other ways was
+  length chosen on the Keys card is carried into Length, answered, its
+  row in Your choices reopening it; Randomness opens with no way chosen, since Other ways was
   pressed for another.
 - **Back, Cancel, leaving.** Back walks the key's cards back, then from
   the first one opened returns to the Keys card with every answer of the
@@ -2348,7 +2345,7 @@ keys is read and shown whole without making anything.
      goes through the pasted-text classifier (`docs/SCANNING.md` §4.6)
      and, where it is a wallet description, to the same reader.
 
-   A setup read closes the card on its name and shape with **Change**,
+   A setup read has its name and shape as the Setup row of Your choices,
    and works out the Result on that press.
 2. **Result.** The confirmation sheet's rows, then the page's own rows
    and actions (below).

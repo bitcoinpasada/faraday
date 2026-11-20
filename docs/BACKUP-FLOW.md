@@ -156,7 +156,7 @@ KEK, so they wait.
 
 ### 4.1 Where it will be kept
 
-A step card of rows, a place's options as buttons under its row
+One step's card of rows, a place's options as buttons under its row
 (DESIGN §4.2, Option buttons):
 
 - one row per place, "Place 1", "Place 2", with what it keeps; **Add a
@@ -442,9 +442,10 @@ inserted before step 2.
 
 ## 5. Screens, progress, leaving
 
-- **Step cards** on `wide`, as Make a new wallet's (DESIGN §4.14;
-  decision 16); **pages** on `small`, the head reading "Step 2" (no total: the cards a plan skips change it) with
-  a row per earlier card, "{card} · {value}". Steps 2 and 6 hold one
+- **One step's card at a time** on the flow container (FLOW-CONTAINER;
+  DESIGN §4.14), the head reading "Step 2" (no total: the cards a plan
+  skips change it); the earlier cards are rows in Your choices, "{card}"
+  and its value, a press on one opening it. Steps 2 and 6 hold one
   sub-card per stick, each closing with its place and label when done.
   The cards a plan skips (2, 3, 5, 6 with no stick) are not drawn and
   not counted.
@@ -955,8 +956,7 @@ already by place and does not change. Restore's vault brought in before the seed
 
 ### 15.1 The cards
 
-In this order, as step cards on `wide` and a page each on `small`
-(NEW-WALLET §14):
+In this order, one card at a time (FLOW-CONTAINER; NEW-WALLET §14):
 
 1. *(Replaced by §17.21 item 1: no Start from; the presets only build
    plans.)* **Start from**: removed.

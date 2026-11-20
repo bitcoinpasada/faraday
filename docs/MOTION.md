@@ -313,7 +313,7 @@ extent; a motion left from another screen or sheet is stopped.
 
 ### 3.5 Visual polish
 
-- **Hover**: rows, buttons, the sidebar items, the step cards' headers
+- **Hover**: rows, buttons, the sidebar items, a step's Your choices rows
   and the ? button gain a hover look (a state layer in the content
   colour, THEMES §8). `Ui::hovered` is found from
   the last frame's hits, like `pressed`; a frame is drawn only when the
@@ -321,7 +321,7 @@ extent; a motion left from another screen or sheet is stopped.
 - **Reduce motion** (Settings › Appearance, a Material switch,
   `Ui::switch_row`; THEMES §12): on, nothing slides, glides, coasts,
   stretches or fades: a change of screen, sheet or theme is there at
-  once, a glide to the open card and a worksheet's follow land at once,
+  once, a worksheet's follow lands at once,
   a dice tumble and its pause are skipped, and a wheel notch moves at
   once with no coast and no stretch past an end. It is kept with the other
   settings (`motion=reduced` or `motion=full` in the settings file and
@@ -337,8 +337,8 @@ extent; a motion left from another screen or sheet is stopped.
   - a toast rises in over 200 ms on Material's standard decelerate
     curve and fades on its standard accelerate (`motion::TOAST_MS`,
     `Out::toast_shown`), shown 4 s (`tokens::TOAST_SHOW_MS`);
-  - a change of step in a contained flow (Make a new vault; the other
-    flows are not on the container yet, `docs/FLOW-CONTAINER.md`) fades
+  - a change of step in any flow (every step flow is on the container,
+    `docs/FLOW-CONTAINER.md`) fades
     through over 300 ms (`motion::STEP_FADE_MS`, Material's medium 2):
     on Material's full emphasized curve (`tokens::EASE_EMPHASIZED`), as
     Material's fade through is: the old card goes out to the page's
@@ -355,13 +355,11 @@ extent; a motion left from another screen or sheet is stopped.
     every step draws the card again from the state, the outgoing one
     at a falling opacity over the first part, the new one at a rising
     one after, and no frame is kept (the rule below stands). What the
-    step left showed is hidden when the fade out ends. A
-    contained flow's card no longer grows nor glides into view; the next
-    item is for every other flow's step cards;
-  - a step card opens with its height growing over 300 ms, Material's
-    medium 2, on its emphasized decelerate curve (`motion::ease_open`,
-    F108), and the jump that brings the open card into view
-    (`Scroll::follow`) is a glide;
+    step left showed is hidden when the fade out ends. No card grows
+    open and nothing glides to an open card: only the current step is
+    drawn, at one place, so there is nothing to grow or to glide to
+    (the fade through is every flow's step change; `ease_open` serves
+    the chart's side sheet below);
   - a chart node's side sheet, on the wide layout (DESIGN §4.16),
     slides in from the window's right edge over 400 ms on Material's
     emphasized decelerate (`motion::SIDE_SHEET_IN_MS`, medium 4) and

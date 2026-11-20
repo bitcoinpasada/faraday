@@ -211,13 +211,15 @@ Material's canonical layouts, by what a screen shows:
 | Wallets, Files, Vaults, Backups (a list, and the one chosen) | the list; choosing one opens its page | **list and detail**: the list in a pane `LIST_PANE` (360 dp) wide, the chosen one's page beside it; nothing chosen shows the first |
 | Settings | compact: the list of its sections, each opening as its own page; medium: every section on one page, one column | every section on one page, two columns where they fit (§17) |
 | Home | §4 | §4 |
-| A flow's step, a form, a sheet's page | one column, at most `COLUMN_MAX` (720 dp), centred in the space beside the navigation | the same; on extra-large, Guide in the supporting pane (§6) |
-| A contained flow's step (Make a new vault; `docs/FLOW-CONTAINER.md`) | one card at one fixed place, the column's first heading; the page scrolls when the card is taller; Your choices is a sheet (§6) | the same card in the column, Your choices in a pane at its right (§6) |
+| A form, a sheet's page | one column, at most `COLUMN_MAX` (720 dp), centred in the space beside the navigation | the same; on extra-large, Guide in the supporting pane (§6) |
+| A flow's step (every step flow; `docs/FLOW-CONTAINER.md`) | one card at one fixed place, the column's first heading; the page scrolls when the card is taller; Your choices is a sheet (§6) | the same card in the column, Your choices in a pane at its right (§6) |
 | The backup board, the structure chart, Explore | the whole space beside the navigation | the same |
 | A sheet | the window's width less a margin (compact), centred at most `SHEET_MAX` (560 dp) wide otherwise | the same |
 
 Panes are separated by a 24 dp spacer and each has its own scroll. Every
-other flow still draws its finished steps above the open one.
+step flow draws one step's card at a time; no flow stacks its finished
+steps above the open one. A flow's full-width step (Make codex32 shares'
+entry, the backup board) takes no pane for Your choices (§6).
 
 ## 6. The supporting pane
 
@@ -276,12 +278,17 @@ Guide between the pane and the sheet, on the page it shows; the sheet
 has no pin, so a pane that comes back from it is unpinned.
 
 **Your choices** (`docs/FLOW-CONTAINER.md` §4) stands among the panes for
-a flow on the container (Make a new vault): on the wide layout a pane at
+every flow (all draw on the container): on the wide layout a pane at
 the right of the card, `side_panel_w` wide, scrolling within itself and
 holding its place as the page scrolls; on every one-column layout a sheet
 the top app bar's Your choices button opens (`docs/DESIGN.md` §4.1). On
 extra-large, Guide is a sheet beside a contained flow, so the two panes
-never stand together.
+never stand together. Your choices scrolls within its pane, by one
+offset for every flow, set back to the top when a flow is opened. On a
+full-width step (Make codex32 shares' entry, the backup board) no Your
+choices pane stands: the board's list stays in its own supporting pane at
+the right and Your choices opens from the bar's button as a sheet; the
+card's head keeps its place.
 
 ## 7. Density
 
@@ -520,8 +527,9 @@ A page holds two kinds of content, and each has its own width:
   token maximum (§16.1).
 
 In a flow on the container the work width ends before the Your choices
-pane (a `SPACER` left of it), and the card's wide content stops there; the
-card's own rules no longer run the work width (F296).
+pane (a `SPACER` left of it), and the card's wide content stops there; on
+a full-width step, which has no pane, it ends `MARGIN_WIDE` before the
+area's edge. The card's own rules no longer run the work width (F296).
 
 A page of reading content only is centred in the room beside the
 navigation (left of a supporting pane where one stands), whenever the room is wider than its area, whatever the window; in a held app (the Starter's, `docs/STARTER.md` §3.1d) the room is the whole frame, as it has no navigation. New key is such a page until it holds Make codex32 shares, whose
@@ -531,9 +539,11 @@ reading parts keep their width at the start, and its wide parts run on
 to the work width's end. A page whose card can hold wide content starts
 there on every card, the wide card open or not, so nothing moves when it
 opens (Back up and a wallet's backup flow, whose plan holds the backup
-board). While a flow's open card holds wide content, the card's rules,
-above and under it, run the work width; its head and summary stay where
-the column puts them. On one-column windows (the rail's, §3) a page sits in a
+board). A flow whose steps can hold wide content keeps its card at the
+navigation's edge plus `MARGIN_WIDE` on every step, whether or not the
+step is wide, so the card does not move between steps (a flow with a
+full-width step does so on every step). The card's head and rows stay
+where the column puts them; no rules run the work width. On one-column windows (the rail's, §3) a page sits in a
 `COLUMN_MAX` column centred beside the rail, except Make codex32 shares,
 whose string, sheets and input panel take the whole area beside the rail
 (owner, 2026-10-25; `screens/mod.rs`, `whole_area`).
@@ -571,6 +581,13 @@ Where this section names the "Demo only" card, its column or its strip,
 read Faraday Demo's host strip (F118, `docs/DESKTOP-HOST.md` §3.1):
 the card is gone from the app, and the entry and its sheets take the
 room it took.
+
+Make codex32 shares is a run of steps of Make a new key, drawn by the
+container (`docs/FLOW-CONTAINER.md` §5): while its sheet, tracks, tree and
+input panel are on screen the step is full width, taking the whole room
+beside the navigation, with no Your choices pane; the bar's Your choices
+button opens the list as a sheet. Its cards carry step numbers of their
+own in Make a new key's order, and its made card ends the flow.
 
 ### 16.1 The checksum worksheet fits where the window allows
 

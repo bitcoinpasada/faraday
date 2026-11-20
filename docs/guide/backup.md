@@ -6,7 +6,7 @@
 **Key:** backup
 **Words:** plan, place, checklist, quorum, seed-xor, part, share, vault
 
-A backup starts from a plan of where the wallet's keys and files are kept, and the plan becomes a checklist with one item per thing to make. Each item opens once the one before it is done, and the last item writes the sticks.
+A backup starts from a plan of where the wallet's keys and files are kept, and the plan becomes a checklist with one item per thing to make. An item that waits on an earlier one takes no press and reads "After" and its name, and the last item writes the sticks.
 
 ## Places
 

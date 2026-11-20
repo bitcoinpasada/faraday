@@ -60,9 +60,9 @@ Faraday's own parts: the vault, the stick rule and the lock cycle
   it on that wallet past pages 1 to 3 (§7). Learn, opened on the tab,
   offers **Spending, step by step** above its tabs, which closes Learn
   over the steps; no other screen's Learn offers it (owner, 2026-10-29).
-- Each page is a step card (`flow.rs`): one open, the others closed to a
-  line saying what was done. A page that does not apply to the route is not
-  in the column at all, so numbering closes over it.
+- Each page is one step's card, drawn alone by the flow container; the
+  others are rows in Your choices saying what was done. A page that does
+  not apply to the route is not a step at all, so numbering closes over it.
 - Whether a page is done is worked out from the app's state (a vault open,
   a wallet loaded, a spend loaded, signed, finished, written), not stored.
   So it is right after a lock, after work done on another tab, and after a
@@ -207,11 +207,11 @@ The card, top to bottom:
      While N exceeds the seeds here: "Without the description Faraday
      needs all {n} keys: their seeds or xpubs".
    - a description in (whole, rebuilt, or a vault's): none. The wallet
-     opens and the column goes on to page 5; seeds already in fill its
+     opens and the flow goes on to page 5; seeds already in fill its
      slots.
-7. Once there is a wallet (the card's closed line says it once: its
+7. Once there is a wallet (the page's row in Your choices says it once: its
    name and shape, or the shape alone when the name says it): the
-   column moves on to page 4, which shows receive address 0 (F103).
+   flow moves on to page 4, which shows receive address 0 (F103).
    Back on this page, **Spend from** lists each wallet with its shape
    and how many of its keys are here; pressing one, the one chosen
    among them, moves on again. The card is done once a wallet is

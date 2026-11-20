@@ -150,7 +150,7 @@ taproot key and script, and those in final fields.
 
 A file taken from Files is kept as it was chosen. Where Files now holds
 another file of that name, or none, the copy and its report stay and the
-closed card reads the name followed by "changed or no longer in Files"
+card's row in Your choices reads the name followed by "changed or no longer in Files"
 (the same name and bytes in either box is the file);
 **Change** picks again.
 

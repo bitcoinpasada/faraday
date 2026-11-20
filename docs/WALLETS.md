@@ -15,8 +15,8 @@ Wallets-tab types that wrap `faraday-psbt`, `faraday-bip`, `faraday-codec` and
 `faraday-crypto`. It also holds a capability table: for each wallet kind,
 whether `core/` can build it, load it, sign for it, and in how many
 rounds; the shared steps of §3, each a declared group of fields, a
-summary line and a result, rendered by `faraday-ui` as step cards on
-`wide` and pages on `small` (`docs/LAYOUT.md`); and flows as ordered lists
+summary line and a result, rendered by `faraday-ui`, one step's card at a time
+by the flow container (`docs/FLOW-CONTAINER.md`, `docs/LAYOUT.md`); and flows as ordered lists
 of steps per wallet kind (§4–§6), the reassembly model (§2), and the
 Wallets tab's own non-cryptographic logic: the split-backup plan, the
 two-round amount memory, the descriptor QR plan, the plain-sentence
@@ -461,8 +461,8 @@ watch-only software are offered nowhere, and vaults and the software
 are added on the board.* The flow opened on three presets, one tap
 each: **Paper only**, **Paper and vault**, **Paper, vault and watch-only
 software**. Each filled every card below; every answer stays changeable.
-The cards are step cards on the wide layout and a page each on the
-small panel:
+The cards are shown one at a time by the flow container, each answer a
+row of Your choices:
 
 - **Places**: **Number of places**, a stepper, one or more with no upper
   bound; and, with a vault open, each place's name (below). One more
@@ -896,7 +896,7 @@ rule of its flow.
   quorum's line, or at the head of Keys for a kind with no Quorum card:
   "Account" and its number, starting at 0, with **Change**, which opens
   the − n + stepper in its place. The card that carries it says the
-  account on its closed line ("2 of 3 · account 1") when it is not 0.
+  account in its row of Your choices ("2 of 3 · account 1") when it is not 0.
   Keys' **Make the wallet** makes it; Check shows the descriptor as a
   summary row that opens its code with the whole text under it, a
   **Path** row under it with **Change** (which takes the made wallet
@@ -1476,7 +1476,7 @@ never held.
   has an **Account** row, 0 to start, with **Change** opening a stepper:
   on Quorum, or at the head of Keys for a kind with no Quorum card. `m/45'`
   has none, and FROST's shares are dealt, not derived, so neither has the
-  row or a Path. The closed card says "account n" when n is not 0. Only the
+  row or a Path. Its row in Your choices says "account n" when n is not 0. Only the
   account changes; the rest is the kind's standard path (BIP 84, 86, 49,
   44, 48).
 - **Check's Path row** sits under the descriptor row: **Path** and the path

@@ -403,7 +403,7 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   app bar on every window (`compact::bar_eye`), masks every character, roll and working
   as dots and shows them again; on Faraday Demo, the stick and the Pi the sheets are
   shown while the flow is open and masked again when the entry is left
-  backwards (an earlier card, Start's Change, the entry card closed);
+  backwards (an earlier card, Start's row of Your choices, another step);
   Faraday Demo masks and unmasks as the device (F117); New key keeps nothing when
   its screen is left, so there is nothing to show again. The translation
   symbols are drawn as the booklet's second alphabet's glyphs
@@ -1212,8 +1212,8 @@ Keys · Check. Each does codex32's part:
   the key flow opens for slot 1. The Account row is at the head of Keys
   (F98), as for every kind without a Quorum card.
 - **New key**, opened for the slot, has Start answered by the Backup
-  card, closed with Change, and opens on the next card. Under Make a new
-  key it offers the Backup card's form only: Codex32 for Shares. Codex32 opens Make codex32 shares on its **Scheme** card
+  card, its answer a row of Your choices, and opens on the next card. Under Make a new
+  key it offers the Backup card's form only: Codex32 for Shares. Codex32 opens Make codex32 shares on its **Scheme** card (the cards are steps of Make a new key on the flow container, `docs/FLOW-CONTAINER.md`, with step numbers of their own in its order; the entry, its sheets and its input panel take the whole room while the entry is current; the made card ends the flow)
   (Length 48 · 74; Split 2 of 3 · 3 of 5 · Other, §6.1), which for a
   wallet's key offers no "None, the secret alone" (that is Single key
   with a codex32 seed, §6); then Identifier (§6.2) and the rest. Lock in
