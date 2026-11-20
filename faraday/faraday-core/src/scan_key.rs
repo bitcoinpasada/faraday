@@ -1117,6 +1117,12 @@ impl Faraday {
         if faraday_bip::codex32::Codex32::parse(&given).is_err() {
             return false;
         }
+        if crate::seed_check::take_part(self, crate::forms::Form::Codex32, &given) {
+            self.camera.close();
+            self.sheet = None;
+            self.out.commands.push_back(Command::CameraOff);
+            return true;
+        }
         let in_flow = self.screen == crate::Screen::KeyGen;
         if in_flow && self.keygen.state().is_some_and(|k| k.slot.is_some()) {
             return false;

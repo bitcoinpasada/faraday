@@ -23,16 +23,21 @@ pub struct CheckFacts {
     /// The fingerprint the same words make with no passphrase, when a
     /// passphrase was given.
     pub without: Option<Fingerprint>,
-    /// How many words.
-    pub words: usize,
+    /// How many words; `None` for a master seed that has no words (a
+    /// SLIP-39 or codex32 backup).
+    pub words: Option<usize>,
 }
 
 /// The key held: its master key, and the words and passphrase it was made
 /// of, so that Keep this key can load it.
 pub(crate) struct HeldCheck {
     master: std::sync::Arc<MasterKey>,
+    /// Empty for a master seed with no words.
     words: Text,
     passphrase: Text,
+    /// The master seed the key was made of, for a key with no words;
+    /// wiped as it drops.
+    seed: Option<zeroize::Zeroizing<Vec<u8>>>,
     facts: CheckFacts,
 }
 
@@ -50,6 +55,7 @@ impl HeldCheck {
             master: std::sync::Arc::clone(&self.master),
             words: self.words.clone(),
             passphrase: Text::default(),
+            seed: None,
             facts: self.facts,
         }
     }
@@ -82,12 +88,37 @@ impl Keys {
         let facts = CheckFacts {
             fingerprint,
             without,
-            words: m.word_count(),
+            words: Some(m.word_count()),
         };
         self.check = Some(HeldCheck {
             master,
             words: crate::texts::normal_words(words),
             passphrase: crate::texts::wiped(passphrase),
+            seed: None,
+            facts,
+        });
+        Ok(facts)
+    }
+
+    /// Costs what `from_seed_bytes` costs. The key the master seed `seed`
+    /// makes (a SLIP-39 or codex32 backup: no words, no BIP-39
+    /// passphrase) becomes the key the check holds, in place of any other;
+    /// the same refusals as `check_read`.
+    pub fn check_read_seed(&mut self, c: &Compute, seed: &[u8]) -> Result<CheckFacts, Refusal> {
+        self.no_stick()?;
+        let master = crate::session::seed_master(c, seed, self.network())?;
+        let fingerprint = master.fingerprint();
+        self.allowed(fingerprint)?;
+        let facts = CheckFacts {
+            fingerprint,
+            without: None,
+            words: None,
+        };
+        self.check = Some(HeldCheck {
+            master: std::sync::Arc::new(master),
+            words: Text::default(),
+            passphrase: Text::default(),
+            seed: Some(crate::texts::wiped_bytes(seed)),
             facts,
         });
         Ok(facts)
@@ -103,7 +134,7 @@ impl Keys {
         reason = "the words held, copied for the read and wiped as the copy drops"
     )]
     pub fn check_reread(&mut self, c: &Compute, passphrase: &str) -> Result<CheckFacts, Refusal> {
-        let Some(h) = self.check.as_ref() else {
+        let Some(h) = self.check.as_ref().filter(|h| h.seed.is_none()) else {
             return Err(Refusal::Words(Text::default()));
         };
         let words = h.words.clone();
@@ -131,7 +162,7 @@ impl Keys {
     /// [`faraday_bip::keys::MAX_PATH_STEPS`] steps and an elliptic-curve
     /// multiplication. The extended public key at `path` below what the
     /// words the check holds make with no passphrase; `None` when it holds
-    /// none and for a longer path.
+    /// none, for a key with no words and for a longer path.
     pub fn check_xpub_without_passphrase_at(
         &self,
         c: &Compute,
@@ -140,7 +171,7 @@ impl Keys {
         if path.len() > faraday_bip::keys::MAX_PATH_STEPS {
             return None;
         }
-        let h = self.check.as_ref()?;
+        let h = self.check.as_ref().filter(|h| h.seed.is_none())?;
         let m = crate::session::parse_words(c, &h.words).ok()?;
         crate::identity::xpub_at(
             c,
@@ -160,7 +191,10 @@ impl Keys {
         let Some(h) = self.check.take() else {
             return Err(Refusal::Words(Text::default()));
         };
-        let fp = self.add_words_with(c, &h.words, &h.passphrase, label, None);
+        let fp = match &h.seed {
+            Some(seed) => self.add_seed(c, seed, label),
+            None => self.add_words_with(c, &h.words, &h.passphrase, label, None),
+        };
         if fp.is_err() {
             self.check = Some(h);
         }

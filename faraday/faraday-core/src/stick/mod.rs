@@ -106,7 +106,9 @@ pub(crate) fn pull_what(app: &Faraday, action: Action) -> Option<&'static str> {
         a if devices::camera_press(a) => EN.pull_what_scan,
         Action::Convert(C::Check) if convert::checks_by_scan(app) => EN.pull_what_scan,
         Action::Entry(_)
-        | Action::SeedCheck(crate::seed_check::SeedAction::Type)
+        | Action::SeedCheck(
+            crate::seed_check::SeedAction::Type | crate::seed_check::SeedAction::Form(_),
+        )
         | Action::EntryWallet(_)
         | Action::ScanSeed
         | Action::ScanKef

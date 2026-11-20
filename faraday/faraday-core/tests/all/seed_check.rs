@@ -1143,3 +1143,157 @@ fn an_origin_of_this_seed_with_a_key_that_is_not_its_own_does_not_match() {
     );
     assert!(!shows(&mut app, "Matches"));
 }
+
+/// The tool opened, on its Seed card.
+fn seed_card() -> Faraday {
+    let mut app = testkit::started();
+    app.press(Action::Nav(faraday_core::Screen::Catalog));
+    let tile = faraday_core::catalog::TILES
+        .iter()
+        .position(|t| t.name == "My seed makes my wallet")
+        .unwrap();
+    app.press(Action::Catalog(tile as u8));
+    app
+}
+
+/// The Seed card's row for `form` pressed, and `parts` typed with Enter
+/// after each.
+fn parts_typed(form: faraday_core::forms::Form, parts: &[&str]) -> Faraday {
+    let mut app = seed_card();
+    let at = faraday_core::seed_check::FORMS
+        .iter()
+        .position(|f| *f == form)
+        .unwrap();
+    app.press(Action::SeedCheck(S::Form(at as u8)));
+    for part in parts {
+        type_chars(&mut app, part);
+        app.event(Event::Key(Key::Enter));
+    }
+    app
+}
+
+fn held_fingerprint(app: &Faraday) -> String {
+    app.session
+        .keys
+        .check_facts()
+        .expect("the check holds a key")
+        .fingerprint
+        .to_string()
+}
+
+#[test]
+fn seed_xor_parts_are_checked_as_the_words_they_make_are() {
+    let mut app = parts_typed(
+        faraday_core::forms::Form::Xor,
+        &[
+            "accident stock globe super snake hero sample law fit blade scale silly",
+            "",
+            "insect shoe rescue viable grab then adult rigid funny forget peace napkin",
+            "",
+        ],
+    );
+    app.press(Action::SeedCheck(S::NoPass));
+    let mut typed =
+        with_words("inner away stamp cliff position merge rubber series antique era gift force");
+    typed.press(Action::SeedCheck(S::NoPass));
+    assert_eq!(held_fingerprint(&app), held_fingerprint(&typed));
+    app.press(Action::SeedCheck(S::Pick(Account::NativeSegwit)));
+    let fingerprint = held_fingerprint(&app);
+    assert!(shows(&mut app, &fingerprint), "the Result shows it");
+}
+
+#[test]
+fn a_codex32_secret_is_checked_with_no_words_and_no_passphrase() {
+    // BIP 93 vector 1.
+    let mut app = parts_typed(
+        faraday_core::forms::Form::Codex32,
+        &["ms10testsxxxxxxxxxxxxxxxxxxxxxxxxxx4nzvca9cmczlw", ""],
+    );
+    let want = fingerprint_of(
+        &compute(),
+        "xprv9s21ZrQH143K3taPNekMd9oV5K6szJ8ND7vVh6fxicRUMDcChr3bFFzuxY8qP3xFFBL6DWc2uEYCfBFZ2nFWbAqKPhtCLRjgv78EZJDEfpL",
+    );
+    assert_eq!(held_fingerprint(&app), want);
+    assert_eq!(app.session.keys.check_facts().unwrap().words, None);
+    app.press(Action::SeedCheck(S::Pick(Account::NativeSegwit)));
+    assert!(shows(&mut app, &want), "the Result shows the fingerprint");
+}
+
+#[test]
+fn slip39_shares_wait_for_the_passphrase_and_then_are_checked() {
+    // SLIP-39 vector 4, passphrase TREZOR.
+    let mut app = parts_typed(
+        faraday_core::forms::Form::Slip39,
+        &[
+            "shadow pistol academic always adequate wildlife fancy gross oasis cylinder mustang wrist rescue view short owner flip making coding armed",
+            "shadow pistol academic acid actress prayer class unknown daughter sweater depict flip twice unkind craft early superior advocate guest smoking",
+            "",
+        ],
+    );
+    assert!(
+        app.session.keys.check_facts().is_none(),
+        "waits for the passphrase"
+    );
+    app.press(Action::SeedCheck(S::AddPass));
+    app.press(Action::SeedCheck(S::PassField(0)));
+    type_chars(&mut app, "TREZOR");
+    app.press(Action::SeedCheck(S::PassField(1)));
+    type_chars(&mut app, "TREZOR");
+    app.press(Action::PassEye);
+    app.press(Action::SeedCheck(S::UsePass));
+    let want = fingerprint_of(
+        &compute(),
+        "xprv9s21ZrQH143K2nNuAbfWPHBtfiSCS14XQgb3otW4pX655q58EEZeC8zmjEUwucBu9dPnxdpbZLCn57yx45RBkwJHnwHFjZK4XPJ8SyeYjYg",
+    );
+    assert_eq!(held_fingerprint(&app), want);
+    assert!(
+        testkit::entry(&app)
+            .parts
+            .lines(faraday_core::forms::Form::Slip39)
+            .is_empty(),
+        "the shares are gone once read"
+    );
+}
+
+#[test]
+fn a_codex32_secret_scanned_here_fills_this_tool_and_not_add_a_key() {
+    let mut app = seed_card();
+    app.press(Action::ScanSeed);
+    app.event(Event::Scanned {
+        bytes: b"MS10TESTSXXXXXXXXXXXXXXXXXXXXXXXXXX4NZVCA9CMCZLW".to_vec(),
+    });
+    assert_eq!(app.screen, faraday_core::Screen::SeedCheck);
+    assert!(app.scan().is_none(), "the camera closed");
+    assert!(app.session.keys.is_empty(), "no key was loaded");
+    assert!(
+        app.session.keys.check_facts().is_some(),
+        "the check holds it"
+    );
+}
+
+#[test]
+fn leaving_drops_the_parts_and_the_shares_waiting() {
+    for end in 0..3 {
+        let mut app = parts_typed(
+            faraday_core::forms::Form::Slip39,
+            &[
+                "shadow pistol academic always adequate wildlife fancy gross oasis cylinder mustang wrist rescue view short owner flip making coding armed",
+            ],
+        );
+        if end > 0 {
+            type_chars(
+                &mut app,
+                "shadow pistol academic acid actress prayer class unknown daughter sweater depict flip twice unkind craft early superior advocate guest smoking",
+            );
+            app.event(Event::Key(Key::Enter));
+        }
+        assert!(testkit::entry(&app).parts.holds_any(), "end {end}");
+        if end == 2 {
+            app.press(Action::Lock);
+        } else {
+            app.press(Action::SeedCheck(S::Cancel));
+        }
+        let _ = app.frame();
+        assert!(!testkit::entry(&app).parts.holds_any(), "way out {end}");
+    }
+}

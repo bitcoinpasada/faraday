@@ -156,6 +156,17 @@ pub(crate) fn check_step(app: &View, s: &SeedState, ui: &mut Ui, at: (f32, f32, 
 }
 
 fn seed(app: &View, s: &SeedState, ui: &mut Ui, (x, y, w): (f32, f32, f32), loaded: bool) -> f32 {
+    if s.typing_words() && app.entry.state().form != crate::forms::Form::Words {
+        // One of the forms of Add a key, drawn by its own code, with
+        // Continue putting the parts together.
+        let room = y + CARD_ENTRY_ROOM;
+        let end = if ui.compact {
+            crate::compact::screen::entry_form(app, ui, x, y, w, Some(act(S::FormDone)))
+        } else {
+            crate::screens::entry_form(app, ui, x, y, w, room, Some(act(S::FormDone)))
+        };
+        return end + GAP - y;
+    }
     if s.typing_words() {
         let end = if ui.compact {
             crate::compact::screen::entry_words(app, ui, x, y, w, false)
@@ -185,6 +196,13 @@ fn seed(app: &View, s: &SeedState, ui: &mut Ui, (x, y, w): (f32, f32, f32), load
             Action::ScanSeed,
         ),
     ];
+    for (i, form) in super::FORMS.iter().enumerate() {
+        rows.push((
+            Text::of(form.name()),
+            Style::Secondary,
+            act(S::Form(i as u8)),
+        ));
+    }
     for (i, key) in app.session.keys.all().enumerate().filter(|_| loaded) {
         let line = crate::wallet::key_line(key.fingerprint, &crate::bip85::key_name(key));
         let label = if key.has_passphrase {

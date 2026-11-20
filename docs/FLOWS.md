@@ -2064,8 +2064,14 @@ step flow (`Screen::SeedCheck`) of four cards: **Seed**, **Passphrase**,
    SeedQR") and, where keys are loaded, **A key loaded here**, a row per
    key by its fingerprint with its "passphrase" mark. Decisions 8 and 9
    hold: with a stick in, Type the words and Scan a SeedQR open the sheet
-   that asks for it to be pulled. A SLIP-39 set, codex32 or Seed XOR parts
-   are loaded with Add a key first and taken here as a key loaded here.
+   that asks for it to be pulled. **SLIP-39 shares**, **codex32** strings
+   and **Seed XOR parts** are rows too (Add a key's forms, typed or
+   scanned here: a codex32 string or SLIP-39 share scanned in this
+   scanner fills this card, not Add a key). Seed XOR's parts make words
+   and go on as typed words; SLIP-39's shares wait for Passphrase, which
+   is their own encryption passphrase; a codex32 backup is a master seed
+   with no words: it skips Passphrase and the card closes on its
+   fingerprint alone.
    The words are whole once their checksum holds, and the card closes on
    "{n} words". A key loaded here skips Passphrase: it is the key as
    loaded.

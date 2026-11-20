@@ -1506,6 +1506,9 @@ impl Faraday {
     /// The strings or shares in make the key: Add a key adds it, New key
     /// opens its Key card.
     fn form_complete(&mut self) {
+        if crate::seed_check::here(self) {
+            return crate::seed_check::form_done(self);
+        }
         if self.entry.state().c32_round.is_some() {
             return self.c32_round_take();
         }
@@ -1697,6 +1700,9 @@ impl Faraday {
 
     /// Puts the parts together and adds the key.
     pub(crate) fn form_recover(&mut self) {
+        if crate::seed_check::here(self) {
+            return crate::seed_check::form_done(self);
+        }
         if !self.may_load_keys()
             || self.entry.state().form == Form::Words
             || self.entry.state().differs()

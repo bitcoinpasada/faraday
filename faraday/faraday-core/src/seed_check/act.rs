@@ -120,10 +120,14 @@ fn reset_cards(app: &mut Faraday, from: u8, forget: bool) {
     if from <= step::PASSPHRASE && forget {
         app.session.keys.check_forget();
     }
+    if from == step::SEED {
+        app.entry.reset();
+    }
     let Some(s) = st(app) else { return };
     if from == step::SEED {
         s.words = SecretText::new();
         s.typed = false;
+        s.shares = false;
         s.source = None;
         s.typing = false;
     }
@@ -159,6 +163,8 @@ pub(crate) fn act(app: &mut Faraday, action: A) {
             }
         }
         A::Words => words(app),
+        A::Form(i) => form_pick(app, i),
+        A::FormDone => form_done(app),
         A::Loaded(i) => loaded(app, i),
         A::NoPass => read(app, false),
         A::AddPass => {
@@ -255,7 +261,7 @@ fn open_card(app: &mut Faraday, k: u8) {
     if let Some(s) = st(app) {
         // A key that is not typed words has no passphrase to take again
         // without its seed, as `step_to` knows.
-        s.open = Some(if k == step::PASSPHRASE && !s.typed {
+        s.open = Some(if k == step::PASSPHRASE && !s.typed && !s.shares {
             step::SEED
         } else {
             k
@@ -284,7 +290,7 @@ fn step_to(app: &mut Faraday, k: u8) {
     }
     // A key that is not typed words (a SeedQR read, a key loaded) has no
     // passphrase to take again without its seed: Seed takes it.
-    let from = if k == step::PASSPHRASE && !s.typed {
+    let from = if k == step::PASSPHRASE && !s.typed && !s.shares {
         step::SEED
     } else {
         k
@@ -312,15 +318,188 @@ fn words(app: &mut Faraday) {
             return;
         }
     };
-    let text = words_text(&m);
+    take_words(app, &words_text(&m));
+}
+
+/// The words, whole and with their checksum, are held until the passphrase
+/// is chosen, and the Passphrase card opens.
+fn take_words(app: &mut Faraday, text: &Text) {
     app.entry.reset();
     reset_from(app, step::PASSPHRASE);
     if let Some(s) = st(app) {
-        s.words = SecretText::of(&text);
+        s.words = SecretText::of(text);
         s.typed = true;
         s.typing = false;
         s.error = None;
         s.open = Some(step::PASSPHRASE);
+    }
+}
+
+/// A row of the forms the Seed card takes: its parts are typed there.
+fn form_pick(app: &mut Faraday, i: u8) {
+    let Some(&form) = super::FORMS.get(usize::from(i)) else {
+        return;
+    };
+    app.entry.choose_form(form);
+    if let Some(s) = st(app) {
+        s.typing = true;
+        s.error = None;
+        s.open = Some(step::SEED);
+    }
+}
+
+/// A part of a form the Seed card takes, scanned or pasted: it goes in as
+/// if typed. Whether it was one, which is only when the flow is on show
+/// and `form` is in [`FORMS`](super::FORMS).
+pub(crate) fn take_part(app: &mut Faraday, form: crate::forms::Form, text: &str) -> bool {
+    if !here(app) || !super::FORMS.contains(&form) {
+        return false;
+    }
+    let Some(s) = st(app) else { return false };
+    if !s.typing || app.entry.state().form != form {
+        app.entry.choose_form(form);
+    }
+    if let Some(s) = st(app) {
+        s.typing = true;
+        s.shares = false;
+        s.error = None;
+        s.open = Some(step::SEED);
+    }
+    app.entry.set_typed(text);
+    app.form_add_part();
+    true
+}
+
+/// The parts typed are enough: Seed XOR's make the words, which go on as
+/// typed words; a codex32 backup's seed is the key the check holds, with
+/// no words and no passphrase; SLIP-39's shares wait for the passphrase,
+/// held by the entry form, which wipes them on drop.
+pub(crate) fn form_done(app: &mut Faraday) {
+    use crate::forms::Form;
+    let form = app.entry.state().form;
+    if !app.entry.state().parts.ready(form) {
+        return;
+    }
+    match form {
+        Form::Xor => {
+            let made = app
+                .entry
+                .state()
+                .parts
+                .xor
+                .entropy()
+                .map_err(|_| Text::of(EN.forms_seed_xor_needs))
+                .and_then(|e| {
+                    faraday_keys::words::from_entropy(
+                        faraday_bip::bip39::Language::English,
+                        e.as_bytes(),
+                    )
+                    .map_err(|e| faraday_strings::bip::bip39_error(&e))
+                });
+            match made {
+                Ok(m) => take_words(app, &words_text(&m)),
+                Err(e) => app.entry.set_error(e),
+            }
+        }
+        Form::Codex32 => {
+            let c = app.compute();
+            let got = faraday_keys::codex32_seed(&app.entry.state().parts.codex32)
+                .map_err(|e| {
+                    Text::fill(
+                        EN.forms_the_strings_do,
+                        &[&faraday_strings::bip::codex32_error(&e)],
+                    )
+                })
+                .and_then(|seed| {
+                    app.session
+                        .keys
+                        .check_read_seed(&c, &seed)
+                        .map_err(|e| e.text())
+                });
+            seed_taken(app, got, false);
+        }
+        Form::Slip39 => {
+            reset_from(app, step::PASSPHRASE);
+            if let Some(s) = st(app) {
+                s.shares = true;
+                s.typing = false;
+                s.error = None;
+                s.open = Some(step::PASSPHRASE);
+            }
+        }
+        // Krux's code is not taken here yet: its entry goes in `FORMS`.
+        Form::Words | Form::Krux => {}
+    }
+}
+
+/// Costs what `slip39_seed` and `Keys::check_read_seed` cost. The shares
+/// held, with the passphrase typed twice or none, make the key the check
+/// holds.
+fn shares_read(app: &mut Faraday, pass: &SecretText) {
+    let c = app.compute();
+    let got = faraday_keys::slip39_seed(
+        &c,
+        &app.entry.state().parts.slip39,
+        pass.as_str().as_bytes(),
+    )
+    .map_err(|e| {
+        Text::fill(
+            EN.forms_the_shares_do,
+            &[&faraday_strings::bip::slip39_error(&e)],
+        )
+    })
+    .and_then(|seed| {
+        app.session
+            .keys
+            .check_read_seed(&c, &seed)
+            .map_err(|e| e.text())
+    });
+    seed_taken(app, got, !pass.is_empty());
+}
+
+/// A master seed read as the key the check holds, or what refused: the
+/// parts are wiped and the Account card opens, with no words to take a
+/// passphrase again from.
+fn seed_taken(app: &mut Faraday, got: Result<faraday_keys::CheckFacts, Text>, with_pass: bool) {
+    let ok = got.is_ok();
+    if ok {
+        reset_from(app, step::ACCOUNT);
+        app.entry.reset();
+        app.typing.pass_eye.close();
+        app.typing.pass_eye.reset();
+    }
+    let Some(s) = st(app) else { return };
+    match got {
+        Ok(f) => {
+            s.facts = Some(Facts {
+                fingerprint: f.fingerprint,
+                with_pass,
+                words: f.words,
+            });
+            s.source = Some(Source::Held);
+            s.words = SecretText::new();
+            s.pass = SecretText::new();
+            s.pass2 = SecretText::new();
+            s.typed = false;
+            s.shares = false;
+            s.typing = false;
+            s.adding = false;
+            s.focus = None;
+            s.error = None;
+            s.open = Some(step::ACCOUNT);
+        }
+        Err(e) => {
+            // The shares' refusal is said on the Passphrase card, the
+            // strings' on the form.
+            if s.shares {
+                s.error = Some(e);
+            } else {
+                app.entry.set_error(e);
+            }
+        }
+    }
+    if ok {
+        read_for_check(app);
     }
 }
 
@@ -337,6 +516,9 @@ fn read(app: &mut Faraday, with: bool) {
     } else {
         SecretText::new()
     };
+    if s.shares {
+        return shares_read(app, &pass);
+    }
     if !s.typed {
         return;
     }
@@ -358,7 +540,7 @@ fn read(app: &mut Faraday, with: bool) {
             s.facts = Some(Facts {
                 fingerprint: f.fingerprint,
                 with_pass: !pass.is_empty(),
-                words: Some(f.words),
+                words: f.words,
             });
             s.source = Some(Source::Held);
             s.words = SecretText::new();
@@ -403,7 +585,7 @@ pub(crate) fn scanned(app: &mut Faraday, words: &str, pass: &str) {
             s.facts = Some(Facts {
                 fingerprint: f.fingerprint,
                 with_pass: !pass.is_empty(),
-                words: Some(f.words),
+                words: f.words,
             });
             s.source = Some(Source::Held);
             s.typing = false;
@@ -592,6 +774,16 @@ pub(crate) fn stick_attached(app: &mut Faraday, wipe: bool) {
             }
             s.pass.clear();
             s.pass2.clear();
+        }
+    }
+    // Shares waiting for their passphrase are gone too.
+    if wipe && st(app).is_some_and(|s| s.shares) {
+        app.entry.reset();
+        if let Some(s) = st(app) {
+            s.shares = false;
+            if s.open == Some(step::PASSPHRASE) {
+                s.open = Some(step::SEED);
+            }
         }
     }
 }

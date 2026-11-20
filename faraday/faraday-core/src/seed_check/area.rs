@@ -51,6 +51,10 @@ pub(crate) struct SeedState {
     /// The Seed card took typed words (held here until read, then only by
     /// `faraday-keys`): the passphrase can be taken again.
     pub(super) typed: bool,
+    /// SLIP-39 shares are held by the entry form (`App::entry`) until the
+    /// passphrase has been chosen: the Seed card is done, the words are
+    /// none, and the passphrase cannot be taken again without the shares.
+    pub(super) shares: bool,
     /// Add a passphrase was pressed: the fields show.
     pub(super) adding: bool,
     pub(super) pass: SecretText,
@@ -94,6 +98,7 @@ impl SeedState {
             typing: false,
             words: SecretText::new(),
             typed: false,
+            shares: false,
             adding: false,
             pass: SecretText::new(),
             pass2: SecretText::new(),
@@ -116,7 +121,7 @@ impl SeedState {
     /// Whether the card is filled.
     pub(crate) fn done(&self, k: u8) -> bool {
         match k {
-            step::SEED => self.typed || self.source.is_some(),
+            step::SEED => self.typed || self.shares || self.source.is_some(),
             step::PASSPHRASE => self.facts.is_some(),
             step::ACCOUNT => self.picked.is_some(),
             _ => self.made.is_some(),
@@ -184,7 +189,7 @@ impl SeedState {
     /// Whether the flow holds something typed that is secret: the words
     /// or either passphrase field.
     pub(crate) fn holds_secret(&self) -> bool {
-        !self.words.is_empty() || !self.pass.is_empty() || !self.pass2.is_empty()
+        self.shares || !self.words.is_empty() || !self.pass.is_empty() || !self.pass2.is_empty()
     }
 
     /// Whether the Seed card shows the words form.

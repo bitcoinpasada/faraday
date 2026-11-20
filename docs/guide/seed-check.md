@@ -12,7 +12,7 @@ This page shows what a seed makes, so you can compare it with what a wallet app 
 
 **Key:** seed-check.seed
 
-**Type the words** takes the words of a BIP-39 seed, in any word list Faraday reads; **Scan a SeedQR** reads a standard or compact code. A key already loaded appears as a row with its fingerprint, and choosing it skips the passphrase. The card closes on the number of words once their checksum holds. Load a set that is not BIP-39 with **Add a key** first. Typing the seed puts it on a second device, which is safe within Faraday's design (offline, powered off after use); Check says why.
+**Type the words** takes the words of a BIP-39 seed, in any word list Faraday reads; **Scan a SeedQR** reads a standard or compact code. A key already loaded appears as a row with its fingerprint, and choosing it skips the passphrase. The card closes on the number of words once their checksum holds. **SLIP-39 shares**, **codex32** and **Seed XOR parts** are typed or scanned here as in Add a key. A SLIP-39 or codex32 backup has no words: only SLIP-39 asks a passphrase. Typing the seed puts it on a second device, which is safe within Faraday's design (offline, powered off after use); Check says why.
 
 ## Passphrase
 

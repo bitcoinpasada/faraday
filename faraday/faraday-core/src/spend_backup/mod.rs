@@ -1191,6 +1191,13 @@ impl Faraday {
         } else {
             return false;
         };
+        // My seed makes my wallet takes the part into its own form.
+        if crate::seed_check::take_part(self, form, &text) {
+            self.camera.close();
+            self.sheet = None;
+            self.out.commands.push_back(Command::CameraOff);
+            return true;
+        }
         if !self.may_load_keys() {
             self.camera.say(crate::stick::keys_load(self.medium));
             return true;

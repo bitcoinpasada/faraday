@@ -271,14 +271,23 @@ pub(crate) mod screen;
 
 pub(crate) use act::{
     SEED_STEPS, act, compare_sample_text, drop_for_check, enter_is_slow, field, fill_demo_pass,
-    here, key, not_a_seed, open_for_check, put_compare_sample, put_sample_words, scanned,
-    seed_sample_open, stick_attached, tidy,
+    form_done, here, key, not_a_seed, open_for_check, put_compare_sample, put_sample_words,
+    scanned, seed_sample_open, stick_attached, take_part, tidy,
 };
 pub(crate) use area::SeedState;
 pub use area::{SeedArea, step};
 pub(crate) use compare::{
     Answer, CompareDone, CompareWork, SeedIs, compare_scanned, done as compare_done, held_in,
 };
+
+/// The forms of Add a key, other than words, that the Seed card takes, in
+/// the order its rows list them: the one list, so that a form taken later
+/// (the Krux code) is one more entry here and its `Form` variant.
+pub const FORMS: [crate::forms::Form; 3] = [
+    crate::forms::Form::Slip39,
+    crate::forms::Form::Codex32,
+    crate::forms::Form::Xor,
+];
 
 /// A press in the flow.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -294,6 +303,11 @@ pub enum SeedAction {
     Type,
     /// The typed words are taken.
     Words,
+    /// A form of Add a key's other than words, at this place of
+    /// [`FORMS`]: its parts are typed on the Seed card.
+    Form(u8),
+    /// The parts typed are put together.
+    FormDone,
     /// The key loaded at this place.
     Loaded(usize),
     /// No passphrase.
