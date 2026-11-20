@@ -16,20 +16,26 @@ use faraday_ui::parts::section_label;
 
 pub(crate) use super::settings::{card, cards_matching};
 
-/// Tools: every flow by group, as many tiles to a row as fit and at
-/// least three, in a page at most `TRANSFER_W` wide; Find a tool narrows them as it is typed.
-pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
-    // A small panel has the name in its bar, Find across the panel, and a
-    // tile a row.
-    let compact = ui.compact;
-    let (x, width) = if compact {
+/// Where a page of tiles starts and how wide it is in an area `cw` wide
+/// from `x0`: Tools and Check share it, so their grids match.
+pub(crate) fn page_span(compact: bool, x0: f32, cw: f32) -> (f32, f32) {
+    if compact {
         (x0 + crate::compact::M, cw - 2.0 * crate::compact::M)
     } else {
         (
             x0 + PAGE_INSET,
             (cw - 2.0 * PAGE_INSET).min(faraday_draw::tokens::TRANSFER_W),
         )
-    };
+    }
+}
+
+/// Tools: every flow by group, as many tiles to a row as fit and at
+/// least three, in a page at most `TRANSFER_W` wide; Find a tool narrows them as it is typed.
+pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+    // A small panel has the name in its bar, Find across the panel, and a
+    // tile a row.
+    let compact = ui.compact;
+    let (x, width) = page_span(compact, x0, cw);
     let clip = ui.rect(x0, 0.0, cw, h);
     let open = ui.region_open(Region::page(clip).from_zero(app.list_offset));
     let top = if compact {
@@ -340,6 +346,9 @@ pub(crate) struct Grid {
     pub per: usize,
     /// A tile's width.
     pub tile_w: f32,
+    /// The least height of a tile: the tallest of the faces it was
+    /// matched to, so that every tile on a page is one height.
+    pub tile_h: f32,
 }
 
 const TILE_GAP: f32 = 14.0;
@@ -354,30 +363,41 @@ pub(crate) fn grid(compact: bool, width: f32) -> Grid {
     Grid {
         per,
         tile_w: (width - (per as f32 - 1.0) * TILE_GAP) / per as f32,
+        tile_h: 0.0,
     }
 }
 
 impl Grid {
+    /// The grid with every tile as tall as the tallest of `faces`.
+    pub fn matching<'a>(mut self, ui: &Ui, faces: impl IntoIterator<Item = &'a Face<'a>>) -> Self {
+        self.tile_h = faces
+            .into_iter()
+            .map(|f| f.height(ui, self.tile_w))
+            .fold(0.0, f32::max);
+        self
+    }
+
     /// The space between tiles.
     pub fn gap(&self) -> f32 {
         TILE_GAP
     }
 
-    /// Draws `faces` in rows from `at`, a row as tall as the tallest tile
-    /// in it and never under `CATALOG_TILE_H`, and returns their height.
+    /// Draws `faces` in rows from `at`, every tile in a row as tall as the
+    /// tallest in it and never under `CATALOG_TILE_H` or `tile_h`, and
+    /// returns their height.
     pub fn draw_rows(&self, ui: &mut Ui, (x, y): (f32, f32), faces: &[Face]) -> f32 {
         let mut top = y;
         for row in faces.chunks(self.per) {
             let rh = row
                 .iter()
                 .map(|f| f.height(ui, self.tile_w))
-                .fold(TILE_H, f32::max);
+                .fold(TILE_H.max(self.tile_h), f32::max);
             for (c, face) in row.iter().enumerate() {
                 face.draw(
                     ui,
                     x + c as f32 * (self.tile_w + TILE_GAP),
                     top,
-                    self.tile_w,
+                    (self.tile_w, rh),
                 );
             }
             top += rh + CATALOG_ROW_GAP;
@@ -440,10 +460,9 @@ impl Face<'_> {
         }
     }
 
-    /// Draws the tile at (`tx`, `ty`), `tw3` wide.
-    pub fn draw(&self, ui: &mut Ui, tx: f32, ty: f32, tw3: f32) {
+    /// Draws the tile at (`tx`, `ty`), `tw3` wide and `th` tall.
+    pub fn draw(&self, ui: &mut Ui, tx: f32, ty: f32, (tw3, th): (f32, f32)) {
         let (grow_n, grow_l) = self.grown(ui, tw3);
-        let th = self.height(ui, tw3);
         let r = faraday_draw::tokens::SHAPE_M;
         ui.fill(tx, ty, tw3, th, r, Role::SurfaceContainerLow);
         ui.stroke(tx, ty, tw3, th, r, Role::OutlineVariant);

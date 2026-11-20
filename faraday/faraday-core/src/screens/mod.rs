@@ -153,7 +153,8 @@ fn area_of(screen: Screen) -> Area {
         // The tools' catalogue is a page at most `TRANSFER_W` wide, its
         // tile grid unchanged, centred in the room.
         Screen::Catalog => Area::Reading(faraday_draw::tokens::READING_TRANSFER_W),
-        Screen::Check => Area::Reading(faraday_draw::tokens::READING_CHECK_W),
+        // Check's tiles are Tools' grid, in Tools' width.
+        Screen::Check => Area::Reading(faraday_draw::tokens::READING_TRANSFER_W),
         // New key, which holds Make codex32 shares and its supporting
         // pane; Home, whose tiles are a feed across the work width; and
         // the lists, a list pane and the one chosen beside it to the
