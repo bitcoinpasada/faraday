@@ -126,6 +126,12 @@ fn new_keys_pad_stands_at_the_foot_and_stays_as_the_page_scrolls() {
 #[test]
 fn on_the_pi_panel_new_keys_pad_stays_in_the_card() {
     let mut app = rolling_key(480, 640, 286);
+    // The card is taller than the panel once rolls fill its list.
+    for _ in 0..60 {
+        app.press(Action::KRoll(3));
+    }
+    let _ = app.frame();
+    scroll_page(&mut app, (240, 400), -30_000);
     let key = app.hit_box(Action::KRoll(3)).expect("the pad is drawn");
     scroll_page(&mut app, (240, 400), 200);
     let moved = app.hit_box(Action::KRoll(3));

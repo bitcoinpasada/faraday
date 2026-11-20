@@ -755,7 +755,8 @@ impl Faraday {
     /// after the guide opens. The sheet becomes the pane once the window
     /// holds one (extra-large), and the pane the sheet once it does not,
     /// unless another sheet is up; a pane on a screen that keeps the
-    /// pane's place for its own goes, and so does an unpinned pane once
+    /// pane's place for its own goes (a pinned one waits and returns after
+    /// it), and so does an unpinned pane once
     /// the screen is another than the one it stood beside (owner,
     /// 2026-10-29). While the pane is open it follows the screen: a new
     /// step scrolls to its section, a new place opens its page; the
@@ -780,7 +781,11 @@ impl Faraday {
                 return;
             }
             if !self.guide_pane_place_free() {
-                self.guide_close();
+                // A pinned pane waits out a screen that keeps the place
+                // for its own and comes back, on that page, after it.
+                if !self.guide.pinned() {
+                    self.guide_close();
+                }
             } else {
                 let now = self.screen_key();
                 self.guide.follow(now);
@@ -819,7 +824,7 @@ impl Faraday {
     /// Opens the guide at `key`, where it is not open already; closing it
     /// leaves the screen as it was.
     fn guide_open_key(&mut self, key: &'static str) {
-        if !self.guide.pane_open() {
+        if !self.guide_pane_shown() {
             self.guide.open_at(key, &mut self.sheet);
         } else {
             self.guide.show_key(key);

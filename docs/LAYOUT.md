@@ -718,7 +718,8 @@ pressed state layer in the accent (`STATE_PRESS`). It stands:
 - **Beside**, where the work width holds `CODEX32_ENTRY_W` (424 dp),
   `SPACER` and the worksheet at `CODEX32_CELL_FIT_MIN` (1456 dp in
   all; 2560 × 1440): a column at the work area's start that holds its
-  place as the page scrolls beside it, its top at `SUPPORT_PANE_TOP`,
+  place as the page scrolls beside it, its top at `SUPPORT_PANE_TOP` (under a
+  contained flow's card head until that has scrolled away),
   scrolling within itself where it is taller than the window, as the
   supporting pane does (§6). The sheets stand beside it. Built: it stands
   beside wherever the work width holds it, however low the window, and

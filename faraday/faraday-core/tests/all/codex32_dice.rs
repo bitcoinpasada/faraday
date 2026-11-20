@@ -306,9 +306,12 @@ fn a_ten_faced_die_numbered_0_to_9_enters_its_0_as_10() {
 
 /// While a share's characters are rolled, the top app bar's title is the
 /// step, "Share A · character 2 of 26", and it stays in view as the page
-/// scrolls under the bar; the step is drawn once (F146). On a phone-sized window, a wide one and the Pi's
-/// 2.8-inch panel (480 × 640 pixels at 286 dpi), where the bar has room
-/// for its short form, "Share A · 2 of 26", and shows it whole.
+/// scrolls under the bar; the step is drawn once (F146). On a phone-sized
+/// window and a wide one the bar has room for it whole. On the Pi's
+/// 2.8-inch panel (480 × 640 pixels at 286 dpi) the bar's tools (the ⋮,
+/// the keyboard and the eye) leave the name a word's room: the bar keeps the
+/// flow's name, wrapped onto its two lines, and the card reads the step
+/// once, at its head.
 #[test]
 fn the_step_being_rolled_is_the_top_app_bars_title_while_the_page_scrolls() {
     for (w, h, dpi) in [(480, 640, 160), (1366, 768, 160), (480, 640, 286)] {
@@ -317,11 +320,8 @@ fn the_step_being_rolled_is_the_top_app_bars_title_while_the_page_scrolls() {
         for f in faces(b'q', 1, 2) {
             c32(&mut app, C32::Face(f));
         }
-        let step = if dpi == 160 {
-            "Share A · character 2 of 26"
-        } else {
-            "Share A · 2 of 26"
-        };
+        let step = "Share A · character 2 of 26";
+        let in_bar = |y: i32, bh: i32| y + bh <= 64 * i32::from(dpi) / 160;
         for dy in [0, 300, 300] {
             app.event(Event::Scroll {
                 x: w / 2,
@@ -332,14 +332,44 @@ fn the_step_being_rolled_is_the_top_app_bars_title_while_the_page_scrolls() {
             let _ = app.frame();
             let texts = app.drawn_text_boxes();
             let at: Vec<_> = texts.iter().filter(|(t, _)| t == step).collect();
+            if dpi == 286 {
+                let name: Vec<_> = texts
+                    .iter()
+                    .filter(|(t, (_, y, _, bh))| (t == "Make a" || t == "new key") && in_bar(*y, *bh))
+                    .collect();
+                assert_eq!(name.len(), 2, "the bar keeps the flow's name: {texts:?}");
+                assert!(
+                    at.iter().all(|(_, (_, y, _, bh))| !in_bar(*y, *bh)),
+                    "the step is not in the bar at {w} × {h}: {at:?}"
+                );
+                if dy == 0 {
+                    // At the card's head, which it wraps at its width: its
+                    // lines, in order.
+                    app.event(Event::Scroll {
+                        x: w / 2,
+                        y: h / 2,
+                        dy: -30_000,
+                    });
+                    app.settle();
+                    let _ = app.frame();
+                    let texts = app.drawn_text_boxes();
+                    let card: Vec<&str> = texts
+                        .iter()
+                        .filter(|(_, (_, y, _, bh))| !in_bar(*y, *bh))
+                        .map(|(t, _)| t.as_str())
+                        .collect();
+                    assert_eq!(
+                        card.join(" ").matches(step).count(),
+                        1,
+                        "the card reads the step once: {card:?}"
+                    );
+                }
+                continue;
+            }
             assert_eq!(at.len(), 1, "{step} drawn once at {w} × {h}: {at:?}");
             // In the bar: above its foot, 64 dp.
             let (_, (_, y, _, bh)) = at[0];
-            assert!(
-                y + bh <= 64 * i32::from(dpi) / 160,
-                "{step} in the bar at {w} × {h}: {:?}",
-                at[0]
-            );
+            assert!(in_bar(*y, *bh), "{step} in the bar at {w} × {h}: {:?}", at[0]);
         }
     }
 }

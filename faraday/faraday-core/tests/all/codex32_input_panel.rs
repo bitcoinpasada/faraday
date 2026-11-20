@@ -175,7 +175,7 @@ fn pad_and_rolls_in_view(app: &mut Faraday, w: u16, h: u16) {
 
 #[test]
 fn the_pad_and_the_rolls_are_on_screen_together_and_stay_as_the_page_scrolls() {
-    for (w, h) in [(1280u16, 800u16), (1920, 1080), (2560, 1000)] {
+    for (w, h) in [(1280u16, 800u16), (1920, 1080), (2560, 800)] {
         let mut app = on_entry(w, h, 160);
         pad_and_rolls_in_view(&mut app, w, h);
         let key = app.hit_box(face(3));
@@ -184,7 +184,14 @@ fn the_pad_and_the_rolls_are_on_screen_together_and_stay_as_the_page_scrolls() {
         // The pointer over the page's own sheets, right of the panel.
         scroll_page(&mut app, w / 2 + 100, h / 3, 400);
         assert!(page(&app) > before, "{w}x{h}: the page scrolled");
-        assert_eq!(app.hit_box(face(3)), key, "{w}x{h}: the pad stayed");
+        // The panel stands under the card's head, which takes it up as it
+        // scrolls away, to its place at the window's top; there it stays.
+        let key = key.unwrap();
+        let kept = app.hit_box(face(3)).unwrap();
+        assert!(kept.1 <= key.1, "{w}x{h}: the pad never goes down");
+        pad_and_rolls_in_view(&mut app, w, h);
+        scroll_page(&mut app, w / 2 + 100, h / 3, 400);
+        assert_eq!(app.hit_box(face(3)), Some(kept), "{w}x{h}: the pad stayed");
         pad_and_rolls_in_view(&mut app, w, h);
     }
 }
@@ -238,7 +245,7 @@ fn beside_the_sheets_a_panel_taller_than_the_window_scrolls_within_itself() {
 
 #[test]
 fn a_face_pressed_on_the_panel_lands_in_its_rolls() {
-    for (w, h) in [(1280u16, 800u16), (1920, 1080), (2560, 1000)] {
+    for (w, h) in [(1280u16, 800u16), (1920, 1080), (2560, 800)] {
         let mut app = on_entry(w, h, 160);
         // Die 1 rolls 3 then 5; dice 2 to 5 roll 1 first.
         for f in [3, 1, 1, 1, 1, 5] {

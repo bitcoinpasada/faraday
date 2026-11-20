@@ -206,6 +206,7 @@ fn a_pinned_pane_follows_the_step_and_the_screens_to_their_pages() {
     frame(&mut app);
     assert_eq!(shown(&app), "entry", "the next screen's page");
     assert!(app.offers(Action::GuideClose));
+    assert!(app.guide_pinned(), "the pin came through the flow");
 }
 
 #[test]
