@@ -116,7 +116,7 @@ taken into a slot of Restore or the Spend tab with words and no
 passphrase opens the same sheet: a vault may keep a seed apart from its
 passphrase.
 
-**Step cards** (decisions 16 and 34). A flow draws no step past the current one: only the steps up to the furthest finished or open one, and at least the first not finished, are on the page (the small panel's "Step n of m" keeps the whole count, and reads "Step n" alone while the count is not known). A finished step stays above with its check and can be changed; the finished ones after it stay when it is. Back up's checklist and plan, lists of independent items, draw every item. In Sign a transaction, Back up and
+**Step cards** (decisions 16 and 34). A flow on the container (Make a new vault today, `docs/FLOW-CONTAINER.md`) shows only the open step; its finished steps are rows in Your choices, each a press back to its step, and a later answer is kept while it still fits an earlier one changed. What follows is every other flow, still drawn as a column. A flow draws no step past the current one: only the steps up to the furthest finished or open one, and at least the first not finished, are on the page (the small panel's "Step n of m" keeps the whole count, and reads "Step n" alone while the count is not known). A finished step stays above with its check and can be changed; the finished ones after it stay when it is. Back up's checklist and plan, lists of independent items, draw every item. In Sign a transaction, Back up and
 Create a vault a step card with a default opens closed and shows its
 value and **Change** in place of the chevron; the flow opens on the first
 card without one. Make a new wallet opens on Kind, open, with nothing

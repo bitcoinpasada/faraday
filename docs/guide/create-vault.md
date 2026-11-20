@@ -6,7 +6,7 @@
 **Key:** create-vault
 **Words:** vault, vault-passphrase, unlock-cost, seal
 
-A vault is one encrypted file for a stick, opened with its passphrase. Two cards make it, Opens on and Name and passphrase; **Customize** replaces Opens on with Where will you open it? and Unlock cost.
+A vault is one encrypted file for a stick, opened with its passphrase. Two steps make it, Opens on and Name and passphrase, one shown at a time; **Your choices** lists each answer (at the right of a wide window, from the top bar's **Your choices** button elsewhere), and pressing one opens its step; **Customize** replaces Opens on with Where will you open it? and Unlock cost.
 
 ## Opens on
 

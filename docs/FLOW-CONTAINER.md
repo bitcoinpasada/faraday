@@ -1,8 +1,8 @@
 # One flow container
 
 **Kind:** Spec
-**Status:** Specified (F296); none of it is built. Today every step flow draws its own steps with the shared column, `flow::Column` in `faraday/faraday-core/src/flow.rs`, finished steps stacked above the open one.
-**Open:** the container and every flow moved onto it; the live fade of a step that holds a secret, which needs the owner's approval after testing and a timing on the Pi (§3)
+**Status:** Specified (F296); first stage built. The container, Make a new vault on it and the fade through between its steps are built (`faraday/faraday-core/src/flow.rs`, `flow/`, `motion::STEP_FADE_MS`, `vault/screen.rs`'s `create`). Every other flow still draws today's column, `flow::Column`, finished steps stacked above the open one.
+**Open:** the other flows moved onto the container; the live fade of a step that holds a secret, which needs the owner's approval after testing and a timing on the Pi (§3), today that step swapping at once; the full emphasized curve for the fade, which Faraday has no token for yet
 
 Every step flow (Make a new vault, Make a new wallet, Restore an existing
 wallet, Spend from a backup, Make a new key, Back up's flows, the tools
@@ -82,7 +82,9 @@ When the current step changes (a choice, Continue, Back, a row of Your
 choices), the old card fades out to the page's surface and the new one
 fades in from it, at the same place. The outgoing part takes the first
 35% of the time and the incoming the rest, on Material's emphasized
-easing, its clock started as a change of screen's is (`motion::FADE_MS`);
+accelerate for the card going out and its emphasized decelerate for the
+one coming in (`motion::step_fade`; Material's own fade through is one
+full emphasized curve, for which Faraday has no token yet), its clock started as a change of screen's is (`motion::FADE_MS`);
 its length, 300 ms (Medium 2), is a named constant in `motion.rs` beside
 `FADE_MS`, stated with how it was timed on the Pi (F238). Outside the
 card's place (the bar's back label, a new row in Your choices) the frame
@@ -93,6 +95,12 @@ It is built on today's kept-frame fade (`Faraday::fade_begin`,
 blends to one with the card's place empty, then to the frame with the new
 card. A step's blend touches only the bands that differ.
 
+- **Built** for every step of Make a new vault (`Fade` in `fade.rs`): the
+  fade runs on the kept frames as above, on a page scrolled it fades only
+  the card in view under the top app bar, and the new step starts at its
+  top. The incoming card does not scale up from 92% as Material's does:
+  that is left out unless the Pi's timing allows it. The 300 ms is
+  shorter than Material's 450 ms (F296 point 2).
 - **Reduce motion**: the new card is there at once.
 - **A secret on screen**: a card that shows or takes a secret (words, a
   passphrase, a share) fades like any other, but is drawn live: each step
@@ -107,6 +115,13 @@ card. A step's blend touches only the bands that differ.
   secret stays held about 105 ms past the press, and the live draw costs
   drawing time on the Pi, to be timed per `docs/SPEED.md`. It reaches main
   only on the owner's approval after testing.
+- **Today a secret's step swaps at once**: a change to a step that shows
+  or takes a secret, or from a frame drawn while one was typed or shown,
+  is drawn at once with no kept frame (MOTION §3.5). The live fade above
+  is not built. When it is, a Lock or a hide during the fade clears the
+  outgoing step's secret at once, and the release at the end of the fade
+  out is by the clock, not by a frame being drawn, so a stalled or hidden
+  window still releases it at about 105 ms.
 - A step opening no longer grows its height (MOTION §3.5's 300 ms open on
   the emphasized decelerate goes for step cards), and `Scroll::follow`'s
   glide to the open card goes: there is nothing to glide to.

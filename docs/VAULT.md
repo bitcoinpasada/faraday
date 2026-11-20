@@ -330,8 +330,12 @@ allocate as "failed: no memory". Faraday runs the lanes on one core
   reference table, is a warning.
 - The summary panel shows the unlock memory, the unlock time here and
   the unlock cost only once Customize is open; the default's figures
-  are on its Size row. A window too low to hold the panel whole has the summary and
-  Create vault in the page after the last step instead.
+  are on its Size row. On the wide layout the summary stands in the Your choices
+  pane under its rows, which scrolls within itself when it is taller than
+  the window, and Create vault ends the last card. On a one-column layout
+  there is no pane: the summary and Create vault are in the last card,
+  and Your choices is the sheet from the top app bar
+  (`docs/FLOW-CONTAINER.md` §4).
 
 **When a vault does not fit.** Opening a vault whose memory this machine
 cannot allocate (its memory free to open, above) says so before the
