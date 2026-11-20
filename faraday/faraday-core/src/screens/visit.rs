@@ -1,6 +1,5 @@
-//! The stick pane of `Screen::Files` (F235): the stick's files beside Files'
-//! own lists from expanded windows up, and below that Material's primary
-//! tabs In Faraday and On the stick.
+//! Files (F235, F290): the two cards In Faraday and On the stick, side by
+//! side from expanded windows up and, below that, Material's primary tabs.
 
 use super::parts::{kind_line, size_text, written_and_checked};
 use crate::drawing::View;
@@ -13,9 +12,10 @@ use crate::wallet::FileKind;
 use crate::{Action, Faraday};
 use faraday_draw::tokens::{
     BODY_M, BODY_S, BUTTON_H, BUTTON_PAD, GAP_SMALL, GRID, LABEL_L, LABEL_M, ROW, TITLE_M, TITLE_S,
-    TOUCH, VISIT_CARD_FOOT, VISIT_CARD_HEAD, VISIT_CHIP_PRESS_RISE, VISIT_COMPACT_HEAD,
-    VISIT_FOOT_ROW, VISIT_FOOT_TEXT_LESS, VISIT_GROUP_HEAD, VISIT_NOTE_ICON, VISIT_NOTE_TEXT_X,
-    VISIT_ROW_BUTTON_H,
+    TOUCH, VISIT_CARD_FOOT, VISIT_CARD_HEAD, VISIT_CHIP_EXTRA, VISIT_CHIP_PRESS_RISE,
+    VISIT_CHIP_TOP, VISIT_COMPACT_HEAD, VISIT_COUNT_GAP, VISIT_FOOT_ROW, VISIT_FOOT_TEXT_LESS,
+    VISIT_GROUP_HEAD, VISIT_LOG_H, VISIT_NAME_MIN, VISIT_NOTE_ICON, VISIT_NOTE_TEXT_X, VISIT_PAD,
+    VISIT_ROW_BUTTON_H, VISIT_TEXT_X, VISIT_TITLE_X,
 };
 use faraday_draw::widgets::Icon;
 use faraday_text::Text;
@@ -57,13 +57,26 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let notice = stick
         .and_then(|s| app.visit.unprotected_of(&s.id))
         .map(|(line, _)| line.clone());
-    let notice_h = if notice.is_some() {
-        VISIT_NOTICE_H
-    } else {
-        0.0
-    };
+    // The notice wraps beside its button: its band is as tall as its text.
+    let notice_bw = ui.measure_as(TITLE_S, EN.unprotected_delete) + VISIT_NOTICE_BUTTON_PAD;
+    let notice_w = width - notice_bw - VISIT_NOTICE_GAP;
+    let notice_h = notice.as_ref().map_or(0.0, |line| {
+        (ui.wrap_height_as(BODY_M, line, notice_w) + 2.0 * GAP_SMALL).max(VISIT_NOTICE_H)
+    });
     let end_h = if usable { end_room(app) } else { 0.0 };
-    let log_h = if app.visit.log.is_empty() { 0.0 } else { 44.0 };
+    // The log's last two lines: side by side on a wide page, each wrapped
+    // across the full width, one under the other, on a small panel.
+    let log: Vec<_> = app.visit.log.iter().rev().take(2).collect();
+    let log_h = if log.is_empty() {
+        0.0
+    } else if compact {
+        log.iter()
+            .map(|(line, _)| ui.wrap_height_as(BODY_M, line, width) + GAP_SMALL)
+            .sum::<f32>()
+            + GAP_SMALL
+    } else {
+        VISIT_LOG_H
+    };
     if compact {
         let on_stick = app.visit.tab_stick;
         let on_label = match stick.or_else(|| app.stick.get(app.visit.stick)) {
@@ -115,18 +128,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let foot = y + colh;
     if let Some(line) = notice {
         let label = EN.unprotected_delete;
-        let bw = ui.measure_as(TITLE_S, label) + VISIT_NOTICE_BUTTON_PAD;
         let ny = foot + GAP_SMALL;
-        ui.wrap_as(
-            (x, ny, width - bw - VISIT_NOTICE_GAP),
-            BODY_M,
-            Role::Error,
-            &line,
-        );
+        ui.wrap_as((x, ny, notice_w), BODY_M, Role::Error, &line);
         ui.button(
-            x + width - bw,
+            x + width - notice_bw,
             ny,
-            Some(bw),
+            Some(notice_bw),
             BUTTON_H,
             label,
             Style::Secondary,
@@ -139,11 +146,16 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     let fy = foot + notice_h + end_h;
     let mut lx = x;
-    for (line, ok) in app.visit.log.iter().rev().take(2) {
+    let mut ly = fy + GAP_SMALL;
+    for (line, ok) in log {
         let c = if *ok { Role::Ok } else { Role::Error };
-        let t = ui.fit_as(BODY_M, line, width / 2.0 - 20.0);
-        let used = ui.text_mid_as((lx, fy, 44.0), BODY_M, c, &t);
-        lx += used + 24.0;
+        if compact {
+            ly += ui.wrap_as((x, ly, width), BODY_M, c, line) + GAP_SMALL;
+        } else {
+            let t = ui.fit_as(BODY_M, line, width / 2.0 - VISIT_PAD);
+            let used = ui.text_mid_as((lx, fy, VISIT_LOG_H), BODY_M, c, &t);
+            lx += used + 24.0;
+        }
     }
 }
 
@@ -196,7 +208,14 @@ fn extra_h(ui: &Ui, r: &ListRow, colw: f32) -> f32 {
     lines.h.max(one) - one
 }
 
-fn list_row(app: &View, ui: &mut Ui, (x, colw, ry): (f32, f32, f32), r: ListRow) -> f32 {
+fn list_row(app: &View, ui: &mut Ui, (x, colw, ry): (f32, f32, f32), mut r: ListRow) -> f32 {
+    // A name that does not wrap keeps `VISIT_NAME_MIN` of room, or the main
+    // action is not drawn (as the stick pane's rows did before F290).
+    // Pressing the row then does it: the tick box keeps the tick.
+    let mut dropped = None;
+    if !r.wrap && r.main.is_some() && name_room(ui, &r, colw) < VISIT_NAME_MIN {
+        dropped = r.main.take().map(|(.., a)| a);
+    }
     let extra = extra_h(ui, &r, colw);
     // A row scrolled out of the list's sight is passed over.
     if !ui.shows(ry, ROW + extra) {
@@ -244,8 +263,16 @@ fn list_row(app: &View, ui: &mut Ui, (x, colw, ry): (f32, f32, f32), r: ListRow)
         r.tag.1,
         r.tag.0,
     );
-    if let Some(action) = r.action {
-        ui.press_box(x + 12.0, ry, colw - 24.0 - dw, 50.0, action);
+    let (px, ph, pw) = (x + 12.0, 50.0, colw - 24.0);
+    if let Some(main) = dropped {
+        let mut from = px;
+        if let (Some(tick), true) = (r.action, r.ticked.is_some()) {
+            from = x + lead;
+            ui.press_box(px, ry, from - px, ph, tick);
+        }
+        ui.press_box(from, ry, px + pw - dw - from, ph, main);
+    } else if let Some(action) = r.action {
+        ui.press_box(px, ry, pw - dw, ph, action);
     }
     if let Some(menu) = r.menu {
         crate::file_menu::dots(app, ui, x + colw - 20.0 - 32.0, ry + GRID, 32.0, menu);
@@ -263,8 +290,35 @@ fn open_label(app: &View, v: usize) -> faraday_text::Text {
     app.vaults.open[v].label(app.vaults.store())
 }
 
+/// An open vault's row line: its label, and while it holds changes not
+/// yet saved, how many.
+fn open_line(app: &View, v: usize) -> Text {
+    let label = open_label(app, v);
+    let n = app.vaults.open[v].changes;
+    if n == 0 {
+        return label;
+    }
+    let unsaved = Text::fill(
+        EN.vault_open_unsaved,
+        &[
+            &Text::num(n as u64),
+            (if n == 1 {
+                EN.vault_change
+            } else {
+                EN.vault_changes
+            }),
+        ],
+    );
+    faraday_text::text!("{} · {}", &*label, &*unsaved)
+}
+
 /// An open vault's row: its name wraps rather than ending in "…".
 fn vault_row<'a>(app: &'a View, v: usize, line: &'a str) -> ListRow<'a> {
+    // Its ⋮ loads wallets: with none left to load, it has nothing to open.
+    let loads = app
+        .vault_wallets_with_keys(v)
+        .iter()
+        .any(|w| !w.done && w.chosen);
     ListRow {
         name: &app.vaults.open[v].name,
         line,
@@ -272,7 +326,7 @@ fn vault_row<'a>(app: &'a View, v: usize, line: &'a str) -> ListRow<'a> {
         ticked: None,
         greyed: false,
         action: None,
-        menu: Some(crate::file_menu::Row::Vault(v)),
+        menu: loads.then_some(crate::file_menu::Row::Vault(v)),
         main: Some((
             Text::of(EN.files_contents),
             Style::Secondary,
@@ -292,6 +346,64 @@ fn out_groups() -> [(crate::secrets::Exposure, &'static str, Role); 3] {
         (Exposure::Sealed, EN.files_written_sealed, Role::Ok),
         (Exposure::Secret, EN.files_unprotected_secrets, Role::Error),
     ]
+}
+
+/// A group's heading at `(x, y)` with how many files it holds after it.
+fn group_head(ui: &mut Ui, (x, y): (f32, f32), tone: Role, label: &str, n: usize) {
+    let lw = ui.text_mid_as(
+        (x, y + GAP_SMALL, VISIT_GROUP_HEAD - GAP_SMALL),
+        LABEL_L,
+        tone,
+        label,
+    );
+    ui.text_mid_as(
+        (
+            x + lw + VISIT_COUNT_GAP,
+            y + GAP_SMALL,
+            VISIT_GROUP_HEAD - GAP_SMALL,
+        ),
+        BODY_S,
+        Role::OnSurfaceVariant,
+        &Text::num(n as u64),
+    );
+}
+
+/// An Outbox file's line and state: what it is, or for a vault open in
+/// this session (the file here is the copy sealed before it was opened,
+/// and Lock seals it again) its changes; then ready, written after Lock,
+/// or unprotected, in its colour.
+fn out_state(app: &View, item: &crate::Item) -> (Text, (&'static str, Role)) {
+    use crate::secrets::Exposure;
+    let open_here = (item.kind == FileKind::Vault)
+        .then(|| app.vaults.vault_id_of_file(item.sha))
+        .flatten()
+        .and_then(|id| app.vaults.open.iter().find(|v| v.vault_id() == id));
+    let line = match open_here {
+        // With no seed to seal with, Lock does not seal it.
+        Some(v) if v.changes > 0 => Text::fill(
+            if app.seeded() {
+                EN.files_vault_open_unsaved
+            } else {
+                EN.vault_open_unsaved
+            },
+            &[
+                &Text::num(v.changes as u64),
+                (if v.changes == 1 {
+                    EN.vault_change
+                } else {
+                    EN.vault_changes
+                }),
+            ],
+        ),
+        Some(_) => Text::of(EN.files_vault_open_sealed),
+        None => kind_line(item.kind, item.bytes.len()),
+    };
+    let state = match item.exposure() {
+        Exposure::Secret => (EN.files_unprotected, Role::Error),
+        _ if open_here.is_some() => (EN.files_written_after, Role::Primary),
+        _ => (EN.files_ready, Role::Ok),
+    };
+    (line, state)
 }
 
 /// The left card, In Faraday, `(x, y, colw, colh)`: everything Faraday
@@ -318,6 +430,19 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
         (false, _) => VISIT_CARD_HEAD,
         (true, true) => VISIT_COMPACT_HEAD,
         (true, false) => GRID,
+    };
+    // On a small panel the stick's error line shows on both tabs.
+    let head = match super::files::boot_medium_line(app).filter(|_| compact) {
+        Some(line) => {
+            let h = ui.wrap_as(
+                (x + VISIT_TEXT_X, y + head, colw - 2.0 * VISIT_TEXT_X),
+                BODY_M,
+                Role::Error,
+                line,
+            );
+            head + h + GRID
+        }
+        None => head,
     };
     // A small panel puts the foot lines at the end of the list, wrapped, so
     // the list has the card's height.
@@ -387,7 +512,7 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
         ry += summary_room;
     }
     for v in 0..app.vaults.open.len() {
-        let line = open_label(app, v);
+        let line = open_line(app, v);
         ry += list_row(app, ui, (x, colw, ry), vault_row(app, v, &line));
     }
     // The settings, which are not an Outbox file.
@@ -424,22 +549,23 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
         if !app.outbox.iter().any(|i| i.exposure() == exposure) {
             continue;
         }
-        ui.text_mid_as(
-            (x + 22.0, ry + GAP_SMALL, VISIT_GROUP_HEAD - GAP_SMALL),
-            LABEL_L,
-            tone,
-            label,
-        );
+        let n = app
+            .outbox
+            .iter()
+            .filter(|i| i.exposure() == exposure)
+            .count();
+        group_head(ui, (x + VISIT_TEXT_X, ry), tone, label, n);
         ry += VISIT_GROUP_HEAD;
         for (k, item) in app.outbox.iter().enumerate() {
             if item.exposure() != exposure {
                 continue;
             }
             let held = app.in_the_backup(&item.name);
+            let (line, state) = out_state(app, item);
             let tag = if held {
                 (EN.backup_flow_in_the_backup, Role::OnSurfaceVariant.paint())
             } else {
-                ("", Role::OnSurfaceVariant.paint())
+                (state.0, state.1.paint())
             };
             list_row(
                 app,
@@ -447,7 +573,7 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
                 (x, colw, ry),
                 ListRow {
                     name: &item.name,
-                    line: &kind_line(item.kind, item.bytes.len()),
+                    line: &line,
                     tag,
                     ticked: usable.then(|| app.visit.out.contains(&*item.name)),
                     greyed: held,
@@ -470,11 +596,12 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
         ry += VISIT_GROUP_HEAD;
     }
     // The Inbox under its heading.
-    ui.text_mid_as(
-        (x + 22.0, ry + GAP_SMALL, VISIT_GROUP_HEAD - GAP_SMALL),
-        LABEL_L,
+    group_head(
+        ui,
+        (x + VISIT_TEXT_X, ry),
         Role::OnSurfaceVariant,
         app.medium.from_box(),
+        app.inbox.len(),
     );
     ry += VISIT_GROUP_HEAD;
     // An incomplete share's "n of m keys" says so on its row.
@@ -485,7 +612,7 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
         .flatten();
     for &(k, held) in &shown {
         let item = &app.inbox[k];
-        let mut line = visit_inbox_line(item);
+        let mut line = visit_inbox_line(app, item);
         if let (FileKind::Share, Some(note)) = (item.kind, &share_note) {
             line = faraday_text::text!("{} · {}", &*line, &**note);
         }
@@ -604,17 +731,66 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
     }
 }
 
-/// The stick's heading buttons, right-aligned in the card: one chip per
-/// stick, the chosen one selected (Material's filter chip), which is also
-/// how one of several sticks is picked, and Rename stick left of them
-/// (`docs/STICK-IDENTITY.md` §6).
-fn stick_heading(app: &View, ui: &mut Ui, (right, y): (f32, f32)) {
-    let chy = y + 15.0;
-    let mut chx = right;
-    for (k, st) in app.stick.iter().enumerate().rev() {
-        let label = st.label.clone();
-        let wdt = ui.measure_as(LABEL_L, &label) + 28.0;
-        chx -= wdt;
+/// The stick's heading buttons: Rename stick and one chip per stick, the
+/// chosen one selected (Material's filter chip), which is also how one of
+/// several sticks is picked (`docs/STICK-IDENTITY.md` §6). They stand
+/// right-aligned in the card's heading while they fit beside its title
+/// (`title_w`, none on a small panel, whose tab names the card), else
+/// from the left in rows under it. `(ix, y, colw)` is the card's left
+/// edge, top and width. Returns the height the rows add to the heading.
+fn stick_heading(app: &View, ui: &mut Ui, (ix, y, colw): (f32, f32, f32), title_w: f32) -> f32 {
+    let rename = Text::fill(EN.stick_name_button, &[app.medium.noun()]);
+    let rename_w = ui.measure_as(LABEL_L, &rename) + BUTTON_PAD + BUTTON_PAD;
+    let chips: Vec<f32> = app
+        .stick
+        .iter()
+        .map(|st| ui.measure_as(LABEL_L, &st.label) + VISIT_CHIP_EXTRA)
+        .collect();
+    let total = rename_w + chips.iter().map(|w| w + GRID).sum::<f32>();
+    let compact = ui.compact;
+    let beside = if compact {
+        0.0
+    } else {
+        VISIT_TITLE_X + title_w + VISIT_PAD
+    };
+    // The chips stand clear of the card's right edge by one pad; at the left
+    // the Rename stick button's own padding is its margin.
+    let one_line = total <= colw - VISIT_PAD - beside - if compact { 0.0 } else { VISIT_PAD };
+    let line_h = TOUCH;
+    // (x, chip top) of each item as it is laid: Rename stick first.
+    let first_y = if compact || one_line {
+        y + VISIT_CHIP_TOP
+    } else {
+        y + VISIT_CARD_HEAD
+    };
+    let mut cx = if one_line {
+        ix + colw - VISIT_PAD - total
+    } else {
+        ix + VISIT_PAD
+    };
+    let mut cy = first_y;
+    let mut place = |w: f32| {
+        if !one_line && cx + w > ix + colw - VISIT_PAD && cx > ix + VISIT_PAD {
+            cx = ix + VISIT_PAD;
+            cy += line_h;
+        }
+        let at = (cx, cy);
+        cx += w + GRID;
+        at
+    };
+    let (rx, ry) = place(rename_w);
+    ui.button(
+        rx,
+        ry - GAP_SMALL,
+        Some(rename_w),
+        BUTTON_H,
+        &rename,
+        Style::Ghost,
+        NAME_STICK,
+    );
+    for (k, st) in app.stick.iter().enumerate() {
+        let wdt = chips[k];
+        let (chx, chy) = place(wdt);
         let current = k == app.visit.stick;
         ui.fill(
             chx,
@@ -627,7 +803,7 @@ fn stick_heading(app: &View, ui: &mut Ui, (right, y): (f32, f32)) {
         let edge = selected_or(current, Role::OutlineVariant);
         ui.stroke(chx, chy, wdt, 32.0, 16.0, edge);
         let ink = on_selected(current, Role::OnSurface);
-        ui.text_mid_as((chx + 14.0, chy, 32.0), LABEL_L, ink, &label);
+        ui.text_mid_as((chx + 14.0, chy, 32.0), LABEL_L, ink, &st.label);
         // The press box is the touch floor tall, around the 32 px chip.
         ui.press_box(
             chx,
@@ -636,19 +812,10 @@ fn stick_heading(app: &View, ui: &mut Ui, (right, y): (f32, f32)) {
             TOUCH,
             Action::VisitStick(k),
         );
-        chx -= GRID;
     }
-    let rename = Text::fill(EN.stick_name_button, &[app.medium.noun()]);
-    let bw = ui.measure_as(LABEL_L, &rename) + BUTTON_PAD + BUTTON_PAD;
-    ui.button(
-        chx - bw,
-        chy - GAP_SMALL,
-        Some(bw),
-        BUTTON_H,
-        &rename,
-        Style::Ghost,
-        NAME_STICK,
-    );
+    // The rows past the heading's own: a small panel's first stands in it.
+    let rows = (cy - first_y) / line_h + usize::from(!(one_line || compact)) as f32;
+    rows * line_h
 }
 
 /// The right card, On the stick, `(x, y, colw, colh)`: the stick's files
@@ -686,7 +853,8 @@ fn on_the_stick(
         (true, false) => GRID,
     };
     if stick.is_some() {
-        stick_heading(app, ui, (ix + colw - 20.0, y));
+        let title_w = ui.measure_as(TITLE_M, app.medium.on_box());
+        top += stick_heading(app, ui, (ix, y, colw), title_w);
     }
     if let Some(line) = super::files::boot_medium_line(app) {
         top += ui.wrap_as((ix + 22.0, top, colw - 44.0), BODY_M, Role::Error, line) + GRID;
@@ -694,6 +862,10 @@ fn on_the_stick(
     let Some(stick) = stick else {
         return on_no_stick(app, ui, (ix, top, colw, y + colh - top));
     };
+    // What pulling the stick does next, one line at the card's foot.
+    let pull = pull_line(app);
+    let pull_h = pull.as_ref().map_or(0.0, |_| ui.line_as(BODY_S) + GRID);
+    let colh = colh - pull_h;
     let track_h = (y + colh - top - VISIT_CARD_FOOT - BUTTON_H - GRID).max(ROW);
     let list_top = top;
     let total = stick.files.len();
@@ -806,6 +978,16 @@ fn on_the_stick(
             &none,
         );
     }
+    if let Some(line) = pull {
+        let line = ui.fit_as(BODY_S, &line, colw - 2.0 * VISIT_TEXT_X);
+        ui.text_as(
+            ix + VISIT_TEXT_X,
+            y + colh + GRID / 2.0,
+            BODY_S,
+            Role::OnSurfaceVariant,
+            &line,
+        );
+    }
     // Delete files: the one way into deleting from the stick, a grid step
     // above the buttons at the foot so their touch targets keep apart;
     // Unselect all at the row's right end, while any file is ticked.
@@ -894,6 +1076,36 @@ fn on_no_stick(app: &View, ui: &mut Ui, (x, top, w, h): (f32, f32, f32, f32)) {
         Style::Primary,
         Action::Lock,
     );
+}
+
+/// What pulling the stick does next, when it does something: the keys an
+/// Import and load copied in load, or the vault it brought asks for its
+/// passphrase; or the files written are on it and checked.
+fn pull_line(app: &View) -> Option<Text> {
+    // Only words copied in for Import and load are keys waiting to load.
+    let n = app
+        .inbox
+        .iter()
+        .filter(|i| i.kind == FileKind::Words && app.visit.load_after.contains(&*i.name))
+        .count();
+    let vault = app
+        .vault_files()
+        .into_iter()
+        .find(|f| f.open.is_none() && !f.in_outbox)
+        .map(|f| f.name);
+    let noun = app.medium.noun();
+    match (n, vault) {
+        (0, Some(v)) if !app.holds_secret() => {
+            Some(Text::fill(EN.pull_line_remove_to_unlock, &[noun, &v]))
+        }
+        (0, _) if written_and_checked(app) => Some(Text::of(EN.pull_line_written_checked)),
+        (0, _) => None,
+        (1, _) => Some(Text::fill(EN.pull_line_1_key_copied, &[noun])),
+        (n, _) => Some(Text::fill(
+            EN.pull_line_keys_copied,
+            &[&Text::num(n as u64), noun],
+        )),
+    }
 }
 
 /// An Inbox file's main action in its row, as Files offers it, except
@@ -1003,7 +1215,13 @@ fn visit_write_count(app: &View) -> usize {
 
 /// An Inbox file's second line on a visit's write list: a picture says
 /// what its codes hold.
-fn visit_inbox_line(item: &crate::Item) -> Text {
+fn visit_inbox_line(app: &View, item: &crate::Item) -> Text {
+    if item.kind == FileKind::Vault && item.picture.is_none() && vault_file_open(app, item) {
+        let mut out = Text::of(EN.kind_name_vault_open);
+        out.push_str(" · ");
+        out.push_str(&size_text(item.bytes.len() as u64));
+        return out;
+    }
     match item.picture {
         Some(FileKind::Other) => Text::fill(
             EN.visit_inbox_line_png_no_qr,
@@ -1012,6 +1230,13 @@ fn visit_inbox_line(item: &crate::Item) -> Text {
         Some(k) => Text::fill(EN.visit_inbox_line_png, &[&kind_line(k, item.bytes.len())]),
         None => kind_line(item.kind, item.bytes.len()),
     }
+}
+
+/// Whether the vault an Inbox file holds is open: its own file, or a
+/// copy of the one that is.
+fn vault_file_open(app: &View, item: &crate::Item) -> bool {
+    let files = app.vault_files();
+    super::files::vault_at(&files, item).is_some_and(|k| files[k].open.is_some())
 }
 
 /// What the Inbox's split-sheet shares say together while they do not make

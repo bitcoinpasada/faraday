@@ -1097,6 +1097,21 @@ pub const VISIT_NOTE_ICON: (f32, f32, f32, f32) = (20.0, 2.0, 20.0, 11.0);
 pub const VISIT_NOTE_TEXT_X: f32 = 46.0;
 /// Files' In Faraday card: a group's heading row in its list.
 pub const VISIT_GROUP_HEAD: f32 = 36.0;
+/// A visit card's side padding: where its controls and lines start and
+/// end from the card's edge.
+pub const VISIT_PAD: f32 = 20.0;
+/// How far a visit card's text lines and group headings stand in.
+pub const VISIT_TEXT_X: f32 = 22.0;
+/// How far a visit card's title stands in, after its icon.
+pub const VISIT_TITLE_X: f32 = 50.0;
+/// The height of the visit's log lines on a wide page.
+pub const VISIT_LOG_H: f32 = 44.0;
+/// The room between a group's heading and its file count.
+pub const VISIT_COUNT_GAP: f32 = 10.0;
+/// What a stick chip's width adds to its label.
+pub const VISIT_CHIP_EXTRA: f32 = 28.0;
+/// Where a stick chip stands under the heading's top.
+pub const VISIT_CHIP_TOP: f32 = 15.0;
 /// The Inbox summary card's side padding, and where its heading text starts,
 /// its top and its height.
 pub const SUMMARY_PAD: f32 = 20.0;
@@ -2127,12 +2142,6 @@ pub const REFUSED_FILE_NAME_Y: f32 = 4.0;
 /// Space under the reason.
 pub const REFUSED_FILE_GAP: f32 = 10.0;
 
-/// Files beside the rail (`docs/LAYOUT.md` §17): the head's top under
-/// the top app bar, and For the stick's pane's top once the head is
-/// scrolled away.
-pub const FILES_BESIDE_TOP: f32 = 12.0;
-/// Files beside the rail: the room under the last row of each list.
-pub const FILES_BESIDE_FOOT: f32 = 16.0;
 /// Decode a transaction's table (`docs/LAYOUT.md` §17): the number's
 /// column before an outpoint, an address or the line under one.
 pub const DECODE_INDEX_W: f32 = 26.0;

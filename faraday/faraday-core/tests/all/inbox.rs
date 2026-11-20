@@ -730,3 +730,92 @@ fn a_written_vault_beside_another_of_its_name_is_kept_numbered() {
         app.visit().log
     );
 }
+
+/// An Inbox vault file whose vault is open reads "Vault, open", and its
+/// own row in In Faraday, with no wallet left to load, has no ⋮ that
+/// would open nothing.
+#[test]
+fn an_open_vaults_inbox_file_reads_open_and_its_row_has_no_empty_menu() {
+    let mut app = crate::common::process(
+        vec![(
+            "a.kdbx".to_string(),
+            crate::common::vault("A", "a phrase", 0x30),
+        )],
+        Vec::new(),
+        Vec::new(),
+    );
+    app.press(Action::Nav(Screen::Files));
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t.starts_with("Vault, locked")),
+        "{texts:?}"
+    );
+    app.press(Action::Vault(V::Open(0)));
+    crate::common::unlock(&mut app, "a phrase");
+    assert_eq!(app.vaults().open.len(), 1);
+    app.press(Action::Nav(Screen::Files));
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t.starts_with("Vault, open")),
+        "{texts:?}"
+    );
+    assert!(
+        !texts.iter().any(|t| t.starts_with("Vault, locked")),
+        "{texts:?}"
+    );
+    let menu = faraday_core::file_menu::FilePress::Menu(faraday_core::file_menu::Row::Vault(0));
+    assert!(!app.offers(Action::File(menu)), "nothing to load: no ⋮");
+}
+
+/// An Outbox file says its state, and an open vault's file on the list
+/// says Lock writes it again, with how many changes are not yet saved.
+#[test]
+fn the_outbox_says_ready_unprotected_and_written_after_lock_with_the_unsaved_changes() {
+    let v = crate::common::vault("A", "a phrase", 0x30);
+    let mut app = crate::common::process(
+        vec![("a.kdbx".to_string(), v.clone())],
+        vec![
+            ("a.kdbx".to_string(), v),
+            ("notes.pdf".to_string(), b"%PDF".to_vec()),
+        ],
+        Vec::new(),
+    );
+    app.press(Action::Nav(Screen::Files));
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "Ready"), "{texts:?}");
+    assert!(
+        !texts.iter().any(|t| t == "Written after Lock"),
+        "{texts:?}"
+    );
+    app.press(Action::Vault(V::Open(0)));
+    crate::common::unlock(&mut app, "a phrase");
+    assert_eq!(app.vaults().open.len(), 1);
+    app.press(Action::Nav(Screen::Files));
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "Written after Lock"), "{texts:?}");
+    assert!(
+        texts
+            .iter()
+            .any(|t| t.starts_with("Vault, open · sealed and locked")),
+        "{texts:?}"
+    );
+    // A change not yet saved is counted on the vault's row and the file's.
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::ChangePassphrase));
+    app.press(Action::Vault(V::FocusField(0)));
+    crate::common::type_text(&mut app, "new phrase");
+    app.press(Action::Vault(V::FocusField(1)));
+    crate::common::type_text(&mut app, "new phrase");
+    app.press(Action::Vault(V::FormSave));
+    app.press(Action::Nav(Screen::Files));
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t.contains("unsaved change")),
+        "{texts:?}"
+    );
+}

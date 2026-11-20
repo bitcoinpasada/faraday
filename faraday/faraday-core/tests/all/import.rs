@@ -10,6 +10,7 @@
 use faraday_core::boot_import::TextSeedAnswer;
 use faraday_core::wallet::FileKind;
 use faraday_core::{Action, Faraday, Screen, StickInfo, StorageEvent};
+use faraday_shell_api::App;
 
 const STICK: &str = "S1";
 const FILE: &str = "key-1-words.txt";
@@ -103,6 +104,28 @@ fn import_and_load_loads_the_key_once_the_stick_is_pulled() {
     detach(&mut app);
     assert_eq!(app.session.keys.len(), 1, "the key did not load on its own");
     assert!(app.visit().load_after.is_empty());
+}
+
+/// With a key copied in for Import and load, On the stick says it loads
+/// once the stick is pulled.
+#[test]
+fn on_the_stick_says_a_copied_in_key_loads_on_pulling_the_stick() {
+    let mut app = faraday_core::testkit::started();
+    attach(&mut app);
+    app.press(Action::Nav(Screen::Files));
+    app.press(Action::VisitIn(0));
+    app.press(Action::VisitCopyAndLoad);
+    app.storage(StorageEvent::Read {
+        stick: faraday_text::Text::of(STICK),
+        name: faraday_text::Text::of(FILE),
+        bytes: words().into_bytes().into(),
+    });
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t.starts_with("1 key copied in")),
+        "{texts:?}"
+    );
 }
 
 /// The test stick's own words file, as the backup writes it: a note line

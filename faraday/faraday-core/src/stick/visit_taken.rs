@@ -165,9 +165,6 @@ pub(crate) struct VisitArea {
     /// A file row's ⋮ menu, Rename and Details (`docs/FLOWS.md`
     /// decision 61).
     files_menu: crate::file_menu::FileMenus,
-    /// How far Files' For the stick list is scrolled on a desktop, apart
-    /// from From the stick's.
-    files_out_offset: f32,
     /// The vault writes refused for their names, the first on the
     /// name-taken sheet ([`Sheet::NameTaken`]).
     name_taken: std::collections::VecDeque<NameTaken>,
@@ -576,16 +573,6 @@ impl VisitArea {
     /// The files the person renamed, as they were kept.
     pub(crate) fn set_renamed(&mut self, names: impl IntoIterator<Item = impl AsRef<str>>) {
         self.files_menu.renamed = names.into_iter().map(|n| n.as_ref().into()).collect();
-    }
-
-    /// How far the For the stick list is scrolled.
-    pub(crate) fn files_out_offset(&self) -> &f32 {
-        &self.files_out_offset
-    }
-
-    /// The For the stick list is scrolled to `offset`.
-    pub(crate) fn set_files_out_offset(&mut self, offset: f32) {
-        self.files_out_offset = offset;
     }
 
     /// How far the visit's Outbox list is scrolled.
@@ -1028,11 +1015,6 @@ impl Faraday {
     /// Files' row menus.
     pub fn files_menu(&self) -> &crate::file_menu::FileMenus {
         self.visit.files_menu()
-    }
-
-    /// How far Files' For the stick list is scrolled on a desktop.
-    pub fn files_out_offset(&self) -> f32 {
-        *self.visit.files_out_offset()
     }
 
     /// How far Files' In Faraday list is scrolled.

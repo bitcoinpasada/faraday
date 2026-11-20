@@ -712,9 +712,6 @@ impl Scroll {
             ui::Slot::VisitIn if screen == Screen::Files && sheet_none => ui::Slot::VisitIn,
             ui::Slot::Card if screen == Screen::Wallets && reach => ui::Slot::Card,
             ui::Slot::VaultItem if screen == Screen::VaultContents && reach => ui::Slot::VaultItem,
-            // Files' two lists stand side by side on the rail's windows
-            // too, from expanded up (`docs/LAYOUT.md` §17).
-            ui::Slot::FilesOut if screen == Screen::Files && sheet_none => ui::Slot::FilesOut,
             ui::Slot::ListPane if crate::panes::has_list(screen) && sheet_none => {
                 ui::Slot::ListPane
             }
@@ -1207,7 +1204,6 @@ impl Faraday {
             ui::Slot::VisitIn => Some(Place::VisitIn),
             ui::Slot::Card => Some(Place::Card),
             ui::Slot::VaultItem => Some(Place::VaultItem),
-            ui::Slot::FilesOut => Some(Place::FilesOut),
             ui::Slot::ListPane => Some(Place::ListPane),
             ui::Slot::Sidebar => Some(Place::Sidebar),
             ui::Slot::BoardList => Some(Place::BoardList),
@@ -1312,7 +1308,6 @@ impl Faraday {
             Place::VisitIn => self.scroll.visit_in_offset(),
             Place::Card => self.wallets.card_offset(),
             Place::VaultItem => self.vaults.item_offset(),
-            Place::FilesOut => *self.visit.files_out_offset(),
             Place::ListPane => self.scroll.panes.list_offset(),
             Place::Sidebar => self.scroll.sidebar_offset(),
             Place::BoardList => self.flows.board_list_offset(),
@@ -1352,7 +1347,6 @@ impl Faraday {
             Place::VisitIn => self.scroll.set_visit_in_offset(to),
             Place::Card => self.wallets.set_card_offset(to),
             Place::VaultItem => self.vaults.set_item_offset(to),
-            Place::FilesOut => self.visit.set_files_out_offset(to),
             Place::ListPane => self.scroll.panes.set_list_offset(to),
             Place::Sidebar => self.scroll.set_sidebar_offset(to),
             Place::BoardList => self.flows.set_board_list_offset(to),
@@ -1399,7 +1393,6 @@ enum Place {
     VisitIn,
     Card,
     VaultItem,
-    FilesOut,
     ListPane,
     Sidebar,
     BoardList,

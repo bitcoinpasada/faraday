@@ -79,6 +79,16 @@ macro_rules! words_screens_files {
     files_in_memory_emptied: "In memory · emptied at power-off",
     /// Text in `files`.
     files_open: "open",
+    /// Text in `out_state`.
+    files_ready: "Ready",
+    /// Text in `out_state`.
+    files_written_after: "Written after Lock",
+    /// Text in `out_state`.
+    files_unprotected: "Unprotected",
+    /// Text in `out_line`. `{}`: `v.changes`, `if v.changes == 1 { EN.vault_change }…`.
+    files_vault_open_unsaved: "Vault, open · {} unsaved {} · sealed and locked at Lock",
+    /// Text in `out_line`.
+    files_vault_open_sealed: "Vault, open · sealed and locked at Lock",
     /// Text in `files`. `{}`: `app.medium.a()`.
     files_empty_files_are: "Empty · files are copied in on {} visit",
     /// Text in `files`.

@@ -22,9 +22,6 @@ pub enum Slot {
     Card,
     /// Vault contents' item on a desktop (`VaultArea::item_offset`, `faraday-core`).
     VaultItem,
-    /// Files' For the stick list on a desktop, beside From the stick
-    /// (`Faraday::files_out_offset`).
-    FilesOut,
     /// The list pane of a list and detail page, beside its detail
     /// (`docs/LAYOUT.md` §5; `Panes::list_offset`, `faraday-core`).
     ListPane,

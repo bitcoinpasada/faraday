@@ -1451,7 +1451,7 @@ pub(super) fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Button
 /// the vault it is a copy of ([`crate::vault::VaultFile::copies`]), never
 /// a For the stick file of its name that is another vault; `None` when it
 /// is neither. A lookup.
-fn vault_at(files: &[crate::vault::VaultFile], item: &crate::Item) -> Option<usize> {
+pub(super) fn vault_at(files: &[crate::vault::VaultFile], item: &crate::Item) -> Option<usize> {
     files.iter().position(|f| {
         (f.name == item.name.as_str() && !f.in_outbox)
             || f.copies.iter().any(|x| x.as_str() == item.name.as_str())

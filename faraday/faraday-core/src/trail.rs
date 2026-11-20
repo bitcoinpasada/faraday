@@ -340,11 +340,10 @@ pub(crate) struct Spot {
     wallet: usize,
     /// The card was shown as its chart.
     glance: bool,
-    /// How far each list was scrolled: the page's, the card's, the
-    /// Outbox's, a vault item's and the board's.
+    /// How far each list was scrolled: the page's, the card's, a
+    /// vault item's and the board's.
     list_offset: f32,
     card_offset: f32,
-    files_out_offset: f32,
     vault_item_offset: f32,
     board_list_offset: f32,
     /// The wallet Backups showed, a page each on a small panel.
@@ -421,7 +420,6 @@ impl Faraday {
             glance: self.glance.open(),
             list_offset: self.list_offset,
             card_offset: self.wallets.card_offset(),
-            files_out_offset: *self.visit.files_out_offset(),
             vault_item_offset: self.vaults.item_offset(),
             board_list_offset: self.flows.board_list_offset(),
             backups_at: self.backups_area.at(),
@@ -596,7 +594,6 @@ impl Faraday {
         self.glance.set_focus(None);
         self.list_offset = s.list_offset;
         self.wallets.set_card_offset(s.card_offset);
-        self.visit.set_files_out_offset(s.files_out_offset);
         self.vaults.set_item_offset(s.vault_item_offset);
         self.flows.set_board_list_offset(s.board_list_offset);
         match s.screen {

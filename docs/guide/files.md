@@ -8,13 +8,19 @@
 
 Files shows the files copied in from the stick and the files waiting to be written to it, along with what the open vaults and the Inbox can load. Both lists are held in memory and emptied at power-off.
 
+## The two cards
+
+**Key:** files.cards
+
+Files is one page whether a stick is attached or not: **In Faraday** holds everything Faraday holds (the open vaults, the settings, the files waiting to be written, and the Inbox) and **On the stick** holds the stick's files. Side by side on a wide window; on a small one they are the tabs **In Faraday** and **On the stick**. The stick's error line shows on **On the stick**, and on a small window above the **In Faraday** list too.
+
+**Write 3 files** at the foot of **In Faraday** writes the ticked files to the stick. At the foot of **On the stick**, **Import 3 files** copies the ticked files in and **Import and load** copies them in and loads them once the stick is pulled; a line under the list says what pulling the stick will do next. Pulling the stick keeps you on Files.
+
 ## The stick
 
 **Key:** files.stick
 
-The top line gives the state of the stick. **Scan a QR code** reads a code in place of a file.
-
-With no stick attached, the line says it is waiting for one. With a stick attached while a secret is held, it says the stick is attached and that you must lock to use it; pressing the line locks; the button names how many keys leave memory. Otherwise the line is the stick's label. A stick holding one PSBT offers **Import and sign** and the file's name: only that file comes in, and it lands on its review.
+The top bar gives the state of the stick in a chip. With no stick attached, **On the stick** says it is waiting for one. With a stick attached while a secret is held, it says to lock to use the stick, with a **Lock** button; the secrets leave memory. Otherwise the card lists the stick's files, and its heading has the stick's label as a chip and **Rename stick**. A stick holding one PSBT offers **Import and sign** and the file's name: only that file comes in, and it lands on its review.
 
 ## Formatting a stick
 
@@ -43,7 +49,7 @@ The Raspberry Pi reads sticks alike; its screens say "SD card" for "stick".
 
 **Key:** files.delete-files
 
-**Delete files** on the stick pane, and a file's **Delete from the stick**, open a sheet that writes only to the stick's files partition. Its other partitions and its partition table are not touched; Faraday only ever writes to that partition, so zeroing it reaches everything Faraday wrote to the stick.
+**Delete files** on the **On the stick** card, and a file's **Delete from the stick**, open a sheet that writes only to the stick's files partition. Its other partitions and its partition table are not touched; Faraday only ever writes to that partition, so zeroing it reaches everything Faraday wrote to the stick.
 
 **Chosen files** writes zeros over each file and removes it by name. **The free space** zeroes what earlier deletes left. **The whole partition** deletes every file and zeroes all of it, in **One pass** or **Two passes**. The sheet gives the time it takes on a typical stick. Deleting a vault, or zeroing the free space or the partition, needs a held press. No zeroing is certain, because a stick can keep old blocks: if a secret was ever saved to it unencrypted, the only sure way to remove it is to destroy the stick.
 
@@ -65,15 +71,15 @@ A wallet row names its keys held here, with how many files agree or that they co
 
 **Key:** files.inbox
 
-One card per file copied in from the stick, headed **From the stick** with the count; each card has the file's name, its kind and a menu. **Empty** shows until files are copied in on a stick visit.
+One row per file copied in from the stick, under the heading **From the stick** with the count; each row has the file's name, its kind, a button and a menu. A vault file that is open reads **Vault, open**. **Empty** shows until files are copied in on a stick visit. Where a row is too narrow to keep the name readable, its button is left out.
 
 ## Inbox buttons
 
 **Key:** files.inbox-buttons
 
-Each card's button depends on the kind of file.
+A row's button by kind.
 
-**Load the wallet** is a wallet file, **Load this key** a words file and **Read the wallet** a Bitcoin Core wallet. **Sign** is a PSBT, or **Add to signatures** when it is the open spend's own transaction. **Decode** is a transaction. **Nonce check** is a finished transaction, or a PSBT with a signature and no key here left to sign. **Check the signature** is a signed message and **Make PDF** a sheet, online only. **Unlock** or **Contents** is a vault. **Import into the vault** is an entries file and **Add to vault** a text file, with a vault open. **Restore the wallet** is a set of shares, with a count; until the set is whole the card reads how many keys are in hand.
+**Load the wallet** is a wallet file, **Load this key** a words file and **Read the wallet** a Bitcoin Core wallet. **Sign** is a PSBT, or **Add to signatures** when it is the open spend's own transaction. **Decode** is a transaction. **Nonce check** is a finished transaction, or a PSBT with a signature and no key here left to sign. **Check the signature** is a signed message and **Make PDF** a sheet, online only. **Unlock** (not while a stick is attached) or **Contents** is a vault. **Import into the vault** is an entries file and **Add to vault** a text file, with a vault open. **Restore the wallet** is a set of shares, with a count; until the set is whole the card reads how many keys are in hand.
 
 ## Inbox menu
 
@@ -85,6 +91,6 @@ The card's menu holds the choices that apply to the file: **Add to vault** for a
 
 **Key:** files.outbox
 
-The files waiting to be written to the stick, headed **For the stick** with the count and grouped by who may read them. Each card has the file's name, its state and a menu.
+The files waiting to be written to the stick, in groups by who may read them, each heading with its count. Each row has the file's name, its state (**Ready**, **Written after Lock** for an open vault's file, or **Unprotected**) and a menu. An open vault's row says how many changes are not yet saved.
 
 **Public** files may be read by anyone. **Written sealed** files are sealed under their passphrases before they reach the stick. **Unprotected secrets** can be used by anyone who has the stick. An unprotected secret stays in memory until it is sent or removed, or until power-off: Lock does not drop it. The card's menu has the choices the file has: **Make PDF** for a sheet, online only, **Show as QR** where the file fits one, **Check a signer** for a PSBT, **Rename**, **Details** and **Remove**, which reads **Delete**, held, for a file no stick holds.

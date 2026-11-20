@@ -63,6 +63,16 @@ macro_rules! words_screens_parts {
     kind_name_split_share: "Share of a split backup",
     /// Text in `kind_name`.
     kind_name_vault_locked: "Vault, locked",
+    /// Text in `visit_inbox_line`.
+    kind_name_vault_open: "Vault, open",
+    /// Text in `pull_line`. `{}`: `noun`, `v`.
+    pull_line_remove_to_unlock: "Remove the {} to unlock {}",
+    /// Text in `pull_line`, once the files For the stick are written and read back.
+    pull_line_written_checked: "Written and checked",
+    /// Text in `pull_line`. `{}`: `noun`.
+    pull_line_1_key_copied: "1 key copied in · remove the {} to load it",
+    /// Text in `pull_line`. `{}`: `n`, `noun`.
+    pull_line_keys_copied: "{} keys copied in · remove the {} to load them",
     /// Text in `kind_name`.
     kind_name_vault_entries: "Entries for a vault",
     /// Text in `kind_name`.

@@ -1887,3 +1887,118 @@ fn an_incomplete_share_says_how_many_keys_are_in_hand_on_its_row() {
         "one share of a 2 of 3: {texts:?}"
     );
 }
+
+/// A row's main button leaves where the name would keep too little room:
+/// on a wide window it is drawn, on a 360 px panel it is not, and pressing
+/// the row does it, the tick box keeping the tick.
+#[test]
+fn a_rows_main_button_leaves_a_narrow_row_so_its_name_keeps_room() {
+    let psbt = faraday_core::testkit::files()
+        .unwrap()
+        .into_iter()
+        .find(|(n, _)| n.ends_with(".psbt"))
+        .unwrap();
+    let at = |width: u16| {
+        let mut app = process(
+            (vec![psbt.clone()], Vec::new(), Vec::new()),
+            Some("TESTSTICK"),
+        );
+        app.event(Event::Display(DisplayInfo {
+            width,
+            height: 1600,
+            dpi: 286,
+            inset_bottom: 0,
+            inset_top: 0,
+            buttons: 0,
+            camera_fixed: false,
+            secure: SecureHardware::None,
+            boot: BootState::Unknown,
+            memory_mib: None,
+        }));
+        app.press(Action::Nav(Screen::Files));
+        app.press(Action::VisitTab(Column::Outbox));
+        let _ = app.frame();
+        app
+    };
+    let mut wide = at(1000);
+    let texts = wide.drawn_texts();
+    assert!(texts.iter().any(|t| t == "Sign"), "{texts:?}");
+    let mut app = at(360);
+    let texts = app.drawn_texts();
+    assert!(!texts.iter().any(|t| t == "Sign"), "{texts:?}");
+    // The dropped button is still one press away.
+    let k = app
+        .inbox()
+        .iter()
+        .position(|i| i.name == psbt.0.as_str())
+        .expect("the PSBT is not in the Inbox");
+    let (x, _) = app
+        .where_offered(Action::StartSpend(k))
+        .expect("pressing the row does not start the signing");
+    let (tx, _) = app
+        .where_offered(Action::VisitInbox(k))
+        .expect("the tick box is gone");
+    assert!(tx < x, "the tick box is not left of the row");
+}
+
+/// With a stick in, On the stick says what pulling it does next: here, a
+/// vault the Inbox holds locked asks for its passphrase.
+#[test]
+fn on_the_stick_says_what_pulling_the_stick_does_next() {
+    let vault = (
+        "vault.kdbx".to_string(),
+        faraday_core::testkit::test_vault().unwrap(),
+    );
+    let mut app = process((vec![vault], Vec::new(), Vec::new()), Some("TESTSTICK"));
+    app.press(Action::Nav(Screen::Files));
+    let texts = app.drawn_texts();
+    assert!(
+        texts
+            .iter()
+            .any(|t| t == "Remove the stick to unlock vault.kdbx"),
+        "{texts:?}"
+    );
+}
+
+/// On a small panel the stick's error line shows above the In Faraday
+/// list too, not only on the On the stick tab.
+#[test]
+fn on_a_small_panel_the_boot_stick_error_shows_on_both_tabs() {
+    let mut app = with_stick_at(3, (480, 640, 286));
+    app.storage(StorageEvent::BootMedium(faraday_core::BootMedium::Two));
+    let two = "Two sticks of this build are in";
+    let _ = app.frame();
+    assert!(
+        app.drawn_texts().iter().any(|t| t.starts_with(two)),
+        "In Faraday"
+    );
+    app.press(Action::VisitTab(Column::Stick));
+    assert!(
+        app.drawn_texts().iter().any(|t| t.starts_with(two)),
+        "On the stick"
+    );
+}
+
+/// The From the stick heading carries how many files are held.
+#[test]
+fn the_from_the_stick_heading_has_its_count() {
+    let files = vec![
+        ("a.txt".to_string(), b"a".to_vec()),
+        ("b.txt".to_string(), b"b".to_vec()),
+        ("c.txt".to_string(), b"c".to_vec()),
+    ];
+    let mut app = process((files, Vec::new(), Vec::new()), Some("TESTSTICK"));
+    app.press(Action::Nav(Screen::Files));
+    let boxes = app.drawn_text_boxes();
+    let head = boxes
+        .iter()
+        .find(|(t, _)| &**t == "From the stick")
+        .expect("heading")
+        .1;
+    assert!(
+        boxes.iter().any(|(t, (x, y, ..))| &**t == "3"
+            && *x > head.0 + head.2
+            && (*y - head.1).abs() < head.3),
+        "{boxes:?}"
+    );
+}
