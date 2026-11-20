@@ -84,6 +84,10 @@ pub(crate) struct Fade {
     /// Where the last frame drew the flow's card, in pixels: what a step's
     /// fade goes through the surface in. A rectangle, no image.
     card: Option<Rect>,
+    /// Where the frame before drew it, when that was another place: a step
+    /// opened at its top from a page scrolled had its old card elsewhere,
+    /// and that goes out to the surface too. Cleared when a fade ends.
+    card_before: Option<Rect>,
     /// An image of the page's surface, as large as the frames, that a
     /// step's card goes out to and comes in from: made when the new frame
     /// of a step's fade is first kept, empty with no step fade. One more
@@ -134,14 +138,27 @@ impl Fade {
         self.bands.clear();
         self.surface = Vec::new();
         self.step_fade = false;
+        self.card_before = None;
     }
 
     /// The card's place inside `canvas`, when a step's fade goes through
     /// the surface there.
     fn card_in(&self, canvas: &Canvas) -> Option<Rect> {
         let whole = Rect::new(0, 0, canvas.width(), canvas.height());
+        let both = |a: Rect, b: Option<Rect>| match b {
+            Some(b) => {
+                let (x, y) = (a.x.min(b.x), a.y.min(b.y));
+                Rect::new(
+                    x,
+                    y,
+                    a.right().max(b.right()) - x,
+                    a.bottom().max(b.bottom()) - y,
+                )
+            }
+            None => a,
+        };
         self.card
-            .map(|c| c.intersect(&whole))
+            .map(|c| both(c, self.card_before).intersect(&whole))
             .filter(|c| self.step_fade && !c.is_empty())
     }
 
@@ -367,6 +384,13 @@ impl Faraday {
         let fades = self.fade.last_drawn.is_some() && self.fades() && !own_motion;
         self.fade.theme_fade = self.fade.last_drawn.is_some_and(|(_, _, t, _)| t != theme);
         self.fade.step_fade = step_change && fades;
+        // The card as the last frame showed it, before this frame draws
+        // the new step at its top.
+        self.fade.card_before = if step_change && fades {
+            self.fade.card
+        } else {
+            None
+        };
         // A fade begun over one under way goes through a new surface.
         self.fade.surface = Vec::new();
         if self.fade.last_drawn.is_some() && !own_motion {

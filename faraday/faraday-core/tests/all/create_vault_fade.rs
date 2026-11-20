@@ -35,6 +35,9 @@ fn on_create_vault() -> (Faraday, u64) {
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Create));
     let _ = app.frame();
+    // The unlock time's measurement is timed on the real clock: have its
+    // answer in, so no frame later shows it landing.
+    faraday_core::testkit::settle(&mut app);
     let mut clock = 10_000;
     tick(&mut app, &mut clock, 1);
     (app, clock)
@@ -194,4 +197,180 @@ fn a_step_with_a_passphrase_typed_swaps_at_once_and_keeps_no_image() {
     assert!(app.kept_images().is_empty(), "no image of the step is kept");
     assert!(now == tick(&mut app, &mut clock, 16), "the step at rest");
     assert!(app.kept_images().is_empty());
+}
+
+/// On the dice's step, taller than the page area, scrolled down by the
+/// wheel over the page, at rest.
+fn on_phrases_scrolled() -> (Faraday, u64, i32) {
+    let (mut app, mut clock) = on_create_vault();
+    app.press(Action::Vault(V::CCustomise));
+    app.press(Action::Vault(V::CStep(vstep::PHRASES)));
+    let _ = at_rest(&mut app, &mut clock);
+    let count = drawn_at(&mut app, "Step 3 of 3");
+    // The step count's box starts at the card's right edge (3 px of its
+    // own padding).
+    let right = count.0 - 3;
+    let (x, y) = (
+        u16::try_from(count.0).unwrap(),
+        u16::try_from(count.1 + 40).unwrap(),
+    );
+    app.event(Event::Hover { x, y });
+    app.event(Event::Scroll { x, y, dy: 200 });
+    app.event(Event::ScrollEnd { x, y });
+    app.settle();
+    let _ = at_rest(&mut app, &mut clock);
+    let at = app.vaults().create.as_ref().unwrap().scroll.y;
+    assert!(at > 0.0, "the page scrolled");
+    (app, clock, right)
+}
+
+/// The text boxes of the old card in view: right of the rail, left of the
+/// pane's margin, under the bar, above the foot.
+fn card_lines(
+    app: &mut Faraday,
+    rail: i32,
+    right: i32,
+    bar: i32,
+    foot: i32,
+) -> Vec<(i32, i32, i32, i32)> {
+    let _ = app.frame();
+    app.drawn_text_boxes()
+        .plain()
+        .into_iter()
+        .filter(|(_, b)| b.0 > rail && b.0 < right && b.1 > bar && b.1 + b.3 < foot)
+        .map(|(_, b)| b)
+        .collect()
+}
+
+#[test]
+fn on_a_scrolled_page_the_fade_stays_in_the_page_area() {
+    let (mut app, mut clock, right) = on_phrases_scrolled();
+    let before = app.frame().rgba.to_vec();
+    let width = usize::from(app.frame().width);
+    let height = before.len() / 4 / width;
+    let pane = drawn_at(&mut app, "Your choices");
+    // The top app bar is 64 dp; the navigation rail is left of the card.
+    let (bar, rail) = (64, 150);
+    // Read from the scrolled frame before the press.
+    // The foot's label is the lowest text; its bar starts a little above.
+    let _ = app.frame();
+    let foot = app
+        .drawn_text_boxes()
+        .plain()
+        .into_iter()
+        .map(|(_, b)| b.1)
+        .max()
+        .unwrap()
+        - 20;
+    let lines = card_lines(&mut app, rail, right, bar, foot);
+    assert!(!lines.is_empty(), "lines of the old card are in view");
+    // The page's surface: a blank pixel in the card's band, left of a line.
+    let (cx, cy) = (lines[0].0 as usize, lines[0].1 as usize);
+    let surface = before[(cy * width + cx) * 4..][..4].to_vec();
+    let _ = app.take_fade_counts();
+    app.press(Action::Vault(V::CStep(vstep::WHERE)));
+    let _ = app.frame();
+    assert_eq!(app.take_fade_counts().started, 1, "a fade starts");
+    tick(&mut app, &mut clock, 0);
+    // About 105 ms in (the clock starts at the first tick, 16 ms taken as
+    // passed): the old card is out, the new not yet in.
+    for _ in 0..5 {
+        tick(&mut app, &mut clock, 15);
+    }
+    let mid = tick(&mut app, &mut clock, 14);
+    for (x, y, w, h) in &lines {
+        for py in *y..*y + *h {
+            for px in *x..(*x + *w).min(right) {
+                let i = py as usize * width + px as usize;
+                assert!(
+                    away(&mid, i, &surface) < 12,
+                    "old text at {x},{y} is still on screen at {px},{py}"
+                );
+            }
+        }
+    }
+    // The bar and the pane are never faded to the surface: each pixel is as
+    // before the press, as after the fade, or (the frame round the card
+    // cross-fades) between the two, never towards the surface.
+    let after = at_rest(&mut app, &mut clock);
+    for row in 0..height {
+        for col in 0..width {
+            if row as i32 >= bar && (col as i32) < pane.0 {
+                continue;
+            }
+            let at = (row * width + col) * 4;
+            for c in 0..3 {
+                let (a, b) = (before[at + c], after[at + c]);
+                assert!(
+                    (a.min(b).saturating_sub(1)..=a.max(b).saturating_add(1))
+                        .contains(&mid[at + c]),
+                    "pixel {col},{row} outside the card is not between before and after"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn after_the_fade_the_new_step_starts_at_its_top_as_with_reduce_motion() {
+    let (mut app, mut clock, _) = on_phrases_scrolled();
+    app.press(Action::Vault(V::CStep(vstep::WHERE)));
+    let faded = at_rest(&mut app, &mut clock);
+    assert_eq!(app.vaults().create.as_ref().unwrap().scroll.y, 0.0);
+    let heading = drawn_at(&mut app, "Where will you open it?");
+
+    let (mut still, mut clock, _) = on_phrases_scrolled();
+    still.press(Action::ReduceMotion(true));
+    let _ = at_rest(&mut still, &mut clock);
+    still.press(Action::Vault(V::CStep(vstep::WHERE)));
+    let plain = at_rest(&mut still, &mut clock);
+    assert_eq!(heading, drawn_at(&mut still, "Where will you open it?"));
+    // The unlock time on this machine ("about 1.9 s") is measured on the
+    // real clock and differs from one app to the next: it is left out.
+    let (text, measured) = (faded_text(&mut app), faded_text(&mut still));
+    let timed = |t: &[Placed]| -> Vec<(i32, i32, i32, i32)> {
+        t.iter()
+            .filter(|(s, _)| s.starts_with("about "))
+            .map(|(_, b)| *b)
+            .collect()
+    };
+    let width = usize::from(app.frame().width);
+    let skip = |i: usize| {
+        let (x, y) = ((i % width) as i32, (i / width) as i32);
+        timed(&text)
+            .iter()
+            .chain(&timed(&measured))
+            .any(|b| (b.0..b.0 + b.2).contains(&x) && (b.1..b.1 + b.3).contains(&y))
+    };
+    let plain_text = |t: Vec<Placed>| -> Vec<_> {
+        t.into_iter()
+            .filter(|(s, _)| !s.starts_with("about "))
+            .collect()
+    };
+    assert_eq!(
+        plain_text(text.clone()),
+        plain_text(measured.clone()),
+        "the same text is drawn"
+    );
+    let differ: Vec<usize> = (0..faded.len() / 4)
+        .filter(|&i| faded[i * 4..i * 4 + 4] != plain[i * 4..i * 4 + 4] && !skip(i))
+        .collect();
+    assert!(
+        differ.is_empty(),
+        "no ghost of the old card is left: {} pixels differ, rows {:?}",
+        differ.len(),
+        differ
+            .first()
+            .zip(differ.last())
+            .map(|(a, b)| (a / width, b / width)),
+    );
+}
+
+/// A text drawn and its place.
+type Placed = (String, (i32, i32, i32, i32));
+
+/// Every text drawn, with its place.
+fn faded_text(app: &mut Faraday) -> Vec<Placed> {
+    let _ = app.frame();
+    app.drawn_text_boxes().plain()
 }

@@ -130,7 +130,11 @@ pub(crate) fn contained(
     let max = (y + 24.0 - view_h).max(0.0);
     ui.region_close(view_open, max);
     ui.column = None;
-    ui.flow_card = Some((x, card_top, w, y - card_top));
+    // In screen space: the card's own place less the scroll, kept to the
+    // page area under the bar and above any foot.
+    let bar_end = if compact { top } else { tokens::APP_BAR_H };
+    let (shown_top, shown_end) = ((card_top - next.y).max(bar_end), (y - next.y).min(view_h));
+    ui.flow_card = Some((x, shown_top, w, (shown_end - shown_top).max(0.0)));
 
     if compact {
         bar(ui, page, area_x + area_w);
