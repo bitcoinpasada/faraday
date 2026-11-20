@@ -196,6 +196,12 @@ fn my_seed_makes_my_wallets_passphrase_fields_bring_the_keyboard_up_when_pressed
             &faraday_core::testkit::test_words(faraday_core::testkit::TEST_SEEDS[0].0),
         );
         tap(&mut app, Action::SeedCheck(S::Words));
+        // The step's fade runs out before its card is pressed.
+        for _ in 0..40 {
+            let _ = app.frame();
+            let now = app.now_ms() + 16;
+            app.event(Event::Tick { now_ms: now });
+        }
         tap(&mut app, Action::SeedCheck(S::AddPass));
         tap(&mut app, Action::Osk(OskPress::Hide));
         assert!(app.keyboard_top().is_none(), "{w:?}: put away");

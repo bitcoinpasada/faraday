@@ -1076,6 +1076,13 @@ fn make_set(app: &mut Faraday, name: &str) -> Option<Vec<String>> {
         app.press(Action::Convert(C::Make));
         settle(app);
     }
+    // The step's fade runs out first: what the step left showing is hidden
+    // when its fade out ends, so the eye is opened after it.
+    for _ in 0..40 {
+        let _ = app.frame();
+        let now = app.now_ms() + 16;
+        app.event(Event::Tick { now_ms: now });
+    }
     app.press(Action::Convert(C::Show));
     let _ = app.frame();
     convert::shown_parts(app).map(|p| p.into_iter().map(str::to_string).collect())
