@@ -715,11 +715,13 @@ fn create_vault_ends_the_last_card_and_only_there() {
         if app.offers(Action::Vault(V::CGo)) {
             break;
         }
+        app.event(Event::Hover { x: 400, y: 400 });
         app.event(Event::Scroll {
             x: 400,
             y: 400,
             dy: 200,
         });
+        app.event(Event::ScrollEnd { x: 400, y: 400 });
         app.settle();
         let _ = app.frame();
     }
@@ -729,6 +731,7 @@ fn create_vault_ends_the_last_card_and_only_there() {
         y: 400,
         dy: -4000,
     });
+    app.event(Event::ScrollEnd { x: 400, y: 400 });
     app.settle();
     app.press(Action::Vault(V::CStep(vstep::PRESET)));
     let _ = app.frame();
