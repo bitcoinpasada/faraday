@@ -708,30 +708,28 @@ fn create_vault_ends_the_last_card_and_only_there() {
     use faraday_core::vault::vstep;
     let mut app = on_create_vault();
     window(&mut app, (1366, 768), 160);
+    app.press(Action::Vault(V::CCustomise));
     app.press(Action::Vault(V::CStep(vstep::PHRASES)));
     let _ = app.frame();
     // The card is taller than the window: Create vault ends it.
+    let count = drawn_at(&mut app, "Step 3 of 3").expect("the card's step count");
+    let (x, y) = (
+        u16::try_from(count.0).unwrap(),
+        u16::try_from(count.1 + 40).unwrap(),
+    );
     for _ in 0..40 {
         if app.offers(Action::Vault(V::CGo)) {
             break;
         }
-        app.event(Event::Hover { x: 400, y: 400 });
-        app.event(Event::Scroll {
-            x: 400,
-            y: 400,
-            dy: 200,
-        });
-        app.event(Event::ScrollEnd { x: 400, y: 400 });
+        app.event(Event::Hover { x, y });
+        app.event(Event::Scroll { x, y, dy: 200 });
+        app.event(Event::ScrollEnd { x, y });
         app.settle();
         let _ = app.frame();
     }
     assert!(app.offers(Action::Vault(V::CGo)), "on Name and passphrase");
-    app.event(Event::Scroll {
-        x: 400,
-        y: 400,
-        dy: -4000,
-    });
-    app.event(Event::ScrollEnd { x: 400, y: 400 });
+    app.event(Event::Scroll { x, y, dy: -4000 });
+    app.event(Event::ScrollEnd { x, y });
     app.settle();
     app.press(Action::Vault(V::CStep(vstep::PRESET)));
     let _ = app.frame();
