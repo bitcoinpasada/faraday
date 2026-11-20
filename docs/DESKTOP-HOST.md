@@ -100,7 +100,10 @@ The strip holds two kinds of control. Those always there come first:
    mark (layer and outline) fades out and back in once each
    `HOST_FLASH_MS` (1.6 s) for as long as the step waits, starting
    marked, and holds steady under Reduce motion and with fades off; the
-   host asks for a frame only while it flashes.
+   host asks for a frame only while it flashes. The same flash marks
+   the **Use a sample** button of the strip's Demo section on the empty
+   Vaults page (`Faraday::vaults_offer_pulses`: no vault file in Files,
+   samples on), where the sample is the page's one choice.
 2. **Samples**, in Practice with samples set: opens Load samples' sheet,
    the host's (§6).
 3. **Size · <size shown>**: opens the Size menu (§5), which lists the

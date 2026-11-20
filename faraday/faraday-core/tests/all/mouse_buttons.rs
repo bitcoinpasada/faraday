@@ -164,6 +164,14 @@ fn a_vault_page_is_left_by_escape_and_the_mouse_back_as_by_the_arrow() {
     let mut ends = Vec::new();
     for way in WAYS {
         let mut app = testkit::started();
+        app.storage(faraday_core::StorageEvent::Restored {
+            inbox: faraday_core::files_from(vec![(
+                "vault.kdbx".to_string(),
+                faraday_core::testkit::test_vault().unwrap(),
+            )]),
+            outbox: Vec::new(),
+            kept: Vec::new(),
+        });
         app.press(Action::Nav(Screen::Vaults));
         assert_eq!(app.screen, Screen::Vaults);
         leave(&mut app, way);

@@ -343,6 +343,33 @@ impl Faraday {
         }
     }
 
+    /// Vaults pressed on `from`: with no vault file in Files, no sample
+    /// offered, no way back set by another flow and no form open, the page
+    /// has one choice and Create a vault opens instead. Its Back goes to
+    /// `from`; from a Create or an Unlock (their Cancel lands on the page)
+    /// the page stays, or Cancel would open the form again.
+    pub(crate) fn vaults_pressed_from(&mut self, from: Screen) {
+        let skip = self.vaults.back_to.is_none()
+            && self.vaults.create.is_none()
+            && !matches!(from, Screen::CreateVault | Screen::Unlock)
+            && self.put_on().is_none()
+            && self.vault_files().is_empty();
+        if skip {
+            self.vault_act(VaultAction::Create);
+            self.vaults.state.from_home = from == Screen::Home;
+            self.vaults.state.skipped_from = Some(from);
+        }
+    }
+
+    /// Whether the empty Vaults page is up with samples to offer: the
+    /// Demo bar's samples button pulses on it.
+    pub fn vaults_offer_pulses(&self) -> bool {
+        self.screen == Screen::Vaults
+            && self.vaults.back_to.is_none()
+            && self.put_on().is_some()
+            && self.vault_files().is_empty()
+    }
+
     /// Where the way back from making or unlocking a vault for `s` goes,
     /// by name: Tools for a vault category with no vault open, as
     /// [`VaultAction::Back`] goes there; else the flow.
@@ -436,6 +463,7 @@ impl Faraday {
                     _ => None,
                 };
                 self.vaults.state.from_home = self.screen == Screen::Home;
+                self.vaults.state.skipped_from = None;
                 self.secret_sheet_waits();
                 self.vaults.state.create =
                     Some(CreateForm::starting(self.vaults.state.memory_free_mib));

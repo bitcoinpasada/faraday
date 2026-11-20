@@ -412,6 +412,7 @@ impl VaultArea {
 
     /// Create a vault closed, typing nowhere.
     pub(crate) fn drop_create(&mut self) {
+        self.state.skipped_from = None;
         self.state.create = None;
         self.state.dice.close();
         self.state.focus = None;
@@ -2339,6 +2340,10 @@ pub struct Vaults {
     /// Create a vault was opened from Home: Back goes to Home, not the
     /// list.
     pub from_home: bool,
+    /// Create a vault was opened by pressing Vaults with no vault in
+    /// Files (the page's only choice): Back goes to where Vaults was
+    /// pressed, never to the list, which would open it again.
+    pub skipped_from: Option<Screen>,
     /// Dice being rolled for a passphrase (its number is the entry's
     /// tag): the rolls, the list and the roller beside them (Faraday
     /// Demo).

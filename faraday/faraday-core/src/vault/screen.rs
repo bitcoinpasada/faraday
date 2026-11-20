@@ -919,6 +919,7 @@ pub(crate) fn create(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         back: Some(app.named_back(match app.vaults.back_to {
             Some(s) => (app.back_link_name(s), va(V::Back)),
             None if app.vaults.from_home => (EN.vault_home, Action::Nav(Screen::Home)),
+            None if let Some(s) = app.vaults.skipped_from => (app.back_name(s), Action::Nav(s)),
             None => (EN.vault_vaults, Action::Nav(Screen::Vaults)),
         })),
         heading: EN.vault_create_a_vault,

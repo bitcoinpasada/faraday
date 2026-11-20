@@ -90,6 +90,14 @@ fn settings_opens_the_guide_at_the_settings_page() {
 #[test]
 fn the_vaults_screen_opens_the_vaults_page() {
     let mut app = faraday_core::testkit::started();
+    app.storage(faraday_core::StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![(
+            "vault.kdbx".to_string(),
+            faraday_core::testkit::test_vault().unwrap(),
+        )]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
     app.press(Action::Nav(faraday_core::Screen::Vaults));
     app.press(Action::Guide);
     assert_eq!(app.sheet, Some(Sheet::Guide));
@@ -253,6 +261,14 @@ fn resizing_across_1600_moves_guide_between_pane_and_sheet() {
 fn vaults_page_read_to_its_foot(width: u16, height: u16) -> (Vec<String>, Vec<String>) {
     let mut app = faraday_core::testkit::started();
     window(&mut app, width, height);
+    app.storage(faraday_core::StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![(
+            "vault.kdbx".to_string(),
+            faraday_core::testkit::test_vault().unwrap(),
+        )]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
     app.press(Action::Nav(faraday_core::Screen::Vaults));
     app.press(Action::Guide);
     frame(&mut app);
@@ -441,11 +457,11 @@ fn guide_pressed_straight_after_moving_on_opens_the_pane_there() {
     app.press(Action::Nav(Screen::Settings));
     app.press(Action::Guide);
     frame(&mut app);
-    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Nav(Screen::Files));
     app.press(Action::Guide);
     frame(&mut app);
-    assert!(app.offers(Action::GuideClose), "the pane on Vaults");
-    assert_eq!(shown(&app), "vaults");
+    assert!(app.offers(Action::GuideClose), "the pane on Files");
+    assert_eq!(shown(&app), "files");
 }
 
 /// The contents' row of the page at `place`, as the Action that opens it.

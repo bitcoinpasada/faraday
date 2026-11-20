@@ -222,7 +222,8 @@ fn aids(app: &Faraday) -> (Vec<Ctl>, Vec<String>) {
                 let press = HostPress::App(action);
                 if !ctls.iter().any(|c| c.press == press) {
                     ctls.push(Ctl {
-                        mark: false,
+                        // On the empty Vaults page the sample is the one choice.
+                        mark: action == Action::UseSample && app.vaults_offer_pulses(),
                         label: label.to_string(),
                         press,
                         kind: Kind::Button,
@@ -936,7 +937,8 @@ fn control(host: &Host, ui: &mut HostUi, c: &Ctl, (x, y): (f32, f32), inks: Inks
         // pulse runs, under a primary outline.
         // The boot stick waiting to be pulled flashes instead: its mark
         // fades out and in, the outline with it.
-        let waits = matches!(c.kind, Kind::Stick { waits: true, .. });
+        let waits =
+            matches!(c.kind, Kind::Stick { waits: true, .. }) || matches!(c.kind, Kind::Button);
         let lit = if waits { host.flash_level() } else { 1.0 };
         let wash = if waits {
             t::HOST_MARK_LAYER * lit

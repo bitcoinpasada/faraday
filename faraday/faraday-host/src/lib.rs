@@ -897,7 +897,10 @@ impl Host {
             return;
         }
         let pills = self.app.stick_pills();
-        let wait = pills.iter().any(|p| p.n == 1 && p.asked && p.inserted);
+        // The boot stick waiting to be pulled, or the empty Vaults page's
+        // Use a sample waiting to be pressed: the flash.
+        let wait = pills.iter().any(|p| p.n == 1 && p.asked && p.inserted)
+            || self.app.vaults_offer_pulses();
         if wait != self.pull_wait {
             self.pull_wait = wait;
             self.flash_at = self.now;

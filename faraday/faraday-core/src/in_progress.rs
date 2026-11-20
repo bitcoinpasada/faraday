@@ -626,9 +626,12 @@ impl Faraday {
             }
             Going::Vault => {
                 let home = self.vaults.from_home;
+                let from = self.vaults.skipped_from;
                 self.vaults.drop_create();
                 if home {
                     Action::Nav(Screen::Home)
+                } else if let Some(s) = from {
+                    Action::Nav(s)
                 } else {
                     Action::Nav(Screen::Vaults)
                 }

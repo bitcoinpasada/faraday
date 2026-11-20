@@ -1528,6 +1528,7 @@ impl Faraday {
                 self.backups_act(a, &c)
             }
             Action::Nav(s) => {
+                let from_screen = self.screen;
                 self.glance.set_focus(None);
                 self.panes_nav(s);
                 // Spend's way back is to where it was opened from.
@@ -1553,6 +1554,12 @@ impl Faraday {
                     }
                     self.visit.inbox_pick_none();
                     self.visit.set_out_offset(0.0);
+                }
+                // Vaults with no vault in Files and no sample to offer has
+                // one choice: making a vault. Back from it goes to where
+                // Vaults was pressed.
+                if s == Screen::Vaults {
+                    self.vaults_pressed_from(from_screen);
                 }
             }
             a @ (Action::Entry(..)

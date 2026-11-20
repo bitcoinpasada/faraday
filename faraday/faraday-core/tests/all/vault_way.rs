@@ -603,3 +603,63 @@ fn an_empty_open_vault_offers_every_add_and_a_stick() {
         "the write asks to lock first, as an open vault holds a secret"
     );
 }
+
+#[test]
+fn vaults_with_no_vault_in_files_opens_new_vault_and_back_returns_to_where_it_was_pressed() {
+    let mut app = device(Vec::new());
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Nav(Screen::Vaults));
+    assert_eq!(app.screen, Screen::CreateVault);
+    leave_create(&mut app);
+    assert_eq!(
+        app.screen,
+        Screen::Home,
+        "Back is not sent into New vault again"
+    );
+
+    let mut app = device(Vec::new());
+    app.press(Action::Nav(Screen::Catalog));
+    app.press(Action::Nav(Screen::Vaults));
+    assert_eq!(app.screen, Screen::CreateVault);
+    leave_create(&mut app);
+    assert_eq!(app.screen, Screen::Catalog);
+}
+
+/// Back out of New vault: a step each press, then the page itself.
+fn leave_create(app: &mut Faraday) {
+    for _ in 0..4 {
+        if app.screen != Screen::CreateVault {
+            break;
+        }
+        app.press(Action::Back);
+    }
+}
+
+#[test]
+fn vaults_with_a_vault_file_in_files_still_shows_the_page() {
+    let mut app = device(vec![kit_file("vault.kdbx")]);
+    app.press(Action::Nav(Screen::Vaults));
+    assert_eq!(app.screen, Screen::Vaults);
+}
+
+#[test]
+fn vaults_with_samples_on_keeps_the_page_and_the_demo_bar_pulses_its_sample() {
+    let mut app = device(Vec::new());
+    app.session.set_demo(testkit::demo_samples());
+    app.samples = Some(testkit::demo_samples());
+    app.press(Action::Nav(Screen::Vaults));
+    assert_eq!(app.screen, Screen::Vaults);
+    assert!(
+        app.vaults_offer_pulses(),
+        "Use a sample pulses on the empty page"
+    );
+
+    let mut app = device(vec![kit_file("vault.kdbx")]);
+    app.session.set_demo(testkit::demo_samples());
+    app.samples = Some(testkit::demo_samples());
+    app.press(Action::Nav(Screen::Vaults));
+    assert!(
+        !app.vaults_offer_pulses(),
+        "nothing to pulse with a vault in Files"
+    );
+}

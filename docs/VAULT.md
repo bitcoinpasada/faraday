@@ -1147,6 +1147,11 @@ never by its name, with the plan's.
 
 ## 8. Creating
 
+Vaults pressed with no vault file in Files, and no samples on offer,
+opens **Create a vault** directly, the page's only choice; its Back
+goes to where Vaults was pressed. A locked vault file in Files, or
+Practice's samples, keep the page.
+
 **Create a vault** on Vaults takes a name, the memory step (§3.1) and a
 passphrase typed twice; it refuses an empty passphrase. It asks for no
 size: a file vault starts at 32 KiB and grows by itself (§2). **Add randomness** is offered before the vault is made
