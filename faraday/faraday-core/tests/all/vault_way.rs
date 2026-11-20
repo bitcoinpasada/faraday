@@ -663,3 +663,27 @@ fn vaults_with_samples_on_keeps_the_page_and_the_demo_bar_pulses_its_sample() {
         "nothing to pulse with a vault in Files"
     );
 }
+
+#[test]
+fn the_boot_stick_pill_asks_for_the_stick_out_on_unlock_and_stops_when_it_is_out() {
+    let mut app = device(vec![kit_file("vault.kdbx")]);
+    app.shell_sticks = true;
+    let boot = |app: &Faraday| app.stick_pills()[0].asked;
+    app.press(Action::Nav(Screen::Vaults));
+    assert!(!boot(&app), "no stick in, nothing to pull");
+    app.storage(StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
+        serial: None,
+        id: faraday_text::Text::of("a"),
+        label: faraday_text::Text::of(faraday_core::BOOT_FOLDER),
+        boot: true,
+        files: Vec::new(),
+        vaults: Vec::new(),
+    }]));
+    assert!(!boot(&app), "the Vaults list asks for nothing");
+    app.press(Action::Vault(V::Open(0)));
+    assert_eq!(app.screen, Screen::Unlock);
+    assert!(boot(&app), "Unlock waits for the stick to be pulled");
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    assert!(!boot(&app), "the pulse stops as soon as the stick is out");
+}

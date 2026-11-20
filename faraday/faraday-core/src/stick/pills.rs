@@ -28,7 +28,7 @@ use crate::drawing::View;
 use crate::medium::Medium;
 use crate::strings::EN;
 use crate::ui::Ui;
-use crate::{Action, Faraday, StickInfo};
+use crate::{Action, Faraday, Screen, StickInfo};
 use faraday_draw::tokens::{LABEL_M, MODE_PILL_HEIGHT, MODE_PILL_PAD};
 use faraday_text::{Num, Text};
 use faraday_ui::stick::{PillAt, StickState};
@@ -145,7 +145,7 @@ impl Faraday {
         // The Pull sheet asks for every stick that is in to be pulled.
         let pulling = self.sheet == Some(crate::Sheet::Pull);
         let mut boot = self.boot_pill();
-        boot.asked = asked == Some(1) || (pulling && boot.inserted);
+        boot.asked = asked == Some(1) || (pulling && boot.inserted) || self.asks_stick_out();
         let mut pills = vec![boot];
         for n in FIRST_BACKUP..=last {
             let folder = backup_folder(n);
@@ -159,6 +159,26 @@ impl Faraday {
             });
         }
         pills
+    }
+
+    /// Whether the step on screen waits for the boot stick to be pulled:
+    /// it is in the way and the step shows its "Remove the stick" line
+    /// (unlocking or making a vault, bringing a vault in, the backup
+    /// flow's vaults and key, a spend's vault route). The boot stick's
+    /// pill pulses while it is; the stick out ends it. A lookup.
+    pub fn asks_stick_out(&self) -> bool {
+        if !self.selftest_passed() || !self.stick.in_the_way() {
+            return false;
+        }
+        match self.screen {
+            Screen::Unlock | Screen::CreateVault => true,
+            Screen::Home => self.import.state().is_some(),
+            Screen::SpendBackup => self.vault_files().iter().any(|f| f.open.is_none()),
+            Screen::BackupFlow => self
+                .flow()
+                .is_some_and(|f| matches!(f.step, Step::Vaults | Step::Make)),
+            _ => false,
+        }
     }
 
     /// The boot stick's pill, Stick 1.

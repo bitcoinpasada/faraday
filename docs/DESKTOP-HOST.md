@@ -100,10 +100,16 @@ The strip holds two kinds of control. Those always there come first:
    mark (layer and outline) fades out and back in once each
    `HOST_FLASH_MS` (1.6 s) for as long as the step waits, starting
    marked, and holds steady under Reduce motion and with fades off; the
-   host asks for a frame only while it flashes. The same flash marks
-   the **Use a sample** button of the strip's Demo section on the empty
-   Vaults page (`Faraday::vaults_offer_pulses`: no vault file in Files,
-   samples on), where the sample is the page's one choice.
+   host asks for a frame only while it flashes. The core says when
+   (`Faraday::asks_stick_out`, folded into the boot pill's `asked`): a
+   stick is in the way and the step on screen shows its "Remove the
+   stick" line (Unlock, Create a vault, Bring in a vault from Home, a
+   spend's vault route, the backup flow's Vaults and Make steps); the
+   flash ends as the stick is out, and the pill's press pulls it. The
+   same flash marks the **Use a sample** button of the strip's Demo
+   section on the empty Vaults page (`Faraday::vaults_offer_pulses`:
+   no vault file in Files, samples on), where the sample is the page's
+   one choice.
 2. **Samples**, in Practice with samples set: opens Load samples' sheet,
    the host's (§6).
 3. **Size · <size shown>**: opens the Size menu (§5), which lists the
