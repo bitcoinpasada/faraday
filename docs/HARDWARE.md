@@ -99,7 +99,10 @@ because a full frame on the P4 is estimated at 50 to 100 ms.
 
 What carries over:
 
-- The core crates are `no_std` already.
+- The core crates are `no_std` already, except that `faraday-selftest`
+  links std for two reads of the Linux image (`/run/faraday-stateless`
+  and `/proc/mounts`, which check the read-only root); a port would
+  replace those two reads.
 - `faraday-core` does no I/O: its time comes from the shell's ticks.
 - libsecp256k1 builds for RISC-V.
 - Rust's std on ESP-IDF (`riscv32imafc-esp-espidf`, ESP-IDF 5.2 or
