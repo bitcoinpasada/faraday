@@ -340,13 +340,14 @@ extent; a motion left from another screen or sheet is stopped.
   - a change of step in a contained flow (Make a new vault; the other
     flows are not on the container yet, `docs/FLOW-CONTAINER.md`) fades
     through over 300 ms (`motion::STEP_FADE_MS`, Material's medium 2):
-    the old card goes out to the page's surface over the first 35%
-    (`motion::STEP_FADE_OUT`) on the emphasized accelerate, and the new
-    one comes in over the rest on the emphasized decelerate
-    (`motion::step_fade`), at the same place, the frame outside the card
-    cross-fading over all of it. Material's fade through is one full
-    emphasized curve over 450 ms with the incoming view scaling up from
-    92%; Faraday has no token for that curve, leaves the scale out, and
+    on Material's full emphasized curve (`tokens::EASE_EMPHASIZED`), as
+    Material's fade through is: the old card goes out to the page's
+    surface over the first 35% of the eased progress
+    (`motion::STEP_FADE_OUT`, about the first 48 ms), and the new one
+    comes in over the rest (`motion::step_fade`), at the same place, the
+    frame outside the card cross-fading over all of it. Material's fade
+    through runs 450 ms with the incoming view scaling up from 92%;
+    Faraday leaves the scale out until the Pi's timing allows it, and
     keeps 300 ms since a card moves a smaller area than a page (F296). On a
     page scrolled it fades only the card in view and the new step starts
     at its top. With reduce motion the step is there at once. A step that
