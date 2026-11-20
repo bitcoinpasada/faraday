@@ -828,6 +828,7 @@ impl crate::at_lock::AtLock for ToolsArea {
         let ToolsArea {
             tools,
             catalog_find,
+            catalog_focus,
             home_find,
             home_focus,
             home_bar_y,
@@ -842,6 +843,7 @@ impl crate::at_lock::AtLock for ToolsArea {
             address_check,
         } = self;
         public(catalog_find);
+        public(catalog_focus);
         public(home_find);
         public(home_focus);
         public(home_bar_y);
@@ -863,6 +865,7 @@ impl crate::at_lock::AtLock for ToolsArea {
         let ToolsArea {
             tools,
             catalog_find: _,
+            catalog_focus: _,
             home_find: _,
             home_focus: _,
             home_bar_y: _,
