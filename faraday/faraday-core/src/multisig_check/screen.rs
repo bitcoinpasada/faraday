@@ -8,7 +8,7 @@ use crate::flow;
 use crate::strings::EN;
 use crate::ui::pal::Role;
 use crate::ui::{Style, Ui};
-use faraday_draw::tokens::{self, BODY_M, BODY_S, BUTTON_H, GAP, ICON_GLYPH, PAD};
+use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, GAP, ICON_GLYPH, PAD};
 use faraday_draw::widgets::Icon;
 use faraday_text::Text;
 
@@ -16,53 +16,42 @@ pub(crate) const TITLES: [&str; mstep::COUNT] = [EN.mscheck_setup, EN.mscheck_re
 
 pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(s) = state(app) else { return };
-    let cards: Vec<flow::Card> = (0..mstep::COUNT as u8)
-        .map(|step| flow::Card {
-            title: TITLES[usize::from(step)].to_string(),
-            summary: summary(s, step),
-            mono: false,
-            done: s.done(step),
-            open: s.open == Some(step),
-            default: step == mstep::SETUP && s.shown.is_some(),
-            toggle: Action::MultisigCheck(M::Step(step)),
-            lead: None,
-        })
-        .collect();
     let back_name = app.back_name(s.back);
-    let col = flow::Column {
-        area_x: x0,
-        area_w: cw,
-        x: x0 + tokens::FLOW_INSET,
-        w: (cw - tokens::FLOW_INSET - tokens::FLOW_INSET).min(tokens::FLOW_MAX),
+    let page = flow::Page {
+        area: (x0, cw),
         h,
+        foot_h: 0.0,
         back: Some(app.named_back((back_name, Action::Nav(s.back)))),
         heading: EN.mscheck_title,
-        wrap_closed: false,
-        total_fixed: true,
-        all_shown: false,
-        note: None,
         chip: None,
+        note: None,
         chip_tap: None,
         moves: crate::ui::Moves::No,
     };
-    let scroll = s.scroll;
-    let (next, again) = {
+    let Some(contained) = crate::trail::StepFlow::contained(&super::MS_STEPS) else {
+        return;
+    };
+    let (next, again, _) = {
         let app_ref: &View = app;
-        let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
+        let mut body = |ui: &mut Ui, k: u8, x: f32, y: f32, w: f32| -> f32 {
             match state(app_ref) {
-                Some(s) => card(app_ref, s, ui, i as u8, (x, y, w)),
+                Some(s) => card(app_ref, s, ui, k, (x, y, w)),
                 None => 0.0,
             }
         };
-        flow::column(ui, &col, &cards, scroll, &mut body)
+        let mut under = |_: &mut Ui, _: f32, _: f32, _: f32| 0.0;
+        flow::contained(
+            ui, app_ref, contained, &page, s.scroll, &mut body, &mut under,
+        )
     };
     app.scroll(Scrolled::MultisigCheck, next, again);
 }
 
-fn summary(s: &MsState, step: u8) -> String {
+/// A step's answer as Your choices shows it: empty until there is one.
+pub(super) fn summary(s: &MsState, step: u8) -> Text {
     match (step, &s.shown) {
-        (mstep::SETUP, Some(_)) => s.source.as_ref().map(|t| String::from(&**t)),
-        (_, Some(r)) => Some(String::from(&*r.rows.shape)),
+        (mstep::SETUP, Some(_)) => s.source.clone(),
+        (_, Some(r)) => Some(r.rows.shape.clone()),
         _ => None,
     }
     .unwrap_or_default()

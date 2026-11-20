@@ -12,6 +12,7 @@
 use faraday_bip::bitcoin::bip32::Xpriv;
 use faraday_bip::keys::{MasterKey, Network, ScriptType};
 use faraday_core::seed_check::{ACCOUNTS, Account, Source, make};
+use faraday_core::strings::EN;
 use faraday_core::testkit::compute;
 use faraday_keys::Keys;
 use serde_json::Value;
@@ -297,7 +298,7 @@ fn reading_the_seed_is_refused_with_a_stick_in() {
 
 use crate::common::texts;
 use faraday_core::seed_check::SeedAction as S;
-use faraday_core::{Action, Faraday, StorageEvent, testkit};
+use faraday_core::{Action, ChoicesPress, Faraday, Sheet, StorageEvent, testkit};
 use faraday_shell_api::{App, Event, Key};
 
 /// The BIP-84 test account of `ADDRESSES`: its first receive address and
@@ -388,6 +389,16 @@ fn the_words_and_an_account_give_the_fingerprint_and_the_first_address() {
 /// (its words run together).
 const US_LINE: &str = "KeysarereadasaUSkeyboard.CapsLockisignored.";
 
+/// The frame once the step's fade through has finished.
+fn at_rest(app: &mut Faraday) {
+    for i in 1..=30u64 {
+        app.event(Event::Tick {
+            now_ms: 100_000 + i * 16,
+        });
+        let _ = app.frame();
+    }
+}
+
 #[test]
 fn a_passphrase_typed_with_hardware_keys_in_the_seed_check_says_so_and_waits_for_the_eye() {
     let mut app = with_words(ABOUT);
@@ -406,7 +417,7 @@ fn a_passphrase_typed_with_hardware_keys_in_the_seed_check_says_so_and_waits_for
     app.press(Action::PassEye);
     app.press(Action::SeedCheck(S::UsePass));
     testkit::settle(&mut app);
-    let _ = app.frame();
+    at_rest(&mut app);
     assert!(app.offers(Action::SeedCheck(S::Pick(Account::NativeSegwit))));
 }
 
@@ -424,7 +435,7 @@ fn a_passphrase_typed_on_the_on_screen_keyboard_in_the_seed_check_has_no_line_an
     assert!(!shows(&mut app, US_LINE));
     app.press(Action::SeedCheck(S::UsePass));
     testkit::settle(&mut app);
-    let _ = app.frame();
+    at_rest(&mut app);
     assert!(app.offers(Action::SeedCheck(S::Pick(Account::NativeSegwit))));
 }
 
@@ -1408,4 +1419,46 @@ fn a_codex32_secret_read_with_a_stick_in_is_refused_on_the_check() {
     assert!(app.session.keys.check_facts().is_none(), "no key is held");
     let shown = texts(&mut app).join(" ").to_lowercase();
     assert!(shown.contains("stick"), "the refusal is shown: {shown}");
+}
+
+/// The window resized to `width` × `height` px at 160 dpi.
+fn resize(app: &mut Faraday, width: u16, height: u16) {
+    app.event(Event::Display(faraday_shell_api::DisplayInfo {
+        width,
+        height,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: faraday_shell_api::SecureHardware::None,
+        boot: faraday_shell_api::BootState::Unknown,
+        memory_mib: None,
+    }));
+    let _ = app.frame();
+}
+
+#[test]
+fn the_open_step_is_alone_with_your_choices_beside_it_or_in_the_sheet() {
+    let mut app = with_words(ABOUT);
+    app.press(Action::SeedCheck(S::NoPass));
+    // Wide: the pane lists the steps with the answers given, and a press
+    // on an earlier row opens that step as it was.
+    let wide = texts(&mut app);
+    for line in ["Your choices", "Step 3 of 4", "12 words"] {
+        assert!(wide.iter().any(|t| t == line), "{line}: {wide:?}");
+    }
+    app.press(Action::Choices(ChoicesPress::Row(0)));
+    assert!(texts(&mut app).iter().any(|t| t == "Step 1 of 4"));
+    app.press(Action::SeedCheck(S::Show(2)));
+    // A panel: one card, and the bar's button opens the sheet.
+    resize(&mut app, 480, 640);
+    let panel = texts(&mut app);
+    assert!(
+        !panel.iter().any(|t| t == EN.seed_check_card_seed),
+        "{panel:?}"
+    );
+    app.press(Action::Choices(ChoicesPress::Open));
+    assert_eq!(app.sheet, Some(Sheet::Choices));
+    assert!(texts(&mut app).iter().any(|t| t == "12 words"));
 }

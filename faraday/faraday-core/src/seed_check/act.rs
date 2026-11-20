@@ -285,14 +285,13 @@ fn open_card(app: &mut Faraday, k: u8) {
     }
 }
 
-/// A card's header: it closes if open; a card before the one open is
+/// A card's header: a card before the one open is
 /// taken again (**Change**), the key kept only where its card is left
 /// alone. Back and Forward (`Show`) only open a card; what a card takes
 /// drops the cards after it before it stores what it took.
 fn step_to(app: &mut Faraday, k: u8) {
     let Some(s) = st(app) else { return };
     if s.open == Some(k) {
-        s.open = None;
         return;
     }
     let reach = match k {
@@ -1001,12 +1000,12 @@ impl crate::trail::StepFlow for SeedSteps {
         let s = app.tools.seed_check.state()?;
         // A key with no words has no passphrase card to go through.
         let no_pass = !s.typed && s.facts.is_some();
-        Some(crate::trail::Steps::new(
-            (0..step::COUNT as u8)
-                .filter(|&k| !(no_pass && k == step::PASSPHRASE))
-                .collect(),
-            s.open,
-        ))
+        let order: Vec<u8> = (0..step::COUNT as u8)
+            .filter(|&k| !(no_pass && k == step::PASSPHRASE))
+            .collect();
+        let mut steps = crate::trail::Steps::new(order.clone(), s.open);
+        steps.answered = order.into_iter().filter(|&k| s.done(k)).collect();
+        Some(steps)
     }
 
     fn open(&self, _: &Faraday, k: u8) -> Action {
@@ -1015,6 +1014,42 @@ impl crate::trail::StepFlow for SeedSteps {
 
     fn name(&self, _: &Faraday, k: u8) -> &'static str {
         super::screen::TITLES[usize::from(k)]
+    }
+
+    fn contained(&self) -> Option<&dyn crate::flow::Contained> {
+        Some(self)
+    }
+}
+
+impl crate::flow::Contained for SeedSteps {
+    fn rows(&self, app: &Faraday) -> Vec<crate::flow::Row> {
+        let Some(s) = app.tools.seed_check.state() else {
+            return Vec::new();
+        };
+        let no_pass = !s.typed && s.facts.is_some();
+        (0..step::COUNT as u8)
+            .filter(|&k| !(no_pass && k == step::PASSPHRASE))
+            .map(|k| {
+                let value = super::screen::summary(s, k);
+                crate::flow::Row {
+                    label: faraday_text::Text::of(super::screen::TITLES[usize::from(k)]),
+                    value: (!value.is_empty()).then_some(value),
+                    mono: k == step::ACCOUNT || k == step::RESULT,
+                    opens: k,
+                    current: s.open == Some(k),
+                }
+            })
+            .collect()
+    }
+
+    fn count_fixed(&self, _: &Faraday) -> bool {
+        true
+    }
+
+    /// Taking a card again drops every card after it
+    /// (`reset_from`): nothing later stands.
+    fn still_fits(&self, _: &Faraday, _changed: u8, _later: u8) -> bool {
+        false
     }
 }
 

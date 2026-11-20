@@ -12,7 +12,7 @@ use faraday_core::file_menu::{FilePress, Row};
 use faraday_core::strings::EN;
 use faraday_core::testkit;
 use faraday_core::testkit::Plain;
-use faraday_core::{Action, Faraday, Screen, Sheet, StorageEvent};
+use faraday_core::{Action, ChoicesPress, Faraday, Screen, Sheet, StorageEvent};
 use faraday_shell_api::{App, Event};
 
 fn vector(name: &str) -> Vec<u8> {
@@ -1022,8 +1022,9 @@ fn a_fee_bump_naming_a_key_not_loaded_keeps_its_load_row() {
     app.press(Action::SignerCheck(SignerPress::Pick(Slot::Sent, 0)));
     app.press(Action::SignerCheck(SignerPress::Pick(Slot::Returned, 1)));
     // The actions are at the foot of the scrolling Result.
+    let _ = app.frame();
     app.event(Event::Wheel {
-        x: 640,
+        x: 300,
         y: 400,
         dy: 3000,
     });
@@ -1052,4 +1053,44 @@ fn the_signer_checks_load_opens_add_a_key_and_returns_with_the_key() {
     }
     app.press(Action::EntryAdd);
     assert_eq!(app.screen, Screen::SignerCheck, "back in the check");
+}
+
+/// The window resized to `width` × `height` px at 160 dpi.
+fn resize(app: &mut Faraday, width: u16, height: u16) {
+    app.event(Event::Display(faraday_shell_api::DisplayInfo {
+        width,
+        height,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: faraday_shell_api::SecureHardware::None,
+        boot: faraday_shell_api::BootState::Unknown,
+        memory_mib: None,
+    }));
+    let _ = app.frame();
+}
+
+#[test]
+fn the_open_card_is_alone_with_your_choices_beside_it_or_in_the_sheet() {
+    let mut app = with_files(vec![("sent.psbt", sent())]);
+    open(&mut app);
+    app.press(Action::SignerCheck(SignerPress::Pick(Slot::Sent, 0)));
+    // Wide: the pane lists the steps with the answers given, and a press
+    // on an earlier row opens that step again.
+    let wide = texts(&mut app);
+    for line in ["Your choices", "Step 2 of 3", "sent.psbt"] {
+        assert!(wide.iter().any(|t| t == line), "{line}: {wide:?}");
+    }
+    app.press(Action::Choices(ChoicesPress::Row(0)));
+    assert!(shows(&mut app, "Step 1 of 3"));
+    app.press(Action::SignerCheck(SignerPress::Card(1)));
+    // A panel: one card, and the bar's button opens the sheet.
+    resize(&mut app, 480, 640);
+    assert!(!shows(&mut app, EN.signer_sent), "the earlier card is gone");
+    assert!(shows(&mut app, EN.signer_returned));
+    app.press(Action::Choices(ChoicesPress::Open));
+    assert_eq!(app.sheet, Some(Sheet::Choices));
+    assert!(shows(&mut app, "sent.psbt"));
 }

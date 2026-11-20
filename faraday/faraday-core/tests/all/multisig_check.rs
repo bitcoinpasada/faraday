@@ -9,7 +9,7 @@ use faraday_core::multisig_check::MsAction as M;
 use faraday_core::seed_check::SeedAction as S;
 use faraday_core::strings::EN;
 use faraday_core::wallet::KeyBlockOf;
-use faraday_core::{Action, Faraday, Screen, StorageEvent, testkit};
+use faraday_core::{Action, ChoicesPress, Faraday, Screen, Sheet, StorageEvent, testkit};
 use faraday_shell_api::{App, Event, Key};
 
 fn kit(id: &str) -> String {
@@ -445,8 +445,10 @@ fn a_seed_that_is_several_cosigners_names_and_marks_every_one() {
 }
 
 #[test]
-fn keys_typed_with_the_result_closed_reach_nothing_and_the_seed_is_gone() {
-    for (back, given) in [(false, false), (true, false), (false, true), (true, true)] {
+fn keys_typed_with_the_setup_opened_again_reach_nothing_and_the_seed_is_gone() {
+    // The Result's own row does nothing while it is open: only the Setup
+    // leaves it.
+    for (back, given) in [(true, false), (true, true)] {
         let mut app = scanned(&kit("savings"));
         if given {
             give(&mut app, &testkit::test_words("zebra"), None);
@@ -775,4 +777,47 @@ fn the_first_address_of_every_kind_is_the_one_bitcoin_core_derives() {
             "{name}: Core derives {address}, the check shows {shown:?}"
         );
     }
+}
+
+/// The window resized to `width` × `height` px at 160 dpi.
+fn resize(app: &mut Faraday, width: u16, height: u16) {
+    app.event(Event::Display(faraday_shell_api::DisplayInfo {
+        width,
+        height,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: faraday_shell_api::SecureHardware::None,
+        boot: faraday_shell_api::BootState::Unknown,
+        memory_mib: None,
+    }));
+    let _ = app.frame();
+}
+
+#[test]
+fn the_open_step_is_alone_with_your_choices_beside_it_or_in_the_sheet() {
+    let mut app = scanned(&kit("savings"));
+    // Wide: the pane lists the steps with the answer given, and a press
+    // on the Setup's row opens it again.
+    let wide = texts(&mut app);
+    for line in ["Your choices", "Step 2 of 2", EN.mscheck_setup] {
+        assert!(wide.iter().any(|t| t == line), "{line}: {wide:?}");
+    }
+    app.press(Action::Choices(ChoicesPress::Row(
+        faraday_core::multisig_check::mstep::SETUP,
+    )));
+    let _ = app.frame();
+    assert!(texts(&mut app).iter().any(|t| t == "Step 1 of 2"));
+    app.press(Action::MultisigCheck(M::Step(
+        faraday_core::multisig_check::mstep::RESULT,
+    )));
+    // A panel: one card, and the bar's button opens the sheet.
+    resize(&mut app, 480, 640);
+    let panel = texts(&mut app);
+    assert!(!panel.iter().any(|t| t == EN.mscheck_setup), "{panel:?}");
+    app.press(Action::Choices(ChoicesPress::Open));
+    assert_eq!(app.sheet, Some(Sheet::Choices));
+    assert!(texts(&mut app).iter().any(|t| t == EN.mscheck_setup));
 }

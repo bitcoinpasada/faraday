@@ -479,11 +479,11 @@ pub(crate) fn act(app: &mut Faraday, action: MsAction) {
     match action {
         MsAction::Open => open(app),
         MsAction::Step(k) => {
-            let open = if state(app).is_some_and(|s| s.open == Some(k)) {
-                None
-            } else {
-                Some(k)
-            };
+            // The open step stays open: a step is never closed by its row.
+            if state(app).is_some_and(|s| s.open == Some(k)) {
+                return;
+            }
+            let open = Some(k);
             // The seed flow's steps are under the Result: a Result no longer
             // open is the flow left, and the seed it held is wiped.
             if open != Some(mstep::RESULT) {
@@ -687,10 +687,9 @@ pub(crate) static MS_STEPS: MsSteps = MsSteps;
 impl crate::trail::StepFlow for MsSteps {
     fn steps(&self, app: &Faraday) -> Option<crate::trail::Steps> {
         let s = state(app)?;
-        Some(crate::trail::Steps::new(
-            (0..mstep::COUNT as u8).collect(),
-            s.open,
-        ))
+        let mut steps = crate::trail::Steps::new((0..mstep::COUNT as u8).collect(), s.open);
+        steps.answered = (0..mstep::COUNT as u8).filter(|&k| s.done(k)).collect();
+        Some(steps)
     }
 
     fn open(&self, _: &Faraday, k: u8) -> Action {
@@ -699,6 +698,40 @@ impl crate::trail::StepFlow for MsSteps {
 
     fn name(&self, _: &Faraday, k: u8) -> &'static str {
         screen::TITLES[usize::from(k)]
+    }
+
+    fn contained(&self) -> Option<&dyn crate::flow::Contained> {
+        Some(self)
+    }
+}
+
+impl crate::flow::Contained for MsSteps {
+    fn rows(&self, app: &Faraday) -> Vec<crate::flow::Row> {
+        let Some(s) = state(app) else {
+            return Vec::new();
+        };
+        (0..mstep::COUNT as u8)
+            .map(|k| {
+                let value = screen::summary(s, k);
+                crate::flow::Row {
+                    label: faraday_text::Text::of(screen::TITLES[usize::from(k)]),
+                    value: (!value.is_empty()).then_some(value),
+                    mono: false,
+                    opens: k,
+                    current: s.open == Some(k),
+                }
+            })
+            .collect()
+    }
+
+    fn count_fixed(&self, _: &Faraday) -> bool {
+        true
+    }
+
+    /// A setup taken again makes its own Result and drops the seed's
+    /// answer.
+    fn still_fits(&self, _: &Faraday, _changed: u8, _later: u8) -> bool {
+        false
     }
 }
 

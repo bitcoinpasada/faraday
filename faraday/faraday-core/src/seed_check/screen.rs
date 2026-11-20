@@ -15,7 +15,7 @@ use crate::ui::{Style, Ui, W};
 use crate::wallet::FileKind;
 use faraday_bip::keys::ScriptType;
 use faraday_draw::tokens::{
-    self, BODY_M, BODY_S, BUTTON_H, CARD_ENTRY_ROOM, FIELD_H, FIELD_PAD, GAP, GAP_SMALL, LABEL_L,
+    BODY_M, BODY_S, BUTTON_H, CARD_ENTRY_ROOM, FIELD_H, FIELD_PAD, GAP, GAP_SMALL, LABEL_L,
     ROW_CHEVRON_ROOM, SEGMENTED_H, TOUCH,
 };
 use faraday_text::Text;
@@ -36,60 +36,47 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(s) = app.tools.seed_check.state() else {
         return;
     };
-    let cards: Vec<flow::Card> = (0..step::COUNT as u8)
-        .map(|k| flow::Card {
-            title: TITLES[usize::from(k)].into(),
-            summary: summary(s, k).as_str().into(),
-            mono: false,
-            done: s.done(k),
-            open: s.open == Some(k),
-            default: s.done(k),
-            toggle: act(S::Step(k)),
-            lead: None,
-        })
-        .collect();
     let back_name = if s.back == crate::Screen::Catalog {
         EN.ots_tools
     } else {
         app.back_name(s.back)
     };
-    let col = flow::Column {
-        area_x: x0,
-        area_w: cw,
-        x: x0 + tokens::FLOW_INSET,
-        w: (cw - tokens::FLOW_INSET - tokens::FLOW_INSET).min(tokens::FLOW_MAX),
+    let page = flow::Page {
+        area: (x0, cw),
         h,
+        foot_h: 0.0,
         back: Some(app.named_back((back_name, Action::Nav(s.back)))),
         heading: EN.seed_check_title,
-        wrap_closed: false,
-        total_fixed: true,
-        all_shown: false,
-        note: None,
         chip: None,
+        note: None,
         chip_tap: None,
         moves: crate::ui::Moves::No,
     };
-    let scroll = s.scroll;
-    let (next, again) = {
+    let Some(contained) = crate::trail::StepFlow::contained(&super::act::SEED_STEPS) else {
+        return;
+    };
+    let (next, again, _) = {
         let app_ref: &View = app;
-        let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
+        // The error line and Cancel end the card, as they ended the last
+        // card reached.
+        let mut body = |ui: &mut Ui, k: u8, x: f32, y: f32, w: f32| -> f32 {
             match app_ref.tools.seed_check.state() {
-                Some(s) => card(app_ref, s, ui, i as u8, (x, y, w)),
+                Some(s) => {
+                    let used = card(app_ref, s, ui, k, (x, y, w));
+                    used + foot(s, ui, (x, y + used, w))
+                }
                 None => 0.0,
             }
         };
-        let mut foot = |ui: &mut Ui, x: f32, y: f32, w: f32| -> f32 {
-            match app_ref.tools.seed_check.state() {
-                Some(s) => foot(s, ui, (x, y, w)),
-                None => 0.0,
-            }
-        };
-        flow::column_foot(ui, &col, &cards, scroll, &mut body, Some(&mut foot))
+        let mut under = |_: &mut Ui, _: f32, _: f32, _: f32| 0.0;
+        flow::contained(
+            ui, app_ref, contained, &page, s.scroll, &mut body, &mut under,
+        )
     };
     app.scroll(Scrolled::SeedCheck, next, again);
 }
 
-/// The error line, if any, and Cancel, under the last card.
+/// The error line, if any, and Cancel, at the end of the card.
 fn foot(s: &SeedState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     let mut cy = GAP;
     if let Some(e) = &s.error {
@@ -107,7 +94,7 @@ fn foot(s: &SeedState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     cy + BUTTON_H
 }
 
-fn summary(s: &SeedState, k: u8) -> Text {
+pub(super) fn summary(s: &SeedState, k: u8) -> Text {
     let text = match k {
         step::SEED => {
             if s.is_loaded() {

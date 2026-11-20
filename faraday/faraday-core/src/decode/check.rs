@@ -667,10 +667,15 @@ pub(crate) static SIGNER_STEPS: SignerSteps = SignerSteps;
 impl crate::trail::StepFlow for SignerSteps {
     fn steps(&self, app: &crate::Faraday) -> Option<crate::trail::Steps> {
         let s = app.signer_check()?;
-        Some(crate::trail::Steps::new(
-            (0..=RESULT).collect(),
-            Some(s.open),
-        ))
+        let mut steps = crate::trail::Steps::new((0..=RESULT).collect(), Some(s.open));
+        steps.answered = (0..=RESULT)
+            .filter(|&k| match k {
+                0 => s.sent.is_some(),
+                1 => s.returned.is_some(),
+                _ => s.shown.is_some(),
+            })
+            .collect();
+        Some(steps)
     }
 
     fn open(&self, _: &crate::Faraday, k: u8) -> crate::Action {
@@ -683,5 +688,48 @@ impl crate::trail::StepFlow for SignerSteps {
             1 => EN.signer_returned,
             _ => EN.signer_result,
         }
+    }
+
+    fn contained(&self) -> Option<&dyn crate::flow::Contained> {
+        Some(self)
+    }
+}
+
+impl crate::flow::Contained for SignerSteps {
+    fn rows(&self, app: &crate::Faraday) -> Vec<crate::flow::Row> {
+        let Some(s) = app.signer_check() else {
+            return Vec::new();
+        };
+        (0..=RESULT)
+            .map(|k| {
+                let side = match k {
+                    0 => s.side(Slot::Sent),
+                    1 => s.side(Slot::Returned),
+                    _ => None,
+                };
+                let value = match side {
+                    Some(d) if d.differs => Some(Text::fill(EN.signer_file_differs, &[&d.name])),
+                    Some(d) => Some(d.name.clone()),
+                    None => None,
+                };
+                crate::flow::Row {
+                    label: faraday_text::Text::of(crate::trail::StepFlow::name(self, app, k)),
+                    value,
+                    mono: false,
+                    opens: k,
+                    current: s.open == k,
+                }
+            })
+            .collect()
+    }
+
+    fn count_fixed(&self, _: &crate::Faraday) -> bool {
+        true
+    }
+
+    /// Choosing a file again drops the report and so the Result; the
+    /// other file stays.
+    fn still_fits(&self, _: &crate::Faraday, _changed: u8, later: u8) -> bool {
+        later < RESULT
     }
 }

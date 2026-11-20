@@ -2,7 +2,7 @@
 //! (`docs/SIGNER-CHECK.md` §4, §11.5). Drawing reads the state, the
 //! items' `PsbtSeen` and the words kept; it works nothing out.
 
-use super::check::{self, CheckState, Facts, Origin, RESULT, SignerPress, Slot, Tone};
+use super::check::{self, CheckState, Facts, Origin, SignerPress, Slot, Tone};
 use super::diff_words::Fact;
 use crate::drawing::{Scrolled, View};
 use crate::strings::{EN, fill};
@@ -11,78 +11,48 @@ use crate::ui::{Style, Ui};
 use crate::{Action, flow};
 use faraday_bip::keys::Fingerprint;
 use faraday_draw::tokens::{
-    BODY_M, BODY_S, BUTTON_H, GAP, GAP_SMALL, ICON_GLYPH, PAD, READING_PAGE_W, SHAPE_S, SPACER,
-    TITLE_M, TITLE_S, TOUCH,
+    BODY_M, BODY_S, BUTTON_H, GAP, GAP_SMALL, ICON_GLYPH, PAD, SHAPE_S, TITLE_M, TITLE_S, TOUCH,
 };
 use faraday_draw::widgets::Icon;
 use faraday_psbt::Level;
 use faraday_ui::parts::{button_rows, section_label};
 use faraday_ui::sheet::kv;
 
-/// The three cards over the state kept.
+/// The open card over the state kept, on the flow container, with Your
+/// choices beside it.
 pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(s) = app.signer_check() else {
         return;
     };
-    let titles = [EN.signer_sent, EN.signer_returned, EN.signer_result];
-    let cards: Vec<flow::Card> = (0..=RESULT)
-        .map(|n| {
-            let side = match n {
-                0 => s.side(Slot::Sent),
-                1 => s.side(Slot::Returned),
-                _ => None,
-            };
-            flow::Card {
-                title: titles[usize::from(n)].to_string(),
-                summary: side.map_or_else(String::new, |d| {
-                    if d.differs {
-                        String::from(&*fill(EN.signer_file_differs, &[&d.name]))
-                    } else {
-                        String::from(&*d.name)
-                    }
-                }),
-                mono: false,
-                done: if n == RESULT {
-                    s.shown.is_some()
-                } else {
-                    side.is_some()
-                },
-                open: s.open == n,
-                default: side.is_some(),
-                toggle: Action::SignerCheck(SignerPress::Card(n)),
-                lead: None,
-            }
-        })
-        .collect();
-    let col = flow::Column {
-        area_x: x0,
-        area_w: cw,
-        x: x0 + SPACER + PAD,
-        w: (cw - (SPACER + PAD) - (SPACER + PAD)).min(READING_PAGE_W),
+    let page = flow::Page {
+        area: (x0, cw),
         h,
+        foot_h: 0.0,
         back: Some(app.named_back((
             crate::screens::decode_back(s.back),
             Action::SignerCheck(SignerPress::Back),
         ))),
         heading: EN.catalog_check_a_signer,
-        wrap_closed: true,
-        total_fixed: true,
-        all_shown: false,
-        note: None,
         chip: None,
+        note: None,
         chip_tap: None,
         moves: crate::ui::Moves::Yes,
     };
-    let scroll = s.scroll;
-    let (next, again) = {
+    let Some(contained) = crate::trail::StepFlow::contained(&check::SIGNER_STEPS) else {
+        return;
+    };
+    let (next, again, _) = {
         let app_ref: &View = app;
-        let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
+        let mut body = |ui: &mut Ui, k: u8, x: f32, y: f32, w: f32| -> f32 {
             match app_ref.signer_check() {
-                Some(s) => card(app_ref, s, ui, i as u8, (x, y, w)),
+                Some(s) => card(app_ref, s, ui, k, (x, y, w)),
                 None => 0.0,
             }
         };
-        flow::column(ui, &col, &cards, scroll, &mut body)
+        let mut under = |_: &mut Ui, _: f32, _: f32, _: f32| 0.0;
+        flow::contained(
+            ui, app_ref, contained, &page, s.scroll, &mut body, &mut under,
+        )
     };
     app.scroll(Scrolled::SignerCheck, next, again);
 }
