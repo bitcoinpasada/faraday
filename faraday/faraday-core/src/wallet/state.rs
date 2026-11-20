@@ -568,6 +568,8 @@ impl WalletsArea {
                 s.done[n as usize] = true;
             }
             s.mark_reviewed();
+            // The card shown is Sign's, where the person has come to.
+            s.open = Some(step::SIGN);
         }
     }
 

@@ -2518,7 +2518,10 @@ mod musig_partials {
             drawn.contains("2 of 3 in the file · 1 more needed"),
             "{drawn}"
         );
-        assert!(drawn.contains("Collect 1 signature"), "{drawn}");
+        // The Collect card names what it takes and carries the way on; the
+        // foot's own button is the card's Continue.
+        assert!(drawn.contains("Collect a signature"), "{drawn}");
+        assert!(drawn.contains("Continue"), "{drawn}");
     }
 
     #[test]

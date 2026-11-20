@@ -3630,10 +3630,21 @@ fn a_setup_survives_the_lock_that_makes_the_process_clean() {
     assert_eq!(c.kind, NewKind::Multi);
     assert_eq!((c.vaults.answer, c.vaults.count), (Some(true), 1));
     assert_eq!(app.screen, Screen::BackupFlow);
-    // Keys stay closed until the setup is done.
+    // Keys' card carries only the way to bring the vault in until the
+    // setup is done: no key is offered.
     app.press(Action::Nav(Screen::Create));
     app.press(Action::CStep(cstep::KEYS));
-    assert_ne!(app.create().unwrap().open, Some(cstep::KEYS));
+    let texts = app.drawn_texts();
+    assert!(
+        texts
+            .iter()
+            .any(|t| t == faraday_strings::EN.create_vault_to_unlock)
+    );
+    assert!(
+        !texts
+            .iter()
+            .any(|t| t == faraday_strings::EN.create_new_key)
+    );
     app.press(Action::Nav(Screen::BackupFlow));
     shell.disk_mut("S1").files = vec![("main.kdbx".into(), vault("Main", PHRASE, 0x41))];
     shell.plug(&mut app, "S1");
