@@ -201,6 +201,7 @@ fn unlock_start(app: &mut Faraday) -> bool {
     // chip stays for another.
     // A vault just made unlocks at once with the key file it was made with.
     let made = app.vaults.state.store.take_made_parts();
+    app.vaults.state.unlock_made = made.is_some();
     let components = match made.map_or_else(|| super::unlock_keys::parts(app), Ok) {
         Ok(c) => c,
         Err(super::unlock_keys::Bad::KeyFile(e)) => {
@@ -381,13 +382,18 @@ pub(crate) fn stretched(app: &mut Faraday, done: StretchDone) {
 /// worker. The back half of an unlock, applied on the main thread.
 fn unlocked(
     app: &mut Faraday,
-    stretched: Stretched,
+    mut stretched: Stretched,
     (name, sha): (Text, Option<[u8; 32]>),
     for_import: bool,
 ) {
     // A stick put in while the stretch ran: the press's own refusal.
     // The answer is dropped, and wiped as it drops.
+    let back = stretched.take_back_parts();
     if !app.may_load_keys() {
+        // The key file held is not used up by a try the stick refused.
+        if app.vaults.state.unlock_made && app.screen == Screen::Unlock {
+            app.vaults.set_made_parts(back);
+        }
         drop(stretched);
         app.vaults.state.unlock_error = Some(Text::of(&fill(
             EN.vaults_remove_to_unlock,
@@ -396,6 +402,9 @@ fn unlocked(
         app.vaults.unlock_follow.set(true);
         return;
     }
+    // A try that failed gave the key file held for the vault back (above): it
+    // stays held until an unlock works or Unlock is left, a wrong passphrase
+    // included.
     let before = app.vaults.open.len();
     // The key records' fingerprints and master ids, worked out in the job.
     let identities = stretched.identities().to_vec();
@@ -451,6 +460,9 @@ fn unlocked(
             }
         }
         Err(e) => {
+            if app.vaults.state.unlock_made && app.screen == Screen::Unlock {
+                app.vaults.set_made_parts(back);
+            }
             app.vaults.state.unlock_error = Some(match e {
                 // What was tried says what to try again.
                 faraday_vault::file::Error::Kdbx(faraday_vault::kdbx::Error::Passphrase) => {

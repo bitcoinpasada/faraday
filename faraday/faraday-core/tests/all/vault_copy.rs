@@ -1623,6 +1623,50 @@ fn a_new_vault_with_a_key_file_made_for_an_item_is_unlocked_once_with_it() {
 }
 
 #[test]
+fn a_wrong_passphrase_at_the_unlock_of_a_vault_made_for_an_item_keeps_its_key_file() {
+    let a = vault("Alpha", 1, vec![entry("Mail", "hunter2")]);
+    let mut app = opened(vec![("a.kdbx", a)]);
+    sheet_for(&mut app, 0, ENTRIES, 0);
+    app.press(Action::Vault(V::CopyPick(0)));
+    make_new_with_key_file_until_made(&mut app);
+    assert_eq!(app.screen, Screen::Unlock, "its Unlock opens");
+    // On a wide window, where the line is not scrolled away by the keyboard.
+    app.event(Event::Display(DisplayInfo {
+        width: 800,
+        height: 1200,
+        dpi: 286,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    let _ = app.frame();
+    assert!(
+        app.drawn_texts()
+            .join(" ")
+            .contains(faraday_core::strings::EN.vault_type_the_passphrase),
+        "Unlock does not say why it asks"
+    );
+    app.press(Action::Vault(V::FocusPassphrase));
+    type_text(&mut app, "wrong phrase");
+    app.press(Action::Vault(V::Unlock));
+    testkit::settle(&mut app);
+    assert_eq!(app.vaults().open.len(), 1, "a wrong passphrase opened it");
+    app.press(Action::Vault(V::FocusPassphrase));
+    type_text(&mut app, PHRASE);
+    app.press(Action::Vault(V::Unlock));
+    testkit::settle(&mut app);
+    assert_eq!(
+        app.vaults().open.len(),
+        2,
+        "the right passphrase did not open it"
+    );
+}
+
+#[test]
 fn a_lock_before_a_made_vault_is_unlocked_drops_the_key_file_held_for_it() {
     let a = vault("Alpha", 1, vec![entry("Mail", "hunter2")]);
     let mut app = opened(vec![("a.kdbx", a)]);

@@ -165,16 +165,8 @@ pub(crate) fn glance_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         type_text(t, "glance phrase");
     }
     t.press(Action::Vault(V::CGo));
-    // The vault opens with the passphrase just typed twice.
-    for _ in 0..30 {
-        if !t.app.vaults().open.is_empty() {
-            break;
-        }
-        t.tick();
-    }
-    if t.app.vaults().open.is_empty() {
-        return Err("the vault made for the glance tour did not open".to_string());
-    }
+    // The vault is made and locked: it opens with its passphrase typed once.
+    crate::tour::open_made(t, "glance phrase", "glance tour")?;
     t.press(Action::Backup(one));
     t.backup_as(faraday_core::plan::Preset::PaperVault);
     t.press(Action::BChecklist);

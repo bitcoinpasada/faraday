@@ -4631,6 +4631,12 @@ impl Faraday {
         let Some(id) = self.vaults.current_id().filter(|_| self.vault_may_reseal()) else {
             return;
         };
+        // The seal of Save cannot start while another runs: the form stays.
+        if seal::sealing(self) {
+            self.vaults.state.form = Some(form);
+            self.toast(EN.vault_passphrase_seal_running);
+            return;
+        }
         let phrase = crate::secret_text::SecretText::of(first);
         let ok = self.vaults.edit(id, |s| s.set_passphrase(id, phrase));
         self.vaults.state.focus = None;
@@ -4638,8 +4644,11 @@ impl Faraday {
         if ok {
             self.vaults.changed(id);
             // Written now and locked: the vault is unlocked once with the
-            // new passphrase. Where it cannot be sealed yet, the refusal
-            // says why and the next seal writes it.
+            // new passphrase. Where it cannot be sealed yet (no randomness,
+            // an item moved and not yet in its target, contents too big),
+            // the toast says why, the vault stays open with the change
+            // counted and the next seal writes it. A seal running was
+            // refused above.
             let at = self.vaults.current;
             self.vault_lock_one(at, seal::After::Unlock);
         }

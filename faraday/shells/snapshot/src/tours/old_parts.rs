@@ -46,15 +46,8 @@ pub(crate) fn old_parts_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         crate::tour::type_text(t, "old parts phrase");
     }
     t.press(Action::Vault(V::CGo));
-    for _ in 0..30 {
-        if !t.app.vaults().open.is_empty() {
-            break;
-        }
-        t.tick();
-    }
-    if t.app.vaults().open.is_empty() {
-        return Err("the vault made for the oldparts tour did not open".to_string());
-    }
+    // The vault is made and locked: it opens with its passphrase typed once.
+    crate::tour::open_made(t, "old parts phrase", "oldparts tour")?;
     // The key split into three Seed XOR parts, the plan placing them.
     let first = t.app.session.keys.info(0).ok_or("no key")?.fingerprint.0;
     let set = faraday_vault::xor::XorFacts {

@@ -307,6 +307,40 @@ pub fn open_with(
     parsed: &mut dyn FnMut(usize, usize) -> Result<Option<usize>, u32>,
     room: Option<usize>,
 ) -> Result<Opened, Error> {
+    open_keeping(c, file, passphrase, components, budget, parsed, room).map_err(|(e, _)| e)
+}
+
+/// Costs what [`open_with`] costs. [`open_with`] that gives `components`
+/// back, unchanged and not copied, when the open fails, so a retry can take
+/// the one the caller held.
+pub fn open_keeping(
+    c: &Compute,
+    file: &[u8],
+    passphrase: &str,
+    components: Components,
+    budget: &mut dyn FnMut(usize) -> Result<(), u32>,
+    parsed: &mut dyn FnMut(usize, usize) -> Result<Option<usize>, u32>,
+    room: Option<usize>,
+) -> Result<Opened, (Error, Components)> {
+    match open_borrowing(c, file, passphrase, &components, budget, parsed, room) {
+        Ok(mut opened) => {
+            opened.components = components;
+            Ok(opened)
+        }
+        Err(e) => Err((e, components)),
+    }
+}
+
+/// [`open_with`] with `components` borrowed: the vault it gives holds none.
+fn open_borrowing(
+    c: &Compute,
+    file: &[u8],
+    passphrase: &str,
+    components: &Components,
+    budget: &mut dyn FnMut(usize) -> Result<(), u32>,
+    parsed: &mut dyn FnMut(usize, usize) -> Result<Option<usize>, u32>,
+    room: Option<usize>,
+) -> Result<Opened, Error> {
     let facts = inspect(file)?;
     // `parsed` may also give the most the open may take, which holds
     // whatever is free, so a crafted file takes no more than it counted.
@@ -315,7 +349,7 @@ pub fn open_with(
         c,
         file,
         passphrase,
-        &components,
+        components,
         budget,
         &mut |document, attachments| {
             cap.set(parsed(document, attachments)?);
@@ -376,7 +410,7 @@ pub fn open_with(
         binaries: opened.binaries,
         document_len: opened.document.len(),
         passphrase,
-        components,
+        components: Components::none(),
     })
 }
 
@@ -467,6 +501,12 @@ impl Opened {
     /// seals write again.
     pub fn key_file_held(&self) -> bool {
         self.components.has_key_file()
+    }
+
+    /// The key file's key a seal with `key_file` (as [`Components::changed`]
+    /// has it) writes the file under, for the unlock that follows the seal.
+    pub fn key_components(&self, key_file: Option<Option<&[u8; 32]>>) -> Components {
+        self.components.changed(key_file)
     }
 
     /// Why the vault is not changed or sealed, if it is not.

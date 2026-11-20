@@ -85,6 +85,9 @@ pub struct Stretched {
     out: Out,
     /// The KeePass document of the key file a make drew.
     document: Option<Zeroizing<Vec<u8>>>,
+    /// The key file's key an open that failed was given, moved back: not
+    /// copied.
+    back: Option<fv::kdbx::Components>,
 }
 
 enum Out {
@@ -217,6 +220,7 @@ impl StretchJob {
     pub fn run(self, c: &Compute) -> Stretched {
         let network = self.identities;
         let mut document = None;
+        let mut back = None;
         let out = match self.what {
             What::Open {
                 file,
@@ -226,7 +230,7 @@ impl StretchJob {
                 budget,
                 parsed,
             } => Out::Opened(
-                fv::file::open_with(
+                fv::file::open_keeping(
                     c,
                     &file,
                     passphrase.as_str(),
@@ -235,6 +239,10 @@ impl StretchJob {
                     &mut |doc, att| parsed.as_ref().map_or(Ok(None), |p| p(doc, att)),
                     room,
                 )
+                .map_err(|(e, kept)| {
+                    back = Some(kept);
+                    e
+                })
                 .map(|mut opened| {
                     let built = crate::vault::build(&opened);
                     let identities = network.map_or_else(Vec::new, |n| identities_of(c, n, &built));
@@ -274,7 +282,11 @@ impl StretchJob {
                 ))
             }
         };
-        Stretched { out, document }
+        Stretched {
+            out,
+            document,
+            back,
+        }
     }
 }
 
@@ -304,6 +316,16 @@ fn identities_of(c: &Compute, network: Network, built: &Built) -> Vec<KeyIdentit
 }
 
 impl Stretched {
+    /// The key file's key a failed open was given, moved back for another
+    /// try: no copy is made. `None` for an open that worked, a make, or one
+    /// given none.
+    pub fn take_back_parts(&mut self) -> Option<crate::parts::UnlockParts> {
+        self.back
+            .take()
+            .filter(fv::kdbx::Components::has_key_file)
+            .map(Into::into)
+    }
+
     /// The identities of the key records an open worked out, when asked
     /// ([`StretchJob::with_identities`]): public, no secret. Empty for a
     /// make, a failed open or an open not asked. A lookup.

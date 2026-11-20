@@ -475,6 +475,11 @@ impl VaultArea {
         self.state.store.clear_made_parts();
     }
 
+    /// The vault file `name` was just made: its Unlock says why it asks.
+    pub(crate) fn set_just_made(&mut self, name: &str) {
+        self.state.just_made = Some(Text::of(name));
+    }
+
     /// The key file of a vault just made, held for the unlock at once.
     pub(crate) fn set_made_parts(&mut self, parts: Option<faraday_keys::UnlockParts>) {
         self.state.store.hold_made_parts(parts);
@@ -2331,6 +2336,9 @@ pub struct Vaults {
     pub key_outbox: Vec<(VaultId, Text)>,
     /// Whether the unlock last tried used a key file.
     pub unlock_tried: bool,
+    /// Whether the try under way used the key file held from the vault just
+    /// made or sealed, which a failed try gets back.
+    pub unlock_made: bool,
     /// The open vault on the contents screen.
     pub current: usize,
     /// The kind shown.

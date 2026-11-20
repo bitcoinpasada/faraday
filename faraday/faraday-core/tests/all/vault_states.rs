@@ -44,6 +44,17 @@ fn process_boxes(
     outbox: Files,
     kept: Files,
 ) -> Faraday {
+    process_seeded(width, height, free, (inbox, outbox, kept), true)
+}
+
+/// [`process_boxes`] where the system has given its randomness or not yet.
+fn process_seeded(
+    width: u16,
+    height: u16,
+    free: Option<u32>,
+    (inbox, outbox, kept): (Files, Files, Files),
+    seeded: bool,
+) -> Faraday {
     let mut app = Faraday::new();
     app.event(Event::Display(DisplayInfo {
         width,
@@ -69,7 +80,7 @@ fn process_boxes(
         outbox: faraday_core::files_from(outbox),
         kept: faraday_core::kept_from(kept),
     });
-    for i in 0..8u8 {
+    for i in 0..if seeded { 8u8 } else { 0 } {
         app.event(Event::Entropy(EntropyBytes::new([0x40 + i; 32])));
     }
     app.press(Action::ReduceMotion(true));
@@ -741,6 +752,113 @@ fn change_passphrase(app: &mut Faraday, first: &str, again: &str) {
     app.press(Action::Vault(V::FocusField(1)));
     type_text(app, again);
     app.press(Action::Vault(V::FormSave));
+}
+
+/// One unlock try at the Unlock that is open: `phrase` typed and pressed,
+/// run to its end.
+fn try_here(app: &mut Faraday, phrase: &str) {
+    app.press(Action::Vault(V::FocusPassphrase));
+    type_text(app, phrase);
+    app.press(Action::Vault(V::Unlock));
+    testkit::settle(app);
+}
+
+/// A vault made with a key file from Create, on its Unlock.
+fn made_with_key_file() -> Faraday {
+    let mut app = create_form(Vec::new());
+    app.press(Action::Vault(V::CKeyAsk));
+    app.press(Action::Vault(V::CKeyMake));
+    press_create(&mut app);
+    assert_eq!(app.screen, Screen::Unlock, "the vault was made");
+    assert!(app.vaults().open.is_empty(), "and is locked");
+    says_once_more(&mut app);
+    app
+}
+
+/// Unlock says to type the passphrase once more to open the vault.
+fn says_once_more(app: &mut Faraday) {
+    let _ = app.frame();
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t == EN.vault_type_the_passphrase),
+        "Unlock does not say why it asks"
+    );
+}
+
+#[test]
+fn a_wrong_passphrase_at_the_unlock_of_a_vault_just_made_with_a_key_file_keeps_its_key_file() {
+    let mut app = made_with_key_file();
+    try_here(&mut app, "wrong phrase");
+    assert!(app.vaults().open.is_empty(), "a wrong passphrase opened it");
+    assert!(
+        app.vaults().unlock_error.is_some(),
+        "and the refusal says so"
+    );
+    try_here(&mut app, "another wrong phrase");
+    assert!(app.vaults().open.is_empty());
+    try_here(&mut app, PHRASE);
+    assert_eq!(
+        app.vaults().open.len(),
+        1,
+        "the right passphrase did not open it"
+    );
+}
+
+#[test]
+fn a_changed_passphrase_of_a_key_file_vault_is_the_one_its_unlock_takes_with_the_key_file() {
+    let mut app = made_with_key_file();
+    try_here(&mut app, PHRASE);
+    assert_eq!(app.vaults().open.len(), 1);
+    app.press(Action::Nav(Screen::VaultContents));
+    crate::common::top_up(&mut app);
+    change_passphrase(&mut app, "a new phrase", "a new phrase");
+    assert!(app.vaults().open.is_empty(), "the vault is locked");
+    assert_eq!(app.screen, Screen::Unlock, "its Unlock opens");
+    says_once_more(&mut app);
+    // The old passphrase is refused, a wrong one too, and neither uses up
+    // the key file the vault was sealed with.
+    try_here(&mut app, PHRASE);
+    assert!(app.vaults().open.is_empty(), "the old passphrase opened it");
+    try_here(&mut app, "wrong phrase");
+    assert!(app.vaults().open.is_empty());
+    try_here(&mut app, "a new phrase");
+    assert_eq!(
+        app.vaults().open.len(),
+        1,
+        "the new passphrase did not open it"
+    );
+}
+
+#[test]
+fn a_changed_passphrase_that_cannot_be_sealed_yet_is_written_by_the_next_lock() {
+    let file = testkit::kdbx_vault("Main", PHRASE, 0x31, Vec::new()).unwrap();
+    // The system has given no randomness yet: nothing can be sealed.
+    let mut app = process_seeded(
+        480,
+        640,
+        Some(15_000),
+        (vec![("main.kdbx".into(), file)], Vec::new(), Vec::new()),
+        false,
+    );
+    try_unlock(&mut app, PHRASE);
+    assert_eq!(app.vaults().open.len(), 1);
+    app.press(Action::Nav(Screen::VaultContents));
+    change_passphrase(&mut app, "a new phrase", "a new phrase");
+    assert_eq!(app.vaults().open.len(), 1, "the vault stays open");
+    assert!(app.vaults().open[0].changes > 0, "the change is counted");
+    assert!(app.toast_text().is_some(), "and the refusal says why");
+    let sealed = lock_and_seal(&mut app);
+    let mut app = process(sealed.clone());
+    try_unlock(&mut app, "a new phrase");
+    assert_eq!(
+        app.vaults().open.len(),
+        1,
+        "the new passphrase did not open it"
+    );
+    let mut app = process(sealed);
+    try_unlock(&mut app, PHRASE);
+    assert!(app.vaults().open.is_empty(), "the old passphrase opened it");
 }
 
 #[test]

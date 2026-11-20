@@ -64,15 +64,13 @@ pub(crate) fn first_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         type_text(t, "first phrase");
     }
     t.press(Action::Vault(V::CGo));
-    // The vault opens with the passphrase just typed twice.
+    // The vault is made and locked: it opens with its passphrase typed once.
+    crate::tour::open_made(t, "first phrase", "first tour")?;
     for _ in 0..30 {
-        if !t.app.vaults().open.is_empty() && t.app.screen == Screen::Backup {
+        if t.app.screen == Screen::Backup {
             break;
         }
         t.tick();
-    }
-    if t.app.vaults().open.is_empty() {
-        return Err("the vault made for the first tour did not open".to_string());
     }
     scroll_to(t, Action::BVaultSave(0));
     t.shot("first-vault-save")?;

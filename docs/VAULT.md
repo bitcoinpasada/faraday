@@ -1196,7 +1196,9 @@ its earlier memory setting.
 
 **A key file is optional** (F208). Create a vault offers **Add a key file**,
 and the vault's ⋮ offers **Key file**: add, replace or remove, taking
-effect at the next seal, as a passphrase does. Either way it is **Make a
+effect at the next seal; a passphrase changed with Change passphrase is
+sealed at once and the vault closed, and the key file the vault was sealed
+with is held for its Unlock until that unlock works. Either way it is **Make a
 key file** or **Choose a file**. Making one writes KeePass's XML version 2
 (`{vault}.keyx`) holding 32 bytes of `fresh_bytes("vault key file", 32)`,
 to the Outbox through a named reveal (`docs/KEYS.md`); any file from a stick

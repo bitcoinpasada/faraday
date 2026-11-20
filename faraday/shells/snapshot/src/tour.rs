@@ -889,6 +889,34 @@ pub(crate) fn scroll(t: &mut Tour, dy: i16) {
     });
 }
 
+/// The vault just made waits locked on its Unlock: the passphrase is typed
+/// once and the vault opens. `what` names the tour for the error.
+pub(crate) fn open_made(t: &mut Tour, phrase: &str, what: &str) -> Result<(), String> {
+    let before = t.app.vaults().open.len();
+    for _ in 0..30 {
+        if t.app.screen == Screen::Unlock {
+            break;
+        }
+        t.tick();
+    }
+    if t.app.screen != Screen::Unlock {
+        return Err(format!("the vault made for the {what} did not reach its Unlock"));
+    }
+    t.press(Action::Vault(V::FocusPassphrase));
+    type_text(t, phrase);
+    t.press(Action::Vault(V::Unlock));
+    for _ in 0..30 {
+        if t.app.vaults().open.len() > before {
+            break;
+        }
+        t.tick();
+    }
+    if t.app.vaults().open.len() <= before {
+        return Err(format!("the vault made for the {what} did not open"));
+    }
+    Ok(())
+}
+
 pub(crate) fn type_text(t: &mut Tour, text: &str) {
     for c in text.chars() {
         t.app.event(Event::Key(Key::Char(c)));

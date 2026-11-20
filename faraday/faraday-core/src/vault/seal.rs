@@ -702,10 +702,12 @@ fn seal_end(app: &mut Faraday) {
     } else if let After::CreateFrom(screen) = run.after {
         app.vault_act(super::VaultAction::CreateFrom(screen));
     } else if let (After::Unlock, Some(file)) = (run.after, run.file) {
-        // Locked with its new passphrase: unlocked once with it. Nothing of
-        // the old one or the new one is kept.
+        // Locked with its new passphrase: unlocked once with it. Only the key
+        // file the vault was sealed with is held for that, until the
+        // unlock works or Unlock is left.
         if let Some(i) = app.vault_files().iter().position(|f| f.name == file) {
             app.vault_act(super::VaultAction::Open(i));
+            app.vaults.state.just_made = Some(file);
         }
     }
 }
@@ -821,6 +823,17 @@ pub(crate) fn sealed(app: &mut Faraday, done: SealDone) {
                 == Some(id)
             {
                 app.vaults.set_step_dropped();
+            }
+            // The unlock that follows takes the key file the vault was sealed
+            // with, moved out of it as it closes.
+            if app
+                .vaults
+                .state
+                .sealing
+                .as_ref()
+                .is_some_and(|r| matches!(r.after, After::Unlock))
+            {
+                app.vaults.state.store.hold_sealed_parts(id);
             }
             app.vaults.state.store.seal_ended(id, true);
             super::more::sealed(app, id);

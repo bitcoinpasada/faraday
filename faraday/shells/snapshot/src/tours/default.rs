@@ -1470,24 +1470,17 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
             )
         })?;
     faraday_vault::file::open(c, &made, &dice_phrase).map_err(|e| format!("{e:?}"))?;
-    // Made: opened at once with the passphrase typed twice, never typed again.
-    for _ in 0..30 {
-        if t.app.vaults().open.len() > before {
-            break;
-        }
-        t.tick();
+    // Made and locked: its Unlock takes the passphrase once.
+    if t.app.vaults().open.len() != before {
+        return Err("the vault just made is not locked".to_string());
     }
-    if t.app.vaults().open.len() != before + 1 {
-        return Err(format!(
-            "the vault just made did not open on its own: {:?}",
-            t.app.vaults().unlock_error
-        ));
-    }
+    t.shot("vault-made-locked")?;
+    crate::tour::open_made(t, &dice_phrase, "default tour")?;
     println!("a vault made here opens with its passphrase");
     t.shot("vault-kept-open")?;
     t.press(Action::Nav(Screen::Files));
     t.shot("files-outbox-vault-open")?;
-    println!("the vault just made opens on the passphrase typed twice");
+    println!("the vault just made opens on the passphrase typed once");
     seeds_tour(t)?;
     boot_tour(c, t)?;
     spend_tour(t)?;

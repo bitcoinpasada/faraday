@@ -144,6 +144,9 @@ pub(crate) fn runs_in_press(a: Action) -> bool {
                     | V::SaveKey(_)
                     | V::SaveKeyWithPassphrase(_)
                     | V::SaveKeyKept(..)
+                    // Save of Change passphrase starts a seal in the press
+                    // (`docs/WORKERS.md`); the action does not say which
+                    // form it saves, so every vault form's Save is here.
                     | V::FormSave
                     | V::KeepSave
                     | V::SaveWallet(_)

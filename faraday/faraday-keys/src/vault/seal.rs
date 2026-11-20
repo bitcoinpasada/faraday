@@ -486,6 +486,22 @@ impl OpenVaults {
         })
     }
 
+    /// Keeps, for the unlock that follows, the key file open vault `id` is
+    /// being sealed with (the one its seal job writes, a key file changed
+    /// by the seal included): taken from the vault, which is closed next.
+    /// Nothing is kept for a vault with no key file or not held.
+    pub fn hold_sealed_parts(&mut self, id: VaultId) {
+        let parts = self.slot(id).map(|s| {
+            let pending = if s.key_pending() {
+                None
+            } else {
+                s.new_key_file.as_ref().map(Option::as_deref)
+            };
+            crate::parts::UnlockParts(s.opened.key_components(pending))
+        });
+        self.made_parts = parts.filter(crate::parts::UnlockParts::has_key_file);
+    }
+
     /// A seal job of open vault `id` ended: with `ok` the vault is closed
     /// (its file was made); else it stays open with its changes and may
     /// be edited and sealed again.

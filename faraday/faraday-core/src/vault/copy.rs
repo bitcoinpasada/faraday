@@ -550,6 +550,7 @@ pub(crate) fn made(
     app.vaults.drop_create();
     app.vault_act(VaultAction::OpenFrom(at, Screen::VaultContents));
     app.vaults.set_made_parts(parts.take());
+    app.vaults.set_just_made(name);
     true
 }
 
