@@ -3655,6 +3655,10 @@ impl crate::flow::Contained for BackupSteps {
             .collect()
     }
 
+    fn hide_shown(&self, app: &mut Faraday) {
+        app.backup.hide_secrets();
+    }
+
     fn count_fixed(&self, _: &Faraday) -> bool {
         false
     }
@@ -3741,6 +3745,10 @@ impl crate::flow::Contained for BackupPlanSteps {
                 }
             })
             .collect()
+    }
+
+    fn hide_shown(&self, _: &mut Faraday) {
+        // The plan and the board show no secret.
     }
 
     fn count_fixed(&self, _: &Faraday) -> bool {

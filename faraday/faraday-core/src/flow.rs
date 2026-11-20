@@ -49,6 +49,11 @@ pub(crate) trait Contained: crate::trail::StepFlow {
     /// Whether the number of steps is known before the first and never
     /// changes ("Step N of M"), or grows as answers are given ("Step N").
     fn count_fixed(&self, app: &crate::Faraday) -> bool;
+    /// Turns off every "shown" switch the flow's steps hold (an eye on a
+    /// passphrase, a typed secret shown): the container calls it when a
+    /// step is left by any way out, so a step reopens with its secrets
+    /// hidden (F104). What was typed stays.
+    fn hide_shown(&self, app: &mut crate::Faraday);
     /// After step `changed` was answered again: whether the answer of step
     /// `later` still holds. The container keeps the answers that do and
     /// clears the rest; false clears every later answer.

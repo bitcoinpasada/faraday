@@ -598,6 +598,10 @@ impl crate::flow::Contained for VanitySteps {
         screen::rows(app)
     }
 
+    fn hide_shown(&self, app: &mut Faraday) {
+        app.vanity.hide_secrets();
+    }
+
     fn count_fixed(&self, _: &Faraday) -> bool {
         true
     }

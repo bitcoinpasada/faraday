@@ -570,6 +570,10 @@ impl crate::flow::Contained for KefToolSteps {
             .collect()
     }
 
+    fn hide_shown(&self, app: &mut crate::Faraday) {
+        hide(app);
+    }
+
     fn count_fixed(&self, _: &Faraday) -> bool {
         true
     }

@@ -558,6 +558,12 @@ impl VaultArea {
         self.state.drop_shown();
     }
 
+    /// The typed secret (the unlock passphrase, a prompt's answer) shown
+    /// hidden again; what was typed stays.
+    pub(crate) fn hide_typed(&mut self) {
+        self.state.typed_shown = false;
+    }
+
     /// The secrets shown hidden once the place they were shown is left,
     /// `on_page` whether the item page is on screen with no sheet over it
     /// ([`Vaults::shown`]'s invariant). A walk of the record list while
@@ -2196,6 +2202,10 @@ impl crate::flow::Contained for CreateVaultSteps {
             }
         })
         .collect()
+    }
+
+    fn hide_shown(&self, app: &mut crate::Faraday) {
+        app.vaults.hide_on_leaving_step();
     }
 
     fn count_fixed(&self, _: &crate::Faraday) -> bool {

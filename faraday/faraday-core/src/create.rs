@@ -2643,6 +2643,10 @@ impl crate::flow::Contained for CreateSteps {
 
     // The whole count is known once the Keys card is in the list; before,
     // the title reads the step alone.
+    fn hide_shown(&self, app: &mut crate::Faraday) {
+        app.typing.pass_eye.close();
+    }
+
     fn count_fixed(&self, app: &crate::Faraday) -> bool {
         app.create_cards().contains(&cstep::KEYS)
     }

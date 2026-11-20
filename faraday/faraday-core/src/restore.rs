@@ -705,6 +705,11 @@ impl crate::flow::Contained for RestoreSteps {
             .collect()
     }
 
+    fn hide_shown(&self, app: &mut crate::Faraday) {
+        // No step of this flow shows a secret.
+        let _ = app;
+    }
+
     fn count_fixed(&self, _: &Faraday) -> bool {
         false
     }

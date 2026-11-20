@@ -724,6 +724,10 @@ impl crate::flow::Contained for MsSteps {
             .collect()
     }
 
+    fn hide_shown(&self, app: &mut crate::Faraday) {
+        app.typing.pass_eye.close();
+    }
+
     fn count_fixed(&self, _: &Faraday) -> bool {
         true
     }

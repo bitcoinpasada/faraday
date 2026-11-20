@@ -159,6 +159,8 @@ fn slip_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Convert(C::Make));
     t.tick();
     t.press(Action::Convert(C::Make));
+    t.tick();
+    t.tick();
     t.press(Action::Convert(C::Show));
     t.shot("convert-slip-result")?;
     let share = convert::shown_parts(&t.app).ok_or("no shares")?[4].to_string();

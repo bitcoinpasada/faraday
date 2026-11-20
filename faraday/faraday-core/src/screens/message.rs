@@ -111,6 +111,10 @@ impl crate::flow::Contained for MessageSteps {
             .collect()
     }
 
+    fn hide_shown(&self, _: &mut crate::Faraday) {
+        // The message and its signature are public: nothing is shown behind an eye.
+    }
+
     fn count_fixed(&self, _: &crate::Faraday) -> bool {
         true
     }

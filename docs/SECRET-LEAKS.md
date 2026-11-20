@@ -204,6 +204,12 @@ the check reads:
   whose screen held a secret and that is still kept after the event is a
   hit.
 
+A flow on the container hides what a step shows when the step is left by
+any way out (Back, Next, the pane, a row of Your choices, the sheet): the
+container calls the flow's `Contained::hide_shown` on every step change,
+at the end of the live fade out for a step with a secret, so the step
+reopens with its eye off (`tests/all/flow_hide_shown.rs`).
+
 The tours plant the §3 secrets in the sessions that open a secret
 screen. A hit fails the tour and names the tour, the step and the form.
 What stays rightly shown is not a hit, and a step that only looks like

@@ -73,7 +73,11 @@ A flow hands the container, each frame, what only the flow knows:
   so the person goes straight forward to where they were. A running step
   takes no press on a row and no Back; after a point the flow cannot take
   back, the rows before it take no press. A secret shown on a step is
-  hidden when the step is left (F104). Cancel still leaves the flow (F51).
+  hidden when the step is left (F104), by any way out (Back, Next, the
+  pane, a row of Your choices, the sheet): the container calls the flow's
+  `Contained::hide_shown`, which every flow implements, and a step reopens
+  with its eye off and what was typed kept. Cancel still leaves the flow
+  (F51).
 - **F103** stands: a card that asks one thing moves on by itself on the
   choice; the move is the fade.
 
@@ -120,7 +124,7 @@ card. A step's blend touches only the bands that differ.
   `flow::container`'s outgoing card): a Lock, the idle lock or Cancel
   during it ends it at the next frame drawn (a Lock clears the form
   itself). The release at the end
-  of the fade out (the vault's eye hides, `VaultArea::hide_on_leaving_step`)
+  of the fade out (the flow's `Contained::hide_shown` runs)
   runs at the first frame drawn after it, and the fade asks for a frame on
   every tick; the outgoing card takes no press, field or focus.
 - A step opening no longer grows its height (MOTION §3.5's 300 ms open on

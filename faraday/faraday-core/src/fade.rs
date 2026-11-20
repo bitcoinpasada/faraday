@@ -448,7 +448,7 @@ impl Faraday {
         // choices): what it showed is hidden now (F104).
         if open.is_some() && open_before.is_some() && open_before != open {
             self.fade.release_owed = false;
-            self.vaults.hide_on_leaving_step();
+            self.hide_step_shown();
         }
         // The frame before showed a secret, typed or shown: it is
         // not kept, and any fade under way ends where it is.
@@ -505,12 +505,20 @@ impl Faraday {
         motion::step_fade(t).0.then_some(out)
     }
 
+    /// Every secret the open flow's step showed is hidden: the container's
+    /// rule for a step left by any way out (`docs/FLOW-CONTAINER.md` §3).
+    fn hide_step_shown(&mut self) {
+        if let Some(f) = self.step_flow().and_then(|f| f.contained()) {
+            f.hide_shown(self);
+        }
+    }
+
     /// What the step left showed is hidden when the fade out ends, which
     /// is at the next frame once `Self::live_out` is `None`.
     fn live_settle(&mut self) {
         if self.fade.release_owed && self.live_out().is_none() {
             self.fade.release_owed = false;
-            self.vaults.hide_on_leaving_step();
+            self.hide_step_shown();
         }
     }
 
@@ -521,7 +529,7 @@ impl Faraday {
         self.fade.end();
         self.fade.last_drawn = Some(key);
         if std::mem::take(&mut self.fade.release_owed) {
-            self.vaults.hide_on_leaving_step();
+            self.hide_step_shown();
         }
         if self.fades() {
             self.fade.counts.started += 1;
@@ -529,7 +537,7 @@ impl Faraday {
             self.fade.release_owed = true;
         } else {
             self.fade.counts.reduced += 1;
-            self.vaults.hide_on_leaving_step();
+            self.hide_step_shown();
         }
     }
 

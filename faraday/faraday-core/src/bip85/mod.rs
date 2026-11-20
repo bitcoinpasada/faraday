@@ -812,6 +812,10 @@ impl crate::flow::Contained for Bip85Steps {
             .collect()
     }
 
+    fn hide_shown(&self, app: &mut Faraday) {
+        app.bip85.hide_secrets();
+    }
+
     fn count_fixed(&self, _: &Faraday) -> bool {
         true
     }

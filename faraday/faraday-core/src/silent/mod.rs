@@ -736,6 +736,10 @@ impl crate::flow::Contained for SilentSteps {
         screen::rows(app)
     }
 
+    fn hide_shown(&self, _: &mut Faraday) {
+        // The page shows public keys and addresses: nothing is shown behind an eye.
+    }
+
     fn count_fixed(&self, _: &Faraday) -> bool {
         true
     }
