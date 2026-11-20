@@ -44,14 +44,11 @@ pub struct EntryState {
     pub refused: bool,
     /// Where to go once the key is added.
     pub back: Option<Screen>,
-    /// The BIP-39 passphrase, when one is typed.
-    pub passphrase: secret_text::SecretText,
-    /// The passphrase typed again, where it is asked twice ([`EntryState::pair`]).
-    pub again: secret_text::SecretText,
+    /// The BIP-39 passphrase, when one is typed, and the one typed again
+    /// where it is asked twice ([`EntryState::pair`]).
+    pub(crate) passphrase: crate::pass_field::PassField,
     /// Typing goes to the passphrase rather than the words.
     pub on_passphrase: bool,
-    /// With `on_passphrase`: typing goes to the passphrase typed again.
-    pub on_again: bool,
     /// Which form of key is being typed.
     pub form: forms::Form,
     /// The BIP-39 list the words are typed from, by its place in
@@ -103,7 +100,15 @@ impl EntryState {
     /// The passphrase is asked twice and the two differ: the key waits.
     pub fn differs(&self) -> bool {
         self.pair()
-            && crate::pass_field::pair::differ(self.passphrase.as_str(), self.again.as_str())
+            && crate::pass_field::pair::differ(
+                self.passphrase.as_str(),
+                self.passphrase.again_str(),
+            )
+    }
+
+    /// The passphrase typed.
+    pub fn passphrase(&self) -> &str {
+        self.passphrase.as_str()
     }
 
     /// The word counts a BIP-39 key can have.
@@ -147,7 +152,7 @@ impl EntryState {
         }
         // Kept until an event forgets it: worked out once, by the frame
         // that asks first.
-        let r = faraday_keys::identity::fingerprint_of_mnemonic(c, m, &self.passphrase)
+        let r = faraday_keys::identity::fingerprint_of_mnemonic(c, m, self.passphrase.borrow())
             .map_err(|e| crate::wallet::Refusal::Words(faraday_text::Text::of(&e)).text());
         *self.probe.borrow_mut() = Some(r.clone());
         r
@@ -193,6 +198,11 @@ impl EntryArea {
     /// The entry's state.
     pub(crate) fn state(&self) -> &EntryState {
         &self.state
+    }
+
+    /// Runs `f` on the passphrase field.
+    pub(crate) fn with_pass(&mut self, f: &mut dyn FnMut(&mut crate::pass_field::PassField)) {
+        f(&mut self.state.passphrase);
     }
 
     /// Forgets everything typed and chosen.
@@ -291,12 +301,12 @@ impl EntryArea {
 
     /// Puts `pass` in as the passphrase.
     pub(crate) fn set_passphrase(&mut self, pass: &str) {
-        self.state.passphrase.set(pass);
+        self.state.passphrase.fill_first(pass);
     }
 
     /// Puts `pass` in as the passphrase's repeat.
     pub(crate) fn set_again(&mut self, pass: &str) {
-        self.state.again.set(pass);
+        self.state.passphrase.fill_again(pass);
     }
 
     /// Takes the on-screen keyboard's words away.
@@ -384,7 +394,7 @@ impl EntryArea {
     /// focus and the chip is gone.
     pub(crate) fn focus_words(&mut self) {
         self.state.on_passphrase = false;
-        self.state.on_again = false;
+        self.state.passphrase.set_on_again(false);
         self.state.sample.dismiss();
     }
 
@@ -397,14 +407,14 @@ impl EntryArea {
     /// was open and not on its repeat.
     pub(crate) fn toggle_passphrase(&mut self) {
         let e = &mut self.state;
-        e.on_passphrase = !(e.on_passphrase && !e.on_again);
-        e.on_again = false;
+        e.on_passphrase = !(e.on_passphrase && !e.passphrase.on_again());
+        e.passphrase.set_on_again(false);
     }
 
     /// The passphrase's repeat has the focus.
     pub(crate) fn focus_again(&mut self) {
         self.state.on_passphrase = true;
-        self.state.on_again = true;
+        self.state.passphrase.set_on_again(true);
     }
 
     /// The chip inside the field is gone for the visit.
@@ -586,39 +596,37 @@ impl EntryArea {
     }
 
     /// A key while the passphrase field has the keyboard. Enter says
-    /// what to do with the words or parts typed.
-    pub(crate) fn passphrase_key(&mut self, key: faraday_shell_api::Key) -> Keyed {
+    /// what to do with the words or parts typed. A character and Backspace
+    /// are the field's, with the stick rule (`gate`); where one is refused
+    /// the field says why.
+    pub(crate) fn passphrase_key(
+        &mut self,
+        key: faraday_shell_api::Key,
+        gate: crate::pass_field::Gate,
+        medium: crate::Medium,
+    ) -> Keyed {
+        use crate::pass_field::PassKey;
         use faraday_shell_api::Key as K;
         let e = &mut self.state;
-        let mut to = Keyed::Taken;
-        let (pair, second) = (e.pair(), e.on_again);
+        let (pair, second) = (e.pair(), e.passphrase.on_again());
         match key {
-            // BIP-39 passphrases here are printable ASCII (BIP-39's seed derivation).
-            K::Char(c) if (' '..='~').contains(&c) && second => e.again.push(c),
-            K::Char(c) if (' '..='~').contains(&c) => e.passphrase.push(c),
-            // Anything else is refused, and the field says so
-            // (`docs/STANDARDS.md`).
-            K::Char(c) if !c.is_control() => {
-                e.error = Some(faraday_text::Text::of(ascii_refused()));
-                e.refused = true;
-            }
-            K::Backspace if second => {
-                e.again.pop();
-            }
-            K::Backspace => {
-                e.passphrase.pop();
+            K::Char(_) | K::Backspace => {
+                if let PassKey::Refused(why) = e.passphrase.key(key, gate) {
+                    e.error = Some(crate::pass_field::refused_text(medium, why));
+                    e.refused = true;
+                }
             }
             // The first field's Enter and Tab move to the second.
-            K::Enter | K::Tab if pair && !second => e.on_again = true,
-            K::Enter if e.form == Form::Words => to = Keyed::Add,
-            K::Enter => to = Keyed::Recover,
+            K::Enter | K::Tab if pair && !second => e.passphrase.set_on_again(true),
+            K::Enter if e.form == Form::Words => return Keyed::Add,
+            K::Enter => return Keyed::Recover,
             K::Escape | K::Tab => {
                 e.on_passphrase = false;
-                e.on_again = false;
+                e.passphrase.set_on_again(false);
             }
             _ => {}
         }
-        to
+        Keyed::Taken
     }
 
     /// Forgets the last refusal, but the passphrase field's refusal of
@@ -1791,7 +1799,7 @@ impl Faraday {
             Form::Slip39 => faraday_keys::slip39_seed(
                 &c,
                 &self.entry.state().parts.slip39,
-                self.entry.state().passphrase.as_bytes(),
+                self.entry.state().passphrase.as_str().as_bytes(),
             )
             .map_err(|e| {
                 faraday_text::Text::fill(
@@ -1844,7 +1852,13 @@ impl Faraday {
                     }
                     self.session
                         .keys
-                        .add_words_with(&c, &phrase, &self.entry.state().passphrase, label, None)
+                        .add_words_with(
+                            &c,
+                            &phrase,
+                            self.entry.state().passphrase.borrow(),
+                            label,
+                            None,
+                        )
                         .map_err(|e| e.text())
                 }),
             // Words are loaded as words (`Faraday::typed_load`), a Krux code
@@ -2105,8 +2119,7 @@ impl crate::at_lock::AtLock for EntryArea {
         crate::at_lock::Holds::typed(
             !e.typed.is_empty()
                 || e.parts.holds_any()
-                || !e.passphrase.is_empty()
-                || !e.again.is_empty()
+                || e.passphrase.holds_any()
                 || e.keys.as_deref().is_some_and(|k| k.holds_any()),
         )
     }
