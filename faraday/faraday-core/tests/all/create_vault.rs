@@ -305,8 +305,8 @@ fn customise_opens_the_two_cards_and_a_custom_memory_survives_continue() {
         Some(vstep::WHERE)
     );
     assert!(
-        app.offers(Action::Vault(V::CStep(vstep::COST))),
-        "Customise shows the unlock cost"
+        !app.offers(Action::Vault(V::CStep(vstep::COST))),
+        "the unlock cost, not reached yet, takes no press"
     );
     assert!(
         !app.offers(Action::Vault(V::CStep(vstep::PRESET))),
@@ -762,4 +762,55 @@ fn on_a_low_wide_window_your_choices_scrolls_within_itself() {
     assert_eq!(c.scroll.y, page, "the page did not move");
     let last = drawn_at(&mut app, "Goes to").expect("the pane's last line is on screen");
     assert!(last.1 + last.3 <= 600, "inside the window: {last:?}");
+}
+
+#[test]
+fn a_cost_stays_while_it_fits_the_machines_and_is_cleared_when_it_does_not() {
+    use faraday_core::vault::{CUSTOM_MEMORY, vstep};
+    let mut app = on_create_vault();
+    app.press(Action::Vault(V::CStep(vstep::PRESET)));
+    app.press(Action::Vault(V::CCustomise));
+    app.press(Action::Vault(V::CNext(vstep::WHERE)));
+    let k = CUSTOM_MEMORY.iter().position(|m| *m == 512).unwrap();
+    app.press(Action::Vault(V::CMemory(k)));
+    app.press(Action::Vault(V::CNext(vstep::COST)));
+    // Back to Opens on.
+    app.press(Action::Vault(V::CStep(vstep::WHERE)));
+    let _ = app.frame();
+    app.press(Action::Vault(V::CHere));
+    app.press(Action::Vault(V::CMachine(3)));
+    let form = app.vaults().create.as_ref().unwrap();
+    assert!(
+        form.done[usize::from(vstep::COST)],
+        "512 MiB still fits PCs"
+    );
+    // A Raspberry Pi Zero 2 W opens 256 MiB at most.
+    app.press(Action::Vault(V::CMachine(4)));
+    let form = app.vaults().create.as_ref().unwrap();
+    assert!(
+        !form.done[usize::from(vstep::COST)],
+        "512 MiB no longer fits a Pi Zero 2 W: its step is to be gone through again"
+    );
+    app.press(Action::Vault(V::CNext(vstep::WHERE)));
+    assert_eq!(
+        app.vaults().create.as_ref().unwrap().open,
+        Some(vstep::COST),
+        "the cost is asked again"
+    );
+}
+
+#[test]
+fn a_new_size_keeps_the_passphrases_typed() {
+    use faraday_core::vault::vstep;
+    let mut app = on_create_vault();
+    app.press(Action::Vault(V::CFocus(0, false)));
+    type_text(&mut app, "test phrase");
+    app.press(Action::Vault(V::CFocus(0, true)));
+    type_text(&mut app, "test phrase");
+    app.press(Action::Vault(V::CStep(vstep::PRESET)));
+    let _ = app.frame();
+    app.press(Action::Vault(V::CSizeRow(0)));
+    let form = app.vaults().create.as_ref().unwrap();
+    assert_eq!(form.phrases[0].0.text, "test phrase");
+    assert_eq!(form.phrases[0].1.text, "test phrase");
 }

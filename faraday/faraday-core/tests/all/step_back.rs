@@ -446,3 +446,68 @@ fn restore_steps_back_to_its_first_step_by_the_arrow_escape_and_the_mouse_back_a
         assert_eq!(restore_open(&app), Some(KIND), "way {way}");
     }
 }
+
+/// Create a vault on a wide window, where Your choices stands beside the
+/// step.
+fn create_a_vault_wide() -> Faraday {
+    let mut app = crate::common::process(Vec::new(), Vec::new(), Vec::new());
+    app.event(Event::Display(faraday_shell_api::DisplayInfo {
+        width: 1366,
+        height: 1000,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: faraday_shell_api::SecureHardware::None,
+        boot: faraday_shell_api::BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Create));
+    let _ = app.frame();
+    app
+}
+
+#[test]
+fn a_row_of_your_choices_opens_its_step_and_the_name_row_comes_back_with_the_passphrase() {
+    let mut app = create_a_vault_wide();
+    app.press(Action::Vault(V::CFocus(0, false)));
+    type_text(&mut app, "orange harbour");
+    let _ = app.frame();
+    assert!(app.offers(Action::Vault(V::CStep(vstep::PRESET))));
+    app.press(Action::Vault(V::CStep(vstep::PRESET)));
+    assert_eq!(vault_open(&app), Some(vstep::PRESET));
+    let _ = app.frame();
+    assert!(
+        app.offers(Action::Vault(V::CStep(vstep::PHRASES))),
+        "the name and passphrase row goes straight forward"
+    );
+    app.press(Action::Vault(V::CStep(vstep::PHRASES)));
+    assert_eq!(vault_open(&app), Some(vstep::PHRASES));
+    let form = app.vaults().create.as_ref().unwrap();
+    assert_eq!(form.phrases[0].0.text, "orange harbour");
+}
+
+#[test]
+fn the_row_of_the_step_open_takes_no_press_and_no_step_closes() {
+    let mut app = create_a_vault_wide();
+    assert!(!app.offers(Action::Vault(V::CStep(vstep::PHRASES))));
+    app.press(Action::Vault(V::CStep(vstep::PHRASES)));
+    assert_eq!(vault_open(&app), Some(vstep::PHRASES));
+}
+
+#[test]
+fn while_a_vault_is_made_no_row_takes_a_press() {
+    let mut app = create_a_vault_wide();
+    let phrase = "orange harbour lantern quietly";
+    app.press(Action::Vault(V::CFocus(0, false)));
+    type_text(&mut app, phrase);
+    app.press(Action::Vault(V::CFocus(0, true)));
+    type_text(&mut app, phrase);
+    testkit::press_on_worker(&mut app, Action::Vault(V::CGo));
+    assert!(app.vaults().working.is_some(), "the vault is being made");
+    let _ = app.frame();
+    assert!(!app.offers(Action::Vault(V::CStep(vstep::PRESET))));
+    assert_eq!(vault_open(&app), Some(vstep::PHRASES));
+}

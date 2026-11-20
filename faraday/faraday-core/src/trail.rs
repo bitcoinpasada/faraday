@@ -277,6 +277,9 @@ pub(crate) struct Steps {
     /// The open step is running (a vault being made, a search): it takes
     /// no Back.
     pub(crate) running: bool,
+    /// The steps answered, by the flow's own numbers: a row after the
+    /// open step takes a press while its step and every step between are.
+    pub(crate) answered: Vec<u8>,
 }
 
 impl Steps {
@@ -288,6 +291,7 @@ impl Steps {
             open,
             first: None,
             running: false,
+            answered: Vec::new(),
         }
     }
 

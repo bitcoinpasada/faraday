@@ -2150,6 +2150,12 @@ impl crate::trail::StepFlow for CreateVaultSteps {
         let mut s = crate::trail::Steps::new(c.steps().to_vec(), c.open);
         // The vault being made takes no Back.
         s.running = app.vaults.working == Some(Work::Create);
+        s.answered = c
+            .steps()
+            .iter()
+            .copied()
+            .filter(|&k| c.done[usize::from(k)])
+            .collect();
         Some(s)
     }
 
@@ -2209,6 +2215,10 @@ impl crate::flow::Contained for CreateVaultSteps {
 
     fn count_fixed(&self, _: &crate::Faraday) -> bool {
         true
+    }
+
+    fn still_fits(&self, app: &crate::Faraday, _changed: u8, later: u8) -> bool {
+        app.vaults.create_later_fits(later)
     }
 }
 
@@ -2870,6 +2880,19 @@ impl Vaults {
             CUSTOM => (CUSTOM, c.memory, CREATE_PASSES),
             k => (k, PRESETS[k].1, PRESETS[k].2),
         })
+    }
+
+    /// Whether the answer of Create's step `later` still holds after an
+    /// earlier one changed: the unlock cost while its memory is within
+    /// what the machines chosen can open; the passphrases and the name
+    /// always.
+    pub(crate) fn create_later_fits(&self, later: u8) -> bool {
+        match later {
+            vstep::COST => self
+                .form_cost()
+                .is_none_or(|(_, memory, _)| memory <= self.weakest().1),
+            _ => true,
+        }
     }
 
     /// Whether typing at `focus` is a secret: a passphrase, a

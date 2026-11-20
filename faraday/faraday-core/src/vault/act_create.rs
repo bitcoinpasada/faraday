@@ -12,7 +12,12 @@ impl VaultArea {
         match a {
             V::CStep(k) => {
                 if let Some(c) = self.state.create.as_mut() {
-                    c.open = if c.open == Some(k) { None } else { Some(k) };
+                    // A step left with the passphrases open has been reached:
+                    // a press on its row comes back to it as it was left.
+                    if c.open == Some(vstep::PHRASES) && k != vstep::PHRASES {
+                        c.done[usize::from(vstep::PHRASES)] = true;
+                    }
+                    c.open = Some(k);
                     c.scroll.follow = true;
                     if c.open == Some(vstep::PHRASES) {
                         self.state.focus = Some(Focus::Phrase(0, false));
@@ -27,7 +32,19 @@ impl VaultArea {
                     && usize::from(k) < vstep::COUNT
                 {
                     c.done[k as usize] = true;
-                    c.open = c.steps().iter().copied().find(|&i| !c.done[i as usize]);
+                    // The first step not done; with all done, the one after
+                    // this, or this one: a step is always open.
+                    let order = c.steps();
+                    let after = order
+                        .iter()
+                        .position(|&i| i == k)
+                        .and_then(|p| order.get(p + 1));
+                    c.open = order
+                        .iter()
+                        .copied()
+                        .find(|&i| !c.done[i as usize])
+                        .or(after.copied())
+                        .or(Some(k));
                     c.scroll.follow = true;
                     c.error = None;
                     if c.open == Some(vstep::PHRASES) {
@@ -40,6 +57,7 @@ impl VaultArea {
                     c.not_here = !c.not_here;
                     c.error = None;
                 }
+                self.keep_what_fits(vstep::WHERE);
             }
             V::CMachine(k) => {
                 if let Some(c) = self.state.create.as_mut()
@@ -48,12 +66,14 @@ impl VaultArea {
                     c.on[k] = !c.on[k];
                     c.error = None;
                 }
+                self.keep_what_fits(vstep::WHERE);
             }
             V::CPreset(k) => {
                 if let Some(c) = self.state.create.as_mut() {
                     c.preset = Some(k.min(CUSTOM));
                     c.error = None;
                 }
+                self.keep_what_fits(vstep::COST);
             }
             V::CSizeRow(k) => {
                 if let Some(c) = self.state.create.as_mut()
@@ -99,5 +119,32 @@ impl VaultArea {
             _ => return false,
         }
         true
+    }
+}
+
+impl VaultArea {
+    /// After the answer of step `changed` was given again: the later
+    /// answers that no longer fit are cleared, their steps to be gone
+    /// through again (`docs/FLOW-CONTAINER.md` §1). The passphrases and
+    /// the name always fit; the unlock cost fits while its memory is
+    /// within what the machines chosen can open. A new size sets both
+    /// steps and clears none.
+    fn keep_what_fits(&mut self, changed: u8) {
+        let Some(c) = self.state.create.as_ref() else {
+            return;
+        };
+        let later: Vec<u8> = c
+            .steps()
+            .iter()
+            .copied()
+            .skip_while(|&s| s != changed)
+            .skip(1)
+            .filter(|&k| !self.state.create_later_fits(k))
+            .collect();
+        if let Some(c) = self.state.create.as_mut() {
+            for k in later {
+                c.done[usize::from(k)] = false;
+            }
+        }
     }
 }
