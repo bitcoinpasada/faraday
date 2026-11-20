@@ -1625,3 +1625,85 @@ fn a_malformed_or_wrong_network_xpub_typed_is_refused() {
     assert_eq!(app.create().unwrap().slots[0], Source::Empty);
     assert!(app.create().unwrap().xpub_note.is_some(), "it says why");
 }
+
+/// A fresh app on a window `width` x `height` px at 160 dpi, on Make a new
+/// wallet.
+fn create_on(width: u16, height: u16) -> Faraday {
+    use faraday_shell_api::{BootState, DisplayInfo, SecureHardware};
+    let mut app = Faraday::new();
+    app.event(Event::Display(DisplayInfo {
+        width,
+        height,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.press(Action::CreateWallet);
+    assert_eq!(app.screen, Screen::Create);
+    let _ = app.frame();
+    app
+}
+
+fn shown(app: &mut Faraday) -> Vec<String> {
+    let _ = app.frame();
+    app.drawn_text_boxes()
+        .plain()
+        .into_iter()
+        .map(|(t, _)| t)
+        .collect()
+}
+
+#[test]
+fn one_step_is_on_the_page_at_a_time_and_kind_is_gone_after_its_choice() {
+    // A narrow window has no pane: only the open step's card is drawn.
+    let mut app = create_on(683, 768);
+    assert!(shown(&mut app).iter().any(|t| t == "Kind"));
+    app.press(Action::CKind(0));
+    let texts = shown(&mut app);
+    assert!(!texts.iter().any(|t| t == "Kind"), "{texts:?}");
+    assert!(texts.iter().any(|t| t == "Backup"), "{texts:?}");
+}
+
+#[test]
+fn the_heading_counts_the_step_alone_until_keys_is_a_step() {
+    let mut app = create_on(683, 768);
+    app.press(Action::CKind(0));
+    let texts = shown(&mut app);
+    assert!(texts.iter().any(|t| t == "Step 2"), "{texts:?}");
+    app.press(Action::CBackupForm(
+        faraday_core::create::BackupForm::Words.index(),
+    ));
+    let texts = shown(&mut app);
+    assert!(texts.iter().any(|t| t == "Step 3 of 4"), "{texts:?}");
+}
+
+#[test]
+fn your_choices_lists_the_answers_and_a_press_on_kind_reopens_it() {
+    let mut app = create_on(1366, 768);
+    app.press(Action::CKind(0));
+    let texts = shown(&mut app);
+    for want in ["Your choices", "Kind", "Backup"] {
+        assert!(texts.iter().any(|t| t == want), "{want}: {texts:?}");
+    }
+    let kind = app.create().map(|c| c.kind);
+    app.press(Action::CStep(cstep::KIND));
+    assert_eq!(app.create().and_then(|c| c.open), Some(cstep::KIND));
+    assert_eq!(app.create().map(|c| c.kind), kind, "its choice as it was");
+}
+
+#[test]
+fn the_bars_your_choices_opens_the_sheet_on_a_small_panel() {
+    use faraday_core::{ChoicesPress, Sheet};
+    let mut app = create_on(480, 640);
+    app.press(Action::CKind(0));
+    app.press(Action::Choices(ChoicesPress::Open));
+    assert_eq!(app.sheet, Some(Sheet::Choices));
+    app.press(Action::Choices(ChoicesPress::Row(cstep::KIND)));
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.create().and_then(|c| c.open), Some(cstep::KIND));
+}

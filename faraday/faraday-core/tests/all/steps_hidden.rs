@@ -12,57 +12,55 @@ fn offered(app: &mut Faraday, cards: &[u8], press: fn(u8) -> Action) -> Vec<bool
     cards.iter().map(|&k| app.offers(press(k))).collect()
 }
 
+/// Whether Kind's first row is offered, as the flow draws now.
+fn kind_row(app: &mut Faraday) -> bool {
+    let _ = app.frame();
+    app.offers(Action::CKind(0))
+}
+
 #[test]
 fn make_a_new_wallet_opens_with_kind_alone() {
     let mut app = testkit::started();
     app.press(Action::CreateWallet);
     assert_eq!(app.screen, Screen::Create);
-    assert!(crate::common::offered(&mut app, Action::CStep(cstep::KIND)));
+    assert!(kind_row(&mut app), "Kind's choices are on the page");
+    assert_eq!(app.create_cards(), vec![cstep::KIND]);
+    // No step, closed or not, is listed on the page.
     for k in [cstep::QUORUM, cstep::KEYS, cstep::CHECK, cstep::BACKUP_FORM] {
         assert!(!crate::common::offered(&mut app, Action::CStep(k)));
     }
 }
 
 #[test]
-fn make_a_new_wallet_after_a_kind_shows_kind_and_the_open_step_only() {
+fn make_a_new_wallet_after_a_kind_shows_the_open_step_only() {
     let mut app = testkit::started();
     app.press(Action::CreateWallet);
     app.press(Action::CKind(0));
-    let cards = app.create_cards();
     let open = app.create().and_then(|c| c.open).expect("a step is open");
-    let at = cards.iter().position(|&k| k == open).unwrap();
-    assert!(at >= 1, "the open step follows Kind");
-    let shown = offered(&mut app, &cards, Action::CStep);
-    for (i, on) in shown.iter().enumerate() {
-        assert_eq!(
-            *on,
-            i <= at,
-            "card {i} of {} with step {at} open",
-            cards.len()
-        );
-    }
     // Backup is the open step and is the last one there is for now.
     assert_eq!(open, cstep::BACKUP_FORM);
-    assert_eq!(at + 1, cards.len(), "nothing after Backup yet");
-    // Kind can be changed from where it stands.
-    app.press(Action::CStep(cstep::KIND));
-    let shown = offered(&mut app, &cards, Action::CStep);
-    assert!(shown[0]);
-    assert!(shown[at], "the step already reached stays");
-    // With Backup answered, Keys is open and the steps after it are not
-    // drawn.
+    assert_eq!(app.create_cards().last(), Some(&cstep::BACKUP_FORM));
+    assert!(!kind_row(&mut app), "Kind is no longer on the page");
+    let _ = app.frame();
+    assert!(app.offers(Action::CBackupForm(
+        faraday_core::create::BackupForm::Words.index()
+    )));
+    // Kind can be changed from Your choices, and stands as it was.
+    app.press(Action::Choices(faraday_core::ChoicesPress::Row(
+        cstep::KIND,
+    )));
+    assert_eq!(app.create().and_then(|c| c.open), Some(cstep::KIND));
+    assert!(kind_row(&mut app));
+    // With Backup answered, Keys is open and Kind and Backup are off the
+    // page.
+    app.press(Action::CKind(0));
     app.press(Action::CBackupForm(
         faraday_core::create::BackupForm::Words.index(),
     ));
-    let cards = app.create_cards();
     let open = app.create().and_then(|c| c.open).expect("a step is open");
     assert_eq!(open, cstep::KEYS);
-    let at = cards.iter().position(|&k| k == open).unwrap();
-    let shown = offered(&mut app, &cards, Action::CStep);
-    for (i, on) in shown.iter().enumerate() {
-        assert_eq!(*on, i <= at, "card {i} with Keys open");
-    }
-    assert!(at + 1 < cards.len(), "a later step is left unshown");
+    assert!(!kind_row(&mut app));
+    assert_eq!(app.create_cards().last(), Some(&cstep::CHECK));
 }
 
 #[test]

@@ -1405,7 +1405,9 @@ impl CreateArea {
         match action {
             Action::CStep(k) => {
                 if let Some(c) = self.state.as_mut() {
-                    c.open = if c.open == Some(k) { None } else { Some(k) };
+                    // A row of Your choices opens its step; the one open
+                    // stays open.
+                    c.open = Some(k);
                     c.scroll.follow = true;
                 }
             }
@@ -2578,6 +2580,22 @@ impl crate::trail::StepFlow for CreateSteps {
         if c.built.is_some() {
             s.first = Some(cstep::CHECK);
         }
+        // Kind, Quorum and the backup form carry a default: it stands
+        // as an answer.
+        s.answered = s
+            .order
+            .iter()
+            .copied()
+            .filter(|&k| {
+                app.create_card_done(k)
+                    || match k {
+                        cstep::KIND => !c.kind_unchosen,
+                        cstep::QUORUM => true,
+                        cstep::BACKUP_FORM => c.backup.is_some(),
+                        _ => false,
+                    }
+            })
+            .collect();
         Some(s)
     }
 
@@ -2588,6 +2606,92 @@ impl crate::trail::StepFlow for CreateSteps {
     fn name(&self, _: &crate::Faraday, k: u8) -> &'static str {
         crate::screens::CSTEPS[usize::from(k)]
     }
+
+    fn contained(&self) -> Option<&dyn crate::flow::Contained> {
+        Some(self)
+    }
+}
+
+impl crate::flow::Contained for CreateSteps {
+    fn rows(&self, app: &crate::Faraday) -> Vec<crate::flow::Row> {
+        let Some(c) = app.create.state() else {
+            return Vec::new();
+        };
+        app.create_cards()
+            .into_iter()
+            .map(|k| {
+                // Kind, Quorum and the backup form carry a default: the
+                // row shows it before the step is reached.
+                let reached = app.create_card_done(k) || c.open == Some(k);
+                let has = match k {
+                    cstep::KIND => !c.kind_unchosen,
+                    cstep::QUORUM => true,
+                    cstep::BACKUP_FORM => c.backup.is_some(),
+                    cstep::CHECK => c.built.is_some(),
+                    _ => reached,
+                };
+                crate::flow::Row {
+                    label: crate::screens::CSTEPS[usize::from(k)],
+                    value: has.then(|| card_summary(app, k)),
+                    mono: false,
+                    opens: k,
+                    current: c.open == Some(k),
+                }
+            })
+            .collect()
+    }
+
+    // The whole count is known once the Keys card is in the list; before,
+    // the title reads the step alone.
+    fn count_fixed(&self, app: &crate::Faraday) -> bool {
+        app.create_cards().contains(&cstep::KEYS)
+    }
+
+    // Changing an earlier answer clears none of the later ones: the act
+    // code keeps them (a slot a new kind no longer fits is emptied there).
+    fn still_fits(&self, _: &crate::Faraday, _changed: u8, _later: u8) -> bool {
+        true
+    }
+}
+
+/// The answer of Make a new wallet's step `k`, with the account on the
+/// step that carries the Account row (F98).
+fn card_summary(app: &crate::Faraday, k: u8) -> Text {
+    let Some(c) = app.create.state() else {
+        return Text::default();
+    };
+    let filled = c.slots.iter().filter(|s| **s != Source::Empty).count();
+    let line = match k {
+        cstep::KIND if c.kind_unchosen => Text::of(EN.create_not_answered),
+        cstep::KIND => Text::of(c.kind.name()),
+        cstep::BACKUP_FORM => Text::of(c.backup.map_or(EN.create_not_answered, BackupForm::name)),
+        cstep::QUORUM => Text::fill(EN.create_threshold, &[&text!("{}", c.m), &text!("{}", c.n)]),
+        cstep::KEYS => match app.create_waiting() {
+            0 => Text::fill(
+                EN.create_of_chosen,
+                &[&text!("{}", filled), &text!("{}", c.slots.len())],
+            ),
+            w => Text::fill(
+                EN.create_slots_progress,
+                &[
+                    &text!("{}", filled.saturating_sub(w)),
+                    &text!("{}", c.slots.len()),
+                    &text!("{}", w),
+                ],
+            ),
+        },
+        cstep::CHECK => match c.built.and_then(|i| app.session.wallets.get(i)) {
+            Some(w) => Text::fill(EN.create_first_addresses, &[&w.name]),
+            None => Text::of(EN.create_not_made_yet),
+        },
+        _ => Text::default(),
+    };
+    // A wallet made from another, or at an account other than 0, says
+    // its account (`docs/WALLETS.md` §14).
+    if c.account_card() == Some(k) && (c.from.is_some() || c.account != 0) {
+        return Text::fill(EN.create_at_account, &[&line, &text!("{}", c.account)]);
+    }
+    line
 }
 
 // A new vault's passphrases.

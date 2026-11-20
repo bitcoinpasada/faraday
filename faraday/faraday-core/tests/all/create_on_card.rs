@@ -92,7 +92,7 @@ fn a_single_key_opens_keys_with_neither_count_chosen_and_no_rolls_to_enter() {
     assert!(
         !texts
             .iter()
-            .any(|t| t == "Make the words" || t.contains("0 of")),
+            .any(|t| t == "Make the words" || t.contains(" rolls")),
         "no rolls or Make the words before a pick: {texts:?}"
     );
     let _ = app.frame();

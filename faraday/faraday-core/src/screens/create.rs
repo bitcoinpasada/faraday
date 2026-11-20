@@ -31,35 +31,11 @@ pub(crate) const CSTEPS: [&str; crate::cstep::COUNT] = [
 ];
 
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
-    use crate::cstep;
-    let col_x = x0 + 40.0;
-    let col_w = (cw - 80.0).min(900.0);
     let Some(c) = app.create.state() else { return };
-    let steps = app.create_cards();
-    let filled = c
-        .slots
-        .iter()
-        .filter(|s| **s != crate::create::Source::Empty)
-        .count();
-    let cards: Vec<flow::Card> = steps
-        .iter()
-        .map(|&k| flow::Card {
-            title: CSTEPS[k as usize].to_string(),
-            summary: card_summary(app, k, filled),
-            mono: false,
-            done: app.create_card_done(k),
-            open: c.open == Some(k),
-            default: k == cstep::KIND || k == cstep::QUORUM || k == cstep::BACKUP_FORM,
-            toggle: Action::CStep(k),
-            lead: None,
-        })
-        .collect();
-    let col = flow::Column {
-        area_x: x0,
-        area_w: cw,
-        x: col_x,
-        w: col_w,
+    let page = flow::Page {
+        area: (x0, cw),
         h,
+        foot_h: 0.0,
         // Back where it was opened from.
         back: Some(app.named_back(if c.from_home {
             (EN.create_home, Action::Nav(Screen::Home))
@@ -67,69 +43,24 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             (EN.create_wallets, Action::Nav(Screen::WalletsStart))
         })),
         heading: EN.create_make_a_new_wallet,
-        wrap_closed: false,
-        // The whole count is known once the Keys card is in the list;
-        // before, the title reads the step alone.
-        total_fixed: steps.contains(&cstep::KEYS),
-        all_shown: false,
-        note: None,
         chip: None,
-        chip_tap: None,
+        choices_y: 0.0,
         moves: crate::ui::Moves::Yes,
     };
-    let scroll = c.scroll;
-    let (next, again) = {
+    let Some(contained) = crate::trail::StepFlow::contained(&crate::create::CREATE_STEPS) else {
+        return;
+    };
+    let (next, again, _room) = {
         let app_ref: &View = app;
-        let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
-            create_body(app_ref, ui, steps[i], x, y, w)
+        let mut body = |ui: &mut Ui, k: u8, x: f32, y: f32, w: f32| -> f32 {
+            create_body(app_ref, ui, k, x, y, w)
         };
-        flow::column(ui, &col, &cards, scroll, &mut body)
+        let mut under = |_: &mut Ui, _: f32, _: f32, _: f32| 0.0;
+        flow::contained(
+            ui, app_ref, contained, &page, c.scroll, &mut body, &mut under,
+        )
     };
     app.scroll(Scrolled::Create, next, again);
-}
-
-/// The closed line of Make a new wallet's card `k`, with the account on
-/// the card that carries the Account row (F98); `filled`, the slots with
-/// a key.
-fn card_summary(app: &View, k: u8, filled: usize) -> String {
-    use crate::cstep;
-    let Some(c) = app.create.state() else {
-        return String::new();
-    };
-    let line = match k {
-        cstep::KIND if c.kind_unchosen => EN.create_not_answered.to_string(),
-        cstep::KIND => c.kind.name().to_string(),
-        cstep::BACKUP_FORM => c
-            .backup
-            .map_or(EN.create_not_answered, crate::create::BackupForm::name)
-            .to_string(),
-        cstep::QUORUM => fill(EN.create_threshold, &[&c.m.to_string(), &c.n.to_string()]),
-        cstep::KEYS => match app.create_waiting() {
-            0 => fill(
-                EN.create_of_chosen,
-                &[&filled.to_string(), &c.slots.len().to_string()],
-            ),
-            k => fill(
-                EN.create_slots_progress,
-                &[
-                    &(filled - k).to_string(),
-                    &c.slots.len().to_string(),
-                    &k.to_string(),
-                ],
-            ),
-        },
-        cstep::CHECK => match c.built.and_then(|i| app.session.wallets.get(i)) {
-            Some(w) => fill(EN.create_first_addresses, &[&w.name]),
-            None => EN.create_not_made_yet.to_string(),
-        },
-        _ => String::new(),
-    };
-    // A wallet made from another, or at an account other than 0, says
-    // its account (`docs/WALLETS.md` §14).
-    if c.account_card() == Some(k) && (c.from.is_some() || c.account != 0) {
-        return fill(EN.create_at_account, &[&line, &c.account.to_string()]);
-    }
-    line
 }
 
 /// Under a Keys slot's session keys, each open vault's keys not loaded,

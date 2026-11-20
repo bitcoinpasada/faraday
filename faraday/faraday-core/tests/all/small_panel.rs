@@ -295,8 +295,8 @@ fn forward_in_view(mut app: Faraday, h: u16) {
 
 /// Create opens on Kind; Single key opens Backup, whose Words opens Use
 /// vaults, whose No opens
-/// Keys (a key loaded, so the card has a choice), whose head then
-/// carries Kind with Change.
+/// Keys (a key loaded, so the card has a choice), where Kind is a row of
+/// Your choices.
 #[test]
 fn kind_is_offered_on_the_keys_page_and_opens() {
     let mut app = panel();
@@ -328,21 +328,22 @@ fn kind_is_offered_on_the_keys_page_and_opens() {
         Some(faraday_core::cstep::KEYS),
         "Words opens Keys"
     );
-    let kind = Action::CStep(faraday_core::cstep::KIND);
-    assert!(
-        on_panel(&mut app, kind).is_some(),
-        "Kind is on the Keys page"
+    // Kind is reached from Your choices, on the bar's button.
+    tap(&mut app, Action::Choices(ChoicesPress::Open));
+    assert_eq!(app.sheet, Some(Sheet::Choices));
+    tap(
+        &mut app,
+        Action::Choices(ChoicesPress::Row(faraday_core::cstep::KIND)),
     );
-    tap(&mut app, kind);
+    assert_eq!(app.sheet, None);
     assert_eq!(
         app.create().and_then(|c| c.open),
         Some(faraday_core::cstep::KIND),
-        "Change opens Kind"
+        "its row opens Kind"
     );
 }
 
-/// Tapping the page's title shows the list of steps, from which any
-/// opens.
+/// The steps reached are Your choices, from which any opens.
 #[test]
 fn the_page_title_shows_the_steps() {
     let mut app = panel();
@@ -353,22 +354,22 @@ fn the_page_title_shows_the_steps() {
         &mut app,
         Action::CBackupForm(faraday_core::create::BackupForm::Words.index()),
     );
-    tap(&mut app, Action::CStep(faraday_core::cstep::KEYS));
-    assert_eq!(app.create().and_then(|c| c.open), None);
-    let check = Action::CStep(faraday_core::cstep::CHECK);
-    let keys = Action::CStep(faraday_core::cstep::KEYS);
-    assert!(
-        on_panel(&mut app, keys).is_some(),
-        "the steps reached are listed"
-    );
-    assert!(
-        on_panel(&mut app, check).is_none(),
-        "a step not reached is not"
-    );
-    tap(&mut app, Action::CStep(faraday_core::cstep::KEYS));
     assert_eq!(
         app.create().and_then(|c| c.open),
         Some(faraday_core::cstep::KEYS)
+    );
+    // Only the open step is on the page; the steps reached are rows of
+    // Your choices.
+    let kind = Action::CStep(faraday_core::cstep::KIND);
+    assert!(on_panel(&mut app, kind).is_none(), "no list on the page");
+    tap(&mut app, Action::Choices(ChoicesPress::Open));
+    tap(
+        &mut app,
+        Action::Choices(ChoicesPress::Row(faraday_core::cstep::KIND)),
+    );
+    assert_eq!(
+        app.create().and_then(|c| c.open),
+        Some(faraday_core::cstep::KIND)
     );
 }
 
