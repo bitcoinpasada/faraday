@@ -8,7 +8,7 @@
 //! gives another key. Seed XOR has no threshold, so a part short is another
 //! wallet, and the tests say that.
 //!
-//! The vault file and the QR vault are sealed under a random passphrase
+//! The vault file is sealed under a random passphrase
 //! (non-ASCII and long ones among them), opened and read back as the same
 //! key; a wrong passphrase opens nothing.
 //!
@@ -28,7 +28,7 @@ use faraday_keys::operations::{
     slip39_seed,
 };
 use faraday_keys::vault::{self, Names, OpenVaults, SEAL_RANDOM_LEN};
-use faraday_keys::{Keys, QR_RANDOM_LEN, QrHolds, QrOpenJob, Reveal};
+use faraday_keys::{Keys, Reveal};
 use faraday_vault::records::{field, kind, words_payload};
 use faraday_vault::{Cost, Record};
 use proptest::prelude::*;
@@ -606,37 +606,5 @@ proptest! {
             .expect("written")
             .release();
         prop_assert_eq!(words_wallet(&c, written.as_str(), ""), original);
-    }
-}
-
-proptest! {
-    #![proptest_config(config(8))]
-
-    /// A key of 12 or 24 words sealed as a QR vault opens, with its
-    /// passphrase and no other, as the same wallet.
-    #[test]
-    fn a_key_in_a_qr_vault_opens_as_the_same_wallet(
-        long in any::<bool>(),
-        bytes in pool(32),
-        pass in vault_passphrase(),
-        random in pool(QR_RANDOM_LEN),
-    ) {
-        let c = compute();
-        let entropy = &bytes[..if long { 32 } else { 16 }];
-        let words = sentence(entropy);
-        let original = words_wallet(&c, &words, "");
-        let keys = keys_of_words(&c, &words, "");
-        let random: [u8; QR_RANDOM_LEN] = random.try_into().unwrap();
-        let code = keys
-            .qr_seal_key_job(&c, 0, &pass, 16, zeroize::Zeroizing::new(random))
-            .and_then(|j| j.run(&c))
-            .expect("sealed");
-        prop_assert!(QrOpenJob::new(&code, &other(&pass)).run(&c).is_err());
-        let mut reader = Keys::on(Network::Mainnet);
-        let opened = QrOpenJob::new(&code, &pass).run(&c).expect("opens");
-        let holds = reader.qr_hold(opened).expect("held");
-        prop_assert_eq!(holds, QrHolds::Seed { words: if long { 24 } else { 12 } });
-        let read = reader.qr_words(Reveal::QrVault).to_string();
-        prop_assert_eq!(words_wallet(&c, &read, ""), original);
     }
 }

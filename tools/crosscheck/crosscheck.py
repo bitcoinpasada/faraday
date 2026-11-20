@@ -103,7 +103,6 @@ AREAS = {
     "ur": ("area_ur", "Ur", ("ur.encode", "ur.crc32", "ur.cbor", "ur.registry", "ur.account"), 410),
     "totp": ("area_totp", "Totp", ("totp.code", "totp.read"), 60),
     "vanity": ("area_vanity", "Vanity", "vanity.grind", 460),
-    "qrvault": ("area_qrvault", "QrVault", ("qrvault.seal", "qrvault.open"), 60),
     "kef": ("area_kef", "Kef", ("kef.seal", "kef.open"), 60),
     "sqlite": ("area_sqlite", "Sqlite", "sqlite.read", 60),
     "core_wallet": ("area_core_wallet", "CoreWallet", "core_wallet.read", 120),

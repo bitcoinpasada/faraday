@@ -474,23 +474,6 @@ fn vault_file(c: &Compute) -> Vec<u8> {
     testkit::kdbx_vault("Sample vault", PASSPHRASE, 0x7a, records).expect("a vault")
 }
 
-/// A QR vault code of the `bacon` x 24 seed under the public passphrase at
-/// the smallest memory step. Its 95 random bytes are fixed and public, so
-/// this makes the same file every time.
-fn qr_vault(c: &Compute) -> Vec<u8> {
-    use faraday_core::wallet::Session;
-    let mut s = Session::on(Network::Testnet);
-    let words = faraday_core::samples::repeated("bacon", 24);
-    s.keys.add_words(c, &words, "", None).expect("key");
-    let exponent = *faraday_keys::QR_SEAL_EXPONENTS.start();
-    let random = zeroize::Zeroizing::new([0x5a; faraday_keys::QR_RANDOM_LEN]);
-    s.keys
-        .qr_seal_key_job(c, 0, PASSPHRASE, exponent, random)
-        .expect("a job")
-        .run(c)
-        .expect("a code")
-}
-
 /// A message signed by sample Spending's first receive address.
 fn signed_message(c: &Compute) -> (String, String) {
     use faraday_core::wallet::{Origin, Session};
@@ -654,7 +637,6 @@ fn main() {
     let keys = keys(&c);
     let wallets = wallets(&c, &keys);
     std::fs::write(root().join("data/sample.kdbx"), vault_file(&c)).expect("write");
-    std::fs::write(root().join("data/qr-vault.pgp"), qr_vault(&c)).expect("write");
     copy_vectors();
     let (address, message) = signed_message(&c);
     signer_pair(&c);
@@ -685,7 +667,7 @@ fn main() {
     out.push_str("];\n\n");
     write!(
         out,
-        "pub(crate) static INPUTS: SampleInputs = SampleInputs {{\n    vault: include_bytes!(\"../data/sample.kdbx\"),\n    signed_message: {message:?},\n    address: {address:?},\n    totp: {totp:?},\n    signer_sent: include_bytes!(\"../data/signer-sent.psbt\"),\n    signer_returned: include_bytes!(\"../data/signer-returned.psbt\"),\n    signer_returned_proprietary: include_bytes!(\"../data/signer-returned-proprietary.psbt\"),\n    signer_elsewhere_sent: include_bytes!(\"../data/signer-elsewhere-sent.psbt\"),\n    signer_elsewhere_returned: include_bytes!(\"../data/signer-elsewhere-returned.psbt\"),\n    compare_first: include_bytes!(\"../data/bump-original.psbt\"),\n    compare_second: include_bytes!(\"../data/bump-replacement.psbt\"),\n    krux_code: include_bytes!(\"../data/krux-code.kef\"),\n    qr_vault: include_bytes!(\"../data/qr-vault.pgp\"),\n    timestamp_proof: include_bytes!(\"../data/timestamp.ots\"),\n    timestamp_hash: {TIMESTAMP_HASH:?},\n    dice_rolls: {dice_rolls:?},\n    timestamp_header: include_str!(\"../data/timestamp-header.hex\"),\n    core_wallet: &[\n        include_bytes!(\"../data/core-wallet-plain.dat\"),\n        include_bytes!(\"../data/core-wallet-encrypted.dat\"),\n    ],\n    hsm: &[{hsm}],\n    hsm_words_nodes: &{words_nodes:?},\n}};\n\n\
+        "pub(crate) static INPUTS: SampleInputs = SampleInputs {{\n    vault: include_bytes!(\"../data/sample.kdbx\"),\n    signed_message: {message:?},\n    address: {address:?},\n    totp: {totp:?},\n    signer_sent: include_bytes!(\"../data/signer-sent.psbt\"),\n    signer_returned: include_bytes!(\"../data/signer-returned.psbt\"),\n    signer_returned_proprietary: include_bytes!(\"../data/signer-returned-proprietary.psbt\"),\n    signer_elsewhere_sent: include_bytes!(\"../data/signer-elsewhere-sent.psbt\"),\n    signer_elsewhere_returned: include_bytes!(\"../data/signer-elsewhere-returned.psbt\"),\n    compare_first: include_bytes!(\"../data/bump-original.psbt\"),\n    compare_second: include_bytes!(\"../data/bump-replacement.psbt\"),\n    krux_code: include_bytes!(\"../data/krux-code.kef\"),\n    timestamp_proof: include_bytes!(\"../data/timestamp.ots\"),\n    timestamp_hash: {TIMESTAMP_HASH:?},\n    dice_rolls: {dice_rolls:?},\n    timestamp_header: include_str!(\"../data/timestamp-header.hex\"),\n    core_wallet: &[\n        include_bytes!(\"../data/core-wallet-plain.dat\"),\n        include_bytes!(\"../data/core-wallet-encrypted.dat\"),\n    ],\n    hsm: &[{hsm}],\n    hsm_words_nodes: &{words_nodes:?},\n}};\n\n\
          /// Every sample.\npub static SAMPLES: Samples = Samples {{ keys: KEYS, wallets: WALLETS, inputs: INPUTS }};\n",
     )
     .expect("string");

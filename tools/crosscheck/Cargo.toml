@@ -33,10 +33,8 @@ faraday-sqlite = { path = "../../faraday/faraday-sqlite" }
 faraday-core-wallet = { path = "../../faraday/faraday-core-wallet", features = ["crosscheck"] }
 # OpenTimestamps proofs read and walked against a block header.
 faraday-ots = { path = "../../faraday/faraday-ots" }
-# The wiping text the vault and OpenPGP crates hold their entries in.
+# The wiping text the vault crate holds its entries in.
 faraday-text = { path = "../../core/faraday-text" }
-# The OpenPGP message's size (`RANDOM_LEN`) the QR vault seals with.
-faraday-pgp = { path = "../../faraday/faraday-pgp" }
 # Decode and the labelled picture a SeedQR is written as, Decode's work
 # token taken from the testkit as the app's tests take it; never in a
 # shipped binary, as this command is not one.

@@ -34,7 +34,6 @@ extern crate alloc;
 
 pub mod certificate;
 pub mod length;
-pub mod message;
 pub mod paperkey;
 pub mod secret;
 pub mod verify;

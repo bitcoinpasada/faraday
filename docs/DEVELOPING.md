@@ -19,10 +19,6 @@ recipe (F243, F284), nothing else.
   vendored `tools/reference/rust-codex32/` (rust-codex32) and
   `tools/vectors/codex32-volvelle/harness/` (volvelle's worksheet), offline
   with `cargo build --frozen`: the toolchain above is all they need.
-  Its `qrvault` area builds a third, `tools/crosscheck/rpgp/` (rPGP, the
-  `pgp` crate, pinned by its own `Cargo.lock`, outside the workspace), also
-  with `--frozen`; that one has crates to fetch, once beforehand:
-  `cargo fetch --locked --manifest-path tools/crosscheck/rpgp/Cargo.toml`.
 - **A 32-bit target**, for `just test-i686`: the Pi runs 32-bit ARM, and a
   length that wraps in a `usize` there is a crash or a wrong bound on the Pi
   only, so the parser crates' tests also run as an i686 program.
@@ -98,7 +94,7 @@ recipe (F243, F284), nothing else.
   Linux and Windows app builds (`DOCKER=podman` picks Podman).
 - **GnuPG 2.4, paperkey 1.6, Sequoia's `sq` 1.3 built over Nettle, OpenSSL, sbsigntool** (`sbverify`), **GnuTLS's
   `certtool`, pesign** (`pesign`, `pesigcheck`) and **python3-pefile**: the
-  GPG, Secure Boot and QR vault tests run these tools against Faraday's files (the `qrvault` area also asks `sq` to open a QR vault and checks that Faraday refuses what `sq` writes; rPGP's output is `rpgp-ref` in the run's progress folder). A
+  GPG and Secure Boot tests run these tools against Faraday's files. A
   missing GnuPG, paperkey, `sq`, OpenSSL or sbverify fails them, and so does
   an `sq` whose `sq version` does not say "cryptographic backend Nettle"; a missing
   `certtool`, pesign or pefile skips its test with a note in `just` and
@@ -572,7 +568,7 @@ say what each target feeds):
 | Other wallets' files | `faraday_intake::read_wallet`, `core_wallet::read`, `faraday_sqlite::Database::open`, Coldcard and JSON | `read_wallet`, `core_wallet_records`, `sqlite`, `json` |
 | Signed messages, aezeed, MuSig2 values, raw hex | `message::verify`, `aezeed::decode_at_cost`, `musig`, `RawHex::parse`, `hex` | `message_verify`, `aezeed`, `musig`, `raw_hex`, `hex_decode` |
 | Vault files and KDBX | `file::inspect`, `kdbx::inspect` and `open`, the XML document and Faraday's items, a key file, entries and TOTP, parts left by an interrupted write | `vault_header`, `kdbx_file`, `kdbx_body`, `kdbx_xml`, `keyfile`, `vault_entries`, `vault_parts` |
-| KEF and the QR vault | `faraday_kef::unwrap` and `open_with_key`, `faraday_pgp::message::parse` and `open` | `kef`, `pgp_qr_vault` |
+| KEF | `faraday_kef::unwrap` and `open_with_key` | `kef` |
 | PGP keys and signatures | `read_public`, `read_secret_at`, `Certificate::read`, `paperkey`, `verify_detached` | `pgp_armor`, `pgp_secret`, `pgp_restore`, `pgp_paperkey`, `pgp_verify` |
 | Stick, disk and host | FAT, GPT, the disk process's pipe, piecewise reads, the kept list, EDID, USB descriptors, image list, OpenTimestamps, release sums, PE images, the Starter's readers | `fat`, `gpt`, `files_proto`, `storage_read_parts`, `memory_kept`, `edid`, `hid_ranges`, `image_list`, `ots`, `release_sums`, `pe_image`, `pe_transplant`, `starter_udisks`, `starter_windows`, `recovery_key` |
 
@@ -581,8 +577,7 @@ No target, and why:
 - `faraday_core_wallet::read_file` is the SQLite reader and the records
   reader in a row, each with a target (`sqlite`, `core_wallet_records`).
 - `faraday_vault::file::open` is `kdbx::open` and the items reader, each with
-  a target (`kdbx_file`, `kdbx_xml`); `faraday_vault::qr::open` is the
-  message parser and `read_qr` (`pgp_qr_vault`, `contents`).
+  a target (`kdbx_file`, `kdbx_xml`).
 - `faraday_keys`' `from_seedqr_digits`, `from_compact_seedqr` and the xpub and
   key readers wrap the codec and bip readers above.
 - Dice, coin and card entropy (`faraday-entropy`) and the BIP-85 child

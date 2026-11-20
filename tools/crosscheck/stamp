@@ -35,7 +35,6 @@ python3-zxing-cpp 2.3.0-5
 python3-cbor2 5.8.0-2ubuntu1
 python3-pyotp 2.9.0-2build1
 python3-cryptography 46.0.5 over OpenSSL 3.5.5 27 Jan 2026
-rpgp (pgp crate, tools/crosscheck/rpgp/Cargo.lock) 0.21.0
 ovmf OVMF_CODE_4M.secboot.fd 33c413a04e9edf512c504e9b0accbcec4d009d406bca761cc0b8eacc93da60b6
 bitcoin-core 31.1.0 bitcoin-31.1-x86_64-linux-gnu.tar.gz b80d9c3e04da78fb6f0569685673418cf686fadba9042d926d13fb87ff503f9e
 seed 5be11ec606a76d2767f225b8992c45fe
@@ -72,11 +71,10 @@ cases bbqr 15000
 cases ur 24000
 cases totp 33000
 cases vanity 2000
-cases qrvault 450
 cases kef 8200
 cases sqlite 8000
 cases core_wallet 380
 cases lightning 14060
 cases ots 5800
-run 2026-11-11 06:32:30 UTC, tree 3e36bd2f8edf77e486b482488fc116bc7d26c811, areas musig sp sps bip85 slip39 codex32 codex32-correct xor hash vault bip39 bip32 addr tx psbt sign sign-check psbt-review import taproot compile miniscript msg own-randomness entropy roller seedqr bbqr ur totp vanity qrvault kef sqlite core_wallet lightning ots
+run 2026-11-11 06:32:30 UTC, tree 3e36bd2f8edf77e486b482488fc116bc7d26c811, areas musig sp sps bip85 slip39 codex32 codex32-correct xor hash vault bip39 bip32 addr tx psbt sign sign-check psbt-review import taproot compile miniscript msg own-randomness entropy roller seedqr bbqr ur totp vanity kef sqlite core_wallet lightning ots
 run 2026-11-11 06:53:08 UTC, tree of this stamp's commit, areas none

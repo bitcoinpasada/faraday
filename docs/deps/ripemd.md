@@ -17,4 +17,4 @@ nothing under it.
 
 **Reopen when** `faraday-ots` stops following paths through RIPEMD-160.
 
-**Review.** Trusted by publisher (github:RustCrypto/hashes) under F71 (`docs/decisions/F71.md`), until 2027-10-01: `supply-chain/audits.toml`. Not read line by line here. The older `ripemd` 0.1 that the rPGP cross-check program takes is a separate, exempted version (`docs/deps/pgp.md`).
+**Review.** Trusted by publisher (github:RustCrypto/hashes) under F71 (`docs/decisions/F71.md`), until 2027-10-01: `supply-chain/audits.toml`. Not read line by line here.

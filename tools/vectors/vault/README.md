@@ -32,7 +32,7 @@ stream and an empty passphrase (this build writes neither, so no file of
 its own makes them), a file too long for the largest vault (about 151 MiB of
 it would be committed; `faraday/faraday-vault/src/kdbx/tests.rs`'s
 `a_body_longer_than_the_largest_vault_is_refused_by_its_stated_length` makes
-one), and the QR vault's vectors, which are in `qr/` (`qr/README.md`).
+one).
 
 How they are made:
 

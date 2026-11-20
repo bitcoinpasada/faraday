@@ -917,7 +917,7 @@ class RunScript(unittest.TestCase):
         self.stub(stubs / "cargo", "#!/bin/sh\n"
                   'if [ -n "$CARGO_TARGET_DIR" ]; then\n'
                   '    mkdir -p "$CARGO_TARGET_DIR/debug"\n'
-                  "    for b in rust-codex32-answers volvelle-cells faraday-crosscheck-rpgp; do\n"
+                  "    for b in rust-codex32-answers volvelle-cells; do\n"
                   '        : > "$CARGO_TARGET_DIR/debug/$b"\n'
                   "    done\n"
                   "fi\n"

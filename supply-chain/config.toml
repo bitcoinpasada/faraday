@@ -26,30 +26,10 @@ url = "https://raw.githubusercontent.com/zcash/rust-ecosystem/main/supply-chain/
 audit-as-crates-io = false
 notes = "Vendored in third_party/rqrr and patched (PATCHES.md): first-party code, reviewed as such (F71)"
 
-[[exemptions.aead]]
-version = "0.5.2"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.aes]]
-version = "0.8.4"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
 [[exemptions.aes]]
 version = "0.9.4"
 criteria = "safe-to-deploy"
 notes = "F193: not reviewed; the keepass-rs cross-check crate only (docs/deps/keepass.md), in no shipped binary"
-
-[[exemptions.aes-gcm]]
-version = "0.10.3"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.aes-kw]]
-version = "0.2.1"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
 
 [[exemptions.ahash]]
 version = "0.8.12"
@@ -76,11 +56,6 @@ version = "1.5.0"
 criteria = "safe-to-deploy"
 notes = "F71: not reviewed; the fuzz crates only (docs/deps/libfuzzer-sys.md), in no shipped binary"
 
-[[exemptions.argon2]]
-version = "0.5.3"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
 [[exemptions.arrayvec]]
 version = "0.7.8"
 criteria = "safe-to-deploy"
@@ -90,15 +65,10 @@ version = "1.0.1"
 criteria = "safe-to-deploy"
 notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
 
-[[exemptions.base16ct]]
-version = "0.2.0"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
 [[exemptions.base64]]
 version = "0.22.1"
 criteria = "safe-to-deploy"
-notes = "F193, F211: not reviewed; the keepass-rs and rPGP cross-check programs only (docs/deps/keepass.md, docs/deps/pgp.md), in no shipped binary"
+notes = "F193: not reviewed; the keepass-rs cross-check crate only (docs/deps/keepass.md), in no shipped binary"
 
 [[exemptions.base64]]
 version = "0.23.1"
@@ -109,49 +79,19 @@ notes = "F193: not reviewed; the keepass-rs cross-check crate only (docs/deps/ke
 version = "2.2.2"
 criteria = "safe-to-run"
 
-[[exemptions.bitfields]]
-version = "1.0.3"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.bitfields-impl]]
-version = "1.0.3"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
 [[exemptions.bitflags]]
 version = "2.13.2"
 criteria = "safe-to-deploy"
-
-[[exemptions.bitvec]]
-version = "1.1.1"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.blake2]]
-version = "0.10.6"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
 
 [[exemptions.blake2b_simd]]
 version = "1.0.5"
 criteria = "safe-to-deploy"
 notes = "F193: not reviewed; the keepass-rs cross-check crate only (docs/deps/keepass.md), in no shipped binary"
 
-[[exemptions.block-buffer]]
-version = "0.10.4"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
 [[exemptions.block-modes]]
 version = "0.9.1"
 criteria = "safe-to-deploy"
 notes = "F193: not reviewed; the keepass-rs cross-check crate only (docs/deps/keepass.md), in no shipped binary"
-
-[[exemptions.block-padding]]
-version = "0.3.3"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
 
 [[exemptions.block-padding]]
 version = "0.4.2"
@@ -162,16 +102,6 @@ notes = "F193: not reviewed; the keepass-rs cross-check crate only (docs/deps/ke
 version = "0.5.1"
 criteria = "safe-to-deploy"
 notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
-
-[[exemptions.blowfish]]
-version = "0.9.1"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.buffer-redux]]
-version = "1.1.0"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
 
 [[exemptions.bytemuck]]
 version = "1.25.2"
@@ -184,17 +114,12 @@ criteria = "safe-to-deploy"
 [[exemptions.byteorder]]
 version = "1.5.0"
 criteria = "safe-to-deploy"
-notes = "F193, F211: not reviewed; the keepass-rs and rPGP cross-check programs only (docs/deps/keepass.md, docs/deps/pgp.md), in no shipped binary"
+notes = "F193: not reviewed; the keepass-rs cross-check crate only (docs/deps/keepass.md), in no shipped binary"
 
 [[exemptions.bytes]]
 version = "1.12.1"
 criteria = "safe-to-deploy"
 notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
-
-[[exemptions.bzip2]]
-version = "0.6.1"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
 
 [[exemptions.calloop]]
 version = "0.13.0"
@@ -206,45 +131,20 @@ version = "0.3.0"
 criteria = "safe-to-deploy"
 notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
 
-[[exemptions.camellia]]
-version = "0.1.0"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.cast5]]
-version = "0.11.1"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
 [[exemptions.cc]]
 version = "1.11.0"
 criteria = "safe-to-deploy"
 notes = "F193: not reviewed; the keepass-rs cross-check crate only (docs/deps/keepass.md), in no shipped binary"
 
-[[exemptions.cfb-mode]]
-version = "0.8.2"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
 [[exemptions.cfg-if]]
 version = "1.0.5"
 criteria = "safe-to-deploy"
-notes = "F193, F211: not reviewed; the keepass-rs and rPGP cross-check programs only (docs/deps/keepass.md, docs/deps/pgp.md), in no shipped binary"
+notes = "F193: not reviewed; the keepass-rs cross-check crate only (docs/deps/keepass.md), in no shipped binary"
 
 [[exemptions.chrono]]
 version = "0.4.45"
 criteria = "safe-to-deploy"
 notes = "F193: not reviewed; the keepass-rs cross-check crate only (docs/deps/keepass.md), in no shipped binary"
-
-[[exemptions.cipher]]
-version = "0.4.4"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.cmac]]
-version = "0.7.2"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
 
 [[exemptions.combine]]
 version = "4.6.8"
@@ -256,20 +156,10 @@ version = "2.5.0"
 criteria = "safe-to-deploy"
 notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
 
-[[exemptions.const-oid]]
-version = "0.9.6"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
 [[exemptions.constant_time_eq]]
 version = "0.4.2"
 criteria = "safe-to-deploy"
 notes = "F193: not reviewed; the keepass-rs cross-check crate only (docs/deps/keepass.md), in no shipped binary"
-
-[[exemptions.convert_case]]
-version = "0.10.0"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
 
 [[exemptions.core-graphics]]
 version = "0.23.2"
@@ -280,16 +170,6 @@ notes = "F71: not reviewed; desktop shells only, linked through winit or softbuf
 version = "1.0.0"
 criteria = "safe-to-run"
 notes = "not reviewed; a dev-dependency of the backup property tests only (docs/deps/proptest.md), in no shipped binary"
-
-[[exemptions.cpufeatures]]
-version = "0.2.17"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.crc24]]
-version = "0.1.6"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
 
 [[exemptions.crc32fast]]
 version = "1.5.1"
@@ -305,16 +185,6 @@ version = "0.8.23"
 criteria = "safe-to-deploy"
 notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
 
-[[exemptions.crypto-bigint]]
-version = "0.5.5"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.crypto-common]]
-version = "0.1.7"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
 [[exemptions.crypto-primes]]
 version = "0.7.2"
 criteria = "safe-to-deploy"
@@ -325,11 +195,6 @@ version = "0.10.1"
 criteria = "safe-to-deploy"
 notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
 
-[[exemptions.ctr]]
-version = "0.9.2"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
 [[exemptions.ctutils]]
 version = "0.4.8"
 criteria = "safe-to-deploy"
@@ -339,76 +204,6 @@ notes = "F193: not reviewed; the keepass-rs cross-check crate only (docs/deps/ke
 version = "1.2.0"
 criteria = "safe-to-deploy"
 notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
-
-[[exemptions.curve25519-dalek]]
-version = "4.1.3"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.cx448]]
-version = "0.1.1"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.darling]]
-version = "0.20.11"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.darling_core]]
-version = "0.20.11"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.darling_macro]]
-version = "0.20.11"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.dbl]]
-version = "0.3.2"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.der]]
-version = "0.7.10"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.derive_builder]]
-version = "0.20.2"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.derive_builder_core]]
-version = "0.20.2"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.derive_builder_macro]]
-version = "0.20.2"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.derive_more]]
-version = "2.1.1"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.derive_more-impl]]
-version = "2.1.1"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.des]]
-version = "0.8.1"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.digest]]
-version = "0.10.7"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
 
 [[exemptions.dispatch]]
 version = "0.2.0"
@@ -455,40 +250,10 @@ version = "0.8.1"
 criteria = "safe-to-deploy"
 notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
 
-[[exemptions.dsa]]
-version = "0.6.3"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
 [[exemptions.dtor]]
 version = "0.8.1"
 criteria = "safe-to-deploy"
 notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
-
-[[exemptions.eax]]
-version = "0.5.0"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.ecdsa]]
-version = "0.16.9"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.ed25519]]
-version = "2.2.3"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.ed25519-dalek]]
-version = "2.2.0"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.elliptic-curve]]
-version = "0.13.8"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
 
 [[exemptions.equivalent]]
 version = "1.0.3"
@@ -499,11 +264,6 @@ notes = "F193: not reviewed; the keepass-rs cross-check crate only (docs/deps/ke
 version = "2.5.0"
 criteria = "safe-to-deploy"
 notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
-
-[[exemptions.ff]]
-version = "0.13.1"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
 
 [[exemptions.find-msvc-tools]]
 version = "0.1.15"
@@ -519,20 +279,10 @@ notes = "Mozilla's audit covers 0.4.3 (F71: an exemption)"
 version = "1.1.10"
 criteria = "safe-to-deploy"
 
-[[exemptions.fnv]]
-version = "1.0.7"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
 [[exemptions.foreign-types-macros]]
 version = "0.2.4"
 criteria = "safe-to-deploy"
 notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
-
-[[exemptions.funty]]
-version = "2.0.0"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
 
 [[exemptions.futures-task]]
 version = "0.3.34"
@@ -544,40 +294,15 @@ version = "0.3.34"
 criteria = "safe-to-deploy"
 notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
 
-[[exemptions.generic-array]]
-version = "0.14.7"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
 [[exemptions.gethostname]]
 version = "1.1.0"
 criteria = "safe-to-deploy"
 notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
 
 [[exemptions.getrandom]]
-version = "0.2.17"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.getrandom]]
 version = "0.3.4"
 criteria = "safe-to-deploy"
 notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
-
-[[exemptions.ghash]]
-version = "0.5.1"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.group]]
-version = "0.13.0"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.heck]]
-version = "0.5.0"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
 
 [[exemptions.hermit-abi]]
 version = "0.5.3"
@@ -587,7 +312,7 @@ notes = "F71: not reviewed; desktop shells only, linked through winit or softbuf
 [[exemptions.hex]]
 version = "0.4.3"
 criteria = "safe-to-deploy"
-notes = "F193, F211: not reviewed; the keepass-rs and rPGP cross-check programs only (docs/deps/keepass.md, docs/deps/pgp.md), in no shipped binary"
+notes = "F193: not reviewed; the keepass-rs cross-check crate only (docs/deps/keepass.md), in no shipped binary"
 
 [[exemptions.hex-literal]]
 version = "1.1.0"
@@ -598,16 +323,6 @@ notes = "F193: not reviewed; the keepass-rs cross-check crate only (docs/deps/ke
 version = "0.1.1"
 criteria = "safe-to-deploy"
 
-[[exemptions.hkdf]]
-version = "0.12.4"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.hmac]]
-version = "0.12.1"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
 [[exemptions.iana-time-zone]]
 version = "0.1.65"
 criteria = "safe-to-deploy"
@@ -617,16 +332,6 @@ notes = "F193: not reviewed; the keepass-rs cross-check crate only (docs/deps/ke
 version = "0.1.2"
 criteria = "safe-to-deploy"
 notes = "F193: not reviewed; the keepass-rs cross-check crate only (docs/deps/keepass.md), in no shipped binary"
-
-[[exemptions.idea]]
-version = "0.5.1"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.ident_case]]
-version = "1.0.1"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
 
 [[exemptions.inout]]
 version = "0.2.5"
@@ -668,35 +373,15 @@ version = "0.3.107"
 criteria = "safe-to-deploy"
 notes = "F193: not reviewed; the keepass-rs cross-check crate only (docs/deps/keepass.md), in no shipped binary"
 
-[[exemptions.k256]]
-version = "0.13.4"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.keccak]]
-version = "0.1.6"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
 [[exemptions.keepass]]
 version = "0.17.0"
 criteria = "safe-to-deploy"
 notes = "F193: not reviewed; the keepass-rs cross-check crate only (docs/deps/keepass.md), in no shipped binary"
 
-[[exemptions.lazy_static]]
-version = "1.5.1"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.libbz2-rs-sys]]
-version = "0.2.6"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
 [[exemptions.libc]]
 version = "0.2.191"
 criteria = "safe-to-deploy"
-notes = "F193, F211: not reviewed; the keepass-rs and rPGP cross-check programs only (docs/deps/keepass.md, docs/deps/pgp.md), in no shipped binary"
+notes = "F193: not reviewed; the keepass-rs cross-check crate only (docs/deps/keepass.md), in no shipped binary"
 
 [[exemptions.libfuzzer-sys]]
 version = "0.4.13"
@@ -720,16 +405,11 @@ criteria = "safe-to-deploy"
 [[exemptions.log]]
 version = "0.4.35"
 criteria = "safe-to-deploy"
-notes = "F193, F211: not reviewed; the keepass-rs and rPGP cross-check programs only (docs/deps/keepass.md, docs/deps/pgp.md), in no shipped binary"
+notes = "F193: not reviewed; the keepass-rs cross-check crate only (docs/deps/keepass.md), in no shipped binary"
 
 [[exemptions.lzma-rust2]]
 version = "0.22.0"
 criteria = "safe-to-deploy"
-
-[[exemptions.md-5]]
-version = "0.10.6"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
 
 [[exemptions.memmap2]]
 version = "0.9.11"
@@ -757,26 +437,6 @@ notes = "F71: not reviewed; desktop shells only, linked through winit or softbuf
 [[exemptions.nix]]
 version = "0.26.4"
 criteria = "safe-to-deploy"
-
-[[exemptions.nom]]
-version = "8.0.0"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.num-bigint-dig]]
-version = "0.8.6"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.num-integer]]
-version = "0.1.47"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.num-iter]]
-version = "0.1.46"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
 
 [[exemptions.num_enum]]
 version = "0.7.6"
@@ -873,55 +533,15 @@ version = "0.2.2"
 criteria = "safe-to-deploy"
 notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
 
-[[exemptions.ocb3]]
-version = "0.1.0"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
 [[exemptions.once_cell]]
 version = "1.21.4"
 criteria = "safe-to-deploy"
 notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
 
-[[exemptions.opaque-debug]]
-version = "0.3.1"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
 [[exemptions.orbclient]]
 version = "0.3.55"
 criteria = "safe-to-deploy"
 notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
-
-[[exemptions.p256]]
-version = "0.13.2"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.p384]]
-version = "0.13.1"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.p521]]
-version = "0.13.3"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.password-hash]]
-version = "0.5.0"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.pem-rfc7468]]
-version = "0.7.0"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.pgp]]
-version = "0.21.0"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
 
 [[exemptions.pin-project]]
 version = "1.1.13"
@@ -938,16 +558,6 @@ version = "0.2.17"
 criteria = "safe-to-deploy"
 notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
 
-[[exemptions.pkcs1]]
-version = "0.7.5"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.pkcs8]]
-version = "0.10.2"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
 [[exemptions.plain]]
 version = "0.2.3"
 criteria = "safe-to-deploy"
@@ -961,21 +571,6 @@ criteria = "safe-to-deploy"
 version = "3.11.0"
 criteria = "safe-to-deploy"
 notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
-
-[[exemptions.polyval]]
-version = "0.6.2"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.ppv-lite86]]
-version = "0.2.21"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.primeorder]]
-version = "0.13.6"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
 
 [[exemptions.proc-macro-crate]]
 version = "3.5.0"
@@ -1005,25 +600,10 @@ notes = "F71: not reviewed; desktop shells only, linked through winit or softbuf
 version = "6.0.0"
 criteria = "safe-to-deploy"
 
-[[exemptions.radium]]
-version = "0.7.0"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.rand]]
-version = "0.8.8"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
 [[exemptions.rand]]
 version = "0.10.4"
 criteria = "safe-to-run"
 notes = "not reviewed; a dev-dependency of the backup property tests only (docs/deps/proptest.md), in no shipped binary"
-
-[[exemptions.rand_chacha]]
-version = "0.3.1"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
 
 [[exemptions.rand_xorshift]]
 version = "0.5.0"
@@ -1050,26 +630,6 @@ version = "0.8.12"
 criteria = "safe-to-run"
 notes = "not reviewed; a dev-dependency of the backup property tests only (docs/deps/proptest.md), in no shipped binary"
 
-[[exemptions.replace_with]]
-version = "0.1.8"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.rfc6979]]
-version = "0.4.0"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.ripemd]]
-version = "0.1.3"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.rsa]]
-version = "0.9.10"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
 [[exemptions.rust-argon2]]
 version = "3.0.0"
 criteria = "safe-to-deploy"
@@ -1093,11 +653,6 @@ version = "0.10.1"
 criteria = "safe-to-deploy"
 notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
 
-[[exemptions.sec1]]
-version = "0.7.3"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
 [[exemptions.secrecy]]
 version = "0.10.3"
 criteria = "safe-to-deploy"
@@ -1106,47 +661,12 @@ notes = "F193: not reviewed; the keepass-rs cross-check crate only (docs/deps/ke
 [[exemptions.serde_json]]
 version = "1.0.154"
 criteria = "safe-to-deploy"
-notes = "F193, F211: not reviewed; the keepass-rs and rPGP cross-check programs only (docs/deps/keepass.md, docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.serdect]]
-version = "0.2.0"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.serdect]]
-version = "0.3.0"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.sha1]]
-version = "0.10.7"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.sha1-checked]]
-version = "0.10.0"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.sha2]]
-version = "0.10.9"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
+notes = "F193: not reviewed; the keepass-rs cross-check crate only (docs/deps/keepass.md), in no shipped binary"
 
 [[exemptions.sha2]]
 version = "0.11.1"
 criteria = "safe-to-deploy"
 notes = "F193: not reviewed; the keepass-rs cross-check crate only (docs/deps/keepass.md), in no shipped binary"
-
-[[exemptions.sha3]]
-version = "0.10.9"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.signature]]
-version = "2.2.0"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
 
 [[exemptions.simd-adler32]]
 version = "0.3.10"
@@ -1167,11 +687,6 @@ version = "1.16.1"
 criteria = "safe-to-deploy"
 notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
 
-[[exemptions.smallvec]]
-version = "1.16.4"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
 [[exemptions.smithay-client-toolkit]]
 version = "0.19.2"
 criteria = "safe-to-deploy"
@@ -1182,59 +697,29 @@ version = "0.2.2"
 criteria = "safe-to-deploy"
 notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
 
-[[exemptions.snafu]]
-version = "0.9.2"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.snafu-derive]]
-version = "0.9.2"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
 [[exemptions.softbuffer]]
 version = "0.4.8"
 criteria = "safe-to-deploy"
 notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
 
-[[exemptions.spin]]
-version = "0.9.9"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.spki]]
-version = "0.7.3"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
 [[exemptions.strict-num]]
 version = "0.1.1"
 criteria = "safe-to-deploy"
 
-[[exemptions.strsim]]
-version = "0.11.1"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
 [[exemptions.syn]]
 version = "3.0.9"
 criteria = "safe-to-deploy"
-notes = "F193, F211: not reviewed; the keepass-rs and rPGP cross-check programs only (docs/deps/keepass.md, docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.tap]]
-version = "1.0.1"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
+notes = "F193: not reviewed; the keepass-rs cross-check crate only (docs/deps/keepass.md), in no shipped binary"
 
 [[exemptions.thiserror]]
 version = "2.0.21"
 criteria = "safe-to-deploy"
-notes = "F193, F211: not reviewed; the keepass-rs and rPGP cross-check programs only (docs/deps/keepass.md, docs/deps/pgp.md), in no shipped binary"
+notes = "F193: not reviewed; the keepass-rs cross-check crate only (docs/deps/keepass.md), in no shipped binary"
 
 [[exemptions.thiserror-impl]]
 version = "2.0.21"
 criteria = "safe-to-deploy"
-notes = "F193, F211: not reviewed; the keepass-rs and rPGP cross-check programs only (docs/deps/keepass.md, docs/deps/pgp.md), in no shipped binary"
+notes = "F193: not reviewed; the keepass-rs cross-check crate only (docs/deps/keepass.md), in no shipped binary"
 
 [[exemptions.tiny-skia]]
 version = "0.11.4"
@@ -1273,11 +758,6 @@ version = "0.25.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.twofish]]
-version = "0.7.1"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.twofish]]
 version = "0.8.0"
 criteria = "safe-to-deploy"
 notes = "F193: not reviewed; the keepass-rs cross-check crate only (docs/deps/keepass.md), in no shipped binary"
@@ -1294,17 +774,7 @@ notes = "not reviewed; a dev-dependency of the backup property tests only (docs/
 [[exemptions.unicode-ident]]
 version = "1.0.27"
 criteria = "safe-to-deploy"
-notes = "F193, F211: not reviewed; the keepass-rs and rPGP cross-check programs only (docs/deps/keepass.md, docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.unicode-xid]]
-version = "0.2.6"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
-[[exemptions.universal-hash]]
-version = "0.5.1"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
+notes = "F193: not reviewed; the keepass-rs cross-check crate only (docs/deps/keepass.md), in no shipped binary"
 
 [[exemptions.uuid]]
 version = "1.29.0"
@@ -1315,11 +785,6 @@ notes = "F193: not reviewed; the keepass-rs cross-check crate only (docs/deps/ke
 version = "0.9.5"
 criteria = "safe-to-deploy"
 notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
-
-[[exemptions.wasi]]
-version = "0.11.1+wasi-snapshot-preview1"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
 
 [[exemptions.wasm-bindgen]]
 version = "0.2.128"
@@ -1446,11 +911,6 @@ version = "0.30.13"
 criteria = "safe-to-deploy"
 notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
 
-[[exemptions.wyz]]
-version = "0.5.1"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
 [[exemptions.x11-dl]]
 version = "2.21.0"
 criteria = "safe-to-deploy"
@@ -1465,11 +925,6 @@ notes = "F71: not reviewed; desktop shells only, linked through winit or softbuf
 version = "0.13.2"
 criteria = "safe-to-deploy"
 notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
-
-[[exemptions.x25519-dalek]]
-version = "2.0.1"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
 
 [[exemptions.xcursor]]
 version = "0.3.11"
@@ -1491,25 +946,15 @@ version = "0.8.57"
 criteria = "safe-to-deploy"
 notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
 
-[[exemptions.zerocopy]]
-version = "0.8.63"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
 [[exemptions.zerocopy-derive]]
 version = "0.8.57"
 criteria = "safe-to-deploy"
 notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
 
-[[exemptions.zerocopy-derive]]
-version = "0.8.63"
-criteria = "safe-to-deploy"
-notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md), in no shipped binary"
-
 [[exemptions.zeroize]]
 version = "1.9.1"
 criteria = "safe-to-deploy"
-notes = "F193, F211: not reviewed; the keepass-rs and rPGP cross-check programs only (docs/deps/keepass.md, docs/deps/pgp.md), in no shipped binary"
+notes = "F193: not reviewed; the keepass-rs cross-check crate only (docs/deps/keepass.md), in no shipped binary"
 
 [[exemptions.zlib-rs]]
 version = "0.6.7"
@@ -1518,4 +963,4 @@ criteria = "safe-to-deploy"
 [[exemptions.zlib-rs]]
 version = "0.6.8"
 criteria = "safe-to-deploy"
-notes = "F193, F211: not reviewed; the keepass-rs and rPGP cross-check programs only (docs/deps/keepass.md, docs/deps/pgp.md), in no shipped binary"
+notes = "F193: not reviewed; the keepass-rs cross-check crate only (docs/deps/keepass.md), in no shipped binary"

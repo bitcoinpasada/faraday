@@ -407,8 +407,8 @@ completeness = "Words, passphrase, SeedQR and codex32 files for a stick; words a
 id = "vault"
 section = 3
 what = "The vault (`faraday/faraday-vault`, `docs/VAULT.md`)"
-completeness = "Built: create, open, seal and the records, as a KDBX 4 file vault (`faraday-vault::file`, over `faraday-vault::kdbx`). The file is checked against pykeepass, `keepassxc-cli` and keepass-rs in the `vault` cross-check area, both ways. The QR vault as an RFC 9580 message is built as `faraday-vault::qr` (over `faraday-pgp::message`) and read by Sequoia's `sq` in `tools/vault/open.py`. Planned (F190, `docs/VAULT.md`): the app's screens for the QR vault"
-standard_note = "Built: KDBX 4 under Argon2id 1.3 (RFC 9106) and ChaCha20 (RFC 8439) for the file vault, read by pykeepass, `keepassxc-cli` and keepass-rs in the `vault` cross-check area. Built: an RFC 9580 message under its Argon2 S2K with AES-256-OCB for a QR vault (`faraday-vault::qr`), holding TOML v1.0.0, opened by `sq` in the repository's tests only, and in the cross-check area `qrvault` by `sq`, rPGP and a PyCA judge, with rPGP's and the judge's seals opened by Faraday; checked against RFC 9580's own vectors for the session key and the data packet (AES-128 and OCB, byte for byte) and for the Argon2 S2K, the S2K held to A.12.3 by an ignored test that takes 2 GiB (`tools/vectors/openpgp/README.md`); OpenPGP.js is not run"
+completeness = "Built: create, open, seal and the records, as a KDBX 4 file vault (`faraday-vault::file`, over `faraday-vault::kdbx`). The file is checked against pykeepass, `keepassxc-cli` and keepass-rs in the `vault` cross-check area, both ways."
+standard_note = "Built: KDBX 4 under Argon2id 1.3 (RFC 9106) and ChaCha20 (RFC 8439) for the file vault, read by pykeepass, `keepassxc-cli` and keepass-rs in the `vault` cross-check area."
 
 [[row]]
 id = "kef"
@@ -2041,7 +2041,7 @@ crate = "core/faraday-crypto"
 libraries = [
   "hmac",
 ]
-adds = "HKDF (RFC 5869) is written here over `hmac`: `hkdf_sha256` extracts under the salt into a pseudorandom key held in a wiped `Secret` and expands, for the QR vault's message, and `hkdf_sha256_expand` (§2.3) expands alone, for the blinding of the session's keys and Schnorr signing's per-input auxiliary randomness. Both are checked against RFC 5869's test cases 1 to 3 and, in area `hash`, against PyCA's `HKDF` and `HKDFExpand`."
+adds = "HKDF (RFC 5869) is written here over `hmac`: `hkdf_sha256` extracts under the salt into a pseudorandom key held in a wiped `Secret` and expands, for Core Lightning's hsm_secret, and `hkdf_sha256_expand` (§2.3) expands alone, for the blinding of the session's keys and Schnorr signing's per-input auxiliary randomness. Both are checked against RFC 5869's test cases 1 to 3 and, in area `hash`, against PyCA's `HKDF` and `HKDFExpand`."
 
 [action.checked]
 tests = [
@@ -7453,12 +7453,6 @@ checked = "2026-10-29"
 source = "unicode.org"
 tags = ["NFC", "Unicode normalization"]
 
-[standard."RFC 7253"]
-name = "The OCB Authenticated-Encryption Algorithm"
-status = "Informational"
-checked = "2026-11-02"
-source = "rfc-editor.org"
-
 [standard."RFC 9106"]
 name = "Argon2 Memory-Hard Function for Password Hashing and Proof-of-Work Applications"
 status = "Informational"
@@ -7609,7 +7603,7 @@ tests = [
 not_crosschecked = "The `vault` cross-check area judges the Argon2id step (argon2-cffi and PyCA) and the NFC step (Python's `unicodedata`) a vault is made with. The KDBX file `file::create` makes, and the one an export makes (`file::create_holding`), is read by pykeepass, `keepassxc-cli` and keepass-rs in that area, and its changes by them too."
 fuzz_none = "Creation takes no outside bytes but the passphrase and the caller's answer; kdbx_file and kdbx_body fuzz what a vault is read from."
 other = [
-  "tools/vault/open.py, a reader over pykeepass and, for a QR vault, Sequoia's sq, opens the vectors the same code wrote (`faraday/faraday-vault/tests/open_py.rs`); the primitives under it are argon2-cffi's and OpenSSL's answers in `tools/vectors/kdf`",
+  "tools/vault/open.py, a reader over pykeepass, opens the vectors the same code wrote (`faraday/faraday-vault/tests/open_py.rs`); the primitives under it are argon2-cffi's and OpenSSL's answers in `tools/vectors/kdf`",
 ]
 
 [action.secrets]
@@ -7740,13 +7734,11 @@ places = [
 [[action]]
 id = "vault-contents"
 name = "Read the items inside a vault"
-action = "Reads the TOML a vault holds into its items: the keys of a QR vault (a seed's words, a codex32 share, a passphrase, a note, or nothing), and the three TOML values a file vault keeps in its custom data (a backup plan, a seed's codex32 facts, its BIP-85 facts). What the Spec does not name is refused: a syntax refusal names the line and every other the key; a value read is written again to the same fields. A file vault's KDBX document is mapped to the records the app reads and back (`kdbx::items`): each Faraday item by its `faraday.kind` in its published text form (BIP-39 words of a list or a seed in hex, a BIP-388 policy or a descriptor, PEM keys and certificates, an armored GPG key, a codex32 string), a person's entry by its six fields, and the database's format, seal count, plans and signed amounts; an item that does not read is named Unreadable, never made a record, and written back as read."
+action = "Reads the TOML a vault holds into its items: the three TOML values a file vault keeps in its custom data (a backup plan, a seed's codex32 facts, its BIP-85 facts). What the Spec does not name is refused: a syntax refusal names the line and every other the key; a value read is written again to the same fields. A file vault's KDBX document is mapped to the records the app reads and back (`kdbx::items`): each Faraday item by its `faraday.kind` in its published text form (BIP-39 words of a list or a seed in hex, a BIP-388 policy or a descriptor, PEM keys and certificates, an armored GPG key, a codex32 string), a person's entry by its six fields, and the database's format, seal count, plans and signed amounts; an item that does not read is named Unreadable, never made a record, and written back as read."
 row = "vault"
 standards = ["TOML v1.0.0"]
 screens = []
 functions = [
-  "faraday/faraday-vault/src/contents.rs::read_qr",
-  "faraday/faraday-vault/src/contents.rs::write_qr",
   "faraday/faraday-vault/src/contents.rs::read_plan",
   "faraday/faraday-vault/src/contents.rs::write_plan",
   "faraday/faraday-vault/src/contents.rs::read_codex32_facts",
@@ -7768,7 +7760,6 @@ functions = [
   "faraday/faraday-vault/src/kdbx/items/forms.rs::der_pem",
 ]
 code = [
-  "faraday/faraday-vault/src/contents.rs::read_qr",
   "faraday/faraday-vault/src/contents.rs::read_plan",
   "faraday/faraday-vault/src/contents.rs::read_codex32_facts",
   "faraday/faraday-vault/src/contents.rs::read_child_facts",
@@ -7794,9 +7785,6 @@ decision = "F190"
 [action.checked]
 vectors = ["toml"]
 tests = [
-  "faraday/faraday-vault/tests/contents.rs::a_qr_vault_holds_one_item_in_one_length",
-  "faraday/faraday-vault/tests/contents.rs::a_qr_vault_refuses_what_it_cannot_hold",
-  "faraday/faraday-vault/tests/contents.rs::a_qr_vault_may_hold_a_note_or_nothing",
   "faraday/faraday-vault/tests/contents.rs::a_plan_is_written_and_read_back_with_every_field",
   "faraday/faraday-vault/tests/contents.rs::a_hand_edited_plan_reads_as_the_written_one",
   "faraday/faraday-vault/tests/contents.rs::a_plan_refuses_what_section_7_does_not_name",
@@ -7823,7 +7811,7 @@ tests = [
   "faraday/faraday-vault/tests/kdbx_items.rs::a_persons_entry_with_a_field_of_any_length_reads_and_keeps_it",
   "faraday/faraday-vault/tests/kdbx_items.rs::a_plan_or_signed_amount_that_does_not_read_is_neither_replaced_nor_removed",
 ]
-not_crosschecked = "The TOML syntax is checked against toml-test's published cases for TOML v1.0.0, made by the TOML authors' test suite; the vault's own rules (its keys, limits and values) are Faraday's and are not checked against an outside source. The action is not cross-checked as one, since the KDBX vault's items have no such judge; area qrvault compares the QR form's writer byte for byte and its reader by item, tomllib reading the canonical form the area writes."
+not_crosschecked = "The TOML syntax is checked against toml-test's published cases for TOML v1.0.0, made by the TOML authors' test suite; the vault's own rules (its keys, limits and values) are Faraday's and are not checked against an outside source. The action is not cross-checked as one, since the KDBX vault's items have no such judge."
 fuzz = ["contents", "kdbx_xml"]
 
 [action.secrets]
@@ -7833,8 +7821,7 @@ wiped = "The text read and the values made from it are held in wiping types (doc
 
 [action.limits]
 lines = [
-  "A QR vault is exactly 226 bytes; a plan over 1 MiB, an inline table over its size, a key part of more than 128 bytes, a key path of more than 8 parts and a key outside docs/VAULT.md sections 2.1 and 7 are refused.",
-  "A QR vault holds one item, a note of at most QR_NOTE_MAX bytes and a passphrase of at most QR_PASSPHRASE_MAX; more is refused as too long, naming the key.",
+  "A plan over 1 MiB, an inline table over its size, a key part of more than 128 bytes, a key path of more than 8 parts and a key outside docs/VAULT.md section 7 are refused.",
 ]
 
 [[action.own]]
@@ -7846,216 +7833,6 @@ decision = "F194"
 text = "Whatever the Spec's TOML does not name is refused, so a value that adds a key is not read (F190 point 3, docs/VAULT.md section 7)."
 kind = "Conservative"
 decision = "F194"
-
-[[action.own]]
-text = "A QR vault's contents are the item's keys at the top of a TOML document, padded to 226 bytes with line feeds (F190 point 5, docs/VAULT.md section 2.1)."
-kind = "Neutral"
-decision = "F194"
-
-[action.review]
-
-[[action]]
-id = "vault-qr-pgp"
-name = "Seal a QR vault's OpenPGP message"
-action = "Writes and reads an RFC 9580 message under a passphrase: Argon2id (the Argon2 S2K, 3 passes, 4 lanes) over the passphrase gives a key, HKDF-SHA-256 makes the key that AES-256-OCB wraps the session key with in a version 6 symmetric-key encrypted session key packet, and a version 2 data packet holds one literal data packet in AES-256-OCB chunks under a key HKDF-SHA-256 makes from the session key and a 32-byte salt, with a final tag over the plaintext's length."
-row = "vault"
-standards = [
-  "RFC 9580",
-  "RFC 7253",
-  "RFC 9106",
-  "RFC 5869",
-]
-screens = []
-functions = [
-  "faraday/faraday-pgp/src/message.rs::parse",
-  "faraday/faraday-pgp/src/message.rs::Message::open",
-  "faraday/faraday-pgp/src/message.rs::seal",
-  "faraday/faraday-pgp/src/message.rs::seal_at",
-  "faraday/faraday-pgp/src/message.rs::seal_packets",
-  "faraday/faraday-pgp/src/message.rs::s2k",
-  "faraday/faraday-pgp/src/message.rs::wrapping_key",
-  "faraday/faraday-pgp/src/message.rs::wrap_session_key",
-  "faraday/faraday-pgp/src/message.rs::unwrap_session_key",
-  "faraday/faraday-pgp/src/message.rs::ocb_seal",
-  "faraday/faraday-pgp/src/message.rs::ocb_open",
-  "faraday/faraday-pgp/src/message.rs::encrypt_chunks",
-  "faraday/faraday-pgp/src/message.rs::decrypt_chunks",
-  "faraday/faraday-pgp/src/message.rs::read_literal",
-  "faraday/faraday-pgp/src/message.rs::read_packet",
-  "faraday/faraday-vault/src/qr.rs::seal",
-  "faraday/faraday-vault/src/qr.rs::open",
-]
-code = [
-  "faraday/faraday-pgp/src/message.rs::seal",
-  "faraday/faraday-pgp/src/message.rs::Message::open",
-]
-
-[action.implementation]
-crate = "faraday/faraday-pgp"
-libraries = [
-  "aes",
-  "ocb3",
-]
-through = [{ library = "argon2", crate = "core/faraday-crypto" }]
-adds = "Only the part used is written: the version 6 symmetric-key packet with the Argon2 S2K and the version 2 data packet, both AES-256 and OCB, and the one literal data packet, in any length form RFC 9580 allows. The Argon2 cost is checked against the limits right after the key packet, before the data packet is read or any Argon2 memory is taken, padding packets are ignored, every tag is checked before plaintext is returned, and every other packet, version, algorithm or trailing byte is named and not opened. HKDF-SHA-256 is Faraday's own (`faraday-crypto`); Argon2id, AES and OCB are the RustCrypto crates."
-
-[[action.implementation.written_here]]
-what = "HKDF-SHA256, one copy (`faraday-crypto::hash`)"
-why = "does-not-fit"
-unfit = "hkdf 0.13.0 returns the pseudorandom key and leaves each output block T(i) in plain arrays it does not wipe"
-note = "The Rust HKDF library leaves the pseudorandom key and its output blocks unwiped; Faraday's holds both in buffers it wipes."
-decision = "F180"
-
-[[action.implementation.written_here]]
-what = "The QR vault's OpenPGP message: the version 6 symmetric-key packet with the Argon2 S2K, the version 2 data packet and the literal data packet (`faraday-pgp::message`)"
-why = "only-part-used"
-note = "Faraday writes only the three packets a QR vault uses, over argon2, aes and ocb3 and Faraday's HKDF; rPGP, which no review Faraday trusts covers, brings every OpenPGP algorithm."
-decision = "F190"
-
-[action.checked]
-vectors = ["openpgp"]
-tests = [
-  "faraday/faraday-pgp/src/message/tests.rs::the_rfc_session_key_is_unwrapped_and_wrapped_again",
-  "faraday/faraday-pgp/src/message/tests.rs::the_rfc_data_packet_is_decrypted_and_encrypted_again",
-  "faraday/faraday-pgp/src/message/tests.rs::a_vault_is_396_bytes_and_opens_to_what_it_holds",
-  "faraday/faraday-pgp/src/message/tests.rs::the_packets_are_the_ones_the_spec_names",
-  "faraday/faraday-pgp/src/message/tests.rs::a_wrong_passphrase_is_named",
-  "faraday/faraday-pgp/src/message/tests.rs::a_changed_byte_in_the_data_is_refused",
-  "faraday/faraday-pgp/src/message/tests.rs::a_cost_outside_the_limits_is_refused_before_anything_runs",
-  "faraday/faraday-pgp/src/message/tests.rs::another_openpgp_message_is_named",
-  "faraday/faraday-pgp/src/message/tests.rs::every_length_form_is_read",
-  "faraday/faraday-pgp/src/message/tests.rs::padding_packets_are_ignored",
-  "faraday/faraday-pgp/src/message/tests.rs::the_rfc_plaintext_with_its_padding_is_read",
-  "faraday/faraday-pgp/src/message/tests.rs::what_else_is_in_the_plaintext_is_named",
-  "faraday/faraday-pgp/src/message/tests.rs::a_compressed_first_packet_in_partial_lengths_is_named",
-]
-crosscheck = "qrvault"
-independence = { class = "outside-and-own", author = "Sequoia's sq, by the Sequoia PGP developers (judges the primitives except Argon2, which it shares with the app's lineage, and opens Faraday's messages), rPGP, by the rPGP developers (judges the format only, on the app's lineage: opens Faraday's messages and seals the ones Faraday opens), and PyCA cryptography over OpenSSL (judges Argon2id, HKDF-SHA-256 and AES-256-OCB)", ours = "the OpenPGP framing around PyCA's primitives, read and written strictly in `area_qrvault.py` from RFC 9580 and `docs/VAULT.md` §1.2, and the QR TOML (`qr_toml`) from §2.1, read beside by CPython's `tomllib`; Faraday's second version of the framing, not another program's" }
-fuzz = ["pgp_qr_vault"]
-
-[action.secrets]
-reveal = "none"
-constant_time = "The tags are compared in constant time by the ocb3 crate; Argon2id, HKDF and AES state nothing more."
-wiped = "The Argon2 output, the wrapping key, the session key, the message key and the opened plaintext are Zeroizing values wiped on drop; the Argon2 memory is overwritten after the run."
-
-[action.limits]
-lines = [
-  "A SKESK v4, a SEIPD v1, a public-key encrypted session key, a second SKESK, compressed data, a signature and trailing data but padding are named \"An OpenPGP message Faraday does not open\".",
-  "Argon2 memory 8 MiB to 1 GiB, passes 1 to 100 and lanes 1 to 64; outside them the message is refused right after the key packet, before the data packet is read or any memory is taken; a QR vault is written at 64 MiB to 1 GiB.",
-  "A wrong passphrase is told from a changed message: the session key's tag fails for the first, a data tag for the second.",
-  "The passphrase arrives in Unicode NFC; the caller puts it there.",
-]
-
-[[action.own]]
-text = "Only AES-256 with OCB and the Argon2 S2K are read: another cipher, AEAD mode or S2K is refused, as are armor and every packet but the three (F178, F190)."
-kind = "Conservative"
-decision = "F190"
-
-[action.review]
-
-[[action]]
-id = "qr-vault-seal"
-name = "Seal a QR vault"
-action = "Seals a typed note, a loaded key's words, or a seed, codex32 share, BIP-39 passphrase or note of an open file vault, as a QR vault under a typed passphrase and a memory step, and reads the seal back before the code is given."
-row = "vault"
-standards = [
-  "RFC 9580",
-  "RFC 7253",
-  "RFC 9106",
-  "RFC 5869",
-]
-screens = []
-functions = [
-  "faraday/faraday-keys/src/qr_vault.rs::qr_seal_note_job",
-  "faraday/faraday-keys/src/qr_vault.rs::Keys::qr_seal_key_job",
-  "faraday/faraday-keys/src/qr_vault.rs::OpenVaults::qr_seal_item_job",
-  "faraday/faraday-keys/src/qr_vault.rs::OpenVaults::qr_fit",
-  "faraday/faraday-keys/src/qr_vault.rs::OpenVaults::qr_item_is_seed",
-  "faraday/faraday-keys/src/qr_vault.rs::QrSealJob::run",
-]
-code = ["faraday/faraday-keys/src/qr_vault.rs::QrSealJob::run"]
-
-[action.implementation]
-crate = "faraday/faraday-keys"
-libraries = []
-through = []
-adds = "Writes the contents (`faraday-vault::contents`) and seals them as the message of the action above with 95 random bytes the device drew; a key's words are lent for the seal and not kept; a vault item is read once, when the job is made, checked to fit and left in the vault."
-
-[action.checked]
-tests = []
-crosscheck = "qrvault"
-independence = { class = "outside-and-own", author = "Sequoia's sq and rPGP, as for the OpenPGP message the code is", ours = "none beyond the message's own" }
-fuzz = ["pgp_qr_vault"]
-
-[action.secrets]
-reveal = ["Reveal::QrVault"]
-constant_time = "Not stated; the seal is the message's."
-wiped = "The typed note and passphrases are wiped when the code is made; the random bytes and the key's or vault item's words copied into the job are wiped on drop, not lent."
-
-[action.limits]
-lines = [
-  "A note holds the room the contents leave; a key of other than 12 or 24 English words is not offered; a vault item over the same room is refused with the reason, and a note with the characters to take off.",
-  "The memory step is one of the steps the message allows; a computer without the room for it refuses.",
-]
-
-[[action.own]]
-text = "A passphrase is typed twice and is not measured; the code is only as strong as it."
-kind = "Neutral"
-decision = "F190"
-
-[action.review]
-
-[[action]]
-id = "qr-vault-open"
-name = "Open a QR vault"
-action = "Opens a scanned QR vault code, or a chosen .pgp file, under a typed passphrase, and holds the one item it holds for the QR vault tool to say what it is and, behind an eye, to show a note or a passphrase; then offers what that item takes: a seed's words to the seed sheet, a share to the codex32 form, a passphrase added to the loaded key whose words make the key it names (with the offer worked out from fingerprints alone), and a note saved in the open file vault."
-row = "vault"
-standards = [
-  "RFC 9580",
-  "RFC 7253",
-  "RFC 9106",
-  "RFC 5869",
-]
-screens = []
-functions = [
-  "faraday/faraday-keys/src/qr_vault.rs::QrOpenJob::run",
-  "faraday/faraday-keys/src/qr_vault.rs::Keys::qr_hold",
-  "faraday/faraday-keys/src/qr_vault.rs::Keys::qr_note",
-  "faraday/faraday-keys/src/qr_vault.rs::Keys::qr_passphrase",
-  "faraday/faraday-keys/src/qr_vault.rs::Keys::qr_words",
-  "faraday/faraday-keys/src/qr_vault.rs::Keys::qr_share",
-  "faraday/faraday-keys/src/qr_vault.rs::Keys::qr_passphrase_offer",
-  "faraday/faraday-keys/src/qr_vault.rs::Keys::qr_add_passphrase",
-  "faraday/faraday-keys/src/qr_vault.rs::OpenVaults::qr_save_note",
-]
-code = ["faraday/faraday-keys/src/qr_vault.rs::QrOpenJob::run"]
-
-[action.implementation]
-crate = "faraday/faraday-keys"
-libraries = []
-through = []
-adds = "Reads the message of the action above with the typed passphrase after its stated Argon2 cost is checked against the limits (the app also checks the cost against the memory this computer has free before it starts the job, and names a code it cannot open at once), and reads the contents (`faraday-vault::contents`) into one held item that leaves `faraday-keys` only through the `Reveal::QrVault` reveals. The offers lend the held words or share once to the seed sheet or the codex32 form; `qr_passphrase_offer` makes the BIP-39 seed and BIP-32 master fingerprint of each loaded key with the held passphrase and returns only fingerprints, and `qr_add_passphrase` adds the key it finds; `qr_save_note` writes the note as a note record of the open vault."
-
-[action.checked]
-vectors = ["vault"]
-tests = [
-  "faraday/faraday-keys/tests/qr_vault.rs::a_committed_code_opens_and_its_cost_reads_without_a_passphrase",
-]
-crosscheck = "qrvault"
-independence = { class = "outside-and-own", author = "Sequoia's sq and rPGP, as for the OpenPGP message the code is", ours = "none beyond the message's own" }
-fuzz = ["pgp_qr_vault"]
-
-[action.secrets]
-reveal = ["Reveal::QrVault"]
-constant_time = "Not stated; the open is the message's."
-wiped = "The typed passphrase is wiped when the open ends, stops or fails; words or a share lent to an offer are wiped as the seed sheet or the form takes them; the item held is wiped on the next open, on leaving the tool, at the idle warning and at a lock."
-
-[action.limits]
-lines = [
-  "A message Faraday does not open, or a stated cost outside the limits, is named before any memory is taken.",
-  "A wrong passphrase is told from a changed message and may be tried again.",
-  "No key loads with a stick plugged in; the card says so. A key already loaded is not added twice; a vault that is read-only, full or not open takes no note.",
-]
 
 [action.review]
 
@@ -9747,9 +9524,6 @@ author = "the rust-bitcoin developers (rust-miniscript)"
 [library.miniz_oxide]
 author = "the miniz_oxide developers, a port of Rich Geldreich's miniz"
 
-[library.ocb3]
-author = "the RustCrypto developers"
-
 [library.poly1305]
 author = "the RustCrypto developers"
 
@@ -9813,10 +9587,6 @@ by = "the authors of BIP 173, BIP 350, BIP 380, BIP 49, BIP 84 and BIP 86 (bitco
 [vector.core-wallet]
 source = "outside"
 by = "Bitcoin Core (the pinned bitcoind on regtest), run by `tools/vectors/core-wallet/gen.py`: plain, encrypted (passphrase `faraday`), watch-only, blank, labelled, imported descriptor and imported uncompressed key wallets, a multisig and a miniscript wallet of keys with further hardened steps, and a wallet Core's migratewallet made of a legacy wallet (its combo() descriptors, which Faraday lists and does not take), with Core's listdescriptors and getwalletinfo"
-
-[vector.openpgp]
-source = "published"
-by = "RFC 9580 Appendix A (A.10, the version 6 symmetric-key session key and the version 2 data packet with AES-128 and OCB; A.12.3, the Argon2 S2K with AES-256), made by the RFC's authors"
 
 [vector.kdbx]
 source = "outside"
@@ -10025,10 +9795,6 @@ name = "S2K"
 reason = "The string-to-key specifier of RFC 9580 (the name of the construction)."
 
 [[name_with_digits]]
-name = "AES-256-OCB"
-reason = "AES-256 in OCB mode: the cipher's name (RFC 9580)."
-
-[[name_with_digits]]
 name = "KDBX 4"
 reason = "KeePass's file format and its version (the format's name)."
 
@@ -10197,24 +9963,6 @@ does = "Keeps each file at one of its sizes, by adding line feeds after the XML'
 instead = "nothing, since KDBX has no padding of its own"
 why = "It uses what XML already allows after its last tag, so a KeePass app reads the padded file as any other. A KeePass app that saves the file drops the padding."
 
-[[construction.section.para]]
-piece = "OpenPGP code for the QR vault"
-does = "Writes and reads the three packets a QR vault is made of"
-instead = "rPGP (pgp) or Sequoia"
-why = "Each brings every algorithm OpenPGP has had, with all the libraries those need, for a message that uses AES and OCB alone. rPGP has been audited by outside reviewers, but none of those audits is one Faraday's dependency checks trust, so each library it brings would be Faraday's own to vet."
-
-[[construction.section.para]]
-piece = "HKDF (RFC 5869)"
-does = "Turns one key into others; in the vault only the QR vault uses it"
-instead = "the hkdf crate"
-why = "It leaves the intermediate key and each output block in freed memory unwiped; Faraday's own wipes them."
-
-[[construction.section.para]]
-piece = "QR vault contents"
-does = "The short TOML inside the code, padded to one length, holding one seed, share, passphrase or note"
-instead = "nothing, since no standard exists for an encrypted seed QR that other tools read"
-why = "Unavoidable. The cross-check reads the contents with an outside TOML parser."
-
 [[construction.section]]
 heading = "Security"
 
@@ -10223,9 +9971,6 @@ text = "What protects secrets is all published. Someone with the file faces Argo
 
 [[construction.section.para]]
 text = "The main risk is parsing. The device reads files from outside, and a bug in a reader could crash it, hang it, or make it accept or refuse a file wrongly. The guards: a file's memory, passes and lanes are checked against limits before any memory is asked for; every block's HMAC is checked before its bytes are used; anything unexpected is refused, never guessed at; the XML reader refuses a DOCTYPE and an entity it does not know; each reader has a fuzz target; and pykeepass, keepassxc-cli and keepass-rs read what Faraday writes, and Faraday reads what they write."
-
-[[construction.section.para]]
-text = "The QR vault's reader checks the Argon2 cost against the same limits right after the key packet, before the data packet is read, and refuses every packet it does not use."
 
 [[construction.section.para]]
 text = "The one subtle risk is in writing. If Faraday's code reused a value it should draw fresh, a nonce for example, the file would still open everywhere, so the cross-check would not notice, but the encryption would be weaker. A library carries the same risk in its own code. The guard: every seal draws its bytes from one call for the session's randomness, and the specification counts every byte that call returns."
@@ -10237,9 +9982,6 @@ text = "The library trade. A large audited library is more code that Faraday did
 text = "Key commitment. Every HMAC in a file vault is keyed from the key its passphrase makes, so no second passphrase opens the file to other contents."
 
 [[construction.section.para]]
-text = "OCB does not commit to its key. A QR vault someone else made could be built to open to two contents under two passphrases. Faraday makes every QR vault under one passphrase."
-
-[[construction.section.para]]
 text = "Later work. Faraday does not yet wipe every copy of a key left in freed memory, and Argon2id's later passes read memory at places the passphrase decides, which a program on the same computer could time. The device is offline and powered off after use, so both wait."
 
 [[construction.section]]
@@ -10247,9 +9989,6 @@ heading = "Opening it elsewhere"
 
 [[construction.section.para]]
 text = "This shows the file is standard, and is not the way to use a vault. The cross-check opens a file vault with pykeepass, keepassxc-cli and keepass-rs, and Faraday opens what they write."
-
-[[construction.section.para]]
-text = "A QR vault is read by Sequoia's sq and by rPGP in the cross-check. GnuPG cannot read a QR vault: it follows LibrePGP, not RFC 9580."
 
 [[construction.section.para]]
 text = "Unlocking a vault on a computer that is online shows its seed on that computer. It is a last resort, for when Faraday is gone and the seed is needed back. Move the funds to a new seed afterwards and treat the old seed as exposed. The way to open a vault is Faraday on the offline device."

@@ -20,7 +20,6 @@ mod pi_panel;
 mod psbt;
 mod published;
 mod pull;
-mod qr_vault_sample;
 mod signer_check;
 mod use_sample;
 mod vectors;

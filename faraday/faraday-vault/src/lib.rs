@@ -8,8 +8,6 @@
 //! - [`kdbx`] is the KDBX 4 container and its items: the format's header,
 //!   key derivation, hashed blocks, inner header and XML, and how items
 //!   map to records.
-//! - [`qr`] seals and opens a QR vault, an OpenPGP message holding one item
-//!   (§1.2, §2.1).
 //! - [`records`] is the app's record model: typed records of fields (§7).
 //! - [`contents`], [`entries`], [`layouts`], [`child`], [`codex32`] and
 //!   [`totp`] are what the records hold and how each reads and writes.
@@ -37,7 +35,6 @@ pub mod entries;
 pub mod file;
 pub mod kdbx;
 pub mod layouts;
-pub mod qr;
 pub mod records;
 pub mod slip39;
 pub mod totp;

@@ -56,8 +56,6 @@ disallowed-methods = [
     { path = "faraday_vault::file::measure", reason = "key boundary (docs/KEYS.md): a vault's slot key derived, which faraday-keys does" },
     { path = "faraday_vault::kdbx::open", reason = "key boundary (docs/KEYS.md): a vault opened, which faraday-keys does" },
     { path = "faraday_vault::kdbx::seal", reason = "key boundary (docs/KEYS.md): a vault sealed, which faraday-keys does" },
-    { path = "faraday_vault::qr::open", reason = "key boundary (docs/KEYS.md): a vault opened, which faraday-keys does" },
-    { path = "faraday_vault::qr::seal", reason = "key boundary (docs/KEYS.md): a vault sealed, which faraday-keys does" },
     { path = "faraday_psbt::sign", reason = "key boundary (docs/KEYS.md): a PSBT signed, which faraday-keys does" },
     { path = "faraday_psbt::sweep::sign", reason = "key boundary (docs/KEYS.md): a PSBT signed with a WIF key, which faraday-keys does" },
     { path = "faraday_bip::aezeed::decode", reason = "key boundary (docs/KEYS.md): an aezeed decoded, which faraday-keys does" },

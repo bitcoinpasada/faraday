@@ -33,7 +33,6 @@ mod musig;
 mod ots;
 mod parts;
 mod psbt;
-mod qrvault;
 mod review;
 mod seedqr;
 mod sign;
@@ -88,7 +87,6 @@ fn dispatch(op: &str, req: &Value) -> Answer {
         "totp" => totp::handle(name, req),
         "ur" => ur::handle(name, req),
         "vanity" => vanity::handle(name, req),
-        "qrvault" => qrvault::handle(name, req),
         "kef" => kef::handle(name, req),
         "sqlite" => sqlite::handle(name, req),
         "core_wallet" => core_wallet::handle(name, req),

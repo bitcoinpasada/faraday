@@ -201,20 +201,6 @@ for prog in "rust-codex32-ref tools/reference/rust-codex32 rust-codex32-answers"
     say "build: $name done"
 done
 
-# rPGP as the QR vault's outside sealer and reader (area qrvault; F193
-# point 1): its own workspace, tools/crosscheck/rpgp/, built here from its
-# Cargo.lock and never reaching an app. Its crates are fetched beforehand
-# (cargo fetch --locked --manifest-path tools/crosscheck/rpgp/Cargo.toml).
-say "build: rPGP's program (cargo build --frozen, tools/crosscheck/rpgp)"
-if ! CARGO_TARGET_DIR="$PWD/$progress/rust-target-rpgp-ref" cargo build --frozen -q \
-        --manifest-path tools/crosscheck/rpgp/Cargo.toml 2>"$progress/cargo-rpgp-ref.log"; then
-    cat "$progress/cargo-rpgp-ref.log" >&2
-    say "build: FAILED: rPGP's program did not build (fetch its crates first: docs/DEVELOPING.md)"
-    exit 2
-fi
-cp "$progress/rust-target-rpgp-ref/debug/faraday-crosscheck-rpgp" "$progress/rpgp-ref"
-say "build: rPGP's program done"
-
 # The judged test files and the OVMF Secure Boot run (ESTABLISHED §9.2,
 # rule 4): the tests that skip without an outside tool under plain `just`
 # fail without it here, and QEMU boots OVMF's Secure Boot firmware over

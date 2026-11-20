@@ -1,53 +1,24 @@
-//! The TOML inside a vault (`docs/VAULT.md` §2.1, §7): the QR vault's
-//! keys written and read back, what a QR vault must not hold, and the
-//! three TOML values a file vault keeps in KDBX custom data (a backup
-//! plan, a seed's codex32 facts and its BIP-85 facts) written, read back
-//! and refused as §7 says.
+//! The TOML inside a vault (`docs/VAULT.md` §7): the three TOML values a
+//! file vault keeps in KDBX custom data (a backup
+//! plan, a seed's codex32 facts and its BIP-85 facts) written, read back and refused as §7 says.
 #![allow(clippy::disallowed_methods)]
 
-use faraday_bip::bip39::{Language, Mnemonic};
-use faraday_crypto::work::Compute;
 use faraday_vault::Record;
 use faraday_vault::child::ChildOf;
 use faraday_vault::codex32::{SetFacts, State};
 use faraday_vault::contents::{
-    MAX_VALUE, QR_LEN, QR_NOTE_MAX, QR_PASSPHRASE_MAX, Why, read_child_facts, read_codex32_facts,
-    read_plan, read_qr, write_child_facts, write_codex32_facts, write_plan, write_qr,
+    MAX_VALUE, Why, read_child_facts, read_codex32_facts, read_plan, write_child_facts,
+    write_codex32_facts, write_plan,
 };
-use faraday_vault::layouts::words_payload;
 use faraday_vault::records::{field, kind};
 
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a mint: faraday-vault's tests, which cannot reach faraday-core's testkit"
-)]
-fn compute() -> Compute {
-    Compute::new(|_| {})
-}
-
-const TWELVE: &str =
-    "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
-const TWENTY_FOUR: &str = "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo vote";
 const XPUB: &str = "[73c5da0a/84h/0h/0h]xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V";
-const SHARE: &str = "ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn";
-
-fn words(phrase: &str) -> Vec<u8> {
-    let c = compute();
-    let m = Mnemonic::parse(&c, Language::English, phrase).unwrap();
-    words_payload(&m).to_vec()
-}
 
 fn fields(r: &Record) -> Vec<(u8, Vec<u8>)> {
     r.fields
         .iter()
         .map(|f| (f.number, f.bytes.to_vec()))
         .collect()
-}
-
-fn padded(text: String) -> Vec<u8> {
-    let mut b = text.into_bytes();
-    b.resize(QR_LEN, b'\n');
-    b
 }
 
 fn plan() -> Record {
@@ -336,162 +307,4 @@ fn a_bip85_origin_refuses_what_it_does_not_name() {
     );
     assert_eq!(refused(&format!("{{{good}}}\nx = 1")).0, Why::Unknown);
     assert_eq!(refused("\"73c5da0a\"").0, Why::WrongType);
-}
-
-fn qr_items() -> Vec<Record> {
-    vec![
-        Record::new(kind::KEY).with(field::KEY, &words(TWELVE)),
-        Record::new(kind::KEY).with(field::KEY, &words(TWENTY_FOUR)),
-        Record::new(kind::CODEX32_SHARE)
-            .with(field::CODEX32_STRING, SHARE.as_bytes())
-            .with(field::CODEX32_KEY, &[0x73, 0xc5, 0xda, 0x0a]),
-        Record::new(kind::PASSPHRASE)
-            .with(field::PASSPHRASE_KEY, &[0x73, 0xc5, 0xda, 0x0a])
-            .with(field::PASSPHRASE, b"a short passphrase"),
-    ]
-}
-
-#[test]
-fn a_qr_vault_holds_one_item_in_one_length() {
-    let c = compute();
-    for item in qr_items() {
-        let text = write_qr(&item).unwrap();
-        assert_eq!(text.len(), QR_LEN);
-        let back = read_qr(&c, &text).unwrap();
-        assert_eq!(back.kind, item.kind);
-        assert_eq!(fields(&back), fields(&item));
-    }
-}
-
-#[test]
-fn a_twelve_word_seed_and_a_twenty_four_word_one_make_codes_of_one_size() {
-    let a = write_qr(&qr_items()[0]).unwrap();
-    let b = write_qr(&qr_items()[1]).unwrap();
-    assert_eq!(a.len(), b.len());
-}
-
-#[test]
-fn a_qr_vault_refuses_what_it_cannot_hold() {
-    let c = compute();
-    // A 15-word seed, a seed with a label, a long passphrase.
-    let fifteen = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon address";
-    let m = Mnemonic::parse(&c, Language::English, fifteen).unwrap();
-    let r = Record::new(kind::KEY).with(field::KEY, &words_payload(&m));
-    assert_eq!(write_qr(&r).unwrap_err().why, Why::NotQr);
-    let labelled = qr_items()[0].duplicate().with(field::KEY_LABEL, b"x");
-    assert_eq!(write_qr(&labelled).unwrap_err().why, Why::NotQr);
-    let long = Record::new(kind::PASSPHRASE)
-        .with(field::PASSPHRASE_KEY, &[0; 4])
-        .with(field::PASSPHRASE, &[b'p'; 200]);
-    assert_eq!(write_qr(&long).unwrap_err().why, Why::TooLong);
-    let wallet = Record::new(kind::SECURE_BOOT).with(1, &[1; 16]);
-    assert_eq!(write_qr(&wallet).unwrap_err().why, Why::NotQr);
-    // Wrong length, two items.
-    let mut text = write_qr(&qr_items()[0]).unwrap().to_vec();
-    text.push(b'\n');
-    assert_eq!(read_qr(&c, &text).unwrap_err().why, Why::NotQr);
-    let two = format!("words = \"{TWELVE}\"\nnote = \"a\"");
-    let mut two = two.into_bytes();
-    two.resize(QR_LEN, b'\n');
-    assert_eq!(read_qr(&c, &two).unwrap_err().why, Why::Unknown);
-    // Keys the form does not name, beside the ones it does.
-    for extra in ["list = \"english\"", "load = false", "held = true"] {
-        let mut text = format!("words = \"{TWELVE}\"\n{extra}").into_bytes();
-        text.resize(QR_LEN, b'\n');
-        let r = read_qr(&c, &text).unwrap_err();
-        assert_eq!(
-            (r.why, r.key.as_str()),
-            (Why::Unknown, extra.split(' ').next().unwrap())
-        );
-    }
-    let mut text =
-        format!("codex32 = \"{SHARE}\"\nfor = \"73c5da0a\"\nwords = \"{TWELVE}\"").into_bytes();
-    text.resize(QR_LEN, b'\n');
-    assert_eq!(read_qr(&c, &text).unwrap_err().why, Why::Unknown);
-    let edge = |n: usize| {
-        Record::new(kind::PASSPHRASE)
-            .with(field::PASSPHRASE_KEY, &[0; 4])
-            .with(field::PASSPHRASE, &vec![b'p'; n])
-    };
-    assert_eq!(write_qr(&edge(QR_PASSPHRASE_MAX)).unwrap().len(), QR_LEN);
-    let r = write_qr(&edge(QR_PASSPHRASE_MAX + 1)).unwrap_err();
-    assert_eq!((r.why, r.key.as_str()), (Why::TooLong, "passphrase"));
-}
-
-#[test]
-fn a_qr_vault_may_hold_a_note_or_nothing() {
-    let c = compute();
-    let note = |t: &[u8]| Record::new(kind::NOTE).with(field::NOTE, t);
-    let back = |r: &Record| {
-        let text = write_qr(r).unwrap();
-        assert_eq!(text.len(), QR_LEN);
-        read_qr(&c, &text).unwrap()
-    };
-    // The most a note holds, in bytes of TOML text.
-    let edge = |n: usize| note("a".repeat(n).as_bytes());
-    assert_eq!(
-        back(&edge(QR_NOTE_MAX)).field(field::NOTE).unwrap().len(),
-        QR_NOTE_MAX
-    );
-    assert_eq!(
-        write_qr(&edge(QR_NOTE_MAX + 1)).unwrap_err().why,
-        Why::TooLong
-    );
-    // Quotes and backslashes are two bytes each.
-    let esc = note("\"".repeat(QR_NOTE_MAX / 2).as_bytes());
-    assert_eq!(
-        back(&esc).field(field::NOTE).unwrap().len(),
-        QR_NOTE_MAX / 2
-    );
-    let over = note("\\".repeat(QR_NOTE_MAX / 2 + 1).as_bytes());
-    assert_eq!(write_qr(&over).unwrap_err().why, Why::TooLong);
-    // Line feeds and other text.
-    let text = "line one\nline two\ttab \u{e9}";
-    assert_eq!(
-        back(&note(text.as_bytes())).field(field::NOTE).unwrap(),
-        text.as_bytes()
-    );
-    // A shorter way of writing the same line holds no more than the limit
-    // once written: it is refused on read, naming the key.
-    let long = "a".repeat(QR_NOTE_MAX + 1);
-    for line in [format!("note=\"{long}\"\n"), format!("note='{long}'\n")] {
-        let r = read_qr(&c, &padded(line)).unwrap_err();
-        assert_eq!((r.why, r.key.as_str()), (Why::TooLong, "note"));
-    }
-    let long = "a".repeat(QR_PASSPHRASE_MAX + 1);
-    for line in [
-        format!("passphrase=\"{long}\"\nfor=\"73c5da0a\"\n"),
-        format!("passphrase='{long}'\nfor=\"73c5da0a\"\n"),
-    ] {
-        let r = read_qr(&c, &padded(line)).unwrap_err();
-        assert_eq!((r.why, r.key.as_str()), (Why::TooLong, "passphrase"));
-    }
-    // A literal string takes a line break or a backslash as it is, and the
-    // code writes each as two bytes: what no longer fits once written is
-    // refused on read, and what does fit is read back and written again.
-    for (open, close, ch) in [("'''\n", "'''", "\n"), ("'", "'", "\\")] {
-        for (n, fits) in [(QR_NOTE_MAX / 2, true), (QR_NOTE_MAX / 2 + 1, false)] {
-            let line = format!("note = {open}{}{close}\n", ch.repeat(n));
-            let r = read_qr(&c, &padded(line));
-            if fits {
-                let back = r.unwrap();
-                assert_eq!(back.field(field::NOTE).unwrap(), ch.repeat(n).as_bytes());
-                assert_eq!(write_qr(&back).unwrap().len(), QR_LEN);
-            } else {
-                let r = r.unwrap_err();
-                assert_eq!((r.why, r.key.as_str()), (Why::TooLong, "note"));
-            }
-        }
-    }
-    // Nothing: the padding alone.
-    let empty = write_qr(&note(b"")).unwrap();
-    assert!(empty.iter().all(|&b| b == b'\n'));
-    assert_eq!(back(&note(b"")).field(field::NOTE).unwrap(), b"");
-    // Two forms mixed.
-    let mut mixed = format!("words = \"{TWELVE}\"\nnote = \"a\"").into_bytes();
-    mixed.resize(QR_LEN, b'\n');
-    assert_eq!(read_qr(&c, &mixed).unwrap_err().why, Why::Unknown);
-    let mut mixed = String::from("note = \"a\"\nfor = \"73c5da0a\"").into_bytes();
-    mixed.resize(QR_LEN, b'\n');
-    assert_eq!(read_qr(&c, &mixed).unwrap_err().why, Why::Unknown);
 }

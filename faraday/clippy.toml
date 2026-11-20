@@ -58,8 +58,6 @@ disallowed-methods = [
     { path = "faraday_vault::file::measure", reason = "key boundary (docs/KEYS.md): a vault's slot key derived, which faraday-keys does" },
     { path = "faraday_vault::kdbx::open", reason = "key boundary (docs/KEYS.md): a vault opened, which faraday-keys does" },
     { path = "faraday_vault::kdbx::seal", reason = "key boundary (docs/KEYS.md): a vault sealed, which faraday-keys does" },
-    { path = "faraday_vault::qr::open", reason = "key boundary (docs/KEYS.md): a vault opened, which faraday-keys does" },
-    { path = "faraday_vault::qr::seal", reason = "key boundary (docs/KEYS.md): a vault sealed, which faraday-keys does" },
     { path = "faraday_kef::open", reason = "key boundary (docs/KEYS.md): a KEF code opened, which faraday-keys does" },
     { path = "faraday_kef::open_with_key", reason = "key boundary (docs/KEYS.md): a KEF code opened, which faraday-keys does" },
     { path = "faraday_kef::seal", reason = "key boundary (docs/KEYS.md): a KEF code sealed, which faraday-keys does" },

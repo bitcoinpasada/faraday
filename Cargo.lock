@@ -588,15 +588,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dbl"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0d7a944e61df464668c5f51f56cc667396a8821434273112948ea0b66e405d7"
-dependencies = [
- "hybrid-array",
-]
-
-[[package]]
 name = "der"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -872,7 +863,6 @@ dependencies = [
  "faraday-kef",
  "faraday-keys",
  "faraday-ots",
- "faraday-pgp",
  "faraday-psbt",
  "faraday-qr",
  "faraday-sqlite",
@@ -1122,14 +1112,11 @@ dependencies = [
 name = "faraday-pgp"
 version = "0.2.0"
 dependencies = [
- "aes",
- "argon2",
  "base16ct",
  "base64ct",
  "ed25519-dalek",
  "faraday-crypto",
  "faraday-text",
- "ocb3",
  "sha1",
  "sha2",
  "subtle",
@@ -1421,7 +1408,6 @@ dependencies = [
  "faraday-crypto",
  "faraday-entropy",
  "faraday-intake",
- "faraday-pgp",
  "faraday-text",
  "hmac",
  "miniz_oxide 0.8.9",
@@ -2222,18 +2208,6 @@ dependencies = [
  "objc2 0.5.2",
  "objc2-core-location",
  "objc2-foundation 0.2.2",
-]
-
-[[package]]
-name = "ocb3"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "912ff80ac25d578d4c9e260650b9e6d65cea9f5b4a49ce9e88a2c5536e2326b2"
-dependencies = [
- "aead",
- "cipher",
- "ctutils",
- "dbl",
 ]
 
 [[package]]

@@ -14,8 +14,7 @@ to a small case. It brings `rand`, `rand_xorshift`, `regex-syntax`,
 
 **Where it ships.** Nowhere. It is a `[dev-dependencies]` entry of
 `faraday-keys` and `faraday-plan`, compiled for their tests only, so no
-image, app or release file contains it. Its `rand` (0.10) is not the
-`rand` the rPGP cross-check program uses (0.8.8).
+image, app or release file contains it.
 
 **Why this crate.** It is the Rust property-testing library the ecosystem
 uses; the alternative is a hand-written generator and no shrinking. The

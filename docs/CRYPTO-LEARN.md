@@ -917,7 +917,7 @@ The page reads only what §11 lists; the hash rule above holds it.
 
 ## 12. The actions found in the code
 
-The manifest's 110 actions, each from its entry in `docs/crypto/actions.toml`
+The manifest's 107 actions, each from its entry in `docs/crypto/actions.toml`
 as the review of the generated text left them (2026-10-28): what it does, its roots (the functions
 the entry names, by module), and the `Screen` variants that offer it. The inventory finds 861 cryptographic functions under
 `core/` and `faraday/`, and every one is covered by an action or by one
@@ -1049,10 +1049,7 @@ an action with no screen is built and offered nowhere in the app.
 |---|---|---|---|
 | vault-create | Makes a vault file: an empty KDBX 4 database with a root group of the given UUID and name, stamped as the first seal, written at one of four file sizes under one passphrase with Argon2id, ChaCha20 and an HMAC per block; the file's salt, IVs and inner key come from one 140-byte answer the caller draws. | `faraday_vault::file`: `create`; `faraday_keys::vault`: `create`, `measure` | CreateVault |
 | vault-unlock | Opens a vault file with its passphrase: checks the header and the cost before any memory is asked for, derives the keys once with Argon2id, checks the header's and every block's HMAC, decrypts and inflates the body and reads its items; a wrong passphrase and a damaged file are told apart only where KDBX 4 allows. | `faraday_vault::file`: `open`, `inspect`; `faraday_keys::vault`: `OpenVaults::unlock` | Unlock, VaultContents, BackupFlow |
-| vault-contents | Reads the TOML a vault holds into its items: the keys of a QR vault (a seed's words, a codex32 share, a passphrase, a note, or nothing), and the three TOML values a file vault keeps in its custom data (a backup plan, a seed's codex32 facts, its BIP-85 facts). What the Spec does not name is refused: a syntax refusal names the line and every other the key; a value read is written again to the same fields. | `faraday_vault::contents`: `read_qr`, `write_qr`, `read_plan`, `write_plan`, `read_codex32_facts`, `write_codex32_facts`, `read_child_facts`, `write_child_facts` | none |
-| vault-qr-pgp | Writes and reads a QR vault as an RFC 9580 message under a passphrase: the Argon2 S2K (Argon2id, 3 passes, 4 lanes) and HKDF-SHA-256 make the key that wraps the session key with AES-256-OCB, and a version 2 data packet holds the 226-byte contents in one OCB chunk. Every tag is checked before anything is returned, the cost is checked before memory is taken, and any other packet sequence is refused, named. | `faraday_pgp::message`: `seal`, `parse`, `Message::open` | none |
-| qr-vault-seal | Seals a typed note, or a loaded key's words, as a QR vault under a typed passphrase and a memory step, and reads the seal back before the code is given. | `faraday_keys`: `qr_seal_note_job`, `Keys::qr_seal_key_job`, `QrSealJob::run` | none |
-| qr-vault-open | Opens a scanned QR vault code, or a chosen .pgp file, under a typed passphrase, and holds the one item it holds for the QR vault tool to say what it is and, behind an eye, to show a note or a passphrase. | `faraday_keys`: `QrOpenJob::run`, `Keys::qr_hold`, `Keys::qr_note`, `Keys::qr_passphrase` | none |
+| vault-contents | Reads the TOML a vault holds into its items: the three TOML values a file vault keeps in its custom data (a backup plan, a seed's codex32 facts, its BIP-85 facts). What the Spec does not name is refused: a syntax refusal names the line and every other the key; a value read is written again to the same fields. | `faraday_vault::contents`: `read_plan`, `write_plan`, `read_codex32_facts`, `write_codex32_facts`, `read_child_facts`, `write_child_facts` | none |
 | vault-kdbx | Writes and reads the KDBX 4 container a file vault is: Argon2id (Argon2d read only) over the passphrase's double SHA-256, ChaCha20 (AES-256-CBC read only) over the body, an HMAC-SHA-256 over the header and over every 1 MiB block, checked before any byte is used, gzip read with its length and CRC checked, and the inner ChaCha20 stream for protected values. The cost is checked before memory is taken; older versions, other key derivations and ciphers are refused, named. | `faraday_vault::kdbx`: `recognise`, `inspect`, `open`, `seal` | none |
 | vault-seal | Writes an open vault back: applies the changes to its document, stamps the seal count and time, and seals the file at the size the changes fit, with a fresh salt, IVs and inner key from the bytes the caller draws. | `faraday_vault::file`: `seal` | VaultContents, BackupFlow |
 | vault-reveal | Puts a secret of an open vault's record in the clear for the one reason named: a key's words or passphrase, an entry's password, TOTP secret or notes, a note's text. | `faraday_keys::vault`: `OpenVaults::reveal`, `OpenVaults::words_of` | VaultContents |
@@ -1396,13 +1393,6 @@ Each is a piece entry (§18.2), drawn in Learn as a paragraph.
   file at one of its sizes. Nothing could replace it: KDBX has no
   padding. XML allows it, so a KeePass app reads the file as any other;
   a KeePass app that saves it drops the padding.
-- **OpenPGP code for the QR vault, HKDF and QR vault contents**,
-  each led "Not in the app yet:", since the QR vault is not in the app.
-  The OpenPGP code could be replaced by rPGP or Sequoia, which bring
-  every algorithm OpenPGP has had; rPGP has been audited by outside
-  reviewers, but no audit of it is one Faraday's dependency checks
-  trust. HKDF could be the hkdf crate, which leaves its intermediate key
-  and output blocks unwiped. The contents have no standard.
 
 **Security**
 
@@ -1415,16 +1405,13 @@ writing what it reads. The one subtle risk is in writing: a reused
 nonce would leave a file that opens everywhere, so the cross-check would
 not notice; the guard is that every seal draws its bytes from one call
 for the session's randomness, which the specification counts. The
-library trade and key commitment (planned for the QR vault, where OCB
-does not commit) follow, then wiping freed memory and Argon2id's cache
+library trade and key commitment follow, then wiping freed memory and Argon2id's cache
 timing, which are outside the Security scope.
 
 **Opening it elsewhere**
 
 Only as proof the files are standard: the cross-check opens a file vault
-with pykeepass, keepassxc-cli and keepass-rs. For a QR vault the text
-is planned: GnuPG cannot read it, since it follows LibrePGP, not
-RFC 9580. The caution is in plain words: unlocking a vault on a computer
+with pykeepass, keepassxc-cli and keepass-rs. The caution is in plain words: unlocking a vault on a computer
 that is online shows its seed there; it is a last resort; the funds move
 to a new seed afterwards.
 

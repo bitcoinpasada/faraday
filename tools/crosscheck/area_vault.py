@@ -285,8 +285,7 @@ class Vault(Area):
     ]
     not_compared = (
         "keepass-rs does not count for the primitives and takes no part in the NFD or "
-        "wrong-passphrase cases of files it did not read; the QR vault and OpenPGP are other "
-        "areas"
+        "wrong-passphrase cases of files it did not read"
     )
 
     def __init__(self, *a):

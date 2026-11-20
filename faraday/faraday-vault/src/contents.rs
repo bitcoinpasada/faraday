@@ -1,13 +1,8 @@
-//! The TOML inside a vault (`docs/VAULT.md` §2.1, §7): the QR vault's
-//! contents and the three TOML values a file vault keeps in KDBX custom
-//! data (F190 points 3 and 5), each read and written as the Spec names
-//! them and refused as it says; a file vault's own document is KDBX XML
+//! The TOML inside a vault (`docs/VAULT.md` §7): the TOML values a file
+//! vault keeps in KDBX custom data (F190 points 3 and 5), each read and
+//! written as the Spec names them and refused as it says; a file vault's own document is KDBX XML
 //! and is not read here.
 //!
-//! - [`write_qr`] and [`read_qr`] are the QR vault's one item as the keys
-//!   of a TOML document, padded to [`QR_LEN`]: a seed's `words`, a
-//!   codex32 share's `codex32` and `for`, a passphrase's `passphrase` and
-//!   `for`, a `note`, or nothing (§2.1).
 //! - [`write_plan`] and [`read_plan`] are a backup plan, the value of a
 //!   `faraday.plan.{n}` key: a TOML document of the `plan` keys
 //!   (`wallet`, `answers`, `places`, `holds`, `marks`), as a plan
@@ -32,14 +27,11 @@ mod tree;
 
 use alloc::vec::Vec;
 
-use faraday_bip::bip39::{Language, Mnemonic};
-use faraday_crypto::work::Compute;
 use faraday_intake::secret_buf::SecretText;
 use zeroize::Zeroizing;
 
 use crate::child::ChildOf;
-use crate::codex32::{self, SetFacts, State};
-use crate::layouts::{self, Opened};
+use crate::codex32::{SetFacts, State};
 use crate::records::{Record, field, kind};
 use crate::slip39::{self, Slip39Facts};
 use crate::xor::XorFacts;
@@ -48,45 +40,6 @@ use tree::{Arr, Table, Val};
 /// The most a TOML value is, in bytes: a backup plan is the longest.
 pub const MAX_VALUE: usize = 1024 * 1024;
 
-/// The length of every QR vault's contents (§2.1): the line of a
-/// 24-word seed of the longest words, `words = "…"` and a line feed: 9
-/// bytes, 215 of words, 2.
-pub const QR_LEN: usize = 226;
-
-/// The longest BIP-39 passphrase a QR vault holds, in bytes of its TOML
-/// text, so that its two lines are no longer than [`QR_LEN`]: the
-/// passphrase's line is 13 bytes beside the text, its quotes and line
-/// feed 3, and the `for` line 17: 13 + 3 + 17 = 33.
-pub const QR_PASSPHRASE_MAX: usize = QR_LEN - 33;
-
-/// The longest note a QR vault holds, in bytes of its TOML text (escapes
-/// counted as written, so a quote or a backslash is 2 bytes): the line is
-/// `note = "` of 8 bytes, the text, then the closing quote and the line
-/// feed, 2: 8 + 2 = 10 beside the text.
-pub const QR_NOTE_MAX: usize = QR_LEN - 10;
-
-/// How many characters, each one a Unicode scalar value (what Backspace
-/// takes), must come off the end of `note` for its TOML text to fit
-/// [`QR_NOTE_MAX`]: 0 for a note that fits. The text is counted as
-/// [`write_qr`] writes it, with the same escapes: a quote, a backslash or
-/// a line break takes two bytes, a character outside ASCII its UTF-8
-/// length.
-pub fn qr_note_over(note: &str) -> usize {
-    let mut o = Out {
-        bytes: Zeroizing::new(Vec::with_capacity(note.len().saturating_mul(6))),
-        limit: usize::MAX,
-        full: false,
-    };
-    // The text's length after each character, from the start.
-    let mut ends: Vec<usize> = Vec::with_capacity(note.len());
-    for ch in note.chars() {
-        o.escaped(ch);
-        ends.push(o.bytes.len());
-    }
-    // The characters that stay are the most whose text fits.
-    ends.len() - ends.partition_point(|&n| n <= QR_NOTE_MAX)
-}
-
 /// Why a value was refused.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Why {
@@ -94,7 +47,7 @@ pub enum Why {
     Syntax(usize),
     /// Not UTF-8.
     NotUtf8,
-    /// Longer than the value or the QR vault allows.
+    /// Longer than the value allows.
     TooLong,
     /// A key §7 does not name.
     Unknown,
@@ -119,9 +72,6 @@ pub enum Why {
     BadValue,
     /// A number outside its range.
     Range,
-    /// An item a QR vault does not hold, or a QR vault of the wrong
-    /// length.
-    NotQr,
 }
 
 /// A refusal: what, and at which key (empty when it is the whole value;
@@ -349,17 +299,6 @@ fn text_of(r: &Record, n: u8) -> &str {
     r.text(n).unwrap_or("")
 }
 
-fn write_words(o: &mut Out, m: &Mnemonic) {
-    o.raw(b"\"");
-    for (i, idx) in m.indices().iter().enumerate() {
-        if i > 0 {
-            o.raw(b" ");
-        }
-        o.s(m.language().word(*idx));
-    }
-    o.raw(b"\"");
-}
-
 // ---------------------------------------------------------------- reading
 
 /// A table being taken apart: each key read is removed, and `finish`
@@ -457,167 +396,6 @@ fn parse_tree(bytes: &[u8], max: usize) -> Result<Table, Refusal> {
     }
     let text = core::str::from_utf8(bytes).map_err(|_| refuse(Why::NotUtf8))?;
     tree::parse(text).map_err(|line| refuse(Why::Syntax(line)))
-}
-
-// ------------------------------------------------------------------- QR
-
-/// Writes a QR vault's contents: the one item `record` as top-level keys
-/// (`words`; `codex32` and `for`; `passphrase` and `for`; `note`), padded
-/// with line feeds to [`QR_LEN`]. The record is a key of 12 or 24 words
-/// of the English list with nothing else, a codex32 share, a passphrase
-/// of at most [`QR_PASSPHRASE_MAX`] bytes, or a note of at most
-/// [`QR_NOTE_MAX`]; an empty note is the empty form, the padding alone.
-pub fn write_qr(record: &Record) -> Result<Zeroizing<Vec<u8>>, Refusal> {
-    let mut o = Out::new(QR_LEN)?;
-    record.check().map_err(|_| refuse(Why::BadValue))?;
-    match record.kind {
-        kind::KEY => {
-            let payload = record.field(field::KEY).unwrap_or(&[]);
-            let Some(Opened::Words(m)) = layouts::payload_of(layouts::KIND_WORDS, payload) else {
-                return Err(at("words", Why::NotQr));
-            };
-            if record.fields.len() != 1
-                || m.language() != Language::English
-                || !matches!(m.word_count(), 12 | 24)
-            {
-                return Err(at("words", Why::NotQr));
-            }
-            o.line("words", |o| write_words(o, &m));
-        }
-        kind::CODEX32_SHARE => {
-            o.line("codex32", |o| {
-                o.text(text_of(record, field::CODEX32_STRING))
-            });
-            o.line("for", |o| qr_for(o, record.field(field::CODEX32_KEY)));
-        }
-        kind::PASSPHRASE => {
-            o.line("passphrase", |o| o.text(text_of(record, field::PASSPHRASE)));
-            o.line("for", |o| qr_for(o, record.field(field::PASSPHRASE_KEY)));
-        }
-        kind::NOTE => {
-            if record.fields.len() != 1 {
-                return Err(at("note", Why::NotQr));
-            }
-            // An empty note is the empty form: the padding alone.
-            let note = text_of(record, field::NOTE);
-            if !note.is_empty() {
-                o.line("note", |o| o.text(note));
-            }
-        }
-        _ => return Err(refuse(Why::NotQr)),
-    }
-    if o.full {
-        let key = match record.kind {
-            kind::KEY => "words",
-            kind::CODEX32_SHARE => "codex32",
-            kind::PASSPHRASE => "passphrase",
-            _ => "note",
-        };
-        return Err(at(key, Why::TooLong));
-    }
-    let mut bytes = o.bytes;
-    bytes.resize(QR_LEN, b'\n');
-    Ok(bytes)
-}
-
-fn qr_for(o: &mut Out, key: Option<&[u8]>) {
-    o.raw(b"\"");
-    o.hex(key.unwrap_or(&[]));
-    o.raw(b"\"");
-}
-
-/// Costs a parse of the words: reads a QR vault's contents, which are
-/// [`QR_LEN`] bytes holding one item as top-level keys (§2.1): `words`
-/// of 12 or 24 English words, `codex32` and `for`, `passphrase` and
-/// `for`, `note`, or nothing (an empty note).
-pub fn read_qr(c: &Compute, bytes: &[u8]) -> Result<Record, Refusal> {
-    if bytes.len() != QR_LEN {
-        return Err(refuse(Why::NotQr));
-    }
-    let root = parse_tree(bytes, QR_LEN)?;
-    let has = |k: &str| root.entries.iter().any(|(n, _)| n.is(k));
-    if root.entries.is_empty() {
-        return Ok(Record::new(kind::NOTE).with(field::NOTE, b""));
-    }
-    let allowed: &[&str] = if has("words") {
-        &["words"]
-    } else if has("note") {
-        &["note"]
-    } else if has("codex32") {
-        &["codex32", "for"]
-    } else {
-        &["passphrase", "for"]
-    };
-    if let Some((n, _)) = root
-        .entries
-        .iter()
-        .find(|(n, _)| !allowed.contains(&n.text()))
-    {
-        return Err(at(n.text(), Why::Unknown));
-    }
-    let key = if has("words") {
-        "words"
-    } else if has("codex32") {
-        "codex32"
-    } else if has("note") {
-        "note"
-    } else if has("passphrase") {
-        "passphrase"
-    } else {
-        return Err(refuse(Why::NotQr));
-    };
-    let mut it = Item {
-        t: root,
-        prefix: "",
-    };
-    let mut rec;
-    match key {
-        "words" => {
-            let w = it.need_str("words")?;
-            let m = Mnemonic::parse(c, Language::English, &w)
-                .map_err(|_| it.err(Why::BadWords, "words"))?;
-            if !matches!(m.word_count(), 12 | 24) {
-                return Err(it.err(Why::NotQr, "words"));
-            }
-            rec = Record::new(kind::KEY);
-            rec.push(field::KEY, &layouts::words_payload(&m));
-        }
-        "codex32" => {
-            rec = Record::new(kind::CODEX32_SHARE);
-            rec.push(field::CODEX32_STRING, it.need_str("codex32")?.as_bytes());
-            let f = it.need_str("for")?;
-            let f = unhex(&f, Some(4)).ok_or_else(|| it.err(Why::BadHex, "for"))?;
-            rec.push(field::CODEX32_KEY, &f);
-            if !rec
-                .field(field::CODEX32_STRING)
-                .is_some_and(codex32::is_share)
-            {
-                return Err(it.err(Why::BadCodex32, "codex32"));
-            }
-        }
-        "note" => {
-            rec = Record::new(kind::NOTE);
-            rec.push(field::NOTE, it.need_str("note")?.as_bytes());
-        }
-        _ => {
-            rec = Record::new(kind::PASSPHRASE);
-            let f = it.need_str("for")?;
-            let f = unhex(&f, Some(4)).ok_or_else(|| it.err(Why::BadHex, "for"))?;
-            rec.push(field::PASSPHRASE_KEY, &f);
-            rec.push(field::PASSPHRASE, it.need_str("passphrase")?.as_bytes());
-        }
-    }
-    it.finish()?;
-    rec.check().map_err(|_| refuse(Why::BadValue))?;
-    // A form that is shorter written than `write_qr` writes it (`note="…"`
-    // without spaces, a literal string with no escapes) can hold more than
-    // the limits: what `write_qr` would refuse as too long is refused here.
-    if matches!(rec.kind, kind::NOTE | kind::PASSPHRASE)
-        && write_qr(&rec).is_err_and(|r| r.why == Why::TooLong)
-    {
-        return Err(at(key, Why::TooLong));
-    }
-    Ok(rec)
 }
 
 // ------------------------------------------------------------ custom data

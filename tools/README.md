@@ -18,7 +18,7 @@ in `justfile` and `faraday/faraday.just`.
 | Path | Stage | What uses it | What it does |
 |---|---|---|---|
 | `tools/clippy.py` | lint | `just lint` | clippy with warnings as errors; also fails on a warning about `clippy.toml` |
-| `tools/vet-refresh.py` | lint | `just vet-refresh` | fetches the imported audit sets and prunes (online), keeps the exemptions the separate workspaces (the two fuzz ones, keepass-rs's and rPGP's) still need, then vets all five workspaces offline (F71) |
+| `tools/vet-refresh.py` | lint | `just vet-refresh` | fetches the imported audit sets and prunes (online), keeps the exemptions the separate workspaces (the two fuzz ones, and keepass-rs's) still need, then vets all four workspaces offline (F71) |
 | `tools/test_lint_all.py` | test | `just lint-repo` | the runner's order, exit status and one-at-a-time builds |
 | `tools/lint-all.py` | runner | `just lint-all`, `just` | runs every command of `lint` (or of the recipe named) side by side and to the end, and lists the ones that failed |
 | `tools/lint-secrets.sh` | lint | `just lint` | secret-hygiene lint (below) |
@@ -155,7 +155,7 @@ feeds.
 
 - `python3 tools/clippy.py --locked --workspace --all-targets`: clippy with `-D warnings`.
 - `cargo deny check`: advisories, licences, duplicates and sources, against `deny.toml`.
-- `cargo vet --locked`: every dependency trusted by a named publisher, covered by an imported audit, or an exemption, against the committed `supply-chain/` and `imports.lock`, offline (F71). `just vet-refresh` fetches the imports and prunes, online, when chosen, keeping what the separate workspaces (the two fuzz ones, keepass-rs's and rPGP's) need; trust entries end within a year and are renewed with it.
+- `cargo vet --locked`: every dependency trusted by a named publisher, covered by an imported audit, or an exemption, against the committed `supply-chain/` and `imports.lock`, offline (F71). `just vet-refresh` fetches the imports and prunes, online, when chosen, keeping what the separate workspaces (the two fuzz ones, and keepass-rs's) need; trust entries end within a year and are renewed with it.
 - `cargo fmt --all --check`: formatting.
 - `lint-secrets.sh`: in `core/*/src` and `faraday-core/src`, no printing or logging macros; no heap text (`String`, `to_string`, `format!`) in the files that hold secrets (`SECRET_FILES`); a non-test source file that names a secret type (the wiping text included) is held, with no list of them: `SECRET_FILES` is worked out from the names, less `UNHELD`, plus `NAMELESS`; a NAMELESS file that now names one is reported; the method calls that build a `String` from other text (`.join(`, `.concat()`, case changes, `.replace(`, `.repeat(`, each on one line) are refused in the same files, but for a line marked `// not text:` and the path joins of three named files; and the key boundary is not a rule here but clippy's: `faraday/clippy.toml`'s entries marked "key boundary" (and faraday-kef's copy, which `tools/clippy.py` keeps in step) refuse, under `faraday/` outside the crates that make key material, a key or seed in hand, seed words made into a `Mnemonic`, a primitive's secret-taking function, a codex32 set made and a held secret taken out of its guard (`docs/KEYS.md`).
 - `lint-strings.sh`: no wording literal in screen code; every user-facing string is in `faraday-strings/src/en/`, which is also checked for untidy strings and for strings no code uses (a key no Rust file names as `.key` fails). Learn pages and self-test names are outside it.

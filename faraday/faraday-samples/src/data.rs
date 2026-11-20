@@ -691,7 +691,6 @@ pub(crate) static INPUTS: SampleInputs = SampleInputs {
     compare_first: include_bytes!("../data/bump-original.psbt"),
     compare_second: include_bytes!("../data/bump-replacement.psbt"),
     krux_code: include_bytes!("../data/krux-code.kef"),
-    qr_vault: include_bytes!("../data/qr-vault.pgp"),
     timestamp_proof: include_bytes!("../data/timestamp.ots"),
     timestamp_hash: "c70972a12908b73c2407d9cc6842ba2a02203a690f3090cd29f30c45f0cfd93d",
     dice_rolls: "1234112341223412334123441234152341263412314123421234132341243412354321",

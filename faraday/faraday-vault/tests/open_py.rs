@@ -1,10 +1,9 @@
-//! `tools/vault/open.py` reads the file vectors with pykeepass and the QR
-//! vectors with Sequoia's `sq`, outside programs, and prints every item under §7's names with the values
+//! `tools/vault/open.py` reads the file vectors with pykeepass, an outside
+//! program, and prints every item under §7's names with the values
 //! pykeepass reads back; `--field KIND.FIELD --out FILE` writes one value's
 //! bytes and nothing else, to a new file only its owner can read
 //! (`docs/VAULT.md` §10). The file vectors are skipped, and it is said, where
-//! Python or pykeepass is missing; a missing Python or `sq` fails the QR tests
-//! (DEVELOPING.md).
+//! Python or pykeepass is missing (DEVELOPING.md).
 #![allow(clippy::disallowed_methods)]
 
 #[path = "../examples/vectors.rs"]
@@ -349,75 +348,4 @@ fn open_py_refuses_damage_and_an_older_version() {
         "{}",
         stderr(&out)
     );
-}
-
-fn qr_vector(name: &str) -> PathBuf {
-    repo(&format!("tools/vectors/vault/qr/{name}"))
-}
-
-/// open.py on a QR vault: it needs `sq`, not pykeepass, and a missing `sq`
-/// fails the test (DEVELOPING.md).
-fn open_py_qr(name: &str, passphrase: &str, extra: &[&str]) -> Output {
-    let out = run_open_py(&qr_vector(name), passphrase, extra).expect("python3 starts");
-    assert!(
-        !stderr(&out).contains("needs Sequoia's sq"),
-        "sq is not installed"
-    );
-    out
-}
-
-#[test]
-fn open_py_opens_a_qr_vault_through_sq_and_prints_its_item() {
-    let out = open_py_qr("qr-note.pgp", "correct horse battery staple", &[]);
-    assert!(out.status.success(), "{}", stderr(&out));
-    assert_eq!(
-        stdout(&out),
-        "QR vault\n  note: The safe's code is in the drawer.\n"
-    );
-    let out = open_py_qr("qr-codex32.pgp", "correct horse battery staple", &[]);
-    assert_eq!(
-        stdout(&out),
-        "QR vault\n  codex32: ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn\n  for: fab6868a\n"
-    );
-    let out = open_py_qr("qr-seed-12.pgp", "correct horse battery staple", &[]);
-    assert!(stdout(&out).starts_with("QR vault\n  words: abandon abandon "));
-    let out = open_py_qr("qr-empty.pgp", "correct horse battery staple", &[]);
-    assert_eq!(stdout(&out), "QR vault: empty\n");
-}
-
-#[test]
-fn open_py_opens_the_qr_nfd_vault_under_either_form() {
-    for p in ["cafe\u{301}", "caf\u{e9}"] {
-        let out = open_py_qr("qr-nfd.pgp", p, &[]);
-        assert_eq!(stdout(&out), "QR vault\n  note: caf\u{e9}\n");
-    }
-}
-
-#[test]
-fn open_py_writes_a_qr_vaults_value_and_refuses_a_wrong_passphrase_or_a_message_sq_refuses() {
-    let dir = scratch("qr-field");
-    let to = dir.0.join("note");
-    let out = open_py_qr(
-        "qr-note.pgp",
-        "correct horse battery staple",
-        &["--field", "note", "--out", to.to_str().unwrap()],
-    );
-    assert!(out.status.success(), "{}", stderr(&out));
-    assert!(out.stdout.is_empty());
-    assert_eq!(
-        std::fs::read_to_string(&to).unwrap(),
-        "The safe's code is in the drawer."
-    );
-    let out = open_py_qr("qr-note.pgp", "not it", &[]);
-    assert!(!out.status.success());
-    assert!(out.stdout.is_empty());
-    // What `sq` itself cannot open: a compressed packet where the SEIPD goes
-    // and data after it. open.py reads whatever `sq` opens, so it prints
-    // nothing for these two; the other refused files are Faraday's Rust's to
-    // refuse (`tests/qr.rs`), and `sq` opens a second SKESK.
-    for name in ["refused-compressed.pgp", "refused-trailing.pgp"] {
-        let out = open_py_qr(name, "correct horse battery staple", &[]);
-        assert!(!out.status.success(), "{name}");
-        assert!(out.stdout.is_empty(), "{name}");
-    }
 }

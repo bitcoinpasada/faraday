@@ -233,7 +233,6 @@ pub fn demo_samples() -> &'static crate::samples::Samples {
                 compare_first: &[],
                 compare_second: &[],
                 krux_code: &[],
-                qr_vault: &[],
                 timestamp_proof: &[],
                 timestamp_hash: "",
                 dice_rolls: "",

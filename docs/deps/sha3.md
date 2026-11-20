@@ -17,4 +17,4 @@ adds `sha3` and `keccak` (`docs/deps/keccak.md`).
 
 **Reopen when** `faraday-ots` stops following paths through Keccak-256.
 
-**Review.** Trusted by publisher (github:RustCrypto/hashes) under F71 (`docs/decisions/F71.md`), until 2027-10-01: `supply-chain/audits.toml`. Not read line by line here. The older `sha3` 0.10 that the rPGP cross-check program takes is a separate, exempted version (`docs/deps/pgp.md`).
+**Review.** Trusted by publisher (github:RustCrypto/hashes) under F71 (`docs/decisions/F71.md`), until 2027-10-01: `supply-chain/audits.toml`. Not read line by line here.
