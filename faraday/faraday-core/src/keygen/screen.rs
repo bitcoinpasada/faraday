@@ -87,11 +87,11 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (column, panel) = codex32_places(app, k, (cw, h));
     let dice_foot = super::dice_panel::place(app, k);
     let side = crate::codex32::pane_screen::side_room(column);
-    let start = panel.start_room();
+    let lead = panel.lead();
     let foot = panel.foot_h();
     let slot_line = slot_name(app, k);
     let page = flow::Page {
-        area: (x0 + start, cw - side - start),
+        area: (x0, cw - side),
         h,
         foot_h: dice_foot.unwrap_or(0.0) + foot,
         back: Some(match &k.made {
@@ -114,6 +114,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(contained) = crate::trail::StepFlow::contained(&super::steps::KEYGEN_STEPS) else {
         return;
     };
+    let body_top = std::cell::Cell::new(None);
     let (next, again, room) = {
         let app_ref: &View = app;
         let mut body = |ui: &mut Ui, s: u8, x: f32, y: f32, w: f32| -> f32 {
@@ -130,6 +131,12 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 return card_body(app_ref, k, ui, s, x, y, w);
             };
             k.codex32.as_ref().map_or(0.0, |m| {
+                // Beside the input panel the sheets stand after it, in the
+                // card's column; the panel's top is the body's.
+                let (x, w) = (x + lead, w - lead);
+                if lead > 0.0 {
+                    body_top.set(Some(y));
+                }
                 let wide = ui.flow_work.map_or(w, |end| end - x);
                 crate::codex32::screen::body(app_ref, m, (*card, wide, panel, column), ui, x, y, w)
             })
@@ -143,8 +150,11 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     app.scroll(Scrolled::KeyGen, next, again);
     // The dice sheet's column stands above the input panel at the foot.
     if let Some(m) = k.codex32.as_ref() {
-        crate::codex32::pane_screen::draw(app, m, ui, column, (x0, cw, h - foot));
-        crate::codex32::input_panel::draw(m, ui, panel, (x0, cw, h));
+        crate::codex32::pane_screen::draw(app, m, ui, column, (&room, h - foot));
+        // Beside the sheets the panel holds its place under the card's
+        // head, and at the window's top once the head has scrolled away.
+        let top = body_top.get().map_or(0.0, |y| y - next.y);
+        crate::codex32::input_panel::draw(m, ui, panel, (x0, cw, h), (&room, top));
         crate::codex32::screen::cell_sheet(app, m, ui, x0, cw, h);
     }
     if let Some(fh) = dice_foot {
@@ -201,18 +211,14 @@ fn codex32_places(app: &View, k: &KeyGen, (cw, h): (f32, f32)) -> (bool, PanelAt
     (column, panel)
 }
 
-/// The work width of New key's open card (`docs/LAYOUT.md` §14): from
-/// the card's body to the supporting pane's spacer, or to the page's
-/// right margin where no pane stands, in a page area `cw` wide whose
-/// pane takes `side`. Wide content (the codex32 sheets) is drawn in it;
-/// the fitted worksheet cell is worked out from it. Arithmetic.
+/// The work width of Make codex32 shares' full-width step
+/// (`docs/FLOW-CONTAINER.md` §5, `docs/LAYOUT.md` §14): from the card
+/// column's edge to its margin at the room's end, in a page area `cw`
+/// wide whose dice column takes `side`. Wide content (the codex32 sheets)
+/// is drawn in it; the fitted worksheet cell is worked out from it.
+/// Arithmetic.
 pub(crate) fn codex32_work_w(cw: f32, side: f32) -> f32 {
-    let end = if side > 0.0 {
-        0.0
-    } else {
-        faraday_draw::tokens::MARGIN_WIDE
-    };
-    cw - faraday_draw::tokens::KEYGEN_COLUMN_IN - flow::BODY_INDENT - side - end
+    cw - side - 2.0 * faraday_draw::tokens::MARGIN_WIDE
 }
 
 /// Whether card `s`'s answer is data, set in the mono face: the key once

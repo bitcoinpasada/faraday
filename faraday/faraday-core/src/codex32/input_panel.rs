@@ -19,7 +19,7 @@
 //! arithmetic on the window's size in dp, the dice chosen and the way of
 //! entry ([`place`], [`Foot`]), so drawing, the page's room under its
 //! last row and the worksheet's fit ([`PanelAt::foot_h`],
-//! [`PanelAt::start_room`]) take the same one. Drawing reads the flow's
+//! [`PanelAt::lead`]) take the same one. Drawing reads the flow's
 //! state.
 
 use crate::ui::Region;
@@ -63,12 +63,12 @@ impl PanelAt {
         }
     }
 
-    /// The room the panel takes at the page area's start, before the
-    /// page's column: the margin, the panel and the spacer beside it,
-    /// else none. A lookup.
-    pub(crate) fn start_room(self) -> f32 {
+    /// The room the panel takes from the card's work width, at its start:
+    /// the panel and the spacer beside it (the card's own margin is the
+    /// container's), else none. A lookup.
+    pub(crate) fn lead(self) -> f32 {
         match self {
-            PanelAt::Beside => t::MARGIN_WIDE + t::CODEX32_ENTRY_W + t::SPACER,
+            PanelAt::Beside => t::CODEX32_ENTRY_W + t::SPACER,
             _ => 0.0,
         }
     }
@@ -296,10 +296,17 @@ impl Foot {
 
 /// Draws the panel where it stands out of the page, for the page area at
 /// `x0`, `cw` wide, in a window `h` tall; in the page it is the codex32
-/// screen's own.
-pub(crate) fn draw(m: &Codex32Make, ui: &mut Ui, at: PanelAt, (x0, cw, h): (f32, f32, f32)) {
+/// screen's own. Beside the sheets it stands at the card column's edge in
+/// the container's `room`, its top `top` (under the card's head).
+pub(crate) fn draw(
+    m: &Codex32Make,
+    ui: &mut Ui,
+    at: PanelAt,
+    (x0, cw, h): (f32, f32, f32),
+    (room, top): (&crate::flow::Room, f32),
+) {
     match at {
-        PanelAt::Beside => beside(m, ui, (x0, h)),
+        PanelAt::Beside => beside(m, ui, (room.x, top, h)),
         PanelAt::Foot(fh) => {
             let top = h - fh;
             cover(ui, (x0, top, cw, fh));
@@ -324,13 +331,14 @@ pub(crate) fn draw(m: &Codex32Make, ui: &mut Ui, at: PanelAt, (x0, cw, h): (f32,
     }
 }
 
-/// The panel beside the sheets, at the work area's start in the page
-/// area at `x0`, in a window `h` tall: its top at `SUPPORT_PANE_TOP`, as
-/// tall as its parts up to the window's foot less the margin, scrolled
-/// within itself by its own offset where it is taller
+/// The panel beside the sheets, at the card column's edge `x`, in a
+/// window `h` tall: its top `y` (under the card's head, at the least
+/// `SUPPORT_PANE_TOP`), as tall as its parts up to the window's foot less
+/// the margin, scrolled within itself by its own offset where it is taller
 /// (`Slot::InputPanel`), as a supporting pane is (`docs/LAYOUT.md` §6).
-fn beside(m: &Codex32Make, ui: &mut Ui, (x0, h): (f32, f32)) {
-    let (x, y, w) = (x0 + t::MARGIN_WIDE, t::SUPPORT_PANE_TOP, t::CODEX32_ENTRY_W);
+fn beside(m: &Codex32Make, ui: &mut Ui, (x, y, h): (f32, f32, f32)) {
+    let w = t::CODEX32_ENTRY_W;
+    let y = y.max(t::SUPPORT_PANE_TOP);
     let all = beside_h(m, ui.text_factor());
     let view = (h - y - t::MARGIN_WIDE).max(t::TOUCH).min(all);
     ui.fill(x, y, w, view, t::SHAPE_M, Role::SurfaceContainerLow);

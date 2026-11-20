@@ -2487,14 +2487,8 @@ impl crate::Faraday {
             // The input panel's room: at the foot its height; beside the
             // sheets its width, from the column's start (`docs/LAYOUT.md` §16.3).
             let panel = crate::codex32::input_panel::place_now(m, page_w, h, shell);
-            let start = panel.start_room();
-            let lead = if start > 0.0 {
-                start - faraday_draw::tokens::KEYGEN_COLUMN_IN
-            } else {
-                0.0
-            };
             (
-                screen::codex32_work_w(page_w, side) - lead,
+                screen::codex32_work_w(page_w, side) - panel.lead(),
                 tall - panel.foot_h(),
             )
         });

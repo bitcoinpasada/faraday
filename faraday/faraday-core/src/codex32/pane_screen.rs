@@ -49,33 +49,27 @@ pub(crate) fn column_now(
         return false;
     };
     let panel = super::input_panel::place_in(m, (cw, h), (win, k), side);
-    let start = panel.start_room();
-    let lead = if start > 0.0 {
-        start - t::KEYGEN_COLUMN_IN
-    } else {
-        0.0
-    };
-    let work = crate::keygen::screen::codex32_work_w(cw, side) - lead;
+    let work = crate::keygen::screen::codex32_work_w(cw, side) - panel.lead();
     let tall = h - 2.0 * t::MARGIN_WIDE - panel.foot_h();
     sheet_w <= work
         && sheet_h <= tall
         && t::CODEX32_DICE_COLUMN_H <= h - t::SUPPORT_PANE_TOP - t::MARGIN_WIDE - panel.foot_h()
 }
 
-/// Draws the dice sheet's column for the page area at `x0`, `cw` wide,
-/// in a window `h` tall, where it stands (`column`), scrolled by its own
-/// offset where it is taller (`Slot::DemoPane`).
+/// Draws the dice sheet's column at the right of the container's `room`,
+/// a spacer from it, in a window `h` tall, where it stands (`column`),
+/// scrolled by its own offset where it is taller (`Slot::DemoPane`).
 pub(crate) fn draw(
     _app: &View,
     m: &Codex32Make,
     ui: &mut Ui,
     column: bool,
-    (x0, cw, h): (f32, f32, f32),
+    (room, h): (&crate::flow::Room, f32),
 ) {
     if !column {
         return;
     }
-    let (x, _, w, _) = crate::screens::support_pane_place((x0, cw, h));
+    let (x, w) = (room.area_x + room.area_w + t::SPACER, t::SUPPORT_PANE);
     let y = t::SUPPORT_PANE_TOP;
     let view = (h - y - t::MARGIN_WIDE).max(t::TOUCH);
     let clip = ui.rect(x, y, w, view);

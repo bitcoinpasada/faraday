@@ -45,6 +45,17 @@ fn on_at(width: u16, height: u16, dpi: u16) -> Faraday {
     app
 }
 
+/// Frames drawn, a tick before each, until a step's fade has run out: the
+/// step that changed shows as the card.
+fn through_fade(app: &mut Faraday) {
+    let mut t = app.now_ms();
+    for _ in 0..40 {
+        t += 16;
+        app.event(Event::Tick { now_ms: t });
+        let _ = app.frame();
+    }
+}
+
 fn c32(app: &mut Faraday, p: C32) {
     app.press(Action::Codex32(p));
 }
@@ -80,6 +91,7 @@ fn to_entry(app: &mut Faraday, faces: u8) {
     c32(app, die(faces));
     c32(app, C32::Next);
     assert_eq!(make(app).open(), Some(Card::Enter));
+    through_fade(app);
 }
 
 /// The ten faces that roll character `ch`: each die's bit 0 as `hi` then

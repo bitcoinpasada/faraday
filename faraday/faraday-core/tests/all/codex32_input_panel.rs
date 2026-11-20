@@ -32,13 +32,12 @@ fn on_shell(width: u16, height: u16, dpi: u16, roller: bool, way: Way) -> Farada
     c32(&mut app, C32::Way(w as u8));
     c32(&mut app, C32::Next);
     assert_eq!(make(&app).open(), Some(Card::Enter));
-    let _ = app.frame();
+    through_fade(&mut app);
     app
 }
 
-/// Make codex32 shares on such a shell, 2 of 3 named `name`, on its
-/// Entropy card.
-fn on_entropy(width: u16, height: u16, dpi: u16, roller: bool) -> Faraday {
+/// Make codex32 shares on such a shell, on its first card (Scheme).
+fn on_scheme(width: u16, height: u16, dpi: u16, roller: bool) -> Faraday {
     let mut app = Faraday::new();
     app.event(Event::Display(DisplayInfo {
         width,
@@ -64,6 +63,14 @@ fn on_entropy(width: u16, height: u16, dpi: u16, roller: bool) -> Faraday {
     app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::KeyGen(None));
     app.press(Action::KStart(Start::MakeCodex32.index()));
+    let _ = app.frame();
+    app
+}
+
+/// Make codex32 shares on such a shell, 2 of 3 named `name`, on its
+/// Entropy card.
+fn on_entropy(width: u16, height: u16, dpi: u16, roller: bool) -> Faraday {
+    let mut app = on_scheme(width, height, dpi, roller);
     let split = SPLITS.iter().position(|s| *s == Split::TwoOfThree).unwrap();
     c32(&mut app, C32::Split(split as u8));
     c32(&mut app, C32::Next);
@@ -73,6 +80,17 @@ fn on_entropy(width: u16, height: u16, dpi: u16, roller: bool) -> Faraday {
     c32(&mut app, C32::Next);
     assert_eq!(make(&app).open(), Some(Card::Entropy));
     app
+}
+
+/// Frames drawn, a tick before each, until a step's fade has run out: the
+/// step that changed shows as the card.
+fn through_fade(app: &mut Faraday) {
+    let mut t = app.now_ms();
+    for _ in 0..40 {
+        t += 16;
+        app.event(Event::Tick { now_ms: t });
+        let _ = app.frame();
+    }
 }
 
 fn c32(app: &mut Faraday, p: C32) {
@@ -562,5 +580,74 @@ fn a_roll_moves_nothing_and_a_character_in_its_box_comes_into_view() {
             let after = where_things_are(&mut app);
             assert_eq!((after.0, after.1), (rest.0, rest.1), "{w}x{h} {practice}");
         }
+    }
+}
+
+/// The leftmost box drawn under the top bar by a text `is` accepts: the
+/// card's head.
+fn head_box(app: &mut Faraday, is: impl Fn(&str) -> bool) -> (i32, i32, i32, i32) {
+    app.drawn_text_boxes()
+        .plain()
+        .into_iter()
+        .filter(|(t, b)| is(t) && b.1 >= 64)
+        .map(|(_, b)| b)
+        .min_by_key(|b| b.0)
+        .expect("the card's head is drawn")
+}
+
+fn overlap(a: (i32, i32, i32, i32), b: (i32, i32, i32, i32)) -> bool {
+    a.0 < b.0 + b.2 && b.0 < a.0 + a.2 && a.1 < b.1 + b.3 && b.1 < a.1 + a.3
+}
+
+#[test]
+fn the_dice_rolls_card_is_full_width_with_the_bar_carrying_your_choices() {
+    let (w, h) = (2560u16, 1440u16);
+    let mut app = on_scheme(w, h, 160, true);
+    // The Start card stands beside Your choices.
+    assert!(!app.offers(Action::Choices(faraday_core::ChoicesPress::Open)));
+    assert!(crate::common::has(&mut app, "Your choices"));
+    let mut app = on_entry(w, h, 160);
+    assert!(app.offers(Action::Choices(faraday_core::ChoicesPress::Open)));
+    assert!(
+        !app.drawn_text_boxes()
+            .plain()
+            .iter()
+            .any(|(t, b)| t == "Your choices" && b.1 >= 64 && b.0 > i32::from(w) / 2),
+        "no Your choices pane at the right"
+    );
+}
+
+#[test]
+fn the_card_head_stands_at_the_same_x_on_the_start_card_and_the_dice_rolls_card() {
+    let (w, h) = (2560u16, 1440u16);
+    let mut app = on_scheme(w, h, 160, true);
+    let scheme = head_box(&mut app, |t| t == "Scheme");
+    let mut app = on_entry(w, h, 160);
+    let rolls = head_box(&mut app, |t| {
+        t.starts_with("Share ") || t.starts_with("Secret")
+    });
+    assert_eq!(scheme.0, rolls.0, "{scheme:?} {rolls:?}");
+}
+
+#[test]
+fn the_input_panel_and_the_dice_column_stand_clear_of_the_card_head() {
+    let (w, h) = (2560u16, 1440u16);
+    let mut app = on_entry(w, h, 160);
+    let rolls = head_box(&mut app, |t| {
+        t.starts_with("Share ") || t.starts_with("Secret")
+    });
+    for f in 1..=6u8 {
+        let k = app.hit_box(face(f)).expect("the pad's key");
+        let k = (
+            i32::from(k.0),
+            i32::from(k.1),
+            i32::from(k.2),
+            i32::from(k.3),
+        );
+        assert!(!overlap(rolls, k), "face {f}: {rolls:?} over {k:?}");
+    }
+    // The dice sheet's column, where it stands, begins after the head.
+    if let Some(col) = text_at(&mut app, "Dice de-biasing") {
+        assert!(rolls.0 + rolls.2 <= col.0, "{rolls:?} over {col:?}");
     }
 }
