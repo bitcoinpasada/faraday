@@ -2072,7 +2072,7 @@ step flow (`Screen::SeedCheck`) of four cards: **Seed**, **Passphrase**,
    is their own encryption passphrase; a codex32 backup is a master seed
    with no words: it skips Passphrase and the card closes on its
    fingerprint alone.
-   **Krux code**, the last row, has Add a key's two ways to read a code,
+   **Krux code**, the last of the forms (a loaded key's row comes after them), has Add a key's two ways to read a code,
    **Scan a Krux code** and **From Files**: the code's passphrase sheet
    asks as everywhere, and the words it holds go on as typed words, to
    Passphrase. Cancel on the sheet leaves this card with nothing taken.

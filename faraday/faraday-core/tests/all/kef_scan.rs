@@ -1372,6 +1372,7 @@ fn cancel_on_the_passphrase_leaves_the_seed_card_with_nothing_taken() {
     assert!(has(&mut app, "Scan a Krux code"));
     assert!(app.session.keys.check_facts().is_none());
     assert!(!app.session.keys.holds_secret());
+    assert!(testkit::holds_nothing(&app));
 }
 
 #[test]
@@ -1433,4 +1434,71 @@ fn a_kef_file_is_dropped_at_lock() {
         }
     }
     assert!(left.unwrap().is_empty());
+}
+
+/// A code sealing `plain`, opened on the Seed card, gives the fingerprint of the words typed.
+fn seed_card_opens_as_the_words_typed(plain: &[u8]) {
+    use faraday_core::seed_check::SeedAction as S;
+    let mut app = check_krux();
+    app.press(Action::ScanKef);
+    let code = sealed_raw(&mut app, plain);
+    read(&mut app, &code);
+    assert_eq!(app.sheet, Some(Sheet::KefRead));
+    open_with(&mut app, "note key");
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.screen, Screen::SeedCheck);
+    app.press(Action::SeedCheck(S::NoPass));
+    assert_eq!(
+        app.session.keys.check_facts().unwrap().fingerprint,
+        typed_fingerprint()
+    );
+}
+
+#[test]
+fn a_krux_code_of_compact_seedqr_bytes_on_the_seed_card_gives_the_words_typed() {
+    // Sixteen zero bytes are the twelve words of WORDS.
+    seed_card_opens_as_the_words_typed(&[0u8; 16]);
+}
+
+#[test]
+fn a_krux_code_of_standard_seedqr_digits_on_the_seed_card_gives_the_words_typed() {
+    // Eleven times abandon (0000) and about (0003).
+    seed_card_opens_as_the_words_typed(format!("{}0003", "0000".repeat(11)).as_bytes());
+}
+
+#[test]
+fn a_multisig_checks_seed_card_lists_the_krux_row_and_a_code_read_there_reaches_the_check() {
+    use faraday_core::multisig_check::MsAction as M;
+    use faraday_core::seed_check::{FORMS, SeedAction as S};
+    let descriptor = testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "savings")
+        .unwrap()
+        .descriptor;
+    let mut app = testkit::started();
+    app.press(Action::MultisigCheck(M::Open));
+    app.press(Action::MultisigCheck(M::Scan));
+    app.event(Event::Scanned {
+        bytes: descriptor.into_bytes(),
+    });
+    let _ = app.frame();
+    app.press(Action::MultisigCheck(M::CheckSeed));
+    let at = FORMS
+        .iter()
+        .position(|f| *f == faraday_core::forms::Form::Krux)
+        .unwrap();
+    app.press(Action::SeedCheck(S::Form(at as u8)));
+    assert!(has(&mut app, "Scan a Krux code"));
+    app.press(Action::ScanKef);
+    let code = sealed_raw(&mut app, WORDS);
+    read(&mut app, &code);
+    assert_eq!(app.sheet, Some(Sheet::KefRead));
+    open_with(&mut app, "note key");
+    assert_eq!(app.sheet, None);
+    assert!(has(&mut app, "No passphrase"));
+    app.press(Action::SeedCheck(S::NoPass));
+    testkit::settle(&mut app);
+    assert_eq!(app.screen, Screen::MultisigCheck);
+    assert!(has_part(&mut app, "Not a key of this wallet"));
+    assert!(app.session.keys.all().next().is_none());
 }
