@@ -97,7 +97,14 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // The cards end above the Scan button, which stands at the page's foot
     // (a small panel has none: its Scan button is the navigation's).
     let fab = if compact { 0.0 } else { FAB_H + PAGE_INSET };
-    let colh = (h - y - fab - notice_h - end_h - log_h).max(0.0);
+    // The notice's button can stand over the Scan button's corner: a gap
+    // keeps its press box whole.
+    let scan_gap = if notice.is_some() {
+        2.0 * GAP_SMALL
+    } else {
+        0.0
+    };
+    let colh = (h - y - fab - notice_h - scan_gap - end_h - log_h).max(0.0);
     if !compact || !app.visit.tab_stick {
         in_faraday(app, ui, (x, y, colw, colh), usable);
     }
