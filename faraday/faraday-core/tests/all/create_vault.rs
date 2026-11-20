@@ -710,7 +710,26 @@ fn create_vault_ends_the_last_card_and_only_there() {
     window(&mut app, (1366, 768), 160);
     app.press(Action::Vault(V::CStep(vstep::PHRASES)));
     let _ = app.frame();
+    // The card is taller than the window: Create vault ends it.
+    for _ in 0..40 {
+        if app.offers(Action::Vault(V::CGo)) {
+            break;
+        }
+        app.event(Event::Scroll {
+            x: 400,
+            y: 400,
+            dy: 200,
+        });
+        app.settle();
+        let _ = app.frame();
+    }
     assert!(app.offers(Action::Vault(V::CGo)), "on Name and passphrase");
+    app.event(Event::Scroll {
+        x: 400,
+        y: 400,
+        dy: -4000,
+    });
+    app.settle();
     app.press(Action::Vault(V::CStep(vstep::PRESET)));
     let _ = app.frame();
     assert!(
@@ -725,6 +744,7 @@ fn on_a_low_wide_window_your_choices_scrolls_within_itself() {
     let mut app = on_create_vault();
     window(&mut app, (1366, 600), 160);
     app.press(Action::Vault(V::CStep(vstep::PRESET)));
+    app.press(Action::Vault(V::CCustomise));
     let head = drawn_at(&mut app, "Your choices").expect("the pane is still shown");
     let (x, y) = (
         u16::try_from(head.0 + 20).unwrap(),
