@@ -156,12 +156,20 @@ fn the_demos_wallets_page_is_centred_in_the_room_beside_its_rail() {
                 .map(|(_, r)| r)
                 .next()
                 .expect("the section's label");
-            // The column is at most 1100 wide between two 48 dp insets,
-            // in the room right of the 240 dp rail: the gap left of it
-            // from the rail and the gap right of it to the window's edge.
-            let room_w = (w as f32 / f - 240.0).max(0.0);
-            let col = (1100.0f32 + 96.0).min(room_w);
-            let left = label.0 as f32 / f - 48.0 - 240.0;
+            // Beside the 240 dp rail the wide layout's column is at most
+            // 1100 wide between two 48 dp insets; on a window under
+            // 1360 dp the one-column layout has an 80 dp rail and a column
+            // at most 720 wide between two 12 dp insets. What a person
+            // sees: the gap left of the column from the rail and the gap
+            // right of it to the window's edge are the same.
+            let (rail, inset, col_max) = if (w as f32 / f) < 1360.0 {
+                (80.0f32, 12.0f32, 720.0f32)
+            } else {
+                (240.0, 48.0, 1100.0 + 96.0)
+            };
+            let room_w = (w as f32 / f - rail).max(0.0);
+            let col = col_max.min(room_w);
+            let left = label.0 as f32 / f - inset - rail;
             let right = room_w - left - col;
             if (left - right).abs() > 4.0 {
                 off.push(format!(
