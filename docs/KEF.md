@@ -754,9 +754,9 @@ that is no code is named in a toast. Both are on a card of their own above the t
 nothing else. Check's **Krux code** row (Check a backup in another form) opens Add a key on that form.
 My seed makes my wallet's Seed card has the same two ways on its **Krux code** row, last of its forms: the code's passphrase sheet runs as everywhere, and the words it holds (BIP-39 words, SeedQR digits or entropy turned into words) go on as typed words to the Passphrase card, never to the seed sheet. Cancel on the sheet leaves the Seed card with nothing taken, and Lock wipes the sheet. A pasted code is not taken by the scanner for these two.
 
-**In Files.** A file whose bytes are a code's own (what `krux-v{version}-{id}.kef` holds) is a
-`FileKind::KruxCode`, **Krux encrypted code**, told by its contents (`classify_read`'s last arm, §8's
-weak test, raw bytes only: a text form stays a text file, which **From Files** still takes). It is a
+**In Files.** A `.kef` file (any case) whose bytes are a code's own (what `krux-v{version}-{id}.kef` holds) is a
+`FileKind::KruxCode`, **Krux encrypted code**, told by its name and contents (`classify_read`'s last arm, §8's
+weak test, raw bytes only; the same bytes under another name stay `Other`, which **From Files** still takes; a text form stays a text file, which **From Files** still takes). It is a
 secret file as seed words are, and its button **Open** is `Action::KefFile`, the one **From Files**
 presses. The `.png` the tool writes is read as any picture of a QR code is, at a stick visit
 (`qr_read`): its code goes to the camera's reading, which offers §8's card; no reader was added.

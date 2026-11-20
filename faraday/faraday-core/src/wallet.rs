@@ -2811,8 +2811,16 @@ pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
         }
     }
     // The weakest test there is (an envelope has no magic number), so the
-    // last: the bytes the Krux tool writes, never a text form.
-    if faraday_codec::kef::recognize(bytes).is_some_and(|r| r.form == faraday_codec::kef::Form::Raw)
+    // last: a `.kef` file of the bytes the Krux tool writes, never a text
+    // form and never another name (a renamed code stays `Other`, which From
+    // Files still lists).
+    if name
+        .len()
+        .checked_sub(4)
+        .and_then(|i| name.get(i..))
+        .is_some_and(|ext| ext.eq_ignore_ascii_case(".kef"))
+        && faraday_codec::kef::recognize(bytes)
+            .is_some_and(|r| r.form == faraday_codec::kef::Form::Raw)
     {
         return FileKind::KruxCode.into();
     }

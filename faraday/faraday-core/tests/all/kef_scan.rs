@@ -1065,7 +1065,7 @@ fn a_krux_code_file_on_a_stick_shows_in_files_and_opens_there() {
         shown.iter().any(|t| t.contains("Krux encrypted code")),
         "{shown:?}"
     );
-    assert!(has(&mut app, "Open"));
+    assert!(offered(&mut app, Action::KefFile(0)));
     app.press(Action::KefFile(0));
     assert_eq!(app.sheet, Some(Sheet::KefRead));
     open_with(&mut app, "not the key");
@@ -1387,4 +1387,50 @@ fn lock_with_the_passphrase_sheet_open_from_the_seed_card_leaves_nothing() {
     assert!(testkit::holds_nothing(&app));
     assert!(app.session.keys.check_facts().is_none());
     assert!(!app.session.keys.holds_secret());
+}
+
+#[test]
+fn only_a_kef_file_is_named_a_krux_code_in_files() {
+    let (code, _) = vector("gcm");
+    let mut app = testkit::started();
+    testkit::inbox_file(&mut app, "krux-v20-74657374.KEF", code.clone());
+    testkit::inbox_file(&mut app, "renamed.bin", code);
+    app.press(Action::Nav(Screen::Files));
+    assert!(offered(&mut app, Action::KefFile(0)));
+    assert!(!offered(&mut app, Action::KefFile(1)));
+}
+
+#[test]
+fn a_refused_psbt_is_not_a_krux_code_in_files() {
+    let v: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../../tools/vectors/bip375/bip375_test_vectors.json"
+    ))
+    .unwrap();
+    let text = v["invalid"][15]["psbt"].as_str().unwrap();
+    let bytes = faraday_bip::base64::decode(text).unwrap().to_vec();
+    let mut app = testkit::started();
+    testkit::inbox_file(&mut app, "invalid.psbt", bytes);
+    app.press(Action::Nav(Screen::Files));
+    let shown = texts(&mut app);
+    assert!(
+        !shown.iter().any(|t| t.contains("Krux encrypted code")),
+        "{shown:?}"
+    );
+    assert!(!offered(&mut app, Action::KefFile(0)), "{shown:?}");
+}
+
+#[test]
+fn a_kef_file_is_dropped_at_lock() {
+    let (code, _) = vector("gcm");
+    let mut app = testkit::started();
+    testkit::inbox_file(&mut app, "krux-v20-74657374.kef", code);
+    while app.poll_storage().is_some() {}
+    app.press(Action::Lock);
+    let mut left = None;
+    while let Some(c) = app.poll_storage() {
+        if let faraday_core::StorageCommand::SaveBoxes { inbox, .. } = c {
+            left = Some(testkit::plain_files(inbox));
+        }
+    }
+    assert!(left.unwrap().is_empty());
 }

@@ -350,7 +350,8 @@ pub(crate) fn kef_file(app: &mut Faraday, i: usize) {
 
 /// The ways to read a Krux code, as the Krux tool and Add a key's Krux code
 /// form show them: **Scan a Krux code** and **From Files**, one button for
-/// each file in Files that may be one (a text or unrecognised file; whether
+/// each file in Files that may be one (a text or unrecognised file, or a
+/// `.kef` file, `FileKind::KruxCode`; whether
 /// it is a code is told when it is pressed, never while drawing). `lead`:
 /// Scan is the page's primary action. Returns the height used.
 pub(crate) fn read_rows(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), lead: bool) -> f32 {
