@@ -2287,6 +2287,7 @@ impl crate::Faraday {
             let before = m.open();
             let was = m.entry_pos();
             let tab_was = m.tab_shown(press);
+            let pan_was = (m.pan().x, m.pan().y);
             m.act(&c, press, fresh);
             follow = crate::codex32::Follow::of(press, was, m.entry_pos());
             // Each tab keeps where its page stood: a tab shown again shows
@@ -2294,9 +2295,10 @@ impl crate::Faraday {
             if let (Some(was), Some(now)) = (tab_was, m.tab_shown(press))
                 && was != now
             {
-                m.keep_tab_scroll(was, k.scroll.y);
-                if let Some(y) = m.tab_scroll(now) {
+                m.keep_tab_scroll(was, k.scroll.y, pan_was);
+                if let Some((y, pan)) = m.tab_scroll(now) {
                     k.scroll.y = y;
+                    m.put_pan(pan);
                     k.scroll.follow = false;
                     follow = crate::codex32::Follow::Still;
                     back_to_tab = true;

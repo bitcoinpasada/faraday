@@ -508,7 +508,7 @@ pub struct Codex32Make {
     panel: u8,
     /// Where the page stood on each tab last left, by its row and place
     /// ([`Codex32Make::tab_shown`]): a tab shown again shows that place.
-    tab_scrolls: Vec<((u8, u8), f32)>,
+    tab_scrolls: Vec<((u8, u8), f32, (f32, f32))>,
     cell: Option<Cell>,
     strings: Option<Held<Vec<Text>>>,
     fingerprint: Option<[u8; 4]>,
@@ -1347,19 +1347,27 @@ impl Codex32Make {
         }
     }
 
-    /// Keeps `y`, the page's scroll, as where tab `tab` was left.
-    pub(crate) fn keep_tab_scroll(&mut self, tab: (u8, u8), y: f32) {
-        self.tab_scrolls.retain(|(t, _)| *t != tab);
-        self.tab_scrolls.push((tab, y));
+    /// Keeps `y`, the page's scroll, and `pan`, the worksheet's pan, as
+    /// where tab `tab` was left.
+    pub(crate) fn keep_tab_scroll(&mut self, tab: (u8, u8), y: f32, pan: (f32, f32)) {
+        self.tab_scrolls.retain(|(t, ..)| *t != tab);
+        self.tab_scrolls.push((tab, y, pan));
     }
 
-    /// Where the page stood when tab `tab` was last left, if it was. A
-    /// lookup.
-    pub(crate) fn tab_scroll(&self, tab: (u8, u8)) -> Option<f32> {
+    /// Where the page stood when tab `tab` was last left, if it was: its
+    /// scroll and the worksheet's pan. A lookup.
+    pub(crate) fn tab_scroll(&self, tab: (u8, u8)) -> Option<(f32, (f32, f32))> {
         self.tab_scrolls
             .iter()
-            .find(|(t, _)| *t == tab)
-            .map(|(_, y)| *y)
+            .find(|(t, ..)| *t == tab)
+            .map(|(_, y, pan)| (*y, *pan))
+    }
+
+    /// The worksheet panned to (`x`, `y`) from the sheet's corner.
+    pub(crate) fn put_pan(&mut self, (x, y): (f32, f32)) {
+        self.pan = SheetPan::default();
+        self.pan.x = x;
+        self.pan.y = y;
     }
 
     /// The cell whose working is open.
