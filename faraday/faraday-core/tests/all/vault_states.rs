@@ -765,7 +765,12 @@ fn try_here(app: &mut Faraday, phrase: &str) {
 
 /// A vault made with a key file from Create, on its Unlock.
 fn made_with_key_file() -> Faraday {
-    let mut app = create_form(Vec::new());
+    made_with_key_file_among(Vec::new())
+}
+
+/// [`made_with_key_file`] with `inbox` on the device already.
+fn made_with_key_file_among(inbox: Files) -> Faraday {
+    let mut app = create_form(inbox);
     app.press(Action::Vault(V::CKeyAsk));
     app.press(Action::Vault(V::CKeyMake));
     press_create(&mut app);
@@ -888,8 +893,55 @@ fn a_stick_put_in_while_the_new_passphrase_opens_a_key_file_vault_just_sealed_ke
     );
 }
 
+/// A made with a key file, with a plain vault B beside it; A's unlock is
+/// started and a stick put in while it runs. Returns A's index.
+fn a_made_b_beside_a_stick_in_while_a_unlocks() -> (Faraday, usize) {
+    let b = testkit::kdbx_vault("B", "b phrase", 0x32, Vec::new()).unwrap();
+    let mut app = made_with_key_file_among(vec![("b.kdbx".into(), b)]);
+    let a = app.vaults().pick;
+    app.press(Action::Vault(V::FocusPassphrase));
+    type_text(&mut app, PHRASE);
+    testkit::hold_worker();
+    testkit::press_on_worker(&mut app, Action::Vault(V::Unlock));
+    attach_stick(&mut app);
+    (app, a)
+}
+
 #[test]
-fn save_in_change_passphrase_while_a_seal_runs_is_not_taken_and_seals_nothing_twice() {
+fn the_key_file_of_a_vault_just_made_does_not_reach_another_vault_picked_before_its_answer_comes() {
+    let (mut app, a) = a_made_b_beside_a_stick_in_while_a_unlocks();
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    app.press(Action::Vault(V::Pick(1 - a)));
+    testkit::release_worker();
+    testkit::settle_stale(&mut app);
+    try_here(&mut app, "b phrase");
+    assert_eq!(
+        app.vaults().open.len(),
+        1,
+        "B did not open with its own passphrase"
+    );
+    // A's key file is gone: A opens only once its key file is loaded again.
+    assert_eq!(app.vaults().open[0].name.as_str(), "b.kdbx");
+}
+
+#[test]
+fn the_key_file_of_a_vault_just_made_is_not_given_back_to_its_unlock_opened_again_after_leaving() {
+    let (mut app, a) = a_made_b_beside_a_stick_in_while_a_unlocks();
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    app.press(Action::Vault(V::Back));
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Open(a)));
+    testkit::release_worker();
+    testkit::settle_stale(&mut app);
+    try_here(&mut app, PHRASE);
+    assert!(
+        app.vaults().open.is_empty(),
+        "its key file came back after Unlock was left"
+    );
+}
+
+#[test]
+fn save_in_change_passphrase_while_a_seal_runs_is_not_taken_and_one_file_is_sealed() {
     let a = testkit::kdbx_vault("A", PHRASE, 0x31, Vec::new()).unwrap();
     let b = testkit::kdbx_vault("B", PHRASE, 0x32, Vec::new()).unwrap();
     let mut app = process(vec![("a.kdbx".into(), a), ("b.kdbx".into(), b)]);
@@ -929,6 +981,11 @@ fn save_in_change_passphrase_while_a_seal_runs_is_not_taken_and_seals_nothing_tw
     testkit::vault_lock_one(&mut app, 0);
     // Save is not taken while the seal runs.
     testkit::press_on_worker(&mut app, Action::Vault(V::FormSave));
+    assert_eq!(
+        app.sheet,
+        Some(Sheet::VaultPassphrase),
+        "Save was taken: the form closed"
+    );
     testkit::release_worker();
     testkit::settle(&mut app);
     // One seal, of the vault locked: the passphrase typed was not written.

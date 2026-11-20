@@ -378,15 +378,20 @@ pub(crate) fn stretched(app: &mut Faraday, done: StretchDone) {
     }
 }
 
-/// Costs a move: a stretch's answer made stale (a stick put in, a Back)
-/// is dropped and wiped. The key file held for an unlock of a vault just
-/// made or sealed is given back first, while Unlock is still on screen; after
-/// leaving Unlock or a Lock it wipes with the answer.
+/// Costs a move: a stretch's answer made stale (a stick put in, a Back, a
+/// Lock) is dropped and wiped. The key file held for an unlock of a vault
+/// just made or sealed is given back first only while Unlock is on screen
+/// for that same vault; after leaving Unlock, or with another vault picked,
+/// it wipes with the answer.
 pub(crate) fn stale(app: &mut Faraday, mut done: StretchDone) {
-    if matches!(done.plan, Plan::Unlock { .. })
-        && app.vaults.state.unlock_made
-        && app.screen == Screen::Unlock
-    {
+    let same = match &done.plan {
+        Plan::Unlock { name, .. } => app
+            .vault_files()
+            .get(app.vaults.pick)
+            .is_some_and(|f| f.name == *name),
+        _ => false,
+    };
+    if same && app.vaults.state.unlock_made && app.screen == Screen::Unlock {
         let kept = done
             .stretched
             .take_back_parts()

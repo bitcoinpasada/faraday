@@ -472,6 +472,7 @@ impl VaultArea {
     pub(crate) fn clear_unlock_parts(&mut self) {
         self.state.unlock_key = None;
         self.state.key_pick = 0;
+        self.state.unlock_made = false;
         self.state.store.clear_made_parts();
     }
 

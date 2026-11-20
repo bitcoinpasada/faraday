@@ -4634,12 +4634,6 @@ impl Faraday {
         let Some(id) = self.vaults.current_id().filter(|_| self.vault_may_reseal()) else {
             return;
         };
-        // The seal of Save cannot start while another runs: the form stays.
-        if seal::sealing(self) {
-            self.vaults.state.form = Some(form);
-            self.toast(EN.vault_passphrase_seal_running);
-            return;
-        }
         let phrase = crate::secret_text::SecretText::of(first);
         let ok = self.vaults.edit(id, |s| s.set_passphrase(id, phrase));
         self.vaults.state.focus = None;
