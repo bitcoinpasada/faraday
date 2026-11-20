@@ -1178,6 +1178,7 @@ pub(crate) fn message_error_text(e: faraday_psbt::message::Error) -> &'static st
         E::Malformed => EN.message_error_malformed,
         E::UnsupportedAddress => EN.message_error_unsupported_address,
         E::UnsupportedFormat => EN.message_error_unsupported_format,
+        E::UnsupportedVariant => EN.message_error_unsupported_variant,
     }
 }
 

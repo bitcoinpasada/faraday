@@ -123,6 +123,9 @@ pub struct Checked {
 pub enum Error {
     /// The format cannot express this address form.
     UnsupportedFormat,
+    /// A BIP-322 full-variant signature (`ful` or `pof`), which Faraday
+    /// does not check.
+    UnsupportedVariant,
     /// The address is of a kind this crate cannot check a message for:
     /// a script address (multisig, p2wsh) or a future witness version.
     UnsupportedAddress,
@@ -211,8 +214,6 @@ pub fn verify(address: &Address, message: &str, signature: &str) -> Result<Check
     }
 }
 
-/// The bytes behind a signature and the format they are in.
-///
 /// BIP-322 gained variant prefixes in 2025: `smp` for simple, `ful` and
 /// `pof` for the two full variants. Wallets in the field write the
 /// witness alone, so a prefix is read where there is one and [`sign`]
@@ -242,7 +243,7 @@ fn decode(signature: &str) -> Result<(Format, Zeroizing<Vec<u8>>), Error> {
     let text = signature.trim();
     let (variant, body) = split_prefix(text);
     if variant == Variant::Full {
-        return Err(Error::UnsupportedFormat);
+        return Err(Error::UnsupportedVariant);
     }
     let prefixed = variant == Variant::Simple;
     let bytes = base64::decode(body).map_err(|_| Error::Malformed)?;
@@ -444,7 +445,8 @@ const MIN_SIGNATURE_LEN: usize = 65;
 /// (`smp`, `ful`, `pof`), so a line with white space inside it or that
 /// does not decode to at least 65 bytes (a line of seed words under an
 /// address title) is not. The signature is kept as written, prefix
-/// included, for [`verify`], which says a full variant is unsupported.
+/// included, for [`verify`], which says a full variant is one Faraday does not check
+/// ([`Error::UnsupportedVariant`]).
 ///
 /// A file that ends with a newline carries the same message as one that
 /// does not, so a single trailing newline is dropped; every other

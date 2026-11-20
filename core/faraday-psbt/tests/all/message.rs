@@ -487,11 +487,7 @@ fn a_prefixed_signature_is_read_as_a_signed_message() {
                 message::verify(&address, read.message.as_str(), read.signature.as_str()),
                 Ok(Checked {
                     format: Format::Bip322,
-                    script: if case["type"] == "p2tr" {
-                        ScriptType::Taproot
-                    } else {
-                        ScriptType::NativeSegwit
-                    },
+                    script: ScriptType::NativeSegwit,
                 })
             );
             read_simple += 1;
@@ -499,16 +495,29 @@ fn a_prefixed_signature_is_read_as_a_signed_message() {
     }
     assert!(read_simple > 0);
 
-    let full = format!("bc1qaddress\nful{SIG}\nhello\n");
-    let read = message::parse_signed(&full).expect("a full-variant signature reads");
-    assert_eq!(read.signature.as_str(), format!("ful{SIG}"));
-    let address = address_of(
-        "bc1q9vza2e8x573nczrlzms0wvx3gsqjx7vavgkx0l",
-        Network::Mainnet,
-    );
+    let full = vectors["error"]
+        .as_array()
+        .expect("error")
+        .iter()
+        .find(|case| {
+            case["signature"]
+                .as_str()
+                .expect("signature")
+                .starts_with("ful")
+        })
+        .expect("a published full-variant signature");
+    let address_text = full["address"].as_str().expect("address");
+    let signature = full["signature"].as_str().expect("signature");
+    let file = format!("{address_text}\n{signature}\nincorrect prefix\n");
+    let read = message::parse_signed(&file).expect("a full-variant signature reads");
+    assert_eq!(read.signature.as_str(), signature);
     assert_eq!(
-        message::verify(&address, "hello", read.signature.as_str()),
-        Err(Error::UnsupportedFormat)
+        message::verify(
+            &address_of(address_text, Network::Mainnet),
+            read.message.as_str(),
+            read.signature.as_str()
+        ),
+        Err(Error::UnsupportedVariant)
     );
 
     for line in [

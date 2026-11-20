@@ -1055,6 +1055,8 @@ macro_rules! words_common {
     message_error_unsupported_address: "Messages for this kind of address are not signed or checked here",
     /// The same: the format cannot express this address form.
     message_error_unsupported_format: "This format cannot sign for this kind of address",
+    /// The same: a BIP-322 full-variant signature.
+    message_error_unsupported_variant: "Faraday does not check this kind of signature",
     /// Text in `check_screen`.
     check_file: "File",
     /// Text in `check_screen`.
