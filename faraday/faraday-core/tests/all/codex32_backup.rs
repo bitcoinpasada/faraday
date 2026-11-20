@@ -999,6 +999,9 @@ fn strings_checked_on_one_seed_still_count_after_another_seed_is_opened() {
     for j in ['a', 'c', 'd', 'e', 'f'] {
         assert!(b.c32_checked.contains(&(1, ix(j))), "{j} not checked");
     }
+    // The last string checked moves the item on; the item opened again
+    // reads the strings Checked on its list.
+    open_seed(&mut app, 1);
     assert!(list_reads(&mut app).contains("Checked"));
     let c = testkit::compute();
     assert!(app.backup_item_done_now(&c, plan::Item::Codex32(1)));
