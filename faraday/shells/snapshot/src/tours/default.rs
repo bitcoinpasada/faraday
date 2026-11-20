@@ -1547,6 +1547,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
             Action::NavMenu(faraday_core::nav::MenuPress::Open(Some(
                 faraday_core::nav::Overflow {
                     own: bits & 1 != 0,
+                    choices: false,
                     help: bits & 2 != 0,
                     keyboard: bits & 4 != 0,
                     keyboard_up: false,
