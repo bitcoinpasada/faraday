@@ -483,7 +483,7 @@ fn entry_finish(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) -> 
     // move down below the passphrase field when the words above it (up
     // to 24 of them) would otherwise run under it.
     let by = (h - 36.0 - 46.0).max(y + ph + 24.0 + 48.0);
-    entry_stick(app, ui, x, by - 48.0);
+    entry_stick(app, ui, x, by - 48.0, width);
     ui.button(
         x,
         by,
@@ -565,7 +565,7 @@ pub(crate) fn entry_scan(app: &View) -> Action {
 
 /// Add a key's way in from a stick: a key file on it is copied in on the
 /// stick visit and loads when the stick is pulled.
-pub(crate) fn entry_stick(app: &View, ui: &mut Ui, x: f32, y: f32) {
+pub(crate) fn entry_stick(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32) {
     if app.stick.is_empty() {
         ui.icon(
             x - 2.0,
@@ -575,8 +575,8 @@ pub(crate) fn entry_stick(app: &View, ui: &mut Ui, x: f32, y: f32) {
             12.0,
             Role::OnSurfaceVariant,
         );
-        ui.text_mid_as(
-            (x + 24.0, y, 36.0),
+        ui.wrap_as(
+            (x + 28.0, y + 2.0, width - 28.0),
             BODY_S,
             Role::OnSurfaceVariant,
             &Text::fill(EN.entry_stick_from_plug, &[app.medium.a()]),
@@ -589,7 +589,7 @@ pub(crate) fn entry_stick(app: &View, ui: &mut Ui, x: f32, y: f32) {
             BUTTON_H,
             EN.entry_stick_copy_files,
             Style::Secondary,
-            Action::Nav(Screen::Files),
+            Action::VisitFrom(Screen::Entry),
         );
     }
 }
@@ -670,7 +670,7 @@ pub(crate) fn entry_form(
         None => (h - 36.0 - 46.0).max(y + ph + 24.0 + 48.0),
     };
     if flow.is_none() {
-        entry_stick(app, ui, x, by - 48.0);
+        entry_stick(app, ui, x, by - 48.0, width);
     }
     let ready = app.entry.state().parts.ready(form);
     let aw = ui.button(

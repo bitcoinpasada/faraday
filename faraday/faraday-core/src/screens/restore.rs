@@ -671,6 +671,18 @@ fn restore_open_slot(
     cy - y
 }
 
+/// What holds a secret, said for the stick's Copy files: a key, a vault
+/// or something typed, with what Lock does to this page.
+fn held_why(app: &View) -> &'static str {
+    if app.session.keys.all().next().is_some() {
+        EN.restore_sources_key_loaded
+    } else if !app.vaults.open.is_empty() {
+        EN.restore_sources_vault_open
+    } else {
+        EN.restore_sources_secret_typed
+    }
+}
+
 /// Where a wallet's description comes back from besides the camera and
 /// Files: the files of a stick, or a vault.
 fn restore_sources(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
@@ -698,16 +710,28 @@ fn restore_sources(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         Action::VisitFrom(Screen::Restore),
     );
     if !stick {
-        ui.text_mid_as(
-            (x + 90.0 + bw + 12.0, cy, 40.0),
+        let tx = x + 90.0 + bw + 12.0;
+        let tw = ui.text_mid_as(
+            (tx, cy, 40.0),
             BODY_S,
             muted,
             &if app.holds_secret() {
-                EN.restore_sources_key_loaded.to_string()
+                held_why(app).to_string()
             } else {
                 fill(EN.restore_sources_insert, &[app.medium.noun()])
             },
         );
+        if app.holds_secret() && !app.stick.is_empty() {
+            ui.button(
+                tx + tw + GAP,
+                cy,
+                None,
+                BUTTON_H,
+                EN.restore_sources_lock,
+                Style::Secondary,
+                Action::Lock,
+            );
+        }
     }
     cy += 48.0;
     // A vault: locked in Files, or open.
@@ -789,11 +813,21 @@ fn restore_sources_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
     );
     if !stick {
         let why = if app.holds_secret() {
-            EN.restore_sources_key_loaded.to_string()
+            held_why(app).to_string()
         } else {
             fill(EN.restore_sources_insert, &[app.medium.noun()])
         };
         cy += ui.wrap_as((x, cy, w), BODY_S, Role::OnSurfaceVariant, &why) + 8.0;
+        if app.holds_secret() && !app.stick.is_empty() {
+            cy += wrap_buttons(
+                ui,
+                x,
+                cy,
+                w,
+                BUTTON_H,
+                &[(EN.restore_sources_lock, Style::Secondary, Action::Lock)],
+            );
+        }
     }
     cy += 8.0;
     // A vault: locked in Files, or open.

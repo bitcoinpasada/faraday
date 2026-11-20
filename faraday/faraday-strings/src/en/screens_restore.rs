@@ -92,7 +92,13 @@ macro_rules! words_screens_restore {
     /// Text in `restore_sources_compact`.
     restore_sources_copy_files: "Copy files in",
     /// Text in `restore_sources_compact`.
-    restore_sources_key_loaded: "Not while a key is loaded",
+    restore_sources_key_loaded: "Not while a key is loaded; Lock, then Restore starts over",
+    /// Text in `restore_sources_compact`.
+    restore_sources_vault_open: "Not while a vault is open; Lock, then Restore starts over",
+    /// Text in `restore_sources_compact`.
+    restore_sources_secret_typed: "Not while a secret is typed; Lock, then Restore starts over",
+    /// Button in `restore_sources_compact`.
+    restore_sources_lock: "Lock",
     /// Text in `restore_sources_compact`. `{}`: `app.medium.noun()`.
     restore_sources_insert: "Insert the {}",
     /// Line in `restore_sources_compact`.

@@ -544,6 +544,14 @@ pub(crate) fn stick_arrived(app: &mut Faraday) {
             ) {
                 app.visit.set_after_visit(app.screen);
             }
+            // A stick arriving on Add a key is for a key file: what is
+            // imported loads at the pull, which returns to where Add a
+            // key was opened from.
+            if app.screen == Screen::Entry {
+                let back = app.entry.state().back.unwrap_or(Screen::Home);
+                app.visit.set_after_visit(back);
+                app.visit.set_for_key(true);
+            }
             app.screen = Screen::Files;
             app.visit.set_tab_stick(true);
         }

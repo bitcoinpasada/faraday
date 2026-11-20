@@ -153,6 +153,8 @@ pub(crate) struct VisitArea {
     pull: Option<Action>,
     /// The flow a stick visit returns to when the stick is pulled.
     after_visit: Option<Screen>,
+    /// The visit came from Add a key.
+    for_key: bool,
     /// What the pictures copied in so far have read of a transfer in
     /// parts, which can span several pictures. Kept apart from the camera
     /// sheet's, so nothing of it carries into a later scan.
@@ -338,15 +340,28 @@ impl VisitArea {
     /// The visit returns to `screen` when the stick is pulled.
     pub(crate) fn set_after_visit(&mut self, screen: Screen) {
         self.after_visit = Some(screen);
+        self.for_key = false;
     }
 
     /// The visit returns to no flow.
     pub(crate) fn clear_after_visit(&mut self) {
         self.after_visit = None;
+        self.for_key = false;
+    }
+
+    /// The visit came from Add a key: what it imports loads at the pull.
+    pub(crate) fn for_key(&self) -> bool {
+        self.for_key
+    }
+
+    /// Sets whether the visit came from Add a key.
+    pub(crate) fn set_for_key(&mut self, on: bool) {
+        self.for_key = on;
     }
 
     /// The flow the visit returns to, taken to go back to it.
     pub(crate) fn take_after_visit(&mut self) -> Option<Screen> {
+        self.for_key = false;
         self.after_visit.take()
     }
 
@@ -1758,6 +1773,7 @@ impl Faraday {
             Action::VisitKeepBoth => self.visit_write(false),
             Action::NameTakenBeside => self.name_taken_answer(false),
             Action::NameTakenOverwrite => self.name_taken_answer(true),
+            Action::VisitCopy if self.visit.for_key() => self.act(Action::VisitCopyAndLoad),
             Action::VisitCopy => self.visit_copy(),
             Action::VisitCopyAndLoad => {
                 let inn = self.visit.inn.clone();
@@ -1777,6 +1793,16 @@ impl Faraday {
                 let from = self.visit_stick_identity();
                 self.visit.set_sign_from(from);
                 self.visit_copy();
+            }
+            // From Add a key: the key file imported here loads at the pull,
+            // and the pull goes back to where Add a key was opened from.
+            Action::VisitFrom(Screen::Entry) => {
+                if !self.stick.is_empty() {
+                    let back = self.entry.state().back.unwrap_or(Screen::Home);
+                    self.visit.set_after_visit(back);
+                    self.visit.set_for_key(true);
+                    self.act(Action::Nav(Screen::Files));
+                }
             }
             Action::VisitFrom(back) => {
                 if !self.stick.is_empty() && !self.holds_secret() {

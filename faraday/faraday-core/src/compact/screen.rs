@@ -766,7 +766,7 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         );
     }
     y += stack(ui, x, y, iw, &foot);
-    crate::screens::entry_stick(app, ui, x, y + 4.0);
+    crate::screens::entry_stick(app, ui, x, y + 4.0, iw);
     y += 44.0;
     finish(app, ui, h, y - top + 8.0);
 }
@@ -1097,7 +1097,7 @@ fn entry_form_foot(
         ],
     );
     if flow.is_none() {
-        crate::screens::entry_stick(app, ui, x, y + 4.0);
+        crate::screens::entry_stick(app, ui, x, y + 4.0, iw);
         y += 44.0;
     }
     y

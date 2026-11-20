@@ -63,9 +63,9 @@ macro_rules! words_screens_entry {
     entry_finish_keys_hint: "Type on the keyboard · Enter adds · Esc goes back",
     // ----- entry_stick (faraday-core/src/screens/entry.rs) -----
     /// Text in `entry_stick`. `{}`: `app.medium.a()`.
-    entry_stick_from_plug: "From {} · plug it in",
+    entry_stick_from_plug: "A key file on {}: plug it in",
     /// Button in `entry_stick`.
-    entry_stick_copy_files: "Copy files in",
+    entry_stick_copy_files: "Import a key file",
     // ----- entry_form (faraday-core/src/screens/entry.rs) -----
     /// Text in `entry_form`.
     entry_form_one_share_words: "Words of one share",

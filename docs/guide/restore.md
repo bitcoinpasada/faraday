@@ -30,7 +30,7 @@ Asked for a kind with several keys: how many keys the wallet has and how many mu
 
 The description names every key and the wallet's rules. Without one, the wallet is made from the seeds and the cosigners' xpubs at the kind's standard path; the Keys card asks for the account.
 
-**I have the seed** makes a single-key wallet from its seed alone. **I do not have it** does the same for a multisig. **Copy files in** brings in a stick's files; a stick is not read while a key is loaded. A button named Unlock and a vault's name opens a locked vault, and a wallet in an open vault is offered by name.
+**I have the seed** makes a single-key wallet from its seed alone. **I do not have it** does the same for a multisig. **Copy files in** brings in a stick's files; a held key, vault or secret needs **Lock** first. A button named Unlock and a vault's name opens a locked vault, and a wallet in an open vault is offered by name.
 
 **Shares of a split backup** lists the share files in Files. Tick the ones to use; **Rebuild the wallet** stands out once they are enough to rebuild the description.
 

@@ -871,6 +871,27 @@ fn copy_and_load_brings_in_a_secret_the_person_ticked_and_loads_it_on_pulling_th
 }
 
 #[test]
+fn a_key_file_imported_after_a_stick_comes_in_on_add_a_key_loads_at_the_pull() {
+    let mut app = testkit::started();
+    let words = kit_ending("-words.txt");
+    let a = Stick::new("a", std::slice::from_ref(&words));
+    app.press(Action::Entry(None));
+    assert_eq!(app.screen, Screen::Entry);
+    // A stick put in on Add a key goes to Files for a key file.
+    app.storage(StorageEvent::Sticks(vec![a.info()]));
+    assert_eq!(app.screen, Screen::Files);
+    let _ = app.frame();
+    tick(&mut app, &words.0);
+    // A plain Import is enough: the key loads at the pull.
+    app.press(Action::VisitCopy);
+    pump(&mut app, &[&a]);
+    assert!(app.session.keys.is_empty(), "loaded before the stick left");
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    assert_eq!(app.session.keys.len(), 1, "the key did not load");
+    assert_ne!(app.screen, Screen::Files, "the person is left on Files");
+}
+
+#[test]
 fn a_load_waiting_on_a_card_reader_runs_when_the_reader_is_pulled_not_the_card() {
     let mut app = testkit::started();
     let words = kit_ending("-words.txt");
