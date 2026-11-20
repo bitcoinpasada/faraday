@@ -4,6 +4,7 @@
 use super::parts::{kind_line, size_text, written_and_checked};
 use crate::drawing::View;
 use crate::strings::EN;
+use crate::ui::Moves;
 use crate::ui::Region;
 use crate::ui::Shape;
 use crate::ui::pal::*;
@@ -11,8 +12,8 @@ use crate::ui::{Style, Ui};
 use crate::wallet::FileKind;
 use crate::{Action, Faraday};
 use faraday_draw::tokens::{
-    BODY_M, BODY_S, BUTTON_H, BUTTON_PAD, GAP_SMALL, GRID, LABEL_L, LABEL_M, ROW, TITLE_M, TITLE_S,
-    TOUCH, VISIT_CARD_FOOT, VISIT_CARD_HEAD, VISIT_CHIP_EXTRA, VISIT_CHIP_PRESS_RISE,
+    BODY_M, BODY_S, BUTTON_H, BUTTON_PAD, GAP_SMALL, GRID, LABEL_L, LABEL_M, ROW, SHAPE_M, TITLE_M,
+    TITLE_S, TOUCH, VISIT_CARD_FOOT, VISIT_CARD_HEAD, VISIT_CHIP_EXTRA, VISIT_CHIP_PRESS_RISE,
     VISIT_CHIP_TOP, VISIT_COMPACT_HEAD, VISIT_COUNT_GAP, VISIT_FOOT_ROW, VISIT_FOOT_TEXT_LESS,
     VISIT_GROUP_HEAD, VISIT_LOG_H, VISIT_NAME_MIN, VISIT_NOTE_ICON, VISIT_NOTE_TEXT_X, VISIT_PAD,
     VISIT_ROW_BUTTON_H, VISIT_TEXT_X, VISIT_TITLE_X,
@@ -429,7 +430,8 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
     let head = match (compact, usable) {
         (false, _) => VISIT_CARD_HEAD,
         (true, true) => VISIT_COMPACT_HEAD,
-        (true, false) => GRID,
+        // Below the card's rounded top corners, which a moved list would drag.
+        (true, false) => SHAPE_M + GAP_SMALL,
     };
     // On a small panel the stick's error line shows on both tabs.
     let head = match super::files::boot_medium_line(app).filter(|_| compact) {
@@ -503,7 +505,8 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
         Region::beside(crate::ui::Slot::VisitOut, clip, app.visit.out_offset)
             .on(Role::SurfaceContainerLow)
             .own_bar()
-            .from_zero(shift),
+            .from_zero(shift)
+            .moves(Moves::Yes),
     );
     let mut ry = list_top;
     // What the Inbox gives, put together, then the open vaults.

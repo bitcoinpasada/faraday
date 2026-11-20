@@ -338,6 +338,7 @@ mod tests {
                 "Backup checklist Page",
                 "Backups Page",
                 "Backup board Page",
+                "Files VisitOut",
             ],
         );
         every_screen_on(
