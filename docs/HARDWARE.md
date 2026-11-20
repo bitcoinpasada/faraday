@@ -103,7 +103,7 @@ What carries over:
   links std for two reads of the Linux image (`/run/faraday-stateless`
   and `/proc/mounts`, which check the read-only root); a port would
   replace those two reads.
-- `faraday-core` does no I/O: its time comes from the shell's ticks.
+- `faraday-core` takes its time from the shell's ticks and does no I/O of its own; the self-test it runs makes the two reads above.
 - libsecp256k1 builds for RISC-V.
 - Rust's std on ESP-IDF (`riscv32imafc-esp-espidf`, ESP-IDF 5.2 or
   later) has threads, files and time. The app would need a new shell:
