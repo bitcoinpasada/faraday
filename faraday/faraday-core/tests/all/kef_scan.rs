@@ -1061,7 +1061,11 @@ fn a_krux_code_file_on_a_stick_shows_in_files_and_opens_there() {
     testkit::inbox_file(&mut app, "krux-v20-74657374.kef", code);
     app.press(Action::Nav(Screen::Files));
     let shown = texts(&mut app);
-    assert!(shown.iter().any(|t| t.contains("Krux encrypted code")), "{shown:?} {:?}", app.inbox()[0].kind);
+    assert!(
+        shown.iter().any(|t| t.contains("Krux encrypted code")),
+        "{shown:?} {:?}",
+        app.inbox()[0].kind
+    );
     assert!(has(&mut app, "Open"));
     app.press(Action::KefFile(0));
     assert_eq!(app.sheet, Some(Sheet::KefRead));
