@@ -779,6 +779,7 @@ dependencies = [
  "faraday-draw",
  "faraday-entropy",
  "faraday-fat",
+ "faraday-forms",
  "faraday-guide",
  "faraday-intake",
  "faraday-keys",
@@ -914,6 +915,13 @@ dependencies = [
  "faraday-text",
  "faraday-vault",
  "libfuzzer-sys",
+]
+
+[[package]]
+name = "faraday-forms"
+version = "0.2.0"
+dependencies = [
+ "faraday-strings",
 ]
 
 [[package]]
