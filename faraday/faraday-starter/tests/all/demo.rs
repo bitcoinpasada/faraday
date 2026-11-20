@@ -156,8 +156,8 @@ fn the_demos_wallets_page_is_centred_in_the_room_beside_its_rail() {
                 .map(|(_, r)| r)
                 .next()
                 .expect("the section's label");
-            // Beside the 240 dp rail the wide layout's column is at most
-            // 1100 wide between two 48 dp insets; on a window under
+            // Beside the 240 dp rail the wide layout's page is the menu
+            // page, its label at the page's left edge; on a window under
             // 1360 dp the one-column layout has an 80 dp rail and a column
             // at most 720 wide between two 12 dp insets. What a person
             // sees: the gap left of the column from the rail and the gap
@@ -165,7 +165,7 @@ fn the_demos_wallets_page_is_centred_in_the_room_beside_its_rail() {
             let (rail, inset, col_max) = if (w as f32 / f) < 1360.0 {
                 (80.0f32, 12.0f32, 720.0f32)
             } else {
-                (240.0, 48.0, 1100.0 + 96.0)
+                (240.0, 0.0, faraday_draw::tokens::MENU_PAGE_W)
             };
             let room_w = (w as f32 / f - rail).max(0.0);
             let col = col_max.min(room_w);
