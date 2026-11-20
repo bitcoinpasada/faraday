@@ -3,7 +3,6 @@
 use crate::Action;
 use crate::drawing::View;
 use crate::strings::EN;
-use crate::ui::Region;
 use crate::ui::Shape;
 use crate::ui::Ui;
 use crate::ui::pal::*;
@@ -13,70 +12,48 @@ use faraday_ui::parts::section_label;
 
 pub(crate) use super::settings::{card, cards_matching};
 
-/// Tools: every flow by group, as many tiles to a row as fit and at
-/// least three, in a page at most `TRANSFER_W` wide; Find a tool narrows them as it is typed.
+/// Tools: every flow by group on the menu page container, with the
+/// search bar standing over them; Find a tool narrows them as it is typed.
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
-    // A small panel has the name in its bar, Find across the panel, and a
-    // tile a row.
-    let compact = ui.compact;
-    let (x, width) = super::menu_page::page_span(compact, x0, cw);
-    let clip = ui.rect(x0, 0.0, cw, h);
-    let open = ui.region_open(Region::page(clip).from_zero(app.list_offset));
-    let top = if compact {
-        14.0
-    } else {
-        super::bar_head(ui, None, EN.catalog_tools)
+    use super::menu_page::{self, Page, Section};
+    let sections: Vec<Section> = tiles_by_group(app)
+        .into_iter()
+        .map(|(name, faces)| Section::tiles(Some(name), faces))
+        .collect();
+    let page = Page {
+        name: EN.catalog_tools,
+        back: false,
+        search: Some(Bar::Tools),
+        most_columns: usize::MAX,
     };
-    let mut y = top;
-    // The search bar Home draws: typing on this page goes here, and while
-    // something is typed Home's results stand in place of the tiles.
-    let sw = if compact {
-        width
-    } else {
-        width.min(faraday_draw::tokens::LEAD_MAX)
-    };
-    y += home_search_bar(
-        app,
-        ui,
-        (x + (width - sw) / 2.0, y - 2.0, sw),
-        None,
-        Bar::Tools,
-    );
-    if app.tools.find().is_empty() {
-        y += tiles_by_group(app, ui, (x, y), width, compact);
-    } else {
-        y += home_results(app, ui, (x, y), width, compact, Bar::Tools);
-    }
-    app.scroll.content_h().set(y - top + 40.0);
-    ui.region_close(open, app.scroll.content_h().get() - h);
+    menu_page::draw(app, ui, (x0, cw, h), &page, &sections);
 }
 
-/// Every tile of Tools under its group's name, from (`x`, `y`), `width`
-/// wide. Returns the height it takes.
-fn tiles_by_group(app: &View, ui: &mut Ui, (x, y): (f32, f32), width: f32, compact: bool) -> f32 {
+/// Every tile of Tools, by group in order.
+fn tiles_by_group(app: &View) -> Vec<(&'static str, Vec<Face<'static>>)> {
     use crate::catalog::{GROUPS, TILES};
-    let g = super::menu_page::grid(compact, width);
-    let mut used = 0.0;
-    for group in GROUPS {
-        let faces: Vec<Face> = TILES
-            .iter()
-            .enumerate()
-            .filter(|(_, t)| t.group == group)
-            .map(|(i, tile)| {
-                let need = app.tile_need(tile.go);
-                Face {
-                    name: tile.name,
-                    line: need.unwrap_or(tile.line),
-                    warn: need.is_some(),
-                    tags: &[],
-                    opens: app.tile_opens(tile.go),
-                    action: Action::Catalog(i as u8),
-                }
-            })
-            .collect();
-        used += super::menu_page::section(ui, (x, y + used), &g, group, &faces);
-    }
-    used
+    GROUPS
+        .iter()
+        .map(|&group| {
+            let faces = TILES
+                .iter()
+                .enumerate()
+                .filter(|(_, t)| t.group == group)
+                .map(|(i, tile)| {
+                    let need = app.tile_need(tile.go);
+                    Face {
+                        name: tile.name,
+                        line: need.unwrap_or(tile.line),
+                        warn: need.is_some(),
+                        tags: &[],
+                        opens: app.tile_opens(tile.go),
+                        action: Action::Catalog(i as u8),
+                    }
+                })
+                .collect();
+            (group, faces)
+        })
+        .collect()
 }
 
 /// The guide's words among `found`, from (x, y), `w` wide, under their
@@ -221,7 +198,7 @@ pub(crate) fn home_results(
     ui: &mut Ui,
     (x, y): (f32, f32),
     width: f32,
-    compact: bool,
+    _compact: bool,
     on: Bar,
 ) -> f32 {
     use crate::catalog::TILES;
@@ -240,7 +217,7 @@ pub(crate) fn home_results(
         );
         return ui.advance_as(BODY_M, faraday_draw::tokens::HOME_RESULTS_LINE);
     }
-    let g = super::menu_page::grid(compact, width);
+    let g = super::menu_page::grid(width, usize::MAX);
     let faces: Vec<Face> = found
         .iter()
         .filter_map(|hit| match *hit {
@@ -260,6 +237,9 @@ pub(crate) fn home_results(
         })
         .collect();
     let mut used = g.draw_rows(ui, (x, y), &faces);
+    if !faces.is_empty() {
+        used += faraday_draw::tokens::MENU_GAP;
+    }
     for hit in &found {
         if let Hit::Card(i) = *hit {
             used += card(app, ui, i, (x, y + used, width));

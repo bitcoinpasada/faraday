@@ -332,3 +332,33 @@ fn tools_search_shows_a_settings_card_among_its_results_and_clearing_brings_the_
     assert!(!shows_card(&mut app, "Appearance"));
     assert!(app.hit_box(Action::Catalog(0)).is_some());
 }
+
+/// The search bar stays where it is while the tiles scroll under it.
+#[test]
+fn the_search_bar_stays_in_view_while_tools_scrolls() {
+    let mut app = shown();
+    let at = |app: &mut Faraday, text: &str| {
+        let _ = app.frame();
+        app.drawn_text_boxes()
+            .into_iter()
+            .find(|(t, _)| t == text)
+            .map(|(_, r)| r.1)
+    };
+    let hint = faraday_core::strings::EN.home_search_hint;
+    let first = TILES[0].name;
+    let (bar_before, tile_before) = (at(&mut app, hint), at(&mut app, first));
+    assert!(bar_before.is_some() && tile_before.is_some());
+    for _ in 0..6 {
+        app.event(Event::Scroll {
+            x: 640,
+            y: 400,
+            dy: 120,
+        });
+    }
+    assert_ne!(
+        at(&mut app, first),
+        tile_before,
+        "the tiles scrolled under the bar"
+    );
+    assert_eq!(at(&mut app, hint), bar_before, "the bar did not move");
+}

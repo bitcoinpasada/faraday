@@ -1,5 +1,6 @@
 //! `Screen::WalletsStart`: the Wallets tab's first page, every flow by what the person has.
 
+use super::catalog::Face;
 use super::parts::FROM_KEY;
 use crate::drawing::View;
 use crate::strings::{EN, fill};
@@ -8,51 +9,156 @@ use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::wallet::{Session, key_line};
 use crate::{Action, Screen};
-use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_M, TITLE_M};
+use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_M};
 use faraday_draw::widgets::Icon;
-use faraday_ui::parts::{section_label, wrap_buttons};
+use faraday_ui::parts::wrap_buttons;
+
+/// The five ways in: Create, Load or restore, Spend from a backup, Add a
+/// key and Make a new key.
+fn ways() -> [(Icon, &'static str, &'static str, Action); 5] {
+    [
+        (
+            Icon::Flag,
+            EN.start_make_a_new_wallet,
+            EN.start_create_line,
+            Action::CreateWallet,
+        ),
+        (
+            Icon::Wallet,
+            EN.start_restore_an_existing,
+            EN.start_from_its_backups,
+            Action::RestoreWallet,
+        ),
+        (
+            Icon::Sign,
+            EN.start_spend_backup,
+            EN.start_a_stick_words,
+            Action::Nav(Screen::SpendBackup),
+        ),
+        (
+            Icon::Keys,
+            EN.start_add_a_key,
+            EN.start_keys_first_wallets,
+            Action::Entry(None),
+        ),
+        (
+            Icon::Keys,
+            EN.catalog_make_a_new_key,
+            EN.catalog_make_key_start_line,
+            Action::KeyGen(None),
+        ),
+    ]
+}
+
+/// The ways in as rows, one under the other. Returns their height.
+fn ways_rows(ui: &mut Ui, (x, y): (f32, f32), width: f32) -> f32 {
+    let mut cy = y;
+    for (icon, label, sub, action) in ways() {
+        cy += crate::compact::screen::row(
+            ui,
+            x,
+            cy,
+            width,
+            Some(icon),
+            label,
+            sub,
+            Role::OnSurfaceVariant.paint(),
+            Some(action),
+        );
+    }
+    cy - y
+}
+
+/// The ways in as buttons. Returns their height.
+fn ways_buttons(ui: &mut Ui, (x, y): (f32, f32), width: f32) -> f32 {
+    let buttons: Vec<_> = ways()
+        .into_iter()
+        .map(|(_, label, _, action)| (label, Style::Secondary, action))
+        .collect();
+    wrap_buttons(ui, x, y, width, BUTTON_H, &buttons)
+}
+
+/// Keys in no wallet, each with its way on, as on the desktop's Wallets
+/// column. Returns their height.
+fn loose_key_rows(app: &View, ui: &mut Ui, (x, y): (f32, f32), width: f32) -> f32 {
+    let (loose, _) = app.loose_keys();
+    let mut cy = y;
+    for fp in &loose {
+        let line = key_line(*fp, app.session.keys.key_label(*fp).unwrap_or(""));
+        let line = ui.fit_as(BODY_M.mono(), &line, width);
+        ui.text_mid_as((x, cy, 30.0), BODY_M.mono(), Role::OnSurface, &line);
+        cy += 34.0;
+        ui.button(
+            x,
+            cy,
+            Some(width),
+            BUTTON_H,
+            FROM_KEY,
+            Style::Secondary,
+            Action::KeyWallet(fp.0, 1),
+        );
+        cy += 56.0;
+    }
+    cy - y
+}
+
+/// A vault file left locked, with the way to unlock it, as a row on the
+/// small panel and as a line and a button beside it on the wide layout.
+/// Returns its height; none when no file is locked.
+fn unlock_line(app: &View, ui: &mut Ui, (x, y): (f32, f32), width: f32) -> f32 {
+    let files = app.vault_files();
+    let Some(i) = files.iter().position(|f| f.open.is_none()) else {
+        return 0.0;
+    };
+    let line = fill(EN.start_is_in_files_locked, &[&files[i].name]);
+    let open = Action::Vault(crate::vault::VaultAction::Open(i));
+    if ui.compact {
+        return crate::compact::screen::row(
+            ui,
+            x,
+            y,
+            width,
+            Some(Icon::Lock),
+            EN.start_unlock,
+            &line,
+            Role::OnSurfaceVariant.paint(),
+            Some(open),
+        );
+    }
+    ui.text_mid_as((x, y, 40.0), BODY_M, Role::OnSurfaceVariant, &line);
+    let lw = ui.measure_as(BODY_M, &line);
+    ui.button(
+        x + lw + 16.0,
+        y,
+        None,
+        BUTTON_H,
+        EN.start_unlock,
+        Style::Secondary,
+        open,
+    );
+    BUTTON_H
+}
 
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+    use super::menu_page::{self, Page, Section};
     let compact = ui.compact;
-    let (x, width) = super::menu_page::page_span(compact, x0, cw);
-    ui.page_begin((x0, cw, h), app.list_offset);
-    let mut y = if compact {
-        14.0
-    } else {
-        super::bar_head(ui, None, EN.start_wallets)
-    };
-    // No wallet and no vault yet: two ways in.
+    // No wallet and no vault yet: the ways in are the page.
     let empty = app.session.wallets.is_empty()
         && app.vaults.open.is_empty()
         && !app.create_unfinished()
         && app.wallets.spend().is_none();
-    section_label(ui, x, y, EN.start_your_wallets);
-    y += if compact { 24.0 } else { 30.0 };
-    y += wallet_rows(app, ui, x, y, width, 2, &Action::OpenWallet) + 18.0;
+    let mut sections = vec![Section::block(
+        Some(EN.start_your_wallets),
+        |ui, (x, y), width| wallet_rows(app, ui, x, y, width, 2, &Action::OpenWallet),
+    )];
     // On the small panel this is the wallet list: a key in no wallet is
     // listed after the wallets with its way on, as on the desktop's
     // Wallets column. With no wallet loaded the wallet page says it.
-    let (loose, _) = app.loose_keys();
-    if compact && !app.session.wallets.is_empty() && !loose.is_empty() {
-        section_label(ui, x, y, EN.start_keys_without);
-        y += ui.line_as(faraday_draw::tokens::TITLE_S) + faraday_draw::tokens::GAP_SMALL;
-        for fp in &loose {
-            let line = key_line(*fp, app.session.keys.key_label(*fp).unwrap_or(""));
-            let line = ui.fit_as(BODY_M.mono(), &line, width);
-            ui.text_mid_as((x, y, 30.0), BODY_M.mono(), Role::OnSurface, &line);
-            y += 34.0;
-            ui.button(
-                x,
-                y,
-                Some(width),
-                BUTTON_H,
-                FROM_KEY,
-                Style::Secondary,
-                Action::KeyWallet(fp.0, 1),
-            );
-            y += 56.0;
-        }
-        y += 6.0;
+    if compact && !app.session.wallets.is_empty() && !app.loose_keys().0.is_empty() {
+        sections.push(Section::block(
+            Some(EN.start_keys_without),
+            |ui, at, width| loose_key_rows(app, ui, at, width),
+        ));
     }
     // Wallets loaded: the list and the wallet card carry every job
     // (Sign a transaction, Back up, Show wallet QR, Sign a message) and
@@ -60,293 +166,40 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // Spend from a backup stays offered with wallets loaded: it is the
     // way back into a spend left for another tab, which lights Wallets.
     if !empty {
-        if compact {
-            y += crate::compact::screen::row(
-                ui,
-                x,
-                y,
-                width,
-                Some(Icon::Flag),
-                EN.start_make_a_new_wallet,
-                EN.start_create_line,
-                Role::OnSurfaceVariant.paint(),
-                Some(Action::CreateWallet),
-            );
-            y += crate::compact::screen::row(
-                ui,
-                x,
-                y,
-                width,
-                Some(Icon::Wallet),
-                EN.start_restore_an_existing,
-                EN.start_from_its_backups,
-                Role::OnSurfaceVariant.paint(),
-                Some(Action::RestoreWallet),
-            );
-            y += crate::compact::screen::row(
-                ui,
-                x,
-                y,
-                width,
-                Some(Icon::Sign),
-                EN.start_spend_backup,
-                EN.start_a_stick_words,
-                Role::OnSurfaceVariant.paint(),
-                Some(Action::Nav(Screen::SpendBackup)),
-            );
-            y += crate::compact::screen::row(
-                ui,
-                x,
-                y,
-                width,
-                Some(Icon::Keys),
-                EN.start_add_a_key,
-                EN.start_keys_first_wallets,
-                Role::OnSurfaceVariant.paint(),
-                Some(Action::Entry(None)),
-            );
-            y += crate::compact::screen::row(
-                ui,
-                x,
-                y,
-                width,
-                Some(Icon::Keys),
-                EN.catalog_make_a_new_key,
-                EN.catalog_make_key_start_line,
-                Role::OnSurfaceVariant.paint(),
-                Some(Action::KeyGen(None)),
-            );
+        sections.push(if compact {
+            Section::block(None, ways_rows)
         } else {
-            y += wrap_buttons(
-                ui,
-                x,
-                y,
-                width,
-                BUTTON_H,
-                &[
-                    (
-                        EN.start_make_a_new_wallet,
-                        Style::Secondary,
-                        Action::CreateWallet,
-                    ),
-                    (
-                        EN.start_restore_an_existing,
-                        Style::Secondary,
-                        Action::RestoreWallet,
-                    ),
-                    (
-                        EN.start_spend_backup,
-                        Style::Secondary,
-                        Action::Nav(Screen::SpendBackup),
-                    ),
-                    (EN.start_add_a_key, Style::Secondary, Action::Entry(None)),
-                    (
-                        EN.catalog_make_a_new_key,
-                        Style::Secondary,
-                        Action::KeyGen(None),
-                    ),
-                ],
-            ) + 10.0;
-        }
-        if compact {
-            crate::compact::screen::finish(app, ui, h, y + 16.0);
-        } else {
-            app.scroll.content_h().set(y + 24.0);
-            ui.region_end(app.scroll.content_h().get() - h);
-        }
-        return;
+            Section::block(None, ways_buttons)
+        });
+    } else if compact {
+        sections.push(Section::block(None, ways_rows));
+        sections.push(Section::block(None, |ui, at, width| {
+            unlock_line(app, ui, at, width)
+        }));
+    } else {
+        let faces = ways()
+            .into_iter()
+            .map(|(_, name, line, action)| Face {
+                name,
+                line,
+                warn: false,
+                tags: &[],
+                opens: true,
+                action,
+            })
+            .collect();
+        sections.push(Section::tiles(None, faces));
+        sections.push(Section::block(None, |ui, at, width| {
+            unlock_line(app, ui, at, width)
+        }));
     }
-    if empty && compact {
-        y += crate::compact::screen::row(
-            ui,
-            x,
-            y,
-            width,
-            Some(Icon::Flag),
-            EN.start_make_a_new_wallet,
-            EN.start_create_line,
-            Role::OnSurfaceVariant.paint(),
-            Some(Action::CreateWallet),
-        );
-        y += crate::compact::screen::row(
-            ui,
-            x,
-            y,
-            width,
-            Some(Icon::Wallet),
-            EN.start_restore_an_existing,
-            EN.start_from_its_backups,
-            Role::OnSurfaceVariant.paint(),
-            Some(Action::RestoreWallet),
-        );
-        y += crate::compact::screen::row(
-            ui,
-            x,
-            y,
-            width,
-            Some(Icon::Sign),
-            EN.start_spend_backup,
-            EN.start_a_stick_words,
-            Role::OnSurfaceVariant.paint(),
-            Some(Action::Nav(Screen::SpendBackup)),
-        );
-        y += crate::compact::screen::row(
-            ui,
-            x,
-            y,
-            width,
-            Some(Icon::Keys),
-            EN.start_add_a_key,
-            EN.start_keys_first_wallets,
-            Role::OnSurfaceVariant.paint(),
-            Some(Action::Entry(None)),
-        );
-        y += crate::compact::screen::row(
-            ui,
-            x,
-            y,
-            width,
-            Some(Icon::Keys),
-            EN.catalog_make_a_new_key,
-            EN.catalog_make_key_start_line,
-            Role::OnSurfaceVariant.paint(),
-            Some(Action::KeyGen(None)),
-        );
-        y += 8.0;
-        let files = app.vault_files();
-        if let Some(i) = files.iter().position(|f| f.open.is_none()) {
-            let line = fill(EN.start_is_in_files_locked, &[&files[i].name]);
-            y += crate::compact::screen::row(
-                ui,
-                x,
-                y,
-                width,
-                Some(Icon::Lock),
-                EN.start_unlock,
-                &line,
-                Role::OnSurfaceVariant.paint(),
-                Some(Action::Vault(crate::vault::VaultAction::Open(i))),
-            );
-        }
-        crate::compact::screen::finish(app, ui, h, y);
-        return;
-    }
-    if empty {
-        // Five ways in: Create, Load or restore, Spend from a backup,
-        // Add a key and Make a new key.
-        // Laid out on the grid Tools uses: as many columns as the width
-        // leaves room for, three at least.
-        let g = super::menu_page::grid(false, width);
-        let (tw, gap) = (g.tile_w, g.gap());
-        let ways = [
-            (
-                Icon::Flag,
-                EN.start_make_a_new_wallet,
-                EN.start_create_line,
-                Action::CreateWallet,
-            ),
-            (
-                Icon::Wallet,
-                EN.start_restore_an_existing,
-                EN.start_from_its_backups,
-                Action::RestoreWallet,
-            ),
-            (
-                Icon::Sign,
-                EN.start_spend_backup,
-                EN.start_a_stick_words,
-                Action::Nav(Screen::SpendBackup),
-            ),
-            (
-                Icon::Keys,
-                EN.start_add_a_key,
-                EN.start_keys_first_wallets,
-                Action::Entry(None),
-            ),
-            (
-                Icon::Keys,
-                EN.catalog_make_a_new_key,
-                EN.catalog_make_key_start_line,
-                Action::KeyGen(None),
-            ),
-        ];
-        // A label or sub-line that does not fit at its size breaks onto
-        // further lines (`docs/DESIGN.md` "Menu row"): every card in a row
-        // grows to the tallest label and sub among them, so the row stays
-        // even and nothing is cut off.
-        let label_room = tw - 100.0;
-        let label_line_h = ui.line_as(TITLE_M);
-        let sub_line_h = ui.line_as(BODY_S);
-        for row in ways.chunks(g.per) {
-            let max_label_lines = row
-                .iter()
-                .map(|(_, label, _, _)| ui.wrap_lines_as(TITLE_M, label, label_room))
-                .max()
-                .unwrap_or(1);
-            let max_sub_lines = row
-                .iter()
-                .map(|(_, _, sub, _)| ui.wrap_lines_as(BODY_S, sub, label_room))
-                .max()
-                .unwrap_or(1);
-            let card_h = 92.0
-                + (max_label_lines - 1) as f32 * label_line_h
-                + (max_sub_lines - 1) as f32 * sub_line_h;
-            for (k, (icon, label, sub, action)) in row.iter().enumerate() {
-                let tx = x + k as f32 * (tw + gap);
-                let r = faraday_draw::tokens::SHAPE_M;
-                ui.fill(tx, y, tw, card_h, r, Role::SurfaceContainerLow);
-                ui.stroke(tx, y, tw, card_h, r, Role::OutlineVariant);
-                ui.press(
-                    Shape::new(tx, y, tw, card_h, r),
-                    Role::OnSurface.paint(),
-                    *action,
-                );
-                ui.fill(tx + 20.0, y + 24.0, 44.0, 44.0, r, Role::SecondaryContainer);
-                let on_tile = Role::OnSecondaryContainer;
-                ui.icon(tx + 20.0, y + 24.0, 44.0, *icon, 18.0, on_tile);
-                if ui.wrap_lines_as(TITLE_M, label, label_room) > 1 {
-                    ui.wrap_as(
-                        (tx + 82.0, y + 24.0, label_room),
-                        TITLE_M,
-                        Role::OnSurface,
-                        label,
-                    );
-                } else {
-                    let label = ui.fit_as(TITLE_M, label, label_room);
-                    ui.text_as(tx + 82.0, y + 24.0, TITLE_M, Role::OnSurface, &label);
-                }
-                let sub_y = y + 24.0 + max_label_lines as f32 * label_line_h + 2.0;
-                if ui.wrap_lines_as(BODY_S, sub, label_room) > 1 {
-                    ui.wrap_as(
-                        (tx + 82.0, sub_y, label_room),
-                        BODY_S,
-                        Role::OnSurfaceVariant,
-                        sub,
-                    );
-                } else {
-                    let sub = ui.fit_as(BODY_S, sub, label_room);
-                    ui.text_as(tx + 82.0, sub_y, BODY_S, Role::OnSurfaceVariant, &sub);
-                }
-            }
-            y += card_h + gap;
-        }
-        y += 28.0 - gap;
-        let files = app.vault_files();
-        if let Some(i) = files.iter().position(|f| f.open.is_none()) {
-            let line = fill(EN.start_is_in_files_locked, &[&files[i].name]);
-            ui.text_mid_as((x, y, 40.0), BODY_M, Role::OnSurfaceVariant, &line);
-            let lw = ui.measure_as(BODY_M, &line);
-            ui.button(
-                x + lw + 16.0,
-                y,
-                None,
-                BUTTON_H,
-                EN.start_unlock,
-                Style::Secondary,
-                Action::Vault(crate::vault::VaultAction::Open(i)),
-            );
-        }
-    }
+    let page = Page {
+        name: EN.start_wallets,
+        back: false,
+        search: None,
+        most_columns: usize::MAX,
+    };
+    menu_page::draw(app, ui, (x0, cw, h), &page, &sections);
 }
 
 /// The loaded wallets, two to a row, at most `rows` rows: each with its

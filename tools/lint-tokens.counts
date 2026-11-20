@@ -16,7 +16,7 @@ faraday/faraday-core/src/keygen/screen.rs 238
 faraday/faraday-core/src/lightning/screen.rs 31
 faraday/faraday-core/src/modes/screen.rs 10
 faraday/faraday-core/src/screens/backup.rs 160
-faraday/faraday-core/src/screens/catalog.rs 23
+faraday/faraday-core/src/screens/catalog.rs 21
 faraday/faraday-core/src/screens/check_message.rs 30
 faraday/faraday-core/src/screens/create.rs 27
 faraday/faraday-core/src/screens/entry.rs 79
@@ -34,7 +34,7 @@ faraday/faraday-core/src/screens/sidebar.rs 29
 faraday/faraday-core/src/screens/spend.rs 243
 faraday/faraday-core/src/screens/visit.rs 131
 faraday/faraday-core/src/screens/wallets.rs 118
-faraday/faraday-core/src/screens/wallets_start.rs 59
+faraday/faraday-core/src/screens/wallets_start.rs 32
 faraday/faraday-core/src/seeds/screen.rs 62
 faraday/faraday-core/src/silent/screen.rs 14
 faraday/faraday-core/src/spend_backup/screen.rs 318

@@ -1028,10 +1028,6 @@ pub const READING_TIME_W: f32 = 520.0 + 2.0 * 56.0;
 /// Add randomness' reading area: its `COLUMN_MAX` column between two
 /// 48 dp insets.
 pub const READING_RANDOM_W: f32 = COLUMN_MAX + 4.0 * MARGIN_WIDE;
-/// Check's list's top on a compact window.
-pub const CHECK_TOP: f32 = 14.0;
-/// The space under Check's last row.
-pub const CHECK_TAIL: f32 = 40.0;
 /// Explore's inset from its area's edges on a wide window.
 pub const EXPLORE_INSET: f32 = 56.0;
 /// The space under the line beneath a private key Explore shows.
@@ -1123,19 +1119,21 @@ pub const VISIT_SUMMARY_FOLD_H: f32 = 228.0;
 /// A stick visit's reading area: its two lists, each at most
 /// `COLUMN_MAX`, the gap between them, between two `PAGE_INSET`s.
 pub const READING_VISIT_W: f32 = 2.0 * COLUMN_MAX + VISIT_GAP + 2.0 * PAGE_INSET;
-/// The narrowest a tile of the tools' catalogue is: its name, its line; the catalogue takes as many columns as fit,
-/// never fewer than three beside the navigation (`docs/LAYOUT.md` §17).
+/// The narrowest a tile of a menu page is: its name, its line; a page takes as many columns as fit,
+/// at least one (`docs/MENU-PAGE.md` §4).
 pub const CATALOG_TILE_MIN: f32 = 360.0;
 /// The height of a tile of the catalogue with its standards' tags.
 pub const CATALOG_TILE_H: f32 = 82.0;
 /// The height of a tile with no tags: its name and its line, no tags' row.
 pub const CATALOG_TILE_H_PLAIN: f32 = 58.0;
-/// The space between two rows of the catalogue's tiles.
-pub const CATALOG_ROW_GAP: f32 = 10.0;
-/// The space between two tiles in a row of the menu page grid.
-pub const CATALOG_TILE_GAP: f32 = 14.0;
-/// The tools' catalogue's columns beside the navigation, at the least.
-pub const CATALOG_COLUMNS_MIN: usize = 3;
+/// The one space between tiles and cards of a menu page, across and down
+/// (`docs/MENU-PAGE.md` §5).
+pub const MENU_GAP: f32 = 16.0;
+/// The widest a menu page is: three tiles at `CATALOG_TILE_MIN` and the two
+/// gaps between them (`docs/MENU-PAGE.md` §2).
+pub const MENU_PAGE_W: f32 = 3.0 * CATALOG_TILE_MIN + 2.0 * MENU_GAP;
+/// A menu page's area: `MENU_PAGE_W` between two `PAGE_INSET`s.
+pub const READING_MENU_W: f32 = MENU_PAGE_W + 2.0 * PAGE_INSET;
 /// The narrowest a derivation path's field is drawn on a wide window
 /// (`docs/LAYOUT.md` §8): room for `m/86h/1h/0h/1/2147483647` and the
 /// caret at the body size; a longer path widens it, up to the column.

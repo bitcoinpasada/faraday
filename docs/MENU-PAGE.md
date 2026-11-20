@@ -1,8 +1,8 @@
 # One menu page container
 
 **Kind:** Spec
-**Status:** Specified (F298); none of it is built.
-**Open:** every one of the five menu pages still draws its own page: Tools and Check share `catalog::grid`, Home, Wallets start and Settings each have their own width, columns and gaps, and the one-column Home its own grid of places. None of them is on the container yet.
+**Status:** Specified (F298); the container is built (`screens/menu_page.rs`) and Tools, Check and Wallets start draw on it.
+**Open:** Home and Settings still draw their own page: each has its own width, columns and gaps, the one-column Home its own grid of places, and Settings its cards' column rule; the container has no body of cards yet (§6), and `TILE_MIN` and `SETTINGS_CARD_MIN` stay until they move.
 
 The menu pages are the pages a person picks a place or a tool from:
 Home, Tools (`Screen::Catalog`, the sidebar's Tools), Check, Wallets
@@ -211,11 +211,11 @@ and `SETTINGS_CARD_MIN` (the same 360 as `CATALOG_TILE_MIN`) go once
 nothing reads them.
 
 The container is shared code beside the flow container
-(`faraday/faraday-core/src/flow.rs`): a menu page module of its own in
-`faraday/faraday-core/src/`, called from each page's `draw`. It grows
-out of `catalog::grid` and `page_span`, which Tools and Check already
-share, so they move onto it first and the other three follow; Settings'
-cards need §6's column stacks, which nothing has today.
+(`faraday/faraday-core/src/flow.rs`): a menu page module of its own,
+`faraday/faraday-core/src/screens/menu_page.rs`, called from each page's
+`draw`. Tools, Check and Wallets start are on it; Home and Settings
+follow, and Settings' cards need §6's column stacks, which nothing has
+today.
 `docs/LAYOUT.md` §4 and §17 and `docs/DESIGN.md` §5's Home, Catalog and
 Settings rows change with the pages as each moves.
 

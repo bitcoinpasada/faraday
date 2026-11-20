@@ -1,66 +1,110 @@
-//! The menu page container: the page span and tile grid that Tools, Check and Wallets start draw in (docs/LAYOUT.md §17).
+//! The menu page container (`docs/MENU-PAGE.md`): the width, inset, centring,
+//! search bar, columns, gaps, top and foot of the pages a person picks a
+//! place or a tool from. A page declares its name and its sections; this
+//! draws the rest.
 
-use super::catalog::Face;
-use crate::ui::Ui;
+use super::catalog::{Bar, Face};
+use crate::drawing::View;
+use crate::ui::{Region, Ui};
 use faraday_draw::tokens::{
-    CATALOG_COLUMNS_MIN, CATALOG_ROW_GAP, CATALOG_TILE_GAP as TILE_GAP, CATALOG_TILE_H as TILE_H,
-    CATALOG_TILE_MIN, PAGE_INSET, TITLE_S,
+    CATALOG_TILE_H as TILE_H, CATALOG_TILE_MIN, GRID, LEAD_MAX, MARGIN_WIDE, MENU_GAP, MENU_PAGE_W,
+    PAGE_INSET, PANE_TOP_BAR, TITLE_S,
 };
 use faraday_ui::parts::section_label;
 
-/// Where a page of tiles starts and how wide it is in an area `cw` wide
-/// from `x0`: Tools and Check share it, so their grids match.
-pub(crate) fn page_span(compact: bool, x0: f32, cw: f32) -> (f32, f32) {
+/// What a block draws: from `at`, `w` wide, returning its height.
+type BlockFn<'a> = Box<dyn Fn(&mut Ui, (f32, f32), f32) -> f32 + 'a>;
+
+/// What a section holds. (A body of cards of different heights is
+/// `docs/MENU-PAGE.md` §6, built with Settings.)
+pub(crate) enum Body<'a> {
+    /// Faces in the grid.
+    Tiles(Vec<Face<'a>>),
+    /// Something the page draws across its width from `at`, `w` wide,
+    /// returning its height.
+    Block(BlockFn<'a>),
+}
+
+/// An optional label over one body.
+pub(crate) struct Section<'a> {
+    pub label: Option<&'a str>,
+    pub body: Body<'a>,
+}
+
+impl<'a> Section<'a> {
+    /// Tiles under `label`.
+    pub fn tiles(label: Option<&'a str>, faces: Vec<Face<'a>>) -> Self {
+        Self {
+            label,
+            body: Body::Tiles(faces),
+        }
+    }
+
+    /// A block across the page under `label`.
+    pub fn block(
+        label: Option<&'a str>,
+        draw: impl Fn(&mut Ui, (f32, f32), f32) -> f32 + 'a,
+    ) -> Self {
+        Self {
+            label,
+            body: Body::Block(Box::new(draw)),
+        }
+    }
+}
+
+/// What a menu page declares of itself.
+pub(crate) struct Page<'a> {
+    /// The name the top app bar carries.
+    pub name: &'a str,
+    /// Whether the bar carries a way back (Check's does).
+    pub back: bool,
+    /// The search bar the page has, and its results.
+    pub search: Option<Bar>,
+    /// The most columns the page takes.
+    pub most_columns: usize,
+}
+
+/// Where a page starts and how wide it is in an area `cw` wide from `x0`.
+fn page_span(compact: bool, x0: f32, cw: f32) -> (f32, f32) {
     if compact {
         (x0 + crate::compact::M, cw - 2.0 * crate::compact::M)
     } else {
-        (
-            x0 + PAGE_INSET,
-            (cw - 2.0 * PAGE_INSET).min(faraday_draw::tokens::TRANSFER_W),
-        )
+        let w = (cw - 2.0 * PAGE_INSET).min(MENU_PAGE_W);
+        (x0 + (cw - w) / 2.0, w)
     }
 }
 
 /// The grid tiles stand in: as many columns as `CATALOG_TILE_MIN` leaves
-/// room for, never fewer than three beside the navigation (`docs/LAYOUT.md`
-/// §17), one on a small panel. Tools and Check both use it.
+/// room for, at least one.
 pub(crate) struct Grid {
     /// Tiles to a row.
-    pub per: usize,
+    per: usize,
     /// A tile's width.
-    pub tile_w: f32,
+    tile_w: f32,
     /// The least height of a tile: the tallest of the faces it was
     /// matched to, so that every tile on a page is one height.
-    pub tile_h: f32,
+    tile_h: f32,
 }
 
-/// The grid for a page `width` wide.
-pub(crate) fn grid(compact: bool, width: f32) -> Grid {
-    let per = if compact {
-        1
-    } else {
-        (((width + TILE_GAP) / (CATALOG_TILE_MIN + TILE_GAP)) as usize).max(CATALOG_COLUMNS_MIN)
-    };
+/// The grid for a page `width` wide, at most `most` columns.
+pub(crate) fn grid(width: f32, most: usize) -> Grid {
+    let fit = ((width + MENU_GAP) / (CATALOG_TILE_MIN + MENU_GAP)) as usize;
+    let per = fit.clamp(1, most.max(1));
     Grid {
         per,
-        tile_w: (width - (per as f32 - 1.0) * TILE_GAP) / per as f32,
+        tile_w: (width - (per as f32 - 1.0) * MENU_GAP) / per as f32,
         tile_h: 0.0,
     }
 }
 
 impl Grid {
     /// The grid with every tile as tall as the tallest of `faces`.
-    pub fn matching<'a>(mut self, ui: &Ui, faces: impl IntoIterator<Item = &'a Face<'a>>) -> Self {
+    fn matching<'a>(mut self, ui: &Ui, faces: impl IntoIterator<Item = &'a Face<'a>>) -> Self {
         self.tile_h = faces
             .into_iter()
             .map(|f| f.height(ui, self.tile_w))
             .fold(0.0, f32::max);
         self
-    }
-
-    /// The space between tiles.
-    pub fn gap(&self) -> f32 {
-        TILE_GAP
     }
 
     /// Draws `faces` in rows from `at`, every tile in a row as tall as the
@@ -76,27 +120,99 @@ impl Grid {
             for (c, face) in row.iter().enumerate() {
                 face.draw(
                     ui,
-                    x + c as f32 * (self.tile_w + TILE_GAP),
+                    x + c as f32 * (self.tile_w + MENU_GAP),
                     top,
                     (self.tile_w, rh),
                 );
             }
-            top += rh + CATALOG_ROW_GAP;
+            top += rh + MENU_GAP;
         }
-        top - y
+        (top - y - MENU_GAP).max(0.0)
     }
 }
 
-/// A group of tiles under its name from `at`, in `g`: the layout Tools and
-/// Check share. Returns the height up to where the next group starts.
-pub(crate) fn section(
+/// Draws the page in the area `cw` wide from `x0`, `h` tall: the name in
+/// the top app bar, the search bar standing still (on a window too short
+/// for about three rows under it, scrolling with the page), the sections
+/// under it, scrolling.
+pub(crate) fn draw(
+    app: &View,
+    ui: &mut Ui,
+    (x0, cw, h): (f32, f32, f32),
+    page: &Page,
+    sections: &[Section],
+) {
+    let compact = ui.compact;
+    let (x, width) = page_span(compact, x0, cw);
+    if !compact {
+        if page.back {
+            super::bar_head_back(app, ui, page.name);
+        } else {
+            super::bar_head(ui, None, page.name);
+        }
+    }
+    let typed = page.search.is_some_and(|bar| match bar {
+        Bar::Home => !app.tools.home_find().is_empty(),
+        Bar::Tools => !app.tools.find().is_empty(),
+    });
+    let search = |ui: &mut Ui, y: f32, page_top: Option<f32>| {
+        let sw = if compact { width } else { width.min(LEAD_MAX) };
+        let bar = page.search.unwrap_or(Bar::Tools);
+        super::catalog::home_search_bar(app, ui, (x + (width - sw) / 2.0, y, sw), page_top, bar)
+    };
+    let pinned = page.search.is_some() && (!compact || super::home_pinned(PANE_TOP_BAR, h, TILE_H));
+    let mut top = 0.0;
+    let mut y = PANE_TOP_BAR;
+    if pinned {
+        top = PANE_TOP_BAR + search(ui, PANE_TOP_BAR, None);
+        y = top;
+    }
+    let clip = ui.rect(x0, top, cw, (h - top).max(0.0));
+    let open = ui.region_open(Region::page(clip).from_zero(app.list_offset));
+    if page.search.is_some() && !pinned {
+        y += search(ui, y, Some(0.0));
+    }
+    if let (true, Some(bar)) = (typed, page.search) {
+        y += super::catalog::home_results(app, ui, (x, y), width, compact, bar);
+    } else {
+        y += sections_height(ui, (x, y), width, page.most_columns, sections);
+    }
+    let content = y - top + MARGIN_WIDE;
+    app.scroll.content_h().set(content);
+    ui.region_close(open, content - (h - top));
+}
+
+/// The sections from `at`, `width` wide, one after the other. Returns
+/// their height.
+fn sections_height(
     ui: &mut Ui,
     (x, y): (f32, f32),
-    g: &Grid,
-    name: &str,
-    faces: &[Face],
+    width: f32,
+    most: usize,
+    sections: &[Section],
 ) -> f32 {
-    section_label(ui, x, y, name);
-    let head = ui.line_as(TITLE_S) + faraday_draw::tokens::GRID;
-    head + g.draw_rows(ui, (x, y + head), faces) + faraday_draw::tokens::GRID * 2.0
+    let faces = sections.iter().flat_map(|s| match &s.body {
+        Body::Tiles(f) => f.as_slice(),
+        Body::Block(_) => &[],
+    });
+    let g = grid(width, most).matching(ui, faces);
+    let mut used = 0.0;
+    for (i, s) in sections.iter().enumerate() {
+        if i > 0 {
+            used += if s.label.is_some() {
+                2.0 * GRID
+            } else {
+                MENU_GAP
+            };
+        }
+        if let Some(label) = s.label {
+            section_label(ui, x, y + used, label);
+            used += ui.line_as(TITLE_S) + GRID;
+        }
+        used += match &s.body {
+            Body::Tiles(faces) => g.draw_rows(ui, (x, y + used), faces),
+            Body::Block(draw) => draw(ui, (x, y + used), width),
+        };
+    }
+    used
 }

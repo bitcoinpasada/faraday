@@ -246,10 +246,11 @@ fn a_page_meant_to_be_centred_is_centred_in_its_room_held_or_not() {
                 .min_by_key(|b| b.1)
                 .expect("the section's label");
             let (start, width) = room(w, held);
-            // The column starts a page inset in; it is 1100 wide between
-            // two insets, or the room where that is narrower.
-            let col = (1100 + 96).min(width);
-            let middle = at.0 - 48 + col / 2;
+            // The page is the menu page's width, or the room less a page
+            // inset at each side where that is narrower, and starts at its
+            // label.
+            let page = 1112.min(width - 96);
+            let middle = at.0 + page / 2;
             let want = start + width / 2;
             assert!(
                 (middle - want).abs() <= 4,
