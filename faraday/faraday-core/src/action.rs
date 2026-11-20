@@ -1257,8 +1257,6 @@ impl Faraday {
                 kef_tool::cancel(self);
                 self.kef_job_drop();
                 self.seed_read.clear();
-                // A slot waiting for the key of a seed read stops waiting.
-                let _ = self.camera.take_slot();
                 self.stick.clear_delete_ask();
                 self.visit.taken_clear();
                 self.next_mode.clear();
