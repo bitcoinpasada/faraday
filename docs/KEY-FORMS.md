@@ -128,7 +128,7 @@ share is a part; a Krux code is a whole Krux code; an xprv is a whole xprv
 a seed scanner loads at once, a part it hands to its form's collection in
 Add a key, a Krux code it opens on its passphrase sheet; `Kind::seed` is
 the first. Every scanner's seed branch reads `Kind::route` (built, with no
-change to what any scanner takes). A hex seed has no kind (§6.2).
+change to what any scanner takes in that step). A key slot (Restore's, a new wallet's) takes a scanned codex32 or SLIP-39 share, opening that share's form with it in, and a Krux code read at a form's own Scan (codex32, SLIP-39, Seed XOR) opens its sheet: both built. A hex seed has no kind (§6.2).
 
 Not built, and each scanner's row in `docs/SCANNING.md` §4.3 changes with
 it: a master xprv shows the seed sheet with its fingerprint and no

@@ -174,12 +174,12 @@ destination's action.
 | Home's Scan | every kind, to §4.2's destination | — | as §4.2; a GPG public key is filed as `{name}-{fp8}.asc` (`scanned-N.asc` where it does not read as a certificate), a file in the envelope under its own name |
 | Files, Tools' Scan a QR code | as Home's | — | as §4.2 |
 | Tools' Check an address, Sign, Decode | as Home's, titled for what they ask (§7.1) | — | as §4.2 |
-| Restore's Scan it and Scan descriptor | a wallet description, split sheets; a seed or a codex32 secret into the first slot with no seed (after the seed sheet); an account key into its slot | every other kind Faraday takes | as §4.2 |
-| Create's Scan its xpub | an account key or a descriptor of one key, into the slot; a seed into the slot, as the slot's key (after the seed sheet) | every other kind | as §4.2 |
+| Restore's Scan it and Scan descriptor | a wallet description, split sheets; a seed into the first slot with no seed (after the seed sheet); a codex32 secret or a codex32 or SLIP-39 share, to its form opened with it in, the rest added there and the key it makes into that slot; an account key into its slot | every other kind Faraday takes | as §4.2 |
+| Create's Scan its xpub | an account key or a descriptor of one key, into the slot; a seed into the slot, as the slot's key (after the seed sheet); a codex32 secret or a codex32 or SLIP-39 share, to its form opened with it in, the rest added there and the key it makes into the slot | every other kind | as §4.2 |
 | Restore's seeds card's Scan | an account key into the box | every other kind | as §4.2 |
 | Spend's Scan a copy; the Spend tab's Scan it and Scan the PSBT | a PSBT of the spend | every other kind | as §4.2 |
 | Add a key's Scan a SeedQR | a seed; a codex32 secret, loaded; a codex32 or SLIP-39 share, to its form | every other kind | as §4.2 |
-| A form's Scan (codex32, SLIP-39, Seed XOR) | its own form's part; the other share form's, switching to that form with it in; a seed, to the seed sheet | every other kind | as §4.2; a string that starts as its form's does keeps the parser's line ("Not a codex32 string: …") |
+| A form's Scan (codex32, SLIP-39, Seed XOR) | its own form's part; the other share form's, switching to that form with it in; a seed, to the seed sheet; a Krux encrypted code, the camera closing and the Krux sheet asking its passphrase | every other kind | as §4.2; a string that starts as its form's does keeps the parser's line ("Not a codex32 string: …") |
 | A wallet's Scan a key | a seed or a codex32 secret, matched to the wallet's missing keys; a codex32 or SLIP-39 share, to its form opened for the wallet (`EntryWallet`), back to the wallet once the key is whole | every other kind | as §4.2 |
 | What do you have? | a seed, shares, a description, split sheets, an account key, a PSBT | none: the camera stays on and the intake is not left | every other kind on its line, as in §5.5; a secret is not filed |
 | TOTP | a TOTP setup code, vault entries | a seed, a share, a PSBT, a wallet description, a signed message | as §4.2 |
@@ -214,7 +214,8 @@ A Krux encrypted code read by a scanner a flow opened for a seed (Restore's and 
 a wallet's Scan a key, What do you have?) is opened by its passphrase on its own sheet; the seed
 it holds then goes where a SeedQR read by that scanner goes, with the code's id on the seed
 sheet where there is one (`docs/KEF.md` §6). Read by Home's Scan or Add a key's Scan a SeedQR, it
-goes to the seed sheet.
+goes to the seed sheet. Read by a form's own Scan (codex32, SLIP-39, Seed XOR), the
+camera closes and the sheet asks the passphrase, as the Krux scanner's does.
 
 A PNG read from a stick routes as Home's Scan does, without the card:
 what has a destination is filed or loaded as the visit's rules say, and
@@ -259,9 +260,9 @@ not take.
 |---|---|---|---|
 | Home's Scan, Files, Tools' Scan a QR code | straight to the vault's form (no card) with a vault open; else the card: **Unlock {vault}** or **Make a vault** (not kept) | straight to the seed sheet | straight to its form |
 | A typed `Files` scanner: Scan the PSBT, Scan a transaction, Scan an address | card: **Add to {vault}**, **Unlock {vault}** or **Make a vault** (not kept); Scan again, Cancel | card: **Add this key** to the seed sheet, behind the stick gate; Scan again, Cancel | card: **Add this share**; Scan again, Cancel |
-| Restore's Scan the description, Create's Scan Key {n}'s xpub | card, as above | taken into the flow's slot, after the seed sheet | card: **Add this share** |
+| Restore's Scan the description, Create's Scan Key {n}'s xpub | card, as above | taken into the flow's slot, after the seed sheet | taken, to its form with it in, the rest added there and the key into the slot |
 | Add a key's Scan a SeedQR | card, as above | taken | taken, to its form |
-| A form's Scan a share | card, as above | to the seed sheet | taken; the other kind's switches form |
+| A form's Scan a share | card, as above | to the seed sheet | taken; the other kind's switches form (a Krux code opens the Krux sheet) |
 | A wallet's Scan a key | card, as above | taken, matched to the wallet's keys | taken, to its form for the wallet |
 | What do you have? | line "A TOTP setup code · not used here"; not filed; the camera stays on | taken | taken |
 | The TOTP scanner | taken | card: **Add this key** | card: **Add this share** |

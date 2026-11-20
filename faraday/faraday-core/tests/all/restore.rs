@@ -1265,6 +1265,48 @@ fn a_codex32_secret_read_at_restores_scan_goes_into_its_slot() {
     assert_eq!(s.keys, vec![fp], "the slot does not hold the key");
 }
 
+/// A codex32 or SLIP-39 share read at Restore's own Scan opens that
+/// share's form holding it (`docs/SCANNING.md` §4.3); the rest added there
+/// make the key and it goes into the slot. BIP 93's vector 2.
+#[test]
+fn a_share_read_at_restores_scan_opens_its_form_and_the_rest_fill_the_slot() {
+    use faraday_core::forms::Form;
+    let mut app = two_of_three_from_seeds();
+    app.press(Action::ScanFor(faraday_core::Ask::Description));
+    app.event(Event::Scanned {
+        bytes: b"MS12NAMEA320ZYXWVUTSRQPNMLKJHGFEDCAXRPP870HKKQRM".to_vec(),
+    });
+    let _ = app.frame();
+    assert!(app.scan().is_none(), "the scanner is still open");
+    assert_eq!(app.screen, Screen::Entry);
+    let e = testkit::entry(&app);
+    assert_eq!(e.form, Form::Codex32);
+    assert_eq!(e.parts.lines(Form::Codex32).len(), 1);
+    for ch in "ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn".chars() {
+        app.event(Event::Key(Key::Char(ch)));
+    }
+    app.event(Event::Key(Key::Enter));
+    app.event(Event::Key(Key::Enter));
+    faraday_core::testkit::confirm_wallets(&mut app);
+    let _ = app.frame();
+    assert_eq!(app.screen, Screen::Restore, "Restore was left");
+    assert_eq!(app.session.keys.len(), 1);
+    let fp = app.session.keys[0].fingerprint.0;
+    let s = app.restore().unwrap().seeds.as_ref().unwrap();
+    assert_eq!(s.keys, vec![fp], "the slot does not hold the key");
+
+    let mut app = two_of_three_from_seeds();
+    app.press(Action::ScanFor(faraday_core::Ask::Description));
+    app.event(Event::Scanned {
+        bytes: b"shadow pistol academic always adequate wildlife fancy gross oasis cylinder mustang wrist rescue view short owner flip making coding armed".to_vec(),
+    });
+    let _ = app.frame();
+    assert_eq!(app.screen, Screen::Entry);
+    let e = testkit::entry(&app);
+    assert_eq!(e.form, Form::Slip39);
+    assert_eq!(e.parts.lines(Form::Slip39).len(), 1);
+}
+
 /// A step's count never states a total that a later step changes: the
 /// small panel's Restore reads "Step 2", not "Step 2 of 6".
 #[test]

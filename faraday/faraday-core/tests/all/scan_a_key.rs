@@ -397,6 +397,26 @@ fn a_codex32_or_slip39_share_read_by_scan_a_key_goes_to_its_form_for_the_wallet(
     }
 }
 
+/// A Krux encrypted code read at a form's own Scan (codex32, SLIP-39, Seed
+/// XOR) opens the Krux sheet there, as at the flow scanners
+/// (`docs/SCANNING.md` §4.3).
+#[test]
+fn a_krux_code_read_at_a_forms_own_scan_opens_the_krux_sheet() {
+    use faraday_core::forms::Form;
+    for form in [Form::Codex32, Form::Slip39, Form::Xor] {
+        let (mut app, _) = on_savings();
+        let code =
+            crate::common::krux_seed_code(&mut app, &testkit::test_words("zebra"), "krux pass");
+        app.press(Action::Entry(None));
+        let i = Form::ALL.iter().position(|f| *f == form).unwrap();
+        app.press(Action::EntryForm(i as u8));
+        app.press(Action::ScanPart);
+        app.event(Event::Scanned { bytes: code });
+        assert_eq!(app.sheet, Some(Sheet::KefRead), "{form:?}");
+        assert!(!camera_on(&app), "the camera stayed on");
+    }
+}
+
 /// A seed read at Add a key's Scan a SeedQR that is a loaded wallet's key
 /// is named so on the seed sheet (`docs/SCANNING.md` §6).
 #[test]

@@ -1836,11 +1836,21 @@ impl Faraday {
             _ => return false,
         };
         let given = trimmed(bytes);
+        use crate::forms::Form;
         let kind = scan_read::secret_kind(c, bytes);
-        let codex32 = kind.map(Kind::route)
-            == Some(scan_read::Route::Load(crate::forms::Form::Codex32))
-            && faraday_bip::codex32::Codex32::parse(&given).is_ok_and(|s| s.is_secret());
-        let words = if codex32 {
+        // A codex32 key whole, or a share of a codex32 or SLIP-39 key, goes
+        // to its form; words are loaded after the seed sheet.
+        let to_form = match kind.map(Kind::route) {
+            Some(scan_read::Route::Load(Form::Codex32))
+            | Some(scan_read::Route::Part(Form::Codex32))
+                if faraday_bip::codex32::Codex32::parse(&given).is_ok() =>
+            {
+                Some(Form::Codex32)
+            }
+            Some(scan_read::Route::Part(Form::Slip39)) => Some(Form::Slip39),
+            _ => None,
+        };
+        let words = if to_form.is_some() {
             None
         } else {
             match seed_in_code(c, bytes) {
@@ -1855,35 +1865,37 @@ impl Faraday {
         if let Some(crate::Ask::Xpub(n)) = ask {
             self.camera.wait_slot(n - 1);
         }
-        match words {
-            Some(words) => {
+        match (words, to_form) {
+            (Some(words), _) => {
                 let kind = kind.unwrap_or(Kind::SeedWords);
                 self.entry.reset();
                 self.entry.set_back(Some(back));
                 self.seed_scanned(&words, kind);
             }
-            None => self.codex32_into_slot(&given, back),
+            (None, Some(form)) => self.form_into_slot(&given, form, back),
+            (None, None) => return false,
         }
         true
     }
 
-    /// Costs a codex32 recovery and a key derivation. A codex32 secret
-    /// read at Restore's or Create's scanner: it loads on Add a key's
-    /// codex32 form, which returns to `back` with the key in the flow's
-    /// slot, as a seed read there does once its sheet is answered
-    /// (`docs/SCANNING.md` §4.3, §10 item 7). A codex32 secret holds no
-    /// passphrase, so there is no sheet to ask one.
-    fn codex32_into_slot(&mut self, given: &str, back: crate::Screen) {
+    /// Costs what adding a part costs. A codex32 key or a share of a codex32
+    /// or SLIP-39 key read at Restore's or Create's scanner: that form opens
+    /// with it in, and the rest are added there as on that form today; the
+    /// key they make goes into the flow's slot at `back`, as a seed read
+    /// there does once its sheet is answered (`docs/SCANNING.md` §4.3,
+    /// §10 item 7).
+    fn form_into_slot(&mut self, given: &str, form: crate::forms::Form, back: crate::Screen) {
         self.scan_close();
         self.act(Action::Entry(None));
-        if let Some(i) = crate::forms::Form::ALL
-            .iter()
-            .position(|f| *f == crate::forms::Form::Codex32)
-        {
+        if let Some(i) = crate::forms::Form::ALL.iter().position(|f| *f == form) {
             self.act(Action::EntryForm(i as u8));
         }
         self.entry.set_back(Some(back));
-        self.entry.set_typed(given);
+        if form == crate::forms::Form::Slip39 {
+            self.entry.set_typed(&Text::lowercase(given));
+        } else {
+            self.entry.set_typed(given);
+        }
         self.form_add_part();
     }
 
@@ -2047,10 +2059,16 @@ impl Faraday {
     /// XOR; `docs/SCANNING.md` §4.3): its own form's part goes in; the
     /// other share form's switches to that form with it in; a whole seed
     /// goes to the seed sheet; a code that starts as the form's does keeps
-    /// the parser's line, and anything else is named.
+    /// the parser's line, and anything else is named; a Krux encrypted code
+    /// opens the Krux sheet.
     fn part_scanned(&mut self, bytes: zeroize::Zeroizing<Vec<u8>>) {
         use crate::forms::Form;
         let c = self.compute();
+        if scan_read::public_kind(crate::wallet::classify(&c, "", &bytes), false, &bytes).route()
+            == scan_read::Route::Sheet
+        {
+            return crate::seeds::kef::kef_code_scanned(self, bytes);
+        }
         let kind = scan_read::secret_kind(&c, &bytes);
         let form = self.entry.state().form;
         let kind_form = kind.and_then(Kind::part_form);
