@@ -1,10 +1,11 @@
 //! `Screen::Check`: what to hold up against a hardware wallet, a tile for
-//! each in Tools' grid and group layout (`catalog::section`).
+//! each in Tools' grid and group layout (`menu_page::section`).
 
 use super::{FORMS, GROUPS, Press};
 use crate::Action;
 use crate::drawing::View;
-use crate::screens::catalog::{Face, grid, page_span, section};
+use crate::screens::catalog::Face;
+use crate::screens::menu_page::{grid, page_span, section};
 use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Region, Style, Ui};

@@ -11,6 +11,7 @@ pub(crate) mod catalog;
 pub(crate) mod check_message;
 mod create;
 mod create_making;
+pub(crate) mod menu_page;
 use crate::decode::screen as decode;
 mod entry;
 mod files;

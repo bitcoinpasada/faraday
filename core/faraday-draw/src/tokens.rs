@@ -1132,6 +1132,8 @@ pub const CATALOG_TILE_H: f32 = 82.0;
 pub const CATALOG_TILE_H_PLAIN: f32 = 58.0;
 /// The space between two rows of the catalogue's tiles.
 pub const CATALOG_ROW_GAP: f32 = 10.0;
+/// The space between two tiles in a row of the menu page grid.
+pub const CATALOG_TILE_GAP: f32 = 14.0;
 /// The tools' catalogue's columns beside the navigation, at the least.
 pub const CATALOG_COLUMNS_MIN: usize = 3;
 /// The narrowest a derivation path's field is drawn on a wide window

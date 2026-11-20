@@ -14,14 +14,7 @@ use faraday_ui::parts::{section_label, wrap_buttons};
 
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let compact = ui.compact;
-    let (x, width) = if compact {
-        (x0 + crate::compact::M, cw - 2.0 * crate::compact::M)
-    } else {
-        (
-            x0 + faraday_draw::tokens::PAGE_INSET,
-            (cw - 2.0 * faraday_draw::tokens::PAGE_INSET).min(faraday_draw::tokens::TRANSFER_W),
-        )
-    };
+    let (x, width) = super::menu_page::page_span(compact, x0, cw);
     ui.page_begin((x0, cw, h), app.list_offset);
     let mut y = if compact {
         14.0
@@ -243,7 +236,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         // Add a key and Make a new key.
         // Laid out on the grid Tools uses: as many columns as the width
         // leaves room for, three at least.
-        let g = super::catalog::grid(false, width);
+        let g = super::menu_page::grid(false, width);
         let (tw, gap) = (g.tile_w, g.gap());
         let ways = [
             (
