@@ -124,12 +124,21 @@ fn frame(app: &mut Faraday) {
     let _ = app.frame();
 }
 
-/// Make a new wallet's kinds, with the guide opened from its ?, on a window
-/// `width` × `height`, drawn.
-fn guide_on_create(width: u16, height: u16) -> Faraday {
+/// Settings' High contrast choice, a control of the page the pane stands
+/// beside.
+fn contrast_high(app: &Faraday) -> Action {
+    let mut high = app.theme();
+    high.contrast = faraday_core::ui::Contrast::High;
+    Action::Theme(high)
+}
+
+/// Settings, with the guide opened from its ?, on a window `width` ×
+/// `height`, drawn. (A flow on the container keeps the pane's place for
+/// Your choices: the guide is a sheet beside it.)
+fn guide_on_settings(width: u16, height: u16) -> Faraday {
     let mut app = faraday_core::testkit::started();
     window(&mut app, width, height);
-    app.press(Action::CreateWallet);
+    app.press(Action::Nav(faraday_core::Screen::Settings));
     app.press(Action::Guide);
     frame(&mut app);
     app
@@ -137,7 +146,7 @@ fn guide_on_create(width: u16, height: u16) -> Faraday {
 
 #[test]
 fn at_1920_guide_opens_beside_the_page_whose_controls_stay_pressable() {
-    let mut app = guide_on_create(1920, 1080);
+    let mut app = guide_on_settings(1920, 1080);
     assert_eq!(app.sheet, None, "no sheet over the page");
     assert!(
         app.offers(Action::GuideClose),
@@ -145,37 +154,39 @@ fn at_1920_guide_opens_beside_the_page_whose_controls_stay_pressable() {
     );
     assert!(app.offers(Action::GuideTabGuide), "the pane's tabs");
     let first = shown(&app);
-    assert_eq!(first, "create");
-    // The page's kinds take a press beside the pane, none of them under it.
+    assert_eq!(first, "settings");
+    // The page's sections take a press beside the pane, none of them under it.
     let tab = app
         .hit_box(Action::GuideTabGuide)
         .expect("the pane's first tab");
-    let kind = app.hit_box(Action::CKind(4)).expect("a kind on the page");
+    let kind = app
+        .hit_box(contrast_high(&app))
+        .expect("a section on the page");
     assert!(
         u32::from(kind.0) + u32::from(kind.2) <= u32::from(tab.0),
         "the kind {kind:?} stands left of the pane's tab {tab:?}"
     );
-    crate::common::ckind(&mut app, 4);
+    app.press(contrast_high(&app));
     frame(&mut app);
     assert!(app.offers(Action::GuideClose), "the pane stays open");
-    assert_eq!(shown(&app), first, "and follows the multisig's step");
 }
 
 #[test]
 fn at_1280_guide_opens_as_the_sheet() {
-    let app = guide_on_create(1280, 800);
+    let app = guide_on_settings(1280, 800);
     assert_eq!(app.sheet, Some(Sheet::Guide));
     assert!(!app.offers(Action::GuideClose), "no pane");
-    assert!(!app.offers(Action::CKind(4)), "the page is under the sheet");
+    assert!(
+        !app.offers(contrast_high(&app)),
+        "the page is under the sheet"
+    );
 }
 
 #[test]
 fn a_pinned_pane_follows_the_step_and_the_screens_to_their_pages() {
-    let mut app = guide_on_create(1920, 1080);
-    // A multisig chosen: the pane shows the page of the screen.
-    crate::common::ckind(&mut app, 4);
-    frame(&mut app);
-    assert_eq!(shown(&app), "create");
+    let mut app = guide_on_settings(1920, 1080);
+    // The pane shows the page of the screen.
+    assert_eq!(shown(&app), "settings");
     assert!(app.offers(Action::GuideClose));
     app.press(Action::GuidePin);
     frame(&mut app);
@@ -193,13 +204,13 @@ fn a_pinned_pane_follows_the_step_and_the_screens_to_their_pages() {
 
 #[test]
 fn the_close_button_and_escape_put_the_pane_away() {
-    let mut app = guide_on_create(1920, 1080);
+    let mut app = guide_on_settings(1920, 1080);
     app.press(Action::GuideClose);
     frame(&mut app);
     assert!(!app.offers(Action::GuideClose), "the pane is away");
     assert!(!app.offers(Action::GuideTabGuide));
     assert_eq!(app.sheet, None);
-    assert!(app.offers(Action::CKind(4)), "the page as it was");
+    assert!(app.offers(contrast_high(&app)), "the page as it was");
     // Opened again, Escape puts it away and leaves the page on screen.
     app.press(Action::Guide);
     frame(&mut app);
@@ -213,8 +224,10 @@ fn the_close_button_and_escape_put_the_pane_away() {
 
 #[test]
 fn a_long_page_scrolls_inside_the_pane_while_the_page_beside_stays() {
-    let mut app = guide_on_create(1920, 600);
-    let kind = app.hit_box(Action::CKind(4)).expect("a kind on the page");
+    let mut app = guide_on_settings(1920, 600);
+    let kind = app
+        .hit_box(contrast_high(&app))
+        .expect("a section on the page");
     let tab = app.hit_box(Action::GuideTabGuide).expect("the pane's tab");
     // Over the pane's text, under its tabs.
     let (x, y) = (tab.0 + tab.2 / 2, tab.1 + 200);
@@ -233,7 +246,7 @@ fn a_long_page_scrolls_inside_the_pane_while_the_page_beside_stays() {
         "the pane's tabs hold their place"
     );
     assert_eq!(
-        app.hit_box(Action::CKind(4)),
+        app.hit_box(contrast_high(&app)),
         Some(kind),
         "the page beside did not move"
     );
@@ -241,7 +254,7 @@ fn a_long_page_scrolls_inside_the_pane_while_the_page_beside_stays() {
 
 #[test]
 fn resizing_across_1600_moves_guide_between_pane_and_sheet() {
-    let mut app = guide_on_create(1920, 1080);
+    let mut app = guide_on_settings(1920, 1080);
     let page = shown(&app);
     window(&mut app, 1280, 800);
     frame(&mut app);
@@ -252,7 +265,7 @@ fn resizing_across_1600_moves_guide_between_pane_and_sheet() {
     frame(&mut app);
     assert_eq!(app.sheet, None, "the pane again from 1600");
     assert!(app.offers(Action::GuideClose));
-    assert!(app.offers(Action::CKind(4)), "the page takes presses");
+    assert!(app.offers(contrast_high(&app)), "the page takes presses");
     assert_eq!(shown(&app), page);
 }
 
