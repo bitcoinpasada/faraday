@@ -18,6 +18,18 @@ use crate::{Faraday, ScreenKey, Sheet, motion};
 /// container.
 type Drawn = (ScreenKey, (bool, usize), Theme, Option<u8>);
 
+/// A step's fade on the container that no image is kept for, because a
+/// secret is typed or shown in the step left or in the step opened: both
+/// cards are drawn again from the state, every step of it
+/// (`docs/MOTION.md` §3.5). Holds a step number and a time.
+struct Live {
+    /// The step left, which the card shows while it fades out.
+    out: u8,
+    /// When the fade's clock started, `None` until the tick after the
+    /// frame that showed the change.
+    at: Option<u64>,
+}
+
 /// A change of screen, sheet or theme fading in, with the frosted page under an
 /// open sheet and the screen the last frame drew. Its fields are private.
 #[derive(Default)]
@@ -99,6 +111,11 @@ pub(crate) struct Fade {
     /// typed or shown (`Faraday::secret_typed`, `Faraday::secret_shown`): a change from it is drawn at once,
     /// so no image of it is kept to fade from (`docs/SECRET-LEAKS.md` §5).
     secret_drawn: bool,
+    /// A step's fade drawn live, with no image kept (`Live`).
+    live: Option<Live>,
+    /// What the step left shows is hidden when its fade out ends, not at
+    /// the press (`Faraday::live_settle`).
+    release_owed: bool,
     /// What drew each image kept here, for the tours' check of a secret
     /// left in one (`crate::leaks`).
     #[cfg(feature = "testkit")]
@@ -139,6 +156,7 @@ impl Fade {
         self.surface = Vec::new();
         self.step_fade = false;
         self.card_before = None;
+        self.live = None;
     }
 
     /// The card's place inside `canvas`, when a step's fade goes through
@@ -252,6 +270,9 @@ impl Fade {
         if let Some((_, at @ None)) = self.from.as_mut() {
             *at = Some(now_ms.saturating_sub(motion::FADE_FIRST_STEP_MS));
         }
+        if let Some(Live { at: at @ None, .. }) = self.live.as_mut() {
+            *at = Some(now_ms.saturating_sub(motion::FADE_FIRST_STEP_MS));
+        }
     }
 
     /// A tick: a fade under way asks for its next step; returns whether
@@ -266,7 +287,45 @@ impl Fade {
     /// Whether a fade is under way: the canvas shows a blend, not the
     /// frame last drawn.
     pub(crate) fn under_way(&self) -> bool {
-        self.from.is_some() || self.due
+        self.from.is_some() || self.due || self.live.is_some()
+    }
+
+    /// Whether a step's fade drawn live is under way: every step of it is
+    /// a frame drawn in full.
+    pub(crate) fn live_runs(&self) -> bool {
+        self.live.is_some()
+    }
+
+    /// How far a live fade is, 0 to 1.
+    fn live_progress(&self, now_ms: u64) -> Option<f32> {
+        let live = self.live.as_ref()?;
+        Some(live.at.map_or(0.0, |at| {
+            motion::progress(Some(at), now_ms, motion::STEP_FADE_MS)
+        }))
+    }
+
+    /// After a frame is drawn: the card's place goes through the surface
+    /// over what the live fade's frame drew there, its opacity falling
+    /// over the fade out and rising over the rest. Nothing is kept.
+    fn live_veil(&mut self, canvas: &mut Canvas, surface: faraday_draw::Color, now_ms: u64) {
+        let Some(t) = self.live_progress(now_ms) else {
+            return;
+        };
+        if t >= 1.0 {
+            self.live = None;
+            return;
+        }
+        let (going, e) = motion::step_fade(t);
+        let covered = if going { e } else { 1.0 - e };
+        self.counts.steps += 1;
+        let whole = Rect::new(0, 0, canvas.width(), canvas.height());
+        let alpha = (covered * 255.0).round() as u8;
+        if let Some(card) = self.card.map(|c| c.intersect(&whole))
+            && alpha > 0
+            && !card.is_empty()
+        {
+            canvas.fill_rect(card, surface.with_alpha(alpha));
+        }
     }
 
     /// Whether the next frame is a fade's step.
@@ -355,7 +414,23 @@ impl Faraday {
         self.fade.due = false;
         self.fade.step_at = None;
         self.fade.changed = None;
+        self.live_settle();
         if self.fade.last_drawn == Some(drawn_key) {
+            return;
+        }
+        // Only the step differs, both are steps of a flow on the container.
+        let left = self.fade.last_drawn.and_then(|(k, p, t, s)| {
+            ((k, p, t) == (drawn_key.0, drawn_key.1, drawn_key.2) && step.is_some() && s != step)
+                .then_some(s)
+                .flatten()
+        });
+        // A step change with a secret typed or shown in the step left or
+        // in the one opened: no frame is kept to fade from or to, both
+        // cards are drawn again every step (`docs/MOTION.md` §3.5).
+        if let Some(out) = left
+            && (self.fade.secret_drawn || self.step_secret())
+        {
+            self.live_begin(drawn_key, out);
             return;
         }
         // The frame before showed a secret, typed or shown: it is
@@ -365,21 +440,8 @@ impl Faraday {
             self.fade.last_drawn = Some(drawn_key);
             return;
         }
-        // Only the step differs, both are steps of a flow on the container.
-        let step_change = self.fade.last_drawn.is_some_and(|(k, p, t, s)| {
-            (k, p, t) == (drawn_key.0, drawn_key.1, drawn_key.2)
-                && s.is_some()
-                && step.is_some()
-                && s != step
-        });
-        // The step now shows or takes a secret: no frame is kept to fade
-        // from or to, as for a frame before that did
-        // (`docs/MOTION.md` §3.5).
-        if step_change && self.step_secret() {
-            self.fade.end();
-            self.fade.last_drawn = Some(drawn_key);
-            return;
-        }
+        let step_change = left.is_some();
+        self.fade.live = None;
         let own_motion = false;
         let fades = self.fade.last_drawn.is_some() && self.fades() && !own_motion;
         self.fade.theme_fade = self.fade.last_drawn.is_some_and(|(_, _, t, _)| t != theme);
@@ -415,6 +477,42 @@ impl Faraday {
         #[cfg(feature = "testkit")]
         {
             self.fade.marks.from = self.fade.marks.frame.clone();
+        }
+    }
+
+    /// The step a live fade is drawing as the card, while the fade out
+    /// runs; `None` once the new step is the card.
+    pub(crate) fn live_out(&self) -> Option<u8> {
+        let t = self.fade.live_progress(self.now_ms)?;
+        let out = self.fade.live.as_ref()?.out;
+        motion::step_fade(t).0.then_some(out)
+    }
+
+    /// What the step left showed is hidden when the fade out ends, which
+    /// is at the next frame once `Self::live_out` is `None`.
+    fn live_settle(&mut self) {
+        if self.fade.release_owed && self.live_out().is_none() {
+            self.fade.release_owed = false;
+            self.vaults.hide_on_leaving_step();
+        }
+    }
+
+    /// A step change with a secret in it: the old card goes out and the
+    /// new one in, drawn from the state every step. With Reduce motion,
+    /// the step swaps and what it showed is hidden at once.
+    fn live_begin(&mut self, key: Drawn, out: u8) {
+        self.fade.end();
+        self.fade.last_drawn = Some(key);
+        if std::mem::take(&mut self.fade.release_owed) {
+            self.vaults.hide_on_leaving_step();
+        }
+        if self.fades() {
+            self.fade.counts.started += 1;
+            self.fade.live = Some(Live { out, at: None });
+            self.fade.release_owed = true;
+        } else {
+            self.fade.counts.reduced += 1;
+            self.vaults.hide_on_leaving_step();
         }
     }
 
@@ -530,6 +628,7 @@ impl Faraday {
         // Whatever draws on the canvas after the frame paints as it calls.
         canvas.record_calls(false);
         let surface = self.theme().role(Role::Surface);
+        self.fade.live_veil(canvas, surface, self.now_ms);
         let Some((before, at)) = &self.fade.from else {
             return;
         };

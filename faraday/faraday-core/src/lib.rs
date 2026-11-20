@@ -1316,6 +1316,11 @@ impl App for Faraday {
                 if self.fade.tick_due() {
                     self.out.commands.push_back(Command::Draw);
                 }
+                // A step's fade drawn live draws every step in full.
+                if self.fade.live_runs() {
+                    self.out.redraw();
+                    self.out.commands.push_back(Command::Draw);
+                }
                 if self.idle_tick(now_ms) {
                     self.out.redraw();
                     self.out.commands.push_back(Command::Draw);
