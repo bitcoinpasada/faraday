@@ -176,7 +176,7 @@ Read this table, then only the decision you need.
 | [F157](decisions/F157.md) | Wherever the system's randomness is used, the person can add their own: Add randomness at every press that draws it | 2026-10-28 | Active | security |
 | [F158](decisions/F158.md) | Faraday's own constructions in the app until an outside review: cards, the camera, a mix and the Secure Boot generator | 2026-10-28 | Amended by F160, F189, F268 | security |
 | [F159](history/decisions/F159.md) | The vault is a `.fvlt` file beginning `FVLT`, its passphrase in NFC, each slot committed to its key and counting its seals, and its construction told in Learn | 2026-10-28 | Superseded by F190 | security |
-| [F160](decisions/F160.md) | A check counts only against code Faraday did not write; Faraday's own constructions are labelled until an outside review; Bitcoin Core in the cross-check | 2026-10-29 | Amended by F177, F189, F190, F192 | crypto |
+| [F160](decisions/F160.md) | A check counts only against code Faraday did not write; Faraday's own constructions are labelled until an outside review; Bitcoin Core in the cross-check | 2026-10-29 | Amended by F177, F189, F190, F192, F294 | crypto |
 | [F161](decisions/F161.md) | A finalized input carries the smallest valid witness by its real size, a tie broken as Bitcoin Core breaks it | 2026-10-29 | Active | crypto |
 | [F162](history/decisions/F162.md) | Anti-exfil in both directions, Faraday as the host first, FractalEncrypt's exchange in dev builds only behind `experimental` | 2026-10-29 | Withdrawn | crypto |
 | [F163](decisions/F163.md) | The toast's text is centred | 2026-10-29 | Active | design |
@@ -206,10 +206,10 @@ Read this table, then only the decision you need.
 | [F187](decisions/F187.md) | The Pi's screens for now: an HDMI screen and the 2.8-inch | 2026-11-02 | Active | release |
 | [F188](decisions/F188.md) | Touch targets on the 2.8-inch are 44 dp, Apple's minimum | 2026-11-02 | Active | design |
 | [F189](history/decisions/F189.md) | The vault is an age file: one passphrase, scrypt, TOML inside, five sizes, the smallest a QR code | 2026-11-02 | Superseded by F190 | security |
-| [F190](decisions/F190.md) | The vault is a KDBX 4 file under Argon2id, and the QR vault an RFC 9580 OpenPGP message under Argon2id | 2026-11-02 | Amended by F193, F194, F206, F207, F208 and F211 | security |
+| [F190](decisions/F190.md) | The vault is a KDBX 4 file under Argon2id, and the QR vault an RFC 9580 OpenPGP message under Argon2id | 2026-11-02 | Amended by F193, F194, F206, F207, F208, F211 and F294 | security |
 | [F191](decisions/F191.md) | The switches C1 to C14 before the timing fixes, and a switch lands with its cross-check change | 2026-10-31 | Active | crypto |
 | [F192](decisions/F192.md) | The cross-check's outside sources: another lineage, Faraday's second version kept only where none covers it, every judge required in `just crosscheck` | 2026-10-31 | Amended by F193 and F211 | crypto |
-| [F193](decisions/F193.md) | The vault's judges: libraries over the app's primitives judge the file format only, no Node yet, and CPython's tomllib reads the vault's contents | 2026-11-03 | Amended by F211 | crypto |
+| [F193](decisions/F193.md) | The vault's judges: libraries over the app's primitives judge the file format only, no Node yet, and CPython's tomllib reads the vault's contents | 2026-11-03 | Amended by F211, F294 | crypto |
 | [F194](decisions/F194.md) | A KDBX file is never refused for its contents: a damaged item is Unreadable, and every TOTP form is read for the codes page | 2026-11-03 | Amended by F231 | security |
 | [F195](decisions/F195.md) | A secret the person chose to show is worked out once and held while shown, and wiped when hidden | 2026-11-03 | Active | speed |
 | [F196](decisions/F196.md) | A Rust file may grow to 5,000 lines, and the function counts are no longer ratchets | 2026-11-03 | Amended by F248 | repository |
@@ -227,7 +227,7 @@ Read this table, then only the decision you need.
 | [F208](decisions/F208.md) | A file vault takes a key file, and a KeePassXC file protected by a YubiKey opens from that key's typed secret | 2026-11-04 | Amended by F257 | security |
 | [F209](history/decisions/F209.md) | Check a signer carries the step card's touch-target exception | 2026-11-04 | Superseded by F268 | design |
 | [F210](decisions/F210.md) | The fuzz run before a release may run on GitHub Actions, started by hand, under F183's limits | 2026-11-04 | Active | repository |
-| [F211](decisions/F211.md) | The QR vault's judges: PyCA's primitives, sq reads only and shares Argon2, rPGP the only outside sealer | 2026-11-04 | Active | crypto |
+| [F211](history/decisions/F211.md) | The QR vault's judges: PyCA's primitives, sq reads only and shares Argon2, rPGP the only outside sealer | 2026-11-04 | Withdrawn | crypto |
 | [F212](decisions/F212.md) | GitHub's cache may hold compiled dependencies, never Faraday's own crates, written only by a push to main | 2026-11-04 | Active | repository |
 | [F213](decisions/F213.md) | quick-xml is a library the manifest names that is not established | 2026-11-05 | Active | security |
 | [F214](decisions/F214.md) | A Spec holds the design and whether it is built, and carries no work list | 2026-11-05 | Active | repository |
@@ -242,7 +242,7 @@ Read this table, then only the decision you need.
 | [F223](history/decisions/F223.md) | On the small panel off mainnet, the mode pill stands on the top bar's second line | 2026-11-08 | Replaced by F246 | design |
 | [F224](decisions/F224.md) | A kernel patch of Faraday's own on the Pi: the bootloader's seed is not credited unless the command line says to | 2026-11-08 | Active | security |
 | [F225](history/decisions/F225.md) | The open checklist card's header at 1024 × 600 is held at eight under the touch-target floor | 2026-11-08 | Withdrawn | design |
-| [F226](decisions/F226.md) | A QR vault is made and opened in a tool in Tools, never kept open, and a file vault's item can be saved as one | 2026-11-08 | Active | security |
+| [F226](history/decisions/F226.md) | A QR vault is made and opened in a tool in Tools, never kept open, and a file vault's item can be saved as one | 2026-11-08 | Withdrawn | security |
 | [F227](decisions/F227.md) | The nonce check remembers the signatures it checked in an open vault, and refuses a nonce one key used before on another message | 2026-11-09 | Active, built | security |
 | [F228](decisions/F228.md) | Core Lightning's hsm_secret enters Faraday as a source of Lightning node key, plain or encrypted, checked against Core Lightning's code and not on the device | 2026-11-09 | Active, built | keys |
 | [F229](decisions/F229.md) | A Bitcoin Core descriptor wallet's wallet.dat is read, never written, and its records checked again, through a SQLite reader of Faraday's own | 2026-11-09 | Active, built: the SQLite reader, the wallet reader, the cross-check against Bitcoin Core and the Read a Bitcoin Core wallet tool | wallets |
@@ -304,4 +304,5 @@ Read this table, then only the decision you need.
 | [F291](decisions/F291.md) | Home shows what is loaded, under its search bar and the first actions; the sidebar no longer lists keys and wallets | 2026-11-19 | Active | design |
 | [F292](decisions/F292.md) | A control Practice refuses answers a press with one toast | 2026-11-19 | Active | design |
 | [F293](decisions/F293.md) | A plan whose SLIP-39 set is not its key's keeps that set's placed shares as kept old shares | 2026-11-19 | Active | backup |
+| [F294](decisions/F294.md) | The QR vault is removed from Faraday; a code or file made as one is refused as an unknown code | 2026-11-19 | Active | security |
 | [F296](decisions/F296.md) | One flow container: one step at a time, at one place, with Your choices beside it | 2026-11-19 | Active | design |
