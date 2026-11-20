@@ -216,15 +216,35 @@ pub fn verify(address: &Address, message: &str, signature: &str) -> Result<Check
 /// BIP-322 gained variant prefixes in 2025: `smp` for simple, `ful` and
 /// `pof` for the two full variants. Wallets in the field write the
 /// witness alone, so a prefix is read where there is one and [`sign`]
-/// writes the plain form. Without a prefix, 65 bytes is BIP-137's
-/// compact signature and anything else is a witness.
+/// writes the plain form.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Variant {
+    /// No prefix: 65 bytes is BIP-137's compact signature and anything
+    /// else is a witness.
+    Plain,
+    /// `smp`: a BIP-322 simple signature.
+    Simple,
+    /// `ful` or `pof`: a full variant, which this crate does not read.
+    Full,
+}
+
+/// The variant a signature's prefix names and the text after the prefix.
+fn split_prefix(text: &str) -> (Variant, &str) {
+    match text.get(..3) {
+        Some("smp") => (Variant::Simple, &text[3..]),
+        Some("ful") | Some("pof") => (Variant::Full, &text[3..]),
+        _ => (Variant::Plain, text),
+    }
+}
+
+/// The bytes behind a signature and the format they are in.
 fn decode(signature: &str) -> Result<(Format, Zeroizing<Vec<u8>>), Error> {
     let text = signature.trim();
-    let (prefixed, body) = match text.get(..3) {
-        Some("smp") => (true, &text[3..]),
-        Some("ful") | Some("pof") => return Err(Error::UnsupportedFormat),
-        _ => (false, text),
-    };
+    let (variant, body) = split_prefix(text);
+    if variant == Variant::Full {
+        return Err(Error::UnsupportedFormat);
+    }
+    let prefixed = variant == Variant::Simple;
     let bytes = base64::decode(body).map_err(|_| Error::Malformed)?;
     let format = if !prefixed && bytes.len() == 65 {
         Format::Bip137
@@ -414,16 +434,18 @@ pub struct SignedText {
     pub message: Text,
 }
 
-/// Reads the three-line form. A text with fewer than three lines, or
-/// with nothing on one of the first two, is not one, and neither is one
-/// whose second line is not a signature: BIP-137 and BIP-322 signatures
-/// are one base64 token, so a line with white space inside it or that
-/// does not decode (a line of seed words under an address title) is
-/// not.
-///
 /// The fewest bytes a signature decodes to (BIP-137's compact signature).
 const MIN_SIGNATURE_LEN: usize = 65;
 
+/// Reads the three-line form. A text with fewer than three lines, or
+/// with nothing on one of the first two, is not one, and neither is one
+/// whose second line is not a signature: BIP-137 and BIP-322 signatures
+/// are one base64 token, optionally behind a BIP-322 variant prefix
+/// (`smp`, `ful`, `pof`), so a line with white space inside it or that
+/// does not decode to at least 65 bytes (a line of seed words under an
+/// address title) is not. The signature is kept as written, prefix
+/// included, for [`verify`], which says a full variant is unsupported.
+///
 /// A file that ends with a newline carries the same message as one that
 /// does not, so a single trailing newline is dropped; every other
 /// newline in the message is kept.
@@ -438,7 +460,8 @@ pub fn parse_signed(text: &str) -> Option<SignedText> {
     }
     // BIP-137 is exactly 65 bytes and a BIP-322 signature is longer: a
     // shorter token (a seed word that is valid base64) is not one.
-    if base64::decode(signature).map_or(true, |bytes| bytes.len() < MIN_SIGNATURE_LEN) {
+    let (_, body) = split_prefix(signature);
+    if base64::decode(body).map_or(true, |bytes| bytes.len() < MIN_SIGNATURE_LEN) {
         return None;
     }
     Some(SignedText {

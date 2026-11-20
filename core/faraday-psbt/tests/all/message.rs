@@ -459,3 +459,64 @@ fn a_short_base64_line_is_not_a_signature() {
     assert!(message::parse_signed("bc1qaddress\narmy\nvan\n").is_none());
     assert!(message::parse_signed("bc1qaddress\nc2ln\nhello\n").is_none());
 }
+
+/// A BIP-322 variant prefix on the signature line is read: the published
+/// `smp` simple signature in a three-line file is a signed message that
+/// verifies, a `ful` one is read and `verify` says it is unsupported, and
+/// a prefix over something that is not a signature is not one.
+#[test]
+fn a_prefixed_signature_is_read_as_a_signed_message() {
+    let vectors = vectors_json("tools/vectors/message/bip322-basic.json");
+    let mut read_simple = 0;
+    for case in vectors["simple"].as_array().expect("simple") {
+        if case["type"].as_str().expect("type").starts_with("p2wsh") {
+            continue;
+        }
+        let address_text = case["address"].as_str().expect("address");
+        let message = case["message"].as_str().expect("message");
+        let address = address_of(address_text, Network::Mainnet);
+        for signature in case["bip322_signatures"].as_array().expect("signatures") {
+            let signature = signature.as_str().expect("signature");
+            if !signature.starts_with("smp") {
+                continue;
+            }
+            let file = format!("{address_text}\n{signature}\n{message}\n");
+            let read = message::parse_signed(&file).expect("a prefixed signature reads");
+            assert_eq!(read.signature.as_str(), signature);
+            assert_eq!(
+                message::verify(&address, read.message.as_str(), read.signature.as_str()),
+                Ok(Checked {
+                    format: Format::Bip322,
+                    script: if case["type"] == "p2tr" {
+                        ScriptType::Taproot
+                    } else {
+                        ScriptType::NativeSegwit
+                    },
+                })
+            );
+            read_simple += 1;
+        }
+    }
+    assert!(read_simple > 0);
+
+    let full = format!("bc1qaddress\nful{SIG}\nhello\n");
+    let read = message::parse_signed(&full).expect("a full-variant signature reads");
+    assert_eq!(read.signature.as_str(), format!("ful{SIG}"));
+    let address = address_of(
+        "bc1q9vza2e8x573nczrlzms0wvx3gsqjx7vavgkx0l",
+        Network::Mainnet,
+    );
+    assert_eq!(
+        message::verify(&address, "hello", read.signature.as_str()),
+        Err(Error::UnsupportedFormat)
+    );
+
+    for line in [
+        "smp", "smpc2l*", "smparmy", "ful", "pof!!!!", "pofarmy", "smp c2ln",
+    ] {
+        assert!(
+            message::parse_signed(&format!("bc1qaddress\n{line}\nhello\n")).is_none(),
+            "{line:?}"
+        );
+    }
+}
