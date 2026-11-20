@@ -425,7 +425,7 @@ fn paperkey_lines() -> Vec<&'static str> {
         .collect()
 }
 
-fn paperkey_forms() -> Vec<Form> {
+pub(crate) fn paperkey_forms() -> Vec<Form> {
     let (mut primary, mut subkey) = ([0x11u8; 32], [0x22u8; 32]);
     primary[0] = 0;
     subkey[..2].fill(0);
