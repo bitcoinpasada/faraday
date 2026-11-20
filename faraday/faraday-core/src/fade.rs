@@ -433,6 +433,14 @@ impl Faraday {
             self.live_begin(drawn_key, out);
             return;
         }
+        // A step left by a press that also changed the sheet or screen (a
+        // row of Your choices) has no live fade to carry the release:
+        // what it showed is hidden now (F104).
+        let prev = self.fade.last_drawn.and_then(|(_, _, _, s)| s);
+        if left.is_none() && step.is_some() && prev.is_some() && prev != step {
+            self.fade.release_owed = false;
+            self.vaults.hide_on_leaving_step();
+        }
         // The frame before showed a secret, typed or shown: it is
         // not kept, and any fade under way ends where it is.
         if self.fade.secret_drawn {

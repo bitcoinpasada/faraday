@@ -223,8 +223,10 @@ leaves nothing. A fade does not start from a frame drawn while a secret
 was typed or shown (`docs/MOTION.md` §3.5), so no image of that frame is
 kept; a step change inside a flow on the container fades drawn live with
 no image, and what the step left showed (the eye) is hidden when the fade
-out ends, so the check of a step change reads "after the fade out ends",
-not at the press.
+out ends. The tours' leak check (`leak_after` in
+`faraday/shells/snapshot/src/leaks.rs`) does not check a step change; the
+tests `create_vault_fade` and `vault_step_fade` hold that the eye is hidden
+by the end of the fade out and that a Lock in it leaves no copy.
 
 It runs on every step of those kinds, so a screen added later is
 covered without its author listing it, as the Lock-during-seal change

@@ -117,7 +117,8 @@ card. A step's blend touches only the bands that differ.
   only on the owner's approval after testing.
 - **The live fade is built** (`Faraday::fade_begin`, `Fade::live_veil`,
   `flow::container`'s outgoing card): a Lock, the idle lock or Cancel
-  during it ends it and clears everything at once. The release at the end
+  during it ends it at the next frame drawn (a Lock clears the form
+  itself). The release at the end
   of the fade out (the vault's eye hides, `VaultArea::hide_on_leaving_step`)
   runs at the first frame drawn after it, and the fade asks for a frame on
   every tick; the outgoing card takes no press, field or focus.
