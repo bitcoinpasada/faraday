@@ -56,7 +56,10 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let owner = f
         .wallet
         .as_ref()
-        .filter(|w| app.create.state().is_some_and(|c| c.owner == w.owner))
+        .filter(|w| {
+            app.create.state().is_some_and(|c| c.owner == w.owner)
+                || app.restore.state().is_some_and(|r| r.owner == w.owner)
+        })
         .map_or(0, |w| w.owner);
     // While the plan card's board is shown on `wide`, its list is a
     // right-hand column, as on Back up (`docs/BACKUP-FLOW.md` §17.14).
@@ -89,8 +92,13 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         heading: match named {
             Some(n) => n.0,
             // One title throughout: the setup of a vault already on a
-            // stick is part of Make a new wallet.
-            None if owner != 0 && f.is_setup() => FEN.create_make_a_new_wallet,
+            // stick is part of Make a new wallet or Restore.
+            None if owner != 0 && f.is_setup() => {
+                match app.restore.state().filter(|r| r.owner == owner) {
+                    Some(r) if !r.from_key => FEN.restore_title,
+                    _ => FEN.create_make_a_new_wallet,
+                }
+            }
             None => title.as_str(),
         },
         wrap_closed: false,

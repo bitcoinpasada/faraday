@@ -203,8 +203,9 @@ impl Faraday {
         }
     }
 
-    /// Whether flow `i` is the setup of Make a new wallet's Keys row: it
-    /// brings in a vault already on a stick and makes none.
+    /// Whether flow `i` is the setup of Make a new wallet's Keys row or
+    /// Restore's Seeds row: it brings in a vault already on a stick and
+    /// makes none.
     pub(crate) fn flow_only_existing(&self, i: usize) -> bool {
         let f = &self.flows[i];
         f.is_setup()
@@ -212,6 +213,10 @@ impl Faraday {
                 self.create
                     .state()
                     .is_some_and(|c| c.owner == w.owner && c.uses_existing_vault())
+                    || self
+                        .restore
+                        .state()
+                        .is_some_and(|r| r.owner == w.owner && r.uses_existing_vault())
             })
     }
 

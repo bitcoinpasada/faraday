@@ -291,8 +291,6 @@ fn restore_key(step: Option<u8>) -> &'static str {
         Some(rstep::SEEDS) => "restore.seeds",
         Some(rstep::CHECK) => "restore.check",
         Some(rstep::DONE) => "restore.done",
-        Some(rstep::WHERE) => "restore.where",
-        Some(rstep::HOW_MANY) => "restore.how-many",
         _ => "restore",
     }
 }

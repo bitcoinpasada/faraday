@@ -4,7 +4,7 @@
 faraday/faraday-core/src/backup_flow/screen.rs 95
 faraday/faraday-core/src/backups/screen.rs 33
 faraday/faraday-core/src/bip85/screen.rs 36
-faraday/faraday-core/src/board/screen.rs 7
+faraday/faraday-core/src/board/screen.rs 6
 faraday/faraday-core/src/boot_import/screen.rs 38
 faraday/faraday-core/src/codes/screen.rs 51
 faraday/faraday-core/src/codex32_correct/screen.rs 3

@@ -2104,3 +2104,63 @@ pub fn under(rgba: &[u8], width: i32, height: i32, (x, y, w, h): (i32, i32, i32,
         .expect("a box on the frame");
     Color::rgb(r, g, b)
 }
+
+/// A Restore of a single key from one typed seed, made and checked.
+pub fn restore_to_check(app: &mut Faraday) {
+    app.press(Action::RestoreWallet);
+    app.press(Action::RKind(0));
+    app.press(Action::RSeeds);
+    restore_seed_to_check(app);
+}
+
+/// The rest of it, from Seeds: the seed typed, made, and Check next.
+pub fn restore_seed_to_check(app: &mut Faraday) {
+    app.press(Action::RSlotWords);
+    type_text(
+        app,
+        &faraday_core::testkit::test_words(faraday_core::testkit::TEST_SEEDS[1].0),
+    );
+    app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(app);
+    app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
+    app.press(Action::RNext(faraday_core::rstep::CHECK));
+}
+
+/// Seeds' row brought in the vault of stick S1, unlocked before any seed
+/// is typed: back in Restore on Seeds.
+pub fn bring_in_vault(shell: &mut Shell, app: &mut Faraday) {
+    let mut d = Disk::empty("S1", "KEYSTICK");
+    d.serial = Some(1);
+    shell.add(d);
+    shell.disk_mut("S1").files = vec![(
+        "main.kdbx".into(),
+        vault("Main", "first vault phrase", 0x41),
+    )];
+    app.press(Action::RExistingVault(true));
+    assert_eq!(app.screen, Screen::BackupFlow);
+    shell.plug(app, "S1");
+    let k = app
+        .flow()
+        .unwrap()
+        .live
+        .reading
+        .as_ref()
+        .unwrap()
+        .files
+        .iter()
+        .position(|(f, _)| f.name == "main.kdbx")
+        .unwrap();
+    shell.flow(
+        app,
+        faraday_core::backup_flow::steps::FlowAction::PickFile(0, k),
+    );
+    shell.flow(app, faraday_core::backup_flow::steps::FlowAction::Tap);
+    shell.pull(app, "S1");
+    unlock(app, "first vault phrase");
+    assert_eq!(app.screen, Screen::Restore, "{:?}", unlock_error(app));
+    assert_eq!(
+        app.restore().unwrap().open,
+        Some(faraday_core::rstep::SEEDS)
+    );
+    assert_eq!(app.vaults().open.len(), 1);
+}

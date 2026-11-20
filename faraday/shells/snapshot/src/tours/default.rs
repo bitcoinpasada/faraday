@@ -686,9 +686,6 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.press(Action::RStep(faraday_core::rstep::DESCRIPTION));
     t.shot("restore-shares")?;
     t.press(Action::RRebuild);
-    // The question of vaults, in its turn before the seeds.
-    t.press(Action::RVaults(false));
-    t.press(Action::RNext(faraday_core::rstep::WHERE));
     faraday_core::testkit::confirm_wallets(&mut t.app);
     let fp = t
         .app

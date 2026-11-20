@@ -300,16 +300,6 @@ pub(crate) fn stepper(
     ui.stepper((x, y, w), label, value, (minus, plus), enabled);
 }
 
-/// The closed line of a card that asks about vaults: the answer, as the
-/// person gave it.
-pub(super) fn vaults_answer_line(ask: crate::VaultAsk) -> &'static str {
-    match ask.answer {
-        Some(true) => EN.plan_yes,
-        Some(false) => EN.plan_no,
-        None => "",
-    }
-}
-
 /// Restore's Kind card's rows: Single key and Multisig, both native
 /// SegWit, the two everyday kinds, and the others behind **More kinds**
 /// until `more`. Returns the height used.

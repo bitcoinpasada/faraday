@@ -212,15 +212,6 @@ pub(crate) fn create_with_vaults(app: &mut Faraday, multi: bool, _count: usize) 
     }
 }
 
-/// The sticks of the setup, in order, each one at a time.
-pub(crate) fn bring_in_all(shell: &mut Shell, app: &mut Faraday, disks: &[&str]) {
-    for d in disks {
-        shell.plug(app, d);
-        shell.flow(app, F::Tap);
-        shell.pull(app, d);
-    }
-}
-
 /// The vault on S1 brought in before any key (the Keys row), unlocked with
 /// [`PHRASE`]; Make a new wallet is open on Keys.
 pub(crate) fn bring_in_existing(shell: &mut Shell, app: &mut Faraday) {
@@ -1199,30 +1190,18 @@ fn restore_takes_the_same_steps_and_a_restored_key_signs_at_once_at_strong_cost(
 
 fn restore_makes_a_vault_and_the_key_signs_at_once(mut shell: Shell) {
     let c = testkit::compute();
-    sticks(&mut shell, 2);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     app.press(Action::RestoreWallet);
-    app.press(Action::RVaults(true));
-    app.press(Action::RNext(faraday_core::rstep::WHERE));
-    app.press(Action::RVaultN(1));
-    app.press(Action::RNext(faraday_core::rstep::HOW_MANY));
-    assert_eq!(app.screen, Screen::BackupFlow);
-    assert_eq!(step(&app), Step::Sticks);
-    bring_in_all(&mut shell, &mut app, &["S1"]);
-    create_vault(&mut shell, &mut app, 0, PHRASE);
-    // The vault is set up: back in Restore, on its seeds.
-    assert_eq!(app.screen, Screen::Restore, "{:?}", unlock_error(&app));
-    assert_eq!(
-        app.restore().unwrap().open,
-        Some(faraday_core::rstep::SEEDS)
-    );
-    app.press(Action::RSlotWords);
-    type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
-    app.press(Action::EntryAdd);
-    faraday_core::testkit::keep_published(&mut app);
+    app.press(Action::RKind(0));
+    app.press(Action::RSeeds);
+    // The vault on S1 is brought in before the seed is typed.
+    bring_in_vault(&mut shell, &mut app);
+    shell.add(Disk::empty("S2", "KEYSTICK"));
+    restore_seed_to_check(&mut app);
+    // The vault is open: Restore is on Done.
     assert_eq!(app.screen, Screen::Restore);
-    app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
+    assert_eq!(app.restore().unwrap().open, Some(faraday_core::rstep::DONE));
     let w = app.restore().unwrap().wallet.expect("wallet made");
     // The seed typed is in no vault until the plan says so.
     assert_eq!(contents(&app, 0).of(kind::KEY).count(), 0);
@@ -3377,13 +3356,6 @@ fn a_passphrase_put_into_a_vault_after_the_lock_starts_a_round_too() {
     assert!(app.flow().unwrap().adding, "its vault must hold it now");
 }
 
-/// The sticks the setup of the flow on screen asks for, as disks.
-fn flow_names(app: &Faraday) -> Vec<String> {
-    (1..=app.flow().unwrap().slots.len())
-        .map(|k| format!("S{k}"))
-        .collect()
-}
-
 #[test]
 fn answering_no_goes_to_the_keys_with_no_stick_or_vault_step_and_back_up_asks_the_rest() {
     let c = faraday_core::testkit::compute();
@@ -3530,46 +3502,6 @@ fn back_ups_plan_offers_the_open_vaults_and_a_vault_at_two_places_writes_both_co
         "Vault 2 holds nothing: not written"
     );
     no_visit(&shell);
-}
-
-#[test]
-fn restore_asks_the_same_question_and_opens_its_vaults_before_the_seeds() {
-    let mut shell = Shell::light();
-    sticks(&mut shell, 3);
-    let mut app = process(Vec::new(), Vec::new(), Vec::new());
-    keep_time(&mut app);
-    app.press(Action::RestoreWallet);
-    app.press(Action::RVaults(true));
-    app.press(Action::RNext(faraday_core::rstep::WHERE));
-    assert_eq!(
-        app.restore().unwrap().open,
-        Some(faraday_core::rstep::HOW_MANY)
-    );
-    app.press(Action::RVaultN(2));
-    app.press(Action::RNext(faraday_core::rstep::HOW_MANY));
-    assert_eq!(app.screen, Screen::BackupFlow);
-    let names = flow_names(&app);
-    let names: Vec<&str> = names.iter().map(String::as_str).collect();
-    assert_eq!(names.len(), 2);
-    bring_in_all(&mut shell, &mut app, &names);
-    assert!(app.vaults().open.is_empty(), "read before any unlock");
-    create_vault(&mut shell, &mut app, 0, PHRASE);
-    create_vault(&mut shell, &mut app, 1, PHRASE_2);
-    assert_eq!(app.screen, Screen::Restore, "{:?}", unlock_error(&app));
-    assert_eq!(
-        app.vaults().open.len(),
-        2,
-        "open before the seeds are typed"
-    );
-    app.press(Action::RSlotWords);
-    type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
-    app.press(Action::EntryAdd);
-    faraday_core::testkit::keep_published(&mut app);
-    app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
-    let w = app.restore().unwrap().wallet.expect("wallet made");
-    app.press(Action::Backup(w));
-    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
-    assert_eq!(app.backup().unwrap().answers.vaults.len(), 2);
 }
 
 /// A 2-of-3 with a vault brought in (when `count` is above 0) and its
@@ -3727,26 +3659,23 @@ fn a_setup_survives_the_lock_that_makes_the_process_clean() {
 #[test]
 fn a_restore_setup_survives_the_lock_too() {
     let mut shell = Shell::light();
-    sticks(&mut shell, 1);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     app.press(Action::RestoreWallet);
-    key_in(&mut app, 0);
-    app.press(Action::Nav(Screen::Restore));
-    app.press(Action::RVaults(true));
-    app.press(Action::RNext(faraday_core::rstep::WHERE));
-    app.press(Action::RVaultN(1));
-    app.press(Action::RNext(faraday_core::rstep::HOW_MANY));
+    app.press(Action::RKind(0));
+    app.press(Action::RSeeds);
+    sticks(&mut shell, 1);
+    app.press(Action::RExistingVault(true));
+    assert_eq!(app.screen, Screen::BackupFlow);
     shell.flow(&mut app, F::LockBring);
     let mut app = restart(&mut shell, &mut app);
     let r = app.restore().expect("Restore is kept");
     assert_eq!((r.vaults.answer, r.vaults.count), (Some(true), 1));
     app.press(Action::Nav(Screen::Restore));
-    app.press(Action::RStep(faraday_core::rstep::SEEDS));
-    assert_ne!(
-        app.restore().unwrap().open,
-        Some(faraday_core::rstep::SEEDS),
-        "the seeds stay closed until the setup is done"
+    let r = app.restore().unwrap();
+    assert!(
+        !r.done[faraday_core::rstep::SEEDS as usize],
+        "the lock took the seeds"
     );
 }
 

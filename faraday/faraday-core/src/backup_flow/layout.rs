@@ -1,9 +1,8 @@
-//! The Sticks and vaults card of Make a new wallet and Restore
-//! (`docs/STICK-SETUP.md` §2): how many vaults and how many sticks, and
-//! which vaults go on which stick, laid out and moved as on the backup
-//! board (the board's chips, held and dragged alike). The layout is made
-//! when Use vaults is answered Yes and is read when Continue builds the
-//! setup's plan. Drawing is `layout_screen.rs`.
+//! The layout of vaults on sticks (`docs/STICK-SETUP.md` §2): how many
+//! vaults and how many sticks, and which vaults go on which stick, held as
+//! on the backup board (the board's chips). Make a new wallet and Restore
+//! ask nothing about vaults: each has one Keys row for a vault already on
+//! a stick, and new vaults are added on the backup plan.
 
 use super::area::BackupFlowArea;
 use super::{BackupFlow, Step, VaultPlan};
@@ -11,16 +10,8 @@ use crate::Medium;
 use crate::board::lines::stick_word;
 use crate::board::{BoardPress, BoardState, Chip, Menu, MenuRow, Thing, Verb, Zone};
 use crate::strings::{EN, fill};
-use crate::{Action, MAX_STICKS, MAX_VAULTS};
+use crate::{Action, MAX_VAULTS};
 use faraday_crypto::work::Compute;
-
-/// What the checks under the layout say (`docs/STICK-SETUP.md` §2.5).
-pub(crate) struct Check {
-    /// The line.
-    pub line: String,
-    /// It holds Continue.
-    pub blocks: bool,
-}
 
 /// The vaults laid on the sticks of one Make a new wallet or Restore.
 pub(crate) struct SetupLayout {
@@ -62,11 +53,6 @@ impl SetupLayout {
         }
     }
 
-    /// What the sticks are called.
-    pub(crate) fn medium(&self) -> Medium {
-        self.medium
-    }
-
     /// The first placement: vault `v` on stick `v`, the rest on the last
     /// stick, and a stick past the vaults holds a copy of the last vault.
     fn first(vaults: usize, sticks: usize) -> Vec<Vec<usize>> {
@@ -85,24 +71,9 @@ impl SetupLayout {
         self.owner
     }
 
-    /// How many vaults.
-    pub(crate) fn vaults(&self) -> usize {
-        self.vaults
-    }
-
-    /// How many sticks.
-    pub(crate) fn sticks(&self) -> usize {
-        self.on.len()
-    }
-
     /// Stick `s`'s vaults.
     pub(crate) fn on(&self, s: usize) -> &[usize] {
         self.on.get(s).map_or(&[], Vec::as_slice)
-    }
-
-    /// Whether vault `v` is already on a stick.
-    pub(crate) fn existing(&self, v: usize) -> bool {
-        self.existing.get(v).copied().unwrap_or(false)
     }
 
     /// Vault `v` is new, or already on a stick.
@@ -137,11 +108,6 @@ impl SetupLayout {
         self.on(s).contains(&v)
     }
 
-    /// The sticks that hold vault `v`.
-    pub(crate) fn sticks_of(&self, v: usize) -> Vec<usize> {
-        (0..self.on.len()).filter(|&s| self.holds(s, v)).collect()
-    }
-
     /// Sets the number of vaults: a vault more goes where the first
     /// placement puts it; a vault fewer is the last one.
     pub(crate) fn set_vaults(&mut self, n: usize) {
@@ -169,32 +135,6 @@ impl SetupLayout {
         }
     }
 
-    /// Sets the number of sticks: the last one goes, with a vault it held
-    /// alone going back to the list; a stick more takes the vault of its
-    /// number that is on none, or a copy of the last vault.
-    pub(crate) fn set_sticks(&mut self, n: usize) {
-        let n = n.clamp(1, MAX_STICKS);
-        self.follow = false;
-        if n == self.on.len() {
-            return;
-        }
-        if !self.edited {
-            self.on = Self::first(self.vaults, n);
-            return;
-        }
-        self.on.truncate(n);
-        for s in self.on.len()..n {
-            let stick = if s >= self.vaults {
-                vec![self.vaults - 1]
-            } else if self.sticks_of(s).is_empty() {
-                vec![s]
-            } else {
-                Vec::new()
-            };
-            self.on.push(stick);
-        }
-    }
-
     /// Vault `v` also on stick `s`.
     pub(crate) fn put(&mut self, v: usize, s: usize) {
         if v < self.vaults && s < self.on.len() && !self.holds(s, v) {
@@ -217,46 +157,6 @@ impl SetupLayout {
             self.put(v, to);
             self.take_off(v, from);
         }
-    }
-
-    /// The checks under the layout, in the order of
-    /// `docs/STICK-SETUP.md` §2.5.
-    pub(crate) fn checks(&self) -> Vec<Check> {
-        let mut out = Vec::new();
-        for v in 0..self.vaults {
-            if self.sticks_of(v).is_empty() {
-                out.push(Check {
-                    line: fill(
-                        EN.backup_flow_layout_on_none,
-                        &[&Self::vault_name(v), self.medium.noun()],
-                    ),
-                    blocks: true,
-                });
-            }
-        }
-        for (s, vs) in self.on.iter().enumerate() {
-            let stick = self.stick_name(s);
-            let names: Vec<String> = vs.iter().map(|&v| Self::vault_name(v)).collect();
-            let line = match names.as_slice() {
-                [] => fill(EN.backup_flow_layout_stick_empty, &[&stick]),
-                [_] => continue,
-                [a, b] => fill(EN.backup_flow_layout_share_two, &[a, b, &stick]),
-                [rest @ .., last] => fill(
-                    EN.backup_flow_layout_share_many,
-                    &[&format!("{} and {last}", rest.join(", ")), &stick],
-                ),
-            };
-            out.push(Check {
-                line,
-                blocks: false,
-            });
-        }
-        out
-    }
-
-    /// Whether Continue is held: a vault is on no stick.
-    pub(crate) fn blocked(&self) -> bool {
-        (0..self.vaults).any(|v| self.sticks_of(v).is_empty())
     }
 
     /// What the setup's plan takes: each stick that holds a vault as one
@@ -395,11 +295,6 @@ impl SetupLayout {
         }
     }
 
-    /// Whether zone `z` takes the chip held now: drawn edged.
-    pub(crate) fn held_takes(&self, z: Zone) -> bool {
-        self.board.held.is_some_and(|c| self.takes(c, z))
-    }
-
     fn shut(&mut self) {
         self.board.menu = None;
     }
@@ -419,11 +314,6 @@ impl BackupFlowArea {
         };
         l.press(p, anchor);
         l.board().menu.is_some()
-    }
-
-    /// Whether the card of `owner` holds Continue: a vault is on no stick.
-    pub(crate) fn layout_blocked(&self, owner: u64) -> bool {
-        self.layout_of(owner).is_some_and(SetupLayout::blocked)
     }
 
     /// The card's ⋮ menu, while it is open.

@@ -1541,94 +1541,6 @@ fn on_the_pi_the_guide_sheets_tab_names_are_read_whole() {
     }
 }
 
-/// Whether Back up's plan offers `action` anywhere down its column.
-fn offered_down(app: &mut Faraday, action: Action) -> bool {
-    for _ in 0..20 {
-        if crate::common::offered(app, action) {
-            return true;
-        }
-        app.event(Event::Scroll {
-            x: 400,
-            y: 384,
-            dy: 300,
-        });
-    }
-    false
-}
-
-#[test]
-fn on_the_small_panel_both_segments_of_a_vaults_choice_are_on_the_page_and_the_second_can_be_pressed()
- {
-    use crate::common::{keep_time, process, texts};
-    use faraday_core::Action;
-    use faraday_core::board::{BoardPress, Thing, Zone};
-    use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
-    let mut app = process(Vec::new(), Vec::new(), Vec::new());
-    keep_time(&mut app);
-    app.event(Event::Display(DisplayInfo {
-        width: 480,
-        height: 640,
-        dpi: 286,
-        inset_bottom: 0,
-        inset_top: 0,
-        buttons: 0,
-        camera_fixed: false,
-        secure: SecureHardware::None,
-        boot: BootState::Unknown,
-        memory_mib: None,
-    }));
-    // Restore's Sticks and vaults card lists each vault with New and
-    // Existing.
-    app.press(Action::RestoreWallet);
-    app.press(Action::RNext(faraday_core::rstep::KIND));
-    app.press(Action::RSeeds);
-    app.press(Action::RVaults(true));
-    app.press(Action::RNext(faraday_core::rstep::WHERE));
-    app.press(Action::RVaultN(1));
-    let _ = app.frame();
-    let second = Action::Board(BoardPress::Form(Zone::List, Thing::Vault(0), 1));
-    let first = Action::Board(BoardPress::Form(Zone::List, Thing::Vault(0), 0));
-    assert!(offered_down(&mut app, first), "the choice is never offered");
-    for a in [first, second] {
-        let (x, _, w, _) = app
-            .hit_box(a)
-            .unwrap_or_else(|| panic!("{a:?} is not offered"));
-        assert!(
-            u32::from(x) + u32::from(w) <= 480,
-            "{a:?} runs off the window: x {x}, w {w}"
-        );
-    }
-    assert!(texts(&mut app).iter().any(|t| t == "Existing"));
-    // The choice's two segments are drawn whichever is chosen: what shows
-    // that the press took is the chosen segment's look, in their box.
-    let (fx, fy, _, fh) = app.hit_box(first).expect("first");
-    let (sx, _, sw, _) = app.hit_box(second).expect("second");
-    let segments = |app: &mut Faraday| -> Vec<u8> {
-        let frame = app.frame();
-        let (width, rgba) = (usize::from(frame.width), frame.rgba);
-        let mut region = Vec::new();
-        for y in usize::from(fy)..usize::from(fy) + usize::from(fh) {
-            let row = y * width;
-            let (a, b) = (
-                row + usize::from(fx),
-                row + usize::from(sx) + usize::from(sw),
-            );
-            region.extend_from_slice(&rgba[a * 4..b * 4]);
-        }
-        region
-    };
-    let before = segments(&mut app);
-    app.press(second);
-    let after = segments(&mut app);
-    assert_ne!(before, after, "the second segment was not taken");
-    app.press(first);
-    assert_eq!(
-        segments(&mut app),
-        before,
-        "the first segment is chosen again"
-    );
-}
-
 #[test]
 fn on_the_pi_a_step_flows_bar_names_it_whole_smaller_where_its_tools_leave_less_room() {
     let name = |mode: Mode, open: Action| {
@@ -1889,8 +1801,6 @@ fn on_the_small_panel_restore_names_a_key_that_is_not_here_whole_beside_change()
     rig.press(Action::RKind(4));
     rig.press(Action::RNext(rstep::KIND));
     rig.press(Action::RUse(0));
-    rig.press(Action::RVaults(false));
-    rig.press(Action::RNext(rstep::WHERE));
     faraday_core::testkit::confirm_wallets(&mut rig);
     let w = rig
         .restore()

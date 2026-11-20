@@ -12,8 +12,8 @@ use faraday_text::{Text, text};
 use crate::wallet::{Session, Wallet, fp_text};
 use crate::wallet_backup::split_share;
 use crate::{
-    Action, Faraday, FileKind, MAX_VAULTS, NOT_A_KEY, Screen, VaultAsk, create, flow, restore,
-    rstep, seeds, stem, vault, wallet,
+    Action, Faraday, FileKind, NOT_A_KEY, Screen, VaultAsk, create, flow, restore, rstep, seeds,
+    stem, vault, wallet,
 };
 use faraday_bip::keys::Network;
 use std::collections::BTreeSet;
@@ -410,9 +410,9 @@ pub struct RestoreState {
     /// The screen Restore was opened from: Back and Done go there. None
     /// is Wallets start.
     pub opener: Option<Screen>,
-    /// Whether vaults are part of the backup and how many; with yes, the
-    /// sticks and the vaults come before the seeds are typed
-    /// (`docs/BACKUP-FLOW.md` §11).
+    /// Seeds' row, a vault already on a stick: on, that one stick is
+    /// brought in and its vault unlocked before any seed is typed
+    /// (`docs/BACKUP-FLOW.md` §11). Restore asks nothing else about vaults.
     pub vaults: VaultAsk,
     /// The number the wallet's backup flow is tied to (`Faraday::owner_seq`).
     pub owner: u64,
@@ -443,8 +443,22 @@ pub enum Check {
 }
 
 impl RestoreState {
-    /// The person answered yes to using vaults.
-    pub fn into_vaults(&self) -> bool {
+    /// Whether a seed, a cosigner or a key of the description is already
+    /// in: Seeds' row for a vault on a stick is offered before that.
+    pub fn seeds_in(&self, session: &Session) -> bool {
+        let typed = self.seeds.as_ref().is_some_and(|s| {
+            !s.keys.is_empty() || s.cosigners.iter().any(|c| !c.trim().is_empty())
+        });
+        let held = self.described
+            && self
+                .wallet
+                .and_then(|i| session.wallets.get(i))
+                .is_some_and(|w| session.slots(w).iter().any(|s| s.held_by.is_some()));
+        typed || held
+    }
+
+    /// The person turned on Seeds' row, a vault already on a stick.
+    pub fn uses_existing_vault(&self) -> bool {
         self.vaults.answer == Some(true)
     }
 
@@ -458,8 +472,6 @@ impl RestoreState {
     pub fn new() -> RestoreState {
         let mut s = seeds::SeedsState::default();
         s.fix(create::NewKind::NativeSegwit);
-        // The question of vaults is done only once the person has
-        // answered it and pressed its own Continue.
         let done = [false; rstep::COUNT as usize];
         RestoreState {
             open: Some(rstep::KIND),
@@ -481,11 +493,7 @@ impl RestoreState {
         if kind.multi() {
             v.push(rstep::QUORUM);
         }
-        v.extend([rstep::DESCRIPTION, rstep::WHERE]);
-        if self.into_vaults() {
-            v.push(rstep::HOW_MANY);
-        }
-        v.extend([rstep::SEEDS, rstep::CHECK, rstep::DONE]);
+        v.extend([rstep::DESCRIPTION, rstep::SEEDS, rstep::CHECK, rstep::DONE]);
         v
     }
 
@@ -547,13 +555,10 @@ impl RestoreArea {
         }
     }
 
-    /// Opens Seeds with Where and How many done, as a wallet read from its
-    /// description is attached to the setup.
-    pub(crate) fn open_seeds_after_description(&mut self) {
+    /// The vault's stick is brought in and unlocked: Seeds opens.
+    pub(crate) fn open_after_setup(&mut self) {
         if let Some(r) = self.state.as_mut() {
             r.open = Some(crate::rstep::SEEDS);
-            r.done[crate::rstep::WHERE as usize] = true;
-            r.done[crate::rstep::HOW_MANY as usize] = true;
             r.scroll.follow = true;
         }
     }
@@ -597,12 +602,9 @@ impl crate::trail::StepFlow for RestoreSteps {
         let r = app.restore()?;
         let mut s = crate::trail::Steps::new(r.steps(), r.open);
         // The wallet made from its seeds stays made: Back goes no further
-        // than Check. With a vault of the setup open, the question of
-        // vaults is settled: no further than the seeds.
+        // than Check.
         s.first = if r.done[rstep::SEEDS as usize] && r.wallet.is_some() {
             Some(rstep::CHECK)
-        } else if app.setup_vault_open(r.owner) {
-            Some(rstep::SEEDS)
         } else {
             None
         };
@@ -613,10 +615,7 @@ impl crate::trail::StepFlow for RestoreSteps {
         Action::RStep(k)
     }
 
-    fn name(&self, app: &Faraday, k: u8) -> &'static str {
-        if k == crate::rstep::HOW_MANY {
-            return app.medium.and_vaults();
-        }
+    fn name(&self, _: &Faraday, k: u8) -> &'static str {
         crate::screens::RSTEPS[usize::from(k)]
     }
 
@@ -625,19 +624,54 @@ impl crate::trail::StepFlow for RestoreSteps {
         match chosen {
             // A kind read from a description is not chosen here.
             Action::RKind(_) if !r.described => Some(Action::RNext(rstep::KIND)),
-            Action::RVaults(_)
-                if r.vaults.answer.is_some()
-                    && !r.done[rstep::SEEDS as usize]
-                    && !app.setup_vault_open(r.owner) =>
-            {
-                Some(Action::RNext(rstep::WHERE))
-            }
             _ => None,
         }
     }
 }
 
 impl Faraday {
+    /// Whether Restore has a vault's stick still to bring in and unlock:
+    /// its seeds wait for it.
+    pub(crate) fn restore_setup_pending(&self) -> bool {
+        self.restore.state().is_some_and(|r| {
+            self.setup_pending(
+                r.owner,
+                r.uses_existing_vault(),
+                r.done[rstep::SEEDS as usize],
+            )
+        })
+    }
+
+    /// Seeds' row, a vault already on a stick: on brings in that one stick
+    /// and unlocks its vault before any seed is typed; off drops it. It is
+    /// fixed once a seed is in, the wallet is made or the vault is open.
+    fn restore_existing_vault(&mut self, on: bool) {
+        let Some(r) = self.restore.state() else {
+            return;
+        };
+        if r.done[rstep::SEEDS as usize]
+            || r.uses_existing_vault() == on
+            || (on && r.seeds_in(&self.session))
+        {
+            return;
+        }
+        let owner = r.owner;
+        if self.setup_vault_open(owner) {
+            self.toast(EN.create_vaults_locked);
+            return;
+        }
+        if let Some(r) = self.restore.state.as_mut() {
+            r.vaults = VaultAsk {
+                answer: on.then_some(true),
+                count: 1,
+            };
+        }
+        self.wallet_vaults_changed(owner);
+        if on {
+            self.wallet_flow_begin(owner);
+        }
+    }
+
     /// The Restore flow's state, while it is open.
     pub fn restore(&self) -> Option<&RestoreState> {
         self.restore.state()
@@ -645,18 +679,10 @@ impl Faraday {
 
     /// Costs what the actions below cost, the keys' and wallets' work among
     /// it: handles the Restore wallet flow's actions (`Action::R*`, `RestoreWallet`, `RestoreShares`, `KeyWallet`).
-    #[expect(
-        clippy::cognitive_complexity,
-        reason = "a match over the Restore wallet flow's actions, one arm each"
-    )]
     pub(crate) fn restore_act(&mut self, action: Action, c: &Compute) {
         match action {
             Action::RFromVault(v, r) => self.restore_from_vault(v, r),
-            Action::RestoreWallet
-                if self.restore.state.as_ref().is_some_and(|r| {
-                    self.setup_pending(r.owner, r.into_vaults(), r.done[rstep::SEEDS as usize])
-                }) =>
-            {
+            Action::RestoreWallet if self.restore_setup_pending() => {
                 self.screen = Screen::Restore;
             }
             // A check with no wallet loaded: the same Restore, and the
@@ -679,85 +705,19 @@ impl Faraday {
                 });
                 self.screen = Screen::Restore;
             }
-            // The seeds wait for the question of vaults and for the
-            // setup it asked for.
-            Action::RStep(k)
-                if k == rstep::SEEDS
-                    && self.restore.state.as_ref().is_some_and(|r| {
-                        let made = r.done[rstep::SEEDS as usize];
-                        (r.vaults.answer.is_none() && !made)
-                            || self.setup_pending(r.owner, r.into_vaults(), made)
-                    }) => {}
-            Action::RVaults(_) | Action::RVaultN(_) | Action::RSticks(_)
-                if self.restore.state.as_ref().is_some_and(|r| {
-                    !r.done[rstep::SEEDS as usize] && self.setup_vault_open(r.owner)
-                }) =>
-            {
-                self.toast(EN.create_vaults_locked);
-            }
+            Action::RExistingVault(on) => self.restore_existing_vault(on),
+            // A vault's stick still to bring in and unlock comes before
+            // the seeds.
+            Action::RStep(k) if k == rstep::SEEDS && self.restore_setup_pending() => {}
             Action::RStep(k) => {
                 if let Some(r) = self.restore.state.as_mut() {
                     r.open = if r.open == Some(k) { None } else { Some(k) };
                     r.scroll.follow = true;
                 }
             }
-            // The question of vaults waits for its answer.
-            Action::RNext(k)
-                if k == rstep::WHERE
-                    && self
-                        .restore
-                        .state()
-                        .is_some_and(|r| r.vaults.answer.is_none()) => {}
-            // How many vaults: Continue opens the setup, which comes back
-            // to Seeds.
-            Action::RNext(k)
-                if k == rstep::HOW_MANY
-                    && self
-                        .restore
-                        .state()
-                        .is_some_and(|r| self.flows.layout_blocked(r.owner)) => {}
-            Action::RNext(k) if k == rstep::HOW_MANY => {
-                if let Some(r) = self.restore.state.as_mut() {
-                    r.done[k as usize] = true;
-                    let owner = r.owner;
-                    self.wallet_flow_begin(owner);
-                }
-            }
             Action::RNext(k) => {
                 if let Some(r) = self.restore.state.as_mut() {
                     r.next(k);
-                }
-            }
-            Action::RVaults(yes) => {
-                if let Some(r) = self.restore.state.as_mut()
-                    && !r.done[rstep::SEEDS as usize]
-                    && r.vaults.answer != Some(yes)
-                {
-                    let owner = r.owner;
-                    r.vaults.answer = Some(yes);
-                    r.done[rstep::WHERE as usize] = false;
-                    r.done[rstep::HOW_MANY as usize] = false;
-                    self.wallet_vaults_changed(owner);
-                }
-            }
-            Action::RVaultN(n) => {
-                if let Some(r) = self.restore.state.as_mut()
-                    && !r.done[rstep::SEEDS as usize]
-                {
-                    let owner = r.owner;
-                    r.vaults.count = usize::from(n).clamp(1, MAX_VAULTS);
-                    r.done[rstep::HOW_MANY as usize] = false;
-                    self.wallet_vaults_changed(owner);
-                }
-            }
-            Action::RSticks(n) => {
-                if let Some(r) = self.restore.state.as_mut()
-                    && !r.done[rstep::SEEDS as usize]
-                {
-                    let owner = r.owner;
-                    r.done[rstep::HOW_MANY as usize] = false;
-                    self.flows.layout_sticks(owner, usize::from(n));
-                    self.wallet_vaults_changed(owner);
                 }
             }
             Action::RKind(i) => self.restore_kind(i),
@@ -774,14 +734,8 @@ impl Faraday {
                     .filter(|(_, i)| crate::create::wallet_flow_kind(i) == FileKind::Wallet)
                     .map(|(k, _)| k)
                     .collect();
-                match files.as_slice() {
-                    [one] => self.act(Action::RUse(*one)),
-                    _ => {
-                        if let Some(r) = self.restore.state.as_mut() {
-                            r.open = Some(rstep::DESCRIPTION);
-                            r.scroll.follow = true;
-                        }
-                    }
+                if let [one] = files.as_slice() {
+                    self.act(Action::RUse(*one));
                 }
             }
             Action::RAbsent(k) => {
@@ -1398,7 +1352,7 @@ impl Faraday {
         if let Some(owner) = self
             .restore
             .state()
-            .filter(|r| r.into_vaults())
+            .filter(|r| r.uses_existing_vault())
             .map(|r| r.owner)
         {
             self.wallet_flow_attach(i, owner);
@@ -1424,8 +1378,7 @@ impl Faraday {
             }
             r.done[rstep::SEEDS as usize] = false;
             r.done[rstep::CHECK as usize] = false;
-            // On to the next card not done: the question of vaults
-            // when it is not answered yet, before the seeds.
+            // On to the seeds.
             r.next(rstep::DESCRIPTION);
         }
         if origin != wallet::Origin::TypedSeeds

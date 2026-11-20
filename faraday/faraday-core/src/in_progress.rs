@@ -733,11 +733,7 @@ impl Faraday {
                     .open
                     .or_else(|| steps.iter().copied().find(|&k| !r.done[k as usize]))
                     .or_else(|| steps.last().copied())?;
-                let step = if k == crate::rstep::HOW_MANY {
-                    self.medium.and_vaults().to_string()
-                } else {
-                    crate::screens::RSTEPS[k as usize].to_string()
-                };
+                let step = crate::screens::RSTEPS[k as usize].to_string();
                 (wallets, EN.sidebar_flow_restore.to_string(), step)
             }
             Going::Backup => (
@@ -964,10 +960,13 @@ fn flow_finished_on(r: &impl Reads, g: Going) -> bool {
                 && app.backup_going() == Some(Going::Create)
                 && backup_finished_on(r)
         }
-        Going::Restore => app
-            .restore
-            .state()
-            .is_some_and(|x| x.done[crate::rstep::CHECK as usize]),
+        Going::Restore => app.restore.state().is_some_and(|x| {
+            x.done[crate::rstep::CHECK as usize]
+                && x.steps()
+                    .into_iter()
+                    .find(|&k| !x.done[k as usize])
+                    .is_none_or(|k| k == crate::rstep::DONE)
+        }),
         Going::Backup => backup_finished_on(r),
         Going::Spend => app
             .wallets

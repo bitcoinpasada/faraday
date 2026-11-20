@@ -2254,9 +2254,8 @@ pub(crate) fn menu_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     );
 }
 
-/// What the Sticks and vaults card of Make a new wallet and Restore
-/// (`backup_flow/layout_screen.rs`) draws with: the board's own chips and
-/// stick boxes, held and dragged as on the board.
+/// What the flow's stick figures (`backup_flow/figures.rs`) draw with: the
+/// board's own stick boxes.
 pub(crate) struct CardFrame(Frame);
 
 /// A card's frame: the chip held, where a dragged one is (pixels), and the
@@ -2288,32 +2287,6 @@ pub(crate) fn card_frame(
     })
 }
 
-/// The height of `chips` flowing in `w`.
-pub(crate) fn card_chips_h(ui: &Ui, chips: &[ChipView], w: f32) -> f32 {
-    flow(ui, chips, 0.0, 0.0, w).1
-}
-
-/// `chips` flowing from (x, y) in `w`, each as the board draws a chip;
-/// the box `edged` (a zone the held chip can go to) is not drawn here.
-/// Returns the height.
-pub(crate) fn card_chips(
-    ui: &mut Ui,
-    fr: &mut CardFrame,
-    chips: &[ChipView],
-    (x, y, w): (f32, f32, f32),
-) -> f32 {
-    let (at, h) = flow(ui, chips, x, y, w);
-    for (cv, (cx, cy, fit)) in chips.iter().zip(at) {
-        chip(ui, &mut fr.0, cv, cx, cy, fit, true);
-    }
-    h
-}
-
-/// A chip's width as the board draws it in `avail`.
-pub(crate) fn card_chip_w(ui: &Ui, cv: &ChipView, avail: f32) -> f32 {
-    chip_size(ui, cv, avail).w
-}
-
 /// A stick box `r` (x, y, w, h): the stick glyph and `label`, a press
 /// there `zone`; edged while the held chip can go there. Returns the
 /// head's height.
@@ -2331,21 +2304,4 @@ pub(crate) fn card_stick(
         edge(ui, r, tokens::GAP, Role::Primary.paint());
     }
     hh
-}
-
-/// The chip being dragged, drawn at the finger.
-pub(crate) fn card_lifted(ui: &mut Ui, fr: &mut CardFrame, cv: &ChipView) {
-    let Some((px, py)) = fr.0.drag else {
-        return;
-    };
-    let fit = chip_size(ui, cv, 1000.0);
-    chip(
-        ui,
-        &mut fr.0,
-        cv,
-        px - fit.w / 2.0,
-        py - fit.h / 2.0,
-        fit,
-        false,
-    );
 }

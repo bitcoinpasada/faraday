@@ -65,8 +65,9 @@ Rules still in force:
   holding the vault it belongs in could be read; a new Bitcoin seed held
   only in memory would be wiped by that lock. So every stick the key
   will be kept on is read before the key exists. For a wallet the stick
-  read before the keys is that of the one vault the person brings in. Restore, which makes nothing new, takes the same steps with its
-  seed typed or scanned at step 4.
+  read before the keys is that of the one vault the person brings in.
+  Restore, which makes nothing new, asks nothing about vaults and has the
+  same one row on Keys (§11).
 - **The plan decides what each stick holds**, before any stick is
   inserted. An empty stick holds what the plan puts there and nothing
   else; a vault has one copy per place the plan keeps it at, as many as
@@ -640,13 +641,9 @@ and matched. A write made on the stick visit page does not count
      inserted.
   The stick read for a vault goes to the first place the plan gives that
   vault's stick; a stick the plan then gives no vault is not written.
-- **Restore** asks "Will you use vaults as part of this backup?", and
-  under it, "Vaults already on sticks are brought in here, not later.";
-  with Yes, two steppers (Vaults one to 128, Sticks one to 1024) and the
-  board's chips for which vault is on which stick, then each vault set up
-  in this flow, existing ones unlocked and new ones made with Create a
-  vault's own form, before the seeds are entered. Its plan is in Back up
-  after (§11).
+- **Restore** asks nothing about vaults (§11): its Keys card has the one
+  row, off by default, that brings in a vault already on a stick and
+  unlocks it before any seed is typed. Its plan is in Back up after (§11).
 - **New key** makes each seed into memory, with F6's flag set;
   **Restore** takes its seed into memory. Neither writes to a vault.
   `Item::Vault(v)` is done when the open vault set up for plan vault `v`
@@ -800,12 +797,14 @@ public files on any stick, with no line.
 
 ## 11. Restore
 
-Restore asks the same question as Make a new wallet (§10.2): will vaults
-be part of this backup, and how many. With vaults, the vaults are set up
-(steps 2 and 3) before the seeds are typed or scanned, which then go
-into memory. Back up's plan, which says which seed goes into which vault,
-comes after, as it does for Make a new wallet. A restored key signs at
-once (F6); the flow is offered and nothing waits for it.
+Restore asks nothing about vaults, as Make a new wallet does not (§10.2):
+Kind, Keys, Check, Done. Keys has one row, off by default, **Use a vault I
+already have on a stick**, shown before any seed is typed: it brings in
+that one stick and unlocks its vault, under the flow's own title, so a seed
+in it can fill a row. The seeds go into memory. Back up's plan, which says
+which seed goes into which vault and adds any new vault, comes after, as it
+does for Make a new wallet. A restored key signs at once (F6); the flow is
+offered and nothing waits for it.
 
 ## 12. Strings
 
@@ -951,9 +950,8 @@ which asked where each kind of thing goes, are gone. The person says how
 many places there are, then fills one card per place with what that
 place keeps, then decides the wallet description and where it goes,
 then sees the whole map and approves it. The other kinds' plan (§2) is
-already by place and does not change. Restore's vault question
-and count, and the vaults set up before the keys (§10.2), do not change:
-they are the vaults the place cards offer.
+already by place and does not change. Restore's vault brought in before the seeds (§11), like Make a new wallet's
+(§10.2), does not change: it is the vault the place cards offer.
 
 ### 15.1 The cards
 
@@ -2174,13 +2172,12 @@ the board in Customize backup.
    the board is always a new one, made in the checklist (Make a vault,
    on an empty stick, checked at the write step, §4.8). A vault already
    on a stick is brought in only before the keys (item 5).
-5. **The vault question says so.** Under "Will you use vaults as part of
-   this backup?" (Restore, §10.2), one line in the
-   muted style: "Vaults already on sticks are brought in here, not
-   later." Reason, not shown: a vault on a stick not read this power-on
-   cannot be read after the keys without a lock, and the lock wipes the
-   keys and Create's state (the extra round of §4.8 is not
-   built).
+5. **A vault already on a stick is brought in before the keys.** Restore
+   and Make a new wallet ask nothing about vaults; each Keys card has
+   one row for it (§10.2, §11). Reason, not shown: a vault on a stick not
+   read this power-on cannot be read after the keys without a lock, and
+   the lock wipes the keys and Create's state (the extra round of §4.8
+   is not built).
 6. **A planned vault not made yet says so.** A vault box's header band
    reads "Vault 2 · sealed · made in the checklist" while the plan's
    vault has no vault set up for it and none open to save into
@@ -2198,7 +2195,7 @@ the board in Customize backup.
 8. **Strings.** Removed when nothing else uses them: the three preset
    names, Start from, Change on it, and Create's preset labels. Added:
    Back up this wallet, Add watch-only software, Take off watch-only
-   software, + new vault (replacing + vault), the vault question's line,
+   software, + new vault (replacing + vault),
    "{} · sealed · made in the checklist" and "{} · new".
 9. **Tests** (user-facing behaviour): Create's Back up step offers one
    button and it opens the board read-only with The standard way
@@ -2206,8 +2203,7 @@ the board in Customize backup.
    description Scanned in and the board stays read-only, and its Take
    off removes it; a vault added with + new vault reads "made in the
    checklist" and, once the checklist has made it, "sealed"; a vault set
-   up before the keys reads "sealed"; the vault question shows its line
-   in Restore; a plan text saved from Paper and
+   up before the keys reads "sealed"; a plan text saved from Paper and
    vault reopens unchanged and customisable. Tests that chose a preset
    to reach a plan build the same plan as a person now would: Customize
    backup, + new vault, and the ⋮ menu's Add to… (§17.20), through a

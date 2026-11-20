@@ -1315,7 +1315,7 @@ rule of its flow.
   to its keys as it is entered: a match reads "Key 2 of the wallet"; any
   other reads "Not a key of this wallet: check the words or the
   passphrase" and is not loaded. **Make the wallet** once every slot is
-  filled. Done, whatever the vault question's answer, offers, all
+  filled. Done offers, all
   secondary, **Spend from this wallet**, **Back up this wallet**,
   **Another wallet from these seeds** (New wallet from this one) and
   **Wallets**. A restored key is not held for its backup. Vaults set up

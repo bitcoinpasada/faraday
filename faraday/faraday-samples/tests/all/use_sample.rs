@@ -422,8 +422,6 @@ fn a_cosigner_s_box_takes_the_account_key_of_the_next_sample_seed_at_the_path() 
     app.press(Action::Slide(SLIDE_N, 2));
     app.event(Event::Key(Key::Right));
     // No vaults, so the Keys card is the one open.
-    app.press(Action::RVaults(false));
-    app.press(Action::RNext(faraday_core::rstep::WHERE));
     // Its xpub opens the box, with the chip in it.
     app.press(Action::Seeds(S::Open(
         faraday_core::seeds::Focus::Cosigner(0),

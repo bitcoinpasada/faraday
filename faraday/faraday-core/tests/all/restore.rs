@@ -11,9 +11,8 @@
 use crate::common::RecordsOf as _;
 use crate::common::type_text;
 use faraday_bip::bip39::{Language, Mnemonic};
-use faraday_core::backup_flow::steps::FlowAction;
 use faraday_core::create::{NewKind, Source};
-use faraday_core::rstep::{CHECK, DESCRIPTION, DONE, HOW_MANY, KIND, QUORUM, SEEDS, WHERE};
+use faraday_core::rstep::{CHECK, DESCRIPTION, DONE, KIND, QUORUM, SEEDS};
 use faraday_core::seeds::read::Choice;
 use faraday_core::seeds::{Focus, SLIDE_N, SeedsAction as S};
 use faraday_core::spend_backup::SpendBackupAction as F;
@@ -121,8 +120,6 @@ fn two_of_three_from_seeds() -> Faraday {
     app.press(Action::RNext(KIND));
     app.press(Action::RNext(QUORUM));
     app.press(Action::RSeeds);
-    app.press(Action::RVaults(false));
-    app.press(Action::RNext(WHERE));
     assert_eq!(app.restore().unwrap().open, Some(SEEDS));
     app
 }
@@ -160,7 +157,7 @@ fn restore_opens_on_kind_with_no_transaction_card() {
     assert_eq!(app.restore().unwrap().open, Some(KIND));
     let text = drawn(&mut app);
     assert!(text.lines().any(|l| l == "Kind"), "no Kind card: {text}");
-    for card in ["Description", "Use vaults", "Keys"] {
+    for card in ["Description", "Keys"] {
         assert!(
             !text.lines().any(|l| l == card),
             "{card} before it is reached: {text}"
@@ -196,8 +193,6 @@ fn a_single_key_goes_on_from_description_with_the_seed_alone() {
     assert!(!text.contains("I do not have it"), "{text}");
     assert!(app.offers(Action::RSeeds));
     app.press(Action::RSeeds);
-    app.press(Action::RVaults(false));
-    app.press(Action::RNext(WHERE));
     assert_eq!(app.restore().unwrap().open, Some(SEEDS));
 
     let mut app = shown();
@@ -264,8 +259,6 @@ fn a_loaded_key_taken_into_a_slot_asks_for_its_passphrase() {
     app.press(Action::RNext(KIND));
     app.press(Action::RNext(QUORUM));
     app.press(Action::RSeeds);
-    app.press(Action::RVaults(false));
-    app.press(Action::RNext(WHERE));
     type_seed(&mut app, &testkit::test_words("bacon"));
     type_seed(&mut app, &testkit::test_words("zebra"));
     app.press(Action::Seeds(S::UseLoaded(summer.0)));
@@ -324,13 +317,10 @@ fn the_description_scanned_first_fills_the_quorum_and_refuses_what_is_not_its_ke
     });
     faraday_core::testkit::confirm_wallets(&mut app);
     let r = app.restore().unwrap();
-    assert_eq!(r.open, Some(WHERE), "the question of vaults is next");
+    assert_eq!(r.open, Some(SEEDS), "the seeds are next");
     assert!(r.done[KIND as usize] && r.done[QUORUM as usize] && r.done[DESCRIPTION as usize]);
     let s = r.seeds.as_ref().unwrap();
     assert_eq!((s.m, s.n), (2, 3));
-    app.press(Action::RVaults(false));
-    app.press(Action::RNext(WHERE));
-    assert_eq!(app.restore().unwrap().open, Some(SEEDS));
     let keys = app.session.keys.len();
 
     // A seed of another wallet: refused on Add a key, words kept.
@@ -469,27 +459,24 @@ fn keys_reads_every_slot_filled_once_the_wallet_is_made_from_typed_seeds() {
     );
 }
 
-/// The description read before the question of vaults: the question is
-/// asked in its turn, before the seeds, and reads its answer at Done.
+/// The description read on Kind fills Kind, Quorum and Description and
+/// opens Seeds, and the Description card offers no second scan; Restore
+/// asks nothing about vaults, so Check goes on to Done.
 #[test]
-fn a_description_read_first_asks_about_vaults_before_the_seeds() {
+fn a_description_read_on_kind_opens_seeds_and_check_goes_on_to_done() {
     let mut app = shown();
     app.press(Action::RestoreWallet);
-    app.press(Action::RKind(MULTI));
-    app.press(Action::RNext(KIND));
     app.press(Action::Scan);
     app.event(Event::Scanned {
         bytes: testkit::savings().into_bytes(),
     });
     faraday_core::testkit::confirm_wallets(&mut app);
-    assert_eq!(app.restore().unwrap().open, Some(WHERE));
-    // The seeds wait for the answer.
+    let r = app.restore().unwrap();
+    assert_eq!(r.open, Some(SEEDS));
+    assert!(r.done[KIND as usize] && r.done[QUORUM as usize] && r.done[DESCRIPTION as usize]);
+    app.press(Action::RStep(DESCRIPTION));
+    assert!(!app.offers(Action::ScanFor(faraday_core::Ask::Description)));
     app.press(Action::RStep(SEEDS));
-    assert_ne!(app.restore().unwrap().open, Some(SEEDS));
-    app.press(Action::RStep(WHERE));
-    app.press(Action::RVaults(false));
-    app.press(Action::RNext(WHERE));
-    assert_eq!(app.restore().unwrap().open, Some(SEEDS));
     type_seed(&mut app, &testkit::test_words("zebra"));
     let w = app.restore().unwrap().wallet.unwrap();
     let held = app
@@ -505,14 +492,7 @@ fn a_description_read_first_asks_about_vaults_before_the_seeds() {
     faraday_core::testkit::confirm_wallets(&mut app);
     made(&app);
     app.press(Action::RNext(CHECK));
-    let r = app.restore().unwrap();
-    assert_eq!(r.open, Some(DONE));
-    assert!(r.done[WHERE as usize], "the question is answered");
-    assert!(
-        summary_is(&mut app, "Use vaults", "No"),
-        "{}",
-        drawn(&mut app)
-    );
+    assert_eq!(app.restore().unwrap().open, Some(DONE));
     assert!(
         summary_is(&mut app, "Keys", "3 of 3 filled"),
         "{}",
@@ -543,8 +523,6 @@ fn a_seed_filling_two_slots_of_the_wallet_clears_both_not_here_marks() {
         bytes: d.into_bytes(),
     });
     faraday_core::testkit::confirm_wallets(&mut app);
-    app.press(Action::RVaults(false));
-    app.press(Action::RNext(WHERE));
     let w = app.restore().unwrap().wallet.unwrap();
     let slots = app.session.slots(&app.session.wallets[w]).len();
     assert_eq!(slots, 3);
@@ -561,27 +539,32 @@ fn a_seed_filling_two_slots_of_the_wallet_clears_both_not_here_marks() {
     );
 }
 
-/// Restore asked for 129 vaults sets up 128.
+/// Seeds has one row for a vault already on a stick, off by default, and
+/// Restore asks nothing else about vaults: no card, no counter.
 #[test]
-fn restore_asked_for_129_vaults_gets_128() {
+fn seeds_has_one_off_row_for_a_vault_on_a_stick_and_restore_asks_nothing_else() {
     let mut app = crate::common::process(Vec::new(), Vec::new(), Vec::new());
     app.press(Action::RestoreWallet);
     app.press(Action::RNext(KIND));
     app.press(Action::RSeeds);
-    app.press(Action::RVaults(true));
-    app.press(Action::RNext(WHERE));
-    app.press(Action::RVaultN(129));
-    assert_eq!(app.restore().unwrap().vaults.count, 128);
+    let text = drawn(&mut app);
+    assert!(app.offers(Action::RExistingVault(true)));
+    assert!(
+        text.contains("Use a vault I already have on a stick"),
+        "{text}"
+    );
+    for gone in ["Use vaults", "Sticks and vaults", "How many"] {
+        assert!(!text.contains(gone), "{gone} is asked: {text}");
+    }
+    assert!(!app.restore().unwrap().uses_existing_vault());
 }
 
-/// The description read first and one vault set up after it: Back up
-/// this wallet resumes the wallet's backup at the plan, with that vault.
+/// The description read first, then Seeds' row brings in a vault already
+/// on a stick before any seed is typed; Restore comes back on Seeds, and
+/// Back up this wallet resumes at the plan with that vault.
 #[test]
-fn a_description_read_first_then_a_vault_resumes_the_backup_with_the_vault() {
-    let mut shell = crate::common::Shell::new();
-    let mut d = crate::common::Disk::empty("S1", "KEYSTICK");
-    d.serial = Some(1);
-    shell.add(d);
+fn a_description_read_first_then_a_vault_on_a_stick_resumes_the_backup_with_the_vault() {
+    let mut shell = crate::common::Shell::light();
     let mut app = crate::common::process(Vec::new(), Vec::new(), Vec::new());
     crate::common::keep_time(&mut app);
     app.press(Action::RestoreWallet);
@@ -592,16 +575,9 @@ fn a_description_read_first_then_a_vault_resumes_the_backup_with_the_vault() {
         bytes: testkit::savings().into_bytes(),
     });
     faraday_core::testkit::confirm_wallets(&mut app);
-    app.press(Action::RVaults(true));
-    app.press(Action::RNext(WHERE));
-    app.press(Action::RVaultN(1));
-    app.press(Action::RNext(HOW_MANY));
-    assert_eq!(app.screen, Screen::BackupFlow);
-    shell.plug(&mut app, "S1");
-    shell.flow(&mut app, FlowAction::Tap);
-    shell.pull(&mut app, "S1");
-    crate::common::create_vault(&mut shell, &mut app, 0, "first vault phrase");
-    assert_eq!(app.screen, Screen::Restore, "back in Restore for the seeds");
+    assert_eq!(app.restore().unwrap().open, Some(SEEDS));
+    // The stick is read before any seed is typed.
+    crate::common::bring_in_vault(&mut shell, &mut app);
     assert_eq!(app.restore().unwrap().open, Some(SEEDS));
     type_seed(&mut app, &testkit::test_words("zebra"));
     let w = app.restore().unwrap().wallet.unwrap();
@@ -614,25 +590,19 @@ fn a_description_read_first_then_a_vault_resumes_the_backup_with_the_vault() {
     for k in (0..3u8).filter(|&k| usize::from(k) != held) {
         app.press(Action::RAbsent(k));
     }
+    faraday_core::testkit::keep_published(&mut app);
     app.press(Action::Seeds(S::Make));
     faraday_core::testkit::confirm_wallets(&mut app);
     made(&app);
     app.press(Action::RNext(CHECK));
-    shell.pump(&mut app);
-    let _ = app.frame();
     assert_eq!(app.restore().unwrap().open, Some(DONE));
-    assert!(
-        summary_is(&mut app, "Use vaults", "Yes"),
-        "{}",
-        drawn(&mut app)
-    );
     app.press(Action::Backup(w));
     assert_eq!(app.screen, Screen::Backup);
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     assert_eq!(
         app.backup().unwrap().answers.vaults.len(),
         1,
-        "the vault set up is the plan's"
+        "the vault brought in is the plan's"
     );
 }
 
@@ -700,8 +670,6 @@ fn back_and_done_return_to_where_restore_was_opened() {
     app.press(Action::RNext(KIND));
     app.press(Action::RNext(QUORUM));
     app.press(Action::RSeeds);
-    app.press(Action::RVaults(false));
-    app.press(Action::RNext(WHERE));
     type_seed(&mut app, &testkit::test_words("bacon"));
     type_seed(&mut app, &testkit::test_words("zebra"));
     type_seed(&mut app, &testkit::test_words("summer"));
@@ -763,8 +731,7 @@ fn the_end_cards_title_stays_inside_the_card_with_a_long_wallet_name() {
 
 /// Done, after It matches on a single key restored with no vaults.
 fn single_key_done() -> (Faraday, usize) {
-    let mut shell = crate::common::Shell::new();
-    let (mut app, w) = single_key_at_check(&mut shell, 0);
+    let (mut app, w) = single_key_at_check();
     app.press(Action::RNext(CHECK));
     let _ = app.frame();
     (app, w)
@@ -802,30 +769,41 @@ fn another_wallet_from_these_seeds_opens_create_at_the_next_account() {
     assert_eq!(c.slots, vec![Source::Here(fp)], "the restored seed");
 }
 
-/// Restored with two vaults, at Done.
-fn two_vaults_done() -> (crate::common::Shell, Faraday, usize) {
-    let mut shell = crate::common::Shell::new();
-    let (mut app, w) = single_key_at_check(&mut shell, 2);
+/// A single key restored from its typed seed with the vault of a stick
+/// brought in first, at Done.
+fn one_vault_done() -> (crate::common::Shell, Faraday, usize) {
+    let mut shell = crate::common::Shell::light();
+    let mut app = crate::common::process(Vec::new(), Vec::new(), Vec::new());
+    crate::common::keep_time(&mut app);
+    app.press(Action::RestoreWallet);
+    app.press(Action::RNext(KIND));
+    app.press(Action::RSeeds);
+    crate::common::bring_in_vault(&mut shell, &mut app);
+    type_seed(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
+    faraday_core::testkit::keep_published(&mut app);
+    app.press(Action::Seeds(S::Make));
+    faraday_core::testkit::confirm_wallets(&mut app);
+    let w = made(&app);
     app.press(Action::RNext(CHECK));
     let _ = app.frame();
     (shell, app, w)
 }
 
-/// With vaults set up before the seeds, Back up this wallet resumes the
-/// wallet's backup at the plan, with those vaults.
+/// With a vault brought in before the seeds, Back up this wallet resumes
+/// the wallet's backup at the plan, with that vault.
 #[test]
-fn with_vaults_back_up_this_wallet_resumes_at_the_plan_with_its_vaults() {
-    let (_shell, mut app, w) = two_vaults_done();
+fn with_a_vault_back_up_this_wallet_resumes_at_the_plan_with_its_vault() {
+    let (_shell, mut app, w) = one_vault_done();
     app.press(Action::Backup(w));
     assert_eq!(app.screen, Screen::Backup);
     assert_eq!(app.backup().unwrap().wallet, w);
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     assert_eq!(
         app.backup().unwrap().answers.vaults.len(),
-        2,
-        "the vaults set up are the plan's"
+        1,
+        "the vault brought in is the plan's"
     );
-    assert_eq!(app.vaults().open.len(), 2);
+    assert_eq!(app.vaults().open.len(), 1);
 }
 
 /// With vaults, Spend from this wallet opens the spend and the restored
@@ -833,7 +811,7 @@ fn with_vaults_back_up_this_wallet_resumes_at_the_plan_with_its_vaults() {
 #[test]
 fn with_vaults_spend_from_this_wallet_opens_at_once() {
     let c = testkit::compute();
-    let (_shell, mut app, w) = two_vaults_done();
+    let (_shell, mut app, w) = one_vault_done();
     assert!(
         app.held_keys_now(&c).is_empty(),
         "a restored key signs at once"
@@ -848,7 +826,7 @@ fn with_vaults_spend_from_this_wallet_opens_at_once() {
 /// part way; it resumes at the plan.
 #[test]
 fn the_wallets_card_and_backups_offer_the_unfinished_backup() {
-    let (_shell, mut app, w) = two_vaults_done();
+    let (_shell, mut app, w) = one_vault_done();
     app.press(Action::OpenWallet(w));
     assert!(drawn(&mut app).contains("Continue the backup"));
     assert!(app.offers(Action::Backup(w)));
@@ -858,7 +836,7 @@ fn the_wallets_card_and_backups_offer_the_unfinished_backup() {
     app.press(Action::Backup(w));
     assert_eq!(app.screen, Screen::Backup);
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
-    assert_eq!(app.backup().unwrap().answers.vaults.len(), 2);
+    assert_eq!(app.backup().unwrap().answers.vaults.len(), 1);
 
     // With no vaults, nothing is left part way.
     let (mut app, w) = single_key_done();
@@ -866,43 +844,15 @@ fn the_wallets_card_and_backups_offer_the_unfinished_backup() {
     assert!(!drawn(&mut app).contains("Continue the backup"));
 }
 
-/// A single key restored from its typed seed, with vaults (`count`) or
-/// none, up to Check.
-fn single_key_at_check(shell: &mut crate::common::Shell, count: usize) -> (Faraday, usize) {
+/// A single key restored from its typed seed, up to Check.
+fn single_key_at_check() -> (Faraday, usize) {
     let mut app = crate::common::process(Vec::new(), Vec::new(), Vec::new());
     crate::common::keep_time(&mut app);
     app.press(Action::RestoreWallet);
     app.press(Action::RNext(KIND));
     app.press(Action::RSeeds);
-    app.press(Action::RVaults(count > 0));
-    app.press(Action::RNext(WHERE));
-    if count > 0 {
-        for k in 1..=count {
-            let mut d = crate::common::Disk::empty(&format!("S{k}"), "KEYSTICK");
-            d.serial = Some(k as u32);
-            shell.add(d);
-        }
-        app.press(Action::RVaultN(count as u16));
-        app.press(Action::RNext(HOW_MANY));
-        assert_eq!(app.screen, Screen::BackupFlow);
-        for k in 1..=count {
-            let d = format!("S{k}");
-            shell.plug(&mut app, &d);
-            shell.flow(&mut app, FlowAction::Tap);
-            shell.pull(&mut app, &d);
-        }
-        for (v, phrase) in ["first vault phrase", "second vault phrase"]
-            .iter()
-            .enumerate()
-            .take(count)
-        {
-            crate::common::create_vault(shell, &mut app, v, phrase);
-        }
-        assert_eq!(app.screen, Screen::Restore, "back in Restore for the seeds");
-        assert_eq!(app.vaults().open.len(), count);
-    }
-    assert_eq!(app.restore().unwrap().open, Some(SEEDS));
     type_seed(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
+    faraday_core::testkit::keep_published(&mut app);
     app.press(Action::Seeds(S::Make));
     faraday_core::testkit::confirm_wallets(&mut app);
     let w = made(&app);
@@ -919,8 +869,6 @@ fn seed_alone_at_check(kind: Option<u8>, presses: &[Action]) -> Faraday {
     }
     app.press(Action::RNext(KIND));
     app.press(Action::RSeeds);
-    app.press(Action::RVaults(false));
-    app.press(Action::RNext(WHERE));
     type_seed(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     for a in presses {
         app.press(*a);
@@ -1001,8 +949,6 @@ fn a_mainnet_wallet_at_the_testnet_path_is_not_rebuilt_from_the_seed_alone() {
     app.press(Action::RestoreWallet);
     app.press(Action::RNext(KIND));
     app.press(Action::RSeeds);
-    app.press(Action::RVaults(false));
-    app.press(Action::RNext(WHERE));
     // BIP-39's second vector, published but no sample, so Mainnet takes it.
     type_seed(
         &mut app,
@@ -1050,8 +996,6 @@ fn a_bad_custom_path_says_why_there_is_no_make() {
     app.press(Action::RestoreWallet);
     app.press(Action::RNext(KIND));
     app.press(Action::RSeeds);
-    app.press(Action::RVaults(false));
-    app.press(Action::RNext(WHERE));
     type_seed(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     app.press(Action::Seeds(S::Custom));
     for _ in 0..20 {
@@ -1070,21 +1014,18 @@ fn kind_place(kind: NewKind) -> u8 {
         .expect("a single-key kind") as u8
 }
 
-/// Restore ends on Done, whatever the question of vaults was answered.
+/// Restore ends on Done, with no vault or with one brought in first.
 #[test]
 fn it_matches_opens_done_with_no_vaults() {
-    let mut shell = crate::common::Shell::new();
-    let (mut app, _) = single_key_at_check(&mut shell, 0);
+    let (mut app, _) = single_key_at_check();
     app.press(Action::RNext(CHECK));
     assert_eq!(app.screen, Screen::Restore);
     assert_eq!(app.restore().unwrap().open, Some(DONE));
 }
 
 #[test]
-fn it_matches_opens_done_with_two_vaults() {
-    let mut shell = crate::common::Shell::new();
-    let (mut app, _) = single_key_at_check(&mut shell, 2);
-    app.press(Action::RNext(CHECK));
+fn it_matches_opens_done_with_a_vault_brought_in() {
+    let (mut shell, mut app, _) = one_vault_done();
     shell.pump(&mut app);
     let _ = app.frame();
     assert_eq!(app.screen, Screen::Restore);
@@ -1204,8 +1145,6 @@ fn a_seed_with_a_slots_fingerprint_but_not_its_key_is_refused() {
         bytes: description.into_bytes(),
     });
     faraday_core::testkit::confirm_wallets(&mut app);
-    app.press(Action::RVaults(false));
-    app.press(Action::RNext(WHERE));
     assert_eq!(app.restore().unwrap().open, Some(SEEDS));
     let keys = app.session.keys.len();
     app.press(Action::RSlotWords);
@@ -1221,8 +1160,7 @@ fn a_seed_with_a_slots_fingerprint_but_not_its_key_is_refused() {
 #[test]
 fn checks_receive_rows_open_their_codes() {
     let c = testkit::compute();
-    let mut shell = crate::common::Shell::new();
-    let (mut app, w) = single_key_at_check(&mut shell, 0);
+    let (mut app, w) = single_key_at_check();
     for i in 0..2 {
         let want = app
             .session
@@ -1314,8 +1252,7 @@ fn a_restore_s_step_count_states_no_total() {
 
 #[test]
 fn check_names_what_it_matches_compares() {
-    let mut shell = crate::common::Shell::new();
-    let (mut app, _) = single_key_at_check(&mut shell, 0);
+    let (mut app, _) = single_key_at_check();
     let texts = drawn(&mut app);
     assert!(
         texts.contains("Same in your wallet software?"),
@@ -1333,8 +1270,6 @@ fn described_to_seeds() -> Faraday {
         bytes: testkit::savings().into_bytes(),
     });
     faraday_core::testkit::confirm_wallets(&mut app);
-    app.press(Action::RVaults(false));
-    app.press(Action::RNext(WHERE));
     assert_eq!(app.restore().unwrap().open, Some(SEEDS));
     app
 }
@@ -1389,8 +1324,6 @@ fn a_key_already_loaded_typed_into_a_slot_fills_it() {
     app.press(Action::RNext(KIND));
     app.press(Action::RNext(QUORUM));
     app.press(Action::RSeeds);
-    app.press(Action::RVaults(false));
-    app.press(Action::RNext(WHERE));
     type_seed(&mut app, &testkit::test_words("bacon"));
     assert_eq!(app.session.keys.len(), 1, "no second copy");
     let s = app.restore().unwrap().seeds.as_ref().unwrap();

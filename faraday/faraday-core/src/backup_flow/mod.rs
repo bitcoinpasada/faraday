@@ -19,7 +19,6 @@ pub(crate) mod figures;
 pub mod gpg_restore;
 pub(crate) mod gpg_restore_screen;
 pub(crate) mod layout;
-pub(crate) mod layout_screen;
 mod place;
 pub(crate) mod screen;
 mod seed_names;

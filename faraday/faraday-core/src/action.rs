@@ -557,12 +557,8 @@ pub enum Action {
     /// The Keys card's row "Use a vault I already have on a stick": on
     /// brings in that stick and unlocks its vault before any key exists.
     CExistingVault(bool),
-    /// The same on Restore.
-    RVaults(bool),
-    /// The same on Restore.
-    RVaultN(u16),
-    /// The same on Restore.
-    RSticks(u16),
+    /// The same on Restore's Seeds card.
+    RExistingVault(bool),
     /// **Add a passphrase** on the plan's check lines: Create opens on
     /// its Keys with the key in its slot and the fields open
     /// (`docs/BACKUP-FLOW.md` §10.3).
@@ -1686,9 +1682,7 @@ impl Faraday {
             | Action::RestoreWallet
             | Action::RestoreFor(..)
             | Action::RStep(..)
-            | Action::RVaults(..)
-            | Action::RVaultN(..)
-            | Action::RSticks(..)
+            | Action::RExistingVault(..)
             | Action::RNext(..)
             | Action::RKind(..)
             | Action::RMoreKinds

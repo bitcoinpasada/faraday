@@ -2298,21 +2298,6 @@ fn a_sticks_files_written_show_on_the_sticks_card_on_the_next_frame() {
     assert!(app.offers(Action::Flow(F::WalletLock)), "Lock and write");
 }
 
-/// The vault question, in Restore, says under it
-/// that vaults already on sticks are brought in there, not later
-/// (`docs/BACKUP-FLOW.md` §17.21 item 5).
-#[test]
-fn restore_vault_question_says_vaults_on_sticks_are_brought_in_here() {
-    const LINE: &str = "Vaults already on sticks are brought in here, not later.";
-    let mut app = process(Vec::new(), Vec::new(), Vec::new());
-    app.press(Action::RestoreWallet);
-    if app.restore().unwrap().open != Some(faraday_core::rstep::WHERE) {
-        app.press(Action::RStep(faraday_core::rstep::WHERE));
-    }
-    assert!(has(&mut app, "Will you use vaults as part of this backup?"));
-    assert!(has(&mut app, LINE));
-}
-
 /// Change the plan, from a wallet flow's cards, opens the flow's own
 /// board, as it was left (`docs/BACKUP-FLOW.md` §17.21 item 11).
 #[test]

@@ -17,7 +17,7 @@ use crate::common::{add_key, type_text};
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::bip85::{Bip85App, pstep};
 use faraday_core::create::NewKind;
-use faraday_core::rstep::{CHECK, DESCRIPTION, KIND, QUORUM, SEEDS, WHERE};
+use faraday_core::rstep::{CHECK, DONE, KIND, QUORUM, SEEDS};
 use faraday_core::seeds::SeedsAction as S;
 use faraday_core::silent::sstep;
 use faraday_core::spend_backup::{CardId, SpendBackupAction as F, page};
@@ -111,46 +111,39 @@ fn restore_back_opens_the_kind_as_chosen_and_forward_the_quorum_again() {
     );
 }
 
-#[test]
-fn restore_the_answer_already_chosen_moves_on_again() {
-    let mut app = testkit::started();
+/// Restore up to Done: a single key made from one seed.
+fn restore_at_check(app: &mut Faraday) {
     app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::RestoreWallet);
-    // The kind ticked to begin with is taken by pressing it.
     app.press(Action::RKind(0));
-    assert_eq!(restore_open(&app), Some(DESCRIPTION));
     app.press(Action::RSeeds);
-    assert_eq!(restore_open(&app), Some(WHERE));
-    app.press(Action::RVaults(false));
-    assert_eq!(restore_open(&app), Some(SEEDS), "No moves on to the keys");
-    back(&mut app);
-    assert_eq!(restore_open(&app), Some(WHERE));
-    assert_eq!(app.restore().unwrap().vaults.answer, Some(false));
-    app.press(Action::RVaults(false));
-    assert_eq!(restore_open(&app), Some(SEEDS));
+    assert_eq!(
+        restore_open(app),
+        Some(SEEDS),
+        "no question before the seeds"
+    );
+    app.press(Action::RSlotWords);
+    type_text(app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
+    app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(app);
+    app.press(Action::Seeds(S::Make));
+    assert_eq!(restore_open(app), Some(CHECK));
+    app.press(Action::RNext(CHECK));
+    assert_eq!(restore_open(app), Some(DONE), "Done follows Check");
 }
 
 #[test]
-fn restore_use_vaults_draws_no_continue_before_or_after_the_answer() {
-    let mut app = testkit::started();
-    app.press(Action::Nav(Screen::WalletsStart));
-    app.press(Action::RestoreWallet);
-    app.press(Action::RKind(0));
-    app.press(Action::RSeeds);
-    assert_eq!(restore_open(&app), Some(WHERE));
+fn restore_asks_nothing_about_vaults_after_check_and_done_draws_no_continue() {
+    let mut app = crate::common::process(Vec::new(), Vec::new(), Vec::new());
+    crate::common::keep_time(&mut app);
+    restore_at_check(&mut app);
     let _ = app.frame();
     assert!(
         !app.drawn_texts().iter().any(|t| t == "Continue"),
-        "an unanswered Use vaults has no Continue to grey"
+        "Done has no Continue"
     );
-    app.press(Action::RVaults(false));
-    assert_eq!(restore_open(&app), Some(SEEDS), "No moves on by itself");
     back(&mut app);
-    assert_eq!(restore_open(&app), Some(WHERE));
-    assert!(
-        !app.drawn_texts().iter().any(|t| t == "Continue"),
-        "an answered Use vaults has none either"
-    );
+    assert_eq!(restore_open(&app), Some(CHECK));
 }
 
 #[test]
@@ -162,14 +155,8 @@ fn restore_a_closed_step_with_no_answer_shows_no_change() {
     let _ = app.frame();
     assert!(
         !app.drawn_texts().iter().any(|t| t == "Change"),
-        "Use vaults is not answered: no Change beside it"
+        "nothing is answered yet: no Change beside it"
     );
-    // Answered, it is a closed row with its value and Change.
-    app.press(Action::RKind(0));
-    app.press(Action::RSeeds);
-    app.press(Action::RVaults(false));
-    let _ = app.frame();
-    assert!(app.drawn_texts().iter().any(|t| t == "Change"));
 }
 
 #[test]
@@ -180,7 +167,6 @@ fn restore_once_the_wallet_is_made_back_leaves_from_check() {
     app.press(Action::RestoreWallet);
     app.press(Action::RKind(0));
     app.press(Action::RSeeds);
-    app.press(Action::RVaults(false));
     app.press(Action::RSlotWords);
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     app.press(Action::EntryAdd);

@@ -1,28 +1,14 @@
 //! `Screen::Restore`: restoring a wallet.
 
-use super::parts::{
-    buttons_and_next, descriptor_row, first_addresses, kind_rows, vaults_answer_line,
-};
+use super::parts::{buttons_and_next, descriptor_row, first_addresses, kind_rows, next_button};
 use crate::drawing::{Scrolled, View};
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, short};
 use crate::wallet::{FileKind, Session, fp_text};
 use crate::{Action, Screen, flow};
-use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, GAP, GAP_SMALL, LABEL_L, LABEL_M};
+use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, GAP, GAP_SMALL, LABEL_L, LABEL_M, TOUCH};
 use faraday_ui::parts::wrap_buttons;
-
-/// The closed line of Restore's card of vaults: the answer.
-fn create_flow_summary_restore(app: &View, k: u8) -> String {
-    let Some(r) = app.restore.state() else {
-        return String::new();
-    };
-    if k == crate::rstep::HOW_MANY {
-        r.vaults.count.to_string()
-    } else {
-        vaults_answer_line(r.vaults).to_string()
-    }
-}
 
 pub(crate) const RSTEPS: [&str; crate::rstep::COUNT as usize] = [
     EN.app_kind,
@@ -31,9 +17,6 @@ pub(crate) const RSTEPS: [&str; crate::rstep::COUNT as usize] = [
     EN.app_keys,
     EN.app_check,
     EN.app_done,
-    EN.backup_flow_card_use_vaults,
-    // Sticks and vaults: named by the medium where it is drawn.
-    "",
 ];
 
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
@@ -49,11 +32,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let cards: Vec<flow::Card> = steps
         .iter()
         .map(|&k| flow::Card {
-            title: if k == rstep::HOW_MANY {
-                app.medium.and_vaults().to_string()
-            } else {
-                RSTEPS[k as usize].to_string()
-            },
+            title: RSTEPS[k as usize].to_string(),
             summary: match k {
                 rstep::KIND => match wl.filter(|_| r.described) {
                     Some(w) => String::from(&*Session::shape(w)),
@@ -67,7 +46,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     _ if r.done[k as usize] => EN.restore_none.to_string(),
                     _ => String::new(),
                 },
-                rstep::WHERE | rstep::HOW_MANY => create_flow_summary_restore(app, k),
                 rstep::SEEDS => {
                     let (here, all) = restore_filled(app);
                     fill(EN.restore_of_filled, &[&here.to_string(), &all.to_string()])
@@ -83,9 +61,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             done: r.done[k as usize],
             open: r.open == Some(k),
             // Read from a description, they are not to be changed.
-            default: (!r.described && (k == rstep::KIND || k == rstep::QUORUM))
-                // Unanswered, it has no value to change.
-                || (k == rstep::WHERE && r.vaults.answer.is_some()),
+            default: !r.described && (k == rstep::KIND || k == rstep::QUORUM),
             toggle: Action::RStep(k),
             lead: None,
         })
@@ -183,6 +159,7 @@ fn restore_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             // cosigners' keys, and the flow goes to Seeds.
             if !r.described {
                 let label = EN.restore_have_description;
+                let mut labels: Vec<(usize, String)> = Vec::new();
                 if ui.compact {
                     cy += ui.wrap_as((x, cy, w), LABEL_L, Role::OnSurface, label) + 8.0;
                 } else {
@@ -193,8 +170,20 @@ fn restore_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     Style::Secondary,
                     Action::ScanFor(crate::Ask::Description),
                 )];
-                if !description_files(app).is_empty() {
-                    items.push((EN.restore_from_files, Style::Secondary, Action::RFromFiles));
+                let files = description_files(app);
+                match files.as_slice() {
+                    [] => {}
+                    [_] => {
+                        items.push((EN.restore_from_files, Style::Secondary, Action::RFromFiles))
+                    }
+                    _ => {
+                        for (k, name) in &files {
+                            labels.push((*k, fill(EN.restore_description_source, &[name])));
+                        }
+                    }
+                }
+                for (k, l) in &labels {
+                    items.push((l.as_str(), Style::Secondary, Action::RUse(*k)));
                 }
                 if ui.compact {
                     cy += wrap_buttons(ui, x, cy, w, BUTTON_H, &items);
@@ -240,16 +229,6 @@ fn restore_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             );
         }
         rstep::DESCRIPTION => cy += restore_description(app, ui, x, cy, w),
-        rstep::WHERE => {
-            if let Some(h) = crate::backup_flow::wallet_screen::restore_where(app, ui, x, cy, w) {
-                cy += h;
-            }
-        }
-        rstep::HOW_MANY => {
-            if let Some(h) = crate::backup_flow::wallet_screen::restore_count(app, ui, x, cy, w) {
-                cy += h;
-            }
-        }
         rstep::SEEDS => cy += restore_seeds(app, ui, x, cy, w),
         rstep::CHECK => {
             if let Some(i) = r.wallet.filter(|_| r.done[rstep::SEEDS as usize])
@@ -308,18 +287,12 @@ fn restore_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
     cy - y
 }
 
-/// Restore's Description card: Scan descriptor, From Files (each
-/// description, the shares of a split one), the stick and the vaults,
-/// or the wallet from its seeds alone: **I have the seed** for a single
+/// Restore's Description card: the shares of a split description, the
+/// stick and the vaults, or the wallet from its seeds alone: **I have the seed** for a single
 /// key, which most backups of one are, **I do not have it** for several.
 fn restore_description(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let r = app.restore.state().expect("restore");
     let mut cy = y;
-    let files = description_files(app);
-    let labels: Vec<String> = files
-        .iter()
-        .map(|(_, n)| fill(EN.restore_description_source, &[n]))
-        .collect();
     let mut items: Vec<(&str, Style, Action)> = Vec::new();
     if !r.kind().multi() {
         items.push((
@@ -327,14 +300,6 @@ fn restore_description(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             Style::Primary,
             Action::RSeeds,
         ));
-    }
-    items.push((
-        EN.restore_description_scan,
-        Style::Secondary,
-        Action::ScanFor(crate::Ask::Description),
-    ));
-    for ((k, _), l) in files.iter().zip(&labels) {
-        items.push((l.as_str(), Style::Secondary, Action::RUse(*k)));
     }
     if r.kind().multi() {
         items.push((EN.restore_description_i, Style::Secondary, Action::RSeeds));
@@ -423,6 +388,33 @@ fn restore_seeds(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         return 0.0;
     };
     let mut cy = y;
+    // A vault already on a stick comes in before any seed is typed: off
+    // until pressed, and a stick is never read while a seed is in memory.
+    let on = r.uses_existing_vault();
+    if !r.done[crate::rstep::SEEDS as usize] && (on || !r.seeds_in(&app.session)) {
+        cy += ui.switch_row(
+            (x, cy, w),
+            EN.create_use_existing_vault,
+            on,
+            Action::RExistingVault(!on),
+        );
+    }
+    if let (true, Some(i)) = (
+        app.restore_setup_pending(),
+        app.wallet_flow_of_owner(r.owner),
+    ) {
+        cy += ui.wrap_as(
+            (x, cy + GAP_SMALL, w),
+            BODY_M,
+            Role::OnSurfaceVariant,
+            EN.create_vault_to_unlock,
+        ) + GAP_SMALL;
+        let show = Action::Flow(crate::backup_flow::steps::FlowAction::Show(i));
+        if next_button(ui, x, cy, w, app.medium.bring_in(), show) {
+            cy += TOUCH;
+        }
+        return cy - y;
+    }
     if r.described {
         cy += ui.wrap_as(
             (x, cy, w),

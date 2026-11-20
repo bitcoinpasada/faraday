@@ -28,9 +28,6 @@ pub(crate) fn restore_tour(t: &mut Tour) -> Result<(), String> {
         .position(|it| it.name == "savings-wallet.txt")
         .ok_or("no savings-wallet.txt in Files")?;
     t.press(Action::RUse(i));
-    // The question of vaults, in its turn before the seeds.
-    t.press(Action::RVaults(false));
-    t.press(Action::RNext(rstep::WHERE));
     faraday_core::testkit::confirm_wallets(&mut t.app);
     t.press(Action::RSlotWords);
     t.type_key(0);
@@ -74,8 +71,6 @@ pub(crate) fn restore_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::RestoreWallet);
     t.press(Action::RNext(rstep::KIND));
     t.press(Action::RSeeds);
-    t.press(Action::RVaults(false));
-    t.press(Action::RNext(rstep::WHERE));
     t.press(Action::RSlotWords);
     type_text(t, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     t.press(Action::EntryAdd);

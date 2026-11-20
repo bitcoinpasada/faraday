@@ -25,8 +25,6 @@ pub(crate) fn seeds_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::RNext(faraday_core::rstep::QUORUM));
     t.shot("restore-type-seeds")?;
     t.press(Action::RSeeds);
-    t.press(Action::RVaults(false));
-    t.press(Action::RNext(faraday_core::rstep::WHERE));
     for n in [0, 1] {
         t.press(Action::RSlotWords);
         t.type_key(n);

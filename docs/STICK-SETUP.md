@@ -3,7 +3,7 @@
 **Kind:** Reference
 **Status:** Built (F175; `faraday/faraday-core/src/backup_flow/`, `faraday/faraday-disk/src/lib.rs`)
 
-Make a new wallet and Restore put the vaults and the sticks on one card:
+Back up (and, with no wallet flow, its vaults) puts the vaults and the sticks on one card. Make a new wallet and Restore ask nothing about vaults, and have one row, Keys', for a vault already on a stick (`docs/BACKUP-FLOW.md` §10.2, §11); what follows describes the card that Back up opens:
 the person says how many of each, lays the vaults onto the sticks as on
 the backup board, and then sees each stick drawn on screen as it is
 brought in and checked. Every choice here is the owner's of 2026-10-30
@@ -13,9 +13,9 @@ brought in and checked. Every choice here is the owner's of 2026-10-30
 
 ### 2.1 Where it is
 
-Make a new wallet and Restore, after **Use vaults** answered Yes
-(`docs/BACKUP-FLOW.md` §10.2 item 1), in place of **Number of vaults**
-and before **Bring in the sticks**. Its title: **Sticks and vaults**.
+Back up. It was once asked in Make a new wallet and Restore after a
+**Use vaults** question, which both have dropped (`docs/BACKUP-FLOW.md`
+§10.2, §11). Its title: **Sticks and vaults**.
 
 ### 2.2 The counts
 

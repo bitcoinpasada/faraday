@@ -57,8 +57,6 @@ macro_rules! words_screens_restore {
     /// Text in `restore_description`.
     restore_description_i_have: "I have the seed",
     /// Text in `restore_description`.
-    restore_description_scan: "Scan descriptor",
-    /// Text in `restore_description`.
     restore_description_i: "I do not have it",
     /// Line in `restore_description`.
     restore_description_shares: "Shares of a split backup",

@@ -212,7 +212,7 @@ impl Faraday {
         (ask.answer == Some(true)).then_some(ask.count.max(1))
     }
 
-    /// The answer to the vault question of Make a new wallet or Restore
+    /// The answer to the vault question of Make a new wallet
     /// number `owner` changed to no, or the count changed: the setup under
     /// way follows. No vaults leaves nothing to set up; another count
     /// adds or drops the last vaults and keeps the rest as they are.
@@ -375,7 +375,7 @@ impl Faraday {
             if let Some(w) = self.restore.state().and_then(|r| r.wallet) {
                 self.wallet_flow_attach(w, owner);
             }
-            self.restore.open_seeds_after_description();
+            self.restore.open_after_setup();
             self.screen = Screen::Restore;
             self.out.redraw();
             return;
@@ -2911,8 +2911,6 @@ impl Faraday {
                     crate::rstep::KIND,
                     crate::rstep::QUORUM,
                     crate::rstep::DESCRIPTION,
-                    crate::rstep::WHERE,
-                    crate::rstep::HOW_MANY,
                 ] {
                     r.done[k as usize] = true;
                 }

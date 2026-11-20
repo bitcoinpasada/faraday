@@ -408,34 +408,8 @@ macro_rules! words_vm_names {
     backup_flow_written_place: "Written to {}",
     /// Make card of a wallet's flow.
     backup_flow_card_make_wallet: "Make the keys",
-    /// Make a new wallet's and Restore's card before the keys: whether
-    /// vaults are part of the backup.
-    backup_flow_card_use_vaults: "Use vaults",
-    /// The question on that card.
-    backup_flow_use_vaults_question: "Will you use vaults as part of this backup?",
-    /// The muted line under that question (`docs/BACKUP-FLOW.md` §17.21
-    /// item 5).
-    backup_flow_vaults_on_sticks: "Vaults already on sticks are brought in here, not later.",
-    /// The second stepper's label. `{}`: `medium.caps()`.
-    backup_flow_stick_count_label: "{}",
-    /// A vault's segment: it is made new.
-    backup_flow_layout_new: "New",
-    /// A vault's segment: it is on a stick already. `{}`: `medium.a()`.
-    backup_flow_layout_existing: "Already on {}",
-    /// A vault's segment as `backup_flow_layout_existing`, where that is wider than the line.
-    backup_flow_layout_existing_short: "Existing",
     /// A vault chip's menu title and its first item, naming the sticks.
     backup_flow_layout_put_on: "Put on…",
-    /// A check: `{}`: the vault, `medium.noun()`.
-    backup_flow_layout_on_none: "{} is on no {}",
-    /// A check: `{}`: two vaults, the stick.
-    backup_flow_layout_share_two: "{} and {} share {}: losing it loses both",
-    /// A check: `{}`: the vaults, the stick.
-    backup_flow_layout_share_many: "{} share {}: losing it loses all of them",
-    /// A check: `{}`: the stick.
-    backup_flow_layout_stick_empty: "{} holds no vault",
-    /// The count's label.
-    backup_flow_vault_count_label: "Vaults",
     /// A stick named by its vault before the keys exist: "the stick for
     /// Vault 1".
     backup_flow_stick_for_vault: "the {} for {}",

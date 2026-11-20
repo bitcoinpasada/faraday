@@ -342,8 +342,6 @@ fn the_row_goes_when_the_flow_is_finished() {
     app.press(Action::RestoreWallet);
     app.press(Action::RNext(rstep::KIND));
     app.press(Action::RSeeds);
-    app.press(Action::RVaults(false));
-    app.press(Action::RNext(rstep::WHERE));
     app.press(Action::Nav(Screen::Settings));
     assert!(offered(&mut app, Action::Resume(Going::Restore)));
     let names = sidebar_texts(&mut app);
@@ -574,8 +572,6 @@ fn restores_cancel_ends_it_and_removes_its_row() {
     app.press(Action::RestoreWallet);
     app.press(Action::RNext(rstep::KIND));
     app.press(Action::RSeeds);
-    app.press(Action::RVaults(false));
-    app.press(Action::RNext(rstep::WHERE));
     assert!(row_on_settings(&mut app, Going::Restore));
     app.press(Action::Resume(Going::Restore));
     app.press(Action::CancelFlow);

@@ -129,13 +129,6 @@ impl BackupFlowArea {
         }
     }
 
-    /// The card of `owner` has `n` sticks.
-    pub(crate) fn layout_sticks(&mut self, owner: u64, n: usize) {
-        if let Some(l) = self.layout_edit(owner) {
-            l.set_sticks(n);
-        }
-    }
-
     /// The card of `owner` is let go.
     pub(crate) fn layout_drop(&mut self, owner: u64) {
         self.layouts.retain(|l| l.owner() != owner);

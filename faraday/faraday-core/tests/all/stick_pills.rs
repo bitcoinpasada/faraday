@@ -110,27 +110,33 @@ fn several_sticks_may_be_in_at_once() {
     }
 }
 
-/// A restore with `count` vaults to bring in, which asks for their sticks.
+/// A restore that brings in a vault already on a stick, with `count`
+/// sticks in its plan (the flow's slots), which asks for their sticks.
 fn bring_in_vaults(app: &mut Faraday, count: usize) {
     app.press(Action::RestoreWallet);
-    app.press(Action::RVaults(true));
-    app.press(Action::RNext(faraday_core::rstep::WHERE));
-    app.press(Action::RVaultN(count as u16));
-    app.press(Action::RNext(faraday_core::rstep::HOW_MANY));
+    app.press(Action::RKind(0));
+    app.press(Action::RSeeds);
+    app.press(Action::RExistingVault(true));
     assert_eq!(app.screen, Screen::BackupFlow);
+    let i = app.backup_flows().len() - 1;
+    faraday_core::testkit::change_flows(app, |flows| {
+        let first = flows[i].slots[0].clone();
+        flows[i].plan.places = (0..count).map(|v| vec![v]).collect();
+        flows[i].plan.vaults = vec![Default::default(); count];
+        flows[i].slots = (0..count)
+            .map(|v| Slot {
+                target: Target::Place(v),
+                ..first.clone()
+            })
+            .collect();
+    });
 }
 
 #[test]
 fn with_more_vaults_than_a_pill_can_number_every_pill_is_its_own_stick() {
     let mut shell = Shell::new();
     let mut app = desktop(&mut shell);
-    app.press(Action::RestoreWallet);
-    app.press(Action::RVaults(true));
-    app.press(Action::RNext(faraday_core::rstep::WHERE));
-    app.press(Action::RVaultN(1024));
-    app.press(Action::RSticks(1024));
-    app.press(Action::RNext(faraday_core::rstep::HOW_MANY));
-    assert_eq!(app.screen, Screen::BackupFlow);
+    bring_in_vaults(&mut app, 1024);
     let pills = app.stick_pills();
     let last = pills.last().expect("pills").n;
     assert_eq!(last, 255);

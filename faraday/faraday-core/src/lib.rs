@@ -693,10 +693,6 @@ impl Default for VaultAsk {
 /// one checklist item number each.
 const MAX_VAULTS: usize = faraday_plan::MAX_VAULTS;
 
-/// The most sticks a backup is set up with at once; a count past it is
-/// not a count a person means.
-const MAX_STICKS: usize = faraday_plan::MAX_STICKS;
-
 /// What [`Action::About`] names for a page's walk-through rather than a step's.
 pub(crate) const ABOUT_PAGE: u8 = u8::MAX;
 
@@ -720,12 +716,8 @@ pub mod rstep {
     pub const CHECK: u8 = 4;
     /// What next.
     pub const DONE: u8 = 5;
-    /// Whether vaults are part of the backup, before Seeds.
-    pub const WHERE: u8 = 6;
-    /// How many vaults, before Seeds.
-    pub const HOW_MANY: u8 = 7;
     /// How many cards.
-    pub const COUNT: u8 = 8;
+    pub const COUNT: u8 = 6;
 }
 
 pub mod codex32_backup;
