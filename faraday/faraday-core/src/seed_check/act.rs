@@ -335,6 +335,17 @@ fn take_words(app: &mut Faraday, text: &Text) {
     }
 }
 
+/// The words a Krux code opened, read from the Seed card's scanner or From
+/// Files: taken as typed words are. Whether the card was on show to take
+/// them.
+pub(crate) fn take_scanned_words(app: &mut Faraday, words: &str) -> bool {
+    if !here(app) || st(app).is_none() {
+        return false;
+    }
+    take_words(app, &Text::of(words));
+    true
+}
+
 /// A row of the forms the Seed card takes: its parts are typed there.
 fn form_pick(app: &mut Faraday, i: u8) {
     let Some(&form) = super::FORMS.get(usize::from(i)) else {
@@ -352,7 +363,7 @@ fn form_pick(app: &mut Faraday, i: u8) {
 /// if typed. Whether it was one, which is only when the flow is on show
 /// and `form` is in [`FORMS`](super::FORMS).
 pub(crate) fn take_part(app: &mut Faraday, form: crate::forms::Form, text: &str) -> bool {
-    if !here(app) || !super::FORMS.contains(&form) {
+    if !here(app) || form == crate::forms::Form::Krux || !super::FORMS.contains(&form) {
         return false;
     }
     let Some(s) = st(app) else { return false };
@@ -427,7 +438,8 @@ pub(crate) fn form_done(app: &mut Faraday) {
                 s.open = Some(step::PASSPHRASE);
             }
         }
-        // Krux's code is not taken here yet: its entry goes in `FORMS`.
+        // Krux's code is read by its scanner or From Files, never put
+        // together from parts.
         Form::Words | Form::Krux => {}
     }
 }

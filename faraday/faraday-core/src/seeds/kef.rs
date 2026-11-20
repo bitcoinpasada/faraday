@@ -94,6 +94,9 @@ pub(crate) enum Lands {
     WalletKey(usize),
     /// The Spend tab's What do you have?.
     Intake,
+    /// My seed makes my wallet's Seed card, which opened the scanner or
+    /// From Files: words go on as typed words, to its Passphrase card.
+    SeedCheck,
 }
 
 /// The sheet's state, wiped when it closes.
@@ -312,7 +315,19 @@ pub(crate) fn kef_code_scanned(app: &mut Faraday, code: Zeroizing<Vec<u8>>) {
     };
     drop(code);
     app.scan_close();
-    kef_open_sheet(app, h.envelope, 0, (false, Lands::SeedSheet));
+    let lands = read_lands(app);
+    kef_open_sheet(app, h.envelope, 0, (false, lands));
+}
+
+/// Where a seed a code read by **Scan a Krux code** or **From Files** goes:
+/// the Seed card of My seed makes my wallet when that is on show, else the
+/// seed sheet.
+fn read_lands(app: &Faraday) -> Lands {
+    if crate::seed_check::here(app) {
+        Lands::SeedCheck
+    } else {
+        Lands::SeedSheet
+    }
 }
 
 /// Costs what [`kef_header`] costs. **From Files** on Inbox file `i`: the
@@ -325,7 +340,10 @@ pub(crate) fn kef_file(app: &mut Faraday, i: usize) {
         return;
     };
     match kef_header(app, &code) {
-        Some((h, _)) => kef_open_sheet(app, h.envelope, 0, (false, Lands::SeedSheet)),
+        Some((h, _)) => {
+            let lands = read_lands(app);
+            kef_open_sheet(app, h.envelope, 0, (false, lands));
+        }
         None => app.toast(EN.kef_read_not_code),
     }
 }
@@ -576,6 +594,11 @@ fn kef_seed_lands(app: &mut Faraday, lands: Lands, typed: &str) {
         Lands::Intake => {
             app.spend_backup_scan(None);
             app.spend_backup_intake_seed(typed);
+        }
+        Lands::SeedCheck => {
+            if !crate::seed_check::take_scanned_words(app, typed) {
+                app.seed_scanned(typed, kind);
+            }
         }
     }
 }

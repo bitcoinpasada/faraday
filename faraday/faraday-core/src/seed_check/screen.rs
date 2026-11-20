@@ -156,6 +156,11 @@ pub(crate) fn check_step(app: &View, s: &SeedState, ui: &mut Ui, at: (f32, f32, 
 }
 
 fn seed(app: &View, s: &SeedState, ui: &mut Ui, (x, y, w): (f32, f32, f32), loaded: bool) -> f32 {
+    if s.typing_words() && app.entry.state().form == crate::forms::Form::Krux {
+        // Add a key's Krux code form: its two ways to read a code.
+        let end = crate::seeds::kef::read_rows(app, ui, (x, y, w), true);
+        return end + GAP;
+    }
     if s.typing_words() && app.entry.state().form != crate::forms::Form::Words {
         // One of the forms of Add a key, drawn by its own code, with
         // Continue putting the parts together.

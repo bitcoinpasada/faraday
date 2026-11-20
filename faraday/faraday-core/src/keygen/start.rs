@@ -79,8 +79,7 @@ impl Start {
             Form::Slip39 => Start::Shares,
             Form::Codex32 => Start::Codex32,
             Form::Xor => Start::Xor,
-            // Add a key's Krux code form is on its own page, not a choice here.
-            Form::Krux => Start::Words,
+            Form::Krux => Start::Krux,
         }
     }
 }

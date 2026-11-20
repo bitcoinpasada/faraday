@@ -1285,3 +1285,106 @@ fn home_from_a_krux_form_opened_for_a_slot_leaves_no_slot_waiting() {
     assert!(typed_key_loaded(&app));
     assert!(!key_2_filled(&app));
 }
+
+/// My seed makes my wallet on its Seed card, with the Krux code row opened.
+fn check_krux() -> Faraday {
+    use faraday_core::seed_check::{FORMS, SeedAction as S};
+    let mut app = testkit::started();
+    app.press(Action::Nav(Screen::Catalog));
+    let tile = faraday_core::catalog::TILES
+        .iter()
+        .position(|t| t.name == "My seed makes my wallet")
+        .unwrap();
+    app.press(Action::Catalog(tile as u8));
+    let at = FORMS
+        .iter()
+        .position(|f| *f == faraday_core::forms::Form::Krux)
+        .unwrap();
+    app.press(Action::SeedCheck(S::Form(at as u8)));
+    app
+}
+
+/// The fingerprint the check holds for the words typed, no passphrase.
+fn typed_fingerprint() -> faraday_bip::keys::Fingerprint {
+    use faraday_core::seed_check::SeedAction as S;
+    let mut app = testkit::started();
+    app.press(Action::Nav(Screen::Catalog));
+    let tile = faraday_core::catalog::TILES
+        .iter()
+        .position(|t| t.name == "My seed makes my wallet")
+        .unwrap();
+    app.press(Action::Catalog(tile as u8));
+    app.press(Action::SeedCheck(S::Type));
+    testkit::type_words(&mut app, std::str::from_utf8(WORDS).unwrap());
+    app.press(Action::SeedCheck(S::Words));
+    app.press(Action::SeedCheck(S::NoPass));
+    app.session.keys.check_facts().unwrap().fingerprint
+}
+
+#[test]
+fn a_krux_code_scanned_on_the_seed_card_gives_the_fingerprint_of_the_words_typed() {
+    use faraday_core::seed_check::SeedAction as S;
+    let mut app = check_krux();
+    assert!(has(&mut app, "Scan a Krux code"));
+    app.press(Action::ScanKef);
+    let code = sealed_raw(&mut app, WORDS);
+    read(&mut app, &code);
+    assert_eq!(app.sheet, Some(Sheet::KefRead));
+    open_with(&mut app, "note key");
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.screen, Screen::SeedCheck);
+    assert!(has(&mut app, "No passphrase"));
+    app.press(Action::SeedCheck(S::NoPass));
+    assert_eq!(
+        app.session.keys.check_facts().unwrap().fingerprint,
+        typed_fingerprint()
+    );
+}
+
+#[test]
+fn a_krux_code_from_files_on_the_seed_card_gives_the_fingerprint_of_the_words_typed() {
+    use faraday_core::seed_check::SeedAction as S;
+    let mut app = check_krux();
+    let code = sealed_raw(&mut app, WORDS);
+    testkit::inbox_file(&mut app, "krux.kef", code);
+    assert!(has(&mut app, "From Files · krux.kef"));
+    app.press(Action::KefFile(0));
+    assert_eq!(app.sheet, Some(Sheet::KefRead));
+    open_with(&mut app, "note key");
+    assert_eq!(app.screen, Screen::SeedCheck);
+    app.press(Action::SeedCheck(S::NoPass));
+    assert_eq!(
+        app.session.keys.check_facts().unwrap().fingerprint,
+        typed_fingerprint()
+    );
+}
+
+#[test]
+fn cancel_on_the_passphrase_leaves_the_seed_card_with_nothing_taken() {
+    let mut app = check_krux();
+    app.press(Action::ScanKef);
+    let code = sealed_raw(&mut app, WORDS);
+    read(&mut app, &code);
+    assert_eq!(app.sheet, Some(Sheet::KefRead));
+    app.press(Action::Cancel);
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.screen, Screen::SeedCheck);
+    assert!(has(&mut app, "Scan a Krux code"));
+    assert!(app.session.keys.check_facts().is_none());
+    assert!(!app.session.keys.holds_secret());
+}
+
+#[test]
+fn lock_with_the_passphrase_sheet_open_from_the_seed_card_leaves_nothing() {
+    let mut app = check_krux();
+    app.press(Action::ScanKef);
+    let code = sealed_raw(&mut app, WORDS);
+    read(&mut app, &code);
+    assert_eq!(app.sheet, Some(Sheet::KefRead));
+    type_text(&mut app, "note key");
+    app.press(Action::Lock);
+    let _ = app.frame();
+    assert!(testkit::holds_nothing(&app));
+    assert!(app.session.keys.check_facts().is_none());
+    assert!(!app.session.keys.holds_secret());
+}

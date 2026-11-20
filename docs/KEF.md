@@ -752,7 +752,7 @@ is no code is said on the scanner and the camera stays on. **From Files** (`Acti
 an Inbox file, one button for each text or unrecognised file; the file is read when pressed, and one
 that is no code is named in a toast. Both are on a card of their own above the tool's steps, and on **Add a key**'s Krux code form (`Form::Krux`, last of the forms), which has
 nothing else. Check's **Krux code** row (Check a backup in another form) opens Add a key on that form.
-A pasted code is not taken by the scanner for these two.
+My seed makes my wallet's Seed card has the same two ways on its **Krux code** row, last of its forms: the code's passphrase sheet runs as everywhere, and the words it holds (BIP-39 words, SeedQR digits or entropy turned into words) go on as typed words to the Passphrase card, never to the seed sheet. Cancel on the sheet leaves the Seed card with nothing taken, and Lock wipes the sheet. A pasted code is not taken by the scanner for these two.
 
 **In Files.** A file whose bytes are a code's own (what `krux-v{version}-{id}.kef` holds) is a
 `FileKind::KruxCode`, **Krux encrypted code**, told by its contents (`classify_read`'s last arm, §8's
