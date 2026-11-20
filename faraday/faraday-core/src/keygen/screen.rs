@@ -371,7 +371,7 @@ fn typed(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let words = app.entry.state().form == crate::forms::Form::Words;
     let mut cy = match (words, ui.compact) {
         (true, false) => crate::screens::entry_words(app, ui, x, y, w, room),
-        (true, true) => crate::compact::screen::entry_words(app, ui, x, y, w),
+        (true, true) => crate::compact::screen::entry_words(app, ui, x, y, w, false),
         (false, false) => {
             return crate::screens::entry_form(app, ui, x, y, w, room, Some(Action::KNext)) + 8.0
                 - y;

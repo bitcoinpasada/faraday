@@ -436,7 +436,9 @@ as More kinds does; on a small panel it opens a modal bottom sheet, Material
 3's Bottom sheets, listing them, and a form chosen there closes it), then
 the word grid, the candidates and the word keyboard,
 then the passphrase field and **Add a key**. **Other languages** stays
-with the words, under the grid or above the keyboard. A line in `WARN` under it says
+with the words, under the grid or above the keyboard. At enlarged text on a
+small panel **Other forms** stands first in that row of lists instead of
+under Scan, so the word keyboard stays above **Add a key**. A line in `WARN` under it says
 never to type a seed that holds real bitcoin (`never_real_seed`); the
 line has its own room one gap under the field, and what follows (New
 key's **Show words**, Make a new wallet's passphrase note) starts under

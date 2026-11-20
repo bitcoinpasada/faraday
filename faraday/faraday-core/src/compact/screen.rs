@@ -743,8 +743,13 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         crate::screens::entry_scan(app),
     );
     y += 48.0;
-    y += crate::screens::other_forms(app, ui, x, y, iw);
-    y = entry_words(app, ui, x, y, iw);
+    // At enlarged text the button stands with the lists under the words
+    // instead, so the word keyboard stays above the pinned Add a key.
+    let with_lists = ui.text_factor() > 1.0 && !es.other_forms;
+    if !with_lists {
+        y += crate::screens::other_forms(app, ui, x, y, iw);
+    }
+    y = entry_words(app, ui, x, y, iw, with_lists);
     y += entry_pass(app, ui, (x, y, iw), EN.compact_bip_39_passphrase);
     // Add key is pinned at the foot.
     let add = if es.differs() || app.typing.pass_eye.waits() {
@@ -809,13 +814,14 @@ pub(crate) fn other_forms_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 /// Add a key's words form on a small panel: the word being typed, the
 /// words it can be, the word keyboard, the words taken and the
 /// lists. Add a key draws it, and so does New key's Words card for a key
-/// typed. Returns where the next row starts.
-pub(crate) fn entry_words(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32) -> f32 {
+/// typed. `forms`: the row of lists begins with Other forms. Returns where
+/// the next row starts.
+pub(crate) fn entry_words(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, forms: bool) -> f32 {
     let mut y = y;
     let lang = app.entry.state().language();
     let english = lang == faraday_bip::bip39::Language::English;
     // One button for the list in use; the lists open from it.
-    let langs: Vec<(String, Style, Action)> = if !app.entry.state().languages {
+    let mut langs: Vec<(String, Style, Action)> = if !app.entry.state().languages {
         vec![(
             if english {
                 EN.compact_other_languages.to_string()
@@ -842,6 +848,16 @@ pub(crate) fn entry_words(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32) -> f
             })
             .collect()
     };
+    if forms {
+        langs.insert(
+            0,
+            (
+                EN.entry_other_forms.to_string(),
+                Style::Ghost,
+                Action::EntryOtherForms,
+            ),
+        );
+    }
     let Some(w) = app.entry.state().keys.as_deref() else {
         y += never_real_seed(app, ui, x, y, iw);
         return y + crate::screens::button_rows(ui, x, y, iw, &langs);
