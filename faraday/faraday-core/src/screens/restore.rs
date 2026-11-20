@@ -4,8 +4,8 @@ use super::parts::{buttons_and_next, descriptor_row, first_addresses, kind_rows,
 use crate::drawing::{Scrolled, View};
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, short};
-use crate::wallet::{FileKind, Session, fp_text};
+use crate::ui::{Style, Ui};
+use crate::wallet::{FileKind, fp_text};
 use crate::{Action, Screen, flow};
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, GAP, GAP_SMALL, LABEL_L, LABEL_M, TOUCH};
 use faraday_ui::parts::wrap_buttons;
@@ -20,58 +20,13 @@ pub(crate) const RSTEPS: [&str; crate::rstep::COUNT as usize] = [
 ];
 
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
-    use crate::rstep;
-    let col_x = x0 + 40.0;
-    let col_w = (cw - 80.0).min(900.0);
     let Some(r) = app.restore.state() else {
         return;
     };
-    let wl = r.wallet.and_then(|i| app.session.wallets.get(i));
-    let steps = r.steps();
-    let s = r.seeds.as_ref();
-    let cards: Vec<flow::Card> = steps
-        .iter()
-        .map(|&k| flow::Card {
-            title: RSTEPS[k as usize].to_string(),
-            summary: match k {
-                rstep::KIND => match wl.filter(|_| r.described) {
-                    Some(w) => String::from(&*Session::shape(w)),
-                    None => r.kind().name().to_string(),
-                },
-                rstep::QUORUM => s
-                    .map(|s| fill(EN.restore_threshold, &[&s.m.to_string(), &s.n.to_string()]))
-                    .unwrap_or_default(),
-                rstep::DESCRIPTION => match wl {
-                    Some(w) if r.described => String::from(&*w.name),
-                    _ if r.done[k as usize] => EN.restore_none.to_string(),
-                    _ => String::new(),
-                },
-                rstep::SEEDS => {
-                    let (here, all) = restore_filled(app);
-                    fill(EN.restore_of_filled, &[&here.to_string(), &all.to_string()])
-                }
-                rstep::CHECK => match wl.filter(|_| r.done[rstep::SEEDS as usize]) {
-                    Some(w) if app.receive_held(w) => crate::glance::RECEIVE_WARNING.to_string(),
-                    Some(w) => String::from(&*short(&app.address_shown(w, false, 0))),
-                    None => String::new(),
-                },
-                _ => String::new(),
-            },
-            mono: k == rstep::CHECK,
-            done: r.done[k as usize],
-            open: r.open == Some(k),
-            // Read from a description, they are not to be changed.
-            default: !r.described && (k == rstep::KIND || k == rstep::QUORUM),
-            toggle: Action::RStep(k),
-            lead: None,
-        })
-        .collect();
-    let col = flow::Column {
-        area_x: x0,
-        area_w: cw,
-        x: col_x,
-        w: col_w,
+    let page = flow::Page {
+        area: (x0, cw),
         h,
+        foot_h: 0.0,
         // Back where it was opened from.
         back: Some(app.named_back({
             let to = r.back_to();
@@ -92,51 +47,26 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         } else {
             EN.restore_title
         },
-        wrap_closed: false,
-        total_fixed: false,
-        all_shown: false,
-        note: None,
         chip: None,
+        note: None,
         chip_tap: None,
         moves: crate::ui::Moves::Yes,
     };
-    let scroll = r.scroll;
-    let (next, again) = {
+    let Some(contained) = crate::trail::StepFlow::contained(&crate::restore::RESTORE_STEPS) else {
+        return;
+    };
+    let (next, again, _room) = {
         let app_ref: &View = app;
-        let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
-            restore_body(app_ref, ui, steps[i], x, y, w)
+        let mut body = |ui: &mut Ui, k: u8, x: f32, y: f32, w: f32| -> f32 {
+            restore_body(app_ref, ui, k, x, y, w)
         };
-        flow::column(ui, &col, &cards, scroll, &mut body)
+        // Nothing stands under Your choices' rows.
+        let mut under = |_: &mut Ui, _: f32, _: f32, _: f32| 0.0;
+        flow::contained(
+            ui, app_ref, contained, &page, r.scroll, &mut body, &mut under,
+        )
     };
     app.scroll(Scrolled::Restore, next, again);
-}
-
-/// Restore's slots: how many are filled (a seed here, a cosigner's
-/// xpub, or Not here), of how many.
-fn restore_filled(app: &View) -> (usize, usize) {
-    let Some(r) = app.restore.state() else {
-        return (0, 0);
-    };
-    if r.described
-        && let Some(w) = r.wallet.and_then(|i| app.session.wallets.get(i))
-    {
-        let slots = app.session.slots(w);
-        let filled = slots
-            .iter()
-            .enumerate()
-            .filter(|(k, s)| s.held_by.is_some() || r.absent.contains(&(*k as u8)))
-            .count();
-        return (filled, slots.len());
-    }
-    let Some(s) = r.seeds.as_ref() else {
-        return (0, 0);
-    };
-    let xpubs = s
-        .cosigners
-        .iter()
-        .filter(|c| crate::seeds::cosigner_key(c).is_some())
-        .count();
-    (app.seeds_here(s).len() + xpubs, s.n.max(1))
 }
 
 /// The wallet description's file names in Files, by place.
@@ -590,7 +520,7 @@ fn restore_seeds(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     {
         cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Error, e) + 8.0;
     }
-    let (filled, all) = restore_filled(app);
+    let (filled, all) = crate::restore::restore_filled(app);
     let made = (filled >= all && !r.described).then(|| app.seeds_descriptor(s));
     let ready = filled >= all && (r.described || matches!(made, Some(Ok(_))));
     // With no description the seeds alone say neither the account nor a

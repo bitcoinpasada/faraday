@@ -497,6 +497,53 @@ impl RestoreState {
         v
     }
 
+    /// The step open: the one `open` names, or with none open the first not
+    /// done (the last when all are): a step is always open.
+    pub fn open_step(&self) -> Option<u8> {
+        let steps = self.steps();
+        self.open
+            .or_else(|| steps.iter().copied().find(|&k| !self.done[k as usize]))
+            .or_else(|| steps.last().copied())
+    }
+
+    /// What Your choices says of step `k`: the answer, or `None` for not
+    /// chosen yet. A lookup, never a secret: the seeds' row counts the
+    /// slots filled.
+    fn row_value(&self, app: &Faraday, k: u8) -> Option<Text> {
+        let wl = self.wallet.and_then(|i| app.session.wallets.get(i));
+        let reached = self.done[k as usize] || self.open_step() == Some(k);
+        match k {
+            rstep::KIND => Some(match wl.filter(|_| self.described) {
+                Some(w) => Session::shape(w),
+                None => Text::of(self.kind().name()),
+            }),
+            rstep::QUORUM if reached => self.seeds.as_ref().map(|s| {
+                Text::fill(
+                    EN.restore_threshold,
+                    &[&Text::num(s.m as u64), &Text::num(s.n as u64)],
+                )
+            }),
+            rstep::DESCRIPTION => match wl {
+                Some(w) if self.described => Some(Text::of(&w.name)),
+                _ if self.done[k as usize] => Some(Text::of(EN.restore_none)),
+                _ => None,
+            },
+            rstep::SEEDS if reached => {
+                let (here, all) = restore_filled(app);
+                Some(Text::fill(
+                    EN.restore_of_filled,
+                    &[&Text::num(here as u64), &Text::num(all as u64)],
+                ))
+            }
+            // The wallet's name: its first address is derived when the
+            // card is drawn, and one held back is not shown by a lookup.
+            rstep::CHECK if reached && self.done[rstep::SEEDS as usize] => {
+                wl.map(|w| Text::of(&w.name))
+            }
+            _ => None,
+        }
+    }
+
     /// Closes card `k` as done and opens the next not done after it.
     pub fn next(&mut self, k: u8) {
         self.done[k as usize] = true;
@@ -600,7 +647,12 @@ pub(crate) static RESTORE_STEPS: RestoreSteps = RestoreSteps;
 impl crate::trail::StepFlow for RestoreSteps {
     fn steps(&self, app: &Faraday) -> Option<crate::trail::Steps> {
         let r = app.restore()?;
-        let mut s = crate::trail::Steps::new(r.steps(), r.open);
+        let mut s = crate::trail::Steps::new(r.steps(), r.open_step());
+        s.answered = r
+            .steps()
+            .into_iter()
+            .filter(|&k| r.done[k as usize])
+            .collect();
         // The wallet made from its seeds stays made: Back goes no further
         // than Check.
         s.first = if r.done[rstep::SEEDS as usize] && r.wallet.is_some() {
@@ -619,6 +671,10 @@ impl crate::trail::StepFlow for RestoreSteps {
         crate::screens::RSTEPS[usize::from(k)]
     }
 
+    fn contained(&self) -> Option<&dyn crate::flow::Contained> {
+        Some(self)
+    }
+
     fn moves_on(&self, app: &Faraday, chosen: Action) -> Option<Action> {
         let r = app.restore()?;
         match chosen {
@@ -627,6 +683,65 @@ impl crate::trail::StepFlow for RestoreSteps {
             _ => None,
         }
     }
+}
+
+impl crate::flow::Contained for RestoreSteps {
+    fn rows(&self, app: &Faraday) -> Vec<crate::flow::Row> {
+        let Some(r) = app.restore() else {
+            return Vec::new();
+        };
+        let open = r.open_step();
+        r.steps()
+            .into_iter()
+            // The last step is the end card: it has no answer to list.
+            .filter(|&k| k != rstep::DONE)
+            .map(|k| crate::flow::Row {
+                label: Text::of(crate::screens::RSTEPS[usize::from(k)]),
+                value: r.row_value(app, k),
+                mono: false,
+                opens: k,
+                current: open == Some(k),
+            })
+            .collect()
+    }
+
+    fn count_fixed(&self, _: &Faraday) -> bool {
+        false
+    }
+
+    /// Restore's act code clears no answer when an earlier one changes: a
+    /// kind pressed again only resets the quorum's counts.
+    fn still_fits(&self, _: &Faraday, _changed: u8, _later: u8) -> bool {
+        true
+    }
+}
+
+/// Restore's slots: how many are filled (a seed here, a cosigner's
+/// xpub, or Not here), of how many. A lookup.
+pub(crate) fn restore_filled(app: &Faraday) -> (usize, usize) {
+    let Some(r) = app.restore() else {
+        return (0, 0);
+    };
+    if r.described
+        && let Some(w) = r.wallet.and_then(|i| app.session.wallets.get(i))
+    {
+        let slots = app.session.slots(w);
+        let filled = slots
+            .iter()
+            .enumerate()
+            .filter(|(k, s)| s.held_by.is_some() || r.absent.contains(&(*k as u8)))
+            .count();
+        return (filled, slots.len());
+    }
+    let Some(s) = r.seeds.as_ref() else {
+        return (0, 0);
+    };
+    let xpubs = s
+        .cosigners
+        .iter()
+        .filter(|c| crate::seeds::cosigner_key(c).is_some())
+        .count();
+    (app.seeds_here(s).len() + xpubs, s.n.max(1))
 }
 
 impl Faraday {
@@ -711,8 +826,12 @@ impl Faraday {
             Action::RStep(k) if k == rstep::SEEDS && self.restore_setup_pending() => {}
             Action::RStep(k) => {
                 if let Some(r) = self.restore.state.as_mut() {
-                    r.open = if r.open == Some(k) { None } else { Some(k) };
-                    r.scroll.follow = true;
+                    // A step is always open: a press on the open one does
+                    // nothing.
+                    if r.open_step() != Some(k) {
+                        r.open = Some(k);
+                        r.scroll.follow = true;
+                    }
                 }
             }
             Action::RNext(k) => {

@@ -157,7 +157,9 @@ fn restore_opens_on_kind_with_no_transaction_card() {
     assert_eq!(app.restore().unwrap().open, Some(KIND));
     let text = drawn(&mut app);
     assert!(text.lines().any(|l| l == "Kind"), "no Kind card: {text}");
-    for card in ["Description", "Keys"] {
+    // The steps to come are rows of Your choices, not cards: their
+    // controls are not drawn.
+    for card in ["I have the seed", "Make the wallet"] {
         assert!(
             !text.lines().any(|l| l == card),
             "{card} before it is reached: {text}"
@@ -1488,4 +1490,74 @@ fn text_typed_in_the_custom_path_box_is_held() {
     );
     assert!(testkit::secret_typed(&app), "typed text is not counted");
     assert!(!app.clean(), "typed text is counted clean");
+}
+
+/// One step's card at a time, headed "Step N" with no count, since a
+/// multisig has one step more than a single key; Your choices lists the
+/// steps and a press on an earlier one opens it as it was left.
+#[test]
+fn restore_shows_one_step_numbered_and_an_earlier_row_opens_it_as_left() {
+    let mut app = shown();
+    app.press(Action::RestoreWallet);
+    let text = app.drawn_texts();
+    assert!(text.iter().any(|t| t == "Step 1"), "{text:?}");
+    assert!(!text.iter().any(|t| t.contains("Step 1 of")), "{text:?}");
+    assert!(text.iter().any(|t| t == "Your choices"), "{text:?}");
+    assert!(
+        text.iter().any(|t| t == "Keys"),
+        "the steps to come are rows: {text:?}"
+    );
+    assert!(
+        !app.offers(Action::RStep(SEEDS)),
+        "a step not reached takes no press"
+    );
+    app.press(Action::RKind(MULTI));
+    app.press(Action::RNext(KIND));
+    assert!(app.drawn_texts().iter().any(|t| t == "Step 2"));
+    app.press(Action::RNext(QUORUM));
+    app.press(Action::RStep(KIND));
+    assert_eq!(app.restore().unwrap().open, Some(KIND));
+    let text = app.drawn_texts();
+    assert!(text.iter().any(|t| t == "Step 1"), "{text:?}");
+    // As it was left: the multisig stays chosen, and Quorum stays done.
+    assert_eq!(
+        app.restore().unwrap().kind(),
+        NewKind::ALL[usize::from(MULTI)]
+    );
+    assert!(app.restore().unwrap().done[QUORUM as usize]);
+    // The open step takes no press: it stays open.
+    app.press(Action::RStep(KIND));
+    assert_eq!(app.restore().unwrap().open, Some(KIND));
+}
+
+/// The words typed are never among what Your choices draws, on the wide
+/// layout's pane or on a small panel's sheet.
+#[test]
+fn the_words_typed_are_not_in_your_choices_pane_or_sheet() {
+    let mut app = shown();
+    app.press(Action::RestoreWallet);
+    app.press(Action::RNext(KIND));
+    app.press(Action::RSeeds);
+    type_seed(&mut app, ABANDON);
+    let text = app.drawn_texts();
+    assert!(text.iter().any(|t| t == "Your choices"), "{text:?}");
+    assert!(!text.iter().any(|t| t.contains("abandon")), "{text:?}");
+
+    app.event(Event::Display(DisplayInfo {
+        width: 480,
+        height: 640,
+        dpi: 286,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.press(Action::Choices(faraday_core::ChoicesPress::Open));
+    assert_eq!(app.sheet, Some(Sheet::Choices));
+    let text = app.drawn_texts();
+    assert!(text.iter().any(|t| t == "Keys"), "{text:?}");
+    assert!(!text.iter().any(|t| t.contains("abandon")), "{text:?}");
 }
