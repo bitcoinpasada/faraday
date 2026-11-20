@@ -300,8 +300,8 @@ extent; a motion left from another screen or sheet is stopped.
   Only a shape crossing a side of the clip still takes the mask. Applies
   to every path primitive (rounded rect fill and stroke, circle, line,
   arc).
-- **No second frame for a clamp.** A column that finds its offset past
-  the end clamps and draws again at once (`flow::column_foot` returns
+- **No second frame for a clamp.** A flow page that finds its offset past
+  the end clamps and draws again at once (`flow::contained` returns
   `again`); with `Motion` doing the clamp readback, the clamped frame is
   the next animation frame instead of a second full render.
 - Measured again after these; only if a column page is still over 4 ms
