@@ -67,6 +67,7 @@ impl Faraday {
         }
         self.flows.on = Some(i);
         self.screen = Screen::BackupFlow;
+        self.scroll.set_choices_offset(0.0);
         self.osk_leave();
         let f = &mut self.flows.all[i];
         f.on_screen = true;
@@ -293,12 +294,11 @@ impl Faraday {
         match a {
             F::Open(n) => {
                 let f = &mut self.flows.all[i];
-                f.live.open = if f.live.open == Some(n) {
-                    None
-                } else {
-                    Some(n)
-                };
-                f.live.scroll.follow = true;
+                // A step is always open: pressing the open one does nothing.
+                if f.live.open != Some(n) {
+                    f.live.open = Some(n);
+                    f.live.scroll.follow = true;
+                }
             }
             // Leaving is no way out while writing, where pulling the
             // stick is the way to stop (§5).
@@ -1937,6 +1937,7 @@ impl Faraday {
         form.name.set(&BackupFlow::vault_name(v));
         let focus = self.may_load_keys().then_some(Focus::Phrase(0, false));
         self.vaults.begin_create(form, Screen::BackupFlow, focus);
+        self.scroll.set_choices_offset(0.0);
         self.flows.all[i].live.creating = Some(v);
         self.vaults.measure();
     }
@@ -3609,13 +3610,28 @@ impl crate::trail::StepFlow for FlowSteps {
         if f.live.creating.is_some() && app.vaults.create.is_some() {
             return None;
         }
-        let order = super::screen::steps_of(f)
+        let order: Vec<u8> = super::screen::steps_of(f)
             .into_iter()
             .map(Step::n)
             .collect();
-        let mut s = crate::trail::Steps::new(order, f.live.open);
+        // A step is always open: with none open, the first not done is.
+        let open = f.live.open.or_else(|| {
+            order
+                .iter()
+                .copied()
+                .find(|&k| k >= f.step.n())
+                .or_else(|| order.first().copied())
+        });
+        let mut s = crate::trail::Steps::new(order, open);
         // The stick being written takes no Back.
         s.running = f.live.writing.is_some();
+        // The steps reached stand answered.
+        s.answered = s
+            .order
+            .iter()
+            .copied()
+            .filter(|&k| k <= f.step.n())
+            .collect();
         Some(s)
     }
 
@@ -3628,5 +3644,59 @@ impl crate::trail::StepFlow for FlowSteps {
             (Some(f), Some(&s)) => super::screen::card_name(app, f, s),
             _ => "",
         }
+    }
+
+    fn contained(&self) -> Option<&dyn crate::flow::Contained> {
+        Some(self)
+    }
+}
+
+impl crate::flow::Contained for FlowSteps {
+    fn rows(&self, app: &Faraday) -> Vec<crate::flow::Row> {
+        let Some(f) = app.flow() else {
+            return Vec::new();
+        };
+        let open = crate::trail::StepFlow::steps(self, app).and_then(|s| s.open);
+        super::screen::steps_of(f)
+            .into_iter()
+            .map(|s| {
+                // What stands once the step is reached; a key not made and
+                // a vault not locked are not yet chosen.
+                let stands = s <= f.step
+                    && match s {
+                        Step::Make => f.subject.is_some(),
+                        Step::Lock => f.step > Step::Lock,
+                        _ => true,
+                    };
+                let value = Some(super::screen::summary(app, f, s))
+                    .filter(|v| stands && !v.is_empty())
+                    .map(|v| Text::of(&v));
+                crate::flow::Row {
+                    label: Text::of(&super::screen::card_title(app, f, s)),
+                    value,
+                    mono: s == Step::Make,
+                    opens: s.n(),
+                    current: open == Some(s.n()),
+                }
+            })
+            .collect()
+    }
+
+    fn count_fixed(&self, _: &Faraday) -> bool {
+        false
+    }
+
+    /// After the plan changes, the sticks, the vaults and the key made stand;
+    /// the lock and the writes are of the plan as it was.
+    fn still_fits(&self, _: &Faraday, changed: u8, later: u8) -> bool {
+        changed != Step::Where.n() || later <= Step::Make.n()
+    }
+
+    fn full_width(&self, app: &Faraday) -> bool {
+        app.board_shown()
+    }
+
+    fn wide_content(&self, app: &Faraday) -> bool {
+        !app.is_compact()
     }
 }

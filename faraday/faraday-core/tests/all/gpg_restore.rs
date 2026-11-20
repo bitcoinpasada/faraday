@@ -92,6 +92,15 @@ fn type_line(app: &mut Faraday, line: &str) {
     app.event(Event::Key(KeyIn::Enter));
 }
 
+/// Ticks and draws until a fade between two steps has finished.
+fn at_rest(app: &mut Faraday) {
+    for t in 1..=40u64 {
+        app.event(Event::Tick { now_ms: t * 16 });
+        while app.poll_command().is_some() {}
+        let _ = app.frame();
+    }
+}
+
 fn step(app: &Faraday) -> Step {
     app.flow().expect("a flow").step
 }
@@ -204,6 +213,8 @@ fn a_gpg_key_is_restored_from_its_paperkey_into_the_vaults_of_the_plan() {
     assert!(has(&mut app, "Line 7 · checked"), "{:?}", texts(&mut app));
     assert!(offered(&mut app, Action::Flow(F::Restore(R::Restore))));
     shell.flow(&mut app, F::Restore(R::Restore));
+    // The Make card, with the paperkey typed in it, fades out.
+    at_rest(&mut app);
     let made = app.flow().is_some_and(|f| f.made);
     let toast = app.toast_text().map(str::to_string);
     assert!(made, "{toast:?} {:?}", texts(&mut app));
@@ -998,4 +1009,17 @@ fn a_public_key_scanned_at_home_offers_its_restore() {
             .map(|r| r.fingerprint),
         Some(k.fingerprint())
     );
+}
+
+#[test]
+fn a_restore_opens_on_its_public_key_and_reads_step_1_there() {
+    let k = paper_key();
+    let mut shell = Shell::new();
+    let mut app = machine(&mut shell, &k);
+    from_files(&mut app);
+    let _ = app.frame();
+    assert!(has(&mut app, "Test Person <test@example.com>"));
+    assert!(has(&mut app, "Step 1"), "{:?}", texts(&mut app));
+    // Only the open step's card is drawn.
+    assert!(!has(&mut app, "Step 2"), "{:?}", texts(&mut app));
 }

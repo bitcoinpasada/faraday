@@ -1,7 +1,7 @@
 # Held by tools/lint-tokens.sh: per file, how many decimal literals it still
 # writes in place, and faraday-core's colours written in place. A count
 # only falls; tools/lint-tokens.sh --write lowers it.
-faraday/faraday-core/src/backup_flow/screen.rs 95
+faraday/faraday-core/src/backup_flow/screen.rs 91
 faraday/faraday-core/src/backups/screen.rs 33
 faraday/faraday-core/src/bip85/screen.rs 36
 faraday/faraday-core/src/board/screen.rs 6

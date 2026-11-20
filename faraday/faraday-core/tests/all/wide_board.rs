@@ -164,9 +164,28 @@ fn back_ups_cards_stand_still_when_the_boards_card_opens() {
     }
 }
 
+/// Where the open step's card head stands: its title's left edge and the
+/// right edge of its "Step 1", in pixels.
+fn card_head(app: &mut Faraday) -> (i32, i32) {
+    use faraday_core::testkit::Plain;
+    let _ = app.frame();
+    let boxes = app.drawn_text_boxes().plain();
+    let count = boxes
+        .iter()
+        .find(|(t, _)| t == "Step 1")
+        .map(|(_, b)| *b)
+        .expect("the card's step count drawn");
+    let left = boxes
+        .iter()
+        .filter(|(_, b)| b.1 == count.1)
+        .map(|(_, b)| b.0)
+        .min()
+        .unwrap_or(count.0);
+    (left, count.0 + count.2)
+}
+
 #[test]
 fn a_wallet_flows_cards_stand_still_when_the_boards_card_opens() {
-    use faraday_core::backup_flow::Step;
     use faraday_core::backup_flow::steps::FlowAction as F;
     for (w, h) in [(1280u16, 800u16), (1920, 1080), (2560, 1600)] {
         let mut shell = Shell::new();
@@ -182,20 +201,48 @@ fn a_wallet_flows_cards_stand_still_when_the_boards_card_opens() {
         }
         app.settle();
         let _ = app.frame();
-        let head = Action::Flow(F::Open(Step::Where.n()));
-        let before = app.hit_box(head).expect("the plan card drawn");
+        let before = card_head(&mut app);
         assert!(!app.board_shown(), "{w}: the board's card closed");
         shell.flow(&mut app, board);
         app.settle();
         let _ = app.frame();
         assert!(app.board_shown(), "{w}: the board's card open");
-        let after = app.hit_box(head).expect("the plan card drawn");
+        let after = card_head(&mut app);
         assert_eq!(before.0, after.0, "{w}: the plan card keeps its place");
         // At 1280 the board's list takes a side panel, the column giving
         // it room, as before; on large windows the list is the supporting
         // pane and the column keeps its width.
         if w > 1280 {
-            assert_eq!(before.2, after.2, "{w}: the plan card keeps its width");
+            assert_eq!(before.1, after.1, "{w}: the plan card keeps its width");
         }
     }
+}
+
+#[test]
+fn the_wallet_flows_board_step_has_no_pane_and_the_bar_offers_your_choices() {
+    use faraday_core::backup_flow::steps::FlowAction as F;
+    use faraday_core::{ChoicesPress, testkit::Plain};
+    let mut shell = Shell::new();
+    sticks(&mut shell, 3);
+    let (mut app, _) = three_with_a_vault(&mut shell);
+    resize(&mut app, 1920, 1080, 160);
+    let i = app.backup_flows().len() - 1;
+    shell.flow(&mut app, F::Show(i));
+    shell.flow(&mut app, F::ChangePlan);
+    let board = F::Plan(faraday_core::PlanPress::Q(qstep::BOARD));
+    if !app.board_shown() {
+        shell.flow(&mut app, board);
+    }
+    app.settle();
+    let _ = app.frame();
+    assert!(app.board_shown());
+    let open = Action::Choices(ChoicesPress::Open);
+    assert!(app.where_offered(open).is_some(), "the bar's button");
+    let heads = app
+        .drawn_text_boxes()
+        .plain()
+        .into_iter()
+        .filter(|(t, _)| t == "Your choices")
+        .count();
+    assert_eq!(heads, 1, "the button's label alone, no pane");
 }

@@ -20,8 +20,9 @@ A flow hands the container, each frame, what only the flow knows:
   known before the first (`total_fixed` today) or grows as answers are
   given (Restore, Sign a transaction, Spend from a backup, the backup
   flow); Your choices then lists the steps reached so far and those the
-  flow already knows will come, each "Not chosen yet". A step before step 1 (a GPG key's restore opening on its public
-  key, `heads()` today) stays a step 0.
+  flow already knows will come, each "Not chosen yet". A flow may have steps before step 1, read by their title
+  alone (`Contained::heads`); a GPG key's restore has none: its public
+  key heads the plan card, which is Step 1 (GPG-PAPERKEY §4.2).
 - **Which step is current**, and which are answered.
 - **Each step's card**: the drawing of its controls in a given width,
   returning their height, as the `body` closure does today.

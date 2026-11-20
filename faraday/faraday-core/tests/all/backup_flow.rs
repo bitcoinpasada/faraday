@@ -3215,3 +3215,16 @@ fn back_in_the_backup_flow_opens_the_card_before_and_from_the_first_leaves() {
         assert_eq!(app.screen, Screen::Catalog, "from the first card it leaves");
     }
 }
+
+#[test]
+fn one_steps_card_is_drawn_at_a_time_with_its_number() {
+    let mut shell = Shell::new();
+    let mut app = to_make(&mut shell, Kind::Gpg);
+    let _ = app.frame();
+    let seen = texts(&mut app);
+    assert!(seen.iter().any(|t| t == "Step 4"), "{seen:?}");
+    for n in [1, 2, 3, 5, 6, 7] {
+        let other = format!("Step {n}");
+        assert!(!seen.contains(&other), "{other}: {seen:?}");
+    }
+}

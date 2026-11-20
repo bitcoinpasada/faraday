@@ -50,8 +50,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if f.live.creating.is_some() && app.vaults.create.is_some() {
         return crate::vault::screen::create(app, ui, x0, cw, h);
     }
-    let steps = steps_of(f);
-    let cards: Vec<flow::Card> = steps.iter().map(|&s| card(app, f, s)).collect();
     let named = super::gpg_restore_screen::heading(f);
     let owner = f
         .wallet
@@ -61,33 +59,23 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 || app.restore.state().is_some_and(|r| r.owner == w.owner)
         })
         .map_or(0, |w| w.owner);
-    // While the plan card's board is shown on `wide`, its list is a
-    // right-hand column, as on Back up (`docs/BACKUP-FLOW.md` §17.14).
-    // On a large window the page runs to the window's edge: the cards
-    // keep the reading column, the board runs on to the supporting pane's
-    // spacer, and its list is that pane (`docs/LAYOUT.md` §14, §17).
-    // The other cards keep that column, so none moves when the board's
-    // card opens.
-    let wide = crate::screens::backup_work_end(app);
+    // The plan card's board is a full-width step: on a large window the
+    // page runs to the window's edge, the board runs on to the supporting
+    // pane's spacer and its list is that pane (`docs/LAYOUT.md` §14, §17);
+    // on a smaller wide window the list is a panel at the right and the
+    // page area stops before it.
     let work = crate::screens::board_work_end(app);
     let panel_w = if work.is_none() && !ui.compact && app.board_shown() {
         crate::screens::side_panel_w(cw)
     } else {
         0.0
     };
-    let col_x = x0 + 40.0;
     // Named as its row on the rail names it.
     let title = f.title();
-    let col = flow::Column {
-        area_x: x0,
-        area_w: work.map_or(cw - panel_w, |end| end - x0 + faraday_draw::tokens::SPACER),
-        x: col_x,
-        w: match wide {
-            Some(end) => (end - col_x).min(crate::board::screen::column_w()),
-            None if panel_w > 0.0 => cw - panel_w - 72.0,
-            None => (cw - 72.0).min(820.0),
-        },
+    let page = flow::Page {
+        area: (x0, cw - panel_w),
         h,
+        foot_h: 0.0,
         back: Some(app.named_back((leave_name(f.kind), fa(F::Back)))),
         heading: match named {
             Some(n) => n.0,
@@ -101,22 +89,33 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             }
             None => title.as_str(),
         },
-        wrap_closed: false,
-        total_fixed: false,
-        all_shown: false,
-        note: None,
         chip: named.map(|n| n.1),
+        note: None,
         chip_tap: None,
         moves: crate::ui::Moves::Yes,
     };
-    let scroll = f.live.scroll;
-    let (next, again) = {
+    let Some(contained) = crate::trail::StepFlow::contained(&super::steps::FLOW_STEPS) else {
+        return;
+    };
+    let (next, again, _) = {
         let app_ref: &View = app;
         let f = app_ref.flow().unwrap();
-        let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
-            body(app_ref, f, ui, steps[i], x, y, w)
+        let mut body = |ui: &mut Ui, k: u8, x: f32, y: f32, w: f32| -> f32 {
+            match Step::of(k) {
+                Some(s) => body(app_ref, f, ui, s, x, y, w),
+                None => 0.0,
+            }
         };
-        flow::column_wide(ui, &col, work, &cards, scroll, &mut body, None)
+        let mut under = |_: &mut Ui, _: f32, _: f32, _: f32| 0.0;
+        flow::contained(
+            ui,
+            app_ref,
+            contained,
+            &page,
+            f.live.scroll,
+            &mut body,
+            &mut under,
+        )
     };
     app.scroll(Scrolled::BackupFlow, next, again);
     if work.is_some() {
@@ -164,10 +163,10 @@ pub(crate) fn card_name(app: &Faraday, f: &BackupFlow, s: Step) -> &'static str 
     }
 }
 
-fn card(app: &View, f: &BackupFlow, s: Step) -> flow::Card {
-    let open = f.live.open == Some(s.n());
+/// What the closed card of step `s` says: the row's answer in Your choices.
+pub(crate) fn summary(app: &Faraday, f: &BackupFlow, s: Step) -> String {
     let (n, m) = f.written_of();
-    let summary = match s {
+    match s {
         Step::Where => fill(
             FEN.backup_flow_places_vaults,
             &[
@@ -254,16 +253,6 @@ fn card(app: &View, f: &BackupFlow, s: Step) -> flow::Card {
                 String::new()
             }
         }
-    };
-    flow::Card {
-        title: card_title(app, f, s),
-        summary,
-        mono: false,
-        done: s < f.step || (s == Step::Done && f.step == Step::Done),
-        open,
-        default: false,
-        toggle: fa(F::Open(s.n())),
-        lead: None,
     }
 }
 
