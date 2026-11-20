@@ -8,7 +8,17 @@ use crate::strings::EN;
 use crate::wallet::FileKind;
 use faraday_bip::bip39::Language;
 use faraday_crypto::work::Compute;
+use faraday_forms::Form;
 use faraday_text::{Text, text};
+
+/// Whether a kind is a whole key of its form or a part of a set.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Piece {
+    /// A whole key.
+    Whole,
+    /// A part of a set (a share).
+    Part,
+}
 
 /// What a code is: §2's kinds, in the words the scanner names them with.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -109,12 +119,50 @@ impl Kind {
         )
     }
 
-    /// Whether the kind is a whole seed a scanner that loads one takes.
+    /// The form the kind is, whole or a part, or none.
+    pub fn form(self) -> Option<(Form, Piece)> {
+        match self {
+            Kind::SeedWords | Kind::SeedQr | Kind::CompactSeedQr => {
+                Some((Form::Words, Piece::Whole))
+            }
+            Kind::Codex32Secret => Some((Form::Codex32, Piece::Whole)),
+            Kind::Codex32Share => Some((Form::Codex32, Piece::Part)),
+            Kind::Slip39Share => Some((Form::Slip39, Piece::Part)),
+            Kind::Kef => Some((Form::Krux, Piece::Whole)),
+            Kind::BadChecksum
+            | Kind::Aezeed
+            | Kind::Wif
+            | Kind::Xprv
+            | Kind::UrSeed
+            | Kind::Nostr
+            | Kind::SpendKey
+            | Kind::Paperkey
+            | Kind::Totp
+            | Kind::Entries
+            | Kind::Psbt
+            | Kind::Transaction
+            | Kind::Wallet
+            | Kind::SplitSheets
+            | Kind::AccountKey
+            | Kind::Address
+            | Kind::PaymentRequest
+            | Kind::SilentAddress
+            | Kind::Message
+            | Kind::Gpg
+            | Kind::File
+            | Kind::Labels
+            | Kind::Invoice
+            | Kind::Web
+            | Kind::Text
+            | Kind::Unreadable => None,
+        }
+    }
+
+    /// Whether the kind is a whole seed a scanner that loads one takes:
+    /// a whole form, leaving out a Krux code, which no seed scanner loads
+    /// yet.
     pub fn seed(self) -> bool {
-        matches!(
-            self,
-            Kind::SeedWords | Kind::SeedQr | Kind::CompactSeedQr | Kind::Codex32Secret
-        )
+        matches!(self.form(), Some((f, Piece::Whole)) if f != Form::Krux)
     }
 
     /// What the kind is called (`docs/SCANNING.md` §7.2).

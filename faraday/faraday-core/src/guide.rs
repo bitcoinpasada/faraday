@@ -118,13 +118,13 @@ pub fn guide_key(screen: Screen, at: GuideAt) -> &'static str {
 fn entry_key(at: GuideAt) -> &'static str {
     use crate::forms::Form;
     match at {
-        GuideAt::Part(i) => match Form::ALL.get(usize::from(i)) {
-            Some(Form::Words) => "entry.words",
-            Some(Form::Slip39) => "entry.shares",
-            Some(Form::Codex32) => "entry.codex32",
-            Some(Form::Xor) => "entry.xor",
-            Some(Form::Krux) => "entry.krux",
-            None => "entry",
+        GuideAt::Part(i) => match Form::ALL.get(usize::from(i)).map(|f| f.code()) {
+            Some(0) => "entry.words",
+            Some(1) => "entry.shares",
+            Some(2) => "entry.codex32",
+            Some(3) => "entry.xor",
+            Some(4) => "entry.krux",
+            _ => "entry",
         },
         _ => "entry",
     }

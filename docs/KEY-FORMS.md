@@ -1,8 +1,8 @@
 # Key forms: one registry of the forms a key comes in
 
 **Kind:** Spec
-**Status:** Specified (F299, F300); none of it is built. Today `forms::Form` in `faraday/faraday-core/src/forms.rs` names Add a key's five forms, and eight other lists repeat what it knows by hand (§2).
-**Open:** the registry and every list moved onto it; the ways-in component on each screen that takes a key; copies and their checks worked out from it; reading back an extended private key and a master seed in hex
+**Status:** Specified (F299, F300); the registry crate `faraday-forms` is built (the identifier and the table of §3.2, and `scan_read::Kind::form`), and the lists of §2 are not yet moved onto it: eight lists still repeat what it knows by hand.
+**Open:** every list moved onto the registry; the ways-in component on each screen that takes a key; copies and their checks worked out from it; reading back an extended private key and a master seed in hex
 
 A key comes into Faraday in one of a few forms: BIP-39 words, SLIP-39
 shares, codex32 strings, Seed XOR parts, a Krux code, and, by F300, an

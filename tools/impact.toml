@@ -7,7 +7,7 @@
 id = "app.faraday"
 name = "the device app, the stick and the Pi images"
 reads = [
-  "faraday/faraday-core/**", "faraday/faraday-ui/**", "faraday/faraday-strings/**",
+  "faraday/faraday-core/**", "faraday/faraday-ui/**", "faraday/faraday-strings/**", "faraday/faraday-forms/**",
   "faraday/faraday-guide/**", "faraday/faraday-keys/**", "faraday/shells/stick/**",
   "faraday/shells/window/**", "faraday/shells/demo/**", "faraday/image/**", "core/**",
   "faraday/faraday-boot/**", "faraday/faraday-disk/**", "faraday/faraday-fat/**",
@@ -24,7 +24,7 @@ id = "app.starter"
 name = "the Starter"
 reads = [
   "faraday/faraday-starter/**", "faraday/shells/starter/**", "faraday/faraday-ui/**",
-  "faraday/faraday-strings/**", "core/faraday-draw/**", "faraday/builds.toml",
+  "faraday/faraday-strings/**", "faraday/faraday-forms/**", "core/faraday-draw/**", "faraday/builds.toml",
   "faraday/faraday-core/**", "faraday/faraday-disk/**", "faraday/faraday-fat/**",
   "faraday/faraday-files/**", "faraday/faraday-payload/**", "faraday/faraday-guide/**",
   "faraday/faraday-grant/**", "faraday/faraday-storage/**",

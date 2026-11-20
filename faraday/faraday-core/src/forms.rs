@@ -12,44 +12,7 @@ use faraday_bip::slip39;
 use faraday_entropy::SeedXor;
 use faraday_text::{Text, text};
 
-/// Which form Add a key is reading.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum Form {
-    /// BIP-39 words.
-    #[default]
-    Words,
-    /// SLIP-39 shares.
-    Slip39,
-    /// codex32 strings: the secret, or shares of it.
-    Codex32,
-    /// Seed XOR parts, each BIP-39 words.
-    Xor,
-    /// A Krux encrypted code, scanned or taken from Files and opened under
-    /// its passphrase (`docs/KEF.md` §15). It collects no parts.
-    Krux,
-}
-
-impl Form {
-    /// Every form, in the order the row lists them.
-    pub const ALL: [Form; 5] = [
-        Form::Words,
-        Form::Slip39,
-        Form::Codex32,
-        Form::Xor,
-        Form::Krux,
-    ];
-
-    /// Its name.
-    pub fn name(self) -> &'static str {
-        match self {
-            Form::Words => EN.forms_bip_39_words,
-            Form::Slip39 => EN.forms_slip_39_shares,
-            Form::Codex32 => EN.forms_codex32,
-            Form::Xor => EN.forms_seed_xor_parts,
-            Form::Krux => EN.forms_krux_code,
-        }
-    }
-}
+pub use faraday_forms::Form;
 
 /// The parts collected so far, erased on drop.
 pub struct Parts {

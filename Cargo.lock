@@ -809,6 +809,7 @@ dependencies = [
  "faraday-entropy",
  "faraday-fat",
  "faraday-files",
+ "faraday-forms",
  "faraday-guide",
  "faraday-intake",
  "faraday-keys",
@@ -967,6 +968,13 @@ dependencies = [
  "faraday-crypto",
  "faraday-draw",
  "ttf-parser",
+]
+
+[[package]]
+name = "faraday-forms"
+version = "0.2.0"
+dependencies = [
+ "faraday-strings",
 ]
 
 [[package]]
