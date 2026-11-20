@@ -901,6 +901,7 @@ pub(crate) fn create(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         chip: then.as_deref(),
         note: None,
         chip_tap: None,
+        step: None,
         moves: crate::ui::Moves::Yes,
     };
     let compact = ui.compact;

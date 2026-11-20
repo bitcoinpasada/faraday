@@ -123,7 +123,7 @@ impl KeyGenArea {
         if let Some(k) = self.state.as_mut() {
             k.shown = false;
             if let Some(m) = k.codex32.as_mut() {
-                m.hide_qr();
+                m.hide_qr_of_left_step();
             }
         }
     }

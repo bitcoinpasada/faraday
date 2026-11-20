@@ -92,6 +92,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         chip: named.map(|n| n.1),
         note: None,
         chip_tap: None,
+        step: None,
         moves: crate::ui::Moves::Yes,
     };
     let Some(contained) = crate::trail::StepFlow::contained(&super::steps::FLOW_STEPS) else {

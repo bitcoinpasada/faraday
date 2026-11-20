@@ -2269,6 +2269,17 @@ impl Codex32Make {
         self.qr_on = false;
     }
 
+    /// A step left: the code is not shown any more, and is dropped unless
+    /// the Strings card is the step now open, which encoded its own
+    /// string as it opened and shows it only when asked.
+    pub(crate) fn hide_qr_of_left_step(&mut self) {
+        if self.open == Some(Card::Strings) {
+            self.qr_on = false;
+        } else {
+            self.hide_qr();
+        }
+    }
+
     /// The key is loaded (Lock in): nothing changes after this.
     pub(crate) fn set_locked(&mut self) {
         self.locked = true;

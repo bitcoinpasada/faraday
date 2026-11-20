@@ -283,6 +283,7 @@ fn plan_draw(
         },
         note: None,
         chip_tap: (many && !b.from_create).then_some(Action::BWallets),
+        step: None,
         moves: crate::ui::Moves::Yes,
     };
     ui.chip_at = None;
@@ -365,6 +366,7 @@ fn checklist_draw(
         },
         note: None,
         chip_tap: (many && !b.from_create).then_some(Action::BWallets),
+        step: None,
         moves: crate::ui::Moves::Yes,
     };
     ui.chip_at = None;

@@ -278,6 +278,7 @@ fn words_on_show_while_make_a_new_wallet_holds_the_lock_are_masked_at_the_warnin
         app.event(Event::Key(Key::Char(ch)));
     }
     app.press(Action::KNext);
+    crate::common::through_fade(&mut app);
     let before = texts(&mut app);
     app.press(Action::KShow);
     let after = texts(&mut app);

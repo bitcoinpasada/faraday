@@ -268,13 +268,9 @@ impl crate::flow::Contained for KeyGenSteps {
         if s >= CODEX32_FROM {
             let card = crate::codex32::CARDS.get(usize::from(s - CODEX32_FROM));
             if let (Some(m), Some(&card)) = (k.codex32.as_ref(), card) {
-                // Where a character is still to come, the entry stands on
-                // the card (F146).
-                if card == Card::Enter
-                    && let Some(step) = crate::codex32::screen::entering(m, false)
-                {
-                    return step;
-                }
+                // Where a character is still to come, the entry stands in
+                // the top app bar (F146), and on the card only where the
+                // bar has no room (`Page::step`).
                 return crate::codex32::screen::title(m, card);
             }
             return Title::of(self.name(app, s));

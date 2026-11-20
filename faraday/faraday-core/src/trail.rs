@@ -173,6 +173,11 @@ impl Trail {
         self.returning = true;
     }
 
+    /// How many screens are on the trail.
+    fn depth(&self) -> usize {
+        self.trail.len()
+    }
+
     /// Marks the input being handled as a way back.
     fn set_backing(&mut self) {
         self.backing = true;
@@ -526,8 +531,11 @@ impl Faraday {
             .filter(|a| self.sheet.is_none() && *a != Action::Back);
         let from = self.screen;
         if let Some(a) = own {
+            let depth = self.trail.depth();
             self.act_inner(a);
-            if self.screen == from {
+            // A way back that stayed, or that landed on the screen before
+            // itself (a flow's Done), is all there is to it.
+            if self.screen == from || self.trail.depth() < depth {
                 return;
             }
         }

@@ -352,6 +352,7 @@ fn a_corrected_key_card_has_the_marks_line_and_unlocked_leaves_none() {
     app.event(Event::Key(Key::Char(char::from(SHARE_A.as_bytes()[19]))));
     add(&mut app, SHARE_C);
     assert_eq!(app.keygen().unwrap().open, Some(kstep::KEY));
+    crate::common::through_fade(&mut app);
     assert!(crate::common::has_part(&mut app, "Share entry corrected"));
     assert_eq!(app.session.key_marks.of(NAME_FP), None, "not locked");
     app.press(Action::Nav(Screen::Wallets));

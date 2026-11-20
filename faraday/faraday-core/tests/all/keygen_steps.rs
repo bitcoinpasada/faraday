@@ -7,7 +7,7 @@
 use faraday_core::codex32::{C32, Card};
 use faraday_core::keygen::{Start, Way, kstep};
 use faraday_core::vault::RollerAct;
-use faraday_core::{Action, ChoicesPress, Faraday, Screen};
+use faraday_core::{Action, Faraday, Screen};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
 use faraday_ui::keyboard::OskPress;
 
@@ -293,7 +293,7 @@ fn a_press_on_an_earlier_row_opens_it_as_left_until_the_key_is_locked_in() {
     let mut app = on_rolls();
     app.press(Action::KRoll(3));
     resized(&mut app, 1366, 768);
-    let row = |k: u8| Action::Choices(ChoicesPress::Row(k));
+    let row = Action::KStep;
     assert!(
         app.offers(row(kstep::SOURCE)),
         "Randomness' row takes a press"
@@ -322,9 +322,6 @@ fn once_the_key_is_locked_in_the_rows_before_key_take_no_press() {
     assert_eq!(open(&app), Some(kstep::WORDS));
     resized(&mut app, 1366, 768);
     for k in [kstep::START, kstep::LENGTH, kstep::SOURCE, kstep::ENTER] {
-        assert!(
-            !app.offers(Action::Choices(ChoicesPress::Row(k))),
-            "step {k} is before Key"
-        );
+        assert!(!app.offers(Action::KStep(k)), "step {k} is before Key");
     }
 }

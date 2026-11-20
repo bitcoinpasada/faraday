@@ -105,7 +105,9 @@ fn new_keys_pad_stands_at_the_foot_and_stays_as_the_page_scrolls() {
         let count = app
             .drawn_texts()
             .into_iter()
-            .find(|t| t.starts_with("1 of "))
+            .find(|t| {
+                t.starts_with("1 of ") && t.ends_with(faraday_core::strings::EN.keygen_rolls_inline)
+            })
             .unwrap_or_else(|| panic!("{w} × {h}: the count says one roll"));
         let count_box = app
             .drawn_text_boxes()
@@ -125,7 +127,7 @@ fn new_keys_pad_stands_at_the_foot_and_stays_as_the_page_scrolls() {
 fn on_the_pi_panel_new_keys_pad_stays_in_the_card() {
     let mut app = rolling_key(480, 640, 286);
     let key = app.hit_box(Action::KRoll(3)).expect("the pad is drawn");
-    scroll_page(&mut app, (100, 100), 200);
+    scroll_page(&mut app, (240, 400), 200);
     let moved = app.hit_box(Action::KRoll(3));
     assert_ne!(Some(key), moved, "the pad scrolls with the card");
 }

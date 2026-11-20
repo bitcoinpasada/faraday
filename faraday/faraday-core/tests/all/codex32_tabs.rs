@@ -90,10 +90,15 @@ fn roll(app: &mut Faraday, ch: u8) {
     }
 }
 
-/// Where the page is scrolled to, and what it shows there.
+/// Where the page is scrolled to, and what it shows there. A worksheet
+/// drawn in its own pan moves under the wheel by that pan, so the place is
+/// the page's scroll and the sheet's pan together.
 fn place(app: &mut Faraday) -> (f32, Vec<DrawnText>) {
     let _ = app.frame();
-    let y = app.keygen().map_or(0.0, |k| k.scroll.y);
+    let y = app.keygen().map_or(0.0, |k| {
+        let pan = k.codex32.as_ref().map(|m| m.pan()).unwrap_or_default();
+        k.scroll.y + pan.x + pan.y
+    });
     (y, app.drawn_text_boxes().plain())
 }
 

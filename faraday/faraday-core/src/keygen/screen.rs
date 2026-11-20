@@ -43,15 +43,44 @@ pub(super) const TITLES: [&str; kstep::COUNT] = [
 /// The flow's name in the top app bar: Make a new key, whichever screen
 /// opened the flow (Add a key is its own page, and its name is the way
 /// back from here); Make a new wallet while a wallet's key is made inside
-/// it. Where a share's codex32 characters are entered, the card carries
-/// where the entry stands (F146).
-fn heading(k: &KeyGen) -> &'static str {
+/// it. Where a share's codex32 characters are entered and a character is
+/// still to come, the bar's title is where the entry stands (F146): the
+/// whole on one line, else its short form on one line, else the whole
+/// wrapped onto two lines where the bar has the room; where it has room
+/// for none, the bar keeps the flow's name and the second part is the
+/// step the card reads. `right` is the bar's right edge. A width or two
+/// measured.
+fn heading(k: &KeyGen, ui: &Ui, right: f32) -> (Text, Option<Text>) {
     // A wallet's key is a step of Make a new wallet, which names the bar.
-    if k.hosted() {
+    let name = if k.hosted() {
         EN.keygen_make_a_new_wallet
     } else {
         EN.keygen_new_key
+    };
+    let Some(whole) = k
+        .codex32
+        .as_ref()
+        .filter(|_| k.made.is_none())
+        .and_then(|m| crate::codex32::screen::entering(m, false))
+    else {
+        return (Text::of(name), None);
+    };
+    let right = ui.bar_tools_x.unwrap_or(right);
+    // One line first, the short form before the whole wrapped onto two.
+    if faraday_ui::nav::bar_title_one_line(ui, &whole, right) {
+        return (whole, None);
     }
+    let short = k
+        .codex32
+        .as_ref()
+        .and_then(|m| crate::codex32::screen::entering(m, true));
+    if let Some(short) = short.filter(|s| faraday_ui::nav::bar_title_one_line(ui, s, right)) {
+        return (short, None);
+    }
+    if faraday_ui::nav::bar_title_whole(ui, &whole, right) {
+        return (whole, None);
+    }
+    (Text::of(name), Some(whole))
 }
 
 /// The column's first line while a wallet's key is made: its slot, "Key 1"
@@ -84,6 +113,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         crate::Screen::Check => EN.compact_check,
         _ => EN.keygen_back,
     };
+    let (heading, step) = heading(k, ui, x0 + cw);
     let (column, panel) = codex32_places(app, k, (cw, h));
     let dice_foot = super::dice_panel::place(app, k);
     let side = crate::codex32::pane_screen::side_room(column);
@@ -100,11 +130,12 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         }),
         heading: match &k.made {
             Some(m) => super::steps::made_title(m),
-            None => heading(k),
+            None => heading.as_str(),
         },
         chip: slot_line.as_ref().map(|t| t.as_str()),
         note: None,
         chip_tap: None,
+        step: step.as_ref().map(|t| t.as_str()),
         moves: if k.made.is_some() {
             crate::ui::Moves::No
         } else {

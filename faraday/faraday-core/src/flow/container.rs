@@ -28,6 +28,9 @@ pub(crate) struct Page<'a> {
     /// What a press on the chip does; where it was drawn is left in
     /// `Ui::chip_at`.
     pub(crate) chip_tap: Option<Action>,
+    /// The title the open step's card reads in place of the flow's own:
+    /// where the top app bar has no room for it, the entry's step.
+    pub(crate) step: Option<&'a str>,
     /// Whether a scroll step moves the rows already drawn.
     pub(crate) moves: Moves,
 }
@@ -166,7 +169,11 @@ pub(crate) fn contained(
             let title_w = w - count_w - 10.0;
             let lh = ui.line_as(TITLE_M);
             let title = flow.title(app, k);
-            let th = ui.wrap_as((x, y, title_w), TITLE_M, Role::OnSurface, title.as_str());
+            let title = match page.step {
+                Some(step) if Some(k) == s.open => step,
+                _ => title.as_str(),
+            };
+            let th = ui.wrap_as((x, y, title_w), TITLE_M, Role::OnSurface, title);
             ui.text_right_as((x + w, y, lh), BODY_S, Role::OnSurfaceVariant, &count);
             y += th + 10.0;
             ui.page_view = compact.then_some((view_h + next.y, view_h - top));

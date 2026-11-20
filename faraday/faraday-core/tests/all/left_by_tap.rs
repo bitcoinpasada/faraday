@@ -83,6 +83,7 @@ fn new_key_left_by_a_tap_on_the_sidebar_forgets_the_words_typed() {
     let _ = app.frame();
     typed(&mut app, &words);
     app.press(Action::KNext);
+    crate::common::through_fade(&mut app);
     let shown = revealed(&mut app, Action::KShow);
     tap(&mut app, Action::Nav(Screen::Settings));
     assert_eq!(app.screen, Screen::Settings);

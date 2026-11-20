@@ -191,11 +191,17 @@ fn a_pinned_pane_follows_the_step_and_the_screens_to_their_pages() {
     app.press(Action::GuidePin);
     frame(&mut app);
     assert!(app.guide_pinned());
-    // A new key: its page.
+    // A new key is a flow on the container: Your choices keeps the pane's
+    // place, so the guide is the sheet there and the pane is away.
     app.press(Action::Entry(None));
     app.press(Action::KeyGen(None));
-    frame(&mut app);
-    assert_eq!(shown(&app), "keygen");
+    crate::common::through_fade(&mut app);
+    assert!(
+        !app.offers(Action::GuideClose),
+        "Your choices has the place"
+    );
+    app.press(Action::Back);
+    crate::common::through_fade(&mut app);
     app.press(Action::Entry(None));
     frame(&mut app);
     assert_eq!(shown(&app), "entry", "the next screen's page");

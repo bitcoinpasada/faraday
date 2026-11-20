@@ -736,6 +736,8 @@ fn flip_all(app: &mut Faraday) {
     }
 }
 
+use crate::common::through_fade;
+
 fn texts(app: &mut Faraday) -> String {
     app.drawn_texts().join(" ")
 }
@@ -753,7 +755,9 @@ fn a_create_slot_new_key_shows_no_check_words_or_quiz_card() {
     flip_all(&mut app);
     let _ = app.frame();
     assert!(app.offers(Action::KNext));
-    for s in [kstep::LENGTH, kstep::SOURCE, kstep::ENTER] {
+    // The open step's own row takes no press; the finished ones above do.
+    assert_eq!(app.keygen().unwrap().open, Some(kstep::ENTER));
+    for s in [kstep::LENGTH, kstep::SOURCE] {
         assert!(app.offers(Action::KStep(s)), "card {s} is shown");
     }
     for s in [kstep::KEY, kstep::CHECK, kstep::WORDS, kstep::QUIZ] {
@@ -1100,7 +1104,7 @@ fn a_key_made_from_tools_ends_on_a_result_card_and_done_returns_to_tools() {
 #[test]
 fn a_key_made_from_tools_ends_on_the_made_card_with_its_three_actions_and_back_leaves_the_flow() {
     let mut app = from_tools();
-    let _ = app.frame();
+    through_fade(&mut app);
     for action in [Action::KMadeWallet, Action::KMadeAnother, Action::KMadeDone] {
         assert!(app.offers(action), "{action:?} on the made card");
     }
@@ -1461,7 +1465,7 @@ fn type_the_words(app: &mut Faraday, words: &str) {
     assert_eq!(app.keygen().unwrap().open, Some(kstep::TYPED));
     let _ = app.frame();
     typed(app, words);
-    let _ = app.frame();
+    through_fade(app);
     assert!(app.offers(Action::KNext), "the Words card's Continue");
     app.press(Action::KNext);
     assert_eq!(app.keygen().unwrap().open, Some(kstep::KEY));
@@ -1481,7 +1485,7 @@ fn twelve_words_typed_with_a_passphrase_load_the_key_add_a_key_loads_not_made_he
     let words = faraday_core::testkit::test_words("bacon");
     let mut app = held_flow();
     type_the_words(&mut app, &words);
-    let _ = app.frame();
+    through_fade(&mut app);
     assert!(
         app.offers(Action::KPassField(0)),
         "a key typed takes a passphrase"
@@ -1781,7 +1785,7 @@ fn start_ticks_nothing_and_length_offers_no_slip39_while_shares_stay_on_start() 
     let _ = app.frame();
     assert!(app.offers(Action::KStart(Start::MakeShares.index())));
     app.press(Action::KStart(Start::MakeShares.index()));
-    let _ = app.frame();
+    through_fade(&mut app);
     let k = app.keygen().unwrap();
     assert!(k.slip39, "SLIP-39 shares are being made");
     assert_eq!(k.open, Some(kstep::LENGTH));

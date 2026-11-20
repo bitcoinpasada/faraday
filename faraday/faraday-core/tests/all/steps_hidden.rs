@@ -74,7 +74,7 @@ fn new_key_shows_its_open_step_and_none_after() {
     let at = all.iter().position(|&k| k == open).unwrap();
     let shown = offered(&mut app, &all, Action::KStep);
     for (i, on) in shown.iter().enumerate() {
-        assert_eq!(*on, i <= at, "step {i} with step {at} open");
+        assert_eq!(*on, i < at, "step {i} with step {at} open");
     }
     app.press(Action::KStart(Start::Make.index()));
     let all: Vec<u8> = app.keygen().unwrap().steps();
@@ -83,7 +83,7 @@ fn new_key_shows_its_open_step_and_none_after() {
     let shown = offered(&mut app, &all, Action::KStep);
     assert!(shown[0], "Start stays above, to change");
     for (i, on) in shown.iter().enumerate() {
-        assert_eq!(*on, i <= at, "step {i} with step {at} open");
+        assert_eq!(*on, i < at, "step {i} with step {at} open");
     }
     assert!(at + 1 < all.len(), "a later step is left unshown");
 }
