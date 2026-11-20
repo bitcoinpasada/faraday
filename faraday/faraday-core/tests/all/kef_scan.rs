@@ -636,7 +636,7 @@ fn a_note_carried_is_filled_in_when_an_encrypted_seed_code_is_opened_next() {
     assert_eq!(app.sheet, Some(Sheet::SeedRead));
     let s = app.seed_read().expect("the seed sheet");
     assert!(s.adding);
-    assert_eq!(s.pass.as_str(), "correct horse battery");
+    assert_eq!(s.pass(), "correct horse battery");
 }
 
 #[test]
@@ -702,7 +702,7 @@ fn a_note_carried_is_filled_in_when_the_next_krux_code_holds_a_seed_as_words() {
     open_with(&mut app, "note key");
     assert_eq!(app.sheet, Some(Sheet::SeedRead));
     let s = app.seed_read().expect("the seed sheet");
-    assert_eq!(s.pass.as_str(), "correct horse battery");
+    assert_eq!(s.pass(), "correct horse battery");
 }
 
 #[test]
@@ -715,7 +715,7 @@ fn a_note_carried_is_filled_in_when_a_seeds_card_adds_its_key() {
     go(&mut app, "Add this key");
     assert_eq!(app.sheet, Some(Sheet::SeedRead));
     let s = app.seed_read().expect("the seed sheet");
-    assert_eq!(s.pass.as_str(), "correct horse battery");
+    assert_eq!(s.pass(), "correct horse battery");
 }
 
 #[test]
@@ -1513,4 +1513,36 @@ fn a_multisig_checks_seed_card_lists_the_krux_row_and_a_code_read_there_reaches_
     assert_eq!(app.screen, Screen::MultisigCheck);
     assert!(has_part(&mut app, "Not a key of this wallet"));
     assert!(app.session.keys.all().next().is_none());
+}
+
+#[test]
+fn a_control_character_typed_into_the_krux_passphrase_is_not_taken() {
+    let (code, pass) = vector("gcm");
+    let mut app = scanner();
+    read(&mut app, &code);
+    go(&mut app, "Open");
+    let (head, tail) = pass.split_at(pass.len() / 2);
+    type_text(&mut app, head);
+    app.event(Event::Key(Key::Char('\u{7}')));
+    open_with(&mut app, tail);
+    assert_eq!(
+        app.sheet,
+        Some(Sheet::SeedRead),
+        "the passphrase was the one typed, with no character added"
+    );
+}
+
+#[test]
+fn the_seed_sheet_s_passphrase_is_gone_when_the_sheet_is_left() {
+    let (code, pass) = vector("ctr");
+    let mut app = scanner();
+    read(&mut app, &code);
+    go(&mut app, "Open");
+    open_with(&mut app, &pass);
+    assert_eq!(app.sheet, Some(Sheet::SeedRead));
+    app.press(Action::SeedRead(faraday_core::seeds::read::Choice::AddPass));
+    type_text(&mut app, "hunter2");
+    assert_eq!(app.seed_read().expect("the sheet").pass(), "hunter2");
+    app.press(Action::Cancel);
+    assert!(app.seed_read().is_none_or(|s| s.pass().is_empty()));
 }

@@ -156,3 +156,65 @@ fn the_possible_wallet_sheet_waits_for_the_eye_and_says_so() {
     app.press(Action::PotentialMake);
     assert_eq!(app.sheet, None);
 }
+
+/// Add a key with its words typed.
+fn add_a_key() -> Faraday {
+    let mut app = testkit::started();
+    app.press(Action::Entry(None));
+    assert_eq!(app.screen, Screen::Entry);
+    type_text(&mut app, &testkit::test_words("bacon"));
+    app
+}
+
+#[test]
+fn add_a_keys_passphrase_takes_no_typing_with_a_stick_attached() {
+    let mut app = add_a_key();
+    attach(&mut app);
+    app.press(Action::EntryPassphrase);
+    type_text(&mut app, "hunter2");
+    assert!(shows(&mut app, STICK_LINE), "the screen says why");
+    assert_eq!(testkit::entry(&app).passphrase(), "");
+}
+
+#[test]
+fn a_stick_arriving_empties_add_a_keys_passphrase() {
+    let mut app = add_a_key();
+    app.press(Action::EntryPassphrase);
+    type_text(&mut app, "hunter2");
+    assert_eq!(testkit::entry(&app).passphrase(), "hunter2");
+    attach(&mut app);
+    assert_eq!(testkit::entry(&app).passphrase(), "");
+    detach(&mut app);
+    assert_eq!(testkit::entry(&app).passphrase(), "");
+}
+
+#[test]
+fn add_a_keys_passphrase_is_gone_after_leaving_and_after_lock() {
+    let mut app = add_a_key();
+    app.press(Action::EntryPassphrase);
+    type_text(&mut app, "hunter2");
+    app.press(Action::Nav(Screen::Home));
+    assert_eq!(app.screen, Screen::Home);
+    assert_eq!(testkit::entry(&app).passphrase(), "");
+    let mut app = add_a_key();
+    app.press(Action::EntryPassphrase);
+    type_text(&mut app, "hunter2");
+    app.press(Action::Lock);
+    assert_eq!(testkit::entry(&app).passphrase(), "");
+}
+
+#[test]
+fn add_a_key_waits_for_the_eye_after_a_passphrase_typed_on_a_hardware_keyboard() {
+    let mut app = add_a_key();
+    app.press(Action::EntryPassphrase);
+    type_text(&mut app, "ab");
+    app.press(Action::EntryPassphraseAgain);
+    type_text(&mut app, "ab");
+    let keys = app.session.keys.len();
+    app.press(Action::EntryAdd);
+    assert_eq!(app.screen, Screen::Entry, "Add waits for the eye");
+    assert_eq!(app.session.keys.len(), keys);
+    app.press(Action::PassEye);
+    app.press(Action::EntryAdd);
+    assert_eq!(app.session.keys.len(), keys + 1, "the key is added");
+}

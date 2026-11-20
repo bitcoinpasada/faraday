@@ -397,7 +397,7 @@ impl Faraday {
                 self.act(Action::MType);
             }
             Here::Entry | Here::Keyed if self.entry.state().on_passphrase => {
-                self.act(if self.entry.state().on_again {
+                self.act(if self.entry.state().passphrase.on_again() {
                     Action::EntryPassphraseAgain
                 } else {
                     Action::EntryPassphrase
@@ -672,7 +672,7 @@ impl Faraday {
     fn entry_target(&self) -> Option<Action> {
         let e = self.entry.state();
         if e.on_passphrase {
-            return Some(if e.on_again {
+            return Some(if e.passphrase.on_again() {
                 Action::EntryPassphraseAgain
             } else {
                 Action::EntryPassphrase
@@ -730,8 +730,8 @@ impl Faraday {
                     F::Search(s) => v.query(s),
                 }
             }
-            Action::EntryPassphrase => &self.entry.state().passphrase,
-            Action::EntryPassphraseAgain => &self.entry.state().again,
+            Action::EntryPassphrase => self.entry.state().passphrase.as_str(),
+            Action::EntryPassphraseAgain => self.entry.state().passphrase.again_str(),
             Action::SeedRead(_) => self.seed_read.state()?.field()?,
             Action::KefRead(_) => crate::seeds::kef::kef_field(self)?,
             Action::KefTool(_) => crate::kef_tool::field(self)?.1,

@@ -73,7 +73,7 @@ fn in_demo_add_a_keys_passphrase_offers_faraday_and_can_be_typed_over() {
     app.press(Action::Entry(None));
     app.press(Action::UseSample);
     let _ = app.frame();
-    assert!(testkit::entry(&app).passphrase.is_empty());
+    assert!(testkit::entry(&app).passphrase().is_empty());
     assert!(
         shows(&mut app, "No passphrase"),
         "an optional passphrase stays optional"
@@ -83,7 +83,7 @@ fn in_demo_add_a_keys_passphrase_offers_faraday_and_can_be_typed_over() {
         Action::PassChip(PassField::Entry)
     ));
     app.press(Action::PassChip(PassField::Entry));
-    assert_eq!(testkit::entry(&app).passphrase.as_str(), "faraday");
+    assert_eq!(testkit::entry(&app).passphrase(), "faraday");
     let _ = app.frame();
     assert!(shows(&mut app, "faraday"), "drawn unmasked in a code box");
     assert!(
@@ -117,7 +117,7 @@ fn in_demo_add_a_keys_passphrase_offers_faraday_and_can_be_typed_over() {
         &mut app,
         Action::PassChip(PassField::Entry)
     ));
-    assert_eq!(testkit::entry(&app).passphrase.as_str(), "mine");
+    assert_eq!(testkit::entry(&app).passphrase(), "mine");
     let _ = app.frame();
     assert!(!shows(&mut app, "mine"), "masked");
 }
@@ -137,9 +137,9 @@ fn on_testnet_add_a_keys_passphrase_is_typed_masked_and_edited_as_before() {
         "a press focuses the field"
     );
     type_in(&mut app, "ab");
-    assert_eq!(testkit::entry(&app).passphrase.as_str(), "ab");
+    assert_eq!(testkit::entry(&app).passphrase(), "ab");
     app.event(Event::Key(Key::Backspace));
-    assert_eq!(testkit::entry(&app).passphrase.as_str(), "a");
+    assert_eq!(testkit::entry(&app).passphrase(), "a");
     let _ = app.frame();
     assert!(shows(&mut app, "•"), "masked");
     assert!(!shows(&mut app, "a"));
@@ -652,7 +652,10 @@ fn in_demo_a_seed_read_adds_its_passphrase_from_the_chips_and_loads_that_key() {
     assert_eq!(app.sheet, Some(Sheet::SeedRead));
     app.press(Action::SeedRead(Choice::AddPass));
     let s = app.seed_read().expect("the sheet");
-    assert!(s.pass.is_empty() && s.pass2.is_empty(), "nothing is put in");
+    assert!(
+        s.pass().is_empty() && s.pass2().is_empty(),
+        "nothing is put in"
+    );
     let _ = app.frame();
     // One Use faraday for the passphrase and its repeat.
     assert!(crate::common::strip_offers(
@@ -665,8 +668,8 @@ fn in_demo_a_seed_read_adds_its_passphrase_from_the_chips_and_loads_that_key() {
     ));
     app.press(Action::PassChip(PassField::SeedRead(0)));
     let s = app.seed_read().expect("the sheet");
-    assert_eq!(s.pass.as_str(), "faraday");
-    assert_eq!(s.pass2.as_str(), "faraday");
+    assert_eq!(s.pass(), "faraday");
+    assert_eq!(s.pass2(), "faraday");
     let _ = app.frame();
     assert!(!shows_part(&mut app, "The two passphrases differ"));
     app.press(Action::SeedRead(Choice::WithPass));

@@ -632,9 +632,9 @@ fn entry_pass(app: &View, ui: &mut Ui, (x, y, iw): (f32, f32, f32), label: &str)
     let field = |ui: &mut Ui, n: u8, fy: f32| {
         let second = n == 1;
         let (secret, action) = if second {
-            (&e.again, Action::EntryPassphraseAgain)
+            (e.passphrase.again_str(), Action::EntryPassphraseAgain)
         } else {
-            (&e.passphrase, Action::EntryPassphrase)
+            (e.passphrase.as_str(), Action::EntryPassphrase)
         };
         pass_field(
             ui,
@@ -648,7 +648,7 @@ fn entry_pass(app: &View, ui: &mut Ui, (x, y, iw): (f32, f32, f32), label: &str)
             },
             secret,
             (
-                e.on_passphrase && e.on_again == second,
+                e.on_passphrase && e.passphrase.on_again() == second,
                 crate::screens::entry_chip(app, second),
                 app.typing.pass_eye.shown,
                 app.typing.pass_eye.waits(),
@@ -660,7 +660,7 @@ fn entry_pass(app: &View, ui: &mut Ui, (x, y, iw): (f32, f32, f32), label: &str)
         crate::pass_field::pair::pass_pair(
             ui,
             (x, y, iw),
-            (e.passphrase.as_str(), e.again.as_str()),
+            (e.passphrase.as_str(), e.passphrase.again_str()),
             field,
         )
     } else {

@@ -230,7 +230,7 @@ fn storage_only_the_kernel_shows_stops_the_seed_sheets_passphrase_typing() {
     app.press(Action::SeedRead(Choice::Field(0)));
     type_text(&mut app, "after");
     let s = app.seed_read().expect("the sheet stays");
-    assert!(s.pass.is_empty(), "the field took typing with storage in");
+    assert!(s.pass().is_empty(), "the field took typing with storage in");
     assert!(s.focus.is_none());
 }
 

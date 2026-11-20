@@ -155,6 +155,15 @@ fn restore_typed_words(app: &mut Faraday) {
     type_text(app, PHRASE);
 }
 
+fn entry_passphrase(app: &mut Faraday) {
+    app.press(Action::Entry(None));
+    type_text(app, PHRASE);
+    app.press(Action::EntryPassphrase);
+    type_text(app, MARKER);
+    app.press(Action::EntryPassphraseAgain);
+    type_text(app, MARKER);
+}
+
 fn codex32_part(app: &mut Faraday) {
     app.press(Action::Entry(None));
     let at = faraday_core::forms::Form::ALL
@@ -587,6 +596,7 @@ fn flows(area: Area) -> Vec<Flow> {
         Area::Entry => vec![
             typed("restore's typed words", restore_typed_words),
             typed("a codex32 part", codex32_part),
+            typed("Add a key's passphrase and the one again", entry_passphrase),
         ],
         Area::Vaults => vec![
             typed("new vault's passphrases", vault_passphrases),

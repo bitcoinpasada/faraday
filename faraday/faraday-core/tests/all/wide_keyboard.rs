@@ -102,10 +102,10 @@ fn its_keys_type_into_a_passphrase_field_as_physical_keys_do() {
     }
     click(&mut app, Action::Osk(OskPress::Back));
     click(&mut app, Action::Osk(OskPress::Char('c')));
-    assert_eq!(faraday_core::testkit::entry(&app).passphrase.as_str(), "ac");
+    assert_eq!(faraday_core::testkit::entry(&app).passphrase(), "ac");
     assert_eq!(
-        faraday_core::testkit::entry(&app).passphrase.as_str(),
-        faraday_core::testkit::entry(&by_hand).passphrase.as_str()
+        faraday_core::testkit::entry(&app).passphrase(),
+        faraday_core::testkit::entry(&by_hand).passphrase()
     );
     // The field kept its focus through every key.
     assert!(faraday_core::testkit::entry(&app).on_passphrase);

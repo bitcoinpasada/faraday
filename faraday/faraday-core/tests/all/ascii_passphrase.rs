@@ -30,12 +30,12 @@ fn add_a_key_refuses_a_letter_outside_ascii_and_says_so() {
     type_text(&mut app, &testkit::test_words("bacon"));
     app.press(Action::EntryPassphrase);
     type_text(&mut app, "café");
-    assert_eq!(&*testkit::entry(&app).passphrase, "caf");
+    assert_eq!(testkit::entry(&app).passphrase(), "caf");
     let texts = drawn(&mut app);
     assert!(texts.iter().any(|t| t == REFUSED), "{texts:?}");
     // The next letter taken clears it.
     type_text(&mut app, "e");
-    assert_eq!(&*testkit::entry(&app).passphrase, "cafe");
+    assert_eq!(testkit::entry(&app).passphrase(), "cafe");
     let texts = drawn(&mut app);
     assert!(!texts.iter().any(|t| t == REFUSED), "{texts:?}");
 }

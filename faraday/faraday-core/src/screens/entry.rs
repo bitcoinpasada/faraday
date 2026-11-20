@@ -424,7 +424,7 @@ fn entry_pass_fields(app: &View, ui: &mut Ui, (x, y, width): (f32, f32, f32), la
     let pw = 380.0f32.min(width - 150.0);
     let field = |ui: &mut Ui, n: u8, fy: f32| {
         let second = n == 1;
-        let on = e.on_passphrase && e.on_again == second;
+        let on = e.on_passphrase && e.passphrase.on_again() == second;
         ui.text_mid_as(
             (x, fy, 40.0),
             BODY_S,
@@ -453,7 +453,11 @@ fn entry_pass_fields(app: &View, ui: &mut Ui, (x, y, width): (f32, f32, f32), la
             px,
             fy,
             pw,
-            if second { &e.again } else { &e.passphrase },
+            if second {
+                e.passphrase.again_str()
+            } else {
+                e.passphrase.as_str()
+            },
             (
                 on,
                 entry_chip(app, second),
@@ -472,7 +476,7 @@ fn entry_pass_fields(app: &View, ui: &mut Ui, (x, y, width): (f32, f32, f32), la
         crate::pass_field::pair::pass_pair(
             ui,
             (px, y, pw),
-            (e.passphrase.as_str(), e.again.as_str()),
+            (e.passphrase.as_str(), e.passphrase.again_str()),
             field,
         )
     } else {
@@ -488,9 +492,9 @@ fn entry_pass_fields(app: &View, ui: &mut Ui, (x, y, width): (f32, f32, f32), la
 pub(crate) fn entry_chip(app: &View, second: bool) -> Option<Action> {
     let e = app.entry.state();
     let (this, other) = if second {
-        (&e.again, &e.passphrase)
+        (e.passphrase.again_str(), e.passphrase.as_str())
     } else {
-        (&e.passphrase, &e.again)
+        (e.passphrase.as_str(), e.passphrase.again_str())
     };
     let other_typed = !other.is_empty() && (second || e.pair());
     app.pass_chip(if second {

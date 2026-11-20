@@ -1072,7 +1072,7 @@ impl Faraday {
             let fp = faraday_keys::identity::fingerprint_of_mnemonic(
                 &c,
                 &m,
-                &self.entry.state().passphrase,
+                self.entry.state().passphrase.borrow(),
             )
             .ok();
             if let Some(fp) = fp {
@@ -1149,7 +1149,7 @@ impl Faraday {
                 if let Ok(fp) = faraday_keys::identity::fingerprint_of_mnemonic(
                     &c,
                     &m,
-                    &self.entry.state().passphrase,
+                    self.entry.state().passphrase.borrow(),
                 ) {
                     self.seeds_took(fp, back);
                     self.entry.reset();
@@ -1167,7 +1167,7 @@ impl Faraday {
                 if let Ok(fp) = faraday_keys::identity::fingerprint_of_mnemonic(
                     &c,
                     &m,
-                    &self.entry.state().passphrase,
+                    self.entry.state().passphrase.borrow(),
                 ) {
                     self.seeds_took(fp, back);
                     self.entry.reset();

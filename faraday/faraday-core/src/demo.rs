@@ -353,7 +353,7 @@ impl Faraday {
                     if self
                         .seed_read
                         .state()
-                        .is_some_and(|s| if i == 0 { &s.pass } else { &s.pass2 }.is_empty())
+                        .is_some_and(|s| if i == 0 { s.pass() } else { s.pass2() }.is_empty())
                     {
                         self.seed_read_filled(i);
                     }

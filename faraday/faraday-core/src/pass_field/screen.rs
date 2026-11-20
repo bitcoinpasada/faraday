@@ -119,7 +119,7 @@ pub(crate) fn pass_field(
     y: f32,
     w: f32,
     label: &str,
-    text: &crate::secret_text::SecretText,
+    text: &str,
     (on, chip, shown, marked): (bool, Option<Action>, bool, bool),
     action: Action,
 ) -> f32 {

@@ -82,10 +82,12 @@ boundary is.
   - an Inbox secret file when it is loaded.
 - **A typed passphrase** is held in one place, `pass_field::PassField`
   (`faraday/faraday-core/src/pass_field/`), where the field has moved onto
-  it: the Inbox's possible wallet and Lightning's so far. It wraps
+  it: Add a key's passphrase and its repeat, the seed read sheet's, the
+  Krux read's, the Inbox's possible wallet and Lightning's. It wraps
   `SecretText`, which wipes what it drops; it takes what its standard
   allows (a BIP-39 passphrase is printable ASCII and at most 256 bytes,
-  F155; Lightning's aezeed and `hsm_secret` passphrases have no most, their
+  F155; a Krux code's passphrase being read takes any character that is not a
+  control character, as the code may be made elsewhere; Lightning's aezeed and `hsm_secret` passphrases have no most, their
   standards set none) and says why it refused a key. While a stick is attached it takes
   no key, and a stick's arrival empties every one. A field whose screen or
   sheet is left is emptied after that event, however it was left, and a

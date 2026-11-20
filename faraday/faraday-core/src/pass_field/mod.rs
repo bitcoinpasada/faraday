@@ -98,6 +98,13 @@ pub(crate) enum Which {
     Again,
 }
 
+/// A BIP-39 passphrase typed twice: what Add a key opens with.
+impl Default for PassField {
+    fn default() -> PassField {
+        PassField::pair(Kind::Bip39)
+    }
+}
+
 /// What the caller knows that the field does not.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Gate {
@@ -203,6 +210,18 @@ impl PassField {
         }
     }
 
+    /// Sets the passphrase only, not its repeat.
+    pub(crate) fn fill_first(&mut self, s: &str) {
+        self.text.set(s);
+    }
+
+    /// Sets the repeat only.
+    pub(crate) fn fill_again(&mut self, s: &str) {
+        if let Some(again) = self.again.as_mut() {
+            again.set(s);
+        }
+    }
+
     /// The passphrase.
     pub(crate) fn as_str(&self) -> &str {
         self.text.as_str()
@@ -218,16 +237,17 @@ impl PassField {
         self.text.is_empty()
     }
 
+    /// Either text holds something.
+    pub(crate) fn holds_any(&self) -> bool {
+        !self.as_str().is_empty() || !self.again_str().is_empty()
+    }
+
     /// Both texts' bytes: what the hardware-key wait counts.
     pub(crate) fn len(&self) -> usize {
         self.as_str().len() + self.again_str().len()
     }
 
     /// A pair is typed alike and not empty; a single one is not empty.
-    #[expect(
-        dead_code,
-        reason = "read by the fields that ask for a pair's agreement"
-    )]
     pub(crate) fn ready(&self) -> bool {
         match self.again {
             Some(_) => pair::ready(self.as_str(), self.again_str()),
@@ -254,7 +274,6 @@ impl PassField {
     }
 
     /// The passphrase, for a call of `faraday-keys` that takes one.
-    #[expect(dead_code, reason = "used by the fields whose calls take one")]
     pub(crate) fn borrow(&self) -> &SecretText {
         &self.text
     }
@@ -286,11 +305,24 @@ pub(crate) enum Where {
     Potential,
     /// Lightning: the aezeed's, or the `hsm_secret`'s, passphrase.
     Aezeed,
+    /// Add a key's BIP-39 passphrase, and the one again where it is asked
+    /// twice.
+    Entry,
+    /// The seed read sheet's passphrase and the one again.
+    SeedRead,
+    /// The Krux read's passphrase.
+    KefRead,
 }
 
 impl Where {
     /// Every field.
-    const ALL: [Where; 2] = [Where::Potential, Where::Aezeed];
+    const ALL: [Where; 5] = [
+        Where::Potential,
+        Where::Aezeed,
+        Where::Entry,
+        Where::SeedRead,
+        Where::KefRead,
+    ];
 
     /// Whether the field's screen or sheet is up: a sheet counts as up
     /// while the idle warning covers it.
@@ -301,6 +333,9 @@ impl Where {
         };
         match self {
             Where::Potential => sheet(Sheet::Potential),
+            Where::Entry => app.screen == Screen::Entry,
+            Where::SeedRead => sheet(Sheet::SeedRead),
+            Where::KefRead => sheet(Sheet::KefRead),
             // Its state is kept while the secret sheet shows what it made
             // and on the way to a vault or a key it needs (`after_input`):
             // the node and the passphrase it was made with stay together.
@@ -321,8 +356,8 @@ impl Where {
     /// being made does, one only entered does not.
     fn waits(self) -> bool {
         match self {
-            Where::Potential => true,
-            Where::Aezeed => false,
+            Where::Potential | Where::Entry => true,
+            Where::Aezeed | Where::SeedRead | Where::KefRead => false,
         }
     }
 
@@ -331,6 +366,9 @@ impl Where {
         match self {
             Where::Potential => app.inbox.potential().map(|p| &p.pass),
             Where::Aezeed => app.lightning.state().map(|l| &l.passphrase),
+            Where::Entry => Some(&app.entry.state().passphrase),
+            Where::SeedRead => app.seed_read.state().map(|s| &s.pass),
+            Where::KefRead => app.seed_read.kef().map(|k| k.pass()),
         }
     }
 
@@ -339,6 +377,9 @@ impl Where {
         match self {
             Where::Potential => app.inbox.with_pass(f),
             Where::Aezeed => app.lightning.with_pass(f),
+            Where::Entry => app.entry.with_pass(f),
+            Where::SeedRead => app.seed_read.with_read_pass(f),
+            Where::KefRead => app.seed_read.with_kef_pass(f),
         }
     }
 }
@@ -389,15 +430,11 @@ fn up_len(app: &Faraday, waiting: bool) -> Option<usize> {
     sum
 }
 
-/// How many bytes the passphrase fields of the screen hold, where the
-/// screen is Add a key, a Create slot's key or the seed check (New key
-/// keeps its own count), and the fields on [`Where`].
+/// How many bytes the passphrase fields of the screen hold: a Create
+/// slot's key and the seed check (New key keeps its own count), and the
+/// fields on [`Where`].
 fn pass_len(app: &Faraday, waiting: bool) -> Option<usize> {
     let own = match app.screen {
-        Screen::Entry => {
-            let e = app.entry.state();
-            Some(e.passphrase.as_str().len() + e.again.as_str().len())
-        }
         Screen::Create => {
             let c = app.create.state()?;
             c.pass_slot?;

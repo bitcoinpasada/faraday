@@ -427,6 +427,20 @@ impl SeedsArea {
         self.kef.as_ref()
     }
 
+    /// Runs `f` on the seed sheet's passphrase pair, if the sheet has one.
+    pub(crate) fn with_read_pass(&mut self, f: &mut dyn FnMut(&mut crate::pass_field::PassField)) {
+        if let Some(s) = self.state.as_mut() {
+            f(&mut s.pass);
+        }
+    }
+
+    /// Runs `f` on the Krux read's passphrase field, if one is open.
+    pub(crate) fn with_kef_pass(&mut self, f: &mut dyn FnMut(&mut crate::pass_field::PassField)) {
+        if let Some(k) = self.kef.as_mut() {
+            k.with_pass(f);
+        }
+    }
+
     pub(crate) fn set_kef(&mut self, kef: Option<crate::seeds::kef::KefRead>) {
         self.kef = kef;
     }

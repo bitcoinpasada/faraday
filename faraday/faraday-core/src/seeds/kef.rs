@@ -9,7 +9,7 @@
 //! the card and a sheet still asking gain the time then.
 
 use crate::drawing::View;
-use crate::secret_text::SecretText;
+use crate::pass_field::{Gate, PassKey};
 use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
@@ -109,7 +109,7 @@ pub(crate) struct KefRead {
     depth: u8,
     stage: Stage,
     hex: bool,
-    pass: SecretText,
+    pass: crate::pass_field::PassField,
     focus: bool,
     error: Option<Text>,
     /// The passphrases still to try if the one running fails.
@@ -128,7 +128,7 @@ impl KefRead {
     /// Whether it holds a secret: a passphrase typed or still to try, the
     /// contents shown or offered.
     pub(crate) fn holds_secret(&self) -> bool {
-        !self.pass.is_empty()
+        self.pass.holds_any()
             || !self.forms.is_empty()
             || self.shown.is_some()
             || self.offered.is_some()
@@ -142,7 +142,7 @@ impl KefRead {
             depth,
             stage: Stage::Ask,
             hex: false,
-            pass: SecretText::new(),
+            pass: crate::pass_field::PassField::new(crate::pass_field::Kind::KefRead),
             focus: true,
             error: None,
             forms: Vec::new(),
@@ -154,14 +154,24 @@ impl KefRead {
         }
     }
 
+    /// The passphrase field.
+    pub(crate) fn pass(&self) -> &crate::pass_field::PassField {
+        &self.pass
+    }
+
+    /// Runs `f` on the passphrase field.
+    pub(crate) fn with_pass(&mut self, f: &mut dyn FnMut(&mut crate::pass_field::PassField)) {
+        f(&mut self.pass);
+    }
+
     /// The passphrase field is left unfocused.
     pub(crate) fn blur(&mut self) {
         self.focus = false;
     }
 
     /// The text typing goes to.
-    pub(crate) fn field(&self) -> Option<&SecretText> {
-        (self.stage == Stage::Ask && self.focus).then_some(&self.pass)
+    pub(crate) fn field(&self) -> Option<&str> {
+        (self.stage == Stage::Ask && self.focus).then(|| self.pass.as_str())
     }
 }
 
@@ -776,6 +786,10 @@ pub(crate) fn kef_read_key(app: &mut Faraday, key: KeyIn) -> bool {
     if app.sheet != Some(Sheet::KefRead) {
         return false;
     }
+    let gate = Gate {
+        stick: app.stick.in_the_way(),
+    };
+    let medium = app.medium;
     let Some(k) = app.seed_read.kef.as_mut() else {
         return false;
     };
@@ -783,10 +797,16 @@ pub(crate) fn kef_read_key(app: &mut Faraday, key: KeyIn) -> bool {
         return false;
     }
     match key {
-        KeyIn::Char(ch) if !ch.is_control() => k.pass.push(ch),
-        KeyIn::Backspace => {
-            k.pass.pop();
-        }
+        // Any non-control character goes in, and none with a stick
+        // attached.
+        KeyIn::Char(_) | KeyIn::Backspace => match k.pass.key(key, gate) {
+            PassKey::Refused(why) => {
+                k.error = Some(crate::pass_field::refused_text(medium, why));
+                return true;
+            }
+            PassKey::Ignored => return false,
+            _ => {}
+        },
         KeyIn::Enter => {
             kef_go(app);
             return true;
@@ -811,7 +831,7 @@ pub(crate) fn kef_shows_contents(app: &Faraday) -> bool {
 }
 
 /// The sheet's field text, for the caret.
-pub(crate) fn kef_field(app: &Faraday) -> Option<&SecretText> {
+pub(crate) fn kef_field(app: &Faraday) -> Option<&str> {
     app.seed_read.kef()?.field()
 }
 
@@ -897,7 +917,7 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                     cy,
                     iw,
                     if k.hex { EN.kef_hex } else { EN.kef_passphrase },
-                    &k.pass,
+                    k.pass.as_str(),
                     (
                         k.focus,
                         None,

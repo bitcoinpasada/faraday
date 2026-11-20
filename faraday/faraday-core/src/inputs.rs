@@ -1292,7 +1292,10 @@ impl Faraday {
             return;
         }
         if self.screen == Screen::Entry && self.entry.state().on_passphrase {
-            match self.entry.passphrase_key(key) {
+            let gate = crate::pass_field::Gate {
+                stick: self.stick.in_the_way(),
+            };
+            match self.entry.passphrase_key(key, gate, self.medium) {
                 state::Keyed::Add => self.entry_add(),
                 state::Keyed::Recover => self.form_recover(),
                 _ => {}

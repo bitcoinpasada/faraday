@@ -1335,7 +1335,7 @@ fn restore_refusing_typed_words_stays_on_add_a_key_with_the_words_and_passphrase
     assert_eq!(app.screen, Screen::Entry, "the refusal stays on Add a key");
     let e = testkit::entry(&app);
     assert_eq!(e.typed.as_str().trim(), ABANDON, "the words are kept");
-    assert_eq!(e.passphrase.as_str(), "TREZOR", "the passphrase is kept");
+    assert_eq!(e.passphrase(), "TREZOR", "the passphrase is kept");
     assert_eq!(e.error.as_deref(), Some(NOT_A_KEY));
     assert_eq!(app.session.keys.len(), keys);
 }

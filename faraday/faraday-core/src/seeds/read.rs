@@ -20,7 +20,8 @@
 //! the sheet closes, which wipes them.
 
 use crate::drawing::View;
-use crate::pass_field::pair::{self, pass_pair};
+use crate::pass_field::pair::pass_pair;
+use crate::pass_field::{Gate, PassKey};
 use crate::strings::EN;
 use faraday_bip::keys::Fingerprint;
 use faraday_crypto::work::Compute;
@@ -139,10 +140,8 @@ pub struct SeedRead {
     plain: Option<Fingerprint>,
     /// Add a passphrase was pressed: the fields show.
     pub adding: bool,
-    /// The passphrase.
-    pub pass: SecretText,
-    /// The passphrase again.
-    pub pass2: SecretText,
+    /// The passphrase and the one again.
+    pub(crate) pass: crate::pass_field::PassField,
     /// Which field typing goes to.
     pub focus: Option<u8>,
     /// Why the last choice did not load.
@@ -172,10 +171,29 @@ pub struct SeedRead {
     kef: Option<faraday_keys::kef::Envelope>,
 }
 
+/// The sheet's passphrase pair, with a carried passphrase in both fields.
+fn carried_pass(carried: Option<&SecretText>) -> crate::pass_field::PassField {
+    let mut pass = crate::pass_field::PassField::default();
+    if let Some(c) = carried {
+        pass.fill(c.as_str());
+    }
+    pass
+}
+
 impl SeedRead {
     /// The two fields hold the same passphrase, and it is not empty.
     fn pass_ready(&self) -> bool {
-        pair::ready(self.pass.as_str(), self.pass2.as_str())
+        self.pass.ready()
+    }
+
+    /// The passphrase typed.
+    pub fn pass(&self) -> &str {
+        self.pass.as_str()
+    }
+
+    /// The passphrase typed again.
+    pub fn pass2(&self) -> &str {
+        self.pass.again_str()
     }
 
     /// The key the passphrase typed makes, once it is typed twice alike:
@@ -188,15 +206,15 @@ impl SeedRead {
     /// Works out [`SeedRead::with_key`] from the fields as they are.
     fn with_key_now(&self, c: &Compute, keys: &faraday_keys::Keys) -> Option<Fingerprint> {
         self.pass_ready()
-            .then(|| self.source.fingerprint(c, keys, &self.pass))
+            .then(|| self.source.fingerprint(c, keys, self.pass.as_str()))
             .flatten()
     }
 
     /// The text typing goes to.
-    pub(crate) fn field(&self) -> Option<&SecretText> {
+    pub(crate) fn field(&self) -> Option<&str> {
         match self.focus? {
-            0 => Some(&self.pass),
-            _ => Some(&self.pass2),
+            0 => Some(self.pass.as_str()),
+            _ => Some(self.pass.again_str()),
         }
     }
 }
@@ -257,8 +275,7 @@ impl Faraday {
             source: Source::Words(SecretText::of(words)),
             plain: Some(plain),
             adding: carried.is_some(),
-            pass: carried.clone().unwrap_or_default(),
-            pass2: carried.unwrap_or_default(),
+            pass: carried_pass(carried.as_ref()),
             ..SeedRead::default()
         });
         self.sheet = Some(Sheet::SeedRead);
@@ -337,8 +354,7 @@ impl Faraday {
     pub(crate) fn seed_read_stick_arrived(&mut self) {
         if let Some(s) = self.seed_read.state.as_mut() {
             s.focus = None;
-            s.pass = SecretText::new();
-            s.pass2 = SecretText::new();
+            s.pass.clear();
             s.with = None;
         }
     }
@@ -383,7 +399,7 @@ impl Faraday {
             Choice::Plain => self.seed_read_choose(false),
             Choice::Xor => self.seed_read_xor(),
             Choice::WithPass => {
-                if s.pass.as_str() != s.pass2.as_str() {
+                if s.pass.as_str() != s.pass.again_str() {
                     s.error = Some(Text::of(EN.pass_pair_differ));
                 } else if s.pass.is_empty() {
                     s.error = Some(Text::of(EN.seed_read_type_passphrase));
@@ -456,7 +472,7 @@ impl Faraday {
             return;
         };
         let pass = if with_pass {
-            s.pass.clone()
+            s.pass.job_copy()
         } else {
             SecretText::new()
         };
@@ -613,6 +629,10 @@ impl Faraday {
         if self.sheet != Some(Sheet::SeedRead) {
             return false;
         }
+        let gate = Gate {
+            stick: self.stick.in_the_way(),
+        };
+        let medium = self.medium;
         let Some(s) = self.seed_read.state.as_mut() else {
             return false;
         };
@@ -623,19 +643,19 @@ impl Faraday {
             }
             return false;
         };
-        let field = if f == 0 { &mut s.pass } else { &mut s.pass2 };
+        s.pass.set_on_again(f != 0);
         match key {
-            // BIP-39 passphrases here are printable ASCII (BIP-39's seed derivation).
-            KeyIn::Char(ch) if (' '..='~').contains(&ch) => field.push(ch),
-            // Anything else is refused, and the sheet says so
+            // The field takes BIP-39's characters (printable ASCII) and
+            // none with a stick attached; a refusal is said on the sheet
             // (`docs/STANDARDS.md`).
-            KeyIn::Char(c) if !c.is_control() => {
-                s.error = Some(Text::of(crate::state::ascii_refused()));
-                return true;
-            }
-            KeyIn::Backspace => {
-                field.pop();
-            }
+            KeyIn::Char(_) | KeyIn::Backspace => match s.pass.key(key, gate) {
+                PassKey::Refused(why) => {
+                    s.error = Some(crate::pass_field::refused_text(medium, why));
+                    return true;
+                }
+                PassKey::Ignored => return false,
+                _ => {}
+            },
             KeyIn::Tab | KeyIn::BackTab => s.focus = Some(1 - f.min(1)),
             KeyIn::Escape => s.focus = None,
             KeyIn::Enter => {
@@ -658,8 +678,11 @@ impl Faraday {
     /// worked out once typing pauses, as when typed.
     pub(crate) fn seed_read_filled(&mut self, i: u8) {
         if let Some(s) = self.seed_read.state.as_mut() {
-            let t = if i == 0 { &mut s.pass } else { &mut s.pass2 };
-            t.set(crate::demo::PASSPHRASE);
+            if i == 0 {
+                s.pass.fill_first(crate::demo::PASSPHRASE);
+            } else {
+                s.pass.fill_again(crate::demo::PASSPHRASE);
+            }
             s.focus = Some(i);
             s.with = None;
             s.error = None;
@@ -1078,12 +1101,12 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             cy += pass_pair(
                 ui,
                 (x, cy, iw),
-                (s.pass.as_str(), s.pass2.as_str()),
+                (s.pass.as_str(), s.pass.again_str()),
                 |ui, n, fy| {
                     let (label, text) = if n == 0 {
-                        (EN.seed_read_passphrase_label, &s.pass)
+                        (EN.seed_read_passphrase_label, s.pass.as_str())
                     } else {
-                        (EN.seed_read_passphrase, &s.pass2)
+                        (EN.seed_read_passphrase, s.pass.again_str())
                     };
                     pass_field(
                         ui,
