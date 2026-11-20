@@ -726,6 +726,8 @@ impl Scroll {
             // The guide's supporting pane scrolls within itself beside the
             // page (`docs/LAYOUT.md` §6); put away, the page has it back.
             ui::Slot::GuidePane if sheet_none => ui::Slot::GuidePane,
+            // A flow's Your choices pane, beside its page on the wide layout.
+            ui::Slot::Choices if reach && screen == Screen::CreateVault => ui::Slot::Choices,
             // The sidebar's lists scroll within it, beside the page.
             ui::Slot::Sidebar if reach => ui::Slot::Sidebar,
             _ => ui::Slot::Page,
@@ -1208,6 +1210,7 @@ impl Faraday {
             ui::Slot::Sidebar => Some(Place::Sidebar),
             ui::Slot::BoardList => Some(Place::BoardList),
             ui::Slot::GuidePane => Some(Place::Guide),
+            ui::Slot::Choices => Some(Place::Choices),
             ui::Slot::Worksheet | ui::Slot::DemoPane | ui::Slot::InputPanel => self.codex32_place(),
             ui::Slot::Page | ui::Slot::WorksheetWhole | ui::Slot::DiceWork => self.page_place(),
         }
@@ -1308,6 +1311,7 @@ impl Faraday {
             Place::VisitIn => self.scroll.visit_in_offset(),
             Place::Card => self.wallets.card_offset(),
             Place::VaultItem => self.vaults.item_offset(),
+            Place::Choices => self.vaults.choices_offset(),
             Place::ListPane => self.scroll.panes.list_offset(),
             Place::Sidebar => self.scroll.sidebar_offset(),
             Place::BoardList => self.flows.board_list_offset(),
@@ -1347,6 +1351,7 @@ impl Faraday {
             Place::VisitIn => self.scroll.set_visit_in_offset(to),
             Place::Card => self.wallets.set_card_offset(to),
             Place::VaultItem => self.vaults.set_item_offset(to),
+            Place::Choices => self.vaults.set_choices_offset(to),
             Place::ListPane => self.scroll.panes.set_list_offset(to),
             Place::Sidebar => self.scroll.set_sidebar_offset(to),
             Place::BoardList => self.flows.set_board_list_offset(to),
@@ -1393,6 +1398,7 @@ enum Place {
     VisitIn,
     Card,
     VaultItem,
+    Choices,
     ListPane,
     Sidebar,
     BoardList,

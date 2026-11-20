@@ -664,6 +664,10 @@ macro_rules! words_common {
     flow_step_count: "Step {} of {}",
     /// Text in `paged` where the step count can change. `{}`: `i + 1`.
     flow_step_number: "Step {}",
+    /// Heading of a flow's Your choices (`flow::choices`).
+    flow_your_choices: "Your choices",
+    /// A row of Your choices that has no answer yet (`flow::choices`).
+    flow_not_chosen_yet: "Not chosen yet",
     /// Text in `paged`.
     flow_home: "Home",
     /// Button in `column_foot` and `paged`: leaves the flow for good (F51).

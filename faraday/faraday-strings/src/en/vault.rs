@@ -173,16 +173,12 @@ macro_rules! words_vault {
     vault_words_inline: "words",
     /// Button in `dice_panel`.
     vault_use_these_words: "Use these words",
-    /// Line in `create_panel`.
-    vault_your_choices: "Your choices",
-    /// Text in `create_panel`.
+    /// Text in the vault's rows of Your choices.
     vault_opens_on_label: "Opens on",
-    /// Text in `create_panel`.
+    /// Text in the vault's rows of Your choices.
     vault_unlock_cost: "Unlock cost",
-    /// Text in `create_panel`.
+    /// Text in the vault's rows of Your choices.
     vault_name_and_passphrases: "Name and passphrase",
-    /// Text in `create_panel`.
-    vault_not_chosen_yet: "Not chosen yet",
     /// Text in `create_summary`.
     vault_custom: "Custom",
     /// Text in `create_summary`. `{}`: `mib_text(mem)`.

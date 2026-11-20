@@ -45,10 +45,10 @@ pub(crate) fn foot(app: &View, ui: &Ui, entry: &DiceEntry, open: bool) -> Option
 
 /// The input panel at the foot of the flow's page, `fh` tall, where
 /// [`foot`] stands it: the rolls, the strength line and the pad, a key
-/// per face and Backspace, in the column `col` lays the cards in.
+/// per face and Backspace, in the column `room` says the card stands in.
 pub(crate) fn foot_panel(
     ui: &mut Ui,
-    (col, h): (&crate::flow::Column, f32),
+    (room, h): (&crate::flow::Room, f32),
     fh: Option<f32>,
     ask: Ask,
 ) {
@@ -57,16 +57,9 @@ pub(crate) fn foot_panel(
         return;
     };
     let top = h - fh;
-    crate::codex32::input_panel::cover(ui, (col.area_x, top, col.area_w, fh));
-    // At the card body's start on the wide layout; at the one-column
-    // page's margins elsewhere, as its cards stand.
-    let (x, w) = if ui.compact {
-        let m = crate::compact::M;
-        (col.area_x + m, (col.area_w - 2.0 * m).min(t::COLUMN_MAX))
-    } else {
-        let i = crate::flow::BODY_INDENT;
-        (col.x + i, (col.w - 2.0 * i).min(t::COLUMN_MAX))
-    };
+    crate::codex32::input_panel::cover(ui, (room.area_x, top, room.area_w, fh));
+    // At the card's own start and width, as its controls stand.
+    let (x, w) = (room.x, room.w.min(t::COLUMN_MAX));
     let mut cy = top + t::PAD;
     rolls_box(ask, ui, (x, cy, w), rolls);
     cy += ui.field_h() + t::GAP;

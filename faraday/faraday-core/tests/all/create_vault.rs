@@ -299,12 +299,15 @@ fn customise_opens_the_two_cards_and_a_custom_memory_survives_continue() {
     assert!(app.offers(Action::Vault(V::CCustomise)));
     app.press(Action::Vault(V::CCustomise));
     let _ = app.frame();
-    for step in [vstep::WHERE, vstep::COST] {
-        assert!(
-            app.offers(Action::Vault(V::CStep(step))),
-            "Customise shows step {step}"
-        );
-    }
+    // Customise opens the first of them; the other is a row of Your choices.
+    assert_eq!(
+        app.vaults().create.as_ref().unwrap().open,
+        Some(vstep::WHERE)
+    );
+    assert!(
+        app.offers(Action::Vault(V::CStep(vstep::COST))),
+        "Customise shows the unlock cost"
+    );
     assert!(
         !app.offers(Action::Vault(V::CStep(vstep::PRESET))),
         "in place of the size"
@@ -600,4 +603,142 @@ fn dice_rolled_for_a_vaults_passphrase_keep_the_app_from_counting_clean_until_th
     app.press(Action::CancelFlowNow);
     assert!(app.vaults().create.is_none(), "the form closed");
     assert!(app.vaults().dice.open().is_none(), "the rolls are gone");
+}
+
+// ---------------------------------------------------------------------
+// The flow container: one step's card at one place, Your choices at its
+// right.
+// ---------------------------------------------------------------------
+
+/// The window made `width` × `height` at `dpi`.
+fn window(app: &mut Faraday, (width, height): (u16, u16), dpi: u16) {
+    app.event(Event::Display(DisplayInfo {
+        width,
+        height,
+        dpi,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.settle();
+    let _ = app.frame();
+}
+
+/// Where `text` is drawn, the first of it: (x, y, w, h).
+fn drawn_at(app: &mut Faraday, text: &str) -> Option<(i32, i32, i32, i32)> {
+    let _ = app.frame();
+    app.drawn_text_boxes()
+        .plain()
+        .into_iter()
+        .find(|(t, _)| t == text)
+        .map(|b| b.1)
+}
+
+#[test]
+fn a_wide_window_shows_one_step_at_one_place() {
+    use faraday_core::vault::vstep;
+    let mut app = on_create_vault();
+    window(&mut app, (1366, 768), 160);
+    app.press(Action::Vault(V::CStep(vstep::PRESET)));
+    assert!(drawn_at(&mut app, "Step 1 of 2").is_some(), "the heading");
+    assert!(drawn_at(&mut app, "Step 2 of 2").is_none(), "one card only");
+    app.press(Action::Vault(V::CCustomise));
+    let first = drawn_at(&mut app, "Step 1 of 3").expect("Where will you open it? is step 1");
+    assert!(drawn_at(&mut app, "Where will you open it?").is_some());
+    app.press(Action::Vault(V::CNext(vstep::WHERE)));
+    let second = drawn_at(&mut app, "Step 2 of 3").expect("Unlock cost is step 2");
+    assert!(
+        drawn_at(&mut app, "Where will you open it?").is_none(),
+        "the finished step is no longer drawn"
+    );
+    assert!(drawn_at(&mut app, "Step 1 of 3").is_none());
+    assert_eq!(first.1, second.1, "the head stands at the same height");
+    assert_eq!(first.0, second.0, "and at the same place across");
+}
+
+#[test]
+fn your_choices_stands_at_the_right_on_a_wide_window_and_a_row_opens_its_step() {
+    use faraday_core::vault::vstep;
+    let mut app = on_create_vault();
+    window(&mut app, (1366, 768), 160);
+    for text in [
+        "Your choices",
+        "Opens on",
+        "Unlock cost",
+        "Name and passphrase",
+    ] {
+        assert!(drawn_at(&mut app, text).is_some(), "{text} is drawn");
+    }
+    assert!(drawn_at(&mut app, "Step 2 of 2").is_some());
+    let at = drawn_at(&mut app, "Your choices").unwrap();
+    assert!(at.0 > 1366 / 2, "at the right: {at:?}");
+    assert!(
+        app.offers(Action::Vault(V::CStep(vstep::PRESET))),
+        "a row opens its step"
+    );
+    assert!(
+        !app.offers(Action::Vault(V::CStep(vstep::PHRASES))),
+        "the step open takes no press on its row"
+    );
+    app.press(Action::Vault(V::CStep(vstep::PRESET)));
+    let _ = app.frame();
+    assert!(drawn_at(&mut app, "Step 1 of 2").is_some());
+    app.press(Action::Vault(V::CCustomise));
+    let _ = app.frame();
+    assert!(
+        drawn_at(&mut app, "Not chosen yet").is_some(),
+        "a step not reached yet says so"
+    );
+}
+
+#[test]
+fn a_small_panel_has_no_your_choices_pane() {
+    let mut app = on_create_vault();
+    window(&mut app, (480, 640), 160);
+    assert!(drawn_at(&mut app, "Step 2 of 2").is_some());
+    assert!(drawn_at(&mut app, "Your choices").is_none());
+}
+
+#[test]
+fn create_vault_ends_the_last_card_and_only_there() {
+    use faraday_core::vault::vstep;
+    let mut app = on_create_vault();
+    window(&mut app, (1366, 768), 160);
+    app.press(Action::Vault(V::CStep(vstep::PHRASES)));
+    let _ = app.frame();
+    assert!(app.offers(Action::Vault(V::CGo)), "on Name and passphrase");
+    app.press(Action::Vault(V::CStep(vstep::PRESET)));
+    let _ = app.frame();
+    assert!(
+        !app.offers(Action::Vault(V::CGo)),
+        "not in the pane nor on another step"
+    );
+}
+
+#[test]
+fn on_a_low_wide_window_your_choices_scrolls_within_itself() {
+    use faraday_core::vault::vstep;
+    let mut app = on_create_vault();
+    window(&mut app, (1366, 600), 160);
+    app.press(Action::Vault(V::CStep(vstep::PRESET)));
+    let head = drawn_at(&mut app, "Your choices").expect("the pane is still shown");
+    let (x, y) = (
+        u16::try_from(head.0 + 20).unwrap(),
+        u16::try_from(head.1 + 80).unwrap(),
+    );
+    let page = app.vaults().create.as_ref().unwrap().scroll.y;
+    app.event(Event::Hover { x, y });
+    app.event(Event::Scroll { x, y, dy: 800 });
+    app.event(Event::ScrollEnd { x, y });
+    app.settle();
+    let _ = app.frame();
+    let c = app.vaults().create.as_ref().unwrap();
+    assert!(c.choices_y > 0.0, "the pane scrolled within itself");
+    assert_eq!(c.scroll.y, page, "the page did not move");
+    let last = drawn_at(&mut app, "Goes to").expect("the pane's last line is on screen");
+    assert!(last.1 + last.3 <= 600, "inside the window: {last:?}");
 }

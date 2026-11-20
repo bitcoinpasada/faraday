@@ -90,6 +90,19 @@ impl VaultArea {
         self.item_offset = y;
     }
 
+    /// Design units Create a vault's Your choices is scrolled within its
+    /// pane; 0 with no form open.
+    pub(crate) fn choices_offset(&self) -> f32 {
+        self.state.create.as_ref().map_or(0.0, |c| c.choices_y)
+    }
+
+    /// Sets Your choices' scroll.
+    pub(crate) fn set_choices_offset(&mut self, y: f32) {
+        if let Some(c) = self.state.create.as_mut() {
+            c.choices_y = y;
+        }
+    }
+
     /// Asks for the one-pass measurement, once: it goes to the worker at
     /// the next tick ([`Faraday::vault_tick`]), and is not asked again while
     /// it is out or once its figure is in.
@@ -2032,6 +2045,8 @@ pub struct CreateForm {
     pub customise: bool,
     /// The column's scroll.
     pub scroll: flow::Scroll,
+    /// How far Your choices is scrolled within its pane, design units.
+    pub choices_y: f32,
     /// The machines chosen, in `MACHINES` order.
     pub on: [bool; 5],
     /// This computer is not one the vault is sized for: it is chosen
@@ -2083,6 +2098,7 @@ impl Default for CreateForm {
             done,
             customise: false,
             scroll: flow::Scroll::default(),
+            choices_y: 0.0,
             on,
             not_here: false,
             preset: Some(preset),
@@ -2145,6 +2161,10 @@ impl crate::trail::StepFlow for CreateVaultSteps {
         super::screen::VSTEPS[usize::from(k)]
     }
 
+    fn contained(&self) -> Option<&dyn crate::flow::Contained> {
+        Some(self)
+    }
+
     fn moves_on(&self, app: &crate::Faraday, chosen: Action) -> Option<Action> {
         app.vaults.create.as_ref()?;
         let step = match chosen {
@@ -2154,6 +2174,41 @@ impl crate::trail::StepFlow for CreateVaultSteps {
             _ => return None,
         };
         Some(Action::Vault(VaultAction::CNext(step)))
+    }
+}
+
+impl crate::flow::Contained for CreateVaultSteps {
+    fn rows(&self, app: &crate::Faraday) -> Vec<crate::flow::Row> {
+        let Some(c) = app.vaults.create.as_ref() else {
+            return Vec::new();
+        };
+        let summaries = super::screen::create_summaries(app);
+        [
+            EN.vault_opens_on_label,
+            EN.vault_unlock_cost,
+            EN.vault_name_and_passphrases,
+        ]
+        .iter()
+        .enumerate()
+        .map(|(k, label)| {
+            // Until Customise, the preset stands for the first two: they
+            // carry its values, and open its card.
+            let by_size = !c.customise && k as u8 != vstep::PHRASES;
+            let live = by_size || c.done[k] || c.open == Some(k as u8);
+            let opens = if by_size { vstep::PRESET } else { k as u8 };
+            crate::flow::Row {
+                label,
+                value: live.then(|| summaries[k].clone()),
+                mono: false,
+                opens,
+                current: c.open == Some(opens),
+            }
+        })
+        .collect()
+    }
+
+    fn count_fixed(&self, _: &crate::Faraday) -> bool {
+        true
     }
 }
 

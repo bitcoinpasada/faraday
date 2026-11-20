@@ -47,6 +47,10 @@ pub enum Slot {
     /// within itself beside the page (`docs/LAYOUT.md` §6;
     /// `GuideState::scroll`, `faraday-core`).
     GuidePane,
+    /// A flow's Your choices pane, which scrolls within itself where it is
+    /// taller than the window (`docs/FLOW-CONTAINER.md` §4;
+    /// `VaultArea::choices_offset`, `faraday-core`).
+    Choices,
     /// The desktop sidebar's lists of keys and wallets, which scroll
     /// within the sidebar where they are taller than its room
     /// (`Scroll::sidebar_offset`, `faraday-core`).

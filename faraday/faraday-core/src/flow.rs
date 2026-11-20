@@ -7,6 +7,18 @@
 //!
 //! A card can carry a short line of its own, shown at the top of the card
 //! while it is open.
+//!
+//! A flow moved onto the container (`docs/FLOW-CONTAINER.md`) is drawn by
+//! [`container`] instead: one card at one place, with Your choices
+//! ([`choices`]) at its right. It declares what only it knows through
+//! [`Contained`].
+
+mod answers;
+mod choices;
+mod container;
+
+pub(crate) use choices::Row;
+pub(crate) use container::{Page, contained};
 
 use crate::strings::EN;
 use crate::strings::fill;
@@ -24,6 +36,47 @@ use faraday_draw::tokens::{BODY_M, BODY_S, LABEL_L, LABEL_M, MARGIN_COMPACT, TIT
 pub(crate) const BODY_INDENT: f32 = 58.0;
 /// How far in from a step's right edge its body stops.
 pub(crate) const BODY_RIGHT: f32 = 18.0;
+
+/// What a flow on the container declares each frame, by lookups only
+/// (`docs/FLOW-CONTAINER.md` §1). Its steps, the current one, where Back
+/// stops and whether a step runs are [`crate::trail::Steps`]; the title of
+/// a step is [`crate::trail::StepFlow::name`]. The card's body and what
+/// stands under the rows are closures the screen gives the drawing.
+pub(crate) trait Contained: crate::trail::StepFlow {
+    /// The rows of Your choices, in order.
+    fn rows(&self, app: &crate::Faraday) -> Vec<Row>;
+    /// Whether the number of steps is known before the first and never
+    /// changes ("Step N of M"), or grows as answers are given ("Step N").
+    fn count_fixed(&self, app: &crate::Faraday) -> bool;
+    /// After step `changed` was answered again: whether the answer of step
+    /// `later` still holds. The container keeps the answers that do and
+    /// clears the rest; false clears every later answer.
+    #[expect(dead_code, reason = "filled by the answers' brief, which reads it")]
+    fn still_fits(&self, _app: &crate::Faraday, _changed: u8, _later: u8) -> bool {
+        false
+    }
+    /// Whether the current step takes the whole room beside the
+    /// navigation, with no pane (`docs/FLOW-CONTAINER.md` §5).
+    #[expect(dead_code, reason = "filled by the sheet's brief, which reads it")]
+    fn full_width(&self, _app: &crate::Faraday) -> bool {
+        false
+    }
+}
+
+/// Where a flow on the container drew its card: the room it may draw and
+/// clip in, and the column the card's controls stand in, which is what a
+/// panel at the page's foot lines up with.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Room {
+    /// The left edge of the room the page draws and clips in.
+    pub(crate) area_x: f32,
+    /// That room's width.
+    pub(crate) area_w: f32,
+    /// The card column's left edge.
+    pub(crate) x: f32,
+    /// The card column's width.
+    pub(crate) w: f32,
+}
 
 /// One card of a flow.
 pub struct Card {

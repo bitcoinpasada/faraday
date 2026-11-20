@@ -37,7 +37,7 @@ mod search;
 pub(crate) mod secret;
 use crate::screens::randomness::row as own_row;
 pub(crate) use codes::codes_form;
-use create::{create_button, create_button_h, create_summary};
+use create::{create_button, create_summary};
 pub(crate) use save::{gpg_sign_sheet, stick_save_sheet, years_row};
 use save::{images_panel, reasons_row, save_panel};
 pub(crate) use search::bar as search_bar;
@@ -878,43 +878,18 @@ pub(crate) const VSTEPS: [&str; vstep::COUNT] = [
 ];
 
 pub(crate) fn create(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
-    let panel_w = crate::screens::side_panel_w(cw);
     let Some(c) = app.vaults.create.as_ref() else {
         return;
     };
-    let summaries = create_summaries(app);
     let then = app
         .vaults
         .back_to
         .map(|s| Text::fill(EN.vault_then, &[app.back_name(s)]));
-    let steps = c.steps();
-    let cards: Vec<flow::Card> = steps
-        .iter()
-        .map(|&k| flow::Card {
-            title: VSTEPS[k as usize].into(),
-            summary: if c.done[k as usize] {
-                summaries[k as usize].as_str().into()
-            } else {
-                EN.vault_not_chosen_yet.into()
-            },
-            mono: false,
-            done: c.done[k as usize],
-            open: c.open == Some(k),
-            default: k == vstep::PRESET, // the size: closed at entry, with Change
-            toggle: va(V::CStep(k)),
-            lead: None,
-        })
-        .collect();
-    // A small panel has no side panel, nor has a window too low to hold
-    // it whole: its summary and Create vault follow the last step.
-    let compact = ui.compact || h < create_panel_h(app, ui, panel_w);
     let foot = super::dice::foot(app, ui);
-    let col = flow::Column {
-        area_x: x0,
-        area_w: if compact { cw } else { cw - panel_w },
-        x: x0 + 40.0,
-        w: (if compact { cw } else { cw - panel_w } - 72.0).min(820.0),
-        h: h - foot.unwrap_or(0.0),
+    let page = flow::Page {
+        area: (x0, cw),
+        h,
+        foot_h: foot.unwrap_or(0.0),
         // Made for another flow: back to it, and where it goes next.
         back: Some(app.named_back(match app.vaults.back_to {
             Some(s) => (app.back_link_name(s), va(V::Back)),
@@ -923,32 +898,33 @@ pub(crate) fn create(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             None => (EN.vault_vaults, Action::Nav(Screen::Vaults)),
         })),
         heading: EN.vault_create_a_vault,
-        wrap_closed: false,
-        total_fixed: true,
-        all_shown: false,
-        note: None,
         chip: then.as_deref(),
-        chip_tap: None,
+        choices_y: c.choices_y,
         moves: crate::ui::Moves::Yes,
     };
-    let scroll = c.scroll;
-    let (next, again) = {
+    let compact = ui.compact;
+    let Some(contained) = crate::trail::StepFlow::contained(&super::CREATE_VAULT_STEPS) else {
+        return;
+    };
+    let (next, again, room) = {
         let app_ref: &View = app;
-        let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
-            create_body(app_ref, ui, steps[i], x, y, w, compact)
+        let mut body = |ui: &mut Ui, k: u8, x: f32, y: f32, w: f32| -> f32 {
+            create_body(app_ref, ui, k, x, y, w, compact)
         };
-        flow::column(ui, &col, &cards, scroll, &mut body)
+        // Under Your choices' rows: what will be made.
+        let mut under =
+            |ui: &mut Ui, x: f32, y: f32, w: f32| -> f32 { create_summary(app_ref, ui, x, y, w) };
+        flow::contained(
+            ui, app_ref, contained, &page, c.scroll, &mut body, &mut under,
+        )
     };
     app.scroll(Scrolled::CreateVault, next, again);
-    crate::dice_entry::screen::foot_panel(ui, (&col, h), foot, super::dice::ask(app));
-    if !compact {
-        create_panel(app, ui, x0 + cw - panel_w, panel_w, h, &summaries);
-    }
+    crate::dice_entry::screen::foot_panel(ui, (&room, h), foot, super::dice::ask(app));
 }
 
 /// The summary line of each step, by `vstep`, and of the panel's
 /// choices.
-fn create_summaries(app: &View) -> [Text; vstep::COUNT] {
+pub(crate) fn create_summaries(app: &crate::Faraday) -> [Text; vstep::COUNT] {
     let Some(c) = app.vaults.create.as_ref() else {
         return Default::default();
     };
@@ -1423,92 +1399,18 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
             }
             cy += ui.wrap_as((x, cy, w), BODY_S, muted, EN.vault_passphrase_no_reset) + tokens::GAP;
             cy += super::create_key::draw(app, ui, (x, cy, w)) + tokens::GAP;
-            // A small panel has no side panel: what will be made, and
-            // Create vault, come after the last step's controls.
+            // Create vault ends the last card. A small panel has no pane
+            // for what will be made: it comes before it.
+            cy += 10.0;
+            ui.rule(x, cy, w, Role::OutlineVariant);
+            cy += 16.0;
             if in_page {
-                cy += 10.0;
-                ui.rule(x, cy, w, Role::OutlineVariant);
-                cy += 16.0;
                 cy += create_summary(app, ui, x, cy, w) + 8.0;
-                cy += create_button(app, ui, x, cy, w) + 8.0;
             }
+            cy += create_button(app, ui, x, cy, w) + 8.0;
         }
     }
     cy - y
-}
-
-/// Costs a layout of the summary's text: the height the side panel needs
-/// to hold all its parts, Create vault at its foot included, `panel_w`
-/// wide: a window lower than this has the
-/// summary and Create vault in the page after the last step instead.
-fn create_panel_h(app: &View, ui: &mut Ui, panel_w: f32) -> f32 {
-    let w = panel_w - 2.0 * tokens::CREATE_PANEL_INSET;
-    let head = ui.line_as(LABEL_L) + faraday_draw::tokens::GRID;
-    let summary = crate::compact::screen::measured(ui, |ui| create_summary(app, ui, 0.0, 0.0, w));
-    let rows = vstep::COUNT as f32 - 1.0;
-    tokens::SIDE_PANEL_TOP
-        + head
-        + tokens::CREATE_PANEL_ROW * rows
-        + summary
-        + tokens::CREATE_PANEL_GAP
-        + create_button_h(app, ui, w)
-        + tokens::CREATE_PANEL_INSET
-}
-
-fn create_panel(
-    app: &View,
-    ui: &mut Ui,
-    px: f32,
-    pw: f32,
-    h: f32,
-    summaries: &[Text; vstep::COUNT],
-) {
-    let (ink, rule) = (Role::OnSurface, Role::OutlineVariant);
-    let muted = Role::OnSurfaceVariant;
-    let Some(c) = app.vaults.create.as_ref() else {
-        return;
-    };
-    ui.fill(px, 0.0, pw, h, 0.0, Role::Surface);
-    ui.fill(px, 0.0, 1.0, h, 0.0, rule);
-    let x = px + tokens::CREATE_PANEL_INSET;
-    let w = pw - 2.0 * tokens::CREATE_PANEL_INSET;
-    let mut y = tokens::SIDE_PANEL_TOP;
-    ui.text_as(x, y, LABEL_L, muted, EN.vault_your_choices);
-    y += ui.line_as(LABEL_L) + faraday_draw::tokens::GRID;
-    for (k, label) in [
-        EN.vault_opens_on_label,
-        EN.vault_unlock_cost,
-        EN.vault_name_and_passphrases,
-    ]
-    .iter()
-    .enumerate()
-    {
-        // Until Customise, the preset stands for the first two: they
-        // carry its values, and open its card.
-        let by_size = !c.customise && k as u8 != vstep::PHRASES;
-        let live = by_size || c.done[k] || c.open == Some(k as u8);
-        ui.text_as(x, y, BODY_S, muted, label);
-        let v = if live {
-            summaries[k].clone()
-        } else {
-            Text::of(EN.vault_not_chosen_yet)
-        };
-        let v = ui.fit_as(BODY_S, &v, w);
-        ui.text_as(
-            x,
-            y + 18.0,
-            BODY_S,
-            if live { ink.paint() } else { crate::ui::off() },
-            &v,
-        );
-        let step = if by_size { vstep::PRESET } else { k as u8 };
-        ui.press_box(x - 8.0, y - 4.0, w + 16.0, 44.0, va(V::CStep(step)));
-        y += tokens::CREATE_PANEL_ROW;
-    }
-    y += create_summary(app, ui, x, y, w);
-    let by = (h - tokens::CREATE_PANEL_INSET - create_button_h(app, ui, w))
-        .max(y + tokens::CREATE_PANEL_GAP);
-    create_button(app, ui, x, by, w);
 }
 
 // ---------------------------------------------------------------------

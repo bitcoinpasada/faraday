@@ -136,9 +136,3 @@ pub(super) fn create_button(app: &View, ui: &mut Ui, x: f32, by: f32, w: f32) ->
     }
     row + 46.0
 }
-
-/// The height of [`create_button`] `w` wide, drawn nowhere: the side
-/// panel sets it at its foot.
-pub(super) fn create_button_h(app: &View, ui: &mut Ui, w: f32) -> f32 {
-    crate::compact::screen::measured(ui, |ui| create_button(app, ui, 0.0, 0.0, w))
-}

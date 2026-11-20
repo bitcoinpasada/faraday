@@ -322,6 +322,12 @@ pub(crate) trait StepFlow: Sync {
     fn moves_on(&self, _app: &Faraday, _chosen: Action) -> Option<Action> {
         None
     }
+    /// The flow as the container draws it (`docs/FLOW-CONTAINER.md`), for
+    /// a flow already moved onto it; `None` for one that still draws its
+    /// own column.
+    fn contained(&self) -> Option<&dyn crate::flow::Contained> {
+        None
+    }
 }
 
 /// A screen as it was seen: what a way back to it puts back.

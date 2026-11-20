@@ -520,6 +520,10 @@ pub struct Ui<'a, A> {
     /// What the step column drew: which card is open and how tall its
     /// body is, units.
     pub column: Option<(Option<usize>, f32)>,
+    /// Where a flow on the container drew its card this frame: the head's
+    /// left edge, its top, and the column's width and height, in design
+    /// units (`docs/FLOW-CONTAINER.md` §2). The fade through reads it.
+    pub flow_card: Option<(f32, f32, f32, f32)>,
     /// Where the step column wants to glide to, to bring the open card
     /// into view, units.
     pub follow_to: Option<f32>,
@@ -700,6 +704,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             foot_room: 0.0,
             disclosure: None,
             column: None,
+            flow_card: None,
             follow_to: None,
             compact: false,
             touch: faraday_draw::tokens::TOUCH,

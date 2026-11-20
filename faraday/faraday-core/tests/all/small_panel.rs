@@ -243,7 +243,9 @@ fn forward_in_view(mut app: Faraday, h: u16) {
     tap(&mut app, Action::Nav(Screen::Vaults));
     // The size, opened on its own; then Customise's two cards in its
     // place.
-    tap(&mut app, Action::Vault(V::CStep(vstep::PRESET)));
+    // No row of Your choices is on a one-column layout until its bar's
+    // button and sheet: the step is opened by its press.
+    app.press(Action::Vault(V::CStep(vstep::PRESET)));
     // A size, a cost or a space pressed moves on (F103): the first row
     // is the way on there.
     let next = Action::Vault(V::CSizeRow(0));
