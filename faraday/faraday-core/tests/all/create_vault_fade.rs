@@ -1,8 +1,9 @@
 //! Make a new vault's steps fade through (`docs/FLOW-CONTAINER.md` §3): on
 //! a wide window a step that moves on goes out to the page's surface and
 //! the next comes in from it, 300 ms in all; with Reduce motion it is
-//! there at once; a step with a passphrase typed swaps at once and no
-//! image of it is kept.
+//! there at once; a step with a passphrase typed or shown fades drawn live
+//! from the form with no image kept, and what it showed is hidden when
+//! the fade out ends, or at the step change when no fade carries it.
 
 use crate::common::type_text;
 use faraday_core::testkit::Plain;
@@ -424,4 +425,37 @@ type Placed = (String, (i32, i32, i32, i32));
 fn faded_text(app: &mut Faraday) -> Vec<Placed> {
     let _ = app.frame();
     app.drawn_text_boxes().plain()
+}
+
+#[test]
+fn a_step_left_from_the_choices_sheet_hides_the_passphrase_shown() {
+    let mut app = Faraday::new();
+    app.event(Event::Display(DisplayInfo {
+        width: 480,
+        height: 640,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Create));
+    let _ = app.frame();
+    app.press(Action::Vault(V::CFocus(0, false)));
+    type_text(&mut app, "test phrase");
+    app.press(Action::Vault(V::CShow));
+    let _ = app.frame();
+    let shown = |app: &Faraday| app.vaults().create.as_ref().unwrap().shown;
+    assert!(shown(&app), "shown");
+    for step in [vstep::PRESET, 0] {
+        app.press(Action::Choices(faraday_core::ChoicesPress::Open));
+        let _ = app.frame();
+        app.press(Action::Choices(faraday_core::ChoicesPress::Row(step)));
+        let _ = app.frame();
+    }
+    assert!(!shown(&app), "hidden once the step was left by the sheet");
 }

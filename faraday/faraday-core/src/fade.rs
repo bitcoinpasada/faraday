@@ -116,6 +116,10 @@ pub(crate) struct Fade {
     /// What the step left shows is hidden when its fade out ends, not at
     /// the press (`Faraday::live_settle`).
     release_owed: bool,
+    /// The step open in a flow on the container as the last frame had it,
+    /// a sheet over it or not: a change of it with no live fade to carry
+    /// the release hides what the step left showed at once.
+    open_seen: Option<u8>,
     /// What drew each image kept here, for the tours' check of a secret
     /// left in one (`crate::leaks`).
     #[cfg(feature = "testkit")]
@@ -408,6 +412,12 @@ impl Faraday {
             .steps_on_show()
             .and_then(|(flow, steps)| flow.contained().and(steps.open));
         let drawn_key = ((self.screen, self.sheet), page, theme, step);
+        let open = self
+            .step_flow()
+            .filter(|f| f.contained().is_some())
+            .and_then(|f| f.steps(self))
+            .and_then(|s| s.open);
+        let open_before = std::mem::replace(&mut self.fade.open_seen, open);
         // Drawn in full: what asked for this frame is drawn as it is now,
         // the gap across it is not a fade's step, and what it changed is
         // not known.
@@ -432,6 +442,13 @@ impl Faraday {
         {
             self.live_begin(drawn_key, out);
             return;
+        }
+        // A step left by a press that also changed the sheet (a row of
+        // Your choices) has no live fade to carry the release: what it
+        // showed is hidden now (F104).
+        if left.is_none() && open.is_some() && open_before.is_some() && open_before != open {
+            self.fade.release_owed = false;
+            self.vaults.hide_on_leaving_step();
         }
         // The frame before showed a secret, typed or shown: it is
         // not kept, and any fade under way ends where it is.
