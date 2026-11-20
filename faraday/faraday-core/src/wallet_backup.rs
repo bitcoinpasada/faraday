@@ -26,6 +26,7 @@ use crate::copy_check::{PIN_MAX, Typed, WordCheck, WordsUse, copy_key};
 use crate::forms;
 use crate::plan::{CopyChecks, CopyForm, CopyForms};
 use crate::public_files;
+use crate::public_kind::PublicFile;
 use crate::wallet::{Kind, Session, Wallet, fp_label, fp_text, wallet_name};
 use crate::{
     Action, BStage, Command, Faraday, PlanPress, ScanPurpose, ScanState, Screen, Sheet, board,
@@ -51,31 +52,43 @@ mod shown;
 /// wallet has each; and a silent payments wallet's BIP-392 `sp()`
 /// descriptor (15, INTEROP §5, BIP-392 sp()), which is not public: it carries the scan key,
 /// and its row goes through the secret sheet, not `public_out`.
-pub(crate) fn public_more_files(w: &Wallet) -> Vec<(u8, Text)> {
+pub(crate) fn public_more_files(w: &Wallet) -> Vec<(PublicFile, Text)> {
     let stem = file_stem(&w.name);
     let stem = stem.as_str();
     let p = w.policy();
     [
         (
-            9,
+            PublicFile::CoreBefore29,
             faraday_bip::core_import::writes_pair(p),
             "bitcoin-core-before-29.json",
         ),
-        (10, faraday_intake::electrum::writes(p), "electrum.json"),
-        (11, faraday_intake::caravan::writes(p), "caravan.json"),
         (
-            12,
+            PublicFile::Electrum,
+            faraday_intake::electrum::writes(p),
+            "electrum.json",
+        ),
+        (
+            PublicFile::Caravan,
+            faraday_intake::caravan::writes(p),
+            "caravan.json",
+        ),
+        (
+            PublicFile::SpecterDiy,
             faraday_intake::specter_diy::writes(p),
             "specter-diy.txt",
         ),
         (
-            13,
+            PublicFile::Wasabi,
             faraday_intake::single_key::wasabi_writes(p),
             "wasabi.json",
         ),
         // A silent payments wallet's BIP-392 descriptor, which carries
         // the scan key: through the secret sheet (`Action::SDescriptorOut`).
-        (15, p.silent().is_some(), "sp-descriptor.txt"),
+        (
+            PublicFile::SpDescriptor,
+            p.silent().is_some(),
+            "sp-descriptor.txt",
+        ),
     ]
     .into_iter()
     .filter(|(_, writes, _)| *writes)
@@ -2161,7 +2174,7 @@ impl Faraday {
                     return self
                         .flow_plan_press(i, PlanPress::Omit(u8::try_from(n).unwrap_or(u8::MAX)));
                 }
-                let remake = self.backup_remake(4);
+                let remake = self.backup_remake(PublicFile::SplitShares);
                 self.backup.set_omit(n);
                 // The shares' files and pictures are made again, as a job,
                 // once the slider is let go (`docs/WORKERS.md` §2.1).
@@ -2169,7 +2182,11 @@ impl Faraday {
                     self.backup.set_omit_remake(w);
                 }
             }
-            Action::BOut(what) => self.backup_out(what),
+            Action::BOut(what) => {
+                if let Some(kind) = PublicFile::from_wire(what) {
+                    self.backup_out(kind);
+                }
+            }
             // `act_inner` passes only the actions matched above.
             _ => unreachable!(),
         }
@@ -2957,6 +2974,14 @@ impl Faraday {
     /// the BSMS record, Bitcoin Core its import, each the descriptor where
     /// the wallet has no such file; "Not sure" the descriptor.
     pub fn backup_public(&self) -> Vec<u8> {
+        self.backup_public_kinds()
+            .into_iter()
+            .map(PublicFile::wire)
+            .collect()
+    }
+
+    /// [`Faraday::backup_public`] as kinds.
+    pub(crate) fn backup_public_kinds(&self) -> Vec<PublicFile> {
         let Some(b) = self.backup.state() else {
             return Vec::new();
         };
@@ -3280,7 +3305,7 @@ impl Faraday {
             )
     }
 
-    pub(crate) fn backup_out(&mut self, what: u8) {
+    pub(crate) fn backup_out(&mut self, what: PublicFile) {
         let Some(wallet) = self.backup.state().map(|b| b.wallet) else {
             return;
         };
@@ -3290,7 +3315,7 @@ impl Faraday {
     /// The backup under way's wallet, when its checklist is showing and
     /// file `what` is For the stick: that file is made again when what it
     /// depends on changes. The old one goes now.
-    pub(crate) fn backup_remake(&mut self, what: u8) -> Option<usize> {
+    pub(crate) fn backup_remake(&mut self, what: PublicFile) -> Option<usize> {
         let b = self.backup.state()?;
         if b.stage != BStage::Checklist {
             return None;
@@ -3313,7 +3338,7 @@ impl Faraday {
     /// tried. The files [`Faraday::public_out`] makes, with their bytes;
     /// the config or the sheets only where they rebuild the wallet, and
     /// otherwise none, which a toast says.
-    pub(crate) fn public_made(&mut self, wallet: usize, what: u8) -> Vec<(Text, Vec<u8>)> {
+    pub(crate) fn public_made(&mut self, wallet: usize, what: PublicFile) -> Vec<(Text, Vec<u8>)> {
         let c = self.compute();
         let Some(inputs) = self.public_inputs(&c, wallet) else {
             return Vec::new();
@@ -3334,10 +3359,12 @@ impl Faraday {
     /// for 4, each split share's code, one beside each share's sheet and
     /// text. None for any other file.
     pub fn public_pictures(&self, c: &Compute, wallet: usize, what: u8) -> Vec<picture::Labelled> {
-        match self.public_inputs(c, wallet) {
-            Some(inputs) => public_files::pictures(c, &inputs, what),
-            None => Vec::new(),
-        }
+        let (Some(kind), Some(inputs)) =
+            (PublicFile::from_wire(what), self.public_inputs(c, wallet))
+        else {
+            return Vec::new();
+        };
+        public_files::pictures(c, &inputs, kind)
     }
 
     /// Costs what `public_files::files` costs. [`Faraday::public_made`], its
@@ -3345,7 +3372,7 @@ impl Faraday {
     pub(crate) fn public_files(
         &mut self,
         wallet: usize,
-        what: u8,
+        what: PublicFile,
         bytes: bool,
     ) -> Vec<(faraday_text::Text, Vec<u8>)> {
         let c = self.compute();
@@ -3993,7 +4020,10 @@ impl Faraday {
     }
 
     /// [`Faraday::backup_public`] for wallet `w` under answers `a`.
-    pub(crate) fn backup_public_for(w: &crate::wallet::Wallet, a: &plan::Answers) -> Vec<u8> {
+    pub(crate) fn backup_public_for(
+        w: &crate::wallet::Wallet,
+        a: &plan::Answers,
+    ) -> Vec<PublicFile> {
         use faraday_bip::policy::{Template, Wrapper};
         use plan::software as sw;
         let config = crate::wallet_backup::multisig_config(w, None).is_some();
@@ -4005,26 +4035,47 @@ impl Faraday {
             }
         );
         let core = w.policy().silent().is_none();
-        let mut v: Vec<u8> = Vec::new();
-        let add = |v: &mut Vec<u8>, x: u8| {
+        let mut v: Vec<PublicFile> = Vec::new();
+        let add = |v: &mut Vec<PublicFile>, x: PublicFile| {
             if !v.contains(&x) {
                 v.push(x);
             }
         };
         if a.software[sw::SPARROW] {
-            add(&mut v, 5);
+            add(&mut v, PublicFile::WalletJson);
         }
         if a.software[sw::HARDWARE] {
-            add(&mut v, if config { 2 } else { 1 });
+            add(
+                &mut v,
+                if config {
+                    PublicFile::MultisigConfig
+                } else {
+                    PublicFile::Descriptor
+                },
+            );
         }
         if a.software[sw::NUNCHUK] {
-            add(&mut v, if bsms { 6 } else { 1 });
+            add(
+                &mut v,
+                if bsms {
+                    PublicFile::Bsms
+                } else {
+                    PublicFile::Descriptor
+                },
+            );
         }
         if a.software[sw::CORE] {
-            add(&mut v, if core { 7 } else { 1 });
+            add(
+                &mut v,
+                if core {
+                    PublicFile::CoreImport
+                } else {
+                    PublicFile::Descriptor
+                },
+            );
         }
         if a.software[sw::NOT_SURE] || v.is_empty() {
-            add(&mut v, 1);
+            add(&mut v, PublicFile::Descriptor);
         }
         v
     }
@@ -4050,22 +4101,22 @@ impl Faraday {
         let mut out = Vec::new();
         for what in Self::backup_public_for(w, a) {
             let file = match what {
-                1 => text!("{stem}-descriptor.txt"),
-                2 => text!("{stem}-multisig-config.txt"),
-                5 => text!("{stem}-wallet.json"),
-                6 => text!("{stem}-bsms.txt"),
+                PublicFile::Descriptor => text!("{stem}-descriptor.txt"),
+                PublicFile::MultisigConfig => text!("{stem}-multisig-config.txt"),
+                PublicFile::WalletJson => text!("{stem}-wallet.json"),
+                PublicFile::Bsms => text!("{stem}-bsms.txt"),
                 _ => text!("{stem}-bitcoin-core.json"),
             };
             let picture = match what {
-                1 => crate::picture_names(
+                PublicFile::Descriptor => crate::picture_names(
                     &text!("{stem}-descriptor"),
                     "-",
                     &w.policy().to_descriptor_checksummed(),
                 )
                 .first()
                 .map(|n| Text::of(n)),
-                2 => Some(text!("{stem}-multisig-config.png")),
-                6 => Some(text!("{stem}-bsms.png")),
+                PublicFile::MultisigConfig => Some(text!("{stem}-multisig-config.png")),
+                PublicFile::Bsms => Some(text!("{stem}-bsms.png")),
                 _ => None,
             };
             match picture {

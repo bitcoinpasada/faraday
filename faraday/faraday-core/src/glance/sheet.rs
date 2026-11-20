@@ -28,6 +28,7 @@ use faraday_text::{Text, text};
 
 use crate::glance::{self, Backup, BackupNode, Glance, Press};
 use crate::plan::{self, At, Item, Mark, What};
+use crate::public_kind::PublicFile;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::vault::VaultAction as V;
@@ -456,11 +457,19 @@ fn wallet(ctx: &Ctx<'_>) -> Option<View> {
     }
     if matches!(g.backup, Backup::Plan { .. }) {
         let (label, sub, what) = if split {
-            (EN.glance_sheet_print, EN.glance_sheet_pdfs_text, 4)
+            (
+                EN.glance_sheet_print,
+                EN.glance_sheet_pdfs_text,
+                PublicFile::SplitShares,
+            )
         } else {
-            (EN.glance_sheet_reprint_wallet_sheet, "PDF", 3)
+            (
+                EN.glance_sheet_reprint_wallet_sheet,
+                "PDF",
+                PublicFile::BackupSheet,
+            )
         };
-        rows.push(row(label, sub, ctx.doing(Step::Out(what))));
+        rows.push(row(label, sub, ctx.doing(Step::Out(what.wire()))));
     }
     rows.push(row(
         EN.glance_sheet_rename_wallet,
@@ -1011,19 +1020,27 @@ fn line(ctx: &Ctx<'_>, n: u8, j: u8) -> Option<View> {
             ));
         }
         What::Sheet => {
-            rows.push(row(EN.glance_sheet_reprint, "PDF", ctx.doing(Step::Out(3))));
-            rows.push(row(EN.glance_sheet_as_a_qr, "PNG", ctx.doing(Step::Out(8))));
+            rows.push(row(
+                EN.glance_sheet_reprint,
+                "PDF",
+                ctx.doing(Step::Out(PublicFile::BackupSheet.wire())),
+            ));
+            rows.push(row(
+                EN.glance_sheet_as_a_qr,
+                "PNG",
+                ctx.doing(Step::Out(PublicFile::DescriptorQr.wire())),
+            ));
             rows.push(row(
                 EN.glance_sheet_as_text,
                 EN.glance_sheet_the_descriptor,
-                ctx.doing(Step::Out(1)),
+                ctx.doing(Step::Out(PublicFile::Descriptor.wire())),
             ));
         }
         What::Share(_) => {
             rows.push(row(
                 EN.glance_sheet_print,
                 EN.glance_sheet_pdfs_text,
-                ctx.doing(Step::Out(4)),
+                ctx.doing(Step::Out(PublicFile::SplitShares.wire())),
             ));
             if let Some(a) = ctx.item(Item::Sheets) {
                 rows.push(row(EN.glance_sheet_keys_left, "", Some(a)));
@@ -1677,7 +1694,11 @@ impl Faraday {
                 let from_vault = matches!(press, Press::Vault(..));
                 match step {
                     Step::Qr => self.act(Action::QrWallet(w)),
-                    Step::Out(what) => self.public_out(w, what),
+                    Step::Out(what) => {
+                        if let Some(kind) = PublicFile::from_wire(what) {
+                            self.public_out(w, kind);
+                        }
+                    }
                     Step::KeyQr(k) => self.act(Action::ShowCode(crate::Code::WalletKey(w, k))),
                     Step::CosignerQr(k) => {
                         self.act(Action::ShowCode(crate::Code::CosignerKey(w, k)))

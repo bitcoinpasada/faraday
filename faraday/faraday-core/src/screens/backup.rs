@@ -6,6 +6,7 @@ use super::parts::{
 };
 use crate::drawing::{Scrolled, View};
 use crate::plan::Item;
+use crate::public_kind::PublicFile;
 use crate::strings::{EN, fill};
 use crate::ui::Shape;
 use crate::ui::pal::*;
@@ -1151,7 +1152,15 @@ fn backup_body(app: &View, ui: &mut Ui, item: Item, x: f32, y: f32, w: f32) -> f
             }
         }
         Item::PublicFiles => {
-            cy += public_rows_for(app, ui, x, cy, w, b.wallet, Some(&app.backup_public()));
+            cy += public_rows_for(
+                app,
+                ui,
+                x,
+                cy,
+                w,
+                b.wallet,
+                Some(&app.backup_public_kinds()),
+            );
             cy += 12.0;
             if item_next(app, ui, x, cy, w, item) {
                 cy += 48.0;
@@ -1199,7 +1208,10 @@ fn backup_body(app: &View, ui: &mut Ui, item: Item, x: f32, y: f32, w: f32) -> f
             let (state, button) = made_state(
                 app,
                 &file,
-                Some(Action::PublicRemove(b.wallet, 3)),
+                Some(Action::PublicRemove(
+                    b.wallet,
+                    PublicFile::BackupSheet.wire(),
+                )),
                 (EN.backup_make_button, Action::BOut(3)),
             );
             cy += file_row(
@@ -1234,7 +1246,10 @@ fn backup_body(app: &View, ui: &mut Ui, item: Item, x: f32, y: f32, w: f32) -> f
             let (state, button) = made_state(
                 app,
                 &file,
-                Some(Action::PublicRemove(b.wallet, 4)),
+                Some(Action::PublicRemove(
+                    b.wallet,
+                    PublicFile::SplitShares.wire(),
+                )),
                 (EN.backup_make_them, Action::BOut(4)),
             );
             cy += file_row(
@@ -2625,14 +2640,17 @@ fn public_files(
             EN.public_files_descriptor.to_string(),
             EN.public_files_any_wallet,
             format!("{stem}-descriptor.txt"),
-            Action::PublicOut(i, 1),
-            codes(Action::QrWallet(i), Action::PublicOut(i, 8)),
+            Action::PublicOut(i, PublicFile::Descriptor.wire()),
+            codes(
+                Action::QrWallet(i),
+                Action::PublicOut(i, PublicFile::DescriptorQr.wire()),
+            ),
         ),
         (
             EN.public_files_wallet.to_string(),
             EN.public_files_sparrow,
             format!("{stem}-wallet.json"),
-            Action::PublicOut(i, 5),
+            Action::PublicOut(i, PublicFile::WalletJson.wire()),
             Vec::new(),
         ),
     ];
@@ -2641,7 +2659,7 @@ fn public_files(
             EN.public_files_multisig.to_string(),
             EN.public_files_coldcard,
             format!("{stem}-multisig-config.txt"),
-            Action::PublicOut(i, 2),
+            Action::PublicOut(i, PublicFile::MultisigConfig.wire()),
             codes(
                 Action::ShowCode(Code::MultisigConfig(i)),
                 Action::CodePng(Code::MultisigConfig(i)),
@@ -2652,7 +2670,7 @@ fn public_files(
         EN.public_files_backup.to_string(),
         EN.public_files_a_pdf,
         format!("{stem}-backup.pdf"),
-        Action::PublicOut(i, 3),
+        Action::PublicOut(i, PublicFile::BackupSheet.wire()),
         Vec::new(),
     ));
     // BIP 129 covers wsh and sh(wsh) multisig.
@@ -2667,7 +2685,7 @@ fn public_files(
             EN.public_files_bsms_descriptor.to_string(),
             EN.public_files_bip_129,
             format!("{stem}-bsms.txt"),
-            Action::PublicOut(i, 6),
+            Action::PublicOut(i, PublicFile::Bsms.wire()),
             codes(
                 Action::ShowCode(Code::Bsms(i)),
                 Action::CodePng(Code::Bsms(i)),
@@ -2680,7 +2698,7 @@ fn public_files(
             EN.public_files_bitcoin.to_string(),
             EN.public_files_bitcoin_core,
             format!("{stem}-bitcoin-core.json"),
-            Action::PublicOut(i, 7),
+            Action::PublicOut(i, PublicFile::CoreImport.wire()),
             Vec::new(),
         ));
     }
@@ -2725,31 +2743,35 @@ fn public_files(
         .into_iter()
         .map(|(what, file)| {
             let (name, detail) = match what {
-                9 => (EN.public_files_core_before_29, EN.public_files_bitcoin_core),
-                10 => (
+                PublicFile::CoreBefore29 => {
+                    (EN.public_files_core_before_29, EN.public_files_bitcoin_core)
+                }
+                PublicFile::Electrum => (
                     EN.public_files_electrum,
                     EN.public_files_electrum_watch_only,
                 ),
-                11 => (EN.public_files_caravan, EN.public_files_caravan_unchained),
-                12 => (
+                PublicFile::Caravan => (EN.public_files_caravan, EN.public_files_caravan_unchained),
+                PublicFile::SpecterDiy => (
                     EN.public_files_specter_diy,
                     EN.public_files_specter_diy_reads,
                 ),
-                15 => (EN.public_files_sp_descriptor, EN.public_files_sp_reads),
+                PublicFile::SpDescriptor => {
+                    (EN.public_files_sp_descriptor, EN.public_files_sp_reads)
+                }
                 _ => (EN.public_files_wasabi, EN.public_files_wasabi_wallet),
             };
             // The sp() descriptor carries the scan key: the secret sheet.
-            let action = if what == 15 {
+            let action = if what == PublicFile::SpDescriptor {
                 Action::SDescriptorOut(i)
             } else {
-                Action::PublicOut(i, what)
+                Action::PublicOut(i, what.wire())
             };
             // Specter DIY scans its command: as a code, and as pictures
             // of its numbered parts.
-            let extra = if what == 12 {
+            let extra = if what == PublicFile::SpecterDiy {
                 codes(
                     Action::ShowCode(Code::SpecterDiy(i)),
-                    Action::PublicOut(i, 14),
+                    Action::PublicOut(i, PublicFile::SpecterDiyQr.wire()),
                 )
             } else {
                 Vec::new()
@@ -2762,7 +2784,7 @@ fn public_files(
 
 /// Draws [`public_files`] of wallet `i` on the backup's checklist, each
 /// marked once its file is in the Outbox: only the files `only`
-/// names (as `public_out` numbers them) and the keys for the cosigners,
+/// names (as `PublicFile` kinds) and the keys for the cosigners,
 /// the codes beside them only where the plan's form has QR pictures;
 /// then a ghost More options, or, once it is pressed, the files under
 /// it (F64).
@@ -2773,7 +2795,7 @@ fn public_rows_for(
     y: f32,
     w: f32,
     i: usize,
-    only: Option<&[u8]>,
+    only: Option<&[PublicFile]>,
 ) -> f32 {
     let qr = app
         .backup()
@@ -2784,7 +2806,9 @@ fn public_rows_for(
     let shown = primary
         .iter()
         .filter(|(_, _, _, action, _)| match (only, action) {
-            (Some(o), Action::PublicOut(_, what)) => o.contains(what),
+            (Some(o), Action::PublicOut(_, what)) => {
+                PublicFile::from_wire(*what).is_some_and(|k| o.contains(&k))
+            }
             _ => true,
         })
         .chain(more.iter().filter(|_| open));

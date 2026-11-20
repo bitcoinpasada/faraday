@@ -17,6 +17,7 @@ use faraday_crypto::work::Compute;
 use faraday_text::Text;
 
 use crate::public_files;
+use crate::public_kind::PublicFile;
 use crate::strings::{EN, fill};
 use crate::wallet::{self, Origin, Session, Wallet, fp_text};
 use crate::worker::Job;
@@ -70,15 +71,16 @@ pub(crate) struct Made {
 /// set tried. The files kind `what` makes with their bytes (as
 /// `Faraday::public_out` numbers them); the config or the sheets only where
 /// they rebuild the wallet, and otherwise none, which the toast says.
-pub(crate) fn made(c: &Compute, inp: &Inputs, what: u8) -> Made {
+pub(crate) fn made(c: &Compute, inp: &Inputs, what: PublicFile) -> Made {
     let w = inp.wallet();
     let refused = match what {
-        2 if wallet_backup::multisig_config(&w, None).is_some()
-            && restore::checked_config(c, inp.network, &w).is_none() =>
+        PublicFile::MultisigConfig
+            if wallet_backup::multisig_config(&w, None).is_some()
+                && restore::checked_config(c, inp.network, &w).is_none() =>
         {
             Some(EN.backup_config_rebuilds_another)
         }
-        4 if wallet_backup::splits(&w) => {
+        PublicFile::SplitShares if wallet_backup::splits(&w) => {
             let (m, n) = Session::quorum_keys(&w);
             let plan = wallet_backup::split_plan(n, m, inp.omit.unwrap_or(m.saturating_sub(1)));
             (!restore::sheets_rebuild(c, inp.network, &w, &plan))
@@ -98,10 +100,10 @@ pub(crate) fn made(c: &Compute, inp: &Inputs, what: u8) -> Made {
 /// Costs an address derivation, or `checked_config`. A wallet's public
 /// text file `what` (2 the multisig config where it rebuilds the wallet, 6
 /// BIP 129's).
-pub(crate) fn file_text(c: &Compute, net: Network, w: &Wallet, what: u8) -> Option<String> {
+pub(crate) fn file_text(c: &Compute, net: Network, w: &Wallet, what: PublicFile) -> Option<String> {
     match what {
-        2 => restore::checked_config(c, net, w).map(|t| String::from(&*t)),
-        6 => {
+        PublicFile::MultisigConfig => restore::checked_config(c, net, w).map(|t| String::from(&*t)),
+        PublicFile::Bsms => {
             let first = w.policy().address_at(c, net, false, 0).ok()?;
             Some(String::from(
                 &*faraday_bip::bsms::DescriptorRecord {
@@ -122,7 +124,7 @@ pub(crate) fn file_text(c: &Compute, net: Network, w: &Wallet, what: u8) -> Opti
 /// parts past one code; for 4, each split share's code, one beside each
 /// share's sheet and text; for 14, Specter DIY's `addwallet` in its numbered
 /// parts. None for any other file.
-pub(crate) fn pictures(c: &Compute, inp: &Inputs, what: u8) -> Vec<picture::Labelled> {
+pub(crate) fn pictures(c: &Compute, inp: &Inputs, what: PublicFile) -> Vec<picture::Labelled> {
     if inp.blank {
         return Vec::new();
     }
@@ -151,7 +153,7 @@ pub(crate) fn pictures(c: &Compute, inp: &Inputs, what: u8) -> Vec<picture::Labe
         picture::labelled_parts(codes, names, &w.name, &lines)
     };
     match what {
-        8 => {
+        PublicFile::DescriptorQr => {
             let text = w.policy().to_descriptor_checksummed();
             let all = fps(&|_| true);
             let mut lines = vec![shape];
@@ -169,7 +171,7 @@ pub(crate) fn pictures(c: &Compute, inp: &Inputs, what: u8) -> Vec<picture::Labe
             lines.push(EN.public_pictures_public_watch.to_string());
             codes_of(&format!("{stem}-descriptor"), "-", &text, lines)
         }
-        4 => {
+        PublicFile::SplitShares => {
             let (m, n) = Session::quorum_keys(w);
             // As the shares' sheets and text are split.
             let omit = inp.omit.unwrap_or(m.saturating_sub(1));
@@ -217,7 +219,7 @@ pub(crate) fn pictures(c: &Compute, inp: &Inputs, what: u8) -> Vec<picture::Labe
         }
         // Specter DIY's `addwallet` command, in Specter's numbered
         // parts, which Specter DIY scans, past one code.
-        14 => specter_diy_pictures(c, w, shape, fps(&|_| true), stem),
+        PublicFile::SpecterDiyQr => specter_diy_pictures(c, w, shape, fps(&|_| true), stem),
         _ => Vec::new(),
     }
 }
@@ -280,11 +282,11 @@ pub(crate) fn specter_diy_pictures(
 pub(crate) fn wallet_code_head(
     app: &Faraday,
     w: &wallet::Wallet,
-    what: u8,
+    what: PublicFile,
 ) -> (String, String, Vec<String>) {
     let stem = file_stem(&w.name);
     let stem = stem.as_str();
-    let (title, name) = if what == 2 {
+    let (title, name) = if what == PublicFile::MultisigConfig {
         (
             fill(EN.code_view_multisig, &[&*w.name]),
             format!("{stem}-multisig-config.png"),
@@ -308,7 +310,7 @@ pub(crate) fn wallet_code_head(
 /// A wallet's public files `what`, their pictures and PDFs made only when
 /// `bytes`, else named with no bytes. A PDF that cannot be made is
 /// named in the toast.
-pub(crate) fn files(c: &Compute, inp: &Inputs, what: u8, bytes: bool) -> Made {
+pub(crate) fn files(c: &Compute, inp: &Inputs, what: PublicFile, bytes: bool) -> Made {
     let mut out = Made::default();
     if inp.blank {
         return out;
@@ -322,24 +324,24 @@ pub(crate) fn files(c: &Compute, inp: &Inputs, what: u8, bytes: bool) -> Made {
         // The blank templates are printed from Faraday Starter: none is
         // made here. The sheets go out as PDFs, ready to print anywhere:
         // they hold nothing secret.
-        1 => {
+        PublicFile::Descriptor => {
             files.push((
                 format!("{stem}-descriptor.txt"),
                 format!("{}\n", &*w.policy().to_descriptor_checksummed()).into_bytes(),
             ));
         }
-        5 => files.push((
+        PublicFile::WalletJson => files.push((
             format!("{stem}-wallet.json"),
             wallet_backup::wallet_json(&w.name, w.policy())
                 .as_bytes()
                 .to_vec(),
         )),
-        6 => {
-            if let Some(record) = file_text(c, net, w, 6) {
+        PublicFile::Bsms => {
+            if let Some(record) = file_text(c, net, w, PublicFile::Bsms) {
                 files.push((format!("{stem}-bsms.txt"), record.into_bytes()));
             }
         }
-        7 => files.push((
+        PublicFile::CoreImport => files.push((
             format!("{stem}-bitcoin-core.json"),
             faraday_bip::core_import::import_descriptors(
                 &w.policy().to_descriptor_checksummed(),
@@ -347,23 +349,23 @@ pub(crate) fn files(c: &Compute, inp: &Inputs, what: u8, bytes: bool) -> Made {
             )
             .into_bytes(),
         )),
-        2 => {
-            if let Some(t) = file_text(c, net, w, 2) {
+        PublicFile::MultisigConfig => {
+            if let Some(t) = file_text(c, net, w, PublicFile::MultisigConfig) {
                 files.push((format!("{stem}-multisig-config.txt"), t.into_bytes()));
             }
         }
-        3 if !bytes => files.push((format!("{stem}-backup.pdf"), Vec::new())),
-        3 => {
+        PublicFile::BackupSheet if !bytes => files.push((format!("{stem}-backup.pdf"), Vec::new())),
+        PublicFile::BackupSheet => {
             let sheet = wallet_backup::sheet_wallet_on(c, net, &inp.slots, w);
             match faraday_paper::pdf::sheet(c, &sheet) {
                 Ok(p) => files.push((format!("{stem}-backup.pdf"), p)),
                 Err(e) => out.toast = Some(fill(EN.public_made_no_pdf, &[&e.to_string()])),
             }
         }
-        4 => {
+        PublicFile::SplitShares => {
             let (m, n) = Session::quorum_keys(w);
             let plan = wallet_backup::split_plan(n, m, inp.omit.unwrap_or(m.saturating_sub(1)));
-            let pics = pictures(c, inp, 4);
+            let pics = pictures(c, inp, PublicFile::SplitShares);
             for (i, row) in plan.iter().enumerate() {
                 if let Some(share) = wallet_backup::split_share(w, row) {
                     // The sheet to print beside each file.
@@ -395,7 +397,7 @@ pub(crate) fn files(c: &Compute, inp: &Inputs, what: u8, bytes: bool) -> Made {
                 }
             }
         }
-        8 | 14 => {
+        PublicFile::DescriptorQr | PublicFile::SpecterDiyQr => {
             for p in pictures(c, inp, what) {
                 files.push((
                     String::from(&*p.name),
@@ -403,7 +405,7 @@ pub(crate) fn files(c: &Compute, inp: &Inputs, what: u8, bytes: bool) -> Made {
                 ));
             }
         }
-        9 => {
+        PublicFile::CoreBefore29 => {
             if let Some(t) = faraday_bip::core_import::import_descriptors_pair(w.policy()) {
                 files.push((
                     format!("{stem}-bitcoin-core-before-29.json"),
@@ -411,28 +413,28 @@ pub(crate) fn files(c: &Compute, inp: &Inputs, what: u8, bytes: bool) -> Made {
                 ));
             }
         }
-        10 => {
+        PublicFile::Electrum => {
             if let Some(t) = faraday_intake::electrum::file(w.policy()) {
                 files.push((format!("{stem}-electrum.json"), t.into_bytes()));
             }
         }
-        11 => {
+        PublicFile::Caravan => {
             let net = wallet::policy_network(w.policy(), net).unwrap_or(net);
             if let Some(t) = faraday_intake::caravan::file(&w.name, w.policy(), net) {
                 files.push((format!("{stem}-caravan.json"), t.as_bytes().to_vec()));
             }
         }
-        12 => {
+        PublicFile::SpecterDiy => {
             if let Some(t) = faraday_intake::specter_diy::command(&w.name, w.policy()) {
                 files.push((format!("{stem}-specter-diy.txt"), t.into_bytes()));
             }
         }
-        13 => {
+        PublicFile::Wasabi => {
             if let Some(t) = faraday_intake::single_key::wasabi_file(w.policy()) {
                 files.push((format!("{stem}-wasabi.json"), t.into_bytes()));
             }
         }
-        _ => {}
+        PublicFile::SpDescriptor => {}
     }
     out
 }
@@ -440,12 +442,12 @@ pub(crate) fn files(c: &Compute, inp: &Inputs, what: u8, bytes: bool) -> Made {
 /// One step of making a set of files, in the order the files go out.
 pub(crate) enum Part {
     /// The files of kind `what` ([`made`]).
-    Kind(u8),
+    Kind(PublicFile),
     /// The checklist's public file `what`: its labelled `picture` where the
     /// form chosen has one, its text where it has the text or the picture
     /// came to nothing; the text's files first, then the picture.
     Public {
-        what: u8,
+        what: PublicFile,
         picture: Option<Picture>,
         text: bool,
     },
@@ -455,12 +457,13 @@ pub(crate) enum Part {
 
 /// The picture of a public file.
 pub(crate) enum Picture {
-    /// The descriptor's code (kind 8).
+    /// The descriptor's code ([`PublicFile::DescriptorQr`]).
     Descriptor,
-    /// The code of the wallet's text file `what` (2 or 6), under `title`,
+    /// The code of the wallet's text file `what` (the multisig config or
+    /// BIP 129's), under `title`,
     /// named `name`, with `lines` beneath it.
     Code {
-        what: u8,
+        what: PublicFile,
         title: String,
         name: String,
         lines: Vec<String>,
@@ -485,7 +488,7 @@ pub(crate) fn parts_made(c: &Compute, inputs: &Inputs, parts: Vec<Part>) -> Made
             } => {
                 let mut shown = Made::default();
                 match picture {
-                    Some(Picture::Descriptor) => shown = made(c, inputs, 8),
+                    Some(Picture::Descriptor) => shown = made(c, inputs, PublicFile::DescriptorQr),
                     Some(Picture::Code {
                         what,
                         title,
@@ -655,21 +658,27 @@ fn checklist_parts(app: &mut Faraday) -> Option<(usize, Vec<Part>)> {
     let mut parts = Vec::new();
     for item in items {
         match item {
-            plan::Item::Sheets => parts.push(Part::Kind(if split { 4 } else { 3 })),
+            plan::Item::Sheets => parts.push(Part::Kind(if split {
+                PublicFile::SplitShares
+            } else {
+                PublicFile::BackupSheet
+            })),
             plan::Item::PublicFiles => {
-                for what in app.backup_public() {
+                for what in app.backup_public_kinds() {
                     let picture = match what {
                         _ if !qr => None,
-                        1 => Some(Picture::Descriptor),
-                        2 | 6 => app.session.wallets.get(w).map(|wl| {
-                            let (title, name, lines) = wallet_code_head(app, wl, what);
-                            Picture::Code {
-                                what,
-                                title,
-                                name,
-                                lines,
-                            }
-                        }),
+                        PublicFile::Descriptor => Some(Picture::Descriptor),
+                        PublicFile::MultisigConfig | PublicFile::Bsms => {
+                            app.session.wallets.get(w).map(|wl| {
+                                let (title, name, lines) = wallet_code_head(app, wl, what);
+                                Picture::Code {
+                                    what,
+                                    title,
+                                    name,
+                                    lines,
+                                }
+                            })
+                        }
                         _ => None,
                     };
                     parts.push(Part::Public {
@@ -735,7 +744,7 @@ impl Faraday {
     /// Specter's numbered parts past one code. The multisig config, the
     /// split shares and Specter's pictures are a job on the worker when a
     /// person asks ([`Faraday::public_out_job`]).
-    pub(crate) fn public_out(&mut self, wallet: usize, what: u8) {
+    pub(crate) fn public_out(&mut self, wallet: usize, what: PublicFile) {
         let files = self.public_made(wallet, what);
         let names: Vec<faraday_text::Text> = files.iter().map(|(n, _)| n.duplicate()).collect();
         for (name, bytes) in files {
@@ -749,8 +758,8 @@ impl Faraday {
     /// worker for the kinds that rebuild a wallet to check it or make more
     /// than one picture or PDF (2, 4, 14), else [`Faraday::public_out`]
     /// as it always was.
-    pub(crate) fn public_out_job(&mut self, wallet: usize, what: u8) {
-        if matches!(what, 2 | 4 | 14) {
+    pub(crate) fn public_out_job(&mut self, wallet: usize, what: PublicFile) {
+        if what.slow() {
             public_files::start(
                 self,
                 wallet,
@@ -764,7 +773,7 @@ impl Faraday {
 
     /// Removes from For the stick what [`Faraday::public_out`] makes for
     /// `wallet` and `what`.
-    pub(crate) fn public_remove(&mut self, wallet: usize, what: u8) {
+    pub(crate) fn public_remove(&mut self, wallet: usize, what: PublicFile) {
         let names = self.public_names(wallet, what);
         let before = self.outbox.len();
         self.outbox
@@ -776,7 +785,11 @@ impl Faraday {
 
     /// The names of the files [`Faraday::public_made`] makes, with no
     /// picture or PDF made: a PDF that cannot be made is named anyway.
-    pub(crate) fn public_names(&mut self, wallet: usize, what: u8) -> Vec<faraday_text::Text> {
+    pub(crate) fn public_names(
+        &mut self,
+        wallet: usize,
+        what: PublicFile,
+    ) -> Vec<faraday_text::Text> {
         self.public_files(wallet, what, false)
             .into_iter()
             .map(|(n, _)| n)

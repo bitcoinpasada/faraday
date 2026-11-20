@@ -1405,7 +1405,7 @@ fn public_files_t(name: &str, descriptor: &str) -> Result<Vec<(Text, Vec<u8>)>, 
             crate::wallet::Origin::Named,
         )
         .map_err(|e| Text::of(&e.text()))?;
-    for what in 0..=8 {
+    for what in (1..=8).filter_map(crate::public_kind::PublicFile::from_wire) {
         app.public_out(w, what);
     }
     Ok(app

@@ -1184,9 +1184,9 @@ impl Faraday {
             Code::MultisigConfig(i) | Code::Bsms(i) => {
                 let w = wallet(i)?;
                 let what = if code == Code::MultisigConfig(i) {
-                    2
+                    crate::public_kind::PublicFile::MultisigConfig
                 } else {
-                    6
+                    crate::public_kind::PublicFile::Bsms
                 };
                 let text = self
                     .wallet_file_text(c, i, what)

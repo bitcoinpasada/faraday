@@ -15,13 +15,15 @@ use crate::{boot_import, seeds, vanity};
 /// the other presses move
 /// here from [`runs_in_press`] as they are shown to need it.
 pub(crate) fn starts_job(a: Action) -> bool {
+    if let Action::PublicOut(_, what) = a {
+        return crate::public_kind::PublicFile::from_wire(what).is_some_and(|k| k.slow());
+    }
     matches!(
         a,
         Action::SamplesLoad
             | Action::Collect(_)
             | Action::BChecklist
             | Action::BFilesMake
-            | Action::PublicOut(_, 2 | 4 | 14)
             | Action::OtsCheck(crate::ots_check::OtsAction::File(_))
             // Compare's search of 100 addresses on each chain is 200 key
             // derivations and curve multiplications: over the line by

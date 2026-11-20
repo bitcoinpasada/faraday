@@ -13,6 +13,7 @@ use crate::backup_flow::wallet_files::{seed_file_of, target_sticks};
 use crate::backup_flow::{BackupFlow, Kind, Step, Subject, Target};
 pub(crate) use crate::backup_flow::{seed_stick_name, seedqr_picture};
 use crate::plan;
+use crate::public_kind::PublicFile;
 use crate::strings::EN;
 use crate::vault::VaultAction as V;
 use crate::wallet::fp_text;
@@ -667,7 +668,14 @@ impl Faraday {
                         let text = wl.policy().to_descriptor_checksummed();
                         expect.extend(pictures_expect(&c, &names, &text));
                     }
-                    let made = self.public_made(w, if f == plan::form::TEXT { 1 } else { 8 });
+                    let made = self.public_made(
+                        w,
+                        if f == plan::form::TEXT {
+                            crate::public_kind::PublicFile::Descriptor
+                        } else {
+                            crate::public_kind::PublicFile::DescriptorQr
+                        },
+                    );
                     self.put_made(made, &names);
                 }
                 P::ShareFile(j, f) => {
@@ -683,7 +691,7 @@ impl Faraday {
                             expect.extend(pictures_expect(&c, &names, &text));
                         }
                     }
-                    let made = self.public_made(w, 4);
+                    let made = self.public_made(w, crate::public_kind::PublicFile::SplitShares);
                     self.put_made(made, &names);
                 }
                 P::SoftwareFile => {
@@ -2758,16 +2766,16 @@ fn pictures_expect(
         .collect()
 }
 
-/// The software's own files of `stem`, by the numbers
+/// The software's own files of `stem`, by the kinds
 /// [`Faraday::backup_public_for`] gives them: the descriptor where the
 /// software reads no file of its own.
-pub(crate) fn software_files(stem: &str, what: &[u8]) -> Vec<Text> {
+pub(crate) fn software_files(stem: &str, what: &[PublicFile]) -> Vec<Text> {
     what.iter()
         .map(|x| match x {
-            2 => text!("{stem}-multisig-config.txt"),
-            5 => text!("{stem}-wallet.json"),
-            6 => text!("{stem}-bsms.txt"),
-            7 => text!("{stem}-bitcoin-core.json"),
+            PublicFile::MultisigConfig => text!("{stem}-multisig-config.txt"),
+            PublicFile::WalletJson => text!("{stem}-wallet.json"),
+            PublicFile::Bsms => text!("{stem}-bsms.txt"),
+            PublicFile::CoreImport => text!("{stem}-bitcoin-core.json"),
             _ => text!("{stem}-descriptor.txt"),
         })
         .collect()

@@ -8,6 +8,7 @@
 
 use faraday_crypto::work::Compute;
 
+use crate::public_kind::PublicFile;
 use crate::strings::EN;
 use crate::worker::kef::{KefId, KefStart};
 use crate::worker::kef_make;
@@ -68,7 +69,7 @@ impl Faraday {
     /// Starts the shares' files at once, if a slider asked for them.
     pub(crate) fn omit_remake_now(&mut self) {
         if let Some(w) = self.backup.take_omit_remake() {
-            self.act(Action::PublicOut(w, 4));
+            self.act(Action::PublicOut(w, PublicFile::SplitShares.wire()));
         }
     }
 

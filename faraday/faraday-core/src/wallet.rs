@@ -4970,11 +4970,19 @@ impl Faraday {
                     self.inbox_load_named();
                 }
             }
-            Action::PublicOut(i, what) => self.public_out_job(i, what),
+            Action::PublicOut(i, what) => {
+                if let Some(kind) = crate::public_kind::PublicFile::from_wire(what) {
+                    self.public_out_job(i, kind);
+                }
+            }
             Action::PublicMore(i) => {
                 self.backup.public_more(i);
             }
-            Action::PublicRemove(i, what) => self.public_remove(i, what),
+            Action::PublicRemove(i, what) => {
+                if let Some(kind) = crate::public_kind::PublicFile::from_wire(what) {
+                    self.public_remove(i, kind);
+                }
+            }
             Action::WalletKeyOut(i, k) => self.wallet_key_out(i, k),
             Action::WalletKeyBsms(i, k) => self.wallet_key_bsms(i, k),
             Action::OpenWallet(i) => {
@@ -5191,13 +5199,13 @@ impl Faraday {
     }
 
     /// Costs an address derivation (through `address_at`), or `checked_config`.
-    /// A wallet's public text file `what` (as [`Faraday::public_out`] numbers
-    /// them): 2 the multisig config where it rebuilds the wallet, 6 BIP 129's.
+    /// A wallet's public text file `what` (as [`Faraday::public_out`] names
+    /// them): the multisig config where it rebuilds the wallet, BIP 129's.
     pub(crate) fn wallet_file_text(
         &self,
         c: &Compute,
         wallet: usize,
-        what: u8,
+        what: crate::public_kind::PublicFile,
     ) -> Option<faraday_text::Text> {
         let w = self.session.wallets.get(wallet)?;
         public_files::file_text(c, self.session.network(), w, what)

@@ -58,6 +58,7 @@ pub use search::{SearchAct, SearchIn};
 pub(crate) use stretch::{KdbxDone, KdbxWork, MeasureDone, MeasureWork, StretchDone, StretchWork};
 pub(crate) use summaries::{summaries_decode, summaries_encode};
 
+use crate::public_kind::PublicFile;
 use crate::stick;
 use crate::strings::EN;
 use faraday_crypto::work::Compute;
@@ -4307,13 +4308,24 @@ impl Faraday {
                 files.push(out::SaveFile::public(label.as_str(), made, ticked));
             }
         };
-        add(Text::of(EN.vault_descriptor), self.public_made(i, 1), true);
-        add(Text::of(EN.board_qr_picture), self.public_made(i, 8), false);
-        for x in software.into_iter().filter(|x| *x != 1) {
+        add(
+            Text::of(EN.vault_descriptor),
+            self.public_made(i, PublicFile::Descriptor),
+            true,
+        );
+        add(
+            Text::of(EN.board_qr_picture),
+            self.public_made(i, PublicFile::DescriptorQr),
+            false,
+        );
+        for x in software
+            .into_iter()
+            .filter(|x| *x != PublicFile::Descriptor)
+        {
             let name = match x {
-                5 => EN.app_sparrow,
-                2 => EN.app_coldcard_keystone,
-                6 => EN.app_nunchuk,
+                PublicFile::WalletJson => EN.app_sparrow,
+                PublicFile::MultisigConfig => EN.app_coldcard_keystone,
+                PublicFile::Bsms => EN.app_nunchuk,
                 _ => EN.app_bitcoin_core,
             };
             add(
