@@ -183,8 +183,9 @@ END
     println!("cargo:rustc-link-arg-bins=-Wl,-u,{LOAD_CONFIG_SYMBOL}");
 }
 
-/// The symbol of the load configuration's section.
-const LOAD_CONFIG_SYMBOL: &str = "faraday_load_config";
+/// The symbol of the load configuration's section: the name LLD looks for
+/// to point the image's load configuration directory at it.
+const LOAD_CONFIG_SYMBOL: &str = "_load_config_used";
 
 /// A COFF object (x86-64) holding a section `.lcfg` with the `.exe`'s load
 /// configuration, `IMAGE_LOAD_CONFIG_DIRECTORY64` up to and including
@@ -194,10 +195,10 @@ const LOAD_CONFIG_SYMBOL: &str = "faraday_load_config";
 /// the folder the program was started from (a download folder holds files
 /// from anywhere); the elevated copy is this same file. They do not cover
 /// what those libraries load in turn: `main` calls
-/// `SetDefaultDllDirectories` for that (`faraday-window`'s `system32`). mingw-w64's
-/// linker does not point the image's load configuration directory at it:
-/// `build.sh` does, after the link, and fails the build when the flag is
-/// not in the finished `.exe`. The object is written here as bytes, so no
+/// `SetDefaultDllDirectories` for that (`faraday-window`'s `system32`). LLD
+/// points the image's load configuration directory at the symbol
+/// `_load_config_used`; `build.sh` fails the build when the flag is not in
+/// the finished `.exe`. The object is written here as bytes, so no
 /// compiler or `unsafe` is needed and the same bytes come out every time.
 fn load_config_object() -> Vec<u8> {
     const SIZE: usize = 0x50;

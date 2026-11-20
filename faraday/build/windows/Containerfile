@@ -1,6 +1,7 @@
 # The build container for the Windows Starter (docs/STARTER.md §2): the
-# x86_64-pc-windows-gnu target, linked by mingw-w64, cross-compiled on
-# Linux. Nothing in it runs Windows code.
+# x86_64-pc-windows-gnu target, cross-compiled on Linux and linked by LLD
+# (the rust-lld of the pinned Rust tarball, reached as mingw-w64's
+# ld.lld) against mingw-w64's libraries. Nothing in it runs Windows code.
 #
 # The base image is pinned by digest, not by tag: a tag moves with every
 # point release. This digest is what debian:trixie-slim pointed at on
@@ -8,15 +9,17 @@
 # rust-toolchain.toml (build.sh refuses a different one), installed from
 # the standalone tarball and the Windows target's standard library
 # tarball, each with its SHA-256 written here, so a changed tarball fails
-# the build. mingw-w64 (the linker, windres for the .exe's icon, version
-# and manifest, and objdump for the check after the build) is Debian's
-# own package.
+# the build. mingw-w64 (the C runtime and import libraries, windres for the
+# .exe's icon, version and manifest, and objdump for the check after the
+# build) and llvm (llvm-dlltool for the import libraries of the two
+# delay-loaded libraries, llvm-readobj for the check) are Debian's own
+# packages.
 FROM debian:trixie-slim@sha256:918311b7b6c4c6f68b232ba516584925f6c78ad82b6fd534b98979df6438e483
 
 RUN export DEBIAN_FRONTEND=noninteractive && apt-get update \
     && apt-get install -y --no-install-recommends \
         binutils binutils-mingw-w64-x86-64 ca-certificates curl gcc gcc-mingw-w64-x86-64-win32 \
-        git libc6-dev xz-utils \
+        git libc6-dev llvm xz-utils \
     && apt-get clean && find /var/lib/apt/lists -type f -delete
 
 ARG RUST_VERSION=1.97.0
@@ -37,6 +40,9 @@ RUN set -eu; \
         --components=rustc,cargo,rust-std-x86_64-unknown-linux-gnu,clippy-preview; \
     "/tmp/$std/install.sh" --prefix=/usr/local; \
     rm -rf "/tmp/$host" "/tmp/$std" "/tmp/$host.tar.xz" "/tmp/$std.tar.xz"
+
+# gcc's -fuse-ld=lld finds the linker as <triple>-ld.lld.
+RUN ln -s /usr/local/lib/rustlib/x86_64-unknown-linux-gnu/bin/rust-lld /usr/bin/x86_64-w64-mingw32-ld.lld
 
 # Mounted by faraday.just: /src (the checkout, read-only), /out, /build
 # (the target directory) and /cargo (the registry cache).

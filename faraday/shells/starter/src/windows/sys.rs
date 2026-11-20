@@ -816,6 +816,46 @@ const IID_IWBEM_LOCATOR: GUID = GUID::from_u128(0xdc12a687_737f_11cf_884d_00aa00
 /// `IID_IPropertyStore`.
 const IID_IPROPERTY_STORE: GUID = GUID::from_u128(0x886d8eeb_8cf2_4446_8d02_cdba1dbdcf99);
 
+/// `PSGetPropertyKeyFromName` of propsys.dll, which the program does not
+/// import: an import is mapped before `main` and searched for in the
+/// program's own folder, so the library is loaded here, from System32 only
+/// (`LOAD_LIBRARY_SEARCH_SYSTEM32`, no other search), and freed after the
+/// call. `false` when the library or the function is missing or the call
+/// fails.
+fn property_key_from_name(
+    name: &[u16],
+    key: &mut windows_sys::Win32::UI::Shell::PropertiesSystem::PROPERTYKEY,
+) -> bool {
+    use windows_sys::Win32::Foundation::FreeLibrary;
+    use windows_sys::Win32::System::LibraryLoader::{
+        GetProcAddress, LOAD_LIBRARY_SEARCH_SYSTEM32, LoadLibraryExW,
+    };
+    type Get = unsafe extern "system" fn(
+        *const u16,
+        *mut windows_sys::Win32::UI::Shell::PropertiesSystem::PROPERTYKEY,
+    ) -> Hresult;
+    let lib = wide("propsys.dll");
+    // SAFETY: `lib` is NUL-terminated; no file handle; the flag limits the
+    // search to System32.
+    let module = unsafe { LoadLibraryExW(lib.as_ptr(), 0, LOAD_LIBRARY_SEARCH_SYSTEM32) };
+    if module == 0 {
+        return false;
+    }
+    // SAFETY: `module` is the library just loaded; the name is a
+    // NUL-terminated ANSI string.
+    let found = unsafe { GetProcAddress(module, c"PSGetPropertyKeyFromName".as_ptr().cast()) };
+    let ok = found.is_some_and(|f| {
+        // SAFETY: the function has this signature (propsys.h).
+        let get: Get = unsafe { std::mem::transmute(f) };
+        // SAFETY: `name` is NUL-terminated; the key is written.
+        unsafe { get(name.as_ptr(), key) >= 0 }
+    });
+    // SAFETY: matches the LoadLibraryExW above; the function is not used
+    // after this.
+    unsafe { FreeLibrary(module) };
+    ok
+}
+
 /// The shell's `System.Volume.BitLockerProtection` for `drive` (`C:`),
 /// read without elevation (§6); `None` when it cannot be read. Read
 /// on a thread of its own, so COM there never meets the window's.
@@ -824,14 +864,13 @@ pub fn bitlocker_protection(drive: &str) -> Option<i32> {
     std::thread::spawn(move || {
         use windows_sys::Win32::System::Com::COINIT_APARTMENTTHREADED;
         use windows_sys::Win32::UI::Shell::PropertiesSystem::{
-            GPS_DEFAULT, PROPERTYKEY, PSGetPropertyKeyFromName, SHGetPropertyStoreFromParsingName,
+            GPS_DEFAULT, PROPERTYKEY, SHGetPropertyStoreFromParsingName,
         };
         let _com = ComThread::start(COINIT_APARTMENTTHREADED);
         let name = wide("System.Volume.BitLockerProtection");
         // SAFETY: an all-zero PROPERTYKEY is a valid empty one.
         let mut key: PROPERTYKEY = unsafe { std::mem::zeroed() };
-        // SAFETY: `name` is NUL-terminated; the key is written.
-        if unsafe { PSGetPropertyKeyFromName(name.as_ptr(), &mut key) } < 0 {
+        if !property_key_from_name(&name, &mut key) {
             return None;
         }
         let p = wide(&path);

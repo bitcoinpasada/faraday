@@ -1,8 +1,11 @@
 //! Libraries loaded from System32 only, on Windows.
 //!
-//! The `.exe`'s load configuration (`faraday/build/windows/build.sh`) covers
-//! the libraries the program itself imports. The libraries those load in
-//! turn by name (`version.dll`, `userenv.dll`, `cryptbase.dll`) would still
+//! The program imports no library that is not a KnownDLL at start: the
+//! two winit needs (`uxtheme.dll`, `dwmapi.dll`) are delay-loaded
+//! (`build.rs`) and loaded at first use, after this call, and `propsys.dll`
+//! is loaded by name from System32 where it is used. The `.exe`'s load
+//! configuration (`faraday/build/windows/build.sh`) covers the libraries it
+//! imports. The libraries those load in turn by name (`version.dll`, `userenv.dll`, `cryptbase.dll`) would still
 //! be searched for in the program's own folder first, such as Downloads,
 //! which holds files from anywhere; this call makes every later load by name
 //! of the process look in System32 only.

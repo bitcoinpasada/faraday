@@ -43,6 +43,12 @@ export FARADAY_BUILD
 export HOME=/root RUST_TARGET="$target"
 . /src/faraday/image/path-remap.sh
 export RUSTFLAGS="$RUSTFLAGS --remap-path-prefix=$CARGO_TARGET_DIR=/target"
+# Linked by LLD (F297), with uxtheme.dll and dwmapi.dll delay-loaded
+# (faraday/shells/window/build.rs makes their import libraries) and GNU
+# ld's 2 MiB reserve for the main thread's stack, which LLD halves.
+RUSTFLAGS="$RUSTFLAGS -C link-arg=-fuse-ld=lld -C link-arg=-Wl,--delayload=uxtheme.dll"
+RUSTFLAGS="$RUSTFLAGS -C link-arg=-Wl,--delayload=dwmapi.dll -C link-arg=-Wl,--stack,2097152"
+export RUSTFLAGS
 # The symbols are not needed to run it, and are most of its size.
 export CARGO_PROFILE_RELEASE_STRIP=symbols
 
@@ -50,35 +56,18 @@ cargo build --release --locked --target "$target" -p "$package" --bin "$bin"
 install -m 0644 "$CARGO_TARGET_DIR/$target/release/$bin.exe" "/out/$bin.exe"
 exe="/out/$bin.exe"
 
-# The load configuration (faraday/build/windows/resources.rs) is in the
-# .exe as the section .lcfg; mingw-w64's linker does not point the image's
-# load configuration directory (entry 10 of the data directory, in the
-# optional header after the PE signature and the file header) at it, so
-# this does: the section's RVA and size, eight bytes. The same bytes every
-# time; the check below reads the result back. The entry must be empty
-# before: a linker that starts writing one is a change to look at here.
-le32() { printf "$(printf '\\x%02x\\x%02x\\x%02x\\x%02x' $(($1 & 255)) $((($1 >> 8) & 255)) $((($1 >> 16) & 255)) $((($1 >> 24) & 255)))"; }
-sections="$(x86_64-w64-mingw32-objdump -h "$exe")"
-base="$(x86_64-w64-mingw32-objdump -p "$exe" | sed -n 's/^ImageBase\s*//p')"
-size="$(printf '%s\n' "$sections" | awk '$2 == ".lcfg" { print $3 }')"
-vma="$(printf '%s\n' "$sections" | awk '$2 == ".lcfg" { print $4 }')"
-[ -n "$base" ] && [ -n "$vma" ] || die "$bin.exe has no .lcfg section"
-nt="$(od -An -tu4 -j60 -N4 "$exe" | tr -d ' ')"
-entry=$((nt + 24 + 112 + 10 * 8))
-[ "$(od -An -tu4 -j$entry -N8 "$exe" | tr -s ' ' | tr -d '\n')" = " 0 0" ] \
-    || die "$bin.exe already has a load configuration directory"
-{ le32 $((16#$vma - 16#$base)); le32 $((16#$size)); } \
-    | dd of="$exe" bs=1 seek=$entry conv=notrunc status=none
-
 # Only Windows' own libraries, from a fixed list: nothing of mingw-w64's
 # (libgcc_s, libwinpthread, libstdc++) may be needed beside it, and a new
 # import is a decision, made here. Windows looks for a library that is not
 # one of its KnownDLLs in the program's own folder first, and a folder
-# such as Downloads holds files from anywhere. The load configuration set
-# above makes Windows look in System32 only for every library below (what
-# they load in turn is main's SetDefaultDllDirectories, not checked here),
-# and the check after the list reads that back.
-allowed='advapi32 api-ms-win-core-synch-l1-2-0 bcryptprimitives dwmapi gdi32 imm32 kernel32 msvcrt ntdll ole32 oleaut32 propsys setupapi shell32 user32 uxtheme'
+# such as Downloads holds files from anywhere, so the list holds no library
+# that is not a KnownDLL and is mapped at start: none is. uxtheme.dll and
+# dwmapi.dll are delay-loaded instead (below), loaded at first use, after
+# main's SetDefaultDllDirectories, so from System32 only; a missing one
+# stops the program. What libraries load in turn is not checked here.
+allowed='advapi32 api-ms-win-core-synch-l1-2-0 bcryptprimitives gdi32 imm32 kernel32 msvcrt ntdll ole32 oleaut32 setupapi shell32 user32'
+sections="$(x86_64-w64-mingw32-objdump -h "$exe")"
+base="$(x86_64-w64-mingw32-objdump -p "$exe" | sed -n 's/^ImageBase\s*//p')"
 dumped="$(x86_64-w64-mingw32-objdump -p "$exe")"
 dlls="$(printf '%s\n' "$dumped" | sed -n 's/^\s*DLL Name: //p' | sort -u)"
 echo "$bin.exe imports: $(echo "$dlls" | tr '\n' ' ')"
@@ -88,11 +77,23 @@ for dll in $dlls; do
     name="$(echo "${dll%.dll}" | tr 'A-Z' 'a-z')"
     case " $allowed " in *" $name "*) ;; *) die "$bin.exe imports $dll, which is not in the list of allowed libraries" ;; esac
 done
-# A delay-loaded library is searched for when first used, not by the
-# list above: none is allowed. (grep -c, not -q, for the pipefail reason
-# below.)
-[ "$(printf '%s\n' "$dumped" | grep -c '^Entry d 0000000000000000 00000000 ' || true)" -eq 1 ] \
-    || die "$bin.exe delay-loads a library"
+# The delay-loaded libraries are exactly dwmapi.dll and uxtheme.dll, and
+# each one's import address table, which mingw-w64's delay-load helper
+# writes at first use, lies in a writable section.
+delayed="$(llvm-readobj --coff-imports "$exe" | awk '/^DelayImport/ {d = 1} /^Import \{/ {d = 0} d && $1 == "Name:" {print $2}' | tr 'A-Z' 'a-z' | sort -u | tr '\n' ' ')"
+[ "$delayed" = "dwmapi.dll uxtheme.dll " ] || die "$bin.exe delay-loads: ${delayed:-nothing}, not dwmapi.dll and uxtheme.dll"
+for iat in $(llvm-readobj --coff-imports "$exe" | sed -n 's/^  ImportAddressTable: 0x//p'); do
+    w="$(printf '%s\n' "$sections" | while read -r idx name size vma rest; do
+        case "$idx" in [0-9]*) ;; *) continue ;; esac
+        read -r flags
+        r=$((16#$vma - 16#$base))
+        if [ $((16#$iat)) -ge $r ] && [ $((16#$iat)) -lt $((r + 16#$size)) ]; then
+            case "$flags" in *READONLY*) echo "ro $name" ;; *) echo "w $name" ;; esac
+        fi
+    done)"
+    case "$w" in "w "*) ;; *) die "$bin.exe's delay-import address table at 0x$iat is not in a writable section" ;; esac
+done
+echo "$bin.exe delay-loads: $delayed"
 
 # DependentLoadFlags is LOAD_LIBRARY_SEARCH_SYSTEM32 (0x800): read from
 # the load configuration (the flags at offset 0x4e), whose Size (offset 0)
