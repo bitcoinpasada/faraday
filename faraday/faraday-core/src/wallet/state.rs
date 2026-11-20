@@ -492,11 +492,12 @@ impl WalletsArea {
     }
 
     /// A step was pressed on the open spend: it opens, or closes where it
-    /// is the open one (not from the Spend tab's page, where a step opened
-    /// from another card stays open), and the error is cleared.
-    pub(crate) fn press_step(&mut self, n: u8, from_page: bool) {
+    /// is the open one (not where `keep_open`: the Spend tab's page, where
+    /// a step opened from another card stays open, and Sign a transaction,
+    /// where a step is always open), and the error is cleared.
+    pub(crate) fn press_step(&mut self, n: u8, keep_open: bool) {
         if let Some(s) = self.spend.as_mut() {
-            s.open = if s.open == Some(n) && !from_page {
+            s.open = if s.open == Some(n) && !keep_open {
                 None
             } else {
                 Some(n)
@@ -1026,6 +1027,14 @@ pub(crate) struct SpendSteps;
 pub(crate) static SPEND_STEPS: SpendSteps = SpendSteps;
 
 impl SpendSteps {
+    /// The step shown: the open one, or with none open the first not done,
+    /// or the last: a step is always open.
+    pub(crate) fn shown(s: &SpendState) -> Option<u8> {
+        s.open
+            .or_else(|| s.steps.iter().copied().find(|&k| !s.done[usize::from(k)]))
+            .or_else(|| s.steps.last().copied())
+    }
+
     /// The first step Back may open in `s`: the one after Sign once a key
     /// here has signed, or after Nonces once a round is open here (its
     /// nonces are never made again). Only lookups.
@@ -1045,8 +1054,14 @@ impl SpendSteps {
 impl crate::trail::StepFlow for SpendSteps {
     fn steps(&self, app: &Faraday) -> Option<crate::trail::Steps> {
         let s = app.wallets.spend()?;
-        let mut steps = crate::trail::Steps::new(s.steps.clone(), s.open);
+        let mut steps = crate::trail::Steps::new(s.steps.clone(), SpendSteps::shown(s));
         steps.first = SpendSteps::first(s);
+        steps.answered = s
+            .steps
+            .iter()
+            .copied()
+            .filter(|&k| s.done[usize::from(k)])
+            .collect();
         Some(steps)
     }
 
@@ -1056,6 +1071,43 @@ impl crate::trail::StepFlow for SpendSteps {
 
     fn name(&self, _: &Faraday, k: u8) -> &'static str {
         crate::screens::SPEND_TITLES[usize::from(k)]
+    }
+
+    fn contained(&self) -> Option<&dyn crate::flow::Contained> {
+        Some(self)
+    }
+}
+
+impl crate::flow::Contained for SpendSteps {
+    fn rows(&self, app: &Faraday) -> Vec<crate::flow::Row> {
+        let Some(s) = app.wallets.spend() else {
+            return Vec::new();
+        };
+        let shown = SpendSteps::shown(s);
+        s.steps
+            .iter()
+            .map(|&k| {
+                let reached = s.done[usize::from(k)] || shown == Some(k);
+                crate::flow::Row {
+                    label: Text::of(crate::screens::SPEND_TITLES[usize::from(k)]),
+                    value: reached
+                        .then(|| crate::screens::step_summary(app, k, s.wallet, s.needed)),
+                    mono: false,
+                    opens: k,
+                    current: shown == Some(k),
+                }
+            })
+            .collect()
+    }
+
+    fn count_fixed(&self, _: &Faraday) -> bool {
+        false
+    }
+
+    fn still_fits(&self, _: &Faraday, changed: u8, later: u8) -> bool {
+        // A wallet known anew owes Check again (the signing's fresh read); every
+        // other answer stands.
+        !(changed == step::WALLET && later == step::CHECK)
     }
 }
 

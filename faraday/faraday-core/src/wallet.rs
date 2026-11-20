@@ -4902,7 +4902,8 @@ impl Faraday {
                 // stays open.
                 let from_page = self.screen == Screen::SpendBackup
                     && self.spend_backup.state().open != Some(spend_backup::Open::Spend);
-                self.wallets.press_step(n, from_page);
+                self.wallets
+                    .press_step(n, from_page || self.screen == Screen::Spend);
                 if self.screen == Screen::SpendBackup {
                     self.spend_backup_step_moved(false);
                 }

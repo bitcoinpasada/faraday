@@ -31,7 +31,7 @@ faraday/faraday-core/src/screens/set_time.rs 25
 faraday/faraday-core/src/screens/settings.rs 16
 faraday/faraday-core/src/screens/sheets.rs 205
 faraday/faraday-core/src/screens/sidebar.rs 29
-faraday/faraday-core/src/screens/spend.rs 250
+faraday/faraday-core/src/screens/spend.rs 243
 faraday/faraday-core/src/screens/visit.rs 131
 faraday/faraday-core/src/screens/wallets.rs 118
 faraday/faraday-core/src/screens/wallets_start.rs 59

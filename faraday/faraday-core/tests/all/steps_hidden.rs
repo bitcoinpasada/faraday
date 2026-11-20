@@ -128,14 +128,14 @@ fn sign_a_transaction_shows_no_step_past_the_current_one() {
     let last = first.iter().rposition(|&on| on).expect("a step is shown");
     assert!(last + 1 < steps.len(), "a later step is left unshown");
     assert!(first[..=last].iter().all(|&on| on), "{first:?}");
-    // With the steps before Sign done, they stay above and can be pressed;
-    // Sign is the last one drawn.
+    // With the steps before Sign done, Your choices offers each of them;
+    // Sign is open, so it takes no press, and nothing after it is offered.
     testkit::steps_before_sign_done(&mut app);
     app.press(Action::Step(step::SIGN));
     let at_sign = shown(&mut app);
     let sign = steps.iter().position(|&n| n == step::SIGN).unwrap();
-    assert!(at_sign[..=sign].iter().all(|&on| on), "{at_sign:?}");
-    assert!(at_sign[sign + 1..].iter().all(|&on| !on), "{at_sign:?}");
+    assert!(at_sign[..sign].iter().all(|&on| on), "{at_sign:?}");
+    assert!(at_sign[sign..].iter().all(|&on| !on), "{at_sign:?}");
     app.press(Action::Step(step::TRANSACTION));
     assert_eq!(app.spend().unwrap().open, Some(step::TRANSACTION));
 }

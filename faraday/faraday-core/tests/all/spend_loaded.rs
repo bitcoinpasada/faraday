@@ -388,3 +388,109 @@ fn spending_from_a_backup_counts_its_steps_without_a_total() {
         "a step count states a total: {shown:?}"
     );
 }
+
+/// The window made `width` x `height` at 160 dpi.
+fn window(app: &mut Faraday, (width, height): (u16, u16)) {
+    app.event(Event::Display(DisplayInfo {
+        width,
+        height,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.settle();
+    let _ = app.frame();
+}
+
+/// Where `text` is drawn, the first of it: (x, y, w, h).
+fn drawn_at(app: &mut Faraday, text: &str) -> Option<(i32, i32, i32, i32)> {
+    let _ = app.frame();
+    app.drawn_text_boxes()
+        .plain()
+        .into_iter()
+        .find(|(t, _)| t == text)
+        .map(|b| b.1)
+}
+
+/// On a wide window one step's card is drawn at a time, and the pane holds
+/// Your choices' rows with the transaction's review under them.
+#[test]
+fn a_wide_window_shows_one_step_and_the_review_under_your_choices() {
+    let mut app = spending_review(false);
+    window(&mut app, (1366, 768));
+    let shown = crate::common::texts(&mut app);
+    let counts: Vec<&String> = shown.iter().filter(|t| t.starts_with("Step ")).collect();
+    assert_eq!(counts.len(), 1, "one card at a time: {shown:?}");
+    assert!(!counts[0].contains(" of "), "{shown:?}");
+    let pos = |what: &str| {
+        shown
+            .iter()
+            .position(|t| t == what)
+            .unwrap_or_else(|| panic!("{what}: {shown:?}"))
+    };
+    let (choices, review) = (pos("Your choices"), pos("This transaction"));
+    assert!(choices < review, "the rows come first: {shown:?}");
+    for fact in ["Wallet", "Sends", "Fee", "Change", "Txid"] {
+        assert!(
+            shown[review..].iter().any(|t| t == fact),
+            "{fact}: {shown:?}"
+        );
+    }
+    // The facts are plain lines: a step is reached by Your choices.
+    assert!(
+        !crate::common::offered(&mut app, Action::Step(step::CHECK)),
+        "a step ahead is not offered by a fact"
+    );
+}
+
+/// On a low wide window the pane scrolls within itself, and the signatures
+/// box under the facts is reached by it.
+#[test]
+fn on_a_low_wide_window_the_signatures_box_is_reached_by_scrolling_the_pane() {
+    let mut app = spending_review(false);
+    window(&mut app, (1366, 600));
+    assert!(
+        !crate::common::offered(&mut app, Action::Primary),
+        "the box is below the window"
+    );
+    let head = drawn_at(&mut app, "Your choices").expect("the pane is shown");
+    let (x, y) = (
+        u16::try_from(head.0 + 20).unwrap(),
+        u16::try_from(head.1 + 80).unwrap(),
+    );
+    app.event(Event::Hover { x, y });
+    app.event(Event::Scroll { x, y, dy: 1200 });
+    app.event(Event::ScrollEnd { x, y });
+    app.settle();
+    assert!(app.choices_offset() > 0.0, "the pane scrolled");
+    assert!(
+        crate::common::offered(&mut app, Action::Primary),
+        "the box's action is reached"
+    );
+}
+
+/// Once the transaction is signed, the rows of the steps before it take no
+/// press: it is not signed again from another step (Back stops there).
+#[test]
+fn after_signing_the_rows_before_it_take_no_press() {
+    let mut app = spending_review(false);
+    testkit::steps_before_sign_done(&mut app);
+    app.press(Action::Step(step::SIGN));
+    assert!(
+        crate::common::offered(&mut app, Action::Step(step::TRANSACTION)),
+        "before signing the earlier rows are offered"
+    );
+    app.press(Action::SignHere);
+    assert!(!app.spend().unwrap().spend.signed_here.is_empty());
+    for before in [step::WALLET, step::TRANSACTION, step::CHECK, step::SIGN] {
+        assert!(
+            !crate::common::offered(&mut app, Action::Step(before)),
+            "step {before} takes a press after signing"
+        );
+    }
+}

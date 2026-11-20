@@ -1,6 +1,6 @@
 //! `Screen::Spend`: signing a transaction.
 
-use super::parts::{made_place, side_panel_w, spaced};
+use super::parts::{made_place, spaced};
 use crate::decode::check::SignerPress;
 use crate::drawing::{Scrolled, View};
 use crate::memory::nonces::History;
@@ -235,9 +235,7 @@ fn empty_head(app: &View, ui: &mut Ui, cw: f32) -> f32 {
 }
 
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
-    let panel_w = side_panel_w(cw);
     let col_x = x0 + 40.0;
-    let col_w = cw - panel_w - 72.0;
     let needed = app.spend_needed();
     if app.wallets.spend().is_none() {
         let top = empty_head(app, ui, cw);
@@ -250,28 +248,10 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         );
         return;
     }
-    let (wallet_idx, steps) = {
+    let (wallet_idx, scroll) = {
         let s = app.wallets.spend().expect("spend");
-        (s.wallet, s.steps.clone())
-    };
-
-    let (cards, scroll) = {
-        let s = app.wallets.spend().expect("spend");
-        let cards: Vec<flow::Card> = steps
-            .iter()
-            .map(|&n| flow::Card {
-                title: STEPS[n as usize].into(),
-                summary: step_summary(app, n, wallet_idx, needed).as_str().into(),
-                mono: false,
-                done: s.done[n as usize],
-                open: s.open == Some(n),
-                default: n == step::CHECK,
-                toggle: Action::Step(n),
-                lead: None,
-            })
-            .collect();
         (
-            cards,
+            s.wallet,
             flow::Scroll {
                 y: s.scroll,
                 follow: s.follow,
@@ -280,39 +260,41 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let compact = ui.compact;
     let sequence = sequence_line(app);
-    let col = flow::Column {
-        area_x: x0,
-        area_w: if compact { cw } else { cw - panel_w },
-        x: col_x,
-        w: col_w,
-        h: if compact { h - spend_bar_h(ui) } else { h },
+    let page = flow::Page {
+        area: (x0, cw),
+        h,
+        foot_h: if compact { spend_bar_h(ui) } else { 0.0 },
         back: Some(app.named_back((EN.spend_wallets, Action::Nav(Screen::WalletsStart)))),
         heading: EN.spend_sign_a_transaction,
-        wrap_closed: false,
-        total_fixed: false,
-        all_shown: false,
-        note: sequence.as_deref(),
         chip: None,
+        note: sequence.as_deref(),
         chip_tap: None,
         moves: crate::ui::Moves::Yes,
     };
+    let Some(contained) = crate::trail::StepFlow::contained(&crate::wallet::SPEND_STEPS) else {
+        return;
+    };
     let (next, again) = {
         let app_ref: &View = app;
-        let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
-            step_body(app_ref, ui, steps[i], x, y, w, wallet_idx, needed)
+        let mut body = |ui: &mut Ui, k: u8, x: f32, y: f32, w: f32| -> f32 {
+            step_body(app_ref, ui, k, x, y, w, wallet_idx, needed)
         };
-        flow::column(ui, &col, &cards, scroll, &mut body)
+        // Under Your choices' rows: the transaction's review.
+        let mut under = |ui: &mut Ui, x: f32, y: f32, w: f32| -> f32 {
+            review_under(app_ref, ui, (x, y, w), wallet_idx, needed)
+        };
+        let (next, again, _) =
+            flow::contained(ui, app_ref, contained, &page, scroll, &mut body, &mut under);
+        (next, again)
     };
     app.scroll(Scrolled::Spend, next, again);
 
-    // The panel; on a small panel, the foot, whose button is the open
-    // step's Continue while it is read.
+    // On a small panel, the foot, whose button is the open step's
+    // Continue while it is read.
     if compact {
         let step = ui.pin.take();
         let bar_y = h - spend_bar_h(ui);
         spend_bar(app, ui, x0, cw, bar_y, needed, step);
-    } else {
-        spend_panel(app, ui, x0 + cw - panel_w, panel_w, h, wallet_idx, needed);
     }
 }
 
@@ -653,7 +635,12 @@ fn recipients(inspection: &faraday_psbt::Inspection) -> Vec<&faraday_psbt::Outpu
     inspection.outputs.iter().filter(|o| !o.is_ours()).collect()
 }
 
-pub(crate) fn step_summary(app: &View, n: u8, wallet: Option<usize>, needed: usize) -> Text {
+pub(crate) fn step_summary(
+    app: &crate::Faraday,
+    n: u8,
+    wallet: Option<usize>,
+    needed: usize,
+) -> Text {
     let s = app.wallets.spend().expect("spend");
     let i = &s.inspection;
     let reached = s.done[n as usize] || s.open == Some(n);
@@ -2289,26 +2276,19 @@ impl StepView<'_> {
 /// and a note with its colour.
 type ReviewRow = (Text, Text, Text, Option<(&'static str, crate::ui::Paint)>);
 
-#[allow(
-    clippy::too_many_arguments,
-    reason = "the spend panel's view, position, width, height, wallet and keys needed"
-)]
-fn spend_panel(
+/// The transaction's review under Your choices' rows: "This transaction",
+/// its six facts as plain lines, and the signatures box with its action.
+/// Returns its height.
+fn review_under(
     app: &View,
     ui: &mut Ui,
-    px: f32,
-    pw: f32,
-    h: f32,
+    (x, y0, w): (f32, f32, f32),
     wallet: Option<usize>,
     needed: usize,
-) {
+) -> f32 {
     let s = app.wallets.spend().expect("spend");
     let i = &s.inspection;
-    ui.fill(px, 0.0, pw, h, 0.0, Role::Surface);
-    ui.fill(px, 0.0, 1.0, h, 0.0, Role::OutlineVariant);
-    let x = px + 26.0;
-    let w = pw - 52.0;
-    let mut y = faraday_draw::tokens::SIDE_PANEL_TOP;
+    let mut y = y0 + faraday_draw::tokens::GAP;
     ui.text_as(
         x,
         y,
@@ -2343,7 +2323,7 @@ fn spend_panel(
         },
         None => Text::of(EN.spend_panel_none),
     };
-    let facts: [(&str, Text, TypeRole, u8); 6] = [
+    let facts: [(&str, Text, TypeRole); 6] = [
         (
             EN.spend_panel_wallet,
             wallet
@@ -2351,15 +2331,13 @@ fn spend_panel(
                 .map(|wl| Text::of(&wl.name))
                 .unwrap_or_else(|| Text::of(EN.spend_panel_not_loaded)),
             BODY_M,
-            0,
         ),
         (
             EN.spend_panel_sends,
             Text::fill(EN.spend_panel_btc, &[&btc(i.amount_to_others.to_sat())]),
             BODY_M.mono(),
-            2,
         ),
-        (EN.spend_panel_to_label, to, BODY_M.mono(), 2),
+        (EN.spend_panel_to_label, to, BODY_M.mono()),
         (
             EN.spend_panel_fee,
             match i.fee_rate_sat_vb {
@@ -2370,28 +2348,26 @@ fn spend_panel(
                 None => Text::of(EN.step_fee_not_known),
             },
             BODY_M,
-            2,
         ),
-        (EN.spend_panel_change, change, BODY_M, 2),
+        (EN.spend_panel_change, change, BODY_M),
         (
             EN.spend_panel_txid,
             short(&text!("{}", s.spend.txid)),
             BODY_M.mono(),
-            3,
         ),
     ];
-    for (k, v, wt, step) in facts.iter() {
-        // A row is a full touch target, which opens its step.
-        let row = faraday_draw::tokens::TOUCH;
+    for (k, v, wt) in facts.iter() {
+        // Plain lines: Your choices' rows are the way to a step.
+        let row = ui.line_as(BODY_M) + 2.0 * faraday_draw::tokens::GAP;
         ui.text_mid_as((x, y, row), BODY_S, Role::OnSurfaceVariant, k);
         let v = ui.fit_as(*wt, v, w - 70.0);
         ui.text_right_as((x + w, y, row), *wt, Role::OnSurface, &v);
         ui.rule(x, y + row, w, Role::OutlineVariant);
-        ui.press_box(x, y, w, row, Action::Step(*step));
         y += row + 2.0;
     }
     let (count, missing, need_line, action_label, style) = spend_status(app, needed);
-    let fy = h - 26.0 - 46.0 - 14.0 - 82.0;
+    y += faraday_draw::tokens::GAP;
+    let fy = y;
     ui.fill(x, fy, w, 82.0, 12.0, Role::SurfaceContainerHighest);
     ui.stroke(x, fy, w, 82.0, 12.0, Role::OutlineVariant);
     ui.text_mid_as(
@@ -2423,9 +2399,11 @@ fn spend_panel(
         },
         &need_line,
     );
-    let by = h - 26.0 - 46.0;
+    let by = fy + 82.0 + 14.0;
     let label = action_label.fitted(ui, TITLE_M, w - 32.0);
+    let bh = ui.button_height(BUTTON_H);
     ui.button(x, by, Some(w), BUTTON_H, &label, style, Action::Primary);
+    by + bh - y0
 }
 
 /// Who signs' count: enough, the count and

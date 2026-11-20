@@ -750,6 +750,22 @@ fn the_sign_button_with_three_keys_here_reads_whole() {
     for seed in ["bacon", "zebra", "summer"] {
         add_key(&mut app, seed);
     }
+    // A window tall enough for the whole of Your choices pane, where the
+    // button stands under the review's facts.
+    app.event(faraday_shell_api::Event::Display(
+        faraday_shell_api::DisplayInfo {
+            width: 1280,
+            height: 1600,
+            dpi: 160,
+            inset_bottom: 0,
+            inset_top: 0,
+            buttons: 0,
+            camera_fixed: false,
+            secure: faraday_shell_api::SecureHardware::None,
+            boot: faraday_shell_api::BootState::Unknown,
+            memory_mib: None,
+        },
+    ));
     app.press(Action::StartSpend(at(&app, "spend.psbt")));
     assert_eq!(app.screen, Screen::Spend);
     let t = app.drawn_texts();
