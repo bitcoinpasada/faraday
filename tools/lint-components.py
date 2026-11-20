@@ -70,6 +70,19 @@ RULES = [
         "the flow container (docs/FLOW-CONTAINER.md, faraday-core flow.rs)",
         skip=["faraday/faraday-core/src/flow.rs", "faraday/faraday-core/src/flow/"],
     ),
+    # A menu page doing its own page width or column rule: the page width and
+    # the tile minimum belong to the container (`docs/MENU-PAGE.md`), which
+    # works out the columns; a count of columns from a minimum and a gap is
+    # that rule written by hand.
+    Rule(
+        "menu-own-grid",
+        [r"\bMENU_PAGE_W\b", r"\bREADING_MENU_W\b", r"\bCATALOG_TILE_MIN\b",
+         r"\+\s*\w*GAP\w*\s*\)\s*/\s*\(\s*\w*(MIN|TILE)\w*\s*\+"],
+        ["faraday/"],
+        "the menu page container (faraday-core screens/menu_page.rs, `docs/MENU-PAGE.md`)",
+        skip=["faraday/faraday-core/src/screens/menu_page.rs",
+              "faraday/faraday-core/src/screens/mod.rs"],
+    ),
 ]
 
 

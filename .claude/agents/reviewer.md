@@ -95,6 +95,7 @@ Read for the area a change is in; no trailer attests it.
 - Text anywhere in the product is plain statement of fact, never mannered prose.
 - The medium's words come from Medium; "card or stick" on the Pi, "SD card" only for the card it started from.
 - A screen or component change names the Material 3 page it was checked against.
+- A menu page draws on the menu page container (`screens/menu_page.rs`, `docs/MENU-PAGE.md`): no grid, page width or column rule of its own, and a new menu screen has its row in the document.
 - None of F111's left-out components is added.
 - A new step flow is drawn by the flow container (`docs/FLOW-CONTAINER.md`), with no column, foot or paging of its own.
 - Faraday Demo differs from the device only by a decision.

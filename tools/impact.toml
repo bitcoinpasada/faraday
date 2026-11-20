@@ -213,6 +213,15 @@ with = ["docs/FLOW-CONTAINER.md"]
 misses = "a flow renamed or moved shows as new; a flow's row changed with no new flow is not asked for"
 
 [[rule]]
+id = "design.menu-page"
+title = "a change to the menu page container is in docs/MENU-PAGE.md (a new menu screen is a row in its §8)"
+source = ["docs/MENU-PAGE.md"]
+when = ["faraday/faraday-core/src/screens/menu_page.rs"]
+kind = "pair"
+with = ["docs/MENU-PAGE.md"]
+misses = "a new menu screen drawn on the container changes its own file, not menu_page.rs, and is not matched"
+
+[[rule]]
 id = "deps.page"
 title = "a direct dependency added has its page in docs/deps/"
 source = ["docs/decisions/F71.md"]
