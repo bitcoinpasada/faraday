@@ -262,7 +262,7 @@ not take.
 | A typed `Files` scanner: Scan the PSBT, Scan a transaction, Scan an address | card: **Add to {vault}**, **Unlock {vault}** or **Make a vault** (not kept); Scan again, Cancel | card: **Add this key** to the seed sheet, behind the stick gate; Scan again, Cancel | card: **Add this share**; Scan again, Cancel |
 | Restore's Scan the description, Create's Scan Key {n}'s xpub | card, as above | taken into the flow's slot, after the seed sheet | taken, to its form with it in, the rest added there and the key into the slot |
 | Add a key's Scan a SeedQR | card, as above | taken | taken, to its form |
-| A form's Scan a share | card, as above | to the seed sheet | taken; the other kind's switches form (a Krux code opens the Krux sheet) |
+| A form's Scan a share | card, as above | to the seed sheet | taken; the other kind's switches form |
 | A wallet's Scan a key | card, as above | taken, matched to the wallet's keys | taken, to its form for the wallet |
 | What do you have? | line "A TOTP setup code · not used here"; not filed; the camera stays on | taken | taken |
 | The TOTP scanner | taken | card: **Add this key** | card: **Add this share** |

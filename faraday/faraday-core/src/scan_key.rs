@@ -2054,7 +2054,8 @@ impl Faraday {
         }
     }
 
-    /// Costs what adding a part costs, and a codex32 and a SLIP-39 parse.
+    /// Costs what adding a part costs, a codex32 and a SLIP-39 parse, the
+    /// classification and the KEF test.
     /// A code read by an Add a key form's Scan (codex32, SLIP-39, Seed
     /// XOR; `docs/SCANNING.md` §4.3): its own form's part goes in; the
     /// other share form's switches to that form with it in; a whole seed
@@ -2064,12 +2065,14 @@ impl Faraday {
     fn part_scanned(&mut self, bytes: zeroize::Zeroizing<Vec<u8>>) {
         use crate::forms::Form;
         let c = self.compute();
-        if scan_read::public_kind(crate::wallet::classify(&c, "", &bytes), false, &bytes).route()
-            == scan_read::Route::Sheet
+        let kind = scan_read::secret_kind(&c, &bytes);
+        if kind.is_none()
+            && scan_read::public_kind(crate::wallet::classify(&c, "", &bytes), false, &bytes)
+                .route()
+                == scan_read::Route::Sheet
         {
             return crate::seeds::kef::kef_code_scanned(self, bytes);
         }
-        let kind = scan_read::secret_kind(&c, &bytes);
         let form = self.entry.state().form;
         let kind_form = kind.and_then(Kind::part_form);
         if let Some(to) = kind_form.filter(|f| *f != form) {

@@ -430,3 +430,22 @@ fn the_seed_sheet_names_the_loaded_wallet_whose_key_the_seed_is() {
     let text = drawn(&mut app);
     assert!(text.contains(&format!("Key {n} of Savings")), "{text}");
 }
+
+/// A SeedQR is a secret before it is a Krux code: one that the Krux test
+/// would also accept (its digits read as the hex of an AES-ECB envelope)
+/// is taken as a part at Seed XOR's own Scan, not opened on the Krux sheet.
+#[test]
+fn a_seedqr_that_passes_the_krux_test_is_taken_as_a_part_at_seed_xors_scan() {
+    use faraday_core::forms::Form;
+    // These words' SeedQR digits pass `kef::recognize`, found once by search.
+    let words =
+        "absent agent miss vibrant avoid abandon abandon because damage abandon abandon above";
+    let (mut app, _) = on_savings();
+    app.press(Action::Entry(None));
+    let i = Form::ALL.iter().position(|f| *f == Form::Xor).unwrap();
+    app.press(Action::EntryForm(i as u8));
+    app.press(Action::ScanPart);
+    scan_seedqr(&mut app, words);
+    assert_ne!(app.sheet, Some(Sheet::KefRead));
+    assert_eq!(testkit::entry(&app).parts.lines(Form::Xor).len(), 1);
+}
