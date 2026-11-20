@@ -609,12 +609,17 @@ A 48-character sheet at cell c is 48c + 48 dp wide and 35c + 72 tall
 (35 rows, 48 columns, the booklet's gaps). With the Demo only card
 beside the page and d6 dice:
 
-| Window (dp) | Work width | The input panel | The worksheet |
-|---|---|---|---|
-| 1280 × 800 | 750 (the card's narrow column) | at the foot, 132 dp | does not fit: as today, cell 28 in a 400 dp view, panning |
-| 1920 × 1080 | 1134 | at the foot, 132 dp | whole at cell 22: 1104 × 842 |
-| 2000 × 1090 | 1214 | at the foot, 132 dp | whole at cell 23: 1152 × 877 |
-| 2560 × 1440 | 1774 (1326 beside the panel) | beside, 424 dp | whole at cell 26: 1296 × 982 |
+| Window (dp) | The input panel | The worksheet |
+|---|---|---|
+| 1280 × 800 | at the foot, 132 dp | does not fit: as today, cell 28 in a 400 dp view, panning |
+| 1920 × 1080 | beside, 424 dp | whole at cell 23: 1152 × 877 |
+| 2000 × 1090 | beside, 424 dp | whole at cell 25: 1248 × 947 |
+| 2560 × 1440 | beside, 424 dp | whole at cell 32: 1584 × 1192 |
+
+The work width runs from the card column's edge (after the input panel
+where it stands beside) to the room's margin at its end (F296), so the
+cells are the largest the room and the view's height allow, not the
+sizes of an older, narrower column.
 
 A 74-character sheet (61 rows, 74 columns: 74c + 76 by 61c + 124)
 fits from about 3840 × 2160 at one dp a pixel; below that it pans as

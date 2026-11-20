@@ -1046,31 +1046,30 @@ fn the_cell_being_entered_is_on_screen_at_every_size() {
 }
 
 #[test]
-fn the_whole_sheet_brings_the_page_to_the_work_over_several_frames() {
-    // Ten characters in, the page at rest; fifteen more take the front
-    // down the sheet, and the page follows over several frames, at once
-    // under Reduce motion.
+fn where_the_sheet_is_drawn_whole_the_box_worked_stays_in_view_with_no_follow() {
+    // Ten characters in, then fifteen more take the front down the sheet:
+    // the sheet is whole in the container's room, so the box being
+    // written is on screen at every frame and the page never moves.
     let mut app = typed_a(1920, 1080, 10);
     let from = page_y(&app);
-    type_a(&mut app, 10..25);
-    let mut ys = vec![page_y(&app)];
-    let mut t = app.now_ms();
-    for _ in 0..40 {
-        t += 16;
-        app.event(Event::Tick { now_ms: t });
+    let (all, _) = vector2();
+    for (b, &ch) in all[0].as_bytes().iter().enumerate().take(34).skip(19) {
+        key(&mut app, char::from(ch));
         let _ = app.frame();
-        ys.push(page_y(&app));
+        assert_eq!(page_y(&app), from, "the page does not follow");
+        let at = app
+            .hit_box(Action::Codex32(C32::Cell(
+                faraday_core::codex32::Cell::Given {
+                    sheet: 0,
+                    b: b as u8,
+                },
+            )))
+            .expect("the box written is on screen");
+        assert!(u32::from(at.1) + u32::from(at.3) <= 1080, "{at:?}");
     }
-    let to = *ys.last().unwrap();
-    assert!(to > from, "the page moved down to the front: {ys:?}");
-    let between = ys.iter().filter(|&&y| y > from && y < to).count();
-    assert!(between >= 3, "several frames on the way: {ys:?}");
+    frames(&mut app, 40);
+    assert_eq!(page_y(&app), from);
     assert_eq!(pan(&app), Default::default());
-
-    let mut reduced = typed_a(1920, 1080, 10);
-    reduced.press(Action::ReduceMotion(true));
-    type_a(&mut reduced, 10..25);
-    assert_eq!(page_y(&reduced), to);
 }
 
 #[test]
@@ -1180,29 +1179,27 @@ fn a_character_in_its_box_brings_a_dragged_view_back_over_several_frames() {
 }
 
 #[test]
-fn a_character_in_its_box_brings_a_scrolled_page_back_to_a_whole_sheet() {
-    // 1920x900: the sheet is whole and the page follows it. Scrolled away
-    // by a drag, the box off screen, the next character typed brings the
-    // page back over several frames, at once under Reduce motion.
-    let mut app = typed_a(1920, 900, 22);
-    let front = page_y(&app);
-    assert!(front > 0.0);
-    drag_from(&mut app, (900, 300), 700);
-    let away = page_y(&app);
-    assert!(away < front, "the page was dragged away: {away} {front}");
-    let ys = enter_then_watch(&mut app, 22, page_y);
-    let to = *ys.last().unwrap();
-    assert!(to > away + 20.0, "the page came back: front {front} {ys:?}");
-    assert_eq!(ys[0], away, "nothing jumps at the key: {ys:?}");
-    let between = ys.iter().filter(|&&y| y > away && y < to).count();
-    assert!(between >= 3, "several frames on the way: {ys:?}");
-
-    let mut reduced = typed_a(1920, 900, 22);
-    reduced.press(Action::ReduceMotion(true));
-    drag_from(&mut reduced, (900, 300), 700);
-    assert!(page_y(&reduced) < front);
-    type_a(&mut reduced, 22..23);
-    assert!(page_y(&reduced) > away + 20.0, "at once");
+fn a_character_in_its_box_leaves_a_whole_sheets_page_where_it_is() {
+    // 1920x900: the sheet is whole, so the box worked is in view without
+    // the page moving, at every character and under Reduce motion.
+    for reduce in [false, true] {
+        let mut app = typed_a(1920, 900, 22);
+        if reduce {
+            app.press(Action::ReduceMotion(true));
+        }
+        let front = page_y(&app);
+        let ys = enter_then_watch(&mut app, 22, page_y);
+        assert!(ys.iter().all(|&y| y == front), "no follow: {front} {ys:?}");
+        let at = app
+            .hit_box(Action::Codex32(C32::Cell(
+                faraday_core::codex32::Cell::Given {
+                    sheet: 0,
+                    b: 9 + 22,
+                },
+            )))
+            .expect("the box written is on screen");
+        assert!(u32::from(at.1) + u32::from(at.3) <= 900, "{at:?}");
+    }
 }
 
 /// The top edge of the pinned input panel: the topmost of the codex32

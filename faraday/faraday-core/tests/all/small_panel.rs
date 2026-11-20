@@ -61,6 +61,30 @@ fn find(app: &mut Faraday, action: Action) -> (u16, u16) {
     panic!("{action:?} is never on the panel");
 }
 
+/// Your choices, from the bar's ⋮ (the Pi's panel has no button for it
+/// on the bar): the ⋮ is searched over every Overflow it can hold.
+fn open_choices(app: &mut Faraday) {
+    use faraday_core::nav::{BarTool, MenuPress, Overflow};
+    let _ = app.frame();
+    let open = (0u8..64)
+        .map(|bits| {
+            Action::NavMenu(MenuPress::Open(Some(Overflow {
+                own: bits & 1 != 0,
+                choices: bits & 16 != 0,
+                help: bits & 2 != 0,
+                keyboard: bits & 4 != 0,
+                keyboard_up: bits & 32 != 0,
+                eye: bits & 8 != 0,
+            })))
+        })
+        .find(|a| app.offers(*a))
+        .expect("the bar's ⋮");
+    app.press(open);
+    let _ = app.frame();
+    app.press(Action::NavMenu(MenuPress::Tool(BarTool::Choices)));
+    let _ = app.frame();
+}
+
 /// A finger on `action`, wherever it has scrolled to.
 fn tap(app: &mut Faraday, action: Action) {
     let (x, y) = find(app, action);
@@ -333,7 +357,7 @@ fn kind_is_offered_on_the_keys_page_and_opens() {
         "Words opens Keys"
     );
     // Kind is reached from Your choices, on the bar's button.
-    tap(&mut app, Action::Choices(ChoicesPress::Open));
+    open_choices(&mut app);
     assert_eq!(app.sheet, Some(Sheet::Choices));
     tap(
         &mut app,
@@ -366,7 +390,7 @@ fn the_page_title_shows_the_steps() {
     // Your choices.
     let kind = Action::CStep(faraday_core::cstep::KIND);
     assert!(on_panel(&mut app, kind).is_none(), "no list on the page");
-    tap(&mut app, Action::Choices(ChoicesPress::Open));
+    open_choices(&mut app);
     tap(
         &mut app,
         Action::Choices(ChoicesPress::Row(faraday_core::cstep::KIND)),
@@ -545,7 +569,7 @@ fn make_a_new_vault_offers_your_choices_as_a_sheet() {
     assert_eq!(app.screen, Screen::CreateVault);
     let open = |app: &Faraday| app.vaults().create.as_ref().and_then(|c| c.open);
     app.press(Action::Vault(V::CStep(vstep::PHRASES)));
-    tap(&mut app, Action::Choices(ChoicesPress::Open));
+    open_choices(&mut app);
     assert_eq!(app.sheet, Some(Sheet::Choices));
     let _ = app.frame();
     let shown: Vec<String> = app

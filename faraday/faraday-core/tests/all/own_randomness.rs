@@ -1205,13 +1205,13 @@ fn opens_from_the_press_and_comes_back(app: &mut Faraday, press: Action) {
 fn overflow(app: &mut Faraday) -> Option<faraday_core::nav::Overflow> {
     use faraday_core::nav::{MenuPress, Overflow};
     let _ = app.frame();
-    (0u8..16)
+    (0u8..64)
         .map(|bits| Overflow {
             own: bits & 8 != 0,
-            choices: false,
+            choices: bits & 16 != 0,
             help: bits & 1 != 0,
             keyboard: bits & 2 != 0,
-            keyboard_up: false,
+            keyboard_up: bits & 32 != 0,
             eye: bits & 4 != 0,
         })
         .find(|held| app.offers(Action::NavMenu(MenuPress::Open(Some(*held)))))
