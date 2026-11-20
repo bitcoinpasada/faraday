@@ -129,6 +129,7 @@ pub(crate) const TOURS: &[(&str, TourFn)] = &[
     ),
     ("kef", TourFn::Plain(kef::kef_tour)),
     ("kef-menu", TourFn::Plain(kef::kef_menu_tour)),
+    ("kef-ways", TourFn::Plain(kef::kef_ways_tour)),
     ("kef-make", TourFn::Costly(kef::kef_make_tour)),
     ("kef-step", TourFn::Plain(kef::kef_step_tour)),
     ("ots", TourFn::Plain(ots_check::ots_check_tour)),

@@ -81,6 +81,8 @@ macro_rules! words_keygen {
     keygen_type_the_words: "Type the words",
     /// New key's Start card.
     keygen_scan_a_seedqr: "Scan a SeedQR",
+    /// New key's Start card: read a Krux code, on Add a key's Krux code form.
+    keygen_krux_code: "Krux code",
     /// New key's Start card.
     keygen_make_slip_39_shares: "Make SLIP-39 shares",
     /// New key's Start card.

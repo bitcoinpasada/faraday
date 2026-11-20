@@ -736,6 +736,16 @@ new code, and the button reads **Show the code**. A code over 37 reads **By hand
 **Largest: 37 × 37**, with no button. The view is `KefForm`'s (reset by **Make another**). The
 tool has no **Scan my copy**, and its picture can be printed from a stick as any.
 
+**Reading a code.** Two more ways in read a code that already exists, each reusing §8's reading
+(`kef_header`) and §7's sheet: the sheet asks the passphrase, and the key loads through §6's road.
+**Scan a Krux code** (`ScanPurpose::Kef`, `Action::ScanKef`) opens the camera for one code; one that
+is no code is said on the scanner and the camera stays on. **From Files** (`Action::KefFile`) takes
+an Inbox file, one button for each text or unrecognised file; the file is read when pressed, and one
+that is no code is named in a toast. Both are on the tool's Contents card, above the choices of what a
+new code holds, and on **Add a key**'s Krux code form (`Form::Krux`, last of the forms), which has
+nothing else. Check's **Krux code** row (Check a backup in another form) opens Add a key on that form.
+A pasted code is not taken by the scanner for these two.
+
 ### 15.3 The first step
 
 Shared by both. It reads, top to bottom:

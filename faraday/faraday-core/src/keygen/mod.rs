@@ -1502,6 +1502,10 @@ impl crate::Faraday {
             return;
         }
         let start = k.start;
+        if start == Start::Krux {
+            self.keygen_to_krux();
+            return;
+        }
         if k.started != Some(start) {
             k.clear_entries();
             k.started = None;
@@ -1561,6 +1565,20 @@ impl crate::Faraday {
         k.started = Some(start);
         k.open = Some(next);
         k.scroll.follow = true;
+    }
+
+    /// Start's Krux code: the flow is left for Add a key on its Krux code
+    /// form, where a code is read.
+    fn keygen_to_krux(&mut self) {
+        if let Some(k) = self.keygen_drop()
+            && self.screen == Screen::KeyGen
+        {
+            self.screen = k.back;
+        }
+        self.act(crate::Action::Entry(None));
+        if self.screen == Screen::Entry {
+            self.entry.choose_form(Form::Krux);
+        }
     }
 
     /// A SeedQR read while the flow waits on Scan a SeedQR: the camera

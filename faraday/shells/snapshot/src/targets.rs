@@ -343,6 +343,7 @@ walks! {
     walk_vaultstates = Some("vaultstates"),
     walk_kef = Some("kef"),
     walk_kef_menu = Some("kef-menu"),
+    walk_kef_ways = Some("kef-ways"),
     walk_kef_make = Some("kef-make"),
     walk_kef_step = Some("kef-step"),
     walk_ots = Some("ots"),

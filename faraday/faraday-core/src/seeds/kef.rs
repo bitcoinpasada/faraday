@@ -275,6 +275,70 @@ pub(crate) fn kef_open_sheet(app: &mut Faraday, envelope: Envelope, depth: u8, a
     app.sheet = Some(Sheet::KefRead);
 }
 
+/// Costs what [`kef_header`] costs. A code read by **Scan a Krux code**
+/// (the Krux tool's, Add a key's Krux code form's): the camera goes and
+/// the sheet asks the passphrase, as the read card's **Open** does. The
+/// reading is [`kef_header`]'s; a code that is none is said on the
+/// scanner, which stays on.
+pub(crate) fn kef_code_scanned(app: &mut Faraday, code: Zeroizing<Vec<u8>>) {
+    let Some((h, _)) = kef_header(app, &code) else {
+        return app.scan_say(EN.kef_read_scan_not_code);
+    };
+    drop(code);
+    app.scan_close();
+    kef_open_sheet(app, h.envelope, 0, false);
+}
+
+/// Costs what [`kef_header`] costs. **From Files** on Inbox file `i`: the
+/// sheet asks the passphrase, or a toast says the file is no Krux code.
+pub(crate) fn kef_file(app: &mut Faraday, i: usize) {
+    if !app.may_load_keys() {
+        return;
+    }
+    let Some(code) = app.inbox.get(i).map(|f| Zeroizing::new(f.bytes.to_vec())) else {
+        return;
+    };
+    match kef_header(app, &code) {
+        Some((h, _)) => kef_open_sheet(app, h.envelope, 0, false),
+        None => app.toast(EN.kef_read_not_code),
+    }
+}
+
+/// The ways to read a Krux code, as the Krux tool and Add a key's Krux code
+/// form show them: **Scan a Krux code** and **From Files**, one button for
+/// each file in Files that may be one (a text or unrecognised file; whether
+/// it is a code is told when it is pressed, never while drawing). `lead`:
+/// Scan is the page's primary action. Returns the height used.
+pub(crate) fn read_rows(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), lead: bool) -> f32 {
+    use crate::wallet::FileKind;
+    let scan = if lead {
+        Style::Primary
+    } else {
+        Style::Secondary
+    };
+    let mut rows: Vec<(Text, Style, Action)> =
+        vec![(Text::of(EN.kef_read_scan), scan, Action::ScanKef)];
+    let mut any = false;
+    for (i, f) in app.inbox.iter().enumerate() {
+        if matches!(f.kind, FileKind::Text | FileKind::Other) {
+            any = true;
+            rows.push((
+                Text::fill(EN.kef_read_file, &[&f.name]),
+                Style::Secondary,
+                Action::KefFile(i),
+            ));
+        }
+    }
+    if !any {
+        rows.push((
+            Text::of(EN.kef_read_files),
+            Style::Disabled,
+            Action::KefRead(KefAct::Field),
+        ));
+    }
+    faraday_ui::parts::button_rows(ui, x, y, w, &rows)
+}
+
 /// The sheet's presses.
 pub(crate) fn kef_act(app: &mut Faraday, act: KefAct) {
     let Some(k) = app.seed_read.kef.as_mut() else {

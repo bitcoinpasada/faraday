@@ -175,6 +175,12 @@ pub enum Action {
     LoadKey(usize),
     /// Scan a SeedQR into Add a key.
     ScanSeed,
+    /// Scan a Krux code on the Krux tool or on Add a key's Krux code form:
+    /// it goes to the sheet that asks its passphrase.
+    ScanKef,
+    /// The Krux code in Inbox file `i`, taken to the sheet that asks its
+    /// passphrase (**From Files**).
+    KefFile(usize),
     /// Scan any missing key of loaded wallet n.
     ScanKey(usize),
     /// Add a key for loaded wallet n: its words typed, for any of its
@@ -1381,6 +1387,7 @@ impl Faraday {
             | Action::ScanCamera(..)
             | Action::ScanPart
             | Action::ScanSeed
+            | Action::ScanKef
             | Action::ScanKey(..)
             | Action::Scan
             | Action::ScanFor(_)
@@ -1524,6 +1531,7 @@ impl Faraday {
             | Action::TransferText(..)) => self.transfer_act(a),
             Action::SeedRead(c) => self.seed_read_act(c),
             Action::KefRead(a) => crate::seeds::kef::kef_act(self, a),
+            Action::KefFile(i) => crate::seeds::kef::kef_file(self, i),
             Action::Sweep(a) => self.sweep_act(a),
             a @ (Action::DeleteFiles
             | Action::DeleteUnprotected

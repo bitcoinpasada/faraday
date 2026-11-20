@@ -97,6 +97,10 @@ pub enum ScanPurpose {
     /// plain text for the field, never filed; a secret or any other kind
     /// of code is named and refused.
     ToolText,
+    /// **Scan a Krux code** on the Krux tool and on Add a key's Krux code
+    /// form: one encrypted code, taken to the sheet that asks its
+    /// passphrase (`docs/KEF.md` §15), never filed.
+    Kef,
     /// My seed makes my wallet's **Compare with the wallet app's**: a key,
     /// an address or a wallet, compared and never filed.
     SeedCompare,

@@ -24,11 +24,20 @@ pub enum Form {
     Codex32,
     /// Seed XOR parts, each BIP-39 words.
     Xor,
+    /// A Krux encrypted code, scanned or taken from Files and opened under
+    /// its passphrase (`docs/KEF.md` §15). It collects no parts.
+    Krux,
 }
 
 impl Form {
     /// Every form, in the order the row lists them.
-    pub const ALL: [Form; 4] = [Form::Words, Form::Slip39, Form::Codex32, Form::Xor];
+    pub const ALL: [Form; 5] = [
+        Form::Words,
+        Form::Slip39,
+        Form::Codex32,
+        Form::Xor,
+        Form::Krux,
+    ];
 
     /// Its name.
     pub fn name(self) -> &'static str {
@@ -37,6 +46,7 @@ impl Form {
             Form::Slip39 => EN.forms_slip_39_shares,
             Form::Codex32 => EN.forms_codex32,
             Form::Xor => EN.forms_seed_xor_parts,
+            Form::Krux => EN.forms_krux_code,
         }
     }
 }
@@ -134,7 +144,7 @@ impl Parts {
                     )
                 })
                 .collect(),
-            Form::Words => Vec::new(),
+            Form::Words | Form::Krux => Vec::new(),
         }
     }
 
@@ -152,7 +162,7 @@ impl Parts {
                     || self.codex32.len() + self.codex32_vaults >= usize::from(c.threshold())
             }),
             Form::Xor => self.xor.parts() >= faraday_entropy::MIN_XOR_PARTS,
-            Form::Words => false,
+            Form::Words | Form::Krux => false,
         }
     }
 }

@@ -24,6 +24,9 @@ pub mod kstep {
     pub const CODE: u8 = 2;
     /// How many.
     pub const COUNT: usize = 3;
+    /// The card above them, where a code is read: not a step of making one,
+    /// so it has no place among the three and no mark in `done`.
+    pub const READ: u8 = 3;
 }
 
 /// Where the text comes from.
@@ -329,7 +332,7 @@ fn step(app: &mut Faraday, k: u8) {
         return;
     }
     let reachable = match k {
-        kstep::CONTENTS => true,
+        kstep::CONTENTS | kstep::READ => true,
         kstep::MAKE => s.done[usize::from(kstep::CONTENTS)],
         _ => s.done[usize::from(kstep::MAKE)],
     };
