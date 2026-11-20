@@ -550,9 +550,9 @@ fn created(
                     ..Default::default()
                 }]);
             }
-            // Made for an item that waits to go in it: unlocked at once, the
-            // item put in when it is open.
-            if super::copy::made(app, &name, id, (first, &mut parts)) {
+            // Made for an item that waits to go in it: its Unlock opens, the
+            // item put in once it is unlocked.
+            if super::copy::made(app, &name, id, &mut parts) {
                 app.toast(EN.vaults_vault_created);
                 return;
             }
@@ -567,21 +567,13 @@ fn created(
             app.vaults.state.focus = None;
             app.screen = Screen::Vaults;
             app.toast(EN.vaults_vault_created);
-            // Unlock, the new vault picked, with the passphrase just typed
-            // twice: opening the file it was written to is the check that
-            // it opens, and nothing is typed a third time. With a stick in
-            // nothing is unlocked, and Unlock asks once the stick is out.
+            // The vault stays locked: its Unlock opens, the new vault picked,
+            // and the person types the passphrase once as the proof that it
+            // opens. With a stick in, Unlock asks once the stick is out. The
+            // key file it was made with is held for that unlock.
             if let Some(i) = app.vault_files().iter().position(|f| f.name == name) {
-                if app.may_load_keys() {
-                    app.vaults.unlock_picked(i, first);
-                    app.vaults.set_made_parts(parts.take());
-                    app.screen = Screen::Unlock;
-                    defer(app, Work::Unlock);
-                } else {
-                    // The key file it was made with is held for that unlock.
-                    app.vaults.set_made_parts(parts.take());
-                    app.vault_act(VaultAction::Open(i));
-                }
+                app.vaults.set_made_parts(parts.take());
+                app.vault_act(VaultAction::Open(i));
             }
         }
         Err(e) => {

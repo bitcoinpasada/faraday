@@ -92,21 +92,39 @@ fn make_a_vault(app: &mut Faraday) {
     type_text(app, "test phrase");
     app.press(Action::Vault(V::CGo));
     settle(app, 30);
-    assert_eq!(app.vaults().open.len(), 1, "the vault was made and opened");
+    assert!(
+        app.vaults().open.is_empty(),
+        "the vault was made and is locked"
+    );
+    assert_eq!(app.screen, Screen::Unlock, "its Unlock opens");
 }
 
 #[test]
-fn a_vault_made_from_the_backup_opens_with_the_passphrase_typed_twice_and_returns_to_it() {
+fn a_vault_made_from_the_backup_is_locked_and_unlocked_once_before_it_returns_to_it() {
     let mut app = create_to_vault_step();
     make_a_vault(&mut app);
+    assert!(
+        app.vaults().passphrase.text.is_empty(),
+        "no passphrase is typed for it"
+    );
+    type_text(&mut app, "wrong phrase");
+    app.press(Action::Vault(V::Unlock));
+    settle(&mut app, 30);
+    assert!(
+        app.vaults().open.is_empty(),
+        "a wrong passphrase is refused"
+    );
+    assert_eq!(app.screen, Screen::Unlock);
+    assert!(crate::common::unlock_error(&app).is_some(), "and says so");
+    app.press(Action::Vault(V::FocusPassphrase));
+    type_text(&mut app, "test phrase");
+    app.press(Action::Vault(V::Unlock));
+    settle(&mut app, 30);
+    assert_eq!(app.vaults().open.len(), 1, "the right one opens it");
     assert_eq!(
         app.screen,
         Screen::Backup,
-        "the vault just made returns to the backup still under way"
-    );
-    assert!(
-        app.vaults().passphrase.text.is_empty(),
-        "no passphrase is left typed"
+        "the vault just unlocked returns to the backup still under way"
     );
 }
 
@@ -226,7 +244,9 @@ fn create_and_read_cost(app: &mut Faraday) -> (u32, u32) {
     type_text(app, "test phrase");
     app.press(Action::Vault(V::CGo));
     settle(app, 30);
-    assert_eq!(app.vaults().open.len(), 1, "the vault was made and opened");
+    assert!(app.vaults().open.is_empty(), "the vault is made locked");
+    crate::common::unlock(app, "test phrase");
+    assert_eq!(app.vaults().open.len(), 1, "and opens with its passphrase");
     let made = app.vaults().open[0].name.clone();
     let f = app
         .vault_files()
@@ -267,7 +287,8 @@ fn a_new_vault_goes_by_the_vaults_name() {
     app.press(Action::Vault(V::CGo));
     settle(&mut app, 1);
     settle(&mut app, 30);
-    assert_eq!(app.vaults().open.len(), 1, "it opened with no third typing");
+    crate::common::unlock(&mut app, "first phrase");
+    assert_eq!(app.vaults().open.len(), 1, "it opened with its passphrase");
     assert_eq!(app.vaults().open[0].label(app.vaults().store()), "Savings");
 }
 

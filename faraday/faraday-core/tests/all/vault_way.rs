@@ -103,8 +103,9 @@ fn make_the_vault(app: &mut Faraday) {
     app.press(Action::Vault(V::CFocus(0, true)));
     type_text(app, NEW_PHRASE);
     app.press(Action::Vault(V::CGo));
-    settle(app, |a| !a.vaults().open.is_empty());
-    assert_eq!(app.vaults().open.len(), 1, "the vault did not open");
+    settle(app, |a| a.screen == Screen::Unlock);
+    assert!(app.vaults().open.is_empty(), "the vault is made locked");
+    unlock_with(app, NEW_PHRASE);
 }
 
 /// The session locked: every open vault sealed and closed.
@@ -228,11 +229,12 @@ fn going_back_from_create_returns_to_tools_and_a_later_unlock_is_an_ordinary_one
     app.press(Action::Vault(V::CFocus(0, true)));
     type_text(&mut app, NEW_PHRASE);
     app.press(Action::Vault(V::CGo));
-    settle(&mut app, |a| !a.vaults().open.is_empty());
+    settle(&mut app, |a| a.screen == Screen::Unlock);
+    unlock_with(&mut app, NEW_PHRASE);
     assert_eq!(
         app.screen,
         Screen::VaultContents,
-        "made from Vaults, it opens with the passphrase typed twice"
+        "made from Vaults, it opens once unlocked"
     );
     assert!(
         !(app.screen == Screen::VaultContents && app.vaults().category == 2),
@@ -568,33 +570,36 @@ fn unlock_counts_the_file_twice_in_the_memory_it_needs() {
 }
 
 #[test]
-fn create_a_vault_opens_it_without_the_passphrase_typed_a_third_time() {
+fn create_a_vault_leaves_it_locked_and_its_unlock_takes_the_passphrase_once() {
     let mut app = device(Vec::new());
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Create));
     type_text(&mut app, NEW_PHRASE);
     app.press(Action::Vault(V::CFocus(0, true)));
     type_text(&mut app, NEW_PHRASE);
-    // As a person presses it: the make and the open each run on the worker,
-    // with frames drawn between them.
+    // As a person presses it: the make runs on the worker, with frames
+    // drawn between.
     testkit::press_on_worker(&mut app, Action::Vault(V::CGo));
-    // Each time the worker's answer is applied, what is drawn never asks
-    // for the passphrase again, on Unlock or anywhere else.
     for t in 1..60u64 {
         testkit::settle(&mut app);
-        assert!(
-            !app.drawn_texts()
-                .iter()
-                .any(|t| t == "Type the passphrase once more to open it"),
-            "no passphrase is asked for again while the vault opens"
-        );
         let _ = app.frame();
         app.event(Event::Tick { now_ms: t * 1000 });
-        if !app.vaults().open.is_empty() {
+        if app.screen == Screen::Unlock {
             break;
         }
     }
-    assert!(!app.vaults().open.is_empty(), "the new vault is open");
+    assert_eq!(app.screen, Screen::Unlock, "its Unlock opens");
+    assert!(app.vaults().open.is_empty(), "the new vault is locked");
+    // A wrong passphrase is refused as at any unlock.
+    type_text(&mut app, "not the passphrase");
+    app.press(Action::Vault(V::Unlock));
+    settle(&mut app, |a| a.vaults().unlock_error.is_some());
+    assert!(
+        app.vaults().open.is_empty(),
+        "a wrong passphrase opens nothing"
+    );
+    app.press(Action::Vault(V::FocusPassphrase));
+    unlock_with(&mut app, NEW_PHRASE);
     assert_eq!(app.screen, Screen::VaultContents);
 }
 

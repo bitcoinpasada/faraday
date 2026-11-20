@@ -950,13 +950,26 @@ fn make_new(app: &mut Faraday, first: usize) {
     let before = app.vaults().open.len();
     app.press(Action::Vault(V::CGo));
     for t in 1..120u64 {
+        if app.screen == Screen::Unlock {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    assert_eq!(app.screen, Screen::Unlock, "no vault was made");
+    assert_eq!(app.vaults().open.len(), before, "the new vault is locked");
+    // Unlocked once with the passphrase, as a person does.
+    app.press(Action::Vault(V::FocusPassphrase));
+    type_text(app, PHRASE);
+    app.press(Action::Vault(V::Unlock));
+    for t in 120..240u64 {
         if app.vaults().open.len() > before {
             break;
         }
         let _ = app.frame();
         app.event(Event::Tick { now_ms: t * 1000 });
     }
-    assert_eq!(app.vaults().open.len(), before + 1, "no vault was made");
+    assert_eq!(app.vaults().open.len(), before + 1, "no vault was opened");
     let _ = first;
 }
 
@@ -1591,13 +1604,18 @@ fn make_new_with_key_file_until_made(app: &mut Faraday) {
 }
 
 #[test]
-fn a_new_vault_with_a_key_file_made_for_an_item_opens_at_once_with_it() {
+fn a_new_vault_with_a_key_file_made_for_an_item_is_unlocked_once_with_it() {
     let a = vault("Alpha", 1, vec![entry("Mail", "hunter2")]);
     let mut app = opened(vec![("a.kdbx", a)]);
     sheet_for(&mut app, 0, ENTRIES, 0);
     app.press(Action::Vault(V::CopyPick(0)));
     make_new_with_key_file_until_made(&mut app);
-    // The tick starts the unlock the make waits for; it settles.
+    assert_eq!(app.screen, Screen::Unlock, "its Unlock opens");
+    assert_eq!(app.vaults().open.len(), 1, "the new vault is locked");
+    // The key file it was made with goes with that one unlock.
+    app.press(Action::Vault(V::FocusPassphrase));
+    type_text(&mut app, PHRASE);
+    app.press(Action::Vault(V::Unlock));
     let _ = app.frame();
     app.event(Event::Tick { now_ms: 2000 });
     testkit::settle(&mut app);
@@ -1605,20 +1623,19 @@ fn a_new_vault_with_a_key_file_made_for_an_item_opens_at_once_with_it() {
 }
 
 #[test]
-fn a_lock_while_a_made_vaults_unlock_waits_leaves_it_locked() {
+fn a_lock_before_a_made_vault_is_unlocked_drops_the_key_file_held_for_it() {
     let a = vault("Alpha", 1, vec![entry("Mail", "hunter2")]);
     let mut app = opened(vec![("a.kdbx", a)]);
     sheet_for(&mut app, 0, ENTRIES, 0);
     app.press(Action::Vault(V::CopyPick(0)));
     make_new_with_key_file_until_made(&mut app);
-    assert_eq!(app.vaults().open.len(), 1, "the unlock ran before the lock");
-    // A person's lock: the waiting unlock's answer is dropped. (The
-    // lock's clears of the kept parts are defence in depth.)
+    assert_eq!(app.vaults().open.len(), 1, "the new vault is still locked");
+    // A person's lock: the key file held for the unlock is dropped.
     testkit::press_on_worker(&mut app, Action::Lock);
     if app.sheet == Some(Sheet::LockAsk) {
         testkit::press_on_worker(&mut app, Action::LockUnsealed);
     }
-    testkit::settle_stale(&mut app);
+    testkit::settle(&mut app);
     assert_eq!(app.vaults().open.len(), 0, "{:?}", app.sheet);
     // The vault is brought back to Files without its key file: the
     // passphrase alone does not open it.

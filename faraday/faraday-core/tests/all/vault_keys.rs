@@ -233,6 +233,18 @@ fn new_open_vault(app: &mut Faraday) {
     }
     app.press(Action::Vault(V::CGo));
     for t in 1..120u64 {
+        if app.screen == Screen::Unlock {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    app.press(Action::Vault(V::FocusPassphrase));
+    for c in "test phrase".chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.press(Action::Vault(V::Unlock));
+    for t in 120..240u64 {
         if !app.vaults().open.is_empty() {
             break;
         }

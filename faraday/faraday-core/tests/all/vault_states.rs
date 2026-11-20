@@ -744,28 +744,38 @@ fn change_passphrase(app: &mut Faraday, first: &str, again: &str) {
 }
 
 #[test]
-fn a_changed_passphrase_is_the_one_the_next_seal_opens_under() {
+fn a_changed_passphrase_locks_the_vault_and_the_new_one_opens_it_once() {
     let mut app = open_vault();
+    crate::common::top_up(&mut app);
     change_passphrase(&mut app, "a new phrase", "a new phrase");
     assert_eq!(app.sheet, None);
-    assert!(
-        app.toast_text()
-            .is_some_and(|t| t == EN.vault_passphrase_next_seal)
-    );
-    // The lock sheet counts it as an unsaved change.
-    assert!(app.vaults().open[0].changes > 0);
-    let sealed = lock_and_seal(&mut app);
+    assert!(app.vaults().open.is_empty(), "the vault is locked");
+    assert_eq!(app.screen, Screen::Unlock, "its Unlock opens");
+    let sealed = saved_outbox(&mut app);
+    assert_eq!(sealed.len(), 1, "the change was written");
 
-    let mut app = process(sealed.clone());
-    try_unlock(&mut app, "a new phrase");
-    assert_eq!(
-        app.vaults().open.len(),
-        1,
-        "the new passphrase did not open it"
-    );
-    let mut app = process(sealed);
-    try_unlock(&mut app, PHRASE);
+    // The old passphrase is refused where the vault is now, as at any unlock.
+    type_text(&mut app, PHRASE);
+    app.press(Action::Vault(V::Unlock));
+    testkit::settle(&mut app);
     assert!(app.vaults().open.is_empty(), "the old passphrase opened it");
+    assert!(
+        app.vaults().unlock_error.is_some(),
+        "and the refusal says so"
+    );
+    app.press(Action::Vault(V::FocusPassphrase));
+    type_text(&mut app, "a new phrase");
+    app.press(Action::Vault(V::Unlock));
+    testkit::settle(&mut app);
+    assert_eq!(app.vaults().open.len(), 1, "the new passphrase opens it");
+
+    // The file written is the same one: nothing else opens it.
+    let mut other = process(sealed);
+    try_unlock(&mut other, PHRASE);
+    assert!(
+        other.vaults().open.is_empty(),
+        "the old passphrase opened it"
+    );
 }
 
 #[test]

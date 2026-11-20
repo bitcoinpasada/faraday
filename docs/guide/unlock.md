@@ -14,7 +14,7 @@ Unlock opens one locked vault in Files with its passphrase. You reach it from a 
 
 One row per locked vault: its file name, where it is and its size, the unlock cost it was made with and, beside that, how long that cost takes on this computer. The row you choose is the one unlocked. With no locked vault the screen reads **No locked vault in Files** and offers **Make a new vault**.
 
-A vault you have just made opens at once with the passphrase you typed twice when you made it. With a stick in, or if that open fails, it is already chosen here and asks for its passphrase.
+A vault you have just made, or whose passphrase you have just changed, is left locked and already chosen here: type its passphrase once to open it, which shows that it opens. With a stick in, it asks for the stick to be pulled first.
 
 ## Passphrase
 

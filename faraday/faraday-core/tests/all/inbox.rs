@@ -807,12 +807,15 @@ fn the_outbox_says_ready_unprotected_and_written_after_lock_with_the_unsaved_cha
     );
     // A change not yet saved is counted on the vault's row and the file's.
     app.press(Action::Nav(Screen::VaultContents));
-    app.press(Action::Vault(V::ChangePassphrase));
-    app.press(Action::Vault(V::FocusField(0)));
-    crate::common::type_text(&mut app, "new phrase");
-    app.press(Action::Vault(V::FocusField(1)));
-    crate::common::type_text(&mut app, "new phrase");
-    app.press(Action::Vault(V::FormSave));
+    app.press(Action::Vault(V::MemoryAsk));
+    let _ = app.frame();
+    let have = app.vaults().open[0].facts().header.cost.memory_kib;
+    let pick = if have == faraday_vault::file::STEPS_KIB[1] {
+        2
+    } else {
+        1
+    };
+    app.press(Action::Vault(V::MemoryStep(pick)));
     app.press(Action::Nav(Screen::Files));
     let _ = app.frame();
     let texts = app.drawn_texts();

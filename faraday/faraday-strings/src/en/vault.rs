@@ -331,7 +331,6 @@ macro_rules! words_vault {
     /// Row of the open vault's Memory dialog: the step the next seal writes.
     vault_next_seal: "Next seal",
     /// Toast after Change passphrase.
-    vault_passphrase_next_seal: "Takes effect at the next seal. Copies sealed before keep the old passphrase.",
     /// Toast after Memory.
     vault_memory_next_seal: "Takes effect at the next seal. Copies sealed before keep their step.",
     /// Line in `detail`.

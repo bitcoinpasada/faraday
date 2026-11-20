@@ -311,3 +311,4 @@ Read this table, then only the decision you need.
 | [F298](decisions/F298.md) | One menu page container: Home, Tools, Check, Wallets start and Settings in one feed | 2026-11-20 | Active | design |
 | [F299](decisions/F299.md) | One registry of the forms a key comes in: every list of forms reads it | 2026-11-20 | Active | keys |
 | [F300](decisions/F300.md) | Faraday reads back an extended private key and a master seed in hex | 2026-11-20 | Active | keys |
+| [F301](decisions/F301.md) | A vault whose passphrase was just set ends locked and is unlocked once with it | 2026-11-20 | Active | vaults |

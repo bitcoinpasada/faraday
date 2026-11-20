@@ -23,7 +23,7 @@ fn started() -> Faraday {
 }
 
 /// Makes a vault from the Vaults tab, named `name` when it is not empty,
-/// under the passphrase `test phrase`.
+/// under the passphrase `test phrase`, and unlocked once with it.
 fn make(app: &mut Faraday, name: &str) {
     // A creation takes six answers of the system's.
     crate::common::top_up(app);
@@ -39,7 +39,8 @@ fn make(app: &mut Faraday, name: &str) {
     type_text(app, "test phrase");
     app.press(Action::Vault(V::CGo));
     settle(app);
-    assert_ne!(app.screen, Screen::CreateVault, "the vault was made");
+    assert_eq!(app.screen, Screen::Unlock, "the vault was made, locked");
+    crate::common::unlock(app, "test phrase");
 }
 
 fn outbox_names(app: &Faraday) -> Vec<String> {

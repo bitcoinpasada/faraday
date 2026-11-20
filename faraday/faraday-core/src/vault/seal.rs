@@ -55,6 +55,8 @@ pub(crate) struct SealRun {
     /// A Lock pressed while this seal of one vault ran, to be done when it
     /// ends: `Some(may_lose)`, whether it may let go what cannot be sealed.
     lock_after: Option<bool>,
+    /// The file the seal wrote, for [`After::Unlock`].
+    file: Option<Text>,
 }
 
 /// What waits for a lock of one vault to finish.
@@ -63,6 +65,9 @@ pub(crate) enum After {
     Nothing,
     /// Make a vault from the one just locked, on this screen's behalf.
     CreateFrom(crate::Screen),
+    /// Unlock the vault just written, once, as the proof that its new
+    /// passphrase works.
+    Unlock,
 }
 
 /// A vault's seal to run on the worker, with its file name.
@@ -241,6 +246,7 @@ pub(crate) fn vault_seal_all(app: &mut Faraday, may_lose: bool) {
         after: After::Nothing,
         step_dropped: None,
         lock_after: None,
+        file: None,
     });
     seal_next(app);
 }
@@ -294,6 +300,7 @@ pub(crate) fn vault_lock_one(app: &mut Faraday, i: usize, after: After) -> bool 
         after,
         step_dropped: None,
         lock_after: None,
+        file: None,
     });
     seal_next(app);
     !sealing(app)
@@ -694,6 +701,12 @@ fn seal_end(app: &mut Faraday) {
         app.lock_after_seal_ended(may_lose);
     } else if let After::CreateFrom(screen) = run.after {
         app.vault_act(super::VaultAction::CreateFrom(screen));
+    } else if let (After::Unlock, Some(file)) = (run.after, run.file) {
+        // Locked with its new passphrase: unlocked once with it. Nothing of
+        // the old one or the new one is kept.
+        if let Some(i) = app.vault_files().iter().position(|f| f.name == file) {
+            app.vault_act(super::VaultAction::Open(i));
+        }
     }
 }
 
@@ -792,6 +805,11 @@ pub(crate) fn sealed(app: &mut Faraday, done: SealDone) {
                 app.held_sealed(i, app.vaults.open[i].seal_digest);
                 // The keys waiting for their copies that this sealing holds.
                 app.flow_sealed(i, &name, &bytes);
+            }
+            if let Some(run) = app.vaults.state.sealing.as_mut()
+                && matches!(run.after, After::Unlock)
+            {
+                run.file = Some(name.clone());
             }
             app.put_outbox(&name, bytes);
             if app

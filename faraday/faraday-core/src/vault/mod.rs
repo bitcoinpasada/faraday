@@ -4637,7 +4637,11 @@ impl Faraday {
         self.vault_sheet_closed();
         if ok {
             self.vaults.changed(id);
-            self.toast(EN.vault_passphrase_next_seal);
+            // Written now and locked: the vault is unlocked once with the
+            // new passphrase. Where it cannot be sealed yet, the refusal
+            // says why and the next seal writes it.
+            let at = self.vaults.current;
+            self.vault_lock_one(at, seal::After::Unlock);
         }
     }
 

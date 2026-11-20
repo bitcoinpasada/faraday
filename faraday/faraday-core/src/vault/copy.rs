@@ -517,15 +517,15 @@ fn new_for(app: &mut Faraday) {
     hold(app, None);
 }
 
-/// Costs what listing the files and starting an unlock cost. The vault was
-/// made: the item goes to it, so it is unlocked at once with
-/// the passphrase just typed twice, and the item put in when it is open.
-/// False when nothing waits for a new vault.
+/// Costs what listing the files costs. The vault was made: the item goes to
+/// it, so its Unlock opens, the vault left locked, and the item is put in
+/// once the person has unlocked it with the passphrase typed twice. False
+/// when nothing waits for a new vault.
 pub(crate) fn made(
     app: &mut Faraday,
     name: &str,
     id: [u8; 16],
-    (passphrase, parts): (&str, &mut Option<faraday_keys::UnlockParts>),
+    parts: &mut Option<faraday_keys::UnlockParts>,
 ) -> bool {
     let Some(w) = app
         .vaults
@@ -543,16 +543,13 @@ pub(crate) fn made(
     }
     w.to = Some(vault_id);
     let at = app.vault_files().iter().position(|f| f.name == name);
-    let Some(at) = at.filter(|_| app.may_load_keys()) else {
+    let Some(at) = at else {
         app.vaults.state.copy_wait = None;
         return false;
     };
     app.vaults.drop_create();
-    app.vaults
-        .unlock_with(at, passphrase, Screen::VaultContents);
+    app.vault_act(VaultAction::OpenFrom(at, Screen::VaultContents));
     app.vaults.set_made_parts(parts.take());
-    app.screen = Screen::Unlock;
-    crate::vault::stretch::defer(app, Work::Unlock);
     true
 }
 

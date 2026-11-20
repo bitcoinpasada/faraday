@@ -731,7 +731,8 @@ fn in_the_demo_with_every_sample_of_a_length_loaded_lock_in_is_dimmed_at_that_le
 const ROLLS: &str = "123451234512345123451234512345";
 
 /// Create a vault from Vaults, its first passphrase from the dice or
-/// typed, made and left on Unlock with it picked.
+/// typed, made and left on Unlock with it picked; a typed one is then
+/// unlocked once with it.
 fn make_vault(app: &mut Faraday, typed: Option<&str>) {
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Create));
@@ -753,7 +754,15 @@ fn make_vault(app: &mut Faraday, typed: Option<&str>) {
     app.press(Action::Vault(V::CGo));
     crate::common::settle(app, 1);
     crate::common::settle_n(app, 21, 30);
-    assert_eq!(app.vaults().open.len(), 1, "the vault was made and opened");
+    assert!(app.vaults().open.is_empty(), "the vault was made locked");
+    if let Some(p) = typed {
+        crate::common::unlock(app, p);
+        assert_eq!(
+            app.vaults().open.len(),
+            1,
+            "the vault opens with its passphrase"
+        );
+    }
 }
 
 /// The session locked: every open vault sealed and closed.

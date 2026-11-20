@@ -68,9 +68,9 @@ is **Make a vault** when no vault file is in Files, **Unlock {name}**
 when one is, and **Unlock a vault** (the Vaults list) when several are;
 never a disabled button or a line to go to Vaults. Create a vault,
 opened this way, carries a chip at its head, "Then: {flow}", and its way
-back returns to the flow. Making the vault opens it at once with the
-passphrase just typed twice (the first and its confirmation), and nothing is
-typed a third time. Unlocking needs the stick out: with one in, the Pull sheet asks first
+back returns to the flow. Making the vault leaves it locked: its Unlock
+opens with the vault chosen, and the passphrase typed twice is typed once
+more there, as the proof that it opens (F301). Unlocking needs the stick out: with one in, the Pull sheet asks first
 ("Pull the stick to unlock"). Once unlocked, the flow is back on the step
 it was on, with the vault's button live. The places: Tools' **GPG key**,
 **Secure Boot keys** and **KeePass export**
@@ -1017,8 +1017,8 @@ nothing remembered, "Unlock to see what it holds".
 
 **Create a vault** (step cards: Size, then Name and passphrase;
 **Customize** puts where it opens, unlock cost and space per passphrase
-in Size's place) → **Create vault** → sealed copy For the stick, opened
-at once with the passphrase typed twice → Vault contents, "Nothing in
+in Size's place) → **Create vault** → sealed copy For the stick, left
+locked → Unlock, the passphrase typed once more → Vault contents, "Nothing in
 it yet", a button per add action (decision 22). Every open vault's page
 has **Write it to a stick**, which asks to lock first (the lock seals
 the vault into For the stick) and then waits for a stick. Opened from a flow that needs a vault (decision 10), it shows

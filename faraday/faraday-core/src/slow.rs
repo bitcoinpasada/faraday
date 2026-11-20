@@ -144,6 +144,7 @@ pub(crate) fn runs_in_press(a: Action) -> bool {
                     | V::SaveKey(_)
                     | V::SaveKeyWithPassphrase(_)
                     | V::SaveKeyKept(..)
+                    | V::FormSave
                     | V::KeepSave
                     | V::SaveWallet(_)
             )

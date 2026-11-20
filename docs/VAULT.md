@@ -1052,8 +1052,8 @@ Either opens a sheet listing where it can go:
   A locked vault whose file is not in Files is dimmed, with that as the
   reason;
 - **New vault with this item**: Create a vault (§8). Create seals the empty
-  vault as its first seal, as always; the vault then opens at once with
-  the passphrase just typed, the item goes in, and it is in the file from
+  vault as its first seal, as always; the vault is then left locked, its
+  Unlock opens, and once the passphrase is typed there the item goes in, and it is in the file from
   the next seal (a Move's seal rule below covers it). Create offers only
   the sizes the item fits, worked out as the seal would write it with a
   name as long as the document takes (64 bytes) made of the character it
@@ -1168,7 +1168,10 @@ can each be changed. **Change passphrase** and **Memory**
 are buttons on a writable vault's page, each opening a dialog; a
 read-only vault offers neither. Change passphrase takes the new
 passphrase typed twice, refusing an empty one and two that differ, and
-does not ask for the old one: the vault is open. Memory lists the file's
+does not ask for the old one: the vault is open. Save writes the vault
+at once and closes it, and its Unlock opens, the new passphrase typed once
+as the proof that it works (F301); where the vault cannot be written yet,
+the next seal writes it. Memory lists the file's
 five steps (§3.1) with the next seal's marked. It lists the
 rows Create's Where will you open it? does (This computer, ticked, and
 the five machines of §3.1), the dialog's own ticks: each opening starts
@@ -1179,8 +1182,8 @@ warning, and stays choosable. It refuses at the action what this
 computer cannot unlock with (Unlock's test), whatever is ticked. Earlier
 copies keep their step, so a copy sealed at a step above another
 machine's limit cannot be unlocked there. Either counts as an unsaved
-change, so a lock seals it, and a toast says it takes effect at the
-next seal, which runs Argon2id under the new passphrase and step. Copies
+change, so a lock seals it; the seal runs Argon2id under the new
+passphrase and step. Copies
 of the vault sealed before keep their old passphrase and step. Pressing
 the step the vault already has, with none pending, changes nothing, and
 pressing it with another pending takes that one back. Neither button is
