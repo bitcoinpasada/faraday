@@ -388,7 +388,7 @@ fn checklist_draw(
     let app_ref: &View = app;
     let mut body = |ui: &mut Ui, k: u8, x: f32, y: f32, w: f32| -> f32 {
         if app_ref.backup().is_some_and(|b| b.quick) {
-            return quick::card(app_ref, ui, x, y, w);
+            return quick::card(app_ref, ui, k, x, y, w);
         }
         match items.get(usize::from(k)).filter(|_| k != u8::MAX) {
             Some(&it) => backup_body(app_ref, ui, it, x, y, w),

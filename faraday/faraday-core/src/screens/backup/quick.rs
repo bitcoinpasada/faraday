@@ -5,12 +5,16 @@
 use super::*;
 use crate::wallet_backup::quick::{Quick, Step};
 
-/// The open card of the quick paper backup: its body, then the foot at
-/// its end. Returns its height.
-pub(super) fn card(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+/// The card of step `k` of the quick paper backup: its body, then the
+/// foot at its end. Returns its height. A card fading out is the step
+/// left, not the one now open.
+pub(super) fn card(app: &View, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32) -> f32 {
+    let step = crate::wallet_backup::quick_step_at(k)
+        .or_else(|| app.backup().map(|b| b.quick_step))
+        .unwrap_or(Step::Write);
     let mut cy = y;
-    cy += body(app, ui, x, cy, w);
-    cy += foot(app, ui, x, cy, w);
+    cy += body(app, ui, step, x, cy, w);
+    cy += foot(app, ui, step, x, cy, w);
     cy - y
 }
 
@@ -26,12 +30,12 @@ fn code_done(app: &View) -> bool {
 }
 
 /// The open card's body: the screen's own, then More ways to back up.
-fn body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    let Some(b) = app.backup() else {
+fn body(app: &View, ui: &mut Ui, step: Step, x: f32, y: f32, w: f32) -> f32 {
+    if app.backup().is_none() {
         return 0.0;
-    };
+    }
     let mut cy = y;
-    cy += match b.quick_step {
+    cy += match step {
         Step::Write => write_body(app, ui, x, cy, w),
         Step::Check => check_body(app, ui, x, cy, w),
         Step::Code => super::kef_code_block(app, ui, (x, cy, w), (0, false)) + T::GAP,
@@ -153,7 +157,7 @@ fn check_body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 
 /// The foot: **I wrote them down** once the seed was shown, **Done** once
 /// the words matched; a match not dated has Set the time first.
-fn foot(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn foot(app: &View, ui: &mut Ui, step: Step, x: f32, y: f32, w: f32) -> f32 {
     let Some(b) = app.backup() else {
         return 0.0;
     };
@@ -170,7 +174,7 @@ fn foot(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         );
         fy += BUTTON_H + T::GAP + T::GAP_SMALL;
     }
-    let next = match b.quick_step {
+    let next = match step {
         Step::Write if b.quick_shown => Some((EN.quick_wrote_them, Quick::Wrote)),
         Step::Check if matched(app) && b.quick_code => Some((EN.quick_next, Quick::Next)),
         Step::Check if matched(app) => Some((EN.backup_done, Quick::Done)),

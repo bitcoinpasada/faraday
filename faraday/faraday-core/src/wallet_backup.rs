@@ -3405,6 +3405,16 @@ const QUICK_WRITE: u8 = 200;
 const QUICK_CHECK: u8 = 201;
 const QUICK_CODE: u8 = 202;
 
+/// The quick paper backup's step whose card is key `k`.
+pub(crate) fn quick_step_at(k: u8) -> Option<Step> {
+    match k {
+        QUICK_WRITE => Some(Step::Write),
+        QUICK_CHECK => Some(Step::Check),
+        QUICK_CODE => Some(Step::Code),
+        _ => None,
+    }
+}
+
 /// Back up's cards on the container, plugged into Back and Forward
 /// (F104): the checklist, which is the first card with its items under
 /// it, and the quick paper backup's cards. The plan's questions are

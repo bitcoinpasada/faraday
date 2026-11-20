@@ -587,16 +587,23 @@ fn each_vault_is_its_own_item_and_the_second_does_not_take_the_vault_the_first_f
 /// A drawn string and its box in pixels.
 type TextBox = (String, (i32, i32, i32, i32));
 
-/// Whether the card titled `title` shows a tick: its number, drawn left
-/// of its title, is gone.
-fn ticked(boxes: &[TextBox], title: &str, number: usize) -> bool {
+/// What Your choices says of the item titled `title`: the line under its
+/// row, "Done" or "After: X" or "Not chosen yet".
+fn pane_state(boxes: &[TextBox], title: &str) -> String {
+    let (_, (px, _, _, _)) = boxes
+        .iter()
+        .find(|(t, _)| t == "Your choices")
+        .unwrap_or_else(|| panic!("no Your choices in {boxes:?}"));
     let (_, (x, y, _, _)) = boxes
         .iter()
-        .find(|(t, _)| t == title)
-        .unwrap_or_else(|| panic!("no card titled {title:?} in {boxes:?}"));
-    !boxes
+        .find(|(t, (bx, _, _, _))| t == title && bx >= px)
+        .unwrap_or_else(|| panic!("no row titled {title:?} in {boxes:?}"));
+    boxes
         .iter()
-        .any(|(t, (bx, by, _, _))| *t == number.to_string() && bx < x && (by - y).abs() < 24)
+        .filter(|(_, (bx, by, _, _))| (bx - x).abs() < 4 && *by > *y && *by - *y < 30)
+        .min_by_key(|(_, (_, by, _, _))| *by)
+        .map(|(t, _)| t.clone())
+        .unwrap_or_default()
 }
 
 /// The copy by hand of the wallet's seed `i`, checked by its words typed
@@ -667,11 +674,12 @@ fn through_a_2_of_3_checklist_the_cards_tick_what_is_done_and_the_rest_wait_for_
         app.settle();
         let boxes = app.drawn_text_boxes().plain();
         for (i, title) in titles.iter().enumerate() {
-            assert_eq!(ticked(&boxes, title, i + 1), ticks[i], "{title}: {boxes:?}");
+            let state = pane_state(&boxes, title);
+            assert_eq!(state == "Done", ticks[i], "{title}: {state} {boxes:?}");
         }
         let after: Vec<&str> = boxes
             .iter()
-            .filter(|(t, _)| t.starts_with("After: "))
+            .filter(|(t, (x, _, _, _))| t.starts_with("After: ") && *x > 1000)
             .map(|(t, _)| t.as_str())
             .collect();
         match waiting {
@@ -839,7 +847,7 @@ fn a_split_backups_sheets_are_done_only_while_every_shares_file_is_there() {
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     faraday_core::testkit::change_backup_answers(&mut app, |a| a.split = true);
     press_offered(&mut app, Action::BChecklist);
-    press_offered(&mut app, Action::BStep(Item::Sheets));
+    // The Sheets item waits for the templates: its row takes no press.
     let shares: Vec<String> = app
         .outbox
         .iter()
@@ -974,6 +982,8 @@ fn the_quick_screens_offer_i_wrote_them_down_only_after_show_the_seed_and_done_o
     assert!(crate::common::has(&mut app, "Check my copy"));
     assert!(!app.offers(Action::BQuick(Quick::Done)));
     quick_match(&mut app, w);
+    // The card changed twice: its fade is let to end.
+    app.settle();
     let _ = app.frame();
     assert!(app.offers(Action::BQuick(Quick::Done)));
 }
@@ -1000,6 +1010,7 @@ fn show_the_seedqr_on_the_quick_screen_shows_the_seed_and_its_grid_and_the_match
     );
     // The words typed back are the check, with no camera to scan with.
     quick_match(&mut app, w);
+    app.settle();
     let _ = app.frame();
     assert!(app.offers(Action::BQuick(Quick::Done)));
     for item in app.backup_items_now(&c) {
@@ -1306,4 +1317,118 @@ fn the_seedqr_button_reads_hide_while_the_seedqr_shows() {
     app.press(Action::BReveal);
     let _ = app.frame();
     assert!(crate::common::has(&mut app, "Show the SeedQR"));
+}
+
+/// The paper plan's checklist of one key, made and on show.
+fn checklist_on_show() -> (Faraday, usize) {
+    let mut app = device(Vec::new());
+    let w = one_key(&mut app);
+    app.press(Action::Backup(w));
+    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
+    press_offered(&mut app, Action::BChecklist);
+    // Making the checklist opens the first item: Back is the checklist.
+    if app.backup().is_some_and(|b| b.open.is_some()) {
+        app.press(Action::Back);
+    }
+    assert_eq!(app.backup().unwrap().open, None, "the checklist card");
+    app.settle();
+    let _ = app.frame();
+    (app, w)
+}
+
+#[test]
+fn an_item_pressed_shows_its_card_alone_and_back_returns_to_the_checklist() {
+    let (mut app, _) = checklist_on_show();
+    // The checklist card is the first: the first item is a press on it.
+    app.press(Action::BStep(Item::Templates));
+    assert_eq!(app.backup().unwrap().open, Some(Item::Templates));
+    app.settle();
+    let _ = app.frame();
+    assert!(
+        !app.offers(Action::BStep(Item::Envelopes)) || app.offers(Action::BStep(Item::Templates)),
+        "the item's card, with Your choices at its side"
+    );
+    app.press(Action::Back);
+    assert_eq!(app.backup().unwrap().open, None, "the checklist card");
+    app.settle();
+    let _ = app.frame();
+    assert!(crate::common::has(&mut app, "Backup checklist"));
+}
+
+#[test]
+fn your_choices_lists_the_items_with_their_state_and_the_map_under_them() {
+    let (mut app, _) = checklist_on_show();
+    app.press(Action::BStep(Item::Templates));
+    app.settle();
+    let boxes = app.drawn_text_boxes().plain();
+    assert!(boxes.iter().any(|(t, _)| t == "Your choices"), "{boxes:?}");
+    let title = "Print 1 blank template";
+    let waiting = pane_state(&boxes, title);
+    assert_eq!(waiting, "Not chosen yet", "{boxes:?}");
+    let (_, (_, rows_y, _, _)) = boxes
+        .iter()
+        .rfind(|(t, _)| t == title)
+        .expect("the first item's row");
+    let (_, (_, map_y, _, _)) = boxes.iter().find(|(t, _)| t == "Map").expect("the map");
+    assert!(map_y > rows_y, "the map stands under the rows: {boxes:?}");
+    assert!(
+        boxes.iter().any(|(t, _)| t.starts_with("After: ")),
+        "an item that waits names the one it waits for: {boxes:?}"
+    );
+}
+
+#[test]
+fn an_item_waiting_for_another_takes_no_press_on_its_row() {
+    let (mut app, _) = checklist_on_show();
+    for _ in 0..3 {
+        let _ = app.frame();
+        assert!(!app.offers(Action::BStep(Item::Copy(0))), "Copy waits");
+        assert!(app.offers(Action::BStep(Item::Templates)));
+    }
+    app.press(Action::BStep(Item::Copy(0)));
+    assert_ne!(app.backup().unwrap().open, Some(Item::Copy(0)));
+}
+
+#[test]
+fn write_the_words_down_and_check_my_copy_are_one_card_each() {
+    let mut app = device(Vec::new());
+    let w = quick_open(&mut app);
+    app.settle();
+    let _ = app.frame();
+    assert!(app.offers(Action::BQuick(Quick::Show)));
+    assert!(!app.offers(Action::BCheck), "no check on the first card");
+    app.press(Action::BQuick(Quick::Show));
+    app.press(Action::BQuick(Quick::Wrote));
+    app.settle();
+    let _ = app.frame();
+    assert!(
+        !app.offers(Action::BQuick(Quick::Wrote)),
+        "the words' card is left"
+    );
+    let boxes = app.drawn_text_boxes().plain();
+    assert!(
+        boxes
+            .iter()
+            .any(|(t, (x, _, _, _))| t == "Check my copy" && *x < 1000),
+        "the card is Check my copy: {boxes:?}"
+    );
+    let _ = w;
+}
+
+#[test]
+fn leaving_the_card_with_the_seed_shown_keeps_no_image_of_it() {
+    let mut app = device(Vec::new());
+    let _ = quick_open(&mut app);
+    let _ = app.frame();
+    app.press(Action::BQuick(Quick::Show));
+    let _ = app.frame();
+    app.press(Action::BQuick(Quick::Wrote));
+    let mut clock = 10_000;
+    for _ in 0..4 {
+        clock += 16;
+        app.event(Event::Tick { now_ms: clock });
+        while app.poll_command().is_some() {}
+        let _ = app.frame();
+        assert!(app.kept_images().is_empty(), "an image of the card is kept");
+    }
 }
