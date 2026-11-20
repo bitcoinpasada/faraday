@@ -166,6 +166,7 @@ fn the_core_wallet_tool_takes_no_passphrase_while_a_stick_is_attached() {
     pull(&mut app);
     app.press(Action::CoreWallet(W::Read));
     testkit::settle(&mut app);
+    crate::common::through_fade(&mut app);
     assert!(whole(&mut app), "read now, and with the passphrase gone");
     assert!(
         crate::common::texts(&mut app)

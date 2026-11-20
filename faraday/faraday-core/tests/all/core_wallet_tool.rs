@@ -99,6 +99,7 @@ fn an_encrypted_wallet_is_read_on_the_worker_and_the_result_shows_when_it_ends()
     assert!(!has(&mut app, "The wallet is whole"));
     testkit::settle(&mut app);
     assert!(app.busy().is_none());
+    crate::common::through_fade(&mut app);
     assert!(has(&mut app, "The wallet is whole"));
     assert!(keys_checked(&mut app));
 }
@@ -407,6 +408,7 @@ fn a_multisig_active_in_the_segwit_slot_is_named_a_script_and_taken_as_the_multi
 fn a_migrated_wallet_lists_its_combo_descriptors_as_kept_and_takes_an_active_pair() {
     let mut app = opened(vec![("wallet.dat", vector("migrated.dat"))]);
     read_with(&mut app, "");
+    crate::common::through_fade(&mut app);
     assert!(has(&mut app, "The wallet is whole"));
     // The kept descriptors are drawn below the others: scrolled down to.
     let _ = app.frame();
@@ -420,7 +422,7 @@ fn a_migrated_wallet_lists_its_combo_descriptors_as_kept_and_takes_an_active_pai
         }
         let (w, h) = app.size();
         app.event(Event::Scroll {
-            x: (w * 0.75) as u16,
+            x: (w * 0.5) as u16,
             y: (h / 2.0) as u16,
             dy: 120,
         });
@@ -491,6 +493,7 @@ fn core_wallet_draws_one_step_with_your_choices_beside_it() {
     window(&mut app, (1366, 768));
     app.press(Action::CoreWallet(W::File(0)));
     read_with(&mut app, "");
+    crate::common::through_fade(&mut app);
     let texts = drawn(&mut app);
     assert!(texts.contains(&"Step 2 of 2".to_string()), "{texts:?}");
     assert!(!texts.contains(&"Step 1 of 2".to_string()), "{texts:?}");
@@ -498,6 +501,7 @@ fn core_wallet_draws_one_step_with_your_choices_beside_it() {
     assert!(texts.contains(&"wallet.dat".to_string()), "{texts:?}");
     assert!(app.offers(Action::CoreWallet(W::Step(0))));
     app.press(Action::CoreWallet(W::Step(0)));
+    crate::common::through_fade(&mut app);
     let texts = drawn(&mut app);
     assert!(texts.contains(&"Step 1 of 2".to_string()), "{texts:?}");
 

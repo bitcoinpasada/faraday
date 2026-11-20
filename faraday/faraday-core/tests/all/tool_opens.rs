@@ -243,6 +243,7 @@ fn core_wallet_lists_several_files_and_ends_with_another_and_done() {
     app.press(Action::CoreWallet(W::File(0)));
     app.press(Action::CoreWallet(W::Read));
     app.event(faraday_shell_api::Event::Tick { now_ms: 1 });
+    crate::common::through_fade(&mut app);
     assert!(has(&mut app, EN.core_wallet_whole));
     // The ending is under the result: scroll to it.
     for _ in 0..40 {

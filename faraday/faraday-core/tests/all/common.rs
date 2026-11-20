@@ -120,6 +120,17 @@ pub fn settle(app: &mut Faraday, from: u64) {
     settle_n(app, from, 20);
 }
 
+/// Frames drawn, a tick before each, until a step's fade has run out: the
+/// step that changed shows as the card.
+pub fn through_fade(app: &mut Faraday) {
+    let mut t = app.now_ms();
+    for _ in 0..40 {
+        t += 16;
+        app.event(Event::Tick { now_ms: t });
+        let _ = app.frame();
+    }
+}
+
 /// `n` frames and ticks, a second apart.
 pub fn settle_n(app: &mut Faraday, from: u64, n: u64) {
     for t in from..from + n {

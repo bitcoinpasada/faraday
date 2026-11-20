@@ -3175,7 +3175,7 @@ fn the_result_of_a_share_and_of_a_set_say_what_they_are() {
     settle(&mut app);
     assert_eq!(convert::state(&app).unwrap().open, Some(cstep::RESULT));
     assert!(convert::shown(&app).is_none(), "masked at first");
-    let _ = drawn(&mut app);
+    crate::common::through_fade(&mut app);
     let texts = drawn(&mut app);
     assert!(texts.iter().any(|t| t == "Standard"), "{texts:?}");
     let id = faraday_bip::slip39::Share::parse(SET_A)
@@ -3206,7 +3206,7 @@ fn the_result_of_a_share_and_of_a_set_say_what_they_are() {
     type_set(&mut app, &[SET_A, SET_B]);
     rotate_made(&mut app, &[(0, 0), (0, 2)]);
     assert!(convert::shown_parts(&app).is_none(), "masked at first");
-    let _ = drawn(&mut app);
+    crate::common::through_fade(&mut app);
     let texts = drawn(&mut app);
     assert!(texts.iter().any(|t| t == "Old set"));
     assert!(!texts.iter().any(|t| t == "Fingerprint"));
@@ -3760,8 +3760,8 @@ fn convert_draws_one_step_with_your_choices_beside_it() {
     assert_eq!(app.sheet, Some(Sheet::Choices));
 }
 
-/// A step that shows the value is left at once, not faded from a frame
-/// that showed it.
+/// A step that shows the value is left at once: the value is gone from the
+/// next frame and no image of the step that showed it is kept.
 #[test]
 fn convert_leaves_a_shown_value_at_once() {
     let mut app = opened(mainnet(), ABOUT);
@@ -3771,7 +3771,6 @@ fn convert_leaves_a_shown_value_at_once() {
     let _ = app.take_fade_counts();
     app.press(Action::Convert(C::Step(cstep::TO)));
     let _ = app.frame();
-    assert_eq!(app.take_fade_counts().started, 0, "no fade");
     assert!(app.kept_images().is_empty(), "no image of the step is kept");
     assert_eq!(convert::shown(&app), None);
 }

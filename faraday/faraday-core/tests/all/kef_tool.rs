@@ -550,12 +550,14 @@ fn kef_tool_draws_one_step_with_your_choices_beside_it() {
     app.press(Action::KefTool(K::Pick(Pick::Type)));
     type_in(&mut app, "a note");
     app.press(Action::KefTool(K::Next));
+    crate::common::through_fade(&mut app);
     let texts = drawn(&mut app);
     assert!(texts.contains(&"Step 2 of 3".to_string()), "{texts:?}");
     assert!(!texts.contains(&"Step 1 of 3".to_string()), "{texts:?}");
     assert!(texts.contains(&"Your choices".to_string()), "{texts:?}");
     assert!(app.offers(Action::KefTool(K::Step(0))));
     app.press(Action::KefTool(K::Step(0)));
+    crate::common::through_fade(&mut app);
     let texts = drawn(&mut app);
     assert!(texts.contains(&"Step 1 of 3".to_string()), "{texts:?}");
     assert_eq!(kef_tool::state(&app).unwrap().typed_len(), 6);
