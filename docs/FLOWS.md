@@ -426,7 +426,9 @@ paper, taken only on an exact match; "Repaired, not checked" under a
 repaired string; and the key's mark ("Share entry corrected", "Share
 repairs unchecked") kept by fingerprint for the session. **Scan a
 SeedQR** takes a Codex32QR code and opens the codex32 form with it in
-(§10.1). Once a string of a split set is in, the form offers **Make the
+(§10.1). The Add a key screen's last form, **Krux code**, reads an encrypted code with
+**Scan a Krux code** or **From Files** and asks its passphrase (`docs/KEF.md` §15.2); Check's
+**Krux code** row opens it. Once a string of a split set is in, the form offers **Make the
 rest** and **Add a share** (§8.1 step 2, §8.2); **Check a string** shows
 its checksum worksheet's final row; and the mark's line stands beside the
 fingerprint on Wallets and on New key's Key card.

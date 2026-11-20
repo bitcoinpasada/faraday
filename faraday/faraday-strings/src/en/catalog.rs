@@ -119,7 +119,7 @@ macro_rules! words_catalog {
     /// Text in `TILES`.
     catalog_add_a_key: "Add a key",
     /// Text in `TILES`: Add a key's line.
-    catalog_add_a_key_line: "Words, a SeedQR or codex32 shares you have",
+    catalog_add_a_key_line: "Words, a SeedQR, a Krux code or codex32 shares you have",
     /// Text in `TILES`, and Wallets start.
     catalog_make_a_new_key: "Make a new key",
     /// Text in `TILES`.

@@ -466,6 +466,8 @@ macro_rules! words_sweep {
     kef_tool_tools: "Tools",
     /// The Krux code tool's first card: what the code holds.
     kef_tool_contents: "Contents",
+    /// The Krux code tool's card above the steps: reading a code.
+    kef_tool_read: "Open a Krux code",
     /// The Krux code tool's second card: the form.
     kef_tool_make: "Passphrase",
     /// The Krux code tool's third card: the code made.
@@ -476,6 +478,16 @@ macro_rules! words_sweep {
     kef_tool_wallet: "A loaded wallet",
     /// Contents: the choice of a loaded key's words.
     kef_tool_key: "This key's words",
+    /// Contents and Add a key's Krux code form: the button that reads a Krux code with the camera.
+    kef_read_scan: "Scan a Krux code",
+    /// Contents and Add a key's Krux code form: From Files with no Krux code in Files.
+    kef_read_files: "From Files",
+    /// Contents and Add a key's Krux code form: From Files, one file of Files. `{}`: its name.
+    kef_read_file: "From Files · {}",
+    /// A file chosen from Files is not a Krux code.
+    kef_read_not_code: "That file is not a Krux code",
+    /// The scanner for a Krux code read something that is not one.
+    kef_read_scan_not_code: "That is not a Krux code",
     /// Contents: no loaded key has 12 or 24 English words.
     kef_tool_no_key: "No loaded key has 12 or 24 English words.",
     /// Contents, closed: a key's words. `{}`: the key's name, then its fingerprint.

@@ -38,6 +38,21 @@ pub(crate) fn kef_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("kef-failed")
 }
 
+/// The ways to read a Krux code: the tool's Contents card and Add a key's
+/// Krux code form.
+pub(crate) fn kef_ways_tour(t: &mut Tour) -> Result<(), String> {
+    t.press(Action::Nav(Screen::Home));
+    t.press(Action::KefTool(K::Open));
+    t.shot("kef-tool-ways")?;
+    t.press(Action::Entry(None));
+    let at = faraday_core::forms::Form::ALL
+        .iter()
+        .position(|f| *f == faraday_core::forms::Form::Krux)
+        .ok_or("no Krux form")?;
+    t.press(Action::EntryForm(at as u8));
+    t.shot("add-a-key-krux")
+}
+
 /// A 15-word seed's menu in the plan: its Krux code row is dimmed.
 pub(crate) fn kef_menu_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::Home));

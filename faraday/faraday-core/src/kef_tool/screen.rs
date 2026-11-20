@@ -13,8 +13,13 @@ use crate::ui::{Style, Ui};
 use crate::vault::screen::secret_box;
 use faraday_draw::tokens::{self, BODY_S, BUTTON_H, FIELD_H, GAP};
 
-pub(crate) const TITLES: [&str; kstep::COUNT] =
-    [EN.kef_tool_contents, EN.kef_tool_make, EN.kef_tool_code];
+/// The cards' titles by step, the reading card's last.
+pub(crate) const TITLES: [&str; kstep::COUNT + 1] = [
+    EN.kef_tool_contents,
+    EN.kef_tool_make,
+    EN.kef_tool_code,
+    EN.kef_tool_read,
+];
 
 fn ask() -> Ask {
     Ask {
@@ -28,8 +33,20 @@ fn ask() -> Ask {
 
 pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(s) = state(app) else { return };
-    let cards: Vec<flow::Card> = (0..kstep::COUNT as u8)
-        .map(|step| flow::Card {
+    // Reading a code leads, above the steps that make one; on the wide
+    // layout it stands open, on the small panel it is a page of its own.
+    let head = flow::Card {
+        title: TITLES[usize::from(kstep::READ)].to_string(),
+        summary: String::new(),
+        mono: false,
+        done: false,
+        open: !ui.compact || s.open == Some(kstep::READ),
+        default: false,
+        toggle: Action::KefTool(K::Step(kstep::READ)),
+        lead: None,
+    };
+    let cards: Vec<flow::Card> = std::iter::once(head)
+        .chain((0..kstep::COUNT as u8).map(|step| flow::Card {
             title: TITLES[usize::from(step)].to_string(),
             summary: summary(app, s, step),
             mono: false,
@@ -38,7 +55,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             default: false,
             toggle: Action::KefTool(K::Step(step)),
             lead: None,
-        })
+        }))
         .collect();
     let back_name = if s.back == crate::Screen::Catalog {
         EN.kef_tool_tools
@@ -66,7 +83,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let app_ref: &View = app;
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
             match state(app_ref) {
-                Some(s) => card(app_ref, s, ui, i as u8, (x, y, w)),
+                Some(_) if i == 0 => crate::seeds::kef::read_rows(app_ref, ui, (x, y, w), false),
+                Some(s) => card(app_ref, s, ui, i as u8 - 1, (x, y, w)),
                 None => 0.0,
             }
         };

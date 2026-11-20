@@ -81,6 +81,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             .collect();
         y += button_rows(ui, x, y, width, &forms) + 4.0;
     }
+    if app.entry.state().form == crate::forms::Form::Krux {
+        let bottom = y + crate::seeds::kef::read_rows(app, ui, (x, y, width), true);
+        entry_scrolled(app, ui, open, h, bottom);
+        return;
+    }
     if app.entry.state().form != crate::forms::Form::Words {
         let bottom = entry_form(app, ui, x, y, width, h, None);
         entry_scrolled(app, ui, open, h, bottom);

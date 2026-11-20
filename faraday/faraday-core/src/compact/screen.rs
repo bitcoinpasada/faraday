@@ -718,7 +718,11 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += crate::screens::button_rows(ui, x, y, iw, &forms);
     }
     if es.form != Form::Words {
-        let y = entry_form(app, ui, x, y, iw, None);
+        let y = if es.form == Form::Krux {
+            y + crate::seeds::kef::read_rows(app, ui, (x, y, iw), true)
+        } else {
+            entry_form(app, ui, x, y, iw, None)
+        };
         finish(app, ui, h, y - top + 8.0);
         return;
     }

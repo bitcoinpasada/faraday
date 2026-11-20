@@ -1661,9 +1661,11 @@ impl Faraday {
         }
         match self.screen {
             Screen::Entry => {
-                self.entry.state().on_passphrase
-                    || self.entry.state().form != crate::forms::Form::Words
-                    || self.entry.state().keys.is_none()
+                // The Krux code form is read, never typed.
+                self.entry.state().form != crate::forms::Form::Krux
+                    && (self.entry.state().on_passphrase
+                        || self.entry.state().form != crate::forms::Form::Words
+                        || self.entry.state().keys.is_none())
             }
             // The vault's list has its search bar; its item page has fields.
             Screen::VaultContents => match self.vaults.focus {

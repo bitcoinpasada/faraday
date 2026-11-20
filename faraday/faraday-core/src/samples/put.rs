@@ -236,7 +236,7 @@ impl Faraday {
             Form::Slip39 => SampleForm::Slip39,
             Form::Codex32 => SampleForm::Codex32,
             Form::Xor => SampleForm::Xor,
-            Form::Words => return None,
+            Form::Words | Form::Krux => return None,
         };
         let have = self.entry.state().parts.lines(form).len();
         let begun = self
@@ -326,6 +326,7 @@ impl Faraday {
                 .any(|(_, k)| k.plain == Some(fp.0) || k.with_passphrase == Some(fp.0)),
             ScanPurpose::CheckConvert(_, true) => false,
             ScanPurpose::CheckKef(i) => crate::wallet_backup::kef::sample_text(self, i).is_some(),
+            ScanPurpose::Kef => !set.inputs.krux_code.is_empty(),
             ScanPurpose::OtsHeader => !set.inputs.timestamp_header.is_empty(),
             ScanPurpose::OtsFileHash => !set.inputs.timestamp_hash.is_empty(),
             ScanPurpose::MultisigSetup => !setup_samples(set).is_empty(),
@@ -513,6 +514,7 @@ impl Faraday {
             ScanPurpose::CheckKef(i) => {
                 crate::wallet_backup::kef::sample_text(self, i).map(|t| t.as_bytes().to_vec())
             }
+            ScanPurpose::Kef => Some(set.inputs.krux_code.to_vec()),
             ScanPurpose::OtsHeader => Some(set.inputs.timestamp_header.as_bytes().to_vec()),
             ScanPurpose::OtsFileHash => Some(set.inputs.timestamp_hash.as_bytes().to_vec()),
             // Check a multisig setup: each sample wallet of several

@@ -593,6 +593,15 @@ impl Faraday {
                     self.out.commands.push_back(Command::CameraOn);
                 }
             }
+            Action::ScanKef => {
+                if self.may_load_keys() {
+                    let mut scan = ScanState::default();
+                    scan.purpose = ScanPurpose::Kef;
+                    self.camera.open(scan);
+                    self.sheet = Some(Sheet::Scan);
+                    self.out.commands.push_back(Command::CameraOn);
+                }
+            }
             Action::ScanKey(w) => {
                 if self.may_load_keys() && w < self.session.wallets.len() {
                     let mut scan = ScanState::default();
@@ -730,6 +739,7 @@ fn starts_as_form(form: crate::forms::Form, text: &str) -> bool {
     match form {
         Form::Codex32 => text.get(..3).is_some_and(|p| p.eq_ignore_ascii_case("ms1")),
         Form::Slip39 => faraday_bip::slip39::index_of(&Text::lowercase(first)).is_some(),
+        Form::Krux => false,
         Form::Xor | Form::Words => {
             let words: Vec<&str> = text.split_whitespace().collect();
             !words.is_empty() && scan_read::on_a_word_list(&words).is_some()
@@ -867,6 +877,7 @@ impl Faraday {
                 | ScanPurpose::CheckConvert(..)
                 | ScanPurpose::CheckCodex32
                 | ScanPurpose::CheckKef(_)
+                | ScanPurpose::Kef
                 | ScanPurpose::GpgPaperkey => false,
             })
     }
@@ -1192,7 +1203,10 @@ impl Faraday {
             && self.stick.in_the_way()
             && matches!(
                 purpose,
-                ScanPurpose::Seed | ScanPurpose::KeyPart | ScanPurpose::WalletKey(_)
+                ScanPurpose::Seed
+                    | ScanPurpose::KeyPart
+                    | ScanPurpose::WalletKey(_)
+                    | ScanPurpose::Kef
             )
         {
             return self.scan_say(crate::stick::keys_load(self.medium));
@@ -1208,6 +1222,7 @@ impl Faraday {
             ScanPurpose::CheckKef(i) => crate::wallet_backup::kef::scanned(self, i, &bytes),
             ScanPurpose::WalletKey(w) => self.wallet_key_code(w, bytes),
             ScanPurpose::Seed => self.seed_code_scanned(bytes),
+            ScanPurpose::Kef => crate::seeds::kef::kef_code_scanned(self, bytes),
             _ => self.files_scanned(bytes, camera),
         }
     }

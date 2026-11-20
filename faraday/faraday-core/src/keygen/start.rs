@@ -15,6 +15,8 @@ pub enum Start {
     MakeShares,
     /// Type SLIP-39 shares.
     Shares,
+    /// Read a Krux code: Add a key's Krux code form opens.
+    Krux,
     /// Type a codex32 secret, or its shares.
     Codex32,
     /// Type Seed XOR parts.
@@ -25,11 +27,12 @@ pub enum Start {
 
 /// The choices, in the order the card lists them. Actions carry a
 /// choice by its place here.
-pub const STARTS: [Start; 8] = [
+pub const STARTS: [Start; 9] = [
     Start::Make,
     Start::MakeCodex32,
     Start::Words,
     Start::Scan,
+    Start::Krux,
     Start::Codex32,
     Start::MakeShares,
     Start::Shares,
@@ -76,6 +79,8 @@ impl Start {
             Form::Slip39 => Start::Shares,
             Form::Codex32 => Start::Codex32,
             Form::Xor => Start::Xor,
+            // Add a key's Krux code form is on its own page, not a choice here.
+            Form::Krux => Start::Words,
         }
     }
 }

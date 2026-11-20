@@ -525,7 +525,8 @@ impl Faraday {
                         && (self.backup.state().is_some_and(|b| b.naming.is_some())
                             || self.gpg_restore_keyboard()))
             }
-            Screen::Entry => true,
+            // The Krux code form is read, never typed.
+            Screen::Entry => self.entry.state().form != crate::forms::Form::Krux,
             Screen::Randomness => self.own_typing_rolls(),
             Screen::SetTime => self.set_time.focus().is_some(),
             Screen::Silent => self.silent.state().is_some_and(|s| {

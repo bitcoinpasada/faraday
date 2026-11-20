@@ -7,7 +7,7 @@ pub mod screen;
 use crate::catalog::{Go, TILES};
 use crate::forms::Form;
 use crate::strings::EN;
-use crate::{Action, Faraday, Sheet};
+use crate::{Action, Faraday, Screen, Sheet};
 
 /// A row of the list.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -195,16 +195,22 @@ pub(crate) fn press(app: &mut Faraday, p: Press) {
         ),
         Press::Form(f) => {
             app.sheet = None;
-            tile(
-                app,
-                match f {
-                    Backup::Slip39 => Go::AddKey(Form::Slip39),
-                    Backup::Xor => Go::AddKey(Form::Xor),
-                    Backup::SeedQr => Go::SeedQr,
-                    Backup::Codex32 => Go::AddKey(Form::Codex32),
-                    Backup::Krux => Go::KefCode,
-                },
-            );
+            let go = match f {
+                Backup::Slip39 => Go::AddKey(Form::Slip39),
+                Backup::Xor => Go::AddKey(Form::Xor),
+                Backup::SeedQr => Go::SeedQr,
+                Backup::Codex32 => Go::AddKey(Form::Codex32),
+                // No tile and no choice on New key's Start card: the row
+                // opens Add a key on its Krux code form.
+                Backup::Krux => {
+                    app.act(Action::Entry(None));
+                    if app.screen == Screen::Entry {
+                        app.entry.choose_form(Form::Krux);
+                    }
+                    return;
+                }
+            };
+            tile(app, go);
         }
     }
 }

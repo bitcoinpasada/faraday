@@ -41,3 +41,9 @@ Type one string at a time, ms1 and all; each is listed. A string with threshold 
 Type one part at a time, as BIP-39 words. Every part is needed, and together they combine into the words of the key.
 
 **Passphrase** takes the BIP-39 passphrase of the key. **Make the key** combines the parts once all are in.
+
+## Krux code
+
+**Key:** entry.krux
+
+A key held as a Krux encrypted code is read here, not typed. **Scan a Krux code** reads it with the camera; **From Files** takes a code saved in Files, one button for each file that may be one. Either asks the code's passphrase, and a wrong one says so and can be tried again. The words the code holds go on to the passphrase of the key, as a scanned SeedQR does. A scan or file that is not a Krux code is said not to be one.

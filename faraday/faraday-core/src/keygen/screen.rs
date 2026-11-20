@@ -516,6 +516,7 @@ fn start_name(s: Start) -> &'static str {
         Start::MakeCodex32 => EN.keygen_codex32,
         Start::Words => EN.keygen_type_the_words,
         Start::Scan => EN.keygen_scan_a_seedqr,
+        Start::Krux => EN.keygen_krux_code,
         Start::MakeShares => EN.keygen_make_slip_39_shares,
         Start::Shares => EN.keygen_type_slip_39_shares,
         Start::Codex32 => EN.keygen_type_a_codex32,

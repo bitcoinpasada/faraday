@@ -420,7 +420,13 @@ fn reached(cards: &[Card]) -> usize {
 fn heads(cards: &[Card]) -> usize {
     use crate::backup_flow::steps::{FlowAction, RestorePress};
     let head = Action::Flow(FlowAction::Restore(RestorePress::Head));
-    cards.iter().take_while(|c| c.toggle == head).count()
+    let read = Action::KefTool(crate::kef_tool::KefToolAction::Step(
+        crate::kef_tool::kstep::READ,
+    ));
+    cards
+        .iter()
+        .take_while(|c| c.toggle == head || c.toggle == read)
+        .count()
 }
 
 /// Whether a page's offset `y` is past its end `max`, both in design

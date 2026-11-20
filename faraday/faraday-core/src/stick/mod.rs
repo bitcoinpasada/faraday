@@ -109,6 +109,8 @@ pub(crate) fn pull_what(app: &Faraday, action: Action) -> Option<&'static str> {
         | Action::SeedCheck(crate::seed_check::SeedAction::Type)
         | Action::EntryWallet(_)
         | Action::ScanSeed
+        | Action::ScanKef
+        | Action::KefFile(_)
         | Action::ScanKey(_)
         | Action::ScanPart
         | Action::LoadKey(_)

@@ -541,7 +541,7 @@ impl EntryArea {
             Form::Words => completion(e.language(), &e.typed),
             Form::Xor => completion(faraday_bip::bip39::Language::English, &e.typed),
             Form::Slip39 => slip39_completion(&e.typed),
-            Form::Codex32 => None,
+            Form::Codex32 | Form::Krux => None,
         }
     }
 
@@ -705,7 +705,7 @@ impl EntryArea {
         let result: Result<(), faraday_text::Text> = match form {
             Form::Slip39 => add_slip39(&mut e.parts, &text),
             Form::Xor => add_xor(c, &mut e.parts, &text),
-            Form::Codex32 | Form::Words => Ok(()),
+            Form::Codex32 | Form::Words | Form::Krux => Ok(()),
         };
         match result {
             Ok(()) => {
@@ -1761,7 +1761,7 @@ impl Faraday {
                 let m = faraday_keys::words::from_entropy(Language::English, e.as_bytes()).ok()?;
                 self.restore_refusal_of(&c, || Material::Words(&m), pass)
             }
-            Form::Words => None,
+            Form::Words | Form::Krux => None,
         }
     }
 
@@ -1839,8 +1839,9 @@ impl Faraday {
                         .add_words_with(&c, &phrase, &self.entry.state().passphrase, label, None)
                         .map_err(|e| e.text())
                 }),
-            // Words are loaded as words (`Faraday::typed_load`), never here.
-            Form::Words => Err(faraday_text::Text::default()),
+            // Words are loaded as words (`Faraday::typed_load`), a Krux code
+            // as the sheet that opens it loads it, never here.
+            Form::Words | Form::Krux => Err(faraday_text::Text::default()),
         }
     }
 }

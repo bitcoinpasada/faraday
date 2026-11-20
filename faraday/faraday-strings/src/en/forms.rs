@@ -13,6 +13,8 @@ macro_rules! words_forms {
     /// Text in `name`.
     forms_codex32: "codex32",
     /// Text in `name`.
+    forms_krux_code: "Krux code",
+    /// Text in `name`.
     forms_seed_xor_parts: "Seed XOR parts",
     /// Text in `lines`. `{}`: `s.group_index() + 1`, `s.group_count()`, `s.member_index() + 1`, `s.member_threshold()`, `s.identifier()`.
     forms_group_of_member: "Group {} of {}, member {} · {} of the group needed · id {}",

@@ -123,6 +123,7 @@ fn entry_key(at: GuideAt) -> &'static str {
             Some(Form::Slip39) => "entry.shares",
             Some(Form::Codex32) => "entry.codex32",
             Some(Form::Xor) => "entry.xor",
+            Some(Form::Krux) => "entry.krux",
             None => "entry",
         },
         _ => "entry",

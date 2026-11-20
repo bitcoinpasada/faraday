@@ -940,3 +940,140 @@ fn a_code_whose_id_is_its_words_fingerprint_says_the_id_matches_the_key() {
     );
     assert!(!shown.iter().any(|t| t.contains("matches this key")));
 }
+
+/// The Krux tool, opened from its tile.
+fn krux_tool() -> Faraday {
+    let mut app = testkit::started();
+    app.press(Action::Nav(Screen::Catalog));
+    let tile = faraday_core::catalog::TILES
+        .iter()
+        .position(|t| t.name == "Krux code")
+        .unwrap();
+    app.press(Action::Catalog(tile as u8));
+    assert_eq!(app.screen, Screen::KefTool);
+    app
+}
+
+/// Add a key, on its Krux code form.
+fn krux_form() -> Faraday {
+    let mut app = testkit::started();
+    app.press(Action::Entry(None));
+    let at = faraday_core::forms::Form::ALL
+        .iter()
+        .position(|f| *f == faraday_core::forms::Form::Krux)
+        .unwrap();
+    app.press(Action::EntryForm(at as u8));
+    app
+}
+
+#[test]
+fn the_tool_scans_a_krux_code_and_loads_its_key() {
+    let (code, pass) = vector("gcm");
+    let mut app = krux_tool();
+    assert!(has(&mut app, "Scan a Krux code"));
+    assert!(has(&mut app, "From Files"));
+    app.press(Action::ScanKef);
+    assert_eq!(app.sheet, Some(Sheet::Scan));
+    read(&mut app, &code);
+    assert_eq!(app.sheet, Some(Sheet::KefRead));
+    open_with(&mut app, &pass);
+    assert_eq!(app.sheet, Some(Sheet::SeedRead));
+    assert!(has_part(&mut app, "Code id test ID"));
+}
+
+#[test]
+fn the_tool_scan_with_a_wrong_passphrase_loads_no_key() {
+    let (code, _) = vector("gcm");
+    let mut app = krux_tool();
+    app.press(Action::ScanKef);
+    read(&mut app, &code);
+    open_with(&mut app, "not the key");
+    assert_eq!(app.sheet, Some(Sheet::KefRead));
+    assert!(app.session.keys.is_empty());
+}
+
+#[test]
+fn the_krux_scanner_says_a_code_that_is_none_and_stays_on() {
+    let mut app = krux_tool();
+    app.press(Action::ScanKef);
+    read(&mut app, b"hello there");
+    assert_eq!(app.sheet, Some(Sheet::Scan));
+    assert!(has(&mut app, "That is not a Krux code"));
+}
+
+#[test]
+fn the_tool_takes_a_krux_code_from_files() {
+    let (code, pass) = vector("gcm");
+    let mut app = krux_tool();
+    testkit::inbox_file(&mut app, "krux.kef", code);
+    assert!(has(&mut app, "From Files · krux.kef"));
+    app.press(Action::KefFile(0));
+    assert_eq!(app.sheet, Some(Sheet::KefRead));
+    open_with(&mut app, &pass);
+    assert_eq!(app.sheet, Some(Sheet::SeedRead));
+    assert!(has_part(&mut app, "Code id test ID"));
+}
+
+#[test]
+fn a_file_that_is_no_krux_code_is_named() {
+    let mut app = krux_tool();
+    testkit::inbox_file(&mut app, "note.txt", b"just a note".to_vec());
+    app.press(Action::KefFile(0));
+    assert_eq!(app.sheet, None);
+    assert!(has(&mut app, "That file is not a Krux code"));
+}
+
+#[test]
+fn add_a_key_reads_a_krux_code_by_scan() {
+    let (code, pass) = vector("ctr");
+    let mut app = krux_form();
+    assert!(has(&mut app, "Scan a Krux code"));
+    app.press(Action::ScanKef);
+    read(&mut app, &code);
+    assert_eq!(app.sheet, Some(Sheet::KefRead));
+    open_with(&mut app, "not the key");
+    assert_eq!(app.sheet, Some(Sheet::KefRead));
+    assert!(app.session.keys.is_empty());
+    for _ in 0..11 {
+        app.event(Event::Key(Key::Backspace));
+    }
+    open_with(&mut app, &pass);
+    assert_eq!(app.sheet, Some(Sheet::SeedRead));
+}
+
+#[test]
+fn add_a_key_reads_a_krux_code_from_files() {
+    let (code, pass) = vector("gcm");
+    let mut app = krux_form();
+    assert!(has(&mut app, "From Files"));
+    testkit::inbox_file(&mut app, "backup.kef", code);
+    assert!(has(&mut app, "From Files · backup.kef"));
+    app.press(Action::KefFile(0));
+    open_with(&mut app, &pass);
+    assert_eq!(app.sheet, Some(Sheet::SeedRead));
+    assert!(has_part(&mut app, "Code id test ID"));
+}
+
+#[test]
+fn checks_krux_row_opens_add_a_key_on_its_krux_form() {
+    use faraday_core::check::{Backup, Press, Row};
+    let mut app = testkit::started();
+    app.press(Action::Nav(Screen::Check));
+    app.press(Action::Check(Press::Row(Row::Backup)));
+    app.press(Action::Check(Press::Form(Backup::Krux)));
+    assert_eq!(app.screen, Screen::Entry);
+    assert_eq!(testkit::entry(&app).form, faraday_core::forms::Form::Krux);
+    assert!(has(&mut app, "Scan a Krux code"));
+}
+
+#[test]
+fn new_keys_start_card_offers_a_krux_code_that_opens_its_form() {
+    let mut app = testkit::started();
+    app.press(Action::CreateWallet);
+    app.press(Action::KeyGen(Some(0)));
+    assert!(has(&mut app, "Krux code"));
+    app.press(Action::KStart(faraday_core::keygen::Start::Krux.index()));
+    assert_eq!(app.screen, Screen::Entry);
+    assert_eq!(testkit::entry(&app).form, faraday_core::forms::Form::Krux);
+    assert!(has(&mut app, "Scan a Krux code"));
+}
