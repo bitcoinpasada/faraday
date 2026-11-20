@@ -245,12 +245,8 @@ fn tools(app: &View, ui: &mut Ui, w: f32) -> f32 {
             ..full
         },
     ];
-    // Cryptography goes into the menu first, before the ?, wherever the page
-    // offers it: kept on the bar it would take room from the name, the way
-    // back and the eye (`docs/CRYPTO-LEARN.md` §8.3).
-    let skip = usize::from(app.how_offered());
-    let mut out = steps[skip.min(steps.len() - 1)];
-    for o in steps.into_iter().skip(skip) {
+    let mut out = steps[0];
+    for o in steps {
         out = o;
         // The pill stands at the end of the first line, left of the tools:
         // they leave it its room before Back's target.
@@ -266,7 +262,6 @@ fn tools(app: &View, ui: &mut Ui, w: f32) -> f32 {
 /// end, where the page offers any of them, in place of their buttons.
 fn tools_from(app: &View, ui: &mut Ui, w: f32, over: Overflow) -> f32 {
     let mut right = w - GAP_SMALL;
-    let how = app.how_offered();
     let keyboard = keyboard_action(app);
     let eye = eye_state(app);
     // On the Pi's panel Add randomness is the ⋮'s first row on every step
@@ -276,7 +271,6 @@ fn tools_from(app: &View, ui: &mut Ui, w: f32, over: Overflow) -> f32 {
     let own = app.nav() == crate::nav::Nav::Menu && crate::screens::randomness::own_at_press(app);
     let held = Overflow {
         own,
-        how: (over.help || own) && how,
         help: over.help || own,
         keyboard: over.keyboard && keyboard.is_some(),
         keyboard_up: over.keyboard && keyboard.is_some_and(|(_, shown)| shown),
@@ -292,19 +286,7 @@ fn tools_from(app: &View, ui: &mut Ui, w: f32, over: Overflow) -> f32 {
         if power_in_menu(app) {
             right = faraday_ui::nav::more(ui, right, open, EN.tip_more);
         }
-        // Immediately left of the ?: **How Faraday does it**
-        // (`docs/CRYPTO-LEARN.md` §8.1).
         right = faraday_ui::nav::help(ui, right, Action::Guide, EN.tip_guide);
-        if how {
-            right = faraday_ui::nav::icon_action(
-                ui,
-                right,
-                Icon::Method,
-                Action::How,
-                false,
-                EN.tip_how,
-            );
-        }
     }
     right = receiver_mark(app, ui, right);
     // The keyboard, where the page types, and to bring it back once put
@@ -398,13 +380,6 @@ pub(crate) fn overflow_sheet(app: &View, ui: &mut Ui, w: f32, h: f32, held: Over
     // randomness (`docs/OWN-RANDOMNESS.md` §8.3).
     if held.own {
         lines.push(item(EN.own_add_randomness, BarTool::Own));
-    }
-    if held.how {
-        lines.push(crate::menu::Line::Tool(
-            Icon::Method,
-            EN.bar_menu_how.into(),
-            Action::NavMenu(MenuPress::Tool(BarTool::How)),
-        ));
     }
     if held.help {
         lines.push(item(EN.bar_menu_guide, BarTool::Help));
@@ -2058,7 +2033,6 @@ impl Faraday {
                 self.act_inner(match t {
                     BarTool::Cancel => Action::CancelFlow,
                     BarTool::Own => Action::Own(crate::fresh::page::Act::Open),
-                    BarTool::How => Action::How,
                     BarTool::Help => Action::Guide,
                     BarTool::Keyboard if self.osk_shown() => Action::Osk(OskPress::Hide),
                     BarTool::Keyboard => Action::Osk(OskPress::Show),

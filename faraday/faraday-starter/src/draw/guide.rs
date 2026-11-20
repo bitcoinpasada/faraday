@@ -6,12 +6,23 @@ use super::*;
 use crate::GUIDE_PLACES;
 use faraday_guide::Span;
 
-/// The Guide destination: the Starter's guide pages under their
+/// The Guide destination: **Cryptography**, then the Starter's guide pages under their
 /// heading, each a row that opens the page at its lead, then the start
 /// guides under theirs. Returns where it ends.
 pub(super) fn page(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0;
     y += label(ui, x, y, S.starter_guide_head_starter);
+    y += nav_row(
+        ui,
+        x,
+        y,
+        w,
+        Icon::Method,
+        S.starter_how_title,
+        "",
+        "",
+        Some(StarterAction::How),
+    );
     for (n, place) in GUIDE_PLACES.iter().enumerate() {
         let (Some(page), Ok(n)) = (faraday_guide::guide_page(place), u8::try_from(n)) else {
             continue;

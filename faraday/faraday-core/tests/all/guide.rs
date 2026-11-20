@@ -327,7 +327,8 @@ fn on_a_wide_window_the_pane_opens_only_when_guide_or_cryptography_is_pressed() 
         app.press(Action::GuideClose);
         frame(&mut app);
         assert!(!app.offers(Action::GuideClose));
-        app.press(Action::How);
+        app.press(Action::Guide);
+        app.press(Action::GuideTabHow);
         frame(&mut app);
         assert!(app.offers(Action::GuideClose), "Cryptography opened it");
         assert!(app.guide().how, "on its Cryptography tab");

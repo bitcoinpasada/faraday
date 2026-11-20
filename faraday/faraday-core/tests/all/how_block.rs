@@ -1,13 +1,12 @@
 //! How Faraday does it (`docs/CRYPTO-LEARN.md` §8): a screen that offers
-//! a cryptographic action carries the button in its top app bar beside
-//! the ?, it opens the guide on a first tab of the blocks of the screen's
-//! actions, and on the Pi's panel the button is the ⋮ menu's first row
-//! when the bar has no room. Checked with the sample block, which stands
+//! a cryptographic action has the guide's Cryptography tab, which shows
+//! the blocks of the screen's actions; the top app bar has no button
+//! for it. Checked with the sample block, which stands
 //! on Catalog; a screen without a block has no button and no
 //! tab. The new guide pages open from their screens.
 
 use crate::common::type_text;
-use faraday_core::nav::{BarTool, MenuPress, Overflow};
+use faraday_core::nav::{MenuPress, Overflow};
 use faraday_core::strings::EN;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, Sheet, StorageEvent, testkit};
@@ -50,35 +49,32 @@ fn how_tab_open(app: &mut Faraday) -> bool {
     app.guide().how && shows(app, "Sample action") && shows(app, EN.how_field_action)
 }
 
+/// Opens the guide on its Cryptography tab: the ?, then the tab.
+fn open_how(app: &mut Faraday) {
+    app.press(Action::Guide);
+    let _ = app.frame();
+    app.press(Action::GuideTabHow);
+    let _ = app.frame();
+}
+
 #[test]
-fn the_button_opens_guide_on_the_first_tab_at_every_size() {
+fn the_cryptography_tab_opens_the_blocks_at_every_size_and_the_bar_has_no_button() {
     for (name, (w, h, dpi)) in [
         ("480x640", (480, 640, 160)),
         ("1280x800", (1280, 800, 160)),
         ("the Pi's panel", (480, 640, 286)),
     ] {
         let mut app = app(w, h, dpi, false);
-        go(&mut app, Screen::Home);
-        assert!(!app.offers(Action::How), "{name}: not on Home");
         go(&mut app, Screen::Catalog);
-        if dpi == 286 {
-            // On the Pi's panel the ⋮ holds it, first, with the ?.
-            assert!(!app.offers(Action::How), "{name}: not on the bar");
-            let held = overflow(&app).expect("a ⋮");
-            assert!(held.how && held.help, "{name}: the ⋮ holds both");
-            app.press(Action::NavMenu(MenuPress::Open(Some(held))));
-            let _ = app.frame();
-            app.press(Action::NavMenu(MenuPress::Tool(BarTool::How)));
-        } else {
-            assert!(app.offers(Action::How), "{name}: the button is offered");
-            assert!(app.offers(Action::Guide), "{name}: beside the ?");
-            // Immediately left of the ?, and the two do not overlap.
-            let (hx, _, hw, _) = app.hit_box(Action::How).unwrap();
-            let (lx, ..) = app.hit_box(Action::Guide).unwrap();
-            assert!(hx + hw <= lx, "{name}: left of the ?, clear of it");
-            app.press(Action::How);
-        }
-        let _ = app.frame();
+        assert!(
+            app.offers(Action::Guide) || overflow(&app).is_some(),
+            "{name}: the ?"
+        );
+        assert!(
+            !app.drawn_texts().iter().any(|t| t == "Cryptography"),
+            "{name}: no Cryptography text on the bar"
+        );
+        open_how(&mut app);
         assert_eq!(app.sheet, Some(Sheet::Guide), "{name}");
         assert!(how_tab_open(&mut app), "{name}: the block is on show");
         assert!(shows(&mut app, EN.guide_tab_how), "{name}: the tab");
@@ -87,8 +83,9 @@ fn the_button_opens_guide_on_the_first_tab_at_every_size() {
         let _ = app.frame();
         assert!(!shows(&mut app, "Sample action"), "{name}: the guide tab");
         // Guide first, Cryptography beside it.
-        let how_tab = Action::GuideTabHow;
-        let how = app.hit_box(how_tab).expect("the Cryptography tab");
+        let how = app
+            .hit_box(Action::GuideTabHow)
+            .expect("the Cryptography tab");
         let page = app.hit_box(Action::GuideTabGuide).expect("the Guide tab");
         assert!(page.0 < how.0, "{name}: Guide first");
         app.press(Action::GuideTabHow);
@@ -110,10 +107,9 @@ fn the_question_mark_opens_the_guide_with_the_cryptography_tab_beside_it() {
 }
 
 #[test]
-fn a_screen_without_a_block_has_no_button_and_no_tab() {
+fn a_screen_without_a_block_has_no_tab() {
     let mut app = app(480, 640, 160, false);
     go(&mut app, Screen::SetTime);
-    assert!(!app.offers(Action::How));
     app.press(Action::Guide);
     let _ = app.frame();
     assert!(!shows(&mut app, EN.guide_tab_how));
@@ -123,8 +119,7 @@ fn a_screen_without_a_block_has_no_button_and_no_tab() {
 fn every_line_of_a_block_is_reached_by_scrolling_on_the_pi() {
     let mut app = app(480, 640, 286, false);
     go(&mut app, Screen::Catalog);
-    app.press(Action::How);
-    let _ = app.frame();
+    open_how(&mut app);
     for first in ["Sample action", EN.how_field_standards] {
         assert!(shows(&mut app, first), "{first}");
     }
@@ -149,14 +144,13 @@ fn every_line_of_a_block_is_reached_by_scrolling_on_the_pi() {
 /// The overflow the bar offers, if it has one.
 fn overflow(app: &Faraday) -> Option<Overflow> {
     let mut out = None;
-    for bits in 0u8..32 {
+    for bits in 0u8..16 {
         let held = Overflow {
-            own: bits & 16 != 0,
-            how: bits & 1 != 0,
-            help: bits & 2 != 0,
-            keyboard: bits & 4 != 0,
+            own: bits & 8 != 0,
+            help: bits & 1 != 0,
+            keyboard: bits & 2 != 0,
             keyboard_up: false,
-            eye: bits & 8 != 0,
+            eye: bits & 4 != 0,
         };
         if app.offers(Action::NavMenu(MenuPress::Open(Some(held)))) {
             out = Some(held);
@@ -166,54 +160,42 @@ fn overflow(app: &Faraday) -> Option<Overflow> {
 }
 
 #[test]
-fn on_the_pi_a_full_bar_puts_the_button_first_in_the_overflow_menu() {
+fn on_the_pi_the_overflow_menu_has_no_cryptography_row() {
     let mut app = app(480, 640, 286, true);
     go(&mut app, Screen::Entry);
     // The keyboard's button joins the tools on a page that types.
     app.press(Action::Osk(OskPress::Show));
     app.settle();
     let _ = app.frame();
-    let held = overflow(&app).expect("the bar is full: a ⋮");
-    assert!(held.how && held.help, "How goes in with the ?");
-    assert!(!app.offers(Action::How), "no button on the bar");
+    let held = overflow(&app).expect("a ⋮");
     app.press(Action::NavMenu(MenuPress::Open(Some(held))));
     let _ = app.frame();
     let texts = app.drawn_texts();
-    let row = texts
-        .iter()
-        .position(|t| t == EN.bar_menu_how)
-        .expect("the row");
-    let learn = texts
-        .iter()
-        .position(|t| t == EN.bar_menu_guide)
-        .expect("Learn's row");
-    assert!(row < learn, "above Learn");
-    app.press(Action::NavMenu(MenuPress::Tool(BarTool::How)));
-    let _ = app.frame();
-    assert_eq!(app.sheet, Some(Sheet::Guide));
-    assert!(app.guide().how, "Learn opens on the How tab");
+    assert!(
+        !texts.iter().any(|t| t == "Cryptography"),
+        "no Cryptography row"
+    );
 }
 
 #[test]
-fn the_supporting_pane_follows_the_button() {
+fn the_supporting_pane_opens_on_the_cryptography_tab() {
     let mut app = app(1920, 1080, 160, false);
     go(&mut app, Screen::Catalog);
-    app.press(Action::How);
-    let _ = app.frame();
+    open_how(&mut app);
     assert!(app.offers(Action::GuideClose), "the pane, not the sheet");
     assert!(how_tab_open(&mut app));
-    // On another tab, the button moves the pane to the How tab.
+    // On the Guide tab the blocks go and the page shows.
     app.press(Action::GuideTabGuide);
     let _ = app.frame();
     assert!(!app.guide().how);
-    app.press(Action::How);
+    app.press(Action::GuideTabHow);
     let _ = app.frame();
     assert!(app.offers(Action::GuideClose) && app.guide().how);
-    // On the How tab, it puts the pane away.
-    app.press(Action::How);
+    // The pane's close button puts it away.
+    app.press(Action::GuideClose);
     let _ = app.frame();
     assert!(!app.offers(Action::GuideClose));
-    // The ? opens the pane on the first page, with the How tab first.
+    // The ? opens the pane on the first page, with the How tab beside it.
     app.press(Action::Guide);
     let _ = app.frame();
     assert!(app.offers(Action::GuideClose) && !app.guide().how);

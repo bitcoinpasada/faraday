@@ -1,7 +1,7 @@
 //! Every action of the manifest with a screen is one press from that
-//! screen's Cryptography button (two on the Pi's panel, through the ⋮),
-//! its block is on the tab it opens, and the guide opens there at a page
-//! with the Cryptography tab beside it (`docs/CRYPTO-LEARN.md` §9.1). The blocks and their
+//! screen's guide, on its Cryptography tab (the ? and the tab; through
+//! the ⋮ on the Pi's panel where the bar is full), its block is on that
+//! tab, and the guide opens at a page with the tab beside it (`docs/CRYPTO-LEARN.md` §9.1). The blocks and their
 //! screens are `faraday-guide`'s generated ones.
 
 use faraday_core::nav::{BarTool, MenuPress, Overflow};
@@ -86,30 +86,35 @@ fn app(width: u16, height: u16, dpi: u16) -> Faraday {
 
 /// The overflow the bar offers, if it has one.
 fn overflow(app: &Faraday) -> Option<Overflow> {
-    (0u8..32)
+    (0u8..16)
         .map(|bits| Overflow {
-            own: bits & 16 != 0,
-            how: bits & 1 != 0,
-            help: bits & 2 != 0,
-            keyboard: bits & 4 != 0,
+            own: bits & 8 != 0,
+            help: bits & 1 != 0,
+            keyboard: bits & 2 != 0,
             keyboard_up: false,
-            eye: bits & 8 != 0,
+            eye: bits & 4 != 0,
         })
         .filter(|held| app.offers(Action::NavMenu(MenuPress::Open(Some(*held)))))
         .last()
 }
 
-/// Presses the Cryptography button, or its row in the ⋮.
+/// Opens the guide on its Cryptography tab: the ?, or its row in the
+/// ⋮, then the tab.
 fn press_how(app: &mut Faraday) -> bool {
-    if app.offers(Action::How) {
-        app.press(Action::How);
+    if app.offers(Action::Guide) {
+        app.press(Action::Guide);
     } else if let Some(held) = overflow(app) {
         app.press(Action::NavMenu(MenuPress::Open(Some(held))));
         let _ = app.frame();
-        app.press(Action::NavMenu(MenuPress::Tool(BarTool::How)));
+        app.press(Action::NavMenu(MenuPress::Tool(BarTool::Help)));
     } else {
         return false;
     }
+    let _ = app.frame();
+    if !app.offers(Action::GuideTabHow) {
+        return false;
+    }
+    app.press(Action::GuideTabHow);
     let _ = app.frame();
     true
 }

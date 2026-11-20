@@ -1545,16 +1545,15 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     // The bar's ⋮ on a flow's page, with a key held: Lock and Power off.
     t.press(Action::CreateWallet);
     let _ = t.app.frame();
-    if let Some(open) = (0u8..64)
+    if let Some(open) = (0u8..16)
         .map(|bits| {
             Action::NavMenu(faraday_core::nav::MenuPress::Open(Some(
                 faraday_core::nav::Overflow {
                     own: bits & 1 != 0,
-                    how: bits & 2 != 0,
-                    help: bits & 4 != 0,
-                    keyboard: bits & 8 != 0,
+                    help: bits & 2 != 0,
+                    keyboard: bits & 4 != 0,
                     keyboard_up: false,
-                    eye: bits & 16 != 0,
+                    eye: bits & 8 != 0,
                 },
             )))
         })

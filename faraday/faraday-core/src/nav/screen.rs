@@ -153,19 +153,13 @@ pub(crate) fn bar(app: &View, ui: &mut Ui, y: f32, w: f32) {
     faraday_ui::nav::bar(ui, y, w, &five);
 }
 
-/// The Guide button, and left of it **How Faraday
-/// does it** where it offers an action with a block
-/// (`docs/CRYPTO-LEARN.md` §8.1), their right edge at `right`; on the wide
-/// layout the codex32 sheets' eye stands between them, so that it keeps its
+/// The Guide button, its right edge at `right`; on the wide
+/// layout the codex32 sheets' eye stands left of it, so that it keeps its
 /// place in the page's margin. Returns where the next action ends. A lookup.
 fn guide_tools(app: &View, ui: &mut Ui, mut right: f32, nav: Nav) -> f32 {
     right = faraday_ui::nav::help(ui, right, Action::Guide, EN.tip_guide);
     if nav == Nav::ExpandedRail {
         right = crate::compact::bar_eye(app, ui, right);
-    }
-    if app.how_offered() {
-        right =
-            faraday_ui::nav::icon_action(ui, right, Icon::Method, Action::How, false, EN.tip_how);
     }
     right
 }

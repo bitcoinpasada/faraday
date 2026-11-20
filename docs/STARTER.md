@@ -656,8 +656,7 @@ its minimise, maximise and resize edges away, so the frame stays.
 size, with `GAP` between it and the rest of the bar's actions so it
 reads as the window's: on a destination right of the ⋮ (Install or
 Update, the ⋮, then the close button), on a page inside a task right of
-**Guide** and Cryptography where they show, and alone at the end where
-neither does, Faraday Demo's and Transfer's bars included. The title or
+**Guide** where it shows, and alone at the end where it does not, Faraday Demo's and Transfer's bars included. The title or
 the wordmark gives up that room, as it does for the install action
 (`wordmark_fitted`'s steps). It is Material's standard icon button, the
 one Learn's pane closes with (`faraday-core` `screens/guide_pane.rs`):
@@ -784,9 +783,12 @@ pages with the way back in the top app bar and neither the rail nor the
 bar. The **Guide** destination is the Starter's own page, with the rail
 or the bar lit on it: the Starter's guide pages (`docs/guide/starter-*.md`,
 in the guide's order), each a row that opens a sheet at its lead, then
-the start guides under their heading. The task pages (Which, Disks, What
+the start guides under their heading. Before the guide pages a
+**Cryptography** row (`Icon::Method`, F295) opens a sheet in the same
+look with the blocks of what the Starter computes
+(`docs/CRYPTO-LEARN.md` §8.4), and **Close** at its foot. The task pages (Which, Disks, What
 to write, Confirm, Writing, Done, Start) carry **Guide** in the top app
-bar, left of Cryptography: a sheet in the Starter's look
+bar: a sheet in the Starter's look
 (`faraday_ui::sheet::scroll_sheet`) with the page's title in Title L,
 its sections' headings in Title S and **Done** at its foot, scrolled
 when opened so the page's own section is at its top. Keep data's link

@@ -538,36 +538,13 @@ impl Faraday {
     /// again while the pane is shown, and the pane's close button, put the
     /// pane away; Done closes the sheet.
     pub(crate) fn guide_press(&mut self, action: crate::Action) {
-        if action == crate::Action::How {
-            self.how_press();
-        } else if action == crate::Action::GuideClose || self.guide_pane_shown() {
+        if action == crate::Action::GuideClose || self.guide_pane_shown() {
             if self.sheet == Some(crate::Sheet::Guide) {
                 self.sheet = None;
             }
             self.guide_close();
         } else {
             self.guide_open();
-            self.guide_place();
-        }
-    }
-
-    /// **Cryptography** on the bar: opens the guide on the Cryptography tab;
-    /// while the supporting pane shows that tab it puts the pane away,
-    /// and while the pane shows another tab it moves the pane to the How
-    /// tab (`docs/CRYPTO-LEARN.md` §8.2).
-    pub(crate) fn how_press(&mut self) {
-        if !self.how_offered() {
-            return;
-        }
-        if self.guide_pane_shown() {
-            if self.guide.state().how {
-                self.guide_close();
-            } else {
-                self.guide.show_how();
-            }
-        } else {
-            self.guide_open();
-            self.guide.show_how();
             self.guide_place();
         }
     }

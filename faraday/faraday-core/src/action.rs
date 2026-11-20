@@ -748,9 +748,6 @@ pub enum Action {
     /// The contents' first row: the page of the place the guide was opened
     /// from.
     GuideHere,
-    /// **How Faraday does it** on the top app bar: the guide on the How tab
-    /// (`docs/CRYPTO-LEARN.md` §8.2).
-    How,
     /// **What is a share?** beside the backup plan's In shares: the
     /// The guide sheet on the page about shares.
     GuideShares,
@@ -1361,7 +1358,7 @@ impl Faraday {
             Action::OtsCheck(k) => crate::ots_check::act(self, k),
             Action::MultisigCheck(k) => crate::multisig_check::act(self, k),
             Action::CoreWallet(k) => crate::core_wallet::tool::act(self, k),
-            Action::Guide | Action::GuideClose | Action::How => self.guide_press(action),
+            Action::Guide | Action::GuideClose => self.guide_press(action),
             Action::NavMenu(to) => self.nav_menu(to),
             Action::GuideShares => self.guide_shares(),
             Action::GuidePin => self.guide_button(action),

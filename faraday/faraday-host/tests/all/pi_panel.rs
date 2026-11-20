@@ -214,7 +214,6 @@ fn sheets() -> Vec<Sheet> {
     // A compact bar's overflow menu, holding every tool it can.
     all.push(Sheet::NavMenu(Some(Overflow {
         own: true,
-        how: true,
         help: true,
         keyboard: true,
         keyboard_up: true,
@@ -1377,12 +1376,17 @@ fn on_the_pi_a_flows_bar_too_full_for_its_question_mark_offers_guide_in_its_over
 }
 
 #[test]
-fn where_the_page_offers_cryptography_the_overflow_menu_holds_it_with_the_question_mark() {
+fn where_the_page_offers_cryptography_the_overflow_menu_has_no_row_for_it() {
     let mut rig = rig(On::Stick, Mode::Testnet, Vec::new());
     new_key_from_create(&mut rig);
     let _ = rig.frame();
     let held = overflow_on_the_bar(&rig).expect("a ⋮");
-    assert!(held.how && held.help, "Cryptography first, with the ?");
+    assert!(held.help, "the ? is in the ⋮");
+    tap(&mut rig, Action::NavMenu(MenuPress::Open(Some(held))));
+    assert!(
+        !rig.drawn_texts().iter().any(|t| t == "Cryptography"),
+        "the Cryptography tab is the way in"
+    );
 }
 
 /// The name in the bar of the step flow on show, as drawn: its text and

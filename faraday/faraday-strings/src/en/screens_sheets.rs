@@ -396,10 +396,6 @@ macro_rules! words_screens_sheets {
     /// Tooltip on the pin of the guide's supporting pane while it is on: a
     /// press lets the pane close at the next screen.
     guide_unpin: "Unpin",
-    /// Tooltip on the top app bar's How Faraday does it button, in Faraday and the Starter (`docs/CRYPTO-LEARN.md` §8.1).
-    tip_how: "Cryptography",
-    /// The ⋮ row on a compact bar for the button, first above the guide (§8.3).
-    bar_menu_how: "Cryptography",
     /// The first tab of the guide sheet and of the supporting pane (§8.2).
     guide_tab_how: "Cryptography",
     /// The head of the Starter's sheet of blocks (§8.4).

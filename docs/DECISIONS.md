@@ -164,7 +164,7 @@ Read this table, then only the decision you need.
 | [F145](history/decisions/F145.md) | One signed image for each piece of hardware, Strict and Open, and a Starter that carries none | 2026-10-28 | Superseded by F185 and F186 | release |
 | [F146](decisions/F146.md) | One stick numbering, "Back to" under a page's name, and the codex32 entry's step in the top app bar | 2026-10-28 | Active | design |
 | [F147](history/decisions/F147.md) | One Pi image per screen for every Pi, the Pi 4 among them, one build per visit to the download page, and images published for testers | 2026-10-28 | Superseded by F185 and F186 | release |
-| [F148](decisions/F148.md) | One manifest for every cryptographic action, its Learn block generated from it, and `just lint` failing on a function it does not cover or whose code changed since review | 2026-10-28 | Amended by F159, F197, F247, F259 | security |
+| [F148](decisions/F148.md) | One manifest for every cryptographic action, its Learn block generated from it, and `just lint` failing on a function it does not cover or whose code changed since review | 2026-10-28 | Amended by F159, F197, F247, F259, F295 | security |
 | [F149](decisions/F149.md) | One registry of what a change brings with it, checked at landing and before the website publishes | 2026-10-28 | Amended by F151, F258 | repository |
 | [F150](history/decisions/F150.md) | The looser build is named Compatible, every HDMI screen shares one image, and the Pi 4 is built on the terms its reach asks | 2026-10-28 | Superseded by F185 and F186 | release |
 | [F151](history/decisions/F151.md) | A review rule a change triggers is attested in the commit | 2026-10-28 | Replaced by F258 | repository |
@@ -305,4 +305,5 @@ Read this table, then only the decision you need.
 | [F292](decisions/F292.md) | A control Practice refuses answers a press with one toast | 2026-11-19 | Active | design |
 | [F293](decisions/F293.md) | A plan whose SLIP-39 set is not its key's keeps that set's placed shares as kept old shares | 2026-11-19 | Active | backup |
 | [F294](decisions/F294.md) | The QR vault is removed from Faraday; a code or file made as one is refused as an unknown code | 2026-11-19 | Active | security |
+| [F295](decisions/F295.md) | No Cryptography button on the top app bar: the Guide's tab is the way in | 2026-11-19 | Active | screens |
 | [F296](decisions/F296.md) | One flow container: one step at a time, at one place, with Your choices beside it | 2026-11-19 | Active | design |

@@ -493,74 +493,58 @@ Symbols (`fact_check`). The script-drawn pages were read as Android's
 Compose documentation states them (`ListItem`, `TopAppBar`,
 `PrimaryScrollableTabRow`), as DESIGN §4.12's tooltip row was.
 
-### 8.1 The bar's action
+### 8.1 No button on the bar
 
-On every page and step flow whose screen offers an action of the
-manifest, the top app bar carries **Cryptography**: Material's
-standard icon button, in a 48 dp target, immediately left of the ?.
-Its icon is new in `faraday-draw`'s set, `Icon::Method`: Material
-Symbols' `fact_check` (a sheet with two check marks at its left and two
-lines beside them), in its filled form, so that it sits beside the set's
-solid glyphs (Font Awesome 6 Free Solid, the SeedSigner icons) at the
-same weight. Its outline is taken from Material Symbols' published SVG
-(Apache License 2.0), kept in `tools/fonts/` with its licence beside the
-other faces, and baked by `tools/fontbake` into the icon face at a
-code point of its own, so it is filled at every size as every `Icon`
-is; it is not a `Glyph` drawn in code. Its tooltip is plain: "How
-Faraday does it". It has no selected state, as the ? has none. Where a
-flow offers an action on one step only, the button shows on that step
-and the steps after it that the action's result is on (a signed PSBT's
-step), not before. The manifest's `from_step` names that step for the
-action on a screen (Spend's, today); the Cryptography tab then leaves the
-action out on the steps before it and puts its block first on that step.
+The top app bar carries no Cryptography button: its tools are the ?
+and what the page needs (F295, amending F148 point 5). The way to the
+blocks is the Cryptography tab of the guide (§8.2). Where a flow offers
+an action on one step only, the tab leaves the action out on the steps
+before it and puts its block first on that step: the manifest's
+`from_step` names that step for the action on a screen (Spend's,
+today). `Icon::Method`, Material Symbols' `fact_check` in its filled
+form (Apache License 2.0, kept in `tools/fonts/` and baked by
+`tools/fontbake` into the icon face), heads the Starter's sheet (§8.4).
 
-The bar's tools then read, from the start of the trailing group: Cancel,
+The bar's tools read, from the start of the trailing group: Cancel,
 the eye (Make codex32 shares' sheets), the keyboard button, Load samples
-(Practice), the mode pill, **Cryptography**, the ?, then Lock and
-the ⋮ where the layout has them (DESIGN §4.1).
+(Practice), the mode pill, the ?, then Lock and the ⋮ where the layout
+has them (DESIGN §4.1).
 
 ### 8.2 What it opens
 
-It opens the guide as the ? does, below extra-large the guide's sheet, on an
-extra-large window the supporting pane (LAYOUT §6), on the tab
-**Cryptography**, one of the two tabs, Guide and Cryptography. The tab is there
-exactly while the bar offers the button: on a step before the action's,
-the guide has no Cryptography tab. The ? opens the guide on the Guide tab, at the
-screen's page; on an extra-large
-window the ? pressed while the pane is shown puts it away, whichever
-tab it shows, as today. **Cryptography** pressed while the pane
-shows the Cryptography tab puts it away; pressed while the pane shows the
-Guide tab, it moves the pane to the Cryptography tab. Escape, the pane's close button
-and the mouse's back button put the pane away as they do now. When the
-step changes, the Cryptography tab follows the screen's actions as the pane
-follows its pages (LAYOUT §6). The pane is never open by itself: only
-the ? or **Cryptography** pressed opens it, and it closes at another
-screen unless its pin is on (owner, 2026-10-29). Its
-tabs stand under its header row, across its width, each label whole:
-the Guide tab and the Cryptography tab.
+The ? opens the guide, below extra-large the guide's sheet, on an
+extra-large window the supporting pane (LAYOUT §6), on the Guide tab at
+the screen's page; the guide has two tabs, Guide and Cryptography. The
+Cryptography tab is there exactly while the screen offers an action of
+the manifest: on a step before the action's, or on a screen with none,
+the guide has no Cryptography tab. On an extra-large window the ?
+pressed while the pane is shown puts it away, whichever tab it shows.
+Escape, the pane's close button and the mouse's back button put the
+pane away. When the step changes, the Cryptography tab follows the
+screen's actions as the pane follows its pages (LAYOUT §6). The pane is
+never open by itself: only the ? pressed opens it, and it closes at
+another screen unless its pin is on (owner, 2026-10-29). Its tabs stand
+under its header row, across its width, each label whole.
 
 The tab holds the blocks of the screen's actions, in the order the
 screen offers them, the open step's first (§8.5).
 
 ### 8.3 Every size class
 
-| Class | Where the action is |
-|---|---|
-| Compact, the Pi's panel (268 dp) | **Cryptography** goes into the ⋮ overflow menu first, before the ?, wherever the page offers it, not only when the bar's tools would reach the chevron's target (LAYOUT §8): kept on the bar it would take room from the page's name, the way-back line or the eye (owner, 2026-10-28). The ⋮ takes the ? with it. Its row reads "Cryptography", with `Icon::Method` at its start, and it is the menu's first row, above **Guide**, **Show keyboard** and **Show sheets**. On the panel the ⋮ menu is a sheet, as every menu there. |
-| Compact, other windows | In the ⋮ as on the Pi, by the same rule. |
-| Medium, expanded, large | On the bar. |
-| Extra-large | On the bar; it opens the supporting pane, and pressed again while the pane shows the Cryptography tab puts the pane away (§8.2). |
-
-Every target stays 48 dp, and no two overlap (owner, 2026-10-26).
+The ? is on the bar, or in the compact bar's ⋮ overflow menu where the
+bar is full, at every size; the tab is the same in the sheet and in the
+pane. Every target stays 48 dp, and no two overlap (owner, 2026-10-26).
 
 ### 8.4 The Starter
 
 The Starter's computing actions: writing an image and checking its
 SHA-256 (`faraday/faraday-payload/src/decode.rs`), checking a boot file
 the person signed (`faraday/shells/starter/src/signed.rs`, F133), and
-once IMAGES is built, checking the release's image list. Its top app
-bar carries the same action, the same icon and tooltip, at its end
-right of the page's name, on the pages inside a task that perform them:
+once IMAGES is built, checking the release's image list. The Starter has
+no guide tab, so its Guide destination carries them: a **Cryptography**
+row before the Starter's guide pages, with `Icon::Method`, which opens
+the blocks of everything the Starter computes (F295). Where the actions
+are performed, in the order the blocks are listed:
 
 | Page (STARTER §3.2 to §3.4) | Blocks, in order |
 |---|---|
@@ -568,10 +552,7 @@ right of the page's name, on the pages inside a task that perform them:
 | Confirm, Writing, Done | starter-write, then starter-signed when a signed boot file is chosen |
 | Start this computer from the stick, while **Include the BitLocker recovery key** is offered | starter-recovery-key |
 
-The pages that perform them are inside a task and carry no ⋮, so on a
-compact window it stays on the bar, right of **Guide**, as at every
-size; the bar's title gives up the room (STARTER §3.1d). It opens a
-sheet in the Starter's look (`faraday-ui`), drawn as the
+The row opens a sheet in the Starter's look (`faraday-ui`), drawn as the
 Starter's other sheets (`faraday_ui::sheet::scroll_sheet`, DESIGN §5):
 the window's width less its margin on a compact window, centred at
 most 560 dp wide otherwise (LAYOUT §5), over the page's frost and
@@ -662,7 +643,7 @@ and every value wraps.
 Field labels and the action's name, for `faraday/faraday-strings/src/en/`
 (each a key of its own, as the bar's ? and its ⋮ row are, `tip_guide`
 and `bar_menu_guide`). They are added with the code that draws them:
-the strings lint fails a key no code names. The keys are in `en/`, prefixes `how_`, `starter_how_`, `tip_how`, `bar_menu_how` and `guide_tab_how`.
+the strings lint fails a key no code names. The keys are in `en/`, prefixes `how_`, `starter_how_` and `guide_tab_how`.
 
 The values are the manifest's and the cross-check's, carried by
 `faraday-guide` (§1), not strings of this file.

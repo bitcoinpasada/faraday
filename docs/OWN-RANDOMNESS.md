@@ -614,7 +614,7 @@ before the press:
   number. **Add randomness** moves into the bar's overflow menu (the ⋮
   at the flow bar's or the bar's end, `compact::tools`, a sheet on the
   small panel as every menu there). It is that menu's first row, before
-  How Faraday does it and Learn, and the ⋮ is drawn on every step that
+  Learn, and the ⋮ is drawn on every step that
   offers it, even where the bar's tools would otherwise fit (DESIGN
   §4's Bar row). Its 48 dp target and the chevron's do not overlap.
 

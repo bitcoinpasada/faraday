@@ -1,6 +1,6 @@
-//! How Faraday does it in the Starter (`docs/CRYPTO-LEARN.md` §8.4): the
-//! pages that write what was chosen carry the button in the top app bar,
-//! it opens a sheet with the blocks of the page's actions, and Close, a
+//! Cryptography in the Starter (`docs/CRYPTO-LEARN.md` §8.4): the Guide
+//! destination has a row that opens a sheet with the blocks of what the
+//! Starter computes, the top app bar has no button, and Close, a
 //! press beside the sheet or the back arrow put it away. Checked with the
 //! real block of writing an image, which stands on What to write; the Learn destination
 //! lists the page about what is written.
@@ -87,16 +87,21 @@ fn shows(s: &mut Starter, text: &str) -> bool {
 }
 
 #[test]
-fn what_to_write_offers_the_button_and_it_opens_the_blocks_at_every_width() {
+fn the_guide_offers_the_blocks_and_the_bar_does_not_at_every_width() {
     for (w, h) in [(480, 640), (1280, 800)] {
         let mut s = starter(w, h);
-        let _ = s.drawn_texts();
-        assert!(!s.offers_action(StarterAction::How), "{w}x{h}: not on Home");
         to_what_to_write(&mut s);
         let _ = s.drawn_texts();
         assert!(
+            !s.offers_action(StarterAction::How),
+            "{w}x{h}: no button in the bar"
+        );
+        s.press(StarterAction::GuideDestination);
+        assert_eq!(s.page, Page::Guide);
+        let _ = s.drawn_texts();
+        assert!(
             s.offers_action(StarterAction::How),
-            "{w}x{h}: the button is in the bar"
+            "{w}x{h}: the Guide has the row"
         );
         assert!(
             !shows(&mut s, "Write an image to a stick"),
@@ -117,19 +122,19 @@ fn what_to_write_offers_the_button_and_it_opens_the_blocks_at_every_width() {
             !shows(&mut s, "Write an image to a stick"),
             "{w}x{h}: Close"
         );
-        assert_eq!(s.page, Page::Mode, "{w}x{h}: still on the page");
+        assert_eq!(s.page, Page::Guide, "{w}x{h}: still on the Guide");
     }
 }
 
 #[test]
-fn the_sheet_is_put_away_by_the_back_arrow_and_by_the_button_again() {
+fn the_sheet_is_put_away_by_the_back_arrow_and_by_the_row_again() {
     let mut s = starter(1280, 800);
-    to_what_to_write(&mut s);
+    s.press(StarterAction::GuideDestination);
     s.press(StarterAction::How);
     assert!(shows(&mut s, "Write an image to a stick"));
     s.press(StarterAction::Back);
     assert!(!shows(&mut s, "Write an image to a stick"));
-    assert_eq!(s.page, Page::Mode, "the back arrow closed the sheet only");
+    assert_eq!(s.page, Page::Guide, "the back arrow closed the sheet only");
     s.press(StarterAction::How);
     s.press(StarterAction::How);
     assert!(!shows(&mut s, "Write an image to a stick"));

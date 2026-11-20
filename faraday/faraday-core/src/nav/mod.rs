@@ -33,8 +33,6 @@ pub enum BarTool {
     /// randomness (`docs/OWN-RANDOMNESS.md` §8.3): the menu's first row after
     /// Cancel.
     Own,
-    /// **How Faraday does it**: the guide on the How tab.
-    How,
     /// The ?: the page's guide.
     Help,
     /// The keyboard button.
@@ -52,8 +50,6 @@ pub enum BarTool {
 pub struct Overflow {
     /// **Add randomness**, on the Pi's panel wherever the page offers it.
     pub own: bool,
-    /// **How Faraday does it**, which goes in with the ?.
-    pub how: bool,
     /// The ?.
     pub help: bool,
     /// The keyboard button.
@@ -68,7 +64,7 @@ pub struct Overflow {
 impl Overflow {
     /// Whether it holds anything: the bar then shows its ⋮.
     pub fn any(self) -> bool {
-        self.own || self.how || self.help || self.keyboard || self.eye
+        self.own || self.help || self.keyboard || self.eye
     }
 }
 

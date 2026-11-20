@@ -1,6 +1,5 @@
-//! The how tour (`docs/CRYPTO-LEARN.md` §8): the top app bar's How
-//! Faraday does it beside the ?, the guide sheet on its first tab with a
-//! block, and the tab scrolled down, on Spend, which offers nine actions.
+//! The how tour (`docs/CRYPTO-LEARN.md` §8): the top app bar with the ?
+//! alone, the guide sheet on its Cryptography tab with a block, and the tab scrolled down, on Spend, which offers nine actions.
 
 use crate::tour::{Tour, scroll};
 use faraday_core::{Action, Screen};
@@ -9,7 +8,8 @@ use faraday_shell_api::App;
 pub(crate) fn how_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::Spend));
     t.shot("how-1-bar")?;
-    t.press(Action::How);
+    t.press(Action::Guide);
+    t.press(Action::GuideTabHow);
     t.shot("how-2-tab")?;
     for n in 3..6 {
         scroll(t, 240);
