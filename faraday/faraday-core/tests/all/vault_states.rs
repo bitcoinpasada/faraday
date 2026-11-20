@@ -830,6 +830,125 @@ fn a_changed_passphrase_of_a_key_file_vault_is_the_one_its_unlock_takes_with_the
     );
 }
 
+/// One unlock try at the Unlock that is open, with a stick put in while it
+/// runs: the try's answer is refused for the stick; the stick is taken out
+/// again.
+fn try_here_with_a_stick_put_in(app: &mut Faraday, phrase: &str) {
+    app.press(Action::Vault(V::FocusPassphrase));
+    type_text(app, phrase);
+    testkit::hold_worker();
+    testkit::press_on_worker(app, Action::Vault(V::Unlock));
+    eprintln!(
+        "DBG before {:?} {:?} {}",
+        app.screen,
+        app.sheet,
+        app.busy().is_some()
+    );
+    attach_stick(app);
+    eprintln!(
+        "DBG after {:?} {:?} {}",
+        app.screen,
+        app.sheet,
+        app.busy().is_some()
+    );
+    testkit::release_worker();
+    testkit::settle(app);
+    eprintln!(
+        "DBG end {:?} {:?} {}",
+        app.screen,
+        app.sheet,
+        app.busy().is_some()
+    );
+    assert!(app.vaults().open.is_empty(), "the stick did not refuse it");
+    assert!(
+        app.vaults()
+            .unlock_error
+            .as_ref()
+            .is_some_and(|e| e.as_str().starts_with("Remove the")),
+        "the refusal does not ask to remove the stick: {:?}",
+        app.vaults()
+            .unlock_error
+            .as_ref()
+            .map(|e| e.as_str().to_string())
+    );
+    app.storage(StorageEvent::Sticks(Vec::new()));
+}
+
+#[test]
+fn a_stick_put_in_while_the_right_passphrase_opens_a_vault_just_made_with_a_key_file_keeps_its_key_file()
+ {
+    let mut app = made_with_key_file();
+    try_here_with_a_stick_put_in(&mut app, PHRASE);
+    try_here(&mut app, PHRASE);
+    assert_eq!(
+        app.vaults().open.len(),
+        1,
+        "the same passphrase did not open it once the stick was out"
+    );
+}
+
+#[test]
+fn a_stick_put_in_while_a_wrong_passphrase_is_tried_keeps_the_key_file_of_a_vault_just_made() {
+    let mut app = made_with_key_file();
+    try_here_with_a_stick_put_in(&mut app, "wrong phrase");
+    try_here(&mut app, PHRASE);
+    assert_eq!(
+        app.vaults().open.len(),
+        1,
+        "the right passphrase did not open it once the stick was out"
+    );
+}
+
+#[test]
+fn a_stick_put_in_while_the_new_passphrase_opens_a_key_file_vault_just_sealed_keeps_its_key_file() {
+    let mut app = made_with_key_file();
+    try_here(&mut app, PHRASE);
+    app.press(Action::Nav(Screen::VaultContents));
+    crate::common::top_up(&mut app);
+    change_passphrase(&mut app, "a new phrase", "a new phrase");
+    assert_eq!(app.screen, Screen::Unlock, "its Unlock opens");
+    try_here_with_a_stick_put_in(&mut app, "a new phrase");
+    try_here(&mut app, "a new phrase");
+    assert_eq!(
+        app.vaults().open.len(),
+        1,
+        "the same passphrase did not open it once the stick was out"
+    );
+}
+
+#[test]
+fn save_in_change_passphrase_while_a_seal_runs_says_why_and_seals_nothing_twice() {
+    let file = testkit::kdbx_vault("Main", PHRASE, 0x31, Vec::new()).unwrap();
+    let mut app = open_main_changed(file, Vec::new(), Vec::new());
+    crate::common::top_up(&mut app);
+    app.press(Action::Vault(V::ChangePassphrase));
+    type_text(&mut app, "a new phrase");
+    app.press(Action::Vault(V::FocusField(1)));
+    type_text(&mut app, "a new phrase");
+    // A seal of a lock starts and is held on the worker.
+    testkit::hold_worker();
+    testkit::press_on_worker(&mut app, Action::Lock);
+    app.press(Action::Vault(V::FormSave));
+    let said = app.toast_text().map(|t| t.to_string());
+    testkit::release_worker();
+    testkit::settle(&mut app);
+    assert_eq!(
+        said.as_deref(),
+        Some(EN.vault_passphrase_seal_running),
+        "Save did not say why"
+    );
+    // One seal, of the lock: the passphrase typed was not written.
+    let sealed = saved_outbox(&mut app);
+    assert_eq!(sealed.len(), 1, "more than one file was written");
+    let mut next = process(sealed);
+    try_unlock(&mut next, PHRASE);
+    assert_eq!(
+        next.vaults().open.len(),
+        1,
+        "the old passphrase still opens it"
+    );
+}
+
 #[test]
 fn a_changed_passphrase_that_cannot_be_sealed_yet_is_written_by_the_next_lock() {
     let file = testkit::kdbx_vault("Main", PHRASE, 0x31, Vec::new()).unwrap();

@@ -708,6 +708,7 @@ fn seal_end(app: &mut Faraday) {
         if let Some(i) = app.vault_files().iter().position(|f| f.name == file) {
             app.vault_act(super::VaultAction::Open(i));
             app.vaults.state.just_made = Some(file);
+            app.vaults.state.made_by_seal = true;
         }
     }
 }
@@ -825,7 +826,8 @@ pub(crate) fn sealed(app: &mut Faraday, done: SealDone) {
                 app.vaults.set_step_dropped();
             }
             // The unlock that follows takes the key file the vault was sealed
-            // with, moved out of it as it closes.
+            // with: a wiping copy is made here and the slot's own is wiped
+            // as it closes, so one is live at a time.
             if app
                 .vaults
                 .state

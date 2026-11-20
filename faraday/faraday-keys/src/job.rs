@@ -326,6 +326,21 @@ impl Stretched {
             .map(Into::into)
     }
 
+    /// The key file's key an open that worked was given, moved out of the
+    /// vault, for a caller that drops the vault and keeps the key file for
+    /// another try (a stick refused this one): a move, no copy. The vault
+    /// holds none afterwards, so it is not to be used. `None` for a failed
+    /// open (see [`Stretched::take_back_parts`]), a make or one given none.
+    pub fn take_opened_parts(&mut self) -> Option<crate::parts::UnlockParts> {
+        match &mut self.out {
+            Out::Opened(Ok(slot)) => Arc::get_mut(&mut slot.opened)
+                .map(fv::file::Opened::take_components)
+                .filter(fv::kdbx::Components::has_key_file)
+                .map(Into::into),
+            _ => None,
+        }
+    }
+
     /// The identities of the key records an open worked out, when asked
     /// ([`StretchJob::with_identities`]): public, no secret. Empty for a
     /// make, a failed open or an open not asked. A lookup.

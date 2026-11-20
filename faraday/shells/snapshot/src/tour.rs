@@ -900,7 +900,9 @@ pub(crate) fn open_made(t: &mut Tour, phrase: &str, what: &str) -> Result<(), St
         t.tick();
     }
     if t.app.screen != Screen::Unlock {
-        return Err(format!("the vault made for the {what} did not reach its Unlock"));
+        return Err(format!(
+            "the vault made for the {what} did not reach its Unlock"
+        ));
     }
     t.press(Action::Vault(V::FocusPassphrase));
     type_text(t, phrase);

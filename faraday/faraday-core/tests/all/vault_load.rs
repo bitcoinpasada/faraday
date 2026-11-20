@@ -1060,3 +1060,35 @@ fn an_unlock_a_flow_waits_on_has_a_cancel_that_returns_to_it() {
     assert!(app.vaults().open.is_empty());
     assert_eq!(app.vaults().back_to, None);
 }
+
+/// After Change passphrase the unlock that follows is the vault's ordinary
+/// Unlock: what the session lacks is offered on the Load sheet.
+#[test]
+fn the_unlock_after_change_passphrase_offers_the_load_sheet() {
+    let mut app = device(vec![("cellar.kdbx".into(), load_vault())]);
+    unlock_on_vaults(&mut app, "cellar.kdbx", PHRASE);
+    assert_eq!(app.sheet, Some(Sheet::UnlockLoad));
+    app.press(Action::Vault(V::LoadNotNow));
+    assert!(app.session.keys.is_empty() && app.session.wallets.is_empty());
+    app.press(Action::Nav(Screen::VaultContents));
+    crate::common::top_up(&mut app);
+    app.press(Action::Vault(V::ChangePassphrase));
+    type_text(&mut app, "a new phrase");
+    app.press(Action::Vault(V::FocusField(1)));
+    type_text(&mut app, "a new phrase");
+    app.press(Action::Vault(V::FormSave));
+    testkit::settle(&mut app);
+    assert!(app.vaults().open.is_empty(), "the vault is locked");
+    assert_eq!(app.screen, Screen::Unlock);
+    app.press(Action::Vault(V::FocusPassphrase));
+    type_text(&mut app, "a new phrase");
+    app.press(Action::Vault(V::Unlock));
+    testkit::settle(&mut app);
+    assert_eq!(
+        app.vaults().open.len(),
+        1,
+        "{:?}",
+        app.vaults().unlock_error
+    );
+    assert_eq!(app.sheet, Some(Sheet::UnlockLoad), "no Load sheet");
+}

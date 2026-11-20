@@ -488,7 +488,8 @@ impl OpenVaults {
 
     /// Keeps, for the unlock that follows, the key file open vault `id` is
     /// being sealed with (the one its seal job writes, a key file changed
-    /// by the seal included): taken from the vault, which is closed next.
+    /// by the seal included): a wiping copy is made and the slot's own copy is
+    /// wiped right after, when the vault closes, so one is live at a time.
     /// Nothing is kept for a vault with no key file or not held.
     pub fn hold_sealed_parts(&mut self, id: VaultId) {
         let parts = self.slot(id).map(|s| {

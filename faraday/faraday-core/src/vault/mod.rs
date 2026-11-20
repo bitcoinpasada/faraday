@@ -1257,7 +1257,10 @@ impl Faraday {
         self.nonce_outside_sync();
         self.nonce_spend_sync();
         // The vault just made opens on its contents, empty, with what to do next.
-        let made = self.vaults.state.just_made.take() == Some(self.vaults.open[v].name.clone());
+        // One sealed by Change passphrase is the vault's ordinary Unlock.
+        let made = self.vaults.state.just_made.take() == Some(self.vaults.open[v].name.clone())
+            && !self.vaults.state.made_by_seal;
+        self.vaults.state.made_by_seal = false;
         self.toast(&Text::fill(
             EN.vaults_unlocked,
             &[&self.vaults.open[v].name],

@@ -503,6 +503,13 @@ impl Opened {
         self.components.has_key_file()
     }
 
+    /// The key file's key moved out, for a caller that drops the vault and
+    /// keeps the key file for another try: a move, no copy. The vault holds
+    /// none afterwards.
+    pub fn take_components(&mut self) -> Components {
+        core::mem::take(&mut self.components)
+    }
+
     /// The key file's key a seal with `key_file` (as [`Components::changed`]
     /// has it) writes the file under, for the unlock that follows the seal.
     pub fn key_components(&self, key_file: Option<Option<&[u8; 32]>>) -> Components {

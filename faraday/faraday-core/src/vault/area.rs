@@ -478,6 +478,7 @@ impl VaultArea {
     /// The vault file `name` was just made: its Unlock says why it asks.
     pub(crate) fn set_just_made(&mut self, name: &str) {
         self.state.just_made = Some(Text::of(name));
+        self.state.made_by_seal = false;
     }
 
     /// The key file of a vault just made, held for the unlock at once.
@@ -2387,6 +2388,10 @@ pub struct Vaults {
     /// The vault just made, by file name, until it is unlocked or the
     /// person leaves the list.
     pub just_made: Option<Text>,
+    /// Whether `just_made` is a vault sealed by Change passphrase, not
+    /// made: it takes the once-more line, and its unlock is the vault's
+    /// ordinary Unlock.
+    pub(crate) made_by_seal: bool,
     /// The wallet a vault load left out and why (name, reason), until the
     /// load's toast has told the person.
     pub(crate) refused: Option<(Text, Text)>,

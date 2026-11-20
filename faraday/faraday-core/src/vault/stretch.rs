@@ -390,9 +390,12 @@ fn unlocked(
     // The answer is dropped, and wiped as it drops.
     let back = stretched.take_back_parts();
     if !app.may_load_keys() {
-        // The key file held is not used up by a try the stick refused.
+        // The key file held is not used up by a try the stick refused, one
+        // that would have worked included: moved out of the opened vault
+        // before it drops.
+        let kept = back.or_else(|| stretched.take_opened_parts());
         if app.vaults.state.unlock_made && app.screen == Screen::Unlock {
-            app.vaults.set_made_parts(back);
+            app.vaults.set_made_parts(kept);
         }
         drop(stretched);
         app.vaults.state.unlock_error = Some(Text::of(&fill(
@@ -575,6 +578,7 @@ fn created(
                 return;
             }
             app.vaults.state.just_made = Some(name.clone());
+            app.vaults.state.made_by_seal = false;
             app.vaults.state.create = None;
             app.vaults.state.focus = None;
             app.screen = Screen::Vaults;
