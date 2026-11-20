@@ -1,9 +1,8 @@
 //! `Screen::Entry`: typing a seed.
 
-use super::parts::{
-    Cells, dots_field, keyed_cells, keyed_pills, never_below, typed_cells, word_keys,
-};
+use super::parts::{Cells, keyed_cells, keyed_pills, never_below, typed_cells, word_keys};
 use crate::drawing::View;
+use crate::pass_field::screen::dots_field;
 use crate::strings::EN;
 use crate::ui::Region;
 use crate::ui::pal::*;
@@ -455,7 +454,12 @@ fn entry_pass_fields(app: &View, ui: &mut Ui, (x, y, width): (f32, f32, f32), la
             fy,
             pw,
             if second { &e.again } else { &e.passphrase },
-            (on, entry_chip(app, second), app.typing.pass_eye.shown),
+            (
+                on,
+                entry_chip(app, second),
+                app.typing.pass_eye.shown,
+                app.typing.pass_eye.waits(),
+            ),
             if second {
                 Action::EntryPassphraseAgain
             } else {
@@ -465,7 +469,7 @@ fn entry_pass_fields(app: &View, ui: &mut Ui, (x, y, width): (f32, f32, f32), la
         48.0
     };
     let h = if e.pair() {
-        super::pass_pair::pass_pair(
+        crate::pass_field::pair::pass_pair(
             ui,
             (px, y, pw),
             (e.passphrase.as_str(), e.again.as_str()),

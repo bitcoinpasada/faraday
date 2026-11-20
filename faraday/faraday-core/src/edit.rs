@@ -44,7 +44,7 @@ pub(crate) struct TypingArea {
     /// The last frame drew a caret, and whether it showed.
     caret_drawn: Option<bool>,
     /// The eye on the passphrase fields.
-    pub(crate) pass_eye: crate::pass_eye::PassEye,
+    pub(crate) pass_eye: crate::pass_field::eye::PassEye,
     /// The key being handled came from a hardware keyboard, not the
     /// on-screen one.
     pub(crate) hardware_key: bool,
@@ -62,7 +62,7 @@ impl TypingArea {
             fields: Vec::new(),
             caret_at: 0,
             caret_drawn: None,
-            pass_eye: crate::pass_eye::PassEye::default(),
+            pass_eye: crate::pass_field::eye::PassEye::default(),
             hardware_key: false,
         }
     }
@@ -305,7 +305,7 @@ impl Faraday {
         }
         if self.sheet == Some(Sheet::Potential) {
             return self.inbox.potential().filter(|p| p.typing).map(|p| {
-                if p.typing_again {
+                if p.pass.on_again() {
                     Action::PotentialTypeAgain
                 } else {
                     Action::PotentialType
@@ -749,10 +749,10 @@ impl Faraday {
             Action::CPassField(_) => &self.create.state()?.pass2,
             Action::CXpubField => &self.create.state()?.xpub,
             Action::TypeHere(h) => self.here_text(h)?,
-            Action::PotentialType => &self.inbox.potential()?.passphrase,
-            Action::PotentialTypeAgain => &self.inbox.potential()?.again,
+            Action::PotentialType => self.inbox.potential()?.pass.as_str(),
+            Action::PotentialTypeAgain => self.inbox.potential()?.pass.again_str(),
             GPG_LINE => self.gpg_restore_live()?.typed(),
-            Action::LPassphrase => &self.lightning.state()?.passphrase,
+            Action::LPassphrase => self.lightning.state()?.passphrase.as_str(),
             Action::SetTimeFocus(crate::set_time::Focus::Date) => &self.set_time.date().text,
             Action::SetTimeFocus(crate::set_time::Focus::Time) => &self.set_time.time().text,
             _ => return None,

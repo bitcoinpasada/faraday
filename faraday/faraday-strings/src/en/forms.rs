@@ -38,6 +38,8 @@ macro_rules! words_forms {
     /// aezeed passphrase here is printable ASCII (docs/STANDARDS.md). It
     /// names no letter: the field is masked.
     passphrase_ascii_only: "A passphrase here is printable ASCII only",
+    /// A passphrase field at the most its standard holds.
+    passphrase_too_long: "That passphrase is as long as one can be",
     /// Text in `form_add_part`. `{}`: `e`.
     forms_not_bip_39_words: "Not BIP-39 words: {}",
     /// Error in `form_add_part`.

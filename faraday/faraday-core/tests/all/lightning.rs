@@ -89,7 +89,7 @@ fn the_aezeed_passphrase_refuses_a_letter_outside_ascii_and_says_so() {
     for c in "café".chars() {
         app.event(Event::Key(Key::Char(c)));
     }
-    assert_eq!(&*app.lightning().unwrap().passphrase, "caf");
+    assert_eq!(app.lightning().unwrap().passphrase(), "caf");
     let _ = app.frame();
     let texts = app.drawn_texts();
     assert!(
@@ -316,10 +316,10 @@ fn a_file_that_asks_for_no_passphrase_takes_no_typing() {
 fn a_file_that_asks_takes_its_passphrase_at_once_and_the_next_file_starts_empty() {
     let mut app = with_file(unhex(ONES_SEALED));
     typed(&mut app, "test_password");
-    assert_eq!(&*app.lightning().unwrap().passphrase, "test_password");
+    assert_eq!(app.lightning().unwrap().passphrase(), "test_password");
     faraday_core::testkit::inbox_file(&mut app, "second", unhex(ONES_SEALED));
     app.press(Action::LFile(app.inbox().len() - 1));
-    assert_eq!(&*app.lightning().unwrap().passphrase, "");
+    assert_eq!(app.lightning().unwrap().passphrase(), "");
 }
 
 #[test]
@@ -327,13 +327,13 @@ fn a_passphrase_typed_for_a_file_is_not_used_after_switching_to_words_or_the_aez
     for to_aezeed in [false, true] {
         let mut app = with_file(unhex(ONES_SEALED));
         typed(&mut app, "test_password");
-        assert_eq!(&*app.lightning().unwrap().passphrase, "test_password");
+        assert_eq!(app.lightning().unwrap().passphrase(), "test_password");
         app.press(if to_aezeed {
             Action::LAezeed
         } else {
             Action::LCln(None)
         });
-        assert_eq!(&*app.lightning().unwrap().passphrase, "");
+        assert_eq!(app.lightning().unwrap().passphrase(), "");
         assert_eq!(&*app.lightning().unwrap().typed, "");
     }
 }
@@ -570,7 +570,7 @@ fn the_aezeed_passphrase_takes_no_typing_with_a_stick_attached() {
     app.press(Action::LAezeed);
     app.press(Action::LPassphrase);
     typed(&mut app, "hunter2");
-    assert_eq!(app.lightning().unwrap().passphrase.as_str(), "");
+    assert_eq!(app.lightning().unwrap().passphrase(), "");
     assert_eq!(app.toast_text(), Some(STICK_LINE));
 }
 
@@ -587,5 +587,5 @@ fn a_stick_arriving_empties_the_aezeed_words_and_passphrase() {
     attach_stick(&mut app);
     assert_eq!(app.screen, Screen::Lightning);
     assert_eq!(app.lightning().unwrap().typed.as_str(), "");
-    assert_eq!(app.lightning().unwrap().passphrase.as_str(), "");
+    assert_eq!(app.lightning().unwrap().passphrase(), "");
 }

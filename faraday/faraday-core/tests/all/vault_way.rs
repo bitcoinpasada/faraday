@@ -291,6 +291,41 @@ fn lightning_makes_a_vault_and_comes_back_to_save_the_node_key() {
 }
 
 #[test]
+fn lightning_keeps_its_passphrase_with_its_node_on_the_way_to_a_vault_and_a_lock_drops_both() {
+    const ABANDON: &str = "abandon abandon abandon abandon abandon abandon abandon abandon \
+        abandon abandon abandon about";
+    let read = |app: &mut Faraday| {
+        app.press(Action::LPassphrase);
+        app.event(Event::Key(faraday_shell_api::Key::Enter));
+        let _ = app.frame();
+        let now = app.now_ms() + 16;
+        app.event(Event::Tick { now_ms: now });
+        testkit::settle(app);
+        let l = app.lightning().unwrap();
+        let n = l.node.as_ref().unwrap_or_else(|| panic!("{:?}", l.error));
+        n.public().to_vec()
+    };
+    let mut app = device(Vec::new());
+    app.press(Action::Lightning);
+    app.press(Action::LCln(None));
+    type_text(&mut app, ABANDON);
+    app.press(Action::LPassphrase);
+    type_text(&mut app, "pw");
+    let first = read(&mut app);
+    press_make(&mut app, Screen::Lightning);
+    make_the_vault(&mut app);
+    assert_eq!(app.screen, Screen::Lightning);
+    assert_eq!(app.lightning().unwrap().passphrase(), "pw");
+    assert_eq!(read(&mut app), first, "the same passphrase, the same node");
+    lock_it(&mut app);
+    assert!(
+        app.lightning()
+            .is_none_or(|l| l.passphrase().is_empty() && l.node.is_none()),
+        "the node and its passphrase went with the lock"
+    );
+}
+
+#[test]
 fn silent_payments_makes_a_vault_and_comes_back_to_save_the_scan_key() {
     let mut app = device(Vec::new());
     add_key(&mut app, 0);

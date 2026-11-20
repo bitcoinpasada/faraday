@@ -3,14 +3,15 @@
 //! state is New key's, held in `keygen` with `on_card`; every press is
 //! one of its own.
 
-use super::parts::{buttons_and_next_when, pass_field};
-use super::pass_pair::{self, pass_pair};
+use super::parts::buttons_and_next_when;
 use crate::Action;
 use crate::drawing::View;
 use crate::keygen::{
     KeyGen, dice_panel,
     screen::{entry_style, no_need_line, rolled_entry, word_grid},
 };
+use crate::pass_field::pair::{self, pass_pair};
+use crate::pass_field::screen::pass_field;
 use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
@@ -93,6 +94,7 @@ pub(super) fn slot_making(
                             k.focus == Some(n),
                             app.pass_chip(crate::demo::PassField::KeyGen(n)),
                             app.typing.pass_eye.shown,
+                            app.typing.pass_eye.waits(),
                         ),
                         Action::KPassField(n),
                     )
@@ -103,7 +105,7 @@ pub(super) fn slot_making(
             cy += ui.wrap_as((x, cy, w), BODY_M, Role::Error, n) + tokens::GAP_SMALL;
         }
         let agree = !k.pass_open
-            || (!pass_pair::differ(k.passphrase.as_str(), k.passphrase2.as_str())
+            || (!pair::differ(k.passphrase.as_str(), k.passphrase2.as_str())
                 && !app.typing.pass_eye.waits());
         let label = if multi {
             EN.create_lock_button

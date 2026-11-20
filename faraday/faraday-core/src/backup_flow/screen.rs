@@ -1129,7 +1129,7 @@ fn vaults_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
             ) + 10.0;
             let focused = app.vaults.focus == Some(Focus::Passphrase);
             if app.may_load_keys() {
-                crate::demo::pass_box(
+                crate::pass_field::screen::pass_box(
                     app,
                     ui,
                     (x, cy, w),

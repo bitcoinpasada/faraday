@@ -394,7 +394,7 @@ fn key_made_on_its_own(app: &mut Faraday) -> [u8; 4] {
     app.session.keys[0].fingerprint.0
 }
 
-const US_LINE: &str = "Keys are read as a US keyboard. Caps Lock is ignored.";
+const US_LINE: &str = "Keys are read as a US keyboard. Show the passphrase once to check it.";
 
 /// A Create slot holding a key made on its own, its passphrase fields open.
 fn slot_with_passphrase_fields() -> (Faraday, [u8; 4]) {

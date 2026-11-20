@@ -581,7 +581,7 @@ fn pass_field(
     w: f32,
     label: &str,
     secret: &str,
-    (on, chip, shown): (bool, Option<Action>, bool),
+    (on, chip, shown, marked): (bool, Option<Action>, bool, bool),
     action: Action,
 ) -> f32 {
     let lh = ui.field_label(x, y, label);
@@ -612,7 +612,14 @@ fn pass_field(
             on,
             action,
         );
-        crate::vault::screen::eye_at(ui, (x, fy, w), FIELD_H, shown, Action::PassEye);
+        crate::vault::screen::eye_at_marked(
+            ui,
+            (x, fy, w),
+            FIELD_H,
+            shown,
+            marked,
+            Action::PassEye,
+        );
     }
     lh + FIELD_H + 12.0
 }
@@ -644,12 +651,13 @@ fn entry_pass(app: &View, ui: &mut Ui, (x, y, iw): (f32, f32, f32), label: &str)
                 e.on_passphrase && e.on_again == second,
                 crate::screens::entry_chip(app, second),
                 app.typing.pass_eye.shown,
+                app.typing.pass_eye.waits(),
             ),
             action,
         )
     };
     let h = if e.pair() {
-        crate::screens::pass_pair::pass_pair(
+        crate::pass_field::pair::pass_pair(
             ui,
             (x, y, iw),
             (e.passphrase.as_str(), e.again.as_str()),

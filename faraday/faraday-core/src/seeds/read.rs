@@ -20,7 +20,7 @@
 //! the sheet closes, which wipes them.
 
 use crate::drawing::View;
-use crate::screens::pass_pair::{self, pass_pair};
+use crate::pass_field::pair::{self, pass_pair};
 use crate::strings::EN;
 use faraday_bip::keys::Fingerprint;
 use faraday_crypto::work::Compute;
@@ -29,9 +29,9 @@ use faraday_draw::widgets::Icon;
 use faraday_shell_api::Key as KeyIn;
 use faraday_text::Text;
 
+use crate::pass_field::screen::pass_field;
 use crate::qr_view::ScanPurpose;
 use crate::scan_key::{Found, key_of};
-use crate::screens::pass_field;
 use crate::secret_text::SecretText;
 use crate::seeds::sweep::{Signed, Sweep, SweepAction};
 use crate::ui::pal::*;
@@ -175,7 +175,7 @@ pub struct SeedRead {
 impl SeedRead {
     /// The two fields hold the same passphrase, and it is not empty.
     fn pass_ready(&self) -> bool {
-        pass_pair::ready(self.pass.as_str(), self.pass2.as_str())
+        pair::ready(self.pass.as_str(), self.pass2.as_str())
     }
 
     /// The key the passphrase typed makes, once it is typed twice alike:
@@ -1096,6 +1096,7 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                             s.focus == Some(n),
                             app.pass_chip(crate::demo::PassField::SeedRead(n)),
                             app.typing.pass_eye.shown,
+                            app.typing.pass_eye.waits(),
                         ),
                         Action::SeedRead(Choice::Field(n)),
                     )

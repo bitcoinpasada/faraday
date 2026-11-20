@@ -345,8 +345,7 @@ impl InboxArea {
         let Some(p) = self.potential.as_mut() else {
             return false;
         };
-        p.passphrase.set(text);
-        p.again.set(text);
+        p.pass.fill(text);
         p.typing = true;
         p.error = None;
         true
@@ -372,10 +371,10 @@ impl InboxArea {
         &self.skip
     }
 
-    /// The potential wallet's passphrase hidden (its eye shows it again).
-    pub(crate) fn hide_secrets(&mut self) {
+    /// Runs `f` on the possible wallet's passphrase field, if there is one.
+    pub(crate) fn with_pass(&mut self, f: &mut dyn FnMut(&mut crate::pass_field::PassField)) {
         if let Some(p) = self.potential.as_mut() {
-            p.shown = false;
+            f(&mut p.pass);
         }
     }
 
@@ -1327,21 +1326,14 @@ impl Faraday {
 
 /// A potential wallet being made: the seed, the passphrase the person
 /// adds or not, and the kind of single-key wallet.
-#[derive(Default)]
 pub struct Potential {
     /// The seed's fingerprint with no passphrase, which names it.
     pub fingerprint: Option<Fingerprint>,
-    /// The passphrase typed, empty for none.
-    pub passphrase: crate::secret_text::SecretText,
-    /// The passphrase typed again: it is typed twice, for nothing checks
-    /// it and a typo makes another key.
-    pub again: crate::secret_text::SecretText,
-    /// Typing goes to the passphrase.
+    /// The passphrase typed, empty for none, and the one typed again: it
+    /// is typed twice, for nothing checks it and a typo makes another key.
+    pub(crate) pass: crate::pass_field::PassField,
+    /// Typing goes to the passphrase (`pass`, or its repeat).
     pub typing: bool,
-    /// With `typing`: it goes to the passphrase typed again.
-    pub typing_again: bool,
-    /// The passphrase is shown in the clear.
-    pub shown: bool,
     /// The kind of single-key wallet it becomes.
     pub kind: NewKind,
     /// The fingerprint with the passphrase, worked out when it changes.
@@ -1362,6 +1354,27 @@ pub const KINDS: [NewKind; 4] = [
     NewKind::Legacy,
 ];
 
+impl Potential {
+    /// How many bytes the two passphrase fields hold (for the tests that
+    /// check a field was emptied).
+    pub fn typed_len(&self) -> usize {
+        self.pass.len() + self.pass.again_str().len()
+    }
+
+    /// A potential wallet with nothing chosen yet.
+    fn blank() -> Potential {
+        Potential {
+            fingerprint: None,
+            pass: crate::pass_field::PassField::pair(crate::pass_field::Kind::Bip39),
+            typing: false,
+            kind: NewKind::default(),
+            with: None,
+            error: None,
+            xpub: None,
+        }
+    }
+}
+
 impl Faraday {
     /// The potential wallet's passphrase changed: with none, the seed's
     /// own fingerprint, a lookup; with one, the key it makes is worked
@@ -1371,7 +1384,7 @@ impl Faraday {
         let Some(p) = self.inbox.potential.as_mut() else {
             return;
         };
-        if p.passphrase.is_empty() || p.xpub.is_some() {
+        if p.pass.is_empty() || p.xpub.is_some() {
             self.inbox.set_typed_at(None);
             self.potential_refresh();
             return;
@@ -1395,45 +1408,42 @@ impl Faraday {
             // an empty first's, makes the wallet.
             KeyIn::Enter
                 if self.inbox.potential().is_some_and(|p| {
-                    p.typing && !p.typing_again && p.xpub.is_none() && !p.passphrase.is_empty()
+                    p.typing && !p.pass.on_again() && p.xpub.is_none() && !p.pass.is_empty()
                 }) =>
             {
                 if let Some(p) = self.inbox.potential.as_mut() {
-                    p.typing_again = true;
+                    p.pass.set_on_again(true);
                 }
             }
             KeyIn::Enter => self.potential_make(),
-            // Nothing secret is typed with a stick attached.
-            _ if self.stick.in_the_way() => {}
-            KeyIn::Char(c) if !c.is_control() => {
-                if let Some(p) = self.inbox.potential.as_mut()
-                    && p.typing
-                {
-                    if p.typing_again {
-                        p.again.push(c);
-                    } else {
-                        p.passphrase.push(c);
-                    }
-                    p.error = None;
-                }
-                self.potential_typed();
-            }
-            KeyIn::Backspace => {
-                if let Some(p) = self.inbox.potential.as_mut()
-                    && p.typing
-                {
-                    if p.typing_again {
-                        p.again.pop();
-                    } else {
-                        p.passphrase.pop();
-                    }
-                    p.error = None;
-                }
-                self.potential_typed();
-            }
+            // A passphrase takes the keys of BIP-39's, and none with a stick
+            // attached.
+            KeyIn::Char(_) | KeyIn::Backspace => self.potential_pass_key(key),
             _ => {}
         }
         true
+    }
+
+    /// A key of the passphrase field, which the stick rule and BIP-39's
+    /// characters decide.
+    fn potential_pass_key(&mut self, key: KeyIn) {
+        use crate::pass_field::{Gate, PassKey};
+        let gate = Gate {
+            stick: self.stick.in_the_way(),
+        };
+        let medium = self.medium;
+        let Some(p) = self.inbox.potential.as_mut().filter(|p| p.typing) else {
+            return;
+        };
+        match p.pass.key(key, gate) {
+            PassKey::Typed => p.error = None,
+            PassKey::Refused(why) => {
+                p.error = Some(crate::pass_field::refused_text(medium, why));
+                return;
+            }
+            _ => return,
+        }
+        self.potential_typed();
     }
 
     /// Opens the sheet for making seed `fp` a wallet.
@@ -1441,7 +1451,7 @@ impl Faraday {
         self.inbox.set_potential(Potential {
             fingerprint: Some(fp),
             with: Some(fp),
-            ..Potential::default()
+            ..Potential::blank()
         });
         self.sheet = Some(crate::Sheet::Potential);
     }
@@ -1457,7 +1467,7 @@ impl Faraday {
             fingerprint: x.fingerprint,
             kind: x.kind.unwrap_or_default(),
             xpub: Some((x.key, x.kind.is_some())),
-            ..Potential::default()
+            ..Potential::blank()
         });
         self.sheet = Some(crate::Sheet::Potential);
     }
@@ -1528,10 +1538,10 @@ impl Faraday {
         if p.xpub.is_some() {
             return;
         }
-        let with = if p.passphrase.is_empty() {
+        let with = if p.pass.is_empty() {
             p.fingerprint
         } else {
-            let pass = p.passphrase.clone();
+            let pass = p.pass.job_copy();
             match self.potential_seed(&c) {
                 Some((_, Some(secret))) => secret.fingerprint(&c, &pass, self.session.network()),
                 Some((seed, None)) => self
@@ -1571,9 +1581,7 @@ impl Faraday {
         }
         // A passphrase made here is typed twice: a press with the two
         // differing does nothing.
-        if self.inbox.potential().is_some_and(|p| {
-            crate::screens::pass_pair::differ(p.passphrase.as_str(), p.again.as_str())
-        }) {
+        if self.inbox.potential().is_some_and(|p| p.pass.differ()) || self.typing.pass_eye.waits() {
             return;
         }
         if !self.may_load_keys() {
@@ -1586,7 +1594,7 @@ impl Faraday {
         let Some(p) = self.inbox.potential() else {
             return;
         };
-        let pass = p.passphrase.clone();
+        let pass = p.pass.job_copy();
         let kind = p.kind;
         let Some((seed, secret)) = self.potential_seed(&c) else {
             return;
@@ -1777,21 +1785,16 @@ impl Faraday {
                     p.kind = kind;
                 }
             }
-            Action::PotentialShow => {
-                if let Some(p) = self.inbox.potential.as_mut() {
-                    p.shown = !p.shown;
-                }
-            }
             Action::PotentialType => {
                 if let Some(p) = self.inbox.potential.as_mut() {
                     p.typing = !self.stick.in_the_way();
-                    p.typing_again = false;
+                    p.pass.set_on_again(false);
                 }
             }
             Action::PotentialTypeAgain => {
                 if let Some(p) = self.inbox.potential.as_mut() {
                     p.typing = !self.stick.in_the_way();
-                    p.typing_again = true;
+                    p.pass.set_on_again(true);
                 }
             }
             Action::PotentialMake => self.potential_make(),
@@ -1935,10 +1938,7 @@ impl crate::at_lock::AtLock for InboxArea {
     fn holds(&self) -> crate::at_lock::Holds {
         crate::at_lock::Holds {
             kept: false,
-            typed: self
-                .potential
-                .as_ref()
-                .is_some_and(|p| !p.passphrase.is_empty()),
+            typed: self.potential.as_ref().is_some_and(|p| !p.pass.is_empty()),
             // A seed file read from a stick does not taint the process: it
             // may be copied to another stick, which must stay open
             // (`docs/FLOWS.md`). A lock drops it.

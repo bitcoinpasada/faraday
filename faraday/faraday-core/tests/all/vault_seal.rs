@@ -1024,7 +1024,7 @@ fn a_lock_pressed_while_one_vault_is_sealed_hides_the_inbox_passphrase_at_once()
     assert_eq!(app.sheet, Some(Sheet::Potential));
     app.press(Action::PotentialType);
     type_text(&mut app, "a passphrase");
-    eye_hides_at_lock(&mut app, Action::PotentialShow);
+    eye_hides_at_lock(&mut app, Action::PassEye);
 }
 
 /// The checklist on the copy step with the words shown and Seed XOR made.

@@ -313,7 +313,7 @@ pub(crate) fn pass_seeds(app: &View, ui: &mut Ui, w: f32, h: f32) {
                     .as_ref()
                     .is_none_or(|q| q.text.text.is_empty());
                 if let Some(q) = app.vaults.prompt.as_ref() {
-                    crate::demo::pass_box(
+                    crate::pass_field::screen::pass_box(
                         app,
                         ui,
                         (x, cy, iw),

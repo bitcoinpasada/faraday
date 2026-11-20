@@ -176,7 +176,20 @@ pub(crate) fn secret_box(
 
 /// The eye inside a field's right end, over any long text: `h` is the
 /// field's height, `shown` whether it is open, `eye` its press.
-pub(crate) fn eye_at(ui: &mut Ui, (x, y, w): (f32, f32, f32), h: f32, shown: bool, eye: Action) {
+pub(crate) fn eye_at(ui: &mut Ui, at: (f32, f32, f32), h: f32, shown: bool, eye: Action) {
+    eye_at_marked(ui, at, h, shown, false, eye);
+}
+
+/// [`eye_at`] with the eye in the primary colour while `marked`: the
+/// passphrase waits for it to be opened once.
+pub(crate) fn eye_at_marked(
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    h: f32,
+    shown: bool,
+    marked: bool,
+    eye: Action,
+) {
     let (muted, primary, inset) = (
         Role::OnSurfaceVariant,
         Role::Primary,
@@ -196,7 +209,7 @@ pub(crate) fn eye_at(ui: &mut Ui, (x, y, w): (f32, f32, f32), h: f32, shown: boo
         h,
         if shown { Icon::EyeOff } else { Icon::Eye },
         EYE_GLYPH,
-        if shown { primary } else { muted },
+        if shown || marked { primary } else { muted },
     );
     crate::compact::eye_hit(ui, (ex, y, h, h), eye, shown);
 }
@@ -466,7 +479,7 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += ui.advance_as(faraday_draw::tokens::TITLE_S, 26.0);
     if app.may_load_keys() {
         let focused = app.vaults.focus == Some(Focus::Passphrase);
-        crate::demo::pass_box(
+        crate::pass_field::screen::pass_box(
             app,
             ui,
             (x, y, w),
@@ -767,7 +780,7 @@ fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += ui.line_as(faraday_draw::tokens::TITLE_S) + faraday_draw::tokens::GAP_SMALL;
     if app.may_load_keys() {
         let focused = app.vaults.focus == Some(Focus::Passphrase);
-        crate::demo::pass_box(
+        crate::pass_field::screen::pass_box(
             app,
             ui,
             (x, y, w),
@@ -1332,7 +1345,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                     );
                     cy += 52.0;
                 }
-                cy += crate::screens::pass_pair::pass_pair(
+                cy += crate::pass_field::pair::pass_pair(
                     ui,
                     (x, cy, w),
                     (a.text.as_str(), b.text.as_str()),
@@ -1340,7 +1353,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                         let (box_, second) = if n == 0 { (a, false) } else { (b, true) };
                         if may {
                             let f = app.vaults.focus == Some(Focus::Phrase(i, second));
-                            crate::demo::pass_box(
+                            crate::pass_field::screen::pass_box(
                                 app,
                                 ui,
                                 (x, fy, w),
@@ -2586,7 +2599,7 @@ fn prompt_pane(
                 crate::demo::PassField::Prompt,
             )
         };
-        crate::demo::pass_box(
+        crate::pass_field::screen::pass_box(
             app,
             ui,
             (dx, dy, dw),
@@ -2598,7 +2611,7 @@ fn prompt_pane(
         dy += FIELD_H + if second { 8.0 } else { 16.0 };
         if second {
             if !p.again.text.is_empty()
-                && crate::screens::pass_pair::differ(p.text.text.as_str(), p.again.text.as_str())
+                && crate::pass_field::pair::differ(p.text.text.as_str(), p.again.text.as_str())
             {
                 dy += ui
                     .field_supporting((dx, dy, dw), Role::Error, EN.pass_pair_differ, false)
@@ -2628,7 +2641,7 @@ fn prompt_pane(
             label,
             Style::Primary.when(
                 !p.pair()
-                    || !crate::screens::pass_pair::differ(
+                    || !crate::pass_field::pair::differ(
                         p.text.text.as_str(),
                         p.again.text.as_str(),
                     ),

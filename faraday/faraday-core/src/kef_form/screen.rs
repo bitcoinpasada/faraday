@@ -6,7 +6,7 @@ use crate::Action;
 use crate::dice_entry::Press;
 use crate::dice_entry::screen::{Ask as DiceAsk, dice_panel};
 use crate::drawing::View;
-use crate::screens::pass_pair::pass_pair;
+use crate::pass_field::pair::pass_pair;
 use crate::screens::{dice_pad, randomness};
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;

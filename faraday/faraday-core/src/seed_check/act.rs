@@ -553,7 +553,7 @@ fn seed_taken(app: &mut Faraday, got: Result<faraday_keys::CheckFacts, Text>, wi
 fn read(app: &mut Faraday, with: bool) {
     let c = app.compute();
     let Some(s) = st(app) else { return };
-    if with && !crate::screens::pass_pair::ready(s.pass.as_str(), s.pass2.as_str()) {
+    if with && !crate::pass_field::pair::ready(s.pass.as_str(), s.pass2.as_str()) {
         return;
     }
     let pass = if with {
@@ -858,7 +858,7 @@ pub(crate) fn enter_is_slow(app: &Faraday) -> bool {
     s.field()
         .is_some_and(|(target, _)| target != A::PathField && target != A::CompareField)
         && !app.typing.pass_eye.waits()
-        && crate::screens::pass_pair::ready(s.pass.as_str(), s.pass2.as_str())
+        && crate::pass_field::pair::ready(s.pass.as_str(), s.pass2.as_str())
 }
 
 /// Typing into the passphrase fields and the path field.

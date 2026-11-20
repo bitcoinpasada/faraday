@@ -34,7 +34,7 @@
 //!   re-exports them all, so a caller names `faraday_core::Action`.
 //! - State and actions: `work` (costly work counted), `compute` (where
 //!   event code gets its token), `flow`, `inputs`, `edit` (the caret and
-//!   the selection), `pass_eye` (the eye on the passphrase fields), `motion` (scrolling), `moved` (the moved frame), `out` (what the core
+//!   the selection), `pass_field` (the passphrase fields and their eye), `motion` (scrolling), `moved` (the moved frame), `out` (what the core
 //!   hands the shell: commands, storage commands, the toast), `pointer` (the
 //!   hits, the press, the drag, the hover), `idle` (the idle lock's timers), `at_lock` (what each area holds and what Lock does with it, `docs/AT-LOCK.md`), `item` (an Inbox or Outbox file), `worker` (the one thread costly work runs on), `fade` (a
 //!   change fading in), `menu` (the ⋮ menus), `nav` (the navigation by
@@ -158,7 +158,7 @@ mod moved;
 pub mod nav;
 mod out;
 mod panes;
-mod pass_eye;
+mod pass_field;
 mod pointer;
 mod public_files;
 mod public_kind;
@@ -1122,7 +1122,7 @@ impl App for Faraday {
         );
         if settle {
             self.note_here();
-            pass_eye::settle(self);
+            pass_field::settle(self);
         }
         // A scroll or a wheel moves the region's offset and nothing else
         // (`docs/FRAMES.md` §3.4).
@@ -1166,9 +1166,9 @@ impl App for Faraday {
                 } else {
                     self.later_now();
                     self.typing.hardware_key = true;
-                    let before = pass_eye::before_key(self);
+                    let before = pass_field::before_key(self);
                     self.key(k);
-                    pass_eye::after_key(self, k, before);
+                    pass_field::after_key(self, k, before);
                     self.typing.hardware_key = false;
                 }
                 self.pointer.tip_focus(self.now_ms);
@@ -1392,6 +1392,7 @@ impl App for Faraday {
             self.out.redraw();
         }
         self.entry_left(on_entry);
+        pass_field::left(self);
         self.out.commands.push_back(Command::Draw);
     }
 

@@ -211,7 +211,7 @@ fn unlock(
 fn passphrase(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, file: usize) -> f32 {
     let mut cy = y;
     if app.may_load_keys() {
-        crate::demo::pass_box(
+        crate::pass_field::screen::pass_box(
             app,
             ui,
             (x, cy, w),
@@ -255,7 +255,7 @@ fn typing(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, title: &str, file: us
         (title.to_string(), Role::OnSurfaceVariant)
     };
     cy += ui.wrap_as((x, cy, w), LABEL_M, tone, &line) + 6.0;
-    crate::demo::pass_box(
+    crate::pass_field::screen::pass_box(
         app,
         ui,
         (x, cy, w),

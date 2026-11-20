@@ -1270,7 +1270,7 @@ impl crate::Faraday {
         if self.keygen_reopen_asks(how) {
             return;
         }
-        self.typing.pass_eye = crate::pass_eye::PassEye::default();
+        self.typing.pass_eye = crate::pass_field::eye::PassEye::default();
         // A flow already open ends first, giving back what it kept; one
         // opened again from its own screen returns where it was opened
         // from.
@@ -2796,7 +2796,7 @@ impl crate::Faraday {
         if !self.may_load_keys() {
             return;
         }
-        self.typing.pass_eye = crate::pass_eye::PassEye::default();
+        self.typing.pass_eye = crate::pass_field::eye::PassEye::default();
         let mut k = KeyGen::new(Some(slot), Screen::Create);
         k.entropy_source = self.keygen.entropy_source;
         k.with_own = self.fresh.own_acc().is_some();

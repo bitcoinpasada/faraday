@@ -1297,7 +1297,7 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy += ui.advance_as(LABEL_L, 22.0);
     if app.may_load_keys() {
         let focused = app.vaults.focus == Some(crate::vault::Focus::Passphrase);
-        crate::demo::pass_box(
+        crate::pass_field::screen::pass_box(
             app,
             ui,
             (x, cy, w),

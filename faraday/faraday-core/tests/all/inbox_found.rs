@@ -148,6 +148,8 @@ fn a_passphrase_makes_the_potential_wallet_another_key() {
     );
     app.press(Action::PotentialTypeAgain);
     type_text(&mut app, "TREZOR");
+    // A passphrase typed on a hardware keyboard waits for the eye.
+    app.press(Action::PassEye);
     testkit::pause(&mut app);
     let with = app.potential().unwrap().with.unwrap();
     assert_ne!(with, fp, "a passphrase gives another fingerprint");

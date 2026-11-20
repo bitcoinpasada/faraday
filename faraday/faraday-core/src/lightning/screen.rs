@@ -130,66 +130,26 @@ fn body(
             } else {
                 (vx, 300.0f32.min(vw))
             };
-            ui.fill(
-                px,
-                y,
-                pw,
-                T::TEXT_FIELD,
-                T::RADIUS_SMALL,
-                Role::SurfaceContainerHighest,
-            );
-            ui.stroke(
-                px,
-                y,
-                pw,
-                T::TEXT_FIELD,
-                T::RADIUS_SMALL,
-                if l.on_passphrase {
-                    Role::Primary
+            let look = crate::pass_field::screen::Look {
+                on: l.on_passphrase,
+                press: Action::LPassphrase,
+                chip: crate::demo::PassField::Aezeed,
+                hint: Some(if cln {
+                    EN.lightning_no_passphrase
                 } else {
-                    Role::OutlineVariant
-                },
+                    EN.lightning_aezeed_lnd
+                }),
+            };
+            crate::pass_field::screen::draw(
+                app,
+                ui,
+                &l.passphrase,
+                crate::pass_field::Which::First,
+                (px, y, pw, T::FIELD_H),
+                &look,
             );
-            if app.pass_is_public(&l.passphrase) {
-                crate::screens::code_field(ui, px, y, pw, T::TEXT_FIELD, &l.passphrase);
-            } else if l.passphrase.is_empty() && !l.on_passphrase {
-                let p = ui.fit_as(
-                    BODY_M.mono(),
-                    if cln {
-                        EN.lightning_no_passphrase
-                    } else {
-                        EN.lightning_aezeed_lnd
-                    },
-                    pw - 2.0 * faraday_draw::tokens::TYPED_INSET,
-                );
-                let at = (
-                    px + faraday_draw::tokens::TYPED_INSET,
-                    y,
-                    faraday_draw::tokens::TEXT_FIELD,
-                );
-                ui.text_mid_as(at, BODY_M.mono(), Role::OnSurface, &p);
-            } else {
-                // A dot for each character, so the caret and a press fall
-                // between the characters they stand for (`docs/TEXT-CURSOR.md`
-                // §3).
-                let dots = Text::repeated("•", l.passphrase.chars().count());
-                ui.typed(
-                    px + faraday_draw::tokens::TYPED_INSET,
-                    y,
-                    faraday_draw::tokens::TEXT_FIELD,
-                    BODY_M.size,
-                    W::M,
-                    Role::OnSurface,
-                    &dots,
-                    pw - 2.0 * faraday_draw::tokens::TYPED_INSET,
-                    l.on_passphrase,
-                    Action::LPassphrase,
-                );
-            }
-            ui.press_box(px, y, pw, T::TEXT_FIELD, Action::LPassphrase);
-            app.pass_chip_draw(ui, l.passphrase.is_empty(), crate::demo::PassField::Aezeed);
             let (rx, ry) = if below > 0.0 {
-                (px, y + 48.0)
+                (px, y + T::FIELD_H + 8.0)
             } else {
                 (px + pw + 12.0, y)
             };

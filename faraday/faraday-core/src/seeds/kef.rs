@@ -891,14 +891,19 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         }
         match k.stage {
             Stage::Ask => {
-                cy += crate::screens::pass_field(
+                cy += crate::pass_field::screen::pass_field(
                     ui,
                     x,
                     cy,
                     iw,
                     if k.hex { EN.kef_hex } else { EN.kef_passphrase },
                     &k.pass,
-                    (k.focus, None, app.typing.pass_eye.shown),
+                    (
+                        k.focus,
+                        None,
+                        app.typing.pass_eye.shown,
+                        app.typing.pass_eye.waits(),
+                    ),
                     Action::KefRead(KefAct::Field),
                 );
                 if let Some(e) = &k.error {

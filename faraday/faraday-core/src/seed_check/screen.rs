@@ -7,8 +7,9 @@ use crate::Action;
 use crate::demo::PassField;
 use crate::drawing::{Scrolled, View};
 use crate::flow;
-use crate::screens::parts::{address_press, pass_field, row_press};
-use crate::screens::pass_pair::{differ, pass_pair};
+use crate::pass_field::pair::{differ, pass_pair};
+use crate::pass_field::screen::pass_field;
+use crate::screens::parts::{address_press, row_press};
 use crate::strings::EN;
 use crate::ui::pal::Role;
 use crate::ui::{Style, Ui, W};
@@ -249,6 +250,7 @@ fn passphrase(app: &View, s: &SeedState, ui: &mut Ui, (x, y, w): (f32, f32, f32)
                     s.focus == Some(n),
                     app.pass_chip(PassField::SeedCheck(n)),
                     app.typing.pass_eye.shown,
+                    app.typing.pass_eye.waits(),
                 ),
                 act(S::PassField(n)),
             )

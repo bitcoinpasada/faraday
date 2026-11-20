@@ -173,7 +173,6 @@ pub(crate) fn secrets_off_screen_but_vaults(app: &mut Faraday) {
     crate::core_wallet::tool::hide(app);
     app.lightning.hide_secrets();
     app.vanity.hide_secrets();
-    app.inbox.hide_secrets();
     app.scan_card_hide();
     app.backup.hide_secrets();
     app.keygen.hide_secrets();

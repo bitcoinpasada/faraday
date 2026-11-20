@@ -987,8 +987,6 @@ pub enum Action {
     XpubOpen(usize),
     /// The potential wallet's kind, by its place in `inbox::KINDS`.
     PotentialKind(u8),
-    /// Show or mask the potential wallet's passphrase.
-    PotentialShow,
     /// Typing goes to the potential wallet's passphrase.
     PotentialType,
     /// Type the potential wallet's passphrase again.
@@ -1152,6 +1150,7 @@ impl Faraday {
         let on_entry = self.screen == Screen::Entry;
         self.act_dealt(action);
         self.entry_left(on_entry);
+        crate::pass_field::left(self);
         // "Lock and write" waits only while its lock is: on the sheet
         // that asks, or under way. Any other way past is giving it up.
         if self.visit.lock_to_write().is_some()
@@ -1647,7 +1646,6 @@ impl Faraday {
             | Action::PotentialOpen(..)
             | Action::XpubOpen(..)
             | Action::PotentialKind(..)
-            | Action::PotentialShow
             | Action::PotentialType
             | Action::PotentialTypeAgain
             | Action::PotentialMake) => self.inbox_act(a, &c),

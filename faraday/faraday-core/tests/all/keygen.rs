@@ -892,7 +892,7 @@ fn unequal_passphrases_lock_nothing_in() {
     assert_eq!(app.session.keys.len(), 1);
 }
 
-const US_LINE: &str = "Keys are read as a US keyboard. Caps Lock is ignored.";
+const US_LINE: &str = "Keys are read as a US keyboard. Show the passphrase once to check it.";
 
 fn at_the_passphrases() -> Faraday {
     let mut app = slot_flow(true);

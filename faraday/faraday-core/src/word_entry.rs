@@ -1115,7 +1115,7 @@ impl Faraday {
             if self.screen == Screen::Restore {
                 self.restore.set_error(why);
                 self.entry.reset();
-                crate::pass_eye::done(self);
+                crate::pass_field::eye::done(self);
             } else {
                 self.entry.set_error(why);
             }
@@ -1132,7 +1132,7 @@ impl Faraday {
         match self.typed_load(&m, &pass, &label, wanted, back, said) {
             Ok(_) => {
                 self.entry.reset();
-                crate::pass_eye::done(self);
+                crate::pass_field::eye::done(self);
                 self.refresh_spend();
                 self.screen = match back {
                     Some(s) => s,
@@ -1153,7 +1153,7 @@ impl Faraday {
                 ) {
                     self.seeds_took(fp, back);
                     self.entry.reset();
-                    crate::pass_eye::done(self);
+                    crate::pass_field::eye::done(self);
                     self.refresh_spend();
                     self.screen = Screen::SpendBackup;
                     self.spend_backup_key_added();
@@ -1171,7 +1171,7 @@ impl Faraday {
                 ) {
                     self.seeds_took(fp, back);
                     self.entry.reset();
-                    crate::pass_eye::done(self);
+                    crate::pass_field::eye::done(self);
                     self.refresh_spend();
                     self.screen = match back {
                         Some(s) => s,
@@ -1184,7 +1184,7 @@ impl Faraday {
             Err(e) if self.screen == Screen::Restore => {
                 self.restore.set_error(e.text());
                 self.entry.reset();
-                crate::pass_eye::done(self);
+                crate::pass_field::eye::done(self);
             }
             // A seed asked for by Check a signer that makes another key.
             Err(crate::wallet::Refusal::WrongKey { wanted, got })

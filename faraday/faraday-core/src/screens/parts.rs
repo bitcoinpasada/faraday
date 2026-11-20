@@ -4,7 +4,7 @@ use crate::drawing::View;
 use crate::strings::{EN, fill};
 use crate::ui::Shape;
 use crate::ui::pal::*;
-use crate::ui::{CoreUi, Style, Ui, W};
+use crate::ui::{Style, Ui};
 use crate::wallet::{FileKind, Session};
 use crate::worker::Busy;
 use crate::{Action, Faraday};
@@ -915,49 +915,6 @@ fn file_row_extra(
     rh + 8.0
 }
 
-/// A wallet's descriptor as a summary row (`docs/DESIGN.md` §4.5): label
-/// above; the shape, the keys' fingerprints and the checksum below; a
-/// chevron; the whole row opens `action`. Returns its height.
-/// A masked passphrase field with its label at the left (above it on a
-/// small panel): dots for what is typed, the **No passphrase** pill
-/// while it is empty, the caret while it is focused. In Practice `chip` is the press of the
-/// `faraday` chip the empty field offers, and `faraday` is drawn in its
-/// code box. Returns the height used.
-#[allow(
-    clippy::too_many_arguments,
-    reason = "a passphrase field's position, width, label, text, reveal chip and action"
-)]
-pub(crate) fn pass_field(
-    ui: &mut Ui,
-    x: f32,
-    y: f32,
-    w: f32,
-    label: &str,
-    text: &crate::secret_text::SecretText,
-    (on, chip, shown): (bool, Option<Action>, bool),
-    action: Action,
-) -> f32 {
-    let (px, py, pw) = if ui.compact {
-        ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, label);
-        (x, y + 22.0, w)
-    } else {
-        ui.text_mid_as((x, y, 40.0), BODY_S, Role::OnSurfaceVariant, label);
-        (x + 150.0, y, 380.0f32.min(w - 150.0))
-    };
-    let r = tokens::FIELD_RADIUS;
-    ui.fill(px, py, pw, 40.0, r, Role::SurfaceContainerHighest);
-    ui.stroke(
-        px,
-        py,
-        pw,
-        40.0,
-        r,
-        if on { Role::Primary } else { Role::Outline },
-    );
-    dots_field(ui, px, py, pw, text, (on, chip, shown), action);
-    py - y + 48.0
-}
-
 /// The line under passphrase fields that says keys are read as a US
 /// keyboard, while a character of the passphrase came from a hardware key.
 /// Returns the height used.
@@ -971,49 +928,6 @@ pub(crate) fn keys_read_as_us_line(app: &View, ui: &mut Ui, (x, y, w): (f32, f32
         Role::OnSurfaceVariant,
         EN.keys_read_as_us,
     ) + tokens::GRID
-}
-
-/// What a BIP-39 passphrase field 40 tall and `w` wide at (x, y) shows:
-/// a dot for each character typed (the characters while `shown`, the eye
-/// open), with the selection and the caret
-/// while `on`, or the **No passphrase** pill while it is empty.
-/// In Practice (`chip`) the empty field
-/// offers the `faraday` chip, and `faraday` is drawn in its code box.
-pub(crate) fn dots_field(
-    ui: &mut Ui,
-    x: f32,
-    y: f32,
-    w: f32,
-    text: &str,
-    (on, chip, shown): (bool, Option<Action>, bool),
-    action: Action,
-) {
-    ui.press_box(x, y, w, tokens::TEXT_FIELD, action);
-    if text.is_empty() {
-        ui.no_passphrase(x, y, 40.0, on);
-        // Use faraday goes in the "Demo only" card (`docs/DEMO.md` §5.4).
-        if let Some(a) = chip {
-            ui.demo_offer(EN.demo_use_faraday, a);
-        }
-    } else if chip.is_some() && text == crate::demo::PASSPHRASE {
-        code_field(ui, x, y, w, tokens::TEXT_FIELD, text);
-    } else {
-        let dots = Text::repeated("•", text.chars().count());
-        let held = Text::of(text);
-        ui.typed(
-            x + 12.0,
-            y,
-            40.0,
-            BODY_M.size,
-            W::M,
-            Role::OnSurface,
-            if shown { &held } else { &dots },
-            w - 24.0 - tokens::TEXT_FIELD,
-            on,
-            action,
-        );
-        crate::vault::screen::eye_at(ui, (x, y, w), tokens::TEXT_FIELD, shown, Action::PassEye);
-    }
 }
 
 /// A passphrase field in Practice that holds `faraday`: it in its code box at
@@ -1058,6 +972,9 @@ pub(crate) fn locked_tag(ui: &mut Ui, x: f32, y: f32) -> f32 {
     width
 }
 
+/// A wallet's descriptor as a summary row (`docs/DESIGN.md` §4.5): label
+/// above; the shape, the keys' fingerprints and the checksum below; a
+/// chevron; the whole row opens `action`. Returns its height.
 pub(crate) fn descriptor_row(
     ui: &mut Ui,
     x: f32,

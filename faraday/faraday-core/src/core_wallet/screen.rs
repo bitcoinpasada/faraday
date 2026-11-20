@@ -189,7 +189,7 @@ fn file(app: &View, s: &CoreWalletState, ui: &mut Ui, (x, y, w): (f32, f32, f32)
         ) + GAP;
     }
     cy += ui.field_label(x, y + cy, EN.core_wallet_passphrase);
-    crate::demo::pass_box(
+    crate::pass_field::screen::pass_box(
         app,
         ui,
         (x, y + cy, w),

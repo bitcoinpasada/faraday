@@ -35,7 +35,7 @@ pub(crate) fn passphrase_dialog(app: &View, ui: &mut Ui, w: f32, h: f32) {
         (EN.vault_cancel, Style::Secondary, va(V::FormCancel)),
         (
             EN.vault_save,
-            Style::Primary.when(crate::screens::pass_pair::ready(
+            Style::Primary.when(crate::pass_field::pair::ready(
                 form.fields[0].2.text.as_str(),
                 form.fields[1].2.text.as_str(),
             )),
@@ -52,11 +52,8 @@ pub(crate) fn passphrase_dialog(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 form.fields[1].2.text.as_str(),
             );
             let mut cy = y;
-            cy += crate::screens::pass_pair::pass_pair(
-                ui,
-                (x, cy, iw),
-                (first, again),
-                |ui, k, fy| {
+            cy +=
+                crate::pass_field::pair::pass_pair(ui, (x, cy, iw), (first, again), |ui, k, fy| {
                     let (_, label, b, _) = &form.fields[k as usize];
                     let k = k as usize;
                     let mut cy = fy;
@@ -75,8 +72,7 @@ pub(crate) fn passphrase_dialog(app: &View, ui: &mut Ui, w: f32, h: f32) {
                         va(V::ShowTyped),
                     );
                     cy + FIELD_H + GAP_SMALL - fy
-                },
-            );
+                });
             cy + GAP - GAP_SMALL - y
         },
         &actions,

@@ -1018,8 +1018,7 @@ impl Faraday {
         };
         // A passphrase made here is typed twice: a press with the two
         // differing does nothing.
-        if p.pair()
-            && crate::screens::pass_pair::differ(p.text.text.as_str(), p.again.text.as_str())
+        if p.pair() && crate::pass_field::pair::differ(p.text.text.as_str(), p.again.text.as_str())
         {
             return;
         }

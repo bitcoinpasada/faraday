@@ -103,7 +103,7 @@ impl EntryState {
     /// The passphrase is asked twice and the two differ: the key waits.
     pub fn differs(&self) -> bool {
         self.pair()
-            && crate::screens::pass_pair::differ(self.passphrase.as_str(), self.again.as_str())
+            && crate::pass_field::pair::differ(self.passphrase.as_str(), self.again.as_str())
     }
 
     /// The word counts a BIP-39 key can have.
@@ -1736,7 +1736,7 @@ impl Faraday {
                 let back = self.entry.state().back;
                 self.seeds_took(fp, back);
                 self.entry.reset();
-                crate::pass_eye::done(self);
+                crate::pass_field::eye::done(self);
                 self.refresh_spend();
                 self.screen = back.unwrap_or(crate::Screen::Wallets);
                 if back == Some(crate::Screen::SpendBackup) {

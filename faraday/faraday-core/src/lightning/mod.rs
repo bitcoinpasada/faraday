@@ -93,7 +93,7 @@ pub struct LightningState {
     /// The aezeed's words, as typed.
     pub typed: crate::secret_text::SecretText,
     /// The aezeed's passphrase; empty is LND's default.
-    pub passphrase: crate::secret_text::SecretText,
+    pub(crate) passphrase: crate::pass_field::PassField,
     /// Typing goes to the passphrase.
     pub on_passphrase: bool,
     /// The node key, once found.
@@ -133,6 +133,11 @@ impl LightningArea {
 }
 
 impl LightningState {
+    /// The passphrase typed.
+    pub fn passphrase(&self) -> &str {
+        self.passphrase.as_str()
+    }
+
     /// The file chosen in Files asks for a passphrase.
     pub fn file_asks_passphrase(&self) -> bool {
         self.file_asks
@@ -145,12 +150,19 @@ impl LightningArea {
         self.state.as_ref()
     }
 
+    /// Runs `f` on the aezeed's passphrase field, if there is one.
+    pub(crate) fn with_pass(&mut self, f: &mut dyn FnMut(&mut crate::pass_field::PassField)) {
+        if let Some(l) = self.state.as_mut() {
+            f(&mut l.passphrase);
+        }
+    }
+
     /// Opens the screen, to return to `back`.
     pub(crate) fn open(&mut self, back: Screen) {
         self.state = Some(LightningState {
             source: None,
             typed: crate::secret_text::SecretText::new(),
-            passphrase: crate::secret_text::SecretText::new(),
+            passphrase: crate::pass_field::PassField::new(crate::pass_field::Kind::Lightning),
             on_passphrase: false,
             node: None,
             error: None,
@@ -248,7 +260,7 @@ impl LightningArea {
             l.error = refused;
             return None;
         }
-        let pass = crate::secret_text::SecretText::of(&l.passphrase);
+        let pass = l.passphrase.job_copy();
         let job = if l.for_convert {
             keys.aezeed_seed_job(&idx, pass)
         } else {
@@ -268,7 +280,7 @@ impl LightningArea {
             l.file_asks = asks;
             l.on_passphrase = asks;
             l.typed.set("");
-            l.passphrase.set("");
+            l.passphrase.clear();
             l.node = None;
             l.error = None;
         }
@@ -280,7 +292,7 @@ impl LightningArea {
     pub(crate) fn hsm_job(&self, keys: &Keys, bytes: Zeroizing<Vec<u8>>) -> Option<ReadWork> {
         let l = self.state.as_ref()?;
         let pass = if faraday_keys::hsm_secret::needs_passphrase(&bytes) {
-            crate::secret_text::SecretText::of(&l.passphrase)
+            l.passphrase.job_copy()
         } else {
             crate::secret_text::SecretText::new()
         };
@@ -295,7 +307,7 @@ impl LightningArea {
             return;
         };
         let words = Text::joined(&l.typed.split_whitespace().collect::<Vec<_>>(), " ");
-        match keys.hsm_words_node(c, &words, &l.passphrase) {
+        match keys.hsm_words_node(c, &words, l.passphrase.as_str()) {
             Ok(n) => {
                 l.node = Some(n);
                 l.error = None;
@@ -391,7 +403,7 @@ impl LightningArea {
                 // What was typed for another source or file is not this one's.
                 if l.file.is_some() || l.source != Some(NodeSource::Aezeed) {
                     l.typed.set("");
-                    l.passphrase.set("");
+                    l.passphrase.clear();
                 }
                 l.source = Some(NodeSource::Aezeed);
                 l.file = None;
@@ -404,7 +416,7 @@ impl LightningArea {
                 // What was typed for another source or file is not this one's.
                 if l.file.is_some() || l.source != Some(NodeSource::CoreLightning) {
                     l.typed.set("");
-                    l.passphrase.set("");
+                    l.passphrase.clear();
                 }
                 l.source = Some(NodeSource::CoreLightning);
                 l.file = None;
@@ -470,12 +482,11 @@ impl LightningArea {
         }
     }
 
-    /// A stick arrived: the typed words go, and the passphrase and the
-    /// node with them.
+    /// A stick arrived: the typed words and the node go (the passphrase
+    /// field is emptied with the others, `pass_field`).
     pub(crate) fn stick_arrived(&mut self) {
         if let Some(l) = self.state.as_mut() {
             l.typed.set("");
-            l.passphrase.set("");
             l.node = None;
         }
     }
@@ -495,7 +506,12 @@ impl LightningArea {
 
     /// Typing the aezeed and its passphrase, on `screen`. Returns whether
     /// the key was taken.
-    pub(crate) fn key(&mut self, key: faraday_shell_api::Key, screen: &mut Screen) -> bool {
+    pub(crate) fn key(
+        &mut self,
+        key: faraday_shell_api::Key,
+        screen: &mut Screen,
+        (stick, medium): (bool, crate::Medium),
+    ) -> bool {
         use faraday_shell_api::Key as K;
         if *screen != Screen::Lightning {
             return false;
@@ -521,18 +537,23 @@ impl LightningArea {
             return false;
         }
         l.sample.dismiss();
-        let field = if l.on_passphrase {
-            &mut l.passphrase
-        } else {
-            &mut l.typed
-        };
+        if l.on_passphrase && matches!(key, K::Char(_) | K::Backspace) {
+            use crate::pass_field::{Gate, PassKey};
+            return match l.passphrase.key(key, Gate { stick }) {
+                PassKey::Typed => {
+                    l.node = None;
+                    true
+                }
+                // Refused, and the screen says why.
+                PassKey::Refused(why) => {
+                    l.error = Some(crate::pass_field::refused_text(medium, why));
+                    true
+                }
+                _ => false,
+            };
+        }
+        let field = &mut l.typed;
         match key {
-            K::Char(c) if l.on_passphrase && (' '..='~').contains(&c) => field.push(c),
-            // Anything else is refused, and the screen says so.
-            K::Char(c) if l.on_passphrase && !c.is_control() => {
-                l.error = Some(Text::of(crate::state::ascii_refused()));
-                return true;
-            }
             K::Char(c) if c.is_ascii_alphabetic() => field.push(c.to_ascii_lowercase()),
             K::Char(' ') => {
                 if !field.is_empty() && !field.ends_with(' ') {
@@ -561,7 +582,7 @@ impl LightningArea {
     /// Practice's passphrase typed into the aezeed's passphrase field.
     pub(crate) fn set_passphrase(&mut self, text: &str) {
         if let Some(l) = self.state.as_mut() {
-            l.passphrase.set(text);
+            l.passphrase.fill(text);
             l.node = None;
             l.error = None;
         }
@@ -825,7 +846,8 @@ impl Faraday {
         }
         let reads = key == K::Enter && self.lightning_reads_aezeed();
         let words = key == K::Enter && !reads && self.lightning.on_core_lightning();
-        let taken = self.lightning.key(key, &mut self.screen);
+        let gate = (self.stick.in_the_way(), self.medium);
+        let taken = self.lightning.key(key, &mut self.screen, gate);
         if taken && reads {
             self.lightning_read();
         } else if taken && words {

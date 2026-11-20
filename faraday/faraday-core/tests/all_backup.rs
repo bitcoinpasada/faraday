@@ -91,6 +91,8 @@ mod made_online;
 mod own_randomness;
 #[path = "all/paper.rs"]
 mod paper;
+#[path = "all/pass_fields.rs"]
+mod pass_fields;
 #[path = "all/passphrase_kept.rs"]
 mod passphrase_kept;
 #[path = "all/rounds.rs"]

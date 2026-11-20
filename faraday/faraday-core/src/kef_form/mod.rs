@@ -7,7 +7,7 @@
 
 use crate::Faraday;
 use crate::dice_entry::{DiceEntry, Env, Part, Press, Pressed, Used};
-use crate::screens::pass_pair;
+use crate::pass_field::pair;
 use crate::strings::EN;
 use crate::vault::TextBox;
 use crate::worker::kef::KefStart;
@@ -313,7 +313,7 @@ impl KefForm {
 
     /// The passphrase typed twice is the same, so Make is on.
     pub(crate) fn passphrases_agree(&self) -> bool {
-        !pass_pair::differ(self.pass.text.as_str(), self.pass2.text.as_str())
+        !pair::differ(self.pass.text.as_str(), self.pass2.text.as_str())
     }
 
     /// The passphrase as typed.

@@ -12,11 +12,12 @@ use crate::drawing::{Scrolled, View};
 use crate::keygen::{
     Group, KeyGen, MIX_SOURCES, Source, Start, WAYS, Way, kstep, procedure_name, source_name,
 };
-use crate::screens::pass_pair::{self, pass_pair};
+use crate::pass_field::pair::{self, pass_pair};
+use crate::pass_field::screen::pass_field;
 use crate::screens::{
     buttons_and_next, buttons_and_next_when, camera_row, card_pad, coin_pad, descriptor_row,
     dice_pad, keys_read_as_us_line, locked_tag, never_below, never_real_seed, next_button,
-    pass_field, section_label, stepper,
+    section_label, stepper,
 };
 use crate::ui::Paint;
 use crate::ui::pal::*;
@@ -764,6 +765,7 @@ fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
                             k.focus == Some(n),
                             app.pass_chip(crate::demo::PassField::KeyGen(n)),
                             app.typing.pass_eye.shown,
+                            app.typing.pass_eye.waits(),
                         ),
                         Action::KPassField(n),
                     )
@@ -779,7 +781,7 @@ fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
         }
         cy += 4.0;
         let agree = !k.asks_passphrase()
-            || (!pass_pair::differ(k.passphrase.as_str(), k.passphrase2.as_str())
+            || (!pair::differ(k.passphrase.as_str(), k.passphrase2.as_str())
                 && !app.typing.pass_eye.waits());
         cy += buttons_and_next_when(
             ui,

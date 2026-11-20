@@ -440,7 +440,8 @@ fn add_a_key_takes_a_bip_39_passphrase_typed_twice() {
     assert_eq!(app.session.keys.len(), 1);
 }
 
-const US_LINE: &str = "Keys are read as a US keyboard. Caps Lock is ignored.";
+// The line wraps at a narrow width: its first words stand for it.
+const US_LINE: &str = "Keys are read as a US keyboard.";
 
 fn shown(app: &mut Faraday) -> Vec<String> {
     let _ = app.frame();
@@ -453,12 +454,12 @@ fn a_passphrase_typed_with_hardware_keys_on_add_a_key_says_so_and_add_key_waits_
     app.press(Action::Entry(None));
     typed(&mut app, &faraday_core::testkit::test_words("bacon"));
     app.press(Action::EntryPassphrase);
-    assert!(!shown(&mut app).iter().any(|t| t == US_LINE));
+    assert!(!shown(&mut app).iter().any(|t| t.starts_with(US_LINE)));
     typed(&mut app, "Ride the 7 bus");
     app.press(Action::EntryPassphraseAgain);
     typed(&mut app, "Ride the 7 bus");
     let texts = shown(&mut app);
-    assert!(texts.iter().any(|t| t == US_LINE));
+    assert!(texts.iter().any(|t| t.starts_with(US_LINE)));
     assert!(
         !texts.iter().any(|t| t == "Ride the 7 bus"),
         "the eye is closed"
@@ -484,7 +485,7 @@ fn a_passphrase_typed_on_the_on_screen_keyboard_on_add_a_key_has_no_line_and_no_
             app.press(Action::Osk(OskPress::Char(c)));
         }
     }
-    assert!(!shown(&mut app).iter().any(|t| t == US_LINE));
+    assert!(!shown(&mut app).iter().any(|t| t.starts_with(US_LINE)));
     app.press(Action::EntryAdd);
     assert_eq!(app.session.keys.len(), 1);
 }

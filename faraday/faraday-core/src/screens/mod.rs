@@ -20,7 +20,6 @@ mod home;
 mod message;
 mod nonce_check;
 pub(crate) mod parts;
-pub(crate) mod pass_pair;
 pub(crate) mod randomness;
 mod restore;
 mod set_time;
@@ -69,8 +68,8 @@ pub(crate) use parts::{
     CopyGrid, address_press, busy_bar, busy_line, buttons_and_next, buttons_and_next_when,
     code_field, copy_blocks, copy_grid, descriptor_row, first_addresses, grid_never, keys_caution,
     keys_read_as_us_line, kind_line, kind_name, locked_tag, never_below, never_real_seed,
-    never_real_seed_if, never_under, next_button, next_button_when, pass_field, pin_button,
-    row_press, side_panel_w, sign_readiness, size_text, stepper, ticked, working_bar, working_line,
+    never_real_seed_if, never_under, next_button, next_button_when, pin_button, row_press,
+    side_panel_w, sign_readiness, size_text, stepper, ticked, working_bar, working_line,
 };
 pub(crate) use parts::{
     camera_row, card_pad, coin_pad, dice_pad, dice_pad_fit, key_path_line, word_cell_edge,

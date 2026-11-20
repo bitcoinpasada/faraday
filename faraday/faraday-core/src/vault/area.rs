@@ -3154,14 +3154,14 @@ impl Vaults {
     /// Whether a passphrase pair is typed the same twice, and not empty.
     pub fn phrase_ok(c: &CreateForm, i: usize) -> bool {
         let (a, b) = &c.phrases[i];
-        crate::screens::pass_pair::ready(a.text.as_str(), b.text.as_str())
+        crate::pass_field::pair::ready(a.text.as_str(), b.text.as_str())
     }
 
     /// Whether a passphrase pair differs: Create waits while one does.
     pub fn phrases_differ(c: &CreateForm) -> bool {
         c.phrases
             .iter()
-            .any(|(a, b)| crate::screens::pass_pair::differ(a.text.as_str(), b.text.as_str()))
+            .any(|(a, b)| crate::pass_field::pair::differ(a.text.as_str(), b.text.as_str()))
     }
 
     /// Passphrase `i`'s own bits, known only while it is the words the

@@ -459,13 +459,13 @@ fn in_demo_an_aezeed_passphrase_offers_faraday_and_can_be_typed() {
         Action::PassChip(PassField::Aezeed)
     ));
     app.press(Action::PassChip(PassField::Aezeed));
-    assert_eq!(app.lightning().unwrap().passphrase.as_str(), "faraday");
+    assert_eq!(app.lightning().unwrap().passphrase(), "faraday");
     let _ = app.frame();
     assert!(shows(&mut app, "faraday"));
     app.press(Action::LPassphrase);
     type_in(&mut app, "q");
     assert_eq!(
-        app.lightning().unwrap().passphrase.as_str(),
+        app.lightning().unwrap().passphrase(),
         "faradayq",
         "a press in the field lets the person go on typing"
     );

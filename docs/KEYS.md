@@ -80,6 +80,24 @@ boundary is.
   - a scanned SeedQR when it is read;
   - a vault passphrase at Open;
   - an Inbox secret file when it is loaded.
+- **A typed passphrase** is held in one place, `pass_field::PassField`
+  (`faraday/faraday-core/src/pass_field/`), where the field has moved onto
+  it: the Inbox's possible wallet and Lightning's so far. It wraps
+  `SecretText`, which wipes what it drops; it takes what its standard
+  allows (a BIP-39 passphrase is printable ASCII and at most 256 bytes,
+  F155; Lightning's aezeed and `hsm_secret` passphrases have no most, their
+  standards set none) and says why it refused a key. While a stick is attached it takes
+  no key, and a stick's arrival empties every one. A field whose screen or
+  sheet is left is emptied after that event, however it was left, and a
+  lock drops it with its area. The fields are listed in one enum,
+  `pass_field::Where`, with no wildcard arm, so a new one is not built
+  until it is listed. A passphrase leaves its field in one of two ways:
+  moved out (`take`) where the screen ends with it, or one copy for a job
+  (`job_copy`) where the screen keeps its field for a Back or an error,
+  which wipes with the job. Drawing reads it. One eye (`typing.pass_eye`)
+  shows or masks every one, closes at a lock, at the idle warning and when
+  its screen is left, and a passphrase being made and typed on a hardware
+  keyboard waits for it to be opened once.
 - **A stretch job** (`faraday/faraday-keys/src/job.rs`, WORKERS §6) is
   where a vault passphrase goes on to be stretched on the worker. An
   Open's passphrase is moved into a `StretchJob` (a `SecretText`, taken

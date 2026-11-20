@@ -127,6 +127,11 @@ impl Idle {
         self.under = sheet;
     }
 
+    /// The sheet the warning came over.
+    pub(crate) fn under(&self) -> Option<crate::Sheet> {
+        self.under
+    }
+
     /// The sheet the warning came over, taken: it is remembered once.
     pub(crate) fn take_under(&mut self) -> Option<crate::Sheet> {
         self.under.take()

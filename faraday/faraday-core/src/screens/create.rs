@@ -3,10 +3,11 @@
 use super::backup;
 use super::parts::{
     OptionRow, buttons_and_next, descriptor_row, first_addresses, kind_list, locked_tag,
-    never_real_seed, next_button, option_list, pass_field, stepper,
+    never_real_seed, next_button, option_list, stepper,
 };
-use super::pass_pair::{self, pass_pair};
 use crate::drawing::{Scrolled, View};
+use crate::pass_field::pair::{self, pass_pair};
+use crate::pass_field::screen::pass_field;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
@@ -720,6 +721,7 @@ fn slot_passphrase(
                         c.pass_focus == Some(n),
                         app.pass_chip(crate::demo::PassField::Slot(n)),
                         app.typing.pass_eye.shown,
+                        app.typing.pass_eye.waits(),
                     ),
                     Action::CPassField(n),
                 )
@@ -744,8 +746,7 @@ fn slot_passphrase(
             BUTTON_H,
             EN.create_lock_button,
             Style::Primary.when(
-                !pass_pair::differ(c.pass.as_str(), c.pass2.as_str())
-                    && !app.typing.pass_eye.waits(),
+                !pair::differ(c.pass.as_str(), c.pass2.as_str()) && !app.typing.pass_eye.waits(),
             ),
             Action::CPassLock,
         );

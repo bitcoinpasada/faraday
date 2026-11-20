@@ -170,30 +170,6 @@ pub enum PassField {
     CoreWallet,
 }
 
-/// A passphrase field with an eye at its right end, as
-/// [`secret_box`](crate::vault::screen::secret_box) draws it: in Practice what
-/// holds `faraday` is in its code box, and an empty field hands the "Practice
-/// only" card its **Use faraday** (`docs/DEMO.md` §5.4). `(shown,
-/// focused)`, `(action, eye)`.
-pub(crate) fn pass_box(
-    app: &crate::drawing::View,
-    ui: &mut crate::ui::Ui,
-    (x, y, w): (f32, f32, f32),
-    b: &crate::vault::TextBox,
-    (shown_eye, focused): (bool, bool),
-    (action, eye): (Action, Action),
-    field: PassField,
-) {
-    let show = app.pass_shows(shown_eye, &b.text);
-    // While a vault job runs the field takes no typing.
-    if app.vaults.working.is_some() {
-        crate::vault::screen::secret_box_off(ui, (x, y, w), b, show);
-    } else {
-        crate::vault::screen::secret_box(ui, x, y, w, b, show, focused, action, eye);
-    }
-    app.pass_chip_draw(ui, b.text.is_empty(), field);
-}
-
 impl PassField {
     /// The first field of the pair whose repeat this is; the field itself
     /// where it is no repeat.

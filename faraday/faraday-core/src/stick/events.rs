@@ -484,12 +484,13 @@ pub(crate) fn nothing_in_the_way(app: &mut Faraday, had: bool) {
 
 /// What a stick in the way closes, whichever event shows it (the disk
 /// process's listing or the kernel's view): the Krux passphrase sheet, the
-/// seed read's passphrase pair, the vaults' secret fields and the tools'
-/// secret fields.
+/// seed read's passphrase pair, every passphrase field of `pass_field`, the
+/// vaults' secret fields and the tools' secret fields.
 pub(crate) fn secrets_close(app: &mut Faraday) {
     seeds::kef::kef_stick_arrived(app);
     app.seed_read_stick_arrived();
     app.lightning.stick_arrived();
+    crate::pass_field::stick_arrived(app);
     if matches!(
         app.vaults.focus,
         Some(vault::Focus::Passphrase | vault::Focus::Phrase(..) | vault::Focus::Dice)

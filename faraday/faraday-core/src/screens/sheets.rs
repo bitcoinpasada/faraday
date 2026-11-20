@@ -2,12 +2,14 @@
 
 use crate::Action;
 use crate::drawing::View;
+use crate::pass_field::Which;
+use crate::pass_field::screen::{Look, draw as pass_draw};
 use crate::stick;
 use crate::strings::EN;
 use crate::ui::Region;
 use crate::ui::Shape;
 use crate::ui::pal::*;
-use crate::ui::{Glyph, Style, Ui, W};
+use crate::ui::{Glyph, Style, Ui};
 use crate::wallet::fp_text;
 use faraday_draw::tokens as T;
 use faraday_draw::tokens::{
@@ -84,85 +86,50 @@ fn potential_body(
             } else {
                 fy0
             };
-            let (pass, press, on, chip) = if second {
+            let (which, press, chip) = if second {
                 (
-                    &p.again,
+                    Which::Again,
                     Action::PotentialTypeAgain,
-                    p.typing && p.typing_again,
                     crate::demo::PassField::PotentialAgain,
                 )
             } else {
                 (
-                    &p.passphrase,
+                    Which::First,
                     Action::PotentialType,
-                    p.typing && !p.typing_again,
                     crate::demo::PassField::Potential,
                 )
             };
-            if app.pass_is_public(pass) {
-                super::parts::code_field(ui, x, fy, iw, T::TEXT_FIELD_SHEET, pass);
-                ui.press_box(x, fy, iw, T::TEXT_FIELD_SHEET, press);
-            } else if app.may_load_keys() {
-                let shown: Text = if p.shown {
-                    Text::of(pass)
-                } else {
-                    pass.chars().map(|_| '•').collect()
-                };
-                ui.fill(x, fy, iw, 44.0, 8.0, Role::SurfaceContainerHighest);
-                ui.stroke(
-                    x,
-                    fy,
-                    iw,
-                    44.0,
-                    8.0,
-                    if on {
-                        Role::Primary
-                    } else {
-                        Role::OutlineVariant
-                    },
-                );
-                // A dot for each character, so the caret and a press fall
-                // between the characters they stand for (`docs/TEXT-CURSOR.md`
-                // §3).
-                ui.press_box(x, fy, iw - 44.0, 44.0, press);
-                ui.typed(
-                    x + 12.0,
-                    fy,
-                    44.0,
-                    BODY_M.size,
-                    W::M,
-                    Role::OnSurface,
-                    &shown,
-                    iw - 60.0,
-                    on,
+            if app.pass_is_public(match which {
+                Which::First => p.pass.as_str(),
+                Which::Again => p.pass.again_str(),
+            }) || app.may_load_keys()
+            {
+                let look = Look {
+                    on: p.typing && p.pass.on_again() == second,
                     press,
+                    chip,
+                    hint: None,
+                };
+                pass_draw(
+                    app,
+                    ui,
+                    &p.pass,
+                    which,
+                    (x, fy, iw, T::TEXT_FIELD_SHEET),
+                    &look,
                 );
-                ui.icon(
-                    x + iw - 44.0,
-                    fy,
-                    44.0,
-                    if p.shown { Icon::EyeOff } else { Icon::Eye },
-                    15.0,
-                    if p.shown {
-                        Role::Primary
-                    } else {
-                        Role::OnSurfaceVariant
-                    },
-                );
-                let at = (x + iw - 44.0, fy, 44.0, 44.0);
-                crate::compact::eye_hit(ui, at, Action::PotentialShow, p.shown);
-                app.pass_chip_draw(ui, pass.is_empty(), chip);
             } else {
                 crate::vault::screen::stick_field(app.medium, ui, x, fy, iw);
             }
             fy - fy0 + FIELD_H + 8.0
         };
-        cy += super::pass_pair::pass_pair(
+        cy += crate::pass_field::pair::pass_pair(
             ui,
             (x, cy, iw),
-            (p.passphrase.as_str(), p.again.as_str()),
+            (p.pass.as_str(), p.pass.again_str()),
             field,
         );
+        cy += super::keys_read_as_us_line(app, ui, (x, cy, iw));
     }
     if let Some((key, fixed)) = xpub {
         let k = ui.fit_as(BODY_S.mono(), key.as_ref(), iw);
@@ -247,7 +214,8 @@ pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             go.as_str(),
             Style::Primary.when(
                 (app.may_load_keys() || xpub.is_some())
-                    && !crate::screens::pass_pair::differ(p.passphrase.as_str(), p.again.as_str()),
+                    && !p.pass.differ()
+                    && !app.typing.pass_eye.waits(),
             ),
             Action::PotentialMake,
         ),

@@ -305,7 +305,7 @@ fn a_masked_field_moves_its_caret_and_shows_nothing_of_what_is_typed() {
     app.event(Event::Key(Key::Left));
     app.event(Event::Key(Key::Left));
     app.event(Event::Key(Key::Char('x')));
-    assert_eq!(&*app.lightning().unwrap().passphrase, "axbc");
+    assert_eq!(app.lightning().unwrap().passphrase(), "axbc");
     let mut other = aezeed_passphrase("qqqq");
     app.event(Event::Key(Key::Left));
     for _ in 0..3 {
@@ -319,7 +319,7 @@ fn a_masked_field_moves_its_caret_and_shows_nothing_of_what_is_typed() {
         app.event(Event::Touch { x, y, phase });
     }
     app.event(Event::Key(Key::Backspace));
-    assert_eq!(&*app.lightning().unwrap().passphrase, "axc");
+    assert_eq!(app.lightning().unwrap().passphrase(), "axc");
 }
 
 /// How many carets the screen shows at `now`: the marks that come and go
