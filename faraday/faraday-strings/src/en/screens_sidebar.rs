@@ -40,10 +40,6 @@ macro_rules! words_screens_sidebar {
     sidebar_files: "Files",
     /// Text in `sidebar`.
     sidebar_import_waiting: "import waiting",
-    /// Text in `sidebar`.
-    sidebar_none: "none",
-    /// Text in `sidebar`. `{}`: `k`.
-    sidebar_attached: "{} attached",
     /// Button in `sidebar`.
     sidebar_lock: "Lock",
     /// Button in `sidebar`, the rail and the bar's menu on the online

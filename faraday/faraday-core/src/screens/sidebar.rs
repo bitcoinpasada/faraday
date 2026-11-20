@@ -151,11 +151,7 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     }
 
     let held = app.lock_held();
-    // The stick's row is shown when a stick is attached or an import
-    // waits; with none, "none" is not worth the room.
-    let sticks_row = sticks_row_shown(app);
-    let foot_top = h - 124.0 + if sticks_row { 0.0 } else { TOUCH }
-        - if held { LOCK_PILL_H + GRID } else { 0.0 };
+    let foot_top = h - 124.0 + TOUCH - if held { LOCK_PILL_H + GRID } else { 0.0 };
     // The rule above the foot stands under the last tab at the highest.
     ui.rule(
         12.0,
@@ -163,65 +159,8 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
         SIDEBAR_W - 24.0,
         Role::OutlineVariant,
     );
-    foot(app, ui, foot_top, held, sticks_row);
-}
-
-/// Whether the foot has the stick's row: a stick is
-/// attached, or an import the boot stick brought waits behind it.
-fn sticks_row_shown(app: &View) -> bool {
-    !app.stick.is_empty() || app.import.state().is_some()
-}
-
-/// The foot of the sidebar from `fy`: the stick's row (`sticks_row`), Lock and Power off, and under them the pill
-/// while the idle lock is `held`.
-fn foot(app: &View, ui: &mut Ui, fy: f32, held: bool, sticks_row: bool) {
-    let mut fy = fy;
-    if sticks_row {
-        stick_row(app, ui, fy);
-        fy += TOUCH;
-    }
     // Room above the buttons, for their targets to reach 48 dp.
-    foot_buttons(app, ui, fy + 12.0, held);
-}
-
-/// The stick's row at `fy`: what is attached, or the import waiting.
-fn stick_row(app: &View, ui: &mut Ui, fy: f32) {
-    // With no stick attached, an import the boot stick brought waits
-    // behind this row.
-    let waiting = app.import.state().is_some() && app.stick.is_empty();
-    let sticks = match app.stick.len() {
-        0 if waiting => EN.sidebar_import_waiting.to_string(),
-        0 => EN.sidebar_none.to_string(),
-        1 => String::from(&*app.stick[0].label),
-        k => fill(EN.sidebar_attached, &[&k.to_string()]),
-    };
-    let open = waiting && app.sheet == Some(Sheet::Import);
-    if open {
-        ui.fill(
-            16.0,
-            fy,
-            SIDEBAR_W - 32.0,
-            TOUCH,
-            SHAPE_S,
-            Role::SecondaryContainer,
-        );
-    }
-    if waiting {
-        ui.press_box(16.0, fy, SIDEBAR_W - 32.0, TOUCH, crate::boot_import::OPEN);
-    }
-    let muted = on_selected(open, Role::OnSurfaceVariant);
-    ui.icon(22.0, fy + 14.0, 20.0, app.medium.icon(), 12.0, muted);
-    ui.text_mid_as((46.0, fy, TOUCH), BODY_S, muted, app.medium.caps());
-    let sticks = ui.fit_as(BODY_S, &sticks, 110.0);
-    let tone = on_selected(
-        open,
-        if waiting {
-            Role::Primary
-        } else {
-            Role::OnSurface
-        },
-    );
-    ui.text_right_as((SIDEBAR_W - 24.0, fy, TOUCH), BODY_S, tone, &sticks);
+    foot_buttons(app, ui, foot_top + 12.0, held);
 }
 
 /// What the power button reads: Quit on the online desktop build, which
