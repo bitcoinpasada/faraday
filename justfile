@@ -39,7 +39,8 @@ test-i686:
 # nothing (docs/COMPUTE.md §3), the docs lint
 # (a Kind and Status header on every document, every cited path real,
 # tools/lint-docs.py), and the layout lint (the code map, file sizes and
-# long functions, counts that only fall, tools/lint-layout.py), the touch-target
+# long functions, counts that only fall, tools/lint-layout.py), the standard parts
+# kept in place (counts that only fall, tools/lint-components.py), the touch-target
 # ratchet (lint-touch-targets), the instruction counts of named costly
 # operations (lint-op-cost, F238), the tree
 # lint (the top level's entries, no leftovers, no file over 2 MiB,
@@ -91,6 +92,7 @@ lint-repo:
     tools/lint-tokens.sh
     python3 -I -B tools/lint-docs.py
     python3 -I -B tools/lint-layout.py
+    python3 -I -B tools/lint-components.py
     python3 -I -B tools/lint-leak-reveals.py
     tools/lint-tree.sh
     # Each fuzz crate's README table lists exactly its targets.
@@ -137,6 +139,7 @@ lint-repo:
     python3 -I -B tools/impact.py check --quiet
     # The lint's runner: every command to the end, in the recipe's order.
     python3 -I -B tools/test_lint_all.py
+    python3 -I -B tools/test_lint_components.py
 
 # Every lint of `lint`, run to the end: one line per command, then the
 # output of each that failed and the command to run it again

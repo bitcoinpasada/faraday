@@ -1,0 +1,13 @@
+# Counts held by tools/lint-components.py. Each only falls: a file over its count
+# fails, one under it fails until the count is lowered (`--write`), a file not
+# listed allows none, and a rule with no line here is banned. Raising or adding
+# a count is the owner's decision, recorded in DECISIONS.
+#
+# Format: RULE PATH COUNT
+
+public-kind-number faraday/faraday-core/src/screens/backup.rs 4
+public-kind-number faraday/shells/snapshot/src/tours/again.rs 1
+public-kind-number faraday/shells/snapshot/src/tours/boot.rs 2
+public-kind-number faraday/shells/snapshot/src/tours/default.rs 1
+public-kind-number faraday/shells/snapshot/src/tours/public.rs 5
+public-kind-number faraday/shells/snapshot/src/tours/wallet_flow.rs 1
