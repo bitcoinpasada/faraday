@@ -201,6 +201,11 @@ address is named, and a file of several addresses lists each with its
 place. The screen, the refusals and the fuzz targets are DESIGN §5's
 Check, "Check an address".
 
+Each scanner's seed branch reads the kind's form (`Kind::form`, through
+`Kind::route`; `docs/KEY-FORMS.md` §3.3): a whole words or codex32 key
+loads, a codex32 or SLIP-39 share goes to its form, a Krux code to its
+sheet, and a kind that is no form keeps its row above.
+
 A Krux encrypted code read by a scanner a flow opened for a seed (Restore's and Create's slots,
 a wallet's Scan a key, What do you have?) is opened by its passphrase on its own sheet; the seed
 it holds then goes where a SeedQR read by that scanner goes, with the code's id on the seed

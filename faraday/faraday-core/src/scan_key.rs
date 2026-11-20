@@ -1455,11 +1455,11 @@ impl Faraday {
         let mut not_kept = false;
         let mut kef = None;
         let ways = match kind {
-            k if k.seed() => {
+            k if k.route() == scan_read::Route::Load => {
                 facts.extend(self.read_key_fact(c, k, &code, &text).map(|f| Text::of(&f)));
                 vec![Way::Key]
             }
-            Kind::Codex32Share | Kind::Slip39Share => {
+            k if matches!(k.route(), scan_read::Route::Part(_)) => {
                 facts.extend(scan_read::share_fact(&text));
                 vec![Way::Share]
             }
@@ -1491,14 +1491,16 @@ impl Faraday {
                 facts.extend(scan_read::account_fact(&text));
                 vec![Way::UseKey]
             }
-            Kind::Kef => match crate::seeds::kef::kef_header(self, &code) {
-                Some((h, lines)) => {
-                    facts.extend(lines.iter().map(|l| Text::of(l)));
-                    kef = Some(h);
-                    vec![Way::NotEncrypted, Way::Open]
+            k if k.route() == scan_read::Route::Sheet => {
+                match crate::seeds::kef::kef_header(self, &code) {
+                    Some((h, lines)) => {
+                        facts.extend(lines.iter().map(|l| Text::of(l)));
+                        kef = Some(h);
+                        vec![Way::NotEncrypted, Way::Open]
+                    }
+                    None => Vec::new(),
                 }
-                None => Vec::new(),
-            },
+            }
             Kind::Invoice => vec![Way::Invoice],
             Kind::Message => vec![Way::Check],
             Kind::Gpg if crate::backup_flow::gpg_restore::RestoreFrom::read(&code).is_ok() => {
@@ -2048,11 +2050,7 @@ impl Faraday {
         let c = self.compute();
         let kind = scan_read::secret_kind(&c, &bytes);
         let form = self.entry.state().form;
-        let kind_form = match kind {
-            Some(Kind::Codex32Share | Kind::Codex32Secret) => Some(Form::Codex32),
-            Some(Kind::Slip39Share) => Some(Form::Slip39),
-            _ => None,
-        };
+        let kind_form = kind.and_then(Kind::part_form);
         if let Some(to) = kind_form.filter(|f| *f != form) {
             if let Some(i) = Form::ALL.iter().position(|f| *f == to) {
                 self.act(Action::EntryForm(i as u8));
@@ -2103,10 +2101,8 @@ impl Faraday {
             drop(bytes);
             return self.wallet_key_scanned(w, &words);
         }
-        let form = match scan_read::secret_kind(&c, &bytes) {
-            Some(Kind::Codex32Secret | Kind::Codex32Share) => Form::Codex32,
-            Some(Kind::Slip39Share) => Form::Slip39,
-            _ => return self.scan_not_taken(bytes),
+        let Some(form) = scan_read::secret_kind(&c, &bytes).and_then(Kind::part_form) else {
+            return self.scan_not_taken(bytes);
         };
         let given = trimmed(&bytes);
         let text = if form == Form::Slip39 {

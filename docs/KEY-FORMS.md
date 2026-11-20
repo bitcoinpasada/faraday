@@ -1,7 +1,7 @@
 # Key forms: one registry of the forms a key comes in
 
 **Kind:** Spec
-**Status:** Specified (F299, F300); the registry crate `faraday-forms` is built (the identifier and the table of §3.2, and `scan_read::Kind::form`), and the lists of §2 are not yet moved onto it: eight lists still repeat what it knows by hand.
+**Status:** Specified (F299, F300); the registry crate `faraday-forms` is built (the identifier and the table of §3.2, and `scan_read::Kind::form`, which the scanners' seed branches read through `Kind::route`), and the other lists of §2 are not yet moved onto it: seven lists still repeat what it knows by hand.
 **Open:** every list moved onto the registry; the ways-in component on each screen that takes a key; copies and their checks worked out from it; the two forms of an extended private key and a master seed in hex in the registry, their screens, the Inbox's finding of a file holding one and Convert's reading of them (the key boundary reads both)
 
 A key comes into Faraday in one of a few forms: BIP-39 words, SLIP-39
@@ -49,7 +49,7 @@ crossed with how they are kept, written by hand.
 | Add a key's forms | `forms::Form`, `faraday/faraday-core/src/forms.rs` | Words, SLIP-39, codex32, Seed XOR, Krux | the registry's identifier, moved down a crate (§3.1); the typing state (`Parts`, `Codex32Form`) stays here |
 | New key's Start | `keygen::Start` and `STARTS`, `faraday/faraday-core/src/keygen/start.rs` | make words, make codex32, make SLIP-39, type each form, scan | `Make(Form)`, `Type(Form)` and `Scan`, the forms read from the table (§3.4) |
 | Check's backup menu | `check::Backup` and `check::FORMS`, `faraday/faraday-core/src/check/mod.rs` | SLIP-39, Seed XOR, SeedQR, codex32, Krux | a filter of the table's copies that Check reads back (§5) |
-| Kinds a seed scanner loads | `Kind::seed`, `faraday/faraday-core/src/scan_read.rs` | words, SeedQR, CompactSeedQR, codex32 secret | `Kind::form`, one map from every kind to its form, whole or a part (§3.3) |
+| Kinds a seed scanner loads | `Kind::seed`, `faraday/faraday-core/src/scan_read.rs` | words, SeedQR, CompactSeedQR, codex32 secret | built: `Kind::form`, one map from every kind to its form, whole or a part (§3.3), and `Kind::route`, an exhaustive map from form and piece to what a scanner does |
 | The Inbox's seeds | `inbox::SeedSource` and `inbox::Secret`, `faraday/faraday-core/src/inbox.rs` | words (with a passphrase file), SLIP-39, codex32, xprv, hex seed, loaded | stay their own types, since they carry Inbox places and the read secret; each maps from a form, exhaustively |
 | Samples | `samples::SampleForm`, `faraday/faraday-core/src/samples/mod.rs` | words, SLIP-39, codex32, Seed XOR, master seed, aezeed | a form of the table, or the aezeed, which is no key form; its passphrase fact read from the table |
 | Create's Backup card | `create::BackupForm`, `faraday/faraday-core/src/create.rs` | words, codex32 | a filter of the table: the forms Create makes a new key in |

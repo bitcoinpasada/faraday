@@ -20,6 +20,19 @@ pub enum Piece {
     Part,
 }
 
+/// What a scanner that loads a seed does with a kind (`Kind::route`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Route {
+    /// A whole key it loads at once.
+    Load,
+    /// A part of a set, which goes to its form's collection.
+    Part(Form),
+    /// A Krux code, opened under its passphrase on its own sheet.
+    Sheet,
+    /// Not a form: the kind's row of `docs/SCANNING.md` §4.2.
+    Other,
+}
+
 /// What a code is: §2's kinds, in the words the scanner names them with.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
@@ -158,11 +171,39 @@ impl Kind {
         }
     }
 
-    /// Whether the kind is a whole seed a scanner that loads one takes:
-    /// a whole form, leaving out a Krux code, which no seed scanner loads
-    /// yet.
+    /// What a scanner that loads a seed does with the kind, read from its
+    /// form and whether it is whole or a part (`docs/KEY-FORMS.md` §3.3).
+    /// Every form is named, so a form added to the table fails to compile
+    /// here until it is said what a scanner does with it.
+    pub fn route(self) -> Route {
+        let Some((form, piece)) = self.form() else {
+            return Route::Other;
+        };
+        match (form, piece) {
+            (Form::Words | Form::Codex32, Piece::Whole) => Route::Load,
+            (Form::Codex32 | Form::Slip39, Piece::Part) => Route::Part(form),
+            (Form::Krux, Piece::Whole) => Route::Sheet,
+            // No kind is a whole SLIP-39 or Seed XOR key, a part of a
+            // words, Seed XOR or Krux key.
+            (Form::Slip39 | Form::Xor, Piece::Whole)
+            | (Form::Words | Form::Xor | Form::Krux, Piece::Part) => Route::Other,
+        }
+    }
+
+    /// Whether the kind is a whole seed a scanner that loads one takes: a
+    /// Krux code is not, it is opened on its own sheet first.
     pub fn seed(self) -> bool {
-        matches!(self.form(), Some((f, Piece::Whole)) if f != Form::Krux)
+        self.route() == Route::Load
+    }
+
+    /// The form of shares or a secret a scanner sends to Add a key's form
+    /// for it, if the kind is one.
+    pub fn part_form(self) -> Option<Form> {
+        let (form, _) = self.form()?;
+        match form {
+            Form::Codex32 | Form::Slip39 => Some(form),
+            Form::Words | Form::Xor | Form::Krux => None,
+        }
     }
 
     /// What the kind is called (`docs/SCANNING.md` §7.2).
