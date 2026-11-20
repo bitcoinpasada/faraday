@@ -57,8 +57,6 @@ pub enum Why {
     Missing,
     /// Two keys of which one is allowed.
     Exclusive,
-    /// Words that are not a valid BIP-39 phrase of the English list.
-    BadWords,
     /// Hex that is not lower case, or not of its length.
     BadHex,
     /// A codex32 set's facts, or a codex32 string, that are not a set or
