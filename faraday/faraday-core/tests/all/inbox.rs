@@ -124,6 +124,31 @@ fn a_seed_words_file_goes_into_the_vault_as_a_key() {
     );
 }
 
+/// A seed file in Spanish (the published vector) added to an open vault
+/// becomes a key record, as one in English does.
+#[test]
+fn a_spanish_seed_words_file_goes_into_the_vault_as_a_key() {
+    let name = "seed-es.txt".to_string();
+    let words = "ábaco ábaco ábaco ábaco ábaco ábaco ábaco ábaco ábaco ábaco ábaco abierto\n";
+    let mut app = unlocked(vec![(name.clone(), words.as_bytes().to_vec())]);
+    assert_eq!(app.inbox()[at(&app, &name)].kind, FileKind::Words);
+    let keys = app
+        .vaults()
+        .store()
+        .contents_for_tests(app.vaults().open[0].id)
+        .of(kind::KEY)
+        .count();
+    app.press(Action::Vault(V::AddFile(at(&app, &name))));
+    assert_eq!(
+        app.vaults()
+            .store()
+            .contents_for_tests(app.vaults().open[0].id)
+            .of(kind::KEY)
+            .count(),
+        keys + 1
+    );
+}
+
 /// Whether Files offers `action` anywhere down the page, moved down by
 /// key as a person would, each glide ticked through.
 fn files_offers(app: &mut Faraday, action: Action) -> bool {

@@ -2052,6 +2052,7 @@ impl Faraday {
             self.toast(EN.vaults_unlock_a_vault);
             return;
         }
+        let c = self.compute();
         let Some(it) = self.inbox.get(k) else {
             return;
         };
@@ -2070,9 +2071,9 @@ impl Faraday {
             }
             FileKind::Words => {
                 let words = crate::forms::file_words(&text);
-                let Ok(m) =
-                    crate::forms::typed_mnemonic(faraday_bip::bip39::Language::English, &words)
-                else {
+                let Some(m) = crate::wallet::seed_mnemonic(&c, &words) else {
+                    let said = Text::fill(EN.vaults_file_not_a_seed, &[&it.name]);
+                    self.toast(&said);
                     return;
                 };
                 (

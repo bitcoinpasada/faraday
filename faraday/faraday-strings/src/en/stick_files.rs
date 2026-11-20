@@ -147,6 +147,8 @@ macro_rules! words_stick_files {
     /// Text in `vault_add_file`. `{}`: `it.name`.
     vaults_file_added_as_key: "{} is in the vault as a key",
     /// Text in `vault_add_file`. `{}`: `it.name`.
+    vaults_file_not_a_seed: "{} is not a valid seed in any list",
+    /// Text in `vault_add_file`. `{}`: `it.name`.
     vaults_is_in_the_vault_as: "{} is in the vault as a wallet",
     /// Toast in `key_record`.
     vaults_this_key_has: "This key has no words to keep",
