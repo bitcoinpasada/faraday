@@ -421,6 +421,9 @@ pub struct SignedText {
 /// does not decode (a line of seed words under an address title) is
 /// not.
 ///
+/// The fewest bytes a signature decodes to (BIP-137's compact signature).
+const MIN_SIGNATURE_LEN: usize = 65;
+
 /// A file that ends with a newline carries the same message as one that
 /// does not, so a single trailing newline is dropped; every other
 /// newline in the message is kept.
@@ -430,11 +433,12 @@ pub fn parse_signed(text: &str) -> Option<SignedText> {
     let (signature, message) = rest.split_once('\n')?;
     let address = address.trim();
     let signature = signature.trim();
-    if address.is_empty()
-        || signature.is_empty()
-        || signature.contains(char::is_whitespace)
-        || base64::decode(signature).is_err()
-    {
+    if address.is_empty() || signature.is_empty() || signature.contains(char::is_whitespace) {
+        return None;
+    }
+    // BIP-137 is exactly 65 bytes and a BIP-322 signature is longer: a
+    // shorter token (a seed word that is valid base64) is not one.
+    if base64::decode(signature).map_or(true, |bytes| bytes.len() < MIN_SIGNATURE_LEN) {
         return None;
     }
     Some(SignedText {

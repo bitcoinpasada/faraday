@@ -670,6 +670,19 @@ fn an_address_titled_seed_file_is_text_not_a_message() {
     );
 }
 
+/// A seed written one word per line under an address title is a plain text file (as with any
+/// other title), not a message, even when
+/// its first word is valid base64 (`army`): it is not a signature.
+#[test]
+fn an_address_titled_seed_one_word_per_line_is_text_not_a_message() {
+    let c = testkit::compute();
+    let file = "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu\narmy\nvan\ndefense\ncarry\njealous\ntrue\ngarbage\nclaim\necho\nmedia\nmake\ncrunch\n";
+    assert_eq!(
+        faraday_core::wallet::classify(&c, "seed.txt", file.as_bytes()),
+        FileKind::Text
+    );
+}
+
 /// A signed message goes as its own text, public; one whose body is a
 /// seed's words is not a signed message to Faraday and does not go so.
 #[test]

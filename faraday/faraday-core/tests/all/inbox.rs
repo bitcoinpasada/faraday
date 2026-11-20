@@ -178,6 +178,11 @@ const SEED_24: &str = "limb sadness employ night rocket crime garden timber titl
 /// The words of `file` added to the open vault: the word counts of the
 /// key records' seeds that came from it.
 fn added_key_word_counts(file: &str) -> Vec<usize> {
+    added_key_word_counts_of(file, SEED_24)
+}
+
+/// Like `added_key_word_counts`, against the seed `seed` instead of `SEED_24`.
+fn added_key_word_counts_of(file: &str, seed: &str) -> Vec<usize> {
     let c = testkit::compute();
     let name = "seed.txt".to_string();
     let mut app = unlocked(vec![(name.clone(), file.as_bytes().to_vec())]);
@@ -186,11 +191,7 @@ fn added_key_word_counts(file: &str) -> Vec<usize> {
     [12usize, 18, 24]
         .into_iter()
         .filter(|&n| {
-            let words = SEED_24
-                .split(' ')
-                .skip(24 - n)
-                .collect::<Vec<_>>()
-                .join(" ");
+            let words = seed.split(' ').skip(24 - n).collect::<Vec<_>>().join(" ");
             let Ok(m) =
                 faraday_keys::words::parse(&c, faraday_bip::bip39::Language::English, &words)
             else {
@@ -236,17 +237,53 @@ fn a_title_line_before_the_words_adds_no_shorter_seed() {
 }
 
 /// A bitcoin address as the title line of a seed file does not make the words after it a
-/// signed message: no shorter seed is added from the lines after the first words.
+/// signed message: no shorter seed is added, and one note holds all 24 words.
 #[test]
 fn an_address_title_before_the_words_adds_no_shorter_seed() {
+    const SEED: &str = "area funny under front blood bargain file awkward sea obtain short ten sun verify cube crumble pet room edge grief vast ugly crucial crater";
     let file = format!(
         "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu\n{}\n{}\n{}\n{}\n",
-        "limb sadness employ night rocket crime",
-        "garden timber title eight spy stay",
-        "company embark secret face fork stable",
-        "mosquito lock visual bamboo decide velvet"
+        "area funny under front blood bargain",
+        "file awkward sea obtain short ten",
+        "sun verify cube crumble pet room",
+        "edge grief vast ugly crucial crater"
     );
-    assert!(added_key_word_counts(&file).is_empty());
+    assert!(added_key_word_counts_of(&file, SEED).is_empty());
+    let mut app = unlocked(vec![("seed.txt".to_string(), file.as_bytes().to_vec())]);
+    app.press(Action::Vault(V::AddFile(at(&app, "seed.txt"))));
+    let notes: Vec<String> = app
+        .vaults()
+        .store()
+        .contents_for_tests(app.vaults().open[0].id)
+        .of(kind::NOTE)
+        .filter_map(|(_, r)| r.text(field::NOTE).map(str::to_string))
+        .filter(|t| t.contains("area funny"))
+        .collect();
+    assert_eq!(notes.len(), 1, "{notes:?}");
+    assert!(notes[0].replace('\n', " ").contains(SEED), "{notes:?}");
+}
+
+/// The same address title over a seed written one word per line: the first word is not a
+/// signature, so the file is not a message and one note holds all 12 words.
+#[test]
+fn an_address_title_over_one_word_per_line_adds_a_note_with_all_the_words() {
+    const SEED: &str = "army van defense carry jealous true garbage claim echo media make crunch";
+    let file = format!(
+        "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu\n{}\n",
+        SEED.replace(' ', "\n")
+    );
+    let mut app = unlocked(vec![("seed.txt".to_string(), file.as_bytes().to_vec())]);
+    app.press(Action::Vault(V::AddFile(at(&app, "seed.txt"))));
+    let notes: Vec<String> = app
+        .vaults()
+        .store()
+        .contents_for_tests(app.vaults().open[0].id)
+        .of(kind::NOTE)
+        .filter_map(|(_, r)| r.text(field::NOTE).map(str::to_string))
+        .filter(|t| t.contains("army"))
+        .collect();
+    assert_eq!(notes.len(), 1, "{notes:?}");
+    assert!(notes[0].replace('\n', " ").contains(SEED), "{notes:?}");
 }
 
 /// Whether Files offers `action` anywhere down the page, moved down by

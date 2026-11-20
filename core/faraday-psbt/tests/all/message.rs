@@ -424,19 +424,23 @@ fn a_witness_signature_that_is_not_der_is_malformed() {
     );
 }
 
+/// A 65-byte signature, as BIP-137 writes it.
+const SIG: &str =
+    "H9L5yLFjti0QTHhPyFrZCT1V/MMnBtXKmoiKDZ78NDBjERki6ZTQZdSMCtkgoNmp17By9ItJr8o7ChX0XxY91nk=";
+
 /// A message that ends in a newline is read back from the file Faraday
 /// wrote for it as the same message, and a file from another tool, whose
 /// last newline is the file's own, still reads as before.
 #[test]
 fn a_message_ending_in_a_newline_reads_back_from_its_file() {
     for message in ["hello\n", "hello\n\n", "a\nb\n", "\n", "hello"] {
-        let file = message::signed_text("bc1qaddress", "c2ln", message);
+        let file = message::signed_text("bc1qaddress", SIG, message);
         let read = message::parse_signed(&file).expect("the file reads");
         assert_eq!(read.message.as_str(), message, "{message:?}");
     }
-    let sparrow = message::parse_signed("bc1qaddress\nc2ln\nhello\n").expect("reads");
+    let sparrow = message::parse_signed(&format!("bc1qaddress\n{SIG}\nhello\n")).expect("reads");
     assert_eq!(sparrow.message.as_str(), "hello");
-    let bare = message::parse_signed("bc1qaddress\nc2ln\nhello").expect("reads");
+    let bare = message::parse_signed(&format!("bc1qaddress\n{SIG}\nhello")).expect("reads");
     assert_eq!(bare.message.as_str(), "hello");
 }
 
@@ -445,5 +449,13 @@ fn a_message_ending_in_a_newline_reads_back_from_its_file() {
 fn a_second_line_that_is_not_one_base64_token_is_not_a_signed_message() {
     assert!(message::parse_signed("bc1qaddress\narea funny under front\nhello\n").is_none());
     assert!(message::parse_signed("bc1qaddress\nc2l*\nhello\n").is_none());
-    assert!(message::parse_signed("bc1qaddress\nc2ln\nhello\n").is_some());
+    assert!(message::parse_signed(&format!("bc1qaddress\n{SIG}\nhello\n")).is_some());
+}
+
+/// A signature is at least 65 bytes once decoded: a single seed word that happens to be valid
+/// base64 (`army`) is not one.
+#[test]
+fn a_short_base64_line_is_not_a_signature() {
+    assert!(message::parse_signed("bc1qaddress\narmy\nvan\n").is_none());
+    assert!(message::parse_signed("bc1qaddress\nc2ln\nhello\n").is_none());
 }
