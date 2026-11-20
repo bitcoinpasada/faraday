@@ -27,7 +27,7 @@ pub(crate) enum Kind {
     /// `PASSPHRASE_MAX`.
     KefMake,
     /// A Krux code's passphrase being read: any non-control character (the
-    /// code was made elsewhere), the same most.
+    /// code was made elsewhere), with no most.
     KefRead,
     /// An aezeed's or a `hsm_secret`'s passphrase: printable ASCII as
     /// before, no most (their standards set none).
