@@ -374,9 +374,11 @@ pub struct SealJob {
     /// step, when the seal takes them.
     rekey: (Option<SecretText>, Option<u32>),
     /// The key file's key the seal writes (`Some(None)`: none); wiped with
-    /// the job.
-    parts: Option<Option<Zeroizing<[u8; 32]>>>,
-    random: Zeroizing<[u8; SEAL_RANDOM_LEN]>,
+    /// the job. Boxed, with `random`, so that moving the job (the worker
+    /// takes it out of its own box) moves a pointer and leaves no copy of
+    /// the key in the block it came from.
+    parts: Option<Option<Box<Zeroizing<[u8; 32]>>>>,
+    random: Box<Zeroizing<[u8; SEAL_RANDOM_LEN]>>,
     now: Option<u64>,
 }
 
@@ -401,8 +403,8 @@ impl SealJob {
             ops,
             names,
             rekey,
-            parts,
-            random: Zeroizing::new(*random),
+            parts: parts.map(|p| p.map(Box::new)),
+            random: Box::new(Zeroizing::new(*random)),
             now,
         }
     }
@@ -418,7 +420,7 @@ impl SealJob {
                 let rekey = fv::file::Rekey {
                     passphrase: self.rekey.0.as_ref().map(SecretText::as_str),
                     memory_kib: self.rekey.1,
-                    key_file: self.parts.as_ref().map(|k| k.as_deref()),
+                    key_file: self.parts.as_ref().map(|k| k.as_ref().map(|b| &***b)),
                 };
                 fv::file::seal_with(c, &self.opened, changes, rekey, &self.random, self.now)
             }),
