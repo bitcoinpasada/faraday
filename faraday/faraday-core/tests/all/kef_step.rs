@@ -84,22 +84,24 @@ fn done(app: &Faraday) -> bool {
 }
 
 /// The status the item's row reads once the card is put away, the card
-/// opened again after.
+/// opened again after. A checked code moves the flow on to its next step
+/// and Your choices then says only Done, so the status is read from the
+/// card opened again.
 fn status(app: &mut Faraday) -> &'static str {
+    let read = |app: &mut Faraday| {
+        let texts = crate::common::texts(app);
+        let row = texts.iter().position(|t| t.starts_with("Krux code of"))?;
+        ["Not made", "Not checked", "Checked"]
+            .into_iter()
+            .find(|s| texts[row + 1..].iter().take(3).any(|t| t == s))
+    };
     if app.backup().and_then(|b| b.open) == Some(Item::KefCode(0)) {
         app.press(Action::BStep(Item::KefCode(0)));
     }
-    let texts = crate::common::texts(app);
-    let row = texts
-        .iter()
-        .position(|t| t.starts_with("Krux code of"))
-        .expect("the item's row");
-    let read = ["Not made", "Not checked", "Checked"]
-        .into_iter()
-        .find(|s| texts[row + 1..].iter().take(3).any(|t| t == s))
-        .unwrap_or("none");
+    let closed = read(app);
     open_item(app, Item::KefCode(0));
-    read
+    app.settle();
+    closed.or_else(|| read(app)).unwrap_or("none")
 }
 
 fn type_in(app: &mut Faraday, text: &str) {
