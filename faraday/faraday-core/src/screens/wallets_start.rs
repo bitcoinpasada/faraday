@@ -17,7 +17,10 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (x, width) = if compact {
         (x0 + crate::compact::M, cw - 2.0 * crate::compact::M)
     } else {
-        (x0 + 48.0, cw - 96.0)
+        (
+            x0 + faraday_draw::tokens::PAGE_INSET,
+            (cw - 2.0 * faraday_draw::tokens::PAGE_INSET).min(faraday_draw::tokens::TRANSFER_W),
+        )
     };
     ui.page_begin((x0, cw, h), app.list_offset);
     let mut y = if compact {

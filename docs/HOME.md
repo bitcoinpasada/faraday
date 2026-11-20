@@ -14,7 +14,8 @@ Home is drawn by layout, not by one model:
 - **The wide layout** (1280 by 800 and up, the expanded rail):
   `faraday-core`'s `screens/home.rs`. The sidebar carries the places, so
   the page holds the search bar, the lead, the first actions, the loaded
-  wallets beside Backups and the Keys section.
+  wallets beside Backups and the Keys section, in the column of Tools'
+  catalogue (at most `TRANSFER_W` wide, centred in the room, `docs/LAYOUT.md` §4).
 - **The Pi's menu** (the Pi's 480 by 640 panel, no navigation component)
   and **the one-column windows with navigation** (the rail's and the
   phone-size window's bar): `compact/mod.rs`. On the Pi's menu and the

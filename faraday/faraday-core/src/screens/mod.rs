@@ -156,17 +156,19 @@ fn area_of(screen: Screen) -> Area {
         // Check's tiles are Tools' grid, in Tools' width.
         Screen::Check => Area::Reading(faraday_draw::tokens::READING_TRANSFER_W),
         // New key, which holds Make codex32 shares and its supporting
-        // pane; Home, whose tiles are a feed across the work width; and
+        // pane; Home, at most `TRANSFER_W` wide as the tools' catalogue is; and
         // the lists, a list pane and the one chosen beside it to the
         // window's edge (`docs/LAYOUT.md` §5, §17).
         // Settings' cards, two columns of them where they fit
         // (`docs/LAYOUT.md` §17), centred in the room.
-        Screen::KeyGen | Screen::Home | Screen::Settings => Area::Work,
+        Screen::Home => Area::Reading(faraday_draw::tokens::READING_TRANSFER_W),
+        Screen::KeyGen | Screen::Settings => Area::Work,
         s if crate::panes::has_list(s) => Area::Work,
         // Wallets' first page and the codes are reading content; an open
         // vault's contents are list and detail, its kinds, items and the
         // item, to the window's edge (`docs/LAYOUT.md` §5, §17).
-        Screen::WalletsStart | Screen::Codes => Area::Reading(READING_PAGE_W),
+        Screen::WalletsStart => Area::Reading(faraday_draw::tokens::READING_TRANSFER_W),
+        Screen::Codes => Area::Reading(READING_PAGE_W),
         Screen::VaultContents => Area::Work,
         _ => Area::Until,
     }

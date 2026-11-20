@@ -10,7 +10,7 @@ use crate::{Action, Screen};
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, SHAPE_M, TITLE_M};
 use faraday_draw::tokens::{
     HOME_LEAD_H, HOME_LEAD_ICON, HOME_LEAD_INSET, HOME_LEAD_SUB_Y, HOME_LEAD_TEXT_X,
-    HOME_TILE_ICON, HOME_TILE_INSET, HOME_TILE_TEXT_X, LEAD_MAX, MARGIN_WIDE, TILE_H, TILE_MIN,
+    HOME_TILE_ICON, HOME_TILE_INSET, HOME_TILE_TEXT_X, LEAD_MAX, PAGE_INSET, TILE_H, TILE_MIN,
 };
 use faraday_draw::widgets::Icon;
 use faraday_ui::parts::section_label;
@@ -812,14 +812,15 @@ pub(crate) fn home_pinned(above: f32, window: f32, row: f32) -> bool {
 }
 
 /// Home on the wide layout, named by the top app bar (`docs/HOME.md`):
-/// the search bar first, centred and standing still, and under it, across
-/// the work width (`docs/LAYOUT.md` §4, §17), from the page's start to
-/// `MARGIN_WIDE` from its end, the lead, the three first actions, the
+/// the search bar first, centred and standing still, and under it, in the
+/// tools' catalogue's column (`docs/LAYOUT.md` §4, §14): at most
+/// `TRANSFER_W` wide, centred in the room, the lead, the three first actions, the
 /// loaded wallets beside Backups and the Keys section, scrolling. While
 /// something is typed its results take the page.
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32) {
-    let x = x0 + 56.0;
-    let width = cw - (x - x0) - MARGIN_WIDE;
+    // The tools' catalogue's column: its inset, at most `TRANSFER_W`.
+    let x = x0 + PAGE_INSET;
+    let width = (cw - 2.0 * PAGE_INSET).min(faraday_draw::tokens::TRANSFER_W);
     let head = super::bar_head(ui, None, EN.home_home);
     let gap = 16.0;
     let h = ui.c.height() as f32 / ui.f;

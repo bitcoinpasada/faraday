@@ -140,7 +140,14 @@ Cancel already rules (F51).
 ## 4. Home
 
 Home is Material's feed layout: the lead tile while something is under
-way or waiting (`docs/FLOWS.md`, Home), then the tiles in a grid.
+way or waiting (`docs/FLOWS.md`, Home), then the tiles in a grid. On the
+windows with the page area to themselves, the whole page (the search
+bar, the lead, the first actions, the wallets and the Keys) stands in the
+column of the tools' catalogue: its inset (`PAGE_INSET`) in from each
+side, at most `TRANSFER_W` wide, centred in the room beside the
+navigation, so on a large monitor Home's tiles start and end where Tools'
+grid does, and where the room is narrower they take all of it, as Tools'
+do.
 
 - **The box of what is loaded** (every window without the expanded
   rail, the small panel included, but not the rail's windows, which have
@@ -187,6 +194,10 @@ way or waiting (`docs/FLOWS.md`, Home), then the tiles in a grid.
 
 Home is drawn by layout, three Homes, and the destinations stand in one
 order: `docs/HOME.md`.
+
+Wallets with none loaded (`WalletsStart`) stands in the same column, so
+Home, Wallets and Tools line up on a large monitor and on a small laptop
+all take the room.
 
 ## 5. Panes
 
