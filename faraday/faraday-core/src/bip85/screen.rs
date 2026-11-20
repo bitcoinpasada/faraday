@@ -24,45 +24,31 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(b) = app.bip85.state() else {
         return;
     };
-    let cards: Vec<flow::Card> = (0..pstep::COUNT as u8)
-        .map(|s| flow::Card {
-            title: TITLES[usize::from(s)].to_string(),
-            summary: summary(app, b, s),
-            mono: s == pstep::KEY || s == pstep::INDEX,
-            done: b.done[usize::from(s)],
-            open: b.open == Some(s)
-                || (s == pstep::RESULT && b.open == Some(pstep::INDEX) && b.index().is_some()),
-            default: false,
-            toggle: Action::PStep(s),
-            lead: None,
-        })
-        .collect();
-    let col = flow::Column {
-        area_x: x0,
-        area_w: cw,
-        x: x0 + 40.0,
-        w: (cw - 80.0).min(900.0),
+    let page = flow::Page {
+        area: (x0, cw),
         h,
+        foot_h: 0.0,
         back: Some(app.named_back((EN.bip85_wallets, Action::Nav(b.back)))),
         heading: EN.bip85_derive_with_bip,
-        wrap_closed: false,
-        total_fixed: true,
-        all_shown: false,
-        note: None,
         chip: None,
+        note: None,
         chip_tap: None,
         moves: crate::ui::Moves::Yes,
     };
+    let Some(contained) = crate::trail::StepFlow::contained(&super::BIP85_STEPS) else {
+        return;
+    };
     let scroll = b.scroll;
-    let (next, again) = {
+    let (next, again, _) = {
         let app_ref: &View = app;
-        let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
+        let mut body = |ui: &mut Ui, k: u8, x: f32, y: f32, w: f32| -> f32 {
             match app_ref.bip85.state() {
-                Some(b) => card(app_ref, b, ui, i as u8, x, y, w),
+                Some(b) => card(app_ref, b, ui, k, x, y, w),
                 None => 0.0,
             }
         };
-        flow::column(ui, &col, &cards, scroll, &mut body)
+        let mut under = |_: &mut Ui, _: f32, _: f32, _: f32| 0.0;
+        flow::contained(ui, app_ref, contained, &page, scroll, &mut body, &mut under)
     };
     app.scroll(Scrolled::Bip85, next, again);
 }
@@ -78,7 +64,7 @@ fn length_label(b: &Bip85State) -> Option<String> {
     }
 }
 
-fn summary(app: &View, b: &Bip85State, s: u8) -> String {
+pub(super) fn summary(app: &crate::Faraday, b: &Bip85State, s: u8) -> String {
     match s {
         pstep::KEY => match b.key {
             Some(fp) => {
@@ -248,6 +234,10 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
                 EN.bip85_type_the_digits,
             );
             cy += ui.line_as(BODY_S) + faraday_draw::tokens::GRID;
+            // The value is the next step's: Continue opens it.
+            if b.index().is_some() && next_button(ui, x, cy, w, EN.bip85_continue, Action::PNext) {
+                cy += 48.0;
+            }
         }
         _ => {
             // On a small panel each value goes under its name.

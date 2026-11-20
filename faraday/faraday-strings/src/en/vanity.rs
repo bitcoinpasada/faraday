@@ -56,7 +56,6 @@ macro_rules! words_vanity {
     /// Text in `draw`.
     vanity_vanity_address: "Vanity address",
     /// Text in `summary`.
-    vanity_not_chosen: "Not chosen",
     /// Text in `summary`. `{}`: `thousands(v.grind.tested)`.
     vanity_tried_count: "{} tried",
     /// Text in `card`. `{}`: `thousands(expected)`.

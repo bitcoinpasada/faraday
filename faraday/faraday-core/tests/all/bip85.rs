@@ -18,6 +18,12 @@ use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware}
 use faraday_vault::records::{field, kind};
 
 fn with_key(inbox: Vec<(String, Vec<u8>)>) -> Faraday {
+    with_key_on(inbox, false)
+}
+
+/// The same, on Testnet when `testnet`, where a public sample is kept for
+/// testing and nothing stands over the page.
+fn with_key_on(inbox: Vec<(String, Vec<u8>)>, testnet: bool) -> Faraday {
     let mut app = Faraday::new();
     app.event(Event::Display(DisplayInfo {
         width: 1366,
@@ -39,10 +45,16 @@ fn with_key(inbox: Vec<(String, Vec<u8>)>) -> Faraday {
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
+    if testnet {
+        testkit::move_to(&mut app.session, testkit::NET).unwrap();
+    }
     app.press(Action::Entry(None));
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
     app.press(Action::EntryAdd);
     assert_eq!(app.session.keys.len(), 1);
+    if testnet {
+        testkit::keep_published(&mut app);
+    }
     app
 }
 
@@ -323,4 +335,47 @@ fn bip85_with_no_key_adds_one_on_the_add_a_key_page_and_returns() {
     app.press(Action::EntryAdd);
     assert_eq!(app.session.keys.len(), 1);
     assert_eq!(app.screen, Screen::Bip85, "back in the tool");
+}
+
+fn drawn_has(app: &mut Faraday, text: &str) -> bool {
+    let _ = app.frame();
+    app.drawn_texts().join(" ").contains(text)
+}
+
+#[test]
+fn one_step_is_drawn_at_a_time_and_your_choices_lists_the_answers() {
+    let mut app = with_key_on(Vec::new(), true);
+    app.press(Action::Bip85);
+    assert!(
+        drawn_has(&mut app, "Step 2 of 4"),
+        "{}",
+        app.drawn_texts().join(" ")
+    );
+    assert!(
+        !drawn_has(&mut app, "Step 1 of 4"),
+        "the earlier step is not drawn"
+    );
+    assert!(
+        drawn_has(&mut app, "Your choices"),
+        "the pane lists the steps"
+    );
+    assert!(app.offers(Action::PStep(0)), "a row opens the earlier step");
+    app.press(Action::PStep(0));
+    assert!(drawn_has(&mut app, "Step 1 of 4"));
+    assert!(!drawn_has(&mut app, "Step 2 of 4"));
+}
+
+#[test]
+fn leaving_a_shown_value_draws_the_next_step_at_once() {
+    let mut app = with_key(Vec::new());
+    app.press(Action::Bip85);
+    app.press(Action::PApp(4));
+    app.press(Action::PNext);
+    app.press(Action::PNext);
+    app.press(Action::PShow);
+    let _ = app.frame();
+    let _ = app.take_fade_counts();
+    app.press(Action::PStep(2));
+    let _ = app.frame();
+    assert_eq!(app.take_fade_counts().started, 0, "no fade from the value");
 }

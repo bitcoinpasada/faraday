@@ -30,7 +30,9 @@ pub(crate) static MESSAGE_STEPS: MessageSteps = MessageSteps;
 impl crate::trail::StepFlow for MessageSteps {
     fn steps(&self, app: &crate::Faraday) -> Option<crate::trail::Steps> {
         let m = app.message.state()?;
-        Some(crate::trail::Steps::new((0..4u8).collect(), m.open))
+        let mut s = crate::trail::Steps::new((0..4u8).collect(), m.open);
+        s.answered = (0..4u8).filter(|&k| m.done[usize::from(k)]).collect();
+        Some(s)
     }
 
     fn open(&self, _: &crate::Faraday, k: u8) -> Action {
@@ -39,6 +41,10 @@ impl crate::trail::StepFlow for MessageSteps {
 
     fn name(&self, _: &crate::Faraday, k: u8) -> &'static str {
         MSTEPS[usize::from(k)]
+    }
+
+    fn contained(&self) -> Option<&dyn crate::flow::Contained> {
+        Some(self)
     }
 
     fn moves_on(&self, _: &crate::Faraday, chosen: Action) -> Option<Action> {
@@ -51,80 +57,96 @@ impl crate::trail::StepFlow for MessageSteps {
     }
 }
 
+/// What the address row says: the address of one picked, or the wallet
+/// and the number of the receive address. A lookup: no address is derived
+/// for a row.
+fn chosen_address(app: &crate::Faraday) -> Option<(String, bool)> {
+    let m = app.message.state()?;
+    if let Some(at) = m.at.as_ref() {
+        return Some((String::from(&*short(&at.address)), true));
+    }
+    let wl = app.session.wallets.get(m.wallet?)?;
+    Some((
+        format!(
+            "{} · {}",
+            &*wl.name,
+            fill(EN.message_receive_address, &[&m.index.to_string()])
+        ),
+        false,
+    ))
+}
+
+impl crate::flow::Contained for MessageSteps {
+    fn rows(&self, app: &crate::Faraday) -> Vec<crate::flow::Row> {
+        use crate::mstep;
+        let Some(m) = app.message.state() else {
+            return Vec::new();
+        };
+        let address = chosen_address(app);
+        let mono = address.as_ref().is_some_and(|a| a.1);
+        (0..4u8)
+            .map(|k| {
+                let value = match k {
+                    mstep::ADDRESS => address.as_ref().map(|a| a.0.clone()).or_else(|| {
+                        (m.open == Some(k)).then(|| EN.message_none_chosen.to_string())
+                    }),
+                    mstep::TEXT => {
+                        let t = first_line(&m.text);
+                        (!t.is_empty()).then(|| format!("\"{t}\""))
+                    }
+                    mstep::FORMAT => (m.done[usize::from(k)] || m.open == Some(k))
+                        .then(|| (if m.bip322 { "BIP-322" } else { "BIP-137" }).to_string()),
+                    _ => match m.signed {
+                        Some(_) => Some(EN.message_signed.to_string()),
+                        None => (m.open == Some(k)).then(|| EN.message_not_signed.to_string()),
+                    },
+                };
+                crate::visible::choice_row(
+                    MSTEPS[usize::from(k)],
+                    value.as_deref(),
+                    k == mstep::ADDRESS && mono,
+                    (k, m.open == Some(k)),
+                )
+            })
+            .collect()
+    }
+
+    fn count_fixed(&self, _: &crate::Faraday) -> bool {
+        true
+    }
+
+    fn still_fits(&self, _: &crate::Faraday, _changed: u8, later: u8) -> bool {
+        // A signature is dropped by any change before it.
+        later != crate::mstep::SIGN
+    }
+}
+
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
-    use crate::mstep;
-    let col_x = x0 + 40.0;
-    let col_w = (cw - 80.0).min(880.0);
     let Some(m) = app.message.state() else {
         return;
     };
-    let address = if let Some(at) = m.at.as_ref() {
-        Some(String::from(&*at.address))
-    } else {
-        m.wallet.and_then(|w| app.session.wallets.get(w)).map(|w| {
-            if app.receive_held(w) {
-                crate::glance::RECEIVE_WARNING.to_string()
-            } else {
-                String::from(&*app.address_shown(w, false, m.index))
-            }
-        })
-    };
-    let cards: Vec<flow::Card> = (0..4u8)
-        .map(|k| flow::Card {
-            title: MSTEPS[k as usize].to_string(),
-            summary: match k {
-                mstep::ADDRESS => address
-                    .as_deref()
-                    .map(|a| String::from(&*short(a)))
-                    .unwrap_or_else(|| EN.message_none_chosen.into()),
-                mstep::TEXT => {
-                    let t = first_line(&m.text);
-                    if t.is_empty() {
-                        EN.message_not_written.to_string()
-                    } else {
-                        format!("\"{t}\"")
-                    }
-                }
-                mstep::FORMAT => (if m.bip322 { "BIP-322" } else { "BIP-137" }).to_string(),
-                _ => {
-                    if m.signed.is_some() {
-                        EN.message_signed.to_string()
-                    } else {
-                        EN.message_not_signed.to_string()
-                    }
-                }
-            },
-            mono: k == mstep::ADDRESS && address.is_some(),
-            done: m.done[k as usize],
-            open: m.open == Some(k),
-            default: false,
-            toggle: Action::MStep(k),
-            lead: None,
-        })
-        .collect();
-    let col = flow::Column {
-        area_x: x0,
-        area_w: cw,
-        x: col_x,
-        w: col_w,
+    let page = flow::Page {
+        area: (x0, cw),
         h,
+        foot_h: 0.0,
         back: Some(app.named_back((EN.message_wallets, Action::Nav(Screen::WalletsStart)))),
         heading: EN.message_sign_a_message,
-        wrap_closed: false,
-        total_fixed: true,
-        all_shown: false,
-        note: None,
         chip: None,
+        note: None,
         chip_tap: None,
         moves: crate::ui::Moves::Yes,
     };
+    let Some(contained) = crate::trail::StepFlow::contained(&MESSAGE_STEPS) else {
+        return;
+    };
     let scroll = m.scroll;
-    let (next, again) = {
+    let (next, again, _) = {
         let app_ref: &View = app;
-        let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
-            message_body(app_ref, ui, i as u8, x, y, w)
+        let mut body = |ui: &mut Ui, k: u8, x: f32, y: f32, w: f32| -> f32 {
+            message_body(app_ref, ui, k, x, y, w)
         };
-        flow::column(ui, &col, &cards, scroll, &mut body)
+        let mut under = |_: &mut Ui, _: f32, _: f32, _: f32| 0.0;
+        flow::contained(ui, app_ref, contained, &page, scroll, &mut body, &mut under)
     };
     app.scroll(Scrolled::Message, next, again);
 }

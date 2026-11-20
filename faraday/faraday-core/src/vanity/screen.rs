@@ -29,64 +29,72 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(v) = app.vanity.state() else {
         return;
     };
-    let cards: Vec<flow::Card> = (0..vstep::COUNT as u8)
-        .map(|s| flow::Card {
-            title: TITLES[usize::from(s)].to_string(),
-            summary: summary(app, v, s),
-            mono: s == vstep::KEY || s == vstep::PREFIX,
-            done: v.done[usize::from(s)],
-            open: v.open == Some(s),
-            default: false,
-            toggle: va(V::Step(s)),
-            lead: None,
-        })
-        .collect();
-    let col = flow::Column {
-        area_x: x0,
-        area_w: cw,
-        x: x0 + 40.0,
-        w: (cw - 80.0).min(900.0),
+    let page = flow::Page {
+        area: (x0, cw),
         h,
+        foot_h: 0.0,
         back: Some(app.named_back((EN.vanity_wallets, Action::Nav(v.back)))),
         heading: EN.vanity_vanity_address,
-        wrap_closed: false,
-        total_fixed: true,
-        all_shown: false,
-        note: None,
         chip: None,
+        note: None,
         chip_tap: None,
         moves: crate::ui::Moves::Yes,
     };
+    let Some(contained) = crate::trail::StepFlow::contained(&super::VANITY_STEPS) else {
+        return;
+    };
     let scroll = v.scroll;
-    let (next, again) = {
+    let (next, again, _) = {
         let app_ref: &View = app;
-        let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
+        let mut body = |ui: &mut Ui, k: u8, x: f32, y: f32, w: f32| -> f32 {
             match app_ref.vanity.state() {
-                Some(v) => card(app_ref, v, ui, i as u8, x, y, w),
+                Some(v) => card(app_ref, v, ui, k, x, y, w),
                 None => 0.0,
             }
         };
-        flow::column(ui, &col, &cards, scroll, &mut body)
+        let mut under = |_: &mut Ui, _: f32, _: f32, _: f32| 0.0;
+        flow::contained(ui, app_ref, contained, &page, scroll, &mut body, &mut under)
     };
     app.scroll(Scrolled::Vanity, next, again);
 }
 
-fn summary(app: &View, v: &VanityState, s: u8) -> String {
+/// The rows of Your choices: each step's answer as the search stands, or
+/// `None` where nothing is chosen yet.
+pub(super) fn rows(app: &crate::Faraday) -> Vec<flow::Row> {
+    let Some(v) = app.vanity.state() else {
+        return Vec::new();
+    };
     let net = app.session.network();
-    match s {
-        vstep::KEY => v.key.map(fp).unwrap_or_else(|| EN.vanity_not_chosen.into()),
-        vstep::DIAL => dial_name(v.grind.dial).0.to_string(),
-        vstep::SCRIPT => script_name(v.grind.script, net),
-        vstep::PREFIX if v.grind.prefix.has_free(v.grind.script, net) => {
-            v.grind.prefix.as_str().to_string()
-        }
-        vstep::RUN => match (&v.grind.find, v.running) {
-            (Some(f), _) => f.address.as_str().to_string(),
-            (None, true) => fill(EN.vanity_tried_count, &[&thousands(v.grind.tested)]),
-            (None, false) => String::new(),
-        },
-        _ => String::new(),
-    }
+    (0..vstep::COUNT as u8)
+        .map(|k| {
+            let reached = v.done[usize::from(k)] || v.open == Some(k);
+            let value = match k {
+                vstep::KEY => v.key.map(fp),
+                vstep::DIAL => reached.then(|| dial_name(v.grind.dial).0.to_string()),
+                vstep::SCRIPT => reached.then(|| script_name(v.grind.script, net)),
+                vstep::PREFIX => v
+                    .grind
+                    .prefix
+                    .has_free(v.grind.script, net)
+                    .then(|| v.grind.prefix.as_str().to_string()),
+                _ => match (&v.grind.find, v.running) {
+                    (Some(f), _) => Some(f.address.as_str().to_string()),
+                    (None, true) => {
+                        Some(fill(EN.vanity_tried_count, &[&thousands(v.grind.tested)]))
+                    }
+                    (None, false) => None,
+                },
+            };
+            crate::visible::choice_row(
+                TITLES[usize::from(k)],
+                value.as_deref(),
+                k == vstep::KEY
+                    || k == vstep::PREFIX
+                    || (k == vstep::RUN && v.grind.find.is_some()),
+                (k, v.open == Some(k)),
+            )
+        })
+        .collect()
 }
 
 fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) -> f32 {

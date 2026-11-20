@@ -74,13 +74,11 @@ macro_rules! words_silent {
     /// Text in `draw`.
     silent_wallets: "Wallets",
     /// Text in `summary`.
-    silent_not_chosen: "Not chosen",
     /// Text in `summary`.
     silent_a_secret_shows: "A secret: shows every payment",
     /// Text in `summary`.
     silent_needs_a_previous: "Needs a previous transaction",
     /// Text in `summary`.
-    silent_a_transaction: "A transaction from Files",
     /// Line in `card`.
     silent_its_key_is_not_loaded: "Its key is not loaded: labels, the scan key and a check need it",
     /// Text in `card`.

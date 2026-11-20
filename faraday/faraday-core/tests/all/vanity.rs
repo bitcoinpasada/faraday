@@ -181,3 +181,19 @@ fn a_silent_payment_code_found_on_the_account_dial_names_its_account_and_opens_n
     app.press(Action::Vanity(V::Use));
     assert_eq!(app.screen, Screen::Vanity);
 }
+
+#[test]
+fn one_step_is_drawn_at_a_time() {
+    let mut app = with_key();
+    let _ = app.frame();
+    let shown = app.drawn_texts().join(" ");
+    assert!(shown.contains("Step 2 of 5") && !shown.contains("Step 1 of 5"));
+    app.press(Action::Vanity(V::Step(vstep::KEY)));
+    app.settle();
+    let _ = app.frame();
+    let shown = app.drawn_texts().join(" ");
+    assert!(
+        shown.contains("Step 1 of 5") && !shown.contains("Step 2 of 5"),
+        "{shown}"
+    );
+}

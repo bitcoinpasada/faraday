@@ -826,3 +826,16 @@ fn a_silent_payments_wallets_backup_sheet_names_its_key_and_address_and_lists_no
     assert!(sheet.contains("account 0"), "{sheet}");
     assert!(!sheet.contains("address: "), "{sheet}");
 }
+
+#[test]
+fn one_step_is_drawn_at_a_time() {
+    let mut app = with_key();
+    app.press(Action::Silent);
+    let _ = app.frame();
+    let shown = drawn(&mut app);
+    assert!(shown.contains("Step 2 of 4") && !shown.contains("Step 1 of 4"));
+    app.press(Action::SStep(0));
+    let _ = app.frame();
+    let shown = drawn(&mut app);
+    assert!(shown.contains("Step 1 of 4") && !shown.contains("Step 2 of 4"));
+}
