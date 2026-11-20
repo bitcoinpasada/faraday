@@ -38,6 +38,7 @@ const PICTURE_KINDS: &[FileKind] = &[
     FileKind::KdbxOther,
     FileKind::Pdf,
     FileKind::SeedPart,
+    FileKind::KruxCode,
     FileKind::Text,
     FileKind::Other,
 ];

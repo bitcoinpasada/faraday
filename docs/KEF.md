@@ -754,6 +754,13 @@ that is no code is named in a toast. Both are on a card of their own above the t
 nothing else. Check's **Krux code** row (Check a backup in another form) opens Add a key on that form.
 A pasted code is not taken by the scanner for these two.
 
+**In Files.** A file whose bytes are a code's own (what `krux-v{version}-{id}.kef` holds) is a
+`FileKind::KruxCode`, **Krux encrypted code**, told by its contents (`classify_read`'s last arm, §8's
+weak test, raw bytes only: a text form stays a text file, which **From Files** still takes). It is a
+secret file as seed words are, and its button **Open** is `Action::KefFile`, the one **From Files**
+presses. The `.png` the tool writes is read as any picture of a QR code is, at a stick visit
+(`qr_read`): its code goes to the camera's reading, which offers §8's card; no reader was added.
+
 ### 15.3 The first step
 
 Shared by both. It reads, top to bottom:

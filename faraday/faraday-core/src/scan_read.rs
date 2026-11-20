@@ -348,6 +348,7 @@ pub(crate) fn public_kind(kind: FileKind, enveloped: bool, data: &[u8]) -> Kind 
         FileKind::Transaction => Kind::Transaction,
         FileKind::Message => Kind::Message,
         FileKind::Key | FileKind::KeyWithSecret => Kind::AccountKey,
+        FileKind::KruxCode => Kind::Kef,
         FileKind::Words => Kind::SeedWords,
         FileKind::Share => Kind::SplitSheets,
         FileKind::Entries => Kind::Entries,

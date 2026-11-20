@@ -273,6 +273,8 @@ macro_rules! words_screens_files {
     /// Note in `inbox_actions`. `{}`: `m.have.len()`, `m.n`.
     inbox_actions_of_keys: "{} of {} keys in hand",
     /// Text in `inbox_actions`.
+    inbox_actions_open_code: "Open",
+    /// Text in `inbox_actions`.
     inbox_actions_load: "Load this key",
     /// Text in `inbox_actions`.
     inbox_actions_check: "Check the signature",
