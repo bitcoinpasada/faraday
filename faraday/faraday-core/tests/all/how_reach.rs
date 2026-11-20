@@ -86,13 +86,13 @@ fn app(width: u16, height: u16, dpi: u16) -> Faraday {
 
 /// The overflow the bar offers, if it has one.
 fn overflow(app: &Faraday) -> Option<Overflow> {
-    (0u8..16)
+    (0u8..64)
         .map(|bits| Overflow {
             own: bits & 8 != 0,
-            choices: false,
+            choices: bits & 16 != 0,
             help: bits & 1 != 0,
             keyboard: bits & 2 != 0,
-            keyboard_up: false,
+            keyboard_up: bits & 32 != 0,
             eye: bits & 4 != 0,
         })
         .filter(|held| app.offers(Action::NavMenu(MenuPress::Open(Some(*held)))))

@@ -144,13 +144,13 @@ fn every_line_of_a_block_is_reached_by_scrolling_on_the_pi() {
 /// The overflow the bar offers, if it has one.
 fn overflow(app: &Faraday) -> Option<Overflow> {
     let mut out = None;
-    for bits in 0u8..16 {
+    for bits in 0u8..64 {
         let held = Overflow {
             own: bits & 8 != 0,
-            choices: false,
+            choices: bits & 16 != 0,
             help: bits & 1 != 0,
             keyboard: bits & 2 != 0,
-            keyboard_up: false,
+            keyboard_up: bits & 32 != 0,
             eye: bits & 4 != 0,
         };
         if app.offers(Action::NavMenu(MenuPress::Open(Some(held)))) {
