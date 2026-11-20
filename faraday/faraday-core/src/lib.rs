@@ -422,20 +422,11 @@ type ScreenKey = (Screen, Option<Sheet>);
 /// A scrolled region: the screen and sheet, and which of their regions.
 type RegionKey = (ScreenKey, ui::Slot);
 
-/// The step column's open card as last drawn, and the change under way
-/// (`docs/MOTION.md` §3.5).
+/// A step card opening or closing, which no flow draws now: only what
+/// Make a new key's worksheet waits on still reads it, and goes with that
+/// flow's move onto the container.
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct Disclosed {
-    /// The screen and sheet the column was drawn on.
-    key: ScreenKey,
-    /// The card open.
-    open: Option<usize>,
-    /// Its body's height, units.
-    body_h: f32,
-    /// The card closing, and its body's height.
-    closing: Option<(usize, f32)>,
-    /// The tick the change started at (`None` until one comes).
-    at: Option<u64>,
     /// The change is under way.
     moving: bool,
 }
@@ -994,7 +985,7 @@ pub struct Faraday {
     /// The worker, the job that runs on it and whether a frame has been
     /// drawn since a press was left to wait.
     worker: worker::Worker,
-    /// The step column's open card, and one opening or closing.
+    /// A step card opening or closing; always none now.
     disclosed: Option<Disclosed>,
     /// A change of screen or sheet fading in, how fast this machine has
     /// lately shown a fade's steps, the frosted page under the open
@@ -1269,18 +1260,11 @@ impl App for Faraday {
                 // Asked for on every tick while something moves, so the
                 // shell keeps drawing at its frame rate. A card opening or
                 // a toast coming or going starts on its first tick.
-                if let Some(d) = self.disclosed.as_mut()
-                    && d.moving
-                    && d.at.is_none()
-                {
-                    d.at = Some(now_ms);
-                }
                 if self.out.toast.is_some() && self.out.toast_at.is_none() {
                     self.out.toast_at = Some(now_ms);
                 }
                 let fading = fading
                     || self.typing.caret_changed(self.caret_on())
-                    || self.disclosed.is_some_and(|d| d.moving)
                     || self.busy().is_some()
                     || self.out.toast.as_ref().is_some_and(|(_, until)| {
                         self.out

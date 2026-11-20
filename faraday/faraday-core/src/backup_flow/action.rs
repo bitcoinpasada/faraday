@@ -129,10 +129,6 @@ pub enum RestorePress {
     Sheet,
     /// The flow opened on the public key that is this Inbox file.
     From(usize),
-    /// The head card opened or closed.
-    Head,
-    /// The head card's **Continue**: on to where the key will be kept.
-    HeadContinue,
     /// The line's field pressed: typing goes to it.
     Field,
     /// **Next line**: the line typed is handed in.

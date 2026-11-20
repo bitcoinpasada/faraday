@@ -215,7 +215,7 @@ fn the_guide_sheet_fades_out_and_its_tabs_fade_between_pages() {
 }
 
 #[test]
-fn a_step_card_grows_open_and_comes_to_rest() {
+fn a_step_card_opens_at_once_and_stays_at_rest() {
     let kit = testkit::kits()
         .into_iter()
         .find(|k| k.id == "spending")
@@ -235,11 +235,6 @@ fn a_step_card_grows_open_and_comes_to_rest() {
     app.press(Action::BQ(faraday_core::qstep::BOARD));
     let early = frames(&mut app, 2_016, 2_048);
     let rest = frames(&mut app, 2_064, 2_600);
-    assert!(early != rest, "part of the way open");
+    assert!(early == rest, "open at once, not growing");
     assert!(frames(&mut app, 2_616, 3_200) == rest, "and then still");
-    assert!(
-        app.where_offered(Action::BQ(faraday_core::qstep::BOARD))
-            .is_some(),
-        "its header is still there to close it"
-    );
 }

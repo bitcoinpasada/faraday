@@ -515,11 +515,6 @@ pub struct Ui<'a, A> {
     /// On a small panel, which walk-through is shown on this screen: a
     /// step's place, or the app's own number for its About.
     pub about_open: Option<u8>,
-    /// A step card opening, and the one closing, while they move.
-    pub disclosure: Option<Disclosure>,
-    /// What the step column drew: which card is open and how tall its
-    /// body is, units.
-    pub column: Option<(Option<usize>, f32)>,
     /// Where a flow on the container drew its card this frame: the head's
     /// left edge, its top, and the column's width and height, in design
     /// units (`docs/FLOW-CONTAINER.md` §2). The fade through reads it.
@@ -639,17 +634,6 @@ fn union(a: Rect, b: Rect) -> Rect {
     )
 }
 
-/// A step card opening and the one closing, part of the way.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Disclosure {
-    /// The card opening.
-    pub open: Option<usize>,
-    /// The card closing, and how tall its body was, units.
-    pub closing: Option<(usize, f32)>,
-    /// How far through, 0 to 1, eased.
-    pub shown: f32,
-}
-
 impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// A context over `c`.
     pub fn new(
@@ -707,8 +691,6 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             sheet_pin: None,
             fab_at: None,
             foot_room: 0.0,
-            disclosure: None,
-            column: None,
             flow_card: None,
             flow_work: None,
             follow_to: None,

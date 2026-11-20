@@ -652,9 +652,6 @@ impl Faraday {
         self.settle_regions();
         self.scroll.stop();
         self.pointer.set_scroll_at(None);
-        if let Some(d) = self.disclosed.as_mut() {
-            d.moving = false;
-        }
         self.fresh.own_settle();
         let whole = self.whole_offset();
         let offset = self.scroll_offset().map_or(0.0, whole);

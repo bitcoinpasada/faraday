@@ -256,10 +256,6 @@ pub const FLOW_MAX: f32 = 900.0;
 pub const LIST_RESERVE: f32 = 50.0;
 /// A stepper's row: its buttons and the gap under them.
 pub const STEPPER_ROW: f32 = 50.0;
-/// The Sticks and vaults card's stepper, with the gap under it.
-pub const SETUP_STEPPER_H: f32 = 52.0;
-/// How wide the card's two steppers need to stand side by side.
-pub const SETUP_STEPPER_PAIR_W: f32 = 560.0;
 /// What the card's Continue adds to its label's width.
 pub const SETUP_CONTINUE_PAD: f32 = 36.0;
 /// Primary menu row height: an icon, a label and a chevron.
@@ -1368,9 +1364,6 @@ pub const CODEX32_DICE_COLUMN_H: f32 = 720.0;
 /// with the face waiting or "0 is 10" under it: the room it keeps, the
 /// label cut to it where text is drawn larger.
 pub const INPUT_PAD_LABEL_W: f32 = 72.0;
-/// The room Continue keeps at the end of the input panel's row once
-/// every character is in.
-pub const INPUT_CONTINUE_W: f32 = 160.0;
 /// The fewest keys a row of the pad beside the rolls holds; narrower,
 /// the pad stands under them.
 pub const PAD_KEYS_BESIDE_MIN: f32 = 5.0;

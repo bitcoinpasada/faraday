@@ -872,7 +872,6 @@ impl Faraday {
             && !self.fade.under_way()
             && self.busy().is_none()
             && self.out.toast.is_none()
-            && self.disclosed.as_ref().is_none_or(|d| !d.moving)
             && (!self.shows_clock() || last.clock_is(self.clock_now()))
             // 5. The ink audit reads every string's ink, which a strip
             // does not draw.

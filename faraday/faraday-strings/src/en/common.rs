@@ -654,19 +654,17 @@ macro_rules! words_common {
     /// Button in `compact`.
     codes_add_an_entry: "Add an entry",
     // ----- flow (faraday-core/src/flow.rs) -----
-    /// Line in `paged`.
-    flow_change: "Change",
-    /// Text in `paged`. `{}`: `i + 1`, `cards.len()`.
+    /// Text in `flow::container`. `{}`: `i + 1`, the step count.
     flow_step_count: "Step {} of {}",
-    /// Text in `paged` where the step count can change. `{}`: `i + 1`.
+    /// Text in `flow::container` where the step count can change. `{}`: `i + 1`.
     flow_step_number: "Step {}",
     /// Heading of a flow's Your choices (`flow::choices`).
     flow_your_choices: "Your choices",
     /// A row of Your choices that has no answer yet (`flow::choices`).
     flow_not_chosen_yet: "Not chosen yet",
-    /// Text in `paged`.
+    /// Text in `flow::container`.
     flow_home: "Home",
-    /// Button in `column_foot` and `paged`: leaves the flow for good (F51).
+    /// Button in `compact`: leaves the flow for good (F51).
     flow_cancel: "Cancel",
     /// Button on the Cancel sheet (`in_progress::cancel_sheet`).
     flow_cancel_the_flow: "Cancel the flow",

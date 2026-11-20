@@ -1177,12 +1177,6 @@ impl Faraday {
             },
             Screen::BackupFlow if self.sheet == Some(crate::Sheet::GpgRestore) => GuideAt::Sheet,
             Screen::BackupFlow => match self.flow() {
-                Some(f)
-                    if f.restore.is_some()
-                        && f.live.open == Some(crate::backup_flow::gpg_restore::HEAD) =>
-                {
-                    GuideAt::Head
-                }
                 Some(f) => match f
                     .live
                     .open

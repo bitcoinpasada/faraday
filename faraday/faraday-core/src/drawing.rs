@@ -35,7 +35,7 @@ use crate::{Faraday, Screen, flow, plan, work};
 mod allowed;
 pub(crate) use allowed::Allowed;
 mod kept;
-use crate::{Disclosed, ScreenKey, Sheet, drawing, motion, screens, ui};
+use crate::{Sheet, drawing, motion, screens, ui};
 use faraday_draw::Canvas;
 use faraday_shell_api::Command;
 use faraday_shell_api::DisplayInfo;
@@ -786,8 +786,6 @@ impl Faraday {
         let moved_at = if hot { self.now_ms.max(1) } else { moved_at };
         self.scroll.set_bar_seen((key, slot), offset, moved_at);
         let bar = motion::bar_alpha(moved_at, self.now_ms);
-        // Drawn twice when a step card has just opened: the first time
-        // finds out, the second draws it growing from closed.
         let mut follow_to = None;
         let (mut scrolled, mut caret, mut reach) = (Vec::new(), None, Vec::new());
         let mut tips = Vec::new();
@@ -798,20 +796,7 @@ impl Faraday {
         self.osk_track();
         for _ in 0..3 {
             hits.clear();
-            let disclosure = self
-                .disclosed
-                .as_ref()
-                .filter(|d| d.key == key && d.moving)
-                .map(|d| ui::Disclosure {
-                    open: d.open,
-                    closing: d.closing,
-                    shown: motion::ease_open(motion::progress(
-                        d.at,
-                        self.now_ms,
-                        motion::DISCLOSE_MS,
-                    )),
-                });
-            let column = {
+            let focus = {
                 let mut ui = ui::Ui::new(
                     &mut canvas,
                     self.f,
@@ -833,7 +818,6 @@ impl Faraday {
                 ui.bar = (bar > 0).then_some((bar, offset));
                 ui.stretch_in_sheet = self.sheet.is_some_and(Sheet::scrolls_with_bar)
                     || (self.compact && self.sheet.is_some());
-                ui.disclosure = disclosure;
                 let frost_key = ((self.screen, self.sheet), self.theme());
                 ui.frost = self.fade.take_frost(&frost_key);
                 ui.about_open = self.panel.about_on(self.screen, self.sheet.is_none());
@@ -862,11 +846,9 @@ impl Faraday {
                 }));
                 layer = ui.content;
                 spoiled = ui.spoiled;
-                (ui.column, ui.focus_box, ui.focus_action)
+                (ui.focus_box, ui.focus_action)
             };
-            if !(self.osk_follow(column.1, column.2, &scrolled) | self.disclose(key, column.0))
-                && !spoiled
-            {
+            if !self.osk_follow(focus.0, focus.1, &scrolled) && !spoiled {
                 break;
             }
         }
@@ -906,58 +888,6 @@ impl Faraday {
     /// reduce motion.
     pub(crate) fn caret_on(&self) -> bool {
         self.typing.caret_on(self.now_ms, self.reduce_motion())
-    }
-
-    /// Takes what the step column drew: which card is open, and its
-    /// body's height. Returns whether a card has just opened, so the
-    /// frame is drawn again with it growing.
-    fn disclose(&mut self, key: ScreenKey, column: Option<(Option<usize>, f32)>) -> bool {
-        let Some((open, body_h)) = column else {
-            self.disclosed = None;
-            return false;
-        };
-        let opened = match self.disclosed.as_mut() {
-            Some(d) if d.key == key && d.open != open && self.settings.reduce_motion() => {
-                d.open = open;
-                d.body_h = body_h;
-                false
-            }
-            Some(d) if d.key == key && d.open != open => {
-                let closing = d.open.map(|i| (i, d.body_h));
-                *d = Disclosed {
-                    key,
-                    open,
-                    body_h,
-                    closing,
-                    at: None,
-                    moving: true,
-                };
-                true
-            }
-            Some(d) if d.key == key => {
-                d.body_h = body_h;
-                false
-            }
-            _ => {
-                self.disclosed = Some(Disclosed {
-                    key,
-                    open,
-                    body_h,
-                    closing: None,
-                    at: None,
-                    moving: false,
-                });
-                false
-            }
-        };
-        if let Some(d) = self.disclosed.as_mut()
-            && d.moving
-            && !opened
-            && motion::progress(d.at, self.now_ms, motion::DISCLOSE_MS) >= 1.0
-        {
-            d.moving = false;
-        }
-        opened
     }
 
     /// The width and height of the layout, in design units.

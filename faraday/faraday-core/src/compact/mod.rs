@@ -1,7 +1,7 @@
 //! The small panel (`Faraday::is_compact`): no sidebar. Home is the menu,
 //! a button for each of the sidebar's entries, and every other screen has
 //! a bar across its top that goes back to it. Flows are a page per step
-//! (`flow::column`).
+//! (`flow::container`).
 
 pub(crate) mod screen;
 

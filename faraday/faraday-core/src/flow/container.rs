@@ -182,7 +182,6 @@ pub(crate) fn contained(
     }
     let max = (y + 24.0 - view_h).max(0.0);
     ui.region_close(view_open, max);
-    ui.column = None;
     // In screen space: the card's own place less the scroll, kept to the
     // page area under the bar and above any foot.
     let bar_end = if compact { top } else { tokens::APP_BAR_H };

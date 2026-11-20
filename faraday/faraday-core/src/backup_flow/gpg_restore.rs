@@ -19,9 +19,6 @@ use crate::secret_text::SecretText;
 use crate::strings::EN;
 use faraday_text::Text;
 
-/// The head card's number among the cards (`live.open`): not a step's.
-pub const HEAD: u8 = 100;
-
 /// **Restore from a paperkey**: the press that opens the sheet.
 pub const SHEET: crate::Action =
     crate::Action::Flow(super::steps::FlowAction::Restore(RestorePress::Sheet));

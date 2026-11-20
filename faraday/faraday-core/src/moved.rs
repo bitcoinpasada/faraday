@@ -244,13 +244,6 @@ mod tests {
             app.draw_whole_next();
             let _ = app.frame();
         }
-        // The walk's clock does not run a step card's opening to its end, and the
-        // frames just drawn may have begun it.
-        if let Some(d) = app.disclosed.as_mut() {
-            d.moving = false;
-            app.draw_whole_next();
-            let _ = app.frame();
-        }
         let slots: Vec<crate::ui::Slot> = app.regions().map(|e| e.slot).collect();
         let mut taken = Vec::new();
         for slot in slots {
