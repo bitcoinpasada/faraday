@@ -26,66 +26,66 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(s) = app.silent.state() else {
         return;
     };
-    let cards: Vec<flow::Card> = (0..sstep::COUNT as u8)
-        .map(|k| flow::Card {
-            title: TITLES[usize::from(k)].to_string(),
-            summary: summary(app, s, k),
-            mono: k == sstep::KEY || k == sstep::ADDRESS,
-            done: s.done[usize::from(k)],
-            open: s.open == Some(k),
-            default: false,
-            toggle: Action::SStep(k),
-            lead: None,
-        })
-        .collect();
-    let col = flow::Column {
-        area_x: x0,
-        area_w: cw,
-        x: x0 + 40.0,
-        w: (cw - 80.0).min(900.0),
+    let page = flow::Page {
+        area: (x0, cw),
         h,
+        foot_h: 0.0,
         back: Some(app.named_back((EN.silent_wallets, Action::Nav(s.back)))),
         heading: EN.silent_silent_payments,
-        wrap_closed: false,
-        total_fixed: true,
-        all_shown: false,
-        note: None,
         chip: None,
-        chip_tap: None,
+        choices_y: 0.0,
         moves: crate::ui::Moves::Yes,
     };
+    let Some(contained) = crate::trail::StepFlow::contained(&super::SILENT_STEPS) else {
+        return;
+    };
     let scroll = s.scroll;
-    let (next, again) = {
+    let (next, again, _) = {
         let app_ref: &View = app;
-        let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
+        let mut body = |ui: &mut Ui, k: u8, x: f32, y: f32, w: f32| -> f32 {
             match app_ref.silent.state() {
-                Some(s) => card(app_ref, s, ui, i as u8, x, y, w),
+                Some(s) => card(app_ref, s, ui, k, x, y, w),
                 None => 0.0,
             }
         };
-        flow::column(ui, &col, &cards, scroll, &mut body)
+        let mut under = |_: &mut Ui, _: f32, _: f32, _: f32| 0.0;
+        flow::contained(ui, app_ref, contained, &page, scroll, &mut body, &mut under)
     };
     app.scroll(Scrolled::Silent, next, again);
 }
 
-fn summary(app: &View, s: &SilentState, k: u8) -> String {
-    match k {
-        sstep::KEY => s
-            .key
-            .map(|fp| String::from(&*fp_text(faraday_bip::keys::Fingerprint(fp))))
-            .unwrap_or_else(|| EN.silent_not_chosen.to_string()),
-        sstep::ADDRESS => app
-            .silent_shown()
-            .address
-            .map(|a| String::from(&*crate::ui::short(&a)))
-            .unwrap_or_default(),
-        sstep::SCAN => EN.silent_a_secret_shows.to_string(),
-        _ => match s.check.as_ref().map(|(_, c)| c.result()) {
-            Some(Some(r)) => checked_text(r).0,
-            Some(None) => EN.silent_needs_a_previous.to_string(),
-            None => EN.silent_a_transaction.to_string(),
-        },
-    }
+/// The rows of Your choices: each step's answer as the page stands, from
+/// what is kept (no work is done here).
+pub(super) fn rows(app: &crate::Faraday) -> Vec<flow::Row> {
+    let Some(s) = app.silent.state() else {
+        return Vec::new();
+    };
+    let reached = s.key.is_some() || s.wallet.is_some();
+    (0..sstep::COUNT as u8)
+        .map(|k| {
+            let value = match k {
+                sstep::KEY => s
+                    .key
+                    .map(|fp| String::from(&*fp_text(faraday_bip::keys::Fingerprint(fp)))),
+                sstep::ADDRESS => app
+                    .silent
+                    .shown_kept(&app.session)
+                    .and_then(|shown| shown.address)
+                    .map(|a| String::from(&*crate::ui::short(&a))),
+                sstep::SCAN => reached.then(|| EN.silent_a_secret_shows.to_string()),
+                _ => s.check.as_ref().map(|(_, c)| match c.result() {
+                    Some(r) => checked_text(r).0,
+                    None => EN.silent_needs_a_previous.to_string(),
+                }),
+            };
+            crate::visible::choice_row(
+                TITLES[usize::from(k)],
+                value.as_deref(),
+                k == sstep::KEY || k == sstep::ADDRESS,
+                (k, s.open == Some(k)),
+            )
+        })
+        .collect()
 }
 
 fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32) -> f32 {

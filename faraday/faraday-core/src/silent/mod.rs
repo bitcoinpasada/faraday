@@ -410,6 +410,19 @@ impl SilentArea {
         }
     }
 
+    /// What the page shows of its key as it was last worked out, when that
+    /// was from what stands now; `None` before. A lookup.
+    pub(crate) fn shown_kept(&self, session: &Session) -> Option<SilentShown> {
+        let s = self.state.as_ref()?;
+        let loaded = s.key.map_or_else(Vec::new, |fp| ids_of(&session.keys, fp));
+        let record = self.wallet(session).cloned();
+        let of = (s.key, s.label, s.wallet, record, loaded, session.network());
+        let kept = s.shown.borrow();
+        kept.as_ref()
+            .filter(|(o, _)| *o == of)
+            .map(|(_, v)| v.clone())
+    }
+
     /// Costs two key derivations and an address the first time. What the
     /// page shows of its key ([`SilentShown`]), kept on the flow's state by
     /// what it is derived from, by whoever asks first, a frame included: a
@@ -591,10 +604,9 @@ impl SilentArea {
         match action {
             A::SStep(k) => {
                 // A wallet's page opens any card, and so does a chosen key;
-                // before one, only the key's card opens.
-                if s.open == Some(k) {
-                    s.open = None;
-                } else if s.wallet.is_some() || s.key.is_some() || k == sstep::KEY {
+                // before one, only the key's card opens. A step is always
+                // open: a press on the open one does nothing.
+                if s.open != Some(k) && (s.wallet.is_some() || s.key.is_some() || k == sstep::KEY) {
                     s.open = Some(k);
                     s.scroll.follow = true;
                 }
@@ -698,7 +710,12 @@ impl crate::trail::StepFlow for SilentSteps {
     fn steps(&self, app: &Faraday) -> Option<crate::trail::Steps> {
         let s = app.silent.state()?;
         let order = (0..sstep::COUNT as u8).collect();
-        Some(crate::trail::Steps::new(order, s.open))
+        let mut steps = crate::trail::Steps::new(order, s.open);
+        // A wallet's page, or a chosen key, opens any card.
+        steps.answered = (0..sstep::COUNT as u8)
+            .filter(|&k| s.key.is_some() || s.wallet.is_some() || s.done[usize::from(k)])
+            .collect();
+        Some(steps)
     }
 
     fn open(&self, _: &Faraday, k: u8) -> crate::Action {
@@ -707,6 +724,25 @@ impl crate::trail::StepFlow for SilentSteps {
 
     fn name(&self, _: &Faraday, k: u8) -> &'static str {
         screen::TITLES[usize::from(k)]
+    }
+
+    fn contained(&self) -> Option<&dyn crate::flow::Contained> {
+        Some(self)
+    }
+}
+
+impl crate::flow::Contained for SilentSteps {
+    fn rows(&self, app: &Faraday) -> Vec<crate::flow::Row> {
+        screen::rows(app)
+    }
+
+    fn count_fixed(&self, _: &Faraday) -> bool {
+        true
+    }
+
+    fn still_fits(&self, _: &Faraday, _changed: u8, _later: u8) -> bool {
+        // The act code keeps every later answer.
+        true
     }
 }
 

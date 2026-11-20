@@ -409,9 +409,9 @@ impl Bip85Area {
         };
         match action {
             A::PStep(s) => {
-                if b.open == Some(s) {
-                    b.open = None;
-                } else if (0..s).all(|i| b.done[usize::from(i)]) {
+                // A step is always open: a press on the open one does
+                // nothing.
+                if b.open != Some(s) && (0..s).all(|i| b.done[usize::from(i)]) {
                     open(b, s);
                 }
                 // The value is hidden once its card is left, Back among
@@ -758,7 +758,12 @@ impl crate::trail::StepFlow for Bip85Steps {
     fn steps(&self, app: &Faraday) -> Option<crate::trail::Steps> {
         let b = app.bip85.state()?;
         let order = (0..pstep::COUNT as u8).collect();
-        Some(crate::trail::Steps::new(order, b.open))
+        let mut s = crate::trail::Steps::new(order, b.open);
+        // The index answers only while it is one the tool takes.
+        s.answered = (0..pstep::COUNT as u8)
+            .filter(|&k| b.done[usize::from(k)] && (k != pstep::INDEX || b.index().is_some()))
+            .collect();
+        Some(s)
     }
 
     fn open(&self, _: &Faraday, k: u8) -> crate::Action {
@@ -769,6 +774,10 @@ impl crate::trail::StepFlow for Bip85Steps {
         screen::TITLES[usize::from(k)]
     }
 
+    fn contained(&self) -> Option<&dyn crate::flow::Contained> {
+        Some(self)
+    }
+
     fn moves_on(&self, app: &Faraday, chosen: crate::Action) -> Option<crate::Action> {
         let b = app.bip85.state()?;
         // An application with no length to set is the card's one choice.
@@ -776,6 +785,40 @@ impl crate::trail::StepFlow for Bip85Steps {
             && b.open == Some(pstep::APP)
             && lengths(b.app).1 == 0;
         one.then_some(crate::Action::PNext)
+    }
+}
+
+impl crate::flow::Contained for Bip85Steps {
+    fn rows(&self, app: &Faraday) -> Vec<crate::flow::Row> {
+        let Some(b) = app.bip85.state() else {
+            return Vec::new();
+        };
+        (0..pstep::COUNT as u8)
+            .map(|k| {
+                // The key is chosen or not; the others stand on a default
+                // once reached.
+                let given = match k {
+                    pstep::KEY => b.key.is_some(),
+                    _ => b.done[usize::from(k)] || b.open == Some(k),
+                };
+                let value = given.then(|| screen::summary(app, b, k));
+                crate::visible::choice_row(
+                    screen::TITLES[usize::from(k)],
+                    value.as_deref(),
+                    k == pstep::KEY || k == pstep::INDEX,
+                    (k, b.open == Some(k)),
+                )
+            })
+            .collect()
+    }
+
+    fn count_fixed(&self, _: &Faraday) -> bool {
+        true
+    }
+
+    fn still_fits(&self, _: &Faraday, _changed: u8, _later: u8) -> bool {
+        // The act code keeps every later answer.
+        true
     }
 }
 

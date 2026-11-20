@@ -3,7 +3,7 @@
 # only falls; tools/lint-tokens.sh --write lowers it.
 faraday/faraday-core/src/backup_flow/screen.rs 95
 faraday/faraday-core/src/backups/screen.rs 33
-faraday/faraday-core/src/bip85/screen.rs 36
+faraday/faraday-core/src/bip85/screen.rs 34
 faraday/faraday-core/src/board/screen.rs 6
 faraday/faraday-core/src/boot_import/screen.rs 38
 faraday/faraday-core/src/codes/screen.rs 51
@@ -22,7 +22,7 @@ faraday/faraday-core/src/screens/create.rs 30
 faraday/faraday-core/src/screens/entry.rs 79
 faraday/faraday-core/src/screens/files.rs 283
 faraday/faraday-core/src/screens/home.rs 6
-faraday/faraday-core/src/screens/message.rs 29
+faraday/faraday-core/src/screens/message.rs 26
 faraday/faraday-core/src/screens/parts.rs 215
 faraday/faraday-core/src/screens/pass_pair.rs 1
 faraday/faraday-core/src/screens/randomness.rs 1
@@ -36,11 +36,11 @@ faraday/faraday-core/src/screens/visit.rs 131
 faraday/faraday-core/src/screens/wallets.rs 118
 faraday/faraday-core/src/screens/wallets_start.rs 59
 faraday/faraday-core/src/seeds/screen.rs 62
-faraday/faraday-core/src/silent/screen.rs 17
+faraday/faraday-core/src/silent/screen.rs 14
 faraday/faraday-core/src/spend_backup/screen.rs 320
 faraday/faraday-core/src/tools/screen.rs 17
 faraday/faraday-core/src/transfer/screen.rs 17
-faraday/faraday-core/src/vanity/screen.rs 44
+faraday/faraday-core/src/vanity/screen.rs 41
 faraday/faraday-core/src/vault/screen.rs 369
 faraday/faraday-core/src/wordlist/screen.rs 27
 faraday/faraday-starter/src/draw/boot_file.rs 3

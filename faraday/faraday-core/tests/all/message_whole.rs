@@ -317,3 +317,15 @@ fn the_signed_message_is_checked_from_its_result_and_opens_its_wallet() {
     );
     assert!(app.offers(Action::OpenWallet(0)), "Open the wallet");
 }
+
+#[test]
+fn one_step_is_drawn_at_a_time() {
+    let mut app = app();
+    app.press(Action::SignMessage);
+    let _ = app.frame();
+    assert!(app.drawn_texts().join(" ").contains("Step 1 of 4"));
+    app.press(Action::MNext(faraday_core::mstep::ADDRESS));
+    let _ = app.frame();
+    let shown = app.drawn_texts().join(" ");
+    assert!(shown.contains("Step 2 of 4") && !shown.contains("Step 1 of 4"));
+}

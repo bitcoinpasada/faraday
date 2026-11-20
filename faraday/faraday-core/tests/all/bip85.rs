@@ -324,3 +324,44 @@ fn bip85_with_no_key_adds_one_on_the_add_a_key_page_and_returns() {
     assert_eq!(app.session.keys.len(), 1);
     assert_eq!(app.screen, Screen::Bip85, "back in the tool");
 }
+
+fn drawn_has(app: &mut Faraday, text: &str) -> bool {
+    let _ = app.frame();
+    app.drawn_texts().join(" ").contains(text)
+}
+
+#[test]
+fn one_step_is_drawn_at_a_time_and_your_choices_lists_the_answers() {
+    let mut app = with_key(Vec::new());
+    app.press(Action::Bip85);
+    assert!(drawn_has(&mut app, "Step 1 of 4"));
+    let fp = app.session.keys.all().next().unwrap().fingerprint.0;
+    app.press(Action::PKey(fp));
+    assert!(drawn_has(&mut app, "Step 2 of 4"));
+    assert!(
+        !drawn_has(&mut app, "Step 1 of 4"),
+        "the earlier step is gone"
+    );
+    assert!(
+        drawn_has(&mut app, "Your choices"),
+        "the pane lists the steps"
+    );
+    assert!(app.offers(Action::PStep(0)), "a row opens the earlier step");
+    app.press(Action::PStep(0));
+    assert!(drawn_has(&mut app, "Step 1 of 4"));
+}
+
+#[test]
+fn leaving_a_shown_value_draws_the_next_step_at_once() {
+    let mut app = with_key(Vec::new());
+    app.press(Action::Bip85);
+    app.press(Action::PApp(4));
+    app.press(Action::PNext);
+    app.press(Action::PNext);
+    app.press(Action::PShow);
+    let _ = app.frame();
+    let _ = app.take_fade_counts();
+    app.press(Action::PStep(2));
+    let _ = app.frame();
+    assert_eq!(app.take_fade_counts().started, 0, "no fade from the value");
+}

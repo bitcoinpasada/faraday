@@ -223,9 +223,9 @@ impl VanityArea {
         };
         match a {
             V::Step(s) => {
-                if v.open == Some(s) {
-                    v.open = None;
-                } else if (0..s).all(|i| v.done[usize::from(i)]) {
+                // A step is always open: a press on the open one does
+                // nothing.
+                if v.open != Some(s) && (0..s).all(|i| v.done[usize::from(i)]) {
                     open(v, s);
                 }
             }
@@ -563,6 +563,9 @@ impl crate::trail::StepFlow for VanitySteps {
         let mut s = crate::trail::Steps::new(order, v.open);
         // A search under way takes no Back: Stop ends it.
         s.running = v.running;
+        s.answered = (0..vstep::COUNT as u8)
+            .filter(|&k| v.done[usize::from(k)])
+            .collect();
         Some(s)
     }
 
@@ -574,6 +577,10 @@ impl crate::trail::StepFlow for VanitySteps {
         screen::TITLES[usize::from(k)]
     }
 
+    fn contained(&self) -> Option<&dyn crate::flow::Contained> {
+        Some(self)
+    }
+
     fn moves_on(&self, app: &Faraday, chosen: crate::Action) -> Option<crate::Action> {
         let v = app.vanity.state()?;
         let step = match chosen {
@@ -583,6 +590,26 @@ impl crate::trail::StepFlow for VanitySteps {
             _ => return None,
         };
         (v.open == Some(step)).then_some(crate::Action::Vanity(VanityAction::Next(step)))
+    }
+}
+
+impl crate::flow::Contained for VanitySteps {
+    fn rows(&self, app: &Faraday) -> Vec<crate::flow::Row> {
+        screen::rows(app)
+    }
+
+    fn count_fixed(&self, _: &Faraday) -> bool {
+        true
+    }
+
+    fn still_fits(&self, _: &Faraday, changed: u8, later: u8) -> bool {
+        // A find is dropped by any change before it, and the characters by
+        // a change of the kind of address.
+        match later {
+            vstep::RUN => false,
+            vstep::PREFIX => changed != vstep::SCRIPT,
+            _ => true,
+        }
     }
 }
 

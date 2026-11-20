@@ -1103,14 +1103,16 @@ impl MessageArea {
             );
         };
         match *action {
-            Action::MStep(n) => {
-                m.open = if m.open == Some(n) { None } else { Some(n) };
+            // A step is always open: a press on the open one does nothing.
+            Action::MStep(n) if m.open != Some(n) => {
+                m.open = Some(n);
                 m.scroll.follow = true;
                 m.typing = m.open == Some(mstep::TEXT);
             }
+            Action::MStep(_) => {}
             Action::MNext(n) => {
                 m.done[n as usize] = true;
-                m.open = (0..4u8).find(|&i| !m.done[i as usize]);
+                m.open = (0..4u8).find(|&i| !m.done[i as usize]).or(m.open);
                 m.scroll.follow = true;
                 m.typing = m.open == Some(mstep::TEXT);
             }

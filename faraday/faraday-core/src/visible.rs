@@ -153,3 +153,20 @@ impl Shown {
         })
     }
 }
+
+/// A row of Your choices for a flow whose answers are plain text: `value`
+/// `None` is "Not chosen yet" (`docs/FLOW-CONTAINER.md` §1).
+pub(crate) fn choice_row(
+    label: &'static str,
+    value: Option<&str>,
+    mono: bool,
+    (opens, current): (u8, bool),
+) -> crate::flow::Row {
+    crate::flow::Row {
+        label,
+        value: value.map(faraday_text::Text::of),
+        mono,
+        opens,
+        current,
+    }
+}
