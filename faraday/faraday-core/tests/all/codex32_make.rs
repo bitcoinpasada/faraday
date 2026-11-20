@@ -493,12 +493,8 @@ fn bar_title_and_first_tool(
 fn on_a_small_panel_the_title_ends_before_the_actions_at_the_bar_s_right_end() {
     let mut app = rolled_z(480, 640, 160);
     assert!(app.offers(Action::Codex32(C32::Eye)), "the eye is offered");
-    // The bar names the flow; where the entry stands is on the card.
-    assert!(
-        app.drawn_texts().iter().any(|t| t.starts_with("Share A")),
-        "the entry's place stands on the card"
-    );
-    let (title, first) = bar_title_and_first_tool(&mut app, 640 / 10, "Make a new key");
+    // The bar's title is where the entry stands.
+    let (title, first) = bar_title_and_first_tool(&mut app, 640 / 10, "Share A");
     assert!(
         title.0 + title.2 <= first,
         "the title ends at {} and the first action begins at {first}",
