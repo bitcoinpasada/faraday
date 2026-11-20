@@ -387,7 +387,7 @@ fn the_words_and_an_account_give_the_fingerprint_and_the_first_address() {
 
 /// The line that says keys are read as a US keyboard, as `shows` reads text
 /// (its words run together).
-const US_LINE: &str = "KeysarereadasaUSkeyboard.CapsLockisignored.";
+const US_LINE: &str = "KeysarereadasaUSkeyboard.Showthepassphraseoncetocheckit.";
 
 /// The frame once the step's fade through has finished.
 fn at_rest(app: &mut Faraday) {
