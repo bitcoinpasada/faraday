@@ -1,8 +1,7 @@
 # One menu page container
 
-**Kind:** Spec
-**Status:** Specified (F298); the container is built (`screens/menu_page.rs`) and Tools, Check, Wallets start, Settings and Home draw on it.
-**Open:** Nothing: every menu page draws on the container.
+**Kind:** Reference
+**Status:** Built (F298): the container (`screens/menu_page.rs`), and Home, Tools, Check, Wallets start and Settings drawn on it.
 
 The menu pages are the pages a person picks a place or a tool from:
 Home, Tools (`Screen::Catalog`, the sidebar's Tools), Check, Wallets
@@ -106,19 +105,6 @@ So no page holds more than three columns, and Settings two (§6). The
 column count follows the page's width alone, never the window's class,
 so a larger text size steps it down as a narrower window would.
 
-**Today against this rule**, worked out from the code (a render at
-480 × 640 and at 1920 × 1080 is checked before this is settled; a
-difference found there goes back to the owner before it is built):
-
-| Page | 480 × 640 | 1024 × 768 | 1280 × 800 | 1920 × 1080 |
-|---|---|---|---|---|
-| Tools, Check today | one | one | three of about 305 dp | three of about 357 dp |
-| Tools, Check | one | two of about 452 dp | two of about 464 dp | three of 360 dp |
-| Home today | places two to a row | places four to a row | about four tiles to a row | about five tiles to a row |
-| Home | one | two | two | three |
-| Settings today | the list | two cards of about 436 dp | two of about 484 dp | two of 720 dp, 1464 dp across |
-| Settings | the list | two of about 452 dp | two of about 464 dp | two of 548 dp |
-
 ## 5. Spacing and section labels
 
 - **Between tiles and cards**, across and down, one gap: `MENU_GAP`, a
@@ -179,44 +165,34 @@ two.
   it. This is the container's path for a page of cards on a compact
   window; from medium up §6 holds.
 
-## 8. What each page gives it, and what of its own goes
+## 8. What each page gives it
 
 - **Tools** (`screens/catalog.rs`): its name, the search bar and
   `home_results`, and one tiles section per group (`catalog::GROUPS`,
-  `TILES`). `page_span`, `Grid`, `grid`, `section` and `TILE_GAP` move
-  into the container; `draw` and `tiles_by_group` keep only the faces.
+  `TILES`); `draw` and `tiles_by_group` give the faces.
 - **Check** (`check/screen.rs`): its name with the way back, and one
-  tiles section per group. Its call of `page_span`, `grid` and
-  `CHECK_TOP` goes.
+  tiles section per group.
 - **Home** (`screens/home.rs`, `compact/mod.rs`): its name (the wordmark
   in the sidebar's head on the wide layout), the search bar and its
   results, the lead tile and the first actions as blocks across the
   page, the loaded wallets beside Backups and the Keys as tiles
   sections, and on the one-column layouts the box of what is loaded
-  above the bar. Its own page width, `gap`,
-  `tile_grid`, `tile_cols` and `TILE_MIN` went with it, and `compact::home`'s
-  `places` grid and its search macro are gone.
+  above the bar; on the Pi's panel, its places two to a row (§7).
 - **Wallets start** (`screens/wallets_start.rs`): its name, the five
   ways in as a tiles section, and its lists of wallets and of keys
-  without a wallet as sections. Its inline copy of `page_span` and its
-  call of `catalog::grid` go.
+  without a wallet as sections.
 - **Settings** (`screens/settings.rs`): its name, its sections' cards
   (`part`) as a cards section of at most two columns, where the second
-  starts, and on a compact window the list. `draw`'s column rule
-  (its `SPACER`, `COLUMN_MAX` and `MARGIN_WIDE` there) is gone.
+  starts, and on a compact window the list.
 
-Tokens (`core/faraday-draw/src/tokens.rs`): `MENU_PAGE_W` and
-`MENU_GAP` are new; `CATALOG_COLUMNS_MIN` and `CATALOG_ROW_GAP` go once
-nothing reads them (`SETTINGS_CARD_MIN` and `TILE_MIN` are gone).
+Tokens (`core/faraday-draw/src/tokens.rs`): `MENU_PAGE_W`, `MENU_GAP`
+and `CATALOG_TILE_MIN`, the one tile minimum.
 
 The container is shared code beside the flow container
 (`faraday/faraday-core/src/flow.rs`): a menu page module of its own,
 `faraday/faraday-core/src/screens/menu_page.rs`, called from each page's
-`draw`. Tools, Check, Wallets start and Home are on it; Settings
-follows, and its cards need §6's column stacks, which nothing has
-today.
-`docs/LAYOUT.md` §4 and §17 and `docs/DESIGN.md` §5's Home, Catalog and
-Settings rows change with the pages as each moves.
+`draw`. `docs/LAYOUT.md` §4 and §17 and `docs/DESIGN.md` §5's Home,
+Catalog and Settings rows describe the pages it draws.
 
 ## 9. What the tests hold
 
