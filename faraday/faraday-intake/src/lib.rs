@@ -380,6 +380,25 @@ pub fn other_list_entries(word: &str) -> Entries {
         out.at[..v.len()].copy_from_slice(v);
         out.n = v.len() as u8;
     }
+    // A word with accents is read without them as its NFKD form folded, so
+    // a word with only some of its accents, or composed and decomposed
+    // characters mixed, is found as well.
+    let mut folded = [0u8; 24];
+    let mut f = 0;
+    if !word.is_ascii() {
+        for c in faraday_bip::bip39::nfkd_lower(word) {
+            if ('\u{0300}'..='\u{036F}').contains(&c) {
+                continue;
+            }
+            match folded.get_mut(f) {
+                Some(b) if c.is_ascii_alphabetic() => *b = c as u8,
+                _ => return out,
+            }
+            f += 1;
+        }
+        key[..f].copy_from_slice(&folded[..f]);
+        n = f;
+    }
     if plain.may_hold(&key[..n]) {
         for e in plain.of(&key[..n]) {
             out.push(e);

@@ -765,6 +765,54 @@ fn a_signed_message_holding_a_secret_beside_other_text_is_a_secret_file() {
 /// Published BIP-39 vectors in two other lists (`tools/vectors/bip39`):
 /// Spanish (entropy of zeros) and Japanese (`test_JP_BIP39.json`, whose
 /// words are joined by the ideographic space).
+/// A valid French seed of one word with two accents, in the forms a person
+/// may write it with only some of its accents: the first accent left off a
+/// composed word (`bénefice`), and off a decomposed one.
+fn half_accented_french_seeds() -> Vec<String> {
+    use faraday_bip::bip39::Language;
+    let c = testkit::compute();
+    let l = Language::French;
+    let word = (0..2048u16)
+        .find(|&i| l.word_nfkd(i).chars().filter(|c| !c.is_ascii()).count() >= 2)
+        .expect("a two-accent word");
+    let (shown, nfkd) = (l.word_display(word), l.word_nfkd(word));
+    let last = (0..2048u16)
+        .map(|i| l.word_display(i))
+        .find(|w| {
+            faraday_keys::words::parse(&c, l, &format!("{} {w}", [shown; 11].join(" "))).is_ok()
+        })
+        .expect("a closing word");
+    let first_accent = shown.chars().position(|c| !c.is_ascii()).unwrap();
+    let composed: String = shown
+        .chars()
+        .enumerate()
+        .map(|(i, c)| {
+            let plain = match c {
+                'é' | 'è' | 'ê' | 'ë' => 'e',
+                'à' | 'â' => 'a',
+                'î' | 'ï' => 'i',
+                'ô' => 'o',
+                'ù' | 'û' | 'ü' => 'u',
+                'ç' => 'c',
+                other => other,
+            };
+            if i == first_accent { plain } else { c }
+        })
+        .collect();
+    let mut dropped = false;
+    let decomposed: String = nfkd
+        .chars()
+        .filter(|c| {
+            let mark = ('\u{0300}'..='\u{036F}').contains(c);
+            !(mark && !std::mem::replace(&mut dropped, true))
+        })
+        .collect();
+    [composed, decomposed]
+        .into_iter()
+        .map(|w| format!("{} {last}", [w.as_str(); 11].join(" ")))
+        .collect()
+}
+
 const SEED_SPANISH: &str =
     "ábaco ábaco ábaco ábaco ábaco ábaco ábaco ábaco ábaco ábaco ábaco abierto";
 /// The Spanish vector as it is typed or scanned without its accents.
@@ -804,6 +852,8 @@ fn a_seed_in_another_language_beside_other_text_is_a_secret_file() {
         "H9L5yLFjti0QTHhPyFrZCT1V/MMnBtXKmoiKDZ78NDBjERki6ZTQZdSMCtkgoNmp17By9ItJr8o7ChX0XxY91nk=";
     let c = testkit::compute();
     for seed in [SEED_SPANISH, SEED_SPANISH_PLAIN, SEED_JAPANESE] {
+        // Alone in a file the accentless seed is a text file, not a seed
+        // file (the seed reader does not fold); a text file is secret too.
         if seed != SEED_SPANISH_PLAIN {
             assert_eq!(
                 faraday_core::wallet::classify(&c, "seed.txt", seed.as_bytes()),
@@ -812,6 +862,23 @@ fn a_seed_in_another_language_beside_other_text_is_a_secret_file() {
             );
         }
         for extra in hidden_seed_comments(seed) {
+            assert_ne!(
+                faraday_core::wallet::classify(&c, "share.txt", share_sheet(&extra).as_bytes()),
+                FileKind::Share,
+                "{extra}"
+            );
+            let signed =
+                format!("bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu\n{SIGNATURE}\n{extra}");
+            assert_ne!(
+                faraday_core::wallet::classify(&c, "message.txt", signed.as_bytes()),
+                FileKind::Message,
+                "{extra}"
+            );
+        }
+    }
+    // A French seed written with only some of its accents is a secret too.
+    for seed in half_accented_french_seeds() {
+        for extra in hidden_seed_comments(&seed) {
             assert_ne!(
                 faraday_core::wallet::classify(&c, "share.txt", share_sheet(&extra).as_bytes()),
                 FileKind::Share,
