@@ -245,8 +245,12 @@ fn tools(app: &View, ui: &mut Ui, w: f32) -> f32 {
             ..full
         },
     ];
-    let mut out = steps[0];
-    for o in steps {
+    // Where the page has a block in the guide, the ? goes into the menu
+    // first: kept on the bar it would take room from the name, the way
+    // back and the eye.
+    let skip = usize::from(app.how_offered());
+    let mut out = steps[skip.min(steps.len() - 1)];
+    for o in steps.into_iter().skip(skip) {
         out = o;
         // The pill stands at the end of the first line, left of the tools:
         // they leave it its room before Back's target.
