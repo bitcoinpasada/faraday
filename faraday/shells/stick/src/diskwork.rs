@@ -315,7 +315,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_job_waiting_for_a_vault_stops_waiting_when_the_run_ends() {
+    fn a_wait_for_a_vault_in_pieces_ends_at_once_when_told_to_stop() {
         let m = Mutex::new(1u8);
         let stop = AtomicBool::new(false);
         let long = Duration::from_secs(30);

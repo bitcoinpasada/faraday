@@ -705,9 +705,10 @@ calls at most; with none waiting it only tries the lock, and a
 busy disk skips that pass's serving, which the next pass makes. While
 a vault is being written or read in pieces, a request that would wait
 behind the piece in flight is not sent and not refused: the app's
-requests stay queued in the app and the pass serves none until the
-transfer has ended (`Sticks::busy`), and the thread's calls wait for
-it, up to 15 s, with the lock let go between looks; a call that is
+requests for the disk process are held, in the app's order, and served
+once the transfer has ended (`Sticks::busy`), while the others (the
+boxes, print, the host's folders) are served at once; the thread's calls
+wait for it, up to 15 s, with the lock let go between looks; a call that is
 still behind it then fails at once as the stick being busy (the
 listing keeps the sticks last seen). The lock is never held for the
 length of a slow write.
@@ -719,8 +720,10 @@ look finds it); the first look at start is made in the loop. The boot
 report is composed from a copy of what the loop has seen (the kernel log
 is read on the thread) and the timings' text is cut by the loop; a write
 asked for while the last of its kind is out is made at the next pass.
-At exit the loop ends the thread, which finishes the write in progress,
-before it makes its own last writes, so the files end as the last text
+At exit the loop ends the thread, which finishes the write in progress
+and stops waiting for a vault in pieces, then serves the app's requests
+once more (a lock's save of the boxes), before it makes its own last
+writes, so the files end as the last text
 the loop made them. The panic chord does not wait for it: a write cut off
 there is the disk process's, which writes a new file and renames it over
 the old. A thread that ends without answering panics the loop. The three

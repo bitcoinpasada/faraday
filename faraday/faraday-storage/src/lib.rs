@@ -1858,8 +1858,8 @@ impl DiskProcess {
     ) -> Result<faraday_files::proto::Response, Text> {
         use faraday_files::proto::{Request, Response, send};
         // The disk process serves one request at a time: a transfer's piece
-        // in flight is answered first. The app's requests are not made
-        // while one is ([`serve_with`] leaves them queued) and the shell's
+        // in flight is answered first. The app's requests for it are not
+        // made while one is ([`serve_with`] holds them) and the shell's
         // thread waits for it ([`Sticks::busy`]); a request that still
         // comes is refused at once, nothing sent, rather than wait out a
         // slow piece holding the disk's lock.
