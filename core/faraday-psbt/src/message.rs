@@ -415,7 +415,11 @@ pub struct SignedText {
 }
 
 /// Reads the three-line form. A text with fewer than three lines, or
-/// with nothing on one of the first two, is not one.
+/// with nothing on one of the first two, is not one, and neither is one
+/// whose second line is not a signature: BIP-137 and BIP-322 signatures
+/// are one base64 token, so a line with white space inside it or that
+/// does not decode (a line of seed words under an address title) is
+/// not.
 ///
 /// A file that ends with a newline carries the same message as one that
 /// does not, so a single trailing newline is dropped; every other
@@ -426,7 +430,11 @@ pub fn parse_signed(text: &str) -> Option<SignedText> {
     let (signature, message) = rest.split_once('\n')?;
     let address = address.trim();
     let signature = signature.trim();
-    if address.is_empty() || signature.is_empty() {
+    if address.is_empty()
+        || signature.is_empty()
+        || signature.contains(char::is_whitespace)
+        || base64::decode(signature).is_err()
+    {
         return None;
     }
     Some(SignedText {

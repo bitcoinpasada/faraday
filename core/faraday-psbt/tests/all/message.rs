@@ -439,3 +439,11 @@ fn a_message_ending_in_a_newline_reads_back_from_its_file() {
     let bare = message::parse_signed("bc1qaddress\nc2ln\nhello").expect("reads");
     assert_eq!(bare.message.as_str(), "hello");
 }
+
+/// A signature is one base64 token: a second line of words is not one.
+#[test]
+fn a_second_line_that_is_not_one_base64_token_is_not_a_signed_message() {
+    assert!(message::parse_signed("bc1qaddress\narea funny under front\nhello\n").is_none());
+    assert!(message::parse_signed("bc1qaddress\nc2l*\nhello\n").is_none());
+    assert!(message::parse_signed("bc1qaddress\nc2ln\nhello\n").is_some());
+}

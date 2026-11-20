@@ -657,6 +657,19 @@ fn files_show_as_qr_is_the_file_and_offers_no_picture() {
     assert_eq!(app.outbox.len(), 1);
 }
 
+/// A seed file titled with an address, its words six to a line, is not a signed message
+/// (a signature is one base64 token, and a line of words is not): it is a plain text file,
+/// as one with any other title is.
+#[test]
+fn an_address_titled_seed_file_is_text_not_a_message() {
+    let c = testkit::compute();
+    let file = "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu\nlimb sadness employ night rocket crime\ngarden timber title eight spy stay\ncompany embark secret face fork stable\nmosquito lock visual bamboo decide velvet\n";
+    assert_eq!(
+        faraday_core::wallet::classify(&c, "seed.txt", file.as_bytes()),
+        FileKind::Text
+    );
+}
+
 /// A signed message goes as its own text, public; one whose body is a
 /// seed's words is not a signed message to Faraday and does not go so.
 #[test]

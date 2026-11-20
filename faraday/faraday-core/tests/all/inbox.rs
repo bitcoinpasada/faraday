@@ -214,13 +214,39 @@ fn a_seed_written_six_words_to_a_line_is_added_whole() {
     assert_eq!(added_key_word_counts(file), vec![24]);
 }
 
-/// A title line before the words makes a note; it does not make the words after it a
-/// signed message's body.
+/// A title line before the words makes a note holding all the words; it does not make the
+/// words after it a signed message's body, so no shorter seed is added.
 #[test]
 fn a_title_line_before_the_words_adds_no_shorter_seed() {
     let file = "My seed\nlimb sadness employ night rocket crime\ngarden timber title eight spy stay\ncompany embark secret face fork stable\nmosquito lock visual bamboo decide velvet\n";
     let counts = added_key_word_counts(file);
     assert!(!counts.contains(&18), "{counts:?}");
+    let mut app = unlocked(vec![("seed.txt".to_string(), file.as_bytes().to_vec())]);
+    app.press(Action::Vault(V::AddFile(at(&app, "seed.txt"))));
+    let notes: Vec<String> = app
+        .vaults()
+        .store()
+        .contents_for_tests(app.vaults().open[0].id)
+        .of(kind::NOTE)
+        .filter_map(|(_, r)| r.text(field::NOTE).map(str::to_string))
+        .filter(|t| t.contains("limb sadness"))
+        .collect();
+    assert_eq!(notes.len(), 1, "{notes:?}");
+    assert!(notes[0].replace('\n', " ").contains(SEED_24), "{notes:?}");
+}
+
+/// A bitcoin address as the title line of a seed file does not make the words after it a
+/// signed message: no shorter seed is added from the lines after the first words.
+#[test]
+fn an_address_title_before_the_words_adds_no_shorter_seed() {
+    let file = format!(
+        "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu\n{}\n{}\n{}\n{}\n",
+        "limb sadness employ night rocket crime",
+        "garden timber title eight spy stay",
+        "company embark secret face fork stable",
+        "mosquito lock visual bamboo decide velvet"
+    );
+    assert!(added_key_word_counts(&file).is_empty());
 }
 
 /// Whether Files offers `action` anywhere down the page, moved down by
