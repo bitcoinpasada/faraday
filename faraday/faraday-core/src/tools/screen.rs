@@ -172,6 +172,32 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
         Action::TClear,
     );
     y += 58.0;
+    if crate::tools::takes_codes(t.tool) {
+        let mut row: Vec<(String, Style, Action)> =
+            vec![(EN.tools_scan.into(), Style::Secondary, Action::TScan)];
+        let files: Vec<(usize, &str)> = app
+            .inbox
+            .iter()
+            .enumerate()
+            .filter(|(_, i)| crate::tools::file_fits(i.kind))
+            .map(|(k, i)| (k, i.name.as_str()))
+            .collect();
+        if files.is_empty() {
+            row.push((
+                EN.tools_from_files.into(),
+                Style::Disabled,
+                Action::TFile(usize::MAX),
+            ));
+        }
+        for (k, name) in files {
+            row.push((
+                fill(EN.tools_from_file, &[name]),
+                Style::Secondary,
+                Action::TFile(k),
+            ));
+        }
+        y += button_rows(ui, x, y, width, &row);
+    }
     let Some(reading) = app.tools_reading() else {
         return y;
     };

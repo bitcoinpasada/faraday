@@ -1058,6 +1058,11 @@ pub enum Action {
     /// A calculator's descriptor result **Take to Wallets**: the typed
     /// descriptor goes to Wallets through the wallet confirmation sheet.
     TTake,
+    /// The calculator's **Scan**: a code read into the field.
+    TScan,
+    /// The calculator's **From Files**: the file at this place in Files
+    /// read into the field.
+    TFile(usize),
 }
 
 /// Which mark of a backup board chip a tooltip names.
@@ -1433,6 +1438,8 @@ impl Faraday {
             | Action::TTool(_)
             | Action::TMode(_)
             | Action::TClear
+            | Action::TScan
+            | Action::TFile(_)
             | Action::TTake => self.tools_act(action),
             Action::ExploreKey(fp) => {
                 self.explore_act(Action::Explore);

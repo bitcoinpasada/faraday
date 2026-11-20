@@ -17,7 +17,23 @@ use faraday_codec::encodings::ReadAs;
 use faraday_crypto::work::Compute;
 use faraday_text::{Text, text};
 
-use crate::{Faraday, Screen};
+use crate::{Faraday, Screen, Sheet};
+
+/// The most characters a scan or a file puts in the field.
+const FIELD_MAX: usize = 8192;
+
+/// Whether the calculator has **Scan** and **From Files**: the ones whose
+/// input usually arrives as a code or a file.
+pub(crate) fn takes_codes(t: Tool) -> bool {
+    matches!(t, Tool::Descriptor | Tool::ConvertKey | Tool::Miniscript)
+}
+
+/// Whether a file of Files can go into such a field: a wallet description,
+/// an account key or plain text, never one that holds a secret.
+pub(crate) fn file_fits(kind: crate::wallet::FileKind) -> bool {
+    use crate::wallet::FileKind as K;
+    matches!(kind, K::Wallet | K::Key | K::Text)
+}
 
 /// The calculators, in the order Tools lists them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -587,7 +603,79 @@ impl Faraday {
         if action == crate::Action::TTake {
             return self.tools_take();
         }
-        self.tools.act(action);
+        match action {
+            crate::Action::TScan => self.tools_scan(),
+            crate::Action::TFile(i) => self.tools_file(i),
+            _ => self.tools.act(action),
+        }
+    }
+
+    /// **Scan** under the field: the scanner for text into it.
+    fn tools_scan(&mut self) {
+        if !self.tools.state().is_some_and(|t| takes_codes(t.tool)) {
+            return;
+        }
+        let mut scan = crate::qr_view::ScanState::default();
+        scan.purpose = crate::ScanPurpose::ToolText;
+        self.camera.open(scan);
+        self.sheet = Some(Sheet::Scan);
+        self.out
+            .commands
+            .push_back(faraday_shell_api::Command::CameraOn);
+    }
+
+    /// **From Files**: the file at `i` in Files read into the field, as
+    /// typed text is. A file of another kind, or one with a secret, is not.
+    fn tools_file(&mut self, i: usize) {
+        if !self.tools.state().is_some_and(|t| takes_codes(t.tool)) {
+            return;
+        }
+        let Some(item) = self.inbox.get(i) else {
+            return;
+        };
+        if !file_fits(item.kind) {
+            return;
+        }
+        let text = faraday_text::Text::from_utf8_lossy(&item.bytes);
+        self.tools_fill(text.trim());
+    }
+
+    /// The field takes `text` in place of what it holds, or a toast says
+    /// it does not fit.
+    fn tools_fill(&mut self, text: &str) {
+        if text.chars().count() > FIELD_MAX {
+            self.toast(EN.tools_too_long);
+            return;
+        }
+        if let Some(t) = self.tools.tools.as_mut() {
+            t.typed.set(text);
+        }
+    }
+
+    /// Costs what [`Faraday::scanned_plain_text`] costs. A code read on
+    /// Convert an xpub's, Descriptor checksum's or Miniscript's scanner:
+    /// its text goes into the field and the scanner closes; a secret or
+    /// any other kind of code is named on the scanner and nothing goes in.
+    /// Returns whether the scanner on screen is that one.
+    pub(crate) fn tools_scanned(&mut self, bytes: &zeroize::Zeroizing<Vec<u8>>) -> bool {
+        use crate::scan_read::Kind;
+        if self.camera.scan().map(|s| s.purpose) != Some(crate::ScanPurpose::ToolText) {
+            return false;
+        }
+        let Some(text) = self.scanned_plain_text(
+            bytes,
+            crate::scan_read::secret_kind,
+            &[Kind::Text, Kind::Wallet, Kind::AccountKey],
+        ) else {
+            return true;
+        };
+        if text.trim().chars().count() > FIELD_MAX {
+            self.scan_say(EN.tools_too_long);
+            return true;
+        }
+        self.tools_fill(text.trim());
+        self.scan_close();
+        true
     }
 
     /// Costs what `add_wallet` costs: the typed descriptor goes to Wallets

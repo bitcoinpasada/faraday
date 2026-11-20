@@ -24,13 +24,13 @@ Tools holds six calculators on one page: each takes what you type, works one thi
 
 **Key:** tools.descriptor
 
-**Descriptor checksum** gives the **Checksum** of a descriptor, **Given** with whether a checksum typed with it **holds**, the descriptor **With it**, and whether it is **Wallet**: one this device loads. **Take to Wallets** then puts it in Wallets after the wallet is confirmed. A key that appears twice is named under **Keys** in the warning tone.
+**Descriptor checksum** reads a descriptor from the field, **Scan** or **From Files**, giving the **Checksum** of a descriptor, **Given** with whether a checksum typed with it **holds**, the descriptor **With it**, and whether it is **Wallet**: one this device loads. **Take to Wallets** then puts it in Wallets after the wallet is confirmed. A key that appears twice is named under **Keys** in the warning tone.
 
 ## Convert an xpub
 
 **Key:** tools.convert-key
 
-**Convert an xpub** gives the key as BIP-32 and in the **Legacy**, **Nested SegWit**, **Native SegWit** and **Taproot** spellings, with its **Depth**, **Fingerprint** and **Child**. An extended private key is refused.
+**Convert an xpub** reads a key typed, scanned with **Scan** or read from **From Files**, and gives the key as BIP-32 and in the **Legacy**, **Nested SegWit**, **Native SegWit** and **Taproot** spellings, with its **Depth**, **Fingerprint** and **Child**. An extended private key is refused.
 
 ## Units
 
@@ -42,4 +42,4 @@ Tools holds six calculators on one page: each takes what you type, works one thi
 
 **Key:** tools.miniscript
 
-**Miniscript compiler** turns a policy into a descriptor under wsh or tr, chosen in the row above. It gives the **Descriptor**, the **Spend paths** count and whether it is a **Wallet** this device loads, or why it is refused. A key may be named by the fingerprint of a loaded key, which stands for that key's account key.
+**Miniscript compiler** takes a policy typed, scanned with **Scan** or read from a file with **From Files**, and turns it into a descriptor under wsh or tr, chosen in the row above. It gives the **Descriptor**, the **Spend paths** count and whether it is a **Wallet** this device loads, or why it is refused. A key may be named by the fingerprint of a loaded key, which stands for that key's account key.

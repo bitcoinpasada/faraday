@@ -221,3 +221,102 @@ fn a_descriptor_this_device_loads_is_taken_to_wallets_after_confirmation() {
     typed(&mut app, "wpkh(02)");
     assert!(!app.drawn_texts().iter().any(|t| t == "Take to Wallets"));
 }
+
+const XPUB: &str = "xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V";
+const DESCRIPTOR: &str = "wpkh(02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5)";
+const SEED: &str =
+    "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+
+fn scan_note(app: &Faraday) -> String {
+    app.scan()
+        .and_then(|s| s.note.as_ref().map(|n| String::from(n.as_str())))
+        .unwrap_or_default()
+}
+
+fn scanned(app: &mut Faraday, text: &str) {
+    app.event(Event::Scanned {
+        bytes: text.as_bytes().to_vec(),
+    });
+    let _ = app.frame();
+}
+
+#[test]
+fn a_scanned_xpub_fills_the_field_and_is_converted() {
+    let mut app = Faraday::new();
+    app.press(Action::Tools);
+    tool(&mut app, Tool::ConvertKey);
+    app.press(Action::TScan);
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::Scan));
+    scanned(&mut app, XPUB);
+    assert_eq!(app.sheet, None, "the scanner closes");
+    let t = testkit::tools(&app).unwrap();
+    assert_eq!(t.typed, XPUB);
+    let KeyReading::Public(f) = key_facts(&t.typed, app.session.network()) else {
+        panic!("not read as a public key");
+    };
+    assert!(!f.slip132.is_empty());
+}
+
+#[test]
+fn a_scanned_descriptor_and_policy_fill_their_fields() {
+    for t in [Tool::Descriptor, Tool::Miniscript] {
+        let mut app = Faraday::new();
+        app.press(Action::Tools);
+        tool(&mut app, t);
+        app.press(Action::TScan);
+        scanned(&mut app, DESCRIPTOR);
+        assert_eq!(app.sheet, None);
+        assert_eq!(testkit::tools(&app).unwrap().typed, DESCRIPTOR);
+    }
+}
+
+#[test]
+fn a_file_fills_the_field_as_typed_text_does() {
+    let mut app = Faraday::new();
+    app.press(Action::Tools);
+    tool(&mut app, Tool::ConvertKey);
+    testkit::inbox_file(&mut app, "key.txt", format!("{XPUB}\n").into_bytes());
+    let _ = app.frame();
+    app.press(Action::TFile(0));
+    let t = testkit::tools(&app).unwrap();
+    assert_eq!(t.typed, XPUB);
+    assert!(matches!(
+        key_facts(&t.typed, app.session.network()),
+        KeyReading::Public(_)
+    ));
+}
+
+#[test]
+fn a_seed_or_another_code_does_not_fill_the_field() {
+    for text in [
+        SEED,
+        "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn",
+        "otpauth://totp/Scanned:me?secret=JBSWY3DPEHPK3PXP",
+    ] {
+        for t in [Tool::ConvertKey, Tool::Descriptor, Tool::Miniscript] {
+            let mut app = Faraday::new();
+            app.press(Action::Tools);
+            tool(&mut app, t);
+            app.press(Action::TScan);
+            scanned(&mut app, text);
+            assert_eq!(app.sheet, Some(faraday_core::Sheet::Scan), "{text}");
+            assert!(
+                scan_note(&app).contains("not used here"),
+                "{}",
+                scan_note(&app)
+            );
+            assert!(testkit::tools(&app).unwrap().typed.is_empty(), "{text}");
+        }
+    }
+}
+
+#[test]
+fn a_file_with_a_seed_does_not_fill_the_field() {
+    let mut app = Faraday::new();
+    app.press(Action::Tools);
+    tool(&mut app, Tool::ConvertKey);
+    testkit::inbox_file(&mut app, "words.txt", SEED.as_bytes().to_vec());
+    let _ = app.frame();
+    app.press(Action::TFile(0));
+    assert!(testkit::tools(&app).unwrap().typed.is_empty());
+}

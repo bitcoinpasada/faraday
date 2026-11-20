@@ -32,6 +32,16 @@ macro_rules! words_tools {
     tools_a_policy_e_g: "A policy, e.g. or(pk(9a6a2580),and(pk(…),older(1000)))",
     /// Button in `body`.
     tools_clear: "Clear",
+    /// Button under the field of Convert an xpub, Descriptor checksum and Miniscript: reads a code into it.
+    tools_scan: "Scan",
+    /// The same tools' button with no file in Files to read.
+    tools_from_files: "From Files",
+    /// The same tools' button, one file of Files.
+    tools_from_file: "From Files · {}",
+    /// Title of the scanner those tools open.
+    tools_scan_title: "Scan the text",
+    /// A file or code that does not fit in the field.
+    tools_too_long: "Too long for the field",
     /// Text in `body`.
     tools_encoding: "Encoding",
     /// Encodings' Encoding value: Base58 with its check.

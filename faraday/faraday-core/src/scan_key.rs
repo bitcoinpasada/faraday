@@ -822,6 +822,7 @@ impl Faraday {
                 | ScanPurpose::CheckSent
                 | ScanPurpose::CheckReturned
                 | ScanPurpose::MessageText
+                | ScanPurpose::ToolText
                 | ScanPurpose::SeedCompare
                 | ScanPurpose::Sweep
                 | ScanPurpose::OtsHeader
@@ -1133,6 +1134,7 @@ impl Faraday {
     /// on screen.
     fn scanned_here(&mut self, bytes: zeroize::Zeroizing<Vec<u8>>) {
         if self.message_scanned(&bytes)
+            || self.tools_scanned(&bytes)
             || self.seed_scan_codex32(&bytes)
             || self.gpg_restore_scanned(&bytes)
             || self.sweep_scanned(&bytes)
@@ -2556,7 +2558,11 @@ fn ur_item(
     Some(match message {
         faraday_codec::ur::Message::Psbt(p) => (None, "psbt", p),
         faraday_codec::ur::Message::Bytes(b) => {
-            if scan.purpose == crate::ScanPurpose::MessageText && std::str::from_utf8(&b).is_err() {
+            if matches!(
+                scan.purpose,
+                crate::ScanPurpose::MessageText | crate::ScanPurpose::ToolText
+            ) && std::str::from_utf8(&b).is_err()
+            {
                 scan.note = Some(scan_read::Kind::Unreadable.not_here());
                 return None;
             }

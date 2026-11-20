@@ -93,6 +93,10 @@ pub enum ScanPurpose {
     /// Sign a message's **Scan**: plain text for the message, never
     /// filed; any other kind is named and refused.
     MessageText,
+    /// Convert an xpub's, Descriptor checksum's and Miniscript's **Scan**:
+    /// plain text for the field, never filed; a secret or any other kind
+    /// of code is named and refused.
+    ToolText,
     /// My seed makes my wallet's **Compare with the wallet app's**: a key,
     /// an address or a wallet, compared and never filed.
     SeedCompare,

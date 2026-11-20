@@ -1342,41 +1342,16 @@ impl Faraday {
     /// on the scanner and refused (`docs/SCANNING.md` §4.3). Returns
     /// whether the scanner on screen is that one.
     pub(crate) fn message_scanned(&mut self, bytes: &zeroize::Zeroizing<Vec<u8>>) -> bool {
-        use crate::scan_read::{self, Kind};
         if self.camera.scan().map(|s| s.purpose) != Some(crate::ScanPurpose::MessageText) {
             return false;
         }
-        let c = self.compute();
         // Plain text is the message here, so 16 or 32 bytes that are valid
         // UTF-8 are text, not a CompactSeedQR.
-        let secret = scan_read::message_secret_kind;
-        if let Some(kind) = secret(&c, bytes) {
-            self.scan_say(kind.not_here());
-            return true;
-        }
-        // Parts are put together first; what comes out is looked at again,
-        // since a secret may be what the parts make.
-        let Some((named, _, data)) = self.read_code(bytes.clone()) else {
-            return true;
-        };
-        if let Some(kind) = secret(&c, &data) {
-            self.scan_say(kind.not_here());
-            return true;
-        }
-        let kind = scan_read::public_kind(
-            crate::wallet::classify(&c, "", &data),
-            named.is_some(),
-            &data,
-        );
-        if kind != Kind::Text {
-            self.scan_say(kind.not_here());
-            return true;
-        }
-        // The text as scanned: a single code's own bytes, not the trimmed
-        // text filed for it, and refused when they are not UTF-8.
-        let Ok(text) = std::str::from_utf8(&self.scanned_own(&data)).map(faraday_text::Text::of)
-        else {
-            self.scan_say(Kind::Unreadable.not_here());
+        let Some(text) = self.scanned_plain_text(
+            bytes,
+            crate::scan_read::message_secret_kind,
+            &[crate::scan_read::Kind::Text],
+        ) else {
             return true;
         };
         if let Some(m) = self.message.state.as_mut() {
@@ -1386,9 +1361,51 @@ impl Faraday {
             m.error = None;
             self.scan_close();
         } else {
-            self.scan_say(Kind::Unreadable.not_here());
+            self.scan_say(crate::scan_read::Kind::Unreadable.not_here());
         }
         true
+    }
+
+    /// Costs what [`scan_read::secret_kind`] costs and a read of the code:
+    /// the plain text of a code on a scanner that takes text into a field.
+    /// A secret of any kind and every other kind of code is named on the
+    /// scanner and gives `None`. `secret` says which kind of code is a
+    /// secret here and `accept` which public kinds the field takes.
+    pub(crate) fn scanned_plain_text(
+        &mut self,
+        bytes: &zeroize::Zeroizing<Vec<u8>>,
+        secret: fn(&Compute, &[u8]) -> Option<crate::scan_read::Kind>,
+        accept: &[crate::scan_read::Kind],
+    ) -> Option<faraday_text::Text> {
+        use crate::scan_read::{self, Kind};
+        let c = self.compute();
+        if let Some(kind) = secret(&c, bytes) {
+            self.scan_say(kind.not_here());
+            return None;
+        }
+        // Parts are put together first; what comes out is looked at again,
+        // since a secret may be what the parts make.
+        let (named, _, data) = self.read_code(bytes.clone())?;
+        if let Some(kind) = secret(&c, &data) {
+            self.scan_say(kind.not_here());
+            return None;
+        }
+        let kind = scan_read::public_kind(
+            crate::wallet::classify(&c, "", &data),
+            named.is_some(),
+            &data,
+        );
+        if !accept.contains(&kind) {
+            self.scan_say(kind.not_here());
+            return None;
+        }
+        // The text as scanned: a single code's own bytes, not the trimmed
+        // text filed for it, and refused when they are not UTF-8.
+        let text = std::str::from_utf8(&self.scanned_own(&data)).map(faraday_text::Text::of);
+        if text.is_err() {
+            self.scan_say(Kind::Unreadable.not_here());
+        }
+        text.ok()
     }
 
     /// Opens Sign a message on receive address `index` of the wallet at

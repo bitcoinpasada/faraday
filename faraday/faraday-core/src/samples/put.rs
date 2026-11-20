@@ -335,6 +335,7 @@ impl Faraday {
             | ScanPurpose::GpgPublic
             | ScanPurpose::GpgPaperkey
             | ScanPurpose::MessageText
+            | ScanPurpose::ToolText
             | ScanPurpose::SeedCompare
             | ScanPurpose::Sweep => false,
             ScanPurpose::CheckSent | ScanPurpose::CheckReturned => true,
@@ -547,6 +548,7 @@ impl Faraday {
             | ScanPurpose::GpgPublic
             | ScanPurpose::GpgPaperkey
             | ScanPurpose::MessageText
+            | ScanPurpose::ToolText
             | ScanPurpose::SeedCompare
             | ScanPurpose::Sweep => None,
             ScanPurpose::CheckSent => Some(set.inputs.signer_sent.to_vec()),
