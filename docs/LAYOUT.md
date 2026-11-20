@@ -212,10 +212,12 @@ Material's canonical layouts, by what a screen shows:
 | Settings | compact: the list of its sections, each opening as its own page; medium: every section on one page, one column | every section on one page, two columns where they fit (§17) |
 | Home | §4 | §4 |
 | A flow's step, a form, a sheet's page | one column, at most `COLUMN_MAX` (720 dp), centred in the space beside the navigation | the same; on extra-large, Guide in the supporting pane (§6) |
+| A contained flow's step (Make a new vault; `docs/FLOW-CONTAINER.md`) | one card at one fixed place, the column's first heading; the page scrolls when the card is taller; Your choices is a sheet (§6) | the same card in the column, Your choices in a pane at its right (§6) |
 | The backup board, the structure chart, Explore | the whole space beside the navigation | the same |
 | A sheet | the window's width less a margin (compact), centred at most `SHEET_MAX` (560 dp) wide otherwise | the same |
 
-Panes are separated by a 24 dp spacer and each has its own scroll.
+Panes are separated by a 24 dp spacer and each has its own scroll. Every
+other flow still draws its finished steps above the open one.
 
 ## 6. The supporting pane
 
@@ -272,6 +274,14 @@ the place for their own, and Guide is the sheet there; a pane open on
 arriving there is put away. A window resized across 1600 dp moves
 Guide between the pane and the sheet, on the page it shows; the sheet
 has no pin, so a pane that comes back from it is unpinned.
+
+**Your choices** (`docs/FLOW-CONTAINER.md` §4) stands among the panes for
+a flow on the container (Make a new vault): on the wide layout a pane at
+the right of the card, `side_panel_w` wide, scrolling within itself and
+holding its place as the page scrolls; on every one-column layout a sheet
+the top app bar's Your choices button opens (`docs/DESIGN.md` §4.1). On
+extra-large, Guide is a sheet beside a contained flow, so the two panes
+never stand together.
 
 ## 7. Density
 
@@ -508,6 +518,10 @@ A page holds two kinds of content, and each has its own width:
   stands). Wide content never stretches what it draws (§8): it uses the
   room to show more of itself at once, or its cells larger up to a
   token maximum (§16.1).
+
+In a flow on the container the work width ends before the Your choices
+pane (a `SPACER` left of it), and the card's wide content stops there; the
+card's own rules no longer run the work width (F296).
 
 A page of reading content only is centred in the room beside the
 navigation (left of a supporting pane where one stands), whenever the room is wider than its area, whatever the window; in a held app (the Starter's, `docs/STARTER.md` §3.1d) the room is the whole frame, as it has no navigation. New key is such a page until it holds Make codex32 shares, whose

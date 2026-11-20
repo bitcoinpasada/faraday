@@ -337,6 +337,23 @@ extent; a motion left from another screen or sheet is stopped.
   - a toast rises in over 200 ms on Material's standard decelerate
     curve and fades on its standard accelerate (`motion::TOAST_MS`,
     `Out::toast_shown`), shown 4 s (`tokens::TOAST_SHOW_MS`);
+  - a change of step in a contained flow (Make a new vault; the other
+    flows are not on the container yet, `docs/FLOW-CONTAINER.md`) fades
+    through over 300 ms (`motion::STEP_FADE_MS`, Material's medium 2):
+    the old card goes out to the page's surface over the first 35%
+    (`motion::STEP_FADE_OUT`) on the emphasized accelerate, and the new
+    one comes in over the rest on the emphasized decelerate
+    (`motion::step_fade`), at the same place, the frame outside the card
+    cross-fading over all of it. Material's fade through is one full
+    emphasized curve over 450 ms with the incoming view scaling up from
+    92%; Faraday has no token for that curve, leaves the scale out, and
+    keeps 300 ms since a card moves a smaller area than a page (F296). On a
+    page scrolled it fades only the card in view and the new step starts
+    at its top. With reduce motion the step is there at once. A step that
+    shows or takes a secret swaps at once, and so does a change from a
+    frame drawn while one was typed or shown (the rule below stands). A
+    contained flow's card no longer grows nor glides into view; the next
+    item is for every other flow's step cards;
   - a step card opens with its height growing over 300 ms, Material's
     medium 2, on its emphasized decelerate curve (`motion::ease_open`,
     F108), and the jump that brings the open card into view
