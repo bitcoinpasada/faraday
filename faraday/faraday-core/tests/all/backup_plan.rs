@@ -1360,6 +1360,11 @@ fn change_the_plan_from_the_checklist_opens_the_place_cards_with_the_map_kept() 
     app.press(Action::BQ(qstep::PLAN));
     app.press(Action::BChecklist);
     assert_eq!(app.backup().unwrap().stage, BStage::Checklist);
+    // The checklist opens on the first item not done; Change the plan ends
+    // the checklist card, one Back from it.
+    if app.backup().unwrap().open.is_some() {
+        app.press(Action::Back);
+    }
     assert!(shows(&mut app, Action::BPlan));
     app.press(Action::BPlan);
     assert_eq!(app.sheet, None, "nothing is asked");

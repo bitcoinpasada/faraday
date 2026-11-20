@@ -1021,6 +1021,13 @@ fn a_match_with_the_clock_not_checked_has_no_date_until_set_the_time() {
     let (mut app, w) = single_key_with_vault();
     type_back(&mut app, w);
     app.press(Action::BWhich(0));
+    // Set the time ends the checklist card, not an item's.
+    if app.backup().unwrap().open.is_some() {
+        app.press(Action::Back);
+    }
+    app.settle();
+    let _ = app.frame();
+    let _ = app.frame();
     assert!(shown(&mut app, "Set the time"));
     assert!(app.offers(Action::OpenSetTime));
     app.press(Action::OpenWallet(w));
