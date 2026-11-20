@@ -202,6 +202,7 @@ fn words_make_new_key_offer_bip39_words_and_no_codex32() {
             Start::Make,
             Start::Words,
             Start::Scan,
+            Start::Krux,
             Start::Codex32,
             Start::Shares,
             Start::Xor
@@ -248,6 +249,7 @@ fn codex32_make_new_key_offer_codex32_and_no_bip39_words_to_make() {
             Start::MakeCodex32,
             Start::Words,
             Start::Scan,
+            Start::Krux,
             Start::Codex32,
             Start::Shares,
             Start::Xor
@@ -532,6 +534,7 @@ fn a_multisig_cosigner_slot_offers_bip39_words_and_no_slip39_make_and_no_codex32
             Start::Make,
             Start::Words,
             Start::Scan,
+            Start::Krux,
             Start::Codex32,
             Start::Shares,
             Start::Xor

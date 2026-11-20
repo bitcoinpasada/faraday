@@ -757,7 +757,9 @@ My seed makes my wallet's Seed card has the same two ways on its **Krux code** r
 **In Files.** A `.kef` file (any case) whose bytes are a code's own (what `krux-v{version}-{id}.kef` holds) is a
 `FileKind::KruxCode`, **Krux encrypted code**, told by its name and contents (`classify_read`'s last arm, §8's
 weak test, raw bytes only; the same bytes under another name stay `Other`, which **From Files** still takes; a text form stays a text file, which **From Files** still takes). It is a
-secret file as seed words are, and its button **Open** is `Action::KefFile`, the one **From Files**
+sealed file, as a vault is (its seed is under the passphrase; the tool puts it in the Outbox and it
+stays there through a lock), and a lock still drops one read from a stick, which asks before it is
+copied; its button **Open** is `Action::KefFile`, the one **From Files**
 presses. The `.png` the tool writes is read as any picture of a QR code is, at a stick visit
 (`qr_read`): its code goes to the camera's reading, which offers §8's card; no reader was added.
 
