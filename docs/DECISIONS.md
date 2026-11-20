@@ -309,3 +309,5 @@ Read this table, then only the decision you need.
 | [F296](decisions/F296.md) | One flow container: one step at a time, at one place, with Your choices beside it | 2026-11-19 | Active | design |
 | [F297](decisions/F297.md) | The Windows programs link with lld and delay-load uxtheme and dwmapi from System32 | 2026-11-20 | Active | starter |
 | [F298](decisions/F298.md) | One menu page container: Home, Tools, Check, Wallets start and Settings in one feed | 2026-11-20 | Active | design |
+| [F299](decisions/F299.md) | One registry of the forms a key comes in: every list of forms reads it | 2026-11-20 | Active | keys |
+| [F300](decisions/F300.md) | Faraday reads back an extended private key and a master seed in hex | 2026-11-20 | Active | keys |

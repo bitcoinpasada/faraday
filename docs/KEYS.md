@@ -16,7 +16,9 @@ boundary is.
   - MuSig secret nonces;
   - the master seed bytes of a key loaded from a seed (`Keys::add_seed`:
     codex32, SLIP-39), kept with the key so that
-    its paper forms can be written again;
+    its paper forms can be written again (what each key form makes, and
+    so `Material`'s variants, is to come from the registry of key forms,
+    `docs/KEY-FORMS.md` §3.2);
   - a codex32 work set, the set being made by hand (`WorkSet`,
     `faraday/faraday-keys/src/codex32.rs`): the characters entered, the
     checksum worksheets and strings made from them, and the seed;

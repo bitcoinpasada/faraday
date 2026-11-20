@@ -58,7 +58,9 @@ plugged in while the camera is on is held back until it is off
 ## 2. The kinds
 
 What a code can be, in the order the classifier (§4.6) tells them
-apart, and whether it is a secret (DESIGN §4.10, Mask policy).
+apart, and whether it is a secret (DESIGN §4.10, Mask policy). Which key
+form each seed kind is, whole or a part, is to be read from the registry
+of key forms (`docs/KEY-FORMS.md` §3.3), not listed by each scanner.
 
 | Kind | Read as | Secret |
 |---|---|---|

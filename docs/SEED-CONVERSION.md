@@ -47,7 +47,9 @@ standard it is and which software restores it.
    (codex32, SLIP-39) keeps its seed bytes (`Keys::add_seed`,
    `holds_seed_bytes`, `faraday/faraday-keys/src/session.rs`), as a key of
    words keeps its words: every key has its seed bytes or its words, and
-   no key offers only its xprv.
+   no key offers only its xprv. (F300 changes this for a key loaded from
+   an xprv, which holds only its master key; which targets a key offers is
+   to follow from its form, `docs/KEY-FORMS.md` §3.4 and §6.4.)
 7. **codex32's set actions are the backup's; SLIP-39's are this
    tool's.** A codex32 set's Add a share, Replace a lost share and Rotate
    the set change what a plan's places keep, so they live with the backup

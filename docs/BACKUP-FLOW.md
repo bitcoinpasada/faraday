@@ -2582,7 +2582,9 @@ chart's sheets) points here.
 ### 18.3 Part 1: when each copy was last checked
 
 **What records a check.** Every way a copy is checked writes the same
-vault note, `checked <at> <what> <date>`, for that copy alone:
+vault note, `checked <at> <what> <date>`, for that copy alone. The copies
+and their checks are to be worked out from the registry of key forms,
+with every spelling written today kept (`docs/KEY-FORMS.md` §5):
 
 | Check | Copy dated |
 |---|---|
