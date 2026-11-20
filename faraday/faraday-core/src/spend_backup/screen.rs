@@ -44,23 +44,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         }
         return;
     }
-    let col_x = x0 + 40.0;
-    let col_w = (cw - 80.0).min(900.0);
-    let ids = app.spend_backup_cards();
-    let open = app.spend_backup_open_card();
-    let cards: Vec<flow::Card> = ids
-        .iter()
-        .map(|&id| flow::Card {
-            title: text::title(app, id),
-            summary: (&*summary(app, id)).into(),
-            mono: matches!(id, CardId::Step(step::TXID)),
-            done: done(app, id),
-            open: open == Some(id),
-            default: false,
-            toggle: crate::spend_backup::toggle(app, id),
-            lead: Some(text::lead(app, id)).filter(|s| !s.is_empty()),
-        })
-        .collect();
     // From a wallet's card: the wallet's name, and no word on the
     // walk-through.
     let from = app
@@ -72,12 +55,10 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 &[&app.session.wallets[i].name],
             )
         });
-    let col = flow::Column {
-        area_x: x0,
-        area_w: cw,
-        x: col_x,
-        w: col_w,
+    let page = flow::Page {
+        area: (x0, cw),
         h,
+        foot_h: 0.0,
         // Opened from anywhere else, the way back is where it was opened
         // from, by the trail (F77).
         back: app
@@ -88,10 +69,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 Some(crate::Screen::Home) => {
                     Some((EN.spend_backup_home, Action::Nav(crate::Screen::Home)))
                 }
-                Some(crate::Screen::WalletsStart) => Some((
-                    EN.spend_backup_wallets,
-                    Action::Nav(crate::Screen::WalletsStart),
-                )),
                 _ => Some((
                     EN.spend_backup_wallets,
                     Action::Nav(crate::Screen::WalletsStart),
@@ -99,21 +76,40 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             })
             .map(|b| app.named_back(b)),
         heading: from.as_deref().unwrap_or(EN.spend_backup_spend),
-        wrap_closed: false,
-        total_fixed: false,
-        all_shown: false,
-        note: None,
         chip: None,
+        note: None,
         chip_tap: None,
         moves: crate::ui::Moves::No,
     };
+    let Some(contained) =
+        crate::trail::StepFlow::contained(&crate::spend_backup::SPEND_BACKUP_STEPS)
+    else {
+        return;
+    };
     let scroll = app.spend_backup.state.scroll;
-    let (next, again) = {
+    let (next, again, _) = {
         let app_ref: &View = app;
-        let mut draw_body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
-            body(app_ref, ui, ids[i], x, y, w)
+        let mut draw_body = |ui: &mut Ui, k: u8, x: f32, y: f32, w: f32| -> f32 {
+            let id = crate::spend_backup::card_of(k);
+            // The card's own line leads its body, as the column drew it.
+            let mut used = 0.0;
+            let lead = text::lead(app_ref, id);
+            if !lead.is_empty() {
+                used += flow::guide_text(ui, (x, y, w), &lead) + 18.0;
+            }
+            used + body(app_ref, ui, id, x, y + used, w)
         };
-        flow::column(ui, &col, &cards, scroll, &mut draw_body)
+        // Nothing stands under Your choices' rows.
+        let mut under = |_: &mut Ui, _: f32, _: f32, _: f32| 0.0;
+        flow::contained(
+            ui,
+            app_ref,
+            contained,
+            &page,
+            scroll,
+            &mut draw_body,
+            &mut under,
+        )
     };
     app.scroll(Scrolled::SpendBackup, next, again);
 }
@@ -630,7 +626,7 @@ fn next_row(
     76.0
 }
 
-fn done(app: &View, id: CardId) -> bool {
+pub(crate) fn done(app: &Faraday, id: CardId) -> bool {
     match id {
         CardId::Page(p) => app.spend_backup_page_done(p),
         CardId::Step(n) => app.wallets.spend().is_some_and(|s| s.done[n as usize]),
@@ -638,7 +634,7 @@ fn done(app: &View, id: CardId) -> bool {
     }
 }
 
-fn summary(app: &View, id: CardId) -> Text {
+pub(crate) fn summary(app: &Faraday, id: CardId) -> Text {
     let s = match id {
         CardId::Page(page::MAP) => EN.spend_backup_six_stops,
         CardId::Page(page::SAFE) if app.online => EN.spend_backup_desktop_copy,
@@ -1031,7 +1027,7 @@ fn wallet_once(w: &crate::wallet::Wallet) -> Text {
 
 /// What came in, a line each, newest last: the seeds still loaded and
 /// the files still in Files.
-fn came_rows(app: &View) -> Vec<Text> {
+fn came_rows(app: &Faraday) -> Vec<Text> {
     let mut sheets = 0;
     let mut texts: Vec<Text> = Vec::new();
     let mut rows = Vec::new();

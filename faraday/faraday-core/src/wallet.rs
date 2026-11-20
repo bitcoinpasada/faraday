@@ -5,7 +5,7 @@
 
 use crate::modes::Mode;
 use crate::strings::EN;
-use crate::{Action, Faraday, Screen, Sheet, spend_backup, wallet};
+use crate::{Action, Faraday, Screen, Sheet, wallet};
 use crate::{WalletKey, create};
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::bitcoin::consensus::encode::serialize_hex;
@@ -4898,12 +4898,10 @@ impl Faraday {
                 crate::signing::read::start_spend(self, i, crate::signing::read::Then::Spend);
             }
             Action::Step(n) => {
-                // On the Spend tab a step opened from another card
-                // stays open.
-                let from_page = self.screen == Screen::SpendBackup
-                    && self.spend_backup.state().open != Some(spend_backup::Open::Spend);
-                self.wallets
-                    .press_step(n, from_page || self.screen == Screen::Spend);
+                // On Spend from a backup and the Spend tab a step is
+                // always open: a press on the open one does nothing.
+                let keep_open = matches!(self.screen, Screen::SpendBackup | Screen::Spend);
+                self.wallets.press_step(n, keep_open);
                 if self.screen == Screen::SpendBackup {
                     self.spend_backup_step_moved(false);
                 }

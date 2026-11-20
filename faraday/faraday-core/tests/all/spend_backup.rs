@@ -19,7 +19,7 @@ use faraday_core::seeds::read::Choice;
 use faraday_core::spend_backup::{CardId, Open, Question, Route, SpendBackupAction as F, page};
 use faraday_core::testkit;
 use faraday_core::wallet::{FileKind, step};
-use faraday_core::{Action, Faraday, Screen, Sheet, StorageCommand, StorageEvent};
+use faraday_core::{Action, ChoicesPress, Faraday, Screen, Sheet, StorageCommand, StorageEvent};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 fn kit(id: &str) -> testkit::Kit {
@@ -1384,4 +1384,46 @@ fn of_two_wallets_with_one_name_the_one_chosen_is_shown() {
     assert_eq!(chosen_address(&app), kit_address("spending"));
     app.press(Action::SpendBackup(F::Choose(0)));
     assert_eq!(chosen_address(&app), kit_address("savings"));
+}
+
+/// The tab shows one step's card at a time under "Step N", the card's own
+/// line at its top.
+#[test]
+fn the_tab_shows_one_step_with_its_number_and_its_own_line_at_the_top() {
+    let mut app = shown();
+    on_intake(&mut app);
+    let text = drawn(&mut app);
+    // What do you have? is the second of the tab's steps.
+    assert!(text.contains("Step 2"), "{text}");
+    assert!(!text.contains("Step 1"), "{text}");
+    assert!(text.contains("Scan or type everything"), "{text}");
+    // The map's own card is not drawn under it.
+    assert!(!text.contains("Check the balance"), "{text}");
+}
+
+/// A press on an earlier step in Your choices opens it as it was left;
+/// a press on the open step does nothing.
+#[test]
+fn an_earlier_row_opens_that_step_and_the_open_one_stays_open() {
+    let mut app = shown();
+    on_intake(&mut app);
+    let _ = app.frame();
+    app.press(Action::SpendBackup(F::Card(page::HOLDING)));
+    assert_eq!(app.spend_backup().open, Some(Open::Page(page::HOLDING)));
+    app.press(Action::Choices(ChoicesPress::Row(page::MAP)));
+    assert_eq!(app.spend_backup().open, Some(Open::Page(page::MAP)));
+    let text = drawn(&mut app);
+    assert!(text.contains("Step 1"), "{text}");
+}
+
+/// Seeds typed or scanned are never among the rows of Your choices.
+#[test]
+fn the_words_read_are_never_in_your_choices() {
+    let mut app = shown();
+    on_intake(&mut app);
+    scan_seed(&mut app, "bacon");
+    app.press(Action::Cancel);
+    let words = testkit::test_words("bacon");
+    let text = drawn(&mut app);
+    assert!(!text.contains(&*words), "{text}");
 }

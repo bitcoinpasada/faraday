@@ -574,11 +574,11 @@ impl Faraday {
     /// The first thing not done after page `from`: a page, the spend's
     /// next step, or the last page. A page skipped before it stays where
     /// it is.
-    fn spend_backup_first_open(&mut self, from: u8) -> Open {
+    fn spend_backup_first_open(&mut self, from: Option<u8>) -> Open {
         let pages = self.spend_backup_pages();
         if let Some(p) = pages
             .into_iter()
-            .find(|&p| p > from && !self.spend_backup_page_done(p))
+            .find(|&p| from.is_none_or(|f| p > f) && !self.spend_backup_page_done(p))
         {
             return Open::Page(p);
         }
@@ -598,7 +598,7 @@ impl Faraday {
     }
 
     fn spend_backup_advance(&mut self, from: u8) {
-        self.spend_backup.state.open = Some(self.spend_backup_first_open(from));
+        self.spend_backup.state.open = Some(self.spend_backup_first_open(Some(from)));
         self.spend_backup.state.scroll.follow = true;
     }
 
@@ -627,6 +627,8 @@ impl Faraday {
             })),
             o => o,
         };
+        // A step is always open: with none, the first not done.
+        let open = open.or_else(|| Some(self.spend_backup_first_open(None)));
         if open != self.spend_backup.state.open {
             self.spend_backup.state.open = open;
             self.spend_backup.state.scroll.follow = true;
@@ -642,13 +644,12 @@ impl Faraday {
         }
         match a {
             F::Card(p) => {
-                self.spend_backup.state.open =
-                    if self.spend_backup.state.open == Some(Open::Page(p)) {
-                        None
-                    } else {
-                        Some(Open::Page(p))
-                    };
-                self.spend_backup.state.scroll.follow = true;
+                // A step is always open: the press on the open one does
+                // nothing.
+                if self.spend_backup.state.open != Some(Open::Page(p)) {
+                    self.spend_backup.state.open = Some(Open::Page(p));
+                    self.spend_backup.state.scroll.follow = true;
+                }
             }
             F::Next(p) => {
                 if let Some(c) = self.spend_backup.state.closed.get_mut(p as usize) {
@@ -1914,7 +1915,7 @@ impl Faraday {
             (Some(step::CHECK), _) => Some(Open::Page(page::CHECK)),
             (Some(_), _) => Some(Open::Spend),
             (None, true) => Some(Open::Page(page::AWAY)),
-            (None, false) => None,
+            (None, false) => Some(self.spend_backup_first_open(None)),
         };
         self.spend_backup.state.scroll.follow = true;
     }
@@ -2121,7 +2122,7 @@ fn card_code(id: CardId) -> u8 {
 }
 
 /// The card a number stands for.
-fn card_of(k: u8) -> CardId {
+pub(crate) fn card_of(k: u8) -> CardId {
     match k {
         k if k >= LATER_AT => CardId::Later(k - LATER_AT),
         k if k >= STEP_AT => CardId::Step(k - STEP_AT),
@@ -2135,12 +2136,15 @@ impl crate::trail::StepFlow for SpendBackupSteps {
         if app.spend_backup_overview() {
             return None;
         }
-        let order = app
-            .spend_backup_cards()
-            .into_iter()
+        let cards = app.spend_backup_cards();
+        let order = cards.iter().copied().map(card_code).collect();
+        let mut s = crate::trail::Steps::new(order, app.spend_backup_open_card().map(card_code));
+        s.answered = cards
+            .iter()
+            .copied()
+            .filter(|&id| screen::done(app, id))
             .map(card_code)
             .collect();
-        let mut s = crate::trail::Steps::new(order, app.spend_backup_open_card().map(card_code));
         s.first = app
             .wallets
             .spend()
@@ -2155,6 +2159,30 @@ impl crate::trail::StepFlow for SpendBackupSteps {
 
     fn name(&self, app: &Faraday, k: u8) -> &'static str {
         text::name(app, card_of(k))
+    }
+
+    fn contained(&self) -> Option<&dyn crate::flow::Contained> {
+        Some(self)
+    }
+}
+
+impl crate::flow::Contained for SpendBackupSteps {
+    fn rows(&self, app: &Faraday) -> Vec<crate::flow::Row> {
+        let open = app.spend_backup_open_card();
+        app.spend_backup_cards()
+            .into_iter()
+            .map(|id| crate::flow::Row {
+                label: faraday_text::Text::of(text::name(app, id)),
+                value: Some(screen::summary(app, id)).filter(|t| !t.is_empty()),
+                mono: matches!(id, CardId::Step(step::TXID)),
+                opens: card_code(id),
+                current: open == Some(id),
+            })
+            .collect()
+    }
+
+    fn count_fixed(&self, _: &Faraday) -> bool {
+        false
     }
 }
 
