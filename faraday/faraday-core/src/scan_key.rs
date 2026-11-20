@@ -1455,7 +1455,7 @@ impl Faraday {
         let mut not_kept = false;
         let mut kef = None;
         let ways = match kind {
-            k if k.route() == scan_read::Route::Load => {
+            k if matches!(k.route(), scan_read::Route::Load(_)) => {
                 facts.extend(self.read_key_fact(c, k, &code, &text).map(|f| Text::of(&f)));
                 vec![Way::Key]
             }
@@ -1836,7 +1836,10 @@ impl Faraday {
             _ => return false,
         };
         let given = trimmed(bytes);
-        let codex32 = faraday_bip::codex32::Codex32::parse(&given).is_ok_and(|s| s.is_secret());
+        let kind = scan_read::secret_kind(c, bytes);
+        let codex32 = kind.map(Kind::route)
+            == Some(scan_read::Route::Load(crate::forms::Form::Codex32))
+            && faraday_bip::codex32::Codex32::parse(&given).is_ok_and(|s| s.is_secret());
         let words = if codex32 {
             None
         } else {
@@ -1854,7 +1857,7 @@ impl Faraday {
         }
         match words {
             Some(words) => {
-                let kind = scan_read::secret_kind(c, bytes).unwrap_or(Kind::SeedWords);
+                let kind = kind.unwrap_or(Kind::SeedWords);
                 self.entry.reset();
                 self.entry.set_back(Some(back));
                 self.seed_scanned(&words, kind);
@@ -2133,7 +2136,8 @@ impl Faraday {
             return self.seed_scanned(&words, Kind::SeedWords);
         }
         if self.screen != crate::Screen::KeyGen
-            && scan_read::secret_kind(&c, &bytes) == Some(Kind::Slip39Share)
+            && scan_read::secret_kind(&c, &bytes).map(Kind::route)
+                == Some(scan_read::Route::Part(crate::forms::Form::Slip39))
             && self.intake_key_part(&bytes)
         {
             return;
@@ -2262,8 +2266,8 @@ impl Faraday {
         // A Krux encrypted code is not filed: its card asks first
         // (`docs/KEF.md` §8).
         if named.is_none()
-            && scan_read::public_kind(crate::wallet::classify(&c, "", &data), false, &data)
-                == Kind::Kef
+            && scan_read::public_kind(crate::wallet::classify(&c, "", &data), false, &data).route()
+                == scan_read::Route::Sheet
         {
             return self.read_card_show(&c, Kind::Kef, (None, "txt", data));
         }

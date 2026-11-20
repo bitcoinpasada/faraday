@@ -1,8 +1,8 @@
 # Key forms: one registry of the forms a key comes in
 
 **Kind:** Spec
-**Status:** Specified (F299, F300); the registry crate `faraday-forms` is built (the identifier and the table of §3.2, and `scan_read::Kind::form`, which the scanners' seed branches read through `Kind::route`), and the other lists of §2 are not yet moved onto it: seven lists still repeat what it knows by hand.
-**Open:** every list moved onto the registry; the ways-in component on each screen that takes a key; copies and their checks worked out from it; the two forms of an extended private key and a master seed in hex in the registry, their screens, the Inbox's finding of a file holding one and Convert's reading of them (the key boundary reads both)
+**Status:** Specified (F299, F300); the registry crate `faraday-forms` is built (the identifier and the table of §3.2, and `scan_read::Kind::form`, which every scanner's seed branch reads through `Kind::route`), and the other lists of §2 are not yet moved onto it: seven lists still repeat what it knows by hand.
+**Open:** a master xprv read by a scanner; every list moved onto the registry; the ways-in component on each screen that takes a key; copies and their checks worked out from it; the two forms of an extended private key and a master seed in hex in the registry, their screens, the Inbox's finding of a file holding one and Convert's reading of them (the key boundary reads both)
 
 A key comes into Faraday in one of a few forms: BIP-39 words, SLIP-39
 shares, codex32 strings, Seed XOR parts, a Krux code, and, by F300, an
@@ -59,8 +59,9 @@ crossed with how they are kept, written by hand.
 
 Drift found on this survey: Krux was added to each list by hand;
 `Start::typing` maps `Form::Krux` to the words ("not a choice here");
-`Kind::seed` leaves out a Krux code and the SLIP-39 and codex32 shares,
-which each scanner handles in a branch of its own; `samples::SampleForm`
+`Kind::seed` left out a Krux code and the SLIP-39 and codex32 shares, which
+each scanner handled in a branch of its own (now read from `Kind::route`);
+`samples::SampleForm`
 has a master seed that Add a key does not.
 
 ## 3. The registry
@@ -123,17 +124,15 @@ fact. Each method is a `match` over every form.
 part, or to none: words, a SeedQR and a CompactSeedQR are whole words; a
 codex32 secret is a whole codex32 key and a codex32 share a part; a SLIP-39
 share is a part; a Krux code is a whole Krux code; an xprv is a whole xprv
-(F300). `Kind::seed` becomes a read of it: a whole form a seed scanner
-loads at once. A hex seed has no kind (§6.2).
+(F300). `Kind::route` reads it with the piece: a whole words or codex32 key
+a seed scanner loads at once, a part it hands to its form's collection in
+Add a key, a Krux code it opens on its passphrase sheet; `Kind::seed` is
+the first. Every scanner's seed branch reads `Kind::route` (built, with no
+change to what any scanner takes). A hex seed has no kind (§6.2).
 
-This changes what some scanners do, and each scanner's row in
-`docs/SCANNING.md` §4.3 changes with it, as a change of behaviour and not
-only of code: a part scanned where a seed is loaded hands over to the
-form's collection in Add a key (as codex32 and SLIP-39 shares do today
-from Home's Scan); a Krux code opens its passphrase sheet and then lands
-where a SeedQR does (as the Krux code already does in flows); a master
-xprv shows the seed sheet with its fingerprint and no passphrase; anything
-else that is no form keeps its row of §4.2.
+Not built, and each scanner's row in `docs/SCANNING.md` §4.3 changes with
+it: a master xprv shows the seed sheet with its fingerprint and no
+passphrase; anything else that is no form keeps its row of §4.2.
 
 ### 3.4 Every list as a read of the table
 

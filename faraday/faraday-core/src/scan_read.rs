@@ -23,8 +23,8 @@ pub enum Piece {
 /// What a scanner that loads a seed does with a kind (`Kind::route`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Route {
-    /// A whole key it loads at once.
-    Load,
+    /// A whole key it loads at once, of the form.
+    Load(Form),
     /// A part of a set, which goes to its form's collection.
     Part(Form),
     /// A Krux code, opened under its passphrase on its own sheet.
@@ -180,7 +180,7 @@ impl Kind {
             return Route::Other;
         };
         match (form, piece) {
-            (Form::Words | Form::Codex32, Piece::Whole) => Route::Load,
+            (Form::Words | Form::Codex32, Piece::Whole) => Route::Load(form),
             (Form::Codex32 | Form::Slip39, Piece::Part) => Route::Part(form),
             (Form::Krux, Piece::Whole) => Route::Sheet,
             // No kind is a whole SLIP-39 or Seed XOR key, a part of a
@@ -193,16 +193,15 @@ impl Kind {
     /// Whether the kind is a whole seed a scanner that loads one takes: a
     /// Krux code is not, it is opened on its own sheet first.
     pub fn seed(self) -> bool {
-        self.route() == Route::Load
+        matches!(self.route(), Route::Load(_))
     }
 
     /// The form of shares or a secret a scanner sends to Add a key's form
-    /// for it, if the kind is one.
+    /// for it, if the kind is one: read from `route`.
     pub fn part_form(self) -> Option<Form> {
-        let (form, _) = self.form()?;
-        match form {
-            Form::Codex32 | Form::Slip39 => Some(form),
-            Form::Words | Form::Xor | Form::Krux => None,
+        match self.route() {
+            Route::Part(form) | Route::Load(form @ Form::Codex32) => Some(form),
+            Route::Load(_) | Route::Sheet | Route::Other => None,
         }
     }
 

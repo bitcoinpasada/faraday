@@ -475,6 +475,38 @@ fn a_totp_code_or_a_seedqr_read_at_scan_the_psbt_shows_the_card_and_no_secret() 
     assert!(app.inbox().is_empty());
 }
 
+/// A codex32 or SLIP-39 share read at Scan the PSBT, a scanner that hands
+/// over what it does not take: the card offers Add this share, and
+/// pressing it opens that share's form holding the share
+/// (`docs/SCANNING.md` §4.3).
+#[test]
+fn a_share_read_at_scan_the_psbt_is_added_to_its_form_from_the_card() {
+    for (code, form) in [
+        (
+            "MS12NAMEA320ZYXWVUTSRQPNMLKJHGFEDCAXRPP870HKKQRM",
+            Form::Codex32,
+        ),
+        (
+            "shadow pistol academic always adequate wildlife fancy gross oasis cylinder mustang wrist rescue view short owner flip making coding armed",
+            Form::Slip39,
+        ),
+    ] {
+        let mut app = testkit::started();
+        app.press(Action::Nav(Screen::SpendBackup));
+        app.press(Action::ScanFor(Ask::SpendPsbt));
+        read(&mut app, code.as_bytes());
+        let (_, _, ways) = card(&app).unwrap();
+        assert_eq!(ways, vec!["Add this share".to_string()]);
+        app.press(Action::ReadGo(0));
+        let _ = app.frame();
+        assert_eq!(app.screen, Screen::Entry);
+        let e = testkit::entry(&app);
+        assert_eq!(e.form, form);
+        assert_eq!(e.parts.lines(form).len(), 1);
+        assert!(app.inbox().is_empty());
+    }
+}
+
 #[test]
 fn with_no_vault_make_a_vault_opens_create_a_vault_and_the_code_is_gone() {
     let mut app = testkit::started();
