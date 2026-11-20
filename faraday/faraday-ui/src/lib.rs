@@ -524,6 +524,11 @@ pub struct Ui<'a, A> {
     /// left edge, its top, and the column's width and height, in design
     /// units (`docs/FLOW-CONTAINER.md` §2). The fade through reads it.
     pub flow_card: Option<(f32, f32, f32, f32)>,
+    /// While the body of a flow on the container that holds wide content
+    /// runs (`docs/LAYOUT.md` §14): where its work ends, as an x in design
+    /// units: `SPACER` before Your choices, or the page area's end less the
+    /// margin on a step that takes the whole room. `None` otherwise.
+    pub flow_work: Option<f32>,
     /// Where the step column wants to glide to, to bring the open card
     /// into view, units.
     pub follow_to: Option<f32>,
@@ -705,6 +710,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             disclosure: None,
             column: None,
             flow_card: None,
+            flow_work: None,
             follow_to: None,
             compact: false,
             touch: faraday_draw::tokens::TOUCH,

@@ -527,6 +527,10 @@ pub(crate) struct Scroll {
     /// How far the stick's list in the Files visit is scrolled, units:
     /// its own, not the page's ([`Faraday::list_offset`]).
     visit_in: f32,
+    /// How far Your choices is scrolled within its pane, units: the one
+    /// offset of whichever flow on the container is on screen, 0 when a
+    /// flow opens.
+    choices: f32,
 }
 
 /// Holds nothing a lock wipes: a scroll's motion.
@@ -547,6 +551,7 @@ impl Default for Scroll {
             panes: crate::panes::Panes::default(),
             sidebar: 0.0,
             visit_in: 0.0,
+            choices: 0.0,
         }
     }
 }
@@ -555,6 +560,16 @@ impl Scroll {
     /// The list pane's state (`docs/LAYOUT.md` §5).
     pub(crate) fn panes(&self) -> &crate::panes::Panes {
         &self.panes
+    }
+
+    /// Your choices scrolled to `y` units within its pane.
+    pub(crate) fn set_choices_offset(&mut self, y: f32) {
+        self.choices = y;
+    }
+
+    /// How far Your choices is scrolled within its pane, units.
+    pub(crate) fn choices_offset(&self) -> f32 {
+        self.choices
     }
 
     /// The stick's list in the Files visit scrolled to `y` units.
@@ -722,13 +737,14 @@ impl Scroll {
     /// Which region scrolls now: the one the pointer last went to, while
     /// it can be reached (`sheet_none`, not `compact`, on its own
     /// screen); else the screen's or the sheet's own. `board_shown` is
-    /// asked only when the pointer went to the board's list.
+    /// asked only when the pointer went to the board's list, `contained_on_show` only when it went to Your choices.
     pub(crate) fn slot(
         &self,
         screen: Screen,
         sheet_none: bool,
         compact: bool,
         board_shown: impl FnOnce() -> bool,
+        contained_on_show: impl FnOnce() -> bool,
     ) -> ui::Slot {
         let reach = !compact && sheet_none;
         match self.region {
@@ -752,7 +768,7 @@ impl Scroll {
             // page (`docs/LAYOUT.md` §6); put away, the page has it back.
             ui::Slot::GuidePane if sheet_none => ui::Slot::GuidePane,
             // A flow's Your choices pane, beside its page on the wide layout.
-            ui::Slot::Choices if reach && screen == Screen::CreateVault => ui::Slot::Choices,
+            ui::Slot::Choices if reach && contained_on_show() => ui::Slot::Choices,
             // The sidebar's lists scroll within it, beside the page.
             ui::Slot::Sidebar if reach => ui::Slot::Sidebar,
             _ => ui::Slot::Page,
@@ -1336,7 +1352,7 @@ impl Faraday {
             Place::VisitIn => self.scroll.visit_in_offset(),
             Place::Card => self.wallets.card_offset(),
             Place::VaultItem => self.vaults.item_offset(),
-            Place::Choices => self.vaults.choices_offset(),
+            Place::Choices => self.scroll.choices_offset(),
             Place::ListPane => self.scroll.panes.list_offset(),
             Place::Sidebar => self.scroll.sidebar_offset(),
             Place::BoardList => self.flows.board_list_offset(),
@@ -1376,7 +1392,7 @@ impl Faraday {
             Place::VisitIn => self.scroll.set_visit_in_offset(to),
             Place::Card => self.wallets.set_card_offset(to),
             Place::VaultItem => self.vaults.set_item_offset(to),
-            Place::Choices => self.vaults.set_choices_offset(to),
+            Place::Choices => self.scroll.set_choices_offset(to),
             Place::ListPane => self.scroll.panes.set_list_offset(to),
             Place::Sidebar => self.scroll.set_sidebar_offset(to),
             Place::BoardList => self.flows.set_board_list_offset(to),
@@ -1460,15 +1476,23 @@ impl Faraday {
     /// Which region scrolls now: the one the pointer last went to, while
     /// it can be reached; else the screen's or the sheet's own.
     pub(crate) fn slot(&self) -> ui::Slot {
-        self.scroll
-            .slot(self.screen, self.sheet.is_none(), self.compact, || {
-                self.board_shown()
-            })
+        self.scroll.slot(
+            self.screen,
+            self.sheet.is_none(),
+            self.compact,
+            || self.board_shown(),
+            || self.contained_on_show(),
+        )
     }
 
     /// How far the stick's list in the Files visit is scrolled, units.
     pub fn visit_in_offset(&self) -> f32 {
         self.scroll.visit_in_offset()
+    }
+
+    /// How far Your choices is scrolled within its pane, units.
+    pub fn choices_offset(&self) -> f32 {
+        self.scroll.choices_offset()
     }
 
     /// The regions the last frame drew that can be reached now, last

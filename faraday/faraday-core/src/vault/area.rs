@@ -90,19 +90,6 @@ impl VaultArea {
         self.item_offset = y;
     }
 
-    /// Design units Create a vault's Your choices is scrolled within its
-    /// pane; 0 with no form open.
-    pub(crate) fn choices_offset(&self) -> f32 {
-        self.state.create.as_ref().map_or(0.0, |c| c.choices_y)
-    }
-
-    /// Sets Your choices' scroll.
-    pub(crate) fn set_choices_offset(&mut self, y: f32) {
-        if let Some(c) = self.state.create.as_mut() {
-            c.choices_y = y;
-        }
-    }
-
     /// Asks for the one-pass measurement, once: it goes to the worker at
     /// the next tick ([`Faraday::vault_tick`]), and is not asked again while
     /// it is out or once its figure is in.
@@ -2045,8 +2032,6 @@ pub struct CreateForm {
     pub customise: bool,
     /// The column's scroll.
     pub scroll: flow::Scroll,
-    /// How far Your choices is scrolled within its pane, design units.
-    pub choices_y: f32,
     /// The machines chosen, in `MACHINES` order.
     pub on: [bool; 5],
     /// This computer is not one the vault is sized for: it is chosen
@@ -2098,7 +2083,6 @@ impl Default for CreateForm {
             done,
             customise: false,
             scroll: flow::Scroll::default(),
-            choices_y: 0.0,
             on,
             not_here: false,
             preset: Some(preset),
@@ -2203,7 +2187,7 @@ impl crate::flow::Contained for CreateVaultSteps {
             let live = by_size || c.done[k] || c.open == Some(k as u8);
             let opens = if by_size { vstep::PRESET } else { k as u8 };
             crate::flow::Row {
-                label,
+                label: faraday_text::Text::of(label),
                 value: live.then(|| summaries[k].clone()),
                 mono: false,
                 opens,

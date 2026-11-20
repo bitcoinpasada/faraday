@@ -22,8 +22,12 @@ pub(crate) struct Page<'a> {
     pub(crate) heading: &'a str,
     /// A chip at the head of the card: where the flow goes next.
     pub(crate) chip: Option<&'a str>,
-    /// How far Your choices is scrolled within its pane.
-    pub(crate) choices_y: f32,
+    /// A line under the chip, with a primary bar at its left: where the
+    /// flow stands in something outside it.
+    pub(crate) note: Option<&'a str>,
+    /// What a press on the chip does; where it was drawn is left in
+    /// `Ui::chip_at`.
+    pub(crate) chip_tap: Option<Action>,
     /// Whether a scroll step moves the rows already drawn.
     pub(crate) moves: Moves,
 }
@@ -45,7 +49,8 @@ pub(crate) fn contained(
 ) -> (Scroll, bool, Room) {
     let (area_x, area_w) = page.area;
     let compact = ui.compact;
-    let pane_w = if compact {
+    let full = !compact && flow.full_width(app);
+    let pane_w = if compact || full {
         0.0
     } else {
         crate::screens::side_panel_w(area_w)
@@ -67,6 +72,7 @@ pub(crate) fn contained(
     }
 
     // The card's place: the same for every step.
+    let aligned = !compact && (full || flow.wide_content(app));
     let (top, x, w) = if compact {
         let m = crate::compact::M;
         (
@@ -76,8 +82,23 @@ pub(crate) fn contained(
         )
     } else {
         let w = (room_w - 2.0 * MARGIN_WIDE).min(COLUMN_MAX);
-        (tokens::PAGE_TOP_BAR, area_x + (room_w - w) / 2.0, w)
+        // Wide content stands at the navigation's edge, not centred.
+        let x = if aligned {
+            area_x + MARGIN_WIDE
+        } else {
+            area_x + (room_w - w) / 2.0
+        };
+        (tokens::PAGE_TOP_BAR, x, w)
     };
+    // Where the work of a wide card ends: before the pane, or at the
+    // area's end less the margin when there is none.
+    let work = aligned.then_some({
+        if full {
+            area_x + area_w - MARGIN_WIDE
+        } else {
+            area_x + room_w - tokens::SPACER
+        }
+    });
     let clip_top = if compact { top } else { 0.0 };
     let clip = ui.rect(area_x, clip_top, room_w, view_h - clip_top);
     let view_open = ui.region_open(Region::page(clip).from_zero(next.y).moves(page.moves));
@@ -90,7 +111,7 @@ pub(crate) fn contained(
     let card_top = y;
     if let Some(chip) = page.chip {
         let chip = ui.fit_as(BODY_S, chip, w - 34.0);
-        ui.chip_press(
+        let cw = ui.chip_press(
             x,
             y,
             &chip,
@@ -98,13 +119,27 @@ pub(crate) fn contained(
                 Role::OnSecondaryContainer.paint(),
                 Role::SecondaryContainer.paint(),
             ),
-            None,
+            page.chip_tap,
         );
+        if page.chip_tap.is_some() {
+            ui.chip_at = Some((x, y + tokens::TAG_H, cw));
+        }
         y += if compact {
             36.0
         } else {
             tokens::TAG_H + tokens::PAD
         };
+    }
+    if let Some(note) = page.note {
+        let (inset, gap) = if compact { (12.0, 14.0) } else { (14.0, 20.0) };
+        let nh = ui.wrap_as(
+            (x + inset, y, w - inset),
+            BODY_S,
+            Role::OnSurfaceVariant,
+            note,
+        );
+        ui.fill(x, y, 3.0, nh, 1.5, Role::Primary.paint());
+        y += nh + gap;
     }
 
     if let Some(s) = steps.as_ref() {
@@ -112,27 +147,36 @@ pub(crate) fn contained(
         let leaving = shown != s.open;
         let at = s.order.iter().position(|&k| Some(k) == shown);
         if let (Some(at), Some(&k)) = (at, shown.as_ref()) {
-            let count = if flow.count_fixed(app) {
+            // Steps before step 1 read their title alone.
+            let heads = flow.heads(app).min(s.order.len());
+            let count = if at < heads {
+                String::new()
+            } else if flow.count_fixed(app) {
                 fill(
                     EN.flow_step_count,
-                    &[&(at + 1).to_string(), &s.order.len().to_string()],
+                    &[
+                        &(at + 1 - heads).to_string(),
+                        &(s.order.len() - heads).to_string(),
+                    ],
                 )
             } else {
-                fill(EN.flow_step_number, &[&(at + 1).to_string()])
+                fill(EN.flow_step_number, &[&(at + 1 - heads).to_string()])
             };
             let count_w = ui.measure_as(BODY_S, &count);
             let title_w = w - count_w - 10.0;
             let lh = ui.line_as(TITLE_M);
-            let title = flow.name(app, k);
-            let th = ui.wrap_as((x, y, title_w), TITLE_M, Role::OnSurface, title);
+            let title = flow.title(app, k);
+            let th = ui.wrap_as((x, y, title_w), TITLE_M, Role::OnSurface, title.as_str());
             ui.text_right_as((x + w, y, lh), BODY_S, Role::OnSurfaceVariant, &count);
             y += th + 10.0;
             ui.page_view = compact.then_some((view_h + next.y, view_h - top));
+            ui.flow_work = work;
             if leaving {
                 y += outgoing(ui, |ui| body(ui, k, x, y, w));
             } else {
                 y += body(ui, k, x, y, w);
             }
+            ui.flow_work = None;
             ui.page_view = None;
         }
     }
@@ -147,14 +191,14 @@ pub(crate) fn contained(
 
     if compact {
         bar(ui, page, area_x + area_w);
-    } else if let Some(s) = steps.as_ref() {
+    } else if let (Some(s), false) = (steps.as_ref(), full) {
         let px = area_x + area_w - pane_w;
         super::choices::Pane {
             app,
             flow,
             steps: s,
             place: (px, pane_w, page.h),
-            offset: page.choices_y,
+            offset: app.scroll.choices_offset(),
         }
         .draw(ui, foot);
     }

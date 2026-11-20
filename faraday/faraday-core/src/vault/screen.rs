@@ -899,7 +899,8 @@ pub(crate) fn create(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         })),
         heading: EN.vault_create_a_vault,
         chip: then.as_deref(),
-        choices_y: c.choices_y,
+        note: None,
+        chip_tap: None,
         moves: crate::ui::Moves::Yes,
     };
     let compact = ui.compact;

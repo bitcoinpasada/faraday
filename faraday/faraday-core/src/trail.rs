@@ -781,11 +781,23 @@ impl Faraday {
         Some((flow, flow.steps(self)?))
     }
 
+    /// The step Back opens from the open one in `steps` of `flow`: for a
+    /// flow whose first step is a checklist, from an item the checklist,
+    /// and from the checklist none (Back leaves the flow); else the step
+    /// before ([`Steps::before`]).
+    fn step_before(&self, flow: &dyn StepFlow, steps: &Steps) -> Option<u8> {
+        let list = flow.contained().is_some_and(|c| c.checklist(self));
+        match (list, steps.order.first()) {
+            (true, Some(&lead)) => (steps.open? != lead).then_some(lead),
+            _ => steps.before(),
+        }
+    }
+
     /// The name of the step Back opens from here, while it opens one.
     /// Only lookups.
     fn step_back_name(&self) -> Option<&'static str> {
         let (flow, steps) = self.steps_on_show()?;
-        Some(flow.name(self, steps.before()?))
+        Some(flow.name(self, self.step_before(flow, &steps)?))
     }
 
     /// **Back** within the flow on show (F104): the step before the open
@@ -799,7 +811,7 @@ impl Faraday {
         if steps.running {
             return true;
         }
-        let (Some(from), Some(to)) = (steps.open, steps.before()) else {
+        let (Some(from), Some(to)) = (steps.open, self.step_before(flow, &steps)) else {
             return false;
         };
         self.act_inner(flow.open(self, to));
