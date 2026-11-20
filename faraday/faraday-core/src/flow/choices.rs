@@ -10,17 +10,25 @@ use crate::{Action, Faraday};
 use faraday_draw::tokens::{self, BODY_S, CHOICES_INSET, CHOICES_ROW, LABEL_L};
 use faraday_text::Text;
 
+/// A step's title as the container's heading reads it: text a flow may
+/// build. Named here, where the text type is held, so `flow.rs` names none.
+pub(crate) type Title = Text;
+
 /// One row of a flow's Your choices: what was chosen, and the step it
 /// opens. Never a secret.
 #[derive(Debug, Clone)]
 pub(crate) struct Row {
     /// What the row is about.
-    pub(crate) label: &'static str,
+    pub(crate) label: Text,
     /// The answer, or `None` for "Not chosen yet".
     pub(crate) value: Option<Text>,
     /// Set the answer in the mono face: it is data.
     pub(crate) mono: bool,
-    /// The step a press on the row opens (the flow's own number).
+    /// The step a press on the row opens (the flow's own number). A flow
+    /// whose checklist leads its items keeps an item it cannot open yet out
+    /// of the press by giving its row an `opens` that is not in
+    /// `Steps::order` (a row of an item not shown): `answers::takes_press`
+    /// takes no press on a row whose step is not shown.
     pub(crate) opens: u8,
     /// The row stands for the step now open.
     pub(crate) current: bool,
@@ -69,7 +77,7 @@ pub(crate) fn rows(
             );
         }
         let top = cy + (CHOICES_ROW - 2.0 * lh) / 2.0;
-        ui.text_as(x, top, BODY_S, label_ink, row.label);
+        ui.text_as(x, top, BODY_S, label_ink, row.label.as_str());
         let value = row
             .value
             .as_ref()

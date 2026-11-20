@@ -18,7 +18,7 @@ mod answers;
 mod choices;
 mod container;
 
-pub(crate) use choices::Row;
+pub(crate) use choices::{Row, Title};
 pub(crate) use container::{Page, contained};
 
 use crate::strings::EN;
@@ -59,6 +59,33 @@ pub(crate) trait Contained: crate::trail::StepFlow {
     /// Whether the current step takes the whole room beside the
     /// navigation, with no pane (`docs/FLOW-CONTAINER.md` §5).
     fn full_width(&self, _app: &crate::Faraday) -> bool {
+        false
+    }
+    /// The title of step `k` on the card's heading: the step's name unless
+    /// the flow builds it (a title with the item's own name in it).
+    fn title(&self, app: &crate::Faraday, k: u8) -> Title {
+        Title::of(self.name(app, k))
+    }
+    /// How many steps at the head of `Steps::order` come before step 1: the
+    /// heading reads the title alone, and "Step N of M" counts from the
+    /// step after them.
+    fn heads(&self, _app: &crate::Faraday) -> usize {
+        0
+    }
+    /// Whether `Steps::order[0]` is a checklist card and the rest are its
+    /// items: Back from an item opens the checklist, from the checklist it
+    /// leaves the flow, and a row takes a press whenever its item is not
+    /// current and the step is not running. A flow keeps an item it cannot
+    /// open yet out of the press by giving its row an `opens` that is not
+    /// in `Steps::order`.
+    fn checklist(&self, _app: &crate::Faraday) -> bool {
+        false
+    }
+    /// Whether the flow's card holds wide content (`docs/LAYOUT.md` §14):
+    /// it stands at the navigation's edge plus `MARGIN_WIDE` on every step,
+    /// not centred, and its body reads [`Ui::flow_work`]. A flow with a
+    /// step that is [`Contained::full_width`] answers true on every step.
+    fn wide_content(&self, _app: &crate::Faraday) -> bool {
         false
     }
 }

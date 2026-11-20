@@ -767,10 +767,17 @@ fn on_a_low_wide_window_your_choices_scrolls_within_itself() {
     app.settle();
     let _ = app.frame();
     let c = app.vaults().create.as_ref().unwrap();
-    assert!(c.choices_y > 0.0, "the pane scrolled within itself");
+    assert!(
+        app.choices_offset() > 0.0,
+        "the pane scrolled within itself"
+    );
     assert_eq!(c.scroll.y, page, "the page did not move");
     let last = drawn_at(&mut app, "Goes to").expect("the pane's last line is on screen");
     assert!(last.1 + last.3 <= 600, "inside the window: {last:?}");
+    // Opened anew, the pane starts at its top.
+    app.press(Action::Vault(V::Create));
+    let _ = app.frame();
+    assert_eq!(app.choices_offset(), 0.0, "the form opened anew");
 }
 
 #[test]

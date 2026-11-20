@@ -1567,6 +1567,7 @@ impl Faraday {
                 self.osk_leave();
                 self.list_offset = 0.0;
                 self.scroll.set_visit_in_offset(0.0);
+                self.scroll.set_choices_offset(0.0);
                 self.wallets.set_card_offset(0.0);
                 self.glance.set_open(false);
                 self.wallets.set_renaming(None);
