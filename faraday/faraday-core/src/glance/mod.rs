@@ -333,8 +333,14 @@ impl GlanceArea {
         self.chart
     }
 
-    /// Opens or closes a thing's sheet.
+    /// Opens or closes a thing's sheet. A passphrase check that goes
+    /// takes what was typed in it, its result and its refusal with it.
     pub(crate) fn set_chart(&mut self, chart: Option<(Press, sheet::Target)>) {
+        if matches!(self.chart, Some((_, sheet::Target::PassCheck(..)))) && self.chart != chart {
+            self.work.secret.clear();
+            self.work.result = None;
+            self.work.refused = false;
+        }
         self.chart = chart;
     }
 

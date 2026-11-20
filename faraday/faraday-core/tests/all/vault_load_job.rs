@@ -794,3 +794,26 @@ fn escape_on_a_charts_sheet_while_its_seeds_load_leaves_none_of_them_in() {
     assert!(app.session.keys.is_empty(), "the seeds were not kept");
     assert_eq!(app.chart(), None, "the sheet is closed");
 }
+
+#[test]
+fn a_passphrase_typed_in_a_charts_check_is_gone_when_a_press_elsewhere_closes_the_sheet() {
+    let (mut app, _) = pass_check_typed("lantern-orchid-41");
+    assert!(testkit::secret_typed(&app), "the typed passphrase is held");
+    app.press(Action::Nav(faraday_core::Screen::Home));
+    assert_eq!(app.chart(), None, "the sheet is closed");
+    assert_eq!(app.chart_work().secret.as_str(), "", "the field is empty");
+    assert!(!testkit::secret_typed(&app), "nothing typed is held");
+}
+
+#[test]
+fn a_passphrase_typed_in_a_charts_check_is_gone_when_a_row_closes_the_chart() {
+    use faraday_core::glance::sheet::ChartAction as C;
+    let (mut app, press) = pass_check_typed("lantern-orchid-41");
+    app.press(Action::Chart(C::Do(
+        press,
+        faraday_core::glance::sheet::Step::Qr,
+    )));
+    assert_eq!(app.chart(), None, "the sheet is closed");
+    assert_eq!(app.chart_work().secret.as_str(), "", "the field is empty");
+    assert!(!testkit::secret_typed(&app), "nothing typed is held");
+}
