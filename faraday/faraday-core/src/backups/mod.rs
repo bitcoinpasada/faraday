@@ -16,7 +16,7 @@ use faraday_crypto::work::Compute;
 use faraday_text::{Text, text};
 use faraday_vault::records::{field, kind};
 
-use crate::plan::{self, At, Tag, What};
+use crate::plan::{self, At, Medium, Tag, What, Writing};
 use crate::vault::{Currency, VaultSummary, redact_place_name, wallet_name_in};
 use crate::wallet::{Session, Wallet, fp_text};
 use crate::wallet_backup::Tone;
@@ -989,21 +989,28 @@ impl Faraday {
                     secret: Vec::new(),
                 };
                 for (what, _) in &spot.holds {
-                    match *what {
-                        What::Words(i)
-                        | What::SeedQr(i)
-                        | What::Seed(i)
-                        | What::SeedPassphrase(i)
-                            if !matches!(spot.at, At::Away) =>
+                    let held = match *what {
+                        What::Written(c)
+                            if c.form == faraday_forms::Form::Words && c.on_paper() =>
                         {
-                            let in_vault = matches!(spot.at, At::Vault(_))
-                                && matches!(*what, What::Seed(_) | What::SeedPassphrase(_));
-                            if let Some(fp) = if in_vault { vault_fp_of(i) } else { fp_of(i) }
-                                && !out.copies.contains(&fp)
-                            {
-                                out.copies.push(fp);
-                            }
+                            Some((c.seed, false))
                         }
+                        What::Seed(i) | What::SeedPassphrase(i) => {
+                            Some((i, matches!(spot.at, At::Vault(_))))
+                        }
+                        _ => None,
+                    };
+                    if let Some((i, in_vault)) = held
+                        && !matches!(spot.at, At::Away)
+                    {
+                        if let Some(fp) = if in_vault { vault_fp_of(i) } else { fp_of(i) }
+                            && !out.copies.contains(&fp)
+                        {
+                            out.copies.push(fp);
+                        }
+                        continue;
+                    }
+                    match *what {
                         What::Sheet => out.files.push(text!("{stem}-backup.pdf")),
                         What::Share(j) => {
                             out.files
@@ -1012,15 +1019,18 @@ impl Faraday {
                         // The stick of files of a plan saved before keeps
                         // the checklist's seed files; a stick at a place
                         // its own (`docs/BACKUP-FLOW.md` §17.12 item 6).
-                        What::SeedFile(i) if spot.at == At::Files => {
-                            if let Some(fp) = fp_of(i) {
+                        What::Written(c)
+                            if c.is(faraday_forms::Form::Words, Writing::Words, Medium::File)
+                                && spot.at == At::Files =>
+                        {
+                            if let Some(fp) = fp_of(c.seed) {
                                 let fps =
                                     Text::lowercase(&fp_text(faraday_bip::keys::Fingerprint(fp)));
                                 out.secret.push(text!("{stem}-{}-", &*fps));
                             }
                         }
-                        What::SeedFile(i) | What::SeedQrFile(i) | What::PassphraseFile(i) => {
-                            if let Some(fp) = fp_of(i) {
+                        w if w.seed_stick_file_seed().is_some() => {
+                            if let Some(fp) = w.seed_stick_file_seed().and_then(&fp_of) {
                                 let name = crate::backup_flow::wallet::seed_stick_name(
                                     *what,
                                     &fp_text(faraday_bip::keys::Fingerprint(fp)),
@@ -1030,23 +1040,29 @@ impl Faraday {
                         }
                         // A codex32 string's file is a share of a seed: a
                         // secret, as a seed's words are.
-                        What::Codex32ShareFile(..) | What::Codex32QrFile(..) => out.secret.extend(
-                            crate::codex32_backup::stick_names(&shape, a, *what)
-                                .iter()
-                                .map(|t| Text::of(t)),
-                        ),
+                        What::Written(c)
+                            if c.form == faraday_forms::Form::Codex32
+                                && c.medium == Medium::File =>
+                        {
+                            out.secret.extend(
+                                crate::codex32_backup::stick_names(&shape, a, *what)
+                                    .iter()
+                                    .map(|t| Text::of(t)),
+                            )
+                        }
                         // A Krux code is an extra copy, not a copy of the
                         // seed, and its files are named when made
                         // (`docs/KEF.md` §15.1).
-                        What::KefCode(i) => {
-                            if let Some(m) = fp_of(i)
+                        What::Written(c)
+                            if c.is(faraday_forms::Form::Krux, Writing::KruxCode, Medium::File) =>
+                        {
+                            if let Some(m) = fp_of(c.seed)
                                 .and_then(|fp| self.backups_area.kef_of(wallet.checksum(), fp))
                             {
                                 out.files.extend(m.png.clone());
                                 out.files.push(m.file.clone());
                             }
                         }
-                        What::KefCodePaper(_) => {}
                         What::Wallet if spot.at == At::Files => {
                             out.files.extend(public.iter().map(|t| Text::of(t)))
                         }
@@ -1121,7 +1137,7 @@ impl Faraday {
     /// keeps it at more than one, the one the match result asks for. Once
     /// the seed is checked in every form its copies ask for, one more of
     /// its copies is checked in the record.
-    pub(crate) fn copy_matched(&mut self, fp: [u8; 4], form: crate::plan::CopyForm) {
+    pub(crate) fn copy_matched(&mut self, fp: [u8; 4], form: crate::plan::CopyOf) {
         let c = self.compute();
         self.backup.note_checked(fp, form);
         // On the quick paper backup the match completes the checklist.
@@ -1146,7 +1162,7 @@ impl Faraday {
 
     /// Costs what `plan_mapped` costs. Dates the copy of seed `fp` that
     /// matched in `form`, or asks which copy it was.
-    fn copy_dating(&mut self, c: &Compute, fp: [u8; 4], form: crate::plan::CopyForm) {
+    fn copy_dating(&mut self, c: &Compute, fp: [u8; 4], form: crate::plan::CopyOf) {
         let Some(b) = self.backup.state() else {
             return;
         };
@@ -1160,10 +1176,11 @@ impl Faraday {
         let (Some(i), at) = (seed, b.check_at) else {
             return;
         };
-        let what = match form {
-            plan::CopyForm::Words => What::Words(i),
-            plan::CopyForm::SeedQr => What::SeedQr(i),
-            plan::CopyForm::Passphrase => return,
+        let plan::CopyOf::Output(writing) = form else {
+            return;
+        };
+        let Some(what) = What::words_copy(i, writing) else {
+            return;
         };
         self.backup.check_at_take();
         self.what_dating(c, what, at);
@@ -1221,7 +1238,7 @@ impl Faraday {
             })
             .unwrap_or_default();
         for (i, j) in new {
-            self.what_dating(c, What::Codex32Share(i, j), None);
+            self.what_dating(c, What::codex32_share(i, j), None);
         }
     }
 
@@ -3409,14 +3426,14 @@ impl Faraday {
             .session
             .keys
             .codex32_string(k, index, Reveal::BackupStick(Part::Codex32))?;
-        match what {
-            plan::What::Codex32ShareFile(..) => {
+        match what.written().map(|w| (w.form, w.writing, w.medium)) {
+            Some((plan::KeyForm::Codex32, plan::Writing::Codex32String, plan::Medium::File)) => {
                 let mut v = zeroize::Zeroizing::new(Vec::with_capacity(s.len() + 1));
                 v.extend_from_slice(s.as_bytes());
                 v.push(b'\n');
                 Some(v)
             }
-            plan::What::Codex32QrFile(..) => {
+            Some((plan::KeyForm::Codex32, plan::Writing::Codex32Qr, plan::Medium::File)) => {
                 let mx = faraday_codec::qr::codex32qr(c, &s)?;
                 let id = s.get(4..8).unwrap_or("");
                 let share = Text::from_char(char::to_ascii_uppercase(&char::from(index)));
@@ -3780,7 +3797,9 @@ impl Faraday {
             return Vec::new();
         };
         let mut expect = Vec::new();
-        if matches!(what, plan::What::Codex32QrFile(..)) {
+        if matches!(what, plan::What::Written(c)
+            if c.is(plan::KeyForm::Codex32, plan::Writing::Codex32Qr, plan::Medium::File))
+        {
             let fp = crate::wallet::fp_text(self.session.keys[k].fingerprint);
             expect.push((
                 name.clone(),

@@ -1962,7 +1962,16 @@ pub fn backup_as(app: &mut crate::Faraday, preset: crate::plan::Preset) {
     let m = now(app);
     for p in 0..plan::places_of(&m) {
         for w in held(&m, At::Place(p)) {
-            if let What::SeedQr(i) = w
+            if let Some(i) = w
+                .written()
+                .filter(|c| {
+                    c.is(
+                        faraday_forms::Form::Words,
+                        plan::Writing::SeedQr,
+                        plan::Medium::Paper,
+                    )
+                })
+                .map(|c| c.seed)
                 && !held(&want, At::Place(p)).contains(&w)
             {
                 press(app, P::Form(Zone::Paper(p), Thing::Seed(i), 1));

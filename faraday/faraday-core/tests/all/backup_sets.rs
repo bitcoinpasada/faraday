@@ -90,9 +90,9 @@ fn losing_one_place_of_three_seed_xor_parts_loses_the_key() {
     let a = plan_of(
         xor3,
         [
-            vec![What::XorPart(0, 0)],
-            vec![What::XorPart(0, 1)],
-            vec![What::XorPart(0, 2)],
+            vec![What::xor_part(0, 0)],
+            vec![What::xor_part(0, 1)],
+            vec![What::xor_part(0, 2)],
         ],
     );
     assert_eq!(lost_of(&a), Lost::No);
@@ -104,9 +104,9 @@ fn all_the_seed_xor_parts_in_one_place_are_the_key_found() {
         xor3,
         [
             vec![
-                What::XorPart(0, 0),
-                What::XorPart(0, 1),
-                What::XorPart(0, 2),
+                What::xor_part(0, 0),
+                What::xor_part(0, 1),
+                What::xor_part(0, 2),
             ],
             vec![],
             vec![],
@@ -121,9 +121,9 @@ fn a_two_of_three_slip39_group_survives_one_lost_place() {
     let a = plan_of(
         slip_2_of_3,
         [
-            vec![What::Slip39Share(0, 0, 0)],
-            vec![What::Slip39Share(0, 0, 1)],
-            vec![What::Slip39Share(0, 0, 2)],
+            vec![What::slip39_share(0, 0, 0)],
+            vec![What::slip39_share(0, 0, 1)],
+            vec![What::slip39_share(0, 0, 2)],
         ],
     );
     assert_eq!(lost_of(&a), Lost::Yes);
@@ -154,9 +154,9 @@ fn a_slip39_share_that_was_never_made_is_not_counted_or_read_back() {
     let a = plan_of(
         only_first,
         [
-            vec![What::Slip39Share(0, 0, 0)],
-            vec![What::Slip39Share(0, 0, 1)],
-            vec![What::Slip39Share(0, 0, 2)],
+            vec![What::slip39_share(0, 0, 0)],
+            vec![What::slip39_share(0, 0, 1)],
+            vec![What::slip39_share(0, 0, 2)],
         ],
     );
     assert_eq!(lost_of(&a), Lost::No);
@@ -170,9 +170,9 @@ fn replacing_a_slip39_set_drops_the_places_of_shares_never_made() {
     let mut a = plan_of(
         slip_2_of_3,
         [
-            vec![What::Slip39Share(0, 0, 0)],
-            vec![What::Slip39Share(0, 0, 1)],
-            vec![What::Slip39Share(0, 0, 2)],
+            vec![What::slip39_share(0, 0, 0)],
+            vec![What::slip39_share(0, 0, 1)],
+            vec![What::slip39_share(0, 0, 2)],
         ],
     );
     a.set_slip39(
@@ -194,7 +194,7 @@ fn replacing_a_slip39_set_drops_the_places_of_shares_never_made() {
         .into_iter()
         .flat_map(|s| s.holds.into_iter().map(|(w, _)| w))
         .collect();
-    assert_eq!(held, vec![What::Slip39Share(0, 0, 0)]);
+    assert_eq!(held, vec![What::slip39_share(0, 0, 0)]);
 }
 
 #[test]
@@ -202,8 +202,8 @@ fn two_slip39_shares_at_one_place_are_lost_with_it() {
     let a = plan_of(
         slip_2_of_3,
         [
-            vec![What::Slip39Share(0, 0, 0), What::Slip39Share(0, 0, 1)],
-            vec![What::Slip39Share(0, 0, 2)],
+            vec![What::slip39_share(0, 0, 0), What::slip39_share(0, 0, 1)],
+            vec![What::slip39_share(0, 0, 2)],
             vec![],
         ],
     );
@@ -218,9 +218,9 @@ fn a_saved_plan_with_both_sets_reads_back() {
             slip_2_of_3(a, s);
         },
         [
-            vec![What::XorPart(0, 0), What::Slip39Share(0, 0, 0)],
-            vec![What::XorPart(0, 1), What::Slip39Share(0, 0, 1)],
-            vec![What::XorPart(0, 2)],
+            vec![What::xor_part(0, 0), What::slip39_share(0, 0, 0)],
+            vec![What::xor_part(0, 1), What::slip39_share(0, 0, 1)],
+            vec![What::xor_part(0, 2)],
         ],
     );
     let text = a.to_text();
@@ -235,7 +235,11 @@ fn a_saved_plan_with_both_sets_reads_back() {
 fn a_part_of_a_set_the_plan_does_not_hold_is_refused() {
     let a = plan_of(
         xor3,
-        [vec![What::XorPart(0, 0)], vec![What::XorPart(0, 1)], vec![]],
+        [
+            vec![What::xor_part(0, 0)],
+            vec![What::xor_part(0, 1)],
+            vec![],
+        ],
     );
     let text = a.to_text();
     let without: String = text
@@ -250,12 +254,16 @@ fn a_part_of_a_set_the_plan_does_not_hold_is_refused() {
 fn a_part_in_a_vault_is_refused() {
     let mut a = plan_of(
         xor3,
-        [vec![What::XorPart(0, 0)], vec![What::XorPart(0, 1)], vec![]],
+        [
+            vec![What::xor_part(0, 0)],
+            vec![What::xor_part(0, 1)],
+            vec![],
+        ],
     );
     let mut m = plan::stored_map(&shape(), &a);
     m.push(Spot {
         at: At::Vault(0),
-        holds: vec![(What::XorPart(0, 2), Tag::Sealed)],
+        holds: vec![(What::xor_part(0, 2), Tag::Sealed)],
     });
     a.set_map(m);
     assert!(Answers::from_text(&shape(), &a.to_text()).is_none());
@@ -320,7 +328,7 @@ fn a_seed_xor_set_saved_for_a_key_is_on_its_wallets_plan_one_part_to_a_place() {
         let at: Vec<usize> = places
             .iter()
             .enumerate()
-            .filter(|(_, ws)| ws.contains(&What::XorPart(0, j)))
+            .filter(|(_, ws)| ws.contains(&What::xor_part(0, j)))
             .map(|(p, _)| p)
             .collect();
         assert_eq!(at, vec![j], "part {} sits at its own place", j + 1);
@@ -341,9 +349,9 @@ fn a_slip39_set_saved_for_a_key_is_on_its_wallets_plan_with_only_the_shares_made
     };
     let app = backup_of_split_key(None, Some(set));
     let all: Vec<What> = kept_at_places(&app).into_iter().flatten().collect();
-    assert!(all.contains(&What::Slip39Share(0, 0, 0)));
-    assert!(all.contains(&What::Slip39Share(0, 0, 1)));
-    assert!(!all.contains(&What::Slip39Share(0, 0, 2)));
+    assert!(all.contains(&What::slip39_share(0, 0, 0)));
+    assert!(all.contains(&What::slip39_share(0, 0, 1)));
+    assert!(!all.contains(&What::slip39_share(0, 0, 2)));
 }
 
 #[test]
@@ -400,7 +408,7 @@ fn back_ups_own_seed_xor_split_is_on_the_plan_one_part_to_a_place() {
         let at: Vec<usize> = places
             .iter()
             .enumerate()
-            .filter(|(_, ws)| ws.contains(&What::XorPart(0, j)))
+            .filter(|(_, ws)| ws.contains(&What::xor_part(0, j)))
             .map(|(p, _)| p)
             .collect();
         assert_eq!(at, vec![j], "part {} is a chip at its own place", j + 1);
@@ -502,7 +510,7 @@ fn kept_old_shares_do_not_count_toward_the_current_sets_shares() {
     let placed = plan::stored_map(&shape, a)
         .into_iter()
         .flat_map(|s| s.holds.into_iter().map(|(w, _)| w))
-        .filter(|w| matches!(w, What::Slip39Share(..)))
+        .filter(|w| w.is_form(plan::KeyForm::Slip39))
         .count();
     assert_eq!(placed, 0);
     assert_eq!(kept_count(&app), 3);
@@ -610,7 +618,7 @@ fn back_ups_map_by_place_says_a_kept_share_is_old() {
 fn an_old_share_beside_one_current_share_does_not_rebuild_the_key_with_it() {
     let mut a = plan_of(
         slip_2_of_3,
-        [vec![What::Slip39Share(0, 0, 0)], vec![], vec![]],
+        [vec![What::slip39_share(0, 0, 0)], vec![], vec![]],
     );
     plan::sets::sync(&mut a, &shape(), &[], &[Some(slip_facts(78))]);
     let with = |a: &Answers, extra: &[What]| {
@@ -622,12 +630,12 @@ fn an_old_share_beside_one_current_share_does_not_rebuild_the_key_with_it() {
         plan::check(&testkit::compute(), &shape(), &a).one_place
     };
     // A kept old share and one share of the current 2 of 3 set: not the key.
-    assert_eq!(with(&a, &[What::Slip39Share(0, 0, 0)]), None);
+    assert_eq!(with(&a, &[What::slip39_share(0, 0, 0)]), None);
     // Two shares of the current set are.
     assert_eq!(
         with(
             &a,
-            &[What::Slip39Share(0, 0, 0), What::Slip39Share(0, 0, 1)]
+            &[What::slip39_share(0, 0, 0), What::slip39_share(0, 0, 1)]
         ),
         Some(0)
     );
@@ -639,7 +647,7 @@ fn a_stale_copy_of_the_key_does_not_bring_an_old_seed_xor_set_back() {
     let p2 = vxor::XorFacts {
         parts: vec![[21, 22, 23, 24], [25, 26, 27, 28], [29, 30, 31, 32]],
     };
-    let mut a = plan_of(xor3, [vec![What::XorPart(0, 0)], vec![], vec![]]);
+    let mut a = plan_of(xor3, [vec![What::xor_part(0, 0)], vec![], vec![]]);
     plan::sets::sync(&mut a, &shape(), &[Some(p2.clone())], &[]);
     let current = a.xor(0).unwrap().clone();
     assert_eq!(current.parts, p2.parts);

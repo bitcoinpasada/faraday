@@ -17,6 +17,8 @@ faraday-bip = { path = "../../core/faraday-bip" }
 faraday-entropy = { path = "../../core/faraday-entropy" }
 # The wording the plan's text forms and labels use.
 faraday-strings = { path = "../faraday-strings" }
+# The forms registry: each copy's form and output.
+faraday-forms = { path = "../faraday-forms" }
 # Heap text that wipes itself, for the plan's lines and labels.
 faraday-text = { path = "../../core/faraday-text" }
 # The codex32 set facts a plan's strings are read against.

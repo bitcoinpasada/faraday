@@ -170,8 +170,8 @@ fn each_preset_fills_a_one_key_wallets_answers() {
         {
             let holds: Vec<What> = spot.holds.iter().map(|(w, _)| *w).collect();
             assert!(holds.contains(&What::Sheet), "{preset:?} {spot:?}");
-            assert!(holds.contains(&What::Words(0)), "{preset:?} {spot:?}");
-            assert!(!holds.contains(&What::SeedQr(0)), "{preset:?} {spot:?}");
+            assert!(holds.contains(&What::words(0)), "{preset:?} {spot:?}");
+            assert!(!holds.contains(&What::seed_qr(0)), "{preset:?} {spot:?}");
         }
     }
 }
@@ -196,8 +196,8 @@ fn each_preset_fills_a_two_of_threes_answers() {
         assert_eq!(places.len(), 3);
         for (p, spot) in places.iter().enumerate() {
             let holds: Vec<What> = spot.holds.iter().map(|(w, _)| *w).collect();
-            assert!(holds.contains(&What::Words(p)), "{preset:?}: its seed");
-            assert!(!holds.contains(&What::SeedQr(p)), "{preset:?}: no SeedQR");
+            assert!(holds.contains(&What::words(p)), "{preset:?}: its seed");
+            assert!(!holds.contains(&What::seed_qr(p)), "{preset:?}: no SeedQR");
             assert!(holds.contains(&What::Sheet), "{preset:?}: the whole sheet");
             assert!(
                 !holds.iter().any(|w| matches!(w, What::Share(_))),
@@ -223,7 +223,7 @@ fn seeds_held_elsewhere_get_no_paper_here_and_watch_only_asks_nothing_of_seeds()
     assert!(!boxes.iter().any(|s| {
         s.holds
             .iter()
-            .any(|(w, _)| matches!(w, What::Words(1) | What::Words(2)))
+            .any(|(w, _)| *w == What::words(1) || *w == What::words(2))
     }));
     for s in &mut shape.seeds {
         s.here = false;
@@ -810,7 +810,10 @@ fn keys_at(shape: &Shape, a: &Answers, p: usize) -> Vec<usize> {
     let place = boxes.iter().find(|s| s.at == At::Place(p)).unwrap();
     for (what, _) in &place.holds {
         let seeds: Vec<usize> = match *what {
-            What::Words(i) | What::SeedQr(i) => vec![i],
+            w if w.words_seed_on(faraday_core::plan::Medium::Paper).is_some() => w
+                .words_seed_on(faraday_core::plan::Medium::Paper)
+                .into_iter()
+                .collect(),
             What::VaultStick(v) => boxes
                 .iter()
                 .find(|s| s.at == At::Vault(v))
@@ -1218,11 +1221,11 @@ fn words_at_a_place_are_on_the_map_and_its_card_says_what_finding_it_alone_gives
     put(&mut app, Thing::Seed(0), Zone::Paper(2));
     let words: Vec<What> = held(&app, At::Place(2))
         .into_iter()
-        .filter(|w| matches!(w, What::Words(_)))
+        .filter(|w| w.is_words())
         .collect();
     assert_eq!(
         words,
-        vec![What::Words(0)],
+        vec![What::words(0)],
         "Place 3 keeps the first seed's words"
     );
     let b = app.backup().unwrap();
@@ -1314,7 +1317,7 @@ fn words_cannot_be_ticked_where_the_passphrase_is_kept() {
     crate::common::form(&mut app, Zone::Paper(1), Thing::Seed(0), 1);
     let here = held(&app, At::Place(1));
     assert!(here.contains(&What::Passphrase(0)), "kept");
-    assert!(here.contains(&What::Words(0)) && here.contains(&What::SeedQr(0)));
+    assert!(here.contains(&What::words(0)) && here.contains(&What::seed_qr(0)));
     assert!(shows_text(&mut app, "words with its passphrase"));
 }
 
@@ -1495,7 +1498,7 @@ fn a_two_of_three_over_two_places_keeps_the_rules_with_one_holding_two_seeds() {
     // Seed 3 moved to Place 1, Place 3 taken off.
     a.ensure_map(&shape);
     let m = faraday_core::plan::stored_map(&shape, &a);
-    let m = faraday_core::plan::with_added(&m, At::Place(0), What::Words(2));
+    let m = faraday_core::plan::with_added(&m, At::Place(0), What::words(2));
     a.set_map(m);
     a.remove_place(&shape, 2);
     assert_eq!(a.places, 2);
@@ -1589,7 +1592,7 @@ fn a_seed_file_at_a_place_has_that_places_stick_of_files_and_is_held_until_writt
     pass_off_at(&mut app, 1, 0);
     put(&mut app, Thing::Pass(0), Zone::Paper(0));
     no_paper_description(&mut app);
-    assert_eq!(held(&app, At::Place(1)), vec![What::SeedFile(0)]);
+    assert_eq!(held(&app, At::Place(1)), vec![What::seed_file(0)]);
     app.press(Action::BChecklist);
     // The file is made and written with its stick: no item of its own
     // (`docs/BACKUP-FLOW.md` §17.12 item 6). The passphrase on paper has
@@ -1637,7 +1640,7 @@ fn fewer_places_take_the_last_with_what_it_held_and_a_seed_kept_nowhere_holds_th
     assert!(
         !the_map(&app)
             .iter()
-            .any(|s| s.holds.iter().any(|(w, _)| *w == What::Words(0)))
+            .any(|s| s.holds.iter().any(|(w, _)| *w == What::words(0)))
     );
     app.press(Action::BQ(qstep::PLAN));
     assert!(shows_text(&mut app, "is kept nowhere"));
@@ -1807,7 +1810,7 @@ fn a_reach_past_the_searchs_bound_says_it_was_not_worked_out() {
         (0..26)
             .map(|i| Spot {
                 at: At::Place(i),
-                holds: vec![(What::Words(i), faraday_core::plan::Tag::Secret)],
+                holds: vec![(What::words(i), faraday_core::plan::Tag::Secret)],
             })
             .collect(),
     );
@@ -1863,17 +1866,17 @@ fn a_plan_saved_for_a_wallet_opens_for_the_same_wallet_with_its_keys_in_the_othe
     answers.custom = true;
     let spot = |p: usize, i: usize| Spot {
         at: At::Place(p),
-        holds: vec![(What::Words(i), Tag::Secret)],
+        holds: vec![(What::words(i), Tag::Secret)],
     };
     answers.map = Some(vec![spot(0, 1), spot(1, 0)]);
     let mut record = Record::new(kind::PLAN)
         .with(field::PLAN_WALLET, xy.to_descriptor().as_bytes())
         .with(field::PLAN_ANSWERS, answers.to_text().as_bytes());
     for note in [
-        Note::Marked(At::Place(0), What::Words(1), Mark::Lost),
+        Note::Marked(At::Place(0), What::words(1), Mark::Lost),
         Note::Checked(
             At::Place(1),
-            What::Words(0),
+            What::words(0),
             faraday_text::Text::of("2026-10-10"),
         ),
     ] {
@@ -2360,7 +2363,7 @@ fn saving_the_backup_flow_with_the_keys_swapped_replaces_a_standard_plan_and_kee
     let answers = Answers::preset(&shape, Preset::Standard);
     let note = Note::Checked(
         At::Place(0),
-        What::Words(0),
+        What::words(0),
         faraday_text::Text::of("2026-10-10"),
     );
     let record = Record::new(kind::PLAN)

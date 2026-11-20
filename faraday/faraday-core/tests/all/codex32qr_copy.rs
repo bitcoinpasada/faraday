@@ -107,7 +107,16 @@ fn drawn_plan() -> (Faraday, usize) {
     let j = held
         .iter()
         .find_map(|w| match w {
-            What::Codex32Share(0, j) => Some(*j),
+            w if w.written().is_some_and(|c| {
+                c.is(
+                    plan::KeyForm::Codex32,
+                    plan::Writing::Codex32String,
+                    plan::Medium::Paper,
+                ) && c.seed == 0
+            }) =>
+            {
+                w.written().and_then(|c| c.part()).map(|(_, j)| j)
+            }
             _ => None,
         })
         .unwrap_or_else(|| panic!("a string at the first place: {held:?}"));
@@ -116,8 +125,8 @@ fn drawn_plan() -> (Faraday, usize) {
     form(&mut app, Zone::Paper(0), Thing::String(0, j), 0);
     let (shape, a) = app.board_plan().unwrap();
     let held = plan::holds_at(&plan::map(&c, &shape, &a), At::Place(0));
-    assert!(held.contains(&What::Codex32QrPaper(0, j)), "{held:?}");
-    assert!(!held.contains(&What::Codex32Share(0, j)), "{held:?}");
+    assert!(held.contains(&What::codex32_qr_paper(0, j)), "{held:?}");
+    assert!(!held.contains(&What::codex32_share(0, j)), "{held:?}");
     (app, j)
 }
 

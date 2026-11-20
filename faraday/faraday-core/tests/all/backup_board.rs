@@ -264,12 +264,12 @@ fn a_second_vault_at_a_place_goes_on_a_second_stick() {
         assert_eq!(held(&m, At::Stick(0, 2)), vec![What::VaultStick(0)]);
         // A file dropped on Place 1 goes on a stick of files of its own; the
         // vault dropped again goes on that stick, its first with no vault.
-        let m = plan::with_added(&m, At::Place(0), What::SeedFile(2));
-        assert_eq!(held(&m, At::Stick(0, 3)), vec![What::SeedFile(2)]);
+        let m = plan::with_added(&m, At::Place(0), What::seed_file(2));
+        assert_eq!(held(&m, At::Stick(0, 3)), vec![What::seed_file(2)]);
         let m = plan::with_vault_stick(&m, 0, 1);
         assert_eq!(
             held(&m, At::Stick(0, 3)),
-            vec![What::SeedFile(2), What::VaultStick(1)]
+            vec![What::seed_file(2), What::VaultStick(1)]
         );
         a.set_map(m);
         // Vault 1 taken off the plan: its sticks go, the vault with them.
@@ -283,7 +283,7 @@ fn a_second_vault_at_a_place_goes_on_a_second_stick() {
         assert_eq!(held(&m, At::Stick(0, 0)), vec![What::VaultStick(1)]);
         assert_eq!(
             held(&m, At::Stick(0, 1)),
-            vec![What::SeedFile(2), What::VaultStick(1)]
+            vec![What::seed_file(2), What::VaultStick(1)]
         );
     });
 }
@@ -308,7 +308,7 @@ fn seed_bs_words_file_beside_vault_1_is_written_in_one_visit_and_the_stick_is_re
     let m = the_map(&app);
     assert_eq!(
         held(&m, At::Stick(0, 0)),
-        vec![What::VaultStick(0), What::SeedFile(1)]
+        vec![What::VaultStick(0), What::seed_file(1)]
     );
     assert_eq!(app.backup_kept_nowhere(&c), None);
     app.press(Action::BChecklist);
@@ -413,7 +413,7 @@ fn a_seed_kept_nowhere_holds_the_plan() {
     form(&mut app, Zone::Files(0, 0), Thing::Seed(0), 0);
     assert_eq!(
         held(&the_map(&app), At::Stick(0, 0)),
-        vec![What::SeedQrFile(0)]
+        vec![What::seed_qr_file(0)]
     );
     assert_eq!(app.backup_kept_nowhere(&c), None);
     app.press(Action::BChecklist);
@@ -496,7 +496,7 @@ fn an_old_plan_text_loads_with_its_sticks_and_makes_the_same_checklist() {
     );
     let a = Answers::from_text(&shape, &old).expect("the old plan loads");
     let m = plan::map(&c, &shape, &a);
-    assert_eq!(held(&m, At::Place(0)), vec![What::Words(0), What::Sheet]);
+    assert_eq!(held(&m, At::Place(0)), vec![What::words(0), What::Sheet]);
     assert_eq!(held(&m, At::Stick(0, 0)), vec![What::VaultStick(0)]);
     assert_eq!(held(&m, At::Stick(0, 1)), vec![What::VaultStick(1)]);
     assert_eq!(held(&m, At::Stick(2, 0)), vec![What::VaultStick(0)]);
@@ -538,12 +538,12 @@ fn an_old_plan_text_loads_with_its_sticks_and_makes_the_same_checklist() {
     );
     let a = Answers::from_text(&shape, &old).expect("the old plan loads");
     let m = plan::map(&c, &shape, &a);
-    assert_eq!(held(&m, At::Place(0)), vec![What::Words(0)]);
+    assert_eq!(held(&m, At::Place(0)), vec![What::words(0)]);
     assert_eq!(held(&m, At::Stick(0, 0)), vec![What::VaultStick(0)]);
     assert_eq!(
         held(&m, At::Stick(0, 1)),
         vec![
-            What::SeedFile(1),
+            What::seed_file(1),
             What::WalletFile(form::QR),
             What::WalletFile(form::TEXT),
             What::ShareFile(2, form::QR),
@@ -561,7 +561,7 @@ fn an_old_plan_text_loads_with_its_sticks_and_makes_the_same_checklist() {
     // file, the software's file) and written out now, sticks and all, it
     // reads back as it is.
     let mut a = a;
-    let m = plan::with_added(&m, At::Stick(2, 0), What::SeedQrFile(0));
+    let m = plan::with_added(&m, At::Stick(2, 0), What::seed_qr_file(0));
     let m = plan::with_added(&m, At::Stick(2, 0), What::PassphraseFile(0));
     let m = plan::with_added(&m, At::Stick(0, 0), What::SoftwareFile);
     a.set_map(m);
@@ -577,10 +577,10 @@ fn an_old_plan_text_loads_with_its_sticks_and_makes_the_same_checklist() {
     assert!(text.contains("spot stick2.0 qrfile0 passfile0\n"), "{text}");
     assert_eq!(Answers::from_text(&shape, &text), Some(a.clone()));
     // A seed whose only copy outside paper is a file on a stick is kept.
-    let m = plan::without(&plan::map(&c, &shape, &a), At::Place(1), What::Words(1));
+    let m = plan::without(&plan::map(&c, &shape, &a), At::Place(1), What::words(1));
     a.set_map(m);
     assert_eq!(kept_nowhere(&c, &shape, &a, &[0, 1, 2]), None);
-    let m = plan::without(&plan::map(&c, &shape, &a), At::Place(0), What::SeedFile(1));
+    let m = plan::without(&plan::map(&c, &shape, &a), At::Place(0), What::seed_file(1));
     a.set_map(m);
     assert!(kept_nowhere(&c, &shape, &a, &[0, 1, 2]).is_some());
 }
@@ -725,10 +725,10 @@ fn two_sticks_of_files_at_one_place_are_written_as_two_sticks_each_recognised() 
     put(&mut app, Thing::Seed(1), Zone::NewStick(0));
     put(&mut app, Thing::Seed(2), Zone::Files(0, 1));
     let m = the_map(&app);
-    assert_eq!(held(&m, At::Stick(0, 0)), vec![What::SeedFile(0)]);
+    assert_eq!(held(&m, At::Stick(0, 0)), vec![What::seed_file(0)]);
     assert_eq!(
         held(&m, At::Stick(0, 1)),
-        vec![What::SeedFile(1), What::SeedFile(2)]
+        vec![What::seed_file(1), What::seed_file(2)]
     );
     app.press(Action::BChecklist);
     assert_eq!(app.backup().unwrap().stage, BStage::Checklist);
@@ -976,13 +976,13 @@ fn a_place_holding_something_asks_before_it_goes_and_goes_on_take_off() {
     assert_eq!(backup_places(&app), 2, "asked first");
     let seed = String::from(&*backup_shape(&app).seeds[0].name);
     expect_down_part(&mut app, &format!("Place 2 holds {seed}"));
-    assert_eq!(held(&the_map(&app), At::Place(1)), vec![What::Words(0)]);
+    assert_eq!(held(&the_map(&app), At::Place(1)), vec![What::words(0)]);
     tap(&mut app, BP::RemovePlaceSure(1));
     assert_eq!(backup_places(&app), 1);
     assert!(
         the_map(&app)
             .iter()
-            .all(|s| s.holds.iter().all(|(w, _)| *w != What::Words(0))),
+            .all(|s| s.holds.iter().all(|(w, _)| *w != What::words(0))),
         "what it kept went with it"
     );
 }
@@ -1052,13 +1052,13 @@ fn the_board_starts_with_one_empty_place_and_plus_and_x_add_and_remove_places() 
     // Place 2 keeps Seed A's words; its × takes them with it.
     tap(&mut app, list(Thing::Seed(0)));
     tap(&mut app, BP::Zone(Zone::Paper(1)));
-    assert_eq!(held(&the_map(&app), At::Place(1)), vec![What::Words(0)]);
+    assert_eq!(held(&the_map(&app), At::Place(1)), vec![What::words(0)]);
     tap_remove_place(&mut app, 1);
     assert_eq!(backup_places(&app), 1);
     assert!(
         the_map(&app)
             .iter()
-            .all(|s| s.holds.iter().all(|(w, _)| *w != What::Words(0))),
+            .all(|s| s.holds.iter().all(|(w, _)| *w != What::words(0))),
         "what it kept went with it"
     );
     assert!(!has(&mut app, "Place 2"));
@@ -1071,7 +1071,7 @@ fn the_board_starts_with_one_empty_place_and_plus_and_x_add_and_remove_places() 
 fn seed_a_dragged_onto_paper_keeps_its_words_and_its_forms_add_the_seedqr() {
     let mut app = three_on_an_empty_board();
     drag(&mut app, list(Thing::Seed(0)), BP::Zone(Zone::Paper(0)));
-    assert_eq!(held(&the_map(&app), At::Place(0)), vec![What::Words(0)]);
+    assert_eq!(held(&the_map(&app), At::Place(0)), vec![What::words(0)]);
     // The chip's toggles, with no popup: SeedQR turned on.
     let seedqr = BP::Form(Zone::Paper(0), Thing::Seed(0), 1);
     assert!(
@@ -1083,17 +1083,17 @@ fn seed_a_dragged_onto_paper_keeps_its_words_and_its_forms_add_the_seedqr() {
     tap(&mut app, seedqr);
     assert_eq!(
         held(&the_map(&app), At::Place(0)),
-        vec![What::Words(0), What::SeedQr(0)]
+        vec![What::words(0), What::seed_qr(0)]
     );
     // Words off keeps the SeedQR; the last form on stays on.
     tap(&mut app, BP::Form(Zone::Paper(0), Thing::Seed(0), 0));
-    assert_eq!(held(&the_map(&app), At::Place(0)), vec![What::SeedQr(0)]);
+    assert_eq!(held(&the_map(&app), At::Place(0)), vec![What::seed_qr(0)]);
     tap(&mut app, BP::Form(Zone::Paper(0), Thing::Seed(0), 1));
-    assert_eq!(held(&the_map(&app), At::Place(0)), vec![What::SeedQr(0)]);
+    assert_eq!(held(&the_map(&app), At::Place(0)), vec![What::seed_qr(0)]);
     tap(&mut app, BP::Form(Zone::Paper(0), Thing::Seed(0), 0));
     assert_eq!(
         held(&the_map(&app), At::Place(0)),
-        vec![What::SeedQr(0), What::Words(0)]
+        vec![What::seed_qr(0), What::words(0)]
     );
 }
 
@@ -1218,7 +1218,7 @@ fn a_passphrase_beside_its_words_is_kept_with_a_warning_and_the_checklist_offere
     let c = testkit::compute();
     let mut app = passphrase_key_on_the_board();
     let words = held(&the_map(&app), At::Place(0));
-    assert!(words.contains(&What::Words(0)), "{words:?}");
+    assert!(words.contains(&What::words(0)), "{words:?}");
     // Its passphrase kept nowhere yet holds nothing back but a warning:
     // put it somewhere first, then beside the words.
     for p in 0..backup_places(&app) {
@@ -1231,7 +1231,7 @@ fn a_passphrase_beside_its_words_is_kept_with_a_warning_and_the_checklist_offere
     drag(&mut app, list(Thing::Pass(0)), BP::Zone(Zone::Paper(0)));
     let m = the_map(&app);
     assert!(held(&m, At::Place(0)).contains(&What::Passphrase(0)));
-    assert!(held(&m, At::Place(0)).contains(&What::Words(0)));
+    assert!(held(&m, At::Place(0)).contains(&What::words(0)));
     let seed = String::from(&*backup_shape(&app).seeds[0].name);
     expect_down(
         &mut app,
@@ -1272,7 +1272,7 @@ fn a_seed_kept_nowhere_on_the_board_holds_the_plan() {
     let mut app = passphrase_key_on_the_board();
     for p in 0..backup_places(&app) {
         for w in held(&the_map(&app), At::Place(p)) {
-            if let What::Words(_) = w {
+            if w.is_words() {
                 tap(&mut app, BP::Off(Zone::Paper(p), Thing::Seed(0)));
             }
         }
@@ -1493,7 +1493,7 @@ fn a_placed_chip_moves_with_its_forms_and_back_to_the_list_is_taken_off() {
     assert!(held(&m, At::Place(0)).is_empty());
     assert_eq!(
         held(&m, At::Stick(0, 0)),
-        vec![What::SeedFile(0), What::SeedQrFile(0)]
+        vec![What::seed_file(0), What::seed_qr_file(0)]
     );
     drag(
         &mut app,
@@ -1504,7 +1504,7 @@ fn a_placed_chip_moves_with_its_forms_and_back_to_the_list_is_taken_off() {
         the_map(&app).iter().all(|s| s
             .holds
             .iter()
-            .all(|(w, _)| !matches!(w, What::SeedFile(0) | What::SeedQrFile(0)))),
+            .all(|(w, _)| *w != What::seed_file(0) && *w != What::seed_qr_file(0))),
         "taken off"
     );
     assert_eq!(
@@ -1783,7 +1783,7 @@ fn a_narrow_window_places_from_the_add_sheets_menu_as_a_drag_does_on_wide() {
     tap(&mut app, BP::OpenList);
     tap(&mut app, BP::Menu(Chip::List(Thing::Seed(1))));
     tap(&mut app, BP::MenuTo(Zone::Paper(0)));
-    assert!(held(&the_map(&app), At::Place(0)).contains(&What::Words(1)));
+    assert!(held(&the_map(&app), At::Place(0)).contains(&What::words(1)));
     // A placed chip's forms open as on `wide`.
     tap(&mut app, placed(Zone::Paper(0), Thing::Seed(0)));
     assert!(offered_on_page(
@@ -1811,7 +1811,11 @@ fn a_seed_in_a_vault_and_a_seed_file_on_its_stick_are_drawn_in_their_own_boxes()
     assert_eq!(held(&m, At::Vault(0)), vec![What::Seed(0)]);
     assert_eq!(
         held(&m, At::Stick(0, s)),
-        vec![What::VaultStick(0), What::SeedFile(1), What::SeedQrFile(1)]
+        vec![
+            What::VaultStick(0),
+            What::seed_file(1),
+            What::seed_qr_file(1)
+        ]
     );
     let inside = |inner: (u16, u16, u16, u16), outer: (u16, u16, u16, u16)| {
         inner.0 >= outer.0
@@ -1983,7 +1987,7 @@ fn a_press_on_plus_stick_adds_an_empty_stick_that_the_plan_does_not_see() {
     drag(&mut app, list(Thing::Seed(0)), BP::Zone(Zone::Empty(0, 0)));
     assert_eq!(
         held(&the_map(&app), At::Stick(0, 0)),
-        vec![What::SeedFile(0)]
+        vec![What::seed_file(0)]
     );
     assert!(offered_on_page(
         &mut app,
@@ -2002,7 +2006,7 @@ fn a_press_on_plus_stick_adds_an_empty_stick_that_the_plan_does_not_see() {
     ));
     assert_eq!(
         held(&the_map(&app), At::Stick(0, 0)),
-        vec![What::SeedFile(0)]
+        vec![What::seed_file(0)]
     );
     // Place 2's empty stick goes with Place 2.
     tap(&mut app, BP::AddPlace);
@@ -2139,7 +2143,7 @@ fn a_drop_on_a_sticks_files_box_keeps_a_file_beside_its_vault() {
     let m = the_map(&app);
     assert_eq!(
         held(&m, At::Stick(0, s)),
-        vec![What::VaultStick(0), What::SeedFile(0)]
+        vec![What::VaultStick(0), What::seed_file(0)]
     );
     assert!(held(&m, At::Vault(0)).is_empty(), "nothing sealed");
     // A stick of files, no vault on it.
@@ -2147,7 +2151,7 @@ fn a_drop_on_a_sticks_files_box_keeps_a_file_beside_its_vault() {
     put(&mut app, Thing::Whole, Zone::NewStick(1));
     let f = files_stick(&app, 1).unwrap();
     drag(&mut app, list(Thing::Seed(1)), BP::Zone(Zone::Files(1, f)));
-    assert!(held(&the_map(&app), At::Stick(1, f)).contains(&What::SeedFile(1)));
+    assert!(held(&the_map(&app), At::Stick(1, f)).contains(&What::seed_file(1)));
     // A new stick: its files box is there, empty.
     tap(&mut app, BP::Zone(Zone::NewStick(1)));
     let _ = on_board(&mut app, BP::Zone(Zone::Empty(1, 0)));
@@ -2234,7 +2238,7 @@ fn a_fresh_two_of_three_opens_on_the_board_with_the_standard_way_placed() {
     for p in 0..3 {
         assert_eq!(
             paper(&app, p),
-            vec![What::Words(p), What::Sheet],
+            vec![What::words(p), What::Sheet],
             "Place {}",
             p + 1
         );
@@ -2263,7 +2267,7 @@ fn a_single_keys_standard_way_is_one_place() {
     app.press(Action::Backup(w));
     assert_eq!(app.backup().unwrap().q, Some(qstep::BOARD));
     assert_eq!(backup_places(&app), 1);
-    assert_eq!(paper(&app, 0), vec![What::Words(0)]);
+    assert_eq!(paper(&app, 0), vec![What::words(0)]);
 }
 
 /// Until Customize backup the board is read-only: the list's column is the
@@ -2310,7 +2314,7 @@ fn the_board_is_read_only_until_customize_backup() {
     assert!(app.offers(Action::Board(list(Thing::Seed(0)))), "the list");
     drag(&mut app, list(Thing::Seed(1)), BP::Zone(Zone::Paper(0)));
     assert!(
-        paper(&app, 0).contains(&What::Words(1)),
+        paper(&app, 0).contains(&What::words(1)),
         "{:?}",
         paper(&app, 0)
     );
@@ -2342,7 +2346,7 @@ fn another_preset_replaces_the_standard_way_in_both_states() {
             .any(|t| t == "Add watch-only software")
     );
     for p in 0..3 {
-        assert_eq!(paper(&app, p), vec![What::Words(p), What::Sheet]);
+        assert_eq!(paper(&app, p), vec![What::words(p), What::Sheet]);
     }
     app.press(Action::Board(BP::Software));
     assert!(held(&the_map(&app), At::Software).is_empty(), "taken off");
@@ -2382,21 +2386,21 @@ fn a_seed_chips_toggles_keep_the_last_form_on() {
     let seedqr = BP::Form(Zone::Paper(0), Thing::Seed(0), 1);
     assert!(app.offers(Action::Board(words)), "a toggle on the chip");
     app.press(Action::Board(words));
-    assert_eq!(paper(&app, 0), vec![What::Words(0), What::Sheet], "stays");
+    assert_eq!(paper(&app, 0), vec![What::words(0), What::Sheet], "stays");
     app.press(Action::Board(seedqr));
     assert_eq!(
         sorted(paper(&app, 0)),
-        sorted(vec![What::Words(0), What::SeedQr(0), What::Sheet])
+        sorted(vec![What::words(0), What::seed_qr(0), What::Sheet])
     );
     app.press(Action::Board(words));
     assert_eq!(
         sorted(paper(&app, 0)),
-        sorted(vec![What::SeedQr(0), What::Sheet])
+        sorted(vec![What::seed_qr(0), What::Sheet])
     );
     app.press(Action::Board(seedqr));
     assert_eq!(
         sorted(paper(&app, 0)),
-        sorted(vec![What::SeedQr(0), What::Sheet]),
+        sorted(vec![What::seed_qr(0), What::Sheet]),
         "stays"
     );
 }
@@ -2567,7 +2571,7 @@ fn a_placed_chips_menu_moves_copies_and_takes_off() {
     assert_eq!(the_map(&app), the_map(&dragged));
     assert_eq!(
         held(&the_map(&app), At::Place(1)),
-        vec![What::Words(0), What::SeedQr(0)],
+        vec![What::words(0), What::seed_qr(0)],
         "with its forms"
     );
     assert!(held(&the_map(&app), At::Place(0)).is_empty());
@@ -2580,10 +2584,10 @@ fn a_placed_chips_menu_moves_copies_and_takes_off() {
     tap(&mut app, BP::MenuTo(Zone::Paper(1)));
     assert_eq!(
         held(&the_map(&app), At::Place(0)),
-        vec![What::Words(0), What::SeedQr(0)],
+        vec![What::words(0), What::seed_qr(0)],
         "still kept where it was"
     );
-    assert_eq!(held(&the_map(&app), At::Place(1)), vec![What::Words(0)]);
+    assert_eq!(held(&the_map(&app), At::Place(1)), vec![What::words(0)]);
     // Take off.
     let mut app = menu_board();
     start(&mut app);
@@ -2791,7 +2795,7 @@ fn change_the_plan_from_the_checklist_shows_the_board() {
     assert_eq!(app.backup().unwrap().stage, BStage::Checklist);
     assert_eq!(
         sorted(paper(&app, 0)),
-        sorted(vec![What::SeedQr(0), What::Sheet])
+        sorted(vec![What::seed_qr(0), What::Sheet])
     );
     assert!(app.backup_items_now(&c).contains(&Item::Copy(0)));
 }
@@ -2812,7 +2816,7 @@ fn a_new_plan_keeps_the_words_and_no_seedqr() {
     let three = fresh_three();
     for (mut app, n) in [(single, 1), (three, 3)] {
         for p in 0..n {
-            let mut want = vec![What::Words(p)];
+            let mut want = vec![What::words(p)];
             if n > 1 {
                 want.push(What::Sheet);
             }
@@ -2824,7 +2828,7 @@ fn a_new_plan_keeps_the_words_and_no_seedqr() {
         app.press(Action::BPlan);
         app.press(Action::Board(BP::Customize));
         app.press(Action::Board(BP::Form(Zone::Paper(0), Thing::Seed(0), 1)));
-        let mut want = vec![What::Words(0), What::SeedQr(0)];
+        let mut want = vec![What::words(0), What::seed_qr(0)];
         if n > 1 {
             want.push(What::Sheet);
         }
@@ -2867,7 +2871,7 @@ fn a_krux_code_is_added_from_the_seeds_menu_and_shows_on_its_chip() {
     );
     tap(&mut app, BP::MenuTo(Zone::Files(0, s)));
     assert_eq!(app.sheet, None, "the menu closes");
-    assert!(map_holds(&app, What::KefCode(0)));
+    assert!(map_holds(&app, What::kef_code(0)));
     let name = String::from(&*backup_shape(&app).seeds[0].name);
     expect(&mut app, &name);
     expect(&mut app, "· Krux code");
@@ -2887,14 +2891,14 @@ fn a_krux_code_moves_and_copies_between_a_sticks_files_and_paper() {
     tap(&mut app, dots(chip));
     tap(&mut app, BP::MenuVerb(faraday_core::board::Verb::Move));
     tap(&mut app, BP::MenuTo(Zone::Paper(1)));
-    assert!(map_holds(&app, What::KefCodePaper(0)));
-    assert!(!map_holds(&app, What::KefCode(0)), "left the stick");
+    assert!(map_holds(&app, What::kef_code_paper(0)));
+    assert!(!map_holds(&app, What::kef_code(0)), "left the stick");
     let chip = Chip::Placed(Zone::Paper(1), Thing::Kef(0));
     tap(&mut app, dots(chip));
     tap(&mut app, BP::MenuVerb(faraday_core::board::Verb::Copy));
     tap(&mut app, BP::MenuTo(Zone::Files(0, s)));
-    assert!(map_holds(&app, What::KefCodePaper(0)), "still on paper");
-    assert!(map_holds(&app, What::KefCode(0)), "and now on the stick");
+    assert!(map_holds(&app, What::kef_code_paper(0)), "still on paper");
+    assert!(map_holds(&app, What::kef_code(0)), "and now on the stick");
 }
 
 /// A plan saved and read back holds the codes it had, as its text only.
@@ -2965,7 +2969,7 @@ fn a_seed_kept_only_as_a_krux_code_is_still_kept_nowhere() {
     let mut app = passphrase_key_on_the_board();
     for p in 0..backup_places(&app) {
         for w in held(&the_map(&app), At::Place(p)) {
-            if let What::Words(_) = w {
+            if w.is_words() {
                 tap(&mut app, BP::Off(Zone::Paper(p), Thing::Seed(0)));
             }
         }
@@ -2974,7 +2978,7 @@ fn a_seed_kept_only_as_a_krux_code_is_still_kept_nowhere() {
     tap(&mut app, dots(Chip::List(Thing::Seed(0))));
     tap(&mut app, BP::MenuVerb(faraday_core::board::Verb::Kef));
     tap(&mut app, BP::MenuTo(Zone::Paper(0)));
-    assert!(map_holds(&app, What::KefCodePaper(0)));
+    assert!(map_holds(&app, What::kef_code_paper(0)));
     let kept = app.backup_kept_nowhere(&c).expect("still kept nowhere");
     let seed = String::from(&*backup_shape(&app).seeds[0].name);
     assert!(kept.contains(&seed), "{}", &*kept);

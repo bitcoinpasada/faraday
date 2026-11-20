@@ -1387,7 +1387,7 @@ pub fn no_words(app: &mut Faraday) {
     let places = board_places(app);
     for p in 0..places {
         for w in backup_held(app, At::Place(p)) {
-            if let What::Words(i) | What::SeedQr(i) = w {
+            if let Some(i) = w.words_seed_on(plan::Medium::Paper) {
                 take_off(app, Zone::Paper(p), Thing::Seed(i));
             }
         }
@@ -1470,7 +1470,7 @@ pub fn no_seed_files_at(app: &mut Faraday, p: usize) {
     let n = plan::sticks_at(&backup_map(app), p);
     for s in (0..n).rev() {
         for w in backup_held(app, At::Stick(p, s)) {
-            if let What::SeedFile(i) | What::SeedQrFile(i) = w
+            if let Some(i) = w.words_seed_on(plan::Medium::File)
                 && backup_held(app, At::Stick(p, s)).contains(&w)
             {
                 take_off(app, Zone::Files(p, s), Thing::Seed(i));
@@ -1542,7 +1542,7 @@ pub fn stick_also_at(app: &mut Faraday, p: usize, v: usize) {
 /// Seed `i`'s words and SeedQR taken off place `p`'s paper.
 pub fn words_off_at(app: &mut Faraday, p: usize) {
     for w in backup_held(app, At::Place(p)) {
-        if let What::Words(i) | What::SeedQr(i) = w
+        if let Some(i) = w.words_seed_on(plan::Medium::Paper)
             && backup_held(app, At::Place(p)).contains(&w)
         {
             take_off(app, Zone::Paper(p), Thing::Seed(i));
@@ -1595,17 +1595,22 @@ fn spot_of(app: &Faraday, p: usize, w: What) -> Option<(Zone, Thing, u8)> {
             .find(|&s| {
                 plan::holds_at(&m, At::Stick(p, s))
                     .iter()
-                    .any(|x| matches!(x, What::SeedFile(j) | What::SeedQrFile(j) if *j == i))
+                    .any(|x| x.words_seed_on(plan::Medium::File) == Some(i))
             })
             .map(|s| Zone::Files(p, s))
     };
-    Some(match w {
-        What::Words(i) => (Zone::Paper(p), Thing::Seed(i), 0),
-        What::SeedQr(i) => (Zone::Paper(p), Thing::Seed(i), 1),
-        What::Passphrase(i) => (Zone::Paper(p), Thing::Pass(i), 0),
-        What::SeedFile(i) => (files(i)?, Thing::Seed(i), 0),
-        _ => return None,
-    })
+    if let What::Passphrase(i) = w {
+        return Some((Zone::Paper(p), Thing::Pass(i), 0));
+    }
+    if let Some(i) = w.words_seed_on(plan::Medium::Paper) {
+        return Some((
+            Zone::Paper(p),
+            Thing::Seed(i),
+            u8::from(w == What::seed_qr(i)),
+        ));
+    }
+    let i = w.words_file_seed()?;
+    Some((files(i)?, Thing::Seed(i), 0))
 }
 
 /// A row of §17's place cards set as its sheet's Done set it, made on the
@@ -1620,16 +1625,16 @@ pub fn keep_row(app: &mut Faraday, p: usize, row: plan::Row, seeds: &[usize]) {
     let shape = board_shape(app);
     for i in shape.here() {
         let w = match row {
-            Row::Words => What::Words(i),
-            Row::SeedQr => What::SeedQr(i),
-            Row::File => What::SeedFile(i),
+            Row::Words => What::words(i),
+            Row::SeedQr => What::seed_qr(i),
+            Row::File => What::seed_file(i),
             Row::Passphrase if shape.seeds[i].passphrase => What::Passphrase(i),
             _ => continue,
         };
         let has = |app: &Faraday| {
             let m = backup_map(app);
             match w {
-                What::SeedFile(_) => (0..plan::sticks_at(&m, p))
+                _ if w.words_file_seed().is_some() => (0..plan::sticks_at(&m, p))
                     .any(|s| plan::holds_at(&m, At::Stick(p, s)).contains(&w)),
                 _ => plan::holds_at(&m, At::Place(p)).contains(&w),
             }
@@ -1641,7 +1646,7 @@ pub fn keep_row(app: &mut Faraday, p: usize, row: plan::Row, seeds: &[usize]) {
         if want {
             // On paper, a chip there already takes the form; else a drop.
             let (z, t, k) = match w {
-                What::SeedFile(_) => match files_stick(app, p) {
+                _ if w.words_file_seed().is_some() => match files_stick(app, p) {
                     Some(s) => (Zone::Files(p, s), Thing::Seed(i), 0),
                     None => (Zone::NewStick(p), Thing::Seed(i), 0),
                 },
@@ -1651,8 +1656,8 @@ pub fn keep_row(app: &mut Faraday, p: usize, row: plan::Row, seeds: &[usize]) {
                 && plan::holds_at(&backup_map(app), At::Place(p))
                     .iter()
                     .any(|x| {
-                        matches!((x, t),
-                        (What::Words(j) | What::SeedQr(j), Thing::Seed(i2)) if *j == i2)
+                        matches!(t, Thing::Seed(i2)
+                            if x.words_seed_on(plan::Medium::Paper) == Some(i2))
                     });
             if chip_there {
                 form(app, z, t, k);
@@ -1670,8 +1675,8 @@ pub fn keep_row(app: &mut Faraday, p: usize, row: plan::Row, seeds: &[usize]) {
             let forms = plan::holds_at(&backup_map(app), At::Place(p))
                 .iter()
                 .filter(|x| {
-                    matches!((x, t),
-                    (What::Words(j) | What::SeedQr(j), Thing::Seed(i2)) if *j == i2)
+                    matches!(t, Thing::Seed(i2)
+                        if x.words_seed_on(plan::Medium::Paper) == Some(i2))
                 })
                 .count();
             if z == Zone::Paper(p) && forms > 1 {

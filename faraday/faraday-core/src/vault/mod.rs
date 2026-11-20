@@ -4259,12 +4259,12 @@ impl Faraday {
                 (
                     EN.board_words,
                     out::SaveWhat::Words,
-                    crate::plan::What::SeedFile(0),
+                    crate::plan::What::seed_file(0),
                 ),
                 (
                     EN.board_seedqr,
                     out::SaveWhat::SeedQr,
-                    crate::plan::What::SeedQrFile(0),
+                    crate::plan::What::seed_qr_file(0),
                 ),
             ] {
                 if what == out::SaveWhat::SeedQr

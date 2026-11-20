@@ -25,8 +25,8 @@ fn copy_page() -> Faraday {
     testkit::change_backup_answers(&mut app, |answers| {
         let mut map = plan::stored_map(&shape, answers);
         for spot in &mut map {
-            if spot.at == At::Place(0) && spot.holds.iter().any(|(h, _)| *h == What::Words(0)) {
-                spot.holds.push((What::SeedQr(0), Tag::Secret));
+            if spot.at == At::Place(0) && spot.holds.iter().any(|(h, _)| *h == What::words(0)) {
+                spot.holds.push((What::seed_qr(0), Tag::Secret));
             }
         }
         answers.set_map(map);

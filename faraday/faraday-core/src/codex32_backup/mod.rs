@@ -22,6 +22,7 @@ use faraday_text::{Text, text};
 use faraday_ui::keyboard::OskPress;
 
 use crate::plan::codex32::{C32, index_char};
+use crate::plan::{Medium, Writing};
 use crate::strings::EN;
 
 /// A press on the codex32 item.
@@ -748,9 +749,12 @@ pub fn next_index(form: &C32) -> Option<usize> {
 pub fn stick_name(what: crate::plan::What, fp: &str, j: usize) -> Option<Text> {
     let fp: Text = fp.chars().flat_map(char::to_lowercase).collect();
     let index = crate::plan::codex32::index_char(j);
-    match what {
-        crate::plan::What::Codex32ShareFile(..) => Some(text!("codex32-{}-{index}.txt", &*fp)),
-        crate::plan::What::Codex32QrFile(..) => Some(text!("codex32qr-{}-{index}.png", &*fp)),
+    let c = what
+        .written()
+        .filter(|c| c.form == faraday_forms::Form::Codex32)?;
+    match (c.writing, c.medium) {
+        (Writing::Codex32String, Medium::File) => Some(text!("codex32-{}-{index}.txt", &*fp)),
+        (Writing::Codex32Qr, Medium::File) => Some(text!("codex32qr-{}-{index}.png", &*fp)),
         _ => None,
     }
 }
@@ -769,7 +773,9 @@ pub fn stick_names(
     let Some(f) = a.c32(i).filter(|f| f.k >= 2) else {
         return Vec::new();
     };
-    let qr = matches!(what, crate::plan::What::Codex32QrFile(..));
+    let qr = what
+        .written()
+        .is_some_and(|c| c.writing == Writing::Codex32Qr);
     match shape.seeds.get(i).filter(|x| x.here) {
         Some(x) if !qr || f.length == 48 => stick_name(what, &x.name, j).into_iter().collect(),
         _ => Vec::new(),

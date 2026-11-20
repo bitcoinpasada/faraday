@@ -79,7 +79,7 @@ impl Xor {
 /// The seed and part number of `w`, when it is a Seed XOR part.
 pub fn part_of(w: What) -> Option<(usize, usize)> {
     match w {
-        What::XorPart(i, j) => Some((i, j)),
+        What::Written(c) if c.form == KeyForm::Xor => c.part(),
         _ => None,
     }
 }
@@ -187,7 +187,10 @@ impl Answers {
             return None;
         }
         let kept = |w: What| match w {
-            What::XorPart(x, j) if x == i => cur.parts.get(j).map(|&fp| What::XorKept(i, fp)),
+            What::Written(c) if c.form == KeyForm::Xor && c.seed == i => c
+                .part()
+                .and_then(|(_, j)| cur.parts.get(j))
+                .map(|&fp| What::XorKept(i, fp)),
             _ => None,
         };
         let mut m = self.map.clone().unwrap_or_default();
@@ -225,7 +228,7 @@ impl Answers {
         self.replace_xor(i, new)?;
         let fresh: Vec<What> = self
             .xor(i)
-            .map(|x| (0..x.n()).map(|j| What::XorPart(i, j)).collect())
+            .map(|x| (0..x.n()).map(|j| What::xor_part(i, j)).collect())
             .unwrap_or_default();
         sets::place_pieces(self, shape, fresh);
         Some(())
@@ -251,7 +254,10 @@ impl Answers {
 /// part with that part's fingerprint.
 pub fn notes_after_new_parts(notes: &[Note], i: usize, old: &Xor) -> Vec<Note> {
     let kept = |w: What| match w {
-        What::XorPart(x, j) if x == i => old.parts.get(j).map(|&fp| What::XorKept(i, fp)),
+        What::Written(c) if c.form == KeyForm::Xor && c.seed == i => c
+            .part()
+            .and_then(|(_, j)| old.parts.get(j))
+            .map(|&fp| What::XorKept(i, fp)),
         _ => None,
     };
     notes
@@ -307,7 +313,11 @@ mod tests {
         let sh = shape();
         let mut a = Answers::defaults(&sh);
         a.set_xor(&sh, 0, Some(set(2, 1)));
-        sets::place_pieces(&mut a, &sh, vec![What::XorPart(0, 0), What::XorPart(0, 1)]);
+        sets::place_pieces(
+            &mut a,
+            &sh,
+            vec![What::xor_part(0, 0), What::xor_part(0, 1)],
+        );
         a
     }
 
@@ -342,8 +352,8 @@ mod tests {
         assert_eq!(a.old_sets(0).collect::<Vec<_>>(), vec![&set(2, 1)]);
         let on = on_map(&a);
         assert!(on.contains(&kept(1, 0)) && on.contains(&kept(1, 1)));
-        assert!(!on.contains(&What::XorPart(0, 0)) || a.xor(0).is_some());
-        assert!(on.contains(&What::XorPart(0, 2)));
+        assert!(!on.contains(&What::xor_part(0, 0)) || a.xor(0).is_some());
+        assert!(on.contains(&What::xor_part(0, 2)));
         let text = a.to_text();
         assert!(text.contains("xorold 0 01010100,01010101\n"));
         assert!(text.contains("xork0.01010100"));
@@ -414,13 +424,13 @@ mod tests {
         let mut a = planned();
         a.make_new_parts(&shape(), 0, set(2, 2)).expect("made");
         let needs = a.set_needs();
-        let mixed = [kept(1, 0), What::XorPart(0, 1)];
+        let mixed = [kept(1, 0), What::xor_part(0, 1)];
         assert!(needs.rebuilt(&mixed).is_empty());
-        let mixed = [kept(1, 0), kept(1, 1), What::XorPart(0, 0)];
+        let mixed = [kept(1, 0), kept(1, 1), What::xor_part(0, 0)];
         assert_eq!(needs.rebuilt(&mixed), vec![0]);
         assert!(
             !needs
-                .rebuilt(&[What::XorPart(0, 0), kept(1, 1)])
+                .rebuilt(&[What::xor_part(0, 0), kept(1, 1)])
                 .contains(&0)
         );
     }
@@ -487,7 +497,7 @@ mod tests {
         let on = on_map(&a);
         assert!(on.contains(&kept(1, 0)) && on.contains(&kept(1, 1)));
         for j in 0..3 {
-            assert!(on.contains(&What::XorPart(0, j)));
+            assert!(on.contains(&What::xor_part(0, j)));
         }
     }
 
@@ -514,8 +524,10 @@ mod tests {
         let mut b = a.clone();
         b.set_xor(&sh, 0, Some(set(2, 2)));
         let mut m = stored_map(&sh, &b);
-        m.iter_mut()
-            .for_each(|s| s.holds.retain(|(w, _)| !matches!(w, What::XorPart(..))));
+        m.iter_mut().for_each(|s| {
+            s.holds
+                .retain(|(w, _)| !matches!(w, What::Written(c) if c.form == KeyForm::Xor))
+        });
         b.set_map(m);
         assert_eq!(parts(&b), 0);
     }

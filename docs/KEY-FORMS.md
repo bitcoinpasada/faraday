@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F299, F300); the registry crate `faraday-forms` is built (the identifier and the table of §3.2, and `scan_read::Kind::form`, which every scanner's seed branch reads through `Kind::route`), and the other lists of §2 are not yet moved onto it: seven lists still repeat what it knows by hand.
-**Open:** a master xprv read by a scanner; every list moved onto the registry; the ways-in component on each screen that takes a key; copies and their checks worked out from it; the two forms of an extended private key and a master seed in hex in the registry, their screens, the Inbox's finding of a file holding one and Convert's reading of them (the key boundary reads both)
+**Open:** a master xprv read by a scanner; every list moved onto the registry; the ways-in component on each screen that takes a key; the four copy-check camera purposes made one; the two forms of an extended private key and a master seed in hex in the registry, their screens, the Inbox's finding of a file holding one and Convert's reading of them (the key boundary reads both)
 
 A key comes into Faraday in one of a few forms: BIP-39 words, SLIP-39
 shares, codex32 strings, Seed XOR parts, a Krux code, and, by F300, an
@@ -53,7 +53,7 @@ crossed with how they are kept, written by hand.
 | The Inbox's seeds | `inbox::SeedSource` and `inbox::Secret`, `faraday/faraday-core/src/inbox.rs` | words (with a passphrase file), SLIP-39, codex32, xprv, hex seed, loaded | stay their own types, since they carry Inbox places and the read secret; each maps from a form, exhaustively |
 | Samples | `samples::SampleForm`, `faraday/faraday-core/src/samples/mod.rs` | words, SLIP-39, codex32, Seed XOR, master seed, aezeed | a form of the table, or the aezeed, which is no key form; its passphrase fact read from the table |
 | Create's Backup card | `create::BackupForm`, `faraday/faraday-core/src/create.rs` | words, codex32 | a filter of the table: the forms Create makes a new key in |
-| The backup plan's copies | `What`, `CopyForm`, `CopyForms`, `faraday/faraday-plan/src/lib.rs` | words, SeedQR, passphrase; a SeedQR file; codex32 strings and Codex32QRs on paper and in files; a Krux code drawn and as a file; Seed XOR parts; SLIP-39 shares | copies worked out from the table's outputs (§5), the saved spellings kept |
+| The backup plan's copies | `What::Written`, `CopyOf`, `CopyForms`, `faraday/faraday-plan/src/copies.rs` | words, SeedQR, passphrase; a SeedQR file; codex32 strings and Codex32QRs on paper and in files; a Krux code drawn and as a file; Seed XOR parts; SLIP-39 shares | copies worked out from the table's outputs (§5), the saved spellings kept |
 | Convert's targets | `convert::Target`, `faraday/faraday-core/src/convert/mod.rs` | master seed hex, xprv, words, SeedQR, CompactSeedQR, entropy hex, word numbers, starts, Seed XOR, SLIP-39, codex32 | stays its own type (most targets are writings of the words, not forms); which targets a key offers is read from what its form makes, and each target that is a form names it |
 | What makes a master key | `faraday_keys::Material`, `faraday/faraday-keys/src/identity.rs` | words, SLIP-39 shares, a seed | stays its own type (it holds the secret); one variant for each thing the table says a form makes, and a new one for an xprv |
 
@@ -211,14 +211,15 @@ take.
 ## 5. Copies and their checks
 
 A copy is a form's output (§3.2) for one key or one piece of its set, on
-one medium at one place. The plan's `What` keeps a copy as the form, the
-piece, the output and the medium, rather than one hand-built variant for
-each pair (today's `KefCode` and `KefCodePaper`, `Codex32QrFile` and the
-rest). The spellings the plan writes into the vault's notes
-(`faraday/faraday-plan/src/text.rs`: `w0`, `q0`, `file0`, `xp0.1`,
-`kefp0` and the others) are kept, each the spelling of its form and
-output, so every note already written reads back as the same copy; a test
-reads each of today's spellings back.
+one medium at one place. The plan's `What::Written` keeps a copy as the
+form, the seed, the piece, the output and the medium
+(`faraday/faraday-plan/src/copies.rs`), accepted only for a pair the
+form's registry outputs list, rather than one hand-built variant for each
+pair. A form added to the registry adds a spelling and a label row there
+and no variant. The spellings the plan writes into the vault's notes
+(`w0`, `q0`, `file0`, `xp0.1`, `kefp0` and the others) are kept, each the
+spelling of its form and output, so every note already written reads
+back as the same copy; a test reads each of today's spellings back.
 
 A check is the output's: typed back (words, a codex32 string, a part, a
 share, the xprv or hex text) or a drawn code scanned back (a SeedQR, a
@@ -226,8 +227,8 @@ CompactSeedQR, a Codex32QR, a Krux code). The four camera purposes that
 check a drawn copy today (`CheckCopy`, `CheckConvert`, `CheckCodex32`,
 `CheckKef` in `faraday/faraday-core/src/qr_view.rs`) become one, naming
 the copy it compares; it compares and never loads, as each does today.
-`CopyForm` (words, SeedQR, passphrase) is replaced by the output, and the
-passphrase line, which is no form of the key, stays a copy of its own.
+`CopyOf` (an output, or the passphrase) names what a check compares, and
+the passphrase line, which is no form of the key, stays a copy of its own.
 
 ## 6. An xprv and a hex seed read back (F300)
 

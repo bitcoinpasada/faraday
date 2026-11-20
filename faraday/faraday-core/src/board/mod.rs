@@ -32,8 +32,9 @@ use crate::strings::fill;
 use faraday_crypto::work::Compute;
 
 use crate::Faraday;
-use crate::plan::{self, Answers, At, Edit, Shape, Spot, What, form};
+use crate::plan::{self, Answers, At, Edit, Medium, Shape, Spot, What, Writing, form};
 use crate::strings::EN;
+use faraday_forms::Form as KeyForm;
 
 /// A thing the board can keep, as the list offers it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -384,23 +385,23 @@ fn kind(z: Zone) -> Option<Kind> {
 /// places (`docs/BACKUP-FLOW.md` §17.3).
 fn forms_in(k: Kind, t: Thing) -> Vec<What> {
     match (k, t) {
-        (Kind::Paper, Thing::Seed(i)) => vec![What::Words(i), What::SeedQr(i)],
+        (Kind::Paper, Thing::Seed(i)) => vec![What::words(i), What::seed_qr(i)],
         (Kind::Paper, Thing::Pass(i)) => vec![What::Passphrase(i)],
         (Kind::Paper, Thing::Whole) => vec![What::Sheet],
         (Kind::Paper, Thing::Share(j)) => vec![What::Share(j)],
         (Kind::Paper, Thing::String(i, j)) => {
-            vec![What::Codex32Share(i, j), What::Codex32QrPaper(i, j)]
+            vec![What::codex32_share(i, j), What::codex32_qr_paper(i, j)]
         }
         (Kind::Files, Thing::String(i, j)) => {
-            vec![What::Codex32ShareFile(i, j), What::Codex32QrFile(i, j)]
+            vec![What::codex32_share_file(i, j), What::codex32_qr_file(i, j)]
         }
-        (Kind::Vault, Thing::String(i, j)) => vec![What::Codex32Share(i, j)],
+        (Kind::Vault, Thing::String(i, j)) => vec![What::codex32_share(i, j)],
         // A part or a share is paper only: never a file, a stick or a vault.
-        (Kind::Paper, Thing::Part(i, j)) => vec![What::XorPart(i, j)],
+        (Kind::Paper, Thing::Part(i, j)) => vec![What::xor_part(i, j)],
         (Kind::Paper, Thing::Kept(i, fp)) => vec![What::XorKept(i, fp)],
-        (Kind::Paper, Thing::Slip(i, g, m)) => vec![What::Slip39Share(i, g, m)],
+        (Kind::Paper, Thing::Slip(i, g, m)) => vec![What::slip39_share(i, g, m)],
         (Kind::Paper, Thing::SlipKept(i, id, g, m)) => vec![What::Slip39Kept(i, id, g, m)],
-        (Kind::Files, Thing::Seed(i)) => vec![What::SeedFile(i), What::SeedQrFile(i)],
+        (Kind::Files, Thing::Seed(i)) => vec![What::seed_file(i), What::seed_qr_file(i)],
         (Kind::Files, Thing::Pass(i)) => vec![What::PassphraseFile(i)],
         (Kind::Files, Thing::Whole) => vec![
             What::WalletFile(form::TEXT),
@@ -416,9 +417,9 @@ fn forms_in(k: Kind, t: Thing) -> Vec<What> {
         (Kind::Vault, Thing::Whole) => vec![What::Wallet],
         (Kind::Vault, Thing::Share(j)) => vec![What::Share(j)],
         (Kind::Scanned | Kind::Public, Thing::Whole) => vec![What::Wallet],
-        (Kind::Public, Thing::Seed(i)) => vec![What::SeedFile(i)],
-        (Kind::Paper, Thing::Kef(i)) => vec![What::KefCodePaper(i)],
-        (Kind::Files, Thing::Kef(i)) => vec![What::KefCode(i)],
+        (Kind::Public, Thing::Seed(i)) => vec![What::seed_file(i)],
+        (Kind::Paper, Thing::Kef(i)) => vec![What::kef_code_paper(i)],
+        (Kind::Files, Thing::Kef(i)) => vec![What::kef_code(i)],
         _ => Vec::new(),
     }
 }
@@ -428,16 +429,26 @@ pub(crate) fn forms_of(z: Zone, t: Thing) -> Vec<What> {
     kind(z).map_or_else(Vec::new, |k| forms_in(k, t))
 }
 
+/// The chip a copy of a form is drawn as.
+fn written_things(c: plan::Written) -> Vec<Thing> {
+    let i = c.seed;
+    match (c.form, c.piece) {
+        (KeyForm::Words, _) => vec![Thing::Seed(i)],
+        (KeyForm::Krux, _) => vec![Thing::Kef(i)],
+        (KeyForm::Codex32, plan::Piece::Part(j)) => vec![Thing::String(i, j)],
+        (KeyForm::Xor, plan::Piece::Part(j)) => vec![Thing::Part(i, j)],
+        (KeyForm::Slip39, plan::Piece::Member(g, m)) => vec![Thing::Slip(i, g, m)],
+        (KeyForm::Codex32 | KeyForm::Xor | KeyForm::Slip39, _) => Vec::new(),
+    }
+}
+
 /// What a held `w` is on the board: the chip it is drawn as. A seed kept
 /// in a vault with its passphrase is two chips there, the seed's and the
 /// passphrase's.
 pub(crate) fn things_of(w: What) -> Vec<Thing> {
     match w {
-        What::Words(i)
-        | What::SeedQr(i)
-        | What::SeedFile(i)
-        | What::SeedQrFile(i)
-        | What::Seed(i) => vec![Thing::Seed(i)],
+        What::Written(c) => written_things(c),
+        What::Seed(i) => vec![Thing::Seed(i)],
         What::Passphrase(i) | What::PassphraseFile(i) | What::PassphraseSealed(i) => {
             vec![Thing::Pass(i)]
         }
@@ -447,13 +458,6 @@ pub(crate) fn things_of(w: What) -> Vec<Thing> {
         }
         What::Share(j) | What::ShareFile(j, _) => vec![Thing::Share(j)],
         What::VaultStick(v) => vec![Thing::Vault(v)],
-        What::Codex32Share(i, j)
-        | What::Codex32QrPaper(i, j)
-        | What::Codex32ShareFile(i, j)
-        | What::Codex32QrFile(i, j) => vec![Thing::String(i, j)],
-        What::KefCode(i) | What::KefCodePaper(i) => vec![Thing::Kef(i)],
-        What::XorPart(i, j) => vec![Thing::Part(i, j)],
-        What::Slip39Share(i, g, m) => vec![Thing::Slip(i, g, m)],
         What::XorKept(i, fp) => vec![Thing::Kept(i, fp)],
         What::Slip39Kept(i, id, g, m) => vec![Thing::SlipKept(i, id, g, m)],
     }
@@ -1166,10 +1170,7 @@ impl Faraday {
                             .flat_map(|s| s.holds.iter().map(|(w, _)| *w)),
                     )
                     .collect::<Vec<What>>();
-                let has_words = words.iter().any(|w| {
-                    matches!(w, What::Words(j) | What::SeedQr(j) | What::SeedFile(j)
-                        | What::SeedQrFile(j) if *j == i)
-                });
+                let has_words = words.iter().any(|w| w.words_form_seed() == Some(i));
                 let has_pass = words
                     .iter()
                     .any(|w| matches!(w, What::Passphrase(j) | What::PassphraseFile(j) if *j == i));
@@ -1303,10 +1304,10 @@ impl Faraday {
             // A SeedQR drawn in part is the answers' alone, not the map's:
             // its toggle reads on, and turns it off by destroying it.
             if let (Zone::Paper(p), Thing::Seed(i)) = (z, t)
-                && plan::is_part(&a, At::Place(p), What::SeedQr(i))
-                && !on.contains(&What::SeedQr(i))
+                && plan::is_part(&a, At::Place(p), What::seed_qr(i))
+                && !on.contains(&What::seed_qr(i))
             {
-                on.push(What::SeedQr(i));
+                on.push(What::seed_qr(i));
             }
             let labels: Vec<Option<String>> =
                 all.iter().map(|w| form_label(*w, &software_name)).collect();
@@ -2176,10 +2177,10 @@ impl Faraday {
                     // A SeedQR drawn in part is destroyed by its toggle: it
                     // goes from the answers, and the map stays as it was.
                     if let (Zone::Paper(p), Thing::Seed(i)) = (z, t)
-                        && forms_in(Kind::Paper, t).get(usize::from(k)) == Some(&What::SeedQr(i))
-                        && plan::is_part(a, At::Place(p), What::SeedQr(i))
+                        && forms_in(Kind::Paper, t).get(usize::from(k)) == Some(&What::seed_qr(i))
+                        && plan::is_part(a, At::Place(p), What::seed_qr(i))
                         && !plan::holds_at(&plan::stored_map(shape, a), At::Place(p))
-                            .contains(&What::SeedQr(i))
+                            .contains(&What::seed_qr(i))
                     {
                         a.part.retain(|&x| x != (p, i));
                         return;
@@ -2457,7 +2458,9 @@ impl Faraday {
     pub(crate) fn kef_dropped(&self, wallet: &crate::wallet::Wallet, mut a: Answers) -> Answers {
         for spot in a.map.iter_mut().flatten() {
             spot.holds.retain(|(w, _)| match w {
-                What::KefCode(i) | What::KefCodePaper(i) => !self.kef_refused_of(wallet, *i),
+                What::Written(c) if c.form == faraday_forms::Form::Krux => {
+                    !self.kef_refused_of(wallet, c.seed)
+                }
                 _ => true,
             });
         }

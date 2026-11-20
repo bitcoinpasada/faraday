@@ -448,9 +448,8 @@ impl Faraday {
                 .filter(|b| matches!(b.at, At::Place(_)))
                 .find(|b| {
                     b.whats.iter().any(|x| {
-                        matches!(*x, What::Words(i) | What::SeedQr(i) | What::Seed(i)
-                            | What::SeedPassphrase(i) | What::SeedFile(i)
-                            | What::SeedQrFile(i) if i == seed)
+                        x.words_form_seed() == Some(seed)
+                            || matches!(*x, What::Seed(i) | What::SeedPassphrase(i) if i == seed)
                     })
                 })
                 .map(|b| Text::of(&b.name))
@@ -2430,7 +2429,7 @@ impl Faraday {
         drop(copy);
         let matched = found == crate::wallet_backup::CopyCheck::Matches;
         if matched {
-            self.copy_matched(fp.0, crate::plan::CopyForm::SeedQr);
+            self.copy_matched(fp.0, crate::plan::CopyOf::SEED_QR);
         }
         self.backup.set_scanned(found.clone());
         if matched {

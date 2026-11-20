@@ -275,14 +275,14 @@ pub fn sync_placed(
     let mut parts: Vec<What> = a
         .xor
         .iter()
-        .flat_map(|x| (0..x.n()).map(|j| What::XorPart(x.seed, j)))
+        .flat_map(|x| (0..x.n()).map(|j| What::xor_part(x.seed, j)))
         .collect();
     for z in &a.slip39 {
         for (g, grp) in z.groups.iter().enumerate() {
             parts.extend(
                 grp.made
                     .iter()
-                    .map(|&m| What::Slip39Share(z.seed, g, usize::from(m))),
+                    .map(|&m| What::slip39_share(z.seed, g, usize::from(m))),
             );
         }
     }
@@ -331,9 +331,9 @@ mod tests {
     #[test]
     fn seed_xor_parts_past_the_set_do_not_rebuild_it() {
         let needs = Needs(vec![Rule::Xor(0, 2)]);
-        let seen = [What::XorPart(0, 0), What::XorPart(0, 7)];
+        let seen = [What::xor_part(0, 0), What::xor_part(0, 7)];
         assert!(needs.rebuilt(&seen).is_empty());
-        let both = [What::XorPart(0, 0), What::XorPart(0, 1)];
+        let both = [What::xor_part(0, 0), What::xor_part(0, 1)];
         assert_eq!(needs.rebuilt(&both), vec![0]);
     }
 }

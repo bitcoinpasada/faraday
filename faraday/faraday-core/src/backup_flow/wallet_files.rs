@@ -152,9 +152,11 @@ impl BackupFlow {
         if target == Target::Files {
             let fps: Vec<&str> = plan::holds_at(&boxes, plan::At::Files)
                 .into_iter()
-                .filter_map(|what| match what {
-                    plan::What::SeedFile(i) => w.shape.seeds.get(i).filter(|x| x.here),
-                    _ => None,
+                .filter_map(|what| {
+                    w.shape
+                        .seeds
+                        .get(what.words_file_seed()?)
+                        .filter(|x| x.here)
                 })
                 .map(|x| &*x.name)
                 .collect();
@@ -164,16 +166,14 @@ impl BackupFlow {
             .into_iter()
             .flat_map(|at| plan::holds_at(&boxes, at))
             .any(|what| {
-                match what {
-                    plan::What::SeedFile(i)
-                    | plan::What::SeedQrFile(i)
-                    | plan::What::PassphraseFile(i) => {
+                match what.seed_stick_file_seed() {
+                    Some(i) => {
                         w.shape.seeds.get(i).filter(|x| x.here).is_some_and(|x| {
                             seed_stick_name(what, &x.name).as_deref() == Some(name)
                         })
                     }
                     // A codex32 string's file (`docs/CODEX32.md` §9.5).
-                    _ => crate::codex32_backup::stick_name_is(&w.shape, what, name),
+                    None => crate::codex32_backup::stick_name_is(&w.shape, what, name),
                 }
             })
     }
@@ -202,12 +202,9 @@ impl BackupFlow {
             .filter(|s| matches!(s.at, plan::At::Stick(..)))
             .flat_map(|s| s.holds.iter())
             .any(|(what, _)| {
-                let seed = match *what {
-                    plan::What::SeedFile(i)
-                    | plan::What::SeedQrFile(i)
-                    | plan::What::PassphraseFile(i) => w.shape.seeds.get(i).filter(|x| x.here),
-                    _ => None,
-                };
+                let seed = what
+                    .seed_stick_file_seed()
+                    .and_then(|i| w.shape.seeds.get(i).filter(|x| x.here));
                 seed.is_some_and(|x| seed_stick_name(*what, &x.name).as_deref() == Some(name))
             })
     }
@@ -218,15 +215,9 @@ impl BackupFlow {
 /// never shares the stick that carries the public files
 /// (`docs/BACKUP-FLOW.md` §10.2).
 pub(crate) fn is_secret_file(w: plan::What) -> bool {
-    use plan::What as W;
-    matches!(
-        w,
-        W::SeedFile(_)
-            | W::SeedQrFile(_)
-            | W::PassphraseFile(_)
-            | W::Codex32ShareFile(..)
-            | W::Codex32QrFile(..)
-    )
+    w.seed_stick_file_seed().is_some()
+        || matches!(w, plan::What::Written(c)
+            if c.form == plan::KeyForm::Codex32 && c.medium == plan::Medium::File)
 }
 
 /// The first stick of place `p` on a wallet's map `sticks`, in the flow's

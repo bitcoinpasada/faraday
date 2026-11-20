@@ -1243,9 +1243,9 @@ fn step_one_offers_the_krux_code_and_pressing_it_puts_the_code_at_the_one_place_
     let map = plan::stored_map(&app.plan_shape_now(b.wallet), &b.answers);
     let held = plan::holds_at(&map, plan::At::Place(0));
     for what in [
-        plan::What::Words(0),
-        plan::What::SeedQr(0),
-        plan::What::KefCodePaper(0),
+        plan::What::words(0),
+        plan::What::seed_qr(0),
+        plan::What::kef_code_paper(0),
     ] {
         assert!(held.contains(&what), "{what:?} is not at the one place");
     }

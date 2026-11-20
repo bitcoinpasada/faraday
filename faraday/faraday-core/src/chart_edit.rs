@@ -398,11 +398,9 @@ impl Faraday {
             .filter(|(_, w)| {
                 !matches!(
                     w,
-                    What::XorPart(..)
-                        | What::XorKept(..)
-                        | What::Slip39Share(..)
-                        | What::Slip39Kept(..)
-                )
+                    What::Written(c) if c.form == faraday_forms::Form::Xor
+                        || c.form == faraday_forms::Form::Slip39
+                ) && !matches!(w, What::XorKept(..) | What::Slip39Kept(..))
             })
             .collect();
         let today = self.today();

@@ -2,7 +2,7 @@
 
 use crate::tour::{Tour, bmap, boff, type_text};
 use faraday_core::board::{BoardPress as BP, Chip, Thing, Zone};
-use faraday_core::plan::{self as fplan, At, What};
+use faraday_core::plan::{self as fplan, At};
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Screen, StickInfo, StorageEvent, plan::Item};
 use faraday_crypto::work::Compute;
@@ -13,7 +13,7 @@ pub(crate) fn words_off(c: &Compute, t: &mut Tour) {
     let places = t.app.board_plan().map_or(0, |(_, a)| a.places);
     for p in 0..places {
         for w in fplan::holds_at(&bmap(c, t), At::Place(p)) {
-            if let What::Words(i) | What::SeedQr(i) = w
+            if let Some(i) = w.words_seed_on(fplan::Medium::Paper)
                 && fplan::holds_at(&bmap(c, t), At::Place(p)).contains(&w)
             {
                 boff(t, Zone::Paper(p), Thing::Seed(i));

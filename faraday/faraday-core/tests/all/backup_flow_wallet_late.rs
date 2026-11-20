@@ -63,8 +63,7 @@ fn the_flows_plan_card_edits_the_map_the_cards_made() {
         "the description's files stay at Place 2"
     );
     assert!(
-        !m.iter()
-            .any(|s| s.holds.iter().any(|(w, _)| matches!(w, What::Words(_)))),
+        !m.iter().any(|s| s.holds.iter().any(|(w, _)| w.is_words())),
         "no words came back"
     );
 }
@@ -1444,7 +1443,7 @@ fn a_held_key_is_not_left_on_a_stale_file_after_the_lock() {
     let mut app = restart(&mut shell, &mut app);
     shell.flow(&mut app, F::ChangePlan);
     let s = (0..plan::sticks_at(&backup_map(&app), 1))
-        .find(|&s| plan::holds_at(&backup_map(&app), At::Stick(1, s)).contains(&What::SeedFile(0)))
+        .find(|&s| plan::holds_at(&backup_map(&app), At::Stick(1, s)).contains(&What::seed_file(0)))
         .expect("the seed's file at Place 2");
     flow_board(
         &mut shell,

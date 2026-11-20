@@ -722,7 +722,7 @@ fn a_key_loaded_without_words_goes_into_the_plans_vault_and_the_vault_restores_i
     assert!(
         !m.iter()
             .flat_map(|s| s.holds.iter())
-            .any(|(h, _)| matches!(h, What::Words(_) | What::SeedFile(_))),
+            .any(|(h, _)| h.is_words() || h.words_file_seed().is_some()),
         "no words to write"
     );
     assert!(m.iter().all(|s| s.at != At::Away));

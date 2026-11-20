@@ -478,17 +478,15 @@ fn seedqr_copy_only(app: &mut Faraday, seed: usize) {
         let (shape, a) = app.board_plan().expect("a board");
         plan::map(&c, &shape, &a)
             .iter()
-            .find_map(|s| {
-                match s.at {
+            .find_map(|s| match s.at {
                 plan::At::Place(p)
-                    if s.holds.iter().any(|(w, _)| {
-                        matches!(w, plan::What::Words(i) | plan::What::SeedQr(i) if *i == seed)
-                    }) =>
+                    if s.holds
+                        .iter()
+                        .any(|(w, _)| w.words_seed_on(plan::Medium::Paper) == Some(seed)) =>
                 {
                     Some(p)
                 }
                 _ => None,
-            }
             })
             .expect("a place keeps the seed")
     };

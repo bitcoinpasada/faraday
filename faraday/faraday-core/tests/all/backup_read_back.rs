@@ -282,7 +282,7 @@ fn a_words_file_restores_the_wallet() {
     sticks(&mut shell, 1);
     let (mut app, address, fps) = made(&[2], "");
     board_edit(&mut app, |m| {
-        plan::with_added(&m, At::Stick(0, 0), What::SeedFile(0))
+        plan::with_added(&m, At::Stick(0, 0), What::seed_file(0))
     });
     lock_and_write(&mut shell, &mut app);
     let mut back = copied_in(&on(&shell, &["S1"]));
@@ -297,7 +297,7 @@ fn a_seedqr_picture_restores_the_wallet() {
     sticks(&mut shell, 1);
     let (mut app, address, fps) = made(&[2], "");
     board_edit(&mut app, |m| {
-        plan::with_added(&m, At::Stick(0, 0), What::SeedQrFile(0))
+        plan::with_added(&m, At::Stick(0, 0), What::seed_qr_file(0))
     });
     lock_and_write(&mut shell, &mut app);
     let files = on(&shell, &["S1"]);
@@ -317,7 +317,7 @@ fn a_passphrase_file_beside_the_words_restores_the_key_with_its_passphrase() {
     let (mut app, address, fps) = made(&[2], PASS);
     assert_eq!(fps[0], fp_of(2, PASS));
     board_edit(&mut app, |m| {
-        let m = plan::with_added(&m, At::Stick(0, 0), What::SeedFile(0));
+        let m = plan::with_added(&m, At::Stick(0, 0), What::seed_file(0));
         plan::with_added(&m, At::Stick(1, 0), What::PassphraseFile(0))
     });
     lock_and_write(&mut shell, &mut app);
@@ -355,7 +355,7 @@ fn two_of_three_with(
     board_edit(&mut app, |m| {
         let mut m = m;
         for i in 0..3 {
-            m = plan::with_added(&m, At::Stick(1, 0), What::SeedFile(i));
+            m = plan::with_added(&m, At::Stick(1, 0), What::seed_file(i));
         }
         at_place_1(m)
     });
@@ -418,7 +418,7 @@ fn shares_restore(f: usize) {
         let mut m = plan::with_added(&m, At::Stick(0, 0), What::ShareFile(0, f));
         m = plan::with_added(&m, At::Stick(1, 0), What::ShareFile(1, f));
         for i in 0..3 {
-            m = plan::with_added(&m, At::Stick(1, 0), What::SeedFile(i));
+            m = plan::with_added(&m, At::Stick(1, 0), What::seed_file(i));
         }
         m
     });
@@ -459,7 +459,7 @@ fn seedqr_on_stick_1(shell: &mut Shell) -> (Faraday, [u8; 4]) {
     sticks(shell, 2);
     let (mut app, _, fps) = made(&[2], "");
     board_edit(&mut app, |m| {
-        plan::with_added(&m, At::Stick(0, 0), What::SeedQrFile(0))
+        plan::with_added(&m, At::Stick(0, 0), What::seed_qr_file(0))
     });
     app.press(Action::BChecklist);
     app.press(Action::BNext(faraday_core::plan::Item::Envelopes));
@@ -537,7 +537,7 @@ fn a_text_file_that_does_not_read_back_is_written_again_once() {
     sticks(&mut shell, 1);
     let (mut app, _, _) = made(&[2], "");
     board_edit(&mut app, |m| {
-        plan::with_added(&m, At::Stick(0, 0), What::SeedFile(0))
+        plan::with_added(&m, At::Stick(0, 0), What::seed_file(0))
     });
     shell.mismatch_names.push((".txt".into(), 1));
     let app = lock_and_write(&mut shell, &mut app);
@@ -565,8 +565,8 @@ fn after_a_seedqr_is_written_and_read_back_the_kept_state_holds_nothing_of_the_s
     sticks(&mut shell, 3);
     let (mut app, _, _) = made(&[2], PASS);
     board_edit(&mut app, |m| {
-        let m = plan::with_added(&m, At::Stick(0, 0), What::SeedQrFile(0));
-        let m = plan::with_added(&m, At::Stick(0, 0), What::SeedFile(0));
+        let m = plan::with_added(&m, At::Stick(0, 0), What::seed_qr_file(0));
+        let m = plan::with_added(&m, At::Stick(0, 0), What::seed_file(0));
         plan::with_added(&m, At::Stick(0, 0), What::PassphraseFile(0))
     });
     let mut app = lock_and_write(&mut shell, &mut app);

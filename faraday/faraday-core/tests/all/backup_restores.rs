@@ -337,7 +337,7 @@ fn the_board_line_for_a_wallet_with_several_ways_never_says_more_seeds_than_a_wa
         (0..3)
             .map(|i| Spot {
                 at: At::Place(i),
-                holds: vec![(What::Words(i), Tag::Secret)],
+                holds: vec![(What::words(i), Tag::Secret)],
             })
             .collect(),
     );
@@ -381,7 +381,7 @@ fn a_place_the_plan_says_sees_the_balance_is_one_restore_rebuilds() {
                     .iter()
                     .map(|&j| (What::Share(j), Tag::Secret))
                     .collect();
-                holds.extend(seeds.iter().map(|&k| (What::Words(k), Tag::Secret)));
+                holds.extend(seeds.iter().map(|&k| (What::words(k), Tag::Secret)));
                 if holds.is_empty() {
                     continue;
                 }

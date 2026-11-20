@@ -463,7 +463,7 @@ fn a_change_in_the_plan_asked_before_its_seeds_are_loaded_opens_the_board_when_t
     while !app.session.keys.is_empty() {
         app.session.keys.remove(0);
     }
-    let sel = Some((At::Place(0), Some(What::Words(0))));
+    let sel = Some((At::Place(0), Some(What::words(0))));
     testkit::press_on_worker(&mut app, Action::Chart(C::Do(press, Step::Change(sel))));
     assert!(app.busy().is_some(), "the seeds are loading");
     testkit::settle(&mut app);

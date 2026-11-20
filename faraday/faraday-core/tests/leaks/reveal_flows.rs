@@ -388,7 +388,7 @@ fn a_codex32_picture_made_for_a_stick_leaves_no_copy_after_lock() {
     crate::codex32::key_and_backup(&mut app);
     let a = plan::codex32::index_of(b'a').unwrap();
     board_edit(&mut app, |m| {
-        plan::with_added(&m, At::Stick(0, 0), What::Codex32QrFile(0, a))
+        plan::with_added(&m, At::Stick(0, 0), What::codex32_qr_file(0, a))
     });
     app.press(Action::BChecklist);
     if app.backup().unwrap().open == Some(Item::Templates) {
@@ -420,7 +420,7 @@ fn a_seedqr_picture_made_for_a_stick_leaves_no_copy_after_lock() {
     app.press(Action::BCheck);
     testkit::type_words(&mut app, PHRASE);
     board_edit(&mut app, |m| {
-        plan::with_added(&m, At::Stick(0, 0), What::SeedQrFile(0))
+        plan::with_added(&m, At::Stick(0, 0), What::seed_qr_file(0))
     });
     let (old, fresh) = lock_and_write(app);
     finish("SeedQR picture made for a stick", armed, true);
@@ -439,7 +439,7 @@ fn a_seedqr_picture_let_out_unprotected_leaves_no_copy_after_lock() {
     app.press(Action::BCheck);
     testkit::type_words(&mut app, PHRASE);
     board_edit(&mut app, |m| {
-        plan::with_added(&m, At::Place(0), What::SeedQr(0))
+        plan::with_added(&m, At::Place(0), What::seed_qr(0))
     });
     app.press(Action::BFile);
     assert_eq!(app.sheet, Some(Sheet::SecretOut));

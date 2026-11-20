@@ -26,7 +26,7 @@ use faraday_core::backup_flow::Step;
 use faraday_core::backup_flow::steps::FlowAction as F;
 use faraday_core::board::{BoardPress, Thing, Zone};
 use faraday_core::codex32_backup::{Press, SetPress, SetStep};
-use faraday_core::plan::{self, At, What};
+use faraday_core::plan::{self, At};
 use faraday_core::vault::VaultAction as VA;
 use faraday_core::{Action, Faraday, cstep, testkit};
 use faraday_shell_api::{App, EntropyBytes, Event};
@@ -234,8 +234,16 @@ fn after_a_new_set_the_vault_holds_the_new_sets_string_and_not_the_old_one() {
     assert_eq!(new.len(), 3);
     let in_vault = backup_held(&app, At::Vault(0))
         .into_iter()
-        .find_map(|w| match w {
-            What::Codex32Share(0, j) => Some(j),
+        .find_map(|w| match w.written() {
+            Some(c)
+                if c.is(
+                    plan::KeyForm::Codex32,
+                    plan::Writing::Codex32String,
+                    plan::Medium::Paper,
+                ) && c.seed == 0 =>
+            {
+                c.part().map(|(_, j)| j)
+            }
             _ => None,
         })
         .expect("the plan keeps a string of the new set in the vault");

@@ -562,10 +562,10 @@ fn key(ctx: &Ctx<'_>, k: u8) -> Option<View> {
     }
     let seed = key.seed;
     let of_seed = |w: What| {
-        seed.is_some_and(|s| {
-            matches!(w, What::Words(i) | What::SeedQr(i) | What::Seed(i)
-                | What::SeedPassphrase(i) | What::SeedFile(i)
-                | What::SeedQrFile(i) if i == s)
+        seed.is_some_and(|s| match w {
+            What::Seed(i) | What::SeedPassphrase(i) => i == s,
+            What::Written(c) => c.form == plan::KeyForm::Words && c.seed == s,
+            _ => false,
         })
     };
     let at: Vec<&str> = nodes
@@ -643,7 +643,7 @@ fn key(ctx: &Ctx<'_>, k: u8) -> Option<View> {
                     ));
                 }
             }
-            if ctx.holds(&|w| w == What::SeedFile(s))
+            if ctx.holds(&|w| w == What::seed_file(s))
                 && let Some(a) = ctx.item(Item::SeedFiles)
             {
                 make.push(row(
@@ -661,8 +661,8 @@ fn key(ctx: &Ctx<'_>, k: u8) -> Option<View> {
             && let Some(fp) = key.fp
         {
             let forms = plan::CopyForms {
-                words: ctx.holds(&|w| w == What::Words(s)),
-                seedqr: ctx.holds(&|w| w == What::SeedQr(s)),
+                words: ctx.holds(&|w| w == What::words(s)),
+                seedqr: ctx.holds(&|w| w == What::seed_qr(s)),
             };
             for (label, a) in ctx.check_rows(forms, s, fp, None) {
                 check.push(row(label, "", a));
@@ -821,7 +821,7 @@ fn node(ctx: &Ctx<'_>, n: u8) -> Option<View> {
             Icon::Lock
         }
         At::Files => {
-            if node.whats.iter().any(|w| matches!(w, What::SeedFile(_)))
+            if node.whats.iter().any(|w| w.words_file_seed().is_some())
                 && let Some(a) = ctx.item(Item::SeedFiles)
             {
                 rows.push(row(EN.glance_sheet_write_the_seed, "", Some(a)));
@@ -931,42 +931,70 @@ fn line(ctx: &Ctx<'_>, n: u8, j: u8) -> Option<View> {
     };
     let at_place = matches!(node.at, At::Place(_));
     let mut rows = Vec::new();
+    let rewrite = |rows: &mut Vec<_>| {
+        let it = if at_place {
+            Item::Sticks
+        } else {
+            Item::SeedFiles
+        };
+        if let Some(a) = ctx.item(it) {
+            rows.push(row(
+                EN.glance_sheet_rewrite,
+                EN.glance_sheet_stick_detail,
+                Some(a),
+            ));
+        }
+    };
     match what {
-        What::Words(s) | What::SeedQr(s) => secret(s, &mut rows, &|rows, fp| {
-            let forms = plan::CopyForms {
-                words: matches!(what, What::Words(_)),
-                seedqr: matches!(what, What::SeedQr(_)),
-            };
-            for (label, a) in ctx.check_rows(forms, s, fp, Some(node.at)) {
-                rows.push(row(label, EN.glance_sheet_check_copy, a));
+        What::Written(c) => match c.form {
+            plan::KeyForm::Words if c.on_paper() => secret(c.seed, &mut rows, &|rows, fp| {
+                let forms = plan::CopyForms {
+                    words: c.writing == plan::Writing::Words,
+                    seedqr: c.writing == plan::Writing::SeedQr,
+                };
+                for (label, a) in ctx.check_rows(forms, c.seed, fp, Some(node.at)) {
+                    rows.push(row(label, EN.glance_sheet_check_copy, a));
+                }
+            }),
+            // A seed's file at a place is made and written with its
+            // stick (`docs/BACKUP-FLOW.md` §17.12 item 6).
+            plan::KeyForm::Words => rewrite(&mut rows),
+            // A codex32 string: its checklist item checks it, and
+            // holds the set's actions (`docs/CODEX32.md` §9.7).
+            plan::KeyForm::Codex32 => {
+                if let Some(a) = ctx.item(Item::Codex32(c.seed)) {
+                    rows.push(row(EN.c32_glance_check, EN.c32_glance_strings, Some(a)));
+                    rows.push(row(EN.c32_glance_set, "", Some(a)));
+                }
             }
-        }),
+            // A Krux code is made in its checklist item, and no check
+            // counts it: nothing to do from here.
+            plan::KeyForm::Krux => {}
+            // A Seed XOR part: its words typed back and compared with
+            // its fingerprint.
+            plan::KeyForm::Xor => {
+                if let Some((i, p)) = c.part() {
+                    rows.push(row(
+                        EN.glance_sheet_check_row,
+                        EN.backups_part_check_detail,
+                        ctx.doing(Step::PartCheck(i, p)),
+                    ));
+                }
+            }
+            // A SLIP-39 share keeps no fingerprint: nothing to do from
+            // here.
+            plan::KeyForm::Slip39 => {}
+        },
         What::Seed(s) | What::SeedPassphrase(s) => secret(s, &mut rows, &|_, _| {}),
         // A passphrase record in a vault: nothing to do from here.
         What::PassphraseSealed(_) => {}
-        // A file at a place is made and written with its stick
-        // (`docs/BACKUP-FLOW.md` §17.12 item 6); a seed's file on
-        // the stick of files of a plan saved before, by the seed
+        // A file at a place is made and written with its stick; a seed's
+        // file on the stick of files of a plan saved before, by the seed
         // files item.
-        What::SeedFile(_)
-        | What::SeedQrFile(_)
-        | What::PassphraseFile(_)
+        What::PassphraseFile(_)
         | What::WalletFile(_)
         | What::ShareFile(..)
-        | What::SoftwareFile => {
-            let it = if at_place {
-                Item::Sticks
-            } else {
-                Item::SeedFiles
-            };
-            if let Some(a) = ctx.item(it) {
-                rows.push(row(
-                    EN.glance_sheet_rewrite,
-                    EN.glance_sheet_stick_detail,
-                    Some(a),
-                ));
-            }
-        }
+        | What::SoftwareFile => rewrite(&mut rows),
         What::Passphrase(s) => {
             if let Some(k) = ctx.key_of_seed(s)
                 && g.keys.get(k).is_some_and(|key| key.held)
@@ -978,31 +1006,6 @@ fn line(ctx: &Ctx<'_>, n: u8, j: u8) -> Option<View> {
                 ));
             }
         }
-        // A codex32 string: its checklist item checks it, and
-        // holds the set's actions (`docs/CODEX32.md` §9.7).
-        What::Codex32Share(s, _)
-        | What::Codex32QrPaper(s, _)
-        | What::Codex32ShareFile(s, _)
-        | What::Codex32QrFile(s, _) => {
-            if let Some(a) = ctx.item(Item::Codex32(s)) {
-                rows.push(row(EN.c32_glance_check, EN.c32_glance_strings, Some(a)));
-                rows.push(row(EN.c32_glance_set, "", Some(a)));
-            }
-        }
-        // A Krux code is made in its checklist item, and no check
-        // counts it: nothing to do from here.
-        What::KefCode(_) | What::KefCodePaper(_) => {}
-        // A Seed XOR part: its words typed back and compared with its
-        // fingerprint. A SLIP-39 share keeps no fingerprint: nothing to
-        // do from here.
-        What::XorPart(i, p) => {
-            rows.push(row(
-                EN.glance_sheet_check_row,
-                EN.backups_part_check_detail,
-                ctx.doing(Step::PartCheck(i, p)),
-            ));
-        }
-        What::Slip39Share(..) => {}
         // A kept old part has no check: its sheet takes it off the plan
         // once it is destroyed (`docs/decisions/F285.md`).
         What::XorKept(s, fp) => {
@@ -1080,7 +1083,7 @@ fn line(ctx: &Ctx<'_>, n: u8, j: u8) -> Option<View> {
         match what {
             What::VaultStick(_) | What::Seed(_) | What::SeedPassphrase(_) => Icon::Lock,
             What::Passphrase(_) => Icon::Passphrase,
-            What::Words(_) | What::SeedQr(_) => Icon::Keys,
+            What::Written(c) if c.form == plan::KeyForm::Words && c.on_paper() => Icon::Keys,
             _ => Icon::File,
         },
         label,

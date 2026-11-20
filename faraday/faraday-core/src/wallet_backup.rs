@@ -24,7 +24,7 @@ use faraday_crypto::work::Compute;
 
 use crate::copy_check::{PIN_MAX, Typed, WordCheck, WordsUse, copy_key};
 use crate::forms;
-use crate::plan::{CopyChecks, CopyForm, CopyForms};
+use crate::plan::{CopyChecks, CopyForms, CopyOf};
 use crate::public_files;
 use crate::public_kind::PublicFile;
 use crate::wallet::{Kind, Session, Wallet, fp_label, fp_text, wallet_name};
@@ -626,7 +626,7 @@ pub struct BackupState {
     /// The seeds, by fingerprint, whose copy by hand matched in this
     /// backup, with the form that matched: the words typed back, or the
     /// drawn SeedQR scanned.
-    pub checked: Vec<([u8; 4], plan::CopyForm)>,
+    pub checked: Vec<([u8; 4], plan::CopyOf)>,
     /// The place a chart's line named for the check under way: the copy
     /// that matches is that place's (`docs/BACKUP-FLOW.md` §18.3).
     pub check_at: Option<plan::At>,
@@ -1694,7 +1694,7 @@ impl WalletBackupArea {
     }
 
     /// Seed `fp`'s copy matched in form `form`.
-    pub(crate) fn note_checked(&mut self, fp: [u8; 4], form: plan::CopyForm) {
+    pub(crate) fn note_checked(&mut self, fp: [u8; 4], form: plan::CopyOf) {
         if let Some(b) = self.state.as_mut()
             && !b.checked.contains(&(fp, form))
         {
@@ -1825,8 +1825,8 @@ impl WalletBackupArea {
     pub(crate) fn passphrase_matched(&mut self, fp: [u8; 4]) {
         if let Some(b) = self.state.as_mut() {
             b.check = None;
-            if !b.checked.contains(&(fp, plan::CopyForm::Passphrase)) {
-                b.checked.push((fp, plan::CopyForm::Passphrase));
+            if !b.checked.contains(&(fp, plan::CopyOf::Passphrase)) {
+                b.checked.push((fp, plan::CopyOf::Passphrase));
             }
         }
     }
@@ -1950,12 +1950,12 @@ impl Faraday {
                     let checked = self
                         .backups_checked(i)
                         .into_iter()
-                        .flat_map(|fp| [(fp, plan::CopyForm::Words), (fp, plan::CopyForm::SeedQr)])
+                        .flat_map(|fp| [(fp, plan::CopyOf::WORDS), (fp, plan::CopyOf::SEED_QR)])
                         .chain(
                             marks
                                 .passphrases
                                 .iter()
-                                .map(|&fp| (fp, plan::CopyForm::Passphrase)),
+                                .map(|&fp| (fp, plan::CopyOf::Passphrase)),
                         )
                         .collect();
                     // The template offered first is the one the seeds to
@@ -2251,12 +2251,12 @@ impl Faraday {
     ) -> bool {
         let fp = key.fingerprint.0;
         let checks = self.copy_checks(c, b, i, key);
-        let has = |f: CopyForm| b.checked.contains(&(fp, f));
+        let has = |f: CopyOf| b.checked.contains(&(fp, f));
         (checks.typed || checks.scan)
             && (!checks.typed
-                || has(CopyForm::Words)
-                || (!self.copy_forms(c, b, i).words && has(CopyForm::SeedQr)))
-            && (!checks.scan || has(CopyForm::SeedQr))
+                || has(CopyOf::WORDS)
+                || (!self.copy_forms(c, b, i).words && has(CopyOf::SEED_QR)))
+            && (!checks.scan || has(CopyOf::SEED_QR))
     }
 
     /// Costs what `copy_checked` costs. Whether seed `fp`'s copy item is
@@ -2279,7 +2279,7 @@ impl Faraday {
             None => b
                 .checked
                 .iter()
-                .any(|(f, form)| *f == fp && *form != CopyForm::Passphrase),
+                .any(|(f, form)| *f == fp && *form != CopyOf::Passphrase),
         }
     }
 
@@ -2363,7 +2363,7 @@ impl Faraday {
                 self.backup.check_close();
                 self.backup.part_matched(seed, i);
                 if let Some(s) = seed {
-                    self.what_dating(&c, plan::What::XorPart(s, i), None);
+                    self.what_dating(&c, plan::What::xor_part(s, i), None);
                 }
             }
             _ => {
@@ -2405,7 +2405,7 @@ impl Faraday {
                 self.backup.check_close();
                 self.backup.part_matched(seed, i);
                 if let Some(s) = seed {
-                    self.what_dating(&c, plan::What::XorPart(s, i), None);
+                    self.what_dating(&c, plan::What::xor_part(s, i), None);
                 }
             }
             Some(k) => {
@@ -2494,7 +2494,7 @@ impl Faraday {
         match found {
             CopyCheck::Matches => {
                 self.backup.check_close();
-                self.copy_matched(fp, CopyForm::Words);
+                self.copy_matched(fp, CopyOf::WORDS);
             }
             // Typed words are checked word by word: another seed's are
             // wrong at the first that differs.
@@ -3055,7 +3055,7 @@ impl Faraday {
             plan::Item::Passphrase(i) => {
                 here.iter().find(|(j, _)| *j == i).is_some_and(|(_, k)| {
                     b.checked
-                        .contains(&(k.fingerprint.0, plan::CopyForm::Passphrase))
+                        .contains(&(k.fingerprint.0, plan::CopyOf::Passphrase))
                 })
             }
             plan::Item::KefCode(i) => kef::checked(self, c, i),
@@ -4472,11 +4472,21 @@ impl Faraday {
         self.plan_vault_of(c, wallet)?;
         let (at, what) = b.added?;
         let item = match (at, what) {
-            (plan::At::Place(_), plan::What::Words(i) | plan::What::SeedQr(i)) => {
-                plan::Item::Copy(i)
+            (plan::At::Place(_), plan::What::Written(c))
+                if c.form == faraday_forms::Form::Words && c.on_paper() =>
+            {
+                plan::Item::Copy(c.seed)
             }
             (plan::At::Vault(v), _) => plan::Item::Vault(v),
-            (plan::At::Files, plan::What::SeedFile(_)) => plan::Item::SeedFiles,
+            (plan::At::Files, plan::What::Written(c))
+                if c.is(
+                    faraday_forms::Form::Words,
+                    plan::Writing::Words,
+                    plan::Medium::File,
+                ) =>
+            {
+                plan::Item::SeedFiles
+            }
             _ => return None,
         };
         Some(item)
@@ -4756,7 +4766,7 @@ impl Faraday {
             }
             Quick::SeedQr => {
                 let mapped = self.backup.state().is_some_and(|b| b.answers.map.is_some());
-                if mapped && !self.quick_put(plan::What::SeedQr(0)) {
+                if mapped && !self.quick_put(plan::What::seed_qr(0)) {
                     return;
                 }
                 if self.backup.quick_seedqr() {
@@ -4767,7 +4777,7 @@ impl Faraday {
             }
             Quick::Code => {
                 let on = self.backup.state().is_some_and(|b| b.quick);
-                if on && self.quick_put(plan::What::KefCodePaper(0)) {
+                if on && self.quick_put(plan::What::kef_code_paper(0)) {
                     if let Some(b) = self.backup.state.as_mut() {
                         b.quick_code = true;
                     }

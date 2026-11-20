@@ -148,8 +148,7 @@ pub fn at_read(s: &str) -> Option<At> {
 pub fn what_code(w: What) -> Text {
     let form = |f: usize| if f == form::TEXT { "txt" } else { "qr" };
     match w {
-        What::Words(i) => text!("w{i}"),
-        What::SeedQr(i) => text!("q{i}"),
+        What::Written(w) => w.code(),
         What::Passphrase(i) => text!("p{i}"),
         What::Sheet => Text::of("sheet"),
         What::Share(j) => text!("share{j}"),
@@ -158,36 +157,22 @@ pub fn what_code(w: What) -> Text {
         What::SeedPassphrase(i) => text!("seedp{i}"),
         What::PassphraseSealed(i) => text!("vpass{i}"),
         What::Wallet => Text::of("wallet"),
-        What::SeedFile(i) => text!("file{i}"),
-        What::SeedQrFile(i) => text!("qrfile{i}"),
         What::PassphraseFile(i) => text!("passfile{i}"),
         What::WalletFile(f) => text!("wallet{}", form(f)),
         What::ShareFile(j, f) => text!("share{}{j}", form(f)),
         What::SoftwareFile => Text::of("softwarefile"),
-        What::Codex32Share(i, j) => text!("x{i}.{j}"),
-        What::Codex32QrPaper(i, j) => text!("xq{i}.{j}"),
-        What::Codex32ShareFile(i, j) => text!("xt{i}.{j}"),
-        What::Codex32QrFile(i, j) => text!("xp{i}.{j}"),
-        What::KefCode(i) => text!("kef{i}"),
-        What::KefCodePaper(i) => text!("kefp{i}"),
-        What::XorPart(i, j) => text!("xorp{i}.{j}"),
         What::XorKept(i, fp) => text!("xork{i}.{}", &*fp_code(fp)),
-        What::Slip39Share(i, g, m) => text!("slip{i}.{g}.{m}"),
         What::Slip39Kept(i, id, g, m) => text!("slipk{i}.{id}.{g}.{m}"),
     }
 }
 
-/// A Seed XOR part, `xorp0.1`, or a SLIP-39 share, `slip0.1.2`, as
-/// [`what_code`] writes them (F276).
+/// An old Seed XOR part, `xork0.fp`, or SLIP-39 share, `slipk0.1.2.3`, as
+/// [`what_code`] writes them (F285, F293).
 fn set_piece_read(s: &str) -> Option<What> {
     if let Some(rest) = s.strip_prefix("xork") {
         let (i, fp) = rest.split_once('.')?;
         let fp = fp_read(fp).filter(|_| fp.len() == 8)?;
         return Some(What::XorKept(i.parse().ok()?, fp));
-    }
-    if let Some(rest) = s.strip_prefix("xorp") {
-        let (i, j) = rest.split_once('.')?;
-        return Some(What::XorPart(i.parse().ok()?, j.parse().ok()?));
     }
     if let Some(rest) = s.strip_prefix("slipk") {
         let mut f = rest.split('.');
@@ -199,13 +184,7 @@ fn set_piece_read(s: &str) -> Option<What> {
         );
         return f.next().is_none().then_some(w);
     }
-    let mut f = s.strip_prefix("slip")?.split('.');
-    let w = What::Slip39Share(
-        f.next()?.parse().ok()?,
-        f.next()?.parse().ok()?,
-        f.next()?.parse().ok()?,
-    );
-    f.next().is_none().then_some(w)
+    None
 }
 
 /// [`what_code`] read back. A plan saved before the forms
@@ -215,11 +194,9 @@ fn set_piece_read(s: &str) -> Option<What> {
 /// form those answers start with.
 pub fn what_read(s: &str) -> Option<What> {
     let n = |p: &str| -> Option<usize> { s.strip_prefix(p)?.parse().ok() };
-    // A codex32 string: seed and share index, `x0.10`.
-    let two = |p: &str| -> Option<(usize, usize)> {
-        let (i, j) = s.strip_prefix(p)?.split_once('.')?;
-        Some((i.parse().ok()?, j.parse().ok().filter(|&j: &usize| j < 32)?))
-    };
+    if let Some(w) = Written::read(s) {
+        return Some(What::Written(w));
+    }
     Some(match s {
         "sheet" => What::Sheet,
         "wallet" => What::Wallet,
@@ -229,25 +206,13 @@ pub fn what_read(s: &str) -> Option<What> {
         _ if s.starts_with("sharefile") => What::ShareFile(n("sharefile")?, form::QR),
         _ if s.starts_with("sharetxt") => What::ShareFile(n("sharetxt")?, form::TEXT),
         _ if s.starts_with("shareqr") => What::ShareFile(n("shareqr")?, form::QR),
-        _ if s.starts_with("kefp") => What::KefCodePaper(n("kefp")?),
-        _ if s.starts_with("kef") => What::KefCode(n("kef")?),
-        _ if s.starts_with("xorp") || s.starts_with("xork") || s.starts_with("slip") => {
-            set_piece_read(s)?
-        }
-        _ if s.starts_with("xq") => two("xq").map(|(i, j)| What::Codex32QrPaper(i, j))?,
-        _ if s.starts_with("xt") => two("xt").map(|(i, j)| What::Codex32ShareFile(i, j))?,
-        _ if s.starts_with("xp") => two("xp").map(|(i, j)| What::Codex32QrFile(i, j))?,
-        _ if s.starts_with('x') => two("x").map(|(i, j)| What::Codex32Share(i, j))?,
+        _ if s.starts_with("xork") || s.starts_with("slipk") => set_piece_read(s)?,
         _ if s.starts_with("seedp") => What::SeedPassphrase(n("seedp")?),
         _ if s.starts_with("vpass") => What::PassphraseSealed(n("vpass")?),
         _ if s.starts_with("seed") => What::Seed(n("seed")?),
         _ if s.starts_with("share") => What::Share(n("share")?),
         _ if s.starts_with("stick") => What::VaultStick(n("stick")?),
-        _ if s.starts_with("qrfile") => What::SeedQrFile(n("qrfile")?),
         _ if s.starts_with("passfile") => What::PassphraseFile(n("passfile")?),
-        _ if s.starts_with("file") => What::SeedFile(n("file")?),
-        _ if s.starts_with('w') => What::Words(n("w")?),
-        _ if s.starts_with('q') => What::SeedQr(n("q")?),
         _ if s.starts_with('p') => What::Passphrase(n("p")?),
         _ => return None,
     })
@@ -259,7 +224,7 @@ pub fn what_read(s: &str) -> Option<What> {
 pub fn tag_of(at: At, what: What) -> Tag {
     match (at, what) {
         (At::Vault(_), _) | (_, What::VaultStick(_)) => Tag::Sealed,
-        (_, What::KefCode(_) | What::KefCodePaper(_)) => Tag::Sealed,
+        (_, What::Written(w)) if w.form == KeyForm::Krux => Tag::Sealed,
         (
             _,
             What::Sheet
@@ -743,29 +708,17 @@ fn read_map(a: &mut Answers, shape: &Shape, lines: Vec<(At, Vec<&str>)>) -> Opti
             })
             .collect();
         let fits_shape = |w: What| match w {
-            What::Words(i)
-            | What::SeedQr(i)
-            | What::Passphrase(i)
+            What::Written(w) => w.seed < shape.seeds.len(),
+            What::Passphrase(i)
             | What::Seed(i)
             | What::SeedPassphrase(i)
             | What::PassphraseSealed(i)
-            | What::SeedFile(i)
-            | What::SeedQrFile(i)
             | What::PassphraseFile(i) => i < shape.seeds.len(),
             What::Share(j) => j < shape.keys.max(1),
             What::ShareFile(j, f) => j < shape.keys.max(1) && f <= form::TEXT,
             What::WalletFile(f) => f <= form::TEXT,
             What::VaultStick(v) => v < crate::MAX_VAULTS,
-            What::Codex32Share(i, _)
-            | What::Codex32QrPaper(i, _)
-            | What::Codex32ShareFile(i, _)
-            | What::Codex32QrFile(i, _)
-            | What::KefCode(i)
-            | What::KefCodePaper(i)
-            | What::XorPart(i, _)
-            | What::XorKept(i, _)
-            | What::Slip39Share(i, _, _)
-            | What::Slip39Kept(i, _, _, _) => i < shape.seeds.len(),
+            What::XorKept(i, _) | What::Slip39Kept(i, _, _, _) => i < shape.seeds.len(),
             _ => true,
         };
         let sticks_ok = edited.iter().all(|s| match s.at {
@@ -780,14 +733,9 @@ fn read_map(a: &mut Answers, shape: &Shape, lines: Vec<(At, Vec<&str>)>) -> Opti
         // and of a set the plan holds the facts of (F276).
         let sets_ok = edited.iter().all(|s| {
             s.holds.iter().all(|(w, _)| match *w {
-                What::XorPart(i, j) => {
-                    matches!(s.at, At::Place(_)) && a.xor(i).is_some_and(|x| j < x.n())
-                }
+                What::Written(c) => set_copy_fits(a, s.at, c),
                 What::XorKept(i, fp) => {
                     matches!(s.at, At::Place(_)) && a.old_set_with(i, fp).is_some()
-                }
-                What::Slip39Share(i, g, m) => {
-                    matches!(s.at, At::Place(_)) && a.slip39(i).is_some_and(|z| z.has_member(g, m))
                 }
                 What::Slip39Kept(i, id, g, m) => {
                     matches!(s.at, At::Place(_))
@@ -838,28 +786,38 @@ pub(super) fn note_read(s: &str) -> Option<Note> {
     })
 }
 
+/// Whether a copy of a set's piece is of a piece the plan's set has, and
+/// where the form's pieces are kept: a Seed XOR part or a SLIP-39 share is
+/// paper only, at a place, and of a set the plan holds the facts of
+/// (F276).
+fn set_copy_fits(a: &Answers, at: At, c: Written) -> bool {
+    let place = matches!(at, At::Place(_));
+    match (c.form, c.piece) {
+        (KeyForm::Xor, Piece::Part(j)) => place && a.xor(c.seed).is_some_and(|x| j < x.n()),
+        (KeyForm::Slip39, Piece::Member(g, m)) => {
+            place && a.slip39(c.seed).is_some_and(|z| z.has_member(g, m))
+        }
+        (KeyForm::Xor | KeyForm::Slip39, Piece::Whole | Piece::Part(_) | Piece::Member(..)) => {
+            false
+        }
+        (
+            KeyForm::Words | KeyForm::Codex32 | KeyForm::Krux,
+            Piece::Whole | Piece::Part(_) | Piece::Member(..),
+        ) => true,
+    }
+}
+
 impl What {
     /// The seed it is of, when it is of one.
     pub fn seed_index(self) -> Option<usize> {
         match self {
-            What::Words(i)
-            | What::SeedQr(i)
-            | What::Passphrase(i)
+            What::Written(w) => Some(w.seed),
+            What::Passphrase(i)
             | What::Seed(i)
             | What::SeedPassphrase(i)
             | What::PassphraseSealed(i)
-            | What::SeedFile(i)
-            | What::SeedQrFile(i)
             | What::PassphraseFile(i)
-            | What::Codex32Share(i, _)
-            | What::Codex32QrPaper(i, _)
-            | What::Codex32ShareFile(i, _)
-            | What::Codex32QrFile(i, _)
-            | What::KefCode(i)
-            | What::KefCodePaper(i)
-            | What::XorPart(i, _)
             | What::XorKept(i, _)
-            | What::Slip39Share(i, _, _)
             | What::Slip39Kept(i, _, _, _) => Some(i),
             _ => None,
         }
@@ -880,24 +838,13 @@ impl What {
         };
         let n = *map.get(i)?;
         Some(match self {
-            What::Words(_) => What::Words(n),
-            What::SeedQr(_) => What::SeedQr(n),
+            What::Written(w) => What::Written(Written { seed: n, ..w }),
             What::Passphrase(_) => What::Passphrase(n),
             What::Seed(_) => What::Seed(n),
             What::SeedPassphrase(_) => What::SeedPassphrase(n),
             What::PassphraseSealed(_) => What::PassphraseSealed(n),
-            What::SeedFile(_) => What::SeedFile(n),
-            What::SeedQrFile(_) => What::SeedQrFile(n),
             What::PassphraseFile(_) => What::PassphraseFile(n),
-            What::Codex32Share(_, j) => What::Codex32Share(n, j),
-            What::Codex32QrPaper(_, j) => What::Codex32QrPaper(n, j),
-            What::Codex32ShareFile(_, j) => What::Codex32ShareFile(n, j),
-            What::Codex32QrFile(_, j) => What::Codex32QrFile(n, j),
-            What::KefCode(_) => What::KefCode(n),
-            What::KefCodePaper(_) => What::KefCodePaper(n),
-            What::XorPart(_, j) => What::XorPart(n, j),
             What::XorKept(_, fp) => What::XorKept(n, fp),
-            What::Slip39Share(_, g, m) => What::Slip39Share(n, g, m),
             What::Slip39Kept(_, id, g, m) => What::Slip39Kept(n, id, g, m),
             other => other,
         })

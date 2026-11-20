@@ -203,7 +203,7 @@ impl Slip39 {
 /// The seed, group and member of `w`, when it is a SLIP-39 share.
 pub fn share_of(w: What) -> Option<(usize, usize, usize)> {
     match w {
-        What::Slip39Share(i, g, m) => Some((i, g, m)),
+        What::Written(c) if c.form == KeyForm::Slip39 => c.member(),
         _ => None,
     }
 }
@@ -311,7 +311,9 @@ impl Answers {
             return None;
         }
         let kept = |w: What| match w {
-            What::Slip39Share(x, g, m) if x == i => Some(What::Slip39Kept(i, cur.identifier, g, m)),
+            What::Written(c) if c.form == KeyForm::Slip39 && c.seed == i => c
+                .member()
+                .map(|(_, g, m)| What::Slip39Kept(i, cur.identifier, g, m)),
             _ => None,
         };
         let mut m = self.map.clone().unwrap_or_default();
@@ -360,7 +362,9 @@ impl Answers {
 /// a share is on the kept old share with the same group and member.
 pub fn notes_after_new_shares(notes: &[Note], i: usize, old: &Slip39) -> Vec<Note> {
     let kept = |w: What| match w {
-        What::Slip39Share(x, g, m) if x == i => Some(What::Slip39Kept(i, old.identifier, g, m)),
+        What::Written(c) if c.form == KeyForm::Slip39 && c.seed == i => c
+            .member()
+            .map(|(_, g, m)| What::Slip39Kept(i, old.identifier, g, m)),
         _ => None,
     };
     notes
@@ -446,7 +450,7 @@ mod tests {
     }
 
     fn share(m: usize) -> What {
-        What::Slip39Share(0, 0, m)
+        What::slip39_share(0, 0, m)
     }
 
     fn kept(id: u16, m: usize) -> What {
@@ -497,7 +501,10 @@ mod tests {
         sync_to(&mut a, &key);
         assert_eq!(a.slip39(0), Some(&key));
         let on = on_map(&a);
-        assert!(!on.iter().any(|w| matches!(w, What::Slip39Share(..))));
+        assert!(
+            !on.iter()
+                .any(|w| matches!(w, What::Written(c) if c.form == KeyForm::Slip39))
+        );
         assert!(on.contains(&kept(5, 0)) && on.contains(&kept(5, 1)));
         assert_eq!(a.set_needs().rebuilt(&on), vec![0]);
     }

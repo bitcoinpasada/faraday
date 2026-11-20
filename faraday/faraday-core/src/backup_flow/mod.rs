@@ -635,7 +635,7 @@ pub fn plan_of_on(a: &crate::plan::Answers, m: &crate::plan::Mapped) -> Plan {
     let places: Vec<Vec<usize>> = places.into_iter().map(|(_, v)| v).collect();
     let files_spot = boxes.iter().find(|s| s.at == At::Files);
     let seed_files =
-        files_spot.is_some_and(|s| s.holds.iter().any(|(w, _)| matches!(w, What::SeedFile(_))));
+        files_spot.is_some_and(|s| s.holds.iter().any(|(w, _)| w.words_file_seed().is_some()));
     let wallet_files = files_spot.is_some_and(|s| s.holds.iter().any(|(w, _)| *w == What::Wallet));
     let public_any = crate::plan::public_stick_on(a, m);
     // The stick of public files is read on an online computer: a secret

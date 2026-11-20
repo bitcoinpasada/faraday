@@ -5,9 +5,18 @@
 /// `seedqr-{fp}.png`, `passphrase-{fp}.txt`, the fingerprint in lower case.
 pub(crate) fn seed_stick_name(what: crate::plan::What, fp: &str) -> Option<faraday_text::Text> {
     let fp: faraday_text::Text = fp.chars().flat_map(char::to_lowercase).collect();
+    use crate::plan::{Medium, Writing};
     match what {
-        crate::plan::What::SeedFile(_) => Some(faraday_text::text!("seed-{}.txt", &*fp)),
-        crate::plan::What::SeedQrFile(_) => Some(faraday_text::text!("seedqr-{}.png", &*fp)),
+        crate::plan::What::Written(c)
+            if c.is(faraday_forms::Form::Words, Writing::Words, Medium::File) =>
+        {
+            Some(faraday_text::text!("seed-{}.txt", &*fp))
+        }
+        crate::plan::What::Written(c)
+            if c.is(faraday_forms::Form::Words, Writing::SeedQr, Medium::File) =>
+        {
+            Some(faraday_text::text!("seedqr-{}.png", &*fp))
+        }
         crate::plan::What::PassphraseFile(_) => {
             Some(faraday_text::text!("passphrase-{}.txt", &*fp))
         }
@@ -21,8 +30,8 @@ pub(crate) fn seed_stick_file_of(fps: &[impl AsRef<str>], name: &str) -> bool {
     fps.iter().any(|fp| {
         let fp = fp.as_ref();
         [
-            crate::plan::What::SeedFile(0),
-            crate::plan::What::SeedQrFile(0),
+            crate::plan::What::seed_file(0),
+            crate::plan::What::seed_qr_file(0),
             crate::plan::What::PassphraseFile(0),
         ]
         .into_iter()

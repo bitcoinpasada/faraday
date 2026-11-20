@@ -85,7 +85,7 @@ pub(crate) fn chart_edit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     };
     // The words at Place 2 marked lost: they are at Place 1 too.
     if let Some((n, whats)) = node(t, At::Place(1))
-        && let Some(j) = whats.iter().position(|w| *w == What::Words(0))
+        && let Some(j) = whats.iter().position(|w| *w == What::words(0))
     {
         t.press(Action::Chart(C::Mark(press, n, Some(j as u8), Mark::Lost)));
         t.shot("chart-lost")?;

@@ -3488,7 +3488,7 @@ fn a_seed_xor_set_saved_for_a_key_is_recorded_on_it_and_counted_by_the_plan() {
             })
         ),
         (0..n)
-            .map(|j| faraday_core::plan::What::XorPart(0, j))
+            .map(|j| faraday_core::plan::What::xor_part(0, j))
             .collect(),
     ));
 }
@@ -3638,7 +3638,7 @@ fn a_slip39_set_of_a_published_secret_is_recorded_with_its_own_facts() {
             })
         ),
         (0..3)
-            .map(|m| faraday_core::plan::What::Slip39Share(0, 0, m))
+            .map(|m| faraday_core::plan::What::slip39_share(0, 0, m))
             .collect(),
     ));
     feed_again(&mut app);

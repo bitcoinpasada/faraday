@@ -944,8 +944,10 @@ fn backup_nodes(
             )
     };
     let label = |what: What| match what {
-        What::Words(i) => Text::fill(EN.glance_key_words, &[&Text::num(number(i) as u64)]),
-        What::SeedQr(i) => Text::fill(EN.glance_key_seedqr, &[&Text::num(number(i) as u64)]),
+        What::Written(c) if matches!(c.form, plan::KeyForm::Xor | plan::KeyForm::Slip39) => {
+            what.label(shape, "")
+        }
+        What::Written(c) => written_label(number(c.seed), c, true),
         What::Passphrase(i) => Text::fill(EN.glance_passphrase, &[&Text::num(number(i) as u64)]),
         What::Sheet => Text::of(EN.glance_wallet_sheet),
         What::Share(j) => Text::fill(
@@ -962,10 +964,6 @@ fn backup_nodes(
             Text::fill(EN.glance_passphrase, &[&Text::num(number(i) as u64)])
         }
         What::Wallet => Text::of(EN.glance_description),
-        What::SeedFile(i) => Text::fill(EN.glance_key_file, &[&Text::num(number(i) as u64)]),
-        What::SeedQrFile(i) => {
-            Text::fill(EN.glance_key_seedqr_file, &[&Text::num(number(i) as u64)])
-        }
         What::PassphraseFile(i) => {
             Text::fill(EN.glance_passphrase_file, &[&Text::num(number(i) as u64)])
         }
@@ -979,13 +977,6 @@ fn backup_nodes(
             ],
         ),
         What::SoftwareFile => Text::of(EN.plan_software_file),
-        What::Codex32Share(i, j)
-        | What::Codex32QrPaper(i, j)
-        | What::Codex32ShareFile(i, j)
-        | What::Codex32QrFile(i, j) => c32_label(number(i), j),
-        What::KefCode(i) | What::KefCodePaper(i) => {
-            Text::fill(EN.glance_kef_code, &[&Text::num(number(i) as u64)])
-        }
         What::XorKept(i, fp) => Text::fill(
             EN.glance_xor_old_part,
             &[
@@ -1008,7 +999,6 @@ fn backup_nodes(
                 ),
             ],
         ),
-        What::XorPart(..) | What::Slip39Share(..) => what.label(shape, ""),
     };
     // The small panel names the keys a vault's stick opens.
     let keys_label = |what: What| match what {
@@ -1125,11 +1115,7 @@ fn backup_nodes(
             };
             let mut seeds: Vec<usize> = Vec::new();
             for (what, _) in &spot.holds {
-                if let What::Words(i)
-                | What::SeedQr(i)
-                | What::Seed(i)
-                | What::SeedPassphrase(i)
-                | What::SeedFile(i) = *what
+                if let Some(i) = seed_held_by(*what)
                     && let Some(k) = slot_of.get(i).copied().flatten()
                     && keys.get(k).is_some_and(|k| k.here)
                     && !seeds.contains(&k)
@@ -2375,8 +2361,7 @@ pub(crate) fn thing_label(g: Option<&Glance>, what: What) -> Text {
             .map_or(i + 1, |k| k.number)
     };
     match what {
-        What::Words(i) => Text::fill(EN.glance_key_words, &[&Text::num(number(i) as u64)]),
-        What::SeedQr(i) => Text::fill(EN.glance_key_seedqr, &[&Text::num(number(i) as u64)]),
+        What::Written(c) => written_label(number(c.seed), c, false),
         What::Passphrase(i) => Text::fill(EN.glance_passphrase, &[&Text::num(number(i) as u64)]),
         What::Sheet => Text::of(EN.glance_wallet_sheet),
         What::Share(j) => Text::fill(EN.glance_share, &[&Text::num(j as u64 + 1)]),
@@ -2387,26 +2372,12 @@ pub(crate) fn thing_label(g: Option<&Glance>, what: What) -> Text {
             &[&Text::num(number(i) as u64)],
         ),
         What::Wallet => Text::of(EN.glance_the_description),
-        What::SeedFile(i) | What::SeedQrFile(i) => {
-            Text::fill(EN.glance_key, &[&Text::num(number(i) as u64)])
-        }
         What::PassphraseFile(i) | What::PassphraseSealed(i) => {
             Text::fill(EN.glance_passphrase, &[&Text::num(number(i) as u64)])
         }
         What::WalletFile(f) => Text::fill(EN.plan_wallet_file, &[plan::form_name(f)]),
         What::ShareFile(j, _) => Text::fill(EN.glance_share, &[&Text::num(j as u64 + 1)]),
         What::SoftwareFile => Text::of(EN.plan_software_file),
-        What::Codex32Share(i, j)
-        | What::Codex32QrPaper(i, j)
-        | What::Codex32ShareFile(i, j)
-        | What::Codex32QrFile(i, j) => c32_label(number(i), j),
-        What::KefCode(i) | What::KefCodePaper(i) => {
-            Text::fill(EN.glance_kef_code, &[&Text::num(number(i) as u64)])
-        }
-        What::XorPart(i, j) => Text::fill(
-            EN.plan_xor_part,
-            &[&Text::num(number(i) as u64), &Text::num(j as u64 + 1)],
-        ),
         What::XorKept(i, fp) => Text::fill(
             EN.plan_xor_kept,
             &[
@@ -2418,14 +2389,53 @@ pub(crate) fn thing_label(g: Option<&Glance>, what: What) -> Text {
             EN.board_slip39_old_chip,
             &[&Text::num(g as u64 + 1), &Text::num(m as u64 + 1)],
         ),
-        What::Slip39Share(i, g, m) => Text::fill(
-            EN.plan_slip39_share,
-            &[
-                &Text::num(number(i) as u64),
-                &Text::num(g as u64 + 1),
-                &Text::num(m as u64 + 1),
-            ],
+    }
+}
+
+/// A copy of a form's output as the chart names it, for the key numbered
+/// `number`; `files_named` tells a words file and a SeedQR file from the
+/// key itself.
+fn written_label(number: usize, c: plan::Written, files_named: bool) -> Text {
+    let n = Text::num(number as u64);
+    match c.form {
+        plan::KeyForm::Words if c.medium == plan::Medium::File && files_named => {
+            let file = if c.writing == plan::Writing::SeedQr {
+                EN.glance_key_seedqr_file
+            } else {
+                EN.glance_key_file
+            };
+            Text::fill(file, &[&n])
+        }
+        plan::KeyForm::Words if c.medium == plan::Medium::File => Text::fill(EN.glance_key, &[&n]),
+        plan::KeyForm::Words if c.writing == plan::Writing::SeedQr => {
+            Text::fill(EN.glance_key_seedqr, &[&n])
+        }
+        plan::KeyForm::Words => Text::fill(EN.glance_key_words, &[&n]),
+        plan::KeyForm::Codex32 => c32_label(number, c.part().map_or(0, |(_, j)| j)),
+        plan::KeyForm::Krux => Text::fill(EN.glance_kef_code, &[&n]),
+        plan::KeyForm::Xor => Text::fill(
+            EN.plan_xor_part,
+            &[&n, &Text::num(c.part().map_or(0, |(_, j)| j) as u64 + 1)],
         ),
+        plan::KeyForm::Slip39 => {
+            let (_, g, m) = c.member().unwrap_or((c.seed, 0, 0));
+            Text::fill(
+                EN.plan_slip39_share,
+                &[&n, &Text::num(g as u64 + 1), &Text::num(m as u64 + 1)],
+            )
+        }
+    }
+}
+
+/// The seed a thing on the map holds, for the chart's "here" mark: its
+/// words, SeedQR, seed in a vault, or its words as a file.
+fn seed_held_by(what: What) -> Option<usize> {
+    match what {
+        What::Seed(i) | What::SeedPassphrase(i) => Some(i),
+        What::Written(c) if c.form == plan::KeyForm::Words => {
+            (c.medium == plan::Medium::Paper || c.writing == plan::Writing::Words).then_some(c.seed)
+        }
+        _ => None,
     }
 }
 

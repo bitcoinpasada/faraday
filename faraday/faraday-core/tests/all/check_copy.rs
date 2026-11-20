@@ -88,7 +88,7 @@ fn copies_as(app: &mut Faraday, seed: usize, words: bool, seedqr: bool) {
                 plan::At::Place(p)
                     if s.holds
                         .iter()
-                        .any(|(w, _)| matches!(w, plan::What::Words(i) | plan::What::SeedQr(i) if *i == seed)) =>
+                        .any(|(w, _)| w.words_seed_on(plan::Medium::Paper) == Some(seed)) =>
                 {
                     Some(p)
                 }
@@ -1130,7 +1130,7 @@ fn the_grid_dropped_for_the_words_stays_on_the_map_drawn_in_part_until_destroyed
                 .whats
                 .iter()
                 .zip(&node.marks)
-                .position(|(w, m)| *w == What::SeedQr(0) && *m == Some(Mark::Part))?;
+                .position(|(w, m)| *w == What::seed_qr(0) && *m == Some(Mark::Part))?;
             Some((n as u8, j as u8, node.at))
         })
     };
@@ -1141,7 +1141,7 @@ fn the_grid_dropped_for_the_words_stays_on_the_map_drawn_in_part_until_destroyed
     assert!(shown(&mut app, "Drawn in part"));
     let change = Action::Chart(C::Do(
         press,
-        Step::Change(Some((at, Some(What::SeedQr(0))))),
+        Step::Change(Some((at, Some(What::seed_qr(0))))),
     ));
     assert!(app.offers(change), "no Change in the plan");
     app.press(change);
@@ -1195,7 +1195,7 @@ fn a_grid_drawn_in_part_is_a_secret_where_it_is_and_no_copy_that_rebuilds() {
         a.set_map(vec![
             Spot {
                 at: At::Place(0),
-                holds: vec![(What::Words(0), Tag::Secret), (What::Sheet, Tag::Public)],
+                holds: vec![(What::words(0), Tag::Secret), (What::Sheet, Tag::Public)],
             },
             Spot {
                 at: At::Place(1),
@@ -1209,7 +1209,7 @@ fn a_grid_drawn_in_part_is_a_secret_where_it_is_and_no_copy_that_rebuilds() {
     };
     let drawn_in_part = plan_with(None, true);
     let nothing = plan_with(None, false);
-    let whole = plan_with(Some(What::SeedQr(0)), false);
+    let whole = plan_with(Some(What::seed_qr(0)), false);
     // One place found: the grid drawn in part is the seed there.
     assert_eq!(
         alone(&c, &shape, &drawn_in_part, At::Place(1)).spend,
@@ -1263,13 +1263,13 @@ fn keep_the_words_only_keeps_a_plan_of_answers_its_answers_and_edits_an_edited_o
     e.set_map(vec![
         Spot {
             at: At::Place(0),
-            holds: vec![(What::SeedQr(0), Tag::Secret)],
+            holds: vec![(What::seed_qr(0), Tag::Secret)],
         },
         Spot {
             at: At::Place(1),
             holds: vec![
-                (What::Words(0), Tag::Secret),
-                (What::SeedQr(0), Tag::Secret),
+                (What::words(0), Tag::Secret),
+                (What::seed_qr(0), Tag::Secret),
             ],
         },
     ]);
@@ -1281,7 +1281,7 @@ fn keep_the_words_only_keeps_a_plan_of_answers_its_answers_and_edits_an_edited_o
             .filter(|s| s.at == At::Place(p))
             .flat_map(|s| s.holds.iter().map(|(w, _)| *w))
             .collect();
-        assert_eq!(held, vec![What::Words(0)], "place {p}");
+        assert_eq!(held, vec![What::words(0)], "place {p}");
     }
     assert_eq!(kept.part, vec![(0, 0), (1, 0)]);
 }

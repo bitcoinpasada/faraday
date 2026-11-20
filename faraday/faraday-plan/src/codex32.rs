@@ -181,10 +181,7 @@ impl Wanted {
 /// Codex32QR drawn, a file of either, a share record in a vault.
 pub fn string_of(w: What) -> Option<(usize, usize)> {
     match w {
-        What::Codex32Share(i, j)
-        | What::Codex32QrPaper(i, j)
-        | What::Codex32ShareFile(i, j)
-        | What::Codex32QrFile(i, j) => Some((i, j)),
+        What::Written(c) if c.form == KeyForm::Codex32 => c.part(),
         _ => None,
     }
 }
@@ -289,11 +286,11 @@ pub fn standard_over(
             matches!(s.at, At::Place(_))
                 && s.holds
                     .iter()
-                    .any(|(w, _)| matches!(w, What::Words(x) | What::SeedQr(x) if *x == i))
+                    .any(|(w, _)| matches!(w, What::Written(c) if c.form == KeyForm::Words && c.on_paper() && c.seed == i))
         });
         for s in &mut m {
             s.holds
-                .retain(|(w, _)| !matches!(w, What::Words(x) | What::SeedQr(x) if *x == i));
+                .retain(|(w, _)| !matches!(w, What::Written(c) if c.form == KeyForm::Words && c.on_paper() && c.seed == i));
         }
         let sheet = |m: &[Spot]| {
             m.iter().any(|s| {
@@ -302,7 +299,7 @@ pub fn standard_over(
         };
         let with_sheet = sheet(&m);
         for (n, &j) in f.indices.iter().enumerate() {
-            let string = (What::Codex32Share(i, j), Tag::Secret);
+            let string = (What::codex32_share(i, j), Tag::Secret);
             match home.filter(|_| n == 0) {
                 Some(h) => m[h].holds.insert(0, string),
                 None => {
@@ -420,8 +417,8 @@ pub fn paper_copy(m: &Mapped, i: usize, j: usize) -> Option<PaperCopy> {
             .any(|s| s.holds.iter().any(|(w, _)| want(*w)))
     };
     PaperCopy::of(
-        on(&|w| w == What::Codex32Share(i, j)),
-        on(&|w| w == What::Codex32QrPaper(i, j)),
+        on(&|w| w == What::codex32_share(i, j)),
+        on(&|w| w == What::codex32_qr_paper(i, j)),
     )
 }
 
@@ -439,8 +436,8 @@ pub fn templates_of(a: &Answers, m: &Mapped) -> Vec<(u8, PaperCopy, usize)> {
         for (i, j) in strings {
             let has = |w: What| s.holds.iter().any(|(x, _)| *x == w);
             let copy = PaperCopy::of(
-                has(What::Codex32Share(i, j)),
-                has(What::Codex32QrPaper(i, j)),
+                has(What::codex32_share(i, j)),
+                has(What::codex32_qr_paper(i, j)),
             );
             let (Some(copy), Some(f)) = (copy, a.c32(i)) else {
                 continue;
@@ -479,7 +476,7 @@ pub fn places_of_string(m: &Mapped, i: usize, j: usize) -> Vec<usize> {
             At::Place(p)
                 if s.holds
                     .iter()
-                    .any(|(w, _)| matches!(w, What::Codex32Share(x, y) | What::Codex32QrPaper(x, y) if *x == i && *y == j)) =>
+                    .any(|(w, _)| matches!(w, What::Written(c) if c.form == KeyForm::Codex32 && c.on_paper() && c.part() == Some((i, j)))) =>
             {
                 Some(p)
             }
@@ -497,7 +494,11 @@ impl Mapped {
         let mut out: Vec<(usize, usize)> = holds_in(&self.map, At::Vault(v))
             .into_iter()
             .filter_map(|w| match w {
-                What::Codex32Share(i, j) => Some((i, j)),
+                What::Written(c)
+                    if c.is(KeyForm::Codex32, Writing::Codex32String, Medium::Paper) =>
+                {
+                    c.part()
+                }
                 _ => None,
             })
             .filter(|&(i, j)| j != SECRET && a.c32(i).is_some_and(|f| f.k >= 2))
@@ -516,7 +517,9 @@ impl Mapped {
             .filter(|s| matches!(s.at, At::Stick(..)))
             .flat_map(|s| s.holds.iter())
             .filter_map(|(w, _)| match *w {
-                What::Codex32ShareFile(i, j) | What::Codex32QrFile(i, j) => Some((i, j)),
+                What::Written(c) if c.form == KeyForm::Codex32 && c.medium == Medium::File => {
+                    c.part()
+                }
                 _ => None,
             })
             .filter(|&(i, j)| j != SECRET && a.c32(i).is_some_and(|f| f.k >= 2))

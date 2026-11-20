@@ -415,7 +415,7 @@ fn a_change_that_makes_a_check_line_worse_is_seen_on_the_chart_once_kept() {
     assert_eq!(lost(&app), Lost::Yes);
     // The words at Place 1 destroyed: the seed is left at Place 2 and in
     // the vault whose stick is there too.
-    change_in_plan(&mut app, press, Some((At::Place(0), Some(What::Words(0)))));
+    change_in_plan(&mut app, press, Some((At::Place(0), Some(What::words(0)))));
     take_off(&mut app, Zone::Paper(0), Thing::Seed(0));
     keep_changes(&mut app);
     assert_eq!(lost(&app), Lost::No);
@@ -1267,7 +1267,7 @@ fn a_codex32_string_checked_in_the_checklist_is_dated_at_its_place() {
     c32(&mut app, faraday_core::codex32_backup::Press::Next);
     app.press(Action::OpenWallet(0));
     let _ = app.frame();
-    let (node, j) = line_holding(&app, 0, What::Codex32Share(0, a));
+    let (node, j) = line_holding(&app, 0, What::codex32_share(0, a));
     assert_eq!(node.checked[j].as_deref(), Some("2026-10-03"), "{node:?}");
 }
 
@@ -1290,7 +1290,7 @@ fn a_codex32_string_skipped_then_proved_is_dated_only_once_proved() {
     c32(&mut app, Press::Skip);
     app.press(Action::OpenWallet(0));
     let _ = app.frame();
-    let (node, j) = line_holding(&app, 0, What::Codex32Share(0, a));
+    let (node, j) = line_holding(&app, 0, What::codex32_share(0, a));
     assert_eq!(node.checked[j], None, "a skipped string is not dated");
     app.press(Action::Backup(0));
     checklist_at_codex32(&mut app);
@@ -1311,7 +1311,7 @@ fn a_codex32_string_skipped_then_proved_is_dated_only_once_proved() {
     }
     app.press(Action::OpenWallet(0));
     let _ = app.frame();
-    let (node, j) = line_holding(&app, 0, What::Codex32Share(0, a));
+    let (node, j) = line_holding(&app, 0, What::codex32_share(0, a));
     assert_eq!(node.checked[j].as_deref(), Some("2026-10-03"), "{node:?}");
 }
 
@@ -1378,7 +1378,7 @@ fn made_string_skipped_then_back(scan: bool) {
     );
     app.press(Action::OpenWallet(0));
     let _ = app.frame();
-    let (node, j) = line_holding(&app, 0, What::Codex32Share(0, ix('d')));
+    let (node, j) = line_holding(&app, 0, What::codex32_share(0, ix('d')));
     assert_eq!(node.checked[j].as_deref(), Some("2026-10-03"), "{node:?}");
 }
 
@@ -1581,7 +1581,7 @@ fn an_answer_to_which_copy_after_the_plan_changed_dates_no_line() {
     assert!(shown(&mut app, "Which copy was this?"));
     // The plan changes under the question (as the wallet's own flow
     // changes it): Place 2 no longer keeps the words.
-    plan_without(&mut app, w, 1, What::Words(0));
+    plan_without(&mut app, w, 1, What::words(0));
     app.press(Action::BWhich(1));
     app.press(Action::OpenWallet(w));
     let _ = app.frame();
@@ -1693,7 +1693,7 @@ fn skipping_a_codex32_string_dates_nothing() {
     c32(&mut app, faraday_core::codex32_backup::Press::Skip);
     app.press(Action::OpenWallet(0));
     let _ = app.frame();
-    let (node, j) = line_holding(&app, 0, What::Codex32Share(0, a));
+    let (node, j) = line_holding(&app, 0, What::codex32_share(0, a));
     assert_eq!(node.checked[j], None, "{node:?}");
 }
 
@@ -2116,7 +2116,7 @@ fn a_codex32_set_made_in_the_checklist_has_a_string_typed_back_dated() {
         let d_at = (0..4)
             .find(|&p| {
                 crate::common::backup_held(&app, At::Place(p))
-                    .contains(&What::Codex32Share(0, ix('d') as usize))
+                    .contains(&What::codex32_share(0, ix('d') as usize))
             })
             .expect("D is on paper somewhere");
         if d_at != 0 {
@@ -2129,7 +2129,7 @@ fn a_codex32_set_made_in_the_checklist_has_a_string_typed_back_dated() {
         }
         assert!(
             crate::common::backup_held(&app, At::Place(0))
-                .contains(&What::Codex32Share(0, ix('d') as usize)),
+                .contains(&What::codex32_share(0, ix('d') as usize)),
             "D is with A"
         );
     }
@@ -2151,7 +2151,7 @@ fn a_codex32_set_made_in_the_checklist_has_a_string_typed_back_dated() {
     // before the set had.
     assert!(
         !crate::common::backup_held(&app, At::Place(0))
-            .contains(&What::Codex32Share(0, ix('d') as usize)),
+            .contains(&What::codex32_share(0, ix('d') as usize)),
         "the new set has no D"
     );
     // The first string on paper is written and typed back.
@@ -2177,7 +2177,7 @@ fn a_codex32_set_made_in_the_checklist_has_a_string_typed_back_dated() {
     c32(&mut app, P::Next);
     app.press(Action::OpenWallet(0));
     let _ = app.frame();
-    let (node, k) = line_holding(&app, 0, What::Codex32Share(0, j));
+    let (node, k) = line_holding(&app, 0, What::codex32_share(0, j));
     assert_eq!(node.checked[k].as_deref(), Some("2026-10-03"), "{node:?}");
 }
 
@@ -2438,7 +2438,7 @@ fn type_part(app: &mut Faraday, w: usize, j: u8, seed: usize) {
 fn part_checked(app: &mut Faraday, w: usize, j: usize) -> Option<String> {
     app.press(Action::OpenWallet(w));
     let _ = app.frame();
-    let (node, k) = line_holding(app, w, What::XorPart(0, j));
+    let (node, k) = line_holding(app, w, What::xor_part(0, j));
     node.checked[k].as_deref().map(String::from)
 }
 
@@ -2460,14 +2460,14 @@ fn typing_a_seed_xor_parts_words_dates_the_part_and_wrong_words_date_nothing() {
 #[test]
 fn mark_checked_dates_what_is_in_a_place_but_never_a_seed_xor_part() {
     let (mut app, w) = xor_vault_wallet();
-    let (node, _) = line_holding(&app, w, What::XorPart(0, 0));
+    let (node, _) = line_holding(&app, w, What::xor_part(0, 0));
     let (n, _) = node_of(&app, w, &node.name);
     app.press(Action::Chart(C::Checked(Press::Loaded(w), n)));
     let (_, node) = node_of(&app, w, &node.name);
     let dated = node.checked.iter().filter(|d| d.is_some()).count();
     assert!(dated > 0, "something else in the place is dated: {node:?}");
     for (i, what) in node.whats.iter().enumerate() {
-        if matches!(what, What::XorPart(..)) {
+        if what.is_form(plan::KeyForm::Xor) {
             assert_eq!(node.checked[i], None, "{what:?} is not dated");
         }
     }

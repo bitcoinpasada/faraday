@@ -626,9 +626,7 @@ impl Faraday {
                     names.push(n);
                 }
             }
-            if let crate::plan::What::SeedFile(i)
-            | crate::plan::What::SeedQrFile(i)
-            | crate::plan::What::PassphraseFile(i) = what
+            if let Some(i) = what.seed_stick_file_seed()
                 && let Some(seed) = shape.seeds.get(i)
             {
                 fps.push(Text::of(&seed.name));

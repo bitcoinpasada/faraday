@@ -12,6 +12,7 @@
 //! the vault alone and are put on screen by the caller.
 
 pub mod codex32;
+mod copies;
 mod groups;
 pub mod question;
 pub mod sets;
@@ -25,6 +26,7 @@ use text::fp_code;
 pub use text::{at_code, at_read, held_in, renumber_seeds, tag_of, what_code, what_read};
 
 use faraday_crypto::work::Compute;
+pub use faraday_forms::{Form as KeyForm, Medium, Writing};
 
 use faraday_strings::EN;
 use faraday_text::{Text, text};
@@ -697,7 +699,9 @@ impl Mapped {
         let mut out: Vec<usize> = holds_in(&self.map, At::Files)
             .into_iter()
             .filter_map(|w| match w {
-                What::SeedFile(i) => Some(i),
+                What::Written(c) if c.is(KeyForm::Words, Writing::Words, Medium::File) => {
+                    Some(c.seed)
+                }
                 _ => None,
             })
             .collect();
@@ -717,7 +721,10 @@ impl Mapped {
             .filter(|s| matches!(s.at, At::Stick(..)))
             .flat_map(|s| s.holds.iter())
             .filter_map(|(w, _)| match *w {
-                What::SeedFile(i) | What::SeedQrFile(i) | What::PassphraseFile(i) => Some(i),
+                What::Written(c) if c.form == KeyForm::Words && c.medium == Medium::File => {
+                    Some(c.seed)
+                }
+                What::PassphraseFile(i) => Some(i),
                 _ => None,
             })
             .filter(|&i| shape.seeds.get(i).is_some_and(|x| x.here))
@@ -746,8 +753,12 @@ impl Mapped {
                 .holds
                 .iter()
                 .any(|(w, _)| *w == What::Seed(i) || *w == What::SeedPassphrase(i)),
-            At::Files | At::Stick(..) => s.holds.iter().any(|(w, _)| {
-                matches!(*w, What::SeedFile(j) | What::SeedQrFile(j) | What::PassphraseFile(j) if j == i)
+            At::Files | At::Stick(..) => s.holds.iter().any(|(w, _)| match *w {
+                What::Written(c) => {
+                    c.form == KeyForm::Words && c.medium == Medium::File && c.seed == i
+                }
+                What::PassphraseFile(j) => j == i,
+                _ => false,
             }),
             _ => false,
         })
@@ -1048,7 +1059,7 @@ impl Answers {
             let mut out: Vec<usize> = held
                 .into_iter()
                 .filter_map(|w| match w {
-                    What::Words(i) | What::SeedQr(i) => Some(i),
+                    What::Written(c) if c.form == KeyForm::Words && c.on_paper() => Some(c.seed),
                     _ => None,
                 })
                 .collect();
@@ -1302,13 +1313,86 @@ pub enum At {
     Away,
 }
 
+/// Which piece of a key's set a copy is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Piece {
+    /// The key as a whole: its words, a Krux code.
+    Whole,
+    /// Piece `j`: a codex32 string (its share index's bech32 value), a
+    /// Seed XOR part (from 0).
+    Part(usize),
+    /// Member `m` of group `g`, each from 0: a SLIP-39 share.
+    Member(usize, usize),
+}
+
+/// A copy of one output of a form (`docs/KEY-FORMS.md` §5): seed `seed`'s
+/// `piece` in `form`, written as `writing` on `medium`. A copy is made
+/// only of a pair the registry lists in `form.outputs()`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Written {
+    /// The key's form.
+    pub form: KeyForm,
+    /// The seed.
+    pub seed: usize,
+    /// Which piece of the form's set.
+    pub piece: Piece,
+    /// What is written.
+    pub writing: Writing,
+    /// Where.
+    pub medium: Medium,
+}
+
+impl Written {
+    /// The copy, if `form` lists that output.
+    pub fn new(
+        form: KeyForm,
+        seed: usize,
+        piece: Piece,
+        writing: Writing,
+        medium: Medium,
+    ) -> Option<Written> {
+        form.outputs()
+            .iter()
+            .any(|o| o.writing == writing && o.medium == medium)
+            .then_some(Written {
+                form,
+                seed,
+                piece,
+                writing,
+                medium,
+            })
+    }
+
+    /// Whether it is a copy of `form` as `writing` on `medium`.
+    pub fn is(self, form: KeyForm, writing: Writing, medium: Medium) -> bool {
+        self.form == form && self.writing == writing && self.medium == medium
+    }
+
+    /// Its seed and part, when its piece is a numbered part.
+    pub fn part(self) -> Option<(usize, usize)> {
+        match self.piece {
+            Piece::Part(j) => Some((self.seed, j)),
+            Piece::Whole | Piece::Member(..) => None,
+        }
+    }
+
+    /// Its seed, group and member, when its piece is a set's member.
+    pub fn member(self) -> Option<(usize, usize, usize)> {
+        match self.piece {
+            Piece::Member(g, m) => Some((self.seed, g, m)),
+            Piece::Whole | Piece::Part(_) => None,
+        }
+    }
+
+    /// Whether it is kept by hand on paper.
+    pub fn on_paper(self) -> bool {
+        self.medium == Medium::Paper
+    }
+}
+
 /// What is kept somewhere.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum What {
-    /// Seed `i`'s words, by hand.
-    Words(usize),
-    /// Seed `i`'s SeedQR, by hand.
-    SeedQr(usize),
     /// Seed `i`'s passphrase.
     Passphrase(usize),
     /// The whole wallet sheet.
@@ -1327,11 +1411,6 @@ pub enum What {
     PassphraseSealed(usize),
     /// The wallet description.
     Wallet,
-    /// Seed `i`'s words as a text file: on the stick of files, or on a
-    /// stick at a place (`docs/BACKUP-FLOW.md` §17.3).
-    SeedFile(usize),
-    /// Seed `i`'s SeedQR as a picture, on a stick at a place.
-    SeedQrFile(usize),
     /// Seed `i`'s passphrase as a text file, on a stick at a place.
     PassphraseFile(usize),
     /// The wallet description in [`form`] `f` (text, or a QR picture), on
@@ -1341,33 +1420,15 @@ pub enum What {
     ShareFile(usize, usize),
     /// The chosen watch-only software's own file, on a stick.
     SoftwareFile,
-    /// Piece `j` (its share index's bech32 value) of seed `i`'s codex32
-    /// set, written on paper, or in a vault its share record
-    /// (`docs/CODEX32.md` §9.5).
-    Codex32Share(usize, usize),
-    /// That string's Codex32QR, drawn by hand on paper.
-    Codex32QrPaper(usize, usize),
-    /// That string as a `.txt` file, on a stick at a place.
-    Codex32ShareFile(usize, usize),
-    /// That string's Codex32QR as a `.png` picture, on a stick at a place.
-    Codex32QrFile(usize, usize),
-    /// Seed `i`'s Krux encrypted code as a picture and a `.kef` file, on a
-    /// stick at a place (`docs/KEF.md` §15.1): an extra copy that no
-    /// check counts.
-    KefCode(usize),
-    /// That code drawn by hand on paper at a place.
-    KefCodePaper(usize),
-    /// Part `j` (from 0) of seed `i`'s Seed XOR set, written on paper at
-    /// a place (`docs/decisions/F276.md`): every part is needed.
-    XorPart(usize, usize),
+    /// A copy of a form's output (`docs/KEY-FORMS.md` §5): the form, its
+    /// seed and piece, what is written and on which medium, each a pair
+    /// the registry lists for the form.
+    Written(Written),
     /// An old Seed XOR part of seed `i` still kept (`docs/decisions/F285.md`),
     /// named by its own master fingerprint and never its number: written
     /// on paper at a place. It has no check of its own; the old set
     /// rebuilds the seed only while every part of it is kept.
     XorKept(usize, [u8; 4]),
-    /// Member `m` of group `g` of seed `i`'s SLIP-39 set, written on
-    /// paper at a place (`docs/decisions/F276.md`).
-    Slip39Share(usize, usize, usize),
     /// An old SLIP-39 share of seed `i` still kept (`docs/decisions/F293.md`):
     /// seed, its old set's identifier, group and member, each from 0 but
     /// the identifier: written on paper at a place. It has no check of its
@@ -1421,8 +1482,7 @@ impl What {
     pub fn label(self, shape: &Shape, medium_cap: &str) -> Text {
         let seed = |i: usize| shape.seeds.get(i).map_or("?", |s| s.name.as_str());
         match self {
-            What::Words(i) => Text::fill(EN.plan_seed_words, &[seed(i)]),
-            What::SeedQr(i) => Text::fill(EN.plan_seed_seedqr, &[seed(i)]),
+            What::Written(w) => w.label(seed(w.seed)),
             What::Passphrase(i) => Text::fill(EN.plan_passphrase_label, &[seed(i)]),
             What::Sheet => Text::of(EN.plan_wallet_sheet),
             What::Share(j) => Text::fill(
@@ -1436,10 +1496,6 @@ impl What {
             What::SeedPassphrase(i) => Text::fill(EN.plan_seed_with_passphrase, &[seed(i)]),
             What::PassphraseSealed(i) => Text::fill(EN.plan_passphrase_label, &[seed(i)]),
             What::Wallet => Text::of(EN.plan_wallet_description),
-            What::SeedFile(i) => Text::fill(EN.plan_seed_file, &[seed(i)]),
-            What::SeedQrFile(i) => Text::fill(EN.plan_seedqr_file, &[seed(i)]),
-            What::KefCode(i) => Text::fill(EN.plan_kef_code, &[seed(i)]),
-            What::KefCodePaper(i) => Text::fill(EN.plan_kef_code_paper, &[seed(i)]),
             What::PassphraseFile(i) => Text::fill(EN.plan_passphrase_file, &[seed(i)]),
             What::WalletFile(f) => Text::fill(EN.plan_wallet_file, &[form_name(f)]),
             What::ShareFile(j, f) => Text::fill(
@@ -1451,29 +1507,7 @@ impl What {
                 ],
             ),
             What::SoftwareFile => Text::of(EN.plan_software_file),
-            What::Codex32Share(i, j)
-            | What::Codex32QrPaper(i, j)
-            | What::Codex32ShareFile(i, j)
-            | What::Codex32QrFile(i, j) => Text::fill(
-                match self {
-                    What::Codex32QrPaper(..) => EN.c32_plan_qr,
-                    What::Codex32ShareFile(..) => EN.c32_plan_file,
-                    What::Codex32QrFile(..) => EN.c32_plan_qr_file,
-                    _ => EN.c32_plan_string,
-                },
-                &[
-                    seed(i),
-                    &text!("{}", char::to_ascii_uppercase(&codex32::index_char(j))),
-                ],
-            ),
-            What::XorPart(i, j) => {
-                Text::fill(EN.plan_xor_part, &[seed(i), &Text::num(j as u64 + 1)])
-            }
             What::XorKept(i, fp) => Text::fill(EN.plan_xor_kept, &[seed(i), &fp_code(fp)]),
-            What::Slip39Share(i, g, m) => Text::fill(
-                EN.plan_slip39_share,
-                &[seed(i), &Text::num(g as u64 + 1), &Text::num(m as u64 + 1)],
-            ),
             What::Slip39Kept(i, _, g, m) => Text::fill(
                 EN.plan_slip39_kept,
                 &[seed(i), &Text::num(g as u64 + 1), &Text::num(m as u64 + 1)],
@@ -1734,10 +1768,10 @@ pub fn stored_map(shape: &Shape, a: &Answers) -> Vec<Spot> {
         let mut holds = Vec::new();
         for i in a.words_at(shape, p) {
             if a.seeds[seeds::WORDS] {
-                holds.push((What::Words(i), Tag::Secret));
+                holds.push((What::words(i), Tag::Secret));
             }
             if a.seeds[seeds::SEEDQR] {
-                holds.push((What::SeedQr(i), Tag::Secret));
+                holds.push((What::seed_qr(i), Tag::Secret));
             }
         }
         for i in 0..shape.seeds.len() {
@@ -1780,7 +1814,7 @@ pub fn stored_map(shape: &Shape, a: &Answers) -> Vec<Spot> {
     let mut files = Vec::new();
     if a.seeds[seeds::FILE] {
         for (i, _) in shape.seeds.iter().enumerate().filter(|(_, s)| s.here) {
-            files.push((What::SeedFile(i), Tag::Secret));
+            files.push((What::seed_file(i), Tag::Secret));
         }
     }
     if a.wallet[wallet::FILES] {
@@ -1912,15 +1946,22 @@ impl Have {
 
     fn add(&mut self, what: What) {
         match what {
-            What::Words(i)
-            | What::SeedQr(i)
-            | What::Seed(i)
-            | What::SeedFile(i)
-            | What::SeedQrFile(i) => {
+            What::Seed(i) => {
                 if let Some(s) = self.seeds.get_mut(i) {
                     *s = true;
                 }
             }
+            What::Written(c) => match c.form {
+                KeyForm::Words => {
+                    if let Some(s) = self.seeds.get_mut(c.seed) {
+                        *s = true;
+                    }
+                }
+                // A Krux code is an extra copy that counts for nothing
+                // (`docs/KEF.md` §15.1).
+                KeyForm::Krux => {}
+                KeyForm::Codex32 | KeyForm::Xor | KeyForm::Slip39 => self.push_piece(what),
+            },
             What::SeedPassphrase(i) => {
                 if let Some(s) = self.seeds.get_mut(i) {
                     *s = true;
@@ -1942,23 +1983,17 @@ impl Have {
                     *s = true;
                 }
             }
-            // A Krux code is an extra copy that counts for nothing
-            // (`docs/KEF.md` §15.1).
-            What::VaultStick(_) | What::KefCode(_) | What::KefCodePaper(_) => {}
-            What::Codex32Share(..)
-            | What::Codex32QrPaper(..)
-            | What::Codex32ShareFile(..)
-            | What::Codex32QrFile(..)
-            | What::XorPart(..)
-            | What::XorKept(..)
-            | What::Slip39Share(..)
-            | What::Slip39Kept(..) => {
-                self.seen.push(what);
-                for i in self.needs.rebuilt(&self.seen) {
-                    if let Some(s) = self.seeds.get_mut(i) {
-                        *s = true;
-                    }
-                }
+            What::VaultStick(_) => {}
+            What::XorKept(..) | What::Slip39Kept(..) => self.push_piece(what),
+        }
+    }
+
+    /// A piece of a set kept: the seeds the pieces kept so far rebuild.
+    fn push_piece(&mut self, what: What) {
+        self.seen.push(what);
+        for i in self.needs.rebuilt(&self.seen) {
+            if let Some(s) = self.seeds.get_mut(i) {
+                *s = true;
             }
         }
     }
@@ -2164,13 +2199,14 @@ pub(crate) fn parts_at(a: &Answers, at: At) -> Vec<What> {
     a.part
         .iter()
         .filter(|&&(p, _)| at == At::Place(p))
-        .map(|&(_, i)| What::SeedQr(i))
+        .map(|&(_, i)| What::seed_qr(i))
         .collect()
 }
 
 /// Whether `what` at `at` is a SeedQR drawn in part ([`Answers::part`]).
 pub fn is_part(a: &Answers, at: At, what: What) -> bool {
-    matches!((at, what), (At::Place(p), What::SeedQr(i)) if a.part.contains(&(p, i)))
+    matches!((at, what), (At::Place(p), What::Written(c))
+        if c.is(KeyForm::Words, Writing::SeedQr, Medium::Paper) && a.part.contains(&(p, c.seed)))
 }
 
 /// How near place `p` brings a spend, counting seeds alone: the
@@ -2528,7 +2564,7 @@ fn lost_one(shape: &Shape, a: &Answers, boxes: &[Spot], places: &[At], gone: Opt
 /// its words file or its SeedQR picture.
 fn seed_form(w: What) -> Option<usize> {
     match w {
-        What::Words(i) | What::SeedQr(i) | What::SeedFile(i) | What::SeedQrFile(i) => Some(i),
+        What::Written(c) if c.form == KeyForm::Words => Some(c.seed),
         _ => None,
     }
 }
@@ -2564,7 +2600,7 @@ fn seed_spots(boxes: &[Spot], i: usize, needs: &sets::Needs) -> Vec<At> {
         .collect();
     if boxes
         .iter()
-        .any(|s| s.at == At::Files && has(s, &|w| w == What::SeedFile(i)))
+        .any(|s| s.at == At::Files && has(s, &|w| w == What::seed_file(i)))
     {
         out.push(At::Files);
     }
@@ -2782,18 +2818,23 @@ pub fn public_stick_on(a: &Answers, m: &Mapped) -> bool {
 
 /// Whether `w` is a file: kept on a stick, never on paper or in a vault.
 pub fn is_file(w: What) -> bool {
-    matches!(
-        w,
-        What::SeedFile(_)
-            | What::SeedQrFile(_)
-            | What::PassphraseFile(_)
-            | What::WalletFile(_)
-            | What::ShareFile(..)
-            | What::SoftwareFile
-            | What::Codex32ShareFile(..)
-            | What::Codex32QrFile(..)
-            | What::KefCode(_)
-    )
+    match w {
+        What::Written(c) => c.medium == Medium::File,
+        What::PassphraseFile(_)
+        | What::WalletFile(_)
+        | What::ShareFile(..)
+        | What::SoftwareFile => true,
+        What::Passphrase(_)
+        | What::Sheet
+        | What::Share(_)
+        | What::VaultStick(_)
+        | What::Seed(_)
+        | What::SeedPassphrase(_)
+        | What::PassphraseSealed(_)
+        | What::Wallet
+        | What::XorKept(..)
+        | What::Slip39Kept(..) => false,
+    }
 }
 
 /// One thing the checklist asks for.
@@ -2856,15 +2897,15 @@ pub fn checklist_on(shape: &Shape, a: &Answers, m: &Mapped) -> Vec<Item> {
     // Each seed here: its copy by hand, then its passphrase on paper.
     let mut paper = Vec::new();
     for i in shape.here() {
-        if at_places(&|w| w == What::Words(i) || w == What::SeedQr(i)) {
+        if at_places(&|w| w == What::words(i) || w == What::seed_qr(i)) {
             paper.push(Item::Copy(i));
         }
         if at_places(
-            &|w| matches!(w, What::Codex32Share(x, _) | What::Codex32QrPaper(x, _) if x == i),
+            &|w| matches!(w, What::Written(c) if c.form == KeyForm::Codex32 && c.on_paper() && c.seed == i),
         ) {
             paper.push(Item::Codex32(i));
         }
-        if at_places(&|w| matches!(w, What::XorPart(x, _) if x == i)) {
+        if at_places(&|w| matches!(w, What::Written(c) if c.form == KeyForm::Xor && c.seed == i)) {
             paper.push(Item::Parts(i));
         }
         if at_places(&|w| w == What::Passphrase(i)) {
@@ -2885,15 +2926,17 @@ pub fn checklist_on(shape: &Shape, a: &Answers, m: &Mapped) -> Vec<Item> {
         _ => None,
     }));
     let files = holds_in(boxes, At::Files);
-    if files.iter().any(|w| matches!(w, What::SeedFile(_))) {
+    if files.iter().any(
+        |w| matches!(w, What::Written(c) if c.is(KeyForm::Words, Writing::Words, Medium::File)),
+    ) {
         out.push(Item::SeedFiles);
     }
     // A Krux code on a stick or on Paper: one item for the seed, made once.
     for i in shape.here() {
         if boxes.iter().any(|s| {
-            s.holds
-                .iter()
-                .any(|(w, _)| matches!(w, What::KefCode(x) | What::KefCodePaper(x) if *x == i))
+            s.holds.iter().any(
+                |(w, _)| matches!(w, What::Written(c) if c.form == KeyForm::Krux && c.seed == i),
+            )
         }) {
             out.push(Item::KefCode(i));
         }
@@ -2923,16 +2966,24 @@ pub fn checklist_on(shape: &Shape, a: &Answers, m: &Mapped) -> Vec<Item> {
     out
 }
 
-/// A form of copy by hand, as a check of it is kept.
+/// What a check of a copy by hand was of, as it is kept: the output
+/// typed back or scanned (`docs/KEY-FORMS.md` §5), or the passphrase.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CopyForm {
-    /// The words, checked by typing them back.
-    Words,
-    /// The SeedQR, checked by scanning the drawn grid.
-    SeedQr,
+pub enum CopyOf {
+    /// The seed's copy written as this: the words checked by typing them
+    /// back, a SeedQR by scanning the drawn grid.
+    Output(Writing),
     /// The passphrase on paper, checked by typing it back
-    /// (`docs/WALLETS.md` §13): not a copy of the seed.
+    /// (`docs/WALLETS.md` §13): no output of the key, so not a copy of
+    /// the seed.
     Passphrase,
+}
+
+impl CopyOf {
+    /// The words.
+    pub const WORDS: CopyOf = CopyOf::Output(Writing::Words);
+    /// The SeedQR.
+    pub const SEED_QR: CopyOf = CopyOf::Output(Writing::SeedQr);
 }
 
 /// The forms seed `i`'s copies by hand take on the map: the words, a
@@ -2985,8 +3036,8 @@ pub fn copy_forms_on(m: &Mapped, i: usize) -> CopyForms {
             .any(|s| s.holds.iter().any(|(h, _)| *h == w))
     };
     CopyForms {
-        words: at(What::Words(i)),
-        seedqr: at(What::SeedQr(i)),
+        words: at(What::words(i)),
+        seedqr: at(What::seed_qr(i)),
     }
 }
 
@@ -3006,7 +3057,7 @@ pub fn templates_on(shape: &Shape, m: &Mapped) -> usize {
                 .filter(|&i| {
                     s.holds
                         .iter()
-                        .any(|(w, _)| *w == What::Words(i) || *w == What::SeedQr(i))
+                        .any(|(w, _)| *w == What::words(i) || *w == What::seed_qr(i))
                 })
                 .count()
         })
@@ -3025,7 +3076,7 @@ pub fn kef_paper_places(m: &Mapped, i: usize) -> usize {
     m.map
         .iter()
         .filter(|s| matches!(s.at, At::Place(_)))
-        .filter(|s| s.holds.iter().any(|(w, _)| *w == What::KefCodePaper(i)))
+        .filter(|s| s.holds.iter().any(|(w, _)| *w == What::kef_code_paper(i)))
         .count()
 }
 
@@ -3038,14 +3089,14 @@ pub fn kef_not_on_paper(shape: &Shape, a: &Answers, i: usize) -> Answers {
     let at: Vec<At> = m
         .iter()
         .filter(|s| matches!(s.at, At::Place(_)))
-        .filter(|s| s.holds.iter().any(|(w, _)| *w == What::KefCodePaper(i)))
+        .filter(|s| s.holds.iter().any(|(w, _)| *w == What::kef_code_paper(i)))
         .map(|s| s.at)
         .collect();
     if at.is_empty() {
         return out;
     }
     for p in at {
-        m = without(&m, p, What::KefCodePaper(i));
+        m = without(&m, p, What::kef_code_paper(i));
     }
     out.set_map(m);
     out
@@ -3065,7 +3116,7 @@ pub fn keep_words(shape: &Shape, a: &Answers, i: usize) -> Answers {
     let at: Vec<usize> = stored
         .iter()
         .filter_map(|s| match s.at {
-            At::Place(p) if s.holds.iter().any(|(w, _)| *w == What::SeedQr(i)) => Some(p),
+            At::Place(p) if s.holds.iter().any(|(w, _)| *w == What::seed_qr(i)) => Some(p),
             _ => None,
         })
         .collect();
@@ -3075,7 +3126,7 @@ pub fn keep_words(shape: &Shape, a: &Answers, i: usize) -> Answers {
     let others = stored.iter().any(|s| {
         s.holds
             .iter()
-            .any(|(w, _)| matches!(w, What::SeedQr(j) if *j != i))
+            .any(|(w, _)| matches!(w, What::Written(c) if c.is(KeyForm::Words, Writing::SeedQr, Medium::Paper) && c.seed != i))
     });
     if a.map.is_none() && !others {
         out.seeds[seeds::SEEDQR] = false;
@@ -3083,8 +3134,8 @@ pub fn keep_words(shape: &Shape, a: &Answers, i: usize) -> Answers {
     } else {
         let mut m = stored;
         for &p in &at {
-            m = without(&m, At::Place(p), What::SeedQr(i));
-            m = with_added(&m, At::Place(p), What::Words(i));
+            m = without(&m, At::Place(p), What::seed_qr(i));
+            m = with_added(&m, At::Place(p), What::words(i));
         }
         out.set_map(m);
     }
@@ -3486,9 +3537,9 @@ impl Row {
     /// What the row holds of seed `i` at a place.
     fn what(self, i: usize) -> Option<What> {
         match self {
-            Row::Words => Some(What::Words(i)),
-            Row::SeedQr => Some(What::SeedQr(i)),
-            Row::File => Some(What::SeedFile(i)),
+            Row::Words => Some(What::words(i)),
+            Row::SeedQr => Some(What::seed_qr(i)),
+            Row::File => Some(What::seed_file(i)),
             Row::Passphrase => Some(What::Passphrase(i)),
             Row::Vault(_) => None,
         }
@@ -4074,20 +4125,9 @@ pub fn follows_on(
             | What::PassphraseSealed(j)
             | What::SeedPassphrase(j),
         ) => i == j,
-        (
-            What::Words(i)
-            | What::SeedQr(i)
-            | What::Seed(i)
-            | What::SeedPassphrase(i)
-            | What::SeedFile(i)
-            | What::SeedQrFile(i),
-            What::Words(j)
-            | What::SeedQr(j)
-            | What::Seed(j)
-            | What::SeedPassphrase(j)
-            | What::SeedFile(j)
-            | What::SeedQrFile(j),
-        ) => i == j,
+        (x, y) if holds_seed(x).is_some() && holds_seed(y).is_some() => {
+            holds_seed(x) == holds_seed(y)
+        }
         (
             What::Sheet | What::Wallet | What::WalletFile(_) | What::SoftwareFile,
             What::Sheet | What::Wallet | What::WalletFile(_) | What::SoftwareFile,
@@ -4143,19 +4183,20 @@ fn seed_keys(boxes: &[Spot], p: usize) -> u64 {
     for v in reads_in(boxes, at) {
         held.extend(holds_in(boxes, At::Vault(v)));
     }
-    held.iter().fold(0u64, |acc, w| match w {
-        What::Words(i)
-        | What::SeedQr(i)
-        | What::Seed(i)
-        | What::SeedPassphrase(i)
-        | What::SeedFile(i)
-        | What::SeedQrFile(i)
-            if *i < 64 =>
-        {
-            acc | (1 << i)
-        }
+    held.iter().fold(0u64, |acc, &w| match holds_seed(w) {
+        Some(i) if i < 64 => acc | (1 << i),
         _ => acc,
     })
+}
+
+/// The seed a thing holds a way to: its words, SeedQR or file, or the
+/// seed in a vault, with or without its passphrase.
+fn holds_seed(w: What) -> Option<usize> {
+    match w {
+        What::Written(c) if c.form == KeyForm::Words => Some(c.seed),
+        What::Seed(i) | What::SeedPassphrase(i) => Some(i),
+        _ => None,
+    }
 }
 
 /// Costs a map of the plan (through `place_map`). Works out which share

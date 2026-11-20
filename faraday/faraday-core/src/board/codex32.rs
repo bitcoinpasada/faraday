@@ -142,7 +142,7 @@ pub(crate) fn warnings(
             let string_in = s
                 .holds
                 .iter()
-                .any(|(w, _)| matches!(w, What::Codex32Share(x, _) if *x == i));
+                .any(|(w, _)| matches!(w, What::Written(c) if c.is(KeyForm::Codex32, Writing::Codex32String, Medium::Paper) && c.seed == i));
             let vault = (v + 1).to_string();
             if seed_in && string_in {
                 out.push(faraday_text::Text::fill(
@@ -158,7 +158,7 @@ pub(crate) fn warnings(
         }
         let file = m.iter().any(|s| {
             s.holds.iter().any(|(w, _)| {
-                matches!(w, What::Codex32ShareFile(x, _) | What::Codex32QrFile(x, _) if *x == i)
+                matches!(w, What::Written(c) if c.form == KeyForm::Codex32 && c.medium == Medium::File && c.seed == i)
             })
         });
         if file {
@@ -178,7 +178,7 @@ pub(crate) fn forms_shown(a: &Answers, z: Zone, t: Thing) -> Vec<What> {
     };
     forms_of(z, t)
         .into_iter()
-        .filter(|w| qr || !matches!(w, What::Codex32QrPaper(..) | What::Codex32QrFile(..)))
+        .filter(|w| qr || !matches!(w, What::Written(c) if c.writing == Writing::Codex32Qr))
         .collect()
 }
 

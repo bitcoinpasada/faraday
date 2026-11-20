@@ -119,7 +119,7 @@ fn seedqr_on_paper(c: &Compute, t: &mut Tour) -> Result<(), String> {
         let place = (0..t.app.board_plan().map_or(0, |(_, a)| a.places)).find(|&p| {
             bmap(c, t)
                 .iter()
-                .any(|s| s.at == At::Place(p) && s.holds.iter().any(|(w, _)| *w == What::Words(i)))
+                .any(|s| s.at == At::Place(p) && s.holds.iter().any(|(w, _)| *w == What::words(i)))
         });
         let Some(p) = place else {
             return Err(format!("seed {i} has no words on paper"));

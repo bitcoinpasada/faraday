@@ -236,7 +236,7 @@ fn a_string_the_plan_keeps_in_a_vault_is_saved_as_a_share_record() {
     // paper.
     vault_at(&mut app, 0, 0, &[]);
     into_vault(&mut app, 0, Thing::String(0, ix('d')));
-    assert!(backup_held(&app, At::Vault(0)).contains(&What::Codex32Share(0, ix('d'))));
+    assert!(backup_held(&app, At::Vault(0)).contains(&What::codex32_share(0, ix('d'))));
     codex32_item(&mut app);
     // Not typed in yet: the save names the string and writes no share.
     skip_each(&mut app);
@@ -670,8 +670,8 @@ fn made_with_set() -> Faraday {
 /// A was typed in with the key, so this session holds it; D was not.
 fn files_on_two_sticks(app: &mut Faraday) {
     board_edit(app, |m| {
-        let m = plan::with_added(&m, At::Stick(0, 0), What::Codex32ShareFile(0, ix('a')));
-        plan::with_added(&m, At::Stick(1, 0), What::Codex32QrFile(0, ix('d')))
+        let m = plan::with_added(&m, At::Stick(0, 0), What::codex32_share_file(0, ix('a')));
+        plan::with_added(&m, At::Stick(1, 0), What::codex32_qr_file(0, ix('d')))
     });
 }
 
@@ -892,7 +892,7 @@ fn a_string_file_the_plan_came_with_asks_the_hold_once_at_lock_and_write() {
     let mut shell = Shell::new();
     let mut app = made_with_set();
     board_edit(&mut app, |m| {
-        plan::with_added(&m, At::Stick(0, 0), What::Codex32ShareFile(0, ix('a')))
+        plan::with_added(&m, At::Stick(0, 0), What::codex32_share_file(0, ix('a')))
     });
     assert_eq!(testkit::plain_asked(&app), None, "nothing asked before");
     codex32_item(&mut app);
@@ -913,7 +913,7 @@ fn a_string_file_the_plan_came_with_asks_the_hold_once_at_lock_and_write() {
     assert!(!made(&app));
     let kept = plan::holds_at(&backup_map(&app), At::Stick(0, 0));
     assert!(
-        kept.contains(&What::Codex32ShareFile(0, ix('a'))),
+        kept.contains(&What::codex32_share_file(0, ix('a'))),
         "{kept:?}"
     );
     // Again, held: the one file, then the lock.

@@ -130,8 +130,8 @@ fn take_it_off_puts_the_second_seed_back() {
     assert_eq!(app.sheet, Some(Sheet::BoardSees));
     app.press(Action::Board(BP::SeesUndo));
     assert_eq!(app.sheet, None);
-    assert!(!place_holds(&app, 0).contains(&What::Words(1)), "taken off");
-    assert!(place_holds(&app, 1).contains(&What::Words(1)), "back");
+    assert!(!place_holds(&app, 0).contains(&What::words(1)), "taken off");
+    assert!(place_holds(&app, 1).contains(&What::words(1)), "back");
 }
 
 #[test]
@@ -140,7 +140,7 @@ fn a_first_seed_at_a_place_asks_nothing() {
     take_off(&mut app, Zone::Paper(0), Thing::Seed(0));
     app.press(Action::Board(BP::Chip(Chip::List(Thing::Seed(0)))));
     app.press(Action::Board(BP::Zone(Zone::Paper(0))));
-    assert!(place_holds(&app, 0).contains(&What::Words(0)));
+    assert!(place_holds(&app, 0).contains(&What::words(0)));
     assert_eq!(app.sheet, None);
 }
 
@@ -217,7 +217,7 @@ fn a_single_keys_seed_says_it_spends_alone_and_never_asks() {
     take_off(&mut app, Zone::Paper(0), Thing::Seed(0));
     app.press(Action::Board(BP::Chip(Chip::List(Thing::Seed(0)))));
     app.press(Action::Board(BP::Zone(Zone::Paper(0))));
-    assert!(place_holds(&app, 0).contains(&What::Words(0)));
+    assert!(place_holds(&app, 0).contains(&What::words(0)));
     assert_eq!(app.sheet, None, "a single key never asks");
     let t = drawn(&mut app);
     assert!(t.contains("Can spend alone"), "{t}");

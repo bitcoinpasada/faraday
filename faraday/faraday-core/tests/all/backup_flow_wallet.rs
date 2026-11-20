@@ -633,7 +633,7 @@ fn spots_two_of_three_with_key_3_on_paper() -> (Shape, Answers) {
         },
         Spot {
             at: At::Place(2),
-            holds: vec![(What::Words(2), Tag::Secret)],
+            holds: vec![(What::words(2), Tag::Secret)],
         },
         Spot {
             at: At::Vault(0),
@@ -965,7 +965,7 @@ fn a_two_of_three_with_key_3_on_paper_asks_for_two_sticks_and_holds_key_3_until_
             },
             Spot {
                 at: At::Place(2),
-                holds: vec![(What::Words(2), Tag::Secret)],
+                holds: vec![(What::words(2), Tag::Secret)],
             },
             Spot {
                 at: At::Vault(0),
@@ -2963,7 +2963,7 @@ fn a_passphrase_kept_only_in_the_vault_is_not_taken_out_while_its_key_is_held() 
             let m = wf.answers.map.clone().expect("the map is the plan");
             let m = plan::without(&m, At::Vault(0), What::Seed(0));
             let m = plan::with_added(&m, At::Vault(0), What::SeedPassphrase(0));
-            let m = plan::with_added(&m, At::Place(0), What::SeedFile(0));
+            let m = plan::with_added(&m, At::Place(0), What::seed_file(0));
             wf.answers.set_map(m);
             assert!(!wf.held.is_empty());
         });
@@ -3392,7 +3392,7 @@ fn answering_no_goes_to_the_keys_with_no_stick_or_vault_step_and_back_up_asks_th
     assert!(
         m.iter()
             .any(|s| matches!(s.at, At::Place(_))
-                && s.holds.iter().any(|(w, _)| *w == What::Words(0))),
+                && s.holds.iter().any(|(w, _)| *w == What::words(0))),
         "the words on paper"
     );
     assert!(b.answers.places >= 1);

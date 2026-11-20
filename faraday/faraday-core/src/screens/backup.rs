@@ -562,19 +562,21 @@ pub(crate) fn held_item(
     what: crate::plan::What,
     items: &[crate::plan::Item],
 ) -> Option<crate::plan::Item> {
-    use crate::plan::{At, What};
+    use crate::plan::{At, KeyForm, Medium, What};
     let has = |it: Item| items.contains(&it);
     let item = match (at, what) {
         (At::Away, _) | (_, What::VaultStick(_)) => return None,
         (At::Place(_), What::Passphrase(i)) => Item::Passphrase(i),
         (_, What::Passphrase(_)) => return None,
-        (_, What::Words(i) | What::SeedQr(i)) => Item::Copy(i),
-        (_, What::XorPart(i, _)) => Item::Parts(i),
-        (_, What::KefCode(i) | What::KefCodePaper(i)) => Item::KefCode(i),
+        (_, What::Written(c)) if c.form == KeyForm::Words && c.medium == Medium::Paper => {
+            Item::Copy(c.seed)
+        }
+        (_, What::Written(c)) if c.form == KeyForm::Xor => Item::Parts(c.seed),
+        (_, What::Written(c)) if c.form == KeyForm::Krux => Item::KefCode(c.seed),
         (_, What::Sheet | What::Share(_)) => Item::Sheets,
         (At::Vault(v), _) => Item::Vault(v),
         (At::Software, _) if has(Item::ShowDescriptor) => Item::ShowDescriptor,
-        (At::Files, What::SeedFile(_)) => Item::SeedFiles,
+        (At::Files, w) if w.words_file_seed().is_some() => Item::SeedFiles,
         // A file at a place is made and written with its stick
         // (`docs/BACKUP-FLOW.md` §17.12 item 6).
         (At::Place(_) | At::Stick(..), w) if crate::plan::is_file(w) => Item::Sticks,
@@ -1409,15 +1411,15 @@ fn copy_check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let Some(c) = b.check.as_ref() else {
         let (form, line) = if pass {
             (
-                crate::plan::CopyForm::Passphrase,
+                crate::plan::CopyOf::Passphrase,
                 EN.copy_check_passphrase_matches,
             )
         } else {
-            (crate::plan::CopyForm::Words, EN.copy_check_your_copy)
+            (crate::plan::CopyOf::WORDS, EN.copy_check_your_copy)
         };
         if b.checked.contains(&(key.fingerprint.0, form)) {
             cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Ok, line) + 12.0;
-            if !pass && form == crate::plan::CopyForm::Words {
+            if !pass && form == crate::plan::CopyOf::WORDS {
                 cy += write_these(app, ui, (x, cy, w), key.fingerprint, key.has_passphrase);
             }
         }
@@ -1711,13 +1713,13 @@ fn item_action(app: &View, n: Item) -> (String, Action) {
         // The words typed back first; then, for a SeedQR copy, the scan
         // (`docs/WALLETS.md` §13).
         Item::Copy(i) => {
-            use crate::plan::CopyForm;
+            use crate::plan::CopyOf;
             let words_left = app.session.keys.info(b.key).is_none_or(|k| {
                 let fp = k.fingerprint.0;
                 let has = |f| b.checked.contains(&(fp, f));
                 app.copy_checks(b, i, k).typed
-                    && !(has(CopyForm::Words)
-                        || (!app.copy_forms(b, i).words && has(CopyForm::SeedQr)))
+                    && !(has(CopyOf::WORDS)
+                        || (!app.copy_forms(b, i).words && has(CopyOf::SEED_QR)))
             });
             let action = if words_left {
                 Action::BCheck
@@ -2316,7 +2318,7 @@ fn paper_section(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     && spot
                         .holds
                         .iter()
-                        .any(|(h, _)| matches!(h, crate::plan::What::XorPart(..)))
+                        .any(|(h, _)| matches!(h, crate::plan::What::Written(c) if c.form == crate::plan::KeyForm::Xor))
                 {
                     at.push(p);
                 }

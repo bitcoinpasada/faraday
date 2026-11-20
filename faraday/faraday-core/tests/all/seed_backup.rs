@@ -128,7 +128,7 @@ fn backing_up_as(app: &mut Faraday, with: bool, seedqr: bool) -> Fingerprint {
                     s.at == faraday_core::plan::At::Place(p)
                         && s.holds
                             .iter()
-                            .any(|(w, _)| *w == faraday_core::plan::What::Words(0))
+                            .any(|(w, _)| *w == faraday_core::plan::What::words(0))
                 })
             })
             .expect("the seed's words are on paper at a place");

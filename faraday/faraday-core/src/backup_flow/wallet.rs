@@ -574,14 +574,16 @@ impl Faraday {
         };
         let stem = file_stem(&wl.name);
         let stem = stem.as_str();
-        match what {
-            P::SeedFile(i) | P::SeedQrFile(i) | P::PassphraseFile(i) => shape
+        if let Some(i) = what.seed_stick_file_seed() {
+            return shape
                 .seeds
                 .get(i)
                 .filter(|x| x.here)
                 .and_then(|x| seed_stick_name(what, &x.name))
                 .into_iter()
-                .collect(),
+                .collect();
+        }
+        match what {
             P::WalletFile(f) if f == plan::form::TEXT => vec![text!("{stem}-descriptor.txt")],
             P::WalletFile(_) => texts(crate::picture_names(
                 &text!("{stem}-descriptor"),
@@ -601,11 +603,21 @@ impl Faraday {
                     .unwrap_or_default()
             }
             P::SoftwareFile => software_files(stem, &Self::backup_public_for(wl, a)),
-            P::Codex32ShareFile(..) | P::Codex32QrFile(..) => {
+            P::Written(cw)
+                if cw.form == plan::KeyForm::Codex32 && cw.medium == plan::Medium::File =>
+            {
                 texts(crate::codex32_backup::stick_names(shape, a, what))
             }
             // The Krux code's files, under the names the Outbox gave them.
-            P::KefCode(i) => crate::wallet_backup::kef::stick_names(self, i),
+            P::Written(cw)
+                if cw.is(
+                    plan::KeyForm::Krux,
+                    plan::Writing::KruxCode,
+                    plan::Medium::File,
+                ) =>
+            {
+                crate::wallet_backup::kef::stick_names(self, cw.seed)
+            }
             _ => Vec::new(),
         }
     }
@@ -644,23 +656,24 @@ impl Faraday {
         let list = self.seed_list_now(w);
         for what in whats {
             let names = self.stick_file_names_now(w, &shape, &answers, what);
-            match what {
-                P::SeedFile(i) | P::SeedQrFile(i) | P::PassphraseFile(i) => {
-                    let Some(k) = list.get(i).and_then(|(_, k)| *k) else {
-                        continue;
-                    };
-                    if let (P::SeedQrFile(_), Some(name)) = (what, names.first()) {
-                        let fp = crate::wallet::fp_text(self.session.keys[k].fingerprint);
-                        expect.push((name.clone(), ReadBack::Seed(Text::of(&fp))));
-                    }
-                    if let (Some(name), Some(bytes)) =
-                        (names.first(), self.seed_stick_bytes(&c, k, what))
-                    {
-                        self.outbox.retain(|it| it.name != **name);
-                        let item = crate::Item::new(&c, name, bytes.to_vec());
-                        self.outbox_secret(crate::secrets::OutReason::StickBackup, item);
-                    }
+            if let Some(i) = what.seed_stick_file_seed() {
+                let Some(k) = list.get(i).and_then(|(_, k)| *k) else {
+                    continue;
+                };
+                if let (true, Some(name)) = (what.is_seed_qr_file(), names.first()) {
+                    let fp = crate::wallet::fp_text(self.session.keys[k].fingerprint);
+                    expect.push((name.clone(), ReadBack::Seed(Text::of(&fp))));
                 }
+                if let (Some(name), Some(bytes)) =
+                    (names.first(), self.seed_stick_bytes(&c, k, what))
+                {
+                    self.outbox.retain(|it| it.name != **name);
+                    let item = crate::Item::new(&c, name, bytes.to_vec());
+                    self.outbox_secret(crate::secrets::OutReason::StickBackup, item);
+                }
+                continue;
+            }
+            match what {
                 P::WalletFile(f) => {
                     if f == plan::form::QR
                         && let Some(wl) = self.session.wallets.get(w)
@@ -703,12 +716,20 @@ impl Faraday {
                         self.put_made(made, &names);
                     }
                 }
-                P::Codex32ShareFile(..) | P::Codex32QrFile(..) => {
+                P::Written(cw)
+                    if cw.form == plan::KeyForm::Codex32 && cw.medium == plan::Medium::File =>
+                {
                     expect.extend(self.c32_stick_file(&c, &list, what, &names));
                 }
                 // The code's picture reads as the base43 text of its file.
-                P::KefCode(i) => {
-                    crate::wallet_backup::kef::stick_put(self, i);
+                P::Written(cw)
+                    if cw.is(
+                        plan::KeyForm::Krux,
+                        plan::Writing::KruxCode,
+                        plan::Medium::File,
+                    ) =>
+                {
+                    crate::wallet_backup::kef::stick_put(self, cw.seed);
                     expect.extend(self.kef_readback(&c, &names));
                 }
                 _ => {}
@@ -782,14 +803,22 @@ impl Faraday {
             zeroize::Zeroizing::new(v)
         };
         match what {
-            plan::What::SeedFile(_) => key.has_words().then(|| {
-                line(
-                    &self
-                        .session
-                        .keys
-                        .reveal(k, Reveal::BackupStick(Part::Words)),
-                )
-            }),
+            plan::What::Written(cp)
+                if cp.is(
+                    plan::KeyForm::Words,
+                    plan::Writing::Words,
+                    plan::Medium::File,
+                ) =>
+            {
+                key.has_words().then(|| {
+                    line(
+                        &self
+                            .session
+                            .keys
+                            .reveal(k, Reveal::BackupStick(Part::Words)),
+                    )
+                })
+            }
             plan::What::PassphraseFile(_) => key.has_passphrase.then(|| {
                 line(
                     &self
@@ -798,7 +827,13 @@ impl Faraday {
                         .reveal(k, Reveal::BackupStick(Part::Passphrase)),
                 )
             }),
-            plan::What::SeedQrFile(_) => {
+            plan::What::Written(cp)
+                if cp.is(
+                    plan::KeyForm::Words,
+                    plan::Writing::SeedQr,
+                    plan::Medium::File,
+                ) =>
+            {
                 if key.language != Language::English {
                     return None;
                 }

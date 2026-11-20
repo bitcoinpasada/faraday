@@ -89,7 +89,7 @@ fn a_seed_file_beside_the_wallets_vault_leaves_the_public_files_another_stick() 
     put(&mut app, Thing::Seed(0), Zone::Files(p, s));
     let on_stick = backup_held(&app, At::Stick(p, s));
     assert!(
-        on_stick.contains(&What::VaultStick(0)) && on_stick.contains(&What::SeedFile(0)),
+        on_stick.contains(&What::VaultStick(0)) && on_stick.contains(&What::seed_file(0)),
         "the seed's file beside the vault: {on_stick:?}"
     );
     // The plan, written as a custom map, names the wallet at that place.

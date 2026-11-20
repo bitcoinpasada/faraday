@@ -204,7 +204,7 @@ fn seed_files(app: &Faraday) -> usize {
     backup_map(app)
         .iter()
         .flat_map(|s| s.holds.iter())
-        .filter(|(w, _)| *w == What::SeedFile(0))
+        .filter(|(w, _)| *w == What::seed_file(0))
         .count()
 }
 

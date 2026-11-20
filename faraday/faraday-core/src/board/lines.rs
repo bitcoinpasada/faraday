@@ -4,6 +4,7 @@
 //! name (`docs/BACKUP-FLOW.md` §17).
 
 use super::*;
+use crate::plan::Written;
 
 /// "2 places", "1 place", or nothing.
 pub(super) fn count_text(n: usize) -> String {
@@ -18,25 +19,40 @@ pub(super) fn count_text(n: usize) -> String {
 /// to tell it from.
 pub(super) fn form_label(w: What, software: &str) -> Option<String> {
     Some(match w {
-        What::Words(_) => EN.board_words.to_string(),
-        What::SeedQr(_) => EN.board_seedqr.to_string(),
-        What::SeedFile(_) => EN.board_words_file.to_string(),
-        What::SeedQrFile(_) => EN.board_seedqr_file.to_string(),
+        What::Written(c) => written_label(c)?.to_string(),
         What::PassphraseFile(_) => EN.board_passphrase_file.to_string(),
         What::WalletFile(f) | What::ShareFile(_, f) if f == form::TEXT => {
             EN.board_text_file.to_string()
         }
         What::WalletFile(_) | What::ShareFile(..) => EN.board_qr_picture.to_string(),
         What::SoftwareFile => fill(EN.board_software_file, &[software]),
-        // A codex32 string's forms (`docs/CODEX32.md` §9.5).
-        What::Codex32Share(..) => EN.codex32_string.to_string(),
-        What::Codex32QrPaper(..) => EN.codex32_codex32qr.to_string(),
-        What::Codex32ShareFile(..) => EN.board_text_file.to_string(),
-        What::Codex32QrFile(..) => EN.board_qr_picture.to_string(),
-        // A Krux code, on a stick or drawn on paper (`docs/KEF.md` §15.1).
-        What::KefCode(_) | What::KefCodePaper(_) => EN.board_kef_code.to_string(),
         _ => return None,
     })
+}
+
+/// A copy's name on a chip: a seed's words, SeedQR or file, a codex32
+/// string's forms (`docs/CODEX32.md` §9.5), a Krux code on a stick or
+/// drawn on paper (`docs/KEF.md` §15.1). A Seed XOR part and a SLIP-39
+/// share have none: they are the only form in their zone.
+fn written_label(c: Written) -> Option<&'static str> {
+    match c.form {
+        KeyForm::Words => match (c.writing, c.medium) {
+            (Writing::Words, Medium::Paper) => Some(EN.board_words),
+            (Writing::SeedQr, Medium::Paper) => Some(EN.board_seedqr),
+            (Writing::Words, Medium::File) => Some(EN.board_words_file),
+            (Writing::SeedQr, Medium::File) => Some(EN.board_seedqr_file),
+            _ => None,
+        },
+        KeyForm::Codex32 => match (c.writing, c.medium) {
+            (Writing::Codex32String, Medium::Paper) => Some(EN.codex32_string),
+            (Writing::Codex32Qr, Medium::Paper) => Some(EN.codex32_codex32qr),
+            (Writing::Codex32String, Medium::File) => Some(EN.board_text_file),
+            (Writing::Codex32Qr, Medium::File) => Some(EN.board_qr_picture),
+            _ => None,
+        },
+        KeyForm::Krux => Some(EN.board_kef_code),
+        KeyForm::Xor | KeyForm::Slip39 => None,
+    }
 }
 
 /// The line on the sheet over a drop that let a place see the balance

@@ -203,11 +203,11 @@ fn a_key_with_a_set_opens_on_one_string_per_place_on_paper() {
     for (p, j) in [ix('a'), ix('c'), ix('d')].into_iter().enumerate() {
         let held = plan::holds_at(&m, At::Place(p));
         assert!(
-            held.contains(&What::Codex32Share(0, j)),
+            held.contains(&What::codex32_share(0, j)),
             "place {p}: {held:?}"
         );
         assert!(held.contains(&What::Sheet), "the description at place {p}");
-        assert!(!held.iter().any(|w| matches!(w, What::Words(_))));
+        assert!(!held.iter().any(|w| w.is_words()));
         assert_eq!(
             held.iter()
                 .filter(|w| plan::codex32::string_of(**w).is_some())

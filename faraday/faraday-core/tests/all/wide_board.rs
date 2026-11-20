@@ -107,7 +107,7 @@ fn a_seed_dragged_into_the_second_column_is_kept_at_that_place() {
         let _ = app.frame();
     }
     app.settle();
-    assert_eq!(kept_at(&app, 1), vec![What::Words(0)], "kept at Place 2");
+    assert_eq!(kept_at(&app, 1), vec![What::words(0)], "kept at Place 2");
     assert!(kept_at(&app, 0).is_empty(), "nothing at Place 1");
 }
 
