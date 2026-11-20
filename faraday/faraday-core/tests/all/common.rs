@@ -2164,3 +2164,62 @@ pub fn bring_in_vault(shell: &mut Shell, app: &mut Faraday) {
     );
     assert_eq!(app.vaults().open.len(), 1);
 }
+
+/// A Krux code (KEF) that seals the seed of `words` under the passphrase
+/// `pass`, as the camera reads it.
+pub fn krux_seed_code(app: &mut Faraday, words: &str, pass: &str) -> Vec<u8> {
+    let m = faraday_bip::bip39::Mnemonic::parse(
+        &faraday_core::testkit::compute(),
+        faraday_bip::bip39::Language::English,
+        words,
+    )
+    .unwrap();
+    let entropy = faraday_codec::seedqr::to_entropy(&m);
+    for i in 0..8u8 {
+        app.event(Event::Entropy(EntropyBytes::new([0x30 + i; 32])));
+    }
+    app.kef_seal(
+        faraday_crypto::Zeroizing::new(pass.as_bytes().to_vec()),
+        faraday_crypto::Zeroizing::new(entropy.expose().as_bytes().to_vec()),
+        20,
+        faraday_core::worker::kef::KefId::Random(8),
+        10_000,
+        "Working",
+    )
+    .expect("fresh bytes");
+    faraday_core::testkit::settle(app);
+    app.kef_take_sealed().unwrap().unwrap().to_vec()
+}
+
+/// Presses the read card's way named `label`, and waits for its passphrase
+/// sheet when it is **Open**.
+pub fn card_go(app: &mut Faraday, label: &str) {
+    let ways: Vec<String> = app
+        .scan()
+        .and_then(|s| s.card.as_ref())
+        .map(|c| {
+            c.ways
+                .iter()
+                .map(|w| String::from(w.label().as_str()))
+                .collect()
+        })
+        .unwrap_or_default();
+    let i = ways
+        .iter()
+        .position(|w| w == label)
+        .unwrap_or_else(|| panic!("no way {label}: {ways:?}"));
+    app.press(Action::ReadGo(i as u8));
+}
+
+/// Types `pass` on the Krux code's sheet and waits for the open to end.
+pub fn krux_open_with(app: &mut Faraday, pass: &str) {
+    type_text(app, pass);
+    app.event(Event::Key(Key::Enter));
+    for _ in 0..6 {
+        faraday_core::testkit::settle(app);
+        if app.busy().is_none() {
+            break;
+        }
+    }
+    let _ = app.frame();
+}

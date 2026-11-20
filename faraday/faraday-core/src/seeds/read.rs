@@ -361,7 +361,12 @@ impl Faraday {
             Choice::Kef => {
                 if let Some(e) = s.kef.take() {
                     self.seed_read.state = None;
-                    crate::seeds::kef::kef_open_sheet(self, e, 0, false);
+                    crate::seeds::kef::kef_open_sheet(
+                        self,
+                        e,
+                        0,
+                        (false, crate::seeds::kef::Lands::SeedSheet),
+                    );
                 }
             }
             Choice::Skip => {

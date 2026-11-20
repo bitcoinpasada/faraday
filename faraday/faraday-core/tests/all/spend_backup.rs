@@ -660,6 +660,60 @@ fn a_seed_of_another_wallet_after_the_description_is_not_one_of_its_keys() {
     assert!(app.session.keys.is_empty());
 }
 
+/// A Krux code read by the intake scanner: once its passphrase opens it,
+/// the seed asks how it loads on the same sheet a SeedQR's does, and the
+/// camera comes back after it.
+#[test]
+fn a_krux_code_read_by_the_intake_scanner_goes_to_the_intake() {
+    let mut app = shown();
+    on_intake(&mut app);
+    let code = crate::common::krux_seed_code(&mut app, &testkit::test_words("bacon"), "krux pass");
+    scan(&mut app, code);
+    crate::common::card_go(&mut app, "Open");
+    assert_eq!(app.sheet, Some(Sheet::KefRead));
+    crate::common::krux_open_with(&mut app, "krux pass");
+    assert_eq!(app.sheet, Some(Sheet::SeedRead), "no passphrase sheet");
+    app.press(Action::SeedRead(Choice::Plain));
+    assert_eq!(app.sheet, Some(Sheet::Scan), "the camera did not come back");
+    assert_eq!(app.screen, Screen::SpendBackup);
+    assert_eq!(app.session.keys.len(), 1);
+}
+
+/// With the wallet's description in, a Krux code of one of its missing
+/// keys loads that key at once, as a SeedQR's does.
+#[test]
+fn a_krux_code_of_a_missing_key_read_by_the_intake_scanner_loads_it() {
+    let mut app = shown();
+    on_intake(&mut app);
+    scan(&mut app, testkit::savings().into_bytes());
+    faraday_core::testkit::confirm_wallets(&mut app);
+    assert!(app.spend_backup_wallet().is_some());
+    let code = crate::common::krux_seed_code(&mut app, &testkit::test_words("zebra"), "krux pass");
+    scan(&mut app, code);
+    crate::common::card_go(&mut app, "Open");
+    crate::common::krux_open_with(&mut app, "krux pass");
+    let shown = app.drawn_texts();
+    assert_ne!(
+        app.sheet,
+        Some(Sheet::SeedRead),
+        "it asked its passphrase: {shown:?}"
+    );
+    assert_eq!(app.session.keys.len(), 1);
+}
+
+/// Cancelling the Krux code's passphrase leaves the intake as it was.
+#[test]
+fn cancelling_a_krux_codes_passphrase_at_the_intake_stays_in_spend() {
+    let mut app = shown();
+    on_intake(&mut app);
+    let code = crate::common::krux_seed_code(&mut app, &testkit::test_words("bacon"), "krux pass");
+    scan(&mut app, code);
+    crate::common::card_go(&mut app, "Open");
+    app.press(Action::Cancel);
+    assert_eq!(app.screen, Screen::SpendBackup);
+    assert!(app.session.keys.is_empty());
+}
+
 #[test]
 fn two_seeds_and_no_description_make_the_two_of_three_from_all_three_seeds() {
     let mut app = shown();

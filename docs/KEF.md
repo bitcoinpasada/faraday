@@ -238,6 +238,13 @@ own checks. Faraday adds only:
   goes on as a note. About one real 16-byte seed in 10,650 is also valid UTF-8; nearly all of those hold a control character and go to the seed sheet. The few that do not would show as a garbled note, so a
   note of exactly 16 or 32 bytes also offers **Read as a seed**, which sends those same
   bytes down this branch. A note of another length never offers it.
+- **A seed goes where a SeedQR read by the same scanner goes.** A code read by a scanner a flow
+  opened for a seed (Restore's slot, Create's key slot, a wallet's **Scan a key**, the Spend
+  tab's What do you have?) keeps that purpose while its passphrase is asked: once opened, the
+  seed goes to that slot, wallet or intake, through the seed sheet where a SeedQR's does, with
+  the code's id on the sheet (`docs/SCANNING.md` §4.3). A code read by Home's Scan or by Add a
+  key's Scan a SeedQR goes to the seed sheet. Cancelling the passphrase leaves the person in
+  the flow; a wrong passphrase asks again, as everywhere.
 - **Text that names nothing** is a note, shown as a secret (DESIGN §4.10).
   It may be a passphrase, and nothing in the bytes says so: the card offers
   "Use as a passphrase".

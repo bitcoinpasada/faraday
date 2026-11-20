@@ -1084,6 +1084,28 @@ fn a_seed_read_at_creates_scan_its_xpub_becomes_the_slots_key() {
     assert_eq!(slot(&app, 1), faraday_core::create::Source::Here(fp));
 }
 
+/// A Krux code read at Create's Scan its xpub, once its passphrase opens
+/// it, is the slot's key as a SeedQR's is, and Create stays on screen.
+#[test]
+fn a_krux_code_read_at_creates_scan_its_xpub_becomes_the_slots_key() {
+    let mut app = testkit::started();
+    app.press(Action::CreateWallet);
+    crate::common::ckind(&mut app, 4);
+    app.press(Action::CNext(0));
+    app.press(Action::CNext(1));
+    let code = crate::common::krux_seed_code(&mut app, &testkit::test_words("zebra"), "krux pass");
+    app.press(Action::ScanFor(faraday_core::Ask::Xpub(2)));
+    app.event(Event::Scanned { bytes: code });
+    let _ = app.frame();
+    crate::common::card_go(&mut app, "Open");
+    crate::common::krux_open_with(&mut app, "krux pass");
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::SeedRead));
+    app.press(Action::SeedRead(faraday_core::seeds::read::Choice::Plain));
+    assert_eq!(app.screen, faraday_core::Screen::Create, "Create was left");
+    let fp = app.session.keys[0].fingerprint.0;
+    assert_eq!(slot(&app, 1), faraday_core::create::Source::Here(fp));
+}
+
 /// A codex32 secret read at Create's Scan its xpub is the slot's key, as
 /// a seed is, and Create stays on screen.
 /// BIP 93's vector 1.

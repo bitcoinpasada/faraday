@@ -208,6 +208,33 @@ fn a_missing_keys_seedqr_loads_at_once_and_the_wallet_can_spend() {
     );
 }
 
+/// A Krux code of a missing key, read by the wallet's Scan a key: once its
+/// passphrase opens it, the key loads into the wallet as a SeedQR's does.
+#[test]
+fn a_krux_code_of_a_missing_key_loads_it_into_the_wallet() {
+    let (mut app, w) = on_savings();
+    let code = crate::common::krux_seed_code(&mut app, &testkit::test_words("zebra"), "krux pass");
+    app.press(Action::ScanKey(w));
+    app.event(Event::Scanned { bytes: code });
+    let _ = app.frame();
+    crate::common::card_go(&mut app, "Open");
+    assert_eq!(app.sheet, Some(Sheet::KefRead));
+    crate::common::krux_open_with(&mut app, "krux pass");
+    let shown = app.drawn_texts();
+    assert_ne!(
+        app.sheet,
+        Some(Sheet::SeedRead),
+        "it went to the seed sheet: {shown:?}"
+    );
+    assert_eq!(app.session.keys.len(), 2);
+    let n = key_number(&app, w, "zebra");
+    assert_eq!(
+        app.toast_text(),
+        Some(format!("Key {n} added · Can spend").as_str())
+    );
+    assert!(!app.offers(Action::ScanKey(w)), "Scan a key still offered");
+}
+
 #[test]
 fn a_key_already_here_is_named_and_the_camera_stays_on() {
     let (mut app, w) = on_savings();
