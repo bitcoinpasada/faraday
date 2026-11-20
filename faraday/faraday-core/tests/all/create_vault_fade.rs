@@ -147,7 +147,11 @@ fn continue_fades_through_the_surface_in_300_ms() {
     let settled = tick(&mut app, &mut clock, 16);
     let new_ink = inked(&settled, width, new, &surface);
     let before_in = seen.iter().rev().find(|(ms, _)| *ms <= 100).unwrap();
-    assert_eq!(away(&before_in.1, new_ink, &surface), 0, "nothing of the new yet");
+    assert_eq!(
+        away(&before_in.1, new_ink, &surface),
+        0,
+        "nothing of the new yet"
+    );
     let later = seen.iter().find(|(ms, _)| *ms >= 200).unwrap();
     let d = away(&later.1, new_ink, &surface);
     assert!(
