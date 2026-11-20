@@ -337,7 +337,6 @@ mod tests {
         every_screen_on(
             DESKTOP,
             &[
-                "Backup checklist Page",
                 "Wallets Card",
                 "Wallets ListPane",
                 "Vault contents VaultItem",

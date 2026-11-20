@@ -2900,6 +2900,21 @@ impl Faraday {
         )
     }
 
+    /// Costs what `plan_mapped` costs the first time. The map of the plan
+    /// the Back up screen is on, worked out before the frame so that the
+    /// steps its cards and checklist are known when the frame starts (the
+    /// step a fade compares); a lookup after.
+    pub(crate) fn backup_plan_warm(&mut self, c: &Compute) {
+        if self.screen != Screen::Backup {
+            return;
+        }
+        let Some(b) = self.backup.state() else {
+            return;
+        };
+        let shape = self.plan_shape_now(b.wallet);
+        let _ = self.kept.plan_mapped(c, &shape, &b.answers);
+    }
+
     /// Opens checklist item `n`, or closes them all. A seed's copy shows
     /// that seed.
     pub(crate) fn backup_item_open(&mut self, n: Option<plan::Item>) {

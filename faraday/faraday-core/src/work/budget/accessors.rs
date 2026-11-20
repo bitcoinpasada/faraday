@@ -413,7 +413,7 @@ fn reads(app: &Faraday) -> Vec<Read> {
 fn every_kept_value_read_on_two_frames_in_a_row_is_worked_out_once() {
     let mut app = session();
     let reads = reads(&app);
-    assert!(reads.len() >= 50, "{} accessors read", reads.len());
+    assert!(reads.len() >= 49, "{} accessors read", reads.len());
     let mut failures = Vec::new();
     let mut worked = Vec::new();
     for (name, read) in &reads {

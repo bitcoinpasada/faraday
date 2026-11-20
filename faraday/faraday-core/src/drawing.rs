@@ -727,6 +727,7 @@ impl Faraday {
         for o in &self.vaults.open {
             self.vaults.warm(&c, o.id);
         }
+        self.backup_plan_warm(&c);
         // The Lock sheet on show names what its Lock without saving lets go.
         if self.sheet == Some(Sheet::LockAsk) {
             self.vaults.name_lock_seen();
