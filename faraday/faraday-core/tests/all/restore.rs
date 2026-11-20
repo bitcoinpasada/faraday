@@ -243,6 +243,52 @@ fn a_seedqr_with_its_passphrase_on_the_sheet_makes_the_wallet_sparrow_makes() {
     assert_eq!(desc(&app, w), PASSPHRASE_VECTOR);
 }
 
+/// The third seed read as a Krux encrypted code at the slot's Scan it: the
+/// code's passphrase opens it, and the seed lands in the slot as a SeedQR's
+/// does, the same wallet Sparrow makes.
+#[test]
+fn a_krux_code_read_at_a_slot_fills_that_slot() {
+    let mut app = two_of_three_from_seeds();
+    type_seed(&mut app, &testkit::test_words("bacon"));
+    type_seed(&mut app, &testkit::test_words("zebra"));
+    let code = crate::common::krux_seed_code(&mut app, &testkit::test_words("summer"), "krux pass");
+    app.press(Action::RSlotScan);
+    app.event(Event::Scanned { bytes: code });
+    let _ = app.frame();
+    crate::common::card_go(&mut app, "Open");
+    assert_eq!(app.sheet, Some(Sheet::KefRead));
+    crate::common::krux_open_with(&mut app, "krux pass");
+    assert_eq!(
+        app.sheet,
+        Some(Sheet::SeedRead),
+        "the seed asks how it loads"
+    );
+    sheet_passphrase(&mut app, "TREZOR", "TREZOR");
+    app.press(Action::SeedRead(Choice::WithPass));
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.screen, Screen::Restore, "not back in Restore");
+    app.press(Action::Seeds(S::Make));
+    faraday_core::testkit::confirm_wallets(&mut app);
+    let w = made(&app);
+    assert_eq!(desc(&app, w), PASSPHRASE_VECTOR);
+}
+
+/// Cancelling the Krux code's passphrase leaves Restore where it was.
+#[test]
+fn cancelling_a_krux_codes_passphrase_at_a_slot_stays_in_restore() {
+    let mut app = two_of_three_from_seeds();
+    let code = crate::common::krux_seed_code(&mut app, &testkit::test_words("summer"), "krux pass");
+    app.press(Action::RSlotScan);
+    app.event(Event::Scanned { bytes: code });
+    let _ = app.frame();
+    crate::common::card_go(&mut app, "Open");
+    assert_eq!(app.sheet, Some(Sheet::KefRead));
+    app.press(Action::Cancel);
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.screen, Screen::Restore);
+    assert!(app.session.keys.is_empty());
+}
+
 /// A key already loaded from its words, with no passphrase, taken into a
 /// slot asks whether it has one, as a vault keeping a seed apart from its
 /// passphrase needs: with TREZOR it is the wallet Sparrow makes.

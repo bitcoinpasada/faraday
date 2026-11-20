@@ -181,6 +181,12 @@ address is named, and a file of several addresses lists each with its
 place. The screen, the refusals and the fuzz targets are DESIGN §5's
 Check, "Check an address".
 
+A Krux encrypted code read by a scanner a flow opened for a seed (Restore's and Create's slots,
+a wallet's Scan a key, What do you have?) is opened by its passphrase on its own sheet; the seed
+it holds then goes where a SeedQR read by that scanner goes, with the code's id on the seed
+sheet where there is one (`docs/KEF.md` §6). Read by Home's Scan or Add a key's Scan a SeedQR, it
+goes to the seed sheet.
+
 A PNG read from a stick routes as Home's Scan does, without the card:
 what has a destination is filed or loaded as the visit's rules say, and
 a secret it may not file is named in the visit's log.

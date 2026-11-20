@@ -1732,9 +1732,10 @@ impl Faraday {
     ) {
         if way == scan_read::Way::Open {
             drop(code);
+            let lands = self.scan_lands();
             self.scan_close();
             if let Some(h) = kef {
-                crate::seeds::kef::kef_open_sheet(self, h.envelope, 0, true);
+                crate::seeds::kef::kef_open_sheet(self, h.envelope, 0, (true, lands));
             }
             return;
         }
@@ -1783,6 +1784,26 @@ impl Faraday {
             Way::Check => self.act(Action::CheckMessage(at)),
             Way::Note => self.act(Action::Vault(crate::vault::VaultAction::AddFile(at))),
             _ => self.toast(&Text::fill(EN.scanned_is_in_files, &[&name])),
+        }
+    }
+
+    /// Where a seed a Krux code opens goes: where one read by the scanner on
+    /// screen goes (`docs/SCANNING.md` §4.3). Restore's slots take it from
+    /// the seed sheet as they are.
+    fn scan_lands(&self) -> crate::seeds::kef::Lands {
+        use crate::seeds::kef::Lands;
+        let Some(s) = self.camera.scan() else {
+            return Lands::SeedSheet;
+        };
+        match (s.purpose, s.ask) {
+            (ScanPurpose::WalletKey(w), _) => Lands::WalletKey(w),
+            (ScanPurpose::Intake, _) => Lands::Intake,
+            (ScanPurpose::Files, crate::Ask::Xpub(n))
+                if self.screen == crate::Screen::Create && n > 0 =>
+            {
+                Lands::CreateSlot(n - 1)
+            }
+            _ => Lands::SeedSheet,
         }
     }
 

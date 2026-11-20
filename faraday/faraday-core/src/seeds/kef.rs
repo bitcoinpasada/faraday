@@ -79,8 +79,27 @@ pub enum KefAct {
     ReadAsSeed,
 }
 
+/// Where a seed the code opens goes: the flow whose scanner read the code,
+/// or the seed sheet (`docs/KEF.md` §6, `docs/SCANNING.md` §4.3).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum Lands {
+    /// The seed sheet, as a seed read by Home's scanner or by Scan a
+    /// SeedQR.
+    #[default]
+    SeedSheet,
+    /// Create's slot `.0` the scanner was opened for, back to Create after
+    /// the seed sheet. (Restore's slots take the seed from the seed sheet.)
+    CreateSlot(u8),
+    /// A missing key of wallet `.0`, by its Scan a key.
+    WalletKey(usize),
+    /// The Spend tab's What do you have?.
+    Intake,
+}
+
 /// The sheet's state, wiped when it closes.
 pub(crate) struct KefRead {
+    /// Where the seed it opens goes.
+    lands: Lands,
     envelope: Envelope,
     /// The header's facts as one line, worked out when the sheet opens.
     facts: Text,
@@ -114,6 +133,7 @@ impl KefRead {
 
     pub(crate) fn new(envelope: Envelope, depth: u8, rate: Option<u64>) -> Self {
         Self {
+            lands: Lands::SeedSheet,
             facts: Text::joined(&facts(&envelope, rate), " · "),
             envelope,
             depth,
@@ -267,10 +287,16 @@ pub(crate) fn kef_timed(app: &mut Faraday, rate_ms: Option<u64>) -> bool {
 /// The card's **Open**: the camera goes and the sheet asks the
 /// passphrase. `asked` is whether the question above 550,000 rounds was
 /// answered already; if not, the sheet's first **Open** is that answer.
-pub(crate) fn kef_open_sheet(app: &mut Faraday, envelope: Envelope, depth: u8, asked: bool) {
+pub(crate) fn kef_open_sheet(
+    app: &mut Faraday,
+    envelope: Envelope,
+    depth: u8,
+    (asked, lands): (bool, Lands),
+) {
     let rate = app.seed_read.rate();
     let mut k = KefRead::new(envelope, depth, rate);
     k.sure = asked;
+    k.lands = lands;
     app.seed_read.set_kef(Some(k));
     app.sheet = Some(Sheet::KefRead);
 }
@@ -497,7 +523,7 @@ fn kef_as_seed(app: &mut Faraday, plain: Zeroizing<Vec<u8>>) -> Result<(), Zeroi
     let Some(k) = app.seed_read.kef() else {
         return Err(plain);
     };
-    let (depth, id) = (k.depth, k.envelope.id.clone());
+    let (depth, id, lands) = (k.depth, k.envelope.id.clone(), k.lands);
     let lang = faraday_bip::bip39::Language::English;
     let Ok(m) = faraday_keys::words::from_compact_seedqr(&plain, lang) else {
         return Err(plain);
@@ -518,12 +544,37 @@ fn kef_as_seed(app: &mut Faraday, plain: Zeroizing<Vec<u8>>) -> Result<(), Zeroi
     drop(plain);
     app.seed_read.set_kef(None);
     app.sheet = None;
-    app.seed_scanned(&typed, scan_kind());
+    kef_seed_lands(app, lands, &typed);
     app.seed_read_kef_id(&id);
     if let Some(found) = also {
         app.seed_read_offer_kef(found.envelope);
     }
     Ok(())
+}
+
+/// Costs what the flow's own seed intake costs. The seed a code opened goes
+/// where a SeedQR read by the scanner it came from goes: Create's slot, the
+/// wallet's key or the intake, with the scanner on again for the last two;
+/// else to the seed sheet.
+fn kef_seed_lands(app: &mut Faraday, lands: Lands, typed: &str) {
+    let kind = scan_kind();
+    match lands {
+        Lands::SeedSheet => app.seed_scanned(typed, kind),
+        Lands::CreateSlot(slot) => {
+            app.camera.wait_slot(slot);
+            app.entry.reset();
+            app.entry.set_back(Some(crate::Screen::Create));
+            app.seed_scanned(typed, kind);
+        }
+        Lands::WalletKey(w) => {
+            app.act(Action::ScanKey(w));
+            app.wallet_key_scanned(w, typed);
+        }
+        Lands::Intake => {
+            app.spend_backup_scan(None);
+            app.spend_backup_intake_seed(typed);
+        }
+    }
 }
 
 /// Costs what the intake costs. The rest of §6's road, past the seed branch.
@@ -536,7 +587,9 @@ fn kef_road_after_seed(app: &mut Faraday, plain: Zeroizing<Vec<u8>>, offer: bool
         && depth + 1 < DEPTH_MAX
         && let Some(found) = faraday_codec::kef::recognize(&plain)
     {
+        let lands = app.seed_read.kef().map_or(Lands::SeedSheet, |k| k.lands);
         let mut next = KefRead::new(found.envelope, depth + 1, app.seed_read.rate());
+        next.lands = lands;
         next.stage = Stage::Offer;
         next.offered = Some(plain);
         app.seed_read.set_kef(Some(next));
@@ -846,6 +899,6 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 pub(crate) fn test_note(app: &mut Faraday, text: &str) {
     let code = faraday_codec::kef::wrap(b"id", 20, 10_000, &[7u8; 20]).unwrap();
     let env = faraday_codec::kef::recognize(&code).unwrap().envelope;
-    kef_open_sheet(app, env, 0, true);
+    kef_open_sheet(app, env, 0, (true, Lands::SeedSheet));
     kef_show(app, Stage::Note, Text::of(text));
 }
