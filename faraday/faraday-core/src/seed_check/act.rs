@@ -271,9 +271,6 @@ pub(crate) fn act(app: &mut Faraday, action: A) {
 }
 
 fn open_card(app: &mut Faraday, k: u8) {
-    if k == step::SEED {
-        drop_waiting(app);
-    }
     if let Some(s) = st(app) {
         // A key that is not typed words has no passphrase to take again
         // without its seed, as `step_to` knows.
@@ -774,14 +771,25 @@ fn show_code(app: &mut Faraday, which: u8) {
     app.open_qr(crate::qr_view::QrView::text(&c, title, &text));
 }
 
-/// Costs what `Keys::check_keep` costs. Keep this key: loaded as Add a key loads typed words, then back where
+/// Costs what `Keys::check_keep` costs, or for a codex32 set finished with an open vault's strings what
+/// `OpenVaults::codex32_with_typed` costs (up to 16 interpolations, HMAC-SHA512s and fingerprints, the same
+/// work as the press that finishes the set). Keep this key: loaded as Add a key loads typed words, then back where
 /// the flow was opened. Refused as Add a key refuses.
 fn keep(app: &mut Faraday) {
     if !app.may_load_keys() || st(app).is_none_or(|s| s.is_loaded() || s.made.is_none()) {
         return;
     }
     let c = app.compute();
-    match app.session.keys.check_keep(&c, "") {
+    // A set finished with an open vault's strings keeps what Add a key keeps.
+    let kept = match app
+        .vaults
+        .store()
+        .check_keep_codex32(&c, &mut app.session.keys, "")
+    {
+        Some(r) => r,
+        None => app.session.keys.check_keep(&c, ""),
+    };
+    match kept {
         Ok(fp) => {
             app.toast(&crate::strings::fill(
                 EN.entry_add_key_added,

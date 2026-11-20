@@ -1334,6 +1334,52 @@ fn words_typed_after_back_from_waiting_shares_are_read_as_words() {
 }
 
 #[test]
+fn back_then_forward_keeps_the_shares_waiting() {
+    let mut app = shares_waiting();
+    app.event(Event::Back);
+    app.event(Event::Forward);
+    app.press(Action::SeedCheck(S::NoPass));
+    assert!(
+        app.session.keys.check_facts().is_some(),
+        "the shares waiting are read"
+    );
+}
+
+#[test]
+fn a_key_loaded_after_shares_wait_is_the_key_checked() {
+    let result = |shares: bool| {
+        let mut app = with_words_on(testkit::net(), ABOUT);
+        app.press(Action::SeedCheck(S::NoPass));
+        app.press(Action::SeedCheck(S::Pick(Account::NativeSegwit)));
+        app.press(Action::SeedCheck(S::Keep));
+        faraday_core::testkit::keep_published(&mut app);
+        app.press(Action::Nav(faraday_core::Screen::Catalog));
+        let tile = faraday_core::catalog::TILES
+            .iter()
+            .position(|t| t.name == "My seed makes my wallet")
+            .unwrap();
+        app.press(Action::Catalog(tile as u8));
+        if shares {
+            let at = faraday_core::seed_check::FORMS
+                .iter()
+                .position(|f| *f == faraday_core::forms::Form::Slip39)
+                .unwrap();
+            app.press(Action::SeedCheck(S::Form(at as u8)));
+            for part in [SHARE_1, SHARE_2, ""] {
+                type_chars(&mut app, part);
+                app.event(Event::Key(Key::Enter));
+            }
+            app.event(Event::Back);
+        }
+        app.press(Action::SeedCheck(S::Loaded(0)));
+        app.press(Action::SeedCheck(S::Pick(Account::NativeSegwit)));
+        assert!(app.session.keys.check_facts().is_none(), "no shares read");
+        texts(&mut app)
+    };
+    assert_eq!(result(true), result(false));
+}
+
+#[test]
 fn a_seedqr_scanned_after_back_from_waiting_shares_is_the_key_checked() {
     let mut app = shares_waiting();
     app.event(Event::Back);
@@ -1383,6 +1429,17 @@ fn keep_this_key_on_a_codex32_key_keeps_the_set_s_facts_and_strings() {
     let facts = facts.expect("the set's facts are kept");
     assert_eq!(facts.threshold, 2);
     assert_eq!(facts.strings.len(), 2, "the strings typed");
+    for (i, s) in [
+        (b'a', "ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm"),
+        (b'c', "ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn"),
+    ] {
+        assert_eq!(
+            app.session.keys.codex32_reads_as(0, i, s.as_bytes()),
+            Some(true),
+            "the string at {} is kept with the key",
+            i as char
+        );
+    }
 }
 
 #[test]
@@ -1407,18 +1464,30 @@ fn leaving_drops_the_parts_and_the_shares_waiting() {
 #[test]
 fn a_codex32_secret_read_with_a_stick_in_is_refused_on_the_check() {
     let mut app = seed_card();
-    stick_in(&mut app);
     let at = faraday_core::seed_check::FORMS
         .iter()
         .position(|f| *f == faraday_core::forms::Form::Codex32)
         .unwrap();
     app.press(Action::SeedCheck(S::Form(at as u8)));
-    type_chars(&mut app, "ms10testsxxxxxxxxxxxxxxxxxxxxxxxxxx4nzvca9cmczlw");
+    // The stick comes in once the first of two strings is typed: the
+    // strings typed stay, and the set is finished with it in.
+    type_chars(&mut app, "ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm");
+    app.event(Event::Key(Key::Enter));
+    stick_in(&mut app);
+    type_chars(&mut app, "ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn");
     app.event(Event::Key(Key::Enter));
     app.event(Event::Key(Key::Enter));
     assert!(app.session.keys.check_facts().is_none(), "no key is held");
-    let shown = texts(&mut app).join(" ").to_lowercase();
-    assert!(shown.contains("stick"), "the refusal is shown: {shown}");
+    // The stick's sheet is put away to read the card under it.
+    app.press(Action::Cancel);
+    let shown = texts(&mut app).join(" ");
+    let en = &faraday_strings::EN;
+    let said = [en.medium_stick_inline, en.medium_card_or_stick_inline]
+        .map(|n| en.stick_keys_keys_load.replacen("{}", n, 1));
+    assert!(
+        said.iter().any(|l| shown.contains(l.as_str())),
+        "the check's own refusal is shown: {shown}"
+    );
 }
 
 /// The window resized to `width` × `height` px at 160 dpi.

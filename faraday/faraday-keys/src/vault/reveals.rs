@@ -1208,12 +1208,34 @@ impl OpenVaults {
         typed: &[faraday_bip::codex32::Codex32],
         label: &str,
     ) -> Option<Result<Fingerprint, Refusal>> {
+        self.codex32_with_typed_as(c, keys, typed, label, None)
+    }
+
+    /// Costs what `codex32_with_typed` costs, and a fingerprint with
+    /// `expect`. As `codex32_with_typed`, refusing before it loads anything
+    /// when the seed the strings make is not the key with fingerprint
+    /// `expect`.
+    fn codex32_with_typed_as(
+        &self,
+        c: &Compute,
+        keys: &mut Keys,
+        typed: &[faraday_bip::codex32::Codex32],
+        label: &str,
+        expect: Option<Fingerprint>,
+    ) -> Option<Result<Fingerprint, Refusal>> {
         use fv::codex32::{SetFacts, State};
         let first = typed.first()?;
         let (texts, seed, of) = match self.codex32_found(c, typed)? {
             Ok(f) => f,
             Err(e) => return Some(Err(e)),
         };
+        if let Some(e) = expect
+            && crate::identity::fingerprint_of_seed(c, &seed) != Some(e)
+        {
+            return Some(Err(Refusal::Words(Text::of(
+                faraday_strings::EN.c32_vault_other_seed,
+            ))));
+        }
         let fp = match keys.add_seed(c, &seed, label) {
             Ok(fp) => fp,
             Err(e) => return Some(Err(e)),
@@ -1260,6 +1282,26 @@ impl OpenVaults {
         let refs: Vec<&str> = texts.iter().map(|t| t.as_str()).collect();
         keys.keep_codex32(c, at, &refs);
         Some(Ok(fp))
+    }
+
+    /// Costs what `codex32_with_typed` costs. Keep this key for a check
+    /// read from codex32 strings typed fewer than `k`: the key loads, and
+    /// its set's facts and strings are kept, exactly as Add a key keeps
+    /// them for the same strings. Refused, with nothing loaded, when the
+    /// seed they make is not the key checked. `None` where the check holds
+    /// no such strings; the check is erased once the key loads.
+    pub fn check_keep_codex32(
+        &self,
+        c: &Compute,
+        keys: &mut Keys,
+        label: &str,
+    ) -> Option<Result<Fingerprint, Refusal>> {
+        let (typed, fp) = keys.check_codex32_typed()?;
+        let r = self.codex32_with_typed_as(c, keys, &typed, label, Some(fp))?;
+        if r.is_ok() {
+            keys.check_forget();
+        }
+        Some(r)
     }
 
     /// Whether open vault `id` keeps a codex32 share record of the key

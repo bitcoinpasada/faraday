@@ -6824,6 +6824,9 @@ functions = [
   "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::codex32_of_seed",
   "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::codex32_count",
   "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::codex32_with_typed",
+  "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::codex32_with_typed_as",
+  "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::check_keep_codex32",
+  "faraday/faraday-keys/src/seed_check.rs::Keys::check_codex32_typed",
   "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::codex32_seed_with_typed",
   "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::gather_codex32",
 ]

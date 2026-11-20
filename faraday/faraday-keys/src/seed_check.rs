@@ -4,7 +4,8 @@
 //! a slot of its own beside the session's keys, never one of them, used
 //! only through the public reads below, and erased by
 //! [`Keys::check_forget`] and with the session's keys. Only
-//! [`Keys::check_keep`] makes it one of the keys, as Add a key does.
+//! [`Keys::check_keep`] and `OpenVaults::check_keep_codex32` make it one
+//! of the keys, as Add a key does.
 #![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use faraday_bip::bitcoin::bip32::{DerivationPath, Xpub};
@@ -198,6 +199,21 @@ impl Keys {
                 strings.iter().map(|s| crate::texts::wiped(s)).collect(),
             ));
         }
+    }
+
+    /// The strings typed of the codex32 set the check's key was read from,
+    /// parsed, and the fingerprint of the key checked; `None` when the check
+    /// holds no codex32 strings.
+    pub(crate) fn check_codex32_typed(
+        &self,
+    ) -> Option<(Vec<faraday_bip::codex32::Codex32>, Fingerprint)> {
+        let h = self.check.as_ref()?;
+        let (_, strings) = h.codex32.as_ref()?;
+        let typed = strings
+            .iter()
+            .map(|t| faraday_bip::codex32::Codex32::parse(t.as_str()).ok())
+            .collect::<Option<Vec<_>>>()?;
+        Some((typed, h.facts.fingerprint))
     }
 
     /// Costs what `add_words_with` costs. The key the check holds becomes

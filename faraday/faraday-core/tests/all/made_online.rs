@@ -379,6 +379,52 @@ fn a_codex32_string_typed_with_made_online_shares_in_a_vault_loads_a_held_key() 
     );
 }
 
+#[test]
+fn keep_this_key_on_a_codex32_set_finished_with_an_online_share_keeps_what_add_a_key_keeps() {
+    use crate::codex32_kept::{A, C, share_record};
+    use faraday_core::seed_check::{Account, SeedAction as S};
+    let marked = || {
+        let mut c = share_record(C);
+        faraday_vault::records::mark_made_online(&mut c);
+        opened_records(vec![c], Network::Mainnet, false)
+    };
+    let mut app = marked();
+    app.press(Action::Nav(Screen::Catalog));
+    let tile = faraday_core::catalog::TILES
+        .iter()
+        .position(|t| t.name == "My seed makes my wallet")
+        .unwrap();
+    app.press(Action::Catalog(tile as u8));
+    let at = faraday_core::seed_check::FORMS
+        .iter()
+        .position(|f| *f == faraday_core::forms::Form::Codex32)
+        .unwrap();
+    app.press(Action::SeedCheck(S::Form(at as u8)));
+    type_text(&mut app, A);
+    app.event(Event::Key(faraday_shell_api::Key::Enter));
+    app.event(Event::Key(faraday_shell_api::Key::Enter));
+    app.press(Action::SeedCheck(S::Pick(Account::NativeSegwit)));
+    app.press(Action::SeedCheck(S::Keep));
+    assert_eq!(app.session.keys.len(), 1, "kept");
+    // Add a key, for the same strings.
+    let mut add = marked();
+    add.press(Action::Entry(None));
+    add.press(Action::EntryForm(2));
+    type_text(&mut add, A);
+    add.event(Event::Key(faraday_shell_api::Key::Enter));
+    assert_eq!(add.session.keys.len(), 1);
+    let (kept, added) = (&app.session.keys, &add.session.keys);
+    assert_eq!(kept[0].fingerprint, added[0].fingerprint);
+    assert!(kept.made_online(kept[0].fingerprint), "marked made online");
+    assert_eq!(
+        kept.info(0).unwrap().codex32,
+        added.info(0).unwrap().codex32
+    );
+    for (i, s) in [(b'a', A), (b'c', C)] {
+        assert_eq!(kept.codex32_reads_as(0, i, s.as_bytes()), Some(true));
+    }
+}
+
 /// A Mainnet device holding a made-online key, held, with a second empty
 /// vault open beside the first.
 fn two_vaults() -> Faraday {
