@@ -1076,6 +1076,8 @@ pub const VISIT_ROW_BUTTON_H: f32 = 32.0;
 pub const VISIT_CARD_HEAD: f32 = 62.0;
 /// Files' cards: the room under a list for the foot's buttons.
 pub const VISIT_CARD_FOOT: f32 = 88.0;
+/// Files' cards: the padding a button's label has either side of it.
+pub const VISIT_BUTTON_PAD: f32 = 36.0;
 /// Files' cards: the top of the foot's buttons above the card's bottom.
 pub const VISIT_FOOT_ROW: f32 = 62.0;
 /// Files' stick chips: how far their press box rises above the chip, to

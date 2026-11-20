@@ -1714,6 +1714,7 @@ impl Faraday {
         match action {
             Action::VisitStick(i) => {
                 self.visit.set_stick(i);
+                self.list_offset = 0.0;
                 {
                     let v = self.visit_default_in();
                     self.visit.set_inn(v);
@@ -1767,7 +1768,10 @@ impl Faraday {
             }
             Action::VisitInbox(i) => self.visit_inbox(i),
             Action::VisitBar(_) => {}
-            Action::VisitTab(c) => self.visit.set_tab_stick(c == crate::Column::Stick),
+            Action::VisitTab(c) => {
+                self.visit.set_tab_stick(c == crate::Column::Stick);
+                self.list_offset = 0.0;
+            }
             Action::VisitWrite => self.visit_write_ask(),
             Action::VisitReplace => self.visit_write(true),
             Action::VisitKeepBoth => self.visit_write(false),

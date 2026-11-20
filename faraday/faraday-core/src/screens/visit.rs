@@ -13,10 +13,10 @@ use crate::wallet::FileKind;
 use crate::{Action, Faraday};
 use faraday_draw::tokens::{
     BODY_M, BODY_S, BUTTON_H, BUTTON_PAD, GAP_SMALL, GRID, LABEL_L, LABEL_M, ROW, SHAPE_M, TITLE_M,
-    TITLE_S, TOUCH, VISIT_CARD_FOOT, VISIT_CARD_HEAD, VISIT_CHIP_EXTRA, VISIT_CHIP_PRESS_RISE,
-    VISIT_CHIP_TOP, VISIT_COMPACT_HEAD, VISIT_COUNT_GAP, VISIT_FOOT_ROW, VISIT_FOOT_TEXT_LESS,
-    VISIT_GROUP_HEAD, VISIT_LOG_H, VISIT_NAME_MIN, VISIT_NOTE_ICON, VISIT_NOTE_TEXT_X, VISIT_PAD,
-    VISIT_ROW_BUTTON_H, VISIT_TEXT_X, VISIT_TITLE_X,
+    TITLE_S, TOUCH, VISIT_BUTTON_PAD, VISIT_CARD_FOOT, VISIT_CARD_HEAD, VISIT_CHIP_EXTRA,
+    VISIT_CHIP_PRESS_RISE, VISIT_CHIP_TOP, VISIT_COMPACT_HEAD, VISIT_COUNT_GAP, VISIT_FOOT_ROW,
+    VISIT_FOOT_TEXT_LESS, VISIT_GROUP_HEAD, VISIT_LOG_H, VISIT_NAME_MIN, VISIT_NOTE_ICON,
+    VISIT_NOTE_TEXT_X, VISIT_PAD, VISIT_ROW_BUTTON_H, VISIT_TEXT_X, VISIT_TITLE_X,
 };
 use faraday_draw::widgets::Icon;
 use faraday_text::Text;
@@ -61,8 +61,16 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // The notice wraps beside its button: its band is as tall as its text.
     let notice_bw = ui.measure_as(TITLE_S, EN.unprotected_delete) + VISIT_NOTICE_BUTTON_PAD;
     let notice_w = width - notice_bw - VISIT_NOTICE_GAP;
+    // Too narrow for the text beside the button, the button stands under it.
+    let notice_under = notice_w < notice_bw;
+    let notice_w = if notice_under { width } else { notice_w };
     let notice_h = notice.as_ref().map_or(0.0, |line| {
-        (ui.wrap_height_as(BODY_M, line, notice_w) + 2.0 * GAP_SMALL).max(VISIT_NOTICE_H)
+        let text_h = ui.wrap_height_as(BODY_M, line, notice_w);
+        if notice_under {
+            text_h + BUTTON_H + GAP_SMALL + GAP_SMALL + GAP_SMALL
+        } else {
+            (text_h + 2.0 * GAP_SMALL).max(VISIT_NOTICE_H)
+        }
     });
     let end_h = if usable { end_room(app) } else { 0.0 };
     // The log's last two lines: side by side on a wide page, each wrapped
@@ -110,7 +118,13 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     // The cards end above the Scan button, which stands at the page's foot
     // (a small panel has none: its Scan button is the navigation's).
-    let fab = if compact { 0.0 } else { FAB_H + PAGE_INSET };
+    // A small panel's Scan button floats over the foot while it shows
+    // (`foot_room`), so its cards end above it too.
+    let fab = if compact && ui.foot_room <= 0.0 {
+        0.0
+    } else {
+        FAB_H + PAGE_INSET
+    };
     // The notice's button can stand over the Scan button's corner: a gap
     // keeps its press box whole.
     let scan_gap = if notice.is_some() {
@@ -118,22 +132,38 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     } else {
         0.0
     };
-    let colh = (h - y - fab - notice_h - scan_gap - end_h - log_h).max(0.0);
+    let mut colh = (h - y - fab - notice_h - scan_gap - end_h - log_h).max(0.0);
+    // On a small panel the On the stick tab that does not fit scrolls as
+    // one page: the card at the height it needs, the notice and the log
+    // after it. The tabs stay under the top app bar.
+    let mut page = None;
+    if compact && app.visit.tab_stick && stick.is_some() {
+        let needed = stick_card_needed(app, ui, (x, y, colw, colh), stick);
+        if needed > colh {
+            colh = needed;
+            let clip = ui.rect(x0, y, cw, (h - y).max(0.0));
+            page = Some(ui.region_open(Region::page(clip).from_zero(app.list_offset)));
+        }
+    }
     if !compact || !app.visit.tab_stick {
         in_faraday(app, ui, (x, y, colw, colh), usable);
     }
     if !compact || app.visit.tab_stick {
         let sx = if compact { x } else { x + colw + VISIT_GAP };
-        on_the_stick(app, ui, (sx, y, colw, colh), stick);
+        on_the_stick(app, ui, (sx, y, colw, colh), stick, page.is_some());
     }
     let foot = y + colh;
     if let Some(line) = notice {
         let label = EN.unprotected_delete;
         let ny = foot + GAP_SMALL;
-        ui.wrap_as((x, ny, notice_w), BODY_M, Role::Error, &line);
+        let text_h = ui.wrap_as((x, ny, notice_w), BODY_M, Role::Error, &line);
         ui.button(
             x + width - notice_bw,
-            ny,
+            if notice_under {
+                ny + text_h + GAP_SMALL
+            } else {
+                ny
+            },
             Some(notice_bw),
             BUTTON_H,
             label,
@@ -158,6 +188,26 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             lx += used + 24.0;
         }
     }
+    if let Some(open) = page {
+        let bottom = fy + log_h + scan_gap + fab.max(PAGE_INSET);
+        ui.region_close(open, (bottom - h).max(0.0));
+    }
+}
+
+/// The height the On the stick card needs on a small panel to show every
+/// file, Delete files and the buttons, measured by a pass that draws
+/// nothing.
+fn stick_card_needed(
+    app: &View,
+    ui: &mut Ui,
+    at: (f32, f32, f32, f32),
+    stick: Option<&crate::storage_api::StickInfo>,
+) -> f32 {
+    let clip = ui.rect(0.0, 0.0, 0.0, 0.0);
+    ui.c.push_clip(clip);
+    let needed = on_the_stick(app, ui, at, stick, true);
+    ui.c.pop_clip();
+    needed
 }
 
 /// One row of a card's list: the file, how it is tagged, and what it does.
@@ -829,7 +879,8 @@ fn on_the_stick(
     ui: &mut Ui,
     (ix, y, colw, colh): (f32, f32, f32, f32),
     stick: Option<&crate::storage_api::StickInfo>,
-) {
+    page: bool,
+) -> f32 {
     ui.card(ix, y, colw, colh, Role::OutlineVariant);
     // A small panel's tab names the card: no heading, and room above the
     // list only for the stick chips.
@@ -863,24 +914,60 @@ fn on_the_stick(
         top += ui.wrap_as((ix + 22.0, top, colw - 44.0), BODY_M, Role::Error, line) + GRID;
     }
     let Some(stick) = stick else {
-        return on_no_stick(app, ui, (ix, top, colw, y + colh - top));
+        on_no_stick(app, ui, (ix, top, colw, y + colh - top));
+        return colh;
     };
     // What pulling the stick does next, one line at the card's foot.
     let pull = pull_line(app);
     let pull_h = pull.as_ref().map_or(0.0, |_| ui.line_as(BODY_S) + GRID);
     let colh = colh - pull_h;
-    let track_h = (y + colh - top - VISIT_CARD_FOOT - BUTTON_H - GRID).max(ROW);
+    let nin = app.visit.inn.len();
+    let label = Text::fill(
+        EN.visit_import,
+        &[
+            &Text::num(nin as u64),
+            (if nin == 1 {
+                EN.visit_file
+            } else {
+                EN.visit_files
+            }),
+        ],
+    );
+    let natural_bw = ui.measure_as(TITLE_S, &label) + VISIT_BUTTON_PAD;
+    // The two buttons stand one over the other in a card too narrow for
+    // them side by side, each as wide as the card's inner width.
+    let stacked = natural_bw + import_natural_w(app, ui) + TOUCH > colw;
+    let bw = if stacked {
+        colw - 2.0 * VISIT_PAD
+    } else {
+        natural_bw
+    };
+    let load_bw = import_primary_w(app, ui, colw, stacked);
+    let foot_more = if stacked { BUTTON_H + GRID } else { 0.0 };
+    let track_raw = y + colh - top - VISIT_CARD_FOOT - BUTTON_H - GRID - foot_more;
+    let track_h = track_raw.max(ROW);
     let list_top = top;
     let total = stick.files.len();
-    let max_shift = (total as f32 * ROW - track_h).max(0.0);
+    // The height the card needs to show every row, the Delete files row
+    // and the buttons: what the small panel's page scrolls by.
+    let needed = colh + pull_h + (total as f32 * ROW).max(ROW) - track_raw;
+    let max_shift = if page {
+        0.0
+    } else {
+        (total as f32 * ROW - track_h).max(0.0)
+    };
     let shift = app.scroll.visit_in_offset().min(max_shift);
     let clip = ui.rect(ix, list_top, colw, track_h);
-    let open = ui.region_open(
-        Region::beside(crate::ui::Slot::VisitIn, clip, app.scroll.visit_in_offset())
-            .on(Role::SurfaceContainerLow)
-            .own_bar()
-            .from_zero(shift),
-    );
+    // On the small panel's scrolling page the rows stand in the page's
+    // scroll, not in a list scrolling within it.
+    let open = (!page).then(|| {
+        ui.region_open(
+            Region::beside(crate::ui::Slot::VisitIn, clip, app.scroll.visit_in_offset())
+                .on(Role::SurfaceContainerLow)
+                .own_bar()
+                .from_zero(shift),
+        )
+    });
     for (k, (name, size)) in stick.files.iter().enumerate() {
         let ry = list_top + k as f32 * ROW;
         // A row scrolled out of the list's sight is passed over.
@@ -960,17 +1047,19 @@ fn on_the_stick(
         }
         ui.rule(ix + 20.0, ry + 52.0, colw - 40.0, Role::OutlineVariant);
     }
-    ui.region_close(open, max_shift);
-    visit_list_bar(
-        app,
-        ui,
-        crate::Column::Stick,
-        (ix, colw),
-        list_top,
-        track_h,
-        total as f32 * ROW,
-        shift,
-    );
+    if let Some(open) = open {
+        ui.region_close(open, max_shift);
+        visit_list_bar(
+            app,
+            ui,
+            crate::Column::Stick,
+            (ix, colw),
+            list_top,
+            track_h,
+            total as f32 * ROW,
+            shift,
+        );
+    }
     if stick.files.is_empty() {
         let none = Text::fill(EN.visit_no_files, &[app.medium.noun()]);
         ui.text_as(
@@ -996,7 +1085,12 @@ fn on_the_stick(
     // Unselect all at the row's right end, while any file is ticked.
     // On a small panel a second grid step more, so the button's target reaches
     // the floor between the list's end and the foot.
-    let zy = y + colh - VISIT_FOOT_ROW - BUTTON_H - GRID - if ui.compact { GRID } else { 0.0 };
+    let zy = y + colh
+        - VISIT_FOOT_ROW
+        - foot_more
+        - BUTTON_H
+        - GRID
+        - if ui.compact { GRID } else { 0.0 };
     ui.button(
         ix + 20.0,
         zy,
@@ -1009,30 +1103,25 @@ fn on_the_stick(
     if !app.visit.inn.is_empty() {
         visit_unselect_all(ui, ix + colw, zy + BUTTON_H / 2.0 - 31.0);
     }
-    let nin = app.visit.inn.len();
     let enabled = nin > 0;
-    let load_bw = import_primary(
+    import_primary(
         app,
         ui,
         (ix + colw, y + colh - VISIT_FOOT_ROW),
-        colw,
+        (colw, stacked),
         enabled,
     );
-    let label = Text::fill(
-        EN.visit_import,
-        &[
-            &Text::num(nin as u64),
-            (if nin == 1 {
-                EN.visit_file
-            } else {
-                EN.visit_files
-            }),
-        ],
-    );
-    let bw = ui.measure_as(TITLE_S, &label) + 36.0;
+    let (bx, by) = if stacked {
+        (
+            ix + colw - VISIT_PAD - bw,
+            y + colh - VISIT_FOOT_ROW - foot_more,
+        )
+    } else {
+        (ix + colw - 28.0 - load_bw.0 - bw, y + colh - VISIT_FOOT_ROW)
+    };
     ui.button(
-        ix + colw - 28.0 - load_bw - bw,
-        y + colh - VISIT_FOOT_ROW,
+        bx,
+        by,
         Some(bw),
         BUTTON_H,
         &label,
@@ -1043,6 +1132,7 @@ fn on_the_stick(
         },
         Action::VisitCopy,
     );
+    needed
 }
 
 /// On the stick with no stick usable, in the body `(x, top, w, h)` of its
@@ -1128,17 +1218,41 @@ fn signed_end(app: &View) -> bool {
     app.visit.signed_end() && written_and_checked(app)
 }
 
-/// The wide page's filled button, Import and load or, with one PSBT on the
-/// stick, Import and sign it, right-aligned at `(right, y)`. Returns its
-/// width.
-fn import_primary(app: &View, ui: &mut Ui, (right, y): (f32, f32), colw: f32, on: bool) -> f32 {
+/// The width of the filled Import button in a card `colw` wide.
+/// Stacked over the other button it is the card's inner width.
+fn import_primary_w(app: &View, ui: &Ui, colw: f32, stacked: bool) -> (f32, f32) {
+    let pad = VISIT_BUTTON_PAD;
+    if stacked {
+        return (colw - 2.0 * VISIT_PAD, pad);
+    }
+    (import_natural_w(app, ui).min(colw / 2.0), pad)
+}
+
+/// The filled Import button's width for its whole label.
+fn import_natural_w(app: &View, ui: &Ui) -> f32 {
+    let sign_label = app
+        .visit
+        .sign_file()
+        .map(|n| Text::fill(EN.visit_import_and_sign, &[n]));
+    let load_label = sign_label.as_deref().unwrap_or(EN.visit_import_and_load);
+    ui.measure_as(TITLE_S, load_label) + VISIT_BUTTON_PAD
+}
+
+/// The filled button, Import and load or, with one PSBT on the stick,
+/// Import and sign it, right-aligned at `(right, y)`. Returns its width.
+fn import_primary(
+    app: &View,
+    ui: &mut Ui,
+    (right, y): (f32, f32),
+    (colw, stacked): (f32, bool),
+    on: bool,
+) -> f32 {
     let sign = app.visit.sign_file().cloned();
     let sign_label = sign
         .as_ref()
         .map(|n| Text::fill(EN.visit_import_and_sign, &[n]));
     let load_label = sign_label.as_deref().unwrap_or(EN.visit_import_and_load);
-    let pad = 36.0;
-    let load_bw = (ui.measure_as(TITLE_S, load_label) + pad).min(colw / 2.0);
+    let (load_bw, pad) = import_primary_w(app, ui, colw, stacked);
     let load_label = ui.fit_as(TITLE_S, load_label, load_bw - pad);
     ui.button(
         right - 20.0 - load_bw,

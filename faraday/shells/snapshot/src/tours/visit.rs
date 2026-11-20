@@ -175,6 +175,9 @@ fn unprotected(t: &mut Tour) -> Result<(), String> {
             t.app.settle();
         }
         scroll_to(t, Action::DeleteUnprotected);
+        // The small panel's page runs to the notice, the buttons and the log.
+        scroll(t, 5000);
+        t.app.settle();
     }
     t.shot("visit-unprotected")
 }
@@ -194,6 +197,12 @@ fn import_and_sign(t: &mut Tour) -> Result<(), String> {
         }]));
     t.press(Action::Nav(Screen::Files));
     t.shot("visit-import-and-sign")?;
+    if t.app.is_compact() {
+        // The small panel's page to its end: Delete files and both buttons.
+        scroll(t, 5000);
+        t.app.settle();
+        t.shot("visit-import-and-sign-end")?;
+    }
     t.sticks(false);
     Ok(())
 }

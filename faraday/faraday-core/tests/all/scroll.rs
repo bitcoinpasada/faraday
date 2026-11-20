@@ -309,11 +309,11 @@ fn a_small_panel_scrolls_the_files_list_by_a_finger_and_a_notch() {
         while app.poll_command().is_some() {}
     };
     let at = still.in_faraday_offset();
-    touch(&mut still, 500, TouchPhase::Down);
+    touch(&mut still, 400, TouchPhase::Down);
     assert_eq!(still.in_faraday_offset(), at, "a press there moves nothing");
-    touch(&mut still, 450, TouchPhase::Move);
-    touch(&mut still, 400, TouchPhase::Move);
-    touch(&mut still, 400, TouchPhase::Up);
+    touch(&mut still, 350, TouchPhase::Move);
+    touch(&mut still, 300, TouchPhase::Move);
+    touch(&mut still, 300, TouchPhase::Up);
     assert_eq!(still.in_faraday_offset(), at + 100.0);
 }
 

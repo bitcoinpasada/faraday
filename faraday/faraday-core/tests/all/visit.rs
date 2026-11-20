@@ -2002,3 +2002,68 @@ fn the_from_the_stick_heading_has_its_count() {
         "{boxes:?}"
     );
 }
+
+/// On the small panel the On the stick tab with an unprotected secret on
+/// the stick and many files is one page that scrolls: the Import buttons
+/// and Delete unprotected secrets are reached, and no two of its press
+/// targets overlap at any scroll.
+#[test]
+fn on_a_small_panel_the_stick_tab_scrolls_to_every_action_without_overlap() {
+    let mut app = with_stick_at(60, (480, 640, 286));
+    app.outbox.push(Item {
+        name: faraday_text::Text::of("backup-words.txt"),
+        bytes: b"words".to_vec().into(),
+        kind: faraday_core::wallet::FileKind::Words,
+        secret: true,
+        picture: None,
+        sha: None,
+        facts: None,
+        wallet: None,
+        psbt: None,
+        outpoints: Vec::new(),
+        unsigned_txid: None,
+    });
+    app.storage(StorageEvent::Written {
+        stick: faraday_text::Text::of("S"),
+        name: faraday_text::Text::of("backup-words.txt"),
+        wrote_as: faraday_text::Text::of("backup-words.txt"),
+    });
+    app.press(Action::Nav(Screen::Files));
+    app.press(Action::VisitTab(Column::Stick));
+    let _ = app.frame();
+    let actions = [
+        Action::VisitTab(Column::Outbox),
+        Action::VisitTab(Column::Stick),
+        Action::DeleteFiles,
+        Action::VisitCopy,
+        Action::VisitCopyAndLoad,
+        Action::DeleteUnprotected,
+    ];
+    let mut reached = Vec::new();
+    for _ in 0..60 {
+        let boxes: Vec<_> = actions
+            .iter()
+            .filter_map(|a| app.hit_box(*a).map(|b| (*a, b)))
+            .collect();
+        for (i, (a, b)) in boxes.iter().enumerate() {
+            reached.push(*a);
+            for (c, d) in &boxes[i + 1..] {
+                assert!(!overlaps(*b, *d), "{a:?} {b:?} overlaps {c:?} {d:?}");
+            }
+        }
+        wheel(&mut app, (240, 400), 300);
+    }
+    for a in [
+        Action::DeleteFiles,
+        Action::VisitCopy,
+        Action::VisitCopyAndLoad,
+        Action::DeleteUnprotected,
+    ] {
+        assert!(reached.contains(&a), "{a:?} was never reached");
+    }
+}
+
+/// Two boxes overlap.
+fn overlaps(a: (u16, u16, u16, u16), b: (u16, u16, u16, u16)) -> bool {
+    a.0 < b.0 + b.2 && b.0 < a.0 + a.2 && a.1 < b.1 + b.3 && b.1 < a.1 + a.3
+}

@@ -66,7 +66,10 @@ in or not, two cards from under the top app bar to the page's foot, **In
 Faraday** and **On the stick**: side by side from expanded windows up;
 on compact and medium windows primary tabs **In Faraday · On {stick}**,
 both always present; on the Pi each tab draws its column as the Pi's
-compact pages do. At the top of In Faraday's list the Inbox's summary
+compact pages do. On the small panel, an On the stick tab taller than the
+space scrolls as one page under the tabs: the card at its own height with
+every file row, then the unprotected-secrets notice and the log; the file
+list does not scroll within it. At the top of In Faraday's list the Inbox's summary
 (wallets to load, keys, backups short of parts) stands open while it is
 short; past two wallets or a few kinds it is one line, an expandable row
 with Show, and Hide folds it again. An incomplete share's row says how many
