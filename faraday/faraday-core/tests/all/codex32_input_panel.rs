@@ -630,9 +630,8 @@ fn the_card_head_stands_at_the_same_x_on_the_start_card_and_the_dice_rolls_card(
     let mut app = on_scheme(w, h, 160, true);
     let scheme = head_box(&mut app, |t| t == "Scheme");
     let mut app = on_entry(w, h, 160);
-    let rolls = head_box(&mut app, |t| {
-        t.starts_with("Share ") || t.starts_with("Secret")
-    });
+    // The step is the bar's title; the card keeps its name.
+    let rolls = head_box(&mut app, |t| t == "Characters");
     assert_eq!(scheme.0, rolls.0, "{scheme:?} {rolls:?}");
 }
 
@@ -640,9 +639,8 @@ fn the_card_head_stands_at_the_same_x_on_the_start_card_and_the_dice_rolls_card(
 fn the_input_panel_and_the_dice_column_stand_clear_of_the_card_head() {
     let (w, h) = (2560u16, 1440u16);
     let mut app = on_entry(w, h, 160);
-    let rolls = head_box(&mut app, |t| {
-        t.starts_with("Share ") || t.starts_with("Secret")
-    });
+    // The step is the bar's title; the card keeps its name.
+    let rolls = head_box(&mut app, |t| t == "Characters");
     for f in 1..=6u8 {
         let k = app.hit_box(face(f)).expect("the pad's key");
         let k = (

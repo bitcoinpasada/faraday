@@ -335,7 +335,9 @@ fn the_step_being_rolled_is_the_top_app_bars_title_while_the_page_scrolls() {
             if dpi == 286 {
                 let name: Vec<_> = texts
                     .iter()
-                    .filter(|(t, (_, y, _, bh))| (t == "Make a" || t == "new key") && in_bar(*y, *bh))
+                    .filter(|(t, (_, y, _, bh))| {
+                        (t == "Make a" || t == "new key") && in_bar(*y, *bh)
+                    })
                     .collect();
                 assert_eq!(name.len(), 2, "the bar keeps the flow's name: {texts:?}");
                 assert!(
@@ -369,7 +371,11 @@ fn the_step_being_rolled_is_the_top_app_bars_title_while_the_page_scrolls() {
             assert_eq!(at.len(), 1, "{step} drawn once at {w} × {h}: {at:?}");
             // In the bar: above its foot, 64 dp.
             let (_, (_, y, _, bh)) = at[0];
-            assert!(in_bar(*y, *bh), "{step} in the bar at {w} × {h}: {:?}", at[0]);
+            assert!(
+                in_bar(*y, *bh),
+                "{step} in the bar at {w} × {h}: {:?}",
+                at[0]
+            );
         }
     }
 }
