@@ -529,7 +529,7 @@ pub fn typed_mnemonic(lang: Language, typed: &str) -> Result<Mnemonic, Text> {
 
 /// The lists other than English that hold `word` (see
 /// [`faraday_intake::other_list_entries`]).
-pub(crate) fn other_list_entries(word: &str) -> &'static [(u8, u16)] {
+pub(crate) fn other_list_entries(word: &str) -> faraday_intake::Entries {
     faraday_intake::other_list_entries(word)
 }
 

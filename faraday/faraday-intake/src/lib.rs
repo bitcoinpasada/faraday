@@ -156,18 +156,152 @@ fn holds_extended_private_key(text: &str) -> bool {
     })
 }
 
+/// The lists a word is on, as [`other_list_entries`] gives them: at most
+/// `Entries::ROOM`, the spelled ones first.
+pub struct Entries {
+    n: u8,
+    at: [(u8, u16); Entries::ROOM],
+}
+
+impl Entries {
+    const ROOM: usize = 4;
+
+    fn push(&mut self, e: (u8, u16)) {
+        if usize::from(self.n) < Self::ROOM && !self.contains(&e) {
+            self.at[usize::from(self.n)] = e;
+            self.n += 1;
+        }
+    }
+}
+
+impl std::ops::Deref for Entries {
+    type Target = [(u8, u16)];
+    fn deref(&self) -> &[(u8, u16)] {
+        &self.at[..usize::from(self.n)]
+    }
+}
+
+/// An NFKD word of a Latin-script list without its combining marks
+/// (U+0300 to U+036F), in lower case, in `out`: its length, or `None`
+/// for a word with no mark, or that is not Latin letters and marks alone,
+/// or does not fit.
+fn unaccented(word: &str, out: &mut [u8; 24]) -> Option<usize> {
+    if word.is_ascii() {
+        return None;
+    }
+    let (mut n, mut marked) = (0, false);
+    for c in word.chars() {
+        if ('\u{0300}'..='\u{036F}').contains(&c) {
+            marked = true;
+        } else if c.is_ascii_alphabetic() {
+            *out.get_mut(n)? = c.to_ascii_lowercase() as u8;
+            n += 1;
+        } else {
+            return None;
+        }
+    }
+    marked.then_some(n)
+}
+
+/// FNV-1a of `bytes`: the keys are the published lists' words, fixed, and
+/// a lookup is made for every word of a text read, so it is kept short.
+fn fnv(bytes: &[u8]) -> u64 {
+    bytes.iter().fold(0xcbf2_9ce4_8422_2325, |h, &b| {
+        (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3)
+    })
+}
+
+/// The words of the Latin lists that have accents, by their accentless
+/// form (the form the device's typed entry and its scanner take): a bit
+/// table over the form's first three letters and length that most other
+/// words fail at once, and, built the first time a word passes it, the
+/// hashes of the forms, sorted.
+struct Accentless {
+    bits: Vec<u64>,
+    forms: std::sync::OnceLock<Vec<(u64, u8, u16)>>,
+}
+
+impl Accentless {
+    /// Whether the list `l` is read with accentless forms: the lists whose
+    /// words hold accented Latin letters, French and Spanish (the other
+    /// Latin lists spell theirs without, or with letters that are not a
+    /// letter and a mark).
+    fn reads(l: Language) -> bool {
+        matches!(l, Language::French | Language::Spanish)
+    }
+
+    /// The bit of a form's first three letters (5 bits each, as the
+    /// letters' low bits go) and length (3 bits), none for a shorter key.
+    fn bit(key: &[u8]) -> Option<usize> {
+        let [a, b, c, ..] = *key else { return None };
+        let len = key.len().clamp(3, 10) - 3;
+        Some(
+            (len << 15)
+                | (usize::from(a & 31) << 10)
+                | (usize::from(b & 31) << 5)
+                | usize::from(c & 31),
+        )
+    }
+
+    /// Notes the word `nfkd` of a list read with accentless forms.
+    fn note(bits: &mut [u64], nfkd: &str) {
+        let mut buf = [0u8; 24];
+        if let Some(n) = unaccented(nfkd, &mut buf)
+            && let Some(b) = Self::bit(&buf[..n])
+        {
+            bits[b >> 6] |= 1 << (b & 63);
+        }
+    }
+
+    fn forms(&self) -> &[(u64, u8, u16)] {
+        self.forms.get_or_init(|| {
+            let mut forms = Vec::new();
+            for (at, &l) in Language::ALL.iter().enumerate() {
+                if !Self::reads(l) {
+                    continue;
+                }
+                for i in 0..2048u16 {
+                    let mut buf = [0u8; 24];
+                    if let Some(n) = unaccented(l.word_nfkd(i), &mut buf) {
+                        forms.push((fnv(&buf[..n]), at as u8, i));
+                    }
+                }
+            }
+            forms.sort_unstable();
+            forms
+        })
+    }
+
+    /// The lists with a word whose accentless form is `key`.
+    fn of(&self, key: &[u8]) -> impl Iterator<Item = (u8, u16)> + '_ {
+        let h = fnv(key);
+        let forms = self.forms();
+        let from = forms.partition_point(|f| f.0 < h);
+        forms[from..]
+            .iter()
+            .take_while(move |f| f.0 == h)
+            .map(|f| (f.1, f.2))
+    }
+
+    /// Whether `key` may be one of the forms: its first three letters and
+    /// length are those of one.
+    fn may_hold(&self, key: &[u8]) -> bool {
+        Self::bit(key).is_some_and(|b| self.bits[b >> 6] >> (b & 63) & 1 == 1)
+    }
+}
+
 /// The lists other than English that hold `word`, as (the list's place in
 /// `Language::ALL`, the word's index), the word read as the list spells it
-/// (decomposed, or composed as it is read) and in any case. Costs one hash
-/// lookup for all lists at once (the index is built once, on first use,
-/// from the published lists). Empty for a word on no list, and for one
-/// longer than any listed word.
-pub fn other_list_entries(word: &str) -> &'static [(u8, u16)] {
+/// (decomposed, or composed as it is read) or without its accents, as the
+/// device's typed entry and its scanner take it, and in any case. Costs one
+/// hash lookup for all lists at once, and for a word that may be an
+/// accentless form a second (the index is built once, on first use, from
+/// the published lists). Empty for a word on no list, and for one longer
+/// than any listed word.
+pub fn other_list_entries(word: &str) -> Entries {
     use std::collections::HashMap;
     use std::hash::{BuildHasherDefault, Hasher};
     use std::sync::OnceLock;
-    /// FNV-1a: the keys are the published lists' words, fixed, and a
-    /// lookup is made for every word of a text read, so it is kept short.
     #[derive(Default)]
     struct Fnv(u64);
     impl Hasher for Fnv {
@@ -175,27 +309,35 @@ pub fn other_list_entries(word: &str) -> &'static [(u8, u16)] {
             self.0
         }
         fn write(&mut self, bytes: &[u8]) {
-            let mut h = if self.0 == 0 {
+            let h = if self.0 == 0 {
                 0xcbf2_9ce4_8422_2325
             } else {
                 self.0
             };
-            for &b in bytes {
-                h = (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3);
-            }
-            self.0 = h;
+            self.0 = bytes
+                .iter()
+                .fold(h, |h, &b| (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3));
         }
     }
     type Index = HashMap<&'static str, Vec<(u8, u16)>, BuildHasherDefault<Fnv>>;
-    static INDEX: OnceLock<Index> = OnceLock::new();
-    let index = INDEX.get_or_init(|| {
+    static INDEX: OnceLock<(Index, Accentless)> = OnceLock::new();
+    let (index, plain) = INDEX.get_or_init(|| {
         let mut m = Index::with_capacity_and_hasher(32768, Default::default());
+        let mut bits = vec![0u64; 1 << 12];
         for (at, &l) in Language::ALL.iter().enumerate() {
             if l == Language::English {
                 continue;
             }
             for i in 0..2048u16 {
-                for w in [l.word_nfkd(i), l.word_display(i)] {
+                let (nfkd, shown) = (l.word_nfkd(i), l.word_display(i));
+                if Accentless::reads(l) {
+                    Accentless::note(&mut bits, nfkd);
+                }
+                // A word spelled alike in both forms is entered once.
+                for w in [nfkd, shown]
+                    .into_iter()
+                    .take(if nfkd == shown { 1 } else { 2 })
+                {
                     let e = m.entry(w).or_default();
                     if !e.contains(&(at as u8, i)) {
                         e.push((at as u8, i));
@@ -203,8 +345,18 @@ pub fn other_list_entries(word: &str) -> &'static [(u8, u16)] {
                 }
             }
         }
-        m
+        (
+            m,
+            Accentless {
+                bits,
+                forms: Default::default(),
+            },
+        )
     });
+    let mut out = Entries {
+        n: 0,
+        at: [(0, 0); Entries::ROOM],
+    };
     // The word in lower case, in a buffer on the stack.
     let mut key = [0u8; 64];
     let mut n = 0;
@@ -215,15 +367,25 @@ pub fn other_list_entries(word: &str) -> &'static [(u8, u16)] {
     } else {
         for c in word.chars().flat_map(char::to_lowercase) {
             if n + c.len_utf8() > key.len() {
-                return &[];
+                return out;
             }
             n += c.encode_utf8(&mut key[n..]).len();
         }
     }
-    match std::str::from_utf8(&key[..n]) {
-        Ok(k) => index.get(k).map_or(&[], Vec::as_slice),
-        Err(_) => &[],
+    if let Ok(k) = std::str::from_utf8(&key[..n])
+        && let Some(v) = index.get(k)
+    {
+        // A word is spelled alike on a few lists at most.
+        let v = &v[..v.len().min(Entries::ROOM)];
+        out.at[..v.len()].copy_from_slice(v);
+        out.n = v.len() as u8;
     }
+    if plain.may_hold(&key[..n]) {
+        for e in plain.of(&key[..n]) {
+            out.push(e);
+        }
+    }
+    out
 }
 
 /// Costs a parse in English and in each other list that holds at least
@@ -238,7 +400,7 @@ fn words_in_any_list(c: &Compute, t: &str, words: usize) -> bool {
     }
     let mut on_list = vec![0usize; Language::ALL.len()];
     for w in t.split_whitespace() {
-        for e in other_list_entries(w) {
+        for e in other_list_entries(w).iter() {
             on_list[e.0 as usize] += 1;
         }
     }

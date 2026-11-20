@@ -2501,7 +2501,7 @@ fn words_across<'a>(parts: impl Iterator<Item = &'a str>) -> bool {
     let mut on_list = vec![0usize; Language::ALL.len()];
     for part in &parts {
         for w in part.as_str().split_whitespace() {
-            for e in crate::forms::other_list_entries(w) {
+            for e in crate::forms::other_list_entries(w).iter() {
                 on_list[e.0 as usize] += 1;
             }
         }
@@ -2574,18 +2574,24 @@ fn words_across_in(lang: Language, parts: &[Text]) -> bool {
 /// [`crate::forms::file_words`] gives them) are a seed in any list the
 /// device imports: English as typed, any other as a sentence is parsed.
 fn seed_in_words(c: &Compute, words: &str) -> bool {
-    if crate::forms::typed_mnemonic(Language::English, words).is_ok() {
-        return true;
+    seed_mnemonic(c, words).is_some()
+}
+
+/// The seed `words` hold (as [`crate::forms::file_words`] gives them) and
+/// is read in, found as [`seed_in_words`] finds it.
+pub(crate) fn seed_mnemonic(c: &Compute, words: &str) -> Option<faraday_bip::bip39::Mnemonic> {
+    if let Ok(m) = crate::forms::typed_mnemonic(Language::English, words) {
+        return Some(m);
     }
     let n = words.split_whitespace().count();
     if !matches!(n, 12 | 15 | 18 | 21 | 24) {
-        return false;
+        return None;
     }
     // One lookup per word counts it for every list; only a list that holds
     // at least half of the words is parsed.
     let mut on_list = vec![0usize; Language::ALL.len()];
     for w in words.split_whitespace() {
-        for e in crate::forms::other_list_entries(w) {
+        for e in crate::forms::other_list_entries(w).iter() {
             on_list[e.0 as usize] += 1;
         }
     }
@@ -2593,7 +2599,7 @@ fn seed_in_words(c: &Compute, words: &str) -> bool {
         .iter()
         .enumerate()
         .filter(|&(at, &l)| l != Language::English && on_list[at] * 2 >= n)
-        .any(|(_, &l)| faraday_keys::words::parse(c, l, words).is_ok())
+        .find_map(|(_, &l)| faraday_keys::words::parse(c, l, words).ok())
 }
 
 /// Costs what `classify_read` costs. Says what a file holds.
