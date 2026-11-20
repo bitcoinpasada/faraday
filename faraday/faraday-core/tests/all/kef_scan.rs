@@ -954,6 +954,15 @@ fn krux_tool() -> Faraday {
     app
 }
 
+/// The tool's reading card, the head of its steps: opened from Your
+/// choices, as it is the one step the tool opens on none of.
+fn open_read_card(app: &mut Faraday) {
+    app.press(Action::KefTool(
+        faraday_core::kef_tool::KefToolAction::Step(faraday_core::kef_tool::kstep::READ),
+    ));
+    app.settle();
+}
+
 /// Add a key, on its Krux code form.
 fn krux_form() -> Faraday {
     let mut app = testkit::started();
@@ -970,6 +979,7 @@ fn krux_form() -> Faraday {
 fn the_tool_scans_a_krux_code_and_loads_its_key() {
     let (code, pass) = vector("gcm");
     let mut app = krux_tool();
+    open_read_card(&mut app);
     assert!(has(&mut app, "Scan a Krux code"));
     assert!(has(&mut app, "From Files"));
     app.press(Action::ScanKef);
@@ -1005,6 +1015,7 @@ fn the_krux_scanner_says_a_code_that_is_none_and_stays_on() {
 fn the_tool_takes_a_krux_code_from_files() {
     let (code, pass) = vector("gcm");
     let mut app = krux_tool();
+    open_read_card(&mut app);
     testkit::inbox_file(&mut app, "krux.kef", code);
     assert!(has(&mut app, "From Files · krux.kef"));
     app.press(Action::KefFile(0));
@@ -1346,6 +1357,7 @@ fn a_krux_code_from_files_on_the_seed_card_gives_the_fingerprint_of_the_words_ty
     use faraday_core::seed_check::SeedAction as S;
     let mut app = check_krux();
     let code = sealed_raw(&mut app, WORDS);
+    open_read_card(&mut app);
     testkit::inbox_file(&mut app, "krux.kef", code);
     assert!(has(&mut app, "From Files · krux.kef"));
     app.press(Action::KefFile(0));

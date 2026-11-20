@@ -83,25 +83,32 @@ fn done(app: &Faraday) -> bool {
     app.backup_item_done_now(&testkit::compute(), Item::KefCode(0))
 }
 
-/// The status the item's row reads once the card is put away, the card
-/// opened again after. A checked code moves the flow on to its next step
-/// and Your choices then says only Done, so the status is read from the
-/// card opened again.
+/// The status of the item's code, as the checklist and its card say it:
+/// the checklist and the row of Your choices read Checked and Done once the code is checked, and the
+/// card opened again offers the Make step of a code not made and the
+/// Code step, with its check, of one made and not checked. A checked code
+/// moves the flow on to its next step.
 fn status(app: &mut Faraday) -> &'static str {
-    let read = |app: &mut Faraday| {
-        let texts = crate::common::texts(app);
-        let row = texts.iter().position(|t| t.starts_with("Krux code of"))?;
-        ["Not made", "Not checked", "Checked"]
-            .into_iter()
-            .find(|s| texts[row + 1..].iter().take(3).any(|t| t == s))
-    };
     if app.backup().and_then(|b| b.open) == Some(Item::KefCode(0)) {
         app.press(Action::BStep(Item::KefCode(0)));
     }
-    let closed = read(app);
+    let texts = crate::common::texts(app);
+    let checked = texts
+        .windows(2)
+        .any(|w| w[0].starts_with("Krux code of") && (w[1] == "Done" || w[1] == "Checked"));
     open_item(app, Item::KefCode(0));
     app.settle();
-    closed.or_else(|| read(app)).unwrap_or("none")
+    let card = crate::common::texts(app);
+    let has = |t: &str| card.iter().any(|c| c == t);
+    if checked {
+        "Checked"
+    } else if has("Make the code") {
+        "Not made"
+    } else if has("Check my code") || has("Scan my copy") {
+        "Not checked"
+    } else {
+        "none"
+    }
 }
 
 fn type_in(app: &mut Faraday, text: &str) {

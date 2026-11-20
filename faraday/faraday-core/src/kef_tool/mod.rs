@@ -531,7 +531,12 @@ pub(crate) static KEF_TOOL_STEPS: KefToolSteps = KefToolSteps;
 impl crate::trail::StepFlow for KefToolSteps {
     fn steps(&self, app: &Faraday) -> Option<crate::trail::Steps> {
         let s = state(app)?;
-        let mut steps = crate::trail::Steps::new((0..kstep::COUNT as u8).collect(), s.open);
+        // The reading card leads, above the steps that make a code.
+        let order = std::iter::once(kstep::READ)
+            .chain(0..kstep::COUNT as u8)
+            .collect();
+        let mut steps = crate::trail::Steps::new(order, s.open);
+        steps.first = Some(kstep::CONTENTS);
         steps.answered = (0..kstep::COUNT as u8)
             .filter(|&k| s.done[usize::from(k)])
             .collect();
@@ -556,7 +561,8 @@ impl crate::flow::Contained for KefToolSteps {
         let Some(s) = state(app) else {
             return Vec::new();
         };
-        (0..kstep::COUNT as u8)
+        std::iter::once(kstep::READ)
+            .chain(0..kstep::COUNT as u8)
             .map(|k| {
                 let said = screen::summary(app, s, k);
                 crate::flow::Row {
@@ -576,6 +582,10 @@ impl crate::flow::Contained for KefToolSteps {
 
     fn count_fixed(&self, _: &Faraday) -> bool {
         true
+    }
+
+    fn heads(&self, _: &Faraday) -> usize {
+        1
     }
 }
 
