@@ -337,8 +337,8 @@ const SIGN: Table = &[
     ),
     (
         Work::FullCanvas,
-        4,
-        "the spend moves to its next page and fades from the frame before: one copy, blended on each frame after",
+        9,
+        "the spend moves to its next step and the step fades through the surface: one copy, then each frame after blends twice, the page outside the card's place and the card's place (2, 2, 2 and 2 on the four frames after the press, counted by a print of the work after each frame)",
     ),
 ];
 

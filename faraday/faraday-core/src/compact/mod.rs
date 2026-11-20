@@ -220,6 +220,10 @@ fn back_end(ui: &Ui) -> f32 {
     GAP_SMALL + ui.touch
 }
 
+/// What the page's name keeps of the bar's first line beside the mode pill
+/// before another tool goes into the overflow menu: room for a word.
+const NAME_BESIDE_PILL: f32 = 80.0;
+
 /// The tools at the bar's right end, each Material's icon button in a
 /// touch target or, for Cancel, its text button: the ? when the page has
 /// something in the guide, the keyboard where the page types, the codex32 eye
@@ -233,6 +237,11 @@ fn tools(app: &View, ui: &mut Ui, w: f32) -> f32 {
     let steps = [
         full,
         Overflow { help: true, ..full },
+        Overflow {
+            choices: true,
+            help: true,
+            ..full
+        },
         Overflow {
             choices: true,
             help: true,
@@ -256,8 +265,9 @@ fn tools(app: &View, ui: &mut Ui, w: f32) -> f32 {
         out = o;
         // The pill stands at the end of the first line, left of the tools:
         // they leave it its room before Back's target.
-        if screen::measured(ui, |ui| tools_from(app, ui, w, o)) >= back_end(ui) + pill_room(app, ui)
-        {
+        let pill = pill_room(app, ui);
+        let name = if pill > 0.0 { NAME_BESIDE_PILL } else { 0.0 };
+        if screen::measured(ui, |ui| tools_from(app, ui, w, o)) >= back_end(ui) + pill + name {
             break;
         }
     }

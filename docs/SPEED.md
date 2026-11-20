@@ -470,7 +470,7 @@ secret is drawn twice and the second frame works out nothing (F195):
   | Unlock to the Load sheet | `Kdf` 5 (Argon2id 1; PBKDF2 for the vault's seed and the three seed files Files shows under the sheet); `MasterKey` 4; `WordsParse` 6 (the vault's reader checks the seed's words once; the app reads them twice more); `FileHash` 3 (the vault seed's words and master id, and the opened slot once for the seal count's digest); `DescriptorParse` 24 (11 wallet records read twice, once by the vault's reader and once for the app's kept description; the kept wallet text once; the share sheets' config once); `Blur` 1; `FullCanvas` 5 |
   | Load ticked | `WordsParse` 2, `Kdf` 1, `MasterKey` 1, `FileHash` 1 (the seed loaded); `Address` 1 and `WalletMatch` 12 (Wallets' cards, kept); `FullCanvas` 5; no description parsed |
   | a PSBT opened to its review | `PsbtParse` 1, `PsbtInspect` 1, `WalletMatch` 1, `FullCanvas` 5 |
-  | Sign here (Savings, both seeds) | `Sign` 1; `PsbtInspect` 2 (the signing's own, the signed PSBT's); `PsbtParse` 1 and `DescriptorParse` 1 (the two results classified as they come into the Outbox); `FullCanvas` 4 |
+  | Sign here (Savings, both seeds) | `Sign` 1; `PsbtInspect` 2 (the signing's own, the signed PSBT's); `PsbtParse` 1 and `DescriptorParse` 1 (the two results classified as they come into the Outbox); `FullCanvas` 9 (the step fades through the surface: one copy, then two blends on each frame after) |
 
 - **Kept values follow** (`work/kept.rs`): a PSBT waiting in Files is
   offered on its wallet's card once that wallet loads; a spend opened
