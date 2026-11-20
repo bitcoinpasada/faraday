@@ -266,7 +266,13 @@ fn tools(app: &View, ui: &mut Ui, w: f32) -> f32 {
         // The pill stands at the end of the first line, left of the tools:
         // they leave it its room before Back's target.
         let pill = pill_room(app, ui);
-        let name = if pill > 0.0 { NAME_BESIDE_PILL } else { 0.0 };
+        // Only the choices and the ? go for the name's room: the keyboard
+        // and the eye, which hides a shown secret, stay for the pill's.
+        let name = if pill > 0.0 && !o.keyboard {
+            NAME_BESIDE_PILL
+        } else {
+            0.0
+        };
         if screen::measured(ui, |ui| tools_from(app, ui, w, o)) >= back_end(ui) + pill + name {
             break;
         }
