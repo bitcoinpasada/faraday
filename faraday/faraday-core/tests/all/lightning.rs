@@ -560,6 +560,20 @@ fn the_aezeed_words_take_no_typing_with_a_stick_attached() {
     assert_eq!(app.toast_text(), Some(STICK_LINE));
 }
 
+/// With a stick attached the passphrase takes no key either, and the
+/// screen says keys load only with no stick attached.
+#[test]
+fn the_aezeed_passphrase_takes_no_typing_with_a_stick_attached() {
+    let mut app = test_started();
+    attach_stick(&mut app);
+    app.press(Action::Lightning);
+    app.press(Action::LAezeed);
+    app.press(Action::LPassphrase);
+    typed(&mut app, "hunter2");
+    assert_eq!(app.lightning().unwrap().passphrase.as_str(), "");
+    assert_eq!(app.toast_text(), Some(STICK_LINE));
+}
+
 /// Words and a passphrase typed, then a stick arrives: both are empty.
 #[test]
 fn a_stick_arriving_empties_the_aezeed_words_and_passphrase() {
