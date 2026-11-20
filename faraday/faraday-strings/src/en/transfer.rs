@@ -44,8 +44,6 @@ macro_rules! words_transfer {
     transfer_text_paste: "Paste",
     /// Button in `send_text`.
     transfer_text_clear: "Clear",
-    /// Button in `send_text`.
-    transfer_text_show: "Show as QR",
     /// Title of the QR sheet of a text sent.
     transfer_text_sheet_title: "Text",
     /// Refusal under the field when the whole text is a secret. `{}`: the

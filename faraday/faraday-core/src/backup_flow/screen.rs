@@ -1373,7 +1373,7 @@ pub(super) fn result_rows(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f3
     let buttons = |ui: &mut Ui, cy: f32, code: crate::Code| -> f32 {
         let mut bx = x;
         for (label, action) in [
-            (FEN.vault_show_as_qr, Action::ShowCode(code)),
+            (FEN.show_as_qr, Action::ShowCode(code)),
             ("PNG", Action::CodePng(code)),
         ] {
             let bw = ui.measure_as(LABEL_L, label) + 30.0;

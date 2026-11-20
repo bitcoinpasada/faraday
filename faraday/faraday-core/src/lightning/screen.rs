@@ -222,11 +222,7 @@ fn body(
     // (`docs/QR.md` §7.1).
     let code = crate::Code::NodeId;
     let codes = [
-        (
-            EN.lightning_show_as_qr,
-            Style::Secondary,
-            Action::ShowCode(code),
-        ),
+        (EN.show_as_qr, Style::Secondary, Action::ShowCode(code)),
         (EN.lightning_png, Style::Secondary, Action::CodePng(code)),
     ];
     y += button_rows(ui, vx, y, vw, &codes) + T::GAP;

@@ -102,8 +102,6 @@ macro_rules! words_decode {
     decode_load_a_wallet: "Load a wallet",
     /// Text in `decode_screen`.
     decode_show_the_hex: "Show the hex",
-    /// Text in `decode_screen`.
-    decode_show_as_qr: "Show as QR",
     /// Line in `decode_landing`.
     decode_no_transaction_waits: "No transaction waits in Files",
     /// Line in `decode_landing`: the files to choose from.

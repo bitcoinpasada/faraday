@@ -392,8 +392,6 @@ macro_rules! words_psbt_refusal {
     step_waiting: "Waiting",
     /// Text in `step_body`. `{}`: `name`.
     step_add_source: "Add from {}",
-    /// Text in `step_body`.
-    step_show_as_qr: "Show as QR",
     /// Button in `step_body`.
     step_go_first_share: "Go first: share this device's nonce",
     /// Text in `step_body`. `{}`: `k + 1`.

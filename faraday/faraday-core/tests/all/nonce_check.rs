@@ -1589,7 +1589,7 @@ fn a_final_input_whose_output_cannot_be_read_offers_nothing_to_carry_on() {
             EN.nonce_screen_more_wanted,
             EN.nonce_screen_refused,
             EN.vault_save_to_a_stick,
-            EN.step_show_as_qr,
+            EN.show_as_qr,
         ] {
             assert!(!shown.contains(offer), "{how}: {offer}");
         }
@@ -1607,7 +1607,7 @@ fn a_final_input_whose_output_cannot_be_read_offers_nothing_to_carry_on() {
     assert!(!o.check.refused(o.finished.is_some()));
     let shown = raw.drawn_texts().join(" | ");
     assert!(shown.contains(EN.vault_save_to_a_stick), "{shown}");
-    assert!(shown.contains(EN.step_show_as_qr), "{shown}");
+    assert!(shown.contains(EN.show_as_qr), "{shown}");
     // A PSBT with no final input stays offered, and both offers work.
     let mut app = with_inbox(vec![("t.psbt", signed_elsewhere(How::LowR).to_bytes())]);
     let o = checked(&mut app);
@@ -1615,7 +1615,7 @@ fn a_final_input_whose_output_cannot_be_read_offers_nothing_to_carry_on() {
     assert!(!o.check.refused(o.finished.is_some()));
     let shown = app.drawn_texts().join(" | ");
     assert!(shown.contains(EN.vault_save_to_a_stick), "{shown}");
-    assert!(shown.contains(EN.step_show_as_qr), "{shown}");
+    assert!(shown.contains(EN.show_as_qr), "{shown}");
     app.press(Action::NonceCheck(CheckPress::Qr));
     assert_eq!(app.sheet, Some(Sheet::Qr), "the QR sheet opens");
 }

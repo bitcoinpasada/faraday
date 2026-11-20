@@ -2720,10 +2720,7 @@ fn sign_pane(
         // the file by its hash, not its place in the Inbox.
         let prefix: [u8; 8] = f.hash[..8].try_into().unwrap_or([0; 8]);
         let buttons = [
-            (
-                EN.vault_show_as_qr,
-                Action::ShowCode(Code::GpgSignature(prefix)),
-            ),
+            (EN.show_as_qr, Action::ShowCode(Code::GpgSignature(prefix))),
             ("PNG", Action::CodePng(Code::GpgSignature(prefix))),
         ];
         let signed_w = if signed {
@@ -3091,7 +3088,7 @@ fn wallet_rows(app: &View, ui: &mut Ui, r: RecordView<'_>, rows: &mut Rows) {
         },
         va(V::ToggleLoad),
     ));
-    rows.actions.push((EN.vault_show_as_qr, va(V::WalletQr)));
+    rows.actions.push((EN.show_as_qr, va(V::WalletQr)));
     rows.actions
         .push((EN.vault_save_to_a_stick, va(V::SaveToStick)));
 }
@@ -3153,7 +3150,7 @@ fn sheet_rows(ui: &mut Ui, r: RecordView<'_>, rows: &mut Rows) {
     }
     // Its descriptor as a code and as a picture (`docs/QR.md` §7.1).
     rows.actions
-        .push((EN.vault_show_as_qr, Action::ShowCode(Code::VaultSheet)));
+        .push((EN.show_as_qr, Action::ShowCode(Code::VaultSheet)));
     rows.actions
         .push(("PNG", Action::CodePng(Code::VaultSheet)));
 }
@@ -3278,7 +3275,7 @@ fn gpg_rows(app: &View, ui: &mut Ui, v: &vault::OpenVault, r: RecordView<'_>, ro
         rows.breaks.push(rows.actions.len());
     }
     rows.actions
-        .push((EN.vault_show_as_qr, Action::ShowCode(Code::GpgKey)));
+        .push((EN.show_as_qr, Action::ShowCode(Code::GpgKey)));
     rows.actions.push(("PNG", Action::CodePng(Code::GpgKey)));
     rows.breaks.push(rows.actions.len());
     rows.actions

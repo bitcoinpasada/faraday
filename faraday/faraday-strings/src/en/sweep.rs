@@ -62,8 +62,6 @@ macro_rules! words_sweep {
     sweep_signed_final: "Signed {} inputs. The transaction is in Files, For the stick",
     /// After signing, not finished. `{}`: how many inputs.
     sweep_signed_part: "Signed {} inputs. The PSBT is in Files, For the stick",
-    /// The button that shows what was signed as a QR code.
-    sweep_show_qr: "Show as QR",
     /// The QR view's title for the swept transaction.
     sweep_qr_transaction: "Swept transaction",
     /// The QR view's title for the swept PSBT.

@@ -951,7 +951,7 @@ fn the_entry_follows_show_as_qr_on_a_file_for_the_stick_and_checks_the_pair() {
         .iter()
         .position(|w| w == EN.catalog_check_a_signer)
         .unwrap_or_else(|| panic!("{words:?}"));
-    if let Some(qr) = words.iter().position(|w| w == EN.files_show_as_qr) {
+    if let Some(qr) = words.iter().position(|w| w == EN.show_as_qr) {
         assert_eq!(at, qr + 1, "{words:?}");
     }
     app.press(Action::Cancel);

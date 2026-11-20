@@ -229,7 +229,7 @@ fn send_text(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         ));
     }
     buttons.push((
-        EN.transfer_text_show,
+        EN.show_as_qr,
         Style::Primary.when(card.sendable().is_some()),
         Action::TransferText(TextPress::Show),
     ));

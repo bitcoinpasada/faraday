@@ -100,8 +100,6 @@ macro_rules! words_screens_files {
     /// Text in `files`.
     files_make_pdf: "Make PDF",
     /// Text in `files`.
-    files_show_as_qr: "Show as QR",
-    /// Text in `files`.
     files_remove: "Remove",
     /// Text in `files`: the ⋮ menu's last choice on a file no stick holds.
     files_delete: "Delete",

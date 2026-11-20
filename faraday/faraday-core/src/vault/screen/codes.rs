@@ -80,7 +80,7 @@ pub(super) fn entry_code_row(app: &View, ui: &mut Ui, dx: f32, y: f32) -> (f32, 
 /// height used. It stands close under the box it belongs to, in the gap
 /// a secret row leaves after itself.
 pub(super) fn totp_qr_button(ui: &mut Ui, dx: f32, dy: f32) -> f32 {
-    let label = EN.vault_show_as_qr;
+    let label = EN.show_as_qr;
     let a = va(V::TotpQr);
     let y = dy - tokens::GAP;
     ui.button(dx, y, None, BUTTON_H, label, Style::Secondary, a);
@@ -91,7 +91,7 @@ pub(super) fn totp_qr_button(ui: &mut Ui, dx: f32, dy: f32) -> f32 {
 /// shows, as one code on the sheet marked Secret (`docs/GPG-PAPERKEY.md`
 /// §12). Returns the height used, as `totp_qr_button`.
 pub(super) fn paperkey_qr_button(ui: &mut Ui, dx: f32, dy: f32) -> f32 {
-    let label = EN.vault_show_as_qr;
+    let label = EN.show_as_qr;
     let a = va(V::PaperkeyQr);
     let y = dy - tokens::GAP;
     ui.button(dx, y, None, BUTTON_H, label, Style::Secondary, a);

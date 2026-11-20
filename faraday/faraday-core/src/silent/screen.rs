@@ -152,7 +152,7 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
             ) + 12.0;
             let row = vec![
                 (
-                    EN.silent_show_as_qr.to_string(),
+                    EN.show_as_qr.to_string(),
                     Style::Secondary,
                     Action::SQr(false),
                 ),
@@ -196,7 +196,7 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
                 + faraday_draw::tokens::SILENT_LINE_GAP;
             let row = vec![
                 (
-                    EN.silent_show_as_qr.to_string(),
+                    EN.show_as_qr.to_string(),
                     Style::Secondary,
                     Action::SQr(false),
                 ),

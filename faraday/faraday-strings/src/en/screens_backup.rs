@@ -271,8 +271,6 @@ macro_rules! words_screens_backup {
     item_action_make: "Make it",
     /// Text in `item_action`.
     item_action_make_them: "Make them",
-    /// Text in `item_action`.
-    item_action_show_as: "Show as QR",
     // ----- vault_item (faraday-core/src/screens/backup.rs) -----
     /// Text in `vault_item`. `{}`: `o.name`.
     vault_item_holds_another: "{} holds another vault's seed",
@@ -344,8 +342,6 @@ macro_rules! words_screens_backup {
     /// Line in `kept_rows`.
     kept_rows_keys: "Keys",
     // ----- public_files (faraday-core/src/screens/backup.rs) -----
-    /// Text in `public_files`.
-    public_files_show_as: "Show as QR",
     /// Text in `public_files`.
     public_files_descriptor: "Descriptor",
     /// Text in `public_files`.

@@ -413,7 +413,7 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                         w,
                         BUTTON_H,
                         &[
-                            (EN.message_show_as_qr, Style::Secondary, Action::MQr),
+                            (EN.show_as_qr, Style::Secondary, Action::MQr),
                             (&png, Style::Secondary, Action::CodePng(Code::Message)),
                         ],
                     ) + 4.0;

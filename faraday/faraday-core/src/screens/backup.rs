@@ -1785,10 +1785,7 @@ fn item_action(app: &View, n: Item) -> (String, Action) {
         Item::Sheets if split => (EN.item_action_make_them.to_string(), Action::BOut(4)),
         Item::Sheets => (EN.item_action_make.to_string(), Action::BOut(3)),
         Item::PublicFiles => (EN.item_action_make_them.to_string(), Action::BFilesMake),
-        Item::ShowDescriptor => (
-            EN.item_action_show_as.to_string(),
-            Action::QrWallet(b.wallet),
-        ),
+        Item::ShowDescriptor => (EN.show_as_qr.to_string(), Action::QrWallet(b.wallet)),
         Item::Envelopes => next,
     }
 }
@@ -2622,7 +2619,7 @@ fn public_files(
     };
     let stem = crate::file_stem(&wl.name);
     let stem = stem.as_str();
-    let codes = |show: Action, png: Action| vec![(EN.public_files_show_as, show), ("PNG", png)];
+    let codes = |show: Action, png: Action| vec![(EN.show_as_qr, show), ("PNG", png)];
     let mut rows: Vec<FileRow<String>> = vec![
         (
             EN.public_files_descriptor.to_string(),

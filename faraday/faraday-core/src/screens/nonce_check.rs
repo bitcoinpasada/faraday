@@ -97,7 +97,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     if !wrong {
         items.push((
-            EN.step_show_as_qr,
+            EN.show_as_qr,
             Style::Secondary,
             Action::NonceCheck(crate::decode::CheckPress::Qr),
         ));

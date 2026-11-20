@@ -476,8 +476,6 @@ macro_rules! words_vault {
     /// Text in `detail`.
     vault_revocation_certificate: "Revocation certificate",
     /// Text in `detail`.
-    vault_show_as_qr: "Show as QR",
-    /// Text in `detail`.
     vault_sign_a_file: "Sign a file",
     /// Label in `detail`.
     vault_owner_guid: "Owner GUID",

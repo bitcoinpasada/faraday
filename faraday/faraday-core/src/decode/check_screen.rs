@@ -382,7 +382,7 @@ fn result(s: &CheckState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     let mut actions = Vec::new();
     if shown.qr {
         actions.push((
-            EN.decode_show_as_qr.to_string(),
+            EN.show_as_qr.to_string(),
             Style::Secondary,
             Action::SignerCheck(SignerPress::Qr),
         ));

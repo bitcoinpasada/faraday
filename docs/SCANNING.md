@@ -39,6 +39,23 @@ function for what it reads (`Faraday::scanned` in
 | `Transfer` | Transfer's **Scan with the camera** (Faraday Demo only) | "Receive into Downloads" | Paste, Cancel |
 | `GpgPublic` | Restore a GPG key's **Scan the public key** (`docs/GPG-PAPERKEY.md` §3) | "Scan the public key" | Paste (desktop), Cancel |
 | `GpgPaperkey` | a GPG restore's step 4, **Scan the paperkey**, while no line is checked (`docs/GPG-PAPERKEY.md` §4.5) | "Scan the paperkey" | Cancel |
+| `CheckConvert(fp, compact)` | Convert a seed's **Scan** of the hand-drawn SeedQR (or CompactSeedQR) copy of the result, for the key with that fingerprint (`docs/SEED-CONVERSION.md` §6) | "Scan your copy" | Cancel |
+| `CheckKef(i)` | the backup checklist's **Scan** on seed `i`'s Krux code item (`docs/KEF.md` §15.1) | "Scan your copy" | Cancel |
+| `OtsHeader` | Check a timestamp's **Scan** on the block header: its 80 bytes or their hex | "Scan a block header" | Paste (desktop), Cancel |
+| `OtsFileHash` | Check a timestamp's **Scan** on the file's hash: 64 hex characters | "Scan the file's SHA-256" | Paste (desktop), Cancel |
+| `MultisigSetup` | Check a multisig setup's **Scan**: a descriptor, a policy or a setup file | "Scan the wallet's setup" | Paste (desktop), Cancel |
+| `Sweep` | the Sweep sheet's **Scan**: a private key, then the sweep's PSBT | "Sweep a private key" | Paste (desktop), Cancel |
+| `CheckSent` | Check a signer's **Scan** on the Sent card: a PSBT or a finished transaction | "Scan the PSBT sent" | Paste (desktop), Cancel |
+| `CheckReturned` | Check a signer's **Scan** on the Returned card | "Scan the PSBT returned" | Paste (desktop), Cancel |
+| `MessageText` | Sign a message's **Scan**: plain text for the message | "Scan the message" | Paste (desktop), Cancel |
+| `ToolText` | Convert an xpub's, Descriptor checksum's and Miniscript's **Scan**: plain text for the field | "Scan the text" | Paste (desktop), Cancel |
+| `Kef` | **Scan a Krux code** on the Krux tool, on Add a key's Krux code form and on New key's Start card | "Scan a QR code" | Cancel |
+| `SeedCompare` | My seed makes my wallet's **Compare with the wallet app's**: a key, an address or a wallet | "Scan a QR code" | Paste (desktop), Cancel |
+
+A `CheckSent`, `CheckReturned`, `MessageText`, `ToolText`, `Sweep`,
+`SeedCompare`, `OtsHeader`, `OtsFileHash` or `MultisigSetup` scanner files
+nothing, and a scanner for a copy (`CheckCopy`, `CheckConvert`,
+`CheckCodex32`, `CheckKef`) compares and never loads.
 
 Ways in that are not the camera: Paste on Faraday Demo
 (`Faraday::pasted`, routed as a scan after `pasted_secret`); a PNG on a
@@ -69,6 +86,7 @@ of key forms (`docs/KEY-FORMS.md` §3.3), not listed by each scanner.
 | CompactSeedQR | 16 or 32 bytes that no text kind takes, valid UTF-8 or not, as SeedSigner and Krux read them (`faraday_codec::classify::is_compact_seedqr`, the one rule the classifier and the seed readers share); 16 or 32 bytes of text that is an address, a descriptor, another kind above or an `otpauth://` or `title:` entry stay text | yes |
 | Words that fail their checksum | 12 to 24 words of a BIP-39 list, checksum failing: a mistyped seed, an Electrum seed | yes |
 | LND aezeed | 24 words of the English list whose BIP-39 checksum fails and whose own version byte and CRC-32C hold | yes |
+| Krux encrypted code (§2) | not filed. On a scanner for anything (the `Files` purpose) the read card shows its header and offers **Open**, which asks its passphrase on its own sheet, and **Not encrypted**, which treats it as the unknown code it may be. The seed it holds goes where a SeedQR read by that scanner goes: Restore's slots and Create's key slot take it, a wallet's Scan a key matches it to a missing key, What do you have? takes it into the intake, and Home's Scan and Add a key's Scan a SeedQR take it to the seed sheet. The `Kef` scanner (**Scan a Krux code**) takes only a Krux code: the camera closes and the sheet asks the passphrase, and anything else is named on the scanner ("That is not a Krux code"), which stays on |
 | Seed XOR part | a valid BIP-39 mnemonic; nothing tells it from a whole seed | yes |
 | codex32 secret | a codex32 string with share index `s` | yes |
 | codex32 share | a codex32 string with another index | yes |

@@ -252,7 +252,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             Style::Secondary,
             Action::DecodeHex,
         ));
-        buttons.push((EN.decode_show_as_qr, Style::Secondary, Action::QrDecoded));
+        buttons.push((EN.show_as_qr, Style::Secondary, Action::QrDecoded));
     }
     // With no wallet loaded no output can be checked as change: the way
     // to load one, which comes back here.

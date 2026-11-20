@@ -435,7 +435,7 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         (Some(_), _, Some(_)) => vec![
             done,
             (
-                EN.sweep_show_qr,
+                EN.show_as_qr,
                 Style::Primary,
                 Action::Sweep(SweepAction::ShowQr),
             ),

@@ -334,7 +334,7 @@ impl Faraday {
                     out.push((EN.files_make_pdf.to_string(), Action::PdfOutbox(k)));
                 }
                 if crate::qr_fits(item) {
-                    out.push((EN.files_show_as_qr.to_string(), Action::QrOutbox(k)));
+                    out.push((EN.show_as_qr.to_string(), Action::QrOutbox(k)));
                 }
                 if matches!(item.kind, FileKind::Psbt | FileKind::Transaction) {
                     out.push((

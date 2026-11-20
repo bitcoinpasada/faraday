@@ -86,8 +86,6 @@ macro_rules! words_silent {
     /// Text in `card`.
     silent_no_label: "No label",
     /// Text in `card`.
-    silent_show_as_qr: "Show as QR",
-    /// Text in `card`.
     silent_as_a_bitcoin: "As a bitcoin: link",
     /// Text in `card`. `{}`: `app.medium.for_the()`.
     silent_record: "Record {}",

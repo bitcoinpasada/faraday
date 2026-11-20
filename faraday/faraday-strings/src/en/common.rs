@@ -511,8 +511,6 @@ macro_rules! words_common {
     code_view_no_node: "No node key on show",
     /// Error in `code_view`: no recovery sheet is selected.
     code_view_no_sheet: "No recovery sheet is selected",
-    /// The Lightning node id's button: its QR sheet.
-    lightning_show_as_qr: "Show as QR",
     /// The Lightning node id's button: its labelled picture, for the stick.
     lightning_png: "PNG",
     /// The node's kind on its picture, for a node read from an aezeed.
@@ -1025,8 +1023,8 @@ macro_rules! words_common {
     message_png: "PNG {}",
     /// Row in `message_body`.
     message_signed_message: "Signed message",
-    /// Text in `message_body`.
-    message_show_as_qr: "Show as QR",
+    /// The button that shows a file, a message, a code or a key as a QR code, wherever one is offered.
+    show_as_qr: "Show as QR",
     // ----- check (faraday-core/src/screens/check_message.rs) -----
     /// Line in `check_screen`.
     check_wallets: "Wallets",

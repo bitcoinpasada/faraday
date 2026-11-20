@@ -200,7 +200,7 @@ fn a_key_reusing_a_nonce_on_another_transaction_is_refused_and_nothing_is_offere
     assert!(text.contains(&check.used_before[0].name), "{text}");
     assert!(text.contains("nonce used before, on another"), "{text}");
     assert!(!text.contains(EN.vault_save_to_a_stick), "{text}");
-    assert!(!text.contains(EN.step_show_as_qr), "{text}");
+    assert!(!text.contains(EN.show_as_qr), "{text}");
     assert!(!text.contains(EN.nonce_history_clean), "{text}");
 }
 
@@ -579,7 +579,7 @@ fn the_decode_screen_offers_no_hex_and_no_code_once_the_check_refuses() {
     assert_eq!(app.screen, Screen::Decode);
     let text = shown(&mut app);
     assert!(text.contains(EN.decode_show_the_hex), "{text}");
-    assert!(text.contains(EN.decode_show_as_qr), "{text}");
+    assert!(text.contains(EN.show_as_qr), "{text}");
     let hex = app.decode().unwrap().decoded.hex.clone();
     nonce_history_on(&mut app, true);
     // The hex was asked for before the history turned on.
@@ -587,7 +587,7 @@ fn the_decode_screen_offers_no_hex_and_no_code_once_the_check_refuses() {
     let text = shown(&mut app);
     assert!(!text.contains(EN.decode_show_the_hex), "{text}");
     assert!(!text.contains(EN.decode_hide_the_hex), "{text}");
-    assert!(!text.contains(EN.decode_show_as_qr), "{text}");
+    assert!(!text.contains(EN.show_as_qr), "{text}");
     assert!(!text.contains(&hex[..16]), "the hex is not shown");
 }
 
@@ -1251,7 +1251,7 @@ fn a_decode_opened_from_the_spend_offers_no_hex_and_no_code_once_the_spend_is_he
     app.press(Action::DecodeFinished);
     assert_eq!(app.screen, Screen::Decode);
     let text = shown(&mut app);
-    assert!(text.contains(EN.decode_show_as_qr), "{text}");
+    assert!(text.contains(EN.show_as_qr), "{text}");
     // The history now holds the nonce.
     let own = nonce_history_pending(&app)[0].1[0];
     let held = NonceEntry {
@@ -1262,7 +1262,7 @@ fn a_decode_opened_from_the_spend_offers_no_hex_and_no_code_once_the_spend_is_he
     app.press(Action::QrDecoded);
     assert_ne!(app.sheet, Some(Sheet::Qr));
     let text = shown(&mut app);
-    assert!(!text.contains(EN.decode_show_as_qr), "{text}");
+    assert!(!text.contains(EN.show_as_qr), "{text}");
     assert!(!text.contains(EN.decode_show_the_hex), "{text}");
 }
 

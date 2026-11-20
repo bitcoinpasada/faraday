@@ -1828,7 +1828,7 @@ impl StepView<'_> {
             )];
             // Held back, the part file gives out no code.
             if !s.spend.nonce_hold {
-                buttons.insert(0, (EN.step_show_as_qr, Style::Secondary, Action::QrPart));
+                buttons.insert(0, (EN.show_as_qr, Style::Secondary, Action::QrPart));
             }
             cy += wrap_buttons(ui, x, cy, w, BUTTON_H, &buttons);
         } else {
@@ -1906,7 +1906,7 @@ impl StepView<'_> {
                 ui.measure_as(TITLE_S, head) + tag <= side
             };
             let buttons = ui.measure_as(LABEL_L, EN.step_make_again)
-                + ui.measure_as(LABEL_L, EN.step_show_as_qr)
+                + ui.measure_as(LABEL_L, EN.show_as_qr)
                 + 2.0 * BUTTON_PAD
                 + 2.0 * BUTTON_PAD
                 + GAP;
@@ -1947,7 +1947,7 @@ impl StepView<'_> {
                 };
                 // Where the buttons go: in a row when they fit.
                 let lw = ui.measure_as(LABEL_L, label) + 32.0;
-                let qw = ui.measure_as(LABEL_L, EN.step_show_as_qr) + 32.0;
+                let qw = ui.measure_as(LABEL_L, EN.show_as_qr) + 32.0;
                 let stacked = lw + 8.0 + qw > half - 28.0;
                 let by = if compact { cy + 92.0 } else { cy + 112.0 };
                 let card_h = if stacked {
@@ -2024,7 +2024,7 @@ impl StepView<'_> {
                         qy,
                         Some(qw),
                         BUTTON_H,
-                        EN.step_show_as_qr,
+                        EN.show_as_qr,
                         Style::Secondary,
                         if k == 0 {
                             Action::QrSigned
@@ -2166,7 +2166,7 @@ impl StepView<'_> {
                     cy,
                     w,
                     BUTTON_H,
-                    &[(EN.step_show_as_qr, Style::Secondary, Action::QrPart)],
+                    &[(EN.show_as_qr, Style::Secondary, Action::QrPart)],
                 ) + 2.0;
             }
             if !others_in && !mine_in {
