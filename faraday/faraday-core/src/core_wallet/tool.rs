@@ -473,8 +473,9 @@ pub(crate) fn act(app: &mut Faraday, action: CoreWalletAction) {
             open(app, name);
         }
         CoreWalletAction::Step(k) => {
-            if let Some(s) = st(app) {
-                s.open = if s.open == Some(k) { None } else { Some(k) };
+            // A step is always open: pressing the open one does nothing.
+            if let Some(s) = st(app).filter(|s| s.open != Some(k)) {
+                s.open = Some(k);
                 s.typing = false;
                 s.scroll.follow = true;
             }
@@ -807,10 +808,9 @@ pub(crate) static CORE_WALLET_STEPS: CoreWalletSteps = CoreWalletSteps;
 impl crate::trail::StepFlow for CoreWalletSteps {
     fn steps(&self, app: &Faraday) -> Option<crate::trail::Steps> {
         let s = state(app)?;
-        Some(crate::trail::Steps::new(
-            (0..cstep::COUNT as u8).collect(),
-            s.open,
-        ))
+        let mut steps = crate::trail::Steps::new((0..cstep::COUNT as u8).collect(), s.open);
+        steps.answered = (0..cstep::COUNT as u8).filter(|&k| s.done(k)).collect();
+        Some(steps)
     }
 
     fn open(&self, _: &Faraday, k: u8) -> Action {
@@ -822,6 +822,34 @@ impl crate::trail::StepFlow for CoreWalletSteps {
             cstep::FILE => EN.core_wallet_card_file,
             _ => EN.core_wallet_card_result,
         }
+    }
+
+    fn contained(&self) -> Option<&dyn crate::flow::Contained> {
+        Some(self)
+    }
+}
+
+impl crate::flow::Contained for CoreWalletSteps {
+    fn rows(&self, app: &Faraday) -> Vec<crate::flow::Row> {
+        let Some(s) = state(app) else {
+            return Vec::new();
+        };
+        (0..cstep::COUNT as u8)
+            .map(|k| {
+                let said = super::screen::summary(s, k);
+                crate::flow::Row {
+                    label: faraday_text::Text::of(super::screen::title(k)),
+                    value: (!said.is_empty()).then(|| Text::of(&said)),
+                    mono: false,
+                    opens: k,
+                    current: s.open == Some(k),
+                }
+            })
+            .collect()
+    }
+
+    fn count_fixed(&self, _: &Faraday) -> bool {
+        true
     }
 }
 

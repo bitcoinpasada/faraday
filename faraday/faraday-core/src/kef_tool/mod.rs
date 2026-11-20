@@ -327,8 +327,8 @@ fn finish_begin(app: &mut Faraday, form: KefForm, wallet: Option<usize>, key: Op
 
 fn step(app: &mut Faraday, k: u8) {
     let Some(s) = st(app) else { return };
+    // A step is always open: pressing the open one does nothing.
     if s.open == Some(k) {
-        s.open = None;
         return;
     }
     let reachable = match k {
@@ -531,14 +531,11 @@ pub(crate) static KEF_TOOL_STEPS: KefToolSteps = KefToolSteps;
 impl crate::trail::StepFlow for KefToolSteps {
     fn steps(&self, app: &Faraday) -> Option<crate::trail::Steps> {
         let s = state(app)?;
-        let upto = if s.done[usize::from(kstep::MAKE)] {
-            kstep::COUNT
-        } else if s.done[usize::from(kstep::CONTENTS)] {
-            2
-        } else {
-            1
-        };
-        Some(crate::trail::Steps::new((0..upto as u8).collect(), s.open))
+        let mut steps = crate::trail::Steps::new((0..kstep::COUNT as u8).collect(), s.open);
+        steps.answered = (0..kstep::COUNT as u8)
+            .filter(|&k| s.done[usize::from(k)])
+            .collect();
+        Some(steps)
     }
 
     fn open(&self, _: &Faraday, k: u8) -> Action {
@@ -547,6 +544,34 @@ impl crate::trail::StepFlow for KefToolSteps {
 
     fn name(&self, _: &Faraday, k: u8) -> &'static str {
         screen::TITLES[usize::from(k)]
+    }
+
+    fn contained(&self) -> Option<&dyn crate::flow::Contained> {
+        Some(self)
+    }
+}
+
+impl crate::flow::Contained for KefToolSteps {
+    fn rows(&self, app: &Faraday) -> Vec<crate::flow::Row> {
+        let Some(s) = state(app) else {
+            return Vec::new();
+        };
+        (0..kstep::COUNT as u8)
+            .map(|k| {
+                let said = screen::summary(app, s, k);
+                crate::flow::Row {
+                    label: faraday_text::Text::of(screen::TITLES[usize::from(k)]),
+                    value: (!said.is_empty()).then(|| Text::of(&said)),
+                    mono: false,
+                    opens: k,
+                    current: s.open == Some(k),
+                }
+            })
+            .collect()
+    }
+
+    fn count_fixed(&self, _: &Faraday) -> bool {
+        true
     }
 }
 

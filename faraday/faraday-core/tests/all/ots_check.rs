@@ -5,7 +5,7 @@
 use crate::common::{has, has_part};
 use faraday_core::ots_check::OtsAction as O;
 use faraday_core::{Action, Faraday, StorageEvent, testkit};
-use faraday_shell_api::{App, Event};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 const V: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -478,4 +478,59 @@ fn a_file_taken_before_a_proof_naming_another_hash_is_hashed_when_the_proof_come
         );
         assert!(says_pending(&mut app), "{size} bytes");
     }
+}
+
+/// The window made `width` x `height` at 160 dpi.
+fn window(app: &mut Faraday, (width, height): (u16, u16)) {
+    app.event(Event::Display(DisplayInfo {
+        width,
+        height,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.settle();
+    let _ = app.frame();
+}
+
+fn drawn(app: &mut Faraday) -> Vec<String> {
+    use faraday_core::testkit::Plain;
+    let _ = app.frame();
+    app.drawn_texts().plain().to_vec()
+}
+
+/// On a wide window one step's card is drawn, and Your choices lists the
+/// steps with the answers given: a press on an earlier row opens its step.
+/// On a small panel the bar's button opens the sheet.
+#[test]
+fn ots_check_draws_one_step_with_your_choices_beside_it() {
+    let mut app = checked(
+        "examples/different-blockchains.txt.ots",
+        vector("examples/different-blockchains.txt"),
+        "headers/455605.hex",
+    );
+    window(&mut app, (1366, 768));
+    let texts = drawn(&mut app);
+    assert!(texts.contains(&"Step 4 of 4".to_string()), "{texts:?}");
+    assert!(!texts.contains(&"Step 1 of 4".to_string()), "{texts:?}");
+    assert!(texts.contains(&"Your choices".to_string()), "{texts:?}");
+    assert!(texts.contains(&"stamp.ots".to_string()), "{texts:?}");
+    assert!(app.offers(Action::OtsCheck(O::Step(0))));
+    app.press(Action::OtsCheck(O::Step(0)));
+    let texts = drawn(&mut app);
+    assert!(texts.contains(&"Step 1 of 4".to_string()), "{texts:?}");
+    assert!(
+        texts.contains(&"stamp.ots".to_string()),
+        "the proof stays taken"
+    );
+
+    window(&mut app, (480, 640));
+    assert!(app.offers(Action::Choices(faraday_core::ChoicesPress::Open)));
+    app.press(Action::Choices(faraday_core::ChoicesPress::Open));
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::Choices));
 }

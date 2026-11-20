@@ -23,53 +23,41 @@ pub(crate) const TITLES: [&str; ostep::COUNT] = [
 
 pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(s) = state(app) else { return };
-    let cards: Vec<flow::Card> = (0..ostep::COUNT as u8)
-        .map(|step| flow::Card {
-            title: TITLES[usize::from(step)].to_string(),
-            summary: summary(s, step),
-            mono: false,
-            done: s.done(step),
-            open: s.open == Some(step),
-            default: false,
-            toggle: Action::OtsCheck(O::Step(step)),
-            lead: None,
-        })
-        .collect();
     let back_name = if s.back == crate::Screen::Catalog {
         EN.ots_tools
     } else {
         app.back_name(s.back)
     };
-    let col = flow::Column {
-        area_x: x0,
-        area_w: cw,
-        x: x0 + tokens::FLOW_INSET,
-        w: (cw - tokens::FLOW_INSET - tokens::FLOW_INSET).min(tokens::FLOW_MAX),
+    let back = Some(app.named_back((back_name, Action::Nav(s.back))));
+    if s.landing {
+        landing(app, ui, (x0, cw, h), back);
+        return;
+    }
+    let page = flow::Page {
+        area: (x0, cw),
         h,
-        back: Some(app.named_back((back_name, Action::Nav(s.back)))),
+        foot_h: 0.0,
+        back,
         heading: EN.ots_title,
-        wrap_closed: false,
-        total_fixed: true,
-        all_shown: false,
-        note: None,
         chip: None,
+        note: None,
         chip_tap: None,
         moves: crate::ui::Moves::No,
     };
-    if s.landing {
-        landing(app, ui, (x0, cw, h), col.back);
+    let Some(contained) = crate::trail::StepFlow::contained(&super::OTS_STEPS) else {
         return;
-    }
+    };
     let scroll = s.scroll;
-    let (next, again) = {
+    let (next, again, _) = {
         let app_ref: &View = app;
-        let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
+        let mut body = |ui: &mut Ui, step: u8, x: f32, y: f32, w: f32| -> f32 {
             match state(app_ref) {
-                Some(s) => card(app_ref, s, ui, i as u8, (x, y, w)),
+                Some(s) => card(app_ref, s, ui, step, (x, y, w)),
                 None => 0.0,
             }
         };
-        flow::column(ui, &col, &cards, scroll, &mut body)
+        let mut under = |_: &mut Ui, _: f32, _: f32, _: f32| 0.0;
+        flow::contained(ui, app_ref, contained, &page, scroll, &mut body, &mut under)
     };
     app.scroll(Scrolled::OtsCheck, next, again);
 }
@@ -110,7 +98,7 @@ fn landing(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), back: Option<(
     ui.region_close(open, 0.0);
 }
 
-fn summary(s: &OtsState, step: u8) -> String {
+pub(super) fn summary(s: &OtsState, step: u8) -> String {
     match step {
         ostep::PROOF => s.proof.as_ref().map(|g| String::from(&*g.name)),
         ostep::FILE => s.file.as_ref().map(|g| String::from(&*g.name)),

@@ -9,7 +9,7 @@ use faraday_bip::keys::Network;
 use faraday_core::core_wallet::tool::CoreWalletAction as W;
 use faraday_core::wallet::Session;
 use faraday_core::{Action, Faraday, Screen, StorageEvent, testkit};
-use faraday_shell_api::{App, Event};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 const V: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -456,4 +456,53 @@ fn taking_an_active_multisig_asks_on_the_confirmation_sheet_and_is_added_on_the_
     assert_eq!(app.session.wallets.len(), 1);
     assert!(app.session.wallets[0].same().starts_with("wsh(multi("));
     assert_eq!(app.screen, Screen::Wallets);
+}
+
+/// The window made `width` x `height` at 160 dpi.
+fn window(app: &mut Faraday, (width, height): (u16, u16)) {
+    app.event(Event::Display(DisplayInfo {
+        width,
+        height,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.settle();
+    let _ = app.frame();
+}
+
+fn drawn(app: &mut Faraday) -> Vec<String> {
+    use faraday_core::testkit::Plain;
+    let _ = app.frame();
+    app.drawn_texts().plain().to_vec()
+}
+
+/// On a wide window one step's card is drawn, and Your choices lists the
+/// steps with the answers given: a press on the File row opens it again. On
+/// a small panel the bar's button opens the sheet.
+#[test]
+fn core_wallet_draws_one_step_with_your_choices_beside_it() {
+    let mut app = opened(vec![("wallet.dat", vector("plain.dat"))]);
+    window(&mut app, (1366, 768));
+    app.press(Action::CoreWallet(W::File(0)));
+    read_with(&mut app, "");
+    let texts = drawn(&mut app);
+    assert!(texts.contains(&"Step 2 of 2".to_string()), "{texts:?}");
+    assert!(!texts.contains(&"Step 1 of 2".to_string()), "{texts:?}");
+    assert!(texts.contains(&"Your choices".to_string()), "{texts:?}");
+    assert!(texts.contains(&"wallet.dat".to_string()), "{texts:?}");
+    assert!(app.offers(Action::CoreWallet(W::Step(0))));
+    app.press(Action::CoreWallet(W::Step(0)));
+    let texts = drawn(&mut app);
+    assert!(texts.contains(&"Step 1 of 2".to_string()), "{texts:?}");
+
+    window(&mut app, (480, 640));
+    assert!(app.offers(Action::Choices(faraday_core::ChoicesPress::Open)));
+    app.press(Action::Choices(faraday_core::ChoicesPress::Open));
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::Choices));
 }

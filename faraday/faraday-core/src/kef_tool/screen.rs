@@ -11,7 +11,7 @@ use crate::strings::{EN, fill};
 use crate::ui::pal::Role;
 use crate::ui::{Style, Ui};
 use crate::vault::screen::secret_box;
-use faraday_draw::tokens::{self, BODY_S, BUTTON_H, FIELD_H, GAP};
+use faraday_draw::tokens::{BODY_S, BUTTON_H, FIELD_H, GAP};
 
 /// The cards' titles by step, the reading card's last.
 pub(crate) const TITLES: [&str; kstep::COUNT + 1] = [
@@ -33,62 +33,39 @@ fn ask() -> Ask {
 
 pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(s) = state(app) else { return };
-    // Reading a code leads, above the steps that make one; on the wide
-    // layout it stands open, on the small panel it is a page of its own.
-    let head = flow::Card {
-        title: TITLES[usize::from(kstep::READ)].to_string(),
-        summary: String::new(),
-        mono: false,
-        done: false,
-        open: !ui.compact || s.open == Some(kstep::READ),
-        default: false,
-        toggle: Action::KefTool(K::Step(kstep::READ)),
-        lead: None,
-    };
-    let cards: Vec<flow::Card> = std::iter::once(head)
-        .chain((0..kstep::COUNT as u8).map(|step| flow::Card {
-            title: TITLES[usize::from(step)].to_string(),
-            summary: summary(app, s, step),
-            mono: false,
-            done: s.done[usize::from(step)],
-            open: s.open == Some(step),
-            default: false,
-            toggle: Action::KefTool(K::Step(step)),
-            lead: None,
-        }))
-        .collect();
     let back_name = if s.back == crate::Screen::Catalog {
         EN.kef_tool_tools
     } else {
         app.back_name(s.back)
     };
-    let col = flow::Column {
-        area_x: x0,
-        area_w: cw,
-        x: x0 + tokens::FLOW_INSET,
-        w: (cw - tokens::FLOW_INSET - tokens::FLOW_INSET).min(tokens::FLOW_MAX),
+    let page = flow::Page {
+        area: (x0, cw),
         h,
+        foot_h: 0.0,
         back: Some(app.named_back((back_name, Action::Nav(s.back)))),
         heading: EN.kef_tool_title,
-        wrap_closed: false,
-        total_fixed: true,
-        all_shown: false,
-        note: None,
         chip: None,
+        note: None,
         chip_tap: None,
         moves: crate::ui::Moves::No,
     };
+    let Some(contained) = crate::trail::StepFlow::contained(&super::KEF_TOOL_STEPS) else {
+        return;
+    };
     let scroll = s.scroll;
-    let (next, again) = {
+    let (next, again, _) = {
         let app_ref: &View = app;
-        let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
+        let mut body = |ui: &mut Ui, step: u8, x: f32, y: f32, w: f32| -> f32 {
             match state(app_ref) {
-                Some(_) if i == 0 => crate::seeds::kef::read_rows(app_ref, ui, (x, y, w), false),
-                Some(s) => card(app_ref, s, ui, i as u8 - 1, (x, y, w)),
+                Some(_) if step == kstep::READ => {
+                    crate::seeds::kef::read_rows(app_ref, ui, (x, y, w), false)
+                }
+                Some(s) => card(app_ref, s, ui, step, (x, y, w)),
                 None => 0.0,
             }
         };
-        flow::column(ui, &col, &cards, scroll, &mut body)
+        let mut under = |_: &mut Ui, _: f32, _: f32, _: f32| 0.0;
+        flow::contained(ui, app_ref, contained, &page, scroll, &mut body, &mut under)
     };
     app.scroll(Scrolled::KefTool, next, again);
 }
@@ -100,7 +77,7 @@ pub(crate) fn options_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     }
 }
 
-fn summary(app: &View, s: &KefToolState, step: u8) -> String {
+pub(super) fn summary(app: &crate::Faraday, s: &KefToolState, step: u8) -> String {
     match step {
         kstep::CONTENTS if s.done[usize::from(step)] => match s.wallet {
             Some(i) => app

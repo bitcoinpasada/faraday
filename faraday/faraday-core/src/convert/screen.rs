@@ -30,58 +30,43 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(s) = crate::convert::state(app) else {
         return;
     };
-    let order = crate::convert::order(s);
-    let cards: Vec<flow::Card> = order
-        .iter()
-        .map(|&step| flow::Card {
-            title: TITLES[usize::from(step)].to_string(),
-            summary: summary(app, s, step),
-            mono: false,
-            done: s.done[usize::from(step)],
-            open: s.open == Some(step),
-            default: false,
-            toggle: Action::Convert(C::Step(step)),
-            lead: None,
-        })
-        .collect();
     // Back names where the flow was opened from; Tools' tile by Tools.
     let back_name = if s.back == crate::Screen::Catalog {
         EN.convert_tools
     } else {
         app.back_name(s.back)
     };
-    let col = flow::Column {
-        area_x: x0,
-        area_w: cw,
-        x: x0 + tokens::FLOW_INSET,
-        w: (cw - tokens::FLOW_INSET - tokens::FLOW_INSET).min(tokens::FLOW_MAX),
+    let page = flow::Page {
+        area: (x0, cw),
         h,
+        foot_h: 0.0,
         back: Some(app.named_back((back_name, Action::Nav(s.back)))),
         heading: EN.convert_title,
-        wrap_closed: false,
-        total_fixed: true,
-        all_shown: false,
-        note: None,
         chip: None,
+        note: None,
         chip_tap: None,
         moves: crate::ui::Moves::Yes,
     };
+    let Some(contained) = crate::trail::StepFlow::contained(&crate::convert::CONVERT_STEPS) else {
+        return;
+    };
     let scroll = s.scroll;
-    let (next, again) = {
+    let (next, again, _) = {
         let app_ref: &View = app;
-        let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
+        let mut body = |ui: &mut Ui, step: u8, x: f32, y: f32, w: f32| -> f32 {
             match crate::convert::state(app_ref) {
-                Some(s) => card(app_ref, s, ui, order[i], (x, y, w)),
+                Some(s) => card(app_ref, s, ui, step, (x, y, w)),
                 None => 0.0,
             }
         };
-        flow::column(ui, &col, &cards, scroll, &mut body)
+        let mut under = |_: &mut Ui, _: f32, _: f32, _: f32| 0.0;
+        flow::contained(ui, app_ref, contained, &page, scroll, &mut body, &mut under)
     };
     app.scroll(Scrolled::Convert, next, again);
 }
 
 /// The name of a target, as this network writes it.
-fn target_name(app: &View, name: &'static str, target: Option<Target>) -> &'static str {
+fn target_name(app: &crate::Faraday, name: &'static str, target: Option<Target>) -> &'static str {
     let test = app.session.keys.network() != faraday_bip::keys::Network::Mainnet;
     if test && target == Some(Target::Xprv) {
         EN.convert_tprv
@@ -98,7 +83,7 @@ fn set_act_name(act: SetAct) -> &'static str {
     }
 }
 
-fn summary(app: &View, s: &ConvertState, step: u8) -> String {
+pub(crate) fn summary(app: &crate::Faraday, s: &ConvertState, step: u8) -> String {
     if let Some(x) = &s.set {
         return match (step, app.session.keys.slip39_set_facts()) {
             (cstep::FROM, Some(f)) => {
@@ -136,7 +121,7 @@ fn summary(app: &View, s: &ConvertState, step: u8) -> String {
 }
 
 /// The key chosen, if it is loaded.
-fn key_of<'a>(app: &'a View, s: &ConvertState) -> Option<&'a faraday_keys::KeyInfo> {
+fn key_of<'a>(app: &'a crate::Faraday, s: &ConvertState) -> Option<&'a faraday_keys::KeyInfo> {
     crate::convert::source_info(&app.session.keys, s)
 }
 

@@ -8,7 +8,7 @@ use crate::flow;
 use crate::screens::parts::{ending, file_choices, nothing_to_work_on};
 use crate::strings::EN;
 use crate::ui::pal::Role;
-use crate::ui::{Style, Ui};
+use crate::ui::{Region, Style, Ui};
 use faraday_draw::tokens::{
     self, BODY_L, BODY_M, BODY_S, BUTTON_H, FIELD_H, GAP, ICON, ICON_GLYPH_SMALL, LIST_1,
     LIST_PAD_V,
@@ -17,68 +17,70 @@ use faraday_draw::widgets::Icon;
 
 pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(s) = state(app) else { return };
-    let cards: Vec<flow::Card> = (0..if s.landing { 0 } else { cstep::COUNT as u8 })
-        .map(|step| flow::Card {
-            title: title(step).to_string(),
-            summary: summary(s, step),
-            mono: false,
-            done: s.done(step),
-            open: s.open == Some(step),
-            default: false,
-            toggle: Action::CoreWallet(A::Step(step)),
-            lead: None,
-        })
-        .collect();
     let back_name = if s.back == crate::Screen::Catalog {
         EN.core_wallet_tools
     } else {
         app.back_name(s.back)
     };
-    let col = flow::Column {
-        area_x: x0,
-        area_w: cw,
-        x: x0 + tokens::FLOW_INSET,
-        w: (cw - tokens::FLOW_INSET - tokens::FLOW_INSET).min(tokens::FLOW_MAX),
+    let back = Some(app.named_back((back_name, Action::Nav(s.back))));
+    if s.landing {
+        landing_page(app, ui, (x0, cw, h), back);
+        return;
+    }
+    let page = flow::Page {
+        area: (x0, cw),
         h,
-        back: Some(app.named_back((back_name, Action::Nav(s.back)))),
+        foot_h: 0.0,
+        back,
         heading: EN.core_wallet_title,
-        wrap_closed: false,
-        total_fixed: true,
-        all_shown: false,
-        note: None,
         chip: None,
+        note: None,
         chip_tap: None,
         moves: crate::ui::Moves::No,
     };
+    let Some(contained) = crate::trail::StepFlow::contained(&super::tool::CORE_WALLET_STEPS) else {
+        return;
+    };
     let scroll = s.scroll;
-    let (next, again) = {
+    let (next, again, _) = {
         let app_ref: &View = app;
-        let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
+        let mut body = |ui: &mut Ui, step: u8, x: f32, y: f32, w: f32| -> f32 {
             match state(app_ref) {
-                Some(s) => card(app_ref, s, ui, i as u8, (x, y, w)),
+                Some(s) => card(app_ref, s, ui, step, (x, y, w)),
                 None => 0.0,
             }
         };
-        let back = s.back;
-        let landing = s.landing;
-        let done = s.shown.is_some();
-        let mut foot = |ui: &mut Ui, x: f32, y: f32, w: f32| -> f32 {
-            if landing {
-                self::landing(app_ref, ui, (x, y, w))
-            } else if done {
-                ending(
-                    ui,
-                    (x, y, w),
-                    None,
-                    (Action::CoreWallet(A::Another), Action::Nav(back)),
-                )
-            } else {
-                0.0
-            }
-        };
-        flow::column_foot(ui, &col, &cards, scroll, &mut body, Some(&mut foot))
+        let mut under = |_: &mut Ui, _: f32, _: f32, _: f32| 0.0;
+        flow::contained(ui, app_ref, contained, &page, scroll, &mut body, &mut under)
     };
     app.scroll(Scrolled::CoreWallet, next, again);
+}
+
+/// No file chosen: the files to choose from, or the empty part, in place
+/// of the cards.
+fn landing_page(
+    app: &View,
+    ui: &mut Ui,
+    (x0, cw, h): (f32, f32, f32),
+    back: Option<(&str, Action)>,
+) {
+    let clip = ui.rect(x0, 0.0, cw, h);
+    let open = ui.region_open(Region::page(clip).from_zero(app.list_offset));
+    let top = if ui.compact {
+        crate::compact::BAR_H + tokens::GAP
+    } else {
+        crate::screens::bar_head(ui, back, EN.core_wallet_title)
+    };
+    let (x, w) = if ui.compact {
+        (x0 + crate::compact::M, cw - 2.0 * crate::compact::M)
+    } else {
+        (
+            x0 + tokens::FLOW_INSET,
+            (cw - 2.0 * tokens::FLOW_INSET).min(tokens::FLOW_MAX),
+        )
+    };
+    landing(app, ui, (x, top, w));
+    ui.region_close(open, 0.0);
 }
 
 /// No file chosen: the wallet files of Files to choose from, or the empty
@@ -104,7 +106,7 @@ fn landing(app: &View, ui: &mut Ui, at: (f32, f32, f32)) -> f32 {
     }
 }
 
-fn title(step: u8) -> &'static str {
+pub(super) fn title(step: u8) -> &'static str {
     match step {
         cstep::FILE => EN.core_wallet_card_file,
         _ => EN.core_wallet_card_result,
@@ -119,7 +121,7 @@ fn verdict_line(v: Verdict) -> &'static str {
     }
 }
 
-fn summary(s: &CoreWalletState, step: u8) -> String {
+pub(super) fn summary(s: &CoreWalletState, step: u8) -> String {
     match step {
         cstep::FILE => s.file.as_ref().map(|f| String::from(&**f)),
         _ => s
@@ -133,7 +135,21 @@ fn summary(s: &CoreWalletState, step: u8) -> String {
 fn card(app: &View, s: &CoreWalletState, ui: &mut Ui, step: u8, at: (f32, f32, f32)) -> f32 {
     match step {
         cstep::FILE => file(app, s, ui, at),
-        _ => result(s, ui, at),
+        _ => {
+            let (x, y, w) = at;
+            let h = result(s, ui, at);
+            if s.shown.is_none() {
+                return h;
+            }
+            // The end of the last card: Another and Done.
+            let end = ending(
+                ui,
+                (x, y + h + GAP, w),
+                None,
+                (Action::CoreWallet(A::Another), Action::Nav(s.back)),
+            );
+            h + GAP + end
+        }
     }
 }
 

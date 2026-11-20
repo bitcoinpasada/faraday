@@ -3008,18 +3008,18 @@ fn a_share_typed_before_a_stick_is_wiped_when_the_stick_refuses_it() {
     assert!(!nothing_held(&app), "typing works with the stick pulled");
 }
 
-/// Rotate's Settings card, collapsed under its Result, shows the set's
-/// shape.
+/// Rotate's Settings answer, with the Result open, shows in Your choices as
+/// the set's shape.
 #[test]
-fn rotates_closed_settings_card_shows_its_shape() {
+fn rotates_settings_choice_shows_its_shape() {
     let mut app = mainnet();
     open(&mut app);
     type_set(&mut app, &[SET_A, SET_B]);
     let _ = rotated(&mut app, &[(0, 0), (0, 2)]);
     let texts = drawn(&mut app);
-    // The Result is closed too, so only the Settings card's summary draws it.
-    let shape = texts.iter().filter(|t| *t == "SLIP-39, 2 of 3 shares");
-    assert_eq!(shape.count(), 1, "{texts:?}");
+    let at = texts.iter().position(|t| t == "Your choices").unwrap();
+    let row = texts[at..].iter().position(|t| t == "Settings").unwrap();
+    assert_eq!(texts[at + row + 1], "SLIP-39, 2 of 3 shares", "{texts:?}");
 }
 
 /// Rotating makes nothing with the others pressed first and the typed
@@ -3710,4 +3710,68 @@ fn a_sample_slip39_set_is_refused_in_convert_on_mainnet_as_a_public_sample_seed(
         error.as_deref(),
         Some(faraday_core::strings::EN.published_sample_line)
     );
+}
+
+/// The window made `width` x `height` at 160 dpi.
+fn window(app: &mut Faraday, (width, height): (u16, u16)) {
+    app.event(Event::Display(DisplayInfo {
+        width,
+        height,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.settle();
+    let _ = app.frame();
+}
+
+/// On a wide window one step's card is drawn, and Your choices lists the
+/// steps with the answers given: a press on an earlier row opens its step
+/// with the choice as it was. On a small panel the bar's button opens the
+/// sheet.
+#[test]
+fn convert_draws_one_step_with_your_choices_beside_it() {
+    let mut app = opened(mainnet(), ABOUT);
+    window(&mut app, (1366, 768));
+    let fp = app.session.keys[0].fingerprint;
+    app.press(Action::Convert(C::Key(fp.0)));
+    let texts = drawn(&mut app);
+    assert!(texts.contains(&"Step 2 of 3".to_string()), "{texts:?}");
+    assert!(!texts.contains(&"Step 1 of 3".to_string()), "{texts:?}");
+    assert!(texts.contains(&"Your choices".to_string()), "{texts:?}");
+    assert!(
+        texts.iter().any(|t| t.contains(&fp.to_string())),
+        "the key chosen is the From row's answer: {texts:?}"
+    );
+    assert!(app.offers(Action::Convert(C::Step(cstep::FROM))));
+    app.press(Action::Convert(C::Step(cstep::FROM)));
+    let texts = drawn(&mut app);
+    assert!(texts.contains(&"Step 1 of 3".to_string()), "{texts:?}");
+    assert_eq!(convert::state(&app).unwrap().key, Some(fp.0));
+
+    window(&mut app, (480, 640));
+    assert!(app.offers(Action::Choices(faraday_core::ChoicesPress::Open)));
+    app.press(Action::Choices(faraday_core::ChoicesPress::Open));
+    assert_eq!(app.sheet, Some(Sheet::Choices));
+}
+
+/// A step that shows the value is left at once, not faded from a frame
+/// that showed it.
+#[test]
+fn convert_leaves_a_shown_value_at_once() {
+    let mut app = opened(mainnet(), ABOUT);
+    window(&mut app, (1366, 768));
+    assert!(make(&mut app, "xprv").is_some());
+    let _ = app.frame();
+    let _ = app.take_fade_counts();
+    app.press(Action::Convert(C::Step(cstep::TO)));
+    let _ = app.frame();
+    assert_eq!(app.take_fade_counts().started, 0, "no fade");
+    assert!(app.kept_images().is_empty(), "no image of the step is kept");
+    assert_eq!(convert::shown(&app), None);
 }

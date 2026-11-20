@@ -668,7 +668,7 @@ impl ConvertArea {
     pub(crate) fn part_of(&self) -> Option<(usize, usize)> {
         let n = self.held.as_ref().map_or(0, Value::count);
         let at = self.state.as_ref()?.part;
-        (n > 1).then_some((at.min(n - 1), n))
+        (n > 1).then(|| (at.min(n.saturating_sub(1)), n))
     }
 
     /// Works out what the open eye shows, or drops it when closed.
@@ -961,8 +961,10 @@ impl ConvertArea {
             return;
         };
         if s.open == Some(step) {
-            s.open = None;
-        } else if (0..step).all(|i| s.done[usize::from(i)]) {
+            // A step is always open: pressing the open one does nothing.
+            return;
+        }
+        if (0..step).all(|i| s.done[usize::from(i)]) {
             s.open = Some(step);
             s.scroll.follow = true;
         }
@@ -1825,7 +1827,11 @@ pub(crate) static CONVERT_STEPS: ConvertSteps = ConvertSteps;
 impl crate::trail::StepFlow for ConvertSteps {
     fn steps(&self, app: &Faraday) -> Option<crate::trail::Steps> {
         let s = state(app)?;
-        Some(crate::trail::Steps::new(order(s), s.open))
+        let mut steps = crate::trail::Steps::new(order(s), s.open);
+        steps.answered = (0..cstep::COUNT as u8)
+            .filter(|&k| s.done[usize::from(k)])
+            .collect();
+        Some(steps)
     }
 
     fn open(&self, _: &Faraday, k: u8) -> Action {
@@ -1834,6 +1840,36 @@ impl crate::trail::StepFlow for ConvertSteps {
 
     fn name(&self, _: &Faraday, k: u8) -> &'static str {
         screen::TITLES[usize::from(k)]
+    }
+
+    fn contained(&self) -> Option<&dyn crate::flow::Contained> {
+        Some(self)
+    }
+}
+
+impl crate::flow::Contained for ConvertSteps {
+    fn rows(&self, app: &Faraday) -> Vec<crate::flow::Row> {
+        let Some(s) = state(app) else {
+            return Vec::new();
+        };
+        order(s)
+            .into_iter()
+            .map(|k| {
+                let said = screen::summary(app, s, k);
+                crate::flow::Row {
+                    label: faraday_text::Text::of(screen::TITLES[usize::from(k)]),
+                    value: (s.done[usize::from(k)] && !said.is_empty())
+                        .then(|| faraday_text::Text::of(&said)),
+                    mono: false,
+                    opens: k,
+                    current: s.open == Some(k),
+                }
+            })
+            .collect()
+    }
+
+    fn count_fixed(&self, _: &Faraday) -> bool {
+        true
     }
 }
 

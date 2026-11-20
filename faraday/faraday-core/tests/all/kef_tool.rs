@@ -519,3 +519,55 @@ fn a_key_without_a_passphrase_offers_its_own_fingerprint_as_the_id() {
         format!("{}", app.session.keys[0].fingerprint).into_bytes()
     );
 }
+
+/// The window made `width` x `height` at 160 dpi.
+fn window(app: &mut Faraday, (width, height): (u16, u16)) {
+    app.event(Event::Display(DisplayInfo {
+        width,
+        height,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.settle();
+    let _ = app.frame();
+}
+
+/// On a wide window one step's card is drawn, and Your choices lists the
+/// steps with the answers given: a press on an earlier row opens its step
+/// with the choice as it was. On a small panel the bar's button opens the
+/// sheet.
+#[test]
+fn kef_tool_draws_one_step_with_your_choices_beside_it() {
+    let mut app = started();
+    window(&mut app, (1366, 768));
+    open(&mut app);
+    app.press(Action::KefTool(K::Pick(Pick::Type)));
+    type_in(&mut app, "a note");
+    app.press(Action::KefTool(K::Next));
+    let texts = drawn(&mut app);
+    assert!(texts.contains(&"Step 2 of 3".to_string()), "{texts:?}");
+    assert!(!texts.contains(&"Step 1 of 3".to_string()), "{texts:?}");
+    assert!(texts.contains(&"Your choices".to_string()), "{texts:?}");
+    assert!(app.offers(Action::KefTool(K::Step(0))));
+    app.press(Action::KefTool(K::Step(0)));
+    let texts = drawn(&mut app);
+    assert!(texts.contains(&"Step 1 of 3".to_string()), "{texts:?}");
+    assert_eq!(kef_tool::state(&app).unwrap().typed_len(), 6);
+
+    window(&mut app, (480, 640));
+    assert!(app.offers(Action::Choices(faraday_core::ChoicesPress::Open)));
+    app.press(Action::Choices(faraday_core::ChoicesPress::Open));
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::Choices));
+}
+
+fn drawn(app: &mut Faraday) -> Vec<String> {
+    use faraday_core::testkit::Plain;
+    let _ = app.frame();
+    app.drawn_texts().plain().to_vec()
+}
