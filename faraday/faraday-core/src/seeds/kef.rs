@@ -312,7 +312,7 @@ pub(crate) fn kef_code_scanned(app: &mut Faraday, code: Zeroizing<Vec<u8>>) {
     };
     drop(code);
     app.scan_close();
-    kef_open_sheet(app, h.envelope, 0, false);
+    kef_open_sheet(app, h.envelope, 0, (false, Lands::SeedSheet));
 }
 
 /// Costs what [`kef_header`] costs. **From Files** on Inbox file `i`: the
@@ -325,7 +325,7 @@ pub(crate) fn kef_file(app: &mut Faraday, i: usize) {
         return;
     };
     match kef_header(app, &code) {
-        Some((h, _)) => kef_open_sheet(app, h.envelope, 0, false),
+        Some((h, _)) => kef_open_sheet(app, h.envelope, 0, (false, Lands::SeedSheet)),
         None => app.toast(EN.kef_read_not_code),
     }
 }
