@@ -615,6 +615,7 @@ fn kef_road_after_seed(app: &mut Faraday, plain: Zeroizing<Vec<u8>>, offer: bool
         && depth + 1 < DEPTH_MAX
         && let Some(found) = faraday_codec::kef::recognize(&plain)
     {
+        let lands = app.seed_read.kef().map_or(Lands::SeedSheet, |k| k.lands);
         let mut next = KefRead::new(found.envelope, depth + 1, app.seed_read.rate());
         next.lands = lands;
         next.stage = Stage::Offer;
