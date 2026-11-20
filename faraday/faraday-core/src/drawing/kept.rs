@@ -669,17 +669,6 @@ impl View<'_> {
         )
     }
 
-    /// The cards of the backup's plan, in order
-    /// ([`crate::Faraday::backup_questions`]), from the memo's shape and
-    /// the kept map. Costs a map the first time.
-    pub(crate) fn backup_questions(&self) -> Vec<u8> {
-        let Some(b) = self.backup.state() else {
-            return Vec::new();
-        };
-        let shape = self.plan_shape(b.wallet);
-        crate::plan_cards_on(&self.plan_mapped(&shape, &b.answers))
-    }
-
     /// Signed message `text` checked ([`Kept::message_check`]),
     /// kept by its text, the network and the loaded wallets. Costs an
     /// address derivation per loaded wallet and address tried and a

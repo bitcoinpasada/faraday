@@ -210,18 +210,6 @@ fn item_title_on(reads: &impl crate::glance::Reads, item: crate::plan::Item) -> 
 
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::BStage;
-    let panel_w = side_panel_w(cw);
-    let col_x = x0 + 40.0;
-    // With the board shown on a large window the page runs to the
-    // window's edge: the cards keep the reading column, the board runs
-    // on to the supporting pane's spacer, and its list is that pane
-    // (`docs/LAYOUT.md` §14, §17).
-    let wide = crate::screens::backup_work_end(app);
-    let work = crate::screens::board_work_end(app);
-    let col_w = match wide {
-        Some(end) => (end - col_x).min(crate::board::screen::column_w()),
-        None => cw - panel_w - 72.0,
-    };
     let Some(b) = app.backup() else {
         if ui.compact {
             // The small panel's top app bar, its tools drawn over its
@@ -242,30 +230,35 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(wallet) = app.session.wallets.get(b.wallet) else {
         return;
     };
-    // The checklist and the quick paper backup's cards are on the flow
-    // container; the plan's questions and the board keep their column.
+    // Every card is on the flow container: the checklist's, the quick
+    // paper backup's and the plan's.
     if b.stage == BStage::Checklist {
         return checklist_draw(app, ui, (x0, cw, h), b, wallet);
     }
-    let questions = app.backup_questions();
+    plan_draw(app, ui, (x0, cw, h), b, wallet);
+}
+
+/// The plan's cards and the board, on the flow container: one card at a
+/// time, Your choices at its right with the map under its rows; the
+/// board's card runs the whole width, its list in the supporting pane
+/// (`docs/LAYOUT.md` §14, §17).
+fn plan_draw(
+    app: &View,
+    ui: &mut Ui,
+    (x0, cw, h): (f32, f32, f32),
+    b: &crate::BackupState,
+    wallet: &crate::wallet::Wallet,
+) {
     let ctx = crate::plan::cards::PlanCtx::backup(app);
-    let cards: Vec<flow::Card> = questions
-        .iter()
-        .map(|&k| flow::Card {
-            title: ctx.as_ref().map_or_else(String::new, |c| {
-                String::from(crate::plan::cards::title(c, k))
-            }),
-            summary: ctx.as_ref().map_or_else(String::new, |c| {
-                String::from(&*crate::plan::cards::summary(c, k))
-            }),
-            mono: false,
-            done: false,
-            open: b.q == Some(k),
-            default: false,
-            toggle: Action::BQ(k),
-            lead: None,
-        })
-        .collect();
+    b.drawn_check.set(ctx.as_ref().map(|c| c.check));
+    let work = crate::screens::board_work_end(app);
+    // On a window short of the large one the list is a panel at the right
+    // and the page area stops before it.
+    let panel_w = if work.is_none() && !ui.compact && app.board_shown() {
+        side_panel_w(cw)
+    } else {
+        0.0
+    };
     // With more than one wallet loaded, the one backed up is a chip that
     // opens the list of them.
     let many = app.session.wallets.len() > 1;
@@ -275,23 +268,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         fill(EN.backup_back_up, &[&wallet.name])
     };
     let pick = b.pick && many;
-    let compact = ui.compact;
-    let col = flow::Column {
-        area_x: x0,
-        area_w: match work {
-            _ if compact => cw,
-            Some(end) => end - x0 + faraday_draw::tokens::SPACER,
-            None => cw - panel_w,
-        },
-        x: col_x,
-        w: col_w,
+    let page = flow::Page {
+        area: (x0, cw - panel_w),
         h,
+        foot_h: 0.0,
         back: Some(backup_back(app, b)),
         heading: &heading,
-        wrap_closed: false,
-        total_fixed: false,
-        all_shown: true,
-        note: None,
         // From Create the wallet is the one just made, and the way on is
         // its card.
         chip: if b.from_create {
@@ -299,34 +281,38 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         } else {
             many.then_some(wallet.name.as_str())
         },
+        note: None,
         chip_tap: (many && !b.from_create).then_some(Action::BWallets),
         moves: crate::ui::Moves::Yes,
     };
-    let scroll = b.scroll;
     ui.chip_at = None;
-    let (next, again) = {
-        let app_ref: &View = app;
-        let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
-            plan_body(app_ref, ui, ctx.as_ref(), questions[i], x, y, w)
-        };
-        // Make the checklist is on The plan card alone
-        // (`docs/BACKUP-FLOW.md` §15.1): no foot.
-        flow::column_wide(ui, &col, work, &cards, scroll, &mut body, None)
+    let Some(contained) =
+        crate::trail::StepFlow::contained(&crate::wallet_backup::BACKUP_PLAN_STEPS)
+    else {
+        return;
     };
+    let app_ref: &View = app;
+    let mut body = |ui: &mut Ui, k: u8, x: f32, y: f32, w: f32| -> f32 {
+        plan_body(app_ref, ui, ctx.as_ref(), k, x, y, w)
+    };
+    // Under Your choices' rows: the map and the check.
+    let mut under =
+        |ui: &mut Ui, x: f32, y: f32, w: f32| -> f32 { backup_under(app_ref, ui, x, y, w) };
+    let (next, again, room) = flow::contained(
+        ui, app_ref, contained, &page, b.scroll, &mut body, &mut under,
+    );
     app.scroll(Scrolled::Backup, next, again);
     // While the board is shown its list is the right-hand column, the
     // map's place (`docs/BACKUP-FLOW.md` §17.14).
     if work.is_some() {
         let pane = crate::screens::support_pane_place((x0, cw, h));
         crate::board::screen::list_pane(app, ui, pane);
-    } else if !compact && app.board_shown() {
+    } else if panel_w > 0.0 {
         crate::board::screen::list_panel(app, ui, x0 + cw - panel_w, panel_w, h);
-    } else if !compact {
-        backup_panel(app, ui, x0 + cw - panel_w, panel_w, h);
     }
     if pick && let Some((cx, cy, chip_w)) = ui.chip_at {
-        let right = if compact { x0 + cw } else { x0 + cw - panel_w } - 16.0;
-        wallet_pick(app, ui, cx, cy + 6.0, chip_w, right);
+        let right = room.area_x + room.area_w - T::PAD;
+        wallet_pick(app, ui, cx, cy + T::GAP_SMALL, chip_w, right);
     }
 }
 
@@ -534,17 +520,7 @@ fn plan_body(
     let Some(ctx) = ctx else {
         return 0.0;
     };
-    // On `wide` the board takes the section's whole width, under its
-    // number as well as its title (`docs/BACKUP-FLOW.md` §17.15).
-    let (bx, bw) = if q == crate::qstep::BOARD && !ui.compact {
-        (
-            x - crate::flow::BODY_INDENT,
-            w + crate::flow::BODY_INDENT + crate::flow::BODY_RIGHT,
-        )
-    } else {
-        (x, w)
-    };
-    let mut cy = y + crate::plan::cards::body(app, ui, ctx, q, bx, y, bw);
+    let mut cy = y + crate::plan::cards::body(app, ui, ctx, q, x, y, w);
     if q != crate::qstep::PLAN {
         return cy - y;
     }
@@ -2577,34 +2553,6 @@ fn c32_templates_clause(
         (true, Some(c)) => fill(EN.c32_templates_starter_copy, &[&n, &len, c]),
         (false, Some(c)) => fill(EN.c32_templates_clause_copy, &[&n, &len, c]),
     }
-}
-
-/// The backup's side panel: the map, its boxes listing what each holds,
-/// in the checklist each line marked by its item's state; the check at
-/// its foot.
-fn backup_panel(app: &View, ui: &mut Ui, px: f32, pw: f32, h: f32) {
-    if app.backup().is_none() {
-        return;
-    }
-    ui.fill(px, 0.0, pw, h, 0.0, Role::Surface);
-    ui.fill(px, 0.0, 1.0, h, 0.0, Role::OutlineVariant);
-    let x = px + 22.0;
-    let w = pw - 44.0;
-    // The check is measured first, so the map stops above it.
-    ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
-    let mark = ui.presses_mark();
-    let ch = check_rows(app, ui, x, 0.0, w);
-    ui.presses_rewind(mark);
-    ui.c.pop_clip();
-    let foot = h - ch - 16.0;
-    let top = faraday_draw::tokens::SIDE_PANEL_TOP;
-    ui.text_as(x, top, LABEL_L, Role::OnSurfaceVariant, EN.backup_panel_map);
-    let clip = ui.rect(px, top + 24.0, pw, foot - top - 32.0);
-    ui.c.push_clip(clip);
-    map_rows(app, ui, x, top + 28.0, w, true);
-    ui.c.pop_clip();
-    ui.rule(x, foot - 4.0, w, Role::OutlineVariant);
-    check_rows(app, ui, x, foot + 8.0, w);
 }
 
 /// The colour of a line of [`crate::wallet_backup::Kept`].

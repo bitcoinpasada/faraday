@@ -139,7 +139,12 @@ pub(crate) fn q_title(q: u8) -> &'static str {
 
 /// A plan card's line while it is closed: its answers.
 pub(crate) fn summary(ctx: &PlanCtx, q: u8) -> Text {
-    let a = &ctx.answers;
+    summary_on(&ctx.answers, Some(ctx.check), q)
+}
+
+/// [`summary`] from the answers and, where a frame has worked it out, the
+/// check: The plan's line is empty without it.
+pub(crate) fn summary_on(a: &plan::Answers, check: Option<plan::Check>, q: u8) -> Text {
     match q {
         qstep::BOARD => {
             if a.places == 1 {
@@ -150,7 +155,9 @@ pub(crate) fn summary(ctx: &PlanCtx, q: u8) -> Text {
         }
         qstep::SOFTWARE => ticked(&SOFTWARE_ROWS, &a.software),
         _ => {
-            let c = ctx.check;
+            let Some(c) = check else {
+                return Text::of("");
+            };
             let lost = if c.single && c.lost == plan::Lost::No {
                 EN.plan_no_single_place
             } else {

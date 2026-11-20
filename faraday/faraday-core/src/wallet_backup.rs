@@ -569,6 +569,9 @@ pub struct BackupState {
     pub stage: BStage,
     /// The open question of the plan, by [`qstep`].
     pub q: Option<u8>,
+    /// The plan's check as the last frame of the plan's cards worked it
+    /// out, for The plan's row in Your choices.
+    pub(crate) drawn_check: std::cell::Cell<Option<plan::Check>>,
     /// The plan's answers.
     pub answers: plan::Answers,
     /// What each place is called, kept only in a vault; empty for
@@ -1006,7 +1009,11 @@ impl WalletBackupArea {
         };
         match action {
             Action::BQ(n) => {
-                b.q = if b.q == Some(n) { None } else { Some(n) };
+                // A card is always open: the press on it does nothing.
+                if b.q == Some(n) || (b.q.is_none() && n == qstep::PLAN) {
+                    return;
+                }
+                b.q = Some(n);
                 b.scroll.follow = true;
                 b.naming = None;
             }
@@ -3424,8 +3431,8 @@ pub(crate) struct BackupSteps;
 /// The one [`BackupSteps`].
 pub(crate) static BACKUP_STEPS: BackupSteps = BackupSteps;
 
-/// Back up's plan, its questions and the board, in order: still drawn in
-/// the flow's own column.
+/// Back up's plan, its questions and the board, in order, on the flow
+/// container: one card at a time, the count not known.
 pub(crate) struct BackupPlanSteps;
 
 /// The one [`BackupPlanSteps`].
@@ -3688,7 +3695,14 @@ impl crate::trail::StepFlow for BackupPlanSteps {
         // Only what a frame has worked out: until then there are no steps,
         // and Back leaves.
         let mapped = app.kept.plan_mapped_kept(&shape, &b.answers)?;
-        Some(crate::trail::Steps::new(plan_cards_on(&mapped), b.q))
+        let order = plan_cards_on(&mapped);
+        // A card is always open: with none, The plan's.
+        let open = b.q.unwrap_or(qstep::PLAN);
+        let mut s = crate::trail::Steps::new(order.clone(), Some(open));
+        // Every card's answer stands: a row takes a press whenever its card
+        // is not the open one.
+        s.answered = order;
+        Some(s)
     }
 
     fn open(&self, _: &Faraday, k: u8) -> Action {
@@ -3696,11 +3710,57 @@ impl crate::trail::StepFlow for BackupPlanSteps {
     }
 
     fn name(&self, _: &Faraday, k: u8) -> &'static str {
-        match k {
-            qstep::BOARD => EN.board_title,
-            qstep::SOFTWARE => EN.question_title_software,
-            _ => EN.backup_flow_the_plan,
-        }
+        crate::plan::cards::q_title(k)
+    }
+
+    fn contained(&self) -> Option<&dyn crate::flow::Contained> {
+        Some(self)
+    }
+}
+
+impl crate::flow::Contained for BackupPlanSteps {
+    fn rows(&self, app: &Faraday) -> Vec<crate::flow::Row> {
+        let Some(b) = app.backup() else {
+            return Vec::new();
+        };
+        let shape = app.plan_shape_now(b.wallet);
+        let Some(mapped) = app.kept.plan_mapped_kept(&shape, &b.answers) else {
+            return Vec::new();
+        };
+        let open = b.q.unwrap_or(qstep::PLAN);
+        plan_cards_on(&mapped)
+            .into_iter()
+            .map(|q| {
+                let line = plan::cards::summary_on(&b.answers, b.drawn_check.get(), q);
+                crate::flow::Row {
+                    label: Text::of(plan::cards::q_title(q)),
+                    value: Some(line).filter(|l| !l.is_empty()),
+                    mono: false,
+                    opens: q,
+                    current: open == q,
+                }
+            })
+            .collect()
+    }
+
+    fn count_fixed(&self, _: &Faraday) -> bool {
+        false
+    }
+
+    /// The cards' answers are each the plan's own: one changed clears none
+    /// of the others.
+    fn still_fits(&self, _: &Faraday, _changed: u8, _later: u8) -> bool {
+        true
+    }
+
+    /// The board is the one step that takes the whole room beside the
+    /// navigation, its list in the supporting pane.
+    fn full_width(&self, app: &Faraday) -> bool {
+        app.board_shown()
+    }
+
+    fn wide_content(&self, app: &Faraday) -> bool {
+        !app.is_compact()
     }
 }
 

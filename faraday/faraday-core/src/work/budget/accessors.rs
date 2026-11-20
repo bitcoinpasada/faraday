@@ -192,12 +192,6 @@ fn reads(app: &Faraday) -> Vec<Read> {
             }),
         ),
         (
-            "backup_questions",
-            Box::new(|v| {
-                let _ = v.backup_questions();
-            }),
-        ),
-        (
             "message_check",
             Box::new(|v| {
                 let _ = v.message_check("-----BEGIN BITCOIN SIGNED MESSAGE-----\nhello\n-----BEGIN SIGNATURE-----\nbc1q\nAAAA\n-----END BITCOIN SIGNED MESSAGE-----");

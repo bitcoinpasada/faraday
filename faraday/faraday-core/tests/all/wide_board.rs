@@ -124,42 +124,22 @@ fn on_smaller_windows_the_places_stand_one_under_another() {
     }
 }
 
-/// Where Back up's card `q` heads the page.
-fn plan_card(app: &Faraday, q: u8) -> (u16, u16, u16, u16) {
-    app.hit_box(Action::BQ(q))
-        .unwrap_or_else(|| panic!("card {q} drawn"))
-}
-
-/// Back up's board's card closed, the plan's other cards on the page.
-fn board_closed(app: &mut Faraday) {
-    app.press(Action::BQ(qstep::BOARD));
-    app.settle();
-    let _ = app.frame();
-    assert!(!app.board_shown(), "the board's card closed");
-}
-
 #[test]
 fn back_ups_cards_stand_still_when_the_boards_card_opens() {
     for (w, h) in [(1280u16, 800u16), (1920, 1080), (2560, 1600)] {
         let mut app = three_places(w, h, 160);
-        board_closed(&mut app);
-        let before = plan_card(&app, qstep::BOARD);
-        let plan_before = plan_card(&app, qstep::PLAN);
+        app.press(Action::BQ(qstep::PLAN));
+        app.settle();
+        assert!(!app.board_shown(), "{w}: the board's card closed");
+        let before = head_at(&mut app, "Step 2");
         app.press(Action::BQ(qstep::BOARD));
         app.settle();
         let _ = app.frame();
         assert!(app.board_shown(), "{w}: the board's card open");
-        let after = plan_card(&app, qstep::BOARD);
-        let plan_after = plan_card(&app, qstep::PLAN);
+        let after = head_at(&mut app, "Step 1");
         assert_eq!(
-            (before.0, before.2),
-            (after.0, after.2),
-            "{w}: the board's card keeps its place and width"
-        );
-        assert_eq!(
-            (plan_before.0, plan_before.2),
-            (plan_after.0, plan_after.2),
-            "{w}: The plan's card keeps its place and width"
+            before.0, after.0,
+            "{w}: the board's card keeps The plan's card's left edge"
         );
     }
 }
@@ -167,12 +147,17 @@ fn back_ups_cards_stand_still_when_the_boards_card_opens() {
 /// Where the open step's card head stands: its title's left edge and the
 /// right edge of its "Step 1", in pixels.
 fn card_head(app: &mut Faraday) -> (i32, i32) {
+    head_at(app, "Step 1")
+}
+
+/// [`card_head`] of the card whose count reads `count_text`.
+fn head_at(app: &mut Faraday, count_text: &str) -> (i32, i32) {
     use faraday_core::testkit::Plain;
     let _ = app.frame();
     let boxes = app.drawn_text_boxes().plain();
     let count = boxes
         .iter()
-        .find(|(t, _)| t == "Step 1")
+        .find(|(t, _)| t == count_text)
         .map(|(_, b)| *b)
         .expect("the card's step count drawn");
     let left = boxes

@@ -1633,9 +1633,6 @@ fn fewer_places_take_the_last_with_what_it_held_and_a_seed_kept_nowhere_holds_th
             .any(|s| s.holds.iter().any(|(w, _)| *w == What::Words(0)))
     );
     app.press(Action::BQ(qstep::PLAN));
-    assert!(!shows(&mut app, Action::BChecklist));
-    app.press(Action::BQ(qstep::PLAN));
-    app.press(Action::BQ(qstep::PLAN));
     assert!(shows_text(&mut app, "is kept nowhere"));
     app.press(Action::BChecklist);
     assert_eq!(app.backup().unwrap().stage, BStage::Plan);
@@ -2778,4 +2775,61 @@ fn a_plan_of_64_seeds_counts_its_last_seed_toward_reaching_the_money() {
     let a = Answers::defaults(&shape);
     let r = faraday_core::plan::reach(&c, &shape, &a, 63).expect("place 63 keeps a seed");
     assert_eq!((r.more, r.of, r.cut), (0, 1, false));
+}
+
+/// The plan's cards are drawn one at a time: the board's card has the
+/// places and no way to make the checklist, The plan's card the way on
+/// and no places.
+#[test]
+fn the_plans_cards_are_drawn_one_at_a_time() {
+    use faraday_core::{Action, qstep};
+    use faraday_shell_api::App;
+    let mut app = three_here();
+    vault_at(&mut app, 0, 0, &[0, 1]);
+    app.press(Action::BQ(qstep::BOARD));
+    app.settle();
+    let _ = app.frame();
+    let place = Action::Board(BoardPress::Zone(Zone::Card(0)));
+    assert!(app.hit_box(place).is_some(), "the board's card: its places");
+    assert!(!app.offers(Action::BChecklist));
+    app.press(Action::BQ(qstep::PLAN));
+    app.settle();
+    let _ = app.frame();
+    assert!(
+        app.offers(Action::BChecklist),
+        "The plan's card: the way on"
+    );
+    assert!(app.hit_box(place).is_none(), "no places on The plan's card");
+    assert!(
+        app.drawn_texts().iter().any(|t| t.starts_with("Step ")),
+        "{:?}",
+        app.drawn_texts()
+    );
+}
+
+/// A press on an earlier card's row in Your choices opens that card as
+/// it was left: the places it had are still on it.
+#[test]
+fn a_press_on_an_earlier_cards_row_opens_it_as_left() {
+    use faraday_core::{Action, ChoicesPress, qstep};
+    use faraday_shell_api::App;
+    let mut app = three_here();
+    vault_at(&mut app, 0, 0, &[0, 1]);
+    let before = the_map(&app);
+    app.press(Action::BQ(qstep::PLAN));
+    app.settle();
+    let _ = app.frame();
+    assert_eq!(app.backup().unwrap().q, Some(qstep::PLAN));
+    app.press(Action::Choices(ChoicesPress::Row(qstep::BOARD)));
+    app.settle();
+    let _ = app.frame();
+    assert_eq!(app.backup().unwrap().q, Some(qstep::BOARD));
+    assert_eq!(the_map(&app), before);
+    assert!(
+        app.hit_box(Action::Board(BoardPress::Zone(Zone::Card(0))))
+            .is_some()
+    );
+    // The open card's own row is no way anywhere.
+    app.press(Action::BQ(qstep::BOARD));
+    assert_eq!(app.backup().unwrap().q, Some(qstep::BOARD));
 }
