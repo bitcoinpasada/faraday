@@ -1058,6 +1058,7 @@ dependencies = [
  "faraday-codec",
  "faraday-crypto",
  "faraday-entropy",
+ "faraday-forms",
  "faraday-intake",
  "faraday-kef",
  "faraday-pgp",

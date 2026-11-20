@@ -58,6 +58,7 @@ pub mod totp;
 pub mod vanity;
 pub mod vault;
 pub mod words;
+pub mod xprv;
 
 pub use codex32::{Making, StringCheck, WorkSet};
 pub use identity::{Material, fingerprint, fp_text};

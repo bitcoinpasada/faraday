@@ -1033,6 +1033,35 @@ impl Keys {
         Ok(fp)
     }
 
+    /// Costs a base58 check, two elliptic-curve multiplications and what
+    /// `push` costs. Adds the key an extended private key at depth 0 is
+    /// (`docs/KEY-FORMS.md` §6): it holds a master key and no words, seed
+    /// or passphrase. Read by [`crate::xprv`]'s rules for this session's
+    /// network.
+    pub fn add_xprv(
+        &mut self,
+        c: &Compute,
+        text: &str,
+        label: &str,
+    ) -> Result<Fingerprint, crate::xprv::XprvError> {
+        use crate::xprv::XprvError;
+        self.no_stick().map_err(XprvError::Session)?;
+        let master = crate::xprv::read_master(c, text, self.network).map_err(XprvError::Read)?;
+        let fp = master.fingerprint();
+        self.allowed(fp).map_err(XprvError::Session)?;
+        if self.position(fp).is_some() {
+            return Err(XprvError::Session(Refusal::Duplicate(fp)));
+        }
+        let label = if label.trim().is_empty() {
+            fp_text(fp)
+        } else {
+            Text::of(label.trim())
+        };
+        let entry = Entry::new(c, master, label, None, Language::English, None, None, None);
+        self.push(c, entry);
+        Ok(fp)
+    }
+
     /// Costs what `push` costs for each key. Adds the keys a load's job
     /// worked out ([`crate::job::KeysJob`]), in the order the job made
     /// them, as `add_words_with` and `add_seed` add them: one the session

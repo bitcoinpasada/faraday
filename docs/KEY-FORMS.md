@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F299, F300); the registry crate `faraday-forms` is built (the identifier and the table of §3.2, and `scan_read::Kind::form`), and the lists of §2 are not yet moved onto it: eight lists still repeat what it knows by hand.
-**Open:** every list moved onto the registry; the ways-in component on each screen that takes a key; copies and their checks worked out from it; reading back an extended private key and a master seed in hex
+**Open:** every list moved onto the registry; the ways-in component on each screen that takes a key; copies and their checks worked out from it; the two forms of an extended private key and a master seed in hex in the registry, their screens, the Inbox's finding of a file holding one and Convert's reading of them (the key boundary reads both)
 
 A key comes into Faraday in one of a few forms: BIP-39 words, SLIP-39
 shares, codex32 strings, Seed XOR parts, a Krux code, and, by F300, an

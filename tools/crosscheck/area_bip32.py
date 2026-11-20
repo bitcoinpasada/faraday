@@ -11,6 +11,10 @@ both judge every case below, and Faraday must agree with both.
   fingerprint and the master's fingerprint.
 - Public derivation from an xpub along normal steps, which must give the
   xpub private derivation gives; a hardened step from an xpub refused.
+- The keys faraday-keys loads from an xprv (a master key of the session's
+  network, no words or seed) and from a master seed in hex (16 to 64 bytes):
+  the master xprv and fingerprint, judged by both; any other depth, the other
+  network's version and any other length refused.
 - Extended keys read as text by the strict decoders (`faraday_bip::xkey`)
   and the master-key import (`MasterKey::decode`): every valid key read
   back to itself, and keys broken one rule at a time (the checksum, the
@@ -73,8 +77,9 @@ class Bip32(Area):
     )
     corpus = (
         'seeds of 16 to 64 bytes on every network, random paths with every index, '
-        'public derivation against private, keys broken one rule at a time and the '
-        'master-key import, each judged by btclib and by `hdkeychain`'
+        'public derivation against private, keys broken one rule at a time, the '
+        'master-key import and the keys faraday-keys loads from an xprv or a master '
+        'seed in hex, each judged by btclib and by `hdkeychain`'
     )
     differences = [
         (
@@ -224,6 +229,48 @@ class Bip32(Area):
         return self.compare("bip32.import", {"key": key},
                             lambda: self.judged(btclib, btcd, self.uncovered(key)))
 
+    def keys_xprv(self, key, network):
+        """The key faraday-keys loads from an xprv on `network`: a master key whose
+        version is the network's."""
+        def wrong_network(key):
+            if bip32_ref.PRV.get(bytes(bip32_ref.b58check_decode(key)[:4])) != is_test(network):
+                raise Invalid("another network's version")
+
+        def btclib():
+            k = bip32_ref.decode(key, True)
+            if not k.data.is_root:
+                raise Invalid("not a master key")
+            wrong_network(key)
+            return {"xprv": k.serialize(), "fingerprint": k.fingerprint().hex()}
+
+        def btcd():
+            a = self.btcd({"op": "decode", "key": key})
+            if not a["private"] or a["depth"] != 0:
+                raise Invalid("btcd: not a master key")
+            wrong_network(key)
+            return {"xprv": a["key"], "fingerprint": a["fingerprint"]}
+        return self.compare("bip32.keys_xprv", {"key": key, "network": network},
+                            lambda: self.judged(btclib, btcd, self.uncovered(key)))
+
+    def keys_hex_seed(self, seed_hex, network):
+        """The key faraday-keys loads from a master seed written in hex: BIP-32's
+        master key of 16 to 64 bytes."""
+        def btclib():
+            seed = bytes.fromhex(seed_hex)
+            if not 16 <= len(seed) <= 64:
+                raise Invalid("a seed of another length")
+            m = bip32_ref.master(seed, is_test(network))
+            return {"xprv": m.serialize(), "fingerprint": m.fingerprint().hex()}
+
+        def btcd():
+            seed = bytes.fromhex(seed_hex)
+            if not 16 <= len(seed) <= 64:
+                raise Invalid("a seed of another length")
+            a = self.btcd({"op": "master", "seed": seed_hex, "test": is_test(network)})
+            return {"xprv": a["xprv"], "fingerprint": a["fingerprint"]}
+        return self.compare("bip32.keys_hex_seed", {"seed": seed_hex, "network": network},
+                            lambda: self.judged(btclib, btcd))
+
     def published(self):
         self.check_driver()
         for v in json.loads((ROOT / "tools/vectors/bip32/vectors.json").read_text()):
@@ -236,12 +283,17 @@ class Bip32(Area):
                 self.decode(chain["xprv"], True)
                 self.decode(chain["xpub"], False)
                 self.import_master(chain["xprv"])
+                self.keys_xprv(chain["xprv"], "mainnet")
+                self.keys_xprv(chain["xprv"], "testnet")
+            self.keys_hex_seed(v["seed"], "mainnet")
+            self.keys_hex_seed(v["seed"].upper(), "testnet")
         for line in (ROOT / "tools/vectors/bip32/invalid-keys.txt").read_text().splitlines():
             key = line.split()[0] if line.strip() else ""
             if key and not key.startswith("#"):
                 self.decode(key, True)
                 self.decode(key, False)
                 self.import_master(key)
+                self.keys_xprv(key, "mainnet")
         vectors = json.loads((ROOT / "tools/vectors/bip39/vectors.json").read_text())
         for _, _, seed, xprv in vectors["english"]:
             got = self.need(self.master(bytes.fromhex(seed), "mainnet"), "master")
@@ -300,6 +352,9 @@ class Bip32(Area):
         seed = self.randbytes(rng.choice([16, 32, 64, rng.randint(16, 64)]))
         network = rng.choice(NETWORKS)
         self.master(seed, network)
+        self.keys_hex_seed(seed.hex(), network)
+        if rng.random() < 0.2:
+            self.keys_hex_seed(self.randbytes(rng.choice([0, 1, 15, 65, 100])).hex(), network)
         path = self.random_path()
         got = self.need(self.derive(seed, network, path), "derive")
         for key, private in ((got["xprv"], True), (got["xpub"], False)):
@@ -310,6 +365,7 @@ class Bip32(Area):
             self.decode(bad, not private)
             if private and rng.random() < 0.3:
                 self.import_master(rng.choice([key, bad]))
+                self.keys_xprv(rng.choice([key, bad]), rng.choice(NETWORKS))
         # Public derivation along normal steps from this key, and a
         # hardened step refused.
         suffix = [rng.choice([0, 1, rng.randrange(HARDENED)])

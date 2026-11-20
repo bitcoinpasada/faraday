@@ -46,6 +46,18 @@ fn master(c: &Compute, req: &Value) -> Result<MasterKey, String> {
     ))
 }
 
+/// The only key of `keys`: its master xprv and fingerprint.
+fn held_key(c: &Compute, keys: &faraday_keys::Keys) -> Value {
+    let xprv = keys
+        .master_xprv(c, 0, faraday_keys::Reveal::PaperForm)
+        .expect("a master key to write")
+        .release();
+    json!({
+        "xprv": xprv.as_str(),
+        "fingerprint": hex(&keys.info(0).expect("a key").fingerprint.0),
+    })
+}
+
 /// Handles `bip39.<name>`.
 pub fn handle_bip39(name: &str, req: &Value) -> Answer {
     let c = Compute::unchecked();
@@ -145,6 +157,19 @@ pub fn handle_bip32(name: &str, req: &Value) -> Answer {
                 "xprv": m.xpriv_ascii().as_str(),
                 "fingerprint": hex(m.fingerprint().as_bytes()),
             }))
+        }
+        // The keys a person loads by an xprv or a master seed in hex
+        // (`docs/KEY-FORMS.md` §6), read by faraday-keys for `network`.
+        "keys_xprv" => {
+            let mut keys = faraday_keys::Keys::on(network(req));
+            keys.add_xprv(&c, text(req, "key"), "").map_err(err)?;
+            Ok(held_key(&c, &keys))
+        }
+        "keys_hex_seed" => {
+            let seed = faraday_keys::xprv::parse_hex_seed(text(req, "seed")).map_err(err)?;
+            let mut keys = faraday_keys::Keys::on(network(req));
+            keys.add_seed(&c, &seed, "").map_err(err)?;
+            Ok(held_key(&c, &keys))
         }
         _ => Err(format!("unknown bip32 op {name}")),
     }

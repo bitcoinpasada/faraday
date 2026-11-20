@@ -17,6 +17,23 @@ pub enum Material<'a> {
     Slip39(&'a [slip39::Share]),
     /// A master seed, as it is (16 to 64 bytes).
     Seed(&'a [u8]),
+    /// An extended private key at depth 0 as text (`xprv` or `tprv`, with
+    /// an origin before it or none), read by [`crate::xprv`]'s rules: a
+    /// master key and no seed, and no passphrase.
+    Xprv(&'a str),
+}
+
+impl Material<'_> {
+    /// What the registry says this material is (`Form::makes`): one
+    /// variant for each, matched with no catch-all.
+    pub fn makes(&self) -> faraday_forms::Makes {
+        match self {
+            Material::Words(_) => faraday_forms::Makes::Words,
+            Material::Slip39(_) => faraday_forms::Makes::Slip39Shares,
+            Material::Seed(_) => faraday_forms::Makes::MasterSeed,
+            Material::Xprv(_) => faraday_forms::Makes::MasterKey,
+        }
+    }
 }
 
 /// Costs a PBKDF2 (words) or a share recovery (SLIP-39) and a master
@@ -50,6 +67,12 @@ pub(crate) fn master_of(
                 network,
             ))
         }
+        // A passphrase has nothing to act on in a master key: refused, not
+        // ignored, so no other key's fingerprint is given for it.
+        Material::Xprv(text) if passphrase.is_empty() => {
+            crate::xprv::read_master(c, text, network).ok()
+        }
+        Material::Xprv(_) => None,
     }
 }
 

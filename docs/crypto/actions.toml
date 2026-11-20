@@ -1188,6 +1188,8 @@ functions = [
   "core/faraday-bip/src/keys.rs::MasterKey::decode",
   "core/faraday-bip/src/keys.rs::MasterKey::from_chain_code_and_key",
   "faraday/faraday-keys/src/session.rs::Keys::add_seed",
+  "faraday/faraday-keys/src/session.rs::Keys::add_xprv",
+  "faraday/faraday-keys/src/xprv.rs::read_master",
   "faraday/faraday-keys/src/identity.rs::master_of",
   "faraday/faraday-keys/src/identity.rs::fingerprint",
   "faraday/faraday-keys/src/identity.rs::fingerprint_of_words",
@@ -1233,6 +1235,13 @@ tests = [
   "core/faraday-bip/tests/all/bip32.rs::vector_master_keys_import_and_derive",
   "core/faraday-bip/tests/all/bip32.rs::a_child_key_is_not_a_master_key",
   "core/faraday-bip/tests/all/accounts.rs::master_fingerprint",
+  "faraday/faraday-keys/tests/xprv_read.rs::the_master_keys_of_vectors_1_to_3_load",
+  "faraday/faraday-keys/tests/xprv_read.rs::an_origin_is_taken_only_as_the_keys_own_fingerprint",
+  "faraday/faraday-keys/tests/xprv_read.rs::every_key_of_vector_5_is_refused",
+  "faraday/faraday-keys/tests/xprv_read.rs::a_key_below_the_master_is_refused_with_where_it_is",
+  "faraday/faraday-keys/tests/xprv_read.rs::another_networks_version_and_slip_132_are_refused_by_name",
+  "faraday/faraday-keys/tests/xprv_read.rs::the_seeds_of_vectors_1_to_3_load_from_hex",
+  "faraday/faraday-keys/tests/xprv_read.rs::a_hex_seed_of_another_length_is_refused",
   "faraday/faraday-keys/tests/operations.rs::the_abandon_words_have_the_fingerprint_the_bips_publish",
   "faraday/faraday-keys/tests/operations.rs::a_master_key_is_told_from_another_by_all_of_its_identity",
 ]
@@ -1252,7 +1261,10 @@ wiped = "The private key and chain code are overwritten when the key is dropped 
 
 [action.limits]
 lines = [
-  "Only a depth-0 key is a master key; a key at another depth is refused.",
+  "Only a depth-0 key is a master key; a key at another depth is refused, with its depth, its parent's fingerprint and its child number (faraday-keys).",
+  "A key loaded from an extended private key holds a master key and no words, seed or passphrase; its version is its network's (xprv, or tprv on a test network), and SLIP-132's private spellings are refused by name.",
+  "An origin written before the extended private key is taken only as the key's own fingerprint with no path.",
+  "A master seed written in hex is 16 to 64 bytes, an even count of digits; any other length is refused.",
   "An extended key text that breaks any of BIP 32 test vector 5's rules is refused.",
 ]
 

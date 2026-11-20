@@ -69,6 +69,9 @@ pub enum Makes {
     Slip39Shares,
     /// A master seed.
     MasterSeed,
+    /// A master key and no seed: what an extended private key at depth 0
+    /// holds.
+    MasterKey,
 }
 
 /// What a key of a form is written as for a backup.
