@@ -7,7 +7,8 @@
 //! it is see-through.
 
 use crate::pal::*;
-use crate::{Shape, Ui, W};
+use crate::{Shape, Ui};
+use faraday_draw::tokens::LABEL_M;
 
 /// Where a stick stands, as its pill shows it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -21,8 +22,8 @@ pub enum StickState {
 }
 
 /// A pill's box and inside: its left edge, top, width and height, the
-/// room before its dot, the dot's radius, how far in from the left
-/// padding its text starts, and the text's size, in units.
+/// room before its dot, the dot's radius and how far in from the left
+/// padding its text starts, in units; its text is Label M, as the mode pill's.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PillAt {
     /// Left edge.
@@ -39,8 +40,6 @@ pub struct PillAt {
     pub dot_r: f32,
     /// From the padding to the text, past the dot.
     pub dot_room: f32,
-    /// The text's size, in the medium face.
-    pub text: f32,
 }
 
 /// What a pill of tone `n` ([`stick`]) in `state` draws in, in `theme`:
@@ -96,6 +95,6 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             self.press(Shape::new(x, y, w, h, r), ink, a);
         }
         self.dot(x + at.pad + at.dot_r, y + h / 2.0, at.dot_r, dot);
-        self.text_mid(x + at.pad + at.dot_room, y, h, at.text, W::S, ink, label);
+        self.text_mid_as((x + at.pad + at.dot_room, y, h), LABEL_M, ink, label);
     }
 }

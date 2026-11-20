@@ -27,8 +27,9 @@ use crate::backup_flow::{Purpose, Step};
 use crate::drawing::View;
 use crate::medium::Medium;
 use crate::strings::EN;
-use crate::ui::{Ui, W};
+use crate::ui::Ui;
 use crate::{Action, Faraday, StickInfo};
+use faraday_draw::tokens::{LABEL_M, MODE_PILL_HEIGHT, MODE_PILL_PAD};
 use faraday_text::{Num, Text};
 use faraday_ui::stick::{PillAt, StickState};
 
@@ -72,7 +73,6 @@ pub struct Pill {
 /// side of a row drawn across the window.
 struct Size {
     h: f32,
-    text: f32,
     pad: f32,
     dot_r: f32,
     dot_room: f32,
@@ -84,9 +84,8 @@ struct Size {
 /// On a wide display: the page's own buttons sit at the right, under the
 /// strip, so the row keeps clear of them.
 const WIDE: Size = Size {
-    h: 28.0,
-    text: 13.0,
-    pad: 14.0,
+    h: MODE_PILL_HEIGHT,
+    pad: MODE_PILL_PAD,
     dot_r: 4.0,
     dot_room: 12.0,
     gap: 8.0,
@@ -97,7 +96,6 @@ const WIDE: Size = Size {
 /// On a small panel: the strip is a band of its own above the page.
 const SMALL: Size = Size {
     h: 24.0,
-    text: 12.0,
     pad: 9.0,
     dot_r: 4.0,
     dot_room: 10.0,
@@ -530,7 +528,7 @@ fn layout(pills: &[Pill], ui: &Ui, z: &Size, avail: f32) -> Layout {
             .collect();
         let widths = texts
             .iter()
-            .map(|t| 2.0 * z.pad + z.dot_room + ui.measure(z.text, W::S, t))
+            .map(|t| 2.0 * z.pad + z.dot_room + ui.measure_as(LABEL_M, t))
             .collect();
         (texts, widths)
     };
@@ -632,7 +630,6 @@ pub(crate) fn bar(app: &View, ui: &mut Ui, right: f32) -> f32 {
             pad: z.pad,
             dot_r: z.dot_r,
             dot_room: z.dot_room,
-            text: z.text,
         };
         let action = u8::try_from(p.n).ok().map(Action::StickPill);
         // The tones are counted from the boot stick's, the first.
@@ -685,7 +682,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, window_w: f32) {
                 pad: z.pad,
                 dot_r: z.dot_r,
                 dot_room: z.dot_room,
-                text: z.text,
             };
             // The tones are counted from the boot stick's, the first.
             let n = p.n.saturating_sub(1);

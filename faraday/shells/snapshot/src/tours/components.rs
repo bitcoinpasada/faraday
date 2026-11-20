@@ -73,7 +73,6 @@ fn pieces(ui: &mut Ui<u8>) {
                 pad: 8.0,
                 dot_r: 4.0,
                 dot_room: 14.0,
-                text: 13.0,
             };
             let label = if n == 0 {
                 "Boot".to_string()
