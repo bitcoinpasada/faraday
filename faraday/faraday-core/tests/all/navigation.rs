@@ -81,14 +81,14 @@ fn flow_begun(app: &mut Faraday) {
 /// The ⋮ on the page shown, whatever it holds.
 fn more_menu(app: &mut Faraday) -> Action {
     let _ = app.frame();
-    (0u8..16)
+    (0u8..64)
         .map(|bits| {
             Action::NavMenu(MenuPress::Open(Some(Overflow {
                 own: bits & 1 != 0,
-                choices: false,
+                choices: bits & 16 != 0,
                 help: bits & 2 != 0,
                 keyboard: bits & 4 != 0,
-                keyboard_up: false,
+                keyboard_up: bits & 32 != 0,
                 eye: bits & 8 != 0,
             })))
         })
