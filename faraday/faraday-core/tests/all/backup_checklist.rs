@@ -1337,6 +1337,19 @@ fn checklist_on_show() -> (Faraday, usize) {
 }
 
 #[test]
+fn back_up_opens_on_the_checklist_card_with_no_item_open() {
+    let (mut app, w) = checklist_on_show();
+    // An item open, then the wallet's backup opened again from its card.
+    app.press(Action::BStep(Item::Templates));
+    app.press(Action::BackupChecklist(w));
+    app.settle();
+    let _ = app.frame();
+    assert_eq!(app.screen, Screen::Backup);
+    assert_eq!(app.backup().unwrap().open, None, "the checklist card");
+    assert!(crate::common::has(&mut app, "Backup checklist"));
+}
+
+#[test]
 fn an_item_pressed_shows_its_card_alone_and_back_returns_to_the_checklist() {
     let (mut app, _) = checklist_on_show();
     // The checklist card is the first: the first item is a press on it.

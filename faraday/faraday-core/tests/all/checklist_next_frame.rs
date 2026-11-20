@@ -113,16 +113,21 @@ fn next_frame(app: &mut Faraday) -> Vec<TextBox> {
     app.drawn_text_boxes().plain()
 }
 
-/// Whether the card titled `title` shows a tick: its number, drawn left
-/// of its title, is gone.
-fn ticked(boxes: &[TextBox], title: &str, number: usize) -> bool {
+/// Whether Your choices says the item titled `title` is done.
+fn ticked(boxes: &[TextBox], title: &str) -> bool {
+    let (_, (px, _, _, _)) = boxes
+        .iter()
+        .find(|(t, _)| t == "Your choices")
+        .unwrap_or_else(|| panic!("no Your choices in {boxes:?}"));
     let (_, (x, y, _, _)) = boxes
         .iter()
-        .find(|(t, _)| t == title)
-        .unwrap_or_else(|| panic!("no card titled {title:?} in {boxes:?}"));
-    !boxes
+        .find(|(t, (bx, _, _, _))| t == title && bx >= px)
+        .unwrap_or_else(|| panic!("no row titled {title:?} in {boxes:?}"));
+    boxes
         .iter()
-        .any(|(t, (bx, by, _, _))| *t == number.to_string() && bx < x && (by - y).abs() < 24)
+        .filter(|(_, (bx, by, _, _))| (bx - x).abs() < 4 && *by > *y && *by - *y < 30)
+        .min_by_key(|(_, (_, by, _, _))| *by)
+        .is_some_and(|(t, _)| t == "Done")
 }
 
 #[test]
@@ -174,14 +179,8 @@ fn a_vault_opened_mid_checklist_holding_the_wallet_ticks_the_vault_2_card_on_the
     app.press(Action::BNext(faraday_core::plan::Item::Vault(0)));
     let seed2 = String::from(&*app.backup_seed_list_now(w)[1].0);
     let title = format!("Vault 2 · {seed2}");
-    let number = app
-        .backup_items_now(&c)
-        .iter()
-        .position(|&n| n == faraday_core::plan::Item::Vault(1))
-        .expect("a Vault 2 item")
-        + 1;
     let boxes = next_frame(&mut app);
-    assert!(!ticked(&boxes, &title, number), "{boxes:?}");
+    assert!(!ticked(&boxes, &title), "{boxes:?}");
     let into = format!("Into {earlier_name}");
     assert!(!boxes.iter().any(|(t, _)| *t == into), "{boxes:?}");
     assert!(
@@ -219,7 +218,7 @@ fn a_vault_opened_mid_checklist_holding_the_wallet_ticks_the_vault_2_card_on_the
     app.press(Action::Vault(V::LoadNotNow));
     app.press(Action::Nav(Screen::Backup));
     let boxes = next_frame(&mut app);
-    assert!(ticked(&boxes, &title, number), "{boxes:?}");
+    assert!(ticked(&boxes, &title), "{boxes:?}");
     assert!(app.backup_item_done_now(&c, Item::Vault(1)));
     // Done, the item has moved on by itself (`docs/BACKUP-FLOW.md` §17.23).
     assert_ne!(
