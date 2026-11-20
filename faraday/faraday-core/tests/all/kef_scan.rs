@@ -1076,4 +1076,113 @@ fn new_keys_start_card_offers_a_krux_code_that_opens_its_form() {
     assert_eq!(app.screen, Screen::Entry);
     assert_eq!(testkit::entry(&app).form, faraday_core::forms::Form::Krux);
     assert!(has(&mut app, "Scan a Krux code"));
+    // The code read there fills the slot it was opened for, as Scan a
+    // SeedQR on the same card does.
+    let code = sealed_raw(&mut app, &[0xa1; 32]);
+    app.press(Action::ScanKef);
+    read(&mut app, &code);
+    open_with(&mut app, "note key");
+    assert_eq!(app.sheet, Some(Sheet::SeedRead));
+    app.press(Action::SeedRead(faraday_core::seeds::read::Choice::Plain));
+    assert_eq!(app.screen, Screen::Create);
+    assert!(matches!(
+        app.create().unwrap().slots[0],
+        faraday_core::create::Source::Here(_)
+    ));
+}
+
+/// Create's multisig kind, on its keys, at Scan Key 2's scanner.
+fn create_key_2_scanner() -> Faraday {
+    use faraday_core::create::NewKind;
+    use faraday_core::cstep;
+    let mut app = testkit::started();
+    app.press(Action::CreateWallet);
+    app.press(Action::CStep(cstep::KIND));
+    let multi = NewKind::ALL
+        .iter()
+        .position(|k| *k == NewKind::Multi)
+        .unwrap() as u8;
+    crate::common::ckind(&mut app, multi);
+    app.press(Action::CNext(cstep::QUORUM));
+    app.press(Action::ScanFor(faraday_core::Ask::Xpub(2)));
+    assert_eq!(app.sheet, Some(Sheet::Scan));
+    app
+}
+
+fn key_2_filled(app: &Faraday) -> bool {
+    matches!(
+        app.create().unwrap().slots.get(1),
+        Some(faraday_core::create::Source::Here(_))
+    )
+}
+
+#[test]
+fn a_krux_code_cancelled_on_the_seed_sheet_leaves_no_slot_waiting() {
+    let mut app = create_key_2_scanner();
+    let code = sealed_raw(&mut app, &[0xa1; 32]);
+    read(&mut app, &code);
+    go(&mut app, "Open");
+    open_with(&mut app, "note key");
+    assert_eq!(app.sheet, Some(Sheet::SeedRead));
+    app.press(Action::Cancel);
+    assert_eq!(app.screen, Screen::Create);
+    // A key added by typing its words is not Key 2's.
+    app.press(Action::Entry(None));
+    for c in testkit::test_words(testkit::TEST_SEEDS[0].0).chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.press(Action::EntryAdd);
+    assert!(!key_2_filled(&app));
+}
+
+#[test]
+fn a_krux_code_of_words_read_at_key_2_fills_key_2() {
+    let mut app = create_key_2_scanner();
+    let words = testkit::test_words(testkit::TEST_SEEDS[0].0);
+    let code = sealed(&mut app, words.as_bytes());
+    read(&mut app, code.as_bytes());
+    go(&mut app, "Open");
+    open_with(&mut app, "note key");
+    assert_eq!(app.sheet, Some(Sheet::SeedRead));
+    app.press(Action::SeedRead(faraday_core::seeds::read::Choice::Plain));
+    assert!(key_2_filled(&app));
+}
+
+#[test]
+fn cancel_on_a_krux_codes_passphrase_leaves_the_flow_where_it_was() {
+    let mut app = create_key_2_scanner();
+    let code = sealed_raw(&mut app, &[0xa1; 32]);
+    read(&mut app, &code);
+    go(&mut app, "Open");
+    assert_eq!(app.sheet, Some(Sheet::KefRead));
+    app.press(Action::Cancel);
+    assert_eq!(app.screen, Screen::Create);
+    assert!(app.session.keys.is_empty());
+    assert!(!key_2_filled(&app));
+}
+
+#[test]
+fn back_out_of_a_krux_form_opened_for_a_slot_leaves_no_slot_waiting() {
+    use faraday_core::create::NewKind;
+    use faraday_core::cstep;
+    let mut app = testkit::started();
+    app.press(Action::CreateWallet);
+    app.press(Action::CStep(cstep::KIND));
+    let multi = NewKind::ALL
+        .iter()
+        .position(|k| *k == NewKind::Multi)
+        .unwrap() as u8;
+    crate::common::ckind(&mut app, multi);
+    app.press(Action::CNext(cstep::QUORUM));
+    app.press(Action::KeyGen(Some(1)));
+    app.press(Action::KStart(faraday_core::keygen::Start::Krux.index()));
+    assert_eq!(app.screen, Screen::Entry);
+    app.press(Action::Back);
+    assert_eq!(app.screen, Screen::Create);
+    app.press(Action::Entry(None));
+    for c in testkit::test_words(testkit::TEST_SEEDS[0].0).chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.press(Action::EntryAdd);
+    assert!(!key_2_filled(&app));
 }

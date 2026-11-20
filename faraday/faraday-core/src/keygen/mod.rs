@@ -1568,16 +1568,24 @@ impl crate::Faraday {
     }
 
     /// Start's Krux code: the flow is left for Add a key on its Krux code
-    /// form, where a code is read.
+    /// form, where a code is read; a Create slot's key still fills it.
     fn keygen_to_krux(&mut self) {
+        let mut slot = None;
         if let Some(k) = self.keygen_drop()
             && self.screen == Screen::KeyGen
         {
             self.screen = k.back;
+            slot = k.slot.filter(|_| k.back == Screen::Create);
         }
         self.act(crate::Action::Entry(None));
         if self.screen == Screen::Entry {
             self.entry.choose_form(Form::Krux);
+            // A Create slot keeps its slot: the key the code opens fills
+            // it, as a SeedQR read on the same card does.
+            if let Some(slot) = slot {
+                self.camera.wait_slot(slot);
+                self.entry.set_back(Some(Screen::Create));
+            }
         }
     }
 

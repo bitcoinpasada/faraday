@@ -1185,6 +1185,11 @@ impl Faraday {
         self.sweep_tidy();
         self.read_carried_tidy();
         self.seed_carried_tidy();
+        // A Create slot waits for a key only while Add a key or a sheet
+        // is on screen: any other way off it leaves no slot waiting.
+        if self.screen != Screen::Entry && self.sheet.is_none() {
+            let _ = self.camera.take_slot();
+        }
         self.wallet_after(asked, action);
         self.published_sheet_open();
         self.account_after(account_asked, action);
@@ -1252,6 +1257,8 @@ impl Faraday {
                 kef_tool::cancel(self);
                 self.kef_job_drop();
                 self.seed_read.clear();
+                // A slot waiting for the key of a seed read stops waiting.
+                let _ = self.camera.take_slot();
                 self.stick.clear_delete_ask();
                 self.visit.taken_clear();
                 self.next_mode.clear();

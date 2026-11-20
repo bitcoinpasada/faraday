@@ -583,11 +583,11 @@ fn kef_road_after_seed(app: &mut Faraday, plain: Zeroizing<Vec<u8>>, offer: bool
         return;
     };
     let c = app.compute();
+    let lands = app.seed_read.kef().map_or(Lands::SeedSheet, |k| k.lands);
     if offer
         && depth + 1 < DEPTH_MAX
         && let Some(found) = faraday_codec::kef::recognize(&plain)
     {
-        let lands = app.seed_read.kef().map_or(Lands::SeedSheet, |k| k.lands);
         let mut next = KefRead::new(found.envelope, depth + 1, app.seed_read.rate());
         next.lands = lands;
         next.stage = Stage::Offer;
@@ -631,6 +631,22 @@ fn kef_road_after_seed(app: &mut Faraday, plain: Zeroizing<Vec<u8>>, offer: bool
         app.sheet = Some(Sheet::Scan);
         let kind = crate::scan_read::unknown_kind(&plain);
         return app.read_card_show(&c, kind, (None, "txt", plain));
+    }
+    // Text of a seed read where a flow's scanner read it goes where that
+    // flow's SeedQR goes (`docs/KEF.md` §6). A codex32 secret and the
+    // other kinds go on as an unknown code does.
+    if lands != Lands::SeedSheet
+        && matches!(
+            crate::scan_read::secret_kind(&c, &plain),
+            Some(crate::scan_read::Kind::SeedWords | crate::scan_read::Kind::SeedQr)
+        )
+        && let Some(words) = faraday_intake::seed_in_code(&c, &plain)
+    {
+        drop(plain);
+        app.seed_read.set_kef(None);
+        app.sheet = None;
+        kef_seed_lands(app, lands, &words);
+        return;
     }
     if names_something {
         app.seed_read.set_kef(None);

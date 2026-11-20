@@ -244,7 +244,9 @@ own checks. Faraday adds only:
   seed goes to that slot, wallet or intake, through the seed sheet where a SeedQR's does, with
   the code's id on the sheet (`docs/SCANNING.md` §4.3). A code read by Home's Scan or by Add a
   key's Scan a SeedQR goes to the seed sheet. Cancelling the passphrase leaves the person in
-  the flow; a wrong passphrase asks again, as everywhere.
+  the flow; a wrong passphrase asks again, as everywhere. A code that seals the seed as text
+  (BIP-39 words, a SeedQR's digits) goes the same way; a note used as a passphrase, and
+  other secret text, go on to the scanner of Add a key.
 - **Text that names nothing** is a note, shown as a secret (DESIGN §4.10).
   It may be a passphrase, and nothing in the bytes says so: the card offers
   "Use as a passphrase".
@@ -748,8 +750,7 @@ tool has no **Scan my copy**, and its picture can be printed from a stick as any
 **Scan a Krux code** (`ScanPurpose::Kef`, `Action::ScanKef`) opens the camera for one code; one that
 is no code is said on the scanner and the camera stays on. **From Files** (`Action::KefFile`) takes
 an Inbox file, one button for each text or unrecognised file; the file is read when pressed, and one
-that is no code is named in a toast. Both are on the tool's Contents card, above the choices of what a
-new code holds, and on **Add a key**'s Krux code form (`Form::Krux`, last of the forms), which has
+that is no code is named in a toast. Both are on a card of their own above the tool's steps, and on **Add a key**'s Krux code form (`Form::Krux`, last of the forms), which has
 nothing else. Check's **Krux code** row (Check a backup in another form) opens Add a key on that form.
 A pasted code is not taken by the scanner for these two.
 
