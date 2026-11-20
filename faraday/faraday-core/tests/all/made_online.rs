@@ -1146,3 +1146,53 @@ fn back_does_not_stop_checking_the_keys_and_the_64_byte_seed_is_held() {
     caution(&mut app);
     assert_eq!(app.sheet, Some(Sheet::Published));
 }
+
+#[test]
+fn a_lock_that_stops_with_the_check_running_still_marks_a_seed_saved_after_it() {
+    let words = fresh();
+    let mut app = marked_open_no_key(&words);
+    type_seed_string(&mut app, &seed_string_of(&words));
+    assert_eq!(app.session.keys.len(), 1);
+    let checking = |a: &Faraday| {
+        a.busy()
+            .is_some_and(|b| b.line == faraday_strings::EN.working_check_marks)
+    };
+    assert!(checking(&app), "Checking the keys is not showing");
+    // The vault has a change and this computer is short of memory for its
+    // seal, so the Lock stops at the Lock sheet with the vault still open.
+    testkit::vault_bump(&mut app, 0);
+    crate::common::top_up(&mut app);
+    app.storage(StorageEvent::Memory { available_mib: 1 });
+    app.press(Action::Lock);
+    assert_eq!(app.sheet, Some(Sheet::LockAsk), "the lock did not stop");
+    assert!(!app.restart_requested());
+    assert_eq!(app.vaults().open.len(), 1, "the vault closed");
+    // The answer the check had is stale now: it runs again, and a key
+    // saved before it ends would be written unmarked.
+    assert!(checking(&app), "Checking the keys is not showing");
+    let id = app.vaults().open[0].id;
+    let held = app.vaults().records(id).of(kind::KEY).count();
+    app.press(Action::Vault(V::SaveKey(0)));
+    assert_eq!(
+        app.vaults().records(id).of(kind::KEY).count(),
+        held,
+        "a key was saved while the check ran"
+    );
+    settle(&mut app, |a| {
+        a.session.keys.made_online(a.session.keys[0].fingerprint)
+    });
+    let fp = app.session.keys[0].fingerprint;
+    assert!(app.session.keys.made_online(fp), "the key is not marked");
+    app.press(Action::Vault(V::SaveKey(0)));
+    let saved = app
+        .vaults()
+        .records(id)
+        .of(kind::KEY)
+        .filter_map(|(_, r)| r.public(field::KEY_FLAGS).and_then(|f| f.first().copied()))
+        .collect::<Vec<_>>();
+    assert_eq!(saved.len(), held + 1, "the key was not saved");
+    assert!(
+        saved.iter().all(|f| f & MADE_ONLINE == MADE_ONLINE),
+        "a key was saved without the online mark"
+    );
+}
