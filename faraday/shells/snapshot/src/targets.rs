@@ -345,7 +345,6 @@ walks! {
     walk_kef_menu = Some("kef-menu"),
     walk_kef_make = Some("kef-make"),
     walk_kef_step = Some("kef-step"),
-    walk_qr_tool = Some("qr-tool"),
     walk_ots = Some("ots"),
     walk_core_wallet = Some("core-wallet"),
     walk_kept = Some("kept"),

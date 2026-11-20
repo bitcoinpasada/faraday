@@ -960,20 +960,6 @@ macro_rules! words_vault {
     vault_back_it_up: "Back it up",
     /// Button on a wallet's page: its backup checklist.
     vault_backup_checklist: "Backup checklist",
-    /// Button on the page of a seed, codex32 share, BIP-39 passphrase or note, and title of its dialog.
-    vault_qr_save: "Save as a QR vault",
-    /// Dialog of that button, a seed that is not 12 or 24 words of the English list.
-    vault_qr_seed_no: "This key does not fit in a QR vault. A QR vault holds 12 or 24 English words.",
-    /// The same, a seed made on an online computer.
-    vault_qr_online_no: "A key made on an online computer is not saved in a QR vault.",
-    /// The same, a passphrase over the limit.
-    vault_qr_pass_no: "This passphrase is too long for a QR vault.",
-    /// The same, a note too long. `{}`, `{}`: the characters over, twice.
-    vault_qr_note_no: "This note is {} characters too long for a QR vault. Take {} characters off its end to make it fit.",
-    /// The same, a note one character too long.
-    vault_qr_note_no_one: "This note is 1 character too long for a QR vault. Take 1 character off its end to make it fit.",
-    /// The same, an item whose text cannot be written.
-    vault_qr_unwritable: "This item cannot be written in a QR vault.",
     /// Item of the open vault's ⋮ and head of its dialog.
     vault_key_file: "Key file",
     /// Row of that dialog where the vault has a key file or one waits.

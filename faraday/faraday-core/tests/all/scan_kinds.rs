@@ -311,6 +311,42 @@ fn unlock(app: &mut Faraday) {
 /// A public kind, or a secret, read where it is not taken shows the read
 /// card in place of the camera: what it is and the way over, nothing
 /// filed or loaded, the scanner still open.
+/// An OpenPGP message of one item (`tools/vectors/vault/qr/`), used as
+/// bytes only: Faraday no longer reads it.
+const PGP_MESSAGE: &[u8] = include_bytes!("../../../../tools/vectors/vault/qr/qr-note.pgp");
+
+#[test]
+fn an_openpgp_message_scanned_or_imported_is_read_like_any_other_bytes_of_its_shape() {
+    // The same bytes with the last one changed: no longer a whole message of
+    // any kind Faraday once opened, and read by the same rules as these.
+    let mut damaged = PGP_MESSAGE.to_vec();
+    *damaged.last_mut().unwrap() ^= 0xff;
+    let shown = |at: Opened, code: &[u8]| {
+        let mut app = testkit::started();
+        open(&mut app, at);
+        read(&mut app, code);
+        assert!(app.inbox().is_empty());
+        assert!(app.session.keys.is_empty());
+        card(&app).map(|(kind, _, ways)| (kind, ways))
+    };
+    for at in SCANNERS {
+        assert_eq!(shown(at, PGP_MESSAGE), shown(at, &damaged), "{at:?}");
+    }
+    let kind_of = |name: &str, bytes: &[u8]| {
+        let mut app = testkit::started();
+        app.storage(StorageEvent::Restored {
+            inbox: faraday_core::files_from(vec![(faraday_text::Text::of(name), bytes.to_vec())]),
+            outbox: Vec::new(),
+            kept: Vec::new(),
+        });
+        app.inbox()[0].kind
+    };
+    assert_eq!(
+        kind_of("code.pgp", PGP_MESSAGE),
+        kind_of("code.pgp", &damaged)
+    );
+}
+
 #[test]
 fn add_a_keys_scanner_shows_what_it_read_instead_of_a_seed_on_the_card() {
     let kit = testkit::kits()

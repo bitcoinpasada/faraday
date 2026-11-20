@@ -2191,9 +2191,6 @@ pub enum FileKind {
     /// An ASCII-armored GPG public key or signature: public (F22). A
     /// revocation certificate is not (F32).
     Gpg,
-    /// A QR vault (`docs/VAULT.md` §1.2): three packets, sealed under a
-    /// passphrase; opened in the QR vault tool.
-    QrVault,
     /// A SQLite database, which may be a Bitcoin Core wallet: read in
     /// Tools' Read a Bitcoin Core wallet. It may hold private keys.
     CoreWallet,
@@ -2464,9 +2461,6 @@ pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
             outpoints: sorted_outpoints(p.unsigned_tx()),
             unsigned_txid: Some(p.unsigned_tx().compute_txid()),
         };
-    }
-    if crate::scan_read::is_qr_vault(bytes) {
-        return FileKind::QrVault.into();
     }
     if let Ok(text) = std::str::from_utf8(bytes) {
         if text.starts_with("faraday-sheet 1") {

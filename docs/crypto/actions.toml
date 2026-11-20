@@ -7964,7 +7964,7 @@ standards = [
   "RFC 9106",
   "RFC 5869",
 ]
-screens = ["QrTool"]
+screens = []
 functions = [
   "faraday/faraday-keys/src/qr_vault.rs::qr_seal_note_job",
   "faraday/faraday-keys/src/qr_vault.rs::Keys::qr_seal_key_job",
@@ -7982,12 +7982,7 @@ through = []
 adds = "Writes the contents (`faraday-vault::contents`) and seals them as the message of the action above with 95 random bytes the device drew; a key's words are lent for the seal and not kept; a vault item is read once, when the job is made, checked to fit and left in the vault."
 
 [action.checked]
-tests = [
-  "faraday/faraday-core/tests/all/qr_tool.rs::a_note_typed_and_sealed_opens_back_with_the_same_text",
-  "faraday/faraday-core/tests/all/qr_tool.rs::a_loaded_key_is_sealed_and_opens_back_as_a_seed",
-  "faraday/faraday-core/tests/all/qr_save_item.rs::a_note_is_saved_as_a_qr_vault_that_opens_back_to_it_and_stays_in_the_vault",
-  "faraday/faraday-core/tests/all/qr_save_item.rs::a_seed_is_saved_and_its_kept_passphrase_is_said_to_be_left_out",
-]
+tests = []
 crosscheck = "qrvault"
 independence = { class = "outside-and-own", author = "Sequoia's sq and rPGP, as for the OpenPGP message the code is", ours = "none beyond the message's own" }
 fuzz = ["pgp_qr_vault"]
@@ -8021,7 +8016,7 @@ standards = [
   "RFC 9106",
   "RFC 5869",
 ]
-screens = ["QrTool"]
+screens = []
 functions = [
   "faraday/faraday-keys/src/qr_vault.rs::QrOpenJob::run",
   "faraday/faraday-keys/src/qr_vault.rs::Keys::qr_hold",
@@ -8045,14 +8040,6 @@ adds = "Reads the message of the action above with the typed passphrase after it
 vectors = ["vault"]
 tests = [
   "faraday/faraday-keys/tests/qr_vault.rs::a_committed_code_opens_and_its_cost_reads_without_a_passphrase",
-  "faraday/faraday-core/tests/all/qr_tool.rs::an_empty_qr_vault_reads_empty",
-  "faraday/faraday-core/tests/all/qr_tool.rs::a_seed_and_a_passphrase_are_named_and_a_passphrase_is_behind_its_eye",
-  "faraday/faraday-core/tests/all/qr_tool.rs::the_right_passphrase_shows_a_note_behind_its_eye",
-  "faraday/faraday-core/tests/all/qr_tool.rs::a_wrong_passphrase_says_so_and_a_second_try_opens",
-  "faraday/faraday-core/tests/all/qr_tool.rs::an_opened_seed_goes_to_the_seed_sheet_and_loads_as_a_key",
-  "faraday/faraday-core/tests/all/qr_tool.rs::an_opened_share_is_typed_into_the_codex32_form",
-  "faraday/faraday-core/tests/all/qr_tool.rs::an_opened_passphrase_is_added_to_the_key_its_words_make",
-  "faraday/faraday-core/tests/all/qr_tool.rs::an_opened_note_is_saved_as_a_note_last_in_the_open_vault",
 ]
 crosscheck = "qrvault"
 independence = { class = "outside-and-own", author = "Sequoia's sq and rPGP, as for the OpenPGP message the code is", ours = "none beyond the message's own" }

@@ -133,7 +133,6 @@ pub(crate) fn secrets_off_screen_but_vaults(app: &mut Faraday) {
     app.explore_hide();
     crate::convert::hide(app);
     crate::kef_tool::hide(app);
-    crate::qr_tool::hide(app);
     crate::core_wallet::tool::hide(app);
     app.lightning.hide_secrets();
     app.vanity.hide_secrets();
@@ -873,7 +872,6 @@ fn lock_finish(app: &mut Faraday) {
     app.wordlist.clear();
     app.bip85.clear();
     app.tools.convert.clear();
-    app.tools.qr_tool.clear();
     app.explore.clear();
     app.secrets.clear();
     app.entry.reset();

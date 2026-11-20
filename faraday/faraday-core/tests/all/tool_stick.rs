@@ -1,5 +1,5 @@
 //! A stick attached while a tool's secret field is open
-//! (`docs/SECURITY-MODEL.md`): the QR vault tool, the KEF tool, Convert and
+//! (`docs/SECURITY-MODEL.md`): the KEF tool, Convert and
 //! the Core wallet tool take no typing in a passphrase or a secret and say
 //! why; pulled, they work again.
 
@@ -8,14 +8,11 @@ use faraday_bip::keys::Network;
 use faraday_core::convert::{self, ConvertAction as C, ROWS};
 use faraday_core::core_wallet::tool::CoreWalletAction as W;
 use faraday_core::kef_tool::{self, KefToolAction as K};
-use faraday_core::qr_tool::{self, QrToolAction as Q};
 use faraday_core::wallet::Session;
 use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent, testkit};
 use faraday_shell_api::{App, EntropyBytes, Event};
 
-const VECTOR_PASS: &str = "correct horse battery staple";
 const LINE: &str = "Keys load only with no stick attached";
-const EMPTY: &[u8] = include_bytes!("../../../../tools/vectors/vault/qr/qr-empty.pgp");
 const ABOUT: &str = "abandon abandon abandon abandon abandon abandon abandon abandon abandon \
 abandon abandon about";
 
@@ -64,58 +61,6 @@ fn tile(app: &mut Faraday, name: &str) {
         .position(|t| t.name == name)
         .unwrap();
     app.press(Action::Catalog(at as u8));
-}
-
-#[test]
-fn the_qr_tool_takes_no_passphrase_while_a_stick_is_attached_and_opens_nothing() {
-    let mut app = started();
-    app.storage(StorageEvent::Restored {
-        inbox: faraday_core::files_from(vec![(faraday_text::Text::of("code.pgp"), EMPTY.to_vec())]),
-        outbox: Vec::new(),
-        kept: Vec::new(),
-    });
-    app.press(Action::Nav(Screen::Files));
-    let _ = app.frame();
-    app.press(Action::QrTool(Q::OpenFile(0)));
-    assert_eq!(app.screen, Screen::QrTool);
-    type_text(&mut app, VECTOR_PASS);
-    attach(&mut app);
-    app.press(Action::QrTool(Q::OpenCode));
-    testkit::settle(&mut app);
-    assert!(said(&app), "{:?}", app.toast_text());
-    assert!(qr_tool::state(&app).unwrap().holds().is_none());
-    pull(&mut app);
-    app.press(Action::QrTool(Q::OpenCode));
-    testkit::settle(&mut app);
-    assert!(
-        qr_tool::state(&app).unwrap().holds().is_none(),
-        "the passphrase typed before was wiped"
-    );
-    app.press(Action::QrTool(Q::Focus(qr_tool::Field::Pass)));
-    type_text(&mut app, VECTOR_PASS);
-    app.press(Action::QrTool(Q::OpenCode));
-    testkit::settle(&mut app);
-    assert!(
-        qr_tool::state(&app).unwrap().holds().is_some(),
-        "typing works with the stick pulled"
-    );
-}
-
-#[test]
-fn the_qr_tools_note_takes_no_typing_while_a_stick_is_attached() {
-    let mut app = started();
-    tile(&mut app, "QR vault");
-    app.press(Action::QrTool(Q::Pick(qr_tool::Pick::Note)));
-    type_text(&mut app, "a");
-    attach(&mut app);
-    app.press(Action::QrTool(Q::Focus(qr_tool::Field::Note)));
-    assert!(said(&app), "{:?}", app.toast_text());
-    type_text(&mut app, "a note");
-    assert_eq!(qr_tool::state(&app).unwrap().note_chars(), 0);
-    pull(&mut app);
-    app.press(Action::QrTool(Q::Focus(qr_tool::Field::Note)));
-    type_text(&mut app, "a note");
-    assert_eq!(qr_tool::state(&app).unwrap().note_chars(), 6);
 }
 
 #[test]
@@ -242,18 +187,6 @@ fn the_core_wallet_tool_takes_no_passphrase_while_a_stick_is_attached() {
             .unwrap()
             .typing(),
         "focus works pulled"
-    );
-}
-
-#[test]
-fn the_qr_note_shows_no_focus_while_a_stick_is_attached() {
-    let mut app = started();
-    attach(&mut app);
-    tile(&mut app, "QR vault");
-    app.press(Action::QrTool(Q::Pick(qr_tool::Pick::Note)));
-    assert_ne!(
-        qr_tool::state(&app).unwrap().focus(),
-        Some(qr_tool::Field::Note)
     );
 }
 

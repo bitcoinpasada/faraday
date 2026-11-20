@@ -60,7 +60,7 @@ online computer; the line under every field that takes a seed or a secret
 is the guard, in every mode, and the released files are named testnet
 only (F81). A seed such a vault keeps carries `faraday.online`
 (`docs/VAULT.md`): on the device in Mainnet it is kept only after a hold,
-and Mainnet refuses Faraday's public sample seeds when they are loaded as a BIP-32 key, by every route (typed, SeedQR or KEF scan, words file, codex32 strings, a vault), with only Remove offered; it refuses a sample's BIP-85 child too (for words typed bare, the child at index 0; for one derived or recorded, any index) and the Lightning samples (LND's cipher seed, Core Lightning's hsm_secret samples, and a sample's words typed as Core Lightning words), with only Remove or an error line. Testnet, Signet and Regtest take them all. A QR vault has nowhere to carry the mark, so Faraday Demo seals no seed into one and no marked seed or share is copied into one. Faraday Demo writes the mark on every key, BIP-85 child, codex32 share and words file it saves and on every key or share it copies or moves to another vault (on the device a copy keeps its source's mark), and a child of a marked key is marked; the mark is written by an honest Demo, and the online computer could remove it from the file.
+and Mainnet refuses Faraday's public sample seeds when they are loaded as a BIP-32 key, by every route (typed, SeedQR or KEF scan, words file, codex32 strings, a vault), with only Remove offered; it refuses a sample's BIP-85 child too (for words typed bare, the child at index 0; for one derived or recorded, any index) and the Lightning samples (LND's cipher seed, Core Lightning's hsm_secret samples, and a sample's words typed as Core Lightning words), with only Remove or an error line. Testnet, Signet and Regtest take them all. Faraday Demo writes the mark on every key, BIP-85 child, codex32 share and words file it saves and on every key or share it copies or moves to another vault (on the device a copy keeps its source's mark), and a child of a marked key is marked; the mark is written by an honest Demo, and the online computer could remove it from the file.
 
 ## 3. What makes a secret
 
@@ -154,12 +154,6 @@ public values work; only the actions in the table are disabled.
   none is in Files (**Use a sample**), Unlock, Vault
   contents, entries, notes, TOTP codes, KeePass export, the stick
   visit and Files.
-- **QR vault** tool: Make seals a loaded public seed or a typed note under
-  a passphrase of `faraday` or the person's own (§5.4); Open takes a code
-  scanned, from Files or sample (**Use a sample**, §14.1), and its offers
-  are the forms' own: a seed's words go to the seed sheet and a share to
-  the codex32 form, which Practice takes only for a public seed (§3), a
-  passphrase adds to a loaded key, a note saves into an open vault.
 - **Vanity address** on the account dial; **Lightning node key**'s node
   id from a loaded public seed, and its LND cipher seed row, which takes
   only LND's published seed and offers it (**Use a sample**); **Silent payments**' address, labels,

@@ -505,7 +505,6 @@ impl Faraday {
         }
         match self.screen {
             Screen::KefTool => crate::kef_tool::field(self).is_some(),
-            Screen::QrTool => crate::qr_tool::field(self).is_some(),
             Screen::OtsCheck => crate::ots_check::field(self).is_some(),
             Screen::SeedCheck | Screen::MultisigCheck if crate::seed_check::here(self) => {
                 crate::seed_check::field(self).is_some() || self.seed_words_typing()
@@ -607,7 +606,6 @@ impl Faraday {
         }
         match self.screen {
             Screen::KefTool => crate::kef_tool::field(self).map(|(a, _)| a),
-            Screen::QrTool => crate::qr_tool::field(self).map(|(a, _)| a),
             Screen::OtsCheck => crate::ots_check::field(self).map(|(a, _)| a),
             Screen::SeedCheck | Screen::MultisigCheck if crate::seed_check::here(self) => {
                 crate::seed_check::field(self).map(|(a, _)| a).or_else(|| {
@@ -733,7 +731,6 @@ impl Faraday {
             Action::SeedRead(_) => self.seed_read.state()?.field()?,
             Action::KefRead(_) => crate::seeds::kef::kef_field(self)?,
             Action::KefTool(_) => crate::kef_tool::field(self)?.1,
-            Action::QrTool(_) => crate::qr_tool::field(self)?.1,
             Action::OtsCheck(_) => crate::ots_check::field(self)?.1,
             Action::SeedCheck(_) => crate::seed_check::field(self)?.1,
             Action::CoreWallet(_) => crate::core_wallet::tool::field(self)?.1,
@@ -850,11 +847,6 @@ impl Faraday {
                 .kef_tool
                 .state()
                 .is_some_and(crate::kef_tool::KefToolState::holds_secret)
-            || self
-                .tools
-                .qr_tool
-                .state()
-                .is_some_and(crate::qr_tool::QrToolState::holds_secret)
             || self.vaults.create.as_ref().is_some_and(|c| {
                 c.phrases
                     .iter()
@@ -1256,7 +1248,6 @@ impl Faraday {
             Screen::CheckAddress => self.address_check_state().is_some(),
             Screen::Tools => self.tools.state().is_some(),
             Screen::KefTool => self.tools.kef_tool.state().is_some(),
-            Screen::QrTool => self.tools.qr_tool.state().is_some(),
             Screen::OtsCheck => self.tools.ots.state().is_some(),
             Screen::SeedCheck => self.tools.seed_check.state().is_some(),
             Screen::MultisigCheck => self.tools.mscheck.state().is_some(),

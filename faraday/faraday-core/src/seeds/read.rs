@@ -588,29 +588,12 @@ impl Faraday {
     /// through the word keyboard, which a small panel gets back if they
     /// are refused.
     fn seed_read_load(&mut self, words: &str, pass: &str) {
-        // Words from the QR vault keep their own list: the form reads them
-        // in the language they spell.
-        if self.screen == Screen::QrTool
-            && let Some(at) = crate::forms::LANGUAGES
-                .iter()
-                .position(|&l| crate::forms::typed_mnemonic(l, words).is_ok())
-        {
-            self.entry.set_language_at(at as u8);
-        }
         self.entry.set_typed(words);
         self.entry.set_passphrase(pass);
         // The sheet asked for it twice already.
         self.entry.set_again(pass);
         let keys = self.entry.take_keys();
         self.entry_add();
-        // Over the QR vault tool a refusal shows on its card, and the words
-        // do not stay in Add a key's form.
-        if self.screen == Screen::QrTool {
-            let error = self.entry.take_error();
-            self.entry.reset();
-            crate::qr_tool::offers::say_error(self, error);
-            return;
-        }
         if self.screen == Screen::Entry && keys.is_some() {
             self.entry.restart_keys();
         }
@@ -1128,7 +1111,6 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let title = match s.read {
         Some(crate::scan_read::Kind::SeedWords) => EN.seed_read_words_read,
         Some(crate::scan_read::Kind::CompactSeedQr) => EN.seed_read_compact_read,
-        Some(crate::scan_read::Kind::QrVault) => EN.seed_read_qr_vault_read,
         _ => EN.seed_read_seedqr_read,
     };
     let head = (Icon::Keys.into(), Role::Primary.paint(), title);

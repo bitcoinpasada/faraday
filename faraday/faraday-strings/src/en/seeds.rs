@@ -34,8 +34,6 @@ macro_rules! words_seeds {
     seed_read_seedqr_read: "SeedQR read",
     /// The seed sheet's title for a seed's words read (`docs/SCANNING.md` §6).
     seed_read_words_read: "Words read",
-    /// The seed sheet's title for a seed opened from a QR vault.
-    seed_read_qr_vault_read: "QR vault read",
     /// The seed sheet's title for a CompactSeedQR read.
     seed_read_compact_read: "CompactSeedQR read",
     /// The seed sheet's line for a key a loaded wallet has. `{}`: its place in the wallet, the wallet.

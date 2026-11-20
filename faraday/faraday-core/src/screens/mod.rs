@@ -131,7 +131,6 @@ fn area_of(screen: Screen) -> Area {
         | Screen::Bip85
         | Screen::Convert
         | Screen::KefTool
-        | Screen::QrTool
         | Screen::OtsCheck
         | Screen::SeedCheck
         | Screen::MultisigCheck
@@ -441,7 +440,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::CopyTo => Some(Action::Vault(crate::vault::VaultAction::CopyCancel)),
             Sheet::SaveKeeps => Some(Action::Vault(crate::vault::VaultAction::KeepCancel)),
             Sheet::Trim => Some(Action::Vault(crate::vault::VaultAction::TrimCancel)),
-            Sheet::QrNoFit => Some(Action::Vault(crate::vault::VaultAction::QrNoClose)),
             Sheet::KeyFile => Some(Action::Vault(crate::vault::VaultAction::KeyFileCancel)),
             // A new touchscreen's sheet is the whole screen: only its
             // Ignore keeps the device out.
@@ -513,7 +511,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::CopyTo => crate::vault::copy_screen::draw(app, ui, w, h),
             Sheet::SaveKeeps => crate::vault::copy_screen::draw_keep(app, ui, w, h),
             Sheet::Trim => crate::vault::trim::draw(app, ui, w, h),
-            Sheet::QrNoFit => crate::vault::qr_save::draw(app, ui, w, h),
             Sheet::KeyFile if app.vaults.more.is_some() => crate::vault::more::draw(app, ui, w, h),
             Sheet::KeyFile if app.vaults.key_menu => {
                 crate::vault::create_key::dialog(app, ui, w, h)
@@ -668,7 +665,6 @@ fn dispatch_screen(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
         Screen::Bip85 => crate::bip85::screen::draw(app, ui, x, cw, h),
         Screen::Convert => crate::convert::screen::draw(app, ui, x, cw, h),
         Screen::KefTool => crate::kef_tool::screen::draw(app, ui, x, cw, h),
-        Screen::QrTool => crate::qr_tool::screen::draw(app, ui, x, cw, h),
         Screen::OtsCheck => crate::ots_check::screen::draw(app, ui, x, cw, h),
         Screen::SeedCheck => crate::seed_check::screen::draw(app, ui, x, cw, h),
         Screen::MultisigCheck => crate::multisig_check::screen::draw(app, ui, x, cw, h),

@@ -858,8 +858,6 @@ pub enum Action {
     Convert(crate::convert::ConvertAction),
     /// A Krux code tool action.
     KefTool(crate::kef_tool::KefToolAction),
-    /// A press in the QR vault tool.
-    QrTool(crate::qr_tool::QrToolAction),
     /// A press in the Check a timestamp tool.
     OtsCheck(crate::ots_check::OtsAction),
     /// A press in the My seed makes my wallet tool.
@@ -1359,9 +1357,7 @@ impl Faraday {
             Action::Host(_) => {}
             Action::SpendBackup(f) => self.spend_backup_act(f),
             Action::Vanity(v) => self.vanity_act(v),
-            Action::Convert(_) | Action::KefTool(_) | Action::QrTool(_) | Action::SeedCheck(_) => {
-                self.tool_act(action)
-            }
+            Action::Convert(_) | Action::KefTool(_) | Action::SeedCheck(_) => self.tool_act(action),
             Action::OtsCheck(k) => crate::ots_check::act(self, k),
             Action::MultisigCheck(k) => crate::multisig_check::act(self, k),
             Action::CoreWallet(k) => crate::core_wallet::tool::act(self, k),

@@ -87,10 +87,6 @@ mod ots_check;
 mod proprietary_records;
 #[path = "all/psbt_v2.rs"]
 mod psbt_v2;
-#[path = "all/qr_save_item.rs"]
-mod qr_save_item;
-#[path = "all/qr_tool.rs"]
-mod qr_tool;
 #[path = "all/quorum_all_keys.rs"]
 mod quorum_all_keys;
 #[path = "all/register_wallet.rs"]

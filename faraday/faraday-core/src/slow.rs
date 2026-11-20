@@ -31,9 +31,6 @@ pub(crate) fn starts_job(a: Action) -> bool {
                     | crate::seed_check::SeedAction::CompareFile(_),
             )
             | Action::CoreWallet(crate::core_wallet::tool::CoreWalletAction::Read)
-            | Action::QrTool(
-                crate::qr_tool::QrToolAction::Make | crate::qr_tool::QrToolAction::OpenCode,
-            )
             | Action::KefTool(crate::kef_tool::KefToolAction::Backup(
                 crate::kef_form::KefAct::Make | crate::kef_form::KefAct::Compare,
             ))
@@ -103,9 +100,6 @@ pub(crate) fn runs_in_press(a: Action) -> bool {
             | Action::PotentialMake
             | Action::SecretHold
             | Action::SeedRead(seeds::read::Choice::Plain | seeds::read::Choice::WithPass)
-            | Action::QrTool(
-                crate::qr_tool::QrToolAction::Seed | crate::qr_tool::QrToolAction::AddToKey,
-            )
             | Action::Seeds(seeds::SeedsAction::Make | seeds::SeedsAction::Sample(_))
             | Action::SelfTestRun
             // Under 10 ms in a release build (`docs/WORKERS.md` §2.1).

@@ -105,7 +105,6 @@
 //! | `Bip85` | `bip85/screen.rs` |
 //! | `Convert` | `convert/screen.rs` |
 //! | `KefTool` | `kef_tool/screen.rs` |
-//! | `QrTool` | `qr_tool/screen.rs` |
 //! | `OtsCheck` | `ots_check/screen.rs` |
 //! | `SeedCheck` | `seed_check/screen.rs` |
 //! | `MultisigCheck` | `multisig_check/screen.rs` |
@@ -204,7 +203,6 @@ pub mod keygen;
 pub mod lightning;
 pub mod multisig_check;
 pub mod ots_check;
-pub mod qr_tool;
 pub mod quiz;
 mod review;
 pub mod secrets;
@@ -367,8 +365,6 @@ pub enum Screen {
     Convert,
     /// Tools' Krux code: a text or a wallet's descriptor as an encrypted code.
     KefTool,
-    /// Tools' QR vault: a note or a key sealed as one QR code.
-    QrTool,
     /// Tools' Check a timestamp: an OpenTimestamps proof against a block header.
     OtsCheck,
     /// Tools' My seed makes my wallet: a seed's xpub and addresses.
@@ -578,8 +574,6 @@ pub enum Sheet {
     SaveKeeps,
     /// **Remove the codex32 set** or **the BIP-85 origin** of a seed in an open vault.
     Trim,
-    /// **Save as a QR vault** on an item that does not fit.
-    QrNoFit,
     /// **Choose a key file**: the files in Files that are not vaults.
     KeyFile,
     /// **Record it as a child seed?**: BIP-85 child words held (F166).

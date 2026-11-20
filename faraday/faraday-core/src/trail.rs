@@ -722,7 +722,6 @@ impl Faraday {
             Screen::Bip85 => &crate::bip85::BIP85_STEPS,
             Screen::Convert => &crate::convert::CONVERT_STEPS,
             Screen::KefTool => &crate::kef_tool::KEF_TOOL_STEPS,
-            Screen::QrTool => &crate::qr_tool::QR_TOOL_STEPS,
             Screen::OtsCheck => &crate::ots_check::OTS_STEPS,
             Screen::SeedCheck => &crate::seed_check::SEED_STEPS,
             Screen::MultisigCheck => &crate::multisig_check::MS_STEPS,

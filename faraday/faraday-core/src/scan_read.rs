@@ -42,8 +42,6 @@ pub enum Kind {
     SpendKey,
     /// A GPG key's paperkey, in either of its forms.
     Paperkey,
-    /// A QR vault (`docs/VAULT.md` §1.2): encrypted, so no secret.
-    QrVault,
     /// One `otpauth://` URI.
     Totp,
     /// Vault entries: `field: value` lines, several `otpauth://` URIs.
@@ -148,7 +146,6 @@ impl Kind {
             Kind::SilentAddress => EN.read_silent_address,
             Kind::Message => EN.read_message,
             Kind::Gpg => EN.read_gpg,
-            Kind::QrVault => EN.read_qr_vault,
             Kind::File => EN.read_file,
             Kind::Labels => EN.read_labels,
             Kind::Invoice => EN.read_invoice,
@@ -355,7 +352,6 @@ pub(crate) fn public_kind(kind: FileKind, enveloped: bool, data: &[u8]) -> Kind 
         FileKind::Entries => Kind::Entries,
         FileKind::SeedPart => Kind::Codex32Share,
         FileKind::Gpg => Kind::Gpg,
-        FileKind::QrVault => Kind::QrVault,
         FileKind::Sheet
         | FileKind::Vault
         | FileKind::EfiImage
@@ -372,18 +368,9 @@ pub(crate) fn public_kind(kind: FileKind, enveloped: bool, data: &[u8]) -> Kind 
     }
 }
 
-/// Whether `bytes` are a QR vault's packets (`docs/VAULT.md` §1.2): a
-/// parse that states the cost and derives nothing.
-pub(crate) fn is_qr_vault(bytes: &[u8]) -> bool {
-    faraday_pgp::message::parse(bytes).is_ok()
-}
-
 /// Text that names nothing, or bytes that are none of the kinds: what a
 /// code is once it is said not to be encrypted.
 pub(crate) fn unknown_kind(data: &[u8]) -> Kind {
-    if is_qr_vault(data) {
-        return Kind::QrVault;
-    }
     let printable = std::str::from_utf8(data).is_ok();
     text_kind(&Text::from_utf8_lossy(data), printable)
 }
@@ -480,8 +467,6 @@ pub enum Way {
     UseKey,
     /// A GPG public key filed: Restore a GPG key opens from it.
     RestoreGpg,
-    /// A QR vault: the QR vault tool opens on it.
-    OpenQrVault,
     /// A Krux encrypted code: its passphrase is asked.
     Open,
     /// A Krux encrypted code that is something else: it goes on as an
@@ -525,7 +510,6 @@ impl Way {
             Way::Keep => Text::of(EN.read_keep),
             Way::UseKey => Text::of(EN.read_go_use_key),
             Way::RestoreGpg => Text::of(EN.gpg_restore_files_action),
-            Way::OpenQrVault => Text::of(EN.read_go_qr_vault),
             Way::Open => Text::of(EN.kef_open),
             Way::NotEncrypted => Text::of(EN.kef_not_encrypted),
             Way::Look(crate::address_find::LookWay::To(i)) => Text::fill(

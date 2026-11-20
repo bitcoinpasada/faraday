@@ -73,7 +73,7 @@ One card per file copied in from the stick, headed **From the stick** with the c
 
 Each card's button depends on the kind of file.
 
-**Load the wallet** is a wallet file, **Load this key** a words file and **Read the wallet** a Bitcoin Core wallet. **Sign** is a PSBT, or **Add to signatures** when it is the open spend's own transaction. **Decode** is a transaction. **Nonce check** is a finished transaction, or a PSBT with a signature and no key here left to sign. **Check the signature** is a signed message, **Open in QR vault** a QR vault file and **Make PDF** a sheet, online only. **Unlock** or **Contents** is a vault. **Import into the vault** is an entries file and **Add to vault** a text file, with a vault open. **Restore the wallet** is a set of shares, with a count; until the set is whole the card reads how many keys are in hand.
+**Load the wallet** is a wallet file, **Load this key** a words file and **Read the wallet** a Bitcoin Core wallet. **Sign** is a PSBT, or **Add to signatures** when it is the open spend's own transaction. **Decode** is a transaction. **Nonce check** is a finished transaction, or a PSBT with a signature and no key here left to sign. **Check the signature** is a signed message and **Make PDF** a sheet, online only. **Unlock** or **Contents** is a vault. **Import into the vault** is an entries file and **Add to vault** a text file, with a vault open. **Restore the wallet** is a set of shares, with a count; until the set is whole the card reads how many keys are in hand.
 
 ## Inbox menu
 

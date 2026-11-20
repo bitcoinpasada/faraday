@@ -287,8 +287,6 @@ impl Faraday {
                 .vaults
                 .store()
                 .note_made_online_done(&mut self.session.keys, *d),
-            Done::QrSeal(d) => crate::qr_tool::sealed(self, *d),
-            Done::QrOpen(d) => crate::qr_tool::opened(self, *d),
             Done::KefSeal(d) => {
                 self.worker.kef_sealed_done(*d);
                 crate::kef_tool::poll(self);
@@ -349,8 +347,6 @@ impl Faraday {
             // a key saved would be written without its mark.
             A::Back | A::Cancel if self.checking_marks() => false,
             A::Back | A::Cancel => {
-                crate::qr_tool::seal_stopped(self);
-                crate::qr_tool::open_stopped(self);
                 self.worker.stale();
                 self.worker.kef_stop();
                 self.worker.set_busy(None);
@@ -392,8 +388,6 @@ impl Faraday {
                 .origin()
                 .is_some_and(|o| o != (self.screen, self.sheet));
         if moved {
-            crate::qr_tool::seal_stopped(self);
-            crate::qr_tool::open_stopped(self);
             self.worker.stale();
             self.worker.kef_stop();
             self.worker.set_busy(None);

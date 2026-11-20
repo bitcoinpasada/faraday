@@ -47,7 +47,6 @@ pub(crate) fn draws_own_bar(s: Screen) -> bool {
         | Screen::Bip85
         | Screen::Convert
         | Screen::KefTool
-        | Screen::QrTool
         | Screen::OtsCheck
         | Screen::SeedCheck
         | Screen::MultisigCheck
@@ -110,7 +109,6 @@ pub(crate) fn screen_name(s: Screen) -> &'static str {
         Screen::Bip85 => EN.catalog_child_seeds,
         Screen::Convert => EN.convert_title,
         Screen::KefTool => EN.kef_tool_title,
-        Screen::QrTool => EN.qr_tool_title,
         Screen::OtsCheck => EN.ots_title,
         Screen::SeedCheck => EN.seed_check_title,
         Screen::MultisigCheck => EN.mscheck_title,
@@ -1727,7 +1725,6 @@ impl Faraday {
                 | Screen::KeyGen
                 | Screen::Convert
                 | Screen::KefTool
-                | Screen::QrTool
                 | Screen::OtsCheck
                 | Screen::SeedCheck
                 | Screen::CoreWallet

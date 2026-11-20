@@ -206,8 +206,6 @@ pub struct ToolsArea {
     pub(crate) convert: crate::convert::ConvertArea,
     /// The Krux code tool.
     pub(crate) kef_tool: crate::kef_tool::KefToolArea,
-    /// The QR vault tool.
-    pub(crate) qr_tool: crate::qr_tool::QrToolArea,
     /// Check a timestamp.
     pub(crate) ots: crate::ots_check::OtsArea,
     /// My seed makes my wallet.
@@ -555,12 +553,11 @@ impl Faraday {
         self.tools.reading(c, &self.session)
     }
 
-    /// A press in the Convert, Krux code or QR vault tool.
+    /// A press in the Convert or Krux code tool.
     pub(crate) fn tool_act(&mut self, action: crate::Action) {
         match action {
             crate::Action::Convert(c) => crate::convert::act(self, c),
             crate::Action::KefTool(k) => crate::kef_tool::act(self, k),
-            crate::Action::QrTool(k) => crate::qr_tool::act(self, k),
             crate::Action::OtsCheck(k) => crate::ots_check::act(self, k),
             crate::Action::SeedCheck(k) => crate::seed_check::act(self, k),
             crate::Action::CoreWallet(k) => crate::core_wallet::tool::act(self, k),
@@ -573,7 +570,6 @@ impl Faraday {
     pub(crate) fn tool_key(&mut self, key: faraday_shell_api::Key) -> bool {
         crate::convert::key(self, key)
             || crate::kef_tool::key(self, key)
-            || crate::qr_tool::key(self, key)
             || crate::ots_check::key(self, key)
             || crate::seed_check::key(self, key)
             || crate::core_wallet::tool::key(self, key)
@@ -583,7 +579,6 @@ impl Faraday {
     pub(crate) fn tool_tidy(&mut self) {
         crate::convert::tidy(self);
         crate::kef_tool::tidy(self);
-        crate::qr_tool::tidy(self);
         crate::ots_check::tidy(self);
         crate::seed_check::tidy(self);
         crate::multisig_check::tidy(self);

@@ -168,10 +168,6 @@ pub enum PassField {
     Aezeed,
     /// Read a Bitcoin Core wallet's passphrase.
     CoreWallet,
-    /// The QR vault tool's Open card passphrase.
-    QrOpen,
-    /// The QR vault tool's Make passphrase (0) and its repeat (1).
-    QrMake(u8),
 }
 
 /// A passphrase field with an eye at its right end, as
@@ -208,7 +204,6 @@ impl PassField {
             PassField::SeedCheck(_) => PassField::SeedCheck(0),
             PassField::Slot(_) => PassField::Slot(0),
             PassField::Phrase(i, _) => PassField::Phrase(i, false),
-            PassField::QrMake(_) => PassField::QrMake(0),
             PassField::PromptAgain => PassField::Prompt,
             PassField::EntryAgain => PassField::Entry,
             PassField::PotentialAgain => PassField::Potential,
@@ -419,9 +414,6 @@ impl Faraday {
             }
             PassField::Aezeed => self.lightning.set_passphrase(PASSPHRASE),
             PassField::CoreWallet => crate::core_wallet::tool::fill_faraday(self),
-            PassField::QrOpen | PassField::QrMake(_) => {
-                crate::qr_tool::offers::fill_faraday(self, field);
-            }
         }
     }
 }

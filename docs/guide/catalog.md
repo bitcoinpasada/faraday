@@ -50,7 +50,7 @@ A tile that cannot open yet shows in its own line what it needs first; one that 
 
 **Key:** catalog.vaults-and-other-keys
 
-**Vaults** holds keys, wallets, entries and notes under passphrases. **QR vault** seals a note or a key in one QR code. **TOTP codes** shows codes from the entries in open vaults. **Make a new vault** makes a new vault, its passphrase rolled with dice. **GPG key** makes, restores, signs, revokes and writes a paperkey. **Secure Boot keys** holds PK, KEK and db, and signs an EFI image. **KeePass export** writes a vault entry as a sealed database.
+**Vaults** holds keys, wallets, entries and notes under passphrases. **TOTP codes** shows codes from the entries in open vaults. **Make a new vault** makes a new vault, its passphrase rolled with dice. **GPG key** makes, restores, signs, revokes and writes a paperkey. **Secure Boot keys** holds PK, KEK and db, and signs an EFI image. **KeePass export** writes a vault entry as a sealed database.
 
 **TOTP codes**, **GPG key**, **Secure Boot keys** and **KeePass export** read **Make a new vault first** or **Unlock a vault first** while no vault is open, and still open, to lead to that.
 

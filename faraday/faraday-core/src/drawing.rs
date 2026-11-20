@@ -284,8 +284,6 @@ pub(crate) enum Scrolled {
     Convert,
     /// The Krux code tool.
     KefTool,
-    /// The QR vault tool.
-    QrTool,
     OtsCheck,
     SeedCheck,
     MultisigCheck,
@@ -479,9 +477,6 @@ impl Faraday {
                 }
                 Scrolled::KefTool => {
                     self.tools.kef_tool.set_scroll(to);
-                }
-                Scrolled::QrTool => {
-                    self.tools.qr_tool.set_scroll(to);
                 }
                 Scrolled::OtsCheck => {
                     self.tools.ots.set_scroll(to);

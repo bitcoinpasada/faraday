@@ -24,7 +24,7 @@ macro_rules! every {
 fn screens() -> Vec<Screen> {
     every!(Screen: Home, WalletsStart, Wallets, Spend, Files, Entry, Backup,
         Message, CheckMessage, Create, Restore, Settings, SetTime, Randomness, Vaults,
-        Backups, CreateVault, KeyGen, Bip85, Convert, KefTool, QrTool, OtsCheck, SeedCheck, CoreWallet,
+        Backups, CreateVault, KeyGen, Bip85, Convert, KefTool, OtsCheck, SeedCheck, CoreWallet,
         Silent, Explore, Lightning, Tools, Unlock, VaultContents, Codes, SpendBackup, Vanity,
         Decode, Invoice, CheckAddress, NonceCheck, SignerCheck, Catalog, Transfer, BackupFlow,
         Check, MultisigCheck)
@@ -55,7 +55,6 @@ fn steps(s: Screen) -> Vec<u8> {
             faraday_core::qstep::BOARD,
         ],
         Screen::Bip85 => counted(faraday_core::bip85::pstep::COUNT),
-        Screen::QrTool => counted(faraday_core::qr_tool::qstep::COUNT),
         Screen::SpendBackup => vec![
             spend_backup::page::MAP,
             spend_backup::page::HOLDING,
@@ -96,7 +95,6 @@ fn parts(s: Screen) -> Vec<GuideAt> {
         .into_iter()
         .map(GuideAt::Item)
         .collect(),
-        Screen::QrTool => vec![GuideAt::Opening],
         Screen::SpendBackup => [
             step::TRANSACTION,
             step::TXID,

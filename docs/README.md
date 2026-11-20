@@ -32,7 +32,7 @@ need. Each document's header says what kind it is:
 | How will a step flow show one step at a time, fade between steps and list Your choices? | `docs/FLOW-CONTAINER.md`; the decision, `docs/decisions/F296.md` |
 | How are codex32 shares made, checked by hand and repaired? | `docs/CODEX32.md` |
 | How is a lost GPG key restored from its paperkey? | `docs/GPG-PAPERKEY.md` |
-| How is a vault stored? | `docs/VAULT.md`, the KDBX vault and the OpenPGP QR vault (F190); the passphrase in NFC and the seal count are in it (§3, §11) |
+| How is a vault stored? | `docs/VAULT.md`, the KDBX vault (F190); the passphrase in NFC and the seal count are in it (§3, §11) |
 | What is the proposed small encrypted QR format (25 × 25, 29 × 29 or 33 × 33), offered for outside review? | the AQRV specification, in its own repository: `https://github.com/bitcoinpasada/aqrv`, `AQRV.md` (F264) |
 | What is in the KeePass (KDBX 4) file Faraday writes? | `docs/VAULT.md` §8: an export is a vault of one entry |
 | How does Faraday read and write Krux's encrypted codes, and what are their trade-offs? | `docs/KEF.md` |
@@ -136,7 +136,7 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 - `docs/TEXT-SIZE.md`: Text size. Built (F85): the setting in Faraday and the Starter, its storage, the one-column decision, the components and screens that make room for larger text, the Larger renders and their `cut.txt`.
 - `docs/THEMES.md`: Themes on Material 3's colour system. Built (owner, 2026-10-24; F113, `docs/decisions/F113.md`): the roles, the generator and the tables; every screen and component of Faraday and the Starter drawn on the roles by name; Settings › Appearance's Theme, Mode, Contrast and Reduce motion, the settings file's lines and the migration, the Starter's Appearance page; the theme tour.
 - `docs/TOTP.md`: TOTP codes and the time. Built.
-- `docs/VAULT.md`: The Faraday vault. Built (F190; F208; F226; F227); the app reads and seals KDBX 4 file vaults, each seal under the vault's own passphrase, growing by itself from 32 KiB to 128 MiB and at the memory step at or above its own; `faraday-pgp` holds the QR vault's OpenPGP message (§1.2), which `faraday-vault`'s `qr` seals and opens as one call; the app makes a QR vault code, opens one with its offers, and saves a file vault's item as one.
+- `docs/VAULT.md`: The Faraday vault. Built (F190; F208; F227); the app reads and seals KDBX 4 file vaults, each seal under the vault's own passphrase, growing by itself from 32 KiB to 128 MiB and at the memory step at or above its own.
 - `docs/WALLETS.md`: The Wallets tab. Built.
 
 **Spec**

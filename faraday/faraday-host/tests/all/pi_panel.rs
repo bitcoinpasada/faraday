@@ -198,7 +198,7 @@ macro_rules! every {
 fn screens() -> Vec<Screen> {
     every!(Screen: Home, WalletsStart, Wallets, Spend, Files, Entry, Backup,
         Message, CheckMessage, Create, Restore, Settings, SetTime, Randomness, Vaults,
-        Backups, CreateVault, KeyGen, Bip85, Convert, KefTool, QrTool, OtsCheck, CoreWallet, SeedCheck, Silent, Explore, Lightning, Tools, Unlock,
+        Backups, CreateVault, KeyGen, Bip85, Convert, KefTool, OtsCheck, CoreWallet, SeedCheck, Silent, Explore, Lightning, Tools, Unlock,
         VaultContents, Codes, SpendBackup, Vanity, Decode, Invoice, CheckAddress, NonceCheck, SignerCheck, Catalog, Transfer, BackupFlow, Check, MultisigCheck)
 }
 
@@ -206,7 +206,7 @@ fn sheets() -> Vec<Sheet> {
     let mut all = every!(Sheet: Lock, LockAsk, RemoveKeys, Power, Qr, Scan, Locked, NewInput, Guide, WordList,
         SecretOut, WriteOut, IdleWarn, Potential, Import, Pull, Chart, BoardList, BoardSees,
         BoardPartials, BoardMenu, SeedRead, KefRead, Delete, Zeroing, Taken, NameTaken, TextSeed, Devices, VaultSave,
-        CancelFlow(Going::Create), CancelKey, FileMenu, Rename, Details, UnlockLoad, SignerSeed, SaveAlso, CopyTo, SaveKeeps, Trim, QrNoFit, OlderCopy,
+        CancelFlow(Going::Create), CancelKey, FileMenu, Rename, Details, UnlockLoad, SignerSeed, SaveAlso, CopyTo, SaveKeeps, Trim, OlderCopy,
         ChildRecord, GpgTile, ChildNotice,
         PassphraseSeeds, GpgSign, Mode, Samples, NavMenu(None), KeyLengths, WalletConfirm, Account, Register,
         GpgRestore, FigMenu, LaterAsk, StickSheet, KefOptions, VaultPassphrase, VaultMemory,

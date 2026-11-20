@@ -26,7 +26,6 @@ pub(crate) mod more;
 pub mod out;
 pub(crate) mod panes_screen;
 pub(crate) mod plan_store;
-pub(crate) mod qr_save;
 pub(crate) mod rekey_screen;
 mod related;
 pub(crate) mod screen;
@@ -640,8 +639,6 @@ impl Faraday {
             V::TrimAsk(n) => trim::ask(self, n),
             V::TrimGo => trim::go(self),
             V::TrimCancel => trim::close(self),
-            V::QrSave => qr_save::press(self),
-            V::QrNoClose => qr_save::close(self),
             V::MoreAsk => more::ask(self),
             V::VKeyAsk => more::key_ask(self),
             V::VKeyMake => more::make(self),
@@ -1090,7 +1087,6 @@ impl Faraday {
             | self.vault_save_also_settle()
             | copy::settle(self)
             | trim::settle(self)
-            | qr_save::settle(self)
             | more::settle(self)
     }
 

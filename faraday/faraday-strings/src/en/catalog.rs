@@ -85,8 +85,6 @@ macro_rules! words_catalog {
     /// Text in `TILES`: words typed to find the tile, never drawn.
     catalog_vaults_words: "password manager encrypted storage backup",
     /// Text in `TILES`: words typed to find the tile, never drawn.
-    catalog_qr_vault_words: "encrypted backup password",
-    /// Text in `TILES`: words typed to find the tile, never drawn.
     catalog_totp_codes_words: "2fa twofactor authenticator otp login",
     /// Text in `TILES`: words typed to find the tile, never drawn.
     catalog_diceware_passphrase_words: "password dice random generate",

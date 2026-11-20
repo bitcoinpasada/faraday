@@ -79,8 +79,6 @@ macro_rules! words_screens_parts {
     kind_name_text: "Text",
     /// Text in `kind_name`.
     kind_name_gpg: "GPG",
-    /// A QR vault in `kind_name`.
-    kind_name_qr_vault: "QR vault",
     /// A file's kind in Files: a SQLite database, which may be a Bitcoin Core wallet.
     kind_name_sqlite: "SQLite database",
     /// Text in `kind_name`: another wallet's file that holds a private

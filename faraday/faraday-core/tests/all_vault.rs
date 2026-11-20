@@ -7,8 +7,6 @@ mod common;
 mod kdbx;
 #[path = "all/mode_files.rs"]
 mod mode_files;
-#[path = "all/qr_vault_entry.rs"]
-mod qr_vault_entry;
 #[path = "all/save_without_encryption.rs"]
 mod save_without_encryption;
 #[path = "all/sd_card.rs"]

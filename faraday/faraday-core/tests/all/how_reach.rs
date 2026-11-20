@@ -55,7 +55,6 @@ fn screen(name: &str) -> Screen {
         "BackupFlow" => S::BackupFlow,
         "MultisigCheck" => S::MultisigCheck,
         "KefTool" => S::KefTool,
-        "QrTool" => S::QrTool,
         "OtsCheck" => S::OtsCheck,
         "SeedCheck" => S::SeedCheck,
         "CoreWallet" => S::CoreWallet,

@@ -197,7 +197,7 @@ tables, with an 8-byte id:
 
 Binary at the same sizes gives the same codes: 61 bytes also fits version 4.
 The base43 form is what Krux's mnemonic path writes, and what a person can
-transcribe. A QR vault (`docs/VAULT.md` §2.1) is 77 × 77 for every contents.
+transcribe.
 
 ## 6. What goes in and what comes out
 
@@ -316,8 +316,7 @@ one "likely". Parsing alone is weak: of the 65,536 pairs of `len_id` and `v`,
 So KEF is **the classifier's last arm** (`core/faraday-codec/src/classify.rs`,
 `docs/SCANNING.md` §4.6), reached only when nothing stricter claims the code:
 
-1. SeedQR (48 or 96 digits), codex32 (its checksum), the QR vault (its exact
-   OpenPGP packets, `docs/VAULT.md` §1.2), PSBTs, descriptors, addresses,
+1. SeedQR (48 or 96 digits), codex32 (its checksum), PSBTs, descriptors, addresses,
    keys and the rest keep their places and all come first.
 2. **Raw 16 or 32 bytes stay a CompactSeedQR.** A 32-byte code really can be
    both: version 5 with an 8-byte id and 12 words is exactly 32 bytes, in raw
@@ -448,9 +447,7 @@ Learn block and the `written_here` entry; its `independence` is others' code (Kr
 
 Accurate enough to be the website's explainer, and to be read as a warning.
 
-**What KEF is for.** A short code, opened by a Krux device or by Faraday. The
-QR vault's strengths (`docs/VAULT.md` §2.1) are the opposite ones: it hides what it holds, takes more
-memory to attack and is a public standard, at 77 × 77.
+**What KEF is for.** A short code, opened by a Krux device or by Faraday.
 
 **Each version.**
 
@@ -478,7 +475,7 @@ gives a code its own key, and two codes can draw the same one. Its use is
 a smaller code: 29 × 29 for 12 words, and at low error correction 25 × 25, or 29 × 29
 for 24 words (§5).
 
-**Truncated checks.** 3 or 4 bytes, against 16 in the QR vault and in versions 0 and 1 (read only). They say the
+**Truncated checks.** 3 or 4 bytes, against 16 in versions 0 and 1 (read only). They say the
 passphrase was probably right; they do not prove the bytes are what was written.
 A wrong passphrase passes 1 time in 16,777,216 or 4,294,967,296 (§7.3), and a
 change made to a GCM code passes 1 time in 4,294,967,296 for each time the person enters a passphrase. The specification
@@ -510,7 +507,7 @@ no expectation of security for a weak user-supplied `key`." A code is meant to b
 printed and kept, and can be copied unnoticed and attacked for ever.
 
 **The length shows.** 12 or 24 words can be told from the code's size, and a note's
-length from its own. A QR vault shows neither.
+length from its own.
 
 **No outside review is known.** The specification invites scrutiny; none was found
 in its text, Krux's repository or its release notes. It uses standard primitives in a

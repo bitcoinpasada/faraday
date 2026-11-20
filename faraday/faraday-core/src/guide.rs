@@ -83,7 +83,6 @@ pub fn guide_key(screen: Screen, at: GuideAt) -> &'static str {
         Screen::Bip85 => bip85_key(step),
         Screen::Convert => convert_key(step),
         Screen::KefTool => kef_tool_key(step),
-        Screen::QrTool => qr_tool_key(at, step),
         Screen::OtsCheck => "ots-check",
         Screen::SeedCheck => "seed-check",
         Screen::MultisigCheck => "multisig-check",
@@ -180,17 +179,6 @@ fn bip85_key(step: Option<u8>) -> &'static str {
         Some(crate::bip85::pstep::INDEX) => "bip85.index",
         Some(crate::bip85::pstep::RESULT) => "bip85.result",
         _ => "bip85",
-    }
-}
-
-/// The key of a QR vault step.
-fn qr_tool_key(at: GuideAt, step: Option<u8>) -> &'static str {
-    match (at, step) {
-        (GuideAt::Opening, _) => "qr-tool.open",
-        (_, Some(crate::qr_tool::qstep::CONTENTS)) => "qr-tool.contents",
-        (_, Some(crate::qr_tool::qstep::PASSPHRASE)) => "qr-tool.passphrase",
-        (_, Some(crate::qr_tool::qstep::CODE)) => "qr-tool.code",
-        _ => "qr-tool",
     }
 }
 
@@ -1192,12 +1180,6 @@ impl Faraday {
             Screen::CoreWallet => step(open(&crate::core_wallet::tool::CORE_WALLET_STEPS)),
             Screen::Vanity => step(open(&crate::vanity::VANITY_STEPS)),
             Screen::KeyGen => step(self.keygen.state().and_then(|k| k.open)),
-            Screen::QrTool
-                if crate::qr_tool::state(self).is_some_and(|s| s.code_to_open().is_some()) =>
-            {
-                GuideAt::Opening
-            }
-            Screen::QrTool => step(open(&crate::qr_tool::QR_TOOL_STEPS)),
             Screen::Backup => match self.backup.state() {
                 Some(b) if b.stage == crate::BStage::Checklist => {
                     b.open.map_or(GuideAt::Whole, GuideAt::Item)

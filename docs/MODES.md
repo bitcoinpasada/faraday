@@ -515,8 +515,6 @@ the computer's dice rollers are Practice's alone (`Faraday::roller_offered`).
 | Make codex32 shares, the entry | Its own card: **Use a sample** | `docs/CODEX32.md` §12 |
 | Make codex32 shares, the cards after the entry | "Practice puts sample NAME in place of these strings" | Practice replaces the strings made (`docs/CODEX32.md` §12) |
 | Vaults, no vault in Files | **Use a sample** (the sample vault) | A public file in place of the person's own |
-| QR vault, the first card | **Use a sample** | A public QR vault code (the seed of the bacon sample under `faraday`) in place of the person's own |
-| QR vault, Make's passphrase pair and the Open card's passphrase | **Use faraday** | §6.2 |
 | Create a vault | **Use faraday** for each passphrase and its repeat; the Generate with dice roller; "Practice puts faraday in place of these words" | §7.1 |
 | Unlock; the boot import's passphrase; a passphrase prompt; the Spend tab's vault passphrase; the backup flow's unlock | **Use faraday** | §6.2 |
 | Vault contents, an entry's password; Make a new wallet, a slot's passphrase; a seed read's passphrase sheet; the potential wallet's sheet | **Use faraday** | §6.2 |

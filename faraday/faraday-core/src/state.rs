@@ -273,11 +273,6 @@ impl EntryArea {
         self.state.error = None;
     }
 
-    /// Takes the last refusal away.
-    pub(crate) fn take_error(&mut self) -> Option<faraday_text::Text> {
-        self.state.error.take()
-    }
-
     /// Puts `text` in as typed.
     pub(crate) fn set_typed(&mut self, text: &str) {
         self.state.typed.set(text);
@@ -383,11 +378,6 @@ impl EntryArea {
         if compact {
             self.state.languages = false;
         }
-    }
-
-    /// Chooses the word list `at` without touching the words.
-    pub(crate) fn set_language_at(&mut self, at: u8) {
-        self.state.language_at = at;
     }
 
     /// A field of the form pressed: neither passphrase field has the

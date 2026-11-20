@@ -2463,8 +2463,6 @@ pub struct Vaults {
     /// The dialog before a codex32 set or a BIP-85 origin is dropped from a
     /// seed, while it is up.
     pub(super) trim: Option<super::trim::Trim>,
-    /// The dialog saying an item does not fit a QR vault, while it is up.
-    pub(super) qr_no: Option<super::qr_save::QrNo>,
     /// Items moved and not yet sealed in their target, as (original,
     /// target): the original is not sealed before the target, or the item
     /// would be in neither new file (`docs/VAULT.md` §7.2).
@@ -2849,7 +2847,7 @@ impl Vaults {
     }
 
     /// The same test for any file of `len` bytes whose key takes
-    /// `memory_mib` MiB to work out, a QR vault code's included. A lookup.
+    /// `memory_mib` MiB to work out. A lookup.
     pub(crate) fn open_refusal(&self, memory_mib: u32, len: usize) -> Option<Text> {
         let need = vault_need_mib(memory_mib, len);
         match self.memory_free_mib {
@@ -3857,11 +3855,6 @@ pub enum VaultAction {
     TrimGo,
     /// That dialog's **Cancel**.
     TrimCancel,
-    /// The item page's **Save as a QR vault**: the QR vault tool at its
-    /// Passphrase step, or the dialog saying the item does not fit.
-    QrSave,
-    /// That dialog's **Close**.
-    QrNoClose,
     /// The open vault's ⋮.
     MoreAsk,
     /// The ⋮'s **Key file**: its dialog.

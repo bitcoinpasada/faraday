@@ -61,7 +61,6 @@ pub(crate) mod pass_seeds;
 pub(crate) mod plan;
 pub(crate) mod public;
 pub(crate) mod qr;
-pub(crate) mod qr_tool;
 pub(crate) mod quick;
 pub(crate) mod randomness;
 pub(crate) mod register;
@@ -132,7 +131,6 @@ pub(crate) const TOURS: &[(&str, TourFn)] = &[
     ("kef-menu", TourFn::Plain(kef::kef_menu_tour)),
     ("kef-make", TourFn::Costly(kef::kef_make_tour)),
     ("kef-step", TourFn::Plain(kef::kef_step_tour)),
-    ("qr-tool", TourFn::Plain(qr_tool::qr_tool_tour)),
     ("ots", TourFn::Plain(ots_check::ots_check_tour)),
     ("core-wallet", TourFn::Plain(core_wallet::core_wallet_tour)),
     ("kept", TourFn::Costly(kept::kept_tour)),

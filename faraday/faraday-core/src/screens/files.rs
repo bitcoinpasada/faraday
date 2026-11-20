@@ -1334,11 +1334,6 @@ pub(super) fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Button
                 Action::Vault(action),
             ));
         }
-        FileKind::QrVault => out.push((
-            Text::of(EN.inbox_actions_open_qr_vault),
-            Style::Primary,
-            Action::QrTool(crate::qr_tool::QrToolAction::OpenFile(k)),
-        )),
         FileKind::Vault => {
             let files = app.vault_files();
             // The row's own vault, or no button.
