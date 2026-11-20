@@ -211,3 +211,50 @@ fn explore_keeps_its_column_centred_and_wraps_long_values_between_groups() {
         }
     }
 }
+
+/// The room a page is centred in: beside the rail, or the whole window
+/// for a held app (`docs/LAYOUT.md` §15), as (start, width).
+fn room(w: u16, held: bool) -> (i32, i32) {
+    if held {
+        (0, i32::from(w))
+    } else {
+        (RAIL, i32::from(w) - RAIL)
+    }
+}
+
+/// Where Wallets with none loaded starts its column at the window
+/// sizes of a big monitor: the column's middle is the room's,
+/// held and not held.
+#[test]
+fn a_page_meant_to_be_centred_is_centred_in_its_room_held_or_not() {
+    for held in [false, true] {
+        for (w, h) in [
+            (1366u16, 768u16),
+            (1600, 900),
+            (1920, 1080),
+            (2000, 1090),
+            (2560, 1440),
+        ] {
+            let mut app = testkit::started();
+            app.online = true;
+            app.held = held;
+            window(&mut app, w, h);
+            app.press(Action::Nav(Screen::WalletsStart));
+            let at = boxes(&mut app, "Your wallets")
+                .into_iter()
+                .filter(|b| b.0 > 0)
+                .min_by_key(|b| b.1)
+                .expect("the section's label");
+            let (start, width) = room(w, held);
+            // The column starts a page inset in; it is 1100 wide between
+            // two insets, or the room where that is narrower.
+            let col = (1100 + 96).min(width);
+            let middle = at.0 - 48 + col / 2;
+            let want = start + width / 2;
+            assert!(
+                (middle - want).abs() <= 4,
+                "{w}x{h} held {held}: middle {middle}, room's {want} ({at:?})"
+            );
+        }
+    }
+}

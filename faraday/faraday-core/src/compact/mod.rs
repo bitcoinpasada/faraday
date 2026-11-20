@@ -872,7 +872,10 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
         ui.region_close(open, content - (view_h - top));
     }
 
-    ui.fab(w - M, h - M, Icon::Scan, EN.compact_scan, Action::Scan);
+    // Beside the rail or the bar the frame draws it at the window's edge.
+    if !app.nav().beside() {
+        ui.fab(w - M, h - M, Icon::Scan, EN.compact_scan, Action::Scan);
+    }
 }
 
 /// Whether the first-run actions stand on one row: only on the rail's

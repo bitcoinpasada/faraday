@@ -125,3 +125,50 @@ fn a_theme_chosen_in_the_demo_is_the_starters_and_stays_after_leaving_it() {
     opened(&mut s);
     assert_eq!(s.demo().expect("open").app.theme(), dark);
 }
+
+/// Wallets with none loaded in the Demo on a big monitor: the page's
+/// column is centred in the room beside the rail (`docs/LAYOUT.md` §15).
+#[test]
+fn the_demos_wallets_page_is_centred_in_the_room_beside_its_rail() {
+    let mut off = Vec::new();
+    for dpi in [160u16, 192, 240] {
+        for (w, h) in [(1920u16, 1080u16), (2000, 1090), (2560, 1440), (3840, 2160)] {
+            let mut s = Starter::new();
+            s.event(display(w, h, dpi));
+            s.starter_event(StarterEvent::Computer(Computer {
+                os: Os::Linux,
+                ..Computer::default()
+            }));
+            opened(&mut s);
+            s.demo()
+                .expect("open")
+                .app
+                .press(Action::Nav(Screen::WalletsStart));
+            let _ = s.frame();
+            let f = f32::from(dpi) / 160.0;
+            let label = s
+                .demo()
+                .expect("open")
+                .app
+                .drawn_text_boxes()
+                .into_iter()
+                .filter(|(t, r)| t == "Your wallets" && r.0 > 0)
+                .map(|(_, r)| r)
+                .next()
+                .expect("the section's label");
+            // The column is at most 1100 wide between two 48 dp insets,
+            // in the room right of the 240 dp rail: the gap left of it
+            // from the rail and the gap right of it to the window's edge.
+            let room_w = (w as f32 / f - 240.0).max(0.0);
+            let col = (1100.0f32 + 96.0).min(room_w);
+            let left = label.0 as f32 / f - 48.0 - 240.0;
+            let right = room_w - left - col;
+            if (left - right).abs() > 4.0 {
+                off.push(format!(
+                    "{w}x{h}@{dpi}: left {left:.0} dp, right {right:.0} dp"
+                ));
+            }
+        }
+    }
+    assert!(off.is_empty(), "off-centre: {}", off.join("; "));
+}

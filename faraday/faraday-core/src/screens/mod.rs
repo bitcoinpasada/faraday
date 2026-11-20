@@ -183,9 +183,6 @@ fn area_of(screen: Screen) -> Area {
 /// old frame gave it. Returns how far the page is moved right and its
 /// width. Arithmetic.
 fn page_area(app: &crate::Faraday, screen: Screen, room: f32) -> (f32, f32) {
-    if room <= PAGE_AREA_UNTIL_W {
-        return (0.0, room);
-    }
     // New key's cards are reading content, its column and its insets; only
     // Make codex32 shares holds wide content (its sheets and input panel)
     // and takes the work width (`docs/LAYOUT.md` §14).
@@ -204,8 +201,13 @@ fn page_area(app: &crate::Faraday, screen: Screen, room: f32) -> (f32, f32) {
         area_of(screen)
     };
     match area {
-        Area::Reading(w) => ((room - w) / 2.0, w),
-        Area::Work => (0.0, room),
+        // Centred in the room whenever the room is wider than the area,
+        // whatever the window: a page that draws its column at the area's
+        // start would stand at the navigation's edge on a window a little
+        // wider than it (`docs/LAYOUT.md` §14), held or not.
+        Area::Reading(w) if room > w => ((room - w) / 2.0, w),
+        Area::Reading(_) | Area::Work => (0.0, room),
+        Area::Until if room <= PAGE_AREA_UNTIL_W => (0.0, room),
         Area::Until => ((room - PAGE_AREA_UNTIL_W) / 2.0, PAGE_AREA_UNTIL_W),
     }
 }
@@ -760,6 +762,9 @@ fn draw_compact(app: &View, ui: &mut Ui, area: (f32, f32), h: f32, kb: bool, y0:
         ui.oy = y0 + head;
         crate::compact::home(app, ui, w, h - head);
         ui.oy = y0;
+        if nav.beside() && crate::nav::shows_scan(app) && !app.held {
+            scan_at_edge(ui, ax, aw, h);
+        }
     } else {
         // Room for the bar as the last frame had it; a change draws again.
         let had = if kb { 0.0 } else { app.pin_h.get() };
@@ -836,13 +841,35 @@ fn draw_compact(app: &View, ui: &mut Ui, area: (f32, f32), h: f32, kb: bool, y0:
             foot = y;
         }
         if crate::nav::shows_scan(app) && !app.held {
-            let m = crate::compact::M;
-            ui.fab(w - m, foot - m, Icon::Scan, EN.compact_scan, Action::Scan);
+            if nav.beside() {
+                scan_at_edge(ui, ax, aw, foot);
+            } else {
+                let m = crate::compact::M;
+                ui.fab(w - m, foot - m, Icon::Scan, EN.compact_scan, Action::Scan);
+            }
         }
     }
     notices(app, ui, 0.0, w, foot);
     ui.ox = 0.0;
     ui.oy = 0.0;
+}
+
+/// The Scan button on a window with the rail or the bar beside the page:
+/// `MARGIN_WIDE` from the area's right edge, which is the window's, and
+/// from the foot `foot`, whatever the width of the page's column
+/// (`docs/LAYOUT.md` §15). Draws.
+fn scan_at_edge(ui: &mut Ui, ax: f32, aw: f32, foot: f32) {
+    let (ox, oy) = (ui.ox, ui.oy);
+    ui.ox = ax;
+    ui.fab(
+        aw - MARGIN_WIDE,
+        foot - MARGIN_WIDE,
+        Icon::Scan,
+        EN.compact_scan,
+        Action::Scan,
+    );
+    ui.ox = ox;
+    ui.oy = oy;
 }
 
 /// The foot room the Scan button takes from a page that carries it.

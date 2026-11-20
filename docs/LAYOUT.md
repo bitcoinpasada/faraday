@@ -507,7 +507,7 @@ A page holds two kinds of content, and each has its own width:
   token maximum (§16.1).
 
 A page of reading content only is centred in the room beside the
-navigation (left of a supporting pane where one stands). New key is such a page until it holds Make codex32 shares, whose
+navigation (left of a supporting pane where one stands), whenever the room is wider than its area, whatever the window; in a held app (the Starter's, `docs/STARTER.md` §3.1d) the room is the whole frame, as it has no navigation. New key is such a page until it holds Make codex32 shares, whose
 sheets and input panel are wide content and take the work width. The quick paper backup after Make a new wallet is one too: its column and its side panel centred as a pair, where the board's page starts at the navigation. A page that
 holds wide content starts at the navigation's edge plus its margin: its
 reading parts keep their width at the start, and its wide parts run on
@@ -536,6 +536,8 @@ edge:
   and Tools; Home alone on the small panel's menu layout): `MARGIN_WIDE` from the window's right and foot
   (Material's floating action button margin on medium windows and up);
 - toasts and notices: centred on the page area, as today.
+
+On a window with the rail or the bar beside the page, the Scan button stands at the window's edge and foot, not at the edge of the page's column.
 
 Material's pane scaffold keeps a 24 dp spacer between panes from
 expanded windows up, allows up to three panes side by side from large
