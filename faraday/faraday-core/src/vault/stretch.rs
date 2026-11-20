@@ -378,6 +378,24 @@ pub(crate) fn stretched(app: &mut Faraday, done: StretchDone) {
     }
 }
 
+/// Costs a move: a stretch's answer made stale (a stick put in, a Back)
+/// is dropped and wiped. The key file held for an unlock of a vault just
+/// made or sealed is given back first, while Unlock is still on screen; after
+/// leaving Unlock or a Lock it wipes with the answer.
+pub(crate) fn stale(app: &mut Faraday, mut done: StretchDone) {
+    if matches!(done.plan, Plan::Unlock { .. })
+        && app.vaults.state.unlock_made
+        && app.screen == Screen::Unlock
+    {
+        let kept = done
+            .stretched
+            .take_back_parts()
+            .or_else(|| done.stretched.take_opened_parts());
+        app.vaults.set_made_parts(kept);
+    }
+    drop(done);
+}
+
 /// Costs what `OpenVaults::adopt` costs: no Argon2id run, which ran on the
 /// worker. The back half of an unlock, applied on the main thread.
 fn unlocked(

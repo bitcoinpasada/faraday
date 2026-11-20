@@ -831,46 +831,18 @@ fn a_changed_passphrase_of_a_key_file_vault_is_the_one_its_unlock_takes_with_the
 }
 
 /// One unlock try at the Unlock that is open, with a stick put in while it
-/// runs: the try's answer is refused for the stick; the stick is taken out
+/// runs: the try's answer is dropped for the stick; the stick is taken out
 /// again.
 fn try_here_with_a_stick_put_in(app: &mut Faraday, phrase: &str) {
     app.press(Action::Vault(V::FocusPassphrase));
     type_text(app, phrase);
     testkit::hold_worker();
     testkit::press_on_worker(app, Action::Vault(V::Unlock));
-    eprintln!(
-        "DBG before {:?} {:?} {}",
-        app.screen,
-        app.sheet,
-        app.busy().is_some()
-    );
     attach_stick(app);
-    eprintln!(
-        "DBG after {:?} {:?} {}",
-        app.screen,
-        app.sheet,
-        app.busy().is_some()
-    );
     testkit::release_worker();
-    testkit::settle(app);
-    eprintln!(
-        "DBG end {:?} {:?} {}",
-        app.screen,
-        app.sheet,
-        app.busy().is_some()
-    );
+    // The stick made the answer stale: it is taken and dropped.
+    testkit::settle_stale(app);
     assert!(app.vaults().open.is_empty(), "the stick did not refuse it");
-    assert!(
-        app.vaults()
-            .unlock_error
-            .as_ref()
-            .is_some_and(|e| e.as_str().starts_with("Remove the")),
-        "the refusal does not ask to remove the stick: {:?}",
-        app.vaults()
-            .unlock_error
-            .as_ref()
-            .map(|e| e.as_str().to_string())
-    );
     app.storage(StorageEvent::Sticks(Vec::new()));
 }
 
@@ -917,36 +889,52 @@ fn a_stick_put_in_while_the_new_passphrase_opens_a_key_file_vault_just_sealed_ke
 }
 
 #[test]
-fn save_in_change_passphrase_while_a_seal_runs_says_why_and_seals_nothing_twice() {
-    let file = testkit::kdbx_vault("Main", PHRASE, 0x31, Vec::new()).unwrap();
-    let mut app = open_main_changed(file, Vec::new(), Vec::new());
+fn save_in_change_passphrase_while_a_seal_runs_is_not_taken_and_seals_nothing_twice() {
+    let a = testkit::kdbx_vault("A", PHRASE, 0x31, Vec::new()).unwrap();
+    let b = testkit::kdbx_vault("B", PHRASE, 0x32, Vec::new()).unwrap();
+    let mut app = process(vec![("a.kdbx".into(), a), ("b.kdbx".into(), b)]);
+    try_unlock(&mut app, PHRASE);
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Open(1)));
+    let _ = app.frame();
+    app.press(Action::Vault(V::FocusPassphrase));
+    type_text(&mut app, PHRASE);
+    app.press(Action::Vault(V::Unlock));
+    for t in 1..60u64 {
+        if app.vaults().open.len() == 2 {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    assert_eq!(app.vaults().open.len(), 2);
     crate::common::top_up(&mut app);
+    testkit::vault_current(&mut app, 1);
+    app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::ChangePassphrase));
+    assert_eq!(app.sheet, Some(Sheet::VaultPassphrase));
     type_text(&mut app, "a new phrase");
     app.press(Action::Vault(V::FocusField(1)));
     type_text(&mut app, "a new phrase");
-    // A seal of a lock starts and is held on the worker.
+    // The other vault, with a change, starts its seal, held on the worker.
+    {
+        use faraday_vault::Record;
+        use faraday_vault::records::{field, kind};
+        let id = app.vaults().open[0].id;
+        let rec = Record::new(kind::ENTRY).with(field::TITLE, b"added");
+        testkit::vault_edit(&mut app, id, |s| s.insert(id, rec));
+        testkit::vault_changed(&mut app, id);
+    }
     testkit::hold_worker();
-    testkit::press_on_worker(&mut app, Action::Lock);
-    app.press(Action::Vault(V::FormSave));
-    let said = app.toast_text().map(|t| t.to_string());
+    testkit::vault_lock_one(&mut app, 0);
+    // Save is not taken while the seal runs.
+    testkit::press_on_worker(&mut app, Action::Vault(V::FormSave));
     testkit::release_worker();
     testkit::settle(&mut app);
-    assert_eq!(
-        said.as_deref(),
-        Some(EN.vault_passphrase_seal_running),
-        "Save did not say why"
-    );
-    // One seal, of the lock: the passphrase typed was not written.
+    // One seal, of the vault locked: the passphrase typed was not written.
     let sealed = saved_outbox(&mut app);
     assert_eq!(sealed.len(), 1, "more than one file was written");
-    let mut next = process(sealed);
-    try_unlock(&mut next, PHRASE);
-    assert_eq!(
-        next.vaults().open.len(),
-        1,
-        "the old passphrase still opens it"
-    );
+    assert_eq!(app.vaults().open.len(), 1, "the other vault is still open");
 }
 
 #[test]

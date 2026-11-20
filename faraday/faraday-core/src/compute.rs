@@ -260,6 +260,10 @@ impl Faraday {
             self.vaults
                 .store()
                 .note_made_online_done(&mut self.session.keys, *d);
+        } else if let Done::Stretch(d) = done {
+            // Made stale by Back or a stick: dropped, and wiped as it drops,
+            // the key file held for a vault's unlock given back first.
+            crate::vault::stretch::stale(self, *d);
         } else {
             // Made stale by Back: dropped, and wiped as it drops.
             drop(done);
