@@ -1402,6 +1402,13 @@ pub(super) fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Button
                 Action::LoadKey(k),
             ));
         }
+        FileKind::KruxCode => {
+            out.push((
+                Text::of(EN.inbox_actions_open_code),
+                Style::Primary,
+                Action::KefFile(k),
+            ));
+        }
         FileKind::Message => {
             out.push((
                 Text::of(EN.inbox_actions_check),

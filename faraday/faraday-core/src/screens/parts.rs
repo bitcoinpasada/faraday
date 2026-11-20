@@ -1137,6 +1137,7 @@ pub(crate) fn kind_name(kind: FileKind) -> &'static str {
         FileKind::Text => EN.kind_name_text,
         FileKind::Gpg => EN.kind_name_gpg,
         FileKind::CoreWallet => EN.kind_name_sqlite,
+        FileKind::KruxCode => EN.kind_name_krux_code,
         FileKind::Other => EN.kind_name_file,
     }
 }

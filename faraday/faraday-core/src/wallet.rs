@@ -2219,6 +2219,10 @@ pub enum FileKind {
     /// A SQLite database, which may be a Bitcoin Core wallet: read in
     /// Tools' Read a Bitcoin Core wallet. It may hold private keys.
     CoreWallet,
+    /// A Krux encrypted code's bytes, as the Krux tool writes them to a
+    /// stick (`docs/KEF.md` §8): sealed under its passphrase and read by
+    /// Open, as Add a key's Krux code form reads a file.
+    KruxCode,
     /// Nothing this build reads.
     Other,
 }
@@ -2805,6 +2809,12 @@ pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
         if is_text(text) {
             return FileKind::Text.into();
         }
+    }
+    // The weakest test there is (an envelope has no magic number), so the
+    // last: the bytes the Krux tool writes, never a text form.
+    if faraday_codec::kef::recognize(bytes).is_some_and(|r| r.form == faraday_codec::kef::Form::Raw)
+    {
+        return FileKind::KruxCode.into();
     }
     FileKind::Other.into()
 }

@@ -346,7 +346,10 @@ pub(crate) fn read_rows(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), lea
         vec![(Text::of(EN.kef_read_scan), scan, Action::ScanKef)];
     let mut any = false;
     for (i, f) in app.inbox.iter().enumerate() {
-        if matches!(f.kind, FileKind::Text | FileKind::Other) {
+        if matches!(
+            f.kind,
+            FileKind::Text | FileKind::Other | FileKind::KruxCode
+        ) {
             any = true;
             rows.push((
                 Text::fill(EN.kef_read_file, &[&f.name]),

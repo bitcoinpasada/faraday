@@ -166,9 +166,10 @@ impl Item {
         }
         match self.holds() {
             FileKind::Words | FileKind::SeedPart => Some(secrets::Ack::Seed),
-            FileKind::Entries | FileKind::SecretWallet | FileKind::KeyWithSecret => {
-                Some(secrets::Ack::Any)
-            }
+            FileKind::Entries
+            | FileKind::SecretWallet
+            | FileKind::KeyWithSecret
+            | FileKind::KruxCode => Some(secrets::Ack::Any),
             FileKind::Text | FileKind::Other => Some(secrets::Ack::Unknown),
             _ => None,
         }

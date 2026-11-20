@@ -1055,6 +1055,28 @@ fn add_a_key_reads_a_krux_code_from_files() {
 }
 
 #[test]
+fn a_krux_code_file_on_a_stick_shows_in_files_and_opens_there() {
+    let (code, pass) = vector("gcm");
+    let mut app = testkit::started();
+    testkit::inbox_file(&mut app, "krux-v20-74657374.kef", code);
+    app.press(Action::Nav(Screen::Files));
+    let shown = texts(&mut app);
+    assert!(shown.iter().any(|t| t.contains("Krux encrypted code")), "{shown:?} {:?}", app.inbox()[0].kind);
+    assert!(has(&mut app, "Open"));
+    app.press(Action::KefFile(0));
+    assert_eq!(app.sheet, Some(Sheet::KefRead));
+    open_with(&mut app, "not the key");
+    assert_eq!(app.sheet, Some(Sheet::KefRead));
+    assert!(app.session.keys.is_empty());
+    for _ in 0..11 {
+        app.event(Event::Key(Key::Backspace));
+    }
+    open_with(&mut app, &pass);
+    assert_eq!(app.sheet, Some(Sheet::SeedRead));
+    assert!(has_part(&mut app, "Code id test ID"));
+}
+
+#[test]
 fn checks_krux_row_opens_add_a_key_on_its_krux_form() {
     use faraday_core::check::{Backup, Press, Row};
     let mut app = testkit::started();

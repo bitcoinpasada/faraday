@@ -98,6 +98,8 @@ macro_rules! words_screens_parts {
     /// key beside the key.
     kind_name_secret_key: "Key file with a secret",
     /// Text in `kind_name`.
+    kind_name_krux_code: "Krux encrypted code",
+    /// Text in `kind_name`.
     kind_name_file: "File",
     // ----- word_keys (faraday-core/src/screens/parts.rs) -----
     /// Button in `word_keys`.
