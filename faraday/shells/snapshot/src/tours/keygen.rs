@@ -33,7 +33,9 @@ pub(crate) fn keygen_tour(t: &mut Tour) -> Result<(), String> {
     }
     // Start opens with nothing ticked; a choice opens Length.
     t.shot("keygen-start")?;
-    t.press(Action::KStart(Start::Make.index()));
+    t.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
     t.shot("keygen-length")?;
     t.press(Action::KOtherLengths);
     t.shot("keygen-length-other")?;

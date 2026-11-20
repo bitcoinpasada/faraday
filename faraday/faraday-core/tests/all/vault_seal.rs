@@ -252,7 +252,9 @@ fn codex32_made() -> Faraday {
     open_and_change(&mut app);
     app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::KeyGen(None));
-    app.press(Action::KStart(Start::MakeCodex32.index()));
+    app.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Codex32).index(),
+    ));
     let c32 = |app: &mut Faraday, p: C32| app.press(Action::Codex32(p));
     let split = SPLITS.iter().position(|s| *s == Split::TwoOfThree).unwrap();
     c32(&mut app, C32::Split(split as u8));

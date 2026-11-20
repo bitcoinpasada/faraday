@@ -538,7 +538,9 @@ fn a_new_keys_coin_flips_open_as_before_on_a_wide_window_and_the_pis_panel() {
         let _ = app.frame();
         app.press(Action::Entry(None));
         app.press(Action::KeyGen(None));
-        app.press(Action::KStart(Start::Make.index()));
+        app.press(Action::KStart(
+            Start::Make(faraday_core::forms::Form::Words).index(),
+        ));
         app.press(Action::KWords(12));
         app.press(Action::KNext);
         app.press(Action::KWay(Way::Coins.index()));

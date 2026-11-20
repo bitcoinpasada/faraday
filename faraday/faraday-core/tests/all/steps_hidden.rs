@@ -76,7 +76,9 @@ fn new_key_shows_its_open_step_and_none_after() {
     for (i, on) in shown.iter().enumerate() {
         assert_eq!(*on, i < at, "step {i} with step {at} open");
     }
-    app.press(Action::KStart(Start::Make.index()));
+    app.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
     let all: Vec<u8> = app.keygen().unwrap().steps();
     let open = app.keygen().unwrap().open.expect("a step is open");
     let at = all.iter().position(|&k| k == open).unwrap();

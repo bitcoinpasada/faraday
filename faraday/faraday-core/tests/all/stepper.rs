@@ -43,7 +43,9 @@ fn other_with(width: u16, height: u16, reduce: bool) -> Faraday {
     app.press(Action::KeyGen(None));
     let _ = app.frame();
     let _ = app.frame();
-    app.press(Action::KStart(Start::MakeCodex32.index()));
+    app.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Codex32).index(),
+    ));
     let other = SPLITS.iter().position(|s| *s == Split::Other).unwrap();
     app.press(Action::Codex32(C32::Split(other as u8)));
     tick(&mut app, 1000);

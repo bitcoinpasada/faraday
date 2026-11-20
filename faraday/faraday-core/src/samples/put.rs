@@ -84,7 +84,7 @@ pub(crate) fn offer(ui: &mut Ui, action: Action) {
 /// their places in [`Samples::keys`].
 fn english_keys(set: &Samples) -> impl Iterator<Item = (usize, &SampleKey)> {
     set.keys.iter().enumerate().filter(|(_, k)| {
-        k.form == SampleForm::Words
+        k.form == SampleForm::Form(Form::Words)
             && k.plain.is_some()
             && k.parts
                 .first()
@@ -233,9 +233,7 @@ impl Faraday {
     fn entry_sample_part(&mut self, set: &'static Samples) -> Option<&'static str> {
         let form = self.entry.state().form;
         let want = match form {
-            Form::Slip39 => SampleForm::Slip39,
-            Form::Codex32 => SampleForm::Codex32,
-            Form::Xor => SampleForm::Xor,
+            Form::Slip39 | Form::Codex32 | Form::Xor => SampleForm::Form(form),
             Form::Words | Form::Krux => return None,
         };
         let have = self.entry.state().parts.lines(form).len();

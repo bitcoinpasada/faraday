@@ -445,16 +445,23 @@ fn asks(k: &KeyGen, s: Source) -> Text {
 
 /// A Start choice's name, on the card and in its summary.
 fn start_name(s: Start) -> &'static str {
+    use crate::forms::Form;
     match s {
-        Start::Make => EN.keygen_bip39_words,
-        Start::MakeCodex32 => EN.keygen_codex32,
-        Start::Words => EN.keygen_type_the_words,
+        Start::Make(f) => match f {
+            Form::Words => EN.keygen_bip39_words,
+            Form::Codex32 => EN.keygen_codex32,
+            Form::Slip39 => EN.keygen_make_slip_39_shares,
+            // Never made here: no choice lists them, so the form's own name.
+            Form::Xor | Form::Krux => f.name(),
+        },
+        Start::Type(f) => match f {
+            Form::Words => EN.keygen_type_the_words,
+            Form::Krux => EN.keygen_krux_code,
+            Form::Slip39 => EN.keygen_type_slip_39_shares,
+            Form::Codex32 => EN.keygen_type_a_codex32,
+            Form::Xor => EN.keygen_type_seed_xor,
+        },
         Start::Scan => EN.keygen_scan_a_seedqr,
-        Start::Krux => EN.keygen_krux_code,
-        Start::MakeShares => EN.keygen_make_slip_39_shares,
-        Start::Shares => EN.keygen_type_slip_39_shares,
-        Start::Codex32 => EN.keygen_type_a_codex32,
-        Start::Xor => EN.keygen_type_seed_xor,
     }
 }
 

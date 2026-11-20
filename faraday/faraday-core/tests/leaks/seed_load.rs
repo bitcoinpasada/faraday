@@ -192,7 +192,9 @@ fn coin_flips_previewed_as_the_last_word_leave_no_copy_of_the_entropy() {
     app.press(Action::Entry(None));
     app.press(Action::KeyGen(None));
     assert_eq!(app.screen, Screen::KeyGen);
-    app.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
+    app.press(Action::KStart(
+        faraday_core::keygen::Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
     app.press(Action::KWords(12));
     app.press(Action::KWay(faraday_core::keygen::Way::Coins.index()));
     app.press(Action::KNext);
@@ -303,7 +305,9 @@ fn new_key_over_add_a_key() -> Faraday {
     type_text(&mut app, PHRASE);
     crate::common::add_a_key_flow(&mut app);
     assert_eq!(app.screen, Screen::KeyGen, "New key did not open");
-    app.press(Action::KStart(Start::Words.index()));
+    app.press(Action::KStart(
+        Start::Type(faraday_core::forms::Form::Words).index(),
+    ));
     let _ = app.frame();
     type_text(&mut app, PHRASE);
     app.press(Action::KNext);

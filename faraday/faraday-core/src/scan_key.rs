@@ -1131,7 +1131,7 @@ impl Faraday {
         self.sheet = None;
         self.out.commands.push_back(Command::CameraOff);
         if in_flow {
-            self.keygen_open_on(crate::keygen::Start::Codex32);
+            self.keygen_open_on(crate::keygen::Start::Type(crate::forms::Form::Codex32));
             self.entry.set_typed(&given);
             self.form_add_part();
         } else {

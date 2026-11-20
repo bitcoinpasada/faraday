@@ -195,7 +195,9 @@ fn codex32(t: &mut Tour, win: (u16, u16)) -> Result<(), String> {
     let c = |t: &mut Tour, p: C32| t.press(Action::Codex32(p));
     t.press(Action::Nav(Screen::WalletsStart));
     t.press(Action::KeyGen(None));
-    t.press(Action::KStart(Start::MakeCodex32.index()));
+    t.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Codex32).index(),
+    ));
     c(t, C32::Next);
     for ch in "name".chars() {
         c(t, C32::Key(OskPress::Char(ch)));
@@ -228,7 +230,9 @@ fn rollers(t: &mut Tour, win: (u16, u16)) -> Result<(), String> {
     t.press(Action::Entry(None));
     shot(t, win, "host-add-key", None, None)?;
     t.press(Action::KeyGen(None));
-    t.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
+    t.press(Action::KStart(
+        faraday_core::keygen::Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
     t.press(Action::KWords(12));
     t.press(Action::KWay(Way::DiceHashed.index()));
     t.press(Action::KNext);

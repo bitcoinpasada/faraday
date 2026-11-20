@@ -51,7 +51,9 @@ fn on_bip39_dice(offered: bool) -> Faraday {
     let mut app = app(offered, true);
     app.press(Action::Entry(None));
     app.press(Action::KeyGen(None));
-    app.press(Action::KStart(Start::Make.index()));
+    app.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
     app.press(Action::KWords(12));
     app.press(Action::KNext);
     app.press(Action::KWay(faraday_core::keygen::Way::DiceHashed.index()));

@@ -78,7 +78,7 @@ fn samples() -> &'static Samples {
             name: "sample_codex32_shares",
             word: "",
             count: 0,
-            form: SampleForm::Codex32,
+            form: SampleForm::Form(Form::Codex32),
             size: SampleSize::Shares(2),
             listed: true,
             parts: &[SHARE_A, SHARE_C],
@@ -114,7 +114,7 @@ fn make_codex32_shares_and_the_codex32_form_open_the_guide_at_the_codex32_sectio
     let _ = app.frame();
     assert_ne!(guide_key(&mut app), "keygen.codex32", "BIP-39 words first");
     let _ = app.frame();
-    app.press(Action::KStart(Start::MakeCodex32.index()));
+    app.press(Action::KStart(Start::Make(Form::Codex32).index()));
     assert!(guide_key(&mut app).starts_with("keygen"));
 
     let mut app = testkit::started();

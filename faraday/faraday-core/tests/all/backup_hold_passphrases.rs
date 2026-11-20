@@ -20,7 +20,9 @@ use faraday_core::{Action, Faraday, cstep};
 /// words alone, of `one` and of `two`.
 fn words_with_two_passphrases(app: &mut Faraday) -> [faraday_bip::keys::Fingerprint; 3] {
     app.press(Action::KeyGen(None));
-    app.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
+    app.press(Action::KStart(
+        faraday_core::keygen::Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
     app.press(Action::KWords(12));
     app.press(Action::KWay(Way::Coins.index()));
     app.press(Action::KNext);

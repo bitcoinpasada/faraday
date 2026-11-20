@@ -57,7 +57,9 @@ fn entry_on(panel: Panel) -> Faraday {
     }
     app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::KeyGen(None));
-    app.press(Action::KStart(Start::MakeCodex32.index()));
+    app.press(Action::KStart(
+        Start::Make(crate::forms::Form::Codex32).index(),
+    ));
     let two = SPLITS
         .iter()
         .position(|s| *s == Split::TwoOfThree)

@@ -555,7 +555,9 @@ fn make_a_new_key_hides_the_words_by_back() {
     window(&mut app, 1366, 768);
     crate::common::add_a_key_flow(&mut app);
     at_rest(&mut app);
-    app.press(Action::KStart(Start::Words.index()));
+    app.press(Action::KStart(
+        Start::Type(faraday_core::forms::Form::Words).index(),
+    ));
     at_rest(&mut app);
     type_text(&mut app, &words);
     app.press(Action::KNext);

@@ -4,6 +4,7 @@
 use crate::common::{PASSPHRASE, hex, unhex};
 use faraday_bip::bip39::Language;
 use faraday_bip::keys::{Fingerprint, Network};
+use faraday_core::forms::Form;
 use faraday_core::samples::{SampleForm, SampleKey};
 use faraday_core::testkit::compute;
 use faraday_intake::{Part, part_of};
@@ -22,13 +23,13 @@ fn load(keys: &mut Keys, sample: &SampleKey, passphrase: &str) -> Result<Fingerp
     let c = compute();
     let refused = |e: faraday_intake::wallet::Refusal| format!("{e:?}");
     match sample.form {
-        SampleForm::Words => keys
+        SampleForm::Form(Form::Words) => keys
             .add_words_with(&c, sample.parts[0], passphrase, "", None)
             .map_err(refused),
-        SampleForm::Xor => keys
+        SampleForm::Form(Form::Xor) => keys
             .add_words_with(&c, sample.combined, passphrase, "", None)
             .map_err(refused),
-        SampleForm::Slip39 => {
+        SampleForm::Form(Form::Slip39) => {
             let shares: Vec<_> = sample
                 .parts
                 .iter()
@@ -41,7 +42,7 @@ fn load(keys: &mut Keys, sample: &SampleKey, passphrase: &str) -> Result<Fingerp
                 .map_err(|e| format!("{e:?}"))?;
             keys.add_seed(&c, &seed, "").map_err(refused)
         }
-        SampleForm::Codex32 => {
+        SampleForm::Form(Form::Codex32) => {
             let parts: Vec<_> = sample
                 .parts
                 .iter()
@@ -56,7 +57,7 @@ fn load(keys: &mut Keys, sample: &SampleKey, passphrase: &str) -> Result<Fingerp
         SampleForm::Seed => keys
             .add_seed(&c, &unhex(sample.parts[0]), "")
             .map_err(refused),
-        SampleForm::Aezeed => Err("loads no key".to_string()),
+        SampleForm::Aezeed | SampleForm::Form(Form::Krux) => Err("loads no key".to_string()),
     }
 }
 
@@ -306,7 +307,7 @@ fn the_devices_list_of_slip39_sample_sets_is_every_identifier_the_samples_give()
     let mut derived: Vec<(u16, u8)> = SAMPLES
         .keys
         .iter()
-        .filter(|k| matches!(k.form, SampleForm::Slip39))
+        .filter(|k| matches!(k.form, SampleForm::Form(Form::Slip39)))
         .flat_map(|k| k.parts.iter())
         .map(|p| match part_of(p) {
             Some(Part::Slip39(s)) => {
@@ -331,7 +332,7 @@ fn a_sample_slip39_set_is_not_held_for_convert_on_mainnet_but_is_on_testnet() {
     for k in SAMPLES
         .keys
         .iter()
-        .filter(|k| matches!(k.form, SampleForm::Slip39))
+        .filter(|k| matches!(k.form, SampleForm::Form(Form::Slip39)))
     {
         let mut main = Keys::on(Network::Mainnet);
         assert_eq!(

@@ -36,28 +36,40 @@ pub enum Row {
     Xpub,
 }
 
-/// A form in the backup menu.
+/// A choice in the backup menu: a form of the table, or a SeedQR (a
+/// writing of BIP-39 words, not a form of its own).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Backup {
-    /// SLIP-39 shares.
-    Slip39,
-    /// Seed XOR parts.
-    Xor,
+    /// A form of the table.
+    Form(Form),
     /// A SeedQR.
     SeedQr,
-    /// A codex32 secret or its shares.
-    Codex32,
-    /// A Krux code.
-    Krux,
 }
 
-/// The forms in the backup menu, in order, with their labels.
-pub(crate) const FORMS: [(Backup, &str); 5] = [
-    (Backup::Slip39, EN.check_menu_slip39),
-    (Backup::Xor, EN.check_menu_xor),
-    (Backup::SeedQr, EN.check_menu_seedqr),
-    (Backup::Codex32, EN.check_menu_codex32),
-    (Backup::Krux, EN.check_menu_krux),
+impl Backup {
+    /// Its label in the menu.
+    pub(crate) fn label(self) -> &'static str {
+        match self {
+            Backup::Form(f) => match f {
+                Form::Slip39 => EN.check_menu_slip39,
+                Form::Xor => EN.check_menu_xor,
+                Form::Codex32 => EN.check_menu_codex32,
+                Form::Krux => EN.check_menu_krux,
+                // Typed on Add a key's own tile, so not in the menu.
+                Form::Words => f.name(),
+            },
+            Backup::SeedQr => EN.check_menu_seedqr,
+        }
+    }
+}
+
+/// The choices in the backup menu, in order.
+pub(crate) const FORMS: [Backup; 5] = [
+    Backup::Form(Form::Slip39),
+    Backup::Form(Form::Xor),
+    Backup::SeedQr,
+    Backup::Form(Form::Codex32),
+    Backup::Form(Form::Krux),
 ];
 
 /// A press on Check.
@@ -196,19 +208,21 @@ pub(crate) fn press(app: &mut Faraday, p: Press) {
         Press::Form(f) => {
             app.sheet = None;
             let go = match f {
-                Backup::Slip39 => Go::AddKey(Form::Slip39),
-                Backup::Xor => Go::AddKey(Form::Xor),
-                Backup::SeedQr => Go::SeedQr,
-                Backup::Codex32 => Go::AddKey(Form::Codex32),
-                // No tile and no choice on New key's Start card: the row
-                // opens Add a key on its Krux code form.
-                Backup::Krux => {
+                Backup::Form(Form::Krux) => {
+                    // No tile and no choice on New key's Start card: the row
+                    // opens Add a key on its Krux code form.
                     app.act(Action::Entry(None));
                     if app.screen == Screen::Entry {
                         app.entry.choose_form(Form::Krux);
                     }
                     return;
                 }
+                Backup::Form(Form::Slip39) => Go::AddKey(Form::Slip39),
+                Backup::Form(Form::Xor) => Go::AddKey(Form::Xor),
+                Backup::Form(Form::Codex32) => Go::AddKey(Form::Codex32),
+                // The words are typed on Add a key and are not a row here.
+                Backup::Form(Form::Words) => return,
+                Backup::SeedQr => Go::SeedQr,
             };
             tile(app, go);
         }

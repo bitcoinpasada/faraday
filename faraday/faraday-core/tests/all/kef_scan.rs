@@ -1096,7 +1096,9 @@ fn checks_krux_row_opens_add_a_key_on_its_krux_form() {
     let mut app = testkit::started();
     app.press(Action::Nav(Screen::Check));
     app.press(Action::Check(Press::Row(Row::Backup)));
-    app.press(Action::Check(Press::Form(Backup::Krux)));
+    app.press(Action::Check(Press::Form(Backup::Form(
+        faraday_core::forms::Form::Krux,
+    ))));
     assert_eq!(app.screen, Screen::Entry);
     assert_eq!(testkit::entry(&app).form, faraday_core::forms::Form::Krux);
     assert!(has(&mut app, "Scan a Krux code"));
@@ -1108,7 +1110,9 @@ fn new_keys_start_card_offers_a_krux_code_that_opens_its_form() {
     app.press(Action::CreateWallet);
     app.press(Action::KeyGen(Some(0)));
     assert!(has(&mut app, "Krux code"));
-    app.press(Action::KStart(faraday_core::keygen::Start::Krux.index()));
+    app.press(Action::KStart(
+        faraday_core::keygen::Start::Type(faraday_core::forms::Form::Krux).index(),
+    ));
     assert_eq!(app.screen, Screen::Entry);
     assert_eq!(testkit::entry(&app).form, faraday_core::forms::Form::Krux);
     assert!(has(&mut app, "Scan a Krux code"));
@@ -1171,7 +1175,9 @@ fn key_2_krux_form() -> Faraday {
     crate::common::ckind(&mut app, multi);
     app.press(Action::CNext(cstep::QUORUM));
     app.press(Action::KeyGen(Some(1)));
-    app.press(Action::KStart(faraday_core::keygen::Start::Krux.index()));
+    app.press(Action::KStart(
+        faraday_core::keygen::Start::Type(faraday_core::forms::Form::Krux).index(),
+    ));
     assert_eq!(app.screen, Screen::Entry);
     app
 }

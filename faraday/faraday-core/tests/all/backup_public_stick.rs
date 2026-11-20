@@ -22,7 +22,9 @@ fn sticks(shell: &mut Shell, n: usize) {
 /// A key made by New key for slot 0 of the Create open.
 fn new_key_here(app: &mut Faraday) -> [u8; 4] {
     app.press(Action::KeyGen(Some(0)));
-    app.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
+    app.press(Action::KStart(
+        faraday_core::keygen::Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
     app.press(Action::KWords(12));
     app.press(Action::KWay(faraday_core::keygen::Way::Coins.index()));
     app.press(Action::KNext);

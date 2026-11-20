@@ -79,7 +79,9 @@ fn new_key_left_by_a_tap_on_the_sidebar_forgets_the_words_typed() {
     let words = testkit::test_words("bacon");
     let mut app = testkit::started();
     crate::common::add_a_key_flow(&mut app);
-    app.press(Action::KStart(Start::Words.index()));
+    app.press(Action::KStart(
+        Start::Type(faraday_core::forms::Form::Words).index(),
+    ));
     let _ = app.frame();
     typed(&mut app, &words);
     app.press(Action::KNext);
@@ -264,7 +266,9 @@ fn new_key_left_by_a_tap_on_its_back_link_forgets_its_entries() {
     let mut app = testkit::started();
     app.press(Action::Entry(None));
     app.press(Action::KeyGen(None));
-    app.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
+    app.press(Action::KStart(
+        faraday_core::keygen::Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
     app.press(Action::KWords(12));
     app.press(Action::KWay(faraday_core::keygen::Way::DiceFlips.index()));
     app.press(Action::KNext);

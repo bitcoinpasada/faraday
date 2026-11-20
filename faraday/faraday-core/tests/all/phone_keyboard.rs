@@ -221,7 +221,9 @@ fn a_new_keys_typed_rolls_bring_the_keyboard_up_when_the_typed_button_or_the_box
         let mut app = window(w);
         app.press(Action::Entry(None));
         app.press(Action::KeyGen(None));
-        app.press(Action::KStart(Start::Make.index()));
+        app.press(Action::KStart(
+            Start::Make(faraday_core::forms::Form::Words).index(),
+        ));
         app.press(Action::KWords(12));
         app.press(Action::KNext);
         app.press(Action::KWay(Way::Coins.index()));

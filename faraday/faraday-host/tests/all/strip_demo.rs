@@ -48,7 +48,9 @@ fn sample_fp(word: &str, count: u8) -> [u8; 4] {
 fn new_key(app: &mut Faraday, way: Way, words: u8) -> String {
     app.press(Action::Entry(None));
     app.press(Action::KeyGen(None));
-    app.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
+    app.press(Action::KStart(
+        faraday_core::keygen::Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
     app.press(Action::KWords(words));
     app.press(Action::KNext);
     app.press(Action::KWay(way.index()));

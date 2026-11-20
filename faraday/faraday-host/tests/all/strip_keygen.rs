@@ -29,7 +29,9 @@ fn slot_flow(multi: bool) -> Faraday {
     }
     app.press(Action::KeyGen(Some(0)));
     // Start: Make a new key pressed opens Length.
-    app.press(Action::KStart(Start::Make.index()));
+    app.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
     app.press(Action::KWords(12));
     app.press(Action::KWay(Way::Coins.index()));
     app.press(Action::KNext);

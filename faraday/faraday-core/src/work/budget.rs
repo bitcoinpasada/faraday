@@ -135,7 +135,9 @@ fn ticks(app: &mut Faraday, from: u64, n: u64) {
 /// differ by `seed`.
 fn key_made_here(app: &mut Faraday, slot: u8, seed: usize) {
     app.press(Action::KeyGen(Some(slot)));
-    app.press(Action::KStart(crate::keygen::Start::Make.index()));
+    app.press(Action::KStart(
+        crate::keygen::Start::Make(crate::forms::Form::Words).index(),
+    ));
     app.press(Action::KWords(12));
     app.press(Action::KWay(Way::Coins.index()));
     app.press(Action::KNext);

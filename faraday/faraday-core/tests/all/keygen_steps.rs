@@ -73,7 +73,9 @@ fn make_codex32_shares_cards_are_steps_of_new_key() {
     let mut app = faraday_core::testkit::started();
     app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::KeyGen(None));
-    app.press(Action::KStart(Start::MakeCodex32.index()));
+    app.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Codex32).index(),
+    ));
     app.press(Action::Codex32(C32::Next));
     let card = |app: &Faraday| app.keygen().unwrap().codex32.as_ref().unwrap().open();
     assert_eq!(card(&app), Some(Card::Identifier));
@@ -162,7 +164,7 @@ fn the_arrow_names_a_typed_form_by_the_form() {
     use faraday_shell_api::Key;
     let mut app = faraday_core::testkit::started();
     crate::common::add_a_key_flow(&mut app);
-    app.press(Action::KStart(Start::Codex32.index()));
+    app.press(Action::KStart(Start::Type(Form::Codex32).index()));
     assert_eq!(open(&app), Some(kstep::TYPED));
     for share in [
         "ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm",
@@ -189,7 +191,9 @@ fn lone_on_rolls() -> Faraday {
     app.press(Action::Nav(Screen::Home));
     app.press(Action::KeyGen(None));
     assert_eq!(app.screen, Screen::KeyGen);
-    app.press(Action::KStart(Start::Make.index()));
+    app.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
     app.press(Action::KStep(kstep::SOURCE));
     app.press(Action::KWay(Way::DiceHashed.index()));
     if open(&app) != Some(kstep::ENTER) {
@@ -276,7 +280,9 @@ fn one_steps_card_is_drawn_at_a_time() {
     resized(&mut app, 480, 640);
     app.press(Action::Entry(None));
     app.press(Action::KeyGen(None));
-    app.press(Action::KStart(Start::Make.index()));
+    app.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
     resized(&mut app, 480, 640);
     assert_eq!(open(&app), Some(kstep::LENGTH));
     assert!(app.drawn_texts().iter().any(|t| t == "Length"));

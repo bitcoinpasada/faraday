@@ -272,7 +272,9 @@ fn words_on_show_while_make_a_new_wallet_holds_the_lock_are_masked_at_the_warnin
     let c = testkit::compute();
     let mut app = creating();
     crate::common::add_a_key_flow(&mut app);
-    app.press(Action::KStart(faraday_core::keygen::Start::Words.index()));
+    app.press(Action::KStart(
+        faraday_core::keygen::Start::Type(faraday_core::forms::Form::Words).index(),
+    ));
     let _ = app.frame();
     for ch in testkit::test_words("bacon").chars() {
         app.event(Event::Key(Key::Char(ch)));

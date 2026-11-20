@@ -70,7 +70,20 @@ impl SeedSource {
     /// Whether a passphrase can go with it: BIP-39 words take a BIP-39
     /// passphrase and SLIP-39 shares their own; a codex32 seed takes none.
     pub fn takes_passphrase(&self) -> bool {
-        !matches!(self, SeedSource::Codex32(_))
+        self.form()
+            .is_none_or(|f| f.passphrase() != faraday_forms::Passphrase::None)
+    }
+
+    /// The form of the table the source is: none for a seed already
+    /// loaded.
+    pub fn form(&self) -> Option<crate::forms::Form> {
+        use crate::forms::Form;
+        match self {
+            SeedSource::Words(_) | SeedSource::WordsWith(..) => Some(Form::Words),
+            SeedSource::Slip39(_) => Some(Form::Slip39),
+            SeedSource::Codex32(_) => Some(Form::Codex32),
+            SeedSource::Loaded => None,
+        }
     }
 }
 

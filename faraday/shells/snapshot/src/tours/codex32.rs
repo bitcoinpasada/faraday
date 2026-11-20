@@ -88,7 +88,9 @@ fn twenty_faced(t: &mut Tour) -> Result<(), String> {
 pub(crate) fn worksheet(t: &mut Tour) {
     t.press(Action::Nav(Screen::WalletsStart));
     t.press(Action::KeyGen(None));
-    t.press(Action::KStart(Start::MakeCodex32.index()));
+    t.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Codex32).index(),
+    ));
     let two = SPLITS
         .iter()
         .position(|s| *s == Split::TwoOfThree)
@@ -111,7 +113,9 @@ pub(crate) fn codex32_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::WalletsStart));
     t.press(Action::KeyGen(None));
     t.shot("codex32-start")?;
-    t.press(Action::KStart(Start::MakeCodex32.index()));
+    t.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Codex32).index(),
+    ));
     let other = SPLITS.iter().position(|s| *s == Split::Other).unwrap_or(2);
     c(t, C32::Split(other as u8));
     c(t, C32::K(3));

@@ -16,6 +16,7 @@
 pub(crate) mod put;
 pub(crate) mod screen;
 
+use crate::forms::Form;
 use crate::inbox::{Part, Secret, part_of};
 use crate::samples;
 use crate::strings::EN;
@@ -23,6 +24,7 @@ use crate::wallet::{Origin, read_wallet, same_wallet};
 use crate::{Action, Faraday, Mode, Screen, Sheet};
 use faraday_bip::keys::Fingerprint;
 use faraday_crypto::work::Compute;
+use faraday_forms::Passphrase;
 use faraday_keys::Handout;
 use faraday_text::Text;
 
@@ -31,17 +33,14 @@ use faraday_text::Text;
 /// (`docs/MODES.md` §6.2). All lowercase.
 pub const PASSPHRASE: &str = crate::demo::PASSPHRASE;
 
-/// The form a key sample is read in (`docs/MODES.md` §5.1).
+/// The form a key sample is read in (`docs/MODES.md` §5.1): a form of the
+/// table, or one the table does not hold.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SampleForm {
-    /// BIP-39 words, in any of the lists.
-    Words,
-    /// SLIP-39 shares.
-    Slip39,
-    /// codex32 strings: a secret, or the shares of a set.
-    Codex32,
-    /// Seed XOR parts, which make the key's words.
-    Xor,
+    /// A form of the table: BIP-39 words in any of the lists, SLIP-39
+    /// shares, codex32 strings (a secret, or the shares of a set) or Seed
+    /// XOR parts, which make the key's words.
+    Form(Form),
     /// A master seed, which has no words (a 64-byte hex seed).
     Seed,
     /// An LND cipher seed, for the Lightning node key only.
@@ -53,10 +52,13 @@ impl SampleForm {
     /// Seed XOR, whose result is BIP-39 words), so is public twice: with
     /// none and with `faraday`.
     pub fn takes_passphrase(self) -> bool {
-        matches!(
-            self,
-            SampleForm::Words | SampleForm::Slip39 | SampleForm::Xor
-        )
+        match self {
+            SampleForm::Form(f) => match f.passphrase() {
+                Passphrase::Bip39 | Passphrase::Slip39 => true,
+                Passphrase::None => false,
+            },
+            SampleForm::Seed | SampleForm::Aezeed => false,
+        }
     }
 }
 
@@ -274,7 +276,7 @@ impl Samples {
     pub fn handouts(&self) -> Vec<Handout> {
         self.keys
             .iter()
-            .filter(|k| k.form == SampleForm::Words && !k.word.is_empty())
+            .filter(|k| k.form == SampleForm::Form(Form::Words) && !k.word.is_empty())
             .filter_map(|k| {
                 Some(Handout {
                     name: k.word,
@@ -462,10 +464,14 @@ impl SampleKey {
     pub fn kind_label(&self) -> Text {
         let en = &EN;
         let form = match self.form {
-            SampleForm::Words => en.sample_form_bip39,
-            SampleForm::Slip39 => en.sample_form_slip39,
-            SampleForm::Codex32 => en.sample_form_codex32,
-            SampleForm::Xor => en.sample_form_xor,
+            SampleForm::Form(f) => match f {
+                Form::Words => en.sample_form_bip39,
+                Form::Slip39 => en.sample_form_slip39,
+                Form::Codex32 => en.sample_form_codex32,
+                Form::Xor => en.sample_form_xor,
+                // No sample is a Krux code: the form's own name.
+                Form::Krux => f.name(),
+            },
             SampleForm::Seed => en.sample_form_seed,
             SampleForm::Aezeed => en.sample_form_aezeed,
         };
@@ -521,9 +527,9 @@ impl SampleKey {
         let label = self.label();
         let part = |i: usize| self.parts.get(i).copied().unwrap_or_default();
         let added = match self.form {
-            SampleForm::Words => keys.add_words_with(c, part(0), "", &label, None),
-            SampleForm::Xor => keys.add_words_with(c, self.combined, "", &label, None),
-            SampleForm::Slip39 => {
+            SampleForm::Form(Form::Words) => keys.add_words_with(c, part(0), "", &label, None),
+            SampleForm::Form(Form::Xor) => keys.add_words_with(c, self.combined, "", &label, None),
+            SampleForm::Form(Form::Slip39) => {
                 let shares = self
                     .parts
                     .iter()
@@ -534,7 +540,7 @@ impl SampleKey {
                     .collect();
                 Secret::Slip39(shares).add(c, "", &label, keys)
             }
-            SampleForm::Codex32 => {
+            SampleForm::Form(Form::Codex32) => {
                 let parts: Vec<_> = self
                     .parts
                     .iter()
@@ -549,7 +555,7 @@ impl SampleKey {
                 }
             }
             SampleForm::Seed => keys.add_seed(c, &unhex(part(0)), &label),
-            SampleForm::Aezeed => return false,
+            SampleForm::Aezeed | SampleForm::Form(Form::Krux) => return false,
         };
         added.is_ok()
     }
@@ -691,7 +697,7 @@ impl Faraday {
             return None;
         }
         set.keys.iter().find(|s| {
-            s.form == SampleForm::Words
+            s.form == SampleForm::Form(Form::Words)
                 && s.plain.is_some()
                 && s.parts.first().is_some_and(|p| k.words_are(p))
         })

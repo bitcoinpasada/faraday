@@ -161,7 +161,9 @@ fn in_demo_a_typed_key_with_a_passphrase_loads_the_key_with_faraday() {
     let _ = app.frame();
     app.press(Action::KStep(kstep::START));
     let _ = app.frame();
-    app.press(Action::KStart(Start::Words.index()));
+    app.press(Action::KStart(
+        Start::Type(faraday_core::forms::Form::Words).index(),
+    ));
     let _ = app.frame();
     type_in(&mut app, words_of("twelve").parts[0]);
     let _ = app.frame();

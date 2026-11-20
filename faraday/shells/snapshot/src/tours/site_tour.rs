@@ -38,7 +38,9 @@ fn codex32_dice(t: &mut Tour) -> Result<(), String> {
     let c = |t: &mut Tour, p: C32| t.press(Action::Codex32(p));
     t.press(Action::Nav(Screen::WalletsStart));
     t.press(Action::KeyGen(None));
-    t.press(Action::KStart(Start::MakeCodex32.index()));
+    t.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Codex32).index(),
+    ));
     let two = SPLITS
         .iter()
         .position(|s| *s == Split::TwoOfThree)

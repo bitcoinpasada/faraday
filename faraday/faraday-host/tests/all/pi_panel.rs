@@ -631,7 +631,9 @@ fn new_key(rig: &mut Rig) -> Vec<String> {
     // BIP-39 from coin flips, through the words and the quiz.
     rig.press(Action::Nav(Screen::Home));
     rig.press(Action::KeyGen(None));
-    rig.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
+    rig.press(Action::KStart(
+        faraday_core::keygen::Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
     rig.press(Action::KWords(12));
     rig.press(Action::KWay(Way::Coins.index()));
     kpress(rig, Action::KNext, "New key, BIP-39 flips", &mut found);
@@ -757,7 +759,9 @@ fn codex32_shares(rig: &mut Rig, from_create: bool) -> Vec<String> {
         to_codex32_from_create(rig);
     } else {
         rig.press(Action::KeyGen(None));
-        rig.press(Action::KStart(Start::MakeCodex32.index()));
+        rig.press(Action::KStart(
+            Start::Make(faraday_core::forms::Form::Codex32).index(),
+        ));
         rig.settle();
         on_card(rig, Card::Scheme);
         found.extend(look(rig, "codex32 Scheme"));
@@ -881,7 +885,7 @@ fn to_codex32_from_create(rig: &mut Rig) {
     // Keys' slot opens New key on Start, then Scheme at its first split: Identifier opens.
     rig.press(Action::KeyGen(Some(0)));
     rig.press(Action::KStart(
-        faraday_core::keygen::Start::MakeCodex32.index(),
+        faraday_core::keygen::Start::Make(faraday_core::forms::Form::Codex32).index(),
     ));
     rig.press(Action::Codex32(faraday_core::codex32::C32::Next));
     rig.settle();
@@ -1311,7 +1315,9 @@ fn new_key_from_create(rig: &mut Rig) {
         faraday_core::create::BackupForm::Words.index(),
     ));
     rig.press(Action::KeyGen(Some(0)));
-    rig.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
+    rig.press(Action::KStart(
+        faraday_core::keygen::Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
     rig.press(Action::KWords(12));
     rig.press(Action::KNext);
     let mut x: u32 = 0x2545_f491;

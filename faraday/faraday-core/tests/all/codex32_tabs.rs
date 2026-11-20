@@ -57,7 +57,9 @@ fn key(app: &mut Faraday, ch: char) {
 fn entry(app: &mut Faraday, way: Way) {
     app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::KeyGen(None));
-    app.press(Action::KStart(Start::MakeCodex32.index()));
+    app.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Codex32).index(),
+    ));
     let two = SPLITS.iter().position(|s| *s == Split::TwoOfThree).unwrap();
     c32(app, C32::Split(two as u8));
     c32(app, C32::Next);

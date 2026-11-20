@@ -78,7 +78,9 @@ fn die(faces: u8) -> C32 {
 fn to_entry(app: &mut Faraday, faces: u8) {
     app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::KeyGen(None));
-    app.press(Action::KStart(Start::MakeCodex32.index()));
+    app.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Codex32).index(),
+    ));
     let split = SPLITS.iter().position(|s| *s == Split::TwoOfThree).unwrap();
     c32(app, C32::Split(split as u8));
     c32(app, C32::Next);
@@ -232,7 +234,9 @@ fn each_die_takes_a_named_colour_and_the_dice_are_kept_for_the_session() {
     let mut app = on(1366, 768);
     app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::KeyGen(None));
-    app.press(Action::KStart(Start::MakeCodex32.index()));
+    app.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Codex32).index(),
+    ));
     c32(&mut app, C32::Next);
     for ch in "name".chars() {
         key(&mut app, ch);
@@ -258,7 +262,9 @@ fn each_die_takes_a_named_colour_and_the_dice_are_kept_for_the_session() {
     // A new Make codex32 shares this session starts on them.
     app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::KeyGen(None));
-    app.press(Action::KStart(Start::MakeCodex32.index()));
+    app.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Codex32).index(),
+    ));
     assert_eq!(make(&app).dice_choice(), chosen);
     assert_eq!(make(&app).dice_choice().faces, 12);
 }

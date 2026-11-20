@@ -60,10 +60,31 @@ impl BackupForm {
     /// The forms the Backup card offers: codex32 only where Make codex32
     /// shares is (`codex32::MAKE_OFFERED`).
     pub fn offered() -> Vec<BackupForm> {
-        Self::ALL
+        crate::forms::Form::ALL
             .into_iter()
+            .filter_map(BackupForm::of)
             .filter(|f| *f == BackupForm::Words || crate::codex32::MAKE_OFFERED)
             .collect()
+    }
+
+    /// The form of the table a Backup answer is, if the form is one: a
+    /// single key is made as words or as codex32 shares, and as no other
+    /// (SLIP-39 shares are made on New key's own Start card).
+    pub fn of(form: crate::forms::Form) -> Option<BackupForm> {
+        use crate::forms::Form;
+        match form {
+            Form::Words => Some(BackupForm::Words),
+            Form::Codex32 => Some(BackupForm::Codex32),
+            Form::Slip39 | Form::Xor | Form::Krux => None,
+        }
+    }
+
+    /// Its form in the table.
+    pub fn form(self) -> crate::forms::Form {
+        match self {
+            BackupForm::Words => crate::forms::Form::Words,
+            BackupForm::Codex32 => crate::forms::Form::Codex32,
+        }
     }
 
     /// Its number in `Action::CBackupForm`.

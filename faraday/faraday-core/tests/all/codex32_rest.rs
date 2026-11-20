@@ -205,7 +205,7 @@ fn shares_made_by_hand_go_on_into_make_the_rest() {
     app.press(Action::KeyGen(None));
     let _ = app.frame();
     let _ = app.frame();
-    app.press(Action::KStart(Start::MakeCodex32.index()));
+    app.press(Action::KStart(Start::Make(Form::Codex32).index()));
     let other = SPLITS.iter().position(|s| *s == Split::Other).unwrap();
     c32(&mut app, C32::Split(other as u8));
     c32(&mut app, C32::N(1));
@@ -341,7 +341,7 @@ fn a_corrected_key_card_has_the_marks_line_and_unlocked_leaves_none() {
     app.press(Action::Nav(Screen::WalletsStart));
     let _ = app.frame();
     crate::common::add_a_key_flow(&mut app);
-    app.press(Action::KStart(Start::Codex32.index()));
+    app.press(Action::KStart(Start::Type(Form::Codex32).index()));
     assert_eq!(app.keygen().unwrap().open, Some(kstep::TYPED));
     app.press(Action::Codex32Correct(Press::Tick));
     let mut b = SHARE_A.as_bytes().to_vec();
@@ -370,7 +370,7 @@ pub(crate) fn samples() -> &'static Samples {
             name: "sample_codex32_shares",
             word: "",
             count: 0,
-            form: SampleForm::Codex32,
+            form: SampleForm::Form(Form::Codex32),
             size: SampleSize::Shares(2),
             listed: true,
             parts: &[

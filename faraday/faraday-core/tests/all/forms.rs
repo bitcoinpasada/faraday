@@ -214,9 +214,15 @@ fn a_fresh_new_key_offers_no_form_of_a_key_held_and_add_a_key_offers_the_words()
     let mut app = faraday_core::testkit::started();
     app.press(Action::KeyGen(None));
     let _ = app.frame();
-    assert!(!app.offers(Action::KStart(Start::Words.index())));
-    assert!(!app.offers(Action::KStart(Start::Shares.index())));
-    assert!(app.offers(Action::KStart(Start::Make.index())));
+    assert!(!app.offers(Action::KStart(
+        Start::Type(faraday_core::forms::Form::Words).index()
+    )));
+    assert!(!app.offers(Action::KStart(
+        Start::Type(faraday_core::forms::Form::Slip39).index()
+    )));
+    assert!(app.offers(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Words).index()
+    )));
     // Add a key is where a key held comes in: its words and a SeedQR.
     let mut app = faraday_core::testkit::started();
     app.press(Action::Entry(None));
@@ -249,7 +255,10 @@ fn the_slip39_tile_opens_on_shares() {
     let _ = app.frame();
     assert_eq!(app.screen, Screen::KeyGen);
     let k = app.keygen().unwrap();
-    assert_eq!(k.start, faraday_core::keygen::Start::Shares);
+    assert_eq!(
+        k.start,
+        faraday_core::keygen::Start::Type(faraday_core::forms::Form::Slip39)
+    );
     assert_eq!(k.open, Some(faraday_core::keygen::kstep::TYPED));
     assert_eq!(
         faraday_core::testkit::entry(&app).form,

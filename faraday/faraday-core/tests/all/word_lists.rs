@@ -48,7 +48,9 @@ fn coins(words: u8) -> Faraday {
     let mut app = shown();
     app.press(Action::KeyGen(None));
     // Make a new key, pressed on Start, opens Length.
-    app.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
+    app.press(Action::KStart(
+        faraday_core::keygen::Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
     app.press(Action::KWords(words));
     app.press(Action::KWay(Way::Coins.index()));
     app.press(Action::KNext);
@@ -169,7 +171,9 @@ fn dice_open_on_flip_mode_and_every_way_takes_each_entry_as_it_is_typed() {
     // Dice: Flip mode, 1 to 3 a tails and 4 to 6 a heads.
     let mut dice = shown();
     dice.press(Action::KeyGen(None));
-    dice.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
+    dice.press(Action::KStart(
+        faraday_core::keygen::Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
     dice.press(Action::KWords(12));
     dice.press(Action::KWay(Way::DiceFlips.index()));
     dice.press(Action::KNext);
@@ -202,7 +206,9 @@ fn dice_open_on_flip_mode_and_every_way_takes_each_entry_as_it_is_typed() {
     for way in [Way::DiceHashed, Way::DiceSixAsZero, Way::DiceWords] {
         let mut app = shown();
         app.press(Action::KeyGen(None));
-        app.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
+        app.press(Action::KStart(
+            faraday_core::keygen::Start::Make(faraday_core::forms::Form::Words).index(),
+        ));
         app.press(Action::KWords(12));
         app.press(Action::KWay(way.index()));
         app.press(Action::KNext);
@@ -233,7 +239,9 @@ fn rolls_typed_as_a_string_make_the_key_the_same_presses_make() {
         .collect();
     let dice = |app: &mut Faraday, way: Way| {
         app.press(Action::KeyGen(None));
-        app.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
+        app.press(Action::KStart(
+            faraday_core::keygen::Start::Make(faraday_core::forms::Form::Words).index(),
+        ));
         app.press(Action::KWords(24));
         app.press(Action::KWay(way.index()));
         app.press(Action::KNext);
@@ -279,7 +287,9 @@ fn rolls_typed_as_a_string_make_the_key_the_same_presses_make() {
 fn words_chosen_directly_show_only_the_words_rolled() {
     let mut app = shown();
     app.press(Action::KeyGen(None));
-    app.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
+    app.press(Action::KStart(
+        faraday_core::keygen::Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
     app.press(Action::KWords(12));
     app.press(Action::KWay(Way::DiceWords.index()));
     app.press(Action::KNext);
@@ -302,7 +312,9 @@ fn words_chosen_directly_show_only_the_words_rolled() {
 fn hashed_dice_show_no_words_as_they_come_in() {
     let mut app = shown();
     app.press(Action::KeyGen(None));
-    app.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
+    app.press(Action::KStart(
+        faraday_core::keygen::Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
     app.press(Action::KWords(12));
     app.press(Action::KWay(Way::DiceHashed.index()));
     app.press(Action::KNext);

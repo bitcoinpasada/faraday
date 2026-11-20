@@ -62,7 +62,9 @@ fn on_scheme(width: u16, height: u16, dpi: u16, roller: bool) -> Faraday {
     app.press(Action::ReduceMotion(true));
     app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::KeyGen(None));
-    app.press(Action::KStart(Start::MakeCodex32.index()));
+    app.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Codex32).index(),
+    ));
     let _ = app.frame();
     app
 }

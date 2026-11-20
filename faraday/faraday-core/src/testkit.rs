@@ -206,7 +206,7 @@ pub fn demo_samples() -> &'static crate::samples::Samples {
                     name: "sample_words",
                     word,
                     count,
-                    form: SampleForm::Words,
+                    form: SampleForm::Form(crate::forms::Form::Words),
                     listed: true,
                     parts: Box::leak(vec![phrase].into_boxed_slice()),
                     combined: "",
@@ -1741,7 +1741,9 @@ pub fn test_efi() -> Vec<u8> {
 /// key on Start (which opens with nothing ticked), so Length is open.
 pub fn new_key_on_length(app: &mut crate::Faraday, slot: Option<u8>) {
     app.press(crate::Action::KeyGen(slot));
-    app.press(crate::Action::KStart(crate::keygen::Start::Make.index()));
+    app.press(crate::Action::KStart(
+        crate::keygen::Start::Make(crate::forms::Form::Words).index(),
+    ));
 }
 
 /// The app as a shell starts it: made, then told its display, which is

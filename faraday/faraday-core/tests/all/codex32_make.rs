@@ -80,11 +80,15 @@ fn opened(app: &mut Faraday) {
     assert_eq!(app.keygen().unwrap().open, Some(kstep::START));
     let _ = app.frame();
     assert!(
-        app.offers(Action::KStart(Start::MakeCodex32.index())),
+        app.offers(Action::KStart(
+            Start::Make(faraday_core::forms::Form::Codex32).index()
+        )),
         "New key offers Codex32 under Make a new key"
     );
     // The choice moves on by itself.
-    app.press(Action::KStart(Start::MakeCodex32.index()));
+    app.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Codex32).index(),
+    ));
     let _ = app.frame();
     let k = app.keygen().unwrap();
     assert_eq!(k.open, Some(kstep::CODEX32));
@@ -379,9 +383,15 @@ fn a_multisig_slot_offers_no_codex32_to_make() {
     app.press(Action::CNext(faraday_core::cstep::QUORUM));
     app.press(Action::KeyGen(Some(0)));
     let _ = app.frame();
-    assert!(app.offers(Action::KStart(Start::Make.index())));
-    assert!(!app.offers(Action::KStart(Start::MakeCodex32.index())));
-    assert!(app.offers(Action::KStart(Start::Codex32.index())));
+    assert!(app.offers(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Words).index()
+    )));
+    assert!(!app.offers(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Codex32).index()
+    )));
+    assert!(app.offers(Action::KStart(
+        Start::Type(faraday_core::forms::Form::Codex32).index()
+    )));
 }
 
 /// Every card of the flow draws at the three size classes: the desktop,
@@ -619,11 +629,23 @@ fn start_offers_making_codex32_only_while_it_is_switched_on() {
     use faraday_core::keygen::KeyGen;
     let mut k = KeyGen::new(None, Screen::Entry);
     k.held_offered = true;
-    assert!(k.starts_with(true).contains(&Start::MakeCodex32));
+    assert!(
+        k.starts_with(true)
+            .contains(&Start::Make(faraday_core::forms::Form::Codex32))
+    );
     let off = k.starts_with(false);
-    assert!(!off.contains(&Start::MakeCodex32), "not offered when off");
-    assert!(off.contains(&Start::Codex32), "typing codex32 stays");
-    assert!(off.contains(&Start::Make) && off.contains(&Start::Words));
+    assert!(
+        !off.contains(&Start::Make(faraday_core::forms::Form::Codex32)),
+        "not offered when off"
+    );
+    assert!(
+        off.contains(&Start::Type(faraday_core::forms::Form::Codex32)),
+        "typing codex32 stays"
+    );
+    assert!(
+        off.contains(&Start::Make(faraday_core::forms::Form::Words))
+            && off.contains(&Start::Type(faraday_core::forms::Form::Words))
+    );
     assert_eq!(
         k.starts(),
         k.starts_with(faraday_core::codex32::MAKE_OFFERED)
@@ -1399,7 +1421,9 @@ fn an_identifier_typed_into_add_a_key_is_refused_in_a_new_codex32_set_made_from_
     app.event(Event::Key(faraday_shell_api::Key::Enter));
     app.press(Action::KeyGen(None));
     let _ = app.frame();
-    app.press(Action::KStart(Start::MakeCodex32.index()));
+    app.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Codex32).index(),
+    ));
     c32(&mut app, C32::Next);
     for ch in "name".chars() {
         key(&mut app, ch);

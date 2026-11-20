@@ -137,7 +137,7 @@ fn the_codex32_tile_opens_new_key_on_the_codex32_words_card() {
     app.press(Action::Catalog(tile("Restore from codex32 shares")));
     assert_eq!(app.screen, Screen::KeyGen);
     let k = app.keygen().unwrap();
-    assert_eq!(k.start, Start::Codex32);
+    assert_eq!(k.start, Start::Type(faraday_core::forms::Form::Codex32));
     assert_eq!(k.open, Some(kstep::TYPED), "Start closed, on the next card");
     assert_eq!(
         faraday_core::testkit::entry(&app).form,
@@ -158,15 +158,19 @@ fn the_make_a_new_key_tile_opens_new_key_on_start() {
     );
     let _ = app.frame();
     // Only the ways of making a key: a held one is Add a key's.
-    app.press(Action::KStart(faraday_core::keygen::Start::Words.index()));
+    app.press(Action::KStart(
+        faraday_core::keygen::Start::Type(faraday_core::forms::Form::Words).index(),
+    ));
     assert_eq!(
         app.keygen().unwrap().open,
         Some(faraday_core::keygen::kstep::START)
     );
-    app.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
+    app.press(Action::KStart(
+        faraday_core::keygen::Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
     assert_eq!(
         app.keygen().unwrap().start,
-        faraday_core::keygen::Start::Make
+        faraday_core::keygen::Start::Make(faraday_core::forms::Form::Words)
     );
 }
 
@@ -206,7 +210,7 @@ fn the_make_shares_and_make_parts_tiles_open_their_flows() {
     assert_eq!(app.screen, Screen::KeyGen);
     assert_eq!(
         app.keygen().unwrap().start,
-        faraday_core::keygen::Start::MakeCodex32
+        faraday_core::keygen::Start::Make(faraday_core::forms::Form::Codex32)
     );
     let mut app = faraday_core::testkit::started();
     app.press(Action::Nav(Screen::Catalog));

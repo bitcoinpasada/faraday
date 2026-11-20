@@ -63,7 +63,9 @@ pub(crate) fn opened() -> Faraday {
     app.press(Action::Entry(None));
     app.press(Action::KeyGen(None));
     assert_eq!(app.screen, Screen::KeyGen);
-    app.press(Action::KStart(Start::Make.index()));
+    app.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
     let words = app.keygen().unwrap().words as u8;
     app.press(Action::KWords(words));
     app.press(Action::KNext);
@@ -87,7 +89,9 @@ fn opened_tall() -> Faraday {
     }));
     app.press(Action::Entry(None));
     app.press(Action::KeyGen(None));
-    app.press(Action::KStart(Start::Make.index()));
+    app.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
     app
 }
 
@@ -267,7 +271,9 @@ fn shares_offer_nothing_as_checkable_by_hand_and_no_words_chosen_by_rolls() {
     let mut app = opened_tall();
     // SLIP-39 is chosen on Start, reopened with Change.
     app.press(Action::KStep(kstep::START));
-    app.press(Action::KStart(Start::MakeShares.index()));
+    app.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Slip39).index(),
+    ));
     app.press(Action::KWords(20));
     let _ = app.frame();
     let k = app.keygen().unwrap();
@@ -430,7 +436,9 @@ fn this_device_names_the_source_the_shell_reads() {
     app.event(Event::EntropySource("ProcessPrng"));
     app.press(Action::Entry(None));
     app.press(Action::KeyGen(None));
-    app.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
+    app.press(Action::KStart(
+        faraday_core::keygen::Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
     app.press(Action::KWords(12));
     app.press(Action::KNext);
     let shown = device(&mut app);
@@ -479,7 +487,9 @@ fn the_demo_adds_the_next_sample_of_its_length_not_loaded() {
         }
         app.press(Action::Entry(None));
         app.press(Action::KeyGen(None));
-        app.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
+        app.press(Action::KStart(
+            faraday_core::keygen::Start::Make(faraday_core::forms::Form::Words).index(),
+        ));
         app.press(Action::KWords(24));
         app.press(Action::KWay(Way::Device.index()));
         app.press(Action::KNext);
@@ -560,7 +570,9 @@ fn a_key_made_for_a_create_slot_fills_it() {
     app.press(Action::CNext(0));
     app.press(Action::CNext(1));
     app.press(Action::KeyGen(Some(1)));
-    app.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
+    app.press(Action::KStart(
+        faraday_core::keygen::Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
     app.press(Action::KWords(12));
     app.press(Action::KWay(Way::Coins.index()));
     app.press(Action::KNext);
@@ -630,7 +642,9 @@ fn fresh_new_key_opens_on_length_with_no_count_and_a_count_pressed_moves_on() {
     app.press(Action::KeyGen(None));
     let k = app.keygen().unwrap();
     assert_eq!(k.open, Some(kstep::START), "New key opens on Start");
-    app.press(Action::KStart(Start::Make.index()));
+    app.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
     let k = app.keygen().unwrap();
     assert_eq!(k.open, Some(kstep::LENGTH), "a choice opens Length");
     assert!(!k.slip39, "BIP-39 words are the kind chosen");
@@ -722,7 +736,9 @@ fn slot_flow(multi: bool) -> Faraday {
     }
     app.press(Action::KeyGen(Some(0)));
     // Start: Make a new key pressed opens Length.
-    app.press(Action::KStart(Start::Make.index()));
+    app.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
     app.press(Action::KWords(12));
     app.press(Action::KWay(Way::Coins.index()));
     app.press(Action::KNext);
@@ -983,7 +999,9 @@ fn on_a_test_network_outside_demo_new_key_adds_the_key_made() {
     faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.press(Action::Entry(None));
     app.press(Action::KeyGen(None));
-    app.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
+    app.press(Action::KStart(
+        faraday_core::keygen::Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
     app.press(Action::KWords(24));
     app.press(Action::KWay(Way::Device.index()));
     app.press(Action::KNext);
@@ -1068,7 +1086,9 @@ fn from_tools() -> Faraday {
     app.press(Action::Nav(Screen::Catalog));
     app.press(Action::KeyGen(None));
     assert_eq!(app.screen, Screen::KeyGen);
-    app.press(Action::KStart(Start::Make.index()));
+    app.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
     app.press(Action::KWords(12));
     app.press(Action::KWay(Way::Coins.index()));
     app.press(Action::KNext);
@@ -1373,19 +1393,26 @@ fn offers_only_the_ways_of_making(app: &mut Faraday) {
         app.press(Action::KStep(kstep::START));
     }
     let _ = app.frame();
-    assert!(app.offers(Action::KStart(Start::Make.index())), "Make");
+    assert!(
+        app.offers(Action::KStart(
+            Start::Make(faraday_core::forms::Form::Words).index()
+        )),
+        "Make"
+    );
     app.press(Action::KOthers);
     let _ = app.frame();
     assert!(
-        app.offers(Action::KStart(Start::MakeShares.index())),
+        app.offers(Action::KStart(
+            Start::Make(faraday_core::forms::Form::Slip39).index()
+        )),
         "Make SLIP-39 shares"
     );
     for s in [
-        Start::Words,
+        Start::Type(faraday_core::forms::Form::Words),
         Start::Scan,
-        Start::Codex32,
-        Start::Shares,
-        Start::Xor,
+        Start::Type(faraday_core::forms::Form::Codex32),
+        Start::Type(faraday_core::forms::Form::Slip39),
+        Start::Type(faraday_core::forms::Form::Xor),
     ] {
         assert!(!app.offers(Action::KStart(s.index())), "{s:?} is not");
     }
@@ -1420,15 +1447,26 @@ fn new_key_from_wallets_offers_only_the_ways_of_making_and_a_cosigner_slot_all_b
     // A cosigner's slot makes BIP-39 words only: no share threshold is
     // stacked on the quorum (F240).
     let _ = app.frame();
-    for s in [Start::Make, Start::Words, Start::Scan, Start::Codex32] {
+    for s in [
+        Start::Make(faraday_core::forms::Form::Words),
+        Start::Type(faraday_core::forms::Form::Words),
+        Start::Scan,
+        Start::Type(faraday_core::forms::Form::Codex32),
+    ] {
         assert!(app.offers(Action::KStart(s.index())), "{s:?} is offered");
     }
     app.press(Action::KOthers);
     let _ = app.frame();
-    for s in [Start::Shares, Start::Xor] {
+    for s in [
+        Start::Type(faraday_core::forms::Form::Slip39),
+        Start::Type(faraday_core::forms::Form::Xor),
+    ] {
         assert!(app.offers(Action::KStart(s.index())), "{s:?} is offered");
     }
-    for s in [Start::MakeShares, Start::MakeCodex32] {
+    for s in [
+        Start::Make(faraday_core::forms::Form::Slip39),
+        Start::Make(faraday_core::forms::Form::Codex32),
+    ] {
         assert!(!app.offers(Action::KStart(s.index())), "{s:?} is not");
     }
 }
@@ -1447,7 +1485,9 @@ fn ways_offered(app: &mut Faraday) -> Vec<u8> {
 #[test]
 fn make_a_new_key_from_add_a_key_reaches_length_then_every_source_create_offers() {
     let mut app = add_a_key();
-    app.press(Action::KStart(Start::Make.index()));
+    app.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
     assert_eq!(app.keygen().unwrap().open, Some(kstep::LENGTH));
     app.press(Action::KWords(12));
     assert_eq!(app.keygen().unwrap().open, Some(kstep::SOURCE));
@@ -1461,7 +1501,9 @@ fn make_a_new_key_from_add_a_key_reaches_length_then_every_source_create_offers(
 
 /// From Start: Type the words, which moves on, the words typed, Continue.
 fn type_the_words(app: &mut Faraday, words: &str) {
-    app.press(Action::KStart(Start::Words.index()));
+    app.press(Action::KStart(
+        Start::Type(faraday_core::forms::Form::Words).index(),
+    ));
     assert_eq!(app.keygen().unwrap().open, Some(kstep::TYPED));
     let _ = app.frame();
     typed(app, words);
@@ -1525,7 +1567,9 @@ fn twelve_words_typed_with_a_passphrase_load_the_key_add_a_key_loads_not_made_he
 #[test]
 fn typed_words_whose_checksum_fails_do_not_open_key() {
     let mut app = held_flow();
-    app.press(Action::KStart(Start::Words.index()));
+    app.press(Action::KStart(
+        Start::Type(faraday_core::forms::Form::Words).index(),
+    ));
     typed(&mut app, &["abandon"; 12].join(" "));
     app.press(Action::KNext);
     assert_eq!(app.keygen().unwrap().open, Some(kstep::TYPED));
@@ -1621,12 +1665,16 @@ fn start_opens_with_nothing_ticked_and_each_choice_moves_on_by_itself() {
     // Next waits for a choice.
     app.press(Action::KNext);
     assert_eq!(app.keygen().unwrap().open, Some(kstep::START));
-    app.press(Action::KStart(Start::Make.index()));
+    app.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
     assert_eq!(app.keygen().unwrap().open, Some(kstep::LENGTH));
     // Change reopens Start; pressing the option already chosen moves on.
     app.press(Action::KStep(kstep::START));
     assert_eq!(app.keygen().unwrap().open, Some(kstep::START));
-    app.press(Action::KStart(Start::Make.index()));
+    app.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
     assert_eq!(app.keygen().unwrap().open, Some(kstep::LENGTH));
     // A count moves on, and so does a way (no Continue is drawn).
     app.press(Action::KWords(12));
@@ -1783,8 +1831,12 @@ fn start_ticks_nothing_and_length_offers_no_slip39_while_shares_stay_on_start() 
     // Under Other forms: Make SLIP-39 shares, which leads to share lengths.
     app.press(Action::KOthers);
     let _ = app.frame();
-    assert!(app.offers(Action::KStart(Start::MakeShares.index())));
-    app.press(Action::KStart(Start::MakeShares.index()));
+    assert!(app.offers(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Slip39).index()
+    )));
+    app.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Slip39).index(),
+    ));
     through_fade(&mut app);
     let k = app.keygen().unwrap();
     assert!(k.slip39, "SLIP-39 shares are being made");
@@ -1793,7 +1845,9 @@ fn start_ticks_nothing_and_length_offers_no_slip39_while_shares_stay_on_start() 
     assert!(app.offers(Action::KSlipWords(33)));
     // Words, by contrast, offer no SLIP-39 switch on Length.
     let mut app = add_a_key();
-    app.press(Action::KStart(Start::Make.index()));
+    app.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
     let _ = app.frame();
     let shown = texts(&mut app);
     assert!(!shown.contains("SLIP-39"), "{shown}");

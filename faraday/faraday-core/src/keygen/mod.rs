@@ -475,7 +475,7 @@ impl KeyGen {
             handed: None,
             kept: None,
             key_text: None,
-            start: Start::Make,
+            start: Start::Make(Form::Words),
             started: None,
             others_open: false,
             codex32_offered: slot.is_none(),
@@ -540,7 +540,7 @@ impl KeyGen {
     /// (decision 4).
     pub(crate) fn asks_passphrase(&self) -> bool {
         if self.typed() {
-            self.start != Start::Codex32
+            self.start != Start::Type(Form::Codex32)
         } else {
             self.slot.is_some()
         }
@@ -556,7 +556,7 @@ impl KeyGen {
     /// one scanned Start · Key (§15.2).
     pub fn steps(&self) -> Vec<u8> {
         use kstep::*;
-        if self.start == Start::MakeCodex32 {
+        if self.start == Start::Make(Form::Codex32) {
             vec![START, CODEX32]
         } else if self.start == Start::Scan {
             vec![START, KEY]
@@ -591,11 +591,13 @@ impl KeyGen {
             .iter()
             .copied()
             .filter(|s| match s {
-                s if !s.makes() => self.held_offered,
-                Start::MakeCodex32 => make_codex32 && self.codex32_offered,
-                Start::Make => self.words_offered,
-                Start::MakeShares => self.slip39_offered,
-                _ => true,
+                Start::Make(f) => match f {
+                    Form::Codex32 => make_codex32 && self.codex32_offered,
+                    Form::Words => self.words_offered,
+                    Form::Slip39 => self.slip39_offered,
+                    Form::Xor | Form::Krux => false,
+                },
+                Start::Type(_) | Start::Scan => self.held_offered,
             })
             .collect()
     }
@@ -633,7 +635,11 @@ impl KeyGen {
         self.done = [false; kstep::COUNT];
         self.done[usize::from(kstep::START)] = start;
         if self.start.makes() {
-            self.start = if on { Start::MakeShares } else { Start::Make };
+            self.start = if on {
+                Start::Make(Form::Slip39)
+            } else {
+                Start::Make(Form::Words)
+            };
         }
         self.open = Some(kstep::LENGTH);
         // A share's words are a fixed scheme: no direct word choice. Back
@@ -1313,9 +1319,9 @@ impl crate::Faraday {
         let answered = slot.is_some() && self.create_slot_backup().is_some();
         if answered {
             k.start = if k.codex32_offered {
-                Start::MakeCodex32
+                Start::Make(Form::Codex32)
             } else {
-                Start::Make
+                Start::Make(Form::Words)
             };
         }
         self.keygen.state = Some(k);
@@ -1353,9 +1359,9 @@ impl crate::Faraday {
         let sample = self
             .samples
             .and_then(|s| {
-                s.keys
-                    .iter()
-                    .find(|k| k.form == crate::samples::SampleForm::Codex32 && k.parts.len() >= 2)
+                s.keys.iter().find(|k| {
+                    k.form == crate::samples::SampleForm::Form(Form::Codex32) && k.parts.len() >= 2
+                })
             })
             .map(|k| {
                 k.parts
@@ -1413,8 +1419,8 @@ impl crate::Faraday {
         let Some(k) = self.keygen.state.as_mut() else {
             return;
         };
-        k.start = Start::MakeCodex32;
-        k.started = Some(Start::MakeCodex32);
+        k.start = Start::Make(Form::Codex32);
+        k.started = Some(Start::Make(Form::Codex32));
         k.done[usize::from(kstep::START)] = true;
         k.open = Some(kstep::CODEX32);
         k.scroll.follow = true;
@@ -1486,7 +1492,7 @@ impl crate::Faraday {
         if self.keygen_reopen_asks(Reopen::Dice) {
             return;
         }
-        self.keygen_open_on(Start::Make);
+        self.keygen_open_on(Start::Make(Form::Words));
         if let Some(k) = self.keygen.state.as_mut().filter(|k| !k.locked) {
             k.done[usize::from(kstep::LENGTH)] = true;
             k.open = Some(kstep::SOURCE);
@@ -1505,7 +1511,7 @@ impl crate::Faraday {
             return;
         }
         let start = k.start;
-        if start == Start::Krux {
+        if start == Start::Type(Form::Krux) {
             self.keygen_to_krux();
             return;
         }
@@ -1520,13 +1526,13 @@ impl crate::Faraday {
             for s in [kstep::TYPED, kstep::KEY] {
                 k.done[usize::from(s)] = false;
             }
-            if matches!(start, Start::Make | Start::MakeShares) {
-                k.set_slip39(start == Start::MakeShares);
+            if matches!(start, Start::Make(Form::Words) | Start::Make(Form::Slip39)) {
+                k.set_slip39(start == Start::Make(Form::Slip39));
             }
             // A wallet's key is made as shares: its Scheme has no "None,
             // the secret alone" (F240).
             let for_slot = k.slot.is_some();
-            let fresh = (start == Start::MakeCodex32).then(|| {
+            let fresh = (start == Start::Make(Form::Codex32)).then(|| {
                 crate::codex32::Codex32Make::new(crate::codex32::taken(
                     &k.entry_kept.parts.codex32,
                     &self.session.keys,
@@ -1560,9 +1566,12 @@ impl crate::Faraday {
                 self.act(crate::Action::ScanSeed);
                 return;
             }
-            Start::Make | Start::MakeShares => kstep::LENGTH,
-            Start::MakeCodex32 => kstep::CODEX32,
-            _ => kstep::TYPED,
+            Start::Make(f) => match f {
+                Form::Codex32 => kstep::CODEX32,
+                // Xor and Krux are never made here: no choice lists them.
+                Form::Words | Form::Slip39 | Form::Xor | Form::Krux => kstep::LENGTH,
+            },
+            Start::Type(_) => kstep::TYPED,
         };
         k.done[usize::from(kstep::START)] = true;
         k.started = Some(start);
@@ -1721,7 +1730,7 @@ impl crate::Faraday {
             return;
         }
         if action == A::KeyGenSlip39 {
-            self.keygen_open_on(Start::MakeShares);
+            self.keygen_open_on(Start::Make(Form::Slip39));
             return;
         }
         // Length's Other opens its menu; a count chosen there closes it.
@@ -2340,8 +2349,8 @@ impl crate::Faraday {
             return;
         };
         let n = k.codex32.take().map_or(3, |m| m.k_n().1);
-        k.start = Start::Codex32;
-        k.started = Some(Start::Codex32);
+        k.start = Start::Type(Form::Codex32);
+        k.started = Some(Start::Type(Form::Codex32));
         k.done[usize::from(kstep::START)] = true;
         k.done[usize::from(kstep::TYPED)] = false;
         k.open = Some(kstep::TYPED);
@@ -2811,7 +2820,7 @@ impl crate::Faraday {
         k.on_card = true;
         k.card_multi = multi;
         k.entry_kept = self.entry.take();
-        k.start = Start::Make;
+        k.start = Start::Make(Form::Words);
         k.open = Some(kstep::START);
         self.keygen.state = Some(k);
         self.keygen_start_next();

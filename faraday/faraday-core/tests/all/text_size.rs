@@ -340,7 +340,9 @@ fn codex32_dice_at_larger((width, height, dpi): (u16, u16, u16)) -> Vec<String> 
     let c32 = |app: &mut Faraday, p: C32| app.press(Action::Codex32(p));
     app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::KeyGen(None));
-    app.press(Action::KStart(Start::MakeCodex32.index()));
+    app.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Codex32).index(),
+    ));
     let split = SPLITS.iter().position(|s| *s == Split::TwoOfThree).unwrap();
     c32(&mut app, C32::Split(split as u8));
     c32(&mut app, C32::Next);

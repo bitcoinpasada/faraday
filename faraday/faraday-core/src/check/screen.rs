@@ -61,7 +61,7 @@ pub(crate) fn backups_dialog(ui: &mut Ui, w: f32, h: f32) {
         head,
         &mut |ui, x, y, iw| {
             let mut cy = y;
-            for (f, label) in FORMS {
+            for f in FORMS {
                 ui.fill(
                     x,
                     cy,
@@ -70,7 +70,7 @@ pub(crate) fn backups_dialog(ui: &mut Ui, w: f32, h: f32) {
                     RADIUS_SMALL,
                     Role::SurfaceContainerHighest,
                 );
-                ui.text_mid_as((x + PAD, cy, LIST_1), BODY_M, Role::OnSurface, label);
+                ui.text_mid_as((x + PAD, cy, LIST_1), BODY_M, Role::OnSurface, f.label());
                 ui.press_box(x, cy, iw, LIST_1, Action::Check(Press::Form(f)));
                 cy += LIST_1 + GAP_SMALL;
             }

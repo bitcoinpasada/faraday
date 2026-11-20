@@ -687,7 +687,7 @@ impl Faraday {
         match tile.go {
             Go::NewKey => self.act(Action::KeyGen(None)),
             Go::LoadKey => self.act(Action::Entry(None)),
-            Go::NewCodex32 => self.keygen_open_on(crate::keygen::Start::MakeCodex32),
+            Go::NewCodex32 => self.keygen_open_on(crate::keygen::Start::Make(Form::Codex32)),
             Go::MakeXor => {
                 self.act(Action::Convert(crate::convert::ConvertAction::Open));
                 if let Some(row) = crate::convert::ROWS
@@ -705,7 +705,7 @@ impl Faraday {
             Go::NewShares => self.act(Action::KeyGenSlip39),
             // Add a key is New key opening on Start; a tile for one form
             // opens it with that choice made.
-            Go::AddKey(form) => self.keygen_open_on(crate::keygen::Start::typing(form)),
+            Go::AddKey(form) => self.keygen_open_on(crate::keygen::Start::Type(form)),
             Go::SeedQr => {
                 self.act(Action::Entry(None));
                 self.act(Action::ScanSeed);

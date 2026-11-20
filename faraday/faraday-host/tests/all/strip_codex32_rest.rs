@@ -2,6 +2,7 @@
 
 use faraday_bip::keys::Network;
 use faraday_core::codex32::{C32, Card, SPLITS, Split, WAYS, Way};
+use faraday_core::forms::Form;
 use faraday_core::keygen::Start;
 use faraday_core::samples::{SampleForm, SampleKey, SampleSize, Samples};
 use faraday_core::testkit;
@@ -56,7 +57,7 @@ pub(crate) fn samples() -> &'static Samples {
             name: "sample_codex32_shares",
             word: "",
             count: 0,
-            form: SampleForm::Codex32,
+            form: SampleForm::Form(Form::Codex32),
             size: SampleSize::Shares(2),
             listed: true,
             parts: &[
@@ -107,7 +108,7 @@ fn entry(app: &mut Faraday, way: Way) {
     app.press(Action::KeyGen(None));
     let _ = app.frame();
     let _ = app.frame();
-    app.press(Action::KStart(Start::MakeCodex32.index()));
+    app.press(Action::KStart(Start::Make(Form::Codex32).index()));
     let split = SPLITS.iter().position(|s| *s == Split::TwoOfThree).unwrap();
     c32(app, C32::Split(split as u8));
     c32(app, C32::Next);
