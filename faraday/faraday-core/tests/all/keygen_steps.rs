@@ -7,8 +7,8 @@
 use faraday_core::codex32::{C32, Card};
 use faraday_core::keygen::{Start, Way, kstep};
 use faraday_core::vault::RollerAct;
-use faraday_core::{Action, Faraday, Screen};
-use faraday_shell_api::{App, EntropyBytes, Event};
+use faraday_core::{Action, ChoicesPress, Faraday, Screen};
+use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
 use faraday_ui::keyboard::OskPress;
 
 fn open(app: &Faraday) -> Option<u8> {
@@ -245,4 +245,86 @@ fn add_a_key_from_home_leaves_to_home() {
     assert_eq!(app.screen, Screen::Entry);
     app.event(Event::Key(faraday_shell_api::Key::Escape));
     assert_eq!(app.screen, Screen::Home);
+}
+
+/// The window changed to `width` x `height` at 160 dpi, the fade of the
+/// step open now run out.
+fn resized(app: &mut Faraday, width: u16, height: u16) {
+    app.event(Event::Display(DisplayInfo {
+        width,
+        height,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    let mut t = app.now_ms();
+    for _ in 0..40 {
+        t += 16;
+        app.event(Event::Tick { now_ms: t });
+        let _ = app.frame();
+    }
+}
+
+#[test]
+fn one_steps_card_is_drawn_at_a_time() {
+    let mut app = faraday_core::testkit::started();
+    resized(&mut app, 480, 640);
+    app.press(Action::Entry(None));
+    app.press(Action::KeyGen(None));
+    app.press(Action::KStart(Start::Make.index()));
+    resized(&mut app, 480, 640);
+    assert_eq!(open(&app), Some(kstep::LENGTH));
+    assert!(app.drawn_texts().iter().any(|t| t == "Length"));
+    app.press(Action::KWords(12));
+    resized(&mut app, 480, 640);
+    assert_eq!(open(&app), Some(kstep::SOURCE), "Length's choice moves on");
+    let shown = app.drawn_texts();
+    assert!(shown.iter().any(|t| t == "Randomness"), "the open step");
+    assert!(!shown.iter().any(|t| t == "Length"), "not the one before");
+}
+
+#[test]
+fn a_press_on_an_earlier_row_opens_it_as_left_until_the_key_is_locked_in() {
+    let mut app = on_rolls();
+    app.press(Action::KRoll(3));
+    resized(&mut app, 1366, 768);
+    let row = |k: u8| Action::Choices(ChoicesPress::Row(k));
+    assert!(
+        app.offers(row(kstep::SOURCE)),
+        "Randomness' row takes a press"
+    );
+    assert!(
+        !app.offers(row(kstep::ENTER)),
+        "the open step's row takes none"
+    );
+    app.press(row(kstep::SOURCE));
+    assert_eq!(open(&app), Some(kstep::SOURCE));
+    assert_eq!(app.keygen().unwrap().way(), Some(Way::DiceHashed));
+    assert_eq!(app.keygen().unwrap().dice.len(), 1, "the roll kept");
+}
+
+#[test]
+fn once_the_key_is_locked_in_the_rows_before_key_take_no_press() {
+    let mut app = crate::keygen::opened();
+    app.press(Action::KStep(kstep::SOURCE));
+    app.press(Action::KWay(Way::Device.index()));
+    if open(&app) != Some(kstep::ENTER) {
+        app.press(Action::KNext);
+    }
+    app.event(Event::Entropy(EntropyBytes::new([0x5a; 32])));
+    app.press(Action::KNext);
+    app.press(Action::KLock);
+    assert_eq!(open(&app), Some(kstep::WORDS));
+    resized(&mut app, 1366, 768);
+    for k in [kstep::START, kstep::LENGTH, kstep::SOURCE, kstep::ENTER] {
+        assert!(
+            !app.offers(Action::Choices(ChoicesPress::Row(k))),
+            "step {k} is before Key"
+        );
+    }
 }

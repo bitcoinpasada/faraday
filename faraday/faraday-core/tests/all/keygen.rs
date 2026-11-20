@@ -1098,6 +1098,20 @@ fn a_key_made_from_tools_ends_on_a_result_card_and_done_returns_to_tools() {
 }
 
 #[test]
+fn a_key_made_from_tools_ends_on_the_made_card_with_its_three_actions_and_back_leaves_the_flow() {
+    let mut app = from_tools();
+    let _ = app.frame();
+    for action in [Action::KMadeWallet, Action::KMadeAnother, Action::KMadeDone] {
+        assert!(app.offers(action), "{action:?} on the made card");
+    }
+    app.event(Event::Back);
+    let _ = app.frame();
+    assert!(app.keygen().is_none(), "Back leaves the flow");
+    assert_eq!(app.screen, Screen::Catalog);
+    assert_eq!(app.session.keys.len(), 1, "the key stays added");
+}
+
+#[test]
 fn another_on_the_result_card_starts_a_new_key_from_the_start_and_done_still_returns_to_tools() {
     let mut app = from_tools();
     app.press(Action::KMadeAnother);

@@ -109,7 +109,8 @@ fn to_entry(app: &mut Faraday, way: Way) {
     c32(app, C32::Way(w as u8));
     let _ = app.frame();
     c32(app, C32::Next);
-    let _ = app.frame();
+    // The step before fades out, the entry's card in.
+    through_fade(app);
     let m = app.keygen().unwrap().codex32.as_ref().unwrap();
     assert_eq!(m.open(), Some(Card::Enter), "{:?}", m.note());
 }
@@ -311,7 +312,9 @@ fn a_box_typed_back_wrong_is_fixed_where_the_caret_is_put() {
         }
     }
     c32(&mut app, C32::Next);
+    through_fade(&mut app);
     c32(&mut app, C32::Next);
+    through_fade(&mut app);
     let right: Vec<char> = all[0][3..].chars().collect();
     let mut typed = right.clone();
     typed[13] = if typed[13] == 'q' { 'p' } else { 'q' };
@@ -428,7 +431,8 @@ fn every_card_draws_at_each_size_class() {
             let _ = app.frame();
         }
         c32(&mut app, C32::Next);
-        let _ = app.frame();
+        // A step left hides on its first frame: Qr is pressed after it.
+        through_fade(&mut app);
         c32(&mut app, C32::Qr);
         let _ = app.frame();
         assert!(
@@ -457,7 +461,11 @@ fn rolled_z(width: u16, height: u16, dpi: u16) -> Faraday {
 
 /// The page's title in the top bar and the first trailing icon right of
 /// it, as boxes in pixels.
-fn bar_title_and_first_tool(app: &mut Faraday, bar_px: i32) -> ((i32, i32, i32, i32), i32) {
+fn bar_title_and_first_tool(
+    app: &mut Faraday,
+    bar_px: i32,
+    title_start: &str,
+) -> ((i32, i32, i32, i32), i32) {
     use faraday_draw::canvas::InkKind;
     let ink = app.drawn_ink();
     let in_bar = |i: &faraday_draw::canvas::Ink| i.rect.y + i.rect.h <= bar_px;
@@ -465,7 +473,7 @@ fn bar_title_and_first_tool(app: &mut Faraday, bar_px: i32) -> ((i32, i32, i32, 
         .iter()
         .filter(|i| in_bar(i))
         .find_map(|i| match &i.kind {
-            InkKind::Text { text, .. } if text.starts_with("Share A") => {
+            InkKind::Text { text, .. } if text.starts_with(title_start) => {
                 Some((i.rect.x, i.rect.y, i.rect.w, i.rect.h))
             }
             _ => None,
@@ -485,7 +493,12 @@ fn bar_title_and_first_tool(app: &mut Faraday, bar_px: i32) -> ((i32, i32, i32, 
 fn on_a_small_panel_the_title_ends_before_the_actions_at_the_bar_s_right_end() {
     let mut app = rolled_z(480, 640, 160);
     assert!(app.offers(Action::Codex32(C32::Eye)), "the eye is offered");
-    let (title, first) = bar_title_and_first_tool(&mut app, 640 / 10);
+    // The bar names the flow; where the entry stands is on the card.
+    assert!(
+        app.drawn_texts().iter().any(|t| t.starts_with("Share A")),
+        "the entry's place stands on the card"
+    );
+    let (title, first) = bar_title_and_first_tool(&mut app, 640 / 10, "Make a new key");
     assert!(
         title.0 + title.2 <= first,
         "the title ends at {} and the first action begins at {first}",
@@ -731,25 +744,13 @@ fn a_cells_working_and_its_buttons_stay_inside_its_sheet_beside_the_sidebar() {
 
 #[test]
 fn the_eye_stands_clear_of_every_row_of_the_flow() {
-    // Beside the sidebar, the eye is in the page's margin: no text of the
-    // flow's column, which scrolls under the top, shares its columns
-    // below the top row of the network and the ?. The input panel pinned
-    // at the window's foot (`docs/LAYOUT.md` §16.3) never scrolls under
-    // it: its rows, from the rolls' heads down, are not the column's.
+    // Beside the sidebar, the eye is on the top bar, which the page never
+    // runs under: no text of the flow is drawn over the eye's box.
     let mut app = rolled_z(1280, 800, 160);
     let eye = boxed(app.hit_box(Action::Codex32(C32::Eye)).expect("the eye"));
-    let boxes = app.drawn_text_boxes();
-    let panel_top = boxes
-        .iter()
-        .filter(|(t, _)| matches!(t.as_str(), "First roll" | "Your dice" | "Working"))
-        .map(|(_, b)| b.1 - 48)
-        .min()
-        .unwrap_or(i32::MAX);
-    for (t, b) in boxes.into_iter().filter(|(_, b)| b.1 < panel_top) {
-        assert!(
-            !cols_meet(b, eye) || b.1 + b.3 <= eye.1,
-            "{t:?} {b:?} in the eye's column {eye:?}"
-        );
+    for (t, b) in app.drawn_text_boxes() {
+        let meets = cols_meet(b, eye) && b.1 < eye.1 + eye.3 && eye.1 < b.1 + b.3;
+        assert!(!meets, "{t:?} {b:?} over the eye {eye:?}");
     }
     // On a small panel the eye is on the bar, which the page never runs
     // under: only the bar's own lines meet it.
@@ -795,6 +796,12 @@ fn type_a(app: &mut Faraday, range: std::ops::Range<usize>) {
         key(app, char::from(ch));
         let _ = app.frame();
     }
+}
+
+/// Frames drawn, a tick before each, until a step's fade has run out: the
+/// step that changed shows as the card.
+fn through_fade(app: &mut Faraday) {
+    frames(app, 40);
 }
 
 /// `n` frames 16 ms apart, a tick before each, as a shell draws them.

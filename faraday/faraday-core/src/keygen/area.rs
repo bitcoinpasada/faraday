@@ -116,6 +116,18 @@ impl KeyGenArea {
         }
     }
 
+    /// A step left: the words hidden and the codex32 string's QR put
+    /// away. The sheets' own mask is the eye's (the Demo opens them
+    /// unmasked as the device's default), so it is not touched.
+    pub(crate) fn hide_left_step(&mut self) {
+        if let Some(k) = self.state.as_mut() {
+            k.shown = false;
+            if let Some(m) = k.codex32.as_mut() {
+                m.hide_qr();
+            }
+        }
+    }
+
     /// The flow's words hidden and its codex32 string QR put away, its
     /// sheets and strings masked (the eye shows them again), the flow, its
     /// typing and its selected cell kept.
@@ -450,9 +462,8 @@ impl KeyGenArea {
                 if let Some(m) = k.codex32.as_mut() {
                     m.mask();
                 }
-                if k.open == Some(s) {
-                    k.open = None;
-                } else if reachable {
+                // A step is always open: a press on it does nothing.
+                if k.open != Some(s) && reachable {
                     // A step opens with its secret hidden (F104).
                     k.shown = false;
                     open(k, s);

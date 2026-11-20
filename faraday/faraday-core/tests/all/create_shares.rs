@@ -71,6 +71,17 @@ fn on_multisig_slot() -> Faraday {
     app
 }
 
+/// Frames drawn, a tick before each, until a step's fade has run out: the
+/// step that changed shows as the card.
+fn through_fade(app: &mut Faraday) {
+    let mut t = app.now_ms();
+    for _ in 0..40 {
+        t += 16;
+        app.event(Event::Tick { now_ms: t });
+        let _ = app.frame();
+    }
+}
+
 /// New key opened for the first slot, whichever way Keys got there.
 fn open_new_key(app: &mut Faraday) {
     if app.screen != Screen::KeyGen {
@@ -216,7 +227,7 @@ fn words_make_new_key_offer_bip39_words_and_no_codex32() {
     );
     assert_eq!(app.keygen().unwrap().start, Start::Make);
     app.press(Action::KStep(kstep::START));
-    let _ = app.frame();
+    through_fade(&mut app);
     assert!(app.offers(Action::KStart(Start::Make.index())));
     assert!(!app.offers(Action::KStart(Start::MakeCodex32.index())));
 }
@@ -258,7 +269,7 @@ fn codex32_make_new_key_offer_codex32_and_no_bip39_words_to_make() {
     );
     assert_eq!(app.keygen().unwrap().start, Start::MakeCodex32);
     app.press(Action::KStep(kstep::START));
-    let _ = app.frame();
+    through_fade(&mut app);
     assert!(app.offers(Action::KStart(Start::MakeCodex32.index())));
     assert!(!app.offers(Action::KStart(Start::Make.index())));
 }
@@ -386,7 +397,7 @@ fn a_codex32_set_you_hold_fills_a_codex32_backups_slot_and_the_wallet_is_made() 
     // Type codex32 strings is one of the ways offered at Start.
     open_new_key(&mut app);
     app.press(Action::KStep(kstep::START));
-    let _ = app.frame();
+    through_fade(&mut app);
     assert!(app.offers(Action::KStart(Start::Codex32.index())));
     app.press(Action::Back);
     app.press(Action::CStep(cstep::KEYS));
@@ -418,7 +429,7 @@ fn a_key_of_words_fills_a_codex32_backups_slot_too() {
 /// What the hosted Start offers to make, under Other forms too.
 fn makes_offered(app: &mut Faraday) -> Vec<Start> {
     app.press(Action::KStep(kstep::START));
-    let _ = app.frame();
+    through_fade(app);
     app.press(Action::KOthers);
     let _ = app.frame();
     [Start::Make, Start::MakeCodex32, Start::MakeShares]
@@ -466,7 +477,7 @@ fn make_the_rest_on_a_slots_typed_codex32_keeps_the_slot() {
     let mut app = on_keys_of(app(), NewKind::NativeSegwit, BackupForm::Codex32);
     open_new_key(&mut app);
     app.press(Action::KStep(kstep::START));
-    let _ = app.frame();
+    through_fade(&mut app);
     app.press(Action::KStart(Start::Codex32.index()));
     assert_eq!(
         app.keygen().unwrap().open,
@@ -550,7 +561,7 @@ fn change_on_start_shows_the_same_choices() {
     app.press(Action::KStart(Start::MakeCodex32.index()));
     app.press(Action::Back);
     app.press(Action::KStep(kstep::START));
-    let _ = app.frame();
+    through_fade(&mut app);
     assert_eq!(starts(&app), before, "reopened, the same choices");
     assert!(!app.offers(Action::KStart(Start::Make.index())));
 }

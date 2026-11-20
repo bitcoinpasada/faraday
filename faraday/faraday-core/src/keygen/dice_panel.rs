@@ -32,26 +32,14 @@ pub(crate) fn place(app: &View, k: &KeyGen) -> Option<f32> {
     (rolling && fits).then_some(PANEL_H)
 }
 
-/// Draws the panel over the foot of the page area at `x0`, `cw` wide,
-/// in a window `h` tall, `fh` of it the panel's; its parts in the card
-/// column at `cx`, `w` wide.
-pub(crate) fn draw(
-    k: &KeyGen,
-    ui: &mut Ui,
-    (x0, cw, h, fh): (f32, f32, f32, f32),
-    (cx, w): (f32, f32),
-) {
+/// Draws the panel over the foot of the page area `room` stands in, in a
+/// window `h` tall, `fh` of it the panel's; its parts in the card's own
+/// column.
+pub(crate) fn draw(k: &KeyGen, ui: &mut Ui, (room, h, fh): (&crate::flow::Room, f32, f32)) {
     let top = h - fh;
-    crate::codex32::input_panel::cover(ui, (x0, top, cw, fh));
-    // At the card body's start on the wide layout; at the one-column
-    // page's margins elsewhere, as its cards stand.
-    let (x, w) = if ui.compact {
-        let m = crate::compact::M;
-        (x0 + m, (cw - 2.0 * m).min(t::COLUMN_MAX))
-    } else {
-        let i = crate::flow::BODY_INDENT;
-        (cx + i, (w - 2.0 * i).min(t::COLUMN_MAX))
-    };
+    crate::codex32::input_panel::cover(ui, (room.area_x, top, room.area_w, fh));
+    // At the card's own start and width, as its controls stand.
+    let (x, w) = (room.x, room.w.min(t::COLUMN_MAX));
     let y = top + t::PAD;
     let y = y + progress(k, ui, x, y, w);
     pad(k, ui, (x, y, w));

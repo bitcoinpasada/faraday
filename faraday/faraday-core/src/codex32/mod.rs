@@ -306,7 +306,7 @@ pub enum Cell {
 /// A press inside Make codex32 shares.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum C32 {
-    /// A card's header: opens it, or closes it while open.
+    /// A card's press: opens it; the open one stays.
     Card(u8),
     /// The open card's Continue.
     Next,
@@ -1611,18 +1611,14 @@ impl Codex32Make {
         }
     }
 
-    /// A card's header: the open one closes; a later one opens once the
+    /// A card's press: the open one stays; a later one opens once the
     /// ones before it are done.
     fn toggle(&mut self, i: u8) {
         let Some(&card) = CARDS.get(usize::from(i)) else {
             return;
         };
+        // A step is always open: a press on it does nothing.
         if self.open == Some(card) {
-            // Closing the entry puts it aside.
-            if card == Card::Enter {
-                self.mask();
-            }
-            self.open = None;
             return;
         }
         let reachable = CARDS

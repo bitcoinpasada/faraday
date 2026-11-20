@@ -21,6 +21,8 @@ small_240x320 Backup Board 17
 small_240x320 Backup KefTool 48
 small_240x320 CreateVault WordList 3
 small_240x320 Entry EntryCandidate 17
+small_240x320 KeyGen Codex32 9
+small_240x320 KeyGen KRoll 2
 small_240x320 KeyGen WordList 3
 small_240x320 Restore Slide 14
 small_240x320 Wallets PickKey 1
@@ -29,7 +31,9 @@ small_480x640 Backup Board 17
 small_480x640 Backup KefTool 48
 small_480x640 CreateVault WordList 3
 small_480x640 Entry EntryCandidate 17
-small_480x640 KeyGen Codex32 9
+small_480x640 KeyGen Codex32 17
+small_480x640 KeyGen KDie 5
+small_480x640 KeyGen KRoll 5
 small_480x640 KeyGen WordList 3
 small_480x640 Restore Slide 14
 small_480x640 SpendBackup Slide 14

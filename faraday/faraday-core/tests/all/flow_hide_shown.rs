@@ -544,3 +544,28 @@ fn vanity_hides_the_passphrase_a_find_names() {
         );
     }
 }
+
+/// Make a new key: the words shown with Show are hidden once their step is
+/// left by Back, and stay hidden on return.
+#[test]
+fn make_a_new_key_hides_the_words_by_back() {
+    use faraday_core::keygen::Start;
+    let words = testkit::test_words("bacon");
+    let mut app = testkit::started();
+    window(&mut app, 1366, 768);
+    crate::common::add_a_key_flow(&mut app);
+    at_rest(&mut app);
+    app.press(Action::KStart(Start::Words.index()));
+    at_rest(&mut app);
+    type_text(&mut app, &words);
+    app.press(Action::KNext);
+    at_rest(&mut app);
+    app.press(Action::KShow);
+    assert!(app.keygen().is_some_and(|k| k.shown), "shown");
+    let _ = app.frame();
+    app.event(Event::Back);
+    at_rest(&mut app);
+    app.event(Event::Forward);
+    at_rest(&mut app);
+    assert!(!app.keygen().is_some_and(|k| k.shown), "eye off");
+}

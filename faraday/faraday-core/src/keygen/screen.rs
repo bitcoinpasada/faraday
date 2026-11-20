@@ -40,46 +40,18 @@ pub(super) const TITLES: [&str; kstep::COUNT] = [
     EN.codex32_codex32,
 ];
 
-/// The flow's name in the top app bar, its actions beginning at `right`:
-/// Make a new key, whichever screen opened the flow (Add a key is its own
-/// page, and its name is the way back from here); Make a new wallet while
-/// a wallet's key is made inside it.
-/// While a share's codex32
-/// characters are entered, where the entry stands, in its short form
-/// where the whole does not fit (the Pi's panel; F146); where neither
-/// fits beside the bar's tools, the step is returned second, for the
-/// Characters card to read in place of its name. Cheap: a string filled
-/// and a width or two measured.
-fn heading(k: &KeyGen, ui: &Ui, right: f32) -> (Text, Option<Text>) {
+/// The flow's name in the top app bar: Make a new key, whichever screen
+/// opened the flow (Add a key is its own page, and its name is the way
+/// back from here); Make a new wallet while a wallet's key is made inside
+/// it. Where a share's codex32 characters are entered, the card carries
+/// where the entry stands (F146).
+fn heading(k: &KeyGen) -> &'static str {
     // A wallet's key is a step of Make a new wallet, which names the bar.
-    let name = if k.hosted() {
+    if k.hosted() {
         EN.keygen_make_a_new_wallet
     } else {
         EN.keygen_new_key
-    };
-    let Some(m) = k
-        .codex32
-        .as_ref()
-        .filter(|_| k.open == Some(kstep::CODEX32))
-    else {
-        return (Text::of(name), None);
-    };
-    let Some(whole) = crate::codex32::screen::entering(m, false) else {
-        return (Text::of(name), None);
-    };
-    let right = ui.bar_tools_x.unwrap_or(right);
-    // One line first, the short form before the whole wrapped onto two.
-    if faraday_ui::nav::bar_title_one_line(ui, &whole, right) {
-        return (whole, None);
     }
-    let short = crate::codex32::screen::entering(m, true);
-    if let Some(short) = short.filter(|s| faraday_ui::nav::bar_title_one_line(ui, s, right)) {
-        return (short, None);
-    }
-    if faraday_ui::nav::bar_title_whole(ui, &whole, right) {
-        return (whole, None);
-    }
-    (Text::of(name), Some(whole))
 }
 
 /// The column's first line while a wallet's key is made: its slot, "Key 1"
@@ -101,51 +73,10 @@ fn slot_name(app: &View, k: &KeyGen) -> Option<Text> {
     })
 }
 
-/// Where the bar has no room for the codex32 entry's `step`, the
-/// Characters card reads it in place of its name (F146). A lookup.
-fn step_on_card(cards: &mut [flow::Card], at: &[Option<crate::codex32::Card>], step: Option<Text>) {
-    if let Some(step) = step
-        && let Some(i) = at
-            .iter()
-            .position(|c| *c == Some(crate::codex32::Card::Enter))
-        && let Some(card) = cards.get_mut(i)
-    {
-        card.title = step.as_str().into();
-    }
-}
-
 pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(k) = app.keygen.state() else {
         return;
     };
-    if let Some(m) = &k.made {
-        return made(app, k, m, ui, (x0, cw, h));
-    }
-    let steps = k.steps();
-    let mut cards: Vec<flow::Card> = steps
-        .iter()
-        .map(|&s| flow::Card {
-            title: title_of(k, s).as_str().into(),
-            summary: summary(k, s).as_str().into(),
-            mono: (s == kstep::KEY && k.locked)
-                || (s == kstep::QUIZ && k.fingerprint.is_some() && k.done[usize::from(s)]),
-            done: k.done[usize::from(s)] || (s == kstep::KEY && k.locked),
-            open: k.open == Some(s),
-            // Once locked in, nothing before Key changes: no Change.
-            default: !k.locked && matches!(s, kstep::START | kstep::LENGTH | kstep::SOURCE),
-            toggle: Action::KStep(s),
-            lead: None,
-        })
-        .collect();
-    // Make codex32 shares draws a card each of its own (`docs/CODEX32.md` §6).
-    let mut at: Vec<Option<crate::codex32::Card>> = steps.iter().map(|_| None).collect();
-    if let Some(m) = k.codex32.as_ref()
-        && let Some(p) = steps.iter().position(|&s| s == kstep::CODEX32)
-    {
-        let more = crate::codex32::screen::cards(k, m);
-        at.splice(p..=p, more.iter().map(|(c, _)| Some(*c)));
-        cards.splice(p..=p, more.into_iter().map(|(_, c)| c));
-    }
     let back_label = match k.back {
         crate::Screen::Create => EN.keygen_make_a_new_wallet,
         crate::Screen::Entry => EN.keygen_add_a_key,
@@ -157,72 +88,67 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let dice_foot = super::dice_panel::place(app, k);
     let side = crate::codex32::pane_screen::side_room(column);
     let start = panel.start_room();
-    let inset = faraday_draw::tokens::KEYGEN_COLUMN_IN;
-    let lead = if start > 0.0 { start } else { inset };
-    let (cx, cw_max) = (
-        x0 + lead,
-        (cw - lead - inset - side).min(faraday_draw::tokens::KEYGEN_COLUMN_MAX),
-    );
-    // Beside the panel the wide content starts where the column does.
-    let wide = codex32_work_w(cw, side) - (lead - inset);
-    let (heading, step) = heading(k, ui, x0 + cw);
-    step_on_card(&mut cards, &at, step);
-    let slot_line = slot_name(app, k);
-    let col = flow::Column {
-        area_x: x0 + start,
-        area_w: cw - side - start,
-        x: cx,
-        w: cw_max,
-        h: h - dice_foot.unwrap_or(0.0),
-        back: Some(app.named_back((back_label, Action::Nav(k.back)))),
-        heading: &heading,
-        wrap_closed: false,
-        total_fixed: true,
-        all_shown: false,
-        note: None,
-        chip: slot_line.as_ref().map(|t| t.as_str()),
-        chip_tap: None,
-        // Opened for a Make a new wallet slot, Cancel returns there
-        // (`docs/FLOWS.md`, Cancel).
-        moves: crate::ui::Moves::Yes,
-    };
-    let scroll = k.scroll;
-    // The page shows above the input panel at the foot, and not at all
-    // under a cell's working drawn as a page of its own: what they cover
-    // is not drawn under them.
     let foot = panel.foot_h();
-    let covered = ui.compact && k.codex32.as_ref().is_some_and(|m| m.cell().is_some());
-    let page_h = if covered { 0.0 } else { h - foot };
-    let page = ui.rect(0.0, 0.0, x0 + cw, page_h);
-    ui.c.push_clip(page);
-    let (next, again) = {
-        let app_ref: &View = app;
-        let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
-            match (app_ref.keygen.state(), at[i]) {
-                (Some(k), Some(card)) => k.codex32.as_ref().map_or(0.0, |m| {
-                    let at = (card, wide, panel, column);
-                    crate::codex32::screen::body(app_ref, m, at, ui, x, y, w)
-                }),
-                (Some(k), None) => card_body(app_ref, k, ui, steps[i], x, y, w),
-                (None, _) => 0.0,
-            }
-        };
-        flow::column(ui, &col, &cards, scroll, &mut body)
+    let slot_line = slot_name(app, k);
+    let page = flow::Page {
+        area: (x0 + start, cw - side - start),
+        h,
+        foot_h: dice_foot.unwrap_or(0.0) + foot,
+        back: Some(match &k.made {
+            Some(_) => app.named_back((EN.keygen_tools, Action::KMadeDone)),
+            None => app.named_back((back_label, Action::Nav(k.back))),
+        }),
+        heading: match &k.made {
+            Some(m) => super::steps::made_title(m),
+            None => heading(k),
+        },
+        chip: slot_line.as_ref().map(|t| t.as_str()),
+        note: None,
+        chip_tap: None,
+        moves: if k.made.is_some() {
+            crate::ui::Moves::No
+        } else {
+            crate::ui::Moves::Yes
+        },
     };
-    ui.c.pop_clip();
+    let Some(contained) = crate::trail::StepFlow::contained(&super::steps::KEYGEN_STEPS) else {
+        return;
+    };
+    let (next, again, room) = {
+        let app_ref: &View = app;
+        let mut body = |ui: &mut Ui, s: u8, x: f32, y: f32, w: f32| -> f32 {
+            let Some(k) = app_ref.keygen.state() else {
+                return 0.0;
+            };
+            if let Some(m) = &k.made {
+                return made_body(m, ui, x, y, w);
+            }
+            let Some(card) = s
+                .checked_sub(super::steps::CODEX32_FROM)
+                .and_then(|i| crate::codex32::CARDS.get(usize::from(i)))
+            else {
+                return card_body(app_ref, k, ui, s, x, y, w);
+            };
+            k.codex32.as_ref().map_or(0.0, |m| {
+                let wide = ui.flow_work.map_or(w, |end| end - x);
+                crate::codex32::screen::body(app_ref, m, (*card, wide, panel, column), ui, x, y, w)
+            })
+        };
+        // Nothing under Your choices' rows.
+        let mut under = |_: &mut Ui, _: f32, _: f32, _: f32| 0.0;
+        flow::contained(
+            ui, app_ref, contained, &page, k.scroll, &mut body, &mut under,
+        )
+    };
     app.scroll(Scrolled::KeyGen, next, again);
     // The dice sheet's column stands above the input panel at the foot.
     if let Some(m) = k.codex32.as_ref() {
         crate::codex32::pane_screen::draw(app, m, ui, column, (x0, cw, h - foot));
-    }
-    if let Some(m) = k.codex32.as_ref() {
         crate::codex32::input_panel::draw(m, ui, panel, (x0, cw, h));
-    }
-    if let Some(m) = k.codex32.as_ref() {
         crate::codex32::screen::cell_sheet(app, m, ui, x0, cw, h);
     }
     if let Some(fh) = dice_foot {
-        super::dice_panel::draw(k, ui, (x0, cw, h, fh), (cx, cw_max));
+        super::dice_panel::draw(k, ui, (&room, h, fh));
     }
 }
 
@@ -234,72 +160,35 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// (§16.3). Arithmetic.
 /// The result card of a key made from Tools: what was made, then Make a
 /// wallet with it (filled), Another and Done back to Tools.
-fn made(app: &View, k: &KeyGen, m: &super::Made, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) {
+/// The result card's body of a key made from Tools: what was made, then
+/// Make a wallet with it (filled), Another and Done back to Tools.
+fn made_body(m: &super::Made, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let fp = fp_text(faraday_bip::keys::Fingerprint(m.fingerprint));
-    let title = if m.typed {
-        EN.keygen_result_added
-    } else {
-        EN.keygen_result_made
-    };
-    let cards = [flow::Card {
-        title: title.into(),
-        summary: fp.as_str().into(),
-        mono: true,
-        done: true,
-        open: true,
-        default: false,
-        toggle: Action::KStep(kstep::START),
-        lead: None,
-    }];
-    let inset = faraday_draw::tokens::KEYGEN_COLUMN_IN;
-    let col = flow::Column {
-        area_x: x0,
-        area_w: cw,
-        x: x0 + inset,
-        w: (cw - inset - inset).min(faraday_draw::tokens::KEYGEN_COLUMN_MAX),
-        h,
-        back: Some(app.named_back((EN.keygen_tools, Action::KMadeDone))),
-        heading: title,
-        wrap_closed: false,
-        total_fixed: true,
-        all_shown: false,
-        note: None,
-        chip: None,
-        chip_tap: None,
-        moves: crate::ui::Moves::No,
-    };
-    let scroll = k.scroll;
-    let (next, again) = {
-        let mut body = |ui: &mut Ui, _: usize, x: f32, y: f32, w: f32| -> f32 {
-            let mut cy = y;
-            if let Some(n) = &m.name {
-                cy = stat(ui, x, cy, EN.keygen_key, n, Role::OnSurface.paint());
-            }
-            cy = stat(
-                ui,
-                x,
-                cy,
-                EN.keygen_fingerprint,
-                &fp,
-                Role::OnSurface.paint(),
-            );
-            cy += faraday_draw::tokens::GAP_SMALL;
-            cy += button_rows(
-                ui,
-                x,
-                cy,
-                w,
-                &[
-                    (EN.keygen_result_wallet, Style::Primary, Action::KMadeWallet),
-                    (EN.bip85_another, Style::Secondary, Action::KMadeAnother),
-                    (EN.keygen_done, Style::Secondary, Action::KMadeDone),
-                ],
-            );
-            cy - y
-        };
-        flow::column(ui, &col, &cards, scroll, &mut body)
-    };
-    app.scroll(Scrolled::KeyGen, next, again);
+    let mut cy = y;
+    if let Some(n) = &m.name {
+        cy = stat(ui, x, cy, EN.keygen_key, n, Role::OnSurface.paint());
+    }
+    cy = stat(
+        ui,
+        x,
+        cy,
+        EN.keygen_fingerprint,
+        &fp,
+        Role::OnSurface.paint(),
+    );
+    cy += faraday_draw::tokens::GAP_SMALL;
+    cy += button_rows(
+        ui,
+        x,
+        cy,
+        w,
+        &[
+            (EN.keygen_result_wallet, Style::Primary, Action::KMadeWallet),
+            (EN.bip85_another, Style::Secondary, Action::KMadeAnother),
+            (EN.keygen_done, Style::Secondary, Action::KMadeDone),
+        ],
+    );
+    cy - y
 }
 
 fn codex32_places(app: &View, k: &KeyGen, (cw, h): (f32, f32)) -> (bool, PanelAt) {
@@ -326,8 +215,15 @@ pub(crate) fn codex32_work_w(cw: f32, side: f32) -> f32 {
     cw - faraday_draw::tokens::KEYGEN_COLUMN_IN - flow::BODY_INDENT - side - end
 }
 
+/// Whether card `s`'s answer is data, set in the mono face: the key once
+/// locked in, the fingerprint the quiz ends on.
+pub(super) fn mono(k: &KeyGen, s: u8) -> bool {
+    (s == kstep::KEY && k.locked)
+        || (s == kstep::QUIZ && k.fingerprint.is_some() && k.done[usize::from(s)])
+}
+
 /// A card's title.
-fn title_of(k: &KeyGen, s: u8) -> Text {
+pub(super) fn title_of(k: &KeyGen, s: u8) -> Text {
     match s {
         kstep::ENTER => entries_title(k),
         _ => Text::of(card_name(k, s)),
@@ -547,7 +443,7 @@ fn enter_summary(k: &KeyGen) -> Text {
     }
 }
 
-fn summary(k: &KeyGen, s: u8) -> Text {
+pub(super) fn summary(k: &KeyGen, s: u8) -> Text {
     match s {
         // Strings typed in going on into the rest or a share (§8.1, §8.2)
         // are a key the person has.

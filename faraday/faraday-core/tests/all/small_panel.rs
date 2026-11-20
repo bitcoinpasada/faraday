@@ -77,9 +77,13 @@ fn tap(app: &mut Faraday, action: Action) {
     // The frame that shows the press, and the tick after it, on which a
     // press that stretches a key does its work (`docs/SPEED.md` §9).
     let _ = app.frame();
-    let now = app.now_ms() + 16;
-    app.event(Event::Tick { now_ms: now });
-    let _ = app.frame();
+    // Then the frames of a step's fade, as a shell draws them: a step
+    // that changed shows as the card.
+    for _ in 0..40 {
+        let now = app.now_ms() + 16;
+        app.event(Event::Tick { now_ms: now });
+        let _ = app.frame();
+    }
 }
 
 #[test]

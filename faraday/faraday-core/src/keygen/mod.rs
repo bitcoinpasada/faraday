@@ -211,6 +211,9 @@ pub struct Made {
     pub name: Option<Text>,
     /// Typed or scanned in, not made here.
     pub typed: bool,
+    /// What the flow's steps held when it ended, for Your choices: no
+    /// secret, a step's answer as its row reads it.
+    pub(crate) rows: Vec<crate::flow::Row>,
 }
 
 /// A new key being made. See the module documentation.
@@ -2138,6 +2141,13 @@ impl crate::Faraday {
                     )
                 }),
                 typed: k.typed(),
+                rows: steps::rows_of(&k)
+                    .into_iter()
+                    .map(|r| crate::flow::Row {
+                        current: false,
+                        ..r
+                    })
+                    .collect(),
             });
             self.keygen.state = Some(r);
             return;

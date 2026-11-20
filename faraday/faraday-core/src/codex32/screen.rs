@@ -147,7 +147,7 @@ pub(crate) fn cards(k: &KeyGen, m: &Codex32Make) -> Vec<(Card, flow::Card)> {
         .collect()
 }
 
-fn title(m: &Codex32Make, card: Card) -> Text {
+pub(crate) fn title(m: &Codex32Make, card: Card) -> Text {
     match card {
         Card::Scheme if m.given_kind() == Some(Given::Add) => Text::of(EN.c32r_index),
         Card::Scheme => Text::of(EN.codex32_scheme),
