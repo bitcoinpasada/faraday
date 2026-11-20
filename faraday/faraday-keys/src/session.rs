@@ -1033,11 +1033,11 @@ impl Keys {
         Ok(fp)
     }
 
-    /// Costs a base58 check, two elliptic-curve multiplications and what
-    /// `push` costs. Adds the key an extended private key at depth 0 is
-    /// (`docs/KEY-FORMS.md` §6): it holds a master key and no words, seed
-    /// or passphrase. Read by [`crate::xprv`]'s rules for this session's
-    /// network.
+    /// Costs two base58 checks (the text is decoded twice), two
+    /// elliptic-curve multiplications and what `push` costs. Adds the key
+    /// an extended private key at depth 0 is (`docs/KEY-FORMS.md` §6): it
+    /// holds a master key and no words, seed or passphrase. Read by
+    /// [`crate::xprv`]'s rules for this session's network.
     pub fn add_xprv(
         &mut self,
         c: &Compute,

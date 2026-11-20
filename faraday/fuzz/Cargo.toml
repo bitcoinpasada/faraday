@@ -31,6 +31,7 @@ faraday-text = { path = "../../core/faraday-text" }
 faraday-storage = { path = "../faraday-storage" }
 faraday-vault = { path = "../faraday-vault" }
 faraday-kef = { path = "../faraday-kef" }
+faraday-keys = { path = "../faraday-keys" }
 faraday-ots = { path = "../faraday-ots" }
 faraday-sqlite = { path = "../faraday-sqlite" }
 faraday-core-wallet = { path = "../faraday-core-wallet" }
@@ -163,6 +164,13 @@ bench = false
 [[bin]]
 name = "keyfile"
 path = "fuzz_targets/keyfile.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "keys_xprv"
+path = "fuzz_targets/keys_xprv.rs"
 test = false
 doc = false
 bench = false

@@ -34,7 +34,10 @@ parent fingerprint or an index: `hdkeychain` takes it, btclib refuses it.
 Where one of the three applies and btclib refuses, `hdkeychain` is not
 asked; everywhere else it must give btclib's answer (the checksum, the
 length, a scalar of 0 or past n, a public key's prefix or a point off the
-curve, and every valid key).
+curve, and every valid key). The keys loaded from an xprv: the network is
+the session's, and the comparison of the key's version with it (an xprv on a
+test session and a tprv on a main one refused) is the area's own, read from
+btclib's version table.
 """
 
 import json
@@ -55,15 +58,17 @@ class Bip32(Area):
     name = "bip32"
     faraday = (
         '`faraday_bip::keys` (master, private derivation), `faraday_bip::xkey` (strict '
-        "decoding), `bitcoin`'s `Xpub::derive_pub`"
+        "decoding), `bitcoin`'s `Xpub::derive_pub`, and `faraday_keys`' reader of an "
+        'xprv and of a hex seed (`Keys::add_xprv`, `parse_hex_seed`)'
     )
     reference = (
         "btclib-wallet's `bip32` over btclib and `ecc` (`btclib/`), on btclib's own "
         'curve with libsecp256k1 turned off, through `bip32_ref.py`, and `hdkeychain` '
         "from btcd v0.27.0 (`btcd/`, Go, decred's secp256k1); the versions a strict "
         "reader takes (BIP-32's four, from btclib's network table), a version whose "
-        "kind differs from the key's data, and a depth-0 key with a parent or an "
-        'index are ours'
+        "kind differs from the key's data, a depth-0 key with a parent or an "
+        'index, and the comparison of a loaded xprv version with the session '
+        'network are ours'
     )
     reference_checked = (
         'the wheels and the vendored Go tree are hashed against `references.sha256` '
@@ -79,7 +84,8 @@ class Bip32(Area):
         'seeds of 16 to 64 bytes on every network, random paths with every index, '
         'public derivation against private, keys broken one rule at a time, the '
         'master-key import and the keys faraday-keys loads from an xprv or a master '
-        'seed in hex, each judged by btclib and by `hdkeychain`'
+        'seed in hex, each judged by btclib and by `hdkeychain`, except the other '
+        "network's refusal, which is the area's own `wrong_network`"
     )
     differences = [
         (
@@ -257,15 +263,10 @@ class Bip32(Area):
         master key of 16 to 64 bytes."""
         def btclib():
             seed = bytes.fromhex(seed_hex)
-            if not 16 <= len(seed) <= 64:
-                raise Invalid("a seed of another length")
             m = bip32_ref.master(seed, is_test(network))
             return {"xprv": m.serialize(), "fingerprint": m.fingerprint().hex()}
 
         def btcd():
-            seed = bytes.fromhex(seed_hex)
-            if not 16 <= len(seed) <= 64:
-                raise Invalid("a seed of another length")
             a = self.btcd({"op": "master", "seed": seed_hex, "test": is_test(network)})
             return {"xprv": a["xprv"], "fingerprint": a["fingerprint"]}
         return self.compare("bip32.keys_hex_seed", {"seed": seed_hex, "network": network},

@@ -42,6 +42,14 @@ fn vector(n: usize) -> (String, String, (String, String)) {
     )
 }
 
+/// `xprv` re-written under another four-byte version, checksum made again.
+fn with_version(xprv: &str, version: [u8; 4]) -> String {
+    let read = faraday_codec::encodings::read(xprv).unwrap();
+    let mut payload = version[1..].to_vec();
+    payload.extend_from_slice(&read.bytes[3..]);
+    faraday_codec::encodings::base58check(version[0], &payload)
+}
+
 fn expect_read(r: Result<Fingerprint, XprvError>) -> Fingerprint {
     r.unwrap_or_else(|e| panic!("refused: {e:?}"))
 }
@@ -162,7 +170,33 @@ fn another_networks_version_and_slip_132_are_refused_by_name() {
             wanted: "tprv"
         })
     );
-    // Vector 1's master key written with SLIP-132's versions.
+    // Vector 1's master key written with each of SLIP-132's eight private
+    // versions: the zprv, yprv and Zprv strings are published ones.
+    let main_versions: [(&str, [u8; 4]); 4] = [
+        ("yprv", [0x04, 0x9d, 0x78, 0x78]),
+        ("Yprv", [0x02, 0x95, 0xb0, 0x05]),
+        ("zprv", [0x04, 0xb2, 0x43, 0x0c]),
+        ("Zprv", [0x02, 0xaa, 0x7a, 0x99]),
+    ];
+    let test_versions: [(&str, [u8; 4]); 4] = [
+        ("uprv", [0x04, 0x4a, 0x4e, 0x28]),
+        ("Uprv", [0x02, 0x42, 0x85, 0xb5]),
+        ("vprv", [0x04, 0x5f, 0x18, 0xbc]),
+        ("Vprv", [0x02, 0x57, 0x50, 0x48]),
+    ];
+    for (network, versions) in [
+        (Network::Mainnet, main_versions),
+        (Network::Testnet, test_versions),
+    ] {
+        for (name, version) in versions {
+            let text = with_version(&xprv, version);
+            assert_eq!(
+                Keys::on(network).add_xprv(&c, &text, "").unwrap_err(),
+                XprvError::Read(XprvRefusal::Slip132(name)),
+                "{name} on {network:?}"
+            );
+        }
+    }
     for (name, text) in [
         (
             "zprv",
@@ -192,7 +226,7 @@ fn another_networks_version_and_slip_132_are_refused_by_name() {
 fn the_seeds_of_vectors_1_to_3_load_from_hex() {
     let c = compute();
     for (n, fp) in FINGERPRINTS.iter().enumerate() {
-        let (hex, _, _) = vector(n);
+        let (hex, xprv, _) = vector(n);
         let spaced: String = hex
             .to_uppercase()
             .as_bytes()
@@ -204,6 +238,11 @@ fn the_seeds_of_vectors_1_to_3_load_from_hex() {
             let seed = parse_hex_seed(text).unwrap();
             let mut keys = Keys::on(Network::Mainnet);
             assert_eq!(keys.add_seed(&c, &seed, "").unwrap(), Fingerprint(*fp));
+            let master = keys
+                .master_xprv(&c, 0, Reveal::PaperForm)
+                .unwrap()
+                .release();
+            assert_eq!(master.as_str(), xprv);
         }
     }
 }

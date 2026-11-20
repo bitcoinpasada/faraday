@@ -38,7 +38,9 @@ impl Material<'_> {
 
 /// Costs a PBKDF2 (words) or a share recovery (SLIP-39) and a master
 /// key. The master key `material` makes with `passphrase` on `network`;
-/// `None` for a seed of no valid length or shares that do not recover.
+/// `None` for a seed of no valid length, shares that do not recover, an xprv
+/// that is refused (its network is not `network`, it is not a master key or
+/// not readable) or an xprv given with a passphrase.
 pub(crate) fn master_of(
     c: &Compute,
     material: Material<'_>,
@@ -77,7 +79,8 @@ pub(crate) fn master_of(
 }
 
 /// Costs what `master_of` costs. The fingerprint `material` has with
-/// `passphrase`; the same on every network.
+/// `passphrase`; the same on every network, except for an xprv, which has
+/// one only on its own network (`None` on the other).
 pub fn fingerprint(
     c: &Compute,
     material: Material<'_>,

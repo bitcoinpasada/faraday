@@ -103,6 +103,7 @@ shipped binary does.
 | `sqlite` | `faraday_sqlite::Database::open` over any bytes, then every table read as two blob columns (read twice, the same rows) and the check that only `main` holds records. Seeds are databases SQLite made (`faraday/faraday-sqlite/tests/make_fixtures.py`). |
 | `vault_header` | `faraday_vault::file::inspect` over any file. |
 | `keyfile` | `faraday_vault::kdbx::keyfile::read` over any file a person chooses as a vault's key file. |
+| `keys_xprv` | `Keys::add_xprv` over any text on both networks; a key that reads must load with its own fingerprint written before it and be refused with another fingerprint and with a path (seeds are vector 1's keys and hex seeds), and `parse_hex_seed` over the same text (what reads loads as a seed). |
 | `vault_entries` | `entries::parse` and `totp::parse`: a vault entries file and a TOTP setup code. |
 | `files_proto` | The disk process pipe: `Response::decode` and `Request::decode`, each decoded value encoded and decoded again to the same value, and the framing read as a stream. |
 | `vault_parts` | `faraday_files::finish_vault_writes` over a part file of the input's bytes, under a `.kdbx` name and another: the whole-vault check reads it, and what stays is the same bytes. |

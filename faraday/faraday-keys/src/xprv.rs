@@ -91,10 +91,11 @@ fn split_origin(text: &str) -> Result<(Option<Fingerprint>, &str), XprvRefusal> 
     Ok((Some(Fingerprint(fp)), key.trim_start()))
 }
 
-/// Costs a base58 check and an elliptic-curve multiplication. The master
-/// key the extended private key `text` is, on `network`, by the strict
-/// reader: its version is `network`'s, it is at depth 0, and an origin
-/// written before it names its own fingerprint and no path.
+/// Costs two base58 checks (the text is decoded twice) and an elliptic-curve
+/// multiplication. The master key the extended private key `text` is, on
+/// `network`, by the strict reader: its version is `network`'s, it is at
+/// depth 0, and an origin written before it names its own fingerprint and
+/// no path.
 pub(crate) fn read_master(
     c: &Compute,
     text: &str,
