@@ -45,7 +45,6 @@ fn flows(why: Reveal) -> &'static [&'static str] {
             &["the_explore_eyes_opened_and_closed_leave_no_copy_after_lock"]
         }
         Reveal::KefCode => &["a_krux_code_sealed_leaves_no_copy"],
-        Reveal::QrVault => &["QR vault tool"],
     }
 }
 

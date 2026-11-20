@@ -224,10 +224,7 @@ impl Camera {
             .is_some_and(|c| {
                 c.kind.secret()
                     || c.masked.is_some()
-                    || matches!(
-                        c.kind,
-                        Kind::Text | Kind::Unreadable | Kind::Kef | Kind::QrVault
-                    )
+                    || matches!(c.kind, Kind::Text | Kind::Unreadable | Kind::Kef)
             })
     }
 
