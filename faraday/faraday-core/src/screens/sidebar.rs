@@ -8,7 +8,7 @@ use crate::ui::pal::*;
 use crate::ui::{Glyph, NameSuffix, Style, Ui};
 use crate::{Action, Screen, Sheet};
 use faraday_draw::tokens::{BODY_S, BUTTON_H, LABEL_M, LABEL_S};
-use faraday_draw::tokens::{GRID, SHAPE_S, TOUCH};
+use faraday_draw::tokens::{GRID, TOUCH};
 use faraday_draw::widgets::Icon;
 
 /// The word after the wordmark: DEMO in the desktop app, OFFLINE on the
@@ -31,10 +31,10 @@ fn flow_row(ui: &mut Ui, y: f32, r: &crate::in_progress::Row, lit: bool) {
     let action = Action::Resume(r.going);
     let (x, w) = (46.0, SIDEBAR_W - 58.0);
     if lit {
-        ui.fill(x, y, w, FLOW_ROW, SHAPE_S, Role::SecondaryContainer);
+        ui.fill(x, y, w, FLOW_ROW, FLOW_ROW / 2.0, Role::SecondaryContainer);
     }
     ui.press(
-        Shape::new(x, y, w, FLOW_ROW, SHAPE_S),
+        Shape::new(x, y, w, FLOW_ROW, FLOW_ROW / 2.0),
         Role::OnSurface.paint(),
         action,
     );
