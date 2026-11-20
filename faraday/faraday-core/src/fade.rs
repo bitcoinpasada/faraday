@@ -13,6 +13,11 @@ use crate::moved::{Last, Look};
 use crate::ui::{self, Role, Theme};
 use crate::{Faraday, ScreenKey, Sheet, motion};
 
+/// What a frame drew that a change is known by: the screen and sheet, the
+/// guide's pane and tab, the theme, and the step open in a flow on the
+/// container.
+type Drawn = (ScreenKey, (bool, usize), Theme, Option<u8>);
+
 /// A change of screen, sheet or theme fading in, with the frosted page under an
 /// open sheet and the screen the last frame drew. Its fields are private.
 #[derive(Default)]
@@ -67,7 +72,7 @@ pub(crate) struct Fade {
     /// The screen and sheet the last frame drew, whether the guide's pane
     /// stood beside the page and the tab on show in the sheet or the
     /// pane, and the theme, so that a change is known at the next.
-    last_drawn: Option<(ScreenKey, (bool, usize), Theme, Option<u8>)>,
+    last_drawn: Option<Drawn>,
     /// Whether the fade under way is a change of theme, which takes
     /// longer and is eased; set when a fade starts.
     theme_fade: bool,
