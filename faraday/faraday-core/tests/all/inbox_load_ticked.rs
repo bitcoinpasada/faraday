@@ -84,6 +84,8 @@ fn continue_at_once_with_a_loaded_keys_passphrase_makes_that_keys_wallet() {
     type_text(&mut app, "TREZOR");
     // No pause: the fingerprint of the passphrase is not shown yet.
     assert!(app.potential().unwrap().with.is_none());
+    // A passphrase typed on a hardware keyboard waits for the eye.
+    app.press(Action::PassEye);
     app.press(Action::PotentialKind(1));
     app.press(Action::PotentialMake);
 
