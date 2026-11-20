@@ -446,10 +446,12 @@ of each, what a reviewer gets and how a review is recorded, is
 `docs/AUDIT-SUBMISSIONS.md` §10.
 
 The list below is of what is built. One specification is written and not
-in Faraday: the Argon QR Vault (AQRV), one small secret from a fixed list
-(a seed, a codex32 string, a passphrase, a note, a raw key) under Argon2id,
-in a 25 × 25, 29 × 29 or 33 × 33 QR code. Its specification, test vectors
-and test tool are in their own repository, `https://github.com/bitcoinpasada/aqrv`
+in Faraday: the Argon Compact Envelope (ACE), one small secret from a fixed
+list (a seed, a codex32 string, a passphrase, a note, a raw key) under
+Argon2id, in a 25 × 25, 29 × 29 or 33 × 33 QR code or in 36, 48 or 56
+SLIP-0039 words with six Reed–Solomon check words, to copy by hand. Its
+specification, test vectors and test tool are in their own repository,
+`https://github.com/bitcoinpasada/acenv`
 (F264). It is Faraday's own specification, so under §0 it stays out of the
 app until it is reviewed outside Faraday.
 

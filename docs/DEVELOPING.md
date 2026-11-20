@@ -217,7 +217,7 @@ across frames (a sheet's frosted page, a fade's frames) still holds a test
 secret; a hit fails the tour naming the step and the form. `just` runs it in
 the snapshot crate's `every_tour_runs_to_its_end` test.
 
-The Argon QR Vault's test tool is built in its own repository, `https://github.com/bitcoinpasada/aqrv` (F264), against Faraday's crates at a pinned commit.
+The Argon Compact Envelope's test tool is built in its own repository, `https://github.com/bitcoinpasada/acenv` (F264), against Faraday's crates at a pinned commit.
 
 The desktop app, Faraday Demo, has none of the stick's protections and
 is never for a seed that holds funds. Its virtual sticks are folders in
