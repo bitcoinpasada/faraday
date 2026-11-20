@@ -1238,6 +1238,7 @@ impl Faraday {
                 self.confirm_act(Action::WalletCancel);
             }
             Action::Cancel if self.sheet == Some(Sheet::GpgSign) => self.sheet = None,
+            Action::Cancel if self.sheet == Some(Sheet::OtherForms) => self.sheet = None,
             Action::Cancel if self.sheet == Some(Sheet::KefRead) => seeds::kef::kef_cancel(self),
             Action::Cancel if self.sheet == Some(Sheet::NameTaken) => self.name_taken_cancel(),
             Action::Cancel if self.sheet == Some(Sheet::TextSeed) => {
@@ -1524,6 +1525,7 @@ impl Faraday {
             Action::Back if self.sheet == Some(Sheet::Choices) => {
                 self.choices_act(ChoicesPress::Close);
             }
+            Action::Back if self.sheet == Some(Sheet::OtherForms) => self.sheet = None,
             Action::Back => self.back(),
             Action::Own(a) => self.own_press(a),
             Action::Resume(g) => self.flow_resume(g),

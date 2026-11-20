@@ -45,8 +45,8 @@ pub(crate) use create::CSTEPS;
 pub(crate) use decode::{decode_back, decode_back_to};
 pub(crate) use entry::{
     codex32_check_button, codex32_found, codex32_head, codex32_mark, codex32_tick, entry_chip,
-    entry_form, entry_scan, entry_stick, entry_typed, entry_words, keyed_head, keyed_status,
-    word_count_row,
+    entry_form, entry_scan, entry_stick, entry_typed, entry_words, form_rows, keyed_head,
+    keyed_status, other_forms, word_count_row,
 };
 use faraday_draw::tokens::{APP_BAR_H, BODY_S, BUTTON_H, TITLE_M};
 use faraday_draw::tokens::{
@@ -482,6 +482,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::Import => crate::boot_import::screen::draw(app, ui, w, h),
             Sheet::Pull => pull_sheet(app, ui, w, h),
             Sheet::Chart => crate::glance::sheet::draw(app, ui, w, h),
+            Sheet::OtherForms => crate::compact::screen::other_forms_sheet(app, ui, w, h),
             Sheet::Choices => crate::flow::act::sheet(app, ui, w, h),
             Sheet::BoardList => crate::board::screen::list_sheet(app, ui, w, h),
             Sheet::BoardSees => crate::board::screen::sees_sheet(app, ui, w, h),

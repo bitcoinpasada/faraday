@@ -227,6 +227,10 @@ fn a_fresh_new_key_offers_no_form_of_a_key_held_and_add_a_key_offers_the_words()
     assert!(app.offers(Action::EntryOtherForms));
     app.press(Action::EntryOtherForms);
     let _ = app.frame();
+    assert_eq!(
+        app.sheet, None,
+        "on the wide layout the forms open in place"
+    );
     let at = faraday_core::forms::Form::ALL
         .iter()
         .position(|f| *f == faraday_core::forms::Form::Codex32)

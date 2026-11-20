@@ -17,6 +17,51 @@ use faraday_draw::widgets::Icon;
 use faraday_text::Text;
 use faraday_ui::parts::{button_rows, section_label, wrap_buttons};
 
+/// The four forms as a row of chips, the form shown chosen. Returns the
+/// height.
+pub(crate) fn form_rows(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32) -> f32 {
+    let forms: Vec<(&str, Style, Action)> = crate::forms::Form::ALL
+        .iter()
+        .enumerate()
+        .map(|(i, f)| {
+            (
+                f.name(),
+                Style::chosen(*f == app.entry.state().form),
+                Action::EntryForm(i as u8),
+            )
+        })
+        .collect();
+    button_rows(ui, x, y, width, &forms)
+}
+
+/// Under Scan on the words form: the text button **Other forms** with its
+/// chevron, which opens the other forms as rows in place on the wide
+/// layout and as a sheet on a small panel; once opened, the rows
+/// themselves. Returns the height.
+pub(crate) fn other_forms(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32) -> f32 {
+    if app.entry.state().other_forms {
+        return form_rows(app, ui, x, y, width) + GAP_SMALL;
+    }
+    let lw = ui.button(
+        x,
+        y,
+        None,
+        faraday_draw::tokens::TOUCH,
+        EN.entry_other_forms,
+        Style::Ghost,
+        Action::EntryOtherForms,
+    );
+    ui.icon(
+        x + lw + GAP_SMALL,
+        y + faraday_draw::tokens::DISCLOSE_ICON_Y,
+        faraday_draw::tokens::ICON_GLYPH_SMALL,
+        Icon::ChevronRight,
+        faraday_draw::tokens::DISCLOSE_GLYPH,
+        Role::OnSurfaceVariant,
+    );
+    faraday_draw::tokens::TOUCH + faraday_draw::tokens::GAP_SMALL
+}
+
 /// The one word the typed prefix can complete to, if there is one.
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if ui.compact {
@@ -67,19 +112,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // The words form is the one everyday way in; the other three are
     // behind Other forms, or already shown when a Tools tile opened one
     // of them.
-    if app.entry.state().other_forms {
-        let forms: Vec<(&str, Style, Action)> = crate::forms::Form::ALL
-            .iter()
-            .enumerate()
-            .map(|(i, f)| {
-                (
-                    f.name(),
-                    Style::chosen(*f == app.entry.state().form),
-                    Action::EntryForm(i as u8),
-                )
-            })
-            .collect();
-        y += button_rows(ui, x, y, width, &forms) + 4.0;
+    // On the words form they come in place of Other forms, under Scan.
+    if app.entry.state().other_forms && app.entry.state().form != crate::forms::Form::Words {
+        y += form_rows(app, ui, x, y, width) + GAP_SMALL;
     }
     if app.entry.state().form == crate::forms::Form::Krux {
         let bottom = y + crate::seeds::kef::read_rows(app, ui, (x, y, width), true);
@@ -107,7 +142,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         entry_scan(app),
     );
     y += 52.0;
-    y = entry_words(app, ui, x, y, width, h, true);
+    y += other_forms(app, ui, x, y, width);
+    y = entry_words(app, ui, x, y, width, h);
     let bottom = entry_finish(app, ui, x, y, width, h);
     entry_scrolled(app, ui, open, h, bottom);
 }
@@ -116,25 +152,16 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// status under them: the word count, the word fields or a list's own
 /// keyboard, the words the letters can still become, and the count and
 /// checksum. Add a key draws it, and so does New key's Words card for a
-/// key typed. `page`: on Add a key's own
-/// page, whose row of lists offers Other forms too. Returns where the
+/// key typed. Returns where the
 /// next row starts.
-pub(crate) fn entry_words(
-    app: &View,
-    ui: &mut Ui,
-    x: f32,
-    y: f32,
-    width: f32,
-    h: f32,
-    page: bool,
-) -> f32 {
+pub(crate) fn entry_words(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) -> f32 {
     let mut y = y;
     // Which list the words are from: English, the others one press away;
-    // and, unless the chips are already shown, the way to them. Under the
-    // word fields, or above the keyboard of a list typed on its own keys.
+    // Under the word fields, or above the keyboard of a list typed on its
+    // own keys.
     let lang = app.entry.state().language();
     let english = lang == faraday_bip::bip39::Language::English;
-    let mut langs: Vec<(&str, Style, Action)> = if english && !app.entry.state().languages {
+    let langs: Vec<(&str, Style, Action)> = if english && !app.entry.state().languages {
         vec![(
             EN.entry_other_languages,
             Style::Ghost,
@@ -157,12 +184,6 @@ pub(crate) fn entry_words(
             })
             .collect()
     };
-    if page && !app.entry.state().other_forms {
-        langs.insert(
-            0,
-            (EN.entry_other_forms, Style::Ghost, Action::EntryOtherForms),
-        );
-    }
     if let Some(w) = app.entry.state().keys.as_deref() {
         if app.entry_paste_offered() {
             ui.demo_offer(EN.paste_words, Action::PasteWords);

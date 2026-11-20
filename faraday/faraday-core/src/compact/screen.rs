@@ -701,21 +701,14 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // The form's chips step aside while a codex32 correction or clash
     // stands in place of the field, so the panel stays above the keyboard
     // (`docs/CODEX32.md` §8.4).
-    if es.other_forms && !(es.form == Form::Codex32 && crate::forms::codex32_replaced(es)) {
-        let forms: Vec<(String, Style, Action)> = Form::ALL
-            .iter()
-            .enumerate()
-            .map(|(i, f)| {
-                (
-                    f.name().to_string(),
-                    Style::chosen(*f == es.form),
-                    Action::EntryForm(i as u8),
-                )
-            })
-            .collect();
+    // On the words form they come in place of Other forms, under Scan.
+    if es.other_forms
+        && es.form != Form::Words
+        && !(es.form == Form::Codex32 && crate::forms::codex32_replaced(es))
+    {
         // The field under them takes a press: their own presses keep their
         // room.
-        y += crate::screens::button_rows(ui, x, y, iw, &forms);
+        y += crate::screens::form_rows(app, ui, x, y, iw);
     }
     if es.form != Form::Words {
         let y = if es.form == Form::Krux {
@@ -742,7 +735,8 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         crate::screens::entry_scan(app),
     );
     y += 48.0;
-    y = entry_words(app, ui, x, y, iw, true);
+    y += crate::screens::other_forms(app, ui, x, y, iw);
+    y = entry_words(app, ui, x, y, iw);
     y += entry_pass(app, ui, (x, y, iw), EN.compact_bip_39_passphrase);
     // Add key is pinned at the foot.
     let add = if es.differs() || app.typing.pass_eye.waits() {
@@ -775,19 +769,45 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     finish(app, ui, h, y - top + 8.0);
 }
 
+/// Add a key's **Other forms** on a small panel, as a sheet: a row for
+/// each form, the one shown chosen, and Close.
+pub(crate) fn other_forms_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
+    use faraday_draw::tokens;
+    let place = (tokens::GAP, w - 2.0 * tokens::GAP);
+    let pad = tokens::GRID * 2.0;
+    super::scroll_sheet(ui, place, h, tokens::GAP, pad, &mut |ui, x, y, iw| {
+        let mut cy = y;
+        cy += super::sheet_head(
+            ui,
+            x,
+            cy,
+            iw,
+            faraday_draw::widgets::Icon::Keys,
+            Role::OnSurface,
+            EN.entry_other_forms,
+        );
+        cy += crate::screens::form_rows(app, ui, x, cy, iw);
+        cy += super::buttons(
+            ui,
+            x,
+            cy,
+            iw,
+            &[(EN.nav_close, Style::Secondary, Action::Cancel)],
+        );
+        cy - y
+    });
+}
+
 /// Add a key's words form on a small panel: the word being typed, the
 /// words it can be, the word keyboard, the words taken and the
 /// lists. Add a key draws it, and so does New key's Words card for a key
-/// typed. `page`: on Add a key's own page,
-/// whose row of lists offers Other forms too. Returns where the next row
-/// starts.
-pub(crate) fn entry_words(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, page: bool) -> f32 {
+/// typed. Returns where the next row starts.
+pub(crate) fn entry_words(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32) -> f32 {
     let mut y = y;
     let lang = app.entry.state().language();
     let english = lang == faraday_bip::bip39::Language::English;
-    // One button for the list in use; the lists open from it; unless
-    // the chips are already shown, Other forms beside it.
-    let mut langs: Vec<(String, Style, Action)> = if !app.entry.state().languages {
+    // One button for the list in use; the lists open from it.
+    let langs: Vec<(String, Style, Action)> = if !app.entry.state().languages {
         vec![(
             if english {
                 EN.compact_other_languages.to_string()
@@ -814,16 +834,6 @@ pub(crate) fn entry_words(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, page
             })
             .collect()
     };
-    if page && !app.entry.state().other_forms {
-        langs.insert(
-            0,
-            (
-                EN.compact_other_forms.to_string(),
-                Style::Ghost,
-                Action::EntryOtherForms,
-            ),
-        );
-    }
     let Some(w) = app.entry.state().keys.as_deref() else {
         y += never_real_seed(app, ui, x, y, iw);
         return y + crate::screens::button_rows(ui, x, y, iw, &langs);

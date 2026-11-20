@@ -162,9 +162,9 @@ fn seed(app: &View, s: &SeedState, ui: &mut Ui, (x, y, w): (f32, f32, f32), load
     }
     if s.typing_words() {
         let end = if ui.compact {
-            crate::compact::screen::entry_words(app, ui, x, y, w, false)
+            crate::compact::screen::entry_words(app, ui, x, y, w)
         } else {
-            crate::screens::entry_words(app, ui, x, y, w, y + CARD_ENTRY_ROOM, false)
+            crate::screens::entry_words(app, ui, x, y, w, y + CARD_ENTRY_ROOM)
         };
         let cy = end + GAP;
         ui.button(

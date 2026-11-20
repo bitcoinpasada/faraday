@@ -1958,6 +1958,10 @@ pub const FOCUS_OFFSET: f32 = 2.0;
 pub const ICON_GLYPH: f32 = 24.0;
 /// An icon's glyph in a dense place: a small panel's row.
 pub const ICON_GLYPH_SMALL: f32 = 20.0;
+/// The glyph of the chevron beside a text button that opens more (Other forms).
+pub const DISCLOSE_GLYPH: f32 = 10.0;
+/// How far below the top of a `TOUCH`-high text button its disclosure chevron starts.
+pub const DISCLOSE_ICON_Y: f32 = 14.0;
 /// An icon's glyph in a button, a chip and a chosen segment.
 pub const ICON_GLYPH_BUTTON: f32 = 18.0;
 /// The gap between a button's icon and its label.

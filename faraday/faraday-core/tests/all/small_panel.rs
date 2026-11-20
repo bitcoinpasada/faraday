@@ -588,3 +588,39 @@ fn make_a_new_vault_offers_your_choices_as_a_sheet() {
     assert_eq!(app.sheet, None, "a press on a row closes the sheet");
     assert_eq!(open(&app), Some(vstep::PRESET), "and opens its step");
 }
+
+#[test]
+fn add_a_key_offers_other_forms_above_the_field_and_opens_a_sheet() {
+    let mut app = panel();
+    app.press(Action::Entry(None));
+    let _ = app.frame();
+    assert_eq!(app.screen, Screen::Entry);
+    let forms = on_panel(&mut app, Action::EntryOtherForms)
+        .expect("Other forms is on the panel without scrolling");
+    let scan = on_panel(&mut app, Action::ScanSeed).expect("Scan a SeedQR is on the panel");
+    assert!(
+        scan.1 < forms.1 && forms.1 < H / 2,
+        "Other forms stands under Scan, in the upper half, clear of the keyboard"
+    );
+    tap(&mut app, Action::EntryOtherForms);
+    assert_eq!(app.sheet, Some(Sheet::OtherForms));
+    let shown: Vec<String> = app
+        .drawn_text_boxes()
+        .plain()
+        .into_iter()
+        .map(|(t, _)| t)
+        .collect();
+    for form in faraday_core::forms::Form::ALL {
+        assert!(
+            shown.iter().any(|t| t == form.name()),
+            "the sheet lists {}: {shown:?}",
+            form.name()
+        );
+    }
+    let at = faraday_core::forms::Form::ALL
+        .iter()
+        .position(|f| *f == faraday_core::forms::Form::Codex32)
+        .unwrap() as u8;
+    tap(&mut app, Action::EntryForm(at));
+    assert_eq!(app.sheet, None, "choosing a form closes the sheet");
+}

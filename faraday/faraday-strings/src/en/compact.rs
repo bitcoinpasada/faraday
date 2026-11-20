@@ -150,7 +150,6 @@ macro_rules! words_compact {
     /// Text in `entry`. `{}`: `crate::forms::language_name(lang)`.
     compact_other_lists: "{} · other lists",
     /// Text in `entry`.
-    compact_other_forms: "Other forms",
     /// Button in `entry`.
     compact_scan_a_seedqr: "Scan a SeedQR",
     /// Text in `entry`. `{}`: `taken.len() + 1`.

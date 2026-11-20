@@ -992,7 +992,14 @@ impl Faraday {
                     // Chosen from the chips, or opened by a Tools tile
                     // for this form: the chips stay in view.
                     self.entry.choose_form(f);
+                    if self.sheet == Some(crate::Sheet::OtherForms) {
+                        self.sheet = None;
+                    }
                 }
+            }
+            // A sheet on a small panel, rows in place on the wide layout.
+            Action::EntryOtherForms if self.one_column() => {
+                self.sheet = Some(crate::Sheet::OtherForms);
             }
             Action::EntryOtherForms => self.entry.show_other_forms(),
             Action::EntryField => {
