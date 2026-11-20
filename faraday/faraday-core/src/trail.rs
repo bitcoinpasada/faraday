@@ -740,6 +740,13 @@ impl Faraday {
             Screen::Vanity => &crate::vanity::VANITY_STEPS,
             Screen::KeyGen => &crate::keygen::steps::KEYGEN_STEPS,
             Screen::Create => &crate::create::CREATE_STEPS,
+            Screen::Backup
+                if self
+                    .backup()
+                    .is_some_and(|b| b.stage == crate::BStage::Plan) =>
+            {
+                &crate::wallet_backup::BACKUP_PLAN_STEPS
+            }
             Screen::Backup => &crate::wallet_backup::BACKUP_STEPS,
             Screen::BackupFlow => &crate::backup_flow::steps::FLOW_STEPS,
             Screen::SignerCheck => &crate::decode::check::SIGNER_STEPS,

@@ -37,6 +37,7 @@ use faraday_text::{Text, text};
 use faraday_ui::keyboard::OskPress;
 use zeroize::Zeroize;
 
+pub(crate) mod heading;
 pub(crate) mod kef;
 pub mod quick;
 use quick::{Quick, Step};
@@ -1373,8 +1374,10 @@ impl WalletBackupArea {
     /// `more`.
     pub(crate) fn open_item(&mut self, n: Option<plan::Item>, more: bool, key: Option<usize>) {
         if let Some(b) = self.state.as_mut() {
-            // A passphrase item opens, and closes, with it hidden.
-            if matches!(n, Some(plan::Item::Passphrase(_)))
+            // A passphrase item opens, and closes, with it hidden; a step
+            // left puts away what it showed (F104).
+            if n != b.open
+                || matches!(n, Some(plan::Item::Passphrase(_)))
                 || matches!(b.open, Some(plan::Item::Passphrase(_)))
             {
                 b.reveal = false;
@@ -1862,14 +1865,10 @@ impl Faraday {
     pub(crate) fn backup_act(&mut self, action: Action, c: &Compute) {
         match action {
             Action::BackupChecklist(i) => {
-                // The plan the chart shows, at its first item not done;
-                // nothing is made For the stick by opening it.
+                // The plan the chart shows, on the checklist card; nothing
+                // is made For the stick by opening it.
                 if self.chart_checklist(i, false) {
-                    let first = self
-                        .backup_items_now(c)
-                        .into_iter()
-                        .find(|&it| !self.backup_item_done_now(c, it));
-                    self.backup_item_open(first);
+                    self.backup_item_open(None);
                     // The short path shows its copy item, not the first
                     // item not done.
                     self.backup.quick_keeps_open();
@@ -3395,58 +3394,140 @@ impl Faraday {
     }
 }
 
-/// Back up a wallet's cards, plugged into Back and Forward (F104): the
-/// plan's questions, then the checklist, each in order.
+/// The checklist card, the first step of Back up's checklist: its items
+/// stand under it, by their places.
+const HEAD: u8 = u8::MAX;
+/// The step of an item that waits for one before it: not in the steps
+/// shown, so its row takes no press.
+const NOT_YET: u8 = u8::MAX - 1;
+/// The quick paper backup's cards.
+const QUICK_WRITE: u8 = 200;
+const QUICK_CHECK: u8 = 201;
+const QUICK_CODE: u8 = 202;
+
+/// Back up's cards on the container, plugged into Back and Forward
+/// (F104): the checklist, which is the first card with its items under
+/// it, and the quick paper backup's cards. The plan's questions are
+/// [`BackupPlanSteps`].
 pub(crate) struct BackupSteps;
 
 /// The one [`BackupSteps`].
 pub(crate) static BACKUP_STEPS: BackupSteps = BackupSteps;
 
+/// Back up's plan, its questions and the board, in order: still drawn in
+/// the flow's own column.
+pub(crate) struct BackupPlanSteps;
+
+/// The one [`BackupPlanSteps`].
+pub(crate) static BACKUP_PLAN_STEPS: BackupPlanSteps = BackupPlanSteps;
+
+/// Whether the frame found checklist item `it` done; an item the frame
+/// did not ask about reads as not done.
+fn drawn_done(app: &Faraday, it: plan::Item) -> bool {
+    app.drawing
+        .done
+        .borrow()
+        .iter()
+        .any(|&(i, done)| i == it && done)
+}
+
 impl BackupSteps {
+    /// The checklist's items, in order, as the plan stands.
+    fn items(&self, app: &Faraday) -> Vec<plan::Item> {
+        let Some(b) = app.backup() else {
+            return Vec::new();
+        };
+        let shape = app.plan_shape_now(b.wallet);
+        app.kept
+            .plan_mapped_kept(&shape, &b.answers)
+            .map(|mapped| plan::checklist_on(&shape, &b.answers, &mapped))
+            .unwrap_or_default()
+    }
+
     /// The checklist's item at place `k`, the key the trail keeps it by.
     fn item_at(&self, app: &Faraday, k: u8) -> Option<plan::Item> {
-        let b = app.backup()?;
-        let shape = app.plan_shape_now(b.wallet);
-        let mapped = app.kept.plan_mapped_kept(&shape, &b.answers)?;
-        plan::checklist_on(&shape, &b.answers, &mapped)
-            .get(usize::from(k))
-            .copied()
+        self.items(app).get(usize::from(k)).copied()
+    }
+
+    /// The quick paper backup's cards, in order.
+    fn quick_order(b: &BackupState) -> Vec<u8> {
+        let mut order = vec![QUICK_WRITE, QUICK_CHECK];
+        if b.quick_code {
+            order.push(QUICK_CODE);
+        }
+        order
+    }
+
+    /// The quick paper backup's open card.
+    fn quick_open(b: &BackupState) -> u8 {
+        match b.quick_step {
+            Step::Write => QUICK_WRITE,
+            Step::Check => QUICK_CHECK,
+            Step::Code => QUICK_CODE,
+        }
     }
 }
 
 impl crate::trail::StepFlow for BackupSteps {
     fn steps(&self, app: &Faraday) -> Option<crate::trail::Steps> {
-        let b = app.backup()?;
-        let shape = app.plan_shape_now(b.wallet);
+        let b = app.backup().filter(|b| b.stage == BStage::Checklist)?;
         // Only what a frame has worked out: until then there are no steps,
         // and Back leaves.
+        let shape = app.plan_shape_now(b.wallet);
         let mapped = app.kept.plan_mapped_kept(&shape, &b.answers)?;
-        Some(if b.stage == BStage::Checklist {
-            // The trail's steps are the items' places in the checklist.
-            let items = plan::checklist_on(&shape, &b.answers, &mapped);
-            let order = (0..items.len())
-                .filter_map(|k| u8::try_from(k).ok())
-                .collect();
-            let open = b
-                .open
-                .and_then(|it| items.iter().position(|&x| x == it))
-                .and_then(|k| u8::try_from(k).ok());
-            crate::trail::Steps::new(order, open)
-        } else {
-            crate::trail::Steps::new(plan_cards_on(&mapped), b.q)
-        })
+        if b.quick {
+            let mut s = crate::trail::Steps::new(Self::quick_order(b), Some(Self::quick_open(b)));
+            // The words are not shown again by a way back: Back from the
+            // check leaves, and the first card's row takes no press.
+            s.first = Some(QUICK_CHECK);
+            if b.quick_shown {
+                s.answered.push(QUICK_WRITE);
+            }
+            if drawn_done(app, plan::Item::Copy(0)) {
+                s.answered.push(QUICK_CHECK);
+            }
+            return Some(s);
+        }
+        let items = plan::checklist_on(&shape, &b.answers, &mapped);
+        let keys: Vec<u8> = (0..items.len())
+            .filter_map(|k| u8::try_from(k).ok())
+            .collect();
+        // With no item open the checklist is the card.
+        let open = b
+            .open
+            .and_then(|it| items.iter().position(|&x| x == it))
+            .and_then(|k| u8::try_from(k).ok())
+            .unwrap_or(HEAD);
+        let mut order = vec![HEAD];
+        order.extend(&keys);
+        let mut s = crate::trail::Steps::new(order, Some(open));
+        // A row waiting on an item before it is kept out of the press by
+        // its row's own step, not by what is answered.
+        s.answered = keys;
+        Some(s)
     }
 
     fn open(&self, app: &Faraday, k: u8) -> Action {
-        if let Some(b) = app.backup().filter(|b| b.stage == BStage::Checklist) {
-            // A place the checklist no longer has (it changed between
-            // Back and Forward) opens the checklist as it stands.
-            match self.item_at(app, k) {
-                Some(it) => Action::BStep(it),
-                None => Action::BackupChecklist(b.wallet),
-            }
-        } else {
-            Action::BQ(k)
+        let Some(b) = app.backup() else {
+            return Action::BQuick(Quick::Card);
+        };
+        if b.quick {
+            return match k {
+                QUICK_CHECK if b.quick_step == Step::Code => Action::BQuick(Quick::Copy),
+                QUICK_CHECK => Action::BQuick(Quick::Wrote),
+                QUICK_CODE => Action::BQuick(Quick::Next),
+                _ => Action::BQuick(Quick::Card),
+            };
+        }
+        if k == HEAD {
+            // The open item pressed again closes: the checklist.
+            return b.open.map_or(Action::BQuick(Quick::Card), Action::BStep);
+        }
+        // A place the checklist no longer has (it changed between Back and
+        // Forward) opens the checklist as it stands.
+        match self.item_at(app, k) {
+            Some(it) => Action::BStep(it),
+            None => b.open.map_or(Action::BQuick(Quick::Card), Action::BStep),
         }
     }
 
@@ -3454,12 +3535,12 @@ impl crate::trail::StepFlow for BackupSteps {
         let Some(b) = app.backup() else {
             return "";
         };
-        if b.stage != BStage::Checklist {
-            return match k {
-                qstep::BOARD => EN.board_title,
-                qstep::SOFTWARE => EN.question_title_software,
-                _ => EN.backup_flow_the_plan,
-            };
+        match k {
+            HEAD => return EN.vault_backup_checklist,
+            QUICK_WRITE => return EN.quick_write_title,
+            QUICK_CHECK => return EN.quick_check_title,
+            QUICK_CODE => return EN.backup_step_kef,
+            _ => {}
         }
         let Some(item) = self.item_at(app, k) else {
             return "";
@@ -3481,6 +3562,134 @@ impl crate::trail::StepFlow for BackupSteps {
             plan::Item::ShowDescriptor => EN.item_title_show_descriptor,
             plan::Item::Envelopes => EN.item_title_one_envelope,
             plan::Item::Sticks => app.medium.write_to(),
+        }
+    }
+
+    fn contained(&self) -> Option<&dyn crate::flow::Contained> {
+        Some(self)
+    }
+}
+
+impl crate::flow::Contained for BackupSteps {
+    fn rows(&self, app: &Faraday) -> Vec<crate::flow::Row> {
+        use crate::flow::Row;
+        let Some(b) = app.backup() else {
+            return Vec::new();
+        };
+        let done = Text::of(EN.backup_done);
+        if b.quick {
+            let at = Self::quick_open(b);
+            let row = |k: u8, label: &str, passed: bool| Row {
+                label: Text::of(label),
+                value: passed.then(|| done.clone()),
+                mono: false,
+                opens: k,
+                current: at == k,
+            };
+            let copied = drawn_done(app, plan::Item::Copy(0));
+            let mut rows = vec![
+                row(QUICK_WRITE, EN.quick_write_title, at != QUICK_WRITE),
+                row(
+                    QUICK_CHECK,
+                    EN.quick_check_title,
+                    copied && at != QUICK_CHECK,
+                ),
+            ];
+            if b.quick_code {
+                rows.push(row(QUICK_CODE, EN.backup_step_kef, false));
+            }
+            return rows;
+        }
+        let shape = app.plan_shape_now(b.wallet);
+        let items = self.items(app);
+        let waiting = items
+            .iter()
+            .find(|&&it| !drawn_done(app, it))
+            .map(|&it| heading::item_heading(app, &shape, it));
+        let mut before_done = true;
+        items
+            .iter()
+            .enumerate()
+            .map(|(k, &it)| {
+                let is_done = drawn_done(app, it);
+                let reachable = before_done;
+                before_done &= is_done;
+                let value = match (&waiting, is_done) {
+                    (_, true) => Some(done.clone()),
+                    (Some(t), false) if !reachable => Some(Text::of(&crate::strings::fill(
+                        EN.backup_after,
+                        &[t.as_str()],
+                    ))),
+                    _ => None,
+                };
+                Row {
+                    label: Text::of(&heading::item_heading(app, &shape, it)),
+                    value,
+                    mono: false,
+                    // An item that waits has no step to open yet.
+                    opens: if reachable {
+                        u8::try_from(k).unwrap_or(NOT_YET)
+                    } else {
+                        NOT_YET
+                    },
+                    current: b.open == Some(it),
+                }
+            })
+            .collect()
+    }
+
+    fn count_fixed(&self, _: &Faraday) -> bool {
+        false
+    }
+
+    fn still_fits(&self, app: &Faraday, _changed: u8, _later: u8) -> bool {
+        // The checklist's items stand on their own: one done does not
+        // change another's mark.
+        !app.backup().is_some_and(|b| b.quick)
+    }
+
+    fn title(&self, app: &Faraday, k: u8) -> crate::flow::Title {
+        let Some(b) = app.backup().filter(|b| !b.quick) else {
+            return Text::of(crate::trail::StepFlow::name(self, app, k));
+        };
+        match self.item_at(app, k).filter(|_| k != HEAD) {
+            Some(it) => Text::of(&heading::item_heading(
+                app,
+                &app.plan_shape_now(b.wallet),
+                it,
+            )),
+            None => Text::of(crate::trail::StepFlow::name(self, app, k)),
+        }
+    }
+
+    fn heads(&self, app: &Faraday) -> usize {
+        usize::from(app.backup().is_some_and(|b| !b.quick))
+    }
+
+    fn checklist(&self, app: &Faraday) -> bool {
+        app.backup().is_some_and(|b| !b.quick)
+    }
+}
+
+impl crate::trail::StepFlow for BackupPlanSteps {
+    fn steps(&self, app: &Faraday) -> Option<crate::trail::Steps> {
+        let b = app.backup()?;
+        let shape = app.plan_shape_now(b.wallet);
+        // Only what a frame has worked out: until then there are no steps,
+        // and Back leaves.
+        let mapped = app.kept.plan_mapped_kept(&shape, &b.answers)?;
+        Some(crate::trail::Steps::new(plan_cards_on(&mapped), b.q))
+    }
+
+    fn open(&self, _: &Faraday, k: u8) -> Action {
+        Action::BQ(k)
+    }
+
+    fn name(&self, _: &Faraday, k: u8) -> &'static str {
+        match k {
+            qstep::BOARD => EN.board_title,
+            qstep::SOFTWARE => EN.question_title_software,
+            _ => EN.backup_flow_the_plan,
         }
     }
 }

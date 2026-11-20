@@ -627,3 +627,27 @@ pub(crate) fn options_sheet(app: &crate::drawing::View, ui: &mut crate::ui::Ui, 
         crate::kef_form::screen::sheet(app, ui, (w, h), f, ask());
     }
 }
+
+/// The Krux code sheets the plan prints, by side and number: one per
+/// place and seed holding its code on Paper, at the side of the code if
+/// one is made (`docs/KEF.md` §15.5). Sides in order.
+pub(crate) fn templates(
+    app: &crate::Faraday,
+    shape: &crate::plan::Shape,
+    mapped: &crate::plan::Mapped,
+) -> Vec<(usize, usize)> {
+    let mut out: Vec<(usize, usize)> = Vec::new();
+    for i in shape.here() {
+        let n = crate::plan::kef_paper_places(mapped, i);
+        if n == 0 {
+            continue;
+        }
+        let side = template_side(app, i);
+        match out.iter_mut().find(|(s, _)| *s == side) {
+            Some((_, k)) => *k += n,
+            None => out.push((side, n)),
+        }
+    }
+    out.sort_unstable();
+    out
+}

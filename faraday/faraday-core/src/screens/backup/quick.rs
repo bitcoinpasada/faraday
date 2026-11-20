@@ -5,67 +5,13 @@
 use super::*;
 use crate::wallet_backup::quick::{Quick, Step};
 
-/// The screen, drawn in the column `col` [`draw`] of the checklist made.
-pub(super) fn draw(
-    app: &View,
-    ui: &mut Ui,
-    col: &flow::Column,
-    (x0, cw, h): (f32, f32, f32),
-    (panel_w, pick): (f32, bool),
-) {
-    let Some(b) = app.backup() else {
-        return;
-    };
-    let title = match b.quick_step {
-        Step::Write => EN.quick_write_title,
-        Step::Check => EN.quick_check_title,
-        Step::Code => EN.backup_step_kef,
-    };
-    let card = |title: &str, done: bool, toggle: Action| flow::Card {
-        title: String::from(title),
-        summary: String::new(),
-        mono: false,
-        done,
-        open: !done,
-        default: false,
-        toggle,
-        lead: None,
-    };
-    // The check is the second step: the first stands before it, done,
-    // and its press goes back to the words.
-    let mut cards = Vec::new();
-    if b.quick_step != Step::Write {
-        cards.push(card(
-            EN.quick_write_title,
-            true,
-            Action::BQuick(Quick::Show),
-        ));
-    }
-    // The code's card is the third: the check stands before it, done.
-    if b.quick_step == Step::Code {
-        cards.push(card(
-            EN.quick_check_title,
-            true,
-            Action::BQuick(Quick::Copy),
-        ));
-    }
-    cards.push(card(title, false, Action::BQuick(Quick::Card)));
-    let mut body = |ui: &mut Ui, _: usize, x: f32, y: f32, w: f32| body(app, ui, x, y, w);
-    let mut foot = |ui: &mut Ui, x: f32, y: f32, w: f32| foot(app, ui, x, y, w);
-    let (next, again) =
-        flow::column_wide(ui, col, None, &cards, b.scroll, &mut body, Some(&mut foot));
-    app.scroll(Scrolled::Backup, next, again);
-    if !ui.compact {
-        backup_panel(app, ui, x0 + cw - panel_w, panel_w, h);
-    }
-    if pick && let Some((cx, cy, chip_w)) = ui.chip_at {
-        let right = if ui.compact {
-            x0 + cw
-        } else {
-            x0 + cw - panel_w
-        } - T::PAD;
-        wallet_pick(app, ui, cx, cy + T::GAP_SMALL, chip_w, right);
-    }
+/// The open card of the quick paper backup: its body, then the foot at
+/// its end. Returns its height.
+pub(super) fn card(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let mut cy = y;
+    cy += body(app, ui, x, cy, w);
+    cy += foot(app, ui, x, cy, w);
+    cy - y
 }
 
 /// Whether the copy item is done: the words typed back, and the SeedQR

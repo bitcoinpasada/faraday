@@ -55,12 +55,13 @@ fn item_title_on(reads: &impl crate::glance::Reads, item: crate::plan::Item) -> 
     let a = &b.answers;
     let (_, keys_n) = Session::quorum_keys(wallet);
     let done = reads.backup_item_done(item);
+    let heading = || crate::wallet_backup::heading::item_heading(app, &shape, item);
     match item {
         Item::Templates => {
             let mapped = reads.plan_mapped(&shape, a);
             let words_n = crate::plan::templates_on(&shape, &mapped);
             let c32 = crate::plan::codex32::templates_of(a, &mapped);
-            let kef = kef_templates(app, &shape, &mapped);
+            let kef = crate::wallet_backup::kef::templates(app, &shape, &mapped);
             let k = (words_n
                 + c32.iter().map(|&(_, _, n)| n).sum::<usize>()
                 + kef.iter().map(|&(_, n)| n).sum::<usize>())
@@ -77,26 +78,10 @@ fn item_title_on(reads: &impl crate::glance::Reads, item: crate::plan::Item) -> 
                 ),
                 _ => fill(EN.item_title_template_n, &[&b.words.to_string()]),
             };
-            (
-                fill(
-                    EN.item_title_print_blank,
-                    &[
-                        &k.to_string(),
-                        (if k == 1 {
-                            EN.item_title_template_inline
-                        } else {
-                            EN.item_title_templates
-                        }),
-                    ],
-                ),
-                line,
-            )
+            (crate::wallet_backup::heading::templates_heading(k), line)
         }
-        Item::Codex32(i) => (
-            fill(
-                EN.c32_item_title,
-                &[(shape.seeds.get(i).map_or("", |s| s.name.as_str()))],
-            ),
+        Item::Codex32(_) => (
+            heading(),
             if done {
                 EN.item_title_checked
             } else {
@@ -104,15 +89,8 @@ fn item_title_on(reads: &impl crate::glance::Reads, item: crate::plan::Item) -> 
             }
             .to_string(),
         ),
-        Item::Copy(i) | Item::Passphrase(i) | Item::Parts(i) => (
-            fill(
-                match item {
-                    Item::Copy(_) => EN.item_title_copy_seed,
-                    Item::Parts(_) => EN.item_title_parts,
-                    _ => EN.item_title_passphrase,
-                },
-                &[(shape.seeds.get(i).map_or("", |s| s.name.as_str()))],
-            ),
+        Item::Copy(_) | Item::Passphrase(_) | Item::Parts(_) => (
+            heading(),
             if done {
                 EN.item_title_checked
             } else {
@@ -121,10 +99,7 @@ fn item_title_on(reads: &impl crate::glance::Reads, item: crate::plan::Item) -> 
             .to_string(),
         ),
         Item::KefCode(i) => (
-            fill(
-                EN.item_title_kef,
-                &[(shape.seeds.get(i).map_or("", |s| s.name.as_str()))],
-            ),
+            heading(),
             if done {
                 EN.item_title_checked
             } else if crate::wallet_backup::kef::pending(app, i) {
@@ -135,27 +110,14 @@ fn item_title_on(reads: &impl crate::glance::Reads, item: crate::plan::Item) -> 
             .to_string(),
         ),
         Item::Vault(v) => {
-            let names: Vec<&str> = a
-                .vault_seeds(&shape, v)
-                .into_iter()
-                .map(|i| shape.seeds[i].name.as_str())
-                .collect();
-            let title = if names.is_empty() {
-                fill(EN.item_title_vault_number, &[&(v + 1).to_string()])
-            } else {
-                fill(
-                    EN.item_title_vault,
-                    &[&(v + 1).to_string(), &names.join(", ").to_string()],
-                )
-            };
             let line = match reads.backup_vault_fits(v) {
                 Some(name) => fill(EN.item_title_in_vault, &[&*name]),
                 None => EN.item_title_not_saved.to_string(),
             };
-            (title, line)
+            (heading(), line)
         }
         Item::SeedFiles => (
-            EN.item_title_the_seeds.to_string(),
+            heading(),
             app.wallet_seeds_written()
                 .map(|t| String::from(&*t))
                 .unwrap_or_else(|| {
@@ -168,7 +130,7 @@ fn item_title_on(reads: &impl crate::glance::Reads, item: crate::plan::Item) -> 
                 }),
         ),
         Item::Sheets if a.split && shape.splits => (
-            EN.item_title_the_shares.to_string(),
+            heading(),
             app.wallet_shares_written()
                 .map(|t| String::from(&*t))
                 .unwrap_or_else(|| {
@@ -182,7 +144,7 @@ fn item_title_on(reads: &impl crate::glance::Reads, item: crate::plan::Item) -> 
                 }),
         ),
         Item::Sheets => (
-            EN.item_title_the_wallet.to_string(),
+            heading(),
             app.wallet_item_written(&[format!(
                 "{}-backup.pdf",
                 crate::file_stem(&wallet.name).as_str()
@@ -198,7 +160,7 @@ fn item_title_on(reads: &impl crate::glance::Reads, item: crate::plan::Item) -> 
             }),
         ),
         Item::PublicFiles => (
-            EN.item_title_the_public.to_string(),
+            heading(),
             app.wallet_item_written(&reads.backup_public_names_for(b.wallet, a))
                 .unwrap_or_else(|| ticked(&SOFTWARE_ROWS, &a.software))
                 .as_str()
@@ -211,7 +173,7 @@ fn item_title_on(reads: &impl crate::glance::Reads, item: crate::plan::Item) -> 
                     app.flows[i].written_of()
                 });
             (
-                app.medium.write_to().to_string(),
+                heading(),
                 if n == 0 {
                     EN.backup_flow_row_none.to_string()
                 } else {
@@ -223,7 +185,7 @@ fn item_title_on(reads: &impl crate::glance::Reads, item: crate::plan::Item) -> 
             )
         }
         Item::ShowDescriptor => (
-            EN.item_title_show_descriptor.to_string(),
+            heading(),
             if done {
                 EN.item_title_shown
             } else {
@@ -232,7 +194,7 @@ fn item_title_on(reads: &impl crate::glance::Reads, item: crate::plan::Item) -> 
             .to_string(),
         ),
         Item::Envelopes => (
-            EN.item_title_one_envelope.to_string(),
+            heading(),
             format!(
                 "{} {}",
                 a.places,
@@ -253,9 +215,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // With the board shown on a large window the page runs to the
     // window's edge: the cards keep the reading column, the board runs
     // on to the supporting pane's spacer, and its list is that pane
-    // (`docs/LAYOUT.md` §14, §17). The plan's other cards and the
-    // checklist keep that column too, so no card moves when the board's
-    // card opens.
+    // (`docs/LAYOUT.md` §14, §17).
     let wide = crate::screens::backup_work_end(app);
     let work = crate::screens::board_work_end(app);
     let col_w = match wide {
@@ -282,86 +242,30 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(wallet) = app.session.wallets.get(b.wallet) else {
         return;
     };
-    let checklist = b.stage == BStage::Checklist;
-    let items = if checklist {
-        app.backup_items()
-    } else {
-        Vec::new()
-    };
-    let questions = if checklist {
-        Vec::new()
-    } else {
-        app.backup_questions()
-    };
-    // The items after one not done wait for it (`docs/WALLETS.md` §13):
-    // each says which.
-    let waiting = if checklist {
-        app.backup_waiting()
-    } else {
-        None
-    };
-    let waiting_title = waiting.map(|n| item_title(app, n).0);
+    // The checklist and the quick paper backup's cards are on the flow
+    // container; the plan's questions and the board keep their column.
+    if b.stage == BStage::Checklist {
+        return checklist_draw(app, ui, (x0, cw, h), b, wallet);
+    }
+    let questions = app.backup_questions();
     let ctx = crate::plan::cards::PlanCtx::backup(app);
-    // Each item's done mark, and whether it is reachable (every item
-    // before it done), in one pass (`Faraday::backup_reachable`, for a
-    // press, asks the same of one item).
-    let marks: Vec<bool> = if checklist {
-        items.iter().map(|&it| app.backup_item_done(it)).collect()
-    } else {
-        Vec::new()
-    };
-    let mut before_done = true;
-    let reachable: Vec<bool> = marks
+    let cards: Vec<flow::Card> = questions
         .iter()
-        .map(|&d| {
-            let r = before_done;
-            before_done &= d;
-            r
+        .map(|&k| flow::Card {
+            title: ctx.as_ref().map_or_else(String::new, |c| {
+                String::from(crate::plan::cards::title(c, k))
+            }),
+            summary: ctx.as_ref().map_or_else(String::new, |c| {
+                String::from(&*crate::plan::cards::summary(c, k))
+            }),
+            mono: false,
+            done: false,
+            open: b.q == Some(k),
+            default: false,
+            toggle: Action::BQ(k),
+            lead: None,
         })
         .collect();
-    let cards: Vec<flow::Card> = if checklist {
-        items
-            .iter()
-            .enumerate()
-            .map(|(i, &k)| {
-                let (title, summary) = item_title(app, k);
-                let summary = match (&waiting_title, waiting) {
-                    (Some(t), Some(n)) if n != k && !reachable[i] && !marks[i] => {
-                        fill(EN.backup_after, &[t.as_str()])
-                    }
-                    _ => String::from(summary.as_str()),
-                };
-                flow::Card {
-                    title: String::from(title.as_str()),
-                    summary,
-                    mono: false,
-                    done: marks[i],
-                    open: b.open == Some(k),
-                    default: false,
-                    toggle: Action::BStep(k),
-                    lead: None,
-                }
-            })
-            .collect()
-    } else {
-        questions
-            .iter()
-            .map(|&k| flow::Card {
-                title: ctx.as_ref().map_or_else(String::new, |c| {
-                    String::from(crate::plan::cards::title(c, k))
-                }),
-                summary: ctx.as_ref().map_or_else(String::new, |c| {
-                    String::from(&*crate::plan::cards::summary(c, k))
-                }),
-                mono: false,
-                done: false,
-                open: b.q == Some(k),
-                default: false,
-                toggle: Action::BQ(k),
-                lead: None,
-            })
-            .collect()
-    };
     // With more than one wallet loaded, the one backed up is a chip that
     // opens the list of them.
     let many = app.session.wallets.len() > 1;
@@ -371,8 +275,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         fill(EN.backup_back_up, &[&wallet.name])
     };
     let pick = b.pick && many;
-    // A small panel has no room for the side panel: the map is a page of
-    // the plan, and the envelopes list the places.
     let compact = ui.compact;
     let col = flow::Column {
         area_x: x0,
@@ -384,11 +286,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         x: col_x,
         w: col_w,
         h,
-        back: Some(app.named_back(if b.from_vault {
-            (EN.backup_vault_contents, Action::Nav(Screen::VaultContents))
-        } else {
-            (EN.backup_wallets, Action::OpenWallet(b.wallet))
-        })),
+        back: Some(backup_back(app, b)),
         heading: &heading,
         wrap_closed: false,
         total_fixed: false,
@@ -406,58 +304,14 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let scroll = b.scroll;
     ui.chip_at = None;
-    // The quick paper backup has screens of its own.
-    if b.quick {
-        return quick::draw(app, ui, &col, (x0, cw, h), (panel_w, pick));
-    }
-    let all_done = checklist && marks.iter().all(|&d| d);
     let (next, again) = {
         let app_ref: &View = app;
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
-            if checklist {
-                backup_body(app_ref, ui, items[i], x, y, w)
-            } else {
-                plan_body(app_ref, ui, ctx.as_ref(), questions[i], x, y, w)
-            }
+            plan_body(app_ref, ui, ctx.as_ref(), questions[i], x, y, w)
         };
-        let mut foot = |ui: &mut Ui, x: f32, y: f32, w: f32| -> f32 {
-            if !checklist {
-                // Make the checklist is on The plan card alone
-                // (`docs/BACKUP-FLOW.md` §15.1).
-                return 0.0;
-            }
-            // A match with the clock not checked is dated by Set the
-            // time, whichever item the checklist has moved on to.
-            let mut fy = y;
-            if app_ref.backup().is_some_and(|b| b.undated) && !app_ref.clock_checked() {
-                ui.button(
-                    x,
-                    fy,
-                    None,
-                    BUTTON_H,
-                    EN.copy_check_set_the_time,
-                    Style::Secondary,
-                    Action::OpenSetTime,
-                );
-                fy += BUTTON_H + T::GAP + T::GAP_SMALL;
-            }
-            fy - y
-                + if all_done {
-                    app_ref.backup().map_or(0.0, |b| {
-                        wallet_done(app_ref, ui, b.wallet, From::Backup, None, (x, fy, w))
-                    })
-                } else {
-                    wrap_buttons(
-                        ui,
-                        x,
-                        fy,
-                        w,
-                        40.0,
-                        &[(EN.backup_change_the_plan, Style::Secondary, Action::BPlan)],
-                    )
-                }
-        };
-        flow::column_wide(ui, &col, work, &cards, scroll, &mut body, Some(&mut foot))
+        // Make the checklist is on The plan card alone
+        // (`docs/BACKUP-FLOW.md` §15.1): no foot.
+        flow::column_wide(ui, &col, work, &cards, scroll, &mut body, None)
     };
     app.scroll(Scrolled::Backup, next, again);
     // While the board is shown its list is the right-hand column, the
@@ -474,6 +328,195 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let right = if compact { x0 + cw } else { x0 + cw - panel_w } - 16.0;
         wallet_pick(app, ui, cx, cy + 6.0, chip_w, right);
     }
+}
+
+/// The way back from the backup: the vault's contents it came from, else
+/// the wallet's card.
+fn backup_back<'a>(app: &'a View, b: &crate::BackupState) -> (&'a str, Action) {
+    app.named_back(if b.from_vault {
+        (EN.backup_vault_contents, Action::Nav(Screen::VaultContents))
+    } else {
+        (EN.backup_wallets, Action::OpenWallet(b.wallet))
+    })
+}
+
+/// The checklist's card and the items' cards, and the quick paper
+/// backup's, on the flow container (`docs/FLOW-CONTAINER.md`): one card at
+/// a time, Your choices at its right with the map under its rows.
+fn checklist_draw(
+    app: &View,
+    ui: &mut Ui,
+    (x0, cw, h): (f32, f32, f32),
+    b: &crate::BackupState,
+    wallet: &crate::wallet::Wallet,
+) {
+    // Each item's done mark, once, for the frame: the checklist's rows and
+    // Your choices read what this asks.
+    let items = app.backup_items();
+    let marks: Vec<bool> = items.iter().map(|&it| app.backup_item_done(it)).collect();
+    // With more than one wallet loaded, the one backed up is a chip that
+    // opens the list of them.
+    let many = app.session.wallets.len() > 1;
+    let heading = if many {
+        EN.backup_back_up_a_wallet.to_string()
+    } else {
+        fill(EN.backup_back_up, &[&wallet.name])
+    };
+    let pick = b.pick && many;
+    let page = flow::Page {
+        area: (x0, cw),
+        h,
+        foot_h: 0.0,
+        back: Some(backup_back(app, b)),
+        heading: &heading,
+        // From Create the wallet is the one just made, and the way on is
+        // its card.
+        chip: if b.from_create {
+            Some(EN.backup_then_wallets)
+        } else {
+            many.then_some(wallet.name.as_str())
+        },
+        note: None,
+        chip_tap: (many && !b.from_create).then_some(Action::BWallets),
+        moves: crate::ui::Moves::Yes,
+    };
+    ui.chip_at = None;
+    let Some(contained) = crate::trail::StepFlow::contained(&crate::wallet_backup::BACKUP_STEPS)
+    else {
+        return;
+    };
+    let app_ref: &View = app;
+    let mut body = |ui: &mut Ui, k: u8, x: f32, y: f32, w: f32| -> f32 {
+        if app_ref.backup().is_some_and(|b| b.quick) {
+            return quick::card(app_ref, ui, x, y, w);
+        }
+        match items.get(usize::from(k)).filter(|_| k != u8::MAX) {
+            Some(&it) => backup_body(app_ref, ui, it, x, y, w),
+            None => checklist_card(app_ref, ui, &items, &marks, x, y, w),
+        }
+    };
+    // Under Your choices' rows: the map and the check.
+    let mut under =
+        |ui: &mut Ui, x: f32, y: f32, w: f32| -> f32 { backup_under(app_ref, ui, x, y, w) };
+    let (next, again, room) = flow::contained(
+        ui, app_ref, contained, &page, b.scroll, &mut body, &mut under,
+    );
+    app.scroll(Scrolled::Backup, next, again);
+    if pick && let Some((cx, cy, chip_w)) = ui.chip_at {
+        let right = room.area_x + room.area_w - T::PAD;
+        wallet_pick(app, ui, cx, cy + T::GAP_SMALL, chip_w, right);
+    }
+}
+
+/// The checklist card's body: the items, each a line with its mark and
+/// state, a press opening its card once every item before it is done
+/// (`docs/WALLETS.md` §13); then the foot.
+fn checklist_card(
+    app: &View,
+    ui: &mut Ui,
+    items: &[Item],
+    marks: &[bool],
+    x: f32,
+    y: f32,
+    w: f32,
+) -> f32 {
+    // The items after one not done wait for it: each says which.
+    let waiting = app.backup_waiting();
+    let waiting_title = waiting.map(|n| item_title(app, n).0);
+    let (lh, sh) = (ui.line_as(LABEL_L), ui.line_as(BODY_S));
+    let row = (2.0 * T::GAP + lh + T::GAP_SMALL + sh).max(T::ROW);
+    let tw = w - T::LIST_INDENT;
+    let mut cy = y;
+    let mut before_done = true;
+    for (i, &it) in items.iter().enumerate() {
+        let done = marks.get(i).copied().unwrap_or(false);
+        let reachable = before_done;
+        before_done &= done;
+        let (title, summary) = item_title(app, it);
+        let summary = match (&waiting_title, waiting) {
+            (Some(t), Some(n)) if n != it && !reachable && !done => {
+                fill(EN.backup_after, &[t.as_str()])
+            }
+            _ => summary,
+        };
+        ui.rule(x, cy, w, Role::OutlineVariant);
+        ui.badge(x + T::GAP, cy + T::GAP, &(i + 1).to_string(), done, false);
+        let title = ui.fit_as(LABEL_L, &title, tw);
+        ui.text_as(
+            x + T::LIST_INDENT,
+            cy + T::GAP,
+            LABEL_L,
+            Role::OnSurface,
+            &title,
+        );
+        let summary = ui.fit_as(BODY_S, &summary, tw);
+        ui.text_as(
+            x + T::LIST_INDENT,
+            cy + T::GAP + lh + T::GAP_SMALL,
+            BODY_S,
+            Role::OnSurfaceVariant,
+            &summary,
+        );
+        // An item waiting for one before it takes no press.
+        if reachable {
+            ui.press_box(x, cy, w, row, Action::BStep(it));
+        }
+        cy += row;
+    }
+    if !items.is_empty() {
+        ui.rule(x, cy, w, Role::OutlineVariant);
+        cy += T::GAP;
+    }
+    let all_done = marks.iter().all(|&d| d);
+    cy + T::GAP + checklist_foot(app, ui, all_done, x, cy + T::GAP, w) - y
+}
+
+/// What ends the checklist card: Set the time where a match is not dated,
+/// then Change the plan, or the wallet done card once every item is done.
+fn checklist_foot(app: &View, ui: &mut Ui, all_done: bool, x: f32, y: f32, w: f32) -> f32 {
+    // A match with the clock not checked is dated by Set the
+    // time, whichever item the checklist has moved on to.
+    let mut fy = y;
+    if app.backup().is_some_and(|b| b.undated) && !app.clock_checked() {
+        ui.button(
+            x,
+            fy,
+            None,
+            BUTTON_H,
+            EN.copy_check_set_the_time,
+            Style::Secondary,
+            Action::OpenSetTime,
+        );
+        fy += BUTTON_H + T::GAP + T::GAP_SMALL;
+    }
+    fy - y
+        + if all_done {
+            app.backup().map_or(0.0, |b| {
+                wallet_done(app, ui, b.wallet, From::Backup, None, (x, fy, w))
+            })
+        } else {
+            wrap_buttons(
+                ui,
+                x,
+                fy,
+                w,
+                40.0,
+                &[(EN.backup_change_the_plan, Style::Secondary, Action::BPlan)],
+            )
+        }
+}
+
+/// What stands under Your choices' rows: the map of what is kept where,
+/// and the check on it. Returns its height.
+fn backup_under(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let mut cy = y + T::GAP;
+    ui.text_as(x, cy, LABEL_L, Role::OnSurfaceVariant, EN.backup_panel_map);
+    cy += ui.line_as(LABEL_L) + T::GAP;
+    cy += map_rows(app, ui, x, cy, w, true);
+    ui.rule(x, cy, w, Role::OutlineVariant);
+    cy += T::GAP;
+    cy += check_rows(app, ui, x, cy, w);
+    cy - y
 }
 
 /// The open card of Back up's plan (`docs/BACKUP-FLOW.md` §15.1), drawn
@@ -649,7 +692,7 @@ pub(crate) fn templates_line(app: &View, b: &crate::wallet_backup::BackupState) 
     let mapped = app.plan_mapped(&shape, &b.answers);
     let words_n = crate::plan::templates_on(&shape, &mapped);
     let c32 = crate::plan::codex32::templates_of(&b.answers, &mapped);
-    let kef = kef_templates(app, &shape, &mapped);
+    let kef = crate::wallet_backup::kef::templates(app, &shape, &mapped);
     let mut clauses: Vec<String> = Vec::new();
     if words_n > 0 || (c32.is_empty() && kef.is_empty()) {
         clauses.push(fill(
@@ -2509,30 +2552,6 @@ fn old_parts(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         ) + T::GAP;
     }
     cy - y
-}
-
-/// The Krux code sheets the plan prints, by side and number: one per
-/// place and seed holding its code on Paper, at the side of the code if
-/// one is made (`docs/KEF.md` §15.5). Sides in order.
-fn kef_templates(
-    app: &Faraday,
-    shape: &crate::plan::Shape,
-    mapped: &crate::plan::Mapped,
-) -> Vec<(usize, usize)> {
-    let mut out: Vec<(usize, usize)> = Vec::new();
-    for i in shape.here() {
-        let n = crate::plan::kef_paper_places(mapped, i);
-        if n == 0 {
-            continue;
-        }
-        let side = crate::wallet_backup::kef::template_side(app, i);
-        match out.iter_mut().find(|(s, _)| *s == side) {
-            Some((_, k)) => *k += n,
-            None => out.push((side, n)),
-        }
-    }
-    out.sort_unstable();
-    out
 }
 
 /// The Templates item's clause for `n` codex32 templates of `len`
