@@ -203,7 +203,6 @@ ends on a dead end). Another and Done stay where the flows have them.
 | Read a Bitcoin Core wallet | `core_wallet/screen.rs` | its steps, a foot under the last | none | none |
 | Check a timestamp | `ots_check/screen.rs` | its steps | none | none |
 | Krux code | `kef_tool/screen.rs` | its steps | none | none |
-| QR vault | `qr_tool/screen.rs` | its steps | none | none |
 
 The screens are under `faraday/faraday-core/src/`. A flow's foot (what
 `column_foot` draws under the last card today) becomes part of its last
