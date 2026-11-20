@@ -1493,3 +1493,20 @@ fn a_key_typed_in_a_cosigners_box_is_held_and_no_stick_is_handed_out() {
     ]));
     assert_eq!(app.sheet, Some(Sheet::Lock), "the stick was handed out");
 }
+
+/// The custom path box takes any text, an extended private key among it:
+/// once it differs from the standard path it is held, so the app is not
+/// clean; opened and left as it is, it holds nothing.
+#[test]
+fn text_typed_in_the_custom_path_box_is_held() {
+    let mut app = two_of_three_from_seeds();
+    assert!(app.clean(), "nothing is typed yet");
+    app.press(Action::Seeds(S::Custom));
+    assert!(app.clean(), "the standard path is counted as typed");
+    type_text(
+        &mut app,
+        "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi",
+    );
+    assert!(testkit::secret_typed(&app), "typed text is not counted");
+    assert!(!app.clean(), "typed text is counted clean");
+}

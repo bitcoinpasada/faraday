@@ -127,10 +127,20 @@ pub struct SeedsState {
 }
 
 impl SeedsState {
-    /// Whether a cosigner's box holds anything: it takes any text, so a
-    /// key that is not an account key can be in it.
+    /// Whether a cosigner's box or the custom path box holds anything
+    /// typed: each takes any text, so a key that is not an account key
+    /// can be in it. The custom box, which starts as the standard path
+    /// and holds it until it is edited, counts only when it differs
+    /// from the standard path of the kind on every network.
     pub(crate) fn cosigner_typed(&self) -> bool {
+        use faraday_bip::keys::Network::{Mainnet, Regtest, Signet, Testnet};
         self.cosigners.iter().any(|c| !c.is_empty())
+            || self.custom.as_ref().is_some_and(|p| {
+                !p.is_empty()
+                    && ![Mainnet, Testnet, Signet, Regtest]
+                        .iter()
+                        .any(|&n| self.kind.path_at(n, self.account).as_str() == p.as_str())
+            })
     }
 
     /// The kinds a wallet of this many keys can be.
