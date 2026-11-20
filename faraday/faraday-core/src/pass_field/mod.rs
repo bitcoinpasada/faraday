@@ -55,9 +55,9 @@ impl Kind {
     fn most(self) -> Option<usize> {
         match self {
             Kind::Bip39 => Some(faraday_bip::bip39::MAX_PASSPHRASE_BYTES),
-            Kind::KefMake | Kind::KefRead => Some(faraday_keys::kef::PASSPHRASE_MAX),
+            Kind::KefMake => Some(faraday_keys::kef::PASSPHRASE_MAX),
             Kind::CoreWallet => Some(1024),
-            Kind::Lightning | Kind::Vault | Kind::Kdbx => None,
+            Kind::KefRead | Kind::Lightning | Kind::Vault | Kind::Kdbx => None,
         }
     }
 }
@@ -407,7 +407,7 @@ fn each_ref(app: &Faraday, mut f: impl FnMut(Where, &PassField, bool)) {
 /// (F41, `in_progress.rs`): none of the fields listed is one.
 pub(crate) fn left(app: &mut Faraday) {
     each(app, |_, field, up| {
-        if !up && !field.is_empty() {
+        if !up && field.holds_any() {
             field.clear();
         }
     });

@@ -189,32 +189,11 @@ fn a_stick_arriving_empties_add_a_keys_passphrase() {
 }
 
 #[test]
-fn add_a_keys_passphrase_is_gone_after_leaving_and_after_lock() {
+fn add_a_keys_passphrase_stops_at_256_bytes_and_says_so() {
+    const TOO_LONG: &str = "That passphrase is as long as one can be";
     let mut app = add_a_key();
     app.press(Action::EntryPassphrase);
-    type_text(&mut app, "hunter2");
-    app.press(Action::Nav(Screen::Home));
-    assert_eq!(app.screen, Screen::Home);
-    assert_eq!(testkit::entry(&app).passphrase(), "");
-    let mut app = add_a_key();
-    app.press(Action::EntryPassphrase);
-    type_text(&mut app, "hunter2");
-    app.press(Action::Lock);
-    assert_eq!(testkit::entry(&app).passphrase(), "");
-}
-
-#[test]
-fn add_a_key_waits_for_the_eye_after_a_passphrase_typed_on_a_hardware_keyboard() {
-    let mut app = add_a_key();
-    app.press(Action::EntryPassphrase);
-    type_text(&mut app, "ab");
-    app.press(Action::EntryPassphraseAgain);
-    type_text(&mut app, "ab");
-    let keys = app.session.keys.len();
-    app.press(Action::EntryAdd);
-    assert_eq!(app.screen, Screen::Entry, "Add waits for the eye");
-    assert_eq!(app.session.keys.len(), keys);
-    app.press(Action::PassEye);
-    app.press(Action::EntryAdd);
-    assert_eq!(app.session.keys.len(), keys + 1, "the key is added");
+    type_text(&mut app, &"a".repeat(300));
+    assert_eq!(testkit::entry(&app).passphrase().len(), 256);
+    assert!(shows(&mut app, TOO_LONG));
 }

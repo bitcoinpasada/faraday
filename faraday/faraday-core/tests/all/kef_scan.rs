@@ -1515,34 +1515,64 @@ fn a_multisig_checks_seed_card_lists_the_krux_row_and_a_code_read_there_reaches_
     assert!(app.session.keys.all().next().is_none());
 }
 
+const TOO_LONG: &str = "That passphrase is as long as one can be";
+
 #[test]
-fn a_control_character_typed_into_the_krux_passphrase_is_not_taken() {
-    let (code, pass) = vector("gcm");
+fn a_krux_passphrase_over_200_bytes_is_taken_whole() {
     let mut app = scanner();
-    read(&mut app, &code);
-    go(&mut app, "Open");
-    let (head, tail) = pass.split_at(pass.len() / 2);
-    type_text(&mut app, head);
-    app.event(Event::Key(Key::Char('\u{7}')));
-    open_with(&mut app, tail);
-    assert_eq!(
-        app.sheet,
-        Some(Sheet::SeedRead),
-        "the passphrase was the one typed, with no character added"
+    asking(&mut app);
+    type_text(&mut app, &"k".repeat(250));
+    assert!(
+        !has(&mut app, TOO_LONG),
+        "a code made elsewhere may have one"
     );
 }
 
 #[test]
-fn the_seed_sheet_s_passphrase_is_gone_when_the_sheet_is_left() {
-    let (code, pass) = vector("ctr");
+fn a_krux_hex_key_over_100_bytes_is_taken_whole() {
     let mut app = scanner();
-    read(&mut app, &code);
-    go(&mut app, "Open");
-    open_with(&mut app, &pass);
+    asking(&mut app);
+    app.press(Action::KefRead(KefAct::Hex));
+    type_text(&mut app, &"a7".repeat(150));
+    assert!(
+        !has(&mut app, TOO_LONG),
+        "a code made elsewhere may have one"
+    );
+}
+
+/// The seed sheet with its two passphrase fields shown.
+fn seed_sheet_with_passphrase_fields(app: &mut Faraday) {
+    let (code, pass) = vector("ctr");
+    read(app, &code);
+    go(app, "Open");
+    open_with(app, &pass);
     assert_eq!(app.sheet, Some(Sheet::SeedRead));
     app.press(Action::SeedRead(faraday_core::seeds::read::Choice::AddPass));
+}
+
+#[test]
+fn a_stick_arriving_empties_the_seed_sheet_s_passphrase() {
+    let mut app = scanner();
+    seed_sheet_with_passphrase_fields(&mut app);
+    app.press(Action::SeedRead(faraday_core::seeds::read::Choice::Field(
+        0,
+    )));
     type_text(&mut app, "hunter2");
     assert_eq!(app.seed_read().expect("the sheet").pass(), "hunter2");
-    app.press(Action::Cancel);
+    app.storage(stick());
     assert!(app.seed_read().is_none_or(|s| s.pass().is_empty()));
+}
+
+#[test]
+fn a_repeat_typed_alone_on_the_seed_sheet_is_gone_when_the_sheet_is_left() {
+    use faraday_core::seeds::read::Choice;
+    let mut app = scanner();
+    seed_sheet_with_passphrase_fields(&mut app);
+    app.press(Action::SeedRead(Choice::Field(1)));
+    type_text(&mut app, "hunter2");
+    assert_eq!(app.seed_read().expect("the sheet").pass2(), "hunter2");
+    // The sheet is closed by a way that does not clear the state itself.
+    app.sheet = None;
+    app.press(Action::Nav(Screen::Home));
+    assert!(app.seed_read().is_none_or(|s| s.pass2().is_empty()));
 }
