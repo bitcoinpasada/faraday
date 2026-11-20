@@ -1,0 +1,253 @@
+# One flow container
+
+**Kind:** Spec
+**Status:** Specified (F296); none of it is built. Today every step flow draws its own steps with the shared column, `flow::Column` in `faraday/faraday-core/src/flow.rs`, finished steps stacked above the open one.
+**Open:** all of it: the container, every flow moved onto it, and the owner's answers to the questions in §10
+
+Every step flow (Make a new vault, Make a new wallet, Restore an existing
+wallet, Spend from a backup, Make a new key, Back up's flows, the tools
+drawn as step flows, and any new flow) is drawn by one container. Only the
+current step's card shows, at one fixed place; moving between steps fades
+through; Your choices stands at the right with each answer, and a press
+on one goes back to its step. The decision is F296; this document is how
+it is drawn and what each flow gives it.
+
+## 1. What a flow declares
+
+A flow hands the container, each frame, what only the flow knows:
+
+- **Its steps**, in order: each step's title, and whether the count is
+  known before the first (`total_fixed` today) or grows as answers are
+  given (Restore, Sign a transaction, Spend from a backup, the backup
+  flow). A step before step 1 (a GPG key's restore opening on its public
+  key, `heads()` today) stays a step 0.
+- **Which step is current**, and which are answered.
+- **Each step's card**: the drawing of its controls in a given width,
+  returning their height, as the `body` closure does today.
+- **Each answer's line in Your choices**: a label and its value, in the
+  mono face where it is data; a step not yet answered reads "Not chosen
+  yet". A line never shows a secret (no word, no passphrase, no share):
+  what it shows is what the closed card's summary may show today.
+- **Which step a row opens**: usually its own; one row may stand for
+  several steps and open one of them (Make a new vault's size row stands
+  for Opens on and Unlock cost until Customise, and opens the size).
+- **What still fits.** When an earlier answer changes, the flow says, for
+  each later answer, whether it still holds; the container keeps those
+  that do and clears the rest. A flow that says nothing clears every later
+  answer.
+- **Which steps are full width** (§5).
+- **Where Back stops**: the step after a point that made something the
+  flow cannot take back, and whether the current step is running (F104).
+- **What the pane holds under the rows**, where a flow has more to show
+  there (Make a new vault's summary of what will be made and its Create
+  vault button: see §10, question 3).
+
+## 2. What the container owns
+
+- **The card's place.** The card's head stands where the first step's
+  heading stands today: `PAGE_TOP_BAR` under the top app bar, after the
+  flow's chip ("Then: …") where it has one, in the reading column
+  (`COLUMN_MAX`, centred in the room left of the pane, or from the
+  navigation's edge plus its margin in a flow whose steps hold wide
+  content, LAYOUT §14). The place is the same for every step of a flow,
+  so nothing moves when a step changes.
+- **A tall card** scrolls within the page area under the top app bar, its
+  head with it; a step opened starts at its top. The pane does not scroll
+  with it.
+- **The step's heading**: "Step N of M", or "Step N" while the count is not
+  known, then the title, as the small panel's page per step reads today.
+- **The fade** (§3) and Reduce motion.
+- **Your choices** (§4): the pane on the wide layout, the bar's button and
+  the sheet on every other.
+- **Going back and forth.** The top app bar's way back, Escape and the
+  mouse's back button open the step before the current one in step order,
+  with its choices as they were, named after it; from the first step they
+  leave the flow (F77, F104). The mouse's forward button opens again the
+  step Back left. A row of Your choices opens its step; a row after the
+  current one opens it when its answer and every one between still hold,
+  so the person goes straight forward to where they were. A running step
+  takes no press on a row and no Back; after a point the flow cannot take
+  back, the rows before it take no press. A secret shown on a step is
+  hidden when the step is left (F104). Cancel still leaves the flow (F51).
+- **F103** stands: a card that asks one thing moves on by itself on the
+  choice; the move is the fade.
+
+## 3. The fade through
+
+When the current step changes (a choice, Continue, Back, a row of Your
+choices), the old card fades out to the page's surface and the new one
+fades in from it, at the same place. The outgoing part takes the first
+35% of the time and the incoming the rest, on Material's emphasized
+easing, its clock started as a change of screen's is (`motion::FADE_MS`);
+its length is a named constant in `motion.rs` beside `FADE_MS`, one of
+Material's duration tokens, stated with how it was timed on the Pi (F238;
+§10, question 8). Outside the
+card's place (the bar's back label, a new row in Your choices) the frame
+cross-fades over the same time.
+
+It is built on today's kept-frame fade (`Faraday::fade_begin`,
+`Canvas::blend_within`, `Faraday::fade_step`): the frame with the old card
+blends to one with the card's place empty, then to the frame with the new
+card. A step's blend touches only the bands that differ.
+
+- **Reduce motion**: the new card is there at once.
+- **A secret on screen**: from a frame drawn while a secret was typed or
+  shown, the swap is at once, as every fade is (`docs/SECRET-LEAKS.md` §5).
+- A step opening no longer grows its height (MOTION §3.5's 300 ms open on
+  the emphasized decelerate goes for step cards), and `Scroll::follow`'s
+  glide to the open card goes: there is nothing to glide to.
+
+## 4. Your choices
+
+**Wide layout** (the expanded rail: a large or extra-large window that is
+not low; `ui.compact` false). The pane stands at the right of the page
+area, as Make a new vault's does today: `side_panel_w` (31% of the page
+area, 240 to 320 dp), on the surface with a divider at its start, its
+heading **Your choices** in Label L at `SIDE_PANEL_TOP`, then one row per
+step: the label, and under it the answer or "Not chosen yet", each row a
+press in its 48 dp target. The current step's row is marked as current.
+A pane taller than the window scrolls within itself (LAYOUT §6), so a low
+window no longer drops the pane as Make a new vault's does today
+(`create_panel_h`). Its strings move from the vault's strings to the
+common ones.
+
+**Every one-column layout** (the menu, the navigation bar, the rail): the
+top app bar carries a **Your choices** button among its trailing actions,
+before the ?. It opens the list as a sheet (Faraday's sheet: the window's
+width less a margin on compact, at most 560 dp centred otherwise), the
+same rows, a press on one closing the sheet and fading to its step;
+Escape, the scrim and the way back close it. The small panel's strip of
+steps (`paged()` today) gives way to it.
+
+**The two sizes named:**
+
+- **480 × 640, the Pi's panel**: 268 × 358 dp, compact and short, the
+  menu's layout. One card under the bar, its controls below its heading;
+  the bar's back, the flow's name, Your choices, the ? and Cancel.
+- **1366 × 768, a laptop**: a large window, not low: the expanded rail,
+  the card in its column, Your choices at the right (about 1126 dp of page
+  area, the pane 320 of it). The same laptop's half-screen window (683 dp)
+  is medium: the rail, the card, the bar's button.
+
+## 5. The two full-width steps
+
+- **Make codex32 shares**, while its dice rolls, tracks and tree are on
+  screen (the input panel, the sheets, and the dice sheet's column, LAYOUT
+  §16).
+- **The backup board** (Back up's plan, a wallet's backup flow).
+
+On these Your choices is hidden and the step takes the whole room beside
+the navigation; the bar's Your choices button stands, as on a narrow
+window, and opens the sheet. The card's head keeps its place. Leaving the
+step brings the pane back with the fade. Every other dice worksheet (a
+seed's rolls in Make a new key, Make a new vault's passphrase dice,
+`dice_entry`'s foot panel) stays in the main column beside Your choices.
+
+## 6. Worksheets inside a flow (LAYOUT §14)
+
+Wide content in a flow's card (a worksheet, a table, Spend's transaction)
+takes the work width from the column's start to `SPACER` before the Your
+choices pane, not to the window's edge; only §5's two steps run to the
+edge. The rule of a step's rows running the work width goes, since no
+card is stacked. A flow whose steps can hold wide content keeps its card
+at the navigation's edge plus its margin on every step, so the place does
+not move.
+
+## 7. The end of a flow
+
+The last step is the flow's result (a key made, a vault made, a wallet
+restored, a transaction signed), drawn as a card like the others: what
+happened and the next thing a person would do (`docs/FLOWS.md`: no flow
+ends on a dead end). Another and Done stay where the flows have them.
+
+## 8. The flows and how each maps
+
+| Flow | Its screen | Its steps in the container | Full-width step | A right-hand panel today |
+|---|---|---|---|---|
+| Make a new vault | `vault/screen.rs` | Size, Opens on, Unlock cost, Name and passphrases; the size row stands for the two after it until Customise | none | Your choices, with the summary and Create vault |
+| Make a new wallet | `screens/create.rs` | Kind, then its steps; the count known once Keys is a step | none | none |
+| Restore an existing wallet | `screens/restore.rs` | its steps, count not known | none | none |
+| Sign a transaction | `screens/spend.rs` | its steps, count not known | none | the transaction's review (`spend_panel`) |
+| Spend from a backup | `spend_backup/screen.rs` | its steps, count not known | none | none |
+| Make a new key, Make codex32 shares | `keygen/screen.rs` (the steps, and the made card) | its steps; the made card is its end | codex32's dice rolls, tracks and tree | the dice sheet's column (codex32) |
+| Back up (a wallet's checklist and plan) | `screens/backup.rs`, `screens/backup/quick.rs` | a checklist of independent items (`all_shown`) | the board | the map (`backup_panel`) |
+| The backup flow (GPG keys, Secure Boot keys, a wallet's backup) | `backup_flow/screen.rs` | its steps, count not known | the board | the board's list |
+| Sign a message | `screens/message.rs` | its steps | none | none |
+| Derive with BIP-85 | `bip85/screen.rs` | its steps | none | none |
+| Convert a seed | `convert/screen.rs` | From, To, Settings where asked, Result | none | none |
+| Silent payments | `silent/screen.rs` | its steps | none | none |
+| Vanity address | `vanity/screen.rs` | its steps | none | none |
+| Check a signer | `decode/check_screen.rs` | its steps | none | none |
+| Check a multisig setup | `multisig_check/screen.rs` | its steps | none | none |
+| My seed makes my wallet | `seed_check/screen.rs` | its steps, a foot under the last | none | none |
+| Read a Bitcoin Core wallet | `core_wallet/screen.rs` | its steps, a foot under the last | none | none |
+| Check a timestamp | `ots_check/screen.rs` | its steps | none | none |
+| Krux code | `kef_tool/screen.rs` | its steps | none | none |
+| QR vault | `qr_tool/screen.rs` | its steps | none | none |
+
+The screens are under `faraday/faraday-core/src/`. A flow's foot (what
+`column_foot` draws under the last card today) becomes part of its last
+card.
+
+## 9. What changes when it is built
+
+- `faraday/faraday-core/src/flow.rs`: `Column` and `column`,
+  `column_foot`, `column_wide` and `paged` become the container; `Card`
+  gains the answer's line and the row's step; `reached` and the stacked
+  drawing go.
+- Each flow's screen in §8, and `vault/screen.rs`'s `create_panel`, whose
+  pane moves into the container; `screens/parts.rs` (`side_panel_w`).
+- The fade: `faraday/faraday-core/src/motion.rs` (the fade through's
+  length and split), the kept-frame fade in `Faraday::fade_begin` and
+  `fade_step`.
+- The bar's button: `faraday/faraday-core/src/compact/` and
+  `faraday/faraday-ui`'s top app bar; `screens::bar_head`.
+- Strings: "Your choices" and "Not chosen yet" move from
+  `faraday/faraday-strings/src/en/vault.rs` to the common strings.
+- Tokens: `CREATE_PANEL_*` in `core/faraday-draw/src/tokens.rs` become the
+  pane's names.
+- Documents, when it is built: `docs/LAYOUT.md` §5 (a flow's step), §6
+  (Your choices among the panes), §14 (as §6 here), §16 (the codex32
+  step's full width); `docs/DESIGN.md` §4.1 (the way back, the bar's
+  button), the step cards' component and the screens of §5;
+  `docs/MOTION.md` §3.5 (the card's open, the glide, the fade through);
+  `docs/FLOWS.md` "Step cards"; `docs/guide/` pages whose pictures show
+  stacked steps.
+- Tests, of what a person notices: a pressed row opens its step; a later
+  answer that still fits is kept after an earlier one changes and one that
+  does not is cleared; Back and the rows keep F104's limits; the bar's
+  button opens the sheet on a one-column window and on a full-width step.
+
+## 10. Questions for the owner
+
+The design leaves these open; each has a suggested answer, not yet the
+owner's.
+
+1. **Guide's pane on an extra-large window** wants the right edge too.
+   Suggested: as LAYOUT §6 does for the codex32 entry and Back up, a flow
+   keeps the place for Your choices and Guide is the sheet there.
+2. **Flows with a right-hand panel of their own** (Sign a transaction's
+   review, Back up's map, the backup flow's board list). Suggested: the
+   panel becomes Your choices, its rows first and what it shows today
+   under them, as Make a new vault's summary stands under its rows.
+3. **Make a new vault's Create vault** stands at the pane's foot.
+   Suggested: the last step's card ends with it, and the pane keeps the
+   summary.
+4. **Back up's checklist and plan** are independent items, not a
+   sequence. Suggested: the checklist is the flow's first card, an item
+   pressed fades to its card, and Your choices lists the items with their
+   state.
+5. **A flow whose count is not known.** Suggested: Your choices lists the
+   steps reached so far and the ones the flow already knows will come,
+   "Not chosen yet".
+6. **The bar's button**: labelled or an icon (Material's trailing
+   actions are icons), and its room on the Pi's bar beside the flow's
+   name, Cancel, the codex32 eye, the mode pill, the keyboard and the ?.
+   Suggested: an icon button with the tooltip "Your choices" on the
+   small panel, labelled elsewhere.
+7. **At a flow's end**, Your choices. Suggested: it stays, its rows
+   before a point the flow cannot take back taking no press.
+8. **The fade's length.** Material Components gives its fade through
+   300 ms in one place and 450 ms (Long 1) in another; Faraday's change of
+   screen fades over 200 ms. Suggested: 300 ms (Medium 2, as a card's open
+   takes today), checked on the Pi.

@@ -304,3 +304,4 @@ Read this table, then only the decision you need.
 | [F291](decisions/F291.md) | Home shows what is loaded, under its search bar and the first actions; the sidebar no longer lists keys and wallets | 2026-11-19 | Active | design |
 | [F292](decisions/F292.md) | A control Practice refuses answers a press with one toast | 2026-11-19 | Active | design |
 | [F293](decisions/F293.md) | A plan whose SLIP-39 set is not its key's keeps that set's placed shares as kept old shares | 2026-11-19 | Active | backup |
+| [F296](decisions/F296.md) | One flow container: one step at a time, at one place, with Your choices beside it | 2026-11-19 | Active | design |
