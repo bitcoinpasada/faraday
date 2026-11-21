@@ -6,7 +6,7 @@
 use crate::common::type_text;
 use faraday_core::testkit::Plain;
 use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent, testkit};
-use faraday_shell_api::App;
+use faraday_shell_api::{App, Event, Key};
 
 const REFUSED: &str = "A passphrase here is printable ASCII only";
 const STICK_LINE: &str = "Keys load only with no stick attached";
@@ -173,6 +173,21 @@ fn add_a_keys_passphrase_takes_no_typing_with_a_stick_attached() {
     app.press(Action::EntryPassphrase);
     type_text(&mut app, "hunter2");
     assert!(shows(&mut app, STICK_LINE), "the screen says why");
+    assert_eq!(testkit::entry(&app).passphrase(), "");
+}
+
+#[test]
+fn shift_tab_does_not_move_in_add_a_keys_passphrase_with_a_stick_attached() {
+    let mut app = add_a_key();
+    attach(&mut app);
+    app.press(Action::EntryPassphrase);
+    type_text(&mut app, "x");
+    assert!(shows(&mut app, STICK_LINE));
+    app.event(Event::Key(Key::BackTab));
+    assert!(
+        shows(&mut app, STICK_LINE),
+        "Shift-Tab is refused as Tab is"
+    );
     assert_eq!(testkit::entry(&app).passphrase(), "");
 }
 
