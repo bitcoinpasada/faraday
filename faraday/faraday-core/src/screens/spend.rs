@@ -1609,7 +1609,7 @@ impl StepView<'_> {
                 let scan = Style::Primary.when(may);
                 items.push((EN.step_scan_a_key, scan, Action::ScanKey(wi)));
                 items.push((
-                    EN.step_type_the_words,
+                    EN.entry_type_the_words,
                     Style::Secondary.when(may),
                     Action::EntryWallet(wi),
                 ));

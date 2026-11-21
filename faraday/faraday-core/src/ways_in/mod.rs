@@ -128,10 +128,10 @@ impl Opening {
         let (words, scan) = match me {
             Opening::AddAKey => (Form::Words.name(), EN.entry_scan_a_seedqr),
             Opening::SeedMakesWallet | Opening::SeedAgainst => {
-                (EN.seed_check_type, EN.seed_check_scan)
+                (EN.entry_type_the_words, EN.seed_check_scan)
             }
-            Opening::CheckSigner => (EN.keygen_type_the_words, EN.keygen_scan_a_seedqr),
-            Opening::SpendSign => (EN.step_type_the_words, EN.step_scan_a_seedqr),
+            Opening::CheckSigner => (EN.entry_type_the_words, EN.keygen_scan_a_seedqr),
+            Opening::SpendSign => (EN.entry_type_the_words, EN.step_scan_a_seedqr),
         };
         let wi = app.wallets.wallet();
         match way {

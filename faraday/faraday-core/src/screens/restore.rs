@@ -592,7 +592,7 @@ fn restore_open_slot(
                 Action::RSlotScan,
             ),
             crate::ways_in::Way::Form(crate::forms::Form::Words) => (
-                EN.restore_open_slot_type.to_string(),
+                EN.entry_type_the_words.to_string(),
                 Style::Primary,
                 Action::RSlotWords,
             ),

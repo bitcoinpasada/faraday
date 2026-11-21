@@ -22,6 +22,8 @@ macro_rules! words_screens_entry {
     entry_other_languages: "Other languages",
     /// Text in `entry`.
     entry_other_forms: "Other forms",
+    /// Button on every screen that takes a key in words: its way in.
+    entry_type_the_words: "Type the words",
     /// Button in `entry`.
     entry_scan_a_seedqr: "Scan a SeedQR",
     /// Text in `entry`.

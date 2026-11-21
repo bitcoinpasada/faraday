@@ -46,8 +46,6 @@ macro_rules! words_explore {
     /// A card of My seed makes my wallet.
     seed_check_card_result: "Result",
     /// A way in on the Seed card of My seed makes my wallet.
-    seed_check_type: "Type the words",
-    /// A way in on the Seed card of My seed makes my wallet.
     seed_check_scan: "Scan a SeedQR",
     /// The keys loaded, on the Seed card of My seed makes my wallet.
     seed_check_loaded: "A key loaded here",

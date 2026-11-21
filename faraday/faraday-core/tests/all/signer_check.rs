@@ -393,7 +393,7 @@ fn the_row_opens_the_sheet_of_the_seed_of_its_fingerprint() {
     open_seed_sheet(&mut app);
     let t = texts(&mut app);
     assert!(t.iter().any(|l| l.starts_with("Seed of ")), "{t:?}");
-    assert!(t.iter().any(|l| l == EN.keygen_type_the_words));
+    assert!(t.iter().any(|l| l == EN.entry_type_the_words));
     assert!(t.iter().any(|l| l == EN.keygen_scan_a_seedqr));
     assert!(t.iter().any(|l| l == EN.signer_open_a_vault));
 }

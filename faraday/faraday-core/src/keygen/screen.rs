@@ -455,7 +455,7 @@ fn start_name(s: Start) -> &'static str {
             Form::Xor | Form::Krux => f.name(),
         },
         Start::Type(f) => match f {
-            Form::Words => EN.keygen_type_the_words,
+            Form::Words => EN.entry_type_the_words,
             Form::Krux => EN.keygen_krux_code,
             Form::Slip39 => EN.keygen_type_slip_39_shares,
             Form::Codex32 => EN.keygen_type_a_codex32,

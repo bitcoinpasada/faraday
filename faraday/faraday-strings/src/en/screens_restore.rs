@@ -83,8 +83,6 @@ macro_rules! words_screens_restore {
     restore_seeds_make: "Make the wallet",
     // ----- restore_open_slot (faraday-core/src/screens/restore.rs) -----
     /// Text in `restore_open_slot`.
-    restore_open_slot_type: "Type the words",
-    /// Text in `restore_open_slot`.
     restore_open_slot_scan: "Scan a SeedQR",
     // ----- restore_sources (faraday-core/src/screens/restore.rs) -----
     /// Text in `restore_sources_compact`.
