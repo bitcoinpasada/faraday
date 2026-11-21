@@ -1525,6 +1525,59 @@ fn an_unsigned_one_key_script_input_beside_your_account_leaves_its_change_verifi
     );
 }
 
+/// Two keys are loaded and the only input carries no coin data, so none
+/// of it is the person's and nothing is signed: an output to the second
+/// key's account reads as before, as that account's own output, not as a
+/// payment to another wallet.
+#[test]
+fn an_output_to_your_other_account_reads_as_before_when_no_input_is_yours() {
+    let c = Compute::unchecked();
+    let (abandon, other) = (master(ABANDON, NET), master(OTHER, NET));
+    let mut b = Build::new(ScriptType::NativeSegwit, NET);
+    b.recipients.push((recipient_zoo(), 60_000));
+    let mut inner = single_sig(&abandon, &b).inner().clone();
+    inner.inputs[0] = bitcoin::psbt::Input::default();
+    let to = format!(
+        "wpkh([{}/{:#}]{}/0/1)",
+        other.fingerprint(),
+        account_path(84),
+        other.derive(&c, &account_path(84)).to_xpub(&c)
+    );
+    let mut psbt = pay_descriptor(Psbt::from(inner), &to, 39_000);
+    let keys = [
+        KeyRef::from_master(&c, &abandon, 0).unwrap(),
+        KeyRef::from_master(&c, &other, 0).unwrap(),
+    ];
+    let ctx = Context {
+        network: NET,
+        keys: &keys,
+        wallets: &[],
+        musig_session: None,
+    };
+    let insp = inspect(&c, &psbt, &ctx);
+    assert!(
+        matches!(
+            insp.outputs[1].kind,
+            OutputKind::Change { .. } | OutputKind::WalletChange { .. }
+        ),
+        "{:?}; warnings {:?}",
+        insp.outputs[1].kind,
+        insp.warnings
+    );
+    assert!(
+        insp.warnings
+            .iter()
+            .all(|w| w.kind != WarningKind::TransferToOwnWallet),
+        "{:?}",
+        insp.warnings
+    );
+    let signed = sign_now(&c, &mut psbt, &[&abandon, &other], &ctx, &[]);
+    assert!(
+        signed.map_or(true, |r| r.signed_inputs.is_empty()),
+        "something was signed"
+    );
+}
+
 /// A native SegWit wallet registered over the same account is still that
 /// account: its change stays change.
 #[test]

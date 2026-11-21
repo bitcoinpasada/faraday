@@ -44,7 +44,9 @@ P2WPKH, P2TR) and registered wallets of a `sortedmulti` in P2WSH, a
 miniscript in P2WSH, a taproot tree of miniscript leaves and a taproot
 `sortedmulti_a`. Outputs: payments, change on either chain at random
 indices, change of another wallet (a foreign claim), an output of a second wallet that is
-also loaded (a transfer: sent, never change, where the inputs spend the first),
+also loaded (a transfer: sent, never change, where the inputs spend the first;
+where no input is the person's, read as before, so change of the second
+wallet judged as the first is),
 and spoofed change
 (the wallet's origin claimed over the wallet's own script at another
 index, over another wallet's script, or over a stranger's). Inputs:
@@ -407,14 +409,18 @@ class Review(Area):
 
     def prelude(self):
         """Every shape once with each output kind, once with missing UTXO
-        data, and once unregistered; and the cases must have had what they
+        data, once with a transfer where no input is the person's (the
+        second wallet judged as the first), and once unregistered; and the cases must have had what they
         were drawn to have (the area cannot pass by asking nothing)."""
-        self.seen = {"ours": 0, "others": 0, "spoof": 0, "missing": 0, "fee": 0, "unregistered": 0}
+        self.seen = {"ours": 0, "others": 0, "spoof": 0, "missing": 0, "fee": 0, "unregistered": 0,
+                     "second": 0}
         for shape in SHAPE_NAMES:
             self.run_case(shape, kinds=KINDS + ["change"], loaded="first", registered=True,
                           modes=["nonwitness" if shape == "pkh" else "witness", "nonwitness"])
             self.run_case(shape, kinds=["change", "recipient"], loaded="first",
                           registered=True, modes=["none", "nonwitness"])
+            self.run_case(shape, kinds=["transfer", "recipient"], loaded="first",
+                          registered=True, modes=["none"])
             if SHAPES[shape][3]:
                 self.run_case(shape, kinds=["change", "spoof"], loaded="first",
                               registered=False,
@@ -422,7 +428,8 @@ class Review(Area):
                 self.run_case(shape, kinds=["change"], loaded="none", registered=True,
                               modes=["witness"])
         n = len(SHAPE_NAMES)
-        for what, least in [("ours", 2 * n), ("others", 2 * n), ("spoof", n), ("missing", n)]:
+        for what, least in [("ours", 2 * n), ("others", 2 * n), ("spoof", n), ("missing", n),
+                            ("second", n)]:
             assert self.seen[what] >= least, f"the prelude drew {self.seen} (wanted {what} >= {least})"
 
     def case_corpus(self):
@@ -455,7 +462,11 @@ class Review(Area):
             # A second wallet of the person's: its key is loaded and its
             # wallet registered. Its outputs are no change of the wallet the
             # inputs spend: Core's wallet of the first never finds them, and
-            # Faraday counts them as sent.
+            # Faraday counts them as sent. Where no input is the person's
+            # (F254 point 1: every input lacks UTXO data here, so no script
+            # and no origin is written, mode "none"), the transaction signs
+            # nothing and its outputs read as before: the second wallet is
+            # judged exactly as the first (with its own registration).
             seeds.append(w2.seeds[0])
             if registered and w2.policy:
                 wallets.append(w2.policy)
@@ -558,10 +569,20 @@ class Review(Area):
         inputs = {"psbt": raw.hex(), "seeds": [s.hex() for s in seeds], "xprvs": [],
                   "network": "regtest", "wallets": wallets}
         skip = bool(w1.multi and not registered)
+        # Judged wallets: (wallet, its held fingerprints, registered or not
+        # multi, skip). The second is judged where it is loaded and no input
+        # is the person's. (Unregistered miniscript, tree and tapmulti inputs
+        # with UTXO data are not recorded as spent either, an unregistered
+        # sortedmulti's are; where they are not, the second wallet is of the
+        # same shape and unregistered too, so it is never change, and `skip`
+        # leaves its spoofs out.)
+        judged = [(w1, held_fps, registered or not w1.multi, skip)]
+        if "transfer" in kinds and loaded != "none" and all(m == "none" for m in modes):
+            judged.append((w2, {w2.fps[0]}, bool(registered) or not w2.multi,
+                           bool(w2.multi and not registered)))
 
         def ref():
-            return self.core_review(raw, w1, held_fps, registered or not w1.multi, skip,
-                                    base64.b64encode(raw).decode())
+            return self.core_review(raw, judged, base64.b64encode(raw).decode())
 
         def norm(answer):
             if skip and answer[0] == "ok":
@@ -571,7 +592,7 @@ class Review(Area):
 
     # ----- Bitcoin Core's reading --------------------------------------------------------
 
-    def core_review(self, raw, w1, held_fps, registered, skip, b64):
+    def core_review(self, raw, judged, b64):
         decoded, analyzed = batch([("decodepsbt", [b64]), ("analyzepsbt", [b64])])
         tx = decoded["tx"]
         amounts = []
@@ -588,34 +609,40 @@ class Review(Area):
         # Which outputs claim a held key, and whether btclib's wallet of the
         # public descriptors has the output's script at the chain and index
         # the claim states.
-        wallet = DescriptorWallet([btclib_parse(d, "regtest") for d in w1.pub])
         bpsbt = BtclibPsbt.parse(raw)
-        verdict, claimed = {}, {}
-        for n, out in enumerate(decoded["outputs"]):
-            claims = {d["master_fingerprint"]: d["path"] for d in out.get("bip32_derivs", [])}
-            claims.update({d["master_fingerprint"]: d["path"]
-                           for d in out.get("taproot_bip32_derivs", [])})
-            if held_fps & set(claims) and all(fp in claims for fp in w1.fps):
-                depth = len(w1.acct.split("/"))
-                tail = claims[w1.fps[0]][2:].split("/")[depth:]
-                chain, index = (int(step) for step in tail)
-                verdict[n] = btclib_change(wallet, bpsbt, n, chain, index)
-                claimed[n] = (chain, index)
-        if verdict:
-            # Core's watch-only wallet of the same public descriptors: where
-            # it finds each output's script must agree with btclib's verdict.
-            # (The registered-wallet rule is no part of either: it is applied
-            # below, to both.)
-            core = core_change(
-                "w" + os.urandom(6).hex(), raw, len(tx["vin"]), len(tx["vout"]), held_fps, w1,
-                [v["scriptPubKey"]["address"] for v in tx["vout"]])
-            for n, v in verdict.items():
-                agree_change(v, claimed[n], core[n])
+        # Per judged wallet: output -> verdict.
+        verdicts = []
+        for w, held_fps, registered, skip in judged:
+            wallet = DescriptorWallet([btclib_parse(d, "regtest") for d in w.pub])
+            verdict, claimed = {}, {}
+            for n, out in enumerate(decoded["outputs"]):
+                claims = {d["master_fingerprint"]: d["path"] for d in out.get("bip32_derivs", [])}
+                claims.update({d["master_fingerprint"]: d["path"]
+                               for d in out.get("taproot_bip32_derivs", [])})
+                if held_fps & set(claims) and all(fp in claims for fp in w.fps):
+                    depth = len(w.acct.split("/"))
+                    tail = claims[w.fps[0]][2:].split("/")[depth:]
+                    chain, index = (int(step) for step in tail)
+                    verdict[n] = btclib_change(wallet, bpsbt, n, chain, index)
+                    claimed[n] = (chain, index)
+            if verdict:
+                # Core's watch-only wallet of the same public descriptors: where
+                # it finds each output's script must agree with btclib's verdict.
+                # (The registered-wallet rule is no part of either: it is applied
+                # below, to both.)
+                core = core_change(
+                    "w" + os.urandom(6).hex(), raw, len(tx["vin"]), len(tx["vout"]), held_fps, w,
+                    [v["scriptPubKey"]["address"] for v in tx["vout"]])
+                for n, v in verdict.items():
+                    agree_change(v, claimed[n], core[n])
+            verdicts.append((verdict, registered, skip))
         outputs, spoof = [], False
         for n, vout in enumerate(tx["vout"]):
-            v = verdict.get(n)
-            ours = v == "ours" and registered
-            spoof = spoof or (v == "spoof" and not skip)
+            ours = False
+            for verdict, registered, skip in verdicts:
+                v = verdict.get(n)
+                ours = ours or (v == "ours" and registered)
+                spoof = spoof or (v == "spoof" and not skip)
             outputs.append({"amount": sats(vout["value"]), "ours": ours})
         out_total = sum(o["amount"] for o in outputs)
         seen = getattr(self, "seen", None)
@@ -624,6 +651,10 @@ class Review(Area):
             seen["others"] += sum(not o["ours"] for o in outputs)
             seen["spoof"] += spoof
             seen["missing"] += missing
+            seen["second"] += sum(
+                1 for n in range(len(outputs))
+                for verdict, registered, _ in verdicts[1:]
+                if verdict.get(n) == "ours" and registered)
         return {
             "fee": fee,
             "total_in": sum(a for a in amounts if a is not None),
