@@ -57,7 +57,9 @@ fn load(keys: &mut Keys, sample: &SampleKey, passphrase: &str) -> Result<Fingerp
         SampleForm::Seed => keys
             .add_seed(&c, &unhex(sample.parts[0]), "")
             .map_err(refused),
-        SampleForm::Aezeed | SampleForm::Form(Form::Krux | Form::Xprv | Form::HexSeed) => Err("loads no key".to_string()),
+        SampleForm::Aezeed | SampleForm::Form(Form::Krux | Form::Xprv | Form::HexSeed) => {
+            Err("loads no key".to_string())
+        }
     }
 }
 

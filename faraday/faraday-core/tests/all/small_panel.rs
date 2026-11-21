@@ -604,12 +604,23 @@ fn add_a_key_offers_other_forms_above_the_field_and_opens_a_sheet() {
     );
     tap(&mut app, Action::EntryOtherForms(Opening::AddAKey));
     assert_eq!(app.sheet, Some(Sheet::OtherForms(Opening::AddAKey)));
-    let shown: Vec<String> = app
-        .drawn_text_boxes()
-        .plain()
-        .into_iter()
-        .map(|(t, _)| t)
-        .collect();
+    // The sheet scrolls: what each screenful draws is read as it goes.
+    let mut shown: Vec<String> = Vec::new();
+    for _ in 0..8 {
+        shown.extend(app.drawn_text_boxes().plain().into_iter().map(|(t, _)| t));
+        app.event(Event::Scroll {
+            x: W / 2,
+            y: H / 2,
+            dy: 60,
+        });
+    }
+    for _ in 0..8 {
+        app.event(Event::Scroll {
+            x: W / 2,
+            y: H / 2,
+            dy: -60,
+        });
+    }
     use faraday_core::forms::Form;
     let up_front = [Form::Words, Form::Codex32];
     for form in Form::ALL {
