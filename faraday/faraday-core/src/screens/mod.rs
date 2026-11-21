@@ -369,18 +369,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             guide_pane::draw(app, ui, (x, full_w - x, h - top));
             ui.oy = 0.0;
         }
-        // Home's Scan floats at the window's right edge and foot
-        // (`docs/LAYOUT.md` §15), whatever area its tiles are laid out
-        // in; beside the guide's pane, at the page's edge.
-        if crate::nav::shows_scan(app) {
-            ui.fab(
-                full_w - if pane { beside } else { MARGIN_WIDE },
-                full_h - MARGIN_WIDE,
-                Icon::Scan,
-                EN.home_scan,
-                Action::Scan,
-            );
-        }
+        // Scan is the sidebar's extended FAB at its foot, drawn with it.
         // The top app bar over the page, a device's stick pills in it.
         ui.ox = x;
         ui.oy = 0.0;
@@ -763,9 +752,6 @@ fn draw_compact(app: &View, ui: &mut Ui, area: (f32, f32), h: f32, kb: bool, y0:
         ui.oy = y0 + head;
         crate::compact::home(app, ui, w, h - head);
         ui.oy = y0;
-        if nav.beside() && crate::nav::shows_scan(app) && !app.held {
-            scan_at_edge(ui, ax, aw, h);
-        }
     } else {
         // Room for the bar as the last frame had it; a change draws again.
         let had = if kb { 0.0 } else { app.pin_h.get() };
@@ -841,13 +827,9 @@ fn draw_compact(app: &View, ui: &mut Ui, area: (f32, f32), h: f32, kb: bool, y0:
             ui.button(bx, y + 10.0, Some(bw), BUTTON_H, &label, style, action);
             foot = y;
         }
-        if crate::nav::shows_scan(app) && !app.held {
-            if nav.beside() {
-                scan_at_edge(ui, ax, aw, foot);
-            } else {
-                let m = crate::compact::M;
-                ui.fab(w - m, foot - m, Icon::Scan, EN.compact_scan, Action::Scan);
-            }
+        if crate::nav::scan_floats(app) && !app.held {
+            let m = crate::compact::M;
+            ui.fab(w - m, foot - m, Icon::Scan, EN.compact_scan, Action::Scan);
         }
     }
     notices(app, ui, 0.0, w, foot);
@@ -855,27 +837,9 @@ fn draw_compact(app: &View, ui: &mut Ui, area: (f32, f32), h: f32, kb: bool, y0:
     ui.oy = 0.0;
 }
 
-/// The Scan button on a window with the rail or the bar beside the page:
-/// `MARGIN_WIDE` from the area's right edge, which is the window's, and
-/// from the foot `foot`, whatever the width of the page's column
-/// (`docs/LAYOUT.md` §15). Draws.
-fn scan_at_edge(ui: &mut Ui, ax: f32, aw: f32, foot: f32) {
-    let (ox, oy) = (ui.ox, ui.oy);
-    ui.ox = ax;
-    ui.fab(
-        aw - MARGIN_WIDE,
-        foot - MARGIN_WIDE,
-        Icon::Scan,
-        EN.compact_scan,
-        Action::Scan,
-    );
-    ui.ox = ox;
-    ui.oy = oy;
-}
-
 /// The foot room the Scan button takes from a page that carries it.
 fn scan_foot(app: &View) -> f32 {
-    if app.screen != Screen::Home && crate::nav::shows_scan(app) {
+    if app.screen != Screen::Home && crate::nav::scan_floats(app) {
         faraday_draw::tokens::HOME_RESULTS_FOOT
     } else {
         0.0

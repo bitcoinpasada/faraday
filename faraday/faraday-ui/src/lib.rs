@@ -2229,7 +2229,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     pub fn fab(&mut self, right: f32, bottom: f32, icon: Icon, label: &str, action: A) -> f32 {
         // Smaller on a small panel, where it floats over more of the page.
         use faraday_draw::tokens::{
-            FAB_H, FAB_H_COMPACT, FAB_PAD, FAB_PAD_COMPACT, ICON_GAP, ICON_GLYPH, LABEL_L, SHAPE_L,
+            FAB_H, FAB_H_COMPACT, FAB_PAD, FAB_PAD_COMPACT, ICON_GAP, ICON_GLYPH, LABEL_L,
         };
         let (h, pad) = if self.compact {
             (FAB_H_COMPACT, FAB_PAD_COMPACT)
@@ -2240,6 +2240,50 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         let width = self.measure_as(LABEL_L, label) + 2.0 * pad + lead;
         let (x, y) = (right - width, bottom - h);
         self.fab_at = Some((x + self.ox, y + self.oy, width, h));
+        self.fab_pill((x, y, width, h), pad, icon, Some(label), action);
+        width
+    }
+
+    /// Scan's place at the top of the navigation (Material's navigation
+    /// rail, `docs/LAYOUT.md` §3): the primary FAB with its top-left
+    /// corner at (`x`, `y`). With `width` it is the expanded rail's
+    /// extended FAB, icon and word; without, the rail's FAB, a square of
+    /// its icon alone. It does not float over a page, so the snackbar
+    /// does not stand beside it. Returns its height.
+    pub fn fab_top(
+        &mut self,
+        (x, y): (f32, f32),
+        width: Option<f32>,
+        icon: Icon,
+        label: &str,
+        action: A,
+    ) -> f32 {
+        use faraday_draw::tokens::{FAB_H, FAB_PAD};
+        let (w, word) = match width {
+            Some(w) => (w, Some(label)),
+            None => (FAB_H, None),
+        };
+        let pad = if word.is_some() {
+            FAB_PAD
+        } else {
+            (FAB_H - faraday_draw::tokens::ICON_GLYPH) / 2.0
+        };
+        self.fab_pill((x, y, w, FAB_H), pad, icon, word, action);
+        FAB_H
+    }
+
+    /// The primary FAB's body: `(x, y, width, h)`, its icon `pad` in, and
+    /// its word after the icon when it has one.
+    fn fab_pill(
+        &mut self,
+        (x, y, width, h): (f32, f32, f32, f32),
+        pad: f32,
+        icon: Icon,
+        label: Option<&str>,
+        action: A,
+    ) {
+        use faraday_draw::tokens::{ICON_GAP, ICON_GLYPH, LABEL_L, SHAPE_L};
+        let lead = ICON_GLYPH + ICON_GAP;
         let level = if self.is_hovered(action) {
             faraday_draw::tokens::ELEVATION_RAISED
         } else {
@@ -2252,16 +2296,16 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             Role::OnPrimary.paint(),
             action,
         );
-        // It floats over the page, drawn last: its whole grown target is
-        // its own, and no control scrolled under it takes a share.
+        // It is drawn last of its area: its whole grown target is its
+        // own, and no control scrolled under it takes a share.
         if let Some(r) = self.reach.last_mut().filter(|r| r.action == action) {
             r.target = r.grown;
         }
         let iy = y + (h - ICON_GLYPH) / 2.0;
         self.icon(x + pad, iy, ICON_GLYPH, icon, ICON_GLYPH, Role::OnPrimary);
-        let at = (x + pad + lead, y, h);
-        self.text_mid_as(at, LABEL_L, Role::OnPrimary, label);
-        width
+        if let Some(label) = label {
+            self.text_mid_as((x + pad + lead, y, h), LABEL_L, Role::OnPrimary, label);
+        }
     }
 
     /// A status tag (`docs/DESIGN.md` §3 Status): a rounded label with

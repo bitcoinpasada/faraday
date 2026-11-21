@@ -752,7 +752,8 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     // Where the window is too short to leave the list more than the strip
     // takes, the list has the whole window and the button floats over it:
     // the page scrolls from under it.
-    let view_h = if h - FAB_ROOM < FAB_ROOM {
+    let floats = crate::nav::scan_floats(app);
+    let view_h = if !floats || h - FAB_ROOM < FAB_ROOM {
         h.max(0.0)
     } else {
         h - FAB_ROOM
@@ -860,8 +861,9 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     };
     menu_page::draw(app, ui, (0.0, w, view_h), &page, &sections);
 
-    // Beside the rail or the bar the frame draws it at the window's edge.
-    if !app.nav().beside() {
+    // On the rail's windows Scan stands at the top of the rail; the menu's
+    // and the bar's float here.
+    if crate::nav::scan_floats(app) {
         ui.fab(w - M, h - M, Icon::Scan, EN.compact_scan, Action::Scan);
     }
 }

@@ -44,7 +44,8 @@ actions.
 5. **Wallets and keys** (§3): one tinted box of list rows, the wallets
    that need something and the keys no wallet uses, then All wallets,
    Backups and All keys.
-6. **Scan**, the floating button at the bottom right.
+6. **Scan**, the extended FAB at the sidebar's bottom left (F305), not on
+   the page.
 
 **The Pi's menu, the rail's windows and the phone-size window** (the
 rail's windows differ as the list says):
@@ -66,7 +67,8 @@ rail's windows differ as the list says):
 7. **The places** (§6) as tiles; then, on the Pi's menu only, Lock (while
    something is held) and Power off; the other windows have them in the top
    app bar's power button's menu (F304).
-8. **Scan**, the floating button at the bottom right.
+8. **Scan**: on the rail's windows the FAB at the top of the rail (F305), on
+   the Pi's menu and the phone-size window the floating button at the bottom right.
 
 "Nothing is loaded" (`nothing_loaded`) means no key held, no wallet in the
 session and no vault open. Files brought in, a stick attached and a vault
@@ -421,7 +423,7 @@ a chip; a key no wallet uses is a row offering a wallet from it, with no
 lead, and one loaded with a passphrase says so; the wide Home's search bar stays where it was while a search is typed,
 the typed search takes the page and clearing it brings the rest back, and
 on the phone-size window a search typed takes the page; a Home taller than
-its window keeps the bar still or scrolls to its places; Home offers Scan,
+its window keeps the bar still or scrolls to its places; Scan is the sidebar's and the rail's FAB and floats on the Pi's menu and the phone-size window,
 Backups once a wallet is known and the lead for each of the jobs of §2;
 the Pi's menu puts Wallets left of Check and the phone keeps Check first.
 The destinations' order is a design rule, held by review and the renders,

@@ -114,6 +114,30 @@ const PRESS_BUDGETS: &[(&str, Work, u64, &str)] = &[
         "Sign on a PSBT's row in Files opens its review at once: the file is parsed and inspected once, each input's key and address checked and the wallet's scripts derived the first time they are asked, and the result held in the inbox; the row shows now that the page keeps no note under the list",
     ),
     (
+        "Collect(",
+        Work::KeyDerive,
+        107,
+        "Add signatures on a second PSBT of the open spend in Files, which shows on a Files page now that the page keeps no room at its foot for a floating Scan: the file is parsed and inspected once and each input's key and address checked, the wallet's scripts derived the first time they are asked, and the signatures merged in the worker; drawing works out nothing",
+    ),
+    (
+        "Collect(",
+        Work::Address,
+        10,
+        "Add signatures on a second PSBT of the open spend in Files, which shows on a Files page now that the page keeps no room at its foot for a floating Scan: the file is parsed and inspected once and each input's key and address checked, the wallet's scripts derived the first time they are asked, and the signatures merged in the worker; drawing works out nothing",
+    ),
+    (
+        "Collect(",
+        Work::PsbtParse,
+        2,
+        "Add signatures on a second PSBT of the open spend in Files, which shows on a Files page now that the page keeps no room at its foot for a floating Scan: the file is parsed and inspected once and each input's key and address checked, the wallet's scripts derived the first time they are asked, and the signatures merged in the worker; drawing works out nothing",
+    ),
+    (
+        "Collect(",
+        Work::PsbtInspect,
+        3,
+        "Add signatures on a second PSBT of the open spend in Files, which shows on a Files page now that the page keeps no room at its foot for a floating Scan: the file is parsed and inspected once and each input's key and address checked, the wallet's scripts derived the first time they are asked, and the signatures merged in the worker; drawing works out nothing",
+    ),
+    (
         "PickWallet",
         Work::WalletMatch,
         11,
@@ -291,6 +315,8 @@ fn presses_hold_on(panel: Panel, least: usize) {
                 offered.push(a);
             }
         }
+        // Scan last: leaving its sheet drops what the other presses keep.
+        offered.sort_by_key(|a| *a == Action::Scan);
         for a in offered {
             let name = name_of(a);
             if SKIP.iter().any(|s| name.starts_with(s)) {

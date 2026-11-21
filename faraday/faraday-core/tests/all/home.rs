@@ -127,12 +127,49 @@ const FIVE: [Screen; 5] = [
     Screen::Catalog,
 ];
 
+/// Whether the last frame has Scan in the navigation: in the sidebar or
+/// the rail, at the window's left, the sidebar's at its bottom and the
+/// rail's at its top, and not floating.
+fn scan_in_navigation(app: &Faraday, w: u16, h: u16, nav_w: u16) -> bool {
+    let sidebar = nav_w > 80;
+    app.hit_box(Action::Scan).is_some_and(|(x, y, bw, bh)| {
+        x + bw <= nav_w
+            && if sidebar {
+                y + bh > h * 3 / 4
+            } else {
+                y < h / 4
+            }
+    }) && !floats_scan(app, w, h)
+}
+
+/// Scan is at the sidebar's bottom left on 1280x800 and at the top of the rail on a rail
+/// window, on every page, and opens the scanner; Back returns to the page.
+#[test]
+fn scan_is_in_the_navigation_on_every_page_of_the_wide_windows() {
+    // The sidebar is 240 wide; the rail 80.
+    for (w, h, nav_w) in [(1280, 800, 240), (700, 800, 80), (1024, 600, 80)] {
+        for screen in [Screen::Home, Screen::Settings].into_iter().chain(FIVE) {
+            let mut app = sized(w, h, 160);
+            app.press(Action::Nav(screen));
+            let _ = app.frame();
+            assert!(
+                scan_in_navigation(&app, w, h, nav_w),
+                "{screen:?} at {w}x{h}"
+            );
+            while app.poll_command().is_some() {}
+            tap(&mut app, Action::Scan);
+            assert_eq!(app.sheet, Some(Sheet::Scan));
+            assert!(std::iter::from_fn(|| app.poll_command()).any(|c| c == Command::CameraOn));
+        }
+    }
+}
+
 /// Scan floats on the top page of Check, Wallets, Files, Vaults and Tools
-/// as it does on Home, on a wide window and a phone-size one, and starts
+/// as it does on Home, on a phone-size window, and starts
 /// the camera; Back returns to the page it was pressed on.
 #[test]
 fn scan_floats_on_the_five_destinations() {
-    for (w, h) in [(1280, 800), (400, 800)] {
+    for (w, h) in [(400, 800)] {
         for screen in FIVE {
             let mut app = sized(w, h, 160);
             // A vault file in Files: Vaults shows its page, not New vault.
@@ -160,7 +197,7 @@ fn scan_floats_on_the_five_destinations() {
 }
 
 #[test]
-fn scan_is_not_on_settings_or_inside_a_flow() {
+fn scan_does_not_float_on_settings_or_inside_a_flow() {
     for (w, h) in [(1280, 800), (400, 800)] {
         let mut app = sized(w, h, 160);
         app.press(Action::Nav(Screen::Settings));
@@ -201,9 +238,9 @@ fn scan_target(app: &Faraday) -> ((u16, u16, u16, u16), bool) {
     (hit, whole)
 }
 
-/// On Files, with a long list scrolled under it, and on Wallets' start
-/// page, Scan at 1024x600 is as large as on Home and no control scrolled
-/// under it takes a share of its target.
+/// On Files, with a long list, and on Wallets' start page, Scan at 1024x600
+/// (at the top of the rail) is as large as on Home and no control takes a
+/// share of its target.
 #[test]
 fn scan_keeps_its_whole_target_over_a_list_at_1024x600() {
     let home = sized(1024, 600, 160);

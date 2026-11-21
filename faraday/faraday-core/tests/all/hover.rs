@@ -95,9 +95,12 @@ fn tab_rings_a_control_and_enter_presses_it() {
     app.event(Event::Key(Key::Tab));
     let ringed = pixels(&mut app);
     assert_ne!(before, ringed, "the control the keyboard is on is ringed");
-    // The first is Home, the screen on: the next one Enter opens.
-    app.event(Event::Key(Key::Tab));
-    let _ = pixels(&mut app);
+    // The first is Scan, at the top of the navigation, the second Home, the
+    // screen on: the next one Enter opens.
+    for _ in 0..2 {
+        app.event(Event::Key(Key::Tab));
+        let _ = pixels(&mut app);
+    }
     app.event(Event::Key(Key::Enter));
     assert_ne!(app.screen, Screen::Home, "Enter pressed it");
 }

@@ -279,8 +279,15 @@ fn core_wallet_with_one_file_opens_it_and_with_none_offers_the_ways_in() {
         none.press(Action::InboxRemove(0));
     }
     assert!(has(&mut none, EN.core_wallet_no_file_waits));
-    // A wallet file cannot come by QR: Open Files, and no Scan.
-    assert!(!has(&mut none, EN.compact_scan));
+    // A wallet file cannot come by QR: Open Files, and no Scan in the card
+    // (the sidebar's is the one Scan drawn).
+    let _ = none.frame();
+    let scans = none
+        .drawn_texts()
+        .iter()
+        .filter(|t| *t == EN.compact_scan)
+        .count();
+    assert!(scans <= 1, "{scans} Scan buttons");
     assert!(has(&mut none, EN.parts_open_files));
 }
 

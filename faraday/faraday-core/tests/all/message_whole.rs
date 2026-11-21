@@ -77,7 +77,15 @@ fn a_scanned_message_is_all_in_its_field_before_signing() {
     scan(&mut app, &long());
     open_step(&mut app, faraday_core::mstep::TEXT);
     let last = box_of(&mut app, "the last line");
-    let below = box_of(&mut app, EN.message_scan);
+    // The sidebar's Scan has the same word: the button under the field is
+    // the lowest one.
+    let below = app
+        .drawn_text_boxes()
+        .into_iter()
+        .filter(|(t, _)| t == EN.message_scan)
+        .map(|(_, b)| b)
+        .max_by_key(|b| b.1)
+        .expect("the button under the field is drawn");
     assert!(
         last.1 + last.3 <= below.1,
         "the last line {last:?} ends above the buttons under the field {below:?}"

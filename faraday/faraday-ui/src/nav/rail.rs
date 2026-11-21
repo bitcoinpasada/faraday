@@ -8,12 +8,26 @@ use super::{Dest, item};
 use crate::pal::*;
 use crate::{Shape, Ui};
 use faraday_draw::tokens::{
-    GAP, GRID, ICON_SMALL, LABEL_L, LABEL_M, NAV_ICON, NAV_ICON_GAP, NAV_ITEM_H, NAV_RAIL_TOP, PAD,
-    RAIL_W, TOUCH,
+    FAB_H, GAP, GRID, ICON_SMALL, LABEL_L, LABEL_M, NAV_FAB_GAP, NAV_ICON, NAV_ICON_GAP,
+    NAV_ITEM_H, NAV_RAIL_TOP, PAD, RAIL_W, TOUCH,
 };
+use faraday_draw::widgets::Icon;
+
+/// The FAB at the top of a rail: Scan, above the destinations.
+#[derive(Debug, Clone, Copy)]
+pub struct RailFab<'s, A> {
+    /// Its icon.
+    pub icon: Icon,
+    /// Its label (the expanded rail's word).
+    pub label: &'s str,
+    /// What a press on it does.
+    pub action: A,
+}
 
 /// What a rail holds.
 pub struct Rail<'s, A> {
+    /// The FAB above the destinations, on every page.
+    pub fab: Option<RailFab<'s, A>>,
     /// The destinations, from the top.
     pub top: &'s [Dest<'s, A>],
     /// Under a divider: what is opened, then closed (the guide, Settings).
@@ -32,10 +46,19 @@ pub fn rail<A: Copy + PartialEq>(ui: &mut Ui<A>, h: f32, r: &Rail<A>) {
     ui.fill(RAIL_W - 1.0, 0.0, 1.0, h, 0.0, Role::OutlineVariant);
     let n = r.top.len() + r.under.len() + r.foot.len();
     let divider = if r.under.is_empty() { 0.0 } else { 2.0 * GAP };
-    let room = h - 2.0 * NAV_RAIL_TOP - divider;
+    let fab_h = if r.fab.is_some() {
+        FAB_H + NAV_FAB_GAP
+    } else {
+        0.0
+    };
+    let room = h - 2.0 * NAV_RAIL_TOP - divider - fab_h;
     // Taller by what its label's line grows (`docs/TEXT-SIZE.md` §5).
     let ih = (room / n.max(1) as f32).clamp(TOUCH, NAV_ITEM_H + ui.line_grown_as(LABEL_M));
     let mut y = NAV_RAIL_TOP;
+    if let Some(f) = &r.fab {
+        ui.fab_top(((RAIL_W - FAB_H) / 2.0, y), None, f.icon, f.label, f.action);
+    }
+    y += fab_h;
     for d in r.top {
         item(ui, 0.0, y, RAIL_W, ih, d);
         y += ih;

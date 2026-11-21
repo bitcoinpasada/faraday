@@ -26,3 +26,9 @@ the buttons above staying; a press opens a tool, a card works there as it does o
 **Key:** home.power
 
 The power button at the top right of the top app bar, beside the ?, opens a menu: **Lock** while a secret is held, **Restart** where the computer offers it, and **Power off** (**Quit** in the desktop app, which has no Restart). **Restart** and **Power off** open the power sheet, which lists what is kept and what is wiped. The Pi's small panel has **Lock** and **Power off** at the foot of Home's menu instead.
+
+## Scan
+
+**Key:** home.scan
+
+Scan reads a QR code. It is the button at the bottom left of the sidebar or at the top of the rail, on every page; on the Pi's menu and on a phone-size window it is the button at the bottom right of Home and of the pages that have it.

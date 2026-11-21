@@ -129,6 +129,11 @@ pub(crate) fn rail(app: &View, ui: &mut Ui, h: f32) {
         ui,
         h,
         &Rail {
+            fab: Some(faraday_ui::nav::RailFab {
+                icon: Icon::Scan,
+                label: EN.home_scan,
+                action: Action::Scan,
+            }),
             top: &top,
             under: &under,
             foot: &[],

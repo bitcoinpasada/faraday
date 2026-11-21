@@ -185,9 +185,10 @@ pub(crate) fn lit_destination(app: &crate::drawing::View) -> Screen {
     }
 }
 
-/// Whether the screen on show carries the floating Scan button: Home, and
-/// the top page of Check, Wallets, Files, Vaults and Tools, on every layout
-/// but the Pi's menu, where Home alone has it. Not inside a flow, a tool,
+/// Whether the screen on show carries the floating Scan button, where Scan
+/// floats ([`scan_floats`]): Home, and the top page of Check, Wallets,
+/// Files, Vaults and Tools on the phone-size window; on the Pi's menu Home
+/// alone has it. Not inside a flow, a tool,
 /// a wallet's own page or a held app. A lookup.
 pub(crate) fn shows_scan(app: &crate::View) -> bool {
     match app.screen {
@@ -197,4 +198,12 @@ pub(crate) fn shows_scan(app: &crate::View) -> bool {
         Screen::Vaults => app.vaults.back_to.is_none(),
         _ => false,
     }
+}
+
+/// Whether Scan floats at the bottom right: the page carries it
+/// ([`shows_scan`]) and the window is the Pi's menu or the phone-size one,
+/// which have no rail; on the rail's windows Scan is the rail's own, on
+/// every page. A lookup.
+pub(crate) fn scan_floats(app: &crate::View) -> bool {
+    shows_scan(app) && matches!(app.nav(), Nav::Menu | Nav::Bar)
 }

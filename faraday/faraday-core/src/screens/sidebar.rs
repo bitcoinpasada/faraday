@@ -7,7 +7,9 @@ use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{Glyph, NameSuffix, Ui};
 use crate::{Action, Screen, Sheet};
-use faraday_draw::tokens::{BODY_S, LABEL_M, LABEL_S};
+use faraday_draw::tokens::{
+    BODY_S, FAB_H, FAB_PAD, ICON_GAP, ICON_GLYPH, LABEL_L, LABEL_M, LABEL_S, NAV_FAB_GAP,
+};
 use faraday_draw::tokens::{GRID, TOUCH};
 use faraday_draw::widgets::Icon;
 
@@ -89,6 +91,7 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     }
     // The tabs are a touch target tall each, from just under the name.
     let mut y = 64.0;
+    let (x, w) = (12.0, SIDEBAR_W - 24.0);
     let flows = app.flows_in_progress();
     let on = app.flow_on_screen();
     let v = app.vaults.open.len();
@@ -101,7 +104,6 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
         } else {
             None
         };
-        let (x, w) = (12.0, SIDEBAR_W - 24.0);
         let d = faraday_ui::nav::Dest {
             icon,
             label,
@@ -146,8 +148,19 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
 
     // Lock and Power off are the top app bar's power button's; what holds
     // the idle lock stands at the sidebar's foot.
+    // Scan is the extended FAB at the foot, as wide as its icon and word,
+    // fixed there on every page; the pill stands above it.
+    let fab_y = h - FAB_H - NAV_FAB_GAP;
+    let fab_w = ui.measure_as(LABEL_L, EN.home_scan) + 2.0 * FAB_PAD + ICON_GLYPH + ICON_GAP;
+    ui.fab_top(
+        (x, fab_y),
+        Some(fab_w),
+        Icon::Scan,
+        EN.home_scan,
+        Action::Scan,
+    );
     if app.lock_held() {
-        lock_held_pill(ui, 16.0, h - LOCK_PILL_H - GRID * 2.0, SIDEBAR_W - 32.0);
+        lock_held_pill(ui, 16.0, fab_y - LOCK_PILL_H - GRID, SIDEBAR_W - 32.0);
     }
 }
 

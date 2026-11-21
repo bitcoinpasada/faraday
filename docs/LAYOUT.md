@@ -204,7 +204,7 @@ where the room is narrower they take all of it, as Tools' do.
   empty. The Pi's panel menu keeps its places two to a row, the icon over
   the name: the one page that holds its columns whatever the minimum. The tiles keep their order, the fourth Check's, always, and none
   for Vaults (`docs/FLOWS.md`, Home; F255).
-- **Scan** stays the floating button at the bottom-right, and the top page of Check, Wallets, Files, Vaults and Tools carries it too (§15).
+- **Scan** is the rail's FAB on these windows (§3, §15); the floating button at the bottom right is the Pi's menu's and the phone-size window's.
 
 Home is drawn by layout, three Homes, and the destinations stand in one
 order: `docs/HOME.md`.
@@ -570,12 +570,25 @@ edge:
   the bar's end, as Material's top app bar puts its trailing actions;
 - a supporting pane (§6): its right edge `MARGIN_WIDE` from the
   window's, its top `SUPPORT_PANE_TOP`, `SPACER` from the page;
-- The Scan button (Home, and the top page of Check, Wallets, Files, Vaults
-  and Tools; Home alone on the small panel's menu layout): `MARGIN_WIDE` from the window's right and foot
-  (Material's floating action button margin on medium windows and up);
+- The Scan button where it floats (the phone-size window: Home, and the top
+  page of Check, Wallets, Files, Vaults and Tools; the Pi's menu: Home
+  alone): `MARGIN_WIDE` from the window's right and foot;
 - toasts and notices: centred on the page area, as today.
 
-On a window with the rail or the bar beside the page, the Scan button stands at the window's edge and foot, not at the edge of the page's column.
+On the rail's windows Scan does not float (F305): in the sidebar it is the
+extended FAB (icon and "Scan", filled in primary) at its bottom left where
+Power off was, `FAB_H` tall and only as wide as its icon and word, with
+`NAV_FAB_GAP` under it, fixed there and never scrolled away with the
+destinations (a difference from Material, whose expanded rail puts the FAB at
+the top: F305); on the rail it is the FAB (the icon alone,
+`FAB_H` square, centred in the rail) at its top, above the destinations,
+with the same gap (Material 3's navigation rail). It is there on every page,
+so no page draws a Scan button of its own on these windows: the floating
+Scan of Home, Check, Wallets, Files, Vaults and Tools is gone from them, and
+those pages keep no room at their foot for it. The Pi's menu and the
+phone-size window keep it floating, on the pages above. A tool's own Scan
+inside its card (a tool with nothing to read) is that tool's, not the
+navigation's.
 
 Material's pane scaffold keeps a 24 dp spacer between panes from
 expanded windows up, allows up to three panes side by side from large
@@ -835,7 +848,7 @@ below say what each draws today.
 
 | Screen | Rule |
 |---|---|
-| Home | the feed (§4) on the menu page container: a page at most `MENU_PAGE_W` wide, `PAGE_INSET` in from each side and centred in the room beside the navigation, as Tools' is: as many columns as fit tiles at least `CATALOG_TILE_MIN` wide, each at the row's share, the rest of a short row empty; on the one-column layouts the places a grid by the same rule, two to a row on the Pi's panel; Scan at the right edge (§15) |
+| Home | the feed (§4) on the menu page container: a page at most `MENU_PAGE_W` wide, `PAGE_INSET` in from each side and centred in the room beside the navigation, as Tools' is: as many columns as fit tiles at least `CATALOG_TILE_MIN` wide, each at the row's share, the rest of a short row empty; on the one-column layouts the places a grid by the same rule, two to a row on the Pi's panel; Scan in the sidebar or rail (§15), floating on the Pi's menu and the phone-size window |
 | Wallets, Files, Vaults, Backups | list and detail (§5, L4) in the whole page area: the list `LIST_PANE` at the start, the detail beside it to the right margin; the detail's reading parts at `COLUMN_MAX`, its chart and tables in the detail's width. Files is two cards from under the bar to the page's foot, In Faraday and On the stick (F290); its stick status chip is in the top bar. The bar of a wallet beside the list names the page and has no back arrow or "Back to Wallets" line, as the list is in view (Material's list-detail shows a back only where one pane hides the other); where the card stands alone, or the trail leads elsewhere ("Back to Home"), the line stays |
 | The structure chart (a wallet's detail, the chart sheet) | wide content in the detail's width; its nodes keep their size (§8); the wallet's buttons under the chart, not at the card's foot. A node's sheet is Material's standard side sheet at the window's right edge, `SIDE_SHEET_W` wide, the page's room narrowed by it so the chart and its highlighted lines stand beside it (DESIGN §4.16), and where the room left cannot hold the list pane and a card at least as wide beside it (`panes::screen::fits`), the wallet's card stands alone in it, as on a medium window, until the sheet closes; on the rail's and the bar's windows the centred sheet or the panel's page, as before |
 | Back on a compact window | closes what is open on the page before it leaves it: the search view of a vault's items or of the codes (the bar's back arrow, naming the list, and the system Back close it as Done and Escape do, the query kept and the list filtered), then a Settings section to the list |

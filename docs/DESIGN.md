@@ -161,7 +161,8 @@ What a page holds sets its width (F114, LAYOUT §14, §17):
   extra-large windows: Guide beside the page, the backup board's lists,
   the codex32 dice sheet's column (LAYOUT §6).
 - **What stands at the right** (the top strip's mode pill and ?, the
-  eye, the keyboard button, the supporting pane, the Scan button) stands
+  eye, the keyboard button, the supporting pane, the Scan button where it
+  floats) stands
   `MARGIN_WIDE` (24) from the window's edge (LAYOUT §15).
 
 Components keep their size (LAYOUT §8): a button is as wide as its
