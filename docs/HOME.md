@@ -14,7 +14,7 @@ Home is drawn by layout, not by one model:
 - **The wide layout** (1280 by 800 and up, the expanded rail):
   `faraday-core`'s `screens/home.rs`. The sidebar carries the places, so
   the page holds the search bar, the lead, the first actions, the row of
-  what is going on and the Wallets and Keys lists, in the column of Tools'
+  what is going on and the box of wallets and keys, in the column of Tools'
   catalogue (the menu page container, `docs/MENU-PAGE.md`, `docs/LAYOUT.md` §4).
 - **The Pi's menu** (the Pi's 480 by 640 panel, no navigation component)
   and **the one-column windows with navigation** (the rail's and the
@@ -22,7 +22,7 @@ Home is drawn by layout, not by one model:
   phone-size window a box of what is loaded, one row for the lead, the
   first actions where there is a search bar, and the places as tiles; on
   the rail's windows the search bar, the lead, the first actions, the same
-  row of what is going on and Wallets and Keys lists as the wide layout,
+  row of what is going on and the box of wallets and keys as the wide layout,
   and the places.
 
 The phone-size window differs from the rail's: its search bar is first,
@@ -41,10 +41,10 @@ actions.
    width. None when nothing waits and something is loaded.
 3. **The three first actions** (§5), always.
 4. **What is going on** (§3): one row of chips.
-5. **Wallets** (§3): list rows for the wallets that need something, All
-   wallets and Backups.
-6. **Keys** (§3): list rows for the keys no wallet uses, All keys.
-7. **Scan**, the floating button at the bottom right.
+5. **Wallets and keys** (§3): one tinted box of list rows, the wallets
+   that need something and the keys no wallet uses, then All wallets,
+   Backups and All keys.
+6. **Scan**, the floating button at the bottom right.
 
 **The Pi's menu, the rail's windows and the phone-size window** (the
 rail's windows differ as the list says):
@@ -127,34 +127,39 @@ spend under way is a flow in progress, one chip. It is Home's own row:
 the chips over every page beside the rail and the flow rows in the sidebar
 stay as they are (F41, `docs/LAYOUT.md` §3).
 
-Then a section headed **Wallets**, as Material two-line list items (Lists),
-one under another across the page, only while a wallet is in the session
-(or a backup is known):
+Then one box, the container of §4's box of what is loaded (a tinted,
+outlined, rounded surface), of Material list items (Lists) one under
+another across the page, drawn while anything is loaded. Each row has a
+leading icon and a trailing chevron and opens what it names; there are no
+headings, the icons carry it. In this order:
 
 - a row for each wallet that **needs something now**, ranked (the wallets
   the keys here sign for alone first, then those with some keys here, then
-  watch-only): its name and, under it, the first that applies, "Signatures
-  {n} of {m}" while its spend is under way, "A PSBT to sign" while Files
-  holds a PSBT for it, "Not backed up" while a key made here waits for its
-  backup. The row opens the wallet's card on Wallets (`Action::OpenWallet`);
-  a wallet that needs nothing has no row;
-- **All wallets ({n})**, opening Wallets as the sidebar's entry does;
-- **Backups**, once a wallet is known: "{n} not backed up" or "{n} with a
-  plan", opening Backups. On the rail's windows the places have no Backups
-  tile of their own, this row stands for it.
+  watch-only), with the warning icon: its name and, under it, the first
+  that applies, "Signatures {n} of {m}" while its spend is under way, "A
+  PSBT to sign" while Files holds a PSBT for it, "Not backed up" while a
+  key made here waits for its backup. The row opens the wallet's card on
+  Wallets (`Action::OpenWallet`); a wallet that needs nothing has no row;
+- a row for each key no wallet uses, with the key icon: its fingerprint,
+  under it its name (none when the name is the fingerprint), the word
+  "passphrase" when the key was loaded with one (the same words without it
+  are another key) and "No wallet uses it", and at its end **Make a
+  wallet**, which makes a wallet from the key. A key a wallet uses has no
+  row;
+- **All wallets** with the wallet icon and the count of wallets at its end,
+  opening Wallets as the sidebar's entry does, while a wallet is in the
+  session;
+- **Backups** with the shield icon, once a wallet is known: "{n} not backed
+  up" or "{n} with a plan" under it, opening Backups. On the rail's windows
+  the places have no Backups tile of their own, this row stands for it;
+- **All keys** with the key icon and the count of keys at its end, opening
+  Explore, while any key is held.
 
 Home has no Sign button: the card on Wallets and the lead carry what signs
 next. Home has no Receive button either: Faraday is an offline signer, and
-the wallet's card on Wallets keeps its "First receive address" line.
-
-Then a section headed **Keys**, in the same style, while any key is held: a
-row for each key no wallet uses, its fingerprint, under it its name (none
-when the name is the fingerprint), the word "passphrase" when the key was
-loaded with one (the same words without it are another key) and "No wallet
-uses it", and at its end **Make a wallet**, which makes a wallet from the
-key; then **All keys ({n})**, opening Explore. A key a wallet uses has no
-row. The sidebar lists neither wallets nor keys. Many rows push the page
-on and it scrolls.
+the wallet's card on Wallets keeps its "First receive address" line. The
+sidebar lists neither wallets nor keys. Many rows push the page on and it
+scrolls.
 
 The Pi's menu and the phone-size window have no such lists: they name each
 wallet and key in the box of what is loaded (§4), and the places carry a
@@ -328,20 +333,21 @@ under the bar.
 | Guide       | | Make a    | | Restore an| | Spend from a backup   |    |
 | Settings    | +-----------+ +-----------+ +-----------------------+    |
 |             | (Vault.fvault open) (Spending  Signatures 1 of 2)        |
-|             | Wallets                                                  |
-| [Lock]      |  Savings                                                 |
-| [Power off] |  A PSBT to sign                                          |
-|             |  All wallets (3)                                         |
-|             |  Backups                                                 |
-|             |  1 not backed up                                         |
-|             | Keys                                                     |
-|             |  c3a1f20e                         Make a wallet          |
-|             |  savings · No wallet uses it                             |
-|             |  All keys (3)                                            |
+|             | +------------------------------------------------+     |
+|             | | [!] Savings                                  > |     |
+| [Lock]      | |     A PSBT to sign                             |     |
+| [Power off] | | [k] c3a1f20e               Make a wallet     > |     |
+|             | |     savings · No wallet uses it                |     |
+|             | | [w] All wallets                        3     > |     |
+|             | | [s] Backups                                  > |     |
+|             | |     1 not backed up                            |     |
+|             | | [k] All keys                           3     > |     |
+|             | +------------------------------------------------+     |
+|             |                                                          |
 +-------------+----------------------------------------------------------+
 ```
 
-Many rows push the page on and it scrolls under the bar. On the rail's windows the same chips and lists stand under the
+Many rows push the page on and it scrolls under the bar. On the rail's windows the same chips and box of list rows stand under the
 first actions at full width, in place of the box of what is loaded.
 
 ### 7.4 The phone-size window, nothing loaded
@@ -370,7 +376,7 @@ Only what is under the search bar scrolls, until the window is too short
 to leave room under the bar for about three rows of results; then the
 whole page scrolls (§5). The rail's windows draw the search bar first and
 the lead, the first actions always, the row of what is going on and the
-Wallets and Keys lists, the rail beside it carrying Lock and Power off.
+box of wallets and keys, the rail beside it carrying Lock and Power off.
 
 ## 8. Strings
 
@@ -410,7 +416,7 @@ show as headings only, each pressed as a whole, and a job waiting leads;
 with a wallet loaded the three first actions still stand and each opens
 its flow; a wallet with a PSBT to sign, a spend under way or a backup waiting is a
 row that opens its card, with no Sign, and one with nothing to do has no
-row; All wallets opens Wallets and All keys opens Explore; a vault open is
+row; All wallets (its count at its end) opens Wallets and All keys opens Explore; a vault open is
 a chip; a key no wallet uses is a row offering a wallet from it, with no
 lead, and one loaded with a passphrase says so; the wide Home's search bar stays where it was while a search is typed,
 the typed search takes the page and clearing it brings the rest back, and

@@ -58,16 +58,12 @@ macro_rules! words_screens_home {
     home_card_backup_not_finished: "Backup not finished",
     /// The tail of a vault's chip on Home, after its name.
     home_going_open: "open",
-    /// The row on Home that opens Wallets. `{}`: how many wallets are loaded.
-    home_all_wallets: "All wallets ({})",
-    /// The row on Home that opens Explore. `{}`: how many keys are held.
-    home_all_keys: "All keys ({})",
+    /// The row on Home that opens Wallets.
+    home_all_wallets: "All wallets",
+    /// The row on Home that opens Explore.
+    home_all_keys: "All keys",
     /// The line under a key no wallet uses.
     home_card_no_wallet_uses_it: "No wallet uses it",
-    /// The head of the wallets on Home.
-    home_wallets: "Wallets",
-    /// The head of the keys on Home.
-    home_keys: "Keys",
     /// A key's line on Home when it was loaded with a passphrase; the same words without it are another key.
     home_key_passphrase: "passphrase",
     /// A wallet card's line while its spend is under way. `{}`: signatures, needed.

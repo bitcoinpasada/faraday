@@ -8,7 +8,10 @@ use crate::ui::pal::*;
 use crate::ui::{Glyph, Ui};
 use crate::ui::{Shape, Style};
 use crate::{Action, Screen};
-use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, SHAPE_M, TITLE_M};
+use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, BUTTON_H, SHAPE_M, TITLE_M};
+use faraday_draw::tokens::{
+    GAP_SMALL, GRID, ICON_SMALL, LABEL_S, LIST_1, LIST_2, LIST_PAD, NAV_ICON,
+};
 use faraday_draw::tokens::{
     HOME_LEAD_H, HOME_LEAD_ICON, HOME_LEAD_INSET, HOME_LEAD_SUB_Y, HOME_LEAD_TEXT_X,
     HOME_TILE_ICON, HOME_TILE_INSET, HOME_TILE_TEXT_X, MENU_GAP, TILE_H,
@@ -443,80 +446,143 @@ fn wallet_card(app: &View, i: usize) -> WalletCard {
     }
 }
 
-/// One of Home's list rows (`docs/HOME.md` §3): its headline, the line
-/// under it (empty for none), the small text at its end (empty for none)
-/// and what a press opens.
+/// One of Home's list rows (`docs/HOME.md` §3): its leading icon, its
+/// headline, the line under it (empty for none), the small text at its end
+/// (empty for none; `accent` draws it as an action) and what a press
+/// opens. Each ends in a chevron.
 struct ListRow {
+    icon: Icon,
     head: String,
     sub: String,
-    trailing: &'static str,
+    trailing: String,
+    accent: bool,
     action: Action,
 }
 
-/// `rows` drawn as Material two-line list items one under another from
-/// `(x, y)`, `w` wide. Returns their height.
-fn list_rows(ui: &mut Ui, (x, y): (f32, f32), w: f32, rows: &[ListRow]) -> f32 {
-    let mut cy = y;
+/// `rows` as one tinted, rounded box (the surface of the Pi's box of what
+/// is loaded) of Material list items one under another from `(x, y)`, `w`
+/// wide, each with a leading icon and a trailing chevron. Returns the
+/// box's height.
+fn list_box(ui: &mut Ui, (x, y): (f32, f32), w: f32, rows: &[ListRow]) -> f32 {
+    let row_h = |r: &ListRow| if r.sub.is_empty() { LIST_1 } else { LIST_2 };
+    let h = rows.iter().map(row_h).sum::<f32>() + 2.0 * GAP_SMALL;
+    crate::nav::screen::loaded_surface(ui, x, y, w, h);
+    let mut cy = y + GAP_SMALL;
+    let text_x = x + LIST_PAD + ICON_SMALL + LIST_PAD;
+    let chevron_x = x + w - LIST_PAD - ICON_SMALL;
     for r in rows {
-        let it = faraday_ui::roles::ListItem {
-            headline: &r.head,
-            supporting: &r.sub,
-            trailing: (!r.trailing.is_empty()).then(|| (r.trailing, Role::Primary.paint())),
-            action: r.action,
+        let rh = row_h(r);
+        ui.press(
+            Shape::new(x + GAP_SMALL, cy, w - 2.0 * GAP_SMALL, rh, SHAPE_M),
+            Role::OnSurface.paint(),
+            r.action,
+        );
+        ui.icon(
+            x + LIST_PAD,
+            cy + (rh - ICON_SMALL) / 2.0,
+            ICON_SMALL,
+            r.icon,
+            NAV_ICON + GAP_SMALL,
+            Role::OnSurfaceVariant,
+        );
+        ui.icon(
+            chevron_x,
+            cy + (rh - ICON_SMALL) / 2.0,
+            ICON_SMALL,
+            Icon::ChevronRight,
+            NAV_ICON + GAP_SMALL,
+            Role::OnSurfaceVariant,
+        );
+        let mut right = chevron_x - GRID;
+        if !r.trailing.is_empty() {
+            let tone = if r.accent {
+                Role::Primary
+            } else {
+                Role::OnSurfaceVariant
+            };
+            let tw = ui.measure_as(LABEL_S, &r.trailing);
+            ui.text_right_as((right, cy, rh), LABEL_S, tone, &r.trailing);
+            right -= tw + GRID;
+        }
+        let room = (right - text_x).max(0.0);
+        let (head_y, head_h) = if r.sub.is_empty() {
+            (cy, rh)
+        } else {
+            let line = ui.line_as(BODY_L);
+            (cy + (rh - line - ui.line_as(BODY_M)) / 2.0, line)
         };
-        cy += ui.list_item((x, cy, w), &it, false);
+        let head = ui.fit_as(BODY_L, &r.head, room);
+        ui.text_mid_as((text_x, head_y, head_h), BODY_L, Role::OnSurface, &head);
+        if !r.sub.is_empty() {
+            let line = ui.line_as(BODY_M);
+            let sub = ui.fit_as(BODY_M, &r.sub, (right - text_x).max(0.0));
+            ui.text_mid_as(
+                (text_x, head_y + head_h, line),
+                BODY_M,
+                Role::OnSurfaceVariant,
+                &sub,
+            );
+        }
+        cy += rh;
     }
-    cy - y
+    h
 }
 
-/// The wallets' rows (`docs/HOME.md` §3): one for each wallet that needs
-/// something now, then "All wallets" opening Wallets, then Backups once a
+/// The wallets' rows (`docs/HOME.md` §3), the ones that need something and
+/// the rest: one for each wallet that needs something now, then "All wallets" opening Wallets, then Backups once a
 /// wallet is known.
-fn wallet_rows(app: &View) -> Vec<ListRow> {
-    let mut rows: Vec<ListRow> = home_wallets(app)
+fn wallet_rows(app: &View) -> (Vec<ListRow>, Vec<ListRow>) {
+    let rows: Vec<ListRow> = home_wallets(app)
         .into_iter()
         .filter(|c| c.needs)
         .map(|c| ListRow {
+            icon: Icon::Warning,
             head: c.name,
             sub: c.line,
-            trailing: "",
+            trailing: String::new(),
+            accent: false,
             action: Action::OpenWallet(c.index),
         })
         .collect();
+    let mut rest = Vec::new();
     let n = app.session.wallets.len();
     if n > 0 {
-        rows.push(ListRow {
-            head: fill(EN.home_all_wallets, &[&n.to_string()]),
+        rest.push(ListRow {
+            icon: Icon::Wallet,
+            head: EN.home_all_wallets.to_string(),
             sub: String::new(),
-            trailing: "",
+            trailing: n.to_string(),
+            accent: false,
             action: Action::Nav(Screen::WalletsStart),
         });
     }
     let (known, without) = app.backup_counts();
     if known > 0 {
-        rows.push(ListRow {
+        rest.push(ListRow {
+            icon: Icon::Shield,
             head: EN.home_ways_backups.to_string(),
             sub: if without == 0 {
                 fill(EN.home_ways_with_a_plan, &[&known.to_string()])
             } else {
                 fill(EN.home_ways_not_backed, &[&without.to_string()])
             },
-            trailing: "",
+            trailing: String::new(),
+            accent: false,
             action: Action::Nav(Screen::Backups),
         });
     }
-    rows
+    (rows, rest)
 }
 
 /// The keys' rows (`docs/HOME.md` §3): one for each key no wallet uses,
 /// offering to make a wallet from it, then "All keys" opening Explore.
-fn key_rows(app: &View) -> Vec<ListRow> {
+fn key_rows(app: &View) -> (Vec<ListRow>, Vec<ListRow>) {
     let n = app.session.keys.all().count();
     if n == 0 {
-        return Vec::new();
+        return (Vec::new(), Vec::new());
     }
     let loose = app.session.loose_keys();
-    let mut rows: Vec<ListRow> = app
+    let rows: Vec<ListRow> = app
         .session
         .keys
         .all()
@@ -535,42 +601,42 @@ fn key_rows(app: &View) -> Vec<ListRow> {
             }
             sub.push_str(EN.home_card_no_wallet_uses_it);
             ListRow {
+                icon: Icon::Keys,
                 head: String::from(&*fp),
                 sub,
-                trailing: EN.home_btn_make_a_wallet,
+                trailing: EN.home_btn_make_a_wallet.to_string(),
+                accent: true,
                 action: Action::KeyWallet(k.fingerprint.0, 1),
             }
         })
         .collect();
-    rows.push(ListRow {
-        head: fill(EN.home_all_keys, &[&n.to_string()]),
+    let rest = vec![ListRow {
+        icon: Icon::Keys,
+        head: EN.home_all_keys.to_string(),
         sub: String::new(),
-        trailing: "",
+        trailing: n.to_string(),
+        accent: false,
         action: Action::Explore,
-    });
-    rows
+    }];
+    (rows, rest)
 }
 
-/// What is loaded as the menu page's sections (`docs/HOME.md` §3): Wallets
-/// with a row for each wallet that needs something, All wallets and
-/// Backups, then Keys with a row for each key no wallet uses and All keys.
-/// The wide layout and the rail's windows both draw them.
+/// What is loaded as one section of the menu page (`docs/HOME.md` §3): a
+/// tinted box of list rows, first one for each wallet that needs
+/// something and each key no wallet uses, then All wallets, Backups and
+/// All keys. The wide layout and the rail's windows both draw it.
 pub(crate) fn loaded_sections(app: &View) -> Vec<Section<'static>> {
-    let mut sections = Vec::new();
-    let rows = wallet_rows(app);
-    if !rows.is_empty() {
-        let label = (!app.session.wallets.is_empty()).then_some(EN.home_wallets);
-        sections.push(Section::block(label, move |ui, at, w| {
-            list_rows(ui, at, w, &rows)
-        }));
+    let (mut all, wallets) = wallet_rows(app);
+    let (keys, all_keys) = key_rows(app);
+    all.extend(keys);
+    all.extend(wallets);
+    all.extend(all_keys);
+    if all.is_empty() {
+        return Vec::new();
     }
-    let rows = key_rows(app);
-    if !rows.is_empty() {
-        sections.push(Section::block(Some(EN.home_keys), move |ui, at, w| {
-            list_rows(ui, at, w, &rows)
-        }));
-    }
-    sections
+    vec![Section::block(None, move |ui, at, w| {
+        list_box(ui, at, w, &all)
+    })]
 }
 
 /// One tile at (`tx`, `ty`), `tilew` wide and `TILE_H` tall: its icon, its

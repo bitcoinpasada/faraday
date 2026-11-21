@@ -972,7 +972,8 @@ fn the_pi_s_home_names_a_wallet_that_needs_something_and_folds_the_rest() {
         !shown.iter().any(|t| t.contains(&name)),
         "a wallet that needs nothing is named: {shown:?}"
     );
-    assert!(shown.iter().any(|t| t == "All wallets (1)"), "{shown:?}");
+    assert!(shown.iter().any(|t| t == "All wallets"), "{shown:?}");
+    assert!(shown.iter().any(|t| t == "1"), "{shown:?}");
 
     let kit = faraday_core::testkit::kits()
         .into_iter()
@@ -1087,7 +1088,8 @@ fn a_wallet_with_nothing_to_do_has_no_row_and_all_wallets_opens_wallets() {
     assert!(app.offers(Action::Nav(Screen::Backups)));
     assert!(!app.offers(Action::OpenWallet(0)), "it needs nothing");
     let texts = app.drawn_texts();
-    assert!(texts.iter().any(|t| t == "All wallets (1)"), "{texts:?}");
+    assert!(texts.iter().any(|t| t == "All wallets"), "{texts:?}");
+    assert!(texts.iter().any(|t| t == "1"), "{texts:?}");
     tap(&mut app, Action::Nav(Screen::WalletsStart));
     assert!(matches!(app.screen, Screen::Wallets | Screen::WalletsStart));
 }
@@ -1145,14 +1147,18 @@ fn a_key_on_home_offers_a_wallet_and_all_keys_opens_explore() {
         let fp = app.session.keys[0].fingerprint.0;
         app.press(Action::Nav(Screen::Home));
         let texts = app.drawn_texts();
-        assert!(texts.iter().any(|t| t == "Keys"), "{width}: {texts:?}");
+        assert!(
+            texts.iter().any(|t| t == "Make a wallet"),
+            "{width}: {texts:?}"
+        );
         assert!(
             !texts.iter().any(|t| t.contains("passphrase")),
             "{width}: no passphrase mark: {texts:?}"
         );
         assert!(app.offers(Action::KeyWallet(fp, 1)));
         let texts = app.drawn_texts();
-        assert!(texts.iter().any(|t| t == "All keys (1)"), "{texts:?}");
+        assert!(texts.iter().any(|t| t == "All keys"), "{texts:?}");
+        assert!(texts.iter().any(|t| t == "1"), "{texts:?}");
         tap(&mut app, Action::Explore);
         assert_eq!(app.screen, Screen::Explore, "{width}");
     }
@@ -1787,8 +1793,10 @@ fn a_few_loaded_keys_and_wallets_list_only_what_needs_something() {
         assert!(!app.offers(Action::OpenWallet(w)), "wallet {w}");
     }
     let texts = app.drawn_texts();
-    assert!(texts.iter().any(|t| t == "All keys (3)"), "{texts:?}");
-    assert!(texts.iter().any(|t| t == "All wallets (2)"), "{texts:?}");
+    assert!(texts.iter().any(|t| t == "All keys"), "{texts:?}");
+    assert!(texts.iter().any(|t| t == "3"), "{texts:?}");
+    assert!(texts.iter().any(|t| t == "All wallets"), "{texts:?}");
+    assert!(texts.iter().any(|t| t == "2"), "{texts:?}");
     tap(&mut app, Action::Explore);
     assert_eq!(app.screen, Screen::Explore);
     app.press(Action::Nav(Screen::Home));

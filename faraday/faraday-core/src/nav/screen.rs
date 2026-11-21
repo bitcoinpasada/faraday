@@ -418,6 +418,14 @@ struct Line {
     action: Option<Action>,
 }
 
+/// The surface of a box of what is loaded: a tinted, outlined, rounded
+/// container `w` by `h` at (x, y). The Pi's and the phone's box and the
+/// wide Home's box of list rows are drawn on it.
+pub(crate) fn loaded_surface(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32) {
+    ui.fill(x, y, w, h, SHAPE_M, Role::SurfaceContainerLow);
+    ui.stroke(x, y, w, h, SHAPE_M, Role::OutlineVariant);
+}
+
 /// Home's box of what is loaded where there is no expanded rail: one
 /// card, a plain line in it for each flow in progress, key, wallet, the
 /// files and a stick's import waiting, each opening what its sidebar row
@@ -425,8 +433,7 @@ struct Line {
 pub(crate) fn loaded_card(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let (lines, at, row_h, h) = loaded_layout(app, ui, w);
     let room = w - 2.0 * PAD;
-    ui.fill(x, y, w, h, SHAPE_M, Role::SurfaceContainerLow);
-    ui.stroke(x, y, w, h, SHAPE_M, Role::OutlineVariant);
+    loaded_surface(ui, x, y, w, h);
     for (i, l) in lines.iter().enumerate() {
         let (ox, r) = at[i];
         let line_h = row_h[r];
