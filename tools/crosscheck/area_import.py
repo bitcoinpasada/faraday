@@ -519,8 +519,12 @@ def read_multisig_file(text):
             if deriv is None:
                 raise ValueError("a key with no derivation")
             keys.append(origin_of(name, deriv.removeprefix("m")) + value)
+    if fmt is None:
+        # No Format line is P2SH, as Coldcard reads it (F263); a Format
+        # value that names no script here is still refused.
+        fmt = "P2SH"
     if policy is None or fmt not in POLICY_WRAP:
-        raise ValueError("no policy or no format")
+        raise ValueError("no policy or an unknown format")
     m, n = policy
     if n != len(keys) or not 1 <= m <= n:
         raise ValueError("the policy does not match the keys listed")
@@ -722,7 +726,7 @@ class Import(Area):
     )
     vectors = (
         "BIP 129's key and descriptor records (`tools/vectors/bip129/`), and 93 real files from "
-        "the wallets' own test suites, 62 of them a wallet and 31 refused by both sides "
+        "the wallets' own test suites, 63 of them a wallet and 30 refused by both sides "
         "(`faraday/faraday-core/tests/vectors/interop/`: Sparrow's and BlueWallet's; "
         "`tools/vectors/wallet-files/`: Coldcard's firmware tests, Caravan's and Liana's): "
         "BSMS records, Coldcard setup files and exports, Caravan, Electrum, Cobo, Keystone, "
@@ -757,8 +761,8 @@ class Import(Area):
         (
             "Real files both sides refuse, each by a named rule: a Caravan file or an Electrum "
             "multisig file whose keys lack a path or a fingerprint, a Caravan quorum that is not "
-            "the keys listed, a multisig setup file with no policy, a key missing or no format "
-            "line (Coldcard's own P2SH setup files omit Format, which Faraday refuses), a BSMS "
+            "the keys listed, a multisig setup file with no policy, a key missing or a format "
+            "that names no script (a file with no Format line is P2SH, as Coldcard reads it: F263), a BSMS "
             "record with a paths line other than /0/*,/1/*, a derivation other than /** or "
             "<0;1>, a missing line, a first address that is not Core's or not an address, a "
             "Coldcard cosigner key file, an Unchained key file and a Coldcard stored setting "
