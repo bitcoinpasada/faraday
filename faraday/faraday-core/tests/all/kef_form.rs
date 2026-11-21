@@ -172,6 +172,11 @@ fn the_passphrase_field_refuses_what_the_rule_refuses() {
     assert_eq!(form.passphrase(), "caf x");
     type_in(&mut form, &mut app, &"y".repeat(300));
     assert_eq!(form.passphrase().len(), 200);
+    // The field says it is full.
+    assert_eq!(
+        form.error(),
+        Some("That passphrase is as long as one can be")
+    );
     // An empty passphrase is refused when the code is asked for.
     let mut empty = seed_form();
     empty.act(&mut app, KefAct::Make);

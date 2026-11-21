@@ -200,6 +200,13 @@ fn begin_key(app: &mut Faraday, i: usize) {
     finish_begin(app, form, None, Some(i));
 }
 
+/// Runs `f` on the form's passphrase and the check's, where the form is.
+pub(crate) fn with_pass(app: &mut Faraday, f: &mut dyn FnMut(&mut crate::pass_field::PassField)) {
+    if let Some(form) = st(app).and_then(|s| s.form.as_mut()) {
+        form.with_pass(f);
+    }
+}
+
 /// A stick is attached: the typed text and the form's secret fields lose
 /// focus and, with `wipe`, what was typed.
 pub(crate) fn stick_attached(app: &mut Faraday, wipe: bool) {
@@ -490,9 +497,6 @@ pub(crate) fn cancel(app: &mut Faraday) {
 pub(crate) fn hide(app: &mut Faraday) {
     if let Some(s) = st(app) {
         s.shown = false;
-        if let Some(f) = s.form.as_mut() {
-            f.hide_eyes();
-        }
     }
     crate::wallet_backup::kef::hide(app);
 }

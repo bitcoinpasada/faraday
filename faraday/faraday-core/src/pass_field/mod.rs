@@ -268,7 +268,6 @@ impl PassField {
 
     /// Moves the passphrase out and leaves the field empty: where the
     /// screen ends with the hand-off.
-    #[expect(dead_code, reason = "used where a screen ends with the hand-off")]
     pub(crate) fn take(&mut self) -> SecretText {
         std::mem::take(&mut self.text)
     }
@@ -324,11 +323,20 @@ pub(crate) enum Where {
     NewKey,
     /// The seed check's passphrase and the one again.
     SeedCheck,
+    /// The Krux code tool's form: the passphrase, the one again and the
+    /// check's.
+    KefTool,
+    /// The Krux code form of a seed's item on the backup board.
+    BackupKef,
+    /// The Bitcoin Core wallet tool's passphrase.
+    CoreWallet,
+    /// A passphrase on paper typed back for Check my copy.
+    CopyCheck,
 }
 
 impl Where {
     /// Every field.
-    const ALL: [Where; 8] = [
+    const ALL: [Where; 12] = [
         Where::Potential,
         Where::Aezeed,
         Where::Entry,
@@ -337,6 +345,10 @@ impl Where {
         Where::Slot,
         Where::NewKey,
         Where::SeedCheck,
+        Where::KefTool,
+        Where::BackupKef,
+        Where::CoreWallet,
+        Where::CopyCheck,
     ];
 
     /// Whether the field's screen or sheet is up: a sheet counts as up
@@ -365,6 +377,11 @@ impl Where {
                             .is_some_and(|k| k.hosted() && k.pass_open))
             }
             Where::SeedCheck => crate::seed_check::here(app),
+            // Add randomness opened from a form comes back to it.
+            Where::KefTool => matches!(app.screen, Screen::KefTool | Screen::Randomness),
+            Where::BackupKef => matches!(app.screen, Screen::Backup | Screen::Randomness),
+            Where::CoreWallet => app.screen == Screen::CoreWallet,
+            Where::CopyCheck => app.screen == Screen::Backup,
             // Its state is kept while the secret sheet shows what it made
             // and on the way to a vault or a key it needs (`after_input`):
             // the node and the passphrase it was made with stay together.
@@ -404,7 +421,13 @@ impl Where {
             Where::Potential | Where::Entry | Where::Slot | Where::NewKey | Where::SeedCheck => {
                 true
             }
-            Where::Aezeed | Where::SeedRead | Where::KefRead => false,
+            Where::Aezeed
+            | Where::SeedRead
+            | Where::KefRead
+            | Where::KefTool
+            | Where::BackupKef
+            | Where::CoreWallet
+            | Where::CopyCheck => false,
         }
     }
 
@@ -419,6 +442,15 @@ impl Where {
             Where::Slot => app.create.state().map(|c| &c.pass),
             Where::NewKey => app.keygen.state().map(|k| &k.passphrase),
             Where::SeedCheck => app.tools.seed_check.state().map(|s| s.pass()),
+            Where::KefTool => app
+                .tools
+                .kef_tool
+                .state()
+                .and_then(|s| s.form())
+                .map(|f| f.pass()),
+            Where::BackupKef => app.backup.kef_pass(),
+            Where::CoreWallet => app.tools.core_wallet.state().map(|s| &s.passphrase),
+            Where::CopyCheck => app.backup.check_pass(),
         }
     }
 
@@ -433,6 +465,10 @@ impl Where {
             Where::Slot => app.create.with_pass(f),
             Where::NewKey => app.keygen.with_pass(f),
             Where::SeedCheck => app.tools.seed_check.with_pass(f),
+            Where::KefTool => crate::kef_tool::with_pass(app, f),
+            Where::BackupKef => app.backup.with_kef_pass(f),
+            Where::CoreWallet => crate::core_wallet::tool::with_pass(app, f),
+            Where::CopyCheck => app.backup.with_check_pass(f),
         }
     }
 }

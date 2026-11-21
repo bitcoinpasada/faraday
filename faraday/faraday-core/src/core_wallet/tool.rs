@@ -7,9 +7,9 @@
 //! `screen.rs`.
 
 use super::{Fault, OutputType, Passphrase, Refusal, Wallet, is_wallet_file, read_file};
+use crate::pass_field::{Gate, Kind, PassField, PassKey};
 use crate::secret_text::SecretText;
 use crate::strings::EN;
-use crate::vault::TextBox;
 use crate::{Action, Faraday, Screen, flow};
 use faraday_bip::keys::Network;
 use faraday_crypto::work::Compute;
@@ -39,8 +39,6 @@ pub enum CoreWalletAction {
     File(usize),
     /// The passphrase field takes focus.
     Focus,
-    /// The eye on the passphrase.
-    Eye,
     /// Read the chosen file.
     Read,
     /// This active pair, by its place in the list, goes to Wallets.
@@ -51,9 +49,6 @@ pub enum CoreWalletAction {
 
 /// The most failed records the Result lists.
 pub(crate) const MAX_LINES: usize = 12;
-
-/// The longest passphrase the field takes, in bytes.
-const PASSPHRASE_MAX: usize = 1024;
 
 /// How a read ended, as the Result shows it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -113,9 +108,8 @@ pub struct CoreWalletState {
     pub(crate) back: Screen,
     /// The name of the file chosen.
     pub(crate) file: Option<Text>,
-    pub(crate) passphrase: TextBox,
+    pub(crate) passphrase: PassField,
     pub(crate) typing: bool,
-    pub(crate) revealed: bool,
     /// Why the file was refused.
     pub(crate) refused: Option<Text>,
     pub(crate) shown: Option<Shown>,
@@ -134,9 +128,8 @@ impl CoreWalletState {
             scroll: flow::Scroll::default(),
             back,
             file: None,
-            passphrase: TextBox::default(),
+            passphrase: PassField::new(Kind::CoreWallet),
             typing: false,
-            revealed: false,
             refused: None,
             shown: None,
             take: Vec::new(),
@@ -154,7 +147,7 @@ impl CoreWalletState {
 
     /// Whether the tool holds a passphrase typed or the file read.
     pub(crate) fn holds_secret(&self) -> bool {
-        !self.passphrase.text.is_empty() || self.file.is_some()
+        self.passphrase.holds_any() || self.file.is_some()
     }
 
     /// Whether the passphrase field has focus.
@@ -496,11 +489,6 @@ pub(crate) fn act(app: &mut Faraday, action: CoreWalletAction) {
                 s.typing = true;
             }
         }
-        CoreWalletAction::Eye => {
-            if let Some(s) = st(app) {
-                s.revealed = !s.revealed;
-            }
-        }
         CoreWalletAction::Read => read(app),
         CoreWalletAction::Take(i) => take(app, i),
     }
@@ -569,10 +557,8 @@ fn begin(app: &mut Faraday) -> Option<ReadWork> {
         s.refused = Some(Text::of(EN.core_wallet_none_in_files));
         return None;
     };
-    let given = !s.passphrase.text.is_empty();
-    let passphrase = given.then(|| std::mem::take(&mut s.passphrase.text));
-    s.passphrase.clear();
-    s.revealed = false;
+    let given = !s.passphrase.is_empty();
+    let passphrase = given.then(|| s.passphrase.take());
     s.typing = false;
     s.scroll.follow = true;
     Some(ReadWork {
@@ -633,7 +619,7 @@ pub(crate) fn read_done(app: &mut Faraday, done: ReadDone) {
 /// A press on Practice's **Use faraday** in the passphrase field.
 pub(crate) fn fill_faraday(app: &mut Faraday) {
     if let Some(s) = st(app) {
-        s.passphrase.text.set(crate::samples::PASSPHRASE);
+        s.passphrase.fill(crate::samples::PASSPHRASE);
     }
 }
 
@@ -679,14 +665,18 @@ fn take(app: &mut Faraday, pair: usize) {
     }
 }
 
-/// A stick is attached: the passphrase field loses focus and, with
-/// `wipe`, what was typed.
-pub(crate) fn stick_attached(app: &mut Faraday, wipe: bool) {
+/// A stick is attached: the passphrase field loses focus (what was typed
+/// is emptied by `pass_field::stick_arrived`).
+pub(crate) fn stick_attached(app: &mut Faraday, _wipe: bool) {
     if let Some(s) = st(app) {
         s.typing = false;
-        if wipe {
-            s.passphrase.clear();
-        }
+    }
+}
+
+/// Runs `f` on the passphrase field, where the tool is open.
+pub(crate) fn with_pass(app: &mut Faraday, f: &mut dyn FnMut(&mut PassField)) {
+    if let Some(s) = st(app) {
+        f(&mut s.passphrase);
     }
 }
 
@@ -699,7 +689,7 @@ pub(crate) fn field(app: &Faraday) -> Option<(Action, &str)> {
     s.typing.then(|| {
         (
             Action::CoreWallet(CoreWalletAction::Focus),
-            s.passphrase.text.as_str(),
+            s.passphrase.as_str(),
         )
     })
 }
@@ -715,35 +705,33 @@ pub(crate) fn key(app: &mut Faraday, key: Key) -> bool {
     if crate::stick::refuses_secret_key(app, key) {
         return true;
     }
+    let gate = Gate {
+        stick: app.stick.in_the_way(),
+    };
+    let medium = app.medium;
     let Some(s) = st(app) else { return false };
-    match key {
-        Key::Char(ch) if !ch.is_control() => {
-            if s.passphrase.text.len() + ch.len_utf8() <= PASSPHRASE_MAX {
-                s.passphrase.text.push(ch);
-            }
+    match s.passphrase.key(key, gate) {
+        PassKey::Typed => true,
+        PassKey::Refused(why) => {
+            let line = crate::pass_field::refused_text(medium, why);
+            app.toast(&line);
             true
         }
-        Key::Backspace => {
-            s.passphrase.text.pop();
-            true
-        }
-        Key::Enter => {
+        PassKey::Enter => {
             act(app, CoreWalletAction::Read);
             true
         }
-        Key::Escape => {
+        PassKey::Escape => {
             s.typing = false;
             true
         }
-        _ => false,
+        PassKey::Ignored => false,
     }
 }
 
 /// Closes the eye: the idle warning.
 pub(crate) fn hide(app: &mut Faraday) {
-    if let Some(s) = st(app) {
-        s.revealed = false;
-    }
+    app.typing.pass_eye.close();
 }
 
 /// After a press: the tool ends, the passphrase with it, unless it is on

@@ -728,7 +728,7 @@ impl ConvertArea {
         self.found_part = None;
         let checkable = self.state.as_ref().is_some_and(|s| s.checkable);
         self.check = match (&self.check, &self.held) {
-            (None, Some(_)) if checkable => Some(WordCheck::passphrase()),
+            (None, Some(_)) if checkable => Some(WordCheck::value()),
             _ => None,
         };
     }

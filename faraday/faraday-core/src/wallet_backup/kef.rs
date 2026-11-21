@@ -31,6 +31,20 @@ impl WalletBackupArea {
             .map(|(_, f)| f)
     }
 
+    /// The passphrase of the open item's form.
+    pub(crate) fn kef_pass(&self) -> Option<&crate::pass_field::PassField> {
+        self.kef_form(self.kef_open()?).map(KefForm::pass)
+    }
+
+    /// Runs `f` on the passphrase and the check's of every form.
+    pub(crate) fn with_kef_pass(&mut self, f: &mut dyn FnMut(&mut crate::pass_field::PassField)) {
+        if let Some(b) = self.state.as_mut() {
+            for (_, form) in &mut b.kef {
+                form.with_pass(f);
+            }
+        }
+    }
+
     /// The seed whose Krux code item is open.
     pub(crate) fn kef_open(&self) -> Option<usize> {
         let b = self.state.as_ref()?;
@@ -305,11 +319,10 @@ pub(crate) fn stick_attached(app: &mut Faraday, wipe: bool) {
     }
 }
 
-/// Closes the eyes of the forms: the idle warning.
+/// Closes the eye of the forms' passphrases (the one eye of the passphrase
+/// fields): the idle warning, a step left.
 pub(crate) fn hide(app: &mut Faraday) {
-    for i in app.backup.kef_seeds() {
-        with_form(app, i, |f, _| f.hide_eyes());
-    }
+    app.typing.pass_eye.close();
 }
 
 /// The open item's form, run on.

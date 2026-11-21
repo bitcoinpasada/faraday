@@ -1784,6 +1784,24 @@ impl WalletBackupArea {
         }
     }
 
+    /// The passphrase typed back in the open check, for the field
+    /// registry.
+    pub(crate) fn check_pass(&self) -> Option<&crate::pass_field::PassField> {
+        self.state.as_ref()?.check.as_ref()?.pass.as_ref()
+    }
+
+    /// Runs `f` on the passphrase typed back in the open check.
+    pub(crate) fn with_check_pass(&mut self, f: &mut dyn FnMut(&mut crate::pass_field::PassField)) {
+        if let Some(p) = self
+            .state
+            .as_mut()
+            .and_then(|b| b.check.as_mut())
+            .and_then(|c| c.pass.as_mut())
+        {
+            f(p);
+        }
+    }
+
     /// The check closed, what was typed wiped.
     pub(crate) fn check_close(&mut self) {
         if let Some(b) = self.state.as_mut() {
@@ -1792,11 +1810,20 @@ impl WalletBackupArea {
     }
 
     /// A key typed into the open check; closed by its Escape.
-    pub(crate) fn check_key(&mut self, key: KeyIn) -> copy_check::Typed {
+    pub(crate) fn check_key(
+        &mut self,
+        key: KeyIn,
+        gate: crate::pass_field::Gate,
+        medium: crate::Medium,
+    ) -> copy_check::Typed {
         let Some(c) = self.open_check() else {
             return copy_check::Typed::Nothing;
         };
-        let typed = c.key(key);
+        let typed = if c.pass.is_some() {
+            c.pass_key(key, gate, medium)
+        } else {
+            c.key(key)
+        };
         if typed == copy_check::Typed::Close {
             self.check_close();
             // Escape ends a check the chart opened: its place goes too.
@@ -1834,7 +1861,7 @@ impl WalletBackupArea {
     /// The passphrase typed back differs: wiped, and said.
     pub(crate) fn passphrase_differs(&mut self) {
         if let Some(c) = self.open_check() {
-            c.typed.clear();
+            c.clear_typed();
             c.error = Some(Text::of(EN.copy_check_passphrase_differs));
         }
     }
@@ -2450,7 +2477,10 @@ impl Faraday {
     /// One key of the open check, typed through Add a key's word entry,
     /// with a word's four-digit number accepted.
     pub(crate) fn copy_check_key(&mut self, key: KeyIn) {
-        match self.backup.check_key(key) {
+        let gate = crate::pass_field::Gate {
+            stick: self.stick.in_the_way(),
+        };
+        match self.backup.check_key(key, gate, self.medium) {
             Typed::Compare => self.passphrase_check_try(),
             Typed::Words => self.copy_check_after(),
             Typed::Nothing | Typed::Close => {}
@@ -2567,7 +2597,7 @@ impl Faraday {
             return;
         };
         let fp = key.fingerprint.0;
-        let matched = self.session.keys.passphrase_matches(b.key, &chk.typed);
+        let matched = self.session.keys.passphrase_matches(b.key, chk.text());
         if matched {
             self.backup.passphrase_matched(fp);
             self.backups_passphrase_checked(fp);
@@ -4847,9 +4877,7 @@ impl crate::at_lock::AtLock for WalletBackupArea {
                 || self.shown.is_some()
                 // The words typed back in Check my copy, on either keyboard.
                 || self.state.as_ref().is_some_and(|s| {
-                    s.check.as_ref().is_some_and(|c| {
-                        !c.typed.is_empty() || c.keys.as_deref().is_some_and(|k| k.holds_any())
-                    })
+                    s.check.as_ref().is_some_and(copy_check::WordCheck::holds_any)
                 }),
         )
     }

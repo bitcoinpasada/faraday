@@ -9,6 +9,7 @@
 
 use crate::BackupState;
 use crate::forms::{self, WordKey, WordsMut};
+use crate::pass_field::{Gate, Kind, PassField, PassKey};
 use crate::secret_text::SecretText;
 use crate::word_entry::WordEntry;
 use faraday_bip::bip39::Language;
@@ -21,6 +22,10 @@ pub struct WordCheck {
     /// The words, for a list typed on the computer's keyboard; or the
     /// passphrase.
     pub typed: SecretText,
+    /// The passphrase typed back, for a check of a passphrase on paper:
+    /// the one field the passphrases are typed in. A check of any other
+    /// value typed back whole has none and types into `typed`.
+    pub(crate) pass: Option<PassField>,
     /// The word entry, for a list typed on an on-screen
     /// keyboard and on the small panel.
     pub keys: Option<Box<WordEntry>>,
@@ -46,6 +51,7 @@ impl WordCheck {
     pub(crate) fn new(lang: Language, count: usize, keyed: bool) -> WordCheck {
         WordCheck {
             typed: SecretText::new(),
+            pass: None,
             keys: keyed.then(|| forms::word_typer(lang)),
             shift: false,
             error: None,
@@ -57,12 +63,41 @@ impl WordCheck {
         }
     }
 
-    /// A check of a passphrase on paper, or of any printable value typed
-    /// back whole, with nothing typed.
-    pub(crate) fn passphrase() -> WordCheck {
+    /// A check of any printable value typed back whole, with nothing
+    /// typed.
+    pub(crate) fn value() -> WordCheck {
         WordCheck {
             passphrase: true,
             ..WordCheck::new(Language::English, 0, false)
+        }
+    }
+
+    /// A check of a passphrase on paper, typed back whole, with nothing
+    /// typed.
+    pub(crate) fn passphrase() -> WordCheck {
+        WordCheck {
+            pass: Some(PassField::new(Kind::Bip39)),
+            ..WordCheck::value()
+        }
+    }
+
+    /// What is typed: the passphrase, or the words or the value.
+    pub(crate) fn text(&self) -> &str {
+        self.pass.as_ref().map_or(&self.typed, PassField::as_str)
+    }
+
+    /// Whether anything is typed.
+    pub(crate) fn holds_any(&self) -> bool {
+        !self.typed.is_empty()
+            || self.pass.as_ref().is_some_and(PassField::holds_any)
+            || self.keys.as_deref().is_some_and(|k| k.holds_any())
+    }
+
+    /// Wipes what is typed.
+    pub(crate) fn clear_typed(&mut self) {
+        self.typed.clear();
+        if let Some(p) = self.pass.as_mut() {
+            p.clear();
         }
     }
 
@@ -173,6 +208,30 @@ impl WordCheck {
             _ => {}
         }
         Typed::Words
+    }
+
+    /// One key typed into the passphrase of a check of a passphrase on
+    /// paper: the field takes it, and a refusal is said on the check.
+    pub(crate) fn pass_key(&mut self, key: KeyIn, gate: Gate, medium: crate::Medium) -> Typed {
+        self.sample_gone = true;
+        let Some(p) = self.pass.as_mut() else {
+            return Typed::Nothing;
+        };
+        let key = if key == KeyIn::Delete {
+            KeyIn::Backspace
+        } else {
+            key
+        };
+        match p.key(key, gate) {
+            PassKey::Typed => self.error = None,
+            PassKey::Refused(why) => {
+                self.error = Some(crate::pass_field::refused_text(medium, why));
+            }
+            PassKey::Enter => return Typed::Compare,
+            PassKey::Escape => return Typed::Close,
+            PassKey::Ignored => {}
+        }
+        Typed::Nothing
     }
 
     /// Word `k` differs, as `line` says: the words before it stay and

@@ -69,15 +69,27 @@ pub(crate) fn text_box(
     focused: bool,
     action: Action,
 ) {
+    text_box_of(ui, (x, y, w), &b.text, masked, focused, action);
+}
+
+/// [`text_box`] for a text held elsewhere.
+pub(crate) fn text_box_of(
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    text: &str,
+    masked: bool,
+    focused: bool,
+    action: Action,
+) {
     ui.field_box((x, y, w), focused, None);
     // The dots stand for the characters one to one, so a press or a
     // selection in them is by position.
     let dots;
     let shown: &str = if masked {
-        dots = Text::repeated("•", b.text.chars().count());
+        dots = Text::repeated("•", text.chars().count());
         &dots
     } else {
-        &b.text
+        text
     };
     ui.typed(
         x + FIELD_PAD,

@@ -217,3 +217,33 @@ pub(crate) fn pass_box(
     }
     app.pass_chip_draw(ui, b.text.is_empty(), field);
 }
+
+/// A tool's passphrase in a box at (x, y), `w` wide, with the one eye of
+/// `typing.pass_eye` at its right end: Practice's `faraday` in its code
+/// box, the dots, or the characters while the eye is open. `focused` is
+/// the caret, `action` the press that focuses it.
+pub(crate) fn tool_box(
+    app: &View,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    text: &str,
+    (focused, action): (bool, Action),
+) {
+    use crate::demo::Show;
+    let show = app.pass_shows(app.typing.pass_eye.shown, text);
+    if show == Show::Code {
+        crate::screens::code_field(ui, x, y, w, tokens::TEXT_FIELD, text);
+        ui.press_box(x, y, w, tokens::TEXT_FIELD, action);
+        return;
+    }
+    let shown = show == Show::Shown;
+    crate::vault::screen::text_box_of(ui, (x, y, w), text, !shown, focused, action);
+    crate::vault::screen::eye_at_marked(
+        ui,
+        (x, y, w),
+        tokens::FIELD_H,
+        shown,
+        false,
+        Action::PassEye,
+    );
+}

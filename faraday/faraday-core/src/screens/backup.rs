@@ -1429,7 +1429,7 @@ fn copy_check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         return cy - y;
     };
     if c.passphrase {
-        cy += typed_passphrase(app, ui, (x, cy, w), &c.typed);
+        cy += typed_passphrase(app, ui, (x, cy, w), c.text());
     } else {
         cy = word_check(app, ui, x, cy, w, c);
     }

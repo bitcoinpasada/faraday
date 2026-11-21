@@ -7,11 +7,12 @@ use crate::dice_entry::Press;
 use crate::dice_entry::screen::{Ask as DiceAsk, dice_panel};
 use crate::drawing::View;
 use crate::pass_field::pair::pass_pair;
+use crate::pass_field::screen::tool_box;
 use crate::screens::{dice_pad, randomness};
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
-use crate::vault::screen::{secret_box, text_box};
+use crate::vault::screen::text_box;
 use crate::worker::kef_make::{self, IdChoice};
 use faraday_codec::kef::Mode;
 use faraday_draw::tokens::{BODY_S, BUTTON_H, FIELD_H, GAP, LABEL_L};
@@ -83,31 +84,31 @@ pub(crate) fn draw(
     cy += pass_pair(
         ui,
         (x, cy, w),
-        (f.pass.text.as_str(), f.pass2.text.as_str()),
+        (f.pass.as_str(), f.pass.again_str()),
         |ui, n, fy| {
             let (label, text, focus, press) = if n == 0 {
-                (EN.kef_passphrase, &f.pass, Focus::Pass, KefAct::Field)
+                (
+                    EN.kef_passphrase,
+                    f.pass.as_str(),
+                    Focus::Pass,
+                    KefAct::Field,
+                )
             } else {
                 (
                     EN.kef_passphrase_again,
-                    &f.pass2,
+                    f.pass.again_str(),
                     Focus::PassAgain,
                     KefAct::FieldAgain,
                 )
             };
-            let show = app.pass_shows(f.shown, text.text.as_str());
             let mut cy = fy;
             cy += ui.field_label(x, cy, label);
-            secret_box(
+            tool_box(
+                app,
                 ui,
-                x,
-                cy,
-                w,
+                (x, cy, w),
                 text,
-                show,
-                f.focus == Some(focus),
-                (ask.wrap)(press),
-                (ask.wrap)(KefAct::Eye),
+                (f.focus == Some(focus), (ask.wrap)(press)),
             );
             cy + FIELD_H + GAP - fy
         },
@@ -291,17 +292,15 @@ fn by_hand_part(ui: &mut Ui, (x, y, w): (f32, f32, f32), s: usize, f: &KefForm, 
 fn check_card(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), f: &KefForm, ask: Ask) -> f32 {
     let mut cy = y;
     cy += ui.field_label(x, cy, EN.kef_check_pass);
-    let show = app.pass_shows(f.check_shown, f.check.text.as_str());
-    secret_box(
+    tool_box(
+        app,
         ui,
-        x,
-        cy,
-        w,
-        &f.check,
-        show,
-        f.focus == Some(Focus::Check),
-        (ask.wrap)(KefAct::CheckField),
-        (ask.wrap)(KefAct::CheckEye),
+        (x, cy, w),
+        f.check.as_str(),
+        (
+            f.focus == Some(Focus::Check),
+            (ask.wrap)(KefAct::CheckField),
+        ),
     );
     cy += FIELD_H + GAP;
     if let Some(e) = &f.error {

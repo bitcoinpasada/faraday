@@ -7,7 +7,7 @@
 
 use crate::Faraday;
 use crate::dice_entry::{DiceEntry, Env, Part, Press, Pressed, Used};
-use crate::pass_field::pair;
+use crate::pass_field::{Gate, Kind, PassField, PassKey};
 use crate::strings::EN;
 use crate::vault::TextBox;
 use crate::worker::kef::KefStart;
@@ -90,8 +90,6 @@ pub enum KefAct {
     Field,
     /// Typing goes to the passphrase again.
     FieldAgain,
-    /// The eye on the passphrase.
-    Eye,
     /// Opens the dice entry.
     Dice,
     /// Typing goes to the dice rolls.
@@ -118,8 +116,6 @@ pub enum KefAct {
     Check,
     /// Typing goes to the check's passphrase.
     CheckField,
-    /// The eye on the check's passphrase.
-    CheckEye,
     /// Opens the code under the check's passphrase and compares.
     Compare,
     /// Closes Check my code.
@@ -144,9 +140,8 @@ pub enum KefAct {
 /// The form that makes a code.
 pub struct KefForm {
     source: Source,
-    pass: TextBox,
-    pass2: TextBox,
-    shown: bool,
+    /// The passphrase and the one typed again.
+    pass: PassField,
     dice: DiceEntry,
     options: Options,
     label: TextBox,
@@ -166,8 +161,8 @@ pub struct KefForm {
     error: Option<Text>,
     made: Option<Made>,
     saved: Option<Saved>,
-    check: TextBox,
-    check_shown: bool,
+    /// The passphrase typed once more to check the code made.
+    check: PassField,
     checked: bool,
     offered: Option<[u8; 4]>,
     /// The sheet sizes the contents can take, worked out when the options
@@ -176,19 +171,22 @@ pub struct KefForm {
 }
 
 impl KefForm {
-    /// Closes the passphrase's eye and the check's: the idle warning.
-    pub(crate) fn hide_eyes(&mut self) {
-        self.shown = false;
-        self.check_shown = false;
+    /// The passphrase and the check's, for the field registry.
+    pub(crate) fn with_pass(&mut self, f: &mut dyn FnMut(&mut PassField)) {
+        f(&mut self.pass);
+        f(&mut self.check);
+    }
+
+    /// The passphrase field.
+    pub(crate) fn pass(&self) -> &PassField {
+        &self.pass
     }
 
     /// A stick is attached: the secret fields lose focus and, with `wipe`,
-    /// what was typed in them and the dice rolls.
+    /// the dice rolls (the passphrases are emptied by
+    /// `pass_field::stick_arrived`).
     pub(crate) fn stick_attached(&mut self, wipe: bool) {
         if wipe {
-            self.pass.clear();
-            self.pass2.clear();
-            self.check.clear();
             self.dice.close();
         }
         if matches!(
@@ -222,9 +220,8 @@ impl KefForm {
     /// passphrase, the passphrase typed again to check, or dice rolls
     /// still being entered (for the clean state, `Faraday::clean`).
     pub(crate) fn holds_secret(&self) -> bool {
-        !self.pass.text.is_empty()
-            || !self.pass2.text.is_empty()
-            || !self.check.text.is_empty()
+        self.pass.holds_any()
+            || self.check.holds_any()
             || self
                 .dice
                 .open()
@@ -239,9 +236,7 @@ impl KefForm {
         rounds.set(&Text::num(u64::from(options.count)));
         let mut form = KefForm {
             source,
-            pass: TextBox::default(),
-            pass2: TextBox::default(),
-            shown: false,
+            pass: PassField::pair(Kind::KefMake),
             dice: DiceEntry::default(),
             options,
             label: TextBox::default(),
@@ -259,8 +254,7 @@ impl KefForm {
             error: None,
             made: None,
             saved: None,
-            check: TextBox::default(),
-            check_shown: false,
+            check: PassField::new(Kind::KefMake),
             checked: false,
             offered: None,
             sizes: Vec::new(),
@@ -302,9 +296,9 @@ impl KefForm {
         match self.focus? {
             Focus::Pass | Focus::PassAgain | Focus::Rounds | Focus::Label if !entry => None,
             Focus::Check if self.stage != Stage::Check => None,
-            Focus::Pass => Some((KefAct::Field, self.pass.text.as_str())),
-            Focus::PassAgain => Some((KefAct::FieldAgain, self.pass2.text.as_str())),
-            Focus::Check => Some((KefAct::CheckField, self.check.text.as_str())),
+            Focus::Pass => Some((KefAct::Field, self.pass.as_str())),
+            Focus::PassAgain => Some((KefAct::FieldAgain, self.pass.again_str())),
+            Focus::Check => Some((KefAct::CheckField, self.check.as_str())),
             Focus::Rounds => Some((KefAct::Rounds, self.rounds.text.as_str())),
             Focus::Label => Some((KefAct::Label, self.label.text.as_str())),
             Focus::Dice(_) => None,
@@ -313,12 +307,12 @@ impl KefForm {
 
     /// The passphrase typed twice is the same, so Make is on.
     pub(crate) fn passphrases_agree(&self) -> bool {
-        !pair::differ(self.pass.text.as_str(), self.pass2.text.as_str())
+        !self.pass.differ()
     }
 
     /// The passphrase as typed.
     pub fn passphrase(&self) -> &str {
-        self.pass.text.as_str()
+        self.pass.as_str()
     }
 
     /// The refusal or problem line, if any.
@@ -504,7 +498,6 @@ impl KefForm {
             }
             (Stage::Check, KefAct::CheckField) if self.refused(app) => {}
             (Stage::Check, KefAct::CheckField) => self.focus = Some(Focus::Check),
-            (Stage::Check, KefAct::CheckEye) => self.check_shown = !self.check_shown,
             (Stage::Check, KefAct::Compare) if self.refused(app) => {}
             (Stage::Check, KefAct::Compare) => self.compare(app),
             (Stage::Check, KefAct::CheckBack) => {
@@ -526,7 +519,6 @@ impl KefForm {
                 if self.refused(app) => {}
             KefAct::Field => self.focus = Some(Focus::Pass),
             KefAct::FieldAgain => self.focus = Some(Focus::PassAgain),
-            KefAct::Eye => self.shown = !self.shown,
             KefAct::Dice => {
                 if app.may_load_keys() {
                     let p = self.dice.start(DICE_TAG);
@@ -586,7 +578,6 @@ impl KefForm {
             KefAct::Make => self.make(app),
             KefAct::Check
             | KefAct::CheckField
-            | KefAct::CheckEye
             | KefAct::Compare
             | KefAct::CheckBack
             | KefAct::Another
@@ -649,44 +640,7 @@ impl KefForm {
                 self.apply(app, out);
                 true
             }
-            Some(f @ (Focus::Pass | Focus::PassAgain)) => match key {
-                Key::Char(c) => {
-                    let again = f == Focus::PassAgain;
-                    let text = if again {
-                        &mut self.pass2.text
-                    } else {
-                        &mut self.pass.text
-                    };
-                    // Printable ASCII, at most 200 (`docs/KEF.md` §9).
-                    let room = text.chars().count() < faraday_keys::kef::PASSPHRASE_MAX;
-                    if (' '..='~').contains(&c) && room {
-                        text.push(c);
-                        self.error = None;
-                    }
-                    true
-                }
-                Key::Backspace => {
-                    if f == Focus::PassAgain {
-                        self.pass2.text.pop();
-                    } else {
-                        self.pass.text.pop();
-                    }
-                    true
-                }
-                Key::Tab if f == Focus::Pass => {
-                    self.focus = Some(Focus::PassAgain);
-                    true
-                }
-                Key::Enter => {
-                    if f == Focus::Pass {
-                        self.focus = Some(Focus::PassAgain);
-                    } else {
-                        self.make(app);
-                    }
-                    true
-                }
-                _ => false,
-            },
+            Some(f @ (Focus::Pass | Focus::PassAgain)) => self.pass_key(app, f, key),
             Some(Focus::Check) => false,
             Some(Focus::Rounds) => match key {
                 Key::Char(c) if c.is_ascii_digit() => {
@@ -739,7 +693,6 @@ impl KefForm {
             Some(Ok(m)) => {
                 // The job has the passphrase; the field is wiped.
                 self.pass.clear();
-                self.pass2.clear();
                 let saved = app.kef_save_files(&m);
                 app.toast_out(saved.toast_name());
                 self.saved = Some(saved);
@@ -781,7 +734,6 @@ impl KefForm {
             self.pin = 0;
             self.by_hand = false;
             self.pass.clear();
-            self.pass2.clear();
             self.check.clear();
             self.checked = false;
             self.error = None;
@@ -797,11 +749,8 @@ impl KefForm {
     pub fn close(&mut self, app: &mut Faraday) {
         self.cancel(app);
         self.pass.clear();
-        self.pass2.clear();
         self.check.clear();
         self.dice.close();
-        self.shown = false;
-        self.check_shown = false;
         self.sheet = false;
         self.error = None;
         if self.stage == Stage::Check {
@@ -812,25 +761,60 @@ impl KefForm {
         }
     }
 
-    fn check_key(&mut self, app: &mut Faraday, key: Key) -> bool {
-        match key {
-            Key::Char(c) => {
-                let room = self.check.text.chars().count() < faraday_keys::kef::PASSPHRASE_MAX;
-                if (' '..='~').contains(&c) && room {
-                    self.check.text.push(c);
-                    self.error = None;
+    /// A key in the passphrase or the one again: the field takes it by the
+    /// rules of a Krux code's passphrase (printable ASCII, at most
+    /// `PASSPHRASE_MAX`, `docs/KEF.md` §9); a refusal says why.
+    fn pass_key(&mut self, app: &mut Faraday, at: Focus, key: Key) -> bool {
+        self.pass.set_on_again(at == Focus::PassAgain);
+        let gate = Gate {
+            stick: app.stick.in_the_way(),
+        };
+        match self.pass.key(key, gate) {
+            PassKey::Typed => {
+                self.error = None;
+                // Tab moves between the two.
+                self.focus = Some(if self.pass.on_again() {
+                    Focus::PassAgain
+                } else {
+                    Focus::Pass
+                });
+                true
+            }
+            PassKey::Refused(why) => {
+                self.error = Some(crate::pass_field::refused_text(app.medium, why));
+                true
+            }
+            PassKey::Enter => {
+                if at == Focus::Pass {
+                    self.focus = Some(Focus::PassAgain);
+                } else {
+                    self.make(app);
                 }
                 true
             }
-            Key::Backspace => {
-                self.check.text.pop();
+            PassKey::Escape | PassKey::Ignored => false,
+        }
+    }
+
+    /// A key in the check's passphrase.
+    fn check_key(&mut self, app: &mut Faraday, key: Key) -> bool {
+        let gate = Gate {
+            stick: app.stick.in_the_way(),
+        };
+        match self.check.key(key, gate) {
+            PassKey::Typed => {
+                self.error = None;
                 true
             }
-            Key::Enter => {
+            PassKey::Refused(why) => {
+                self.error = Some(crate::pass_field::refused_text(app.medium, why));
+                true
+            }
+            PassKey::Enter => {
                 self.compare(app);
                 true
             }
-            _ => false,
+            PassKey::Escape | PassKey::Ignored => false,
         }
     }
 
@@ -845,7 +829,7 @@ impl KefForm {
             return;
         }
         self.error = None;
-        let pass = Zeroizing::new(self.check.text.as_str().as_bytes().to_vec());
+        let pass = Zeroizing::new(self.check.as_str().as_bytes().to_vec());
         app.kef_open(pass, envelope, EN.kef_comparing);
         self.stage = Stage::Comparing;
     }
@@ -948,8 +932,7 @@ impl KefForm {
             Text::of(crate::demo::PASSPHRASE)
         };
         if faraday_keys::kef::writable_passphrase(&phrase) {
-            self.pass.set(&phrase);
-            self.pass2.set(&phrase);
+            self.pass.fill(&phrase);
             self.error = None;
         } else {
             self.error = Some(Text::of(EN.kef_refuse_passphrase));
@@ -964,7 +947,7 @@ impl KefForm {
             return;
         }
         self.error = None;
-        let pass = Zeroizing::new(self.pass.text.as_str().as_bytes().to_vec());
+        let pass = Zeroizing::new(self.pass.as_str().as_bytes().to_vec());
         let started = match &self.source {
             Source::Seed { index, .. } => app.kef_make_seed(*index, pass, &self.options),
             Source::Text(t) => app.kef_make_text(pass, t.duplicate(), &self.options),

@@ -220,7 +220,7 @@ fn read_a_core_wallet_hides_the_passphrase_by_back() {
     app.press(Action::Catalog(tile as u8));
     app.press(Action::CoreWallet(W::Focus));
     type_text(&mut app, SECRET);
-    app.press(Action::CoreWallet(W::Eye));
+    app.press(Action::PassEye);
     assert!(draws(&mut app, SECRET), "shown");
     let _ = app.frame();
     app.event(Event::Back);
@@ -494,7 +494,7 @@ fn the_krux_code_tool_hides_the_passphrase() {
         at_rest(&mut app);
         app.press(Action::KefTool(K::Form(KefAct::Field)));
         type_text(&mut app, SECRET);
-        app.press(Action::KefTool(K::Form(KefAct::Eye)));
+        app.press(Action::PassEye);
         assert!(draws(&mut app, SECRET), "{way}: shown");
         leave(&mut app, way);
         assert!(!draws(&mut app, SECRET), "{way}: no secret text drawn");

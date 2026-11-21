@@ -84,7 +84,9 @@ boundary is.
   (`faraday/faraday-core/src/pass_field/`), where the field has moved onto
   it: Add a key's passphrase and its repeat, the seed read sheet's, the
   Krux read's, Make a new wallet's key slot, New key's Key card, the seed
-  check's, the Inbox's possible wallet and Lightning's. It wraps
+  check's, the Inbox's possible wallet, Lightning's, the Krux code form's
+  (and its check's), a Bitcoin Core wallet file's and a passphrase on paper
+  typed back for Check my copy. It wraps
   `SecretText`, which wipes what it drops; it takes what its standard
   allows (a BIP-39 passphrase is printable ASCII and at most 256 bytes,
   F155; a Krux code's passphrase being read takes any character that is not a
