@@ -951,7 +951,7 @@ impl Faraday {
             // A passphrase under the minimum is refused, not waited on.
             Action::Vault(V::PromptGo) => self.vaults.prompt.as_ref().is_some_and(|p| {
                 matches!(p.purpose, crate::vault::Purpose::Kdbx)
-                    && p.text.text.chars().count() >= crate::vault::KDBX_PASSPHRASE_MIN
+                    && p.pass.as_str().chars().count() >= crate::vault::KDBX_PASSPHRASE_MIN
             }),
             Action::Flow(crate::backup_flow::steps::FlowAction::Make) => {
                 self.fi().is_some_and(|i| {

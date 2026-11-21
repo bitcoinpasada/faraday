@@ -18,6 +18,7 @@ use zeroize::Zeroizing;
 
 use super::unlock_keys;
 use super::{APP_MIB, Need, VaultAction, Work, errors, need_mib, vault_stem};
+use crate::pass_field::PassField;
 use crate::strings::{EN, fill};
 use crate::work::{self, VaultAct, VaultEnded};
 use crate::worker::Job;
@@ -215,7 +216,7 @@ fn unlock_start(app: &mut Faraday) -> bool {
         }
     };
     app.vaults.state.unlock_tried = components.has_key_file();
-    let passphrase = std::mem::take(&mut app.vaults.state.passphrase.text);
+    let passphrase = app.vaults.state.passphrase.take();
     // The unlock and its parse check are held to what is free now.
     app.vaults.read_free();
     let job = open_job(app, bytes, passphrase).keyed(components);
@@ -319,12 +320,18 @@ fn create_start(app: &mut Faraday) -> bool {
         passes,
         lanes: 4,
     };
+    // The first passphrase, kept for a backup flow's vault to unlock at
+    // once; wiped as the plan drops.
     let first = form
         .phrases
         .first()
-        .map(|(a, _)| Text::of(&a.text))
+        .map(|f| Text::of(f.as_str()))
         .unwrap_or_default();
-    let phrase = crate::secret_text::SecretText::of(&first);
+    // One copy for the job; the form keeps its field for Back.
+    let phrase = form
+        .phrases
+        .first()
+        .map_or_else(crate::secret_text::SecretText::new, PassField::job_copy);
     // The vault's name is the database's name: 64 bytes at most
     // (`docs/VAULT.md` §7).
     let label = match form.name.text.trim() {
@@ -465,6 +472,7 @@ fn unlocked(
             );
             app.vaults.keep_identities(&identities);
             app.vaults.state.typed_shown = false;
+            app.typing.pass_eye.close();
             app.vaults.state.focus = None;
             app.vaults.state.open.push(super::OpenVault {
                 name: Text::of(&name),
@@ -672,12 +680,7 @@ fn kdbx_start(app: &mut Faraday) -> bool {
     else {
         return false;
     };
-    let Some(passphrase) = app
-        .vaults
-        .prompt
-        .as_ref()
-        .map(|p| crate::secret_text::SecretText::of(&p.text.text))
-    else {
+    let Some(passphrase) = app.vaults.prompt.as_ref().map(|p| p.pass.job_copy()) else {
         return false;
     };
     let (Some(vid), Some(random), Some(uuids)) = (
@@ -725,13 +728,11 @@ pub(crate) fn kdbx_written(app: &mut Faraday, done: KdbxDone) {
         Ok(file) => {
             // The file is offered the one check: the prompt becomes the
             // passphrase typed once more, which opens it or is skipped.
-            app.vaults.state.prompt = Some(super::Prompt {
-                purpose: super::Purpose::KdbxCheck,
-                text: super::TextBox::default(),
-                again: super::TextBox::default(),
-                error: None,
-                written: file.clone(),
-            });
+            let mut check = super::Prompt::new(super::Purpose::KdbxCheck);
+            check.written = file.clone();
+            app.vaults.state.prompt = Some(check);
+            // The check starts with the eye closed, as Krux's does.
+            app.typing.pass_eye.close();
             crate::stick::focus(app, super::Focus::Prompt);
             app.put_outbox(&name, file);
             app.toast(&fill(
@@ -769,12 +770,12 @@ fn kdbx_check_start(app: &mut Faraday) -> bool {
     let Some(p) = app.vaults.state.prompt.as_mut() else {
         return false;
     };
-    if p.purpose != super::Purpose::KdbxCheck || p.text.text.is_empty() {
+    if p.purpose != super::Purpose::KdbxCheck || p.pass.is_empty() {
         return false;
     }
     p.error = None;
     let file = p.written.clone();
-    let passphrase = std::mem::take(&mut p.text.text);
+    let passphrase = p.pass.take();
     app.vaults.read_free();
     let job = open_job(app, file, passphrase);
     app.start(
@@ -803,7 +804,7 @@ fn export_checked(app: &mut Faraday, stretched: &Stretched) {
     else {
         return;
     };
-    p.text.clear();
+    p.pass.clear();
     if error.is_none() {
         app.vaults.state.prompt = None;
         app.vaults.state.focus = None;

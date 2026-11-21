@@ -1,6 +1,7 @@
 //! What Create a vault says of a passphrase's strength: the side panel's
 //! line for the weakest, and the pair's own under it.
 
+use crate::pass_field::PassField;
 use crate::strings::{EN, fill};
 use crate::vault::{CreateForm, Vaults};
 
@@ -18,10 +19,10 @@ impl CreateForm {
         if !c.phrases.is_empty()
             && c.phrases
                 .iter()
-                .all(|(a, _)| demo && a.text.as_str() == crate::demo::PASSPHRASE)
+                .all(|f| demo && f.as_str() == crate::demo::PASSPHRASE)
         {
             String::new()
-        } else if c.phrases.iter().all(|(a, _)| a.text.is_empty()) {
+        } else if c.phrases.iter().all(PassField::is_empty) {
             EN.vault_no_passphrase.to_string()
         } else if let Some(min) = own
             .iter()

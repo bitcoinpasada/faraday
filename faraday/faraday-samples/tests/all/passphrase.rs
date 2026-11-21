@@ -199,9 +199,15 @@ fn in_demo_create_a_vault_offers_faraday_in_both_fields_and_unlocks_with_it() {
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Create));
     let c = app.vaults().create.as_ref().expect("the form");
-    assert!(c.phrases[0].0.text.is_empty(), "nothing is put in");
+    assert!(
+        faraday_core::vault::Vaults::phrase_text(c, 0)
+            .unwrap()
+            .0
+            .is_empty(),
+        "nothing is put in"
+    );
     let _ = app.frame();
-    assert!(app.offers(Action::Vault(V::CShow)), "the eye is there");
+    assert!(app.offers(Action::PassEye), "the eye is there");
     assert!(
         shows(&mut app, "Never type a seed that holds real bitcoin here."),
         "a field a person can type in keeps its caution"
@@ -221,8 +227,14 @@ fn in_demo_create_a_vault_offers_faraday_in_both_fields_and_unlocks_with_it() {
     ));
     app.press(Action::PassChip(PassField::Phrase(0, false)));
     let c = app.vaults().create.as_ref().expect("the form");
-    assert_eq!(c.phrases[0].0.text.as_str(), "faraday");
-    assert_eq!(c.phrases[0].1.text.as_str(), "faraday");
+    assert_eq!(
+        faraday_core::vault::Vaults::phrase_text(c, 0).unwrap().0,
+        "faraday"
+    );
+    assert_eq!(
+        faraday_core::vault::Vaults::phrase_text(c, 0).unwrap().1,
+        "faraday"
+    );
     let _ = app.frame();
     assert!(shows(&mut app, "faraday"), "drawn in its code box");
     assert!(!shows_part(&mut app, "The two passphrases differ"));
@@ -268,7 +280,10 @@ fn in_demo_a_vault_passphrase_typed_by_the_person_is_masked_and_use_faraday_stay
         "the repeat is still empty"
     );
     let c = app.vaults().create.as_ref().expect("the form");
-    assert_eq!(c.phrases[0].0.text.as_str(), "other");
+    assert_eq!(
+        faraday_core::vault::Vaults::phrase_text(c, 0).unwrap().0,
+        "other"
+    );
     let _ = app.frame();
     assert!(!shows(&mut app, "other"), "masked");
 }
@@ -286,7 +301,10 @@ fn in_demo_generate_with_dice_shows_the_rolled_words_then_puts_faraday_in_place(
     app.press(Action::Vault(V::DiceUse));
     let _ = app.frame();
     let c = app.vaults().create.as_ref().expect("the form");
-    assert_eq!(c.phrases[0].0.text.as_str(), "faraday");
+    assert_eq!(
+        faraday_core::vault::Vaults::phrase_text(c, 0).unwrap().0,
+        "faraday"
+    );
     assert!(
         crate::common::strip(&mut app)
             .iter()
@@ -309,10 +327,17 @@ fn on_testnet_a_vault_takes_a_short_passphrase_typed_two_that_differ_are_refused
     app.press(Action::Vault(V::CFocus(0, true)));
     type_in(&mut app, "ac");
     let c = app.vaults().create.as_ref().expect("the form");
-    assert_eq!(c.phrases[0].0.text.as_str(), "ab", "taken as typed");
-    assert_eq!(c.phrases[0].1.text.as_str(), "ac");
+    assert_eq!(
+        faraday_core::vault::Vaults::phrase_text(c, 0).unwrap().0,
+        "ab",
+        "taken as typed"
+    );
+    assert_eq!(
+        faraday_core::vault::Vaults::phrase_text(c, 0).unwrap().1,
+        "ac"
+    );
     let _ = app.frame();
-    assert!(app.offers(Action::Vault(V::CShow)), "the eye is there");
+    assert!(app.offers(Action::PassEye), "the eye is there");
     assert!(shows(&mut app, "or type your own below"));
     assert!(
         shows(&mut app, "Never type a seed that holds real bitcoin here."),
@@ -343,7 +368,7 @@ fn in_demo_the_unlock_passphrase_is_empty_and_offers_faraday() {
     assert_eq!(app.vault_files()[0].name, "sample.kdbx");
     app.press(Action::Vault(V::Open(0)));
     assert!(
-        app.vaults().passphrase.text.is_empty(),
+        app.vaults().unlock_text().is_empty(),
         "nothing is filled in"
     );
     let _ = app.frame();
@@ -351,11 +376,11 @@ fn in_demo_the_unlock_passphrase_is_empty_and_offers_faraday() {
         &mut app,
         Action::PassChip(PassField::Unlock)
     ));
-    assert!(app.offers(Action::Vault(V::ShowTyped)), "the eye");
+    assert!(app.offers(Action::PassEye), "the eye");
     // A wrong one typed does not open it.
     app.press(Action::Vault(V::FocusPassphrase));
     type_in(&mut app, "wrong");
-    assert_eq!(app.vaults().passphrase.text.as_str(), "wrong");
+    assert_eq!(app.vaults().unlock_text(), "wrong");
     app.press(Action::Vault(V::Unlock));
     settle(&mut app);
     assert!(app.vaults().open.is_empty());
@@ -366,13 +391,13 @@ fn in_demo_the_unlock_passphrase_is_empty_and_offers_faraday() {
     let _ = app.frame();
     assert!(
         crate::common::strip_offers(&mut app, Action::PassChip(PassField::Unlock))
-            || app.vaults().passphrase.text.is_empty()
+            || app.vaults().unlock_text().is_empty()
     );
     app.press(Action::PassChip(PassField::Unlock));
-    assert_eq!(app.vaults().passphrase.text.as_str(), "faraday");
+    assert_eq!(app.vaults().unlock_text(), "faraday");
     let _ = app.frame();
     assert!(shows(&mut app, "faraday"), "drawn in its code box");
-    assert!(!app.offers(Action::Vault(V::ShowTyped)), "no eye on it");
+    assert!(!app.offers(Action::PassEye), "no eye on it");
     app.press(Action::Vault(V::Unlock));
     settle(&mut app);
     assert_eq!(
@@ -400,7 +425,7 @@ fn on_testnet_the_unlock_passphrase_is_typed_and_masked_and_no_sample_is_offered
     });
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
-    assert!(app.vaults().passphrase.text.is_empty(), "nothing filled in");
+    assert!(app.vaults().unlock_text().is_empty(), "nothing filled in");
     let _ = app.frame();
     assert!(
         !crate::common::strip_offers(&mut app, Action::PassChip(PassField::Unlock)),
@@ -408,9 +433,9 @@ fn on_testnet_the_unlock_passphrase_is_typed_and_masked_and_no_sample_is_offered
     );
     app.press(Action::Vault(V::FocusPassphrase));
     type_in(&mut app, "no");
-    assert_eq!(app.vaults().passphrase.text.as_str(), "no");
+    assert_eq!(app.vaults().unlock_text(), "no");
     let _ = app.frame();
-    assert!(app.offers(Action::Vault(V::ShowTyped)), "the eye");
+    assert!(app.offers(Action::PassEye), "the eye");
 }
 
 // Lightning.
@@ -592,13 +617,7 @@ fn in_demo_the_keepass_export_takes_a_passphrase_typed_by_the_person_and_offers_
     app.press(Action::Vault(V::ExportKdbx));
     let _ = app.frame();
     assert!(
-        app.vaults()
-            .prompt
-            .as_ref()
-            .expect("the prompt")
-            .text
-            .text
-            .is_empty(),
+        app.vaults().prompt_text().expect("the prompt").is_empty(),
         "faraday is not put in"
     );
     assert!(
@@ -609,11 +628,11 @@ fn in_demo_the_keepass_export_takes_a_passphrase_typed_by_the_person_and_offers_
         shows(&mut app, "Never type a seed that holds real bitcoin here."),
         "the caution stands under a field that is typed"
     );
-    assert!(app.offers(Action::Vault(V::ShowTyped)), "the eye");
+    assert!(app.offers(Action::PassEye), "the eye");
     // Seven characters are refused and write nothing.
     type_in(&mut app, "sevench");
     assert_eq!(
-        app.vaults().prompt.as_ref().unwrap().text.text.as_str(),
+        app.vaults().prompt_text().unwrap(),
         "sevench",
         "what is typed stays"
     );

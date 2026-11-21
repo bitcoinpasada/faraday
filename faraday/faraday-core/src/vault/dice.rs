@@ -91,7 +91,7 @@ fn use_words(app: &mut Faraday, u: crate::dice_entry::Used) {
     // which are dropped (`docs/DEMO.md` §5.2).
     let public = !app.makes_secrets();
     if let Some(c) = app.vaults.state.create.as_mut()
-        && let Some((a, b)) = c.phrases.get_mut(u.tag)
+        && let Some(f) = c.phrases.get_mut(u.tag)
         && !u.phrase.is_empty()
     {
         let (phrase, bits): (&str, f32) = if public {
@@ -99,8 +99,7 @@ fn use_words(app: &mut Faraday, u: crate::dice_entry::Used) {
         } else {
             (u.phrase.as_str(), u.bits)
         };
-        a.set(phrase);
-        b.set(phrase);
+        f.fill(phrase);
         if let Some(d) = c.from_dice.get_mut(u.tag) {
             *d = Some((Text::of(phrase), bits, u.sim));
         }

@@ -1402,6 +1402,11 @@ impl App for Faraday {
         }
         self.entry_left(on_entry);
         pass_field::left(self);
+        // The frame this event draws shows the eye closed when it brought a
+        // new set of passphrase fields, not only the next event's.
+        if settle {
+            pass_field::settle(self);
+        }
         self.out.commands.push_back(Command::Draw);
     }
 

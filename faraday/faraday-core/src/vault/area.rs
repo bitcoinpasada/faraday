@@ -6,6 +6,7 @@
 //! `vault/mod.rs` and its children.
 
 use super::{SealSeen, SealWarn};
+use crate::pass_field::{Kind, PassField};
 use crate::strings::EN;
 use faraday_crypto::work::Compute;
 use faraday_keys::vault::{OpenVaults, RecordView, Records, Room, VaultId};
@@ -31,6 +32,7 @@ impl Default for VaultArea {
             // A new GPG key's term starts at GnuPG's default, never at
             // "never".
             gpg_years: crate::gpg::DEFAULT_YEARS,
+            passphrase: PassField::new(Kind::Vault),
             ..Vaults::default()
         };
         // The names new groups and titles take, set before the first edit.
@@ -102,17 +104,43 @@ impl VaultArea {
         }
     }
 
-    /// The field typing at `focus` goes into.
+    /// The passphrase field typing at `focus` goes into, with its typing
+    /// put on the first text or the repeat as `focus` says; `None` where
+    /// `focus` is no passphrase.
+    pub(crate) fn pass_at(&mut self, focus: Focus) -> Option<&mut PassField> {
+        let (field, again) = match focus {
+            Focus::Passphrase => (&mut self.state.passphrase, false),
+            Focus::Phrase(i, second) => (self.state.create.as_mut()?.phrases.get_mut(i)?, second),
+            Focus::Prompt => (&mut self.state.prompt.as_mut()?.pass, false),
+            Focus::PromptAgain => (&mut self.state.prompt.as_mut()?.pass, true),
+            _ => return None,
+        };
+        field.set_on_again(again);
+        Some(field)
+    }
+
+    /// Runs `f` on the Unlock passphrase.
+    pub(crate) fn with_unlock_pass(&mut self, f: &mut dyn FnMut(&mut PassField)) {
+        f(&mut self.state.passphrase);
+    }
+
+    /// Runs `f` on each of Create a vault's passphrases.
+    pub(crate) fn with_create_pass(&mut self, f: &mut dyn FnMut(&mut PassField)) {
+        if let Some(c) = self.state.create.as_mut() {
+            c.phrases.iter_mut().for_each(f);
+        }
+    }
+
+    /// Runs `f` on the prompt's passphrase, if a prompt is up.
+    pub(crate) fn with_prompt_pass(&mut self, f: &mut dyn FnMut(&mut PassField)) {
+        if let Some(p) = self.state.prompt.as_mut() {
+            f(&mut p.pass);
+        }
+    }
+
+    /// The field typing at `focus` goes into, where it is no passphrase.
     fn text_box(&mut self, focus: Focus) -> Option<&mut TextBox> {
         match focus {
-            Focus::Passphrase => Some(&mut self.state.passphrase),
-            Focus::Phrase(i, second) => self
-                .state
-                .create
-                .as_mut()?
-                .phrases
-                .get_mut(i)
-                .map(|(a, b)| if second { b } else { a }),
             Focus::Field(k) => self
                 .state
                 .form
@@ -121,9 +149,12 @@ impl VaultArea {
                 .get_mut(k)
                 .map(|f| &mut f.2),
             Focus::Dice => self.state.dice.typing(),
-            Focus::Rolls | Focus::Search(_) => None,
-            Focus::Prompt => self.state.prompt.as_mut().map(|p| &mut p.text),
-            Focus::PromptAgain => self.state.prompt.as_mut().map(|p| &mut p.again),
+            Focus::Rolls
+            | Focus::Search(_)
+            | Focus::Passphrase
+            | Focus::Phrase(..)
+            | Focus::Prompt
+            | Focus::PromptAgain => None,
             Focus::Name => self.state.create.as_mut().map(|c| &mut c.name),
         }
     }
@@ -511,7 +542,7 @@ impl VaultArea {
     /// stands: the caller defers the unlock ([`Faraday::vault_defer`]).
     pub(crate) fn unlock_picked(&mut self, at: usize, passphrase: &str) {
         self.state.pick = at;
-        self.state.passphrase.set(passphrase);
+        self.state.passphrase.fill(passphrase);
         self.state.unlock_error = None;
     }
 
@@ -600,15 +631,10 @@ impl VaultArea {
         self.state.code = code;
     }
 
-    /// Those and Create a vault's passphrases, hidden at once by a lock
-    /// (the eye of Create a vault stays where the person left it
-    /// otherwise, except that a change of its step hides it:
-    /// [`Self::tidy_shown`] leaves it, `Self::hide_on_leaving_step`).
+    /// What an item shows, hidden at once by a lock (the passphrases'
+    /// eye is `typing.pass_eye`, public at a lock).
     pub(crate) fn hide_secrets(&mut self) {
         self.hide_item_secrets();
-        if let Some(c) = self.state.create.as_mut() {
-            c.shown = false;
-        }
         self.state.sign_shown.clear();
     }
 
@@ -878,26 +904,27 @@ impl VaultArea {
     /// when `again`).
     pub(crate) fn fill_phrase(&mut self, i: usize, again: bool, text: &str) {
         if let Some(c) = self.state.create.as_mut()
-            && let Some((a, b)) = c.phrases.get_mut(i)
+            && let Some(f) = c.phrases.get_mut(i)
         {
-            if again { b } else { a }.set(text);
+            if again {
+                f.fill_again(text);
+            } else {
+                f.fill_first(text);
+            }
         }
         self.state.unlock_error = None;
     }
 
     /// Practice's passphrase put in the unlock field.
     pub(crate) fn fill_unlock(&mut self, text: &str) {
-        self.state.passphrase.set(text);
+        self.state.passphrase.fill(text);
         self.state.unlock_error = None;
     }
 
     /// Practice's passphrase put in the prompt.
     pub(crate) fn fill_prompt(&mut self, text: &str) {
         if let Some(p) = self.state.prompt.as_mut() {
-            p.text.set(text);
-            if p.pair() {
-                p.again.set(text);
-            }
+            p.pass.fill(text);
             p.error = None;
         }
     }
@@ -935,10 +962,9 @@ pub enum Purpose {
 pub struct Prompt {
     /// What it is for.
     pub purpose: Purpose,
-    /// What is typed.
-    pub text: TextBox,
-    /// The passphrase typed again, where the prompt makes one (`pair`).
-    pub again: TextBox,
+    /// What is typed, and typed again where the prompt makes the
+    /// passphrase (`pair`).
+    pub(crate) pass: PassField,
     /// Why the last try failed.
     pub error: Option<Text>,
     /// For [`Purpose::KdbxCheck`], the file written (encrypted, so public).
@@ -946,6 +972,25 @@ pub struct Prompt {
 }
 
 impl Prompt {
+    /// A prompt for `purpose`, its field empty.
+    pub(crate) fn new(purpose: Purpose) -> Prompt {
+        let kind = match purpose {
+            Purpose::Kdbx | Purpose::KdbxCheck => Kind::Kdbx,
+            Purpose::KeyPassphrase | Purpose::ForWallet(..) => Kind::Vault,
+        };
+        let pass = if matches!(purpose, Purpose::ForWallet(..) | Purpose::KdbxCheck) {
+            PassField::new(kind)
+        } else {
+            PassField::pair(kind)
+        };
+        Prompt {
+            purpose,
+            pass,
+            error: None,
+            written: Vec::new(),
+        }
+    }
+
     /// Whether the passphrase is entered twice: one made for a KeePass
     /// export, or a BIP-39 one typed for a key, which nothing checks. A
     /// wallet's missing key is checked against the wallet and stays single.
@@ -2064,13 +2109,10 @@ pub struct CreateForm {
     /// The vault's name, which its file is named after.
     pub name: TextBox,
     /// Each passphrase, typed twice.
-    pub phrases: Vec<(TextBox, TextBox)>,
+    pub(crate) phrases: Vec<PassField>,
     /// For each passphrase the dice made, what they made and its bits:
     /// its strength holds while the field still holds those words.
     pub from_dice: Vec<Option<(Text, f32, crate::fresh::roller::Sim)>>,
-    /// The passphrases are shown in the clear, not masked: a person
-    /// cannot accept one on faith, only on seeing it.
-    pub shown: bool,
     /// What stops the vault being made.
     pub error: Option<Text>,
     /// The key file the vault will need, if one was added.
@@ -2107,9 +2149,8 @@ impl Default for CreateForm {
             preset: Some(preset),
             memory: 512,
             name: TextBox::default(),
-            phrases: vec![(TextBox::default(), TextBox::default())],
+            phrases: vec![PassField::pair(Kind::Vault)],
             from_dice: vec![None],
-            shown: false,
             error: None,
             key: KeyChoice::None,
         }
@@ -2117,6 +2158,11 @@ impl Default for CreateForm {
 }
 
 impl CreateForm {
+    /// How many passphrases the form asks for.
+    pub fn phrase_count(&self) -> usize {
+        self.phrases.len()
+    }
+
     /// A new form: on the default size, or on Light where the computer does
     /// not say what memory it has free and makes only that
     /// (`docs/VAULT.md` §3.1).
@@ -2217,7 +2263,8 @@ impl crate::flow::Contained for CreateVaultSteps {
     }
 
     fn hide_shown(&self, app: &mut crate::Faraday) {
-        app.vaults.hide_on_leaving_step();
+        // A passphrase shown is hidden again when a step is left (F104).
+        app.typing.pass_eye.close();
     }
 
     fn count_fixed(&self, _: &crate::Faraday) -> bool {
@@ -2312,7 +2359,7 @@ pub struct Vaults {
     /// The vault chosen to unlock, by its place in the list.
     pub pick: usize,
     /// The unlock passphrase.
-    pub passphrase: TextBox,
+    pub(crate) passphrase: PassField,
     /// Why the last unlock failed.
     pub unlock_error: Option<Text>,
     /// Why the item form just saved was refused: shown on the form, gone
@@ -2483,7 +2530,7 @@ pub struct Vaults {
     pub renew_years: Option<u32>,
     /// The reason chosen for a revocation, by GnuPG's menu number.
     pub revoke_reason: u8,
-    /// What is typed into passphrase fields is shown in the clear.
+    /// What is typed into an entry's password fields is shown in the clear.
     pub typed_shown: bool,
     /// The owner name Secure Boot keys are being made under.
     pub sb_owner: Text,
@@ -3172,17 +3219,29 @@ impl Vaults {
             .position(|(_, p, on)| c.preset == Some(*p) && c.on == *on && !c.not_here)
     }
 
+    /// Passphrase `i`'s two fields as typed.
+    pub fn phrase_text(c: &CreateForm, i: usize) -> Option<(&str, &str)> {
+        c.phrases.get(i).map(|f| (f.as_str(), f.again_str()))
+    }
+
+    /// What the Unlock field holds.
+    pub fn unlock_text(&self) -> &str {
+        self.passphrase.as_str()
+    }
+
+    /// What the prompt's field holds, if a prompt is up.
+    pub fn prompt_text(&self) -> Option<&str> {
+        self.prompt.as_ref().map(|p| p.pass.as_str())
+    }
+
     /// Whether a passphrase pair is typed the same twice, and not empty.
     pub fn phrase_ok(c: &CreateForm, i: usize) -> bool {
-        let (a, b) = &c.phrases[i];
-        crate::pass_field::pair::ready(a.text.as_str(), b.text.as_str())
+        c.phrases[i].ready()
     }
 
     /// Whether a passphrase pair differs: Create waits while one does.
     pub fn phrases_differ(c: &CreateForm) -> bool {
-        c.phrases
-            .iter()
-            .any(|(a, b)| crate::pass_field::pair::differ(a.text.as_str(), b.text.as_str()))
+        c.phrases.iter().any(PassField::differ)
     }
 
     /// Passphrase `i`'s own bits, known only while it is the words the
@@ -3190,8 +3249,8 @@ impl Vaults {
     /// Practice's `faraday`, which stands in for the rolled words.
     pub fn phrase_bits(c: &CreateForm, i: usize) -> Option<f32> {
         let (made, bits, _) = c.from_dice.get(i)?.as_ref()?;
-        let (a, b) = c.phrases.get(i)?;
-        let same = made.as_str() == a.text.as_str() && made.as_str() == b.text.as_str();
+        let f = c.phrases.get(i)?;
+        let same = made.as_str() == f.as_str() && made.as_str() == f.again_str();
         (same && made.as_str() != crate::demo::PASSPHRASE).then_some(*bits)
     }
 }
@@ -3772,8 +3831,6 @@ pub enum VaultAction {
     CFocus(usize, bool),
     /// Type the vault's name.
     CName,
-    /// Show or hide every passphrase being typed.
-    CShow,
     /// Make the vault.
     CGo,
     /// Choose the vault to unlock.
@@ -4260,13 +4317,12 @@ impl crate::at_lock::AtLock for VaultArea {
     fn holds(&self) -> crate::at_lock::Holds {
         crate::at_lock::Holds {
             kept: !self.open.is_empty(),
-            typed: !self.passphrase.text.is_empty()
-                || self.prompt.as_ref().is_some_and(|p| !p.text.text.is_empty())
-                || self.create.as_ref().is_some_and(|c| {
-                    c.phrases
-                        .iter()
-                        .any(|(a, b)| !a.text.is_empty() || !b.text.is_empty())
-                })
+            typed: self.passphrase.holds_any()
+                || self.prompt.as_ref().is_some_and(|p| p.pass.holds_any())
+                || self
+                    .create
+                    .as_ref()
+                    .is_some_and(|c| c.phrases.iter().any(PassField::holds_any))
                 // Create a vault's dice rolls: the passphrase they make.
                 || self.dice.open().is_some_and(|d| !d.1.text.is_empty()),
             session: false,
@@ -4277,7 +4333,7 @@ impl crate::at_lock::AtLock for VaultArea {
         // and the save read (the summaries, what was lost) stays.
         self.drop_sign_text();
         let s = &mut self.state;
-        s.passphrase = TextBox::default();
+        s.passphrase.clear();
         s.prompt = None;
         s.create = None;
         s.dice.close();

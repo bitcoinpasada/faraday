@@ -231,10 +231,10 @@ fn a_passphrase_field_brings_the_keyboard_and_stays_above_it() {
     );
     tap(&mut app, key);
     tap(&mut app, key);
-    let typed = app.vaults().create.as_ref().unwrap().phrases[0]
+    let typed = faraday_core::vault::Vaults::phrase_text(app.vaults().create.as_ref().unwrap(), 0)
+        .unwrap()
         .1
-        .text
-        .clone();
+        .to_string();
     assert_eq!(typed.as_str(), "aa", "the keys type into the field");
 }
 

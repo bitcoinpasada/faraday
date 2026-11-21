@@ -58,6 +58,7 @@ pub use search::{SearchAct, SearchIn};
 pub(crate) use stretch::{KdbxDone, KdbxWork, MeasureDone, MeasureWork, StretchDone, StretchWork};
 pub(crate) use summaries::{summaries_decode, summaries_encode};
 
+use crate::pass_field::PassField;
 use crate::public_kind::PublicFile;
 use crate::stick;
 use crate::strings::EN;
@@ -85,6 +86,11 @@ impl Faraday {
     /// The open vaults and the vault screens' state.
     pub fn vaults(&self) -> &Vaults {
         self.vaults.vaults()
+    }
+
+    /// Whether the passphrase fields show what they hold.
+    pub fn pass_eye_shown(&self) -> bool {
+        self.typing.pass_eye.shown
     }
 
     /// Costs what `described_rec` and `read_kept` cost. The wallet
@@ -577,6 +583,7 @@ impl Faraday {
                     self.vaults.clear_unlock_parts();
                     self.vaults.state.passphrase.clear();
                     self.vaults.state.typed_shown = false;
+                    self.typing.pass_eye.close();
                     self.vaults.state.unlock_error = None;
                     self.vaults.state.create = None;
                     self.vaults.state.dice.close();
@@ -830,26 +837,14 @@ impl Faraday {
                 self.out.command(faraday_shell_api::Command::CameraOn);
             }
             V::LoadWithPassphrase => {
-                self.vaults.state.prompt = Some(Prompt {
-                    purpose: Purpose::KeyPassphrase,
-                    text: TextBox::default(),
-                    again: TextBox::default(),
-                    error: None,
-                    written: Vec::new(),
-                });
+                self.vaults.state.prompt = Some(Prompt::new(Purpose::KeyPassphrase));
                 stick::focus(self, Focus::Prompt);
             }
             V::SaveKeyWithPassphrase(k) => keep::asks(self, k, true),
             V::FocusPrompt => stick::focus(self, Focus::Prompt),
             V::FocusPromptAgain => stick::focus(self, Focus::PromptAgain),
             V::ExportKdbx => {
-                self.vaults.state.prompt = Some(Prompt {
-                    purpose: Purpose::Kdbx,
-                    text: TextBox::default(),
-                    again: TextBox::default(),
-                    error: None,
-                    written: Vec::new(),
-                });
+                self.vaults.state.prompt = Some(Prompt::new(Purpose::Kdbx));
                 stick::focus(self, Focus::Prompt);
             }
             // A key made in the backup flow signs nothing until every place
@@ -1031,26 +1026,25 @@ impl Faraday {
         };
         // A passphrase made here is typed twice: a press with the two
         // differing does nothing.
-        if p.pair() && crate::pass_field::pair::differ(p.text.text.as_str(), p.again.text.as_str())
-        {
+        if p.pair() && p.pass.differ() {
             return;
         }
         match p.purpose {
             Purpose::ForWallet(v, r) => self.pass_seed_try(v, r),
             Purpose::Kdbx => {
-                if p.text.text.chars().count() < area::KDBX_PASSPHRASE_MIN {
+                if p.pass.as_str().chars().count() < area::KDBX_PASSPHRASE_MIN {
                     p.error = Some(Text::of(EN.vaults_a_passphrase));
                 } else {
                     stretch::defer(self, Work::Kdbx);
                 }
             }
             Purpose::KdbxCheck => {
-                if !p.text.text.is_empty() {
+                if !p.pass.is_empty() {
                     stretch::defer(self, Work::KdbxCheck);
                 }
             }
             Purpose::KeyPassphrase => {
-                let passphrase = Text::of(&p.text.text);
+                let passphrase = Text::of(p.pass.as_str());
                 let Some(at) = self.vault_selected_index() else {
                     return;
                 };
@@ -1196,7 +1190,7 @@ impl Faraday {
                 EN.vaults_remove_to_unlock,
                 &[self.medium.noun()],
             ))
-        } else if self.vaults.passphrase.text.is_empty() {
+        } else if self.vaults.passphrase.is_empty() {
             Some(Text::of(EN.vaults_type_the_passphrase))
         } else {
             None
@@ -2474,7 +2468,7 @@ impl Faraday {
             let text = Text::fill(EN.vaults_finish_step, &[&Text::num(n as u64 + 1)]);
             return Some((Some(c.steps()[n]), text));
         }
-        if c.phrases.iter().any(|(a, _)| a.text.is_empty()) {
+        if c.phrases.iter().any(PassField::is_empty) {
             return Some((Some(vstep::PHRASES), Text::of(EN.vaults_every_passphrase)));
         }
         if (0..c.phrases.len()).any(|i| !Vaults::phrase_ok(c, i)) {
@@ -2585,6 +2579,24 @@ impl Faraday {
         seal::vault_lock_one(self, i, after)
     }
 
+    /// A character or Backspace into the passphrase field at `focus`, by the
+    /// field's own rules (no typing with a stick attached). False where
+    /// `focus` is no passphrase.
+    fn vault_pass_key(&mut self, focus: Focus, key: faraday_shell_api::Key) -> bool {
+        let gate = crate::pass_field::Gate {
+            stick: self.stick.in_the_way(),
+        };
+        let medium = self.medium;
+        let Some(field) = self.vaults.pass_at(focus) else {
+            return false;
+        };
+        if let crate::pass_field::PassKey::Refused(why) = field.key(key, gate) {
+            let line = crate::pass_field::refused_text(medium, why);
+            self.toast(&line);
+        }
+        true
+    }
+
     /// Typing on a vault screen. Returns whether the key was taken.
     pub(crate) fn vault_key(&mut self, key: faraday_shell_api::Key) -> bool {
         use faraday_shell_api::Key as K;
@@ -2627,24 +2639,20 @@ impl Faraday {
             return dice::key(self, focus, key);
         }
         if matches!(focus, Focus::Prompt | Focus::PromptAgain) {
+            let pair = self.vaults.prompt.as_ref().is_some_and(Prompt::pair);
+            match key {
+                K::Char(_) | K::Backspace => {
+                    self.vault_pass_key(focus, key);
+                }
+                // The first field's Enter moves to the second.
+                K::Enter if pair && focus == Focus::Prompt => {
+                    self.vaults.state.focus = Some(Focus::PromptAgain);
+                }
+                K::Enter if self.vaults.prompt.is_some() => self.vault_act(VaultAction::PromptGo),
+                _ => {}
+            }
             if let Some(p) = self.vaults.state.prompt.as_mut() {
-                let (second, pair) = (focus == Focus::PromptAgain, p.pair());
-                let b = if second { &mut p.again } else { &mut p.text };
-                match key {
-                    K::Char(c) if !c.is_control() => b.text.push(c),
-                    K::Backspace => {
-                        b.text.pop();
-                    }
-                    // The first field's Enter moves to the second.
-                    K::Enter if pair && !second => {
-                        self.vaults.state.focus = Some(Focus::PromptAgain);
-                    }
-                    K::Enter => self.vault_act(VaultAction::PromptGo),
-                    _ => {}
-                }
-                if let Some(p) = self.vaults.state.prompt.as_mut() {
-                    p.error = None;
-                }
+                p.error = None;
             }
             return true;
         }
@@ -2698,6 +2706,8 @@ impl Faraday {
             return true;
         }
         match key {
+            K::Char(c) if !c.is_control() && self.vault_pass_key(focus, key) => {}
+            K::Backspace if self.vault_pass_key(focus, key) => {}
             K::Char(c) if !c.is_control() => {
                 if !self.vaults.type_char(focus, c) {
                     return false;
@@ -3597,13 +3607,9 @@ impl Faraday {
             return;
         };
         p.picked = Some((v, r));
-        self.vaults.state.prompt = Some(crate::vault::Prompt {
-            purpose: crate::vault::Purpose::ForWallet(v, r),
-            text: Default::default(),
-            again: Default::default(),
-            error: None,
-            written: Vec::new(),
-        });
+        self.vaults.state.prompt = Some(crate::vault::Prompt::new(
+            crate::vault::Purpose::ForWallet(v, r),
+        ));
         self.vaults.state.focus = self.may_load_keys().then_some(crate::vault::Focus::Prompt);
     }
 
@@ -3642,12 +3648,7 @@ impl Faraday {
         let Some(id) = self.vaults.open.get(v).map(|o| o.id) else {
             return;
         };
-        let passphrase = Text::of(
-            self.vaults
-                .prompt
-                .as_ref()
-                .map_or("", |p| p.text.text.as_str()),
-        );
+        let passphrase = Text::of(self.vaults.prompt.as_ref().map_or("", |p| p.pass.as_str()));
         let wanted = |fp: Fingerprint| missing.contains(&fp.0);
         let Some(loaded) = self.vaults.store().load_key_with_passphrase(
             &c,
@@ -3666,7 +3667,7 @@ impl Faraday {
                     .get(w)
                     .map_or_else(Text::new, |x| Text::of(&x.name));
                 if let Some(p) = self.vaults.state.prompt.as_mut() {
-                    p.text.clear();
+                    p.pass.clear();
                     p.error = Some(Text::fill(
                         EN.pass_seeds_not_a_key,
                         &[&fp_text(fp), &wallet],

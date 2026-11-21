@@ -95,11 +95,7 @@ fn said_entry(app: &Faraday) -> bool {
 }
 
 fn prompt_text(app: &Faraday) -> String {
-    app.vaults()
-        .prompt
-        .as_ref()
-        .map(|p| p.text.text.to_string())
-        .unwrap_or_default()
+    app.vaults().prompt_text().unwrap_or_default().to_string()
 }
 
 /// The vault's key shown, a stick attached.

@@ -1004,7 +1004,7 @@ fn a_lock_pressed_while_one_vault_is_sealed_hides_create_a_vault_s_passphrases_a
     type_text(&mut app, "one phrase");
     // Focus off the phrase boxes, so only the eye shows what is typed.
     app.press(Action::Vault(V::CName));
-    eye_hides_at_lock(&mut app, Action::Vault(V::CShow));
+    eye_hides_at_lock(&mut app, Action::PassEye);
 }
 
 #[test]

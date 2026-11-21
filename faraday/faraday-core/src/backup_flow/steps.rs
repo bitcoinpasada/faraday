@@ -3684,6 +3684,7 @@ impl crate::flow::Contained for FlowSteps {
 
     fn hide_shown(&self, app: &mut crate::Faraday) {
         app.vaults.hide_typed();
+        app.typing.pass_eye.close();
         app.backup.hide_secrets();
         crate::wallet_backup::kef::hide(app);
     }

@@ -18,7 +18,6 @@ use crate::{Faraday, KeyIn, Screen, Sheet};
 
 /// What a passphrase field takes, from the standard it feeds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[expect(dead_code, reason = "the kinds of the fields still to move onto it")]
 pub(crate) enum Kind {
     /// A BIP-39 passphrase: printable ASCII (F155), at most
     /// `MAX_PASSPHRASE_BYTES`.
@@ -334,11 +333,19 @@ pub(crate) enum Where {
     CopyCheck,
     /// At a glance's check of a key's passphrase.
     GlanceCheck,
+    /// The vault's Unlock passphrase: on Unlock, the boot import's sheet and
+    /// the backup flows' unlock step.
+    Unlock,
+    /// Create a vault's passphrases, each with its repeat.
+    VaultCreate,
+    /// The vault contents' one-line prompt: a key's passphrase, a wallet's
+    /// missing key's, a KeePass export's and its check.
+    VaultPrompt,
 }
 
 impl Where {
     /// Every field.
-    const ALL: [Where; 13] = [
+    const ALL: [Where; 16] = [
         Where::Potential,
         Where::Aezeed,
         Where::Entry,
@@ -352,6 +359,9 @@ impl Where {
         Where::CoreWallet,
         Where::CopyCheck,
         Where::GlanceCheck,
+        Where::Unlock,
+        Where::VaultCreate,
+        Where::VaultPrompt,
     ];
 
     /// Whether the field's screen or sheet is up: a sheet counts as up
@@ -394,6 +404,45 @@ impl Where {
                         Some((_, crate::glance::sheet::Target::PassCheck(..)))
                     )
             }
+            Where::Unlock => {
+                // In the flows it is drawn only on the card that unlocks, so
+                // half a passphrase is emptied when that card is left.
+                app.screen == Screen::Unlock
+                    || (app.screen == Screen::BackupFlow
+                        && app.flow().is_some_and(|f| {
+                            f.live.open.unwrap_or(f.step.n())
+                                == crate::backup_flow::Step::Vaults.n()
+                        }))
+                    || (app.screen == Screen::SpendBackup
+                        && matches!(
+                            app.spend_backup_open_card(),
+                            Some(crate::spend_backup::CardId::Page(
+                                crate::spend_backup::page::SAFE
+                                    | crate::spend_backup::page::HOLDING
+                                    | crate::spend_backup::page::OPEN
+                            ))
+                        ))
+                    || sheet(Sheet::Import)
+            }
+            // Drawn on its own screen, or in the backup flow's place while
+            // the flow makes a vault. The form itself is kept when it is
+            // left ([`Where::kept`]), but is not drawn then, so the eye and
+            // what a hardware key waits on do not count it.
+            Where::VaultCreate => {
+                app.vaults.create.is_some()
+                    && (app.screen == Screen::CreateVault
+                        || (app.screen == Screen::BackupFlow
+                            && app.flow().is_some_and(|f| f.live.creating.is_some())))
+            }
+            // The prompt is on the vault contents, or for a wallet's missing
+            // key on the seeds sheet.
+            Where::VaultPrompt => app.vaults.prompt.as_ref().is_some_and(|p| {
+                if matches!(p.purpose, crate::vault::Purpose::ForWallet(..)) {
+                    sheet(Sheet::PassphraseSeeds)
+                } else {
+                    app.screen == Screen::VaultContents
+                }
+            }),
             // Its state is kept while the secret sheet shows what it made
             // and on the way to a vault or a key it needs (`after_input`):
             // the node and the passphrase it was made with stay together.
@@ -416,6 +465,7 @@ impl Where {
         match self {
             Where::Slot => app.create.state().is_some(),
             Where::NewKey => app.keygen.state().is_some(),
+            Where::VaultCreate => app.vaults.create.is_some(),
             Where::Potential
             | Where::Aezeed
             | Where::Entry
@@ -426,7 +476,9 @@ impl Where {
             | Where::CoreWallet
             | Where::CopyCheck
             | Where::GlanceCheck
-            | Where::SeedCheck => false,
+            | Where::SeedCheck
+            | Where::Unlock
+            | Where::VaultPrompt => false,
         }
     }
 
@@ -445,31 +497,82 @@ impl Where {
             | Where::BackupKef
             | Where::CoreWallet
             | Where::CopyCheck
-            | Where::GlanceCheck => false,
+            | Where::GlanceCheck
+            | Where::Unlock
+            | Where::VaultCreate
+            | Where::VaultPrompt => false,
         }
     }
 
-    /// The field, where there is one.
-    fn field(self, app: &Faraday) -> Option<&PassField> {
+    /// Runs `f` on each field, where there is one (Create a vault has one
+    /// for each of its passphrases).
+    fn field(self, app: &Faraday, f: &mut dyn FnMut(&PassField)) {
         match self {
-            Where::Potential => app.inbox.potential().map(|p| &p.pass),
-            Where::Aezeed => app.lightning.state().map(|l| &l.passphrase),
-            Where::Entry => Some(&app.entry.state().passphrase),
-            Where::SeedRead => app.seed_read.state().map(|s| &s.pass),
-            Where::KefRead => app.seed_read.kef().map(|k| k.pass()),
-            Where::Slot => app.create.state().map(|c| &c.pass),
-            Where::NewKey => app.keygen.state().map(|k| &k.passphrase),
-            Where::SeedCheck => app.tools.seed_check.state().map(|s| s.pass()),
+            Where::Potential => app
+                .inbox
+                .potential()
+                .map(|p| &p.pass)
+                .into_iter()
+                .for_each(f),
+            Where::Aezeed => app
+                .lightning
+                .state()
+                .map(|l| &l.passphrase)
+                .into_iter()
+                .for_each(f),
+            Where::Entry => f(&app.entry.state().passphrase),
+            Where::SeedRead => app
+                .seed_read
+                .state()
+                .map(|s| &s.pass)
+                .into_iter()
+                .for_each(f),
+            Where::KefRead => app
+                .seed_read
+                .kef()
+                .map(|k| k.pass())
+                .into_iter()
+                .for_each(f),
+            Where::Slot => app.create.state().map(|c| &c.pass).into_iter().for_each(f),
+            Where::NewKey => app
+                .keygen
+                .state()
+                .map(|k| &k.passphrase)
+                .into_iter()
+                .for_each(f),
+            Where::SeedCheck => app
+                .tools
+                .seed_check
+                .state()
+                .map(|s| s.pass())
+                .into_iter()
+                .for_each(f),
             Where::KefTool => app
                 .tools
                 .kef_tool
                 .state()
                 .and_then(|s| s.form())
-                .map(|f| f.pass()),
-            Where::BackupKef => app.backup.kef_pass(),
-            Where::CoreWallet => app.tools.core_wallet.state().map(|s| &s.passphrase),
-            Where::CopyCheck => app.backup.check_pass(),
-            Where::GlanceCheck => Some(&app.glance.work().pass),
+                .map(|f| f.pass())
+                .into_iter()
+                .for_each(f),
+            Where::BackupKef => app.backup.kef_pass().into_iter().for_each(f),
+            Where::CoreWallet => app
+                .tools
+                .core_wallet
+                .state()
+                .map(|s| &s.passphrase)
+                .into_iter()
+                .for_each(f),
+            Where::CopyCheck => app.backup.check_pass().into_iter().for_each(f),
+            Where::GlanceCheck => f(&app.glance.work().pass),
+            Where::Unlock => f(&app.vaults.passphrase),
+            Where::VaultCreate => app
+                .vaults
+                .create
+                .iter()
+                .flat_map(|c| c.phrases.iter())
+                .for_each(f),
+            Where::VaultPrompt => app.vaults.prompt.iter().map(|p| &p.pass).for_each(f),
         }
     }
 
@@ -489,6 +592,9 @@ impl Where {
             Where::CoreWallet => crate::core_wallet::tool::with_pass(app, f),
             Where::CopyCheck => app.backup.with_check_pass(f),
             Where::GlanceCheck => app.glance.with_pass(f),
+            Where::Unlock => app.vaults.with_unlock_pass(f),
+            Where::VaultCreate => app.vaults.with_create_pass(f),
+            Where::VaultPrompt => app.vaults.with_prompt_pass(f),
         }
     }
 }
@@ -505,9 +611,8 @@ pub(crate) fn each(app: &mut Faraday, mut f: impl FnMut(Where, &mut PassField, b
 /// [`each`] for a read: the field and whether it is up.
 fn each_ref(app: &Faraday, mut f: impl FnMut(Where, &PassField, bool)) {
     for w in Where::ALL {
-        if let Some(field) = w.field(app) {
-            f(w, field, w.up(app));
-        }
+        let up = w.up(app);
+        w.field(app, &mut |field| f(w, field, up));
     }
 }
 
@@ -572,15 +677,21 @@ pub(crate) fn after_key(app: &mut Faraday, key: KeyIn, before: Option<usize>) {
     }
 }
 
-/// After an event: with no passphrase field up, nothing is left to wait
-/// for, and leaving them closes the eye.
+/// After an event: when the passphrase fields drawn are not the ones drawn
+/// before it (a screen with one was entered or left), the eye closes and
+/// nothing is left to wait for. A sheet over a field changes nothing drawn
+/// under it.
 pub(crate) fn settle(app: &mut Faraday) {
-    match pass_len(app, false) {
-        None => {
-            app.typing.pass_eye.reset();
-            app.typing.pass_eye.close();
-        }
-        Some(_) if pass_len(app, true).unwrap_or(0) == 0 => app.typing.pass_eye.reset(),
-        Some(_) => {}
+    let drawn = Where::ALL
+        .into_iter()
+        .enumerate()
+        .filter(|(_, w)| w.up(app))
+        .fold(0u32, |mask, (i, _)| mask | 1 << i);
+    if drawn != app.typing.pass_drawn || drawn == 0 {
+        app.typing.pass_drawn = drawn;
+        app.typing.pass_eye.reset();
+        app.typing.pass_eye.close();
+    } else if pass_len(app, true).unwrap_or(0) == 0 {
+        app.typing.pass_eye.reset();
     }
 }

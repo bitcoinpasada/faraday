@@ -2188,6 +2188,7 @@ impl crate::flow::Contained for SpendBackupSteps {
 
     fn hide_shown(&self, app: &mut crate::Faraday) {
         app.vaults.hide_typed();
+        app.typing.pass_eye.close();
     }
 
     fn count_fixed(&self, _: &Faraday) -> bool {

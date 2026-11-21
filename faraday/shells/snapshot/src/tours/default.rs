@@ -1447,7 +1447,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
         .vaults()
         .create
         .as_ref()
-        .map(|c| c.phrases[0].0.text.to_string())
+        .and_then(|c| faraday_core::vault::Vaults::phrase_text(c, 0).map(|p| p.0.to_string()))
         .unwrap_or_default();
     let expect =
         faraday_core::dice_entry::dice_words(rolls, faraday_bip::diceware::List::Large).join("");

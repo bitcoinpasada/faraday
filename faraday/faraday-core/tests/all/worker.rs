@@ -160,7 +160,7 @@ mod vault_open {
         testkit::settle_stale(&mut app);
         tick(&mut app, 1000);
         assert!(app.vaults().open.is_empty());
-        assert!(app.vaults().passphrase.text.is_empty());
+        assert!(app.vaults().unlock_text().is_empty());
     }
 
     #[test]
@@ -194,7 +194,7 @@ mod vault_open {
         testkit::settle(&mut app);
         tick(&mut app, 2000);
         assert!(app.vaults().open.is_empty());
-        assert!(app.vaults().passphrase.text.is_empty());
+        assert!(app.vaults().unlock_text().is_empty());
     }
 
     fn a_stick() -> StorageEvent {
@@ -246,7 +246,7 @@ mod vault_open {
         app.press(Action::Vault(V::Open(1)));
         app.press(Action::Vault(V::FocusPassphrase));
         type_text(&mut app, PASS);
-        assert_eq!(app.vaults().passphrase.text, PASS);
+        assert_eq!(app.vaults().unlock_text(), PASS);
         testkit::hold_worker();
         testkit::press_on_worker(&mut app, Action::Vault(V::Unlock));
         assert!(app.busy().is_some(), "the second open runs");

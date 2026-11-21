@@ -743,6 +743,34 @@ fn a_seed_kept_without_its_passphrase_is_on_the_keys_card_and_loads_with_one_lat
     assert_eq!(held(&app), 3, "the wallet is still short of its key");
 }
 
+/// The wallet's missing-key prompt holds nothing once its sheet is gone,
+/// by Cancel (no other press takes the sheet away), and after a stick is
+/// put in.
+#[test]
+fn the_wallets_key_prompt_is_empty_after_its_sheet_goes_and_after_a_stick() {
+    let mut app = trio_loaded(Vec::new());
+    load_with_a_passphrase(&mut app);
+    type_text(&mut app, "kept apart");
+    assert_eq!(app.vaults().prompt_text(), Some("kept apart"));
+    app.press(Action::Cancel);
+    assert_ne!(app.sheet, Some(Sheet::PassphraseSeeds));
+    assert!(app.vaults().prompt_text().is_none_or(str::is_empty));
+
+    let mut app = trio_loaded(Vec::new());
+    load_with_a_passphrase(&mut app);
+    type_text(&mut app, "kept apart");
+    app.storage(StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
+        serial: None,
+        id: faraday_text::Text::of("a"),
+        label: faraday_text::Text::of("STICK"),
+        boot: false,
+        files: Vec::new(),
+        vaults: Vec::new(),
+    }]));
+    assert!(app.vaults().prompt_text().is_none_or(str::is_empty));
+}
+
 /// A wrong passphrase on the right seed loads nothing and says which key
 /// it gave; the right one then loads.
 #[test]

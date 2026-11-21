@@ -55,10 +55,11 @@ fn a_roll_fills_the_rolls_as_the_keys_would() {
     assert_eq!(made.len(), 5);
     assert!(made.bytes().all(|b| (b'1'..=b'6').contains(&b)));
     app.press(Action::Vault(V::DiceUse));
-    let rolled_phrase = app.vaults().create.as_ref().unwrap().phrases[0]
-        .0
-        .text
-        .to_string();
+    let rolled_phrase =
+        faraday_core::vault::Vaults::phrase_text(app.vaults().create.as_ref().unwrap(), 0)
+            .unwrap()
+            .0
+            .to_string();
 
     // The same five values typed on the keys make the same passphrase.
     let mut typed = rolling(true, true);
@@ -66,10 +67,11 @@ fn a_roll_fills_the_rolls_as_the_keys_would() {
         typed.event(Event::Key(Key::Char(c)));
     }
     typed.press(Action::Vault(V::DiceUse));
-    let typed_phrase = typed.vaults().create.as_ref().unwrap().phrases[0]
-        .0
-        .text
-        .to_string();
+    let typed_phrase =
+        faraday_core::vault::Vaults::phrase_text(typed.vaults().create.as_ref().unwrap(), 0)
+            .unwrap()
+            .0
+            .to_string();
     assert_eq!(rolled_phrase, typed_phrase);
     // In Practice, where the roller is offered, both are `faraday` in place of
     // the words the rolls make (`docs/DEMO.md` §5.2); the words are the
@@ -111,7 +113,10 @@ fn rolled_or_typed_demo_puts_faraday_in_place_and_measures_nothing() {
     for mut app in cases {
         app.press(Action::Vault(V::DiceUse));
         let c = app.vaults().create.as_ref().unwrap();
-        assert_eq!(c.phrases[0].0.text.as_str(), faraday_core::demo::PASSPHRASE);
+        assert_eq!(
+            faraday_core::vault::Vaults::phrase_text(c, 0).unwrap().0,
+            faraday_core::demo::PASSPHRASE
+        );
         assert_eq!(faraday_core::vault::Vaults::phrase_bits(c, 0), None);
     }
 }

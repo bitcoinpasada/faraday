@@ -104,7 +104,7 @@ fn a_vault_made_from_the_backup_is_locked_and_unlocked_once_before_it_returns_to
     let mut app = create_to_vault_step();
     make_a_vault(&mut app);
     assert!(
-        app.vaults().passphrase.text.is_empty(),
+        app.vaults().unlock_text().is_empty(),
         "no passphrase is typed for it"
     );
     type_text(&mut app, "wrong phrase");
@@ -149,9 +149,8 @@ fn a_new_vaults_passphrases_wait_until_the_stick_is_pulled() {
     type_text(&mut app, "12345");
     let c = app.vaults().create.as_ref().unwrap();
     assert!(
-        c.phrases
-            .iter()
-            .all(|(a, b)| a.text.is_empty() && b.text.is_empty()),
+        (0..c.phrase_count())
+            .all(|i| faraday_core::vault::Vaults::phrase_text(c, i) == Some(("", ""))),
         "nothing secret is typed while a stick is attached"
     );
     assert!(
@@ -163,7 +162,9 @@ fn a_new_vaults_passphrases_wait_until_the_stick_is_pulled() {
     app.press(Action::Vault(V::CFocus(0, false)));
     type_text(&mut app, "test phrase");
     assert_eq!(
-        &*app.vaults().create.as_ref().unwrap().phrases[0].0.text,
+        faraday_core::vault::Vaults::phrase_text(app.vaults().create.as_ref().unwrap(), 0)
+            .unwrap()
+            .0,
         "test phrase"
     );
 }
@@ -850,6 +851,100 @@ fn a_new_size_keeps_the_passphrases_typed() {
     let _ = app.frame();
     app.press(Action::Vault(V::CSizeRow(0)));
     let form = app.vaults().create.as_ref().unwrap();
-    assert_eq!(form.phrases[0].0.text, "test phrase");
-    assert_eq!(form.phrases[0].1.text, "test phrase");
+    assert_eq!(
+        faraday_core::vault::Vaults::phrase_text(form, 0).unwrap().0,
+        "test phrase"
+    );
+    assert_eq!(
+        faraday_core::vault::Vaults::phrase_text(form, 0).unwrap().1,
+        "test phrase"
+    );
+}
+
+fn a_stick() -> faraday_core::StorageEvent {
+    faraday_core::StorageEvent::Sticks(vec![faraday_core::StickInfo {
+        make: Default::default(),
+        serial: None,
+        id: faraday_text::Text::of("a"),
+        label: faraday_text::Text::of("STICK"),
+        boot: false,
+        files: Vec::new(),
+        vaults: Vec::new(),
+    }])
+}
+
+#[test]
+fn a_stick_put_in_empties_a_new_vaults_passphrases() {
+    let mut app = create_to_vault_step();
+    app.press(Action::Vault(V::CreateFrom(Screen::Backup)));
+    app.press(Action::Vault(V::CFocus(0, false)));
+    type_text(&mut app, "test phrase");
+    app.press(Action::Vault(V::CFocus(0, true)));
+    type_text(&mut app, "test phrase");
+    app.storage(a_stick());
+    let c = app.vaults().create.as_ref().unwrap();
+    assert_eq!(
+        faraday_core::vault::Vaults::phrase_text(c, 0),
+        Some(("", "")),
+        "nothing typed stays with a stick in"
+    );
+}
+
+fn drawn_now(app: &mut Faraday) -> Vec<String> {
+    let _ = app.frame();
+    app.drawn_texts().plain()
+}
+
+#[test]
+fn one_eye_shows_and_hides_a_new_vaults_passphrases() {
+    let mut app = on_create_vault();
+    app.press(Action::Vault(V::CFocus(0, false)));
+    type_text(&mut app, "test phrase");
+    assert!(
+        !drawn_now(&mut app).iter().any(|t| t == "test phrase"),
+        "the passphrase is masked"
+    );
+    app.press(Action::PassEye);
+    assert!(drawn_now(&mut app).iter().any(|t| t == "test phrase"));
+    app.press(Action::PassEye);
+    assert!(!drawn_now(&mut app).iter().any(|t| t == "test phrase"));
+}
+
+#[test]
+fn an_eye_opened_on_create_a_vault_does_not_show_another_screens_passphrase() {
+    for leave in [Action::Nav(Screen::Home), Action::Nav(Screen::Vaults)] {
+        let mut app = on_create_vault();
+        app.press(Action::Vault(V::CFocus(0, false)));
+        type_text(&mut app, "test phrase");
+        app.press(Action::PassEye);
+        let _ = app.frame();
+        app.press(leave);
+        // The next event is where the app checks which fields are up.
+        app.event(Event::Key(faraday_shell_api::Key::BackTab));
+        app.press(Action::Lightning);
+        app.press(Action::LAezeed);
+        app.press(Action::LPassphrase);
+        type_text(&mut app, "kept apart");
+        assert!(
+            !drawn_now(&mut app).iter().any(|t| t == "kept apart"),
+            "the eye stayed open after leaving Create a vault"
+        );
+    }
+}
+
+#[test]
+fn a_lock_empties_a_new_vaults_passphrases() {
+    let mut app = create_to_vault_step();
+    app.press(Action::Vault(V::CreateFrom(Screen::Backup)));
+    app.press(Action::Vault(V::CFocus(0, false)));
+    type_text(&mut app, "test phrase");
+    app.press(Action::Lock);
+    assert!(
+        app.vaults()
+            .create
+            .as_ref()
+            .is_none_or(|c| faraday_core::vault::Vaults::phrase_text(c, 0)
+                .is_none_or(|(a, b)| a.is_empty() && b.is_empty())),
+        "the passphrase does not survive a lock"
+    );
 }

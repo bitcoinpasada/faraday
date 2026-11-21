@@ -1927,6 +1927,11 @@ fn dropping_the_place_of_a_sealed_vault_that_holds_the_moved_key_does_not_lose_i
     let mut app = shell.lock(&mut app);
     // Both vaults come back open from their sealed files.
     open_vault(&mut shell, &mut app, 0, PHRASE);
+    // The passphrase is typed on the Vaults card.
+    shell.flow(
+        &mut app,
+        F::Open(faraday_core::backup_flow::Step::Vaults.n()),
+    );
     open_vault(&mut shell, &mut app, 1, PHRASE_2);
     assert_eq!(app.vaults().open.len(), 2, "{:?}", unlock_error(&app));
     shell.flow(&mut app, F::ChangePlan);

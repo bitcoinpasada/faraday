@@ -689,7 +689,7 @@ fn put_off_after_import_home_leads_with_the_vaults_unlock() {
     app.press(Action::Import(I::Later));
     assert_eq!((app.screen, app.sheet), (Screen::Home, None));
     assert!(
-        app.vaults().passphrase.text.is_empty(),
+        app.vaults().unlock_text().is_empty(),
         "what was typed stays"
     );
     let texts = drawn(&mut app);

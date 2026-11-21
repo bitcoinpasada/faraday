@@ -37,10 +37,11 @@ fn the_same_rolls_spell_different_words_on_different_lists() {
         )));
     }
     app.press(Action::Vault(V::DiceUse));
-    let long_word = app.vaults().create.as_ref().unwrap().phrases[0]
-        .0
-        .text
-        .clone();
+    let long_word =
+        faraday_core::vault::Vaults::phrase_text(app.vaults().create.as_ref().unwrap(), 0)
+            .unwrap()
+            .0
+            .to_string();
     assert!(!long_word.is_empty());
 
     let mut app = rolling();
@@ -53,10 +54,11 @@ fn the_same_rolls_spell_different_words_on_different_lists() {
         )));
     }
     app.press(Action::Vault(V::DiceUse));
-    let short_word = app.vaults().create.as_ref().unwrap().phrases[0]
-        .0
-        .text
-        .clone();
+    let short_word =
+        faraday_core::vault::Vaults::phrase_text(app.vaults().create.as_ref().unwrap(), 0)
+            .unwrap()
+            .0
+            .to_string();
     assert!(!short_word.is_empty());
     assert_ne!(
         *long_word, *short_word,
@@ -73,10 +75,10 @@ fn dice_words_land_in_the_passphrase_field_with_no_spaces() {
         )));
     }
     app.press(Action::Vault(V::DiceUse));
-    let phrase = app.vaults().create.as_ref().unwrap().phrases[0]
+    let phrase = faraday_core::vault::Vaults::phrase_text(app.vaults().create.as_ref().unwrap(), 0)
+        .unwrap()
         .0
-        .text
-        .clone();
+        .to_string();
     assert!(
         !phrase.contains(' '),
         "a diceware passphrase is one unbroken string of words, not space-separated: {phrase:?}"
@@ -103,11 +105,11 @@ fn choosing_a_list_clears_rolls_already_typed() {
 fn passphrases_are_masked_until_shown() {
     let mut app = faraday_core::testkit::started();
     app.press(Action::Vault(V::Create));
-    assert!(!app.vaults().create.as_ref().unwrap().shown);
-    app.press(Action::Vault(V::CShow));
-    assert!(app.vaults().create.as_ref().unwrap().shown);
-    app.press(Action::Vault(V::CShow));
-    assert!(!app.vaults().create.as_ref().unwrap().shown);
+    assert!(!app.pass_eye_shown());
+    app.press(Action::PassEye);
+    assert!(app.pass_eye_shown());
+    app.press(Action::PassEye);
+    assert!(!app.pass_eye_shown());
 }
 
 fn shown() -> Faraday {
@@ -142,10 +144,30 @@ fn unlock_has_an_eye_that_shows_the_passphrase_typed() {
     });
     app.press(Action::Vault(V::Open(0)));
     let _ = app.frame();
-    assert!(app.offers(Action::Vault(V::ShowTyped)), "no eye on Unlock");
-    assert!(!app.vaults().typed_shown);
-    app.press(Action::Vault(V::ShowTyped));
-    assert!(app.vaults().typed_shown);
+    assert!(app.offers(Action::PassEye), "no eye on Unlock");
+    assert!(!app.pass_eye_shown());
+    app.press(Action::PassEye);
+    assert!(app.pass_eye_shown());
+}
+
+#[test]
+fn unlocks_text_is_gone_after_its_screen_is_left() {
+    let mut app = shown();
+    app.storage(faraday_core::StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![(
+            faraday_text::Text::of("vault.kdbx"),
+            crate::common::vault("Test", faraday_core::testkit::VAULT_PASSPHRASE, 7),
+        )]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.press(Action::Vault(V::Open(0)));
+    let _ = app.frame();
+    crate::common::type_text(&mut app, "half a pass");
+    assert_eq!(app.vaults().unlock_text(), "half a pass");
+    app.press(Action::Nav(faraday_core::Screen::Home));
+    let _ = app.frame();
+    assert_eq!(app.vaults().unlock_text(), "");
 }
 
 #[test]
@@ -174,7 +196,7 @@ fn create_vault_passphrase_fields_have_the_eye() {
     // Create opens on Name and passphrase.
     app.press(Action::Vault(V::Create));
     let _ = app.frame();
-    assert!(app.offers(Action::Vault(V::CShow)));
+    assert!(app.offers(Action::PassEye));
 }
 
 #[test]
@@ -203,6 +225,11 @@ fn a_dice_passphrase_has_a_strength_until_it_is_changed() {
     app.press(Action::Vault(V::CFocus(0, false)));
     app.event(Event::Key(Key::Char('x')));
     let c = app.vaults().create.as_ref().unwrap();
-    assert!(c.phrases[0].0.text.ends_with('x'));
+    assert!(
+        faraday_core::vault::Vaults::phrase_text(c, 0)
+            .unwrap()
+            .0
+            .ends_with('x')
+    );
     assert_eq!(Vaults::phrase_bits(c, 0), None);
 }

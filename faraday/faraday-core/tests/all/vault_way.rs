@@ -11,10 +11,12 @@
 use crate::common::type_text;
 use faraday_core::catalog::TILES;
 use faraday_core::seeds::SeedsAction as S;
-use faraday_core::testkit;
+use faraday_core::testkit::{self, Plain};
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent};
-use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
+use faraday_shell_api::{
+    App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware, TouchPhase,
+};
 use faraday_vault::records::kind;
 
 const NEW_PHRASE: &str = "test phrase";
@@ -292,6 +294,73 @@ fn lightning_makes_a_vault_and_comes_back_to_save_the_node_key() {
     );
 }
 
+/// Lightning with a seed and its passphrase read, the eye open.
+fn lightning_with_an_open_eye() -> Faraday {
+    const ABANDON: &str = "abandon abandon abandon abandon abandon abandon abandon abandon \
+        abandon abandon abandon about";
+    let mut app = device(Vec::new());
+    app.press(Action::Lightning);
+    app.press(Action::LCln(None));
+    type_text(&mut app, ABANDON);
+    app.press(Action::LPassphrase);
+    type_text(&mut app, "lnpass");
+    app.event(Event::Key(faraday_shell_api::Key::Enter));
+    let _ = app.frame();
+    let now = app.now_ms() + 16;
+    app.event(Event::Tick { now_ms: now });
+    testkit::settle(&mut app);
+    app.press(Action::PassEye);
+    assert!(shown(&mut app, "lnpass"), "the eye is open on Lightning");
+    app
+}
+
+fn shown(app: &mut Faraday, text: &str) -> bool {
+    let _ = app.frame();
+    app.drawn_texts().plain().iter().any(|t| t == text)
+}
+
+#[test]
+fn make_a_vault_from_lightning_opens_create_with_the_passphrases_in_dots() {
+    let mut app = lightning_with_an_open_eye();
+    press_make(&mut app, Screen::Lightning);
+    assert_eq!(app.screen, Screen::CreateVault);
+    type_text(&mut app, "newpass");
+    assert!(!shown(&mut app, "newpass"), "dots, not the letters");
+}
+
+#[test]
+fn make_a_vault_from_lightning_with_the_eye_open_draws_it_closed_and_one_press_opens_it() {
+    let mut app = lightning_with_an_open_eye();
+    let make = Action::Vault(V::CreateFrom(Screen::Lightning));
+    assert!(offered(&mut app, make), "Make a vault is not offered");
+    // A finger's press, as the device gets it.
+    let (x, y) = app.where_offered(make).expect("on screen");
+    for phase in [TouchPhase::Down, TouchPhase::Up] {
+        app.event(Event::Touch { x, y, phase });
+    }
+    assert_eq!(app.screen, Screen::CreateVault);
+    assert!(!app.pass_eye_shown(), "the first frame has the eye closed");
+    type_text(&mut app, "newpass");
+    assert!(!shown(&mut app, "newpass"), "dots");
+    app.press(Action::PassEye);
+    assert!(
+        shown(&mut app, "newpass"),
+        "one press of the eye shows them"
+    );
+}
+
+#[test]
+fn a_vault_made_from_lightning_returns_to_it_with_the_passphrase_in_dots() {
+    let mut app = lightning_with_an_open_eye();
+    press_make(&mut app, Screen::Lightning);
+    if !app.pass_eye_shown() {
+        app.press(Action::PassEye);
+    }
+    make_the_vault(&mut app);
+    assert_eq!(app.screen, Screen::Lightning);
+    assert!(!shown(&mut app, "lnpass"), "dots, not the letters");
+}
+
 #[test]
 fn lightning_keeps_its_passphrase_with_its_node_on_the_way_to_a_vault_and_a_lock_drops_both() {
     const ABANDON: &str = "abandon abandon abandon abandon abandon abandon abandon abandon \
@@ -520,7 +589,7 @@ fn leaving_unlock_drops_a_half_typed_passphrase() {
         type_text(&mut app, "test phr");
         app.press(way_out);
         assert!(
-            app.vaults().passphrase.text.is_empty(),
+            app.vaults().unlock_text().is_empty(),
             "{way_out:?} kept the typed passphrase"
         );
     }

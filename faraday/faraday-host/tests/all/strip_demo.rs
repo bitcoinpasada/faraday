@@ -291,8 +291,14 @@ fn in_the_demo_a_vault_from_the_dice_shows_the_rolled_words_then_opens_with_fara
     );
     // Both fields hold faraday, and the dice's strength is not measured.
     let c = app.vaults().create.as_ref().expect("the form");
-    assert_eq!(c.phrases[0].0.text.as_str(), "faraday");
-    assert_eq!(c.phrases[0].1.text.as_str(), "faraday");
+    assert_eq!(
+        faraday_core::vault::Vaults::phrase_text(c, 0).unwrap().0,
+        "faraday"
+    );
+    assert_eq!(
+        faraday_core::vault::Vaults::phrase_text(c, 0).unwrap().1,
+        "faraday"
+    );
     assert!(!crate::common::has_part(&mut app, "bits from dice"));
     app.press(Action::Vault(V::CGo));
     crate::common::settle(&mut app, 1);
@@ -330,8 +336,14 @@ fn in_the_demo_use_faraday_puts_faraday_in_a_vaults_passphrase_and_its_repeat_an
         "gone once both fields hold it"
     );
     let c = app.vaults().create.as_ref().expect("the form");
-    assert_eq!(c.phrases[0].0.text.as_str(), "faraday");
-    assert_eq!(c.phrases[0].1.text.as_str(), "faraday");
+    assert_eq!(
+        faraday_core::vault::Vaults::phrase_text(c, 0).unwrap().0,
+        "faraday"
+    );
+    assert_eq!(
+        faraday_core::vault::Vaults::phrase_text(c, 0).unwrap().1,
+        "faraday"
+    );
     app.press(Action::Vault(V::CGo));
     crate::common::settle(&mut app, 1);
     crate::common::settle_n(&mut app, 21, 30);

@@ -307,22 +307,17 @@ pub(crate) fn pass_seeds(app: &View, ui: &mut Ui, w: f32, h: f32) {
                     EN.pass_seeds_passphrase,
                 );
                 cy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
-                let empty = app
-                    .vaults
-                    .prompt
-                    .as_ref()
-                    .is_none_or(|q| q.text.text.is_empty());
+                let empty = app.vaults.prompt.as_ref().is_none_or(|q| q.pass.is_empty());
                 if let Some(q) = app.vaults.prompt.as_ref() {
-                    crate::pass_field::screen::pass_box(
+                    crate::pass_field::screen::vault_box(
                         app,
                         ui,
                         (x, cy, iw),
-                        &q.text,
+                        (&q.pass, crate::pass_field::Which::First),
                         (
-                            app.vaults.typed_shown,
+                            va(V::FocusPrompt),
                             app.vaults.focus == Some(crate::vault::Focus::Prompt),
                         ),
-                        (va(V::FocusPrompt), va(V::ShowTyped)),
                         crate::demo::PassField::Prompt,
                     );
                     cy += FIELD_H + 10.0 + crate::screens::never_under(app, ui, x, cy, iw);

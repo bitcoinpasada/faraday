@@ -67,7 +67,7 @@ fn on_make_a_vault(width: u16, height: u16) -> Faraday {
     testkit::settle(&mut app);
     app.press(Action::Vault(V::CFocus(0, false)));
     type_text(&mut app, SECRET);
-    app.press(Action::Vault(V::CShow));
+    app.press(Action::PassEye);
     assert!(draws(&mut app, SECRET), "shown");
     app
 }
@@ -110,10 +110,7 @@ fn make_a_new_vault_hides_the_passphrase_by_every_way_out() {
             Some(vstep::PHRASES),
             "{way}: back on the passphrases"
         );
-        assert!(
-            !app.vaults().create.as_ref().unwrap().shown,
-            "{way}: eye off"
-        );
+        assert!(!app.pass_eye_shown(), "{way}: eye off");
         assert!(!draws(&mut app, SECRET), "{way}: no secret text drawn");
     }
 }
@@ -379,10 +376,16 @@ fn the_backup_flow_hides_a_typed_vault_passphrase() {
         at_rest(&mut app);
         app.press(Action::Vault(V::FocusPassphrase));
         type_text(&mut app, SECRET);
-        app.press(Action::Vault(V::ShowTyped));
-        assert!(app.vaults().typed_shown, "{way}: shown");
+        app.press(Action::PassEye);
+        assert!(app.pass_eye_shown(), "{way}: shown");
         leave(&mut app, way);
-        assert!(!app.vaults().typed_shown, "{way}: the passphrase is hidden");
+        assert!(!app.pass_eye_shown(), "{way}: the passphrase is hidden");
+        // Back stays on this step while it unlocks; a row of Your choices
+        // leaves it.
+        assert!(
+            way == "back" || app.vaults().unlock_text().is_empty(),
+            "{way}: half a passphrase is gone with the step"
+        );
     }
 }
 
@@ -406,10 +409,14 @@ fn spend_from_a_backup_hides_the_typed_vault_passphrase() {
         at_rest(&mut app);
         app.press(Action::SpendBackup(F::Pick(0)));
         type_text(&mut app, testkit::VAULT_PASSPHRASE);
-        app.press(Action::Vault(V::ShowTyped));
-        assert!(app.vaults().typed_shown, "{way}: shown");
+        app.press(Action::PassEye);
+        assert!(app.pass_eye_shown(), "{way}: shown");
         leave(&mut app, way);
-        assert!(!app.vaults().typed_shown, "{way}: the passphrase is hidden");
+        assert!(!app.pass_eye_shown(), "{way}: the passphrase is hidden");
+        assert!(
+            app.vaults().unlock_text().is_empty(),
+            "{way}: half a passphrase is gone with the step"
+        );
     }
 }
 

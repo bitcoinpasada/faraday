@@ -45,6 +45,9 @@ pub(crate) struct TypingArea {
     caret_drawn: Option<bool>,
     /// The eye on the passphrase fields.
     pub(crate) pass_eye: crate::pass_field::eye::PassEye,
+    /// Which passphrase fields the last event left on the screen
+    /// (`pass_field::settle`).
+    pub(crate) pass_drawn: u32,
     /// The key being handled came from a hardware keyboard, not the
     /// on-screen one.
     pub(crate) hardware_key: bool,
@@ -63,6 +66,7 @@ impl TypingArea {
             caret_at: 0,
             caret_drawn: None,
             pass_eye: crate::pass_field::eye::PassEye::default(),
+            pass_drawn: 0,
             hardware_key: false,
         }
     }
@@ -717,16 +721,16 @@ impl Faraday {
             Action::Vault(_) => {
                 let v = &self.vaults;
                 match self.vaults.focus? {
-                    F::Passphrase => &v.passphrase.text,
+                    F::Passphrase => v.passphrase.as_str(),
                     F::Phrase(i, second) => {
-                        let (a, b) = v.create.as_ref()?.phrases.get(i)?;
-                        if second { &b.text } else { &a.text }
+                        let f = v.create.as_ref()?.phrases.get(i)?;
+                        if second { f.again_str() } else { f.as_str() }
                     }
                     F::Field(k) => &v.form.as_ref()?.fields.get(k)?.2.text,
                     F::Dice => &v.dice.open()?.1.text,
                     F::Rolls => v.dice.roller().typed(),
-                    F::Prompt => &v.prompt.as_ref()?.text.text,
-                    F::PromptAgain => &v.prompt.as_ref()?.again.text,
+                    F::Prompt => v.prompt.as_ref()?.pass.as_str(),
+                    F::PromptAgain => v.prompt.as_ref()?.pass.again_str(),
                     F::Name => &v.create.as_ref()?.name.text,
                     F::Search(s) => v.query(s),
                 }

@@ -111,11 +111,6 @@ impl VaultArea {
                 self.state.focus = may_load.then_some(Focus::Phrase(i, second));
             }
             V::CName => self.state.focus = Some(Focus::Name),
-            V::CShow => {
-                if let Some(c) = self.state.create.as_mut() {
-                    c.shown = !c.shown;
-                }
-            }
             _ => return false,
         }
         true
@@ -123,15 +118,6 @@ impl VaultArea {
 }
 
 impl VaultArea {
-    /// A step of Create a vault is left (F104): a passphrase shown is
-    /// hidden again, what was typed stays. Done when the step's fade out
-    /// ends (`docs/FLOW-CONTAINER.md` §3).
-    pub(crate) fn hide_on_leaving_step(&mut self) {
-        if let Some(c) = self.state.create.as_mut() {
-            c.shown = false;
-        }
-    }
-
     /// After the answer of step `changed` was given again: the later
     /// answers that no longer fit are cleared, their steps to be gone
     /// through again (`docs/FLOW-CONTAINER.md` §1). The passphrases and

@@ -370,9 +370,9 @@ impl Faraday {
                 let i = usize::from(i);
                 let empty = |v: &crate::vault::Vaults, again: bool| {
                     v.create.as_ref().is_some_and(|c| {
-                        c.phrases
-                            .get(i)
-                            .is_some_and(|(a, b)| if again { b } else { a }.text.is_empty())
+                        c.phrases.get(i).is_some_and(|f| {
+                            if again { f.again_str() } else { f.as_str() }.is_empty()
+                        })
                     })
                 };
                 for side in [false, true] {

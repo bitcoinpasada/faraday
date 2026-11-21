@@ -486,7 +486,10 @@ fn a_row_of_your_choices_opens_its_step_and_the_name_row_comes_back_with_the_pas
     app.press(Action::Vault(V::CStep(vstep::PHRASES)));
     assert_eq!(vault_open(&app), Some(vstep::PHRASES));
     let form = app.vaults().create.as_ref().unwrap();
-    assert_eq!(form.phrases[0].0.text, "orange harbour");
+    assert_eq!(
+        faraday_core::vault::Vaults::phrase_text(form, 0).unwrap().0,
+        "orange harbour"
+    );
 }
 
 #[test]

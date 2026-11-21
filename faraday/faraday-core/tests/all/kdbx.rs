@@ -347,6 +347,18 @@ fn kdbx_bytes(app: &Faraday) -> Vec<u8> {
 }
 
 #[test]
+fn the_check_after_a_keepass_export_starts_with_the_eye_closed() {
+    let mut app = at_the_export_prompt();
+    app.press(Action::PassEye);
+    assert!(app.pass_eye_shown(), "the export's passphrases are shown");
+    testkit::press_on_worker(&mut app, Action::Vault(V::PromptGo));
+    testkit::settle(&mut app);
+    let _ = app.frame();
+    assert!(says(&mut app, faraday_core::strings::EN.vault_export_check));
+    assert!(!app.pass_eye_shown(), "the check opens with dots");
+}
+
+#[test]
 fn the_check_after_a_keepass_export_opens_the_file_with_the_right_passphrase() {
     let mut app = at_the_export_check();
     let before = kdbx_bytes(&app);

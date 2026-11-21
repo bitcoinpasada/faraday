@@ -19,7 +19,7 @@ fn a_passphrase_typed_on_a_step_left_leaves_no_image_or_copy_after_a_lock_in_the
     let _ = app.frame();
     app.press(Action::Vault(V::CFocus(0, false)));
     crate::common::type_text(&mut app, VAULT_PASSPHRASE);
-    app.press(Action::Vault(V::CShow));
+    app.press(Action::PassEye);
     let _ = app.frame();
     let mut clock = 10_000;
     app.press(Action::Vault(V::CStep(vstep::PRESET)));

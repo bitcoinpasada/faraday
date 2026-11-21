@@ -194,30 +194,6 @@ pub(crate) fn dots_field(
     }
 }
 
-/// A passphrase field with an eye at its right end, as
-/// [`secret_box`](crate::vault::screen::secret_box) draws it: in Practice what
-/// holds `faraday` is in its code box, and an empty field hands the "Practice
-/// only" card its **Use faraday** (`docs/DEMO.md` §5.4). `(shown,
-/// focused)`, `(action, eye)`.
-pub(crate) fn pass_box(
-    app: &crate::drawing::View,
-    ui: &mut crate::ui::Ui,
-    (x, y, w): (f32, f32, f32),
-    b: &crate::vault::TextBox,
-    (shown_eye, focused): (bool, bool),
-    (action, eye): (Action, Action),
-    field: crate::demo::PassField,
-) {
-    let show = app.pass_shows(shown_eye, &b.text);
-    // While a vault job runs the field takes no typing.
-    if app.vaults.working.is_some() {
-        crate::vault::screen::secret_box_off(ui, (x, y, w), b, show);
-    } else {
-        crate::vault::screen::secret_box(ui, x, y, w, b, show, focused, action, eye);
-    }
-    app.pass_chip_draw(ui, b.text.is_empty(), field);
-}
-
 /// A tool's passphrase in a box at (x, y), `w` wide, with the one eye of
 /// `typing.pass_eye` at its right end: Practice's `faraday` in its code
 /// box, the dots, or the characters while the eye is open. `focused` is
@@ -246,4 +222,28 @@ pub(crate) fn tool_box(
         false,
         Action::PassEye,
     );
+}
+
+/// A vault's passphrase field `which` of `f`, with the eye at its right end
+/// (the one eye of `typing.pass_eye`), as [`tool_box`] draws a box:
+/// `press` gives it focus. While a vault job runs it takes no typing.
+pub(crate) fn vault_box(
+    app: &crate::drawing::View,
+    ui: &mut crate::ui::Ui,
+    (x, y, w): (f32, f32, f32),
+    (f, which): (&PassField, Which),
+    (press, focused): (Action, bool),
+    chip: crate::demo::PassField,
+) {
+    let text = match which {
+        Which::First => f.as_str(),
+        Which::Again => f.again_str(),
+    };
+    let show = app.pass_shows(app.typing.pass_eye.shown, text);
+    if app.vaults.working.is_some() {
+        crate::vault::screen::secret_line_off(ui, (x, y, w), text, show);
+    } else {
+        crate::vault::screen::secret_line(ui, x, y, w, text, show, focused, press, Action::PassEye);
+    }
+    app.pass_chip_draw(ui, text.is_empty(), chip);
 }

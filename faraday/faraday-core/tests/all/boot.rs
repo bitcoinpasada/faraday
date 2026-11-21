@@ -88,7 +88,7 @@ fn the_boot_sticks_vault_waits_on_the_sheet_and_pulling_the_stick_leaves_it_up()
     app.storage(StorageEvent::Sticks(Vec::new()));
     assert_eq!(app.screen, Screen::Home, "pulling the stick left Home");
     assert_eq!(app.sheet, Some(Sheet::Import));
-    assert!(app.vaults().passphrase.text.is_empty());
+    assert!(app.vaults().unlock_text().is_empty());
 }
 
 #[test]
@@ -177,7 +177,7 @@ fn a_vault_passphrase_is_typed_only_once_the_stick_is_pulled() {
     app.press(Action::Vault(V::FocusPassphrase));
     unlock(&mut app);
     assert!(
-        app.vaults().passphrase.text.is_empty(),
+        app.vaults().unlock_text().is_empty(),
         "nothing is typed into the passphrase while the stick is attached"
     );
     assert!(app.vaults().open.is_empty());

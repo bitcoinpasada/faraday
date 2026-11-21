@@ -222,11 +222,11 @@ fn a_step_with_a_passphrase_typed_fades_drawn_live_and_keeps_no_image() {
 #[test]
 fn a_passphrase_shown_stays_shown_through_the_fade_out_and_is_hidden_after() {
     let (mut app, mut clock) = with_a_passphrase_typed();
-    app.press(Action::Vault(V::CShow));
+    app.press(Action::PassEye);
     let _ = app.frame();
     app.press(Action::Vault(V::CStep(vstep::PRESET)));
     let _ = app.frame();
-    let shown = |app: &Faraday| app.vaults().create.as_ref().unwrap().shown;
+    let shown = |app: &Faraday| app.pass_eye_shown();
     assert!(shown(&app), "shown at the press");
     // The fade out is 48 ms of the 300.
     tick(&mut app, &mut clock, 16);
@@ -242,12 +242,12 @@ fn with_reduce_motion_a_passphrase_shown_is_hidden_at_the_step_change() {
     let (mut app, mut clock) = with_a_passphrase_typed();
     app.press(Action::ReduceMotion(true));
     let _ = at_rest(&mut app, &mut clock);
-    app.press(Action::Vault(V::CShow));
+    app.press(Action::PassEye);
     let _ = app.frame();
     let _ = app.take_fade_counts();
     app.press(Action::Vault(V::CStep(vstep::PRESET)));
     let _ = app.frame();
-    assert!(!app.vaults().create.as_ref().unwrap().shown, "hidden");
+    assert!(!app.pass_eye_shown(), "hidden");
     let counts = app.take_fade_counts();
     assert_eq!((counts.started, counts.reduced), (0, 1));
     assert!(app.kept_images().is_empty());
@@ -449,9 +449,9 @@ fn a_step_left_from_the_choices_sheet_hides_the_passphrase_shown() {
     let _ = app.frame();
     app.press(Action::Vault(V::CFocus(0, false)));
     type_text(&mut app, "test phrase");
-    app.press(Action::Vault(V::CShow));
+    app.press(Action::PassEye);
     let _ = app.frame();
-    let shown = |app: &Faraday| app.vaults().create.as_ref().unwrap().shown;
+    let shown = |app: &Faraday| app.pass_eye_shown();
     assert!(shown(&app), "shown");
     for step in [vstep::PRESET, vstep::PHRASES] {
         app.press(Action::Choices(faraday_core::ChoicesPress::Open));
@@ -472,9 +472,9 @@ fn a_step_left_from_the_choices_sheet_hides_the_passphrase_shown() {
 #[test]
 fn a_step_left_with_show_on_and_nothing_typed_hides_it() {
     let (mut app, mut clock) = on_create_vault();
-    app.press(Action::Vault(V::CShow));
+    app.press(Action::PassEye);
     let _ = app.frame();
-    let shown = |app: &Faraday| app.vaults().create.as_ref().unwrap().shown;
+    let shown = |app: &Faraday| app.pass_eye_shown();
     assert!(shown(&app), "shown");
     app.press(Action::Vault(V::CStep(vstep::PRESET)));
     let _ = at_rest(&mut app, &mut clock);

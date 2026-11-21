@@ -211,18 +211,14 @@ fn unlock(
 fn passphrase(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, file: usize) -> f32 {
     let mut cy = y;
     if app.may_load_keys() {
-        crate::pass_field::screen::pass_box(
+        crate::pass_field::screen::vault_box(
             app,
             ui,
             (x, cy, w),
-            &app.vaults.passphrase,
-            (
-                app.vaults.typed_shown,
-                app.vaults.focus == Some(Focus::Passphrase),
-            ),
+            (&app.vaults.passphrase, crate::pass_field::Which::First),
             (
                 Action::Vault(V::FocusPassphrase),
-                Action::Vault(V::ShowTyped),
+                app.vaults.focus == Some(Focus::Passphrase),
             ),
             crate::demo::PassField::Unlock,
         );
@@ -255,18 +251,14 @@ fn typing(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, title: &str, file: us
         (title.to_string(), Role::OnSurfaceVariant)
     };
     cy += ui.wrap_as((x, cy, w), LABEL_M, tone, &line) + 6.0;
-    crate::pass_field::screen::pass_box(
+    crate::pass_field::screen::vault_box(
         app,
         ui,
         (x, cy, w),
-        &app.vaults.passphrase,
-        (
-            app.vaults.typed_shown,
-            app.vaults.focus == Some(Focus::Passphrase),
-        ),
+        (&app.vaults.passphrase, crate::pass_field::Which::First),
         (
             Action::Vault(V::FocusPassphrase),
-            Action::Vault(V::ShowTyped),
+            app.vaults.focus == Some(Focus::Passphrase),
         ),
         crate::demo::PassField::Unlock,
     );
