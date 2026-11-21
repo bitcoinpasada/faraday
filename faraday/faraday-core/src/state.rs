@@ -596,8 +596,8 @@ impl EntryArea {
     }
 
     /// A key while the passphrase field has the keyboard. Enter says
-    /// what to do with the words or parts typed. A character and Backspace
-    /// are the field's, with the stick rule (`gate`); where one is refused
+    /// what to do with the words or parts typed. A character, Backspace
+    /// and Shift-Tab are the field's, with the stick rule (`gate`); where one is refused
     /// the field says why.
     pub(crate) fn passphrase_key(
         &mut self,
@@ -610,7 +610,9 @@ impl EntryArea {
         let e = &mut self.state;
         let (pair, second) = (e.pair(), e.passphrase.on_again());
         match key {
-            K::Char(_) | K::Backspace => {
+            // Shift-Tab goes to the field too: the stick rule refuses it
+            // as it refuses a character, and in a pair it moves back.
+            K::Char(_) | K::Backspace | K::BackTab => {
                 if let PassKey::Refused(why) = e.passphrase.key(key, gate) {
                     e.error = Some(crate::pass_field::refused_text(medium, why));
                     e.refused = true;
