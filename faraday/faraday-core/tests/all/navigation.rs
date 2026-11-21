@@ -356,7 +356,7 @@ fn dots(app: &mut Faraday) -> Vec<(i32, i32, i32, i32)> {
 }
 
 #[test]
-fn files_carries_a_dot_until_the_stick_is_visited() {
+fn files_carries_a_dot_until_a_boot_stick_holding_a_file_is_visited() {
     let mut app = on(760, 1000, 160);
     // The boot stick, at its first look, leaves Home on screen: it waits.
     app.storage(StorageEvent::Sticks(vec![StickInfo {
@@ -365,7 +365,7 @@ fn files_carries_a_dot_until_the_stick_is_visited() {
         id: faraday_text::Text::of("sda1@sda#1"),
         label: faraday_text::Text::of("FARADAY"),
         boot: true,
-        files: Vec::new(),
+        files: vec![(faraday_text::Text::of("inheritance.psbt"), 100)],
         vaults: Vec::new(),
     }]));
     assert_eq!(app.screen, Screen::Home);

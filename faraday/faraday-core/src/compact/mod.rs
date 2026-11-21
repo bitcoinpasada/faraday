@@ -1103,13 +1103,17 @@ fn tiles(app: &View) -> Vec<Tile> {
         Action::Nav(Screen::Catalog),
         true,
     ));
-    t.push((
-        Icon::Help.into(),
-        EN.compact_guide,
-        Text::new(),
-        Action::Guide,
-        true,
-    ));
+    // Home has no Guide tile (F307 amended 2026-11-21): the bar's ? is the
+    // way in. The panel's Home has no bar, so its menu keeps the row.
+    if app.nav() == crate::nav::Nav::Menu {
+        t.push((
+            Icon::Help.into(),
+            EN.compact_guide,
+            Text::new(),
+            Action::Guide,
+            true,
+        ));
+    }
     // The online app is the device's QR link.
     #[cfg(feature = "demo")]
     if app.online {
