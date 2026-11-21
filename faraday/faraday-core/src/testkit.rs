@@ -2228,6 +2228,12 @@ pub fn inbox_file_at(app: &mut crate::Faraday, at: usize, name: &str, bytes: Vec
     app.inbox.insert(at, item);
 }
 
+/// Puts a file `name` of `bytes` at place `at` in the Outbox.
+pub fn outbox_file_at(app: &mut crate::Faraday, at: usize, name: &str, bytes: Vec<u8>) {
+    let item = crate::Item::new(&compute(), name, bytes);
+    app.outbox.insert(at, item);
+}
+
 /// Puts `item` at the end of the Inbox.
 pub fn inbox_push(app: &mut crate::Faraday, item: crate::Item) {
     app.inbox.push(item);

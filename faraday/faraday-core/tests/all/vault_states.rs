@@ -920,8 +920,50 @@ fn the_key_file_of_a_vault_just_made_does_not_reach_another_vault_picked_before_
         1,
         "B did not open with its own passphrase"
     );
-    // A's key file is gone: A opens only once its key file is loaded again.
     assert_eq!(app.vaults().open[0].name.as_str(), "b.kdbx");
+}
+
+#[test]
+fn a_vault_pressed_in_the_list_beside_unlock_does_not_take_the_key_file_of_the_vault_made() {
+    let b = testkit::kdbx_vault("B", "b phrase", 0x32, Vec::new()).unwrap();
+    let mut app = made_with_key_file_among(vec![("b.kdbx".into(), b)]);
+    let a = app.vaults().pick;
+    // The list is drawn beside Unlock on this window: its rows press Open.
+    app.press(Action::Vault(V::Open(1 - a)));
+    assert_eq!(app.screen, Screen::Unlock);
+    try_here(&mut app, "b phrase");
+    assert_eq!(
+        app.vaults().open.len(),
+        1,
+        "B did not open with its own passphrase"
+    );
+    assert_eq!(app.vaults().open[0].name.as_str(), "b.kdbx");
+    // A's key file was not given back after B: A's passphrase alone fails.
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Open(a)));
+    try_here(&mut app, PHRASE);
+    assert_eq!(app.vaults().open.len(), 1, "A opened without its key file");
+}
+
+#[test]
+fn a_stale_answer_does_not_give_the_key_file_to_another_vault_that_took_the_place_picked() {
+    let (mut app, a) = a_made_b_beside_a_stick_in_while_a_unlocks();
+    assert_eq!(a, 0, "A is listed first");
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    // A file lands before A: the place picked now holds another vault, and
+    // no pick or clear came with it.
+    let c = testkit::kdbx_vault("C", "c phrase", 0x33, Vec::new()).unwrap();
+    testkit::outbox_file_at(&mut app, 0, "c.kdbx", c);
+    testkit::release_worker();
+    testkit::settle_stale(&mut app);
+    try_here(&mut app, "c phrase");
+    assert!(
+        app.vaults()
+            .open
+            .iter()
+            .any(|o| o.name.as_str() == "c.kdbx"),
+        "C did not open with its own passphrase"
+    );
 }
 
 #[test]

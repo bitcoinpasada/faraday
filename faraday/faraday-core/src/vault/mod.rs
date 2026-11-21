@@ -402,6 +402,15 @@ impl Faraday {
             .map(|i| (i.bytes.to_vec(), i.sha))
     }
 
+    /// Unlock already on screen with another vault picked (the list pane
+    /// beside it): the key file held was made for that one. Create and the
+    /// seal hold theirs before opening from other screens, and keep it.
+    fn drop_parts_of_other_pick(&mut self, i: usize) {
+        if self.screen == Screen::Unlock && i != self.vaults.state.pick {
+            self.vaults.clear_unlock_parts();
+        }
+    }
+
     /// Runs a vault action.
     pub(crate) fn vault_act(&mut self, a: VaultAction) {
         let c = self.compute();
@@ -438,6 +447,7 @@ impl Faraday {
                             self.screen = Screen::VaultContents;
                         }
                         None => {
+                            self.drop_parts_of_other_pick(i);
                             self.vaults.state.pick = i;
                             self.vaults.state.unlock_error = None;
                             self.vaults.state.focus =
