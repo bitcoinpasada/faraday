@@ -370,7 +370,16 @@ fn files_carries_a_dot_until_a_boot_stick_holding_a_file_is_visited() {
     }]));
     assert_eq!(app.screen, Screen::Home);
     let drawn = dots(&mut app);
-    let visit = app.hit_box(Action::Nav(Screen::Files)).expect("Files");
+    let _ = app.frame();
+    let visit = app.hit_box(Action::Nav(Screen::Files)).unwrap_or_else(|| {
+        panic!(
+            "ZZ {:?} {:?} {:?} {}",
+            app.nav(),
+            app.screen,
+            app.where_offered(Action::Nav(Screen::Files)),
+            app.stick.waits()
+        )
+    });
     assert!(drawn.iter().any(|d| within(*d, visit)), "{drawn:?}");
     app.press(Action::Nav(Screen::Files));
     app.press(Action::Nav(Screen::Home));
