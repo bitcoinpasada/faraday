@@ -893,6 +893,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "faraday-forms"
+version = "0.2.0"
+dependencies = [
+ "faraday-strings",
+]
+
+[[package]]
 name = "faraday-fuzz"
 version = "0.0.0"
 dependencies = [
@@ -1062,6 +1069,7 @@ dependencies = [
  "faraday-bip",
  "faraday-crypto",
  "faraday-entropy",
+ "faraday-forms",
  "faraday-strings",
  "faraday-text",
  "faraday-vault",
