@@ -304,9 +304,8 @@ fn select_all_on_the_outbox_leaves_an_unprotected_secret_alone() {
         }
         assert!(app.offers(Action::VisitOutAll), "{display:?}");
         assert!(!app.visit().out.contains("seed-words.txt"));
-        // The settings are off on a stick that did not boot: the first
-        // press ticks them too.
-        app.press(Action::VisitOutAll);
+        // With no setting changed there is no settings row: every file is
+        // ticked, so the first press unticks them all.
         app.press(Action::VisitOutAll);
         assert!(app.visit().out.is_empty(), "{display:?}: not all unticked");
         app.press(Action::VisitWrite);

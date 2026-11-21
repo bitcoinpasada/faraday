@@ -735,29 +735,64 @@ fn home_draws_no_check_tile_where_the_rail_lists_check() {
     assert_eq!(count(&phone), 1, "the tile, the bar having no Check");
 }
 
-/// Stick visit joins Home's tiles while a stick is attached and nothing
-/// is held.
-#[test]
-fn home_offers_files_on_the_stick_with_one_attached() {
-    // The boot stick at its first look leaves Home on screen: it waits.
-    let mut app = shown();
-    app.storage(StorageEvent::Sticks(vec![StickInfo {
+/// A stick for the tile tests.
+fn tile_stick(id: &str, boot: bool, files: &[&str]) -> StickInfo {
+    StickInfo {
         make: Default::default(),
         serial: None,
-        id: faraday_text::Text::of("a"),
-        label: faraday_text::Text::of("FARADAY"),
-        boot: true,
-        files: Vec::new(),
+        id: faraday_text::Text::of(id),
+        label: faraday_text::Text::of(&id.to_uppercase()),
+        boot,
+        files: files
+            .iter()
+            .map(|n| (faraday_text::Text::of(n), 10))
+            .collect(),
         vaults: Vec::new(),
-    }]));
+    }
+}
+
+/// Whether Home offers "Files on" a stick.
+fn offers_files_on(app: &mut Faraday) -> bool {
+    app.drawn_texts().iter().any(|t| t.starts_with("Files on "))
+}
+
+/// Stick visit joins Home's tiles while a stick that has something to
+/// offer is attached and nothing is held: not for a boot stick that is
+/// empty or holds only the settings file.
+#[test]
+fn home_offers_files_on_the_stick_with_one_attached() {
+    let mut app = shown();
+    app.storage(StorageEvent::Sticks(vec![tile_stick("a", true, &[])]));
     assert_eq!(app.screen, Screen::Home);
-    let texts = app.drawn_texts();
+    assert!(!offers_files_on(&mut app), "an empty boot stick: no tile");
+
+    let mut app = shown();
+    app.storage(StorageEvent::Sticks(vec![tile_stick(
+        "a",
+        true,
+        &[faraday_core::stick::settings::FILE],
+    )]));
+    assert_eq!(app.screen, Screen::Home);
     assert!(
-        texts.iter().any(|t| t == "Files on Boot stick"),
-        "a stick waiting: the lead reads Files on the stick: {texts:?}"
+        !offers_files_on(&mut app),
+        "only the settings file: no tile"
     );
-    tap(&mut app, Action::Nav(Screen::Files));
-    assert_eq!(app.screen, Screen::Files);
+
+    // Another stick put in opens its visit.
+    let mut app = shown();
+    app.storage(StorageEvent::Sticks(vec![tile_stick("a", true, &[])]));
+    app.storage(StorageEvent::Sticks(vec![
+        tile_stick("a", true, &[]),
+        tile_stick("b", false, &[]),
+    ]));
+    assert_eq!(app.screen, Screen::Files, "a second stick: its visit opens");
+
+    // The boot stick pulled and put in again is visited like any stick.
+    let mut app = shown();
+    app.storage(StorageEvent::Sticks(vec![tile_stick("a", true, &[])]));
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    app.storage(StorageEvent::Sticks(vec![tile_stick("a", true, &[])]));
+    assert_eq!(app.screen, Screen::Files, "put in again: its visit opens");
 }
 
 /// Rule 5 with what the vault held when last seen open (§3.4): after a

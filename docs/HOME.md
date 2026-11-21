@@ -92,6 +92,8 @@ The lead is the one next thing, the first that applies of the jobs below.
 | A vault changed since it was written | {vault} | Changed since it was written | Write |
 | A stick attached and not yet visited | Files on {stick} | A stick attached | Open |
 
+The boot stick at start counts as visited at its first look when it holds no file but the settings file: an empty one gives no tile. A stick put in later, or the boot stick put in again, waits for its visit as any stick does.
+
 A job that would open or start over a flow whose line is in the box of
 what is loaded gives way to the next, on the one-column Homes (the wide
 layout has no such box). A job that cannot be done here yet (a locked

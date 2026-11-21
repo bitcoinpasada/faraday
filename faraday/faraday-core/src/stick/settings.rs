@@ -11,9 +11,10 @@
 //! seal and the network are not in the file and are chosen on the device
 //! each session.
 //!
-//! A stick visit offers the file as one more row to write, ticked on the
-//! boot stick when the settings differ from what the boot stick holds,
-//! unticked on any other stick. The disk process writes it over the file
+//! A stick visit offers the file as one more row to write once a setting
+//! differs from what the boot stick holds (the defaults when it has no
+//! file), on any stick; the row is ticked on the boot stick, unticked on
+//! any other stick, and gone again when the setting is changed back. The disk process writes it over the file
 //! already there (`faraday_files::SETTINGS_FILE`, the same name).
 
 use crate::strings::EN;
@@ -270,7 +271,7 @@ impl Settings {
         match key {
             "scale" => {
                 if let Ok(p) = value.parse::<u16>()
-                    && (50..=300).contains(&p)
+                    && crate::screens::settings::SCALES.contains(&p)
                 {
                     self.scale_pct = p;
                     return true;
@@ -520,16 +521,25 @@ impl Faraday {
         None
     }
 
-    /// Whether the visit's Settings row is ticked: as the person set it,
-    /// or by default on the boot stick when the settings changed.
+    /// Whether a setting differs from what the boot stick holds, or from
+    /// the defaults when it has no settings file: the visit's Settings
+    /// row is offered, and written, only then.
+    pub fn settings_changed(&self) -> bool {
+        match self.stick.settings() {
+            Some(b) => *b != self.settings_body(),
+            None => self.settings_body() != Settings::default().body(),
+        }
+    }
+
+    /// Whether the visit's Settings row is ticked: never while no setting
+    /// differs; otherwise as the person set it, or by default on the boot
+    /// stick.
     pub fn visit_settings_on(&self) -> bool {
-        self.visit.settings.unwrap_or_else(|| {
-            self.stick.get(self.visit.stick).is_some_and(|s| s.boot)
-                && self
-                    .stick
-                    .settings()
-                    .is_some_and(|b| *b != self.settings_body())
-        })
+        self.settings_changed()
+            && self
+                .visit
+                .settings
+                .unwrap_or_else(|| self.stick.get(self.visit.stick).is_some_and(|s| s.boot))
     }
 }
 

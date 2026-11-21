@@ -249,7 +249,7 @@ fn minutes(m: u16) -> &'static str {
 }
 
 /// Display scale's choices, in percent; 100 is Auto.
-const SCALES: &[u16] = &[75, 90, 100, 110, 125, 150, 200];
+pub(crate) const SCALES: &[u16] = &[75, 90, 100, 110, 125, 150, 200];
 
 /// The Display section's place among the sections: where a press of
 /// Rotation opens it on a compact window. A lookup.

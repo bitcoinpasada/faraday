@@ -775,7 +775,7 @@ all** above them →
 - the stick pulled before a choice → the sheet stays as it is, Import
   waiting for the stick; put back, the sheet comes up again over Home,
   ticks kept;
-- nothing on the medium but the settings file → no sheet; Home.
+- nothing on the medium but the settings file → no sheet; Home, with no Files on the stick tile (the first look was the visit).
 
 **Unlock.** Choose a vault (its memory need shown first) → passphrase →
 - opens → Home, whose lead is the next step of what is in Files (a PSBT
@@ -886,11 +886,13 @@ card shows "Lock to use {stick}" and a Lock button.
   under that name is the question **Overwrite** (a hold) or **Save beside**
   as `name-2.kdbx`, one file in turn, and Cancel leaves it For the stick
   (F203, `docs/VAULT.md` §6). A failed comparison
-  leaves the file For the stick and says which. The first row is the
-  settings, `faraday-settings.txt`, which is not a file For the stick: ticked
-  on the boot stick when the settings differ from what the boot stick
-  holds, unticked on any other stick, and written over the settings
-  file already there.
+  leaves the file For the stick and says which. A row for the
+  settings, `faraday-settings.txt`, which is not a file For the stick, comes
+  first once a setting differs from what the boot stick holds (the defaults
+  when it has no settings file), on any stick, and is gone again when the
+  setting is changed back; until then it is not drawn and not written. It
+  is ticked on the boot stick, unticked on any other stick, and written
+  over the settings file already there.
 - **The same file in both** (F306): a file in Faraday and on the stick, the
   same name (as FAT compares names) and the same bytes, has its row in both
   cards drawn in the green container with a check at the row box's end,

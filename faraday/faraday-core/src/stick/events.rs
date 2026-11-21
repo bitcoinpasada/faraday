@@ -583,6 +583,14 @@ pub(crate) fn stick_arrived(app: &mut Faraday) {
             app.screen = Screen::Files;
             app.visit.set_tab_stick(true);
         }
+        // A boot stick with nothing but the settings file has nothing to
+        // offer: its first look is its visit, and Home shows no tile.
+        if first_look
+            && let Some(b) = boot.as_ref()
+            && b.files.iter().all(|(n, _)| stick::settings::is_file(n))
+        {
+            app.stick.mark_visited(&b.id);
+        }
         // "Lock and write" was pressed before the lock: the files For the
         // stick are written to the stick that came, and read back.
         app.visit_write_waiting();

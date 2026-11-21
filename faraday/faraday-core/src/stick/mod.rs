@@ -277,6 +277,14 @@ impl StickArea {
         self.note_waits();
     }
 
+    /// Marks one stick present as visited.
+    pub(crate) fn mark_visited(&mut self, id: &faraday_text::Text) {
+        if self.sticks.iter().any(|s| &s.id == id) && !self.visited.contains(id) {
+            self.visited.push(id.clone());
+        }
+        self.note_waits();
+    }
+
     fn note_waits(&mut self) {
         self.waits = self.sticks.iter().any(|s| !self.visited.contains(&s.id));
     }

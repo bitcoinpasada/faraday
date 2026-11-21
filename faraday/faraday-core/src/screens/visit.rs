@@ -532,7 +532,7 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
         + (0..app.vaults.open.len())
             .map(|v| ROW + extra_h(ui, &vault_row(app, v, ""), colw))
             .sum::<f32>()
-        + ROW
+        + if app.settings_changed() { ROW } else { 0.0 }
         + groups as f32 * VISIT_GROUP_HEAD
         + app.outbox.len() as f32 * ROW
         + if app.outbox.is_empty() {
@@ -563,8 +563,9 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
         let line = open_line(app, v);
         ry += list_row(app, ui, (x, colw, ry), vault_row(app, v, &line));
     }
-    // The settings, which are not an Outbox file.
-    if ui.shows(ry, ROW) {
+    // The settings, which are not an Outbox file: a row only once a
+    // setting differs from what the boot stick holds.
+    if app.settings_changed() && ui.shows(ry, ROW) {
         let lead = if usable { 54.0 } else { 22.0 };
         if usable {
             ui.checkbox(x + 22.0, ry + 15.0, app.visit_settings_on(), true);
@@ -592,7 +593,9 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
         );
         ui.rule(x + 20.0, ry + 52.0, colw - 40.0, Role::OutlineVariant);
     }
-    ry += ROW;
+    if app.settings_changed() {
+        ry += ROW;
+    }
     for (exposure, label, tone) in out_groups() {
         if !app.outbox.iter().any(|i| i.exposure() == exposure) {
             continue;
@@ -1288,7 +1291,7 @@ fn kind_and_size(kind: &str, size: u64) -> Text {
 /// chosen: the settings, every Outbox file but an unprotected secret, and
 /// every public or sealed Inbox file listed.
 fn visit_all_out(app: &View) -> bool {
-    app.visit_settings_on()
+    (!app.settings_changed() || app.visit_settings_on())
         && app
             .outbox
             .iter()

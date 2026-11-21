@@ -23,7 +23,7 @@ pub(crate) mod parts;
 pub(crate) mod randomness;
 mod restore;
 mod set_time;
-mod settings;
+pub(crate) mod settings;
 mod sheets;
 mod sidebar;
 mod spend;

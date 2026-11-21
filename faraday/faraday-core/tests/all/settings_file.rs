@@ -118,6 +118,14 @@ fn the_boot_sticks_settings_apply_before_the_passphrase() {
     assert_eq!(app.theme(), gruvbox);
 }
 
+#[test]
+fn a_scale_settings_does_not_offer_is_not_taken() {
+    let app = booted(Some(b"faraday-settings 1\nscale=130\n"));
+    assert_eq!(app.scale_pct(), 100);
+    let app = booted(Some(b"faraday-settings 1\nscale=125\n"));
+    assert_eq!(app.scale_pct(), 125);
+}
+
 /// A file of before, with no `mode=` line, opens its old theme id in the
 /// mapped theme, mode and contrast (the whole table is held by
 /// `Theme::from_stored`'s own test).
@@ -223,10 +231,10 @@ fn every_scheme_round_trips_through_the_settings_file() {
         let mut app = booted(None);
         app.press(Action::Theme(theme));
         app.press(Action::Nav(Screen::Files));
-        // A changed theme ticks the settings row by default; the
-        // default theme itself does not, so it is ticked here.
-        if !app.visit_settings_on() {
-            app.press(Action::VisitSettings);
+        // A changed theme brings the settings row, ticked on the boot
+        // stick; the default theme changes nothing, so no row.
+        if !app.settings_changed() {
+            continue;
         }
         app.press(Action::VisitWrite);
         let wrote = pump(&mut app, None);
@@ -240,29 +248,46 @@ fn every_scheme_round_trips_through_the_settings_file() {
 }
 
 #[test]
-fn unchanged_settings_are_not_written_unless_ticked() {
+fn the_settings_row_shows_only_once_a_setting_differs_from_the_boot_stick() {
     let mut app = booted(Some(b"faraday-settings 1\ntheme=nord\n"));
     app.press(Action::Nav(Screen::Files));
+    assert!(!app.settings_changed(), "no row yet");
+    app.press(Action::VisitSettings);
     app.press(Action::VisitWrite);
     assert!(pump(&mut app, None).iter().all(|(_, n, _)| n != FILE));
-    app.press(Action::VisitSettings);
+    let was = app.theme();
+    app.press(Action::Theme(scheme(
+        ThemeName::Lavender,
+        Mode::Light,
+        Contrast::High,
+    )));
+    assert!(app.settings_changed(), "after a change");
+    app.press(Action::Theme(was));
+    assert!(!app.settings_changed(), "changed back: the row is gone");
+    app.press(Action::Theme(scheme(
+        ThemeName::Lavender,
+        Mode::Light,
+        Contrast::High,
+    )));
     app.press(Action::VisitWrite);
     assert!(pump(&mut app, None).iter().any(|(_, n, _)| n == FILE));
 }
 
 #[test]
-fn another_stick_gets_the_settings_only_when_ticked() {
+fn another_stick_offers_the_settings_unticked_after_a_change() {
     let mut app = defaults();
     app.storage(StorageEvent::Sticks(vec![stick("other", false, None)]));
     pump(&mut app, None);
-    app.press(Action::Theme(scheme(
-        ThemeName::Cobalt,
-        Mode::Dark,
-        Contrast::Standard,
-    )));
     app.press(Action::Nav(Screen::Files));
+    assert!(!app.settings_changed(), "defaults: no row");
+    app.press(Action::Theme(scheme(
+        ThemeName::Lavender,
+        Mode::Light,
+        Contrast::High,
+    )));
     app.press(Action::VisitWrite);
     assert!(pump(&mut app, None).iter().all(|(_, n, _)| n != FILE));
+    assert!(app.settings_changed(), "after a change");
     app.press(Action::VisitSettings);
     app.press(Action::VisitWrite);
     assert!(

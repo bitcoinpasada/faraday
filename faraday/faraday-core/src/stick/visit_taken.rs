@@ -1755,7 +1755,8 @@ impl Faraday {
                 // public or sealed file, and none that may be a secret.
                 let all = self.visit_all_out();
                 let inbox = self.visit_inbox_plain();
-                let every = self.visit_settings_on()
+                let changed = self.settings_changed();
+                let every = (!changed || self.visit_settings_on())
                     && all.is_subset(&self.visit.out)
                     && inbox.is_subset(&self.visit.from_inbox);
                 if every {
@@ -1767,7 +1768,9 @@ impl Faraday {
                     self.visit.out_extend(all);
                     self.visit.inbox_pick_all(inbox);
                 }
-                self.visit.set_settings(Some(!every));
+                if changed {
+                    self.visit.set_settings(Some(!every));
+                }
             }
             Action::VisitInbox(i) => self.visit_inbox(i),
             Action::VisitBar(_) => {}
