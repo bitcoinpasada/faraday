@@ -81,7 +81,8 @@ rail, it is **Home's box of what is loaded** (§4): one card with the same
 rows as plain lines, at the top of Home (on the small panel under its
 mark and name), each opening what its sidebar row opens. A flow in
 progress also shows its chip at the top of every destination while it
-waits, so it is never more than one press away.
+waits, so it is never more than one press away. Home also states what is going on in its own
+row of chips, beside these (F302, `docs/HOME.md` §3).
 
 **The top app bar** (every class but compact short), 64 dp across the
 page: the back arrow where the page has a way back (F77), the page's

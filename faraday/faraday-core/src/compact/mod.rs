@@ -7,7 +7,7 @@ pub(crate) mod screen;
 
 use crate::strings::EN;
 use crate::ui::{Shape, Unpressed};
-use faraday_draw::tokens::{GRID_TILE_INSET, GRID_TILE_TEXT_X, LEAD_MAX, TILE_H_GRID, TILE_PAD};
+use faraday_draw::tokens::{GRID_TILE_INSET, GRID_TILE_TEXT_X, TILE_H_GRID, TILE_PAD};
 use faraday_draw::widgets::Icon;
 use faraday_text::{Text, text};
 
@@ -775,7 +775,7 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let head_h = if beside { 0.0 } else { 38.0 };
     // What stands over the search bar: on the Pi's panel the mark and name
     // and the box of what is loaded, on the phone-size window the box, on
-    // the rail's windows a chip for each flow in progress.
+    // the rail's windows nothing (their chips are a section of the page).
     let above = Above {
         height: head_h + box_h,
         draw: Box::new(move |ui, (_, y), _| {
@@ -787,22 +787,11 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
             if shown {
                 used += crate::nav::screen::loaded_card(app, ui, M, y + used, inner) + 10.0;
             }
-            if rail {
-                used += crate::nav::screen::flow_chips(app, ui, M, y + used, inner);
-            }
             used
         }),
     };
 
     let prompts = prompts(app);
-    let (row, keys) = if rail {
-        (
-            crate::screens::home_row(app),
-            crate::screens::home_keys(app),
-        )
-    } else {
-        (Vec::new(), Vec::new())
-    };
     let mut ways = tiles(app);
     // The rail's windows have Backups in the row of what is loaded.
     if rail {
@@ -827,13 +816,8 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
         .collect();
 
     let mut sections: Vec<Section> = Vec::new();
-    if !app.vaults.open.is_empty() {
-        sections.push(Section::block(None, move |ui, (_, y), _| {
-            vaults_card(app, ui, y, inner) - 10.0
-        }));
-    }
     if !prompts.is_empty() {
-        let lead_w = if menu { inner } else { inner.min(LEAD_MAX) };
+        let lead_w = inner;
         sections.push(Section::block(None, move |ui, (_, y), _| {
             prompt_rows(ui, &prompts, y, lead_w)
         }));
@@ -843,8 +827,14 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
             first_actions(app, ui, y, inner) - 8.0
         }));
     }
-    let wallets = !app.session.wallets.is_empty();
-    sections.extend(crate::screens::loaded_sections(&row, &keys, wallets));
+    if rail {
+        if crate::nav::screen::going_any(app) {
+            sections.push(Section::block(None, move |ui, (x, y), w| {
+                crate::nav::screen::going_chips(app, ui, x, y, w)
+            }));
+        }
+        sections.extend(crate::screens::loaded_sections(app));
+    }
     sections.push(Section::tiles(None, places));
     // Lock and power, here on the small panel; the rail and the top app
     // bar carry them on wider windows.
@@ -979,45 +969,6 @@ fn first_actions(app: &View, ui: &mut Ui, y: f32, inner: f32) -> f32 {
         );
     }
     3usize.div_ceil(cols) as f32 * (bh + gap)
-}
-
-/// The card at `y` for the vaults the box of what is loaded does not
-/// show: how many are open, and a press opens the session. Returns the
-/// height it takes, the gap under it counted.
-fn vaults_card(app: &View, ui: &mut Ui, y: f32, inner: f32) -> f32 {
-    let vaults = app.vaults.open.len();
-    let keys = app.session.keys.len();
-    let line = Text::fill(
-        EN.compact_vaults_open,
-        &[
-            &Text::num(vaults as u64),
-            (if vaults == 1 {
-                EN.compact_vault
-            } else {
-                EN.compact_vaults_inline
-            }),
-        ],
-    );
-    let session = if keys + app.session.wallets.len() == 0 {
-        Screen::WalletsStart
-    } else {
-        Screen::Wallets
-    };
-    let l1 = ui.line_as(LABEL_L);
-    // The card as tall as its line needs (`docs/TEXT-SIZE.md` §5).
-    let card_h = ui.row_height(52.0, l1, faraday_draw::tokens::GRID);
-    let text_top = y + (card_h - l1) / 2.0;
-    ui.fill(M, y, inner, card_h, SHAPE_M, Role::SurfaceContainerLow);
-    ui.stroke(M, y, inner, card_h, SHAPE_M, Role::OutlineVariant);
-    ui.press(
-        Shape::new(M, y, inner, card_h, SHAPE_M),
-        Role::OnSurface.paint(),
-        Action::Nav(session),
-    );
-    ui.dot(M + 16.0, text_top + l1 / 2.0, 4.0, Role::Ok);
-    let line = ui.fit_as(LABEL_L, &line, inner - 40.0);
-    ui.text_mid_as((M + 28.0, text_top, l1), LABEL_L, Role::OnSurface, &line);
-    card_h + 10.0
 }
 
 /// Home's foot on the small panel at `y`: Lock, when something is held,

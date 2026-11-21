@@ -1084,6 +1084,9 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.shot("vault-loaded")?;
     t.press(Action::Nav(Screen::Wallets));
     t.shot("wallets-vault-open")?;
+    t.press(Action::Nav(Screen::Home));
+    t.shot("home-vault-open")?;
+    t.press(Action::Nav(Screen::Wallets));
     t.press(Action::Nav(Screen::VaultContents));
     if t.app.vaults().open.len() != 1
         || t.app.session.keys.len() != 1

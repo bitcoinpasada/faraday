@@ -56,8 +56,12 @@ macro_rules! words_screens_home {
     home_btn_make_a_wallet: "Make a wallet",
     /// The lead's line under a backup's name.
     home_card_backup_not_finished: "Backup not finished",
-    /// The lead's line for a key no wallet uses. `{}`: the key's fingerprint.
-    home_card_key: "Key {}",
+    /// The tail of a vault's chip on Home, after its name.
+    home_going_open: "open",
+    /// The row on Home that opens Wallets. `{}`: how many wallets are loaded.
+    home_all_wallets: "All wallets ({})",
+    /// The row on Home that opens Explore. `{}`: how many keys are held.
+    home_all_keys: "All keys ({})",
     /// The line under a key no wallet uses.
     home_card_no_wallet_uses_it: "No wallet uses it",
     /// The head of the wallets on Home.

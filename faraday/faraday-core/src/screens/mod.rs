@@ -60,8 +60,8 @@ pub(crate) use faraday_ui::parts::{
 };
 pub(crate) use files::{stick_chip as files_stick_chip, vault_panel};
 pub(crate) use home::{
-    action_h, actions_col, actions_fit_a_row, actions_lines, first_actions, home_keys,
-    home_lead_beside_tiles, home_pinned, home_row, loaded_sections, nothing_loaded,
+    action_h, actions_col, actions_fit_a_row, actions_lines, first_actions, home_lead_beside_tiles,
+    home_pinned, loaded_sections, nothing_loaded, wallets_needing,
 };
 pub(crate) use message::{MESSAGE_STEPS, MSTEPS};
 pub(crate) use parts::{

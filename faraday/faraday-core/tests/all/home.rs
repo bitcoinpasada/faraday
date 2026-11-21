@@ -946,24 +946,50 @@ fn the_small_home_offers_backups_once_a_wallet_is_known() {
     assert!(app.offers(Action::Nav(Screen::Backups)));
 }
 
-/// The Pi's Home names the wallet that is loaded, in the status strip
-/// under its name.
+/// The Pi's Home names a wallet that needs something now in the box of
+/// what is loaded, and folds the wallets that need nothing into one line.
 #[test]
-fn the_pi_s_home_names_a_loaded_wallet() {
+fn the_pi_s_home_names_a_wallet_that_needs_something_and_folds_the_rest() {
+    let pi = |app: &mut Faraday| {
+        app.event(Event::Display(DisplayInfo {
+            width: 480,
+            height: 640,
+            dpi: 160,
+            inset_bottom: 0,
+            inset_top: 0,
+            buttons: 0,
+            camera_fixed: false,
+            secure: faraday_shell_api::SecureHardware::None,
+            boot: faraday_shell_api::BootState::Unknown,
+            memory_mib: None,
+        }));
+    };
     let mut app = with_a_wallet();
-    app.event(Event::Display(DisplayInfo {
-        width: 480,
-        height: 640,
-        dpi: 160,
-        inset_bottom: 0,
-        inset_top: 0,
-        buttons: 0,
-        camera_fixed: false,
-        secure: faraday_shell_api::SecureHardware::None,
-        boot: faraday_shell_api::BootState::Unknown,
-        memory_mib: None,
-    }));
+    pi(&mut app);
     let name = app.session.wallets[0].name.to_string();
+    let shown = crate::common::texts(&mut app);
+    assert!(
+        !shown.iter().any(|t| t.contains(&name)),
+        "a wallet that needs nothing is named: {shown:?}"
+    );
+    assert!(shown.iter().any(|t| t == "All wallets (1)"), "{shown:?}");
+
+    let kit = faraday_core::testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "spending")
+        .unwrap();
+    let psbt = faraday_core::testkit::unsigned(&kit).unwrap().to_bytes();
+    let wallet = faraday_core::testkit::files()
+        .unwrap()
+        .into_iter()
+        .find(|(n, _)| n == "spending-wallet.txt")
+        .unwrap();
+    let mut app = with_inbox(vec![
+        ("spending-wallet.txt", wallet.1),
+        ("spend.psbt", psbt),
+    ]);
+    faraday_core::testkit::load_wallet(&mut app, 0);
+    pi(&mut app);
     let shown = crate::common::texts(&mut app);
     assert!(
         shown.iter().any(|t| t.contains(&name)),
@@ -1026,10 +1052,10 @@ fn with_nothing_loaded_the_three_first_actions_stand_as_headings_only() {
     }
 }
 
-/// A key no wallet uses leads with Make a wallet from it, and the three
-/// first actions stand under it.
+/// A key no wallet uses is a row under Keys offering a wallet from it, not a
+/// lead, and the three first actions stand where they do.
 #[test]
-fn a_key_with_no_wallet_leads_with_make_a_wallet() {
+fn a_key_with_no_wallet_is_a_row_offering_a_wallet() {
     let mut app = shown();
     tap(&mut app, Action::Scan);
     read(&mut app, SEEDQR.as_bytes());
@@ -1037,17 +1063,21 @@ fn a_key_with_no_wallet_leads_with_make_a_wallet() {
     let fp = app.session.keys[0].fingerprint.0;
     app.press(Action::Nav(Screen::Home));
     let texts = app.drawn_texts();
-    assert!(texts.iter().any(|t| t == "No wallet uses it"), "{texts:?}");
+    assert!(
+        texts.iter().any(|t| t.contains("No wallet uses it")),
+        "{texts:?}"
+    );
     assert!(app.offers(Action::KeyWallet(fp, 1)));
     for a in FIRST {
-        assert!(app.offers(a), "{a:?} stands beside the lead");
+        assert!(app.offers(a), "{a:?} stands with the key");
     }
 }
 
 /// With a wallet loaded the three first actions still stand, there is no
-/// Sign button, and a press on the wallet's tile opens its card.
+/// Sign button, a wallet with nothing to do has no row and All wallets opens
+/// Wallets.
 #[test]
-fn a_loaded_wallet_is_a_small_tile_that_opens_its_card_and_the_first_actions_stay() {
+fn a_wallet_with_nothing_to_do_has_no_row_and_all_wallets_opens_wallets() {
     let mut app = with_a_wallet();
     let texts = app.drawn_texts();
     assert!(!texts.iter().any(|t| t == "Sign"), "{texts:?}");
@@ -1055,6 +1085,36 @@ fn a_loaded_wallet_is_a_small_tile_that_opens_its_card_and_the_first_actions_sta
         assert!(app.offers(a), "{a:?} stands with a wallet loaded");
     }
     assert!(app.offers(Action::Nav(Screen::Backups)));
+    assert!(!app.offers(Action::OpenWallet(0)), "it needs nothing");
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "All wallets (1)"), "{texts:?}");
+    tap(&mut app, Action::Nav(Screen::WalletsStart));
+    assert!(matches!(app.screen, Screen::Wallets | Screen::WalletsStart));
+}
+
+/// A wallet with a PSBT in Files to sign is a row on Home that opens its
+/// card.
+#[test]
+fn a_wallet_with_a_psbt_to_sign_is_a_row_on_home_and_opens_its_card() {
+    let kit = faraday_core::testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "spending")
+        .unwrap();
+    let psbt = faraday_core::testkit::unsigned(&kit).unwrap().to_bytes();
+    let wallet = faraday_core::testkit::files()
+        .unwrap()
+        .into_iter()
+        .find(|(n, _)| n == "spending-wallet.txt")
+        .unwrap();
+    let mut app = with_inbox(vec![
+        ("spending-wallet.txt", wallet.1),
+        ("spend.psbt", psbt),
+    ]);
+    faraday_core::testkit::load_wallet(&mut app, 0);
+    app.press(Action::Nav(Screen::Home));
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "A PSBT to sign"), "{texts:?}");
     tap(&mut app, Action::OpenWallet(0));
     assert_eq!(app.screen, Screen::Wallets);
 }
@@ -1073,10 +1133,10 @@ fn with_a_wallet_loaded_each_first_action_opens_its_flow() {
     }
 }
 
-/// A key on Home says its fingerprint, a passphrase key says so, and a
-/// press opens it in Explore.
+/// A key on Home says its fingerprint and, with no wallet using it, offers
+/// a wallet from it; All keys opens Explore.
 #[test]
-fn a_key_on_home_opens_explore_and_a_passphrase_key_says_so() {
+fn a_key_on_home_offers_a_wallet_and_all_keys_opens_explore() {
     for (width, height) in [(1280, 800), (720, 900)] {
         let mut app = on_test_net(width, height);
         tap(&mut app, Action::Scan);
@@ -1090,8 +1150,10 @@ fn a_key_on_home_opens_explore_and_a_passphrase_key_says_so() {
             !texts.iter().any(|t| t.contains("passphrase")),
             "{width}: no passphrase mark: {texts:?}"
         );
-        assert!(app.offers(Action::ExploreKey(fp)));
-        tap(&mut app, Action::ExploreKey(fp));
+        assert!(app.offers(Action::KeyWallet(fp, 1)));
+        let texts = app.drawn_texts();
+        assert!(texts.iter().any(|t| t == "All keys (1)"), "{texts:?}");
+        tap(&mut app, Action::Explore);
         assert_eq!(app.screen, Screen::Explore, "{width}");
     }
 }
@@ -1133,17 +1195,15 @@ fn a_search_typed_on_the_wide_home_takes_the_page_and_clearing_it_brings_the_res
         tap(&mut app, Action::Scan);
         read(&mut app, SEEDQR.as_bytes());
         without_passphrase(&mut app);
-        let fp = app.session.keys[0].fingerprint.0;
         app.press(Action::Nav(Screen::Home));
-        // The wide layout's sidebar still lists keys and wallets.
+        // The wide layout's sidebar still lists Backups.
         let rest: Vec<Action> = if width > 1000 {
-            vec![Action::CreateWallet]
+            vec![Action::CreateWallet, Action::Explore]
         } else {
             vec![
                 Action::CreateWallet,
-                Action::OpenWallet(0),
                 Action::Nav(Screen::Backups),
-                Action::ExploreKey(fp),
+                Action::Explore,
             ]
         };
         for &a in &rest {
@@ -1713,58 +1773,57 @@ fn key_fp(app: &Faraday, k: usize) -> [u8; 4] {
     app.session.keys[k].fingerprint.0
 }
 
-/// Each loaded key and wallet is on the wide Home, named, and opens what it
-/// names: a key Explore, a wallet its card.
+/// A key no wallet uses is a row on the wide Home that makes a wallet from
+/// it; a key a wallet uses and a wallet that needs nothing have none, and
+/// All keys and All wallets open what they name.
 #[test]
-fn a_few_loaded_keys_and_wallets_are_each_on_home_and_open_what_they_name() {
+fn a_few_loaded_keys_and_wallets_list_only_what_needs_something() {
     let mut app = loaded(3, 2, 1366, 1200);
-    for k in 0..3 {
-        assert!(app.offers(Action::ExploreKey(key_fp(&app, k))), "key {k}");
+    assert!(!app.offers(Action::KeyWallet(key_fp(&app, 0), 1)), "used");
+    for k in 1..3 {
+        assert!(app.offers(Action::KeyWallet(key_fp(&app, k), 1)), "key {k}");
     }
     for w in 0..2 {
-        assert!(app.offers(Action::OpenWallet(w)), "wallet {w}");
+        assert!(!app.offers(Action::OpenWallet(w)), "wallet {w}");
     }
-    let first = key_fp(&app, 0);
-    tap(&mut app, Action::ExploreKey(first));
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "All keys (3)"), "{texts:?}");
+    assert!(texts.iter().any(|t| t == "All wallets (2)"), "{texts:?}");
+    tap(&mut app, Action::Explore);
     assert_eq!(app.screen, Screen::Explore);
-    assert_eq!(app.explore().and_then(|e| e.key), Some(first));
     app.press(Action::Nav(Screen::Home));
     let _ = app.frame();
-    tap(&mut app, Action::OpenWallet(1));
-    assert_eq!(app.screen, Screen::Wallets);
+    tap(&mut app, Action::Nav(Screen::WalletsStart));
+    assert!(matches!(app.screen, Screen::Wallets | Screen::WalletsStart));
 }
 
-/// Many keys and wallets scroll with Home's page to their last one, and each
-/// opens what it names.
+/// Many keys scroll with Home's page to the last key no wallet uses and to
+/// All keys, and each opens what it names.
 #[test]
-fn many_keys_and_wallets_scroll_with_home_to_their_last_ones() {
+fn many_keys_scroll_with_home_to_their_last_ones() {
     let win = (1366, 800);
     let mut app = loaded(30, 12, win.0, win.1);
     let last = key_fp(&app, 29);
     assert!(
-        !on_screen(&app, Action::ExploreKey(last), win.1),
+        !on_screen(&app, Action::KeyWallet(last, 1), win.1),
         "every key in view"
     );
     assert!(scrolled_to(
         &mut app,
         win.0,
         win.1,
-        Action::ExploreKey(last)
+        Action::KeyWallet(last, 1)
     ));
-    tap(&mut app, Action::ExploreKey(last));
-    assert_eq!(app.screen, Screen::Explore);
-    assert_eq!(app.explore().and_then(|e| e.key), Some(last));
-
     let mut app = loaded(30, 12, win.0, win.1);
-    assert!(scrolled_to(&mut app, win.0, win.1, Action::OpenWallet(11)));
-    tap(&mut app, Action::OpenWallet(11));
-    assert_eq!(app.screen, Screen::Wallets);
+    assert!(scrolled_to(&mut app, win.0, win.1, Action::Explore));
+    tap(&mut app, Action::Explore);
+    assert_eq!(app.screen, Screen::Explore);
 }
 
-/// A wallet the seeds here sign for stays reachable among many that are
-/// watch-only: it is among the first on Home.
+/// Among many wallets that are watch-only, and one the seeds here sign
+/// for, none that needs nothing has a row: All wallets stands for them.
 #[test]
-fn a_wallet_the_seeds_here_sign_for_is_reached_on_home_among_many() {
+fn many_wallets_that_need_nothing_are_one_row_on_home() {
     let mut app = loaded(2, 0, 1366, 1000);
     for a in 0..12u32 {
         add_wallet_over(&mut app, 1, a, &format!("Watched {a}"));
@@ -1774,9 +1833,12 @@ fn a_wallet_the_seeds_here_sign_for_is_reached_on_home_among_many() {
     app.session.keys.remove(1);
     app.press(Action::Nav(Screen::Home));
     let _ = app.frame();
-    assert!(on_screen(&app, Action::OpenWallet(12), 1000));
-    tap(&mut app, Action::OpenWallet(12));
-    assert_eq!(app.screen, Screen::Wallets);
+    for w in 0..13 {
+        assert!(!app.offers(Action::OpenWallet(w)), "wallet {w}");
+    }
+    assert!(on_screen(&app, Action::Nav(Screen::WalletsStart), 1000));
+    tap(&mut app, Action::Nav(Screen::WalletsStart));
+    assert!(matches!(app.screen, Screen::Wallets | Screen::WalletsStart));
 }
 
 /// Home scrolled to the end of a long list of keys that then shrinks stands
@@ -1790,7 +1852,7 @@ fn home_scrolled_to_the_end_of_many_keys_follows_a_list_that_shrinks() {
         &mut app,
         win.0,
         win.1,
-        Action::ExploreKey(last)
+        Action::KeyWallet(last, 1)
     ));
     while app.session.keys.len() > 1 {
         app.session.keys.remove(1);
@@ -1798,5 +1860,50 @@ fn home_scrolled_to_the_end_of_many_keys_follows_a_list_that_shrinks() {
     app.press(Action::Nav(Screen::Files));
     app.press(Action::Nav(Screen::Home));
     let _ = app.frame();
-    assert!(on_screen(&app, Action::ExploreKey(key_fp(&app, 0)), win.1));
+    assert!(on_screen(
+        &app,
+        Action::KeyWallet(key_fp(&app, 0), 1),
+        win.1
+    ));
+}
+
+/// A vault open is a chip on Home, named, that opens the session; with no
+/// vault open there is none.
+#[test]
+fn a_vault_open_shows_its_chip_on_home() {
+    use faraday_core::vault::VaultAction as V;
+    let vault = faraday_core::testkit::test_vault().unwrap();
+    let mut app = wide();
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![("vault.kdbx".to_string(), vault)]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    let _ = app.frame();
+    app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    app.press(Action::Vault(V::Open(0)));
+    for c in faraday_core::testkit::VAULT_PASSPHRASE.chars() {
+        app.event(Event::Key(faraday_shell_api::Key::Char(c)));
+    }
+    app.press(Action::Vault(V::Unlock));
+    for t in 1..60u64 {
+        if !app.vaults().open.is_empty() {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    assert_eq!(app.vaults().open.len(), 1, "the test vault did not unlock");
+    app.press(Action::Vault(V::LoadTicked));
+    app.press(Action::Nav(Screen::Home));
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t.contains("open")), "{texts:?}");
+    let mut none = wide();
+    none.press(Action::Nav(Screen::Home));
+    let _ = none.frame();
+    let texts = none.drawn_texts();
+    assert!(!texts.iter().any(|t| t.contains("open")), "{texts:?}");
 }

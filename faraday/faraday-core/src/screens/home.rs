@@ -1,6 +1,5 @@
 //! `Screen::Home`.
 
-use super::catalog::{Face, Mark};
 use super::menu_page::{self, Page, Section};
 use crate::drawing::View;
 use crate::in_progress::Going;
@@ -12,7 +11,7 @@ use crate::{Action, Screen};
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, SHAPE_M, TITLE_M};
 use faraday_draw::tokens::{
     HOME_LEAD_H, HOME_LEAD_ICON, HOME_LEAD_INSET, HOME_LEAD_SUB_Y, HOME_LEAD_TEXT_X,
-    HOME_TILE_ICON, HOME_TILE_INSET, HOME_TILE_TEXT_X, LEAD_MAX, MENU_GAP, TILE_H,
+    HOME_TILE_ICON, HOME_TILE_INSET, HOME_TILE_TEXT_X, MENU_GAP, TILE_H,
 };
 use faraday_draw::widgets::Icon;
 
@@ -339,9 +338,8 @@ pub(crate) fn nothing_loaded(app: &View) -> bool {
 }
 
 /// The lead of the wide Home (`docs/HOME.md` §2): the first job of the
-/// table that applies, a key no wallet uses making its wallet, and Make a
-/// new wallet only while nothing is loaded; none when something is loaded
-/// and nothing waits. `skip_shown` drops a job that would open or start
+/// table that applies; none when nothing waits (a key no wallet uses is a
+/// row under Keys, §3). `skip_shown` drops a job that would open or start
 /// over a flow whose line is above the card (`docs/FLOWS.md`, Flows in
 /// progress), as the one-column Home has it.
 pub(crate) fn home_lead(app: &View, skip_shown: bool) -> Option<LeadCard> {
@@ -353,17 +351,6 @@ pub(crate) fn home_lead(app: &View, skip_shown: bool) -> Option<LeadCard> {
     let hidden = |g: Option<Going>| g.is_some_and(|g| shown.iter().any(|r| r.going == g));
     if let Some(j) = home_jobs(app).into_iter().find(|j| !hidden(j.going)) {
         return Some(j.card);
-    }
-    let (loose, picked) = app.loose_keys();
-    if let Some(fp) = picked.and_then(|p| loose.iter().find(|f| f.0 == p).copied()) {
-        return Some(LeadCard {
-            icon: Glyph::Icon(Icon::Wallet),
-            line: fill(EN.home_card_key, &[&crate::wallet::fp_text(fp)]),
-            under: EN.home_card_no_wallet_uses_it.to_string(),
-            button: EN.home_btn_make_a_wallet,
-            action: Action::KeyWallet(fp.0, 1),
-            enabled: true,
-        });
     }
     None
 }
@@ -379,6 +366,9 @@ pub(crate) struct WalletCard {
     /// The first of: its spend's signatures, "A PSBT to sign", "Not
     /// backed up", its shape.
     pub line: String,
+    /// Whether the line says something to do now: its spend's signatures, a
+    /// PSBT to sign or a backup waiting, not its shape.
+    pub needs: bool,
 }
 
 /// The wallets in the session, ranked (the ones the keys
@@ -395,11 +385,32 @@ pub(crate) fn home_wallets(app: &View) -> Vec<WalletCard> {
         .collect()
 }
 
+/// The wallets in the session that need something now, as (place, name),
+/// in the session's order, with the count of all: what the Pi's box of what
+/// is loaded names. Only lookups, no line is worded.
+pub(crate) fn wallets_needing(app: &View) -> (Vec<(usize, String)>, usize) {
+    let all = &app.session.wallets;
+    let needing = (0..all.len())
+        .filter(|&i| wallet_needs(app, i))
+        .map(|i| (i, all[i].name.to_string()))
+        .collect();
+    (needing, all.len())
+}
+
+/// Whether wallet `i` needs something now: its spend is under way, Files
+/// holds a PSBT for it or a key made here waits for its backup.
+fn wallet_needs(app: &View, i: usize) -> bool {
+    app.wallets.spend().is_some_and(|s| s.wallet == Some(i))
+        || app.psbt_for(i).is_some()
+        || app.receive_held(&app.session.wallets[i])
+}
+
 /// Wallet `i`'s card.
 fn wallet_card(app: &View, i: usize) -> WalletCard {
     let w = &app.session.wallets[i];
     let held = app.receive_held(w);
     let spend = app.wallets.spend().filter(|s| s.wallet == Some(i));
+    let needs = wallet_needs(app, i);
     let line = if let Some(s) = spend {
         fill(
             EN.home_card_signatures,
@@ -428,116 +439,136 @@ fn wallet_card(app: &View, i: usize) -> WalletCard {
         index: i,
         name: w.name.to_string(),
         line,
+        needs,
     }
 }
 
-/// One of Home's small tiles: its icon, its name, the line under it
-/// (empty for none) and what a press opens.
-pub(crate) struct Tile {
-    pub icon: Glyph,
-    pub label: String,
-    pub sub: String,
-    pub action: Action,
+/// One of Home's list rows (`docs/HOME.md` §3): its headline, the line
+/// under it (empty for none), the small text at its end (empty for none)
+/// and what a press opens.
+struct ListRow {
+    head: String,
+    sub: String,
+    trailing: &'static str,
+    action: Action,
 }
 
-/// The row of what is loaded and known (`docs/HOME.md` §3): each wallet
-/// in the session, then Backups once a wallet is known. The first-run
-/// actions are no tiles, they stand in one row ([`first_actions`]); Check
-/// is no tile here either: the sidebar lists it (F275).
-pub(crate) fn home_row(app: &View) -> Vec<Tile> {
-    let mut t: Vec<Tile> = home_wallets(app)
+/// `rows` drawn as Material two-line list items one under another from
+/// `(x, y)`, `w` wide. Returns their height.
+fn list_rows(ui: &mut Ui, (x, y): (f32, f32), w: f32, rows: &[ListRow]) -> f32 {
+    let mut cy = y;
+    for r in rows {
+        let it = faraday_ui::roles::ListItem {
+            headline: &r.head,
+            supporting: &r.sub,
+            trailing: (!r.trailing.is_empty()).then(|| (r.trailing, Role::Primary.paint())),
+            action: r.action,
+        };
+        cy += ui.list_item((x, cy, w), &it, false);
+    }
+    cy - y
+}
+
+/// The wallets' rows (`docs/HOME.md` §3): one for each wallet that needs
+/// something now, then "All wallets" opening Wallets, then Backups once a
+/// wallet is known.
+fn wallet_rows(app: &View) -> Vec<ListRow> {
+    let mut rows: Vec<ListRow> = home_wallets(app)
         .into_iter()
-        .map(|c| Tile {
-            icon: Glyph::Icon(Icon::Wallet),
-            label: c.name,
+        .filter(|c| c.needs)
+        .map(|c| ListRow {
+            head: c.name,
             sub: c.line,
+            trailing: "",
             action: Action::OpenWallet(c.index),
         })
         .collect();
+    let n = app.session.wallets.len();
+    if n > 0 {
+        rows.push(ListRow {
+            head: fill(EN.home_all_wallets, &[&n.to_string()]),
+            sub: String::new(),
+            trailing: "",
+            action: Action::Nav(Screen::WalletsStart),
+        });
+    }
     let (known, without) = app.backup_counts();
     if known > 0 {
-        t.push(Tile {
-            icon: Glyph::Icon(Icon::Shield),
-            label: EN.home_ways_backups.to_string(),
+        rows.push(ListRow {
+            head: EN.home_ways_backups.to_string(),
             sub: if without == 0 {
                 fill(EN.home_ways_with_a_plan, &[&known.to_string()])
             } else {
                 fill(EN.home_ways_not_backed, &[&without.to_string()])
             },
+            trailing: "",
             action: Action::Nav(Screen::Backups),
         });
     }
-    t
+    rows
 }
 
-/// The Keys section (`docs/HOME.md` §3): each key held, by its fingerprint
-/// and, under it, its name (none when it is named by its fingerprint) and
-/// the passphrase mark when it has one; a press opens it in Explore, as the
-/// sidebar's key row does.
-pub(crate) fn home_keys(app: &View) -> Vec<Tile> {
-    app.session
+/// The keys' rows (`docs/HOME.md` §3): one for each key no wallet uses,
+/// offering to make a wallet from it, then "All keys" opening Explore.
+fn key_rows(app: &View) -> Vec<ListRow> {
+    let n = app.session.keys.all().count();
+    if n == 0 {
+        return Vec::new();
+    }
+    let loose = app.session.loose_keys();
+    let mut rows: Vec<ListRow> = app
+        .session
         .keys
         .all()
+        .filter(|k| loose.contains(&k.fingerprint))
         .map(|k| {
             let fp = crate::wallet::fp_text(k.fingerprint);
             let name = crate::bip85::key_name(k);
-            let mut sub = if name.eq_ignore_ascii_case(&fp) {
-                String::new()
-            } else {
-                name.into_owned()
-            };
+            let mut sub = String::new();
+            if !name.eq_ignore_ascii_case(&fp) {
+                sub.push_str(&name);
+                sub.push_str(" · ");
+            }
             if k.has_passphrase {
-                if !sub.is_empty() {
-                    sub.push_str(" · ");
-                }
                 sub.push_str(EN.home_key_passphrase);
+                sub.push_str(" · ");
             }
-            Tile {
-                icon: Glyph::Icon(Icon::Keys),
-                label: String::from(&*fp),
+            sub.push_str(EN.home_card_no_wallet_uses_it);
+            ListRow {
+                head: String::from(&*fp),
                 sub,
-                action: Action::ExploreKey(k.fingerprint.0),
+                trailing: EN.home_btn_make_a_wallet,
+                action: Action::KeyWallet(k.fingerprint.0, 1),
             }
         })
-        .collect()
+        .collect();
+    rows.push(ListRow {
+        head: fill(EN.home_all_keys, &[&n.to_string()]),
+        sub: String::new(),
+        trailing: "",
+        action: Action::Explore,
+    });
+    rows
 }
 
-/// `tiles` as faces, each with its icon as `mark` places it.
-pub(crate) fn faces(tiles: &[Tile], mark: fn(Glyph) -> Mark) -> Vec<Face<'_>> {
-    tiles
-        .iter()
-        .map(|t| Face {
-            mark: mark(t.icon),
-            name: &t.label,
-            line: &t.sub,
-            warn: false,
-            tags: &[],
-            opens: true,
-            action: t.action,
-        })
-        .collect()
-}
-
-/// What is loaded as the menu page's sections (`docs/HOME.md` §3): the
-/// loaded wallets beside the Backups tile, labelled while there is a
-/// wallet, then the Keys section; many of either flow on into further rows
-/// and the page scrolls. The wide layout and the rail's windows both draw
-/// it.
-pub(crate) fn loaded_sections<'a>(
-    row: &'a [Tile],
-    keys: &'a [Tile],
-    wallets: bool,
-) -> Vec<Section<'a>> {
+/// What is loaded as the menu page's sections (`docs/HOME.md` §3): Wallets
+/// with a row for each wallet that needs something, All wallets and
+/// Backups, then Keys with a row for each key no wallet uses and All keys.
+/// The wide layout and the rail's windows both draw them.
+pub(crate) fn loaded_sections(app: &View) -> Vec<Section<'static>> {
     let mut sections = Vec::new();
-    if !row.is_empty() {
-        let label = wallets.then_some(EN.home_wallets);
-        sections.push(Section::tiles(label, faces(row, Mark::Beside)));
+    let rows = wallet_rows(app);
+    if !rows.is_empty() {
+        let label = (!app.session.wallets.is_empty()).then_some(EN.home_wallets);
+        sections.push(Section::block(label, move |ui, at, w| {
+            list_rows(ui, at, w, &rows)
+        }));
     }
-    if !keys.is_empty() {
-        sections.push(Section::tiles(
-            Some(EN.home_keys),
-            faces(keys, Mark::Beside),
-        ));
+    let rows = key_rows(app);
+    if !rows.is_empty() {
+        sections.push(Section::block(Some(EN.home_keys), move |ui, at, w| {
+            list_rows(ui, at, w, &rows)
+        }));
     }
     sections
 }
@@ -684,13 +715,13 @@ fn actions(ui: &mut Ui, (x, y): (f32, f32), width: f32, gap: f32) -> f32 {
     h
 }
 
-/// The lead's card at `(x, y)`, at most `LEAD_MAX` wide inside `width`:
+/// The lead's card at `(x, y)`, `width` wide:
 /// the job's icon, its line and the line under it, and at its end the one
 /// filled button (`docs/HOME.md` §2). Returns its height. The card is not
 /// a press; its button is.
 fn lead_card(ui: &mut Ui, card: &LeadCard, (x, y): (f32, f32), width: f32) -> f32 {
     let lead_h = HOME_LEAD_H;
-    let lead_w = width.min(LEAD_MAX);
+    let lead_w = width;
     ui.fill(x, y, lead_w, lead_h, SHAPE_M, Role::SurfaceContainerLow);
     ui.stroke(x, y, lead_w, lead_h, SHAPE_M, Role::OutlineVariant);
     let (ibg, ifg) = if card.enabled {
@@ -794,7 +825,6 @@ pub(crate) fn home_pinned(above: f32, window: f32, row: f32) -> bool {
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use super::catalog::Bar;
     let lead = home_lead(app, false);
-    let (row, keys) = (home_row(app), home_keys(app));
     let mut sections: Vec<Section> = Vec::new();
     if let Some(card) = &lead {
         sections.push(Section::block(None, move |ui, at, w| {
@@ -804,8 +834,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     sections.push(Section::block(None, |ui, at, w| {
         actions(ui, at, w, MENU_GAP)
     }));
-    let wallets = !app.session.wallets.is_empty();
-    sections.extend(loaded_sections(&row, &keys, wallets));
+    if crate::nav::screen::going_any(app) {
+        sections.push(Section::block(None, move |ui, (x, y), w| {
+            crate::nav::screen::going_chips(app, ui, x, y, w)
+        }));
+    }
+    sections.extend(loaded_sections(app));
     let page = Page {
         name: EN.home_home,
         back: false,

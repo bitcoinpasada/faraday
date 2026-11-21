@@ -312,3 +312,4 @@ Read this table, then only the decision you need.
 | [F299](decisions/F299.md) | One registry of the forms a key comes in: every list of forms reads it | 2026-11-20 | Active | keys |
 | [F300](decisions/F300.md) | Faraday reads back an extended private key and a master seed in hex | 2026-11-20 | Active | keys |
 | [F301](decisions/F301.md) | A vault whose passphrase was just set ends locked and is unlocked once with it | 2026-11-20 | Active | vaults |
+| [F302](decisions/F302.md) | Home states what is going on in one row, and lists only what needs something | 2026-11-21 | Active | design |

@@ -42,10 +42,8 @@ macro_rules! words_compact {
     compact_vault_contents: "Vault contents",
     /// Text in `page`.
     compact_home: "Home",
-    /// Text in `home`. `{}`: `v`, `if v == 1 { EN.compact_vault } else {…`.
+    /// Text in `home`. `{}`: how many vaults are open, `EN.compact_vaults_inline`.
     compact_vaults_open: "{} {} open",
-    /// Text in `home`.
-    compact_vault: "vault",
     /// Text in `home`.
     compact_vaults_inline: "vaults",
     /// Button in `home`.
