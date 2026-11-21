@@ -1643,6 +1643,25 @@ impl Faraday {
             // An xprv goes to its form in Add a key and loads there: its
             // refusals stand on the form, as when it is typed.
             Way::Key if kind == Kind::Xprv => self.xprv_on_entry(&text),
+            Way::Key => {
+                let c = self.compute();
+                self.scan_close();
+                // A CompactSeedQR that is also an encrypted code: its sheet
+                // offers to open it (`docs/KEF.md` §8).
+                let also = (kind == Kind::CompactSeedQr)
+                    .then(|| faraday_codec::kef::recognize(&code))
+                    .flatten();
+                if let Some(words) = seed_in_code(&c, &code) {
+                    drop(code);
+                    self.seed_scanned_on_entry(&words, kind);
+                    if let Some(found) = also {
+                        self.seed_read_offer_kef(found.envelope);
+                    }
+                } else if crate::seed_check::here(self) {
+                    // A code that holds no seed is said on the Seed card.
+                    crate::seed_check::not_a_seed(self);
+                }
+            }
             Way::Open | Way::NotEncrypted => self.read_go_kef(way, kef, (named, ext, code)),
             Way::CheckAddress => {
                 if let Some(scan) = self.camera.scan.as_mut() {
