@@ -154,6 +154,9 @@ pub(crate) struct View {
     pub groups: Vec<(Text, Vec<Row>)>,
     /// A field: its label, what it shows, and whether that is a hint.
     pub field: Option<(&'static str, Text, bool)>,
+    /// A passphrase typed, under this label: drawn in the passphrase
+    /// field's own box with the one eye, from the check's field.
+    pub pass_label: Option<&'static str>,
     /// The sheet's own button; `None` as its action while it waits.
     pub go: Option<(Text, Option<Action>)>,
     /// The loaded wallet whose first addresses are shown.
@@ -174,6 +177,7 @@ impl View {
             lines: Vec::new(),
             groups: Vec::new(),
             field: None,
+            pass_label: None,
             go: None,
             addresses: None,
             keys: None,
@@ -1230,20 +1234,16 @@ fn pass_check(ctx: &Ctx<'_>, k: u8) -> Option<View> {
             &[&Text::num(key.number as u64)],
         ),
     );
-    let typed = app.glance.work().secret.chars().count();
-    v.field = Some(if typed == 0 {
-        (
+    let typed = app.glance.work().pass.len();
+    if typed == 0 {
+        v.field = Some((
             EN.glance_sheet_passphrase,
             Text::of(EN.glance_sheet_type_passphrase),
             true,
-        )
+        ));
     } else {
-        (
-            EN.glance_sheet_passphrase,
-            Text::repeated("•", typed),
-            false,
-        )
-    });
+        v.pass_label = Some(EN.glance_sheet_passphrase);
+    }
     match app.glance.work().result {
         Some(true) => v.lines.push((
             Text::fill(EN.glance_sheet_matches, &[&key.fingerprint]),
@@ -1254,8 +1254,7 @@ fn pass_check(ctx: &Ctx<'_>, k: u8) -> Option<View> {
             .push((Text::of(EN.glance_sheet_mismatch), Role::Error.paint())),
         None => {}
     }
-    if app.glance.work().refused {
-        let line = Text::of(crate::state::ascii_refused());
+    if let Some(line) = app.glance.work().refused.clone() {
         v.lines.push((line, Role::Error.paint()));
     }
     v.go = Some((
@@ -1458,6 +1457,18 @@ fn body(
         cy += tokens::GAP;
         cy += field(ui, x, cy, iw, label, text, *hint);
     }
+    if let Some(label) = v.pass_label {
+        cy += tokens::GAP;
+        cy += ui.wrap_as((x, cy, iw), BODY_S, Role::OnSurfaceVariant, label) + FIELD_GAP;
+        crate::pass_field::screen::tool_box(
+            app,
+            ui,
+            (x, cy, iw),
+            app.glance.work().pass.as_str(),
+            (true, Action::TypeHere(crate::edit::Here::Chart)),
+        );
+        cy += FIELD_H;
+    }
     if let Some(wi) = v.addresses {
         if let Some(wl) = app.session.wallets.get(wi) {
             cy += crate::screens::descriptor_row(ui, x, cy, iw, wl, Action::QrWallet(wi));
@@ -1648,7 +1659,7 @@ impl Faraday {
                         self.glance.work.text = name.unwrap_or_default();
                     }
                     Target::PassCheck(..) => {
-                        self.glance.work.secret.clear();
+                        self.glance.work.pass.clear();
                         self.glance.work.result = None;
                     }
                     _ => {}

@@ -1310,7 +1310,8 @@ impl Faraday {
         // A chart's sheet leads into a flow: whatever its rows press, the
         // sheet goes first. Its field's own presses (a press on the field,
         // the keyboard's) stay in the sheet, and so does a tick, which
-        // edits what the sheet shows and leads into no flow.
+        // edits what the sheet shows and leads into no flow; so does the
+        // eye on its passphrase check.
         if self.sheet == Some(Sheet::Chart)
             && !matches!(
                 action,
@@ -1318,6 +1319,7 @@ impl Faraday {
                     | Action::Osk(_)
                     | Action::TypeHere(crate::edit::Here::Chart)
                     | Action::KeyTick(..)
+                    | Action::PassEye
             )
         {
             self.sheet = None;

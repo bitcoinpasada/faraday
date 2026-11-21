@@ -332,11 +332,13 @@ pub(crate) enum Where {
     CoreWallet,
     /// A passphrase on paper typed back for Check my copy.
     CopyCheck,
+    /// At a glance's check of a key's passphrase.
+    GlanceCheck,
 }
 
 impl Where {
     /// Every field.
-    const ALL: [Where; 12] = [
+    const ALL: [Where; 13] = [
         Where::Potential,
         Where::Aezeed,
         Where::Entry,
@@ -349,6 +351,7 @@ impl Where {
         Where::BackupKef,
         Where::CoreWallet,
         Where::CopyCheck,
+        Where::GlanceCheck,
     ];
 
     /// Whether the field's screen or sheet is up: a sheet counts as up
@@ -382,6 +385,15 @@ impl Where {
             Where::BackupKef => matches!(app.screen, Screen::Backup | Screen::Randomness),
             Where::CoreWallet => app.screen == Screen::CoreWallet,
             Where::CopyCheck => app.screen == Screen::Backup,
+            // Its sheet is the Chart sheet (a cover sheet over it counts as
+            // up, design §6): a path that replaces the sheet empties it.
+            Where::GlanceCheck => {
+                sheet(Sheet::Chart)
+                    && matches!(
+                        app.glance.chart(),
+                        Some((_, crate::glance::sheet::Target::PassCheck(..)))
+                    )
+            }
             // Its state is kept while the secret sheet shows what it made
             // and on the way to a vault or a key it needs (`after_input`):
             // the node and the passphrase it was made with stay together.
@@ -413,6 +425,7 @@ impl Where {
             | Where::BackupKef
             | Where::CoreWallet
             | Where::CopyCheck
+            | Where::GlanceCheck
             | Where::SeedCheck => false,
         }
     }
@@ -431,7 +444,8 @@ impl Where {
             | Where::KefTool
             | Where::BackupKef
             | Where::CoreWallet
-            | Where::CopyCheck => false,
+            | Where::CopyCheck
+            | Where::GlanceCheck => false,
         }
     }
 
@@ -455,6 +469,7 @@ impl Where {
             Where::BackupKef => app.backup.kef_pass(),
             Where::CoreWallet => app.tools.core_wallet.state().map(|s| &s.passphrase),
             Where::CopyCheck => app.backup.check_pass(),
+            Where::GlanceCheck => Some(&app.glance.work().pass),
         }
     }
 
@@ -473,6 +488,7 @@ impl Where {
             Where::BackupKef => app.backup.with_kef_pass(f),
             Where::CoreWallet => crate::core_wallet::tool::with_pass(app, f),
             Where::CopyCheck => app.backup.with_check_pass(f),
+            Where::GlanceCheck => app.glance.with_pass(f),
         }
     }
 }

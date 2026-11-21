@@ -752,15 +752,15 @@ impl ConvertArea {
         let (Some(check), Some(value)) = (self.check.as_mut(), self.held.as_ref()) else {
             return;
         };
-        if check.typed.is_empty() {
+        if check.text().is_empty() {
             return;
         }
         // Against the text, or every part of a set; a set of several says
         // which part by its number.
         let (same, part) = match value {
-            Value::Text(t) => (copy_is(target, &check.typed, t), None),
+            Value::Text(t) => (copy_is(target, check.text(), t), None),
             Value::Set(parts) => {
-                let hit = parts.iter().position(|p| copy_is(target, &check.typed, p));
+                let hit = parts.iter().position(|p| copy_is(target, check.text(), p));
                 (
                     hit.is_some(),
                     hit.filter(|_| parts.len() > 1).map(|i| i + 1),
@@ -768,7 +768,7 @@ impl ConvertArea {
             }
             Value::Code(..) => return,
         };
-        check.typed.clear();
+        check.clear_typed();
         self.found = Some(same);
         self.found_part = part;
         if let Some(s) = self.state.as_mut() {
@@ -791,7 +791,7 @@ impl ConvertArea {
         self.found = None;
         self.found_part = None;
         if let Some(c) = self.check.as_mut() {
-            c.typed.clear();
+            c.clear_typed();
         }
     }
 
@@ -1153,7 +1153,7 @@ pub fn shown_parts(app: &Faraday) -> Option<Vec<&str>> {
 
 /// What Check my copy has typed, while it is open.
 pub fn typed(app: &Faraday) -> Option<&str> {
-    app.tools.convert.check().map(|c| &*c.typed)
+    app.tools.convert.check().map(|c| c.text())
 }
 
 /// Whether the last comparison found the copy right, until the next key.
@@ -1753,11 +1753,7 @@ pub(crate) fn act(app: &mut Faraday, action: ConvertAction) {
             }
         }
         ConvertAction::Compare => {
-            let typed = app
-                .tools
-                .convert
-                .check()
-                .is_some_and(|c| !c.typed.is_empty());
+            let typed = app.tools.convert.check().is_some_and(|c| c.holds_any());
             if !(typed && crate::stick::refuses_secret(app)) {
                 app.tools.convert.compare();
             }

@@ -222,7 +222,7 @@ fn a_passphrase_checked_by_its_fingerprint_leaves_no_trace_but_the_result() {
     app.event(Event::Key(Key::Enter));
     assert_eq!(app.chart_work().result, Some(true));
     assert!(
-        app.chart_work().secret.is_empty(),
+        app.chart_work().pass_text().is_empty(),
         "the typed passphrase is kept"
     );
     let _ = app.frame();

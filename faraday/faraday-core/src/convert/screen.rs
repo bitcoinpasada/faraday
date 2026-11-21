@@ -743,7 +743,7 @@ fn check_my_copy(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     let mut cy = y;
     let check = app.tools.convert.check();
     if let Some(check) = check {
-        let n = check.typed.chars().count();
+        let n = check.text().chars().count();
         let label = crate::strings::fill(EN.convert_your_copy, &[&n.to_string()]);
         cy += ui.wrap_as((x, cy, w), BODY_S, Role::OnSurfaceVariant, &label) + FIELD_GAP;
         ui.field_box((x, cy, w), true, None);

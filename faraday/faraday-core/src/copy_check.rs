@@ -19,8 +19,8 @@ use faraday_text::Text;
 /// The typed check of a copy of the words, or of a passphrase on paper,
 /// while it is open: what is typed so far, wiped whenever it is dropped.
 pub struct WordCheck {
-    /// The words, for a list typed on the computer's keyboard; or the
-    /// passphrase.
+    /// The words, for a list typed on the computer's keyboard; or a
+    /// value typed back whole.
     pub typed: SecretText,
     /// The passphrase typed back, for a check of a passphrase on paper:
     /// the one field the passphrases are typed in. A check of any other
@@ -180,7 +180,8 @@ impl WordCheck {
         self.sample_gone = true;
         if self.passphrase {
             match key {
-                // BIP-39 passphrases here are printable ASCII.
+                // A value checked here is printable ASCII, with no most
+                // on its length: a copy of a backup, not a passphrase.
                 KeyIn::Char(ch) if (' '..='~').contains(&ch) => {
                     self.typed.push(ch);
                     self.error = None;

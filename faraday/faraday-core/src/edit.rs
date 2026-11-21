@@ -373,7 +373,8 @@ impl Faraday {
             }
             Screen::Backup => {
                 let c = self.backup.state()?.check.as_ref()?;
-                if c.passphrase {
+                // A value typed back whole takes no caret; a passphrase does.
+                if c.passphrase && c.pass.is_none() {
                     return None;
                 }
                 if c.keys.is_some() {
@@ -776,11 +777,11 @@ impl Faraday {
             Here::Message => &self.message.state()?.text,
             Here::Entry => &self.entry.state().typed,
             Here::Tools => &self.tools.state()?.typed,
-            Here::Convert => &self.tools.convert.check()?.typed,
+            Here::Convert => self.tools.convert.check()?.text(),
             Here::Share => self.tools.convert.set_typed(),
             Here::Codex32Back => self.keygen.state()?.codex32.as_ref()?.typed_back().0,
             Here::Words => &self.entry.state().typed,
-            Here::CheckWords => &self.backup.state()?.check.as_ref()?.typed,
+            Here::CheckWords => self.backup.state()?.check.as_ref()?.text(),
             Here::Aezeed => &self.lightning.state()?.typed,
             Here::Invoice => self.invoice()?.text(),
             Here::CheckAddress => self.address_check_state()?.typed(),
@@ -789,7 +790,7 @@ impl Faraday {
             Here::Chart => {
                 let w = self.glance.work();
                 match self.glance.chart()?.1 {
-                    crate::glance::sheet::Target::PassCheck(..) => &w.secret,
+                    crate::glance::sheet::Target::PassCheck(..) => w.pass.borrow(),
                     _ => &w.text,
                 }
             }
@@ -980,7 +981,14 @@ impl Faraday {
     fn splice(&mut self, target: Action, text: &str, lo: usize, hi: usize, insert: Option<char>) {
         let n = text.chars().count();
         let byte = |i: usize| text.char_indices().nth(i).map_or(text.len(), |(b, _)| b);
-        if let Action::TypeHere(h @ (Here::Words | Here::CheckWords)) = target {
+        let passphrase = self
+            .backup
+            .state()
+            .and_then(|b| b.check.as_ref())
+            .is_some_and(|c| c.pass.is_some());
+        if let Action::TypeHere(h @ (Here::Words | Here::CheckWords)) = target
+            && !(h == Here::CheckWords && passphrase)
+        {
             return self.words_splice(h, (byte(lo), byte(hi)), lo, insert);
         }
         let tail = SecretText::of(&text[byte(hi)..]);

@@ -1340,14 +1340,16 @@ fn typed_passphrase(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), typed: 
     if app.pass_is_public(typed) {
         crate::screens::code_field(ui, x, cy, w, T::TEXT_FIELD_TALL, typed);
     } else {
-        ui.fill(x, cy, w, 42.0, 8.0, Role::SurfaceContainerHighest);
-        ui.stroke(x, cy, w, 42.0, 8.0, Role::Primary);
-        let dots = "•".repeat(typed.chars().count());
-        let dots = ui.fit_as(BODY_M.mono(), &dots, w - 30.0);
-        ui.text_mid_as((x + 12.0, cy, 42.0), BODY_M.mono(), Role::OnSurface, &dots);
+        crate::pass_field::screen::tool_box(
+            app,
+            ui,
+            (x, cy, w),
+            typed,
+            (true, Action::TypeHere(crate::edit::Here::CheckWords)),
+        );
     }
     app.pass_chip_draw(ui, typed.is_empty(), crate::demo::PassField::Check);
-    cy += 42.0 + 12.0 + never_below(app, ui, x, cy + 42.0, w);
+    cy += T::FIELD_H + 12.0 + never_below(app, ui, x, cy + T::FIELD_H, w);
     cy - y
 }
 

@@ -38,13 +38,16 @@ HEADER = """\
 
 
 class Rule:
-    def __init__(self, name, patterns, paths, use, skip=(), tests=False):
+    def __init__(self, name, patterns, paths, use, skip=(), tests=False, not_in_fn=False, near=()):
         self.name = name
         self.patterns = [re.compile(p) for p in patterns]
         self.paths = paths    # path prefixes looked in
         self.skip = skip      # path prefixes not looked in
         self.use = use        # the part to use instead
         self.tests = tests    # also count tests and cfg(test) code
+        # (trigger, context): a line with the trigger is a hit when it or the next line has the context
+        self.near = [(re.compile(a), re.compile(b)) for a, b in near]
+        self.not_in_fn = not_in_fn  # a hit inside a fn's parameter list is not counted
 
 
 RULES = [
@@ -83,6 +86,55 @@ RULES = [
         skip=["faraday/faraday-core/src/screens/menu_page.rs",
               "faraday/faraday-core/src/screens/mod.rs"],
     ),
+    # A passphrase held or filtered outside the one field (docs/KEYS.md §2): a
+    # struct field of type `SecretText` or `TextBox` named `pass*`,
+    # `*passphrase*` or `again`, and the printable-ASCII key filter where it
+    # feeds a passphrase (a line that names one; a filter of a value that is
+    # not a passphrase, such as a copy of a backup typed back whole, is not
+    # counted). A job's or a result's copy handed on (`PassField::take`,
+    # `job_copy`) is an `Option<SecretText>`, which a screen does not type into,
+    # and a function's parameter is a copy passed in, not a field: neither is
+    # counted. The filter's arm and its body may be on two lines: the filter
+    # counts when it or the line after names a passphrase. A field named
+    # `text: TextBox` is counted too (`vault::Prompt.text`, a passphrase for a
+    # key or an export; the one pair of prompts still to move onto the field).
+    # A qualified path (`crate::secret_text::SecretText`) counts as the
+    # bare type.
+    Rule(
+        "pass-field-outside",
+        [r"^\s*(pub(\([a-z:]+\))?\s+)?(pass\w*|\w*passphrase\w*|again)\s*:\s*(\w+::)*(SecretText|TextBox)\s*,?\s*$",
+         r"^\s*(pub(\([a-z:]+\))?\s+)?text\s*:\s*(\w+::)*TextBox\s*,?\s*$"],
+        ["faraday/faraday-core/"],
+        "`pass_field::PassField` (faraday-core src/pass_field/, docs/KEYS.md §2)",
+        skip=["faraday/faraday-core/src/pass_field/"],
+        not_in_fn=True,
+        near=[(r"\(' '\.\.='~'\)", r"(?i)pass")],
+    ),
+    # A list of key forms written out by hand: an array, slice or `vec!` of two
+    # or more `Form::` variants (faraday-forms' `Form`, docs/KEY-FORMS.md). The
+    # registry's own `Form::ALL` and the openers' `forms` in `ways_in` are the
+    # lists; a screen or flow reads them. An exhaustive `match` on a form is the
+    # registry's own map and is not a list, so `|` patterns are not counted.
+    Rule(
+        "form-list-outside",
+        [r"\[\s*(\w+::)*(?<![A-Za-z0-9_])Form::(Words|Slip39|Codex32|Xor|Krux)\b\s*,\s*(\w+::)*(?<![A-Za-z0-9_])Form::(Words|Slip39|Codex32|Xor|Krux)\b"],
+        ["faraday/faraday-core/"],
+        "the registry's `Form::ALL` or an opener's forms (faraday-core src/ways_in/, docs/KEY-FORMS.md)",
+        skip=["faraday/faraday-core/src/ways_in/", "faraday/faraday-core/src/forms.rs"],
+    ),
+    # A way in to a key drawn by hand: a row or button whose action is one of
+    # the entries Type the words, Scan, a form, a word count, built outside the
+    # ways-in component (docs/DESIGN.md §4). A match arm that handles the action
+    # (`=>` or `|` after it) and an action run at once (`act(`, `press(`) are
+    # not a way in.
+    Rule(
+        "way-in-outside",
+        [r"(?<!act\()(?<!press\()(?<!act\(crate::)(?<!press\(crate::)\bAction::(ScanSeed|RSlotScan|RSlotWords|RSlotForm|EntryForm|EntryWalletForm|EntryWordCount)\b(\([^()]*\))?\s*[,)]",
+         r"\bSignerPress::Seed(Scan|Words|Form)\b(\([^()]*\))?\s*[,)]"],
+        ["faraday/faraday-core/src/"],
+        "the ways-in component (faraday-core src/ways_in/, docs/DESIGN.md §4)",
+        skip=["faraday/faraday-core/src/ways_in/", "faraday/faraday-core/src/work/"],
+    ),
 ]
 
 
@@ -119,6 +171,30 @@ def code_lines(text, tests):
     return out
 
 
+def fn_signature_lines(lines):
+    """The line numbers inside a fn signature, from `fn name` to its `{` or `;` outside the parentheses."""
+    out, open_sig, depth = set(), False, 0
+    for n, line in lines:
+        if not open_sig and re.search(r"\bfn\s+\w+", line):
+            open_sig, depth = True, 0
+        if open_sig:
+            out.add(n)
+            depth += line.count("(") - line.count(")")
+            if depth <= 0 and re.search(r"[{;]\s*$", line):
+                open_sig = False
+    return out
+
+
+def hit_lines(rule, text):
+    """The line numbers of the rule's hits in one file's text."""
+    lines = code_lines(text, rule.tests)
+    sig = fn_signature_lines(lines) if rule.not_in_fn else set()
+    return [n for i, (n, l) in enumerate(lines)
+            if n not in sig and (any(p.search(l) for p in rule.patterns)
+                                 or any(a.search(l) and b.search(l + " " + (lines[i + 1][1] if i + 1 < len(lines) else ""))
+                                        for a, b in rule.near))]
+
+
 def scan(rule, read=None):
     """{path: [line numbers]} of the rule's hits."""
     read = read or (lambda p: open(os.path.join(ROOT, p), encoding="utf-8").read())
@@ -126,7 +202,7 @@ def scan(rule, read=None):
     for f in tracked(rule.paths):
         if f.startswith(tuple(rule.skip)) or (not rule.tests and "/tests/" in f):
             continue
-        found = [n for n, l in code_lines(read(f), rule.tests) if any(p.search(l) for p in rule.patterns)]
+        found = hit_lines(rule, read(f))
         if found:
             hits[f] = found
     return hits

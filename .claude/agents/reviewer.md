@@ -60,6 +60,7 @@ Read for the area a change is in; no trailer attests it.
 
 **Keys, vaults and QR**
 
+- A key form is a row of the forms registry and of `docs/KEY-FORMS.md`, a way in to a key is the ways-in component, and a typed passphrase is a `pass_field::PassField` with no field or key filter of its own (`lint-components` counts only fall).
 - A file that starts to hold secrets names a secret type, and lint-secrets holds it; one that cannot is added to its NAMELESS, with why.
 - An entry in tools/leak-entries.toml, or a form the leak tests look for, is added only in a commit that says why, with the flow, form, place, reason and the fix it waits for; a copy live after Lock has no entry.
 - A change to how a secret is held in a local, indexed by or compared is read for the stack temporaries and secret-indexed loads the leak tests cannot see.

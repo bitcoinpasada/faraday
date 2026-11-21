@@ -212,3 +212,39 @@ fn add_a_keys_passphrase_stops_at_256_bytes_and_says_so() {
     assert_eq!(testkit::entry(&app).passphrase().len(), 256);
     assert!(shows(&mut app, TOO_LONG));
 }
+
+#[test]
+fn at_a_glance_s_passphrase_check_opened_with_a_stick_attached_takes_no_typing() {
+    use faraday_core::glance::sheet::ChartAction as C;
+    let (mut app, press) = crate::vault_load_job::pass_check_typed("");
+    let (_, target) = app.chart().expect("the check is open");
+    // The stick closes the sheet under the Lock sheet; the check is
+    // opened again with the stick still attached.
+    attach(&mut app);
+    app.press(Action::Chart(C::Open(press, target)));
+    assert_eq!(app.sheet, Some(Sheet::Chart), "the check is up again");
+    type_text(&mut app, "hunter2");
+    assert_eq!(app.chart_work().pass_text(), "", "nothing was typed");
+    // The sheet slides in beside the chart before it is drawn whole.
+    crate::common::a_moment(&mut app);
+    assert!(shows(&mut app, STICK_LINE), "the sheet says why");
+}
+
+#[test]
+fn the_eye_on_at_a_glance_s_passphrase_check_shows_and_hides_what_was_typed() {
+    let (mut app, _) = crate::vault_load_job::pass_check_typed("hunter2");
+    crate::common::a_moment(&mut app);
+    assert!(!shows(&mut app, "hunter2"), "typed text is dots");
+    app.press(Action::PassEye);
+    assert_eq!(app.sheet, Some(Sheet::Chart), "the sheet is still up");
+    assert_eq!(
+        app.chart_work().pass_text(),
+        "hunter2",
+        "the text is still there"
+    );
+    assert!(shows(&mut app, "hunter2"), "and shown");
+    app.press(Action::PassEye);
+    assert_eq!(app.sheet, Some(Sheet::Chart));
+    assert_eq!(app.chart_work().pass_text(), "hunter2");
+    assert!(!shows(&mut app, "hunter2"), "and dots again");
+}

@@ -299,6 +299,19 @@ fn check_my_copy_says_a_copy_of_the_xprv_is_right_or_wrong() {
 }
 
 #[test]
+fn check_my_copy_takes_a_copy_of_the_word_numbers_longer_than_a_passphrase_can_be() {
+    let mut app = opened(mainnet(), ZOO_24);
+    let numbers = make(&mut app, "Word numbers").unwrap();
+    let copy = numbers.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(copy.len() > 256, "{} bytes", copy.len());
+    app.press(Action::Convert(C::Check));
+    type_copy(&mut app, &copy);
+    assert_eq!(convert::typed(&app).map(str::len), Some(copy.len()));
+    app.press(Action::Convert(C::Compare));
+    assert_eq!(convert::found(&app), Some(true));
+}
+
+#[test]
 fn check_my_copy_works_with_the_value_masked() {
     let mut app = opened(test_net(), ABOUT);
     assert!(make(&mut app, "xprv").is_some());

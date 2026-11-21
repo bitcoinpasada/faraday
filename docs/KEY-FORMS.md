@@ -208,6 +208,13 @@ A test for each opener checks what a person sees: that it offers every
 form it takes, up front or under Other forms, and nothing it does not
 take.
 
+`tools/lint-components.py` holds both: rule `form-list-outside` counts, in
+faraday-core outside `ways_in/` and `forms.rs`, an array or slice that lists
+two or more forms by hand (an exhaustive `match` is the registry's own map and
+is not counted), and rule `way-in-outside` counts a row or button built with a
+way-in action (Type the words, Scan, a form, a word count) outside `ways_in/`.
+Their counts only fall.
+
 ## 5. Copies and their checks
 
 A copy is a form's output (§3.2) for one key or one piece of its set, on

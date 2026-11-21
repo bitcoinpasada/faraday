@@ -730,7 +730,7 @@ fn a_backups_load_let_finish_brings_in_the_keys_and_shows_the_checklist() {
 /// A passphrase typed on a wallet's chart and checked with its seeds not
 /// loaded: loaded first, then compared, by the button or by Enter.
 /// The passphrase check open on a chart, the seeds not loaded, `typed` in it.
-fn pass_check_typed(typed: &str) -> (Faraday, faraday_core::glance::Press) {
+pub(crate) fn pass_check_typed(typed: &str) -> (Faraday, faraday_core::glance::Press) {
     use crate::chart_edit::single_key_with_vault_pass;
     use faraday_core::glance::Press;
     use faraday_core::glance::sheet::{ChartAction as C, Target};
@@ -801,7 +801,7 @@ fn a_passphrase_typed_in_a_charts_check_is_gone_when_a_press_elsewhere_closes_th
     assert!(testkit::secret_typed(&app), "the typed passphrase is held");
     app.press(Action::Nav(faraday_core::Screen::Home));
     assert_eq!(app.chart(), None, "the sheet is closed");
-    assert_eq!(app.chart_work().secret.as_str(), "", "the field is empty");
+    assert_eq!(app.chart_work().pass_text(), "", "the field is empty");
     assert!(!testkit::secret_typed(&app), "nothing typed is held");
 }
 
@@ -814,6 +814,6 @@ fn a_passphrase_typed_in_a_charts_check_is_gone_when_a_row_closes_the_chart() {
         faraday_core::glance::sheet::Step::Qr,
     )));
     assert_eq!(app.chart(), None, "the sheet is closed");
-    assert_eq!(app.chart_work().secret.as_str(), "", "the field is empty");
+    assert_eq!(app.chart_work().pass_text(), "", "the field is empty");
     assert!(!testkit::secret_typed(&app), "nothing typed is held");
 }

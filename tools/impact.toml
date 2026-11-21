@@ -175,6 +175,14 @@ kind = "pair"
 with_each = ["docs/KEYS.md", "docs/AUDIT.md", "faraday/faraday-core/tests/leaks/reveals.rs"]
 
 [[rule]]
+id = "keys.forms-registry"
+title = "a change to the key forms registry is in docs/KEY-FORMS.md"
+source = ["CLAUDE.md", "docs/KEY-FORMS.md"]
+when = ["faraday/faraday-forms/src/lib.rs"]
+kind = "pair"
+with = ["docs/KEY-FORMS.md"]
+
+[[rule]]
 id = "structure.ratchet-raised"
 title = "a ratchet count raised (Faraday's fields, impl Faraday) is the owner's decision, recorded in a decision that names the raised file or token"
 source = ["CLAUDE.md", "docs/STRUCTURE-PASS.md", "docs/decisions/F74.md", "docs/decisions/F196.md"]

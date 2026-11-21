@@ -266,6 +266,13 @@ had to list one screen by hand.
   lists are `UNHELD` (a file that names only the wiping text and is not
   held, with why) and `NAMELESS` (a held file that names no secret type,
   with why).
+- **One passphrase field.** `lint-components` (rule `pass-field-outside`)
+  counts a passphrase held outside `pass_field::PassField` in
+  faraday-core (a `SecretText` or `TextBox` field named for a passphrase or
+  a prompt's `text: TextBox`, or a printable-ASCII key filter of its own on
+  the line that names a passphrase or the one after it; a job's copy handed on, an
+  `Option<SecretText>`, is not counted); the counts only fall
+  (`docs/KEYS.md` §2).
 
 ## 7. Allowed entries
 

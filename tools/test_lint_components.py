@@ -78,5 +78,86 @@ class SourceTests(unittest.TestCase):
         self.assertEqual(self.lines(True), [1, 5, 7, 10])
 
 
+class PassFieldRuleTests(unittest.TestCase):
+    RULE = next(r for r in lc.RULES if r.name == "pass-field-outside")
+
+    def hit(self, line):
+        return any(p.search(line) for p in self.RULE.patterns)
+
+    def test_a_passphrase_field_outside_the_one_field_is_a_hit(self):
+        for line in ["    pass: TextBox,", "    pub(crate) pass_box: SecretText,", "    again: TextBox,",
+                     "    pub vault_passphrase: SecretText,", "    pass: crate::secret_text::SecretText,",
+                     "    pub(crate) again: crate::vault::TextBox,"]:
+            self.assertTrue(self.hit(line), line)
+
+    def test_other_fields_and_values_are_not(self):
+        for line in ["    name: TextBox,", "    passes: u32,", "    again: TextBox::default(),",
+                     "    pass: String,", "    passphrase: Option<SecretText>,",
+                     "    passphrase: Option<crate::secret_text::SecretText>,", "    let again: TextBox = x;"]:
+            self.assertFalse(self.hit(line), line)
+
+    def test_a_prompt_text_box_is_a_hit(self):
+        self.assertTrue(self.hit("    pub text: TextBox,"))
+        self.assertFalse(self.hit("    pub text: String,"))
+
+    def hits(self, *src):
+        return lc.hit_lines(self.RULE, "\n".join(src))
+
+    def test_the_printable_ascii_key_filter_is_a_hit(self):
+        self.assertEqual(self.hits("KeyIn::Char(c) if (' '..='~').contains(&c) => self.passphrase.push(c),"), [1])
+        self.assertEqual(self.hits("Kind::Bip39 => (' '..='~').contains(&pass_char),"), [1])
+        self.assertEqual(self.hits("KeyIn::Char(c) => {"), [])
+
+    def test_a_filter_whose_arm_and_body_are_on_two_lines_is_a_hit(self):
+        self.assertEqual(self.hits("KeyIn::Char(c) if (' '..='~').contains(&c) => {",
+                                   "    self.type_pass_char(c);", "}"), [1])
+
+    def test_the_filter_of_a_value_that_is_not_a_passphrase_is_not(self):
+        self.assertEqual(self.hits("KeyIn::Char(ch) if (' '..='~').contains(&ch) => {", "    typed.push(ch);"), [])
+
+    def test_a_parameter_of_a_function_is_not_a_field(self):
+        src = ["pub struct J {", "    passphrase: SecretText,", "}", "fn job(", "    file: &File,",
+               "    passphrase: SecretText,", ") -> Job {", "    let again: TextBox = x;", "}"]
+        lines = list(enumerate(src, 1))
+        self.assertEqual(sorted(lc.fn_signature_lines(lines)), [4, 5, 6, 7])
+        self.assertEqual(sorted(lc.fn_signature_lines(list(enumerate(["fn a(x: u8) {", "    y,", "}"], 1)))), [1])
+
+
+class FormListRuleTests(unittest.TestCase):
+    RULE = next(r for r in lc.RULES if r.name == "form-list-outside")
+
+    def hit(self, line):
+        return any(p.search(line) for p in self.RULE.patterns)
+
+    def test_a_list_of_forms_written_out_is_a_hit(self):
+        for line in ["    for f in [Form::Words, Form::Codex32] {", "    forms: &[Form::Slip39, Form::Xor],",
+                     "let l = [faraday_forms::Form::Krux, faraday_forms::Form::Words];"]:
+            self.assertTrue(self.hit(line), line)
+
+    def test_a_map_over_forms_and_other_lists_are_not(self):
+        for line in ["            Form::Words | Form::Krux => None,", "    let l = [Form::Words];",
+                     "    pub const ALL: [BackupForm; 2] = [BackupForm::Words, BackupForm::Codex32];",
+                     "    for form in [Form::Short, Form::Number] {", "    [KeyForm::Xor, KeyForm::Krux]"]:
+            self.assertFalse(self.hit(line), line)
+
+
+class WayInRuleTests(unittest.TestCase):
+    RULE = next(r for r in lc.RULES if r.name == "way-in-outside")
+
+    def hit(self, line):
+        return any(p.search(line) for p in self.RULE.patterns)
+
+    def test_a_row_built_with_an_entry_action_is_a_hit(self):
+        for line in ["            Action::RSlotScan,", "        _ => Action::ScanSeed,",
+                     "            Action::EntryWordCount(n),", "    (words, Action::SignerCheck(SignerPress::SeedWords)),"]:
+            self.assertTrue(self.hit(line), line)
+
+    def test_a_handler_and_an_action_run_at_once_are_not(self):
+        for line in ["            Action::ScanSeed => self.scan(),", "        Action::EntryForm(f) | Action::RSlotForm(f) => {",
+                     "        self.act(Action::EntryForm(code));", "    app.press(Action::ScanSeed);",
+                     "        self.act(crate::Action::ScanSeed);"]:
+            self.assertFalse(self.hit(line), line)
+
+
 if __name__ == "__main__":
     unittest.main()

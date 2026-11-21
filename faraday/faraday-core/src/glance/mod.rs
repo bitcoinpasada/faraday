@@ -337,9 +337,9 @@ impl GlanceArea {
     /// takes what was typed in it, its result and its refusal with it.
     pub(crate) fn set_chart(&mut self, chart: Option<(Press, sheet::Target)>) {
         if matches!(self.chart, Some((_, sheet::Target::PassCheck(..)))) && self.chart != chart {
-            self.work.secret.clear();
+            self.work.pass.clear();
             self.work.result = None;
-            self.work.refused = false;
+            self.work.refused = None;
         }
         self.chart = chart;
     }
@@ -378,39 +378,54 @@ impl GlanceArea {
 
     /// Notes what checking the typed passphrase found, and wipes it.
     pub(crate) fn finish_pass_check(&mut self, matched: bool) {
-        self.work.secret.clear();
+        self.work.pass.clear();
         self.work.result = Some(matched);
     }
 
     /// Drops what a chart's sheet was asking: the typed passphrase is
     /// wiped.
     pub(crate) fn cancel_work(&mut self) {
-        self.work.secret.clear();
+        self.work.pass.clear();
     }
 
-    /// Types `c` into the passphrase to check: its last result and
-    /// refusal are gone.
-    pub(crate) fn type_pass_char(&mut self, c: char) {
-        self.work.secret.push(c);
-        self.work.result = None;
-        self.work.refused = false;
+    /// One key typed into the passphrase to check, through its field: a
+    /// key it takes or erases drops the last result, one it refuses is
+    /// said on the sheet.
+    pub(crate) fn pass_key(
+        &mut self,
+        key: crate::KeyIn,
+        gate: crate::pass_field::Gate,
+        medium: crate::Medium,
+    ) -> crate::pass_field::PassKey {
+        use crate::pass_field::PassKey;
+        let key = if key == crate::KeyIn::Delete {
+            crate::KeyIn::Backspace
+        } else {
+            key
+        };
+        let did = self.work.pass.key(key, gate);
+        match did {
+            PassKey::Typed => {
+                self.work.result = None;
+                self.work.refused = None;
+            }
+            PassKey::Refused(why) => {
+                self.work.refused = Some(crate::pass_field::refused_text(medium, why));
+            }
+            PassKey::Enter | PassKey::Escape | PassKey::Ignored => {}
+        }
+        did
     }
 
-    /// A character the passphrase does not take was typed: the sheet says so.
-    pub(crate) fn refuse_pass_char(&mut self) {
-        self.work.refused = true;
-    }
-
-    /// Erases the passphrase's last character; its last result is gone.
-    pub(crate) fn erase_pass_char(&mut self) {
-        self.work.secret.pop();
-        self.work.result = None;
+    /// Runs `f` on the passphrase field.
+    pub(crate) fn with_pass(&mut self, f: &mut dyn FnMut(&mut crate::pass_field::PassField)) {
+        f(&mut self.work.pass);
     }
 
     /// Closes the passphrase check: no refusal, nothing typed.
     pub(crate) fn close_pass_check(&mut self) {
-        self.work.refused = false;
-        self.work.secret.clear();
+        self.work.refused = None;
+        self.work.pass.clear();
     }
 
     /// The wallet whose money is moving to a new wallet, by checksum.
@@ -2456,9 +2471,9 @@ fn fp_text(f: faraday_bip::keys::Fingerprint) -> Text {
 // A passphrase typed to be checked.
 impl crate::at_lock::AtLock for GlanceArea {
     fn holds(&self) -> crate::at_lock::Holds {
-        crate::at_lock::Holds::typed(!self.work.secret.is_empty())
+        crate::at_lock::Holds::typed(self.work.pass.holds_any())
     }
     fn lock(&mut self) {
-        self.work.secret = crate::secret_text::SecretText::default();
+        self.work.pass.clear();
     }
 }

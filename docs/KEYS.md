@@ -104,7 +104,13 @@ boundary is.
   which wipes with the job. Drawing reads it. One eye (`typing.pass_eye`)
   shows or masks every one, closes at a lock, at the idle warning and when
   its screen is left, and a passphrase being made and typed on a hardware
-  keyboard waits for it to be opened once.
+  keyboard waits for it to be opened once. `tools/lint-components.py`
+  (rule `pass-field-outside`) counts, outside `pass_field/` in
+  faraday-core, a `SecretText` or `TextBox` field named for a passphrase
+  (and a prompt's `text: TextBox`, which holds one for a key or an export)
+  and the printable-ASCII key filter where it or the line after it names a
+  passphrase; its counts only fall as the remaining fields (a vault's
+  prompts) move onto the field.
 - **A stretch job** (`faraday/faraday-keys/src/job.rs`, WORKERS §6) is
   where a vault passphrase goes on to be stretched on the worker. An
   Open's passphrase is moved into a `StretchJob` (a `SecretText`, taken

@@ -226,8 +226,8 @@ fn the_descriptor_shown_as_a_code_stays_done_when_the_backup_is_opened_again() {
     assert!(done(&app, Item::ShowDescriptor), "forgotten when reopened");
 }
 
-#[test]
-fn a_passphrase_typed_back_stays_checked_when_the_backup_is_opened_again() {
+/// A paper backup with a passphrase, its check not yet opened.
+fn paper_passphrase_backup() -> (Faraday, usize) {
     let c = testkit::compute();
     let mut app = device(Vec::new());
     let m = faraday_bip::bip39::Mnemonic::parse(
@@ -264,6 +264,12 @@ fn a_passphrase_typed_back_stays_checked_when_the_backup_is_opened_again() {
         "{:?}",
         app.backup_items_now(&c)
     );
+    (app, w)
+}
+
+#[test]
+fn a_passphrase_typed_back_stays_checked_when_the_backup_is_opened_again() {
+    let (mut app, w) = paper_passphrase_backup();
     assert!(!done(&app, Item::Passphrase(0)));
     assert_eq!(app.backup().unwrap().open, Some(Item::Passphrase(0)));
     app.press(Action::BCheck);
@@ -275,6 +281,22 @@ fn a_passphrase_typed_back_stays_checked_when_the_backup_is_opened_again() {
     );
     reopened(&mut app, w);
     assert!(done(&app, Item::Passphrase(0)), "forgotten when reopened");
+}
+
+#[test]
+fn a_caret_moved_in_the_passphrase_typed_back_lands_where_it_shows() {
+    let (mut app, _) = paper_passphrase_backup();
+    app.press(Action::BCheck);
+    type_text(&mut app, "lantern-orchid-41");
+    // Left of the 1, Backspace takes the 4 and a 4 goes back in its place.
+    app.event(Event::Key(Key::Left));
+    app.event(Event::Key(Key::Backspace));
+    app.event(Event::Key(Key::Char('4')));
+    app.event(Event::Key(Key::Enter));
+    assert!(
+        done(&app, Item::Passphrase(0)),
+        "the caret did not land before the 1"
+    );
 }
 
 #[test]

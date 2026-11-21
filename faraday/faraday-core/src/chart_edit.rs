@@ -6,24 +6,24 @@
 
 use crate::glance::sheet::Target;
 use crate::glance::{self, Press};
+use crate::pass_field::{Gate, Kind, PassField, PassKey};
 use crate::plan::{At, Mark, Note, What};
-use crate::secret_text::SecretText;
 use crate::strings::EN;
 use crate::{Action, Faraday, Sheet};
 use faraday_crypto::work::Compute;
 use faraday_text::{Text, text};
 
 /// What the chart's sheets hold between presses.
-#[derive(Default)]
 pub struct Work {
     /// The name typed: a key's holder, a vault's.
     pub text: Text,
-    /// A passphrase typed to be checked, wiped once compared.
-    pub secret: SecretText,
+    /// A passphrase typed to be checked, wiped once compared: the one
+    /// field the passphrases are typed in.
+    pub(crate) pass: PassField,
     /// What the last check of a passphrase found.
     pub result: Option<bool>,
-    /// A letter typed was refused: a passphrase here is printable ASCII.
-    pub refused: bool,
+    /// Why the last key typed in the passphrase was refused.
+    pub refused: Option<Text>,
     /// The wallet whose money is moving to a new wallet, by checksum
     /// (`docs/WALLETS.md` §12).
     pub moving: Option<Text>,
@@ -31,7 +31,25 @@ pub struct Work {
     pub moving_to: Option<Text>,
 }
 
+impl Default for Work {
+    fn default() -> Work {
+        Work {
+            text: Text::default(),
+            pass: PassField::new(Kind::Bip39),
+            result: None,
+            refused: None,
+            moving: None,
+            moving_to: None,
+        }
+    }
+}
+
 impl Work {
+    /// The passphrase typed to be checked.
+    pub fn pass_text(&self) -> &str {
+        self.pass.as_str()
+    }
+
     /// Create made wallet `i` of `session`: the wallet the money moves
     /// to, while a move is under way.
     pub(crate) fn moved_to(&mut self, session: &crate::wallet::Session, i: usize) {
@@ -526,10 +544,10 @@ impl Faraday {
         let fp = self.chart_key_fp(&c, press, k);
         let matched = fp.and_then(|fp| {
             let key = self.session.keys.position_of(fp)?;
-            let made = self
-                .session
-                .keys
-                .fingerprint_with(&c, key, &self.glance.work().secret)?;
+            let made =
+                self.session
+                    .keys
+                    .fingerprint_with(&c, key, self.glance.work().pass.borrow())?;
             Some(made.0 == fp)
         });
         let matched = matched.unwrap_or(false);
@@ -639,24 +657,20 @@ impl Faraday {
                 true
             }
             Target::PassCheck(..) => {
-                match key {
-                    // BIP-39 passphrases here are printable ASCII.
-                    KeyIn::Char(c) if (' '..='~').contains(&c) => {
-                        self.glance.type_pass_char(c);
-                    }
-                    // Anything else is refused, and the sheet says so.
-                    KeyIn::Char(c) if !c.is_control() => self.glance.refuse_pass_char(),
-                    KeyIn::Backspace | KeyIn::Delete => self.glance.erase_pass_char(),
-                    KeyIn::Enter => {
+                let gate = Gate {
+                    stick: self.stick.in_the_way(),
+                };
+                match self.glance.pass_key(key, gate, self.medium) {
+                    PassKey::Enter => {
                         self.act(Action::Chart(glance::sheet::ChartAction::PassTry(press)))
                     }
-                    KeyIn::Escape if self.worker.busy().is_some() => self.act(Action::Cancel),
-                    KeyIn::Escape => {
+                    PassKey::Escape if self.worker.busy().is_some() => self.act(Action::Cancel),
+                    PassKey::Escape => {
                         self.glance.close_pass_check();
                         self.glance.set_chart(None);
                         self.sheet = None;
                     }
-                    _ => {}
+                    PassKey::Typed | PassKey::Refused(_) | PassKey::Ignored => {}
                 }
                 true
             }

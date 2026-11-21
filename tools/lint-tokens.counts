@@ -16,7 +16,7 @@ faraday/faraday-core/src/keygen/screen.rs 238
 faraday/faraday-core/src/lightning/screen.rs 31
 faraday/faraday-core/src/modes/screen.rs 10
 faraday/faraday-core/src/pass_field/screen.rs 12
-faraday/faraday-core/src/screens/backup.rs 160
+faraday/faraday-core/src/screens/backup.rs 151
 faraday/faraday-core/src/screens/catalog.rs 12
 faraday/faraday-core/src/screens/check_message.rs 30
 faraday/faraday-core/src/screens/create.rs 27

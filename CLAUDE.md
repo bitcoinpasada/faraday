@@ -138,6 +138,12 @@ plan <paths>` lists the ones a change touches.
   held by `lint-components`). Menu pages (Home, Tools, Check, Wallets
   start, Settings) draw on the menu page container, `docs/MENU-PAGE.md` (held
   by `lint-components`).
+- **Key forms and passphrases:** a key form is a row of the registry
+  (`faraday-forms`, `forms::Form`) and of `docs/KEY-FORMS.md`; a way in to a
+  key is drawn by the ways-in component (`ways_in`, DESIGN §4); a typed
+  passphrase is held and filtered only by `pass_field` (`docs/KEYS.md` §2),
+  and a vault whose passphrase was just set ends locked and is unlocked once
+  with it (F301). Held by `lint-components`.
 - **Drawing and costly work:** drawing reads and does not work things
   out; costly work takes `c: &Compute`; work added while drawing is timed once in a late-flow
   session, before it is pushed: `docs/SPEED.md` §3.3 and §7,
