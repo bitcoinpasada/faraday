@@ -59,6 +59,7 @@ pub(super) fn rail(starter: &Starter, ui: &mut Ui, h: f32) {
             top: &destinations(starter),
             under: &[],
             foot: &[],
+            mark: false,
         },
     );
 }

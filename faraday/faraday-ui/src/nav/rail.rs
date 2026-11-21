@@ -9,7 +9,7 @@ use crate::pal::*;
 use crate::{Shape, Ui};
 use faraday_draw::tokens::{
     FAB_H, GAP, GRID, ICON_SMALL, LABEL_L, LABEL_M, NAV_FAB_GAP, NAV_ICON, NAV_ICON_GAP,
-    NAV_ITEM_H, NAV_RAIL_TOP, PAD, RAIL_W, TOUCH,
+    NAV_ITEM_H, NAV_RAIL_TOP, PAD, RAIL_MARK_H, RAIL_MARK_W, RAIL_W, TOUCH,
 };
 use faraday_draw::widgets::Icon;
 
@@ -34,6 +34,8 @@ pub struct Rail<'s, A> {
     pub under: &'s [Dest<'s, A>],
     /// At its foot (Lock, Power off).
     pub foot: &'s [Dest<'s, A>],
+    /// The shield mark above the first destination (no wordmark).
+    pub mark: bool,
 }
 
 /// The rail down the window's left, `h` tall, on the surface as the
@@ -51,10 +53,25 @@ pub fn rail<A: Copy + PartialEq>(ui: &mut Ui<A>, h: f32, r: &Rail<A>) {
     } else {
         0.0
     };
-    let room = h - 2.0 * NAV_RAIL_TOP - divider - fab_h;
+    let mark = if r.mark {
+        RAIL_MARK_H + NAV_RAIL_TOP
+    } else {
+        0.0
+    };
+    let room = h - 2.0 * NAV_RAIL_TOP - divider - fab_h - mark;
     // Taller by what its label's line grows (`docs/TEXT-SIZE.md` §5).
     let ih = (room / n.max(1) as f32).clamp(TOUCH, NAV_ITEM_H + ui.line_grown_as(LABEL_M));
     let mut y = NAV_RAIL_TOP;
+    // The shield mark first, then Scan's FAB under it, then the destinations.
+    if r.mark {
+        ui.mark(
+            (RAIL_W - RAIL_MARK_W) / 2.0,
+            NAV_RAIL_TOP,
+            RAIL_MARK_W,
+            RAIL_MARK_H,
+        );
+        y += mark;
+    }
     if let Some(f) = &r.fab {
         ui.fab_top(((RAIL_W - FAB_H) / 2.0, y), None, f.icon, f.label, f.action);
     }

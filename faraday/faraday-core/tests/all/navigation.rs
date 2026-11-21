@@ -182,7 +182,7 @@ fn a_compact_window_shows_the_bars_five_destinations_and_each_opens() {
     assert_eq!(app.screen, Screen::Settings);
 }
 
-/// The rail at a window's left: the five destinations, the guide, Settings
+/// The rail at a window's left: the five destinations, Settings
 /// and (with a key held) Lock, each opening what it names.
 fn the_rail_offers_and_opens(width: u16, height: u16) {
     let mut app = on(width, height, 160);
@@ -204,7 +204,12 @@ fn the_rail_offers_and_opens(width: u16, height: u16) {
     assert!(home.1 < check.1 && check.1 < wallets.1, "Check under Home");
     tap(&mut app, check);
     assert_eq!(app.screen, Screen::Check);
-    let p = in_rail(&mut app, Action::Guide);
+    // The guide is the top app bar's ?, not a destination of the rail.
+    let p = at(&mut app, Action::Guide).expect("the ? in the top app bar");
+    assert!(
+        p.1 < 64 && p.0 > 80,
+        "the ? is not in the top app bar: {p:?}"
+    );
     tap(&mut app, p);
     assert_eq!(app.sheet, Some(Sheet::Guide));
     app.press(Action::Cancel);
@@ -228,12 +233,12 @@ fn the_rail_offers_and_opens(width: u16, height: u16) {
 }
 
 #[test]
-fn a_half_screen_window_shows_the_rail_with_guide_settings_and_lock() {
+fn a_half_screen_window_shows_the_rail_with_settings_and_lock() {
     the_rail_offers_and_opens(760, 1000);
 }
 
 #[test]
-fn a_seven_inch_panel_sized_window_shows_the_rail_with_guide_settings_and_lock() {
+fn a_seven_inch_panel_sized_window_shows_the_rail_with_settings_and_lock() {
     the_rail_offers_and_opens(960, 580);
 }
 

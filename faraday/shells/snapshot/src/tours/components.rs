@@ -144,6 +144,7 @@ fn rail(ui: &mut Ui<u8>) {
         top: &top,
         under: &[],
         foot: &[],
+        mark: false,
     };
     nav::rail(ui, 260.0, &rail);
     (ui.ox, ui.oy) = (0.0, 0.0);

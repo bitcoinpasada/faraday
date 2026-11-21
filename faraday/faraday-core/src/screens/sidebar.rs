@@ -6,7 +6,7 @@ use crate::strings::{EN, fill};
 use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{Glyph, NameSuffix, Ui};
-use crate::{Action, Screen, Sheet};
+use crate::{Action, Screen};
 use faraday_draw::tokens::{
     BODY_S, FAB_H, FAB_PAD, ICON_GAP, ICON_GLYPH, LABEL_L, LABEL_M, LABEL_S, NAV_FAB_GAP,
 };
@@ -61,8 +61,8 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     // capitals 9 tall, which ends it within the rows' labels' edge.
     ui.wordmark_named(58.0, 31.5, 9.0, Role::OnSurface, name_suffix(app));
 
-    // The places that are always offered, in order; the guide (not a place,
-    // a sheet) is drawn between Tools and whatever comes after it.
+    // The places that are always offered, in order; the guide is the top
+    // app bar's ?.
     let items = [
         (Glyph::Icon(Icon::House), EN.sidebar_home, Screen::Home),
         (Glyph::Icon(Icon::Verified), EN.sidebar_check, Screen::Check),
@@ -131,18 +131,6 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
         }
         if mine().next().is_some() {
             y += 4.0;
-        }
-        // The guide, after Tools: opens the guide sheet, not a screen.
-        if screen == Screen::Catalog {
-            row(
-                ui,
-                y,
-                Glyph::Icon(Icon::Help),
-                EN.sidebar_guide,
-                app.sheet == Some(Sheet::Guide) || app.guide_pane_shown(),
-                Action::Guide,
-            );
-            y += TOUCH;
         }
     }
 

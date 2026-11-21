@@ -185,6 +185,23 @@ pub(crate) fn lit_destination(app: &crate::drawing::View) -> Screen {
     }
 }
 
+/// Whether the screen on show is a destination's top page, the one the
+/// sidebar or the rail lists: Home, Check, Wallets' start, Files, Tools,
+/// Vaults' list (not one made from another flow), Settings' list and
+/// Transfer. The top app bar has no way back there. A lookup.
+pub(crate) fn top_destination(app: &crate::View) -> bool {
+    match app.screen {
+        Screen::Home | Screen::Check | Screen::WalletsStart | Screen::Files | Screen::Catalog => {
+            true
+        }
+        #[cfg(feature = "demo")]
+        Screen::Transfer => true,
+        Screen::Vaults => app.vaults.back_to.is_none(),
+        Screen::Settings => crate::screens::settings_open(app).is_none(),
+        _ => false,
+    }
+}
+
 /// Whether the screen on show carries the floating Scan button, where Scan
 /// floats ([`scan_floats`]): Home, and the top page of Check, Wallets,
 /// Files, Vaults and Tools on the phone-size window; on the Pi's menu Home

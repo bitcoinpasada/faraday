@@ -21,7 +21,6 @@ macro_rules! words_screens_sidebar {
     /// Text in `sidebar`. `{}`: `v`.
     sidebar_open_n: "{} open",
     /// Row in `sidebar`.
-    sidebar_guide: "Guide",
     /// Text in `more`. `{}`: `n - i`.
     sidebar_more: "+ {} more",
     /// A flow in progress's line in Home's box of what is loaded.

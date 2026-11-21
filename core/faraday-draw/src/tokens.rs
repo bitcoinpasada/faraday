@@ -1018,6 +1018,12 @@ pub const NAV_ICON: f32 = 16.0;
 /// The space between a destination's pill and its label.
 pub const NAV_LABEL_GAP: f32 = 4.0;
 
+/// The shield mark at the rail's top: its box's width.
+pub const RAIL_MARK_W: f32 = 24.0;
+
+/// The shield mark at the rail's top: its box's height.
+pub const RAIL_MARK_H: f32 = 28.0;
+
 /// The space above the rail's first destination and under its last.
 pub const NAV_RAIL_TOP: f32 = 12.0;
 

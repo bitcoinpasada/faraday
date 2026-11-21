@@ -10,8 +10,8 @@ use crate::ui::{Glyph, Shape, Ui, W};
 use crate::wallet::fp_text;
 use crate::{Action, Screen, Sheet};
 use faraday_draw::tokens::{
-    APP_BAR_H, BODY_S, CAPTION, GAP, GAP_SMALL, GRID, ICON_SMALL, LABEL_L, LOADED_LINE,
-    MARGIN_COMPACT, MODE_PILL_HEIGHT, NAV_ICON, PAD, SHAPE_M, SHAPE_XS, STATUS_CHIP_H, TOUCH,
+    APP_BAR_H, BODY_S, GAP, GAP_SMALL, GRID, ICON_SMALL, LABEL_L, LOADED_LINE, MODE_PILL_HEIGHT,
+    NAV_ICON, PAD, SHAPE_M, SHAPE_XS, STATUS_CHIP_H, TOUCH,
 };
 use faraday_draw::widgets::Icon;
 use faraday_ui::nav::{AppBar, Badge, Chip, Dest, Rail};
@@ -116,15 +116,12 @@ pub(crate) fn rail(app: &View, ui: &mut Ui, h: f32) {
         ),
     );
     top.extend(more);
-    let under = [
-        dest(app, Icon::Help, EN.sidebar_guide, Action::Guide),
-        dest(
-            app,
-            Icon::Settings,
-            EN.sidebar_settings,
-            Action::Nav(Screen::Settings),
-        ),
-    ];
+    let under = [dest(
+        app,
+        Icon::Settings,
+        EN.sidebar_settings,
+        Action::Nav(Screen::Settings),
+    )];
     faraday_ui::nav::rail(
         ui,
         h,
@@ -137,6 +134,7 @@ pub(crate) fn rail(app: &View, ui: &mut Ui, h: f32) {
             top: &top,
             under: &under,
             foot: &[],
+            mark: true,
         },
     );
 }
@@ -160,7 +158,7 @@ fn guide_tools(app: &View, ui: &mut Ui, mut right: f32, nav: Nav) -> f32 {
 }
 
 /// The top app bar across the page, `w` wide: the way back and the
-/// page's name (on Home, the wordmark), and at its right end the ⋮ menu
+/// page's name (never the wordmark: the rail carries the mark), the way back only below a destination, and at its right end the ⋮ menu
 /// and Lock on the bar's windows, the ?, the mode pill and the keyboard;
 /// on the wide layout (`Nav::ExpandedRail`), drawn after the page that
 /// scrolls under it, the name and way back the page handed over, and
@@ -234,33 +232,11 @@ pub(crate) fn app_bar(app: &View, ui: &mut Ui, w: f32, nav: Nav) -> f32 {
             None => (crate::compact::screen_name(app.screen), None),
         };
         let bar = AppBar {
-            back,
+            back: back.filter(|_| !super::top_destination(app)),
             title,
             back_tip: EN.tip_back,
         };
         faraday_ui::nav::app_bar(ui, w, &bar, ends);
-    } else if app.screen == Screen::Home {
-        faraday_ui::nav::app_bar(
-            ui,
-            w,
-            &AppBar {
-                back: None,
-                title: "",
-                back_tip: EN.tip_back,
-            },
-            ends,
-        );
-        // The mark and the name, as the sidebar's head draws them.
-        let (mw, mh) = (ICON_SMALL, ICON_SMALL + GAP_SMALL);
-        ui.mark(MARGIN_COMPACT, (APP_BAR_H - mh) / 2.0, mw, mh);
-        let suffix = crate::screens::name_suffix(app);
-        let nx = MARGIN_COMPACT + mw + GRID;
-        let ny = (APP_BAR_H - CAPTION) / 2.0;
-        // The name where it ends before the bar's actions, as a title is
-        // fitted; the app's word (DEMO, OFFLINE) under FARADAY where the
-        // two do not fit side by side; the mark alone where they leave no
-        // room for it.
-        ui.wordmark_fitted((nx, ny, ends - GAP - nx), CAPTION, Role::OnSurface, suffix);
     } else {
         let (back, name) = crate::compact::page_head(app);
         let back = app.named_back(back);
@@ -268,7 +244,7 @@ pub(crate) fn app_bar(app: &View, ui: &mut Ui, w: f32, nav: Nav) -> f32 {
             ui,
             w,
             &AppBar {
-                back: Some(back),
+                back: (!super::top_destination(app)).then_some(back),
                 title: name,
                 back_tip: EN.tip_back,
             },

@@ -195,3 +195,92 @@ fn wide_home_is_named_by_its_top_app_bar() {
         );
     }
 }
+
+/// A touch at (x, y), drawn after.
+fn touch(app: &mut Faraday, x: u16, y: u16) {
+    for phase in [TouchPhase::Down, TouchPhase::Up] {
+        app.event(Event::Touch { x, y, phase });
+    }
+    tick(app);
+}
+
+#[test]
+fn every_desktop_window_names_the_page_and_a_top_page_has_no_way_back() {
+    // (width, height, where the bar's first button would stand)
+    for (width, height, left) in [
+        (1024, 600, 80 + 28),
+        (700, 800, 80 + 28),
+        (1280, 800, 240 + 28),
+    ] {
+        let mut app = on(width, height, 160);
+        app.press(Action::Nav(Screen::Home));
+        let boxes = app.drawn_text_boxes();
+        let title = boxes
+            .iter()
+            .find(|(t, r)| {
+                t == EN.compact_home && r.1 + r.3 <= bar_px(160) && r.0 >= i32::from(left) - 28
+            })
+            .unwrap_or_else(|| panic!("Home is not named by the bar at {width} × {height}"));
+        let _ = title;
+        for dest in [
+            Screen::WalletsStart,
+            Screen::Files,
+            Screen::Catalog,
+            Screen::Check,
+        ] {
+            app.press(Action::Nav(dest));
+            tick(&mut app);
+            touch(&mut app, left, 32);
+            assert_eq!(
+                app.screen, dest,
+                "a way back on {dest:?} at {width} × {height}"
+            );
+        }
+    }
+}
+
+#[test]
+fn a_page_below_a_destination_has_its_way_back_on_the_rail_windows() {
+    for (width, height) in [(1024, 600), (700, 800)] {
+        let mut app = on(width, height, 160);
+        app.press(Action::Nav(Screen::WalletsStart));
+        app.press(Action::Nav(Screen::CheckMessage));
+        tick(&mut app);
+        // The bar's start, right of the rail: the arrow is under one of these.
+        let mut left_page = false;
+        for x in (84..200).step_by(8) {
+            touch(&mut app, x, 32);
+            if app.screen == Screen::WalletsStart {
+                left_page = true;
+                break;
+            }
+        }
+        assert!(left_page, "no way back at {width} × {height}");
+    }
+}
+
+#[test]
+fn the_guide_is_the_bars_question_mark_and_opens_the_pages_section() {
+    for (width, height) in [(1024, 600), (700, 800), (1280, 800)] {
+        let mut app = on(width, height, 160);
+        let mut keys = Vec::new();
+        for dest in [Screen::Check, Screen::Files] {
+            app.press(Action::Nav(dest));
+            tick(&mut app);
+            let (x, y) = app
+                .where_offered(Action::Guide)
+                .unwrap_or_else(|| panic!("no way into the guide at {width} × {height}"));
+            assert!(
+                i32::from(y) <= bar_px(160),
+                "Guide stands outside the top app bar at {x}, {y}, {width} × {height}"
+            );
+            touch(&mut app, x, y);
+            keys.push(app.guide().key);
+            app.press(Action::Cancel);
+        }
+        assert_ne!(
+            keys[0], keys[1],
+            "the guide opens at the same section on Check and Files"
+        );
+    }
+}

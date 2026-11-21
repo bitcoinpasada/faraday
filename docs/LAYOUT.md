@@ -53,9 +53,9 @@ app. A stick is no destination: it is a card of Files (F235, F290).
 |---|---|---|
 | Compact, short (the Pi) | Home is the menu, a button for each place in the rail's order but for the top pair (Wallets, Check, Files, Vaults, Tools, then Guide and Settings); every other page has the 44-unit bar with its back chevron | on Home's menu; Lock and Power off at its foot |
 | Compact | the navigation bar at the foot, 80 dp: Home, Wallets, Files, Vaults, Tools; Check is reached from Home's Check tile, as Material 3 gives the bar three to five destinations (F255) | the top app bar: the ? (Guide at the page's section), the power button (Lock, Restart, Power off), the ⋮ menu (Settings) |
-| Medium; Expanded | the navigation rail at the left, 80 dp: the six destinations, Check under Home, then Guide and Settings under a divider | Guide and Settings on the rail; the power button in the top app bar |
+| Medium; Expanded | the navigation rail at the left, 80 dp: the shield mark at its top (no wordmark), the six destinations, Check under Home, then Settings under a divider | Settings on the rail; the guide is the top app bar's ?, which opens the page's section; the power button in the top app bar; the bar names the page and has no way back on a destination's top page (F307) |
 | Expanded and low (the 7-inch panel) | the rail, as above | on the rail |
-| Large; Extra-large | the expanded rail at the left, 240 dp: today's sidebar, its tabs drawn as Material's destinations (icon and label in a row, the current one on an accent pill), Check under Home, its sections under caption headings; nothing at its foot but the idle lock's pill while the lock is held | Guide and Settings on the expanded rail; the power button in the top app bar |
+| Large; Extra-large | the expanded rail at the left, 240 dp: today's sidebar, its tabs drawn as Material's destinations (icon and label in a row, the current one on an accent pill), Check under Home, its sections under caption headings; nothing at its foot but the idle lock's pill while the lock is held | Settings on the expanded rail, no Guide (the bar's ? opens it, F307), no way back on a destination's top page; the power button in the top app bar |
 
 **The power button** (owner, 2026-11-21; F304) stands in the top app bar's
 actions beside the ?, on every window that has the bar over its page (the
@@ -254,7 +254,7 @@ and for Guide (`screens/guide_pane.rs`). The "Demo only" card that stood here is
 Faraday Demo's host strip now, outside the app (F118,
 `docs/DESKTOP-HOST.md`).
 
-Guide's pane, from 1600 dp: the ? and Guide in the sidebar, and the
+Guide's pane, from 1600 dp: the ? and the
 bar's Cryptography, open it beside the page, which is laid out in the
 room left of it, so nothing of the page is under it and the page takes
 presses as before; nothing else opens it, on any screen or size (owner,
@@ -488,7 +488,7 @@ thing.
 User-facing, each at the sizes that show it: a 268 × 358 panel shows
 Home's menu and no bar; a 400 × 800 window shows the bar's five
 destinations and each opens its screen; 760 × 1000 and 960 × 580 show
-the rail with Guide and Settings; 1280 × 800 and 1920 × 1080 show
+the rail with Settings; 1280 × 800 and 1920 × 1080 show
 the expanded rail with a flow in progress listed; Home's tiles never
 grow past their column and a row of two at 1920 leaves columns empty;
 Wallets at 1280 shows the list and the chosen wallet together, and at
