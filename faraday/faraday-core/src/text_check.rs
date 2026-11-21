@@ -60,7 +60,10 @@ pub fn check(c: &Compute, text: &str) -> TextCheck {
         return TextCheck::Secret(kind);
     }
     let file = wallet::classify(c, "text.txt", t.as_bytes());
-    if file.exposure() == Exposure::Secret {
+    // Bare hex the Inbox lists as a hex seed is shown or refused by its
+    // length below (a 64-digit hash is not refused): only a file is held.
+    let hex_line = crate::one_line::line_form(c, t) == Some(crate::forms::Form::HexSeed);
+    if file.exposure() == Exposure::Secret && !hex_line {
         return TextCheck::Secret(file_secret(file));
     }
     inside(c, t).unwrap_or(TextCheck::Fine)

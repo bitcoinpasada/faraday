@@ -302,6 +302,14 @@ pub(crate) fn message_secret_kind(c: &Compute, bytes: &[u8]) -> Option<Kind> {
     secret_kind(c, bytes)
 }
 
+/// Whether a read extended private key is one bare key of one line, which
+/// Add a key's form takes; a key inside a descriptor or after an origin is
+/// named a private key and never loaded.
+pub(crate) fn bare_xprv(text: &str) -> bool {
+    let t = text.trim();
+    !t.is_empty() && !t.contains(|c: char| c.is_whitespace() || matches!(c, '(' | '[' | ']' | '/'))
+}
+
 /// Costs what [`secret_kind`] costs but the paperkey's CRC. The secret
 /// kind a code's text is, if it is one.
 pub(crate) fn secret_text_kind(c: &Compute, text: &str) -> Option<Kind> {

@@ -1462,7 +1462,9 @@ impl Faraday {
                 facts.extend(scan_read::share_fact(&text));
                 vec![Way::Share]
             }
-            k if matches!(k.route(), scan_read::Route::Line(_)) => vec![Way::Key],
+            k if matches!(k.route(), scan_read::Route::Line(_)) && scan_read::bare_xprv(&text) => {
+                vec![Way::Key]
+            }
             Kind::Wif => vec![Way::Sweep],
             Kind::Aezeed => vec![Way::Lightning],
             Kind::Totp | Kind::Entries => {
@@ -2108,7 +2110,7 @@ impl Faraday {
         {
             return crate::seeds::kef::kef_code_scanned(self, bytes);
         }
-        if kind == Some(Kind::Xprv) {
+        if kind == Some(Kind::Xprv) && scan_read::bare_xprv(&trimmed(&bytes)) {
             return self.xprv_scanned(bytes);
         }
         let form = self.entry.state().form;
@@ -2293,6 +2295,7 @@ impl Faraday {
         if camera
             && self.may_load_keys()
             && scan_read::secret_kind(&c, &bytes) == Some(Kind::Xprv)
+            && scan_read::bare_xprv(&trimmed(&bytes))
         {
             let text = trimmed(&bytes);
             drop(bytes);
