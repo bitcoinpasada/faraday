@@ -96,5 +96,6 @@ Read for the area a change is in; no trailer attests it.
 - The medium's words come from Medium; "card or stick" on the Pi, "SD card" only for the card it started from.
 - A screen or component change names the Material 3 page it was checked against.
 - None of F111's left-out components is added.
+- A new step flow is drawn by the flow container (`docs/FLOW-CONTAINER.md`), with no column, foot or paging of its own.
 - Faraday Demo differs from the device only by a decision.
 - The Starter's maker pages show several families at once, no model, no maker's screenshot or name.

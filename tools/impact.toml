@@ -203,6 +203,16 @@ kind = "pair"
 with_each = ["docs/DESIGN.md"]
 
 [[rule]]
+id = "design.flow-row"
+title = "a new step flow has its row in the table of docs/FLOW-CONTAINER.md §8"
+source = ["docs/FLOW-CONTAINER.md"]
+when = ["faraday/faraday-core/src/**/*.rs"]
+lines = '^\+impl (crate::)?(trail::)?StepFlow for '
+kind = "pair"
+with = ["docs/FLOW-CONTAINER.md"]
+misses = "a flow renamed or moved shows as new; a flow's row changed with no new flow is not asked for"
+
+[[rule]]
 id = "deps.page"
 title = "a direct dependency added has its page in docs/deps/"
 source = ["docs/decisions/F71.md"]

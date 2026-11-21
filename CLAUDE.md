@@ -134,7 +134,8 @@ plan <paths>` lists the ones a change touches.
   new dimension is a name in `core/faraday-draw/src/tokens.rs`
   (`lint-tokens`: counts only fall). A difference from Material needs a
   decision; a screen review names the Material page it was checked
-  against.
+  against. Step flows draw on the flow container (`docs/FLOW-CONTAINER.md`,
+  held by `lint-components`).
 - **Drawing and costly work:** drawing reads and does not work things
   out; costly work takes `c: &Compute`; work added while drawing is timed once in a late-flow
   session, before it is pushed: `docs/SPEED.md` §3.3 and §7,

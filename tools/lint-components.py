@@ -59,6 +59,17 @@ RULES = [
         "a `PublicFile` variant, `.wire()` (faraday-core public_kind.rs)",
         skip=["faraday/faraday-core/src/public_kind.rs"],
     ),
+    # A step screen that draws its own column, foot or paging: every step flow
+    # is drawn by the flow container (docs/FLOW-CONTAINER.md), which owns them.
+    # Whether a flow declares `fn contained` cannot be counted by a line
+    # pattern (the trait's default returns None), so the rule holds the calls.
+    Rule(
+        "flow-own-layout",
+        [r"\bcolumn_foot\(", r"\bcolumn_wide\(", r"\bpaged\("],
+        ["faraday/"],
+        "the flow container (docs/FLOW-CONTAINER.md, faraday-core flow.rs)",
+        skip=["faraday/faraday-core/src/flow.rs", "faraday/faraday-core/src/flow/"],
+    ),
 ]
 
 
