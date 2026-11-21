@@ -1746,3 +1746,21 @@ fn a_stick_arriving_empties_a_slot_s_passphrases_and_they_take_no_typing_while_i
             .any(|t| t == "Keys load only with no stick attached")
     );
 }
+
+#[test]
+fn shift_tab_in_a_slot_s_passphrase_with_a_stick_attached_keeps_the_line_saying_why() {
+    let (mut app, _) = slot_with_passphrase_fields();
+    stick_in(&mut app);
+    type_text(&mut app, "x");
+    app.event(Event::Key(Key::BackTab));
+    let _ = app.frame();
+    assert!(
+        app.drawn_texts()
+            .plain()
+            .iter()
+            .any(|t| t == "Keys load only with no stick attached"),
+        "Shift-Tab is refused as Tab is"
+    );
+    let c = app.create().unwrap();
+    assert_eq!((c.pass(), c.pass2()), ("", ""));
+}

@@ -144,14 +144,20 @@ impl PassField {
     }
 
     /// Applies one key. The stick rule comes first: with a stick in the
-    /// way no character, Backspace, Delete, Enter or Tab goes in. Then the
-    /// kind's characters and most, Backspace, and Tab between a pair.
+    /// way no character, Backspace, Delete, Enter, Tab or Shift-Tab goes
+    /// in. Then the kind's characters and most, Backspace, and Tab between
+    /// a pair.
     /// Enter and Escape are for the screen.
     pub(crate) fn key(&mut self, key: KeyIn, gate: Gate) -> PassKey {
         if gate.stick
             && matches!(
                 key,
-                KeyIn::Char(_) | KeyIn::Backspace | KeyIn::Delete | KeyIn::Enter | KeyIn::Tab
+                KeyIn::Char(_)
+                    | KeyIn::Backspace
+                    | KeyIn::Delete
+                    | KeyIn::Enter
+                    | KeyIn::Tab
+                    | KeyIn::BackTab
             )
         {
             return PassKey::Refused(Refused::Stick);
