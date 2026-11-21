@@ -825,8 +825,9 @@ an ellipsis; the page scrolls. Rows, in order (label, then its line, then what a
      a multisig setup, its quorum, checksum and cosigners
      (`MultisigCheck` below).
   8. **Check a backup in another form**, "Shares, parts, a SeedQR, codex32 or a
-     Krux code": a menu (Material 3 Menus) of **SLIP-39 shares**, **Seed
-     XOR parts**, **SeedQR**, **codex32** and **Krux code**, each opening
+     Krux code": a menu (Material 3 Menus) of **SeedQR** and
+     **codex32** and, under **Other forms** (the ways-in component, KEY-FORMS
+     §4), **SLIP-39 shares**, **Seed XOR parts** and **Krux code**, each opening
      its tool as Tools does, the Krux code the scanner.
 - **Messages and keys**
   9. **Check a signed message**, "The message, its signature and the address":

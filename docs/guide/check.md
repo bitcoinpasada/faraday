@@ -18,7 +18,7 @@ Check lists what you can check a signer against, one tile for each thing, in gro
 
 **Key:** check.setup
 
-**Check a seed made from dice** opens Make a new key at its dice source. **Check a backup in another form** offers **SLIP-39 shares**, **Seed XOR parts**, **SeedQR**, **codex32** and **Krux code**, each opening its tool; **Krux code** opens Add a key on its Krux code form, to read a code. These buttons are tagged **Seed**: they work from the seed.
+**Check a seed made from dice** opens Make a new key at its dice source. **Check a backup in another form** offers **SeedQR**, **codex32** and **Other forms** (**SLIP-39 shares**, **Seed XOR parts**, **Krux code**), each opening its tool. **Krux code** opens Add a key to read a code. These buttons are tagged **Seed**: they work from the seed.
 
 ## Messages and keys
 

@@ -586,7 +586,7 @@ fn restore_open_slot(
     let mut labels: Vec<(String, Style, Action)> = Vec::new();
     for way in opener.up_front {
         labels.push(match way {
-            crate::ways_in::Way::Scan => (
+            crate::ways_in::Way::Scan | crate::ways_in::Way::SeedQr => (
                 EN.restore_open_slot_scan.to_string(),
                 Style::Secondary,
                 Action::RSlotScan,

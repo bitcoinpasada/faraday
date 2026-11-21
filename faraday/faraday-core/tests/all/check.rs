@@ -78,6 +78,19 @@ fn a_backup_in_another_form_offers_its_forms() {
     app.press(Action::Nav(Screen::Check));
     app.press(Action::Check(Press::Row(Row::Backup)));
     assert_eq!(app.sheet, Some(Sheet::CheckBackups));
+    // The SeedQR and codex32 first; the other copies under Other forms.
+    let first = app.drawn_texts();
+    for name in ["SeedQR", "codex32", "Other forms"] {
+        assert!(first.iter().any(|t| t.contains(name)), "{name}: {first:?}");
+    }
+    for name in ["SLIP-39 shares", "Seed XOR parts"] {
+        assert!(!first.iter().any(|t| t.contains(name)), "{name}: {first:?}");
+    }
+    app.press(Action::Check(Press::Other));
+    let all = app.drawn_texts();
+    for name in ["SeedQR", "codex32", "SLIP-39", "Seed XOR", "Krux"] {
+        assert!(all.iter().any(|t| t.contains(name)), "{name}: {all:?}");
+    }
     app.press(Action::Cancel);
     assert_eq!(app.sheet, None);
     assert_eq!(app.screen, Screen::Check);

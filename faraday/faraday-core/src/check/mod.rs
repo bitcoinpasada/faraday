@@ -63,14 +63,14 @@ impl Backup {
     }
 }
 
-/// The choices in the backup menu, in order.
-pub(crate) const FORMS: [Backup; 5] = [
-    Backup::Form(Form::Slip39),
-    Backup::Form(Form::Xor),
-    Backup::SeedQr,
-    Backup::Form(Form::Codex32),
-    Backup::Form(Form::Krux),
-];
+/// The backup menu's choice a way stands for, if it is one.
+pub(crate) fn backup_of(way: crate::ways_in::Way) -> Option<Backup> {
+    match way {
+        crate::ways_in::Way::SeedQr => Some(Backup::SeedQr),
+        crate::ways_in::Way::Form(f) => Some(Backup::Form(f)),
+        crate::ways_in::Way::Scan => None,
+    }
+}
 
 /// A press on Check.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -79,6 +79,8 @@ pub enum Press {
     Row(Row),
     /// A form in the backup menu.
     Form(Backup),
+    /// The backup menu's **Other forms**: opens or closes its rows.
+    Other,
 }
 
 /// One row as it is drawn: its label, its line, whether it works from the
@@ -190,6 +192,12 @@ pub(crate) fn press(app: &mut Faraday, p: Press) {
     match p {
         Press::Row(Row::Dice) => app.keygen_open_dice(),
         Press::Row(Row::Backup) => app.sheet = Some(Sheet::CheckBackups),
+        Press::Other => {
+            app.sheet = Some(match app.sheet {
+                Some(Sheet::CheckBackups) => Sheet::CheckBackupsOther,
+                _ => Sheet::CheckBackups,
+            });
+        }
         Press::Row(r) => tile(
             app,
             match r {

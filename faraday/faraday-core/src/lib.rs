@@ -587,6 +587,8 @@ pub enum Sheet {
     GpgTile,
     /// Check's **A backup in another form**: the forms to choose from.
     CheckBackups,
+    /// The same with its **Other forms** open.
+    CheckBackupsOther,
     /// Check a signer's **Load the seed**: the ways to load the seed of
     /// the key that signed (`decode/check_screen.rs`).
     SignerSeed,

@@ -22,6 +22,8 @@ use faraday_text::Text;
 pub(crate) enum Way {
     /// Scan a code: it switches form itself (§3.3).
     Scan,
+    /// A SeedQR: a writing of BIP-39 words, with a tool of its own.
+    SeedQr,
     /// One form of the table.
     Form(Form),
     /// A loaded key, by its place among the loaded keys.
@@ -215,12 +217,19 @@ pub(crate) const RESTORE_SLOT: Opener = Opener {
     up_front: &[Way::Form(Form::Words), Way::Scan, Way::Form(Form::Codex32)],
 };
 
+/// Check's backup menu: the copies Check reads back; the SeedQR and
+/// codex32 first.
+pub(crate) const CHECK_BACKUP: Opener = Opener {
+    forms: &[Form::Slip39, Form::Xor, Form::Codex32, Form::Krux],
+    up_front: &[Way::SeedQr, Way::Form(Form::Codex32)],
+};
+
 impl Opener {
     /// The forms shown first, in order.
     pub(crate) fn up_front_forms(&self) -> impl Iterator<Item = Form> + '_ {
         self.up_front.iter().filter_map(|w| match w {
             Way::Form(f) => Some(*f),
-            Way::Scan | Way::Holder(_) => None,
+            Way::Scan | Way::Holder(_) | Way::SeedQr => None,
         })
     }
 
