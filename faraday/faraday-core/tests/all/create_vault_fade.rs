@@ -379,12 +379,12 @@ fn after_the_fade_the_new_step_starts_at_its_top_as_with_reduce_motion() {
     still.press(Action::Vault(V::CStep(vstep::WHERE)));
     let plain = at_rest(&mut still, &mut clock);
     assert_eq!(heading, drawn_at(&mut still, "Where will you open it?"));
-    // The unlock time on this machine ("about 1.9 s") is measured on the
+    // The unlock time on this machine ("~1.9 s") is measured on the
     // real clock and differs from one app to the next: it is left out.
     let (text, measured) = (faded_text(&mut app), faded_text(&mut still));
     let timed = |t: &[Placed]| -> Vec<(i32, i32, i32, i32)> {
         t.iter()
-            .filter(|(s, _)| s.starts_with("about "))
+            .filter(|(s, _)| s.starts_with("~"))
             .map(|(_, b)| *b)
             .collect()
     };
@@ -396,11 +396,8 @@ fn after_the_fade_the_new_step_starts_at_its_top_as_with_reduce_motion() {
             .chain(&timed(&measured))
             .any(|b| (b.0..b.0 + b.2).contains(&x) && (b.1..b.1 + b.3).contains(&y))
     };
-    let plain_text = |t: Vec<Placed>| -> Vec<_> {
-        t.into_iter()
-            .filter(|(s, _)| !s.starts_with("about "))
-            .collect()
-    };
+    let plain_text =
+        |t: Vec<Placed>| -> Vec<_> { t.into_iter().filter(|(s, _)| !s.starts_with("~")).collect() };
     assert_eq!(
         plain_text(text.clone()),
         plain_text(measured.clone()),

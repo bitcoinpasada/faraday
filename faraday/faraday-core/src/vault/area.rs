@@ -187,6 +187,7 @@ impl VaultArea {
     #[cfg(any(test, feature = "testkit"))]
     pub(crate) fn set_speed(&mut self, ms: Option<u64>) {
         self.state.ms_per_unit = ms;
+        self.state.refresh_create_times();
     }
 
     /// Swaps open vaults `a` and `b` in the list, for the tests' kit.
@@ -461,6 +462,7 @@ impl VaultArea {
         // A form started anew is no item's: a wait is of its own form.
         self.state.copy_wait = None;
         self.state.create = Some(form);
+        self.state.refresh_create_times();
         self.state.back_to = Some(back);
         self.state.just_made = None;
         self.state.focus = focus;
@@ -774,6 +776,7 @@ impl VaultArea {
     pub(crate) fn set_memory_free(&mut self, mib: u32) {
         let before = self.state.memory_free_mib;
         self.state.memory_free_mib = Some(mib);
+        self.state.refresh_create_times();
         self.forget_short_reads(before);
         self.tell_copy_room();
     }
@@ -825,6 +828,7 @@ impl VaultArea {
         if let Some(read) = self.state.memory_reader {
             let before = self.state.memory_free_mib;
             self.state.memory_free_mib = read();
+            self.state.refresh_create_times();
             self.forget_short_reads(before);
         }
         self.tell_copy_room();
@@ -2117,6 +2121,14 @@ pub struct CreateForm {
     pub error: Option<Text>,
     /// The key file the vault will need, if one was added.
     pub key: KeyChoice,
+    /// The unlock time of the cost chosen on the slowest machine chosen,
+    /// with its name: worked out where the cost, the machines or the
+    /// speed change ([`VaultArea::refresh_create_times`]), for the summary
+    /// to read.
+    pub slowest: Option<(Text, f64)>,
+    /// "~13 s on Pi Zero 2 W, ~8.8 s on Pi 3": the estimate on each
+    /// machine ticked, slowest first; empty with none ticked.
+    pub on_each: Text,
 }
 
 /// The key file Create a vault is asked to make the vault need. Nothing
@@ -2153,6 +2165,8 @@ impl Default for CreateForm {
             from_dice: vec![None],
             error: None,
             key: KeyChoice::None,
+            slowest: None,
+            on_each: Text::default(),
         }
     }
 }
@@ -2915,19 +2929,62 @@ impl Vaults {
         self.search = super::search::Searches::default();
     }
 
-    /// Seconds to unlock at a cost on this computer, when measured.
-    pub fn seconds(&self, memory_mib: u32, passes: u32) -> Option<f64> {
-        self.ms_per_unit
-            .map(|ms| ms as f64 * f64::from(memory_mib) / 64.0 * f64::from(passes) / 1000.0)
+    /// Seconds to unlock at a cost on this computer: its measured speed,
+    /// before that the estimate for a recent PC (`MACHINE_SECONDS`).
+    pub fn seconds(&self, memory_mib: u32, passes: u32) -> f64 {
+        match self.ms_per_unit {
+            Some(ms) => ms as f64 * f64::from(memory_mib) / 64.0 * f64::from(passes) / 1000.0,
+            None => machine_seconds(0, memory_mib, passes),
+        }
     }
 
-    /// "about 1.8 s", or that it is not measured yet.
-    pub fn time_text(&self, memory_mib: u32, passes: u32) -> Text {
-        match self.seconds(memory_mib, passes) {
-            Some(s) if s < 10.0 => Text::fill(EN.vaults_about_s, &[&text!("{s:.1}")]),
-            Some(s) => Text::fill(EN.vaults_about_s, &[&Text::num(s.round() as u64)]),
-            None => Text::of(EN.vaults_not_measured),
+    /// Works out Create's unlock times again, for the summary to read:
+    /// after the cost, the machines chosen or this computer's speed
+    /// change. The slowest by its estimate (this computer by its own
+    /// speed once measured), and the estimate on each machine ticked.
+    pub(crate) fn refresh_create_times(&mut self) {
+        let Some((_, mem, passes)) = self.form_cost() else {
+            return;
+        };
+        let mut times: Vec<(Text, Text, f64)> = Vec::new();
+        if let Some(c) = self.create.as_ref() {
+            if !c.not_here {
+                times.push((
+                    Text::of(EN.vaults_this_computer_name),
+                    Text::of(EN.vaults_this_computer_name),
+                    self.seconds(mem, passes),
+                ));
+            }
+            for (k, m) in MACHINES.iter().enumerate().rev() {
+                if c.on[k] {
+                    times.push((
+                        Text::of(m.0),
+                        Text::of(m.1),
+                        machine_seconds(k, mem, passes),
+                    ));
+                }
+            }
         }
+        let slowest = times
+            .iter()
+            .max_by(|a, b| a.2.total_cmp(&b.2))
+            .map(|t| (t.0.clone(), t.2));
+        let here = usize::from(self.create.as_ref().is_some_and(|c| !c.not_here));
+        let parts: Vec<Text> = times
+            .iter()
+            .skip(here)
+            .map(|(_, name, s)| Text::fill(EN.vault_time_on, &[seconds_text(*s).as_str(), name]))
+            .collect();
+        let on_each = Text::joined(&parts, ", ");
+        if let Some(c) = self.create.as_mut() {
+            c.slowest = slowest;
+            c.on_each = on_each;
+        }
+    }
+
+    /// "~1.8 s": this computer's unlock time at a cost.
+    pub fn time_text(&self, memory_mib: u32, passes: u32) -> Text {
+        seconds_text(self.seconds(memory_mib, passes))
     }
 
     /// Create's cost: memory MiB and passes.
@@ -3127,8 +3184,7 @@ impl Vaults {
 
     /// The machine that gives a vault the least unlock memory among
     /// those chosen, label and MiB: this computer what it has free (see
-    /// `here_limit`), a 512 MB Pi Zero 2 W 128 MiB, any other half of its
-    /// memory. With none chosen, this computer.
+    /// `here_limit`), any other half of its memory. With none chosen, this computer.
     pub fn weakest(&self) -> (Text, u32) {
         match self.create.as_ref() {
             Some(c) => Self::weakest_of(self.here_limit(), c.not_here, &c.on),
@@ -3143,7 +3199,7 @@ impl Vaults {
         let here = (Text::of(EN.vaults_this_computer_name), here);
         let mut w: Option<(Text, u32)> = (!not_here).then_some(here.clone());
         for (k, m) in MACHINES.iter().enumerate() {
-            let gives = machine_gives(m.3);
+            let gives = m.3 / 2;
             if on[k] && w.as_ref().is_none_or(|w| gives < w.1) {
                 w = Some((Text::of(m.0), gives));
             }
@@ -3604,12 +3660,32 @@ pub const MACHINES: [(&str, &str, &str, u32); 5] = [
     (EN.vaults_pi_zero_2_w, EN.vaults_pi_zero_2_w, "512 MB", 512),
 ];
 
-/// The most MiB of unlock memory a machine with `ram` MiB opens a vault
-/// with, as `docs/VAULT.md` §3.1's table says: half its memory, except
-/// the 512 MB Pi Zero 2 W, which opens 128 MiB at most (256 MiB needs
-/// 357 MiB free, more than it has beside what it runs).
-pub fn machine_gives(ram: u32) -> u32 {
-    if ram == 512 { 128 } else { ram / 2 }
+/// Estimated seconds to unlock 64 MiB at 3 passes on each of `MACHINES`,
+/// in its order: from the timings so far (`docs/VAULT.md` §3.1, "Time"),
+/// corrected when a board is timed. The recent PC (first) is also this
+/// computer's figure until its own speed is measured.
+const MACHINE_SECONDS: [f64; 5] = [0.2, 0.3, 0.8, 2.2, 3.2];
+
+/// Estimated seconds to unlock `memory_mib` at `passes` on machine `k` of
+/// `MACHINES`: its figure for 64 MiB at 3 passes, scaled by memory and passes.
+pub fn machine_seconds(k: usize, memory_mib: u32, passes: u32) -> f64 {
+    MACHINE_SECONDS[k] * f64::from(memory_mib) / 64.0 * f64::from(passes) / 3.0
+}
+
+/// Whether [`seconds_text`] shows `s` as 10 s or more: the time Create
+/// warns of.
+pub fn shown_ten_or_more(s: f64) -> bool {
+    s >= 9.95
+}
+
+/// "~1.8 s": a time estimate, one decimal under 10 s as shown, whole
+/// seconds from there.
+pub fn seconds_text(s: f64) -> Text {
+    if !shown_ten_or_more(s) {
+        Text::fill(EN.vaults_about_s, &[&text!("{s:.1}")])
+    } else {
+        Text::fill(EN.vaults_about_s, &[&Text::num(s.round() as u64)])
+    }
 }
 
 /// What the app itself takes beside a vault's unlock memory and file,

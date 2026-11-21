@@ -902,6 +902,7 @@ pub(crate) fn measured(app: &mut Faraday, done: MeasureDone) -> bool {
         return false;
     };
     app.vaults.state.ms_per_unit = Some(ms);
+    app.vaults.state.refresh_create_times();
     true
 }
 

@@ -594,10 +594,10 @@ fn this_computer_gives_what_it_has_free_and_can_be_unticked() {
         "{text:?}"
     );
     let suggested = |app: &Faraday| PRESETS[app.vaults().suggested()].1;
-    // The default row ticks other PCs and the Zero 2 W, which opens 128 MiB
-    // at most: Suggested is the 128 MiB row, and 256 MiB is too large.
-    assert_eq!(suggested(&app), 128);
-    assert_eq!(app.vaults().weakest().1, 128, "256 MiB is too large");
+    // The default row ticks other PCs and the Zero 2 W, which opens 256 MiB
+    // at most (slowly): 512 MiB is too large.
+    assert_eq!(suggested(&app), 256);
+    assert_eq!(app.vaults().weakest().1, 256, "512 MiB is too large");
     // This computer alone: all it gives.
     app.press(Action::Vault(V::CMachine(0)));
     app.press(Action::Vault(V::CMachine(4)));
@@ -935,7 +935,7 @@ fn a_cost_stays_while_it_fits_the_machines_and_is_cleared_when_it_does_not() {
         form.done[usize::from(vstep::COST)],
         "512 MiB still fits PCs"
     );
-    // A Raspberry Pi Zero 2 W opens 128 MiB at most.
+    // A Raspberry Pi Zero 2 W opens 256 MiB at most.
     app.press(Action::Vault(V::CMachine(4)));
     let form = app.vaults().create.as_ref().unwrap();
     assert!(
@@ -1060,26 +1060,26 @@ fn a_lock_empties_a_new_vaults_passphrases() {
     );
 }
 
-/// A 256 MiB cost chosen for other PCs alone is cleared by ticking the
+/// A 512 MiB cost chosen for other PCs alone is cleared by ticking the
 /// Pi Zero 2 W, and the Unlock cost card then reads the larger rows too
 /// large for it; no row is tagged Suggested.
 #[test]
-fn ticking_the_zero_2_w_clears_a_256_mib_cost_and_suggests_128() {
+fn ticking_the_zero_2_w_clears_a_512_mib_cost_and_suggests_256() {
     use faraday_core::vault::vstep;
     let mut app = on_create_vault();
     app.press(Action::Vault(V::CStep(vstep::PRESET)));
     app.press(Action::Vault(V::CCustomise));
     app.press(Action::Vault(V::CMachine(4)));
     app.press(Action::Vault(V::CNext(vstep::WHERE)));
-    app.press(Action::Vault(V::CPreset(2)));
-    assert_eq!(form_memory(&app), 256);
+    app.press(Action::Vault(V::CPreset(3)));
+    assert_eq!(form_memory(&app), 512);
     app.press(Action::Vault(V::CNext(vstep::COST)));
     app.press(Action::Vault(V::CStep(vstep::WHERE)));
     let _ = app.frame();
     app.press(Action::Vault(V::CMachine(4)));
     assert!(
         !app.vaults().create.as_ref().unwrap().done[usize::from(vstep::COST)],
-        "256 MiB does not fit a Pi Zero 2 W: the cost is asked again"
+        "512 MiB does not fit a Pi Zero 2 W: the cost is asked again"
     );
     app.press(Action::Vault(V::CNext(vstep::WHERE)));
     let _ = app.frame();
@@ -1089,11 +1089,51 @@ fn ticking_the_zero_2_w_clears_a_256_mib_cost_and_suggests_128() {
         text.iter()
             .filter(|t| *t == "Too large for Pi Zero 2 W")
             .count(),
-        3,
-        "256 MiB, 512 MiB and 1 GiB: {text:?}"
+        2,
+        "512 MiB and 1 GiB: {text:?}"
     );
     assert_eq!(
         faraday_core::vault::PRESETS[app.vaults().suggested()].1,
-        128
+        256
     );
+}
+
+/// Each ticked machine's unlock time is an estimate with "~", slowest
+/// first, with this computer's speed unmeasured (the estimate for a
+/// recent PC stands) and measured; and a time over 10 seconds on one of
+/// them is warned of.
+#[test]
+fn the_summary_estimates_the_unlock_time_on_each_ticked_machine() {
+    use faraday_core::vault::vstep;
+    let mut app = on_create_vault();
+    app.press(Action::Vault(V::CStep(vstep::PRESET)));
+    app.press(Action::Vault(V::CCustomise));
+    faraday_core::testkit::vault_speed(&mut app, None);
+    let _ = app.frame();
+    let text = app.drawn_texts();
+    assert!(
+        text.iter()
+            .any(|t| t.starts_with("~3.2 s on Pi Zero 2 W, ~0.2 s on ")),
+        "{text:?}"
+    );
+    assert!(text.iter().any(|t| t == "~0.2 s"), "{text:?}");
+    assert!(!text.iter().any(|t| t.contains("not measured")), "{text:?}");
+    // Measured at 180 ms a pass over 64 MiB, this computer takes 0.54 s.
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
+    let _ = app.frame();
+    let text = app.drawn_texts();
+    assert!(text.iter().any(|t| t == "~0.5 s"), "{text:?}");
+    // 1 GiB takes 51 s on the Zero 2 W (16 times 64 MiB, 3.2 s each),
+    // however fast this computer is.
+    for ms in [Some(180), None] {
+        faraday_core::testkit::vault_speed(&mut app, ms);
+        app.press(Action::Vault(V::CPreset(4)));
+        let _ = app.frame();
+        let text = app.drawn_texts();
+        assert!(
+            text.iter()
+                .any(|t| t == "Pi Zero 2 W: unlocking takes ~51 s."),
+            "{text:?}"
+        );
+    }
 }

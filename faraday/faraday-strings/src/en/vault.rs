@@ -181,11 +181,11 @@ macro_rules! words_vault {
     vault_this_computer_n: "This computer cannot allocate {}. A vault it could not open is never written.",
     /// Text in `create_summary`. `{}`: `name`, `mib_text(mem)`, `weakest`, `mib_text(limit)`.
     vault_memory_mismatch: "{} needs {}. {} gives a vault {} at most.",
-    /// Text in `create_summary`. `{}`: `app.vaults.time_text(mem, passes)`.
-    vault_unlocking_takes: "Unlocking takes {} here.",
-    /// Text in `create_summary`: the estimate for a Raspberry Pi 3B+
-    /// (`docs/VAULT.md`, the reference table).
-    vault_raspberry_pi: "On a Raspberry Pi 3B+, about 2.5 s at 64 MiB and 20 s at 512 MiB, 3 passes.",
+    /// Text in `create_summary`. `{}`: the machine's name, its time.
+    vault_unlocking_takes: "{}: unlocking takes {}.",
+    /// Text in `create_summary`: one ticked machine's estimate. `{}`: the
+    /// time, the machine's short name.
+    vault_time_on: "{} on {}",
     /// Line in `create_summary`.
     vault_will_create: "Will create",
     /// Text in `create_summary`.
@@ -632,10 +632,8 @@ macro_rules! words_vault {
     vaults_pass: "pass",
     /// Text in `cost_text`.
     vaults_passes: "passes",
-    /// Text in `time_text`. `{}`: `s.round() as u64`.
-    vaults_about_s: "about {} s",
-    /// Text in `time_text`.
-    vaults_not_measured: "not measured yet",
+    /// Text in `seconds_text`. `{}`: `s.round() as u64`.
+    vaults_about_s: "~{} s",
     /// Text in `weakest`.
     vaults_this_computer_name: "This computer",
     /// Text in `kept_wiped`.

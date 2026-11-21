@@ -39,17 +39,18 @@ pub(super) fn create_summary(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -
             warn.paint(),
         ));
     }
-    if app.vaults.seconds(mem, passes).is_some_and(|s| s > 10.0) {
+    // The slowest machine ticked, by its estimate (this computer by its
+    // own speed once measured), worked out with the form's cost.
+    if let Some((label, s)) = c.slowest.as_ref()
+        && vault::shown_ten_or_more(*s)
+    {
         warnings.push((
-            fill(
-                EN.vault_unlocking_takes,
-                &[&app.vaults.time_text(mem, passes)],
-            ),
+            fill(EN.vault_unlocking_takes, &[label, &vault::seconds_text(*s)]),
             warn.paint(),
         ));
     }
-    if c.on[1..].iter().any(|on| *on) {
-        warnings.push((EN.vault_raspberry_pi.to_string(), muted.paint()));
+    if !c.on_each.is_empty() {
+        warnings.push((c.on_each.as_str().to_owned(), muted.paint()));
     }
     y += 4.0;
     for (t, color) in &warnings {

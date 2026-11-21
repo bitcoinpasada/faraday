@@ -20,7 +20,7 @@ This step sets the unlock cost from the machines the vault must open on. The cos
 
 **Key:** create-vault.where
 
-Tick every machine the vault must open on. A cost row says whether it fits the ticked machine with the least memory; a Pi Zero 2 W takes 128 MiB at most, and 256 MiB or more is too large for it.
+Tick every machine the vault must open on. A cost row says whether it fits the ticked machine with the least memory; a Pi Zero 2 W takes 256 MiB at most (256 MiB slowly), and 512 MiB or more is too large for it.
 
 **This computer**, **Other PCs**, **Raspberry Pi 5**, **Raspberry Pi 4**, **Raspberry Pi 3** and **Pi Zero 2 W** each tick or untick a kind of machine, with its memory shown. **Continue** opens Unlock cost.
 

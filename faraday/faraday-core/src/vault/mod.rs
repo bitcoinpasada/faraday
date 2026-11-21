@@ -483,6 +483,7 @@ impl Faraday {
                 self.vaults.state.skipped_from = None;
                 self.secret_sheet_waits();
                 self.vaults.state.create = Some(CreateForm::starting());
+                self.vaults.state.refresh_create_times();
                 self.scroll.set_choices_offset(0.0);
                 self.vaults.state.just_made = None;
                 // However Create is reached, it opens with dots.

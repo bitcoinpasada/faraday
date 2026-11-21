@@ -264,19 +264,19 @@ falls short. **Where will you open it?** ticks the machines; no step is
 tagged as suggested, each row says whether it fits the weakest chosen. **This computer** is
 ticked by default and can be unticked; it gives a vault the largest step
 that fits in what it has free beside twice the vault file and 100 MiB
-(below). Another machine gives half its memory, except a 512 MB Pi Zero 2 W, which gives 128 MiB:
+(below). Another machine gives half its memory (a 512 MB Pi Zero 2 W gives 256 MiB):
 
 | Memory | Memory free to open | Opens on |
 |---|---|---|
 | 64 MiB | 165 MiB (172 MiB) | anything, a 512 MB Pi Zero 2 W included |
 | 128 MiB | 229 MiB (236 MiB) | a Pi Zero 2 W and anything larger |
-| 256 MiB | 357 MiB (364 MiB) | a 1 GB Raspberry Pi 3 and anything larger |
+| 256 MiB | 357 MiB (364 MiB) | a 1 GB Raspberry Pi 3 and anything larger; a 512 MB Pi Zero 2 W, slowly |
 | 512 MiB | 613 MiB (620 MiB) | a 1 GB Pi 3 with little else running; any PC |
 | 1 GiB | 1,125 MiB (1,132 MiB), about 1.1 GiB | a Pi 4 or 5 with 2 GB or more; a PC with 2 GB or more |
 
 The figures are for a new vault's 32 KiB file, and in parentheses for one
-of 4 MiB; each further MiB of the file adds two (§2). A vault meant for a Pi Zero 2 W takes 64 or
-128 MiB.
+of 4 MiB; each further MiB of the file adds two (§2). A vault meant for a Pi Zero 2 W takes 64, 128 or
+256 MiB (256 MiB slowly).
 
 Create offers only a cost it writes as stated: the five steps, at most
 1 GiB, always at 3 passes (Strong is 1024 MiB and 3); the file's header
@@ -307,7 +307,7 @@ whatever that system leaves free.
 Two cautions are not settled by the table and are measured before
 release: the Pi 3 image is 32-bit, where one allocation of 512 MiB or 1
 GiB may fail even with the memory free; and the time column below is
-empty until measured.
+an estimate until measured.
 
 **Time.** Faraday states the unlock time of each step on this computer.
 Times on other machines come from the reference table, filled on
@@ -315,13 +315,13 @@ reference hardware and published with each release:
 
 | Machine | 64 MiB | 128 MiB | 256 MiB | 512 MiB | 1 GiB |
 |---|---|---|---|---|---|
-| Raspberry Pi Zero 2 W | to be measured | to be measured | — | — | — |
-| Raspberry Pi 3B+ | 2.1 s | to be measured | to be measured | 17.2 s | — |
-| Raspberry Pi 4 (4 GB) | to be measured | to be measured | to be measured | to be measured | to be measured |
-| Raspberry Pi 5 (8 GB) | to be measured | to be measured | to be measured | to be measured | to be measured |
-| Recent x86-64 laptop | to be measured | to be measured | to be measured | to be measured | to be measured |
+| Raspberry Pi Zero 2 W | ~3.2 s | ~6.4 s | ~13 s | — | — |
+| Raspberry Pi 3B+ | ~2.2 s | ~4.4 s | ~8.8 s | ~18 s | — |
+| Raspberry Pi 4 (4 GB) | ~0.8 s | ~1.6 s | ~3.2 s | ~6.4 s | ~13 s |
+| Raspberry Pi 5 (8 GB) | ~0.3 s | ~0.6 s | ~1.2 s | ~2.4 s | ~4.8 s |
+| Recent x86-64 laptop | ~0.2 s | ~0.4 s | ~0.8 s | ~1.6 s | ~3.2 s |
 
-The Pi 3B+ figures are one unlock each, timed on the worker at 1400 MHz, 3 passes. The Zero 2 W, 4 and 5 stay to be measured.
+The Pi 3B+ was timed once at 2.1 s for 64 MiB and 17.2 s for 512 MiB (one unlock each, on the worker at 1400 MHz, 3 passes); the table keeps 2.2 s, the figure the app uses. Every figure is an estimate from the timings so far, corrected when a board is timed. The app shows these estimates the same way, "~13 s", scaled by memory and passes from the 64 MiB figure (one table by machine in `faraday-core`, `MACHINE_SECONDS`), and this computer's own measured speed replaces the recent laptop's once it is known.
 
 The Raspberry Pi rows come from the dev card's timings: a Pi booted from
 a `dev=1` image writes each vault made and unlocked into
@@ -338,7 +338,8 @@ allocate as "failed: no memory". Faraday runs the lanes on one core
 - Memory above what the weakest machine chosen gives a vault (above) is
   a warning naming that machine.
 - An unlock time above 10 seconds on the slowest chosen machine, by the
-  reference table, is a warning.
+  reference table, is a warning naming that machine; the summary gives each
+  ticked machine's estimated time, "~13 s on Pi Zero 2 W, ~8.8 s on Pi 3" at 256 MiB.
 - The summary panel shows the unlock memory, the unlock time here and
   the unlock cost only once Customize is open; the default's figures
   are on its Size row. On the wide layout the summary stands in the Your choices

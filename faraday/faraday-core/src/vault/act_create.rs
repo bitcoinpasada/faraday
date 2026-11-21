@@ -113,6 +113,7 @@ impl VaultArea {
             V::CName => self.state.focus = Some(Focus::Name),
             _ => return false,
         }
+        self.state.refresh_create_times();
         true
     }
 }
