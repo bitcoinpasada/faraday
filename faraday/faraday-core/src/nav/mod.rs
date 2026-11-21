@@ -15,6 +15,8 @@ pub enum MenuPress {
     /// Opens it: with `None` the bar's windows' menu (Settings, Power
     /// off); with what a compact bar had no room for, that bar's overflow.
     Open(Option<Overflow>),
+    /// Opens the power button's menu: Lock, Restart and Power off.
+    Power,
     /// A screen chosen in it: it closes and goes there.
     Go(Screen),
     /// A tool of the bar chosen in its overflow: it closes and the tool
@@ -43,8 +45,10 @@ pub enum BarTool {
     Eye,
     /// **Lock**, on the Pi's panel while something is held.
     Lock,
-    /// **Power off**, on the Pi's panel.
+    /// **Power off**, on the Pi's panel and in the power button's menu.
     Power,
+    /// **Restart**, in the power button's menu: the power sheet, which offers it.
+    Restart,
 }
 
 /// Which of a compact bar's tools are in its overflow menu.

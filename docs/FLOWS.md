@@ -787,7 +787,7 @@ all** above them →
 - a stick is attached → "Remove the stick to unlock", which clears itself
   when the stick goes.
 
-**Lock** (sidebar, a vault's page, or 30 minutes idle at first, set in
+**Lock** (the top app bar's power button, a vault's page, or 30 minutes idle at first, set in
 Settings, F58; a warning comes up to 5 minutes before an idle lock) →
 the lock sheet (decision 28, below) → vaults sealed For the stick → the
 Wallets session wiped → app restarts → Unlock. The idle lock comes while

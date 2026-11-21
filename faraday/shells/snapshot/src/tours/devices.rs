@@ -202,6 +202,16 @@ pub(crate) fn toasts_tour(t: &mut Tour) -> Result<(), String> {
 /// The power sheet on a PC stick that started with Secure Boot on, and
 /// with it off (the reminder and this computer's BIOS key).
 pub(crate) fn power_tour(t: &mut Tour) -> Result<(), String> {
+    // Home, and the top app bar's power button's menu with a key held:
+    // Lock, Restart, Power off.
+    t.press(Action::Entry(None));
+    type_text(t, &testkit::test_words(testkit::TEST_SEEDS[0].0));
+    t.press(Action::EntryAdd);
+    t.press(Action::Nav(Screen::Home));
+    t.shot("home")?;
+    t.press(Action::NavMenu(faraday_core::nav::MenuPress::Power));
+    t.shot("power-menu")?;
+    t.press(Action::Cancel);
     t.app.secure_boot = faraday_core::SecureBootAtStart::On;
     t.press(Action::PowerAsk);
     t.shot("power-sheet")?;

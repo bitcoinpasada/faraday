@@ -51,11 +51,20 @@ app. A stick is no destination: it is a card of Files (F235, F290).
 
 | Class | Navigation | Guide, Settings, Lock |
 |---|---|---|
-| Compact, short (the Pi) | Home is the menu, a button for each place in the rail's order but for the top pair (Wallets, Check, Files, Vaults, Tools, then Guide and Settings); every other page has the 44-unit bar with its back chevron | on Home's menu; Lock and the power button at its foot |
-| Compact | the navigation bar at the foot, 80 dp: Home, Wallets, Files, Vaults, Tools; Check is reached from Home's Check tile, as Material 3 gives the bar three to five destinations (F255) | the top app bar: the ? (Guide at the page's section), the ⋮ menu (Settings), Lock |
-| Medium; Expanded | the navigation rail at the left, 80 dp: the six destinations, Check under Home, then Guide and Settings under a divider, Lock at its foot | on the rail |
+| Compact, short (the Pi) | Home is the menu, a button for each place in the rail's order but for the top pair (Wallets, Check, Files, Vaults, Tools, then Guide and Settings); every other page has the 44-unit bar with its back chevron | on Home's menu; Lock and Power off at its foot |
+| Compact | the navigation bar at the foot, 80 dp: Home, Wallets, Files, Vaults, Tools; Check is reached from Home's Check tile, as Material 3 gives the bar three to five destinations (F255) | the top app bar: the ? (Guide at the page's section), the power button (Lock, Restart, Power off), the ⋮ menu (Settings) |
+| Medium; Expanded | the navigation rail at the left, 80 dp: the six destinations, Check under Home, then Guide and Settings under a divider | Guide and Settings on the rail; the power button in the top app bar |
 | Expanded and low (the 7-inch panel) | the rail, as above | on the rail |
-| Large; Extra-large | the expanded rail at the left, 240 dp: today's sidebar, its tabs drawn as Material's destinations (icon and label in a row, the current one on an accent pill), Check under Home, its sections under caption headings | on the expanded rail |
+| Large; Extra-large | the expanded rail at the left, 240 dp: today's sidebar, its tabs drawn as Material's destinations (icon and label in a row, the current one on an accent pill), Check under Home, its sections under caption headings; nothing at its foot but the idle lock's pill while the lock is held | Guide and Settings on the expanded rail; the power button in the top app bar |
+
+**The power button** (owner, 2026-11-21; F304) stands in the top app bar's
+actions beside the ?, on every window that has the bar over its page (the
+bar, the rail and the expanded rail; the Pi's panel keeps Lock and Power
+off as rows on Home's menu and in its ⋮). It opens Material's menu under
+it: **Lock** (only while something is held), **Restart** (where the computer
+offers it) and **Power off**, each with its icon; in the desktop app **Lock**
+and **Quit**. Lock does what Lock does elsewhere; Restart and Power off
+open the power sheet (`docs/FLOWS.md`, Restart), which names both.
 
 **Transfer** joins the destinations in the desktop app: on the rail and
 the expanded rail after Tools, on the bar in place of Tools (Tools stays
@@ -478,7 +487,7 @@ thing.
 User-facing, each at the sizes that show it: a 268 × 358 panel shows
 Home's menu and no bar; a 400 × 800 window shows the bar's five
 destinations and each opens its screen; 760 × 1000 and 960 × 580 show
-the rail with Guide, Settings and Lock; 1280 × 800 and 1920 × 1080 show
+the rail with Guide and Settings; 1280 × 800 and 1920 × 1080 show
 the expanded rail with a flow in progress listed; Home's tiles never
 grow past their column and a row of two at 1920 leaves columns empty;
 Wallets at 1280 shows the list and the chosen wallet together, and at

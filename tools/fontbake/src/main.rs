@@ -158,6 +158,7 @@ const ICONS: &[u32] = &[
     0xF1F8, // trash
     0xF21B, // user-secret
     0xF292, // hashtag
+    0xF2F9, // rotate-right (restart)
     0xF362, // right-left (swap)
     0xF3ED, // shield-halved
     0xF522, // dice

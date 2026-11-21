@@ -1,7 +1,7 @@
 //! Navigation by window class (`docs/LAYOUT.md` §3): the Pi's panel
 //! keeps Home's menu; a compact window has the navigation bar at its
 //! foot; a medium, an expanded or a low window the rail at its left,
-//! with the guide, Settings and Lock; a large or extra-large one the
+//! with the guide and Settings; a large or extra-large one the
 //! expanded rail, which lists the flows in progress. Where there is no
 //! expanded rail, a flow in progress shows its chip on every
 //! destination; a stick being written hides the navigation.
@@ -211,7 +211,15 @@ fn the_rail_offers_and_opens(width: u16, height: u16) {
     let p = in_rail(&mut app, Action::Nav(Screen::Settings));
     tap(&mut app, p);
     assert_eq!(app.screen, Screen::Settings);
-    let p = in_rail(&mut app, Action::LockAsk);
+    // Lock and Power off are the top app bar's power button's, not the rail's.
+    let p = at(&mut app, Action::NavMenu(MenuPress::Power)).expect("the power button");
+    assert!(
+        p.1 < 64,
+        "the power button is not in the top app bar: {p:?}"
+    );
+    tap(&mut app, p);
+    let p =
+        at(&mut app, Action::NavMenu(MenuPress::Tool(BarTool::Lock))).expect("Lock in the menu");
     tap(&mut app, p);
     assert!(
         app.sheet == Some(Sheet::LockAsk) || !app.holds_secret(),
@@ -362,4 +370,128 @@ fn files_carries_a_dot_until_the_stick_is_visited() {
     app.press(Action::Nav(Screen::Files));
     app.press(Action::Nav(Screen::Home));
     assert!(dots(&mut app).is_empty());
+}
+
+/// The app on a window with the desktop app's or the stick's power words.
+fn on_app(online: bool, width: u16, height: u16) -> Faraday {
+    let mut app = testkit::started();
+    app.online = online;
+    app.shell_sticks = online;
+    app.event(Event::Display(DisplayInfo {
+        width,
+        height,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    let _ = app.frame();
+    app
+}
+
+/// The power button pressed where it stands.
+fn open_power_menu(app: &mut Faraday) {
+    let p = at(app, Action::NavMenu(MenuPress::Power)).expect("the power button");
+    assert!(
+        p.1 < 64,
+        "the power button is not in the top app bar: {p:?}"
+    );
+    tap(app, p);
+    assert!(matches!(app.sheet, Some(Sheet::PowerMenu(_))));
+}
+
+#[test]
+fn the_power_button_opens_a_menu_with_lock_restart_and_power_off() {
+    for (w, h) in [(1280, 800), (1024, 600), (760, 1000), (400, 800)] {
+        let mut app = on_app(false, w, h);
+        key_in(&mut app);
+        assert!(
+            !app.offers(Action::LockAsk) && !app.offers(Action::PowerAsk),
+            "{w}x{h}"
+        );
+        open_power_menu(&mut app);
+        let y = |app: &mut Faraday, t| at(app, Action::NavMenu(MenuPress::Tool(t))).map(|p| p.1);
+        let lock = y(&mut app, BarTool::Lock).expect("Lock");
+        let restart = y(&mut app, BarTool::Restart).expect("Restart");
+        let off = y(&mut app, BarTool::Power).expect("Power off");
+        assert!(
+            lock < restart && restart < off,
+            "{w}x{h}: Lock, Restart, Power off in order"
+        );
+    }
+}
+
+#[test]
+fn the_power_menu_has_lock_only_while_something_is_held() {
+    let mut app = on_app(false, 1280, 800);
+    open_power_menu(&mut app);
+    let _ = app.frame();
+    assert!(!app.offers(Action::NavMenu(MenuPress::Tool(BarTool::Lock))));
+    assert!(app.offers(Action::NavMenu(MenuPress::Tool(BarTool::Power))));
+}
+
+#[test]
+fn lock_from_the_power_menu_locks() {
+    let mut app = on_app(false, 1280, 800);
+    key_in(&mut app);
+    open_power_menu(&mut app);
+    let p = at(&mut app, Action::NavMenu(MenuPress::Tool(BarTool::Lock))).expect("Lock");
+    tap(&mut app, p);
+    assert!(!app.holds_secret(), "the menu's Lock did not lock");
+}
+
+#[test]
+fn power_off_and_restart_from_the_power_menu_open_the_power_sheet() {
+    for tool in [BarTool::Power, BarTool::Restart] {
+        let mut app = on_app(false, 1280, 800);
+        key_in(&mut app);
+        open_power_menu(&mut app);
+        let p = at(&mut app, Action::NavMenu(MenuPress::Tool(tool))).expect("the item");
+        tap(&mut app, p);
+        assert_eq!(app.sheet, Some(Sheet::Power), "{tool:?}");
+    }
+}
+
+#[test]
+fn the_desktop_apps_power_menu_has_lock_and_quit_and_no_restart() {
+    let mut app = on_app(true, 1280, 800);
+    key_in(&mut app);
+    open_power_menu(&mut app);
+    let _ = app.frame();
+    assert!(crate::common::has(&mut app, "Quit"));
+    assert!(crate::common::has(&mut app, "Lock"));
+    assert!(!crate::common::has(&mut app, "Restart"));
+    assert!(!crate::common::has(&mut app, "Power off"));
+}
+
+#[test]
+fn the_sidebar_has_no_lock_or_power_off_button() {
+    let mut app = on_app(false, 1280, 800);
+    key_in(&mut app);
+    let _ = app.frame();
+    assert_eq!(app.nav(), Nav::ExpandedRail);
+    assert!(!app.offers(Action::LockAsk) && !app.offers(Action::PowerAsk));
+}
+
+#[test]
+fn the_pi_panels_menu_keeps_its_lock_and_power_off_rows() {
+    let mut app = on(480, 640, 286);
+    key_in(&mut app);
+    assert_eq!(app.nav(), Nav::Menu);
+    let mut seen = (false, false);
+    for _ in 0..30 {
+        let _ = app.frame();
+        seen.0 |= app.offers(Action::LockAsk);
+        seen.1 |= app.offers(Action::PowerAsk);
+        app.event(Event::Scroll {
+            x: 134,
+            y: 300,
+            dy: 120,
+        });
+    }
+    assert_eq!(seen, (true, true), "Lock and Power off on Home's menu");
 }

@@ -64,8 +64,8 @@ rail's windows differ as the list says):
 6. On the rail's windows, **what is going on, the wallets and Backups,
    then the Keys** (§3).
 7. **The places** (§6) as tiles; then, on the Pi's menu only, Lock (while
-   something is held) and Power off; the rail's windows have them on the
-   rail, the phone-size window's Lock in the top app bar and its ⋮ menu.
+   something is held) and Power off; the other windows have them in the top
+   app bar's power button's menu (F304).
 8. **Scan**, the floating button at the bottom right.
 
 "Nothing is loaded" (`nothing_loaded`) means no key held, no wallet in the

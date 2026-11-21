@@ -613,6 +613,10 @@ pub enum Sheet {
     Samples,
     /// A top app bar's ⋮ menu: the compact window's, or a bar's overflow.
     NavMenu(Option<nav::Overflow>),
+    /// The top app bar's power button's menu: Lock, Restart and Power off
+    /// (Lock and Quit in the desktop app), a popup under the button (its
+    /// place in pixels) where there is room.
+    PowerMenu(Option<(i32, i32, i32, i32)>),
     /// New key's Length card's Other: the menu of 15, 18 and 21 words (`keygen/screen.rs`).
     KeyLengths,
     /// Check an address's From a file: the menu of text files in Files (`address_check/screen.rs`).

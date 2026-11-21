@@ -1877,6 +1877,11 @@ impl Faraday {
     pub(crate) fn nav_menu(&mut self, press: MenuPress) {
         match press {
             MenuPress::Open(o) => self.sheet = Some(crate::Sheet::NavMenu(o)),
+            MenuPress::Power => {
+                let me = Action::NavMenu(MenuPress::Power);
+                let anchor = self.pointer.rect_of(me).map(|r| (r.x, r.y, r.w, r.h));
+                self.sheet = Some(crate::Sheet::PowerMenu(anchor));
+            }
             MenuPress::Go(s) => {
                 self.sheet = None;
                 self.act_inner(Action::Nav(s));
@@ -1892,7 +1897,7 @@ impl Faraday {
                     BarTool::Keyboard => Action::Osk(OskPress::Show),
                     BarTool::Eye => Action::Codex32(crate::codex32::C32::Eye),
                     BarTool::Lock => Action::LockAsk,
-                    BarTool::Power => Action::PowerAsk,
+                    BarTool::Power | BarTool::Restart => Action::PowerAsk,
                 });
             }
         }

@@ -535,6 +535,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::GpgSign => crate::vault::screen::gpg_sign_sheet(app, ui, w, h),
             Sheet::Mode => crate::modes::screen::sheet(app, ui, w, h),
             Sheet::Samples => crate::samples::screen::sheet(app, ui, w, h),
+            Sheet::PowerMenu(at) => crate::nav::screen::power_menu_sheet(app, ui, w, h, at),
             Sheet::NavMenu(None) => crate::nav::screen::menu_sheet(app, ui, w, h),
             Sheet::NavMenu(Some(o)) => crate::compact::overflow_sheet(app, ui, w, h, o),
             Sheet::KeyLengths => crate::keygen::screen::lengths_menu(app, ui, w, h),

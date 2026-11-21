@@ -2,7 +2,7 @@
 //! as Faraday draws them (`docs/LAYOUT.md` §3, DESIGN §4.1), from
 //! `faraday_ui::nav`. Each reads the state; none works anything out.
 
-use super::{MenuPress, Nav, lit_destination};
+use super::{BarTool, MenuPress, Nav, lit_destination};
 use crate::drawing::View;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
@@ -100,8 +100,8 @@ fn destinations<'s>(app: &'s View) -> (Vec<Dest<'s, Action>>, Vec<Dest<'s, Actio
 }
 
 /// The navigation rail down the window's left, `h` tall: the
-/// destinations, the guide and Settings under a divider, Lock (while
-/// something is held) and Power off at its foot.
+/// destinations, the guide and Settings under a divider; Lock and Power
+/// off are the top app bar's power button's.
 pub(crate) fn rail(app: &View, ui: &mut Ui, h: f32) {
     let (mut top, more) = destinations(app);
     // Check stands right under Home: a rail takes up to seven destinations,
@@ -125,23 +125,13 @@ pub(crate) fn rail(app: &View, ui: &mut Ui, h: f32) {
             Action::Nav(Screen::Settings),
         ),
     ];
-    let mut foot = Vec::new();
-    if app.holds_secret() {
-        foot.push(dest(app, Icon::Lock, EN.sidebar_lock, Action::LockAsk));
-    }
-    foot.push(dest(
-        app,
-        Icon::Power,
-        crate::screens::leave_label(app),
-        Action::PowerAsk,
-    ));
     faraday_ui::nav::rail(
         ui,
         h,
         &Rail {
             top: &top,
             under: &under,
-            foot: &foot,
+            foot: &[],
         },
     );
 }
@@ -183,16 +173,17 @@ pub(crate) fn app_bar(app: &View, ui: &mut Ui, w: f32, nav: Nav) -> f32 {
                 Action::NavMenu(MenuPress::Open(None)),
                 EN.tip_more,
             );
-            if app.holds_secret() {
-                *right = faraday_ui::nav::icon_action(
-                    ui,
-                    *right,
-                    Icon::Lock,
-                    Action::LockAsk,
-                    false,
-                    EN.tip_lock,
-                );
-            }
+        }
+        // Lock, Restart and Power off, left of the ⋮ and right of the ?.
+        if !hidden {
+            *right = faraday_ui::nav::icon_action(
+                ui,
+                *right,
+                Icon::Power,
+                Action::NavMenu(MenuPress::Power),
+                matches!(app.sheet, Some(Sheet::PowerMenu(_))),
+                EN.tip_power,
+            );
         }
         *right = guide_tools(app, ui, *right, nav);
         *right = crate::compact::bar_choices(app, ui, *right);
@@ -661,19 +652,57 @@ fn loaded_layout(app: &View, ui: &Ui, w: f32) -> Laid {
     (lines, at, row_h, h)
 }
 
-/// The ⋮ menu of the top app bar on the bar's windows: Settings and
-/// Power off, as a sheet.
-pub(crate) fn menu_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
-    let lines = [
-        crate::menu::Line::Item(
-            EN.sidebar_settings.to_string(),
-            Action::NavMenu(MenuPress::Go(Screen::Settings)),
-        ),
-        crate::menu::Line::Item(
-            crate::screens::leave_label(app).to_string(),
-            Action::PowerAsk,
-        ),
-    ];
+/// The power button's menu: Lock (while something is held), Restart
+/// (where the computer offers it) and Power off, each with its icon; on
+/// the desktop app Lock and Quit. A popup under the button where there is
+/// room, a sheet on a narrow one. Restart and Power off open the power
+/// sheet, which names both (`docs/FLOWS.md`, Power off and Restart).
+pub(crate) fn power_menu_sheet(
+    app: &View,
+    ui: &mut Ui,
+    w: f32,
+    h: f32,
+    anchor: Option<(i32, i32, i32, i32)>,
+) {
+    let item = |icon, label: &str, t| {
+        crate::menu::Line::Icon(icon, label.to_string(), Action::NavMenu(MenuPress::Tool(t)))
+    };
+    let mut lines = Vec::new();
+    if app.holds_secret() {
+        lines.push(item(Icon::Lock, EN.sidebar_lock, BarTool::Lock));
+    }
+    if !app.online && app.offers_restart() {
+        lines.push(item(Icon::Restart, EN.power_restart, BarTool::Restart));
+    }
+    lines.push(item(
+        Icon::Power,
+        crate::screens::leave_label(app),
+        BarTool::Power,
+    ));
+    crate::menu::draw(
+        ui,
+        w,
+        h,
+        &crate::menu::View {
+            title: EN.power_title,
+            icon: Icon::Power,
+            lines: &lines,
+            at: 0,
+            keys: false,
+            anchor,
+            cancel: (EN.nav_close, Action::Cancel),
+            shown: 1.0,
+        },
+    );
+}
+
+/// The ⋮ menu of the top app bar on the bar's windows: Settings, as a
+/// sheet.
+pub(crate) fn menu_sheet(_app: &View, ui: &mut Ui, w: f32, h: f32) {
+    let lines = [crate::menu::Line::Item(
+        EN.sidebar_settings.to_string(),
+        Action::NavMenu(MenuPress::Go(Screen::Settings)),
+    )];
     crate::menu::draw(
         ui,
         w,

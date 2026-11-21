@@ -1428,6 +1428,8 @@ macro_rules! words_common {
     tip_more: "More",
     /// Tooltip on the Lock icon.
     tip_lock: "Lock",
+    /// Tooltip on the top app bar's power button, and its menu's title.
+    tip_power: "Power",
     /// Tooltip on the keyboard icon.
     tip_keyboard: "Keyboard",
     /// The top bar's mark while a wireless receiver is attached.

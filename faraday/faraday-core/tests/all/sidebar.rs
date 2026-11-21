@@ -152,8 +152,8 @@ fn the_sidebar_lists_the_places_in_order_with_files_once() {
         .count();
     assert_eq!(files, 1, "Files is offered once");
     assert!(
-        crate::common::has(&mut app, "Power off"),
-        "Power off is named"
+        !crate::common::has(&mut app, "Power off"),
+        "Power off is the top app bar's power button's"
     );
 }
 
@@ -721,7 +721,7 @@ fn the_sidebar_shows_no_key_or_wallet_rows_and_a_flow_in_progress_keeps_its_row(
     }
     assert!(!crate::common::has(&mut app, "Keys"));
     assert!(app.offers(Action::Nav(Screen::Home)), "the tabs stay");
-    assert!(app.offers(Action::PowerAsk), "the foot stays");
+    assert!(!app.offers(Action::PowerAsk), "no Power off in the sidebar");
 
     let mut app = create_at_places();
     app.press(Action::Nav(Screen::Settings));

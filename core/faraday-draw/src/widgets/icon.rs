@@ -48,6 +48,8 @@ pub enum Icon {
     House,
     /// Power off, wipe and exit.
     Power,
+    /// Restart, the power menu's.
+    Restart,
     /// Swap between two forms of the same thing: converting a key.
     Swap,
     /// An informational note.
@@ -169,7 +171,7 @@ impl Icon {
     /// draws.
     pub const SEARCH: Icon = Icon::Verify;
     /// Every icon, for the gallery and for the completeness test.
-    pub const ALL: [Icon; 68] = [
+    pub const ALL: [Icon; 69] = [
         Icon::Scan,
         Icon::Keys,
         Icon::Sign,
@@ -186,6 +188,7 @@ impl Icon {
         Icon::ChevronUp,
         Icon::House,
         Icon::Power,
+        Icon::Restart,
         Icon::Swap,
         Icon::Info,
         Icon::Success,
@@ -296,6 +299,7 @@ impl Icon {
             Icon::Add => '\u{f067}',
             Icon::Remove => '\u{f068}',
             Icon::Hashtag => '\u{f292}',
+            Icon::Restart => '\u{f2f9}',
             Icon::Swap => '\u{f362}',
             Icon::Shield => '\u{f3ed}',
             Icon::Diagram => '\u{f542}',
@@ -333,6 +337,7 @@ impl Icon {
             Icon::ChevronUp => "ChevronUp",
             Icon::House => "House",
             Icon::Power => "Power",
+            Icon::Restart => "Restart",
             Icon::Swap => "Swap",
             Icon::Info => "Info",
             Icon::Success => "Success",

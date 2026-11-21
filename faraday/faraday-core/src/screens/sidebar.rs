@@ -1,13 +1,13 @@
-//! The sidebar: the tabs, what is under way, the sticks and the foot.
+//! The sidebar: the tabs, what is under way, the sticks and, at its foot, what holds the idle lock.
 
 use super::SIDEBAR_W;
 use crate::drawing::View;
 use crate::strings::{EN, fill};
 use crate::ui::Shape;
 use crate::ui::pal::*;
-use crate::ui::{Glyph, NameSuffix, Style, Ui};
+use crate::ui::{Glyph, NameSuffix, Ui};
 use crate::{Action, Screen, Sheet};
-use faraday_draw::tokens::{BODY_S, BUTTON_H, LABEL_M, LABEL_S};
+use faraday_draw::tokens::{BODY_S, LABEL_M, LABEL_S};
 use faraday_draw::tokens::{GRID, TOUCH};
 use faraday_draw::widgets::Icon;
 
@@ -144,17 +144,11 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
         }
     }
 
-    let held = app.lock_held();
-    let foot_top = h - 124.0 + TOUCH - if held { LOCK_PILL_H + GRID } else { 0.0 };
-    // The rule above the foot stands under the last tab at the highest.
-    ui.rule(
-        12.0,
-        foot_top.max(y + GRID) - 2.0,
-        SIDEBAR_W - 24.0,
-        Role::OutlineVariant,
-    );
-    // Room above the buttons, for their targets to reach 48 dp.
-    foot_buttons(app, ui, foot_top + 12.0, held);
+    // Lock and Power off are the top app bar's power button's; what holds
+    // the idle lock stands at the sidebar's foot.
+    if app.lock_held() {
+        lock_held_pill(ui, 16.0, h - LOCK_PILL_H - GRID * 2.0, SIDEBAR_W - 32.0);
+    }
 }
 
 /// What the power button reads: Quit on the online desktop build, which
@@ -164,48 +158,6 @@ pub(crate) fn leave_label(app: &View) -> &'static str {
         EN.sidebar_quit
     } else {
         EN.nav_power_off
-    }
-}
-
-/// Lock and Power off at `fy`, and under them the pill while the idle
-/// lock is `held`.
-fn foot_buttons(app: &View, ui: &mut Ui, fy: f32, held: bool) {
-    // Lock and Power off side by side, each named; Power off alone has
-    // the whole width.
-    let (x, w) = (16.0, SIDEBAR_W - 32.0);
-    if app.holds_secret() {
-        let half = (w - GRID) / 2.0;
-        ui.button(
-            x,
-            fy,
-            Some(half),
-            BUTTON_H,
-            EN.sidebar_lock,
-            Style::Secondary,
-            Action::LockAsk,
-        );
-        ui.button(
-            x + half + GRID,
-            fy,
-            Some(half),
-            BUTTON_H,
-            leave_label(app),
-            Style::Secondary,
-            Action::PowerAsk,
-        );
-    } else {
-        ui.button(
-            x,
-            fy,
-            Some(w),
-            BUTTON_H,
-            leave_label(app),
-            Style::Secondary,
-            Action::PowerAsk,
-        );
-    }
-    if held {
-        lock_held_pill(ui, 16.0, fy + 44.0, SIDEBAR_W - 32.0);
     }
 }
 
