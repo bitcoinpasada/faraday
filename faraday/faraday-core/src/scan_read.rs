@@ -187,6 +187,8 @@ impl Kind {
             // words, Seed XOR or Krux key.
             (Form::Slip39 | Form::Xor, Piece::Whole)
             | (Form::Words | Form::Xor | Form::Krux, Piece::Part) => Route::Other,
+            // A hex seed has no kind, and nothing is a part of an xprv.
+            (Form::Xprv | Form::HexSeed, _) => Route::Other,
         }
     }
 

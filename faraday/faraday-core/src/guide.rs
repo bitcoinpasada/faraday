@@ -124,6 +124,8 @@ fn entry_key(at: GuideAt) -> &'static str {
             Some(2) => "entry.codex32",
             Some(3) => "entry.xor",
             Some(4) => "entry.krux",
+            Some(5) => "entry.xprv",
+            Some(6) => "entry.hexseed",
             _ => "entry",
         },
         _ => "entry",

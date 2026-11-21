@@ -988,6 +988,8 @@ fn line(ctx: &Ctx<'_>, n: u8, j: u8) -> Option<View> {
             // A SLIP-39 share keeps no fingerprint: nothing to do from
             // here.
             plan::KeyForm::Slip39 => {}
+            // No copy is written of an xprv or a hex seed.
+            plan::KeyForm::Xprv | plan::KeyForm::HexSeed => {}
         },
         What::Seed(s) | What::SeedPassphrase(s) => secret(s, &mut rows, &|_, _| {}),
         // A passphrase record in a vault: nothing to do from here.

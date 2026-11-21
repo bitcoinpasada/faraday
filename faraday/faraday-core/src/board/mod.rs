@@ -438,7 +438,10 @@ fn written_things(c: plan::Written) -> Vec<Thing> {
         (KeyForm::Codex32, plan::Piece::Part(j)) => vec![Thing::String(i, j)],
         (KeyForm::Xor, plan::Piece::Part(j)) => vec![Thing::Part(i, j)],
         (KeyForm::Slip39, plan::Piece::Member(g, m)) => vec![Thing::Slip(i, g, m)],
-        (KeyForm::Codex32 | KeyForm::Xor | KeyForm::Slip39, _) => Vec::new(),
+        (
+            KeyForm::Codex32 | KeyForm::Xor | KeyForm::Slip39 | KeyForm::Xprv | KeyForm::HexSeed,
+            _,
+        ) => Vec::new(),
     }
 }
 

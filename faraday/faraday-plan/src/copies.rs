@@ -56,6 +56,7 @@ fn rows(form: KeyForm) -> &'static [Row] {
         KeyForm::Codex32 => &CODEX32,
         KeyForm::Xor => &PARTS,
         KeyForm::Krux => &KRUX,
+        KeyForm::Xprv | KeyForm::HexSeed => &[],
     }
 }
 
@@ -69,7 +70,7 @@ enum Shape {
 
 fn shape(form: KeyForm) -> Shape {
     match form {
-        KeyForm::Words | KeyForm::Krux => Shape::Whole,
+        KeyForm::Words | KeyForm::Krux | KeyForm::Xprv | KeyForm::HexSeed => Shape::Whole,
         KeyForm::Codex32 | KeyForm::Xor => Shape::Part,
         KeyForm::Slip39 => Shape::Member,
     }
@@ -118,9 +119,12 @@ impl Written {
                         &text!("{}", char::to_ascii_uppercase(&codex32::index_char(j))),
                     ],
                 ),
-                KeyForm::Words | KeyForm::Slip39 | KeyForm::Xor | KeyForm::Krux => {
-                    Text::fill(l, &[seed, &Text::num(j as u64 + 1)])
-                }
+                KeyForm::Words
+                | KeyForm::Slip39
+                | KeyForm::Xor
+                | KeyForm::Krux
+                | KeyForm::Xprv
+                | KeyForm::HexSeed => Text::fill(l, &[seed, &Text::num(j as u64 + 1)]),
             },
             Piece::Member(g, m) => Text::fill(
                 l,

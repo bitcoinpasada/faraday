@@ -47,3 +47,15 @@ Type one part at a time, as BIP-39 words. Every part is needed, and together the
 **Key:** entry.krux
 
 A key held as a Krux encrypted code is read here, not typed. **Scan a Krux code** reads it with the camera; **From Files** takes a code saved in Files, one button for each file that may be one. Either asks the code's passphrase, and a wrong one says so and can be tried again. The words the code holds go on to the passphrase of the key, as a scanned SeedQR does. A scan or file that is not a Krux code is said not to be one.
+
+## Extended private key
+
+**Key:** entry.xprv
+
+Type or paste one line: an xprv, or a tprv on a test network. **Add key** loads it as a master key with no words and no seed, and no passphrase. A key that is not a master key is refused with its depth, its parent's fingerprint and its child number, and Faraday does not guess where in a wallet it sits. An origin written before the key is taken only when it names the key's own fingerprint and no path. The other network's version and the yprv, zprv and similar spellings are refused by name.
+
+## Master seed in hex
+
+**Key:** entry.hexseed
+
+Type one line of 32 to 128 hex digits, 16 to 64 bytes, in either case, spaces ignored. It is the BIP-32 seed itself, not the entropy of BIP-39 words. **Add key** loads it as a master seed, with no passphrase. A wrong length is refused with its length.

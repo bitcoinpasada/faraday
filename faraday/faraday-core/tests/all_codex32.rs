@@ -37,6 +37,8 @@ mod forms;
 mod import;
 #[path = "all/keygen_slip39.rs"]
 mod keygen_slip39;
+#[path = "all/one_line_forms.rs"]
+mod one_line_forms;
 #[path = "all/passphrase_paper.rs"]
 mod passphrase_paper;
 #[path = "all/paste_a_seed.rs"]

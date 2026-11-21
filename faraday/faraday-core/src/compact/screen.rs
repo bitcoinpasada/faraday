@@ -1004,6 +1004,30 @@ pub(crate) fn entry_form(
     if let Some(e) = &app.entry.state().error {
         y += ui.wrap_as((x, y, iw), BODY_M, Role::Error, e) + 8.0;
     }
+    // A form of one line of text has nothing collected and no passphrase:
+    // the line and its one button.
+    if form.typing() == faraday_forms::Typing::OneLine {
+        let (label, action) = match flow {
+            Some(next) => (EN.keygen_continue, next),
+            None => (EN.forms_add_key, Action::EntryRecover),
+        };
+        y += stack(
+            ui,
+            x,
+            y,
+            iw,
+            &[(
+                label,
+                Style::Primary.when(!app.entry.state().typed.trim().is_empty()),
+                action,
+            )],
+        );
+        if flow.is_none() {
+            crate::screens::entry_stick(app, ui, x, y + faraday_draw::tokens::GAP_SMALL, iw);
+            y += faraday_draw::tokens::TOUCH;
+        }
+        return y;
+    }
     y += crate::screens::codex32_found(app, ui, x, y, iw);
     let lines = app.entry.state().parts.lines(form);
     y += heading(
@@ -1042,6 +1066,8 @@ fn entry_field(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, form: crate::fo
     let here = Action::TypeHere(crate::edit::Here::Entry);
     let hint = match form {
         Form::Codex32 => "ms1…",
+        Form::Xprv => EN.forms_xprv_hint,
+        Form::HexSeed => EN.forms_hex_seed_hint,
         _ => EN.compact_words_of_one,
     };
     let typed = &app.entry.state().typed;

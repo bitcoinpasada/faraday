@@ -797,9 +797,11 @@ fn set_copy_fits(a: &Answers, at: At, c: Written) -> bool {
         (KeyForm::Slip39, Piece::Member(g, m)) => {
             place && a.slip39(c.seed).is_some_and(|z| z.has_member(g, m))
         }
-        (KeyForm::Xor | KeyForm::Slip39, Piece::Whole | Piece::Part(_) | Piece::Member(..)) => {
-            false
-        }
+        // An xprv and a hex seed have no copies (`docs/KEY-FORMS.md` §6.4).
+        (
+            KeyForm::Xor | KeyForm::Slip39 | KeyForm::Xprv | KeyForm::HexSeed,
+            Piece::Whole | Piece::Part(_) | Piece::Member(..),
+        ) => false,
         (
             KeyForm::Words | KeyForm::Codex32 | KeyForm::Krux,
             Piece::Whole | Piece::Part(_) | Piece::Member(..),

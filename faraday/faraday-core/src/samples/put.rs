@@ -234,7 +234,7 @@ impl Faraday {
         let form = self.entry.state().form;
         let want = match form {
             Form::Slip39 | Form::Codex32 | Form::Xor => SampleForm::Form(form),
-            Form::Words | Form::Krux => return None,
+            Form::Words | Form::Krux | Form::Xprv | Form::HexSeed => return None,
         };
         let have = self.entry.state().parts.lines(form).len();
         let begun = self

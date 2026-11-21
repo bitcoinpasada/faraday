@@ -107,7 +107,7 @@ impl Parts {
                     )
                 })
                 .collect(),
-            Form::Words | Form::Krux => Vec::new(),
+            Form::Words | Form::Krux | Form::Xprv | Form::HexSeed => Vec::new(),
         }
     }
 
@@ -125,7 +125,7 @@ impl Parts {
                     || self.codex32.len() + self.codex32_vaults >= usize::from(c.threshold())
             }),
             Form::Xor => self.xor.parts() >= faraday_entropy::MIN_XOR_PARTS,
-            Form::Words | Form::Krux => false,
+            Form::Words | Form::Krux | Form::Xprv | Form::HexSeed => false,
         }
     }
 }

@@ -56,7 +56,7 @@ impl Backup {
                 Form::Codex32 => EN.check_menu_codex32,
                 Form::Krux => EN.check_menu_krux,
                 // Typed on Add a key's own tile, so not in the menu.
-                Form::Words => f.name(),
+                Form::Words | Form::Xprv | Form::HexSeed => f.name(),
             },
             Backup::SeedQr => EN.check_menu_seedqr,
         }
@@ -237,7 +237,7 @@ pub(crate) fn press(app: &mut Faraday, p: Press) {
                 Backup::Form(Form::Xor) => Go::AddKey(Form::Xor),
                 Backup::Form(Form::Codex32) => Go::AddKey(Form::Codex32),
                 // The words are typed on Add a key and are not a row here.
-                Backup::Form(Form::Words) => return,
+                Backup::Form(Form::Words | Form::Xprv | Form::HexSeed) => return,
                 Backup::SeedQr => Go::SeedQr,
             };
             tile(app, go);

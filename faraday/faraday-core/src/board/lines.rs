@@ -51,7 +51,7 @@ fn written_label(c: Written) -> Option<&'static str> {
             _ => None,
         },
         KeyForm::Krux => Some(EN.board_kef_code),
-        KeyForm::Xor | KeyForm::Slip39 => None,
+        KeyForm::Xor | KeyForm::Slip39 | KeyForm::Xprv | KeyForm::HexSeed => None,
     }
 }
 

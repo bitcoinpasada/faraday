@@ -61,7 +61,7 @@ impl Start {
         match self {
             Start::Make(f) => match f {
                 Form::Words | Form::Codex32 => true,
-                Form::Slip39 | Form::Xor | Form::Krux => false,
+                Form::Slip39 | Form::Xor | Form::Krux | Form::Xprv | Form::HexSeed => false,
             },
             Start::Type(_) | Start::Scan => false,
         }
@@ -80,7 +80,7 @@ impl Start {
     pub fn form(self) -> Option<Form> {
         match self {
             Start::Type(f) => match f.typing() {
-                Typing::NotTyped => None,
+                Typing::NotTyped | Typing::OneLine => None,
                 Typing::Words | Typing::ShareWords | Typing::Codex32 | Typing::PartWords => Some(f),
             },
             Start::Make(_) | Start::Scan => None,

@@ -2428,6 +2428,8 @@ fn written_label(number: usize, c: plan::Written, files_named: bool) -> Text {
         plan::KeyForm::Words => Text::fill(EN.glance_key_words, &[&n]),
         plan::KeyForm::Codex32 => c32_label(number, c.part().map_or(0, |(_, j)| j)),
         plan::KeyForm::Krux => Text::fill(EN.glance_kef_code, &[&n]),
+        // No copy is written of an xprv or a hex seed.
+        plan::KeyForm::Xprv | plan::KeyForm::HexSeed => Text::new(),
         plan::KeyForm::Xor => Text::fill(
             EN.plan_xor_part,
             &[&n, &Text::num(c.part().map_or(0, |(_, j)| j) as u64 + 1)],

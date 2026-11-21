@@ -452,7 +452,7 @@ fn start_name(s: Start) -> &'static str {
             Form::Codex32 => EN.keygen_codex32,
             Form::Slip39 => EN.keygen_make_slip_39_shares,
             // Never made here: no choice lists them, so the form's own name.
-            Form::Xor | Form::Krux => f.name(),
+            Form::Xor | Form::Krux | Form::Xprv | Form::HexSeed => f.name(),
         },
         Start::Type(f) => match f {
             Form::Words => EN.entry_type_the_words,
@@ -460,6 +460,7 @@ fn start_name(s: Start) -> &'static str {
             Form::Slip39 => EN.keygen_type_slip_39_shares,
             Form::Codex32 => EN.keygen_type_a_codex32,
             Form::Xor => EN.keygen_type_seed_xor,
+            Form::Xprv | Form::HexSeed => f.name(),
         },
         Start::Scan => EN.keygen_scan_a_seedqr,
     }

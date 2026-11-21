@@ -603,7 +603,7 @@ impl KeyGen {
                     Form::Codex32 => make_codex32 && self.codex32_offered,
                     Form::Words => self.words_offered,
                     Form::Slip39 => self.slip39_offered,
-                    Form::Xor | Form::Krux => false,
+                    Form::Xor | Form::Krux | Form::Xprv | Form::HexSeed => false,
                 },
                 Start::Type(_) | Start::Scan => self.held_offered,
             })
@@ -1576,7 +1576,12 @@ impl crate::Faraday {
             Start::Make(f) => match f {
                 Form::Codex32 => kstep::CODEX32,
                 // Xor and Krux are never made here: no choice lists them.
-                Form::Words | Form::Slip39 | Form::Xor | Form::Krux => kstep::LENGTH,
+                Form::Words
+                | Form::Slip39
+                | Form::Xor
+                | Form::Krux
+                | Form::Xprv
+                | Form::HexSeed => kstep::LENGTH,
             },
             Start::Type(_) => kstep::TYPED,
         };

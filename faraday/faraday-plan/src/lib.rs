@@ -1960,6 +1960,8 @@ impl Have {
                 // A Krux code is an extra copy that counts for nothing
                 // (`docs/KEF.md` §15.1).
                 KeyForm::Krux => {}
+                // They have no outputs, so no copy of them is written.
+                KeyForm::Xprv | KeyForm::HexSeed => {}
                 KeyForm::Codex32 | KeyForm::Xor | KeyForm::Slip39 => self.push_piece(what),
             },
             What::SeedPassphrase(i) => {

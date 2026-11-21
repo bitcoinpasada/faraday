@@ -718,6 +718,11 @@ pub(crate) fn entry_form(
     if let Some(e) = &app.entry.state().error {
         y += ui.wrap_as((x, y, width), BODY_M, Role::Error, e) + 8.0;
     }
+    // A form of one line of text has nothing collected and no passphrase:
+    // the line and its one button.
+    if form.typing() == faraday_forms::Typing::OneLine {
+        return one_line_foot(app, ui, (x, y, width), flow);
+    }
     y += codex32_found(app, ui, x, y, width);
     // What is in.
     let lines = app.entry.state().parts.lines(form);
@@ -808,6 +813,36 @@ pub(crate) fn entry_form(
     by + 46.0
 }
 
+/// The foot of a form of one line of text (an xprv, a hex seed): Add key at
+/// the bottom of the screen, where the other forms' buttons stand.
+fn one_line_foot(
+    app: &View,
+    ui: &mut Ui,
+    (x, y, width): (f32, f32, f32),
+    flow: Option<Action>,
+) -> f32 {
+    use faraday_draw::tokens::{GAP_SMALL, TOUCH};
+    let mut by = y + GAP_SMALL;
+    if flow.is_none() {
+        entry_stick(app, ui, x, by, width);
+        by += TOUCH + GAP_SMALL;
+    }
+    let (label, action) = match flow {
+        Some(next) => (EN.keygen_continue, next),
+        None => (EN.forms_add_key, Action::EntryRecover),
+    };
+    ui.button(
+        x,
+        by,
+        None,
+        BUTTON_H,
+        label,
+        Style::Primary.when(!app.entry.state().typed.trim().is_empty()),
+        action,
+    );
+    by + TOUCH
+}
+
 /// The field a share, string or part is typed into, 44 tall.
 fn entry_field(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, form: crate::forms::Form) {
     use crate::forms::Form;
@@ -841,6 +876,8 @@ fn entry_field(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, form: crate:
         ui.caret(x + 12.0, y + (fh - c) / 2.0, c);
         match form {
             Form::Codex32 => crate::secret_text::SecretText::of("ms1…"),
+            Form::Xprv => crate::secret_text::SecretText::of(EN.forms_xprv_hint),
+            Form::HexSeed => crate::secret_text::SecretText::of(EN.forms_hex_seed_hint),
             _ => crate::secret_text::SecretText::of(EN.entry_form_one_share_words),
         }
     } else {

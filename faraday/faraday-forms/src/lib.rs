@@ -23,6 +23,11 @@ pub enum Form {
     /// A Krux encrypted code, scanned or taken from Files and opened under
     /// its passphrase (`docs/KEF.md` §15). It collects no parts.
     Krux,
+    /// An extended private key (xprv or tprv) at depth 0: a master key with
+    /// no words and no seed (`docs/KEY-FORMS.md` §6.1).
+    Xprv,
+    /// A master seed in hex, 16 to 64 bytes (`docs/KEY-FORMS.md` §6.2).
+    HexSeed,
 }
 
 /// How a form is typed, which picks the entry Add a key draws.
@@ -36,6 +41,8 @@ pub enum Typing {
     Codex32,
     /// Parts, each BIP-39 words, every one needed.
     PartWords,
+    /// One line of text.
+    OneLine,
     /// Not typed: read from a code or a file only.
     NotTyped,
 }
@@ -136,12 +143,14 @@ const KRUX: [Output; 2] = [
 
 impl Form {
     /// Every form, in the table's order.
-    pub const ALL: [Form; 5] = [
+    pub const ALL: [Form; 7] = [
         Form::Words,
         Form::Slip39,
         Form::Codex32,
         Form::Xor,
         Form::Krux,
+        Form::Xprv,
+        Form::HexSeed,
     ];
 
     /// Its name on screen.
@@ -152,6 +161,8 @@ impl Form {
             Form::Codex32 => EN.forms_codex32,
             Form::Xor => EN.forms_seed_xor_parts,
             Form::Krux => EN.forms_krux_code,
+            Form::Xprv => EN.forms_extended_private_key,
+            Form::HexSeed => EN.forms_master_seed_in_hex,
         }
     }
 
@@ -164,6 +175,8 @@ impl Form {
             Form::Codex32 => 2,
             Form::Xor => 3,
             Form::Krux => 4,
+            Form::Xprv => 5,
+            Form::HexSeed => 6,
         }
     }
 
@@ -180,13 +193,14 @@ impl Form {
             Form::Codex32 => Typing::Codex32,
             Form::Xor => Typing::PartWords,
             Form::Krux => Typing::NotTyped,
+            Form::Xprv | Form::HexSeed => Typing::OneLine,
         }
     }
 
     /// One piece, or a set put together.
     pub fn collects(self) -> Collects {
         match self {
-            Form::Words | Form::Krux => Collects::One,
+            Form::Words | Form::Krux | Form::Xprv | Form::HexSeed => Collects::One,
             Form::Slip39 | Form::Codex32 | Form::Xor => Collects::Set,
         }
     }
@@ -196,7 +210,7 @@ impl Form {
         match self {
             Form::Words | Form::Xor | Form::Krux => Passphrase::Bip39,
             Form::Slip39 => Passphrase::Slip39,
-            Form::Codex32 => Passphrase::None,
+            Form::Codex32 | Form::Xprv | Form::HexSeed => Passphrase::None,
         }
     }
 
@@ -205,7 +219,8 @@ impl Form {
         match self {
             Form::Words | Form::Xor | Form::Krux => Makes::Words,
             Form::Slip39 => Makes::Slip39Shares,
-            Form::Codex32 => Makes::MasterSeed,
+            Form::Codex32 | Form::HexSeed => Makes::MasterSeed,
+            Form::Xprv => Makes::MasterKey,
         }
     }
 
@@ -217,6 +232,7 @@ impl Form {
             Form::Codex32 => &CODEX32,
             Form::Xor => &PARTS,
             Form::Krux => &KRUX,
+            Form::Xprv | Form::HexSeed => &[],
         }
     }
 
@@ -224,7 +240,7 @@ impl Form {
     pub fn made_here(self) -> bool {
         match self {
             Form::Words | Form::Slip39 | Form::Codex32 => true,
-            Form::Xor | Form::Krux => false,
+            Form::Xor | Form::Krux | Form::Xprv | Form::HexSeed => false,
         }
     }
 }

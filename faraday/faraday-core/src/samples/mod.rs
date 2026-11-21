@@ -470,7 +470,7 @@ impl SampleKey {
                 Form::Codex32 => en.sample_form_codex32,
                 Form::Xor => en.sample_form_xor,
                 // No sample is a Krux code: the form's own name.
-                Form::Krux => f.name(),
+                Form::Krux | Form::Xprv | Form::HexSeed => f.name(),
             },
             SampleForm::Seed => en.sample_form_seed,
             SampleForm::Aezeed => en.sample_form_aezeed,
@@ -555,7 +555,9 @@ impl SampleKey {
                 }
             }
             SampleForm::Seed => keys.add_seed(c, &unhex(part(0)), &label),
-            SampleForm::Aezeed | SampleForm::Form(Form::Krux) => return false,
+            SampleForm::Aezeed | SampleForm::Form(Form::Krux | Form::Xprv | Form::HexSeed) => {
+                return false;
+            }
         };
         added.is_ok()
     }

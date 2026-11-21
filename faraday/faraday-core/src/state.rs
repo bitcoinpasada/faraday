@@ -552,7 +552,7 @@ impl EntryArea {
             Form::Words => completion(e.language(), &e.typed),
             Form::Xor => completion(faraday_bip::bip39::Language::English, &e.typed),
             Form::Slip39 => slip39_completion(&e.typed),
-            Form::Codex32 | Form::Krux => None,
+            Form::Codex32 | Form::Krux | Form::Xprv | Form::HexSeed => None,
         }
     }
 
@@ -664,6 +664,24 @@ impl EntryArea {
             }
             return Keyed::Taken;
         }
+        // One line of text: what is typed is kept as it is, with its case
+        // (`docs/KEY-FORMS.md` §6).
+        if self.state.form.typing() == faraday_forms::Typing::OneLine {
+            match key {
+                K::Char(c) if !c.is_control() => {
+                    self.state.typed.push(c);
+                    self.state.error = None;
+                }
+                K::Backspace => {
+                    self.state.typed.pop();
+                    self.state.error = None;
+                }
+                K::Enter => return Keyed::Recover,
+                K::Escape => return Keyed::Leave,
+                _ => {}
+            }
+            return Keyed::Taken;
+        }
         let unreadable = |c: char| codex32 && typable(&self.state.correction, c);
         match key {
             K::Char(c)
@@ -716,7 +734,7 @@ impl EntryArea {
         let result: Result<(), faraday_text::Text> = match form {
             Form::Slip39 => add_slip39(&mut e.parts, &text),
             Form::Xor => add_xor(c, &mut e.parts, &text),
-            Form::Codex32 | Form::Words | Form::Krux => Ok(()),
+            Form::Codex32 | Form::Words | Form::Krux | Form::Xprv | Form::HexSeed => Ok(()),
         };
         match result {
             Ok(()) => {
@@ -1780,6 +1798,11 @@ impl Faraday {
                 let m = faraday_keys::words::from_entropy(Language::English, e.as_bytes()).ok()?;
                 self.restore_refusal_of(&c, || Material::Words(&m), pass)
             }
+            Form::Xprv => self.restore_refusal_of(&c, || Material::Xprv(st.typed.trim()), ""),
+            Form::HexSeed => {
+                let seed = faraday_keys::xprv::parse_hex_seed(st.typed.trim()).ok()?;
+                self.restore_refusal_of(&c, || Material::Seed(&seed), "")
+            }
             Form::Words | Form::Krux => None,
         }
     }
@@ -1796,6 +1819,8 @@ impl Faraday {
         let label = match form {
             Form::Slip39 => EN.forms_slip_39_key,
             Form::Codex32 => EN.forms_codex32_key,
+            Form::Xprv => EN.forms_xprv_key,
+            Form::HexSeed => EN.forms_hex_seed_key,
             _ => EN.forms_seed_xor_key,
         };
         match form {
@@ -1866,6 +1891,19 @@ impl Faraday {
                 }),
             // Words are loaded as words (`Faraday::typed_load`), a Krux code
             // as the sheet that opens it loads it, never here.
+            Form::Xprv => self
+                .session
+                .keys
+                .add_xprv(&c, self.entry.state().typed.trim(), label)
+                .map_err(|e| crate::one_line::xprv_error(&e)),
+            Form::HexSeed => faraday_keys::xprv::parse_hex_seed(self.entry.state().typed.trim())
+                .map_err(crate::one_line::hex_refusal)
+                .and_then(|seed| {
+                    self.session
+                        .keys
+                        .add_seed(&c, &seed, label)
+                        .map_err(|e| e.text())
+                }),
             Form::Words | Form::Krux => Err(faraday_text::Text::default()),
         }
     }

@@ -472,7 +472,7 @@ pub(crate) fn form_done(app: &mut Faraday) {
         }
         // Krux's code is read by its scanner or From Files, never put
         // together from parts.
-        Form::Words | Form::Krux => {}
+        Form::Words | Form::Krux | Form::Xprv | Form::HexSeed => {}
     }
 }
 

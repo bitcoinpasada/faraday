@@ -76,7 +76,7 @@ impl BackupForm {
         match form {
             Form::Words => Some(BackupForm::Words),
             Form::Codex32 => Some(BackupForm::Codex32),
-            Form::Slip39 | Form::Xor | Form::Krux => None,
+            Form::Slip39 | Form::Xor | Form::Krux | Form::Xprv | Form::HexSeed => None,
         }
     }
 

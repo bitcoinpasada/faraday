@@ -738,7 +738,7 @@ fn starts_as_form(form: crate::forms::Form, text: &str) -> bool {
     match form {
         Form::Codex32 => text.get(..3).is_some_and(|p| p.eq_ignore_ascii_case("ms1")),
         Form::Slip39 => faraday_bip::slip39::index_of(&Text::lowercase(first)).is_some(),
-        Form::Krux => false,
+        Form::Krux | Form::Xprv | Form::HexSeed => false,
         Form::Xor | Form::Words => {
             let words: Vec<&str> = text.split_whitespace().collect();
             !words.is_empty() && scan_read::on_a_word_list(&words).is_some()
