@@ -1053,8 +1053,9 @@ these words** has filled the passphrase, its strength line reads "{} bits
 from simulated dice + …", or "from simulated dice and your dice". Changing
 the list starts the rolls over, the roller's marks with them.
 
-Size (decisions 21 and 51) is **PCs only** (512 MiB) or **PCs and a
-Raspberry Pi** (64 MiB, the default), both 3 passes, so the flow opens on
+Size (decisions 21 and 51, F309) is **PCs and every Raspberry Pi** (64 MiB,
+the default), **PCs and a Pi Zero 2 W** (128 MiB), **PCs and a Raspberry
+Pi 3** (256 MiB) or **PCs only** (512 MiB), all 3 passes, so the flow opens on
 Name and passphrase; a size pressed moves on to it, as a preset cost
 and a space per passphrase do on Customise's cards (F103), Custom's
 memory and passes keeping their Continue. The Name field's caption says the name is what it
@@ -1067,7 +1068,7 @@ that asks less than this computer can give; its row reads the most
 unlock memory it gives a vault (the largest custom memory that fits in
 its free memory beside the app's 100 MiB, at most 1 GiB) with its free
 memory in parentheses: "1 GiB (1.2 GiB free)". Another machine gives
-half its memory. The cost suggested is the largest preset the weakest
+half its memory, a 512 MB Pi Zero 2 W 128 MiB. The cost suggested is the largest preset the weakest
 chosen machine gives.
 
 **Vault contents**: the kinds it holds (only those a slot holds

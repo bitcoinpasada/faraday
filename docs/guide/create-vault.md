@@ -14,13 +14,13 @@ A vault is one encrypted file for a stick, opened with its passphrase. Two steps
 
 This step sets the unlock cost from the machines the vault must open on. The cost is the memory and passes of each guess at the passphrase. Pressing a row chooses it and moves on.
 
-**PCs only** is 512 MiB and 3 passes. **PCs and a Raspberry Pi** is 256 MiB and 3 passes and opens on a Raspberry Pi 3 as well; it is chosen at first. A Pi Zero 2 W opens only a vault of 64 or 128 MiB: tick it under **Where will you open it?** or choose **Light** under **Customize**. The rows name the sizes only; a row says how much memory this computer has free only when it has too little. **Customize** opens the two cards below on the chosen row's values, and with them the summary's unlock memory, unlock time and unlock cost.
+**PCs and every Raspberry Pi** is 64 MiB and 3 passes and opens on every machine, a Pi Zero 2 W included; it is chosen at first. **PCs and a Pi Zero 2 W** is 128 MiB, **PCs and a Raspberry Pi 3** is 256 MiB and **PCs only** is 512 MiB, all at 3 passes. A row says how much memory this computer has free only when it has too little. **Customize** opens the two cards below on the chosen row's values, and with them the summary's unlock memory, unlock time and unlock cost.
 
 ## Where will you open it?
 
 **Key:** create-vault.where
 
-Tick every machine the vault must open on. The cost suggested next fits the ticked machine with the least memory.
+Tick every machine the vault must open on. The cost suggested next fits the ticked machine with the least memory; a Pi Zero 2 W takes 128 MiB at most, and 256 MiB or more is too large for it.
 
 **This computer**, **Other PCs**, **Raspberry Pi 5**, **Raspberry Pi 4**, **Raspberry Pi 3** and **Pi Zero 2 W** each tick or untick a kind of machine, with its memory shown. **Continue** opens Unlock cost.
 
@@ -30,7 +30,7 @@ Tick every machine the vault must open on. The cost suggested next fits the tick
 
 A higher cost makes each guess at the passphrase more expensive (each guess costs about as much as 2^N plain hashes, N shown on the form), and the vault takes longer to unlock and needs more memory.
 
-**Light**, **Standard**, **Medium** and **Strong** are 64 MiB and 3 passes, 256 MiB and 3, 512 MiB and 3, and 1 GiB and 3. A row's note reads **Suggested**, **Fits**, or too large for the weakest machine ticked. **Custom** sets **Memory**, 64 MiB to 1 GiB, then **Continue**; a vault is always written with 3 passes.
+**Light**, **Pi Zero**, **Standard**, **Medium** and **Strong** are 64 MiB and 3 passes, 128 MiB and 3, 256 MiB and 3, 512 MiB and 3, and 1 GiB and 3. A row's note reads **Suggested**, **Fits**, or too large for the weakest machine ticked. **Custom** sets **Memory**, 64 MiB to 1 GiB, then **Continue**; a vault is always written with 3 passes.
 
 ## Name and passphrase
 

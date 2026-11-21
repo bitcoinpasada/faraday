@@ -1933,7 +1933,7 @@ impl Faraday {
         if self.flow_only_existing(i) {
             return;
         }
-        let mut form = crate::vault::CreateForm::starting(self.vaults.memory_free_mib);
+        let mut form = crate::vault::CreateForm::starting();
         form.name.set(&BackupFlow::vault_name(v));
         let focus = self.may_load_keys().then_some(Focus::Phrase(0, false));
         self.vaults.begin_create(form, Screen::BackupFlow, focus);

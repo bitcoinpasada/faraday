@@ -1241,7 +1241,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
             }
         }
         vstep::PRESET => {
-            // Two presets, named only; the figures are behind Customise.
+            // The sizes, named only; the figures are behind Customise.
             // Short of memory here: what this computer has free.
             let chosen = app.vaults.size_row();
             let free = app.vaults.memory_free_mib;

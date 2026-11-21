@@ -2163,15 +2163,10 @@ impl CreateForm {
         self.phrases.len()
     }
 
-    /// A new form: on the default size, or on Light where the computer does
-    /// not say what memory it has free and makes only that
-    /// (`docs/VAULT.md` §3.1).
-    pub fn starting(memory_free_mib: Option<u32>) -> Self {
-        let mut form = Self::default();
-        if memory_free_mib.is_none() {
-            form.preset = Some(0);
-        }
-        form
+    /// A new form: on the default size, Light, 64 MiB, which opens on
+    /// every machine (`docs/VAULT.md` §3.1, F309).
+    pub fn starting() -> Self {
+        Self::default()
     }
 
     /// The steps shown, in order: the preset and the passphrases, or, once
@@ -3127,21 +3122,13 @@ impl Vaults {
 
     /// What this computer gives a vault whose file is `len` bytes.
     pub fn here_limit_for(&self, len: usize) -> u32 {
-        let Some(free) = self.memory_free_mib else {
-            return LIGHT_MIB;
-        };
-        CUSTOM_MEMORY
-            .iter()
-            .copied()
-            .filter(|m| vault_need_mib(*m, len) <= free)
-            .max()
-            .unwrap_or(CUSTOM_MEMORY[0])
+        here_limit_of(self.memory_free_mib, len)
     }
 
     /// The machine that gives a vault the least unlock memory among
     /// those chosen, label and MiB: this computer what it has free (see
-    /// `here_limit`), any other half of its memory. With none chosen,
-    /// this computer.
+    /// `here_limit`), a 512 MB Pi Zero 2 W 128 MiB, any other half of its
+    /// memory. With none chosen, this computer.
     pub fn weakest(&self) -> (Text, u32) {
         match self.create.as_ref() {
             Some(c) => Self::weakest_of(self.here_limit(), c.not_here, &c.on),
@@ -3156,8 +3143,9 @@ impl Vaults {
         let here = (Text::of(EN.vaults_this_computer_name), here);
         let mut w: Option<(Text, u32)> = (!not_here).then_some(here.clone());
         for (k, m) in MACHINES.iter().enumerate() {
-            if on[k] && w.as_ref().is_none_or(|w| m.3 / 2 < w.1) {
-                w = Some((Text::of(m.0), m.3 / 2));
+            let gives = machine_gives(m.3);
+            if on[k] && w.as_ref().is_none_or(|w| gives < w.1) {
+                w = Some((Text::of(m.0), gives));
             }
         }
         w.unwrap_or(here)
@@ -3203,11 +3191,7 @@ impl Vaults {
 
     /// The largest preset the weakest machine gives the memory for.
     pub fn suggested(&self) -> usize {
-        let (_, limit) = self.weakest();
-        (0..PRESETS.len())
-            .rev()
-            .find(|&k| PRESETS[k].1 <= limit)
-            .unwrap_or(0)
+        strongest_within(self.weakest().1)
     }
 
     /// The size row chosen, while the preset and machines are one of
@@ -3537,10 +3521,35 @@ pub fn parse_tz_offset(s: &str) -> Option<i16> {
 /// (`docs/VAULT.md` §3.1).
 pub const LIGHT_MIB: u32 = PRESETS[0].1;
 
+/// The most unlock memory a computer that has `free` MiB free gives a
+/// vault whose file is `len` bytes: the largest custom memory that fits
+/// beside twice the file and the app ([`vault_need_mib`]); Light's when it
+/// does not say.
+fn here_limit_of(free: Option<u32>, len: usize) -> u32 {
+    let Some(free) = free else {
+        return LIGHT_MIB;
+    };
+    CUSTOM_MEMORY
+        .iter()
+        .copied()
+        .filter(|m| vault_need_mib(*m, len) <= free)
+        .max()
+        .unwrap_or(CUSTOM_MEMORY[0])
+}
+
+/// The place of the largest preset whose memory is at most `limit` MiB.
+fn strongest_within(limit: u32) -> usize {
+    (0..PRESETS.len())
+        .rev()
+        .find(|&k| PRESETS[k].1 <= limit)
+        .unwrap_or(0)
+}
+
 /// The presets of `docs/VAULT.md` §3.1: name, memory in MiB, passes, in
 /// order of memory.
-pub const PRESETS: [(&str, u32, u32); 4] = [
+pub const PRESETS: [(&str, u32, u32); 5] = [
     (EN.vaults_light, 64, 3),
+    (EN.vaults_pi_zero, 128, 3),
     (EN.vaults_standard, 256, 3),
     (EN.vaults_medium, 512, 3),
     (EN.vaults_strong, 1024, CREATE_PASSES),
@@ -3549,20 +3558,30 @@ pub const PRESETS: [(&str, u32, u32); 4] = [
 /// The place after the presets that stands for a custom cost.
 pub const CUSTOM: usize = PRESETS.len();
 
-/// Create a vault's two sizes: the label, the
-/// preset it takes, and the machines it is for besides this one, in
-/// `MACHINES` order. The second is the default.
-pub const SIZES: [(&str, usize, [bool; 5]); 2] = [
-    (EN.vaults_pcs_only, 2, [true, false, false, false, false]),
+/// Create a vault's sizes, in order of memory: the label, the preset it
+/// takes, and the machines it is for besides this one, in `MACHINES`
+/// order.
+pub const SIZES: [(&str, usize, [bool; 5]); 4] = [
     (
-        EN.vaults_pcs_and_a_raspberry,
+        EN.vaults_every_pc_and_pi,
+        0,
+        [true, false, false, false, true],
+    ),
+    (
+        EN.vaults_pcs_and_a_pi_zero,
         1,
+        [true, false, false, false, true],
+    ),
+    (
+        EN.vaults_pcs_and_a_pi_3,
+        2,
         [true, false, false, true, false],
     ),
+    (EN.vaults_pcs_only, 3, [true, false, false, false, false]),
 ];
 
-/// The size a new vault starts on: PCs and a Raspberry Pi.
-pub const DEFAULT_SIZE: usize = 1;
+/// The size a new vault starts on: Light, which opens on every machine.
+pub const DEFAULT_SIZE: usize = 0;
 
 /// The length of a new vault's file: one step of plaintext (`docs/VAULT.md`
 /// §2).
@@ -3584,6 +3603,14 @@ pub const MACHINES: [(&str, &str, &str, u32); 5] = [
     (EN.vaults_raspberry_pi_3, EN.vaults_pi_3, "1 GB", 1024),
     (EN.vaults_pi_zero_2_w, EN.vaults_pi_zero_2_w, "512 MB", 512),
 ];
+
+/// The most MiB of unlock memory a machine with `ram` MiB opens a vault
+/// with, as `docs/VAULT.md` §3.1's table says: half its memory, except
+/// the 512 MB Pi Zero 2 W, which opens 128 MiB at most (256 MiB needs
+/// 357 MiB free, more than it has beside what it runs).
+pub fn machine_gives(ram: u32) -> u32 {
+    if ram == 512 { 128 } else { ram / 2 }
+}
 
 /// What the app itself takes beside a vault's unlock memory and file,
 /// MiB: a slot's plaintext and the app.
@@ -3820,7 +3847,7 @@ pub enum VaultAction {
     MemoryHere,
     /// Choose a preset, or `CUSTOM`.
     CPreset(usize),
-    /// Choose one of the two sizes, by its place in `SIZES`.
+    /// Choose one of the sizes, by its place in `SIZES`.
     CSizeRow(usize),
     /// Open the two cards the two presets stand for: where it opens and
     /// the unlock cost.

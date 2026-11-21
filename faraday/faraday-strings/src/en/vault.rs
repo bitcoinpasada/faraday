@@ -578,6 +578,8 @@ macro_rules! words_vault {
     // ----- vaults (faraday-core/src/vault/mod.rs) -----
     /// Text in `PRESETS`.
     vaults_light: "Light",
+    /// Text in `PRESETS`: 128 MiB, the most a Pi Zero 2 W opens.
+    vaults_pi_zero: "Pi Zero",
     /// Text in `PRESETS`.
     vaults_standard: "Standard",
     /// Text in `PRESETS`.
@@ -587,7 +589,11 @@ macro_rules! words_vault {
     /// Text in `SIZES`.
     vaults_pcs_only: "PCs only",
     /// Text in `SIZES`.
-    vaults_pcs_and_a_raspberry: "PCs and a Raspberry Pi",
+    vaults_every_pc_and_pi: "PCs and every Raspberry Pi",
+    /// Text in `SIZES`.
+    vaults_pcs_and_a_pi_3: "PCs and a Raspberry Pi 3",
+    /// Text in `SIZES`.
+    vaults_pcs_and_a_pi_zero: "PCs and a Pi Zero 2 W",
     /// Text in `MACHINES`.
     vaults_other_pcs: "Other PCs",
     /// Text in `MACHINES`.

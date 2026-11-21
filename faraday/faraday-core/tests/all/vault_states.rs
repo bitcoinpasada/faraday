@@ -1669,7 +1669,11 @@ fn ticking_a_smaller_machine_in_memory_makes_a_higher_step_too_large_for_it() {
     let zero = EN.vaults_pi_zero_2_w;
     assert_eq!(too_large_rows(&mut app, zero), 0);
     app.press(Action::Vault(V::MemoryMachine(ZERO)));
-    assert_eq!(too_large_rows(&mut app, zero), 2, "512 MiB and 1 GiB");
+    assert_eq!(
+        too_large_rows(&mut app, zero),
+        3,
+        "256 MiB, 512 MiB and 1 GiB read too large for a Zero 2 W"
+    );
     app.press(Action::Vault(V::MemoryMachine(ZERO)));
     assert_eq!(too_large_rows(&mut app, zero), 0);
 }
@@ -1705,7 +1709,7 @@ fn memory_opens_with_this_computer_alone() {
     let zero = EN.vaults_pi_zero_2_w;
     app.press(Action::Vault(V::MemoryAsk));
     app.press(Action::Vault(V::MemoryMachine(ZERO)));
-    assert_eq!(too_large_rows(&mut app, zero), 2);
+    assert_eq!(too_large_rows(&mut app, zero), 3);
     app.press(Action::Vault(V::FormCancel));
     app.press(Action::Vault(V::MemoryAsk));
     assert_eq!(too_large_rows(&mut app, zero), 0);

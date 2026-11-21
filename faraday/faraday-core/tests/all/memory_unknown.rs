@@ -87,7 +87,7 @@ fn memory_unknown_a_vault_above_light_is_not_made_and_light_is_offered() {
     app.press(Action::Vault(V::Create));
     assert_eq!(app.screen, Screen::CreateVault);
     // Standard, 256 MiB.
-    app.press(Action::Vault(V::CPreset(1)));
+    app.press(Action::Vault(V::CPreset(2)));
     app.press(Action::Vault(V::CFocus(0, false)));
     type_text(&mut app, "memory phrase");
     app.press(Action::Vault(V::CFocus(0, true)));

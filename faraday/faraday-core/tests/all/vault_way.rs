@@ -606,7 +606,7 @@ fn unlock_counts_the_file_twice_in_the_memory_it_needs() {
     app.press(Action::Vault(V::Create));
     make_the_vault(&mut app);
     lock_it(&mut app);
-    // The default's 256 MiB, twice the file and 100 MiB for the app.
+    // The default's 64 MiB, twice the file and 100 MiB for the app.
     const MIB: usize = 1024 * 1024;
     let file = app
         .outbox
@@ -614,7 +614,7 @@ fn unlock_counts_the_file_twice_in_the_memory_it_needs() {
         .expect("the vault was written")
         .bytes
         .len();
-    let need = 256 + ((2 * file + MIB / 2) / MIB) as u32 + 100;
+    let need = 64 + ((2 * file + MIB / 2) / MIB) as u32 + 100;
     app.storage(StorageEvent::Memory {
         available_mib: need - 1,
     });

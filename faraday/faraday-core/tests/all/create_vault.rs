@@ -204,12 +204,18 @@ fn a_finished_backup_offers_a_stick_and_asks_to_lock_first() {
 }
 
 // ---------------------------------------------------------------------
-// §3.1: two sizes, then Customise.
+// §3.1: four sizes, then Customise.
 // ---------------------------------------------------------------------
 
 /// The app with nothing loaded, memory to spare and the system's
 /// randomness in, on Create a vault from Vaults.
 fn on_create_vault() -> Faraday {
+    on_create_vault_free(Some(15_000))
+}
+
+/// Create a vault opened on a computer with `free` MiB free, or one that
+/// does not say.
+fn on_create_vault_free(free: Option<u32>) -> Faraday {
     let mut app = Faraday::new();
     app.event(Event::Display(DisplayInfo {
         width: 1366,
@@ -223,9 +229,9 @@ fn on_create_vault() -> Faraday {
         boot: BootState::Unknown,
         memory_mib: None,
     }));
-    app.storage(faraday_core::StorageEvent::Memory {
-        available_mib: 15_000,
-    });
+    if let Some(available_mib) = free {
+        app.storage(faraday_core::StorageEvent::Memory { available_mib });
+    }
     for i in 0..8u8 {
         app.event(Event::Entropy(EntropyBytes::new([0x30 + i; 32])));
     }
@@ -234,6 +240,85 @@ fn on_create_vault() -> Faraday {
     app.press(Action::Vault(V::Create));
     let _ = app.frame();
     app
+}
+
+/// The memory of the size the form stands on, MiB.
+fn form_memory(app: &Faraday) -> u32 {
+    app.vaults().form_cost().unwrap().1
+}
+
+/// Create starts on Light, 64 MiB, which opens everywhere: on a computer
+/// with plenty free, on one with 400 MiB free, on one that does not say,
+/// and when opened from the Backup page after another row was chosen.
+#[test]
+fn create_starts_on_64_mib_whatever_this_computer_has_free() {
+    for free in [Some(2_000), Some(400), Some(300), None] {
+        let app = on_create_vault_free(free);
+        let (k, memory, passes) = app.vaults().form_cost().unwrap();
+        assert_eq!((memory, passes), (64, 3), "{free:?}");
+        assert_eq!(faraday_core::vault::PRESETS[k].0, "Light");
+        assert_eq!(app.vaults().size_row(), Some(0), "the default row");
+    }
+    let mut app = on_create_vault_free(Some(2_000));
+    app.press(Action::Vault(V::CSizeRow(3)));
+    app.press(Action::Vault(V::CreateFrom(Screen::Backup)));
+    assert_eq!(form_memory(&app), 64, "a new form starts on 64 MiB again");
+}
+
+/// A size this computer cannot take can be picked, but the vault is not
+/// made: Create says to choose a cost it can allocate.
+#[test]
+fn a_size_this_computer_cannot_take_is_chosen_but_not_made() {
+    let mut app = on_create_vault_free(Some(300));
+    app.press(Action::Vault(V::CSizeRow(2)));
+    assert_eq!(form_memory(&app), 256);
+    app.press(Action::Vault(V::CFocus(0, false)));
+    type_text(&mut app, "test phrase");
+    app.press(Action::Vault(V::CFocus(0, true)));
+    type_text(&mut app, "test phrase");
+    app.press(Action::Vault(V::CGo));
+    settle(&mut app, 1);
+    assert!(app.vaults().just_made.is_none());
+    let e = app.vaults().create.as_ref().unwrap().error.clone();
+    assert_eq!(
+        e.unwrap().as_str(),
+        "Choose a cost this computer can allocate"
+    );
+}
+
+/// The Pi Zero 2 W row is 128 MiB at 3 passes, written as KDBX memory
+/// 134,217,728, and the vault opens.
+#[test]
+fn the_pi_zero_row_makes_a_128_mib_vault_that_opens() {
+    use faraday_core::vault::vstep;
+    let mut app = on_create_vault();
+    app.press(Action::Vault(V::CStep(vstep::PRESET)));
+    let _ = app.frame();
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t == "PCs and a Pi Zero 2 W"),
+        "{:?}",
+        app.drawn_texts()
+    );
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t == "PCs and a Raspberry Pi 3")
+    );
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t == "PCs and every Raspberry Pi")
+    );
+    app.press(Action::Vault(V::CSizeRow(1)));
+    assert_eq!(app.vaults().form_cost().map(|c| (c.1, c.2)), Some((128, 3)));
+    let (cost, file) = create_and_read(&mut app);
+    assert_eq!(cost, (128, 3));
+    // KDBX stores the memory in bytes: the file holds 134,217,728 as its
+    // little-endian u64.
+    let m = 134_217_728u64.to_le_bytes();
+    assert!(file.windows(8).any(|w| w == m), "KDF M in the header");
 }
 
 /// Types one passphrase twice, presses Create vault and waits: the cost
@@ -259,7 +344,7 @@ fn create_and_read_cost(app: &mut Faraday) -> (u32, u32) {
 }
 
 #[test]
-fn a_fresh_create_a_vault_opens_on_name_and_passphrases_with_256_mib_chosen() {
+fn a_fresh_create_a_vault_opens_on_name_and_passphrases_with_64_mib_chosen() {
     use faraday_core::vault::vstep;
     let mut app = on_create_vault();
     let c = app.vaults().create.as_ref().unwrap();
@@ -272,7 +357,7 @@ fn a_fresh_create_a_vault_opens_on_name_and_passphrases_with_256_mib_chosen() {
         !app.offers(Action::Vault(V::CStep(vstep::COST))),
         "the unlock cost is not a card until Customise"
     );
-    assert_eq!(create_and_read_cost(&mut app), (256, 3));
+    assert_eq!(create_and_read_cost(&mut app), (64, 3));
 }
 
 /// A new vault goes by the name typed for it.
@@ -299,12 +384,12 @@ fn pcs_only_makes_a_512_mib_vault() {
     let mut app = on_create_vault();
     app.press(Action::Vault(V::CStep(vstep::PRESET)));
     let _ = app.frame();
-    assert!(app.offers(Action::Vault(V::CSizeRow(0))), "PCs only");
+    assert!(app.offers(Action::Vault(V::CSizeRow(3))), "PCs only");
     assert!(
-        app.offers(Action::Vault(V::CSizeRow(1))),
-        "PCs and a Raspberry Pi"
+        app.offers(Action::Vault(V::CSizeRow(0))),
+        "PCs and every Raspberry Pi"
     );
-    app.press(Action::Vault(V::CSizeRow(0)));
+    app.press(Action::Vault(V::CSizeRow(3)));
     app.press(Action::Vault(V::CNext(vstep::PRESET)));
     assert_eq!(
         app.vaults().create.as_ref().unwrap().open,
@@ -344,7 +429,7 @@ fn customise_opens_the_two_cards_and_a_custom_memory_survives_continue() {
 }
 
 /// The vault's memory is one figure: the machines choice, the cost and
-/// the summary all say 256 MiB for PCs and a Raspberry Pi, never the app's
+/// the summary all say 64 MiB for PCs and every Raspberry Pi, never the app's
 /// share on top of it.
 #[test]
 fn the_unlock_memory_reads_the_same_on_the_machines_and_the_summary() {
@@ -359,7 +444,7 @@ fn the_unlock_memory_reads_the_same_on_the_machines_and_the_summary() {
     app.press(Action::Vault(V::CCustomise));
     let text = app.drawn_texts();
     assert!(text.iter().any(|t| t == "Unlock memory"), "{text:?}");
-    assert!(text.iter().any(|t| t == "256 MiB"), "{text:?}");
+    assert!(text.iter().any(|t| t == "64 MiB"), "{text:?}");
     assert!(!text.iter().any(|t| t.contains("164 MiB")), "{text:?}");
 }
 
@@ -486,12 +571,13 @@ fn this_computer_gives_what_it_has_free_and_can_be_unticked() {
         "{text:?}"
     );
     let suggested = |app: &Faraday| PRESETS[app.vaults().suggested()].1;
-    // PCs and a Raspberry Pi chose other PCs and the Pi 3: half the
-    // Pi's 1 GB.
-    assert_eq!(suggested(&app), 512);
+    // The default row ticks other PCs and the Zero 2 W, which opens 128 MiB
+    // at most: Suggested is the 128 MiB row, and 256 MiB is too large.
+    assert_eq!(suggested(&app), 128);
+    assert_eq!(app.vaults().weakest().1, 128, "256 MiB is too large");
     // This computer alone: all it gives.
     app.press(Action::Vault(V::CMachine(0)));
-    app.press(Action::Vault(V::CMachine(3)));
+    app.press(Action::Vault(V::CMachine(4)));
     assert_eq!(suggested(&app), 1024);
     // Unticked, with the Pi 3 alone.
     app.press(Action::Vault(V::CHere));
@@ -810,6 +896,8 @@ fn a_cost_stays_while_it_fits_the_machines_and_is_cleared_when_it_does_not() {
     let mut app = on_create_vault();
     app.press(Action::Vault(V::CStep(vstep::PRESET)));
     app.press(Action::Vault(V::CCustomise));
+    // The default row ticks the Zero 2 W: PCs alone first.
+    app.press(Action::Vault(V::CMachine(4)));
     app.press(Action::Vault(V::CNext(vstep::WHERE)));
     let k = CUSTOM_MEMORY.iter().position(|m| *m == 512).unwrap();
     app.press(Action::Vault(V::CMemory(k)));
@@ -824,7 +912,7 @@ fn a_cost_stays_while_it_fits_the_machines_and_is_cleared_when_it_does_not() {
         form.done[usize::from(vstep::COST)],
         "512 MiB still fits PCs"
     );
-    // A Raspberry Pi Zero 2 W opens 256 MiB at most.
+    // A Raspberry Pi Zero 2 W opens 128 MiB at most.
     app.press(Action::Vault(V::CMachine(4)));
     let form = app.vaults().create.as_ref().unwrap();
     assert!(
@@ -849,7 +937,7 @@ fn a_new_size_keeps_the_passphrases_typed() {
     type_text(&mut app, "test phrase");
     app.press(Action::Vault(V::CStep(vstep::PRESET)));
     let _ = app.frame();
-    app.press(Action::Vault(V::CSizeRow(0)));
+    app.press(Action::Vault(V::CSizeRow(3)));
     let form = app.vaults().create.as_ref().unwrap();
     assert_eq!(
         faraday_core::vault::Vaults::phrase_text(form, 0).unwrap().0,
@@ -946,5 +1034,47 @@ fn a_lock_empties_a_new_vaults_passphrases() {
             .is_none_or(|c| faraday_core::vault::Vaults::phrase_text(c, 0)
                 .is_none_or(|(a, b)| a.is_empty() && b.is_empty())),
         "the passphrase does not survive a lock"
+    );
+}
+
+/// A 256 MiB cost chosen for other PCs alone is cleared by ticking the
+/// Pi Zero 2 W, and the Unlock cost card then suggests the Pi Zero row and
+/// reads the larger rows too large for it.
+#[test]
+fn ticking_the_zero_2_w_clears_a_256_mib_cost_and_suggests_128() {
+    use faraday_core::vault::vstep;
+    let mut app = on_create_vault();
+    app.press(Action::Vault(V::CStep(vstep::PRESET)));
+    app.press(Action::Vault(V::CCustomise));
+    app.press(Action::Vault(V::CMachine(4)));
+    app.press(Action::Vault(V::CNext(vstep::WHERE)));
+    app.press(Action::Vault(V::CPreset(2)));
+    assert_eq!(form_memory(&app), 256);
+    app.press(Action::Vault(V::CNext(vstep::COST)));
+    app.press(Action::Vault(V::CStep(vstep::WHERE)));
+    let _ = app.frame();
+    app.press(Action::Vault(V::CMachine(4)));
+    assert!(
+        !app.vaults().create.as_ref().unwrap().done[usize::from(vstep::COST)],
+        "256 MiB does not fit a Pi Zero 2 W: the cost is asked again"
+    );
+    app.press(Action::Vault(V::CNext(vstep::WHERE)));
+    let _ = app.frame();
+    let text = app.drawn_texts();
+    assert_eq!(
+        text.iter().filter(|t| *t == "Suggested").count(),
+        1,
+        "{text:?}"
+    );
+    assert_eq!(
+        text.iter()
+            .filter(|t| *t == "Too large for Pi Zero 2 W")
+            .count(),
+        3,
+        "256 MiB, 512 MiB and 1 GiB: {text:?}"
+    );
+    assert_eq!(
+        faraday_core::vault::PRESETS[app.vaults().suggested()].1,
+        128
     );
 }

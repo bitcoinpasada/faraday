@@ -189,9 +189,9 @@ writes five memory steps:
 
 | Memory | KDBX `M` (bytes) | Bits added |
 |---|---|---|
-| 64 MiB | 67,108,864 | ≈17.6 |
+| 64 MiB, the default | 67,108,864 | ≈17.6 |
 | 128 MiB | 134,217,728 | ≈18.6 |
-| 256 MiB, the default | 268,435,456 | ≈19.6 |
+| 256 MiB | 268,435,456 | ≈19.6 |
 | 512 MiB | 536,870,912 | ≈20.6 |
 | 1 GiB | 1,073,741,824 | ≈21.6 |
 
@@ -224,8 +224,8 @@ physical memory.
 **A machine that does not say what it has free** (where that cannot be
 read) unlocks and makes only vaults of 64 MiB, which opens anywhere:
 Unlock says so for a vault of more and does not start, and Create
-suggests 64 MiB, starts the form on it and refuses a larger step, naming it. Going ahead on a
-guess could take more memory than the machine has.
+suggests 64 MiB and refuses a larger step, naming it. Going ahead on a
+guess could take more memory than the machine has. The form starts on 64 MiB on every machine (F309).
 
 **The passphrase matters more than the cost.** Doubling the memory
 doubles the work of every guess, which is worth one bit of passphrase
@@ -246,14 +246,25 @@ holds the dice's words. Every figure that includes the step's bits is
 written with ≈, never =, and the dice's own bits without it. A typed
 passphrase's own bits are not measured, and the form says so.
 
+**Presets and sizes (F309).** The presets are Light (64 MiB), Pi Zero
+(128 MiB), Standard (256 MiB), Medium (512 MiB) and Strong (1 GiB), each
+at 3 passes. The form starts on Light on every computer, which opens on
+every machine Faraday runs on (RFC 9106's choice where 2 GiB cannot be
+spared, and KeePassXC's default). The size rows are PCs and every
+Raspberry Pi (Light, ticking Other PCs and the Zero 2 W, the default),
+PCs and a Pi Zero 2 W (Pi Zero), PCs and a Raspberry Pi 3 (Standard,
+ticking Other PCs and the Pi 3) and PCs only (Medium). A size this
+computer cannot take can be chosen; Create refuses it with "Choose a
+cost this computer can allocate", and writes nothing.
+
 **Memory on the Create form.** The form's **Memory** card lists the five
-steps with 256 MiB chosen, each with the machines it opens on (below)
+steps with 64 MiB chosen, each with the machines it opens on (below)
 and its unlock time here, or what this computer has free where that
 falls short. **Where will you open it?** marks the largest step that
 fits the weakest machine chosen as suggested. **This computer** is
 ticked by default and can be unticked; it gives a vault the largest step
 that fits in what it has free beside twice the vault file and 100 MiB
-(below). Another machine gives half its memory:
+(below). Another machine gives half its memory, except a 512 MB Pi Zero 2 W, which gives 128 MiB:
 
 | Memory | Memory free to open | Opens on |
 |---|---|---|
