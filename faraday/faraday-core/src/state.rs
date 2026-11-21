@@ -232,13 +232,14 @@ impl EntryArea {
         }
     }
 
-    /// Forgets what the form holds but keeps what is wanted and where
-    /// Back goes, and shows `form` with the chips of the other forms.
+    /// Forgets what the form holds but keeps what is wanted, the wallet
+    /// it is for and where Back goes, and shows `form` with the chips of the other forms.
     pub(crate) fn choose_form(&mut self, form: Form) {
-        let (wanted, back) = (self.state.wanted, self.state.back);
+        let (wanted, back, wallet) = (self.state.wanted, self.state.back, self.state.wallet);
         self.reset();
         self.state.wanted = wanted;
         self.state.back = back;
+        self.state.wallet = wallet;
         self.state.form = form;
         self.state.other_forms = true;
     }

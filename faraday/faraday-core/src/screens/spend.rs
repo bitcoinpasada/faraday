@@ -417,14 +417,21 @@ fn single_key_routes(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), wi: us
     if files.is_empty() {
         opens.push((Text::of(EN.step_open_a_vault), Action::Nav(Screen::Vaults)));
     }
-    let mut items: Vec<(&str, Style, Action)> = vec![
-        (
-            EN.step_type_the_words,
-            Style::Primary.when(may),
-            Action::EntryWallet(wi),
-        ),
-        (EN.step_scan_a_seedqr, style, Action::ScanKey(wi)),
-    ];
+    // Type, Scan and codex32, then the vault that holds the key; every
+    // other form is under Other forms.
+    let up = crate::Opening::SpendSign.up_front(app);
+    let mut items: Vec<(&str, Style, Action)> = up
+        .iter()
+        .enumerate()
+        .map(|(i, (l, _, a))| {
+            let st = if i == 0 {
+                Style::Primary.when(may)
+            } else {
+                style
+            };
+            (l.as_str(), st, *a)
+        })
+        .collect();
     if let Some(f) = from_vault {
         items.push((
             EN.step_load_from_vault,
@@ -437,6 +444,9 @@ fn single_key_routes(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), wi: us
     }
     items.extend(opens.iter().map(|(l, a)| (l.as_str(), style, *a)));
     cy += wrap_buttons(ui, x, cy, w, BUTTON_H, &items) + 2.0;
+    if may {
+        cy += crate::ways_in::screen::other_control(app, ui, (x, cy, w), crate::Opening::SpendSign);
+    }
     if !may {
         let pull = Text::fill(EN.inbox_panel_keys_load, &[app.medium.noun()]);
         ui.text_as(x, cy, LABEL_L, Role::Warning, &pull);

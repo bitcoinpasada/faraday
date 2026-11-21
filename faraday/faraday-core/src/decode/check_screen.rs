@@ -275,11 +275,22 @@ pub(crate) fn seed_dialog(app: &View, ui: &mut Ui, w: f32, h: f32) {
     };
     let title = fill(EN.signer_seed_of, &[&fp.to_string()]);
     let head = (Icon::Keys.into(), Role::Primary.paint(), title.as_str());
-    let ways = [
-        (EN.keygen_type_the_words, SignerPress::SeedWords),
-        (EN.keygen_scan_a_seedqr, SignerPress::SeedScan),
-        (EN.signer_open_a_vault, SignerPress::SeedVault),
-    ];
+    // Type, Scan and codex32, the vault that holds the seed, then Other
+    // forms, which opens the rest as a sheet.
+    let opening = crate::Opening::CheckSigner;
+    let mut ways: Vec<(String, Action)> = opening
+        .up_front(app)
+        .into_iter()
+        .map(|(l, _, a)| (l.as_str().to_string(), a))
+        .collect();
+    ways.push((
+        EN.signer_open_a_vault.to_string(),
+        Action::SignerCheck(SignerPress::SeedVault),
+    ));
+    ways.push((
+        EN.entry_other_forms.to_string(),
+        Action::EntryOtherForms(opening),
+    ));
     let actions = [(EN.vault_cancel, Style::Secondary, Action::Cancel)];
     crate::compact::dialog(
         ui,
@@ -287,10 +298,10 @@ pub(crate) fn seed_dialog(app: &View, ui: &mut Ui, w: f32, h: f32) {
         head,
         &mut |ui, x, y, iw| {
             let mut cy = y;
-            for (label, press) in ways {
+            for (label, press) in &ways {
                 ui.fill(x, cy, iw, TOUCH, SHAPE_S, Role::SurfaceContainerHighest);
                 ui.text_mid_as((x + PAD, cy, TOUCH), BODY_M, Role::OnSurface, label);
-                ui.press_box(x, cy, iw, TOUCH, Action::SignerCheck(press));
+                ui.press_box(x, cy, iw, TOUCH, *press);
                 cy += TOUCH + GAP_SMALL;
             }
             cy - GAP_SMALL - y

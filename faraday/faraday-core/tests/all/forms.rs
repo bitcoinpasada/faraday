@@ -512,3 +512,34 @@ fn a_passphrase_typed_on_the_on_screen_keyboard_on_add_a_key_has_no_line_and_no_
     app.press(Action::EntryAdd);
     assert_eq!(app.session.keys.len(), 1);
 }
+
+#[test]
+fn my_seed_makes_my_wallet_offers_every_form_up_front_or_under_other_forms() {
+    use faraday_core::forms::Form;
+    use faraday_core::seed_check::{FORMS, SeedAction as S};
+    let mut app = faraday_core::testkit::started();
+    let tile = faraday_core::catalog::TILES
+        .iter()
+        .position(|t| t.name == "My seed makes my wallet")
+        .unwrap();
+    app.press(Action::Catalog(tile as u8));
+    let _ = app.frame();
+    let form = |f: Form| {
+        FORMS
+            .iter()
+            .position(|x| *x == f)
+            .map(|i| Action::SeedCheck(S::Form(i as u8)))
+    };
+    assert!(app.offers(Action::SeedCheck(S::Type)));
+    assert!(app.offers(Action::ScanSeed));
+    assert!(app.offers(form(Form::Codex32).unwrap()));
+    assert!(app.offers(Action::EntryOtherForms(Opening::SeedMakesWallet)));
+    for f in [Form::Slip39, Form::Xor, Form::Krux] {
+        assert!(!app.offers(form(f).unwrap()), "{}", f.name());
+    }
+    app.press(Action::EntryOtherForms(Opening::SeedMakesWallet));
+    let _ = app.frame();
+    for f in [Form::Slip39, Form::Xor, Form::Krux] {
+        assert!(app.offers(form(f).unwrap()), "{}", f.name());
+    }
+}

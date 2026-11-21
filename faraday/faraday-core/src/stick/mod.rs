@@ -112,6 +112,7 @@ pub(crate) fn pull_what(app: &Faraday, action: Action) -> Option<&'static str> {
             crate::seed_check::SeedAction::Type | crate::seed_check::SeedAction::Form(_),
         )
         | Action::EntryWallet(_)
+        | Action::EntryWalletForm(..)
         | Action::ScanSeed
         | Action::ScanKef
         | Action::KefFile(_)

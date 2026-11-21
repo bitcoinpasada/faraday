@@ -998,7 +998,7 @@ impl Faraday {
                 }
             }
             // A sheet on a small panel, rows in place on the wide layout.
-            Action::EntryOtherForms(o) if self.one_column() => {
+            Action::EntryOtherForms(o) if self.one_column() || o.sheet_only() => {
                 self.sheet = Some(crate::Sheet::OtherForms(o));
             }
             Action::EntryOtherForms(_) => self.entry.show_other_forms(),
@@ -1024,6 +1024,12 @@ impl Faraday {
                     self.sheet = None;
                     self.act(Action::Entry(None));
                     self.entry.set_wallet(w);
+                }
+            }
+            Action::EntryWalletForm(w, code) => {
+                self.act(Action::EntryWallet(w));
+                if self.screen == Screen::Entry {
+                    self.act(Action::EntryForm(code));
                 }
             }
             // `act_inner` passes only the actions matched above.

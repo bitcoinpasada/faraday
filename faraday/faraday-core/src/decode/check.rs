@@ -74,6 +74,8 @@ pub enum SignerPress {
     SeedWords,
     /// The sheet's **Scan a SeedQR**: the same form with its scanner open.
     SeedScan,
+    /// The sheet's Other forms: one form of the table, by its code, for the same form to type its key in.
+    SeedForm(u8),
     /// The sheet's **Open a vault**: the key loads from the open vault
     /// that holds it, else a vault is unlocked to return here.
     SeedVault,

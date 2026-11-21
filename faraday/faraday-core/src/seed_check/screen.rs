@@ -182,35 +182,15 @@ fn seed(app: &View, s: &SeedState, ui: &mut Ui, (x, y, w): (f32, f32, f32), load
     if app.seed_sample_shown() {
         ui.demo_offer(EN.scan_sample_seed, act(S::Sample));
     }
-    let mut rows: Vec<(Text, Style, Action)> = vec![
-        (Text::of(EN.seed_check_type), Style::Secondary, act(S::Type)),
-        (
-            Text::of(EN.seed_check_scan),
-            Style::Secondary,
-            Action::ScanSeed,
-        ),
-    ];
-    for (i, form) in super::FORMS.iter().enumerate() {
-        rows.push((
-            Text::of(form.name()),
-            Style::Secondary,
-            act(S::Form(i as u8)),
-        ));
-    }
-    for (i, key) in app.session.keys.all().enumerate().filter(|_| loaded) {
-        let line = crate::wallet::key_line(key.fingerprint, &crate::bip85::key_name(key));
-        let label = if key.has_passphrase {
-            Text::formatted(format_args!(
-                "{} · {}",
-                line.as_str(),
-                EN.seed_check_with_passphrase_mark
-            ))
-        } else {
-            line
-        };
-        rows.push((label, Style::Secondary, act(S::Loaded(i))));
-    }
-    button_rows(ui, x, y, w, &rows)
+    // Type, Scan and codex32 first; the other forms, and the loaded keys
+    // where this card offers them, under Other forms.
+    let opening = if loaded {
+        crate::Opening::SeedMakesWallet
+    } else {
+        crate::Opening::SeedAgainst
+    };
+    let up = button_rows(ui, x, y, w, &opening.up_front(app));
+    up + crate::ways_in::screen::other_control(app, ui, (x, y + up, w), opening)
 }
 
 fn passphrase(app: &View, s: &SeedState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {

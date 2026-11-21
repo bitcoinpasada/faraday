@@ -186,6 +186,8 @@ pub enum Action {
     /// Add a key for loaded wallet n: its words typed, for any of its
     /// missing keys.
     EntryWallet(usize),
+    /// Add a key for a wallet, opened on one form of the table, by its code.
+    EntryWalletForm(usize, u8),
     /// Scan one part of a key into Add a key's other forms: a SLIP-39
     /// share, a codex32 string, or a Seed XOR part's SeedQR or words.
     ScanPart,
@@ -1609,6 +1611,7 @@ impl Faraday {
             | Action::EntryPassphraseAgain
             | Action::EntryField
             | Action::EntryWallet(..)
+            | Action::EntryWalletForm(..)
             | Action::Codex32Correct(..)
             | Action::Codex32Form(..)) => self.entry_act(a),
             a @ (Action::PickWallet(..)

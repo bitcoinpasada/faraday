@@ -8,7 +8,14 @@
 
 pub(crate) mod screen;
 
+use crate::Action;
+use crate::decode::check::SignerPress;
+use crate::drawing::View;
 use crate::forms::Form;
+use crate::seed_check::SeedAction;
+use crate::strings::EN;
+use crate::ui::Style;
+use faraday_text::Text;
 
 /// A way a key reaches a screen. A Form way is any form of the table.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -17,6 +24,8 @@ pub(crate) enum Way {
     Scan,
     /// One form of the table.
     Form(Form),
+    /// A loaded key, by its place among the loaded keys.
+    Holder(usize),
 }
 
 /// What a screen takes and what it shows first.
@@ -34,27 +43,168 @@ pub(crate) const ADD_A_KEY: Opener = Opener {
     up_front: &[Way::Scan, Way::Form(Form::Words), Way::Form(Form::Codex32)],
 };
 
+/// My seed makes my wallet: every form; Type, Scan and codex32 first.
+pub(crate) const SEED_MAKES_WALLET: Opener = Opener {
+    forms: &Form::ALL,
+    up_front: &[Way::Form(Form::Words), Way::Scan, Way::Form(Form::Codex32)],
+};
+
+/// Check a signer's Load the seed: every form; Type, Scan and codex32
+/// first.
+pub(crate) const CHECK_A_SIGNER: Opener = Opener {
+    forms: &Form::ALL,
+    up_front: &[Way::Form(Form::Words), Way::Scan, Way::Form(Form::Codex32)],
+};
+
+/// Spend's sign card: every form; Type, Scan and codex32 first.
+pub(crate) const SPEND_SIGN: Opener = Opener {
+    forms: &Form::ALL,
+    up_front: &[Way::Form(Form::Words), Way::Scan, Way::Form(Form::Codex32)],
+};
+
 /// Which opener drew an Other forms control: its press and its sheet
 /// carry it, so every opener's rows come from its own constant.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Opening {
     /// Add a key.
     AddAKey,
+    /// My seed makes my wallet: the Seed card.
+    SeedMakesWallet,
+    /// Check a multisig setup's Check a seed against it: the Seed card,
+    /// with no loaded key offered.
+    SeedAgainst,
+    /// Check a signer: Load the seed.
+    CheckSigner,
+    /// Spend's sign card.
+    SpendSign,
 }
+
+/// One row of a way: its label, style and press.
+pub(crate) type Item = (Text, Style, Action);
 
 impl Opening {
     /// The opener this is.
     pub(crate) fn opener(self) -> &'static Opener {
         match self {
             Opening::AddAKey => &ADD_A_KEY,
+            Opening::SeedMakesWallet | Opening::SeedAgainst => &SEED_MAKES_WALLET,
+            Opening::CheckSigner => &CHECK_A_SIGNER,
+            Opening::SpendSign => &SPEND_SIGN,
         }
     }
 
-    /// The press of one of this opener's forms.
-    pub(crate) fn form_press(self, form: Form) -> crate::Action {
-        match self {
-            Opening::AddAKey => crate::Action::EntryForm(form.code()),
+    /// Whether Other forms is a sheet on every panel: the opener is a
+    /// dialog, with no page to open its rows in.
+    pub(crate) fn sheet_only(self) -> bool {
+        self == Opening::CheckSigner
+    }
+
+    /// Whether the loaded keys are ways of this opener, under Other
+    /// forms: the screen does not know which key it wants.
+    fn holders(self) -> bool {
+        self == Opening::SeedMakesWallet
+    }
+
+    /// One way as a row: its label and its press. Add a key's rows show
+    /// the form chosen.
+    pub(crate) fn item(self, app: &View, way: Way) -> Item {
+        let me = if self == Opening::SeedAgainst {
+            Opening::SeedMakesWallet
+        } else {
+            self
+        };
+        let (words, scan) = match me {
+            Opening::AddAKey => (Form::Words.name(), EN.entry_scan_a_seedqr),
+            Opening::SeedMakesWallet | Opening::SeedAgainst => {
+                (EN.seed_check_type, EN.seed_check_scan)
+            }
+            Opening::CheckSigner => (EN.keygen_type_the_words, EN.keygen_scan_a_seedqr),
+            Opening::SpendSign => (EN.step_type_the_words, EN.step_scan_a_seedqr),
+        };
+        let wi = app.wallets.wallet();
+        match way {
+            Way::Scan => (
+                Text::of(scan),
+                Style::Secondary,
+                match me {
+                    Opening::AddAKey | Opening::SeedMakesWallet | Opening::SeedAgainst => {
+                        Action::ScanSeed
+                    }
+                    Opening::CheckSigner => Action::SignerCheck(SignerPress::SeedScan),
+                    Opening::SpendSign => Action::ScanKey(wi),
+                },
+            ),
+            Way::Form(Form::Words) if me != Opening::AddAKey => (
+                Text::of(words),
+                Style::Secondary,
+                match me {
+                    Opening::CheckSigner => Action::SignerCheck(SignerPress::SeedWords),
+                    Opening::SpendSign => Action::EntryWallet(wi),
+                    _ => Action::SeedCheck(SeedAction::Type),
+                },
+            ),
+            Way::Form(f) => (
+                Text::of(f.name()),
+                Style::chosen(me == Opening::AddAKey && f == app.entry.state().form),
+                match me {
+                    Opening::AddAKey => Action::EntryForm(f.code()),
+                    Opening::CheckSigner => Action::SignerCheck(SignerPress::SeedForm(f.code())),
+                    Opening::SpendSign => Action::EntryWalletForm(wi, f.code()),
+                    _ => crate::seed_check::FORMS
+                        .iter()
+                        .position(|x| *x == f)
+                        .map_or(Action::SeedCheck(SeedAction::Type), |i| {
+                            Action::SeedCheck(SeedAction::Form(i as u8))
+                        }),
+                },
+            ),
+            Way::Holder(i) => (
+                app.session
+                    .keys
+                    .all()
+                    .nth(i)
+                    .map_or_else(Text::default, |key| {
+                        let line =
+                            crate::wallet::key_line(key.fingerprint, &crate::bip85::key_name(key));
+                        if key.has_passphrase {
+                            Text::formatted(format_args!(
+                                "{} · {}",
+                                line.as_str(),
+                                EN.seed_check_with_passphrase_mark
+                            ))
+                        } else {
+                            line
+                        }
+                    }),
+                Style::Secondary,
+                Action::SeedCheck(SeedAction::Loaded(i)),
+            ),
         }
+    }
+
+    /// The ways shown first, as rows.
+    pub(crate) fn up_front(self, app: &View) -> Vec<Item> {
+        self.opener()
+            .up_front
+            .iter()
+            .map(|w| self.item(app, *w))
+            .collect()
+    }
+
+    /// The ways under Other forms, as rows: the forms the opener takes
+    /// less those shown first, then the loaded keys where it lists them.
+    pub(crate) fn others(self, app: &View) -> Vec<Item> {
+        let mut rows: Vec<Item> = self
+            .opener()
+            .other_forms()
+            .into_iter()
+            .map(|f| self.item(app, Way::Form(f)))
+            .collect();
+        if self.holders() {
+            let n = app.session.keys.all().count();
+            rows.extend((0..n).map(|i| self.item(app, Way::Holder(i))));
+        }
+        rows
     }
 }
 
@@ -63,7 +213,7 @@ impl Opener {
     pub(crate) fn up_front_forms(&self) -> impl Iterator<Item = Form> + '_ {
         self.up_front.iter().filter_map(|w| match w {
             Way::Form(f) => Some(*f),
-            Way::Scan => None,
+            Way::Scan | Way::Holder(_) => None,
         })
     }
 

@@ -1083,6 +1083,14 @@ impl Faraday {
                     }
                 }
             }
+            P::SeedForm(code) => {
+                let fp = self.decode.check().and_then(|s| s.seed);
+                self.sheet = None;
+                if let Some(fp) = fp {
+                    self.act(Action::Entry(Some(fp.0)));
+                    self.act(Action::EntryForm(code));
+                }
+            }
             P::SeedVault => {
                 self.sheet = None;
                 self.signer_seed_from_vault(true);
