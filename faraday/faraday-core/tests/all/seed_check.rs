@@ -1531,3 +1531,22 @@ fn the_open_step_is_alone_with_your_choices_beside_it_or_in_the_sheet() {
     assert_eq!(app.sheet, Some(Sheet::Choices));
     assert!(texts(&mut app).iter().any(|t| t == "12 words"));
 }
+
+#[test]
+fn a_stick_arriving_empties_the_seed_check_s_passphrases() {
+    let mut app = with_words(ABOUT);
+    app.press(Action::SeedCheck(S::AddPass));
+    type_chars(&mut app, "secret");
+    app.press(Action::SeedCheck(S::PassField(1)));
+    type_chars(&mut app, "secret");
+    stick_in(&mut app);
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    app.press(Action::PassEye);
+    app.press(Action::SeedCheck(S::UsePass));
+    testkit::settle(&mut app);
+    at_rest(&mut app);
+    assert!(
+        app.session.keys.check_facts().is_none(),
+        "no key is read with what was typed before the stick came"
+    );
+}

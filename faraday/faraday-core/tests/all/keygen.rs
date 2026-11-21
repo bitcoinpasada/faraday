@@ -1715,7 +1715,7 @@ fn the_key_cards_passphrase_refuses_a_letter_outside_ascii_and_says_so() {
     app.press(Action::KNext);
     app.press(Action::KPassField(0));
     type_text(&mut app, "café");
-    assert_eq!(&*app.keygen().unwrap().passphrase, "caf");
+    assert_eq!(app.keygen().unwrap().passphrase(), "caf");
     let _ = app.frame();
     let texts = app.drawn_texts();
     assert!(
@@ -1852,4 +1852,41 @@ fn start_ticks_nothing_and_length_offers_no_slip39_while_shares_stay_on_start() 
     let shown = texts(&mut app);
     assert!(!shown.contains("SLIP-39"), "{shown}");
     assert!(!app.keygen().unwrap().slip39);
+}
+
+/// A stick comes in.
+fn stick_in(app: &mut Faraday) {
+    app.storage(faraday_core::StorageEvent::Sticks(vec![
+        faraday_core::StickInfo {
+            make: Default::default(),
+            serial: None,
+            id: faraday_text::Text::of("a"),
+            label: faraday_text::Text::of("STICK"),
+            boot: false,
+            files: Vec::new(),
+            vaults: Vec::new(),
+        },
+    ]));
+    if app.sheet == Some(faraday_core::Sheet::Lock) {
+        app.press(Action::NotNow);
+    }
+}
+
+#[test]
+fn a_stick_arriving_empties_the_key_cards_passphrases_and_they_take_no_typing_while_it_is_in() {
+    let mut app = slot_flow(true);
+    flip_all(&mut app);
+    app.press(Action::KNext);
+    app.press(Action::KPassField(0));
+    type_text(&mut app, "Ride the 7 bus");
+    app.press(Action::KPassField(1));
+    type_text(&mut app, "Ride the 7 bus");
+    assert_eq!(app.keygen().unwrap().passphrase2(), "Ride the 7 bus");
+    stick_in(&mut app);
+    let k = app.keygen().unwrap();
+    assert_eq!((k.passphrase(), k.passphrase2()), ("", ""));
+    type_text(&mut app, "x");
+    let k = app.keygen().unwrap();
+    assert_eq!((k.passphrase(), k.passphrase2()), ("", ""));
+    assert!(texts(&mut app).contains("Keys load only with no stick attached"));
 }

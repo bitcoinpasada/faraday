@@ -90,8 +90,8 @@ fn the_demo_locks_in_its_sample_with_faraday_when_a_passphrase_is_chosen() {
     );
     app.press(chip);
     let k = app.keygen().unwrap();
-    assert_eq!(k.passphrase.as_str(), "faraday");
-    assert_eq!(k.passphrase2.as_str(), "faraday");
+    assert_eq!(k.passphrase(), "faraday");
+    assert_eq!(k.passphrase2(), "faraday");
     app.press(Action::KLock);
     let with = faraday_core::wallet::Session::default()
         .keys

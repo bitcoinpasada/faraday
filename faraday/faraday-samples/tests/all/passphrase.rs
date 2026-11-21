@@ -181,8 +181,8 @@ fn in_demo_a_typed_key_with_a_passphrase_loads_the_key_with_faraday() {
     ));
     app.press(Action::PassChip(PassField::KeyGen(0)));
     let k = app.keygen().unwrap();
-    assert_eq!(k.passphrase.as_str(), "faraday");
-    assert_eq!(k.passphrase2.as_str(), "faraday");
+    assert_eq!(k.passphrase(), "faraday");
+    assert_eq!(k.passphrase2(), "faraday");
     app.press(Action::KLock);
     assert!(
         held(&app, words_of("twelve").with_passphrase.unwrap()),
@@ -706,7 +706,7 @@ fn in_demo_a_wallet_slots_passphrase_offers_faraday() {
     let _ = app.frame();
     app.press(Action::CPassOpen(0));
     let c = app.create().expect("Create");
-    assert!(c.pass.is_empty() && c.pass2.is_empty());
+    assert!(c.pass().is_empty() && c.pass2().is_empty());
     let _ = app.frame();
     // One Use faraday for the passphrase and its repeat.
     assert!(crate::common::strip_offers(
@@ -719,8 +719,8 @@ fn in_demo_a_wallet_slots_passphrase_offers_faraday() {
     ));
     app.press(Action::PassChip(PassField::Slot(0)));
     let c = app.create().expect("Create");
-    assert_eq!(c.pass.as_str(), "faraday");
-    assert_eq!(c.pass2.as_str(), "faraday");
+    assert_eq!(c.pass(), "faraday");
+    assert_eq!(c.pass2(), "faraday");
     app.press(Action::CPassLock);
     let with = SAMPLES
         .keys

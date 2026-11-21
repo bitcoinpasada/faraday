@@ -46,6 +46,13 @@ impl KeyGenArea {
     }
 
     /// The flow being made, while it is open.
+    /// Runs `f` on the Key card's passphrase field, if there is one.
+    pub(crate) fn with_pass(&mut self, f: &mut dyn FnMut(&mut crate::pass_field::PassField)) {
+        if let Some(k) = self.state.as_mut() {
+            f(&mut k.passphrase);
+        }
+    }
+
     pub(crate) fn state(&self) -> Option<&KeyGen> {
         self.state.as_ref()
     }
@@ -327,12 +334,12 @@ impl KeyGenArea {
     /// Practice's passphrase typed into field `i` of the Key card.
     pub(crate) fn demo_passphrase(&mut self, i: u8, text: &str) {
         if let Some(k) = self.state.as_mut() {
-            let t = if i == 0 {
-                &mut k.passphrase
+            if i == 0 {
+                k.passphrase.fill_first(text);
             } else {
-                &mut k.passphrase2
-            };
-            t.set(text);
+                k.passphrase.fill_again(text);
+            }
+            k.passphrase.set_on_again(i == 1);
             k.focus = Some(i);
             k.note = None;
         }
@@ -445,6 +452,7 @@ impl KeyGenArea {
                 if k.open == Some(kstep::KEY) && k.asks_passphrase() && f < 2 {
                     k.pass_open = true;
                     k.focus = Some(f);
+                    k.passphrase.set_on_again(f == 1);
                     k.note = None;
                 }
             }

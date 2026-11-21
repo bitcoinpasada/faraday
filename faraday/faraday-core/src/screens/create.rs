@@ -703,12 +703,12 @@ fn slot_passphrase(
         cy += pass_pair(
             ui,
             (px, cy, pw),
-            (c.pass.as_str(), c.pass2.as_str()),
+            (c.pass.as_str(), c.pass.again_str()),
             |ui, n, fy| {
                 let (label, text) = if n == 0 {
-                    (EN.create_passphrase, &c.pass)
+                    (EN.create_passphrase, c.pass.as_str())
                 } else {
-                    (EN.create_passphrase_again, &c.pass2)
+                    (EN.create_passphrase_again, c.pass.again_str())
                 };
                 pass_field(
                     ui,
@@ -746,7 +746,7 @@ fn slot_passphrase(
             BUTTON_H,
             EN.create_lock_button,
             Style::Primary.when(
-                !pair::differ(c.pass.as_str(), c.pass2.as_str()) && !app.typing.pass_eye.waits(),
+                !pair::differ(c.pass.as_str(), c.pass.again_str()) && !app.typing.pass_eye.waits(),
             ),
             Action::CPassLock,
         );

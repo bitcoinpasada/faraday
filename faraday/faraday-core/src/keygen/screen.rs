@@ -754,12 +754,12 @@ fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
             cy += pass_pair(
                 ui,
                 (x, cy, w),
-                (k.passphrase.as_str(), k.passphrase2.as_str()),
+                (k.passphrase.as_str(), k.passphrase.again_str()),
                 |ui, n, fy| {
                     let (label, text) = if n == 0 {
-                        (EN.keygen_passphrase, &k.passphrase)
+                        (EN.keygen_passphrase, k.passphrase.as_str())
                     } else {
-                        (EN.keygen_passphrase_again, &k.passphrase2)
+                        (EN.keygen_passphrase_again, k.passphrase.again_str())
                     };
                     pass_field(
                         ui,
@@ -788,7 +788,7 @@ fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
         }
         cy += 4.0;
         let agree = !k.asks_passphrase()
-            || (!pair::differ(k.passphrase.as_str(), k.passphrase2.as_str())
+            || (!pair::differ(k.passphrase.as_str(), k.passphrase.again_str())
                 && !app.typing.pass_eye.waits());
         cy += buttons_and_next_when(
             ui,

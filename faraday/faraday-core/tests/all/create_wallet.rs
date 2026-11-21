@@ -1067,7 +1067,7 @@ fn a_slots_passphrase_refuses_a_letter_outside_ascii_and_says_so() {
     app.press(Action::CSlotHere(0, first));
     app.press(Action::CPassOpen(0));
     type_text(&mut app, "café");
-    assert_eq!(&*app.create().unwrap().pass, "caf");
+    assert_eq!(app.create().unwrap().pass(), "caf");
     let _ = app.frame();
     let texts = app.drawn_texts();
     assert!(
@@ -1708,4 +1708,41 @@ fn the_bars_your_choices_opens_the_sheet_on_a_small_panel() {
     app.press(Action::Choices(ChoicesPress::Row(cstep::KIND)));
     assert_eq!(app.sheet, None);
     assert_eq!(app.create().and_then(|c| c.open), Some(cstep::KIND));
+}
+
+/// A stick comes in.
+fn stick_in(app: &mut Faraday) {
+    app.storage(faraday_core::StorageEvent::Sticks(vec![
+        faraday_core::StickInfo {
+            make: Default::default(),
+            serial: None,
+            id: faraday_text::Text::of("a"),
+            label: faraday_text::Text::of("STICK"),
+            boot: false,
+            files: Vec::new(),
+            vaults: Vec::new(),
+        },
+    ]));
+    if app.sheet == Some(faraday_core::Sheet::Lock) {
+        app.press(Action::NotNow);
+    }
+}
+
+#[test]
+fn a_stick_arriving_empties_a_slot_s_passphrases_and_they_take_no_typing_while_it_is_in() {
+    let (mut app, _) = slot_with_passphrase_fields();
+    type_text(&mut app, "hunter2");
+    assert_eq!(app.create().unwrap().pass(), "hunter2");
+    stick_in(&mut app);
+    let c = app.create().unwrap();
+    assert_eq!((c.pass(), c.pass2()), ("", ""));
+    type_text(&mut app, "x");
+    assert_eq!(app.create().unwrap().pass(), "");
+    let _ = app.frame();
+    assert!(
+        app.drawn_texts()
+            .plain()
+            .iter()
+            .any(|t| t == "Keys load only with no stick attached")
+    );
 }

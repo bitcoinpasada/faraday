@@ -83,15 +83,18 @@ boundary is.
 - **A typed passphrase** is held in one place, `pass_field::PassField`
   (`faraday/faraday-core/src/pass_field/`), where the field has moved onto
   it: Add a key's passphrase and its repeat, the seed read sheet's, the
-  Krux read's, the Inbox's possible wallet and Lightning's. It wraps
+  Krux read's, Make a new wallet's key slot, New key's Key card, the seed
+  check's, the Inbox's possible wallet and Lightning's. It wraps
   `SecretText`, which wipes what it drops; it takes what its standard
   allows (a BIP-39 passphrase is printable ASCII and at most 256 bytes,
   F155; a Krux code's passphrase being read takes any character that is not a
   control character, as the code may be made elsewhere; Lightning's aezeed and `hsm_secret` passphrases have no most, their
   standards set none) and says why it refused a key. While a stick is attached it takes
   no key, and a stick's arrival empties every one. A field whose screen or
-  sheet is left is emptied after that event, however it was left, and a
-  lock drops it with its area. The fields are listed in one enum,
+  sheet is left is emptied after that event, however it was left (a
+  field of a flow in progress, Make a new wallet's slot and New key's Key
+  card, keeps what is typed until the flow is finished, let go or locked),
+  and a lock drops it with its area. The fields are listed in one enum,
   `pass_field::Where`, with no wildcard arm, so a new one is not built
   until it is listed. A passphrase leaves its field in one of two ways:
   moved out (`take`) where the screen ends with it, or one copy for a job

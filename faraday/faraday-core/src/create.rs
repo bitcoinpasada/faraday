@@ -12,7 +12,8 @@ use faraday_text::{Text, text};
 
 use crate::wallet::{KeyTexts, fp_text};
 use crate::{
-    Action, Code, Faraday, Screen, VaultAsk, backup_flow, create, cstep, flow, secret_text, wallet,
+    Action, Code, Faraday, Screen, VaultAsk, backup_flow, create, cstep, flow, pass_field::PassKey,
+    secret_text, wallet,
 };
 use faraday_shell_api::Key as KeyIn;
 
@@ -1042,10 +1043,8 @@ pub struct CreateState {
     pub made: u32,
     /// The slot whose passphrase fields are open.
     pub pass_slot: Option<u8>,
-    /// The passphrase typed there.
-    pub pass: secret_text::SecretText,
-    /// The same passphrase typed again.
-    pub pass2: secret_text::SecretText,
+    /// The passphrase typed there, and the same typed again.
+    pub(crate) pass: crate::pass_field::PassField,
     /// Which of the two fields typing goes to, if either.
     pub pass_focus: Option<u8>,
     /// The slot whose field for a typed or pasted xpub is open.
@@ -1138,11 +1137,20 @@ impl CreateState {
         self.xpub_note = None;
     }
 
+    /// The passphrase typed in the slot's first field.
+    pub fn pass(&self) -> &str {
+        self.pass.as_str()
+    }
+
+    /// The passphrase typed again.
+    pub fn pass2(&self) -> &str {
+        self.pass.again_str()
+    }
+
     /// Closes a slot's passphrase fields, forgetting what was typed.
     pub(crate) fn close_pass(&mut self) {
         self.pass_slot = None;
         self.pass.clear();
-        self.pass2.clear();
         self.pass_focus = None;
         self.pass_note = None;
     }
@@ -1166,6 +1174,13 @@ pub(crate) struct CreateArea {
 
 impl CreateArea {
     /// The flow's state, while it is open.
+    /// Runs `f` on the passphrase field of the slot being made, if there is one.
+    pub(crate) fn with_pass(&mut self, f: &mut dyn FnMut(&mut crate::pass_field::PassField)) {
+        if let Some(c) = self.state.as_mut() {
+            f(&mut c.pass);
+        }
+    }
+
     pub(crate) fn state(&self) -> Option<&CreateState> {
         self.state.as_ref()
     }
@@ -1231,13 +1246,15 @@ impl CreateArea {
     /// field fills its repeat too, where that is empty.
     pub(crate) fn fill_pass(&mut self, i: u8, text: &str) {
         if let Some(c) = self.state.as_mut() {
-            let both: &[u8] = if i == 0 { &[0, 1] } else { &[1] };
-            for &j in both {
-                let t = if j == 0 { &mut c.pass } else { &mut c.pass2 };
-                if j == i || t.is_empty() {
-                    t.set(text);
+            if i == 0 {
+                c.pass.fill_first(text);
+                if c.pass.again_str().is_empty() {
+                    c.pass.fill_again(text);
                 }
+            } else {
+                c.pass.fill_again(text);
             }
+            c.pass.set_on_again(i == 1);
             c.pass_focus = Some(i);
             c.pass_note = None;
         }
@@ -1558,6 +1575,7 @@ impl CreateArea {
                     && f < 2
                 {
                     c.pass_focus = Some(f);
+                    c.pass.set_on_again(f == 1);
                     c.pass_note = None;
                 }
             }
@@ -2148,7 +2166,7 @@ impl Faraday {
         let Some(cs) = self.create.state.as_mut() else {
             return;
         };
-        if cs.pass.as_str() != cs.pass2.as_str() {
+        if cs.pass.as_str() != cs.pass.again_str() {
             return;
         }
         // Empty means none: the key stays as it is.
@@ -2268,30 +2286,26 @@ impl Faraday {
         if self.screen != Screen::Create || self.sheet.is_some() {
             return false;
         }
+        let (stick, medium) = (self.stick.in_the_way(), self.medium);
         let Some(c) = self.create.state.as_mut() else {
             return false;
         };
         let (Some(_), Some(f)) = (c.pass_slot, c.pass_focus) else {
             return false;
         };
-        let field = if f == 0 { &mut c.pass } else { &mut c.pass2 };
-        match key {
-            KeyIn::Char(ch) if (' '..='~').contains(&ch) => field.push(ch),
-            // Anything else is refused, and the slot says so.
-            KeyIn::Char(ch) if !ch.is_control() => {
-                c.pass_note = Some(Text::of(crate::state::ascii_refused()));
+        c.pass.set_on_again(f == 1);
+        match c.pass.key(key, crate::pass_field::Gate { stick }) {
+            PassKey::Typed => c.pass_focus = Some(u8::from(c.pass.on_again())),
+            PassKey::Refused(why) => {
+                c.pass_note = Some(crate::pass_field::refused_text(medium, why));
                 return true;
             }
-            KeyIn::Backspace => {
-                field.pop();
-            }
-            KeyIn::Tab => c.pass_focus = Some(1 - f.min(1)),
-            KeyIn::Escape => c.pass_focus = None,
-            KeyIn::Enter => {
+            PassKey::Escape => c.pass_focus = None,
+            PassKey::Enter => {
                 self.create_pass_lock();
                 return true;
             }
-            _ => return false,
+            PassKey::Ignored => return false,
         }
         c.pass_note = None;
         true
@@ -2723,9 +2737,9 @@ fn card_summary(app: &crate::Faraday, k: u8) -> Text {
 impl crate::at_lock::AtLock for CreateArea {
     fn holds(&self) -> crate::at_lock::Holds {
         crate::at_lock::Holds::typed(
-            self.state.as_ref().is_some_and(|c| {
-                !c.pass.is_empty() || !c.pass2.is_empty() || c.before_made.is_some()
-            }),
+            self.state
+                .as_ref()
+                .is_some_and(|c| c.pass.holds_any() || c.before_made.is_some()),
         )
     }
     fn lock(&mut self) {

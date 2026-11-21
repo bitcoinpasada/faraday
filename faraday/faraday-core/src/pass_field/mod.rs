@@ -312,16 +312,25 @@ pub(crate) enum Where {
     SeedRead,
     /// The Krux read's passphrase.
     KefRead,
+    /// Make a new wallet's key slot: the passphrase and the one again.
+    Slot,
+    /// New key's Key card: the passphrase and the one again.
+    NewKey,
+    /// The seed check's passphrase and the one again.
+    SeedCheck,
 }
 
 impl Where {
     /// Every field.
-    const ALL: [Where; 5] = [
+    const ALL: [Where; 8] = [
         Where::Potential,
         Where::Aezeed,
         Where::Entry,
         Where::SeedRead,
         Where::KefRead,
+        Where::Slot,
+        Where::NewKey,
+        Where::SeedCheck,
     ];
 
     /// Whether the field's screen or sheet is up: a sheet counts as up
@@ -336,6 +345,20 @@ impl Where {
             Where::Entry => app.screen == Screen::Entry,
             Where::SeedRead => sheet(Sheet::SeedRead),
             Where::KefRead => sheet(Sheet::KefRead),
+            Where::Slot => {
+                app.screen == Screen::Create
+                    && app.create.state().is_some_and(|c| c.pass_slot.is_some())
+            }
+            // On its own screen, or opened on Make a new wallet's Keys card.
+            Where::NewKey => {
+                app.screen == Screen::KeyGen
+                    || (app.screen == Screen::Create
+                        && app
+                            .keygen
+                            .state()
+                            .is_some_and(|k| k.hosted() && k.pass_open))
+            }
+            Where::SeedCheck => crate::seed_check::here(app),
             // Its state is kept while the secret sheet shows what it made
             // and on the way to a vault or a key it needs (`after_input`):
             // the node and the passphrase it was made with stay together.
@@ -351,12 +374,30 @@ impl Where {
         }
     }
 
+    /// Whether the field belongs to a flow in progress (F41,
+    /// `in_progress.rs`): it keeps what is typed when its screen is left,
+    /// until the flow is finished, let go or locked.
+    fn kept(self, app: &Faraday) -> bool {
+        match self {
+            Where::Slot => app.create.state().is_some(),
+            Where::NewKey => app.keygen.state().is_some(),
+            Where::Potential
+            | Where::Aezeed
+            | Where::Entry
+            | Where::SeedRead
+            | Where::KefRead
+            | Where::SeedCheck => false,
+        }
+    }
+
     /// Whether a character typed in the field on a hardware keyboard makes
     /// the step wait for the eye to be opened once: a BIP-39 passphrase
     /// being made does, one only entered does not.
     fn waits(self) -> bool {
         match self {
-            Where::Potential | Where::Entry => true,
+            Where::Potential | Where::Entry | Where::Slot | Where::NewKey | Where::SeedCheck => {
+                true
+            }
             Where::Aezeed | Where::SeedRead | Where::KefRead => false,
         }
     }
@@ -369,6 +410,9 @@ impl Where {
             Where::Entry => Some(&app.entry.state().passphrase),
             Where::SeedRead => app.seed_read.state().map(|s| &s.pass),
             Where::KefRead => app.seed_read.kef().map(|k| k.pass()),
+            Where::Slot => app.create.state().map(|c| &c.pass),
+            Where::NewKey => app.keygen.state().map(|k| &k.passphrase),
+            Where::SeedCheck => app.tools.seed_check.state().map(|s| s.pass()),
         }
     }
 
@@ -380,6 +424,9 @@ impl Where {
             Where::Entry => app.entry.with_pass(f),
             Where::SeedRead => app.seed_read.with_read_pass(f),
             Where::KefRead => app.seed_read.with_kef_pass(f),
+            Where::Slot => app.create.with_pass(f),
+            Where::NewKey => app.keygen.with_pass(f),
+            Where::SeedCheck => app.tools.seed_check.with_pass(f),
         }
     }
 }
@@ -404,10 +451,16 @@ fn each_ref(app: &Faraday, mut f: impl FnMut(Where, &PassField, bool)) {
 
 /// After an act or an event: every field whose screen or sheet is no longer
 /// up is emptied, however it was left. A flow in progress keeps its fields
-/// (F41, `in_progress.rs`): none of the fields listed is one.
+/// (F41, `in_progress.rs`): a field of one ([`Where::kept`]) is emptied only
+/// by finishing, letting go or a lock.
 pub(crate) fn left(app: &mut Faraday) {
-    each(app, |_, field, up| {
-        if !up && field.holds_any() {
+    let mut kept = [false; Where::ALL.len()];
+    for (i, w) in Where::ALL.into_iter().enumerate() {
+        kept[i] = w.kept(app);
+    }
+    each(app, |w, field, up| {
+        let at = Where::ALL.iter().position(|x| *x == w);
+        if !up && field.holds_any() && !at.is_some_and(|i| kept[i]) {
             field.clear();
         }
     });
@@ -435,23 +488,10 @@ fn up_len(app: &Faraday, waiting: bool) -> Option<usize> {
     sum
 }
 
-/// How many bytes the passphrase fields of the screen hold: a Create
-/// slot's key and the seed check (New key keeps its own count), and the
-/// fields on [`Where`].
+/// How many bytes the passphrase fields of the screen hold, or `None` with
+/// none up.
 fn pass_len(app: &Faraday, waiting: bool) -> Option<usize> {
-    let own = match app.screen {
-        Screen::Create => {
-            let c = app.create.state()?;
-            c.pass_slot?;
-            Some(c.pass.as_str().len() + c.pass2.as_str().len())
-        }
-        _ if crate::seed_check::here(app) => Some(app.tools.seed_check.state()?.pass_len()),
-        _ => None,
-    };
-    match (own, up_len(app, waiting)) {
-        (None, None) => None,
-        (a, b) => Some(a.unwrap_or(0) + b.unwrap_or(0)),
-    }
+    up_len(app, waiting)
 }
 
 /// The passphrase length before a hardware key, to hand to [`after_key`].
@@ -473,9 +513,6 @@ pub(crate) fn after_key(app: &mut Faraday, key: KeyIn, before: Option<usize>) {
 /// After an event: with no passphrase field up, nothing is left to wait
 /// for, and leaving them closes the eye.
 pub(crate) fn settle(app: &mut Faraday) {
-    if app.screen == Screen::KeyGen {
-        return;
-    }
     match pass_len(app, false) {
         None => {
             app.typing.pass_eye.reset();

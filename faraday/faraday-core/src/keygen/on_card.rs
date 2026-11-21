@@ -26,7 +26,6 @@ impl KeyGen {
     pub(super) fn card_forget_words(&mut self) {
         if self.on_card {
             self.passphrase.clear();
-            self.passphrase2.clear();
             self.pass_open = false;
             self.focus = None;
             self.shown = false;

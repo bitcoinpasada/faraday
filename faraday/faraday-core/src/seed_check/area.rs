@@ -7,6 +7,7 @@
 
 use super::compare::Compare;
 use super::{Account, Made, Source};
+use crate::pass_field::PassField;
 use crate::secret_text::SecretText;
 use crate::{Screen, flow};
 use faraday_bip::keys::{Fingerprint, ScriptType};
@@ -57,8 +58,7 @@ pub(crate) struct SeedState {
     pub(super) shares: bool,
     /// Add a passphrase was pressed: the fields show.
     pub(super) adding: bool,
-    pub(super) pass: SecretText,
-    pub(super) pass2: SecretText,
+    pub(super) pass: PassField,
     /// Which passphrase field typing goes to.
     pub(super) focus: Option<u8>,
     /// A line under the card that refused.
@@ -85,9 +85,9 @@ pub(crate) struct SeedState {
 }
 
 impl SeedState {
-    /// How many characters the passphrase fields hold.
-    pub(crate) fn pass_len(&self) -> usize {
-        self.pass.as_str().len() + self.pass2.as_str().len()
+    /// The passphrase field.
+    pub(crate) fn pass(&self) -> &PassField {
+        &self.pass
     }
 
     pub(super) fn new(back: Screen) -> SeedState {
@@ -100,8 +100,7 @@ impl SeedState {
             typed: false,
             shares: false,
             adding: false,
-            pass: SecretText::new(),
-            pass2: SecretText::new(),
+            pass: PassField::default(),
             focus: None,
             error: None,
             source: None,
@@ -181,7 +180,7 @@ impl SeedState {
         }
         match (self.focus?, self.open) {
             (0, Some(step::PASSPHRASE)) => Some((A::PassField(0), self.pass.as_str())),
-            (_, Some(step::PASSPHRASE)) => Some((A::PassField(1), self.pass2.as_str())),
+            (_, Some(step::PASSPHRASE)) => Some((A::PassField(1), self.pass.again_str())),
             _ => None,
         }
     }
@@ -189,7 +188,7 @@ impl SeedState {
     /// Whether the flow holds something typed that is secret: the words
     /// or either passphrase field.
     pub(crate) fn holds_secret(&self) -> bool {
-        self.shares || !self.words.is_empty() || !self.pass.is_empty() || !self.pass2.is_empty()
+        self.shares || !self.words.is_empty() || self.pass.holds_any()
     }
 
     /// Whether the Seed card shows the words form.
@@ -206,6 +205,13 @@ pub struct SeedArea {
 
 impl SeedArea {
     /// The state, while the flow is open.
+    /// Runs `f` on the passphrase field, if there is one.
+    pub(crate) fn with_pass(&mut self, f: &mut dyn FnMut(&mut PassField)) {
+        if let Some(s) = self.state.as_mut() {
+            f(&mut s.pass);
+        }
+    }
+
     pub(crate) fn state(&self) -> Option<&SeedState> {
         self.state.as_ref()
     }

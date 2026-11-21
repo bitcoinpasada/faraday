@@ -146,8 +146,7 @@ fn reset_cards(app: &mut Faraday, from: u8, forget: bool) {
     if from <= step::PASSPHRASE {
         s.facts = None;
         s.adding = false;
-        s.pass = SecretText::new();
-        s.pass2 = SecretText::new();
+        s.pass.clear();
         s.focus = None;
         s.source = None;
     }
@@ -523,8 +522,7 @@ fn seed_taken(app: &mut Faraday, got: Result<faraday_keys::CheckFacts, Text>, wi
             });
             s.source = Some(Source::Held);
             s.words = SecretText::new();
-            s.pass = SecretText::new();
-            s.pass2 = SecretText::new();
+            s.pass.clear();
             s.typed = false;
             s.shares = false;
             s.typing = false;
@@ -553,11 +551,11 @@ fn seed_taken(app: &mut Faraday, got: Result<faraday_keys::CheckFacts, Text>, wi
 fn read(app: &mut Faraday, with: bool) {
     let c = app.compute();
     let Some(s) = st(app) else { return };
-    if with && !crate::pass_field::pair::ready(s.pass.as_str(), s.pass2.as_str()) {
+    if with && !s.pass.ready() {
         return;
     }
     let pass = if with {
-        s.pass.clone()
+        s.pass.job_copy()
     } else {
         SecretText::new()
     };
@@ -589,8 +587,7 @@ fn read(app: &mut Faraday, with: bool) {
             });
             s.source = Some(Source::Held);
             s.words = SecretText::new();
-            s.pass = SecretText::new();
-            s.pass2 = SecretText::new();
+            s.pass.clear();
             s.adding = false;
             s.focus = None;
             s.error = None;
@@ -622,8 +619,7 @@ pub(crate) fn scanned(app: &mut Faraday, words: &str, pass: &str) {
     let Some(s) = st(app) else { return };
     match got {
         Ok(f) => {
-            s.pass = SecretText::new();
-            s.pass2 = SecretText::new();
+            s.pass.clear();
             s.adding = false;
             s.focus = None;
             s.words = SecretText::new();
@@ -816,22 +812,19 @@ pub(crate) fn field(app: &Faraday) -> Option<(Action, &str)> {
 }
 
 /// A stick arrived or the stick rule refused: the passphrase fields lose
-/// focus, and with `wipe` what is typed in them goes.
+/// focus, and with `wipe` the words typed and the shares waiting go (the
+/// passphrase is emptied by the passphrase field).
 pub(crate) fn stick_attached(app: &mut Faraday, wipe: bool) {
     if let Some(s) = st(app) {
         s.focus = None;
-        if wipe {
-            if !s.words.is_empty() {
-                // Words typed and not yet read are gone, so Passphrase has
-                // nothing to take; once read, `faraday-keys` holds them.
-                s.words.clear();
-                s.typed = false;
-                if s.open == Some(step::PASSPHRASE) {
-                    s.open = Some(step::SEED);
-                }
+        if wipe && !s.words.is_empty() {
+            // Words typed and not yet read are gone, so Passphrase has
+            // nothing to take; once read, `faraday-keys` holds them.
+            s.words.clear();
+            s.typed = false;
+            if s.open == Some(step::PASSPHRASE) {
+                s.open = Some(step::SEED);
             }
-            s.pass.clear();
-            s.pass2.clear();
         }
     }
     // Shares waiting for their passphrase are gone too.
@@ -858,7 +851,7 @@ pub(crate) fn enter_is_slow(app: &Faraday) -> bool {
     s.field()
         .is_some_and(|(target, _)| target != A::PathField && target != A::CompareField)
         && !app.typing.pass_eye.waits()
-        && crate::pass_field::pair::ready(s.pass.as_str(), s.pass2.as_str())
+        && s.pass.ready()
 }
 
 /// Typing into the passphrase fields and the path field.
@@ -875,14 +868,13 @@ pub(crate) fn key(app: &mut Faraday, key: Key) -> bool {
     if target == A::CompareField {
         return compare_key(app, key);
     }
-    if !on_path && crate::stick::refuses_secret_key(app, key) {
-        return true;
+    if !on_path {
+        return pass_key(app, key);
     }
     let Some(s) = st(app) else { return false };
     match key {
         Key::Enter => {
-            let again = if on_path { A::UsePath } else { A::UsePass };
-            act(app, again);
+            act(app, A::UsePath);
             true
         }
         Key::Escape => {
@@ -890,42 +882,53 @@ pub(crate) fn key(app: &mut Faraday, key: Key) -> bool {
             s.path_focus = false;
             true
         }
-        Key::Tab if !on_path => {
-            s.focus = Some(1 - s.focus.unwrap_or(0).min(1));
-            true
-        }
         Key::Backspace => {
-            if on_path {
-                s.path.pop();
-            } else if s.focus == Some(0) {
-                s.pass.pop();
-            } else {
-                s.pass2.pop();
-            }
+            s.path.pop();
             s.error = None;
             true
         }
-        Key::Char(ch) if on_path => {
+        Key::Char(ch) => {
             if (ch.is_ascii_digit() || matches!(ch, 'h' | '\'' | '/')) && s.path.len() < 60 {
                 s.path.push(ch);
             }
             s.error = None;
             true
         }
-        Key::Char(ch) if (' '..='~').contains(&ch) => {
-            if s.focus == Some(0) {
-                s.pass.push(ch);
-            } else {
-                s.pass2.push(ch);
-            }
+        _ => false,
+    }
+}
+
+/// Typing into the passphrase fields: the field's own keys, with the stick
+/// rule; Enter reads, Escape lets go of the field.
+fn pass_key(app: &mut Faraday, key: Key) -> bool {
+    use crate::pass_field::{Gate, PassKey};
+    let (gate, medium) = (
+        Gate {
+            stick: app.stick.in_the_way(),
+        },
+        app.medium,
+    );
+    let Some(s) = st(app) else { return false };
+    s.pass.set_on_again(s.focus == Some(1));
+    match s.pass.key(key, gate) {
+        PassKey::Typed => {
+            s.focus = Some(u8::from(s.pass.on_again()));
             s.error = None;
             true
         }
-        Key::Char(ch) if !ch.is_control() => {
-            s.error = Some(Text::of(crate::state::ascii_refused()));
+        PassKey::Refused(why) => {
+            s.error = Some(crate::pass_field::refused_text(medium, why));
             true
         }
-        _ => false,
+        PassKey::Enter => {
+            act(app, A::UsePass);
+            true
+        }
+        PassKey::Escape => {
+            s.focus = None;
+            true
+        }
+        PassKey::Ignored => false,
     }
 }
 
@@ -1068,8 +1071,7 @@ impl crate::flow::Contained for SeedSteps {
 /// Practice's public passphrase in both fields, the chip's press.
 pub(crate) fn fill_demo_pass(app: &mut Faraday) {
     if let Some(s) = st(app) {
-        s.pass.set(crate::demo::PASSPHRASE);
-        s.pass2.set(crate::demo::PASSPHRASE);
+        s.pass.fill(crate::demo::PASSPHRASE);
         s.error = None;
     }
 }

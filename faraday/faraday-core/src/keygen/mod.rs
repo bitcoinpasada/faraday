@@ -324,10 +324,9 @@ pub struct KeyGen {
     /// Opened from Tools, the key made: the flow is over and its result
     /// card shows in place of the cards. Nothing of the key is kept.
     pub made: Option<Made>,
-    /// The passphrase typed on the Key card, for a Create slot.
-    pub passphrase: crate::secret_text::SecretText,
-    /// The same passphrase typed again.
-    pub passphrase2: crate::secret_text::SecretText,
+    /// The passphrase typed on the Key card, for a Create slot, and the
+    /// same typed again.
+    pub(crate) passphrase: crate::pass_field::PassField,
     /// Which of the two passphrase fields typing goes to, if either.
     pub focus: Option<u8>,
     /// The key is added: nothing about it changes after this.
@@ -412,6 +411,16 @@ impl KeyGen {
         self.slot.is_some() && self.back == Screen::Create
     }
 
+    /// The passphrase typed on the Key card.
+    pub fn passphrase(&self) -> &str {
+        self.passphrase.as_str()
+    }
+
+    /// The passphrase typed again.
+    pub fn passphrase2(&self) -> &str {
+        self.passphrase.again_str()
+    }
+
     /// A fresh flow.
     pub fn new(slot: Option<u8>, back: Screen) -> KeyGen {
         KeyGen {
@@ -467,8 +476,7 @@ impl KeyGen {
             by_die: false,
             typing: true,
             entered: crate::secret_text::SecretText::new(),
-            passphrase: crate::secret_text::SecretText::new(),
-            passphrase2: crate::secret_text::SecretText::new(),
+            passphrase: crate::pass_field::PassField::default(),
             focus: None,
             locked: false,
             with_passphrase: false,
@@ -524,7 +532,7 @@ impl KeyGen {
             || !self.mixed.is_empty()
             || !self.entered.is_empty();
         let made = self.mnemonic.is_some() || self.secret.is_some() || self.parts_in > 0;
-        let typed = !self.passphrase.is_empty() || !self.passphrase2.is_empty();
+        let typed = self.passphrase.holds_any();
         randomness
             || made
             || typed
@@ -1520,7 +1528,6 @@ impl crate::Faraday {
             k.started = None;
             k.parts_in = 0;
             k.passphrase.clear();
-            k.passphrase2.clear();
             self.typing.pass_eye.reset();
             k.focus = None;
             for s in [kstep::TYPED, kstep::KEY] {
@@ -1944,7 +1951,7 @@ impl crate::Faraday {
             .next_handout(k.handout_words())
             .filter(|_| kept.is_none())
             .map(|(w, _)| (w, k.handout_words()));
-        if k.slot.is_some() && k.passphrase.as_str() != k.passphrase2.as_str() {
+        if k.slot.is_some() && k.passphrase.as_str() != k.passphrase.again_str() {
             return;
         }
         // New key on its own makes the key alone: no passphrase
@@ -1993,7 +2000,6 @@ impl crate::Faraday {
             k.fingerprint = Some(fp.0);
             k.key_text = key_text;
             k.passphrase.clear();
-            k.passphrase2.clear();
             self.typing.pass_eye.reset();
             k.focus = None;
             k.note = None;
@@ -2053,7 +2059,7 @@ impl crate::Faraday {
             return;
         }
         let asks = k.asks_passphrase();
-        if asks && k.passphrase.as_str() != k.passphrase2.as_str() {
+        if asks && k.passphrase.as_str() != k.passphrase.again_str() {
             return;
         }
         let mut pass = crate::secret_text::room();
@@ -2097,7 +2103,6 @@ impl crate::Faraday {
             k.fingerprint = Some(fp.0);
             k.key_text = key_text;
             k.passphrase.clear();
-            k.passphrase2.clear();
             self.typing.pass_eye.reset();
             k.focus = None;
             k.note = None;
@@ -2621,15 +2626,10 @@ impl crate::Faraday {
                 self.keygen_lock();
                 return true;
             }
-            let hardware = self.typing.hardware_key && matches!(key, KeyIn::Char(_));
-            let took = k.passphrase_key(key);
-            let empty = k.passphrase.is_empty() && k.passphrase2.is_empty();
-            if empty {
-                self.typing.pass_eye.reset();
-            } else if hardware && took {
-                self.typing.pass_eye.typed_by_hardware();
-            }
-            return took;
+            let gate = crate::pass_field::Gate {
+                stick: self.stick.in_the_way(),
+            };
+            return k.passphrase_key(key, gate, self.medium);
         }
         if k.roller_typing {
             return k.roller_key(key);

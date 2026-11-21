@@ -76,12 +76,12 @@ pub(super) fn slot_making(
             cy += pass_pair(
                 ui,
                 (x, cy, w),
-                (k.passphrase.as_str(), k.passphrase2.as_str()),
+                (k.passphrase.as_str(), k.passphrase.again_str()),
                 |ui, n, fy| {
                     let (label, text) = if n == 0 {
-                        (EN.create_passphrase, &k.passphrase)
+                        (EN.create_passphrase, k.passphrase.as_str())
                     } else {
-                        (EN.create_passphrase_again, &k.passphrase2)
+                        (EN.create_passphrase_again, k.passphrase.again_str())
                     };
                     pass_field(
                         ui,
@@ -105,7 +105,7 @@ pub(super) fn slot_making(
             cy += ui.wrap_as((x, cy, w), BODY_M, Role::Error, n) + tokens::GAP_SMALL;
         }
         let agree = !k.pass_open
-            || (!pair::differ(k.passphrase.as_str(), k.passphrase2.as_str())
+            || (!pair::differ(k.passphrase.as_str(), k.passphrase.again_str())
                 && !app.typing.pass_eye.waits());
         let label = if multi {
             EN.create_lock_button

@@ -232,12 +232,12 @@ fn passphrase(app: &View, s: &SeedState, ui: &mut Ui, (x, y, w): (f32, f32, f32)
     let pairs = pass_pair(
         ui,
         (x, y, w),
-        (s.pass.as_str(), s.pass2.as_str()),
+        (s.pass.as_str(), s.pass.again_str()),
         |ui, n, fy| {
             let (label, text) = if n == 0 {
-                (EN.seed_check_passphrase, &s.pass)
+                (EN.seed_check_passphrase, s.pass.as_str())
             } else {
-                (EN.seed_check_passphrase_again, &s.pass2)
+                (EN.seed_check_passphrase_again, s.pass.again_str())
             };
             pass_field(
                 ui,
@@ -258,7 +258,7 @@ fn passphrase(app: &View, s: &SeedState, ui: &mut Ui, (x, y, w): (f32, f32, f32)
     );
     let mut cy = pairs + crate::screens::keys_read_as_us_line(app, ui, (x, y + pairs, w)) + GAP;
     let ready = !s.pass.is_empty()
-        && !differ(s.pass.as_str(), s.pass2.as_str())
+        && !differ(s.pass.as_str(), s.pass.again_str())
         && !app.typing.pass_eye.waits();
     ui.button(
         x,

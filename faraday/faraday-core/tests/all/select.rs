@@ -252,7 +252,7 @@ fn an_edit_inside_the_passphrase_makes_the_key_of_the_words_with_the_edited_pass
     // The dots stand for the characters one to one: the tenth is the 7.
     drag(&mut app, Action::KPassField(0), 9, 10);
     type_text(&mut app, "8");
-    assert_eq!(app.keygen().unwrap().passphrase, "Ride the 8 bus");
+    assert_eq!(app.keygen().unwrap().passphrase(), "Ride the 8 bus");
     app.press(Action::KPassField(1));
     type_text(&mut app, "Ride the 8 bus");
     app.press(Action::PassEye);

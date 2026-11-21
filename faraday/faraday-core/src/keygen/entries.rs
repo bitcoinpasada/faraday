@@ -94,32 +94,30 @@ impl KeyGen {
         self.note = None;
     }
 
-    /// A key in the Key card's passphrase field that has the keys:
-    /// printable ASCII, as BIP-39's seed derivation reads it; Tab moves
-    /// to the other field. Returns whether it took the key.
-    pub(crate) fn passphrase_key(&mut self, key: faraday_shell_api::Key) -> bool {
-        use faraday_shell_api::Key as K;
+    /// A key in the Key card's passphrase field that has the keys: the
+    /// field's own (printable ASCII, as BIP-39's seed derivation reads it;
+    /// Tab moves to the other field), with the stick rule. Returns whether
+    /// it took the key.
+    pub(crate) fn passphrase_key(
+        &mut self,
+        key: faraday_shell_api::Key,
+        gate: crate::pass_field::Gate,
+        medium: crate::Medium,
+    ) -> bool {
+        use crate::pass_field::PassKey;
         let Some(f) = self.focus else {
             return false;
         };
-        let field = if f == 0 {
-            &mut self.passphrase
-        } else {
-            &mut self.passphrase2
-        };
-        match key {
-            K::Char(c) if (' '..='~').contains(&c) => field.push(c),
-            // Anything else is refused, and the card says so.
-            K::Char(c) if !c.is_control() => {
-                self.note = Some(Text::of(crate::state::ascii_refused()));
+        self.passphrase.set_on_again(f == 1);
+        match self.passphrase.key(key, gate) {
+            PassKey::Typed => self.focus = Some(u8::from(self.passphrase.on_again())),
+            // Anything refused is said on the card.
+            PassKey::Refused(why) => {
+                self.note = Some(crate::pass_field::refused_text(medium, why));
                 return true;
             }
-            K::Backspace => {
-                field.pop();
-            }
-            K::Tab => self.focus = Some(1 - f.min(1)),
-            K::Escape => self.focus = None,
-            _ => return false,
+            PassKey::Escape => self.focus = None,
+            PassKey::Enter | PassKey::Ignored => return false,
         }
         self.note = None;
         true

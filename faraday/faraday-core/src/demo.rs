@@ -331,9 +331,9 @@ impl Faraday {
                 for i in [0, 1] {
                     if self.keygen.state().is_some_and(|k| {
                         if i == 0 {
-                            &k.passphrase
+                            k.passphrase.as_str()
                         } else {
-                            &k.passphrase2
+                            k.passphrase.again_str()
                         }
                         .is_empty()
                     }) {
