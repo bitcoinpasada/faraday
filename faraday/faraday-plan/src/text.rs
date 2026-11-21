@@ -373,8 +373,15 @@ impl Answers {
             // row as saved: it reads as in the plan and absent, and a save
             // writes them back.
             && a.vaults.iter().all(|r| r.len() == shape.seeds.len())
+            // A passphrase's places row is written only when it has
+            // places, so a seed here with a passphrase has one of a
+            // place each and the vault, and no other seed here has one.
             && a.pass.iter().zip(&shape.seeds).all(|(r, s)| {
-                r.is_empty() || ((!s.here || s.passphrase) && r.len() == a.places + 1)
+                if s.here && s.passphrase {
+                    r.len() == a.places + 1
+                } else {
+                    r.is_empty() || (!s.here && r.len() == a.places + 1)
+                }
             });
         if !fits {
             return None;

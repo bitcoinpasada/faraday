@@ -169,3 +169,29 @@ fn a_plan_of_65_seeds_is_refused_when_read() {
     let text = String::from(&*Answers::defaults(&s).to_text());
     assert!(Answers::from_text(&s, &text).is_none());
 }
+
+/// A plan read from a vault file is written in a form that reads again.
+#[test]
+fn a_plan_read_is_saved_in_a_form_that_opens_again() {
+    let shape = Shape {
+        seeds: vec![Seed {
+            name: Text::of("a"),
+            here: true,
+            shares: false,
+            passphrase: true,
+        }],
+        ..shape()
+    };
+    let mut plan = Answers::defaults(&shape);
+    plan.set_places(&shape, 1);
+    let saved = String::from(&*plan.to_text());
+    assert!(Answers::from_text(&shape, &saved).is_some());
+    let pass_line = saved
+        .lines()
+        .find(|l| l.starts_with("pass "))
+        .expect("a passphrase seed here has its places");
+    // Its places row emptied is not one this wallet's plan writes: refused,
+    // not read and then saved as a plan that no longer opens.
+    let emptied = saved.replace(pass_line, "pass 0 ");
+    assert!(Answers::from_text(&shape, &emptied).is_none());
+}
