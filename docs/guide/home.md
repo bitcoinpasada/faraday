@@ -7,8 +7,11 @@
 **Words:** key, wallet
 
 Home is the first screen after the self-test and after every lock.
-It leads with the next thing to do, shows each wallet loaded with its
-Sign button, and, while nothing is loaded, the tiles that start each task.
+It leads with the next thing to do, then one row for what is going on (a
+vault open, a task left part way, files to write), then only the wallets
+that need something and the keys no wallet uses, each list ending in a row
+that opens all of them. While nothing is loaded, it shows the tiles that
+start each task.
 
 ## Search
 
