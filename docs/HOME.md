@@ -234,7 +234,7 @@ shows its caret, which blinks.
 
 The destinations stand in one order on the sidebar, the rail and the bar:
 
-**Home, Check, Wallets, Files, Vaults, Tools**, then Guide and Settings
+**Home, Check, Wallets, Files, Vaults, Tools**, then Settings
 (Transfer, in the desktop app, after Tools on the sidebar and the rail,
 above Settings). The bar keeps its five, Home, Wallets, Files, Vaults,
 Tools: Check is not on it (F255). Material asks that navigation keep one
@@ -246,7 +246,7 @@ Wallets before Check (§6.2, F255 amended 2026-11-18).
 The Pi's menu, the rail's windows and the phone-size window end the page
 with the places as tiles: two to a row on the Pi's menu, as many columns
 as `CATALOG_TILE_MIN` leaves room for elsewhere. In order: Check, Wallets, Backups
-(while a wallet is known), Files, Vaults, Tools, Guide, Transfer (the
+(while a wallet is known), Files, Vaults, Tools, Guide (the Pi's menu only), Transfer (the
 desktop app, online), Settings; on the Pi's menu Wallets and Check change
 places. A tile's line under its name: Wallets, the count of wallets, or
 nothing; Backups, "{n} not backed up" or nothing; Files, "{inbox} ·
@@ -255,6 +255,10 @@ on the Pi's menu, **Lock** while something is
 held and **Power off**, labelled outlined buttons side by side, Power off
 alone at the full width when nothing is held. The wide layout has no
 tiles: the sidebar is its places.
+
+Home has no Guide tile except on the Pi's menu, whose Home has no top bar:
+everywhere else the top bar's ? is the way into the guide, the phone-size
+windows included (F307 amended 2026-11-21).
 
 ### 6.3 Check on Home
 
@@ -308,7 +312,7 @@ beside Power off.
 | Files       | | [w] Make a new  | | [r] Restore an  | | [s] Spend    | |
 | Vaults      | |     wallet      | |     existing    | |     from a   | |
 | Tools       | |                 | |     wallet      | |     backup   | |
-| Guide       | +-----------------+ +-----------------+ +--------------+ |
+|             | +-----------------+ +-----------------+ +--------------+ |
 | Settings    |                                                          |
 |             |                                                [ Scan ]  |
 | [Power off] |                                                          |
@@ -333,7 +337,7 @@ under the bar.
 | Files    77 | |     From Files                                       | |
 | Vaults    1 | +------------------------------------------------------+ |
 | Tools       | +-----------+ +-----------+ +-----------------------+    |
-| Guide       | | Make a    | | Restore an| | Spend from a backup   |    |
+|             | | Make a    | | Restore an| | Spend from a backup   |    |
 | Settings    | +-----------+ +-----------+ +-----------------------+    |
 |             | +------------------------------------------------+     |
 |             | | [w] Spending                                 > |     |

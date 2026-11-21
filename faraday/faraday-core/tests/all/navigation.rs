@@ -356,7 +356,7 @@ fn dots(app: &mut Faraday) -> Vec<(i32, i32, i32, i32)> {
 }
 
 #[test]
-fn files_carries_a_dot_until_the_stick_is_visited() {
+fn files_carries_a_badge_until_a_boot_stick_holding_a_file_is_visited() {
     let mut app = on(760, 1000, 160);
     // The boot stick, at its first look, leaves Home on screen: it waits.
     app.storage(StorageEvent::Sticks(vec![StickInfo {
@@ -365,13 +365,27 @@ fn files_carries_a_dot_until_the_stick_is_visited() {
         id: faraday_text::Text::of("sda1@sda#1"),
         label: faraday_text::Text::of("FARADAY"),
         boot: true,
-        files: Vec::new(),
+        files: vec![(faraday_text::Text::of("inheritance.psbt"), 100)],
         vaults: Vec::new(),
     }]));
     assert_eq!(app.screen, Screen::Home);
+    // The file on it is offered for import; Later leaves Home with Files'
+    // badge still showing.
+    assert_eq!(app.sheet, Some(Sheet::Import));
+    app.press(Action::Import(
+        faraday_core::boot_import::ImportAction::Later,
+    ));
+    let _ = app.frame();
     let drawn = dots(&mut app);
-    let visit = app.hit_box(Action::Nav(Screen::Files)).expect("Files");
-    assert!(drawn.iter().any(|d| within(*d, visit)), "{drawn:?}");
+    let shown = match app.nav() {
+        // The expanded rail: on its Files row, in the rail's width.
+        Nav::ExpandedRail => drawn.iter().any(|d| d.0 + d.2 < 240),
+        _ => {
+            let files = app.hit_box(Action::Nav(Screen::Files)).expect("Files");
+            drawn.iter().any(|d| within(*d, files))
+        }
+    };
+    assert!(shown, "{drawn:?}");
     app.press(Action::Nav(Screen::Files));
     app.press(Action::Nav(Screen::Home));
     assert!(dots(&mut app).is_empty());

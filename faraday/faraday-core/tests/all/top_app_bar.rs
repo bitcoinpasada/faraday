@@ -284,3 +284,30 @@ fn the_guide_is_the_bars_question_mark_and_opens_the_pages_section() {
         );
     }
 }
+
+/// Home has no Guide tile: the bar's ? is the way in on every window with a
+/// bar over Home, the narrow ones included.
+#[test]
+fn home_has_the_guide_only_as_the_bars_question_mark() {
+    for (width, height, dpi) in [
+        (360, 740, 160),
+        (500, 900, 160),
+        (700, 800, 160),
+        (1280, 800, 160),
+    ] {
+        let mut app = on(width, height, dpi);
+        let (x, y) = app
+            .where_offered(Action::Guide)
+            .unwrap_or_else(|| panic!("no way into the guide at {width} × {height}"));
+        assert!(
+            i32::from(y) <= bar_px(dpi),
+            "Guide stands outside the top app bar at {width} × {height}"
+        );
+        touch(&mut app, x, y);
+        // Home's section; a first start, with nothing loaded, has its own.
+        assert!(
+            ["home", "first-start"].contains(&app.guide().key),
+            "the ? opens Home's section at {width} × {height}"
+        );
+    }
+}
