@@ -65,7 +65,7 @@ pub enum Badge {
 
 /// Draws `badge` on an icon glyph whose box is `glyph` (x, y, side): the
 /// dot on its top right corner, the large badge from its middle across
-/// its top right, as Material places them, in the error colour.
+/// its top right, as Material places them, in the warning colour, orange (F303).
 pub fn badge<A: Copy + PartialEq>(ui: &mut Ui<A>, glyph: (f32, f32, f32), badge: Badge) {
     let (gx, gy, gs) = glyph;
     match badge {
@@ -73,7 +73,7 @@ pub fn badge<A: Copy + PartialEq>(ui: &mut Ui<A>, glyph: (f32, f32, f32), badge:
         Badge::Dot => {
             let d = BADGE_SMALL;
             let (x, y) = (gx + gs - d / 2.0, gy - d / 2.0);
-            ui.fill(x, y, d, d, d / 2.0, Role::Error);
+            ui.fill(x, y, d, d, d / 2.0, Role::Warning);
             let r = ui.rect(x, y, d, d);
             ui.c.note(faraday_draw::canvas::InkKind::Dot, r);
         }
@@ -87,7 +87,7 @@ pub fn badge<A: Copy + PartialEq>(ui: &mut Ui<A>, glyph: (f32, f32, f32), badge:
             let h = BADGE_LARGE;
             let w = (ui.measure(BADGE_LABEL, W::S, label) + 2.0 * BADGE_PAD).max(h);
             let (x, y) = (gx + gs / 2.0, gy - h / 2.0);
-            ui.fill(x, y, w, h, h / 2.0, Role::Error);
+            ui.fill(x, y, w, h, h / 2.0, Role::Warning);
             let tw = ui.measure(BADGE_LABEL, W::S, label);
             ui.text_mid(
                 x + (w - tw) / 2.0,
@@ -95,7 +95,7 @@ pub fn badge<A: Copy + PartialEq>(ui: &mut Ui<A>, glyph: (f32, f32, f32), badge:
                 h,
                 BADGE_LABEL,
                 W::S,
-                Role::OnError,
+                Role::OnWarning,
                 label,
             );
         }

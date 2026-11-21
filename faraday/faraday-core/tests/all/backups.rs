@@ -454,7 +454,6 @@ fn home_counts_a_wallet_without_a_plan_until_its_backup_is_planned() {
     app.press(Action::BChecklist);
     app.press(Action::Nav(Screen::Home));
     let texts = app.drawn_texts();
-    assert!(texts.iter().any(|t| t == "1 with a plan"), "{texts:?}");
     assert!(
         !texts.iter().any(|t| t.ends_with("not backed up")),
         "{texts:?}"

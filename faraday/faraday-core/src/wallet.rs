@@ -668,6 +668,11 @@ pub struct Session {
     /// The sign of what `waiting` was last worked out from
     /// (`Faraday::sync_waiting_if_changed`).
     waiting_inputs: Option<u64>,
+    /// The Inbox PSBT each loaded wallet spends from, by wallet place, as
+    /// last worked out (`Faraday::sync_psbt_wallets_if_changed`).
+    psbt_wallets: Vec<Option<usize>>,
+    /// The sign of what `psbt_wallets` was last worked out from.
+    psbt_wallets_inputs: Option<u64>,
     /// How many wallets of the run now waiting were confirmed or
     /// cancelled already: the sheet's "{i} of {n}". Zero once none waits.
     wallet_asked_past: usize,
@@ -737,6 +742,8 @@ impl Default for Session {
             wallet_asked: std::collections::VecDeque::new(),
             waiting: Vec::new(),
             waiting_inputs: None,
+            psbt_wallets: Vec::new(),
+            psbt_wallets_inputs: None,
             wallet_asked_past: 0,
             wallet_asked_last: 0,
             wallet_covered: None,
@@ -815,6 +822,8 @@ impl Session {
             wallet_asked: std::collections::VecDeque::new(),
             waiting: Vec::new(),
             waiting_inputs: None,
+            psbt_wallets: Vec::new(),
+            psbt_wallets_inputs: None,
             wallet_asked_past: 0,
             wallet_asked_last: 0,
             wallet_covered: None,
@@ -1183,6 +1192,30 @@ impl Session {
     /// The sheet the confirmation sheet covered, taken.
     pub(crate) fn wallet_uncover(&mut self) -> Option<crate::Sheet> {
         self.wallet_covered.take()
+    }
+
+    /// The keys here whose backup is not done, as last worked out
+    /// ([`Session::set_waiting`]). A lookup.
+    pub(crate) fn waiting(&self) -> &[Fingerprint] {
+        &self.waiting
+    }
+
+    /// The Inbox PSBT wallet `w` spends from, as last worked out
+    /// ([`Session::set_psbt_wallets`]). A lookup.
+    pub(crate) fn psbt_wallet(&self, w: usize) -> Option<usize> {
+        self.psbt_wallets.get(w).copied().flatten()
+    }
+
+    /// The sign of what the PSBTs' wallets were last worked out from.
+    pub(crate) fn psbt_wallets_inputs(&self) -> Option<u64> {
+        self.psbt_wallets_inputs
+    }
+
+    /// Keeps the Inbox PSBT of each wallet and the sign it was worked out
+    /// from.
+    pub(crate) fn set_psbt_wallets(&mut self, found: Vec<Option<usize>>, inputs: u64) {
+        self.psbt_wallets = found;
+        self.psbt_wallets_inputs = Some(inputs);
     }
 
     /// How many wallets wait for their sheet.
@@ -4624,6 +4657,7 @@ impl Faraday {
         let c = self.compute();
         let dropped = self.session.drop_forged(&c);
         self.sync_waiting_if_changed();
+        self.sync_psbt_wallets_if_changed();
         if let Some((name, why)) = dropped.first() {
             self.wallets.set_list_changed();
             let text = Text::fill(EN.vaults_refused, &[name, why]);

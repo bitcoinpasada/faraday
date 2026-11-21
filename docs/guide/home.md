@@ -8,9 +8,9 @@
 
 Home is the first screen after the self-test and after every lock.
 It leads with the next thing to do, then one row for what is going on (a
-vault open, a task left part way, files to write), then only the wallets
-that need something and the keys no wallet uses, each list ending in a row
-that opens all of them; while nothing is loaded, it shows the tiles that
+task left part way, files to write), then only the wallets that need
+something and the keys no wallet uses, ending in a row that opens all the
+keys; the Wallets entry carries the number of wallets that need something; while nothing is loaded, it shows the tiles that
 start each task instead.
 
 ## Search

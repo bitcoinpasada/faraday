@@ -431,6 +431,31 @@ impl Faraday {
             .map(|(_, k)| k)
     }
 
+    /// A lookup unless the files or the wallets changed since it was last
+    /// worked out: then [`Faraday::psbt_for`] of every wallet, kept on the
+    /// session for [`View::psbt_for`] to read, so no frame works it out.
+    pub(crate) fn sync_psbt_wallets_if_changed(&mut self) {
+        use std::hash::{Hash, Hasher};
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        for w in &self.session.wallets {
+            w.checksum().hash(&mut h);
+        }
+        for (k, it) in self.inbox.iter().enumerate() {
+            if let Some(seen) = it.psbt() {
+                (k, seen.txid, seen.sigs).hash(&mut h);
+            }
+        }
+        let sign = h.finish();
+        if self.session.psbt_wallets_inputs() == Some(sign) {
+            return;
+        }
+        let c = self.compute();
+        let found = (0..self.session.wallets.len())
+            .map(|w| self.psbt_for(&c, w))
+            .collect();
+        self.session.set_psbt_wallets(found, sign);
+    }
+
     /// The spend under way, resumed where it was: on the Spend tab when it
     /// went through it, else on Wallets' Sign.
     pub(crate) fn carry_on(&self) -> Action {

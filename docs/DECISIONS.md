@@ -313,6 +313,7 @@ Read this table, then only the decision you need.
 | [F300](decisions/F300.md) | Faraday reads back an extended private key and a master seed in hex | 2026-11-20 | Active | keys |
 | [F301](decisions/F301.md) | A vault whose passphrase was just set ends locked and is unlocked once with it | 2026-11-20 | Active | vaults |
 | [F302](decisions/F302.md) | Home states what is going on in one row, and lists only what needs something | 2026-11-21 | Active | design |
+| [F303](decisions/F303.md) | The navigation shows state as badges in the warning colour, orange | 2026-11-21 | Active | design |
 | [F304](decisions/F304.md) | Lock, Restart and Power off are one power button at the top right of the top app bar | 2026-11-21 | Active | design |
 | [F305](decisions/F305.md) | Scan is the navigation rail's FAB, at the top of the rail and the bottom left of the sidebar | 2026-11-21 | Active | design |
 | [F306](decisions/F306.md) | A file in both Faraday and on the stick is a green row with a check in both cards | 2026-11-21 | Active | design |

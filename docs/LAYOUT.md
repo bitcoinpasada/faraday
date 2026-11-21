@@ -85,13 +85,14 @@ with Show, and Hide folds it again. An incomplete share's row says how many
 keys are in hand on its supporting line.
 
 **What the sidebar lists** besides its tabs (flows in progress with
-their open step; the loaded keys and wallets are on Home, `docs/HOME.md` §3) stays on the expanded rail. Where there is no expanded
+their open step; no "open" text on Vaults, its badge counts the vaults open; the loaded keys and wallets are on Home, `docs/HOME.md` §3) stays on the expanded rail. Where there is no expanded
 rail, it is **Home's box of what is loaded** (§4): one card with the same
 rows as plain lines, at the top of Home (on the small panel under its
 mark and name), each opening what its sidebar row opens. A flow in
 progress also shows its chip at the top of every destination while it
-waits, so it is never more than one press away. Home also states what is going on in its own
-row of chips, beside these (F302, `docs/HOME.md` §3).
+waits, so it is never more than one press away. Home states what is going on as the first rows of its
+box (F302, `docs/HOME.md` §3); the sidebar and the rail carry state as badges only,
+on Files, Wallets and Vaults (F303).
 
 **The top app bar** (every class but compact short), 64 dp across the
 page: the back arrow where the page has a way back (F77), the page's

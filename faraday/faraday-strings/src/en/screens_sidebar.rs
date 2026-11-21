@@ -18,8 +18,6 @@ macro_rules! words_screens_sidebar {
     sidebar_transfer: "Transfer",
     /// Text in `sidebar`.
     sidebar_settings: "Settings",
-    /// Text in `sidebar`. `{}`: `v`.
-    sidebar_open_n: "{} open",
     /// Row in `sidebar`.
     /// Text in `more`. `{}`: `n - i`.
     sidebar_more: "+ {} more",

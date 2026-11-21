@@ -65,6 +65,8 @@ pub(crate) struct Drawing {
     pub shapes: RefCell<Vec<(usize, plan::Shape)>>,
     /// `backup_seed_list` per wallet.
     pub seed_lists: RefCell<Vec<(usize, SeedList)>>,
+    /// `wallets_needing`, once a frame for the sidebar's badge and Home's box.
+    pub needing: OnceCell<std::rc::Rc<Vec<usize>>>,
     /// `held_keys`.
     pub held: OnceCell<Vec<Fingerprint>>,
     /// `backup_public_names_for` per wallet, for the backup's own answers.

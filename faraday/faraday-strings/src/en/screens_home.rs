@@ -83,8 +83,6 @@ macro_rules! words_screens_home {
     home_ways_a_stick_attached: "A stick attached",
     /// Text in `home_ways`.
     home_ways_backups: "Backups",
-    /// Text in `home_ways`. `{}`: `known.len()`.
-    home_ways_with_a_plan: "{} with a plan",
     /// Text in `home_ways`. `{}`: `without`.
     home_ways_not_backed: "{} not backed up",
     // ----- home (faraday-core/src/screens/home.rs) -----

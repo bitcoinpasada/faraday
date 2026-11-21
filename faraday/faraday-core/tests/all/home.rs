@@ -6,7 +6,7 @@
 //! Home's Scan takes a seed to Add a key, and anything else where it
 //! went before.
 
-use faraday_core::testkit::KindText;
+use faraday_core::testkit::{KindText, Plain};
 use faraday_core::{Action, Faraday, OskPress, Screen, Sheet, StickInfo, StorageEvent};
 use faraday_shell_api::{App, Command, DisplayInfo, Event, TouchPhase};
 
@@ -1147,23 +1147,19 @@ fn a_key_with_no_wallet_is_a_row_offering_a_wallet() {
 }
 
 /// With a wallet loaded the three first actions still stand, there is no
-/// Sign button, a wallet with nothing to do has no row and All wallets opens
-/// Wallets.
+/// Sign button, a wallet with nothing to do has no row and there is no All
+/// wallets row.
 #[test]
-fn a_wallet_with_nothing_to_do_has_no_row_and_all_wallets_opens_wallets() {
+fn a_wallet_with_nothing_to_do_has_no_row_and_there_is_no_all_wallets_row() {
     let mut app = with_a_wallet();
     let texts = app.drawn_texts();
     assert!(!texts.iter().any(|t| t == "Sign"), "{texts:?}");
     for a in FIRST {
         assert!(app.offers(a), "{a:?} stands with a wallet loaded");
     }
-    assert!(app.offers(Action::Nav(Screen::Backups)));
     assert!(!app.offers(Action::OpenWallet(0)), "it needs nothing");
     let texts = app.drawn_texts();
-    assert!(texts.iter().any(|t| t == "All wallets"), "{texts:?}");
-    assert!(texts.iter().any(|t| t == "1"), "{texts:?}");
-    tap(&mut app, Action::Nav(Screen::WalletsStart));
-    assert!(matches!(app.screen, Screen::Wallets | Screen::WalletsStart));
+    assert!(!texts.iter().any(|t| t == "All wallets"), "{texts:?}");
 }
 
 /// A wallet with a PSBT in Files to sign is a row on Home that opens its
@@ -1853,7 +1849,7 @@ fn key_fp(app: &Faraday, k: usize) -> [u8; 4] {
 
 /// A key no wallet uses is a row on the wide Home that makes a wallet from
 /// it; a key a wallet uses and a wallet that needs nothing have none, and
-/// All keys and All wallets open what they name.
+/// All keys opens Explore; there is no All wallets row.
 #[test]
 fn a_few_loaded_keys_and_wallets_list_only_what_needs_something() {
     let mut app = loaded(3, 2, 1366, 1200);
@@ -1867,14 +1863,9 @@ fn a_few_loaded_keys_and_wallets_list_only_what_needs_something() {
     let texts = app.drawn_texts();
     assert!(texts.iter().any(|t| t == "All keys"), "{texts:?}");
     assert!(texts.iter().any(|t| t == "3"), "{texts:?}");
-    assert!(texts.iter().any(|t| t == "All wallets"), "{texts:?}");
-    assert!(texts.iter().any(|t| t == "2"), "{texts:?}");
+    assert!(!texts.iter().any(|t| t == "All wallets"), "{texts:?}");
     tap(&mut app, Action::Explore);
     assert_eq!(app.screen, Screen::Explore);
-    app.press(Action::Nav(Screen::Home));
-    let _ = app.frame();
-    tap(&mut app, Action::Nav(Screen::WalletsStart));
-    assert!(matches!(app.screen, Screen::Wallets | Screen::WalletsStart));
 }
 
 /// Many keys scroll with Home's page to the last key no wallet uses and to
@@ -1947,10 +1938,10 @@ fn home_scrolled_to_the_end_of_many_keys_follows_a_list_that_shrinks() {
     ));
 }
 
-/// A vault open is a chip on Home, named, that opens the session; with no
-/// vault open there is none.
+/// A vault open is the Vaults entry's badge, a count, and nothing on Home
+/// or in the sidebar says "open".
 #[test]
-fn a_vault_open_shows_its_chip_on_home() {
+fn a_vault_open_is_the_vaults_badge_not_a_chip_on_home() {
     use faraday_core::vault::VaultAction as V;
     let vault = faraday_core::testkit::test_vault().unwrap();
     let mut app = wide();
@@ -1979,11 +1970,73 @@ fn a_vault_open_shows_its_chip_on_home() {
     app.press(Action::Vault(V::LoadTicked));
     app.press(Action::Nav(Screen::Home));
     let _ = app.frame();
-    let texts = app.drawn_texts();
-    assert!(texts.iter().any(|t| t.contains("open")), "{texts:?}");
+    let badges = drawn_boxes(&mut app, "1");
+    let vaults = app.hit_box(Action::Nav(Screen::Vaults)).unwrap();
+    assert!(
+        badges.iter().any(|b| inside(*b, vaults)),
+        "no count on Vaults: {badges:?}"
+    );
+    let texts = app.drawn_texts().plain();
+    assert!(!texts.iter().any(|t| t.contains("open")), "{texts:?}");
     let mut none = wide();
     none.press(Action::Nav(Screen::Home));
     let _ = none.frame();
-    let texts = none.drawn_texts();
-    assert!(!texts.iter().any(|t| t.contains("open")), "{texts:?}");
+    let vaults = none.hit_box(Action::Nav(Screen::Vaults)).unwrap();
+    let badges = drawn_boxes(&mut none, "1");
+    assert!(!badges.iter().any(|b| inside(*b, vaults)), "{badges:?}");
+}
+
+/// The boxes the frame draws the text `want` in.
+fn drawn_boxes(app: &mut Faraday, want: &str) -> Vec<(i32, i32, i32, i32)> {
+    let _ = app.frame();
+    app.drawn_text_boxes()
+        .into_iter()
+        .filter(|(t, _)| t == want)
+        .map(|(_, b)| b)
+        .collect()
+}
+
+/// Whether `inner`'s middle is in `outer`.
+fn inside(inner: (i32, i32, i32, i32), outer: (u16, u16, u16, u16)) -> bool {
+    let (cx, cy) = (inner.0 + inner.2 / 2, inner.1 + inner.3 / 2);
+    let (x, y, w, h) = (
+        i32::from(outer.0),
+        i32::from(outer.1),
+        i32::from(outer.2),
+        i32::from(outer.3),
+    );
+    cx >= x && cx < x + w && cy >= y && cy < y + h
+}
+
+/// Wallets' badge counts the wallets that need something now and is none
+/// while no wallet does.
+#[test]
+fn the_wallets_badge_counts_the_wallets_that_need_something() {
+    let mut idle = with_a_wallet();
+    let at = idle.hit_box(Action::Nav(Screen::WalletsStart)).unwrap();
+    let badges = drawn_boxes(&mut idle, "1");
+    assert!(!badges.iter().any(|b| inside(*b, at)), "{badges:?}");
+
+    let kit = faraday_core::testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "spending")
+        .unwrap();
+    let psbt = faraday_core::testkit::unsigned(&kit).unwrap().to_bytes();
+    let wallet = faraday_core::testkit::files()
+        .unwrap()
+        .into_iter()
+        .find(|(n, _)| n == "spending-wallet.txt")
+        .unwrap();
+    let mut app = with_inbox(vec![
+        ("spending-wallet.txt", wallet.1),
+        ("spend.psbt", psbt),
+    ]);
+    faraday_core::testkit::load_wallet(&mut app, 0);
+    app.press(Action::Nav(Screen::Home));
+    let at = app.hit_box(Action::Nav(Screen::WalletsStart)).unwrap();
+    let badges = drawn_boxes(&mut app, "1");
+    assert!(
+        badges.iter().any(|b| inside(*b, at)),
+        "no count on Wallets: {badges:?}"
+    );
 }

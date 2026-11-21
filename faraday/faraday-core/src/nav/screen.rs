@@ -46,12 +46,16 @@ fn dest<'s>(
 
 /// What waits at a destination, as its badge (`docs/DESIGN.md` §4.1):
 /// on Files, how many files the Inbox holds, or a dot while a stick
-/// attached has not been visited (F235). Each reads the state.
+/// attached has not been visited (F235); on Wallets, how many wallets need
+/// something now. Each reads the state.
 pub(crate) fn badge_of(app: &View, s: Screen) -> Badge {
     match s {
         Screen::Files if !app.inbox.is_empty() => Badge::Count(app.inbox.len()),
         Screen::Files if app.stick.waits() => Badge::Dot,
         Screen::Files => Badge::Count(0),
+        // Wallets: how many need something now (`docs/HOME.md` §3).
+        Screen::Vaults => Badge::Count(app.vaults.open.len()),
+        Screen::WalletsStart => Badge::Count(crate::screens::wallets_needing(app).len()),
         _ => Badge::None,
     }
 }
@@ -328,59 +332,6 @@ pub(crate) fn flow_chips(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
     f.height(y)
 }
 
-/// Whether Home has anything going on to show as chips
-/// ([`going_chips`]): a vault open, a flow in progress or files waiting to
-/// be written.
-pub(crate) fn going_any(app: &View) -> bool {
-    !app.vaults.open.is_empty() || !app.flows_in_progress().is_empty() || !app.outbox.is_empty()
-}
-
-/// Home's row of what is going on (`docs/HOME.md` §3): one assist chip for
-/// each vault open, each flow in progress (a spend under way included) and
-/// the files waiting to be written, each opening what it names. Drawn at
-/// (x, y) in `w`; returns the height it takes, none when nothing is going
-/// on.
-pub(crate) fn going_chips(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    if !going_any(app) {
-        return 0.0;
-    }
-    let mut f = Flowing::new(x, y, w);
-    // A vault opens the session: Wallets once it holds a key or a wallet,
-    // else where the sidebar's Wallets entry opens.
-    let session = if app.session.keys.len() + app.session.wallets.len() == 0 {
-        Screen::WalletsStart
-    } else {
-        Screen::Wallets
-    };
-    for v in app.vaults.open.iter() {
-        let c = Chip {
-            icon: Some(Icon::Lock.into()),
-            head: (&v.name, W::S),
-            tail: EN.home_going_open,
-            action: Some(Action::Nav(session)),
-        };
-        f.put(ui, &mut |ui, x, y, max| {
-            faraday_ui::nav::status_chip(ui, (x, y, max), &c)
-        });
-    }
-    for r in app.flows_in_progress().iter() {
-        f.put(ui, &mut |ui, x, y, max| flow_chip(ui, x, y, max, r));
-    }
-    if !app.outbox.is_empty() {
-        let files = app.files_count();
-        let c = Chip {
-            icon: Some(Icon::File.into()),
-            head: (&files, W::S),
-            tail: "",
-            action: Some(Action::Nav(Screen::Files)),
-        };
-        f.put(ui, &mut |ui, x, y, max| {
-            faraday_ui::nav::status_chip(ui, (x, y, max), &c)
-        });
-    }
-    f.y - y + STATUS_CHIP_H
-}
-
 /// One line of Home's box of what is loaded: its icon, its text and
 /// what a press opens.
 struct Line {
@@ -551,13 +502,14 @@ fn loaded_layout(app: &View, ui: &Ui, w: f32) -> Laid {
     }
     // The wallets that need something now are named; the rest are one
     // line, "+ {n} more" after those named, else "All wallets".
-    let (needing, total) = crate::screens::wallets_needing(app);
+    let needing = crate::screens::wallets_needing(app);
+    let total = app.session.wallets.len();
     let mut named = 0;
-    for (index, name) in needing.into_iter().take(CHIPS_PER_GROUP) {
+    for &index in needing.iter().take(CHIPS_PER_GROUP) {
         named += 1;
         lines.push(Line {
             icon: Some(Icon::Wallet.into()),
-            head: name,
+            head: app.session.wallets[index].name.to_string(),
             tail: String::new(),
             action: Some(Action::OpenWallet(index)),
         });

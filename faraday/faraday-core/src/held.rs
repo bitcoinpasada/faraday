@@ -325,6 +325,20 @@ impl Faraday {
         self.wallet_held_in(w, self.held_keys_stored(c))
     }
 
+    /// A lookup. Whether a key of loaded wallet `w` made here still waits
+    /// for its backup, from the keys kept as waiting
+    /// ([`Faraday::sync_waiting`]), worked out where they change and not
+    /// while drawing: what Home's box and the Wallets badge read.
+    pub(crate) fn wallet_waits_kept(&self, w: usize) -> bool {
+        let waiting = self.session.waiting();
+        !waiting.is_empty()
+            && self
+                .backup_keys(w)
+                .into_iter()
+                .filter_map(|k| self.session.keys.info(k))
+                .any(|k| waiting.contains(&k.fingerprint))
+    }
+
     fn wallet_held_in(&self, w: usize, held: Vec<Fingerprint>) -> Vec<Fingerprint> {
         if held.is_empty() {
             return Vec::new();

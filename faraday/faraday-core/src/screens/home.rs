@@ -14,7 +14,7 @@ use faraday_draw::tokens::{
 };
 use faraday_draw::tokens::{
     HOME_LEAD_H, HOME_LEAD_ICON, HOME_LEAD_INSET, HOME_LEAD_SUB_Y, HOME_LEAD_TEXT_X,
-    HOME_TILE_ICON, HOME_TILE_INSET, HOME_TILE_TEXT_X, MENU_GAP, TILE_H,
+    HOME_TILE_ICON, HOME_TILE_INSET, HOME_TILE_TEXT_X, LEAD_MAX, MENU_GAP, TILE_H,
 };
 use faraday_draw::widgets::Icon;
 
@@ -388,16 +388,20 @@ pub(crate) fn home_wallets(app: &View) -> Vec<WalletCard> {
         .collect()
 }
 
-/// The wallets in the session that need something now, as (place, name),
-/// in the session's order, with the count of all: what the Pi's box of what
-/// is loaded names. Only lookups, no line is worded.
-pub(crate) fn wallets_needing(app: &View) -> (Vec<(usize, String)>, usize) {
-    let all = &app.session.wallets;
-    let needing = (0..all.len())
-        .filter(|&i| wallet_needs(app, i))
-        .map(|i| (i, all[i].name.to_string()))
-        .collect();
-    (needing, all.len())
+/// The wallets in the session that need something now, by place, in the
+/// session's order, worked out once a frame: the Wallets badge and the Pi's
+/// box of what is loaded read the one answer.
+pub(crate) fn wallets_needing(app: &View) -> std::rc::Rc<Vec<usize>> {
+    app.drawing
+        .needing
+        .get_or_init(|| {
+            std::rc::Rc::new(
+                (0..app.session.wallets.len())
+                    .filter(|&i| wallet_needs(app, i))
+                    .collect(),
+            )
+        })
+        .clone()
 }
 
 /// Whether wallet `i` needs something now: its spend is under way, Files
@@ -405,7 +409,7 @@ pub(crate) fn wallets_needing(app: &View) -> (Vec<(usize, String)>, usize) {
 fn wallet_needs(app: &View, i: usize) -> bool {
     app.wallets.spend().is_some_and(|s| s.wallet == Some(i))
         || app.psbt_for(i).is_some()
-        || app.receive_held(&app.session.wallets[i])
+        || app.wallet_waits_kept(i)
 }
 
 /// Wallet `i`'s card.
@@ -545,33 +549,52 @@ fn wallet_rows(app: &View) -> (Vec<ListRow>, Vec<ListRow>) {
         })
         .collect();
     let mut rest = Vec::new();
-    let n = app.session.wallets.len();
-    if n > 0 {
-        rest.push(ListRow {
-            icon: Icon::Wallet,
-            head: EN.home_all_wallets.to_string(),
-            sub: String::new(),
-            trailing: n.to_string(),
-            accent: false,
-            action: Action::Nav(Screen::WalletsStart),
-        });
-    }
-    let (known, without) = app.backup_counts();
-    if known > 0 {
+    // Backups only while something is not backed up.
+    let (_, without) = app.backup_counts();
+    if without > 0 {
         rest.push(ListRow {
             icon: Icon::Shield,
             head: EN.home_ways_backups.to_string(),
-            sub: if without == 0 {
-                fill(EN.home_ways_with_a_plan, &[&known.to_string()])
-            } else {
-                fill(EN.home_ways_not_backed, &[&without.to_string()])
-            },
+            sub: fill(EN.home_ways_not_backed, &[&without.to_string()]),
             trailing: String::new(),
             accent: false,
             action: Action::Nav(Screen::Backups),
         });
     }
     (rows, rest)
+}
+
+/// The box's first rows (`docs/HOME.md` §3): each flow in progress, its name
+/// and its open step under it, resuming it, and while files wait to be
+/// written, their count, opening Files.
+fn going_rows(app: &View) -> Vec<ListRow> {
+    let mut rows: Vec<ListRow> = app
+        .flows_in_progress()
+        .iter()
+        .map(|r| ListRow {
+            icon: match r.tab {
+                Screen::Vaults => Icon::Lock,
+                Screen::Catalog => Icon::Tools,
+                _ => Icon::Wallet,
+            },
+            head: r.name.to_string(),
+            sub: r.step.to_string(),
+            trailing: String::new(),
+            accent: false,
+            action: Action::Resume(r.going),
+        })
+        .collect();
+    if !app.outbox.is_empty() {
+        rows.push(ListRow {
+            icon: Icon::File,
+            head: app.files_count().to_string(),
+            sub: String::new(),
+            trailing: String::new(),
+            accent: false,
+            action: Action::Nav(Screen::Files),
+        });
+    }
+    rows
 }
 
 /// The keys' rows (`docs/HOME.md` §3): one for each key no wallet uses,
@@ -626,7 +649,9 @@ fn key_rows(app: &View) -> (Vec<ListRow>, Vec<ListRow>) {
 /// something and each key no wallet uses, then All wallets, Backups and
 /// All keys. The wide layout and the rail's windows both draw it.
 pub(crate) fn loaded_sections(app: &View) -> Vec<Section<'static>> {
-    let (mut all, wallets) = wallet_rows(app);
+    let mut all = going_rows(app);
+    let (wallets_first, wallets) = wallet_rows(app);
+    all.extend(wallets_first);
     let (keys, all_keys) = key_rows(app);
     all.extend(keys);
     all.extend(wallets);
@@ -634,8 +659,10 @@ pub(crate) fn loaded_sections(app: &View) -> Vec<Section<'static>> {
     if all.is_empty() {
         return Vec::new();
     }
-    vec![Section::block(None, move |ui, at, w| {
-        list_box(ui, at, w, &all)
+    vec![Section::block(None, move |ui, (x, y), w| {
+        // As wide as the search bar above it, centred under it.
+        let bw = if ui.compact { w } else { w.min(LEAD_MAX) };
+        list_box(ui, (x + (w - bw) / 2.0, y), bw, &all)
     })]
 }
 
@@ -900,11 +927,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     sections.push(Section::block(None, |ui, at, w| {
         actions(ui, at, w, MENU_GAP)
     }));
-    if crate::nav::screen::going_any(app) {
-        sections.push(Section::block(None, move |ui, (x, y), w| {
-            crate::nav::screen::going_chips(app, ui, x, y, w)
-        }));
-    }
     sections.extend(loaded_sections(app));
     let page = Page {
         name: EN.home_home,

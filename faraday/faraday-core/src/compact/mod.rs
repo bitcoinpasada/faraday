@@ -829,11 +829,6 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
         }));
     }
     if rail {
-        if crate::nav::screen::going_any(app) {
-            sections.push(Section::block(None, move |ui, (x, y), w| {
-                crate::nav::screen::going_chips(app, ui, x, y, w)
-            }));
-        }
         sections.extend(crate::screens::loaded_sections(app));
     }
     sections.push(Section::tiles(None, places));

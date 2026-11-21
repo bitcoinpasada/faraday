@@ -2,7 +2,7 @@
 
 use super::SIDEBAR_W;
 use crate::drawing::View;
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{Glyph, NameSuffix, Ui};
@@ -94,16 +94,9 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     let (x, w) = (12.0, SIDEBAR_W - 24.0);
     let flows = app.flows_in_progress();
     let on = app.flow_on_screen();
-    let v = app.vaults.open.len();
     // Each tab is one of Material's destinations: icon and label in a
     // row, the current one on a pill (`docs/LAYOUT.md` §3).
     let row = |ui: &mut Ui, y: f32, icon: Glyph, label: &str, active: bool, action: Action| {
-        // Vaults carries how many are open, at the row's right end.
-        let open = if icon == Glyph::Icon(Icon::Lock) && v > 0 {
-            Some(fill(EN.sidebar_open_n, &[&v.to_string()]))
-        } else {
-            None
-        };
         let d = faraday_ui::nav::Dest {
             icon,
             label,
@@ -114,7 +107,7 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
                 _ => faraday_ui::nav::Badge::None,
             },
         };
-        faraday_ui::nav::destination_row(ui, (x, y, w), &d, open.as_deref());
+        faraday_ui::nav::destination_row(ui, (x, y, w), &d, None);
     };
     for (icon, label, screen) in items.into_iter().chain(tail) {
         // A flow lights the tab it belongs to, Spend from a backup the one

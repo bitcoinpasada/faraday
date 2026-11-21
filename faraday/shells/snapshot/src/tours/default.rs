@@ -863,6 +863,9 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.press(Action::BNext(Item::Envelopes));
     // The last item: one lock, then each stick by place.
     t.shot("backup-write-to-sticks")?;
+    // Home with the flow in progress: its row in the box, the badges beside it.
+    t.press(Action::Nav(Screen::Home));
+    t.shot("home-flow-in-progress")?;
     // The sheets went For the stick as PDFs with the checklist; written
     // beside the shots for a look. The blank template is printed from
     // Faraday Starter.

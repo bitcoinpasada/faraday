@@ -547,11 +547,11 @@ impl View<'_> {
     }
 
     /// The Inbox PSBT loaded wallet `w` spends from with the fewest
-    /// signatures ([`crate::Faraday::psbt_for`]), from each wallet's kept
-    /// scripts. Costs a script derivation per wallet and place the first
-    /// time.
+    /// signatures ([`crate::Faraday::psbt_for`]), as kept where the files
+    /// or the wallets changed
+    /// ([`crate::Faraday::sync_psbt_wallets_if_changed`]). A lookup.
     pub fn psbt_for(&self, w: usize) -> Option<usize> {
-        self.kept(|c| self.app.psbt_for(c, w))
+        self.session.psbt_wallet(w)
     }
 
     /// The loaded wallet a PSBT read before spends from

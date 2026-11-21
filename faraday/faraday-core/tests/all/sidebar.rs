@@ -324,6 +324,16 @@ fn no_row_before_a_step_is_done() {
     assert!(offered(&mut app, Action::Resume(Going::Restore)));
 }
 
+/// A flow in progress is a row of Home's box that resumes it.
+#[test]
+fn a_flow_in_progress_is_a_row_of_homes_box() {
+    let mut app = testkit::started();
+    app.press(Action::RestoreWallet);
+    app.press(Action::RNext(rstep::KIND));
+    app.press(Action::Nav(Screen::Home));
+    assert!(offered(&mut app, Action::Resume(Going::Restore)));
+}
+
 #[test]
 fn the_row_goes_when_the_flow_is_started_over() {
     let mut app = testkit::started();
@@ -388,7 +398,7 @@ fn a_gpg_keys_flow_has_its_row_under_tools() {
     app.press(Action::Nav(Screen::Settings));
     let names = sidebar_texts(&mut app);
     let tools = names.iter().position(|t| t == "Tools").unwrap();
-    let learn = names.iter().position(|t| t == "Guide").unwrap();
+    let learn = names.iter().position(|t| t == "Settings").unwrap();
     let row = names
         .iter()
         .position(|t| t == "GPG key")
