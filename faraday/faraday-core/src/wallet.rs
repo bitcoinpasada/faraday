@@ -2210,6 +2210,10 @@ pub enum FileKind {
     /// A SLIP-39 share or a codex32 string: part of a seed, or a whole
     /// codex32 secret.
     SeedPart,
+    /// A whole key as one line of text: an extended private key, or a
+    /// master seed in hex of a BIP-32 length (`docs/KEY-FORMS.md` §6.3).
+    /// A hex file may be a hash; it loads only when the person opens it.
+    KeyLine,
     /// Plain text Faraday reads as nothing else, such as recovery codes:
     /// kept as a note in a vault.
     Text,
@@ -2805,6 +2809,9 @@ pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
                 unsigned_txid: Some(unsigned_id(tx)),
                 ..FileKind::Transaction.into()
             };
+        }
+        if crate::one_line::line_form(c, text).is_some() {
+            return FileKind::KeyLine.into();
         }
         if is_text(text) {
             return FileKind::Text.into();

@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F299, F300); the registry crate `faraday-forms` is built (the identifier and the table of §3.2, and `scan_read::Kind::form`, which every scanner's seed branch reads through `Kind::route`), the ways-in component (`ways_in`, §4) draws Add a key's forms (with 15, 18 and 21 words under Other forms) and the rows of My seed makes my wallet, Check a signer, Spend's single-key sign card, Restore's slot, Check's backup menu, Convert's From (an aezeed and a SLIP-39 set under Other forms) and New key's Start, and the other lists of §2 are not yet moved onto it: seven lists still repeat what it knows by hand.
-**Open:** a master xprv read by a scanner; every list moved onto the registry; the ways-in component on the other openers of §4.2 (Spend's multisig sign card; each opener's matching source and Restore's Its xpub, a way the table does not list; and the word lists, holders and Files as ways); the four copy-check camera purposes made one; the Inbox's finding of a file holding one and Convert's reading of them (the key boundary reads both; the registry holds both, and Add a key takes each as one line of text, §6.3)
+**Open:** every list moved onto the registry; the ways-in component on the other openers of §4.2 (Spend's multisig sign card; each opener's matching source and Restore's Its xpub, a way the table does not list; and the word lists, holders and Files as ways); the four copy-check camera purposes made one; Convert's reading of them (the key boundary reads both; the registry holds both, and Add a key takes each as one line of text, §6.3)
 
 A key comes into Faraday in one of a few forms: BIP-39 words, SLIP-39
 shares, codex32 strings, Seed XOR parts, a Krux code, and, by F300, an
@@ -277,8 +277,11 @@ form. The seed sheet shows an xprv as it shows a codex32 secret: its
 fingerprint and no passphrase step.
 
 The Inbox finds them in files on a stick as it finds words, SLIP-39 and
-codex32 files: a text file whose whole text is one xprv (or tprv), or one
-master seed in hex of a BIP-32 length, is listed as that form. A listed
+codex32 files (`FileKind::KeyLine`): a text file whose whole text is one
+xprv (or tprv), or one master seed in hex of a BIP-32 length, is listed as
+that form. A scanner reads an xprv (`Route::Line`): Add a key's xprv form
+takes it and loads it, and its own Scan is on that form; a hex seed is no
+scan kind. A listed
 file loads only when the person opens it, so a hex file that is a hash is
 listed and never loaded by itself.
 

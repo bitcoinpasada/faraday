@@ -27,6 +27,11 @@ pub enum Route {
     Load(Form),
     /// A part of a set, which goes to its form's collection.
     Part(Form),
+    /// A whole key of one line of text, which goes to its form in Add a
+    /// key and loads there: an extended private key, whose refusals (a
+    /// key that is not a master key, the other network's) are the typed
+    /// form's.
+    Line(Form),
     /// A Krux code, opened under its passphrase on its own sheet.
     Sheet,
     /// Not a form: the kind's row of `docs/SCANNING.md` §4.2.
@@ -142,10 +147,11 @@ impl Kind {
             Kind::Codex32Share => Some((Form::Codex32, Piece::Part)),
             Kind::Slip39Share => Some((Form::Slip39, Piece::Part)),
             Kind::Kef => Some((Form::Krux, Piece::Whole)),
+            // Every xprv: whether it is a master key is the form's to say.
+            Kind::Xprv => Some((Form::Xprv, Piece::Whole)),
             Kind::BadChecksum
             | Kind::Aezeed
             | Kind::Wif
-            | Kind::Xprv
             | Kind::UrSeed
             | Kind::Nostr
             | Kind::SpendKey
@@ -187,8 +193,10 @@ impl Kind {
             // words, Seed XOR or Krux key.
             (Form::Slip39 | Form::Xor, Piece::Whole)
             | (Form::Words | Form::Xor | Form::Krux, Piece::Part) => Route::Other,
-            // A hex seed has no kind, and nothing is a part of an xprv.
-            (Form::Xprv | Form::HexSeed, _) => Route::Other,
+            (Form::Xprv, Piece::Whole) => Route::Line(form),
+            // A hex seed has no kind (hex text is any text), and nothing
+            // is a part of an xprv or a hex seed.
+            (Form::Xprv, Piece::Part) | (Form::HexSeed, _) => Route::Other,
         }
     }
 
@@ -203,7 +211,7 @@ impl Kind {
     pub fn part_form(self) -> Option<Form> {
         match self.route() {
             Route::Part(form) | Route::Load(form @ Form::Codex32) => Some(form),
-            Route::Load(_) | Route::Sheet | Route::Other => None,
+            Route::Load(_) | Route::Line(_) | Route::Sheet | Route::Other => None,
         }
     }
 
@@ -451,12 +459,14 @@ pub(crate) fn public_kind(kind: FileKind, enveloped: bool, data: &[u8]) -> Kind 
         | FileKind::KdbxOther
         | FileKind::CoreWallet
         | FileKind::Pdf => Kind::File,
-        FileKind::Text | FileKind::Other => match text_kind(text, kind == FileKind::Text) {
-            Kind::Text | Kind::Unreadable if faraday_codec::kef::recognize(data).is_some() => {
-                Kind::Kef
+        FileKind::Text | FileKind::KeyLine | FileKind::Other => {
+            match text_kind(text, kind != FileKind::Other) {
+                Kind::Text | Kind::Unreadable if faraday_codec::kef::recognize(data).is_some() => {
+                    Kind::Kef
+                }
+                other => other,
             }
-            other => other,
-        },
+        }
     }
 }
 

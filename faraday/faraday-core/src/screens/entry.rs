@@ -831,8 +831,20 @@ fn one_line_foot(
         Some(next) => (EN.keygen_continue, next),
         None => (EN.forms_add_key, Action::EntryRecover),
     };
+    let mut bx = x;
+    if app.entry.state().form == crate::forms::Form::Xprv {
+        bx += ui.button(
+            bx,
+            by,
+            None,
+            BUTTON_H,
+            EN.entry_form_scan_a_qr,
+            Style::Secondary,
+            Action::ScanPart,
+        ) + GAP_SMALL;
+    }
     ui.button(
-        x,
+        bx,
         by,
         None,
         BUTTON_H,

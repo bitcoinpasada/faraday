@@ -150,7 +150,8 @@ destination's action.
 | Seed XOR part | the seed sheet, which offers **It is a Seed XOR part** (§6) |
 | Words that fail their checksum | an LND aezeed (its own checksum holds): Lightning, the aezeed typed. **Use in Lightning**. An Electrum seed: named (`docs/INTEROP.md` §5, Electrum seed words). Anything else: named |
 | WIF private key | the Sweep sheet (`docs/INTEROP.md` §5, Sweeping a private key, F171). **Sweep a private key** |
-| Extended private key, `ur:crypto-seed`, private `hdkey`, Nostr secret key, silent payments spend key | named |
+| Extended private key (xprv, tprv) | Add a key's xprv form with the key in, which loads it when it is a master key (depth 0) and refuses any other by name as the typed form does (its depth, parent fingerprint and child number; no guessed origin). Home's Scan takes it there at once, as it takes a seed; the other scanners show the read card, whose way is **Add this key**. A master seed in hex is no kind: hex is any text, so no scanner reads one |
+| `ur:crypto-seed`, private `hdkey`, Nostr secret key, silent payments spend key | named |
 | GPG paperkey | a GPG restore's Scan the paperkey only, which needs its public key first; every other scanner names it ("That is a paperkey. Restore a GPG key takes it at Type the paperkey, not Files") and files nothing (F167) |
 | TOTP setup code | a new entry's form in the open vault, filled, as the TOTP scanner fills it. **Add to {vault}**; with a vault in Files but none open, **Unlock {vault}**, the code carried through the unlock and the form opened filled once it is; with no vault at all, **Make a vault**, and the code is not kept: the card says "Not kept · scan it again once the vault is open", and the code is wiped at the press (§4.5) |
 | Vault entries | added to the open vault. **Add to {vault}**; the same **Unlock {vault}** and **Make a vault** cases as a TOTP setup code |
@@ -171,14 +172,14 @@ destination's action.
 
 | Scanner | Takes | Hands over | Names |
 |---|---|---|---|
-| Home's Scan | every kind, to §4.2's destination | — | as §4.2; a GPG public key is filed as `{name}-{fp8}.asc` (`scanned-N.asc` where it does not read as a certificate), a file in the envelope under its own name |
+| Home's Scan | every kind, to §4.2's destination (an xprv to Add a key's xprv form) | — | as §4.2; a GPG public key is filed as `{name}-{fp8}.asc` (`scanned-N.asc` where it does not read as a certificate), a file in the envelope under its own name |
 | Files, Tools' Scan a QR code | as Home's | — | as §4.2 |
 | Tools' Check an address, Sign, Decode | as Home's, titled for what they ask (§7.1) | — | as §4.2 |
 | Restore's Scan it and Scan descriptor | a wallet description, split sheets; a seed into the first slot with no seed (after the seed sheet); a codex32 secret or a codex32 or SLIP-39 share, to its form opened with it in, the rest added there and the key it makes into that slot; an account key into its slot | every other kind Faraday takes | as §4.2 |
 | Create's Scan its xpub | an account key or a descriptor of one key, into the slot; a seed into the slot, as the slot's key (after the seed sheet); a codex32 secret or a codex32 or SLIP-39 share, to its form opened with it in, the rest added there and the key it makes into the slot | every other kind | as §4.2 |
 | Restore's seeds card's Scan | an account key into the box | every other kind | as §4.2 |
 | Spend's Scan a copy; the Spend tab's Scan it and Scan the PSBT | a PSBT of the spend | every other kind | as §4.2 |
-| Add a key's Scan a SeedQR | a seed; a codex32 secret, loaded; a codex32 or SLIP-39 share, to its form | every other kind | as §4.2 |
+| Add a key's Scan a SeedQR | a seed; a codex32 secret, loaded; a master xprv, loaded; a codex32 or SLIP-39 share, to its form | every other kind | as §4.2 |
 | A form's Scan (codex32, SLIP-39, Seed XOR) | its own form's part; the other share form's, switching to that form with it in; a seed, to the seed sheet; a Krux encrypted code, the camera closing and the Krux sheet asking its passphrase | every other kind | as §4.2; a string that starts as its form's does keeps the parser's line ("Not a codex32 string: …") |
 | A wallet's Scan a key | a seed or a codex32 secret, matched to the wallet's missing keys; a codex32 or SLIP-39 share, to its form opened for the wallet (`EntryWallet`), back to the wallet once the key is whole | every other kind | as §4.2 |
 | What do you have? | a seed, shares, a description, split sheets, an account key, a PSBT | none: the camera stays on and the intake is not left | every other kind on its line, as in §5.5; a secret is not filed |

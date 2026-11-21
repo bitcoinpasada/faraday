@@ -94,3 +94,46 @@ fn a_hex_seed_in_capitals_with_spaces_loads() {
     assert_eq!(app.session.keys.len(), 1, "{}", error(&app));
     assert_eq!(app.session.keys[0].fingerprint.0, FINGERPRINT);
 }
+
+fn read(app: &mut Faraday, code: &str) {
+    app.event(Event::Scanned {
+        bytes: code.as_bytes().to_vec(),
+    });
+    let _ = app.frame();
+}
+
+#[test]
+fn add_a_keys_scan_on_the_xprv_form_loads_a_master_key_and_refuses_a_child_by_name() {
+    let mut app = adding(Form::Xprv);
+    app.press(Action::ScanPart);
+    read(&mut app, &tprv(CHILD));
+    let said = app
+        .scan()
+        .and_then(|s| s.note.as_ref().map(|t| t.as_str().to_string()))
+        .unwrap_or_default();
+    assert!(said.contains("master key"), "{said}");
+    read(&mut app, &tprv(XPRV));
+    assert_eq!(app.session.keys.len(), 1);
+    assert_eq!(app.session.keys[0].fingerprint.0, FINGERPRINT);
+    assert!(app.scan().is_none(), "the camera closes once it is loaded");
+}
+
+#[test]
+fn a_master_xprv_read_at_homes_scan_loads_its_key() {
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Nav(faraday_core::Screen::Home));
+    app.press(Action::Scan);
+    read(&mut app, &tprv(XPRV));
+    assert_eq!(app.session.keys.len(), 1, "{}", error(&app));
+    assert_eq!(app.session.keys[0].fingerprint.0, FINGERPRINT);
+}
+
+#[test]
+fn a_child_xprv_read_at_homes_scan_is_refused_by_name_on_the_form() {
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Nav(faraday_core::Screen::Home));
+    app.press(Action::Scan);
+    read(&mut app, &tprv(CHILD));
+    assert!(app.session.keys.is_empty());
+    assert!(error(&app).contains("master key"), "{}", error(&app));
+}

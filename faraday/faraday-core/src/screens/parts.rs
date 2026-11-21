@@ -1051,6 +1051,7 @@ pub(crate) fn kind_name(kind: FileKind) -> &'static str {
         FileKind::Pdf => EN.kind_name_pdf_to_print,
         FileKind::EfiImage => EN.kind_name_efi_image,
         FileKind::SeedPart => EN.kind_name_seed_part,
+        FileKind::KeyLine => EN.kind_name_key_line,
         FileKind::Text => EN.kind_name_text,
         FileKind::Gpg => EN.kind_name_gpg,
         FileKind::CoreWallet => EN.kind_name_sqlite,

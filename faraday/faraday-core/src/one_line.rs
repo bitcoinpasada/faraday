@@ -68,3 +68,27 @@ pub(crate) fn hex_refusal(r: HexSeedRefusal) -> Text {
         HexSeedRefusal::Length(n) => Text::fill(EN.forms_hex_length, &[&Text::num(n as u64)]),
     }
 }
+
+/// Whether a file's whole text is one key of the two one-line forms: an
+/// extended private key (of any version, loaded or refused by the form
+/// when it is opened), or a master seed in hex of a BIP-32 length. A hex
+/// file may be a hash, which is why a listed file loads only when it is
+/// opened (`docs/KEY-FORMS.md` §6.3).
+pub(crate) fn line_form(
+    c: &faraday_crypto::work::Compute,
+    text: &str,
+) -> Option<crate::forms::Form> {
+    let t = text.trim();
+    if t.is_empty() || t.split_whitespace().nth(1).is_some() {
+        return None;
+    }
+    if matches!(
+        faraday_intake::secret_text(c, t),
+        Some(faraday_intake::TextSecret::ExtendedPrivateKey)
+    ) {
+        return Some(crate::forms::Form::Xprv);
+    }
+    faraday_keys::xprv::parse_hex_seed(t)
+        .is_ok()
+        .then_some(crate::forms::Form::HexSeed)
+}

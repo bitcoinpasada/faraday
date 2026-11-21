@@ -45,6 +45,9 @@ pub enum SeedSource {
     Slip39(Vec<usize>),
     /// A codex32 secret, or shares of it that add up.
     Codex32(Vec<usize>),
+    /// A text file whose whole text is one extended private key or one
+    /// master seed in hex (`docs/KEY-FORMS.md` §6.3); which, its text says.
+    Line(usize),
     /// Already loaded in this session.
     Loaded,
 }
@@ -53,7 +56,7 @@ impl SeedSource {
     /// What the source is called on screen.
     pub fn name(&self, app: &Faraday) -> Text {
         match self {
-            SeedSource::Words(k) | SeedSource::WordsWith(k, _) => {
+            SeedSource::Words(k) | SeedSource::WordsWith(k, _) | SeedSource::Line(k) => {
                 app.inbox.get(*k).map_or(Text::new(), |i| Text::of(&i.name))
             }
             SeedSource::Slip39(ks) => {
@@ -82,7 +85,7 @@ impl SeedSource {
             SeedSource::Words(_) | SeedSource::WordsWith(..) => Some(Form::Words),
             SeedSource::Slip39(_) => Some(Form::Slip39),
             SeedSource::Codex32(_) => Some(Form::Codex32),
-            SeedSource::Loaded => None,
+            SeedSource::Line(_) | SeedSource::Loaded => None,
         }
     }
 }
@@ -610,6 +613,10 @@ pub(crate) enum Secret {
     /// A master seed from codex32 strings, with the plain facts of their
     /// set, kept with the key it loads (`docs/CODEX32.md` §9.4).
     Codex32(Zeroizing<Vec<u8>>, Option<faraday_vault::codex32::SetFacts>),
+    /// A master extended private key, as its text.
+    Xprv(crate::secret_text::SecretText),
+    /// A master seed read from hex.
+    Seed(Zeroizing<Vec<u8>>),
 }
 
 impl Secret {
@@ -624,7 +631,8 @@ impl Secret {
         let material = match self {
             Secret::Words(m) => faraday_keys::Material::Words(m),
             Secret::Slip39(shares) => faraday_keys::Material::Slip39(shares),
-            Secret::Codex32(s, _) => faraday_keys::Material::Seed(s),
+            Secret::Codex32(s, _) | Secret::Seed(s) => faraday_keys::Material::Seed(s),
+            Secret::Xprv(t) => faraday_keys::Material::Xprv(t.as_str()),
         };
         faraday_keys::fingerprint(c, material, passphrase, network)
     }
@@ -652,6 +660,10 @@ impl Secret {
                 }
                 Ok(fp)
             }
+            Secret::Xprv(t) => keys
+                .add_xprv(c, t.as_str(), label)
+                .map_err(|e| Refusal::Words(crate::one_line::xprv_error(&e))),
+            Secret::Seed(s) => keys.add_seed(c, s, label),
         }
     }
 }
@@ -723,8 +735,34 @@ impl Faraday {
                 // many there are (§9.4).
                 Some(Secret::Codex32(seed, crate::forms::set_facts(&parts)))
             }
+            SeedSource::Line(k) => {
+                let text = text(k)?;
+                match crate::one_line::line_form(c, &text)? {
+                    crate::forms::Form::Xprv => Some(Secret::Xprv(
+                        crate::secret_text::SecretText::of(text.trim()),
+                    )),
+                    _ => faraday_keys::xprv::parse_hex_seed(text.trim())
+                        .ok()
+                        .map(Secret::Seed),
+                }
+            }
             SeedSource::Loaded => None,
         }
+    }
+
+    /// Costs what `source_fingerprint` costs for each file. The keys the
+    /// files of one extended private key or one hex master seed make.
+    fn line_seeds(&self, c: &Compute, items: &[Item]) -> Vec<(Fingerprint, Text, SeedSource)> {
+        let mut seeds = Vec::new();
+        for (k, item) in items.iter().enumerate() {
+            let src = SeedSource::Line(k);
+            if item.kind == FileKind::KeyLine
+                && let Some(fp) = self.source_fingerprint(c, items, &src)
+            {
+                seeds.push((fp, stem(&item.name), src));
+            }
+        }
+        seeds
     }
 
     /// Costs what `secret_in` and `master` cost. The fingerprint a source's
@@ -740,11 +778,12 @@ impl Faraday {
             SeedSource::WordsWith(..) => b"words+passphrase",
             SeedSource::Slip39(_) => b"slip39",
             SeedSource::Codex32(_) => b"codex32",
+            SeedSource::Line(_) => b"line",
             SeedSource::Loaded => return None,
         };
         let mut material: Zeroizing<Vec<u8>> = Zeroizing::new(Vec::new());
         match source {
-            SeedSource::Words(k) => {
+            SeedSource::Words(k) | SeedSource::Line(k) => {
                 let b = &items.get(*k)?.bytes;
                 material.reserve_exact(b.len());
                 material.extend_from_slice(b);
@@ -918,6 +957,11 @@ impl Faraday {
             if let Some(fp) = self.source_fingerprint(c, items, &src) {
                 add_seed(&mut found, fp, stem(&item.name), src, loaded_fp(fp));
             }
+        }
+        // A file of one extended private key or one hex master seed: the
+        // key it makes is listed, and loads only when it is opened.
+        for (fp, label, src) in self.line_seeds(c, items) {
+            add_seed(&mut found, fp, label, src, loaded_fp(fp));
         }
         if untried > 0 {
             found.waiting.push(Waiting {

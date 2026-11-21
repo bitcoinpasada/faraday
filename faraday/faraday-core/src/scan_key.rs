@@ -1462,6 +1462,7 @@ impl Faraday {
                 facts.extend(scan_read::share_fact(&text));
                 vec![Way::Share]
             }
+            k if matches!(k.route(), scan_read::Route::Line(_)) => vec![Way::Key],
             Kind::Wif => vec![Way::Sweep],
             Kind::Aezeed => vec![Way::Lightning],
             Kind::Totp | Kind::Entries => {
@@ -1637,25 +1638,9 @@ impl Faraday {
             Way::Key if kind == Kind::Codex32Secret => {
                 self.intake_key_part(&code);
             }
-            Way::Key => {
-                let c = self.compute();
-                self.scan_close();
-                // A CompactSeedQR that is also an encrypted code: its sheet
-                // offers to open it (`docs/KEF.md` §8).
-                let also = (kind == Kind::CompactSeedQr)
-                    .then(|| faraday_codec::kef::recognize(&code))
-                    .flatten();
-                if let Some(words) = seed_in_code(&c, &code) {
-                    drop(code);
-                    self.seed_scanned_on_entry(&words, kind);
-                    if let Some(found) = also {
-                        self.seed_read_offer_kef(found.envelope);
-                    }
-                } else if crate::seed_check::here(self) {
-                    // A code that holds no seed is said on the Seed card.
-                    crate::seed_check::not_a_seed(self);
-                }
-            }
+            // An xprv goes to its form in Add a key and loads there: its
+            // refusals stand on the form, as when it is typed.
+            Way::Key if kind == Kind::Xprv => self.xprv_on_entry(&text),
             Way::Open | Way::NotEncrypted => self.read_go_kef(way, kef, (named, ext, code)),
             Way::CheckAddress => {
                 if let Some(scan) = self.camera.scan.as_mut() {
@@ -2053,6 +2038,57 @@ impl Faraday {
         }
     }
 
+    /// Costs what loading an xprv costs. An extended private key read by
+    /// a scanner that is not Add a key's: the camera closes, Add a key
+    /// opens on its xprv form with the key in, and loads it there; what
+    /// the form refuses it with stays said on the form.
+    fn xprv_on_entry(&mut self, text: &str) {
+        use crate::forms::Form;
+        self.scan_close();
+        self.act(Action::Entry(None));
+        if let Some(i) = Form::ALL.iter().position(|f| *f == Form::Xprv) {
+            self.act(Action::EntryForm(i as u8));
+        }
+        self.entry.set_typed(text);
+        self.entry.forget_error();
+        self.form_recover();
+        // Nothing loaded and nothing said: not left in the field.
+        if self.screen == crate::Screen::Entry && self.entry.state().error.is_none() {
+            self.entry.wipe_typed();
+        }
+    }
+
+    /// Costs what loading an xprv costs. An extended private key read by
+    /// Add a key's Scan: its form takes it and loads it and the camera
+    /// closes; what the form refuses it with (not a master key, the other
+    /// network's) is said on the scanner, which stays open with nothing
+    /// typed (`docs/SCANNING.md` §4.3).
+    fn xprv_scanned(&mut self, bytes: zeroize::Zeroizing<Vec<u8>>) {
+        use crate::forms::Form;
+        if let Some(i) = Form::ALL.iter().position(|f| *f == Form::Xprv)
+            && self.entry.state().form != Form::Xprv
+        {
+            self.act(Action::EntryForm(i as u8));
+        }
+        let text = trimmed(&bytes);
+        drop(bytes);
+        self.entry.set_typed(&text);
+        drop(text);
+        self.entry.forget_error();
+        self.form_recover();
+        if self.screen == crate::Screen::Entry {
+            // Not loaded: refused, or nothing loads a key here.
+            let why = self.entry.state().error.clone();
+            self.entry.wipe_typed();
+            self.entry.forget_error();
+            if let Some(why) = why {
+                self.scan_say(&*why);
+            }
+        } else {
+            self.scan_close();
+        }
+    }
+
     /// Costs what adding a part costs, a codex32 and a SLIP-39 parse, the
     /// classification and the KEF test.
     /// A code read by an Add a key form's Scan (codex32, SLIP-39, Seed
@@ -2071,6 +2107,9 @@ impl Faraday {
                 == scan_read::Route::Sheet
         {
             return crate::seeds::kef::kef_code_scanned(self, bytes);
+        }
+        if kind == Some(Kind::Xprv) {
+            return self.xprv_scanned(bytes);
         }
         let form = self.entry.state().form;
         let kind_form = kind.and_then(Kind::part_form);
@@ -2248,6 +2287,16 @@ impl Faraday {
         // A part of a key goes to Add a key's form, never Files (F167).
         if self.scan_part_routed(&bytes) {
             return;
+        }
+        // Home's Scan takes a master xprv as it takes a seed: to Add a
+        // key's xprv form, which loads it or names why not.
+        if camera
+            && self.may_load_keys()
+            && scan_read::secret_kind(&c, &bytes) == Some(Kind::Xprv)
+        {
+            let text = trimmed(&bytes);
+            drop(bytes);
+            return self.xprv_on_entry(&text);
         }
         // Home's Scan takes a seed too: a SeedQR, a CompactSeedQR or the
         // words go to Add a key, as its own Scan does, and never into a

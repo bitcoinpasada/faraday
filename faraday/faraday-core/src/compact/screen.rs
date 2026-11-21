@@ -1011,17 +1011,22 @@ pub(crate) fn entry_form(
             Some(next) => (EN.keygen_continue, next),
             None => (EN.forms_add_key, Action::EntryRecover),
         };
-        y += stack(
-            ui,
-            x,
-            y,
-            iw,
-            &[(
-                label,
-                Style::Primary.when(!app.entry.state().typed.trim().is_empty()),
-                action,
-            )],
-        );
+        // An xprv is read from a QR code too; a hex seed is no kind of
+        // code a scanner can tell.
+        let mut buttons = Vec::new();
+        if form == Form::Xprv {
+            buttons.push((
+                EN.compact_scan_a_qr_code,
+                Style::Secondary,
+                Action::ScanPart,
+            ));
+        }
+        buttons.push((
+            label,
+            Style::Primary.when(!app.entry.state().typed.trim().is_empty()),
+            action,
+        ));
+        y += stack(ui, x, y, iw, &buttons);
         if flow.is_none() {
             crate::screens::entry_stick(app, ui, x, y + faraday_draw::tokens::GAP_SMALL, iw);
             y += faraday_draw::tokens::TOUCH;

@@ -86,6 +86,8 @@ macro_rules! words_screens_parts {
     /// Text in `kind_name`.
     kind_name_seed_part: "Part of a seed: SLIP-39 or codex32",
     /// Text in `kind_name`.
+    kind_name_key_line: "Extended private key or master seed in hex",
+    /// Text in `kind_name`.
     kind_name_text: "Text",
     /// Text in `kind_name`.
     kind_name_gpg: "GPG",

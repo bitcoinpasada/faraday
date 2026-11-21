@@ -341,3 +341,27 @@ fn storage_the_kernel_shows_but_the_disk_process_never_listed_stops_typing_a_pas
     app.press(Action::PotentialType);
     assert!(app.potential().unwrap().typing);
 }
+
+#[test]
+fn a_file_holding_an_xprv_or_a_hex_seed_is_offered_as_the_key_it_makes() {
+    let c = testkit::compute();
+    // BIP-32 vector 1's master key, as the test network's tprv, and its seed.
+    let read = faraday_codec::encodings::read(
+        "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi",
+    )
+    .unwrap();
+    let mut payload = vec![0x35, 0x83, 0x94];
+    payload.extend_from_slice(&read.bytes[3..]);
+    let tprv = faraday_codec::encodings::base58check(0x04, &payload);
+    for (name, body) in [
+        ("master.txt", format!("{tprv}\n")),
+        ("seed.txt", "000102030405060708090a0b0c0d0e0f\n".to_string()),
+    ] {
+        let app = with_inbox(vec![(name.to_string(), body.into_bytes())]);
+        assert_eq!(app.inbox()[0].kind, FileKind::KeyLine, "{name}");
+        let found = app.inbox_found_now(&c);
+        assert_eq!(found.seeds.len(), 1, "{name}");
+        assert_eq!(found.seeds[0].fingerprint.0, [0x34, 0x42, 0x19, 0x3e]);
+        assert!(matches!(found.seeds[0].sources[0], SeedSource::Line(_)));
+    }
+}

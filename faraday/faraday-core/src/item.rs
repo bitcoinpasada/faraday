@@ -165,7 +165,7 @@ impl Item {
             return Some(secrets::Ack::Any);
         }
         match self.holds() {
-            FileKind::Words | FileKind::SeedPart => Some(secrets::Ack::Seed),
+            FileKind::Words | FileKind::SeedPart | FileKind::KeyLine => Some(secrets::Ack::Seed),
             FileKind::Entries
             | FileKind::SecretWallet
             | FileKind::KeyWithSecret
