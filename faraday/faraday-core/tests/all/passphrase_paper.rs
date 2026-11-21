@@ -262,6 +262,10 @@ fn the_passphrase_check_takes_no_typing_with_a_stick_attached() {
     if app.sheet == Some(faraday_core::Sheet::Lock) {
         app.press(Action::NotNow);
     }
+    assert!(
+        app.backup().unwrap().check.is_some(),
+        "the stick closed the check"
+    );
     type_text(&mut app, PASSPHRASE);
     app.event(Event::Key(Key::Enter));
     assert!(

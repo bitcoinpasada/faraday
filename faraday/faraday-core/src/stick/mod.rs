@@ -46,7 +46,8 @@ pub(crate) fn refuses(app: &mut Faraday, entry: bool) -> bool {
 /// a seed or a copy of a secret): while a stick is attached it takes no
 /// typing and no focus, and no press uses what was typed before it came.
 /// Returns whether it refused, with the vault's toast; the tools' focus is
-/// cleared. What they hold typed is wiped when a stick arrives, not here.
+/// cleared and the other secret fields' text wiped; the passphrase fields
+/// are wiped when a stick arrives.
 pub(crate) fn refuses_secret(app: &mut Faraday) -> bool {
     if !app.stick.in_the_way() {
         return false;

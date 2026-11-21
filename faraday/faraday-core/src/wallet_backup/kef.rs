@@ -473,6 +473,7 @@ pub(crate) fn scanned(app: &mut Faraday, i: usize, bytes: &[u8]) {
     };
     if bytes.trim_ascii() == text.as_bytes() {
         with_form(app, i, |f, _| f.scan_matched());
+        app.typing.pass_eye.close();
         app.camera.close();
         app.sheet = None;
         app.out
