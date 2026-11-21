@@ -16,51 +16,6 @@ use faraday_draw::widgets::Icon;
 use faraday_text::Text;
 use faraday_ui::parts::{button_rows, button_rows_ending, section_label, wrap_buttons};
 
-/// The four forms as a row of chips, the form shown chosen. Returns the
-/// height.
-pub(crate) fn form_rows(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32) -> f32 {
-    let forms: Vec<(&str, Style, Action)> = crate::forms::Form::ALL
-        .iter()
-        .enumerate()
-        .map(|(i, f)| {
-            (
-                f.name(),
-                Style::chosen(*f == app.entry.state().form),
-                Action::EntryForm(i as u8),
-            )
-        })
-        .collect();
-    button_rows(ui, x, y, width, &forms)
-}
-
-/// Under Scan on the words form: the text button **Other forms** with its
-/// chevron, which opens the other forms as rows in place on the wide
-/// layout and as a sheet on a small panel; once opened, the rows
-/// themselves. Returns the height.
-pub(crate) fn other_forms(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32) -> f32 {
-    if app.entry.state().other_forms {
-        return form_rows(app, ui, x, y, width) + GAP_SMALL;
-    }
-    let lw = ui.button(
-        x,
-        y,
-        None,
-        faraday_draw::tokens::TOUCH,
-        EN.entry_other_forms,
-        Style::Ghost,
-        Action::EntryOtherForms,
-    );
-    ui.icon(
-        x + lw + GAP_SMALL,
-        y + faraday_draw::tokens::DISCLOSE_ICON_Y,
-        faraday_draw::tokens::ICON_GLYPH_SMALL,
-        Icon::ChevronRight,
-        faraday_draw::tokens::DISCLOSE_GLYPH,
-        Role::OnSurfaceVariant,
-    );
-    faraday_draw::tokens::TOUCH + faraday_draw::tokens::GAP_SMALL
-}
-
 /// The one word the typed prefix can complete to, if there is one.
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if ui.compact {
@@ -113,7 +68,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // of them.
     // On the words form they come in place of Other forms, under Scan.
     if app.entry.state().other_forms && app.entry.state().form != crate::forms::Form::Words {
-        y += form_rows(app, ui, x, y, width) + GAP_SMALL;
+        y += crate::ways_in::screen::forms(app, ui, (x, y, width), &crate::ways_in::ADD_A_KEY);
     }
     if app.entry.state().form == crate::forms::Form::Krux {
         let bottom = y + crate::seeds::kef::read_rows(app, ui, (x, y, width), true);
@@ -141,7 +96,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         entry_scan(app),
     );
     y += 52.0;
-    y += other_forms(app, ui, x, y, width);
+    y += crate::ways_in::screen::forms(app, ui, (x, y, width), &crate::ways_in::ADD_A_KEY);
     y = entry_words(app, ui, x, y, width, h);
     let bottom = entry_finish(app, ui, x, y, width, h);
     entry_scrolled(app, ui, open, h, bottom);

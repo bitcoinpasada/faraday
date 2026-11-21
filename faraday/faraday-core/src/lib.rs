@@ -34,7 +34,7 @@
 //!   re-exports them all, so a caller names `faraday_core::Action`.
 //! - State and actions: `work` (costly work counted), `compute` (where
 //!   event code gets its token), `flow`, `inputs`, `edit` (the caret and
-//!   the selection), `pass_field` (the passphrase fields and their eye), `motion` (scrolling), `moved` (the moved frame), `out` (what the core
+//!   the selection), `pass_field` (the passphrase fields and their eye), `ways_in` (the ways a key reaches a screen, and Other forms), `motion` (scrolling), `moved` (the moved frame), `out` (what the core
 //!   hands the shell: commands, storage commands, the toast), `pointer` (the
 //!   hits, the press, the drag, the hover), `idle` (the idle lock's timers), `at_lock` (what each area holds and what Lock does with it, `docs/AT-LOCK.md`), `item` (an Inbox or Outbox file), `worker` (the one thread costly work runs on), `fade` (a
 //!   change fading in), `menu` (the ⋮ menus), `nav` (the navigation by
@@ -166,6 +166,7 @@ pub mod set_time;
 pub mod stick;
 mod trail;
 pub mod ui;
+mod ways_in;
 
 pub mod work;
 pub mod worker;

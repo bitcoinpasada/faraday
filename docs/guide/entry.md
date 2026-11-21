@@ -12,9 +12,9 @@ Type in a key you have already written down, as BIP-39 words or in another form.
 
 **Key:** entry.words
 
-Type the words in order, one box each. **Words** sets the count: 12, 15, 18, 21 or 24. The status gives the count, and once the words make a key, **checksum correct** and the key's fingerprint; a word not on the list is named.
+Type the words in order, one box each. **Words** sets the count: 12, 15, 18, 21 or 24. The status gives the count, and once the words make a key, **checksum correct** and the fingerprint.
 
-**Other languages** opens the other word lists. **BIP-39 passphrase** takes the passphrase the key was made with. The same words with another passphrase are another key, an empty field none. **Scan a SeedQR** fills the words from a code. **Add a key** adds the key; **Clear** empties the boxes; **Make a new key** opens Make a new key. **Other forms**, under Scan, opens the other forms, and **Import a key file** loads one at the pull.
+**Other languages** opens the other word lists. **BIP-39 passphrase** takes the passphrase the key was made with. The same words with another passphrase are another key, an empty field none. **Scan a SeedQR** fills the words from a code. **Add a key** adds the key; **Clear** empties the boxes; **Make a new key** opens Make a new key. **Other forms**, under the form buttons, opens the rest, and **Import a key file** loads one at the pull.
 
 A passphrase field has an eye that shows what is typed. Hardware keyboard keys are read as US; **Add a key** then waits for the eye.
 

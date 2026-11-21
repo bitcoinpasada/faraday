@@ -599,8 +599,8 @@ fn add_a_key_offers_other_forms_above_the_field_and_opens_a_sheet() {
         .expect("Other forms is on the panel without scrolling");
     let scan = on_panel(&mut app, Action::ScanSeed).expect("Scan a SeedQR is on the panel");
     assert!(
-        scan.1 < forms.1 && forms.1 < H / 2,
-        "Other forms stands under Scan, in the upper half, clear of the keyboard"
+        scan.1 < forms.1 && forms.1 < H * 3 / 5,
+        "Other forms stands under Scan, above the field"
     );
     tap(&mut app, Action::EntryOtherForms);
     assert_eq!(app.sheet, Some(Sheet::OtherForms));
@@ -610,17 +610,18 @@ fn add_a_key_offers_other_forms_above_the_field_and_opens_a_sheet() {
         .into_iter()
         .map(|(t, _)| t)
         .collect();
-    for form in faraday_core::forms::Form::ALL {
-        assert!(
-            shown.iter().any(|t| t == form.name()),
-            "the sheet lists {}: {shown:?}",
+    use faraday_core::forms::Form;
+    let up_front = [Form::Words, Form::Codex32];
+    for form in Form::ALL {
+        let listed = shown.iter().any(|t| t == form.name());
+        assert_eq!(
+            listed,
+            !up_front.contains(&form),
+            "the sheet lists the forms not shown first, and only them: {} in {shown:?}",
             form.name()
         );
     }
-    let at = faraday_core::forms::Form::ALL
-        .iter()
-        .position(|f| *f == faraday_core::forms::Form::Codex32)
-        .unwrap() as u8;
+    let at = Form::ALL.iter().position(|f| *f == Form::Slip39).unwrap() as u8;
     tap(&mut app, Action::EntryForm(at));
     assert_eq!(app.sheet, None, "choosing a form closes the sheet");
 }

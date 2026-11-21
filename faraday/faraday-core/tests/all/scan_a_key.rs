@@ -449,3 +449,36 @@ fn a_seedqr_that_passes_the_krux_test_is_taken_as_a_part_at_seed_xors_scan() {
     assert_ne!(app.sheet, Some(Sheet::KefRead));
     assert_eq!(testkit::entry(&app).parts.lines(Form::Xor).len(), 1);
 }
+
+/// A code read by Add a key's Scan moves it to the form the code is: a
+/// codex32 string and a SLIP-39 share to their forms, a SeedQR to the seed sheet (`docs/KEY-FORMS.md` §4.2).
+#[test]
+fn a_code_scanned_on_add_a_key_moves_to_its_form() {
+    use faraday_core::forms::Form;
+    for (code, form) in [
+        (
+            "MS12NAMEA320ZYXWVUTSRQPNMLKJHGFEDCAXRPP870HKKQRM",
+            Form::Codex32,
+        ),
+        (
+            "shadow pistol academic always adequate wildlife fancy gross oasis cylinder mustang wrist rescue view short owner flip making coding armed",
+            Form::Slip39,
+        ),
+    ] {
+        let (mut app, _) = on_savings();
+        app.press(Action::Entry(None));
+        app.press(Action::ScanSeed);
+        app.event(Event::Scanned {
+            bytes: code.as_bytes().to_vec(),
+        });
+        let _ = app.frame();
+        let e = testkit::entry(&app);
+        assert_eq!(e.form, form, "{}", note(&app));
+        assert_eq!(e.parts.lines(form).len(), 1);
+    }
+    let (mut app, _) = on_savings();
+    app.press(Action::Entry(None));
+    app.press(Action::ScanSeed);
+    scan_seedqr(&mut app, &testkit::test_words("zebra"));
+    assert_eq!(app.sheet, Some(Sheet::SeedRead));
+}

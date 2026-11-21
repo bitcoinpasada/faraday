@@ -430,8 +430,11 @@ floating action button under the pointer and a dragged chip
 | Use a sample | In Practice, with samples set (F81, `docs/MODES.md` §6.1), a button in Faraday Demo's host strip (§4.19) while the field where a key or an input is typed is empty; nothing is drawn inside the field, whose caret and placeholder stand as in every mode. Labelled "Use a sample", or by what it puts in: **Fill words** on Check my copy, the scanner's **Load sample seed**, **share**, **key**, **wallet**, **PSBT**, **SeedQR**, **code**, **address**, and **Load sample PSBT** where a step asks for the transaction. | Puts the next sample not loaded in the field as typed; a part of a set fills the next part of the set begun. Gone once the person types in the field or a sample fills it; Clear or the next part brings it back. Never drawn outside Practice. |
 
 A seed is typed on Add a key (`Screen::Entry`): **Scan a SeedQR** above
-the words, directly under it the text button **Other forms** with a
-chevron (on the wide layout it opens the other forms as rows in its place,
+the words, directly under it the forms shown first, **BIP-39 words** and
+**codex32**, as chips (the one on screen chosen), and under them the text
+button **Other forms** with a chevron, which holds the other forms the
+screen takes, SLIP-39, Seed XOR and Krux code (`ways_in`, the one component
+of the ways in, `docs/KEY-FORMS.md` §4; on the wide layout it opens the other forms as rows in its place,
 as More kinds does; on a small panel it opens a modal bottom sheet, Material
 3's Bottom sheets, listing them, and a form chosen there closes it), then
 the word grid, the candidates and the word keyboard,

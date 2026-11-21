@@ -716,7 +716,7 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     {
         // The field under them takes a press: their own presses keep their
         // room.
-        y += crate::screens::form_rows(app, ui, x, y, iw);
+        y += crate::ways_in::screen::forms(app, ui, (x, y, iw), &crate::ways_in::ADD_A_KEY);
     }
     if es.form != Form::Words {
         let y = if es.form == Form::Krux {
@@ -747,7 +747,7 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // instead, so the word keyboard stays above the pinned Add a key.
     let with_lists = ui.text_factor() > 1.0 && !es.other_forms;
     if !with_lists {
-        y += crate::screens::other_forms(app, ui, x, y, iw);
+        y += crate::ways_in::screen::forms(app, ui, (x, y, iw), &crate::ways_in::ADD_A_KEY);
     }
     y = entry_words(app, ui, x, y, iw, with_lists);
     y += entry_pass(app, ui, (x, y, iw), EN.compact_bip_39_passphrase);
@@ -799,7 +799,7 @@ pub(crate) fn other_forms_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             Role::OnSurface,
             EN.entry_other_forms,
         );
-        cy += crate::screens::form_rows(app, ui, x, cy, iw);
+        cy += crate::ways_in::screen::other_rows(app, ui, (x, cy, iw), &crate::ways_in::ADD_A_KEY);
         cy += super::buttons(
             ui,
             x,

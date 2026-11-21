@@ -229,19 +229,24 @@ fn a_fresh_new_key_offers_no_form_of_a_key_held_and_add_a_key_offers_the_words()
     let _ = app.frame();
     assert!(app.offers(Action::TypeHere(faraday_core::edit::Here::Words)));
     assert!(app.offers(Action::ScanSeed));
-    // Codex32 strings are on a form behind Other forms.
+    // The words and codex32 are shown first; the other forms are behind
+    // Other forms and nowhere else.
+    use faraday_core::forms::Form;
+    let code = |f: Form| Form::ALL.iter().position(|x| *x == f).unwrap() as u8;
+    assert!(app.offers(Action::EntryForm(code(Form::Codex32))));
     assert!(app.offers(Action::EntryOtherForms));
+    for f in [Form::Slip39, Form::Xor, Form::Krux] {
+        assert!(!app.offers(Action::EntryForm(code(f))), "{}", f.name());
+    }
     app.press(Action::EntryOtherForms);
     let _ = app.frame();
     assert_eq!(
         app.sheet, None,
         "on the wide layout the forms open in place"
     );
-    let at = faraday_core::forms::Form::ALL
-        .iter()
-        .position(|f| *f == faraday_core::forms::Form::Codex32)
-        .unwrap() as u8;
-    assert!(app.offers(Action::EntryForm(at)));
+    for f in Form::ALL {
+        assert!(app.offers(Action::EntryForm(code(f))), "{}", f.name());
+    }
 }
 
 #[test]
@@ -431,9 +436,8 @@ fn add_a_key_takes_a_bip_39_passphrase_typed_twice() {
     app.press(Action::EntryPassphraseAgain);
     typed(&mut app, "TREZOP");
     app.press(Action::PassEye);
-    let _ = app.frame();
     assert!(
-        app.drawn_texts()
+        shown(&mut app)
             .iter()
             .any(|t| t == faraday_core::strings::EN.pass_pair_differ),
         "the line says the two differ"
@@ -452,8 +456,18 @@ fn add_a_key_takes_a_bip_39_passphrase_typed_twice() {
 // The line wraps at a narrow width: its first words stand for it.
 const US_LINE: &str = "Keys are read as a US keyboard.";
 
+/// What the page draws once scrolled to its foot, as a person would.
 fn shown(app: &mut Faraday) -> Vec<String> {
     let _ = app.frame();
+    let (w, h) = app.size();
+    for _ in 0..6 {
+        app.event(Event::Scroll {
+            x: (w * 0.75) as u16,
+            y: (h / 2.0) as u16,
+            dy: 120,
+        });
+        let _ = app.frame();
+    }
     app.drawn_texts().iter().map(|t| t.to_string()).collect()
 }
 
