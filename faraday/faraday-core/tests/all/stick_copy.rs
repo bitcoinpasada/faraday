@@ -554,6 +554,49 @@ fn a_file_just_copied_in_shows_on_both_sides_and_waits_for_the_next_stick() {
     assert_eq!(wrote[0].2, share.1);
 }
 
+#[test]
+fn on_a_narrow_window_a_file_on_both_sides_shows_no_tag_and_more_of_its_name() {
+    use faraday_shell_api::{BootState, DisplayInfo, Event, SecureHardware};
+    let mut app = testkit::started();
+    app.event(Event::Display(DisplayInfo {
+        width: 480,
+        height: 640,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    let share = kit("savings-share-1-of-3.txt");
+    let a = Stick::new("a", std::slice::from_ref(&share));
+    attach(&mut app, &[&a]);
+    copy_in(&mut app, &[&a], &[&share.0]);
+    for column in [faraday_core::Column::Outbox, faraday_core::Column::Stick] {
+        app.press(Action::VisitTab(column));
+        let _ = app.frame();
+        let texts = app.drawn_texts();
+        // On the stick's tab the name is cut to the row's room, but without
+        // the tag it keeps more than its first few letters (the other tab
+        // lists the file below the fold of the page).
+        if column == faraday_core::Column::Stick {
+            assert!(
+                texts.iter().any(|t| t.starts_with(&share.0[..8])),
+                "{column:?}: {texts:?}"
+            );
+        }
+        assert!(
+            !texts.iter().any(|t| t == "On this stick"),
+            "{column:?}: {texts:?}"
+        );
+        // Only the tab's own label, not a row's tag.
+        let tags = texts.iter().filter(|t| t.as_str() == "In Faraday").count();
+        assert_eq!(tags, 1, "{column:?}: {texts:?}");
+    }
+}
+
 /// A GPG certificate and a detached signature, armored as the GPG flow
 /// writes them.
 fn gpg_files() -> [(String, Vec<u8>); 2] {

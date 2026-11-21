@@ -1099,6 +1099,10 @@ pub const VISIT_NAME_MIN: f32 = 120.0;
 /// What a file's row takes at its right end for the check that says the
 /// stick holds the same file, with its gap.
 pub const VISIT_SAME_W: f32 = 28.0;
+/// The opacity of the check's green laid over the card's surface as the fill
+/// of a file that is in both Faraday and on the stick (a Material state
+/// layer, F306).
+pub const VISIT_SAME_LAYER: f32 = 0.12;
 /// The check's glyph in that row.
 pub const VISIT_SAME_ICON: f32 = 18.0;
 /// The box the check's glyph is centred in.

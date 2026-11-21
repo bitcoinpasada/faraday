@@ -905,7 +905,9 @@ card shows "Lock to use {stick}" and a Lock button.
   same name and size only). Not the settings row, not a file whose bytes
   differ (a name clash stays the Already on the stick sheet), and a Keep both
   file is not the same file under its other name. A row that has a tag
-  ("On this stick", "In Faraday", "Public") keeps it, left of the check.
+  ("On this stick", "In Faraday", "Public") keeps it, left of the check; on the
+  compact layout (the tabs) a file on both sides shows no tag, only the green
+  and the check, so its name shows.
 - **Write** while the process is no longer clean (a key loaded, a
   secret typed or the camera on since the stick came in) writes nothing
   and opens the write-out sheet, as Write it to a stick does from Files:

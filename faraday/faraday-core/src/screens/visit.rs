@@ -264,6 +264,11 @@ fn list_row(app: &View, ui: &mut Ui, (x, colw, ry): (f32, f32, f32), mut r: List
     // action is not drawn (as the stick pane's rows did before F290).
     // Pressing the row then does it: the tick box keeps the tick.
     let mut dropped = None;
+    // On the compact layout a file on both sides is green with its check
+    // and no tag, so its name shows (F306).
+    if r.same && ui.compact {
+        r.tag.0 = "";
+    }
     if !r.wrap && r.main.is_some() && name_room(ui, &r, colw) < VISIT_NAME_MIN {
         dropped = r.main.take().map(|(.., a)| a);
     }
@@ -278,7 +283,6 @@ fn list_row(app: &View, ui: &mut Ui, (x, colw, ry): (f32, f32, f32), mut r: List
     let dw = menu + main;
     if r.same {
         super::visit_same::row(ui, (x, colw, ry), dw);
-        r.tag.1 = Role::OnOkContainer.paint();
     }
     if let Some(on) = r.ticked {
         ui.checkbox(x + 22.0, ry + 15.0, on && !r.greyed, !r.greyed);
@@ -298,9 +302,7 @@ fn list_row(app: &View, ui: &mut Ui, (x, colw, ry): (f32, f32, f32), mut r: List
             a,
         );
     }
-    let (ink, sub) = if r.same {
-        (Role::OnOkContainer.paint(), Role::OnOkContainer.paint())
-    } else if r.greyed {
+    let (ink, sub) = if r.greyed && !r.same {
         (crate::ui::off(), crate::ui::off())
     } else {
         (Role::OnSurface.paint(), Role::OnSurfaceVariant.paint())
@@ -958,16 +960,15 @@ fn on_the_stick(
             super::visit_same::row(ui, (ix, colw, ry), dw + gap);
         }
         ui.checkbox(ix + 22.0, ry + 15.0, on, kind.is_some());
-        let fg = if same {
-            Role::OnOkContainer
-        } else if kind.is_some() {
+        let fg = if kind.is_some() {
             Role::OnSurface
         } else {
             Role::OnSurfaceVariant
         };
         let room = 90.0 + dw + super::visit_same::width(same);
         // A file Faraday holds already says so, as the left column's tags.
-        let held = app.inbox_holds(name, *size);
+        // On the compact layout the green row's check says it instead.
+        let held = app.inbox_holds(name, *size) && !(same && ui.compact);
         let tag = EN.visit_in_faraday;
         let tw = if held {
             ui.measure_as(LABEL_M, tag) + 12.0
@@ -992,11 +993,7 @@ fn on_the_stick(
                     20.0,
                 ),
                 LABEL_M,
-                if same {
-                    Role::OnOkContainer
-                } else {
-                    Role::OnSurfaceVariant
-                },
+                Role::OnSurfaceVariant,
                 tag,
             );
         }
@@ -1011,12 +1008,7 @@ fn on_the_stick(
             None => Text::of(EN.visit_settings),
         };
         let sub = ui.fit_as(BODY_S, &sub, colw - room);
-        let sub_ink = if same {
-            Role::OnOkContainer
-        } else {
-            Role::OnSurfaceVariant
-        };
-        ui.text_as(ix + 54.0, ry + 28.0, BODY_S, sub_ink, &sub);
+        ui.text_as(ix + 54.0, ry + 28.0, BODY_S, Role::OnSurfaceVariant, &sub);
         if kind.is_some() {
             // Ends clear of the ⋮'s touch target.
             let gap = if menu { GRID } else { 0.0 };

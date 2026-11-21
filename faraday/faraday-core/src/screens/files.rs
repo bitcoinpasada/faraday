@@ -519,7 +519,7 @@ pub(super) fn receipt_rows(
         let (tone, ink) = if same {
             let line = ui.line_as(BODY_M.mono());
             super::visit_same::receipt_row(ui, (x, w, ry), sw, line);
-            (Role::OnOkContainer, Role::OnOkContainer)
+            (Role::OnSurface, Role::OnSurface)
         } else {
             (tone, Role::OnSurface)
         };
