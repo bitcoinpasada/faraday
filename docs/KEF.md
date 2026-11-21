@@ -629,9 +629,10 @@ off. A later seed form toggled on the same stick or Paper is its own chip beside
 hold. Nothing is held for it at the drop, since no plain file is made. After the lock it takes no
 changes, as any file or paper (§15.8 of the backup flow).
 
-**In the plan.** Two `plan::What`s, tag Sealed, as every form has one for its zone:
-`What::KefCode(i)` at `At::Stick` and `What::KefCodePaper(i)` at `At::Place`. One chip kind,
-`board::Thing::Kef(i)`, which the list does not show; the box it lands in says which `What`. A `What` because the map already
+**In the plan.** One `plan::What::Written`, tag Sealed (`docs/KEY-FORMS.md` §5): the Krux form, the
+seed, the whole key, a Krux code, on the File medium at `At::Stick` or the Paper medium at `At::Place`.
+One chip kind,
+`board::Thing::Kef(i)`, which the list does not show; the box it lands in says which medium. A `What` because the map already
 gives what a form needs: place and stick renumbering, Move and Copy, the plan's text, the after-lock
 refusal. A table beside the map would redo each by hand. It costs far fewer of the sites SeedQR
 has, since it joins no list of copies:
@@ -668,7 +669,7 @@ checked ends the item. Its stick's read-back is then §17.12 item 10's: the pict
 checked against the SHA-256 of its base43 text, and the file's bytes.
 
 **On Paper.** The road of a SeedQR on its copy item (F29, `docs/BACKUP-FLOW.md` §17.24), with the
-passphrase added to the check. Where the map holds `KefCodePaper(i)`, the Templates item names the
+passphrase added to the check. Where the map holds the seed's Krux code on Paper, the Templates item names the
 sheet (§15.5) and the Code card shows, in place of the picture, these labels and `copy_grid`
 (`screens/parts.rs`), **Blocks** ticked · **Rows**, its blocks lettered as on the Krux sheet, rows A to E
 and columns 1 to 5 at 25 × 25:
@@ -684,7 +685,7 @@ and columns 1 to 5 at 25 × 25:
   **Check my code** does, but on the bytes scanned. It opens to the seed: **Checked**, for the code
   and every stick's copy of it, since they are the same bytes. A wrong passphrase reads so and may
   be tried again. As a SeedQR's, the scan is one per seed, not one per place.
-- **Not on Paper**, a ghost button on the item, takes the seed's `KefCodePaper(i)` off every place
+- **Not on Paper**, a ghost button on the item, takes the seed's Krux code on Paper off every place
   and closes the grid, as **Keep the words only** does for a SeedQR, and the foot offers it after
   three scans without a match. No copy stays marked drawn in part, since a code is not a secret.
   With no copy left on a stick, the item goes too.
@@ -699,7 +700,7 @@ it had, so a long copy can be left and taken up.
 
 **What is written.** At the item, `Faraday::kef_save_made` puts `krux-v{version}-{id}.png` and
 `.kef` in the Outbox, under the names the Outbox gives them; no fingerprint is in either. Each
-stick holding `KefCode(i)` lists those two files, and `wallet_slot_files` takes them with the
+stick holding the seed's Krux code file lists those two files, and `wallet_slot_files` takes them with the
 stick's other files at **Lock and write**. A plan with the code on Paper alone still has them in
 the Outbox, and no stick is asked to take them. A seed's code at §10's defaults fits one QR and
 each size of §15.5 (§5). The code is made once and copied to each stick and each Paper, never made
@@ -864,7 +865,7 @@ as for the other forms.
 
 **On the checklist.** The **Templates** item comes before the copies, and a plan keeps no options
 (§15.1), so its clause, "{n} from Blank templates, Krux code, 33 × 33", counts one per place and
-seed holding `KefCodePaper(i)`, at the side of the code if one is made and §10's default otherwise.
+seed holding a Krux code on Paper, at the side of the code if one is made and §10's default otherwise.
 A person who then picks another size in Options sees it named on the Code card before copying, and
 prints that sheet. A plan with only such copies reads only this clause.
 

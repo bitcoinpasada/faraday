@@ -2237,7 +2237,7 @@ the board in Customize backup.
 14. **A Krux code of a seed** (planned): a form on the seed, one level down in
     the seed list chip's ⋮, kept in a stick's files or copied by hand on a
     place's Paper, adding no answer to the question on vaults: `docs/KEF.md`
-    §15.1 (the chip, `What::KefCode` and `What::KefCodePaper`, its checklist
+    §15.1 (the chip, a `What::Written` Krux code on a stick or on Paper, its checklist
     item, what checked means).
 
 **As built** (2026-10-20):
@@ -2371,9 +2371,9 @@ after it.
 
 | Zone | Forms of string j of seed i | `What` |
 |---|---|---|
-| Paper | the string written · its Codex32QR drawn | `Codex32Share(i, j)` · `Codex32QrPaper(i, j)` |
-| Stick (files) | `.txt` · Codex32QR `.png` | `Codex32ShareFile(i, j)` · `Codex32QrFile(i, j)` |
-| Vault | a codex32 share record (`docs/VAULT.md` §7 type 15) | `Codex32Share(i, j)` |
+| Paper | the string written · its Codex32QR drawn | `What::Written` codex32 string and Codex32QR copies on the Paper medium |
+| Stick (files) | `.txt` · Codex32QR `.png` | `What::Written` codex32 string and Codex32QR copies on the File medium |
+| Vault | a codex32 share record (`docs/VAULT.md` §7 type 15) | the string's Paper copy, held in the vault |
 
 Plan codes `x{i}.{j}`, `xq{i}.{j}`, `xt{i}.{j}`, `xp{i}.{j}`, the index as
 its bech32 value. All are tagged Secret (Sealed in a vault).
@@ -3017,7 +3017,7 @@ cards (wide) or pages (small) are the checklist's, as today.
    today). The foot reads **Done** once matched, or **Next** where the
    plan holds a Krux code.
 3. **Krux code** (only after **Krux code** was pressed on step 1). The
-   board's paper Krux code (`Item::KefCode`, `What::KefCodePaper`,
+   board's paper Krux code (`Item::KefCode`, a `What::Written` Krux code on Paper,
    `docs/KEF.md` §15.1) kept at the same one place as the words, no
    stick and no stick lock. The card is the board's own form
    (`kef_code_block`, one block for the item and the card): its

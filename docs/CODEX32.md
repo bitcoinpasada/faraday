@@ -523,8 +523,8 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   (§9.1).
 - **Backups** (C8, §9; `docs/BACKUP-FLOW.md` §17.23): the plan's codex32
   form (`faraday/faraday-plan/src/codex32.rs`: a seed's form, its
-  strings as `What::Codex32Share`, `Codex32QrPaper`, `Codex32ShareFile` and
-  `Codex32QrFile`, every check counting k distinct strings as the seed,
+  strings as `What::Written` copies of the codex32 form: the string or
+  its Codex32QR, on Paper or as a file, `docs/KEY-FORMS.md` §5, every check counting k distinct strings as the seed,
   The standard way for a key with a set, the Templates clause); the
   board's seed group and string chips
   (`faraday/faraday-core/src/board/codex32.rs`); the checklist's item
@@ -1574,7 +1574,8 @@ A seed has a codex32 form on the plan only where its key's secret is a
 codex32 set already (§9.4): the seed's group on the board carries one
 string chip per string of that set, each placed at a place by drag or the
 ⋮ menu as a share of the description is (`What::Share`). The plan's
-model has `What::Codex32Share(i, j)` for string j of seed i, Secret, and
+model has a `What::Written` copy of the codex32 string, on Paper, for
+string j of seed i, Secret, and
 the answers keep k, the identifier, the length and the indices per
 seed. The checks read them as they read shares: a place with k strings
 of one set holds the seed.
@@ -1692,9 +1693,9 @@ its index large ("w0za · **C**"), its forms as the chip's toggles
 
 | Zone | Forms of string j of seed i | `What` |
 |---|---|---|
-| Paper | the string written · its Codex32QR drawn by hand | `Codex32Share(i, j)` · `Codex32QrPaper(i, j)` |
-| Stick (files) | the string as `.txt` · its Codex32QR as `.png` (48 characters; §10.4 for longer) | `Codex32ShareFile(i, j)` · `Codex32QrFile(i, j)` |
-| Vault | a codex32 share record | `Codex32Share(i, j)` in the vault |
+| Paper | the string written · its Codex32QR drawn by hand | `Written` copies of the codex32 string and of its Codex32QR on the Paper medium, string j of seed i |
+| Stick (files) | the string as `.txt` · its Codex32QR as `.png` (48 characters; §10.4 for longer) | `Written` copies of the codex32 string and of its Codex32QR on the File medium, string j of seed i |
+| Vault | a codex32 share record | the string's Paper copy, held in the vault |
 
 All are tagged Secret. A vault takes a string without holding the seed:
 the vault gains a record type, **15 Codex32 share** (1 the string; 2 the
