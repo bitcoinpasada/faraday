@@ -37,9 +37,10 @@ Keystone's, Coldcard's file for Wasabi, Specter Desktop's, Specter DIY's
 mean is the area's reading of it, and the prelude adds the files other
 wallets wrote (BIP 129's examples, Sparrow's and Nunchuk's BSMS records,
 Coldcard's exports, a Core `listdescriptors`) read the same way. What
-Faraday refuses where no outside code has a rule (F155's SLIP-132 checks,
-the BSMS paths line, a description over eighty characters, a token not
-BIP 129's) is expected here from that rule, named in the facts.
+Faraday refuses where no outside code has a rule (a key alone with no
+origin, F155's SLIP-132 checks, the BSMS paths line, a description over
+eighty characters, a token not BIP 129's) is expected here from that rule,
+named in the facts.
 """
 
 import base64
@@ -747,11 +748,13 @@ class Import(Area):
     )
     differences = [
         (
-            "Still ours, expected from Faraday's rule: a SLIP-132 version that names another "
-            "script than the file's (F155), a BSMS paths line other than /0/*,/1/* or No path "
-            "restrictions, which Faraday reads as the two chains (F64), a BSMS descriptor that "
-            "is not a template, a key record whose description is over eighty characters or "
-            "whose token is not BIP 129's; and which account of a Coldcard export, which pair "
+            "Still ours, expected from Faraday's rule: a key alone with no origin, which "
+            "Faraday refuses as a wallet (nothing says whose key it is or at what path), "
+            "a SLIP-132 version that names another script than the file's (F155), a BSMS "
+            "paths line other than /0/*,/1/* or No path restrictions, which Faraday reads "
+            "as the two chains (F64), a BSMS descriptor that is not a template, a key record "
+            "whose description is over eighty characters or whose token is not BIP 129's; "
+            "and which account of a Coldcard export, which pair "
             "of a `listdescriptors`, and what each field of every format means, the area's "
             "reading of each format's documentation; a checksum in Specter DIY's `addwallet`, "
             "which Specter DIY drops unread and Faraday checks, is refused when Core's code "
@@ -1049,8 +1052,9 @@ class Import(Area):
         a = w.accounts[0]
         key = spelled(a.pub, w.net, SINGLE[w.shape][3])
         if self.rng.random() < 0.3:
-            keys = [plain(key)]
-            return key, lambda: w.expected(keys)
+            # A key alone with no origin: BIP 380 allows it, Faraday refuses
+            # it as a wallet (the owner's rule: nothing says whose key it is).
+            return key, self.refused("a bare extended public key, with no origin", Ours)
         return a.origin(self.rng.choice(["h", "'"])) + key, w.expected
 
     def file_electrum(self, w, damage):
