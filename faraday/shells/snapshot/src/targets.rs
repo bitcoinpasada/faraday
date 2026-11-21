@@ -373,6 +373,7 @@ walks! {
     walk_osk = Some("osk"),
     walk_flow = Some("flow"),
     walk_flowbeside = Some("flowbeside"),
+    walk_flowguide = Some("flowguide"),
     walk_gpg_restore = Some("gpg-restore"),
     walk_bootplace = Some("bootplace"),
     walk_passseeds = Some("passseeds"),
