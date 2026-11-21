@@ -28,6 +28,10 @@ pub(crate) enum Way {
     Form(Form),
     /// A loaded key, by its place among the loaded keys.
     Holder(usize),
+    /// An LND aezeed, read by Lightning's tool.
+    Aezeed,
+    /// Add a key: its screen takes every form.
+    AddAKey,
 }
 
 /// What a screen takes and what it shows first.
@@ -37,18 +41,22 @@ pub(crate) struct Opener {
     pub forms: &'static [Form],
     /// The ways shown first, in order.
     pub up_front: &'static [Way],
+    /// Ways under Other forms that are not forms of the table.
+    pub other_ways: &'static [Way],
 }
 
 /// Add a key: every form; Scan, the word grid and codex32 first.
 pub(crate) const ADD_A_KEY: Opener = Opener {
     forms: &Form::ALL,
     up_front: &[Way::Scan, Way::Form(Form::Words), Way::Form(Form::Codex32)],
+    other_ways: &[],
 };
 
 /// My seed makes my wallet: every form; Type, Scan and codex32 first.
 pub(crate) const SEED_MAKES_WALLET: Opener = Opener {
     forms: &Form::ALL,
     up_front: &[Way::Form(Form::Words), Way::Scan, Way::Form(Form::Codex32)],
+    other_ways: &[],
 };
 
 /// Check a signer's Load the seed: every form; Type, Scan and codex32
@@ -56,12 +64,14 @@ pub(crate) const SEED_MAKES_WALLET: Opener = Opener {
 pub(crate) const CHECK_A_SIGNER: Opener = Opener {
     forms: &Form::ALL,
     up_front: &[Way::Form(Form::Words), Way::Scan, Way::Form(Form::Codex32)],
+    other_ways: &[],
 };
 
 /// Spend's sign card: every form; Type, Scan and codex32 first.
 pub(crate) const SPEND_SIGN: Opener = Opener {
     forms: &Form::ALL,
     up_front: &[Way::Form(Form::Words), Way::Scan, Way::Form(Form::Codex32)],
+    other_ways: &[],
 };
 
 /// Which opener drew an Other forms control: its press and its sheet
@@ -215,6 +225,7 @@ impl Opening {
 pub(crate) const RESTORE_SLOT: Opener = Opener {
     forms: &Form::ALL,
     up_front: &[Way::Form(Form::Words), Way::Scan, Way::Form(Form::Codex32)],
+    other_ways: &[],
 };
 
 /// Check's backup menu: the copies Check reads back; the SeedQR and
@@ -222,6 +233,16 @@ pub(crate) const RESTORE_SLOT: Opener = Opener {
 pub(crate) const CHECK_BACKUP: Opener = Opener {
     forms: &[Form::Slip39, Form::Xor, Form::Codex32, Form::Krux],
     up_front: &[Way::SeedQr, Way::Form(Form::Codex32)],
+    other_ways: &[],
+};
+
+/// Convert's From: the keys held, Add a key (which takes every form); a
+/// SLIP-39 set and an aezeed, the two sources Add a key does not read,
+/// under Other forms.
+pub(crate) const CONVERT_FROM: Opener = Opener {
+    forms: &[Form::Slip39],
+    up_front: &[Way::AddAKey],
+    other_ways: &[Way::Aezeed],
 };
 
 impl Opener {
@@ -229,7 +250,7 @@ impl Opener {
     pub(crate) fn up_front_forms(&self) -> impl Iterator<Item = Form> + '_ {
         self.up_front.iter().filter_map(|w| match w {
             Way::Form(f) => Some(*f),
-            Way::Scan | Way::Holder(_) | Way::SeedQr => None,
+            Way::Scan | Way::Holder(_) | Way::SeedQr | Way::Aezeed | Way::AddAKey => None,
         })
     }
 

@@ -159,23 +159,36 @@ fn from_card(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f3
         let press = Some(Action::Convert(C::Step(cstep::TO)));
         cy += row(ui, (x, cy, w), (&name, EN.convert_from_aezeed), true, press);
     }
-    let ways = vec![
-        (
-            EN.convert_add_a_key.to_string(),
-            Style::Secondary,
-            Action::Entry(None),
-        ),
-        (
-            EN.convert_lnd_aezeed.to_string(),
-            Style::Secondary,
-            Action::Convert(C::Aezeed),
-        ),
-        (
-            EN.convert_set_source.to_string(),
-            Style::chosen(s.set.is_some()),
-            Action::Convert(C::SetSource),
-        ),
-    ];
+    let opener = &crate::ways_in::CONVERT_FROM;
+    let mut ways = vec![(
+        EN.convert_add_a_key.to_string(),
+        Style::Secondary,
+        Action::Entry(None),
+    )];
+    ways.push((
+        EN.entry_other_forms.to_string(),
+        Style::chosen(s.other_forms),
+        Action::Convert(C::OtherForms),
+    ));
+    if s.other_forms {
+        for f in opener.other_forms() {
+            // The one form Convert reads as a set, not a key.
+            if f == crate::forms::Form::Slip39 {
+                ways.push((
+                    EN.convert_set_source.to_string(),
+                    Style::chosen(s.set.is_some()),
+                    Action::Convert(C::SetSource),
+                ));
+            }
+        }
+        if opener.other_ways.contains(&crate::ways_in::Way::Aezeed) {
+            ways.push((
+                EN.convert_lnd_aezeed.to_string(),
+                Style::Secondary,
+                Action::Convert(C::Aezeed),
+            ));
+        }
+    }
     cy += button_rows(ui, x, cy, w, &ways);
     if s.set.is_some() {
         cy += set_entry(app, s, ui, (x, cy, w));

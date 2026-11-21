@@ -60,6 +60,8 @@ pub enum ConvertAction {
     VaultKey(usize, usize),
     /// Read an LND aezeed as the source: the entry opens, and returns here.
     Aezeed,
+    /// Open or close From's Other forms.
+    OtherForms,
     /// Press a row of [`ROWS`], by its place there.
     To(u8),
     /// More (1) or fewer (-1) Seed XOR parts.
@@ -466,6 +468,8 @@ pub struct ConvertState {
     /// Whether the source is the aezeed `faraday-keys` holds for this
     /// flow (`Keys::aezeed_hold`), not a loaded key.
     pub aezeed: bool,
+    /// From's Other forms is open.
+    pub other_forms: bool,
     /// The set source's state, where the source is A SLIP-39 set held by
     /// `faraday-keys` (`Keys::slip39_set_hold`).
     pub set: Option<SetState>,
@@ -685,6 +689,13 @@ impl ConvertArea {
         self.state.as_ref()
     }
 
+    /// Opens or closes From's Other forms.
+    fn toggle_other_forms(&mut self) {
+        if let Some(s) = self.state.as_mut() {
+            s.other_forms = !s.other_forms;
+        }
+    }
+
     /// Forgets the flow and its result.
     pub(crate) fn clear(&mut self) {
         self.state = None;
@@ -855,6 +866,7 @@ impl ConvertArea {
             scroll: flow::Scroll::default(),
             key,
             aezeed: false,
+            other_forms: false,
             set: None,
             target: None,
             shown: false,
@@ -1650,6 +1662,9 @@ pub(crate) fn stick_attached(app: &mut Faraday, _wipe: bool) {
 pub(crate) fn act(app: &mut Faraday, action: ConvertAction) {
     match action {
         ConvertAction::Aezeed => app.lightning_for_convert(),
+        ConvertAction::OtherForms => {
+            app.tools.convert.toggle_other_forms();
+        }
         ConvertAction::Open => {
             forget_held(app);
             let key = (app.session.keys.len() == 1).then(|| app.session.keys[0].fingerprint.0);

@@ -3781,3 +3781,21 @@ fn convert_leaves_a_shown_value_at_once() {
     assert!(app.kept_images().is_empty(), "no image of the step is kept");
     assert_eq!(convert::shown(&app), None);
 }
+
+#[test]
+fn from_offers_an_aezeed_and_a_slip39_set_under_other_forms() {
+    let mut app = mainnet();
+    open(&mut app);
+    app.press(Action::Convert(C::Step(cstep::FROM)));
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "Add a key"));
+    assert!(texts.iter().any(|t| t == "Other forms"));
+    assert!(!texts.iter().any(|t| t == "An LND aezeed"));
+    assert!(!texts.iter().any(|t| t == "A SLIP-39 set"));
+    app.press(Action::Convert(C::OtherForms));
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "An LND aezeed"));
+    assert!(texts.iter().any(|t| t == "A SLIP-39 set"));
+}

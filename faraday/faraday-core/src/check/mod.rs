@@ -68,7 +68,10 @@ pub(crate) fn backup_of(way: crate::ways_in::Way) -> Option<Backup> {
     match way {
         crate::ways_in::Way::SeedQr => Some(Backup::SeedQr),
         crate::ways_in::Way::Form(f) => Some(Backup::Form(f)),
-        crate::ways_in::Way::Scan => None,
+        crate::ways_in::Way::Scan
+        | crate::ways_in::Way::Aezeed
+        | crate::ways_in::Way::Holder(_)
+        | crate::ways_in::Way::AddAKey => None,
     }
 }
 
