@@ -201,7 +201,8 @@ fn entry_scrolled(app: &View, ui: &mut Ui, open: faraday_ui::Open, h: f32, botto
     ui.region_close(open, app.scroll.content_h().get() - h);
 }
 
-/// Add a key's word count: 12 · 15 · 18 · 21 · 24 as a row of equal
+/// Add a key's word count: 12 and 24 (and the count chosen), or on
+/// other screens 12 · 15 · 18 · 21 · 24, as a row of equal
 /// chips, the chosen one primary, with "Words" before them when
 /// `labelled`. Returns its height and the gap under it.
 pub(crate) fn word_count_row(
@@ -223,7 +224,19 @@ pub(crate) fn word_count_row(
         );
         bx += ui.measure_as(LABEL_L, EN.word_count_row_words) + 14.0;
     }
-    let counts = crate::EntryState::COUNTS;
+    // Add a key shows 12 and 24 (and the count chosen); 15, 18 and 21 are
+    // under its Other forms. Other screens that take words show all five.
+    let chosen_n = chosen as u8;
+    let counts: Vec<u8> = crate::EntryState::COUNTS
+        .into_iter()
+        .filter(|n| {
+            app.screen != crate::Screen::Entry
+                || [12, 24, chosen_n].contains(n)
+                || !crate::ways_in::ADD_A_KEY
+                    .other_ways
+                    .contains(&crate::ways_in::Way::Words(*n))
+        })
+        .collect();
     let (gap, max) = (6.0, 64.0);
     let row = BUTTON_H + GAP_SMALL;
     let names: Vec<faraday_text::Num> = counts.iter().map(|n| Text::num(u64::from(*n))).collect();
@@ -237,7 +250,7 @@ pub(crate) fn word_count_row(
             ((room - gap * (counts.len() - 1) as f32) / counts.len() as f32).min(max),
         )
     };
-    for (i, n) in counts.into_iter().enumerate() {
+    for (i, n) in counts.iter().copied().enumerate() {
         let style = Style::chosen(usize::from(n) == chosen);
         let (col, r) = ((i % cols) as f32, (i / cols) as f32);
         ui.button(

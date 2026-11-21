@@ -28,6 +28,8 @@ pub(crate) enum Way {
     Form(Form),
     /// A loaded key, by its place among the loaded keys.
     Holder(usize),
+    /// BIP-39 words of one length other than 12 and 24, typed on Add a key.
+    Words(u8),
     /// An LND aezeed, read by Lightning's tool.
     Aezeed,
     /// Add a key: its screen takes every form.
@@ -49,7 +51,7 @@ pub(crate) struct Opener {
 pub(crate) const ADD_A_KEY: Opener = Opener {
     forms: &Form::ALL,
     up_front: &[Way::Scan, Way::Form(Form::Words), Way::Form(Form::Codex32)],
-    other_ways: &[],
+    other_ways: &[Way::Words(15), Way::Words(18), Way::Words(21)],
 };
 
 /// My seed makes my wallet: every form; Type, Scan and codex32 first.
@@ -170,6 +172,18 @@ impl Opening {
                         }),
                 },
             ),
+            Way::Words(n) => (
+                Text::fill(EN.entry_words_n, &[&n.to_string()]),
+                Style::chosen(
+                    app.entry.state().form == Form::Words
+                        && app.entry.state().words_chosen() == usize::from(n),
+                ),
+                Action::EntryWordCount(n),
+            ),
+            // Convert's and Check's ways, drawn by their own screens.
+            Way::SeedQr | Way::Aezeed | Way::AddAKey => {
+                (Text::default(), Style::Secondary, Action::Cancel)
+            }
             Way::Holder(i) => (
                 app.session
                     .keys
@@ -212,6 +226,13 @@ impl Opening {
             .into_iter()
             .map(|f| self.item(app, Way::Form(f)))
             .collect();
+        rows.extend(
+            self.opener()
+                .other_ways
+                .iter()
+                .filter(|w| matches!(w, Way::Words(_)))
+                .map(|w| self.item(app, *w)),
+        );
         if self.holders() {
             let n = app.session.keys.all().count();
             rows.extend((0..n).map(|i| self.item(app, Way::Holder(i))));
@@ -250,7 +271,12 @@ impl Opener {
     pub(crate) fn up_front_forms(&self) -> impl Iterator<Item = Form> + '_ {
         self.up_front.iter().filter_map(|w| match w {
             Way::Form(f) => Some(*f),
-            Way::Scan | Way::Holder(_) | Way::SeedQr | Way::Aezeed | Way::AddAKey => None,
+            Way::Scan
+            | Way::Holder(_)
+            | Way::SeedQr
+            | Way::Words(_)
+            | Way::Aezeed
+            | Way::AddAKey => None,
         })
     }
 

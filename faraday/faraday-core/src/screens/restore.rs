@@ -598,7 +598,8 @@ fn restore_open_slot(
             ),
             crate::ways_in::Way::Form(f) => form_row(*f),
             // Restore's slot has no such way.
-            crate::ways_in::Way::Aezeed
+            crate::ways_in::Way::Words(_)
+            | crate::ways_in::Way::Aezeed
             | crate::ways_in::Way::Holder(_)
             | crate::ways_in::Way::AddAKey => continue,
         });

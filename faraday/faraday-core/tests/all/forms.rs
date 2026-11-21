@@ -309,6 +309,23 @@ fn an_unambiguous_slip39_word_moves_on_from_typing_alone() {
     assert_eq!(&*faraday_core::testkit::entry(&app).typed, "academic ");
 }
 
+#[test]
+fn add_a_key_shows_12_and_24_words_and_keeps_15_18_and_21_under_other_forms() {
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Entry(None));
+    let _ = app.frame();
+    assert!(app.offers(Action::EntryWordCount(12)));
+    assert!(app.offers(Action::EntryWordCount(24)));
+    for n in [15, 18, 21] {
+        assert!(!app.offers(Action::EntryWordCount(n)), "{n} words");
+    }
+    app.press(Action::EntryOtherForms(Opening::AddAKey));
+    let _ = app.frame();
+    for n in [15, 18, 21] {
+        assert!(app.offers(Action::EntryWordCount(n)), "{n} words");
+    }
+}
+
 /// Add a key with the words form, `count` chosen first, the vector's
 /// words typed and its passphrase, TREZOR.
 fn words_key(count: u8, words: &str) -> Faraday {
