@@ -5,8 +5,6 @@
 #
 # Format: RULE PATH COUNT
 
-# vault::Prompt: `text` (the passphrase for a key or an export), `again` and Vaults.passphrase, still to move onto the one field.
-pass-field-outside faraday/faraday-core/src/vault/area.rs 3
 public-kind-number faraday/faraday-core/src/screens/backup.rs 4
 public-kind-number faraday/shells/snapshot/src/tours/again.rs 1
 public-kind-number faraday/shells/snapshot/src/tours/boot.rs 2

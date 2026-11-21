@@ -593,6 +593,65 @@ fn a_lock_from_the_checklist_s_one_vault_seal_through_the_lock_sheet_locks_when_
     assert!(app.restart_requested(), "the device did not lock");
 }
 
+#[test]
+fn create_a_vault_opened_by_the_seal_s_answer_draws_the_eye_closed_and_one_press_opens_it() {
+    use crate::backup_checklist::{
+        device as checklist_device, make_the_vault, press_offered, two_of_three_two_here,
+    };
+    let mut app = checklist_device(Vec::new());
+    let w = two_of_three_two_here(&mut app);
+    app.press(Action::Backup(w));
+    testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
+    let c = testkit::compute();
+    crate::common::no_words(&mut app);
+    press_offered(&mut app, Action::BChecklist);
+    if app
+        .backup_items_now(&c)
+        .contains(&faraday_core::plan::Item::Templates)
+    {
+        app.press(Action::BNext(faraday_core::plan::Item::Templates));
+    }
+    press_offered(&mut app, Action::Vault(V::CreateFrom(Screen::Backup)));
+    make_the_vault(&mut app);
+    press_offered(&mut app, Action::BVaultSave(0));
+    press_offered(&mut app, Action::BStep(faraday_core::plan::Item::Vault(1)));
+    for _ in 0..20 {
+        app.settle();
+        let _ = app.frame();
+        if app.offers(Action::BNewVault(1)) {
+            break;
+        }
+        app.event(Event::Scroll {
+            x: 400,
+            y: 384,
+            dy: 300,
+        });
+    }
+    assert!(app.offers(Action::BNewVault(1)), "no new vault is offered");
+    crate::common::top_up(&mut app);
+    // The eye is open when the seal's answer opens Create a vault, outside
+    // the press that started it.
+    app.press(Action::PassEye);
+    testkit::hold_worker();
+    testkit::press_on_worker(&mut app, Action::BNewVault(1));
+    if !app.pass_eye_shown() {
+        app.press(Action::PassEye);
+    }
+    assert!(app.pass_eye_shown(), "the eye is open while the seal runs");
+    testkit::release_worker();
+    testkit::settle(&mut app);
+    assert_eq!(app.screen, Screen::CreateVault);
+    assert!(!app.pass_eye_shown(), "Create opens with dots");
+    type_text(&mut app, "newpass");
+    let shown = |app: &mut Faraday| {
+        let _ = app.frame();
+        app.drawn_texts().plain().iter().any(|t| t == "newpass")
+    };
+    assert!(!shown(&mut app), "dots, not the letters");
+    app.press(Action::PassEye);
+    assert!(shown(&mut app), "one press of the eye shows them");
+}
+
 /// A lock that stops in its seal, for want of memory: `lock_now` has taken
 /// what is on show off the screen, nothing is sealed or wiped, and the Lock
 /// sheet shows.

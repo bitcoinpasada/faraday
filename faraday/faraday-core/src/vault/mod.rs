@@ -486,6 +486,8 @@ impl Faraday {
                     Some(CreateForm::starting(self.vaults.state.memory_free_mib));
                 self.scroll.set_choices_offset(0.0);
                 self.vaults.state.just_made = None;
+                // However Create is reached, it opens with dots.
+                self.typing.pass_eye.close();
                 // It opens on Name and passphrase: the first passphrase
                 // takes the typing, as Continue into that card does.
                 self.vaults.state.focus = self.may_load_keys().then_some(Focus::Phrase(0, false));
