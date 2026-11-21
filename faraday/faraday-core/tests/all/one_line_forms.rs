@@ -137,3 +137,93 @@ fn a_child_xprv_read_at_homes_scan_is_refused_by_name_on_the_form() {
     assert!(app.session.keys.is_empty());
     assert!(error(&app).contains("master key"), "{}", error(&app));
 }
+
+const HASH: &str = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
+
+#[test]
+fn a_hex_code_read_at_homes_scan_is_filed_as_text_and_loads_no_key() {
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Nav(faraday_core::Screen::Home));
+    app.press(Action::Scan);
+    read(&mut app, HASH);
+    assert!(app.session.keys.is_empty());
+    assert_eq!(app.inbox().len(), 1);
+    assert_eq!(app.inbox()[0].kind, faraday_core::wallet::FileKind::Text);
+}
+
+#[test]
+fn a_hex_code_kept_from_a_read_card_is_filed_as_text() {
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::ScanSeed);
+    read(&mut app, HASH);
+    let ways: Vec<String> = app
+        .scan()
+        .and_then(|s| s.card.as_ref())
+        .map(|c| {
+            c.ways
+                .iter()
+                .map(|w| w.label().as_str().to_string())
+                .collect()
+        })
+        .unwrap_or_default();
+    let keep = ways
+        .iter()
+        .position(|w| w == "Keep in Files")
+        .unwrap_or_else(|| panic!("no Keep in Files: {ways:?}"));
+    app.press(Action::ReadGo(keep as u8));
+    assert_eq!(app.inbox().len(), 1);
+    assert_eq!(app.inbox()[0].kind, faraday_core::wallet::FileKind::Text);
+    assert!(app.session.keys.is_empty());
+}
+
+#[test]
+fn a_hex_code_read_at_homes_scan_with_a_stick_in_is_filed_as_text() {
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Nav(faraday_core::Screen::Home));
+    app.press(Action::Scan);
+    app.storage(faraday_core::StorageEvent::Sticks(vec![
+        faraday_core::StickInfo {
+            make: Default::default(),
+            serial: None,
+            id: faraday_text::Text::of("a"),
+            label: faraday_text::Text::of("STICK"),
+            boot: false,
+            files: Vec::new(),
+            vaults: Vec::new(),
+        },
+    ]));
+    read(&mut app, HASH);
+    assert!(app.session.keys.is_empty());
+    assert_eq!(app.inbox().len(), 1);
+    assert_eq!(app.inbox()[0].kind, faraday_core::wallet::FileKind::Text);
+}
+
+#[test]
+fn a_master_xprv_read_at_homes_scan_with_a_stick_in_says_to_remove_it() {
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Nav(faraday_core::Screen::Home));
+    app.press(Action::Scan);
+    app.storage(faraday_core::StorageEvent::Sticks(vec![
+        faraday_core::StickInfo {
+            make: Default::default(),
+            serial: None,
+            id: faraday_text::Text::of("a"),
+            label: faraday_text::Text::of("STICK"),
+            boot: false,
+            files: Vec::new(),
+            vaults: Vec::new(),
+        },
+    ]));
+    read(&mut app, &tprv(XPRV));
+    assert!(app.session.keys.is_empty());
+    let said = app
+        .scan()
+        .and_then(|s| s.note.as_ref().map(|t| t.as_str().to_string()))
+        .unwrap_or_default();
+    assert!(
+        said.starts_with("Keys load only with no"),
+        "{said:?} {:?} {:?}",
+        app.scan().is_some(),
+        app.sheet
+    );
+}

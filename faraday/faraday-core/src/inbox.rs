@@ -47,7 +47,7 @@ pub enum SeedSource {
     Codex32(Vec<usize>),
     /// A text file whose whole text is one extended private key or one
     /// master seed in hex (`docs/KEY-FORMS.md` §6.3); which, its text says.
-    Line(usize),
+    Line(usize, crate::forms::Form),
     /// Already loaded in this session.
     Loaded,
 }
@@ -56,7 +56,7 @@ impl SeedSource {
     /// What the source is called on screen.
     pub fn name(&self, app: &Faraday) -> Text {
         match self {
-            SeedSource::Words(k) | SeedSource::WordsWith(k, _) | SeedSource::Line(k) => {
+            SeedSource::Words(k) | SeedSource::WordsWith(k, _) | SeedSource::Line(k, _) => {
                 app.inbox.get(*k).map_or(Text::new(), |i| Text::of(&i.name))
             }
             SeedSource::Slip39(ks) => {
@@ -85,7 +85,8 @@ impl SeedSource {
             SeedSource::Words(_) | SeedSource::WordsWith(..) => Some(Form::Words),
             SeedSource::Slip39(_) => Some(Form::Slip39),
             SeedSource::Codex32(_) => Some(Form::Codex32),
-            SeedSource::Line(_) | SeedSource::Loaded => None,
+            SeedSource::Line(_, form) => Some(*form),
+            SeedSource::Loaded => None,
         }
     }
 }
@@ -735,7 +736,7 @@ impl Faraday {
                 // many there are (§9.4).
                 Some(Secret::Codex32(seed, crate::forms::set_facts(&parts)))
             }
-            SeedSource::Line(k) => {
+            SeedSource::Line(k, _) => {
                 let text = text(k)?;
                 match crate::one_line::line_form(c, &text)? {
                     crate::forms::Form::Xprv => Some(Secret::Xprv(
@@ -755,10 +756,15 @@ impl Faraday {
     fn line_seeds(&self, c: &Compute, items: &[Item]) -> Vec<(Fingerprint, Text, SeedSource)> {
         let mut seeds = Vec::new();
         for (k, item) in items.iter().enumerate() {
-            let src = SeedSource::Line(k);
-            if item.kind == FileKind::KeyLine
-                && let Some(fp) = self.source_fingerprint(c, items, &src)
-            {
+            if item.kind != FileKind::KeyLine {
+                continue;
+            }
+            let text = Text::from_utf8_lossy(&item.bytes);
+            let Some(form) = crate::one_line::line_form(c, &text) else {
+                continue;
+            };
+            let src = SeedSource::Line(k, form);
+            if let Some(fp) = self.source_fingerprint(c, items, &src) {
                 seeds.push((fp, stem(&item.name), src));
             }
         }
@@ -778,12 +784,12 @@ impl Faraday {
             SeedSource::WordsWith(..) => b"words+passphrase",
             SeedSource::Slip39(_) => b"slip39",
             SeedSource::Codex32(_) => b"codex32",
-            SeedSource::Line(_) => b"line",
+            SeedSource::Line(..) => b"line",
             SeedSource::Loaded => return None,
         };
         let mut material: Zeroizing<Vec<u8>> = Zeroizing::new(Vec::new());
         match source {
-            SeedSource::Words(k) | SeedSource::Line(k) => {
+            SeedSource::Words(k) | SeedSource::Line(k, _) => {
                 let b = &items.get(*k)?.bytes;
                 material.reserve_exact(b.len());
                 material.extend_from_slice(b);

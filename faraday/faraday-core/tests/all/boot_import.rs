@@ -1207,6 +1207,37 @@ fn a_codex32_seed_imported_with_the_stick_in_loads_when_it_is_pulled() {
 }
 
 #[test]
+fn a_hex_or_xprv_file_imports_as_a_file_and_loads_no_key() {
+    let files: Vec<(String, Vec<u8>)> = vec![
+        (
+            "hash.txt".into(),
+            b"000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f\n".to_vec(),
+        ),
+        (
+            "master.txt".into(),
+            b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi\n".to_vec(),
+        ),
+        ("notes.txt".into(), b"Shopping list\n".to_vec()),
+    ];
+    let mut app = booted_with(&files);
+    go(&mut app, &files);
+    for name in ["hash.txt", "master.txt"] {
+        assert!(
+            app.inbox()
+                .iter()
+                .any(|i| i.name == name && i.kind == FileKind::KeyLine),
+            "{name}"
+        );
+    }
+    assert!(app.session.keys.is_empty(), "a hex file loaded by itself");
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    assert!(
+        app.session.keys.is_empty(),
+        "loaded when the stick came out"
+    );
+}
+
+#[test]
 fn unselect_all_unticks_every_file_and_import_then_waits_for_a_choice() {
     let mut app = booted();
     let _ = app.frame();

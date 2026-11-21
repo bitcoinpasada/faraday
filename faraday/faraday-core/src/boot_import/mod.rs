@@ -1118,10 +1118,17 @@ impl Faraday {
         }
         // Every wallet and seed they hold; with the stick in, the seeds,
         // of any kind, wait for the pull.
-        self.load_found_in(&plain, &BTreeSet::new(), &|_| true);
+        // A file of one xprv or one hex seed is listed and loads only when
+        // opened: a hex file may be a hash (`docs/KEY-FORMS.md` §6.3).
+        let loads: Vec<Item> = plain
+            .iter()
+            .filter(|i| i.kind != FileKind::KeyLine)
+            .map(Item::duplicate)
+            .collect();
+        self.load_found_in(&loads, &BTreeSet::new(), &|_| true);
         if !self.may_load_keys() {
             self.import
-                .hold_for_pull(plain.iter().map(|i| Text::of(&i.name)));
+                .hold_for_pull(loads.iter().map(|i| Text::of(&i.name)));
         }
         for name in &secrets {
             self.visit.unprotected_add(&stick_id, &label, name);
@@ -1221,7 +1228,7 @@ impl Faraday {
         let items: Vec<Item> = self
             .inbox
             .iter()
-            .filter(|i| names.contains(i.name.as_str()))
+            .filter(|i| names.contains(i.name.as_str()) && i.kind != FileKind::KeyLine)
             .map(Item::duplicate)
             .collect();
         let (_, keys) = self.load_found_in(&items, &BTreeSet::new(), &|_| true);

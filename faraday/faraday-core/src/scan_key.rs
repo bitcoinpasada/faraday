@@ -658,6 +658,21 @@ impl Faraday {
     }
 }
 
+/// A scanned code of hex digits is plain text, never a key: it may as well
+/// be a txid or a file hash, so no scanner files or lists it as one. Only a
+/// bare xprv stays a key line (`docs/SCANNING.md` §4.2).
+fn hex_code_is_text(item: &mut crate::Item) {
+    use crate::wallet::FileKind;
+    if item.kind == FileKind::KeyLine
+        && trimmed(&item.bytes)
+            .as_str()
+            .bytes()
+            .all(|b| b.is_ascii_hexdigit())
+    {
+        item.kind = FileKind::Text;
+    }
+}
+
 /// The text of `bytes` with white space trimmed off both ends, wiped when
 /// dropped.
 fn trimmed(bytes: &[u8]) -> Text {
@@ -1039,6 +1054,7 @@ impl Faraday {
                     | FileKind::SeedPart
                     | FileKind::SecretWallet
                     | FileKind::KeyWithSecret
+                    | FileKind::KeyLine
             )
         {
             return Some(item);
@@ -1052,6 +1068,8 @@ impl Faraday {
         drop(text);
         let why = if matches!(item.kind, FileKind::SecretWallet | FileKind::KeyWithSecret) {
             EN.secret_text_file_holds
+        } else if item.kind == FileKind::KeyLine && self.may_load_keys() {
+            EN.secret_text_private_key
         } else if self.may_load_keys() {
             EN.secret_text_those_are
         } else {
@@ -1462,7 +1480,11 @@ impl Faraday {
                 facts.extend(scan_read::share_fact(&text));
                 vec![Way::Share]
             }
-            k if matches!(k.route(), scan_read::Route::Line(_)) && scan_read::bare_xprv(&text) => {
+            // The seed check never loads a key: its card has no way over.
+            k if matches!(k.route(), scan_read::Route::Line(_))
+                && scan_read::bare_xprv(&text)
+                && !crate::seed_check::here(self) =>
+            {
                 vec![Way::Key]
             }
             Kind::Wif => vec![Way::Sweep],
@@ -1769,7 +1791,9 @@ impl Faraday {
     ) {
         let c = self.compute();
         let name = self.scanned_file_name(named, ext, &code);
-        let at = self.inbox_file_in(crate::Item::new(&c, &name, code.to_vec()));
+        let mut item = crate::Item::new(&c, &name, code.to_vec());
+        hex_code_is_text(&mut item);
+        let at = self.inbox_file_in(item);
         drop(code);
         self.scan_close();
         self.read_go_at(way, at);
@@ -2320,6 +2344,15 @@ impl Faraday {
             drop(bytes);
             return self.xprv_on_entry(&text);
         }
+        // With a stick in, a master xprv waits as a seed does.
+        if camera
+            && sticks
+            && !self.may_load_keys()
+            && scan_read::secret_kind(&c, &bytes) == Some(Kind::Xprv)
+            && scan_read::bare_xprv(&trimmed(&bytes))
+        {
+            return self.scan_say(crate::stick::keys_load(self.medium));
+        }
         // Home's Scan takes a seed too: a SeedQR, a CompactSeedQR or the
         // words go to Add a key, as its own Scan does, and never into a
         // box (`docs/QR.md` §2).
@@ -2381,7 +2414,8 @@ impl Faraday {
         // whatever kind (`docs/QR.md` §2): it is filed under its name.
         let enveloped = named.is_some();
         let name = self.scanned_file_name(named, ext, &data);
-        let item = crate::Item::new(c, &name, std::mem::take(&mut *data));
+        let mut item = crate::Item::new(c, &name, std::mem::take(&mut *data));
+        hex_code_is_text(&mut item);
         if item.kind == crate::wallet::FileKind::Other && !enveloped {
             if let Some(scan) = self.camera.scan.as_mut() {
                 scan.note = Some(Text::of(EN.scanned_not_a_psbt));

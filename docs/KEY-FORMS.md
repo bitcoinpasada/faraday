@@ -273,15 +273,16 @@ the passphrase line, which is no form of the key, stays a copy of its own.
 ### 6.3 Where they are taken
 
 Add a key, Convert's From, and every opener of §4.2 that takes every
-form. The seed sheet shows an xprv as it shows a codex32 secret: its
-fingerprint and no passphrase step.
+form. An xprv never goes to the seed sheet: it loads on its form, which
+has no passphrase step.
 
 The Inbox finds them in files on a stick as it finds words, SLIP-39 and
 codex32 files (`FileKind::KeyLine`): a text file whose whole text is one
 xprv (or tprv), or one master seed in hex of a BIP-32 length, is listed as
 that form. A scanner reads an xprv (`Route::Line`): Add a key's xprv form
-takes it and loads it, and its own Scan is on that form; a hex seed is no
-scan kind. A listed
+takes it and loads it, and its own Scan is on that form; a scanned hex
+code is kept as text and never read as a key, so a hex seed is taken only
+typed or from a file in Add a key. A listed
 file loads only when the person opens it, so a hex file that is a hash is
 listed and never loaded by itself.
 

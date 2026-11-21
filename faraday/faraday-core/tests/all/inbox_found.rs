@@ -362,6 +362,29 @@ fn a_file_holding_an_xprv_or_a_hex_seed_is_offered_as_the_key_it_makes() {
         let found = app.inbox_found_now(&c);
         assert_eq!(found.seeds.len(), 1, "{name}");
         assert_eq!(found.seeds[0].fingerprint.0, [0x34, 0x42, 0x19, 0x3e]);
-        assert!(matches!(found.seeds[0].sources[0], SeedSource::Line(_)));
+        assert!(matches!(found.seeds[0].sources[0], SeedSource::Line(..)));
     }
+}
+
+#[test]
+fn a_file_holding_a_hex_seed_asks_for_no_passphrase() {
+    let c = testkit::compute();
+    let mut app = with_inbox(vec![(
+        "seed.txt".to_string(),
+        b"000102030405060708090a0b0c0d0e0f\n".to_vec(),
+    )]);
+    let fp = app.inbox_found_now(&c).potential()[0].fingerprint;
+    app.press(Action::PotentialOpen(fp.0));
+    let _ = app.frame();
+    assert_eq!(app.sheet, Some(Sheet::Potential));
+    assert!(
+        !app.offers(Action::PotentialType),
+        "a BIP-39 passphrase field for a hex seed"
+    );
+    // The same sheet for a words file has the field.
+    let mut app = with_inbox(vec![("summer-words.txt".to_string(), words("summer"))]);
+    let fp = app.inbox_found_now(&c).potential()[0].fingerprint;
+    app.press(Action::PotentialOpen(fp.0));
+    let _ = app.frame();
+    assert!(app.offers(Action::PotentialType), "no field for words");
 }

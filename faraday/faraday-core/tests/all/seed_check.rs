@@ -707,6 +707,21 @@ fn a_seedqr_that_is_not_a_seed_closes_the_camera() {
 }
 
 #[test]
+fn an_xprv_read_on_the_seed_check_offers_no_way_to_load_it() {
+    let mut app = with_words(ABOUT);
+    app.press(Action::ScanSeed);
+    app.event(Event::Scanned {
+        bytes: b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_vec(),
+    });
+    let _ = app.frame();
+    assert!(
+        !app.offers(Action::ReadGo(0)),
+        "a key can be loaded from the check"
+    );
+    assert!(!shows(&mut app, "Addthiskey"), "{:?}", texts(&mut app));
+}
+
+#[test]
 fn the_master_key_is_origin_and_path_with_nothing_after_the_fingerprint() {
     let c = compute();
     let mut keys = Keys::on(Network::Mainnet);
