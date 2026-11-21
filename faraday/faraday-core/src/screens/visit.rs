@@ -117,11 +117,14 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         (width - VISIT_GAP) / 2.0
     };
     // Where Scan floats over the foot (`foot_room`), the cards end above
-    // it; at the top of the rail or the sidebar it takes no room here.
+    // it; at the top of the rail or the sidebar it takes no room here, and
+    // the foot is the page margin the cards keep at their sides.
     let fab = if ui.foot_room > 0.0 {
         FAB_H + PAGE_INSET
+    } else if compact {
+        crate::compact::M
     } else {
-        0.0
+        PAGE_INSET
     };
     // The notice's button can stand over the Scan button's corner: a gap
     // keeps its press box whole.
