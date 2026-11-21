@@ -61,6 +61,7 @@ pub fn vault_label(v: &VaultWork) -> String {
     let act = match v.act {
         VaultAct::Made => "vault made",
         VaultAct::Unlocked => "vault unlocked",
+        VaultAct::Checked => "export checked",
         VaultAct::Measured => "vault cost measured",
     };
     let ended = match v.ended {

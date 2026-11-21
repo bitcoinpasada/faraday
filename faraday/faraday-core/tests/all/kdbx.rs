@@ -337,39 +337,65 @@ fn says(app: &mut Faraday, text: &str) -> bool {
     app.drawn_texts().iter().any(|t| t == text)
 }
 
+fn kdbx_bytes(app: &Faraday) -> Vec<u8> {
+    app.outbox
+        .iter()
+        .find(|i| i.name.ends_with(".kdbx"))
+        .expect("no KeePass file")
+        .bytes
+        .to_vec()
+}
+
 #[test]
 fn the_check_after_a_keepass_export_opens_the_file_with_the_right_passphrase() {
     let mut app = at_the_export_check();
+    let before = kdbx_bytes(&app);
     type_text(&mut app, "keepass passphrase");
     testkit::press_on_worker(&mut app, Action::Vault(V::PromptGo));
     testkit::settle(&mut app);
     let _ = app.frame();
+    assert_eq!(
+        app.toast_text(),
+        Some(faraday_core::strings::EN.vault_export_checked)
+    );
     assert!(!says(
         &mut app,
         faraday_core::strings::EN.vault_export_check
     ));
     assert!(!says(&mut app, faraday_core::strings::EN.check_made_failed));
     assert_eq!(kdbx_files(&app), 1, "the file is as it was");
+    assert_eq!(kdbx_bytes(&app), before);
 }
 
 #[test]
 fn a_wrong_passphrase_at_the_check_says_it_did_not_open_and_can_be_tried_again() {
     let mut app = at_the_export_check();
+    let before = kdbx_bytes(&app);
     type_text(&mut app, "another passphrase");
     testkit::press_on_worker(&mut app, Action::Vault(V::PromptGo));
     testkit::settle(&mut app);
     let _ = app.frame();
     assert!(says(&mut app, faraday_core::strings::EN.check_made_failed));
     assert!(says(&mut app, faraday_core::strings::EN.vault_export_check));
+    assert_ne!(
+        app.toast_text(),
+        Some(faraday_core::strings::EN.vault_export_checked)
+    );
+    assert_eq!(kdbx_bytes(&app), before, "a wrong try changes nothing");
     type_text(&mut app, "keepass passphrase");
     testkit::press_on_worker(&mut app, Action::Vault(V::PromptGo));
     testkit::settle(&mut app);
     let _ = app.frame();
+    assert_eq!(
+        app.toast_text(),
+        Some(faraday_core::strings::EN.vault_export_checked)
+    );
     assert!(!says(
         &mut app,
         faraday_core::strings::EN.vault_export_check
     ));
     assert_eq!(kdbx_files(&app), 1);
+    assert_eq!(kdbx_bytes(&app), before);
 }
 
 #[test]
@@ -383,17 +409,77 @@ fn skipping_the_check_leaves_it_without_opening_the_file() {
         &mut app,
         faraday_core::strings::EN.vault_export_check
     ));
+    assert_ne!(
+        app.toast_text(),
+        Some(faraday_core::strings::EN.vault_export_checked)
+    );
     assert_eq!(kdbx_files(&app), 1);
 }
 
 #[test]
-fn a_lock_during_the_check_leaves_nothing_typed() {
+fn a_lock_before_the_check_leaves_nothing_typed_and_no_check() {
     let mut app = at_the_export_check();
     type_text(&mut app, "keepass passphrase");
     app.press(Action::LockUnsealed);
     let _ = app.frame();
+    assert!(app.vaults().prompt.is_none(), "no check and nothing typed");
+}
+
+#[test]
+fn a_lock_while_the_check_runs_drops_its_answer_and_holds_nothing() {
+    let mut app = at_the_export_check();
+    type_text(&mut app, "keepass passphrase");
+    testkit::hold_worker();
+    testkit::press_on_worker(&mut app, Action::Vault(V::PromptGo));
+    for t in 30..40 {
+        if app.busy().is_some() {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    assert!(app.busy().is_some(), "the check runs");
+    app.press(Action::LockUnsealed);
+    testkit::release_worker();
+    testkit::settle_stale(&mut app);
+    settle(&mut app, 100);
+    assert!(app.vaults().prompt.is_none(), "nothing typed is held");
+    assert_ne!(
+        app.toast_text(),
+        Some(faraday_core::strings::EN.vault_export_checked),
+        "the stale answer says nothing"
+    );
+}
+
+/// The check is up with a passphrase typed in it, then the page is left by
+/// `leave`; the page shown again has no check and holds nothing typed.
+fn leaving_drops_the_check(leave: impl FnOnce(&mut Faraday)) {
+    let mut app = at_the_export_check();
+    type_text(&mut app, "keepass passphrase");
+    assert!(app.vaults().prompt.is_some());
+    leave(&mut app);
+    assert!(app.vaults().prompt.is_none(), "no check, nothing typed");
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Open(0)));
+    let _ = app.frame();
+    assert!(app.vaults().prompt.is_none());
     assert!(!says(
         &mut app,
         faraday_core::strings::EN.vault_export_check
     ));
+}
+
+#[test]
+fn leaving_the_check_by_another_item_drops_it_and_what_was_typed() {
+    leaving_drops_the_check(|app| app.press(Action::Vault(V::Item(0))));
+}
+
+#[test]
+fn leaving_the_check_by_another_tab_drops_it_and_what_was_typed() {
+    leaving_drops_the_check(|app| app.press(Action::Vault(V::Category(2))));
+}
+
+#[test]
+fn leaving_the_check_by_another_screen_drops_it_and_what_was_typed() {
+    leaving_drops_the_check(|app| app.press(Action::Nav(Screen::Vaults)));
 }

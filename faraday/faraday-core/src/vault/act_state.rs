@@ -82,7 +82,34 @@ impl VaultArea {
             self.state.form_error = None;
             self.state.saving = false;
             self.state.item_open = false;
+            self.drop_prompt();
             self.set_item_offset(0.0);
+        }
+    }
+
+    /// The one-line prompt is dropped with what was typed in it, and its
+    /// focus: leaving what it was asked on, by another item, tab, vault or
+    /// screen, gives it up.
+    pub(crate) fn drop_prompt(&mut self) {
+        self.state.prompt = None;
+        if matches!(
+            self.state.focus,
+            Some(super::Focus::Prompt | super::Focus::PromptAgain)
+        ) {
+            self.state.focus = None;
+        }
+    }
+
+    /// Off the vault contents the prompt is dropped (see [`Self::drop_prompt`]):
+    /// the sheet that asks the wallet's missing passphrase is not one.
+    pub(crate) fn left_contents(&mut self) {
+        if self
+            .state
+            .prompt
+            .as_ref()
+            .is_some_and(|p| !matches!(p.purpose, super::Purpose::ForWallet(..)))
+        {
+            self.drop_prompt();
         }
     }
 
@@ -95,6 +122,7 @@ impl VaultArea {
         self.state.form_error = None;
         self.state.saving = false;
         self.state.item_open = false;
+        self.drop_prompt();
     }
 
     /// Item `k` of the shown kind is opened.
@@ -105,6 +133,7 @@ impl VaultArea {
         self.state.form_error = None;
         self.state.saving = false;
         self.state.item_open = true;
+        self.drop_prompt();
     }
 
     /// The open item is closed, and what hung off it.

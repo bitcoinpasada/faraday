@@ -240,6 +240,8 @@ pub enum VaultAct {
     Made,
     /// A vault unlocked.
     Unlocked,
+    /// A KeePass export opened once more under its passphrase, to check it.
+    Checked,
     /// The one 64 MiB pass at boot that times this computer.
     Measured,
 }

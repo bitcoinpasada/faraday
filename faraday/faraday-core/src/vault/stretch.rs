@@ -697,13 +697,7 @@ fn kdbx_start(app: &mut Faraday) -> bool {
     let mut u32s = [0u8; 32];
     u32s.copy_from_slice(&uuids);
     let now = app.checked_now();
-    // The memory step the prompt offers is the first; passes and lanes are
-    // the format's.
-    let cost = Cost {
-        memory_kib: STEPS_KIB[0],
-        passes: 3,
-        lanes: 4,
-    };
+    let cost = KDBX_EXPORT_COST;
     let (out, name) = crate::bip85::kdbx_out(&app.outbox, &title);
     let Some(job) = app.vaults.store().kdbx_job(
         (id, at),
@@ -758,6 +752,15 @@ pub(crate) fn kdbx_written(app: &mut Faraday, done: KdbxDone) {
     }
 }
 
+/// The cost a KeePass export is sealed at, and so the check opens it at:
+/// the memory step the prompt offers is the first; passes and lanes are
+/// the format's.
+const KDBX_EXPORT_COST: Cost = Cost {
+    memory_kib: STEPS_KIB[0],
+    passes: 3,
+    lanes: 4,
+};
+
 /// The front half of the check after a KeePass export: the file written
 /// is opened under the passphrase typed once more, by the vault's own
 /// reader on the worker. The typed text moves into the job and is wiped
@@ -777,12 +780,8 @@ fn kdbx_check_start(app: &mut Faraday) -> bool {
     app.start(
         Job::Stretch(Box::new(StretchWork {
             job,
-            act: VaultAct::Unlocked,
-            cost: Cost {
-                memory_kib: STEPS_KIB[0],
-                passes: 3,
-                lanes: 4,
-            },
+            act: VaultAct::Checked,
+            cost: KDBX_EXPORT_COST,
             plan: Plan::CheckExport,
         })),
         EN.working_vault_open,
@@ -810,7 +809,15 @@ fn export_checked(app: &mut Faraday, stretched: &Stretched) {
         app.vaults.state.focus = None;
         app.toast(EN.vault_export_checked);
     } else {
-        p.error = Some(Text::of(EN.check_made_failed));
+        // Only a wrong passphrase is "did not open"; a refusal for lack
+        // of memory, or any other, says what it is.
+        p.error = Some(match error {
+            Some(faraday_vault::file::Error::Kdbx(faraday_vault::kdbx::Error::Passphrase)) => {
+                Text::of(EN.check_made_failed)
+            }
+            Some(e) => Text::of(&errors::error_text(&e)),
+            None => Text::of(EN.check_made_failed),
+        });
         app.vaults.state.focus = Some(super::Focus::Prompt);
     }
 }

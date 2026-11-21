@@ -571,6 +571,7 @@ impl Faraday {
             }
             V::Back => {
                 self.vaults.state.just_made = None;
+                self.vaults.drop_prompt();
                 self.flow_create_left();
                 if let Some(s) = self.vaults.state.back_to.take() {
                     self.vaults.clear_unlock_parts();

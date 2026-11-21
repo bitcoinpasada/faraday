@@ -569,6 +569,8 @@ macro_rules! words_vault {
     check_made_skip: "Skip",
     /// The check offered after a Krux code or a KeePass export is made: the passphrase did not open it.
     check_made_failed: "Did not open. Try the passphrase again or skip.",
+    /// The check offered after a Krux code is made: the passphrase opened it, and what it holds is not what was made.
+    check_made_other_seed: "Opened, but what it holds is not what was made. Try the passphrase again or skip.",
     /// The check offered after a KeePass export is made: the heading.
     vault_export_check: "Check the export",
     /// The check offered after a KeePass export is made: the passphrase's label.

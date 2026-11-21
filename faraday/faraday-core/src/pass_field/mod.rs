@@ -411,6 +411,11 @@ pub(crate) fn left(app: &mut Faraday) {
             field.clear();
         }
     });
+    // The vault contents' one-line prompt (the check after an export, the
+    // export's and a key's passphrase) is dropped off the contents.
+    if app.screen != Screen::VaultContents {
+        app.vaults.left_contents();
+    }
 }
 
 /// A stick arrived: every field is emptied.

@@ -881,7 +881,9 @@ impl KefForm {
                     self.error = None;
                     self.stage = Stage::Made;
                 } else {
-                    self.no_match();
+                    // It opened, and is not this seed's: not "did not open".
+                    self.error = Some(Text::of(EN.check_made_other_seed));
+                    self.stage = Stage::Check;
                 }
             }
             Err(faraday_keys::kef::OpenError::Cancelled) => self.stage = Stage::Check,
