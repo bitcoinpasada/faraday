@@ -177,9 +177,9 @@ impl Opening {
                     Opening::CheckSigner => Action::SignerCheck(SignerPress::SeedForm(f.code())),
                     Opening::SpendSign => Action::EntryWalletForm(wi, f.code()),
                     Opening::RestoreSlot => Action::RSlotForm(f.code()),
-                    Opening::CheckBackup => Action::Check(crate::check::Press::Form(
-                        crate::check::Backup::Form(f),
-                    )),
+                    Opening::CheckBackup => {
+                        Action::Check(crate::check::Press::Form(crate::check::Backup::Form(f)))
+                    }
                     _ => crate::seed_check::FORMS
                         .iter()
                         .position(|x| *x == f)
@@ -189,7 +189,7 @@ impl Opening {
                 },
             ),
             Way::Words(n) => (
-                Text::fill(EN.entry_words_n, &[&n.to_string()]),
+                Text::fill(EN.entry_words_n, &[&Text::num(u64::from(n))]),
                 Style::chosen(
                     app.entry.state().form == Form::Words
                         && app.entry.state().words_chosen() == usize::from(n),
