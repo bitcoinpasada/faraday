@@ -238,15 +238,20 @@ The guide's sheet and pane (DESIGN §4.12, Explainer; LAYOUT §6):
 - **Below extra-large, a sheet** over the page, as a sheet is
   (the window's width less its margins on a compact window and the Pi's
   panel; the reading column, about 70 characters, from medium up). Its
-  head reads **Guide**; at its foot **Done**.
+  tabs (where there are any) stand at its head, no heading; at its foot
+  **Done**.
 - **On extra-large, the supporting pane** at the right, 400 dp, beside
-  the page, laid out in the room left of it; its header row reads
-  **Guide**, with the pin and the close button.
-- **What it shows.** The place's page, its title in Title L and its
+  the page, laid out in the room left of it; its header row holds
+  the pin and the close button, no heading.
+- **What it shows.** The place's page, its title in Title L pinned under
+  the tabs (it stays on screen wherever the page is scrolled, the text
+  scrolling under it, and the page does not draw it again at its top), its
   sections' headings in Title S, their text in Body M, opened scrolled
   so the place's section is at its top (the page's other sections above
   and below it, reached by scrolling). The section opened is not
-  marked: it is the one at the top.
+  marked: it is the one at the top. The scrollbar is always shown, at any
+  position, so a reader partway down a page sees the page goes on above
+  (F308); it does not fade as other pages' do.
 - **Tabs only for Cryptography.** Where the place offers a cryptographic
   action, primary tabs stand under the head: **Guide** and
   **Cryptography** (`docs/CRYPTO-LEARN.md` §8.2, its How tab, otherwise

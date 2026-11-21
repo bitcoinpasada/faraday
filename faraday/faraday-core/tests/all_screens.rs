@@ -61,6 +61,8 @@ mod guide;
 mod guide_keys;
 #[path = "all/guide_pane_fade.rs"]
 mod guide_pane_fade;
+#[path = "all/guide_pinned.rs"]
+mod guide_pinned;
 #[path = "all/guide_scroll.rs"]
 mod guide_scroll;
 #[path = "all/home.rs"]

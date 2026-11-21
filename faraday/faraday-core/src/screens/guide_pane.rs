@@ -2,9 +2,8 @@
 //! window, the guide stands in a pane at the right, beside the page
 //! it explains, instead of the sheet over it. The pane holds its place
 //! while the page scrolls beside it and scrolls within itself where it
-//! is taller than the window. Its header row holds the headline, the
-//! pin, which keeps it open across screens, and the close button, which
-//! puts it away (Material 3 Side sheets, Icon buttons), so the
+//! is taller than the window. Its header row holds the pin, which keeps
+//! it open across screens, and the close button, which puts it away (Material 3 Side sheets, Icon buttons), so the
 //! tabs under it run the pane's whole width; its tabs, page and contents
 //! are the sheet's (`sheets::guide_body`). Which page it shows is kept
 //! on the guide's state (`Faraday::guide_place`); drawing reads it.
@@ -49,8 +48,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) {
         searching: false,
     };
     let (clip, max) = guide_body(app, ui, &look, (x, y, w, view));
-    let head = (x + T::GUIDE_PANE_PAD, y + T::GUIDE_PANE_CLOSE_TOP, T::TOUCH);
-    ui.text_mid_as(head, T::TITLE_L, Role::OnSurface, EN.guide_pane_title);
     let close_x = x + w - T::GAP - T::TOUCH;
     pin_button(
         ui,
@@ -60,8 +57,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) {
     );
     close_button(ui, close_x, y + T::GUIDE_PANE_CLOSE_TOP);
     // Its edges fade into the pane's own container.
-    let region =
-        Region::beside(Slot::GuidePane, clip, app.guide().scroll).on(Role::SurfaceContainer);
+    let region = Region::beside(Slot::GuidePane, clip, app.guide().scroll)
+        .on(Role::SurfaceContainer)
+        .bar_shown();
     ui.region_reported(region, max);
 }
 

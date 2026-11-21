@@ -387,9 +387,6 @@ macro_rules! words_screens_sheets {
     /// The close button's label in the guide's supporting pane
     /// (`screens/guide_pane.rs`).
     guide_close: "Close",
-    /// The headline of the guide's supporting pane, at the start of its
-    /// header row (`screens/guide_pane.rs`).
-    guide_pane_title: "Guide",
     /// Tooltip on the pin of the guide's supporting pane while it is off: a
     /// press keeps the pane open across screens (`screens/guide_pane.rs`).
     guide_pin: "Keep open",

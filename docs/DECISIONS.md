@@ -315,3 +315,4 @@ Read this table, then only the decision you need.
 | [F302](decisions/F302.md) | Home states what is going on in one row, and lists only what needs something | 2026-11-21 | Active | design |
 | [F304](decisions/F304.md) | Lock, Restart and Power off are one power button at the top right of the top app bar | 2026-11-21 | Active | design |
 | [F305](decisions/F305.md) | Scan is the navigation rail's FAB, at the top of the rail and the bottom left of the sidebar | 2026-11-21 | Active | design |
+| [F308](decisions/F308.md) | The guide shows where the reader is: its scrollbar is always shown, its page's title is pinned under the tabs and the "Guide" heading is gone | 2026-11-21 | Active | design |

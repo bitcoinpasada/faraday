@@ -14,7 +14,6 @@ use crate::wallet::fp_text;
 use faraday_draw::tokens as T;
 use faraday_draw::tokens::{
     BODY_M, BODY_S, BUTTON_H, FIELD_H, HEADLINE_S, LABEL_L, LABEL_M, LABEL_S, TITLE_M, TITLE_S,
-    sheet_head,
 };
 use faraday_draw::widgets::Icon;
 use faraday_text::{Text, text};
@@ -2105,7 +2104,7 @@ pub(super) fn guide_body(
         );
         tabs_h = ui.tabs(at, faraday_ui::tabs::TabKind::Primary, &tabs);
     }
-    let top = y + look.tabs_top + tabs_h + look.after_tabs;
+    let mut top = y + look.tabs_top + tabs_h + look.after_tabs;
     // Without tabs, a divider of its own over the text.
     if !row && !look.searching {
         ui.rule(
@@ -2116,12 +2115,26 @@ pub(super) fn guide_body(
         );
     }
     let (bx, bw) = (x + pad + look.inset, sw - 2.0 * pad - 2.0 * look.inset);
+    // The page's title is pinned under the tabs: it stays where it is
+    // while the text scrolls under it, so a reader partway down a page
+    // sees which page it is (F308).
+    let mut text_top = look.text_top;
+    if !how
+        && !guide.contents
+        && !look.searching
+        && let Some(page) = guide.shown_page()
+    {
+        let at = (bx, top + text_top, bw);
+        let h = guide_one(app, ui, at, look.head, &page.title);
+        top += text_top + h + look.after[0];
+        text_top = 0.0;
+    }
     let view = sh - (top - y) - look.foot;
     let clip = ui.rect(x, top, sw, view);
     let scroll = guide.scroll;
     ui.c.push_clip(clip);
     let mark = ui.presses_mark();
-    let at = (bx, top + look.text_top - scroll, bw);
+    let at = (bx, top + text_top - scroll, bw);
     let (text, section) = if how {
         (guide_how(app, ui, look, at), None)
     } else if guide.contents {
@@ -2135,7 +2148,7 @@ pub(super) fn guide_body(
         ui.clip_presses_since(mark, clip);
     }
     ui.c.pop_clip();
-    let max = (look.text_top + text - view).max(0.0);
+    let max = (text_top + text - view).max(0.0);
     app.guide_scroll(max, scroll.min(max), section);
     if !guide.contents && !how {
         let label = EN.guide_contents;
@@ -2331,8 +2344,8 @@ fn guide_words(
     cy - y
 }
 
-/// A guide page from (x, y), `w` wide: its title, the lead's text, then
-/// each section's heading and text. Returns the height used and where the
+/// A guide page from (x, y), `w` wide: the lead's text, then each
+/// section's heading and text (its title is pinned by [`guide_body`]). Returns the height used and where the
 /// section the guide is to scroll to begins, if it is on the page.
 fn guide_page(
     app: &View,
@@ -2341,11 +2354,10 @@ fn guide_page(
     page: &'static faraday_guide::GuidePage,
     (bx, y, bw): (f32, f32, f32),
 ) -> (f32, Option<f32>) {
-    let [after_head, after_heading, after_para, after_section] = look.after;
+    let [_, after_heading, after_para, after_section] = look.after;
     let to = app.guide().to;
     let mut found = None;
     let mut cy = y;
-    cy += guide_one(app, ui, (bx, cy, bw), look.head, &page.title) + after_head;
     for (i, section) in page.sections.iter().enumerate() {
         if to == Some(section.key.as_str()) {
             found = Some(cy - y);
@@ -2379,8 +2391,8 @@ fn guide_how(app: &View, ui: &mut Ui, look: &GuideLook, at: (f32, f32, f32)) -> 
     faraday_ui::how::blocks(ui, at, &blocks, crate::version::release(), &page_look)
 }
 
-/// The guide's sheet over the page: **Guide** at its head, the page or
-/// the contents, scrolled by the wheel or the arrow keys, and **Contents**
+/// The guide's sheet over the page: the tabs at its head, the page's
+/// title pinned under them, the page or the contents, scrolled by the wheel or the arrow keys, and **Contents**
 /// and **Done** at its foot. Held, it is the whole frame, a page under
 /// the holder's top app bar.
 pub(super) fn guide_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
@@ -2401,26 +2413,16 @@ pub(super) fn guide_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         (x, y, sw, sh)
     };
     // With the keyboard up over the contents' search field the sheet
-    // keeps the field, the matches and Done: no title, no tabs.
+    // keeps the field, the matches and Done: no page title, no tabs.
     let searching = compact && !app.held && app.osk_height() > 0.0 && app.guide().contents;
-    if !app.held && !searching {
-        ui.text_mid_as(
-            (x + pad, y + 14.0, T::TOUCH),
-            sheet_head(compact),
-            Role::OnSurface,
-            EN.guide_pane_title,
-        );
-    }
     let done_w = if compact { 72.0 } else { 96.0 };
     let look = GuideLook {
         pad,
         tabs_edge: pad,
-        tabs_top: if app.held {
-            14.0
-        } else if searching {
+        tabs_top: if searching && !app.held {
             T::GUIDE_SEARCH_TOP
         } else {
-            14.0 + T::TOUCH
+            14.0
         },
         after_tabs: if searching {
             T::GUIDE_SEARCH_AFTER
@@ -2464,7 +2466,7 @@ pub(super) fn guide_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     } else {
         Role::SurfaceContainerHigh
     };
-    ui.region_reported(Region::page(clip).on(ground), max);
+    ui.region_reported(Region::page(clip).on(ground).bar_shown(), max);
 }
 
 /// The label and value rows of the secret sheet's head.

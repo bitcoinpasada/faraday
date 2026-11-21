@@ -260,8 +260,8 @@ room left of it, so nothing of the page is under it and the page takes
 presses as before; nothing else opens it, on any screen or size (owner,
 2026-10-29). The pane
 is a card in the surface-container role, Material's large shape. Its
-header row, as Material's side sheet has, holds the headline **Guide**
-in Title L and, at its end, the pin and the close button, each
+header row, as Material's side sheet has, holds, at its end, the pin and
+the close button (no headline: F308), each
 Material's standard icon button in a 48 dp target
 (`GUIDE_PANE_CLOSE_TOP`); the pin is a toggle, the push pin outlined
 in on-surface-variant while off ("Keep open") and filled in primary
@@ -272,8 +272,9 @@ the close button's, the two targets meeting without overlapping
 across the pane's whole width, a single divider under them, so
 each label shows whole (Material 3 Tabs: Guide, and Cryptography
 where the screen offers it). Its tabs are the sheet's; the guide's
-page title is in Title L, its section headings in Title S and its
-text in Body M. The close button, the
+page title is in Title L, pinned under the tabs while the text scrolls
+under it, its section headings in Title S and its text in Body M; the
+scrollbar is always shown while the page is longer than the pane (F308). The close button, the
 ? pressed again, Escape and the mouse's back button put it away, and
 take its pin off. When the person moves to another screen the pane
 closes, unless it is pinned (owner, 2026-10-29); pinned, it stays open

@@ -100,6 +100,7 @@ pub struct Region {
     ground: Role,
     fade: Option<Role>,
     own_bar: bool,
+    shown_bar: bool,
     offset: Option<f32>,
     pan: f32,
     whole: Option<f32>,
@@ -116,6 +117,7 @@ impl Region {
             ground: Role::Surface,
             fade: None,
             own_bar: false,
+            shown_bar: false,
             offset: None,
             pan: 0.0,
             whole: None,
@@ -162,6 +164,17 @@ impl Region {
     pub fn own_bar(self) -> Self {
         Region {
             own_bar: true,
+            ..self
+        }
+    }
+
+    /// The overlay scrollbar is always shown, at full strength, at any
+    /// offset and on a small panel too, rather than fading in while the
+    /// region scrolls and out after it (the guide, `docs/GUIDE-IN-APP.md`
+    /// §4.1).
+    pub fn bar_shown(self) -> Self {
+        Region {
+            shown_bar: true,
             ..self
         }
     }
@@ -463,9 +476,11 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         let fade_top = under_bar || slot != Slot::Page || self.in_sheet || view.y > 0;
         let into = region.fade.unwrap_or(ground);
         self.edge_fades(view, (max, offset), into, (fade_top, top_into));
-        // A small panel draws no scrollbar: the edge fades say the page
-        // goes on.
-        if let Some((alpha, bar_offset)) = self.bar
+        if region.shown_bar && !region.own_bar && max > 0.0 {
+            self.scroll_bar(view, max, offset, 255);
+        // A small panel draws no fading scrollbar: the edge fades say the
+        // page goes on.
+        } else if let Some((alpha, bar_offset)) = self.bar
             && slot == self.active
             && !self.compact
             && !region.own_bar
