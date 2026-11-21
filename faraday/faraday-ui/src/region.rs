@@ -55,6 +55,10 @@ pub enum Slot {
     /// within the sidebar where they are taller than its room
     /// (`Scroll::sidebar_offset`, `faraday-core`).
     Sidebar,
+    /// Home's box of what is going on, which scrolls within itself under
+    /// the page's fixed part (`docs/HOME.md` §3; `Scroll::home_box_offset`,
+    /// `faraday-core`).
+    HomeBox,
     /// Where the codex32 dice sheet's work is while the step-through
     /// rolls: the marked die's track, or the tree on the character's
     /// step; and, in the tour of the shares made, the marked cells of a

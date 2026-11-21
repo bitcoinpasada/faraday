@@ -1,7 +1,7 @@
 # Home at each layout
 
 **Kind:** Reference
-**Status:** Built: the wide layout's Home, the phone-size window's and the rail's windows' (one column with the search bar and the places), and the Pi's menu. They are three Homes, not one (owner, 2026-11-18).
+**Status:** Built: the wide layout's Home, the phone-size window's and the rail's windows' (one column with the search bar and the box; the rail's has no place tiles), and the Pi's menu. They are three Homes, not one (owner, 2026-11-18).
 
 Home is the first page after the self-test and after every lock, and
 the page a person comes back to between jobs. It answers what is loaded,
@@ -60,8 +60,9 @@ rail's windows differ as the list says):
 5. **The three first actions** (§5), only while nothing is loaded (always
    on the rail's windows), and not on the Pi's menu.
 6. On the rail's windows, **what is going on, the wallets and Backups,
-   then the Keys** (§3).
-7. **The places** (§6) as tiles; then, on the Pi's menu only, Lock (while
+   then the Keys** (§3), the box scrolling within itself under the fixed
+   top.
+7. **The places** (§6) as tiles, not on the rail's windows (the rail lists them); then, on the Pi's menu only, Lock (while
    something is held) and Power off; the other windows have them in the top
    app bar's power button's menu (F304).
 8. **Scan**: on the rail's windows the FAB at the foot of the rail (F312), on
@@ -132,8 +133,10 @@ outlined, rounded surface), of Material list items (Lists) one under
 another, as wide as the search bar above it and centred under it (the whole
 page where that is narrower), at the top of the flow, not drawn while it
 has no row. Each row has a
-leading icon and a trailing chevron and opens what it names; there are no
-headings, the icons carry it. In this order:
+leading icon and a trailing chevron and opens what it names. One heading
+stands over the box (Title S, as a list's title elsewhere; `home_box_heading`,
+"This session"), none over a group of rows
+(owner, 2026-11-21). In this order:
 
 - a row for each **flow in progress**, with the icon of the sidebar's row for
   it: its name and, under it, its open step; it resumes the flow (a spend
@@ -146,23 +149,32 @@ headings, the icons carry it. In this order:
   PSBT to sign" while Files holds a PSBT for it, "Not backed up" while a
   key made here waits for its backup. The row opens the wallet's card on
   Wallets (`Action::OpenWallet`); a wallet that needs nothing has no row;
-- a row for each key no wallet uses, with the key icon: its fingerprint,
+- **Backups** with the shield icon, only while something is not backed up:
+  "{n} not backed up" under it, opening Backups. On the rail's windows
+  the places have no Backups tile of their own, this row stands for it;
+- **All keys** with the key icon and the count of keys at its end, opening
+  Explore, while any key is held;
+- last, a row for each key no wallet uses (at most three, "Up to 3"), with the key icon: its fingerprint,
   under it its name (none when the name is the fingerprint), the word
   "passphrase" when the key was loaded with one (the same words without it
   are another key) and "No wallet uses it", and at its end **Make a
   wallet**, which makes a wallet from the key. A key a wallet uses has no
   row;
-- **Backups** with the shield icon, only while something is not backed up:
-  "{n} not backed up" under it, opening Backups. On the rail's windows
-  the places have no Backups tile of their own, this row stands for it;
-- **All keys** with the key icon and the count of keys at its end, opening
-  Explore, while any key is held.
+  **Key rows drop first**: with more keys than three, or with no room for
+  them without the box scrolling, they drop out (down to none) and All keys
+  and its count stand for them; the box scrolls only when the other rows alone
+  do not fit.
 
 Home has no Sign button: the card on Wallets and the lead carry what signs
 next. Home has no Receive button either: Faraday is an offline signer, and
 the wallet's card on Wallets keeps its "First receive address" line. The
-sidebar lists neither wallets nor keys. Many rows push the page on and it
-scrolls.
+sidebar lists neither wallets nor keys. The page does not scroll, on the sidebar windows and on the rail's windows: the search bar and the first actions
+stay, and the box grows with its rows down to a margin (`MARGIN_WIDE`) above
+the window's foot, then scrolls within itself (its own offset, `Slot::HomeBox`),
+as a list pane does (owner, 2026-11-21). Where the fixed part leaves the
+box under two rows (`HOME_BOX_MIN_ROWS`) the page scrolls as a whole instead,
+the box with it. The rail's windows draw no place tiles (§6.2): the rail
+lists every place, so their box is the last thing on the page.
 
 The Pi's menu and the phone-size window have no such lists: they name each
 wallet and key in the box of what is loaded (§4), and the places carry a
@@ -243,8 +255,9 @@ Wallets before Check (§6.2, F255 amended 2026-11-18).
 
 ### 6.2 The places as tiles
 
-The Pi's menu, the rail's windows and the phone-size window end the page
-with the places as tiles: two to a row on the Pi's menu, as many columns
+The Pi's menu and the phone-size window end the page
+with the places as tiles (the rail's windows draw none: the rail lists every
+place): two to a row on the Pi's menu, as many columns
 as `CATALOG_TILE_MIN` leaves room for elsewhere. In order: Check, Wallets, Backups
 (while a wallet is known), Files, Vaults, Tools, Guide (the Pi's menu only), Transfer (the
 desktop app, online), Settings; on the Pi's menu Wallets and Check change
@@ -344,18 +357,19 @@ under the bar.
 |             | |     Signatures 1 of 2                          |     |
 |             | | [!] Savings                                  > |     |
 | [Lock]      | |     A PSBT to sign                             |     |
-| [Power off] | | [k] c3a1f20e               Make a wallet     > |     |
-|             | |     savings · No wallet uses it                |     |
-|             | | [s] Backups                                  > |     |
+| [Power off] | | [s] Backups                                  > |     |
 |             | |     1 not backed up                            |     |
 |             | | [k] All keys                           3     > |     |
+|             | | [k] c3a1f20e               Make a wallet     > |     |
+|             | |     savings · No wallet uses it                |     |
 |             | +------------------------------------------------+     |
 |             |                                                          |
 +-------------+----------------------------------------------------------+
 ```
 
-Many rows push the page on and it scrolls under the bar. On the rail's windows the same box of list rows stands under the
-first actions at full width, in place of the box of what is loaded.
+Many rows scroll within the box, not the page. On the rail's windows the same box of list rows stands under the
+first actions at full width, in place of the box of what is loaded, and
+scrolls within itself by the same rules; no place tiles follow it.
 
 ### 7.4 The phone-size window, nothing loaded
 
@@ -408,7 +422,10 @@ Floating action button (Scan), Navigation bar, Navigation rail and
 Navigation drawer (one order of destinations across them, at most five on
 the bar), and the canonical Feed layout (the wide Home's grid).
 
-- No difference from Material is added. The lead on the wide layout is a
+- The box scrolls within itself while the page stays still, as a list
+  pane does; a page that does not scroll differs from Material's feed
+  layout, where the page scrolls (owner, 2026-11-21, F313).
+- No other difference from Material is added. The lead on the wide layout is a
   filled card with a filled button; a wallet that needs something is
   a two-line list item.
 - The Pi's Home as the menu of destinations is the one-column short
@@ -426,7 +443,7 @@ row that opens its card, with no Sign, and one with nothing to do has no
 row; Wallets carries a badge with how many need something, and the box has no All wallets row; Backups is a row only while one is not backed up; All keys opens Explore; a vault open is
 no chip; a key no wallet uses is a row offering a wallet from it, with no
 lead, and one loaded with a passphrase says so; the wide Home's search bar stays where it was while a search is typed,
-the typed search takes the page and clearing it brings the rest back, and
+the typed search takes the page and clearing it brings the rest back; with many keys and a short window no key row shows and All keys counts them, with room at most three show under All keys, and the box scrolls within itself while the first actions keep their place; and
 on the phone-size window a search typed takes the page; a Home taller than
 its window keeps the bar still or scrolls to its places; Scan is the sidebar's and the rail's FAB and floats on the Pi's menu and the phone-size window,
 Backups once a wallet is known and the lead for each of the jobs of §2;

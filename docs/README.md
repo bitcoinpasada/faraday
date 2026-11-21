@@ -111,7 +111,7 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 - `docs/GPG-PAPERKEY.md`: Restore a GPG key from its paperkey. Built (F169, F215): reading a paperkey and a certificate, the restore and its tests against paperkey and GnuPG in `faraday-pgp`; the restore set in `faraday-keys`; the flow in faraday-core, `faraday/faraday-core/src/backup_flow/gpg_restore.rs` and its screen; the public key and the paperkey scanned as codes, and the paperkey shown as a code.
 - `docs/GUIDE-IN-APP.md`: The guide: one guide, in the app, opened where the person is. Built (F247).
 - `docs/HARDWARE.md`: Hardware: boards, platforms and screens. Built: every platform and screen Faraday is built for, and the boards considered and not supported.
-- `docs/HOME.md`: Home at each layout. Built: the wide layout's Home, the phone-size window's and the rail's windows' (one column with the search bar and the places), and the Pi's menu.
+- `docs/HOME.md`: Home at each layout. Built: the wide layout's Home, the phone-size window's and the rail's windows' (one column with the search bar and the box; the rail's has no place tiles), and the Pi's menu.
 - `docs/IMPACT.md`: Impact: what a change brings with it. Built (F149, narrowed by F258).
 - `docs/KEF.md`: KEF: Krux's encrypted code, read in full and written in two versions. Built (F219, amended by F261).
 - `docs/KERNEL-PATCHES.md`: The kernel patches the images carry. Built.

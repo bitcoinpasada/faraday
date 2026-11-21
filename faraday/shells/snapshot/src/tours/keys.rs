@@ -47,6 +47,14 @@ pub(crate) fn keys_tour(t: &mut Tour) -> Result<(), String> {
     t.type_key(1);
     t.press(Action::Nav(Screen::Wallets));
     t.shot("wallets-two-keys")?;
+    // Home's box with the two keys no wallet uses.
+    t.press(Action::Nav(Screen::Home));
+    t.shot("home-two-keys")?;
+    scroll(t, 330);
+    t.shot("home-two-keys-down")?;
+    scroll(t, 2000);
+    t.shot("home-two-keys-end")?;
+    t.press(Action::Nav(Screen::Wallets));
     t.press(Action::KeyWallet(fp, 1));
     t.press(Action::Seeds(S::Make));
     faraday_core::testkit::confirm_wallets(&mut t.app);

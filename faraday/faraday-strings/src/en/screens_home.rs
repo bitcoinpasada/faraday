@@ -86,6 +86,8 @@ macro_rules! words_screens_home {
     /// Text in `home_ways`. `{}`: `without`.
     home_ways_not_backed: "{} not backed up",
     // ----- home (faraday-core/src/screens/home.rs) -----
+    /// The heading over Home's box of what is going on.
+    home_box_heading: "This session",
     /// Hint in Home's search bar.
     home_search_hint: "Search",
     /// Title in `home`.

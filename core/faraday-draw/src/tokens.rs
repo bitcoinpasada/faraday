@@ -2414,5 +2414,12 @@ pub const HOME_RESULTS_FOOT: f32 = 40.0;
 /// before the whole page scrolls with it.
 pub const HOME_RESULTS_ROWS: f32 = 3.0;
 
+/// How many key rows at most Home's box shows under All keys.
+pub const HOME_BOX_KEYS: usize = 3;
+
+/// The least height, in two-line rows, Home's box keeps once the fixed part
+/// has its room; under it the whole page scrolls as one.
+pub const HOME_BOX_MIN_ROWS: f32 = 2.0;
+
 /// The height of the line saying no tool matches Home's search.
 pub const HOME_RESULTS_LINE: f32 = 30.0;

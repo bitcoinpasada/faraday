@@ -77,6 +77,9 @@ still while the page scrolls under it, as Home's does today
 (`home_pinned`), and the whole page scrolls as one where the window
 leaves no room under the bar for about three rows. Tools takes Home's
 rule: today its bar scrolls with its tiles.
+The wide Home's and the rail's Home's page does not scroll with its rows: its
+box of what is going on scrolls within itself under the fixed part, and the
+rail's Home draws no place tiles (`docs/HOME.md` §3, F313).
 
 ## 4. Columns
 

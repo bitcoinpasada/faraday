@@ -829,9 +829,11 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
         }));
     }
     if rail {
-        sections.extend(crate::screens::loaded_sections(app));
+        sections.extend(crate::screens::loaded_sections(app, Some(view_h)));
+    } else {
+        // The rail lists every place already: its Home draws no tiles.
+        sections.push(Section::tiles(None, places));
     }
-    sections.push(Section::tiles(None, places));
     // Lock and power, here on the small panel; the rail and the top app
     // bar carry them on wider windows.
     if !beside {

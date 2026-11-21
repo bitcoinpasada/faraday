@@ -524,6 +524,9 @@ pub(crate) struct Scroll {
     /// clamps it to how far they go ([`Scroll::drew`]), so a list that
     /// shrank leaves no offset past its end.
     sidebar: f32,
+    /// How far Home's box of what is going on is scrolled within itself,
+    /// units; clamped to how far it goes as the sidebar's lists are.
+    home_box: f32,
     /// How far the stick's list in the Files visit is scrolled, units:
     /// its own, not the page's ([`Faraday::list_offset`]).
     visit_in: f32,
@@ -553,6 +556,7 @@ impl Default for Scroll {
             drag_x: 0,
             panes: crate::panes::Panes::default(),
             sidebar: 0.0,
+            home_box: 0.0,
             visit_in: 0.0,
             choices: 0.0,
             unit_shifted: false,
@@ -594,6 +598,16 @@ impl Scroll {
     /// How far the stick's list in the Files visit is scrolled, units.
     pub(crate) fn visit_in_offset(&self) -> f32 {
         self.visit_in
+    }
+
+    /// Home's box scrolled to `y` units within itself.
+    pub(crate) fn set_home_box_offset(&mut self, y: f32) {
+        self.home_box = y;
+    }
+
+    /// How far Home's box is scrolled within itself, units.
+    pub(crate) fn home_box_offset(&self) -> f32 {
+        self.home_box
     }
 
     /// The sidebar's lists of keys and wallets scrolled to `y` units.
@@ -699,6 +713,10 @@ impl Scroll {
         if let Some(e) = scrolled.iter().find(|e| e.slot == ui::Slot::Sidebar) {
             self.sidebar = self.sidebar.clamp(0.0, e.max);
         }
+        self.home_box = match scrolled.iter().find(|e| e.slot == ui::Slot::HomeBox) {
+            Some(e) => self.home_box.clamp(0.0, e.max),
+            None => 0.0,
+        };
         self.extent = (!scrolled.is_empty()).then_some((key, scrolled));
     }
 
@@ -785,6 +803,8 @@ impl Scroll {
             ui::Slot::Choices if reach && contained_on_show() => ui::Slot::Choices,
             // The sidebar's lists scroll within it, beside the page.
             ui::Slot::Sidebar if reach => ui::Slot::Sidebar,
+            // Home's box scrolls within itself, on the rail's windows too.
+            ui::Slot::HomeBox if screen == Screen::Home && sheet_none => ui::Slot::HomeBox,
             _ => ui::Slot::Page,
         }
     }
@@ -1263,6 +1283,7 @@ impl Faraday {
             ui::Slot::VaultItem => Some(Place::VaultItem),
             ui::Slot::ListPane => Some(Place::ListPane),
             ui::Slot::Sidebar => Some(Place::Sidebar),
+            ui::Slot::HomeBox => Some(Place::HomeBox),
             ui::Slot::BoardList => Some(Place::BoardList),
             ui::Slot::GuidePane => Some(Place::Guide),
             ui::Slot::Choices => Some(Place::Choices),
@@ -1369,6 +1390,7 @@ impl Faraday {
             Place::Choices => self.scroll.choices_offset(),
             Place::ListPane => self.scroll.panes.list_offset(),
             Place::Sidebar => self.scroll.sidebar_offset(),
+            Place::HomeBox => self.scroll.home_box_offset(),
             Place::BoardList => self.flows.board_list_offset(),
             Place::Guide => self.guide.scroll_y(),
             Place::WordList => y(self.wordlist.scroll_y()),
@@ -1409,6 +1431,7 @@ impl Faraday {
             Place::Choices => self.scroll.set_choices_offset(to),
             Place::ListPane => self.scroll.panes.set_list_offset(to),
             Place::Sidebar => self.scroll.set_sidebar_offset(to),
+            Place::HomeBox => self.scroll.set_home_box_offset(to),
             Place::BoardList => self.flows.set_board_list_offset(to),
             Place::Guide => self.guide.set_scroll_y(to),
             Place::WordList => self.wordlist.set_scroll_y(to),
@@ -1456,6 +1479,7 @@ enum Place {
     Choices,
     ListPane,
     Sidebar,
+    HomeBox,
     BoardList,
     Guide,
     WordList,

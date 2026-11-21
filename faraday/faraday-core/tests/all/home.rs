@@ -1861,27 +1861,150 @@ fn a_few_loaded_keys_and_wallets_list_only_what_needs_something() {
     assert_eq!(app.screen, Screen::Explore);
 }
 
-/// Many keys scroll with Home's page to the last key no wallet uses and to
-/// All keys, and each opens what it names.
+/// With many keys, a shorter window drops key rows first: the lowest wide
+/// window shows fewer key rows than a tall one, All keys counts every key
+/// and opens Explore.
 #[test]
-fn many_keys_scroll_with_home_to_their_last_ones() {
-    let win = (1366, 800);
-    let mut app = loaded(30, 12, win.0, win.1);
-    let last = key_fp(&app, 29);
-    assert!(
-        !on_screen(&app, Action::KeyWallet(last, 1), win.1),
-        "every key in view"
-    );
-    assert!(scrolled_to(
-        &mut app,
-        win.0,
-        win.1,
-        Action::KeyWallet(last, 1)
-    ));
-    let mut app = loaded(30, 12, win.0, win.1);
-    assert!(scrolled_to(&mut app, win.0, win.1, Action::Explore));
+fn with_many_keys_a_short_window_shows_fewer_key_rows_and_all_keys_counts_them() {
+    let shown = |h: u16| {
+        let app = loaded(30, 12, 1366, h);
+        (1..30)
+            .filter(|&k| app.offers(Action::KeyWallet(key_fp(&app, k), 1)))
+            .count()
+    };
+    assert_eq!(shown(1400), 3);
+    assert!(shown(600) < 3, "{}", shown(600));
+    let mut app = loaded(30, 12, 1366, 600);
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "30"), "{texts:?}");
     tap(&mut app, Action::Explore);
     assert_eq!(app.screen, Screen::Explore);
+}
+
+/// With more keys than three and room for all of them, three key rows show,
+/// under All keys, which counts every key.
+#[test]
+fn with_room_at_most_three_key_rows_show_under_all_keys() {
+    let mut app = loaded(8, 0, 1366, 1400);
+    let shown = (0..8)
+        .filter(|&k| app.offers(Action::KeyWallet(key_fp(&app, k), 1)))
+        .count();
+    assert_eq!(shown, 3);
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "8"), "{texts:?}");
+    let all = app.where_offered(Action::Explore).unwrap().1;
+    let first = (0..8)
+        .filter_map(|k| app.where_offered(Action::KeyWallet(key_fp(&app, k), 1)))
+        .map(|(_, y)| y)
+        .min()
+        .unwrap();
+    assert!(all < first, "All keys comes before the keys no wallet uses");
+}
+
+/// A file written to the stick.
+fn a_file() -> faraday_core::Item {
+    faraday_core::Item {
+        name: faraday_text::Text::of("a.psbt"),
+        bytes: (Vec::new()).into(),
+        kind: faraday_core::wallet::FileKind::Psbt,
+        secret: false,
+        picture: None,
+        sha: None,
+        facts: None,
+        wallet: None,
+        psbt: None,
+        outpoints: Vec::new(),
+        unsigned_txid: None,
+    }
+}
+
+/// Home with a PSBT waiting for each of the test wallets, a wallet for each
+/// that needs it signed, and a file to write: more rows than a short wide
+/// window holds.
+fn crowded(height: u16) -> Faraday {
+    crowded_at(1366, height)
+}
+
+fn crowded_at(width: u16, height: u16) -> Faraday {
+    let kits = faraday_core::testkit::kits();
+    let mut files: Vec<(String, Vec<u8>)> = faraday_core::testkit::files()
+        .unwrap()
+        .into_iter()
+        .filter(|(n, _)| n.ends_with("-wallet.txt"))
+        .collect();
+    let wallets = files.len();
+    for kit in &kits {
+        if let Ok(p) = faraday_core::testkit::unsigned(kit) {
+            files.push((format!("{}.psbt", kit.id), p.to_bytes()));
+        }
+    }
+    let mut app = sized(width, height, 160);
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(files),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    let _ = app.frame();
+    for _ in 0..wallets {
+        faraday_core::testkit::load_wallet(&mut app, 0);
+    }
+    app.outbox.push(a_file());
+    app.press(Action::Nav(Screen::Home));
+    let _ = app.frame();
+    app
+}
+
+/// A window with room for the box but not for all of its rows: the box
+/// scrolls within itself and the first actions keep their place.
+#[test]
+fn the_box_scrolls_within_itself_and_the_first_actions_keep_their_place() {
+    let mut found = None;
+    for h in (600..1300).step_by(20) {
+        let mut app = crowded(h);
+        let Some(all) = app.where_offered(Action::Nav(Screen::Files)) else {
+            continue;
+        };
+        let top = app.where_offered(Action::CreateWallet);
+        scroll_over_box(&mut app, 1366, all.1);
+        let now = app.where_offered(Action::Nav(Screen::Files));
+        if now.is_some_and(|a| a.1 < all.1) && app.where_offered(Action::CreateWallet) == top {
+            found = Some(h);
+            break;
+        }
+    }
+    assert!(found.is_some(), "no window height scrolls the box alone");
+}
+
+/// On the rail's windows the first actions are reachable however many rows
+/// there are, and no place tile is drawn: the rail lists them.
+#[test]
+fn on_the_rail_the_first_actions_are_reachable_and_home_draws_no_place_tiles() {
+    for h in [600, 768, 1100] {
+        let app = crowded_at(1024, h);
+        let top = app.where_offered(Action::Nav(Screen::SpendBackup));
+        assert!(top.is_some(), "the first actions are reachable at {h}");
+        for dest in [Screen::Settings, Screen::Tools] {
+            let n = app
+                .offered_actions()
+                .into_iter()
+                .filter(|a| *a == Action::Nav(dest))
+                .count();
+            assert!(n <= 1, "{dest:?} is drawn once at most: the rail's own");
+        }
+    }
+}
+
+fn scroll_over_box(app: &mut Faraday, width: u16, y: u16) {
+    app.event(Event::Scroll {
+        x: width / 2,
+        y: y + 5,
+        dy: 60,
+    });
+    app.event(Event::ScrollEnd {
+        x: width / 2,
+        y: y + 5,
+    });
+    let _ = app.frame();
 }
 
 /// Among many wallets that are watch-only, and one the seeds here sign
@@ -1903,32 +2026,6 @@ fn many_wallets_that_need_nothing_are_one_row_on_home() {
     assert!(on_screen(&app, Action::Nav(Screen::WalletsStart), 1000));
     tap(&mut app, Action::Nav(Screen::WalletsStart));
     assert!(matches!(app.screen, Screen::Wallets | Screen::WalletsStart));
-}
-
-/// Home scrolled to the end of a long list of keys that then shrinks stands
-/// at the new end: the one key left is in view.
-#[test]
-fn home_scrolled_to_the_end_of_many_keys_follows_a_list_that_shrinks() {
-    let win = (1366, 800);
-    let mut app = loaded(30, 0, win.0, win.1);
-    let last = key_fp(&app, 29);
-    assert!(scrolled_to(
-        &mut app,
-        win.0,
-        win.1,
-        Action::KeyWallet(last, 1)
-    ));
-    while app.session.keys.len() > 1 {
-        app.session.keys.remove(1);
-    }
-    app.press(Action::Nav(Screen::Files));
-    app.press(Action::Nav(Screen::Home));
-    let _ = app.frame();
-    assert!(on_screen(
-        &app,
-        Action::KeyWallet(key_fp(&app, 0), 1),
-        win.1
-    ));
 }
 
 /// A vault open is the Vaults entry's badge, a count, and nothing on Home

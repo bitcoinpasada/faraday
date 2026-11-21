@@ -6,9 +6,11 @@ use crate::in_progress::Going;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Glyph, Ui};
-use crate::ui::{Shape, Style};
+use crate::ui::{Region, Shape, Slot, Style};
 use crate::{Action, Screen};
-use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, BUTTON_H, SHAPE_M, TITLE_M};
+use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, BUTTON_H, SHAPE_M, TITLE_M, TITLE_S};
+use faraday_draw::tokens::{HOME_BOX_KEYS, HOME_BOX_MIN_ROWS, MARGIN_WIDE};
+
 use faraday_draw::tokens::{
     GAP_SMALL, GRID, ICON_SMALL, LABEL_S, LIST_1, LIST_2, LIST_PAD, NAV_ICON,
 };
@@ -17,6 +19,7 @@ use faraday_draw::tokens::{
     HOME_TILE_ICON, HOME_TILE_INSET, HOME_TILE_TEXT_X, LEAD_MAX, MENU_GAP, TILE_H,
 };
 use faraday_draw::widgets::Icon;
+use faraday_ui::parts::section_label;
 
 /// Home's lead when nothing is under way, §1.2's rule 7: Make a new
 /// wallet.
@@ -454,6 +457,7 @@ fn wallet_card(app: &View, i: usize) -> WalletCard {
 /// headline, the line under it (empty for none), the small text at its end
 /// (empty for none; `accent` draws it as an action) and what a press
 /// opens. Each ends in a chevron.
+#[derive(Clone)]
 struct ListRow {
     icon: Icon,
     head: String,
@@ -468,9 +472,32 @@ struct ListRow {
 /// wide, each with a leading icon and a trailing chevron. Returns the
 /// box's height.
 fn list_box(ui: &mut Ui, (x, y): (f32, f32), w: f32, rows: &[ListRow]) -> f32 {
-    let row_h = |r: &ListRow| if r.sub.is_empty() { LIST_1 } else { LIST_2 };
-    let h = rows.iter().map(row_h).sum::<f32>() + 2.0 * GAP_SMALL;
+    let h = rows_h(rows);
     crate::nav::screen::loaded_surface(ui, x, y, w, h);
+    list_rows(ui, (x, y), w, rows);
+    h
+}
+
+/// The height of one row of the box.
+fn row_h(r: &ListRow) -> f32 {
+    if r.sub.is_empty() { LIST_1 } else { LIST_2 }
+}
+
+/// The height of a box holding `rows`.
+fn rows_h(rows: &[ListRow]) -> f32 {
+    rows.iter().map(row_h).sum::<f32>() + 2.0 * GAP_SMALL
+}
+
+/// How many of `keys` key rows (two lines each) the box shows: up to
+/// `HOME_BOX_KEYS`, and only as many as `avail` holds besides the other rows'
+/// `rest_h`.
+fn keys_fitting(avail: f32, rest_h: f32, keys: usize) -> usize {
+    let room = ((avail - rest_h) / LIST_2).floor().max(0.0) as usize;
+    keys.min(HOME_BOX_KEYS).min(room)
+}
+
+/// `rows` from the top of a box at `(x, y)`, `w` wide: the rows alone.
+fn list_rows(ui: &mut Ui, (x, y): (f32, f32), w: f32, rows: &[ListRow]) {
     let mut cy = y + GAP_SMALL;
     let text_x = x + LIST_PAD + ICON_SMALL + LIST_PAD;
     let chevron_x = x + w - LIST_PAD - ICON_SMALL;
@@ -529,7 +556,6 @@ fn list_box(ui: &mut Ui, (x, y): (f32, f32), w: f32, rows: &[ListRow]) -> f32 {
         }
         cy += rh;
     }
-    h
 }
 
 /// The wallets' rows (`docs/HOME.md` §3), the ones that need something and
@@ -599,10 +625,10 @@ fn going_rows(app: &View) -> Vec<ListRow> {
 
 /// The keys' rows (`docs/HOME.md` §3): one for each key no wallet uses,
 /// offering to make a wallet from it, then "All keys" opening Explore.
-fn key_rows(app: &View) -> (Vec<ListRow>, Vec<ListRow>) {
+fn key_rows(app: &View) -> (Vec<ListRow>, Option<ListRow>) {
     let n = app.session.keys.all().count();
     if n == 0 {
-        return (Vec::new(), Vec::new());
+        return (Vec::new(), None);
     }
     let loose = app.session.loose_keys();
     let rows: Vec<ListRow> = app
@@ -633,36 +659,61 @@ fn key_rows(app: &View) -> (Vec<ListRow>, Vec<ListRow>) {
             }
         })
         .collect();
-    let rest = vec![ListRow {
+    let all = ListRow {
         icon: Icon::Keys,
         head: EN.home_all_keys.to_string(),
         sub: String::new(),
         trailing: n.to_string(),
         accent: false,
         action: Action::Explore,
-    }];
-    (rows, rest)
+    };
+    (rows, Some(all))
 }
 
 /// What is loaded as one section of the menu page (`docs/HOME.md` §3): a
 /// tinted box of list rows, first one for each wallet that needs
 /// something and each key no wallet uses, then All wallets, Backups and
 /// All keys. The wide layout and the rail's windows both draw it.
-pub(crate) fn loaded_sections(app: &View) -> Vec<Section<'static>> {
-    let mut all = going_rows(app);
+pub(crate) fn loaded_sections(app: &View, window: Option<f32>) -> Vec<Section<'static>> {
+    let mut rest = going_rows(app);
     let (wallets_first, wallets) = wallet_rows(app);
-    all.extend(wallets_first);
+    rest.extend(wallets_first);
+    rest.extend(wallets);
     let (keys, all_keys) = key_rows(app);
-    all.extend(keys);
-    all.extend(wallets);
-    all.extend(all_keys);
-    if all.is_empty() {
+    rest.extend(all_keys);
+    if rest.is_empty() && keys.is_empty() {
         return Vec::new();
     }
+    let offset = app.scroll.home_box_offset();
     vec![Section::block(None, move |ui, (x, y), w| {
         // As wide as the search bar above it, centred under it.
         let bw = if ui.compact { w } else { w.min(LEAD_MAX) };
-        list_box(ui, (x + (w - bw) / 2.0, y), bw, &all)
+        let bx = x + (w - bw) / 2.0;
+        section_label(ui, bx, y, EN.home_box_heading);
+        let head = ui.line_as(TITLE_S) + GRID;
+        let by = y + head;
+        let rest_h = rows_h(&rest);
+        // Without a window height the page scrolls as a whole: up to three
+        // keys. With one, the box's room runs to a margin above the foot;
+        // where the fixed part leaves less than two rows the page scrolls
+        // as one.
+        let avail = window.map_or(f32::INFINITY, |h| (h - by - MARGIN_WIDE).floor());
+        let n = keys_fitting(avail, rest_h, keys.len());
+        let all_h = rest_h + n as f32 * LIST_2;
+        let mut rows: Vec<ListRow> = rest.clone();
+        rows.extend(keys.iter().take(n).cloned());
+        if all_h <= avail || avail < HOME_BOX_MIN_ROWS * LIST_2 {
+            return head + list_box(ui, (bx, by), bw, &rows);
+        }
+        // Scrolls within itself: the surface stays, the rows move.
+        crate::nav::screen::loaded_surface(ui, bx, by, bw, avail);
+        let clip = ui.rect(bx, by, bw, avail);
+        let mark = ui.presses_mark();
+        let open = ui.region_open(Region::scrolled(Slot::HomeBox, clip, offset));
+        list_rows(ui, (bx, by), bw, &rows);
+        ui.clip_presses_since(mark, clip);
+        ui.region_close(open, (all_h - avail).max(0.0));
+        head + avail
     })]
 }
 
@@ -927,7 +978,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     sections.push(Section::block(None, |ui, at, w| {
         actions(ui, at, w, MENU_GAP)
     }));
-    sections.extend(loaded_sections(app));
+    sections.extend(loaded_sections(app, Some(h)));
     let page = Page {
         name: EN.home_home,
         back: false,

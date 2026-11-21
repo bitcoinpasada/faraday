@@ -323,3 +323,4 @@ Read this table, then only the decision you need.
 | [F310](decisions/F310.md) | A flow's card and Your choices stand as one unit, with Guide's pane beside it | 2026-11-21 | Active | design |
 | [F311](decisions/F311.md) | The navigation's badges are Bitcoin orange with a white count, in every theme | 2026-11-21 | Active | design |
 | [F312](decisions/F312.md) | Scan is the navigation's FAB at the foot of the rail and of the sidebar | 2026-11-21 | Active | design |
+| [F313](decisions/F313.md) | Home's page stays still and only its box scrolls; the rail's Home has no place tiles | 2026-11-21 | Active | design |
