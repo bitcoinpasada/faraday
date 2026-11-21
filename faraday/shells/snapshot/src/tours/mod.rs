@@ -162,6 +162,7 @@ pub(crate) const TOURS: &[(&str, TourFn)] = &[
     ("osk", TourFn::Plain(devices::osk_tour)),
     ("flow", TourFn::Plain(flow::flow_tour)),
     ("flowbeside", TourFn::Plain(flow::flow_beside_tour)),
+    ("flowguide", TourFn::Plain(flow::flow_guide_tour)),
     ("gpg-restore", TourFn::Plain(gpg_restore::gpg_restore_tour)),
     ("bootplace", TourFn::Plain(boot_place::boot_place_tour)),
     ("passseeds", TourFn::Costly(pass_seeds::pass_seeds_tour)),

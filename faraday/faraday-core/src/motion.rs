@@ -531,6 +531,9 @@ pub(crate) struct Scroll {
     /// offset of whichever flow on the container is on screen, 0 when a
     /// flow opens.
     choices: f32,
+    /// The open flow's card and Your choices stand where Guide's pane
+    /// needed them (`flow::unit`): kept until the flow ends.
+    unit_shifted: bool,
 }
 
 /// Holds nothing a lock wipes: a scroll's motion.
@@ -552,6 +555,7 @@ impl Default for Scroll {
             sidebar: 0.0,
             visit_in: 0.0,
             choices: 0.0,
+            unit_shifted: false,
         }
     }
 }
@@ -570,6 +574,16 @@ impl Scroll {
     /// How far Your choices is scrolled within its pane, units.
     pub(crate) fn choices_offset(&self) -> f32 {
         self.choices
+    }
+
+    /// Whether the flow's unit stands where Guide's pane needed it.
+    pub(crate) fn unit_shifted(&self) -> bool {
+        self.unit_shifted
+    }
+
+    /// Sets whether the flow's unit stands where Guide's pane needed it.
+    pub(crate) fn set_unit_shifted(&mut self, on: bool) {
+        self.unit_shifted = on;
     }
 
     /// The stick's list in the Files visit scrolled to `y` units.

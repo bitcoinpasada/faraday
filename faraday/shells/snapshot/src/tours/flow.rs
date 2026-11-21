@@ -245,3 +245,20 @@ pub(crate) fn flow_tour(t: &mut Tour) -> Result<(), String> {
     println!("the backup flow of a GPG key in two vaults at three places, from Where to Done");
     Ok(())
 }
+
+/// Make a new vault with Your choices beside its card, then Guide opened
+/// from the ?: in its pane where the window holds it beside the flow, as a
+/// sheet where not.
+pub(crate) fn flow_guide_tour(t: &mut Tour) -> Result<(), String> {
+    t.press(Action::Nav(Screen::Vaults));
+    if t.app.screen != Screen::CreateVault {
+        t.press(Action::Vault(V::Create));
+    }
+    t.shot("flow-guide-1-closed")?;
+    t.press(Action::Guide);
+    t.shot("flow-guide-2-open")?;
+    t.press(Action::GuideClose);
+    t.shot("flow-guide-3-closed-again")?;
+    println!("Your choices and its card, Guide in its pane beside them");
+    Ok(())
+}

@@ -399,6 +399,7 @@ impl Faraday {
         // The pane opening, closing or changing its tab is a change as a
         // sheet's is (`docs/MOTION.md` §3.5, Material's side sheets).
         let pane = self.guide_pane_shown();
+        self.unit_settle();
         let page = if pane || self.sheet == Some(Sheet::Guide) {
             self.guide.state().tab()
         } else {

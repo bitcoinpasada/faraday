@@ -684,6 +684,11 @@ impl Faraday {
     /// over) beside the sidebar, not held. Below it the guide is the sheet.
     /// A lookup.
     fn guide_pane_room(&self) -> bool {
+        if self.unit_on_show() {
+            // A flow's card and Your choices narrow before Guide gives
+            // way to the sheet (`docs/FLOW-CONTAINER.md` §4).
+            return !self.held && self.unit_guide_fits();
+        }
         !self.is_compact()
             && !self.held
             && self.window().class() == faraday_draw::geom::WindowClass::ExtraLarge
@@ -697,10 +702,11 @@ impl Faraday {
     fn guide_pane_place_free(&self) -> bool {
         let codex32 = self.screen == Screen::KeyGen
             && self.keygen.state().is_some_and(|k| k.codex32.is_some());
-        // A flow on the container keeps the place for Your choices.
+        // A flow on the container keeps the place for Your choices, unless
+        // its card and Your choices stand left of it (`flow::unit`).
         !codex32
             && !matches!(self.screen, Screen::Backup | Screen::BackupFlow)
-            && !self.contained_on_show()
+            && (!self.contained_on_show() || self.unit_on_show())
     }
 
     /// Whether the guide stands as the supporting pane this frame: open as

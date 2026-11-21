@@ -97,9 +97,38 @@ fn a_row_of_the_sheet_closes_it_and_opens_its_step() {
     assert_eq!(open_step(&app), Some(vstep::PRESET));
 }
 
+/// The guide opened from the ? of Make a new vault on a window `width` ×
+/// `height`: whether it stands in the pane at the right, with Your choices
+/// still drawn at its left.
+fn guide_stands_beside_the_flow(width: u16, height: u16) -> bool {
+    let mut app = on_create_vault(width, height);
+    app.press(Action::Guide);
+    let _ = app.frame();
+    let pane = app.offers(Action::GuideClose);
+    assert_eq!(
+        app.sheet.is_none(),
+        pane,
+        "the guide is the pane or a sheet"
+    );
+    assert!(!heads(&mut app).is_empty(), "Your choices stays drawn");
+    pane
+}
+
 #[test]
-fn on_an_extra_large_window_the_guide_is_a_sheet_beside_the_pane() {
-    let mut app = on_create_vault(2560, 1440);
+fn on_a_wide_window_the_guide_opens_in_the_pane_beside_the_flow() {
+    assert!(guide_stands_beside_the_flow(1920, 1080));
+    assert!(guide_stands_beside_the_flow(2560, 1440));
+}
+
+#[test]
+fn the_pane_fits_beside_the_flow_from_1536_wide() {
+    assert!(guide_stands_beside_the_flow(1536, 864));
+    assert!(!guide_stands_beside_the_flow(1500, 864));
+}
+
+#[test]
+fn on_a_window_too_narrow_for_both_the_guide_is_a_sheet() {
+    let mut app = on_create_vault(1366, 768);
     app.press(Action::Guide);
     assert_eq!(app.sheet, Some(Sheet::Guide));
     // Put away, the page under it still has the pane, not the guide.

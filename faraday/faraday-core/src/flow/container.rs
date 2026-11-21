@@ -53,12 +53,20 @@ pub(crate) fn contained(
     let (area_x, area_w) = page.area;
     let compact = ui.compact;
     let full = !compact && flow.full_width(app);
+    // A column card and Your choices stand as one unit, centred in the room
+    // (`flow::unit`); the rest keep the pane at the area's right edge.
+    let unit = (!compact && app.unit_on_show()).then(|| app.unit_place(area_w));
     let pane_w = if compact || full {
         0.0
+    } else if let Some(u) = unit {
+        u.pane_w
     } else {
         crate::screens::side_panel_w(area_w)
     };
-    let room_w = area_w - pane_w;
+    let room_w = match unit {
+        Some(u) => u.pane_x,
+        None => area_w - pane_w,
+    };
     let view_h = page.h - page.foot_h;
     let steps = flow.steps(app);
 
@@ -84,9 +92,11 @@ pub(crate) fn contained(
             (room_w - 2.0 * m).min(COLUMN_MAX),
         )
     } else {
-        let w = (room_w - 2.0 * MARGIN_WIDE).min(COLUMN_MAX);
+        let w = unit.map_or((room_w - 2.0 * MARGIN_WIDE).min(COLUMN_MAX), |u| u.card_w);
         // Wide content stands at the navigation's edge, not centred.
-        let x = if aligned {
+        let x = if let Some(u) = unit {
+            area_x + u.card_x
+        } else if aligned {
             area_x + MARGIN_WIDE
         } else {
             area_x + (room_w - w) / 2.0
@@ -198,7 +208,10 @@ pub(crate) fn contained(
     if compact {
         bar(ui, page, area_x + area_w);
     } else if let (Some(s), false) = (steps.as_ref(), full) {
-        let px = area_x + area_w - pane_w;
+        let px = match unit {
+            Some(u) => area_x + u.pane_x,
+            None => area_x + area_w - pane_w,
+        };
         super::choices::Pane {
             app,
             flow,

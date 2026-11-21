@@ -124,7 +124,10 @@ pub(crate) const FROM_KEY: &str = EN.app_wallet_from_key;
 /// vault): 320 wide in a full-size window, down to 240 as the window
 /// narrows, so that the column keeps its room.
 pub(crate) fn side_panel_w(cw: f32) -> f32 {
-    (cw * 0.31).clamp(240.0, 320.0)
+    (cw * 0.31).clamp(
+        faraday_draw::tokens::CHOICES_PANE_MIN,
+        faraday_draw::tokens::CHOICES_PANE_MAX,
+    )
 }
 
 /// The labels of the rows ticked, joined; "None" when none is.

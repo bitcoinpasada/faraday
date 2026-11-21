@@ -55,7 +55,13 @@ fn the_pages_title_stays_in_one_place_from_the_top_to_the_end() {
             .expect("the page")
             .title
             .clone();
-        let top = places(&mut app, &title);
+        // Beside a flow's card the pane stands at the right; the flow's own
+        // heading of the same name is not the guide's.
+        let from = if w >= 1536 { f32::from(w) - 424.0 } else { 0.0 };
+        let top: Vec<(i32, i32)> = places(&mut app, &title)
+            .into_iter()
+            .filter(|p| p.0 as f32 >= from)
+            .collect();
         let dbg = app.drawn_past_sides_and_text().plain().1;
         assert_eq!(
             top.len(),

@@ -224,7 +224,7 @@ Material's canonical layouts, by what a screen shows:
 | Settings | compact: the list of its sections, each opening as its own page; medium: every section on one page, one column | every section on one page, two columns where they fit (§17) |
 | Home | §4 | §4 |
 | A form, a sheet's page | one column, at most `COLUMN_MAX` (720 dp), centred in the space beside the navigation | the same; on extra-large, Guide in the supporting pane (§6) |
-| A flow's step (every step flow; `docs/FLOW-CONTAINER.md`) | one card at one fixed place, the column's first heading; the page scrolls when the card is taller; Your choices is a sheet (§6) | the same card in the column, Your choices in a pane at its right (§6) |
+| A flow's step (every step flow; `docs/FLOW-CONTAINER.md`) | one card at one fixed place, the column's first heading; the page scrolls when the card is taller; Your choices is a sheet (§6) | the same card in the column, Your choices in a pane at its right, the two centred as one unit, and Guide's pane at the window's right when they fit (§6) |
 | The backup board, the structure chart, Explore | the whole space beside the navigation | the same |
 | A sheet | the window's width less a margin (compact), centred at most `SHEET_MAX` (560 dp) wide otherwise | the same |
 
@@ -286,7 +286,9 @@ screen's page of the guide, at the section of the step.
 One pane stands at a time: the codex32 entry (its dice sheet's
 column), Back up and a wallet's backup flow (the board's lists) keep
 the place for their own, and Guide is the sheet there; a pane open on
-arriving there is put away. A window resized across 1600 dp moves
+arriving there is put away. A flow whose card is a column is not one of
+them: Guide's pane stands beside its unit from 1536 dp, not 1600
+(`docs/FLOW-CONTAINER.md` §4). A window resized across 1600 dp moves
 Guide between the pane and the sheet, on the page it shows; the sheet
 has no pin, so a pane that comes back from it is unpinned.
 
@@ -295,8 +297,12 @@ every flow (all draw on the container): on the wide layout a pane at
 the right of the card, `side_panel_w` wide, scrolling within itself and
 holding its place as the page scrolls; on every one-column layout a sheet
 the top app bar's Your choices button opens (`docs/DESIGN.md` §4.1). On
-extra-large, Guide is a sheet beside a contained flow, so the two panes
-never stand together. Your choices scrolls within its pane, by one
+the wide layout the card and Your choices stand as one unit, centred in the
+room beside the navigation, and Guide's pane stands at the window's right
+beside the unit, which moves left only as far as it needs, when the room
+holds both (the unit's narrowest, 560 dp for the card and 240 for Your
+choices, and the pane: 1536 dp of window); below that Guide is the sheet.
+Your choices scrolls within its pane, by one
 offset for every flow, set back to the top when a flow is opened. On a
 full-width step (Make codex32 shares' entry, the backup board) no Your
 choices pane stands: the board's list stays in its own supporting pane at
@@ -861,7 +867,7 @@ below say what each draws today.
 | Explore | reading content: the path field as wide as a path (§8), the values in mono in the column, wrapping in groups; the addresses table as wide as its columns, at the start |
 | Spend and every step flow | reading content in the column, centred (§14); a table in a step (Spend's transaction) as wide as its columns; on extra-large Guide in the supporting pane (§6, L6) |
 | Settings | (owner, 2026-10-25) On a compact window, the Pi panel and narrow windows, Material's list and detail one pane at a time: the sections as list items, Mode first with the mode it is on, opening the mode sheet; any other opens that section's card as its own page, the top app bar naming it, and Back (the bar's and the app's) returns to the list where it was scrolled. From medium windows up, no list: every section's card on one page of the menu page container (`docs/MENU-PAGE.md`), at the menu page's width, in two columns where each is at least a tile's minimum (`CATALOG_TILE_MIN`, 360 dp) wide, else one, `MENU_GAP` between cards. The first column holds Mode, Session, Time and Randomness, the second Appearance on, so the order reads down the first and then the second and a card never moves between them. Medium keeps one page: measured at 160 dpi with no keys loaded, the page is 2,235 dp tall at 600 × 900 (2.7 screens), 2,039 dp at 768 × 1024 (2.1) and 1,981 dp at 800 × 1280 (1.6; 2.0), at or under about three screens, which a list would only split into a press and a Back per section |
-| Guide | the sheet below extra-large; the supporting pane on extra-large (§6, L6), at the right edge (§15), except on the codex32 entry, where it stays a sheet and the Demo only card keeps the pane (owner, 2026-10-24), and on Back up and a wallet's backup flow, whose board's lists keep it |
+| Guide | the sheet below extra-large; the supporting pane on extra-large (§6, L6), at the right edge (§15), except on the codex32 entry, where it stays a sheet and the Demo only card keeps the pane (owner, 2026-10-24), and on Back up and a wallet's backup flow, whose board's lists keep it; in a flow whose card is a column it stands from 1536 dp, beside the card and Your choices (§6) |
 | The Starter | the same rules (`docs/STARTER.md` §3.1d): its page area is the window less the rail, its top bar's actions at the window's edge, a destination's cards in a column of at most `CONTENT_MAX` and a task page's text in `COL_W`, centred in the room beside the rail; nothing is capped by the window |
 | Sheets and dialogs | as §5: `SHEET_MAX`, centred |
 | The Pi panel and compact windows | unchanged by §14 to §17, but for the input panel on compact windows that are not short (§16.3) |

@@ -1054,6 +1054,17 @@ pub const MARGIN_WIDE: f32 = 24.0;
 /// The widest a one-column page grows beside the navigation.
 pub const COLUMN_MAX: f32 = 720.0;
 
+/// The narrowest a flow's card column goes to make room for Guide's pane
+/// beside the flow (`docs/FLOW-CONTAINER.md` §4).
+pub const FLOW_CARD_MIN: f32 = 560.0;
+
+/// The narrowest Your choices goes, on any window.
+pub const CHOICES_PANE_MIN: f32 = 240.0;
+
+/// The widest Your choices (and the side panel of a step-by-step column)
+/// grows.
+pub const CHOICES_PANE_MAX: f32 = 320.0;
+
 /// The width of the area a reading page is laid out in, centred in the
 /// room beside the navigation once that room is wider than the area
 /// (`docs/LAYOUT.md` §14): a 900 dp column and its side insets.

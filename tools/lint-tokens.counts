@@ -24,7 +24,7 @@ faraday/faraday-core/src/screens/entry.rs 74
 faraday/faraday-core/src/screens/files.rs 283
 faraday/faraday-core/src/screens/home.rs 4
 faraday/faraday-core/src/screens/message.rs 26
-faraday/faraday-core/src/screens/parts.rs 203
+faraday/faraday-core/src/screens/parts.rs 201
 faraday/faraday-core/src/screens/randomness.rs 1
 faraday/faraday-core/src/screens/restore.rs 72
 faraday/faraday-core/src/screens/set_time.rs 25

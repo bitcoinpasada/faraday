@@ -177,8 +177,22 @@ steps gives way to it. On the small panel the button is
 an icon with the tooltip "Your choices"; elsewhere it is labelled **Your
 choices**. Your choices stays at a flow's end; rows before a point the flow
 cannot take back take no press. On a window too low for the pane, the pane
-scrolls within itself. Guide opens as a sheet inside a flow, so Your
-choices keeps the right edge on an extra-large window.
+scrolls within itself.
+
+On the wide layout a step whose card is a column stands with Your choices as
+one unit: the card's `COLUMN_MAX` column, a `SPACER` and the pane, centred in
+the room beside the navigation (`flow/unit.rs`). Guide's ? opens its
+supporting pane at the right (LAYOUT §6), instead of the sheet, whenever the
+unit at its narrowest and the pane fit: 1536 dp of window. The unit then
+moves left only as far as the pane needs (not at all when it already fits
+centred; about 140 dp at 1920 dp), and stays there when the pane closes,
+until the flow ends; a new flow starts centred. The move shows through the
+frame's cross-fade that a pane coming or going has. To make room, the card's
+column narrows from 720 to `FLOW_CARD_MIN` (560 dp) first and then Your choices
+from 320 to `CHOICES_PANE_MIN` (240 dp), each only as far as the room needs.
+Below that room Guide is the sheet. The full-width steps and the steps
+whose card stands at the navigation's edge (wide content) have their own
+pane or none, and Guide is the sheet there.
 
 **The two sizes named:**
 

@@ -93,7 +93,7 @@ pub(crate) use wallets::{
     backup_line, loose_card, missing_keys_line, silent_address_lines, slot_marks, spend_paths_rows,
 };
 
-const SIDEBAR_W: f32 = 240.0;
+pub(crate) const SIDEBAR_W: f32 = 240.0;
 
 /// How a page takes the room beside the navigation on a wide window
 /// (`docs/LAYOUT.md` §14, §15).
@@ -184,7 +184,11 @@ fn page_area(app: &crate::Faraday, screen: Screen, room: f32) -> (f32, f32) {
     // New key's cards are reading content, its column and its insets; only
     // Make codex32 shares holds wide content (its sheets and input panel)
     // and takes the work width (`docs/LAYOUT.md` §14).
-    let area = if screen == Screen::KeyGen && !keygen_wide(app) {
+    // A flow's card and Your choices are one unit centred in the whole room
+    // (`docs/FLOW-CONTAINER.md` §4).
+    let area = if app.unit_on_show() {
+        Area::Work
+    } else if screen == Screen::KeyGen && !keygen_wide(app) {
         let t =
             faraday_draw::tokens::KEYGEN_COLUMN_MAX + 2.0 * faraday_draw::tokens::KEYGEN_COLUMN_IN;
         Area::Reading(t)
@@ -340,7 +344,12 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         // page is laid out beside it and nothing of it is under the pane
         // (`docs/LAYOUT.md` §6).
         let pane = app.guide_pane_shown();
-        let beside = if pane { support_pane_room() } else { 0.0 };
+        // A flow's unit makes its own room for the pane.
+        let beside = if pane && !app.unit_on_show() {
+            support_pane_room()
+        } else {
+            0.0
+        };
         let (ox, cw) = page_area(app, app.screen, room - beside);
         let h = full_h;
         ui.ox = ox;
