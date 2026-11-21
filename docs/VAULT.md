@@ -260,8 +260,8 @@ cost this computer can allocate", and writes nothing.
 **Memory on the Create form.** The form's **Memory** card lists the five
 steps with 64 MiB chosen, each with the machines it opens on (below)
 and its unlock time here, or what this computer has free where that
-falls short. **Where will you open it?** marks the largest step that
-fits the weakest machine chosen as suggested. **This computer** is
+falls short. **Where will you open it?** ticks the machines; no step is
+tagged as suggested, each row says whether it fits the weakest chosen. **This computer** is
 ticked by default and can be unticked; it gives a vault the largest step
 that fits in what it has free beside twice the vault file and 100 MiB
 (below). Another machine gives half its memory, except a 512 MB Pi Zero 2 W, which gives 128 MiB:

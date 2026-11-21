@@ -428,6 +428,29 @@ fn customise_opens_the_two_cards_and_a_custom_memory_survives_continue() {
     assert_eq!(create_and_read_cost(&mut app).0, 128);
 }
 
+/// The cost step tags no row as suggested, even with plenty free, and a
+/// row reads its memory, passes and bits in that order.
+#[test]
+fn the_cost_step_tags_no_row_suggested_and_reads_memory_passes_bits() {
+    use faraday_core::vault::vstep;
+    let mut app = on_create_vault();
+    app.press(Action::Vault(V::CStep(vstep::PRESET)));
+    app.press(Action::Vault(V::CCustomise));
+    app.press(Action::Vault(V::CNext(vstep::WHERE)));
+    let _ = app.frame();
+    let text: Vec<String> = app.drawn_texts().iter().map(|t| t.to_string()).collect();
+    assert!(
+        text.iter().any(|t| t == "Light") && text.iter().any(|t| t == "Fits"),
+        "on the cost step: {text:?}"
+    );
+    assert!(!text.iter().any(|t| t == "Suggested"), "{text:?}");
+    assert!(
+        text.iter()
+            .any(|t| t.starts_with("64 MiB \u{b7} 3 passes \u{b7} \u{2248}")),
+        "{text:?}"
+    );
+}
+
 /// The vault's memory is one figure: the machines choice, the cost and
 /// the summary all say 64 MiB for PCs and every Raspberry Pi, never the app's
 /// share on top of it.
@@ -1038,8 +1061,8 @@ fn a_lock_empties_a_new_vaults_passphrases() {
 }
 
 /// A 256 MiB cost chosen for other PCs alone is cleared by ticking the
-/// Pi Zero 2 W, and the Unlock cost card then suggests the Pi Zero row and
-/// reads the larger rows too large for it.
+/// Pi Zero 2 W, and the Unlock cost card then reads the larger rows too
+/// large for it; no row is tagged Suggested.
 #[test]
 fn ticking_the_zero_2_w_clears_a_256_mib_cost_and_suggests_128() {
     use faraday_core::vault::vstep;
@@ -1061,11 +1084,7 @@ fn ticking_the_zero_2_w_clears_a_256_mib_cost_and_suggests_128() {
     app.press(Action::Vault(V::CNext(vstep::WHERE)));
     let _ = app.frame();
     let text = app.drawn_texts();
-    assert_eq!(
-        text.iter().filter(|t| *t == "Suggested").count(),
-        1,
-        "{text:?}"
-    );
+    assert!(!text.iter().any(|t| t == "Suggested"), "{text:?}");
     assert_eq!(
         text.iter()
             .filter(|t| *t == "Too large for Pi Zero 2 W")

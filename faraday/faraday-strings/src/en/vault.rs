@@ -109,12 +109,12 @@ macro_rules! words_vault {
     /// Text in `create_body`.
     vault_choose_memory: "Choose memory and passes",
     /// Text in `create_body`.
-    vault_suggested: "Suggested",
-    /// Text in `create_body`.
     vault_fits: "Fits",
     /// Text in `create_body`. `{}`: `weakest`.
     vault_too_large: "Too large for {}",
     /// Text in `create_body`. `{}`: `mib_text(m)`, `p`, `vault::cost_bits(m, p)`.
+    vault_memory_passes_bits: "{} · {} passes · ≈{} bits",
+    /// Text in `rekey_screen`. `{}`: `next.passes`, `vault::cost_bits(mib, next.passes)`.
     vault_passes_bits: "{} passes · ≈{} bits",
     /// Line in `create_body`.
     vault_memory: "Memory",

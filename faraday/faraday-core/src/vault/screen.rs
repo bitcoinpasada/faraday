@@ -1126,7 +1126,6 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
         }
         vstep::COST => {
             let (weakest, limit) = app.vaults.weakest();
-            let suggested = app.vaults.suggested();
             let (current, mem, passes) = app.vaults.form_cost().unwrap_or((0, 64, 3));
             let choices = PRESETS.iter().copied().chain(std::iter::once((
                 EN.vault_custom,
@@ -1138,8 +1137,6 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                 let fits = m <= limit;
                 let (note, color) = if k == CUSTOM {
                     (Text::of(EN.vault_choose_memory), muted)
-                } else if k == suggested {
-                    (Text::of(EN.vault_suggested), primary)
                 } else if fits {
                     (Text::of(EN.vault_fits), muted)
                 } else {
@@ -1157,7 +1154,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                 let note = ui.fit_as(BODY_S, &note, room);
                 ui.text_right_as((x + w - 16.0, cy + 5.0, 24.0), BODY_S, color, &note);
                 let detail = Text::fill(
-                    EN.vault_passes_bits,
+                    EN.vault_memory_passes_bits,
                     &[
                         &mib_text(m),
                         &Text::num(u64::from(p)),
