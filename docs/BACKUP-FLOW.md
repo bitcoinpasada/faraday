@@ -993,7 +993,8 @@ drawn on The plan card, where Make the checklist would be.
   removes the last place and what it held (`Edit::RemovePlace` with no
   destination). A seed left kept nowhere holds The plan card, as today.
 - **Files at a place.** A file is kept at a place, on a stick there:
-  `What::SeedFile(i)` may be held by `At::Place(p)` (tag Secret), and two
+  seed *i*'s file copies (`What::Written` on the File medium) may be held
+  by `At::Place(p)` (tag Secret), and two
   new things, `What::WalletFile` (the description's public files) and
   `What::ShareFile(j)` (share *j* as files), are held by a place (tag
   Public). `At::Files` stays for a plan saved before this change and for
@@ -1406,7 +1407,7 @@ checklist read forms as they read everything else.
 | Zone | A seed *i* | Its passphrase | The description, or share *j* |
 |---|---|---|---|
 | Paper | `Words(i)`, `SeedQr(i)` | `Passphrase(i)` | `Sheet`, or `Share(j)`, as today |
-| Stick (files) | `SeedFile(i)` (words, `.txt`), `SeedQrFile(i)` (`.png`) | `PassphraseFile(i)` (`.txt`) | `WalletFile(form)`, `ShareFile(j, form)`: `form::TEXT` (`.txt`), `form::QR` (`.png`); and `SoftwareFile`, the chosen software's own file |
+| Stick (files) | `Written` copies of seed *i* on the File medium (words `.txt`, SeedQR `.png`) | `PassphraseFile(i)` (`.txt`) | `WalletFile(form)`, `ShareFile(j, form)`: `form::TEXT` (`.txt`), `form::QR` (`.png`); and `SoftwareFile`, the chosen software's own file |
 | Vault | `Seed(i)` | `SeedPassphrase(i)`, with its seed | `Wallet`, or `Share(j)` |
 | Scanned in (software) | | | `Wallet` at `At::Software`, as today |
 
