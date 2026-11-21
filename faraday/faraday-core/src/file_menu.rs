@@ -736,6 +736,7 @@ impl Faraday {
         name: &str,
         sha: Result<[u8; 32], faraday_text::Text>,
     ) {
+        self.visit_same_hashed(stick, name, &sha);
         self.visit.details_hashed(stick, name, sha);
     }
 

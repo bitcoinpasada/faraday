@@ -495,6 +495,7 @@ pub(super) fn receipt_height(ui: &Ui, r: &crate::Receipt) -> f32 {
 /// 14:02", then a row per file, "verified" or why it was not. Nothing on
 /// it is written again. Returns its height.
 pub(super) fn receipt_rows(
+    app: &View,
     ui: &mut Ui,
     r: &crate::Receipt,
     tz_min: i16,
@@ -512,9 +513,20 @@ pub(super) fn receipt_rows(
         };
         let state = ui.fit_as(BODY_S, &state, w / 2.0);
         let sw = ui.measure_as(BODY_S, &state);
+        // The same file as the stick's: the row on green, with a check
+        // before its "verified".
+        let same = app.visit_receipt_same(r, &f.name);
+        let (tone, ink) = if same {
+            let line = ui.line_as(BODY_M.mono());
+            super::visit_same::receipt_row(ui, (x, w, ry), sw, line);
+            (Role::OnOkContainer, Role::OnOkContainer)
+        } else {
+            (tone, Role::OnSurface)
+        };
+        let room = w - sw - 12.0 - super::visit_same::width(same);
         ui.text_right_as((x + w, ry - 4.0, 20.0), BODY_S, tone, &state);
-        let name = ui.fit_as(BODY_M.mono(), &f.name, (w - sw - 12.0).max(0.0));
-        ui.text_as(x, ry, BODY_M.mono(), Role::OnSurface, &name);
+        let name = ui.fit_as(BODY_M.mono(), &f.name, room.max(0.0));
+        ui.text_as(x, ry, BODY_M.mono(), ink, &name);
         ry += ui.line_as(BODY_M.mono()) + faraday_draw::tokens::GRID;
     }
     ry - y

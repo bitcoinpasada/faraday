@@ -194,6 +194,8 @@ pub(crate) struct VisitArea {
     /// The files For the stick were written by "Lock and write": the page
     /// ends on the card Finish has.
     signed_end: bool,
+    /// The files known the same in Faraday and on a stick.
+    pub(super) same: super::visit_same::SameFiles,
 }
 
 /// A stick told from another: by its FAT volume serial; a folder the shell
@@ -1720,6 +1722,7 @@ impl Faraday {
                     self.visit.set_inn(v);
                 }
                 self.visit.set_settings(None);
+                self.visit_same_ask();
             }
             Action::VisitSettings => {
                 self.visit.set_settings(Some(!self.visit_settings_on()));
@@ -1909,6 +1912,118 @@ impl VisitState {
 }
 
 impl Faraday {
+    /// `name`, `size` bytes, was copied in from, or written to and read
+    /// back on, the stick `stick`; `out_row` is whether a row For the
+    /// stick of that name may show it.
+    pub(crate) fn visit_same_mark(&mut self, stick: &str, name: &str, size: u64, out_row: bool) {
+        if !super::visit_same::is_settings(name) {
+            self.visit.same.put(stick, name, size, out_row);
+        }
+    }
+
+    /// Whether the file `name` is in both places on the stick shown: known
+    /// the same, and the listing still has it at that size. `size` is the
+    /// Faraday copy's, where a row has one; `out_row` is whether the row
+    /// is For the stick's.
+    pub(crate) fn visit_same(&self, name: &str, size: Option<u64>, out_row: bool) -> bool {
+        let Some(stick) = self.stick.get(self.visit.stick) else {
+            return false;
+        };
+        let Some(m) = self.visit.same.find(&stick.id, name) else {
+            return false;
+        };
+        size.is_none_or(|s| s == m.size)
+            && (m.out_row || !out_row)
+            && stick
+                .files
+                .iter()
+                .any(|(n, len)| n.eq_ignore_ascii_case(name) && *len == m.size)
+    }
+
+    /// Whether a written and matched file of the last receipt is in both
+    /// places: the receipt names the stick on show.
+    pub(crate) fn visit_receipt_same(&self, r: &crate::Receipt, name: &str) -> bool {
+        r.files.iter().any(|f| f.verified && f.name == name)
+            && self.visit_stick_identity().is_some_and(|i| *i == *r.stick)
+            && self.visit_same(name, None, false)
+    }
+
+    /// Asks the shell to hash each file of the stick on show that Faraday
+    /// holds a copy of by name and size, and has not been checked: the
+    /// answer says whether the two are the same ([`Faraday::visit_same_hashed`]).
+    pub(crate) fn visit_same_ask(&mut self) {
+        if self.holds_secret() {
+            return;
+        }
+        let Some(stick) = self.stick.get(self.visit.stick) else {
+            return;
+        };
+        let held = |name: &str, size: u64| {
+            self.outbox
+                .iter()
+                .chain(self.inbox.iter())
+                .any(|i| i.name.eq_ignore_ascii_case(name) && i.bytes.len() as u64 == size)
+        };
+        let ask: Vec<(Text, u64)> =
+            stick
+                .files
+                .iter()
+                .filter(|(n, size)| {
+                    !super::visit_same::is_settings(n)
+                        && held(n, *size)
+                        && self
+                            .visit
+                            .same
+                            .find(&stick.id, n)
+                            .is_none_or(|m| m.size != *size)
+                        && !self.visit.same.asked.iter().any(|(s, a, z)| {
+                            *s == stick.id && a.eq_ignore_ascii_case(n) && z == size
+                        })
+                })
+                .map(|(n, size)| (n.clone(), *size))
+                .collect();
+        let id = stick.id.clone();
+        for (name, size) in ask {
+            self.visit.same.asked.push((id.clone(), name.clone(), size));
+            self.out.storage_out.push_back(StorageCommand::Hash {
+                stick: id.clone(),
+                name,
+            });
+        }
+    }
+
+    /// The shell hashed `name` on `stick`: if a file of Faraday's has the
+    /// same bytes, the two are marked the same. A failed read is asked
+    /// again at the next listing.
+    pub(crate) fn visit_same_hashed(
+        &mut self,
+        stick: &str,
+        name: &str,
+        sha: &Result<[u8; 32], Text>,
+    ) {
+        let Some(at) = self
+            .visit
+            .same
+            .asked
+            .iter()
+            .position(|(s, n, _)| **s == *stick && n.eq_ignore_ascii_case(name))
+        else {
+            return;
+        };
+        let Ok(sha) = sha else {
+            self.visit.same.asked.remove(at);
+            return;
+        };
+        let size = self.visit.same.asked[at].2;
+        let c = self.compute();
+        let same = |i: &Item| i.name.eq_ignore_ascii_case(name) && i.bytes.len() as u64 == size;
+        let out = self.outbox.iter().any(|i| same(i) && i.hash(&c) == *sha);
+        let inn = self.inbox.iter().any(|i| same(i) && i.hash(&c) == *sha);
+        if out || inn {
+            self.visit_same_mark(stick, name, size, out);
+        }
+    }
+
     /// A write's answer onto the receipt: the first answer of a write
     /// replaces the last receipt with a new one.
     pub(crate) fn receipt_add(&mut self, name: &str, failure: Option<faraday_text::Text>) {

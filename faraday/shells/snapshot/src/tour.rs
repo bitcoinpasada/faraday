@@ -310,13 +310,20 @@ impl Tour {
                         faraday_core::testkit::plain_kept(kept),
                     ))
                 }
+                // The stick file's digest, as the real shell answers; the
+                // listing's own image has no file on disk.
+                StorageCommand::Hash { stick, name } => {
+                    let sha = std::fs::read(Path::new(&*stick).join(&*name))
+                        .map(|b| faraday_core::file_menu::sha256(&self.app.compute(), &b))
+                        .map_err(|e| faraday_text::Text::of(&e.to_string()));
+                    self.app.storage(StorageEvent::Hashed { stick, name, sha });
+                }
                 StorageCommand::OpenDownloads
                 | StorageCommand::OpenInstitute
                 | StorageCommand::ForgetBoxes
                 | StorageCommand::Wipe { .. }
                 | StorageCommand::Rename { .. }
                 | StorageCommand::NameStick { .. }
-                | StorageCommand::Hash { .. }
                 | StorageCommand::ZeroFree { .. }
                 | StorageCommand::MakeEmpty { .. } => {}
             }

@@ -217,6 +217,8 @@ struct ListRow<'a> {
     ticked: Option<bool>,
     /// The stick holds the file already: drawn greyed.
     greyed: bool,
+    /// The same file is on the stick: the row is green with a check.
+    same: bool,
     /// What pressing the row does.
     action: Option<Action>,
     /// Its ⋮ menu.
@@ -244,7 +246,7 @@ fn row_parts(ui: &Ui, r: &ListRow) -> (f32, f32, f32) {
 fn name_room(ui: &Ui, r: &ListRow, colw: f32) -> f32 {
     let (lead, menu, main) = row_parts(ui, r);
     let tw = ui.measure_as(LABEL_M, r.tag.0) + 12.0 + menu + main;
-    colw - lead - 20.0 - tw
+    colw - lead - 20.0 - tw - super::visit_same::width(r.same)
 }
 
 /// What a wrapped name adds to a row's height: its lines beyond the first.
@@ -272,13 +274,18 @@ fn list_row(app: &View, ui: &mut Ui, (x, colw, ry): (f32, f32, f32), mut r: List
     }
     let (lead, menu, main) = row_parts(ui, &r);
     let room = name_room(ui, &r, colw);
+    let chk = super::visit_same::width(r.same);
+    let dw = menu + main;
+    if r.same {
+        super::visit_same::row(ui, (x, colw, ry), dw);
+        r.tag.1 = Role::OnOkContainer.paint();
+    }
     if let Some(on) = r.ticked {
         ui.checkbox(x + 22.0, ry + 15.0, on && !r.greyed, !r.greyed);
     }
     // Its ⋮ at the right end (F54), its main action before it.
     // A row with no ⋮ keeps its place, so its button stays off the scrollbar.
     // The ⋮ ends 20 from the card's edge, clear of the scrollbar.
-    let dw = menu + main;
     if let Some((l, st, a)) = r.main {
         let bw = main - GRID;
         ui.button(
@@ -291,7 +298,9 @@ fn list_row(app: &View, ui: &mut Ui, (x, colw, ry): (f32, f32, f32), mut r: List
             a,
         );
     }
-    let (ink, sub) = if r.greyed {
+    let (ink, sub) = if r.same {
+        (Role::OnOkContainer.paint(), Role::OnOkContainer.paint())
+    } else if r.greyed {
         (crate::ui::off(), crate::ui::off())
     } else {
         (Role::OnSurface.paint(), Role::OnSurfaceVariant.paint())
@@ -304,10 +313,10 @@ fn list_row(app: &View, ui: &mut Ui, (x, colw, ry): (f32, f32, f32), mut r: List
         let name = ui.fit_as(BODY_M.mono(), r.name, room);
         ui.text_as(at.0, at.1, BODY_M.mono(), ink, &name);
     }
-    let line = ui.fit_as(BODY_S, r.line, colw - lead - 36.0 - dw);
+    let line = ui.fit_as(BODY_S, r.line, colw - lead - 36.0 - dw - chk);
     ui.text_as(x + lead, ry + 28.0 + extra, BODY_S, sub, &line);
     ui.text_right_as(
-        (x + colw - 20.0 - dw, ry + 6.0, 20.0),
+        (x + colw - 20.0 - dw - chk, ry + 6.0, 20.0),
         LABEL_M,
         r.tag.1,
         r.tag.0,
@@ -374,6 +383,7 @@ fn vault_row<'a>(app: &'a View, v: usize, line: &'a str) -> ListRow<'a> {
         tag: (EN.files_open, Role::Ok.paint()),
         ticked: None,
         greyed: false,
+        same: false,
         action: None,
         menu: loads.then_some(crate::file_menu::Row::Vault(v)),
         main: Some((
@@ -615,6 +625,7 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
                     tag,
                     ticked: usable.then(|| app.visit.out.contains(&*item.name)),
                     greyed: held,
+                    same: usable && app.visit_same(&item.name, Some(item.bytes.len() as u64), true),
                     action: (usable && !held).then_some(Action::VisitOut(k)),
                     menu: Some(crate::file_menu::Row::Out(k)),
                     main: None,
@@ -670,6 +681,7 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
                 },
                 ticked: usable.then(|| app.visit.from_inbox.contains(&*item.name)),
                 greyed: held,
+                same: usable && app.visit_same(&item.name, Some(item.bytes.len() as u64), false),
                 action: (usable && !held).then_some(Action::VisitInbox(k)),
                 menu: Some(crate::file_menu::Row::In(k)),
                 main: main_action(app, k, item),
@@ -689,7 +701,15 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
     }
     // What the last write wrote, under the lists (F235).
     if let Some(r) = app.visit.receipt().as_ref() {
-        super::files::receipt_rows(ui, r, app.tz_min(), x + 22.0, ry + GAP_SMALL, colw - 44.0);
+        super::files::receipt_rows(
+            app,
+            ui,
+            r,
+            app.tz_min(),
+            x + 22.0,
+            ry + GAP_SMALL,
+            colw - 44.0,
+        );
     }
     ui.region_close(open, max_shift);
     visit_list_bar(
@@ -924,17 +944,25 @@ fn on_the_stick(
         let big = why.is_some();
         let kind = stick.kind_of(name).filter(|_| !big);
         let on = app.visit.inn.contains(name.as_str());
-        ui.checkbox(ix + 22.0, ry + 15.0, on, kind.is_some());
-        let fg = if kind.is_some() {
-            Role::OnSurface
-        } else {
-            Role::OnSurfaceVariant
-        };
         // Its ⋮ at the right end: every file but the settings file
         // (decision 61 item 4).
         let menu = Faraday::stick_row_menu(name);
         let dw = if menu { 32.0 + GRID } else { 0.0 };
-        let room = 90.0 + dw;
+        // The same file as Faraday's: green, with a check at the box's end.
+        let same = kind.is_some() && app.visit_same(name, Some(*size), false);
+        if same {
+            let gap = if menu { GRID } else { 0.0 };
+            super::visit_same::row(ui, (ix, colw, ry), dw + gap);
+        }
+        ui.checkbox(ix + 22.0, ry + 15.0, on, kind.is_some());
+        let fg = if same {
+            Role::OnOkContainer
+        } else if kind.is_some() {
+            Role::OnSurface
+        } else {
+            Role::OnSurfaceVariant
+        };
+        let room = 90.0 + dw + super::visit_same::width(same);
         // A file Faraday holds already says so, as the left column's tags.
         let held = app.inbox_holds(name, *size);
         let tag = EN.visit_in_faraday;
@@ -946,14 +974,26 @@ fn on_the_stick(
         let n = ui.fit_as(
             BODY_M.mono(),
             name,
-            colw - if held { 74.0 + tw + dw } else { room },
+            colw - if held {
+                74.0 + tw + dw + super::visit_same::width(same)
+            } else {
+                room
+            },
         );
         ui.text_as(ix + 54.0, ry + 6.0, BODY_M.mono(), fg, &n);
         if held {
             ui.text_right_as(
-                (ix + colw - 20.0 - dw, ry + 6.0, 20.0),
+                (
+                    ix + colw - 20.0 - dw - super::visit_same::width(same),
+                    ry + 6.0,
+                    20.0,
+                ),
                 LABEL_M,
-                Role::OnSurfaceVariant,
+                if same {
+                    Role::OnOkContainer
+                } else {
+                    Role::OnSurfaceVariant
+                },
                 tag,
             );
         }
@@ -968,7 +1008,12 @@ fn on_the_stick(
             None => Text::of(EN.visit_settings),
         };
         let sub = ui.fit_as(BODY_S, &sub, colw - room);
-        ui.text_as(ix + 54.0, ry + 28.0, BODY_S, Role::OnSurfaceVariant, &sub);
+        let sub_ink = if same {
+            Role::OnOkContainer
+        } else {
+            Role::OnSurfaceVariant
+        };
+        ui.text_as(ix + 54.0, ry + 28.0, BODY_S, sub_ink, &sub);
         if kind.is_some() {
             // Ends clear of the ⋮'s touch target.
             let gap = if menu { GRID } else { 0.0 };

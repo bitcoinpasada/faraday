@@ -1090,6 +1090,21 @@ pub const VISIT_NOTICE_BUTTON_PAD: f32 = 36.0;
 /// The room a file's name keeps in a stick pane's row before the row's
 /// main action is drawn: narrower columns (the Pi's) drop the action.
 pub const VISIT_NAME_MIN: f32 = 120.0;
+/// What a file's row takes at its right end for the check that says the
+/// stick holds the same file, with its gap.
+pub const VISIT_SAME_W: f32 = 28.0;
+/// The check's glyph in that row.
+pub const VISIT_SAME_ICON: f32 = 18.0;
+/// The box the check's glyph is centred in.
+pub const VISIT_SAME_ICON_BOX: f32 = 20.0;
+/// How far a file row's box (what its hover and its green fill) stands in
+/// from its card's edge.
+pub const VISIT_ROW_BOX_X: f32 = 12.0;
+/// A file row's box height, the row's rule under it.
+pub const VISIT_ROW_BOX_H: f32 = 50.0;
+/// Where a same file's check stands in its row: from the row's top and
+/// from the end of the row's box.
+pub const VISIT_SAME_TOP: f32 = 6.0;
 /// A row's main action in the stick pane: shorter than a button, so it
 /// sits inside the row's height.
 pub const VISIT_ROW_BUTTON_H: f32 = 32.0;

@@ -115,6 +115,9 @@ pub(crate) fn storage_event(app: &mut Faraday, event: StorageEvent) {
                 // gave it.
                 let sign = item.kind == FileKind::Psbt
                     && app.visit.sign_stick().is_some_and(|n| **n == *name);
+                if *item.name == *name {
+                    app.visit_same_mark(&stick, &name, item.bytes.len() as u64, false);
+                }
                 let sign_name = app.visit.sign_stick().cloned();
                 let sign_from = app.visit.sign_from().cloned();
                 app.inbox.push(item);
@@ -161,6 +164,27 @@ pub(crate) fn storage_event(app: &mut Faraday, event: StorageEvent) {
                     .map(|s| s.label.clone())
             {
                 app.visit.unprotected_add(&stick, &label, &wrote_as);
+            }
+            // Written and read back: the same file in both places, under
+            // the name the stick keeps it by (a Keep both's other name is
+            // another file).
+            let from_outbox = !app.visit.writing_inbox.contains(&*name);
+            let written = app
+                .outbox
+                .iter()
+                .filter(|_| from_outbox)
+                .chain(app.inbox.iter().filter(|_| !from_outbox))
+                .find(|i| i.name == *name)
+                .map(|i| {
+                    (
+                        i.bytes.len() as u64,
+                        !from_outbox || i.kind == FileKind::Vault,
+                    )
+                });
+            if let Some((size, out_row)) = written
+                && wrote_as.eq_ignore_ascii_case(&name)
+            {
+                app.visit_same_mark(&stick, &wrote_as, size, out_row);
             }
             app.visit_written(&name, &wrote_as);
             // A rename is carried by one write, to the stick written:
@@ -394,6 +418,8 @@ pub(crate) fn sticks_changed(app: &mut Faraday, sticks: Vec<StickInfo>) {
         .unwrap_or_default();
     app.visit.inn_retain(|n| names.contains(n));
     app.visit.unprotected_keep(&ids_now);
+    app.visit.same.keep(&ids_now);
+    app.visit_same_ask();
     app.flow_sticks_changed();
     app.name_taken_pulled();
     if app.stick.is_empty() {

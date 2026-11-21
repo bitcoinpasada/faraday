@@ -124,6 +124,16 @@ fn pump(app: &mut Faraday, sticks: &[&Stick]) -> Vec<(String, String, Vec<u8>)> 
                     payloads: payloads.into(),
                 });
             }
+            // The shell hashes a file for the same-file check as for Details.
+            StorageCommand::Hash { stick, name } => {
+                let s = sticks.iter().find(|s| s.id == &*stick).expect("a stick");
+                let sha = s
+                    .files
+                    .get(&*name)
+                    .map(|b| faraday_core::file_menu::sha256(&faraday_core::testkit::compute(), b))
+                    .ok_or_else(|| faraday_text::Text::of("gone"));
+                app.storage(StorageEvent::Hashed { stick, name, sha });
+            }
             StorageCommand::Write {
                 stick, name, bytes, ..
             } => {
@@ -1092,4 +1102,100 @@ fn the_visit_redraws_after_a_seedqr_picture_is_left_out_of_a_copy() {
     let drew = std::iter::from_fn(|| app.poll_command()).any(|c| c == Command::Draw);
     assert!(app.inbox().is_empty(), "the SeedQR came in unasked");
     assert!(drew, "the visit was not drawn again");
+}
+
+/// How many rows named `name` the frame draws with a check at their right
+/// end: the mark of a file in both Faraday and on the stick.
+fn checked_rows(app: &mut Faraday, name: &str) -> usize {
+    use faraday_draw::canvas::InkKind;
+    use faraday_draw::widgets::Icon;
+    let ink = app.drawn_ink();
+    let checks: Vec<_> = ink
+        .iter()
+        .filter(|i| matches!(i.kind, InkKind::Icon(Icon::Check)))
+        .collect();
+    ink.iter()
+        .filter(|i| matches!(&i.kind, InkKind::Text { text, .. } if text == name))
+        .filter(|t| {
+            checks.iter().any(|c| {
+                c.rect.x >= t.rect.x + t.rect.w
+                    && (i64::from(c.rect.y) - i64::from(t.rect.y)).abs() < 30
+            })
+        })
+        .count()
+}
+
+#[test]
+fn a_file_copied_in_from_the_stick_is_marked_in_both_cards() {
+    let mut app = testkit::started();
+    let share = kit("savings-share-1-of-3.txt");
+    let a = Stick::new("a", std::slice::from_ref(&share));
+    attach(&mut app, &[&a]);
+    assert_eq!(
+        checked_rows(&mut app, &share.0),
+        0,
+        "marked before it came in"
+    );
+    copy_in(&mut app, &[&a], &[&share.0]);
+    assert_eq!(checked_rows(&mut app, &share.0), 2);
+    // Another stick does not hold it: not marked.
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    let b = Stick::new("b", &[]);
+    attach(&mut app, &[&b]);
+    assert_eq!(checked_rows(&mut app, &share.0), 0);
+}
+
+#[test]
+fn a_file_written_and_read_back_is_marked_in_both_cards() {
+    let mut app = testkit::started();
+    let share = kit("savings-share-1-of-3.txt");
+    let a = Stick::new("a", std::slice::from_ref(&share));
+    attach(&mut app, &[&a]);
+    copy_in(&mut app, &[&a], &[&share.0]);
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    let b = Stick::new("b", &[]);
+    attach(&mut app, &[&b]);
+    app.press(row(&app, &share.0).expect("not offered"));
+    let wrote = write(&mut app, &[&b]);
+    assert_eq!(wrote.len(), 1);
+    assert_eq!(
+        checked_rows(&mut app, &share.0),
+        0,
+        "marked before it was listed"
+    );
+    // The shell lists the stick again with the file on it.
+    let b = Stick::new("b", &[(share.0.clone(), wrote[0].2.clone())]);
+    app.storage(StorageEvent::Sticks(vec![b.info()]));
+    let _ = app.frame();
+    // The Inbox row, the receipt's row under it and the stick's row.
+    assert_eq!(checked_rows(&mut app, &share.0), 3);
+}
+
+#[test]
+fn a_file_already_on_the_stick_with_the_same_bytes_is_marked_and_one_with_other_bytes_is_not() {
+    let mut app = testkit::started();
+    let share = kit("savings-share-1-of-3.txt");
+    let a = Stick::new("a", std::slice::from_ref(&share));
+    attach(&mut app, &[&a]);
+    copy_in(&mut app, &[&a], &[&share.0]);
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    // The same name and size, and not the same bytes.
+    let mut other = share.1.clone();
+    let last = other.len() - 1;
+    other[last] = other[last].wrapping_add(1);
+    let c = Stick::new("c", &[(share.0.clone(), other)]);
+    attach(&mut app, &[&c]);
+    pump(&mut app, &[&c]);
+    assert_eq!(
+        checked_rows(&mut app, &share.0),
+        0,
+        "a name clash was marked"
+    );
+    // The same bytes under the name in different case.
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    let d = Stick::new("d", &[(share.0.to_uppercase(), share.1.clone())]);
+    attach(&mut app, &[&d]);
+    pump(&mut app, &[&d]);
+    assert_eq!(checked_rows(&mut app, &share.0), 1);
+    assert_eq!(checked_rows(&mut app, &share.0.to_uppercase()), 1);
 }

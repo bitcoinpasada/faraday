@@ -1137,6 +1137,7 @@ impl Faraday {
             outbox: pack(&self.outbox),
             kept,
         });
+        self.visit_same_ask();
     }
 
     /// After a lock whose save failed with keys waiting for their backup:

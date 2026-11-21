@@ -82,7 +82,8 @@ pub(crate) fn visit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
             t.shot(&format!("visit-page-outbox-{k}"))?;
         }
         unprotected(t)?;
-        return not_clean(t);
+        not_clean(t)?;
+        return same_files(t);
     }
     let _ = t.app.frame();
     let over = t
@@ -109,7 +110,8 @@ pub(crate) fn visit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.press(Action::VisitOutAll);
     t.shot("visit-outbox-none")?;
     unprotected(t)?;
-    not_clean(t)
+    not_clean(t)?;
+    same_files(t)
 }
 
 /// The stick's pane of Files once the process is no longer clean: a words file in the
@@ -205,4 +207,64 @@ fn import_and_sign(t: &mut Tour) -> Result<(), String> {
     }
     t.sticks(false);
     Ok(())
+}
+
+/// A file in Faraday and on the stick, the same file: in a fresh process
+/// with the stick in, one wallet file is copied in through the Read path and
+/// its row is green in both cards; then Files is open again with the same
+/// stick, and the other files stay as they were.
+fn same_files(t: &mut Tour) -> Result<(), String> {
+    t.restart();
+    t.sticks(true);
+    t.press(Action::Nav(Screen::Files));
+    t.shot("visit-same-before")?;
+    let names: Vec<faraday_text::Text> = t.stick().files.iter().map(|(n, _)| n.clone()).collect();
+    let at = names
+        .iter()
+        .position(|n| n.ends_with("-wallet.txt"))
+        .ok_or("no wallet file on the stick")?;
+    t.press(Action::VisitInAll);
+    t.press(Action::VisitIn(at));
+    t.press(Action::VisitCopy);
+    show_same(t, "visit-same-import", at)?;
+    // A file written to the stick and read back: its row in the Outbox's
+    // card, the receipt and the stick's card.
+    let bytes = b"Tour notes\n".to_vec();
+    let bytes_on_disk = bytes.clone();
+    t.app.outbox.push(faraday_core::Item {
+        name: faraday_text::Text::of("tour-notes.txt"),
+        kind: faraday_core::wallet::FileKind::Text,
+        bytes: bytes.into(),
+        secret: false,
+        picture: None,
+        sha: None,
+        facts: None,
+        wallet: None,
+        psbt: None,
+        outpoints: Vec::new(),
+        unsigned_txid: None,
+    });
+    t.press(Action::Nav(Screen::Files));
+    // The stick takes the file as a real one does, before it is listed.
+    std::fs::write(t.kit.join("tour-notes.txt"), &bytes_on_disk).map_err(|e| e.to_string())?;
+    t.press(Action::VisitWrite);
+    t.shot("visit-same-write")?;
+    t.sticks(true);
+    let names: Vec<faraday_text::Text> = t.stick().files.iter().map(|(n, _)| n.clone()).collect();
+    let at = names
+        .iter()
+        .position(|n| &**n == "tour-notes.txt")
+        .ok_or("the written file is not on the stick")?;
+    show_same(t, "visit-same-written", at)
+}
+
+/// The frame `name` of the cards with the stick's file `at` in view.
+fn show_same(t: &mut Tour, name: &str, at: usize) -> Result<(), String> {
+    if t.app.is_compact() {
+        t.press(Action::VisitTab(faraday_core::Column::Stick));
+        scroll_to(t, Action::VisitIn(at));
+        t.shot(&format!("{name}-stick"))?;
+        t.press(Action::VisitTab(faraday_core::Column::Outbox));
+    }
+    t.shot(name)
 }

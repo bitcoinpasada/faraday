@@ -28,6 +28,7 @@ mod sheets;
 mod sidebar;
 mod spend;
 mod visit;
+mod visit_same;
 mod wallets;
 mod wallets_start;
 

@@ -891,6 +891,19 @@ card shows "Lock to use {stick}" and a Lock button.
   on the boot stick when the settings differ from what the boot stick
   holds, unticked on any other stick, and written over the settings
   file already there.
+- **The same file in both** (F306): a file in Faraday and on the stick, the
+  same name (as FAT compares names) and the same bytes, has its row in both
+  cards drawn in the green container with a check at the row box's end,
+  over which hover and press still show. It is known when the bytes were
+  seen alike, never worked out while drawing: a file copied in (Import,
+  Import and load), a file written and read back and compared (the file in
+  the receipt and the stick's row), and, for a file already on both when the
+  stick is opened or Faraday gains the file, by the shell hashing the stick's
+  file once and Faraday comparing it with its own copy (a file with the
+  same name and size only). Not the settings row, not a file whose bytes
+  differ (a name clash stays the Already on the stick sheet), and a Keep both
+  file is not the same file under its other name. A row that has a tag
+  ("On this stick", "In Faraday", "Public") keeps it, left of the check.
 - **Write** while the process is no longer clean (a key loaded, a
   secret typed or the camera on since the stick came in) writes nothing
   and opens the write-out sheet, as Write it to a stick does from Files:
@@ -901,7 +914,8 @@ card shows "Lock to use {stick}" and a Lock button.
   where it stays for the next stick: a copy from one stick to another,
   one after the other or both in at once. A file the stick shown holds
   already (by name and size) is listed greyed, tagged **On this stick**
-  (**On this card or stick**), with a disabled checkbox that cannot be ticked:
+  (**On this card or stick**), with a disabled checkbox that cannot be ticked,
+  and green with a check where the bytes are the same too (below):
   a file just copied in shows here at once, and no "Copied" line says
   it. A public or sealed file (a GPG public key or signature
   included, F22; a revocation `.rev` file is not one, F32) is ticked like a file For the stick, and

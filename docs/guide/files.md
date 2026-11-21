@@ -22,6 +22,8 @@ Files is one page whether a stick is attached or not: **In Faraday** holds every
 
 The top bar gives the state of the stick in a chip. With no stick attached, **On the stick** says it is waiting for one. With a stick attached while a secret is held, it says to lock to use the stick, with a **Lock** button; the secrets leave memory. Otherwise the card lists the stick's files, and its heading has the stick's label as a chip and **Rename stick**. A stick holding one PSBT offers **Import and sign** and the file's name: only that file comes in, and it lands on its review.
 
+A file in Faraday and on the stick with the same name and bytes shows green with a check in both lists. A file of the same name with other bytes is not marked; writing it asks first.
+
 ## Formatting a stick
 
 **Key:** files.format-stick
