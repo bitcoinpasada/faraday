@@ -192,11 +192,21 @@ fn the_sticks_spend_signs_and_finishes_on_the_spend_tab() {
     });
     // What do you have? offers the stick's vault.
     app.press(Action::Nav(Screen::SpendBackup));
+    // The map's Next opens What do you have?, where the vaults are listed
+    // and the passphrase is typed.
+    app.press(Action::SpendBackup(F::Next(
+        faraday_core::spend_backup::page::MAP,
+    )));
+    let _ = app.frame();
     let v = app
         .vault_files()
         .iter()
         .position(|f| f.name == "vault.kdbx")
         .unwrap();
+    assert!(
+        app.offers(Action::SpendBackup(F::Pick(v))),
+        "the vault is not offered"
+    );
     app.press(Action::SpendBackup(F::Pick(v)));
     for c in testkit::BACKUP_VAULT_PASSPHRASE.chars() {
         app.event(Event::Key(Key::Char(c)));
