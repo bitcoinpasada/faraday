@@ -870,13 +870,15 @@ difference"), and says why.
     wallet (Faraday's reading of such a claim depends on the account
     path it states).
 - `import`
-  - Still ours, expected from Faraday's rule: a SLIP-132 version that
-    names another script than the file's (F155), a BSMS paths line other
-    than /0/*,/1/* or No path restrictions, which Faraday reads as the
-    two chains (F64), a BSMS descriptor that is not a template, a key
-    record whose description is over eighty characters or whose token is
-    not BIP 129's; and which account of a Coldcard export, which pair of
-    a `listdescriptors`, and what each field of every format means, the
+  - Still ours, expected from Faraday's rule: a key alone with no
+    origin, which Faraday refuses as a wallet (nothing says whose key it
+    is or at what path), a SLIP-132 version that names another script
+    than the file's (F155), a BSMS paths line other than /0/*,/1/* or No
+    path restrictions, which Faraday reads as the two chains (F64), a
+    BSMS descriptor that is not a template, a key record whose
+    description is over eighty characters or whose token is not BIP
+    129's; and which account of a Coldcard export, which pair of a
+    `listdescriptors`, and what each field of every format means, the
     area's reading of each format's documentation; a checksum in Specter
     DIY's `addwallet`, which Specter DIY drops unread and Faraday
     checks, is refused when Core's code calls it wrong; and the reading
