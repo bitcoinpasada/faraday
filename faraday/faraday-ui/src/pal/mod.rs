@@ -150,6 +150,14 @@ pub const VIEWFINDER_READ: Color = Color::rgb(0x4c, 0xd9, 0x7b);
 /// `tokens::VIEWFINDER_BAND_ALPHA`.
 pub const VIEWFINDER_BAND: Color = Color::rgb(0x05, 0x08, 0x0b);
 
+/// The destination badges' fill, Bitcoin orange #F7931A, the same in every
+/// theme and contrast level, and the colour of their count: white. The
+/// owner's choice over the contrast threshold (about 2.3:1), matching the
+/// Bitcoin mark (`docs/decisions/F311.md`); no contrast check holds this pair.
+pub const BADGE: Paint = Paint::Fixed(Color::rgb(0xf7, 0x93, 0x1a));
+/// The count's colour on [`BADGE`]: white (F311).
+pub const ON_BADGE: Paint = Paint::Fixed(Color::rgb(0xff, 0xff, 0xff));
+
 /// The boot stick's pill and render: Bitcoin's orange, on a dark page.
 pub(crate) const STICK_BOOT: Color = Color::rgb(0xf7, 0x93, 0x1a);
 /// The backup sticks' pills and renders on a dark page, Stick 1, 2,

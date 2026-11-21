@@ -120,7 +120,7 @@ why not 2025 or 2026):
 | Other | scrim, shadow |
 | Custom (§5) | ok, on-ok, ok-container, on-ok-container; warning, on-warning, warning-container, on-warning-container; checksum, on-checksum, checksum-container, on-checksum-container |
 
-Forty-five roles a scheme. Not taken, each for a reason:
+Forty-five roles a scheme. Beside them two fixed colours, the same in every theme and contrast level: `BADGE` #F7931A (Bitcoin orange) and `ON_BADGE` white, the destination badges' fill and count (F311; the owner's choice over the contrast threshold, about 2.3:1). Not taken, each for a reason:
 
 - **The fixed roles** (primary-fixed, on-primary-fixed and the rest):
   colours that stay the same across modes; nothing in Faraday needs one.

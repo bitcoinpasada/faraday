@@ -320,3 +320,4 @@ Read this table, then only the decision you need.
 | [F307](decisions/F307.md) | The top app bar names the page on every desktop window, back only below a destination, and the guide is the ? | 2026-11-21 | Active | design |
 | [F308](decisions/F308.md) | The guide shows where the reader is: its scrollbar is always shown, its page's title is pinned under the tabs and the "Guide" heading is gone | 2026-11-21 | Active | design |
 | [F309](decisions/F309.md) | Create a vault starts on 64 MiB everywhere, has a 128 MiB preset, and names the Pi in its rows | 2026-11-21 | Active | vaults |
+| [F311](decisions/F311.md) | The navigation's badges are Bitcoin orange with a white count, in every theme | 2026-11-21 | Active | design |
