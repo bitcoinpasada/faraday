@@ -386,6 +386,35 @@ pub(crate) const KEY_UNITS_SPACE: f32 = 6.0;
 /// (`docs/DESIGN.md` §4.3).
 pub(crate) const KANA_COLUMNS: usize = 10;
 
+/// Width from which Add a key's page with a list's own keyboard counts
+/// as wide: the word count joins the list chips and the keys are as tall
+/// as the touch floor.
+pub const WORD_KEYS_WIDE_FROM: f32 = 600.0;
+/// Room the word count needs after the last list chip to stand on its
+/// row: its label and five chips.
+pub const WORD_COUNT_BESIDE_MIN: f32 = 340.0;
+/// On the wide page, the stick row's height above the buttons, and the
+/// gap between the passphrase and it.
+pub const WIDE_STICK_ROW: f32 = 44.0;
+/// Gap under the passphrase on the wide page, before the buttons.
+pub const WIDE_FINISH_GAP: f32 = 8.0;
+/// Width of a passphrase field's label on Add a key.
+pub const PASS_LABEL_W: f32 = 150.0;
+/// Gap between the two passphrase fields side by side.
+pub const PASS_BESIDE_GAP: f32 = 12.0;
+/// Width the way in from a stick needs beside the buttons' hint.
+pub const WIDE_STICK_W: f32 = 190.0;
+/// Gap before the way in from a stick, after the buttons' hint.
+pub const WIDE_STICK_GAP: f32 = 16.0;
+/// Where Clear starts after Add a key's button, on Add a key.
+pub const FINISH_CLEAR_X: f32 = 152.0;
+/// Gap between Add a key's buttons.
+pub const FINISH_BUTTON_GAP: f32 = 8.0;
+/// Gap between the last button and the keys' hint.
+pub const FINISH_HINT_GAP: f32 = 20.0;
+/// Slack added to a keyboard's area so its rows do not round down.
+pub const KEY_AREA_SLACK: f32 = 0.01;
+
 /// Cells in one row of candidates on a list whose words are one
 /// character — the two Chinese lists, looked up by a Mandarin reading.
 ///

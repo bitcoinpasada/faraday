@@ -14,7 +14,7 @@ use faraday_draw::tokens::{
 };
 use faraday_draw::widgets::Icon;
 use faraday_text::Text;
-use faraday_ui::parts::{button_rows, section_label, wrap_buttons};
+use faraday_ui::parts::{button_rows, button_rows_ending, section_label, wrap_buttons};
 
 /// The four forms as a row of chips, the form shown chosen. Returns the
 /// height.
@@ -187,8 +187,16 @@ pub(crate) fn entry_words(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, h
         if app.entry_paste_offered() {
             ui.demo_offer(EN.paste_words, Action::PasteWords);
         }
-        y += button_rows(ui, x, y, width, &langs);
-        return keyed_words(app, w, ui, x, y, width, h);
+        // On a wide page the word count follows the list chips on their
+        // last row when it fits there, one row less.
+        let (rows_h, last, end) = button_rows_ending(ui, x, y, width, &langs);
+        let beside = wide_keyed(app, width)
+            && x + width - end >= faraday_draw::tokens::WORD_COUNT_BESIDE_MIN;
+        if beside {
+            word_count_row(app, ui, end, last, x + width - end, true);
+        }
+        y += rows_h;
+        return keyed_words(app, w, ui, (x, y, width, h), beside);
     }
 
     let words: Vec<&str> = app.entry.state().typed.split_whitespace().collect();
@@ -299,17 +307,17 @@ fn keyed_words(
     app: &View,
     w: &crate::word_entry::WordEntry,
     ui: &mut Ui,
-    x: f32,
-    y: f32,
-    width: f32,
-    h: f32,
+    (x, y, width, h): (f32, f32, f32, f32),
+    counted: bool,
 ) -> f32 {
     let lang = app.entry.state().language();
     let kind = w.keyboard();
     let mut y = y;
     // The words taken, in a grid, the next one's keys in its cell.
     let taken: Vec<u16> = w.committed_indices().collect();
-    y += word_count_row(app, ui, x, y, width, true);
+    if !counted {
+        y += word_count_row(app, ui, x, y, width, true);
+    }
     let open = w.held_indices().count() + usize::from(!w.held_prefix().is_empty());
     y += keyed_cells(
         ui,
@@ -337,9 +345,30 @@ fn keyed_words(
     // The keyboard, laid out in design units, its keys as tall as the
     // room above the status, the passphrase and the buttons allows.
     let rows = faraday_draw::widgets::keyboard::rows(kind) as f32;
-    let room = h - 82.0 - 8.0 - 40.0 - 12.0 - y;
-    let kh = (room / rows).clamp(22.0, 36.0);
+    let kh = if wide_keyed(app, width) {
+        // Every key is as tall as the touch floor, the keyboard's own
+        // reserve under its last row included.
+        use faraday_draw::tokens::{KEY_BOTTOM_INSET, KEY_FACE_INSET_Y, TOUCH};
+        (rows * TOUCH + KEY_BOTTOM_INSET - KEY_FACE_INSET_Y) / rows
+            + faraday_draw::tokens::KEY_AREA_SLACK
+    } else {
+        let room = h - 82.0 - 8.0 - 40.0 - 12.0 - y;
+        (room / rows).clamp(22.0, 36.0)
+    };
     word_keys(app.entry.state().shift, w, ui, x, y, width, kh)
+}
+
+/// Whether the page is wide and its words are typed on a list's own
+/// keyboard other than the Latin one: the keys are as tall as the touch
+/// floor, and the rows below the keyboard are closer.
+fn wide_keyed(app: &View, width: f32) -> bool {
+    width >= faraday_draw::tokens::WORD_KEYS_WIDE_FROM
+        && app
+            .entry
+            .state()
+            .keys
+            .as_deref()
+            .is_some_and(|w| w.keyboard() != faraday_draw::widgets::keyboard::KeyboardKind::Bip39)
 }
 
 /// The words typed on a list's own keyboard, as a status line: the
@@ -415,15 +444,30 @@ fn entry_status(
 }
 
 /// Add a key's passphrase on a wide page: the field with its label at its
-/// left, and a second one under it, with the line while they differ, where
+/// left, and a second one under it (beside it, with the keys of a list), with the line while they differ, where
 /// the passphrase is asked twice (`EntryState::pair`). Returns the height
 /// used.
 fn entry_pass_fields(app: &View, ui: &mut Ui, (x, y, width): (f32, f32, f32), label: &str) -> f32 {
     let e = app.entry.state();
-    let px = x + 150.0;
-    let pw = 380.0f32.min(width - 150.0);
+    // On the wide page with the keys of a list, the two fields stand side
+    // by side, each in half the width.
+    let beside = e.pair() && wide_keyed(app, width);
+    let (label_w, half) = (faraday_draw::tokens::PASS_LABEL_W, width / 2.0);
+    let (px, pw) = if beside {
+        (
+            x + label_w,
+            half - label_w - faraday_draw::tokens::PASS_BESIDE_GAP,
+        )
+    } else {
+        (x + label_w, 380.0f32.min(width - label_w))
+    };
     let field = |ui: &mut Ui, n: u8, fy: f32| {
         let second = n == 1;
+        let (x, px) = if beside && second {
+            (x + half, px + half)
+        } else {
+            (x, px)
+        };
         let on = e.on_passphrase && e.passphrase.on_again() == second;
         ui.text_mid_as(
             (x, fy, 40.0),
@@ -472,7 +516,24 @@ fn entry_pass_fields(app: &View, ui: &mut Ui, (x, y, width): (f32, f32, f32), la
         );
         48.0
     };
-    let h = if e.pair() {
+    let h = if beside {
+        field(ui, 0, y);
+        field(ui, 1, y);
+        let again_differs = !e.passphrase.again_str().is_empty()
+            && crate::pass_field::pair::differ(e.passphrase.as_str(), e.passphrase.again_str());
+        let line = if again_differs {
+            ui.field_supporting(
+                (px, y + faraday_draw::tokens::TOUCH, pw),
+                Role::Error,
+                EN.pass_pair_differ,
+                false,
+            )
+            .max(22.0)
+        } else {
+            0.0
+        };
+        40.0 + line
+    } else if e.pair() {
         crate::pass_field::pair::pass_pair(
             ui,
             (px, y, pw),
@@ -516,8 +577,27 @@ fn entry_finish(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) -> 
     // The stick row and the buttons sit at the bottom of the screen, but
     // move down below the passphrase field when the words above it (up
     // to 24 of them) would otherwise run under it.
-    let by = (h - 36.0 - 46.0).max(y + ph + 24.0 + 48.0);
-    entry_stick(app, ui, x, by - 48.0, width);
+    // On the wide page with the keys of a list, the way in from a stick
+    // stands on the buttons' row, after the keys' hint.
+    let hint_end = x
+        + faraday_draw::tokens::FINISH_CLEAR_X
+        + ui.button_width(EN.entry_finish_clear, Style::Ghost)
+        + faraday_draw::tokens::FINISH_BUTTON_GAP
+        + ui.button_width(EN.entry_finish_new_key, Style::Secondary)
+        + faraday_draw::tokens::FINISH_HINT_GAP
+        + ui.measure_as(BODY_S, EN.entry_finish_keys_hint);
+    let wide = wide_keyed(app, width)
+        && hint_end + faraday_draw::tokens::WIDE_STICK_GAP + faraday_draw::tokens::WIDE_STICK_W
+            <= x + width;
+    let above = if wide {
+        faraday_draw::tokens::WIDE_FINISH_GAP
+    } else {
+        24.0 + 48.0
+    };
+    let by = (h - 36.0 - 46.0).max(y + ph + above);
+    if !wide {
+        entry_stick(app, ui, x, by - 48.0, width);
+    }
     ui.button(
         x,
         by,
@@ -534,7 +614,7 @@ fn entry_finish(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) -> 
         Action::EntryAdd,
     );
     let clear_w = ui.button(
-        x + 152.0,
+        x + faraday_draw::tokens::FINISH_CLEAR_X,
         by,
         None,
         BUTTON_H,
@@ -542,7 +622,10 @@ fn entry_finish(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) -> 
         Style::Ghost,
         Action::EntryClear,
     );
-    let new_x = x + 152.0 + clear_w + 8.0;
+    let new_x = x
+        + faraday_draw::tokens::FINISH_CLEAR_X
+        + clear_w
+        + faraday_draw::tokens::FINISH_BUTTON_GAP;
     // A Restore slot is filled from a backup: making a new key is not
     // offered there.
     let new_w = (app.entry.state().back != Some(Screen::Restore)).then(|| {
@@ -556,12 +639,14 @@ fn entry_finish(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) -> 
             Action::KeyGen(None),
         )
     });
-    keys_hint(
-        ui,
-        (x, width),
-        (new_w.map_or(new_x, |w| new_x + w + 20.0), by),
-        EN.entry_finish_keys_hint,
-    )
+    let hint_x = new_w.map_or(new_x, |w| new_x + w + faraday_draw::tokens::FINISH_HINT_GAP);
+    if wide {
+        let sx = hint_x
+            + ui.measure_as(BODY_S, EN.entry_finish_keys_hint)
+            + faraday_draw::tokens::WIDE_STICK_GAP;
+        entry_stick(app, ui, sx, by, x + width - sx);
+    }
+    keys_hint(ui, (x, width), (hint_x, by), EN.entry_finish_keys_hint)
 }
 
 /// The keys' hint of a foot row of 46 high at `by`: beside its buttons,

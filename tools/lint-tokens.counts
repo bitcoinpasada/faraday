@@ -21,7 +21,7 @@ faraday/faraday-core/src/screens/backup.rs 160
 faraday/faraday-core/src/screens/catalog.rs 12
 faraday/faraday-core/src/screens/check_message.rs 30
 faraday/faraday-core/src/screens/create.rs 27
-faraday/faraday-core/src/screens/entry.rs 78
+faraday/faraday-core/src/screens/entry.rs 74
 faraday/faraday-core/src/screens/files.rs 283
 faraday/faraday-core/src/screens/home.rs 4
 faraday/faraday-core/src/screens/message.rs 26

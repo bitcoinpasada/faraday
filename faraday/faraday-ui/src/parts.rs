@@ -57,6 +57,18 @@ pub fn button_rows<A: Copy + PartialEq, L: AsRef<str>>(
     w: f32,
     items: &[(L, Style, A)],
 ) -> f32 {
+    button_rows_ending(ui, x, y, w, items).0
+}
+
+/// [`button_rows`], and where its last row ends: that row's top, and the
+/// x after its last button and the gap, for a control to follow on it.
+pub fn button_rows_ending<A: Copy + PartialEq, L: AsRef<str>>(
+    ui: &mut Ui<A>,
+    x: f32,
+    y: f32,
+    w: f32,
+    items: &[(L, Style, A)],
+) -> (f32, f32, f32) {
     // As tall as larger text needs (`docs/TEXT-SIZE.md` §5).
     let bh = ui.button_height(BUTTON_H);
     let pitch = (bh + GAP).max(ui.touch);
@@ -82,7 +94,7 @@ pub fn button_rows<A: Copy + PartialEq, L: AsRef<str>>(
             ui.button(bx, by, Some(bw), bh, label, *style, *action) + GAP
         };
     }
-    by - y + pitch
+    (by - y + pitch, by, bx)
 }
 
 /// Buttons `h` high, or as tall as larger text needs
