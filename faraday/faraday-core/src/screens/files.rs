@@ -459,6 +459,11 @@ pub(super) fn stick_status(app: &View) -> (Text, Option<Action>) {
 /// it begin (`docs/LAYOUT.md` §17). Returns where it begins.
 pub(crate) fn stick_chip(app: &View, ui: &mut Ui, right: f32) -> f32 {
     use faraday_draw::tokens::{APP_BAR_H, GAP, STATUS_CHIP_H, STATUS_CHIP_PAD};
+    // With no stick, the card on the stick says it waits: no chip says it
+    // too.
+    if app.stick.is_empty() && !app.stick.attached_unlisted() {
+        return right;
+    }
     let (label, action) = stick_status(app);
     let mid = APP_BAR_H / 2.0;
     let right = right - GAP;

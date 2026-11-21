@@ -15,8 +15,8 @@ use faraday_draw::tokens::{
     BODY_M, BODY_S, BUTTON_H, BUTTON_PAD, GAP_SMALL, GRID, LABEL_L, LABEL_M, ROW, SHAPE_M, TITLE_M,
     TITLE_S, TOUCH, VISIT_BUTTON_PAD, VISIT_CARD_FOOT, VISIT_CARD_HEAD, VISIT_CHIP_EXTRA,
     VISIT_CHIP_PRESS_RISE, VISIT_CHIP_TOP, VISIT_COMPACT_HEAD, VISIT_COUNT_GAP, VISIT_FOOT_ROW,
-    VISIT_FOOT_TEXT_LESS, VISIT_GROUP_HEAD, VISIT_LOG_H, VISIT_NAME_MIN, VISIT_NOTE_ICON,
-    VISIT_NOTE_TEXT_X, VISIT_PAD, VISIT_ROW_BUTTON_H, VISIT_TEXT_X, VISIT_TITLE_X,
+    VISIT_GROUP_HEAD, VISIT_LOG_H, VISIT_NAME_MIN, VISIT_PAD, VISIT_ROW_BUTTON_H, VISIT_TEXT_X,
+    VISIT_TITLE_X,
 };
 use faraday_draw::widgets::Icon;
 use faraday_text::Text;
@@ -496,23 +496,11 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
         }
         None => head,
     };
-    // A small panel puts the foot lines at the end of the list, wrapped, so
-    // the list has the card's height.
-    let note = Text::fill(EN.files_power_off_asks, &[app.medium.for_the()]);
-    let tail = compact && !usable;
-    let tail_h = tail.then(|| {
-        let tw = colw - VISIT_FOOT_TEXT_LESS;
-        let mut h = ui.wrap_height_as(BODY_S, EN.files_in_memory_emptied, tw);
-        if !app.outbox.is_empty() {
-            h += GAP_SMALL + ui.wrap_height_as(BODY_S, &note, tw);
-        }
-        h + GRID
-    });
-    let tail_h = tail_h.unwrap_or_default();
-    let foot_h = if tail {
-        VISIT_CARD_FOOT - VISIT_FOOT_ROW
-    } else {
+    // Without a stick the card has no foot row.
+    let foot_h = if usable {
         VISIT_CARD_FOOT
+    } else {
+        VISIT_CARD_FOOT - VISIT_FOOT_ROW
     };
     let list_top = y + head;
     let track_h = (colh - head - foot_h).max(ROW);
@@ -546,8 +534,7 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
         }
         + VISIT_GROUP_HEAD
         + shown.len().max(1) as f32 * ROW
-        + receipt_h
-        + tail_h;
+        + receipt_h;
     let max_shift = (all_h - track_h).max(0.0);
     let shift = app.visit.out_offset.min(max_shift);
     let clip = ui.rect(x, list_top, colw, track_h);
@@ -706,26 +693,6 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
     if let Some(r) = app.visit.receipt().as_ref() {
         super::files::receipt_rows(ui, r, app.tz_min(), x + 22.0, ry + GAP_SMALL, colw - 44.0);
     }
-    if tail {
-        let tw = colw - VISIT_FOOT_TEXT_LESS;
-        let mut ty = ry + receipt_h + GRID;
-        let (ox, oy, ow, og) = VISIT_NOTE_ICON;
-        ui.icon(x + ox, ty + oy, ow, Icon::Power, og, Role::OnSurfaceVariant);
-        ty += ui.wrap_as(
-            (x + VISIT_NOTE_TEXT_X, ty, tw),
-            BODY_S,
-            Role::OnSurfaceVariant,
-            EN.files_in_memory_emptied,
-        );
-        if !app.outbox.is_empty() {
-            ui.wrap_as(
-                (x + VISIT_NOTE_TEXT_X, ty + GAP_SMALL, tw),
-                BODY_S,
-                Role::OnSurfaceVariant,
-                &note,
-            );
-        }
-    }
     ui.region_close(open, max_shift);
     visit_list_bar(
         app,
@@ -761,26 +728,6 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
             Style::Primary.when(nout > 0),
             Action::VisitWrite,
         );
-    } else if !tail {
-        // Nothing to write to: what is here stays in memory.
-        ui.icon(
-            x + 20.0,
-            fy + 8.0,
-            20.0,
-            Icon::Power,
-            11.0,
-            Role::OnSurfaceVariant,
-        );
-        ui.text_as(
-            x + 46.0,
-            fy + 6.0,
-            BODY_S,
-            Role::OnSurfaceVariant,
-            EN.files_in_memory_emptied,
-        );
-        if !app.outbox.is_empty() {
-            ui.text_as(x + 46.0, fy + 26.0, BODY_S, Role::OnSurfaceVariant, &note);
-        }
     }
 }
 

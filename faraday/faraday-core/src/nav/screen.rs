@@ -2,7 +2,7 @@
 //! as Faraday draws them (`docs/LAYOUT.md` §3, DESIGN §4.1), from
 //! `faraday_ui::nav`. Each reads the state; none works anything out.
 
-use super::{MenuPress, Nav, destination_of};
+use super::{MenuPress, Nav, lit_destination};
 use crate::drawing::View;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
@@ -28,7 +28,7 @@ fn dest<'s>(
     action: Action,
 ) -> Dest<'s, Action> {
     let current = match action {
-        Action::Nav(s) => destination_of(app.screen) == s && app.sheet != Some(Sheet::Guide),
+        Action::Nav(s) => lit_destination(app) == s && app.sheet != Some(Sheet::Guide),
         Action::Guide => app.sheet == Some(Sheet::Guide),
         _ => false,
     };

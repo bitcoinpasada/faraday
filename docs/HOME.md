@@ -257,8 +257,7 @@ draw none, the rail and the sidebar listing Check (F275).
 ### 6.4 Files once in the sidebar
 
 The sidebar lists Files once, as a tab. It carries its badge (the Inbox's
-count, or the dot for a stick not visited) and, at its end in the muted
-tone, "{n} to write" while files wait to be written. The sticks row at the
+count, or the dot for a stick not visited), and no second count. The sticks row at the
 foot stays. The sidebar lists no keys and no wallets: they are on Home (§3).
 
 ## 7. At each size

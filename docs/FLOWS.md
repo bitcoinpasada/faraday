@@ -1003,7 +1003,7 @@ A locked vault says what it held (decision 23, `docs/VAULT.md` §11): what
 it held when last seen open is kept across a lock until power-off; its
 row goes by its name and Home's lead is "Unlock {name}", both with the
 line "Savings 2 of 3 · key 9a6a2580 · 12 entries · seen 14:02"; with
-nothing remembered, "Unlock to see what it holds".
+nothing remembered, no line.
 
 - open vault → **View contents** → Vault contents;
 - locked vault → **Unlock** → passphrase sheet → Vault contents of that
@@ -1055,7 +1055,7 @@ chosen machine gives.
 **Vault contents**: the kinds it holds (only those a slot holds
 something of), then a row per add action, the Add icon in the accent
 colour (decision 58): Save a key, Save a wallet, Add an entry, Add a
-note, Make a key, Make keys; Save a key lists every key loaded and not
+note, Make a key, Make keys (the only add actions: the category's header carries none of its own); Save a key lists every key loaded and not
 in the vault, of words or of the master seed a codex32 or SLIP-39 key
 came from, and saves it as a key record (`docs/VAULT.md` §7, type 2:
 the seed payload and, for a codex32 key, its set's facts in field 5);
@@ -1064,11 +1064,11 @@ paperkey each show behind their eye (DESIGN §4.10);
 an empty vault shows them as buttons under "Nothing in it yet", then
 **Write it to a stick** → items → details. Unlocked, it opens on Wallets
 where it holds one (decision 42): a wallet's item shows the plan's three
-check lines, then the wallet's chart (DESIGN §4.16) read from the backup
-up: the places, vaults, files and software of the plan this vault keeps
-for it, each with what it holds and what it gives whoever finds it
-alone; the keys under them, a seed the vault keeps reading "In this
-vault"; the wallet at the foot. Then its descriptor and **Open in
+check lines, then the wallet's chart (DESIGN §4.16) drawn as Wallets'
+is, the wallet at the top: its keys under it, a seed the vault keeps
+reading "In this vault", then the places, vaults, files and software of
+the plan this vault keeps for it, each with what it holds and what it
+gives whoever finds it alone; the wallet's shape once, in its heading. Then its descriptor and **Open in
 Wallets**. Each node opens its sheet (Wallets tab, the chart's sheets);
 an action there loads the wallet, and its seeds the vault keeps where
 keys may load, first. While a wallet's item is shown the kinds and items

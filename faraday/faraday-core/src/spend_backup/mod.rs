@@ -346,6 +346,11 @@ impl SpendBackupArea {
         self.state.from = matches!(from, Screen::Home | Screen::WalletsStart).then_some(from);
     }
 
+    /// The screen the tab was opened from, when Home or Wallets.
+    pub(crate) fn from(&self) -> Option<Screen> {
+        self.state.from
+    }
+
     /// The words route's seeds could not be read: the error they show.
     pub(crate) fn set_seeds_error(&mut self, error: Text) {
         self.state.seeds.error = Some(error);

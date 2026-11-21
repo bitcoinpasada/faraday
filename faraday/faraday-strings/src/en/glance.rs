@@ -105,8 +105,6 @@ macro_rules! words_glance {
     /// Text in `rows`.
     glance_no_backup_plan_short: "No backup plan",
     /// Text in `rows`.
-    glance_back_up: "Back up",
-    /// Text in `rows`.
     glance_no_backup_plan: "No backup plan in this vault",
     /// Text in `draw_column_with`.
     glance_backup: "Backup",

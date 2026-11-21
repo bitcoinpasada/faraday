@@ -284,7 +284,7 @@ fn backups_at_1920_shows_the_chosen_wallets_map_beside_the_wallets() {
 }
 
 #[test]
-fn files_shows_its_two_lists_side_by_side_and_the_stick_in_the_top_row() {
+fn files_shows_its_two_lists_side_by_side_and_waiting_for_a_stick_once_in_the_stick_panel() {
     let mut app = with_wallets(1920, 1080, 160);
     app.press(Action::Nav(Screen::Files));
     // Beside the expanded rail, which names Files too.
@@ -301,9 +301,14 @@ fn files_shows_its_two_lists_side_by_side_and_the_stick_in_the_top_row() {
     assert_eq!(from.1, for_.1, "the two lists' titles on one line");
     assert!(for_.0 > from.0, "{from:?} {for_:?}");
     let waiting = boxes(&mut app, "Waiting for a stick");
+    assert_eq!(
+        waiting.len(),
+        1,
+        "waiting for a stick is said once: {waiting:?}"
+    );
     assert!(
-        waiting.iter().any(|b| b.1 + b.3 <= 48 && b.0 > for_.0),
-        "the stick's chip in the top row at the right: {waiting:?}"
+        waiting[0].1 > 48 && waiting[0].0 > for_.0 - 40,
+        "in the stick's panel, not the top row: {waiting:?}"
     );
 }
 

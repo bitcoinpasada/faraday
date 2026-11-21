@@ -145,10 +145,12 @@ fn after_power_off_the_vaults_list_does_not_name_what_it_held() {
         "nothing of the vault is remembered: {texts:?}"
     );
     assert!(
-        texts
-            .iter()
-            .any(|t| t.contains("Unlock to see what it holds")),
-        "the row says how to see it: {texts:?}"
+        texts.iter().any(|t| t.contains("Locked")),
+        "the row says it is locked, and nothing more of it: {texts:?}"
+    );
+    assert!(
+        !texts.iter().any(|t| t.contains("Unlock to see")),
+        "no second line to say it again: {texts:?}"
     );
 }
 

@@ -80,10 +80,10 @@ pub(crate) fn backup_line(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, i: us
     h + 16.0
 }
 
-/// Where a wallet's missing keys may be, and the way to look: a locked
-/// vault to unlock (coming back to `back`), the open vaults that do not
-/// hold them, and the other places a seed is kept. Nothing when an open
-/// vault holds one, since its row loads it. Returns its height.
+/// Where a wallet's missing keys may be: a locked vault to unlock
+/// (coming back to `back`). Nothing when an open vault holds one, since
+/// its row loads it, and nothing when no vault is locked. Returns its
+/// height.
 #[allow(
     clippy::too_many_arguments,
     reason = "the missing-keys line's view, slots, back screen, position and width"
@@ -104,22 +104,14 @@ pub(crate) fn missing_keys_line(
     {
         return 0.0;
     }
+    // Only a locked vault is said: it may hold them, and Unlock is the
+    // way on.
     let files = app.vault_files();
-    let locked = files.iter().position(|f| f.open.is_none());
-    let open_names: Vec<String> = app
-        .vaults
-        .open
-        .iter()
-        .map(|v| String::from(v.name.as_str()))
-        .collect();
-    let line = match (locked, open_names.is_empty()) {
-        (Some(i), _) => fill(EN.missing_keys_line_locked, &[&files[i].name]),
-        (None, false) => fill(
-            EN.missing_keys_line_not_open,
-            &[&open_names.join(", ").to_string()],
-        ),
-        (None, true) => fill(EN.missing_keys_line_elsewhere, &[app.medium.a()]),
+    let Some(locked) = files.iter().position(|f| f.open.is_none()) else {
+        return 0.0;
     };
+    let line = fill(EN.missing_keys_line_locked, &[&files[locked].name]);
+    let locked = Some(locked);
     if ui.compact {
         ui.icon(
             x - 4.0,
@@ -253,18 +245,14 @@ fn wallet_list(app: &View, ui: &mut Ui, rect: (f32, f32, f32, f32)) {
         // Can spend at its end.
         let can = app.readiness(i) == 2;
         let differs = app.silent_differs(i);
-        let (m, _) = Session::quorum(wlt);
         let here = app.session.held_toward_quorum(wlt);
         let shape = Session::shape(wlt);
-        let line = if can {
+        // The card beside says how many signatures are possible here:
+        // the row says the shape, and watch only where none is.
+        let line = if can || here > 0 {
             shape.as_str().into()
-        } else if here == 0 {
-            fill(EN.wallets_watch_only, &[&shape])
         } else {
-            fill(
-                EN.wallets_of_here,
-                &[&shape, &here.to_string(), &m.to_string()],
-            )
+            fill(EN.wallets_watch_only, &[&shape])
         };
         let item = crate::panes::screen::Item {
             headline: &wlt.name,
@@ -459,6 +447,13 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if let Some((name, where_, action, verb)) = lead
         && !app.session.wallets.is_empty()
     {
+        // The selected wallet's own card carries the action: the banner
+        // then names the file only.
+        let wallet = app.wallets.wallet();
+        let on_card = match app.wallets.spend() {
+            Some(s) => s.wallet == Some(wallet),
+            None => app.psbt_for(wallet).is_some(),
+        };
         // A filled card: what leads stands in secondary-container, never
         // a tint (`docs/DESIGN.md` §3).
         let ink = Role::OnSecondaryContainer;
@@ -467,7 +462,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.icon(x + 14.0, y + 14.0, 20.0, Icon::File, 13.0, ink);
         let nw = ui.text_mid_as((x + 44.0, y, 48.0), BODY_M.mono(), ink, &name);
         ui.text_mid_as((x + 56.0 + nw, y, 48.0), BODY_M, ink, where_);
-        ui.text_right_as((x + width - 18.0, y, 48.0), LABEL_L, ink, verb);
+        if !on_card {
+            ui.text_right_as((x + width - 18.0, y, 48.0), LABEL_L, ink, verb);
+        }
         ui.press(card, ink.paint(), action);
         y += 64.0;
     }

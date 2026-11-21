@@ -1107,15 +1107,6 @@ pub const VISIT_CHIP_PRESS_RISE: f32 = 8.0;
 /// Files' cards on a small panel: the room over a list for the controls
 /// that stood in the heading, which the tab now names.
 pub const VISIT_COMPACT_HEAD: f32 = 56.0;
-/// Files' In Faraday card: what a foot line leaves of the card's width
-/// (its icon's column and the card's right edge).
-pub const VISIT_FOOT_TEXT_LESS: f32 = 66.0;
-/// Files' In Faraday card on a small panel, the foot lines in its list:
-/// the left of the power icon, its top below its line's, its box and its
-/// glyph.
-pub const VISIT_NOTE_ICON: (f32, f32, f32, f32) = (20.0, 2.0, 20.0, 11.0);
-/// The same lines' left edge.
-pub const VISIT_NOTE_TEXT_X: f32 = 46.0;
 /// Files' In Faraday card: a group's heading row in its list.
 pub const VISIT_GROUP_HEAD: f32 = 36.0;
 /// A visit card's side padding: where its controls and lines start and

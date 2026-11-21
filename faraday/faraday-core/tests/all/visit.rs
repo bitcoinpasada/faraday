@@ -1811,8 +1811,8 @@ fn with_no_stick_on_the_stick_has_no_buttons() {
         "Rename stick with no stick: {texts:?}"
     );
     assert!(
-        texts.iter().any(|t| t.starts_with("In memory")),
-        "In Faraday's foot says files stay in memory: {texts:?}"
+        !texts.iter().any(|t| t.starts_with("In memory")),
+        "no explanation under In Faraday's list: {texts:?}"
     );
 }
 

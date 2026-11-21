@@ -18,7 +18,7 @@ While a wallet is loaded, a bar above the list names the transaction file in han
 
 **Key:** wallets.list
 
-One row per wallet, with its name and shape. A wallet this computer cannot spend from adds **watch only**, or the count of keys here, as in **1 of 2 here**; one it can spend from is marked **Can spend**. **Does not match its key** and **Another key can spend** show in the error tone.
+One row per wallet, with its name and shape. A wallet this computer cannot spend from adds **watch only**; the card says how many signatures are possible here. One it can spend from is marked **Can spend**. **Does not match its key** and **Another key can spend** show in the error tone.
 
 With no wallet loaded the card reads **No wallet loaded**. **Add a key** opens a key's entry; when the chosen wallet is short of keys, it reads as scanning a key for that wallet instead.
 
@@ -59,6 +59,8 @@ Below it, for a wallet with a relative wait, **Spend paths** lists each path's k
 ## First receive address
 
 **Key:** wallets.receive
+
+A key that is not here may be in a vault on a stick, a paper backup or a SeedQR; a locked vault is named with **Unlock**.
 
 **First receive address · 0/0** shows the wallet's first address; press it to see its code. While a key of the wallet that was made here has no backup, **Back up before you receive** stands in its place, in the warning tone, and the address is not shown.
 

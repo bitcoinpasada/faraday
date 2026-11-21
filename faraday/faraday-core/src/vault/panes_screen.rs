@@ -29,6 +29,9 @@ pub(crate) struct Look {
     pub icon: Role,
     /// The row's edge.
     pub edge: Role,
+    /// Locked and nothing more: the row says so, and the card's Unlock
+    /// button; the card draws no state line of its own.
+    pub plain_locked: bool,
 }
 
 /// How vault file `f` reads in a list of vaults. Reads the state.
@@ -74,7 +77,7 @@ pub(crate) fn look(app: &View, f: &vault::VaultFile) -> Look {
                 .unwrap_or(if fresh {
                     EN.vault_new_vault
                 } else {
-                    EN.vault_locked_vault
+                    EN.vaults_vault
                 })
                 .to_string(),
             fill(EN.vault_remove_to_unlock, &[app.medium.noun()]),
@@ -90,19 +93,21 @@ pub(crate) fn look(app: &View, f: &vault::VaultFile) -> Look {
             Role::OkContainer,
         ),
         None => (
-            remembered.unwrap_or(EN.vault_locked_vault).to_string(),
+            remembered.unwrap_or(EN.vaults_vault).to_string(),
             EN.vault_locked.to_string(),
             muted,
             muted,
             rule,
         ),
     };
+    let plain_locked = open.is_none() && app.may_load_keys() && !fresh;
     Look {
         title,
         state,
         tone,
         icon,
         edge,
+        plain_locked,
     }
 }
 
@@ -208,9 +213,18 @@ fn card(
     };
     let line = super::screen::list_line(app, f, where_);
     let head = TOUCH + GAP;
-    let line_h =
-        crate::compact::screen::measured(ui, |ui| ui.wrap_as((ix, y, iw), BODY_S, muted, &line));
-    let ch = pad + head + line_h + GAP + TOUCH / 2.0 + GAP + BUTTON_H + pad;
+    let line_h = if line.is_empty() {
+        0.0
+    } else {
+        crate::compact::screen::measured(ui, |ui| ui.wrap_as((ix, y, iw), BODY_S, muted, &line))
+            + GAP
+    };
+    let state_h = if l.plain_locked {
+        0.0
+    } else {
+        TOUCH / 2.0 + GAP
+    };
+    let ch = pad + head + line_h + state_h + BUTTON_H + pad;
     ui.fill(x, y, w, ch, SHAPE_M, Role::SurfaceContainerLow);
     ui.stroke(x, y, w, ch, SHAPE_M, l.edge);
     let mut cy = y + pad;
@@ -228,9 +242,13 @@ fn card(
         &name,
     );
     cy += head;
-    cy += ui.wrap_as((ix, cy, iw), BODY_S, muted, &line) + GAP;
-    ui.text_as(ix, cy, LABEL_L, l.tone, &l.state);
-    cy += TOUCH / 2.0 + GAP;
+    if !line.is_empty() {
+        cy += ui.wrap_as((ix, cy, iw), BODY_S, muted, &line) + GAP;
+    }
+    if !l.plain_locked {
+        ui.text_as(ix, cy, LABEL_L, l.tone, &l.state);
+        cy += TOUCH / 2.0 + GAP;
+    }
     // An open vault: what is in it, and Lock, which seals it (and every
     // other) into the Outbox. A locked one: Unlock.
     let buttons: &[(&str, Style, Action)] = if f.open.is_some() {

@@ -561,7 +561,7 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 }
 
 /// The third line of a vault's row: where it is, its size and cost while
-/// open; once locked, what it held when last seen open, or that unlocking shows it.
+/// open; once locked, what it held when last seen open, else nothing.
 pub(super) fn list_line(app: &View, f: &vault::VaultFile, where_: &str) -> Text {
     let line = if f.open.is_some() {
         text!(
@@ -572,11 +572,12 @@ pub(super) fn list_line(app: &View, f: &vault::VaultFile, where_: &str) -> Text 
     } else {
         match app.vault_summary(f) {
             Some(s) => s.line(app.tz_min()),
-            None => Text::of(EN.vault_unlock_to_see),
+            None => Text::of(""),
         }
     };
     // Its currency first (§3.5): never written, current on a stick, or changed since written.
     match app.currency(f) {
+        Some(c) if line.is_empty() => c.line(),
         Some(c) => text!("{} · {}", &*c.line(), &*line),
         None => line,
     }
@@ -1969,20 +1970,7 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     let cat_label = CATEGORIES[app.vaults.category].0;
     let items = search::shown(app, v);
-    let add = add_label(app.vaults.category);
     ui.text_mid_as((ix, top, 34.0), LABEL_L, ink, cat_label);
-    if let Some(a) = add.filter(|_| v.read_only().is_none()) {
-        let aw = ui.measure_as(LABEL_L, a) + 26.0;
-        ui.button(
-            ix + items_w - aw,
-            top,
-            Some(aw),
-            BUTTON_H,
-            a,
-            Style::Secondary,
-            va(V::Add),
-        );
-    }
     let mut iy = top + 44.0;
     // A second row: what else can fill this kind.
     let entries_files = app
@@ -2068,19 +2056,6 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
 /// What an open vault with nothing in it says.
 const NOTHING_YET: &str = EN.vault_empty_line;
-
-/// What adds an item of kind `k`, as its category's Add button reads.
-fn add_label(k: usize) -> Option<&'static str> {
-    match k {
-        0 => Some(EN.vault_save_a_key),
-        1 => Some(EN.vault_save_a_wallet),
-        2 => Some(EN.vault_add_an_entry),
-        3 => Some(EN.vault_add_a_note),
-        4 => Some(EN.vault_make_a_key),
-        5 => Some(EN.vault_make_keys),
-        _ => None,
-    }
-}
 
 /// The kinds the contents list: those the slot holds something of, and
 /// the one shown when it was chosen; each with its place in `CATEGORIES`,
@@ -2379,7 +2354,6 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     section_label(ui, x, y, cat_label);
     y += ui.line_as(faraday_draw::tokens::TITLE_S) + faraday_draw::tokens::GRID;
     // What can fill this kind.
-    let add = add_label(app.vaults.category);
     let entries_files = app
         .inbox
         .iter()
@@ -2387,9 +2361,6 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .count();
     let mut extra: Vec<(Text, V)> = Vec::new();
     let editable = v.read_only().is_none();
-    if let Some(a) = add.filter(|_| editable) {
-        extra.push((Text::of(a), V::Add));
-    }
     if editable && app.vaults.category == 2 {
         extra.push((Text::of(EN.vault_scan_a_code), V::ScanEntry));
         if entries_files > 0 {
@@ -3090,9 +3061,9 @@ fn key_rows(app: &View, ui: &mut Ui, r: RecordView<'_>, rows: &mut Rows) {
 
 /// A wallet's chart, descriptor, load setting and actions.
 fn wallet_rows(app: &View, ui: &mut Ui, r: RecordView<'_>, rows: &mut Rows) {
-    // The wallet's chart the other way up:
-    // where each seed is kept, its keys, the wallet.
-    let up = crate::glance::Direction::BackupFirst;
+    // The wallet's chart as Wallets draws it: the wallet, its keys, then
+    // where each seed is kept.
+    let up = crate::glance::Direction::WalletFirst;
     if let Some(g) = app
         .vault_selected_index()
         .and_then(|i| app.glance_of_vault(app.vaults.current, i))

@@ -92,6 +92,11 @@ Loading a key makes no wallet; the address check (`docs/QR.md` §2) still search
   from this one opens Create filled from the wallet at the next account
   its keys and kind do not use (§5).
 
+A PSBT waiting leads the page as a banner naming its file ("{file} in
+Files"). It carries a **Sign** of its own only when the PSBT is another
+wallet's, its one way in; when the selected wallet's card carries the action,
+the banner is the file's name alone.
+
 **Every way in leads to the same card:**
 
 | Starting from | What happens |
@@ -1165,7 +1170,8 @@ rule of its flow.
   taller than the screen.
 - **The wallet's card shows it at a glance** (owner, 2026-10-10;
   `docs/history/NEW-WALLET.md` §6). Its Keys list becomes **At a glance**, a
-  structure chart (DESIGN §4.16): the wallet (name, shape, checksum);
+  structure chart (DESIGN §4.16): the wallet (its name and policy id; the shape is in the card's
+  heading, once);
   its keys, numbered as before, each with its fingerprint, label and
   where it is ("Can sign here", "Can sign · passphrase", "Cosigner ·
   xpub only", "On its own device"); its backup, a node per spot of the
@@ -1179,7 +1185,7 @@ rule of its flow.
   cosigner's key has none, and its seed is in no node. Above it the
   plan's three checks as a strip (decision 45). The plan is the backup's once its checklist
   is made, else the one recorded this power-on (kept across a lock),
-  else an open vault's. No plan: "No backup plan" with **Back up**; a
+  else an open vault's. No plan: "No backup plan" (the card's **Back up** is the one that starts it); a
   plan in a locked vault not remembered: "Plan in {vault}, locked" with
   **Unlock**. Every node opens its sheet (below), which lists each line
   of what a backup node holds, each a touch target tall; while the wallet is short of keys a

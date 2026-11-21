@@ -90,6 +90,30 @@ const PRESS_BUDGETS: &[(&str, Work, u64, &str)] = &[
         "Sign on a wallet opens its review at once, as Wallets' Sign does: it parses and inspects each PSBT in Files that spends from the wallet (at most two in the heavy session) once, checking each input's key and address, and holds the result in the inbox",
     ),
     (
+        "StartSpend(",
+        Work::KeyDerive,
+        33,
+        "Sign on a PSBT's row in Files opens its review at once: the file is parsed and inspected once, each input's key and address checked and the wallet's scripts derived the first time they are asked, and the result held in the inbox; the row shows now that the page keeps no note under the list",
+    ),
+    (
+        "StartSpend(",
+        Work::Address,
+        3,
+        "Sign on a PSBT's row in Files opens its review at once: the file is parsed and inspected once, each input's key and address checked and the wallet's scripts derived the first time they are asked, and the result held in the inbox; the row shows now that the page keeps no note under the list",
+    ),
+    (
+        "StartSpend(",
+        Work::PsbtParse,
+        1,
+        "Sign on a PSBT's row in Files opens its review at once: the file is parsed and inspected once, each input's key and address checked and the wallet's scripts derived the first time they are asked, and the result held in the inbox; the row shows now that the page keeps no note under the list",
+    ),
+    (
+        "StartSpend(",
+        Work::PsbtInspect,
+        1,
+        "Sign on a PSBT's row in Files opens its review at once: the file is parsed and inspected once, each input's key and address checked and the wallet's scripts derived the first time they are asked, and the result held in the inbox; the row shows now that the page keeps no note under the list",
+    ),
+    (
         "PickWallet",
         Work::WalletMatch,
         11,

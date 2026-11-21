@@ -349,8 +349,8 @@ then the list from the top.
 - A Tools tile in **Vaults and other keys**, after **Vaults**: name
   **TOTP codes**, line **Codes from the entries in open vaults**, tags
   **RFC 6238**, `Go::Codes`.
-- The open vault's **Entries** list gains a button **TOTP codes** beside
-  its **Add an entry**.
+- The open vault's **Entries** list gains a button **TOTP codes** above
+  its entries.
 
 ### 5.2 What comes first
 

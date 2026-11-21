@@ -75,8 +75,6 @@ macro_rules! words_screens_files {
     files_lock_to_use: "Lock to use the {}",
     /// Button in `on_no_stick`.
     files_lock: "Lock",
-    /// Line in `files`.
-    files_in_memory_emptied: "In memory · emptied at power-off",
     /// Text in `files`.
     files_open: "open",
     /// Text in `out_state`.
@@ -117,8 +115,6 @@ macro_rules! words_screens_files {
     outbox_delete_hold_file: "Hold to delete the file",
     /// The cancel in that sheet.
     outbox_delete_cancel: "Cancel",
-    /// Text in `files`. `{}`: `app.medium.for_the()`.
-    files_power_off_asks: "Power off asks first while files wait {}",
     // ----- receipt_rows (faraday-core/src/screens/files.rs) -----
     /// Text in `receipt_rows`.
     receipt_rows_verified: "verified",

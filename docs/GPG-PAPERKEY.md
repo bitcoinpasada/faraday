@@ -184,7 +184,7 @@ exact end, the checksum line there and right). A binary export
   beside Show as QR (decision 24: a file carries the action that uses
   it).
 - **Vault contents' GPG kind**: **Restore from a paperkey**, under
-  **Make a key**.
+  the **+ GPG key** row.
 - **Tools' GPG key** tile: its line becomes "Make, restore, sign,
   revoke, paperkey".
 

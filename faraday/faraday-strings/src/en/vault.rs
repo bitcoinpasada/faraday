@@ -20,8 +20,6 @@ macro_rules! words_vault {
     vault_hold_to_delete: "Hold to delete from vault",
     /// Text in `unlock`. `{}`: `app.vaults.time_text(mem, f.header.co…`.
     vault_unlock_time_here: "{} here",
-    /// Text in `list_line`.
-    vault_unlock_to_see: "Unlock to see what it holds",
     /// Text in `ONCE_MORE`.
     vault_type_the_passphrase: "Type the passphrase once more to open it",
     /// Text in `unlock_back`.
@@ -34,8 +32,6 @@ macro_rules! words_vault {
     vault_new_vault: "New vault",
     /// Text in `list_compact`.
     vault_locked_not_written: "Locked · not written yet",
-    /// Text in `list_compact`.
-    vault_locked_vault: "Locked vault",
     /// Text in `list_compact`.
     vault_locked: "Locked",
     /// Text in `list_compact`.
@@ -250,8 +246,6 @@ macro_rules! words_vault {
     vault_vault_contents: "Vault contents",
     /// Text in `NOTHING_YET`.
     vault_empty_line: "Nothing in it yet",
-    /// Text in `add_label`.
-    vault_make_keys: "Make keys",
     /// Text in `empty_buttons`. `{}`: `app.medium.a()`.
     vault_write_to_medium: "Write it to {}",
     /// Text in `add_full`.

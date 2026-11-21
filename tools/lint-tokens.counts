@@ -32,7 +32,7 @@ faraday/faraday-core/src/screens/settings.rs 15
 faraday/faraday-core/src/screens/sheets.rs 190
 faraday/faraday-core/src/screens/sidebar.rs 29
 faraday/faraday-core/src/screens/spend.rs 243
-faraday/faraday-core/src/screens/visit.rs 131
+faraday/faraday-core/src/screens/visit.rs 123
 faraday/faraday-core/src/screens/wallets.rs 118
 faraday/faraday-core/src/screens/wallets_start.rs 32
 faraday/faraday-core/src/seeds/screen.rs 62
@@ -41,7 +41,7 @@ faraday/faraday-core/src/spend_backup/screen.rs 318
 faraday/faraday-core/src/tools/screen.rs 17
 faraday/faraday-core/src/transfer/screen.rs 17
 faraday/faraday-core/src/vanity/screen.rs 41
-faraday/faraday-core/src/vault/screen.rs 369
+faraday/faraday-core/src/vault/screen.rs 368
 faraday/faraday-core/src/wordlist/screen.rs 27
 faraday/faraday-starter/src/draw/boot_file.rs 3
 faraday/faraday-starter/src/draw/clear_first.rs 2

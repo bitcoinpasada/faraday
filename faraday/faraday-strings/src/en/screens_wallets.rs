@@ -8,10 +8,6 @@ macro_rules! words_screens_wallets {
     // ----- missing_keys_line (faraday-core/src/screens/wallets.rs) -----
     /// Text in `missing_keys_line`. `{}`: `files[i].name`.
     missing_keys_line_locked: "{} is locked · it may hold them",
-    /// Text in `missing_keys_line`. `{}`: `open_names` joined by ", ".
-    missing_keys_line_not_open: "Not in {} · perhaps another vault, a paper backup or a SeedQR",
-    /// Text in `missing_keys_line`. `{}`: `app.medium.a()`.
-    missing_keys_line_elsewhere: "A vault on {}, a paper backup or a SeedQR may hold them",
     /// Button in `missing_keys_line`.
     missing_keys_line_unlock: "Unlock",
     // ----- loose_card (faraday-core/src/screens/wallets.rs) -----
@@ -44,8 +40,6 @@ macro_rules! words_screens_wallets {
     wallets_wallets: "Wallets",
     /// Text in `wallets`. `{}`: `shape`.
     wallets_watch_only: "{} · watch only",
-    /// Text in `wallets`. `{}`: `shape`, `here`, `m`.
-    wallets_of_here: "{} · {} of {} here",
     /// Section label in `wallets`.
     wallets_keys_without: "Keys without a wallet",
     /// Button in `wallets`.

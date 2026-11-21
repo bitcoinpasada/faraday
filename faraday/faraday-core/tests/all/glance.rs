@@ -924,7 +924,7 @@ fn vault_wallet(app: &Faraday) -> usize {
 }
 
 #[test]
-fn an_open_vault_shows_its_wallet_from_the_places_down_to_the_wallet() {
+fn an_open_vault_shows_its_wallet_as_wallets_does_the_wallet_above_its_keys_and_places() {
     let mut app = desktop();
     let w = one_key(&mut app);
     vault_holding(&mut app, w, true);
@@ -939,8 +939,11 @@ fn an_open_vault_shows_its_wallet_from_the_places_down_to_the_wallet() {
             .unwrap_or_else(|| panic!("no {t:?} on the chart"))
     };
     let (place, key, wallet) = (at(Target::Node(0)), at(Target::Key(0)), at(Target::Wallet));
-    assert!(place.1 + place.3 <= key.1, "a place is not above the key");
-    assert!(key.1 + key.3 <= wallet.1, "the key is not above the wallet");
+    assert!(
+        wallet.1 + wallet.3 <= key.1,
+        "the wallet is not above the key"
+    );
+    assert!(key.1 + key.3 <= place.1, "the key is not above the place");
     // The wallet pressed: its sheet, which opens its card.
     open(&mut app, press, Target::Wallet);
     let card = Action::Vault(V::OpenWalletOf(0, r));

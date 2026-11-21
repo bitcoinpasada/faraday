@@ -242,9 +242,6 @@ pub struct Glance {
     pub held: bool,
     /// How many of the wallet's keys are not checked.
     pub unchecked: usize,
-    /// The wallet's backup was begun and not finished: its button reads
-    /// Continue the backup, as the wallet's page does.
-    pub unfinished: bool,
     /// A vault is open to keep names, dates and marks in (§9.5).
     pub keep: bool,
     /// The wallet has a relative wait and a plan to keep a note in:
@@ -875,7 +872,6 @@ fn build(
         focus,
         held,
         unchecked: wallet.keys_unchecked(),
-        unfinished: matches!(press, Press::Loaded(w) if app.wallet_backup_unfinished(w)),
         keep: matches!(press, Press::Vault(..))
             || app.vaults.open.get(app.vaults.current).is_some(),
         waits: wallet.waits().shortest.is_some() && charted.is_some(),
@@ -1463,7 +1459,7 @@ fn rows(g: &Glance, compact: bool, lines_open: bool) -> [Vec<Node>; 3] {
     use crate::glance::sheet::{ChartAction as C, Target};
     let open = |t: Target| Some(Action::Chart(C::Open(g.press, t)));
     let mut wallet_lines = vec![Line::new(
-        text!("{} · #{}", &*g.shape, &*g.checksum),
+        text!("#{}", &*g.checksum),
         BODY_S,
         Role::OnSurfaceVariant.paint(),
     )];
@@ -1600,19 +1596,11 @@ fn rows(g: &Glance, compact: bool, lines_open: bool) -> [Vec<Node>; 3] {
             action: None,
         }],
         Backup::None => vec![match g.press {
-            Press::Loaded(w) => Node {
+            Press::Loaded(_) => Node {
                 title: Text::of(EN.glance_no_backup_plan_short),
                 tag: None,
                 lines: Vec::new(),
-                button: Some((
-                    Text::of(if g.unfinished {
-                        EN.backup_flow_continue
-                    } else {
-                        EN.glance_back_up
-                    }),
-                    Style::Secondary,
-                    Action::Backup(w),
-                )),
+                button: None,
                 action: None,
             },
             Press::Vault(..) => Node {

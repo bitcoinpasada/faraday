@@ -96,14 +96,8 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     // row, the current one on a pill (`docs/LAYOUT.md` §3).
     let row = |ui: &mut Ui, y: f32, icon: Glyph, label: &str, active: bool, action: Action| {
         // Vaults carries how many are open, at the row's right end.
-        // Files carries how many wait to be written to the stick.
         let open = if icon == Glyph::Icon(Icon::Lock) && v > 0 {
             Some(fill(EN.sidebar_open_n, &[&v.to_string()]))
-        } else if icon == Glyph::Icon(Icon::File) && !app.outbox.is_empty() {
-            Some(fill(
-                EN.sidebar_to_write_n,
-                &[&app.outbox.len().to_string()],
-            ))
         } else {
             None
         };
@@ -121,9 +115,9 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
         faraday_ui::nav::destination_row(ui, (x, y, w), &d, open.as_deref());
     };
     for (icon, label, screen) in items.into_iter().chain(tail) {
-        // Spend, which has no row of its own, lights Wallets, where it is
-        // opened from: Wallets in the sidebar leads back to it.
-        let active = crate::nav::destination_of(app.screen) == screen;
+        // A flow lights the tab it belongs to, Spend from a backup the one
+        // it was opened from (Home or Wallets).
+        let active = crate::nav::lit_destination(app) == screen;
         // A flow in progress on screen lights its own row, not its tab.
         let mine = || flows.iter().filter(move |r| r.tab == screen);
         let row_lit = mine().any(|r| Some(r.going) == on);

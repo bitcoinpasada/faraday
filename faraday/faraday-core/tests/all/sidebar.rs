@@ -88,10 +88,11 @@ fn the_sidebar_has_no_spend_row() {
     assert!(!app.offers(Action::Nav(Screen::SpendBackup)));
 }
 
-/// Files brought in from the stick are not "to write": the Files tab
-/// says so only for what waits to be written to the stick.
+/// The Files tab carries one number, its badge (what the Inbox holds):
+/// no "to write" beside it, for files brought in from the stick or for
+/// those waiting to be written to it.
 #[test]
-fn the_files_tab_says_to_write_only_for_files_waiting_for_the_stick() {
+fn the_files_tab_says_no_to_write_beside_its_badge() {
     let mut app = with(1, 0);
     app.storage(faraday_core::StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![(
@@ -116,7 +117,7 @@ fn the_files_tab_says_to_write_only_for_files_waiting_for_the_stick() {
         outpoints: Vec::new(),
         unsigned_txid: None,
     });
-    assert!(crate::common::has(&mut app, "1 to write"));
+    assert!(!crate::common::has(&mut app, "1 to write"));
     assert!(app.offers(Action::Nav(Screen::Files)));
 }
 
@@ -156,9 +157,10 @@ fn the_sidebar_lists_the_places_in_order_with_files_once() {
     );
 }
 
-/// With files waiting for the stick, the Files tab says how many.
+/// With files waiting for the stick, the Files tab does not count them
+/// a second time.
 #[test]
-fn the_files_tab_says_how_many_wait_to_be_written() {
+fn the_files_tab_says_nothing_of_how_many_wait_to_be_written() {
     let mut app = with(1, 0);
     assert!(!crate::common::has(&mut app, "1 to write"));
     app.outbox.push(faraday_core::Item {
@@ -174,7 +176,7 @@ fn the_files_tab_says_how_many_wait_to_be_written() {
         outpoints: Vec::new(),
         unsigned_txid: None,
     });
-    assert!(crate::common::has(&mut app, "1 to write"));
+    assert!(!crate::common::has(&mut app, "1 to write"));
 }
 
 // ---- flows in progress (`docs/FLOWS.md`, Flows in progress; F41) ----

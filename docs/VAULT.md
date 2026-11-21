@@ -922,9 +922,9 @@ malformed the seal count starts again at 1: the next seal writes
 written into the file until a seal.
 
 An open vault's view shows each wallet with the plan this vault keeps
-for it, as a chart read from the backup up: the places, vaults, files
-and software of the plan, the wallet's keys under them (a key whose
-seed is in this vault reads "In this vault"), the wallet at the foot
+for it, as a chart drawn as Wallets' is: the wallet at the top, its keys
+under it (a key whose seed is in this vault reads "In this vault"), the
+places, vaults, files and software of the plan under them
 (`docs/history/NEW-WALLET.md` §7.2). A wallet with no plan here reads
 "No backup plan in this vault". Each node opens its sheet; its actions
 load the wallet, and its seeds this vault keeps, first. Opening one

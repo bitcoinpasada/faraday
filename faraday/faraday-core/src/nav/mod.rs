@@ -171,6 +171,16 @@ pub(crate) fn destination_of(s: Screen) -> Screen {
     }
 }
 
+/// The destination lit while screen `app.screen` shows: its own
+/// ([`destination_of`]), but for Spend from a backup opened from Home,
+/// which keeps Home lit, where its way back leads.
+pub(crate) fn lit_destination(app: &crate::drawing::View) -> Screen {
+    match app.screen {
+        Screen::SpendBackup if app.spend_backup.from() == Some(Screen::Home) => Screen::Home,
+        s => destination_of(s),
+    }
+}
+
 /// Whether the screen on show carries the floating Scan button: Home, and
 /// the top page of Check, Wallets, Files, Vaults and Tools, on every layout
 /// but the Pi's menu, where Home alone has it. Not inside a flow, a tool,
