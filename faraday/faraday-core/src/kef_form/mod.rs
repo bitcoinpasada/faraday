@@ -891,7 +891,7 @@ impl KefForm {
     }
 
     fn no_match(&mut self) {
-        self.error = Some(Text::of(EN.kef_check_no_match));
+        self.error = Some(Text::of(EN.check_made_failed));
         self.stage = Stage::Check;
     }
 

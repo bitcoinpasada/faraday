@@ -47,6 +47,9 @@ pub(crate) enum Plan {
         /// at the press, or one drawn then.
         key: Made,
     },
+    /// The check offered after a KeePass export: the file written, opened
+    /// under the passphrase typed once more.
+    CheckExport,
 }
 
 /// The key file a vault being made needs.
@@ -113,6 +116,7 @@ pub(crate) fn work(app: &mut Faraday, work: Work) {
         Work::Unlock => unlock_start(app),
         Work::Create => create_start(app),
         Work::Kdbx => kdbx_start(app),
+        Work::KdbxCheck => kdbx_check_start(app),
         _ => false,
     };
     if !started {
@@ -125,7 +129,7 @@ pub(crate) fn work(app: &mut Faraday, work: Work) {
 pub(crate) fn ended(app: &mut Faraday) {
     if matches!(
         app.vaults.state.working,
-        Some(Work::Unlock | Work::Create | Work::Kdbx)
+        Some(Work::Unlock | Work::Create | Work::Kdbx | Work::KdbxCheck)
     ) {
         app.vaults.state.working = None;
     }
@@ -375,6 +379,7 @@ pub(crate) fn stretched(app: &mut Faraday, done: StretchDone) {
             id,
             key,
         } => created(app, stretched, (&typed, &first), id, key),
+        Plan::CheckExport => export_checked(app, &stretched),
     }
 }
 
@@ -724,8 +729,16 @@ pub(crate) fn kdbx_written(app: &mut Faraday, done: KdbxDone) {
     let KdbxDone { file, name } = done;
     match file {
         Ok(file) => {
-            app.vaults.state.prompt = None;
-            app.vaults.state.focus = None;
+            // The file is offered the one check: the prompt becomes the
+            // passphrase typed once more, which opens it or is skipped.
+            app.vaults.state.prompt = Some(super::Prompt {
+                purpose: super::Purpose::KdbxCheck,
+                text: super::TextBox::default(),
+                again: super::TextBox::default(),
+                error: None,
+                written: file.clone(),
+            });
+            crate::stick::focus(app, super::Focus::Prompt);
             app.put_outbox(&name, file);
             app.toast(&fill(
                 EN.vaults_waits_sealed,
@@ -742,6 +755,63 @@ pub(crate) fn kdbx_written(app: &mut Faraday, done: KdbxDone) {
                 });
             }
         }
+    }
+}
+
+/// The front half of the check after a KeePass export: the file written
+/// is opened under the passphrase typed once more, by the vault's own
+/// reader on the worker. The typed text moves into the job and is wiped
+/// with it; the file is not changed.
+fn kdbx_check_start(app: &mut Faraday) -> bool {
+    let Some(p) = app.vaults.state.prompt.as_mut() else {
+        return false;
+    };
+    if p.purpose != super::Purpose::KdbxCheck || p.text.text.is_empty() {
+        return false;
+    }
+    p.error = None;
+    let file = p.written.clone();
+    let passphrase = std::mem::take(&mut p.text.text);
+    app.vaults.read_free();
+    let job = open_job(app, file, passphrase);
+    app.start(
+        Job::Stretch(Box::new(StretchWork {
+            job,
+            act: VaultAct::Unlocked,
+            cost: Cost {
+                memory_kib: STEPS_KIB[0],
+                passes: 3,
+                lanes: 4,
+            },
+            plan: Plan::CheckExport,
+        })),
+        EN.working_vault_open,
+    );
+    true
+}
+
+/// Costs a drop: no Argon2id run, which ran on the worker. The back half
+/// of the check: it opened, and what was read is wiped as it drops, or it
+/// did not and the person may try again or skip.
+fn export_checked(app: &mut Faraday, stretched: &Stretched) {
+    let error = stretched.error();
+    let Some(p) = app
+        .vaults
+        .state
+        .prompt
+        .as_mut()
+        .filter(|p| p.purpose == super::Purpose::KdbxCheck)
+    else {
+        return;
+    };
+    p.text.clear();
+    if error.is_none() {
+        app.vaults.state.prompt = None;
+        app.vaults.state.focus = None;
+        app.toast(EN.vault_export_checked);
+    } else {
+        p.error = Some(Text::of(EN.check_made_failed));
+        app.vaults.state.focus = Some(super::Focus::Prompt);
     }
 }
 

@@ -304,11 +304,12 @@ impl Faraday {
     /// Whether the open prompt takes the `faraday` chip: not the KeePass
     /// export's.
     pub(crate) fn prompt_chip(&self) -> bool {
-        !self
-            .vaults
-            .prompt
-            .as_ref()
-            .is_some_and(|p| matches!(p.purpose, crate::vault::Purpose::Kdbx))
+        !self.vaults.prompt.as_ref().is_some_and(|p| {
+            matches!(
+                p.purpose,
+                crate::vault::Purpose::Kdbx | crate::vault::Purpose::KdbxCheck
+            )
+        })
     }
 
     /// A press on the `faraday` chip of `field`: the field holds

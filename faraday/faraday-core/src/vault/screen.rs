@@ -2571,6 +2571,7 @@ fn prompt_pane(
             Text::of(EN.vault_load_with_a_bip)
         }
         vault::Purpose::Kdbx => Text::of(EN.vault_export_for_keepass),
+        vault::Purpose::KdbxCheck => Text::of(EN.vault_export_check),
     };
     let heading = ui.fit_as(TITLE_M, &heading, dw);
     ui.text_as(dx, dy, TITLE_M, ink, &heading);
@@ -2581,6 +2582,8 @@ fn prompt_pane(
         let second = n == 1;
         let label = if second {
             EN.vault_passphrase_again
+        } else if p.purpose == vault::Purpose::KdbxCheck {
+            EN.vault_export_check_pass
         } else {
             EN.vault_passphrase
         };
@@ -2621,8 +2624,13 @@ fn prompt_pane(
         }
     }
     dy += never_under(app, ui, dx, dy, dw);
-    if app.vaults.working == Some(vault::Work::Kdbx) {
-        crate::screens::working_line(ui, (dx, dy, dw, 40.0), EN.vault_sealing);
+    let working = match app.vaults.working {
+        Some(vault::Work::Kdbx) => Some(EN.vault_sealing),
+        Some(vault::Work::KdbxCheck) => Some(EN.working_vault_open),
+        _ => None,
+    };
+    if let Some(line) = working {
+        crate::screens::working_line(ui, (dx, dy, dw, 40.0), line);
     } else {
         // Sealing the export draws the system's randomness (row 6).
         if p.purpose == vault::Purpose::Kdbx {
@@ -2630,6 +2638,7 @@ fn prompt_pane(
         }
         let label = match p.purpose {
             vault::Purpose::Kdbx => app.wait_label(va(V::PromptGo), EN.vault_seal_and_export),
+            vault::Purpose::KdbxCheck => EN.check_made_open,
             vault::Purpose::KeyPassphrase | vault::Purpose::ForWallet(..) => EN.vault_load,
         };
         let sw = if crate::screens::pin_button(
@@ -2640,11 +2649,12 @@ fn prompt_pane(
             40.0,
             label,
             Style::Primary.when(
-                !p.pair()
-                    || !crate::pass_field::pair::differ(
-                        p.text.text.as_str(),
-                        p.again.text.as_str(),
-                    ),
+                (p.purpose != vault::Purpose::KdbxCheck || !p.text.text.is_empty())
+                    && (!p.pair()
+                        || !crate::pass_field::pair::differ(
+                            p.text.text.as_str(),
+                            p.again.text.as_str(),
+                        )),
             ),
             va(V::PromptGo),
         ) {
@@ -2657,7 +2667,11 @@ fn prompt_pane(
             dy,
             None,
             BUTTON_H,
-            EN.vault_cancel,
+            if p.purpose == vault::Purpose::KdbxCheck {
+                EN.check_made_skip
+            } else {
+                EN.vault_cancel
+            },
             Style::Ghost,
             va(V::PromptCancel),
         );

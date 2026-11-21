@@ -926,6 +926,9 @@ pub enum Purpose {
     /// The passphrase a KeePass export of the selected entry is sealed
     /// under.
     Kdbx,
+    /// The check offered once a KeePass export is written: the passphrase
+    /// typed once, to open the file written with it. Skipped by leaving.
+    KdbxCheck,
 }
 
 /// A one-line prompt in the contents' detail column.
@@ -938,6 +941,8 @@ pub struct Prompt {
     pub again: TextBox,
     /// Why the last try failed.
     pub error: Option<Text>,
+    /// For [`Purpose::KdbxCheck`], the file written (encrypted, so public).
+    pub(crate) written: Vec<u8>,
 }
 
 impl Prompt {
@@ -945,7 +950,7 @@ impl Prompt {
     /// export, or a BIP-39 one typed for a key, which nothing checks. A
     /// wallet's missing key is checked against the wallet and stays single.
     pub fn pair(&self) -> bool {
-        !matches!(self.purpose, Purpose::ForWallet(..))
+        !matches!(self.purpose, Purpose::ForWallet(..) | Purpose::KdbxCheck)
     }
 }
 
@@ -2257,6 +2262,8 @@ pub enum Work {
     FlowMake,
     /// Write the KeePass export the prompt is for.
     Kdbx,
+    /// Open the file the KeePass export just wrote, under the typed passphrase.
+    KdbxCheck,
 }
 
 /// Where the one-pass measurement (one Argon2id pass over 64 MiB, for the

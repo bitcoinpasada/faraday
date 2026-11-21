@@ -30,7 +30,7 @@ Each wallet shows its chart, with where each seed is kept, and its **Descriptor*
 
 An entry is a login: **Username**, **Password**, **URL**, a **TOTP secret** and **Notes**, a secret shown only behind its eye. **Add an entry** makes one and **Edit** changes it; **Search entries** filters by title.
 
-**Scan a code** adds entries from a code, and **Import from Files** adds the entries files in Files. **TOTP codes** opens the codes of every open vault. **Export for KeePass** seals the entry into a KeePass file under a passphrase typed twice.
+**Scan a code** adds entries from a code, and **Import from Files** adds the entries files in Files. **TOTP codes** opens the codes of every open vault. **Export for KeePass** seals the entry into a KeePass file under a passphrase typed twice. When the file is written, one check is offered: type the passphrase once more and **Check** opens the file with it and says whether it opened; a wrong passphrase says so and can be tried again. **Skip** leaves without checking, and the file is never changed.
 
 ## Notes
 

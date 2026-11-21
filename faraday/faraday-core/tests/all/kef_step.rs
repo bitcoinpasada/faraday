@@ -1131,7 +1131,10 @@ fn a_wrong_passphrase_after_a_good_scan_reads_so_and_the_right_one_checks() {
     type_in(&mut app, "not it");
     app.press(Action::KefTool(K::Backup(KefAct::Compare)));
     testkit::settle(&mut app);
-    assert!(seen(&mut app, "Not matching. Try the passphrase again."));
+    assert!(seen(
+        &mut app,
+        "Did not open. Try the passphrase again or skip."
+    ));
     assert!(!done(&app));
     for _ in 0.."not it".len() {
         app.event(Event::Key(Key::Backspace));

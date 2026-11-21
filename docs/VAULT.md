@@ -1224,7 +1224,13 @@ in the Outbox sealed. The entry's title is its own, "Password" for a BIP-85 pass
 and a notes line that is a BIP-85 path is left out. A KeePass app reads
 it as a database of one entry; Faraday opens it as any vault. As
 Create a vault does, the export reads its container back under the keys
-it was made with, as a seal does, but not its document. Exporting a
+it was made with, as a seal does, but not its document. Once the file is
+written, one check is offered every time and can be skipped: the passphrase typed
+once more, and **Check** opens the file written with it, on the worker as an
+unlock does (the same stretch, `Plan::CheckExport`), and says whether it opened.
+What was read and the typed text are wiped as the answer drops; a wrong
+passphrase says so and may be tried again; **Skip**, a Lock and leaving the
+screen drop the typed text; the file is never changed. Exporting a
 key's words, a master seed, a note or a recovery sheet this way has no export: the entry is the one item with an export. The export has no writer
 of its own: the one that wrote it before is
 gone, and its one vector (`tools/vectors/backup/`) is opened and sealed

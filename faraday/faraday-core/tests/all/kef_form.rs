@@ -251,7 +251,7 @@ fn a_wrong_passphrase_reads_not_matching_and_can_be_tried_again() {
     compare(&mut form, &mut app, "another one");
     assert!(!form.checked());
     assert_eq!(form.stage(), Stage::Check);
-    assert!(form.error().is_some_and(|e| e.starts_with("Not matching")));
+    assert!(form.error().is_some_and(|e| e.starts_with("Did not open")));
     for _ in 0..11 {
         form.key(&mut app, Key::Backspace);
     }
@@ -260,6 +260,17 @@ fn a_wrong_passphrase_reads_not_matching_and_can_be_tried_again() {
     testkit::settle(&mut app);
     assert!(form.poll(&mut app));
     assert!(form.checked());
+}
+
+#[test]
+fn skipping_the_check_leaves_the_code_unchecked() {
+    let mut app = app_with_seed();
+    let mut form = made_form(&mut app, "a passphrase");
+    form.act(&mut app, KefAct::Check);
+    type_in(&mut form, &mut app, "a passphrase");
+    form.act(&mut app, KefAct::CheckBack);
+    assert_eq!(form.stage(), Stage::Made);
+    assert!(!form.checked());
 }
 
 #[test]

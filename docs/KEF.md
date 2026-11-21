@@ -660,10 +660,10 @@ the item's own card, not a sub-flow: the first step (§15.3), then the bar, then
 **Check my code**. It leaves nothing behind when closed but a code already made.
 
 **Checked**, with no copy on Paper, means the code opens to this seed under a passphrase typed again: the field that made
-it was wiped by the job, **Check my code** opens one field and **Compare**, a `Faraday::kef_open`
+it was wiped by the job, **Check my code** opens one field and **Check**, a `Faraday::kef_open`
 on the code's bytes with the bar and Cancel, and the plaintext is compared inside `faraday-keys`
 with the seed's entropy (a named call under `Reveal::KefCode`, giving a yes or a no). A wrong one
-reads so and may be tried again; **Make another** goes back to the first step. A code that is
+reads "Did not open" and may be tried again, and **Skip** leaves the check; **Make another** goes back to the first step. A code that is
 checked ends the item. Its stick's read-back is then §17.12 item 10's: the picture decoded and
 checked against the SHA-256 of its base43 text, and the file's bytes.
 
@@ -680,7 +680,7 @@ and columns 1 to 5 at 25 × 25:
 
 - **Scan my copy** opens the camera on the drawn copy (`ScanPurpose::CheckKef`), reading it as the
   code's base43 text. Anything else reads "Not this code" on the scanner. Nothing scanned there is
-  loaded or filed. The copy that reads closes the camera and opens one field and **Compare**, as
+  loaded or filed. The copy that reads closes the camera and opens one field and **Check**, as
   **Check my code** does, but on the bytes scanned. It opens to the seed: **Checked**, for the code
   and every stick's copy of it, since they are the same bytes. A wrong passphrase reads so and may
   be tried again. As a SeedQR's, the scan is one per seed, not one per place.

@@ -74,7 +74,7 @@ A seed's Krux code is shown for you to copy by hand onto a Krux template, and th
 
 A code of 37 × 37 squares or less shows **Size**, **By hand** with its sheet in Faraday Starter, Blank templates, Krux code, and a grid in place of the picture, to copy block by block. A larger code cannot be copied by hand.
 
-**Show the code** shows the code. **Scan my copy** reads your copy with the camera. **Check my code** takes the code's passphrase and **Compare** checks it. **Make another** makes a further code. **Not on Paper** takes the code off every place.
+**Show the code** shows the code. **Scan my copy** reads your copy with the camera. **Check my code** takes the code's passphrase once more and **Check** opens the code with it; **Skip** leaves without checking. **Make another** makes a further code. **Not on Paper** takes the code off every place.
 
 ## Vault
 

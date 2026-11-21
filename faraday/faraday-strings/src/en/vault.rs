@@ -563,6 +563,18 @@ macro_rules! words_vault {
     vault_sign: "Sign",
     /// Button in `images_panel`.
     vault_check: "Check",
+    /// The check offered after a Krux code or a KeePass export is made: the button that opens what was made with the typed passphrase.
+    check_made_open: "Check",
+    /// The check offered after a Krux code or a KeePass export is made: leaves it.
+    check_made_skip: "Skip",
+    /// The check offered after a Krux code or a KeePass export is made: the passphrase did not open it.
+    check_made_failed: "Did not open. Try the passphrase again or skip.",
+    /// The check offered after a KeePass export is made: the heading.
+    vault_export_check: "Check the export",
+    /// The check offered after a KeePass export is made: the passphrase's label.
+    vault_export_check_pass: "Passphrase of the export",
+    /// The check offered after a KeePass export is made: it opened.
+    vault_export_checked: "The export opened with this passphrase",
     /// Button in `images_panel`.
     vault_back_to_the_keys: "Back to the keys",
     /// Error in Create a vault.

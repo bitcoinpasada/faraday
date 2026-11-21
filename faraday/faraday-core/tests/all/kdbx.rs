@@ -321,3 +321,79 @@ fn the_export_passphrase_is_typed_twice_and_the_export_waits_for_it() {
     let _ = app.frame();
     assert!(app.busy().is_none(), "nothing was sealed");
 }
+
+/// A device at the check offered once the KeePass export is written.
+fn at_the_export_check() -> Faraday {
+    let mut app = at_the_export_prompt();
+    testkit::press_on_worker(&mut app, Action::Vault(V::PromptGo));
+    testkit::settle(&mut app);
+    assert!(kdbx_files(&app) == 1, "the file is written");
+    let _ = app.frame();
+    assert!(says(&mut app, faraday_core::strings::EN.vault_export_check));
+    app
+}
+
+fn says(app: &mut Faraday, text: &str) -> bool {
+    app.drawn_texts().iter().any(|t| t == text)
+}
+
+#[test]
+fn the_check_after_a_keepass_export_opens_the_file_with_the_right_passphrase() {
+    let mut app = at_the_export_check();
+    type_text(&mut app, "keepass passphrase");
+    testkit::press_on_worker(&mut app, Action::Vault(V::PromptGo));
+    testkit::settle(&mut app);
+    let _ = app.frame();
+    assert!(!says(
+        &mut app,
+        faraday_core::strings::EN.vault_export_check
+    ));
+    assert!(!says(&mut app, faraday_core::strings::EN.check_made_failed));
+    assert_eq!(kdbx_files(&app), 1, "the file is as it was");
+}
+
+#[test]
+fn a_wrong_passphrase_at_the_check_says_it_did_not_open_and_can_be_tried_again() {
+    let mut app = at_the_export_check();
+    type_text(&mut app, "another passphrase");
+    testkit::press_on_worker(&mut app, Action::Vault(V::PromptGo));
+    testkit::settle(&mut app);
+    let _ = app.frame();
+    assert!(says(&mut app, faraday_core::strings::EN.check_made_failed));
+    assert!(says(&mut app, faraday_core::strings::EN.vault_export_check));
+    type_text(&mut app, "keepass passphrase");
+    testkit::press_on_worker(&mut app, Action::Vault(V::PromptGo));
+    testkit::settle(&mut app);
+    let _ = app.frame();
+    assert!(!says(
+        &mut app,
+        faraday_core::strings::EN.vault_export_check
+    ));
+    assert_eq!(kdbx_files(&app), 1);
+}
+
+#[test]
+fn skipping_the_check_leaves_it_without_opening_the_file() {
+    let mut app = at_the_export_check();
+    type_text(&mut app, "keepass passphrase");
+    app.press(Action::Vault(V::PromptCancel));
+    let _ = app.frame();
+    assert!(app.busy().is_none());
+    assert!(!says(
+        &mut app,
+        faraday_core::strings::EN.vault_export_check
+    ));
+    assert_eq!(kdbx_files(&app), 1);
+}
+
+#[test]
+fn a_lock_during_the_check_leaves_nothing_typed() {
+    let mut app = at_the_export_check();
+    type_text(&mut app, "keepass passphrase");
+    app.press(Action::LockUnsealed);
+    let _ = app.frame();
+    assert!(!says(
+        &mut app,
+        faraday_core::strings::EN.vault_export_check
+    ));
+}

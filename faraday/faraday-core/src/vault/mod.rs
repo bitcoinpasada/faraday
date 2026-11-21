@@ -834,6 +834,7 @@ impl Faraday {
                     text: TextBox::default(),
                     again: TextBox::default(),
                     error: None,
+                    written: Vec::new(),
                 });
                 stick::focus(self, Focus::Prompt);
             }
@@ -846,6 +847,7 @@ impl Faraday {
                     text: TextBox::default(),
                     again: TextBox::default(),
                     error: None,
+                    written: Vec::new(),
                 });
                 stick::focus(self, Focus::Prompt);
             }
@@ -1041,6 +1043,11 @@ impl Faraday {
                     stretch::defer(self, Work::Kdbx);
                 }
             }
+            Purpose::KdbxCheck => {
+                if !p.text.text.is_empty() {
+                    stretch::defer(self, Work::KdbxCheck);
+                }
+            }
             Purpose::KeyPassphrase => {
                 let passphrase = Text::of(&p.text.text);
                 let Some(at) = self.vault_selected_index() else {
@@ -1095,11 +1102,14 @@ impl Faraday {
         // `Later::Vault`.
         if let Some(work) = self.vaults.working
             && self.vaults.drawn
-            && !matches!(work, Work::Unlock | Work::Create | Work::Kdbx)
+            && !matches!(
+                work,
+                Work::Unlock | Work::Create | Work::Kdbx | Work::KdbxCheck
+            )
         {
             self.vaults.state.working = None;
             match work {
-                Work::Unlock | Work::Create | Work::Kdbx => {}
+                Work::Unlock | Work::Create | Work::Kdbx | Work::KdbxCheck => {}
                 Work::FlowMake => self.flow_make_work(),
             }
             redraw = true;
@@ -3591,6 +3601,7 @@ impl Faraday {
             text: Default::default(),
             again: Default::default(),
             error: None,
+            written: Vec::new(),
         });
         self.vaults.state.focus = self.may_load_keys().then_some(crate::vault::Focus::Prompt);
     }
