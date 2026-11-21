@@ -133,10 +133,11 @@ class Sqlite(Area):
         ),
         (
             "SQLite parses the CREATE statements of the schema and refuses a database "
-            "whose text is not valid SQL; Faraday reads a table's name and root page "
-            "from its schema row and does not parse the statement. A changed byte in "
-            "the schema page that SQLite refuses as a malformed schema, and Faraday "
-            "reads, is not a mismatch."
+            "whose text is not valid SQL; Faraday does not parse a statement: it "
+            "compares the read table's whole statement to Core's, and reads the name and "
+            "root page of any other table from its schema row. A changed byte in the "
+            "CREATE text of another table, which SQLite refuses as a malformed schema "
+            "and Faraday does not read, is not a mismatch."
         ),
     ]
     not_compared = (
@@ -204,7 +205,8 @@ class Sqlite(Area):
         if (want[0] == "err" and at < page_size
                 and "malformed database schema" in want[1]):
             # A changed byte in the text of a CREATE statement: SQLite parses
-            # it, Faraday takes the table's name and root page only.
+            # it, Faraday reads only the name and root page of a table it is not asked
+            # to read.
             self.lax += 1
             return
         self.compared += 1

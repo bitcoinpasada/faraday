@@ -19,7 +19,8 @@
 //! a database size or freelist the file does not bear out, a page reached
 //! twice, a cell or overflow chain past its page or the file, a record
 //! whose header disagrees with its body, a column that is not a blob, a
-//! table other than the wanted one holding records, a tree deeper than
+//! table other than the wanted one holding records, a wanted table whose `CREATE` text
+//! is not Bitcoin Core's statement, a tree deeper than
 //! [`MAX_DEPTH`], a table of more than [`MAX_ROWS`] rows, a page that no
 //! table tree, index tree, overflow chain or the freelist reaches (what
 //! `PRAGMA integrity_check` calls a page never used), a `sqlite_schema` of
@@ -164,6 +165,9 @@ pub enum Error {
     NoTable(Text),
     /// A table holding records other than the one allowed.
     OtherTable(Text),
+    /// A table whose `CREATE` text is not Bitcoin Core's statement for a
+    /// key/value table of that name (the table's name).
+    Statement(Text),
 }
 
 impl fmt::Display for Error {
@@ -835,8 +839,10 @@ impl<'a> Database<'a> {
 
     /// The rows of a table of two blob columns (key, value), in row id
     /// order, as `CREATE TABLE main(key BLOB PRIMARY KEY NOT NULL, value
-    /// BLOB NOT NULL)` makes it. A key seen twice is refused: the index
-    /// that makes keys unique in SQLite is not read.
+    /// BLOB NOT NULL)` makes it. The table's `CREATE` text must be exactly
+    /// that statement with its name ([`Error::Statement`]), as Bitcoin Core
+    /// reads columns by name. A key seen twice is refused: the index that
+    /// makes keys unique in SQLite is not read.
     pub fn rows(&self, table: &str) -> Result<Vec<Row>, Error> {
         self.rows_up_to(table, MAX_ROWS)
     }
@@ -845,6 +851,14 @@ impl<'a> Database<'a> {
     /// ([`Error::TooManyRows`]).
     pub fn rows_up_to(&self, table: &str, most: usize) -> Result<Vec<Row>, Error> {
         let t = self.table(table)?;
+        let core = t.sql.as_deref().is_some_and(|sql| {
+            sql.strip_prefix("CREATE TABLE ")
+                .and_then(|r| r.strip_prefix(&*t.name))
+                .is_some_and(|r| r == "(key BLOB PRIMARY KEY NOT NULL, value BLOB NOT NULL)")
+        });
+        if !core {
+            return Err(Error::Statement(t.name.clone()));
+        }
         let mut out: Vec<Row> = Vec::new();
         self.walk_table(t, &mut |_, p| {
             let cols = columns(&p, 2)?;

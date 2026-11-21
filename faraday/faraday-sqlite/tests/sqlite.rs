@@ -122,6 +122,21 @@ fn a_column_that_is_not_a_blob_or_a_third_column_is_refused() {
 }
 
 #[test]
+fn a_table_whose_statement_is_not_cores_is_refused() {
+    let name = Text::of("main");
+    // A renamed column: SQLite and Core refuse it, so Faraday does.
+    assert_eq!(
+        rows(&fixture("statement_column.db")),
+        Err(Error::Statement(name.clone()))
+    );
+    // A column of another type.
+    assert_eq!(
+        rows(&fixture("statement_type.db")),
+        Err(Error::Statement(name))
+    );
+}
+
+#[test]
 fn the_wal_form_is_refused() {
     assert_eq!(rows(&fixture("wal.db")), Err(Error::Wal));
     let mut b = fixture("ps512.db");

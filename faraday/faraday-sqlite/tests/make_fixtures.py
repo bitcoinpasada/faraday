@@ -30,6 +30,12 @@ def blob(i, n):
     return bytes((i * 31 + j) % 251 for j in range(n))
 
 
+def stub3():
+    # Three columns, padded inside the parentheses to Core's length.
+    head = "CREATE TABLE main(key BLOB, value BLOB, more BLOB"
+    return head + " " * (len(SCHEMA) - len(head) - 1) + ")"
+
+
 def make(name, page_size, setup):
     path = os.path.join(OUT, name)
     if os.path.exists(path):
@@ -96,16 +102,38 @@ def main():
     make("empty.db", 512, empty)
 
     def text_value(db):
-        db.execute("CREATE TABLE main(key BLOB PRIMARY KEY NOT NULL, value TEXT NOT NULL)")
+        # Core's statement, a text in a BLOB column (kept as text).
+        db.execute(SCHEMA)
         db.execute("INSERT INTO main VALUES (?, ?)", (key(1), "text"))
 
     make("text_value.db", 512, text_value)
 
+    def column_type(db):
+        db.execute("CREATE TABLE main(key BLOB PRIMARY KEY NOT NULL, value TEXT NOT NULL)")
+        db.execute("INSERT INTO main VALUES (?, ?)", (key(1), "text"))
+
+    make("statement_type.db", 512, column_type)
+
+    def column_name(db):
+        db.execute("CREATE TABLE main(key BLOB PRIMARY KEY NOT NULL, val BLOB NOT NULL)")
+        db.execute("INSERT INTO main VALUES (?, ?)", (key(1), value(1)))
+
+    make("statement_column.db", 512, column_name)
+
     def three(db):
-        db.execute("CREATE TABLE main(key BLOB, value BLOB, more BLOB)")
+        # SQLite keeps the statement as written: a statement of Core's
+        # length is made, then its text is replaced by Core's in the file,
+        # so the three-column rows meet Core's statement.
+        stub = stub3()
+        db.execute(stub)
         db.execute("INSERT INTO main VALUES (?, ?, ?)", (key(1), value(1), b"x"))
 
     make("three_columns.db", 512, three)
+    path = os.path.join(OUT, "three_columns.db")
+    data = open(path, "rb").read()
+    stub = stub3()
+    assert data.count(stub.encode()) == 1
+    open(path, "wb").write(data.replace(stub.encode(), SCHEMA.encode()))
 
     def freelist(db):
         db.execute(SCHEMA)

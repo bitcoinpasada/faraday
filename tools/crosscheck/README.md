@@ -1095,10 +1095,12 @@ difference"), and says why.
     blob columns only, and refuses the rest. Each is asked of Faraday
     and counted.
   - SQLite parses the CREATE statements of the schema and refuses a
-    database whose text is not valid SQL; Faraday reads a table's name
-    and root page from its schema row and does not parse the statement.
-    A changed byte in the schema page that SQLite refuses as a malformed
-    schema, and Faraday reads, is not a mismatch.
+    database whose text is not valid SQL; Faraday does not parse a
+    statement: it compares the read table's whole statement to Core's,
+    and reads the name and root page of any other table from its schema
+    row. A changed byte in the CREATE text of another table, which
+    SQLite refuses as a malformed schema and Faraday does not read, is
+    not a mismatch.
 - `core_wallet`
   - Faraday gives each descriptor as Core lists it (the account key from
     the `walletdescriptorlhcache` records, the master key's fingerprint
