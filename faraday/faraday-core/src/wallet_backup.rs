@@ -1009,7 +1009,10 @@ impl WalletBackupArea {
     /// Types `text` into the open check.
     pub(crate) fn fill_check(&mut self, text: &str) {
         if let Some(c) = self.open_check() {
-            c.typed.set(text);
+            match c.pass.as_mut() {
+                Some(p) => p.fill(text),
+                None => c.typed.set(text),
+            }
         }
     }
 

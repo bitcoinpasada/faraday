@@ -45,8 +45,8 @@ pub(crate) fn refuses(app: &mut Faraday, entry: bool) -> bool {
 /// The stick rule for a tool's own secret field (a passphrase, a password,
 /// a seed or a copy of a secret): while a stick is attached it takes no
 /// typing and no focus, and no press uses what was typed before it came.
-/// Returns whether it refused, with the vault's toast; what the tools hold
-/// typed is wiped and their focus cleared.
+/// Returns whether it refused, with the vault's toast; the tools' focus is
+/// cleared. What they hold typed is wiped when a stick arrives, not here.
 pub(crate) fn refuses_secret(app: &mut Faraday) -> bool {
     if !app.stick.in_the_way() {
         return false;
@@ -69,7 +69,8 @@ pub(crate) fn refuses_secret_key(app: &mut Faraday, key: faraday_shell_api::Key)
 }
 
 /// The tools' secret fields lose focus, and with `wipe` what is typed in
-/// them goes too: a stick arrived, or the stick rule refused.
+/// them goes too. The passphrase fields (`PassField`) are wiped only when
+/// a stick arrives (`secrets_close`); a refused press leaves them.
 pub(crate) fn tools_lose_secrets(app: &mut Faraday, wipe: bool) {
     crate::core_wallet::tool::stick_attached(app, wipe);
     crate::kef_tool::stick_attached(app, wipe);

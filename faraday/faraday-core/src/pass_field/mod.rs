@@ -409,6 +409,10 @@ impl Where {
             | Where::Entry
             | Where::SeedRead
             | Where::KefRead
+            | Where::KefTool
+            | Where::BackupKef
+            | Where::CoreWallet
+            | Where::CopyCheck
             | Where::SeedCheck => false,
         }
     }

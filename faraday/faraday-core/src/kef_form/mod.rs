@@ -484,6 +484,8 @@ impl KefForm {
                 self.stage = Stage::Check;
                 self.error = None;
                 self.focus = Some(Focus::Check);
+                // The one eye starts closed on the check.
+                app.typing.pass_eye.close();
             }
             (Stage::Made, KefAct::Another) => self.again(),
             (Stage::Made, KefAct::ByHand) if self.by_hand_offer => {

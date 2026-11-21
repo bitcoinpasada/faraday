@@ -561,6 +561,7 @@ fn begin(app: &mut Faraday) -> Option<ReadWork> {
     let passphrase = given.then(|| s.passphrase.take());
     s.typing = false;
     s.scroll.follow = true;
+    app.typing.pass_eye.close();
     Some(ReadWork {
         name,
         bytes: item.bytes.clone(),

@@ -40,8 +40,16 @@ fn device() -> Faraday {
 /// A key loaded with `passphrase` (none when empty), a one-key wallet
 /// over it, and its backup planned on paper, the checklist made.
 fn backing_up(passphrase: &str) -> Faraday {
+    backing_up_in(passphrase, false)
+}
+
+/// As [`backing_up`], in Practice when `practice`.
+fn backing_up_in(passphrase: &str, practice: bool) -> Faraday {
     let c = testkit::compute();
     let mut app = device();
+    if practice {
+        testkit::into_demo(&mut app);
+    }
     let m = Mnemonic::parse(
         &c,
         Language::English,
@@ -222,5 +230,42 @@ fn a_plan_with_no_passphrase_on_paper_has_no_passphrase_item() {
             .iter()
             .any(|&i| matches!(i, faraday_core::plan::Item::Passphrase(_))),
         "{items:?}"
+    );
+}
+
+#[test]
+fn in_practice_use_faraday_fills_the_passphrase_check_and_enter_matches() {
+    let mut app = backing_up_in(faraday_core::demo::PASSPHRASE, true);
+    at_the_passphrase(&mut app);
+    app.press(Action::BCheck);
+    app.press(Action::PassChip(faraday_core::demo::PassField::Check));
+    app.event(Event::Key(Key::Enter));
+    assert!(done(&app), "the filled passphrase did not match");
+}
+
+#[test]
+fn the_passphrase_check_takes_no_typing_with_a_stick_attached() {
+    let mut app = backing_up(PASSPHRASE);
+    at_the_passphrase(&mut app);
+    app.press(Action::BCheck);
+    app.storage(faraday_core::StorageEvent::Sticks(vec![
+        faraday_core::StickInfo {
+            make: Default::default(),
+            serial: None,
+            id: faraday_text::Text::of("a"),
+            label: faraday_text::Text::of("STICK"),
+            boot: false,
+            files: Vec::new(),
+            vaults: Vec::new(),
+        },
+    ]));
+    if app.sheet == Some(faraday_core::Sheet::Lock) {
+        app.press(Action::NotNow);
+    }
+    type_text(&mut app, PASSPHRASE);
+    app.event(Event::Key(Key::Enter));
+    assert!(
+        !done(&app),
+        "a passphrase typed with a stick attached matched"
     );
 }
