@@ -233,7 +233,13 @@ fn in_demo_create_a_vault_offers_faraday_in_both_fields_and_unlocks_with_it() {
     }
     app.press(Action::Vault(V::CGo));
     settle(&mut app);
-    // The vault opens at once with faraday, typed twice.
+    // The vault is made locked and opens once with faraday.
+    assert!(app.vaults().open.is_empty());
+    assert_eq!(app.screen, Screen::Unlock);
+    app.press(Action::Vault(V::FocusPassphrase));
+    type_in(&mut app, "faraday");
+    app.press(Action::Vault(V::Unlock));
+    settle(&mut app);
     assert_eq!(
         app.vaults().open.len(),
         1,

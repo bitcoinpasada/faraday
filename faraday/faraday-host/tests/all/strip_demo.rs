@@ -114,7 +114,7 @@ fn finish(app: &mut Faraday) {
 const ROLLS: &str = "123451234512345123451234512345";
 
 /// Create a vault from Vaults, its first passphrase from the dice or
-/// typed, made and left on Unlock with it picked.
+/// typed, made, locked, and left on Unlock with it picked.
 fn make_vault(app: &mut Faraday, typed: Option<&str>) {
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Create));
@@ -136,10 +136,7 @@ fn make_vault(app: &mut Faraday, typed: Option<&str>) {
     app.press(Action::Vault(V::CGo));
     crate::common::settle(app, 1);
     crate::common::settle_n(app, 21, 30);
-    assert_eq!(app.vaults().open.len(), 1, "the vault was made and opened");
-    app.press(Action::Lock);
-    crate::common::settle(app, 100);
-    assert!(app.vaults().open.is_empty(), "the vault did not lock");
+    assert!(app.vaults().open.is_empty(), "the vault is made locked");
 }
 
 /// Unlock with `phrase`. Returns whether the vault opened.
@@ -300,11 +297,9 @@ fn in_the_demo_a_vault_from_the_dice_shows_the_rolled_words_then_opens_with_fara
     app.press(Action::Vault(V::CGo));
     crate::common::settle(&mut app, 1);
     crate::common::settle_n(&mut app, 21, 30);
-    assert_eq!(
-        app.vaults().open.len(),
-        1,
-        "the vault opened with faraday, typed twice"
-    );
+    assert!(app.vaults().open.is_empty(), "the vault is made locked");
+    assert_eq!(app.screen, Screen::Unlock, "its Unlock is shown");
+    assert!(opens_with(&mut app, "faraday"), "and opens with faraday");
     assert_ne!(rolled, demo::PASSPHRASE);
 
     // On the stick the rolled words are the passphrase.
@@ -340,9 +335,7 @@ fn in_the_demo_use_faraday_puts_faraday_in_a_vaults_passphrase_and_its_repeat_an
     app.press(Action::Vault(V::CGo));
     crate::common::settle(&mut app, 1);
     crate::common::settle_n(&mut app, 21, 30);
-    assert_eq!(
-        app.vaults().open.len(),
-        1,
-        "the vault opened with faraday, typed twice"
-    );
+    assert!(app.vaults().open.is_empty(), "the vault is made locked");
+    assert_eq!(app.screen, Screen::Unlock, "its Unlock is shown");
+    assert!(opens_with(&mut app, "faraday"), "and opens with faraday");
 }
