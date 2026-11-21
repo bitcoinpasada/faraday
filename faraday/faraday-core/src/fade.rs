@@ -435,6 +435,21 @@ impl Faraday {
                 .then_some(s)
                 .flatten()
         });
+        // The press that moves the step also closes a sheet (the wallet's
+        // confirmation: Make the wallet held for it): with a secret drawn
+        // it is a step change just the same, drawn live, not a screen
+        // that swaps at once.
+        let left = left.or_else(|| {
+            let same = self.fade.last_drawn.is_some_and(|(k, p, t, _)| {
+                k.0 == drawn_key.0.0 && (p, t) == (drawn_key.1, drawn_key.2)
+            });
+            (same
+                && open_before != open
+                && open.is_some()
+                && (self.fade.secret_drawn || self.step_secret()))
+            .then_some(open_before)
+            .flatten()
+        });
         // A step change with a secret typed or shown in the step left or
         // in the one opened: no frame is kept to fade from or to, both
         // cards are drawn again every step (`docs/MOTION.md` §3.5).

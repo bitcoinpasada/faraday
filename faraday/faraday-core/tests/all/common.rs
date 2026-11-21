@@ -2239,3 +2239,41 @@ pub fn krux_open_with(app: &mut Faraday, pass: &str) {
     }
     let _ = app.frame();
 }
+
+/// What a person sees when the held wallet's sheet is confirmed (the
+/// press that closes it makes the wallet and moves its flow to the next
+/// step): the fades started, the fades skipped for Reduce motion, the
+/// frames that changed over the 480 ms after, and the frame the screen
+/// stopped changing at.
+pub struct HoldSeen {
+    pub started: u32,
+    pub reduced: u32,
+    pub changing: usize,
+    pub settled_at: usize,
+}
+
+pub fn hold_frames(app: &mut Faraday) -> HoldSeen {
+    let mut clock = 10_000u64;
+    app.event(Event::Tick { now_ms: clock });
+    for _ in 0..40 {
+        clock += 16;
+        app.event(Event::Tick { now_ms: clock });
+        let _ = app.frame();
+    }
+    let _ = app.take_fade_counts();
+    app.press(Action::WalletHold);
+    let mut fr = vec![app.frame().rgba.to_vec()];
+    for _ in 0..30 {
+        clock += 16;
+        app.event(Event::Tick { now_ms: clock });
+        while app.poll_command().is_some() {}
+        fr.push(app.frame().rgba.to_vec());
+    }
+    let cn = app.take_fade_counts();
+    HoldSeen {
+        started: cn.started,
+        reduced: cn.reduced,
+        changing: fr.windows(2).filter(|w| w[0] != w[1]).count(),
+        settled_at: fr.iter().position(|f| f == fr.last().unwrap()).unwrap(),
+    }
+}

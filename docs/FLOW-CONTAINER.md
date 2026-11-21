@@ -131,6 +131,8 @@ card. A step's blend touches only the bands that differ.
   kept (the kept-frame blend is used only where neither frame held a
   secret). The outgoing step's secret state is released when its fade out
   ends (35% of the eased progress, about 48 ms), not at the press.
+  A press that closes a sheet and moves the step together (the hold on a wallet's
+  confirmation sheet, which makes the wallet and opens Check) fades the same way.
   `docs/MOTION.md` §3.5's rule that a fade does not start from a frame
   drawn while a secret was typed or shown holds still: there is no kept
   frame, the live draw being the way. This is a security trade-off: the

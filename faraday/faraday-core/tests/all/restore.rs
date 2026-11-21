@@ -1612,3 +1612,76 @@ fn the_words_typed_are_not_in_your_choices_pane_or_sheet() {
     assert!(text.iter().any(|t| t == "Keys"), "{text:?}");
     assert!(!text.iter().any(|t| t.contains("abandon")), "{text:?}");
 }
+
+/// Typed seeds in every slot, Restore on its Seeds step, drawn.
+fn seeds_typed() -> Faraday {
+    let mut app = two_of_three_from_seeds();
+    type_seed(&mut app, &testkit::test_words("bacon"));
+    type_seed(&mut app, &testkit::test_words("zebra"));
+    type_seed(&mut app, &testkit::test_words("summer"));
+    let _ = app.frame();
+    app
+}
+
+#[test]
+fn make_the_wallet_fades_to_check() {
+    let mut app = seeds_typed();
+    let _ = app.take_fade_counts();
+    app.press(Action::Seeds(S::Make));
+    faraday_core::testkit::confirm_wallets(&mut app);
+    let _ = app.frame();
+    assert_eq!(app.restore().unwrap().open, Some(CHECK));
+    let counts = app.take_fade_counts();
+    assert_eq!((counts.started, counts.reduced), (1, 0), "a fade");
+}
+
+#[test]
+fn with_reduce_motion_make_the_wallet_shows_check_at_once() {
+    let mut app = seeds_typed();
+    app.press(Action::ReduceMotion(true));
+    let _ = app.frame();
+    let _ = app.take_fade_counts();
+    app.press(Action::Seeds(S::Make));
+    faraday_core::testkit::confirm_wallets(&mut app);
+    let _ = app.frame();
+    let counts = app.take_fade_counts();
+    assert_eq!((counts.started, counts.reduced), (0, 1));
+}
+
+/// Two typed seeds and a cosigner's xpub typed: Make the wallet is held
+/// for its sheet.
+fn made_held_for_its_sheet() -> Faraday {
+    let mut app = two_of_three_from_seeds();
+    type_seed(&mut app, &testkit::test_words("bacon"));
+    type_seed(&mut app, &testkit::test_words("zebra"));
+    app.press(Action::Slide(SLIDE_N, 2));
+    app.event(Event::Key(Key::Right));
+    app.press(Action::Seeds(S::Focus(Focus::Cosigner(0))));
+    type_text(&mut app, &testkit::key(2, MULTI_PATH));
+    app.event(Event::Key(Key::Enter));
+    app.press(Action::Seeds(S::Make));
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::WalletConfirm));
+    app
+}
+
+#[test]
+fn holding_the_sheet_of_make_the_wallet_fades_to_check() {
+    let mut app = made_held_for_its_sheet();
+    let seen = crate::common::hold_frames(&mut app);
+    assert_eq!(app.restore().unwrap().open, Some(CHECK));
+    assert_eq!((seen.started, seen.reduced), (1, 0), "a fade");
+    assert!(
+        seen.changing >= 10 && seen.settled_at >= 10,
+        "it fades through"
+    );
+}
+
+#[test]
+fn with_reduce_motion_holding_the_sheet_of_make_the_wallet_shows_check_at_once() {
+    let mut app = made_held_for_its_sheet();
+    app.press(Action::ReduceMotion(true));
+    let seen = crate::common::hold_frames(&mut app);
+    assert_eq!(app.restore().unwrap().open, Some(CHECK));
+    assert_eq!((seen.started, seen.reduced), (0, 1));
+    assert_eq!(seen.settled_at, 0, "there at once");
+}
