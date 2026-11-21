@@ -36,10 +36,12 @@ fn on_create_vault() -> (Faraday, u64) {
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Create));
     let _ = app.frame();
-    // The unlock time's measurement is timed on the real clock: have its
-    // answer in, so no frame later shows it landing.
-    faraday_core::testkit::settle(&mut app);
     let mut clock = 10_000;
+    // The unlock time's measurement is asked at Create and sent to the
+    // worker at the first tick, timed on the real clock: take that tick,
+    // then have its answer in, so no frame later shows it landing.
+    tick(&mut app, &mut clock, 1);
+    faraday_core::testkit::settle_time(&mut app);
     tick(&mut app, &mut clock, 1);
     (app, clock)
 }
