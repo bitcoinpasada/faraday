@@ -182,6 +182,16 @@ macro_rules! words_stick_files {
     /// A vault's state in what a lock wipes, while the system has given
     /// no randomness.
     vaults_changes_not_sealed: "Changes not sealed",
+    /// An open vault with changes, in what a lock keeps: the lock seals
+    /// it first.
+    vaults_lock_seals: "Sealed with all its items before the lock",
+    /// An open vault already sealed For the stick and not changed since,
+    /// in what a lock keeps.
+    vaults_lock_sealed_already: "Already sealed, no changes since, nothing more to seal",
+    /// An open vault already written and not changed, in what a lock keeps.
+    vaults_lock_nothing_to_seal: "Already written, nothing to seal",
+    /// An open read-only vault, in what a lock keeps.
+    vaults_lock_read_only: "Read only, closed as it is, nothing to seal",
     /// The pill under Lock while Make a new wallet's keys are kept
     /// nowhere yet.
     lock_held_pill: "Auto-lock off until backup complete",

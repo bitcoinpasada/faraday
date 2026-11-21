@@ -724,6 +724,17 @@ stick it was read from, which the app remembers with the SHA-256 of the
 bytes read (kept across a lock under the key `vault-from`, gone at
 power-off), or **Unchanged** when that stick is not known.
 
+The Lock, stick-attached, write-out and backup sheets' Kept section does
+not show a vault's currency alone, which is the past: it says what the
+press will do. An open vault with changes (or a new key) reads "{name} ·
+Sealed with all its items before the lock", its file being the one the
+"N files for the stick" line counts; one without reads "Already sealed,
+no changes since, nothing more to seal" (Never written) or "Already
+written, nothing to seal"; a read-only one "Read only, closed as it is,
+nothing to seal"; one that cannot be sealed (no randomness yet, past the
+ceiling) is under Wiped from memory as "Changes not sealed". Power-off
+seals nothing: its vaults keep the currency line.
+
 ## 7. Contents
 
 A file vault's contents are a KDBX 4 XML document (F190 point 3): one

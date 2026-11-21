@@ -359,9 +359,11 @@ fn the_lock_sheet_lists_a_seed_checked_and_in_a_vault_as_kept() {
         !lines.iter().any(|l| l.contains("nowhere else")),
         "{lines:?}"
     );
-    // The vault is kept, with its currency.
+    // The vault is kept, and the lock seals it first.
     assert!(
-        lines.iter().any(|l| l.contains("Changed since written")),
+        lines
+            .iter()
+            .any(|l| l.ends_with("Sealed with all its items before the lock")),
         "{lines:?}"
     );
 }

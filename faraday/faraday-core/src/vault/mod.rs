@@ -169,12 +169,40 @@ impl Faraday {
                 power_off && matches!(currency, Some(Currency::NeverWritten | Currency::Changed));
             // A lock with no seed to seal with loses the changes.
             let unsealed = !power_off && !self.seeded() && open.is_some_and(|v| v.changes > 0);
-            if unsealed {
+            // What a lock does to this vault (`seal::seal_next`): seals it
+            // when it has changes or a new key, closes a read-only or an
+            // unchanged one as it is, loses what is past the ceiling.
+            let lock_says = open.filter(|_| !power_off && !unsealed).map(|v| {
+                let id = v.id;
+                if self.vaults.store().read_only(id).is_some() {
+                    EN.vaults_lock_read_only
+                } else if v.changes == 0 && !self.vaults.store().rekeyed(id) {
+                    if matches!(currency, Some(Currency::NeverWritten)) {
+                        EN.vaults_lock_sealed_already
+                    } else {
+                        EN.vaults_lock_nothing_to_seal
+                    }
+                } else if self
+                    .vaults
+                    .open
+                    .iter()
+                    .position(|o| o.id == id)
+                    .and_then(|i| self.vaults.cannot_seal(c, i))
+                    .is_some_and(|n| !n.short)
+                {
+                    EN.vaults_changes_not_sealed
+                } else {
+                    EN.vaults_lock_seals
+                }
+            });
+            if unsealed || lock_says == Some(EN.vaults_changes_not_sealed) {
                 out.wiped.push((
                     text!("{} · {}", &*title, EN.vaults_changes_not_sealed),
                     true,
                     None,
                 ));
+            } else if let Some(says) = lock_says {
+                out.kept.push(text!("{} · {}", &*title, says));
             } else if lost {
                 out.wiped.push((Text::of(&line), true, None));
             } else {

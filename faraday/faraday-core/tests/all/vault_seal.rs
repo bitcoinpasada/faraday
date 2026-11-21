@@ -926,6 +926,44 @@ fn a_lock_with_a_vault_open_lists_kept_wiped_and_then() {
     assert!(app.restart_requested());
 }
 
+/// A vault with changes is listed under Kept as sealed with all its items
+/// before the lock; one with none says nothing is left to seal.
+#[test]
+fn the_lock_sheet_says_an_open_vault_is_sealed_before_the_lock() {
+    let mut app = device(cheap_vault());
+    randomness(&mut app, 0x21);
+    open_and_change(&mut app);
+    app.press(Action::LockAsk);
+    assert_eq!(app.sheet, Some(Sheet::LockAsk));
+    let texts = app.drawn_texts();
+    let kept = texts.iter().position(|t| t == "Kept");
+    let sealed = texts.iter().position(|t| t.ends_with(EN.vaults_lock_seals));
+    let wiped = texts.iter().position(|t| t == "Wiped from memory");
+    assert!(kept < sealed && sealed < wiped, "{texts:?}");
+}
+
+/// An unchanged open vault is not sealed, and its line says so.
+#[test]
+fn the_lock_sheet_says_an_unchanged_vault_has_nothing_to_seal() {
+    let mut app = device(cheap_vault());
+    randomness(&mut app, 0x21);
+    open(&mut app);
+    app.press(Action::Entry(None));
+    type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
+    app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
+    app.press(Action::LockAsk);
+    let texts = app.drawn_texts();
+    assert!(
+        texts
+            .iter()
+            .any(|t| t.ends_with(EN.vaults_lock_nothing_to_seal)
+                || t.ends_with(EN.vaults_lock_sealed_already)),
+        "{texts:?}"
+    );
+    assert!(!texts.iter().any(|t| t.ends_with(EN.vaults_lock_seals)));
+}
+
 /// With no vault open, a wallet being made, the sheet's way out is
 /// Cancel: there is no vault to go back to.
 #[test]
