@@ -109,15 +109,30 @@ pub(crate) struct Pane<'a> {
     pub(crate) place: (f32, f32, f32),
     /// How far it is scrolled within itself.
     pub(crate) offset: f32,
+    /// The step's card column: its left edge and its width.
+    pub(crate) card: (f32, f32),
+    /// The page area's left edge: the navigation's edge, or the window's.
+    pub(crate) area_x: f32,
 }
 
 impl Pane<'_> {
-    /// Draws the pane on the surface with a divider at its start. A pane
-    /// taller than the window scrolls within itself (`Slot::Choices`).
+    /// Draws the pane on the surface with a divider at its start, and a
+    /// second one the same spacer left of the card's column, so the card
+    /// is framed on both sides; each runs from the top to a page margin
+    /// above the window's foot. A pane taller than the window scrolls
+    /// within itself (`Slot::Choices`).
     pub(crate) fn draw(&self, ui: &mut Ui, foot: Foot) {
         let (px, pw, h) = self.place;
         ui.fill(px, 0.0, pw, h, 0.0, Role::Surface);
-        ui.fill(px, 0.0, 1.0, h, 0.0, Role::OutlineVariant);
+        let end = h - tokens::MARGIN_WIDE;
+        ui.fill(px, 0.0, 1.0, end, 0.0, Role::OutlineVariant);
+        // Nearer than a spacer to the page's edge, the navigation's own
+        // edge frames the card and a second line beside it would read as
+        // a double rule.
+        let left = self.card.0 - tokens::SPACER;
+        if left - self.area_x >= tokens::SPACER {
+            ui.fill(left, 0.0, 1.0, end, 0.0, Role::OutlineVariant);
+        }
         let top = tokens::SIDE_PANEL_TOP;
         let clip = ui.rect(px + 1.0, top, pw - 1.0, h - top);
         let off = self.offset;

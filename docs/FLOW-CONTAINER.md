@@ -152,7 +152,12 @@ card. A step's blend touches only the bands that differ.
 **Wide layout** (the expanded rail: a large or extra-large window that is
 not low; `ui.compact` false). The pane stands at the right of the page
 area, as Make a new vault's does today: `side_panel_w` (31% of the page
-area, 240 to 320 dp), on the surface with a divider at its start, its
+area, 240 to 320 dp), on the surface with a divider at its start (a line from the top to a page
+margin above the window's foot, and the same line the same spacer left of
+the card's column, so the card is framed on both sides, drawn only where it
+stands at least a spacer clear of the page's left edge, nearer which the
+navigation's edge frames the card; Guide's pane is its own card and draws
+none; a full-width step and every one-column layout draw neither), its
 heading **Your choices** in Label L at `SIDE_PANEL_TOP`, then one row per
 step: the label, and under it the answer or "Not chosen yet", each row a
 press in its 48 dp target. The current step's row is marked as current.

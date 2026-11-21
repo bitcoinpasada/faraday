@@ -205,6 +205,8 @@ pub(crate) fn contained(
             steps: s,
             place: (px, pane_w, page.h),
             offset: app.scroll.choices_offset(),
+            card: (x, w),
+            area_x,
         }
         .draw(ui, foot);
     }
