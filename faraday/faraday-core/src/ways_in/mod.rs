@@ -91,6 +91,10 @@ pub enum Opening {
     CheckSigner,
     /// Spend's sign card.
     SpendSign,
+    /// Restore's open slot.
+    RestoreSlot,
+    /// Check's backup menu.
+    CheckBackup,
 }
 
 /// One row of a way: its label, style and press.
@@ -104,6 +108,8 @@ impl Opening {
             Opening::SeedMakesWallet | Opening::SeedAgainst => &SEED_MAKES_WALLET,
             Opening::CheckSigner => &CHECK_A_SIGNER,
             Opening::SpendSign => &SPEND_SIGN,
+            Opening::RestoreSlot => &RESTORE_SLOT,
+            Opening::CheckBackup => &CHECK_BACKUP,
         }
     }
 
@@ -134,6 +140,9 @@ impl Opening {
             }
             Opening::CheckSigner => (EN.entry_type_the_words, EN.keygen_scan_a_seedqr),
             Opening::SpendSign => (EN.entry_type_the_words, EN.step_scan_a_seedqr),
+            Opening::RestoreSlot | Opening::CheckBackup => {
+                (EN.entry_type_the_words, EN.restore_open_slot_scan)
+            }
         };
         let wi = app.wallets.wallet();
         match way {
@@ -146,6 +155,7 @@ impl Opening {
                     }
                     Opening::CheckSigner => Action::SignerCheck(SignerPress::SeedScan),
                     Opening::SpendSign => Action::ScanKey(wi),
+                    Opening::RestoreSlot => Action::RSlotScan,
                 },
             ),
             Way::Form(Form::Words) if me != Opening::AddAKey => (
@@ -154,6 +164,7 @@ impl Opening {
                 match me {
                     Opening::CheckSigner => Action::SignerCheck(SignerPress::SeedWords),
                     Opening::SpendSign => Action::EntryWallet(wi),
+                    Opening::RestoreSlot => Action::RSlotWords,
                     _ => Action::SeedCheck(SeedAction::Type),
                 },
             ),
@@ -164,6 +175,10 @@ impl Opening {
                     Opening::AddAKey => Action::EntryForm(f.code()),
                     Opening::CheckSigner => Action::SignerCheck(SignerPress::SeedForm(f.code())),
                     Opening::SpendSign => Action::EntryWalletForm(wi, f.code()),
+                    Opening::RestoreSlot => Action::RSlotForm(f.code()),
+                    Opening::CheckBackup => Action::Check(crate::check::Press::Form(
+                        crate::check::Backup::Form(f),
+                    )),
                     _ => crate::seed_check::FORMS
                         .iter()
                         .position(|x| *x == f)

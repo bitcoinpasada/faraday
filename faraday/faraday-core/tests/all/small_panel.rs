@@ -625,3 +625,30 @@ fn add_a_key_offers_other_forms_above_the_field_and_opens_a_sheet() {
     tap(&mut app, Action::EntryForm(at));
     assert_eq!(app.sheet, None, "choosing a form closes the sheet");
 }
+
+#[test]
+fn checks_backup_menu_opens_its_other_forms_as_a_sheet_on_the_panel() {
+    use faraday_core::check::{Backup, Press, Row};
+    use faraday_core::forms::Form;
+    let mut app = panel();
+    app.press(Action::Check(Press::Row(Row::Backup)));
+    let _ = app.frame();
+    assert_eq!(app.sheet, Some(Sheet::CheckBackups));
+    app.press(Action::Check(Press::Other));
+    let _ = app.frame();
+    assert_eq!(app.sheet, Some(Sheet::OtherForms(Opening::CheckBackup)));
+    let shown: Vec<String> = app
+        .drawn_text_boxes()
+        .plain()
+        .into_iter()
+        .map(|(t, _)| t)
+        .collect();
+    for form in [Form::Slip39, Form::Xor, Form::Krux] {
+        assert!(shown.iter().any(|t| t == form.name()), "{}", form.name());
+    }
+    assert!(
+        !shown.iter().any(|t| t == Form::Codex32.name()),
+        "codex32 is shown first, not under Other forms"
+    );
+    assert!(app.offers(Action::Check(Press::Form(Backup::Form(Form::Slip39)))));
+}

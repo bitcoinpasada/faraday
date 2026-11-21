@@ -604,12 +604,14 @@ fn restore_open_slot(
             | crate::ways_in::Way::AddAKey => continue,
         });
     }
-    labels.push((
-        EN.entry_other_forms.to_string(),
-        Style::chosen(open),
-        Action::RSlotForms,
-    ));
-    if open {
+    // A sheet on a small panel, rows in place on the wide layout.
+    let other = if app.one_column() {
+        Action::EntryOtherForms(crate::Opening::RestoreSlot)
+    } else {
+        Action::RSlotForms
+    };
+    labels.push((EN.entry_other_forms.to_string(), Style::chosen(open), other));
+    if open && !app.one_column() {
         labels.extend(opener.other_forms().into_iter().map(form_row));
     }
     crate::seeds::screen::more_ways(app, here, true, &mut labels);

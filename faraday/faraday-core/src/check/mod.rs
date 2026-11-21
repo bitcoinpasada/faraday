@@ -196,6 +196,10 @@ pub(crate) fn press(app: &mut Faraday, p: Press) {
     match p {
         Press::Row(Row::Dice) => app.keygen_open_dice(),
         Press::Row(Row::Backup) => app.sheet = Some(Sheet::CheckBackups),
+        // On a small panel Other forms is a sheet of its own.
+        Press::Other if app.one_column() => {
+            app.sheet = Some(Sheet::OtherForms(crate::Opening::CheckBackup));
+        }
         Press::Other => {
             app.sheet = Some(match app.sheet {
                 Some(Sheet::CheckBackups) => Sheet::CheckBackupsOther,

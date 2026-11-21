@@ -891,6 +891,9 @@ impl Faraday {
                 }
             }
             Action::RSlotForm(code) => {
+                if matches!(self.sheet, Some(crate::Sheet::OtherForms(_))) {
+                    self.sheet = None;
+                }
                 if let Some(r) = self.restore.state.as_mut() {
                     r.error = None;
                 }
