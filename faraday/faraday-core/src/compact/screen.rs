@@ -716,7 +716,7 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     {
         // The field under them takes a press: their own presses keep their
         // room.
-        y += crate::ways_in::screen::forms(app, ui, (x, y, iw), &crate::ways_in::ADD_A_KEY);
+        y += crate::ways_in::screen::forms(app, ui, (x, y, iw), crate::Opening::AddAKey);
     }
     if es.form != Form::Words {
         let y = if es.form == Form::Krux {
@@ -747,7 +747,7 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // instead, so the word keyboard stays above the pinned Add a key.
     let with_lists = ui.text_factor() > 1.0 && !es.other_forms;
     if !with_lists {
-        y += crate::ways_in::screen::forms(app, ui, (x, y, iw), &crate::ways_in::ADD_A_KEY);
+        y += crate::ways_in::screen::forms(app, ui, (x, y, iw), crate::Opening::AddAKey);
     }
     y = entry_words(app, ui, x, y, iw, with_lists);
     y += entry_pass(app, ui, (x, y, iw), EN.compact_bip_39_passphrase);
@@ -782,9 +782,9 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     finish(app, ui, h, y - top + 8.0);
 }
 
-/// Add a key's **Other forms** on a small panel, as a sheet: a row for
+/// An opener's **Other forms** on a small panel, as a sheet: a row for
 /// each form, the one shown chosen, and Close.
-pub(crate) fn other_forms_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
+pub(crate) fn other_forms_sheet(app: &View, ui: &mut Ui, w: f32, h: f32, opening: crate::Opening) {
     use faraday_draw::tokens;
     let place = (tokens::GAP, w - 2.0 * tokens::GAP);
     let pad = tokens::GRID * 2.0;
@@ -799,7 +799,7 @@ pub(crate) fn other_forms_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             Role::OnSurface,
             EN.entry_other_forms,
         );
-        cy += crate::ways_in::screen::other_rows(app, ui, (x, cy, iw), &crate::ways_in::ADD_A_KEY);
+        cy += crate::ways_in::screen::other_rows(app, ui, (x, cy, iw), opening);
         cy += super::buttons(
             ui,
             x,
@@ -854,7 +854,7 @@ pub(crate) fn entry_words(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, form
             (
                 EN.entry_other_forms.to_string(),
                 Style::Ghost,
-                Action::EntryOtherForms,
+                Action::EntryOtherForms(crate::Opening::AddAKey),
             ),
         );
     }

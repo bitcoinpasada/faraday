@@ -34,6 +34,30 @@ pub(crate) const ADD_A_KEY: Opener = Opener {
     up_front: &[Way::Scan, Way::Form(Form::Words), Way::Form(Form::Codex32)],
 };
 
+/// Which opener drew an Other forms control: its press and its sheet
+/// carry it, so every opener's rows come from its own constant.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Opening {
+    /// Add a key.
+    AddAKey,
+}
+
+impl Opening {
+    /// The opener this is.
+    pub(crate) fn opener(self) -> &'static Opener {
+        match self {
+            Opening::AddAKey => &ADD_A_KEY,
+        }
+    }
+
+    /// The press of one of this opener's forms.
+    pub(crate) fn form_press(self, form: Form) -> crate::Action {
+        match self {
+            Opening::AddAKey => crate::Action::EntryForm(form.code()),
+        }
+    }
+}
+
 impl Opener {
     /// The forms shown first, in order.
     pub(crate) fn up_front_forms(&self) -> impl Iterator<Item = Form> + '_ {

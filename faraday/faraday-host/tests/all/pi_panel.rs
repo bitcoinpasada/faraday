@@ -18,6 +18,7 @@
 //! is added and not listed.
 
 use crate::common::add_key;
+use faraday_core::Opening;
 use faraday_core::backup_flow::steps::FlowAction;
 use faraday_core::backup_flow::{BackupFlow, Kind as FlowKind, Plan, Step as FlowStep};
 use faraday_core::catalog::TILES;
@@ -209,7 +210,7 @@ fn sheets() -> Vec<Sheet> {
         CancelFlow(Going::Create), CancelKey, Choices, FileMenu, Rename, Details, UnlockLoad, SignerSeed, SaveAlso, CopyTo, SaveKeeps, Trim, OlderCopy,
         ChildRecord, GpgTile, ChildNotice,
         PassphraseSeeds, GpgSign, Mode, Samples, NavMenu(None), KeyLengths, WalletConfirm, Account, Register,
-        GpgRestore, FigMenu, LaterAsk, StickSheet, KefOptions, OtherForms, VaultPassphrase, VaultMemory,
+        GpgRestore, FigMenu, LaterAsk, StickSheet, KefOptions, OtherForms(Opening::AddAKey), VaultPassphrase, VaultMemory,
         Sweep, KeyFile, OutboxDelete, Published, MadeWallet, CheckBackups, AddressFiles, QuickTemplate);
     // A compact bar's overflow menu, holding every tool it can.
     all.push(Sheet::NavMenu(Some(Overflow {

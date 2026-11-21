@@ -7,7 +7,7 @@ use faraday_core::keygen::{Group, Way};
 use faraday_core::testkit::Plain;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::vault::vstep;
-use faraday_core::{Action, ChoicesPress, Faraday, OskPress, Screen, Sheet};
+use faraday_core::{Action, ChoicesPress, Faraday, Opening, OskPress, Screen, Sheet};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
 
 const W: u16 = 480;
@@ -595,15 +595,15 @@ fn add_a_key_offers_other_forms_above_the_field_and_opens_a_sheet() {
     app.press(Action::Entry(None));
     let _ = app.frame();
     assert_eq!(app.screen, Screen::Entry);
-    let forms = on_panel(&mut app, Action::EntryOtherForms)
+    let forms = on_panel(&mut app, Action::EntryOtherForms(Opening::AddAKey))
         .expect("Other forms is on the panel without scrolling");
     let scan = on_panel(&mut app, Action::ScanSeed).expect("Scan a SeedQR is on the panel");
     assert!(
         scan.1 < forms.1 && forms.1 < H * 3 / 5,
         "Other forms stands under Scan, above the field"
     );
-    tap(&mut app, Action::EntryOtherForms);
-    assert_eq!(app.sheet, Some(Sheet::OtherForms));
+    tap(&mut app, Action::EntryOtherForms(Opening::AddAKey));
+    assert_eq!(app.sheet, Some(Sheet::OtherForms(Opening::AddAKey)));
     let shown: Vec<String> = app
         .drawn_text_boxes()
         .plain()

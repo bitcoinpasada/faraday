@@ -78,8 +78,8 @@ pub enum Action {
     EntryLanguages,
     /// Type another form of key, by its place in `forms::Form::ALL`.
     EntryForm(u8),
-    /// Shows the SLIP-39, codex32 and Seed XOR chips.
-    EntryOtherForms,
+    /// Opens the Other forms of an opener: its rows in place, or its sheet on a small panel.
+    EntryOtherForms(crate::Opening),
     /// The typed share, string or part, collected.
     EntryPart,
     /// The collected parts put together as a key.
@@ -1237,7 +1237,7 @@ impl Faraday {
                 self.confirm_act(Action::WalletCancel);
             }
             Action::Cancel if self.sheet == Some(Sheet::GpgSign) => self.sheet = None,
-            Action::Cancel if self.sheet == Some(Sheet::OtherForms) => self.sheet = None,
+            Action::Cancel if matches!(self.sheet, Some(Sheet::OtherForms(_))) => self.sheet = None,
             Action::Cancel if self.sheet == Some(Sheet::KefRead) => seeds::kef::kef_cancel(self),
             Action::Cancel if self.sheet == Some(Sheet::NameTaken) => self.name_taken_cancel(),
             Action::Cancel if self.sheet == Some(Sheet::TextSeed) => {
@@ -1524,7 +1524,7 @@ impl Faraday {
             Action::Back if self.sheet == Some(Sheet::Choices) => {
                 self.choices_act(ChoicesPress::Close);
             }
-            Action::Back if self.sheet == Some(Sheet::OtherForms) => self.sheet = None,
+            Action::Back if matches!(self.sheet, Some(Sheet::OtherForms(_))) => self.sheet = None,
             Action::Back => self.back(),
             Action::Own(a) => self.own_press(a),
             Action::Resume(g) => self.flow_resume(g),
@@ -1602,7 +1602,7 @@ impl Faraday {
             | Action::EntryShift
             | Action::EntryCandidate(..)
             | Action::EntryForm(..)
-            | Action::EntryOtherForms
+            | Action::EntryOtherForms(..)
             | Action::EntryPart
             | Action::EntryRecover
             | Action::EntryPassphrase

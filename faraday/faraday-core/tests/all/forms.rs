@@ -13,7 +13,7 @@ use std::str::FromStr;
 
 use faraday_bip::bitcoin::bip32::Xpriv;
 use faraday_bip::bitcoin::secp256k1::Secp256k1;
-use faraday_core::{Action, Faraday, Screen};
+use faraday_core::{Action, Faraday, Opening, Screen};
 use faraday_shell_api::{App, Event, Key};
 
 fn typed(app: &mut Faraday, text: &str) {
@@ -234,11 +234,11 @@ fn a_fresh_new_key_offers_no_form_of_a_key_held_and_add_a_key_offers_the_words()
     use faraday_core::forms::Form;
     let code = |f: Form| Form::ALL.iter().position(|x| *x == f).unwrap() as u8;
     assert!(app.offers(Action::EntryForm(code(Form::Codex32))));
-    assert!(app.offers(Action::EntryOtherForms));
+    assert!(app.offers(Action::EntryOtherForms(Opening::AddAKey)));
     for f in [Form::Slip39, Form::Xor, Form::Krux] {
         assert!(!app.offers(Action::EntryForm(code(f))), "{}", f.name());
     }
-    app.press(Action::EntryOtherForms);
+    app.press(Action::EntryOtherForms(Opening::AddAKey));
     let _ = app.frame();
     assert_eq!(
         app.sheet, None,

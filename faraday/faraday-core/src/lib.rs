@@ -167,6 +167,7 @@ pub mod stick;
 mod trail;
 pub mod ui;
 mod ways_in;
+pub use ways_in::Opening;
 
 pub mod work;
 pub mod worker;
@@ -591,8 +592,8 @@ pub enum Sheet {
     SignerSeed,
     /// **Options** of the Krux code tool's form.
     KefOptions,
-    /// Add a key's **Other forms** on a small panel: the other forms of a key to take in.
-    OtherForms,
+    /// An opener's **Other forms** on a small panel: the other forms of a key to take in.
+    OtherForms(Opening),
     /// **A BIP-85 child seed**: a wallet made over one recorded (F166).
     ChildNotice,
     /// **Make a wallet** at an Explore path made one: its descriptor and first addresses (`explore/made.rs`).

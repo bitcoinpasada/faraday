@@ -68,7 +68,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // of them.
     // On the words form they come in place of Other forms, under Scan.
     if app.entry.state().other_forms && app.entry.state().form != crate::forms::Form::Words {
-        y += crate::ways_in::screen::forms(app, ui, (x, y, width), &crate::ways_in::ADD_A_KEY);
+        y += crate::ways_in::screen::forms(app, ui, (x, y, width), crate::Opening::AddAKey);
     }
     if app.entry.state().form == crate::forms::Form::Krux {
         let bottom = y + crate::seeds::kef::read_rows(app, ui, (x, y, width), true);
@@ -96,7 +96,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         entry_scan(app),
     );
     y += 52.0;
-    y += crate::ways_in::screen::forms(app, ui, (x, y, width), &crate::ways_in::ADD_A_KEY);
+    y += crate::ways_in::screen::forms(app, ui, (x, y, width), crate::Opening::AddAKey);
     y = entry_words(app, ui, x, y, width, h);
     let bottom = entry_finish(app, ui, x, y, width, h);
     entry_scrolled(app, ui, open, h, bottom);

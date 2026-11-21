@@ -481,7 +481,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::Import => crate::boot_import::screen::draw(app, ui, w, h),
             Sheet::Pull => pull_sheet(app, ui, w, h),
             Sheet::Chart => crate::glance::sheet::draw(app, ui, w, h),
-            Sheet::OtherForms => crate::compact::screen::other_forms_sheet(app, ui, w, h),
+            Sheet::OtherForms(o) => crate::compact::screen::other_forms_sheet(app, ui, w, h, o),
             Sheet::Choices => crate::flow::act::sheet(app, ui, w, h),
             Sheet::BoardList => crate::board::screen::list_sheet(app, ui, w, h),
             Sheet::BoardSees => crate::board::screen::sees_sheet(app, ui, w, h),
