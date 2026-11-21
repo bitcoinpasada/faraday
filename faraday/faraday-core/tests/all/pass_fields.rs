@@ -6,7 +6,7 @@
 use crate::common::type_text;
 use faraday_core::testkit::Plain;
 use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent, testkit};
-use faraday_shell_api::App;
+use faraday_shell_api::{App, Event, Key};
 
 const REFUSED: &str = "A passphrase here is printable ASCII only";
 const STICK_LINE: &str = "Keys load only with no stick attached";

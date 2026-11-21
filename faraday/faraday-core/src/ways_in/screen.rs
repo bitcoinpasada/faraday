@@ -2,7 +2,7 @@
 //! one text button with a chevron that opens its rows in place, or as a
 //! sheet on a small panel (`docs/KEY-FORMS.md` §4.1).
 
-use super::{Opening, Way};
+use super::Opening;
 use crate::Action;
 use crate::drawing::View;
 use crate::forms::Form;

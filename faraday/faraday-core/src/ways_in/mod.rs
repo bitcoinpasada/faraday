@@ -156,6 +156,7 @@ impl Opening {
                     Opening::CheckSigner => Action::SignerCheck(SignerPress::SeedScan),
                     Opening::SpendSign => Action::ScanKey(wi),
                     Opening::RestoreSlot => Action::RSlotScan,
+                    Opening::CheckBackup => Action::ScanSeed,
                 },
             ),
             Way::Form(Form::Words) if me != Opening::AddAKey => (
