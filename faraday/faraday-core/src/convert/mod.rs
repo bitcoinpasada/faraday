@@ -420,7 +420,8 @@ pub const ROWS: [Row; 17] = [
         name: EN.convert_seed,
         line: EN.convert_seed_line,
         target: Some(Target::SeedHex),
-        applies: |_| true,
+        // A key loaded from an xprv holds no seed and no words.
+        applies: |k| k.seed_len.is_some() || k.has_words(),
     },
     Row {
         name: EN.convert_xprv,

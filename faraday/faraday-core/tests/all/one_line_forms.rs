@@ -71,7 +71,7 @@ fn the_other_networks_version_is_refused_by_name() {
     let mut app = adding(Form::Xprv);
     type_and_enter(&mut app, XPRV);
     assert!(app.session.keys.is_empty());
-    assert!(error(&app).contains("tprv"), "{}", error(&app));
+    assert_eq!(error(&app), "The key is xprv: this session reads tprv");
 }
 
 #[test]

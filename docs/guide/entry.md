@@ -52,7 +52,7 @@ A key held as a Krux encrypted code is read here, not typed. **Scan a Krux code*
 
 **Key:** entry.xprv
 
-Type or paste one line: an xprv, or a tprv on a test network. **Add key** loads it as a master key with no words and no seed, and no passphrase. A key that is not a master key is refused with its depth, its parent's fingerprint and its child number, and Faraday does not guess where in a wallet it sits. An origin written before the key is taken only when it names the key's own fingerprint and no path. The other network's version and the yprv, zprv and similar spellings are refused by name.
+Type one line: an xprv, or a tprv on a test network. **Add key** loads it as a master key with no words and no seed, and no passphrase. A key that is not a master key is refused with its depth, its parent's fingerprint and its child number, and Faraday does not guess where in a wallet it sits. An origin written before the key is taken only when it names the key's own fingerprint and no path. The other network's version and the yprv, zprv and similar spellings are refused by name.
 
 ## Master seed in hex
 

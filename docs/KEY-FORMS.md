@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F299, F300); the registry crate `faraday-forms` is built (the identifier and the table of §3.2, and `scan_read::Kind::form`, which every scanner's seed branch reads through `Kind::route`), the ways-in component (`ways_in`, §4) draws Add a key's forms (with 15, 18 and 21 words under Other forms) and the rows of My seed makes my wallet, Check a signer, Spend's single-key sign card, Restore's slot, Check's backup menu, Convert's From (an aezeed and a SLIP-39 set under Other forms) and New key's Start, and the other lists of §2 are not yet moved onto it: seven lists still repeat what it knows by hand.
-**Open:** every list moved onto the registry; the ways-in component on the other openers of §4.2 (Spend's multisig sign card; each opener's matching source and Restore's Its xpub, a way the table does not list; and the word lists, holders and Files as ways); the four copy-check camera purposes made one; Convert's reading of them (the key boundary reads both; the registry holds both, and Add a key takes each as one line of text, §6.3)
+**Open:** every list moved onto the registry; the ways-in component on the other openers of §4.2 (Spend's multisig sign card; each opener's matching source and Restore's Its xpub, a way the table does not list; and the word lists, holders and Files as ways); the four copy-check camera purposes made one; what the xprv form shows of a master key before it loads (its depth, parent fingerprint, child number and fingerprint, §6.1)
 
 A key comes into Faraday in one of a few forms: BIP-39 words, SLIP-39
 shares, codex32 strings, Seed XOR parts, a Krux code, and, by F300, an
@@ -289,8 +289,7 @@ listed and never loaded by itself.
 
 A key loaded from an xprv holds a master key and nothing it was made
 from: it signs, derives accounts and is checked like any key, and Convert
-offers it its xprv only. `docs/SEED-CONVERSION.md` §1 item 6 ("no key
-offers only its xprv") no longer holds for it. In the backup plan it is a
+offers it its xprv only (`docs/SEED-CONVERSION.md` §1 item 6). In the backup plan it is a
 key kept outside the plan, as a key of SLIP-39 shares or a master seed is
 (`Seed::shares`), and the plan makes no copies of it (owner, 2026-11-20). A key from a hex seed is a seed key like a codex32 one.
 

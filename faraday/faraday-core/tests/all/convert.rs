@@ -3812,3 +3812,20 @@ fn from_offers_an_aezeed_and_a_slip39_set_under_other_forms() {
     assert!(texts.iter().any(|t| t == "An LND aezeed"));
     assert!(texts.iter().any(|t| t == "A SLIP-39 set"));
 }
+
+/// A key loaded from an xprv (Add a key's form, which Convert's From opens)
+/// holds a master key only: Convert offers it its xprv and no master seed.
+#[test]
+fn a_key_from_an_xprv_is_offered_its_xprv_and_not_a_master_seed() {
+    let mut app = on_mainnet();
+    let c = testkit::compute();
+    app.session.keys.add_xprv(&c, SEED_1_XPRV, "Test").unwrap();
+    let info = app.session.keys.info(0).unwrap();
+    assert!(!ROWS[place("Master seed, hex") as usize].applies(info));
+    assert!(ROWS[place("xprv") as usize].applies(info));
+    open(&mut app);
+    assert_eq!(make(&mut app, "xprv").as_deref(), Some(SEED_1_XPRV));
+    app.press(Action::Convert(C::Step(cstep::TO)));
+    app.press(Action::Convert(C::To(place("Master seed, hex"))));
+    assert_eq!(convert::shown(&app), None, "no seed was made");
+}

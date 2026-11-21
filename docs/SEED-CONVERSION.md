@@ -43,13 +43,13 @@ standard it is and which software restores it.
    A key not loaded is brought in by Add a key, which returns to the
    tool. Typed words therefore follow Add a key's rules for transient
    input, and the tool holds no secret of its own (`docs/KEYS.md` §2).
-6. **The seed bytes must exist.** A key loaded from a master seed
-   (codex32, SLIP-39) keeps its seed bytes (`Keys::add_seed`,
-   `holds_seed_bytes`, `faraday/faraday-keys/src/session.rs`), as a key of
-   words keeps its words: every key has its seed bytes or its words, and
-   no key offers only its xprv. (F300 changes this for a key loaded from
-   an xprv, which holds only its master key; which targets a key offers is
-   to follow from its form, `docs/KEY-FORMS.md` §3.4 and §6.4.)
+6. **A key has its seed bytes, its words or only its master key.** A key
+   loaded from a master seed (codex32, SLIP-39, hex) keeps its seed bytes
+   (`Keys::add_seed`, `holds_seed_bytes`,
+   `faraday/faraday-keys/src/session.rs`), as a key of words keeps its
+   words. A key loaded from an xprv (`Keys::add_xprv`, F300) holds only
+   its master key: Convert offers it its xprv and no master seed, and
+   nothing that needs its words or seed bytes (`docs/KEY-FORMS.md` §6.4).
 7. **codex32's set actions are the backup's; SLIP-39's are this
    tool's.** A codex32 set's Add a share, Replace a lost share and Rotate
    the set change what a plan's places keep, so they live with the backup

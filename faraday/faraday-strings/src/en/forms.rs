@@ -45,9 +45,9 @@ macro_rules! words_forms {
     /// `{}`: the spelling, such as zprv.
     forms_xprv_slip132: "That is a {} key, a SLIP-132 spelling: Faraday reads xprv and tprv only",
     /// `{}`: the version written, the version this session reads.
-    forms_xprv_wrong_network: "That is a {} key: this session reads {} keys",
+    forms_xprv_wrong_network: "The key is {}: this session reads {}",
     /// A valid key below depth 0. `{}`: depth, parent fingerprint, child number.
-    forms_xprv_not_master: "Not a master key: depth {}, parent {}, child {}. Faraday does not guess where in a wallet it sits",
+    forms_xprv_not_master: "Not a master key: depth {}, parent {}, child {}",
     /// The origin before an extended private key is not a fingerprint.
     forms_xprv_origin_unreadable: "The origin before the key is not [ and eight hex digits and ]",
     /// The origin before an extended private key has a path.
@@ -55,7 +55,7 @@ macro_rules! words_forms {
     /// The origin names another key. `{}`: the fingerprint named, the key's own.
     forms_xprv_origin_differs: "The origin names {}, but the key is {}",
     /// A hex seed with a character that is not a hex digit or a space.
-    forms_hex_not_hex: "Not hex: use the digits 0 to 9 and a to f",
+    forms_hex_not_hex: "Not hex: only 0-9 and a-f or A-F",
     /// `{}`: the digit count.
     forms_hex_odd: "{} hex digits: a seed has an even count",
     /// `{}`: the length in bytes.
