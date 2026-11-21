@@ -1350,6 +1350,7 @@ fn a_krux_code_scanned_on_the_seed_card_gives_the_fingerprint_of_the_words_typed
     open_with(&mut app, "note key");
     assert_eq!(app.sheet, None);
     assert_eq!(app.screen, Screen::SeedCheck);
+    crate::common::through_fade(&mut app);
     assert!(has(&mut app, "No passphrase"));
     app.press(Action::SeedCheck(S::NoPass));
     assert_eq!(

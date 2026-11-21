@@ -930,10 +930,12 @@ fn no_money_shows_walks_through_the_passphrase_taproot_nested_and_legacy() {
 #[test]
 fn the_ways_tried_fill_a_progress_indicator_as_they_are_counted() {
     let mut app = guessed_single();
+    crate::common::through_fade(&mut app);
     // "1 of 5": a fifth of the track.
     assert_eq!(crate::common::progress_shown(&mut app), vec![Some(0.2)]);
     app.press(Action::SpendBackup(F::NoMoney));
     app.press(Action::SpendBackup(F::Passphrase(false)));
+    crate::common::through_fade(&mut app);
     // "3 of 5".
     assert_eq!(crate::common::progress_shown(&mut app), vec![Some(0.6)]);
 }
