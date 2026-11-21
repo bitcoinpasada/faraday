@@ -2247,8 +2247,8 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// Scan's place at the top of the navigation (Material's navigation
     /// rail, `docs/LAYOUT.md` §3): the primary FAB with its top-left
     /// corner at (`x`, `y`). With `width` it is the expanded rail's
-    /// extended FAB, icon and word; without, the rail's FAB, a square of
-    /// its icon alone. It does not float over a page, so the snackbar
+    /// extended FAB, icon and word; without, the rail's FAB, Material's small FAB:
+    /// a square of its icon alone, `FAB_H_COMPACT`. It does not float over a page, so the snackbar
     /// does not stand beside it. Returns its height.
     pub fn fab_top(
         &mut self,
@@ -2258,18 +2258,19 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         label: &str,
         action: A,
     ) -> f32 {
-        use faraday_draw::tokens::{FAB_H, FAB_PAD};
-        let (w, word) = match width {
-            Some(w) => (w, Some(label)),
-            None => (FAB_H, None),
+        use faraday_draw::tokens::{FAB_H, FAB_H_COMPACT, FAB_PAD, ICON_GLYPH};
+        let (w, h, pad, word) = match width {
+            Some(w) => (w, FAB_H, FAB_PAD, Some(label)),
+            // Material's small FAB: a square, its icon centred.
+            None => (
+                FAB_H_COMPACT,
+                FAB_H_COMPACT,
+                (FAB_H_COMPACT - ICON_GLYPH) / 2.0,
+                None,
+            ),
         };
-        let pad = if word.is_some() {
-            FAB_PAD
-        } else {
-            (FAB_H - faraday_draw::tokens::ICON_GLYPH) / 2.0
-        };
-        self.fab_pill((x, y, w, FAB_H), pad, icon, word, action);
-        FAB_H
+        self.fab_pill((x, y, w, h), pad, icon, word, action);
+        h
     }
 
     /// The primary FAB's body: `(x, y, width, h)`, its icon `pad` in, and

@@ -315,10 +315,11 @@ Read this table, then only the decision you need.
 | [F302](decisions/F302.md) | Home states what is going on in one row, and lists only what needs something | 2026-11-21 | Active | design |
 | [F303](decisions/F303.md) | The navigation shows state as badges in the warning colour, orange | 2026-11-21 | Active | design |
 | [F304](decisions/F304.md) | Lock, Restart and Power off are one power button at the top right of the top app bar | 2026-11-21 | Active | design |
-| [F305](decisions/F305.md) | Scan is the navigation rail's FAB, at the top of the rail and the bottom left of the sidebar | 2026-11-21 | Active | design |
+| [F305](history/decisions/F305.md) | Scan is the navigation rail's FAB, at the top of the rail and the bottom left of the sidebar | 2026-11-21 | Replaced by F312 | design |
 | [F306](decisions/F306.md) | A file in both Faraday and on the stick is a green row with a check in both cards | 2026-11-21 | Active | design |
 | [F307](decisions/F307.md) | The top app bar names the page on every desktop window, back only below a destination, and the guide is the ? | 2026-11-21 | Active | design |
 | [F308](decisions/F308.md) | The guide shows where the reader is: its scrollbar is always shown, its page's title is pinned under the tabs and the "Guide" heading is gone | 2026-11-21 | Active | design |
 | [F309](decisions/F309.md) | Create a vault starts on 64 MiB everywhere, has a 128 MiB preset, and names the Pi in its rows | 2026-11-21 | Active | vaults |
 | [F310](decisions/F310.md) | A flow's card and Your choices stand as one unit, with Guide's pane beside it | 2026-11-21 | Active | design |
 | [F311](decisions/F311.md) | The navigation's badges are Bitcoin orange with a white count, in every theme | 2026-11-21 | Active | design |
+| [F312](decisions/F312.md) | Scan is the navigation's FAB at the foot of the rail and of the sidebar | 2026-11-21 | Active | design |

@@ -205,7 +205,7 @@ where the room is narrower they take all of it, as Tools' do.
   empty. The Pi's panel menu keeps its places two to a row, the icon over
   the name: the one page that holds its columns whatever the minimum. The tiles keep their order, the fourth Check's, always, and none
   for Vaults (`docs/FLOWS.md`, Home; F255).
-- **Scan** is the rail's FAB on these windows (§3, §15); the floating button at the bottom right is the Pi's menu's and the phone-size window's.
+- **Scan** is the FAB at the foot of the rail on these windows (§3, §15); the floating button at the bottom right is the Pi's menu's and the phone-size window's.
 
 Home is drawn by layout, three Homes, and the destinations stand in one
 order: `docs/HOME.md`.
@@ -583,14 +583,17 @@ edge:
   alone): `MARGIN_WIDE` from the window's right and foot;
 - toasts and notices: centred on the page area, as today.
 
-On the rail's windows Scan does not float (F305): in the sidebar it is the
-extended FAB (icon and "Scan", filled in primary) at its bottom left where
-Power off was, `FAB_H` tall and only as wide as its icon and word, with
-`NAV_FAB_GAP` under it, fixed there and never scrolled away with the
-destinations (a difference from Material, whose expanded rail puts the FAB at
-the top: F305); on the rail it is the FAB (the icon alone,
-`FAB_H` square, centred in the rail) at its top, above the destinations,
-with the same gap (Material 3's navigation rail). It is there on every page,
+On the rail's windows Scan does not float (F312): it is the navigation's FAB
+at the foot of the rail and of the sidebar, fixed there and never scrolled
+away with the destinations, `FAB_H` tall (the rail's, 40 dp); in the sidebar the extended FAB
+(icon and "Scan", filled in primary), only as wide as its icon and word, its
+left edge on the shield's left edge; on the rail the FAB alone (the icon,
+Material's small FAB, 40 dp, `FAB_H_COMPACT` square, centred in the rail), the destinations standing under the
+shield. Its foot gap equals the top gap above the shield (`NAV_RAIL_TOP` on
+the rail, the sidebar's shield top on the sidebar). On a rail too short for
+every destination at a touch target the FAB keeps its place and the space
+under the shield gives way, so no destination meets the FAB. Both differ from Material 3's navigation rail, whose FAB is at the top:
+Scan stays in one place on every window. It is there on every page,
 so no page draws a Scan button of its own on these windows: the floating
 Scan of Home, Check, Wallets, Files, Vaults and Tools is gone from them, and
 those pages keep no room at their foot for it. The Pi's menu and the

@@ -8,7 +8,7 @@ use crate::ui::pal::*;
 use crate::ui::{Glyph, NameSuffix, Ui};
 use crate::{Action, Screen};
 use faraday_draw::tokens::{
-    BODY_S, FAB_H, FAB_PAD, ICON_GAP, ICON_GLYPH, LABEL_L, LABEL_M, LABEL_S, NAV_FAB_GAP,
+    BODY_S, FAB_H, FAB_PAD, ICON_GAP, ICON_GLYPH, LABEL_L, LABEL_M, LABEL_S,
 };
 use faraday_draw::tokens::{GRID, TOUCH};
 use faraday_draw::widgets::Icon;
@@ -53,10 +53,19 @@ fn flow_row(ui: &mut Ui, y: f32, r: &crate::in_progress::Row, lit: bool) {
     ui.text_right_as((right, y, FLOW_ROW), BODY_S, fg, &step);
 }
 
+/// The shield's box at the sidebar's top left, and the margin the shield
+/// leaves inside it on every side: Scan's FAB stands on the shield's left
+/// edge and as far above the foot as the shield's top is from the top.
+const MARK_X: f32 = 24.0;
+const MARK_TOP: f32 = 20.0;
+const MARK_W: f32 = 24.0;
+const MARK_H: f32 = 32.0;
+const MARK_MARGIN: f32 = 2.0;
+
 pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     ui.fill(0.0, 0.0, SIDEBAR_W, h, 0.0, Role::SurfaceContainerLow);
     ui.fill(SIDEBAR_W - 1.0, 0.0, 1.0, h, 0.0, Role::OutlineVariant);
-    ui.mark(22.0, 20.0, 28.0, 32.0);
+    ui.mark(MARK_X, MARK_TOP, MARK_W, MARK_H);
     // The name with its word (DEMO, OFFLINE) centred on the mark, its
     // capitals 9 tall, which ends it within the rows' labels' edge.
     ui.wordmark_named(58.0, 31.5, 9.0, Role::OnSurface, name_suffix(app));
@@ -130,11 +139,13 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     // Lock and Power off are the top app bar's power button's; what holds
     // the idle lock stands at the sidebar's foot.
     // Scan is the extended FAB at the foot, as wide as its icon and word,
-    // fixed there on every page; the pill stands above it.
-    let fab_y = h - FAB_H - NAV_FAB_GAP;
+    // fixed there on every page, its left edge on the shield's and as far
+    // from the sidebar's foot as the shield is from its top; the pill
+    // stands above it.
+    let fab_y = h - FAB_H - MARK_TOP - MARK_MARGIN;
     let fab_w = ui.measure_as(LABEL_L, EN.home_scan) + 2.0 * FAB_PAD + ICON_GLYPH + ICON_GAP;
     ui.fab_top(
-        (x, fab_y),
+        (MARK_X + MARK_MARGIN, fab_y),
         Some(fab_w),
         Icon::Scan,
         EN.home_scan,

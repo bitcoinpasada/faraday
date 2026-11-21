@@ -1327,10 +1327,6 @@ pub const FAB_PAD_COMPACT: f32 = 10.0;
 /// A floating action's room at its ends off the small panel.
 pub const FAB_PAD: f32 = 14.0;
 
-/// The room under the FAB at the top of the navigation rail or the
-/// sidebar, before the first destination.
-pub const NAV_FAB_GAP: f32 = 12.0;
-
 /// The caret's height over the text size in a field drawn as one string,
 /// and the least it is.
 pub const CARET_OVER: f32 = 4.0;

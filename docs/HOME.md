@@ -41,7 +41,7 @@ actions.
    width. None when nothing waits and something is loaded.
 3. **The three first actions** (§5), always.
 4. **What is going on, wallets and keys** (§3): one tinted box of list rows: flows in progress and files waiting, the wallets that need something and the keys no wallet uses, then Backups while something is not backed up, and All keys.
-5. **Scan**, the extended FAB at the sidebar's bottom left (F305), not on
+5. **Scan**, the extended FAB at the sidebar's foot, its left edge on the shield's (F312), not on
    the page.
 
 **The Pi's menu, the rail's windows and the phone-size window** (the
@@ -64,7 +64,7 @@ rail's windows differ as the list says):
 7. **The places** (§6) as tiles; then, on the Pi's menu only, Lock (while
    something is held) and Power off; the other windows have them in the top
    app bar's power button's menu (F304).
-8. **Scan**: on the rail's windows the FAB at the top of the rail (F305), on
+8. **Scan**: on the rail's windows the FAB at the foot of the rail (F312), on
    the Pi's menu and the phone-size window the floating button at the bottom right.
 
 "Nothing is loaded" (`nothing_loaded`) means no key held, no wallet in the
