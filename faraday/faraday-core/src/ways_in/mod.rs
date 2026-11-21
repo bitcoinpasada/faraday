@@ -208,6 +208,13 @@ impl Opening {
     }
 }
 
+/// Restore's open slot: every form; Type the words, Scan and codex32
+/// first.
+pub(crate) const RESTORE_SLOT: Opener = Opener {
+    forms: &Form::ALL,
+    up_front: &[Way::Form(Form::Words), Way::Scan, Way::Form(Form::Codex32)],
+};
+
 impl Opener {
     /// The forms shown first, in order.
     pub(crate) fn up_front_forms(&self) -> impl Iterator<Item = Form> + '_ {

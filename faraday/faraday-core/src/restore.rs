@@ -402,6 +402,8 @@ pub struct RestoreState {
     pub seeds: Option<seeds::SeedsState>,
     /// Kind's **More kinds** is expanded.
     pub more_kinds: bool,
+    /// The open slot's **Other forms** is expanded.
+    pub slot_forms: bool,
     /// The description's keys marked Not here, by place.
     pub absent: Vec<u8>,
     /// Made from a loaded key (its row's From this key): the wallet is
@@ -885,11 +887,18 @@ impl Faraday {
             }
             Action::RSlotForms => {
                 if let Some(r) = self.restore.state.as_mut() {
+                    r.slot_forms = !r.slot_forms;
+                }
+            }
+            Action::RSlotForm(code) => {
+                if let Some(r) = self.restore.state.as_mut() {
                     r.error = None;
                 }
                 self.act(Action::Entry(None));
-                if self.screen == Screen::Entry {
-                    self.entry.show_other_forms();
+                if self.screen == Screen::Entry
+                    && let Some(f) = crate::forms::Form::from_code(code)
+                {
+                    self.entry.choose_form(f);
                 }
             }
             Action::RSlotScan => {

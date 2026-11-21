@@ -1439,19 +1439,28 @@ fn compact_slot() -> Faraday {
 }
 
 #[test]
-fn the_slots_shares_button_opens_add_a_key_with_the_other_forms_shown() {
+fn the_slots_other_forms_opens_in_place_and_offers_every_form_not_up_front() {
     let mut app = two_of_three_from_seeds();
-    assert!(
-        drawn(&mut app).contains("Shares or another form"),
-        "{}",
-        drawn(&mut app)
-    );
+    let up_front = drawn(&mut app);
+    assert!(up_front.contains("Other forms"), "{up_front}");
+    for name in ["Type the words", "Scan a SeedQR", "codex32"] {
+        assert!(
+            up_front.contains(name),
+            "{name} is not up front: {up_front}"
+        );
+    }
+    for name in ["SLIP-39 shares", "Seed XOR parts", "Krux code"] {
+        assert!(!up_front.contains(name), "{name} shows before: {up_front}");
+    }
     app.press(Action::RSlotForms);
-    assert_eq!(app.screen, Screen::Entry);
+    assert_eq!(app.screen, Screen::Restore);
     let text = drawn(&mut app);
-    for name in ["SLIP-39 shares", "Seed XOR parts"] {
+    for name in ["SLIP-39 shares", "Seed XOR parts", "Krux code"] {
         assert!(text.contains(name), "{name} is not shown: {text}");
     }
+    app.press(Action::RSlotForm(1));
+    assert_eq!(app.screen, Screen::Entry);
+    assert!(drawn(&mut app).contains("SLIP-39 shares"));
 }
 
 #[test]
@@ -1479,7 +1488,7 @@ fn add_a_key_from_a_slot_names_its_key_and_offers_no_new_key() {
 #[test]
 fn a_one_column_words_page_always_ends_with_the_passphrase_and_add_a_key() {
     let mut app = compact_slot();
-    app.press(Action::RSlotForms);
+    app.press(Action::RSlotForm(2));
     // Back to the words chip: the page is reset, with no word keyboard.
     app.press(Action::EntryForm(1));
     app.press(Action::EntryForm(0));

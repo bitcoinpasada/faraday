@@ -550,7 +550,8 @@ fn restore_seeds(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 }
 
 /// The open slot's ways in, drawn over it: why its last seed was
-/// refused, then **Type the words**, **Scan a SeedQR**, a seed an open
+/// refused, then **Type the words**, **Scan a SeedQR**, codex32,
+/// **Other forms** (its rows in place), a seed an open
 /// vault holds or one already loaded, and `extra` (Its xpub, Not here).
 /// The passphrase is asked after the seed: on Add a key for typed words,
 /// on the scan's sheet for a SeedQR (`seed_read`). Returns the height
@@ -573,23 +574,39 @@ fn restore_open_slot(
     if let Some(e) = &r.error {
         cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Error, e) + 10.0;
     }
-    let mut labels: Vec<(String, Style, Action)> = vec![
+    let opener = &crate::ways_in::RESTORE_SLOT;
+    let open = r.slot_forms;
+    let form_row = |f: crate::forms::Form| {
         (
-            EN.restore_open_slot_type.to_string(),
-            Style::Primary,
-            Action::RSlotWords,
-        ),
-        (
-            EN.restore_open_slot_scan.to_string(),
+            f.name().to_string(),
             Style::Secondary,
-            Action::RSlotScan,
-        ),
-        (
-            EN.restore_open_slot_forms.to_string(),
-            Style::Secondary,
-            Action::RSlotForms,
-        ),
-    ];
+            Action::RSlotForm(f.code()),
+        )
+    };
+    let mut labels: Vec<(String, Style, Action)> = Vec::new();
+    for way in opener.up_front {
+        labels.push(match way {
+            crate::ways_in::Way::Scan => (
+                EN.restore_open_slot_scan.to_string(),
+                Style::Secondary,
+                Action::RSlotScan,
+            ),
+            crate::ways_in::Way::Form(crate::forms::Form::Words) => (
+                EN.restore_open_slot_type.to_string(),
+                Style::Primary,
+                Action::RSlotWords,
+            ),
+            crate::ways_in::Way::Form(f) => form_row(*f),
+        });
+    }
+    labels.push((
+        EN.entry_other_forms.to_string(),
+        Style::chosen(open),
+        Action::RSlotForms,
+    ));
+    if open {
+        labels.extend(opener.other_forms().into_iter().map(form_row));
+    }
     crate::seeds::screen::more_ways(app, here, true, &mut labels);
     if let Some((label, action)) = extra {
         labels.push((label.to_string(), Style::Secondary, action));

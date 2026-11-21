@@ -86,8 +86,6 @@ macro_rules! words_screens_restore {
     restore_open_slot_type: "Type the words",
     /// Text in `restore_open_slot`.
     restore_open_slot_scan: "Scan a SeedQR",
-    /// Text in `restore_open_slot`.
-    restore_open_slot_forms: "Shares or another form",
     // ----- restore_sources (faraday-core/src/screens/restore.rs) -----
     /// Text in `restore_sources_compact`.
     restore_sources_copy_files: "Copy files in",
