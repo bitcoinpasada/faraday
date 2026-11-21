@@ -340,7 +340,6 @@ mod tests {
                 "Wallets Card",
                 "Wallets ListPane",
                 "Vault contents VaultItem",
-                "Settings Page",
                 "Backup board Page",
                 "GPG key flow Page",
                 "Spend Page",

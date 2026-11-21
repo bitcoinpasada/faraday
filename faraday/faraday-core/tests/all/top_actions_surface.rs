@@ -23,7 +23,7 @@ fn nothing_but_the_bar_is_drawn_under_the_actions_of_a_long_wide_page() {
     let mut app = Faraday::new();
     app.event(Event::Display(DisplayInfo {
         width: 1280,
-        height: 420,
+        height: 300,
         dpi: 96,
         inset_bottom: 0,
         inset_top: 0,
