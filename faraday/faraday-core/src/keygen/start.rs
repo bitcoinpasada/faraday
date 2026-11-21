@@ -32,25 +32,27 @@ pub const STARTS: [Start; 9] = [
     Start::Type(Form::Xor),
 ];
 
+/// The choices shown first; every other is under Other forms
+/// (`docs/KEY-FORMS.md` §4.2).
+const UP_FRONT: [Start; 6] = [
+    Start::Make(Form::Words),
+    Start::Make(Form::Codex32),
+    Start::Type(Form::Words),
+    Start::Scan,
+    Start::Type(Form::Krux),
+    Start::Type(Form::Codex32),
+];
+
 impl Start {
     /// Its place in [`STARTS`].
     pub fn index(self) -> u8 {
         STARTS.iter().position(|s| *s == self).unwrap_or(0) as u8
     }
 
-    /// Listed under Other forms, closed at first.
+    /// Listed under Other forms, closed at first: every choice not shown
+    /// first.
     pub fn other(self) -> bool {
-        match self {
-            Start::Make(f) => match f {
-                Form::Slip39 => true,
-                Form::Words | Form::Codex32 | Form::Xor | Form::Krux => false,
-            },
-            Start::Type(f) => match f {
-                Form::Slip39 | Form::Xor => true,
-                Form::Words | Form::Codex32 | Form::Krux => false,
-            },
-            Start::Scan => false,
-        }
+        !UP_FRONT.contains(&self)
     }
 
     /// Listed under Make a new key, rather than Add a key you have
