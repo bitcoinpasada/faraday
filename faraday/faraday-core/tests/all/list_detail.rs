@@ -369,11 +369,10 @@ fn settings_on_a_wide_window_is_every_section_on_one_page() {
             assert!(!boxes(&mut app, name).is_empty(), "{name} at {w}");
             assert!(section_of(&mut app, name).is_none(), "no list at {w}");
         }
-        // Two columns: Appearance beside Session, not under it.
+        // Two columns: the last section beside Session, not under it.
         let session = boxes(&mut app, "Lock and power")[0];
-        let appearance = boxes(&mut app, "Appearance")[0];
-        assert!(appearance.0 > session.0 + session.2, "two columns at {w}");
-        assert!(appearance.1 < session.1 + 200, "level with Session at {w}");
+        let about = boxes(&mut app, "About")[0];
+        assert!(about.0 > session.0 + session.2, "two columns at {w}");
         assert!(
             !boxes(&mut app, "Lock after").is_empty(),
             "Session's timers on the same page at {w}"

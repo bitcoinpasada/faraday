@@ -42,8 +42,8 @@ fn appearance_body(
 /// Settings' sections, in their order (`docs/LAYOUT.md` §17): Mode
 /// first, where a short panel reaches it without scrolling (on Mainnet,
 /// where no pill shows, it is the only door to the sheet), then the rest.
-/// On two columns the first holds Mode to Randomness, the second
-/// Appearance on.
+/// On two columns they read down the first and then the second, divided
+/// where the columns' heights come out closest (owner, 2026-11-21).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Part {
     Mode,
@@ -198,7 +198,7 @@ fn time_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
     y += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
     y += ui.wrap_as((x, y, w), TITLE_M, Role::OnSurface, &app.now_local_text()) + 10.0;
     y += tz_row(ui, x, y, w, app.tz_chosen()) + 10.0;
-    y += ui.button(
+    ui.button(
         x,
         y,
         None,
@@ -207,6 +207,7 @@ fn time_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
         Style::Secondary,
         Action::OpenSetTime,
     );
+    y += ui.button_height(BUTTON_H);
     y - y0
 }
 
@@ -487,8 +488,9 @@ pub(crate) fn open_head(app: &View) -> Option<&'static str> {
 /// sections, each opening as its own page (Material's list and detail
 /// one pane at a time); from medium windows up every section a card on
 /// the menu page (`docs/MENU-PAGE.md` §8), in two columns where the page
-/// holds two: Mode to Randomness in the first, Appearance on in the
-/// second (owner, 2026-10-25).
+/// holds two, divided where the columns' heights come out closest at the
+/// window's width and text size, so a card may move between them as these
+/// change (owner, 2026-11-21).
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if crate::panes::settings_listed(app.window()) {
         return listed(app, ui, x0, cw, h);
@@ -502,7 +504,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             }) as BlockFn
         })
         .collect();
-    let sections = [Section::cards(None, cards, Part::Appearance as usize)];
+    let sections = [Section::cards(None, cards)];
     let page = Page {
         name: EN.settings_settings,
         back: false,

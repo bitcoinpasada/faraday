@@ -39,7 +39,7 @@ use crate::{Sheet, drawing, motion, screens, ui};
 use faraday_draw::Canvas;
 use faraday_shell_api::Command;
 use faraday_shell_api::DisplayInfo;
-pub(crate) use kept::Kept;
+pub(crate) use kept::{CardSplit, Kept, SplitKey};
 mod memo;
 
 /// A wallet's seeds: a name each and the session key that holds it.

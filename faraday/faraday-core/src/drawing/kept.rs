@@ -76,6 +76,23 @@ struct Charts {
     today: Text,
 }
 
+/// What a menu page's two columns of cards were split for: the column
+/// width, the scale and the text size ([`Kept::card_split`]).
+#[derive(Clone, Copy, PartialEq)]
+pub(crate) struct SplitKey {
+    pub col_w: f32,
+    pub scale: f32,
+    pub text: f32,
+}
+
+/// The heights of a page's cards and the card the second column starts
+/// at ([`Kept::card_split`]).
+#[derive(Clone, PartialEq)]
+pub(crate) struct CardSplit {
+    pub heights: Vec<f32>,
+    pub second: usize,
+}
+
 /// A silent payments record checked, by the record and the ids of the
 /// loaded keys with its fingerprint, with its encoded address
 /// ([`Kept::silent_card`]).
@@ -135,9 +152,25 @@ pub(crate) struct Kept {
     /// The wallet charts and the backup list, kept only while the frames
     /// drawn are moved ones (`docs/FRAMES.md` §7).
     charts: RefCell<Charts>,
+    /// Where a menu page's cards divide into two columns, by what it is
+    /// worked out from.
+    card_split: RefCell<Option<(SplitKey, CardSplit)>>,
 }
 
 impl Kept {
+    /// The split kept for `key`, if one is: a lookup.
+    pub(crate) fn card_split(&self, key: SplitKey) -> Option<CardSplit> {
+        let k = self.card_split.borrow();
+        k.as_ref()
+            .filter(|(kept, _)| *kept == key)
+            .map(|(_, s)| s.clone())
+    }
+
+    /// Keeps `split` for `key`, replacing the one before.
+    pub(crate) fn card_split_put(&self, key: SplitKey, split: CardSplit) {
+        *self.card_split.borrow_mut() = Some((key, split));
+    }
+
     /// A frame is about to be drawn: a whole one empties the charts and
     /// the backup list, since anything may have changed since the frame
     /// before, and so does one on another day than the last (ages are told
@@ -619,6 +652,17 @@ impl View<'_> {
     /// first time.
     pub fn explore_list(&self) -> Vec<(u32, Text)> {
         self.kept(|c| self.app.explore_list(c))
+    }
+
+    /// The split of a menu page's cards kept for `key`
+    /// ([`Kept::card_split`]): a lookup.
+    pub(crate) fn card_split_kept(&self, key: SplitKey) -> Option<CardSplit> {
+        self.app.kept.card_split(key)
+    }
+
+    /// Keeps a menu page's card split for `key`.
+    pub(crate) fn card_split_keep(&self, key: SplitKey, split: CardSplit) {
+        self.app.kept.card_split_put(key, split);
     }
 
     /// The QR code of public text `text` ([`Kept::public_qr`]),

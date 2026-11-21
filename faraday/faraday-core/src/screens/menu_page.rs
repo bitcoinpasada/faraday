@@ -5,6 +5,7 @@
 
 use super::catalog::{Bar, Face};
 use crate::drawing::View;
+use crate::drawing::{CardSplit, SplitKey};
 use crate::ui::{Region, Ui};
 use faraday_draw::tokens::{
     CATALOG_TILE_H as TILE_H, CATALOG_TILE_MIN, GRID, LEAD_MAX, MARGIN_WIDE, MENU_GAP, MENU_PAGE_W,
@@ -24,13 +25,10 @@ pub(crate) enum Body<'a> {
     Block(BlockFn<'a>),
     /// Cards of different heights (`docs/MENU-PAGE.md` §6), each drawn in
     /// the width it is given and returning its height: stacked in one
-    /// column, or in two where the page holds two, the cards from index
-    /// `second` on in the second. A card stays in its column as the
-    /// window changes size.
-    Cards {
-        cards: Vec<BlockFn<'a>>,
-        second: usize,
-    },
+    /// column, or in two where the page holds two, divided where the
+    /// columns' heights come out closest, kept until the width, scale
+    /// or text size changes (owner, 2026-11-21).
+    Cards(Vec<BlockFn<'a>>),
 }
 
 /// An optional label over one body.
@@ -48,12 +46,12 @@ impl<'a> Section<'a> {
         }
     }
 
-    /// Cards under `label`, those from `second` on in the second column
-    /// where there are two.
-    pub fn cards(label: Option<&'a str>, cards: Vec<BlockFn<'a>>, second: usize) -> Self {
+    /// Cards under `label`, in the order they read down the first column
+    /// and then the second.
+    pub fn cards(label: Option<&'a str>, cards: Vec<BlockFn<'a>>) -> Self {
         Self {
             label,
-            body: Body::Cards { cards, second },
+            body: Body::Cards(cards),
         }
     }
 
@@ -229,7 +227,7 @@ pub(crate) fn draw(
     if let (true, Some(bar)) = (typed, page.search) {
         y += super::catalog::home_results(app, ui, (x, y), width, bar);
     } else {
-        y += sections_height(ui, (x, y), width, page, sections);
+        y += sections_height(app, ui, (x, y), width, page, sections);
     }
     let content = y - top + MARGIN_WIDE;
     app.scroll.content_h().set(content);
@@ -239,6 +237,7 @@ pub(crate) fn draw(
 /// The sections from `at`, `width` wide, one after the other. Returns
 /// their height.
 fn sections_height(
+    app: &View,
     ui: &mut Ui,
     (x, y): (f32, f32),
     width: f32,
@@ -247,7 +246,7 @@ fn sections_height(
 ) -> f32 {
     let faces = sections.iter().flat_map(|s| match &s.body {
         Body::Tiles(f) => f.as_slice(),
-        Body::Block(_) | Body::Cards { .. } => &[],
+        Body::Block(_) | Body::Cards(_) => &[],
     });
     let g = page
         .fixed_columns
@@ -272,9 +271,9 @@ fn sections_height(
         used += match &s.body {
             Body::Tiles(faces) => g.draw_rows(ui, (x, y + used), faces),
             Body::Block(draw) => draw(ui, (x, y + used), width),
-            Body::Cards { cards, second } => {
+            Body::Cards(cards) => {
                 let columns = grid(width, page.most_columns).per.min(2);
-                draw_cards(ui, (x, y + used, width), cards, (columns, *second))
+                draw_cards(app, ui, (x, y + used, width), cards, columns)
             }
         };
     }
@@ -282,21 +281,86 @@ fn sections_height(
 }
 
 /// `cards` from `at`, `w` wide, in `columns` columns (one or two) with
-/// `MENU_GAP` between cards and between the columns, the cards from index
-/// `second` on in the second. Returns the height of the taller column.
+/// `MENU_GAP` between cards and between the columns. On two, the cards
+/// divide where the columns' heights come out closest, the order read down
+/// the first and then the second (owner, 2026-11-21). The division is kept
+/// for the column width, scale and text size, and read while drawing; a
+/// card whose height drawn differs from the one kept (its content changed)
+/// replaces it, and the next frame divides by it. Returns the height of
+/// the taller column.
 fn draw_cards(
+    app: &View,
     ui: &mut Ui,
     (x, y, w): (f32, f32, f32),
     cards: &[BlockFn],
-    (columns, second): (usize, usize),
+    columns: usize,
 ) -> f32 {
     let col_w = (w - (columns as f32 - 1.0) * MENU_GAP) / columns as f32;
+    let key = SplitKey {
+        col_w,
+        scale: ui.f,
+        text: ui.text_factor(),
+    };
+    let split = if columns > 1 {
+        match app
+            .card_split_kept(key)
+            .filter(|s| s.heights.len() == cards.len())
+        {
+            Some(s) => s,
+            None => {
+                let heights: Vec<f32> = cards
+                    .iter()
+                    .map(|card| crate::menu::measure(ui, &mut |ui| card(ui, (x, 0.0), col_w)))
+                    .collect();
+                let split = CardSplit {
+                    second: balanced_split(&heights),
+                    heights,
+                };
+                app.card_split_keep(key, split.clone());
+                split
+            }
+        }
+    } else {
+        CardSplit {
+            heights: Vec::new(),
+            second: cards.len(),
+        }
+    };
     let mut used = [0.0_f32; 2];
+    let mut drawn = Vec::with_capacity(cards.len());
     for (i, card) in cards.iter().enumerate() {
-        let c = usize::from(columns > 1 && i >= second);
+        let c = usize::from(columns > 1 && i >= split.second);
         let gap = if used[c] > 0.0 { MENU_GAP } else { 0.0 };
         let cx = x + c as f32 * (col_w + MENU_GAP);
-        used[c] += gap + card(ui, (cx, y + used[c] + gap), col_w);
+        let h = card(ui, (cx, y + used[c] + gap), col_w);
+        used[c] += gap + h;
+        drawn.push(h);
+    }
+    if columns > 1 && drawn != split.heights {
+        let second = balanced_split(&drawn);
+        app.card_split_keep(
+            key,
+            CardSplit {
+                heights: drawn,
+                second,
+            },
+        );
     }
     used[0].max(used[1])
+}
+
+/// The index the second column starts at so the two columns, cards of
+/// `heights` with `MENU_GAP` between, come out closest in height (the
+/// shorter taller column on a tie), at least one card in each.
+fn balanced_split(heights: &[f32]) -> usize {
+    let column = |h: &[f32]| h.iter().sum::<f32>() + MENU_GAP * h.len().saturating_sub(1) as f32;
+    let mut best = (f32::MAX, f32::MAX, heights.len());
+    for k in 1..heights.len() {
+        let (a, b) = (column(&heights[..k]), column(&heights[k..]));
+        let score = ((a - b).abs(), a.max(b));
+        if score < (best.0, best.1) {
+            best = (score.0, score.1, k);
+        }
+    }
+    best.2
 }

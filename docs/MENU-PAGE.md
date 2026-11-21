@@ -134,11 +134,15 @@ most (Settings: two): one column on a narrow page, two where two fit.
 
 Cards are of different heights and are not set in rows: each column is
 a stack, a card under the one before it with `MENU_GAP` between. The
-page says where its second column starts, so a card never moves from
-one column to the other as the window changes (Settings: Mode, Session,
-Time and Randomness in the first, Appearance on in the second; the
-owner's call of 2026-10-25 in `docs/LAYOUT.md` §17). On one column the
-order reads down the first and then the second. Each card stays reading
+container divides them where the two columns' heights come out
+closest, at the page's width and the person's text size and scale, so a
+card may move from one column to the other as these change (Settings;
+owner, 2026-11-21, `docs/LAYOUT.md` §17). The order reads down the first
+column and then the second, and on one column down the one. The division
+is worked out when the width, text size, scale or a card's height
+changes, kept, and read while drawing (`docs/SPEED.md` §3.3): a card
+whose height drawn differs from the one kept, its content having
+changed, is divided afresh by the next frame. Each card stays reading
 content (`docs/LAYOUT.md` §14): at two columns in `MENU_PAGE_W` it is
 under `COLUMN_MAX`, so `COLUMN_MAX` no longer caps Settings' columns.
 
@@ -182,8 +186,8 @@ two.
   ways in as a tiles section, and its lists of wallets and of keys
   without a wallet as sections.
 - **Settings** (`screens/settings.rs`): its name, its sections' cards
-  (`part`) as a cards section of at most two columns, where the second
-  starts, and on a compact window the list.
+  (`part`) as a cards section of at most two columns, and on a compact
+  window the list.
 
 Tokens (`core/faraday-draw/src/tokens.rs`): `MENU_PAGE_W`, `MENU_GAP`
 and `CATALOG_TILE_MIN`, the one tile minimum.
@@ -206,8 +210,8 @@ What a person sees and does, at the snapshot sizes (the Pi's panel,
 - typing on Home or Tools shows the matching tools under the bar, a
   result opens its tool, and clearing the bar brings the page back;
 - the search bar stays in view while the page scrolls under it;
-- Settings' cards read in their order, none moves column as the window
-  is resized, and on a compact window a section opens from the list and
+- Settings' cards read in their order down the first column and then the
+  second, the two columns come out about equal in height, and on a compact window a section opens from the list and
   Back returns to the list where it was scrolled;
 - the Pi's panel Home shows its places and Lock and Power off.
 
