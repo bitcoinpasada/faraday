@@ -1,6 +1,6 @@
 //! The SQLite reader on any bytes: `Database::open`, then every table
-//! read as two blob columns and checked for rows, and the header and table
-//! list asked for. Nothing panics, every read is an answer or an `Error`,
+//! asked for as two blob columns (refused unless its statement is Bitcoin
+//! Core's) and checked for rows, and the header and table list asked for. Nothing panics, every read is an answer or an `Error`,
 //! and the same bytes opened a second time give the same rows.
 
 #![no_main]

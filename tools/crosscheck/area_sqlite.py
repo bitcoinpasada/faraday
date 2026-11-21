@@ -203,10 +203,12 @@ class Sqlite(Area):
             return
         want = reference(lambda: rows_of(data))
         if (want[0] == "err" and at < page_size
-                and "malformed database schema" in want[1]):
+                and "malformed database schema" in want[1]
+                and "malformed database schema (main)" not in want[1]):
             # A changed byte in the text of a CREATE statement: SQLite parses
             # it, Faraday reads only the name and root page of a table it is not asked
-            # to read.
+            # to read (or of an index). Main's own statement is Faraday's to refuse,
+            # so SQLite's refusal of it is never excused.
             self.lax += 1
             return
         self.compared += 1
