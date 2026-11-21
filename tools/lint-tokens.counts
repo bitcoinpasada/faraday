@@ -1,7 +1,6 @@
 # Held by tools/lint-tokens.sh: per file, how many decimal literals it still
 # writes in place, and faraday-core's colours written in place. A count
 # only falls; tools/lint-tokens.sh --write lowers it.
-faraday-core:colour 13
 faraday/faraday-core/src/backup_flow/screen.rs 91
 faraday/faraday-core/src/backups/screen.rs 33
 faraday/faraday-core/src/bip85/screen.rs 34
@@ -26,7 +25,6 @@ faraday/faraday-core/src/screens/files.rs 283
 faraday/faraday-core/src/screens/home.rs 4
 faraday/faraday-core/src/screens/message.rs 26
 faraday/faraday-core/src/screens/parts.rs 203
-faraday/faraday-core/src/screens/pass_pair.rs 1
 faraday/faraday-core/src/screens/randomness.rs 1
 faraday/faraday-core/src/screens/restore.rs 72
 faraday/faraday-core/src/screens/set_time.rs 25
@@ -45,17 +43,18 @@ faraday/faraday-core/src/transfer/screen.rs 17
 faraday/faraday-core/src/vanity/screen.rs 41
 faraday/faraday-core/src/vault/screen.rs 369
 faraday/faraday-core/src/wordlist/screen.rs 27
-faraday/faraday-starter/src/draw.rs 157
 faraday/faraday-starter/src/draw/boot_file.rs 3
 faraday/faraday-starter/src/draw/clear_first.rs 2
 faraday/faraday-starter/src/draw/home.rs 19
 faraday/faraday-starter/src/draw/row.rs 7
+faraday/faraday-starter/src/draw.rs 157
 faraday/faraday-starter/src/lib.rs 2
 faraday/faraday-starter/src/scroll.rs 4
-faraday/faraday-starter/src/sheets.rs 175
 faraday/faraday-starter/src/sheets/dice.rs 58
+faraday/faraday-starter/src/sheets.rs 175
 faraday/faraday-ui/src/keyboard.rs 21
 faraday/faraday-ui/src/lib.rs 28
 faraday/faraday-ui/src/mark.rs 7
 faraday/faraday-ui/src/menu.rs 1
 faraday/faraday-ui/src/parts.rs 2
+faraday-core:colour 13
