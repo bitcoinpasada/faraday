@@ -307,8 +307,11 @@ macro_rules! words_keygen {
     keygen_equals_number: "= {}",
     /// Beside the word in `dice_strip::strip`. `{}`: its place in the list.
     keygen_word_of_list: "word {} of the list",
-    /// Section label in `rolled_words`.
+    /// Section label in `words_so_far`.
     keygen_words_so_far: "Words so far",
+    /// The small panel's button in `words_so_far::inline`. `{}`: how many
+    /// words are made.
+    keygen_words_so_far_n: "Words so far · {}",
     /// Line in `rolled_words`.
     keygen_checksum: "checksum",
     /// Text in `rolled_words`. `{}`: `i`, `i + 1`.

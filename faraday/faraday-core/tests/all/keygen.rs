@@ -414,17 +414,115 @@ fn dice_step() -> Faraday {
     app
 }
 
-/// The strip under the word being made shows the number and the word
-/// its rolls make.
-#[test]
-fn the_strip_shows_a_words_number_and_the_word() {
-    let mut app = dice_step();
+/// The dice step at a window of `width` by `height` dp, 12 words by
+/// direct selection, with the first word's rolls in.
+fn dice_step_at(width: u16, height: u16) -> Faraday {
+    let mut app = faraday_core::testkit::started();
+    app.event(Event::Display(DisplayInfo {
+        width,
+        height,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.press(Action::Entry(None));
+    app.press(Action::KeyGen(None));
+    app.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
+    app.press(Action::KWords(12));
+    app.press(Action::KWay(Way::DiceWords.index()));
+    app.press(Action::KNext);
+    // One at a time, as the pad is pressed (wide windows start typed).
+    app.press(Action::KTyping(false));
     for f in [3, 1, 4, 2, 2, 5] {
         app.press(Action::KRoll(f));
     }
+    // The word's glide into Words so far has run its course.
+    let now = app.now_ms() + 2000;
+    app.event(Event::Tick { now_ms: now });
+    let now = app.now_ms() + 2000;
+    app.event(Event::Tick { now_ms: now });
+    app
+}
+
+fn box_of(app: &mut Faraday, a: Action) -> Option<(i32, i32, i32, i32)> {
+    let _ = app.frame();
+    app.hit_box(a)
+        .map(|(x, y, w, h)| (i32::from(x), i32::from(y), i32::from(w), i32::from(h)))
+}
+
+/// Words so far stands at the card's right on a wide window, below the
+/// pad on a narrower one, and behind a button on the Pi's panel.
+#[test]
+fn words_so_far_stands_at_the_cards_right_below_it_or_behind_a_button() {
+    let mut wide = dice_step_at(1920, 1080);
+    let pad = box_of(&mut wide, Action::KRoll(1)).expect("the pad");
+    let word = box_of(&mut wide, Action::KWordOpen(0)).expect("the word in its pane");
+    assert!(word.0 > pad.0 + pad.2, "{word:?} right of {pad:?}");
+
+    let mut narrow = dice_step_at(1366, 2400);
+    let pad = box_of(&mut narrow, Action::KRoll(1)).expect("the pad");
+    let word = box_of(&mut narrow, Action::KWordOpen(0)).expect("the word in the card");
+    assert!(word.1 > pad.1 + pad.3, "{word:?} below {pad:?}");
+
+    let mut pi = dice_step_at(480, 640);
+    assert!(box_of(&mut pi, Action::KWordOpen(0)).is_none());
+    assert!(box_of(&mut pi, Action::KWordsPage(true)).is_some());
+    assert!(
+        texts(&mut pi).contains("Words so far · 1"),
+        "{}",
+        texts(&mut pi)
+    );
+    pi.press(Action::KWordsPage(true));
+    assert!(box_of(&mut pi, Action::KWordOpen(0)).is_some());
+}
+
+/// Pressing a word opens its working: its rolls, the number and the word.
+#[test]
+fn pressing_a_word_opens_its_rolls_number_and_word() {
+    for (width, height) in [(1920, 1080), (1366, 2400)] {
+        let mut app = dice_step_at(width, height);
+        app.press(Action::KWordOpen(0));
+        let shown = texts(&mut app);
+        assert!(shown.contains("3 1 4 2 2 5"), "{shown}");
+        assert!(shown.contains("1131"), "{shown}");
+        assert!(shown.contains("miracle"), "{shown}");
+        app.press(Action::KWordClose);
+    }
+    // Masked, the sheet still opens and shows none of it.
+    let mut app = dice_step_at(1920, 1080);
+    app.press(Action::KShow);
+    app.press(Action::KWordOpen(0));
     let shown = texts(&mut app);
-    assert!(shown.contains("1131"), "{shown}");
-    assert!(shown.contains("miracle"), "{shown}");
+    assert!(
+        !shown.contains("miracle") && !shown.contains("1131"),
+        "{shown}"
+    );
+}
+
+/// After the last roll the strip clears, the pad is greyed out and the
+/// step can go on.
+#[test]
+fn after_the_last_word_the_strip_clears_and_the_pad_is_greyed() {
+    let mut app = dice_step_at(1920, 1080);
+    assert!(texts(&mut app).contains("Word being made"));
+    for _ in 6..(12 * 6 - 6 + 4) {
+        app.press(Action::KRoll(1));
+    }
+    for _ in 0..2 {
+        let now = app.now_ms() + 2000;
+        app.event(Event::Tick { now_ms: now });
+    }
+    let shown = texts(&mut app);
+    assert!(!shown.contains("Word being made"), "{shown}");
+    assert!(app.keygen().unwrap().ready());
+    assert!(box_of(&mut app, Action::KWordOpen(11)).is_some());
 }
 
 /// A 5 or a 6 in a word's first five rolls is shown as rolled again and

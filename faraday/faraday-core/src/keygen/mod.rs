@@ -23,6 +23,7 @@ pub(crate) mod dice_panel;
 pub(crate) mod dice_strip;
 mod on_card;
 pub(crate) mod screen;
+pub(crate) mod words_so_far;
 
 use crate::strings::EN;
 use crate::wallet::KeyTexts;
@@ -301,6 +302,14 @@ pub struct KeyGen {
     rerolled: Option<(u8, Option<u64>)>,
     /// The dice strip is masked (the eye beside "Word being made").
     strip_masked: bool,
+    /// The word just made, by its place, and when it began to glide into
+    /// Words so far: set by the roll that completes a word, ended by the
+    /// next roll, a roll taken back and leaving the step.
+    arrived: Option<(u8, Option<u64>)>,
+    /// The word whose working shows on its sheet, by its place.
+    word_sheet: Option<u8>,
+    /// Words so far is open as a page (the small panel's button).
+    words_page: bool,
     /// The Create slot the key fills, if it was made for one.
     pub slot: Option<u8>,
     /// The key is made as SLIP-39 shares rather than BIP-39 words: the
@@ -477,6 +486,9 @@ impl KeyGen {
             note: None,
             rerolled: None,
             strip_masked: false,
+            arrived: None,
+            word_sheet: None,
+            words_page: false,
             slot,
             back,
             made: None,
@@ -802,6 +814,16 @@ impl KeyGen {
         };
         self.clear_entries();
         self.done[usize::from(kstep::SOURCE)] = false;
+    }
+
+    /// The word whose working shows on its sheet, by its place.
+    pub(crate) fn word_sheet(&self) -> Option<u8> {
+        self.word_sheet
+    }
+
+    /// Words so far is open as a page.
+    pub(crate) fn words_page(&self) -> bool {
+        self.words_page
     }
 
     /// The dice strip is masked.
@@ -1248,6 +1270,45 @@ impl crate::Faraday {
             crate::motion::progress(at, self.now_ms, crate::motion::STEP_FADE_MS)
         };
         Some((face, drop))
+    }
+
+    /// Where Words so far stands now: a button on the small panel, the
+    /// pane where the window holds one (the room Guide's pane needs),
+    /// else below the pad. A lookup.
+    pub(crate) fn words_at(&self) -> words_so_far::At {
+        if self.is_compact() {
+            words_so_far::At::Button
+        } else if self.screen == Screen::KeyGen && self.guide_pane_room() {
+            words_so_far::At::Pane
+        } else {
+            words_so_far::At::Below
+        }
+    }
+
+    /// Whether Words so far stands as the pane this frame: on the dice
+    /// step, in the pane's place, which the Guide takes while it is
+    /// open there. A lookup.
+    pub(crate) fn words_pane_shown(&self) -> bool {
+        self.keygen.state().is_some_and(|k| {
+            k.open == Some(kstep::ENTER)
+                && k.made.is_none()
+                && !k.hosted()
+                && dice_strip::stands(k)
+                && k.reveals()
+        }) && self.words_at() == words_so_far::At::Pane
+            && !self.guide_pane_shown()
+    }
+
+    /// The word gliding into Words so far, by its place, and how far it
+    /// has gone, 0 to 1; none once it is there, and none under Reduce
+    /// motion, where it is there at once. A lookup.
+    pub(crate) fn keygen_arrival(&self) -> Option<(u8, f32)> {
+        let (slot, at) = self.keygen.state()?.arrived?;
+        if self.reduce_motion() {
+            return None;
+        }
+        let p = crate::motion::progress(at, self.now_ms, faraday_draw::tokens::PRESS_EMPHASIS_MS);
+        (p < 1.0).then_some((slot, p))
     }
 
     /// How open the codex32 dice sheet shows now, 0 to 1. A lookup.

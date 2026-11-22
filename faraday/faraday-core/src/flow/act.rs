@@ -79,7 +79,8 @@ impl Faraday {
     /// flow ends.
     pub(crate) fn unit_settle(&mut self) {
         let on = self.unit_on_show();
-        let shifted = on && (self.scroll.unit_shifted() || self.guide_pane_shown());
+        let shifted = on
+            && (self.scroll.unit_shifted() || self.guide_pane_shown() || self.words_pane_shown());
         self.scroll.set_unit_shifted(shifted);
     }
 }

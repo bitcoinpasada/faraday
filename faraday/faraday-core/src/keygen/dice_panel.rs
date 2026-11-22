@@ -15,14 +15,23 @@ use crate::ui::{Style, Ui};
 /// The pad of the dice's faces, every one pressable: direct selection
 /// shows a 5 or a 6 in a word's first five rolls struck and rolled again.
 /// Returns its height with the gap under it.
-pub(crate) fn pad(ui: &mut Ui, at: (f32, f32, f32)) -> f32 {
-    dice_pad(ui, at, &|_| Style::Secondary, Action::KRoll)
+pub(crate) fn pad(ui: &mut Ui, at: (f32, f32, f32), full: bool) -> f32 {
+    dice_pad(ui, at, &|_| face_style(full), Action::KRoll)
 }
 
 /// The pad as [`pad`] draws it, in two rows of three where one row of
 /// six would leave a face's target under `touch`.
-pub(crate) fn pad_fit(ui: &mut Ui, at: (f32, f32, f32), touch: f32) -> f32 {
-    dice_pad_fit(ui, at, touch, &|_| Style::Secondary, Action::KRoll)
+pub(crate) fn pad_fit(ui: &mut Ui, at: (f32, f32, f32), touch: f32, full: bool) -> f32 {
+    dice_pad_fit(ui, at, touch, &|_| face_style(full), Action::KRoll)
+}
+
+/// A face's style: greyed once every roll is in.
+fn face_style(full: bool) -> Style {
+    if full {
+        Style::Disabled
+    } else {
+        Style::Secondary
+    }
 }
 
 /// How far along, as a count and a bar, with the entry just made at the

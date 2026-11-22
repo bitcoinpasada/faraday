@@ -179,6 +179,10 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         )
     };
     app.scroll(Scrolled::KeyGen, next, again);
+    if app.words_pane_shown() {
+        super::words_so_far::pane(app, k, ui, (x0, cw, h));
+    }
+    super::words_so_far::overlays(app, k, ui, (x0, cw, h));
     // The dice sheet's column stands above the input panel at the foot.
     if let Some(m) = k.codex32.as_ref() {
         crate::codex32::pane_screen::draw(app, m, ui, column, (&room, h - foot));
@@ -1351,22 +1355,27 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy += super::dice_panel::progress(k, ui, x, cy, w);
     }
     // Dice words show the word being made under the count.
+    let mut from = None;
     if active == Some(Source::Dice) && super::dice_strip::stands(k) {
-        cy += super::dice_strip::strip(app, k, ui, (x, cy, w)) + faraday_draw::tokens::GAP;
+        let (h, pill) = super::dice_strip::strip(app, k, ui, (x, cy, w));
+        if h > 0.0 {
+            cy += h + faraday_draw::tokens::GAP;
+        }
+        from = pill;
     }
     // On the small panel, where the choices under the progress line are a
     // touch target tall and the page is short, the dice pad stands before
     // them so that it shows in the card at scroll 0.
     let pad_first = active == Some(Source::Dice) && !k.typing && crate::flow::small_touch(ui) > 0.0;
     if pad_first {
-        cy += super::dice_panel::pad(ui, (x, cy, w));
+        cy += super::dice_panel::pad(ui, (x, cy, w), k.dice_pad_full());
     }
     if matches!(active, Some(Source::Dice | Source::Coins)) {
         cy = entry_style(k, ui, x, cy, w, app.touch_side());
     }
     match active {
         Some(Source::Dice | Source::Coins) if k.typing => {
-            cy += rolled_entry(app, k, ui, (x, cy, w), None);
+            cy += rolled_entry(app, k, ui, (x, cy, w), (None, from));
         }
         Some(Source::Coins) if k.by_die => {
             cy += dice_pad(ui, (x, cy, w), &|_| Style::Secondary, Action::KDie);
@@ -1376,7 +1385,7 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         }
         Some(Source::Dice) => {
             let pad = (!pad_first).then_some(None);
-            cy += rolled_entry(app, k, ui, (x, cy, w), pad);
+            cy += rolled_entry(app, k, ui, (x, cy, w), (pad, from));
         }
         Some(Source::Coins) => {
             cy += coin_pad(ui, (x, cy, w), Action::KFlip(true), Action::KFlip(false));
@@ -1524,19 +1533,23 @@ pub(crate) fn rolled_entry(
     k: &KeyGen,
     ui: &mut Ui,
     (x, y, w): (f32, f32, f32),
-    pad: Option<Option<f32>>,
+    (pad, from): (Option<Option<f32>>, Option<(f32, f32)>),
 ) -> f32 {
     let mut cy = y;
     if k.typing {
         cy = typed_box(app, k, ui, x, cy, w);
     } else if let Some(touch) = pad {
         cy += match touch {
-            Some(t) => super::dice_panel::pad_fit(ui, (x, cy, w), t),
-            None => super::dice_panel::pad(ui, (x, cy, w)),
+            Some(t) => super::dice_panel::pad_fit(ui, (x, cy, w), t, k.dice_pad_full()),
+            None => super::dice_panel::pad(ui, (x, cy, w), k.dice_pad_full()),
         };
     }
     if k.reveals() {
-        cy = reveal(k, ui, x, cy, w);
+        cy = if k.source == Some(Source::Dice) && !k.by_die && !k.hosted() {
+            cy + super::words_so_far::inline(app, k, ui, (x, cy, w), from)
+        } else {
+            reveal(k, ui, x, cy, w)
+        };
     }
     cy - y
 }

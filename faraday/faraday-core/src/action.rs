@@ -825,6 +825,13 @@ pub enum Action {
     SelfTestRun,
     /// Show or hide the words.
     KShow,
+    /// Open the working of the dice word at this place, on its sheet.
+    KWordOpen(u8),
+    /// Close the working of a dice word.
+    KWordClose,
+    /// Open Words so far as a page (`true`) or close it (the small
+    /// panel's button).
+    KWordsPage(bool),
     /// The eye on the passphrase fields.
     PassEye,
     /// The Quiz's last button: loads SLIP-39 shares' key, or leaves the
@@ -1506,6 +1513,9 @@ impl Faraday {
             | Action::KClear
             | Action::KNext
             | Action::KShow
+            | Action::KWordOpen(_)
+            | Action::KWordClose
+            | Action::KWordsPage(_)
             | Action::KAdd
             | Action::KLock
             | Action::KPassField(_)

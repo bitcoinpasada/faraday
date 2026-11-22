@@ -25,12 +25,11 @@ pub(crate) fn stands(k: &KeyGen) -> bool {
 }
 
 /// What a roll of `face` at place `p` in its word gives: its bits.
-fn bits_of(p: usize, face: u8, last: bool) -> String {
+pub(super) fn bits_of(p: usize, face: u8, last: bool) -> &'static str {
     if !last && p >= faraday_entropy::DICE_WORD_FACES {
-        String::from(if face >= 4 { "1" } else { "0" })
+        if face >= 4 { "1" } else { "0" }
     } else {
-        let v = face.saturating_sub(1) & 3;
-        format!("{}{}", v >> 1, v & 1)
+        ["00", "01", "10", "11"][usize::from(face.saturating_sub(1) & 3)]
     }
 }
 
@@ -53,8 +52,14 @@ enum Bit {
 }
 
 /// Draws the strip at (x, y) in a column `w` wide. Returns its height
-/// with the gap under it.
-pub(crate) fn strip(app: &View, k: &KeyGen, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+/// with the gap under it, and where the word's pill stands while it
+/// glides into Words so far.
+pub(crate) fn strip(
+    app: &View,
+    k: &KeyGen,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+) -> (f32, Option<(f32, f32)>) {
     let muted = Role::OnSurfaceVariant;
     let rolls = k.dice.rolls();
     let per = faraday_entropy::DICE_WORD_ROLLS;
@@ -62,12 +67,17 @@ pub(crate) fn strip(app: &View, k: &KeyGen, ui: &mut Ui, (x, y, w): (f32, f32, f
     let last_n = k.words - 1;
     let (last_rolls, dropped) = k.last_rolls();
     let kept = k.last_bits();
-    // The word shown: the last once every roll is in, one just made until
-    // the next roll, else the one in progress.
+    // The word shown: the last once every roll is in, one just made while
+    // it glides into Words so far, else the one in progress.
+    let arriving = app.keygen_arrival();
+    if rolls.len() >= total && arriving.is_none() {
+        // Every word is made: the strip clears.
+        return (0.0, None);
+    }
     let n = if rolls.len() >= total {
         last_n
-    } else if !rolls.is_empty() && rolls.len().is_multiple_of(per) {
-        rolls.len() / per - 1
+    } else if let Some((s, _)) = arriving {
+        usize::from(s)
     } else {
         rolls.len() / per
     };
@@ -158,7 +168,7 @@ pub(crate) fn strip(app: &View, k: &KeyGen, ui: &mut Ui, (x, y, w): (f32, f32, f
         let r = t::SHAPE_S;
         ui.fill(x0, cy, inner, rest - t::GAP, r, Role::SurfaceContainerHigh);
         ui.text_mid_as((x0, cy, rest - t::GAP), TITLE_L, muted, "• • • •");
-        return height;
+        return (height, arriving.map(|_| (x0, cy)));
     }
 
     // The slots.
@@ -171,7 +181,7 @@ pub(crate) fn strip(app: &View, k: &KeyGen, ui: &mut Ui, (x, y, w): (f32, f32, f
                 ui.fill(sx, cy, slot, slot, t::SHAPE_M, fill_role);
                 let bits = bits_of(i, f, last);
                 let drop_last = last && i == need - 1 && dropped == 1;
-                face_and_bits(ui, (sx, cy, slot), f, &bits, ink, drop_last);
+                face_and_bits(ui, (sx, cy, slot), f, bits, ink, drop_last);
             }
             None => {
                 ui.stroke(sx, cy, slot, slot, t::SHAPE_M, Role::OutlineVariant);
@@ -261,9 +271,16 @@ pub(crate) fn strip(app: &View, k: &KeyGen, ui: &mut Ui, (x, y, w): (f32, f32, f
 
     // The word, and its place in the list.
     cy += t::GAP;
+    let mut from = None;
     if let Some(i) = index {
         let word = Language::English.word(i);
-        let pw = ui.word_pill(x0, cy, word, open_word(i));
+        // The word gliding into Words so far is drawn there, from here.
+        let pw = if arriving.is_some() {
+            from = Some((x0, cy));
+            ui.measure_as(BODY_M.mono(), word) + 2.0 * t::TAG_PAD
+        } else {
+            ui.word_pill(x0, cy, word, Action::KWordOpen(n as u8))
+        };
         ui.text_mid_as(
             (x0 + pw + t::GAP, cy, t::TAG_H),
             BODY_S,
@@ -271,7 +288,7 @@ pub(crate) fn strip(app: &View, k: &KeyGen, ui: &mut Ui, (x, y, w): (f32, f32, f
             &fill(EN.keygen_word_of_list, &[&(u32::from(i) + 1).to_string()]),
         );
     }
-    height
+    (height, from)
 }
 
 /// A slot's face over its bits; the face struck when `struck`, the last
@@ -373,9 +390,4 @@ fn eye_button(ui: &mut Ui, x: f32, y: f32, side: f32, masked: bool) {
         on_selected(masked, Role::OnSurfaceVariant),
     );
     crate::compact::eye_hit(ui, (x, y, side, side), a, !masked);
-}
-
-/// Opens the BIP-39 list at word `i`.
-fn open_word(i: u16) -> Action {
-    Action::WordList(crate::wordlist::WordListAction::Open(0, Some(i)))
 }

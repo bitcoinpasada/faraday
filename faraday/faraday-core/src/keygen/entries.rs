@@ -30,6 +30,9 @@ impl KeyGen {
         self.skipped = false;
         self.note = None;
         self.rerolled = None;
+        self.arrived = None;
+        self.word_sheet = None;
+        self.words_page = false;
         for k in [
             kstep::ENTER,
             kstep::KEY,
@@ -94,6 +97,8 @@ impl KeyGen {
         self.roller.trim(len);
         self.note = None;
         self.rerolled = None;
+        self.arrived = None;
+        self.word_sheet = None;
     }
 
     /// A key in the Key card's passphrase field that has the keys: the
@@ -196,8 +201,27 @@ impl KeyGen {
         // Direct selection's 5 or 6 in a word's first five rolls is
         // shown rolled again, and is not a roll of the key's.
         self.rerolled = (!taken && self.procedure().direct()).then_some((face, None));
+        // The sixth roll of a word but the last, and the last roll, send
+        // their word to Words so far.
+        let per = faraday_entropy::DICE_WORD_ROLLS;
+        let len = self.dice.len();
+        self.arrived = (taken
+            && self.procedure().direct()
+            && len.is_multiple_of(per)
+            && len <= per * (self.words - 1))
+            .then(|| ((len / per - 1) as u8, None))
+            .or_else(|| {
+                (taken && self.procedure().direct() && len >= self.dice_needed())
+                    .then(|| ((self.words - 1) as u8, None))
+            });
         self.note =
             (!taken && !self.procedure().direct()).then(|| Text::of(EN.keygen_a_die_has_six));
+    }
+
+    /// Whether direct selection has every roll in, so its pad is greyed.
+    /// A lookup.
+    pub(crate) fn dice_pad_full(&self) -> bool {
+        self.procedure().direct() && self.dice.len() >= self.dice_needed()
     }
 
     /// A flip: heads or tails.

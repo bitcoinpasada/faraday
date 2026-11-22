@@ -225,8 +225,12 @@ a new key, Make a new vault's passphrase dice, `dice_entry`'s foot panel)
 stays in the main column beside Your choices. New key's Dice words step
 holds, in its card under the count, the strip of the word being made
 (six slots of a roll's face and its bits, the 11-bit number, the word;
-`keygen/dice_strip.rs`), then the pad, then Words so far; the rule
-lines are in the Guide ("How dice make your words"), which the step's ?
+`keygen/dice_strip.rs`), then the pad, then Words so far where the
+window holds no pane for it (`keygen/words_so_far.rs`); on an
+extra-large window Words so far stands in the supporting pane at the
+card's right instead, and on the Pi's panel behind a "Words so far · n"
+button that opens a page. After the last roll the strip clears and the
+pad is greyed. The rule lines are in the Guide ("How dice make your words"), which the step's ?
 and the strip's info button open.
 
 ## 6. Worksheets inside a flow (LAYOUT §14)

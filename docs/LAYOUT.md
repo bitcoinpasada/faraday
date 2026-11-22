@@ -789,7 +789,9 @@ pressed one at a time, stands the pad of six faces in the card, not in
 the panel and never pinned at the foot, in every window (the page
 scrolls with it): the count of rolls with the roll just made at its end
 and the bar, then, for Dice words, the strip of the word being made
-(`keygen/dice_strip.rs`), the pad, and the words so far, the check and
+(`keygen/dice_strip.rs`), the pad, and Words so far (below the pad; in
+the supporting pane at the right on an extra-large window; behind a
+"Words so far · n" button and its page on the Pi's panel), the check and
 the card's buttons below (`keygen/dice_panel.rs`). Generate with dice, at
 the foot by the same rule (not on the Pi panel, and in the card where the
 panel would take more than `INPUT_PANEL_MAX` of the window's height),

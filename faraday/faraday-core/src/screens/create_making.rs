@@ -126,7 +126,7 @@ pub(super) fn slot_making(
         // then the words as the rolls name them.
         let touch = app.touch_side();
         cy = entry_style(k, ui, x, cy, w, touch);
-        cy += rolled_entry(app, k, ui, (x, cy, w), Some(Some(touch)));
+        cy += rolled_entry(app, k, ui, (x, cy, w), (Some(Some(touch)), None));
         cy += no_need_line(k, ui, (x, cy, w));
         if let Some(n) = &k.note {
             cy += ui.wrap_as((x, cy, w), BODY_S, Role::Error, n) + tokens::GAP_SMALL;

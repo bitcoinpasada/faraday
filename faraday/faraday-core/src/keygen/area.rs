@@ -120,11 +120,18 @@ impl KeyGenArea {
     /// One tick of the rolled-again face's drop: starts it at the first
     /// tick after the roll; whether it still moves. A lookup.
     fn rerolled_tick(&mut self, now_ms: u64) -> bool {
-        let Some((_, at)) = self.state.as_mut().and_then(|k| k.rerolled.as_mut()) else {
+        let Some(k) = self.state.as_mut() else {
             return false;
         };
-        let began = *at.get_or_insert(now_ms);
-        now_ms < began + crate::motion::STEP_FADE_MS
+        let drop = k.rerolled.as_mut().is_some_and(|(_, at)| {
+            let began = *at.get_or_insert(now_ms);
+            now_ms < began + crate::motion::STEP_FADE_MS
+        });
+        let glide = k.arrived.as_mut().is_some_and(|(_, at)| {
+            let began = *at.get_or_insert(now_ms);
+            now_ms < began + faraday_draw::tokens::PRESS_EMPHASIS_MS
+        });
+        drop | glide
     }
 
     /// Ends the codex32 dice sheet's glide at once, if there is one.
@@ -141,6 +148,9 @@ impl KeyGenArea {
         if let Some(k) = self.state.as_mut() {
             k.shown = false;
             k.rerolled = None;
+            k.arrived = None;
+            k.word_sheet = None;
+            k.words_page = false;
             k.strip_masked = false;
             if let Some(m) = k.codex32.as_mut() {
                 m.hide_qr_of_left_step();
@@ -628,6 +638,9 @@ impl KeyGenArea {
                     k.hex_digit(c);
                 }
             }
+            A::KWordOpen(slot) => k.word_sheet = Some(slot),
+            A::KWordClose => k.word_sheet = None,
+            A::KWordsPage(on) => k.words_page = on,
             A::KFrame => k.take_frame(),
             A::KUndo => k.undo(),
             A::KClear => k.clear_active(),

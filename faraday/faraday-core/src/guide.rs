@@ -689,7 +689,7 @@ impl Faraday {
     /// page (`docs/LAYOUT.md` §6): an extra-large window (1600 dp and
     /// over) beside the sidebar, not held. Below it the guide is the sheet.
     /// A lookup.
-    fn guide_pane_room(&self) -> bool {
+    pub(crate) fn guide_pane_room(&self) -> bool {
         if self.unit_on_show() {
             // A flow's card and Your choices narrow before Guide gives
             // way to the sheet (`docs/FLOW-CONTAINER.md` §4).
