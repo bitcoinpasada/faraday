@@ -27,7 +27,8 @@ class Mismatch(Exception):
     """Faraday and the reference disagree, or one of them disagrees with
     a published vector."""
 
-    def __init__(self, area, op, inputs, rust, reference, note=""):
+    def __init__(self, area, op, inputs, rust, reference, note="",
+                 labels=("faraday", "reference")):
         super().__init__(f"{area}: {op} disagrees")
         self.area = area
         self.op = op
@@ -35,16 +36,21 @@ class Mismatch(Exception):
         self.rust = rust
         self.reference = reference
         self.note = note
+        # Whose answers `rust` and `reference` are, as the report names them: a check of
+        # an outside reader alone gives that reader's answer and the one expected.
+        self.labels = labels
 
     def report(self):
+        w = max(11, *(len(k) + 2 for k in self.labels))
+        got, want = self.labels
         lines = [
             f"DISAGREEMENT in {self.area}: {self.op}",
-            f"  inputs:    {json.dumps(self.inputs, sort_keys=True)}",
-            f"  faraday:   {json.dumps(self.rust, sort_keys=True)}",
-            f"  reference: {json.dumps(self.reference, sort_keys=True)}",
+            f"  {'inputs:':<{w}}{json.dumps(self.inputs, sort_keys=True)}",
+            f"  {got + ':':<{w}}{json.dumps(self.rust, sort_keys=True)}",
+            f"  {want + ':':<{w}}{json.dumps(self.reference, sort_keys=True)}",
         ]
         if self.note:
-            lines.append(f"  note:      {self.note}")
+            lines.append(f"  {'note:':<{w}}{self.note}")
         return "\n".join(lines)
 
 

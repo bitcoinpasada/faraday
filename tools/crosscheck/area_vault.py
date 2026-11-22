@@ -29,7 +29,13 @@ or later), against `tools/vectors/kdf/`'s known answer (`tools/vectors/vault-pri
   custom data item as Faraday read it and as it was put in;
   `keepassxc-cli` lists the groups and entries and shows every field. The
   passphrase is NFC (§3); the NFD form opens in Faraday and in neither
-  outside reader. A wrong passphrase and a changed byte are refused by all.
+  outside reader. A wrong passphrase and a changed byte are refused by all,
+  except that `keepassxc-cli` is not asked about a byte changed in the empty
+  block that ends the block stream (the last 36 bytes): KeePassXC 2.7.10
+  stops reading where the XML ends and never reads that block, whose HMAC
+  covers no data (`HmacBlockStream::readHashedBlock` runs only when the
+  reader asks for more); KDBX 4 does not say a reader must. Counted as a
+  known difference; Faraday and pykeepass still refuse it.
 - An export, made by `file::create_holding` (`export` loop, the function the app's export
   runs): entries whose Title, Notes and Password hold control characters, read as in the
   `faraday` loop by pykeepass and `keepassxc-cli` and keepass-rs, a wrong passphrase, the NFD form and a changed byte refused. The export vector of
@@ -96,6 +102,11 @@ VECTORS = json.loads((ROOT / "tools/vectors/vault-primitives/vectors.json").read
 
 LANGUAGES = 10
 MAX_SHEET = 16 * 1024
+# The empty block that ends a KDBX 4 block stream: its HMAC (32 bytes) and its size, 0
+# (4 bytes), the last bytes of the file.
+END_BLOCK = 36
+# The outside readers whose own answers a check of theirs alone reports.
+READERS = ("pykeepass", "keepassxc-cli", "keepass-rs")
 
 
 class Refused(Exception):
@@ -512,7 +523,9 @@ class Vault(Area):
                 name = f"vault-{hashlib.sha256(data).hexdigest()[:12]}.kdbx"
                 (folder / name).write_bytes(data)
                 note += f" (the file: out/crosscheck/{name})"
-        raise Mismatch(self.name, op, inputs, got, want, note)
+        # A check of an outside reader alone (`op` names it) gives that reader's answer.
+        labels = (op, "expected") if op in READERS else ("faraday", "reference")
+        raise Mismatch(self.name, op, inputs, got, want, note, labels)
 
     @staticmethod
     def tag(data):
@@ -630,6 +643,10 @@ class Vault(Area):
             if readers.open_kdbx(flip, passphrase) is not None:
                 self.fail("pykeepass", {"file": self.tag(flip)}, "opened", "refused",
                           "pykeepass opens a file with a byte changed", flip)
+            if kpxc and i >= len(data) - END_BLOCK and data[-4:] == bytes(4):
+                # keepassxc-cli stops at the XML's end and never reads the empty last block.
+                flip = None
+                self.known += 1
         if kpxc:
             self.kpxc_checks(data, passphrase, self.cut_at_nul(mine), flip=flip, nfd=nfd)
         elif not self.rs_case:
