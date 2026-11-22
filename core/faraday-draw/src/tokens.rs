@@ -2443,16 +2443,8 @@ pub const HOME_CARD_KEYS: usize = 5;
 /// you on the left, the keys here on the right.
 pub const HOME_CARD_TWO_COLS: f32 = 840.0;
 
-/// The gap between Home's search row and its card, which stands apart.
-pub const HOME_CARD_GAP: f32 = 32.0;
-
-/// The gap between Home's search row and its card on a tall window, about
-/// the old lead's height and its gaps.
-pub const HOME_CARD_GAP_TALL: f32 = 150.0;
-
-/// The window height from which Home's card stands `HOME_CARD_GAP_TALL`
-/// under the search row.
-pub const HOME_CARD_TALL_FROM: f32 = 900.0;
+/// The gap between Home's search row and its card, one at every window height.
+pub const HOME_CARD_GAP: f32 = 24.0;
 
 /// Home's card heading: title large, 22 on 28, in Noto Sans SemiBold.
 pub const HOME_CARD_HEAD: TypeRole = role(22.0, 28.0, TypeFace::Medium);

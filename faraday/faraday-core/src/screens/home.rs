@@ -10,8 +10,7 @@ use crate::ui::{Region, Shape, Slot, Style};
 use crate::{Action, Screen};
 use faraday_draw::tokens::{BODY_L, BODY_M, BUTTON_H, SHAPE_M, TITLE_M, TITLE_S};
 use faraday_draw::tokens::{
-    ELEVATION_FAB, HOME_CARD_GAP, HOME_CARD_GAP_TALL, HOME_CARD_HEAD, HOME_CARD_KEYS,
-    HOME_CARD_TALL_FROM, HOME_CARD_TWO_COLS, PAD,
+    ELEVATION_FAB, HOME_CARD_GAP, HOME_CARD_HEAD, HOME_CARD_KEYS, HOME_CARD_TWO_COLS, PAD,
 };
 use faraday_draw::tokens::{HOME_BOX_KEYS, HOME_BOX_MIN_ROWS, MARGIN_WIDE};
 
@@ -528,15 +527,6 @@ fn keys_fitting(avail: f32, rest_h: f32, keys: usize, cap: usize) -> usize {
     keys.min(cap).min(room)
 }
 
-/// The gap between Home's search row and its card: `HOME_CARD_GAP_TALL`
-/// from a window `HOME_CARD_TALL_FROM` high, `HOME_CARD_GAP` under it.
-fn card_gap(window: Option<f32>) -> f32 {
-    match window {
-        Some(h) if h >= HOME_CARD_TALL_FROM => HOME_CARD_GAP_TALL,
-        _ => HOME_CARD_GAP,
-    }
-}
-
 /// `rows` from the top of a box at `(x, y)`, `w` wide: the rows alone.
 fn list_rows(ui: &mut Ui, (x, y): (f32, f32), w: f32, rows: &[ListRow]) {
     let mut cy = y + GAP_SMALL;
@@ -812,8 +802,7 @@ fn home_card(
 ) -> f32 {
     let cw = w;
     let cx = x + (w - cw) / 2.0;
-    let gap = card_gap(window);
-    let top = y + gap;
+    let top = y + HOME_CARD_GAP;
     let head_h = ui.line_as(HOME_CARD_HEAD);
     let inner = cw - 2.0 * PAD;
     let lead_h = lead.map_or(0.0, |_| HOME_LEAD_H + GRID);
@@ -875,7 +864,7 @@ fn home_card(
     } else {
         draw_cols(ui);
     }
-    gap + card_h
+    HOME_CARD_GAP + card_h
 }
 
 /// The three first-run actions while nothing is loaded, in their order:

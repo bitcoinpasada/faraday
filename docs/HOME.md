@@ -135,9 +135,8 @@ something now, as Files' badge is the Inbox count (F235, F303); none while
 the number is zero.
 
 One card (it holds the lead, §2, as its first item, under the heading and
-across both columns), 32 dp under the search row (`HOME_CARD_GAP`) and, from a
-window 900 dp high (`HOME_CARD_TALL_FROM`), 150 dp (`HOME_CARD_GAP_TALL`, about the
-old lead's height and its gaps), the same whether a lead stands in it or not, of Material list
+across both columns), 24 dp under the search row (`HOME_CARD_GAP`) at every
+window height (the owner's call of 2026-11-22), the same whether a lead stands in it or not, of Material list
 items (Lists) one under another, as wide as the search row and centred
 under it (the whole page where that is narrower), not drawn while it has no
 row. Its surface is neutral (surface-container-low) and raised at the Scan
