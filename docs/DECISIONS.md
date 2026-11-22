@@ -324,8 +324,8 @@ Read this table, then only the decision you need.
 | [F311](decisions/F311.md) | The navigation's badges are Bitcoin orange with a white count, in every theme | 2026-11-21 | Active | design |
 | [F312](decisions/F312.md) | Scan is the navigation's FAB at the foot of the rail and of the sidebar | 2026-11-21 | Active | design |
 | [F313](decisions/F313.md) | Home's page stays still and only its box scrolls; the rail's Home has no place tiles | 2026-11-21 | Active | design |
-| [F316](decisions/F316.md) | This session is Faraday's hub: one card of what is loaded, in a few forms, its place on a page a setting | 2026-11-21 | Proposed | design |
+| [F316](decisions/F316.md) | This session is Faraday's hub: one pane of what is loaded, in a few forms, its place on a page a setting | 2026-11-21 | Proposed | design |
 | [F317](decisions/F317.md) | Menu pages: each section is one flat card holding a list, several to a row on wide windows | 2026-11-21 | Proposed | design |
-| [F318](decisions/F318.md) | Motion: two settings, a style (Smooth motion, Crossfade, Off) and a speed (600 ms by default), that never change on their own; the session card glides, the rest fades through | 2026-11-21 | Proposed | design |
-| [F319](decisions/F319.md) | Your choices stands at the left in every flow; in a flow begun beside the session card it is the card's side | 2026-11-21 | Proposed | design |
-| [F320](decisions/F320.md) | Every flow that produces something ends with one take-away pane: QRs and ticked files, one Write to stick | 2026-11-21 | Proposed | design |
+| [F318](decisions/F318.md) | Motion: two settings, a style (Smooth motion, Crossfade, Off) and a speed (600 ms by default), that never change on their own; the session pane glides, the rest fades through | 2026-11-21 | Proposed | design |
+| [F319](decisions/F319.md) | Your choices stands at the left in every flow; in a flow begun beside the session pane it is the pane's side | 2026-11-21 | Proposed | design |
+| [F320](decisions/F320.md) | Every flow that produces something ends with one take-away: QRs and ticked files, one Write to stick | 2026-11-21 | Proposed | design |
