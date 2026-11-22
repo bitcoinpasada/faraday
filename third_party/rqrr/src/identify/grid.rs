@@ -287,7 +287,10 @@ fn capstones_span(group: &CapStoneGroup, grid_size: usize) -> bool {
         ) else {
             return false;
         };
-        let arm = ((ub - 3.5).hypot(vb - 3.5) + (uf - 3.5).hypot(vf - 3.5)) / 2.0;
+        // A square root of the sum, not f64::hypot: hypot calls libm, and
+        // linking libm makes every start of the program load it.
+        let len = |u: f64, v: f64| ((u - 3.5) * (u - 3.5) + (v - 3.5) * (v - 3.5)).sqrt();
+        let arm = (len(ub, vb) + len(uf, vf)) / 2.0;
         (arm - (size - 7.0)).abs() <= size / 3.0 + 4.0
     })
 }
