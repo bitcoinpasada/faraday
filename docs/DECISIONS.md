@@ -328,3 +328,4 @@ Read this table, then only the decision you need.
 | [F317](decisions/F317.md) | Menu pages: each section is one flat card holding a list, several to a row on wide windows | 2026-11-21 | Proposed | design |
 | [F318](decisions/F318.md) | Motion: two settings, a style (Smooth motion, Crossfade, Off) and a speed (600 ms by default), that never change on their own; the session card glides, the rest fades through | 2026-11-21 | Proposed | design |
 | [F319](decisions/F319.md) | Your choices stands at the left in every flow; in a flow begun beside the session card it is the card's side | 2026-11-21 | Proposed | design |
+| [F320](decisions/F320.md) | Every flow that produces something ends with one take-away pane: QRs and ticked files, one Write to stick | 2026-11-21 | Proposed | design |

@@ -2,14 +2,14 @@
 
 **Kind:** Spec
 **Status:** Not built: the design of Home's "This session" card as the one view of what is loaded and going on, reused on the menu pages, in a flow's key step and on Files, with Check's and Tools' section cards, side-by-side panes and slower motion.
-**Open:** Everything: nothing here is built. The session card and its forms, Your choices moved to the left as the card's side in every flow, the card's place on each page and its setting, the section cards of Check and Tools, the layout container that places the card and moves it, the panes beside the card, the Motion and Speed settings with the motion they set, and the timings on the Pi that §6 and §8 name are all still to make.
+**Open:** Everything: nothing here is built. The take-away pane (§15) is part of it: its container, the arrival emphasis and the one written-and-checked state shared with Files. The session card and its forms, Your choices moved to the left as the card's side in every flow, the card's place on each page and its setting, the section cards of Check and Tools, the layout container that places the card and moves it, the panes beside the card, the Motion and Speed settings with the motion they set, and the timings on the Pi that §6 and §8 name are all still to make.
 
 "This session", Home's raised card, becomes Faraday's hub: everything about
 what is loaded and going on lives in it, and it works with every part of
 Faraday the same way, at every size. Material 3 has no "persistent context"
 component; the card is built from Material's parts (a card holding a list,
 single and multiple selection rows, a collapsed summary row) and differs
-from Material only where a decision says so (F316, F317, F318, F319).
+from Material only where a decision says so (F316, F317, F318, F319, F320).
 
 This Spec builds on two pieces of Home not yet on main, which land with
 the build: F314 (Home's top row: the 48 dp search bar and three tonal
@@ -542,7 +542,12 @@ its pill row for the picker (`bip85`, `explore`, `convert`, `silent`,
 `screens/message.rs`, `ways_in`, `spend_backup`, `vault/screen/save.rs`);
 the flow container (`flow.rs`, `flow/unit.rs`) gives its Your choices rows
 to the card at the left and drops the wallet chip at the card head. Files'
-In Faraday (`screens/visit.rs`) takes the component. Motion: `motion.rs`
+In Faraday (`screens/visit.rs`) takes the component. The take-away pane
+(§15) is a last step the flow container draws (`flow.rs`, `flow/unit.rs`),
+fed by the outbox and the visit's receipt (`stick/visit_taken.rs`,
+`receipt.rs`); the flows of §15's table end on it in place of their own
+Finish, Show as QR and Save buttons, and Files' to-write rows (`screens/
+visit.rs`) and the pane draw one row. Motion: `motion.rs`
 and `fade.rs` (the glide, the row and height motion, the hover fade,
 durations from the Speed setting, the stale comment on `Faraday::fades`),
 `stick/settings.rs` (the card's place, Motion and Speed, Reduce motion's
@@ -589,3 +594,122 @@ it names FLOW-CONTAINER.md and MENU-PAGE.md); it is not changed before.
   own choice of duration (`fade.rs`, `motion::FADE_MS`,
   `motion::STEP_FADE_MS`). `lint-components` holds that no page places the
   card or times a page change itself.
+- **The take-away pane** (its document to be named TAKE-AWAY.md). Part of
+  the flow container: a flow declares what it produces (QRs, files) and the
+  container draws the last step (§15). It replaces each flow's own end
+  buttons for a file or a QR (§15's table) and gives Files' In Faraday rows
+  and the pane one row drawer. `lint-components` holds that a flow draws no
+  "Write to" or "Save" button of its own at its end.
+
+## 15. The take-away pane
+
+The owner (2026-11-21, F320): every flow that produces something ends with
+one pane, built once, holding what the person takes away: QRs to scan and
+files of any kind. This section is the design; F320 holds the calls and the
+alternatives passed over (a press on a file queueing it; written
+automatically).
+
+**What it is.** The flow's last step, standing where the step's card
+stands, Your choices staying at the left (F319). A plain heading ("Take
+with you"), then the QR on a light square with its quiet zone (in Dark
+too), then the files as Files' In Faraday rows (leading checkbox, name,
+kind, size), ticked, and at the foot one filled "Write to stick": the
+step's one high-emphasis action. Another and Done stay where the flows have
+them (FLOW-CONTAINER.md §7). On arrival the pane carries an emphasis from
+its place that eases away, as the key moment does, at the Speed setting
+(at once under Off). "Here is your key" (§2) is unchanged.
+
+**Elevation and Material.** Level 1 (`ELEVATION_SHEET`), as the session
+card off Home (F316 point 2), not level 3 (the FAB, the toast, the notice).
+Checked against Material 3's Elevation, Cards, Lists, Buttons and Color
+pages. The one thing outside the scheme is the green: `Role::Ok` is
+Faraday's custom role (`docs/THEMES.md` §5), as F306 uses it.
+
+**Writing.** Writing is a press on "Write to stick", never automatic. It
+writes the ticked rows through the visit's write, which reads each file
+back and compares it (`storage_api.rs`, "Write"; the visit's receipt
+records `verified`). Today a flow ends with its own button (Sign's "Write
+to the {}" and "Lock and write", Back up's "Done", Wallet export's "As a
+file" and "Show wallet QR", Message's "Make the file" and "Show as QR");
+those go, the pane being the one place. The ticked set is the visit's
+chosen set (`VisitState.out`); the pane and Files' to write read and
+change the same set.
+
+**Written and checked.** After a write is read back and compared, the
+rows in the pane and the same rows in Files show F306's green: `Role::Ok`
+at 12% over the card as a state layer (`VISIT_SAME_LAYER`), a check in
+`Role::Ok` at the row's end. Cobalt Light Standard `Ok` is #006D43 and
+Cobalt Dark Standard #76DAA1; F306 already holds their contrast, and the
+pane adds no colour. The state is one: a file's `verified` entry in the
+visit's receipt (the same name, the same bytes), which Files' rows already
+read. The pane adds no state of its own (today's `written_and_checked`,
+which asks that the whole outbox is empty, becomes a per-file read of the
+receipt). No error colours: a file not written reads "Waiting for a
+stick" (Files' wording) or its usual failure line in Files' text colours.
+
+**No stick.** The rows stay ticked and read "Waiting for a stick"; the
+button returns when a stick is in; meanwhile the files are in Files' to
+write (the outbox, `app.outbox`), which is where they already go when a
+flow makes them. No file moves: the pane is a second view of the outbox's
+files, never a copy, so nothing is built twice and nothing is lost when the
+pane is left.
+
+**Which flows end with it.** The survey of today's code (screens under
+`faraday/faraday-core/src/`):
+
+| Flow | What it produces | Its last step today | The pane holds |
+|---|---|---|---|
+| Sign a transaction (`screens/spend.rs`, `spend_backup/screen.rs`) | signed PSBT, finished transaction, a QR | Finish; "Write to the {}", "Lock and write to the {}"; "Show the finished transaction as QR" | the QR, the PSBT and transaction files ticked |
+| Seed sweep (`seeds/screen.rs`) | `sweep-signed.psbt`, `sweep-final.txn` | the files go to the outbox | both files ticked |
+| A vault saved or changed (`vault/screen`, `vault/seal.rs`) | the sealed vault file; its key words (secret) | the visit's "Write to {}", "Lock, and the visit writes them" | the vault file ticked; key words only under the secrets rule below |
+| Backups (`screens/backup/quick.rs`, `backups/screen.rs`, `backup_flow/screen.rs`) | seed QR, codex32 strings, PDF, text and picture files | Done, Back up now, Show the SeedQR | the QR, the files ticked |
+| Wallet export (`glance/sheet.rs`) | wallet, Electrum, Wasabi and xpub files; wallet and xpub QR | As a file, Xpub file, Show wallet QR, Write it out again | the QR, the files ticked |
+| GPG keys (`gpg.rs`, `backup_flow/gpg_restore.rs`) | certificate, revocation | Make the revocation, Export the kept revocation | the files ticked |
+| Secure Boot (`secure_boot/mod.rs`) | the signed EFI image | the image goes to the outbox | the image ticked |
+| KeePass export (`bip85/mod.rs`, `vault/stretch.rs`) | a KDBX file, its key file (secret) | Save as a file | the KDBX file ticked; key file as a secret |
+| Sign a message (`screens/message.rs`) | a message file, a QR | Make the file, Show as QR | the QR, the file ticked |
+| Derive with BIP-85 (`bip85/screen.rs`) | SeedQR, a words file (secret) | Save as a file, Save into {}, Show the code, Done | secrets rule below |
+| Silent payments (`silent/screen.rs`) | a text record, QR | Record as QR, DNS record as QR, Save into {} | the QR, the file ticked |
+| Krux code (`kef_tool/screen.rs`) | PNG and file pair | its save | the pair ticked |
+| Chart PDF (`chart_edit.rs`) | a PDF | into the outbox | the PDF ticked |
+
+A flow that produces nothing (Check a signer's result, Convert's shown
+result, an address check) has no pane and ends as FLOW-CONTAINER.md §7 says.
+A QR needs no stick: a pane with a QR and no file has no button.
+
+**Where it meets what exists.**
+
+- *F296 and FLOW-CONTAINER.md §7.* The pane is that last step: the end card
+  of a flow that produces something. It keeps the step's place, the fade
+  through, "Step N of M" and F104's limits on Back; it gives up the flow's
+  own end buttons for a file or a QR. F296 point 2's release of secret state
+  at the fade's end holds for it.
+- *Files' to write (`screens/visit.rs`).* Keeps the outbox, the ticked set
+  and the rows; gains the same green row after a write, already F306's.
+  Gives up nothing; the row drawer becomes shared (§14).
+- *The read-back check.* The visit's write reads each file back and
+  compares it, and its receipt keeps the hash and `verified`. The pane
+  reuses it and adds no second check.
+
+**Secrets.** A take-away that holds a secret (a seed backup's QR, a vault's
+key words, a KDBX key file, a child seed) keeps F296 point 2 and today's
+code: the QR is drawn live from the state the flow holds, so the pane keeps
+no copy, no kept frame (MOTION.md §3.5) and no row text of it; the state is
+released when the step's fade out ends and at Lock or idle
+(`secrets_off_screen`: the QR view is closed and each area's `AtLock::lock`
+runs). A secret file is in the outbox only through `outbox_secret`, after
+the person is asked (`secrets.rs`), is dropped at Lock as today
+(`inbox.rs`), and its row is ticked only with that asking done: until then
+it is not in the pane's files, only named in a line that says it is asked
+for. So the pane holds a secret on screen and in state no longer than
+today's last step does. The receipt keeps hashes only and survives a lock
+as it does now. The pane adds a state of no secret type; a test shows that
+leaving the step releases a QR's secret.
+
+**The phone-size window and the Pi.** Where the window is one column the
+pane is the flow's last page in the column, the same rows, the button at
+the foot of the page; Your choices keeps the top app bar's button and its
+sheet (F319 point 4). The Pi's panel is the same. Its arrival emphasis
+follows the Speed setting measured for the Pi (§8).
+
+**Open.** All of it: nothing here is built (the Open line at the top).
