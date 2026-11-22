@@ -88,7 +88,9 @@ cross-checked (F197). A change to an area's code runs that area
 with each area's corpus case count beside the seed; it is committed with
 the release. `tools/lint-crosscheck.sh` (in `just lint-release`, about a
 tenth of a second) hashes the crypto sources, this folder, the
-references, the vectors and the crypto crates' `Cargo.lock` entries, and
+references, the vectors and the crypto crates' `Cargo.lock` entries (a
+covered crate's own `[package]` version line is left out, so a release's
+version bump does not change the hash), and
 fails with "crypto changed since the last cross-check: run `just
 crosscheck`" when they no longer match the stamp. `python3 stamp.py show`
 lists what is hashed.

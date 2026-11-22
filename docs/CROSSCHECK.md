@@ -110,8 +110,10 @@ run, the funding of the cases that spend on Bitcoin Core's node) is in
   `faraday/faraday-vault`, the signing and derivation code in
   `faraday/faraday-keys`, and the
   `Cargo.lock` entries of rust-bitcoin, rust-miniscript, secp256k1 and
-  the RustCrypto crates. A version bump of one of those crates counts as
-  a crypto change.
+  the RustCrypto crates. A new version of one of those crates.io crates
+  (its `Cargo.lock` entry) counts as a crypto change; a covered crate's
+  own `[package]` version line is not hashed, so a release's version bump
+  does not.
 - **Before a release:** `just crosscheck --fresh`, with a new random
   seed and about ten times the random cases. A disagreement it finds
   keeps its seed and inputs as a new vector. Then `just lint-release` must

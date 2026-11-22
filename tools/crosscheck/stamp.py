@@ -153,11 +153,33 @@ def lock_entries():
     return sorted(seen.values())
 
 
+def hashed_bytes(f):
+    """What of a file is hashed: the file, except that a covered crate's own
+    `[package]` `version = "..."` line is left out (a release's version bump
+    computes nothing the cross-check checks). Only that line of the manifest
+    at the top of a CRATES entry; any other line, a dependency's version
+    included, counts."""
+    data = f.read_bytes()
+    if f.name != "Cargo.toml" or f.parent.relative_to(ROOT).as_posix() not in CRATES:
+        return data
+    out, table, dropped = [], None, False
+    for line in data.splitlines(keepends=True):
+        m = re.match(rb"\s*\[+\s*([^\]]*?)\s*\]+", line)
+        if m:
+            table = m.group(1)
+        elif (table == b"package" and not dropped
+              and re.match(rb'\s*version\s*=\s*"[^"]*"\s*(#.*)?$', line.rstrip(b"\r\n"))):
+            dropped = True
+            continue
+        out.append(line)
+    return b"".join(out)
+
+
 def digest():
     h = hashlib.sha256()
     for f in source_files():
         rel = f.relative_to(ROOT).as_posix()
-        h.update(rel.encode() + b"\0" + hashlib.sha256(f.read_bytes()).digest())
+        h.update(rel.encode() + b"\0" + hashlib.sha256(hashed_bytes(f)).digest())
     for line in lock_entries():
         h.update(line.encode() + b"\n")
     return h.hexdigest()
@@ -294,7 +316,7 @@ def parts(areas, tools, folder=None):
         area = files.get(f) or folders.get(rel.split("/")[2] if rel.startswith("tools/reference/")
                                             else None)
         (own[area] if area else shared).update(
-            rel.encode() + b"\0" + hashlib.sha256(f.read_bytes()).digest())
+            rel.encode() + b"\0" + hashlib.sha256(hashed_bytes(f)).digest())
     for name, lines in reference_folders().items():
         h = own[folders[name]] if name in folders else shared
         for line in lines:

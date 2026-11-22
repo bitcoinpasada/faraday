@@ -729,10 +729,8 @@ class {cls}(Area):
 '''
 
 
-class Combine(unittest.TestCase):
-    """A release's cross-check made of two runs at one seed (F239): the
-    second runs the areas whose own files changed or that failed, takes
-    the rest from the first, and refuses when it cannot be one run."""
+class CombineFixture(unittest.TestCase):
+    """Two areas, a stand-in Rust program and a first run to combine with."""
 
     def setUp(self):
         made = tempfile.TemporaryDirectory()
@@ -751,13 +749,14 @@ class Combine(unittest.TestCase):
         self.rust.chmod(0o755)
         self.folder = self.tmp / "out" / "crosscheck"
         self.earlier = self.tmp / "earlier"
+        self.script = HERE / "crosscheck.py"
 
     def area(self, name, wrong):
         (self.areas / f"combine_{name}.py").write_text(COMBINE_AREA.format(
             wrong=wrong, cls=name.capitalize(), name=name))
 
     def run_crosscheck(self, *args):
-        cmd = [sys.executable, "-I", "-B", str(HERE / "crosscheck.py"), "--rust", str(self.rust),
+        cmd = [sys.executable, "-I", "-B", str(self.script), "--rust", str(self.rust),
                "--test-areas", str(self.areas), "--allow-network", "--jobs", "2",
                "--python", "cpython", "--progress", str(self.folder), *args]
         return subprocess.run(cmd, capture_output=True, text=True, timeout=600)
@@ -772,6 +771,12 @@ class Combine(unittest.TestCase):
         shutil.copy(self.folder.parent / "crosscheck-record.txt", self.earlier)
         shutil.copy(self.folder / "report.txt", self.earlier)
         return self.earlier / "crosscheck-record.txt"
+
+
+class Combine(CombineFixture):
+    """A release's cross-check made of two runs at one seed (F239): the
+    second runs the areas whose own files changed or that failed, takes
+    the rest from the first, and refuses when it cannot be one run."""
 
     def test_a_combined_run_takes_an_unchanged_area_and_runs_the_changed_one(self):
         record = self.first_run()
@@ -845,6 +850,50 @@ class Combine(unittest.TestCase):
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
         self.assertIn("areas right\n", r.stdout)
         self.assertIn("right: MISMATCH", r.stdout)
+
+
+class VersionBump(CombineFixture):
+    """A release's version bump rewrites each covered crate's own version
+    line: a record made before it still combines. Any other change to a
+    covered manifest still refuses. Run in a copy of what the stamp reads,
+    so the real tree is not written."""
+
+    def setUp(self):
+        super().setUp()
+        import stamp
+        self.root = self.tmp / "tree"
+        real = stamp.ROOT
+        files = set(stamp.source_files())
+        files |= {real / "Cargo.lock", real / "docs/crypto/actions.toml",
+                  real / "tools/lint-standards.toml"}
+        files |= {f for f in HERE.rglob("*") if f.is_file() and "__pycache__" not in f.parts}
+        for f in files:
+            dest = self.root / f.relative_to(real)
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy(f, dest)
+        self.script = self.root / "tools/crosscheck/crosscheck.py"
+        self.manifest = self.root / "faraday/faraday-keys/Cargo.toml"
+
+    def edit(self, old, new):
+        text = self.manifest.read_text()
+        self.assertEqual(text.count(old), 1, old)
+        self.manifest.write_text(text.replace(old, new))
+
+    def test_a_record_before_a_version_bump_combines(self):
+        record = self.first_run()
+        self.area("right", wrong=False)
+        version = re.search(r'^version = "([^"]*)"$', self.manifest.read_text(), re.M).group(1)
+        self.edit(f'version = "{version}"\n', 'version = "99.0.1"\n')
+        r = self.run_crosscheck("--combine", str(record))
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("taken from it: left\n", r.stdout)
+
+    def test_any_other_change_to_a_covered_manifest_refuses(self):
+        record = self.first_run()
+        self.edit("faraday-codec = {", "faraday-codec = { features = [],")
+        r = self.run_crosscheck("--combine", str(record))
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("what the areas share changed since that run", r.stdout)
 
 
 DELTA_MODULE = r'''
