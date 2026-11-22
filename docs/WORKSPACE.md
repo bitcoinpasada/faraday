@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Not built: the design of Home's "This session" pane as the one view of what is loaded and going on, reused on the menu pages, in a flow's key step and on Files, with Check's and Tools' section cards, side-by-side panes and slower motion.
-**Open:** Everything: nothing here is built. The take-away (§15) is part of it: its container, the arrival emphasis and the one written-and-checked state shared with Files. One choice is the owner's to make in the mock: where the take-away stands at a flow's end, in the session pane (A, recommended) or as the last step's card (B) (§15). The session pane and its forms, Your choices moved to the left as the pane's side in every flow, the pane's place on each page and its setting, the section cards of Check and Tools, the layout container that places the pane and moves it, the panes beside the pane, the Motion and Speed settings with the motion they set, and the timings on the Pi that §6 and §8 name are all still to make.
+**Open:** Everything: nothing here is built. The take-away (§15) is part of it: its container, the arrival emphasis and the one written-and-checked state shared with Files. The take-away stands in the session pane at a flow's end (the owner chose it in the mock, 2026-11-22, §15). The session pane and its forms, Your choices moved to the left as the pane's side in every flow, the pane's place on each page and its setting, the section cards of Check and Tools, the layout container that places the pane and moves it, the panes beside the pane, the Motion and Speed settings with the motion they set, and the timings on the Pi that §6 and §8 name are all still to make.
 
 "This session", Home's raised card, becomes the session pane, Faraday's hub: everything about
 what is loaded and going on lives in it, and it works with every part of
@@ -184,6 +184,10 @@ lead counts as two), and to the left once it holds more. The threshold
 counts the pane's rows of whatever kinds the page's mode shows (§2), not
 keys alone.
 
+On Tools and Check, Automatic keeps the pane at the left whenever it holds
+more than a short strip, and a person who wants it Above sets that through
+the Place setting (owner, 2026-11-22, on the mock).
+
 The place never depends on motion (owner, 2026-11-21): with motion Off the
 pane stands where it would after the glide, and only the moving goes.
 
@@ -210,7 +214,10 @@ sheet.
 
 **Settings and the pane** (owner, 2026-11-21). On Settings the pane stands
 at the left, and Settings' cards stand in the area beside it (MENU-PAGE §6,
-up to two columns). On a tall window Settings' cards also stand under the
+up to two columns). The cards start one gap, `HUB_PANE_GAP` (a new token,
+24 dp, 3 × `GRID`), to the right of the pane's edge, not centred in the free
+width (owner, 2026-11-22, on the mock; at 3840 × 2160 and wherever Settings
+stands beside the pane). On a tall window Settings' cards also stand under the
 pane, in the pane's own column:
 
 - **The pane takes only the height it needs**, at most
@@ -237,7 +244,7 @@ pane, in the pane's own column:
 
 Every page the pane appears on, with its place:
 
-| Page | Proposed place | Why |
+| Page | Place | Why |
 |---|---|---|
 | Home | centre, full form (not the setting) | the pane is Home's focus (F315) |
 | Tools | Automatic (owner, 2026-11-21) | with few rows the pane is above; with many it is beside, the whole list shown |
@@ -529,9 +536,8 @@ Candidates, with the screen each is on:
 §12: every choice was decided by the owner on 2026-11-21; the decisions are
 in the sections above.
 
-§12: one choice left: the flow's end, §15. The owner picks in the mock between
-(A) the take-away in the session pane, recommended, and (B) the take-away as
-the last step's card; the one container is the same either way.
+§12: the flow's end is decided (owner, 2026-11-22, on the mock): the
+take-away stands in the session pane, §15.
 
 ## 13. What must come first, and which files change
 
@@ -547,7 +553,7 @@ its pill row for the picker (`bip85`, `explore`, `convert`, `silent`,
 the flow container (`flow.rs`, `flow/unit.rs`) gives its Your choices rows
 to the pane at the left and drops the wallet chip at the pane head. Files'
 In Faraday (`screens/visit.rs`) takes the component. The take-away
-(§15) is drawn by the flow container (`flow.rs`, `flow/unit.rs`), in the session pane or as the last step as the owner picks,
+(§15) is drawn by the flow container (`flow.rs`, `flow/unit.rs`), in the session pane,
 fed by the outbox and the visit's receipt (`stick/visit_taken.rs`,
 `receipt.rs`); the flows of §15's table end on it in place of their own
 Finish, Show as QR and Save buttons, and Files' to-write rows (`screens/
@@ -613,8 +619,7 @@ files of any kind. This section is the design; F320 holds the calls and the
 alternatives passed over (a press on a file queueing it; written
 automatically).
 
-**What it is.** One container, the same whichever way the flow's end is
-laid out (below). A plain heading ("Take with you"), then the QR on a light
+**What it is.** One container, at the flow's end in the session pane (below). A plain heading ("Take with you"), then the QR on a light
 square with its quiet zone (in Dark too), then the files as Files' In
 Faraday rows (leading checkbox, name, kind, size), ticked, and at the foot
 one filled "Write to stick": the one high-emphasis action. Every flow that
@@ -623,11 +628,8 @@ produces something uses it. Another and Done stay where the flows have them
 that eases away, as the key moment does, at the Speed setting (at once
 under Off). "Here is your key" (§2) is unchanged.
 
-**One choice left: the flow's end** (the owner picks in the mock; the
-container above is the same in both).
-
-- **(A, recommended) In the session pane.** At the last step the session pane
-  at the left turns, with the glide (§6), from Your choices into the
+**The flow's end: in the session pane** (owner, 2026-11-22, on the mock).
+At the last step the session pane at the left turns, with the glide (§6), from Your choices into the
   take-away plus next steps: what follows from the result only, never Tools,
   Files or Home, which the sidebar has. The step's card states what
   happened ("Signed: 2 of 3 signatures", the amounts, what is still
@@ -635,24 +637,13 @@ container above is the same in both).
   settles back to its session form, the written files green there and in
   Files. On the phone-size window and the Pi the flow's end opens the pane's
   sheet (F319 point 4) showing the take-away and the next steps.
-- **(B) As the last step's card.** The take-away is the last step, standing
-  where the step's card stands, and the session pane at the left shows only
-  the next steps, in place of Your choices.
 
-Why A is recommended: the pane is the one place that runs on from Home to
-the flow (F319), so its turn at the end is the entry to the person's next
-step, and the card says what happened without also holding files. B keeps
-what the person takes away in the middle of the page with the step they just
-did, and leaves the pane with little to show.
-
-**Where A and B meet what is decided.** F319 puts Your choices at the left in
-every flow and F296 makes the last step a card in the column: under A, Your
+**What this changes.** F319 puts Your choices at the left in
+every flow and F296 makes the last step a card in the column: Your
 choices stays at the left in every step but the last, which the session pane
 takes over (the answers given are not lost: the pane's session form lists
 them as the session's rows, and Back returns the pane to Your choices); the
-last step is a card of the outcome in the column. Under B, F296's last step
-is the take-away card and F319 stands as written, except that its Your
-choices form gives way to the next steps at that step.
+last step is a card of the outcome in the column.
 
 **Elevation and Material.** Level 1 (`ELEVATION_SHEET`), as the session
 pane off Home (F316 point 2), not level 3 (the FAB, the toast, the notice).
@@ -660,15 +651,16 @@ Checked against Material 3's Elevation, Cards, Lists, Buttons and Color
 pages. The one thing outside the scheme is the green: `Role::Ok` is
 Faraday's custom role (`docs/THEMES.md` §5), as F306 uses it.
 
-**Writing.** Writing is a press on "Write to stick", never automatic. It
-writes the ticked rows through the visit's write, which reads each file
+**Writing.** Writing is a press on "Write to stick", never automatic. Each
+file is ticked on its own; Write writes the ticked rows through the visit's write, which reads each file
 back and compares it (`storage_api.rs`, "Write"; the visit's receipt
 records `verified`). Today a flow ends with its own button (Sign's "Write
 to the {}" and "Lock and write", Back up's "Done", Wallet export's "As a
 file" and "Show wallet QR", Message's "Make the file" and "Show as QR");
 those go, the take-away being the one place. The ticked set is the visit's
 chosen set (`VisitState.out`); the take-away and Files' to write read and
-change the same set.
+change the same set. An unticked file is not written: it stays in Files' In
+Faraday, held (F320 points 4 and 7).
 
 **Written and checked.** After a write is read back and compared, the
 rows in the take-away and the same rows in Files show F306's green: `Role::Ok`
@@ -718,8 +710,8 @@ A QR needs no stick: a take-away with a QR and no file has no button.
 
 - *F296 and FLOW-CONTAINER.md §7.* The last step stays the flow's: the step's card, its place, the fade
   through, "Step N of M" and F104's limits on Back. It gives up the flow's
-  own end buttons for a file or a QR, and under B it holds the take-away; under
-  A it states the outcome and the take-away is in the session pane. F296 point 2's release of secret state
+  own end buttons for a file or a QR: it states the outcome, and the take-away
+  is in the session pane. F296 point 2's release of secret state
   at the fade's end holds for it.
 - *Files' to write (`screens/visit.rs`).* Keeps the outbox, the ticked set
   and the rows; gains the same green row after a write, already F306's.
@@ -733,9 +725,9 @@ key words, a KDBX key file, a child seed) keeps F296 point 2 and today's
 code: the QR is drawn live from the state the flow holds, so the take-away keeps
 no copy, no kept frame (MOTION.md §3.5) and no row text of it; the state is
 released when the step's fade out ends and at Lock or idle
-(under A: when the pane settles back to its session form, and at Lock or
+(when the pane settles back to its session form, and at Lock or
 idle; `secrets_off_screen`: the QR view is closed and each area's `AtLock::lock`
-runs). Under A the QR is drawn live in the session pane from the flow's state, never from the pane's own rows, and is released when the pane settles back. A secret file is in the outbox only through `outbox_secret`, after
+runs). The QR is drawn live in the session pane from the flow's state, never from the pane's own rows, and is released when the pane settles back. A secret file is in the outbox only through `outbox_secret`, after
 the person is asked (`secrets.rs`), is dropped at Lock as today
 (`inbox.rs`), and its row is ticked only with that asking done: until then
 it is not in the take-away's files, only named in a line that says it is asked
@@ -744,11 +736,9 @@ today's last step does. The receipt keeps hashes only and survives a lock
 as it does now. The take-away adds a state of no secret type; a test shows that
 leaving the step releases a QR's secret.
 
-**The phone-size window and the Pi.** Where the window is one column, under B the
-take-away is the flow's last page in the column, the same rows, the button at
-the foot of the page; under A the flow's end opens the pane's sheet (F319
+**The phone-size window and the Pi.** Where the window is one column, the flow's end opens the pane's sheet (F319
 point 4, the top app bar's button's sheet) showing the take-away and the next steps. Your choices keeps the top app bar's button and its
 sheet at every other step. The Pi's panel is the same. Its arrival emphasis
 follows the Speed setting measured for the Pi (§8).
 
-**Open.** All of it: nothing here is built (the Open line at the top), and the flow's end is the owner's to pick, A or B, in the mock.
+**Open.** All of it: nothing here is built (the Open line at the top). The owner approved the mock on 2026-11-22.
