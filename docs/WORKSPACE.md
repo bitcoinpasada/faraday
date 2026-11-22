@@ -2,14 +2,14 @@
 
 **Kind:** Spec
 **Status:** Not built: the design of Home's "This session" card as the one view of what is loaded and going on, reused on the menu pages, in a flow's key step and on Files, with Check's and Tools' section cards, side-by-side panes and slower motion.
-**Open:** Everything: nothing here is built. The card's forms, its place on each page and its setting, the section cards of Check and Tools, the panes beside the card, the glide and fade through, the Motion setting, and the mock renders the owner picks from (§12) are all still to make.
+**Open:** Everything: nothing here is built. The session card and its forms, Your choices moved to the left as the card's side in every flow, the card's place on each page and its setting, the section cards of Check and Tools, the layout container that places the card and moves it, the panes beside the card, the Motion and Speed settings with the motion they set, and the timings on the Pi that §6 and §8 name are all still to make.
 
 "This session", Home's raised card, becomes Faraday's hub: everything about
 what is loaded and going on lives in it, and it works with every part of
 Faraday the same way, at every size. Material 3 has no "persistent context"
 component; the card is built from Material's parts (a card holding a list,
 single and multiple selection rows, a collapsed summary row) and differs
-from Material only where a decision says so (F316, F317, F318).
+from Material only where a decision says so (F316, F317, F318, F319).
 
 This Spec builds on two pieces of Home not yet on main, which land with
 the build: F314 (Home's top row: the 48 dp search bar and three tonal
@@ -21,10 +21,11 @@ card on Home", it means the card as F315 draws it.
 ## 1. What the card holds, and in which order
 
 One source for every form: the session (`app.session.keys`,
-`app.session.wallets`), the flows in progress (`in_progress.rs`), Faraday's
-files held to write (`app.outbox`) and the vaults open. Every form draws
-from it through one component; no page keeps its own list of what is
-loaded.
+`app.session.wallets`), the flows in progress (`in_progress.rs`), the files
+Faraday holds (`app.inbox`, taken in from a stick or a scan, and
+`app.outbox`, held to write: Files' In Faraday) and the vaults open. Every
+form draws from it through one component, the session card (§14); no page
+keeps its own list of what is loaded.
 
 The rows, in order (HOME.md §3's order, kept):
 
@@ -36,19 +37,73 @@ The rows, in order (HOME.md §3's order, kept):
 6. **Keys no wallet uses** (fingerprint, name, "passphrase", "No wallet uses it", Make a wallet).
 7. **All keys** with its count, the "more" of the key rows.
 
-A form shows a subset of these rows (§2); the order never changes.
+A form shows a subset of these rows (§2); the order of Home's never
+changes. A menu page's card is named by its **mode**: the kinds of the
+user's own data its tools take (keys, wallets, files, flows), in the order
+that page's tools need them (§2's tables). The source is the same; the
+mode only says which kinds are drawn and which leads.
 
 ## 2. The card's forms
 
+Each form is a mode of the one session card (§14), not a component of its
+own.
+
 - **Full (Home).** As F315: every row of §1, two columns from 840 dp of
   card width, Title L heading, level 3.
-- **Compact (a menu page's top or left).** The same component on Tools,
-  Check and the other pages of §4. Which of §1's rows it holds there is
-  open (§12 choice 9); the lead, if shown, is a plain row (no filled
-  button: the page is a launcher). Above the page it is a short strip (§4) with All
-  keys standing for the rest; beside the page it shows the whole list of
-  keys, scrolling within itself (owner, 2026-11-21). Heading "This
-  session" in Title M.
+- **Compact (a menu page's top or left).** The same component on Tools
+  and Check, the two menu pages that show it (§4). Its mode holds, on each
+  page, the user's own data that page's tools take, whatever its kind, and
+  leads with what those tools need most (owner, 2026-11-21; the tables
+  below). The lead, if shown, is a plain row (no filled button: the page is
+  a launcher). Above the page it is a short strip (§4) with All keys
+  standing for the rest; beside the page it shows the whole list, scrolling
+  within itself (owner, 2026-11-21). Heading "This session" in Title M.
+
+  What each page's card holds (the code's tools, read in
+  `screens/catalog.rs`, `catalog.rs` and `check/screen.rs`; a kind with
+  none of its data held is not drawn):
+
+  **Check** (eleven tools). Seven take a file or a scan: Decode a
+  transaction (a PSBT or a transaction file), Check a signer (two of them),
+  Nonce check (a signed PSBT or transaction), Check a multisig setup (a
+  file that reads as a wallet of several keys), Check an address (a text
+  file, or a scan), Check a signed message (a message file), Check a backup
+  in another form (shares, parts, a SeedQR, codex32, a Krux code). Three
+  take a key with a seed: My seed makes my wallet (also a wallet or key
+  file), Check a backup, Child seeds. Two take a wallet: Check an address
+  and Check a multisig setup.
+
+  | Order | Kind | Rows | Why |
+  |---|---|---|---|
+  | 1, leads | Files | the files Faraday holds that a Check tool takes, by kind: PSBTs and transactions, wallet and setup files, message files, shares and words | most Check tools start from a file; the person needs to see what is in Faraday to check it |
+  | 2 | Wallets | each loaded wallet, with what it needs | Check an address searches them; Check a multisig setup compares against one |
+  | 3 | Keys | keys that hold a seed, with All keys | only three tools take one, and they take one with a seed |
+  | 4 | Flows | flows in progress | a check begun and left resumes |
+
+  **Tools** (every flow Faraday has, nine groups). The kinds its tools take,
+  and how many tools take each: keys, about fourteen (Keys and seeds'
+  Explore, Child seeds, Convert, Krux code, Vanity, Silent payments,
+  Lightning, SLIP-39 and Seed XOR parts; the cosigners of every wallet kind
+  under Wallets; Sweep); wallets, about eight (Sign a transaction, Back up
+  a wallet, Sign a message, Spend from backup, Check a multisig setup,
+  Check an address, the KEF tool, Save to a vault); files, about sixteen
+  (Sign and Decode a transaction, Check a signer, Nonce check, Check a
+  signed message, Check a timestamp, Restore a wallet, Read a Bitcoin Core
+  wallet, the shares and words of Add a key, a vault's locked file and its
+  entries).
+
+  | Order | Kind | Rows | Why |
+  |---|---|---|---|
+  | 1, leads while one waits | Files | the files a tool takes, by kind, and Home's lead when a PSBT waits (a plain row) | a file waiting is the one thing a tool is ready for: Sign a transaction (the first tool of Common) opens on it; with none waiting this kind has no rows and the page leads with Keys |
+  | 1 otherwise | Keys | every key, "No wallet uses it" with Make a wallet, All keys | the most tools take a key (Keys and seeds, Wallets' cosigners) |
+  | 2 | Wallets | each loaded wallet, with what it needs | Sign, Back up, Sign a message and Spend from backup start from one |
+  | 3 | Flows | flows in progress | resumes a tool left |
+  | not shown | Backups, vaults open | | Backup is a tool's own flow; vaults list on Vaults |
+
+  A page's mode is a row of its own in the menu page container (§14): a
+  new menu page names the kinds its tools take and gets the order the same
+  way. The Pi's menu and the phone-size window take the same mode in one
+  column above the page (§8).
 - **Picker (a flow's key step).** When a tool is picked from a page the
   card stands on, the flow's first screen opens with the card still where
   it was, beside or above, and the key is picked in it there (owner,
@@ -59,17 +114,19 @@ A form shows a subset of these rows (§2); the order never changes.
   (a multisig's cosigner slots, a seed set, Vanity's keys) shows checkbox
   rows. The step's other ways in ("Add a key", "Load a wallet") are the
   card's last row, a text button, and return here with the new key ticked.
-  Whether rows the step cannot take (a key already in another slot, a key
-  with no seed for a tool that needs one) leave or stay dimmed is §12
-  choice 9. Wallet steps (Sign a
+  A row the step cannot take (a key already in another slot, a key with
+  no seed for a tool that needs one) stays, dimmed, with its reason as its
+  line ("In slot 2", "No seed held") (owner, 2026-11-21): a person looking
+  for a key sees why it cannot be used. Wallet steps (Sign a
   message's wallet, the KEF tool's wallet) take wallet rows the same way.
 - **From showing to choosing** (owner, 2026-11-21). When the flow's first
   screen opens beside or above the card, the card shows that its keys are
-  now the flow's and one is to be picked, in one transition at the Motion
-  setting's duration:
+  now the flow's and one is to be picked, in one transition at the Speed
+  setting (§9):
   (a) its heading changes from "This session" to the flow's question
   ("Choose a key", "Choose the keys", "Choose a wallet");
-  (b) the rows the flow cannot use leave or dim, as §12 choice 9 settles;
+  (b) the rows of kinds the flow does not take fade out, and a key it
+  cannot take dims with its reason;
   (c) the rows left become Material selection-list rows: a radio button at
   the start (a checkbox where the flow takes several), a tonal container
   behind each row, the chosen one in the secondary container, the state
@@ -79,32 +136,39 @@ A form shows a subset of these rows (§2); the order never changes.
   (e) the flow's own first screen reads "Choose a key" with nothing that
   competes with the card: no other key control, only its Next (off until a
   pick) and the step's own way back.
-  Pills (chips) were not taken: Material keeps chips for short labels and
-  filters, a key carries two lines (its fingerprint and name, and what uses
-  it), and pills of varying widths are what the card replaces (§10).
-- **Folded (a flow under way).** Once the pick is made the other rows fade
-  out and the card folds to one tonal row, "Using: Savings" (or "Using: 3
-  keys"), which glides to the flow card's head where the wallet chip stands
-  today (FLOW-CONTAINER §2). A press on it opens the picker again, on the
-  same step order rules as a row of Your choices (F296). Where a later step
-  needs another key (a multisig's next slot) the picker opens there again,
-  and folds again after.
+  The owner chose the selection rows over the keys as pills (chips)
+  (2026-11-21): Material keeps chips for short labels and filters, a key
+  carries two lines (its fingerprint and name, and what uses it), and pills
+  of varying widths are what the card replaces (§10).
+- **Your choices (a flow under way).** Once the pick is made the other
+  rows fade out and the card, where it stands at the left, becomes the
+  flow's Your choices (F319, FLOW-CONTAINER §4): one pane, continuous from
+  Home to the menu page to the flow. The pick is its first row, a label and
+  its value as every row of Your choices is ("Key: Savings", "Keys: 3
+  keys", "Wallet: Savings"), and each answer adds a row under it. A press on
+  a row goes back to its step on F296's rules; the key row brings the picker
+  back in the card, and the pick folds to its row again after. Where a
+  later step needs another key (a multisig's next slot) the picker opens in
+  the card there again. The card's heading becomes "Your choices". A flow
+  not begun beside the card (Make a new vault from Wallets start, a flow
+  opened from Home's lead or a search result) has the same card at the
+  left in this form from its first step. The wallet chip at the flow card's
+  head (FLOW-CONTAINER §2) goes: the wallet is a row.
 - **Files' In Faraday.** Files' left pane (`screens/visit.rs`, `in_faraday`)
   takes the card's look and component, listing the files held to write
-  with their checks and Write at its foot, as today. Its heading: §12,
-  choice 6.
+  with their checks and Write at its foot, as today. Its heading stays "In
+  Faraday" (owner, 2026-11-21): it names where the files are, against the
+  stick's pane.
 
 ## 3. Its look per form
 
 - **Home:** level 3 (`ELEVATION_FAB`), neutral surface-container-low, Title
   L (F315).
-- **Off Home (compact, picker):** the same family (fill, corners, row
-  design), the heading a step smaller, Title M, and lower: the owner picks
-  level 3, level 1 or no shadow from renders (§12, choice 1). The
-  recommendation is level 1: on these pages the card supports the page
-  rather than leads it.
-- **Folded:** a tonal row (secondary container), no shadow, the height of
-  a list item.
+- **Off Home (compact, picker, Your choices):** the same family (fill,
+  corners, row design), the heading a step smaller, Title M, and lower: level 1
+  (owner, 2026-11-21, over level 3 and no shadow): on these pages the card supports the page
+  rather than leads it. In a flow, Your choices is this card, in place of
+  F296's flat pane with a divider at its start (F319).
 - **Files:** as off Home; no shadow (it is one of two panes of equal rank).
 
 ## 4. Where the card stands on each page
@@ -114,39 +178,76 @@ default), Above the page or Left of the page. Automatic decides when a page
 opens, never while the person is on it: loading a key does not move the
 card under them; the next page opened uses the new place, reached by the
 glide (§6). Automatic puts the card above while the rows it would hold fit
-in a short strip (at most `HUB_ABOVE_ROWS` rows, a new token proposed at 3:
-two keys and All keys, or a flow, a wallet and All keys; the lead counts as
-two), and to the left once it holds more. The threshold counts the card's
-rows, not keys alone.
+in a short strip (at most `HUB_ABOVE_ROWS` rows, a new token at 3 (owner,
+2026-11-21): two files and All keys, or a flow, a wallet and All keys; the
+lead counts as two), and to the left once it holds more. The threshold
+counts the card's rows of whatever kinds the page's mode shows (§2), not
+keys alone.
+
+The place never depends on motion (owner, 2026-11-21): with motion Off the
+card stands where it would after the glide, and only the moving goes.
 
 **Left fits** where the room beside the navigation holds the card
 (`LIST_PANE`, 360 dp), a `SPACER`, the page's least content width and the
 margins (`MARGIN_WIDE` each side): on a menu page the least content is one
-section card (`CATALOG_TILE_MIN`); in a flow's key step it is the flow's
-column (`COLUMN_MAX`) and the Your choices pane (`side_panel_w`). So a menu
-page fits Left from about 1150 dp of room (1366 × 768 with the sidebar
-fits), a flow's key step with its pane from about 1750 dp (1920 × 1080
-fits). Where Left does not fit, Above is used whatever the setting. A key
-step opened beside a Left card on a narrower window (1366 × 768) keeps the
-card where it was and opens Your choices from the bar as a sheet until the
-pick, so the card never moves under the person.
-Guide's pane (LAYOUT §6, from 1600 dp) counts in the room when it is open
-or pinned as the page opens; opened later with no room left, Guide is the
+section card (`CATALOG_TILE_MIN`). In a flow the card is Your choices
+(F319), so a flow needs the card and its own column only: the column
+(`COLUMN_MAX`, narrowing to `FLOW_CARD_MIN`) and the card (narrowing from
+`LIST_PANE` to `CHOICES_PANE_MIN`, after the column), on the wide layout
+(FLOW-CONTAINER §4), at its narrowest about 872 dp of room. Left is
+therefore used only on the wide layout (the expanded rail: Large and over,
+not low; LAYOUT §2), where the room beside the 240 dp rail is at least
+960 dp: there a flow keeps the card at the left wherever the page it was
+opened from had it, and the card never moves under the person between the
+page and the flow. Where Left does not fit, Above is used whatever the
+setting; 1366 × 768 is Large and not low, so it takes Left. Guide's pane stays at the right of a flow on
+extra-large windows (F319), counted in the room as FLOW-CONTAINER §4 counts
+it today; the unit at its narrowest is as wide as before, so Guide's
+threshold (1536 dp of window) does not change. On a menu page, Guide's
+pane (LAYOUT §6, from 1600 dp) counts in the room when it is open or
+pinned as the page opens; opened later with no room left, Guide is the
 sheet.
 
-Every page the card appears on, with the proposed place:
+**Settings and the card** (owner, 2026-11-21). On Settings the card stands
+at the left, and Settings' cards stand in the pane beside it (MENU-PAGE §6,
+up to two columns). On a tall window Settings' cards also stand under the
+card, in the card's own column:
+
+- **The card takes only the height it needs**, at most
+  `HUB_CARD_HEIGHT_SHARE` of the page area's height, a ratio token at 0.5;
+  beyond that its rows scroll inside it, the heading staying.
+- **Room under it** is the height left under the card, the page area's
+  height less the card's and `MENU_GAP`. Where that is at least
+  `HUB_UNDER_MIN` (a token, 800 dp: more than any one of Settings' cards,
+  which the build checks against them), the column under the card is a third
+  stack of Settings' cards, as wide as the card, filled as MENU-PAGE §6
+  divides cards, by height, a card whole or not at all; a card that does not
+  fit the room stays in the pane beside. Under 800 dp of room every card is
+  in the pane beside, as the card's column ends with the card.
+- **1920 × 1080** (page area about 1016 dp): the card at most 508 dp, so the
+  room under it is under 800 dp unless the card holds little (an empty
+  session: its heading and one row); Settings stays beside the card, two
+  columns.
+- **3840 × 2160** (about 2096 dp): the card at most 1048 dp, the room under
+  it at least 1032 dp; Settings' cards stand under the card as well as in
+  the pane beside it.
+- The layout depends on the window and what the card holds only, never on
+  motion (above), and is worked out as the page opens and as its size
+  changes, as MENU-PAGE §6 works the stacks out.
+
+Every page the card appears on, with its place:
 
 | Page | Proposed place | Why |
 |---|---|---|
 | Home | centre, full form (not the setting) | the card is Home's focus (F315) |
-| Tools | Automatic (owner, 2026-11-21) | with few keys the card is above; with many it is beside, the whole list shown |
-| Check | Automatic | as Tools; most checks take a PSBT or a file, not a key, so the card is usually short |
-| A flow's key step | where the card stood on the page the tool was picked from (owner, 2026-11-21) | the key is picked in the card the person already sees; a flow opened from Home or the sidebar takes Automatic |
-| A flow under way | folded line at the card head | the flow keeps the focus (FLOW-CONTAINER §2) |
-| Files | Left always, as In Faraday | it is already a pane beside the stick's pane |
-| Settings | beside or around the card: §12, choice 2 | Settings is rarely used with what is loaded |
-| Wallets start, Wallets, Vaults, Backups, Explore | not shown | each lists the loaded wallets, keys or vaults itself; a second list beside it repeats it |
-| The Pi's menu, the phone-size window | Above, one column | no room beside (§8) |
+| Tools | Automatic (owner, 2026-11-21) | with few rows the card is above; with many it is beside, the whole list shown |
+| Check | Automatic (owner, 2026-11-21) | as Tools; it holds the files Faraday holds first (§2), so it is short until files are loaded |
+| A flow's key step | where the card stood on the page the tool was picked from (owner, 2026-11-21) | the key is picked in the card the person already sees; a flow opened from Home, the sidebar or a search result has the card at the left from its first step, the picker and then Your choices (owner, 2026-11-21) |
+| A flow under way | at the left, as Your choices (F319) | one pane from Home to the flow; with the card above, the strip glides to the left at the pick (§6) |
+| Files | Left always, as In Faraday (owner, 2026-11-21) | it is already a pane beside the stick's pane |
+| Settings | beside the card, and under it on a tall window (below) | Settings is rarely used with what is loaded; its cards use the room the card leaves |
+| Wallets start, Wallets, Vaults, Backups, Explore | not shown (owner, 2026-11-21) | each lists the loaded wallets, keys or vaults itself; a second list beside it repeats it |
+| The Pi's menu, the phone-size window | Above, one column; in a flow, Your choices on the bar's button and sheet (F296 point 4, kept) | no room beside (§8) |
 
 ## 5. Check and Tools as section cards
 
@@ -154,7 +255,7 @@ Each section of a menu page (Common, Keys and seeds, The wallet, Signing,
 ...) becomes one card holding a Material list: rows with an icon, the
 title, the line under it and a chevron; hover and press are Material's
 state layer across the whole row, not a pill; thin inset dividers between
-rows or none (§12, choice 5). This replaces the grid of one outlined card
+rows (owner, 2026-11-21). This replaces the grid of one outlined card
 per choice (MENU-PAGE §4). The section's label is the card's heading inside
 it, Title S.
 
@@ -164,9 +265,11 @@ the focus. On wide pages the section cards stand two or three to a row,
 each as tall as its own list, set as Settings' cards are (MENU-PAGE §6,
 columns balanced by height); one column on a page under two
 `CATALOG_TILE_MIN`. The phone-size window and the Pi's menu take one
-column of the same cards (the renders show whether the card reads better
-there than today's tiles: §12, choice 5). The menu page container holds
-it, so Tools, Check, Wallets start's ways in and the Pi's places all follow.
+column of the same cards (owner, 2026-11-21: if the mock's renders read
+well; a render that reads worse than today's tiles goes back to the owner).
+The section card is part of the
+menu page container (§14): a page declares its sections (MENU-PAGE §1),
+and Tools, Check, Wallets start's ways in and the Pi's places all follow.
 
 Material's lists are a single list in a page; a list inside a card is
 Material's own pattern for grouping (Cards and Lists guidelines). The
@@ -174,30 +277,82 @@ difference is several such cards side by side: F317 records it.
 
 ## 6. Motion
 
+Every motion follows two settings (§9): the **Motion** style (Smooth
+motion, Crossfade, Off) and the **Speed** (Quick, Medium, Relaxed; 600 ms
+by default). Nothing here changes on its own (owner, 2026-11-21): no
+machine steps down from one style to another while it runs, and no
+transition picks its own style. A device's default is set ahead of time
+from a measurement (§8); after that only the person changes it, in
+Settings. The layout never depends on motion (§4): Off puts every screen
+where the motion would have ended, at once.
+
+What each style does (Material's Easing and duration and Transitions
+pages; all on Material's emphasized curve, `EASE_EMPHASIZED`, at the
+Speed's duration unless the row says otherwise):
+
+| What changes | Smooth motion | Crossfade | Off |
+|---|---|---|---|
+| Home to a menu page, a page to another, into a flow | the card glides (below); the rest fades through | the whole frame blends from the old screen to the new (today's fade of two kept frames) | at once |
+| A step inside a flow | fades through (FLOW-CONTAINER §3) | blends | at once |
+| A row arriving in the card (a PSBT found, a stick plugged in, a key loaded) | fades in while its space opens | blends | at once |
+| A row leaving (a flow finished) | fades out; the rows under it slide up | blends | at once |
+| Expanding in place (All keys, More kinds in Add a key, any rows opening) | its height changes smoothly, the rows under it moving with it | blends | at once |
+| The card from showing to choosing (§2) | in one transition, the outline and containers fading in | blends | at once |
+| A key added in a signing flow | its row arrives (as above), its tonal emphasis eases away, Sign's enabling fades in at the same moment | blends, then the emphasis eases away | at once, no emphasis |
+| Hover | the state layer fades in over 150 ms (`MOTION_SHORT3`) and out over 200 ms (`MOTION_SHORT4`), not scaled by Speed | as Smooth motion | at once |
+
 - **The glide.** From Home to a menu page the card moves from Home's
   centre to its place on the new page, resizing as it goes (Material's
   container transform, a shared element): its bounds and corner radius
   ease from one to the other, its rows cross-fading inside it. Back to
-  Home it moves back. From a menu page into a flow's key step it moves to
-  the step's place; at the pick it folds and glides to the card head.
+  Home it moves back. From a menu page into a flow's first screen it stays
+  where it was; at the pick it becomes Your choices in place (§2), with the
+  card above the strip glides to the left and becomes Your choices (owner,
+  2026-11-21: one place for Your choices in every flow).
 - **Fade through** for the rest of the page: the old page goes out over
   the first 35% of the eased progress, the new one comes in over the rest,
   as the step fade does today (MOTION.md §3.5).
-- **One duration** for every menu change, set by the Motion setting (§9),
-  Standard by default, on Material's emphasized curve
-  (`EASE_EMPHASIZED`), against today's 200 ms linear crossfade
-  (`motion::FADE_MS`). A step change inside a flow takes three quarters of
-  it (300 ms at 400 ms Standard, today's `motion::STEP_FADE_MS`).
+- **One duration** for every page change and every step inside a flow
+  (owner, 2026-11-21): the Speed setting's, 600 ms by default, a
+  deliberate difference from Material's 450 ms fade through, approved by
+  the owner (F318), against
+  today's 200 ms linear crossfade (`motion::FADE_MS`) and 300 ms step fade
+  (`motion::STEP_FADE_MS`). A step no longer takes a shorter share of it.
+- **"Here is your key."** A key added inside a signing flow (scanned, once
+  the scanner's sheet has gone) arrives as its row in Your choices or the
+  card with the arriving row's motion; its tonal emphasis (the added
+  line's state layer, `PRESS_EMPHASIS`) eases away over the Speed's
+  duration, and Sign's button turns on, fading in, at the same moment, so
+  the person sees which key made Sign possible (owner, 2026-11-21, the
+  recommendation taken). The mock-up shows it.
+- **Hover** is the only motion of hover and press (owner, 2026-11-21): no
+  press ripple, no card lift on hover, nothing that moves.
 - **Secrets.** A frame drawn while a secret is typed or shown keeps no
   image to fade from (SECRET-LEAKS §5): such a change is at once, and a
-  flow step that shows or takes a secret fades drawn live, as now.
-- **Off** (§9): nothing moves; every change is at once.
-- **The Pi.** The glide draws the card again each step over two kept
-  frames (the old page and the new without the card), where today's fade
-  only blends. It is timed on the Pi as a late-flow frame is (SPEED §7)
-  before it is built there; if a step costs more than a frame, the Pi
-  keeps a plain fade of the kept frames at the setting's duration, and may
-  cap the duration after measuring.
+  flow step that shows or takes a secret fades drawn live, as now. At 600 ms
+  the step's fade out, after which its secret state is released, lasts
+  about twice today's 48 ms (about 96 ms against 48). The owner said yes
+  to the animation in principle (2026-11-21): the window is that short, and
+  reading the secret in it needs code or memory access on the device, both
+  outside the security model. It is tested, and reaches main only on the
+  owner's yes after that testing (F318 point 7).
+- **Bottom sheets** (the Pi and small windows), at once today, slide up
+  (owner, 2026-11-21): a sheet rises from the window's foot at the Speed
+  under Smooth motion, blends under Crossfade, at once under Off, if the Pi
+  keeps up, which is timed with the first test build (§8).
+- **Toasts, the chart's side sheet and the theme fade** follow the Motion
+  style (they stop at Off, blend under Crossfade) and keep their own
+  durations, 200, 400 and 350 ms, not the Speed's (owner, 2026-11-21):
+  they are not page changes, and a toast at 600 ms reads as late.
+- **What drops motion today.** Nothing, on a slow machine: the gate that
+  turned fades off when a fade's steps came too far apart was deleted on
+  2026-11-16 (SPEED §12 point 4, MOTION §3.5); `Faraday::fades` reads
+  Reduce motion alone, and the gaps between a fade's steps are timed and
+  reported, never acted on (`fade.rs`). That stays so. Two things go with
+  the build: the doc comment on `Faraday::fades`, which still describes the
+  deleted gate, and Reduce motion itself, which becomes Off (§9). The one
+  default chosen by the screen is the HDMI screen's own, set ahead of time
+  from measurements (§8), replacing F222's Reduce motion on at first start.
 
 ## 7. Panes beside the card
 
@@ -210,55 +365,94 @@ person uses both sides together; ranked, the strongest first:
    view: the person goes down the card and reads each, the card held
    still (Material's list and detail; LAYOUT §5). Extra-large windows;
    below, the row opens its page as today.
-2. **The card as a flow's picker** (§2): the pick in the card, the step
-   beside it. This is the reuse itself, and makes most other pairings
-   unneeded.
-3. **Signing** (§11's survey): the facts a person compares stay in the
-   Your choices pane, which is already a held pane beside the card; the
-   change address and the signers join it there (no new pane).
+2. **The card as a flow's picker and Your choices** (§2): the pick in the
+   card, the step beside it, the answers gathering in the same card. This
+   is the reuse itself, and makes most other pairings unneeded.
+3. **Signing** (§11's survey): the facts a person compares stay in Your
+   choices, now the card at the left; the change address and the signers
+   join it there (no new pane). Sign a transaction's "This transaction"
+   (`review_under`) stays under its rows, so it moves to the left with it.
 4. **Files** (In Faraday beside the stick): already two panes.
-5. **Settings beside the card**: weak; rendered both ways (§12, choice 2).
+5. **Settings beside and under the card** (§4): weak, so Settings' cards use only the room the card leaves.
 6. **Tools or Check beside the card** as a launcher beside a list: weak,
    since a tool starts a full-window flow; covered by the card's place
    (§4), not a pane.
 
+The backup board's list, a full-width step's own pane (FLOW-CONTAINER §5),
+stays at the right: it is the board's, not Your choices, and Your choices
+is the bar's sheet on that step as today.
+
 ## 8. The phone-size window and the Pi
 
 The same rows in one column, Above always, the same model of moving: the
-card folds in a flow, the picker is the same rows with radio or checkbox,
-and a press on the folded line opens the picker. Home's one-column box
-(HOME.md §4) stays as it is (F315); on Tools and Check the card is the
-compact form above the page. The Pi's Motion is measured (§6).
+picker is the same rows with radio or checkbox, and in a flow Your choices
+keeps the top app bar's button and its sheet (F296 point 4, kept: F319).
+Home's one-column box (HOME.md §4) stays as it is (F315), drawn from the
+same source; on Tools and Check the card is the compact form above the
+page.
+
+The Pi's default Motion is set from measurements, made before the glide
+is built there (SPEED §7: a late-flow frame timed with the harness of
+SPEED §4, on the Pi 3B+): Smooth motion if each step of the glide is drawn
+within the screen's frame, else Crossfade if each blend of two kept frames
+is, else Off. Its default Speed is set the same way, and may be below
+600 ms if the measurement says so. Both are defaults written once; the Pi
+never changes them while it runs. Desktops default to Smooth motion at
+600 ms.
+
+The Pi's panel and its HDMI screen each have a default of their own, chosen
+ahead of time from the measurement at their size, never a step down while
+running (owner, 2026-11-21; F222's "Reduce motion on at first start on an
+HDMI screen" goes, replaced by this). The HDMI screen is measured at
+1920 × 1080 and at 1280 × 800 (WXGA, which the owner shows centred on a
+larger screen); its default comes from the two. The owner measures all the
+Pi's timings with the first test build, the panel's, both HDMI sizes and
+the bottom sheets' slide (§6), in one sitting.
 
 ## 9. Settings
 
-Both settled by the owner (2026-11-21), on Settings › Appearance:
+On Settings › Appearance (owner, 2026-11-21):
 
 - **The card's place**: a segmented button, "Automatic", "Above the page",
   "Left of the page"; Automatic by default (§4). Where Left does not fit
   the window, the row shows the value in force beside it, "Above on this
   window". Kept with the other settings (`card=auto|above|left`).
-- **Motion**: a segmented button, "Off", "Quick", "Standard", "Relaxed";
-  Standard by default. Quick 250 ms (Material's medium 1), Standard 400 ms
-  (medium 4) or 450 ms (long 1, §12 choice 3), Relaxed 600 ms (long 4).
-  Every menu change uses it; a flow's step takes three quarters of it.
-  **Off is today's Reduce motion** (MOTION.md §3.5, `stick/settings.rs`'s
-  `reduce_motion`): it replaces that switch and stops everything it stops
+- **Motion**: a segmented button, "Smooth motion", "Crossfade", "Off";
+  Smooth motion by default on desktops, the Pi's from its measurement (§8).
+  The row's line says what the chosen one does, as a fact: "The card moves
+  to its place; pages fade", "Screens blend into each other", "Screens
+  change at once". **Off is today's Reduce motion** (MOTION.md §3.5,
+  `stick/settings.rs`'s `reduce_motion`; owner, 2026-11-21: one setting,
+  never two): it replaces that switch and stops everything it stops
   (fades, the glide, a scroll's coast and stretch, the dice tumble, the
-  theme fade, a toast's rise). The settings file's `motion=reduced` reads
-  as `off` and `motion=full` as `standard`; F222's default on a Pi's HDMI
-  screen becomes Off until the person chooses.
+  theme fade, a toast's rise, the hover fade). The settings file's
+  `motion=reduced` reads as `off` and `motion=full` as `smooth`.
+- **Speed**: a segmented button, "Quick" (250 ms, Material's medium 1),
+  "Medium" (400 ms, medium 4), "Relaxed" (600 ms, long 4); Relaxed by
+  default (owner, 2026-11-21: 600 ms). It applies to Smooth motion and
+  Crossfade; with Off the row is shown off. Every page change and every
+  step inside a flow takes it (`speed=quick|medium|relaxed`).
+
+Two settings, not one: a style and a speed together are seven values (Off,
+and three speeds of each style), over the two to five segments Material
+gives a segmented button, and a person who wants another speed keeps the
+style. "Standard" goes as a name, since it is no longer the default;
+"Relaxed" keeps the name the owner gave 600 ms.
 
 Strings for `faraday-strings` (added with the build): `settings_card_place`
 "Session card", `settings_card_auto` "Automatic", `settings_card_above`
 "Above the page", `settings_card_left` "Left of the page",
 `settings_card_above_here` "Above on this window"; `settings_motion`
-"Motion", `settings_motion_off` "Off", `settings_motion_quick` "Quick",
-`settings_motion_standard` "Standard", `settings_motion_relaxed`
-"Relaxed"; `hub_using` "Using: {}", `hub_using_keys` "Using: {n} keys";
-`hub_choose_key` "Choose a key", `hub_choose_keys` "Choose the keys",
-`hub_choose_wallet` "Choose a wallet", `hub_no_seed` "No seed held",
-`hub_in_slot` "In slot {n}".
+"Motion", `settings_motion_smooth` "Smooth motion",
+`settings_motion_crossfade` "Crossfade", `settings_motion_off` "Off",
+`settings_motion_smooth_line` "The card moves to its place; pages fade",
+`settings_motion_crossfade_line` "Screens blend into each other",
+`settings_motion_off_line` "Screens change at once"; `settings_speed`
+"Speed", `settings_speed_quick` "Quick", `settings_speed_medium` "Medium",
+`settings_speed_relaxed` "Relaxed"; `hub_choose_key` "Choose a key",
+`hub_choose_keys` "Choose the keys", `hub_choose_wallet` "Choose a wallet",
+`hub_no_seed` "No seed held", `hub_in_slot` "In slot {n}". Your choices'
+rows take each flow's own step labels, as today.
 `settings_reduce_motion` goes.
 
 ## 10. Survey: every place a loaded key, wallet or file is listed or picked
@@ -293,7 +487,7 @@ component with Home's card.
 | Files, In Faraday (`screens/visit.rs`, `in_faraday`) | files held to write | several, checks | Files' form (§2) |
 | Vaults (`vault/screen.rs`, `list`) | vault files | opens | unchanged; card not shown |
 | Scan's key sheet (`screens/sheets.rs`) | keys a QR names | none | unchanged |
-| Sign a transaction (`screens/spend.rs`) | the wallet's keys here | none: `to_sign` is filled from the PSBT (`wallet.rs`) | unchanged; folded line names the wallet |
+| Sign a transaction (`screens/spend.rs`) | the wallet's keys here | none: `to_sign` is filled from the PSBT (`wallet.rs`) | unchanged; Your choices' first row names the wallet |
 
 So: about twenty places; twelve picks become the picker form (nine single,
 three several), Files takes the card's look, and the rest are lists that
@@ -302,9 +496,10 @@ stay (they are the full lists the card's "All keys" opens).
 ## 11. Survey: the signing flows, where a person looks up or down to compare
 
 Two panes already stand in every flow on the wide layout: the card and
-Your choices; Sign a transaction's review also puts "This transaction"
-(six facts and the signatures) under Your choices (`screens/spend.rs`,
-`review_under`). Candidates, with the screen each is on:
+Your choices, which become one, the card at the left (F319); Sign a
+transaction's review also puts "This transaction" (six facts and the
+signatures) under Your choices (`screens/spend.rs`, `review_under`).
+Candidates, with the screen each is on:
 
 1. **A change output against the wallet it belongs to** (Sign, step 2
    Transaction: the Change row and the change warnings, `review_rows`,
@@ -313,11 +508,12 @@ Your choices; Sign a transaction's review also puts "This transaction"
    back a step to compare. The change address joins the held pane
    (`review_under`), beside the Change row.
 2. **A multisig's cosigners against the wallet's keys** (Sign, steps 4
-   Keys, 5 Sign and 6 Collect: `step_keys`, `step_sign`, `step_collect`).
+   Signers, 5 Sign and 6 Signatures for this transaction: `step_keys`, `step_sign`, `step_collect`).
    Kept, moderate: who signs is split over three steps. The pane holds the
    wallet's keys with each one's mark (signs here, signed, waiting) across
-   those steps. Check a multisig setup (`multisig_check/screen.rs`) has its
-   marks on one card: dropped there.
+   those steps; a key added there gets §6's "here is your key". Check a
+   multisig setup (`multisig_check/screen.rs`) has its marks on one card:
+   dropped there.
 3. **A long review whose summary scrolls away from the outputs** (Sign,
    step 2: rows, other transactions, warnings, then the table). Covered on
    the wide layout by `review_under`; on a narrow window the pinned foot
@@ -328,85 +524,68 @@ Your choices; Sign a transaction's review also puts "This transaction"
 5. Address against path, a registered wallet against its keys, inputs
    against outputs: on one card each. Dropped.
 
-## 12. Choices for the owner
+## 12. (Decided)
 
-Each names the mock render that shows it (`out/mock/workspace/`).
-
-1. **The card's look off Home.** (a) level 1 shadow (recommended); (b)
-   level 3 as Home; (c) no shadow, a filled card. Renders
-   `look-l1.png`, `look-l3.png`, `look-flat.png`: Tools at 1920 × 1080,
-   Cobalt Light and Dark.
-2. **Settings and the card.** (a) Settings in the second pane beside the
-   card (recommended: the card stays the focus); (b) Settings' cards
-   around the card. Renders `settings-beside.png`, `settings-around.png`
-   at 1920 × 1080 and 2560 × 1440.
-3. **Standard's duration.** (a) 400 ms, Material's medium 4, the owner's
-   "about 400" (recommended); (b) 450 ms, long 1, where Material's long
-   range starts and the glide sample's default. Strip `glide-400.png`,
-   `glide-450.png`: Home to Check at 1920 × 1080.
-4. **The card's place on each page** (§4's table).
-   - Check: (a) Automatic, as Tools (recommended); (b) always Above,
-     since most checks take a file, not a key. Renders `check-auto-few.png`,
-     `check-auto-many.png` at 1366 × 768 and 1920 × 1080 (Tools follows
-     Automatic, the owner's call: `tools-auto-few.png`,
-     `tools-auto-many.png` show it).
-   - Wallets start, Wallets, Vaults, Backups, Explore: (a) not shown
-     (recommended: each is a list of the same things); (b) Left as on
-     Tools. Render `wallets-left.png` at 1920 × 1080.
-   - Files: (a) Left, as In Faraday (recommended); (b) by the setting.
-     Render `files-card.png` at 1366 × 768 and 1920 × 1080.
-   - A flow opened from Home's lead, the sidebar's flow row or a search
-     result (no page card to keep): (a) Automatic by the step's rows
-     (recommended); (b) the picker inside the flow's card. Renders
-     `keystep-left.png`, `keystep-above.png` (Child seeds, five keys) at
-     1920 × 1080, and `keystep-pi.png` at 480 × 640.
-5. **Section cards' rows.** (a) thin inset dividers (recommended); (b) no
-   dividers; and on the phone-size window and the Pi, (a) the cards
-   (recommended if the renders read well); (b) today's tiles. Renders
-   `check-cards.png`, `tools-cards.png` at 1366 × 768, 1920 × 1080, 2560 ×
-   1440, before and after, and `tools-cards-pi.png` at 480 × 640.
-6. **Files' pane heading.** (a) "In Faraday" kept (recommended: it names
-   where the files are, against the stick's pane); (b) "Loaded files".
-   Render `files-card.png`.
-7. **Automatic's threshold.** (a) 3 rows (recommended); (b) 2 rows. Renders
-   `tools-auto-few.png` with two keys and three.
-8. **Do toasts, the chart's side sheet and the theme fade follow Motion?**
-   (a) No: they keep their Material durations, and stop only at Off
-   (recommended: they are not page changes); (b) they scale too.
-
-9. **What the card holds on Tools and the other menu pages, before and
-   while a tool is picked** (open: the owner decides; the rest of the
-   picker is settled, §2).
-   - Before a pick, on the page: (a) the flows in progress, the wallets
-     that need something and the keys, with no files and no Backups, which
-     are Home's and Files' (recommended: the page is for acting with keys
-     and wallets, and the card stays short enough to stand above); (b) the
-     keys alone, with All keys; (c) every row of §1, as on Home.
-   - While a tool is picked, a key it cannot take: (a) stays, dimmed, with
-     its reason as its line ("No seed held", "In slot 2") (recommended: a
-     person looking for a key sees why it cannot be used); (b) leaves with
-     the other rows the flow cannot use.
-   Renders `menu-holds-a.png`, `menu-holds-b.png`, `menu-holds-c.png` (Tools
-   at 1920 × 1080, two wallets, five keys, a flow in progress, a file to
-   write), and `choose-dimmed.png`, `choose-gone.png` (Child seeds from
-   Tools, five keys of which one has no seed), with a frame strip
-   `choose-strip.png` at Standard.
+§12: every choice was decided by the owner on 2026-11-21; the decisions are
+in the sections above.
 
 ## 13. What must come first, and which files change
 
 F313, F314 and F315 land first: the card this Spec reuses is theirs. The
-card's component comes out of `screens/home.rs` into a module of its own
-beside the menu page container (`screens/menu_page.rs`), with the full,
-compact, picker and folded forms; `screens/home.rs` and `compact/mod.rs`
-call it. The menu page container gains the card's place and the section
-cards (`screens/catalog.rs`, `check/screen.rs`). Each key step of §10 swaps
+session card comes out of `screens/home.rs` into a module of its own beside
+the menu page container (`screens/menu_page.rs`), with its forms as modes;
+`screens/home.rs` and `compact/mod.rs` call it. The menu page container
+gains the section cards (`screens/catalog.rs`, `check/screen.rs`), and the
+hub layout container (§14) the card's place. Each key step of §10 swaps
 its pill row for the picker (`bip85`, `explore`, `convert`, `silent`,
 `lightning`, `screens/create.rs`, `seeds`, `vanity`, `kef_tool`,
 `screens/message.rs`, `ways_in`, `spend_backup`, `vault/screen/save.rs`);
-the flow container (`flow.rs`) draws the folded line at the card head.
-Files' In Faraday (`screens/visit.rs`) takes the component. Motion:
-`motion.rs` (the glide, durations from the setting), `stick/settings.rs`
-(the two settings, Reduce motion's migration), Settings › Appearance, and
-`core/faraday-draw/src/tokens.rs` (`HUB_ABOVE_ROWS`). The renders of §12
-come before any of it. HOME.md, MENU-PAGE.md, MOTION.md, LAYOUT.md §5 and
-FLOW-CONTAINER.md follow in the change that builds each part.
+the flow container (`flow.rs`, `flow/unit.rs`) gives its Your choices rows
+to the card at the left and drops the wallet chip at the card head. Files'
+In Faraday (`screens/visit.rs`) takes the component. Motion: `motion.rs`
+and `fade.rs` (the glide, the row and height motion, the hover fade,
+durations from the Speed setting, the stale comment on `Faraday::fades`),
+`stick/settings.rs` (the card's place, Motion and Speed, Reduce motion's
+migration), Settings › Appearance, and `core/faraday-draw/src/tokens.rs`
+(`HUB_ABOVE_ROWS`, and `MOTION_LONG4`, 600 ms, Material's long 4, which
+the tokens do not have yet), and `HUB_CARD_HEIGHT_SHARE` and
+`HUB_UNDER_MIN` (§4). The owner reviews the mock renders (Tools and Check
+at 1366 × 768, 1920 × 1080 and 2560 × 1440, Settings at 1920 × 1080 and
+3840 × 2160, a key step at 480 × 640) before any of it is built.
+HOME.md, MENU-PAGE.md, MOTION.md, LAYOUT.md §5 and §6, FLOW-CONTAINER.md §3
+and §4 and F296 follow in the change that builds each part.
+
+## 14. The containers
+
+The owner (2026-11-21): the hub is built as containers, as the flow and
+menu page containers are, each drawn by one piece of code, held by
+`lint-components`, and described in its own document, written in the
+change that builds it. CLAUDE.md's "By area" names each in that change (as
+it names FLOW-CONTAINER.md and MENU-PAGE.md); it is not changed before.
+
+- **The session card** (its document to be named SESSION-CARD.md). One component, fed by
+  §1's one source; its forms (Home, a menu page Above and Left, the key
+  picker, Your choices, Files) are modes of it, and a page or flow names
+  the mode, never draws rows of its own. It replaces Home's `key_rows`,
+  `wallet_rows` and `going_rows` (`screens/home.rs`), every pill row and
+  button list of §10's "picker" places, Files' `in_faraday`
+  (`screens/visit.rs`), the Your choices pane of the flow container
+  (`flow.rs`, `flow/unit.rs`: the container keeps declaring the rows, the
+  card draws them) and the wallet chip at a flow card's head.
+  `lint-components` holds that a key step draws no `button_rows` of loaded
+  keys and that no screen reads `app.session` to list keys or wallets.
+- **The section card** (in `docs/MENU-PAGE.md`). Part of the menu page
+  container: a page declares its sections, each with its rows, and the
+  container draws each as a section card (§5). It replaces the tile grids
+  of `screens/catalog.rs` and `check/screen.rs` and every page's own
+  section labels. `lint-components` holds that a menu page draws no tile or
+  section card itself.
+- **The hub layout** (its document to be named HUB-LAYOUT.md). The page with the card beside
+  or above it: a page or flow declares itself into it, and it owns the
+  card's place (Automatic, Above, Left, §4), the glide between pages (§6)
+  and the use of the Motion and Speed settings for page changes. It
+  replaces each menu page's own placing of the card, the flow container's
+  centring of the unit and its pane (`flow/unit.rs`), and the screen fade's
+  own choice of duration (`fade.rs`, `motion::FADE_MS`,
+  `motion::STEP_FADE_MS`). `lint-components` holds that no page places the
+  card or times a page change itself.
