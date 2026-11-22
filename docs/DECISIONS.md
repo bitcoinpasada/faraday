@@ -325,6 +325,7 @@ Read this table, then only the decision you need.
 | [F312](decisions/F312.md) | Scan is the navigation's FAB at the foot of the rail and of the sidebar | 2026-11-21 | Active | design |
 | [F313](decisions/F313.md) | Home's page stays still and only its box scrolls; the rail's Home has no place tiles | 2026-11-21 | Active | design |
 | [F314](decisions/F314.md) | Home's top row: the search bar and three tonal buttons on one 48 dp row, the box at its width | 2026-11-21 | Active | design |
+| [F315](decisions/F315.md) | Home's "This session" card has two columns on wide windows and is raised at the Scan button's level | 2026-11-21 | Active | design |
 | [F316](decisions/F316.md) | This session is Faraday's hub: one pane of what is loaded, in a few forms, its place on a page a setting | 2026-11-21 | Proposed | design |
 | [F317](decisions/F317.md) | Menu pages: each section is one flat card holding a list, several to a row on wide windows | 2026-11-21 | Proposed | design |
 | [F318](decisions/F318.md) | Motion: two settings, a style (Smooth motion, Crossfade, Off) and a speed (600 ms by default), that never change on their own; the session pane glides, the rest fades through | 2026-11-21 | Proposed | design |

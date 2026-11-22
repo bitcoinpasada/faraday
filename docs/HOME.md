@@ -13,16 +13,16 @@ Home is drawn by layout, not by one model:
 
 - **The wide layout** (1280 by 800 and up, the expanded rail):
   `faraday-core`'s `screens/home.rs`. The sidebar carries the places, so
-  the page holds the search bar, the lead, the first actions and the box of
-  what is going on, wallets and keys, in the column of Tools'
+  the page holds the search bar, the first actions and the card of
+  what is going on (the lead its first item), wallets and keys, in the column of Tools'
   catalogue (the menu page container, `docs/MENU-PAGE.md`, `docs/LAYOUT.md` §4).
 - **The Pi's menu** (the Pi's 480 by 640 panel, no navigation component)
   and **the one-column windows with navigation** (the rail's and the
   phone-size window's bar): `compact/mod.rs`. On the Pi's menu and the
   phone-size window a box of what is loaded, one row for the lead, the
   first actions where there is a search bar, and the places as tiles; on
-  the rail's windows the search bar, the lead, the first actions, the same
-  box of what is going on, wallets and keys as the wide layout,
+  the rail's windows the search bar, the first actions, the same
+  box of what is going on (the lead its first item), wallets and keys as the wide layout,
   and the places.
 
 The phone-size window differs from the rail's: its search bar is first,
@@ -37,8 +37,8 @@ actions.
 
 1. **The search bar** (§5), centred, first and still while the page under
    it scrolls; a search typed takes the page.
-2. **The lead** (§2): a card with one filled button, the page's full
-   width. None when nothing waits and something is loaded.
+2. **The lead** (§2) is not a part of its own: it is the first item of
+   §3's card (F315).
 3. **The three first actions** (§5), always.
 4. **What is going on, wallets and keys** (§3): one tinted box of list rows: flows in progress and files waiting, the wallets that need something and the keys no wallet uses, then Backups while something is not backed up, and All keys.
 5. **Scan**, the extended FAB at the sidebar's foot, its left edge on the shield's (F312), not on
@@ -93,19 +93,25 @@ The lead is the one next thing, the first that applies of the jobs below.
 The boot stick at start counts as visited at its first look when it holds no file but the settings file: an empty one gives no tile. A stick put in later, or the boot stick put in again, waits for its visit as any stick does.
 
 A job that would open or start over a flow whose line is in the box of
-what is loaded gives way to the next, on the one-column Homes (the wide
-layout has no such box). A job that cannot be done here yet (a locked
-vault with the stick still in) shows its button disabled and its second
-line, "Pull the stick to unlock", in the warning tone.
+what is loaded gives way to the next, on the one-column Homes. On the
+wide layout and the rail's windows the lead stands in the card (§3), and the
+card's row that only repeats its job (the flow it carries on; the wallet
+whose PSBT or spend it is) is not drawn while it stands. A job that cannot be
+done here yet (a locked vault with the stick still in) shows its button
+disabled and its second line, "Pull the stick to unlock", in the warning
+tone.
 
-**On the wide layout** the lead is Material's filled card: the job's icon
-in its container, the line, the line under it in the muted tone, and at
-the card's end one filled button, the only filled button on Home, the card
-the page's full width. The card with a button is not a press: the button
-is. The plain Import card has no button and is pressed whole. With a
-wallet loaded and nothing waiting there is no lead and the wallets head
-the page; with nothing loaded and nothing waiting there is no lead and
-the first actions stand first.
+**On the wide layout and the rail's windows** the lead is the card's
+featured first item (F315): inside "This session", right under its heading
+and across its full width (both columns), in the secondary container (the
+warning container for a job that cannot be done yet): the job's icon, the
+line, the line under it, and at its end one filled button, the only filled
+button on Home. The item with a button is not a press: the button is. The
+plain Import item has no button and is pressed whole. Nothing about what is
+going on is drawn outside the card; the search row stays above it. With a
+wallet loaded and nothing waiting there is no lead and the card starts with
+its rows; with nothing loaded and nothing waiting there is no lead and the
+first actions stand first.
 
 **On the one-column Homes** the lead is one row, 44 dp tall, in the
 secondary container (the warning container for a job that cannot be done
@@ -128,14 +134,28 @@ how many are open, and Wallets one with the number of wallets that need
 something now, as Files' badge is the Inbox count (F235, F303); none while
 the number is zero.
 
-One box, the container of §4's box of what is loaded (a tinted,
-outlined, rounded surface), of Material list items (Lists) one under
-another, as wide as the top row above it (F314), so every edge lines up, at the top of the flow, not drawn while it
-has no row. Each row has a
+One card (it holds the lead, §2, as its first item, under the heading and
+across both columns), 32 dp under the search row (`HOME_CARD_GAP`) and, from a
+window 900 dp high (`HOME_CARD_TALL_FROM`), 150 dp (`HOME_CARD_GAP_TALL`, about the
+old lead's height and its gaps), the same whether a lead stands in it or not, of Material list
+items (Lists) one under another, as wide as the search row and centred
+under it (the whole page where that is narrower), not drawn while it has no
+row. Its surface is neutral (surface-container-low) and raised at the Scan
+button's elevation (level 3), where Material's elevated card is level 1
+(F315); orange stands only on the rows that need something. Each row has a
 leading icon and a trailing chevron and opens what it names. One heading
-stands over the box (Title S, as a list's title elsewhere; `home_box_heading`,
-"This session"), none over a group of rows
-(owner, 2026-11-21). In this order:
+stands inside the card at its top left, "This session" (Title Large,
+SemiBold; `home_box_heading`), none over a group of rows (owner,
+2026-11-21). From 840 dp of card width (`HOME_CARD_TWO_COLS`) the card has two
+columns split by meaning, with no sub-headings: on the left what needs the
+person (the first four kinds of row below), on the right the keys here (the
+keys no wallet uses, at most 5, then All keys with its count, which is the
+"more"). Under 840 dp it is one list in the order below, with at most three
+key rows. On a short window the keys drop first: the card shows fewer key
+rows, All keys with its count staying, and scrolls within itself only when
+even that does not fit. A row's trailing text ("Make a wallet", the count of
+All keys) is Body M, the size of the line under a row's name (owner,
+2026-11-21). In this order:
 
 - a row for each **flow in progress**, with the icon of the sidebar's row for
   it: its name and, under it, its open step; it resumes the flow (a spend
@@ -153,7 +173,8 @@ stands over the box (Title S, as a list's title elsewhere; `home_box_heading`,
   the places have no Backups tile of their own, this row stands for it;
 - **All keys** with the key icon and the count of keys at its end, opening
   Explore, while any key is held;
-- last, a row for each key no wallet uses (at most three, "Up to 3"), with the key icon: its fingerprint,
+- last, a row for each key no wallet uses (at most three in one list, five
+  in the right column; "Up to 3"), with the key icon: its fingerprint,
   under it its name (none when the name is the fingerprint), the word
   "passphrase" when the key was loaded with one (the same words without it
   are another key) and "No wallet uses it", and at its end **Make a
@@ -168,8 +189,8 @@ Home has no Sign button: the card on Wallets and the lead carry what signs
 next. Home has no Receive button either: Faraday is an offline signer, and
 the wallet's card on Wallets keeps its "First receive address" line. The
 sidebar lists neither wallets nor keys. The page does not scroll, on the sidebar windows and on the rail's windows: the search bar and the first actions
-stay, and the box grows with its rows down to a margin (`MARGIN_WIDE`) above
-the window's foot, then scrolls within itself (its own offset, `Slot::HomeBox`),
+stay, and the card grows with its rows down to a margin (`MARGIN_WIDE`) above
+the window's foot, then scrolls within itself, both columns as one (its own offset, `Slot::HomeBox`),
 as a list pane does (owner, 2026-11-21). Where the fixed part leaves the
 box under two rows (`HOME_BOX_MIN_ROWS`) the page scrolls as a whole instead,
 the box with it. The rail's windows draw no place tiles (§6.2): the rail
@@ -420,8 +441,8 @@ the bar), and the canonical Feed layout (the wide Home's grid).
 - The box scrolls within itself while the page stays still, as a list
   pane does; a page that does not scroll differs from Material's feed
   layout, where the page scrolls (owner, 2026-11-21, F313).
-- No other difference from Material is added. The lead on the wide layout is a
-  filled card with a filled button; a wallet that needs something is
+- No other difference from Material is added. The lead on the wide layout is the card's first item, filled, with a
+  filled button; a wallet that needs something is
   a two-line list item.
 - The Pi's Home as the menu of destinations is the one-column short
   window's rule (`docs/LAYOUT.md` §3).

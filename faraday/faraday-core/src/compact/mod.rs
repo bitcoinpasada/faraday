@@ -829,7 +829,11 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
         }));
     }
     if rail {
-        sections.extend(crate::screens::loaded_sections(app, Some(view_h)));
+        sections.extend(crate::screens::loaded_sections(
+            app,
+            Some(view_h),
+            crate::screens::card_lead(app, true),
+        ));
     } else {
         // The rail lists every place already: its Home draws no tiles.
         sections.push(Section::tiles(None, places));
@@ -1163,7 +1167,10 @@ fn prompts(
     // Make a new wallet is a lead on the Pi's menu only: elsewhere it is
     // the first of the first-run actions, or no lead.
     let menu = app.nav() == crate::nav::Nav::Menu;
+    // The rail's windows carry the lead as the first item of the box.
+    let rail = app.nav() == crate::nav::Nav::Rail;
     crate::screens::home_lead_beside_tiles(app)
+        .filter(|_| !rail)
         .filter(|l| menu || l.3 != Action::CreateWallet)
         .map(|(icon, label, _sub, action, enabled)| {
             let tone = if enabled {

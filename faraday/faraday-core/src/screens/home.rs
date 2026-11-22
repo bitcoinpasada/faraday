@@ -9,11 +9,13 @@ use crate::ui::{Glyph, Ui};
 use crate::ui::{Region, Shape, Slot, Style};
 use crate::{Action, Screen};
 use faraday_draw::tokens::{BODY_L, BODY_M, BUTTON_H, SHAPE_M, TITLE_M, TITLE_S};
+use faraday_draw::tokens::{
+    ELEVATION_FAB, HOME_CARD_GAP, HOME_CARD_GAP_TALL, HOME_CARD_HEAD, HOME_CARD_KEYS,
+    HOME_CARD_TALL_FROM, HOME_CARD_TWO_COLS, PAD,
+};
 use faraday_draw::tokens::{HOME_BOX_KEYS, HOME_BOX_MIN_ROWS, MARGIN_WIDE};
 
-use faraday_draw::tokens::{
-    GAP_SMALL, GRID, ICON_SMALL, LABEL_S, LIST_1, LIST_2, LIST_PAD, NAV_ICON,
-};
+use faraday_draw::tokens::{GAP_SMALL, GRID, ICON_SMALL, LIST_1, LIST_2, LIST_PAD, NAV_ICON};
 use faraday_draw::tokens::{
     HOME_LEAD_H, HOME_LEAD_ICON, HOME_LEAD_INSET, HOME_LEAD_SUB_Y, HOME_LEAD_TEXT_X,
     HOME_SEARCH_MIN, MENU_GAP,
@@ -347,8 +349,9 @@ pub(crate) fn nothing_loaded(app: &View) -> bool {
 /// table that applies; none when nothing waits (a key no wallet uses is a
 /// row under Keys, §3). `skip_shown` drops a job that would open or start
 /// over a flow whose line is above the card (`docs/FLOWS.md`, Flows in
-/// progress), as the one-column Home has it.
-pub(crate) fn home_lead(app: &View, skip_shown: bool) -> Option<LeadCard> {
+/// progress), as the one-column Home has it. With the flow it carries on or
+/// starts over, when it is one.
+fn lead_job(app: &View, skip_shown: bool) -> Option<(Option<Going>, LeadCard)> {
     let shown = if skip_shown {
         app.flows_in_progress()
     } else {
@@ -356,9 +359,39 @@ pub(crate) fn home_lead(app: &View, skip_shown: bool) -> Option<LeadCard> {
     };
     let hidden = |g: Option<Going>| g.is_some_and(|g| shown.iter().any(|r| r.going == g));
     if let Some(j) = home_jobs(app).into_iter().find(|j| !hidden(j.going)) {
-        return Some(j.card);
+        return Some((j.going, j.card));
     }
     None
+}
+
+/// Home's lead as the card's first item, with what it stands for: the flow
+/// it carries on and the wallets whose rows it repeats.
+#[derive(Clone)]
+pub(crate) struct CardLead {
+    card: LeadCard,
+    going: Option<Going>,
+    wallets: Vec<usize>,
+}
+
+/// The lead for inside the card (`docs/HOME.md` §2), when there is one.
+/// `skip_shown` is the rail's windows', which skip a lead over a flow whose
+/// row is in the box.
+pub(crate) fn card_lead(app: &View, skip_shown: bool) -> Option<CardLead> {
+    let (going, card) = lead_job(app, skip_shown)?;
+    let wallets = (0..app.session.wallets.len())
+        .filter(|&w| match going {
+            Some(Going::Spend) => {
+                app.wallets.spend().is_some_and(|s| s.wallet == Some(w))
+                    || matches!(card.action, Action::StartSpend(i) if app.psbt_for(w) == Some(i))
+            }
+            _ => false,
+        })
+        .collect();
+    Some(CardLead {
+        card,
+        going,
+        wallets,
+    })
 }
 
 /// A wallet's tile on Home (`docs/HOME.md` §3): its name and the one line
@@ -488,12 +521,20 @@ fn rows_h(rows: &[ListRow]) -> f32 {
     rows.iter().map(row_h).sum::<f32>() + 2.0 * GAP_SMALL
 }
 
-/// How many of `keys` key rows (two lines each) the box shows: up to
-/// `HOME_BOX_KEYS`, and only as many as `avail` holds besides the other rows'
-/// `rest_h`.
-fn keys_fitting(avail: f32, rest_h: f32, keys: usize) -> usize {
+/// How many of `keys` key rows (two lines each) the box shows: up to `cap`,
+/// and only as many as `avail` holds besides the other rows' `rest_h`.
+fn keys_fitting(avail: f32, rest_h: f32, keys: usize, cap: usize) -> usize {
     let room = ((avail - rest_h) / LIST_2).floor().max(0.0) as usize;
-    keys.min(HOME_BOX_KEYS).min(room)
+    keys.min(cap).min(room)
+}
+
+/// The gap between Home's search row and its card: `HOME_CARD_GAP_TALL`
+/// from a window `HOME_CARD_TALL_FROM` high, `HOME_CARD_GAP` under it.
+fn card_gap(window: Option<f32>) -> f32 {
+    match window {
+        Some(h) if h >= HOME_CARD_TALL_FROM => HOME_CARD_GAP_TALL,
+        _ => HOME_CARD_GAP,
+    }
 }
 
 /// `rows` from the top of a box at `(x, y)`, `w` wide: the rows alone.
@@ -514,7 +555,11 @@ fn list_rows(ui: &mut Ui, (x, y): (f32, f32), w: f32, rows: &[ListRow]) {
             ICON_SMALL,
             r.icon,
             NAV_ICON + GAP_SMALL,
-            Role::OnSurfaceVariant,
+            if r.icon == Icon::Warning {
+                Role::Warning
+            } else {
+                Role::OnSurfaceVariant
+            },
         );
         ui.icon(
             chevron_x,
@@ -531,8 +576,8 @@ fn list_rows(ui: &mut Ui, (x, y): (f32, f32), w: f32, rows: &[ListRow]) {
             } else {
                 Role::OnSurfaceVariant
             };
-            let tw = ui.measure_as(LABEL_S, &r.trailing);
-            ui.text_right_as((right, cy, rh), LABEL_S, tone, &r.trailing);
+            let tw = ui.measure_as(BODY_M, &r.trailing);
+            ui.text_right_as((right, cy, rh), BODY_M, tone, &r.trailing);
             right -= tw + GRID;
         }
         let room = (right - text_x).max(0.0);
@@ -561,10 +606,10 @@ fn list_rows(ui: &mut Ui, (x, y): (f32, f32), w: f32, rows: &[ListRow]) {
 /// The wallets' rows (`docs/HOME.md` §3), the ones that need something and
 /// the rest: one for each wallet that needs something now, then "All wallets" opening Wallets, then Backups once a
 /// wallet is known.
-fn wallet_rows(app: &View) -> (Vec<ListRow>, Vec<ListRow>) {
+fn wallet_rows(app: &View, lead: Option<&CardLead>) -> (Vec<ListRow>, Vec<ListRow>) {
     let rows: Vec<ListRow> = home_wallets(app)
         .into_iter()
-        .filter(|c| c.needs)
+        .filter(|c| c.needs && !lead.is_some_and(|l| l.wallets.contains(&c.index)))
         .map(|c| ListRow {
             icon: Icon::Warning,
             head: c.name,
@@ -593,10 +638,11 @@ fn wallet_rows(app: &View) -> (Vec<ListRow>, Vec<ListRow>) {
 /// The box's first rows (`docs/HOME.md` §3): each flow in progress, its name
 /// and its open step under it, resuming it, and while files wait to be
 /// written, their count, opening Files.
-fn going_rows(app: &View) -> Vec<ListRow> {
+fn going_rows(app: &View, lead: Option<&CardLead>) -> Vec<ListRow> {
     let mut rows: Vec<ListRow> = app
         .flows_in_progress()
         .iter()
+        .filter(|r| !lead.is_some_and(|l| l.going == Some(r.going)))
         .map(|r| ListRow {
             icon: match r.tab {
                 Screen::Vaults => Icon::Lock,
@@ -670,34 +716,53 @@ fn key_rows(app: &View) -> (Vec<ListRow>, Option<ListRow>) {
     (rows, Some(all))
 }
 
-/// What is loaded as one section of the menu page (`docs/HOME.md` §3): a
-/// tinted box of list rows, first one for each wallet that needs
+/// What is loaded as one section of the menu page (`docs/HOME.md` §3): the
+/// window's card of what needs you and the keys here, or on the small
+/// panel a tinted box of list rows, first one for each wallet that needs
 /// something and each key no wallet uses, then All wallets, Backups and
 /// All keys. The wide layout and the rail's windows both draw it.
-pub(crate) fn loaded_sections(app: &View, window: Option<f32>) -> Vec<Section<'static>> {
-    let mut rest = going_rows(app);
-    let (wallets_first, wallets) = wallet_rows(app);
+pub(crate) fn loaded_sections(
+    app: &View,
+    window: Option<f32>,
+    lead: Option<CardLead>,
+) -> Vec<Section<'static>> {
+    let mut rest = going_rows(app, lead.as_ref());
+    let (wallets_first, wallets) = wallet_rows(app, lead.as_ref());
     rest.extend(wallets_first);
     rest.extend(wallets);
+    let needs = rest.clone();
     let (keys, all_keys) = key_rows(app);
-    rest.extend(all_keys);
-    if rest.is_empty() && keys.is_empty() {
+    rest.extend(all_keys.clone());
+    if rest.is_empty() && keys.is_empty() && lead.is_none() {
         return Vec::new();
     }
     let offset = app.scroll.home_box_offset();
     vec![Section::block(None, move |ui, (x, y), w| {
-        // The row's width above it, so every edge lines up.
-        let (bw, bx) = (w, x);
+        if !ui.compact {
+            let parts = CardRows {
+                needs: &needs,
+                keys: &keys,
+                all_keys: all_keys.as_ref(),
+            };
+            return home_card(ui, (x, y), w, (window, offset), &parts, lead.as_ref());
+        }
+        let bw = w;
+        let bx = x;
         section_label(ui, bx, y, EN.home_box_heading);
         let head = ui.line_as(TITLE_S) + GRID;
         let by = y + head;
+        let lead_h = lead
+            .as_ref()
+            .map_or(0.0, |l| lead_card(ui, &l.card, (bx, by), bw, true) + GRID);
+        let by = by + lead_h;
+        let head = head + lead_h;
         let rest_h = rows_h(&rest);
         // Without a window height the page scrolls as a whole: up to three
         // keys. With one, the box's room runs to a margin above the foot;
         // where the fixed part leaves less than two rows the page scrolls
         // as one.
         let avail = window.map_or(f32::INFINITY, |h| (h - by - MARGIN_WIDE).floor());
-        let n = keys_fitting(avail, rest_h, keys.len());
+        let n = keys_fitting(avail, rest_h, keys.len(), HOME_BOX_KEYS);
         let all_h = rest_h + n as f32 * LIST_2;
         let mut rows: Vec<ListRow> = rest.clone();
         rows.extend(keys.iter().take(n).cloned());
@@ -714,6 +779,103 @@ pub(crate) fn loaded_sections(app: &View, window: Option<f32>) -> Vec<Section<'s
         ui.region_close(open, (all_h - avail).max(0.0));
         head + avail
     })]
+}
+
+/// The rows of Home's card, by meaning: what needs you, the keys no wallet
+/// uses and All keys.
+struct CardRows<'a> {
+    needs: &'a [ListRow],
+    keys: &'a [ListRow],
+    all_keys: Option<&'a ListRow>,
+}
+
+/// The card's surface: a raised card of the surface-container-low fill with
+/// the Scan button's shadow.
+fn card_surface(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32)) {
+    ui.shadow(x, y, w, h, SHAPE_M, ELEVATION_FAB);
+    ui.fill(x, y, w, h, SHAPE_M, Role::SurfaceContainerLow);
+}
+
+/// Home's card in the window `w` wide from `x`, `HOME_CARD_GAP` under what
+/// is above it: its heading at the top left, then the rows in two columns
+/// (what needs you, the keys here) from `HOME_CARD_TWO_COLS`, or in one
+/// list in `docs/HOME.md` §3's order below it. The card is as wide as the
+/// menu pages and centred. It scrolls within itself, as one, when the
+/// window is short. Returns its height with the gap.
+fn home_card(
+    ui: &mut Ui,
+    (x, y): (f32, f32),
+    w: f32,
+    (window, offset): (Option<f32>, f32),
+    parts: &CardRows,
+    lead: Option<&CardLead>,
+) -> f32 {
+    let cw = w;
+    let cx = x + (w - cw) / 2.0;
+    let gap = card_gap(window);
+    let top = y + gap;
+    let head_h = ui.line_as(HOME_CARD_HEAD);
+    let inner = cw - 2.0 * PAD;
+    let lead_h = lead.map_or(0.0, |_| HOME_LEAD_H + GRID);
+    let rows_y = top + PAD + head_h + GRID + lead_h;
+    let two = cw >= HOME_CARD_TWO_COLS;
+    let avail = window.map_or(f32::INFINITY, |h| (h - rows_y - MARGIN_WIDE).floor());
+    let (cols, widths): (Vec<Vec<ListRow>>, Vec<f32>) = if two {
+        let all: Vec<ListRow> = parts.all_keys.cloned().into_iter().collect();
+        let n = keys_fitting(
+            avail,
+            rows_h(&all),
+            parts.keys.len().min(HOME_CARD_KEYS),
+            HOME_CARD_KEYS,
+        );
+        let mut right: Vec<ListRow> = parts.keys.iter().take(n).cloned().collect();
+        right.extend(all);
+        let col_w = (inner - MENU_GAP) / 2.0;
+        (vec![parts.needs.to_vec(), right], vec![col_w, col_w])
+    } else {
+        let mut one = parts.needs.to_vec();
+        one.extend(parts.all_keys.cloned());
+        let n = keys_fitting(avail, rows_h(&one), parts.keys.len(), HOME_BOX_KEYS);
+        one.extend(parts.keys.iter().take(n).cloned());
+        (vec![one], vec![inner])
+    };
+    let rows_h_max = cols
+        .iter()
+        .filter(|c| !c.is_empty())
+        .map(|c| rows_h(c))
+        .fold(0.0, f32::max);
+    let scrolls = rows_h_max > avail && avail >= HOME_BOX_MIN_ROWS * LIST_2;
+    let shown = if scrolls { avail } else { rows_h_max };
+    let card_h = rows_y - top + shown + GRID;
+    card_surface(ui, (cx, top, cw, card_h));
+    ui.text_as(
+        cx + PAD + LIST_PAD,
+        top + PAD,
+        HOME_CARD_HEAD,
+        Role::OnSurface,
+        EN.home_box_heading,
+    );
+    if let Some(l) = lead {
+        lead_card(ui, &l.card, (cx + PAD, rows_y - lead_h), inner, true);
+    }
+    let draw_cols = |ui: &mut Ui| {
+        let mut colx = cx + PAD;
+        for (c, cw_) in cols.iter().zip(&widths) {
+            list_rows(ui, (colx, rows_y), *cw_, c);
+            colx += cw_ + MENU_GAP;
+        }
+    };
+    if scrolls {
+        let clip = ui.rect(cx, rows_y, cw, shown);
+        let mark = ui.presses_mark();
+        let open = ui.region_open(Region::scrolled(Slot::HomeBox, clip, offset));
+        draw_cols(ui);
+        ui.clip_presses_since(mark, clip);
+        ui.region_close(open, (rows_h_max - avail).max(0.0));
+    } else {
+        draw_cols(ui);
+    }
+    gap + card_h
 }
 
 /// The three first-run actions while nothing is loaded, in their order:
@@ -841,30 +1003,51 @@ pub(super) fn top_row(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f3
 /// the job's icon, its line and the line under it, and at its end the one
 /// filled button (`docs/HOME.md` §2). Returns its height. The card is not
 /// a press; its button is.
-fn lead_card(ui: &mut Ui, card: &LeadCard, (x, y): (f32, f32), width: f32) -> f32 {
+fn lead_card(ui: &mut Ui, card: &LeadCard, (x, y): (f32, f32), width: f32, inside: bool) -> f32 {
     let lead_h = HOME_LEAD_H;
     let lead_w = width;
-    ui.fill(x, y, lead_w, lead_h, SHAPE_M, Role::SurfaceContainerLow);
-    ui.stroke(x, y, lead_w, lead_h, SHAPE_M, Role::OutlineVariant);
-    let (ibg, ifg) = if card.enabled {
+    // Inside Home's card the lead is the card's featured first item, in
+    // the secondary container, the warning container while it cannot be
+    // done yet.
+    let on = match (inside, card.enabled) {
+        (false, _) => Role::OnSurface,
+        (true, true) => Role::OnSecondaryContainer,
+        (true, false) => Role::OnWarningContainer,
+    };
+    if inside {
+        let bg = if card.enabled {
+            Role::SecondaryContainer
+        } else {
+            Role::WarningContainer
+        };
+        ui.fill(x, y, lead_w, lead_h, SHAPE_M, bg);
+    } else {
+        ui.fill(x, y, lead_w, lead_h, SHAPE_M, Role::SurfaceContainerLow);
+        ui.stroke(x, y, lead_w, lead_h, SHAPE_M, Role::OutlineVariant);
+    }
+    let (ibg, ifg) = if inside {
+        (None, on.paint())
+    } else if card.enabled {
         (
-            Role::SecondaryContainer.paint(),
+            Some(Role::SecondaryContainer.paint()),
             Role::OnSecondaryContainer.paint(),
         )
     } else {
         (
-            Role::SurfaceContainerHighest.paint(),
+            Some(Role::SurfaceContainerHighest.paint()),
             Role::OnSurfaceVariant.paint(),
         )
     };
-    ui.fill(
-        x + HOME_LEAD_INSET,
-        y + (lead_h - HOME_LEAD_ICON) / 2.0,
-        HOME_LEAD_ICON,
-        HOME_LEAD_ICON,
-        SHAPE_M,
-        ibg,
-    );
+    if let Some(ibg) = ibg {
+        ui.fill(
+            x + HOME_LEAD_INSET,
+            y + (lead_h - HOME_LEAD_ICON) / 2.0,
+            HOME_LEAD_ICON,
+            HOME_LEAD_ICON,
+            SHAPE_M,
+            ibg,
+        );
+    }
     ui.icon(
         x + HOME_LEAD_INSET,
         y + (lead_h - HOME_LEAD_ICON) / 2.0,
@@ -905,12 +1088,14 @@ fn lead_card(ui: &mut Ui, card: &LeadCard, (x, y): (f32, f32), width: f32) -> f3
         x + HOME_LEAD_TEXT_X,
         y + HOME_LEAD_INSET,
         TITLE_M,
-        Role::OnSurface,
+        on,
         &line,
     );
     if !card.under.is_empty() {
         let under = ui.fit_as(BODY_M, &card.under, room);
-        let tone = if card.enabled {
+        let tone = if inside {
+            on
+        } else if card.enabled {
             Role::OnSurfaceVariant
         } else {
             Role::Warning
@@ -946,14 +1131,7 @@ pub(crate) fn home_pinned(above: f32, window: f32, row: f32) -> bool {
 /// the page.
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use super::catalog::Bar;
-    let lead = home_lead(app, false);
-    let mut sections: Vec<Section> = Vec::new();
-    if let Some(card) = &lead {
-        sections.push(Section::block(None, move |ui, at, w| {
-            lead_card(ui, card, at, w)
-        }));
-    }
-    sections.extend(loaded_sections(app, Some(h)));
+    let sections = loaded_sections(app, Some(h), card_lead(app, false));
     let page = Page {
         name: EN.home_home,
         back: false,

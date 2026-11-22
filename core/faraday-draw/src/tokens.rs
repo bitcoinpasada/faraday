@@ -2421,6 +2421,27 @@ pub const HOME_RESULTS_ROWS: f32 = 3.0;
 /// How many key rows at most Home's box shows under All keys.
 pub const HOME_BOX_KEYS: usize = 3;
 
+/// How many key rows at most Home's card shows in its right column.
+pub const HOME_CARD_KEYS: usize = 5;
+
+/// The card width from which Home's card has two columns: what needs
+/// you on the left, the keys here on the right.
+pub const HOME_CARD_TWO_COLS: f32 = 840.0;
+
+/// The gap between Home's search row and its card, which stands apart.
+pub const HOME_CARD_GAP: f32 = 32.0;
+
+/// The gap between Home's search row and its card on a tall window, about
+/// the old lead's height and its gaps.
+pub const HOME_CARD_GAP_TALL: f32 = 150.0;
+
+/// The window height from which Home's card stands `HOME_CARD_GAP_TALL`
+/// under the search row.
+pub const HOME_CARD_TALL_FROM: f32 = 900.0;
+
+/// Home's card heading: title large, 22 on 28, in Noto Sans SemiBold.
+pub const HOME_CARD_HEAD: TypeRole = role(22.0, 28.0, TypeFace::Medium);
+
 /// The least height, in two-line rows, Home's box keeps once the fixed part
 /// has its room; under it the whole page scrolls as one.
 pub const HOME_BOX_MIN_ROWS: f32 = 2.0;

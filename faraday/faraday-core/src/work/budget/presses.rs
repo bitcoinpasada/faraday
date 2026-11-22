@@ -228,6 +228,12 @@ const PRESS_BUDGETS: &[(&str, Work, u64, &str)] = &[
         "the sheet opened with a wallet loaded reads each sample wallet once, to show the one loaded ticked and dimmed (one in this test; the real data has thirteen); its frames read nothing",
     ),
     (
+        "Explore",
+        Work::KeyDerive,
+        2,
+        "Home's All keys opens Explore on the first key, which shows what its path gives: the key derived to the path and its extended public key made, once, then kept on Explore's state (ExploreArea::reading)",
+    ),
+    (
         "ExploreKey(",
         Work::KeyDerive,
         2,

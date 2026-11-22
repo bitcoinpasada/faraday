@@ -1156,10 +1156,10 @@ fn a_wallet_with_nothing_to_do_has_no_row_and_there_is_no_all_wallets_row() {
     assert!(!texts.iter().any(|t| t == "All wallets"), "{texts:?}");
 }
 
-/// A wallet with a PSBT in Files to sign is a row on Home that opens its
-/// card.
+/// A wallet with a PSBT in Files to sign has Home's lead for it, Sign, and
+/// no row repeating it; Sign starts the spend.
 #[test]
-fn a_wallet_with_a_psbt_to_sign_is_a_row_on_home_and_opens_its_card() {
+fn a_wallet_with_a_psbt_to_sign_is_home_s_lead_and_sign_opens_its_spend() {
     let kit = faraday_core::testkit::kits()
         .into_iter()
         .find(|k| k.id == "spending")
@@ -1178,9 +1178,16 @@ fn a_wallet_with_a_psbt_to_sign_is_a_row_on_home_and_opens_its_card() {
     app.press(Action::Nav(Screen::Home));
     let _ = app.frame();
     let texts = app.drawn_texts();
-    assert!(texts.iter().any(|t| t == "A PSBT to sign"), "{texts:?}");
-    tap(&mut app, Action::OpenWallet(0));
-    assert_eq!(app.screen, Screen::Wallets);
+    assert!(texts.iter().any(|t| t == "Sign"), "{texts:?}");
+    assert!(!texts.iter().any(|t| t == "A PSBT to sign"), "{texts:?}");
+    assert!(!app.offers(Action::OpenWallet(0)));
+    let sign = app
+        .offered_actions()
+        .into_iter()
+        .find(|a| matches!(a, Action::StartSpend(_)))
+        .expect("Sign");
+    tap(&mut app, sign);
+    assert!(app.spend().is_some());
 }
 
 /// With a wallet loaded each first action still opens its flow, on the
@@ -1807,10 +1814,13 @@ fn at_1366_by_768_the_top_row_and_the_box_share_their_edges_and_the_buttons_open
         .iter()
         .map(|a| app.hit_box(*a).expect("button"))
         .collect();
-    // The box's rows are pressed four short of its edges each side.
-    let row = app.hit_box(Action::Explore).expect("a row of the box");
-    assert_eq!(bar.0, row.0 - 4);
-    assert_eq!(buttons[2].0 + buttons[2].2, row.0 + row.2 + 4);
+    // The card is the row's width: its rows stand inside the bar's span.
+    let row = app.hit_box(Action::Explore).expect("a row of the card");
+    assert!(bar.0 < row.0, "{bar:?} {row:?}");
+    assert!(
+        buttons[2].0 + buttons[2].2 > row.0 + row.2,
+        "{buttons:?} {row:?}"
+    );
     for b in std::iter::once(&bar).chain(&buttons) {
         assert_eq!((b.1, b.3), (bar.1, 48));
     }
@@ -1898,39 +1908,60 @@ fn a_few_loaded_keys_and_wallets_list_only_what_needs_something() {
     assert_eq!(app.screen, Screen::Explore);
 }
 
-/// With many keys on the lowest wide window, three key rows show, All keys
+/// With many keys, the card's right column shows five key rows; All keys
 /// counts every key and opens Explore.
 #[test]
-fn with_many_keys_the_lowest_wide_window_shows_three_key_rows_and_all_keys_counts_them() {
-    let mut app = loaded(30, 12, 1366, 600);
-    let shown = (1..30)
-        .filter(|&k| app.offers(Action::KeyWallet(key_fp(&app, k), 1)))
-        .count();
-    assert_eq!(shown, 3);
+fn with_many_keys_the_card_shows_five_and_all_keys_counts_them() {
+    let shown = |h: u16| {
+        let app = loaded(30, 20, 1366, h);
+        (1..30)
+            .filter(|&k| app.offers(Action::KeyWallet(key_fp(&app, k), 1)))
+            .count()
+    };
+    assert_eq!(shown(1400), 5);
+    let mut app = loaded(30, 20, 1366, 1400);
     let texts = app.drawn_texts();
     assert!(texts.iter().any(|t| t == "30"), "{texts:?}");
     tap(&mut app, Action::Explore);
     assert_eq!(app.screen, Screen::Explore);
 }
 
-/// With more keys than three and room for all of them, three key rows show,
-/// under All keys, which counts every key.
+/// With more keys than five and room for all of them, five key rows show
+/// in the right column, then All keys, which counts every key.
 #[test]
-fn with_room_at_most_three_key_rows_show_under_all_keys() {
+fn with_room_at_most_five_key_rows_show_then_all_keys() {
     let mut app = loaded(8, 0, 1366, 1400);
     let shown = (0..8)
         .filter(|&k| app.offers(Action::KeyWallet(key_fp(&app, k), 1)))
         .count();
-    assert_eq!(shown, 3);
+    assert_eq!(shown, 5);
     let texts = app.drawn_texts();
     assert!(texts.iter().any(|t| t == "8"), "{texts:?}");
     let all = app.where_offered(Action::Explore).unwrap().1;
-    let first = (0..8)
+    let last = (0..8)
         .filter_map(|k| app.where_offered(Action::KeyWallet(key_fp(&app, k), 1)))
         .map(|(_, y)| y)
-        .min()
+        .max()
         .unwrap();
-    assert!(all < first, "All keys comes before the keys no wallet uses");
+    assert!(all > last, "All keys comes after the keys no wallet uses");
+}
+
+/// On a short window the card shows fewer key rows before it scrolls, with
+/// All keys still there counting every key.
+#[test]
+fn a_short_window_drops_key_rows_first_and_keeps_all_keys() {
+    let shown = |h: u16| {
+        let mut app = loaded(30, 20, 1366, h);
+        let keys = (1..30)
+            .filter(|&k| app.offers(Action::KeyWallet(key_fp(&app, k), 1)))
+            .count();
+        assert!(app.offers(Action::Explore), "All keys at {h}");
+        let texts = app.drawn_texts();
+        assert!(texts.iter().any(|t| t == "30"), "{texts:?}");
+        keys
+    };
+    let (short, tall) = (shown(600), shown(1400));
+    assert!(short < tall, "{short} {tall}");
 }
 
 /// A file written to the stick.
@@ -1986,25 +2017,24 @@ fn crowded_at(width: u16, height: u16) -> Faraday {
     app
 }
 
-/// A window with room for the box but not for all of its rows: the box
-/// scrolls within itself and the first actions keep their place.
+/// On a short window the first actions keep their place and the card keeps
+/// its rows, whether or not it scrolls within itself: the page stays still
+/// under a scroll over the card. The key rows drop before the card scrolls.
 #[test]
 fn the_box_scrolls_within_itself_and_the_first_actions_keep_their_place() {
-    let mut found = None;
-    for h in (600..1300).step_by(20) {
+    for h in [600, 640, 700, 768, 900] {
         let mut app = crowded(h);
-        let Some(all) = app.where_offered(Action::Nav(Screen::Files)) else {
-            continue;
-        };
         let top = app.where_offered(Action::CreateWallet);
+        let all = app
+            .where_offered(Action::Nav(Screen::Backups))
+            .unwrap_or_else(|| panic!("Backups row at {h}"));
         scroll_over_box(&mut app, 1366, all.1);
-        let now = app.where_offered(Action::Nav(Screen::Files));
-        if now.is_some_and(|a| a.1 < all.1) && app.where_offered(Action::CreateWallet) == top {
-            found = Some(h);
-            break;
-        }
+        assert_eq!(app.where_offered(Action::CreateWallet), top, "{h}");
+        assert!(
+            app.where_offered(Action::Nav(Screen::Backups)).is_some(),
+            "{h}"
+        );
     }
-    assert!(found.is_some(), "no window height scrolls the box alone");
 }
 
 /// On the rail's windows the first actions are reachable however many rows
@@ -2186,4 +2216,96 @@ fn the_wallets_badge_counts_the_wallets_that_need_something() {
         badges.iter().any(|b| inside(*b, at)),
         "no count on Wallets: {badges:?}"
     );
+}
+
+/// Home at `width` x `height` with a wallet, a key no wallet uses and, when
+/// `psbt`, an unsigned PSBT for the wallet in Files.
+fn wallet_and_a_spare_key(width: u16, height: u16, psbt: bool) -> Faraday {
+    let kit = faraday_core::testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "spending")
+        .unwrap();
+    let wallet = faraday_core::testkit::files()
+        .unwrap()
+        .into_iter()
+        .find(|(n, _)| n == "spending-wallet.txt")
+        .unwrap();
+    let mut files = vec![("spending-wallet.txt".to_string(), wallet.1)];
+    if psbt {
+        let bytes = faraday_core::testkit::unsigned(&kit).unwrap().to_bytes();
+        files.push(("spend.psbt".to_string(), bytes));
+    }
+    let mut app = on_test_net(width, height);
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(files),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    let _ = app.frame();
+    faraday_core::testkit::load_wallet(&mut app, 0);
+    let c = faraday_core::testkit::compute();
+    app.session
+        .keys
+        .add_words(
+            &c,
+            "legal winner thank year wave sausage worth useful legal winner thank yellow",
+            "Spare",
+            None,
+        )
+        .unwrap();
+    app.press(Action::Nav(Screen::Home));
+    let _ = app.frame();
+    app
+}
+
+fn spare_key_at(app: &Faraday) -> Option<(u16, u16)> {
+    (0..app.session.keys.len())
+        .find_map(|k| app.where_offered(Action::KeyWallet(key_fp(app, k), 1)))
+}
+
+/// On a wide window Home's card holds what needs the person (Backups) and
+/// the keys here side by side, both reachable; on a window under 840 dp of
+/// card they stand in one list.
+#[test]
+fn home_card_splits_what_needs_you_from_the_keys_on_a_wide_window_only() {
+    let wide = wallet_and_a_spare_key(1920, 1080, false);
+    let backups = wide
+        .where_offered(Action::Nav(Screen::Backups))
+        .expect("Backups row");
+    let key = spare_key_at(&wide).expect("key row");
+    assert!(key.0 > backups.0, "the keys stand right of what needs you");
+
+    let narrow = wallet_and_a_spare_key(1024, 600, false);
+    let backups = narrow
+        .where_offered(Action::Nav(Screen::Backups))
+        .expect("Backups row");
+    let key = spare_key_at(&narrow).expect("key row");
+    assert!(
+        (key.0 as i32 - backups.0 as i32).abs() < 40,
+        "one list: {backups:?} {key:?}"
+    );
+    assert!(key.1 > backups.1, "the key row is under Backups");
+}
+
+/// A PSBT in Files is Home's lead, inside the card: its Sign is drawn once
+/// and the wallet row that would repeat it is not drawn.
+#[test]
+fn home_lead_stands_inside_the_card_once() {
+    for (w, h) in [(1920, 1080), (1024, 600)] {
+        let app = wallet_and_a_spare_key(w, h, true);
+        let signs = app
+            .offered_actions()
+            .into_iter()
+            .filter(|a| matches!(a, Action::StartSpend(_)))
+            .count();
+        assert_eq!(signs, 1, "{w}x{h}");
+        assert!(
+            !app.offers(Action::OpenWallet(0)),
+            "{w}x{h}: the wallet row repeats the lead"
+        );
+        assert!(
+            spare_key_at(&app).is_some(),
+            "{w}x{h}: the keys are still there"
+        );
+    }
 }
