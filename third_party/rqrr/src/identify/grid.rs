@@ -2,7 +2,7 @@ use std::{cmp, mem};
 
 use crate::{
     geometry,
-    identify::match_capstones::CapStoneGroup,
+    identify::match_capstones::{affine_offsets, CapStoneGroup},
     prepare::PreparedImage,
     prepare::{AreaFiller, ColoredRegion, ImageBuffer, PixelColor, Row, WORK_PER_GRID_MODULE},
     version_db::VERSION_DATA_BASE,
@@ -267,30 +267,29 @@ where
 
 /// Whether the three capstones stand about as far apart as a grid of
 /// `grid_size` modules puts them: the centres of A and B, and of B and C,
-/// are `grid_size - 7` modules apart, each pair on its own. A capstone-like pattern in the data
-/// of a dense code pairs with the real ones and reads a timing pattern of
-/// some other size; the group is then no grid, and its capstones stay free
-/// for the group they belong to. The bound is wide (a third of the size,
-/// and 4 modules), as a code seen at an angle puts its modules at
-/// different sizes along an edge.
+/// are `grid_size - 7` modules apart, each pair on its own. Each arm is
+/// measured in module axes (`affine_offsets`) from both ends, B and the far
+/// square, and the two lengths averaged, so a code seen at an angle, whose
+/// modules differ in size along its two axes, keeps its length and
+/// perspective mostly cancels. A capstone-like pattern in the data of a dense code pairs with
+/// the real ones and reads a timing pattern of some other size; the group
+/// is then no grid, and its capstones stay free for the group they belong
+/// to. The bound is wide (a third of the size, and 4 modules). A degenerate
+/// ring for B is no grid.
 fn capstones_span(group: &CapStoneGroup, grid_size: usize) -> bool {
-    let area = (affine_module_area(&group.0)
-        + affine_module_area(&group.1)
-        + affine_module_area(&group.2))
-        / 3.0;
-    let module = area.sqrt();
-    if module < 1e-6 {
-        return false;
-    }
-    let dist = |a: &CapStone, b: &CapStone| {
-        let dx = f64::from(a.center.x) - f64::from(b.center.x);
-        let dy = f64::from(a.center.y) - f64::from(b.center.y);
-        dx.hypot(dy)
-    };
     let size = grid_size as f64;
-    [&group.0, &group.2]
-        .into_iter()
-        .all(|far| (dist(&group.1, far) / module + 7.0 - size).abs() <= size / 3.0 + 4.0)
+    [&group.0, &group.2].into_iter().all(|far| {
+        // Measured from both ends and averaged: from one end alone, strong
+        // perspective (one corner far, the other near) reads the arm long.
+        let (Some((ub, vb)), Some((uf, vf))) = (
+            affine_offsets(&group.1, &far.center),
+            affine_offsets(far, &group.1.center),
+        ) else {
+            return false;
+        };
+        let arm = ((ub - 3.5).hypot(vb - 3.5) + (uf - 3.5).hypot(vf - 3.5)) / 2.0;
+        (arm - (size - 7.0)).abs() <= size / 3.0 + 4.0
+    })
 }
 
 fn timing_scan<S>(img: &mut PreparedImage<S>, p0: &Point, p1: &Point) -> Option<usize>

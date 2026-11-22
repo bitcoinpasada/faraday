@@ -319,15 +319,16 @@ the alignment pattern is found, whatever the distance between the capstones.
 In a dense code (a version-30 alphanumeric code of 1429 characters, 137
 modules a side) the data holds a pattern that the capstone search takes
 for a corner square. It paired with two real corner squares, the timing scan
-between them (80 pixels, through data modules) gave grid size 81
+between them (running through data modules) gave grid size 81
 (`measure_timing_pattern`), the group passed, and `find_groupings` took the real corners as used: the real
 group was never tried and the code gave no payload. Now each of the two
 arms, corner square B to A and B to C, must be `size - 7` modules long within
-a third of the size and 4 modules, the module taken from the three
-capstones. A group failing this is no grid and its capstones stay free.
+a third of the size and 4 modules, measured in module axes
+(`affine_offsets`) from both ends and averaged, so a tilted code, whose modules differ in size along
+its two axes, keeps its length and perspective mostly cancels. A group failing this is no grid and its capstones stay free.
 This catches a false group only when its timing scan gives a size its arms do
 not match: `find_groupings` still claims capstones before a decode, so a
 lookalike group whose size fits its arms (a small code, or one scan along a
 real timing line) can still take real capstones.
-Work added: one square root and two distances per group tried. Test:
+Work added: four affine solves per group tried (no square root of an area). Test:
 `core/faraday-codec/tests/large_codes.rs`.
