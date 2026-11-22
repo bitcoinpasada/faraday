@@ -312,3 +312,22 @@ yields are the same.
 `timing_scan` spends one unit of the frame's budget for each point it
 steps, as the other scan steps do, so a scan between far-apart points
 ends with no read instead of running to the end of the line.
+
+**A group of capstones must stand as far apart as its timing pattern says** (`src/identify/grid.rs`, `capstones_span`, called by `from_group`).
+Upstream (and 0.11.0) accepts a group once the timing scan gives a size and
+the alignment pattern is found, whatever the distance between the capstones.
+In a dense code (a version-30 alphanumeric code of 1429 characters, 137
+modules a side) the data holds a pattern that the capstone search takes
+for a corner square. It paired with two real corner squares, the timing scan
+between them (80 pixels, through data modules) gave grid size 81
+(`measure_timing_pattern`), the group passed, and `find_groupings` took the real corners as used: the real
+group was never tried and the code gave no payload. Now each of the two
+arms, corner square B to A and B to C, must be `size - 7` modules long within
+a third of the size and 4 modules, the module taken from the three
+capstones. A group failing this is no grid and its capstones stay free.
+This catches a false group only when its timing scan gives a size its arms do
+not match: `find_groupings` still claims capstones before a decode, so a
+lookalike group whose size fits its arms (a small code, or one scan along a
+real timing line) can still take real capstones.
+Work added: one square root and two distances per group tried. Test:
+`core/faraday-codec/tests/large_codes.rs`.

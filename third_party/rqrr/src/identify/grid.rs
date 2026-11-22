@@ -64,6 +64,9 @@ impl SkewedGridLocation {
          * transform.
          */
         let grid_size = measure_timing_pattern(img, &group)?;
+        if !capstones_span(&group, grid_size) {
+            return None;
+        }
 
         /* Make an estimate based for the alignment pattern based on extending
          * lines from capstones A and C.
@@ -260,6 +263,34 @@ where
     let size = scan + 13;
     let ver = (size as f64 - 15.0).floor() as usize / 4;
     Some(ver * 4 + 17)
+}
+
+/// Whether the three capstones stand about as far apart as a grid of
+/// `grid_size` modules puts them: the centres of A and B, and of B and C,
+/// are `grid_size - 7` modules apart, each pair on its own. A capstone-like pattern in the data
+/// of a dense code pairs with the real ones and reads a timing pattern of
+/// some other size; the group is then no grid, and its capstones stay free
+/// for the group they belong to. The bound is wide (a third of the size,
+/// and 4 modules), as a code seen at an angle puts its modules at
+/// different sizes along an edge.
+fn capstones_span(group: &CapStoneGroup, grid_size: usize) -> bool {
+    let area = (affine_module_area(&group.0)
+        + affine_module_area(&group.1)
+        + affine_module_area(&group.2))
+        / 3.0;
+    let module = area.sqrt();
+    if module < 1e-6 {
+        return false;
+    }
+    let dist = |a: &CapStone, b: &CapStone| {
+        let dx = f64::from(a.center.x) - f64::from(b.center.x);
+        let dy = f64::from(a.center.y) - f64::from(b.center.y);
+        dx.hypot(dy)
+    };
+    let size = grid_size as f64;
+    [&group.0, &group.2]
+        .into_iter()
+        .all(|far| (dist(&group.1, far) / module + 7.0 - size).abs() <= size / 3.0 + 4.0)
 }
 
 fn timing_scan<S>(img: &mut PreparedImage<S>, p0: &Point, p1: &Point) -> Option<usize>
