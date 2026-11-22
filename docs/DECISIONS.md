@@ -324,3 +324,6 @@ Read this table, then only the decision you need.
 | [F311](decisions/F311.md) | The navigation's badges are Bitcoin orange with a white count, in every theme | 2026-11-21 | Active | design |
 | [F312](decisions/F312.md) | Scan is the navigation's FAB at the foot of the rail and of the sidebar | 2026-11-21 | Active | design |
 | [F313](decisions/F313.md) | Home's page stays still and only its box scrolls; the rail's Home has no place tiles | 2026-11-21 | Active | design |
+| [F316](decisions/F316.md) | This session is Faraday's hub: one card of what is loaded, in a few forms, its place on a page a setting | 2026-11-21 | Proposed | design |
+| [F317](decisions/F317.md) | Menu pages: each section is one flat card holding a list, several to a row on wide windows | 2026-11-21 | Proposed | design |
+| [F318](decisions/F318.md) | Motion: the This session card glides between pages, the rest fades through, and one Motion setting sets every menu change's duration | 2026-11-21 | Proposed | design |
