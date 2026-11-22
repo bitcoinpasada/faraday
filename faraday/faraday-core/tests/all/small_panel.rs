@@ -526,7 +526,7 @@ fn the_small_homes_first_tile_opens_the_flow_in_progress() {
         texts.iter().any(|t| t == "Make a new wallet"),
         "its name: {texts:?}"
     );
-    let (_, tiles) = app.where_offered(Action::Nav(Screen::Vaults)).unwrap();
+    let (_, tiles) = app.where_offered(Action::Nav(Screen::Check)).unwrap();
     assert!(at < tiles, "before the other tiles");
     tap(&mut app, row);
     assert_eq!(app.screen, Screen::Create);

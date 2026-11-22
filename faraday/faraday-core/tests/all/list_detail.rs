@@ -227,7 +227,7 @@ fn the_rail_window_shows_the_list_and_the_wallet_side_by_side() {
 
 #[test]
 fn the_list_pane_scrolls_on_its_own() {
-    let mut app = with_wallets(1280, 800, 160);
+    let mut app = with_wallets(1280, 300, 160);
     // Every wallet of the kit, so the list is taller than the window.
     let more: Vec<usize> = (0..app.inbox().len())
         .filter(|&i| app.inbox()[i].name.ends_with("-wallet.txt"))
