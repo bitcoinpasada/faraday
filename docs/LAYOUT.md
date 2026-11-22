@@ -780,19 +780,20 @@ pressed state layer in the accent (`STATE_PRESS`). It stands:
 
 Characters typed (`docs/CODEX32.md` §5.2) put the codex32 keyboard in
 the panel's place by the same rule; a computer's own keyboard types at
-every size. New key's dice for BIP-39 words and Create a vault's
-**Generate with dice** (`docs/CODEX32.md` §5.6) take the same panel:
-their pad, their entries' latest group and the progress line in one
-view.
+every size. Create a vault's **Generate with dice** (`docs/CODEX32.md` §5.6)
+takes the same panel: its pad, its entries' latest group and the
+progress line in one view.
 
-Built for both, at the foot by the same rule (not on the Pi panel, and
-in the card where the panel would take more than `INPUT_PANEL_MAX` of
-the window's height): New key's Entries card, while dice are pressed one
-at a time, stands its count of rolls with the roll just made at its end,
-the bar under it and the pad of six faces (`DICE_PAD_KEY_H` tall) in
-the panel, the words so far, the check and the card's buttons in the
-page above it (`keygen/dice_panel.rs`); Generate with dice stands the
-rolls' field, the strength line and a pad of the six faces and
+Built for both, differently: New key's Entries card, while dice are
+pressed one at a time, stands the pad of six faces in the card, not in
+the panel and never pinned at the foot, in every window (the page
+scrolls with it): the count of rolls with the roll just made at its end
+and the bar, then, for Dice words, the strip of the word being made
+(`keygen/dice_strip.rs`), the pad, and the words so far, the check and
+the card's buttons below (`keygen/dice_panel.rs`). Generate with dice, at
+the foot by the same rule (not on the Pi panel, and in the card where the
+panel would take more than `INPUT_PANEL_MAX` of the window's height),
+stands the rolls' field, the strength line and a pad of the six faces and
 Backspace in the panel, the list's choice, the words and Use these
 words in the card (`dice_entry/screen.rs`). While the on-screen keyboard
 is up for the rolls' field, its keys are the pad and the panel stands

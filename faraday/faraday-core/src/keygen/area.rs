@@ -114,6 +114,17 @@ impl KeyGenArea {
             .as_mut()
             .and_then(|k| k.codex32.as_mut())
             .is_some_and(|m| m.dice_tick(now_ms))
+            | self.rerolled_tick(now_ms)
+    }
+
+    /// One tick of the rolled-again face's drop: starts it at the first
+    /// tick after the roll; whether it still moves. A lookup.
+    fn rerolled_tick(&mut self, now_ms: u64) -> bool {
+        let Some((_, at)) = self.state.as_mut().and_then(|k| k.rerolled.as_mut()) else {
+            return false;
+        };
+        let began = *at.get_or_insert(now_ms);
+        now_ms < began + crate::motion::STEP_FADE_MS
     }
 
     /// Ends the codex32 dice sheet's glide at once, if there is one.
@@ -129,6 +140,8 @@ impl KeyGenArea {
     pub(crate) fn hide_left_step(&mut self) {
         if let Some(k) = self.state.as_mut() {
             k.shown = false;
+            k.rerolled = None;
+            k.strip_masked = false;
             if let Some(m) = k.codex32.as_mut() {
                 m.hide_qr_of_left_step();
             }
@@ -621,6 +634,8 @@ impl KeyGenArea {
             A::KShow => {
                 if matches!(k.open, Some(kstep::WORDS | kstep::KEY)) {
                     k.shown = !k.shown;
+                } else if k.open == Some(kstep::ENTER) {
+                    k.strip_masked = !k.strip_masked;
                 }
             }
             A::KQuiz(_) if k.slip39 && k.quiz_next => {}

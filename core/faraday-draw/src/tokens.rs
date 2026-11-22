@@ -1414,9 +1414,15 @@ pub const INPUT_PANEL_MAX: f32 = 0.4;
 /// A dice pad's key: as tall as Material's text field, each face a
 /// large target.
 pub const DICE_PAD_KEY_H: f32 = 56.0;
-/// New key's progress line: the count over its bar, and the room under
-/// it.
-pub const ENTRY_PROGRESS_H: f32 = 50.0;
+/// The dice strip's slot (a roll's face over its bits), at most this
+/// wide and tall; it narrows to fit a small panel.
+pub const DICE_STRIP_SLOT: f32 = 64.0;
+/// A bit's box in the dice strip's number, at most this wide.
+pub const DICE_STRIP_BIT_W: f32 = 22.0;
+/// A bit's box in the dice strip's number.
+pub const DICE_STRIP_BIT_H: f32 = 28.0;
+/// How far a face rolled again drops before it is gone.
+pub const DICE_STRIP_DROP: f32 = 14.0;
 /// A die's column of the rolls across the input panel: its marker (the
 /// first roll) beside its die (the second), and the gap to the next.
 pub const INPUT_ROLLS_COL: f32 = 76.0;

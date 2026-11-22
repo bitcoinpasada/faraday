@@ -116,7 +116,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let (heading, step) = heading(k, ui, x0 + cw);
     let (column, panel) = codex32_places(app, k, (cw, h));
-    let dice_foot = super::dice_panel::place(app, k);
     let side = crate::codex32::pane_screen::side_room(column);
     let lead = panel.lead();
     let foot = panel.foot_h();
@@ -124,7 +123,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let page = flow::Page {
         area: (x0, cw - side),
         h,
-        foot_h: dice_foot.unwrap_or(0.0) + foot,
+        foot_h: foot,
         back: Some(match &k.made {
             Some(_) => app.named_back((EN.keygen_tools, Action::KMadeDone)),
             None => app.named_back((back_label, Action::Nav(k.back))),
@@ -188,9 +187,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let top = body_top.get().map_or(0.0, |y| y - next.y);
         crate::codex32::input_panel::draw(m, ui, panel, (x0, cw, h), (&room, top));
         crate::codex32::screen::cell_sheet(app, m, ui, x0, cw, h);
-    }
-    if let Some(fh) = dice_foot {
-        super::dice_panel::draw(k, ui, (&room, h, fh));
     }
 }
 
@@ -1347,28 +1343,26 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let muted = Role::OnSurfaceVariant;
     let mut cy = y;
     let active = k.active();
-    // The input panel at the window's foot, where it stands, holds the
-    // progress line and the pad (`docs/LAYOUT.md` §16.3).
-    let foot = super::dice_panel::place(app, k);
     // Use a sample goes in the "Demo only" card (`docs/DEMO.md` §14).
     if app.dice_sample_shown() {
         crate::samples::put::offer(ui, Action::UseSample);
     }
-    if active != Some(Source::Device) && foot.is_none() {
+    if active != Some(Source::Device) {
         cy += super::dice_panel::progress(k, ui, x, cy, w);
+    }
+    // Dice words show the word being made under the count.
+    if active == Some(Source::Dice) && super::dice_strip::stands(k) {
+        cy += super::dice_strip::strip(app, k, ui, (x, cy, w)) + faraday_draw::tokens::GAP;
     }
     // On the small panel, where the choices under the progress line are a
     // touch target tall and the page is short, the dice pad stands before
     // them so that it shows in the card at scroll 0.
-    let pad_first = active == Some(Source::Dice)
-        && !k.typing
-        && foot.is_none()
-        && crate::flow::small_touch(ui) > 0.0;
+    let pad_first = active == Some(Source::Dice) && !k.typing && crate::flow::small_touch(ui) > 0.0;
     if pad_first {
-        cy += super::dice_panel::pad(k, ui, (x, cy, w));
+        cy += super::dice_panel::pad(ui, (x, cy, w));
     }
     if matches!(active, Some(Source::Dice | Source::Coins)) {
-        cy = entry_style(k, ui, x, cy, w, 0.0);
+        cy = entry_style(k, ui, x, cy, w, app.touch_side());
     }
     match active {
         Some(Source::Dice | Source::Coins) if k.typing => {
@@ -1381,7 +1375,7 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             }
         }
         Some(Source::Dice) => {
-            let pad = (foot.is_none() && !pad_first).then_some(None);
+            let pad = (!pad_first).then_some(None);
             cy += rolled_entry(app, k, ui, (x, cy, w), pad);
         }
         Some(Source::Coins) => {
@@ -1537,8 +1531,8 @@ pub(crate) fn rolled_entry(
         cy = typed_box(app, k, ui, x, cy, w);
     } else if let Some(touch) = pad {
         cy += match touch {
-            Some(t) => super::dice_panel::pad_fit(k, ui, (x, cy, w), t),
-            None => super::dice_panel::pad(k, ui, (x, cy, w)),
+            Some(t) => super::dice_panel::pad_fit(ui, (x, cy, w), t),
+            None => super::dice_panel::pad(ui, (x, cy, w)),
         };
     }
     if k.reveals() {
@@ -1812,7 +1806,7 @@ fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy += ui.line_as(faraday_draw::tokens::TITLE_S) + faraday_draw::tokens::GAP_SMALL;
     ui.text_as(x, cy, BODY_S, muted, crate::wordlist::PRESS_A_WORD);
     cy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
-    cy += ui.wrap_as((x, cy, w), BODY_S, muted, EN.keygen_dice_word_rule) + 12.0;
+    cy += 12.0;
     let per = faraday_entropy::DICE_WORD_ROLLS;
     let faces = faraday_entropy::DICE_WORD_FACES;
     let rolls = k.dice.rolls();

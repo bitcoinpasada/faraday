@@ -1,69 +1,28 @@
-//! New key's dice in the input panel (`docs/LAYOUT.md` §16.3): the
-//! progress line, with the roll just made, and the pad, in one view,
-//! pinned at the window's foot across the page area while the Entries
-//! card takes rolls one press at a time, the page scrolling clear above
-//! it, as Make codex32 shares' panel stands. Where it would take more
-//! than `INPUT_PANEL_MAX` of the window's height, and on the small panel,
-//! both stay in the card. Where it stands is arithmetic on the window;
-//! drawing reads the flow's state.
+//! New key's dice in the Entries card: the progress line, with the roll
+//! just made, and the pad of faces, both in the card (`docs/LAYOUT.md`
+//! §16.3). Drawing reads the flow's state.
 
-use faraday_draw::tokens as t;
 use faraday_draw::tokens::{BODY_M, TITLE_M};
 use faraday_entropy::{RANKS, SUITS};
 
-use super::{KeyGen, Source, kstep};
+use super::{KeyGen, Source};
 use crate::Action;
-use crate::drawing::View;
 use crate::screens::{dice_pad, dice_pad_fit};
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 
-/// The panel's height: the progress line and the pad inside its padding.
-const PANEL_H: f32 = t::PAD + t::ENTRY_PROGRESS_H + t::DICE_PAD_KEY_H + t::PAD;
-
-/// The panel's height where it stands at the foot of the page area,
-/// else `None`: the Entries card open on dice pressed one at a time, on
-/// a window that is not the small panel, where the panel takes at most
-/// `INPUT_PANEL_MAX` of the window's height. Arithmetic.
-pub(crate) fn place(app: &View, k: &KeyGen) -> Option<f32> {
-    let rolling = k.open == Some(kstep::ENTER) && k.active() == Some(Source::Dice) && !k.typing;
-    let fits = crate::codex32::input_panel::foot_fits(app.window(), PANEL_H, app.size().1);
-    (rolling && fits).then_some(PANEL_H)
-}
-
-/// Draws the panel over the foot of the page area `room` stands in, in a
-/// window `h` tall, `fh` of it the panel's; its parts in the card's own
-/// column.
-pub(crate) fn draw(k: &KeyGen, ui: &mut Ui, (room, h, fh): (&crate::flow::Room, f32, f32)) {
-    let top = h - fh;
-    crate::codex32::input_panel::cover(ui, (room.area_x, top, room.area_w, fh));
-    // At the card's own start and width, as its controls stand.
-    let (x, w) = (room.x, room.w.min(t::COLUMN_MAX));
-    let y = top + t::PAD;
-    let y = y + progress(k, ui, x, y, w);
-    pad(k, ui, (x, y, w));
-}
-
-/// The pad of the dice's faces, a face the direct procedure would not
-/// take now disabled. Returns its height with the gap under it.
-pub(crate) fn pad(k: &KeyGen, ui: &mut Ui, at: (f32, f32, f32)) -> f32 {
-    dice_pad(ui, at, &|f| face_style(k, f), Action::KRoll)
+/// The pad of the dice's faces, every one pressable: direct selection
+/// shows a 5 or a 6 in a word's first five rolls struck and rolled again.
+/// Returns its height with the gap under it.
+pub(crate) fn pad(ui: &mut Ui, at: (f32, f32, f32)) -> f32 {
+    dice_pad(ui, at, &|_| Style::Secondary, Action::KRoll)
 }
 
 /// The pad as [`pad`] draws it, in two rows of three where one row of
 /// six would leave a face's target under `touch`.
-pub(crate) fn pad_fit(k: &KeyGen, ui: &mut Ui, at: (f32, f32, f32), touch: f32) -> f32 {
-    dice_pad_fit(ui, at, touch, &|f| face_style(k, f), Action::KRoll)
-}
-
-/// A face the direct procedure would not take now is disabled.
-fn face_style(k: &KeyGen, f: u8) -> Style {
-    if k.procedure().direct() && !k.procedure().accepts(k.dice.len(), f) {
-        Style::Disabled
-    } else {
-        Style::Secondary
-    }
+pub(crate) fn pad_fit(ui: &mut Ui, at: (f32, f32, f32), touch: f32) -> f32 {
+    dice_pad_fit(ui, at, touch, &|_| Style::Secondary, Action::KRoll)
 }
 
 /// How far along, as a count and a bar, with the entry just made at the

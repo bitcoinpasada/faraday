@@ -381,18 +381,18 @@ fn rolls_that_name_words_stop_at_the_last_words_kept_bits_and_the_checksum_ends_
     assert_eq!(m.indices()[11] >> 4, high >> 1);
 }
 
-/// Rolls that name words: the card says before the first roll that a 5
-/// or a 6 in a word's first five rolls is rolled again, and a caution
-/// once the last roll is in comes with Roll again beside the foot
-/// button.
+/// Rolls that name words: the rule lines are in the Guide and not on the
+/// step, and a caution once the last roll is in comes with Roll again
+/// beside the foot button.
 #[test]
-fn rolls_that_name_words_state_the_reroll_rule_first_and_a_caution_offers_roll_again() {
+fn rolls_that_name_words_leave_the_rule_to_the_guide_and_a_caution_offers_roll_again() {
     let mut app = opened_tall();
     app.press(Action::KWords(12));
     app.press(Action::KWay(Way::DiceWords.index()));
     app.press(Action::KNext);
     let shown = texts(&mut app);
-    assert!(shown.contains("5 or 6 rolled again"), "{shown}");
+    assert!(!shown.contains("5 or 6 rolled again"), "{shown}");
+    assert!(shown.contains("Word being made"), "{shown}");
     for _ in 0..80 {
         app.press(Action::KRoll(1));
     }
@@ -404,6 +404,73 @@ fn rolls_that_name_words_state_the_reroll_rule_first_and_a_caution_offers_roll_a
         "Roll again beside the foot button"
     );
     assert!(app.offers(Action::KNext), "a caution is not a refusal");
+}
+
+fn dice_step() -> Faraday {
+    let mut app = opened_tall();
+    app.press(Action::KWords(12));
+    app.press(Action::KWay(Way::DiceWords.index()));
+    app.press(Action::KNext);
+    app
+}
+
+/// The strip under the word being made shows the number and the word
+/// its rolls make.
+#[test]
+fn the_strip_shows_a_words_number_and_the_word() {
+    let mut app = dice_step();
+    for f in [3, 1, 4, 2, 2, 5] {
+        app.press(Action::KRoll(f));
+    }
+    let shown = texts(&mut app);
+    assert!(shown.contains("1131"), "{shown}");
+    assert!(shown.contains("miracle"), "{shown}");
+}
+
+/// A 5 or a 6 in a word's first five rolls is shown as rolled again and
+/// is no roll: the count and the key are as without it.
+#[test]
+fn a_five_in_the_first_five_is_shown_and_not_counted() {
+    let mut plain = dice_step();
+    let mut with = dice_step();
+    for f in [3, 1, 4, 2, 2, 5] {
+        plain.press(Action::KRoll(f));
+    }
+    for f in [3, 5, 1, 6, 4, 2, 5, 2, 5] {
+        with.press(Action::KRoll(f));
+        if f == 5 && with.keygen().unwrap().dice.len() == 1 {
+            let shown = texts(&mut with);
+            assert!(shown.contains("Rolled again"), "{shown}");
+            assert_eq!(with.keygen().unwrap().dice.len(), 1);
+        }
+    }
+    assert_eq!(
+        with.keygen().unwrap().dice.rolls(),
+        plain.keygen().unwrap().dice.rolls()
+    );
+}
+
+/// The last word's four rolls show the checksum bits as the line says.
+#[test]
+fn the_last_word_says_its_last_bits_are_the_checksum() {
+    let mut app = dice_step();
+    for _ in 0..70 {
+        app.press(Action::KRoll(2));
+    }
+    let shown = texts(&mut app);
+    assert!(
+        shown.contains("The last 4 bits of word 12 are the checksum"),
+        "{shown}"
+    );
+}
+
+/// The step's ? opens the Guide at how dice make the words.
+#[test]
+fn the_guide_opens_at_how_dice_make_your_words() {
+    let mut app = dice_step();
+    app.press(Action::Guide);
+    let shown = texts(&mut app);
+    assert!(shown.contains("How dice make your words"), "{shown}");
 }
 
 #[test]

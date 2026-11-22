@@ -71,7 +71,10 @@ pub fn guide_key(screen: Screen, at: GuideAt) -> &'static str {
             _ => "message",
         },
         Screen::CheckMessage => "check-message",
-        Screen::Create => create_key(step),
+        Screen::Create => match at {
+            GuideAt::Part(crate::keygen::DICE_GUIDE) => "keygen.dice",
+            _ => create_key(step),
+        },
         Screen::Restore => restore_key(step),
         Screen::Settings => settings_key(at),
         Screen::SetTime => "set-time",
@@ -79,7 +82,10 @@ pub fn guide_key(screen: Screen, at: GuideAt) -> &'static str {
         Screen::Vaults => "vaults",
         Screen::Backups => "backups",
         Screen::CreateVault => "create-vault",
-        Screen::KeyGen => keygen_key(step),
+        Screen::KeyGen => match at {
+            GuideAt::Part(crate::keygen::DICE_GUIDE) => "keygen.dice",
+            _ => keygen_key(step),
+        },
         Screen::Bip85 => bip85_key(step),
         Screen::Convert => convert_key(step),
         Screen::KefTool => kef_tool_key(step),
@@ -1160,7 +1166,16 @@ impl Faraday {
     pub(crate) fn guide_here(&self) -> GuideAt {
         use crate::trail::StepFlow;
         if self.keygen_hosted() {
-            return GuideAt::Step(crate::cstep::KEYS);
+            // Dice words' entry step opens at how dice make the words.
+            return match self.keygen.state() {
+                Some(k)
+                    if k.open == Some(crate::keygen::kstep::ENTER)
+                        && crate::keygen::dice_strip::stands(k) =>
+                {
+                    GuideAt::Part(crate::keygen::DICE_GUIDE)
+                }
+                _ => GuideAt::Step(crate::cstep::KEYS),
+            };
         }
         let open = |flow: &dyn StepFlow| flow.steps(self).and_then(|s| s.open);
         let step = |n: Option<u8>| n.map_or(GuideAt::Whole, GuideAt::Step);
@@ -1174,7 +1189,16 @@ impl Faraday {
             Screen::KefTool => step(open(&crate::kef_tool::KEF_TOOL_STEPS)),
             Screen::CoreWallet => step(open(&crate::core_wallet::tool::CORE_WALLET_STEPS)),
             Screen::Vanity => step(open(&crate::vanity::VANITY_STEPS)),
-            Screen::KeyGen => step(self.keygen.state().and_then(|k| k.open)),
+            Screen::KeyGen => match self.keygen.state() {
+                // Dice words' step opens the Guide at how dice make the words.
+                Some(k)
+                    if k.open == Some(crate::keygen::kstep::ENTER)
+                        && crate::keygen::dice_strip::stands(k) =>
+                {
+                    GuideAt::Part(crate::keygen::DICE_GUIDE)
+                }
+                k => step(k.and_then(|k| k.open)),
+            },
             Screen::Backup => match self.backup.state() {
                 Some(b) if b.stage == crate::BStage::Checklist => {
                     b.open.map_or(GuideAt::Whole, GuideAt::Item)

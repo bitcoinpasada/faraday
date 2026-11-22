@@ -14,7 +14,13 @@
 //! The accumulators and the words are erased on drop; leaving the flow
 //! drops them all.
 
+/// The Guide section Dice words' step opens at, `GuideAt::Part`'s place
+/// in New key's list of parts (`docs/guide/keygen.md`, "How dice make your
+/// words").
+pub(crate) const DICE_GUIDE: u8 = 0;
+
 pub(crate) mod dice_panel;
+pub(crate) mod dice_strip;
 mod on_card;
 pub(crate) mod screen;
 
@@ -288,6 +294,13 @@ pub struct KeyGen {
     pub parts_in: usize,
     /// The last thing worth saying.
     pub note: Option<Text>,
+    /// The last face of a word's first five rolls that direct selection
+    /// rolled again, and when it was first drawn: shown struck under the
+    /// strip's slots, display only, never a roll of the key's. The next
+    /// roll, a roll taken back and leaving the step clear it.
+    rerolled: Option<(u8, Option<u64>)>,
+    /// The dice strip is masked (the eye beside "Word being made").
+    strip_masked: bool,
     /// The Create slot the key fills, if it was made for one.
     pub slot: Option<u8>,
     /// The key is made as SLIP-39 shares rather than BIP-39 words: the
@@ -462,6 +475,8 @@ impl KeyGen {
             skipped: false,
             parts_in: 0,
             note: None,
+            rerolled: None,
+            strip_masked: false,
             slot,
             back,
             made: None,
@@ -787,6 +802,19 @@ impl KeyGen {
         };
         self.clear_entries();
         self.done[usize::from(kstep::SOURCE)] = false;
+    }
+
+    /// The dice strip is masked.
+    pub(crate) fn strip_masked(&self) -> bool {
+        self.strip_masked
+    }
+
+    /// The rolls the last word takes under direct selection, and how many
+    /// of their bits the key drops (0 or 1): `last_bits` kept, rolled two
+    /// bits a face.
+    pub(crate) fn last_rolls(&self) -> (usize, usize) {
+        let n = self.last_bits().div_ceil(2);
+        (n, 2 * n - self.last_bits())
     }
 
     /// The high bits of the last rolled word the key keeps under direct
@@ -1208,6 +1236,18 @@ impl crate::Faraday {
                 .ok()
                 .map(|t| Text::of(&t)),
         }
+    }
+
+    /// The face rolled again and how far it has dropped, 0 to 1 (1 for good
+    /// with Reduce motion: it stays until the next roll). A lookup.
+    pub(crate) fn keygen_rerolled(&self) -> Option<(u8, f32)> {
+        let (face, at) = self.keygen.state()?.rerolled?;
+        let drop = if self.reduce_motion() {
+            0.0
+        } else {
+            crate::motion::progress(at, self.now_ms, crate::motion::STEP_FADE_MS)
+        };
+        Some((face, drop))
     }
 
     /// How open the codex32 dice sheet shows now, 0 to 1. A lookup.

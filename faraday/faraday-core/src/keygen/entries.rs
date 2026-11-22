@@ -29,6 +29,7 @@ impl KeyGen {
         self.skip_ask = false;
         self.skipped = false;
         self.note = None;
+        self.rerolled = None;
         for k in [
             kstep::ENTER,
             kstep::KEY,
@@ -92,6 +93,7 @@ impl KeyGen {
         let len = self.progress().0;
         self.roller.trim(len);
         self.note = None;
+        self.rerolled = None;
     }
 
     /// A key in the Key card's passphrase field that has the keys: the
@@ -191,13 +193,11 @@ impl KeyGen {
         if taken {
             self.record(char::from(b'0' + face));
         }
-        self.note = (!taken).then(|| {
-            if self.procedure().direct() {
-                Text::of(EN.keygen_reroll_rule)
-            } else {
-                Text::of(EN.keygen_a_die_has_six)
-            }
-        });
+        // Direct selection's 5 or 6 in a word's first five rolls is
+        // shown rolled again, and is not a roll of the key's.
+        self.rerolled = (!taken && self.procedure().direct()).then_some((face, None));
+        self.note =
+            (!taken && !self.procedure().direct()).then(|| Text::of(EN.keygen_a_die_has_six));
     }
 
     /// A flip: heads or tails.

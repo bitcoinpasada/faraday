@@ -22,8 +22,6 @@ macro_rules! words_keygen {
     keygen_a_long_run_counting: "A long run counting up or down",
     /// Text in `caution_lines`: cards in the order a new deck comes in.
     keygen_cards_in_deck_order: "Cards in the order of a new deck",
-    /// Text in `roll`.
-    keygen_reroll_rule: "A 5 or a 6 is rolled again in a word's first five rolls",
     /// Note in `die_flip`.
     keygen_a_die_has_six: "A die has six faces",
     /// Note in `type_char`.
@@ -299,10 +297,18 @@ macro_rules! words_keygen {
     keygen_from_the_checksum: "From the checksum, once the rest is in",
     /// Text in `reveal`. `{}`: `checksum`, `last + 1`.
     keygen_the_last_bits: "The last {} bits of word {} are the checksum",
+    /// Label in `dice_strip::strip`.
+    keygen_word_being_made: "Word being made",
+    /// Word's place in `dice_strip::strip`. `{}`: the word's number.
+    keygen_word_n: "Word {}",
+    /// Caption under a struck 5 or 6 in `dice_strip::strip`.
+    keygen_rolled_again: "Rolled again",
+    /// Beside the bits in `dice_strip::strip`. `{}`: the number in the list.
+    keygen_equals_number: "= {}",
+    /// Beside the word in `dice_strip::strip`. `{}`: its place in the list.
+    keygen_word_of_list: "word {} of the list",
     /// Section label in `rolled_words`.
     keygen_words_so_far: "Words so far",
-    /// Line in `rolled_words`.
-    keygen_dice_word_rule: "Rolls 1 to 5 of a word: 1 = 00, 2 = 01, 3 = 10, 4 = 11, 5 or 6 rolled again · Roll 6: 1 to 3 = 0, 4 to 6 = 1 · The 11 bits are the word's number in the list, from 0",
     /// Line in `rolled_words`.
     keygen_checksum: "checksum",
     /// Text in `rolled_words`. `{}`: `i`, `i + 1`.

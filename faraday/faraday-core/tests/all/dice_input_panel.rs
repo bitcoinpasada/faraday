@@ -89,38 +89,16 @@ fn at_foot(app: &Faraday, action: Action, (w, h): (u16, u16), part: f32) -> (u16
 }
 
 #[test]
-fn new_keys_pad_stands_at_the_foot_and_stays_as_the_page_scrolls() {
-    for (w, h, dpi) in [
-        (1280u16, 800u16, 160u16),
-        (760, 1000, 160),
-        (600, 1024, 170),
-    ] {
-        let mut app = rolling_key(w, h, dpi);
-        let key = at_foot(&app, Action::KRoll(3), (w, h), 0.4);
-        scroll_page(&mut app, (w / 2, h / 3), 600);
-        let moved = at_foot(&app, Action::KRoll(3), (w, h), 0.4);
-        assert_eq!(key, moved, "{w} × {h}: the pad stays as the page scrolls");
-        tap(&mut app, Action::KRoll(3));
-        assert_eq!(app.keygen().unwrap().dice.len(), 1, "{w} × {h}: a roll");
-        let count = app
-            .drawn_texts()
-            .into_iter()
-            .find(|t| {
-                t.starts_with("1 of ") && t.ends_with(faraday_core::strings::EN.keygen_rolls_inline)
-            })
-            .unwrap_or_else(|| panic!("{w} × {h}: the count says one roll"));
-        let count_box = app
-            .drawn_text_boxes()
-            .into_iter()
-            .find(|(t, _)| *t == count)
-            .map(|b| b.1)
-            .unwrap();
-        let below = i32::from(key.1) - count_box.1;
-        assert!(
-            (0..i32::from(h) / 4).contains(&below),
-            "{w} × {h}: the count stands over the pad: {count_box:?} {key:?}"
-        );
-    }
+fn new_keys_pad_stands_in_the_card_not_at_the_foot() {
+    let (w, h) = (1280u16, 800u16);
+    let mut app = rolling_key(w, h, 160);
+    let key = app.hit_box(Action::KRoll(3)).expect("the pad is drawn");
+    assert!(
+        f32::from(key.1) < f32::from(h) * 0.6,
+        "the pad is in the card, not pinned at the foot: {key:?}"
+    );
+    tap(&mut app, Action::KRoll(3));
+    assert_eq!(app.keygen().unwrap().dice.len(), 1, "a roll");
 }
 
 #[test]

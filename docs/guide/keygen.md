@@ -42,6 +42,20 @@ Enter what you rolled, flipped or drew; the count shows how many entries the len
 
 **Undo** takes back the last entry and **Clear** all of them. After the last entry a **Randomness check** shows the counts, and **Roll again** starts over. **Make the words** comes next, or **Continue** where the words showed as you entered them; for SLIP-39 it deals the shares.
 
+## How dice make your words
+
+**Key:** keygen.dice
+
+Each word is its place, 0 to 2047, in the BIP-39 list of 2048 words: 11 bits, made from six rolls.
+
+Rolls 1 to 5 give two bits each: 1 is 00, 2 is 01, 3 is 10, 4 is 11. A 5 or 6 is rolled again, as two bits have only four values and keeping it would favour some.
+
+Roll 6 gives one bit: 1 to 3 is 0, 4 to 6 is 1.
+
+Read the 11 bits as a binary number: 01101100101 is 869, the 870th word. The strip shows the faces, their bits, the number and the word.
+
+The last word takes four rolls: seven bits kept, the eighth dropped. Four checksum bits follow, the start of the SHA-256 hash of the 128 bits before; the device works them out once every roll is in.
+
 ## Check
 
 **Key:** keygen.check

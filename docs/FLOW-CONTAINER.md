@@ -222,7 +222,12 @@ choices opens as a sheet there. A flow with a full-width step answers
 `wide_content` true on every step, so its card does not move when the
 step comes and goes. Every other dice worksheet (a seed's rolls in Make
 a new key, Make a new vault's passphrase dice, `dice_entry`'s foot panel)
-stays in the main column beside Your choices.
+stays in the main column beside Your choices. New key's Dice words step
+holds, in its card under the count, the strip of the word being made
+(six slots of a roll's face and its bits, the 11-bit number, the word;
+`keygen/dice_strip.rs`), then the pad, then Words so far; the rule
+lines are in the Guide ("How dice make your words"), which the step's ?
+and the strip's info button open.
 
 ## 6. Worksheets inside a flow (LAYOUT §14)
 
