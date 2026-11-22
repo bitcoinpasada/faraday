@@ -332,6 +332,11 @@ impl Motion {
         }
         self.content = Content::Rest;
         self.pan_moved += dy;
+        // A region with nothing to scroll stays still: it is not pulled
+        // past an end it has no distance to.
+        if region.max.is_some_and(|m| m <= 0.0) {
+            return;
+        }
         if self.rigid {
             region.apply(dy, &mut self.carry);
             return;

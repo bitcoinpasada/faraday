@@ -1994,6 +1994,31 @@ fn on_the_rail_the_first_actions_are_reachable_and_home_draws_no_place_tiles() {
     }
 }
 
+/// On the rail's and the sidebar's windows a wheel scroll over the box or
+/// over the page moves no first action: the page stays still.
+#[test]
+fn a_crowded_home_on_the_rail_and_sidebar_keeps_the_page_still_under_the_wheel() {
+    for (w, h) in [(1024, 600), (1024, 768), (1366, 768)] {
+        for over_box in [true, false] {
+            let mut app = crowded_at(w, h);
+            let before = app.where_offered(Action::Nav(Screen::SpendBackup));
+            let all = app.where_offered(Action::Nav(Screen::Files));
+            let y = if over_box {
+                all.map_or(h / 2, |a| a.1)
+            } else {
+                200
+            };
+            scroll_over_box(&mut app, w, y);
+            assert_eq!(
+                app.where_offered(Action::Nav(Screen::SpendBackup)),
+                before,
+                "{w}x{h}, over the {}",
+                if over_box { "box" } else { "page" }
+            );
+        }
+    }
+}
+
 fn scroll_over_box(app: &mut Faraday, width: u16, y: u16) {
     app.event(Event::Scroll {
         x: width / 2,
