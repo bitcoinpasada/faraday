@@ -45,6 +45,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         fixed_columns: None,
         above: None,
         bar_still: false,
+        ways: false,
     };
     menu_page::draw(app, ui, (x0, cw, h), &page, &sections);
 }

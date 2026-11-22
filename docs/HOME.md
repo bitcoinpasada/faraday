@@ -130,8 +130,7 @@ the number is zero.
 
 One box, the container of §4's box of what is loaded (a tinted,
 outlined, rounded surface), of Material list items (Lists) one under
-another, as wide as the search bar above it and centred under it (the whole
-page where that is narrower), at the top of the flow, not drawn while it
+another, as wide as the top row above it (F314), so every edge lines up, at the top of the flow, not drawn while it
 has no row. Each row has a
 leading icon and a trailing chevron and opens what it names. One heading
 stands over the box (Title S, as a list's title elsewhere; `home_box_heading`,
@@ -210,22 +209,22 @@ layout has no box: §3's box of list rows is it.
 ## 5. The first actions and the search bar
 
 The three first actions stand on the wide layout and the rail's windows
-always, whether or not anything is loaded, under the search bar and after
-the lead when a job waits; on the phone-size window only while nothing is
-loaded, under the search bar: **Make a new wallet**, **Restore an existing
-wallet** and **Spend from a backup**. They are three like buttons with
-their heading only, no small line, no label over them, no pill: the whole
-button is the press. On the wide layout they always stand as one row of
-three equal columns, a heading too long for its column wrapping onto a
-second line, the three buttons one height. On the rail's windows they
-stand as a row where three columns leave every heading room within two
-lines, else one under the other at full width. The phone-size window
-always stacks them. The Pi's menu has none.
+always, whether or not anything is loaded, in Home's top row with the search
+bar (F314), as Material tonal buttons with an icon and a short label: **New
+wallet**, **Restore** and **Spend from backup**, each as tall as the bar
+(48 dp), after the bar, which takes what they leave. The row is the page's
+width, centred in the area beside the navigation, and stands level with
+Home's highlight in the sidebar; the box under it has the row's edges. Where
+the bar would keep under `HOME_SEARCH_MIN`, the buttons stand on a second row
+under it, in three equal columns (the rail's windows). The row never
+scrolls. On the phone-size window the three stand only while nothing is
+loaded, under the search bar, as three like buttons with their full heading
+and no small line, always stacked: **Make a new wallet**, **Restore an
+existing wallet** and **Spend from a backup**. The Pi's menu has none.
 
 The search bar shows the search icon and the word "Search", on every
-layout but the Pi's menu. It is at the top of the page, on the wide layout
-centred and at most `LEAD_MAX` wide, on the rail's windows at full width,
-and stays where it is while the page under it scrolls. On the phone-size
+layout but the Pi's menu. It is the first thing in the top row, 48 dp tall, on the wide layout
+and on the rail's windows, and stays where it is while the page under it scrolls. On the phone-size
 window it is directly under the box of what is loaded and, where the
 window leaves room for about three rows of results (`home_pinned`), stays
 too; else the whole page scrolls as one. On every layout with the bar,
@@ -319,23 +318,22 @@ beside Power off.
 +-------------+----------------------------------------------------------+
 | FARADAY     | Home                                      (Testnet)  ?   |
 | OFFLINE     |                                                          |
-| Home        |        ( search  Search                           )      |
+| Home        | ( search  Search         ) (New wallet)(Restore)(Spend.) |
 | Check       |                                                          |
-| Wallets     | +-----------------+ +-----------------+ +--------------+ |
-| Files       | | [w] Make a new  | | [r] Restore an  | | [s] Spend    | |
-| Vaults      | |     wallet      | |     existing    | |     from a   | |
-| Tools       | |                 | |     wallet      | |     backup   | |
-|             | +-----------------+ +-----------------+ +--------------+ |
+| Wallets     |                                                          |
+| Files       |                                                          |
+| Vaults      |                                                          |
+| Tools       |                                                          |
+|             |                                                          |
 | Settings    |                                                          |
 |             |                                                [ Scan ]  |
 | [Power off] |                                                          |
 +-------------+----------------------------------------------------------+
 ```
 
-A job waiting (an import, say) stands as its card between the bar and the
-row; the plain Import card has no pill and is pressed whole. Typing in the
-search bar leaves the bar where it is and takes the page: the card, the
-row and everything under them are not drawn, the results show and scroll
+A job waiting (an import, say) stands as its card under the top row; the plain Import card has no pill and is pressed whole. Typing in the
+search bar leaves the bar where it is and takes the page: the card
+and everything under it are not drawn, the results show and scroll
 under the bar.
 
 ### 7.3 The wide layout, 1280 by 800, keys and wallets loaded
@@ -344,14 +342,11 @@ under the bar.
 +-------------+----------------------------------------------------------+
 | FARADAY     | Home                                      (Testnet)  ?   |
 | OFFLINE     |                                                          |
-| Home        |        ( search  Search                           )      |
+| Home        | ( search  Search         ) (New wallet)(Restore)(Spend.) |
 | Check       | +------------------------------------------------------+ |
 | Wallets   1 | | [s] inheritance.psbt                     [ Sign ]    | |
 | Files    77 | |     From Files                                       | |
 | Vaults    1 | +------------------------------------------------------+ |
-| Tools       | +-----------+ +-----------+ +-----------------------+    |
-|             | | Make a    | | Restore an| | Spend from a backup   |    |
-| Settings    | +-----------+ +-----------+ +-----------------------+    |
 |             | +------------------------------------------------+     |
 |             | | [w] Spending                                 > |     |
 |             | |     Signatures 1 of 2                          |     |
@@ -368,7 +363,7 @@ under the bar.
 ```
 
 Many rows scroll within the box, not the page. On the rail's windows the same box of list rows stands under the
-first actions at full width, in place of the box of what is loaded, and
+top row at full width, in place of the box of what is loaded, and
 scrolls within itself by the same rules; no place tiles follow it.
 
 ### 7.4 The phone-size window, nothing loaded

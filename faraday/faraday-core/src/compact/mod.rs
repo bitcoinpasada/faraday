@@ -762,9 +762,9 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let inner = w - 2.0 * M;
     let beside = app.nav().beside();
     let rail = app.nav() == crate::nav::Nav::Rail;
-    // The first actions stand on the rail's windows always, not while
+    // The rail's windows have them in Home's top row; the phone-size window has them while
     // nothing is loaded (`docs/HOME.md` §5).
-    let first = rail || (bars && crate::screens::nothing_loaded(app));
+    let first = !rail && bars && crate::screens::nothing_loaded(app);
     // The rail's windows have the loaded wallets and keys as tiles of their
     // own (`crate::screens::loaded_sections`), not the box.
     let shown = !rail && !crate::nav::screen::loaded_empty(app);
@@ -855,6 +855,7 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
         fixed_columns: menu.then_some(2),
         above: Some(above),
         bar_still: rail,
+        ways: rail,
     };
     menu_page::draw(app, ui, (0.0, w, view_h), &page, &sections);
 

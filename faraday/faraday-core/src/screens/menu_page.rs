@@ -86,6 +86,9 @@ pub(crate) struct Page<'a> {
     /// windows' Home. Elsewhere on a one-column layout it scrolls with the
     /// page where the window leaves no room under it for about three rows.
     pub bar_still: bool,
+    /// Home's top row: the three tonal buttons beside the search bar, the
+    /// row at the top of the page (`docs/HOME.md` §5).
+    pub ways: bool,
 }
 
 /// What a page puts above its search bar: how tall it is, known before it
@@ -196,7 +199,11 @@ pub(crate) fn draw(
         Bar::Home => !app.tools.home_find().is_empty(),
         Bar::Tools => !app.tools.find().is_empty(),
     });
+    let ways = page.ways && page.search == Some(Bar::Home);
     let search = |ui: &mut Ui, y: f32, page_top: Option<f32>| {
+        if ways {
+            return super::home::top_row(app, ui, (x, y, width));
+        }
         let sw = if compact { width } else { width.min(LEAD_MAX) };
         let bar = page.search.unwrap_or(Bar::Tools);
         super::catalog::home_search_bar(app, ui, (x + (width - sw) / 2.0, y, sw), page_top, bar)
@@ -210,7 +217,8 @@ pub(crate) fn draw(
     let pinned = page.search.is_some()
         && (page.bar_still || !compact || super::home_pinned(PANE_TOP_BAR + above_h, h, TILE_H));
     let mut top = 0.0;
-    let mut y = PANE_TOP_BAR;
+    // Home's row stands level with its place in the navigation.
+    let mut y = if ways { 0.0 } else { PANE_TOP_BAR };
     if pinned {
         y += above(ui, y);
         top = y + search(ui, y, None);

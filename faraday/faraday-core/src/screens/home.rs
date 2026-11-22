@@ -8,7 +8,7 @@ use crate::ui::pal::*;
 use crate::ui::{Glyph, Ui};
 use crate::ui::{Region, Shape, Slot, Style};
 use crate::{Action, Screen};
-use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, BUTTON_H, SHAPE_M, TITLE_M, TITLE_S};
+use faraday_draw::tokens::{BODY_L, BODY_M, BUTTON_H, SHAPE_M, TITLE_M, TITLE_S};
 use faraday_draw::tokens::{HOME_BOX_KEYS, HOME_BOX_MIN_ROWS, MARGIN_WIDE};
 
 use faraday_draw::tokens::{
@@ -16,7 +16,7 @@ use faraday_draw::tokens::{
 };
 use faraday_draw::tokens::{
     HOME_LEAD_H, HOME_LEAD_ICON, HOME_LEAD_INSET, HOME_LEAD_SUB_Y, HOME_LEAD_TEXT_X,
-    HOME_TILE_ICON, HOME_TILE_INSET, HOME_TILE_TEXT_X, LEAD_MAX, MENU_GAP, TILE_H,
+    HOME_SEARCH_MIN, MENU_GAP,
 };
 use faraday_draw::widgets::Icon;
 use faraday_ui::parts::section_label;
@@ -686,9 +686,8 @@ pub(crate) fn loaded_sections(app: &View, window: Option<f32>) -> Vec<Section<'s
     }
     let offset = app.scroll.home_box_offset();
     vec![Section::block(None, move |ui, (x, y), w| {
-        // As wide as the search bar above it, centred under it.
-        let bw = if ui.compact { w } else { w.min(LEAD_MAX) };
-        let bx = x + (w - bw) / 2.0;
+        // The row's width above it, so every edge lines up.
+        let (bw, bx) = (w, x);
         section_label(ui, bx, y, EN.home_box_heading);
         let head = ui.line_as(TITLE_S) + GRID;
         let by = y + head;
@@ -715,58 +714,6 @@ pub(crate) fn loaded_sections(app: &View, window: Option<f32>) -> Vec<Section<'s
         ui.region_close(open, (all_h - avail).max(0.0));
         head + avail
     })]
-}
-
-/// One tile at (`tx`, `ty`), `tilew` wide and `TILE_H` tall: its icon, its
-/// name and, when it has one, the line under the name; the whole tile is
-/// the press. A tile with no line has its name centred.
-fn tile(
-    ui: &mut Ui,
-    (tx, ty, tilew): (f32, f32, f32),
-    tile_h: f32,
-    (icon, label, sub): (Glyph, &str, &str),
-    action: Action,
-) {
-    ui.fill(tx, ty, tilew, tile_h, SHAPE_M, Role::SurfaceContainerLow);
-    ui.stroke(tx, ty, tilew, tile_h, SHAPE_M, Role::OutlineVariant);
-    ui.press(
-        Shape::new(tx, ty, tilew, tile_h, SHAPE_M),
-        Role::OnSurface.paint(),
-        action,
-    );
-    let (ix, ib) = (HOME_TILE_INSET, HOME_TILE_ICON);
-    let iy = (tile_h - ib) / 2.0;
-    ui.fill(tx + ix, ty + iy, ib, ib, SHAPE_M, Role::SecondaryContainer);
-    ui.icon(tx + ix, ty + iy, ib, icon, 17.0, Role::OnSecondaryContainer);
-    let room = tilew - HOME_TILE_TEXT_X - ix - ix;
-    if sub.is_empty() {
-        // A heading too long for one line wraps; the block stays centred.
-        let lines = ui.wrap_lines_as(TITLE_M, label, room);
-        let block = lines as f32 * ui.line_as(TITLE_M);
-        ui.wrap_as(
-            (tx + HOME_TILE_TEXT_X, ty + (tile_h - block) / 2.0, room),
-            TITLE_M,
-            Role::OnSurface,
-            label,
-        );
-        return;
-    }
-    let label = ui.fit_as(TITLE_M, label, room);
-    ui.text_as(
-        tx + HOME_TILE_TEXT_X,
-        ty + 20.0,
-        TITLE_M,
-        Role::OnSurface,
-        &label,
-    );
-    let sub = ui.fit_as(BODY_S, sub, room);
-    ui.text_as(
-        tx + HOME_TILE_TEXT_X,
-        ty + 46.0,
-        BODY_S,
-        Role::OnSurfaceVariant,
-        &sub,
-    );
 }
 
 /// The three first-run actions while nothing is loaded, in their order:
@@ -838,25 +785,56 @@ pub(crate) fn action_h(
     base.max(lines as f32 * ui.line_as(role) + 2.0 * pad)
 }
 
-/// The height the first-run actions take on the wide layout.
-fn actions_h(ui: &Ui, width: f32, gap: f32) -> f32 {
-    let col = actions_col(width, gap);
-    let lines = actions_lines(ui, TITLE_M, col, (HOME_TILE_TEXT_X, HOME_TILE_INSET));
-    action_h(ui, TITLE_M, lines, (TILE_H, HOME_TILE_INSET))
-}
-
-/// The first-run actions with their top left at `(x, y)`, `width` wide:
-/// always one row of three equal columns, a heading too long for its
-/// column wrapping onto a second line, the three buttons one height.
-/// Returns the height they take.
-fn actions(ui: &mut Ui, (x, y): (f32, f32), width: f32, gap: f32) -> f32 {
-    let col = actions_col(width, gap);
-    let h = actions_h(ui, width, gap);
-    for (i, (icon, label, action)) in first_actions().into_iter().enumerate() {
-        let tx = x + i as f32 * (col + gap);
-        tile(ui, (tx, y, col), h, (icon, label, ""), action);
+/// Home's top row from `(x, y)`, `w` wide: the search bar, taking what
+/// the three tonal buttons (icon and short label, as tall as the bar)
+/// leave, and the buttons after it, each as wide as its icon and label
+/// need. Where the bar would be left under `HOME_SEARCH_MIN` the buttons
+/// stand on a second row under it, three equal columns across `w`.
+/// Returns the height it takes, the gap under it counted (`docs/HOME.md`
+/// §5).
+pub(super) fn top_row(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+    use super::catalog::Bar;
+    use faraday_draw::tokens::{GAP, SEARCH_BAR_H};
+    let ways = [
+        (Icon::Flag, EN.home_ways_new_short, Action::CreateWallet),
+        (
+            Icon::Wallet,
+            EN.home_ways_restore_short,
+            Action::RestoreWallet,
+        ),
+        (
+            Icon::Sign,
+            EN.home_ways_spend_short,
+            Action::Nav(Screen::SpendBackup),
+        ),
+    ];
+    let widths = ways.map(|(_, label, _)| ui.button_icon_width(label, Style::Tonal));
+    let beside = widths.iter().map(|bw| MENU_GAP + bw).sum::<f32>();
+    let one_row = w - beside >= HOME_SEARCH_MIN;
+    let sw = if one_row { w - beside } else { w };
+    super::catalog::home_search_bar(app, ui, (x, y, sw), None, Bar::Home);
+    let (mut bx, by, step) = if one_row {
+        (x + sw + MENU_GAP, y, None)
+    } else {
+        let col = (w - 2.0 * MENU_GAP) / 3.0;
+        (x, y + SEARCH_BAR_H + MENU_GAP, Some(col))
+    };
+    for ((icon, label, action), own) in ways.into_iter().zip(widths) {
+        let bw = step.unwrap_or(own);
+        ui.button_icon(
+            (bx, by, Some(bw), SEARCH_BAR_H),
+            icon,
+            label,
+            Style::Tonal,
+            action,
+        );
+        bx += bw + MENU_GAP;
     }
-    h
+    (if one_row {
+        SEARCH_BAR_H
+    } else {
+        2.0 * SEARCH_BAR_H + MENU_GAP
+    }) + GAP
 }
 
 /// The lead's card at `(x, y)`, `width` wide:
@@ -975,9 +953,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             lead_card(ui, card, at, w)
         }));
     }
-    sections.push(Section::block(None, |ui, at, w| {
-        actions(ui, at, w, MENU_GAP)
-    }));
     sections.extend(loaded_sections(app, Some(h)));
     let page = Page {
         name: EN.home_home,
@@ -987,6 +962,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         fixed_columns: None,
         above: None,
         bar_still: false,
+        ways: true,
     };
     menu_page::draw(app, ui, (x0, cw, h), &page, &sections);
 }

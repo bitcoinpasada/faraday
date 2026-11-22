@@ -79,6 +79,12 @@ macro_rules! words_screens_home {
     home_ways_restore_wallet: "Restore an existing wallet",
     /// Text in `home_ways`.
     home_ways_spend_backup: "Spend from a backup, step by step",
+    /// Home's top row button, with an icon: `home_ways_make_a_new`.
+    home_ways_new_short: "New wallet",
+    /// Home's top row button: `home_ways_restore_wallet`.
+    home_ways_restore_short: "Restore",
+    /// Home's top row button: `home_ways_spend_backup`.
+    home_ways_spend_short: "Spend from backup",
     /// Text in `home_ways`.
     home_ways_a_stick_attached: "A stick attached",
     /// Text in `home_ways`.

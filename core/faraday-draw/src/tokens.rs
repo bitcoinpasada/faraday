@@ -798,9 +798,13 @@ pub const FILTER_CHIP_ICON: f32 = 18.0;
 /// Filter chips: the gap between two, side by side and row to row.
 pub const FILTER_CHIP_GAP: f32 = 8.0;
 
-/// A search bar's height (Material 3, Search: 56 dp), its shape the full
+/// A search bar's height (below Material 3's 56 dp, the owner's choice, F314), its shape the full
 /// round of half of it.
-pub const SEARCH_BAR_H: f32 = 56.0;
+pub const SEARCH_BAR_H: f32 = 48.0;
+
+/// The least width Home's search bar keeps in its row with the three buttons;
+/// under it the buttons stand on a second row.
+pub const HOME_SEARCH_MIN: f32 = 200.0;
 
 /// A search bar's leading and trailing icons' box (Material: 24 dp).
 pub const SEARCH_ICON: f32 = 24.0;

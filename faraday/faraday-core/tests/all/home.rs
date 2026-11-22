@@ -627,15 +627,16 @@ fn home_lead_rule_7_with_nothing_loaded_offers_to_make_a_wallet() {
     assert!(app.offers(Action::CreateWallet));
 }
 
-/// Home's two tiles for making and restoring a wallet
-/// read "Make a new wallet" and "Restore an existing wallet", and so
-/// does the empty Wallets tab.
+/// Home's buttons for making and restoring a wallet read "New wallet" and
+/// "Restore", and the empty Wallets tab "Make a new wallet" and "Restore an
+/// existing wallet".
 #[test]
 fn home_and_empty_wallets_name_the_two_flows() {
     let mut app = shown();
     let joined = app.drawn_texts().join(" ");
-    assert!(joined.contains("Make a new wallet"), "{joined}");
-    assert!(joined.contains("Restore an existing wallet"), "{joined}");
+    assert!(joined.contains("New wallet"), "{joined}");
+    assert!(joined.contains("Restore"), "{joined}");
+    assert!(joined.contains("Spend from backup"), "{joined}");
     assert!(
         !joined.contains("Create a wallet"),
         "the old name is gone: {joined}"
@@ -1277,7 +1278,9 @@ fn a_search_typed_on_the_wide_home_takes_the_page_and_clearing_it_brings_the_res
             assert!(app.offers(a), "{width}: {a:?}");
         }
         type_on_home(&mut app, "send");
-        for &a in &rest {
+        // The top row stays while the results take the page.
+        assert!(app.offers(Action::CreateWallet), "{width}: the row stays");
+        for &a in rest.iter().filter(|&&a| a != Action::CreateWallet) {
             assert!(!app.offers(a), "{width}: {a:?} is gone while typed");
         }
         assert!(app.where_offered(Action::Catalog(sign_tile())).is_some());
@@ -1508,8 +1511,8 @@ fn the_pi_s_menu_puts_wallets_left_of_check_and_a_phone_keeps_check_first() {
     assert!(c.1 < w.1, "Check is in the page, Wallets on the bar below");
 }
 
-/// The bar stands first and stays where it is while a search is typed and
-/// its results scroll; the first actions are not drawn then.
+/// The bar stands first, level with the three buttons, and stays where it is
+/// while a search is typed and its results scroll; the buttons stay with it.
 #[test]
 fn the_wide_homes_bar_stays_where_it_was_while_a_search_is_typed() {
     let bar = Action::TypeHere(faraday_core::edit::Here::HomeFind);
@@ -1517,10 +1520,12 @@ fn the_wide_homes_bar_stays_where_it_was_while_a_search_is_typed() {
     let before = app.hit_box(bar);
     assert!(before.is_some());
     let first = app.hit_box(FIRST[0]).unwrap();
-    assert!(before.unwrap().1 < first.1, "the bar is above the actions");
+    assert!(before.unwrap().0 < first.0, "the bar is before the buttons");
+    assert_eq!(before.unwrap().1, first.1, "level");
+    assert_eq!(before.unwrap().3, first.3, "as tall");
     type_on_home(&mut app, "send");
     assert_eq!(before, app.hit_box(bar));
-    assert!(!app.offers(Action::CreateWallet));
+    assert!(app.offers(Action::CreateWallet));
     // Scrolling the results moves the bar no more.
     app.event(Event::Scroll {
         x: 300,
@@ -1784,10 +1789,42 @@ fn on_a_1280_wide_window_the_three_first_actions_stand_side_by_side_and_none_is_
         .collect();
     assert!(boxes.iter().all(|b| b.1 == boxes[0].1 && b.3 == boxes[0].3));
     assert!(boxes[0].0 < boxes[1].0 && boxes[1].0 < boxes[2].0);
-    // Equal columns, to a pixel of rounding.
-    assert!(boxes.iter().all(|b| b.2.abs_diff(boxes[0].2) <= 1));
     let texts = app.drawn_texts();
     assert!(!texts.iter().any(|t| t.ends_with('…')), "{texts:?}");
+}
+
+/// At 1366 by 768 the search bar, the three buttons and the box under them
+/// stand as one row: the bar starts and the last button ends where the box
+/// does, the four are as tall as the sidebar's highlight and level with it,
+/// and each button opens its flow.
+#[test]
+fn at_1366_by_768_the_top_row_and_the_box_share_their_edges_and_the_buttons_open_their_flows() {
+    let app = loaded(2, 0, 1366, 768);
+    let bar = app
+        .hit_box(Action::TypeHere(faraday_core::edit::Here::HomeFind))
+        .expect("the bar");
+    let buttons: Vec<_> = FIRST
+        .iter()
+        .map(|a| app.hit_box(*a).expect("button"))
+        .collect();
+    // The box's rows are pressed four short of its edges each side.
+    let row = app.hit_box(Action::Explore).expect("a row of the box");
+    assert_eq!(bar.0, row.0 - 4);
+    assert_eq!(buttons[2].0 + buttons[2].2, row.0 + row.2 + 4);
+    for b in std::iter::once(&bar).chain(&buttons) {
+        assert_eq!((b.1, b.3), (bar.1, 48));
+    }
+    let home = app.hit_box(Action::Nav(Screen::Home)).expect("Home");
+    assert_eq!((home.1, home.3), (bar.1, bar.3));
+    for (action, screen) in [
+        (FIRST[0], Screen::Create),
+        (FIRST[1], Screen::Restore),
+        (FIRST[2], Screen::SpendBackup),
+    ] {
+        let mut app = loaded(2, 0, 1366, 768);
+        tap(&mut app, action);
+        assert_eq!(app.screen, screen, "{action:?}");
+    }
 }
 
 // ---- what is loaded is on Home, not in the sidebar ----
@@ -1861,20 +1898,15 @@ fn a_few_loaded_keys_and_wallets_list_only_what_needs_something() {
     assert_eq!(app.screen, Screen::Explore);
 }
 
-/// With many keys, a shorter window drops key rows first: the lowest wide
-/// window shows fewer key rows than a tall one, All keys counts every key
-/// and opens Explore.
+/// With many keys on the lowest wide window, three key rows show, All keys
+/// counts every key and opens Explore.
 #[test]
-fn with_many_keys_a_short_window_shows_fewer_key_rows_and_all_keys_counts_them() {
-    let shown = |h: u16| {
-        let app = loaded(30, 12, 1366, h);
-        (1..30)
-            .filter(|&k| app.offers(Action::KeyWallet(key_fp(&app, k), 1)))
-            .count()
-    };
-    assert_eq!(shown(1400), 3);
-    assert!(shown(600) < 3, "{}", shown(600));
+fn with_many_keys_the_lowest_wide_window_shows_three_key_rows_and_all_keys_counts_them() {
     let mut app = loaded(30, 12, 1366, 600);
+    let shown = (1..30)
+        .filter(|&k| app.offers(Action::KeyWallet(key_fp(&app, k), 1)))
+        .count();
+    assert_eq!(shown, 3);
     let texts = app.drawn_texts();
     assert!(texts.iter().any(|t| t == "30"), "{texts:?}");
     tap(&mut app, Action::Explore);

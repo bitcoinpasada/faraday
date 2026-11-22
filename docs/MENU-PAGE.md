@@ -57,6 +57,8 @@ inset, its centring, the bar's place, a column count or a gap.
   room beside the navigation and is centred in that room where the room
   is wider. All five pages start and end at the same edges, so a person
   moving between them sees the grid stay where it was.
+- Home's top row (search bar and three buttons) and the box under it have
+  the page's width, centred as one (F314).
 - **On the one-column layouts** (the rail's windows, the phone-size
   window and the Pi's panel: every layout where `Ui::compact` is set)
   the page takes the area less `compact::M` at each side.
@@ -70,8 +72,11 @@ for four of them and `Area::Work` for Settings.
 
 Where a page has it (Home, Tools): Material's search bar
 (`home_search_bar`, `SEARCH_BAR_H`), the first thing under the top app
-bar, centred in the page and at most `LEAD_MAX` wide on the wide
-layout, the page's full width on the one-column layouts; on the
+bar, 48 dp tall; Tools' is centred in the page and at most `LEAD_MAX`
+wide on the wide layout, the page's full width on the one-column layouts;
+Home's is the first part of its top row, with the three first actions as
+tonal buttons, at the page's width and level with Home's highlight in the
+sidebar (`docs/HOME.md` §5, F314); on the
 phone-size window it stands under what Home puts above it (§1). It stays
 still while the page scrolls under it, as Home's does today
 (`home_pinned`), and the whole page scrolls as one where the window
@@ -181,8 +186,8 @@ two.
   tiles section per group.
 - **Home** (`screens/home.rs`, `compact/mod.rs`): its name (the wordmark
   in the sidebar's head on the wide layout), the search bar and its
-  results, the lead tile and the first actions as blocks across the
-  page, the loaded wallets beside Backups and the Keys as tiles
+  results, the top row's three first actions as tonal buttons beside
+  the bar (F314), the lead tile as a block across the page, the loaded wallets beside Backups and the Keys as tiles
   sections, and on the one-column layouts the box of what is loaded
   above the bar; on the Pi's panel, its places two to a row (§7).
 - **Wallets start** (`screens/wallets_start.rs`): its name, the five
