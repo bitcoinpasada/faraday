@@ -3,14 +3,19 @@
 //! place or a tool from. A page declares its name and its sections; this
 //! draws the rest.
 
-use super::catalog::{Bar, Face};
+use super::catalog::{Bar, Face, Mark};
 use crate::drawing::View;
 use crate::drawing::{CardSplit, SplitKey};
+use crate::ui::pal::*;
+use crate::ui::{Glyph, Shape};
 use crate::ui::{Region, Ui};
 use faraday_draw::tokens::{
-    CATALOG_TILE_H as TILE_H, CATALOG_TILE_MIN, GRID, LEAD_MAX, MARGIN_WIDE, MENU_GAP, MENU_PAGE_W,
-    PAGE_INSET, PANE_TOP_BAR, TITLE_S,
+    BODY_L, BODY_M, CATALOG_TILE_H as TILE_H, CATALOG_TILE_MIN, GRID, HOME_TILE_GLYPH, LABEL_S,
+    LEAD_MAX, LIST_1, LIST_2, LIST_PAD, LIST_PAD_V, MARGIN_WIDE, MENU_CARD_COLUMNS, MENU_GAP,
+    MENU_PAGE_W, MENU_ROW_CHEVRON, MENU_ROW_DIVIDERS, MENU_ROW_ICON, MENU_TAG_GAP, MENU_TAG_H,
+    MENU_TAG_PAD, PAGE_INSET, PANE_TOP_BAR, SHAPE_M, TITLE_S,
 };
+use faraday_draw::widgets::Icon;
 use faraday_ui::parts::section_label;
 
 /// What a block draws: from `at`, `w` wide, returning its height.
@@ -131,26 +136,7 @@ pub(crate) fn grid(width: f32, most: usize) -> Grid {
     }
 }
 
-/// The grid for a page `width` wide held to exactly `per` columns.
-fn grid_columns(width: f32, per: usize) -> Grid {
-    let per = per.max(1);
-    Grid {
-        per,
-        tile_w: (width - (per as f32 - 1.0) * MENU_GAP) / per as f32,
-        tile_h: 0.0,
-    }
-}
-
 impl Grid {
-    /// The grid with every tile as tall as the tallest of `faces`.
-    fn matching<'a>(mut self, ui: &Ui, faces: impl IntoIterator<Item = &'a Face<'a>>) -> Self {
-        self.tile_h = faces
-            .into_iter()
-            .map(|f| f.height(ui, self.tile_w))
-            .fold(0.0, f32::max);
-        self
-    }
-
     /// Draws `faces` in rows from `at`, every tile in a row as tall as the
     /// tallest in it and never under `CATALOG_TILE_H` or `tile_h`, and
     /// returns their height.
@@ -242,8 +228,9 @@ pub(crate) fn draw(
     ui.region_close(open, content - (h - top));
 }
 
-/// The sections from `at`, `width` wide, one after the other. Returns
-/// their height.
+/// The sections from `at`, `width` wide, one after the other. A run of
+/// sections of tiles is a set of section cards (`docs/MENU-PAGE.md` §4).
+/// Returns their height.
 fn sections_height(
     app: &View,
     ui: &mut Ui,
@@ -252,40 +239,257 @@ fn sections_height(
     page: &Page,
     sections: &[Section],
 ) -> f32 {
-    let faces = sections.iter().flat_map(|s| match &s.body {
-        Body::Tiles(f) => f.as_slice(),
-        Body::Block(_) | Body::Cards(_) => &[],
-    });
-    let g = page
-        .fixed_columns
-        .map_or_else(
-            || grid(width, page.most_columns),
-            |n| grid_columns(width, n),
-        )
-        .matching(ui, faces);
     let mut used = 0.0;
-    for (i, s) in sections.iter().enumerate() {
+    let mut i = 0;
+    while i < sections.len() {
+        let s = &sections[i];
         if i > 0 {
-            used += if s.label.is_some() {
-                2.0 * GRID
-            } else {
-                MENU_GAP
-            };
+            used += MENU_GAP;
+        }
+        if let Body::Tiles(_) = s.body {
+            let run = sections[i..]
+                .iter()
+                .take_while(|s| matches!(s.body, Body::Tiles(_)))
+                .count();
+            used += section_cards(ui, (x, y + used, width), page, &sections[i..i + run]);
+            i += run;
+            continue;
         }
         if let Some(label) = s.label {
             section_label(ui, x, y + used, label);
             used += ui.line_as(TITLE_S) + GRID;
         }
         used += match &s.body {
-            Body::Tiles(faces) => g.draw_rows(ui, (x, y + used), faces),
+            Body::Tiles(_) => 0.0,
             Body::Block(draw) => draw(ui, (x, y + used), width),
             Body::Cards(cards) => {
                 let columns = grid(width, page.most_columns).per.min(2);
                 draw_cards(app, ui, (x, y + used, width), cards, columns)
             }
         };
+        i += 1;
     }
     used
+}
+
+/// The faces of a section of tiles.
+fn faces<'a, 'b>(s: &'b Section<'a>) -> &'b [Face<'a>] {
+    match &s.body {
+        Body::Tiles(f) => f,
+        Body::Block(_) | Body::Cards(_) => &[],
+    }
+}
+
+/// The room a row's text has in a card `w` wide.
+fn row_room(face: &Face, w: f32) -> f32 {
+    let lead = match face.mark {
+        Mark::None => 0.0,
+        Mark::Beside(_) | Mark::Above(_) => MENU_ROW_ICON + LIST_PAD,
+    };
+    w - 2.0 * LIST_PAD - lead - MENU_ROW_CHEVRON - LIST_PAD
+}
+
+/// A row's height in a card `w` wide: Material's two-line list item, taller
+/// where its name or line wraps.
+fn row_height(ui: &Ui, face: &Face, w: f32) -> f32 {
+    let room = row_room(face, w);
+    let name = ui.wrap_height_as(BODY_L, face.name, room);
+    if face.line.is_empty() {
+        return (name + 2.0 * LIST_PAD_V).max(LIST_1);
+    }
+    let line = ui.wrap_height_as(BODY_M, face.line, room);
+    (name + line + 2.0 * LIST_PAD_V).max(LIST_2)
+}
+
+/// A card's top: the heading's line and the space under it, or the corner
+/// radius where it has no heading.
+fn card_head(ui: &Ui, label: Option<&str>) -> f32 {
+    label.map_or(SHAPE_M, |_| LIST_PAD + ui.line_as(TITLE_S) + GRID)
+}
+
+/// The height of the card of `s` `w` wide.
+fn card_height(ui: &Ui, s: &Section, w: f32) -> f32 {
+    card_head(ui, s.label) + faces(s).iter().map(|f| row_height(ui, f, w)).sum::<f32>() + SHAPE_M
+}
+
+/// The card of `s` at `(x, y)`, `w` wide, `h` tall: the heading, then a
+/// list of rows with an icon where the face has one, the name, the line
+/// under it and a chevron, a state layer across each row.
+fn draw_card(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32), s: &Section) {
+    if !ui.shows(y, h) {
+        return;
+    }
+    ui.fill(x, y, w, h, SHAPE_M, Role::SurfaceContainer);
+    if let Some(label) = s.label {
+        section_label(ui, x + LIST_PAD, y + LIST_PAD, label);
+    }
+    let mut ry = y + card_head(ui, s.label);
+    for (n, face) in faces(s).iter().enumerate() {
+        let rh = row_height(ui, face, w);
+        if n > 0 && MENU_ROW_DIVIDERS {
+            ui.fill(
+                x + LIST_PAD,
+                ry,
+                w - 2.0 * LIST_PAD,
+                1.0,
+                0.0,
+                Role::OutlineVariant,
+            );
+        }
+        draw_row(ui, (x, ry, w, rh), face);
+        ry += rh;
+    }
+}
+
+/// One row at `(x, y)`, `w` wide, `h` tall.
+fn draw_row(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32), face: &Face) {
+    if face.opens {
+        ui.press(
+            Shape::new(x, y, w, h, 0.0),
+            Role::OnSurface.paint(),
+            face.action,
+        );
+    }
+    let ink = if face.opens {
+        Role::OnSurface.paint()
+    } else {
+        crate::ui::off()
+    };
+    let mut tx = x + LIST_PAD;
+    if let Mark::Beside(glyph) | Mark::Above(glyph) = face.mark {
+        let (bg, fg) = if face.opens {
+            (
+                Role::SecondaryContainer.paint(),
+                Role::OnSecondaryContainer.paint(),
+            )
+        } else {
+            (
+                Role::OnSurface.at(faraday_draw::tokens::DISABLED_CONTAINER),
+                crate::ui::off(),
+            )
+        };
+        let iy = y + (h - MENU_ROW_ICON) / 2.0;
+        ui.fill(tx, iy, MENU_ROW_ICON, MENU_ROW_ICON, SHAPE_M, bg);
+        ui.icon(tx, iy, MENU_ROW_ICON, glyph, HOME_TILE_GLYPH, fg);
+        tx += MENU_ROW_ICON + LIST_PAD;
+    }
+    let room = row_room(face, w);
+    let name = ui.wrap_height_as(BODY_L, face.name, room);
+    let line = if face.line.is_empty() {
+        0.0
+    } else {
+        ui.wrap_height_as(BODY_M, face.line, room)
+    };
+    let top = y + (h - name - line) / 2.0;
+    ui.wrap_as((tx, top, room), BODY_L, ink, face.name);
+    let muted = if face.warn {
+        Role::Warning
+    } else {
+        Role::OnSurfaceVariant
+    };
+    ui.wrap_as((tx, top + name, room), BODY_M, muted, face.line);
+    let cx = x + w - LIST_PAD - MENU_ROW_CHEVRON;
+    let tag_end = cx - GRID;
+    let mut gx = tag_end;
+    for tag in face.tags.iter().rev() {
+        let gw = ui.measure_as(LABEL_S.mono(), tag) + MENU_TAG_PAD;
+        let ty = y + (h - MENU_TAG_H) / 2.0;
+        gx -= gw;
+        if gx < tx {
+            break;
+        }
+        ui.fill(
+            gx,
+            ty,
+            gw,
+            MENU_TAG_H,
+            faraday_draw::tokens::shape_full(MENU_TAG_H),
+            Role::SurfaceContainerHighest,
+        );
+        ui.text_mid_as(
+            (gx + MENU_TAG_PAD / 2.0, ty, MENU_TAG_H),
+            LABEL_S.mono(),
+            Role::OnSurfaceVariant,
+            tag,
+        );
+        gx -= MENU_TAG_GAP;
+    }
+    ui.icon(
+        cx,
+        y + (h - MENU_ROW_CHEVRON) / 2.0,
+        MENU_ROW_CHEVRON,
+        Glyph::Icon(Icon::ChevronRight),
+        MENU_ROW_CHEVRON,
+        Role::OnSurfaceVariant,
+    );
+}
+
+/// The run of sections of tiles `run` from `at`, `width` wide, as flat
+/// section cards: two or three to a row where the width holds two
+/// `CATALOG_TILE_MIN`, one on a page under it and where the page holds one
+/// column; each as tall as its own list, divided into columns where their
+/// heights come out closest. Returns the height of the tallest column.
+fn section_cards(ui: &mut Ui, (x, y, width): (f32, f32, f32), page: &Page, run: &[Section]) -> f32 {
+    let fit = page
+        .fixed_columns
+        .unwrap_or_else(|| grid(width, page.most_columns).per);
+    let columns = if page.fixed_columns.is_some() {
+        1
+    } else {
+        fit.clamp(1, MENU_CARD_COLUMNS).min(run.len())
+    };
+    let col_w = (width - (columns as f32 - 1.0) * MENU_GAP) / columns as f32;
+    let heights: Vec<f32> = run.iter().map(|s| card_height(ui, s, col_w)).collect();
+    let starts = column_starts(&heights, columns);
+    let mut used = vec![0.0_f32; columns];
+    for (i, s) in run.iter().enumerate() {
+        let c = starts.iter().filter(|&&k| i >= k).count();
+        let gap = if used[c] > 0.0 { MENU_GAP } else { 0.0 };
+        let cx = x + c as f32 * (col_w + MENU_GAP);
+        draw_card(ui, (cx, y + used[c] + gap, col_w, heights[i]), s);
+        used[c] += gap + heights[i];
+    }
+    used.into_iter().fold(0.0, f32::max)
+}
+
+/// The indices the second and later columns start at, so that `columns`
+/// columns (one, two or three) of consecutive cards of `heights` with
+/// `MENU_GAP` between come out the shortest, then closest in height.
+fn column_starts(heights: &[f32], columns: usize) -> Vec<usize> {
+    let n = heights.len();
+    let col = |a: usize, b: usize| {
+        heights[a..b].iter().sum::<f32>() + MENU_GAP * (b - a).saturating_sub(1) as f32
+    };
+    let score = |cuts: &[usize]| {
+        let mut at = 0;
+        let (mut tall, mut squares) = (0.0_f32, 0.0_f32);
+        for &end in cuts.iter().chain(std::iter::once(&n)) {
+            let h = col(at, end);
+            tall = tall.max(h);
+            squares += h * h;
+            at = end;
+        }
+        (tall, squares)
+    };
+    let mut best: Option<((f32, f32), Vec<usize>)> = None;
+    let mut consider = |cuts: Vec<usize>| {
+        let s = score(&cuts);
+        if best.as_ref().is_none_or(|(b, _)| s < *b) {
+            best = Some((s, cuts));
+        }
+    };
+    match columns {
+        0 | 1 => {}
+        2 => (1..n).for_each(|i| consider(vec![i])),
+        _ => {
+            for i in 1..n {
+                for j in i + 1..n {
+                    consider(vec![i, j]);
+                }
+            }
+        }
+    }
+    best.map_or_else(Vec::new, |(_, cuts)| cuts)
 }
 
 /// `cards` from `at`, `w` wide, in `columns` columns (one or two) with

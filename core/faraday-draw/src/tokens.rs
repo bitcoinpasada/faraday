@@ -1189,6 +1189,21 @@ pub const CATALOG_TILE_H_PLAIN: f32 = 58.0;
 /// The one space between tiles and cards of a menu page, across and down
 /// (`docs/MENU-PAGE.md` §5).
 pub const MENU_GAP: f32 = 16.0;
+/// Whether thin inset dividers stand between the rows of a section card
+/// (`docs/MENU-PAGE.md` §4); false draws the rows with none.
+pub const MENU_ROW_DIVIDERS: bool = true;
+/// The most section cards a menu page sets side by side.
+pub const MENU_CARD_COLUMNS: usize = 3;
+/// A section card's icon container beside a row's text.
+pub const MENU_ROW_ICON: f32 = 40.0;
+/// The height of a small tag at a section card's row.
+pub const MENU_TAG_H: f32 = 18.0;
+/// The room a tag's text leaves at its two sides together.
+pub const MENU_TAG_PAD: f32 = 14.0;
+/// The gap between a row's tags.
+pub const MENU_TAG_GAP: f32 = 6.0;
+/// A section card's chevron, its box and its glyph.
+pub const MENU_ROW_CHEVRON: f32 = 24.0;
 /// The widest a menu page is: three tiles at `CATALOG_TILE_MIN` and the two
 /// gaps between them (`docs/MENU-PAGE.md` §2).
 pub const MENU_PAGE_W: f32 = 3.0 * CATALOG_TILE_MIN + 2.0 * MENU_GAP;

@@ -86,6 +86,16 @@ RULES = [
         skip=["faraday/faraday-core/src/screens/menu_page.rs",
               "faraday/faraday-core/src/screens/mod.rs"],
     ),
+    # A page drawing its own section card or row: the card, its list rows,
+    # dividers and columns belong to the container (`docs/MENU-PAGE.md` §4); a
+    # page gives it sections of faces.
+    Rule(
+        "menu-own-card",
+        [r"\bMENU_ROW_\w+\b", r"\bMENU_CARD_COLUMNS\b", r"\bMENU_TAG_\w+\b"],
+        ["faraday/"],
+        "the menu page container (faraday-core screens/menu_page.rs, `docs/MENU-PAGE.md`)",
+        skip=["faraday/faraday-core/src/screens/menu_page.rs"],
+    ),
     # A passphrase held or filtered outside the one field (docs/KEYS.md §2): a
     # struct field of type `SecretText` or `TextBox` named `pass*`,
     # `*passphrase*` or `again`, and the printable-ASCII key filter where it

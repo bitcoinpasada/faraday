@@ -33,7 +33,7 @@ A page hands the container, each frame, only what it alone knows:
 - **Its sections, in order.** Each section has an optional label and one
   of three bodies:
   - **tiles**: faces (`catalog::Face`: icon, name, line, what a press
-    does), laid out in the grid (§4);
+    does), drawn as one section card of list rows (§4);
   - **cards**: blocks the page draws in a given width, returning their
     height, laid out in the grid by column (§6; Settings);
   - **a block across the page**: something the page draws in the
@@ -86,18 +86,27 @@ The wide Home's and the rail's Home's page does not scroll with its rows: its
 box of what is going on scrolls within itself under the fixed part, and the
 rail's Home draws no place tiles (`docs/HOME.md` §3, F313).
 
-## 4. Columns
+## 4. Section cards and columns
 
-One minimum for every tile: `CATALOG_TILE_MIN` (360 dp). The grid takes
-as many columns as the page holds tiles at least that wide with
-`MENU_GAP` between them, and at least one; each tile takes the row's
-share; a row with fewer tiles than columns leaves the rest empty. There
-is no column floor: a tile is never drawn narrower than the minimum
-unless the page itself is narrower (the Pi's panel), and then one tile
-takes the row. Tools' "at least three beside the navigation"
-(`CATALOG_COLUMNS_MIN`) goes: in Material's feed the room sets the
-count, and the floor is what makes a tile narrower than its minimum
-today (about 305 dp at 1280 × 800).
+Each section of a page that lists places or tools (Common, Keys and
+seeds, The wallet, Signing, ...) is one flat card, Material's filled card
+(`SurfaceContainer`, no shadow), holding a Material list (F317). The
+section's label is the card's heading inside it, Title S. A row is an
+icon where the choice has one, its name, the line under it and a chevron
+(and a choice's small tags before the chevron); a press and its hover are
+the state layer across the whole row, not a pill. Thin inset dividers
+stand between rows; `MENU_ROW_DIVIDERS` false draws none. A row is
+Material's two-line list item (`LIST_2`), taller where its name or line
+wraps; a section with no label (Wallets start's ways in) has no heading.
+
+The page takes as many columns as `CATALOG_TILE_MIN` (360 dp) leaves room
+for with `MENU_GAP` between them, at least one and at most
+`MENU_CARD_COLUMNS` (three); a page under two `CATALOG_TILE_MIN` takes
+one. Each card is as tall as its own list. The cards divide into the
+columns in reading order where the columns come out shortest, then
+closest in height, as Settings' cards do (§6). The Pi's panel and the
+phone-size window take one column of the same cards; a fixed column count
+(`Page::fixed_columns`) is one column.
 
 By width class (`docs/LAYOUT.md` §2) this gives, at one dp a pixel:
 
@@ -129,9 +138,8 @@ so a larger text size steps it down as a narrower window would.
   `compact::M` at the top.
 - **The page's foot**: `MARGIN_WIDE` under the last section, and on a
   page with Scan room for it (`docs/LAYOUT.md` §15).
-- **Tiles of a page are one height**, the tallest face's at the tile
-  width (`Grid::matching`), as Tools and Check have it; a face that does
-  not fit its line wraps and its row grows.
+- **A row's height** is Material's two-line list item, and a face that
+  does not fit its line wraps and its row grows (the card with it).
 
 ## 6. Cards of different heights (Settings)
 
@@ -167,10 +175,9 @@ two.
 - **Home** on the one-column layouts is drawn by the container too:
   `compact::home`'s own grid of places is gone, and its places are a tiles
   section. The Pi's panel
-  menu (`Nav::Menu`) keeps its places two to a row, as the panel's
+  menu (`Nav::Menu`) keeps its places in one column of rows, as the panel's
   navigation (`docs/LAYOUT.md` §3), with Lock and Power off at its
-  foot: a page that declares it holds its two-to-a-row grid there and
-  nowhere else.
+  foot.
 - **Settings** keeps Material's list and detail one pane at a time on a
   compact window (`listed()`): the list is a section of list items, and
   a section opened is its card alone on the page, the top app bar naming
