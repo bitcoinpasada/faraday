@@ -160,7 +160,8 @@ def hashed_bytes(f):
     at the top of a CRATES entry; any other line, a dependency's version
     included, counts."""
     data = f.read_bytes()
-    if f.name != "Cargo.toml" or f.parent.relative_to(ROOT).as_posix() not in CRATES:
+    if (f.name != "Cargo.toml" or not f.is_relative_to(ROOT)
+            or f.parent.relative_to(ROOT).as_posix() not in CRATES):
         return data
     out, table, dropped = [], None, False
     for line in data.splitlines(keepends=True):
