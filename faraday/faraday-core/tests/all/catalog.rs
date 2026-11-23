@@ -366,3 +366,14 @@ fn the_search_bar_stays_in_view_while_tools_scrolls() {
     );
     assert_eq!(at(&mut app, hint), bar_before, "the bar did not move");
 }
+
+/// Tools has its search in the top bar, not in the page under it.
+#[test]
+fn tools_has_its_search_in_the_top_bar() {
+    let mut app = shown();
+    let _ = app.frame();
+    let (x, y, w, h) = app
+        .hit_box(Action::TypeHere(faraday_core::edit::Here::Find))
+        .expect("Tools offers its search");
+    assert!(x > 240 && w > 0 && y + h <= 64, "{x},{y} {w}x{h}");
+}

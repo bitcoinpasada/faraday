@@ -135,7 +135,7 @@ something now, as Files' badge is the Inbox count (F235, F303); none while
 the number is zero.
 
 One card, drawn by the session pane (`docs/SESSION-PANE.md`), 24 dp under the
-search row (`HOME_CARD_GAP`) at every window height, as wide as the menu pages
+search row (`HOME_CARD_GAP`) on the one-column layouts, and on the wide layout where every menu page's content starts, just under the top bar, as wide as the menu pages
 (`MENU_PAGE_W`) at most and centred (the whole page where that is narrower).
 Its surface is neutral (surface-container-low) and raised at the Scan button's
 elevation (level 3), where Material's elevated card is level 1 (F315); orange
@@ -221,22 +221,19 @@ layout has no box: §3's box of list rows is it.
 ## 5. The first actions and the search bar
 
 The three first actions stand on the wide layout and the rail's windows
-always, whether or not anything is loaded, in Home's top row with the search
-bar (F314), as Material tonal buttons with an icon and a short label: **New
-wallet**, **Restore** and **Spend from backup**, each as tall as the bar
-(48 dp), after the bar, which takes what they leave. The row is the page's
-width, centred in the area beside the navigation, and stands level with
-Home's highlight in the sidebar; the box under it has the row's edges. Where
-the bar would keep under `HOME_SEARCH_MIN`, the buttons stand on a second row
-under it, in three equal columns (the rail's windows). The row never
-scrolls. On the phone-size window the three stand only while nothing is
+always, whether or not anything is loaded, in the top app bar with the
+search (F314, F323 point 4), as text-only tonal pills (no icon): **New
+wallet**, **Restore** and **Spend from backup**, after the search field,
+which shrinks to what the page's name, the pills and the bar's actions leave.
+Group and field are centred over the page's centre line where the bar has
+room, else packed from the name's end; there is no second row (`screens/bar_search.rs`). The
+bar never scrolls. On the rail's windows the row of F314 stays as it was. On the phone-size window the three stand only while nothing is
 loaded, under the search bar, as three like buttons with their full heading
 and no small line, always stacked: **Make a new wallet**, **Restore an
 existing wallet** and **Spend from a backup**. The Pi's menu has none.
 
 The search bar shows the search icon and the word "Search", on every
-layout but the Pi's menu. It is the first thing in the top row, 48 dp tall, on the wide layout
-and on the rail's windows, and stays where it is while the page under it scrolls. On the phone-size
+layout but the Pi's menu. It stands in the top app bar, 48 dp tall, on the wide layout, and is the first thing in the top row on the rail's windows, and stays where it is while the page under it scrolls. On the phone-size
 window it is directly under the box of what is loaded and, where the
 window leaves room for about three rows of results (`home_pinned`), stays
 too; else the whole page scrolls as one. On every layout with the bar,

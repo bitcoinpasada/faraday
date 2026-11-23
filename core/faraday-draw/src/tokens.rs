@@ -2449,13 +2449,6 @@ pub const HOME_RESULTS_ROWS: f32 = 3.0;
 /// How many key rows at most Home's box shows under All keys.
 pub const HOME_BOX_KEYS: usize = 3;
 
-/// How many key rows at most Home's card shows in its right column.
-pub const HOME_CARD_KEYS: usize = 5;
-
-/// The card width from which Home's card has two columns: what needs
-/// you on the left, the keys here on the right.
-pub const HOME_CARD_TWO_COLS: f32 = 840.0;
-
 /// The gap between Home's search row and its card, one at every window height.
 pub const HOME_CARD_GAP: f32 = 24.0;
 

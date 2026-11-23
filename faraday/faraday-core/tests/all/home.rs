@@ -1809,12 +1809,11 @@ fn on_a_1280_wide_window_the_three_first_actions_stand_side_by_side_and_none_is_
     assert!(!texts.iter().any(|t| t.ends_with('…')), "{texts:?}");
 }
 
-/// At 1366 by 768 the search bar, the three buttons and the box under them
-/// stand as one row: the bar starts and the last button ends where the box
-/// does, the four are as tall as the sidebar's highlight and level with it,
-/// and each button opens its flow.
+/// At 1366 by 768 the search bar and the three buttons stand in the top
+/// bar, as tall as the bar, level, and under them the card starts; each
+/// button opens its flow.
 #[test]
-fn at_1366_by_768_the_top_row_and_the_box_share_their_edges_and_the_buttons_open_their_flows() {
+fn at_1366_by_768_the_search_and_buttons_stand_in_the_top_bar_and_the_buttons_open_their_flows() {
     let app = loaded(2, 0, 1366, 768);
     let bar = app
         .hit_box(Action::TypeHere(faraday_core::edit::Here::HomeFind))
@@ -1823,20 +1822,13 @@ fn at_1366_by_768_the_top_row_and_the_box_share_their_edges_and_the_buttons_open
         .iter()
         .map(|a| app.hit_box(*a).expect("button"))
         .collect();
-    // The card is the row's width: its rows stand inside the bar's span.
     let row = app
         .hit_box(Action::ExploreKey(key_fp(&app, 0)))
         .expect("a row of the card");
-    assert!(bar.0 < row.0, "{bar:?} {row:?}");
-    assert!(
-        buttons[2].0 + buttons[2].2 > row.0 + row.2,
-        "{buttons:?} {row:?}"
-    );
+    assert!(bar.1 + bar.3 <= 64 && row.1 >= 64, "{bar:?} {row:?}");
     for b in std::iter::once(&bar).chain(&buttons) {
         assert_eq!((b.1, b.3), (bar.1, 48));
     }
-    let home = app.hit_box(Action::Nav(Screen::Home)).expect("Home");
-    assert_eq!((home.1, home.3), (bar.1, bar.3));
     for (action, screen) in [
         (FIRST[0], Screen::Create),
         (FIRST[1], Screen::Restore),
@@ -2368,5 +2360,56 @@ fn the_empty_card_says_nothing_loaded_and_has_no_make_or_restore_row() {
         "Make a wallet",
     ] {
         assert!(!texts.iter().any(|t| t == gone), "{gone}: {texts:?}");
+    }
+}
+
+/// The boxes of Home's search and its three first actions on the last frame.
+fn bar_boxes(app: &Faraday) -> Vec<(u16, u16, u16, u16)> {
+    [
+        Action::TypeHere(faraday_core::edit::Here::HomeFind),
+        Action::CreateWallet,
+        Action::RestoreWallet,
+        Action::Nav(Screen::SpendBackup),
+    ]
+    .into_iter()
+    .map(|a| {
+        app.hit_box(a)
+            .unwrap_or_else(|| panic!("{a:?} is not on screen"))
+    })
+    .collect()
+}
+
+/// The three first actions stand in the top bar on Home, with the search.
+#[test]
+fn home_s_search_and_three_first_actions_stand_in_the_top_bar() {
+    let mut app = on_test_net(1366, 768);
+    let _ = app.frame();
+    for (x, y, w, h) in bar_boxes(&app) {
+        assert!(x > 240 && w > 0 && y + h <= 64, "{x},{y} {w}x{h}");
+    }
+    // Text only: no icon word beside the label.
+    let texts = app.drawn_texts();
+    for label in ["New wallet", "Restore", "Spend from backup"] {
+        assert!(texts.iter().any(|t| t == label), "{label}: {texts:?}");
+    }
+}
+
+/// At the narrowest and the widest windows with the rail, nothing in the
+/// bar overlaps: the search, the three pills and the bar's own actions.
+#[test]
+fn home_s_top_bar_parts_do_not_overlap_at_any_wide_width() {
+    for (w, h) in [(1024, 768), (1280, 800), (1366, 768), (1920, 1080)] {
+        let mut app = on_test_net(w, h);
+        let _ = app.frame();
+        let mut boxes = bar_boxes(&app);
+        boxes.sort_by_key(|b| b.0);
+        for pair in boxes.windows(2) {
+            let (a, b) = (pair[0], pair[1]);
+            assert!(a.0 + a.2 <= b.0, "{w}x{h}: {a:?} overlaps {b:?}");
+        }
+        let mid = |b: (u16, u16, u16, u16)| u32::from(b.0) + u32::from(b.2) / 2;
+        println!("{w}x{h}: search {}", boxes[0].2);
+        let last = boxes[3];
+        assert!(mid(last) < u32::from(w), "{w}x{h}: {last:?}");
     }
 }

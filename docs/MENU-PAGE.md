@@ -71,12 +71,13 @@ for four of them and `Area::Work` for Settings.
 ## 3. The search bar's place
 
 Where a page has it (Home, Tools): Material's search bar
-(`home_search_bar`, `SEARCH_BAR_H`), the first thing under the top app
-bar, 48 dp tall; Tools' is centred in the page and at most `LEAD_MAX`
-wide on the wide layout, the page's full width on the one-column layouts;
-Home's is the first part of its top row, with the three first actions as
-tonal buttons, at the page's width and level with Home's highlight in the
-sidebar (`docs/HOME.md` §5, F314); on the
+(`home_search_bar`, `SEARCH_BAR_H`), 48 dp tall; on the wide layout it stands in the top app bar itself
+(`screens/bar_search.rs`), centred over the page's centre line where the
+bar has room, at most `LEAD_MAX` wide and shrinking to what the page's
+name, Home's three text-only pills and the bar's actions leave; the page
+draws none and its content starts just under the bar. On the one-column
+layouts it is the page's full width; Home's three first actions are then
+its top row (`docs/HOME.md` §5, F314); on the
 phone-size window it stands under what Home puts above it (§1). It stays
 still while the page scrolls under it, as Home's does today
 (`home_pinned`), and the whole page scrolls as one where the window

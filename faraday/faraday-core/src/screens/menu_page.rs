@@ -185,7 +185,11 @@ pub(crate) fn draw(
         Bar::Home => !app.tools.home_find().is_empty(),
         Bar::Tools => !app.tools.find().is_empty(),
     });
-    let ways = page.ways && page.search == Some(Bar::Home);
+    // On the wide layout the search stands in the top app bar
+    // (`screens::bar_search`), so the page draws none.
+    let in_bar = !compact && page.search.is_some();
+    let search_bar = page.search.filter(|_| !in_bar);
+    let ways = compact && page.ways && page.search == Some(Bar::Home);
     let search = |ui: &mut Ui, y: f32, page_top: Option<f32>| {
         if ways {
             return super::home::top_row(app, ui, (x, y, width));
@@ -200,8 +204,8 @@ pub(crate) fn draw(
             .as_ref()
             .map_or(0.0, |a| (a.draw)(ui, (x, y), width))
     };
-    let pinned = page.search.is_some()
-        && (page.bar_still || !compact || super::home_pinned(PANE_TOP_BAR + above_h, h, TILE_H));
+    let pinned = search_bar.is_some()
+        && (page.bar_still || super::home_pinned(PANE_TOP_BAR + above_h, h, TILE_H));
     let mut top = 0.0;
     // Home's row stands level with its place in the navigation.
     let mut y = if ways { 0.0 } else { PANE_TOP_BAR };
@@ -214,7 +218,7 @@ pub(crate) fn draw(
     let open = ui.region_open(Region::page(clip).from_zero(app.list_offset));
     if !pinned {
         y += above(ui, y);
-        if page.search.is_some() {
+        if search_bar.is_some() {
             y += search(ui, y, Some(0.0));
         }
     }

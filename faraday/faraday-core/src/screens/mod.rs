@@ -7,6 +7,7 @@
 //! one screen.
 
 mod backup;
+mod bar_search;
 pub(crate) mod catalog;
 pub(crate) mod check_message;
 mod create;
@@ -42,6 +43,7 @@ use crate::{Action, Screen, Sheet};
 #[cfg(test)]
 pub(crate) use backup::item_title;
 pub(crate) use backup::{SOFTWARE_ROWS, held_item, item_title_now};
+pub(crate) use bar_search::draw as bar_search_draw;
 pub(crate) use create::CSTEPS;
 pub(crate) use decode::{decode_back, decode_back_to};
 pub(crate) use entry::{

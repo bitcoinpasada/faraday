@@ -241,6 +241,8 @@ pub(crate) fn app_bar(app: &View, ui: &mut Ui, w: f32, nav: Nav) -> f32 {
             back_tip: EN.tip_back,
         };
         faraday_ui::nav::app_bar(ui, w, &bar, ends);
+        // The page's search, and Home's first actions, stand in the bar.
+        crate::screens::bar_search_draw(app, ui, (w, bar.title, ends));
     } else {
         let (back, name) = crate::compact::page_head(app);
         let back = app.named_back(back);

@@ -261,7 +261,10 @@ fn pane_card(
 ) -> f32 {
     let cw = w.min(MENU_PAGE_W);
     let cx = x + (w - cw) / 2.0;
-    let top = y + HOME_CARD_GAP;
+    // Under the search row on the one-column layouts; on the wide layout
+    // the search is in the top bar and the card starts where a page's content does.
+    let gap = if ui.compact { HOME_CARD_GAP } else { 0.0 };
+    let top = y + gap;
     let head_h = ui.line_as(HOME_CARD_HEAD);
     let inner = cw - 2.0 * PAD;
     let rows_y = top + PAD + head_h + GRID;
@@ -294,7 +297,7 @@ fn pane_card(
             Role::OnSurfaceVariant,
             EN.session_nothing_loaded,
         );
-        return HOME_CARD_GAP + card_h;
+        return gap + card_h;
     }
     let draw_cols = |ui: &mut Ui| {
         let mut colx = cx + PAD;
@@ -320,7 +323,7 @@ fn pane_card(
     } else {
         draw_cols(ui);
     }
-    HOME_CARD_GAP + card_h
+    gap + card_h
 }
 
 /// What is loaded as one section of the menu page (`docs/HOME.md` §3): on a
