@@ -218,17 +218,38 @@ impl KeyGen {
             (!taken && !self.procedure().direct()).then(|| Text::of(EN.keygen_a_die_has_six));
     }
 
-    /// Whether direct selection has every roll in, so its pad is greyed.
-    /// A lookup.
-    pub(crate) fn dice_pad_full(&self) -> bool {
+    /// Whether every roll of direct selection, or every flip, is in, so
+    /// its pad is greyed. A lookup.
+    pub(crate) fn pad_full(&self) -> bool {
+        if self.flip_active() {
+            let (have, need) = self.progress();
+            return have >= need;
+        }
         self.procedure().direct() && self.dice.len() >= self.dice_needed()
     }
 
     /// A flip: heads or tails.
     pub fn flip(&mut self, heads: bool) {
+        if !self.flip_active() {
+            return;
+        }
+        self.note = None;
         if self.flip_in(heads) {
             self.record(if heads { 'H' } else { 'T' });
+            self.flip_arrived();
         }
+    }
+
+    /// The eleventh flip of a word but the last, and the last flip, send
+    /// their word to Words so far, where it stands.
+    fn flip_arrived(&mut self) {
+        if self.hosted() || !super::dice_strip::stands(self) {
+            return;
+        }
+        let len = self.coins.len();
+        self.arrived = (len.is_multiple_of(11) && len <= 11 * (self.words - 1))
+            .then(|| ((len / 11 - 1) as u8, None))
+            .or_else(|| (len >= self.progress().1).then(|| ((self.words - 1) as u8, None)));
     }
 
     /// Takes a flip into the accumulator. Returns whether it was taken.
@@ -250,6 +271,7 @@ impl KeyGen {
         self.note = None;
         if self.flip_in(face >= 4) {
             self.record(char::from(b'0' + face));
+            self.flip_arrived();
         }
     }
 

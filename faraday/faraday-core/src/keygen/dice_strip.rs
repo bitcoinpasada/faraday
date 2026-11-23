@@ -1,10 +1,12 @@
-//! The word being made, in New key's Entries card for Dice words: its
-//! rolls in slots, each with the bits it gives (the faces 1 to 4 two bits
-//! apiece, the sixth roll one), the 11 bits as the word's number, and the
-//! word. A 5 or a 6 in a word's first five rolls shows struck under
-//! "Rolled again" and is not a roll (`KeyGen::rerolled`). The last word
-//! takes the rolls its kept bits need; its checksum bits come in the
-//! checksum's colour. Drawing reads the flow's state.
+//! The word being made, in New key's Entries card for Dice words, Dice
+//! flips and Coins: its entries in slots, each with the bits it gives (a
+//! die's faces 1 to 4 two bits apiece and the sixth roll one under Dice
+//! words; one bit an entry under Dice flips and Coins, a face 1 to 3 or
+//! tails 0, a face 4 to 6 or heads 1), the 11 bits as the word's number,
+//! and the word. A 5 or a 6 in a Dice word's first five rolls shows struck
+//! under "Rolled again" and is not a roll (`KeyGen::rerolled`). The last
+//! word takes the entries its kept bits need; its checksum bits come in
+//! the checksum's colour. Drawing reads the flow's state.
 
 use faraday_bip::bip39::Language;
 use faraday_draw::tokens as t;
@@ -19,9 +21,31 @@ use crate::ui::Shape;
 use crate::ui::Ui;
 use crate::ui::pal::*;
 
-/// Whether the strip stands: New key's dice under direct selection.
+/// Whether the strip stands: New key's dice under direct selection, dice
+/// read as flips, and coins, where the entries name the key's words (not
+/// for SLIP-39 shares).
 pub(crate) fn stands(k: &KeyGen) -> bool {
-    k.way() == Some(Way::DiceWords)
+    k.reveals() && matches!(k.way(), Some(Way::DiceWords | Way::DiceFlips | Way::Coins))
+}
+
+/// Whether the strip's entries give one bit each (flips) and not the
+/// dice words' two.
+pub(crate) fn one_bit(k: &KeyGen) -> bool {
+    matches!(k.way(), Some(Way::DiceFlips | Way::Coins))
+}
+
+/// What an entry of `face` (a die's face, or H or T) at place `p` in its
+/// word gives, by the ways' rule.
+pub(super) fn entry_bits(one: bool, p: usize, face: char, last: bool) -> &'static str {
+    if one {
+        if matches!(face, 'H' | '4' | '5' | '6') {
+            "1"
+        } else {
+            "0"
+        }
+    } else {
+        bits_of(p, (face as u8).wrapping_sub(b'0'), last)
+    }
 }
 
 /// What a roll of `face` at place `p` in its word gives: its bits.
@@ -51,6 +75,47 @@ enum Bit {
     Checksum(char),
 }
 
+/// What was entered, each as the face it showed: a die's, or H or T.
+fn entered(k: &KeyGen, one: bool) -> Vec<char> {
+    if one {
+        k.entered.chars().collect()
+    } else {
+        k.dice
+            .rolls()
+            .iter()
+            .map(|&f| char::from(b'0' + f))
+            .collect()
+    }
+}
+
+/// The number's 11 boxes for the entries `got` of the word being made:
+/// the bits they give, the one a roll drops struck, and the checksum
+/// bits `check` once they are known.
+fn number_boxes(
+    (one, last): (bool, bool),
+    got: &[char],
+    (kept, dropped): (usize, usize),
+    check: Option<&str>,
+) -> [Bit; 11] {
+    let mut boxes = [Bit::Empty; 11];
+    let mut rolled = Vec::new();
+    for (p, &f) in got.iter().enumerate() {
+        for c in entry_bits(one, p, f, last).chars() {
+            rolled.push((c, p % 2 == 1));
+        }
+    }
+    for (i, b) in boxes.iter_mut().enumerate() {
+        let from_check = last && i >= kept;
+        *b = match (rolled.get(i), check) {
+            (Some(&(c, odd)), _) if !from_check => Bit::Rolled(c, odd),
+            (Some(&(c, _)), None) if i == kept && dropped == 1 => Bit::Dropped(c),
+            (_, Some(s)) if from_check => s.chars().nth(i - kept).map_or(Bit::Empty, Bit::Checksum),
+            _ => Bit::Empty,
+        };
+    }
+    boxes
+}
+
 /// Draws the strip at (x, y) in a column `w` wide. Returns its height
 /// with the gap under it, and where the word's pill stands while it
 /// glides into Words so far.
@@ -61,30 +126,40 @@ pub(crate) fn strip(
     (x, y, w): (f32, f32, f32),
 ) -> (f32, Option<(f32, f32)>) {
     let muted = Role::OnSurfaceVariant;
-    let rolls = k.dice.rolls();
-    let per = faraday_entropy::DICE_WORD_ROLLS;
-    let total = k.dice_needed();
+    let one = one_bit(k);
+    // What was entered, each as the face it showed: a die's, or H or T.
+    let all = entered(k, one);
+    let per = if one {
+        11
+    } else {
+        faraday_entropy::DICE_WORD_ROLLS
+    };
+    let total = if one { k.progress().1 } else { k.dice_needed() };
     let last_n = k.words - 1;
-    let (last_rolls, dropped) = k.last_rolls();
+    let (last_rolls, dropped) = if one {
+        (k.last_bits(), 0)
+    } else {
+        k.last_rolls()
+    };
     let kept = k.last_bits();
     // The word shown: the last once every roll is in, one just made while
     // it glides into Words so far, else the one in progress.
     let arriving = app.keygen_arrival();
-    if rolls.len() >= total && arriving.is_none() {
+    if all.len() >= total && arriving.is_none() {
         // Every word is made: the strip clears.
         return (0.0, None);
     }
-    let n = if rolls.len() >= total {
+    let n = if all.len() >= total {
         last_n
     } else if let Some((s, _)) = arriving {
         usize::from(s)
     } else {
-        rolls.len() / per
+        all.len() / per
     };
     let last = n == last_n;
     let need = if last { last_rolls } else { per };
     let from = n * per;
-    let got = rolls.get(from..).unwrap_or(&[]);
+    let got = all.get(from..).unwrap_or(&[]);
     let got = &got[..got.len().min(need)];
     let done = got.len() == need;
     let live = k.live_words();
@@ -98,23 +173,7 @@ pub(crate) fn strip(
         .filter(|_| last)
         .map(|i| format!("{:0w$b}", i & ((1 << sums) - 1), w = sums));
 
-    // The number's boxes.
-    let mut boxes = [Bit::Empty; 11];
-    let mut rolled = Vec::new();
-    for (p, &f) in got.iter().enumerate() {
-        for c in bits_of(p, f, last).chars() {
-            rolled.push((c, p % 2 == 1));
-        }
-    }
-    for (i, b) in boxes.iter_mut().enumerate() {
-        let from_check = last && i >= kept;
-        *b = match (rolled.get(i), &check) {
-            (Some(&(c, odd)), _) if !from_check => Bit::Rolled(c, odd),
-            (Some(&(c, _)), None) if i == kept && dropped == 1 => Bit::Dropped(c),
-            (_, Some(s)) if from_check => s.chars().nth(i - kept).map_or(Bit::Empty, Bit::Checksum),
-            _ => Bit::Empty,
-        };
-    }
+    let boxes = number_boxes((one, last), got, (kept, dropped), check.as_deref());
 
     // Sizes: the slots and bits narrow to fit a small panel.
     let side = ui.touch.max(t::ICON_BUTTON);
@@ -130,11 +189,13 @@ pub(crate) fn strip(
     let slot_h = slot.max(ui.line_as(TITLE_L) + ui.line_as(BODY_S) + t::GAP_SMALL);
     let bit_gap = 2.0;
     let group = t::GAP_SMALL;
-    let bw = t::DICE_STRIP_BIT_W.min((inner - 5.0 * group - 10.0 * bit_gap) / 11.0);
+    // Dice words' bits stand in pairs, one pair a roll; flips' do not.
+    let groups = if one { 0.0 } else { 5.0 };
+    let bw = t::DICE_STRIP_BIT_W.min((inner - groups * group - 10.0 * bit_gap) / 11.0);
     let bh = t::DICE_STRIP_BIT_H * bw / t::DICE_STRIP_BIT_W;
     let caption = ui.line_as(LABEL_S) + t::GAP_SMALL;
     let eq = index.map(|i| fill(EN.keygen_equals_number, &[&i.to_string()]));
-    let bits_w = 11.0 * bw + 10.0 * bit_gap + 5.0 * group;
+    let bits_w = 11.0 * bw + 10.0 * bit_gap + groups * group;
     let eq_below = eq
         .as_ref()
         .is_some_and(|e| bits_w + t::GAP + ui.measure_as(BODY_M.mono(), e) > inner);
@@ -201,7 +262,7 @@ pub(crate) fn strip(
             Some(&f) => {
                 let (fill_role, ink) = tint(i % 2 == 1);
                 ui.fill(sx, cy, slot, slot_h, t::SHAPE_M, fill_role);
-                let bits = bits_of(i, f, last);
+                let bits = entry_bits(one, i, f, last);
                 let drop_last = last && i == need - 1 && dropped == 1;
                 face_and_bits(ui, (sx, cy, slot, slot_h), f, bits, ink, drop_last);
             }
@@ -212,7 +273,14 @@ pub(crate) fn strip(
                 {
                     let dy = drop * t::DICE_STRIP_DROP;
                     ui.stroke(sx, cy + dy, slot, slot_h, t::SHAPE_M, Role::Outline);
-                    face_and_bits(ui, (sx, cy + dy, slot, slot_h), f, "", muted, true);
+                    face_and_bits(
+                        ui,
+                        (sx, cy + dy, slot, slot_h),
+                        char::from(b'0' + f),
+                        "",
+                        muted,
+                        true,
+                    );
                     let cap = ui.measure_as(LABEL_S, EN.keygen_rolled_again);
                     let capy = cy + dy + slot_h + t::GAP_SMALL;
                     ui.text_as(
@@ -257,7 +325,7 @@ pub(crate) fn strip(
             }
         }
         bx += bw + bit_gap;
-        if (i % 2 == 1 && i < 9) || (!last && i == 9) {
+        if !one && ((i % 2 == 1 && i < 9) || (!last && i == 9)) {
             bx += group;
         }
     }
@@ -318,7 +386,7 @@ pub(crate) fn strip(
 fn face_and_bits(
     ui: &mut Ui,
     (x, y, s, h): (f32, f32, f32, f32),
-    face: u8,
+    face: char,
     bits: &str,
     ink: Role,
     struck: bool,

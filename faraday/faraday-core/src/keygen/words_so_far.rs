@@ -176,9 +176,14 @@ fn arriving(k: &KeyGen, slot: u8) -> Text {
     if k.strip_masked() {
         return Text::of(MASK);
     }
-    let live = k.live_words();
-    live.get(usize::from(slot))
-        .map_or_else(|| Text::of(""), |&i| Text::of(Language::English.word(i)))
+    let slot = usize::from(slot);
+    // The last word is the checksum's, which the live words never hold.
+    let word = if slot + 1 < k.words {
+        k.live_words().get(slot).copied()
+    } else {
+        k.checksum_word()
+    };
+    word.map_or_else(|| Text::of(""), |i| Text::of(Language::English.word(i)))
 }
 
 /// Words so far in the card, below the pad (or its button on the small
@@ -280,9 +285,13 @@ fn page(app: &View, k: &KeyGen, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) {
 type Working = (Vec<(&'static str, Text)>, Option<Text>);
 
 fn working(k: &KeyGen, slot: usize) -> Option<Working> {
-    let per = faraday_entropy::DICE_WORD_ROLLS;
+    let one = dice_strip::one_bit(k);
+    let per = if one {
+        11
+    } else {
+        faraday_entropy::DICE_WORD_ROLLS
+    };
     let last = k.words - 1;
-    let rolls = k.dice.rolls();
     let from = slot * per;
     let is_last = slot == last;
     let live = k.live_words();
@@ -291,33 +300,57 @@ fn working(k: &KeyGen, slot: usize) -> Option<Working> {
     } else {
         *live.get(slot)?
     };
-    let got = rolls.get(from..)?;
-    let got = &got[..got.len().min(if is_last { k.last_rolls().0 } else { per })];
+    let take = match (is_last, one) {
+        (false, _) => per,
+        (true, true) => k.last_bits(),
+        (true, false) => k.last_rolls().0,
+    };
+    // The faces as entered: a die's, or H or T.
+    let rolls = k.dice.rolls();
     let mut faces = Text::with_room(2 * per);
-    for (i, f) in got.iter().enumerate() {
-        if i > 0 {
-            faces.push(' ');
+    let mut kept = Text::with_room(per);
+    if one {
+        for c in k.entered.chars().skip(from).take(take) {
+            if !faces.as_str().is_empty() {
+                faces.push(' ');
+            }
+            faces.push(c);
+            kept.push(c);
         }
-        faces.push_str(&Text::num(u64::from(*f)));
+    } else {
+        for (i, f) in rolls.iter().skip(from).take(take).enumerate() {
+            if i > 0 {
+                faces.push(' ');
+            }
+            faces.push_str(&Text::num(u64::from(*f)));
+            kept.push(char::from(b'0' + *f));
+        }
     }
     let all = Text::formatted(format_args!("{index:011b}"));
     let sums = k.words / 3;
-    let kept = k.last_bits();
+    let held = k.last_bits();
     let mut bits = Text::with_room(32);
     if is_last {
-        bits.push_str(&all.as_str()[..kept]);
+        bits.push_str(&all.as_str()[..held]);
         bits.push(' ');
-        bits.push_str(&all.as_str()[kept..]);
+        bits.push_str(&all.as_str()[held..]);
     } else {
-        for (p, &f) in got.iter().enumerate() {
-            if p > 0 {
+        for (p, c) in kept.as_str().chars().enumerate() {
+            if p > 0 && !one {
                 bits.push(' ');
             }
-            bits.push_str(dice_strip::bits_of(p, f, false));
+            bits.push_str(dice_strip::entry_bits(one, p, c, false));
         }
     }
     let mut rows = vec![
-        (EN.keygen_rolls, faces),
+        (
+            if one && k.way() != Some(super::Way::DiceFlips) {
+                EN.keygen_flips
+            } else {
+                EN.keygen_rolls
+            },
+            faces,
+        ),
         (EN.wordlist_bits, bits),
         (EN.roller_number, Text::of(&Text::num(u64::from(index)))),
         (EN.wordlist_word, Text::of(Language::English.word(index))),

@@ -222,9 +222,9 @@ choices opens as a sheet there. A flow with a full-width step answers
 `wide_content` true on every step, so its card does not move when the
 step comes and goes. Every other dice worksheet (a seed's rolls in Make
 a new key, Make a new vault's passphrase dice, `dice_entry`'s foot panel)
-stays in the main column beside Your choices. New key's Dice words step
+stays in the main column beside Your choices. New key's Dice words, Dice flips and Coins step
 holds, in its card under the count, the strip of the word being made
-(six slots of a roll's face and its bits, the 11-bit number, the word;
+(six slots of a roll's face and its bits, eleven of an entry's one bit for the flips, the 11-bit number, the word;
 `keygen/dice_strip.rs`), then the pad, then Words so far
 (`keygen/words_so_far.rs`), on the Pi's panel behind a "Words so far · n"
 button that opens a page. After the last roll the strip clears and the

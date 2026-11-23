@@ -4,7 +4,7 @@ desktop_1280x800 BackupFlow Board 6
 desktop_1280x800 CreateVault WordList 21
 desktop_1280x800 Entry EntryCandidate 17
 desktop_1280x800 Files DeletePick 7
-desktop_1280x800 KeyGen WordList 53
+desktop_1280x800 KeyGen WordList 41
 desktop_1280x800 Restore Slide 14
 desktop_1280x800 SpendBackup Seeds 4
 desktop_1280x800 SpendBackup Slide 14
@@ -28,7 +28,6 @@ small_480x640 Backup Board 17
 small_480x640 Backup KefTool 48
 small_480x640 CreateVault WordList 3
 small_480x640 KeyGen Codex32 17
-small_480x640 KeyGen KDie 5
 small_480x640 KeyGen KRoll 5
 small_480x640 KeyGen WordList 3
 small_480x640 Restore Slide 14

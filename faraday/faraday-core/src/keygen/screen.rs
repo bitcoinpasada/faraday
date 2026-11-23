@@ -1351,9 +1351,9 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     if active != Some(Source::Device) {
         cy += super::dice_panel::progress(k, ui, x, cy, w);
     }
-    // Dice words show the word being made under the count.
+    // Dice words, flips and coins show the word being made under the count.
     let mut from = None;
-    if active == Some(Source::Dice) && super::dice_strip::stands(k) {
+    if super::dice_strip::stands(k) {
         let (h, pill) = super::dice_strip::strip(app, k, ui, (x, cy, w));
         if h > 0.0 {
             cy += h + faraday_draw::tokens::GAP;
@@ -1365,7 +1365,7 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     // them so that it shows in the card at scroll 0.
     let pad_first = active == Some(Source::Dice) && !k.typing && crate::flow::small_touch(ui) > 0.0;
     if pad_first {
-        cy += super::dice_panel::pad(ui, (x, cy, w), k.dice_pad_full());
+        cy += super::dice_panel::pad(ui, (x, cy, w), k.pad_full());
     }
     if matches!(active, Some(Source::Dice | Source::Coins)) {
         cy = entry_style(k, ui, x, cy, w, app.touch_side());
@@ -1375,9 +1375,14 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             cy += rolled_entry(app, k, ui, (x, cy, w), (None, from));
         }
         Some(Source::Coins) if k.by_die => {
-            cy += dice_pad(ui, (x, cy, w), &|_| Style::Secondary, Action::KDie);
+            cy += dice_pad(
+                ui,
+                (x, cy, w),
+                &|_| super::dice_panel::face_style(k.pad_full()),
+                Action::KDie,
+            );
             if k.reveals() {
-                cy = reveal(k, ui, x, cy, w);
+                cy = words_made(app, k, ui, (x, cy, w), from);
             }
         }
         Some(Source::Dice) => {
@@ -1385,9 +1390,14 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             cy += rolled_entry(app, k, ui, (x, cy, w), (pad, from));
         }
         Some(Source::Coins) => {
-            cy += coin_pad(ui, (x, cy, w), Action::KFlip(true), Action::KFlip(false));
+            cy += coin_pad(
+                ui,
+                (x, cy, w),
+                super::dice_panel::face_style(k.pad_full()),
+                (Action::KFlip(true), Action::KFlip(false)),
+            );
             if k.reveals() {
-                cy = reveal(k, ui, x, cy, w);
+                cy = words_made(app, k, ui, (x, cy, w), from);
             }
         }
         Some(Source::Cards) => {
@@ -1537,18 +1547,31 @@ pub(crate) fn rolled_entry(
         cy = typed_box(app, k, ui, x, cy, w);
     } else if let Some(touch) = pad {
         cy += match touch {
-            Some(t) => super::dice_panel::pad_fit(ui, (x, cy, w), t, k.dice_pad_full()),
-            None => super::dice_panel::pad(ui, (x, cy, w), k.dice_pad_full()),
+            Some(t) => super::dice_panel::pad_fit(ui, (x, cy, w), t, k.pad_full()),
+            None => super::dice_panel::pad(ui, (x, cy, w), k.pad_full()),
         };
     }
     if k.reveals() {
-        cy = if k.source == Some(Source::Dice) && !k.by_die && !k.hosted() {
-            cy + super::words_so_far::inline(app, k, ui, (x, cy, w), from)
-        } else {
-            reveal(k, ui, x, cy, w)
-        };
+        cy = words_made(app, k, ui, (x, cy, w), from);
     }
     cy - y
+}
+
+/// The words the entries have named: Words so far where the strip stands
+/// (New key's own step), else the list of each word's place. Returns where
+/// the next row starts.
+fn words_made(
+    app: &View,
+    k: &KeyGen,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    from: Option<(f32, f32)>,
+) -> f32 {
+    if super::dice_strip::stands(k) && !k.hosted() {
+        y + super::words_so_far::inline(app, k, ui, (x, y, w), from)
+    } else {
+        reveal(k, ui, x, y, w)
+    }
 }
 
 /// The line saying a Create slot's words are shown again by Back up, once
@@ -1600,7 +1623,9 @@ pub(crate) fn entry_style(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32, touch
         }
     }
     cy += typed_buttons(ui, (bx, cy), bh, k.typing, Action::KTyping);
-    if k.active() == Some(Source::Coins) {
+    // The rule of how a flip is read is in the Guide where the strip shows
+    // each entry's bit.
+    if k.active() == Some(Source::Coins) && (k.hosted() || !super::dice_strip::stands(k)) {
         let line = if k.by_die {
             EN.keygen_dice_flip_rule
         } else {

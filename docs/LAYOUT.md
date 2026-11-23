@@ -788,7 +788,7 @@ Built for both, differently: New key's Entries card, while dice are
 pressed one at a time, stands the pad of six faces in the card, not in
 the panel and never pinned at the foot, in every window (the page
 scrolls with it): the count of rolls with the roll just made at its end
-and the bar, then, for Dice words, the strip of the word being made
+and the bar, then, for Dice words, Dice flips and Coins, the strip of the word being made
 (`keygen/dice_strip.rs`), the pad, and Words so far (below the pad; behind a
 "Words so far · n" button and its page on the Pi's panel), the check and
 the card's buttons below (`keygen/dice_panel.rs`). Generate with dice, at

@@ -1748,29 +1748,21 @@ fn dice_rows(
 pub(crate) fn coin_pad(
     ui: &mut Ui,
     (x, y, w): (f32, f32, f32),
-    heads: Action,
-    tails: Action,
+    style: Style,
+    (heads, tails): (Action, Action),
 ) -> f32 {
     // A pad keeps its size whatever the text size, as a keyboard's keys
     // do (`docs/TEXT-SIZE.md` §3).
     ui.fixed_text(|ui| {
         let bw = ((w - tokens::GAP) / 2.0).min(160.0);
-        ui.button(
-            x,
-            y,
-            Some(bw),
-            56.0,
-            EN.create_heads,
-            Style::Secondary,
-            heads,
-        );
+        ui.button(x, y, Some(bw), 56.0, EN.create_heads, style, heads);
         ui.button(
             x + bw + tokens::GAP,
             y,
             Some(bw),
             56.0,
             EN.create_tails,
-            Style::Secondary,
+            style,
             tails,
         );
         68.0

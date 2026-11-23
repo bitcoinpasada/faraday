@@ -451,6 +451,212 @@ fn dice_step_at(width: u16, height: u16) -> Faraday {
     app
 }
 
+/// The entry step of `way` (12 words) at a window of `width` by `height`
+/// dp, entries pressed one at a time.
+fn flip_step_at(width: u16, height: u16, way: Way) -> Faraday {
+    let mut app = faraday_core::testkit::started();
+    app.event(Event::Display(DisplayInfo {
+        width,
+        height,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.press(Action::Entry(None));
+    app.press(Action::KeyGen(None));
+    app.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
+    app.press(Action::KWords(12));
+    app.press(Action::KWay(way.index()));
+    app.press(Action::KNext);
+    app.press(Action::KTyping(false));
+    app
+}
+
+/// Lets the glide into Words so far run its course.
+fn settle(app: &mut Faraday) {
+    for _ in 0..2 {
+        let now = app.now_ms() + 2000;
+        app.event(Event::Tick { now_ms: now });
+    }
+}
+
+const FLIPS: [bool; 11] = [
+    true, false, true, true, false, false, false, true, false, true, true,
+];
+
+/// Eleven flips make a word that arrives in Words so far, and its sheet
+/// lists the flips, bits, number and word.
+#[test]
+fn eleven_flips_make_a_word_that_arrives_and_opens_its_sheet() {
+    let mut app = flip_step_at(1920, 1080, Way::Coins);
+    assert!(texts(&mut app).contains("Word being made"));
+    for &h in &FLIPS[..10] {
+        app.press(Action::KFlip(h));
+    }
+    assert!(box_of(&mut app, Action::KWordOpen(0)).is_none());
+    app.press(Action::KFlip(FLIPS[10]));
+    settle(&mut app);
+    assert!(box_of(&mut app, Action::KWordOpen(0)).is_some());
+    app.press(Action::KWordOpen(0));
+    let shown = texts(&mut app);
+    for want in [
+        "Flips",
+        "H T H H T T T H T H H",
+        "Bits",
+        "10110001011",
+        "Number",
+        "1419",
+        "Word",
+    ] {
+        assert!(shown.contains(want), "{want}: {shown}");
+    }
+}
+
+/// Dice flips name their entries Rolls and read a die's face as a bit.
+#[test]
+fn dice_flips_show_the_dice_faces_and_their_bits() {
+    let mut app = flip_step_at(1920, 1080, Way::DiceFlips);
+    for f in [4, 1, 6, 5, 2, 3, 3, 6, 1, 4, 5] {
+        app.press(Action::KRoll(f));
+    }
+    settle(&mut app);
+    app.press(Action::KWordOpen(0));
+    let shown = texts(&mut app);
+    assert!(shown.contains("Rolls"), "{shown}");
+    assert!(shown.contains("4 1 6 5 2 3 3 6 1 4 5"), "{shown}");
+    assert!(shown.contains("10110001011"), "{shown}");
+}
+
+/// Coins read from a die show the die's face as Dice flips does.
+#[test]
+fn coins_by_die_show_the_dice_faces() {
+    let mut app = flip_step_at(1920, 1080, Way::Coins);
+    app.press(Action::KByDie(true));
+    for f in [4, 1, 6, 5, 2, 3, 3, 6, 1, 4, 5] {
+        app.press(Action::KDie(f));
+    }
+    settle(&mut app);
+    app.press(Action::KWordOpen(0));
+    let shown = texts(&mut app);
+    assert!(shown.contains("Flips"), "{shown}");
+    assert!(shown.contains("4 1 6 5 2 3 3 6 1 4 5"), "{shown}");
+}
+
+/// The last word, the checksum's, glides into Words so far as its word,
+/// as every other does, for flips and for Dice words.
+#[test]
+fn the_last_word_glides_in_as_its_word() {
+    for way in [Way::Coins, Way::DiceWords] {
+        let mut app = flip_step_at(1920, 1080, way);
+        while !app.keygen().unwrap().ready() {
+            app.press(match way {
+                Way::Coins => Action::KFlip(true),
+                _ => Action::KRoll(1),
+            });
+        }
+        let word = app.keygen().unwrap().checksum_word().unwrap();
+        let word = faraday_bip::bip39::Language::English.word(word);
+        let count = |app: &mut Faraday| {
+            app.drawn_texts()
+                .iter()
+                .filter(|t| t.as_str() == word)
+                .count()
+        };
+        // Part of the way: the pill gliding in is not in the table yet.
+        for at in [0, 100] {
+            let now = app.now_ms() + at;
+            app.event(Event::Tick { now_ms: now });
+        }
+        assert!(!app.offers(Action::KWordOpen(11)), "{way:?}: still gliding");
+        assert!(count(&mut app) >= 1, "{way:?}: {word} glides in");
+    }
+}
+
+/// With every flip in, the sides and the faces take no more presses.
+#[test]
+fn a_full_flip_pad_is_greyed() {
+    for (way, by_die, press) in [
+        (Way::Coins, false, Action::KFlip(true)),
+        (Way::Coins, true, Action::KDie(5)),
+        (Way::DiceFlips, false, Action::KRoll(5)),
+    ] {
+        let mut app = flip_step_at(1920, 1080, way);
+        if by_die {
+            app.press(Action::KByDie(true));
+        }
+        let _ = app.frame();
+        assert!(app.offers(press), "{way:?} takes a press at first");
+        for _ in 0..128 {
+            app.press(press);
+        }
+        let _ = app.frame();
+        assert!(!app.offers(press), "{way:?} by_die {by_die} is full");
+        app.press(Action::KUndo);
+        let _ = app.frame();
+        assert!(app.offers(press), "{way:?} takes one again after Undo");
+    }
+}
+
+/// SLIP-39 shares are not BIP-39 words, so their flips show no word.
+#[test]
+fn flips_for_slip39_shares_show_no_word_being_made() {
+    for way in [Way::Coins, Way::DiceFlips] {
+        let mut app = flip_step_at(1920, 1080, way);
+        assert!(texts(&mut app).contains("Word being made"));
+        app.press(Action::KStep(kstep::START));
+        app.press(Action::KStart(
+            Start::Make(faraday_core::forms::Form::Slip39).index(),
+        ));
+        app.press(Action::KWords(20));
+        app.press(Action::KWay(way.index()));
+        app.press(Action::KNext);
+        app.press(Action::KTyping(false));
+        let k = app.keygen().unwrap();
+        assert!(k.slip39 && k.open == Some(kstep::ENTER), "{:?}", k.open);
+        assert!(!texts(&mut app).contains("Word being made"), "{way:?}");
+    }
+}
+
+/// The note that Continue leaves at no flips goes with the first flip.
+#[test]
+fn a_flip_clears_the_note_of_too_few() {
+    let mut app = flip_step_at(1920, 1080, Way::Coins);
+    app.press(Action::KNext);
+    assert!(app.keygen().unwrap().note.is_some());
+    app.press(Action::KFlip(true));
+    assert!(app.keygen().unwrap().note.is_none());
+}
+
+/// The last word takes seven flips and then shows its four checksum bits.
+#[test]
+fn the_last_flip_word_shows_its_checksum_bits() {
+    let mut app = flip_step_at(1920, 1080, Way::Coins);
+    for i in 0..127 {
+        app.press(Action::KFlip(i % 3 == 0));
+    }
+    settle(&mut app);
+    assert!(texts(&mut app).contains("Word 12"));
+    app.press(Action::KFlip(true));
+    let shown = texts(&mut app);
+    assert!(
+        shown.contains("The last 4 bits of word 12 are the checksum"),
+        "{shown}"
+    );
+    settle(&mut app);
+    assert!(app.keygen().unwrap().ready());
+    app.press(Action::KWordOpen(11));
+    let shown = texts(&mut app);
+    assert!(shown.contains("Checksum"), "{shown}");
+    assert!(shown.contains("The last 4 bits of word 12"), "{shown}");
+}
+
 fn box_of(app: &mut Faraday, a: Action) -> Option<(i32, i32, i32, i32)> {
     let _ = app.frame();
     app.hit_box(a)

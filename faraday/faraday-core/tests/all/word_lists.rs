@@ -91,10 +91,21 @@ fn linked(app: &mut Faraday) -> Vec<u16> {
         .collect()
 }
 
-fn sorted(mut v: Vec<u16>) -> Vec<u16> {
-    v.sort_unstable();
-    v.dedup();
-    v
+/// The places Words so far lists a pill for, which open their words'
+/// workings.
+fn pills(app: &mut Faraday) -> Vec<u8> {
+    let _ = app.frame();
+    (0..24u8)
+        .filter(|&i| app.offers(Action::KWordOpen(i)))
+        .collect()
+}
+
+/// Lets the word gliding into Words so far arrive.
+fn settle(app: &mut Faraday) {
+    for _ in 0..2 {
+        let now = app.now_ms() + 2000;
+        app.event(Event::Tick { now_ms: now });
+    }
 }
 
 #[test]
@@ -110,11 +121,10 @@ fn each_eleven_flips_show_the_word_they_spell_as_they_come_in() {
             assert!(!Language::English.word(i).is_empty());
         }
     }
-    // The eleven whole words are on screen, and with every flip in the
-    // checksum's last word, each linked to its list.
-    let mut all = groups(&f);
-    all.push(last_word(&f));
-    assert_eq!(linked(&mut app), sorted(all));
+    settle(&mut app);
+    // The eleven whole words are in Words so far, and with every flip in
+    // the checksum's last word too.
+    assert_eq!(pills(&mut app), (0..12).collect::<Vec<u8>>());
 }
 
 /// The last word the checksum makes of these flips, worked out here: the
@@ -155,14 +165,14 @@ fn the_last_word_shows_once_every_flip_is_in() {
         assert_eq!(app.keygen().unwrap().checksum_word(), Some(last));
         let mut all = before.clone();
         all.push(last);
-        assert_eq!(linked(&mut app), sorted(all.clone()));
+        settle(&mut app);
+        assert_eq!(pills(&mut app), (0..words).collect::<Vec<u8>>());
 
         // Made, the words are those.
         app.press(Action::KNext);
-        app.press(Action::KStep(kstep::ENTER));
+        app.press(Action::KStep(kstep::WORDS));
         let k = app.keygen().unwrap();
         assert_eq!(k.mnemonic.as_ref().unwrap().indices(), &all[..]);
-        assert_eq!(linked(&mut app), sorted(all));
     }
 }
 
@@ -190,7 +200,7 @@ fn dice_open_on_flip_mode_and_every_way_takes_each_entry_as_it_is_typed() {
     }
     let f: Vec<bool> = faces.bytes().map(|b| b >= b'4').collect();
     assert_eq!(dice.keygen().unwrap().coins.flips().collect::<Vec<_>>(), f);
-    assert_eq!(linked(&mut dice), groups(&f));
+    assert_eq!(pills(&mut dice), vec![0]);
 
     // Coins: heads and tails.
     let mut coin = coins(12);
@@ -200,7 +210,7 @@ fn dice_open_on_flip_mode_and_every_way_takes_each_entry_as_it_is_typed() {
     }
     let f: Vec<bool> = sides.chars().map(|c| c == 'H').collect();
     assert_eq!(coin.keygen().unwrap().coins.flips().collect::<Vec<_>>(), f);
-    assert_eq!(linked(&mut coin), groups(&f));
+    assert_eq!(pills(&mut coin), vec![0]);
 
     // Every dice procedure is typed too.
     for way in [Way::DiceHashed, Way::DiceSixAsZero, Way::DiceWords] {
@@ -327,15 +337,17 @@ fn hashed_dice_show_no_words_as_they_come_in() {
 
 #[test]
 fn a_word_s_link_marks_it_in_the_list_and_back_returns_to_the_card() {
-    let f = flips(70);
+    let f = flips(128);
     let mut app = coins(12);
     for &h in &f {
         app.press(Action::KFlip(h));
     }
-    let word = groups(&f)[3];
+    // Made, the words list each with a link to its place in the list.
+    app.press(Action::KNext);
+    app.press(Action::KStep(kstep::WORDS));
+    let at = app.keygen().unwrap().open;
+    let word = app.keygen().unwrap().mnemonic.as_ref().unwrap().indices()[3];
     let open = Action::WordList(WL::Open(0, Some(word)));
-    let _ = app.frame();
-    assert!(app.offers(open));
     app.press(open);
     assert_eq!(app.sheet, Some(Sheet::WordList));
     assert_eq!(app.screen, Screen::KeyGen);
@@ -350,21 +362,21 @@ fn a_word_s_link_marks_it_in_the_list_and_back_returns_to_the_card() {
     }
     // Keys are the sheet's: a 1 typed here is not a flip.
     app.event(Event::Key(Key::Char('1')));
-    assert_eq!(app.keygen().unwrap().coins.len(), 70);
+    assert_eq!(app.keygen().unwrap().coins.len(), 128);
     let _ = app.frame();
     assert!(app.offers(Action::WordList(WL::Close)));
     app.press(Action::WordList(WL::Close));
     assert_eq!(app.sheet, None);
     assert_eq!(app.screen, Screen::KeyGen);
     let k = app.keygen().unwrap();
-    assert_eq!(k.open, Some(kstep::ENTER));
+    assert_eq!(k.open, at);
     assert!(k.coins.flips().eq(f.iter().copied()));
     // Escape closes it the same way.
     app.press(open);
     app.event(Event::Key(Key::Escape));
     assert_eq!(app.sheet, None);
     assert_eq!(app.screen, Screen::KeyGen);
-    assert_eq!(app.keygen().unwrap().coins.len(), 70);
+    assert_eq!(app.keygen().unwrap().coins.len(), 128);
     // So does a press beside the sheet; a press on it does not.
     app.press(open);
     let _ = app.frame();
@@ -375,8 +387,8 @@ fn a_word_s_link_marks_it_in_the_list_and_back_returns_to_the_card() {
     assert_eq!(app.sheet, None);
     assert_eq!(app.screen, Screen::KeyGen);
     let k = app.keygen().unwrap();
-    assert_eq!(k.open, Some(kstep::ENTER));
-    assert_eq!(k.coins.len(), 70);
+    assert_eq!(k.open, at);
+    assert_eq!(k.coins.len(), 128);
 }
 
 /// A finger down and up at (x, y), in pixels.

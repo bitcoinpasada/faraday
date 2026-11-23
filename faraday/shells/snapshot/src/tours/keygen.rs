@@ -120,3 +120,32 @@ pub(crate) fn dice_words_tour(t: &mut Tour) -> Result<(), String> {
     }
     t.shot("dicewords-guide")
 }
+
+/// New key from coin flips (eleven flips a word) as the strip and Words so
+/// far show them: part way through the first word, the last word part way
+/// through, and the last flip in with its checksum bits.
+pub(crate) fn flip_words_tour(t: &mut Tour) -> Result<(), String> {
+    t.press(Action::KeyGen(None));
+    t.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
+    t.press(Action::KWords(12));
+    t.press(Action::KWay(Way::Coins.index()));
+    t.press(Action::KNext);
+    t.press(Action::KTyping(false));
+    for i in 0..5 {
+        t.press(Action::KFlip(i % 2 == 0));
+    }
+    t.shot("flipwords-mid-word")?;
+    for i in 5..124 {
+        t.press(Action::KFlip(i % 3 != 0));
+    }
+    for _ in 0..4 {
+        t.tick();
+    }
+    t.shot("flipwords-last-word")?;
+    for i in 124..128 {
+        t.press(Action::KFlip(i % 3 != 0));
+    }
+    t.shot("flipwords-checksum")
+}

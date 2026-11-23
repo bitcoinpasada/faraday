@@ -362,7 +362,12 @@ fn pad(app: &View, p: &OwnPage, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             own(Act::Frame),
         ),
         OwnSource::Dice => dice_entry(app, p, ui, (x, y, w)),
-        OwnSource::Coins => coin_pad(ui, (x, y, w), own(Act::Flip(true)), own(Act::Flip(false))),
+        OwnSource::Coins => coin_pad(
+            ui,
+            (x, y, w),
+            Style::Secondary,
+            (own(Act::Flip(true)), own(Act::Flip(false))),
+        ),
         OwnSource::Cards => card_pad(
             ui,
             (x, y, w),

@@ -25,8 +25,8 @@ pub(crate) fn pad_fit(ui: &mut Ui, at: (f32, f32, f32), touch: f32, full: bool) 
     dice_pad_fit(ui, at, touch, &|_| face_style(full), Action::KRoll)
 }
 
-/// A face's style: greyed once every roll is in.
-fn face_style(full: bool) -> Style {
+/// A face's or a coin side's style: greyed once every entry is in.
+pub(crate) fn face_style(full: bool) -> Style {
     if full {
         Style::Disabled
     } else {
