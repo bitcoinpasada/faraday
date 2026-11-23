@@ -145,9 +145,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(contained) = crate::trail::StepFlow::contained(&super::steps::KEYGEN_STEPS) else {
         return;
     };
-    ui.words_pane = app
-        .words_pane_shown()
-        .then(|| super::words_so_far::pane_place(app, ui, (x0, cw, h)));
     let body_top = std::cell::Cell::new(None);
     let (next, again, room) = {
         let app_ref: &View = app;
@@ -182,9 +179,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         )
     };
     app.scroll(Scrolled::KeyGen, next, again);
-    if app.words_pane_shown() {
-        super::words_so_far::pane(app, k, ui, (x0, cw, h));
-    }
     super::words_so_far::overlays(app, k, ui, (x0, cw, h));
     // The dice sheet's column stands above the input panel at the foot.
     if let Some(m) = k.codex32.as_ref() {

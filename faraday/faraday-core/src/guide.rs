@@ -689,7 +689,7 @@ impl Faraday {
     /// page (`docs/LAYOUT.md` §6): an extra-large window (1600 dp and
     /// over) beside the sidebar, not held. Below it the guide is the sheet.
     /// A lookup.
-    pub(crate) fn guide_pane_room(&self) -> bool {
+    fn guide_pane_room(&self) -> bool {
         if self.unit_on_show() {
             // A flow's card and Your choices narrow before Guide gives
             // way to the sheet (`docs/FLOW-CONTAINER.md` §4).
@@ -709,10 +709,11 @@ impl Faraday {
         let codex32 = self.screen == Screen::KeyGen
             && self.keygen.state().is_some_and(|k| k.codex32.is_some());
         // A flow on the container keeps the place for Your choices, unless
-        // its card and Your choices stand left of it (`flow::unit`).
+        // its card and Your choices stand left of it (`flow::unit`), or on the
+        // dice step, which makes room for it.
         !codex32
             && !matches!(self.screen, Screen::Backup | Screen::BackupFlow)
-            && (!self.contained_on_show() || self.unit_on_show() || self.words_pane_place())
+            && (!self.contained_on_show() || self.unit_on_show() || self.dice_step_shown())
     }
 
     /// Whether the guide stands as the supporting pane this frame: open as

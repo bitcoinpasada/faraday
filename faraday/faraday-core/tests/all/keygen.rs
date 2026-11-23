@@ -457,45 +457,30 @@ fn box_of(app: &mut Faraday, a: Action) -> Option<(i32, i32, i32, i32)> {
         .map(|(x, y, w, h)| (i32::from(x), i32::from(y), i32::from(w), i32::from(h)))
 }
 
-/// The Guide opens as the right pane in Words so far's place on a wide
-/// window, and its close button brings Words so far back.
+/// The Guide opens as the right pane on a wide window, with Words so far
+/// still in the card.
 #[test]
-fn the_guide_takes_words_so_fars_pane_and_gives_it_back() {
+fn the_guide_is_a_pane_beside_the_dice_step() {
     let mut app = dice_step_at(1920, 1080);
-    assert!(box_of(&mut app, Action::KWordOpen(0)).is_some());
     app.press(Action::Guide);
     let _ = app.frame();
     assert!(app.offers(Action::GuideClose), "the Guide is the pane");
     assert!(app.sheet.is_none(), "not a sheet");
-    assert!(box_of(&mut app, Action::KWordOpen(0)).is_none());
+    assert!(box_of(&mut app, Action::KWordOpen(0)).is_some());
     app.press(Action::GuideClose);
-    let _ = app.frame();
     assert!(box_of(&mut app, Action::KWordOpen(0)).is_some());
 }
 
-/// Words so far in its pane leaves the pad clear of it, as the Guide's
-/// pane does.
+/// Words so far stands below the pad, in the card, at every window size,
+/// and behind a button on the Pi's panel.
 #[test]
-fn words_so_far_pane_leaves_the_pad_clear_of_it() {
-    let mut app = dice_step_at(1920, 1080);
-    let pad = box_of(&mut app, Action::KRoll(6)).expect("the pad");
-    let word = box_of(&mut app, Action::KWordOpen(0)).expect("the word in its pane");
-    assert!(pad.0 + pad.2 <= word.0, "{pad:?} clear of {word:?}");
-}
-
-/// Words so far stands at the card's right on a wide window, below the
-/// pad on a narrower one, and behind a button on the Pi's panel.
-#[test]
-fn words_so_far_stands_at_the_cards_right_below_it_or_behind_a_button() {
-    let mut wide = dice_step_at(1920, 1080);
-    let pad = box_of(&mut wide, Action::KRoll(1)).expect("the pad");
-    let word = box_of(&mut wide, Action::KWordOpen(0)).expect("the word in its pane");
-    assert!(word.0 > pad.0 + pad.2, "{word:?} right of {pad:?}");
-
-    let mut narrow = dice_step_at(1366, 2400);
-    let pad = box_of(&mut narrow, Action::KRoll(1)).expect("the pad");
-    let word = box_of(&mut narrow, Action::KWordOpen(0)).expect("the word in the card");
-    assert!(word.1 > pad.1 + pad.3, "{word:?} below {pad:?}");
+fn words_so_far_stands_below_the_pad_or_behind_a_button() {
+    for (width, height) in [(1920, 1080), (1366, 2400)] {
+        let mut app = dice_step_at(width, height);
+        let pad = box_of(&mut app, Action::KRoll(1)).expect("the pad");
+        let word = box_of(&mut app, Action::KWordOpen(0)).expect("the word in the card");
+        assert!(word.1 > pad.1 + pad.3, "{word:?} below {pad:?}");
+    }
 
     let mut pi = dice_step_at(480, 640);
     assert!(box_of(&mut pi, Action::KWordOpen(0)).is_none());

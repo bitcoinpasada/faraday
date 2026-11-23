@@ -524,10 +524,6 @@ pub struct Ui<'a, A> {
     /// units: `SPACER` before Your choices, or the page area's end less the
     /// margin on a step that takes the whole room. `None` otherwise.
     pub flow_work: Option<f32>,
-    /// Where the supporting pane stands this frame while Words so far
-    /// holds it, `(x, y, w, view)` in design units, worked out where the
-    /// screen is laid out; drawing reads it. `None` elsewhere.
-    pub words_pane: Option<(f32, f32, f32, f32)>,
     /// Where the step column wants to glide to, to bring the open card
     /// into view, units.
     pub follow_to: Option<f32>,
@@ -697,7 +693,6 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             foot_room: 0.0,
             flow_card: None,
             flow_work: None,
-            words_pane: None,
             follow_to: None,
             compact: false,
             touch: faraday_draw::tokens::TOUCH,

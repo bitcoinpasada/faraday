@@ -1272,36 +1272,27 @@ impl crate::Faraday {
         Some((face, drop))
     }
 
-    /// Where Words so far stands now: a button on the small panel, the
-    /// pane where the window holds one (the room Guide's pane needs),
-    /// else below the pad. A lookup.
+    /// Where Words so far stands now: a button on the small panel, else
+    /// below the pad. A lookup.
     pub(crate) fn words_at(&self) -> words_so_far::At {
         if self.is_compact() {
             words_so_far::At::Button
-        } else if self.screen == Screen::KeyGen && self.guide_pane_room() {
-            words_so_far::At::Pane
         } else {
             words_so_far::At::Below
         }
     }
 
-    /// Whether the dice step stands with Words so far as the pane's
-    /// place (the Guide takes it while open). A lookup.
-    pub(crate) fn words_pane_place(&self) -> bool {
-        self.keygen.state().is_some_and(|k| {
-            k.open == Some(kstep::ENTER)
-                && k.made.is_none()
-                && !k.hosted()
-                && dice_strip::stands(k)
-                && k.reveals()
-        }) && self.words_at() == words_so_far::At::Pane
-    }
-
-    /// Whether Words so far stands as the pane this frame: on the dice
-    /// step, in the pane's place, which the Guide takes while it is
-    /// open there. A lookup.
-    pub(crate) fn words_pane_shown(&self) -> bool {
-        self.words_pane_place() && !self.guide_pane_shown()
+    /// Whether the dice step with the word being made is on show. A
+    /// lookup.
+    pub(crate) fn dice_step_shown(&self) -> bool {
+        self.screen == Screen::KeyGen
+            && self.keygen.state().is_some_and(|k| {
+                k.open == Some(kstep::ENTER)
+                    && k.made.is_none()
+                    && !k.hosted()
+                    && dice_strip::stands(k)
+                    && k.reveals()
+            })
     }
 
     /// The word gliding into Words so far, by its place, and how far it
