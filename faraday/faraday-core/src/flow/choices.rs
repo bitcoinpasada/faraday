@@ -107,34 +107,22 @@ pub(crate) struct Pane<'a> {
     pub(crate) steps: &'a Steps,
     /// The pane's left edge, its width and the window's height.
     pub(crate) place: (f32, f32, f32),
+    /// Where its heading starts: the card's top where the pair is level.
+    pub(crate) top: f32,
     /// How far it is scrolled within itself.
     pub(crate) offset: f32,
-    /// The step's card column: its left edge and its width.
-    pub(crate) card: (f32, f32),
-    /// The page area's left edge: the navigation's edge, or the window's.
-    pub(crate) area_x: f32,
 }
 
 impl Pane<'_> {
-    /// Draws the pane on the surface with a divider at its start, and a
-    /// second one the same spacer left of the card's column, so the card
-    /// is framed on both sides; each runs from the top to a page margin
-    /// above the window's foot. A pane taller than the window scrolls
-    /// within itself (`Slot::Choices`).
-    pub(crate) fn draw(&self, ui: &mut Ui, foot: Foot) {
+    /// Draws the pane's rows on the page, which is the surface; the card's
+    /// container draws the divider between the pane and the card. Returns
+    /// the height the content needs from the pane's top, so the pair can
+    /// end level. A pane taller than the window scrolls within itself
+    /// (`Slot::Choices`).
+    pub(crate) fn draw(&self, ui: &mut Ui, foot: Foot) -> f32 {
         let (px, pw, h) = self.place;
-        ui.fill(px, 0.0, pw, h, 0.0, Role::Surface);
-        let end = h - tokens::MARGIN_WIDE;
-        ui.fill(px, 0.0, 1.0, end, 0.0, Role::OutlineVariant);
-        // Nearer than a spacer to the page's edge, the navigation's own
-        // edge frames the card and a second line beside it would read as
-        // a double rule.
-        let left = self.card.0 - tokens::SPACER;
-        if left - self.area_x >= tokens::SPACER {
-            ui.fill(left, 0.0, 1.0, end, 0.0, Role::OutlineVariant);
-        }
-        let top = tokens::SIDE_PANEL_TOP;
-        let clip = ui.rect(px + 1.0, top, pw - 1.0, h - top);
+        let top = self.top;
+        let clip = ui.rect(px, top, pw, h - top);
         let off = self.offset;
         let open = ui.region_open(Region::scrolled(Slot::Choices, clip, off));
         let mark = ui.presses_mark();
@@ -152,6 +140,7 @@ impl Pane<'_> {
         // What is scrolled out of the pane takes no press.
         ui.clip_presses_since(mark, clip);
         ui.region_close(open, (y + CHOICES_INSET - h).max(0.0));
+        y + CHOICES_INSET - top
     }
 }
 

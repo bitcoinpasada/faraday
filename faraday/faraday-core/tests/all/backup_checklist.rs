@@ -99,7 +99,7 @@ pub(crate) fn press_offered(app: &mut Faraday, action: Action) {
             return;
         }
         app.event(Event::Scroll {
-            x: 400,
+            x: 900,
             y: 384,
             dy: 300,
         });
@@ -576,7 +576,7 @@ fn each_vault_is_its_own_item_and_the_second_does_not_take_the_vault_the_first_f
             break;
         }
         app.event(Event::Scroll {
-            x: 400,
+            x: 900,
             y: 384,
             dy: 300,
         });
@@ -617,7 +617,7 @@ fn pane_state(boxes: &[TextBox], title: &str) -> String {
         .unwrap_or_else(|| panic!("no Your choices in {boxes:?}"));
     let (_, (x, y, _, _)) = boxes
         .iter()
-        .find(|(t, (bx, _, _, _))| t == title && bx >= px)
+        .find(|(t, (bx, _, _, _))| t == title && (bx - px).abs() < 4)
         .unwrap_or_else(|| panic!("no row titled {title:?} in {boxes:?}"));
     boxes
         .iter()
@@ -700,7 +700,7 @@ fn through_a_2_of_3_checklist_the_cards_tick_what_is_done_and_the_rest_wait_for_
         }
         let after: Vec<&str> = boxes
             .iter()
-            .filter(|(t, (x, _, _, _))| t.starts_with("After: ") && *x > 1000)
+            .filter(|(t, (x, _, _, _))| t.starts_with("After: ") && *x < 600)
             .map(|(t, _)| t.as_str())
             .collect();
         match waiting {
@@ -761,14 +761,14 @@ fn offered_anywhere(app: &mut Faraday, action: Action) -> bool {
         let _ = app.frame();
         seen |= app.offers(action);
         app.event(Event::Scroll {
-            x: 400,
+            x: 900,
             y: 384,
             dy: 300,
         });
     }
     for _ in 0..20 {
         app.event(Event::Scroll {
-            x: 400,
+            x: 900,
             y: 384,
             dy: -300,
         });
@@ -902,7 +902,7 @@ fn shown_anywhere(app: &mut Faraday, want: &str) -> bool {
         app.settle();
         seen |= crate::common::has(app, want);
         app.event(Event::Scroll {
-            x: 400,
+            x: 900,
             y: 384,
             dy: 300,
         });
@@ -1312,7 +1312,7 @@ fn done_waits_for_the_krux_codes_check_after_the_words_match() {
             break;
         }
         app.event(Event::Scroll {
-            x: 600,
+            x: 900,
             y: 400,
             dy: 120,
         });

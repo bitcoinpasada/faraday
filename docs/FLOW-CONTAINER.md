@@ -152,15 +152,19 @@ card. A step's blend touches only the bands that differ.
 ## 4. Your choices
 
 **Wide layout** (the expanded rail: a large or extra-large window that is
-not low; `ui.compact` false). The pane stands at the right of the page
-area, as Make a new vault's does today: `side_panel_w` (31% of the page
-area, 240 to 320 dp), on the surface with a divider at its start (a line from the top to a page
-margin above the window's foot, and the same line the same spacer left of
-the card's column, so the card is framed on both sides, drawn only where it
-stands at least a spacer clear of the page's left edge, nearer which the
-navigation's edge frames the card; Guide's pane is its own card and draws
-none; a full-width step and every one-column layout draw neither), its
-heading **Your choices** in Label L at `SIDE_PANEL_TOP`, then one row per
+not low; `ui.compact` false). A step whose card is a column stands as a
+pair, one card: Your choices at the LEFT, `LIST_PANE` (360 dp), one
+`SPACER` gap, and the step card at its right, up to `COLUMN_MAX`, the
+pair centred in the room beside the navigation (`flow/pair.rs`). The page
+is the surface (no fill); one thin rounded outline (`SHAPE_L`, OutlineVariant) goes round the pair, a padding outside the pair's left and right edges and foot and half a padding above the card's top, ending a padding above the window's foot where the pair is taller, so the pane and the step scroll inside it; a divider at the middle of the gap, inset at top and
+bottom by the card's padding, is the only line between the two, and runs
+to where the taller side ends: a pair ends level, tops and bottoms in line,
+the pane never stretched to the window's foot. Where the pair does not
+fit, and for the wide content that stands at the navigation's edge, the
+pane stands at the right as Make a new vault's does: `side_panel_w` (31% of the
+page area, 240 to 320 dp), with the same divider at the middle of the gap
+before it. Guide's pane is its own card and draws none; a full-width step
+and every one-column layout draw neither. The heading **Your choices** is in Label L at `SIDE_PANEL_TOP`, then one row per
 step: the label, and under it the answer or "Not chosen yet", each row a
 press in its 48 dp target. The current step's row is marked as current.
 A pane taller than the window scrolls within itself (LAYOUT §6), so a low
@@ -181,18 +185,20 @@ choices**. Your choices stays at a flow's end; rows before a point the flow
 cannot take back take no press. On a window too low for the pane, the pane
 scrolls within itself.
 
-On the wide layout a step whose card is a column stands with Your choices as
-one unit: the card's `COLUMN_MAX` column, a `SPACER` and the pane, centred in
-the room beside the navigation (`flow/unit.rs`). Guide's ? opens its
-supporting pane at the right (LAYOUT §6), instead of the sheet, whenever the
-unit at its narrowest and the pane fit: 1536 dp of window. The unit then
-moves left only as far as the pane needs (not at all when it already fits
-centred; about 140 dp at 1920 dp), and stays there when the pane closes,
-until the flow ends; a new flow starts centred. The move shows through the
-frame's cross-fade that a pane coming or going has. To make room, the card's
-column narrows from 720 to `FLOW_CARD_MIN` (560 dp) first and then Your choices
-from 320 to `CHOICES_PANE_MIN` (240 dp), each only as far as the room needs.
-Below that room Guide is the sheet. The full-width steps and the steps
+On the wide layout a step whose card is a column stands as the pair
+(`flow/pair.rs`, used by `flow/unit.rs`): Your choices 360 dp, a `SPACER`
+and the card's column up to 720 dp, centred in the room beside the
+navigation. Guide's ? opens its supporting pane at the right (LAYOUT §6),
+instead of the sheet, whenever the pair at its narrowest and the pane fit:
+1536 dp of window. The pair then moves left only as far as the pane needs
+(not at all when it already fits centred), and stays there when the pane
+closes, until the flow ends; a new flow starts centred. The move shows
+through the frame's cross-fade that a pane coming or going has. To make
+room, the card's column narrows from 720 to `FLOW_CARD_MIN` (560 dp) first
+and then Your choices from 360 to `CHOICES_PANE_MIN` (240 dp), each only as
+far as the room needs. Below that room Guide is the sheet. The rectangle
+the fade treats as the card is the step card alone, not the pair.
+The full-width steps and the steps
 whose card stands at the navigation's edge (wide content) have their own
 pane or none, and Guide is the sheet there.
 
@@ -202,8 +208,8 @@ pane or none, and Guide is the sheet there.
   menu's layout. One card under the bar, its controls below its heading;
   the bar's back, the flow's name, Your choices, the ? and Cancel.
 - **1366 × 768, a laptop**: a large window, not low: the expanded rail,
-  the card in its column, Your choices at the right (about 1126 dp of page
-  area, the pane 320 of it). The same laptop's half-screen window (683 dp)
+  the card in its column, Your choices at its left (about 1126 dp of page
+  area, the pane 360 of it). The same laptop's half-screen window (683 dp)
   is medium: the rail, the card, the bar's button.
 
 ## 5. The two full-width steps

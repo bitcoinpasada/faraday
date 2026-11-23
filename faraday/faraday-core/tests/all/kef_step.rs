@@ -808,7 +808,7 @@ fn seen(app: &mut Faraday, text: &str) -> bool {
             return true;
         }
         app.event(Event::Scroll {
-            x: 600,
+            x: 900,
             y: 400,
             dy: 120,
         });

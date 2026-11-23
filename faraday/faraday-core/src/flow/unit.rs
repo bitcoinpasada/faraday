@@ -1,5 +1,6 @@
 //! Where a flow's card and Your choices stand on the wide layout: one unit,
-//! the card's column, a spacer and the pane, centred in the room beside the
+//! Your choices at the left of the card (`pair`) where the room holds them,
+//! else the card's column, a spacer and the pane at its right, centred in the room beside the
 //! navigation, and moved left only as far as Guide's pane needs when it
 //! stands beside the flow (`docs/FLOW-CONTAINER.md` §4). Arithmetic.
 
@@ -16,6 +17,8 @@ pub(crate) struct Place {
     pub(crate) pane_x: f32,
     /// Your choices' width.
     pub(crate) pane_w: f32,
+    /// The gap between the card and the pane.
+    pub(crate) gap: f32,
 }
 
 /// The room Guide's pane takes at the right edge: the pane, the spacer
@@ -36,6 +39,9 @@ pub(crate) fn guide_min_room() -> f32 {
 /// narrows only to fit the room.
 pub(crate) fn place(room: f32, guide: bool) -> Place {
     let guide = guide && room >= guide_min_room();
+    if let Some(p) = super::pair::pair(room, guide) {
+        return p;
+    }
     let limit = if guide { room - guide_room() } else { room };
     let avail = limit - MARGIN_WIDE;
     let pane0 = crate::screens::side_panel_w(room);
@@ -58,5 +64,6 @@ pub(crate) fn place(room: f32, guide: bool) -> Place {
         card_w,
         pane_x: card_x + card_w + SPACER,
         pane_w,
+        gap: SPACER,
     }
 }
