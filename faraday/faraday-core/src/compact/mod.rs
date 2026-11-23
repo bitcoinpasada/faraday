@@ -181,7 +181,7 @@ pub(crate) fn flow_bar_tools(app: &View, ui: &mut Ui, w: f32) {
     let pill = crate::modes::screen::shows_pill(app);
     if right < w - GAP_SMALL || pill {
         if right < w - GAP_SMALL {
-            ui.fill(right, 0.0, w - right, BAR_H - 1.0, 0.0, Role::Surface);
+            faraday_ui::nav::fill_behind(ui, right, w - right, BAR_H);
         }
         tools(app, ui, w);
     }

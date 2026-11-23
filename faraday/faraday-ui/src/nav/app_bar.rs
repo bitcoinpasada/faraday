@@ -28,19 +28,28 @@ pub struct AppBar<'s, A> {
     pub back_tip: &'static str,
 }
 
+/// The bar's own fill over part of it, from `x`, `w` wide and `h` tall, as
+/// the page stands under it now: [`app_bar`]'s, and behind what is drawn
+/// over its end after it.
+pub fn fill_behind<A: Copy + PartialEq>(ui: &mut Ui<A>, x: f32, w: f32, h: f32) {
+    let scrolled = ui.offset > 0.0 && !ui.in_sheet;
+    if ui.theme.is_high_contrast() {
+        ui.fill(x, 0.0, w, h, 0.0, app_bar_fill(scrolled));
+    } else {
+        // The scrolled fill comes in with the page's first units under
+        // the bar, and the page's top edge fades into it.
+        let tone = ui.bar_tone(if scrolled { ui.offset } else { 0.0 });
+        ui.wash(x, 0.0, w, h, 0.0, crate::pal::Paint::Fixed(tone));
+    }
+}
+
 /// The bar at the top of the page, `w` wide, its name kept left of
 /// `right`, where the actions drawn after it begin. Surface, and
 /// surface-container once the page is scrolled under it
 /// ([`app_bar_fill`]); no rule under it (Material's top app bar).
 pub fn app_bar<A: Copy + PartialEq>(ui: &mut Ui<A>, w: f32, bar: &AppBar<A>, right: f32) {
-    let scrolled = ui.offset > 0.0 && !ui.in_sheet;
-    if ui.theme.is_high_contrast() {
-        ui.fill(0.0, 0.0, w, APP_BAR_H, 0.0, app_bar_fill(scrolled));
-    } else {
-        // The scrolled fill comes in with the page's first units under
-        // the bar, and the page's top edge fades into it.
-        let tone = ui.bar_tone(if scrolled { ui.offset } else { 0.0 });
-        ui.wash(0.0, 0.0, w, APP_BAR_H, 0.0, crate::pal::Paint::Fixed(tone));
+    fill_behind(ui, 0.0, w, APP_BAR_H);
+    if !ui.theme.is_high_contrast() {
         ui.under_bar = !ui.in_sheet;
     }
     let mut x = MARGIN_COMPACT;
