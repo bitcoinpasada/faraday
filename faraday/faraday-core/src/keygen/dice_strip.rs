@@ -126,6 +126,8 @@ pub(crate) fn strip(
         t::GAP
     };
     let slot = t::DICE_STRIP_SLOT.min((inner - (need as f32 - 1.0) * slot_gap) / need as f32);
+    // A narrowed slot stays tall enough for the face over its bits.
+    let slot_h = slot.max(ui.line_as(TITLE_L) + ui.line_as(BODY_S) + t::GAP_SMALL);
     let bit_gap = 2.0;
     let group = t::GAP_SMALL;
     let bw = t::DICE_STRIP_BIT_W.min((inner - 5.0 * group - 10.0 * bit_gap) / 11.0);
@@ -137,9 +139,24 @@ pub(crate) fn strip(
         .as_ref()
         .is_some_and(|e| bits_w + t::GAP + ui.measure_as(BODY_M.mono(), e) > inner);
     let line = check.is_some().then(|| ui.line_as(BODY_S) + t::GAP_SMALL);
+    // The head holds the label, the Guide's button, the word's place and
+    // the eye in one row where they fit; where they do not, the word's
+    // place stands under the label.
+    let word_n = fill(EN.keygen_word_n, &[&(n + 1).to_string()]);
+    let head_w = ui.measure_as(LABEL_L, EN.keygen_word_being_made)
+        + 2.0 * side
+        + ui.measure_as(LABEL_L.regular(), &word_n)
+        + 3.0 * t::GAP;
+    let head_two = head_w > inner;
+    let head_extra = if head_two {
+        ui.line_as(LABEL_L) + t::GAP_SMALL
+    } else {
+        0.0
+    };
     let height = t::GAP
         + side
-        + slot
+        + head_extra
+        + slot_h
         + caption
         + bh
         + if eq_below { bh } else { 0.0 }
@@ -156,12 +173,17 @@ pub(crate) fn strip(
     let masked = k.strip_masked();
     let eye_x = x + w - t::GAP - side;
     eye_button(ui, eye_x, cy, side, masked);
-    ui.text_right_as(
-        (eye_x - t::GAP, cy, side),
-        LABEL_L.regular(),
-        muted,
-        &fill(EN.keygen_word_n, &[&(n + 1).to_string()]),
-    );
+    if head_two {
+        ui.text_as(x0, cy + side, LABEL_L.regular(), muted, &word_n);
+        cy += head_extra;
+    } else {
+        ui.text_right_as(
+            (eye_x - t::GAP, cy, side),
+            LABEL_L.regular(),
+            muted,
+            &word_n,
+        );
+    }
     cy += side;
     let rest = height - (cy - y);
     if masked {
@@ -178,21 +200,21 @@ pub(crate) fn strip(
         match got.get(i) {
             Some(&f) => {
                 let (fill_role, ink) = tint(i % 2 == 1);
-                ui.fill(sx, cy, slot, slot, t::SHAPE_M, fill_role);
+                ui.fill(sx, cy, slot, slot_h, t::SHAPE_M, fill_role);
                 let bits = bits_of(i, f, last);
                 let drop_last = last && i == need - 1 && dropped == 1;
-                face_and_bits(ui, (sx, cy, slot), f, bits, ink, drop_last);
+                face_and_bits(ui, (sx, cy, slot, slot_h), f, bits, ink, drop_last);
             }
             None => {
-                ui.stroke(sx, cy, slot, slot, t::SHAPE_M, Role::OutlineVariant);
+                ui.stroke(sx, cy, slot, slot_h, t::SHAPE_M, Role::OutlineVariant);
                 if let (Some((f, drop)), true) = (again, i == got.len())
                     && drop < 1.0
                 {
                     let dy = drop * t::DICE_STRIP_DROP;
-                    ui.stroke(sx, cy + dy, slot, slot, t::SHAPE_M, Role::Outline);
-                    face_and_bits(ui, (sx, cy + dy, slot), f, "", muted, true);
+                    ui.stroke(sx, cy + dy, slot, slot_h, t::SHAPE_M, Role::Outline);
+                    face_and_bits(ui, (sx, cy + dy, slot, slot_h), f, "", muted, true);
                     let cap = ui.measure_as(LABEL_S, EN.keygen_rolled_again);
-                    let capy = cy + dy + slot + t::GAP_SMALL;
+                    let capy = cy + dy + slot_h + t::GAP_SMALL;
                     ui.text_as(
                         sx + (slot - cap) / 2.0,
                         capy,
@@ -204,7 +226,7 @@ pub(crate) fn strip(
             }
         }
     }
-    cy += slot + caption;
+    cy += slot_h + caption;
 
     // The number's 11 bits, then `= n`.
     let mut bx = x0;
@@ -295,7 +317,7 @@ pub(crate) fn strip(
 /// of the bits struck as dropped when `drop_last`.
 fn face_and_bits(
     ui: &mut Ui,
-    (x, y, s): (f32, f32, f32),
+    (x, y, s, h): (f32, f32, f32, f32),
     face: u8,
     bits: &str,
     ink: Role,
@@ -305,7 +327,7 @@ fn face_and_bits(
     let fw = ui.measure_as(TITLE_L, &f);
     let fh = ui.line_as(TITLE_L);
     let bh = ui.line_as(BODY_S);
-    let top = y + (s - fh - bh) / 2.0;
+    let top = y + (h - fh - bh) / 2.0;
     ui.text_as(x + (s - fw) / 2.0, top, TITLE_L, ink, &f);
     if bits.is_empty() {
         // A struck face with no bits: the line through the face.

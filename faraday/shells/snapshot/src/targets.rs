@@ -388,6 +388,7 @@ walks! {
     walk_vaultsheets = Some("vaultsheets"),
     walk_addkey = Some("addkey"),
     walk_keygen = Some("keygen"),
+    walk_dicewords = Some("dicewords"),
     walk_codex32correct = Some("codex32correct"),
     walk_createfrom = Some("createfrom"),
     walk_inprogress = Some("inprogress"),

@@ -343,9 +343,12 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         // The guide's supporting pane takes its room at the right, so the
         // page is laid out beside it and nothing of it is under the pane
         // (`docs/LAYOUT.md` §6).
+        // Words so far on the dice step stands in the same place, so the
+        // page makes the same room for it.
         let pane = app.guide_pane_shown();
+        let makes_room = pane || app.words_pane_shown();
         // A flow's unit makes its own room for the pane.
-        let beside = if pane && !app.unit_on_show() {
+        let beside = if makes_room && !app.unit_on_show() {
             support_pane_room()
         } else {
             0.0

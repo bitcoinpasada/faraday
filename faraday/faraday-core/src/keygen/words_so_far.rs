@@ -156,19 +156,28 @@ fn cells(ui: &mut Ui, g: &Grid, words: &[Option<u16>], masked: bool) {
 
 /// The pill gliding from `from` to `to`, `p` of the way, with the
 /// emphasis easing away behind it.
-fn glide(ui: &mut Ui, (from, to): ((f32, f32), (f32, f32)), word: &str, p: f32) {
+fn glide(ui: &mut Ui, (from, to): ((f32, f32), (f32, f32)), word: &str, p: f32, fades: bool) {
     let e = crate::motion::ease_move(p);
     let (x, y) = (from.0 + (to.0 - from.0) * e, from.1 + (to.1 - from.1) * e);
     let w = ui.measure_as(BODY_M.mono(), word) + 2.0 * t::TAG_PAD;
-    ui.fill(x, y, w, t::TAG_H, t::SHAPE_S, Role::SurfaceContainerHighest);
-    ui.stroke(x, y, w, t::TAG_H, t::SHAPE_S, Role::Outline);
+    // Out of view, the pill fades on its way to the card's lower edge.
+    let keep = if fades { 1.0 - e } else { 1.0 };
+    ui.fill(
+        x,
+        y,
+        w,
+        t::TAG_H,
+        t::SHAPE_S,
+        Role::SurfaceContainerHighest.at(keep),
+    );
+    ui.stroke(x, y, w, t::TAG_H, t::SHAPE_S, Role::Outline.at(keep));
     ui.text_mid_as(
         (x + t::TAG_PAD, y, t::TAG_H),
         BODY_M.mono(),
-        Role::OnSurface,
+        Role::OnSurface.at(keep),
         word,
     );
-    let alpha = (t::STATE_PRESS + t::PRESS_EMPHASIS) * (1.0 - e);
+    let alpha = (t::STATE_PRESS + t::PRESS_EMPHASIS) * (1.0 - e) * keep;
     ui.wash(x, y, w, t::TAG_H, t::SHAPE_S, Role::Primary.at(alpha));
 }
 
@@ -222,18 +231,37 @@ pub(crate) fn inline(
             target = arrival.map_or((x, cy), |(s, _)| g.pill_at(usize::from(s)));
             cy += g.height() + t::GAP;
         }
-        // The pane draws it; the word glides toward the pane's column.
+        // The pane draws it; the word glides to its cell there, laid out
+        // with the pane (`Ui::words_pane`). A cell below the pane's view
+        // is out of sight: the word heads for the pane's lower edge and
+        // fades. Without the pane's place, an estimate by the column.
         At::Pane => {
-            let g = Grid::new(ui, (0.0, 0.0, t::SUPPORT_PANE - 2.0 * t::PAD), k.words);
-            let off = arrival.map_or(0.0, |(s, _)| g.pill_at(usize::from(s)).0);
-            target = (
-                x + w + t::PAD + t::SPACER + t::PAD + off,
-                from.map_or(cy, |f| f.1),
-            );
-            return glide_from(ui, k, arrival, from, target, y, cy);
+            let place = arrival.map(|(s, _)| usize::from(s));
+            let (to, fades) = match (ui.words_pane, place) {
+                (Some((px, py, pw, view)), Some(s)) => {
+                    let top = py + t::PAD + ui.line_as(TITLE_S) + t::GAP;
+                    let g = Grid::new(ui, (px + t::PAD, top, pw - 2.0 * t::PAD), k.words);
+                    let cell = g.pill_at(s);
+                    if cell.1 + t::TAG_H > py + view {
+                        ((cell.0, py + view), true)
+                    } else {
+                        (cell, false)
+                    }
+                }
+                _ => {
+                    let g = Grid::new(ui, (0.0, 0.0, t::SUPPORT_PANE - 2.0 * t::PAD), k.words);
+                    let off = place.map_or(0.0, |s| g.pill_at(s).0);
+                    let at = (
+                        x + w + t::PAD + t::SPACER + t::PAD + off,
+                        from.map_or(cy, |f| f.1),
+                    );
+                    (at, false)
+                }
+            };
+            return glide_from(ui, k, arrival, from, (to, fades), y, cy);
         }
     }
-    glide_from(ui, k, arrival, from, target, y, cy)
+    glide_from(ui, k, arrival, from, (target, false), y, cy)
 }
 
 fn glide_from(
@@ -241,20 +269,29 @@ fn glide_from(
     k: &KeyGen,
     arrival: Option<(u8, f32)>,
     from: Option<(f32, f32)>,
-    to: (f32, f32),
+    (to, fades): ((f32, f32), bool),
     y: f32,
     cy: f32,
 ) -> f32 {
     if let (Some((s, p)), Some(from)) = (arrival, from) {
-        glide(ui, (from, to), &arriving(k, s), p);
+        glide(ui, (from, to), &arriving(k, s), p, fades);
     }
     cy - y
+}
+
+/// Where the pane stands in the page's drawing: the Guide's place at the
+/// window's right (`screens::support_pane_place` over the room from the
+/// navigation to the window's edge), which the flow's unit makes room for
+/// as it does for the Guide's pane.
+pub(crate) fn pane_place(app: &View, ui: &Ui, (x0, _, h): (f32, f32, f32)) -> (f32, f32, f32, f32) {
+    let room = app.size().0 - x0;
+    crate::screens::support_pane_place((x0, room - ui.ox, h))
 }
 
 /// The supporting pane at the page area's right, `(x0, cw, h)` as the
 /// Guide's pane takes them (`screens::support_pane_place`).
 pub(crate) fn pane(app: &View, k: &KeyGen, ui: &mut Ui, area: (f32, f32, f32)) {
-    let (x, y, w, view) = crate::screens::support_pane_place(area);
+    let (x, y, w, view) = pane_place(app, ui, area);
     ui.fill(x, y, w, view, t::SHAPE_L, Role::SurfaceContainer);
     let words = made(k, app.keygen_arrival().map(|(s, _)| s));
     let (ix, iw) = (x + t::PAD, w - 2.0 * t::PAD);
@@ -288,7 +325,10 @@ fn page(app: &View, k: &KeyGen, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) {
         app,
         ui,
         cw,
-        (EN.keygen_back, Action::KWordsPage(false)),
+        (
+            super::screen::card_name(k, kstep::ENTER),
+            Action::KWordsPage(false),
+        ),
         EN.keygen_words_so_far,
     );
     let words = made(k, None);
@@ -400,7 +440,7 @@ fn sheet(app: &View, k: &KeyGen, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), slot
         let back = if k.words_page() {
             EN.keygen_words_so_far
         } else {
-            EN.keygen_back
+            super::screen::card_name(k, kstep::ENTER)
         };
         crate::compact::bar(app, ui, cw, (back, Action::KWordClose), &head);
         draw_rows(ui, M, BAR_H + t::PAD, cw - 2.0 * M);

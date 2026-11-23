@@ -145,6 +145,9 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(contained) = crate::trail::StepFlow::contained(&super::steps::KEYGEN_STEPS) else {
         return;
     };
+    ui.words_pane = app
+        .words_pane_shown()
+        .then(|| super::words_so_far::pane_place(app, ui, (x0, cw, h)));
     let body_top = std::cell::Cell::new(None);
     let (next, again, room) = {
         let app_ref: &View = app;

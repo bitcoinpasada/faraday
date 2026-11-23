@@ -1285,10 +1285,9 @@ impl crate::Faraday {
         }
     }
 
-    /// Whether Words so far stands as the pane this frame: on the dice
-    /// step, in the pane's place, which the Guide takes while it is
-    /// open there. A lookup.
-    pub(crate) fn words_pane_shown(&self) -> bool {
+    /// Whether the dice step stands with Words so far as the pane's
+    /// place (the Guide takes it while open). A lookup.
+    pub(crate) fn words_pane_place(&self) -> bool {
         self.keygen.state().is_some_and(|k| {
             k.open == Some(kstep::ENTER)
                 && k.made.is_none()
@@ -1296,7 +1295,13 @@ impl crate::Faraday {
                 && dice_strip::stands(k)
                 && k.reveals()
         }) && self.words_at() == words_so_far::At::Pane
-            && !self.guide_pane_shown()
+    }
+
+    /// Whether Words so far stands as the pane this frame: on the dice
+    /// step, in the pane's place, which the Guide takes while it is
+    /// open there. A lookup.
+    pub(crate) fn words_pane_shown(&self) -> bool {
+        self.words_pane_place() && !self.guide_pane_shown()
     }
 
     /// The word gliding into Words so far, by its place, and how far it

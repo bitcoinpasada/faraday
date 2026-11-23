@@ -383,6 +383,8 @@ pub(crate) fn stays(a: Action) -> bool {
             | Action::SpendPaths(false)
             | Action::Vault(VaultAction::ItemBack)
             | Action::SettingsSection(None)
+            | Action::KWordsPage(false)
+            | Action::KWordClose
             | Action::Vault(VaultAction::Search(crate::vault::SearchAct::Leave(_)))
     )
 }

@@ -71,3 +71,52 @@ pub(crate) fn keygen_tour(t: &mut Tour) -> Result<(), String> {
     }
     t.shot("wordlist-find-101")
 }
+
+/// New key from dice words (six rolls a word) as Words so far shows
+/// them: part way through the first word, with seven words made, and
+/// with the Guide open over that (the pane, or a sheet or page where
+/// the window holds no pane).
+pub(crate) fn dice_words_tour(t: &mut Tour) -> Result<(), String> {
+    t.press(Action::KeyGen(None));
+    t.press(Action::KStart(
+        Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
+    t.press(Action::KWords(12));
+    t.press(Action::KWay(Way::DiceWords.index()));
+    t.press(Action::KNext);
+    t.press(Action::KTyping(false));
+    for f in [3, 1, 4] {
+        t.press(Action::KRoll(f));
+    }
+    t.shot("dicewords-mid-word")?;
+    for i in 3..42u8 {
+        t.press(Action::KRoll(i % 6 + 1));
+    }
+    for _ in 0..4 {
+        t.tick();
+    }
+    t.shot("dicewords-some-words")?;
+    // On the Pi's panel Words so far is a button and a page of its own,
+    // below the pad: the card is scrolled to it.
+    for _ in 0..6 {
+        t.app.settle();
+        let _ = t.app.frame();
+        if t.app.where_offered(Action::KWordsPage(true)).is_some() {
+            break;
+        }
+        crate::tour::scroll(t, 120);
+    }
+    if t.app.where_offered(Action::KWordsPage(true)).is_some() {
+        crate::tour::scroll_to(t, Action::KWordsPage(true));
+        crate::tour::scroll(t, 120);
+        t.shot("dicewords-button")?;
+        t.press(Action::KWordsPage(true));
+        t.shot("dicewords-page")?;
+        t.press(Action::KWordsPage(false));
+    }
+    t.press(Action::Guide);
+    for _ in 0..4 {
+        t.tick();
+    }
+    t.shot("dicewords-guide")
+}

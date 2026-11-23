@@ -712,7 +712,7 @@ impl Faraday {
         // its card and Your choices stand left of it (`flow::unit`).
         !codex32
             && !matches!(self.screen, Screen::Backup | Screen::BackupFlow)
-            && (!self.contained_on_show() || self.unit_on_show())
+            && (!self.contained_on_show() || self.unit_on_show() || self.words_pane_place())
     }
 
     /// Whether the guide stands as the supporting pane this frame: open as

@@ -457,6 +457,32 @@ fn box_of(app: &mut Faraday, a: Action) -> Option<(i32, i32, i32, i32)> {
         .map(|(x, y, w, h)| (i32::from(x), i32::from(y), i32::from(w), i32::from(h)))
 }
 
+/// The Guide opens as the right pane in Words so far's place on a wide
+/// window, and its close button brings Words so far back.
+#[test]
+fn the_guide_takes_words_so_fars_pane_and_gives_it_back() {
+    let mut app = dice_step_at(1920, 1080);
+    assert!(box_of(&mut app, Action::KWordOpen(0)).is_some());
+    app.press(Action::Guide);
+    let _ = app.frame();
+    assert!(app.offers(Action::GuideClose), "the Guide is the pane");
+    assert!(app.sheet.is_none(), "not a sheet");
+    assert!(box_of(&mut app, Action::KWordOpen(0)).is_none());
+    app.press(Action::GuideClose);
+    let _ = app.frame();
+    assert!(box_of(&mut app, Action::KWordOpen(0)).is_some());
+}
+
+/// Words so far in its pane leaves the pad clear of it, as the Guide's
+/// pane does.
+#[test]
+fn words_so_far_pane_leaves_the_pad_clear_of_it() {
+    let mut app = dice_step_at(1920, 1080);
+    let pad = box_of(&mut app, Action::KRoll(6)).expect("the pad");
+    let word = box_of(&mut app, Action::KWordOpen(0)).expect("the word in its pane");
+    assert!(pad.0 + pad.2 <= word.0, "{pad:?} clear of {word:?}");
+}
+
 /// Words so far stands at the card's right on a wide window, below the
 /// pad on a narrower one, and behind a button on the Pi's panel.
 #[test]
@@ -481,6 +507,13 @@ fn words_so_far_stands_at_the_cards_right_below_it_or_behind_a_button() {
     );
     pi.press(Action::KWordsPage(true));
     assert!(box_of(&mut pi, Action::KWordOpen(0)).is_some());
+
+    // Back, as Escape too, returns to the rolls, not to the step before.
+    let shown = texts(&mut pi);
+    assert!(shown.contains("Back to Rolls"), "{shown}");
+    pi.event(Event::Key(Key::Escape));
+    assert!(box_of(&mut pi, Action::KWordOpen(0)).is_none());
+    assert!(box_of(&mut pi, Action::KWordsPage(true)).is_some());
 }
 
 /// Pressing a word opens its working: its rolls, the number and the word.

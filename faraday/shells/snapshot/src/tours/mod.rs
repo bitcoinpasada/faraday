@@ -180,6 +180,7 @@ pub(crate) const TOURS: &[(&str, TourFn)] = &[
     ),
     ("addkey", TourFn::Plain(add_key::add_key_tour)),
     ("keygen", TourFn::Plain(keygen::keygen_tour)),
+    ("dicewords", TourFn::Plain(keygen::dice_words_tour)),
     (
         "codex32correct",
         TourFn::Costly(codex32_correct::codex32_correct_tour),
