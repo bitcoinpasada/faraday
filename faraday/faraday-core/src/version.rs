@@ -10,6 +10,38 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// `cargo build`, which sets no such environment variable.
 pub const BUILD: Option<&str> = option_env!("FARADAY_BUILD");
 
+/// Whether a build ID names a dev build (`.dev` at its end, F5): the
+/// kind of build the work kept out of the app may be compiled into (F325).
+#[cfg(feature = "handwriting")]
+const fn is_dev_build(id: &[u8]) -> bool {
+    const DEV: &[u8] = b".dev";
+    if id.len() < DEV.len() {
+        return false;
+    }
+    let mut i = 0;
+    while i < DEV.len() {
+        if id[id.len() - DEV.len() + i] != DEV[i] {
+            return false;
+        }
+        i += 1;
+    }
+    true
+}
+
+// A build the scripts name (a release, a test release) refuses the
+// `handwriting` feature at compile time, however cargo was called: only
+// Faraday Demo's dev build (F326) is built with it. A build with no ID
+// (`cargo test`, `cargo clippy`) is no shipped build and is let through.
+#[cfg(feature = "handwriting")]
+const _: () = {
+    if let Some(id) = BUILD {
+        assert!(
+            is_dev_build(id.as_bytes()),
+            "the handwriting feature is for Faraday Demo's dev build only (F325)"
+        );
+    }
+};
+
 /// Which Faraday program printed a `--version` line.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Program {

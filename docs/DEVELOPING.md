@@ -129,9 +129,10 @@ recipe (F243, F284), nothing else.
 just                      the tests, then every lint run to the end (lint-all)
 just test                 the tests alone (nextest over the workspace, then the vendored QR reader's own, then the doc tests)
 just test-doc             the doc tests alone
+just test-handwriting     the tests of faraday-core and faraday-demo with the `handwriting` feature on (F325; `test` runs with it off, as every shipped build is)
 just test-i686            the tests of the parser crates (sb, fat, files, disk, codec, psbt, bip, the vendored QR reader) as a 32-bit program, as the Pi runs them
 just lint                 clippy with warnings as errors, fmt, and the repository's lints, in five parts:
-just lint-clippy          clippy over every target, then the stick's app as its image builds it
+just lint-clippy          clippy over every target, then the stick's app as its image builds it, then the app and Faraday Demo with the `handwriting` feature on
 just lint-deps            cargo deny, cargo vet, the fuzz crates built
 just lint-repo            fmt, the scripts in tools/, the registry
 just lint-touch-targets   the touch-target ratchet: every snapshot tour at four sizes, a test a tour
@@ -233,7 +234,21 @@ just dev=1 faraday-stick-image            out/stick/faraday-x86_64-uefi-dev.img
 just dev=1 faraday-pi-image               out/pi/faraday-pi3-any-dev.img
 just faraday-starter                      the Starter, built and run here
 just faraday-linux-bin                    one Linux file, out/linux/faraday (glibc 2.31 container)
+just dev=1 faraday-linux-bin              Faraday Demo's dev build, out/linux/faraday, with the handwriting feature (F325, F326)
 ```
+
+Faraday Demo's dev build names itself a dev build (`.dev`, as a dev image
+does) and is never published. Only it carries the `handwriting` feature (work
+kept out of the app: a cargo feature of `faraday-demo`, off by default);
+`dev=1` is refused with `release=1` and for any package but `faraday-demo`.
+Three checks keep the feature out of anything shipped: `tools/lint-keys-tests.sh`
+(the crate is in no shipped binary's dependency graph, no `handwriting`
+feature is on in one), the compiler (faraday-core's `version.rs` refuses the
+feature in a build whose ID is not a dev build's, whatever the cargo command), and the
+build recipes of the images, the Starter and Faraday Demo, which search the finished binary for the
+reader's weights with `faraday/tools/binary-crate.py absent`. The same script
+with `present` is the positive control on the dev build; the reader's
+weights are in a binary only once the build calls the reader.
 
 The first image build clones Buildroot at its pinned tag and takes 30
 to 60 minutes; later builds redo only what changed. A build is a test

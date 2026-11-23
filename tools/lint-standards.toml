@@ -256,6 +256,20 @@ decision = "F234"
 functions = ["core/faraday-bip/src/musig.rs::SecNonce::from_bytes"]
 unnamed = '(?<![:\w])SecNonce\b|musig::SecNonce\b'
 
+# Work kept out of the app by a build switch (F325): a cargo feature, off in
+# every shipped build, that only Faraday Demo's dev build turns on (F326). An
+# entry that names a `feature` says which crate and which code compiled only
+# with the feature it holds out (`held`: files, or function ids): the crate
+# and that code are not roots, and no shipped function may reach them. The
+# first code is the reader's own; a screen or action compiled only with the
+# feature is added to `held` by the change that adds it.
+[[out_of_app]]
+what = "Reading handwritten words (the handwriting feature)"
+decision = "F325"
+feature = "handwriting"
+crate = "faraday-handwriting"
+held = []
+
 # ---------------------------------------------------------------- holds
 # Where the code says which actions are holds. Every action such a
 # function names (`A::B`, or an arm `A::B =>` whose answer is not `false`)

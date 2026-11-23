@@ -13,9 +13,9 @@
 # compiles the dependencies of each job whose cache main lacks, without running
 # any test or lint (docs/decisions/F265.md).
 #
-# `just` is spread over twenty-five jobs: gate, then one compiles the tests once and
+# `just` is spread over twenty-six jobs: gate, then one compiles the tests once and
 # archives them, fourteen each run a fourteenth of them, and the doc tests,
-# the parser crates' tests on a 32-bit target (tests-i686) and the five parts of `just lint` run beside them. The last job, check,
+# the parser crates' tests on a 32-bit target (tests-i686), the tests with the work kept out of the app on (tests-handwriting, F325) and the five parts of `just lint` run beside them. The last job, check,
 # passes when every part passed.
 #
 # A run started by hand with `lints` false (for a tree whose other lints
@@ -272,6 +272,20 @@ jobs:
         run: .github/actions/setup/apt-install.sh gcc-multilib
       - run: just test-i686
 
+  # The app's and Faraday Demo's tests with the `handwriting` feature on (F325).
+  tests-handwriting:
+    name: tests handwriting on
+    needs: gate
+    if: needs.gate.outputs.pass != 'true'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: just test-handwriting
+
   lint:
     name: ${{ matrix.part }}
     needs: gate
@@ -313,7 +327,7 @@ jobs:
   check:
     name: check
     if: always()
-    needs: [gate, build-tests, tests, doc-tests, tests-i686, lint, warm, warm-commands]
+    needs: [gate, build-tests, tests, doc-tests, tests-i686, tests-handwriting, lint, warm, warm-commands]
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:

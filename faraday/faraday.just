@@ -43,7 +43,12 @@ stick_panel := "efi-framebuffer"
 # (faraday/build/linux) against glibc 2.31, so one file runs on Ubuntu
 # 20.04 and later, Debian 11 and later, Fedora 32 and later and Arch
 # (docs/STARTER.md §1.2). It is a developer's build: people run Faraday
-# Demo inside the Starter, which carries it compiled in (F126). The
+# Demo inside the Starter, which carries it compiled in (F126). `just dev=1
+# faraday-linux-bin` builds Faraday Demo's dev build (F326): it names itself
+# a dev build and carries the work kept out of the app (F325, the
+# `handwriting` feature); refused with release=1 and for any package but
+# faraday-demo. Every other build is searched for that work and fails if it
+# holds any (faraday/tools/binary-crate.py). The
 # Wayland and X11 libraries are loaded from the
 # desktop it runs on. The Starter is built the same way with
 # the arguments `out/linux out/build/run faraday-starter-shell faraday-starter`, against the image list a first
@@ -66,11 +71,18 @@ faraday-linux-bin out="out/linux" cache="out/build/run" package="faraday-demo" b
     set -euo pipefail
     root="$(pwd)"
     mkdir -p "{{out}}" "{{cache}}/linux" "{{build_cache}}/cargo"
+    # dev=1 makes Faraday Demo's dev build (F326): it names itself a dev
+    # build and carries the features of the work kept out of the app (F325).
+    # It is never a release, and no other package takes the features.
+    features=""
+    if [ "{{dev}}" = 1 ]; then
+        [ "{{release}}" != 1 ] || { echo "faraday-linux-bin: dev=1 and release=1: a release is not a dev build" >&2; exit 1; }
+        [ "{{package}}" = faraday-demo ] || { echo "faraday-linux-bin: dev=1 is Faraday Demo's dev build, not {{package}}'s" >&2; exit 1; }
+        features="faraday-demo/handwriting"
+    fi
     # Not `export FARADAY_BUILD=$(...)`: with `set -e`, export's own exit
-    # status hides a failure of the command inside it. The desktop build
-    # has no dev variant (docs/DECISIONS.md F5), so FARADAY_DEV is fixed
-    # at 0 rather than following a `dev` variable.
-    FARADAY_BUILD="$(FARADAY_RELEASE={{release}} FARADAY_DEV=0 FARADAY_VERSION={{version}} faraday/image/build-id.sh)"
+    # status hides a failure of the command inside it.
+    FARADAY_BUILD="$(FARADAY_RELEASE={{release}} FARADAY_DEV={{dev}} FARADAY_VERSION={{version}} faraday/image/build-id.sh)"
     export FARADAY_BUILD
     {{docker}} build -t faraday-build-linux -f faraday/build/linux/Containerfile faraday/build/linux
     # The release's image list, mounted where build.rs reads it.
@@ -87,7 +99,15 @@ faraday-linux-bin out="out/linux" cache="out/build/run" package="faraday-demo" b
         -v "$root/{{out}}":/out \
         -v "$root/{{cache}}/linux":/build \
         -v "$root/{{build_cache}}/cargo":/cargo \
-        faraday-build-linux /src/faraday/build/linux/build.sh "{{package}}" "{{bin}}"
+        faraday-build-linux /src/faraday/build/linux/build.sh "{{package}}" "{{bin}}" "$features"
+    # A build that is not the dev build holds none of the work kept out of
+    # the app (F325); the dev build is the control, which finds it once the
+    # build calls it.
+    if [ -z "$features" ]; then
+        python3 -I -B faraday/tools/binary-crate.py absent "{{out}}/{{bin}}"
+    else
+        python3 -I -B faraday/tools/binary-crate.py present "{{out}}/{{bin}}" || echo "faraday-linux-bin: the control found nothing: the build does not call the work yet, or the check is broken" >&2
+    fi
     file "{{out}}/{{bin}}"
     sha256sum "{{out}}/{{bin}}"
 
@@ -111,6 +131,7 @@ faraday-windows-bin what="build" out="out/windows" cache="out/build/run" package
     #!/usr/bin/env bash
     set -euo pipefail
     root="$(pwd)"
+    [ "{{dev}}" != 1 ] || { echo "faraday-windows-bin: no dev build for Windows (the dev build is faraday-linux-bin's, F326)" >&2; exit 1; }
     mkdir -p "{{out}}" "{{cache}}/windows" "{{build_cache}}/cargo"
     FARADAY_BUILD="$(FARADAY_RELEASE={{release}} FARADAY_DEV=0 FARADAY_VERSION={{version}} faraday/image/build-id.sh)"
     export FARADAY_BUILD
@@ -130,6 +151,7 @@ faraday-windows-bin what="build" out="out/windows" cache="out/build/run" package
         -v "$root/{{build_cache}}/cargo":/cargo \
         faraday-build-windows /src/faraday/build/windows/build.sh "{{what}}" "{{package}}" "{{bin}}"
     if [ "{{what}}" != clippy ]; then
+        python3 -I -B faraday/tools/binary-crate.py absent "{{out}}/{{bin}}.exe"
         sha256sum "{{out}}/{{bin}}.exe"
     fi
 

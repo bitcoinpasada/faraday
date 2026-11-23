@@ -4,7 +4,10 @@
 # `just faraday-linux-bin` starts it; there is nothing here to run on the
 # host.
 #
-#   build.sh [PACKAGE [BINARY]]       default: faraday-demo faraday
+#   build.sh [PACKAGE [BINARY [FEATURES]]]   default: faraday-demo faraday
+#
+# FEATURES (cargo's --features list) is only Faraday Demo's dev build's
+# (F326): the work kept out of the app.
 #
 # The binary lands in /out/BINARY. Container paths: /src is the checkout
 # (read-only), /out and /build are bind mounts, /cargo the registry cache.
@@ -13,6 +16,7 @@ set -euo pipefail
 
 package="${1:-faraday-demo}"
 binary="${2:-faraday}"
+features="${3:-}"
 
 die() { printf 'build.sh: %s\n' "$1" >&2; exit 1; }
 
@@ -29,7 +33,9 @@ export FARADAY_BUILD
 export HOME=/root
 . /src/faraday/image/path-remap.sh
 
-cargo build --release --locked -p "$package" --bin "$binary"
+# A release's build ID is no dev build's, and faraday-core's version.rs
+# refuses the features under it.
+cargo build --release --locked -p "$package" --bin "$binary" ${features:+--features "$features"}
 install -m 0755 "$CARGO_TARGET_DIR/release/$binary" "/out/$binary"
 
 # Nothing may need a newer glibc than the container's, and nothing of the

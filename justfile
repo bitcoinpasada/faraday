@@ -2,7 +2,7 @@
 # (.github/workflows/check.yml).
 
 [group('test')]
-default: test test-i686 lint-all
+default: test test-i686 test-handwriting lint-all
 
 # Run every unit, integration and doc test in the workspace. nextest runs
 # the test binaries in parallel where `cargo test` runs them one after
@@ -31,6 +31,14 @@ test-doc:
 test-i686:
     cargo nextest run --locked --target i686-unknown-linux-gnu -p faraday-sb -p faraday-fat -p faraday-files -p faraday-disk -p faraday-codec -p faraday-psbt -p faraday-bip -p rqrr
 
+# The tests of the app and of Faraday Demo with the work kept out of the app
+# compiled in (F325): the `handwriting` feature, which only Faraday Demo's
+# dev build (F326) turns on. `test` runs with it off, as every shipped
+# build does.
+[group('test')]
+test-handwriting:
+    cargo nextest run --locked -p faraday-core -p faraday-demo --features faraday-demo/handwriting
+
 # Clippy with warnings as errors, and failing on a warning about its own
 # configuration (tools/clippy.py), formatting check, the secret-hygiene
 # lint, the user-facing-strings lint, the design-token lint, the costs
@@ -52,11 +60,13 @@ lint: lint-clippy lint-deps lint-repo lint-touch-targets lint-op-cost
 
 # Clippy over the workspace, every target (the costliest part of the lint),
 # then over the stick's app alone: the workspace turns on faraday-core's demo
-# feature for Faraday Demo, and the stick's app is built without it.
+# feature for Faraday Demo, and the stick's app is built without it; then
+# over the app and Faraday Demo with the `handwriting` feature on (F325).
 [group('lint')]
 lint-clippy:
     python3 tools/clippy.py --locked --workspace --all-targets
     python3 tools/clippy.py --locked -p faraday-stick
+    python3 tools/clippy.py --locked -p faraday-core -p faraday-demo --all-targets --features faraday-demo/handwriting
 
 # The dependencies: cargo deny and cargo vet, and the fuzz crates built.
 [group('lint')]

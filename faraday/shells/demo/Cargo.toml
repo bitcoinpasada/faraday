@@ -30,6 +30,11 @@ winit.workspace = true
 # Starter (faraday/shells/starter).
 faraday-window = { path = "../window" }
 
+[features]
+# Faraday Demo's dev build (F326) turns on the work kept out of the app
+# (F325); no other build does. Off by default.
+handwriting = ["faraday-core/handwriting"]
+
 [lints]
 workspace = true
 

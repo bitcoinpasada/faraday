@@ -18,7 +18,10 @@ and the crypto inventory, against the lists in `tools/lint-standards.toml`.
    crates (the inventory's `callees` and `cross`, resolved as check.py
    resolves them); what no shipped code reaches is not linked into a
    shipped binary. An entry's `unnamed` is a pattern no line of a
-   `faraday/` crate's `src/` may match (a type the app must not name).
+   `faraday/` crate's `src/` may match (a type the app must not name). An
+   entry that names a `feature` (F325) holds out a build switch's work: its
+   `crate` and its `held` (files or function ids compiled only with the
+   feature) are not roots, and no shipped function may reach them.
 3. **Holds listed** (F136). Every hold the code defines, read from the
    functions that say which actions are holds (`[[hold_source]]`), is a
    `[[hold]]` naming its decision and its case; a listed hold the code no
@@ -217,16 +220,47 @@ def resolver(fns):
     return resolve
 
 
+def held_by_feature(data, fns):
+    """The functions the `[[out_of_app]]` entries that name a feature hold
+    out (F325): every function of the entry's `crate`, and the `held` ones,
+    each a file of the repository (all its functions) or a function id: code
+    compiled only with the feature. Returns (the ids by entry, errors)."""
+    held, errs = {}, []
+    for o in data.get("out_of_app", []):
+        if not o.get("feature"):
+            continue
+        ids = {i for i, r in fns.items() if r["crate"] == o.get("crate")}
+        if not o.get("crate") or not ids:
+            errs.append(f"[[out_of_app]] {o['what']}: feature {o['feature']} names a crate "
+                        f"({o.get('crate')}) with no function in the inventory (renamed? update the entry)")
+        for h in as_list(o.get("held")):
+            hit = {i for i, r in fns.items() if i == h or r["file"] == h}
+            if not hit:
+                errs.append(f"[[out_of_app]] {o['what']}: held {h} is no function or file the "
+                            "inventory finds (renamed? update the entry)")
+            ids |= hit
+        held[o["what"]] = ids
+    return held, errs
+
+
 def check_out_of_app(root, data, fns, actions):
     errs = []
     resolve = resolver(fns)
-    reach, stack = set(), [i for i, r in fns.items() if r["file"].startswith("faraday/")]
+    # A feature's crate and its cfg(feature) code are not roots: they are
+    # compiled only with the feature on, and no shipped function may reach
+    # them (F325). F234's own rule stays for the other entries.
+    held, herrs = held_by_feature(data, fns)
+    errs += herrs
+    held_all = set().union(*held.values()) if held else set()
+    reach, stack = set(), [i for i, r in fns.items() if r["file"].startswith("faraday/") and i not in held_all]
     via = {i: i for i in stack}
     while stack:
         f = stack.pop()
         if f in reach:
             continue
         reach.add(f)
+        if f in held_all:
+            continue
         r = fns[f]
         nexts = [c for c in r["callees"] if c in fns]
         nexts += [t for c in r["cross"] for t in resolve(c)]
@@ -235,6 +269,12 @@ def check_out_of_app(root, data, fns, actions):
                 via.setdefault(n, via[f])
                 stack.append(n)
     for o in data.get("out_of_app", []):
+        if o.get("feature"):
+            for f in sorted(held.get(o["what"], ())):
+                if f in reach:
+                    errs.append(f"{f} is compiled only with the {o['feature']} feature ({o['what']}, "
+                                f"{o['decision']}) and the app reaches it, from {via[f]}")
+            continue
         roots = list(as_list(o.get("functions")))
         if o.get("action"):
             a = actions.get(o["action"])
@@ -794,6 +834,25 @@ def self_test():
         e = check_out_of_app(root, {"out_of_app": [{"what": "w", "decision": "F1",
                                               "functions": ["b/src/out.rs::gone"]}]}, fns, {})
         expect(len(e) == 1 and "the app reaches it" in e[0], f"out of app: {e}")
+        # A feature's crate is no root, and a shipped call into it fails (F325).
+        fns["faraday/faraday-hw/src/lib.rs::read"] = {"crate": "faraday-hw", "file": "faraday/faraday-hw/src/lib.rs",
+                                                     "name": "read", "rules": [], "callees": [], "cross": []}
+        fns["faraday/faraday-core/src/hw.rs::screen"] = {"crate": "faraday-core", "file": "faraday/faraday-core/src/hw.rs",
+                                                        "name": "screen", "rules": [], "callees": [],
+                                                        "cross": ["faraday-hw::read"]}
+        feat = {"what": "w", "decision": "F325", "feature": "hw", "crate": "faraday-hw",
+                "held": ["faraday/faraday-core/src/hw.rs"]}
+        e = check_out_of_app(root, {"out_of_app": [feat]}, fns, {})
+        expect(e == [], f"a feature's crate and cfg code are no roots: {e}")
+        fns["faraday/faraday-core/src/x.rs::f"]["cross"].append("faraday-hw::read")
+        e = check_out_of_app(root, {"out_of_app": [feat]}, fns, {})
+        expect(len(e) == 1 and "faraday-hw/src/lib.rs::read is compiled only with the hw feature" in e[0]
+               and "the app reaches it, from faraday/faraday-core/src/x.rs::f" in e[0], f"a shipped call: {e}")
+        fns["faraday/faraday-core/src/x.rs::f"]["cross"].remove("faraday-hw::read")
+        e = check_out_of_app(root, {"out_of_app": [dict(feat, crate="faraday-gone")]}, fns, {})
+        expect(any("no function in the inventory" in x for x in e), f"a renamed crate: {e}")
+        e = check_out_of_app(root, {"out_of_app": [dict(feat, held=["faraday/faraday-core/src/gone.rs"])]}, fns, {})
+        expect(any("gone.rs is no function or file" in x for x in e), f"a renamed held file: {e}")
         (root / "h.rs").write_text("fn is_hold(a: A) -> bool {\n    matches!(a, A::One | A::W(B::Two))\n}\n"
                                    "fn arms(a: S) -> bool { match a { S::Yes => true, S::No => false, _ => false } }\n")
         (root / "docs" / "decisions").mkdir(parents=True)

@@ -34,6 +34,14 @@
 # under faraday-crypto's `unchecked` feature, which core's tests and the fuzz
 # targets turn on as dev-dependencies; it is on in no shipped binary.
 #
+# A seventh: work kept out of the app by a build switch (F325). The
+# handwriting reader (`faraday-handwriting`) is in the dependency graph of no
+# shipped binary, and no feature named `handwriting`, of faraday-core or of
+# faraday-demo, is on in one. Only Faraday Demo's dev build (F326) turns it on,
+# and that build is never shipped. The binary is searched for the crate too,
+# by the recipes that build the shipped ones (faraday/tools/binary-crate.py,
+# F325 point 3).
+#
 # Every `cargo tree` here runs with --locked and fails the lint with its own
 # error when it fails; a tree that prints nothing fails too, since each one
 # asked for holds at least the package named. A renamed package therefore
@@ -144,4 +152,20 @@ if grep -q 'faraday-crypto feature "unchecked"' <<< "$out"; then
     echo "$out"
     exit 1
 fi
+# Work kept out of the app by a build switch (F325): the crate is in no
+# shipped binary's graph, with the default features a shipped build has.
+ABSENT_OK=1 tree "faraday-handwriting" -e normal "${shipped[@]}" -i faraday-handwriting
+if grep -q 'faraday-handwriting v' <<< "$out"; then
+    echo "lint-keys-tests: a shipped binary depends on faraday-handwriting"
+    echo "$out"
+    exit 1
+fi
+for krate in faraday-core faraday-demo; do
+    tree "$krate" -e features,normal "${shipped[@]}" -i "$krate"
+    if grep -q "$krate feature \"handwriting\"" <<< "$out"; then
+        echo "lint-keys-tests: a shipped binary enables $krate's handwriting feature"
+        echo "$out"
+        exit 1
+    fi
+done
 echo "lint-keys-tests: ok"

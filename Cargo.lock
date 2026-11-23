@@ -811,6 +811,7 @@ dependencies = [
  "faraday-files",
  "faraday-forms",
  "faraday-guide",
+ "faraday-handwriting",
  "faraday-intake",
  "faraday-keys",
  "faraday-leak-scan",

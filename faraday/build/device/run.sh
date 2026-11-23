@@ -24,4 +24,6 @@ $docker run --rm \
     -v "$root/$cache/device-$board":/build \
     -v "$root/$cache/cargo":/cargo \
     faraday-build-device /src/faraday/build/device/build.sh "$board"
+# The images' binaries hold none of the work kept out of the app (F325).
+python3 -I -B faraday/tools/binary-crate.py absent "$out/faraday" "$out/faraday-disk" "$out/faraday-grant"
 sha256sum "$out/faraday" "$out/faraday-disk" "$out/faraday-grant"

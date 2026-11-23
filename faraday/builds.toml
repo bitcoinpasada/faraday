@@ -18,7 +18,8 @@
 #             env the environment it needs ({version} is the release's)
 #   needs     what must be built first: "images" is the release's IMAGES
 #             list, staged by faraday/tools/stage-release.sh's first pass
-#   dev       true when dev=1 builds a dev variant (a console and a login)
+#   dev       true when dev=1 builds a dev variant (an image: a console and a
+#             login; Faraday Demo: the handwriting feature, F326)
 #   outputs   the files it leaves, from the repository's root; {dev} is
 #             "-dev" for a dev build and "" otherwise
 #   release   the files a release publishes from it ({version}), if any;
@@ -66,6 +67,7 @@ label = "Faraday Demo for Linux"
 group = "app"
 status = "built"
 recipe = "faraday-linux-bin"
+dev = true
 outputs = ["out/linux/faraday"]
 
 [[build]]

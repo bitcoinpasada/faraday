@@ -44,8 +44,16 @@ faraday-boot = { path = "../faraday-boot" }
 faraday-fat = { path = "../faraday-fat" }
 subtle.workspace = true
 zeroize = { workspace = true, features = ["alloc"] }
+# The handwriting reader, kept out of the app (F325): in a build only with
+# the `handwriting` feature below.
+faraday-handwriting = { path = "../faraday-handwriting", optional = true }
 
 [features]
+# Work kept out of the app (F325, STANDARDS §0): a feature for each, off by
+# default, which only Faraday Demo's dev build turns on (F326, through
+# faraday-demo's feature of the same name). With it off the crate is in no
+# binary's dependency graph. Reading handwritten words:
+handwriting = ["dep:faraday-handwriting"]
 # The online app's Transfer (files and text over QR codes), which only
 # Faraday Demo and the Starter hold. The stick image's app is built without it.
 demo = []
