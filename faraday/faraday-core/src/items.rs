@@ -5,6 +5,7 @@
 //! pane's details later. Built where a menu opens, never per draw.
 
 use crate::strings::EN;
+use crate::wallet::PsbtSeen;
 use crate::{Action, Faraday, FileKind, Item, Screen};
 
 /// One thing to do: its label and its action.
@@ -15,7 +16,6 @@ pub(crate) struct Offer {
     /// "What you can do", likeliest first.
     pub list: Vec<Pick>,
     /// The first entry of `list` is the row's button.
-    #[expect(dead_code, reason = "the session pane's rows read it, still to build")]
     button: bool,
 }
 
@@ -40,22 +40,23 @@ impl Offer {
     }
 
     /// The row's one button, if its kind has one.
-    #[expect(dead_code, reason = "the session pane's rows read it, still to build")]
     pub(crate) fn button(&self) -> Option<&Pick> {
         self.button.then(|| self.list.first()).flatten()
     }
 }
 
-/// Costs a lookup of the loaded wallets by a PSBT's first input. The
-/// offer of Inbox file `k`, by its kind.
-pub(crate) fn offer(app: &mut Faraday, k: usize) -> Offer {
-    let c = app.compute();
-    let app = &*app;
+/// The loaded wallet a PSBT spends from; the caller gives its own lookup
+/// (drawing its kept one, event code the session's with a Compute), so
+/// this works nothing out.
+pub(crate) type SpendsFrom<'a> = &'a dyn Fn(&PsbtSeen) -> Option<usize>;
+
+/// The offer of Inbox file `k`, by its kind.
+pub(crate) fn offer(app: &Faraday, k: usize, spends_from: SpendsFrom) -> Offer {
     let Some(item) = app.inbox.get(k) else {
         return Offer::none();
     };
     match item.kind {
-        FileKind::Psbt => psbt(app, &c, k, item),
+        FileKind::Psbt => psbt(app, spends_from, k, item),
         FileKind::Transaction => Offer::with_button(vec![decode(k), check_signer(k)]),
         FileKind::Wallet | FileKind::SecretWallet => wallet(app, k, item),
         FileKind::Key | FileKind::KeyWithSecret | FileKind::KeyLine => {
@@ -113,7 +114,7 @@ fn into_vault(app: &Faraday, k: usize) -> Option<Pick> {
 /// A PSBT: Collect where it belongs to the spend under way, whoever
 /// signed it (as Files' button offers it); Sign while a loaded wallet can
 /// sign it and a key here is left to; else only the checks.
-fn psbt(app: &Faraday, c: &faraday_crypto::work::Compute, k: usize, item: &Item) -> Offer {
+fn psbt(app: &Faraday, spends_from: SpendsFrom, k: usize, item: &Item) -> Offer {
     let checks = [check_signer(k), decode(k)];
     let same_spend = app.wallets.spend().is_some_and(|s| {
         item.psbt()
@@ -126,9 +127,7 @@ fn psbt(app: &Faraday, c: &faraday_crypto::work::Compute, k: usize, item: &Item)
         ))
     } else {
         let signable = !app.checked_not_signed(k)
-            && item
-                .psbt()
-                .is_some_and(|seen| app.session.spends_from(c, seen).is_some());
+            && item.psbt().is_some_and(|seen| spends_from(seen).is_some());
         signable.then(|| (EN.inbox_actions_sign.to_string(), Action::StartSpend(k)))
     };
     Offer::with_button(first.into_iter().chain(checks).collect())
@@ -169,7 +168,8 @@ fn restore_shares(app: &Faraday) -> Pick {
     )
 }
 
-/// Text: Sign this message (a message wallet loaded), Check an address.
+/// Text: Sign this message (a message wallet loaded), Check an address,
+/// Add to vault.
 fn text(app: &Faraday, k: usize, item: &Item) -> Offer {
     let mut list = Vec::new();
     if !app.session.message_wallets().is_empty() && std::str::from_utf8(&item.bytes).is_ok() {
@@ -182,6 +182,8 @@ fn text(app: &Faraday, k: usize, item: &Item) -> Offer {
         EN.files_check_an_address.to_string(),
         Action::File(crate::file_menu::FilePress::CheckAddress(k)),
     ));
+    // The way a text file goes into a vault (a note), while one is open.
+    list.extend(into_vault(app, k));
     Offer::without_button(list)
 }
 

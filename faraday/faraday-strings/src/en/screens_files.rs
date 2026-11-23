@@ -245,8 +245,6 @@ macro_rules! words_screens_files {
     vault_go_to_wallets: "Go to Wallets",
     // ----- inbox_actions (faraday-core/src/screens/files.rs) -----
     /// Text in `inbox_actions`.
-    inbox_actions_add_to_vault: "Add to vault",
-    /// Text in `inbox_actions`.
     inbox_actions_add_signatures: "Add to signatures",
     /// Text in `inbox_actions`.
     inbox_actions_import: "Import into the vault",
@@ -258,10 +256,6 @@ macro_rules! words_screens_files {
     inbox_actions_sign: "Sign",
     /// Text in `inbox_actions`.
     inbox_actions_load_wallet: "Load the wallet",
-    /// Text in `inbox_actions`.
-    inbox_actions_decode: "Decode",
-    /// Text in `inbox_actions`: a signed PSBT or finished transaction to check rather than sign.
-    inbox_actions_nonce_check: "Nonce check",
     /// Text in `inbox_actions`. `{}`: the share files.
     inbox_actions_restore: "Restore the wallet · {} shares",
     /// Note in `inbox_actions`. `{}`: `m.have.len()`, `m.n`.

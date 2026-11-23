@@ -278,7 +278,10 @@ impl Faraday {
                     return out;
                 }
                 // The item's own list, the one the session pane's details show.
-                out.extend(crate::items::offer(self, k).list);
+                let c = self.compute();
+                let list =
+                    crate::items::offer(self, k, &|seen| self.session.spends_from(&c, seen)).list;
+                out.extend(list);
                 out.push(details);
                 out.push((EN.files_remove.to_string(), Action::InboxRemove(k)));
             }

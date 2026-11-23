@@ -67,21 +67,24 @@ fn a_text_file_is_kept_and_offered_to_the_vault_as_a_note() {
     let k = at(&app, "gmail-codes.txt");
     assert_eq!(app.inbox()[k].kind, FileKind::Text);
     app.press(Action::Nav(Screen::Files));
-    // The open vault's panel stands above the Inbox: scroll down to it.
-    // A key glides the page, so the frames between presses are ticked
-    // as a shell ticks them.
-    let mut offered = false;
-    let mut now = 20_000;
-    for _ in 0..20 {
-        let _ = app.frame();
-        offered |= app.offers(Action::Vault(V::AddFile(k)));
-        app.event(Event::Key(Key::Down));
-        for _ in 0..12 {
-            now += 16;
-            app.event(Event::Tick { now_ms: now });
-        }
-    }
-    assert!(offered, "Files does not offer Add to vault");
+    // Add to vault is in the row's menu, never a button on the card.
+    assert!(!files_offers(&mut app, Action::Vault(V::AddFile(k))));
+    let _ = app.frame();
+    let dots = Action::File(faraday_core::file_menu::FilePress::Menu(
+        faraday_core::file_menu::Row::In(k),
+    ));
+    app.press(dots);
+    let lines: Vec<String> = app
+        .files_menu()
+        .menu
+        .as_ref()
+        .expect("its menu")
+        .lines
+        .iter()
+        .map(|(l, _)| l.clone())
+        .collect();
+    assert!(lines.iter().any(|l| l == "Add to vault"), "{lines:?}");
+    app.press(Action::Back);
     app.press(Action::Vault(V::AddFile(k)));
     let v = &app.vaults().open[0];
     let note = app
@@ -307,7 +310,8 @@ fn files_offers(app: &mut Faraday, action: Action) -> bool {
 
 /// With every vault locked, a text file's row offers nothing for a vault:
 /// not Add to vault, not the vault's Unlock, which stays on the vault's
-/// own row (F60). Once the vault is open, Add to vault is there.
+/// own row (F60). Once the vault is open, Add to vault is in the row's
+/// menu, never a button on the card.
 #[test]
 fn a_text_file_offers_add_to_vault_only_while_a_vault_is_open() {
     let vault = ("vault.kdbx".to_string(), testkit::test_vault().unwrap());
@@ -334,7 +338,7 @@ fn a_text_file_offers_add_to_vault_only_while_a_vault_is_open() {
 
     let mut app = unlocked(vec![codes]);
     let k = at(&app, "gmail-codes.txt");
-    assert!(files_offers(&mut app, Action::Vault(V::AddFile(k))));
+    assert!(!files_offers(&mut app, Action::Vault(V::AddFile(k))));
 }
 
 #[test]

@@ -1319,37 +1319,29 @@ type Note = Option<(Text, crate::ui::Paint)>;
 pub(super) fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Buttons, Note) {
     let mut out: Vec<(Text, Style, Action)> = Vec::new();
     let note: Option<(Text, crate::ui::Paint)> = None;
-    // What goes into a vault shows only while one is open (F60); the
-    // vault's own row unlocks it.
-    let vault_open = app.vault_way(Screen::Files).is_none();
-    let into_vault =
-        |label: &str, style, action| vault_open.then(|| (text!("{}", label), style, action));
-    let add_to_vault = |style| {
-        into_vault(
-            EN.inbox_actions_add_to_vault,
-            style,
-            Action::Vault(crate::vault::VaultAction::AddFile(k)),
-        )
-    };
-    let same_spend = app.wallets.spend().is_some_and(|s| {
-        item.psbt()
-            .is_some_and(|p| p.txid == s.spend.txid && item.name != *s.spend.source)
-    });
+    // The shared list's button (`crate::items`), so the card, the row and
+    // the row's menu agree; a kind the list does not cover keeps its own.
+    let offer = crate::items::offer(app, k, &|seen| app.spends_from(seen));
+    if let Some((label, action)) = offer.button() {
+        let style = if matches!(action, Action::StartSpend(_)) {
+            Style::Tonal
+        } else {
+            Style::Primary
+        };
+        out.push((Text::of(label), style, *action));
+        return (out, note);
+    }
     match item.kind {
-        FileKind::Psbt if same_spend => {
-            out.push((
-                Text::of(EN.inbox_actions_add_signatures),
-                Style::Primary,
-                Action::Collect(k),
-            ));
-        }
         FileKind::Entries => {
-            let action = crate::vault::VaultAction::ImportEntries(k);
-            out.extend(into_vault(
-                EN.inbox_actions_import,
-                Style::Primary,
-                Action::Vault(action),
-            ));
+            // Only while a vault is open (F60).
+            if app.vault_way(Screen::Files).is_none() {
+                let action = crate::vault::VaultAction::ImportEntries(k);
+                out.push((
+                    Text::of(EN.inbox_actions_import),
+                    Style::Primary,
+                    Action::Vault(action),
+                ));
+            }
         }
         FileKind::Vault => {
             let files = app.vault_files();
@@ -1370,80 +1362,6 @@ pub(super) fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Button
                     Action::Vault(crate::vault::VaultAction::Open(at)),
                 ));
             }
-        }
-        FileKind::Psbt | FileKind::Transaction if app.checked_not_signed(k) => {
-            out.push((
-                Text::of(EN.inbox_actions_nonce_check),
-                Style::Primary,
-                Action::NonceCheck(crate::decode::CheckPress::Inbox(k)),
-            ));
-        }
-        FileKind::Psbt => {
-            out.push((
-                Text::of(EN.inbox_actions_sign),
-                Style::Tonal,
-                Action::StartSpend(k),
-            ));
-        }
-        FileKind::Wallet | FileKind::SecretWallet => {
-            out.push((
-                Text::of(EN.inbox_actions_load_wallet),
-                Style::Primary,
-                Action::LoadWallet(k),
-            ));
-        }
-        FileKind::Text => out.extend(add_to_vault(Style::Primary)),
-        FileKind::Transaction => {
-            out.push((
-                Text::of(EN.inbox_actions_decode),
-                Style::Primary,
-                Action::DecodeInbox(k),
-            ));
-        }
-        FileKind::Share => {
-            let n = app
-                .inbox
-                .iter()
-                .filter(|i| i.kind == FileKind::Share)
-                .count();
-            out.push((
-                Text::fill(EN.inbox_actions_restore, &[&text!("{}", n)]),
-                Style::Primary,
-                Action::RestoreShares,
-            ));
-        }
-        FileKind::Words => {
-            out.push((
-                Text::of(EN.inbox_actions_load),
-                Style::Primary,
-                Action::LoadKey(k),
-            ));
-        }
-        FileKind::KruxCode => {
-            out.push((
-                Text::of(EN.inbox_actions_open_code),
-                Style::Primary,
-                Action::KefFile(k),
-            ));
-        }
-        FileKind::Message => {
-            out.push((
-                Text::of(EN.inbox_actions_check),
-                Style::Primary,
-                Action::CheckMessage(k),
-            ));
-        }
-        FileKind::Key => out.push((
-            Text::of(EN.read_go_use_key),
-            Style::Primary,
-            Action::CreateWallet,
-        )),
-        FileKind::CoreWallet => {
-            out.push((
-                Text::of(EN.inbox_actions_read_wallet),
-                Style::Primary,
-                Action::CoreWallet(crate::core_wallet::tool::CoreWalletAction::OpenFile(k)),
-            ));
         }
         FileKind::Sheet if app.online => {
             out.push((

@@ -408,7 +408,7 @@ fn details_shows_the_sha_256_of_the_bytes() {
 }
 
 #[test]
-fn a_psbt_row_shows_sign_and_a_dots_menu_of_details_and_remove() {
+fn a_psbt_no_loaded_wallet_can_sign_shows_check_a_signer_and_a_dots_menu() {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     faraday_core::testkit::inbox_push(
         &mut app,
@@ -428,8 +428,8 @@ fn a_psbt_row_shows_sign_and_a_dots_menu_of_details_and_remove() {
     );
     app.press(Action::Nav(Screen::Files));
     let _ = app.frame();
-    assert!(app.offers(Action::StartSpend(0)), "Sign");
-    assert!(app.drawn_texts().iter().any(|t| t == "Sign"));
+    assert!(!app.offers(Action::StartSpend(0)), "no Sign");
+    assert!(app.drawn_texts().iter().any(|t| t == "Check a signer"));
     assert_eq!(
         menu_of(&mut app, Row::In(0)),
         ["Check a signer", "Decode", "Details", "Remove"]
@@ -700,6 +700,47 @@ fn a_text_file_offers_check_an_address_and_opens_the_check_on_it() {
     choose(&mut app, "Check an address");
     assert_eq!(app.sheet, None, "a choice closes the menu");
     assert_eq!(app.screen, Screen::CheckAddress);
+}
+
+#[test]
+fn a_psbt_of_a_loaded_wallet_shows_sign_and_a_text_file_shows_no_button() {
+    use faraday_core::testkit;
+    let k = testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "savings")
+        .unwrap();
+    let (unsigned, _) = testkit::spend_of(&k).unwrap();
+    let mut app = testkit::started();
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![
+            (faraday_text::Text::of("spend.psbt"), unsigned.to_bytes()),
+            (
+                faraday_text::Text::of("savings-wallet.txt"),
+                k.descriptor.clone().into_bytes(),
+            ),
+            (faraday_text::Text::of("notes.txt"), b"hello".to_vec()),
+        ]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    let at = |app: &Faraday, n: &str| app.inbox().iter().position(|i| i.name == n).unwrap();
+    let (p, t) = (at(&app, "spend.psbt"), at(&app, "notes.txt"));
+    app.press(Action::Nav(Screen::Files));
+    let _ = app.frame();
+    assert!(
+        !app.offers(Action::StartSpend(p)),
+        "no wallet loaded, no Sign"
+    );
+    let w = at(&app, "savings-wallet.txt");
+    testkit::load_wallet(&mut app, w);
+    app.press(Action::Nav(Screen::Files));
+    let _ = app.frame();
+    assert!(
+        app.offers(Action::StartSpend(p)),
+        "Sign with its wallet loaded"
+    );
+    assert!(!app.offers(Action::File(FilePress::Decode(Row::In(t)))));
+    assert!(!app.offers(Action::Vault(faraday_core::vault::VaultAction::AddFile(t))));
 }
 
 /// The test file `name` of the shared fixtures.

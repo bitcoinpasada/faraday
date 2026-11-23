@@ -1921,10 +1921,10 @@ fn a_rows_main_button_leaves_a_narrow_row_so_its_name_keeps_room() {
     };
     let mut wide = at(1000);
     let texts = wide.drawn_texts();
-    assert!(texts.iter().any(|t| t == "Sign"), "{texts:?}");
+    assert!(texts.iter().any(|t| t == "Check a signer"), "{texts:?}");
     let mut app = at(360);
     let texts = app.drawn_texts();
-    assert!(!texts.iter().any(|t| t == "Sign"), "{texts:?}");
+    assert!(!texts.iter().any(|t| t == "Check a signer"), "{texts:?}");
     // The dropped button is still one press away.
     let k = app
         .inbox()
@@ -1932,8 +1932,10 @@ fn a_rows_main_button_leaves_a_narrow_row_so_its_name_keeps_room() {
         .position(|i| i.name == psbt.0.as_str())
         .expect("the PSBT is not in the Inbox");
     let (x, _) = app
-        .where_offered(Action::StartSpend(k))
-        .expect("pressing the row does not start the signing");
+        .where_offered(Action::SignerCheck(
+            faraday_core::decode::check::SignerPress::File(false, k),
+        ))
+        .expect("pressing the row does not open the check");
     let (tx, _) = app
         .where_offered(Action::VisitInbox(k))
         .expect("the tick box is gone");
