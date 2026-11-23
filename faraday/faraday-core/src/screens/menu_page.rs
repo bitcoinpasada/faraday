@@ -140,6 +140,11 @@ pub(crate) fn grid(width: f32, most: usize) -> Grid {
 }
 
 impl Grid {
+    /// Tiles to a row.
+    pub fn columns(&self) -> usize {
+        self.per
+    }
+
     /// Draws `faces` in rows from `at`, every tile in a row as tall as the
     /// tallest in it and never under `CATALOG_TILE_H` or `tile_h`, and
     /// returns their height.

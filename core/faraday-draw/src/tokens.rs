@@ -1207,6 +1207,12 @@ pub const MENU_ROW_CHEVRON: f32 = 24.0;
 /// The widest a menu page is: three tiles at `CATALOG_TILE_MIN` and the two
 /// gaps between them (`docs/MENU-PAGE.md` §2).
 pub const MENU_PAGE_W: f32 = 3.0 * CATALOG_TILE_MIN + 2.0 * MENU_GAP;
+/// The widest the tile of Tools or Check is where it stands beside This
+/// session's pane: the room a 1920 dp window leaves beside the navigation
+/// (1680 dp) less the page margins, the pane and the gap. A wider window
+/// keeps this width and centres the pair, so the groups do not spread
+/// further than the eye follows (`docs/WORKSPACE.md` §4).
+pub const MENU_TILE_WIDE_MAX: f32 = 1680.0 - 2.0 * MARGIN_WIDE - LIST_PANE - SPACER;
 /// A menu page's area: `MENU_PAGE_W` between two `PAGE_INSET`s.
 pub const READING_MENU_W: f32 = MENU_PAGE_W + 2.0 * PAGE_INSET;
 /// The narrowest a derivation path's field is drawn on a wide window

@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Partly built: Home's card with its groups (F323, `docs/SESSION-PANE.md`), the flow pair as one card (F324), a change of page at the Speed and in the Motion style (F318) and the flat section cards of the menu pages (F317) are on main; the rest is not built: the session pane as the one view of what is loaded and going on, on the menu pages and in every flow, the page as panes, and the rest of the motion (§6).
-**Open:** To build: the session pane's modes on Wallets and its form in the flows (§2; Home's card in groups and the modes of Tools and Check are built, `docs/SESSION-PANE.md`), the pairs and stacked pages of §4 for Wallets and Settings, the pick becoming Your choices at the left in a flow with wide content (the wallet chip as the first row is built where the pair stands) and the backup board, the flow pair's one card there (§4, §6), row buttons and details on the pane (§2, §7; Files' row menu and card buttons already read the shared list), search results and the guide as panes (§7), the pane container and its lint (§14), the session pane's place handed to the glide, which moves it (§6), Settings as one tile (§9), the timings on the Pi that §6 and §8 name, and the take-away (§15). Not decided: what Vaults' pane holds (§2), whether the flow's end is one card or two (§15), whether a sheet is centred on the window or on the step card, whether the page's name stays in the top bar, where the Scan button stands on a computer, whether prose is a block (the guide's text), and the backup board's insides.
+**Open:** To build: the session pane's modes on Wallets and its form in the flows (§2; Home's card in groups and the modes of Tools and Check are built, `docs/SESSION-PANE.md`), the pairs and stacked pages of §4 for Wallets and Settings, the pick becoming Your choices at the left in a flow with wide content (the wallet chip as the first row is built where the pair stands) and the backup board, the flow pair's one card there (§4, §6), row buttons and details on the pane (§2, §7; Files' row menu and card buttons already read the shared list), search results and the guide as panes (§7), the pane container and its lint (§14), the session pane's place handed to the glide, which moves it (§6), Settings as one tile (§9), the timings on the Pi that §6 and §8 name, and the take-away (§15). Not decided: what Vaults' pane holds (§2), whether the flow's end is one card or two (§15), where the Scan button stands on a computer, and the backup board's insides.
 
 "This session", Home's raised card, becomes the session pane, Faraday's hub: everything about
 what is loaded and going on lives in it, and it works with every part of
@@ -242,13 +242,16 @@ motion: with motion Off the pane stands where it would after the glide.
    takes the flow step card's width, up to `COLUMN_MAX`, the gap between is
    `HUB_PANE_GAP` (24 dp, 3 × `GRID`), and the pair is centred in the room
    beside the navigation.
-3. **The page's pair and the flow's pair stand at the same place, at the
-   same widths**, at any window size where they would otherwise differ. A
-   flow entered from a menu page moves nothing sideways: the pane turns into
-   the pick in place and the tile turns into the step card; only heights
-   change. The tile's groups take the columns that fit its width and it
-   grows taller. On a window too narrow for the pair at those widths the
-   tile takes the room left (1366 × 768).
+3. **A flow's pair and a flow-bound page's pair stand at the same place,
+   at the same widths**, except Tools and Check (owner, 2026-11-23): their
+   tile fills the room, as wide as the margins, `LIST_PANE` and the gap
+   leave, up to `MENU_TILE_WIDE_MAX`, its groups in two columns or
+   more, so that most of Tools shows without scrolling; a wider window
+   keeps that width and centres the pair, and a room that holds one column
+   (1366 × 768) keeps the flow's place. The pair of these two pages
+   therefore moves sideways when a tool opens (motion, §6); the pane turns
+   into the pick in place and the tile into the step card. Wallets and the
+   other pairs move nothing sideways, only heights change.
 4. **A pair always ends level**: tops and bottoms line up, at the height the
    taller pane's content needs. A pane is never longer than its pair's
    content needs and is stretched to the window's foot only where the
@@ -288,7 +291,7 @@ Every page, with its place:
 | Page | Place |
 |---|---|
 | Home | centred, every group (§2) |
-| Tools, Check | stacked under This session where it all fits; else the pair |
+| Tools, Check | stacked under This session where it all fits; else the pair, the tile filling the room in more columns |
 | Wallets | the pair |
 | Vaults | two panes; the left pane's content not decided |
 | Files | In Faraday at the left, the stick at the right |
@@ -307,7 +310,8 @@ The section cards are built (F317, `docs/MENU-PAGE.md` §4). What changes:
 on Tools and Check every section stands inside **one tile**, the page's
 second pane (§4), in columns that fit the tile's width, each section a
 tonal group with its title and its list rows, 16 dp apart, 16 dp from the
-tile's edge. The tile is stacked under This session or beside it, and
+tile's edge, and as many columns as `CATALOG_TILE_MIN` leaves room for
+(§4 rule 3). The tile is stacked under This session or beside it, and
 carries no search bar: Tools' search is in the top bar (§4). The
 phone-size window and the Pi's menu keep one column of the same groups.
 
@@ -676,12 +680,15 @@ tooltip, the only passing overlays.
   bar's. It has no action bar at its foot: the action is a row, or ends a
   small flow.
 - **A group holds rows, then at most one named block:** field, chart, QR,
-  scanner frame, progress, chips, pad, worksheet, or canvas (the one block
-  that fills a pane, for the backup board's Places and codex32's dice and
-  tree).
+  scanner frame, progress, chips, pad, worksheet, running text (the
+  guide's only, owner, 2026-11-23; working screens keep labels, values and
+  actions), or canvas (the one block that fills a pane, for the backup
+  board's Places and codex32's dice and tree).
 - **A row carries one trailing button or one trailing control.** Settings'
   inline controls are such controls.
 - **Sheets stand over panes:** dialogs, menus and Your choices are sheets.
+  On a wide window a sheet opened during a flow stands centred on the
+  window, the same place on every page and flow (owner, 2026-11-23).
   Locked is a sheet over the empty page. Self-test failed is the one
   full-window state.
 

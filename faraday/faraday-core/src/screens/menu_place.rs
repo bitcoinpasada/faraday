@@ -1,17 +1,19 @@
 //! Where Tools and Check stand on the wide layout (`docs/WORKSPACE.md` §4,
 //! §5): stacked first, the page's one tile under This session's card where
 //! it all fits, else the pair, the pane in the page's own mode at the left
-//! and the tile at its right, standing where a flow's pair stands. The place
+//! and the tile at its right, filling the room in as many columns as fit
+//! (one column: where a flow's pair stands). The place
 //! is the page's and the room's, never what is loaded. Arithmetic and
 //! drawing of one tile of the page's sections; the rows are the pane's.
 
-use super::menu_page::{Page, Section, page_span, sections_height};
+use super::menu_page::{Page, Section, grid, page_span, sections_height};
 use super::session_pane::{Mode, draw_page_pane, page_content_h, page_groups, stacked_card};
 use crate::drawing::View;
 use crate::ui::pal::*;
 use crate::ui::{Region, Ui};
 use faraday_draw::tokens::{
-    ELEVATION_FAB, MARGIN_WIDE, PAD, PANE_TOP_BAR, READING_MENU_W, SHAPE_M, SPACER,
+    ELEVATION_FAB, LIST_PANE, MARGIN_WIDE, MENU_TILE_WIDE_MAX, PAD, PANE_TOP_BAR, READING_MENU_W,
+    SHAPE_M, SPACER,
 };
 
 /// The area Home has in a room `room` wide: how far from the room's left
@@ -48,6 +50,34 @@ fn tile_content(
     sections_height(app, ui, (x + PAD, y + PAD), w - 2.0 * PAD, page, sections) + 2.0 * PAD
 }
 
+/// Where the pair's two panes stand: left edge and width of each.
+struct Placed {
+    pane_x: f32,
+    pane_w: f32,
+    card_x: f32,
+    card_w: f32,
+}
+
+/// The pair where the room holds the tile in two columns or more: the pane
+/// at the room's left page margin, one gap, the tile to the right page
+/// margin and no wider than `MENU_TILE_WIDE_MAX`, the pair centred where
+/// the tile stops. `None` where the room holds one column (the pair is
+/// then a flow's). Arithmetic on the room alone.
+fn wide_pair(room: f32) -> Option<Placed> {
+    let tile = (room - 2.0 * MARGIN_WIDE - LIST_PANE - SPACER).min(MENU_TILE_WIDE_MAX);
+    if grid(tile - 2.0 * PAD, usize::MAX).columns() < 2 {
+        return None;
+    }
+    let unit = LIST_PANE + SPACER + tile;
+    let pane_x = ((room - unit) / 2.0).max(MARGIN_WIDE);
+    Some(Placed {
+        card_x: pane_x + LIST_PANE + SPACER,
+        card_w: tile,
+        pane_x,
+        pane_w: LIST_PANE,
+    })
+}
+
 /// Draws the page placed, in the area `cw` wide from `x0`, `h` tall: the
 /// stack where it fits, else the pair. Returns false, drawing nothing,
 /// where the room holds neither (the page draws as it did).
@@ -76,8 +106,17 @@ pub(super) fn draw(
         ui.region_close(open, 0.0);
         return true;
     }
-    let Some(p) = crate::flow::pair::pair(cw, false) else {
-        return false;
+    let p = match wide_pair(cw) {
+        Some(p) => p,
+        None => match crate::flow::pair::pair(cw, false) {
+            Some(p) => Placed {
+                pane_x: p.pane_x,
+                pane_w: p.pane_w,
+                card_x: p.card_x,
+                card_w: p.card_w,
+            },
+            None => return false,
+        },
     };
     let groups = page_groups(app, mode);
     let pane_need = page_content_h(ui, p.pane_w, &groups);

@@ -157,7 +157,8 @@ fn draw_row(
     ui.icon(
         x + LIST_PAD,
         if r.wrap {
-            top
+            // On the headline's own line: its centre, not the line's top.
+            top + (line - ICON_SMALL) / 2.0
         } else {
             cy + (rh - ICON_SMALL) / 2.0
         },

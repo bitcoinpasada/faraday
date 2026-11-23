@@ -123,3 +123,32 @@ fn a_flow_and_the_page_pair_stand_at_the_same_x() {
         "the pane's lines start where the flow's pane lines do"
     );
 }
+
+#[test]
+fn tools_on_a_wide_window_fills_the_room_in_columns() {
+    let mut app = sized(1920, 1080);
+    app.press(Action::Nav(Screen::Catalog));
+    let (pane_x, _) = at(&mut app, EN.home_box_heading);
+    let (first_x, _) = at(&mut app, EN.catalog_common);
+    let (last_x, _) = at(&mut app, EN.catalog_vaults_group);
+    assert!(
+        pane_x < 240 + 24 + 40,
+        "the pane stands a page margin from the navigation"
+    );
+    assert!(
+        last_x - first_x >= 2 * 360,
+        "the groups stand in at least two columns, here three"
+    );
+    assert!(last_x < 1920, "and none runs off the window");
+}
+
+#[test]
+fn tools_on_a_narrow_window_stays_in_one_column_where_the_flow_pair_is() {
+    let mut app = sized(1366, 768);
+    app.press(Action::Nav(Screen::Catalog));
+    let (first_x, _) = at(&mut app, EN.catalog_common);
+    assert!(
+        (640..720).contains(&first_x),
+        "one column, at the flow pair's card: {first_x}"
+    );
+}

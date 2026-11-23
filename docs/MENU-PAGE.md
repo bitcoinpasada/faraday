@@ -130,9 +130,14 @@ On the wide layout every section of Tools and Check stands in one tile
 in the columns that fit its width, `MENU_GAP` apart, with no search in it (the
 search is in the top bar). The tile stands under This session's card, as wide
 as the card and `SPACER` under it, ending a `MARGIN_WIDE` above the window's
-foot, where all of it fits; otherwise it is the right of the pair, at the
-flow's place (`flow/pair.rs`), level with the pane, scrolling within where
-the window cuts it. While a search is typed, the results stand in Home's
+foot, where all of it fits; otherwise it is the right of the pair, level
+with the pane, scrolling within where the window cuts it. The pair's tile
+fills the room: the pane `LIST_PANE` at the left page margin, `SPACER`, the
+tile to the right page margin and at most `MENU_TILE_WIDE_MAX` (1248 dp, the
+width a 1920 dp window gives it; a wider window keeps it and centres the
+pair), its sections in as many columns as fit (three at 1920, two at 1600).
+Where the room holds one column, the pair stands at the flow's place
+(`flow/pair.rs`) and the tile scrolls. While a search is typed, the results stand in Home's
 column as before.
 
 ## 5. Spacing and section labels
