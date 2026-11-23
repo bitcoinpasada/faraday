@@ -181,10 +181,17 @@ details only while a vault is open.
   | Read a Bitcoin Core wallet; Check a signed message | held files of that kind; the ways in |
   | GPG key, Secure Boot keys | an open vault, or Make a new vault: they make their keys from fresh randomness and take no loaded key |
 
-- **From showing to choosing.** In one transition at the Speed setting (§9):
+- **From showing to choosing.** Choosing a tool goes straight to the flow's
+  one card (§4), the pick at the left and the step at the right, in one
+  transition at the Speed setting (§9), from a stacked page and from a page
+  beside its pane alike, with no side-by-side stage between:
   (a) the heading changes from "This session" to the flow's question
   ("Choose a key", "Choose the keys", "Choose a wallet");
-  (b) the rows of kinds the flow does not take fade out;
+  (b) the pick lists what the flow takes, made from the flow alone and not
+  from what the page was showing: rows it does not take fade out, and rows
+  it takes that the page's own mode hid (an open vault, a file to write, a
+  backup) fade in, so a flow begins with the same rows whether it is reached
+  from a page, Home, the sidebar or a search;
   (c) the rows left become Material selection-list rows: the radio or
   checkbox at the start, a tonal container behind each row, the chosen one
   in the secondary container, the state layer on hover and press;
@@ -252,8 +259,10 @@ motion: with motion Off the pane stands where it would after the glide.
    own mode, §2), so opening the page does not change it. The tile is as
    wide as the card, 24 dp (rule 2's gap, not `MENU_GAP`) under it, and ends at least a
    page margin above the window's foot. Where it does not all fit, the pair
-   of rule 2. Entering a flow from a stacked page turns the layout into the
-   flow's pair.
+   of rule 2. Nothing is cut back until a tool is chosen. Entering a flow
+   from a stacked page turns the layout into the flow's pair in one
+   transition (§2), and Back returns to the page the person came by with
+   every row it had.
 6. **Files, Wallets and Vaults never stack.**
 7. **Settings has no pane.** Where every one of its cards fits under Home's
    card as it stands, Settings opens there, the card not moving; otherwise
