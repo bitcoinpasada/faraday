@@ -3663,6 +3663,10 @@ impl crate::trail::StepFlow for BackupSteps {
 }
 
 impl crate::flow::Contained for BackupSteps {
+    fn pick_row(&self, app: &Faraday) -> Option<(crate::flow::Row, Option<crate::Action>)> {
+        wallet_pick_row(app)
+    }
+
     fn rows(&self, app: &Faraday) -> Vec<crate::flow::Row> {
         use crate::flow::Row;
         let Some(b) = app.backup() else {
@@ -3799,6 +3803,10 @@ impl crate::trail::StepFlow for BackupPlanSteps {
 }
 
 impl crate::flow::Contained for BackupPlanSteps {
+    fn pick_row(&self, app: &Faraday) -> Option<(crate::flow::Row, Option<crate::Action>)> {
+        wallet_pick_row(app)
+    }
+
     fn rows(&self, app: &Faraday) -> Vec<crate::flow::Row> {
         let Some(b) = app.backup() else {
             return Vec::new();
@@ -4887,6 +4895,25 @@ impl crate::at_lock::AtLock for WalletBackupArea {
     fn lock(&mut self) {
         self.close();
     }
+}
+
+/// The wallet the backup is on, as the first row of Your choices where
+/// the chip names it: more than one wallet loaded and not from Create. A
+/// press on it opens the list of wallets, as the chip does.
+fn wallet_pick_row(app: &Faraday) -> Option<(crate::flow::Row, Option<crate::Action>)> {
+    let b = app.backup()?;
+    if b.from_create || app.session.wallets.len() < 2 {
+        return None;
+    }
+    let wallet = app.session.wallets.get(b.wallet)?;
+    let row = crate::flow::Row {
+        label: Text::of(EN.backups_wallet),
+        value: Some(Text::of(&wallet.name)),
+        mono: false,
+        opens: 0,
+        current: false,
+    };
+    Some((row, Some(crate::Action::BWallets)))
 }
 
 #[cfg(test)]

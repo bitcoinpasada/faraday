@@ -197,7 +197,12 @@ pub(crate) fn contained(
         crate::screens::bar_head(ui, page.back, page.heading);
     }
     let card_top = y;
-    if let Some(chip) = page.chip {
+    // Where the pair stands, a chip naming the wallet or key is Your
+    // choices' first row instead.
+    let lead = (left && !full && steps.is_some())
+        .then(|| flow.pick_row(app))
+        .flatten();
+    if let (Some(chip), None) = (page.chip, lead.as_ref()) {
         let chip = ui.fit_as(BODY_S, chip, w - 34.0);
         let cw = ui.chip_press(
             x,
@@ -297,6 +302,7 @@ pub(crate) fn contained(
             app,
             flow,
             steps: s,
+            lead: lead.as_ref(),
             place: (px, pane_w, if left { clip_end } else { page.h }),
             top,
             offset: app.scroll.choices_offset(),

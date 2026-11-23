@@ -61,12 +61,17 @@ A flow hands the container, each frame, what only the flow knows:
   not among the flow's steps) and reads "After {the item it waits on}".
 - **A note and a chip's press** (`Page::note`, `Page::chip_tap`): Sign a
   transaction's sequence line, and Back up's wallet chip, which is a press.
+  Where the pair stands (Your choices at the card's left) the chip that
+  names the wallet is not drawn: `Contained::pick_row` gives it as Your
+  choices' first row ("Wallet: Savings"), with the chip's press and the
+  place it opens its list from. Where no pane stands the chip stays.
 
 ## 2. What the container owns
 
 - **The card's place.** The card's head stands where the first step's
   heading stands today: `PAGE_TOP_BAR` under the top app bar, after the
-  flow's chip ("Then: …") where it has one, in the reading column
+  flow's chip ("Then: …", a step's name) where it has one, and the wallet's
+  where no pane stands, in the reading column
   (`COLUMN_MAX`, centred in the room left of the pane, or from the
   navigation's edge plus its margin in a flow whose steps hold wide
   content, LAYOUT §14). The place is the same for every step of a flow,

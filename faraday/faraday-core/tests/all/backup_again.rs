@@ -12,7 +12,7 @@ use crate::common::{no_vaults, no_words, type_text};
 use faraday_core::board::{BoardPress, Chip, Thing};
 use faraday_core::catalog::{Go, TILES};
 use faraday_core::seeds::SeedsAction as S;
-use faraday_core::testkit;
+use faraday_core::testkit::{self, Plain};
 use faraday_core::vault::VaultAction as V;
 use faraday_core::wallet_backup::Tone;
 use faraday_core::{Action, Code, Faraday, Screen, plan, qrow, qstep};
@@ -349,6 +349,64 @@ fn back_up_from_tools_takes_the_wallet_picked_and_its_chip_switches_to_the_other
     app.press(Action::BWallets);
     assert!(!app.backup().unwrap().pick);
     assert_eq!(app.backup().unwrap().wallet, savings);
+}
+
+/// Back up's card holds wide content, so no pair stands beside it yet and
+/// the wallet backed up stays a chip at its head, once, with its press.
+#[test]
+fn on_a_wide_window_the_wallet_chip_stays_while_back_up_stands_without_the_pair() {
+    let mut app = device(vec![
+        kit_file("savings-wallet.txt"),
+        kit_file("spending-wallet.txt"),
+    ]);
+    let _savings = load(&mut app, "savings-wallet.txt");
+    let spending = load(&mut app, "spending-wallet.txt");
+    app.press(Action::Backup(spending));
+    app.settle();
+    let name = app.session.wallets[spending].name.clone();
+    let boxes = app.drawn_text_boxes().plain();
+    let named = boxes
+        .iter()
+        .filter(|(t, _)| t.as_str() == name.as_str())
+        .count();
+    assert_eq!(named, 1, "the wallet's name stands once: {boxes:?}");
+    assert!(app.offers(Action::BWallets));
+}
+
+/// On the Pi's small panel no pane stands, so the chip stays at the card's
+/// head and no row repeats it.
+#[test]
+fn on_the_pis_panel_the_wallet_chip_stays_at_the_cards_head() {
+    let mut app = device(vec![
+        kit_file("savings-wallet.txt"),
+        kit_file("spending-wallet.txt"),
+    ]);
+    let _savings = load(&mut app, "savings-wallet.txt");
+    let spending = load(&mut app, "spending-wallet.txt");
+    app.event(Event::Display(DisplayInfo {
+        width: 480,
+        height: 640,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.press(Action::Backup(spending));
+    app.settle();
+    let name = app.session.wallets[spending].name.clone();
+    let boxes = app.drawn_text_boxes().plain();
+    assert_eq!(
+        boxes
+            .iter()
+            .filter(|(t, _)| t.as_str() == name.as_str())
+            .count(),
+        1
+    );
+    assert!(app.offers(Action::BWallets));
 }
 
 #[test]

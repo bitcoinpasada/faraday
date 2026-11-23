@@ -105,6 +105,8 @@ pub(crate) struct Pane<'a> {
     pub(crate) flow: &'a dyn Contained,
     /// Its steps as they stand.
     pub(crate) steps: &'a Steps,
+    /// The wallet or key the flow is on, the first row, and its press.
+    pub(crate) lead: Option<&'a (Row, Option<Action>)>,
     /// The pane's left edge, its width and the window's height.
     pub(crate) place: (f32, f32, f32),
     /// Where its heading starts: the card's top where the pair is level.
@@ -130,11 +132,21 @@ impl Pane<'_> {
         let mut y = top;
         ui.text_as(x, y, LABEL_L, Role::OnSurfaceVariant, EN.flow_your_choices);
         y += ui.line_as(LABEL_L) + tokens::GRID;
-        let list = self.flow.rows(self.app);
-        let presses: Vec<Option<Action>> = list
-            .iter()
-            .map(|r| answers::takes_press(self.steps, r).then(|| self.flow.open(self.app, r.opens)))
-            .collect();
+        let mut list = Vec::new();
+        let mut presses = Vec::new();
+        if let Some((row, press)) = self.lead {
+            // What the row opens is drawn from where the row stands.
+            if press.is_some() {
+                ui.chip_at = Some((x, y + CHOICES_ROW - off, w));
+            }
+            list.push(row.clone());
+            presses.push(*press);
+        }
+        let own = self.flow.rows(self.app);
+        presses.extend(own.iter().map(|r| {
+            answers::takes_press(self.steps, r).then(|| self.flow.open(self.app, r.opens))
+        }));
+        list.extend(own);
         y += rows(ui, &list, &presses, (x, y, w));
         y += foot(ui, x, y, w);
         // What is scrolled out of the pane takes no press.
@@ -155,14 +167,17 @@ pub(crate) fn sheet(app: &crate::drawing::View, ui: &mut Ui, w: f32, h: f32) {
     let (Some(contained), Some(steps)) = (flow.contained(), flow.steps(app)) else {
         return;
     };
-    let list = contained.rows(app);
-    let presses: Vec<Option<Action>> = list
-        .iter()
-        .map(|r| {
-            answers::takes_press(&steps, r)
-                .then_some(Action::Choices(crate::action::ChoicesPress::Row(r.opens)))
-        })
-        .collect();
+    // The pick's row is the pair's: where the sheet opens, the chip stays on
+    // the card's head.
+    let mut list: Vec<Row> = Vec::new();
+    let mut presses: Vec<Option<Action>> = Vec::new();
+    for r in contained.rows(app) {
+        presses.push(
+            answers::takes_press(&steps, &r)
+                .then_some(Action::Choices(crate::action::ChoicesPress::Row(r.opens))),
+        );
+        list.push(r);
+    }
     let place = if ui.compact {
         (tokens::GAP, w - 2.0 * tokens::GAP)
     } else {

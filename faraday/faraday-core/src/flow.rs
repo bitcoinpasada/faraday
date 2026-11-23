@@ -83,6 +83,14 @@ pub(crate) trait Contained: crate::trail::StepFlow {
     fn wide_content(&self, _app: &crate::Faraday) -> bool {
         false
     }
+    /// The wallet or key the flow is on, when the chip at the card's head
+    /// names it: where the pair stands the pick is Your choices' first row
+    /// and the chip goes. The second is what a press on the row does (the
+    /// chip's own press). A chip that says where the flow goes next is not
+    /// one, nor is a step's own name.
+    fn pick_row(&self, _app: &crate::Faraday) -> Option<(Row, Option<Action>)> {
+        None
+    }
 }
 
 /// Where a flow on the container drew its card: the room it may draw and
