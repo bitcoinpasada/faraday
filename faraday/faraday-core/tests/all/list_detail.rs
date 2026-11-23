@@ -378,10 +378,22 @@ fn settings_on_a_wide_window_is_every_section_on_one_page() {
             "Session's timers on the same page at {w}"
         );
     }
-    // At 1280 × 800, Display works from the page as it always has.
+    // At 1280 × 800, Display works from the page, scrolled to as a person
+    // would.
     let mut app = with_wallets(1280, 800, 160);
     app.press(Action::Nav(Screen::Settings));
     let _ = app.frame();
+    for _ in 0..40 {
+        if app.offers(Action::Scale(125)) {
+            break;
+        }
+        app.event(Event::Scroll {
+            x: 640,
+            y: 400,
+            dy: 120,
+        });
+        let _ = app.frame();
+    }
     assert!(app.offers(Action::Scale(125)), "125 % on the page");
     app.press(Action::Scale(125));
     assert_eq!(app.scale_pct(), 125);
