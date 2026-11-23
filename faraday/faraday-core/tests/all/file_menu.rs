@@ -701,3 +701,98 @@ fn a_text_file_offers_check_an_address_and_opens_the_check_on_it() {
     assert_eq!(app.sheet, None, "a choice closes the menu");
     assert_eq!(app.screen, Screen::CheckAddress);
 }
+
+/// The test file `name` of the shared fixtures.
+fn fixture(name: &str) -> Vec<u8> {
+    faraday_core::testkit::files()
+        .unwrap()
+        .into_iter()
+        .find(|(n, _)| n == name)
+        .unwrap_or_else(|| panic!("no fixture {name}"))
+        .1
+}
+
+/// An app with `files` in its Inbox, in order.
+fn holding(files: &[(&str, Vec<u8>)]) -> Faraday {
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    for (name, bytes) in files {
+        faraday_core::testkit::inbox_file(&mut app, name, bytes.clone());
+    }
+    app.press(Action::Nav(Screen::Files));
+    let _ = app.frame();
+    app
+}
+
+#[test]
+fn a_held_psbt_offers_sign_once_its_wallet_is_loaded() {
+    let mut app = holding(&[
+        ("spending-unsigned.psbt", fixture("spending-unsigned.psbt")),
+        ("spending-wallet.txt", fixture("spending-wallet.txt")),
+    ]);
+    assert_eq!(
+        menu_of(&mut app, Row::In(0)),
+        ["Check a signer", "Decode", "Details", "Remove"],
+        "no wallet loaded: only the checks"
+    );
+    app.press(Action::File(FilePress::Close));
+    faraday_core::testkit::load_wallet(&mut app, 1);
+    assert_eq!(app.session.wallets.len(), 1);
+    app.press(Action::Nav(Screen::Files));
+    assert_eq!(
+        menu_of(&mut app, Row::In(0)),
+        ["Sign", "Check a signer", "Decode", "Details", "Remove"]
+    );
+}
+
+#[test]
+fn a_signed_psbt_of_the_spend_under_way_offers_add_to_signatures() {
+    let kit = faraday_core::testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "savings")
+        .unwrap();
+    let (unsigned, _) = faraday_core::testkit::spend_of(&kit).unwrap();
+    let spend = || ("spend.psbt", unsigned.to_bytes());
+    let wallet = || ("savings-wallet.txt", kit.descriptor.clone().into_bytes());
+    // Another device signs it.
+    let mut a = holding(&[spend(), wallet()]);
+    faraday_core::testkit::load_wallet(&mut a, 1);
+    add_key(&mut a, "zebra");
+    a.press(Action::StartSpend(0));
+    faraday_core::testkit::steps_before_sign_done(&mut a);
+    a.press(Action::SignHere);
+    let from_a = a.spend().unwrap().spend.psbt.to_bytes();
+
+    // Here no key is loaded, so none is left to sign it with.
+    let mut b = holding(&[spend(), wallet(), ("from-a.psbt", from_a)]);
+    faraday_core::testkit::load_wallet(&mut b, 1);
+    b.press(Action::StartSpend(0));
+    b.press(Action::Nav(Screen::Files));
+    assert_eq!(
+        menu_of(&mut b, Row::In(2)),
+        [
+            "Add to signatures",
+            "Check a signer",
+            "Decode",
+            "Details",
+            "Remove"
+        ]
+    );
+}
+
+#[test]
+fn a_held_message_file_offers_check() {
+    let sig = "H".to_string() + &"A".repeat(86) + "=";
+    let text = format!("bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq\n{sig}\nhello\n");
+    let mut app = holding(&[("msg.txt", text.into_bytes())]);
+    assert_eq!(app.inbox()[0].kind, FileKind::Message);
+    assert_eq!(
+        menu_of(&mut app, Row::In(0)),
+        ["Check the signature", "Details", "Remove"]
+    );
+}
+
+#[test]
+fn a_file_no_flow_takes_offers_only_details_and_remove() {
+    let mut app = holding(&[("photo.jpg", vec![0xff, 0xd8, 0xff, 0xe0])]);
+    assert_eq!(menu_of(&mut app, Row::In(0)), ["Details", "Remove"]);
+}

@@ -87,7 +87,7 @@ A row's button by kind.
 
 **Key:** files.inbox-menu
 
-The card's menu holds the choices that apply to the file: **Add to vault** for a wallet or words file with a vault open, **Restore from its paperkey** for a GPG public key, **Decode** and **Check a signer** for a PSBT or a finished transaction, **Sign this message** and **Check an address** for a text file, **Details** and **Remove**. A PSBT that Sign refuses opens its Details, which say why under **Not opened**.
+The card's menu holds what can be done with the file, the likeliest first, then **Details** and **Remove**: **Sign** (**Add to signatures** for the spend under way), **Check a signer** and **Decode** for a PSBT or a finished transaction, **Load the wallet** and **Check this setup** for a wallet file, **Add to vault** for a wallet, words or share file with a vault open, **Make a wallet with it** for a key file, **Load this key** for a key line or words, **Check the signature** for a signed message, **Open** for a Krux code, **Read the wallet** for a Bitcoin Core wallet, **Restore** for a split sheet or a GPG public key, **Sign this message** and **Check an address** for text. A PSBT that Sign refuses opens its Details, which say why under **Not opened**.
 
 ## For the stick
 

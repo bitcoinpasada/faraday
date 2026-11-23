@@ -262,8 +262,8 @@ impl Faraday {
     }
 
     /// The row's ⋮ menu's choices, in decision 61's order and only those
-    /// the row has (a map read): From the stick, Add to vault where it is
-    /// not the row's button, Check a signer and Decode on a PSBT or a finished transaction, Details and Remove;
+    /// the row has (a map read): From the stick, the item's own "What you can do"
+    /// ([`crate::items`]), Details and Remove;
     /// For the stick, Show as QR or Make PDF, Check a signer on a PSBT or a finished transaction, Rename, Details and Remove; on the stick, Rename,
     /// Delete from the stick and Details.
     pub(crate) fn file_menu_lines(&mut self, row: Row) -> Vec<(String, Action)> {
@@ -274,52 +274,11 @@ impl Faraday {
         );
         match row {
             Row::In(k) => {
-                let Some(item) = self.inbox.get(k) else {
+                if self.inbox.get(k).is_none() {
                     return out;
-                };
-                // Only while a vault is open (F60).
-                if matches!(item.kind, FileKind::Wallet | FileKind::Words)
-                    && self.vault_way(Screen::Files).is_none()
-                {
-                    out.push((
-                        EN.add_to_vault_button.to_string(),
-                        Action::Vault(crate::vault::VaultAction::AddFile(k)),
-                    ));
                 }
-                // A public key a GPG key is restored against
-                // (`docs/GPG-PAPERKEY.md` §4.1): read when the menu opens.
-                if crate::backup_flow::gpg_restore::restorable(item) {
-                    use crate::backup_flow::steps::{FlowAction, RestorePress};
-                    out.push((
-                        EN.gpg_restore_files_action.to_string(),
-                        Action::Flow(FlowAction::Restore(RestorePress::From(k))),
-                    ));
-                }
-                if matches!(item.kind, FileKind::Psbt | FileKind::Transaction) {
-                    out.push((
-                        EN.catalog_check_a_signer.to_string(),
-                        Action::SignerCheck(crate::decode::check::SignerPress::File(false, k)),
-                    ));
-                    out.push((
-                        EN.files_decode.to_string(),
-                        Action::File(FilePress::Decode(row)),
-                    ));
-                }
-                if item.kind == FileKind::Text {
-                    if !self.session.message_wallets().is_empty()
-                        && std::str::from_utf8(&item.bytes).is_ok()
-                    {
-                        out.push((
-                            EN.files_sign_this_message.to_string(),
-                            Action::File(FilePress::SignMessage(k)),
-                        ));
-                    }
-                    out.push((
-                        EN.files_check_an_address.to_string(),
-                        Action::File(FilePress::CheckAddress(k)),
-                    ));
-                }
-                out.extend(crate::multisig_check::menu_line(item.wallet(), false, k));
+                // The item's own list, the one the session pane's details show.
+                out.extend(crate::items::offer(self, k).list);
                 out.push(details);
                 out.push((EN.files_remove.to_string(), Action::InboxRemove(k)));
             }
