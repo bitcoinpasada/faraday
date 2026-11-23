@@ -1,8 +1,9 @@
 //! Settings › Appearance (`docs/THEMES.md` §12, §13; `docs/MOTION.md`
 //! §3.5): Theme, Mode and Contrast each change what is drawn and are kept
-//! across a lock; every theme is offered once, by its name; Reduce
-//! motion is a switch whose choice is kept.
+//! across a lock; every theme is offered once, by its name; Motion (whose Off is
+//! Reduce motion) and Speed are kept.
 
+use faraday_core::stick::settings_choice::{MotionSpeed, MotionStyle};
 use faraday_core::ui::{Contrast, Mode, Theme, ThemeName};
 use faraday_core::{Action, Faraday, Screen, StorageCommand, StorageEvent};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
@@ -201,17 +202,31 @@ fn every_theme_draws_its_own_page_and_is_kept_across_a_restart() {
 }
 
 #[test]
-fn reduce_motion_is_a_switch_and_is_kept_across_a_lock() {
+fn motion_off_is_kept_across_a_lock_and_smooth_motion_is_the_start() {
     let mut app = shown();
-    assert!(!app.reduce_motion(), "off at first");
-    scroll_to(&mut app, &[Action::ReduceMotion(true)]);
-    assert!(!app.offers(Action::ReduceMotion(false)), "one switch");
-    app.press(Action::ReduceMotion(true));
-    let _ = app.frame();
-    assert!(app.offers(Action::ReduceMotion(false)), "and it turns off");
-    assert!(restarted(&mut app).reduce_motion());
-    app.press(Action::ReduceMotion(false));
-    assert!(!restarted(&mut app).reduce_motion());
+    assert!(!app.reduce_motion(), "motion at first");
+    assert_eq!(app.motion_style(), MotionStyle::Smooth);
+    let styles = MotionStyle::ALL.map(Action::Motion);
+    scroll_to(&mut app, &styles);
+    for style in MotionStyle::ALL {
+        app.press(Action::Motion(style));
+        let _ = app.frame();
+        let again = restarted(&mut app);
+        assert_eq!(again.motion_style(), style, "{style:?} not kept");
+        assert_eq!(again.reduce_motion(), style == MotionStyle::Off);
+    }
+}
+
+#[test]
+fn the_speed_is_kept_across_a_lock() {
+    let mut app = shown();
+    assert_eq!(app.motion_speed(), MotionSpeed::Relaxed);
+    let choices = MotionSpeed::ALL.map(Action::Speed);
+    scroll_to(&mut app, &choices);
+    for speed in MotionSpeed::ALL {
+        app.press(Action::Speed(speed));
+        assert_eq!(restarted(&mut app).motion_speed(), speed, "{speed:?}");
+    }
 }
 
 /// A restart as the stick shell does it on an HDMI screen (F222): the screen is

@@ -4,6 +4,7 @@ pub(crate) mod events;
 pub mod folders;
 pub(crate) mod pills;
 pub mod settings;
+pub mod settings_choice;
 pub(crate) mod visit_same;
 pub mod visit_taken;
 pub mod wipe;

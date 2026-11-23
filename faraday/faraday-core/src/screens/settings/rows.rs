@@ -5,6 +5,7 @@
 
 use super::{Part, part_title, parts};
 use crate::modes::Mode as Network;
+use crate::stick::settings_choice::{MotionSpeed, MotionStyle};
 use crate::strings::EN;
 use faraday_ui::{Contrast, Mode, TextSize, ThemeName};
 use std::sync::OnceLock;
@@ -50,7 +51,9 @@ fn drawn(p: Part) -> Vec<&'static str> {
             words.extend(Contrast::ALL.map(Contrast::name));
             words.push(EN.settings_text_size);
             words.extend(TextSize::ALL.map(TextSize::name));
-            words.push(EN.settings_reduce_motion);
+            words.extend([EN.settings_motion, EN.settings_speed]);
+            words.extend(MotionStyle::ALL.map(MotionStyle::name));
+            words.extend(MotionSpeed::ALL.map(MotionSpeed::name));
         }
         Part::Display => words.extend([
             EN.settings_rotation,

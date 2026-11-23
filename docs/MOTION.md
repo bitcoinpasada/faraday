@@ -318,19 +318,25 @@ extent; a motion left from another screen or sheet is stopped.
   colour, THEMES §8). `Ui::hovered` is found from
   the last frame's hits, like `pressed`; a frame is drawn only when the
   hovered action changes.
-- **Reduce motion** (Settings › Appearance, a Material switch,
-  `Ui::switch_row`; THEMES §12): on, nothing slides, glides, coasts,
-  stretches or fades: a change of screen, sheet or theme is there at
-  once, a worksheet's follow lands at once,
-  a dice tumble and its pause are skipped, and a wheel notch moves at
-  once with no coast and no stretch past an end. It is kept with the other
-  settings (`motion=reduced` or `motion=full` in the settings file and
-  the kept set, `stick/settings.rs`) and is off on a first
-  start, except on a Pi's HDMI screen, where the stick shell sends
-  `Event::ExternalScreen` and it is on until the person chooses; a kept
-  or new choice wins, and only a choice is kept in the file. Faraday
-  reads no system setting for reduced motion (no shell reports one);
-  the HDMI default is F222.
+- **Motion style and Speed** (Settings › Appearance, three-segment
+  buttons; THEMES §12): the style is Smooth motion,
+  Crossfade or Off, and **Off is Reduce motion**, one setting, never two:
+  nothing slides, glides, coasts, stretches or fades: a change of
+  screen, sheet or theme is there at once, a worksheet's follow lands at
+  once, a dice tumble and its pause are skipped, and a wheel notch moves
+  at once with no coast and no stretch past an end. Speed is Quick,
+  Medium or Relaxed (250, 400 and 600 ms), shown off under Off. They are kept with the other settings
+  (`motion=smooth|crossfade|off`
+  and `speed=quick|medium|relaxed` in the settings file and the kept set,
+  `stick/settings.rs`); a kept `motion=reduced` reads as Off and
+  `motion=full` as Smooth motion, and a word the file does not know leaves
+  the default. Only a style that was chosen is kept in the file. The
+  style is Smooth motion on a first start, except on a Pi's HDMI screen,
+  where the stick shell sends `Event::ExternalScreen` and it is Off until
+  the person chooses; a kept or new choice wins. Faraday reads no system
+  setting for reduced motion (no shell reports one); the HDMI default is
+  F222. What Speed does to each duration is not built: every duration
+  below is still the one it names.
 - **Motion** (all time-based, all off under Reduce motion):
   - a sheet and its scrim appear at once (cross-fades removed
     2026-10-07);

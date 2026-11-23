@@ -536,8 +536,9 @@ lose a tenth (Cobalt held fell to 3.89:1); held, every chip's label
 reads 4:1 or more (6.5:1 at High). Mode
 and Contrast are Material segmented buttons `SEGMENTED_H` tall, option
 buttons where three segments do not fit the width (a small panel).
-Under them, **Reduce motion**, a Material switch in a list row
-(`Ui::switch_row`, MOTION §3.5), owner's addition of 2026-10-24.
+Under them stand **Motion** (whose Off is
+Reduce motion) and **Speed**, each a segmented button (MOTION
+§3.5); Reduce motion was a Material switch until 2026-11-22.
 
 Chosen rows elsewhere follow the same rule (owner, 2026-10-24): a chosen
 card, option or row, a toggle that is on and the row of the place on

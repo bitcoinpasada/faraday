@@ -349,8 +349,12 @@ pub enum Action {
     /// Draw text at this size (Settings › Appearance, `docs/TEXT-SIZE.md`
     /// §2).
     TextSize(ui::TextSize),
-    /// Reduce motion on or off.
+    /// Reduce motion on or off: the Motion style Off, or Smooth motion.
     ReduceMotion(bool),
+    /// The Motion style (Settings › Appearance, `docs/WORKSPACE.md` §9).
+    Motion(crate::stick::settings_choice::MotionStyle),
+    /// The Speed of motion (Settings › Appearance).
+    Speed(crate::stick::settings_choice::MotionSpeed),
     /// Steps the time zone by this many minutes, stopping at the ends
     /// (`docs/TOTP.md` §2.1). Settings' row and Set the time's own row.
     TzStep(i16),
@@ -1884,6 +1888,8 @@ impl Faraday {
             | Action::Rotation(_)
             | Action::TextSize(_)
             | Action::ReduceMotion(_)
+            | Action::Motion(_)
+            | Action::Speed(_)
             | Action::Theme(_)) => self.appearance_act(a),
             Action::SettingsSection(k) => self.settings_section(k),
             // Acted on before (`act_inner`), or never pressed (a mark).

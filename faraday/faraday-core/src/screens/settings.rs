@@ -4,6 +4,7 @@ use super::menu_page::{BlockFn, Page, Section};
 use super::parts::{SECTION_GAP, section, tz_row};
 use crate::Action;
 use crate::drawing::View;
+use crate::stick::settings_choice::{MotionSpeed, MotionStyle};
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
@@ -22,8 +23,8 @@ pub(crate) use rows::matching as cards_matching;
 const PANIC_KEY: &str = EN.app_panic_key_hint;
 
 /// Settings' Appearance (`docs/THEMES.md` §12): Theme, Mode and
-/// Contrast, Text size (`docs/TEXT-SIZE.md` §2), then the Reduce motion
-/// switch (`docs/MOTION.md` §3.5), from (x, y) `w` wide, each row's label
+/// Contrast, Text size (`docs/TEXT-SIZE.md` §2), then Motion and
+/// Speed (`docs/MOTION.md` §3.5), from (x, y) `w` wide, each row's label
 /// in a column `label_w` wide or over its control. Returns the height.
 fn appearance_body(
     app: &View,
@@ -34,9 +35,68 @@ fn appearance_body(
     let mut h = ui.appearance((x, y, w), label_w, app.theme(), Action::Theme) + APPEARANCE_ROW_GAP;
     let text = (x, y + h, w);
     h += ui.text_size_row(text, label_w, app.text_size(), Action::TextSize) + APPEARANCE_ROW_GAP;
-    let on = app.reduce_motion();
-    let motion = Action::ReduceMotion(!on);
-    h + ui.switch_row((x, y + h, w), EN.settings_reduce_motion, on, motion)
+    let style = app.motion_style();
+    h += choice_row(
+        ui,
+        (x, y + h, w),
+        label_w,
+        (EN.settings_motion, &MotionStyle::ALL),
+        (MotionStyle::name, Action::Motion),
+        style,
+        false,
+    );
+    // What the chosen style does, as a fact.
+    ui.text_as(
+        x,
+        y + h + APPEARANCE_LABEL_GAP,
+        BODY_S,
+        Role::OnSurfaceVariant,
+        style.line(),
+    );
+    h += APPEARANCE_LABEL_GAP + ui.line_as(BODY_S) + APPEARANCE_ROW_GAP;
+    // Speed applies to Smooth motion and Crossfade: shown off with Off.
+    h + choice_row(
+        ui,
+        (x, y + h, w),
+        label_w,
+        (EN.settings_speed, &MotionSpeed::ALL),
+        (MotionSpeed::name, Action::Speed),
+        app.motion_speed(),
+        style == MotionStyle::Off,
+    )
+}
+
+/// How a choice is named, and the press that takes it.
+type Name<T> = fn(T) -> &'static str;
+type Press<T> = fn(T) -> Action;
+
+/// One of Appearance's rows of choices: its label with every choice,
+/// the way to name one and to press it, and the one in force; `off`
+/// draws all dimmed, taking no press. Returns its height.
+fn choice_row<T: Copy + PartialEq>(
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    label_w: Option<f32>,
+    (label, all): (&str, &[T]),
+    (name, act): (Name<T>, Press<T>),
+    now: T,
+    off: bool,
+) -> f32 {
+    let items: Vec<(&str, Action)> = all.iter().map(|&t| (name(t), act(t))).collect();
+    let on = all.iter().position(|&t| t == now);
+    let dim = vec![off; all.len()];
+    let (cx, cw, top) = match label_w {
+        Some(lw) => {
+            let line = ui.button_height(SEGMENTED_H);
+            ui.text_mid_as((x, y, line), BODY_M, Role::OnSurfaceVariant, label);
+            (x + lw, w - lw, y)
+        }
+        None => {
+            ui.text_as(x, y, BODY_M, Role::OnSurfaceVariant, label);
+            (x, w, y + ui.line_as(BODY_M) + APPEARANCE_LABEL_GAP)
+        }
+    };
+    top + ui.choices_with((cx, top, cw, SEGMENTED_H), LABEL_L.size, &items, on, &dim) - y
 }
 
 /// Settings' sections, in their order (`docs/LAYOUT.md` §17): Mode

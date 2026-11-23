@@ -17,6 +17,7 @@
 //! any other stick, and gone again when the setting is changed back. The disk process writes it over the file
 //! already there (`faraday_files::SETTINGS_FILE`, the same name).
 
+use super::settings_choice::{MotionSpeed, MotionStyle};
 use crate::strings::EN;
 use crate::{Faraday, StorageEvent};
 use faraday_shell_api::{Command, Orientation};
@@ -60,13 +61,15 @@ pub(crate) struct Settings {
     theme: crate::ui::Theme,
     /// How large text is drawn (`docs/TEXT-SIZE.md` §2).
     text: crate::ui::TextSize,
-    /// Reduce motion as the person chose it: nothing slides, glides,
-    /// coasts or stretches. `None` until they choose, then the default
-    /// below holds.
-    reduce_motion: Option<bool>,
-    /// What Reduce motion is until the person chooses: on for a screen
-    /// that is not the device's own panel (`docs/MOTION.md` §3).
-    reduce_motion_default: bool,
+    /// The Motion style as the person chose it (Off is Reduce motion:
+    /// nothing slides, glides, coasts or stretches). `None` until they
+    /// choose, then the default below holds.
+    motion: Option<MotionStyle>,
+    /// What the style is until the person chooses: Off for a screen that
+    /// is not the device's own panel (`docs/MOTION.md` §3).
+    motion_default: MotionStyle,
+    /// How long a change takes under Smooth motion and Crossfade.
+    speed: MotionSpeed,
     /// Minutes without input before the session locks; 0 for never.
     idle_lock_min: u16,
     /// How long each frame of an animated code stays up, in ms.
@@ -96,8 +99,9 @@ impl Default for Settings {
             rotation_native: None,
             theme: crate::ui::Theme::default(),
             text: crate::ui::TextSize::Standard,
-            reduce_motion: None,
-            reduce_motion_default: false,
+            motion: None,
+            motion_default: MotionStyle::Smooth,
+            speed: MotionSpeed::Relaxed,
             idle_lock_min: crate::IDLE_LOCK_MIN,
             qr_frame_ms: crate::QR_SPEEDS[0],
             idle_off_min: crate::IDLE_OFF_MIN,
@@ -151,12 +155,36 @@ impl Settings {
 
     /// Whether motion is reduced.
     pub(crate) fn reduce_motion(&self) -> bool {
-        self.reduce_motion.unwrap_or(self.reduce_motion_default)
+        self.motion_style() == MotionStyle::Off
+    }
+
+    /// The Motion style in force.
+    pub(crate) fn motion_style(&self) -> MotionStyle {
+        self.motion.unwrap_or(self.motion_default)
+    }
+
+    /// The Speed.
+    pub(crate) fn motion_speed(&self) -> MotionSpeed {
+        self.speed
+    }
+
+    /// Sets the Motion style.
+    pub(crate) fn set_motion_style(&mut self, m: MotionStyle) {
+        self.motion = Some(m);
+    }
+
+    /// Sets the Speed.
+    pub(crate) fn set_motion_speed(&mut self, s: MotionSpeed) {
+        self.speed = s;
     }
 
     /// Sets what Reduce motion is until the person chooses.
     pub(crate) fn set_reduce_motion_default(&mut self, on: bool) {
-        self.reduce_motion_default = on;
+        self.motion_default = if on {
+            MotionStyle::Off
+        } else {
+            MotionStyle::Smooth
+        };
     }
 
     /// Minutes of idle before the lock; 0 for never.
@@ -211,7 +239,11 @@ impl Settings {
 
     /// Sets reduce motion.
     pub(crate) fn set_reduce_motion(&mut self, on: bool) {
-        self.reduce_motion = Some(on);
+        self.motion = Some(if on {
+            MotionStyle::Off
+        } else {
+            MotionStyle::Smooth
+        });
     }
 
     /// Sets the idle lock time.
@@ -239,7 +271,7 @@ impl Settings {
     /// file holds after its first line, and the start of the kept set.
     pub(crate) fn body(&self) -> String {
         format!(
-            "scale={}\nrotation={}\ntheme={}\nmode={}\ncontrast={}\ntext={}\n{}qr-ms={}\nidle-lock={}\nidle-off={}\n{}",
+            "scale={}\nrotation={}\ntheme={}\nmode={}\ncontrast={}\ntext={}\n{}speed={}\nqr-ms={}\nidle-lock={}\nidle-off={}\n{}",
             self.scale_pct,
             self.orientation.id(),
             self.theme.name.id(),
@@ -248,11 +280,10 @@ impl Settings {
             self.text.id(),
             // Only a choice is kept, so a default does not outlive the
             // screen it was for.
-            match self.reduce_motion {
-                Some(true) => "motion=reduced\n",
-                Some(false) => "motion=full\n",
-                None => "",
-            },
+            self.motion
+                .map(|m| format!("motion={}\n", m.id()))
+                .unwrap_or_default(),
+            self.speed.id(),
             self.qr_frame_ms,
             self.idle_lock_min,
             self.idle_off_min,
@@ -311,11 +342,17 @@ impl Settings {
                     return true;
                 }
             }
-            "motion" => match value {
-                "reduced" => self.reduce_motion = Some(true),
-                "full" => self.reduce_motion = Some(false),
-                _ => {}
-            },
+            // An unknown word leaves the default (`docs/MOTION.md` §3.5).
+            "motion" => {
+                if let Some(m) = MotionStyle::from_id(value) {
+                    self.motion = Some(m);
+                }
+            }
+            "speed" => {
+                if let Some(s) = MotionSpeed::from_id(value) {
+                    self.speed = s;
+                }
+            }
             // Kept in files written before Guided mode was taken out.
             "guided" => {}
             "qr-ms" => {
@@ -590,6 +627,15 @@ impl Faraday {
                 self.scroll.stop();
                 self.save_boxes();
             }
+            Action::Motion(m) => {
+                self.settings.set_motion_style(m);
+                self.scroll.stop();
+                self.save_boxes();
+            }
+            Action::Speed(s) => {
+                self.settings.set_motion_speed(s);
+                self.save_boxes();
+            }
             Action::Theme(theme) => {
                 self.settings.set_theme(theme);
                 self.save_boxes();
@@ -674,9 +720,19 @@ impl Faraday {
         self.out.redraw();
     }
 
-    /// Reduce motion: nothing slides, glides, coasts or stretches.
+    /// Reduce motion, the style Off: nothing slides, glides, coasts or stretches.
     pub fn reduce_motion(&self) -> bool {
         self.settings.reduce_motion()
+    }
+
+    /// The Motion style.
+    pub fn motion_style(&self) -> MotionStyle {
+        self.settings.motion_style()
+    }
+
+    /// The Speed.
+    pub fn motion_speed(&self) -> MotionSpeed {
+        self.settings.motion_speed()
     }
 
     /// Minutes without input before the session locks; 0 for never.

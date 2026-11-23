@@ -1225,6 +1225,10 @@ pub const PAGE_AREA_UNTIL_W: f32 = 1360.0;
 /// The space between two panes (`docs/LAYOUT.md` §5): Material's spacer.
 pub const SPACER: f32 = 24.0;
 
+/// The narrowest column the session pane's card has, dp
+/// (`docs/WORKSPACE.md`); no code reads it yet.
+pub const SESSION_COL_MIN: f32 = 336.0;
+
 /// A list pane's width in list and detail (`docs/LAYOUT.md` §5):
 /// Material's default pane width.
 pub const LIST_PANE: f32 = 360.0;
@@ -2197,6 +2201,9 @@ pub const MOTION_MEDIUM2: u64 = 300;
 pub const MOTION_MEDIUM3: u64 = 350;
 /// Medium 4.
 pub const MOTION_MEDIUM4: u64 = 400;
+/// Long 4: the Relaxed speed, every page change and step inside a flow
+/// by default (`docs/MOTION.md` §3.5).
+pub const MOTION_LONG4: u64 = 600;
 /// Extra-long 4.
 pub(crate) const MOTION_EXTRA_LONG4: u64 = 1000;
 

@@ -6,6 +6,7 @@
 //! each old theme in the scheme `docs/THEMES.md` §13 maps it to.
 
 use faraday_core::stick::settings::FILE;
+use faraday_core::stick::settings_choice::{MotionSpeed, MotionStyle};
 use faraday_core::ui::{Contrast, Mode, TextSize, Theme, ThemeName};
 use faraday_core::{Action, Faraday, Screen, StickInfo, StorageCommand, StorageEvent};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
@@ -116,6 +117,23 @@ fn the_boot_sticks_settings_apply_before_the_passphrase() {
     // Pulling the stick asks for nothing the settings did not already set.
     app.storage(StorageEvent::Sticks(Vec::new()));
     assert_eq!(app.theme(), gruvbox);
+}
+
+#[test]
+fn an_old_reduce_motion_reads_as_motion_off_and_unknown_words_read_as_the_default() {
+    let app = booted(Some(b"faraday-settings 1\nmotion=reduced\n"));
+    assert_eq!(app.motion_style(), MotionStyle::Off);
+    assert!(app.reduce_motion());
+    let app = booted(Some(b"faraday-settings 1\nmotion=full\n"));
+    assert_eq!(app.motion_style(), MotionStyle::Smooth);
+    let app = booted(Some(
+        b"faraday-settings 1\nmotion=sideways\nspeed=ludicrous\n",
+    ));
+    assert_eq!(app.motion_style(), MotionStyle::Smooth);
+    assert_eq!(app.motion_speed(), MotionSpeed::Relaxed);
+    let app = booted(Some(b"faraday-settings 1\nmotion=crossfade\nspeed=quick\n"));
+    assert_eq!(app.motion_style(), MotionStyle::Crossfade);
+    assert_eq!(app.motion_speed(), MotionSpeed::Quick);
 }
 
 #[test]

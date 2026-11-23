@@ -53,9 +53,28 @@ macro_rules! words_screens_settings {
     settings_mode: "Mode",
     /// Line in `settings`.
     settings_appearance: "Appearance",
-    /// Settings' switch row: nothing slides, glides, coasts or fades
-    /// (`docs/MOTION.md`).
-    settings_reduce_motion: "Reduce motion",
+    /// Appearance's row for how screens change (`docs/MOTION.md` §3.5).
+    settings_motion: "Motion",
+    /// Motion style: screens glide and fade through.
+    settings_motion_smooth: "Smooth motion",
+    /// Motion style: two screens blend.
+    settings_motion_crossfade: "Crossfade",
+    /// Motion style: nothing moves (Reduce motion).
+    settings_motion_off: "Off",
+    /// What Smooth motion does.
+    settings_motion_smooth_line: "Screens glide and fade",
+    /// What Crossfade does.
+    settings_motion_crossfade_line: "Screens blend into each other",
+    /// What Off does.
+    settings_motion_off_line: "Screens change at once",
+    /// Appearance's row for how long a change takes.
+    settings_speed: "Speed",
+    /// Speed: 250 ms.
+    settings_speed_quick: "Quick",
+    /// Speed: 400 ms.
+    settings_speed_medium: "Medium",
+    /// Speed: 600 ms.
+    settings_speed_relaxed: "Relaxed",
     /// Appearance's row under Contrast: how large text is drawn
     /// (`docs/TEXT-SIZE.md` §2).
     settings_text_size: "Text size",

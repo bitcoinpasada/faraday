@@ -46,7 +46,7 @@ This section shows what the session's randomness is made from: the system's, and
 
 **Key:** settings.appearance
 
-**Theme** is chosen from ten named themes, from **Cobalt** to **Monochrome**. **Mode** is **Light** or **Dark**. **Contrast** is **Standard**, **Medium** or **High**. **Text size** is **Standard**, **Large** or **Larger**. **Reduce motion** shows changes at once, with no slide or fade.
+**Theme** is chosen from ten named themes, from **Cobalt** to **Monochrome**. **Mode** is **Light** or **Dark**. **Contrast** is **Standard**, **Medium** or **High**. **Text size** is **Standard**, **Large** or **Larger**. **Motion** is **Smooth motion**, **Crossfade** or **Off**; **Off** shows changes at once, with no slide or fade. **Speed** is **Quick**, **Medium** or **Relaxed**, and applies to **Smooth motion** and **Crossfade**.
 
 ## Display
 
