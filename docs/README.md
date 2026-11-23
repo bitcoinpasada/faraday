@@ -56,6 +56,7 @@ need. Each document's header says what kind it is:
 | Where does the caret go in a text field, and how is it moved? | `docs/TEXT-CURSOR.md` |
 | How is a screen laid out at each window size, from the Pi to a monitor? | `docs/LAYOUT.md` |
 | What does Home show at each size, and in which order do the destinations stand? | `docs/HOME.md`; the layouts' rules, `docs/LAYOUT.md` §3, §4 |
+| How does Home's card list what is loaded, in which groups, and where does each row's button stand? | `docs/SESSION-PANE.md`; the decision, `docs/decisions/F323.md` |
 | How is "This session" to become the one pane of what is loaded on every page and in every flow, with section cards, panes and slower motion (not built)? | `docs/WORKSPACE.md`; the decisions, `docs/decisions/F316.md`, `docs/decisions/F317.md`, `docs/decisions/F318.md`, `docs/decisions/F319.md`, `docs/decisions/F320.md`, `docs/decisions/F322.md`, `docs/decisions/F323.md`, `docs/decisions/F324.md` |
 | Which way up is a 7-inch or 10-inch panel, and how are its screen and touch turned? | `docs/ORIENTATION.md` |
 | How does Faraday Demo show its screens at another screen's size? | `docs/DESKTOP-HOST.md` §10 |
@@ -129,6 +130,7 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 - `docs/SECRET-LEAKS.md`: Secret leaks: tests that fail on a secret left in memory or on screen. Built (F250): the allocator, the flow tests, the tours' check, the clippy refusal of `clone`, `to_string`, `to_owned` and `to_vec` (each secret-holding crate's own `clippy.toml`) and `lint-secrets`' rule on every secret type.
 - `docs/SECURITY-MODEL.md`: Security model. Built.
 - `docs/SEED-CONVERSION.md`: Convert a seed. Built.
+- `docs/SESSION-PANE.md`: The session pane. Built: the component (`screens/session_pane/`) and Home's wide card (F323).
 - `docs/SIGNER-CHECK.md`: Check a signer. Built, the seed step (§12) and the one flow for two PSBTs or finished transactions (§11) included; the check is `faraday_psbt::signer` and the flow is the decode area's `check.rs` and `check_screen.rs`; in Practice both scanners offer a sample pair (`docs/MODES.md` §5.3).
 - `docs/SPEED.md`: Speed in long flows. Built; the glyph cache measured (§3.8).
 - `docs/SPEND-FROM-BACKUP.md`: The Spend tab. Built.
@@ -156,7 +158,7 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 - `docs/MOTION.md`: Scrolling, motion and appearance. Built; not yet checked by the owner on hardware.
 - `docs/STARTER.md`: The Starter. Partly built: the Starter on Linux and Windows with its Material 3 navigation (§3.1d), the Pi 3 card.
 - `docs/WORKERS.md`: Costly work off the drawing thread. Partly built: the worker, the shells' wake, the busy screen and the jobs listed in §9 run; the rest are open.
-- `docs/WORKSPACE.md`: This session as Faraday's hub: one pane of what is loaded, everywhere. Partly built: Home's card as F313, F314 and F315 have it and the flat section cards of the menu pages (F317) are on main; the rest is not built: the session pane as the one view of what is loaded and going on, on the menu pages and in every flow, the page as panes, and slower motion.
+- `docs/WORKSPACE.md`: This session as Faraday's hub: one pane of what is loaded, everywhere. Partly built: Home's card with its groups (F323, `docs/SESSION-PANE.md`) and the flat section cards of the menu pages (F317) are on main; the rest is not built: the session pane as the one view of what is loaded and going on, on the menu pages and in every flow, the page as panes, and slower motion.
 
 **Record**
 

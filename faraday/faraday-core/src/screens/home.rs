@@ -1,26 +1,19 @@
 //! `Screen::Home`.
 
-use super::menu_page::{self, Page, Section};
+use super::menu_page::{self, Page};
 use crate::drawing::View;
 use crate::in_progress::Going;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Glyph, Ui};
-use crate::ui::{Region, Shape, Slot, Style};
+use crate::ui::{Shape, Style};
 use crate::{Action, Screen};
-use faraday_draw::tokens::{BODY_L, BODY_M, BUTTON_H, SHAPE_M, TITLE_M, TITLE_S};
-use faraday_draw::tokens::{
-    ELEVATION_FAB, HOME_CARD_GAP, HOME_CARD_HEAD, HOME_CARD_KEYS, HOME_CARD_TWO_COLS, PAD,
-};
-use faraday_draw::tokens::{HOME_BOX_KEYS, HOME_BOX_MIN_ROWS, MARGIN_WIDE};
-
-use faraday_draw::tokens::{GAP_SMALL, GRID, ICON_SMALL, LIST_1, LIST_2, LIST_PAD, NAV_ICON};
+use faraday_draw::tokens::{BODY_M, BUTTON_H, SHAPE_M, TITLE_M};
 use faraday_draw::tokens::{
     HOME_LEAD_H, HOME_LEAD_ICON, HOME_LEAD_INSET, HOME_LEAD_SUB_Y, HOME_LEAD_TEXT_X,
     HOME_SEARCH_MIN, MENU_GAP,
 };
 use faraday_draw::widgets::Icon;
-use faraday_ui::parts::section_label;
 
 /// Home's lead when nothing is under way, §1.2's rule 7: Make a new
 /// wallet.
@@ -42,7 +35,7 @@ fn make_a_new_wallet() -> Lead {
 /// of its own (pull the stick first).
 pub(crate) fn home_lead_beside_tiles(app: &View) -> Option<Lead> {
     let shown = app.flows_in_progress();
-    home_jobs(app)
+    home_jobs(app, false)
         .into_iter()
         .map(|j| (j.going, j.pi))
         .chain(std::iter::once((Some(Going::Create), make_a_new_wallet())))
@@ -99,8 +92,11 @@ fn job(going: Option<Going>, pi: Lead, button: &'static str, line: String, under
 
 /// Every lead §2's table gives before the key with no wallet, in its
 /// order.
-fn home_jobs(app: &View) -> Vec<Job> {
-    use crate::vault::VaultAction as V;
+/// With `all`, every job the session pane's Waiting group shows
+/// (`docs/SESSION-PANE.md`): one for each waiting PSBT and each locked vault
+/// file, the last write kept with keys and wallets loaded; without it the
+/// one lead the one-column Home has.
+fn home_jobs(app: &View, all: bool) -> Vec<Job> {
     let mut v = Vec::new();
     // A spend under way; of a wallet loaded, as its card says it.
     if let Some(s) = app.wallets.spend()
@@ -171,7 +167,8 @@ fn home_jobs(app: &View) -> Vec<Job> {
         ));
     }
     // A PSBT in Files: its spend takes the place of one under way.
-    if let Some(i) = app.lead_psbt() {
+    let psbts = waiting_psbts(app);
+    for &i in psbts.iter().take(if all { usize::MAX } else { 1 }) {
         v.push(job(
             Some(Going::Spend),
             (
@@ -225,7 +222,9 @@ fn home_jobs(app: &View) -> Vec<Job> {
     // A receipt from this power-on's last stick visit, and nothing
     // loaded.
     let fresh = !app.holds_secret() && app.session.wallets.is_empty();
-    if fresh && let Some(r) = app.visit.receipt().as_ref() {
+    if (fresh || all)
+        && let Some(r) = app.visit.receipt().as_ref()
+    {
         let names: Vec<&str> = r.files.iter().map(|f| f.name.as_str()).collect();
         let line = fill(EN.home_job_written_target, &[&r.label.to_string()]);
         let under = names.join(", ");
@@ -243,55 +242,17 @@ fn home_jobs(app: &View) -> Vec<Job> {
             under,
         ));
     }
-    // A locked vault file and nothing loaded.
-    if fresh {
-        let files = app.vault_files();
-        if let Some(i) = files.iter().position(|f| f.open.is_none()) {
-            let f = &files[i];
-            // By its name, with what it held when last seen open (§3.4),
-            // when it was.
-            let (name, line) = match app.vault_summary(f) {
-                Some(s) => (
-                    String::from(s.name.as_str()),
-                    String::from(s.line(app.tz_min()).as_str()),
-                ),
-                None => (
-                    String::from(f.name.as_str()),
-                    fill(EN.home_job_in_files, &[f.name.as_str()]),
-                ),
-            };
-            let pi_line = fill(EN.home_job_unlock, &[&name.to_string()]);
-            let j = if app.stick.is_empty() {
-                job(
-                    None,
-                    (
-                        Glyph::Icon(Icon::Lock),
-                        pi_line,
-                        line.clone(),
-                        Action::Vault(V::Open(i)),
-                        true,
-                    ),
-                    EN.home_btn_unlock,
-                    name,
-                    line,
-                )
-            } else {
-                let under = fill(EN.home_job_pull_to_unlock, &[app.medium.noun()]);
-                job(
-                    None,
-                    (
-                        Glyph::Icon(Icon::Lock),
-                        pi_line,
-                        under.clone(),
-                        Action::Nav(Screen::Home),
-                        false,
-                    ),
-                    EN.home_btn_unlock,
-                    name,
-                    under,
-                )
-            };
-            v.push(j);
+    // A locked vault file, and nothing loaded (every one with `all`).
+    if fresh || all {
+        let locked = app
+            .vault_files()
+            .iter()
+            .enumerate()
+            .filter(|(_, f)| f.open.is_none())
+            .map(|(i, _)| i)
+            .collect::<Vec<_>>();
+        for &i in locked.iter().take(if all { usize::MAX } else { 1 }) {
+            v.push(locked_job(app, i));
         }
     }
     // A vault changed since it was written.
@@ -334,6 +295,70 @@ fn home_jobs(app: &View) -> Vec<Job> {
     v
 }
 
+/// The PSBTs in Files that wait to be signed, fewest signatures first (the
+/// first is [`View::lead_psbt`]'s).
+fn waiting_psbts(app: &View) -> Vec<usize> {
+    let mut order: Vec<(usize, usize)> = app
+        .inbox
+        .iter()
+        .enumerate()
+        .filter_map(|(i, it)| Some((it.psbt()?.sigs, i)))
+        .collect();
+    order.sort_unstable();
+    order.into_iter().map(|(_, i)| i).collect()
+}
+
+/// The job for the locked vault file `i`: Unlock with what it held when
+/// last seen open, or why it cannot be unlocked yet.
+fn locked_job(app: &View, i: usize) -> Job {
+    use crate::vault::VaultAction as V;
+    let files = app.vault_files();
+    let f = &files[i];
+    // By its name, with what it held when last seen open (§3.4), when it
+    // was.
+    let (name, line) = match app.vault_summary(f) {
+        Some(s) => (
+            String::from(s.name.as_str()),
+            String::from(s.line(app.tz_min()).as_str()),
+        ),
+        None => (
+            String::from(f.name.as_str()),
+            fill(EN.home_job_in_files, &[f.name.as_str()]),
+        ),
+    };
+    let pi_line = fill(EN.home_job_unlock, &[&name.to_string()]);
+    if app.stick.is_empty() {
+        job(
+            None,
+            (
+                Glyph::Icon(Icon::Lock),
+                pi_line,
+                line.clone(),
+                Action::Vault(V::Open(i)),
+                true,
+            ),
+            EN.home_btn_unlock,
+            name,
+            line,
+        )
+    } else {
+        let under = fill(EN.home_job_pull_to_unlock, &[app.medium.noun()]);
+        job(
+            None,
+            (
+                Glyph::Icon(Icon::Lock),
+                pi_line,
+                under.clone(),
+                Action::Nav(Screen::Home),
+                false,
+            ),
+            EN.home_btn_unlock,
+            name,
+            under,
+        )
+    }
+}
+
 /// Whether nothing is loaded: no key held, no wallet in the session and
 /// no vault open. Files brought in, a stick attached and a vault file not
 /// yet unlocked do not count (`docs/HOME.md` §1).
@@ -357,7 +382,7 @@ fn lead_job(app: &View, skip_shown: bool) -> Option<(Option<Going>, LeadCard)> {
         Default::default()
     };
     let hidden = |g: Option<Going>| g.is_some_and(|g| shown.iter().any(|r| r.going == g));
-    if let Some(j) = home_jobs(app).into_iter().find(|j| !hidden(j.going)) {
+    if let Some(j) = home_jobs(app, false).into_iter().find(|j| !hidden(j.going)) {
         return Some((j.going, j.card));
     }
     None
@@ -370,6 +395,33 @@ pub(crate) struct CardLead {
     card: LeadCard,
     going: Option<Going>,
     wallets: Vec<usize>,
+}
+
+impl CardLead {
+    /// The lead as the card draws it.
+    pub(super) fn card(&self) -> &LeadCard {
+        &self.card
+    }
+
+    /// The flow it carries on.
+    pub(super) fn going(&self) -> Option<Going> {
+        self.going
+    }
+
+    /// The wallets whose rows it repeats.
+    pub(super) fn wallets(&self) -> &[usize] {
+        &self.wallets
+    }
+}
+
+/// Every job the session pane's Waiting group shows, with the flow each
+/// carries on (`docs/SESSION-PANE.md`): all waiting PSBTs and locked vault
+/// files, the last write with keys and wallets loaded too.
+pub(super) fn pane_jobs(app: &View) -> Vec<(Option<Going>, LeadCard)> {
+    home_jobs(app, true)
+        .into_iter()
+        .map(|j| (j.going, j.card))
+        .collect()
 }
 
 /// The lead for inside the card (`docs/HOME.md` §2), when there is one.
@@ -483,388 +535,6 @@ fn wallet_card(app: &View, i: usize) -> WalletCard {
         line,
         needs,
     }
-}
-
-/// One of Home's list rows (`docs/HOME.md` §3): its leading icon, its
-/// headline, the line under it (empty for none), the small text at its end
-/// (empty for none; `accent` draws it as an action) and what a press
-/// opens. Each ends in a chevron.
-#[derive(Clone)]
-struct ListRow {
-    icon: Icon,
-    head: String,
-    sub: String,
-    trailing: String,
-    accent: bool,
-    action: Action,
-}
-
-/// `rows` as one tinted, rounded box (the surface of the Pi's box of what
-/// is loaded) of Material list items one under another from `(x, y)`, `w`
-/// wide, each with a leading icon and a trailing chevron. Returns the
-/// box's height.
-fn list_box(ui: &mut Ui, (x, y): (f32, f32), w: f32, rows: &[ListRow]) -> f32 {
-    let h = rows_h(rows);
-    crate::nav::screen::loaded_surface(ui, x, y, w, h);
-    list_rows(ui, (x, y), w, rows);
-    h
-}
-
-/// The height of one row of the box.
-fn row_h(r: &ListRow) -> f32 {
-    if r.sub.is_empty() { LIST_1 } else { LIST_2 }
-}
-
-/// The height of a box holding `rows`.
-fn rows_h(rows: &[ListRow]) -> f32 {
-    rows.iter().map(row_h).sum::<f32>() + 2.0 * GAP_SMALL
-}
-
-/// How many of `keys` key rows (two lines each) the box shows: up to `cap`,
-/// and only as many as `avail` holds besides the other rows' `rest_h`.
-fn keys_fitting(avail: f32, rest_h: f32, keys: usize, cap: usize) -> usize {
-    let room = ((avail - rest_h) / LIST_2).floor().max(0.0) as usize;
-    keys.min(cap).min(room)
-}
-
-/// `rows` from the top of a box at `(x, y)`, `w` wide: the rows alone.
-fn list_rows(ui: &mut Ui, (x, y): (f32, f32), w: f32, rows: &[ListRow]) {
-    let mut cy = y + GAP_SMALL;
-    let text_x = x + LIST_PAD + ICON_SMALL + LIST_PAD;
-    let chevron_x = x + w - LIST_PAD - ICON_SMALL;
-    for r in rows {
-        let rh = row_h(r);
-        ui.press(
-            Shape::new(x + GAP_SMALL, cy, w - 2.0 * GAP_SMALL, rh, SHAPE_M),
-            Role::OnSurface.paint(),
-            r.action,
-        );
-        ui.icon(
-            x + LIST_PAD,
-            cy + (rh - ICON_SMALL) / 2.0,
-            ICON_SMALL,
-            r.icon,
-            NAV_ICON + GAP_SMALL,
-            if r.icon == Icon::Warning {
-                Role::Warning
-            } else {
-                Role::OnSurfaceVariant
-            },
-        );
-        ui.icon(
-            chevron_x,
-            cy + (rh - ICON_SMALL) / 2.0,
-            ICON_SMALL,
-            Icon::ChevronRight,
-            NAV_ICON + GAP_SMALL,
-            Role::OnSurfaceVariant,
-        );
-        let mut right = chevron_x - GRID;
-        if !r.trailing.is_empty() {
-            let tone = if r.accent {
-                Role::Primary
-            } else {
-                Role::OnSurfaceVariant
-            };
-            let tw = ui.measure_as(BODY_M, &r.trailing);
-            ui.text_right_as((right, cy, rh), BODY_M, tone, &r.trailing);
-            right -= tw + GRID;
-        }
-        let room = (right - text_x).max(0.0);
-        let (head_y, head_h) = if r.sub.is_empty() {
-            (cy, rh)
-        } else {
-            let line = ui.line_as(BODY_L);
-            (cy + (rh - line - ui.line_as(BODY_M)) / 2.0, line)
-        };
-        let head = ui.fit_as(BODY_L, &r.head, room);
-        ui.text_mid_as((text_x, head_y, head_h), BODY_L, Role::OnSurface, &head);
-        if !r.sub.is_empty() {
-            let line = ui.line_as(BODY_M);
-            let sub = ui.fit_as(BODY_M, &r.sub, (right - text_x).max(0.0));
-            ui.text_mid_as(
-                (text_x, head_y + head_h, line),
-                BODY_M,
-                Role::OnSurfaceVariant,
-                &sub,
-            );
-        }
-        cy += rh;
-    }
-}
-
-/// The wallets' rows (`docs/HOME.md` §3), the ones that need something and
-/// the rest: one for each wallet that needs something now, then "All wallets" opening Wallets, then Backups once a
-/// wallet is known.
-fn wallet_rows(app: &View, lead: Option<&CardLead>) -> (Vec<ListRow>, Vec<ListRow>) {
-    let rows: Vec<ListRow> = home_wallets(app)
-        .into_iter()
-        .filter(|c| c.needs && !lead.is_some_and(|l| l.wallets.contains(&c.index)))
-        .map(|c| ListRow {
-            icon: Icon::Warning,
-            head: c.name,
-            sub: c.line,
-            trailing: String::new(),
-            accent: false,
-            action: Action::OpenWallet(c.index),
-        })
-        .collect();
-    let mut rest = Vec::new();
-    // Backups only while something is not backed up.
-    let (_, without) = app.backup_counts();
-    if without > 0 {
-        rest.push(ListRow {
-            icon: Icon::Shield,
-            head: EN.home_ways_backups.to_string(),
-            sub: fill(EN.home_ways_not_backed, &[&without.to_string()]),
-            trailing: String::new(),
-            accent: false,
-            action: Action::Nav(Screen::Backups),
-        });
-    }
-    (rows, rest)
-}
-
-/// The box's first rows (`docs/HOME.md` §3): each flow in progress, its name
-/// and its open step under it, resuming it, and while files wait to be
-/// written, their count, opening Files.
-fn going_rows(app: &View, lead: Option<&CardLead>) -> Vec<ListRow> {
-    let mut rows: Vec<ListRow> = app
-        .flows_in_progress()
-        .iter()
-        .filter(|r| !lead.is_some_and(|l| l.going == Some(r.going)))
-        .map(|r| ListRow {
-            icon: match r.tab {
-                Screen::Vaults => Icon::Lock,
-                Screen::Catalog => Icon::Tools,
-                _ => Icon::Wallet,
-            },
-            head: r.name.to_string(),
-            sub: r.step.to_string(),
-            trailing: String::new(),
-            accent: false,
-            action: Action::Resume(r.going),
-        })
-        .collect();
-    if !app.outbox.is_empty() {
-        rows.push(ListRow {
-            icon: Icon::File,
-            head: app.files_count().to_string(),
-            sub: String::new(),
-            trailing: String::new(),
-            accent: false,
-            action: Action::Nav(Screen::Files),
-        });
-    }
-    rows
-}
-
-/// The keys' rows (`docs/HOME.md` §3): one for each key no wallet uses,
-/// offering to make a wallet from it, then "All keys" opening Explore.
-fn key_rows(app: &View) -> (Vec<ListRow>, Option<ListRow>) {
-    let n = app.session.keys.all().count();
-    if n == 0 {
-        return (Vec::new(), None);
-    }
-    let loose = app.session.loose_keys();
-    let rows: Vec<ListRow> = app
-        .session
-        .keys
-        .all()
-        .filter(|k| loose.contains(&k.fingerprint))
-        .map(|k| {
-            let fp = crate::wallet::fp_text(k.fingerprint);
-            let name = crate::bip85::key_name(k);
-            let mut sub = String::new();
-            if !name.eq_ignore_ascii_case(&fp) {
-                sub.push_str(&name);
-                sub.push_str(" · ");
-            }
-            if k.has_passphrase {
-                sub.push_str(EN.home_key_passphrase);
-                sub.push_str(" · ");
-            }
-            sub.push_str(EN.home_card_no_wallet_uses_it);
-            ListRow {
-                icon: Icon::Keys,
-                head: String::from(&*fp),
-                sub,
-                trailing: EN.home_btn_make_a_wallet.to_string(),
-                accent: true,
-                action: Action::KeyWallet(k.fingerprint.0, 1),
-            }
-        })
-        .collect();
-    let all = ListRow {
-        icon: Icon::Keys,
-        head: EN.home_all_keys.to_string(),
-        sub: String::new(),
-        trailing: n.to_string(),
-        accent: false,
-        action: Action::Explore,
-    };
-    (rows, Some(all))
-}
-
-/// What is loaded as one section of the menu page (`docs/HOME.md` §3): the
-/// window's card of what needs you and the keys here, or on the small
-/// panel a tinted box of list rows, first one for each wallet that needs
-/// something and each key no wallet uses, then All wallets, Backups and
-/// All keys. The wide layout and the rail's windows both draw it.
-pub(crate) fn loaded_sections(
-    app: &View,
-    window: Option<f32>,
-    lead: Option<CardLead>,
-) -> Vec<Section<'static>> {
-    let mut rest = going_rows(app, lead.as_ref());
-    let (wallets_first, wallets) = wallet_rows(app, lead.as_ref());
-    rest.extend(wallets_first);
-    rest.extend(wallets);
-    let needs = rest.clone();
-    let (keys, all_keys) = key_rows(app);
-    rest.extend(all_keys.clone());
-    if rest.is_empty() && keys.is_empty() && lead.is_none() {
-        return Vec::new();
-    }
-    let offset = app.scroll.home_box_offset();
-    vec![Section::block(None, move |ui, (x, y), w| {
-        if !ui.compact {
-            let parts = CardRows {
-                needs: &needs,
-                keys: &keys,
-                all_keys: all_keys.as_ref(),
-            };
-            return home_card(ui, (x, y), w, (window, offset), &parts, lead.as_ref());
-        }
-        let bw = w;
-        let bx = x;
-        section_label(ui, bx, y, EN.home_box_heading);
-        let head = ui.line_as(TITLE_S) + GRID;
-        let by = y + head;
-        let lead_h = lead
-            .as_ref()
-            .map_or(0.0, |l| lead_card(ui, &l.card, (bx, by), bw, true) + GRID);
-        let by = by + lead_h;
-        let head = head + lead_h;
-        let rest_h = rows_h(&rest);
-        // Without a window height the page scrolls as a whole: up to three
-        // keys. With one, the box's room runs to a margin above the foot;
-        // where the fixed part leaves less than two rows the page scrolls
-        // as one.
-        let avail = window.map_or(f32::INFINITY, |h| (h - by - MARGIN_WIDE).floor());
-        let n = keys_fitting(avail, rest_h, keys.len(), HOME_BOX_KEYS);
-        let all_h = rest_h + n as f32 * LIST_2;
-        let mut rows: Vec<ListRow> = rest.clone();
-        rows.extend(keys.iter().take(n).cloned());
-        if all_h <= avail || avail < HOME_BOX_MIN_ROWS * LIST_2 {
-            return head + list_box(ui, (bx, by), bw, &rows);
-        }
-        // Scrolls within itself: the surface stays, the rows move.
-        crate::nav::screen::loaded_surface(ui, bx, by, bw, avail);
-        let clip = ui.rect(bx, by, bw, avail);
-        let mark = ui.presses_mark();
-        let open = ui.region_open(Region::scrolled(Slot::HomeBox, clip, offset));
-        list_rows(ui, (bx, by), bw, &rows);
-        ui.clip_presses_since(mark, clip);
-        ui.region_close(open, (all_h - avail).max(0.0));
-        head + avail
-    })]
-}
-
-/// The rows of Home's card, by meaning: what needs you, the keys no wallet
-/// uses and All keys.
-struct CardRows<'a> {
-    needs: &'a [ListRow],
-    keys: &'a [ListRow],
-    all_keys: Option<&'a ListRow>,
-}
-
-/// The card's surface: a raised card of the surface-container-low fill with
-/// the Scan button's shadow.
-fn card_surface(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32)) {
-    ui.shadow(x, y, w, h, SHAPE_M, ELEVATION_FAB);
-    ui.fill(x, y, w, h, SHAPE_M, Role::SurfaceContainerLow);
-}
-
-/// Home's card in the window `w` wide from `x`, `HOME_CARD_GAP` under what
-/// is above it: its heading at the top left, then the rows in two columns
-/// (what needs you, the keys here) from `HOME_CARD_TWO_COLS`, or in one
-/// list in `docs/HOME.md` §3's order below it. The card is as wide as the
-/// menu pages and centred. It scrolls within itself, as one, when the
-/// window is short. Returns its height with the gap.
-fn home_card(
-    ui: &mut Ui,
-    (x, y): (f32, f32),
-    w: f32,
-    (window, offset): (Option<f32>, f32),
-    parts: &CardRows,
-    lead: Option<&CardLead>,
-) -> f32 {
-    let cw = w;
-    let cx = x + (w - cw) / 2.0;
-    let top = y + HOME_CARD_GAP;
-    let head_h = ui.line_as(HOME_CARD_HEAD);
-    let inner = cw - 2.0 * PAD;
-    let lead_h = lead.map_or(0.0, |_| HOME_LEAD_H + GRID);
-    let rows_y = top + PAD + head_h + GRID + lead_h;
-    let two = cw >= HOME_CARD_TWO_COLS;
-    let avail = window.map_or(f32::INFINITY, |h| (h - rows_y - MARGIN_WIDE).floor());
-    let (cols, widths): (Vec<Vec<ListRow>>, Vec<f32>) = if two {
-        let all: Vec<ListRow> = parts.all_keys.cloned().into_iter().collect();
-        let n = keys_fitting(
-            avail,
-            rows_h(&all),
-            parts.keys.len().min(HOME_CARD_KEYS),
-            HOME_CARD_KEYS,
-        );
-        let mut right: Vec<ListRow> = parts.keys.iter().take(n).cloned().collect();
-        right.extend(all);
-        let col_w = (inner - MENU_GAP) / 2.0;
-        (vec![parts.needs.to_vec(), right], vec![col_w, col_w])
-    } else {
-        let mut one = parts.needs.to_vec();
-        one.extend(parts.all_keys.cloned());
-        let n = keys_fitting(avail, rows_h(&one), parts.keys.len(), HOME_BOX_KEYS);
-        one.extend(parts.keys.iter().take(n).cloned());
-        (vec![one], vec![inner])
-    };
-    let rows_h_max = cols
-        .iter()
-        .filter(|c| !c.is_empty())
-        .map(|c| rows_h(c))
-        .fold(0.0, f32::max);
-    let scrolls = rows_h_max > avail && avail >= HOME_BOX_MIN_ROWS * LIST_2;
-    let shown = if scrolls { avail } else { rows_h_max };
-    let card_h = rows_y - top + shown + GRID;
-    card_surface(ui, (cx, top, cw, card_h));
-    ui.text_as(
-        cx + PAD + LIST_PAD,
-        top + PAD,
-        HOME_CARD_HEAD,
-        Role::OnSurface,
-        EN.home_box_heading,
-    );
-    if let Some(l) = lead {
-        lead_card(ui, &l.card, (cx + PAD, rows_y - lead_h), inner, true);
-    }
-    let draw_cols = |ui: &mut Ui| {
-        let mut colx = cx + PAD;
-        for (c, cw_) in cols.iter().zip(&widths) {
-            list_rows(ui, (colx, rows_y), *cw_, c);
-            colx += cw_ + MENU_GAP;
-        }
-    };
-    if scrolls {
-        let clip = ui.rect(cx, rows_y, cw, shown);
-        let mark = ui.presses_mark();
-        let open = ui.region_open(Region::scrolled(Slot::HomeBox, clip, offset));
-        draw_cols(ui);
-        ui.clip_presses_since(mark, clip);
-        ui.region_close(open, (rows_h_max - avail).max(0.0));
-    } else {
-        draw_cols(ui);
-    }
-    HOME_CARD_GAP + card_h
 }
 
 /// The three first-run actions while nothing is loaded, in their order:
@@ -992,7 +662,13 @@ pub(super) fn top_row(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f3
 /// the job's icon, its line and the line under it, and at its end the one
 /// filled button (`docs/HOME.md` §2). Returns its height. The card is not
 /// a press; its button is.
-fn lead_card(ui: &mut Ui, card: &LeadCard, (x, y): (f32, f32), width: f32, inside: bool) -> f32 {
+pub(super) fn lead_card(
+    ui: &mut Ui,
+    card: &LeadCard,
+    (x, y): (f32, f32),
+    width: f32,
+    inside: bool,
+) -> f32 {
     let lead_h = HOME_LEAD_H;
     let lead_w = width;
     // Inside Home's card the lead is the card's featured first item, in
@@ -1120,7 +796,7 @@ pub(crate) fn home_pinned(above: f32, window: f32, row: f32) -> bool {
 /// the page.
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use super::catalog::Bar;
-    let sections = loaded_sections(app, Some(h), card_lead(app, false));
+    let sections = super::session_pane::loaded_sections(app, Some(h), card_lead(app, false));
     let page = Page {
         name: EN.home_home,
         back: false,

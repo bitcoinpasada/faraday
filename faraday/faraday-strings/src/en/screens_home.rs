@@ -62,6 +62,18 @@ macro_rules! words_screens_home {
     home_all_wallets: "All wallets",
     /// The row on Home that opens Explore.
     home_all_keys: "All keys",
+    /// The heading over the session pane's group of what waits.
+    session_group_waiting: "Waiting",
+    /// The heading over the session pane's group of wallets.
+    session_group_wallets: "Wallets",
+    /// The heading over the session pane's group of keys.
+    session_group_keys: "Keys",
+    /// The session pane's one line while nothing is loaded.
+    session_nothing_loaded: "Nothing loaded",
+    /// A flow in progress's row button.
+    home_btn_resume: "Resume",
+    /// A key's line when a wallet uses it. `{}`: the wallet's name.
+    home_key_used_by: "Used by {}",
     /// The line under a key no wallet uses.
     home_card_no_wallet_uses_it: "No wallet uses it",
     /// A key's line on Home when it was loaded with a passphrase; the same words without it are another key.

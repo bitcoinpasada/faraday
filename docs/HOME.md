@@ -101,17 +101,17 @@ done here yet (a locked vault with the stick still in) shows its button
 disabled and its second line, "Pull the stick to unlock", in the warning
 tone.
 
-**On the wide layout and the rail's windows** the lead is the card's
-featured first item (F315): inside "This session", right under its heading
-and across its full width (both columns), in the secondary container (the
-warning container for a job that cannot be done yet): the job's icon, the
-line, the line under it, and at its end one filled button, the only filled
-button on Home. The item with a button is not a press: the button is. The
-plain Import item has no button and is pressed whole. Nothing about what is
-going on is drawn outside the card; the search row stays above it. With a
-wallet loaded and nothing waiting there is no lead and the card starts with
-its rows; with nothing loaded and nothing waiting there is no lead and the
-first actions stand first.
+**On the wide layout and the rail's windows** the lead is the first row of
+the card's Waiting group (§3): the job's icon, its line and the line under it,
+and under them, at the text's start, its one button (Carry on, Finish, Sign,
+Unlock, Write, Open). A row with a button is not a press: the button is. The
+plain Import row has no button and is pressed whole. The jobs below are not
+only the first that applies: each one that applies is a row, one for each
+waiting PSBT (fewest signatures first, each with its own Sign) and one for each
+locked vault file (each with its own Unlock), and they stay with keys and
+wallets loaded (owner, 2026-11-23). Nothing about what is going on is drawn
+outside the card; the search row stays above it. With nothing waiting and
+nothing loaded the card holds the one line "Nothing loaded".
 
 **On the one-column Homes** the lead is one row, 44 dp tall, in the
 secondary container (the warning container for a job that cannot be done
@@ -134,55 +134,47 @@ how many are open, and Wallets one with the number of wallets that need
 something now, as Files' badge is the Inbox count (F235, F303); none while
 the number is zero.
 
-One card (it holds the lead, §2, as its first item, under the heading and
-across both columns), 24 dp under the search row (`HOME_CARD_GAP`) at every
-window height (the owner's call of 2026-11-22), the same whether a lead stands in it or not, of Material list
-items (Lists) one under another, as wide as the search row and centred
-under it (the whole page where that is narrower), not drawn while it has no
-row. Its surface is neutral (surface-container-low) and raised at the Scan
-button's elevation (level 3), where Material's elevated card is level 1
-(F315); orange stands only on the rows that need something. Each row has a
-leading icon and a trailing chevron and opens what it names. One heading
-stands inside the card at its top left, "This session" (Title Large,
-SemiBold; `home_box_heading`), none over a group of rows (owner,
-2026-11-21). From 840 dp of card width (`HOME_CARD_TWO_COLS`) the card has two
-columns split by meaning, with no sub-headings: on the left what needs the
-person (the first four kinds of row below), on the right the keys here (the
-keys no wallet uses, at most 5, then All keys with its count, which is the
-"more"). Under 840 dp it is one list in the order below, with at most three
-key rows. On a short window the keys drop first: the card shows fewer key
-rows, All keys with its count staying, and scrolls within itself only when
-even that does not fit. A row's trailing text ("Make a wallet", the count of
-All keys) is Body M, the size of the line under a row's name (owner,
-2026-11-21). In this order:
+One card, drawn by the session pane (`docs/SESSION-PANE.md`), 24 dp under the
+search row (`HOME_CARD_GAP`) at every window height, as wide as the menu pages
+(`MENU_PAGE_W`) at most and centred (the whole page where that is narrower).
+Its surface is neutral (surface-container-low) and raised at the Scan button's
+elevation (level 3), where Material's elevated card is level 1 (F315); orange
+stands only on what needs something. One heading stands inside the card at its
+top left, "This session" (Title Large, SemiBold; `home_box_heading`); three
+groups stand under small headings (Title Small), in this order, a group with
+no rows not drawn (F323):
 
-- a row for each **flow in progress**, with the icon of the sidebar's row for
-  it: its name and, under it, its open step; it resumes the flow (a spend
-  under way is one);
-- while files wait to be written, a row with their count, opening Files;
-- a row for each wallet that **needs something now**, ranked (the wallets
-  the keys here sign for alone first, then those with some keys here, then
-  watch-only), with the warning icon: its name and, under it, the first
-  that applies, "Signatures {n} of {m}" while its spend is under way, "A
-  PSBT to sign" while Files holds a PSBT for it, "Not backed up" while a
-  key made here waits for its backup. The row opens the wallet's card on
-  Wallets (`Action::OpenWallet`); a wallet that needs nothing has no row;
-- **Backups** with the shield icon, only while something is not backed up:
-  "{n} not backed up" under it, opening Backups. On the rail's windows
-  the places have no Backups tile of their own, this row stands for it;
-- **All keys** with the key icon and the count of keys at its end, opening
-  Explore, while any key is held;
-- last, a row for each key no wallet uses (at most three in one list, five
-  in the right column; "Up to 3"), with the key icon: its fingerprint,
-  under it its name (none when the name is the fingerprint), the word
-  "passphrase" when the key was loaded with one (the same words without it
-  are another key) and "No wallet uses it", and at its end **Make a
-  wallet**, which makes a wallet from the key. A key a wallet uses has no
-  row;
-  **Key rows drop first**: with more keys than three, or with no room for
-  them without the box scrolling, they drop out (down to none) and All keys
-  and its count stand for them; the box scrolls only when the other rows alone
-  do not fit.
+- **Waiting**: the lead and every other job of §2 as rows with their buttons
+  under their lines (one for each waiting PSBT and each locked vault file),
+  then a row for each flow in progress (its name, its open step under it,
+  Resume), and while files wait to be written, a row with their count,
+  opening Files;
+- **Wallets**: a row for every loaded wallet, ranked (the wallets the keys here
+  sign for alone first, then those with some keys here, then watch-only): its
+  name and, under it, the first that applies, "Signatures {n} of {m}" while its
+  spend is under way, "A PSBT to sign" while Files holds a PSBT for it, "Not
+  backed up" while a key made here waits for its backup, else its shape. A
+  wallet that needs something has the warning icon. The row opens the wallet's
+  card on Wallets (`Action::OpenWallet`) and has no button; **Backups** is the
+  last row, with the shield icon, only while something is not backed up;
+- **Keys**: a row for every key held, no cap: its fingerprint, under it its
+  name in full (none when the name is the fingerprint), "passphrase" when the
+  key was loaded with one and the wallet that uses it ("Used by {wallet}"),
+  else "No wallet uses it". The row opens the key (`Action::ExploreKey`). There
+  is no All keys row and no Make a wallet button here.
+
+The groups stand in as many columns as fit of at least 336 dp
+(`SESSION_COL_MIN`), 24 dp apart, each group whole and the next into the
+shortest column. Nothing loaded: the card stands at its place with what is real
+of Waiting, and with none of it holds "Nothing loaded"; it has no Make or
+Restore row. The card is as tall as its groups; the page does not scroll, on
+the sidebar windows and on the rail's windows: the search bar stays, and where
+the card would run past a margin (`MARGIN_WIDE`) above the window's foot it
+scrolls within itself, all columns as one (its own offset, `Slot::HomeBox`), and
+no row is dropped. Where the fixed part leaves the box under two rows
+(`HOME_BOX_MIN_ROWS`) the page scrolls as a whole instead, the box with it. The
+rail's windows draw no place tiles (§6.2): the rail lists every place, so their
+box is the last thing on the page.
 
 Home has no Sign button: the card on Wallets and the lead carry what signs
 next. Home has no Receive button either: Faraday is an offline signer, and

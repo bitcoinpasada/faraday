@@ -22,6 +22,7 @@ mod nonce_check;
 pub(crate) mod parts;
 pub(crate) mod randomness;
 mod restore;
+mod session_pane;
 mod set_time;
 pub(crate) mod settings;
 mod sheets;
@@ -62,7 +63,7 @@ pub(crate) use faraday_ui::parts::{
 pub(crate) use files::{stick_chip as files_stick_chip, vault_panel};
 pub(crate) use home::{
     action_h, actions_col, actions_fit_a_row, actions_lines, card_lead, first_actions,
-    home_lead_beside_tiles, home_pinned, loaded_sections, nothing_loaded, wallets_needing,
+    home_lead_beside_tiles, home_pinned, nothing_loaded, wallets_needing,
 };
 pub(crate) use message::{MESSAGE_STEPS, MSTEPS};
 pub(crate) use parts::{
@@ -76,6 +77,7 @@ pub(crate) use parts::{
     camera_row, card_pad, coin_pad, dice_pad, dice_pad_fit, key_path_line, word_cell_edge,
 };
 pub(crate) use restore::{RSTEPS, open_slot_key};
+pub(crate) use session_pane::loaded_sections;
 pub(crate) use settings::display_section as settings_display_section;
 pub(crate) use settings::open_head as settings_open;
 pub(crate) use settings::part_guide_key as settings_guide_key;

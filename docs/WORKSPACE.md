@@ -1,8 +1,8 @@
 # This session as Faraday's hub: one pane of what is loaded, everywhere
 
 **Kind:** Spec
-**Status:** Partly built: Home's card as F313, F314 and F315 have it and the flat section cards of the menu pages (F317) are on main; the rest is not built: the session pane as the one view of what is loaded and going on, on the menu pages and in every flow, the page as panes, and slower motion.
-**Open:** To build: the session pane and its modes (§2), Home's card in groups (§2), the pairs and stacked pages of §4, the pick becoming Your choices at the left in every flow and the flow pair as one card (§4, §6), row buttons and details on the pane (§2, §7; Files' row menu already shows the shared list), search results and the guide as panes (§7), the pane container and its lint (§14), the top bar's search and pills (§4), the Motion and Speed settings with the motion they set (§6, §9), Settings as one tile (§9), the timings on the Pi that §6 and §8 name, and the take-away (§15). Not decided: what Vaults' pane holds (§2), whether the flow's end is one card or two (§15), whether a sheet is centred on the window or on the step card, whether the page's name stays in the top bar, where the Scan button stands on a computer, whether prose is a block (the guide's text), and the backup board's insides.
+**Status:** Partly built: Home's card with its groups (F323, `docs/SESSION-PANE.md`) and the flat section cards of the menu pages (F317) are on main; the rest is not built: the session pane as the one view of what is loaded and going on, on the menu pages and in every flow, the page as panes, and slower motion.
+**Open:** To build: the session pane's modes and its form on the menu pages and in the flows (§2; Home's card in groups is built, `docs/SESSION-PANE.md`), the pairs and stacked pages of §4, the pick becoming Your choices at the left in every flow and the flow pair as one card (§4, §6), row buttons and details on the pane (§2, §7; Files' row menu already shows the shared list), search results and the guide as panes (§7), the pane container and its lint (§14), the top bar's search and pills (§4), the Motion and Speed settings with the motion they set (§6, §9), Settings as one tile (§9), the timings on the Pi that §6 and §8 name, and the take-away (§15). Not decided: what Vaults' pane holds (§2), whether the flow's end is one card or two (§15), whether a sheet is centred on the window or on the step card, whether the page's name stays in the top bar, where the Scan button stands on a computer, whether prose is a block (the guide's text), and the backup board's insides.
 
 "This session", Home's raised card, becomes the session pane, Faraday's hub: everything about
 what is loaded and going on lives in it, and it works with every part of
@@ -250,7 +250,7 @@ motion: with motion Off the pane stands where it would after the glide.
    the page's tile stands under the This session card, which stays exactly
    where Home has it, at Home's width and with Home's rows (not the page's
    own mode, §2), so opening the page does not change it. The tile is as
-   wide as the card, `MENU_GAP` under it, and ends at least a
+   wide as the card, 24 dp (rule 2's gap, not `MENU_GAP`) under it, and ends at least a
    page margin above the window's foot. Where it does not all fit, the pair
    of rule 2. Entering a flow from a stacked page turns the layout into the
    flow's pair.

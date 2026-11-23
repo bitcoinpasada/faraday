@@ -84,7 +84,19 @@ RULES = [
         ["faraday/"],
         "the menu page container (faraday-core screens/menu_page.rs, `docs/MENU-PAGE.md`)",
         skip=["faraday/faraday-core/src/screens/menu_page.rs",
-              "faraday/faraday-core/src/screens/mod.rs"],
+              "faraday/faraday-core/src/screens/mod.rs",
+              "faraday/faraday-core/src/screens/session_pane/"],
+    ),
+    # A file drawing a row of what the session holds itself: the rows of
+    # keys, wallets and what waits, and the card that holds them, belong to
+    # the session pane (`docs/SESSION-PANE.md`), which every page draws them
+    # through.
+    Rule(
+        "session-pane-own-rows",
+        [r"\bSessionRow\b"],
+        ["faraday/"],
+        "the session pane (faraday-core screens/session_pane/, `docs/SESSION-PANE.md`)",
+        skip=["faraday/faraday-core/src/screens/session_pane/"],
     ),
     # A page drawing its own section card or row: the card, its list rows,
     # dividers and columns belong to the container (`docs/MENU-PAGE.md` §4); a
