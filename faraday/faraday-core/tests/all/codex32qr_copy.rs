@@ -174,7 +174,8 @@ fn seen(app: &mut Faraday, action: Action) -> (u16, u16, u16, u16) {
             return b;
         }
         app.event(Event::Scroll {
-            x: 600,
+            // Over the step's card, right of Your choices.
+            x: 800,
             y: 400,
             dy: 120,
         });
@@ -189,7 +190,8 @@ fn text_seen(app: &mut Faraday, text: &str) -> bool {
             return true;
         }
         app.event(Event::Scroll {
-            x: 600,
+            // Over the step's card, right of Your choices.
+            x: 800,
             y: 400,
             dy: 120,
         });

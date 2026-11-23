@@ -1023,12 +1023,21 @@ fn a_fee_bump_naming_a_key_not_loaded_keeps_its_load_row() {
     app.press(Action::SignerCheck(SignerPress::Pick(Slot::Returned, 1)));
     // The actions are at the foot of the scrolling Result.
     let _ = app.frame();
+    // The pointer is over the card, not over Your choices at its left.
+    let card = app
+        .drawn_text_boxes()
+        .plain()
+        .into_iter()
+        .find(|(t, _)| t == "Step 3 of 3")
+        .expect("the card's step count")
+        .1;
     app.event(Event::Wheel {
-        x: 300,
+        x: u16::try_from(card.0 + 40).unwrap(),
         y: 400,
         dy: 3000,
     });
     app.settle();
+    let _ = app.frame();
     assert!(
         !holding(&mut app, "Load ").is_empty(),
         "{:?}",

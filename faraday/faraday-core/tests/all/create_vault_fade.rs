@@ -81,6 +81,19 @@ fn drawn_at(app: &mut Faraday, text: &str) -> (i32, i32, i32, i32) {
         .unwrap_or_else(|| panic!("{text} is drawn"))
 }
 
+/// Where `text` is drawn in the step's card, the rightmost of it: the
+/// pane's row of the same name stands at the left and stays still.
+fn drawn_in_card(app: &mut Faraday, text: &str) -> (i32, i32, i32, i32) {
+    let _ = app.frame();
+    app.drawn_text_boxes()
+        .plain()
+        .into_iter()
+        .filter(|(t, _)| t == text)
+        .map(|b| b.1)
+        .max_by_key(|b| b.0)
+        .unwrap_or_else(|| panic!("{text} is drawn"))
+}
+
 /// The pixel inside `at` that is furthest from `surface`: where text is
 /// inked.
 fn inked(frame: &[u8], width: usize, at: (i32, i32, i32, i32), surface: &[u8]) -> usize {
@@ -123,7 +136,7 @@ fn continue_fades_through_the_surface_in_300_ms() {
     let first = app.frame().rgba.to_vec();
     assert_eq!(app.take_fade_counts().started, 1, "Continue starts a fade");
     assert_eq!(first[old_ink * 4..][..4], rest[old_ink * 4..][..4]);
-    let new = drawn_at(&mut app, "Unlock cost");
+    let new = drawn_in_card(&mut app, "Unlock cost");
     // The clock starts at the first tick; 16 ms are taken as passed.
     let mut elapsed = 16;
     let mut seen = vec![(0, first)];
@@ -303,8 +316,9 @@ fn on_a_scrolled_page_the_fade_stays_in_the_page_area() {
     let width = usize::from(app.frame().width);
     let height = before.len() / 4 / width;
     let pane = drawn_at(&mut app, "Your choices");
-    // The top app bar is 64 dp; the navigation rail is left of the card.
-    let (bar, rail) = (64, 150);
+    // The pair's outline runs along y 72 (a line, not text); the card
+    // stands right of Your choices, which is at most 360 dp wide and stays still.
+    let (bar, rail, outline) = (64, pane.0 + 330, 72);
     // Read from the scrolled frame before the press.
     // The foot's label is the lowest text; its bar starts a little above.
     let _ = app.frame();
@@ -318,8 +332,13 @@ fn on_a_scrolled_page_the_fade_stays_in_the_page_area() {
         - 20;
     let lines = card_lines(&mut app, rail, right, bar, foot);
     assert!(!lines.is_empty(), "lines of the old card are in view");
-    // The page's surface: a blank pixel in the card's band, left of a line.
-    let (cx, cy) = (lines[0].0 as usize, lines[0].1 as usize);
+    // The page's surface: the blank gap above a line standing clear under the
+    // outline (a line's own corner is its ink, the outline's row its colour).
+    let clear = lines
+        .iter()
+        .find(|l| l.1 > outline + 8)
+        .expect("a line stands clear under the outline");
+    let (cx, cy) = (clear.0 as usize, (clear.1 - 4) as usize);
     let surface = before[(cy * width + cx) * 4..][..4].to_vec();
     let _ = app.take_fade_counts();
     app.press(Action::Vault(V::CStep(vstep::WHERE)));
@@ -333,7 +352,7 @@ fn on_a_scrolled_page_the_fade_stays_in_the_page_area() {
     }
     let mid = tick(&mut app, &mut clock, 2);
     for (x, y, w, h) in &lines {
-        for py in *y..*y + *h {
+        for py in (*y).max(outline + 1)..*y + *h {
             for px in *x..(*x + *w).min(right) {
                 let i = py as usize * width + px as usize;
                 assert!(
@@ -343,13 +362,14 @@ fn on_a_scrolled_page_the_fade_stays_in_the_page_area() {
             }
         }
     }
-    // The bar and the pane are never faded to the surface: each pixel is as
+    // The bar and Your choices are never faded to the surface: each pixel is as
     // before the press, as after the fade, or (the frame round the card
     // cross-fades) between the two, never towards the surface.
     let after = at_rest(&mut app, &mut clock);
     for row in 0..height {
         for col in 0..width {
-            if row as i32 >= bar && (col as i32) < pane.0 {
+            // The card fades: right of Your choices, under the bar.
+            if row as i32 >= bar && (col as i32) >= rail {
                 continue;
             }
             let at = (row * width + col) * 4;

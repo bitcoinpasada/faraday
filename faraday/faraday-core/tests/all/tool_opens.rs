@@ -122,13 +122,14 @@ fn check_multisig_opens_the_one_setup_and_lists_several_and_offers_the_ways_in_w
     open_tile(&mut one, EN.mscheck_title);
     assert_eq!(one.screen, Screen::MultisigCheck);
     assert!(has(&mut one, EN.mscheck_add));
-    // The ending is under the keys: scroll to it.
+    // The ending is under the keys: scroll to it, the pointer over the
+    // card (Your choices stands at its left and has nothing to scroll).
     for _ in 0..40 {
-        if has(&mut one, EN.mscheck_another) {
+        if has(&mut one, EN.mscheck_done) {
             break;
         }
         one.event(faraday_shell_api::Event::Scroll {
-            x: 240,
+            x: 800,
             y: 400,
             dy: 120,
         });

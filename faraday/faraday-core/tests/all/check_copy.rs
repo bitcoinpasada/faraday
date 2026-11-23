@@ -1290,11 +1290,14 @@ fn keep_the_words_only_keeps_a_plan_of_answers_its_answers_and_edits_an_edited_o
 fn grid_box(app: &mut Faraday, action: Action) -> (u16, u16, u16, u16) {
     for _ in 0..30 {
         let _ = app.frame();
-        if let Some(b) = app.hit_box(action) {
+        // A target is reached once it stands inside the card, which ends a
+        // padding above the window's foot (768 - 24).
+        if let Some(b) = app.hit_box(action).filter(|b| b.1 + b.3 <= 744) {
             return b;
         }
         app.event(Event::Scroll {
-            x: 600,
+            // Over the step's card, right of Your choices.
+            x: 800,
             y: 400,
             dy: 120,
         });
@@ -1334,7 +1337,11 @@ fn the_seedqr_to_copy_is_marked_by_blocks_or_rows() {
         "{corner:?}"
     );
     assert!(f32::from(edge.2) >= floor, "{edge:?}");
-    assert!(f32::from(corner.3) >= floor, "{corner:?}");
+    assert!(
+        f32::from(corner.3) >= floor,
+        "{corner:?} {floor} {:?}",
+        app.drawn_text_boxes().plain()
+    );
     assert!(
         f32::from(before.0) + f32::from(before.2) <= f32::from(edge.0) + 1.5,
         "{before:?} over {edge:?}"
@@ -1366,7 +1373,8 @@ fn text_seen(app: &mut Faraday, text: &str) -> bool {
             return true;
         }
         app.event(Event::Scroll {
-            x: 600,
+            // Over the step's card, right of Your choices.
+            x: 800,
             y: 400,
             dy: 120,
         });

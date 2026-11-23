@@ -794,7 +794,7 @@ fn a_wide_window_shows_one_step_at_one_place() {
 }
 
 #[test]
-fn your_choices_stands_at_the_right_on_a_wide_window_and_a_row_opens_its_step() {
+fn your_choices_stands_at_the_left_of_the_step_on_a_wide_window_and_a_row_opens_its_step() {
     use faraday_core::vault::vstep;
     let mut app = on_create_vault();
     window(&mut app, (1366, 768), 160);
@@ -808,7 +808,11 @@ fn your_choices_stands_at_the_right_on_a_wide_window_and_a_row_opens_its_step() 
     }
     assert!(drawn_at(&mut app, "Step 2 of 2").is_some());
     let at = drawn_at(&mut app, "Your choices").unwrap();
-    assert!(at.0 > 1366 / 2, "at the right: {at:?}");
+    let step = drawn_at(&mut app, "Step 2 of 2").unwrap();
+    assert!(
+        at.0 < step.0,
+        "Your choices at the left of the step: {at:?} {step:?}"
+    );
     assert!(
         app.offers(Action::Vault(V::CStep(vstep::PRESET))),
         "a row opens its step"
@@ -882,35 +886,31 @@ fn create_vault_ends_the_last_card_and_only_there() {
 }
 
 #[test]
-fn on_a_low_wide_window_your_choices_scrolls_within_itself() {
+fn on_a_low_wide_window_every_row_of_your_choices_is_in_the_window() {
     use faraday_core::vault::vstep;
     let mut app = on_create_vault();
     window(&mut app, (1366, 600), 160);
     app.press(Action::Vault(V::CStep(vstep::PRESET)));
     app.press(Action::Vault(V::CCustomise));
-    let head = drawn_at(&mut app, "Your choices").expect("the pane is still shown");
-    let (x, y) = (
-        u16::try_from(head.0 + 20).unwrap(),
-        u16::try_from(head.1 + 80).unwrap(),
-    );
-    let page = app.vaults().create.as_ref().unwrap().scroll.y;
-    app.event(Event::Hover { x, y });
-    app.event(Event::Scroll { x, y, dy: 800 });
-    app.event(Event::ScrollEnd { x, y });
-    app.settle();
+    // With the first two steps done the pane holds their answers too.
+    app.press(Action::Vault(V::CNext(vstep::WHERE)));
+    app.press(Action::Vault(V::CNext(vstep::COST)));
+    let head = drawn_at(&mut app, "Your choices").expect("the pane is shown");
     let _ = app.frame();
-    let c = app.vaults().create.as_ref().unwrap();
+    let rows: Vec<_> = app
+        .drawn_text_boxes()
+        .plain()
+        .into_iter()
+        .filter(|(_, b)| b.0 >= head.0 && b.0 < head.0 + 360 && b.1 > head.1)
+        .collect();
     assert!(
-        app.choices_offset() > 0.0,
-        "the pane scrolled within itself"
+        rows.iter().any(|(t, _)| t == "Goes to"),
+        "the pane's last row is on screen"
     );
-    assert_eq!(c.scroll.y, page, "the page did not move");
-    let last = drawn_at(&mut app, "Goes to").expect("the pane's last line is on screen");
-    assert!(last.1 + last.3 <= 600, "inside the window: {last:?}");
-    // Opened anew, the pane starts at its top.
-    app.press(Action::Vault(V::Create));
-    let _ = app.frame();
-    assert_eq!(app.choices_offset(), 0.0, "the form opened anew");
+    for (text, b) in &rows {
+        assert!(b.1 + b.3 <= 600, "{text} is inside the window: {b:?}");
+    }
+    assert_eq!(app.choices_offset(), 0.0, "there is nothing to scroll to");
 }
 
 #[test]
