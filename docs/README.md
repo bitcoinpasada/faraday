@@ -56,7 +56,7 @@ need. Each document's header says what kind it is:
 | Where does the caret go in a text field, and how is it moved? | `docs/TEXT-CURSOR.md` |
 | How is a screen laid out at each window size, from the Pi to a monitor? | `docs/LAYOUT.md` |
 | What does Home show at each size, and in which order do the destinations stand? | `docs/HOME.md`; the layouts' rules, `docs/LAYOUT.md` §3, §4 |
-| How is "This session" to become the one pane of what is loaded on every page and in every flow, with section cards, panes and slower motion (not built)? | `docs/WORKSPACE.md`; the decisions, `docs/decisions/F316.md`, `docs/decisions/F317.md`, `docs/decisions/F318.md`, `docs/decisions/F319.md`, `docs/decisions/F320.md` |
+| How is "This session" to become the one pane of what is loaded on every page and in every flow, with section cards, panes and slower motion (not built)? | `docs/WORKSPACE.md`; the decisions, `docs/decisions/F316.md`, `docs/decisions/F317.md`, `docs/decisions/F318.md`, `docs/decisions/F319.md`, `docs/decisions/F320.md`, `docs/decisions/F322.md`, `docs/decisions/F323.md`, `docs/decisions/F324.md` |
 | Which way up is a 7-inch or 10-inch panel, and how are its screen and touch turned? | `docs/ORIENTATION.md` |
 | How does Faraday Demo show its screens at another screen's size? | `docs/DESKTOP-HOST.md` §10 |
 | What stands outside the app on Faraday Demo: the sticks, the size, Practice's aids? | `docs/DESKTOP-HOST.md` |
@@ -156,7 +156,7 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 - `docs/MOTION.md`: Scrolling, motion and appearance. Built; not yet checked by the owner on hardware.
 - `docs/STARTER.md`: The Starter. Partly built: the Starter on Linux and Windows with its Material 3 navigation (§3.1d), the Pi 3 card.
 - `docs/WORKERS.md`: Costly work off the drawing thread. Partly built: the worker, the shells' wake, the busy screen and the jobs listed in §9 run; the rest are open.
-- `docs/WORKSPACE.md`: This session as Faraday's hub: one pane of what is loaded, everywhere. Not built: the design of Home's "This session" pane as the one view of what is loaded and going on, reused on the menu pages, in a flow's key step and on Files, with Check's and Tools' section cards, side-by-side panes and slower motion.
+- `docs/WORKSPACE.md`: This session as Faraday's hub: one pane of what is loaded, everywhere. Partly built: Home's card as F313, F314 and F315 have it and the flat section cards of the menu pages (F317) are on main; the rest is not built: the session pane as the one view of what is loaded and going on, on the menu pages and in every flow, the page as panes, and slower motion.
 
 **Record**
 

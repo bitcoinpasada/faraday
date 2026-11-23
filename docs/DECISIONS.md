@@ -326,11 +326,14 @@ Read this table, then only the decision you need.
 | [F313](decisions/F313.md) | Home's page stays still and only its box scrolls; the rail's Home has no place tiles | 2026-11-21 | Active | design |
 | [F314](decisions/F314.md) | Home's top row: the search bar and three tonal buttons on one 48 dp row, the box at its width | 2026-11-21 | Active | design |
 | [F315](decisions/F315.md) | Home's "This session" card has two columns on wide windows and is raised at the Scan button's level | 2026-11-21 | Active | design |
-| [F316](decisions/F316.md) | This session is Faraday's hub: one pane of what is loaded, in a few forms, its place on a page a setting | 2026-11-21 | Active | design |
+| [F316](decisions/F316.md) | This session is Faraday's hub: one pane of what is loaded, in a few forms, its place set by the page | 2026-11-21 | Active | design |
 | [F317](decisions/F317.md) | Menu pages: each section is one flat card holding a list, several to a row on wide windows | 2026-11-21 | Active | design |
 | [F318](decisions/F318.md) | Motion: two settings, a style (Smooth motion, Crossfade, Off) and a speed (600 ms by default), that never change on their own; the session pane glides, the rest fades through | 2026-11-21 | Active | design |
 | [F319](decisions/F319.md) | Your choices stands at the left in every flow; in a flow begun beside the session pane it is the pane's side | 2026-11-21 | Active | design |
 | [F320](decisions/F320.md) | Every flow that produces something ends with one take-away: QRs and ticked files, one Write to stick | 2026-11-21 | Active | design |
+| [F322](decisions/F322.md) | Every page is made of panes: what a page may draw | 2026-11-22 | Active | design |
+| [F323](decisions/F323.md) | Home's card shows everything in the session, in groups; its box scrolls when too short | 2026-11-22 | Active | design |
+| [F324](decisions/F324.md) | A flow's pair is one card with an inset divider | 2026-11-22 | Active | design |
 | [F325](decisions/F325.md) | Work kept out of the app may also be held by a build switch that only Faraday Demo's dev build turns on | 2026-11-23 | Active | standards |
 | [F326](decisions/F326.md) | Faraday Demo has a dev build, and only it carries the handwriting reader and ACE | 2026-11-23 | Active | release |
 | [F327](decisions/F327.md) | ACE's implementation and test app live in Faraday, its specification and vectors in their own repository; ACE is offered in Faraday only in Faraday Demo's dev build | 2026-11-23 | Active | standards |
