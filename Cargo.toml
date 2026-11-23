@@ -27,6 +27,7 @@ members = [
     "faraday/faraday-files",
     "faraday/faraday-scanner",
     "faraday/faraday-qr",
+    "faraday/faraday-handwriting",
     "faraday/faraday-disk",
     "faraday/faraday-grant",
     "faraday/faraday-boot",
@@ -243,6 +244,8 @@ opt-level = 2
 # the whole nextest run of the crate takes about 40% less time optimised,
 # for a clean build about 30% longer and an incremental one no longer.
 [profile.dev.package.faraday-core]
+opt-level = 2
+[profile.dev.package.faraday-handwriting]
 opt-level = 2
 
 # RSA key generation (`faraday-sb`) runs

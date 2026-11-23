@@ -905,6 +905,7 @@ dependencies = [
  "faraday-crypto",
  "faraday-fat",
  "faraday-files",
+ "faraday-handwriting",
  "faraday-intake",
  "faraday-kef",
  "faraday-keys",
@@ -930,6 +931,15 @@ name = "faraday-guide"
 version = "0.2.0"
 dependencies = [
  "faraday-strings",
+]
+
+[[package]]
+name = "faraday-handwriting"
+version = "0.2.0"
+dependencies = [
+ "faraday-bip",
+ "faraday-text",
+ "zeroize",
 ]
 
 [[package]]

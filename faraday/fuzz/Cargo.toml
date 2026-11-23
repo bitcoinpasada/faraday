@@ -28,6 +28,9 @@ faraday-bip = { path = "../../core/faraday-bip" }
 faraday-qr = { path = "../faraday-qr" }
 faraday-files = { path = "../faraday-files" }
 faraday-text = { path = "../../core/faraday-text" }
+# `handwriting_crop`: the handwritten-word networks and the crop clean-up;
+# `handwriting_page`: finding and reading the words of a page.
+faraday-handwriting = { path = "../faraday-handwriting" }
 faraday-storage = { path = "../faraday-storage" }
 faraday-vault = { path = "../faraday-vault" }
 faraday-kef = { path = "../faraday-kef" }
@@ -213,6 +216,20 @@ bench = false
 [[bin]]
 name = "v4l2_luma"
 path = "fuzz_targets/v4l2_luma.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "handwriting_crop"
+path = "fuzz_targets/handwriting_crop.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "handwriting_page"
+path = "fuzz_targets/handwriting_page.rs"
 test = false
 doc = false
 bench = false
