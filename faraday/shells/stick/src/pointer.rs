@@ -1061,11 +1061,12 @@ mod tests {
             let _ = app.frame();
 
             let mut pad = Pad::on(1280, 800);
-            // Point at the bottom of the scrollbar, at the right edge.
+            // Point at the bottom of the scrollbar, at the right edge of the
+            // tile beside This session.
             let mut a = land(0, 1, 100, 100).to_vec();
             a.extend([key(BTN_TOUCH, true), key(BTN_TOOL_FINGER, true)]);
             pad.packet(100, &a);
-            pad.packet(120, &moved(0, 734, 490));
+            pad.packet(120, &moved(0, 710, 466));
             let mut up = lifted(0).to_vec();
             up.extend([key(BTN_TOUCH, false), key(BTN_TOOL_FINGER, false)]);
             pad.packet(500, &up);

@@ -46,6 +46,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         above: None,
         bar_still: false,
         ways: false,
+        pane: Some(crate::screens::PaneMode::Check),
     };
     menu_page::draw(app, ui, (x0, cw, h), &page, &sections);
 }

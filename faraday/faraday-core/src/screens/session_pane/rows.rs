@@ -32,7 +32,7 @@ pub(crate) fn groups(app: &View) -> Vec<Group> {
 }
 
 /// A row of the wide card: wrapping its second line.
-fn row(icon: impl Into<Glyph>, head: String, sub: String, action: Action) -> SessionRow {
+pub(super) fn row(icon: impl Into<Glyph>, head: String, sub: String, action: Action) -> SessionRow {
     SessionRow {
         icon: icon.into(),
         head,
@@ -62,26 +62,9 @@ fn waiting_rows(app: &View) -> Vec<SessionRow> {
             r
         })
         .collect();
-    rows.extend(
-        app.flows_in_progress()
-            .iter()
-            .filter(|f| !jobs.iter().any(|(g, _)| *g == Some(f.going)))
-            .map(|f| {
-                let icon = match f.tab {
-                    Screen::Vaults => Icon::Lock,
-                    Screen::Catalog => Icon::Tools,
-                    _ => Icon::Wallet,
-                };
-                let mut r = row(
-                    icon,
-                    f.name.to_string(),
-                    f.step.to_string(),
-                    Action::Resume(f.going),
-                );
-                r.button = Some((EN.home_btn_resume, true));
-                r
-            }),
-    );
+    rows.extend(progress_rows(app, |g| {
+        jobs.iter().any(|(j, _)| *j == Some(g))
+    }));
     if !app.outbox.is_empty() {
         rows.push(row(
             Icon::File,
@@ -93,9 +76,36 @@ fn waiting_rows(app: &View) -> Vec<SessionRow> {
     rows
 }
 
+/// The flows in progress that `shown` does not already name, a Resume
+/// button under each.
+pub(super) fn progress_rows(
+    app: &View,
+    shown: impl Fn(crate::in_progress::Going) -> bool,
+) -> Vec<SessionRow> {
+    app.flows_in_progress()
+        .iter()
+        .filter(|f| !shown(f.going))
+        .map(|f| {
+            let icon = match f.tab {
+                Screen::Vaults => Icon::Lock,
+                Screen::Catalog => Icon::Tools,
+                _ => Icon::Wallet,
+            };
+            let mut r = row(
+                icon,
+                f.name.to_string(),
+                f.step.to_string(),
+                Action::Resume(f.going),
+            );
+            r.button = Some((EN.home_btn_resume, true));
+            r
+        })
+        .collect()
+}
+
 /// Wallets: every loaded wallet, its need in orange, then Backups while
 /// something is not backed up.
-fn wallet_rows(app: &View) -> Vec<SessionRow> {
+pub(super) fn wallet_rows(app: &View) -> Vec<SessionRow> {
     let mut rows: Vec<SessionRow> = super::super::home::home_wallets(app)
         .into_iter()
         .map(|c| {
@@ -117,7 +127,7 @@ fn wallet_rows(app: &View) -> Vec<SessionRow> {
 
 /// Keys: every key held, its name in full, the wallet that uses it named in
 /// its line ("No wallet uses it" otherwise). A press opens the key.
-fn key_rows(app: &View) -> Vec<SessionRow> {
+pub(super) fn key_rows(app: &View) -> Vec<SessionRow> {
     let session = &app.session;
     session
         .keys

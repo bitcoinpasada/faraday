@@ -79,7 +79,7 @@ fn tools_scrolled(app: &mut Faraday) -> f32 {
     app.press(Action::Nav(Screen::Catalog));
     let _ = app.frame();
     app.event(Event::Scroll {
-        x: 600,
+        x: 1000,
         y: 400,
         dy: 120,
     });

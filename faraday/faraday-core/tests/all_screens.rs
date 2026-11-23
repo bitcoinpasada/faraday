@@ -97,6 +97,8 @@ mod languages;
 mod left_by_tap;
 #[path = "all/memory_unknown.rs"]
 mod memory_unknown;
+#[path = "all/menu_place.rs"]
+mod menu_place;
 #[path = "all/modes.rs"]
 mod modes;
 #[path = "all/mouse_buttons.rs"]

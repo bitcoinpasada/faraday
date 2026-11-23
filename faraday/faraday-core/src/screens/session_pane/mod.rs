@@ -4,6 +4,7 @@
 //! data (`rows`), the geometry is here; no file outside this folder draws a
 //! row of the session (`lint-components`).
 
+mod page_mode;
 mod rows;
 
 use super::home::{CardLead, lead_card};
@@ -20,7 +21,17 @@ use faraday_draw::tokens::{
 };
 use faraday_draw::widgets::Icon;
 use faraday_ui::parts::section_label;
+pub(crate) use page_mode::{
+    Mode, content_h as page_content_h, draw as draw_page_pane, groups as page_groups,
+};
 use rows::{Group, compact_rows, groups};
+
+/// Home's card for the stacked pages: Home's rows at Home's width, `w`
+/// wide at `(x, y)`, whole (it does not scroll within). Returns its
+/// height.
+pub(crate) fn stacked_card(app: &View, ui: &mut Ui, (x, y): (f32, f32), w: f32) -> f32 {
+    pane_card(ui, (x, y), w, (None, 0.0), &groups(app))
+}
 
 /// One row of the pane: its leading icon, its headline, the line under it
 /// (empty for none), the small text at its end (the box's, empty for none;

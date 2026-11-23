@@ -84,6 +84,7 @@ RULES = [
         ["faraday/"],
         "the menu page container (faraday-core screens/menu_page.rs, `docs/MENU-PAGE.md`)",
         skip=["faraday/faraday-core/src/screens/menu_page.rs",
+              "faraday/faraday-core/src/screens/menu_place.rs",
               "faraday/faraday-core/src/screens/mod.rs",
               "faraday/faraday-core/src/screens/session_pane/"],
     ),

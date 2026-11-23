@@ -803,7 +803,12 @@ impl Scroll {
             // The sidebar's lists scroll within it, beside the page.
             ui::Slot::Sidebar if reach => ui::Slot::Sidebar,
             // Home's box scrolls within itself, on the rail's windows too.
-            ui::Slot::HomeBox if screen == Screen::Home && sheet_none => ui::Slot::HomeBox,
+            ui::Slot::HomeBox
+                if matches!(screen, Screen::Home | Screen::Catalog | Screen::Check)
+                    && sheet_none =>
+            {
+                ui::Slot::HomeBox
+            }
             _ => ui::Slot::Page,
         }
     }

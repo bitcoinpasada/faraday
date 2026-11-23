@@ -1,0 +1,125 @@
+//! Tools and Check on the wide layout: the page's tile under This session
+//! where the window has the height, else the pane at the left of the tile,
+//! level, in the page's own mode.
+
+use super::common;
+use faraday_core::strings::EN;
+use faraday_core::{Action, Faraday, Screen};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
+
+fn sized(width: u16, height: u16) -> Faraday {
+    let mut app = faraday_core::testkit::new_on_test_net();
+    app.event(Event::Display(DisplayInfo {
+        width,
+        height,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    let _ = app.frame();
+    app
+}
+
+/// Where the line `text` starts: its x and y.
+fn at(app: &mut Faraday, text: &str) -> (i32, i32) {
+    let _ = app.frame();
+    let found = app
+        .drawn_text_boxes()
+        .into_iter()
+        .find(|(t, _)| t == text)
+        .unwrap_or_else(|| panic!("{text} not drawn"));
+    (found.1.0, found.1.1)
+}
+
+#[test]
+fn check_on_a_tall_window_stands_under_this_session() {
+    let mut app = sized(1920, 1080);
+    app.press(Action::Nav(Screen::Check));
+    let (card_x, card_y) = at(&mut app, EN.home_box_heading);
+    let (group_x, group_y) = at(&mut app, EN.check_group_wallet);
+    assert!(group_y > card_y, "the tile is under the card");
+    assert!(
+        group_x < card_x + 360,
+        "and as wide as the card, not beside it"
+    );
+}
+
+#[test]
+fn check_on_a_short_window_stands_beside_this_session() {
+    let mut app = sized(1366, 768);
+    app.press(Action::Nav(Screen::Check));
+    let (card_x, _) = at(&mut app, EN.home_box_heading);
+    let (group_x, group_y) = at(&mut app, EN.check_group_wallet);
+    assert!(group_x > card_x + 360, "the tile is at the pane's right");
+    assert!(group_y < 200, "level with the pane's top");
+}
+
+#[test]
+fn tools_with_a_key_lists_the_keys_in_its_pane() {
+    let mut app = sized(1366, 768);
+    common::add_key(&mut app, faraday_core::testkit::TEST_SEEDS[0].0);
+    app.press(Action::Nav(Screen::Catalog));
+    let texts = common::texts(&mut app);
+    assert!(texts.iter().any(|t| t == EN.session_group_keys));
+}
+
+fn with_psbt(width: u16, height: u16) -> Faraday {
+    use faraday_core::StorageEvent;
+    let kit = faraday_core::testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "spending")
+        .unwrap();
+    let psbt = faraday_core::testkit::unsigned(&kit).unwrap().to_bytes();
+    let mut app = sized(width, height);
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![("spend.psbt".to_string(), psbt)]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    let _ = app.frame();
+    app
+}
+
+#[test]
+fn tools_with_a_psbt_waiting_lists_files_before_keys() {
+    let mut app = with_psbt(1366, 768);
+    common::add_key(&mut app, faraday_core::testkit::TEST_SEEDS[0].0);
+    app.press(Action::Nav(Screen::Catalog));
+    let (_, files_y) = at(&mut app, EN.session_group_files);
+    let (_, keys_y) = at(&mut app, EN.session_group_keys);
+    assert!(files_y < keys_y, "the waiting PSBT's group comes first");
+}
+
+#[test]
+fn tools_with_no_psbt_lists_keys_first() {
+    let mut app = sized(1366, 768);
+    common::add_key(&mut app, faraday_core::testkit::TEST_SEEDS[0].0);
+    app.press(Action::Nav(Screen::Catalog));
+    let (_, keys_y) = at(&mut app, EN.session_group_keys);
+    assert!(keys_y < 200, "Keys is the pane's first group");
+}
+
+#[test]
+fn a_flow_and_the_page_pair_stand_at_the_same_x() {
+    let mut app = with_psbt(1366, 768);
+    app.press(Action::Nav(Screen::Check));
+    let (page_x, _) = at(&mut app, EN.home_box_heading);
+    app.press(Action::StartSpend(0));
+    let _ = app.frame();
+    let flow_pane_x = app
+        .drawn_text_boxes()
+        .into_iter()
+        .map(|(_, b)| b.0)
+        .filter(|x| *x > 250)
+        .min()
+        .expect("the flow draws its pane");
+    assert!(
+        (page_x - flow_pane_x).abs() <= 8,
+        "the pane's lines start where the flow's pane lines do"
+    );
+}

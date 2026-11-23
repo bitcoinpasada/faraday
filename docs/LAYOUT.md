@@ -216,6 +216,12 @@ all take the room.
 
 ## 5. Panes
 
+On the wide layout Tools and Check take the whole room beside the navigation
+(`Area::Work`) and place their own column or pair (`docs/WORKSPACE.md` §4):
+stacked under Home's card at its width and place where the tile fits above a
+`MARGIN_WIDE` margin, else the flow's pair.
+
+
 Material's canonical layouts, by what a screen shows:
 
 | Screen | Compact, Medium | Expanded and up |

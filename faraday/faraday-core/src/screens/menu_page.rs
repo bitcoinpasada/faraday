@@ -94,6 +94,9 @@ pub(crate) struct Page<'a> {
     /// Home's top row: the three tonal buttons beside the search bar, the
     /// row at the top of the page (`docs/HOME.md` §5).
     pub ways: bool,
+    /// The mode of the session pane the page has beside its tile on the
+    /// wide layout (`screens::menu_place`); none where the page has no pane.
+    pub pane: Option<super::session_pane::Mode>,
 }
 
 /// What a page puts above its search bar: how tall it is, known before it
@@ -104,7 +107,7 @@ pub(crate) struct Above<'a> {
 }
 
 /// Where a page starts and how wide it is in an area `cw` wide from `x0`.
-fn page_span(compact: bool, x0: f32, cw: f32) -> (f32, f32) {
+pub(super) fn page_span(compact: bool, x0: f32, cw: f32) -> (f32, f32) {
     if compact {
         (x0 + crate::compact::M, cw - 2.0 * crate::compact::M)
     } else {
@@ -173,7 +176,6 @@ pub(crate) fn draw(
     sections: &[Section],
 ) {
     let compact = ui.compact;
-    let (x, width) = page_span(compact, x0, cw);
     if !compact {
         if page.back {
             super::bar_head_back(app, ui, page.name);
@@ -185,6 +187,18 @@ pub(crate) fn draw(
         Bar::Home => !app.tools.home_find().is_empty(),
         Bar::Tools => !app.tools.find().is_empty(),
     });
+    // A page with a pane stands placed on the wide layout (stacked, or the
+    // pair); where it cannot (a search is typed, the room is narrow) it
+    // stands in Home's column, as one page.
+    let (mut x0, mut cw) = (x0, cw);
+    if let (false, Some(mode)) = (compact, page.pane) {
+        if !typed && super::menu_place::draw(app, ui, (x0, cw, h), (page, sections), mode) {
+            return;
+        }
+        let (ox, area) = super::menu_place::home_area(cw);
+        (x0, cw) = (x0 + ox, area);
+    }
+    let (x, width) = page_span(compact, x0, cw);
     // On the wide layout the search stands in the top app bar
     // (`screens::bar_search`), so the page draws none.
     let in_bar = !compact && page.search.is_some();
@@ -235,7 +249,7 @@ pub(crate) fn draw(
 /// The sections from `at`, `width` wide, one after the other. A run of
 /// sections of tiles is a set of section cards (`docs/MENU-PAGE.md` §4).
 /// Returns their height.
-fn sections_height(
+pub(super) fn sections_height(
     app: &View,
     ui: &mut Ui,
     (x, y): (f32, f32),

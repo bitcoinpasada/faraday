@@ -860,6 +860,7 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
         above: Some(above),
         bar_still: rail,
         ways: rail,
+        pane: None,
     };
     menu_page::draw(app, ui, (0.0, w, view_h), &page, &sections);
 

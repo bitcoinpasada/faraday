@@ -123,6 +123,18 @@ So no page holds more than three columns, and Settings two (§6). The
 column count follows the page's width alone, never the window's class,
 so a larger text size steps it down as a narrower window would.
 
+### On Tools and Check, one tile
+
+On the wide layout every section of Tools and Check stands in one tile
+(`screens/menu_place.rs`), a raised card `PAD` in from its edge, the sections
+in the columns that fit its width, `MENU_GAP` apart, with no search in it (the
+search is in the top bar). The tile stands under This session's card, as wide
+as the card and `SPACER` under it, ending a `MARGIN_WIDE` above the window's
+foot, where all of it fits; otherwise it is the right of the pair, at the
+flow's place (`flow/pair.rs`), level with the pane, scrolling within where
+the window cuts it. While a search is typed, the results stand in Home's
+column as before.
+
 ## 5. Spacing and section labels
 
 - **Between tiles and cards**, across and down, one gap: `MENU_GAP`, a

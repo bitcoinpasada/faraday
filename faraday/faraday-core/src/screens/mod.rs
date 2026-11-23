@@ -13,6 +13,7 @@ pub(crate) mod check_message;
 mod create;
 mod create_making;
 pub(crate) mod menu_page;
+mod menu_place;
 use crate::decode::screen as decode;
 mod entry;
 mod files;
@@ -79,6 +80,7 @@ pub(crate) use parts::{
     camera_row, card_pad, coin_pad, dice_pad, dice_pad_fit, key_path_line, word_cell_edge,
 };
 pub(crate) use restore::{RSTEPS, open_slot_key};
+pub(crate) use session_pane::Mode as PaneMode;
 pub(crate) use session_pane::loaded_sections;
 pub(crate) use settings::display_section as settings_display_section;
 pub(crate) use settings::open_head as settings_open;
@@ -191,6 +193,10 @@ fn page_area(app: &crate::Faraday, screen: Screen, room: f32) -> (f32, f32) {
     // A flow's card and Your choices are one unit centred in the whole room
     // (`docs/FLOW-CONTAINER.md` §4).
     let area = if app.unit_on_show() {
+        Area::Work
+    } else if matches!(screen, Screen::Catalog | Screen::Check) && !app.is_compact() {
+        // Tools and Check place their own column, or the pair at the flow's
+        // place (`screens::menu_place`).
         Area::Work
     } else if screen == Screen::KeyGen && !keygen_wide(app) {
         let t =

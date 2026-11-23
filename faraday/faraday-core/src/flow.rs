@@ -9,7 +9,7 @@ pub(crate) mod act;
 mod answers;
 mod choices;
 mod container;
-mod pair;
+pub(crate) mod pair;
 mod unit;
 
 pub(crate) use choices::{Row, Title};

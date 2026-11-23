@@ -68,6 +68,10 @@ macro_rules! words_screens_home {
     session_group_wallets: "Wallets",
     /// The heading over the session pane's group of keys.
     session_group_keys: "Keys",
+    /// The heading over the files a menu page's session pane lists.
+    session_group_files: "Files",
+    /// The heading over the flows in progress a menu page's session pane lists.
+    session_group_progress: "In progress",
     /// The session pane's one line while nothing is loaded.
     session_nothing_loaded: "Nothing loaded",
     /// A flow in progress's row button.

@@ -54,6 +54,17 @@ is dropped.
 Nothing loaded: the card stands at its place with what is real of Waiting, and
 with none of it the one line "Nothing loaded". It has no Make or Restore row.
 
+### The pane on Tools and Check
+
+On the wide layout Tools and Check are placed by `screens/menu_place.rs`
+(WORKSPACE §4). Stacked, the page's tile stands under this card, which is
+Home's, with Home's rows (`stacked_card`). Beside, the pane is the page's own
+mode (`session_pane/page_mode.rs`): "This session" in Title M, then each
+group's small heading and its rows in one column, in WORKSPACE §2's order for
+Tools with a PSBT waiting, Tools with none and Check, scrolling within
+(`Slot::HomeBox`) where the page's height cuts it. Open vaults, files to write
+and Backups are not in it, and no row of it is also in the tile.
+
 ## 3. The phone and the Pi
 
 `loaded_sections` draws the one-column box of `docs/HOME.md` §4 from the same
