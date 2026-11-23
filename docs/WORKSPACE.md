@@ -1,8 +1,8 @@
 # This session as Faraday's hub: one pane of what is loaded, everywhere
 
 **Kind:** Spec
-**Status:** Partly built: Home's card with its groups (F323, `docs/SESSION-PANE.md`), the flow pair as one card (F324) and the flat section cards of the menu pages (F317) are on main; the rest is not built: the session pane as the one view of what is loaded and going on, on the menu pages and in every flow, the page as panes, and slower motion.
-**Open:** To build: the session pane's modes and its form on the menu pages and in the flows (§2; Home's card in groups is built, `docs/SESSION-PANE.md`), the pairs and stacked pages of §4, the pick becoming Your choices at the left in a flow with wide content and the backup board, the flow pair's one card there (§4, §6), row buttons and details on the pane (§2, §7; Files' row menu already shows the shared list), search results and the guide as panes (§7), the pane container and its lint (§14), the top bar's search and pills (§4), the Motion and Speed settings with the motion they set (§6, §9), Settings as one tile (§9), the timings on the Pi that §6 and §8 name, and the take-away (§15). Not decided: what Vaults' pane holds (§2), whether the flow's end is one card or two (§15), whether a sheet is centred on the window or on the step card, whether the page's name stays in the top bar, where the Scan button stands on a computer, whether prose is a block (the guide's text), and the backup board's insides.
+**Status:** Partly built: Home's card with its groups (F323, `docs/SESSION-PANE.md`), the flow pair as one card (F324), a change of page at the Speed and in the Motion style (F318) and the flat section cards of the menu pages (F317) are on main; the rest is not built: the session pane as the one view of what is loaded and going on, on the menu pages and in every flow, the page as panes, and the rest of the motion (§6).
+**Open:** To build: the session pane's modes and its form on the menu pages and in the flows (§2; Home's card in groups is built, `docs/SESSION-PANE.md`), the pairs and stacked pages of §4, the pick becoming Your choices at the left in a flow with wide content and the backup board, the flow pair's one card there (§4, §6), row buttons and details on the pane (§2, §7; Files' row menu already shows the shared list), search results and the guide as panes (§7), the pane container and its lint (§14), the top bar's search and pills (§4), the session pane's place handed to the glide, which moves it (§6), Settings as one tile (§9), the timings on the Pi that §6 and §8 name, and the take-away (§15). Not decided: what Vaults' pane holds (§2), whether the flow's end is one card or two (§15), whether a sheet is centred on the window or on the step card, whether the page's name stays in the top bar, where the Scan button stands on a computer, whether prose is a block (the guide's text), and the backup board's insides.
 
 "This session", Home's raised card, becomes the session pane, Faraday's hub: everything about
 what is loaded and going on lives in it, and it works with every part of
@@ -352,11 +352,15 @@ Speed's duration unless the row says otherwise):
 - **Fade through** for the rest of the page: the old page goes out over
   the first 35% of the eased progress, the new one comes in over the rest,
   as the step fade does today (MOTION.md §3.5).
+- **Sheets and dialogs on a computer** blend over 200 ms, whatever the
+  Speed setting, the page staying visible under them; Off shows them at
+  once (owner, 2026-11-23). The guide's tab and pane stay as they are
+  until decided.
 - **One duration** for every page change and every step inside a flow
   (owner, 2026-11-21): the Speed setting's, 600 ms by default, a
   deliberate difference from Material's 450 ms fade through, approved by
   the owner (F318), against
-  today's 200 ms linear crossfade (`motion::FADE_MS`) and 300 ms step fade
+  the 200 ms linear crossfade it replaced and the 300 ms step fade
   (`motion::STEP_FADE_MS`). A step no longer takes a shorter share of it.
 - **"Here is your key."** A key added inside a signing flow (scanned, once
   the scanner's sheet has gone) arrives as its row in Your choices or the
@@ -652,8 +656,7 @@ it names FLOW-CONTAINER.md and MENU-PAGE.md); it is not changed before.
   and the use of the Motion and Speed settings for page changes. It
   replaces each menu page's own placing of the pane, the flow container's
   centring of the unit and its pane (`flow/unit.rs`), and the screen fade's
-  own choice of duration (`fade.rs`, `motion::FADE_MS`,
-  `motion::STEP_FADE_MS`). `lint-components` holds that no page places a
+  own choice of duration (`fade.rs`, `motion::STEP_FADE_MS`). `lint-components` holds that no page places a
   pane or times a page change itself, as it holds the menu page and flow
   containers, and that no card stands outside a pane.
 - **The section card** (built, `docs/MENU-PAGE.md`): a group of a pane.

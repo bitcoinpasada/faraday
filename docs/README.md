@@ -158,7 +158,7 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 - `docs/MOTION.md`: Scrolling, motion and appearance. Built; not yet checked by the owner on hardware.
 - `docs/STARTER.md`: The Starter. Partly built: the Starter on Linux and Windows with its Material 3 navigation (§3.1d), the Pi 3 card.
 - `docs/WORKERS.md`: Costly work off the drawing thread. Partly built: the worker, the shells' wake, the busy screen and the jobs listed in §9 run; the rest are open.
-- `docs/WORKSPACE.md`: This session as Faraday's hub: one pane of what is loaded, everywhere. Partly built: Home's card with its groups (F323, `docs/SESSION-PANE.md`), the flow pair as one card (F324) and the flat section cards of the menu pages (F317) are on main; the rest is not built: the session pane as the one view of what is loaded and going on, on the menu pages and in every flow, the page as panes, and slower motion.
+- `docs/WORKSPACE.md`: This session as Faraday's hub: one pane of what is loaded, everywhere. Partly built: Home's card with its groups (F323, `docs/SESSION-PANE.md`), the flow pair as one card (F324), a change of page at the Speed and in the Motion style (F318) and the flat section cards of the menu pages (F317) are on main; the rest is not built: the session pane as the one view of what is loaded and going on, on the menu pages and in every flow, the page as panes, and the rest of the motion (§6).
 
 **Record**
 

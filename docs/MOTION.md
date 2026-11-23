@@ -338,8 +338,12 @@ extent; a motion left from another screen or sheet is stopped.
   F222. What Speed does to each duration is not built: every duration
   below is still the one it names.
 - **Motion** (all time-based, all off under Reduce motion):
-  - a sheet and its scrim appear at once (cross-fades removed
-    2026-10-07);
+  - Smooth motion's fade through applies to a change of page or screen
+    alone. A sheet or dialog on a computer is not a page change for it: it
+    blends over 200 ms (`motion::FADE_MS`), linear, whatever the Speed
+    setting, the page staying visible under it, and Off shows it at
+    once (owner, 2026-11-23). The guide's tab and pane fade the same way
+    for now;
   - a toast rises in over 200 ms on Material's standard decelerate
     curve and fades on its standard accelerate (`motion::TOAST_MS`,
     `Out::toast_shown`), shown 4 s (`tokens::TOAST_SHOW_MS`);
@@ -392,9 +396,27 @@ extent; a motion left from another screen or sheet is stopped.
     Material's side sheets animate, LAYOUT §6; `Faraday::fade_begin`
     keeps whether the pane stood in what a frame drew, so a pinned pane
     following a change of screen is one fade),
-    cross-fades from the frame before it over 200 ms, linear
-    (`motion::FADE_MS`; 2026-10-12, phase 4.6; an eased 150 ms was over
-    in three frames and read as a flash): the frame that shows the
+    takes the Speed's time (Settings > Appearance, Quick 250 ms,
+    Medium 400 ms, Relaxed 600 ms) on the emphasized easing
+    (`tokens::EASE_EMPHASIZED`) and shows as the Motion setting says. Crossfade
+    blends the frame before it into the new one (an eased 150 ms was
+    over in three frames and read as a flash, 2026-10-12; the Speeds
+    are longer); Smooth motion fades through: the old page out to
+    the surface over the first 35% of the eased progress
+    (`motion::STEP_FADE_OUT`) and the new one in over the rest
+    (`Fade::page_through`, the same way as a step's card), and, when the
+    old frame and the new one both have a session pane
+    (`Ui::pane`, set by whoever draws it; nothing sets it yet), the
+    pane's pixels of both frames are drawn moved by the eased lerp of the
+    two places, clipped to it, no scaling, the old pane's contents
+    fading into the new one's (`Canvas::blend_shifted`,
+    `glide::lerp_rect`), where the rest of the page fades through; the
+    same place on both sides and the pane stays, its changed pixels
+    blending; a pane on one side only and the whole page fades
+    through. Off shows the new page at once. A change of page opened mid-fade
+    starts from the frame on screen and fades through whole. A step's
+    fade, the theme's, a toast's and the chart's side sheet keep their
+    own times. The frame that shows the
     change draws the new screen in full, keeps it aside
     (`Canvas::swap_pixels`, no copy) and shows all the old one; the
     fade's clock starts at the tick after it, backdated one frame, so a
@@ -403,7 +425,11 @@ extent; a motion left from another screen or sheet is stopped.
     (`Canvas::blend_within`, `Faraday::fade_step`) and draws nothing
     again, so a screen slow to draw fades as smoothly as any other; a
     frame something else asks for (a hover, a toast, a scroll) is drawn
-    in full and kept aside again. A step blends only where the two
+    in full and kept aside again. On Smooth motion a change of page
+    changes the whole canvas at every step (it goes out to the surface
+    and in), so each step blends the whole canvas and says the whole
+    window changed; what follows holds for Crossfade, a theme change and
+    a step's fade only. A step blends only where the two
     frames differ (2026-10-29): the frame drawn in full that keeps the
     new one aside blends the whole canvas once and notes the bands
     where the two differ, 16 pixels at a time, rows with about the same

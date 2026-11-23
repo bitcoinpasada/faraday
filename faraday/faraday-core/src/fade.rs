@@ -9,6 +9,7 @@ mod bands;
 use faraday_draw::{Canvas, Rect};
 use faraday_shell_api::Command;
 
+use crate::glide::{self, Kind};
 use crate::moved::{Last, Look};
 use crate::ui::{self, Role, Theme};
 use crate::{Faraday, ScreenKey, Sheet, motion};
@@ -52,6 +53,8 @@ pub(crate) struct Fade {
     /// again by every frame drawn in full while the fade runs, which
     /// keeps `after` again, and emptied with them when the fade ends.
     /// Outside it the canvas already shows both frames as they agree.
+    /// Only the fades that blend where the frames differ (not a change of
+    /// page on Smooth motion) fill it.
     bands: Vec<Rect>,
     /// How wide a ring round the canvas whoever holds the app draws over
     /// every frame (Faraday Demo's focus edge), left out of `bands`.
@@ -100,6 +103,19 @@ pub(crate) struct Fade {
     /// opened at its top from a page scrolled had its old card elsewhere,
     /// and that goes out to the surface too. Cleared when a fade ends.
     card_before: Option<Rect>,
+    /// How the change of page under way shows, `None` for a change of
+    /// theme or of a flow's step and with no fade; set when a fade starts.
+    page: Option<Kind>,
+    /// How long the change of page under way takes (the Speed setting);
+    /// set when a fade starts.
+    ms: u64,
+    /// Where the last frame drew the session pane, in pixels: a rectangle,
+    /// no image.
+    pane: Option<Rect>,
+    /// Where the frame before drew it, when the change of page under way
+    /// glides it (Smooth motion, both frames have one); cleared when a
+    /// fade ends.
+    pane_before: Option<Rect>,
     /// An image of the page's surface, as large as the frames, that a
     /// step's card goes out to and comes in from: made when the new frame
     /// of a step's fade is first kept, empty with no step fade. One more
@@ -124,6 +140,9 @@ pub(crate) struct Fade {
     /// left in one (`crate::leaks`).
     #[cfg(feature = "testkit")]
     marks: crate::leaks::Marks,
+    /// A pane place the tests give in place of the one the frame draws.
+    #[cfg(feature = "testkit")]
+    forced_pane: Option<Rect>,
 }
 
 /// Holds nothing a lock wipes: the fade's timing.
@@ -132,19 +151,22 @@ impl crate::at_lock::Public for Fade {}
 impl Fade {
     /// How far through the fade under way the blend is, 0 to 1, and
     /// whether the fade is over: a change of theme is eased over
-    /// `motion::THEME_FADE_MS`, a change of screen linear over
-    /// `motion::FADE_MS`.
+    /// `motion::THEME_FADE_MS`, a change of page over the Speed's time
+    /// on the emphasized easing (a fade through is eased where it is
+    /// drawn, `Self::page_through`).
     fn blend(&self, at: Option<u64>, now_ms: u64) -> (f32, bool) {
         let ms = if self.theme_fade {
             motion::THEME_FADE_MS
         } else if self.step_fade {
             motion::STEP_FADE_MS
         } else {
-            motion::FADE_MS
+            self.ms.max(1)
         };
         let t = motion::progress(at, now_ms, ms);
         let shown = if self.theme_fade {
             motion::ease_move(t)
+        } else if self.page == Some(Kind::Crossfade) {
+            glide::eased(t)
         } else {
             t
         };
@@ -160,7 +182,59 @@ impl Fade {
         self.surface = Vec::new();
         self.step_fade = false;
         self.card_before = None;
+        self.page = None;
+        self.pane_before = None;
         self.live = None;
+    }
+
+    /// Whether the fade under way goes through the surface: a step's, or
+    /// a change of page on Smooth motion.
+    fn through_on(&self) -> bool {
+        self.step_fade || self.page == Some(Kind::Through)
+    }
+
+    /// Costs a pass over the canvas. Step `t` of a change of page that
+    /// fades through: the whole page out to the surface over the first
+    /// part of the eased progress and the new one in over the rest; the
+    /// session pane, when both frames drew one, is drawn over it moved
+    /// between its two places, the old pane's pixels fading into the new
+    /// one's (`glide::lerp_rect`). Returns how many bands the page was
+    /// split in.
+    fn page_through(&self, canvas: &mut Canvas, t: f32) -> usize {
+        let Some((before, _)) = self.from.as_ref() else {
+            return 0;
+        };
+        if self.surface.len() < 4 || self.after.len() != self.surface.len() {
+            return 0;
+        }
+        let e = glide::eased(t);
+        let (going, k) = glide::through(e);
+        let pair = if going {
+            (before.as_slice(), self.surface.as_slice())
+        } else {
+            (self.surface.as_slice(), self.after.as_slice())
+        };
+        let whole = Rect::new(0, 0, canvas.width(), canvas.height());
+        let n = self.cores.blend_all_within(canvas, pair, k, &[whole]);
+        if let (Some(a), Some(b)) = (self.pane_before, self.pane) {
+            let at = glide::lerp_rect(a, b, e);
+            let fill = [
+                self.surface[0],
+                self.surface[1],
+                self.surface[2],
+                self.surface[3],
+            ];
+            canvas.blend_shifted((before, &self.after), (a, b), at, e, fill);
+        }
+        n
+    }
+
+    /// Where the frame being drawn put the session pane, in pixels, or
+    /// that it put none.
+    pub(crate) fn set_pane(&mut self, pane: Option<Rect>) {
+        #[cfg(feature = "testkit")]
+        let pane = self.forced_pane.or(pane);
+        self.pane = pane;
     }
 
     /// The card's place inside `canvas`, when a step's fade goes through
@@ -486,6 +560,27 @@ impl Faraday {
         } else {
             None
         };
+        // A change of page takes the Speed's time and the Style's way.
+        // A change of screen only: a sheet, a dialog and the guide fade
+        // as they did, linear over 200 ms.
+        let screen_change = self
+            .fade
+            .last_drawn
+            .is_some_and(|(k, _, _, _)| k.0 != drawn_key.0.0);
+        let page_change = fades && !step_change && !self.fade.theme_fade && screen_change;
+        self.fade.page = page_change
+            .then(|| Kind::of(self.settings.motion_style()))
+            .flatten();
+        self.fade.ms = if self.fade.page.is_some() {
+            self.settings.motion_speed().ms()
+        } else {
+            motion::FADE_MS
+        };
+        // The pane glides when the frame before and this one both drew
+        // one; a fade begun over one under way fades through whole.
+        self.fade.pane_before = (self.fade.page == Some(Kind::Through) && self.fade.from.is_none())
+            .then_some(self.fade.pane)
+            .flatten();
         // A fade begun over one under way goes through a new surface.
         self.fade.surface = Vec::new();
         if self.fade.last_drawn.is_some() && !own_motion {
@@ -498,7 +593,11 @@ impl Faraday {
         // This frame is all the old one; the fade's clock starts at the
         // next tick (`Event::Tick`), however long this frame takes.
         self.fade.from = match (fades, self.fade.from.take()) {
-            (false, _) => None,
+            (false, _) => {
+                // No copy of a frame outlives a fade that is not run.
+                self.fade.end();
+                None
+            }
             (true, Some((mut before, _))) => {
                 canvas.snapshot_into(&mut before);
                 Some((before, None))
@@ -603,6 +702,20 @@ impl Faraday {
             .unwrap_or_default()
     }
 
+    /// The session pane's place for the frames drawn from now on, in
+    /// pixels (x, y, width, height), until it is given `None`: nothing
+    /// draws the pane yet. With `shown`, the frame on screen already
+    /// had it there.
+    #[cfg(feature = "testkit")]
+    #[doc(hidden)]
+    pub fn force_pane(&mut self, pane: Option<(i32, i32, i32, i32)>, shown: bool) {
+        let pane = pane.map(|(x, y, w, h)| Rect::new(x, y, w, h));
+        self.fade.forced_pane = pane;
+        if shown {
+            self.fade.pane = pane;
+        }
+    }
+
     /// The images the core keeps across frames now, each with the screen
     /// it was made from and the planted forms that screen showed, for the
     /// tours' check (`docs/SECRET-LEAKS.md` §5). The frosted copy of the
@@ -678,20 +791,24 @@ impl Faraday {
             self.fade.end();
         } else {
             canvas.swap_pixels(&mut self.fade.after);
-            if self.fade.step_fade && self.fade.surface.is_empty() {
+            if self.fade.through_on() && self.fade.surface.is_empty() {
                 self.fade.surface = surface_image(self.fade.after.len(), surface);
             }
-            let inset = self.fade.edge_drawn_over;
-            let n = self.fade.cores.blend_noting(
-                canvas,
-                before,
-                &self.fade.after,
-                (t, inset),
-                &mut self.fade.bands,
-            );
-            // The card's place of a step's fade, over what the linear
-            // blend just wrote there.
-            let n = n.max(self.fade.step_card(canvas, t));
+            let n = if self.fade.page == Some(Kind::Through) {
+                self.fade.page_through(canvas, t)
+            } else {
+                let inset = self.fade.edge_drawn_over;
+                let n = self.fade.cores.blend_noting(
+                    canvas,
+                    before,
+                    &self.fade.after,
+                    (t, inset),
+                    &mut self.fade.bands,
+                );
+                // The card's place of a step's fade, over what the linear
+                // blend just wrote there.
+                n.max(self.fade.step_card(canvas, t))
+            };
             self.fade.counts.bands = self.fade.counts.bands.max(n as u8);
             self.fade.due = true;
             self.out.commands.push_back(Command::Draw);
@@ -702,7 +819,10 @@ impl Faraday {
     /// fade asked for a frame: the new frame kept aside when it was last
     /// drawn in full, blended with the old one where the two differ, so a
     /// step costs a blend of those bands, not a draw of the screen, and
-    /// they are what changed for the shell (`Self::take_changed`). Times
+    /// they are what changed for the shell (`Self::take_changed`); so for
+    /// Crossfade, a theme change and a sheet's fade, a step's own fade
+    /// being drawn over the card's place. A change of page on Smooth
+    /// motion changes the whole canvas each step and says so. Times
     /// the step from the one before it for [`Self::fades`].
     pub(crate) fn fade_step(&mut self) {
         self.fade.due = false;
@@ -710,7 +830,7 @@ impl Faraday {
             return;
         }
         let surface = self.theme().role(Role::Surface);
-        if self.fade.step_fade && self.fade.surface.is_empty() {
+        if self.fade.through_on() && self.fade.surface.is_empty() {
             self.fade.surface = surface_image(self.fade.after.len(), surface);
         }
         if let Some(last) = self.fade.step_at
@@ -730,6 +850,9 @@ impl Faraday {
         if let Some(changed) = self.fade.changed.as_mut() {
             changed.extend_from_slice(&self.fade.bands);
             changed.extend(card);
+            if self.fade.page == Some(Kind::Through) {
+                changed.push(Rect::new(0, 0, canvas.width(), canvas.height()));
+            }
         }
         if over {
             // The new frame at rest, as it was drawn.
@@ -737,7 +860,9 @@ impl Faraday {
             self.fade.end();
             self.fade.step_at = None;
         } else {
-            let n = if self.fade.step_fade {
+            let n = if self.fade.page == Some(Kind::Through) {
+                self.fade.page_through(canvas, t)
+            } else if self.fade.step_fade {
                 self.fade.step_blend(canvas, t)
             } else {
                 self.fade
@@ -752,7 +877,8 @@ impl Faraday {
 
     /// Whoever holds the app draws over a ring `px` wide round its canvas
     /// every frame (Faraday Demo's focus edge): a fade leaves it out of
-    /// what it blends and of what it says changed.
+    /// what it blends and of what it says changed (not a change of page
+    /// on Smooth motion, which blends and says the whole canvas).
     ///
     /// Used by faraday-host.
     #[doc(hidden)]
@@ -799,11 +925,9 @@ impl Faraday {
         }
     }
 
-    /// Whether a change of screen or sheet fades in: not with reduce
-    /// motion, and not on a machine whose fades' steps lately came too
-    /// far apart for a fade to read as one rather than as steps, until it
-    /// has shown a run of frames fast enough again (`Fade::shown`).
-    /// Until a few steps have been timed, it does.
+    /// Whether a change of screen or sheet fades in: not with Motion set
+    /// to Off. Nothing else gates it; how the steps of a fade come is
+    /// timed and reported, never acted on.
     ///
     /// Used by faraday-host.
     #[doc(hidden)]
@@ -1009,6 +1133,10 @@ mod tests {
 
         use crate::{Action, Screen};
         let mut app = crate::testkit::started();
+        // A cross-fade, where every byte is on the line between the frames.
+        app.press(Action::Motion(
+            crate::stick::settings_choice::MotionStyle::Crossfade,
+        ));
         let mut now = 1_000;
         let tick = |app: &mut crate::Faraday, at: u64| {
             app.event(Event::Tick { now_ms: at });

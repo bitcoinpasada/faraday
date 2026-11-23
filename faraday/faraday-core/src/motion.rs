@@ -49,10 +49,9 @@ pub const WHEEL_NOTCH: f32 = 56.0;
 /// Used by faraday-host.
 #[doc(hidden)]
 pub const SHELL_NOTCH_PX: f32 = 48.0;
-/// How long a change of screen or sheet takes to cross-fade in: linear,
+/// How long a sheet, a dialog or the guide takes to cross-fade in: linear,
 /// since an eased fade of this length is over in a few frames and reads
-/// as a flash, where a straight one reads as a fade. Desktops sit
-/// between 200 and 250 ms; Material's short 4.
+/// as a flash, where a straight one reads as a fade. Material's short 4.
 pub(crate) const FADE_MS: u64 = tokens::MOTION_SHORT4;
 /// How long a change of a flow's step takes to fade through: the old
 /// card out over the first `STEP_FADE_OUT` of its eased progress to the page's surface,
@@ -202,12 +201,7 @@ pub(crate) fn ease_open(t: f32) -> f32 {
 /// on its full emphasized easing, and the split between out and in is at
 /// `STEP_FADE_OUT` of the eased progress, both linear in it.
 pub(crate) fn step_fade(t: f32) -> (bool, f32) {
-    let e = faraday_draw::easing::ease_path(&tokens::EASE_EMPHASIZED, t);
-    if e < STEP_FADE_OUT {
-        (true, e / STEP_FADE_OUT)
-    } else {
-        (false, (e - STEP_FADE_OUT) / (1.0 - STEP_FADE_OUT))
-    }
+    crate::glide::through(crate::glide::eased(t))
 }
 
 /// Something moving on screen and staying there (a switch's pill, a

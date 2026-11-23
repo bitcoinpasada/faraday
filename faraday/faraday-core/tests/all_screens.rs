@@ -55,6 +55,8 @@ mod flow_choices;
 mod flow_top_row;
 #[path = "all/glance.rs"]
 mod glance;
+#[path = "all/glide.rs"]
+mod glide;
 #[path = "all/guide.rs"]
 mod guide;
 #[path = "all/guide_keys.rs"]

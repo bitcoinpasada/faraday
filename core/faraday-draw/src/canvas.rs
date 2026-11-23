@@ -2078,6 +2078,21 @@ mod tests {
     }
 
     #[test]
+    fn a_pane_partly_above_the_window_at_one_place_on_both_pages_does_not_move() {
+        let mut c = canvas();
+        c.clear(Color::rgb(10, 20, 30));
+        for y in 0..32 {
+            c.fill_rect(Rect::new(0, y, 64, 1), Color::rgb(y as u8 * 7, 40, 90));
+        }
+        let page = c.snapshot();
+        let pane = Rect::new(8, -10, 40, 30);
+        c.clear(Color::rgb(0, 0, 0));
+        c.blend_shifted((&page, &page), (pane, pane), pane, 0.5, [0, 0, 0, 255]);
+        assert_eq!(pixel(&c, 20, 3), [21, 40, 90, 255]);
+        assert_eq!(pixel(&c, 20, 15), [105, 40, 90, 255]);
+    }
+
+    #[test]
     fn a_fades_later_steps_over_the_bands_that_differ_show_what_a_whole_blend_shows() {
         let mut c = canvas();
         c.clear(Color::rgb(10, 20, 30));

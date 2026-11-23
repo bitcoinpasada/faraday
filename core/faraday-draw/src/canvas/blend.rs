@@ -17,7 +17,7 @@ use core::ops::Range;
 
 use faraday_crypto::work::Work;
 
-use super::Canvas;
+use super::{Canvas, lerp};
 use crate::geom::Rect;
 
 /// One band of rows of a fade's blend: the canvas's rows it writes, the
@@ -279,6 +279,62 @@ impl Canvas {
             })
             .collect();
         run(&mut parts);
+    }
+}
+
+impl Canvas {
+    /// Costs a pass over the pixels of `to`. Draws a pane that moves from
+    /// one place to another: inside `to`, every pixel is the old frame's
+    /// pixel of the pane `from.0` moved by the same offset as `to` is from
+    /// it, `t` of 256's worth faded into the new frame's pixel of the pane
+    /// `from.1` moved the same way; where the moved pane does not reach,
+    /// `fill`. No scaling. Frames of another size leave the canvas as it
+    /// is.
+    pub fn blend_shifted(
+        &mut self,
+        frames: (&[u8], &[u8]),
+        from: (Rect, Rect),
+        to: Rect,
+        t: f32,
+        fill: [u8; 4],
+    ) {
+        self.sync();
+        (self.counter)(Work::FullCanvas);
+        let len = self.visible().len();
+        if frames.0.len() != len || frames.1.len() != len {
+            return;
+        }
+        let drawn = to.intersect(&self.bounds());
+        if drawn.is_empty() {
+            return;
+        }
+        self.damaged(drawn);
+        let t = (t.clamp(0.0, 1.0) * 256.0) as u32;
+        let width = self.pixmap.width() as i32;
+        let height = self.rows as i32;
+        let fill = u32::from_le_bytes(fill);
+        let wanted = drawn;
+        let data = self.pixmap.data_mut();
+        let seen = |frame: &[u8], pane: Rect, shift: (i32, i32), x: i32, y: i32| -> u32 {
+            let (sx, sy) = (x - shift.0, y - shift.1);
+            if sx < 0 || sy < 0 || sx >= width || sy >= height || !pane.contains(sx, sy) {
+                return fill;
+            }
+            let i = (sy as usize * width as usize + sx as usize) * 4;
+            u32::from_le_bytes([frame[i], frame[i + 1], frame[i + 2], frame[i + 3]])
+        };
+        let (go, come) = (
+            (to.x - from.0.x, to.y - from.0.y),
+            (to.x - from.1.x, to.y - from.1.y),
+        );
+        for y in wanted.y..wanted.bottom() {
+            for x in wanted.x..wanted.right() {
+                let was = seen(frames.0, from.0, go, x, y);
+                let will = seen(frames.1, from.1, come, x, y);
+                let i = (y as usize * width as usize + x as usize) * 4;
+                data[i..i + 4].copy_from_slice(&lerp(was, will, t).to_le_bytes());
+            }
+        }
     }
 }
 

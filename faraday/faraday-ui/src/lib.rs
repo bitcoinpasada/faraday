@@ -519,6 +519,11 @@ pub struct Ui<'a, A> {
     /// left edge, its top, and the column's width and height, in design
     /// units (`docs/FLOW-CONTAINER.md` §2). The fade through reads it.
     pub flow_card: Option<(f32, f32, f32, f32)>,
+    /// Where the session pane was drawn this frame, as `flow_card` is: the
+    /// left edge, the top, the width and the height, in design units. A
+    /// change of page glides it from its old place to its new one
+    /// (`docs/MOTION.md` §3.5). Set by whoever draws the pane.
+    pub pane: Option<(f32, f32, f32, f32)>,
     /// While the body of a flow on the container that holds wide content
     /// runs (`docs/LAYOUT.md` §14): where its work ends, as an x in design
     /// units: `SPACER` before Your choices, or the page area's end less the
@@ -692,6 +697,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             fab_at: None,
             foot_room: 0.0,
             flow_card: None,
+            pane: None,
             flow_work: None,
             follow_to: None,
             compact: false,

@@ -106,9 +106,9 @@ fades in from it, at the same place. As in Material's own fade through,
 the whole fade runs on Material's full emphasized curve
 (`tokens::EASE_EMPHASIZED`), the outgoing part taking the first 35% of
 the eased progress (about the first 48 ms) and the incoming the rest
-(`motion::step_fade`), its clock started as a change of screen's is (`motion::FADE_MS`);
-its length, 300 ms (Medium 2), is a named constant in `motion.rs` beside
-`FADE_MS`, stated with how it was timed on the Pi (F238). Outside the
+(`motion::step_fade`), its clock started as a change of screen's is;
+its length, 300 ms (Medium 2), is a named constant in `motion.rs`
+(`STEP_FADE_MS`), stated with how it was timed on the Pi (F238). Outside the
 card's place (the bar's back label, a new row in Your choices) the frame
 cross-fades over the same time.
 
