@@ -21,7 +21,7 @@ Read this table, then only the decision you need.
 | [F2](decisions/F2.md) | Faraday upgrades another Faraday stick, and never signs inside the upgrade | 2026-10-08 | Amended by F11, F128, F244, F247 | stick |
 | [F3](decisions/F3.md) | A multi-choice list beside Choice, for the backup's plan | 2026-10-09 | Active | design |
 | [F4](history/decisions/F4.md) | On the Pi, "SD card" where the app says "stick" | 2026-10-09 | Replaced by F216 | stick |
-| [F5](decisions/F5.md) | Release, test release and dev builds, each named in the release string | 2026-10-10 | Amended by F128 | release |
+| [F5](decisions/F5.md) | Release, test release and dev builds, each named in the release string | 2026-10-10 | Amended by F128, F326 | release |
 | [F6](decisions/F6.md) | The backup before the spend | 2026-10-10 | Active | backup |
 | [F7](decisions/F7.md) | TOTP codes, and a clock the person can set | 2026-10-11 | Amended by F123 | keys |
 | [F8](decisions/F8.md) | Scan to sign, and a Spend tab that asks for data | 2026-10-11 | Active | wallets |
@@ -250,7 +250,7 @@ Read this table, then only the decision you need.
 | [F231](decisions/F231.md) | A passphrase record belongs to exactly the key it names: saving another passphrase of one seed asks nothing, and only codex32 shares of one set are grouped | 2026-11-09 | Active | security |
 | [F232](decisions/F232.md) | A BOLT 12 offer is read in Decode a Lightning invoice, read only, through a reader of Faraday's own, checked against Core Lightning's code | 2026-11-10 | Amended by F247 | formats |
 | [F233](decisions/F233.md) | Compare two PSBTs lists their differences without judging them; a fee bump is said only on Faraday's own rule, failing closed | 2026-11-10 | Amended by F270 | signing |
-| [F234](decisions/F234.md) | Work kept out of the app is held by reachability, not by a cargo feature | 2026-11-10 | Amended by F257 | wallets |
+| [F234](decisions/F234.md) | Work kept out of the app is held by reachability, not by a cargo feature | 2026-11-10 | Amended by F257, F325 | wallets |
 | [F235](decisions/F235.md) | The stick is shown in Files, and the stick visit is no destination | 2026-11-10 | Amended by F255, F290 | stick |
 | [F236](decisions/F236.md) | The online apps' Send text tool shows any text as a QR code except a secret, by a rule of Faraday's own that fails closed; bare hex is let through | 2026-11-10 | Active | QR |
 | [F237](history/decisions/F237.md) | Transfer calls Read the words and does not offer it; the screens_not count is 23 | 2026-11-10 | Superseded by F268 | crypto |
@@ -331,3 +331,6 @@ Read this table, then only the decision you need.
 | [F318](decisions/F318.md) | Motion: two settings, a style (Smooth motion, Crossfade, Off) and a speed (600 ms by default), that never change on their own; the session pane glides, the rest fades through | 2026-11-21 | Active | design |
 | [F319](decisions/F319.md) | Your choices stands at the left in every flow; in a flow begun beside the session pane it is the pane's side | 2026-11-21 | Active | design |
 | [F320](decisions/F320.md) | Every flow that produces something ends with one take-away: QRs and ticked files, one Write to stick | 2026-11-21 | Active | design |
+| [F325](decisions/F325.md) | Work kept out of the app may also be held by a build switch that only Faraday Demo's dev build turns on | 2026-11-23 | Active | standards |
+| [F326](decisions/F326.md) | Faraday Demo has a dev build, and only it carries the handwriting reader and ACE | 2026-11-23 | Active | release |
+| [F327](decisions/F327.md) | ACE's implementation and test app live in Faraday, its specification and vectors in their own repository; ACE is offered in Faraday only in Faraday Demo's dev build | 2026-11-23 | Active | standards |
