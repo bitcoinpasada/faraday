@@ -15,6 +15,8 @@ use faraday_draw::widgets::Icon;
 use faraday_ui::Status;
 use faraday_ui::parts::{section_label, wrap_buttons};
 
+mod actions;
+
 /// The line beside key `fp`'s fingerprint where the codex32 strings it
 /// was loaded from went in by a correction (`docs/CODEX32.md` §8.4):
 /// "9a6a2580 · Share entry corrected", or "… · Share repairs unchecked"
@@ -587,9 +589,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     cy += ui.advance_as(BODY_M, 26.0);
     cy += super::parts::key_path_line(app, ui, (ix, cy, iw), wlt.policy());
     if let Some(r) = wlt.policy().silent() {
-        // Where its backup is (§5.2): a press opens Backups on it.
-        cy += backup_line(app, ui, ix, cy, iw, app.wallets.wallet());
-        silent_wallet_card(app, ui, r, ix, iw, cy, y + ch);
+        silent_wallet_card(app, ui, r, (cx, cwid, ix, iw), cy, y + ch);
         return;
     }
 
@@ -597,78 +597,14 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let slots = app.session.slots(wlt);
     let here = app.session.held_toward_quorum(wlt);
 
-    // Actions: the first along the foot, Remove from session at the
-    // end; a row more above when they do not fit the card's width.
-    // The first: from the vault to a spend.
-    let (spend_label, spend_action) = app.spend_button(app.wallets.wallet());
-    let mut items: Vec<(&str, Style, Action)> = vec![(&spend_label, Style::Primary, spend_action)];
-    items.push((
-        EN.wallets_show_wallet,
-        Style::Secondary,
-        Action::QrWallet(app.wallets.wallet()),
-    ));
-    // A backup left part way is offered as such.
-    let back_up = if app.wallet_backup_unfinished(app.wallets.wallet()) {
-        EN.backup_flow_continue
-    } else {
-        EN.wallets_back_up
-    };
-    items.push((
-        back_up,
-        Style::Secondary,
-        Action::Backup(app.wallets.wallet()),
-    ));
-    if new_from {
-        items.push((
-            EN.wallets_new_wallet_button,
-            Style::Secondary,
-            Action::NewWalletFrom(app.wallets.wallet()),
-        ));
-    }
-    if app
-        .session
-        .message_wallets()
-        .contains(&app.wallets.wallet())
-    {
-        items.push((
-            EN.wallets_sign_a_message,
-            Style::Secondary,
-            Action::SignMessageWith(app.wallets.wallet()),
-        ));
-    }
-
-    // Check an address and Explore, from the wallet itself.
-    items.push((
-        EN.wallets_check_an_address,
-        Style::Secondary,
-        Action::AddressCheck(crate::address_check::AddressPress::Another),
-    ));
-    if let Some(fp) = slots
-        .iter()
-        .find(|s| s.held_by.is_some())
-        .and_then(|s| s.fingerprint)
-    {
-        items.push((
-            EN.wallets_explore_its_keys,
-            Style::Secondary,
-            Action::ExploreKey(fp.0),
-        ));
-    }
-    let end = (
-        EN.wallets_remove_from_session,
-        Style::Ghost,
-        Action::RemoveWallet(app.wallets.wallet()),
-    );
-    // The actions stand under the body (`docs/LAYOUT.md` §17): right
-    // after the chart and the address where the card has room, and at the
-    // card's foot, the body scrolling above them, where it has not.
-    let placed = place_actions(ui, iw, &items, end);
-    let foot = y + ch - 22.0 - actions_height(placed.2);
+    // What it offers: a group of rows at the end of the scrolled body.
+    let offers = actions::offers(app, app.wallets.wallet(), new_from);
+    let foot = y + ch - 22.0;
 
     // The body, between the head and the actions: scrolled when the
     // chart makes it taller than the card.
     let view_top = cy - 6.0;
-    let view_h = (foot - tokens::GAP - view_top).max(0.0);
+    let view_h = (foot - view_top).max(0.0);
     let clip = ui.rect(cx + 1.0, view_top, cwid - 2.0, view_h);
     let held_open = ui.region_open(
         Region::beside(crate::ui::Slot::Card, clip, app.wallets.card_offset())
@@ -676,6 +612,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             .moves(Moves::Yes),
     );
     let top = cy;
+    // The group leads the body; the facts follow.
+    cy += actions::draw(ui, (ix, cy, iw), &offers) + 2.0 * faraday_draw::tokens::GRID;
     // Where its backup is (§5.2): a press opens Backups on it.
     cy += backup_line(app, ui, ix, cy, iw, app.wallets.wallet());
     ui.fill(
@@ -762,13 +700,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let content = cy - top;
     let max = (content - (view_h - (top - view_top))).max(0.0);
     ui.region_close(held_open, max);
-    card_actions(
-        ui,
-        (ix, (cy + tokens::GAP).min(foot), iw),
-        &items,
-        end,
-        &placed,
-    );
 }
 
 /// A wallet's **Spend paths** group (`docs/BACKUP-FLOW.md` §18.4): a
@@ -836,72 +767,6 @@ pub(crate) fn spend_paths_rows(
     cy + faraday_draw::tokens::GAP - y
 }
 
-/// Where a wallet card's actions go in a row `w` wide: each item's row,
-/// x and width, then the end's width and how many rows they take. Items
-/// run from the left, a row more under where they do not fit; `end`
-/// stands at the right of the last row. A lookup and text measures.
-fn place_actions(
-    ui: &Ui,
-    w: f32,
-    items: &[(&str, Style, Action)],
-    end: (&str, Style, Action),
-) -> (Vec<(usize, f32, f32)>, f32, usize) {
-    let width = |ui: &Ui, label: &str| (ui.measure_as(LABEL_L, label) + 32.0).min(w);
-    let mut placed: Vec<(usize, f32, f32)> = Vec::new();
-    let (mut row, mut bx) = (0usize, 0.0f32);
-    for &(label, ..) in items {
-        let bw = width(ui, label);
-        if bx > 0.0 && bx + bw > w {
-            row += 1;
-            bx = 0.0;
-        }
-        placed.push((row, bx, bw));
-        bx += bw + tokens::GAP;
-    }
-    let ew = width(ui, end.0);
-    if bx > 0.0 && bx + ew > w {
-        row += 1;
-    }
-    (placed, ew, row + 1)
-}
-
-/// The space between the rule above a card's actions and their first row.
-const ACTIONS_RULE_GAP: f32 = 14.0;
-
-/// How tall `rows` rows of a card's actions stand, the rule above them
-/// included.
-fn actions_height(rows: usize) -> f32 {
-    ACTIONS_RULE_GAP + rows as f32 * (BUTTON_H + tokens::GAP) - tokens::GAP
-}
-
-/// A wallet card's actions as `placed` puts them in a row `w` wide from
-/// `x`, under a rule at `rule`: `items` from the left, `end` at the right
-/// of the last row.
-fn card_actions(
-    ui: &mut Ui,
-    (x, rule, w): (f32, f32, f32),
-    items: &[(&str, Style, Action)],
-    end: (&str, Style, Action),
-    (placed, ew, rows): &(Vec<(usize, f32, f32)>, f32, usize),
-) {
-    ui.rule(x, rule, w, Role::OutlineVariant);
-    let row_y = |r: usize| rule + ACTIONS_RULE_GAP + r as f32 * (BUTTON_H + tokens::GAP);
-    for (&(label, style, action), &(r, px, bw)) in items.iter().zip(placed) {
-        let label = ui.fit_as(LABEL_L, label, bw - 24.0);
-        ui.button(x + px, row_y(r), Some(bw), BUTTON_H, &label, style, action);
-    }
-    let label = ui.fit_as(LABEL_L, end.0, ew - 24.0);
-    ui.button(
-        x + w - ew,
-        row_y(rows - 1),
-        Some(*ew),
-        BUTTON_H,
-        &label,
-        end.1,
-        end.2,
-    );
-}
-
 /// A silent payments wallet's address as its card shows it, by how its
 /// record stands against the loaded keys: the address where a loaded key
 /// gives both of its points; the address and a caution while no key with
@@ -948,14 +813,31 @@ fn silent_wallet_card(
     app: &View,
     ui: &mut Ui,
     r: &faraday_bip::silent_wallet::SilentWallet,
-    ix: f32,
-    iw: f32,
+    (cx, cwid, ix, iw): (f32, f32, f32, f32),
     y: f32,
     bottom: f32,
 ) {
     let (muted, ink) = (Role::OnSurfaceVariant, Role::OnSurface);
     let may = app.may_load_keys();
+    // The body scrolls in the card below the head, its rows with it.
+    let view_top = y - 6.0;
+    let view_h = (bottom - 22.0 - view_top).max(0.0);
+    let clip = ui.rect(cx + 1.0, view_top, cwid - 2.0, view_h);
+    let held_open = ui.region_open(
+        Region::beside(crate::ui::Slot::Card, clip, app.wallets.card_offset())
+            .from_zero(app.wallets.card_offset())
+            .moves(Moves::Yes),
+    );
+    let top = y;
     let mut cy = y;
+    // The group leads the body; the facts follow.
+    cy += actions::draw(
+        ui,
+        (ix, cy, iw),
+        &actions::offers(app, app.wallets.wallet(), false),
+    ) + 2.0 * faraday_draw::tokens::GRID;
+    // Where its backup is (§5.2): a press opens Backups on it.
+    cy += backup_line(app, ui, ix, cy, iw, app.wallets.wallet());
     ui.text_as(ix, cy, LABEL_M, muted, EN.silent_wallet_card_key);
     cy += ui.line_as(LABEL_M) + faraday_draw::tokens::GRID;
     let held = app.session.keys.key_label(r.fingerprint);
@@ -1011,26 +893,8 @@ fn silent_wallet_card(
     cy += silent_address_lines(app, ui, r, (ix, cy, iw)) + 18.0;
     ui.text_as(ix, cy, LABEL_M, muted, EN.silent_wallet_card_labels);
     ui.text_as(ix + 180.0, cy, BODY_M.mono(), ink, &r.labels.to_string());
-    let items = [
-        (
-            EN.silent_wallet_card_address,
-            Style::Primary,
-            Action::SWallet(app.wallets.wallet()),
-        ),
-        (
-            EN.silent_wallet_card_show,
-            Style::Secondary,
-            Action::QrWallet(app.wallets.wallet()),
-        ),
-    ];
-    let end = (
-        EN.silent_wallet_card_remove,
-        Style::Ghost,
-        Action::RemoveWallet(app.wallets.wallet()),
-    );
-    // Under the labels line, or at the card's foot where that is higher.
-    let placed = place_actions(ui, iw, &items, end);
-    let foot = bottom - 22.0 - actions_height(placed.2);
-    let rule = (cy + tokens::PAD + tokens::GAP).min(foot);
-    card_actions(ui, (ix, rule, iw), &items, end, &placed);
+    cy += 22.0;
+    let content = cy - top;
+    let max = (content - (view_h - (top - view_top))).max(0.0);
+    ui.region_close(held_open, max);
 }

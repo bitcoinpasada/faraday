@@ -46,6 +46,8 @@ pub(crate) fn with(miniscript: &str) -> Faraday {
 }
 
 fn screen(app: &mut Faraday) -> String {
+    // The wallet's actions lead its card: the paths are scrolled to.
+    crate::common::card_to_text(app, "At a glance");
     texts(app).join(" ")
 }
 

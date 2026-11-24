@@ -701,6 +701,7 @@ fn load_with_a_passphrase(app: &mut Faraday) {
     app.press(Action::OpenWallet(0));
     let _ = app.frame();
     let way = Action::Vault(V::PassphraseKey(0));
+    crate::common::card_to_action(app, way);
     assert!(app.offers(way), "{:?}", app.drawn_texts());
     app.press(way);
     assert_eq!(app.sheet, Some(Sheet::PassphraseSeeds));

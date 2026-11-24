@@ -1747,6 +1747,36 @@ pub fn scroll_to_text(app: &mut Faraday, want: &str) {
     }
 }
 
+/// The wallet card's body turned under the wheel, as a person would, until
+/// `done` holds of what is drawn: "What you can do" leads the body, so a
+/// fact of the card is reached by scrolling. At most 20 steps.
+fn card_to(app: &mut Faraday, done: impl Fn(&mut Faraday) -> bool) {
+    let _ = app.frame();
+    for _ in 0..20 {
+        if done(app) {
+            return;
+        }
+        let (w, h) = app.size();
+        app.event(Event::Wheel {
+            x: (w * 0.75) as u16,
+            y: (h / 2.0) as u16,
+            dy: 120,
+        });
+        app.settle();
+        let _ = app.frame();
+    }
+}
+
+/// The wallet card scrolled until `want` is drawn.
+pub fn card_to_text(app: &mut Faraday, want: &str) {
+    card_to(app, |a| a.drawn_texts().iter().any(|t| t == want));
+}
+
+/// The wallet card scrolled until `a` is offered.
+pub fn card_to_action(app: &mut Faraday, a: Action) {
+    card_to(app, |f| f.offers(a));
+}
+
 /// A hold, `a`, held past its time and let go: the window scrolled
 /// down first, as a person would, until it shows.
 pub fn hold(app: &mut Faraday, a: Action) {

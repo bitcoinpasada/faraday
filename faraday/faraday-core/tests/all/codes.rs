@@ -1099,6 +1099,7 @@ fn the_wallet_cards_receive_address_opens_its_code() {
     let want = app
         .session
         .address_shown(&c, &app.session.wallets[w], false, 0);
+    crate::common::card_to_action(&mut app, Action::ShowCode(Code::Receive(w, 0)));
     crate::common::opens_its_code(&mut app, Code::Receive(w, 0), &want);
 }
 

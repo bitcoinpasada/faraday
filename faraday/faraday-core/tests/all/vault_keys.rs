@@ -105,6 +105,10 @@ fn a_missing_key_in_an_open_vault_loads_from_the_wallet_card() {
     let fp = app.session.slots(&app.session.wallets[0])[0]
         .fingerprint
         .unwrap();
+    crate::common::card_to_action(
+        &mut app,
+        Action::Vault(V::LoadKeyOf(fp.0, SlotOf::Loaded(0, 0))),
+    );
     assert!(app.offers(Action::Vault(V::LoadKeyOf(fp.0, SlotOf::Loaded(0, 0)))));
     app.press(Action::Vault(V::LoadKeyOf(fp.0, SlotOf::Loaded(0, 0))));
     assert_eq!(app.session.keys.len(), 1);
@@ -121,6 +125,7 @@ fn a_locked_vault_is_offered_from_the_wallet_card_and_unlocking_comes_back() {
     testkit::load_wallet(&mut app, w);
     let _ = app.frame();
     let unlock = Action::Vault(V::OpenFrom(0, Screen::Wallets));
+    crate::common::card_to_action(&mut app, unlock);
     assert!(app.offers(unlock), "the locked vault is not offered");
     app.press(unlock);
     assert_eq!(app.screen, Screen::Unlock);

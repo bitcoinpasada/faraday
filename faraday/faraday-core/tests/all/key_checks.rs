@@ -319,6 +319,7 @@ fn a_key_made_here_reads_what_is_true_once_it_is_removed_and_loaded_from_its_wor
     app.press(Action::InboxLoad);
     app.press(Action::WalletHold);
     app.press(Action::OpenWallet(0));
+    crate::common::card_to_text(&mut app, "Waiting for its backup");
     let s = shown(&mut app);
     assert!(s.contains("Key 1 · 9a6a2580 Waiting for its backup"), "{s}");
     app.press(Action::RemoveKeys);
@@ -329,9 +330,11 @@ fn a_key_made_here_reads_what_is_true_once_it_is_removed_and_loaded_from_its_wor
     // Its words typed again are still a key whose backup is not done, until it is.
     add_key(&mut app, 0);
     app.press(Action::OpenWallet(0));
+    crate::common::card_to_text(&mut app, "Waiting for its backup");
     assert!(shown(&mut app).contains("Key 1 · 9a6a2580 Waiting for its backup"));
     testkit::release_made(&mut app, fp);
     app.press(Action::OpenWallet(0));
+    crate::common::card_to_text(&mut app, "Can sign here");
     let s = shown(&mut app);
     assert!(s.contains("Key 1 · 9a6a2580 Can sign here"), "{s}");
     assert!(!s.contains("Waiting for its backup"), "{s}");

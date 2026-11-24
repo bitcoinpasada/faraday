@@ -89,12 +89,31 @@ fn wallets_start_page_offers_the_row_and_add_a_key() {
     );
 }
 
+/// The wheel turned over the wallet card until `action` is drawn: a row
+/// of "What you can do" below the window is reached by scrolling to it.
+fn scroll_card_to(app: &mut Faraday, action: Action) {
+    for _ in 0..20 {
+        let _ = app.frame();
+        if app.offers(action) {
+            return;
+        }
+        app.event(Event::Wheel {
+            x: 1000,
+            y: 400,
+            dy: 120,
+        });
+        app.settle();
+    }
+    let _ = app.frame();
+}
+
 #[test]
 fn the_wallet_card_offers_its_jobs() {
     let mut app = with_single_key_wallet();
     app.press(Action::OpenWallet(0));
     let _ = app.frame();
     assert_eq!(app.screen, Screen::Wallets);
+    scroll_card_to(&mut app, Action::QrWallet(0));
     assert!(app.offers(Action::Backup(0)), "Back up");
     assert!(app.offers(Action::QrWallet(0)), "Show wallet QR");
 }
@@ -117,6 +136,25 @@ fn another_wallets_psbt_in_files_leaves_the_card_on_spend_from_this_wallet() {
     app.press(Action::OpenWallet(0));
     let _ = app.frame();
     assert_eq!(app.screen, Screen::Wallets);
+    scroll_card_to(
+        &mut app,
+        Action::SpendBackup(faraday_core::spend_backup::SpendBackupAction::SpendFrom(0)),
+    );
+    for _ in 0..20 {
+        if app
+            .drawn_texts()
+            .iter()
+            .any(|t| t == "Spend from this wallet")
+        {
+            break;
+        }
+        app.event(Event::Wheel {
+            x: 1000,
+            y: 400,
+            dy: 120,
+        });
+        app.settle();
+    }
     let texts = app.drawn_texts();
     assert!(
         texts.iter().any(|t| t == "Spend from this wallet"),
@@ -132,6 +170,7 @@ fn the_card_offers_sign_a_message_for_a_single_key_wallet_with_its_key_here() {
     let mut app = with_single_key_wallet();
     app.press(Action::OpenWallet(0));
     let _ = app.frame();
+    scroll_card_to(&mut app, Action::SignMessageWith(0));
     assert!(app.offers(Action::SignMessageWith(0)));
 }
 
@@ -149,6 +188,7 @@ fn the_card_offers_check_an_address_and_it_opens() {
     app.press(Action::OpenWallet(0));
     let _ = app.frame();
     let check = Action::AddressCheck(faraday_core::address_check::AddressPress::Another);
+    scroll_card_to(&mut app, check);
     assert!(app.offers(check), "Check an address");
     app.press(check);
     assert_eq!(app.screen, Screen::CheckAddress);

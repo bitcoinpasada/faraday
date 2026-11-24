@@ -54,6 +54,8 @@ macro_rules! words_screens_wallets {
     wallets_enter_keeps: "Enter keeps it · Esc leaves it",
     /// Button in `wallets`.
     wallets_rename: "Rename",
+    /// Heading in `wallets`: the group of a wallet's own actions.
+    wallets_what_you_can_do: "What you can do",
     /// Text in `wallets`.
     wallets_show_wallet: "Show wallet QR",
     /// Text in `wallets`.

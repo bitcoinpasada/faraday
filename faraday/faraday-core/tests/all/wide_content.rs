@@ -72,27 +72,29 @@ fn with_wallets(width: u16, height: u16) -> Faraday {
 }
 
 #[test]
-fn a_wallets_buttons_stand_under_its_chart_on_a_big_window() {
+fn a_wallets_actions_lead_its_card_over_its_facts_on_a_big_window() {
     for (w, h) in [(1920u16, 1080u16), (2560, 1440)] {
         let mut app = with_wallets(w, h);
         app.press(Action::Nav(Screen::Wallets));
         for i in 0..app.session.wallets.len() {
             app.press(Action::PickWallet(i));
+            // The group leads the card, drawn before anything is scrolled.
             let shown = hit(&mut app, Action::QrWallet(i));
+            crate::common::card_to_text(&mut app, "First receive address · 0/0");
             let address = boxes(&mut app, "First receive address · 0/0")
                 .into_iter()
                 .map(|b| b.1)
                 .max()
                 .expect("the first receive address's label");
-            // Under the chart and the address it ends with, not at the
-            // card's foot: the window has room to spare below them.
+            // Over the chart and the address it ends with, in the card's
+            // head: the facts follow.
             assert!(
-                shown.1 > address,
-                "{w}: wallet {i}'s buttons at {shown:?} under the address at {address}"
+                shown.1 < address,
+                "{w}: wallet {i}'s actions at {shown:?} over the address at {address}"
             );
             assert!(
-                shown.1 + shown.3 < i32::from(h) - 160,
-                "{w}: wallet {i}'s buttons at {shown:?} near its content, not the foot"
+                shown.1 + shown.3 < i32::from(h) / 2,
+                "{w}: wallet {i}'s actions at {shown:?} at the card's head"
             );
             // The chart stands over the reading column: the wallet's node,
             // the lowest place its name is drawn, starts within it.
@@ -119,7 +121,7 @@ fn a_wallet_cards_first_receive_address_is_drawn_on_one_line() {
     app.press(Action::Nav(Screen::Wallets));
     for i in 0..app.session.wallets.len() {
         app.press(Action::PickWallet(i));
-        let _ = app.frame();
+        crate::common::card_to_text(&mut app, "First receive address · 0/0");
         let texts: Vec<String> = app
             .drawn_text_boxes()
             .plain()

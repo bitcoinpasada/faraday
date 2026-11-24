@@ -166,8 +166,9 @@ fn a_single_key_with_paper_and_vault_shows_two_places_and_the_vault() {
     assert!(one.keys == [0] && vault.keys == [0], "{nodes:?}");
     // The two lines of fact under the checks push the chart's lower nodes
     // below the first screen: the keys' words are read on the nodes.
+    crate::common::card_to_text(&mut app, "Vault 1");
     let texts = app.drawn_texts();
-    for want in ["At a glance", "Place 1", "Place 2", "Vault 1"] {
+    for want in ["Place 1", "Place 2", "Vault 1"] {
         assert!(texts.iter().any(|t| t == want), "{want} is not on the card");
     }
 }
@@ -179,14 +180,7 @@ fn the_chart_follows_the_plan_after_the_page_was_scrolled() {
     let mut app = desktop();
     let w = one_key(&mut app);
     app.press(Action::OpenWallet(w));
-    for _ in 0..3 {
-        app.event(Event::Wheel {
-            x: 400,
-            y: 300,
-            dy: 40,
-        });
-        let _ = app.frame();
-    }
+    crate::common::card_to_text(&mut app, "No backup plan");
     assert!(app.drawn_texts().iter().any(|t| t == "No backup plan"));
     planned(&mut app, w, 2);
     for _ in 0..3 {
@@ -252,6 +246,7 @@ fn a_place_with_the_whole_sheet_sees_the_balance() {
         node(&nodes, "Place 1").alone.as_deref(),
         Some("Sees the balance")
     );
+    crate::common::card_to_text(&mut app, "Sees the balance");
     assert!(app.drawn_texts().iter().any(|t| t == "Sees the balance"));
 }
 
@@ -262,8 +257,11 @@ fn with_no_plan_the_chart_says_so_and_back_up_opens_the_backup() {
     app.press(Action::OpenWallet(w));
     let _ = app.frame();
     assert_eq!(chart(&app, w).backup, Backup::None);
-    assert!(app.drawn_texts().iter().any(|t| t == "No backup plan"));
+    // "What you can do" leads the card: Back up is drawn first, the chart
+    // is reached by scrolling.
     assert!(app.offers(Action::Backup(w)));
+    crate::common::card_to_text(&mut app, "No backup plan");
+    assert!(app.drawn_texts().iter().any(|t| t == "No backup plan"));
     app.press(Action::Backup(w));
     assert_eq!(app.screen, Screen::Backup);
 }
@@ -293,6 +291,7 @@ fn pressing_a_place_opens_its_sheet_and_puts_nothing_for_the_stick() {
     assert_eq!(nodes(&chart(&app, w)).len(), 3, "the plan is still charted");
     let before = for_the_stick(&app);
     let press = Press::Loaded(w);
+    crate::common::card_to_action(&mut app, Action::Chart(C::Open(press, Target::Node(0))));
     assert!(
         app.offers(Action::Chart(C::Open(press, Target::Node(0)))),
         "the places are not pressable"
@@ -614,6 +613,8 @@ fn on_a_wide_window_a_nodes_sheet_stands_beside_the_chart_and_its_lines_stay_in_
     planned(&mut app, w, 2);
     let press = Press::Loaded(w);
     let key = Action::Chart(C::Open(press, Target::Key(0)));
+    // "What you can do" leads the card: the chart is scrolled to first.
+    crate::common::card_to_action(&mut app, Action::Chart(C::Open(press, Target::Node(0))));
     open(&mut app, press, Target::Key(0));
     // The sheet at the window's right edge, the chart's nodes still
     // offered beside it.
@@ -817,6 +818,7 @@ fn a_wallet_loaded_from_its_vault_on_another_power_on_charts_the_vaults_plan() {
     let names = |n: &[BackupNode]| n.iter().map(|n| n.name.clone()).collect::<Vec<_>>();
     assert_eq!(names(&after), ["Place 1", "Place 2", "Vault 1"]);
     assert_eq!(names(&after), names(&before));
+    crate::common::card_to_text(&mut app, "Vault 1");
     let texts = app.drawn_texts();
     assert!(texts.iter().any(|t| t == "Vault 1"), "{texts:?}");
 }
