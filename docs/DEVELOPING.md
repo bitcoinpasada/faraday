@@ -155,11 +155,12 @@ rules a change follows. Builds and checks pass `--locked`.
 
 GitHub Actions runs `just` on every push to main and every pull
 request (`.github/workflows/check.yml`, F183), on Ubuntu 26.04 with
-the tools above at the versions it names, spread over twenty-five jobs:
+the tools above at the versions it names, spread over thirty-one jobs:
 one compiles the tests once and archives them (`cargo nextest
 archive`, and the vendored QR reader's own tests, which are not in the workspace), fourteen each run a fourteenth of them (`--partition
 hash:k/14`, a failed test run once more and named in the job's summary when it then passes: `.config/nextest.toml`), and the doc tests, the parser crates' tests on a 32-bit
-target and the five parts of `just lint` run
+target, the tests of faraday-core and faraday-demo with the `handwriting` feature on (compiled and archived once, then run in six partitions, `--partition
+hash:k/6`) and the five parts of `just lint` run
 beside them, after a first job that does nothing on a pull request or a run
 by hand. Its result is shown on the commit and the pull request. A push to
 main whose head commit already passed this check (a run of it started by hand

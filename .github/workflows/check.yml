@@ -13,9 +13,9 @@
 # compiles the dependencies of each job whose cache main lacks, without running
 # any test or lint (docs/decisions/F265.md).
 #
-# `just` is spread over twenty-six jobs: gate, then one compiles the tests once and
+# `just` is spread over thirty-one jobs: gate, then one compiles the tests once and
 # archives them, fourteen each run a fourteenth of them, and the doc tests,
-# the parser crates' tests on a 32-bit target (tests-i686), the tests with the work kept out of the app on (tests-handwriting, F325) and the five parts of `just lint` run beside them. The last job, check,
+# the parser crates' tests on a 32-bit target (tests-i686), the tests with the work kept out of the app on (tests-handwriting, F325: compiled once by build-tests-handwriting and run in six partitions) and the five parts of `just lint` run beside them. The last job, check,
 # passes when every part passed.
 #
 # A run started by hand with `lints` false (for a tree whose other lints
@@ -57,6 +57,7 @@ env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: "0"
   SHARDS: 14
+  SHARDS_HANDWRITING: 6
 
 jobs:
   gate:
@@ -272,9 +273,10 @@ jobs:
         run: .github/actions/setup/apt-install.sh gcc-multilib
       - run: just test-i686
 
-  # The app's and Faraday Demo's tests with the `handwriting` feature on (F325).
-  tests-handwriting:
-    name: tests handwriting on
+  # The app's and Faraday Demo's tests with the `handwriting` feature on (F325),
+  # `just test-handwriting`: compiled once and archived, then run in partitions.
+  build-tests-handwriting:
+    name: build tests handwriting on
     needs: gate
     if: needs.gate.outputs.pass != 'true'
     runs-on: ubuntu-26.04
@@ -284,7 +286,47 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup
-      - run: just test-handwriting
+      - name: Compile the tests and archive them
+        run: cargo nextest archive --locked -p faraday-core -p faraday-demo --features faraday-demo/handwriting --archive-file nextest-archive-handwriting.tar.zst
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: nextest-archive-handwriting
+          path: nextest-archive-handwriting.tar.zst
+          retention-days: 1
+          compression-level: 0
+
+  tests-handwriting:
+    name: tests handwriting on ${{ matrix.shard }}/6
+    needs: [gate, build-tests-handwriting]
+    if: needs.gate.outputs.pass != 'true'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          packages: "true"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: nextest-archive-handwriting
+      # Unpacked and run as in `tests`; a test that fails is run once more and
+      # named in the job's summary when it then passes.
+      - name: Run this shard's tests
+        run: |
+          mkdir -p target/tmp
+          set -o pipefail
+          cargo nextest run --archive-file nextest-archive-handwriting.tar.zst \
+            --workspace-remap . --extract-to . --extract-overwrite \
+            --partition "hash:${{ matrix.shard }}/${SHARDS_HANDWRITING}" 2>&1 | tee nextest.log
+          if grep -q 'FLAKY' nextest.log; then
+            { echo "Flaky tests (failed once, passed on the retry):"; sed 's,\x1b\[[0-9;]*m,,g' nextest.log | grep -E '^ *FLAKY' | sort -u; } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   lint:
     name: ${{ matrix.part }}
@@ -327,7 +369,7 @@ jobs:
   check:
     name: check
     if: always()
-    needs: [gate, build-tests, tests, doc-tests, tests-i686, tests-handwriting, lint, warm, warm-commands]
+    needs: [gate, build-tests, tests, doc-tests, tests-i686, build-tests-handwriting, tests-handwriting, lint, warm, warm-commands]
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
