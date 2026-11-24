@@ -114,6 +114,12 @@ macro_rules! words_screens_create {
     create_lock_button: "Lock in",
     /// Text in `create_body`.
     create_key: "Key",
+    /// The pick's question in the pane at the left of Keys.
+    create_which_key: "Which key for this slot?",
+    /// A key's line in the pick when it stands in another slot. `{}`: that slot's number.
+    hub_in_slot: "In slot {}",
+    /// Button on a filled slot: opens its pick again.
+    create_change_key: "Change",
     /// Text in `create_body`.
     create_continue: "Continue",
     /// The Keys row, off until pressed: brings in the stick of a vault the person already has, before any key exists.

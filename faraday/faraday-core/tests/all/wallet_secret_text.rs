@@ -231,9 +231,9 @@ fn a_key_file_with_a_seed_beside_it_still_fills_a_cosigners_slot_and_is_called_s
     );
     let (mut app, at) = keys_card_with("cosigner.json", &text);
     assert_eq!(app.inbox()[at].kind, FileKind::KeyWithSecret);
-    assert!(app.offers(faraday_core::Action::CSlotFile(1, at)));
-    app.press(faraday_core::Action::CSlotFile(1, at));
-    match &app.create().unwrap().slots[1] {
+    assert!(app.offers(faraday_core::Action::CSlotFile(0, at)));
+    app.press(faraday_core::Action::CSlotFile(0, at));
+    match &app.create().unwrap().slots[0] {
         faraday_core::create::Source::Cosigner(k) => {
             assert!(k.starts_with("[73c5da0a/48"), "{}", k.as_str())
         }
@@ -257,15 +257,15 @@ fn files_calls_a_key_file_with_a_seed_a_key_file_with_a_secret() {
 #[test]
 fn a_wallet_file_with_a_seed_in_a_note_is_still_listed_in_the_keys_card_and_fills_a_slot() {
     let plain = keys_card_with("plain.json", COLDCARD);
-    assert!(plain.0.offers(faraday_core::Action::CSlotFile(1, plain.1)));
+    assert!(plain.0.offers(faraday_core::Action::CSlotFile(0, plain.1)));
     let text = COLDCARD.replacen('{', &format!("{{\"note\": \"{WORDS}\","), 1);
     let (mut app, at) = keys_card_with("noted.json", &text);
     assert_eq!(app.inbox()[at].kind, FileKind::SecretWallet);
-    assert!(app.offers(faraday_core::Action::CSlotFile(1, at)));
-    app.press(faraday_core::Action::CSlotFile(1, at));
+    assert!(app.offers(faraday_core::Action::CSlotFile(0, at)));
+    app.press(faraday_core::Action::CSlotFile(0, at));
     assert!(
         matches!(
-            app.create().unwrap().slots[1],
+            app.create().unwrap().slots[0],
             faraday_core::create::Source::Cosigner(_)
         ),
         "the slot is empty"

@@ -52,7 +52,7 @@
 //!   (what a code read is), `text_check` (the secrets a text holds, refused by Transfer's Send text and by Compare with the wallet app's), `picture` (a QR code to keep), `demo` (what Practice refuses),
 //!   `devices` (what else captures the screen or the keys).
 //! - Flows around a key, seed, words or passphrase: `keygen`, `codex32` (with `codex32/screen.rs`, its checksum worksheet, `codex32/worksheet_screen.rs`, and its dice and the booklet's dice sheet, `codex32/dice_screen.rs`, and the entry's input panel, `codex32/input_panel.rs`; New key's dice in the input panel, `keygen/dice_panel.rs`), `seeds`
-//!   (with `seeds/read.rs`), `wallet` (with `wallet/nonce.rs`, `wallet/account.rs`), `inbox`, `create`, `create_from`,
+//!   (with `seeds/read.rs`), `wallet` (with `wallet/nonce.rs`, `wallet/account.rs`), `inbox`, `create`, `create_from`, `create_pick`,
 //!   `bip85`, `forms`, `one_line` (what a refused xprv or hex seed says, `docs/KEY-FORMS.md` §6), `fresh`, `gpg`, `secure_boot`, `lightning`, `silent`, `vanity`, `grind`, `quiz`, `secrets`, `word_entry`, `vault` (with `vault/load.rs` and `vault/out.rs`), `kef_form` (the form that makes a Krux code, `kef_form/screen.rs`), `dice_entry` (the dice entry Create a vault uses, `dice_entry/screen.rs`), `chart_edit`, `boot_import`, `backup_flow/wallet.rs` and `codex32_correct` (§8.4's correction, with its `screen.rs`) and `core_wallet` (the tool and screen that read a Bitcoin Core wallet through `faraday-core-wallet`, F229). They hold
 //!   handles and public results; key use is `faraday-keys` (F70,
 //!   `docs/KEYS.md`), and `tools/lint-secrets.sh` rule 4 holds it.
@@ -198,6 +198,7 @@ pub mod convert;
 pub mod core_wallet;
 pub mod create;
 mod create_from;
+mod create_pick;
 pub mod forms;
 pub mod fresh;
 pub mod gpg;

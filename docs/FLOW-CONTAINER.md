@@ -295,7 +295,7 @@ For Sign a message the button asks to lock first (signing leaves keys in memory)
 | Flow | Its screen | Its steps in the container | Full-width step | Under Your choices' rows, or beside |
 |---|---|---|---|---|
 | Make a new vault | `vault/screen.rs` | Size, Opens on, Unlock cost, Name and passphrases; the size row stands for the two after it until Customise | none | its summary and Create vault |
-| Make a new wallet | `screens/create.rs` | Kind, then its steps; the count known once Keys is a step | none | none |
+| Make a new wallet | `screens/create.rs` | Kind, then its steps; the count known once Keys is a step | none | a multisig's Keys step is a pick, one slot at a time (the first empty slot, or the filled one its Change opens again): the held keys at the left, one standing in another slot dimmed with its slot, then the open slot's other ways in (Make a new key or New words, Scan its xpub, Type or paste an xpub, Someone else adds it later); the card keeps each slot's name, state, Change and Clear, its xpub outputs and fields, and for the open slot the Inbox's files and the open vaults' keys with Unlock (worked out in the drawing's memo, which a pick cannot reach), and marks the open slot |
 | Restore an existing wallet | `screens/restore.rs` | its steps, count not known; a typed word is never in a row | none | none |
 | Sign a transaction | `screens/spend.rs` | its steps, count not known | none | the six review facts (Wallet, Sends, To, Fee, Change, Transaction ID), plain lines with no press; the sequence line as the card head's note |
 | Spend from a backup | `spend_backup/screen.rs` | its steps, count not known; a card's own line at the top of its body | none | none |

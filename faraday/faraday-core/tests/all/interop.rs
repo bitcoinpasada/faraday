@@ -249,10 +249,10 @@ fn create_offers_a_coldcard_export_for_a_cosigners_slot_and_takes_its_multisig_k
         .iter()
         .position(|i| i.name == "coldcardQ.json")
         .unwrap();
-    assert!(app.offers(faraday_core::Action::CSlotFile(1, at)));
-    app.press(faraday_core::Action::CSlotFile(1, at));
+    assert!(app.offers(faraday_core::Action::CSlotFile(0, at)));
+    app.press(faraday_core::Action::CSlotFile(0, at));
     let c = app.create().unwrap();
-    match &c.slots[1] {
+    match &c.slots[0] {
         faraday_core::create::Source::Cosigner(k) => {
             assert!(
                 k.starts_with("[b68af6e4/48h/0h/0h/2h]")

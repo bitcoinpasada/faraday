@@ -1041,6 +1041,10 @@ pub struct CreateState {
     pub more_kinds: bool,
     /// New keys made for this wallet.
     pub made: u32,
+    /// A filled slot opened again to pick its key anew (a multisig's
+    /// cosigners, `docs/WORKSPACE.md` §10); else the first empty slot is
+    /// the one being picked.
+    pub pick_slot: Option<u8>,
     /// The slot whose passphrase fields are open.
     pub pass_slot: Option<u8>,
     /// The passphrase typed there, and the same typed again.
@@ -1128,6 +1132,19 @@ impl CreateState {
     /// The person turned on Keys' row, a vault already on a stick.
     pub fn uses_existing_vault(&self) -> bool {
         self.vaults.answer == Some(true)
+    }
+
+    /// The slot of a multisig whose key is being picked: the one opened
+    /// again, else the first empty one; none once the wallet is made or
+    /// when every slot is filled and none was opened.
+    pub(crate) fn pick_open(&self) -> Option<usize> {
+        if self.built.is_some() || !self.kind.multi() {
+            return None;
+        }
+        self.pick_slot
+            .map(usize::from)
+            .filter(|&k| k < self.slots.len())
+            .or_else(|| self.slots.iter().position(|s| *s == Source::Empty))
     }
 
     /// Closes the field for a typed xpub, forgetting what was typed.
@@ -1274,6 +1291,7 @@ impl CreateArea {
             && let Some(s) = c.slots.get_mut(usize::from(slot))
         {
             *s = Source::Here(fp);
+            c.pick_slot = None;
             if c.pass_slot == Some(slot) {
                 c.close_pass();
             }
@@ -1288,6 +1306,7 @@ impl CreateArea {
             }
             if let Some(s) = c.slots.get_mut(usize::from(slot)) {
                 *s = Source::Here(fp);
+                c.pick_slot = None;
             }
         }
     }
@@ -1336,6 +1355,7 @@ impl CreateArea {
             };
             if auto {
                 *s = want;
+                c.pick_slot = None;
             }
         }
     }
@@ -1376,6 +1396,7 @@ impl CreateArea {
             for s in &mut c.slots {
                 if matches!(s, Source::Cosigner(t) if !at_kind(kind, t, at)) {
                     *s = Source::Empty;
+                    c.pick_slot = None;
                 }
             }
         }
@@ -1468,6 +1489,7 @@ impl CreateArea {
                     let n = if c.kind.multi() { c.n } else { 1 };
                     c.slots.resize(n, create::Source::Empty);
                     c.slots.truncate(n);
+                    c.pick_slot = None;
                     // A cosigner's key at the old kind's path no longer
                     // fits the new one: its slot is emptied, as when the
                     // path choice flips.
@@ -1511,6 +1533,7 @@ impl CreateArea {
                     c.n = (c.n as i64 + i64::from(d)).clamp(2, c.kind.max_keys() as i64) as usize;
                     c.m = if c.kind.all_sign() { c.n } else { c.m.min(c.n) };
                     c.slots.resize(c.n, create::Source::Empty);
+                    c.pick_slot = None;
                 }
             }
             _ => self.edit_slot(action),
@@ -1525,9 +1548,19 @@ impl CreateArea {
                     && let Some(s) = c.slots.get_mut(k as usize)
                 {
                     *s = create::Source::Here(fp);
+                    // The pick is made: the next empty slot is the one open.
+                    c.pick_slot = None;
                     if c.pass_slot == Some(k) {
                         c.close_pass();
                     }
+                }
+            }
+            Action::CSlotPick(k) => {
+                if let Some(c) = self.state.as_mut()
+                    && c.built.is_none()
+                    && (k as usize) < c.slots.len()
+                {
+                    c.pick_slot = Some(k);
                 }
             }
             Action::CSlotLater(k) => {
@@ -1535,6 +1568,7 @@ impl CreateArea {
                     && let Some(s) = c.slots.get_mut(k as usize)
                 {
                     *s = create::Source::Later;
+                    c.pick_slot = None;
                 }
             }
             Action::CSlotClear(k) => {
@@ -1542,6 +1576,7 @@ impl CreateArea {
                     && let Some(s) = c.slots.get_mut(k as usize)
                 {
                     *s = create::Source::Empty;
+                    c.pick_slot = None;
                     if c.pass_slot == Some(k) {
                         c.close_pass();
                     }
@@ -1819,6 +1854,7 @@ impl Faraday {
             | Action::CMoreKinds
             | Action::CM(_)
             | Action::CSlotHere(..)
+            | Action::CSlotPick(_)
             | Action::CSlotLater(_)
             | Action::CSlotClear(_)
             | Action::CPassOpen(_)
@@ -2042,6 +2078,7 @@ impl Faraday {
             && let Some(key) = key
         {
             *s = create::Source::Cosigner(key);
+            c.pick_slot = None;
         }
         Ok(())
     }
@@ -2214,6 +2251,7 @@ impl Faraday {
             Ok(fp) => {
                 if let Some(s) = cs.slots.get_mut(usize::from(slot)) {
                     *s = create::Source::Here(fp.0);
+                    cs.pick_slot = None;
                 }
                 if !cs.pass_locked.contains(&fp.0) {
                     cs.pass_locked.push(fp.0);
@@ -2686,6 +2724,37 @@ impl crate::flow::Contained for CreateSteps {
         app.create_cards().contains(&cstep::KEYS)
     }
 
+    fn pick(&self, app: &crate::Faraday, k: u8) -> Option<crate::flow::Pick> {
+        let c = app.create.state()?;
+        if k != cstep::KEYS || app.create_setup_pending() {
+            return None;
+        }
+        let slot = c.pick_open()?;
+        let keys = crate::create_pick::key_rows(app, c, slot);
+        let ways = crate::create_pick::way_rows(app, c, slot);
+        let mut groups = Vec::new();
+        let loaded = !keys.is_empty();
+        if loaded {
+            groups.push(crate::flow::PickGroup {
+                head: EN.session_group_keys,
+                rows: keys,
+            });
+        }
+        if !ways.is_empty() {
+            groups.push(crate::flow::PickGroup {
+                head: crate::pick::ways_in_head(loaded),
+                rows: ways,
+            });
+        }
+        if groups.is_empty() {
+            return None;
+        }
+        Some(crate::flow::Pick {
+            question: EN.create_which_key,
+            groups,
+        })
+    }
+
     // Changing an earlier answer clears none of the later ones: the act
     // code keeps them (a slot a new kind no longer fits is emptied there).
     fn still_fits(&self, _: &crate::Faraday, _changed: u8, _later: u8) -> bool {
@@ -2744,5 +2813,55 @@ impl crate::at_lock::AtLock for CreateArea {
     }
     fn lock(&mut self) {
         self.clear();
+    }
+}
+
+#[cfg(test)]
+mod pick_slot_tests {
+    use super::*;
+
+    /// A multisig of three slots with slot 2 opened again.
+    fn reopened() -> CreateArea {
+        CreateArea {
+            state: Some(CreateState {
+                kind: NewKind::Multi,
+                n: 3,
+                slots: vec![Source::Empty, Source::Here([1; 4]), Source::Here([2; 4])],
+                pick_slot: Some(2),
+                ..CreateState::default()
+            }),
+        }
+    }
+
+    fn pick_slot(a: &CreateArea) -> Option<u8> {
+        a.state.as_ref().and_then(|c| c.pick_slot)
+    }
+
+    #[test]
+    fn a_slot_filled_by_a_key_made_or_scanned_ends_the_reopened_pick() {
+        let mut a = reopened();
+        assert_eq!(a.state.as_ref().unwrap().pick_open(), Some(2));
+        a.fill_slot(0, [3; 4], false);
+        assert_eq!(pick_slot(&a), None);
+        assert_eq!(a.state.as_ref().unwrap().pick_open(), None);
+    }
+
+    #[test]
+    fn a_slot_filled_from_a_vault_ends_the_reopened_pick() {
+        let mut a = reopened();
+        a.fill_slot_from_vault(0, [3; 4]);
+        assert_eq!(pick_slot(&a), None);
+    }
+
+    #[test]
+    fn flipping_the_path_that_empties_a_cosigners_slot_ends_the_reopened_pick() {
+        let mut a = reopened();
+        let c = a.state.as_mut().unwrap();
+        c.bip87 = true;
+        c.slots[2] = Source::Cosigner(Text::of("[01020304/87'/1'/0']tpubD6NzVbkrYhZ4X"));
+        a.choose_path(false);
+        let c = a.state.as_ref().unwrap();
+        assert_eq!(c.slots[2], Source::Empty);
+        assert_eq!(pick_slot(&a), None);
     }
 }

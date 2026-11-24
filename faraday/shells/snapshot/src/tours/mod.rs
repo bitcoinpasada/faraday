@@ -25,6 +25,7 @@ pub(crate) mod copy;
 pub(crate) mod core_wallet;
 pub(crate) mod create_from;
 pub(crate) mod create_shares;
+pub(crate) mod create_slots;
 pub(crate) mod default;
 pub(crate) mod desktop;
 pub(crate) mod devices;
@@ -204,6 +205,10 @@ pub(crate) const TOURS: &[(&str, TourFn)] = &[
     (
         "codex32form",
         TourFn::Plain(codex32_form::codex32_form_tour),
+    ),
+    (
+        "createslots",
+        TourFn::Plain(create_slots::create_slots_tour),
     ),
     (
         "createshares",

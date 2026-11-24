@@ -56,7 +56,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (next, again, _room) = {
         let app_ref: &View = app;
         let mut body = |ui: &mut Ui, k: u8, x: f32, y: f32, w: f32| -> f32 {
-            create_body(app_ref, ui, k, x, y, w)
+            create_body(app_ref, ui, k, (x, y, w), cw)
         };
         let mut under = |_: &mut Ui, _: f32, _: f32, _: f32| 0.0;
         flow::contained(
@@ -150,7 +150,7 @@ fn refused_file_row(ui: &mut Ui, x: f32, y: f32, w: f32, f: &crate::create::KeyF
     tokens::REFUSED_FILE_REASON_Y + h + tokens::REFUSED_FILE_GAP
 }
 
-fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
+fn create_body(app: &View, ui: &mut Ui, n: u8, (x, y, w): (f32, f32, f32), area_w: f32) -> f32 {
     use crate::cstep;
     let c = app.create.state().expect("create");
     let at = (x, y, w);
@@ -158,7 +158,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
         cstep::KIND => create_kind(app, ui, c, at),
         cstep::BACKUP_FORM => create_backup_form(ui, c, at),
         cstep::QUORUM => create_quorum(ui, c, n, at),
-        cstep::KEYS => create_keys(app, ui, c, n, at),
+        cstep::KEYS => create_keys(app, ui, c, n, at, area_w),
         cstep::CHECK => create_check(app, ui, c, n, at),
         _ => 0.0,
     }
@@ -288,6 +288,11 @@ struct KeySlots<'a> {
     /// The first slot still empty, where New key leads.
     first_empty: Option<usize>,
     vaults: &'a crate::create_from::CreateVaults,
+    /// The keys held here and the open slot's ways in are the pick's rows
+    /// in the pane at the left.
+    keys_at_left: bool,
+    /// The slot the pane at the left is for.
+    open: Option<usize>,
 }
 
 /// The keys step: the account row where there is no Quorum card, every slot,
@@ -298,6 +303,7 @@ fn create_keys(
     c: &crate::CreateState,
     n: u8,
     (x, y, w): (f32, f32, f32),
+    area_w: f32,
 ) -> f32 {
     use crate::create::Source;
     let locked = c.built.is_some();
@@ -350,10 +356,16 @@ fn create_keys(
     // The open vaults' keys and the locked vaults, from the
     // drawing memo (`docs/WALLETS.md` §14).
     let vaults = app.create_vaults();
+    // Where the pair stands the pane holds a multisig's keys as the pick
+    // and the card holds each slot's other ways in
+    // (`flow::Contained::pick`).
     let slots = KeySlots {
         key_files,
         first_empty,
         vaults: &vaults,
+        keys_at_left: c.kind.multi()
+            && flow::pair_left(app, &crate::create::CREATE_STEPS, ui.compact, area_w),
+        open: c.pick_open(),
     };
     for (slot, src) in c.slots.iter().enumerate() {
         cy += key_slot(app, ui, c, &slots, (slot, src), (x, cy, w));
@@ -395,7 +407,28 @@ fn key_slot(
     use crate::create::Source;
     let mut cy = y;
     let label = format!("{} {}", EN.create_key, slot + 1);
-    ui.text_as(x, cy + 4.0, LABEL_L, Role::OnSurface, &label);
+    // The slot the pane at the left is for stands in the selected look (the
+    // secondary container and what is on it, DESIGN §4).
+    let head_h = 28.0;
+    let open = slots.keys_at_left && slots.open == Some(slot) && c.built.is_none();
+    if open {
+        let pad = tokens::GAP_SMALL;
+        ui.fill(
+            x - pad,
+            cy,
+            w + pad + pad,
+            head_h,
+            tokens::SHAPE_S,
+            selected_or(true, Role::Surface),
+        );
+    }
+    ui.text_as(
+        x,
+        cy + 4.0,
+        LABEL_L,
+        on_selected(open, Role::OnSurface),
+        &label,
+    );
     // A key locked in with a passphrase here says so.
     if let Source::Here(fp) = src
         && c.pass_locked.contains(fp)
@@ -430,10 +463,10 @@ fn key_slot(
         ui.text_as(x, cy + 4.0, BODY_M, color, &state);
         0.0
     } else {
-        ui.text_as(x + 70.0, cy + 4.0, BODY_M, color, &state);
+        ui.text_as(x + 70.0, cy + 4.0, BODY_M, on_selected(open, color), &state);
         70.0
     };
-    cy += 28.0;
+    cy += head_h;
     if c.built.is_none() {
         let pass_offered = app.create_pass_offered(slot);
         // The slot's making on the card stands in place of New key.
@@ -483,7 +516,13 @@ fn slot_choices(
         key_files,
         first_empty,
         vaults,
+        keys_at_left,
+        open,
     } = slots;
+    // Where the pane stands, it holds the open slot's keys and ways in; the
+    // Inbox's files and the vaults' keys stay here, for that slot only.
+    let in_pane = *keys_at_left;
+    let for_open = !in_pane || *open == Some(slot);
     let mut cy = y;
     // A key chosen for one slot is offered in no other:
     // clearing the slot
@@ -502,7 +541,7 @@ fn slot_choices(
     };
     // The choices for the slot, wrapped to the card.
     let mut row: Vec<(String, Style, Action)> = Vec::new();
-    for k in &app.session.keys {
+    for k in app.session.keys.all().filter(|_| !in_pane) {
         let fp = k.fingerprint;
         if used_elsewhere_here(fp.0) {
             continue;
@@ -518,7 +557,8 @@ fn slot_choices(
     // A multisig's empty slot makes its key in place beside Scan its xpub
     // (F282): New key is one press away under the making.
     let words_here = c.kind.multi() && *src == Source::Empty;
-    if words_here && !making {
+    let plain = !in_pane && !making;
+    if words_here && plain {
         row.push((
             EN.create_scan_its_xpub.to_string(),
             if *first_empty == Some(slot) {
@@ -533,7 +573,7 @@ fn slot_choices(
             Style::Secondary,
             Action::KeyOnCard(slot as u8),
         ));
-    } else if !making {
+    } else if plain {
         row.push((
             EN.create_new_key.to_string(),
             if *first_empty == Some(slot) {
@@ -544,7 +584,7 @@ fn slot_choices(
             Action::KeyGen(Some(slot as u8)),
         ));
     }
-    for (i, name, text) in key_files {
+    for (i, name, text) in key_files.iter().filter(|_| for_open) {
         if used_elsewhere_cosigner(text) {
             continue;
         }
@@ -554,21 +594,21 @@ fn slot_choices(
             Action::CSlotFile(slot as u8, *i),
         ));
     }
-    if c.kind.multi() && (*src == Source::Later || (*src == Source::Empty && making)) {
+    if !in_pane && c.kind.multi() && (*src == Source::Later || (*src == Source::Empty && making)) {
         row.push((
             EN.create_scan_its_xpub.to_string(),
             Style::Secondary,
             Action::ScanFor(crate::Ask::Xpub(slot as u8 + 1)),
         ));
     }
-    if c.kind.multi() && matches!(src, Source::Empty | Source::Later) {
+    if !in_pane && c.kind.multi() && matches!(src, Source::Empty | Source::Later) {
         row.push((
             EN.create_type_xpub.to_string(),
             Style::chosen(c.xpub_slot == Some(slot as u8)),
             Action::CXpubOpen(slot as u8),
         ));
     }
-    if c.kind.multi() && *src == Source::Empty {
+    if !in_pane && c.kind.multi() && *src == Source::Empty {
         row.push((
             EN.create_someone_else.to_string(),
             Style::Secondary,
@@ -585,6 +625,14 @@ fn slot_choices(
             Action::CPassOpen(slot as u8),
         ));
     }
+    // A filled slot opens its pick again.
+    if *keys_at_left && *src != Source::Empty {
+        row.push((
+            EN.create_change_key.to_string(),
+            Style::Secondary,
+            Action::CSlotPick(slot as u8),
+        ));
+    }
     if *src != Source::Empty {
         row.push((
             EN.create_clear.to_string(),
@@ -594,7 +642,9 @@ fn slot_choices(
     }
     cy += button_rows(ui, x, cy, w, &row) - 44.0;
     cy += 44.0;
-    cy += create_vault_rows(app, ui, vaults, slot, x, cy, w);
+    if for_open {
+        cy += create_vault_rows(app, ui, vaults, slot, x, cy, w);
+    }
     cy - y
 }
 

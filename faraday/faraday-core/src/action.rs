@@ -890,6 +890,8 @@ pub enum Action {
     CoreWallet(crate::core_wallet::tool::CoreWalletAction),
     /// Fill a slot with the account key in an Inbox file.
     CSlotFile(u8, usize),
+    /// Open a filled slot again: the pick at the left is for it.
+    CSlotPick(u8),
     /// Empty a slot.
     CSlotClear(u8),
     /// Open or close the passphrase fields under a slot whose key was
@@ -1880,6 +1882,7 @@ impl Faraday {
             | Action::CSlotHere(..)
             | Action::CSlotFile(..)
             | Action::CSlotLater(..)
+            | Action::CSlotPick(..)
             | Action::CKeyOut(..)
             | Action::CKeyQr(..)
             | Action::CKeyBsms(..)

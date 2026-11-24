@@ -346,8 +346,9 @@ fn a_key_in_one_slot_is_offered_in_no_other_and_clearing_offers_it_again() {
     );
     app.press(Action::CSlotClear(0));
     let _ = app.frame();
+    // Key 1 is empty again and is the slot being picked: its pick offers it.
     assert!(
-        app.offers(Action::CSlotHere(1, fp)),
+        app.offers(Action::CSlotHere(0, fp)),
         "Clear on Key 1 offers it again"
     );
 }
@@ -1763,4 +1764,322 @@ fn shift_tab_in_a_slot_s_passphrase_with_a_stick_attached_keeps_the_line_saying_
     );
     let c = app.create().unwrap();
     assert_eq!((c.pass(), c.pass2()), ("", ""));
+}
+
+// A multisig's cosigner slots: the slot's keys stand in a pane at the left
+// of the card where the pair stands, one slot at a time
+// (docs/WORKSPACE.md §10).
+
+/// A multisig's Keys step on a `w` × `h` window with three keys loaded.
+fn cosigners_on(w: u16, h: u16) -> Faraday {
+    cosigners_with(w, h, &["bacon", "zebra", "summer"])
+}
+
+fn cosigners_with(w: u16, h: u16, words: &[&str]) -> Faraday {
+    let mut app = testkit::started();
+    app.event(Event::Display(faraday_shell_api::DisplayInfo {
+        width: w,
+        height: h,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: faraday_shell_api::SecureHardware::None,
+        boot: faraday_shell_api::BootState::Unknown,
+        memory_mib: None,
+    }));
+    for w in words {
+        add_key(&mut app, w);
+    }
+    app.press(Action::CreateWallet);
+    crate::common::ckind(&mut app, multi_index());
+    app.press(Action::CNext(cstep::KIND));
+    app.press(Action::CNext(cstep::QUORUM));
+    assert_eq!(app.create().unwrap().open, Some(cstep::KEYS));
+    assert_eq!(app.create().unwrap().slots.len(), 3);
+    app
+}
+
+fn kfp(app: &Faraday, i: usize) -> [u8; 4] {
+    app.session.keys.all().nth(i).unwrap().fingerprint.0
+}
+
+fn pane_shows(app: &mut Faraday, text: &str) -> bool {
+    let _ = app.frame();
+    app.drawn_text_boxes().iter().any(|(t, _)| t == text)
+}
+
+#[test]
+fn the_open_slots_keys_stand_in_a_pane_left_of_the_card() {
+    let mut app = cosigners_on(1366, 768);
+    let _ = app.frame();
+    let edge = app
+        .drawn_text_boxes()
+        .into_iter()
+        .filter(|(t, _)| t == "Key 1")
+        .map(|(_, r)| r.0)
+        .min()
+        .expect("the first slot");
+    for i in 0..3 {
+        let (x, _, w, _) = app
+            .hit_box(Action::CSlotHere(0, kfp(&app, i)))
+            .expect("a row");
+        assert!(i32::from(x + w) < edge, "the row ends left of the card");
+    }
+    assert!(pane_shows(&mut app, "Which key for this slot?"));
+    assert!(!pane_shows(&mut app, "Your choices"));
+}
+
+#[test]
+fn a_slot_is_picked_at_a_time_and_a_key_in_another_slot_is_not_offered() {
+    let mut app = cosigners_on(1366, 768);
+    let (a, b) = (kfp(&app, 0), kfp(&app, 1));
+    let _ = app.frame();
+    assert!(!app.offers(Action::CNext(cstep::KEYS)), "Next is off");
+    app.press(Action::CSlotHere(0, a));
+    let _ = app.frame();
+    // The pick is now the second slot's: the first slot's key is not
+    // among its rows, the others are.
+    assert!(app.hit_box(Action::CSlotHere(1, a)).is_none());
+    assert!(app.hit_box(Action::CSlotHere(1, b)).is_some());
+    assert!(app.hit_box(Action::CSlotHere(0, b)).is_none());
+    // A key in another slot stays in the rows, dimmed, with its slot.
+    assert!(pane_shows(&mut app, "In slot 1"));
+    app.press(Action::CSlotHere(1, b));
+    app.press(Action::CSlotHere(2, kfp(&app, 2)));
+    let _ = app.frame();
+    assert!(app.offers(Action::CNext(cstep::KEYS)));
+    // Every slot filled: Your choices stand in place of the rows.
+    assert!(pane_shows(&mut app, "Your choices"));
+    assert!(!pane_shows(&mut app, "Which key for this slot?"));
+}
+
+#[test]
+fn opening_a_filled_slot_again_opens_its_pick_and_changes_that_slot_only() {
+    let mut app = cosigners_on(1366, 768);
+    let keys: Vec<[u8; 4]> = (0..3).map(|i| kfp(&app, i)).collect();
+    for (s, k) in keys.iter().enumerate() {
+        app.press(Action::CSlotHere(s as u8, *k));
+    }
+    let _ = app.frame();
+    assert!(!pane_shows(&mut app, "Which key for this slot?"));
+    app.press(Action::CSlotPick(1));
+    assert!(pane_shows(&mut app, "Which key for this slot?"));
+    // Slot 1's pick offers its own key, not the others' in slots 0 and 2.
+    assert!(app.hit_box(Action::CSlotHere(1, keys[1])).is_some());
+    assert!(app.hit_box(Action::CSlotHere(1, keys[0])).is_none());
+    assert!(app.hit_box(Action::CSlotHere(1, keys[2])).is_none());
+    // Slot 0 clears; slot 1 is opened again and takes the freed key.
+    app.press(Action::CSlotClear(0));
+    app.press(Action::CSlotPick(1));
+    app.press(Action::CSlotHere(1, keys[0]));
+    let c = app.create().unwrap();
+    use faraday_core::create::Source;
+    assert_eq!(c.slots[0], Source::Empty);
+    assert_eq!(c.slots[1], Source::Here(keys[0]));
+    assert_eq!(c.slots[2], Source::Here(keys[2]));
+    // The pick is made: the empty slot is the open one again.
+    let _ = app.frame();
+    assert!(app.hit_box(Action::CSlotHere(0, keys[1])).is_some());
+}
+
+#[test]
+fn on_a_small_panel_the_card_keeps_the_slots_keys() {
+    let mut app = cosigners_on(480, 640);
+    let _ = app.frame();
+    assert!(!pane_shows(&mut app, "Which key for this slot?"));
+    assert!(app.hit_box(Action::CSlotHere(0, kfp(&app, 0))).is_some());
+}
+
+// The ways in of the open slot are rows in the pane too; a key in another
+// slot is dimmed; the slot the pane is for is marked on the card; and the
+// pane never stays for a slot that was filled another way.
+
+#[test]
+fn the_open_slots_ways_in_are_rows_in_a_second_group_of_the_pane() {
+    use faraday_core::Ask;
+    let mut app = cosigners_with(1920, 1080, &["bacon"]);
+    let _ = app.frame();
+    for a in [
+        Action::ScanFor(Ask::Xpub(1)),
+        Action::CXpubOpen(0),
+        Action::CSlotLater(0),
+    ] {
+        assert!(app.offers(a), "{a:?}");
+    }
+    // The first slot's making opens by itself, so its New words is the card's
+    // 12 / 24 words and not a row.
+    assert!(!app.offers(Action::KeyOnCard(0)));
+    // Not the card's: the other slots' ways in are not offered yet.
+    assert!(!app.offers(Action::CSlotLater(1)));
+    assert!(pane_shows(&mut app, "Other ways in"));
+    app.press(Action::CSlotLater(0));
+    let _ = app.frame();
+    assert!(app.offers(Action::CSlotLater(1)));
+    assert!(app.offers(Action::CXpubOpen(1)));
+}
+
+#[test]
+fn with_no_key_held_the_pane_holds_the_ways_in_only() {
+    let mut app = testkit::started();
+    app.event(Event::Display(faraday_shell_api::DisplayInfo {
+        width: 1366,
+        height: 768,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: faraday_shell_api::SecureHardware::None,
+        boot: faraday_shell_api::BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.press(Action::CreateWallet);
+    crate::common::ckind(&mut app, multi_index());
+    app.press(Action::CNext(cstep::KIND));
+    app.press(Action::CNext(cstep::QUORUM));
+    let _ = app.frame();
+    assert!(pane_shows(&mut app, "Ways in"));
+    assert!(!pane_shows(&mut app, "Other ways in"));
+    assert!(app.offers(Action::CSlotLater(0)));
+}
+
+#[test]
+fn when_every_held_key_stands_in_another_slot_the_rows_are_dimmed_and_the_ways_in_stand() {
+    let mut app = cosigners_with(1366, 768, &["bacon", "zebra"]);
+    let keys: Vec<[u8; 4]> = (0..2).map(|i| kfp(&app, i)).collect();
+    app.press(Action::CSlotHere(0, keys[0]));
+    app.press(Action::CSlotHere(1, keys[1]));
+    let _ = app.frame();
+    // The pane is for slot 3: both rows are dimmed, with their slots.
+    for k in &keys {
+        assert!(app.hit_box(Action::CSlotHere(2, *k)).is_none());
+    }
+    assert!(pane_shows(&mut app, "In slot 1"));
+    assert!(pane_shows(&mut app, "In slot 2"));
+    // Its ways in stand.
+    assert!(app.offers(Action::CSlotLater(2)));
+    assert!(app.offers(Action::KeyOnCard(2)));
+}
+
+#[test]
+fn the_card_marks_the_open_slot() {
+    use faraday_draw::canvas::InkKind;
+    let mut app = cosigners_on(1366, 768);
+    for s in 0..3u8 {
+        let k = kfp(&app, usize::from(s));
+        app.press(Action::CSlotHere(s, k));
+    }
+    app.press(Action::CSlotPick(1));
+    let _ = app.frame();
+    let ink = |app: &mut Faraday, t: &str| {
+        app.drawn_ink().into_iter().find_map(|i| match i.kind {
+            InkKind::Text { text, color, .. } if text == t => Some(format!("{color:?}")),
+            _ => None,
+        })
+    };
+    let (one, two, three) = (
+        ink(&mut app, "Key 1"),
+        ink(&mut app, "Key 2"),
+        ink(&mut app, "Key 3"),
+    );
+    assert!(two.is_some() && one.is_some());
+    assert_ne!(two, one, "Key 2 stands in the selected look");
+    assert_eq!(one, three);
+    // After Change on slot 1 (Key 1), the mark moves with it.
+    app.press(Action::CSlotPick(0));
+    let _ = app.frame();
+    let (one, two) = (ink(&mut app, "Key 1"), ink(&mut app, "Key 2"));
+    assert_ne!(one, two);
+    assert_eq!(two, three);
+}
+
+/// Slot 0 empty, slots 1 and 2 filled, slot `k` opened again: the pane is
+/// for slot `k`.
+fn reopened(k: u8) -> Faraday {
+    let mut app = cosigners_on(1366, 768);
+    let (b, c) = (kfp(&app, 1), kfp(&app, 2));
+    app.press(Action::CSlotHere(1, b));
+    app.press(Action::CSlotHere(2, c));
+    app.press(Action::CSlotPick(k));
+    assert_eq!(pane_for(&mut app), Some(k));
+    app
+}
+
+/// The slot the pane offers keys for.
+fn pane_for(app: &mut Faraday) -> Option<u8> {
+    let _ = app.frame();
+    let keys: Vec<[u8; 4]> = app.session.keys.all().map(|k| k.fingerprint.0).collect();
+    (0..3u8).find(|s| {
+        keys.iter()
+            .any(|k| app.hit_box(Action::CSlotHere(*s, *k)).is_some())
+    })
+}
+
+#[test]
+fn a_slot_left_for_someone_else_ends_its_reopened_pick() {
+    let mut app = reopened(2);
+    app.press(Action::CSlotLater(2));
+    assert_eq!(pane_for(&mut app), Some(0));
+}
+
+#[test]
+fn clearing_a_reopened_slot_ends_its_pick() {
+    let mut app = reopened(2);
+    app.press(Action::CSlotClear(2));
+    assert_eq!(pane_for(&mut app), Some(0));
+}
+
+#[test]
+fn a_file_filling_a_reopened_slot_ends_its_pick() {
+    let mut app = cosigners_on(1366, 768);
+    let key = testkit::key(2, "48h/1h/0h/2h");
+    app.storage(faraday_core::StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![(faraday_text::Text::of("k.txt"), key.into_bytes())]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    let (b, c) = (kfp(&app, 1), kfp(&app, 2));
+    app.press(Action::CSlotHere(1, b));
+    app.press(Action::CSlotHere(2, c));
+    app.press(Action::CSlotPick(2));
+    app.press(Action::CSlotFile(2, 0));
+    assert!(matches!(
+        app.create().unwrap().slots[2],
+        faraday_core::create::Source::Cosigner(_)
+    ));
+    assert_eq!(pane_for(&mut app), Some(0));
+}
+
+#[test]
+fn a_typed_xpub_filling_a_reopened_slot_ends_its_pick() {
+    let mut app = reopened(2);
+    app.press(Action::CXpubOpen(2));
+    type_text(&mut app, &testkit::key(2, "48h/1h/0h/2h"));
+    app.press(Action::CXpubTake);
+    assert!(matches!(
+        app.create().unwrap().slots[2],
+        faraday_core::create::Source::Cosigner(_)
+    ));
+    assert_eq!(pane_for(&mut app), Some(0));
+}
+
+#[test]
+fn a_change_of_quorum_ends_a_reopened_pick() {
+    let mut app = reopened(1);
+    app.press(Action::CN(-1));
+    assert_eq!(app.create().unwrap().slots.len(), 2);
+    assert_eq!(pane_for(&mut app), Some(0));
+}
+
+#[test]
+fn a_change_of_kind_ends_a_reopened_pick() {
+    let mut app = reopened(1);
+    let nested = NewKind::ALL
+        .iter()
+        .position(|k| *k == NewKind::MultiNested)
+        .unwrap() as u8;
+    app.press(Action::CKind(nested));
+    assert_eq!(pane_for(&mut app), Some(0));
 }
