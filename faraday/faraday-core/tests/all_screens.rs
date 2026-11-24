@@ -135,6 +135,8 @@ mod select;
 mod selftest;
 #[path = "all/settings_columns.rs"]
 mod settings_columns;
+#[path = "all/settings_tile.rs"]
+mod settings_tile;
 #[path = "all/sheet_pdf_read_back.rs"]
 mod sheet_pdf_read_back;
 #[path = "all/sidebar.rs"]

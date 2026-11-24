@@ -1584,6 +1584,18 @@ pub(super) fn section(
     title: &str,
     draw: &dyn Fn(&mut Ui, f32, f32, f32) -> f32,
 ) -> f32 {
+    section_on(ui, (x, y, w), Role::SurfaceContainerLow, title, draw)
+}
+
+/// [`section`] filled with `fill`: the tonal group card inside a tile
+/// (`SurfaceContainer`, as Tools' cards) or the card on a page.
+pub(super) fn section_on(
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    fill: Role,
+    title: &str,
+    draw: &dyn Fn(&mut Ui, f32, f32, f32) -> f32,
+) -> f32 {
     let (ix, iw) = (x + 14.0, w - 28.0);
     let inner = crate::compact::screen::measured(ui, |ui| draw(ui, ix, y + 44.0, iw));
     let h = 44.0 + inner + 12.0;
@@ -1591,7 +1603,15 @@ pub(super) fn section(
     if !ui.shows(y, h) {
         return taken;
     }
-    ui.card(x, y, w, h, Role::OutlineVariant);
+    ui.fill(x, y, w, h, faraday_draw::tokens::SHAPE_M, fill);
+    ui.stroke(
+        x,
+        y,
+        w,
+        h,
+        faraday_draw::tokens::SHAPE_M,
+        Role::OutlineVariant,
+    );
     ui.text_as(ix, y + 16.0, TITLE_M, Role::OnSurface, title);
     draw(ui, ix, y + 44.0, iw);
     taken

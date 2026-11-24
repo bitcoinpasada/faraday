@@ -28,12 +28,6 @@ pub(crate) enum Body<'a> {
     /// Something the page draws across its width from `at`, `w` wide,
     /// returning its height.
     Block(BlockFn<'a>),
-    /// Cards of different heights (`docs/MENU-PAGE.md` §6), each drawn in
-    /// the width it is given and returning its height: stacked in one
-    /// column, or in two where the page holds two, divided where the
-    /// columns' heights come out closest, kept until the width, scale
-    /// or text size changes (owner, 2026-11-21).
-    Cards(Vec<BlockFn<'a>>),
 }
 
 /// An optional label over one body.
@@ -48,15 +42,6 @@ impl<'a> Section<'a> {
         Self {
             label,
             body: Body::Tiles(faces),
-        }
-    }
-
-    /// Cards under `label`, in the order they read down the first column
-    /// and then the second.
-    pub fn cards(label: Option<&'a str>, cards: Vec<BlockFn<'a>>) -> Self {
-        Self {
-            label,
-            body: Body::Cards(cards),
         }
     }
 
@@ -264,7 +249,7 @@ pub(crate) fn draw(
 /// sections of tiles is a set of section cards (`docs/MENU-PAGE.md` §4).
 /// Returns their height.
 pub(super) fn sections_height(
-    app: &View,
+    _app: &View,
     ui: &mut Ui,
     (x, y): (f32, f32),
     width: f32,
@@ -294,10 +279,6 @@ pub(super) fn sections_height(
         used += match &s.body {
             Body::Tiles(_) => 0.0,
             Body::Block(draw) => draw(ui, (x, y + used), width),
-            Body::Cards(cards) => {
-                let columns = grid(width, page.most_columns).per.min(2);
-                draw_cards(app, ui, (x, y + used, width), cards, columns)
-            }
         };
         i += 1;
     }
@@ -308,7 +289,7 @@ pub(super) fn sections_height(
 fn faces<'a, 'b>(s: &'b Section<'a>) -> &'b [Face<'a>] {
     match &s.body {
         Body::Tiles(f) => f,
-        Body::Block(_) | Body::Cards(_) => &[],
+        Body::Block(_) => &[],
     }
 }
 
@@ -536,7 +517,7 @@ fn column_starts(heights: &[f32], columns: usize) -> Vec<usize> {
 /// card whose height drawn differs from the one kept (its content changed)
 /// replaces it, and the next frame divides by it. Returns the height of
 /// the taller column.
-fn draw_cards(
+pub(super) fn draw_cards(
     app: &View,
     ui: &mut Ui,
     (x, y, w): (f32, f32, f32),

@@ -189,6 +189,8 @@ changed, is divided afresh by the next frame. Each card stays reading
 content (`docs/LAYOUT.md` §14): at two columns in `MENU_PAGE_W` it is
 under `COLUMN_MAX`, so `COLUMN_MAX` no longer caps Settings' columns.
 
+On the wide layout Settings' cards stand in one tile of their own, the raised surface of Tools' tile with the cards in it filled `SurfaceContainer` and outlined, the columns divided as above inside the tile's padding (`settings::draw`). A compact window keeps the list of sections.
+
 ## 7. The one-column layouts and the small panel
 
 On every layout where `Ui::compact` is set, the 480 × 640 panel and the

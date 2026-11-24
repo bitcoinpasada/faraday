@@ -1,7 +1,7 @@
 //! `Screen::Settings`: Settings and About.
 
-use super::menu_page::{BlockFn, Page, Section};
-use super::parts::{SECTION_GAP, section, tz_row};
+use super::menu_page::{BlockFn, Page, Section, draw_cards, grid};
+use super::parts::{SECTION_GAP, section_on, tz_row};
 use crate::Action;
 use crate::drawing::View;
 use crate::stick::settings_choice::{MotionSpeed, MotionStyle};
@@ -10,6 +10,7 @@ use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use faraday_draw::tokens::{APPEARANCE_LABEL_GAP, APPEARANCE_LABEL_W, APPEARANCE_ROW_GAP};
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, SEGMENTED_H, TITLE_M};
+use faraday_draw::tokens::{ELEVATION_FAB, PAD, SHAPE_M};
 use faraday_shell_api::Orientation;
 use faraday_ui::parts::wrap_buttons;
 use std::sync::OnceLock;
@@ -156,11 +157,16 @@ fn part_title(p: Part) -> &'static str {
 
 /// Section `p` as a card from (x, y) `w` wide. Returns its height and the
 /// gap under it.
-fn part(app: &View, ui: &mut Ui, p: Part, (x, y, w): (f32, f32, f32)) -> f32 {
+fn part(app: &View, ui: &mut Ui, p: Part, at: (f32, f32, f32)) -> f32 {
+    part_on(app, ui, p, at, Role::SurfaceContainerLow)
+}
+
+/// [`part`] with the card filled `fill`.
+fn part_on(app: &View, ui: &mut Ui, p: Part, (x, y, w): (f32, f32, f32), fill: Role) -> f32 {
     if p == Part::Mode {
-        return mode_card(app, ui, (x, y, w)) + SECTION_GAP;
+        return mode_card(app, ui, (x, y, w), fill) + SECTION_GAP;
     }
-    section(ui, x, y, w, part_title(p), &|ui, x, y0, w| {
+    section_on(ui, (x, y, w), fill, part_title(p), &|ui, x, y0, w| {
         part_body(app, ui, p, (x, y0, w))
     })
 }
@@ -555,16 +561,32 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if crate::panes::settings_listed(app.window()) {
         return listed(app, ui, x0, cw, h);
     }
-    let cards: Vec<BlockFn> = parts()
-        .into_iter()
-        .map(|p| {
-            // The card without the gap `part` leaves under it.
-            Box::new(move |ui: &mut Ui, (x, y): (f32, f32), w: f32| {
-                part(app, ui, p, (x, y, w)) - SECTION_GAP
-            }) as BlockFn
-        })
-        .collect();
-    let sections = [Section::cards(None, cards)];
+    // One tile (`docs/WORKSPACE.md` §9): the raised surface of Tools'
+    // tile, the group cards in it as tonal cards in balanced columns.
+    let tile = |ui: &mut Ui, (x, y): (f32, f32), w: f32| -> f32 {
+        let (ix, iw) = (x + PAD, w - 2.0 * PAD);
+        let columns = grid(iw, 2).columns().clamp(1, 2);
+        let cards: Vec<BlockFn> = parts()
+            .into_iter()
+            .map(|p| {
+                // The card without the gap `part_on` leaves under it.
+                Box::new(move |ui: &mut Ui, (x, y): (f32, f32), w: f32| {
+                    part_on(app, ui, p, (x, y, w), Role::SurfaceContainer) - SECTION_GAP
+                }) as BlockFn
+            })
+            .collect();
+        let inner = crate::menu::measure(ui, &mut |ui| {
+            draw_cards(app, ui, (ix, 0.0, iw), &cards, columns)
+        });
+        let h = inner + 2.0 * PAD;
+        if ui.shows(y, h) {
+            ui.shadow(x, y, w, h, SHAPE_M, ELEVATION_FAB);
+            ui.fill(x, y, w, h, SHAPE_M, Role::SurfaceContainerLow);
+        }
+        draw_cards(app, ui, (ix, y + PAD, iw), &cards, columns);
+        h
+    };
+    let sections = [Section::block(None, tile)];
     let page = Page {
         name: EN.settings_settings,
         back: false,
@@ -645,7 +667,7 @@ fn idle_rows(app: &View) -> Vec<IdleRow> {
 
 /// The card holding the Mode row, which opens the mode sheet. Returns its
 /// height.
-fn mode_card(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+fn mode_card(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), fill: Role) -> f32 {
     use faraday_draw::tokens::MODE_ROW;
     let pad = 22.0;
     let (ix, iw) = (x + pad, w - 2.0 * pad);
@@ -653,7 +675,8 @@ fn mode_card(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     if !ui.shows(y, h) {
         return h;
     }
-    ui.card(x, y, w, h, Role::OutlineVariant);
+    ui.fill(x, y, w, h, SHAPE_M, fill);
+    ui.stroke(x, y, w, h, SHAPE_M, Role::OutlineVariant);
     crate::modes::screen::settings_row(app, ui, ix, y + pad, iw);
     h
 }
