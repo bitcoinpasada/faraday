@@ -2,7 +2,7 @@
 //! as Faraday draws them (`docs/LAYOUT.md` §3, DESIGN §4.1), from
 //! `faraday_ui::nav`. Each reads the state; none works anything out.
 
-use super::{BarTool, MenuPress, Nav, lit_destination};
+use super::{BarTool, MenuPress, Nav, Way, lit_destination};
 use crate::drawing::View;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
@@ -256,6 +256,10 @@ pub(crate) fn app_bar(app: &View, ui: &mut Ui, w: f32, nav: Nav) -> f32 {
             },
             ends,
         );
+        // The narrow rail's bar holds the page's search too.
+        if app.search_in_bar() {
+            crate::screens::bar_search_draw(app, ui, (w, name, ends));
+        }
     }
     actions(ui, &mut right);
     APP_BAR_H
@@ -629,6 +633,51 @@ pub(crate) fn power_menu_sheet(
             shown: 1.0,
         },
     );
+}
+
+/// Home's **Start** menu: New wallet, Restore and Spend from backup, a
+/// popup under the button wherever the button stands, whatever the
+/// window (Material's menu: no title, no icons, rows 48 tall, kept inside
+/// the window).
+pub(crate) fn start_menu_sheet(
+    _app: &View,
+    ui: &mut Ui,
+    w: f32,
+    h: f32,
+    anchor: Option<(i32, i32, i32, i32)>,
+) {
+    use faraday_ui::menu::{Menu, MenuLine};
+    let lines = [
+        MenuLine::Item(
+            EN.home_ways_new_short,
+            Action::NavMenu(MenuPress::Way(Way::New)),
+            false,
+        ),
+        MenuLine::Item(
+            EN.home_ways_restore_short,
+            Action::NavMenu(MenuPress::Way(Way::Restore)),
+            false,
+        ),
+        MenuLine::Item(
+            EN.home_ways_spend_short,
+            Action::NavMenu(MenuPress::Way(Way::Spend)),
+            false,
+        ),
+    ];
+    let m = Menu {
+        title: None,
+        icon: Glyph::Icon(Icon::Wallet),
+        lines: &lines,
+        at: None,
+        anchor,
+        cancel: (EN.nav_close, Action::Cancel),
+        shown: 1.0,
+    };
+    // The popup is the wide window's drawing; the button stands on the
+    // compact ones too.
+    let compact = std::mem::replace(&mut ui.compact, false);
+    faraday_ui::menu::menu(ui, w, h, &m);
+    ui.compact = compact;
 }
 
 /// The ⋮ menu of the top app bar on the bar's windows: Settings, as a

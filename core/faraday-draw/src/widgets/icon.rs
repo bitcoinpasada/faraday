@@ -44,6 +44,9 @@ pub enum Icon {
     ChevronRight,
     /// Chevron pointing up: a collapsible section, the jamo shift key.
     ChevronUp,
+    /// Chevron pointing down: a button that opens a menu under it; the
+    /// up chevron's drawing turned over.
+    ChevronDown,
     /// Home, on the `wide` sidebar.
     House,
     /// Power off, wipe and exit.
@@ -171,7 +174,7 @@ impl Icon {
     /// draws.
     pub const SEARCH: Icon = Icon::Verify;
     /// Every icon, for the gallery and for the completeness test.
-    pub const ALL: [Icon; 69] = [
+    pub const ALL: [Icon; 70] = [
         Icon::Scan,
         Icon::Keys,
         Icon::Sign,
@@ -186,6 +189,7 @@ impl Icon {
         Icon::ChevronLeft,
         Icon::ChevronRight,
         Icon::ChevronUp,
+        Icon::ChevronDown,
         Icon::House,
         Icon::Power,
         Icon::Restart,
@@ -243,6 +247,12 @@ impl Icon {
         Icon::Verified,
     ];
 
+    /// Whether the glyph is drawn turned over (top row last): the down
+    /// chevron is the up chevron's outline so.
+    pub(crate) const fn flipped(self) -> bool {
+        matches!(self, Icon::ChevronDown)
+    }
+
     /// The code point in the baked icon face.
     pub(crate) const fn code_point(self) -> char {
         match self {
@@ -254,7 +264,7 @@ impl Icon {
             Icon::Check => '\u{e905}',
             Icon::ChevronLeft => '\u{e909}',
             Icon::ChevronRight => '\u{e90a}',
-            Icon::ChevronUp => '\u{e90b}',
+            Icon::ChevronUp | Icon::ChevronDown => '\u{e90b}',
             Icon::Power => '\u{e910}',
             Icon::Info => '\u{e912}',
             Icon::Success => '\u{e913}',
@@ -335,6 +345,7 @@ impl Icon {
             Icon::ChevronLeft => "ChevronLeft",
             Icon::ChevronRight => "ChevronRight",
             Icon::ChevronUp => "ChevronUp",
+            Icon::ChevronDown => "ChevronDown",
             Icon::House => "House",
             Icon::Power => "Power",
             Icon::Restart => "Restart",
@@ -418,7 +429,9 @@ mod tests {
     fn code_points_are_unique() {
         for (i, a) in Icon::ALL.iter().enumerate() {
             for b in &Icon::ALL[i + 1..] {
-                assert_ne!(a.code_point(), b.code_point(), "{a:?} and {b:?}");
+                if a.code_point() == b.code_point() {
+                    assert_ne!(a.flipped(), b.flipped(), "{a:?} and {b:?}");
+                }
             }
         }
     }

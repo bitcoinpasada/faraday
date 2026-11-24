@@ -428,6 +428,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
                 | Sheet::AddressFiles
                 | Sheet::FigMenu
         ) && !app.is_compact()
+            // The Start menu is a popup at every size.
+            || matches!(sheet, Sheet::StartMenu(_))
         {
             ui.still();
         } else if matches!(sheet, Sheet::Guide) && app.held {
@@ -544,6 +546,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::GpgSign => crate::vault::screen::gpg_sign_sheet(app, ui, w, h),
             Sheet::Mode => crate::modes::screen::sheet(app, ui, w, h),
             Sheet::Samples => crate::samples::screen::sheet(app, ui, w, h),
+            Sheet::StartMenu(at) => crate::nav::screen::start_menu_sheet(app, ui, w, h, at),
             Sheet::PowerMenu(at) => crate::nav::screen::power_menu_sheet(app, ui, w, h, at),
             Sheet::NavMenu(None) => crate::nav::screen::menu_sheet(app, ui, w, h),
             Sheet::NavMenu(Some(o)) => crate::compact::overflow_sheet(app, ui, w, h, o),

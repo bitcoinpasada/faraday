@@ -315,7 +315,7 @@ impl Band<'_> {
                 let x = rect.x + (rect.w - g.width as i32) / 2;
                 let y = rect.y + (rect.h - g.height as i32) / 2;
                 let dims = (x, y, g.width, g.height);
-                surface::blit_glyph(&mut surf!(), clip, dims, g.bitmap, color);
+                surface::blit_glyph(&mut surf!(), clip, dims, g.bitmap, color, icon.flipped());
             }
             Op::Rounded(r, radius) => self.rounded(r, radius, clip, color),
             Op::StrokeRounded(..)
@@ -415,7 +415,7 @@ impl Band<'_> {
             let gx = ((pen + 32) >> 6) as i32 + g.bearing_x;
             let gy = baseline - g.bearing_y;
             let dims = (gx, gy, g.width, g.height);
-            surface::blit_glyph(&mut surface, clip, dims, g.bitmap, color);
+            surface::blit_glyph(&mut surface, clip, dims, g.bitmap, color, false);
             pen += i64::from(g.advance_64);
         }
     }

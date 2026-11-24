@@ -606,7 +606,8 @@ pub(crate) fn action_h(
     base.max(lines as f32 * ui.line_as(role) + 2.0 * pad)
 }
 
-/// Home's top row from `(x, y)`, `w` wide: the search bar, taking what
+/// Home's top row from `(x, y)`, `w` wide (on a rail window of the compact
+/// class the field and the one **Start** button, by `bar_search::place`): the search bar, taking what
 /// the three tonal buttons (icon and short label, as tall as the bar)
 /// leave, and the buttons after it, each as wide as its icon and label
 /// need. Where the bar would be left under `HOME_SEARCH_MIN` the buttons
@@ -616,6 +617,18 @@ pub(crate) fn action_h(
 pub(super) fn top_row(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     use super::catalog::Bar;
     use faraday_draw::tokens::{GAP, SEARCH_BAR_H};
+    // A rail window of the compact class (400 x 500): the field and the one
+    // **Start** button beside it, as the bar places them.
+    if app.nav() == crate::nav::Nav::Rail {
+        super::bar_search::group(
+            app,
+            ui,
+            (Bar::Home, true, false),
+            ((x, x + w), x + w / 2.0),
+            (y, f32::MAX),
+        );
+        return SEARCH_BAR_H + GAP;
+    }
     let ways = [
         (Icon::Flag, EN.home_ways_new_short, Action::CreateWallet),
         (

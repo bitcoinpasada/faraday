@@ -278,7 +278,17 @@ backup) are text only, with no icons, and stand beside it on Home only. The
 search field shrinks to fit what else the bar shows; there is no second row
 for the pills. The search, with Home's pills, is centred over This
 session's pane; the network chip, ? and power stay in the window's corner.
-This replaces F314's row above the card.
+This replaces F314's row above the card. It stands there on every window
+with a rail from 600 dp wide (`Nav::search_in_bar`); the bottom bar, the
+Pi's panel and a rail window of the compact class (400 x 500) keep the
+page's row. Where the room is short the field shrinks to `HOME_SEARCH_MIN`
+and then the three pills become one **Start** button beside it (its label ends in a down chevron), which opens
+a menu over the page, anchored under the button, with New wallet, Restore and Spend from backup
+(Material's menu: rows 48 tall, no title or icons, as wide as its rows need, inside the window, above the button where it does not fit below; a popup at every window size, not a sheet)
+(`bar_search::place`, the one rule of the bar and of the page's row: on the
+compact rail the row holds the field and the **Start** button). The menu
+closes by Escape, Back, a press outside it and a press on a row. About 1020
+dp and wider keep the three pills.
 
 **In a flow** the pane (the pick, then Your choices) and the step card are
 **one card with an inset divider** (F324): the divider stands at the middle

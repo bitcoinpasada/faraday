@@ -12,7 +12,7 @@ use faraday_draw::widgets::Icon;
 use faraday_text::{Text, text};
 
 use crate::drawing::View;
-use crate::nav::{BarTool, MenuPress, Overflow};
+use crate::nav::{BarTool, MenuPress, Overflow, Way};
 use crate::ui::pal::*;
 use crate::ui::{Glyph, Style, Ui};
 use crate::{Action, Faraday, Screen};
@@ -1893,6 +1893,19 @@ impl Faraday {
                 let me = Action::NavMenu(MenuPress::Power);
                 let anchor = self.pointer.rect_of(me).map(|r| (r.x, r.y, r.w, r.h));
                 self.sheet = Some(crate::Sheet::PowerMenu(anchor));
+            }
+            MenuPress::Start => {
+                let me = Action::NavMenu(MenuPress::Start);
+                let anchor = self.pointer.rect_of(me).map(|r| (r.x, r.y, r.w, r.h));
+                self.sheet = Some(crate::Sheet::StartMenu(anchor));
+            }
+            MenuPress::Way(w) => {
+                self.sheet = None;
+                self.act_inner(match w {
+                    Way::New => Action::CreateWallet,
+                    Way::Restore => Action::RestoreWallet,
+                    Way::Spend => Action::Nav(Screen::SpendBackup),
+                });
             }
             MenuPress::Go(s) => {
                 self.sheet = None;

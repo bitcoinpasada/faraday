@@ -89,6 +89,8 @@ macro_rules! words_screens_home {
     /// A wallet card's line while a key made here waits for its backup.
     home_card_not_backed_up: "Not backed up",
     // ----- home_ways (faraday-core/src/screens/home.rs) -----
+    /// Home's one button that opens the three first actions where they do not stand as pills.
+    home_ways_start: "Start",
     /// Text in `home_ways`.
     home_ways_make_a_new: "Make a new wallet",
     /// Text in `home_ways`.

@@ -32,6 +32,13 @@ pub(crate) fn home_search_tour(t: &mut Tour) -> Result<(), String> {
         return Ok(());
     };
     t.shot("home-search-empty")?;
+    // Where the three first actions stand as one Start button, its menu.
+    let start = Action::NavMenu(faraday_core::nav::MenuPress::Start);
+    if t.app.hit_box(start).is_some() {
+        t.press(start);
+        t.shot("home-search-start")?;
+        t.press(Action::Cancel);
+    }
     t.app.event(Event::Hover {
         x: x + w / 2,
         y: y + h / 2,

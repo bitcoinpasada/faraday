@@ -344,6 +344,7 @@ pub(crate) fn blit_glyph(
     (x, y, w, h): (i32, i32, usize, usize),
     bitmap: Coverage<'_>,
     color: Color,
+    flip: bool,
 ) {
     if w == 0 || h == 0 || color.a == 0 {
         return;
@@ -362,6 +363,7 @@ pub(crate) fn blit_glyph(
     );
     for py in clip.y..clip.bottom() {
         let row = (py - y) as usize;
+        let row = if flip { h - 1 - row } else { row };
         let line = s.row_mut(py);
         for px in clip.x..clip.right() {
             let cov = u32::from(bitmap.get(row * w + (px - x) as usize));

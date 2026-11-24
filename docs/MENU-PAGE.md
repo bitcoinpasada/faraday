@@ -71,7 +71,7 @@ for four of them and `Area::Work` for Settings.
 ## 3. The search bar's place
 
 Where a page has it (Home, Tools): Material's search bar
-(`home_search_bar`, `SEARCH_BAR_H`), 48 dp tall; on the wide layout it stands in the top app bar itself
+(`home_search_bar`, `SEARCH_BAR_H`), 48 dp tall; on a window with a rail from 600 dp wide it stands in the top app bar itself
 (`screens/bar_search.rs`), centred over the page's centre line where the
 bar has room, at most `LEAD_MAX` wide and shrinking to what the page's
 name, Home's three text-only pills and the bar's actions leave; the page

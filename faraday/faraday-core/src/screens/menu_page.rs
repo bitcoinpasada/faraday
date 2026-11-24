@@ -206,9 +206,9 @@ pub(crate) fn draw(
     let (x, width) = page_span(compact, x0, cw);
     // On the wide layout the search stands in the top app bar
     // (`screens::bar_search`), so the page draws none.
-    let in_bar = !compact && page.search.is_some();
+    let in_bar = app.search_in_bar() && page.search.is_some();
     let search_bar = page.search.filter(|_| !in_bar);
-    let ways = compact && page.ways && page.search == Some(Bar::Home);
+    let ways = compact && !in_bar && page.ways && page.search == Some(Bar::Home);
     let search = |ui: &mut Ui, y: f32, page_top: Option<f32>| {
         if ways {
             return super::home::top_row(app, ui, (x, y, width));

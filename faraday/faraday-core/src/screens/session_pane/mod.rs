@@ -30,7 +30,14 @@ use rows::{Group, compact_rows, groups};
 /// wide at `(x, y)`, whole (it does not scroll within). Returns its
 /// height.
 pub(crate) fn stacked_card(app: &View, ui: &mut Ui, (x, y): (f32, f32), w: f32) -> f32 {
-    pane_card(ui, (x, y), w, (None, 0.0), &groups(app))
+    pane_card(
+        app.search_in_bar(),
+        ui,
+        (x, y),
+        w,
+        (None, 0.0),
+        &groups(app),
+    )
 }
 
 /// One row of the pane: its leading icon, its headline, the line under it
@@ -268,6 +275,7 @@ fn columns(ui: &Ui, inner: f32, groups: &[Group]) -> (Vec<Vec<usize>>, f32, Vec<
 /// scrolls within itself, as one, when the window is short. Nothing loaded:
 /// one line. Returns its height with the gap.
 fn pane_card(
+    in_bar: bool,
     ui: &mut Ui,
     (x, y): (f32, f32),
     w: f32,
@@ -278,7 +286,7 @@ fn pane_card(
     let cx = x + (w - cw) / 2.0;
     // Under the search row on the one-column layouts; on the wide layout
     // the search is in the top bar and the card starts where a page's content does.
-    let gap = if ui.compact { HOME_CARD_GAP } else { 0.0 };
+    let gap = if in_bar { 0.0 } else { HOME_CARD_GAP };
     let top = y + gap;
     let head_h = ui.line_as(HOME_CARD_HEAD);
     let inner = cw - 2.0 * PAD;
@@ -354,8 +362,9 @@ pub(crate) fn loaded_sections(
     let offset = app.scroll.home_box_offset();
     if !app.compact {
         let groups = groups(app);
+        let in_bar = app.search_in_bar();
         return vec![Section::block(None, move |ui, (x, y), w| {
-            pane_card(ui, (x, y), w, (window, offset), &groups)
+            pane_card(in_bar, ui, (x, y), w, (window, offset), &groups)
         })];
     }
     let (mut rest, keys, all_keys) = compact_rows(app, lead.as_ref());

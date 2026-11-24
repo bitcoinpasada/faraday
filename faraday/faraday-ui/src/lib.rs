@@ -1991,7 +1991,16 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         let y = y - (grown - h) / 2.0;
         let r = faraday_draw::tokens::shape_full(grown);
         let size = faraday_draw::tokens::LABEL_L.size;
-        self.button_drawn((x, y, w, grown, r), size, label, style, action, None, None)
+        self.button_drawn(
+            (x, y, w, grown, r),
+            size,
+            label,
+            style,
+            action,
+            None,
+            None,
+            false,
+        )
     }
 
     /// [`Ui::button`] with `icon` before its label, as Material's
@@ -2021,6 +2030,33 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             action,
             None,
             Some(icon),
+            false,
+        )
+    }
+
+    /// [`Ui::button_icon`] with the icon after its label: a button that
+    /// opens a menu under it, with the down chevron. Returns its width.
+    pub fn button_icon_after(
+        &mut self,
+        (x, y, w, h): (f32, f32, Option<f32>, f32),
+        icon: Icon,
+        label: &str,
+        style: Style,
+        action: A,
+    ) -> f32 {
+        let grown = self.button_height(h);
+        let y = y - (grown - h) / 2.0;
+        let r = faraday_draw::tokens::shape_full(grown);
+        let size = faraday_draw::tokens::LABEL_L.size;
+        self.button_drawn(
+            (x, y, w, grown, r),
+            size,
+            label,
+            style,
+            action,
+            None,
+            Some(icon),
+            true,
         )
     }
 
@@ -2059,7 +2095,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         // A key keeps its size whatever the text size: the keyboards
         // and pads are set by what must fit on the panel.
         let size = faraday_draw::tokens::key_label(at.3);
-        self.fixed_text(|ui| ui.button_drawn(at, size, label, style, action, None, None))
+        self.fixed_text(|ui| ui.button_drawn(at, size, label, style, action, None, None, false))
     }
 
     /// [`Ui::button_in`] for a key of the on-screen keyboard: it shows
@@ -2082,6 +2118,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
                 action,
                 Some(Unpressed::Keyboard),
                 None,
+                false,
             )
         })
     }
@@ -2115,6 +2152,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         action: A,
         unpressed: Option<Unpressed>,
         icon: Option<Icon>,
+        after: bool,
     ) -> f32 {
         use faraday_draw::tokens::{BUTTON_PAD, ICON_GAP, ICON_GLYPH_BUTTON};
         let weight = W::S;
@@ -2134,6 +2172,9 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         } else {
             0.0
         };
+        // The label's start past the button's content start: after an icon
+        // that stands before it, none where the icon follows.
+        let lead = if after { 0.0 } else { tick };
         let tw = self.measure(size, weight, label);
         let width = w.unwrap_or(tw + 2.0 * BUTTON_PAD + tick);
         let faint = Role::OnSurface.at(faraday_draw::tokens::DISABLED_CONTAINER);
@@ -2181,18 +2222,20 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
                 let lx = x + (width - tw - tick) / 2.0;
                 if let Some(mark) = mark {
                     let iy = y + (h - ICON_GLYPH_BUTTON) / 2.0;
-                    ui.icon(lx, iy, ICON_GLYPH_BUTTON, mark, ICON_GLYPH_BUTTON, fg);
+                    let ix = if after { lx + tw + ICON_GAP } else { lx };
+                    ui.icon(ix, iy, ICON_GLYPH_BUTTON, mark, ICON_GLYPH_BUTTON, fg);
                 }
-                ui.text_mid(lx + tick, y, h, size, weight, fg, &shown);
+                ui.text_mid(lx + lead, y, h, size, weight, fg, &shown);
                 width
             });
         }
         let lx = x + (width - tw - tick) / 2.0;
         if let Some(mark) = mark {
             let iy = y + (h - ICON_GLYPH_BUTTON) / 2.0;
-            self.icon(lx, iy, ICON_GLYPH_BUTTON, mark, ICON_GLYPH_BUTTON, fg);
+            let ix = if after { lx + tw + ICON_GAP } else { lx };
+            self.icon(ix, iy, ICON_GLYPH_BUTTON, mark, ICON_GLYPH_BUTTON, fg);
         }
-        self.text_mid(lx + tick, y, h, size, weight, fg, label);
+        self.text_mid(lx + lead, y, h, size, weight, fg, label);
         width
     }
 

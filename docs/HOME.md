@@ -233,7 +233,7 @@ and no small line, always stacked: **Make a new wallet**, **Restore an
 existing wallet** and **Spend from a backup**. The Pi's menu has none.
 
 The search bar shows the search icon and the word "Search", on every
-layout but the Pi's menu. It stands in the top app bar, 48 dp tall, on the wide layout, and is the first thing in the top row on the rail's windows, and stays where it is while the page under it scrolls. On the phone-size
+layout but the Pi's menu. It stands in the top app bar, 48 dp tall, on every window with a rail from 600 dp wide, with the three first actions as pills beside it from about 1020 dp and as one **Start** button (a down chevron after its label) that opens a menu of the three under it, a popup at every window size, below that (on a rail window of the compact class the field and the button stand in the page's row), and stays where it is while the page under it scrolls. On the phone-size
 window it is directly under the box of what is loaded and, where the
 window leaves room for about three rows of results (`home_pinned`), stays
 too; else the whole page scrolls as one. On every layout with the bar,

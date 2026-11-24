@@ -17,11 +17,27 @@ pub enum MenuPress {
     Open(Option<Overflow>),
     /// Opens the power button's menu: Lock, Restart and Power off.
     Power,
+    /// Opens Home's **Start** menu: New wallet, Restore and Spend from backup.
+    Start,
+    /// One of Home's three first actions chosen in that menu: it closes and
+    /// does what the pill does.
+    Way(Way),
     /// A screen chosen in it: it closes and goes there.
     Go(Screen),
     /// A tool of the bar chosen in its overflow: it closes and the tool
     /// does what its button on the bar does.
     Tool(BarTool),
+}
+
+/// Home's three first actions, as the **Start** menu lists them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Way {
+    /// **New wallet**.
+    New,
+    /// **Restore**.
+    Restore,
+    /// **Spend from backup**.
+    Spend,
 }
 
 /// The tools a compact top app bar puts in its overflow menu when they
@@ -116,6 +132,19 @@ impl Nav {
             Nav::Bar
         } else {
             Nav::Rail
+        }
+    }
+
+    /// Whether a page's search, and Home's first actions, stand in the top
+    /// app bar: on the expanded rail, and on the rail from the medium class
+    /// up (600 dp wide); a rail window of the compact class (400 x 500) and
+    /// the bottom bar and the Pi's menu keep the page's own row. The one
+    /// place that chooses.
+    pub fn search_in_bar(self, window: &Window) -> bool {
+        match self {
+            Nav::ExpandedRail => true,
+            Nav::Rail => window.class() != WindowClass::Compact,
+            Nav::Menu | Nav::Bar => false,
         }
     }
 

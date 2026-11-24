@@ -1278,6 +1278,7 @@ impl Canvas {
                     (gx, gy, g.width, g.height),
                     g.bitmap,
                     color,
+                    false,
                 );
             }
             pen += i64::from(g.advance_64);
@@ -1329,6 +1330,7 @@ impl Canvas {
                 (x, y, g.width, g.height),
                 g.bitmap,
                 color,
+                icon.flipped(),
             );
         }
         self.damaged(inked);

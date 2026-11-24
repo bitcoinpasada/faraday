@@ -1543,7 +1543,11 @@ impl Faraday {
             Action::Back if self.sheet == Some(Sheet::Choices) => {
                 self.choices_act(ChoicesPress::Close);
             }
-            Action::Back if matches!(self.sheet, Some(Sheet::OtherForms(_))) => self.sheet = None,
+            Action::Back
+                if matches!(self.sheet, Some(Sheet::OtherForms(_) | Sheet::StartMenu(_))) =>
+            {
+                self.sheet = None;
+            }
             Action::Back => self.back(),
             Action::Own(a) => self.own_press(a),
             Action::Resume(g) => self.flow_resume(g),

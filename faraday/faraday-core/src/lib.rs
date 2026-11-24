@@ -620,6 +620,9 @@ pub enum Sheet {
     /// (Lock and Quit in the desktop app), a popup under the button (its
     /// place in pixels) where there is room.
     PowerMenu(Option<(i32, i32, i32, i32)>),
+    /// Home's **Start** menu: New wallet, Restore and Spend from backup, a
+    /// popup under the button (its place in pixels) where there is room.
+    StartMenu(Option<(i32, i32, i32, i32)>),
     /// New key's Length card's Other: the menu of 15, 18 and 21 words (`keygen/screen.rs`).
     KeyLengths,
     /// Check an address's From a file: the menu of text files in Files (`address_check/screen.rs`).

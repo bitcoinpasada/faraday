@@ -385,6 +385,12 @@ impl Faraday {
         crate::nav::Nav::of(&self.layout_window(), self.held, self.compact)
     }
 
+    /// Whether a page's search, and Home's first actions, stand in the top
+    /// app bar ([`crate::nav::Nav::search_in_bar`]). A lookup.
+    pub(crate) fn search_in_bar(&self) -> bool {
+        self.nav().search_in_bar(&self.layout_window())
+    }
+
     /// The window the layout is chosen for (`docs/TEXT-SIZE.md` §4): its
     /// size in dp, with the Display scale counted ([`Faraday::window`]),
     /// divided by the text size's factor, so larger text takes the

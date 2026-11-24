@@ -209,7 +209,7 @@ fn sheets() -> Vec<Sheet> {
         BoardPartials, BoardMenu, SeedRead, KefRead, Delete, Zeroing, Taken, NameTaken, TextSeed, Devices, VaultSave,
         CancelFlow(Going::Create), CancelKey, Choices, FileMenu, Rename, Details, UnlockLoad, SignerSeed, SaveAlso, CopyTo, SaveKeeps, Trim, OlderCopy,
         ChildRecord, GpgTile, ChildNotice,
-        PassphraseSeeds, GpgSign, Mode, Samples, NavMenu(None), PowerMenu(None), KeyLengths, WalletConfirm, Account, Register,
+        PassphraseSeeds, GpgSign, Mode, Samples, NavMenu(None), PowerMenu(None), StartMenu(None), KeyLengths, WalletConfirm, Account, Register,
         GpgRestore, FigMenu, LaterAsk, StickSheet, KefOptions, OtherForms(Opening::AddAKey), VaultPassphrase, VaultMemory,
         Sweep, KeyFile, OutboxDelete, Published, MadeWallet, CheckBackups, CheckBackupsOther, AddressFiles, QuickTemplate);
     // A compact bar's overflow menu, holding every tool it can.

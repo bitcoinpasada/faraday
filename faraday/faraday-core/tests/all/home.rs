@@ -6,6 +6,7 @@
 //! Home's Scan takes a seed to Add a key, and anything else where it
 //! went before.
 
+use faraday_core::nav::{MenuPress, Way};
 use faraday_core::testkit::{KindText, Plain};
 use faraday_core::{Action, Faraday, OskPress, Screen, Sheet, StickInfo, StorageEvent};
 use faraday_shell_api::{App, Command, DisplayInfo, Event, TouchPhase};
@@ -1196,17 +1197,105 @@ fn a_wallet_with_a_psbt_to_sign_is_home_s_lead_and_sign_opens_its_spend() {
     assert!(app.spend().is_some());
 }
 
-/// With a wallet loaded each first action still opens its flow, on the
-/// wide layout and on the rail's windows.
+/// With a wallet loaded each first action still opens its flow: as a pill
+/// on the wide layout and at 1024 wide, through the Start menu on the
+/// rail's narrower windows.
 #[test]
 fn with_a_wallet_loaded_each_first_action_opens_its_flow() {
     let flows = [Screen::Create, Screen::Restore, Screen::SpendBackup];
-    for (width, height) in [(1280, 800), (720, 900)] {
-        for (action, screen) in FIRST.into_iter().zip(flows) {
+    for (action, screen) in FIRST.into_iter().zip(flows) {
+        let mut app = short_with_a_wallet(1280, 800);
+        tap(&mut app, action);
+        assert_eq!(app.screen, screen, "1280x800 {action:?}");
+    }
+    for (width, height) in [(900, 700), (720, 900), (400, 500)] {
+        for (way, screen) in WAYS.into_iter().zip(flows) {
             let mut app = short_with_a_wallet(width, height);
-            tap(&mut app, action);
-            assert_eq!(app.screen, screen, "{width}x{height} {action:?}");
+            tap(&mut app, Action::NavMenu(MenuPress::Start));
+            tap(&mut app, Action::NavMenu(MenuPress::Way(way)));
+            assert_eq!(app.screen, screen, "{width}x{height} {way:?}");
         }
+    }
+}
+
+const WAYS: [Way; 3] = [Way::New, Way::Restore, Way::Spend];
+
+/// On a rail window under 1020 wide the Start menu closes by Escape, by a
+/// press outside it and by Back, and is drawn again by the button.
+#[test]
+fn the_start_menu_closes_by_escape_back_and_a_press_outside() {
+    let row = Action::NavMenu(MenuPress::Way(Way::New));
+    for (width, height) in [(900, 700), (400, 500)] {
+        let mut app = short_with_a_wallet(width, height);
+        tap(&mut app, Action::NavMenu(MenuPress::Start));
+        assert!(app.offers(row), "{width}x{height} opens");
+        app.event(Event::Key(faraday_shell_api::Key::Escape));
+        let _ = app.frame();
+        assert!(!app.offers(row), "{width}x{height} Escape");
+        tap(&mut app, Action::NavMenu(MenuPress::Start));
+        app.press(Action::Back);
+        let _ = app.frame();
+        assert!(!app.offers(row), "{width}x{height} Back");
+        tap(&mut app, Action::NavMenu(MenuPress::Start));
+        for phase in [TouchPhase::Down, TouchPhase::Up] {
+            app.event(Event::Touch {
+                x: 2,
+                y: height - 2,
+                phase,
+            });
+        }
+        let _ = app.frame();
+        assert!(!app.offers(row), "{width}x{height} outside");
+        assert_eq!(app.screen, Screen::Home, "{width}x{height}");
+    }
+}
+
+/// The Start menu is a menu over the page: at 400x500 and 900x700 each of
+/// its rows is in the window whole and 48 tall.
+#[test]
+fn the_start_menu_rows_are_whole_in_the_window_and_48_tall() {
+    for (width, height) in [(900u16, 700u16), (400, 500)] {
+        let mut app = short_with_a_wallet(width, height);
+        tap(&mut app, Action::NavMenu(MenuPress::Start));
+        for way in WAYS {
+            let row = Action::NavMenu(MenuPress::Way(way));
+            let (x, y, w, h) = app.hit_box(row).expect("row");
+            assert_eq!(h, 48, "{width}x{height} {way:?} height");
+            assert!(
+                x + w <= width && y + h <= height,
+                "{width}x{height} {way:?} inside: {x},{y} {w}x{h}"
+            );
+        }
+    }
+}
+
+/// At 400 by 500 the search and the Start button are reachable.
+#[test]
+fn at_400_by_500_the_search_and_the_start_button_are_reachable() {
+    let mut app = short_with_a_wallet(400, 500);
+    for a in [
+        Action::TypeHere(faraday_core::edit::Here::HomeFind),
+        Action::NavMenu(MenuPress::Start),
+    ] {
+        assert!(scrolled_to(&mut app, 400, 500, a), "{a:?}");
+    }
+    let (_, _, w, h) = app.hit_box(Action::NavMenu(MenuPress::Start)).unwrap();
+    assert!(w >= 48 && h >= 48, "{w}x{h}");
+}
+
+/// Between 600 and 1020 wide the search and the one Start button stand in
+/// the bar, side by side and under it.
+#[test]
+fn between_600_and_1020_wide_the_search_and_start_stand_in_the_bar_apart() {
+    for width in [600, 720, 900, 1000] {
+        let app = loaded(2, 0, width, 800);
+        let a = app
+            .hit_box(Action::TypeHere(faraday_core::edit::Here::HomeFind))
+            .unwrap();
+        let b = app.hit_box(Action::NavMenu(MenuPress::Start)).unwrap();
+        assert!(a.1 + a.3 <= 64 && b.1 + b.3 <= 64, "{width}: {a:?} {b:?}");
+        assert!(a.0 + a.2 <= b.0, "{width}: {a:?} overlaps {b:?}");
+        assert!(a.2 >= 200 || width < 700, "{width}: field {}", a.2);
     }
 }
 
@@ -1287,15 +1376,19 @@ fn a_search_typed_on_the_wide_home_takes_the_page_and_clearing_it_brings_the_res
         let rest: Vec<Action> = if width > 1000 {
             vec![Action::CreateWallet, key]
         } else {
-            vec![Action::CreateWallet, Action::Nav(Screen::Backups), key]
+            vec![
+                Action::NavMenu(MenuPress::Start),
+                Action::Nav(Screen::Backups),
+                key,
+            ]
         };
         for &a in &rest {
             assert!(app.offers(a), "{width}: {a:?}");
         }
         type_on_home(&mut app, "send");
         // The top row stays while the results take the page.
-        assert!(app.offers(Action::CreateWallet), "{width}: the row stays");
-        for &a in rest.iter().filter(|&&a| a != Action::CreateWallet) {
+        assert!(app.offers(rest[0]), "{width}: the row stays");
+        for &a in &rest[1..] {
             assert!(!app.offers(a), "{width}: {a:?} is gone while typed");
         }
         assert!(app.where_offered(Action::Catalog(sign_tile())).is_some());
@@ -2412,4 +2505,39 @@ fn home_s_top_bar_parts_do_not_overlap_at_any_wide_width() {
         let last = boxes[3];
         assert!(mid(last) < u32::from(w), "{w}x{h}: {last:?}");
     }
+}
+
+/// At 1024 by 768 (a window with the rail) the search and the three
+/// buttons stand in the top bar and the page has no row of its own: the
+/// first row of the page starts under the bar. A press on each still opens
+/// what it did.
+#[test]
+fn at_1024_by_768_the_search_and_buttons_stand_in_the_top_bar_and_open_what_they_did() {
+    let app = loaded(2, 0, 1024, 768);
+    assert_eq!(app.nav(), faraday_core::nav::Nav::Rail);
+    let mut boxes = bar_boxes(&app);
+    for (x, y, w, h) in &boxes {
+        assert!(*w > 0 && y + h <= 64, "{x},{y} {w}x{h}");
+    }
+    boxes.sort_by_key(|b| b.0);
+    for pair in boxes.windows(2) {
+        assert!(pair[0].0 + pair[0].2 <= pair[1].0, "{pair:?} overlap");
+    }
+    for (action, screen) in [
+        (FIRST[0], Screen::Create),
+        (FIRST[1], Screen::Restore),
+        (FIRST[2], Screen::SpendBackup),
+    ] {
+        let mut app = loaded(2, 0, 1024, 768);
+        tap(&mut app, action);
+        assert_eq!(app.screen, screen, "{action:?}");
+    }
+    let mut app = loaded(2, 0, 1024, 768);
+    type_on_home(&mut app, "send");
+    let (_, y) = app
+        .where_offered(Action::Catalog(sign_tile()))
+        .expect("a result of the page");
+    assert!(y >= 64, "{y}: the page starts under the bar");
+    tap(&mut app, Action::Catalog(sign_tile()));
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::Scan));
 }
