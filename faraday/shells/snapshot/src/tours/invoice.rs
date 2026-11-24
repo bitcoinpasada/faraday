@@ -32,8 +32,9 @@ pub(crate) fn invoice_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Catalog(tile as u8));
     t.shot("invoice-empty")?;
     type_text(t, COFFEE);
-    t.press(Action::Invoice(InvoicePress::Decode));
     hide_keyboard(t);
+    t.shot("invoice-typed")?;
+    t.press(Action::Invoice(InvoicePress::Decode));
     t.shot("invoice-decoded")?;
     scroll_to(t, Action::Nav(Screen::Catalog));
     t.shot("invoice-end")?;

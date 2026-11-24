@@ -362,7 +362,11 @@ impl Faraday {
                 }
                 Here::Aezeed
             }
-            Screen::Invoice if self.invoice().is_some() => Here::Invoice,
+            Screen::Invoice
+                if self.invoice().is_some() && crate::invoice::flow::typing_here(self) =>
+            {
+                Here::Invoice
+            }
             Screen::CheckAddress if self.address_check_state().is_some() => Here::CheckAddress,
             #[cfg(feature = "demo")]
             Screen::Transfer if self.transfer_text_here() => Here::TransferText,

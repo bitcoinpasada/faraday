@@ -2,7 +2,7 @@
 //! invoice opens it decoded, what BOLT #11 says an invoice holds shows,
 //! a refused invoice shows its line, and nothing is kept.
 
-use crate::common::type_text;
+use crate::common::{has, through_fade, type_text};
 use faraday_core::catalog::TILES;
 use faraday_core::testkit::Plain;
 use faraday_core::{Action, Faraday, Screen};
@@ -62,7 +62,7 @@ fn coffee() -> String {
     invoice("lnbc2500u", "cup of coffee")
 }
 
-fn opened() -> Faraday {
+fn wide() -> Faraday {
     let mut app = Faraday::new();
     app.event(Event::Display(DisplayInfo {
         width: 1366,
@@ -76,6 +76,11 @@ fn opened() -> Faraday {
         boot: BootState::Unknown,
         memory_mib: None,
     }));
+    app
+}
+
+fn opened() -> Faraday {
+    let mut app = wide();
     app.press(Action::Nav(Screen::Catalog));
     let tile = TILES
         .iter()
@@ -110,6 +115,17 @@ fn the_tile_opens_the_tool_empty() {
     assert_eq!(app.screen, Screen::Invoice);
     assert!(app.invoice().unwrap().text().is_empty());
     assert!(app.invoice().unwrap().read().is_none());
+}
+
+#[test]
+fn clear_on_the_input_card_empties_the_field_and_stays() {
+    let mut app = opened();
+    type_text(&mut app, &coffee());
+    let _ = app.frame();
+    assert!(app.drawn_texts().iter().any(|t| t == "Clear"));
+    app.press(Action::Invoice(faraday_core::invoice::InvoicePress::Clear));
+    assert_eq!(app.screen, Screen::Invoice);
+    assert!(app.invoice().unwrap().text().is_empty());
 }
 
 #[test]
@@ -153,7 +169,7 @@ fn a_refused_invoice_shows_one_line_and_no_rows() {
 
 #[test]
 fn a_scanned_invoice_offers_decode_it_and_opens_decoded() {
-    let mut app = Faraday::new();
+    let mut app = wide();
     app.press(Action::Scan);
     app.event(Event::Scanned {
         bytes: coffee().into_bytes(),
@@ -170,6 +186,9 @@ fn a_scanned_invoice_offers_decode_it_and_opens_decoded() {
     assert_eq!(app.screen, Screen::Invoice);
     assert!(value(&app, "Description").unwrap().contains("coffee"));
     assert_eq!(app.inbox().len(), filed, "the tool filed the invoice");
+    // On a wide window the card opens on the result, not the field.
+    through_fade(&mut app);
+    assert!(has(&mut app, "250000 sat"));
 }
 
 #[test]
@@ -294,4 +313,41 @@ fn an_offer_description_and_issuer_over_64_bytes_are_shown_whole() {
         value(&app, "Issuer, in its own words").as_deref(),
         Some("An issuer line that is also well over sixty-four bytes long, to be shown whole")
     );
+}
+
+/// On a wide window the field is the Input card; Decode opens the Result
+/// card with what the invoice says, and Back opens the field again with
+/// the text kept.
+#[test]
+fn on_a_wide_window_decode_opens_the_result_card_and_back_keeps_the_text() {
+    let mut app = opened();
+    type_text(&mut app, &coffee());
+    assert!(has(&mut app, faraday_core::strings::EN.invoice_decode));
+    app.press(Action::Invoice(faraday_core::invoice::InvoicePress::Decode));
+    through_fade(&mut app);
+    assert!(has(&mut app, "250000 sat"));
+    assert!(!has(&mut app, faraday_core::strings::EN.invoice_decode));
+    // The result's card takes no typing.
+    type_text(&mut app, "x");
+    assert_eq!(app.invoice().unwrap().text(), coffee());
+    app.press(Action::Back);
+    through_fade(&mut app);
+    assert_eq!(app.screen, Screen::Invoice);
+    assert_eq!(app.invoice().unwrap().text(), coffee());
+    assert!(has(&mut app, faraday_core::strings::EN.invoice_decode));
+}
+
+/// The open Input step lists its ways in as rows: Type it and Scan an
+/// invoice, and Scan opens the scanner.
+#[test]
+fn the_input_step_lists_type_it_and_scan_as_ways_in() {
+    let mut app = opened();
+    let en = &faraday_core::strings::EN;
+    assert!(has(&mut app, en.pick_ways_in));
+    assert!(has(&mut app, en.invoice_way_type));
+    assert!(has(&mut app, en.invoice_way_scan));
+    assert!(has(&mut app, en.invoice_clear));
+    app.press(Action::Invoice(faraday_core::invoice::InvoicePress::Scan));
+    through_fade(&mut app);
+    assert!(app.scan().is_some());
 }

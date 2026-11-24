@@ -12,6 +12,7 @@
 //! the text is decoded; drawing makes nothing. Read only: nothing is
 //! paid, signed or stored, and leaving the screen drops the text.
 
+pub(crate) mod flow;
 pub(crate) mod screen;
 
 use crate::strings::{EN, fill};
@@ -32,6 +33,8 @@ pub enum InvoicePress {
     Scan,
     /// Empty the field.
     Clear,
+    /// Opens a step of the flow's card (`flow.rs`).
+    Step(u8),
 }
 
 /// One line of a decoded invoice.
@@ -54,6 +57,10 @@ pub struct InvoiceState {
     read: Option<Result<Vec<Row>, String>>,
     /// The screen its back link returns to.
     back: Screen,
+    /// The step open on the flow's card, a window that is not compact.
+    pub(crate) open: u8,
+    /// How far that card is scrolled.
+    pub(crate) scroll: crate::flow::Scroll,
 }
 
 impl InvoiceState {
@@ -94,7 +101,37 @@ impl InvoiceArea {
             text: text.chars().take(FIELD_MAX).collect(),
             read: None,
             back,
+            open: flow::INPUT,
+            scroll: crate::flow::Scroll::default(),
         });
+    }
+
+    /// How far the flow's card is scrolled, units.
+    pub(crate) fn scroll_y(&self) -> Option<f32> {
+        self.state.as_ref().map(|s| s.scroll.y)
+    }
+
+    /// The flow's card scrolled to `y` units.
+    pub(crate) fn set_scroll_y(&mut self, y: f32) {
+        if let Some(s) = self.state.as_mut() {
+            s.scroll.y = y;
+        }
+    }
+
+    /// The flow's card scrolled to `to`.
+    pub(crate) fn set_scroll(&mut self, to: crate::flow::Scroll) {
+        if let Some(s) = self.state.as_mut() {
+            s.scroll = to;
+        }
+    }
+
+    /// Opens the Result step when it was decoded, the Input step when
+    /// the text changed.
+    fn show(&mut self, step: u8) {
+        if let Some(s) = self.state.as_mut() {
+            s.open = step;
+            s.scroll.follow = true;
+        }
     }
 
     /// Forgets the text and what it read.
@@ -139,7 +176,7 @@ impl InvoiceArea {
                 s.text.pop();
                 s.read = None;
             }
-            K::Enter => self.decode(),
+            K::Enter => return false,
             _ => return false,
         }
         true
@@ -160,10 +197,9 @@ pub(crate) fn with(app: &mut Faraday, text: &str) {
         (Screen::Invoice, Some(s)) => s.back,
         (screen, _) => screen,
     };
-    let area = &mut app.tools.invoice;
-    area.open(text, back);
-    area.decode();
+    app.tools.invoice.open(text, back);
     app.screen = Screen::Invoice;
+    decode(app);
 }
 
 /// A read card's way over: the tool opened on the card's text. Home's
@@ -187,7 +223,8 @@ pub(crate) fn act(app: &mut Faraday, press: InvoicePress) {
         .state()
         .map_or(Screen::Catalog, |s| s.back);
     match press {
-        InvoicePress::Decode => app.tools.invoice.decode(),
+        InvoicePress::Decode => decode(app),
+        InvoicePress::Step(k) => flow::open_step(app, k),
         InvoicePress::Scan => app.act(Action::ScanFor(crate::Ask::Invoice)),
         InvoicePress::Clear => app.tools.invoice.open("", back),
     }
@@ -198,7 +235,22 @@ pub(crate) fn key(app: &mut Faraday, key: faraday_shell_api::Key) -> bool {
     if app.screen != Screen::Invoice || app.sheet.is_some() {
         return false;
     }
+    if !flow::typing_here(app) {
+        return false;
+    }
+    if matches!(key, faraday_shell_api::Key::Enter) {
+        decode(app);
+        return true;
+    }
     app.tools.invoice.key(key)
+}
+
+/// Reads the text; on the flow's card the Result step opens on it.
+fn decode(app: &mut Faraday) {
+    app.tools.invoice.decode();
+    if flow::contained(app) && app.tools.invoice.state().is_some_and(|s| s.read.is_some()) {
+        app.tools.invoice.show(flow::RESULT);
+    }
 }
 
 /// Whether the text is an offer, an invoice request or another BOLT #12

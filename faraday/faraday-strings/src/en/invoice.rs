@@ -14,6 +14,10 @@ macro_rules! words_invoice {
     invoice_decode: "Decode",
     /// Button: opens the scanner for an invoice.
     invoice_scan: "Scan",
+    /// Pick row: types the invoice into the field.
+    invoice_way_type: "Type it",
+    /// Pick row: opens the scanner for an invoice.
+    invoice_way_scan: "Scan an invoice",
     /// Button: empties the field.
     invoice_clear: "Clear",
     /// The About page's text and the guide line above the field.

@@ -2311,6 +2311,12 @@ pub const MESSAGE_SHOWN_GAP: f32 = 14.0;
 /// Decode a Lightning invoice: the gap between the field and its buttons,
 /// and the line space under a refusal.
 pub const INVOICE_GAP: f32 = 12.0;
+/// The room Clear takes at the right of the Invoice card's field.
+pub const INVOICE_CLEAR_ROOM: f32 = 76.0;
+/// Clear's inset from the field's top edge.
+pub const INVOICE_CLEAR_TOP: f32 = 6.0;
+/// Clear's width.
+pub const INVOICE_CLEAR_W: f32 = 68.0;
 /// Decode a Lightning invoice: the gap between its blocks (buttons, rows,
 /// About on a small panel).
 pub const INVOICE_BLOCK_GAP: f32 = 16.0;
