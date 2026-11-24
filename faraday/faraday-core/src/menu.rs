@@ -140,10 +140,13 @@ pub(crate) fn outline(
 /// kept.
 pub(crate) fn measure(ui: &mut Ui, draw: &mut dyn FnMut(&mut Ui) -> f32) -> f32 {
     let mark = ui.presses_mark();
+    // What is only measured stands nowhere: it reports no place.
+    let pane = ui.pane;
     ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
     let h = draw(ui);
     ui.c.pop_clip();
     ui.presses_rewind(mark);
+    ui.pane = pane;
     h
 }
 

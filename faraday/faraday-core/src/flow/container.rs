@@ -308,6 +308,11 @@ pub(crate) fn contained(
             offset: app.scroll.choices_offset(),
         }
         .draw(ui, foot);
+        // Where the pair stands, Your choices is the session pane's place
+        // for the change of page: the pane glides into it and back.
+        if left {
+            ui.pane = Some((px, top, pane_w, pane_h.min(clip_end - top).max(0.0)));
+        }
         let gap = unit.map_or(tokens::SPACER, |u| u.gap);
         let at = if left {
             px + pane_w + gap / 2.0

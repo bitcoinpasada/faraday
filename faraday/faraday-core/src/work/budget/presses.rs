@@ -258,6 +258,11 @@ const PRESS_BUDGETS: &[(&str, Work, u64, &str)] = &[
 /// after (`Ui::backdrop`).
 const SHEET_CANVAS: u64 = 5;
 
+/// What a press from Home may do of `Work::FullCanvas` (the pane glides: the
+/// copy and the blend into each of the two frames after, and one more
+/// blend of the pane between its two places on each, `docs/MOTION.md` §3.5).
+const HOME_GLIDE_CANVAS: u64 = 5;
+
 /// The budget of `kind` for the press called `name`.
 fn budget(name: &str, kind: Work) -> u64 {
     PRESS_BUDGETS
@@ -344,6 +349,9 @@ fn presses_hold_on(panel: Panel, least: usize) {
                 let mut b = budget(&name, k);
                 if k == Work::FullCanvas && app.sheet.is_some() {
                     b = b.max(SHEET_CANVAS);
+                }
+                if k == Work::FullCanvas && screen == Screen::Home {
+                    b = b.max(HOME_GLIDE_CANVAS);
                 }
                 if n > b {
                     failures.push(text!(

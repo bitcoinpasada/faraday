@@ -406,7 +406,7 @@ extent; a motion left from another screen or sheet is stopped.
     (`motion::STEP_FADE_OUT`) and the new one in over the rest
     (`Fade::page_through`, the same way as a step's card), and, when the
     old frame and the new one both have a session pane
-    (`Ui::pane`, set by whoever draws it; nothing sets it yet), the
+    (`Ui::pane`, set by the session pane's drawer and by a flow's pair), the
     pane's pixels of both frames are drawn moved by the eased lerp of the
     two places, clipped to it, no scaling, the old pane's contents
     fading into the new one's (`Canvas::blend_shifted`,

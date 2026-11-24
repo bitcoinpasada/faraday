@@ -304,8 +304,8 @@ const OPEN: Table = &[
     ),
     (
         Work::FullCanvas,
-        5,
-        "the change to the spend's screen fades from the frame before: one copy, blended on each frame after",
+        9,
+        "the change to the spend's screen fades from the frame before: one copy, blended on each frame after; from Home, whose card is the session pane, the spend's pair has its pane at the left, so the pane glides: one more blend of it on each frame after (`docs/MOTION.md` §3.5)",
     ),
 ];
 const SIGN: Table = &[

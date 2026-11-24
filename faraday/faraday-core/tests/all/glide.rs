@@ -11,10 +11,14 @@ use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 const WIDTH: usize = 1280;
 
 fn shown(style: MotionStyle, speed: MotionSpeed) -> Faraday {
+    shown_at((WIDTH as u16, 800), style, speed)
+}
+
+fn shown_at((width, height): (u16, u16), style: MotionStyle, speed: MotionSpeed) -> Faraday {
     let mut app = Faraday::new();
     app.event(Event::Display(DisplayInfo {
-        width: WIDTH as u16,
-        height: 800,
+        width,
+        height,
         dpi: 160,
         inset_bottom: 0,
         inset_top: 0,
@@ -236,6 +240,7 @@ fn a_pane_on_the_new_page_only_does_not_glide() {
     let mut plain = shown(MotionStyle::Smooth, MotionSpeed::Medium);
     let none = run(&mut plain, 4_000, 800);
     let mut app = shown(MotionStyle::Smooth, MotionSpeed::Medium);
+    app.force_pane(None, true);
     let with = run_to(&mut app, 4_000, 800, Some((800, 0, 300, 300)));
     assert!(with == none, "the whole page fades through");
 }
@@ -304,5 +309,120 @@ fn leaving_a_page_after_a_secret_was_typed_keeps_no_image() {
     for i in 0..8 {
         let _ = at(&mut app, 4_016 + i * 16);
         assert!(app.kept_images().is_empty(), "an image is kept");
+    }
+}
+
+/// The real windows the wide layout is judged at.
+const WINDOWS: [(u16, u16); 2] = [(1920, 1080), (1366, 768)];
+
+fn tile(name: &str) -> u8 {
+    faraday_core::catalog::TILES
+        .iter()
+        .position(|t| t.name == name)
+        .unwrap() as u8
+}
+
+/// An app on Home at `win`, settled.
+fn on_home(win: (u16, u16), style: MotionStyle) -> (Faraday, u64) {
+    let mut app = shown_at(win, style, MotionSpeed::Medium);
+    app.press(Action::Nav(Screen::Home));
+    let _ = at(&mut app, 3_100);
+    let _ = at(&mut app, 4_000);
+    (app, 4_000)
+}
+
+/// Presses `go` and returns the frames every 16 ms for a second from `t`,
+/// the new page's pane forced away when `no_pane`.
+fn change(app: &mut Faraday, go: Action, t: u64, no_pane: bool) -> Vec<Vec<u8>> {
+    app.press(go);
+    if no_pane {
+        app.force_pane(None, false);
+    }
+    (0..=1_000 / 16).map(|i| at(app, t + i * 16)).collect()
+}
+
+/// The frame a little under half way through the change.
+const MID: usize = 14;
+
+#[test]
+fn home_to_tools_and_to_check_glides_the_pane_between_their_places() {
+    for win in WINDOWS {
+        for go in [Screen::Catalog, Screen::Check] {
+            let (mut app, t) = on_home(win, MotionStyle::Smooth);
+            let home = app.pane_place();
+            assert!(home.is_some(), "{win:?}: Home reports its card");
+            let frames = change(&mut app, Action::Nav(go), t + 100, false);
+            let there = app.pane_place();
+            assert!(there.is_some(), "{win:?} {go:?}: the page reports its pane");
+            let (mut bare, t) = on_home(win, MotionStyle::Smooth);
+            let fades = change(&mut bare, Action::Nav(go), t + 100, true);
+            assert_ne!(
+                frames[MID], fades[MID],
+                "{win:?} {go:?}: the pane is drawn between its places, not faded with the page"
+            );
+        }
+    }
+}
+
+#[test]
+fn tools_to_a_tool_with_a_pair_and_back_glides_the_pane() {
+    for win in WINDOWS {
+        let (mut app, t) = on_home(win, MotionStyle::Smooth);
+        let _ = change(&mut app, Action::Nav(Screen::Catalog), t, false);
+        let tools = app.pane_place();
+        assert!(tools.is_some(), "{win:?}: Tools reports its pane");
+        let (mut bare, tb) = on_home(win, MotionStyle::Smooth);
+        let _ = change(&mut bare, Action::Nav(Screen::Catalog), tb, false);
+        let open = Action::Catalog(tile("Make a new wallet"));
+        let frames = change(&mut app, open, t + 2_000, false);
+        let flow = app.pane_place();
+        let fades = change(&mut bare, open, tb + 2_000, true);
+        assert!(
+            flow.is_some(),
+            "{win:?}: the pair's left part reports its place"
+        );
+        assert_ne!(flow, tools, "{win:?}: the pane moves into the flow's place");
+        assert_ne!(
+            frames[MID], fades[MID],
+            "{win:?}: the pane glides into the flow"
+        );
+        // And back on leaving.
+        let back = change(&mut app, Action::Nav(Screen::Catalog), t + 4_000, false);
+        assert_eq!(app.pane_place(), tools, "{win:?}: back in Tools' place");
+        let bare_back = change(&mut bare, Action::Nav(Screen::Catalog), tb + 4_000, true);
+        assert_ne!(back[MID], bare_back[MID], "{win:?}: the pane glides back");
+    }
+}
+
+#[test]
+fn a_tool_whose_flow_has_no_pair_reports_no_pane() {
+    for win in WINDOWS {
+        let (mut app, t) = on_home(win, MotionStyle::Smooth);
+        let _ = change(&mut app, Action::Nav(Screen::Catalog), t, false);
+        let _ = change(
+            &mut app,
+            Action::Catalog(tile("Add a key")),
+            t + 2_000,
+            false,
+        );
+        assert_eq!(app.pane_place(), None, "{win:?}");
+    }
+}
+
+#[test]
+fn off_shows_the_end_at_once_and_crossfade_does_not_glide() {
+    for win in WINDOWS {
+        let (mut off, t) = on_home(win, MotionStyle::Off);
+        let frames = change(&mut off, Action::Nav(Screen::Catalog), t + 100, false);
+        assert_eq!(
+            frames[0],
+            *frames.last().unwrap(),
+            "{win:?}: Off is final at once"
+        );
+        let (mut cross, t) = on_home(win, MotionStyle::Crossfade);
+        let a = change(&mut cross, Action::Nav(Screen::Catalog), t + 100, false);
+        let (mut cross, t) = on_home(win, MotionStyle::Crossfade);
+        let b = change(&mut cross, Action::Nav(Screen::Catalog), t + 100, true);
+        assert_eq!(a[MID], b[MID], "{win:?}: Crossfade blends whole frames");
     }
 }

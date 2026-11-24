@@ -142,7 +142,7 @@ pub(crate) struct Fade {
     marks: crate::leaks::Marks,
     /// A pane place the tests give in place of the one the frame draws.
     #[cfg(feature = "testkit")]
-    forced_pane: Option<Rect>,
+    forced_pane: Option<Option<Rect>>,
 }
 
 /// Holds nothing a lock wipes: the fade's timing.
@@ -233,7 +233,7 @@ impl Fade {
     /// that it put none.
     pub(crate) fn set_pane(&mut self, pane: Option<Rect>) {
         #[cfg(feature = "testkit")]
-        let pane = self.forced_pane.or(pane);
+        let pane = self.forced_pane.unwrap_or(pane);
         self.pane = pane;
     }
 
@@ -703,17 +703,24 @@ impl Faraday {
     }
 
     /// The session pane's place for the frames drawn from now on, in
-    /// pixels (x, y, width, height), until it is given `None`: nothing
-    /// draws the pane yet. With `shown`, the frame on screen already
-    /// had it there.
+    /// pixels (x, y, width, height), or none, whatever the frames draw. With
+    /// `shown`, the frame on screen already had it there.
     #[cfg(feature = "testkit")]
     #[doc(hidden)]
     pub fn force_pane(&mut self, pane: Option<(i32, i32, i32, i32)>, shown: bool) {
         let pane = pane.map(|(x, y, w, h)| Rect::new(x, y, w, h));
-        self.fade.forced_pane = pane;
+        self.fade.forced_pane = Some(pane);
         if shown {
             self.fade.pane = pane;
         }
+    }
+
+    /// Where the last frame drew the session pane, in pixels (x, y, width,
+    /// height), or that it drew none.
+    #[cfg(feature = "testkit")]
+    #[doc(hidden)]
+    pub fn pane_place(&self) -> Option<(i32, i32, i32, i32)> {
+        self.fade.pane.map(|r| (r.x, r.y, r.w, r.h))
     }
 
     /// The images the core keeps across frames now, each with the screen

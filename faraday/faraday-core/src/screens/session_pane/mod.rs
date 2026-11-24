@@ -229,8 +229,11 @@ fn draw_row(
 }
 
 /// The card's surface: a raised card of the surface-container-low fill with
-/// the Scan button's shadow.
+/// the Scan button's shadow. Where it stands is the pane's place for the
+/// change of page (`docs/MOTION.md` §3.5); the one drawer reports it for
+/// Home's card, the stacked card and the page's pane alike.
 fn card_surface(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32)) {
+    ui.pane = Some((x, y, w, h));
     ui.shadow(x, y, w, h, SHAPE_M, ELEVATION_FAB);
     ui.fill(x, y, w, h, SHAPE_M, Role::SurfaceContainerLow);
 }
