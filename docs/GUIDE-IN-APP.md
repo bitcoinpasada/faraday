@@ -328,7 +328,7 @@ the start guides' own.
 
 ### 5.4 About
 
-About (Settings' last section in Faraday, the ⋮'s About in the Starter)
+About (Settings' last section in Faraday, Home's About row in the Starter)
 stays what it is: the version, the facts of the build, the self-test.
 It holds the notices a Learn page carried: the codex32 booklet's MIT
 notice (F93). What Faraday is, for a person who asks, is its first line,

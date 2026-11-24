@@ -8,6 +8,7 @@ use faraday_starter::Starter;
 use faraday_starter::api::{
     BitLocker, Camera, Computer, Concern, Kind, Os, Protection, StarterEvent,
 };
+use faraday_ui::TextSize;
 
 fn display() -> Event {
     Event::Display(DisplayInfo {
@@ -57,7 +58,7 @@ fn a_computer_with_everything_in_order_can_start_faraday() {
     assert!(t.contains("Secure Boot | Off"), "{t}");
     assert!(t.contains("Camera | Should work on the stick"), "{t}");
     assert!(!t.contains("Processor"), "{t}");
-    assert!(!t.contains("BitLocker | "), "{t}");
+    assert!(!t.contains("| BitLocker | "), "{t}");
 }
 
 #[test]
@@ -97,10 +98,15 @@ fn no_camera_says_files_go_by_stick() {
         ..good(Os::Linux)
     });
     assert!(
-        t.contains("This computer can start Faraday, without a camera"),
+        t.replace(" | ", " ")
+            .contains("This computer can start Faraday, without a camera"),
         "{t}"
     );
-    assert!(t.contains("None found: files go by stick"), "{t}");
+    assert!(
+        t.replace(" | ", " ")
+            .contains("None found: files go by stick"),
+        "{t}"
+    );
 }
 
 #[test]
@@ -110,11 +116,13 @@ fn an_unusable_camera_says_files_go_by_stick() {
         ..good(Os::Linux)
     });
     assert!(
-        t.contains("This computer can start Faraday, without a camera"),
+        t.replace(" | ", " ")
+            .contains("This computer can start Faraday, without a camera"),
         "{t}"
     );
     assert!(
-        t.contains("Not usable on the stick: files go by stick"),
+        t.replace(" | ", " ")
+            .contains("Not usable on the stick: files go by stick"),
         "{t}"
     );
 }
@@ -163,5 +171,24 @@ fn bitlocker_on_is_a_step_on_windows_and_absent_when_off() {
     assert!(t.contains("BitLocker | On"), "{t}");
     starter.starter_event(StarterEvent::BitLocker(drive(Protection::None)));
     let t = starter.drawn_texts().join(" | ");
-    assert!(!t.contains("BitLocker | "), "{t}");
+    assert!(!t.contains("| BitLocker | "), "{t}");
+}
+
+/// A checklist row's title is shown whole in the narrow left pane, at
+/// every text size: it wraps and the row grows, nothing is cut.
+#[test]
+fn a_long_checklist_title_shows_whole_at_every_text_size() {
+    for size in [TextSize::Standard, TextSize::Large, TextSize::Larger] {
+        let mut starter = Starter::new();
+        starter.event(display());
+        starter.set_text_size(size);
+        starter.starter_event(StarterEvent::Computer(good(Os::Linux)));
+        let texts = starter.drawn_texts();
+        let t = texts.join(" ");
+        assert!(
+            t.contains("Start this computer from the stick"),
+            "{size:?}: {t}"
+        );
+        assert!(!texts.iter().any(|x| x.contains('…')), "{size:?}: {t}");
+    }
 }

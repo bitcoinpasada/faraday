@@ -226,7 +226,6 @@ fn scenes(w: u16, h: u16, theme: Theme) -> Vec<(&'static str, Starter)> {
     templates.press(StarterAction::Templates);
     out.push(("blank templates", templates));
     let mut look = start(w, h, theme, false);
-    look.press(StarterAction::Menu);
     look.press(StarterAction::Appearance);
     out.push(("appearance", look));
     out

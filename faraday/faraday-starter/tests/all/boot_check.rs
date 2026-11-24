@@ -25,8 +25,10 @@ fn starter_with(computer: Computer, stick: Disk, images: Vec<ImageFinding>) -> S
     s
 }
 
+/// Whether the screen says `text`, a line that wraps in a narrower pane
+/// counted as one.
 fn shows(s: &mut Starter, text: &str) -> bool {
-    s.drawn_texts().iter().any(|t| t.contains(text))
+    s.drawn_texts().join(" ").contains(text)
 }
 
 fn commands(s: &mut Starter) -> Vec<StarterCommand> {

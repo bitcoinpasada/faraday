@@ -6,8 +6,8 @@
 use super::*;
 use faraday_draw::Rect;
 use faraday_draw::tokens::{
-    BODY_M, BUTTON_H, CARD_MIN_W, GAP, GAP_SMALL, ICON_GLYPH_SMALL, LABEL_L, LIST_2,
-    MARGIN_COMPACT, MARGIN_WIDE, PAD, TITLE_M, TITLE_S,
+    BODY_M, BUTTON_H, CARD_MIN_W, GAP, GAP_SMALL, ICON_GLYPH_SMALL, LABEL_L, LIST_2, LIST_PANE,
+    MARGIN_COMPACT, MARGIN_WIDE, PAD, SHAPE_L, TITLE_M, TITLE_S,
 };
 
 use crate::Class;
@@ -123,14 +123,27 @@ fn card_line(ui: &mut Ui, (x, y, w): (f32, f32, f32), s: &str, tone: Role) -> f3
 // ---------------------------------------------------------------------
 
 /// Home: the This computer card with its checklist, what holds a
-/// restart, then the cards about this computer in the grid.
+/// restart and the wireless receiver's line, then the cards about this
+/// computer. At the expanded class the two are panes side by side
+/// (`home_panes`); below it, the same two panes one under the other
+/// (`home_stack`), as the drawing has them on a phone.
 pub(super) fn home(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
-    let g = gutter(starter);
+    let mut cards = home_cards(starter);
+    if starter.class() == Class::Expanded {
+        return home_panes(starter, ui, (x, y0, w), &mut cards);
+    }
+    home_stack(starter, ui, (x, y0, w), &mut cards)
+}
+
+/// This computer's pane: the card's body, then at its foot what is
+/// attached that holds a restart and the wireless receiver's line.
+fn computer_pane(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0;
-    let mut body = |ui: &mut Ui, bx: f32, by: f32, iw: f32| computer_body(starter, ui, bx, by, iw);
-    let h = card_height(ui, w, &mut body);
-    draw_card(ui, (x, y, w, h), S.starter_computer, &mut body);
-    y += h + g;
+    y += computer_body(starter, ui, x, y, w);
+    if !starter.restart_holds().is_empty() || starter.receiver_line().is_some() {
+        y += GAP / 2.0;
+        y += label(ui, x, y, S.starter_group_screens);
+    }
     y += concern_block(
         starter,
         ui,
@@ -138,8 +151,107 @@ pub(super) fn home(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f
         (&starter.restart_holds(), starter.facts().mac().is_some()),
     );
     y += receiver_line(starter, ui, x, y, w);
-    y = grid(starter, ui, (x, y, w), &mut home_cards(starter));
-    y - g
+    y - y0
+}
+
+/// The groups of the right pane: each one's heading and body, a rule
+/// between them. Returns the height of what is inside the pane's padding.
+fn groups(ui: &mut Ui, (x, y0, w): (f32, f32, f32), cards: &mut [CardSpec], show: bool) -> f32 {
+    let mut y = y0;
+    for (i, c) in cards.iter_mut().enumerate() {
+        if i > 0 {
+            y += GAP;
+            if show {
+                ui.rule(x, y, w, Role::OutlineVariant);
+            }
+            y += GAP;
+        }
+        if show {
+            ui.text_as(x, y, TITLE_S, Role::OnSurfaceVariant, c.heading);
+        }
+        y += ui.line_as(TITLE_S);
+        if show {
+            y += (c.body)(ui, x, y, w);
+        } else {
+            y += measured(ui, &mut |ui| (c.body)(ui, 0.0, 0.0, w));
+        }
+    }
+    y - y0
+}
+
+/// A pane `h` tall at (x, y), `w` wide: a tonal surface with no edge,
+/// as the drawing has it.
+fn pane(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32)) {
+    ui.fill(x, y, w, h, SHAPE_L, Role::SurfaceContainer);
+}
+
+/// A pane's header: its name in the pane's top left. Returns its height.
+fn pane_header(ui: &mut Ui, (x, y): (f32, f32), s: &str) -> f32 {
+    ui.text_as(x, y, TITLE_S, Role::OnSurfaceVariant, s);
+    ui.line_as(TITLE_S)
+}
+
+/// The right pane's height for `inner` wide groups.
+fn right_height(ui: &mut Ui, inner: f32, cards: &mut [CardSpec]) -> f32 {
+    PAD + measured(ui, &mut |ui| {
+        ui.line_as(TITLE_S) + groups(ui, (0.0, 0.0, inner), cards, false)
+    }) + PAD
+}
+
+/// The right pane at (x, y), `w` by `h`: its header, then the groups.
+fn draw_right(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32), cards: &mut [CardSpec]) {
+    pane(ui, (x, y, w, h));
+    let head_h = pane_header(ui, (x + PAD, y + PAD), S.starter_this_starter);
+    groups(ui, (x + PAD, y + PAD + head_h, w - PAD - PAD), cards, true);
+}
+
+/// Home at the expanded class: This computer's pane at the left, a list
+/// pane wide, and one pane of the other cards' groups at the right, the
+/// rest of the width, both as tall as the taller needs (§3.1d). Returns
+/// where it ends.
+fn home_panes(
+    starter: &Starter,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    cards: &mut [CardSpec],
+) -> f32 {
+    let g = gutter(starter);
+    let left_w = LIST_PANE.min(w - g - CARD_MIN_W);
+    let right_w = w - g - left_w;
+    let rx = x + left_w + g;
+    let mut left = |ui: &mut Ui, bx: f32, by: f32, iw: f32| computer_pane(starter, ui, bx, by, iw);
+    let left_h = card_height(ui, left_w, &mut left);
+    let right_h = right_height(ui, right_w - PAD - PAD, cards);
+    let h = left_h.max(right_h);
+    draw_left(ui, (x, y, left_w, h), &mut left);
+    draw_right(ui, (rx, y, right_w, h), cards);
+    y + h
+}
+
+/// Home below the expanded class: the same two panes, This computer's
+/// and the Starter's, one under the other in the one column, each as
+/// tall as it needs. Returns where it ends.
+fn home_stack(
+    starter: &Starter,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    cards: &mut [CardSpec],
+) -> f32 {
+    let g = gutter(starter);
+    let mut left = |ui: &mut Ui, bx: f32, by: f32, iw: f32| computer_pane(starter, ui, bx, by, iw);
+    let left_h = card_height(ui, w, &mut left);
+    draw_left(ui, (x, y, w, left_h), &mut left);
+    let y2 = y + left_h + g;
+    let right_h = right_height(ui, w - PAD - PAD, cards);
+    draw_right(ui, (x, y2, w, right_h), cards);
+    y2 + right_h
+}
+
+/// This computer's pane at (x, y), `w` by `h`: its header, then `body`.
+fn draw_left(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32), body: &mut Body) {
+    pane(ui, (x, y, w, h));
+    let head_h = pane_header(ui, (x + PAD, y + PAD), S.starter_computer);
+    body(ui, x + PAD, y + PAD + head_h, w - PAD - PAD);
 }
 
 /// The cards after This computer, those that apply (§3.1).
@@ -163,7 +275,32 @@ fn home_cards(starter: &Starter) -> Vec<CardSpec<'_>> {
             body: Box::new(|ui, x, y, w| entry_body(starter, ui, x, y, w)),
         });
     }
+    cards.push(CardSpec {
+        heading: S.starter_group_settings,
+        body: Box::new(settings_body),
+    });
     cards
+}
+
+/// Settings' two rows: Appearance and About, plain rows with an arrow,
+/// reached from Home only (§3.1d).
+fn settings_body(ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let mut y = y0;
+    for (head, sub, action) in [
+        (
+            S.starter_row_appearance,
+            S.starter_row_appearance_sub,
+            StarterAction::Appearance,
+        ),
+        (
+            S.starter_row_about,
+            S.starter_row_about_sub,
+            StarterAction::About,
+        ),
+    ] {
+        y += row::plain_row(ui, (x, y, w), (head, sub), action);
+    }
+    y - y0
 }
 
 /// Faraday Demo's card: its version, which is this Starter's, and Open
@@ -436,7 +573,19 @@ fn checklist(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     for (n, row) in facts.checklist().iter().enumerate() {
         let action = StarterAction::Item(row.item);
         let is_next = next == Some(row.item);
-        let layer = (x - 6.0, y + 2.0, w + 12.0, ROW_H - 4.0, SHAPE_S);
+        let tx = x + 44.0;
+        let state = state_text(&row.state);
+        // The title and the state wrap, and the row grows with them.
+        let none = Role::OnSurface.paint();
+        let row_h = row::list_text(
+            ui,
+            (tx, y, w - 80.0),
+            ROW_H,
+            (item_label(starter, row.item), none),
+            (state.as_str(), none),
+            false,
+        );
+        let layer = (x - 6.0, y + 2.0, w + 12.0, row_h - 4.0, SHAPE_S);
         if is_next {
             // The next step: Material's selected state.
             ui.fill(
@@ -460,26 +609,26 @@ fn checklist(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         // The pressed layer in the row's content colour, over its
         // selected fill when it is the next step and under its content.
         let shape = Shape::new(layer.0, layer.1, layer.2, layer.3, layer.4);
-        ui.press_to(shape, (x - 6.0, y, w + 12.0, ROW_H), fg, action.host());
+        ui.press_to(shape, (x - 6.0, y, w + 12.0, row_h), fg, action.host());
         ui.badge(
             x + 4.0,
-            y + (ROW_H - 26.0) / 2.0,
+            y + (row_h - 26.0) / 2.0,
             &(n + 1).to_string(),
             row.done,
             is_next,
         );
-        let tx = x + 44.0;
         let muted = faraday_ui::pal::on_selected(lit, Role::OnSurfaceVariant);
-        two_lines(
+        row::list_text(
             ui,
-            (tx, y, ROW_H),
-            (w - 80.0, w - 80.0),
+            (tx, y, w - 80.0),
+            ROW_H,
             (item_label(starter, row.item), fg),
-            (state_text(&row.state).as_str(), muted),
+            (state.as_str(), muted),
+            true,
         );
-        let (cx, cy) = (x + w - 24.0, y + (ROW_H - 20.0) / 2.0);
+        let (cx, cy) = (x + w - 24.0, y + (row_h - 20.0) / 2.0);
         ui.icon(cx, cy, 20.0, Icon::ChevronRight, 9.0, muted);
-        y += ROW_H;
+        y += row_h;
         let under = w - 44.0;
         if row.item == Item::MakeStick
             && let Some(check) = starter.boot_check()

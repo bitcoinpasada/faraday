@@ -219,7 +219,7 @@ pub enum Class {
     Compact,
     /// 600 to 839 dp: the navigation rail at the left.
     Medium,
-    /// 840 dp and over: the rail, and Home's cards in columns.
+    /// 840 dp and over: the rail, and Home's two panes.
     Expanded,
 }
 

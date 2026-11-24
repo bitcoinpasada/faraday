@@ -81,10 +81,7 @@ fn install_action(starter: &Starter) -> Option<(&'static str, StarterAction)> {
 
 /// The rows of the ⋮ menu: what is not a destination (§3.1d).
 fn menu_rows(starter: &Starter) -> Vec<(&'static str, StarterAction)> {
-    let mut rows = vec![
-        (S.starter_row_appearance, StarterAction::Appearance),
-        (S.starter_row_about, StarterAction::About),
-    ];
+    let mut rows = Vec::new();
     if starter.installed.is_some() {
         rows.push((S.starter_uninstall, StarterAction::Installed));
     }
@@ -111,7 +108,7 @@ pub(super) fn top_bar(starter: &Starter, ui: &mut Ui, rail_w: f32, aw: f32) {
         right -= TOUCH + GAP;
     }
     let mut ends = right;
-    if dest.is_some() {
+    if dest.is_some() && !menu_rows(starter).is_empty() {
         ends -= TOUCH;
     }
     if let Some(bw) = button_w {
@@ -156,7 +153,9 @@ pub(super) fn top_bar(starter: &Starter, ui: &mut Ui, rail_w: f32, aw: f32) {
         ui.wordmark_fitted(at, cap, Role::OnSurface, NameSuffix::Starter);
     }
     if dest.is_some() {
-        right = fnav::more(ui, right, StarterAction::Menu.host(), S.tip_more);
+        if !menu_rows(starter).is_empty() {
+            right = fnav::more(ui, right, StarterAction::Menu.host(), S.tip_more);
+        }
         if let (Some((label, action)), Some(bw)) = (install, button_w) {
             ui.button(
                 right - GAP - bw,

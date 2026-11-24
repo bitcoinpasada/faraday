@@ -62,6 +62,17 @@ macro_rules! words_starter {
     starter_home: "Home",
     /// Label of Home's This computer card.
     starter_computer: "This computer",
+    /// Header of Home's right pane, which holds the cards about the Starter.
+    starter_this_starter: "This Starter",
+    /// Group heading of Home's Appearance and About rows.
+    starter_group_settings: "Settings",
+    /// Group heading, in This computer's pane, of what is attached that
+    /// holds a restart and the wireless receiver's line.
+    starter_group_screens: "Screens and devices",
+    /// Appearance's row on Home, under its name.
+    starter_row_appearance_sub: "Theme, mode and contrast",
+    /// About's row on Home, under its name.
+    starter_row_about_sub: "Versions, the release key, text size, remove",
     /// The card's name when the maker and model could not be read.
     starter_computer_unknown: "This computer",
     /// Label above Home's checklist.

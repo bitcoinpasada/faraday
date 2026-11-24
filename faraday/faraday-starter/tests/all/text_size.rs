@@ -25,9 +25,8 @@ fn installed() -> StarterEvent {
     }))
 }
 
-/// About, opened from the ⋮ menu, and `text` pressed on it.
+/// About, opened from Home's row, and `text` pressed on it.
 fn choose(s: &mut Starter, text: TextSize) {
-    s.press(StarterAction::Menu);
     s.press(StarterAction::About);
     assert_eq!(s.page, Page::About);
     let _ = s.drawn_texts();

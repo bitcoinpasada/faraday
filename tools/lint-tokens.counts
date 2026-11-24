@@ -47,7 +47,7 @@ faraday/faraday-starter/src/draw/boot_file.rs 3
 faraday/faraday-starter/src/draw/clear_first.rs 2
 faraday/faraday-starter/src/draw/home.rs 19
 faraday/faraday-starter/src/draw/row.rs 7
-faraday/faraday-starter/src/draw.rs 157
+faraday/faraday-starter/src/draw.rs 151
 faraday/faraday-starter/src/lib.rs 2
 faraday/faraday-starter/src/scroll.rs 4
 faraday/faraday-starter/src/sheets/dice.rs 58

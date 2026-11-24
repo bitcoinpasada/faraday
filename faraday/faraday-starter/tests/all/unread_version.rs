@@ -74,7 +74,7 @@ fn starter() -> Starter {
 }
 
 fn shows(s: &mut Starter, text: &str) -> bool {
-    s.drawn_texts().iter().any(|t| t.contains(text))
+    s.drawn_texts().join(" ").contains(text)
 }
 
 fn commands(s: &mut Starter) -> Vec<StarterCommand> {

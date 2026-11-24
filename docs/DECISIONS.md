@@ -107,7 +107,7 @@ Read this table, then only the decision you need.
 | [F88](decisions/F88.md) | Seed conversions are one tool, and only to forms that restore the same wallet | 2026-10-23 | Active | security |
 | [F89](history/decisions/F89.md) | Silent payment signing counts a stated key only where the input's script commits to it | 2026-10-23 | Replaced by F257 | crypto |
 | [F90](decisions/F90.md) | Where Faraday refuses input its standard allows | 2026-10-23 | Amended by F155 | crypto |
-| [F91](decisions/F91.md) | The Starter is laid out to Material 3's layout and navigation rules | 2026-10-23 | Amended by F108, F113, F247, F278 | design |
+| [F91](decisions/F91.md) | The Starter is laid out to Material 3's layout and navigation rules | 2026-10-23 | Amended by F108, F113, F247, F278, F329 | design |
 | [F92](decisions/F92.md) | Faraday is laid out to Material 3 at every window size, from the Pi to a full monitor | 2026-10-23 | Amended by F100 | design |
 | [F93](decisions/F93.md) | Codex32 made by hand, any split | 2026-10-22 | Amended by F121, F247, F260 | keys |
 | [F94](decisions/F94.md) | Codex32 error correction, opt-in | 2026-10-22 | Active | crypto |
@@ -129,7 +129,7 @@ Read this table, then only the decision you need.
 | [F110](history/decisions/F110.md) | Faraday Desktop shows its screens at another screen's size | 2026-10-24 | Superseded by F118 | design |
 | [F111](decisions/F111.md) | The Material 3 components and patterns Faraday leaves out | 2026-10-24 | Active | design |
 | [F112](decisions/F112.md) | One explanation on a working screen: the tooltip on "codex32" in Make a new wallet's Kind card | 2026-10-24 | Amended by F240, F247 | design |
-| [F113](decisions/F113.md) | Colour follows Material 3's colour system: ten seeded themes, Light and Dark, three contrast levels | 2026-10-24 | Amended by F126, F138 | design |
+| [F113](decisions/F113.md) | Colour follows Material 3's colour system: ten seeded themes, Light and Dark, three contrast levels | 2026-10-24 | Amended by F126, F138, F329 | design |
 | [F114](decisions/F114.md) | Wide content takes the room beside the navigation; reading content keeps its column | 2026-10-24 | Active | design |
 | [F115](decisions/F115.md) | A key flow opened from Make a new wallet has Cancel, back to it; a Keys card with one way on is passed over | 2026-10-24 | Amended by F240, F282 | design |
 | [F116](decisions/F116.md) | Faraday's scope: an offline signer and keeper of keys, Bitcoin first | 2026-10-25 | Active | scope |
@@ -337,3 +337,4 @@ Read this table, then only the decision you need.
 | [F325](decisions/F325.md) | Work kept out of the app may also be held by a build switch that only Faraday Demo's dev build turns on | 2026-11-23 | Active | standards |
 | [F326](decisions/F326.md) | Faraday Demo has a dev build, and only it carries the handwriting reader and ACE | 2026-11-23 | Active | release |
 | [F327](decisions/F327.md) | ACE's implementation and test app live in Faraday, its specification and vectors in their own repository; ACE is offered in Faraday only in Faraday Demo's dev build | 2026-11-23 | Active | standards |
+| [F329](decisions/F329.md) | The Starter's Appearance and About are rows of Home's Settings, not of the menu | 2026-11-24 | Active | Starter |

@@ -594,7 +594,7 @@ The Starter draws from the same tables and roles
 (`faraday/faraday-starter/src/draw.rs` uses `faraday_ui::pal` today) and
 has the same three controls as Faraday, Theme, Mode and Contrast (owner,
 2026-10-24). They are §12's rows, built from the same components, on an
-Appearance page opened from the top app bar's ⋮ menu (`docs/STARTER.md`
+Appearance page opened from Home's Settings rows (`docs/STARTER.md`
 §3.1d), a task page as About is, with the way back in the bar: as a
 sheet, as first written, the ten chips and the two rows ran past the
 foot of a compact window, and a Starter sheet does not scroll (C3). It

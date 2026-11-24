@@ -135,7 +135,7 @@ does not match. It does not hash anything at start: a start is instant,
 and the check matters at the moment the bytes are used. That catches
 corruption, not tampering: the defence against tampering is
 `SHA256SUMS` and its signature over the Starter file itself, which
-About (§3.7) explains.
+About (§3.7, a row of Home's Settings) explains.
 
 Decompression is a pure-Rust xz decoder with an entry in `docs/deps/`
 (chosen after reading the candidates). Faraday does
@@ -447,8 +447,9 @@ copy of the Starter; the destinations (§3.1d) hold the rest:
   a secondary button.
 
 Nothing else is on Home: Make a Pi card, Transfer, Blank templates and
-Guide are destinations (§3.1d), About and Uninstall are in the top app
-bar's ⋮ menu.
+Guide are destinations (§3.1d), Uninstall is in the top app bar's ⋮
+menu. Appearance and About are rows of Home's Settings group (§3.1d),
+reached from Home only.
 
 ### 3.1a Screens that can keep what they show (owner, 2026-10-12)
 
@@ -574,11 +575,30 @@ in the firmware. Uninstall removes it too.
 window's width in dp divided by the text size factor, F85, so a larger
 text steps the layout down as a narrower window would):
 
-| Class | Width | Navigation | Margins and gutters | Home's grid |
+| Class | Width | Navigation | Margins and gutters | Home |
 |---|---|---|---|---|
-| Compact | under 600 dp | the navigation bar at the foot | 16 dp | one column |
-| Medium | 600 to 839 dp | the navigation rail at the left | 24 dp | one column |
-| Expanded | 840 dp and over | the navigation rail at the left | 24 dp | as many columns of `CARD_MIN_W` or more as fit, the This computer card across all of them |
+| Compact | under 600 dp | the navigation bar at the foot | 16 dp | the two panes one under the other |
+| Medium | 600 to 839 dp | the navigation rail at the left | 24 dp | the two panes one under the other |
+| Expanded | 840 dp and over | the navigation rail at the left | 24 dp | two panes side by side, level at the height of the taller (below) |
+
+Home is two panes, tonal surfaces without an edge, each under its
+header. This computer, a list pane (360 dp) wide at the left, holds the
+facts, the checklist and the screen's button, and at its foot, under the
+group heading **Screens and devices** while either shows, what is
+attached that holds a restart and the wireless receiver's line. The pane
+headed **This Starter**, the rest of the width at the right, holds the
+other cards as groups with a rule between them: Faraday Demo, Update
+while newer, the boot entry while offered, and **Settings** with the rows
+**Appearance** ("Theme, mode and contrast") and **About** ("Versions, the
+release key, text size, remove"), plain rows with an arrow. At the
+expanded class the panes stand side by side, level at the height of the
+taller; below it, one under the other at the page's width, as the drawing
+has them on a phone. The page scrolls when they do not fit. A row's
+title and line wrap and the row grows, never cut with an ellipsis. A link
+to a Learn page (Secure Boot and BitLocker, Screens and devices that can
+record, About the boot entry) is a plain row with an arrow, in the pane
+it stands in. Make and Tools keep their grid of columns of `CARD_MIN_W`
+or more.
 
 Every class change re-lays the page out at that width; nothing is
 scaled to fit. A page's content is at most 1040 dp wide, centred in the
@@ -614,11 +634,11 @@ whole width on compact): on Home the wordmark, on another destination
 its name as the title. At the right end: the install action while it
 applies, **Install** while nothing is installed and **Update** while the
 running copy is newer (§3.5), a secondary button, and the ⋮ menu
-(DESIGN §4.1) with what is not a destination:
+(DESIGN §4.1) with what is not a destination and not a row of Home's
+Settings (**Appearance** → Theme, Mode and Contrast, a task page,
+`docs/THEMES.md` §14, and **About** → §3.7, both reached from Home only;
+the menu is not drawn when it holds nothing):
 
-- **Appearance** → Theme, Mode and Contrast, a task page
-  (`docs/THEMES.md` §14);
-- **About** → §3.7;
 - **Uninstall** → §3.5's Installed record, with its Uninstall, shown
   while a copy is installed;
 - **Remove the boot entry**, shown while offered (§3.1c); the same as
@@ -769,10 +789,10 @@ bar on those three and the back-arrow bar on every task page, a page's
 content beside the rail at most `CONTENT_MAX` wide (a task page's text
 column 720 dp). Home is the This computer card with the checklist and
 the screen's one primary button inside it, what holds a restart under it,
-then Faraday Demo, the update and the boot entry cards in the grid;
-Make and Tools are two cards each. Install or Update is a button in the
+then, in a second pane, Faraday Demo, the update, the boot entry and
+Settings (Appearance, About) as groups; Make and Tools are two cards each. Install or Update is a button in the
 bar and the ⋮ menu (a popup under it, closed by a press outside) holds
-Appearance, About, Uninstall and Remove the boot entry. A press on a destination
+Uninstall and Remove the boot entry. A press on a destination
 opens it at the scroll it was left at, and on the one shown goes to its
 top; Back from a task page lands on the destination it was opened from at
 the scroll it was opened at (F77). Back from Mode keeps the chosen disk;

@@ -512,23 +512,19 @@ fn warning(ui: &mut Ui, x: f32, y: f32, w: f32, s: &str) -> f32 {
     bh + 12.0
 }
 
-/// A link to a Learn page: a line in the accent colour that opens it,
+/// A link to a Learn page: a plain row with an arrow that opens it,
 /// drawn only when the page exists (another batch writes some of them).
 /// Returns its height, nothing when the page does not exist.
 pub(crate) fn link(ui: &mut Ui, x: f32, y: f32, w: f32, id: StartGuide) -> f32 {
     if id.page().is_none() {
         return 0.0;
     }
-    let label = guide_title(id);
-    let action = StarterAction::StartGuide(id).host();
-    let label = ui.fit_as(TITLE_S, label, w);
-    let tw = ui.measure_as(TITLE_S, &label);
-    // Material's text button: the label in primary, its state layer
-    // primary, round at its ends.
-    let at = Shape::new(x - 4.0, y, tw + 8.0, 28.0, 14.0);
-    ui.press(at, Role::Primary.paint(), action);
-    ui.text_mid_as((x, y, 28.0), TITLE_S, Role::Primary, &label);
-    32.0
+    row::plain_row(
+        ui,
+        (x, y, w),
+        (guide_title(id), ""),
+        StarterAction::StartGuide(id),
+    )
 }
 
 /// An item of concern's line (§3.1a), naming it.

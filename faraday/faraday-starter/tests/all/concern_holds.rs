@@ -11,7 +11,7 @@ use faraday_starter::{Page, RestartTo, Sheet, StartGuide, Starter, StarterAction
 fn display() -> Event {
     Event::Display(DisplayInfo {
         width: 1280,
-        height: 800,
+        height: 1400,
         dpi: 160,
         inset_bottom: 0,
         inset_top: 0,
@@ -81,7 +81,7 @@ fn offers(starter: &mut Starter, action: StarterAction) -> bool {
 }
 
 fn shows(starter: &mut Starter, s: &str) -> bool {
-    starter.drawn_texts().iter().any(|t| t.contains(s))
+    starter.drawn_texts().join(" ").contains(s)
 }
 
 fn tap(starter: &mut Starter, action: StarterAction) {
@@ -280,6 +280,12 @@ fn the_start_guide_links_are_drawn_only_where_they_are_for() {
         "t",
     )]));
     assert_eq!(offers(&mut starter, link(sr)), exists(sr));
+    // Its row, under the group's heading, opens the guide as the link did.
+    assert!(shows(&mut starter, "Screens and devices"));
+    if exists(sr) {
+        tap(&mut starter, link(sr));
+        assert_eq!(starter.sheet, Some(Sheet::StartGuide));
+    }
     // The boot entry: on Linux's Restart from the stick, and it opens
     // in the start guide's own sheet.
     let be = StartGuide::BootEntry;
@@ -331,4 +337,60 @@ fn remove_the_boot_entry_is_offered_while_it_exists_and_no_stick_is_attached() {
     starter.starter_event(StarterEvent::Computer(computer(Os::Windows, true)));
     starter.starter_event(StarterEvent::BootEntry(true));
     assert!(!offers(&mut starter, StarterAction::RemoveEntry));
+}
+
+fn display_at(width: u16, height: u16) -> Event {
+    Event::Display(DisplayInfo {
+        width,
+        height,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    })
+}
+
+fn held_tv_at(width: u16, height: u16) -> Starter {
+    let mut starter = linux();
+    starter.event(display_at(width, height));
+    starter.starter_event(StarterEvent::Concerns(vec![item(
+        Kind::Tv,
+        "EXAMPLE TV",
+        "x",
+    )]));
+    starter
+}
+
+#[test]
+fn on_a_wide_window_the_attached_notice_stands_in_the_left_pane_and_demo_at_its_right() {
+    let mut starter = held_tv_at(1366, 1400);
+    assert!(offers(&mut starter, StarterAction::CheckAgain));
+    let n = StarterAction::ContinueAnyway(starter.concern_number("x"));
+    let (cx, _) = starter.where_offered(n).expect("offered");
+    let (dx, _) = starter
+        .where_offered(StarterAction::OpenDesktop)
+        .expect("Demo offered");
+    assert!(dx > cx, "Demo's button stands right of Continue anyway");
+    tap(&mut starter, StarterAction::CheckAgain);
+    assert_eq!(commands(&mut starter), vec![StarterCommand::CheckAgain]);
+    tap(&mut starter, n);
+    assert_eq!(starter.sheet, Some(Sheet::LetThrough));
+}
+
+#[test]
+fn on_a_medium_window_home_is_one_column_with_demo_under_the_notice() {
+    let mut starter = held_tv_at(700, 1400);
+    let _ = starter.drawn_texts();
+    let (cx, cy) = starter
+        .where_offered(StarterAction::CheckAgain)
+        .expect("offered");
+    let (dx, dy) = starter
+        .where_offered(StarterAction::OpenDesktop)
+        .expect("Demo offered");
+    assert!(dy > cy, "Demo's button stands under Check again");
+    assert!(dx.abs_diff(cx) < 200, "in the same column");
 }

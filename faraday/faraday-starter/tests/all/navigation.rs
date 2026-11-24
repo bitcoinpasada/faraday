@@ -164,15 +164,14 @@ fn a_destination_pressed_again_goes_to_its_top() {
 fn the_menu_lists_uninstall_only_while_installed_and_the_boot_entry_only_while_offered() {
     let mut s = starter(700, 900);
     s.press(StarterAction::ToolsPage);
-    s.press(StarterAction::Menu);
-    let t = s.drawn_texts();
-    assert!(t.iter().any(|x| x == "About"));
-    assert!(!t.iter().any(|x| x == "Uninstall"));
-    assert!(!t.iter().any(|x| x == "Remove the Faraday boot entry"));
+    // Nothing to list: no ⋮ on the bar.
+    assert!(at(&mut s, StarterAction::Menu).is_none());
 
     s.starter_event(installed("0.2.0"));
     s.starter_event(StarterEvent::BootEntry(true));
+    s.press(StarterAction::Menu);
     let t = s.drawn_texts();
+    assert!(!t.iter().any(|x| x == "About" || x == "Appearance"));
     assert!(t.iter().any(|x| x == "Uninstall"));
     assert!(t.iter().any(|x| x == "Remove the Faraday boot entry"));
 
@@ -270,6 +269,7 @@ fn a_wide_window_offers_every_make_button_on_screen() {
     for (w, h) in [(1280u16, 800u16), (1920, 1080), (2560, 1440)] {
         let mut s = starter(w, h);
         tap(&mut s, StarterAction::MakePage);
+        s.starter_event(installed("0.2.0"));
         assert!(at(&mut s, StarterAction::Menu).is_some(), "{w}: the menu");
         for target in [Target::Stick, Target::Pi] {
             let (x, y) = at(&mut s, StarterAction::Make(target)).expect("a Make button");
@@ -342,4 +342,35 @@ fn back_from_confirm_leaves_it_unconfirmed_and_forward_does_not_reopen_it() {
     );
     s.press(StarterAction::Continue);
     assert_eq!(s.page, Page::Confirm);
+}
+
+/// Appearance and About are rows of Home's Settings group, plain rows
+/// with an arrow, and open from Home only: not from the ⋮ menu.
+#[test]
+fn appearance_and_about_open_from_homes_rows_and_not_from_the_menu() {
+    for (w, h) in [(1280u16, 1400u16), (700, 1400), (400, 1400)] {
+        let mut s = starter(w, h);
+        let t = s.drawn_texts();
+        assert!(t.iter().any(|x| x == "Settings"), "{w}: the group");
+        for (action, page) in [
+            (StarterAction::Appearance, Page::Appearance),
+            (StarterAction::About, Page::About),
+        ] {
+            tap(&mut s, action);
+            assert_eq!(s.page, page, "{w}");
+            tap(&mut s, StarterAction::Back);
+            assert_eq!(s.page, Page::Home, "{w}");
+        }
+        // Make and Tools offer neither, and the menu holds nothing of them.
+        s.starter_event(installed("0.2.0"));
+        for page in [StarterAction::MakePage, StarterAction::ToolsPage] {
+            tap(&mut s, page);
+            assert!(at(&mut s, StarterAction::Appearance).is_none(), "{w}");
+            assert!(at(&mut s, StarterAction::About).is_none(), "{w}");
+            s.press(StarterAction::Menu);
+            let t = s.drawn_texts();
+            assert!(!t.iter().any(|x| x == "About" || x == "Appearance"));
+            s.press(StarterAction::CloseMenu);
+        }
+    }
 }
