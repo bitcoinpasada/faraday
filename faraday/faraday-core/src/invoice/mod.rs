@@ -197,10 +197,9 @@ pub(crate) fn with(app: &mut Faraday, text: &str) {
         (Screen::Invoice, Some(s)) => s.back,
         (screen, _) => screen,
     };
-    let area = &mut app.tools.invoice;
-    area.open(text, back);
-    area.decode();
+    app.tools.invoice.open(text, back);
     app.screen = Screen::Invoice;
+    decode(app);
 }
 
 /// A read card's way over: the tool opened on the card's text. Home's

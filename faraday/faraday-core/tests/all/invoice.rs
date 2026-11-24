@@ -170,6 +170,9 @@ fn a_scanned_invoice_offers_decode_it_and_opens_decoded() {
     assert_eq!(app.screen, Screen::Invoice);
     assert!(value(&app, "Description").unwrap().contains("coffee"));
     assert_eq!(app.inbox().len(), filed, "the tool filed the invoice");
+    // On a wide window the card opens on the result, not the field.
+    through_fade(&mut app);
+    assert!(has(&mut app, "250000 sat"));
 }
 
 #[test]
