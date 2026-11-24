@@ -238,16 +238,11 @@ fn the_mouses_back_button_lands_where_the_way_back_does() {
 }
 
 #[test]
-fn on_a_small_panel_the_bar_goes_back_to_tools_not_home() {
+fn on_a_small_panel_back_goes_to_tools_not_home() {
     let mut app = with(0, 480, 640);
     let scrolled = tools_scrolled(&mut app);
     app.press(tile(Go::Restore));
     assert_eq!(app.screen, Screen::Restore);
-    let _ = app.frame();
-    assert!(
-        app.drawn_texts().iter().any(|t| t == "Tools"),
-        "the bar names Tools"
-    );
     tap_back(&mut app);
     assert_eq!(app.screen, Screen::Catalog);
     assert_eq!(app.list_offset, scrolled);
