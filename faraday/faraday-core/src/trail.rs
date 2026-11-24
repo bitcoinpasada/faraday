@@ -746,6 +746,9 @@ impl Faraday {
             Screen::Convert => &crate::convert::CONVERT_STEPS,
             Screen::KefTool => &crate::kef_tool::KEF_TOOL_STEPS,
             Screen::OtsCheck => &crate::ots_check::OTS_STEPS,
+            Screen::Tools if crate::tools::flow::contained_tool(self) => {
+                &crate::tools::flow::TOOL_STEPS
+            }
             Screen::SeedCheck => &crate::seed_check::SEED_STEPS,
             Screen::MultisigCheck => &crate::multisig_check::MS_STEPS,
             Screen::CoreWallet => &crate::core_wallet::tool::CORE_WALLET_STEPS,

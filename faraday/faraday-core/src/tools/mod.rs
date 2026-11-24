@@ -7,6 +7,7 @@
 //! ([`Faraday::tools_reading`]), so a frame drawn again works out
 //! nothing.
 
+pub(crate) mod flow;
 pub(crate) mod screen;
 pub(crate) mod search;
 
@@ -83,6 +84,10 @@ pub struct ToolsState {
     pub script: PolicyScript,
     /// Where it returns to.
     pub back: Screen,
+    /// The step open while the tool is drawn as a flow ([`flow`]).
+    pub(crate) open: u8,
+    /// How far that flow's card is scrolled.
+    pub(crate) scroll: crate::flow::Scroll,
     /// What the calculator worked out last, by what it worked it out
     /// from ([`Faraday::tools_reading`]).
     read: std::cell::RefCell<Option<KeptReading>>,
@@ -229,6 +234,24 @@ impl ToolsArea {
         self.tools.as_ref()
     }
 
+    pub(crate) fn set_scroll(&mut self, to: crate::flow::Scroll) {
+        if let Some(t) = self.tools.as_mut() {
+            t.scroll = to;
+        }
+    }
+
+    /// How far the flow's card is scrolled, units, while Tools is open.
+    pub(crate) fn scroll_y(&self) -> Option<f32> {
+        self.tools.as_ref().map(|t| t.scroll.y)
+    }
+
+    /// The flow's card scrolled to `y` units, while Tools is open.
+    pub(crate) fn set_scroll_y(&mut self, y: f32) {
+        if let Some(t) = self.tools.as_mut() {
+            t.scroll.y = y;
+        }
+    }
+
     /// Opens the Descriptor calculator with `text` typed in, for the test kit.
     #[cfg(feature = "testkit")]
     pub(crate) fn type_descriptor(&mut self, text: &str) {
@@ -346,6 +369,8 @@ impl ToolsArea {
             unit: 0,
             script: PolicyScript::Segwit,
             back,
+            open: flow::INPUT,
+            scroll: crate::flow::Scroll::default(),
             read: std::cell::RefCell::new(None),
         });
     }
@@ -461,6 +486,7 @@ impl ToolsArea {
                 if let Some(&tool) = Tool::ALL.get(usize::from(i)) {
                     t.tool = tool;
                     t.typed.clear();
+                    t.open = flow::INPUT;
                 }
             }
             A::TMode(i) => match t.tool {
@@ -486,6 +512,15 @@ impl ToolsArea {
                 _ => {}
             },
             A::TClear => t.typed.clear(),
+            // The result waits for something typed.
+            A::TStep(k)
+                if k <= flow::RESULT
+                    && t.open != k
+                    && (k == flow::INPUT || !t.typed.is_empty()) =>
+            {
+                t.open = k;
+                t.scroll.follow = true;
+            }
             _ => {}
         }
     }
@@ -731,6 +766,16 @@ impl Faraday {
             return crate::address_check::key(self, key);
         }
         if self.screen != Screen::Tools {
+            return false;
+        }
+        // On a flow's result card the field is not there to type in.
+        if flow::contained_tool(self)
+            && self.tools.state().is_some_and(|t| t.open != flow::INPUT)
+            && matches!(
+                key,
+                faraday_shell_api::Key::Char(_) | faraday_shell_api::Key::Backspace
+            )
+        {
             return false;
         }
         let (taken, back) = self.tools.key(key);

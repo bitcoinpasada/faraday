@@ -2,9 +2,9 @@
 //! transaction and Check a signed message opened from Tools with nothing
 //! waiting, with several files waiting, and a result with its ending; the
 //! key tools (Explore a key, Child seeds and passwords, Vanity address, Silent payments)
-//! opened with no key loaded.
+//! opened with no key loaded; Hashes, opened, typed into and its result.
 
-use crate::tour::Tour;
+use crate::tour::{Tour, type_text};
 use faraday_core::{Action, Screen, StorageEvent};
 
 /// The first transaction ever sent, as the hex of its bytes.
@@ -61,5 +61,12 @@ pub(crate) fn open_tools_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("message-list")?;
     t.press(Action::CheckMessage(3));
     t.shot("message-result")?;
+    t.press(Action::Nav(Screen::Catalog));
+    t.press(Action::Catalog(tile("Hashes")?));
+    t.shot("hashes-empty")?;
+    type_text(t, "abc");
+    t.shot("hashes-typed")?;
+    t.press(Action::TStep(1));
+    t.shot("hashes-result")?;
     Ok(())
 }

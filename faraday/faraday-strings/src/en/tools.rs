@@ -10,6 +10,12 @@ macro_rules! words_tools {
     tools_calculators_each: "Calculators: each takes what you type, works one thing out and keeps nothing. None of them touches a key; an extended private key is refused.",
     /// Title in `header`.
     tools_tools: "Tools",
+    /// Title of the input card of a tool drawn as a flow (`tools/flow.rs`).
+    tools_card_input: "Input",
+    /// Title of the result card of a tool drawn as a flow (`tools/flow.rs`).
+    tools_card_result: "Result",
+    /// Button under the input card of a tool drawn as a flow: opens the result.
+    tools_next: "Next",
     /// Text in `body`.
     tools_read_as_automatic: "Read as: automatic",
     /// Text in `body`.

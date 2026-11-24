@@ -49,11 +49,68 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         crate::compact::screen::finish(app, ui, h, y - top + 16.0);
         return;
     }
+    if crate::tools::flow::contained_tool(app) {
+        return card(app, ui, x0, cw, h);
+    }
     use faraday_draw::tokens::{TOOLS_COLUMN_W, TOOLS_INSET};
     let x = x0 + TOOLS_INSET;
     let width = (cw - 2.0 * TOOLS_INSET).min(TOOLS_COLUMN_W);
     let y = header(app, ui);
     body(app, ui, x, y, width);
+}
+
+/// A tool with one way in, drawn as the flow's one card: Input, then
+/// Result (`docs/FLOW-CONTAINER.md` §2).
+fn card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+    let Some(t) = app.tools.state() else { return };
+    let back = Some(app.named_back((app.back_link_name(t.back), Action::Nav(t.back))));
+    let page = crate::flow::Page {
+        area: (x0, cw),
+        h,
+        foot_h: 0.0,
+        back,
+        heading: EN.tools_tools,
+        chip: None,
+        note: None,
+        chip_tap: None,
+        step: None,
+        moves: crate::ui::Moves::No,
+    };
+    let Some(contained) = crate::trail::StepFlow::contained(&crate::tools::flow::TOOL_STEPS) else {
+        return;
+    };
+    let scroll = t.scroll;
+    let (next, again, _) = {
+        let app_ref: &View = app;
+        let mut body = |ui: &mut Ui, step: u8, x: f32, y: f32, w: f32| -> f32 {
+            if step == crate::tools::flow::INPUT {
+                let top = y;
+                let mut y = y + mode_row(app_ref, ui, x, y, w);
+                y = field(app_ref, ui, x, y, w);
+                let empty = app_ref.tools.state().is_none_or(|t| t.typed.is_empty());
+                let style = if empty {
+                    Style::PrimaryOff
+                } else {
+                    Style::Primary
+                };
+                ui.button(
+                    x,
+                    y,
+                    None,
+                    BUTTON_H,
+                    EN.tools_next,
+                    style,
+                    Action::TStep(crate::tools::flow::RESULT),
+                );
+                y + BUTTON_H - top
+            } else {
+                reading_rows(app_ref, ui, x, y, w) - y
+            }
+        };
+        let mut under = |_: &mut Ui, _: f32, _: f32, _: f32| 0.0;
+        crate::flow::contained(ui, app_ref, contained, &page, scroll, &mut body, &mut under)
+    };
+    app.scroll(crate::drawing::Scrolled::Tools, next, again);
 }
 
 /// The way back and the name, handed to the top app bar, as the desktop
@@ -84,7 +141,16 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
         })
         .collect();
     y += button_rows(ui, x, y, width, &tools) + 4.0;
-    // The mode row, where the tool has one.
+    y += mode_row(app, ui, x, y, width);
+    let y = field(app, ui, x, y, width);
+    reading_rows(app, ui, x, y, width)
+}
+
+/// The mode row, where the tool has one. Returns its height.
+fn mode_row(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32) -> f32 {
+    let Some(t) = app.tools.state() else {
+        return 0.0;
+    };
     let modes: Vec<(String, bool)> = match t.tool {
         Tool::Hashes => ReadAs::ALL
             .iter()
@@ -120,9 +186,17 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
             .enumerate()
             .map(|(i, (n, on))| (n, Style::chosen(on), Action::TMode(i as u8)))
             .collect();
-        y += button_rows(ui, x, y, width, &row);
+        return button_rows(ui, x, y, width, &row);
     }
-    // The field.
+    0.0
+}
+
+/// The field with Use a sample, Clear and, where the tool takes codes, its
+/// scan and file buttons. Returns where it ends.
+fn field(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
+    let Some(t) = app.tools.state() else {
+        return y;
+    };
     let hint = match t.tool {
         Tool::Hashes => EN.tools_text_or_hex,
         Tool::Encodings => EN.tools_base58_bech32,
@@ -198,6 +272,15 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
         }
         y += button_rows(ui, x, y, width, &row);
     }
+    y
+}
+
+/// What the tool worked out of what is typed: its rows, the note that
+/// refuses it, and Take to Wallets. Returns where it ends.
+fn reading_rows(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
+    let Some(t) = app.tools.state() else {
+        return y;
+    };
     let Some(reading) = app.tools_reading() else {
         return y;
     };

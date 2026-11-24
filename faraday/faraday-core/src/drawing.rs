@@ -289,6 +289,7 @@ pub(crate) enum Scrolled {
     /// The Krux code tool.
     KefTool,
     OtsCheck,
+    Tools,
     SeedCheck,
     MultisigCheck,
     CoreWallet,
@@ -523,6 +524,9 @@ impl Faraday {
                 }
                 Scrolled::OtsCheck => {
                     self.tools.ots.set_scroll(to);
+                }
+                Scrolled::Tools => {
+                    self.tools.set_scroll(to);
                 }
                 Scrolled::SeedCheck => {
                     self.tools.seed_check.set_scroll(to);

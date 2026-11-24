@@ -630,6 +630,8 @@ pub enum Action {
     TMode(u8),
     /// Empty the calculator's field.
     TClear,
+    /// Opens a step of the tool drawn as a flow (`tools/flow.rs`).
+    TStep(u8),
     /// Empty Home's search bar (its ×).
     HomeSearchClear,
     /// The node key from this loaded key, as ldk-node reads it.
@@ -1472,6 +1474,7 @@ impl Faraday {
             | Action::TTool(_)
             | Action::TMode(_)
             | Action::TClear
+            | Action::TStep(_)
             | Action::TScan
             | Action::TFile(_)
             | Action::TTake => self.tools_act(action),

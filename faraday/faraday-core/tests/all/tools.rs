@@ -1,6 +1,7 @@
 //! The calculators on Faraday's Tools screen: what is typed
 //! reaches the calculator, and the answers are the published ones.
 
+use crate::common::{has, through_fade};
 use faraday_bip::hashes::hashes;
 use faraday_bip::slip132::{KeyReading, key_facts};
 use faraday_codec::encodings::read_input;
@@ -66,10 +67,15 @@ fn the_units_field_takes_digits_only() {
 
 /// The app on a 1280 × 800 window.
 fn wide() -> Faraday {
+    sized(1280, 800)
+}
+
+/// The app on a `width` × `height` window.
+fn sized(width: u16, height: u16) -> Faraday {
     let mut app = testkit::started();
     app.event(Event::Display(DisplayInfo {
-        width: 1280,
-        height: 800,
+        width,
+        height,
         dpi: 160,
         inset_bottom: 0,
         inset_top: 0,
@@ -319,4 +325,83 @@ fn a_file_with_a_seed_does_not_fill_the_field() {
     let _ = app.frame();
     app.press(Action::TFile(0));
     assert!(testkit::tools(&app).unwrap().typed.is_empty());
+}
+
+const ABC_SHA256: &str = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+
+/// Hashes on a wide window: the field, Next, then the same hashes the
+/// old page showed.
+#[test]
+fn hashes_on_a_wide_window_gives_the_same_hashes_on_its_result_card() {
+    let mut app = wide();
+    app.press(Action::Tools);
+    tool(&mut app, Tool::Hashes);
+    typed(&mut app, "abc");
+    assert!(has(&mut app, EN.tools_next));
+    app.press(Action::TStep(1));
+    through_fade(&mut app);
+    assert!(has(&mut app, ABC_SHA256));
+}
+
+/// Your choices names what was typed, and Back opens the field again with
+/// the text kept.
+#[test]
+fn hashes_card_names_what_was_typed_and_back_keeps_it() {
+    let mut app = wide();
+    app.press(Action::Tools);
+    tool(&mut app, Tool::Hashes);
+    typed(&mut app, "abc");
+    app.press(Action::TStep(1));
+    through_fade(&mut app);
+    assert!(has(&mut app, "abc"));
+    app.press(Action::Back);
+    through_fade(&mut app);
+    assert_eq!(app.screen, Screen::Tools);
+    assert_eq!(testkit::tools(&app).unwrap().typed, "abc");
+    // The result's card takes no typing; the field does.
+    app.press(Action::TStep(1));
+    through_fade(&mut app);
+    typed(&mut app, "d");
+    assert_eq!(testkit::tools(&app).unwrap().typed, "abc");
+    app.press(Action::TStep(0));
+    through_fade(&mut app);
+    typed(&mut app, "d");
+    assert_eq!(testkit::tools(&app).unwrap().typed, "abcd");
+}
+
+/// Nothing typed: Next opens nothing.
+#[test]
+fn hashes_next_waits_for_something_typed() {
+    let mut app = wide();
+    app.press(Action::Tools);
+    tool(&mut app, Tool::Hashes);
+    app.press(Action::TStep(1));
+    through_fade(&mut app);
+    assert!(!has(&mut app, "SHA-256"));
+}
+
+/// A phone's window draws the page as before: no card, no Next.
+#[test]
+fn hashes_on_a_phone_is_still_the_page() {
+    let mut app = sized(480, 640);
+    app.press(Action::Tools);
+    tool(&mut app, Tool::Hashes);
+    typed(&mut app, "abc");
+    assert!(!has(&mut app, EN.tools_next));
+    assert!(has(&mut app, ABC_SHA256));
+}
+
+/// Your choices lists what was typed and not the result as a choice not
+/// made.
+#[test]
+fn hashes_choices_has_no_result_row_that_reads_not_chosen() {
+    let mut app = wide();
+    app.press(Action::Tools);
+    tool(&mut app, Tool::Hashes);
+    typed(&mut app, "abc");
+    app.press(Action::TStep(1));
+    through_fade(&mut app);
+    assert!(has(&mut app, EN.tools_card_input));
+    assert!(has(&mut app, "abc"));
+    assert!(!has(&mut app, EN.flow_not_chosen_yet));
 }

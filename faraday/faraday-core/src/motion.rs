@@ -1340,6 +1340,9 @@ impl Faraday {
             Screen::Convert => self.tools.convert.scroll_y().map(|_| Place::Convert)?,
             Screen::KefTool => self.tools.kef_tool.scroll_y().map(|_| Place::KefTool)?,
             Screen::OtsCheck => self.tools.ots.scroll_y().map(|_| Place::OtsCheck)?,
+            Screen::Tools if crate::tools::flow::contained_tool(self) => {
+                self.tools.scroll_y().map(|_| Place::Tools)?
+            }
             Screen::SeedCheck => self.tools.seed_check.scroll_y().map(|_| Place::SeedCheck)?,
             Screen::MultisigCheck => self.tools.mscheck.scroll_y().map(|_| Place::MultisigCheck)?,
             Screen::CoreWallet => self.tools.core_wallet.scroll_y().map(|_| Place::CoreWallet)?,
@@ -1393,6 +1396,7 @@ impl Faraday {
             Place::Convert => y(self.tools.convert.scroll_y()),
             Place::KefTool => y(self.tools.kef_tool.scroll_y()),
             Place::OtsCheck => y(self.tools.ots.scroll_y()),
+            Place::Tools => y(self.tools.scroll_y()),
             Place::SeedCheck => y(self.tools.seed_check.scroll_y()),
             Place::MultisigCheck => y(self.tools.mscheck.scroll_y()),
             Place::CoreWallet => y(self.tools.core_wallet.scroll_y()),
@@ -1439,6 +1443,7 @@ impl Faraday {
             Place::Convert => self.tools.convert.set_scroll_y(to),
             Place::KefTool => self.tools.kef_tool.set_scroll_y(to),
             Place::OtsCheck => self.tools.ots.set_scroll_y(to),
+            Place::Tools => self.tools.set_scroll_y(to),
             Place::SeedCheck => self.tools.seed_check.set_scroll_y(to),
             Place::MultisigCheck => self.tools.mscheck.set_scroll_y(to),
             Place::CoreWallet => self.tools.core_wallet.set_scroll_y(to),
@@ -1483,6 +1488,8 @@ enum Place {
     Convert,
     KefTool,
     OtsCheck,
+    /// The Tools screen's card, where a tool is drawn as a flow.
+    Tools,
     SeedCheck,
     MultisigCheck,
     CoreWallet,

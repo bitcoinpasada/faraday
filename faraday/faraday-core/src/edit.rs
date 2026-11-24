@@ -366,7 +366,7 @@ impl Faraday {
             Screen::CheckAddress if self.address_check_state().is_some() => Here::CheckAddress,
             #[cfg(feature = "demo")]
             Screen::Transfer if self.transfer_text_here() => Here::TransferText,
-            Screen::Tools if self.tools.state().is_some() => Here::Tools,
+            Screen::Tools if crate::tools::flow::typing_here(self) => Here::Tools,
             Screen::Convert if self.tools.convert.check().is_some() => Here::Convert,
             Screen::Convert if self.tools.convert.entering_share() => Here::Share,
             Screen::KeyGen
