@@ -1092,6 +1092,15 @@ impl StepView<'_> {
             })
             .collect();
         let box_h: f32 = row_hs.iter().sum();
+        // The wide rows' labels stand in a column as wide as the longest
+        // label, never narrower than 70, so a value never touches its label.
+        let label_w = rows
+            .iter()
+            .enumerate()
+            .filter(|(k, _)| whole.get(*k).and_then(Option::as_ref).is_none())
+            .map(|(_, r)| ui.measure_as(BODY_S, &r.0) + faraday_draw::tokens::GAP)
+            .fold(70.0, f32::max);
+        let value_x = x + 14.0 + label_w;
         ui.fill(
             x,
             rows_top,
@@ -1165,14 +1174,14 @@ impl StepView<'_> {
                 }
             } else {
                 ui.text_mid_as((x + 14.0, ry, row_h), BODY_S, Role::OnSurfaceVariant, label);
-                let aw = ui.text_mid_as(
-                    (x + 84.0, ry, row_h),
-                    BODY_M.mono(),
-                    Role::OnSurface,
-                    amount,
-                );
+                let aw =
+                    ui.text_mid_as((value_x, ry, row_h), BODY_M.mono(), Role::OnSurface, amount);
                 ui.text_mid_as(
-                    (x + 98.0 + aw, ry, row_h),
+                    (
+                        value_x + aw + faraday_draw::tokens::GAP + faraday_draw::tokens::GAP_SMALL,
+                        ry,
+                        row_h,
+                    ),
                     BODY_S,
                     Role::OnSurfaceVariant,
                     rest,
