@@ -279,8 +279,19 @@ impl Faraday {
                 }
                 // The item's own list, the one the session pane's details show.
                 let c = self.compute();
-                let list =
-                    crate::items::offer(self, k, &|seen| self.session.spends_from(&c, seen)).list;
+                let found = std::cell::OnceCell::new();
+                let loaded_at = |k: usize| {
+                    found
+                        .get_or_init(|| self.inbox.found(&self.session, |i| self.found_in(&c, i)))
+                        .loaded_at_file(k)
+                };
+                let list = crate::items::offer(
+                    self,
+                    k,
+                    &|seen| self.session.spends_from(&c, seen),
+                    &loaded_at,
+                )
+                .list;
                 out.extend(list);
                 out.push(details);
                 out.push((EN.files_remove.to_string(), Action::InboxRemove(k)));

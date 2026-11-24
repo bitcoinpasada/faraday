@@ -837,3 +837,359 @@ fn a_file_no_flow_takes_offers_only_details_and_remove() {
     let mut app = holding(&[("photo.jpg", vec![0xff, 0xd8, 0xff, 0xe0])]);
     assert_eq!(menu_of(&mut app, Row::In(0)), ["Details", "Remove"]);
 }
+
+/// Faraday with a wallet file in Files, the wallet loaded from it when
+/// `loaded`.
+fn with_wallet_file(loaded: bool) -> Faraday {
+    let text = format!(
+        "wpkh({}/<0;1>/*)",
+        faraday_core::testkit::key(0, "m/84h/1h/0h")
+    );
+    let mut app = process(
+        vec![file("wallet.txt", text.as_bytes())],
+        Vec::new(),
+        Vec::new(),
+    );
+    if loaded {
+        app.press(Action::LoadWallet(0));
+    }
+    app.press(Action::Nav(Screen::Files));
+    app
+}
+
+#[test]
+fn a_wallet_file_not_loaded_offers_load_and_the_flows_that_take_it() {
+    let mut app = with_wallet_file(false);
+    let menu = menu_of(&mut app, Row::In(0));
+    assert_eq!(menu[0], "Load the wallet", "{menu:?}");
+    assert!(menu.iter().any(|l| l == "Spend from backup"), "{menu:?}");
+}
+
+#[test]
+fn a_wallet_file_loaded_offers_no_load_but_back_up_and_spend_from_backup() {
+    let mut app = with_wallet_file(true);
+    let menu = menu_of(&mut app, Row::In(0));
+    assert!(!menu.iter().any(|l| l == "Load the wallet"), "{menu:?}");
+    assert!(menu.iter().any(|l| l == "Back up"), "{menu:?}");
+    choose(&mut app, "Spend from backup");
+    assert_eq!(app.screen, Screen::SpendBackup);
+    assert_eq!(app.session.wallets.len(), 1, "that file's wallet, once");
+}
+
+#[test]
+fn a_locked_vault_file_in_files_offers_unlock() {
+    let v = vault("Savings", "pass one", 7);
+    let mut app = process(vec![file("vault.kdbx", &v)], Vec::new(), Vec::new());
+    app.press(Action::Nav(Screen::Files));
+    let menu = menu_of(&mut app, Row::In(0));
+    assert_eq!(menu[0], "Unlock", "{menu:?}");
+}
+
+fn wallet_text(n: usize) -> Vec<u8> {
+    format!(
+        "wpkh({}/<0;1>/*)",
+        faraday_core::testkit::key(n, "m/84h/1h/0h")
+    )
+    .into_bytes()
+}
+
+fn place(app: &Faraday, name: &str) -> usize {
+    app.inbox()
+        .iter()
+        .position(|i| i.name.as_str() == name)
+        .expect(name)
+}
+
+#[test]
+fn spend_from_backup_on_a_file_not_loaded_takes_it_and_has_no_back_up() {
+    let mut app = with_wallet_file(false);
+    let menu = menu_of(&mut app, Row::In(0));
+    assert!(!menu.iter().any(|l| l == "Back up"), "{menu:?}");
+    choose(&mut app, "Spend from backup");
+    assert_eq!(app.screen, Screen::SpendBackup);
+    assert!(
+        app.spend_backup_wallet().is_some(),
+        "the flow took the file"
+    );
+}
+
+#[test]
+fn back_up_on_a_loaded_wallet_file_opens_that_wallet() {
+    let mut app = with_wallet_file(true);
+    let _ = menu_of(&mut app, Row::In(0));
+    choose(&mut app, "Back up");
+    assert_eq!(app.backup().map(|b| b.wallet), Some(0));
+}
+
+#[test]
+fn back_up_on_a_loaded_wallet_file_opens_the_file_s_wallet_when_it_is_the_second() {
+    let mut app = process(
+        vec![
+            file("first.txt", &wallet_text(0)),
+            file("second.txt", &wallet_text(1)),
+        ],
+        Vec::new(),
+        Vec::new(),
+    );
+    let (first, second) = (place(&app, "first.txt"), place(&app, "second.txt"));
+    faraday_core::testkit::load_wallet(&mut app, first);
+    faraday_core::testkit::load_wallet(&mut app, second);
+    assert_eq!(app.session.wallets.len(), 2);
+    app.press(Action::Nav(Screen::Files));
+    let second = place(&app, "second.txt");
+    let _ = menu_of(&mut app, Row::In(second));
+    choose(&mut app, "Back up");
+    assert_eq!(app.backup().map(|b| b.wallet), Some(1));
+}
+
+#[test]
+fn two_wallets_under_one_file_name_the_file_is_taken_for_its_own_wallet() {
+    let mut app = process(
+        vec![file("wallet.txt", &wallet_text(0))],
+        Vec::new(),
+        Vec::new(),
+    );
+    app.press(Action::LoadWallet(0));
+    app.press(Action::Nav(Screen::Files));
+    // The first file goes; another wallet comes in under the same name.
+    app.press(Action::InboxRemove(0));
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![(
+            faraday_text::Text::of("wallet.txt"),
+            wallet_text(1),
+        )]),
+        outbox: Vec::new(),
+        kept: faraday_core::kept_from(Vec::<(String, Vec<u8>)>::new()),
+    });
+    app.press(Action::Nav(Screen::Files));
+    let menu = menu_of(&mut app, Row::In(0));
+    assert_eq!(menu[0], "Load the wallet", "{menu:?}");
+    assert!(!menu.iter().any(|l| l == "Back up"), "{menu:?}");
+    assert_eq!(app.session.wallets.len(), 1, "the first wallet stays");
+}
+
+#[test]
+fn spend_from_backup_on_a_refused_file_says_so_on_what_do_you_have() {
+    let mut app = process(
+        vec![file("wallet.txt", &wallet_text(0))],
+        Vec::new(),
+        Vec::new(),
+    );
+    // A file the flow refuses as a wallet: a descriptor that is a bare key.
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![(
+            faraday_text::Text::of("wallet.txt"),
+            faraday_core::testkit::key(0, "m/84h/1h/0h").into_bytes(),
+        )]),
+        outbox: Vec::new(),
+        kept: faraday_core::kept_from(Vec::<(String, Vec<u8>)>::new()),
+    });
+    app.press(Action::SpendBackup(
+        faraday_core::spend_backup::SpendBackupAction::FromFile(0),
+    ));
+    assert_eq!(app.screen, Screen::SpendBackup);
+    assert!(app.spend_backup_wallet().is_none());
+}
+
+/// A spend of the "spending" kit's wallet under way (its Check not done
+/// unless `checked`), with `other.txt`, a wallet file of another wallet,
+/// in the Inbox.
+fn spend_under_way(checked: bool) -> Faraday {
+    let kit = faraday_core::testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "spending")
+        .unwrap();
+    let psbt = faraday_core::testkit::unsigned(&kit).unwrap();
+    let mut app = process(
+        vec![
+            file("spend.psbt", &psbt.to_bytes()),
+            file("spending-wallet.txt", kit.descriptor.as_bytes()),
+            file("other.txt", &wallet_text(2)),
+        ],
+        Vec::new(),
+        Vec::new(),
+    );
+    let wallet_at = place(&app, "spending-wallet.txt");
+    faraday_core::testkit::load_wallet(&mut app, wallet_at);
+    app.press(Action::Entry(None));
+    for c in faraday_core::testkit::test_words("bacon").chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.press(Action::EntryAdd);
+    let psbt_at = place(&app, "spend.psbt");
+    app.press(Action::StartSpend(psbt_at));
+    if checked {
+        faraday_core::testkit::steps_before_sign_done(&mut app);
+    }
+    assert!(app.spend().is_some());
+    app
+}
+
+#[test]
+fn a_spend_of_one_wallet_under_way_is_asked_about_when_another_wallets_file_is_chosen() {
+    let mut app = spend_under_way(true);
+    app.press(Action::Nav(Screen::Files));
+    let other = place(&app, "other.txt");
+    let _ = menu_of(&mut app, Row::In(other));
+    choose(&mut app, "Spend from backup");
+    // Something is lost: asked first, the spend and the file untouched.
+    assert!(
+        matches!(app.sheet, Some(Sheet::CancelFlow(_))),
+        "{:?}",
+        app.sheet
+    );
+    assert!(app.spend().is_some());
+    assert_eq!(app.session.wallets.len(), 1);
+    app.press(Action::CancelFlowNow);
+    assert!(app.spend().is_none());
+    // Asked again, the file is taken and the flow is its own.
+    app.press(Action::Nav(Screen::Files));
+    let _ = menu_of(&mut app, Row::In(other));
+    choose(&mut app, "Spend from backup");
+    assert_eq!(app.session.wallets.len(), 2);
+    assert!(app.spend().is_none());
+    assert_eq!(app.screen, Screen::SpendBackup);
+}
+
+#[test]
+fn unlock_in_a_files_menu_opens_that_vault_file() {
+    let v = vault("Savings", "pass one", 7);
+    let mut app = process(vec![file("vault.kdbx", &v)], Vec::new(), Vec::new());
+    app.press(Action::Nav(Screen::Files));
+    let _ = menu_of(&mut app, Row::In(0));
+    choose(&mut app, "Unlock");
+    assert_ne!(app.screen, Screen::Files);
+    unlock(&mut app, "pass one");
+    assert_eq!(app.vaults().open.len(), 1);
+}
+
+#[test]
+fn an_open_vault_files_menu_has_no_unlock() {
+    let v = vault("Savings", "pass one", 7);
+    let mut app = process(vec![file("vault.kdbx", &v)], Vec::new(), Vec::new());
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(faraday_core::vault::VaultAction::Open(0)));
+    unlock(&mut app, "pass one");
+    app.press(Action::Nav(Screen::Files));
+    let menu = menu_of(&mut app, Row::In(0));
+    assert!(!menu.iter().any(|l| l == "Unlock"), "{menu:?}");
+}
+
+fn check_done(app: &Faraday) -> bool {
+    app.spend().unwrap().done[faraday_core::wallet::step::CHECK as usize]
+}
+
+#[test]
+fn yes_my_money_shows_does_not_mark_another_wallets_spend() {
+    use faraday_core::spend_backup::{SpendBackupAction as F, page};
+    let mut app = spend_under_way(false);
+    app.press(Action::Nav(Screen::SpendBackup));
+    let other = place(&app, "other.txt");
+    app.press(Action::SpendBackup(F::UseWallet(other)));
+    assert_eq!(app.session.wallets.len(), 2);
+    app.press(Action::SpendBackup(F::Next(page::CHECK)));
+    assert!(!check_done(&app), "the spend is the first wallet's");
+}
+
+#[test]
+fn a_file_taken_for_another_wallet_starts_the_flow_again_on_a_page() {
+    use faraday_core::spend_backup::{Open, SpendBackupAction as F};
+    let mut app = spend_under_way(false);
+    // The first wallet is open from its card.
+    app.press(Action::SpendBackup(F::SpendFrom(0)));
+    assert!(app.spend_backup().from_card);
+    app.press(Action::Nav(Screen::Files));
+    let other = place(&app, "other.txt");
+    let _ = menu_of(&mut app, Row::In(other));
+    choose(&mut app, "Spend from backup");
+    // Asked first; started over, the file is taken on the second press.
+    assert!(matches!(app.sheet, Some(Sheet::CancelFlow(_))));
+    app.press(Action::CancelFlowNow);
+    app.press(Action::Nav(Screen::Files));
+    let _ = menu_of(&mut app, Row::In(other));
+    choose(&mut app, "Spend from backup");
+    assert_eq!(app.spend_backup_wallet(), Some(1));
+    assert!(!app.spend_backup().from_card, "the file's flow has no card");
+    assert!(matches!(app.spend_backup().open, Some(Open::Page(_))));
+    assert!(app.spend().is_none());
+}
+
+#[test]
+fn unlock_is_not_offered_while_a_stick_is_in() {
+    let v = vault("Savings", "pass one", 7);
+    let mut app = process(vec![file("vault.kdbx", &v)], Vec::new(), Vec::new());
+    let mut shell = Shell::new();
+    shell.add(Disk::empty("S1", "TESTSTICK"));
+    shell.plug(&mut app, "S1");
+    shell.press(&mut app, Action::Nav(Screen::Files));
+    let menu = menu_of(&mut app, Row::In(0));
+    assert!(!menu.iter().any(|l| l == "Unlock"), "{menu:?}");
+}
+
+#[test]
+fn a_secret_file_whose_wallet_was_not_read_offers_no_spend_from_backup() {
+    const TPRV: &str = "tprv8ZgxMBicQKsPe5YMU9gHen4Ez3ApihUfykaqUorj9t6FDqy3nP6eoXiAo2ssvpAjoLroQxHqr3R5nE3a5dU3DHTjTgJDd7zrbniJr6nrCzd";
+    let read = format!("wpkh({TPRV}/84h/1h/0h/<0;1>/*)");
+    let mut app = process(
+        vec![file("secret.txt", read.as_bytes())],
+        Vec::new(),
+        Vec::new(),
+    );
+    app.press(Action::Nav(Screen::Files));
+    let menu = menu_of(&mut app, Row::In(0));
+    assert!(!menu.iter().any(|l| l == "Spend from backup"), "{menu:?}");
+}
+
+#[test]
+fn spend_from_backup_on_a_refused_wallet_file_takes_no_wallet_and_keeps_the_words_guess() {
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    // A guess from typed words stands.
+    app.press(Action::Nav(Screen::SpendBackup));
+    app.press(Action::SpendBackup(
+        faraday_core::spend_backup::SpendBackupAction::TypeWords,
+    ));
+    app.press(Action::Entry(None));
+    for c in faraday_core::testkit::test_words("bacon").chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.press(Action::EntryAdd);
+    let before = (app.session.wallets.len(), app.spend_backup_wallet());
+    // A wallet file whose wallet cannot be taken: another network's.
+    let mainnet = "wpkh(xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V/0/*)";
+    faraday_core::testkit::inbox_file(&mut app, "mainnet.txt", mainnet.as_bytes().to_vec());
+    let at = place(&app, "mainnet.txt");
+    app.press(Action::SpendBackup(
+        faraday_core::spend_backup::SpendBackupAction::FromFile(at),
+    ));
+    assert_eq!(app.screen, Screen::SpendBackup);
+    assert_eq!(
+        (app.session.wallets.len(), app.spend_backup_wallet()),
+        before
+    );
+}
+
+/// Coldcard's export of one key's single-sig accounts and its silent
+/// payments account (Sparrow's test file).
+const CC_SP: &str = include_str!("../vectors/interop/sparrow/cc-singlesig-sp-keystore-1.json");
+
+#[test]
+fn spend_from_backup_on_a_two_account_export_asks_the_account_and_takes_the_one_chosen() {
+    use faraday_core::wallet::Account;
+    let mut app = process(
+        vec![file("cc.json", CC_SP.as_bytes())],
+        Vec::new(),
+        Vec::new(),
+    );
+    app.press(Action::Nav(Screen::Files));
+    let _ = menu_of(&mut app, Row::In(0));
+    choose(&mut app, "Spend from backup");
+    assert_eq!(app.sheet, Some(Sheet::Account), "{:?}", app.toast_text());
+    assert!(
+        app.session.wallets.is_empty(),
+        "nothing taken before the choice"
+    );
+    app.press(Action::LoadAccount(Some(Account::Silent)));
+    assert_eq!(app.session.wallets.len(), 1);
+    assert!(app.session.wallets[0].policy().silent().is_some());
+    assert_eq!(app.spend_backup_wallet(), Some(0));
+}

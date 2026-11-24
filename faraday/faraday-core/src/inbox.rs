@@ -126,6 +126,8 @@ pub struct FoundWallet {
     pub seeds_here: usize,
     /// The session has it already.
     pub loaded: bool,
+    /// Its place among the session's wallets, when loaded.
+    pub at: Option<usize>,
 }
 
 /// How many times the Inbox pairs a words file with a passphrase file
@@ -599,6 +601,14 @@ impl Found {
             .collect()
     }
 
+    /// The session's wallet that file `k` describes, when it is loaded.
+    pub(crate) fn loaded_at_file(&self, k: usize) -> Option<usize> {
+        self.wallets
+            .iter()
+            .find(|w| w.files.contains(&k))
+            .and_then(|w| w.at)
+    }
+
     /// Wallets not loaded yet.
     pub fn to_load(&self) -> Vec<&FoundWallet> {
         self.wallets.iter().filter(|w| !w.loaded).collect()
@@ -1068,7 +1078,7 @@ impl Faraday {
                            policy: faraday_bip::policy::WalletPolicy,
                            file: Option<usize>,
                            shares: bool,
-                           loaded: bool| {
+                           at: Option<usize>| {
             let descriptor = crate::wallet::same_wallet(&policy);
             if let Some(w) = found
                 .wallets
@@ -1078,7 +1088,8 @@ impl Faraday {
                 if let Some(k) = file {
                     w.files.push(k);
                 }
-                w.loaded |= loaded;
+                w.loaded |= at.is_some();
+                w.at = w.at.or(at);
                 return;
             }
             let wallet = Wallet::new(
@@ -1102,28 +1113,33 @@ impl Faraday {
                 shape: Text::of(&Session::shape(&wallet)),
                 needed: crate::wallet::needed(&wallet),
                 seeds_here: 0,
-                loaded,
+                loaded: at.is_some(),
+                at,
             });
         };
-        let loaded_desc: BTreeSet<Text> = self
+        let loaded_desc: Vec<Text> = self
             .session
             .wallets
             .iter()
             .map(|w| Text::of(&crate::wallet::same_wallet(w.policy())))
             .collect();
+        let loaded_at = |p: &faraday_bip::policy::WalletPolicy| {
+            let d = crate::wallet::same_wallet(p);
+            loaded_desc.iter().position(|x| **x == *d)
+        };
         for (k, item) in items.iter().enumerate() {
             // Read when the file came in.
             let Some(policy) = item.wallet() else {
                 continue;
             };
-            let loaded = loaded_desc.contains(&*crate::wallet::same_wallet(policy));
+            let at = loaded_at(policy);
             push_wallet(
                 &mut found,
                 self.wallet_name_in(items, k),
                 policy.clone(),
                 Some(k),
                 false,
-                loaded,
+                at,
             );
         }
         let shares: Vec<Text> = items
@@ -1141,8 +1157,8 @@ impl Faraday {
                             EN.inbox_restored_wallet,
                         );
                         if let Some(p) = self.kept.read_kept(c, &whole) {
-                            let loaded = loaded_desc.contains(&*crate::wallet::same_wallet(&p));
-                            push_wallet(&mut found, name, p, None, true, loaded);
+                            let at = loaded_at(&p);
+                            push_wallet(&mut found, name, p, None, true, at);
                         }
                     }
                     None => found.waiting.push(Waiting {
@@ -1157,7 +1173,7 @@ impl Faraday {
                 }),
             }
         }
-        for w in &self.session.wallets {
+        for (i, w) in self.session.wallets.iter().enumerate() {
             // As its descriptor reads: a silent payments wallet has none
             // (its "descriptor" is its address); any other is its own
             // policy, with nothing to read.
@@ -1165,7 +1181,7 @@ impl Faraday {
                 continue;
             }
             let policy = w.policy().clone();
-            push_wallet(&mut found, Text::of(&w.name), policy, None, false, true);
+            push_wallet(&mut found, Text::of(&w.name), policy, None, false, Some(i));
         }
         let seeds: Vec<Fingerprint> = found.seeds.iter().map(|s| s.fingerprint).collect();
         for w in found.wallets.iter_mut() {

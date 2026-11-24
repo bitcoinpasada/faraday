@@ -146,6 +146,12 @@ pub enum SpendBackupAction {
     TypeWords,
     /// Open the wallet in this Inbox file.
     UseWallet(usize),
+    /// Open the flow on the wallet file at this Inbox place, from Files:
+    /// the tab, then [`SpendBackupAction::UseWallet`].
+    FromFile(usize),
+    /// [`SpendBackupAction::UseWallet`] for the file `FromFile` started
+    /// on: the flow starts again once the wallet is taken.
+    TakeFile(usize),
     /// Rebuild the wallet from the split sheets in the Inbox.
     Rebuild,
     /// Spend from this wallet of the session.
@@ -697,7 +703,14 @@ impl Faraday {
                     self.mark_checked(&checksum);
                 }
                 // The spend's own Check is this page, done by the person.
-                if p == page::CHECK && self.spend_backup_page_done(page::CHECK) {
+                // Only when the spend is the checked wallet's.
+                if p == page::CHECK
+                    && self.spend_backup_page_done(page::CHECK)
+                    && self.spend_backup_wallet().is_some()
+                    && self.wallets.spend().is_some_and(|s| {
+                        s.wallet.is_none() || s.wallet == self.spend_backup_wallet()
+                    })
+                {
                     self.wallets.mark_step_done(step::CHECK);
                     self.wallets.open_next_undone();
                 }
@@ -774,12 +787,9 @@ impl Faraday {
                     self.screen = Screen::Entry;
                 }
             }
-            F::UseWallet(i) => {
-                if let Some(name) = self.inbox.get(i).map(|it| Text::of(&it.name)) {
-                    self.spend_backup_came(Came::File(name));
-                }
-                self.spend_backup_use_wallet(i);
-            }
+            F::UseWallet(i) => self.spend_backup_take(i, false),
+            F::TakeFile(i) => self.spend_backup_take(i, true),
+            F::FromFile(i) => self.spend_backup_from_file(i),
             F::Rebuild => {
                 let names: Vec<Text> = self
                     .inbox
@@ -1681,7 +1691,20 @@ impl Faraday {
             .find(|k| w.name == *Text::fill(EN.spend_backup_words, &[kind_name(*k)]))
     }
 
+    /// The wallet file at Inbox place `i` is taken; `fresh` when the
+    /// flow was started on it from Files.
+    fn spend_backup_take(&mut self, i: usize, fresh: bool) {
+        if let Some(name) = self.inbox.get(i).map(|it| Text::of(&it.name)) {
+            self.spend_backup_came(Came::File(name));
+        }
+        self.spend_backup_use_wallet_in(i, fresh);
+    }
+
     fn spend_backup_use_wallet(&mut self, index: usize) {
+        self.spend_backup_use_wallet_in(index, false);
+    }
+
+    fn spend_backup_use_wallet_in(&mut self, index: usize, fresh: bool) {
         let c = self.compute();
         let Some(item) = self.inbox.get(index) else {
             return;
@@ -1699,6 +1722,9 @@ impl Faraday {
             .add_wallet(&c, &name, &text, &source, crate::wallet::Origin::Named)
         {
             Ok(i) => {
+                if fresh {
+                    self.spend_backup_fresh_for(i);
+                }
                 self.spend_backup_set_wallet(i);
                 self.spend_backup_described_in();
                 self.refresh_spend();
@@ -1708,12 +1734,94 @@ impl Faraday {
             Err(crate::wallet::Refusal::Unconfirmed) => {
                 if !asked {
                     self.session.wallet_replay(
-                        crate::Action::SpendBackup(SpendBackupAction::UseWallet(index)),
+                        crate::Action::SpendBackup(if fresh {
+                            SpendBackupAction::TakeFile(index)
+                        } else {
+                            SpendBackupAction::UseWallet(index)
+                        }),
                         self.inbox_print(),
                     );
                 }
             }
             Err(e) => self.spend_backup.state.error = Some(e.text()),
+        }
+    }
+
+    /// Spend from backup on Inbox file `i` (its menu): the file's wallet
+    /// is taken as What do you have? takes it, and the flow starts again
+    /// for it when another wallet's was under way. Another wallet's spend
+    /// under way gives way as `SpendFrom` has it, asked first where
+    /// ending it loses something (Start over's sheet; the file is taken
+    /// when pressed again).
+    fn spend_backup_from_file(&mut self, i: usize) {
+        let c = self.compute();
+        let Some(item) = self.inbox.get(i) else {
+            return;
+        };
+        let file = item.wallet().map(crate::wallet::same_wallet);
+        // A Coldcard export of two accounts may give the other one: a
+        // spend under way counts as another wallet's.
+        let text = Text::from_utf8_lossy(&item.bytes);
+        let two_accounts =
+            self.wallets.spend().is_some() && { self.session.account_may_differ(&c, &text) };
+        let spend_other = self.wallets.spend().is_some_and(|s| {
+            two_accounts
+                || !file.as_ref().is_some_and(|f| {
+                    s.wallet
+                        .and_then(|w| self.session.wallets.get(w))
+                        .is_some_and(|w| *crate::wallet::same_wallet(w.policy()) == **f)
+                })
+        });
+        if spend_other {
+            if self
+                .cancel_loses(crate::in_progress::Going::Spend)
+                .is_some()
+            {
+                self.sheet = Some(Sheet::CancelFlow(crate::in_progress::Going::Spend));
+                self.spend_backup.state.start_over_asked = true;
+                return;
+            }
+            self.wallets.clear_spend();
+        }
+        self.act(Action::Nav(Screen::SpendBackup));
+        // A refusal is said on What do you have?, in front of the person.
+        self.spend_backup.state.open = Some(Open::Page(page::HOLDING));
+        self.spend_backup.state.walkthrough = true;
+        self.spend_backup.state.scroll.follow = true;
+        self.act(Action::SpendBackup(SpendBackupAction::TakeFile(i)));
+    }
+
+    /// The flow starts again for the wallet taken from Inbox file `i`
+    /// when it is not the one chosen: its own Check, route, pages and
+    /// way in. Another wallet's spend does not stay beside it.
+    fn spend_backup_fresh_for(&mut self, taken: usize) {
+        let checksum = Text::of(self.session.wallets[taken].checksum());
+        if self.spend_backup.state.wallet.is_some()
+            && self.spend_backup.state.wallet.as_ref() != Some(&checksum)
+        {
+            let old = std::mem::take(&mut self.spend_backup.state);
+            let closed = old.closed;
+            self.spend_backup.state = SpendBackupState {
+                closed: {
+                    let mut c = [false; page::COUNT as usize];
+                    c[page::MAP as usize] = closed[page::MAP as usize];
+                    c[page::SAFE as usize] = closed[page::SAFE as usize];
+                    c
+                },
+                from: old.from,
+                came: old.came,
+                open: Some(Open::Page(page::HOLDING)),
+                walkthrough: true,
+                ..SpendBackupState::default()
+            };
+            self.spend_backup.state.scroll.follow = true;
+        }
+        if self
+            .wallets
+            .spend()
+            .is_some_and(|s| s.wallet != Some(taken))
+        {
+            self.wallets.clear_spend();
         }
     }
 

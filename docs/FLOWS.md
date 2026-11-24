@@ -316,7 +316,12 @@ menu.
    file, while a single-key wallet is loaded) and **Check an address** (a
    text file), **Check this setup** (a wallet
    file of more than one key, after **Show as QR** where it has one;
-   `Screen::MultisigCheck`, Check a multisig setup), **Rename** (For the stick only),
+   `Screen::MultisigCheck`, Check a multisig setup), and for a wallet file
+   the flow takes **Back up** (only while its wallet is loaded: the wallet
+   decides, not the file's name) and **Spend from backup**; a wallet file
+   whose wallet is loaded has no **Load the wallet** and no **Add to
+   vault**. **Unlock** is the menu of a locked vault file, not while a
+   stick is attached. **Rename** (For the stick only),
    **Details**, **Remove**. There is no visible **Remove** button. A row with no main
    action shows only the ⋮. A vault action (Add to vault, Import, Sign
    with key) is not shown, as a button or in the ⋮, while no vault is

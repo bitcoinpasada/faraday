@@ -630,7 +630,7 @@ pub fn replays(action: Action) -> bool {
             | Action::RestoreShareAt(_)
             | Action::Seeds(crate::seeds::SeedsAction::Make)
             | Action::CNext(crate::cstep::KEYS)
-            | Action::SpendBackup(F::UseWallet(_) | F::Rebuild | F::GuessWay(_))
+            | Action::SpendBackup(F::UseWallet(_) | F::TakeFile(_) | F::Rebuild | F::GuessWay(_))
             | Action::CoreWallet(crate::core_wallet::tool::CoreWalletAction::Take(_))
             | Action::MultisigCheck(crate::multisig_check::MsAction::Add)
     )

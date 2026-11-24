@@ -50,15 +50,26 @@ impl Offer {
 /// this works nothing out.
 pub(crate) type SpendsFrom<'a> = &'a dyn Fn(&PsbtSeen) -> Option<usize>;
 
+/// The loaded wallet an Inbox file describes, by its place; the caller
+/// gives the Inbox's kept answer (as for [`SpendsFrom`]), `None` where it
+/// is not there.
+pub(crate) type LoadedAs<'a> = &'a dyn Fn(usize) -> Option<usize>;
+
 /// The offer of Inbox file `k`, by its kind.
-pub(crate) fn offer(app: &Faraday, k: usize, spends_from: SpendsFrom) -> Offer {
+pub(crate) fn offer(
+    app: &Faraday,
+    k: usize,
+    spends_from: SpendsFrom,
+    loaded_as: LoadedAs,
+) -> Offer {
     let Some(item) = app.inbox.get(k) else {
         return Offer::none();
     };
     match item.kind {
         FileKind::Psbt => psbt(app, spends_from, k, item),
         FileKind::Transaction => Offer::with_button(vec![decode(k), check_signer(k)]),
-        FileKind::Wallet | FileKind::SecretWallet => wallet(app, k, item),
+        FileKind::Wallet | FileKind::SecretWallet => wallet(app, k, item, loaded_as(k)),
+        FileKind::Vault => vault(app, item),
         FileKind::Key | FileKind::KeyWithSecret | FileKind::KeyLine => {
             Offer::with_button(vec![use_key(k, item.kind)])
         }
@@ -133,15 +144,50 @@ fn psbt(app: &Faraday, spends_from: SpendsFrom, k: usize, item: &Item) -> Offer 
     Offer::with_button(first.into_iter().chain(checks).collect())
 }
 
-/// A wallet file: Load, Add to vault and the setup check.
-fn wallet(app: &Faraday, k: usize, item: &Item) -> Offer {
-    let mut list = vec![(
-        EN.inbox_actions_load_wallet.to_string(),
-        Action::LoadWallet(k),
-    )];
-    list.extend(into_vault(app, k));
+/// A wallet file, in `docs/WORKSPACE.md`'s order. Load and Add to vault
+/// only while its wallet is not loaded (the wallet decides, not the
+/// file's name; `loaded` is the session's wallet it describes, from the
+/// Inbox's kept answer, and without that answer Load is offered); the
+/// setup check; Back up (the loaded wallet's own flow) and Spend from
+/// backup (the flow's own way in), for a file the flow takes as a wallet
+/// file, a secret one whose wallet was read included.
+fn wallet(app: &Faraday, k: usize, item: &Item, loaded: Option<usize>) -> Offer {
+    let mut list = Vec::new();
+    if loaded.is_none() {
+        list.push((
+            EN.inbox_actions_load_wallet.to_string(),
+            Action::LoadWallet(k),
+        ));
+        list.extend(into_vault(app, k));
+    }
     list.extend(crate::multisig_check::menu_line(item.wallet(), false, k));
-    Offer::with_button(list)
+    if crate::create::wallet_flow_kind(item) == FileKind::Wallet {
+        if let Some(i) = loaded {
+            list.push((EN.backups_back_up.to_string(), Action::Backup(i)));
+        }
+        list.push((
+            EN.home_ways_spend_short.to_string(),
+            Action::SpendBackup(crate::spend_backup::SpendBackupAction::FromFile(k)),
+        ));
+    }
+    if loaded.is_none() {
+        Offer::with_button(list)
+    } else {
+        Offer::without_button(list)
+    }
+}
+
+/// A vault file that is locked: Unlock, the press its own row makes.
+fn vault(app: &Faraday, item: &Item) -> Offer {
+    let files = app.vault_files();
+    match crate::vault::vault_at(&files, item) {
+        // Never while a stick is in: the row waits until it is pulled.
+        Some(at) if files[at].open.is_none() && app.stick.is_empty() => Offer::with_button(vec![(
+            EN.inbox_actions_unlock.to_string(),
+            Action::Vault(crate::vault::VaultAction::Open(at)),
+        )]),
+        _ => Offer::none(),
+    }
 }
 
 /// A key file or key line: Use key.

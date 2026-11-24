@@ -4866,3 +4866,15 @@ fn ticked_places(own: &WalletPolicy, mine: &WalletPolicy, ticks: &[bool]) -> Vec
         .map(|(i, _)| i)
         .collect()
 }
+
+/// The place among `files` ([`crate::Faraday::vault_files`]) of the vault
+/// From the stick row `item` is: its own file by name in that list, or
+/// the vault it is a copy of ([`VaultFile::copies`]), never
+/// a For the stick file of its name that is another vault; `None` when it
+/// is neither. A lookup.
+pub(crate) fn vault_at(files: &[VaultFile], item: &crate::Item) -> Option<usize> {
+    files.iter().position(|f| {
+        (f.name == item.name.as_str() && !f.in_outbox)
+            || f.copies.iter().any(|x| x.as_str() == item.name.as_str())
+    })
+}

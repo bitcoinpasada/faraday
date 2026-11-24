@@ -1321,7 +1321,9 @@ pub(super) fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Button
     let note: Option<(Text, crate::ui::Paint)> = None;
     // The shared list's button (`crate::items`), so the card, the row and
     // the row's menu agree; a kind the list does not cover keeps its own.
-    let offer = crate::items::offer(app, k, &|seen| app.spends_from(seen));
+    let found = std::cell::OnceCell::new();
+    let loaded_at = |k: usize| found.get_or_init(|| app.inbox_found()).loaded_at_file(k);
+    let offer = crate::items::offer(app, k, &|seen| app.spends_from(seen), &loaded_at);
     if let Some((label, action)) = offer.button() {
         let style = if matches!(action, Action::StartSpend(_)) {
             Style::Tonal
@@ -1344,21 +1346,13 @@ pub(super) fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Button
             }
         }
         FileKind::Vault => {
+            // A locked vault's Unlock is `crate::items`' (not while a
+            // stick is in); an open one's Contents is here.
             let files = app.vault_files();
-            // The row's own vault, or no button.
-            if let Some(at) = vault_at(&files, item) {
-                let open = files[at].open.is_some();
+            if let Some(at) = vault_at(&files, item).filter(|&at| files[at].open.is_some()) {
                 out.push((
-                    Text::of(if open {
-                        EN.inbox_actions_contents
-                    } else {
-                        EN.inbox_actions_unlock
-                    }),
-                    if open {
-                        Style::Secondary
-                    } else {
-                        Style::Primary
-                    },
+                    Text::of(EN.inbox_actions_contents),
+                    Style::Secondary,
                     Action::Vault(crate::vault::VaultAction::Open(at)),
                 ));
             }
@@ -1375,14 +1369,4 @@ pub(super) fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Button
     (out, note)
 }
 
-/// The place among `files` ([`crate::Faraday::vault_files`]) of the vault
-/// From the stick row `item` is: its own file by name in that list, or
-/// the vault it is a copy of ([`crate::vault::VaultFile::copies`]), never
-/// a For the stick file of its name that is another vault; `None` when it
-/// is neither. A lookup.
-pub(super) fn vault_at(files: &[crate::vault::VaultFile], item: &crate::Item) -> Option<usize> {
-    files.iter().position(|f| {
-        (f.name == item.name.as_str() && !f.in_outbox)
-            || f.copies.iter().any(|x| x.as_str() == item.name.as_str())
-    })
-}
+pub(super) use crate::vault::vault_at;

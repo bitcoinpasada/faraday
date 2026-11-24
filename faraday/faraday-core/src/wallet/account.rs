@@ -96,6 +96,29 @@ impl Session {
         Err(Refusal::AccountUnchosen)
     }
 
+    /// Whether `text` is a Coldcard export of a single-sig and a silent
+    /// payments account whose account is not settled as the single-sig
+    /// one: the wallet taken from it may be either. Costs what
+    /// [`Self::account_of`] does.
+    pub(crate) fn account_may_differ(&self, c: &Compute, text: &str) -> bool {
+        if !faraday_bip::coldcard::looks_like_export(text) {
+            return false;
+        }
+        let Some(Ok(_)) = faraday_bip::coldcard::silent(c, text) else {
+            return false;
+        };
+        let Ok(read) = super::read_wallet(c, text) else {
+            return true;
+        };
+        !matches!(
+            self.accounts
+                .chosen
+                .iter()
+                .find(|(k, _)| *k == same_wallet(&read)),
+            Some((_, Account::SingleSig))
+        )
+    }
+
     /// The export waiting for its account to be chosen, if one is.
     pub(crate) fn account_asked(&self) -> Option<&AccountAsk> {
         self.accounts.asked.as_deref()
