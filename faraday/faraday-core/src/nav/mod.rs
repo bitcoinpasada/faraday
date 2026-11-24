@@ -206,12 +206,42 @@ pub(crate) fn destination_of(s: Screen) -> Screen {
 
 /// The destination lit while screen `app.screen` shows: its own
 /// ([`destination_of`]), but for Spend from a backup opened from Home,
-/// which keeps Home lit, where its way back leads.
-pub(crate) fn lit_destination(app: &crate::drawing::View) -> Screen {
+/// which keeps Home lit, where its way back leads. A tool opened from
+/// Tools lights Tools and one opened from Check lights Check; opened from
+/// anywhere else, or from nowhere known, it lights what `destination_of`
+/// gives.
+pub(crate) fn lit_destination(app: &crate::Faraday) -> Screen {
     match app.screen {
         Screen::SpendBackup if app.spend_backup.from() == Some(Screen::Home) => Screen::Home,
+        s if is_tool(s) => match app.opened_from_screen() {
+            Some(Screen::Catalog) => Screen::Catalog,
+            Some(Screen::Check) => Screen::Check,
+            _ => destination_of(s),
+        },
         s => destination_of(s),
     }
+}
+
+/// The screens Tools and Check open: tools, not a wallet's own flows.
+fn is_tool(s: Screen) -> bool {
+    matches!(
+        s,
+        Screen::Vanity
+            | Screen::Entry
+            | Screen::KeyGen
+            | Screen::Bip85
+            | Screen::Convert
+            | Screen::KefTool
+            | Screen::OtsCheck
+            | Screen::SeedCheck
+            | Screen::MultisigCheck
+            | Screen::CoreWallet
+            | Screen::Silent
+            | Screen::Explore
+            | Screen::Lightning
+            | Screen::Message
+            | Screen::CheckMessage
+    )
 }
 
 /// Whether the screen on show is a destination's top page, the one the

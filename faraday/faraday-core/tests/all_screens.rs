@@ -155,6 +155,8 @@ mod stepper;
 mod text_size;
 #[path = "all/toast.rs"]
 mod toast;
+#[path = "all/tool_lit.rs"]
+mod tool_lit;
 #[path = "all/tool_opens.rs"]
 mod tool_opens;
 #[path = "all/tools.rs"]

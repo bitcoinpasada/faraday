@@ -683,6 +683,13 @@ impl Faraday {
         }
     }
 
+    /// The screen the one on show was opened from, as far as the app
+    /// knows it: the last screen on the trail that can still be shown.
+    /// Only lookups.
+    pub(crate) fn opened_from_screen(&self) -> Option<Screen> {
+        self.trail.last_shown(|s| self.shows(s)).map(|s| s.screen)
+    }
+
     /// The name of where Back lands from here: the last screen on the
     /// trail that can still be shown, a wallet's card by the wallet's
     /// name. Only lookups.

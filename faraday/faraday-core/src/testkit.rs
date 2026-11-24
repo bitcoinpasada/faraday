@@ -2733,3 +2733,8 @@ fn plain_files_t(files: crate::Files) -> Vec<(Text, Vec<u8>)> {
 pub fn focused(app: &crate::Faraday) -> Option<crate::Action> {
     app.pointer.focused()
 }
+
+/// The destination the sidebar lights for the screen on show.
+pub fn lit_destination(app: &crate::Faraday) -> crate::Screen {
+    crate::nav::lit_destination(app)
+}
