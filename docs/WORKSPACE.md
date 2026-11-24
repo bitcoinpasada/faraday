@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Partly built: Home's card with its groups (F323, `docs/SESSION-PANE.md`), the flow pair as one card (F324), a change of page at the Speed and in the Motion style (F318) and the flat section cards of the menu pages (F317) are on main; the rest is not built: the session pane as the one view of what is loaded and going on, on the menu pages and in every flow, the page as panes, and the rest of the motion (§6).
-**Open:** To build: the session pane's modes on Wallets and its form in the flows (§2; Home's card in groups and the modes of Tools and Check are built, `docs/SESSION-PANE.md`), the pairs and stacked pages of §4 for Wallets and Settings, the pick becoming Your choices at the left in a flow with wide content (the wallet chip as the first row is built where the pair stands) and the backup board, the flow pair's one card there (§4, §6), row buttons on the wallet rows and the shares' file row, and details on the pane (§2, §7; the file rows of Tools and Check carry theirs; Files' row menu and card buttons already read the shared list), search results and the guide as panes (§7), the pane container and its lint (§14), the session pane's place handed to the glide, which moves it (§6), Settings as one tile (§9), the timings on the Pi that §6 and §8 name, and the take-away (§15). Not decided: what Vaults' pane holds (§2), whether the flow's end is one card or two (§15), where the Scan button stands on a computer, and the backup board's insides.
+**Open:** To build: the session pane's modes on Wallets and its form in the flows (§2; Home's card in groups and the modes of Tools and Check are built, `docs/SESSION-PANE.md`), the pairs and stacked pages of §4 for Wallets, the pick becoming Your choices at the left in a flow with wide content (the wallet chip as the first row is built where the pair stands) and the backup board, the flow pair's one card there (§4, §6), row buttons on the wallet rows and the shares' file row, and details on the pane (§2, §7; the file rows of Tools and Check carry theirs; Files' row menu and card buttons already read the shared list), the guide as a pane (§7), the pane container and its lint (§14), Vaults' pane (§2), Wallets' four rows (§2), the Scan button under Settings, the viewfinder in the pane and its popout (§4), the backup board's insides and codex32 from dice (§7), the flow's one card for the one-page tools and checks and Units' amounts (§2), the timings on the Pi that §6 and §8 name, the take-away (§15), flows in progress and the way out of a flow (§16), starting with files on the boot stick (§17) and addresses shown whole (§18); what of these is built is in the sections. Not decided: the Pi's default Motion, until its timings (§8); how a stacked page's strip holds the viewfinder (§4); where Settings' Mode opens (§9); seven points of the backup board the owner has to confirm (§7).
 
 "This session", Home's raised card, becomes the session pane, Faraday's hub: everything about
 what is loaded and going on lives in it, and it works with every part of
@@ -54,15 +54,16 @@ files, flows), in the order that page's tools need them (§2). The source is
 the same; the mode only says which kinds are drawn and which leads.
 
 **The PSBT** is a one-column item as the others are. Its Sign button stands
-under its two lines, at the text's start, never at the card's far edge; each
+under its two lines, at the text's start, never at the card's far edge, and
+so does every other lead's button (Carry on, Finish, Unlock, Write, Open); each
 waiting PSBT is one such item, and the card scrolls inside when long
-(owner, 2026-11-23). Any lead stands in the Waiting group, not across the card's columns.
+(owner, 2026-11-23). A locked vault file is one row each too. Any lead stands in the Waiting group, not across the card's columns.
 
 **No All keys row** on Home, Tools or Check. It stays only where keys are
 cut: the phone-size window and the Pi (§8).
 
 **Nothing is shown twice on one screen**: an item in the pane is not also
-in the page's tile. Files is the one exception (§2).
+in the page's tile. Files and Vaults are the exceptions (§2).
 
 ## 2. The pane's forms
 
@@ -93,18 +94,28 @@ own.
   | Check | Files (PSBTs and transactions first, then wallet and setup files, then the other kinds a Check tool takes), Wallets, Keys (every key), In progress | Backups, files to write, vaults open | most Check tools start from a file; Check an address and Convert an xpub take a watch-only key |
   | Wallets | Waiting (a waiting PSBT with Sign, held wallet and setup files, flows in progress), Keys | the wallets: the page's tile lists them | the pane holds what Wallets' actions use |
 
-- **Wallets' and Vaults' right tile** ends with a row to make one: a tonal,
-  highlighted row, "Make a new wallet" on Wallets and "Make a new vault" on
-  Vaults. It stands at the list's foot where the list fits, and is pinned
-  at the tile's foot where the list scrolls. Wallets' tile lists only the
-  wallets: "Keys without a wallet" leaves it, since the keys are in the
+- **Wallets' right tile** lists only the wallets, then four rows, all
+  neutral, none tonal, in Home's order (owner, 2026-11-24): Make a new
+  wallet, Restore an existing wallet, Spend from a backup, Add a key.
+  "Keys without a wallet" leaves the tile, since the keys are in the
   pane. Make a new key is reached through New wallet's key pick.
-- **Vaults** is two panes, its tile at the right holding the vault files,
-  then an open vault's contents. What its pane at the left holds is not
-  decided.
+- **Vaults' right tile** ends with a tonal, highlighted row, "Make a new
+  vault", at the list's foot where the list fits and pinned at the tile's
+  foot where the list scrolls.
+- **Vaults** is two panes (owner, 2026-11-23). At the left stand this
+  session's keys and wallets, each marked "In a vault" or "Not saved"; its
+  tile at the right holds the vault files, then an open vault's contents.
+  Load and Save are one press per item, with no ticks and no drag and drop.
+  An item both in the vault and in the session is shown in both places,
+  marked in both.
 - **Files** has no This session. Its left pane is In Faraday, its heading
   kept (`screens/visit.rs`, `in_faraday`), listing the files held with
-  their ticks, Write its last row; the stick stands at the right. A file
+  their ticks, Write its last row: a tonal row of two lines, "Write", then
+  "The checked files, to the stick" (owner, 2026-11-23). Where the list goes
+  on below, it fades at its foot, a line "N more · scroll to see them" ("1
+  more · scroll to see it") stands whole above the Write row, and a scroll
+  bar runs at the list's right (owner, 2026-11-24). The stick stands at the
+  right. A file
   both in Faraday and on the stick is listed in both and highlighted in
   green in both (owner, 2026-11-22): Files shows where a file exists.
 - **Settings** has no pane (§4, §9). **The backup board** has no This
@@ -160,6 +171,19 @@ details only while a vault is open.
     address. In seed tools it is dimmed "No seed held".
   - A flow that takes nothing loaded lists its ways in as rows to pick. A
     tool with a single way in (Units) opens straight on it.
+  - A key pick that takes several (Restore's and Spend from a backup's own
+    among them) is checkbox rows with one button to use the ticked keys; a
+    key already in the wallet is dimmed with its reason (owner, 2026-11-24).
+  - **Every tool and check stands on the flow's one card** (owner,
+    2026-11-23, 2026-11-24), those of one page too: Units, Hashes and the
+    like, and Decode a transaction, Check an address, Nonce check, Check a
+    signed message and Invoice, their ways in at the left. Explore and
+    Derive, Lightning node key and the seed set page have a left pane as a
+    tool has. Lightning's holds two rows per key (ldk-node and Core
+    Lightning); LND's aezeed and Core Lightning's `hsm_secret` are buttons at
+    the top of the card.
+  - Units has an "Add an amount" button at the foot of the left pane; the
+    amounts are Material tabs over the card, each a conversion of its own.
   - The pick grows into the room below it before it scrolls.
   - A key added or scanned from a way in returns to the pick, ticked.
 
@@ -195,7 +219,8 @@ details only while a vault is open.
   (c) the rows left become Material selection-list rows: the radio or
   checkbox at the start, a tonal container behind each row, the chosen one
   in the secondary container, the state layer on hover and press;
-  (d) the pane takes an outline in the primary colour, tying it to the flow;
+  (d) one thin neutral line stands round the pair, as at every step (§4),
+  and nothing else: the pane has no outline of its own (owner, 2026-11-23);
   (e) the flow's own first step has nothing that competes with the pane: no
   other key control, only its Next (off until a pick) and its way back.
 - **Your choices (a flow under way).** Once the pick is made the other rows
@@ -249,8 +274,9 @@ motion: with motion Off the pane stands where it would after the glide.
    more, so that most of Tools shows without scrolling; a wider window
    keeps that width and centres the pair, and a room that holds one column
    (1366 × 768) keeps the flow's place. The pair of these two pages
-   therefore moves sideways when a tool opens (motion, §6); the pane turns
-   into the pick in place and the tile into the step card. Wallets and the
+   therefore moves sideways when a tool opens: the pane glides and turns
+   into the pick, the tile turns into the step card, in one movement (§6;
+   owner, 2026-11-23). Wallets and the
    other pairs move nothing sideways, only heights change.
 4. **A pair always ends level**: tops and bottoms line up, at the height the
    taller pane's content needs. A pane is never longer than its pair's
@@ -264,15 +290,19 @@ motion: with motion Off the pane stands where it would after the glide.
    page margin above the window's foot. Where it does not all fit, the pair
    of rule 2. Nothing is cut back until a tool is chosen. Entering a flow
    from a stacked page turns the layout into the flow's pair in one
-   transition (§2), and Back returns to the page the person came by with
-   every row it had.
+   transition (§2).
+   **Side by side holds until Home** (owner, 2026-11-23, 2026-11-24): once a
+   page or a flow has stood side by side, every page after it stands side by
+   side, whether it would fit stacked or not, until Home is shown again. A
+   flow always stands side by side, so leaving a tool opened from a stacked
+   page shows that page side by side, with every row of its mode (§16).
 6. **Files, Wallets and Vaults never stack.**
 7. **Settings has no pane.** Where every one of its cards fits under Home's
    card as it stands, Settings opens there, the card not moving; otherwise
    Home changes to the Settings page. What fits decides, not the window's
    named size. No pane moves to or from Settings.
 
-**The top bar.** The search stands in the top bar on every page that has
+**The top bar.** The page's name stands at the bar's left end. The search stands in the top bar on every page that has
 one, never inside a tile. The three pills (New wallet, Restore, Spend from
 backup) are text only, with no icons, and stand beside it on Home only. The
 search field shrinks to fit what else the bar shows; there is no second row
@@ -288,13 +318,30 @@ a menu over the page, anchored under the button, with New wallet, Restore and Sp
 (`bar_search::place`, the one rule of the bar and of the page's row: on the
 compact rail the row holds the field and the **Start** button). The menu
 closes by Escape, Back, a press outside it and a press on a row. About 1020
-dp and wider keep the three pills.
+dp and wider keep the three pills. The search's icon is a magnifying glass at
+every size. **The search and the pills stand still when the guide opens or
+closes, on every page**, also where the pane slides aside (owner,
+2026-11-23).
+
+**Scan on a computer** (owner, 2026-11-24). Scan stands in the sidebar
+directly under Settings, on every page, as a tonal button (a soft fill), not
+at the sidebar's foot and not filled. It opens no screen: the viewfinder takes
+the session pane's content, the page beside it staying. On Home, where This
+session is the one card, the viewfinder takes its place; a flow's ways in
+show it in the pane in the same way. What was read is the pane's card (for an
+address: Check this address, Scan another, Close); Escape or Close puts the
+pane back. A popout button on the viewfinder's corner enlarges it over the
+page, centred, with a button that puts it back (§6). Where the pane is a strip
+over a stacked page (Tools, Check), the strip would grow to the viewfinder's
+height and the page move down; that has not been drawn and is not built
+before it is.
 
 **In a flow** the pane (the pick, then Your choices) and the step card are
 **one card with an inset divider** (F324): the divider stands at the middle
 of the gap and is inset at its top and bottom by the card's padding; the
 outer edges and everything inside stay exactly where two cards would have
-them. The pair is centred, as above.
+them. One thin rounded neutral outline runs round the pair, with no fill: the
+page stays one colour (owner, 2026-11-23). The pair is centred, as above.
 
 Every page, with its place:
 
@@ -303,7 +350,7 @@ Every page, with its place:
 | Home | centred, every group (§2) |
 | Tools, Check | stacked under This session where it all fits; else the pair, the tile filling the room in more columns |
 | Wallets | the pair |
-| Vaults | two panes; the left pane's content not decided |
+| Vaults | two panes: this session's keys and wallets at the left, the vault files, then an open vault's contents, at the right |
 | Files | In Faraday at the left, the stick at the right |
 | Settings | no pane; under Home's card where it all fits, else its own page |
 | A flow's pick, and a flow under way | the flow's pair, one card with an inset divider |
@@ -319,7 +366,9 @@ pane from `LIST_PANE` to `CHOICES_PANE_MIN` (FLOW-CONTAINER §4).
 The section cards are built (F317, `docs/MENU-PAGE.md` §4). What changes:
 on Tools and Check every section stands inside **one tile**, the page's
 second pane (§4), in columns that fit the tile's width, each section a
-tonal group with its title and its list rows, 16 dp apart, 16 dp from the
+tonal group with its title, its list rows and a 1 dp outline-variant line at its
+edge (Material's outlined card; owner, 2026-11-23), as on every tile of group
+cards, 16 dp apart, 16 dp from the
 tile's edge, and as many columns as `CATALOG_TILE_MIN` leaves room for
 (§4 rule 3). The tile is stacked under This session or beside it, and
 carries no search bar: Tools' search is in the top bar (§4). The
@@ -345,11 +394,14 @@ Speed's duration unless the row says otherwise):
 | Home to a page with a pane, a page to another | the pane glides (below); the rest fades through | the whole frame blends from the old screen to the new (today's fade of two kept frames) | at once |
 | Home to Tools, Check or Settings where it stacks | the card does not move; the tile fades in under it | blends | at once |
 | Home to Settings, its own page | no pane moves; fades through | blends | at once |
-| Into a flow, from a pair | the pane stays at its place and turns into the pick; the tile turns into the step card; heights change; the two become one card, the join animated | blends | at once |
+| Into a flow, from Tools' or Check's wider pair | the pane glides to the flow's place and the tile turns into the step card, in one movement | blends | at once |
+| Into a flow, from another pair | the pane stays at its place and turns into the pick; the tile turns into the step card; heights change; the two become one card, the join animated | blends | at once |
 | Into a flow, from Home or a stacked page | the pane glides into the flow's pair as it turns into the pick; then as from a pair | blends | at once |
 | The pick becoming Your choices | in place, the other rows fading out, the pick folding to its row | blends | at once |
 | A step inside a flow | fades through (FLOW-CONTAINER §3) | blends | at once |
-| A row's details, search results, the guide opening | fades through in the pane's place; where the guide needs room the pair slides left | blends | at once |
+| A row's details, search results | fades through in the pane's place | blends | at once |
+| The guide opening and closing | slides in from the right edge; in the same movement the pair slides left where the guide needs the room, or the tile of Tools or Check draws in to its narrower form, This session staying; closing is the reverse, the pair going back to its place, in a flow too; the search stands still (owner, 2026-11-23) | blends | at once |
+| The viewfinder's popout | the frame grows from its own place to the centre in one movement, and goes back | blends | at once |
 | A row arriving in the pane (a PSBT found, a key loaded) | fades in while its space opens | blends | at once |
 | A row leaving (a flow finished) | fades out; the rows under it slide up | blends | at once |
 | Expanding in place (More kinds in Add a key, any rows opening) | its height changes smoothly, the rows under it moving with it | blends | at once |
@@ -368,8 +420,7 @@ Speed's duration unless the row says otherwise):
   as the step fade does today (MOTION.md §3.5).
 - **Sheets and dialogs on a computer** blend over 200 ms, whatever the
   Speed setting, the page staying visible under them; Off shows them at
-  once (owner, 2026-11-23). The guide's tab and pane stay as they are
-  until decided.
+  once (owner, 2026-11-23).
 - **One duration** for every page change and every step inside a flow
   (owner, 2026-11-21): the Speed setting's, 600 ms by default, a
   deliberate difference from Material's 450 ms fade through, approved by
@@ -441,7 +492,10 @@ window never scrolls as a whole.
    and the guide stands at the right. Where the centred pair already leaves
    the room at its right, the pair does not move. The guide stays open
    across pages and flows, following to each page's or step's section;
-   there is no pin. It has no pop-up and no over-the-page form. This would
+   there is no pin. It has no pop-up and no over-the-page form. Beside
+   Tools' or Check's wider tile at 1920 the tile shrinks to its narrower form
+   while the guide is open. When the guide closes the pair goes back to its
+   place, at the Speed, also in a flow (owner, 2026-11-23). This would
    replace LAYOUT §6's and F310's forms.
 5. **Signing** (§11's survey): the facts a person compares stay in Your
    choices; the change address and the signers join it there (no new pane).
@@ -454,7 +508,48 @@ form: one card with an inset divider, its list of things to place at the
 left as the step's Your choices, Places at the right as the step's work,
 the checks and Done at the step's foot. The pane does not swap sides
 entering the board. On the phone and the Pi the list is the Your choices
-button and sheet, Places the screen. Its insides are not settled here.
+button and sheet, Places the screen.
+
+Its insides (owner, 2026-11-22 to 2026-11-24):
+
+- **The plan choices** (Paper only, Paper and a vault, Two vaults) stand
+  before the steps, each on one line in its button.
+- **Your choices is sequential**: one column, one choice at a time: how many
+  places; which places hold a sealed vault; which seed goes to each place,
+  into a vault where there is one; where the wallet description goes; shares
+  (a multisig's keys left off each share); watch-only software; then the
+  checks and Done, pinned at the foot. A step that does not apply is skipped.
+  A step passed shows nothing of what was chosen; a press on it goes back.
+  **Show all** at its foot opens everything at once, in two columns where
+  the content needs them, balanced: Seeds and the wallet description left;
+  Shares, Vaults and watch-only right.
+- **Width**: the flow pair's width for up to two places and a short list; with
+  three or more places, or a list longer than one column, the card widens to
+  the whole work area. Places are a grid, 1 in a row at 1366, 2 at 1920, 3 at
+  2560 and wider (3 at 3840 too), the rest scrolling.
+- **A place** is a raised card with no coloured bar at its left; cards side by
+  side end level. Inside it is a flat list: one plain row per thing kept, its
+  leading icon for paper, stick or vault, the format and where in the
+  supporting text, one ⋮ per row; no box in a box. Colour stands only as a
+  small tag (sealed, not sealed). A vault with nothing in it is shown, with
+  "Nothing kept".
+- **Nothing twice**: "+ new vault" stands only in Your choices' Vaults group;
+  "Add a stick" is in a place's menu, with no dashed box; "+ place" is one
+  empty card at the grid's end; an empty box shrinks to its header. A
+  row's formats are switched in its menu, the row listing only those on.
+  Removing a place, a stick or a vault is in its menu, two taps, no X. "Made in
+  the checklist" and "linked" show only while a vault's tag is hovered. "Add
+  watch-only software" has its arrow.
+
+The owner kept these as drawn (2026-11-23) but with the drawing out of view, so they are
+to be confirmed before they are built: Show all's two columns and which group
+stands in which, removal in a menu, the formats in a menu, the two hover
+facts, "Add a stick" in a menu, three columns at 3840, and the phone's steps
+as one sheet over Places.
+
+**codex32 from dice** (owner, 2026-11-24) shows every part on one screen: the
+worksheet at the left, the dice sheet in a right column, its tree over the
+dice tracks.
 
 ## 8. The phone-size window and the Pi
 
@@ -469,11 +564,11 @@ At a flow's end no sheet opens by itself (owner, 2026-11-22): the take-away
 is the one pane, as a step card; a sheet opens only when asked for (Show QR,
 Write out).
 
-The Pi's default Motion is set from measurements, made before the glide
-is built there (SPEED §7: a late-flow frame timed with the harness of
-SPEED §4, on the Pi 3B+): Smooth motion if each step of the glide is drawn
-within the screen's frame, else Crossfade if each blend of two kept frames
-is, else Off. Its default Speed is set the same way, and may be below
+The Pi's default Motion is decided by the owner after timing the first test
+build there (owner, 2026-11-23; SPEED §7: a late-flow frame timed with the
+harness of SPEED §4, on the Pi 3B+). It replaces the rule that took the
+fullest style whose step fits the screen's frame, which would give Off: a
+fade step takes about 34 ms there (MOTION.md). Its default Speed is set the same way, and may be below
 600 ms if the measurement says so. Both are defaults written once; the Pi
 never changes them while it runs. Desktops default to Smooth motion at
 600 ms.
@@ -486,6 +581,11 @@ HDMI screen" goes, replaced by this). The HDMI screen is measured at
 larger screen); its default comes from the two. The owner measures all the
 Pi's timings with the first test build, the panel's, both HDMI sizes and
 the bottom sheets' slide (§6), in one sitting.
+
+**The navigation** (owner, 2026-11-23, 2026-11-24). The phone's navigation bar
+is hidden on every flow step and on the backup board, and no swipe brings it
+back: a step is left only by its Back or Close. Faraday Demo's host strip is
+drawn at computer sizes only, not in the phone's or the Pi's frame.
 
 ## 9. Settings
 
@@ -537,6 +637,9 @@ Strings for `faraday-strings` (added with the build): `settings_motion`
 rows take each flow's own step labels, as today.
 `settings_reduce_motion` goes.
 
+Where Settings' Mode opens is not decided: F81 gives it a row that opens the
+mode sheet, and the rule above has no row that opens a sheet.
+
 ## 10. Survey: every place a loaded key, wallet or file is listed or picked
 
 Today a key step draws the loaded keys as a wrapped row of buttons of
@@ -564,10 +667,10 @@ component with Home's pane.
 | Spend from backup (`spend_backup/screen.rs`) | each wallet as a card with readiness | one | picker, single wallet, readiness as the row's line |
 | Back up's wallet menu (`screens/backup.rs`, `BWallets`) | wallets, a menu | one | stays a menu (it switches the board) |
 | Save to a vault (`vault/screen/save.rs`) | keys and wallets, checkboxes | several | picker, several |
-| Wallets, list and keys without (`screens/wallets.rs`) | wallets, loose keys | opens | the wallets in the page's tile, ending in Make a new wallet; the loose keys leave it; the pane beside it (§2) |
+| Wallets, list and keys without (`screens/wallets.rs`) | wallets, loose keys | opens | the wallets in the page's tile, ending in its four rows (§2); the loose keys leave it; the pane beside it (§2) |
 | Wallets start (`screens/wallets_start.rs`, `loose_key_rows`) | keys without a wallet | opens | unchanged |
 | Files, In Faraday (`screens/visit.rs`, `in_faraday`) | files held to write | several, checks | Files' form (§2) |
-| Vaults (`vault/screen.rs`, `list`) | vault files | opens | the page's tile, ending in Make a new vault (§2); its pane not decided |
+| Vaults (`vault/screen.rs`, `list`) | vault files | opens | the page's tile, ending in Make a new vault (§2); its pane this session's keys and wallets |
 | Scan's key sheet (`screens/sheets.rs`) | keys a QR names | none | unchanged |
 | Sign a transaction (`screens/spend.rs`) | the wallet's keys here | none: `to_sign` is filled from the PSBT (`wallet.rs`) | unchanged; Your choices' first row names the wallet | Sign with another key loaded here (while signatures are missing); Sign another transaction (opens the scanner); Check the signed transaction |
 
@@ -588,7 +691,11 @@ Candidates, with the screen each is on:
    `review_warnings`; the wallet's own change address is on step 1 Check,
    `step_addresses`, "Change 1/0"). Kept, the strongest: the person goes
    back a step to compare. The change address joins the held pane
-   (`review_under`), beside the Change row.
+   (`review_under`), beside the Change row: the payment's own change address
+   with its path, not the wallet's first. A row each where the payment has
+   several, in output order, and only for an output the device has verified as
+   change: no row where there is none (owner, 2026-11-23, 2026-11-24). Sign
+   and Create a wallet list it and the signers at the left once chosen.
 2. **A multisig's cosigners against the wallet's keys** (Sign, steps 4
    Signers, 5 Sign and 6 Signatures for this transaction: `step_keys`, `step_sign`, `step_collect`).
    Kept, moderate: who signs is split over three steps. The pane holds the
@@ -606,7 +713,10 @@ Candidates, with the screen each is on:
    here" and sign nothing; once the key has signed here its mark goes), a press opening Signers until Sign is done,
    after which it takes none, as the steps before Sign. The mark is drawn
    whole after the fingerprint and name, which is what is cut. "Waiting" is
-   not drawn. Check a
+   not drawn. A single-key wallet has no Signers step: its key's row stands
+   under Sign's own step, with the same mark. The fingerprint is in the mono face
+   and the mark in its own ink, the primary role; a mark drawn as a pill has its word centred
+   (owner, 2026-11-24). Check a
    multisig setup (`multisig_check/screen.rs`) has its marks on one card:
    dropped there.
 3. **A long review whose summary scrolls away from the outputs** (Sign,
@@ -747,10 +857,10 @@ At the last step the session pane at the left turns, with the glide (§6), from 
   needed) and holds no files or QR. After writing, or on leaving, the pane
   settles back to its session form, the written files green there and in
   Files. The take-away and the step's card are level, as tall as the taller
-  needs, the pair centred (§4). Whether they are one card with an inset
-  divider, as the flow's other steps are, or two cards a gap apart is not
-  decided; nor whether "Write to stick" is a button at the pane's foot or a
-  row (§14).
+  needs, the pair centred (§4). They are one card with the inset divider, as
+  the flow's other steps are, and "Write to stick" is a button in the pane:
+  off with nothing ticked, "Waiting for a stick" with no stick, "Written and
+  checked" after (owner, 2026-11-23).
 
 **What this changes.** F319 puts Your choices at the left in
 every flow and F296 makes the last step a card in the column: Your
@@ -846,7 +956,9 @@ the person is asked (`secrets.rs`), is dropped at Lock as today
 (`inbox.rs`), and its row is ticked only with that asking done: until then
 it is not in the take-away's files, only named in a line that says it is asked
 for. A secret QR is drawn a little longer than today's last step draws it, until the pane
-settles back. The owner said yes to this trade-off (2026-11-22); it is built
+settles back. The owner said yes to this trade-off (2026-11-22, and again
+2026-11-24, knowing that the QR stays drawn until the pane settles back, Lock
+or idle); it is built
 and tested on its own, and its results are shown to the owner before it
 reaches main. The receipt keeps hashes only and survives a lock
 as it does now. The take-away adds a state of no secret type; a test shows that
@@ -860,3 +972,69 @@ other step. The Pi's panel is the same. Its arrival emphasis follows the
 Speed setting measured for the Pi (§8).
 
 **Open.** All of §15 is to build (the Open line at the top).
+
+## 16. Flows in progress, and the way out of a flow
+
+Owner, 2026-11-23 and 2026-11-24.
+
+- **A tool or check left before its end keeps its place, no secrets**: which
+  key was picked, the step and the choices made. What was typed in and any
+  result shown go when the tool is left. It stands in This session as a flow in
+  progress, with its words and its Resume button, as the wallet, spend,
+  message, vault and backup flows do.
+- **No row under a tab** names a flow. A mark on the tab stands for it, where
+  Files', Wallets' and Vaults' badges stand: the number of flows in progress
+  there. Back up's is under Wallets.
+- **A press on the tab** goes to its flow while it has one (with several, the
+  one last left). Pressed while that flow is on screen it opens the tab's menu,
+  the flow kept and its mark staying; pressed once more it returns to the flow.
+- **The phone and the rail**: the chips that name the flows over every page stay
+  until the session pane stands at those sizes. On the phone's bar a tab's own
+  badge and its flow mark are two pills side by side at the icon's corner, the
+  flow's in the primary colour. A check in progress has no mark there (the bar
+  has no Check); Home's session rows show it.
+- **Leaving a flow** shows the page it was begun from (Home, a search's results,
+  a wallet's card, Files, a vault, a scan), and the tab's menu otherwise. A
+  resumed flow goes to the page it was first begun from. §4 rule 5 says how that
+  page then stands.
+
+## 17. Starting with files on the boot stick
+
+Owner, 2026-11-23 and 2026-11-24. F130 stands: names and sizes until Import.
+
+- Start opens on **Files**, the stick's files ticked. A stick with only the
+  settings file goes straight to Home, as today, with no row for it. The rows
+  show a guess from the name ("PSBT, by its name · 1.2 KB"), the contents only
+  after Import.
+- **Import works with the stick in**: the ticked files come into Files. A key
+  whose file was on the stick loads as the stick is pulled, and the sheet says
+  to remove it. Pulled before Import, it says "Put the stick back in to import".
+- **One button**, worded by what is ticked: "Import and load keys" when a key's
+  file is ticked, "Import" when none is. It does what today's one button does.
+- **A vault among the ticked files**: its passphrase is asked in the same tile,
+  in place of the list, one vault after another, the second shown once the first
+  is done.
+- After the import, Home. **Later** goes to Home with the import waiting there;
+  Files keeps its badge.
+- **A second stick** while an import waits on Files: the import closes, Files shows
+  the second stick, and the import waits on Home as "Import from FARADAY-STICK",
+  which opens Files with the import again.
+- **A small panel** (480 x 640, 320 x 480): Later and the button stand in a bar kept
+  at the foot; the list scrolls above it.
+
+## 18. Addresses are shown whole
+
+Owner, 2026-11-23 and 2026-11-24. An address is never cut on screen, anywhere,
+and a hover does not count. It is drawn in mono in groups of four, wrapped only
+between groups and only where the room requires it.
+
+- **Your choices and the other narrow places** (the pane, the phone's sheet, the
+  Pi): the small mono type, the row growing in height, the first two groups and the last two in the
+  full ink, the middle in the quieter ink, every character there.
+- **A list row that names an address** (Check an address's list from a file, Sign
+  a message's, Silent payments'): the grouped address is the headline; the row's
+  name and detail stand under it.
+- **A sentence that names an address** (a PSBT check's finding, a comparison's
+  line): the sentence, then the grouped address on its own lines under it.
+- **A typed address field** grows to the lines it needs, in groups of four.
+- Decode's wide table wraps an address wider than its column (built).

@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Partly built: the Starter on Linux and Windows with its Material 3 navigation (§3.1d), the Pi 3 card
-**Open:** the owner's look at Home and navigation on Linux and Windows (§3.1d); keeping Secure Boot on (§7.7, D9, not built yet); the boot-partition check of a Pi card (§10.4); panel profiles (§9.3); paused by the owner, with nothing built for them: the Pi 4 and Pi 5 (§9.4)
+**Open:** the owner's look at Home and navigation on Linux and Windows (§3.1d); keeping Secure Boot on (§7.7, D9, not built yet); the boot-partition check of a Pi card (§10.4); panel profiles (§9.3); the Name field on Confirm and the flows, Make, Tools and Guide as panes (§3.1d); paused by the owner, with nothing built for them: the Pi 4 and Pi 5 (§9.4)
 
 Decided by the owner (`docs/DECISIONS.md` F11; F33 removed the
 BitLocker step, F49 offers BitLocker's suspension, Resume and the key
@@ -599,6 +599,14 @@ to a Learn page (Secure Boot and BitLocker, Screens and devices that can
 record, About the boot entry) is a plain row with an arrow, in the pane
 it stands in. Make and Tools keep their grid of columns of `CARD_MIN_W`
 or more.
+
+Decided, not built (owner, 2026-11-22, 2026-11-24): Make and Tools are each a
+tile of rows, as Faraday's Tools is, and a row starts its flow; a flow's left
+pane is This computer narrowed to what the flow uses (the chosen stick, the
+checks that matter), its step card at the right, a pair ending level at the
+height its taller pane needs; the Guide is the third pane, a sheet where there
+is no room, and its own page goes; What to write's Name field moves to the
+Confirm step, so that Back and Continue show without scrolling at 1366 x 768.
 
 Every class change re-lays the page out at that width; nothing is
 scaled to fit. A page's content is at most 1040 dp wide, centred in the
