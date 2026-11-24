@@ -69,6 +69,16 @@ impl Tool {
 /// Every satoshi there will ever be.
 pub(crate) const MAX_SATS: u64 = 2_100_000_000_000_000;
 
+/// The most amounts Units holds at once, one tab each.
+pub(crate) const MAX_AMOUNTS: usize = 6;
+
+/// One amount of Units: what is typed and the unit it is typed in.
+#[derive(Default)]
+struct Amount {
+    typed: crate::secret_text::SecretText,
+    unit: u8,
+}
+
 /// What the Tools screen holds.
 pub struct ToolsState {
     /// The calculator open.
@@ -82,6 +92,11 @@ pub struct ToolsState {
     pub unit: u8,
     /// What a compiled policy is wrapped in.
     pub script: PolicyScript,
+    /// Units' amounts, one slot each; the slot of the amount shown holds
+    /// nothing, its text and unit being `typed` and `unit`.
+    amounts: Vec<Amount>,
+    /// Which of the amounts is shown.
+    amount: usize,
     /// Where it returns to.
     pub back: Screen,
     /// The step open while the tool is drawn as a flow ([`flow`]).
@@ -91,6 +106,88 @@ pub struct ToolsState {
     /// What the calculator worked out last, by what it worked it out
     /// from ([`Faraday::tools_reading`]).
     read: std::cell::RefCell<Option<KeptReading>>,
+}
+
+impl ToolsState {
+    /// How many amounts Units holds.
+    pub fn amount_count(&self) -> usize {
+        self.amounts.len()
+    }
+
+    /// Which amount is shown.
+    pub fn amount_shown(&self) -> usize {
+        self.amount
+    }
+
+    /// The text and unit of amount `i`.
+    pub fn amount_of(&self, i: usize) -> Option<(&str, u8)> {
+        if i == self.amount {
+            Some((self.typed.as_str(), self.unit))
+        } else {
+            self.amounts.get(i).map(|a| (a.typed.as_str(), a.unit))
+        }
+    }
+
+    /// Puts the amount shown away in its slot, moved and not copied;
+    /// `typed` and `unit` are then free for another.
+    fn park_amount(&mut self) {
+        if let Some(slot) = self.amounts.get_mut(self.amount) {
+            std::mem::swap(&mut self.typed, &mut slot.typed);
+            slot.unit = self.unit;
+        }
+    }
+
+    /// Takes amount `i` out of its slot to be the one shown.
+    fn take_amount(&mut self, i: usize) {
+        if let Some(slot) = self.amounts.get_mut(i) {
+            std::mem::swap(&mut self.typed, &mut slot.typed);
+            self.unit = slot.unit;
+            self.amount = i;
+        }
+    }
+
+    /// Shows amount `i`, keeping the one shown as it is.
+    fn show_amount(&mut self, i: usize) {
+        if self.tool != Tool::Units || i == self.amount || i >= self.amounts.len() {
+            return;
+        }
+        self.park_amount();
+        self.take_amount(i);
+    }
+
+    /// A new, empty amount, shown; none past [`MAX_AMOUNTS`].
+    fn add_amount(&mut self) {
+        if self.tool != Tool::Units || self.amounts.len() >= MAX_AMOUNTS {
+            return;
+        }
+        self.park_amount();
+        self.amounts.push(Amount::default());
+        self.take_amount(self.amounts.len() - 1);
+    }
+
+    /// Takes amount `i` away; the last one cannot go. When the one shown
+    /// goes, the one that took its place is shown.
+    fn remove_amount(&mut self, i: usize) {
+        if self.tool != Tool::Units || self.amounts.len() <= 1 || i >= self.amounts.len() {
+            return;
+        }
+        let shown = i == self.amount;
+        if shown {
+            self.typed.clear();
+        } else {
+            self.park_amount();
+        }
+        self.amounts.remove(i);
+        // Where the amount that is shown stands now.
+        let now = if shown {
+            i.min(self.amounts.len() - 1)
+        } else if i < self.amount {
+            self.amount - 1
+        } else {
+            self.amount
+        };
+        self.take_amount(now);
+    }
 }
 
 /// What the open calculator worked out of what is typed.
@@ -368,6 +465,8 @@ impl ToolsArea {
             read_as: ReadAs::Auto,
             unit: 0,
             script: PolicyScript::Segwit,
+            amounts: vec![Amount::default()],
+            amount: 0,
             back,
             open: flow::INPUT,
             scroll: crate::flow::Scroll::default(),
@@ -486,6 +585,9 @@ impl ToolsArea {
                 if let Some(&tool) = Tool::ALL.get(usize::from(i)) {
                     t.tool = tool;
                     t.typed.clear();
+                    t.unit = 0;
+                    t.amounts = vec![Amount::default()];
+                    t.amount = 0;
                     t.open = flow::INPUT;
                 }
             }
@@ -512,9 +614,13 @@ impl ToolsArea {
                 _ => {}
             },
             A::TClear => t.typed.clear(),
+            A::TAddAmount => t.add_amount(),
+            A::TAmount(i) => t.show_amount(usize::from(i)),
+            A::TRemoveAmount(i) => t.remove_amount(usize::from(i)),
             // The result waits for something typed.
             A::TStep(k)
                 if k <= flow::RESULT
+                    && t.tool != Tool::Units
                     && t.open != k
                     && (k == flow::INPUT || !t.typed.is_empty()) =>
             {

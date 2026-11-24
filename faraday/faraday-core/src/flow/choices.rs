@@ -156,8 +156,10 @@ impl Pane<'_> {
             ui.region_close(open, (y + CHOICES_INSET - h).max(0.0));
             return y + CHOICES_INSET - top;
         }
-        ui.text_as(x, y, LABEL_L, Role::OnSurfaceVariant, EN.flow_your_choices);
-        y += ui.line_as(LABEL_L) + tokens::GRID;
+        if !(self.lead.is_none() && self.flow.lists_nothing(self.app)) {
+            ui.text_as(x, y, LABEL_L, Role::OnSurfaceVariant, EN.flow_your_choices);
+            y += ui.line_as(LABEL_L) + tokens::GRID;
+        }
         let mut list = Vec::new();
         let mut presses = Vec::new();
         if let Some((row, press)) = self.lead {

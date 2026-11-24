@@ -97,6 +97,11 @@ pub(crate) trait Contained: crate::trail::StepFlow {
     fn pick(&self, _app: &crate::Faraday, _k: u8) -> Option<Pick> {
         None
     }
+    /// Whether the pane lists nothing of its own (no answers, no lead
+    /// row): it then draws no heading, only what stands under it.
+    fn lists_nothing(&self, _app: &crate::Faraday) -> bool {
+        false
+    }
 }
 
 /// A step's pick as the pane holds it: the question as its heading, then

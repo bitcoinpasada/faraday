@@ -632,6 +632,12 @@ pub enum Action {
     TClear,
     /// Opens a step of the tool drawn as a flow (`tools/flow.rs`).
     TStep(u8),
+    /// Units: adds an amount (a tab).
+    TAddAmount,
+    /// Units: shows amount `i` (its tab).
+    TAmount(u8),
+    /// Units: removes amount `i` (its tab's cross).
+    TRemoveAmount(u8),
     /// Empty Home's search bar (its ×).
     HomeSearchClear,
     /// The node key from this loaded key, as ldk-node reads it.
@@ -1475,6 +1481,9 @@ impl Faraday {
             | Action::TMode(_)
             | Action::TClear
             | Action::TStep(_)
+            | Action::TAddAmount
+            | Action::TAmount(_)
+            | Action::TRemoveAmount(_)
             | Action::TScan
             | Action::TFile(_)
             | Action::TTake => self.tools_act(action),

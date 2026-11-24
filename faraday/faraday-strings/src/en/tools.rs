@@ -12,6 +12,12 @@ macro_rules! words_tools {
     tools_tools: "Tools",
     /// Title of the input card of a tool drawn as a flow (`tools/flow.rs`).
     tools_card_input: "Input",
+    /// Button at the foot of Units' left pane: adds an amount (a tab).
+    tools_add_amount: "Add an amount",
+    /// A Units tab: the amount typed, then its unit. `{}`: `amount`, `unit`.
+    tools_amount_tab: "{} {}",
+    /// A Units tab with nothing typed yet. `{}`: `unit`.
+    tools_amount_tab_empty: "0 {}",
     /// Title of the result card of a tool drawn as a flow (`tools/flow.rs`).
     tools_card_result: "Result",
     /// Button under the input card of a tool drawn as a flow: opens the result.

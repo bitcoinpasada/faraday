@@ -98,5 +98,23 @@ pub(crate) fn open_tools_tour(t: &mut Tour) -> Result<(), String> {
         t.press(Action::TStep(1));
         t.shot(&format!("{shot}-result"))?;
     }
+    // Units: one amount, then amounts as tabs (a long one, and all six).
+    t.press(Action::Nav(Screen::Catalog));
+    t.press(Action::Catalog(tile("Units")?));
+    t.shot("units-empty")?;
+    type_text(t, "21000");
+    t.shot("units-typed")?;
+    t.press(Action::TAddAmount);
+    t.press(Action::TMode(1));
+    type_text(t, "0.12345678");
+    t.press(Action::TAddAmount);
+    t.press(Action::TMode(2));
+    type_text(t, "1234567890.12345");
+    t.shot("units-three")?;
+    for _ in 0..3 {
+        t.press(Action::TAddAmount);
+        type_text(t, "7");
+    }
+    t.shot("units-six")?;
     Ok(())
 }

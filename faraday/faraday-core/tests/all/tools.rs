@@ -465,3 +465,125 @@ fn convert_an_xpub_on_the_card_keeps_its_text_on_back() {
     through_fade(&mut app);
     assert_eq!(testkit::tools(&app).unwrap().typed, "xpub");
 }
+
+/// Units opened on a wide window, on its one amount.
+fn units() -> Faraday {
+    let mut app = wide();
+    app.press(Action::Tools);
+    tool(&mut app, Tool::Units);
+    app
+}
+
+/// What the amounts are: the text and unit of each tab.
+fn amounts(app: &Faraday) -> Vec<(String, u8)> {
+    let t = testkit::tools(app).unwrap();
+    (0..t.amount_count())
+        .map(|i| {
+            let (s, u) = t.amount_of(i).unwrap();
+            (s.to_string(), u)
+        })
+        .collect()
+}
+
+#[test]
+fn units_opens_with_one_amount_and_grows_to_six() {
+    let mut app = units();
+    assert_eq!(amounts(&app), vec![(String::new(), 0)]);
+    for _ in 0..5 {
+        app.press(Action::TAddAmount);
+    }
+    assert_eq!(amounts(&app).len(), 6);
+    // The seventh is refused.
+    app.press(Action::TAddAmount);
+    assert_eq!(amounts(&app).len(), 6);
+    assert_eq!(testkit::tools(&app).unwrap().amount_shown(), 5);
+}
+
+#[test]
+fn each_amount_keeps_its_own_unit_and_text() {
+    let mut app = units();
+    typed(&mut app, "21");
+    app.press(Action::TAddAmount);
+    app.press(Action::TMode(1));
+    typed(&mut app, "0.5");
+    app.press(Action::TAmount(0));
+    assert_eq!(
+        amounts(&app),
+        vec![("21".to_string(), 0), ("0.5".to_string(), 1)]
+    );
+    assert!(row(&mut app, "sat", "21"), "{:?}", app.drawn_texts());
+    app.press(Action::TAmount(1));
+    assert!(row(&mut app, "sat", "50,000,000"));
+    assert_eq!(testkit::tools(&app).unwrap().typed, "0.5");
+}
+
+#[test]
+fn an_amount_can_be_removed_but_not_the_last() {
+    let mut app = units();
+    typed(&mut app, "1");
+    app.press(Action::TAddAmount);
+    typed(&mut app, "2");
+    app.press(Action::TAddAmount);
+    typed(&mut app, "3");
+    // Remove the one before the one shown: it stays shown.
+    app.press(Action::TRemoveAmount(0));
+    assert_eq!(
+        amounts(&app),
+        vec![("2".to_string(), 0), ("3".to_string(), 0)]
+    );
+    assert_eq!(testkit::tools(&app).unwrap().typed, "3");
+    // Remove the one shown: its neighbour is shown.
+    app.press(Action::TRemoveAmount(1));
+    assert_eq!(amounts(&app), vec![("2".to_string(), 0)]);
+    assert_eq!(testkit::tools(&app).unwrap().typed, "2");
+    // The last cannot go.
+    app.press(Action::TRemoveAmount(0));
+    assert_eq!(amounts(&app), vec![("2".to_string(), 0)]);
+}
+
+#[test]
+fn units_is_one_card_with_no_next_and_back_leaves() {
+    let mut app = units();
+    typed(&mut app, "7");
+    app.press(Action::TAddAmount);
+    assert!(has(&mut app, EN.tools_add_amount));
+    assert!(!has(&mut app, EN.tools_next));
+    app.press(Action::Back);
+    through_fade(&mut app);
+    assert_ne!(app.screen, Screen::Tools);
+}
+
+#[test]
+fn the_units_pane_lists_no_heading() {
+    let mut app = units();
+    assert!(!has(&mut app, EN.flow_your_choices));
+    assert!(has(&mut app, EN.tools_add_amount));
+}
+
+/// Add an amount stands at the foot of the left pane: below the card's
+/// own lines' tops, level with its end, and inside the window.
+#[test]
+fn the_add_amount_button_stands_at_the_foot_of_the_pane() {
+    for (w, h) in [(1280_u16, 800_u16), (1366, 768), (1920, 1080)] {
+        let mut app = sized(w, h);
+        app.press(Action::Tools);
+        tool(&mut app, Tool::Units);
+        let boxes = app.drawn_text_boxes().plain();
+        let add = boxes
+            .iter()
+            .find(|(t, _)| t.as_str() == EN.tools_add_amount)
+            .expect("the button is drawn")
+            .1;
+        let card_low = boxes
+            .iter()
+            .filter(|(_, b)| b.0 > add.0 + add.2)
+            .map(|(_, b)| b.1 + b.3)
+            .fold(0, i32::max);
+        let bottom = add.1 + add.3;
+        assert!(bottom <= i32::from(h), "{w}x{h}: {add:?}");
+        assert!(
+            bottom >= card_low - 40,
+            "{w}x{h}: button bottom {bottom}, card's lowest line {card_low}"
+        );
+    }
+}

@@ -1,7 +1,8 @@
 //! The Tools screen's flow: a tool with one way in drawn as the flow's
 //! one card (`docs/FLOW-CONTAINER.md` §2), Input then Result. Every
-//! tool but Units is drawn so on a window that is not compact; Units and
-//! every tool on a small panel draw as the page.
+//! tool is drawn so on a window that is not compact, Units on one card
+//! with its amounts as tabs; every tool on a small panel draws as the
+//! page.
 
 use super::Tool;
 use crate::flow::{Contained, Row};
@@ -27,9 +28,7 @@ pub(crate) const TITLES: [&str; COUNT] = [EN.tools_card_input, EN.tools_card_res
 /// asks, so the screen, Back, the keys and the scroll agree. A small
 /// panel draws the page.
 pub(crate) fn contained_tool(app: &Faraday) -> bool {
-    app.screen == Screen::Tools
-        && !app.compact
-        && app.tools.state().is_some_and(|t| t.tool != Tool::Units)
+    app.screen == Screen::Tools && !app.compact && app.tools.state().is_some()
 }
 
 /// Whether typed text goes into the field now: a tool drawn as the page
@@ -49,6 +48,10 @@ pub(crate) static TOOL_STEPS: ToolSteps = ToolSteps;
 impl StepFlow for ToolSteps {
     fn steps(&self, app: &Faraday) -> Option<Steps> {
         let t = app.tools.state()?;
+        if t.tool == Tool::Units {
+            // One card, no Next step.
+            return Some(Steps::new(vec![INPUT], Some(INPUT)));
+        }
         let mut steps = Steps::new((0..COUNT as u8).collect(), Some(t.open));
         steps.answered = (0..COUNT as u8).filter(|_| !t.typed.is_empty()).collect();
         Some(steps)
@@ -58,7 +61,10 @@ impl StepFlow for ToolSteps {
         Action::TStep(k)
     }
 
-    fn name(&self, _: &Faraday, k: u8) -> &'static str {
+    fn name(&self, app: &Faraday, k: u8) -> &'static str {
+        if app.tools.state().is_some_and(|t| t.tool == Tool::Units) {
+            return EN.tools_units;
+        }
         TITLES[usize::from(k.min(RESULT))]
     }
 
@@ -68,8 +74,12 @@ impl StepFlow for ToolSteps {
 }
 
 impl Contained for ToolSteps {
+    fn lists_nothing(&self, app: &Faraday) -> bool {
+        app.tools.state().is_some_and(|t| t.tool == Tool::Units)
+    }
     fn rows(&self, app: &Faraday) -> Vec<Row> {
-        let Some(t) = app.tools.state() else {
+        let Some(t) = app.tools.state().filter(|t| t.tool != Tool::Units) else {
+            // Units lists nothing: its pane holds the Add an amount button.
             return Vec::new();
         };
         // What is typed, cut to the first characters.
@@ -97,5 +107,10 @@ impl Contained for ToolSteps {
 
     fn count_fixed(&self, _: &Faraday) -> bool {
         true
+    }
+
+    fn heads(&self, app: &Faraday) -> usize {
+        // Units' one card reads its title alone, with no step count.
+        usize::from(app.tools.state().is_some_and(|t| t.tool == Tool::Units))
     }
 }

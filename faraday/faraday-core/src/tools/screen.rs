@@ -15,6 +15,7 @@ use crate::tools::{UNITS, tool_name};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, PAD};
+use faraday_draw::tokens::{GAP_SMALL, GRID, TAB_INDICATOR_MIN, TITLE_S};
 
 fn hex(b: &[u8]) -> String {
     String::from(&*faraday_crypto::hex::encode_string(b))
@@ -83,6 +84,15 @@ fn card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (next, again, _) = {
         let app_ref: &View = app;
         let mut body = |ui: &mut Ui, step: u8, x: f32, y: f32, w: f32| -> f32 {
+            if app_ref.tools.state().is_some_and(|t| t.tool == Tool::Units) {
+                // One card: the amounts as tabs, the unit, the field and
+                // what it converts to, changing as it is typed.
+                let top = y;
+                let mut y = y + amount_tabs(app_ref, ui, x, y, w) + GRID;
+                y += mode_row(app_ref, ui, x, y, w);
+                y = field(app_ref, ui, x, y, w);
+                return reading_rows(app_ref, ui, x, y, w) - top;
+            }
             if step == crate::tools::flow::INPUT {
                 let top = y;
                 let mut y = y + mode_row(app_ref, ui, x, y, w);
@@ -107,10 +117,128 @@ fn card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 reading_rows(app_ref, ui, x, y, w) - y
             }
         };
-        let mut under = |_: &mut Ui, _: f32, _: f32, _: f32| 0.0;
+        // The foot of the left pane: Units' one button.
+        let mut under = |ui: &mut Ui, x: f32, y: f32, w: f32| -> f32 {
+            let Some(t) = app_ref.tools.state().filter(|t| t.tool == Tool::Units) else {
+                return 0.0;
+            };
+            let full = t.amount_count() >= crate::tools::MAX_AMOUNTS;
+            let style = if full { Style::TonalOff } else { Style::Tonal };
+            // Where the pair stands the button is at the pane's foot: its
+            // bottom one inset above the card's end, so the pane and the
+            // card end level. Otherwise it stands under the rows.
+            let scrolled = app_ref.scroll.choices_offset();
+            let foot = match ui.flow_card {
+                Some((cx, cy, _, ch)) if x < cx => {
+                    Some(cy + ch - faraday_draw::tokens::CHOICES_INSET + scrolled)
+                }
+                _ => None,
+            };
+            let (by, used) = match foot {
+                Some(end) if end - BUTTON_H >= y + GRID => (end - BUTTON_H, end - y),
+                _ => (y + GRID, BUTTON_H + GRID),
+            };
+            ui.button(
+                x,
+                by,
+                Some(w),
+                BUTTON_H,
+                EN.tools_add_amount,
+                style,
+                Action::TAddAmount,
+            );
+            used
+        };
         crate::flow::contained(ui, app_ref, contained, &page, scroll, &mut body, &mut under)
     };
     app.scroll(crate::drawing::Scrolled::Tools, next, again);
+}
+
+/// Units' amounts as Material 3's tabs (the Tabs page: primary tabs,
+/// fixed): each tab one amount in its own unit, its label cut where it is
+/// longer than its room, and a cross at its end in a touch target of its
+/// own that removes it (never the last). Returns the row's height.
+fn amount_tabs(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    use faraday_draw::tokens::{ICON_BUTTON, ICON_GLYPH, TAB_INDICATOR_PRIMARY, shape_full};
+    let Some(t) = app.tools.state() else {
+        return 0.0;
+    };
+    let n = t.amount_count().max(1);
+    let (h, touch) = (ui.touch, ui.touch);
+    let tw = w / n as f32;
+    let removable = n > 1;
+    ui.rule(x, y + h, w, Role::OutlineVariant);
+    for i in 0..n {
+        let Some((typed, unit)) = t.amount_of(i) else {
+            continue;
+        };
+        let unit_name = UNITS.get(usize::from(unit)).map_or("", |(u, _)| *u);
+        let label = if typed.is_empty() {
+            fill(EN.tools_amount_tab_empty, &[unit_name])
+        } else {
+            fill(EN.tools_amount_tab, &[typed, unit_name])
+        };
+        let on = i == t.amount_shown();
+        let ink = if on {
+            Role::Primary.paint()
+        } else {
+            Role::OnSurfaceVariant.paint()
+        };
+        let tx = x + tw * i as f32;
+        // The label has the tab less the cross's target; a longer one is
+        // cut, so it never reaches the cross.
+        let cross = if removable { touch } else { 0.0 };
+        let room = (tw - cross - GRID).max(0.0);
+        ui.press(
+            crate::ui::Shape::new(tx, y, tw - cross, h, 0.0),
+            ink,
+            Action::TAmount(i as u8),
+        );
+        let shown = ui.fit_as(TITLE_S, &label, room);
+        ui.text_mid_as((tx + GAP_SMALL, y, h), TITLE_S, ink, &shown);
+        if on {
+            let iw = (ui.measure_as(TITLE_S, &shown)).max(TAB_INDICATOR_MIN);
+            let ix = tx + GAP_SMALL;
+            ui.fill(
+                ix,
+                y + h - TAB_INDICATOR_PRIMARY,
+                iw.min(tw - cross - GAP_SMALL),
+                TAB_INDICATOR_PRIMARY,
+                0.0,
+                Role::Primary,
+            );
+        }
+        if removable {
+            let (bx, by) = (tx + tw - touch, y);
+            let edge = (touch - ICON_BUTTON) / 2.0;
+            let shape = crate::ui::Shape::new(
+                bx + edge,
+                by + edge,
+                ICON_BUTTON,
+                ICON_BUTTON,
+                shape_full(ICON_BUTTON),
+            );
+            let ink = Role::OnSurfaceVariant.paint();
+            ui.press_to(
+                shape,
+                (bx, by, touch, h),
+                ink,
+                Action::TRemoveAmount(i as u8),
+            );
+            let mark = "\u{d7}";
+            let mw = ui.measure(ICON_GLYPH, W::R, mark);
+            ui.text_mid(
+                bx + edge + (ICON_BUTTON - mw) / 2.0,
+                by + edge,
+                ICON_BUTTON,
+                ICON_GLYPH,
+                W::R,
+                ink,
+                mark,
+            );
+        }
+    }
+    h
 }
 
 /// The way back and the name, handed to the top app bar, as the desktop
