@@ -6,17 +6,19 @@ use crate::convert::{
     standard_text,
 };
 use crate::drawing::{Scrolled, View};
+use crate::screens::next_button_when;
 use crate::strings::{EN, fill};
 use crate::ui::pal::{Role, on_selected, selected_or};
 use crate::ui::{Style, Ui};
 use crate::wallet::{fp_text, key_line};
-use crate::{Action, flow};
+use crate::{Action, flow, pick};
 use faraday_bip::bip39::Language;
 use faraday_bip::keys::Fingerprint;
 use faraday_draw::tokens::{
     self, BODY_L, BODY_M, BODY_S, BUTTON_H, DISABLED_CONTENT, FIELD_GAP, FIELD_H, FIELD_PAD, GAP,
     GAP_SMALL, LABEL_L, PAD, SHAPE_S, TITLE_S,
 };
+use faraday_draw::widgets::Icon;
 use faraday_ui::parts::button_rows;
 
 pub(crate) const TITLES: [&str; cstep::COUNT] = [
@@ -56,7 +58,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let app_ref: &View = app;
         let mut body = |ui: &mut Ui, step: u8, x: f32, y: f32, w: f32| -> f32 {
             match crate::convert::state(app_ref) {
-                Some(s) => card(app_ref, s, ui, step, (x, y, w)),
+                Some(s) => card(app_ref, s, ui, step, (x, y, w), cw),
                 None => 0.0,
             }
         };
@@ -126,17 +128,120 @@ fn key_of<'a>(app: &'a crate::Faraday, s: &ConvertState) -> Option<&'a faraday_k
     crate::convert::source_info(&app.session.keys, s)
 }
 
-fn card(app: &View, s: &ConvertState, ui: &mut Ui, step: u8, (x, y, w): (f32, f32, f32)) -> f32 {
+fn card(
+    app: &View,
+    s: &ConvertState,
+    ui: &mut Ui,
+    step: u8,
+    (x, y, w): (f32, f32, f32),
+    area_w: f32,
+) -> f32 {
     match step {
-        cstep::FROM => from_card(app, s, ui, (x, y, w)),
+        cstep::FROM => from_card(app, s, ui, (x, y, w), area_w),
         cstep::TO => to_card(app, s, ui, (x, y, w)),
         cstep::SETTINGS => settings_card(app, s, ui, (x, y, w)),
         _ => result_card(app, s, ui, (x, y, w)),
     }
 }
 
-fn from_card(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+/// The From step's pick for the pane where the pair stands: the loaded keys
+/// and the aezeed held, then the ways in. Labels and fingerprints only.
+pub(super) fn pick(app: &crate::Faraday, s: &ConvertState) -> flow::Pick {
+    let mut rows: Vec<pick::PickRow> = app
+        .session
+        .keys
+        .all()
+        .map(|k| {
+            let name = key_line(k.fingerprint, &crate::bip85::key_name(k));
+            pick::PickRow::pick(
+                Icon::Keys,
+                String::from(&*name),
+                String::from(&*source(k)),
+                !s.aezeed && s.key == Some(k.fingerprint.0),
+                Action::Convert(C::Key(k.fingerprint.0)),
+            )
+        })
+        .collect();
+    // The aezeed read for this flow, held by faraday-keys: not a key.
+    if let Some(info) = key_of(app, s).filter(|_| s.aezeed) {
+        let name = key_line(info.fingerprint, EN.convert_lnd_aezeed);
+        rows.push(pick::PickRow::pick(
+            Icon::Keys,
+            String::from(&*name),
+            EN.convert_from_aezeed.to_string(),
+            true,
+            Action::Convert(C::Step(cstep::TO)),
+        ));
+    }
+    let loaded = !rows.is_empty();
+    let mut groups = Vec::new();
+    if loaded {
+        groups.push(flow::PickGroup {
+            head: EN.session_group_keys,
+            rows,
+        });
+    }
+    let mut ways = vec![
+        pick::PickRow::way_in(Icon::Keys, EN.convert_add_a_key, Action::Entry(None)),
+        pick::PickRow::way_in(
+            Icon::List,
+            EN.entry_other_forms,
+            Action::Convert(C::OtherForms),
+        ),
+    ];
+    if s.other_forms {
+        let opener = &crate::ways_in::CONVERT_FROM;
+        if opener.other_forms().contains(&crate::forms::Form::Slip39) {
+            ways.push(pick::PickRow::way_in(
+                Icon::LayerGroup,
+                EN.convert_set_source,
+                Action::Convert(C::SetSource),
+            ));
+        }
+        if opener.other_ways.contains(&crate::ways_in::Way::Aezeed) {
+            ways.push(pick::PickRow::way_in(
+                Icon::Keys,
+                EN.convert_lnd_aezeed,
+                Action::Convert(C::Aezeed),
+            ));
+        }
+    }
+    groups.push(flow::PickGroup {
+        head: pick::ways_in_head(loaded),
+        rows: ways,
+    });
+    flow::Pick {
+        question: EN.convert_which_seed,
+        groups,
+    }
+}
+
+fn from_card(
+    app: &View,
+    s: &ConvertState,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    area_w: f32,
+) -> f32 {
     let mut cy = y;
+    // Where the pair stands the pane holds the keys and the ways in and
+    // the card the vaults' keys, the set's entry and Next
+    // (`flow::Contained::pick`).
+    if flow::pair_left(app, &crate::convert::CONVERT_STEPS, ui.compact, area_w) {
+        cy += vault_keys(app, ui, (x, cy, w));
+        if s.set.is_some() {
+            cy += set_entry(app, s, ui, (x, cy, w));
+        } else if next_button_when(
+            ui,
+            (x, cy, w),
+            EN.convert_set_continue,
+            Action::Convert(C::Step(cstep::TO)),
+            s.done[usize::from(cstep::FROM)],
+        ) {
+            cy += BUTTON_H;
+        }
+        return cy - y;
+    }
     for k in app.session.keys.all() {
         let fp = k.fingerprint;
         let press = Action::Convert(C::Key(fp.0));
@@ -144,15 +249,7 @@ fn from_card(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f3
         let chosen = !s.aezeed && s.key == Some(fp.0);
         cy += row(ui, (x, cy, w), (&name, &source(k)), chosen, Some(press));
     }
-    // The open vaults' keys not loaded, after the loaded ones.
-    let vaults = app.create_vaults();
-    for group in &vaults.open {
-        let held = crate::strings::fill(EN.convert_from_vault, &[&group.name]);
-        for k in &group.keys {
-            let press = Action::Convert(C::VaultKey(group.vault, k.record));
-            cy += row(ui, (x, cy, w), (&k.line, &held), false, Some(press));
-        }
-    }
+    cy += vault_keys(app, ui, (x, cy, w));
     // The aezeed read for this flow, held by faraday-keys: not a key.
     if let Some(info) = key_of(app, s).filter(|_| s.aezeed) {
         let name = key_line(info.fingerprint, EN.convert_lnd_aezeed);
@@ -192,6 +289,21 @@ fn from_card(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f3
     cy += button_rows(ui, x, cy, w, &ways);
     if s.set.is_some() {
         cy += set_entry(app, s, ui, (x, cy, w));
+    }
+    cy - y
+}
+
+/// The open vaults' keys not loaded, after the loaded ones. Returns the
+/// height used.
+fn vault_keys(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+    let mut cy = y;
+    let vaults = app.create_vaults();
+    for group in &vaults.open {
+        let held = crate::strings::fill(EN.convert_from_vault, &[&group.name]);
+        for k in &group.keys {
+            let press = Action::Convert(C::VaultKey(group.vault, k.record));
+            cy += row(ui, (x, cy, w), (&k.line, &held), false, Some(press));
+        }
     }
     cy - y
 }

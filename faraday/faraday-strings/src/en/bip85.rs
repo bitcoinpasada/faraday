@@ -20,6 +20,8 @@ macro_rules! words_bip85 {
     convert_not_chosen: "Not chosen",
     /// From's way to load another key.
     convert_add_a_key: "Add a key",
+    /// The From step's question, the pick pane's heading.
+    convert_which_seed: "Which seed?",
     /// A key loaded from words, by how many.
     convert_from_words: "BIP-39 words, {}",
     /// A key loaded from codex32, by the string's length.

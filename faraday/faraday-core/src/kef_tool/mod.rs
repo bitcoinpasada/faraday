@@ -274,10 +274,17 @@ pub(crate) fn act(app: &mut Faraday, action: KefToolAction) {
         }
         KefToolAction::Wallet(i) => {
             if let Some((text, fp)) = wallet_text(app, i) {
+                // A row of the pane picks without the choice's button.
+                picked(app, Pick::Wallet);
                 begin(app, text, fp, Some(i));
             }
         }
-        KefToolAction::Key(i) => begin_key(app, i),
+        KefToolAction::Key(i) => {
+            if app.session.keys.info(i).is_some_and(|k| k.kef_offered()) {
+                picked(app, Pick::Key);
+            }
+            begin_key(app, i);
+        }
         KefToolAction::Next => {
             let Some(s) = st(app) else { return };
             if s.typed.text.is_empty() {
@@ -308,6 +315,15 @@ pub(crate) fn act(app: &mut Faraday, action: KefToolAction) {
     // A job run inline has its answer by now.
     poll(app);
     sync(app);
+}
+
+/// The text's source is `p`, as the choice's button leaves it, for a press
+/// that picks from the pane.
+fn picked(app: &mut Faraday, p: Pick) {
+    if let Some(s) = st(app) {
+        s.pick = Some(p);
+        s.typing = false;
+    }
 }
 
 /// Starts the form on `text` and opens its card.
@@ -579,6 +595,11 @@ impl crate::flow::Contained for KefToolSteps {
                 }
             })
             .collect()
+    }
+
+    fn pick(&self, app: &Faraday, k: u8) -> Option<crate::flow::Pick> {
+        let s = state(app)?;
+        (k == kstep::CONTENTS).then(|| screen::pick(app, s))
     }
 
     fn hide_shown(&self, app: &mut crate::Faraday) {

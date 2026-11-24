@@ -1881,6 +1881,11 @@ impl crate::flow::Contained for ConvertSteps {
             .collect()
     }
 
+    fn pick(&self, app: &Faraday, k: u8) -> Option<crate::flow::Pick> {
+        let s = state(app)?;
+        (k == cstep::FROM).then(|| screen::pick(app, s))
+    }
+
     fn hide_shown(&self, app: &mut crate::Faraday) {
         hide(app);
     }

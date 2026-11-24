@@ -59,6 +59,8 @@ mod kef_make;
 mod kef_step;
 #[path = "all/kef_tool.rs"]
 mod kef_tool;
+#[path = "all/kef_tool_pick.rs"]
+mod kef_tool_pick;
 #[path = "all/key_checks.rs"]
 mod key_checks;
 #[path = "all/key_checks_chart.rs"]

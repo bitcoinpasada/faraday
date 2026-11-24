@@ -107,6 +107,18 @@ pub(crate) fn kef_make_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.shot("kef-make-contents")?;
     t.press(Action::KefTool(K::Pick(Pick::Wallet)));
     t.shot("kef-make-contents-wallet")?;
+    // A 15-word seed cannot be a code: its row stays, dimmed with why.
+    t.app
+        .session
+        .keys
+        .add_words(
+            c,
+            &format!("{} address", vec!["abandon"; 14].join(" ")),
+            "Fifteen",
+            None,
+        )
+        .map_err(|_| "no 15-word key")?;
+    t.shot("kef-make-contents-dimmed")?;
     t.press(Action::KefTool(K::Pick(Pick::Type)));
     type_text(t, "a note to keep with the backup");
     t.shot("kef-make-contents-typed")?;

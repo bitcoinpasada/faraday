@@ -29,6 +29,8 @@ mod codex32_tabs;
 mod codex32qr_copy;
 #[path = "all/convert.rs"]
 mod convert;
+#[path = "all/convert_pick.rs"]
+mod convert_pick;
 #[path = "all/dice_input_panel.rs"]
 mod dice_input_panel;
 #[path = "all/forms.rs"]

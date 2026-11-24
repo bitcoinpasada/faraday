@@ -470,6 +470,8 @@ macro_rules! words_sweep {
     kef_tool_code: "Code",
     /// Contents: the choice of typing the text.
     kef_tool_type: "Type it",
+    /// The Contents step's question, the pick pane's heading.
+    kef_tool_which: "What is the code made of?",
     /// Contents: the choice of a loaded wallet's descriptor.
     kef_tool_wallet: "A loaded wallet",
     /// Contents: the choice of a loaded key's words.
@@ -486,6 +488,8 @@ macro_rules! words_sweep {
     kef_read_scan_not_code: "That is not a Krux code",
     /// Contents: no loaded key has 12 or 24 English words.
     kef_tool_no_key: "No loaded key has 12 or 24 English words.",
+    /// Contents: why one loaded key is dimmed.
+    kef_tool_not_this_key: "Not 12 or 24 English words",
     /// Contents, closed: a key's words. `{}`: the key's name, then its fingerprint.
     kef_tool_key_sum: "Words of {} · {}",
     /// The Code card: the key has a passphrase, which the code does not hold.

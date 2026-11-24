@@ -7,11 +7,14 @@ use crate::drawing::{Scrolled, View};
 use crate::flow;
 use crate::kef_form::Stage;
 use crate::kef_form::screen::{Ask, draw as form_draw, sheet as form_sheet};
+use crate::pick;
+use crate::screens::next_button_when;
 use crate::strings::{EN, fill};
 use crate::ui::pal::Role;
 use crate::ui::{Style, Ui};
 use crate::vault::screen::secret_box;
 use faraday_draw::tokens::{BODY_S, BUTTON_H, FIELD_H, GAP};
+use faraday_draw::widgets::Icon;
 
 /// The cards' titles by step, the reading card's last.
 pub(crate) const TITLES: [&str; kstep::COUNT + 1] = [
@@ -61,7 +64,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 Some(_) if step == kstep::READ => {
                     crate::seeds::kef::read_rows(app_ref, ui, (x, y, w), false)
                 }
-                Some(s) => card(app_ref, s, ui, step, (x, y, w)),
+                Some(s) => card(app_ref, s, ui, step, (x, y, w), cw),
                 None => 0.0,
             }
         };
@@ -107,9 +110,16 @@ pub(super) fn summary(app: &crate::Faraday, s: &KefToolState, step: u8) -> Strin
     }
 }
 
-fn card(app: &View, s: &KefToolState, ui: &mut Ui, step: u8, (x, y, w): (f32, f32, f32)) -> f32 {
+fn card(
+    app: &View,
+    s: &KefToolState,
+    ui: &mut Ui,
+    step: u8,
+    (x, y, w): (f32, f32, f32),
+    area_w: f32,
+) -> f32 {
     match step {
-        kstep::CONTENTS => contents(app, s, ui, (x, y, w)),
+        kstep::CONTENTS => contents(app, s, ui, (x, y, w), area_w),
         _ => {
             let Some(f) = s.form() else { return 0.0 };
             let made = matches!(f.stage(), Stage::Made | Stage::Check | Stage::Comparing);
@@ -135,7 +145,102 @@ fn choice(on: bool) -> Style {
     }
 }
 
-fn contents(app: &View, s: &KefToolState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+/// The Contents step's pick for the pane where the pair stands: the wallets,
+/// then the keys a code can be made of, then typing. Labels and fingerprints
+/// only.
+pub(super) fn pick(app: &crate::Faraday, s: &KefToolState) -> flow::Pick {
+    let mut groups = Vec::new();
+    let wallets: Vec<_> = app
+        .session
+        .wallets
+        .iter()
+        .enumerate()
+        .map(|(i, wl)| {
+            pick::PickRow::pick(
+                Icon::Wallet,
+                String::from(&*wl.name),
+                String::from(&*crate::wallet::Session::shape(wl)),
+                s.wallet == Some(i),
+                Action::KefTool(K::Wallet(i)),
+            )
+        })
+        .collect();
+    if !wallets.is_empty() {
+        groups.push(flow::PickGroup {
+            head: EN.session_group_wallets,
+            rows: wallets,
+        });
+    }
+    // Every loaded key stays: one that cannot be a code is dimmed with why.
+    let offered = super::offered_keys(app);
+    let keys: Vec<_> = app
+        .session
+        .keys
+        .all()
+        .enumerate()
+        .map(|(i, k)| {
+            let on = offered.contains(&i);
+            let row = pick::PickRow::pick(
+                Icon::Keys,
+                String::from(&*crate::wallet::key_line(k.fingerprint, &k.label)),
+                if on {
+                    EN.kef_tool_key.to_string()
+                } else {
+                    String::new()
+                },
+                on && s.key == Some(i),
+                Action::KefTool(K::Key(i)),
+            );
+            if on {
+                row
+            } else {
+                row.dimmed_for(EN.kef_tool_not_this_key)
+            }
+        })
+        .collect();
+    let loaded = !groups.is_empty() || !keys.is_empty();
+    if !keys.is_empty() {
+        groups.push(flow::PickGroup {
+            head: EN.session_group_keys,
+            rows: keys,
+        });
+    }
+    groups.push(flow::PickGroup {
+        head: pick::ways_in_head(loaded),
+        rows: vec![pick::PickRow::way_in(
+            Icon::Keyboard,
+            EN.kef_tool_type,
+            Action::KefTool(K::Pick(Pick::Type)),
+        )],
+    });
+    flow::Pick {
+        question: EN.kef_tool_which,
+        groups,
+    }
+}
+
+fn contents(
+    app: &View,
+    s: &KefToolState,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    area_w: f32,
+) -> f32 {
+    // Where the pair stands the pane holds the wallets and keys and the
+    // card the typed text and Next (`flow::Contained::pick`).
+    if flow::pair_left(app, &super::KEF_TOOL_STEPS, ui.compact, area_w) {
+        return if s.pick == Some(Pick::Type) {
+            type_card(app, s, ui, (x, y, w))
+        } else {
+            let on = false;
+            let action = Action::KefTool(K::Next);
+            if next_button_when(ui, (x, y, w), EN.kef_tool_continue, action, on) {
+                BUTTON_H
+            } else {
+                0.0
+            }
+        };
+    }
     let mut cy = y;
     for (label, pick) in [
         (EN.kef_tool_type, Pick::Type),
@@ -156,37 +261,7 @@ fn contents(app: &View, s: &KefToolState, ui: &mut Ui, (x, y, w): (f32, f32, f32
         cy += BUTTON_H + GAP;
     }
     match s.pick {
-        Some(Pick::Type) => {
-            cy += ui.field_label(x, cy, EN.kef_tool_text);
-            let show = app.pass_shows(s.shown, s.typed.text.as_str());
-            secret_box(
-                ui,
-                x,
-                cy,
-                w,
-                &s.typed,
-                show,
-                s.typing,
-                Action::KefTool(K::Field),
-                Action::KefTool(K::Eye),
-            );
-            cy += FIELD_H + GAP;
-            let style = if s.typed_len() == 0 {
-                Style::PrimaryOff
-            } else {
-                Style::Primary
-            };
-            ui.button(
-                x,
-                cy,
-                None,
-                BUTTON_H,
-                EN.kef_tool_continue,
-                style,
-                Action::KefTool(K::Next),
-            );
-            cy += BUTTON_H;
-        }
+        Some(Pick::Type) => cy += type_card(app, s, ui, (x, cy, w)),
         Some(Pick::Wallet) => {
             if app.session.wallets.is_empty() {
                 cy += ui.wrap_as(
@@ -215,6 +290,40 @@ fn contents(app: &View, s: &KefToolState, ui: &mut Ui, (x, y, w): (f32, f32, f32
         None => cy -= GAP,
     }
     cy - y
+}
+
+/// The typed text's field and Continue. Returns the height.
+fn type_card(app: &View, s: &KefToolState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+    let mut cy = y;
+    cy += ui.field_label(x, cy, EN.kef_tool_text);
+    let show = app.pass_shows(s.shown, s.typed.text.as_str());
+    secret_box(
+        ui,
+        x,
+        cy,
+        w,
+        &s.typed,
+        show,
+        s.typing,
+        Action::KefTool(K::Field),
+        Action::KefTool(K::Eye),
+    );
+    cy += FIELD_H + GAP;
+    let style = if s.typed_len() == 0 {
+        Style::PrimaryOff
+    } else {
+        Style::Primary
+    };
+    ui.button(
+        x,
+        cy,
+        None,
+        BUTTON_H,
+        EN.kef_tool_continue,
+        style,
+        Action::KefTool(K::Next),
+    );
+    cy + BUTTON_H - y
 }
 
 /// The Code card's line saying the code holds the words only, for a key
