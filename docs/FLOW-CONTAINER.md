@@ -178,6 +178,7 @@ its Path page stands as the same pair with the loaded keys as the pick's rows
 and the result in the card; the pane scrolls with the page. Addresses and
 Find, the one-column layouts and a room too narrow for the pair keep today's
 row of keys. Changing the key hides what its eyes show (`prune`).
+A flow whose open step is a pick says so (`Contained::pick`: the question, then groups of `pick.rs` rows). Where the pair stands the pane draws those rows in place of Your choices, headed by the question and each group by its own heading, and the card keeps its title, Next (off until a pick) and the way back on the top bar; the pane then scrolls within itself like Your choices (the pair grows to the window before the list scrolls). After the pick, Your choices are in place again. On every other size the step's card draws the rows (`flow::pair_left` tells the screen which). The rows are labels and fingerprints only. Child seeds and passwords use it; the other flows' picks (Sign a transaction's wallet, the signers, the seed set and the rest of WORKSPACE §10's list) are not built.
 A flow may list rows under a step's own (Sign a transaction lists its keys
 under Signers, each marked "Signs here" or "Signed" where it is one of these); they open that step,
 and take no press while it is the open one. A row's answer may end in a mark

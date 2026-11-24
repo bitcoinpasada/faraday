@@ -46,7 +46,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let app_ref: &View = app;
         let mut body = |ui: &mut Ui, k: u8, x: f32, y: f32, w: f32| -> f32 {
             match app_ref.bip85.state() {
-                Some(b) => card(app_ref, b, ui, k, x, y, w),
+                Some(b) => card(app_ref, b, ui, k, (x, y, w), cw),
                 None => 0.0,
             }
         };
@@ -64,7 +64,7 @@ fn refused(_: &faraday_keys::KeyInfo) -> Option<&'static str> {
 
 /// The loaded keys as the pick's rows: fingerprint, then its name, a
 /// passphrase and the wallet that uses it, as the session pane has them.
-fn key_rows(app: &View, b: &Bip85State) -> Vec<pick::PickRow> {
+pub(super) fn key_rows(app: &crate::Faraday, b: &Bip85State) -> Vec<pick::PickRow> {
     let session = &app.session;
     session
         .keys
@@ -142,23 +142,28 @@ pub(super) fn summary(app: &crate::Faraday, b: &Bip85State, s: u8) -> String {
     }
 }
 
-fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) -> f32 {
+fn card(
+    app: &View,
+    b: &Bip85State,
+    ui: &mut Ui,
+    s: u8,
+    (x, y, w): (f32, f32, f32),
+    area_w: f32,
+) -> f32 {
     let mut cy = y;
     match s {
         pstep::KEY => {
-            let keys = key_rows(app, b);
-            if !keys.is_empty() {
-                cy += pick::head(ui, x, cy, w, EN.session_group_keys);
-                cy += pick::rows(ui, x, cy, w, &keys);
+            // Where the pair stands the pane holds the rows and the card
+            // only Next (`flow::Contained::pick`).
+            if !flow::pair_left(app, &super::BIP85_STEPS, ui.compact, area_w) {
+                let keys = key_rows(app, b);
+                if !keys.is_empty() {
+                    cy += pick::head(ui, x, cy, w, EN.session_group_keys);
+                    cy += pick::rows(ui, x, cy, w, &keys);
+                }
+                cy += pick::head(ui, x, cy, w, pick::ways_in_head(!keys.is_empty()));
+                cy += pick::rows(ui, x, cy, w, &super::ways_in());
             }
-            cy += pick::head(ui, x, cy, w, pick::ways_in_head(!keys.is_empty()));
-            // Returns here, with the key loaded.
-            let ways = [pick::PickRow::way_in(
-                Icon::Keys,
-                EN.convert_add_a_key,
-                Action::Entry(None),
-            )];
-            cy += pick::rows(ui, x, cy, w, &ways);
             // A press picks; Next goes on once a key is picked (F103).
             if next_button_when(
                 ui,

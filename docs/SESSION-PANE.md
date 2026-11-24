@@ -80,8 +80,8 @@ keeps the rows of Waiting. A wallet's row still has no button.
 The one drawer of the pane's surface (`card_surface`) reports its rectangle
 as the pane's place (`Ui::pane`) wherever it draws: Home's card, the stacked
 card and the page's own mode. Where a flow's pair stands, the container
-(`flow/container.rs`) reports the left part, Your choices, as the pane's
-place. A page without the pane, a flow with no pair and a measuring draw
+(`flow/container.rs`) reports the left part, Your choices or, while the open
+step is a pick (`Contained::pick`), the pick's rows, as the pane's place. A page without the pane, a flow with no pair and a measuring draw
 (`menu::measure`) report none. The change of page glides the pane between
 the two places (`docs/MOTION.md` §3.5); a place is only a rectangle, and a
 frame drawn while a secret was typed or shown keeps no image to glide from

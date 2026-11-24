@@ -54,6 +54,27 @@ fn outline(ui: &mut Ui, from: (f32, f32), to: (f32, f32)) {
     );
 }
 
+/// Whether the pair stands with its pane at the card's left in a page
+/// `area_w` wide: a wide layout, a step that is not full width, and room
+/// for the pair. A step with a pick ([`Contained::pick`]) draws no rows in
+/// its card where this is true: the pane holds them. A lookup.
+pub(crate) fn pair_left(app: &Faraday, flow: &dyn Contained, compact: bool, area_w: f32) -> bool {
+    !compact && !flow.full_width(app) && app.unit_on_show() && {
+        let u = app.unit_place(area_w);
+        u.pane_x < u.card_x
+    }
+}
+
+/// The open step's pick, where the pane stands (`stands`).
+fn open_pick(
+    app: &Faraday,
+    flow: &dyn Contained,
+    steps: Option<&crate::trail::Steps>,
+    stands: bool,
+) -> Option<super::Pick> {
+    flow.pick(app, steps?.open.filter(|_| stands)?)
+}
+
 /// The card's top and foot limits: where the pair stands, its outline's top
 /// and the line a margin above the window's foot; else the page's.
 fn card_limits(left: bool, compact: bool, top: f32, view_h: f32) -> (f32, f32) {
@@ -203,7 +224,11 @@ pub(crate) fn contained(
     let card_top = y;
     // Where the pair stands, a chip naming the wallet or key is Your
     // choices' first row instead.
-    let lead = (left && !full && steps.is_some())
+    // The open step's pick takes the pane's place: the rows at the left,
+    // the card holding Next. A step fading out keeps Your choices.
+    let pick = open_pick(app, flow, steps.as_ref(), left && !full && out.is_none());
+
+    let lead = (left && !full && steps.is_some() && pick.is_none())
         .then(|| flow.pick_row(app))
         .flatten();
     if let (Some(chip), None) = (page.chip, lead.as_ref()) {
@@ -307,6 +332,7 @@ pub(crate) fn contained(
             flow,
             steps: s,
             lead: lead.as_ref(),
+            pick: pick.as_ref(),
             place: (px, pane_w, if left { clip_end } else { page.h }),
             top,
             offset: app.scroll.choices_offset(),

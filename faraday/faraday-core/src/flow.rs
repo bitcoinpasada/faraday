@@ -13,7 +13,7 @@ pub(crate) mod pair;
 pub(crate) mod unit;
 
 pub(crate) use choices::{Row, Title};
-pub(crate) use container::{Page, contained, pair_lines};
+pub(crate) use container::{Page, contained, pair_left, pair_lines};
 
 use faraday_draw::widgets::Icon;
 
@@ -91,6 +91,29 @@ pub(crate) trait Contained: crate::trail::StepFlow {
     fn pick_row(&self, _app: &crate::Faraday) -> Option<(Row, Option<Action>)> {
         None
     }
+    /// The pick of step `k`, when that step is a pick: where the pair
+    /// stands its rows are drawn at the left in place of Your choices, and
+    /// the card keeps Next. On every other size the step's card draws the
+    /// rows itself. Labels and fingerprints only (`docs/FLOW-CONTAINER.md`
+    /// §4).
+    fn pick(&self, _app: &crate::Faraday, _k: u8) -> Option<Pick> {
+        None
+    }
+}
+
+/// A step's pick as the pane holds it: the question as its heading, then
+/// the groups of rows, each under its own heading.
+pub(crate) struct Pick {
+    /// The step's question: the pane's heading.
+    pub(crate) question: &'static str,
+    /// The groups, in order.
+    pub(crate) groups: Vec<PickGroup>,
+}
+
+/// One group of a pick's rows, under a heading.
+pub(crate) struct PickGroup {
+    pub(crate) head: &'static str,
+    pub(crate) rows: Vec<crate::pick::PickRow>,
 }
 
 /// Where a flow on the container drew its card: the room it may draw and

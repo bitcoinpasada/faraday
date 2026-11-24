@@ -405,6 +405,8 @@ macro_rules! words_bip85 {
     // ----- bip85 (faraday-core/src/bip85/screen.rs) -----
     /// Text in `TITLES`.
     bip85_key: "Key",
+    /// The key step's question, the pick pane's heading.
+    bip85_which_key: "Which key?",
     /// Text in `TITLES`.
     bip85_application: "Application",
     /// Text in `TITLES`.

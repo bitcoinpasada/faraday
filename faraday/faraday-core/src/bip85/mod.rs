@@ -781,6 +781,15 @@ impl Faraday {
     }
 }
 
+/// The pick's ways in: Add a key, which returns here with the key loaded.
+fn ways_in() -> Vec<crate::pick::PickRow> {
+    vec![crate::pick::PickRow::way_in(
+        faraday_draw::widgets::Icon::Keys,
+        crate::strings::EN.convert_add_a_key,
+        crate::Action::Entry(None),
+    )]
+}
+
 /// BIP-85's steps, plugged into Back, Forward and the choices that move
 /// on (F103, F104).
 pub(crate) struct Bip85Steps;
@@ -844,6 +853,30 @@ impl crate::flow::Contained for Bip85Steps {
                 )
             })
             .collect()
+    }
+
+    fn pick(&self, app: &Faraday, k: u8) -> Option<crate::flow::Pick> {
+        let b = app.bip85.state()?;
+        if k != pstep::KEY {
+            return None;
+        }
+        let keys = screen::key_rows(app, b);
+        let loaded = !keys.is_empty();
+        let mut groups = Vec::new();
+        if loaded {
+            groups.push(crate::flow::PickGroup {
+                head: crate::strings::EN.session_group_keys,
+                rows: keys,
+            });
+        }
+        groups.push(crate::flow::PickGroup {
+            head: crate::pick::ways_in_head(loaded),
+            rows: ways_in(),
+        });
+        Some(crate::flow::Pick {
+            question: crate::strings::EN.bip85_which_key,
+            groups,
+        })
     }
 
     fn hide_shown(&self, app: &mut Faraday) {

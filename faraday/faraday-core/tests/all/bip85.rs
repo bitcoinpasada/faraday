@@ -683,3 +683,171 @@ fn enter_on_a_focused_plus_presses_it() {
     assert_eq!(app.bip85().and_then(|b| b.index()), Some(1));
     assert_eq!(before, Some(0));
 }
+
+// The key step's pick stands in the pane at the left of the card where the
+// pair stands (docs/FLOW-CONTAINER.md §4).
+
+/// Child seeds open on a `w` × `h` window with `n` keys loaded (two or
+/// more, so none is picked for the person).
+fn child_seeds_on(w: u16, h: u16, n: usize) -> Faraday {
+    let mut app = Faraday::new();
+    app.event(Event::Display(DisplayInfo {
+        width: w,
+        height: h,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(Vec::<(String, Vec<u8>)>::new()),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    let c = testkit::compute();
+    for i in 0..n {
+        let m = faraday_keys::words::from_entropy(Language::English, &[i as u8 + 1; 16]).unwrap();
+        let words: Vec<&str> = m
+            .indices()
+            .iter()
+            .map(|&w| Language::English.words()[usize::from(w)])
+            .collect();
+        app.session
+            .keys
+            .add_words(&c, &words.join(" "), &format!("Seed {i}"), None)
+            .unwrap();
+    }
+    app.press(Action::Bip85);
+    assert_eq!(app.screen, Screen::Bip85);
+    assert_eq!(app.bip85().and_then(|b| b.key), None);
+    app
+}
+
+fn fp(app: &Faraday, i: usize) -> [u8; 4] {
+    app.session.keys.all().nth(i).unwrap().fingerprint.0
+}
+
+/// A press and its release at the middle of what offers `a`.
+fn touch(app: &mut Faraday, a: Action) {
+    let _ = app.frame();
+    let (x, y) = app.where_offered(a).expect("offered");
+    for phase in [
+        faraday_shell_api::TouchPhase::Down,
+        faraday_shell_api::TouchPhase::Up,
+    ] {
+        app.event(Event::Touch { x, y, phase });
+    }
+}
+
+fn shown(app: &mut Faraday, text: &str) -> bool {
+    let _ = app.frame();
+    app.drawn_text_boxes().iter().any(|(t, _)| t == text)
+}
+
+/// The left edge of the step's title, where the card begins.
+fn card_edge(app: &mut Faraday) -> i32 {
+    let _ = app.frame();
+    app.drawn_text_boxes()
+        .into_iter()
+        .filter(|(t, _)| t == "Key")
+        .map(|(_, r)| r.0)
+        .min()
+        .expect("the step's title")
+}
+
+#[test]
+fn the_keys_stand_in_a_pane_left_of_the_card_headed_by_the_question() {
+    let mut app = child_seeds_on(1366, 768, 2);
+    let edge = card_edge(&mut app);
+    for i in 0..2 {
+        let (x, _, w, _) = app.hit_box(Action::PKey(fp(&app, i))).expect("a row");
+        assert!(i32::from(x + w) < edge, "the row ends left of the card");
+    }
+    assert!(shown(&mut app, "Which key?"));
+    assert!(!shown(&mut app, "Your choices"));
+}
+
+#[test]
+fn next_is_off_until_a_key_is_picked_and_a_press_picks() {
+    let mut app = child_seeds_on(1366, 768, 2);
+    let _ = app.frame();
+    assert!(!app.offers(Action::PNext));
+    let second = fp(&app, 1);
+    touch(&mut app, Action::PKey(second));
+    assert_eq!(app.bip85().and_then(|b| b.key), Some(second));
+    let _ = app.frame();
+    assert!(app.offers(Action::PNext));
+    // Another key picked in the pane changes the pick.
+    let first = fp(&app, 0);
+    touch(&mut app, Action::PKey(first));
+    assert_eq!(app.bip85().and_then(|b| b.key), Some(first));
+}
+
+#[test]
+fn after_the_pick_your_choices_stand_in_place_and_back_brings_the_rows() {
+    let mut app = child_seeds_on(1366, 768, 2);
+    let first = fp(&app, 0);
+    touch(&mut app, Action::PKey(first));
+    app.press(Action::PNext);
+    assert!(shown(&mut app, "Your choices"));
+    assert!(!shown(&mut app, "Which key?"));
+    assert!(!app.offers(Action::PKey(first)));
+    app.press(Action::PStep(0));
+    assert!(shown(&mut app, "Which key?"));
+    assert!(app.offers(Action::PKey(first)));
+    assert_eq!(app.bip85().and_then(|b| b.key), Some(first));
+}
+
+#[test]
+fn the_rows_stay_left_of_the_card_with_the_guide_open_and_closed() {
+    let mut app = child_seeds_on(1920, 1080, 2);
+    let first = fp(&app, 0);
+    app.press(Action::Guide);
+    let _ = app.frame();
+    let (x, _, w, _) = app.hit_box(Action::PKey(first)).expect("a row");
+    let edge = card_edge(&mut app);
+    assert!(i32::from(x + w) < edge, "the row ends left of the card");
+    app.press(Action::GuideClose);
+    let _ = app.frame();
+    assert!(app.hit_box(Action::PKey(first)).is_some());
+    assert!(shown(&mut app, "Which key?"));
+}
+
+#[test]
+fn a_list_longer_than_the_window_scrolls_to_its_last_row() {
+    let mut app = child_seeds_on(1366, 768, 20);
+    let last = fp(&app, 19);
+    let (_, h) = app.size();
+    let _ = app.frame();
+    let (px, _, _, _) = app.hit_box(Action::PKey(fp(&app, 0))).expect("a row");
+    for _ in 0..60 {
+        if app
+            .hit_box(Action::PKey(last))
+            .is_some_and(|(_, y, _, bh)| f32::from(y + bh) <= h)
+        {
+            return;
+        }
+        app.event(Event::Scroll {
+            x: px + 40,
+            y: (h / 2.0) as u16,
+            dy: 120,
+        });
+        let _ = app.frame();
+    }
+    panic!("the last key's row never came into the window");
+}
+
+#[test]
+fn on_a_small_panel_the_card_draws_the_rows_as_before() {
+    let mut app = child_seeds_on(480, 640, 2);
+    let _ = app.frame();
+    assert!(!shown(&mut app, "Which key?"));
+    assert!(app.hit_box(Action::PKey(fp(&app, 0))).is_some());
+    let second = fp(&app, 1);
+    touch(&mut app, Action::PKey(second));
+    assert_eq!(app.bip85().and_then(|b| b.key), Some(second));
+}

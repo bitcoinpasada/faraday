@@ -117,6 +117,8 @@ pub(crate) struct Pane<'a> {
     pub(crate) steps: &'a Steps,
     /// The wallet or key the flow is on, the first row, and its press.
     pub(crate) lead: Option<&'a (Row, Option<Action>)>,
+    /// The open step's pick: its rows stand in place of Your choices.
+    pub(crate) pick: Option<&'a super::Pick>,
     /// The pane's left edge, its width and the window's height.
     pub(crate) place: (f32, f32, f32),
     /// Where its heading starts: the card's top where the pair is level.
@@ -140,6 +142,20 @@ impl Pane<'_> {
         let mark = ui.presses_mark();
         let (x, w) = (px + CHOICES_INSET, pw - 2.0 * CHOICES_INSET);
         let mut y = top;
+        if let Some(pick) = self.pick {
+            // The question is the heading; the rows are pick.rs's, each
+            // group under its own heading.
+            ui.text_as(x, y, LABEL_L, Role::OnSurfaceVariant, pick.question);
+            y += ui.line_as(LABEL_L) + tokens::GRID;
+            for g in &pick.groups {
+                y += crate::pick::head(ui, x, y, w, g.head);
+                y += crate::pick::rows(ui, x, y, w, &g.rows);
+            }
+            y += foot(ui, x, y, w);
+            ui.clip_presses_since(mark, clip);
+            ui.region_close(open, (y + CHOICES_INSET - h).max(0.0));
+            return y + CHOICES_INSET - top;
+        }
         ui.text_as(x, y, LABEL_L, Role::OnSurfaceVariant, EN.flow_your_choices);
         y += ui.line_as(LABEL_L) + tokens::GRID;
         let mut list = Vec::new();
