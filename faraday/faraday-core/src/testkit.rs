@@ -2194,6 +2194,23 @@ pub fn message(app: &crate::Faraday) -> Option<&crate::MessageState> {
     app.message.state()
 }
 
+/// Puts a receipt in place, as a write answered to a stick would leave
+/// it: `name` written under `hash` and read back.
+pub fn receipt_written(app: &mut crate::Faraday, name: &str, hash: [u8; 32]) {
+    app.visit.set_receipt(Some(crate::Receipt {
+        label: "STICK".into(),
+        stick: Default::default(),
+        time: None,
+        files: vec![crate::ReceiptFile {
+            name: name.into(),
+            hash,
+            verified: true,
+            failure: None,
+        }],
+        by_flow: false,
+    }));
+}
+
 /// Types `text` into the message being signed.
 pub fn message_text(app: &mut crate::Faraday, text: &str) {
     app.message.set_text(text);

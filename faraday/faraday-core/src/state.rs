@@ -990,6 +990,18 @@ fn add_xor(c: &Compute, parts: &mut forms::Parts, text: &str) -> Result<(), fara
         .map_err(|_| faraday_text::Text::of(EN.forms_every_part_has))
 }
 
+impl MessageState {
+    /// The name the signed message's file is made under, from the last
+    /// six characters of the address.
+    pub(crate) fn file_name(&self) -> Option<faraday_text::Text> {
+        let address = &self.signed.as_ref()?.address;
+        Some(faraday_text::text!(
+            "message-{}.txt",
+            &address[address.len().saturating_sub(6)..]
+        ))
+    }
+}
+
 /// Signing a message: the cards' state.
 #[derive(Default)]
 pub struct MessageState {
@@ -1016,6 +1028,9 @@ pub struct MessageState {
     pub signed: Option<faraday_psbt::message::Signed>,
     /// The name the signed message's file went out under.
     pub out_name: Option<faraday_text::Text>,
+    /// The SHA-256 of that file's bytes, taken when it was made, so that
+    /// "written and checked" holds only for these bytes.
+    pub out_sha: Option<[u8; 32]>,
     /// The last refusal.
     pub error: Option<faraday_text::Text>,
 }
@@ -1281,6 +1296,7 @@ impl Faraday {
                         Ok(signed) => {
                             m.signed = Some(signed);
                             m.out_name = None;
+                            m.out_sha = None;
                             m.error = None;
                             m.done[mstep::SIGN as usize] = true;
                         }
@@ -1308,10 +1324,14 @@ impl Faraday {
                             "message-{}.txt",
                             &sig.address[sig.address.len().saturating_sub(6)..]
                         );
+                        let sha = crate::sha256_of(c, text.as_bytes());
                         let name = self.put_outbox_beside(&name, text.as_bytes().to_vec());
                         if let Some(m) = self.message.state.as_mut() {
                             m.out_name = Some(name.duplicate());
+                            m.out_sha = Some(sha);
                         }
+                        // Ticked to write, as the take-away shows it.
+                        self.visit.out_extend([&*name]);
                         self.toast_out(&name);
                     } else {
                         let view = self.code_view(c, Code::Message);

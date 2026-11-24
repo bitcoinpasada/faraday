@@ -284,6 +284,10 @@ end card counts in "Step N of M" and F104's limits on Back apply to it
 (Make a new key's made card included). A flow's foot (My seed makes
 my wallet's, Read a Bitcoin Core wallet's) ends its last card.
 
+A flow whose last step makes something names its take-away (`Contained::take_away`: the files made, by name in the outbox with the SHA-256 of their bytes, and the codes to scan). Where the pair stands (`flow::pair_left`) the pane draws it in place of Your choices (`flow/take_away.rs`): the heading "Take with you", each file a tick row of Files' (`screens/visit.rs`, `row`; the ticks are the visit's chosen set; a file no longer in the outbox is a row with Make the file or Make again), each code a row with a Show as QR button, and at the pane's foot one filled button, "Write to stick": off with nothing ticked, "Waiting for a stick" with no stick in. The step's card keeps the outcome and holds no file or code. Back to the step before brings Your choices again. No sheet opens by itself. Every other size keeps the card as it was. Sign a message uses it; the other flows' ends are not built.
+
+For Sign a message the button asks to lock first (signing leaves keys in memory) and the flow ends with the lock, so "Written and checked" (a file of the same name and bytes read back) is not reached in the flow. Not built: that state reached in a flow, the next steps in the pane, the pane settling back after a write, the ticks kept through the lock, and the button writing only the files of its own rows.
+
 ## 8. The flows and how each maps
 
 | Flow | Its screen | Its steps in the container | Full-width step | Under Your choices' rows, or beside |

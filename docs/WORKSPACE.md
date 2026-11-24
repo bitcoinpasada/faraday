@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Partly built: Home's card with its groups (F323, `docs/SESSION-PANE.md`), the flow pair as one card (F324), a change of page at the Speed and in the Motion style (F318) and the flat section cards of the menu pages (F317) are on main; the rest is not built: the session pane as the one view of what is loaded and going on, on the menu pages and in every flow, the page as panes, and the rest of the motion (§6).
-**Open:** To build: the session pane's modes on Wallets and its form in the flows (§2; Home's card in groups and the modes of Tools and Check are built, `docs/SESSION-PANE.md`), the pairs and stacked pages of §4 for Wallets, the pick becoming Your choices at the left in a flow with wide content (the wallet chip as the first row is built where the pair stands) and the backup board, the flow pair's one card there (§4, §6), row buttons on the wallet rows and the shares' file row, and details on the pane (§2, §7; the file rows of Tools and Check carry theirs; Files' row menu and card buttons already read the shared list), the guide as a pane (§7), the rest of the pane container (§14: Wallets, Files, the guide as the third pane and the glide on it), Vaults' pane (§2), Wallets' rows pinned (§2), one order of the groups with Keys first and Waiting a band at the pane's foot, on Home too (§1, §2; HOME.md §2's lead, now the first row of the Waiting group at the card's top, becomes the first row of that band), Tools' and Check's pane at the flow's place at 1920 wide and wider (§4; its drawing cost is not measured), Files first in a pick opened from Check (§2), a flow's pick leaving out the keys it cannot take (§2), the heights (F331: one resting level, the flow's card raised alone with its own fill, §3, §6), the search and the pills constant on every menu page and kept in a flow (§4, §16), Mode inline with its one confirmation (§9), the Scan button under Settings, the viewfinder in the pane, its form over a folded strip and its popout (§4), the backup board's insides and codex32 from dice (§7), the flow's one card for the one-page tools and checks other than Units (§2), the timings on the Pi that §6 and §8 name, the take-away (§15), flows in progress and the way out of a flow (§16), Tools lit in the sidebar by a tool opened from it (§16), starting with files on the boot stick (§17) addresses shown whole (§18) and one sign for each kind of press (F332, §19); what of these is built is in the sections. Not decided: the Pi's default Motion, until its timings (§8); how the flow's card's fill looks (§3).
+**Open:** To build: the session pane's modes on Wallets and its form in the flows (§2; Home's card in groups and the modes of Tools and Check are built, `docs/SESSION-PANE.md`), the pairs and stacked pages of §4 for Wallets, the pick becoming Your choices at the left in a flow with wide content (the wallet chip as the first row is built where the pair stands) and the backup board, the flow pair's one card there (§4, §6), row buttons on the wallet rows and the shares' file row, and details on the pane (§2, §7; the file rows of Tools and Check carry theirs; Files' row menu and card buttons already read the shared list), the guide as a pane (§7), the rest of the pane container (§14: Wallets, Files, the guide as the third pane and the glide on it), Vaults' pane (§2), Wallets' rows pinned (§2), one order of the groups with Keys first and Waiting a band at the pane's foot, on Home too (§1, §2; HOME.md §2's lead, now the first row of the Waiting group at the card's top, becomes the first row of that band), Tools' and Check's pane at the flow's place at 1920 wide and wider (§4; its drawing cost is not measured), Files first in a pick opened from Check (§2), a flow's pick leaving out the keys it cannot take (§2), the heights (F331: one resting level, the flow's card raised alone with its own fill, §3, §6), the search and the pills constant on every menu page and kept in a flow (§4, §16), Mode inline with its one confirmation (§9), the Scan button under Settings, the viewfinder in the pane, its form over a folded strip and its popout (§4), the backup board's insides and codex32 from dice (§7), the flow's one card for the one-page tools and checks other than Units (§2), the timings on the Pi that §6 and §8 name, the take-away in the flows other than Sign a message (§15), flows in progress and the way out of a flow (§16), Tools lit in the sidebar by a tool opened from it (§16), starting with files on the boot stick (§17) addresses shown whole (§18) and one sign for each kind of press (F332, §19); what of these is built is in the sections. Not decided: the Pi's default Motion, until its timings (§8); how the flow's card's fill looks (§3).
 
 "This session", Home's raised card, becomes the session pane, Faraday's hub: everything about
 what is loaded and going on lives in it, and it works with every part of
@@ -962,10 +962,34 @@ At the last step the session pane at the left turns, with the glide (§6), from 
   needed) and holds no files or QR. After writing, or on leaving, the pane
   settles back to its session form, the written files green there and in
   Files. The take-away and the step's card are level, as tall as the taller
-  needs, the pair centred (§4). They are one card with the inset divider, as
-  the flow's other steps are, and "Write to stick" is a button in the pane:
-  off with nothing ticked, "Waiting for a stick" with no stick, "Written and
-  checked" after (owner, 2026-11-23).
+  needs, the pair centred (§4), as one card with an inset divider like the
+  flow's other steps (owner, 2026-11-24); "Write to stick" is one filled
+  button at the pane's foot, in three states: off with nothing ticked,
+  "Waiting for a stick" with no stick in, "Written and checked" after the
+  file is read back (owner, 2026-11-24).
+
+**Built.** Sign a message's last step, where the pair stands
+(`flow/take_away.rs`, `Contained::take_away`): the heading, the file as a
+tick row, the signed message's code as a row with Show as QR, and the button
+at the foot, which asks to lock first (signing leaves keys in memory, so
+the write is never from a clean process) and the flow ends with the lock.
+The file's row is green and the button reads "Written and checked" only for
+a file of the same name and the same bytes (the SHA-256 kept when the file
+was made, compared with the receipt's; nothing is hashed while drawing); a
+file renamed or removed in Files shows a row with Make the file or Make again
+instead. Files resets the chosen set when it is opened, as it always did, so
+the tick does not outlast a visit to Files.
+
+Not built: the other flows (the table below); "Written and checked" reached
+in the flow (the lock ends it first); the tick kept on opening Files and
+through the lock; the next steps in the pane; the pane settling back to its
+session form after a write; the rows' own "Waiting for a stick"; the emphasis
+on arrival; the file's green in the session pane after writing; and the code
+drawn inline on a light square: its row opens the QR sheet when asked, as the
+flow's finish did, and the sheet still makes the PNG. The pane's write counts
+and writes only its own rows' files, but the visit's write sends everything
+chosen; this must be closed before a second flow uses the pane, or before
+a flow ends in a clean process.
 
 **What this changes.** F319 puts Your choices at the left in
 every flow and F296 makes the last step a card in the column: Your

@@ -9,6 +9,7 @@ pub(crate) mod act;
 mod answers;
 mod choices;
 mod container;
+mod take_away;
 
 pub(crate) use choices::{Row, Title};
 pub(crate) use container::{Page, contained, pair_left};
@@ -102,6 +103,48 @@ pub(crate) trait Contained: crate::trail::StepFlow {
     fn lists_nothing(&self, _app: &crate::Faraday) -> bool {
         false
     }
+
+    /// What the flow's last step gives to take away, when step `k` is that
+    /// step and the flow has made something: where the pair stands the
+    /// pane draws it in place of Your choices (`flow/take_away.rs`, `docs/
+    /// FLOW-CONTAINER.md` §7), and the step's card keeps the outcome. Public
+    /// things only: names and actions, never a key, a seed or a
+    /// passphrase.
+    fn take_away(&self, _app: &crate::Faraday, _k: u8) -> Option<TakeAway> {
+        None
+    }
+}
+
+/// What a flow's end gives to take away: the files it made, by name in
+/// the outbox, and the codes to scan.
+pub(crate) struct TakeAway {
+    /// The files made, in order.
+    pub(crate) files: Vec<TakeFile>,
+    /// The codes to scan.
+    pub(crate) codes: Vec<TakeCode>,
+}
+
+/// One file in the take-away: the name it went out under and the SHA-256
+/// of its bytes taken when it was made, so that only a file of that name
+/// and those bytes counts as written; and what offers it again when it is
+/// no longer in the outbox.
+pub(crate) struct TakeFile {
+    /// The name it went out under.
+    pub(crate) name: Title,
+    /// The SHA-256 of its bytes.
+    pub(crate) sha: [u8; 32],
+    /// The name a new file is made under, drawn while this one is not there.
+    pub(crate) again: Title,
+    /// What the row says that makes it (the first time).
+    pub(crate) make_label: &'static str,
+    /// The press that makes it.
+    pub(crate) make: crate::Action,
+}
+
+/// One code in the take-away: what it is, and the press that shows it.
+pub(crate) struct TakeCode {
+    pub(crate) name: &'static str,
+    pub(crate) show: crate::Action,
 }
 
 /// A step's pick as the pane holds it: the question as its heading, then

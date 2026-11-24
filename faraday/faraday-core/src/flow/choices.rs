@@ -119,6 +119,8 @@ pub(crate) struct Pane<'a> {
     pub(crate) lead: Option<&'a (Row, Option<Action>)>,
     /// The open step's pick: its rows stand in place of Your choices.
     pub(crate) pick: Option<&'a super::Pick>,
+    /// The last step's take-away: it stands in place of Your choices.
+    pub(crate) take: Option<&'a super::TakeAway>,
     /// The pane's left edge, its width and the window's height.
     pub(crate) place: (f32, f32, f32),
     /// Where its heading starts: the card's top where the pair is level.
@@ -134,6 +136,16 @@ impl Pane<'_> {
     /// end level. A pane taller than the window scrolls within itself
     /// (`Slot::Choices`).
     pub(crate) fn draw(&self, ui: &mut Ui, foot: Foot) -> f32 {
+        if let Some(take) = self.take {
+            return super::take_away::Pane {
+                app: self.app,
+                take,
+                place: self.place,
+                top: self.top,
+                offset: self.offset,
+            }
+            .draw(ui, foot);
+        }
         let (px, pw, h) = self.place;
         let top = self.top;
         let clip = ui.rect(px, top, pw, h - top);

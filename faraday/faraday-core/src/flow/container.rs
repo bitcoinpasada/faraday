@@ -57,6 +57,29 @@ fn open_pick(
     flow.pick(app, steps?.open.filter(|_| stands)?)
 }
 
+/// The open step's take-away, where the pane stands (`stands`).
+fn open_take(
+    app: &Faraday,
+    flow: &dyn Contained,
+    steps: Option<&crate::trail::Steps>,
+    stands: bool,
+) -> Option<super::TakeAway> {
+    flow.take_away(app, steps?.open.filter(|_| stands)?)
+}
+
+/// The wallet or key row that leads Your choices, where the pane stands
+/// (`stands`) and neither a pick nor a take-away takes its place.
+fn lead_row(
+    app: &Faraday,
+    flow: &dyn Contained,
+    stands: bool,
+    (pick, take): (&Option<super::Pick>, &Option<super::TakeAway>),
+) -> Option<(super::Row, Option<crate::Action>)> {
+    (stands && pick.is_none() && take.is_none())
+        .then(|| flow.pick_row(app))
+        .flatten()
+}
+
 /// Draws the flow's current step: its chip, heading and `body`, which
 /// draws the step's controls (by the flow's own number) at (x, y) in a
 /// width and returns their height; then, on the wide layout, Your choices
@@ -168,9 +191,10 @@ pub(crate) fn contained(
     // the card holding Next. A step fading out keeps Your choices.
     let pick = open_pick(app, flow, steps.as_ref(), left && !full && out.is_none());
 
-    let lead = (left && !full && steps.is_some() && pick.is_none())
-        .then(|| flow.pick_row(app))
-        .flatten();
+    // The last step's take-away takes the pane's place too.
+    let take = open_take(app, flow, steps.as_ref(), left && !full && out.is_none());
+
+    let lead = lead_row(app, flow, left && !full && steps.is_some(), (&pick, &take));
     if let (Some(chip), None) = (page.chip, lead.as_ref()) {
         let chip = ui.fit_as(BODY_S, chip, w - 34.0);
         let cw = ui.chip_press(
@@ -273,6 +297,7 @@ pub(crate) fn contained(
             steps: s,
             lead: lead.as_ref(),
             pick: pick.as_ref(),
+            take: take.as_ref(),
             place: (px, pane_w, if left { clip_end } else { page.h }),
             top,
             offset: app.scroll.choices_offset(),

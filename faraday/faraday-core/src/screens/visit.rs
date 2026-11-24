@@ -243,24 +243,24 @@ fn stick_card_needed(
 }
 
 /// One row of a card's list: the file, how it is tagged, and what it does.
-struct ListRow<'a> {
-    name: &'a str,
-    line: &'a str,
-    tag: (&'a str, crate::ui::Paint),
+pub(crate) struct ListRow<'a> {
+    pub(crate) name: &'a str,
+    pub(crate) line: &'a str,
+    pub(crate) tag: (&'a str, crate::ui::Paint),
     /// A tick box, ticked or not; none while no stick is in.
-    ticked: Option<bool>,
+    pub(crate) ticked: Option<bool>,
     /// The stick holds the file already: drawn greyed.
-    greyed: bool,
+    pub(crate) greyed: bool,
     /// The same file is on the stick: the row is green with a check.
-    same: bool,
+    pub(crate) same: bool,
     /// What pressing the row does.
-    action: Option<Action>,
+    pub(crate) action: Option<Action>,
     /// Its ⋮ menu.
-    menu: Option<crate::file_menu::Row>,
+    pub(crate) menu: Option<crate::file_menu::Row>,
     /// Its main action, before the ⋮.
-    main: Option<(Text, Style, Action)>,
+    pub(crate) main: Option<(Text, Style, Action)>,
     /// The name wraps onto more lines rather than ending in "…".
-    wrap: bool,
+    pub(crate) wrap: bool,
 }
 
 /// One [`ListRow`] in a card `colw` wide at `x`, its top at `ry`.
@@ -294,6 +294,21 @@ fn extra_h(ui: &Ui, r: &ListRow, colw: f32) -> f32 {
 }
 
 fn list_row(app: &View, ui: &mut Ui, (x, colw, ry): (f32, f32, f32), mut r: ListRow) -> f32 {
+    let menu = r.menu.take();
+    let h = row(ui, (x, colw, ry), r);
+    if let Some(menu) = menu
+        && ui.shows(ry, h)
+    {
+        crate::file_menu::dots(app, ui, x + colw - 20.0 - 32.0, ry + GRID, 32.0, menu);
+    }
+    h
+}
+
+/// One file row as Files and the take-away draw it, without its ⋮ menu
+/// (`list_row` adds that): the tick box, name, line and tag, the green of
+/// a file on both sides, its press, and the rule under it. Returns its
+/// height.
+pub(crate) fn row(ui: &mut Ui, (x, colw, ry): (f32, f32, f32), mut r: ListRow) -> f32 {
     // A name that does not wrap keeps `VISIT_NAME_MIN` of room, or the main
     // action is not drawn (as the stick pane's rows did before F290).
     // Pressing the row then does it: the tick box keeps the tick.
@@ -367,9 +382,6 @@ fn list_row(app: &View, ui: &mut Ui, (x, colw, ry): (f32, f32, f32), mut r: List
         ui.press_box(from, ry, px + pw - dw - from, ph, main);
     } else if let Some(action) = r.action {
         ui.press_box(px, ry, pw - dw, ph, action);
-    }
-    if let Some(menu) = r.menu {
-        crate::file_menu::dots(app, ui, x + colw - 20.0 - 32.0, ry + GRID, 32.0, menu);
     }
     ui.rule(
         x + 20.0,

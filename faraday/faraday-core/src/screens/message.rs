@@ -123,6 +123,34 @@ impl crate::flow::Contained for MessageSteps {
         // A signature is dropped by any change before it.
         later != crate::mstep::SIGN
     }
+
+    fn take_away(&self, app: &crate::Faraday, k: u8) -> Option<flow::TakeAway> {
+        // The signed message's file and its code: public, no key moves.
+        let m = app.message.state()?;
+        m.signed.as_ref().filter(|_| k == crate::mstep::SIGN)?;
+        let name = m.out_name.as_ref()?.duplicate();
+        let base = m.file_name()?;
+        // Drawn only while the file is not waiting: the name it is made
+        // under beside the files that are, another signature's among them.
+        let again = if app.outbox.iter().any(|i| i.name == name) {
+            base
+        } else {
+            crate::stick::visit_taken::outbox_free_name(&app.outbox, &base)
+        };
+        Some(flow::TakeAway {
+            files: vec![flow::TakeFile {
+                name,
+                sha: m.out_sha?,
+                again,
+                make_label: EN.message_make_the_file,
+                make: Action::MOut,
+            }],
+            codes: vec![flow::TakeCode {
+                name: EN.message_signed_message,
+                show: Action::MQr,
+            }],
+        })
+    }
 }
 
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
@@ -148,7 +176,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (next, again, _) = {
         let app_ref: &View = app;
         let mut body = |ui: &mut Ui, k: u8, x: f32, y: f32, w: f32| -> f32 {
-            message_body(app_ref, ui, k, x, y, w)
+            message_body(app_ref, ui, k, (x, y, w), cw)
         };
         let mut under = |_: &mut Ui, _: f32, _: f32, _: f32| 0.0;
         flow::contained(ui, app_ref, contained, &page, scroll, &mut body, &mut under)
@@ -156,7 +184,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     app.scroll(Scrolled::Message, next, again);
 }
 
-fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
+fn message_body(app: &View, ui: &mut Ui, n: u8, (x, y, w): (f32, f32, f32), area_w: f32) -> f32 {
     use crate::mstep;
     let m = app.message.state().expect("message");
     let mut cy = y;
@@ -382,41 +410,45 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     cy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
                     cy += ui.wrap_as((x, cy, w), BODY_M.mono(), Role::OnSurface, &sig.signature)
                         + 14.0;
-                    // Made For the stick as it was signed.
-                    let file = format!(
-                        "message-{}.txt",
-                        &sig.address[sig.address.len().saturating_sub(6)..]
-                    );
-                    // The file this message put, under the name it went out as.
-                    let (state, (label, style, action)) = made_state(
-                        app,
-                        m.out_name.as_deref().unwrap_or(""),
-                        None,
-                        (EN.message_make_the_file, Action::MOut),
-                    );
-                    let png = fill(EN.message_png, &[app.medium.for_the()]);
-                    cy += file_row(
-                        ui,
-                        x,
-                        cy,
-                        w,
-                        &file,
-                        EN.message_signed_message,
-                        state.as_deref(),
-                        (label, style, action),
-                        &[],
-                    ) + 6.0;
-                    cy += wrap_buttons(
-                        ui,
-                        x,
-                        cy,
-                        w,
-                        BUTTON_H,
-                        &[
-                            (EN.show_as_qr, Style::Secondary, Action::MQr),
-                            (&png, Style::Secondary, Action::CodePng(Code::Message)),
-                        ],
-                    ) + 4.0;
+                    // Where the pair stands the pane holds the file and the
+                    // code (`flow::Contained::take_away`).
+                    if !flow::pair_left(app, &MESSAGE_STEPS, ui.compact, area_w) {
+                        // Made For the stick as it was signed.
+                        let file = format!(
+                            "message-{}.txt",
+                            &sig.address[sig.address.len().saturating_sub(6)..]
+                        );
+                        // The file this message put, under the name it went out as.
+                        let (state, (label, style, action)) = made_state(
+                            app,
+                            m.out_name.as_deref().unwrap_or(""),
+                            None,
+                            (EN.message_make_the_file, Action::MOut),
+                        );
+                        let png = fill(EN.message_png, &[app.medium.for_the()]);
+                        cy += file_row(
+                            ui,
+                            x,
+                            cy,
+                            w,
+                            &file,
+                            EN.message_signed_message,
+                            state.as_deref(),
+                            (label, style, action),
+                            &[],
+                        ) + 6.0;
+                        cy += wrap_buttons(
+                            ui,
+                            x,
+                            cy,
+                            w,
+                            BUTTON_H,
+                            &[
+                                (EN.show_as_qr, Style::Secondary, Action::MQr),
+                                (&png, Style::Secondary, Action::CodePng(Code::Message)),
+                            ],
+                        ) + 4.0;
+                    }
                     // The ending: Check it, the signature just made,
                     // Another, the tool again, empty, and Done, back to
                     // where the tool was opened.

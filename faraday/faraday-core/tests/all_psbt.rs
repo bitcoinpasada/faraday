@@ -77,6 +77,8 @@ mod loose_key;
 mod message_format;
 #[path = "all/message_scan.rs"]
 mod message_scan;
+#[path = "all/message_take_away.rs"]
+mod message_take_away;
 #[path = "all/message_whole.rs"]
 mod message_whole;
 #[path = "all/multisig_check.rs"]

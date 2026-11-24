@@ -20,6 +20,12 @@ macro_rules! words_screens_visit {
     visit_write: "Write {} {}",
     /// Headline of Write's row on the wide layout.
     visit_write_row: "Write",
+    /// The take-away's heading at a flow's end.
+    take_away_head: "Take with you",
+    /// The take-away's button. `{}`: `app.medium.noun()`.
+    take_away_write: "Write to {}",
+    /// The line of a code row in the take-away.
+    take_away_code: "QR code",
     /// Supporting line of Write's row on the wide layout.
     visit_write_row_line: "The checked files, to the stick",
     /// Text in `visit`.

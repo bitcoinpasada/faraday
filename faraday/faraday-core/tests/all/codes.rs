@@ -444,8 +444,9 @@ fn a_second_message_from_one_address_goes_beside_the_first() {
         .iter()
         .position(|i| i.name.ends_with("-2.txt"))
         .unwrap();
-    assert!(app.offers(Action::OutboxRemove(own)));
-    assert!(!app.offers(Action::OutboxRemove(0)), "the first's file");
+    // Where the pair stands the file is a tick row of the take-away.
+    assert!(app.offers(Action::VisitOut(own)));
+    assert!(!app.offers(Action::VisitOut(0)), "the first's file");
     let names: Vec<&str> = app.outbox.iter().map(|i| i.name.as_str()).collect();
     assert_eq!(names.len(), 2, "{names:?}");
     assert!(names[1].ends_with("-2.txt"), "{names:?}");
