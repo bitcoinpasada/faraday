@@ -9,7 +9,7 @@ faraday/faraday-core/src/boot_import/screen.rs 38
 faraday/faraday-core/src/codes/screen.rs 51
 faraday/faraday-core/src/codex32_correct/screen.rs 3
 faraday/faraday-core/src/compact/screen.rs 120
-faraday/faraday-core/src/decode/screen.rs 66
+faraday/faraday-core/src/decode/screen.rs 63
 faraday/faraday-core/src/dice_entry/screen.rs 32
 faraday/faraday-core/src/explore/screen.rs 16
 faraday/faraday-core/src/keygen/screen.rs 238

@@ -8,7 +8,8 @@ use crate::ui::pal::*;
 use crate::ui::{Style, Ui, grouped};
 use crate::{Action, Screen};
 use faraday_draw::tokens::{
-    BODY_M, BODY_S, BUTTON_H, DECODE_INDEX_W, DECODE_KIND_GAP, DECODE_VALUE_ROOM, LABEL_L, LABEL_M,
+    BODY_M, BODY_S, BUTTON_H, DECODE_INDEX_W, DECODE_KIND_GAP, DECODE_ROW_H, DECODE_VALUE_ROOM,
+    LABEL_L, LABEL_M,
 };
 use faraday_ui::parts::{section_label, wrap_buttons};
 
@@ -215,13 +216,12 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             y += wh + 12.0;
             continue;
         }
-        let addr = ui.fit_as(
-            BODY_M.mono(),
-            &grouped(&out.address),
+        y = address_lines(
+            ui,
+            (x + DECODE_INDEX_W, y),
             tw - DECODE_VALUE_ROOM,
+            &grouped(&out.address),
         );
-        ui.text_mid_as((x + 26.0, y, 26.0), BODY_M.mono(), Role::OnSurface, &addr);
-        y += 26.0;
         let kw = ui.text_mid_as(
             (x + 26.0, y, 22.0),
             BODY_S,
@@ -344,6 +344,21 @@ fn whose(out: &crate::decode::DecodedOutput) -> (String, Role) {
     }
 }
 
+/// An output's address whole at `(x, y)`: on one line where `room` holds
+/// it, else wrapped between its groups in `room`, the first line level with
+/// the amount. Returns where the row under it starts.
+fn address_lines(ui: &mut Ui, (x, y): (f32, f32), room: f32, addr: &str) -> f32 {
+    if ui.measure_as(BODY_M.mono(), addr) <= room {
+        ui.text_mid_as((x, y, DECODE_ROW_H), BODY_M.mono(), Role::OnSurface, addr);
+        y + DECODE_ROW_H
+    } else {
+        let laid = ui.wrapped_as(BODY_M.mono(), addr, room);
+        let lead = ((DECODE_ROW_H - ui.line_as(BODY_M.mono())) / 2.0).max(0.0);
+        ui.draw_wrapped((x, y + lead), Role::OnSurface, &laid);
+        y + laid.h.max(DECODE_ROW_H) + lead
+    }
+}
+
 /// The inputs' and outputs' table on the wide layout: as wide as its
 /// columns, the number, the longest outpoint or address with the room
 /// for the amount after it, or the longest line under one, at most `w`.
@@ -391,5 +406,39 @@ fn landing(app: &View, ui: &mut Ui, (x, top, w): (f32, f32, f32)) -> f32 {
         )
     } else {
         file_choices(ui, (x, top, w), EN.decode_choose_transaction, &waiting)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use faraday_shell_api::{BootState, DisplayInfo, SecureHardware};
+
+    /// Where the row under an address starts, the address drawn in `room`.
+    fn below(room: f32, addr: &str) -> f32 {
+        let d = DisplayInfo {
+            width: 1200,
+            height: 900,
+            dpi: 160,
+            inset_bottom: 0,
+            inset_top: 0,
+            buttons: 0,
+            camera_fixed: false,
+            secure: SecureHardware::None,
+            boot: BootState::Unknown,
+            memory_mib: None,
+        };
+        let mut canvas = faraday_draw::Canvas::new(&d);
+        let f = canvas.scale().factor();
+        let mut hits: Vec<(faraday_draw::Rect, Action)> = Vec::new();
+        let mut ui = Ui::new(&mut canvas, f, &mut hits, None);
+        address_lines(&mut ui, (0.0, 0.0), room, addr)
+    }
+
+    #[test]
+    fn an_address_wider_than_its_room_wraps_and_pushes_the_row_under_it_down() {
+        let addr = grouped("tb1pqu8p28pr9gcns06xf429kcnfwpmhapvvjwd2r290k67ufj7jm8sq9fgqn8");
+        assert_eq!(below(2000.0, &addr), DECODE_ROW_H);
+        assert!(below(200.0, &addr) > 2.0 * DECODE_ROW_H);
     }
 }

@@ -2266,6 +2266,9 @@ pub const REFUSED_FILE_GAP: f32 = 10.0;
 /// Decode a transaction's table (`docs/LAYOUT.md` §17): the number's
 /// column before an outpoint, an address or the line under one.
 pub const DECODE_INDEX_W: f32 = 26.0;
+/// An output's first line in Decode's table: the band the address and the
+/// amount are centred in.
+pub const DECODE_ROW_H: f32 = 26.0;
 /// Decode a Lightning invoice: the text field's height, four lines of
 /// its text and the inset above and below.
 pub const INVOICE_FIELD_H: f32 = 104.0;

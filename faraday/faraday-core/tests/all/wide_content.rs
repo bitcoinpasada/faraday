@@ -261,3 +261,82 @@ fn a_page_meant_to_be_centred_is_centred_in_its_room_held_or_not() {
         }
     }
 }
+
+/// A transaction paying a taproot and a P2WPKH address, opened in Decode.
+fn decoding(w: u16, h: u16) -> Faraday {
+    use faraday_bip::bitcoin::{ScriptBuf, consensus::encode::serialize_hex};
+    let k = testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "spending")
+        .unwrap();
+    let mut tx = testkit::unsigned(&k).unwrap().inner().unsigned_tx.clone();
+    let mut p2tr = vec![0x51, 0x20];
+    p2tr.extend((1..=32u8).map(|b| b.wrapping_mul(7)));
+    let mut p2wpkh = vec![0x00, 0x14];
+    p2wpkh.extend((1..=20u8).map(|b| b.wrapping_mul(11)));
+    tx.output[0].script_pubkey = ScriptBuf::from_bytes(p2tr);
+    tx.output[1].script_pubkey = ScriptBuf::from_bytes(p2wpkh);
+    let mut app = testkit::started();
+    window(&mut app, w, h);
+    app.storage(faraday_core::StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![(
+            "tx.txt".to_string(),
+            serialize_hex(&tx).into_bytes(),
+        )]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.press(Action::DecodeInbox(0));
+    assert_eq!(app.screen, Screen::Decode);
+    app
+}
+
+#[test]
+fn decode_draws_every_address_whole_and_clear_of_the_row_under_it() {
+    // The narrowest wide window and the common one, tall enough that the
+    // whole table is in view.
+    for (w, h) in [(1200u16, 4000u16), (1366, 4000)] {
+        let mut app = decoding(w, h);
+        let _ = app.frame();
+        let addresses: Vec<String> = app
+            .decode()
+            .unwrap()
+            .decoded
+            .outputs
+            .iter()
+            .map(|o| o.address.to_string())
+            .collect();
+        assert!(
+            addresses
+                .iter()
+                .any(|a| a.starts_with("tb1p") || a.starts_with("bc1p"))
+        );
+        let boxes = app.drawn_text_boxes().plain();
+        assert!(
+            boxes.iter().all(|(t, _)| !t.contains('…')),
+            "{w}: nothing cut"
+        );
+        for a in &addresses {
+            // The address's lines: groups of four, top to bottom.
+            let mut lines: Vec<_> = boxes
+                .iter()
+                .filter(|(t, _)| {
+                    !t.is_empty()
+                        && t.split(' ').all(|g| g.len() <= 4)
+                        && a.contains(&t.replace(' ', ""))
+                })
+                .collect();
+            lines.sort_by_key(|(_, b)| (b.1, b.0));
+            let seen: String = lines.iter().map(|(t, _)| t.replace(' ', "")).collect();
+            assert!(seen.contains(a.as_str()), "{w}: {a} whole, drawn {seen}");
+        }
+        // No two drawn strings overlap.
+        for (i, (ta, a)) in boxes.iter().enumerate() {
+            for (tb, b) in &boxes[i + 1..] {
+                let apart =
+                    a.0 + a.2 <= b.0 || b.0 + b.2 <= a.0 || a.1 + a.3 <= b.1 || b.1 + b.3 <= a.1;
+                assert!(apart, "{w}: {ta:?} {a:?} over {tb:?} {b:?}");
+            }
+        }
+    }
+}
