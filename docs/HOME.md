@@ -239,7 +239,10 @@ window leaves room for about three rows of results (`home_pinned`), stays
 too; else the whole page scrolls as one. On every layout with the bar,
 while something is typed its results take the page: the lead, the first
 actions, the wallets, the keys, Backups and the places are not drawn until
-the search is cleared. The results are the matching tools, then every
+the search is cleared. On a window with the search in the top bar the card
+of what is loaded (This session) stays and the results stand in a tile
+under it, or, where the window is too short for that, in a tile at its right
+with the card at the left (`docs/MENU-PAGE.md` §4). The results are the matching tools, then every
 Settings card with a word typed on it (its title, labels, options' names
 and values' words, taken from the strings the card draws), each shown as
 the whole card, drawn and pressable as on Settings, so a change made in it
@@ -396,7 +399,9 @@ scrolls within itself by the same rules; no place tiles follow it.
 +------------------------------+
 ```
 
-While something is typed the results alone fill the page under the bar.
+While something is typed the results alone fill the page under the bar
+(on a window with the search in the top bar, in a tile under This session's
+card or at its right, as above).
 Only what is under the search bar scrolls, until the window is too short
 to leave room under the bar for about three rows of results; then the
 whole page scrolls (§5). The rail's windows draw the search bar first and

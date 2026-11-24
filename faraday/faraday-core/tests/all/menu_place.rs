@@ -222,3 +222,52 @@ fn a_loaded_wallets_file_row_draws_no_button() {
     let _ = app.frame();
     assert!(!app.offers(Action::LoadWallet(0)));
 }
+
+fn type_on_home(app: &mut Faraday, text: &str) {
+    for c in text.chars() {
+        app.event(Event::Key(faraday_shell_api::Key::Char(c)));
+    }
+    let _ = app.frame();
+    let _ = app.frame();
+}
+
+#[test]
+fn home_search_results_stand_under_this_session_where_the_window_is_tall() {
+    for (w, h) in [(1920, 1080), (1366, 1000)] {
+        let mut app = sized(w, h);
+        type_on_home(&mut app, "send");
+        let (card_x, card_y) = at(&mut app, EN.home_box_heading);
+        let (tile_x, tile_y) = at(&mut app, "Sign a transaction");
+        assert!(tile_y > card_y, "{w}x{h}: the results are under the card");
+        assert!(tile_x < card_x + 360, "{w}x{h}: and as wide as the card");
+    }
+}
+
+#[test]
+fn home_search_results_stand_beside_this_session_where_the_window_is_short() {
+    let mut app = sized(1366, 768);
+    type_on_home(&mut app, "e");
+    let (card_x, _) = at(&mut app, EN.home_box_heading);
+    let (tile_x, tile_y) = at(&mut app, "Sign a transaction");
+    assert!(tile_x > card_x + 360, "the results are at the pane's right");
+    assert!(tile_y < 200, "level with the pane's top");
+}
+
+#[test]
+fn leaving_the_search_puts_the_page_back() {
+    let mut app = sized(1920, 1080);
+    type_on_home(&mut app, "send");
+    assert!(
+        common::texts(&mut app)
+            .iter()
+            .any(|t| t == "Sign a transaction")
+    );
+    for _ in 0..4 {
+        app.event(Event::Key(faraday_shell_api::Key::Backspace));
+    }
+    let _ = app.frame();
+    let _ = app.frame();
+    let texts = common::texts(&mut app);
+    assert!(!texts.iter().any(|t| t == "Sign a transaction"));
+    assert!(texts.iter().any(|t| t == EN.home_box_heading));
+}

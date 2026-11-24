@@ -138,8 +138,16 @@ tile to the right page margin and at most `MENU_TILE_WIDE_MAX` (1248 dp, the
 width a 1920 dp window gives it; a wider window keeps it and centres the
 pair), its sections in as many columns as fit (three at 1920, two at 1600).
 Where the room holds one column, the pair stands at the flow's place
-(`flow/pair.rs`) and the tile scrolls. While a search is typed, the results stand in Home's
-column as before.
+(`flow/pair.rs`) and the tile scrolls.
+
+While a search is typed (Home's, Tools'), its results stand in a tile of their own at the same
+place by the same rule (`menu_place::draw_results`): under This session's
+card where the tile fits under it, else at the right of the pair, This session
+at the left. The tile holds what `home_results` draws, unchanged: the tools, then
+Settings' cards, then the glossary words. On Home the pane is Home's own
+rows, on Tools Tools' mode. Where the search is not in the top bar (the
+phone-size window, the Pi's menu, a rail window of the compact class) the
+results take the page as before. Check has no search.
 
 ## 5. Spacing and section labels
 
@@ -242,7 +250,8 @@ What a person sees and does, at the snapshot sizes (the Pi's panel,
   the search bar or Scan, at any scroll position;
 - a press on a tile opens what its face says, on every page and layout;
 - typing on Home or Tools shows the matching tools under the bar, a
-  result opens its tool, and clearing the bar brings the page back;
+  result opens its tool, and clearing the bar brings the page back; on the wide layout the results
+  stand under This session's card, or beside it where the window is too short;
 - the search bar stays in view while the page scrolls under it;
 - Settings' cards read in their order down the first column and then the
   second, the two columns come out about equal in height, and on a compact window a section opens from the list and

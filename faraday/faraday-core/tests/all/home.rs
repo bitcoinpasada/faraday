@@ -1389,7 +1389,9 @@ fn a_search_typed_on_the_wide_home_takes_the_page_and_clearing_it_brings_the_res
         // The top row stays while the results take the page.
         assert!(app.offers(rest[0]), "{width}: the row stays");
         for &a in &rest[1..] {
-            assert!(!app.offers(a), "{width}: {a:?} is gone while typed");
+            // The wide layout keeps This session's card, the results under
+            // it; the phone-size window's results take the page.
+            assert_eq!(app.offers(a), width > 1000, "{width}: {a:?} while typed");
         }
         assert!(app.where_offered(Action::Catalog(sign_tile())).is_some());
         app.event(Event::Key(faraday_shell_api::Key::Escape));
@@ -1661,7 +1663,8 @@ fn with_an_import_waiting(make: fn() -> Faraday) -> Faraday {
 }
 
 #[test]
-fn the_import_lead_is_a_card_with_no_pill_and_typing_a_search_leaves_it_and_the_actions_out() {
+fn the_import_lead_is_a_card_with_no_pill_and_typing_a_search_leaves_the_actions_out_and_the_card_keeps_it()
+ {
     let open = faraday_core::boot_import::OPEN;
     let mut app = with_an_import_waiting(wide);
     let texts = app.drawn_texts();
@@ -1670,7 +1673,7 @@ fn the_import_lead_is_a_card_with_no_pill_and_typing_a_search_leaves_it_and_the_
     let bar = Action::TypeHere(faraday_core::edit::Here::HomeFind);
     let before = app.hit_box(bar);
     type_on_home(&mut app, "send");
-    assert!(!app.offers(open), "the lead is not drawn while typed");
+    assert!(app.offers(open), "the lead stays in This session's card");
     assert_eq!(before, app.hit_box(bar));
     app.event(Event::Key(faraday_shell_api::Key::Escape));
     let _ = app.frame();

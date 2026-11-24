@@ -40,6 +40,11 @@ pub(crate) fn stacked_card(app: &View, ui: &mut Ui, (x, y): (f32, f32), w: f32) 
     )
 }
 
+/// The pane's groups beside a tile: `mode`'s, or Home's own for `None`.
+pub(crate) fn pane_groups(app: &View, mode: Option<Mode>) -> Vec<Group> {
+    mode.map_or_else(|| groups(app), |m| page_groups(app, m))
+}
+
 /// One row of the pane: its leading icon, its headline, the line under it
 /// (empty for none), the small text at its end (the box's, empty for none;
 /// `accent` draws it as an action) and what a press opens. A row ends in a

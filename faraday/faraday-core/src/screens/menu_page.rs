@@ -196,6 +196,15 @@ pub(crate) fn draw(
     // pair); where it cannot (a search is typed, the room is narrow) it
     // stands in Home's column, as one page.
     let (mut x0, mut cw) = (x0, cw);
+    // A search's results stand in a pane of their own, placed as the page
+    // is: stacked under This session's card, else beside it. Where the
+    // search is not in the top bar, or the page is the phone's, they take
+    // the page.
+    if let (true, false, true, Some(bar)) = (typed, compact, app.search_in_bar(), page.search)
+        && super::menu_place::draw_results(app, ui, (x0, cw, h), bar, page.pane)
+    {
+        return;
+    }
     if let (false, Some(mode)) = (compact, page.pane) {
         if !typed && super::menu_place::draw(app, ui, (x0, cw, h), (page, sections), mode) {
             return;

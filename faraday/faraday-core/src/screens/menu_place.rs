@@ -5,9 +5,12 @@
 //! (one column: where a flow's pair stands). The place
 //! is the page's and the room's, never what is loaded. Arithmetic and
 //! drawing of one tile of the page's sections; the rows are the pane's.
+//! A typed search's results take the tile's place the same way, on Home
+//! (the pane then holds Home's rows) and on Tools.
 
+use super::catalog::Bar;
 use super::menu_page::{Page, Section, grid, page_span, sections_height};
-use super::session_pane::{Mode, draw_page_pane, page_content_h, page_groups, stacked_card};
+use super::session_pane::{Mode, draw_page_pane, page_content_h, pane_groups, stacked_card};
 use crate::drawing::View;
 use crate::ui::pal::*;
 use crate::ui::{Region, Ui};
@@ -39,15 +42,14 @@ fn tile_surface(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32)) {
     ui.fill(x, y, w, h, SHAPE_M, Role::SurfaceContainerLow);
 }
 
-/// The page's sections as the tile's content: a padding in from the tile's
-/// edge, in the columns that fit. Returns the tile's height.
-fn tile_content(
-    app: &View,
-    ui: &mut Ui,
-    (x, y, w): (f32, f32, f32),
-    (page, sections): (&Page, &[Section]),
-) -> f32 {
-    sections_height(app, ui, (x + PAD, y + PAD), w - 2.0 * PAD, page, sections) + 2.0 * PAD
+/// What fills the tile: draws from `(x, y)`, `w` wide, and returns its
+/// height.
+type Body<'a> = &'a dyn Fn(&mut Ui, (f32, f32), f32) -> f32;
+
+/// `body` as the tile's content: a padding in from the tile's edge.
+/// Returns the tile's height.
+fn tile_content(ui: &mut Ui, (x, y, w): (f32, f32, f32), body: Body) -> f32 {
+    body(ui, (x + PAD, y + PAD), w - 2.0 * PAD) + 2.0 * PAD
 }
 
 /// Where the pair's two panes stand: left edge and width of each.
@@ -84,23 +86,49 @@ fn wide_pair(room: f32) -> Option<Placed> {
 pub(super) fn draw(
     app: &View,
     ui: &mut Ui,
-    (x0, cw, h): (f32, f32, f32),
+    area: (f32, f32, f32),
     (page, sections): (&Page, &[Section]),
     mode: Mode,
+) -> bool {
+    let body =
+        |ui: &mut Ui, at: (f32, f32), w: f32| sections_height(app, ui, at, w, page, sections);
+    place(app, ui, area, &body, Some(mode))
+}
+
+/// Draws the results of the search typed in `bar` placed the same way, the
+/// pane being `mode`'s, or Home's rows for `None`. Returns false, drawing
+/// nothing, where the room holds neither.
+pub(super) fn draw_results(
+    app: &View,
+    ui: &mut Ui,
+    area: (f32, f32, f32),
+    bar: Bar,
+    mode: Option<Mode>,
+) -> bool {
+    let body =
+        |ui: &mut Ui, at: (f32, f32), w: f32| super::catalog::home_results(app, ui, at, w, bar);
+    place(app, ui, area, &body, mode)
+}
+
+/// The stack where `body`'s tile fits under the card, else the pair.
+fn place(
+    app: &View,
+    ui: &mut Ui,
+    (x0, cw, h): (f32, f32, f32),
+    body: Body,
+    mode: Option<Mode>,
 ) -> bool {
     let top = PANE_TOP_BAR;
     let (hx, hw) = home_span(cw);
     let card_h = crate::menu::measure(ui, &mut |ui| stacked_card(app, ui, (0.0, 0.0), hw));
-    let tile_h = crate::menu::measure(ui, &mut |ui| {
-        tile_content(app, ui, (0.0, 0.0, hw), (page, sections))
-    });
+    let tile_h = crate::menu::measure(ui, &mut |ui| tile_content(ui, (0.0, 0.0, hw), body));
     let under = top + card_h + SPACER;
     if under + tile_h + MARGIN_WIDE <= h {
         let clip = ui.rect(x0, 0.0, cw, h);
         let open = ui.region_open(Region::page(clip).from_zero(app.list_offset));
         stacked_card(app, ui, (x0 + hx, top), hw);
         tile_surface(ui, (x0 + hx, under, hw, tile_h));
-        tile_content(app, ui, (x0 + hx, under, hw), (page, sections));
+        tile_content(ui, (x0 + hx, under, hw), body);
         let content = under + tile_h + MARGIN_WIDE;
         app.scroll.content_h().set(content);
         ui.region_close(open, 0.0);
@@ -118,11 +146,10 @@ pub(super) fn draw(
             None => return false,
         },
     };
-    let groups = page_groups(app, mode);
+    let groups = pane_groups(app, mode);
     let pane_need = page_content_h(ui, p.pane_w, &groups);
-    let tile_need = crate::menu::measure(ui, &mut |ui| {
-        tile_content(app, ui, (0.0, 0.0, p.card_w), (page, sections))
-    });
+    let tile_need =
+        crate::menu::measure(ui, &mut |ui| tile_content(ui, (0.0, 0.0, p.card_w), body));
     let room_h = (h - top - MARGIN_WIDE).max(0.0);
     let both = pane_need.max(tile_need).min(room_h);
     draw_page_pane(
@@ -135,7 +162,7 @@ pub(super) fn draw(
     tile_surface(ui, (tx, top, p.card_w, both));
     let clip = ui.rect(tx, top, p.card_w, both);
     let open = ui.region_open(Region::page(clip).from_zero(app.list_offset));
-    tile_content(app, ui, (tx, top, p.card_w), (page, sections));
+    tile_content(ui, (tx, top, p.card_w), body);
     app.scroll.content_h().set(tile_need);
     ui.region_close(open, (tile_need - both).max(0.0));
     true
