@@ -343,25 +343,28 @@ fn a_wide_window_lists_every_key_in_a_pane_and_a_press_picks_one() {
 #[test]
 fn a_pane_of_many_keys_scrolls_to_its_last_row() {
     let mut app = exploring_many(20);
+    let first = app.session.keys.all().next().unwrap().fingerprint.0;
     let last = app.session.keys.all().last().unwrap().fingerprint.0;
-    let (_, h) = app.size();
+    let (w, h) = app.size();
     let _ = app.frame();
-    for _ in 0..40 {
+    let full = app.hit_box(Action::XKey(first)).expect("the first row").3;
+    for _ in 0..400 {
         if app
             .hit_box(Action::XKey(last))
-            .is_some_and(|(_, y, _, bh)| f32::from(y + bh) <= h)
+            .is_some_and(|(_, y, _, bh)| bh == full && f32::from(y + bh) <= h)
         {
             return;
         }
-        let (w, _) = app.size();
         app.event(Event::Scroll {
             x: (w * 0.5) as u16,
             y: (h / 2.0) as u16,
             dy: 120,
         });
+        let now = app.now_ms() + 16;
+        app.event(Event::Tick { now_ms: now });
         let _ = app.frame();
     }
-    panic!("the last key's row never came into the window");
+    panic!("the last key's row never came whole into the window");
 }
 
 #[test]

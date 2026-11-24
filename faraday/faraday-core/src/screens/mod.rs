@@ -197,7 +197,9 @@ fn page_area(app: &crate::Faraday, screen: Screen, room: f32) -> (f32, f32) {
         // Tools and Check place their own column, or the pair at the flow's
         // place (`screens::hub_layout`).
         Area::Work
-    } else if screen == Screen::Explore && crate::explore::pane::place_in(app, room) {
+    } else if (screen == Screen::Explore && crate::explore::pane::place_in(app, room))
+        || (screen == Screen::Lightning && crate::lightning::pane::place_in(app, room))
+    {
         // The keys' pane and the card are a pair at the flow's place.
         Area::Work
     } else if screen == Screen::KeyGen && !keygen_wide(app) {

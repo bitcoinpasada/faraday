@@ -3,6 +3,7 @@
 use crate::Action;
 use crate::drawing::View;
 use crate::lightning::NodeSource;
+use crate::pick;
 use crate::screens::button_rows;
 use crate::strings::EN;
 use crate::ui::pal::*;
@@ -18,7 +19,12 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // A small panel has its bar for the way back and the name, and puts
     // each value under its name.
     let compact = ui.compact;
-    let (x, width) = if compact {
+    // On the wide layout the keys stand in the pane at the left of the card
+    // (`docs/FLOW-CONTAINER.md` §4); elsewhere they are buttons in the card.
+    let pair = super::pane::place(app, compact, cw);
+    let (x, width) = if let Some(p) = pair {
+        (x0 + p.card_x, p.card_w)
+    } else if compact {
         (x0 + crate::compact::M, cw - 2.0 * crate::compact::M)
     } else {
         (x0 + 56.0, (cw - 112.0).min(900.0))
@@ -37,10 +43,22 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         EN.lightning_a_lightning_node
     };
     let y = if compact { top } else { header(app, ui) };
-    let end = body(app, ui, x, y, width, (vx, vw, below));
-    if compact {
-        let y = end + crate::compact::screen::about(ui, x, end, width, guide);
-        crate::compact::screen::finish(app, ui, h, y - top + 16.0);
+    let mut pane_end = y;
+    if let (Some(p), Some(l)) = (pair, app.lightning.state()) {
+        let rows = super::pane::rows(app, l.source);
+        pane_end += pick::head(ui, x0 + p.pane_x, pane_end, p.pane_w, EN.session_group_keys);
+        pane_end += pick::rows(ui, x0 + p.pane_x, pane_end, p.pane_w, &rows);
+    }
+    let end = body(app, ui, x, y, width, (vx, vw, below), pair.is_some());
+    if let Some(p) = pair {
+        crate::explore::pane::foot(app, ui, (x0, h), (p, y), (end, pane_end));
+    } else {
+        let end = if compact {
+            end + crate::compact::screen::about(ui, x, end, width, guide)
+        } else {
+            end
+        };
+        crate::compact::screen::finish(app, ui, h, end - top + 16.0);
     }
 }
 
@@ -69,12 +87,17 @@ fn body(
     mut y: f32,
     width: f32,
     (vx, vw, below): (f32, f32, f32),
+    keys_in_pane: bool,
 ) -> f32 {
     let Some(l) = app.lightning.state() else {
         return y;
     };
     // Opened from Convert, the entry stands alone: the source is the aezeed.
-    let keys = app.session.keys.all().filter(|_| !l.for_convert);
+    let keys = app
+        .session
+        .keys
+        .all()
+        .filter(|_| !l.for_convert && !keys_in_pane);
     let mut row: Vec<(Text, Style, Action)> = keys
         .flat_map(|k| {
             let fp = k.fingerprint;
@@ -162,7 +185,14 @@ fn body(
                 Style::Primary,
                 Action::LResolve,
             );
-            y = ry + 52.0;
+            // Beside the field, the field is the taller: the next line
+            // starts under it.
+            y = ry
+                + if below > 0.0 {
+                    52.0
+                } else {
+                    T::FIELD_H + T::GAP
+                };
         }
     }
     if let Some(e) = &l.error {

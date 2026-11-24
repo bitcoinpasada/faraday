@@ -752,7 +752,7 @@ component with Home's pane.
 | Explore and Derive (`explore/screen.rs`, `explore/pane.rs`) | loaded keys | one | built: on the wide layout the keys stand as the picker's rows in a pane at the left of the card and the result stays in the card; the one-column layouts and a window too narrow for the pair keep the pill row, and the Addresses and Find pages have no pane |
 | Convert a seed (`convert/screen.rs`) | loaded keys, an aezeed | one, pill row | picker, single |
 | Silent payments, key step (`silent/screen.rs`) | loaded keys | one, pill row | picker, single | Make another record |
-| Lightning node key (`lightning/screen.rs`) | keys, aezeed, Core Lightning | one, pill row | picker, single (its other sources as rows) |
+| Lightning node key (`lightning/screen.rs`, `lightning/pane.rs`) | keys, aezeed, Core Lightning | one | built for the keys: on the wide layout each loaded key's two sources stand as the picker's rows in a pane at the left of the card; the aezeed and Core Lightning `hsm_secret` sources stay buttons in the card, and the one-column layouts, a window too narrow for the pair and the page opened from Convert keep the pill row |
 | Create's slots, a multisig's cosigners (`screens/create.rs`, slot rows) | keys not in another slot | one per slot, pill row | picker, one slot at a time, opening again per slot |
 | A seed set (`seeds/screen.rs`) | "Use {key}" per key | several, buttons | picker, several (checkboxes) |
 | Vanity, key step (`vanity/screen.rs`) | keys, fingerprint and label | several, checkboxes | picker, several |

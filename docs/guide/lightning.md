@@ -12,7 +12,7 @@ This works out a Lightning node's key from a loaded key, an LND aezeed, or Core 
 
 **Key:** lightning.source
 
-Each loaded key has two buttons, ldk-node · and Core Lightning · followed by the key. Choosing one reads the node at once: ldk-node reads the key's BIP-39 seed as ldk-node does and Core Lightning reads its words as lightning-hsmtool does. A key with no BIP-39 seed gives no node.
+Each loaded key has two buttons, ldk-node · and Core Lightning · followed by the key; on a wide window they are rows under Keys at the left. Choosing one reads the node at once: ldk-node reads the key's BIP-39 seed as ldk-node does and Core Lightning reads its words as lightning-hsmtool does. A key with no BIP-39 seed gives no node.
 
 **LND · type an aezeed** takes the 24 words of an LND cipher seed, counted as typed, with **Passphrase**, which is aezeed (LND's default) when left empty. **Read it** works the node out. A wrong word, a wrong count or a wrong passphrase shows the reason in one line.
 

@@ -346,6 +346,8 @@ impl Faraday {
         let fp = self.session.keys.all().next().map(|k| k.fingerprint.0);
         self.explore.open(fp, self.explore_coin(), self.screen);
         self.screen = Screen::Explore;
+        // Opened from a scrolled page, it starts at its top.
+        self.list_offset = 0.0;
     }
 
     /// The path read, or why it is not one.

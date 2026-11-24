@@ -183,6 +183,16 @@ A flow may list rows under a step's own (Sign a transaction lists its keys
 under Signers, each marked "Signs here" or "Signed" where it is one of these); they open that step,
 and take no press while it is the open one. A row's answer may end in a mark
 that is drawn whole while the text before it is cut to fit (the row's `mark`); a Signers row leaves out a name that could read as a mark.
+The Lightning node key page stands as the same pair on the wide layout with
+a key loaded: each loaded key's two sources (ldk-node and Core Lightning) are
+the pick's rows, pressing what the buttons press, and the aezeed and
+`hsm_secret` sources, the words and the node stay in the card; opened from
+Convert, on a one-column layout or in a room too narrow for the pair the
+sources are the buttons in the card (the rows are checked against Material's
+single-choice list row, as Explore's). The page ends in one tail for every
+case (the pair's lines and the scroll to a padding below the outline's foot).
+The private key is hidden whenever the node it shows changes or goes: another
+source, a file, an edit of the words or the passphrase, a read, a stick.
 A pane taller than the window scrolls within itself (LAYOUT §6), so a low
 window does not drop the pane. The scroll is one offset for every flow
 (`Scroll::choices`), set back to the top when a flow is opened. A flow's

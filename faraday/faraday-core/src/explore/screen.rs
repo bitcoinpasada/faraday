@@ -268,11 +268,10 @@ fn tail(
     pair: Option<(crate::screens::hub_layout::Place, f32)>,
     (y, pane_end): (f32, f32),
 ) {
-    let end = crate::screens::hub_layout::level(pane_end, y, f32::MAX);
-    if let Some((p, y_pane)) = pair {
-        super::pane::lines(ui, x0, p, y_pane, end);
+    match pair {
+        Some(pair) => super::pane::foot(app, ui, (x0, h), pair, (y, pane_end)),
+        None => crate::compact::screen::finish(app, ui, h, y.max(pane_end) - top + 16.0),
     }
-    crate::compact::screen::finish(app, ui, h, end - top + 16.0);
 }
 
 /// The account's row of buttons with **Make a wallet** (or **Open the

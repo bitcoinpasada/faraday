@@ -5,6 +5,7 @@
 //! public; its private key is a secret, into the vault or out only
 //! through the secret sheet.
 
+pub(crate) mod pane;
 pub(crate) mod screen;
 
 use crate::strings::EN;
@@ -144,6 +145,15 @@ impl LightningState {
     }
 }
 
+impl LightningState {
+    /// The node set or dropped. A private key shown for one node is not
+    /// shown for the next: this is the one place `node` changes.
+    fn set_node(&mut self, node: Option<Node>) {
+        self.shown = false;
+        self.node = node;
+    }
+}
+
 impl LightningArea {
     /// The screen's state, while it is open.
     pub(crate) fn state(&self) -> Option<&LightningState> {
@@ -219,7 +229,7 @@ impl LightningArea {
         if let Some(l) = self.state.as_mut() {
             match found {
                 Ok(n) => {
-                    l.node = Some(n);
+                    l.set_node(Some(n));
                     l.error = None;
                 }
                 Err(e) => l.error = Some(e),
@@ -281,7 +291,7 @@ impl LightningArea {
             l.on_passphrase = asks;
             l.typed.set("");
             l.passphrase.clear();
-            l.node = None;
+            l.set_node(None);
             l.error = None;
         }
     }
@@ -309,7 +319,7 @@ impl LightningArea {
         let words = Text::joined(&l.typed.split_whitespace().collect::<Vec<_>>(), " ");
         match keys.hsm_words_node(c, &words, l.passphrase.as_str()) {
             Ok(n) => {
-                l.node = Some(n);
+                l.set_node(Some(n));
                 l.error = None;
             }
             Err(e) => l.error = Some(refusal_line(e)),
@@ -332,7 +342,7 @@ impl LightningArea {
         if let Some(l) = self.state.as_mut() {
             match found {
                 Ok(n) => {
-                    l.node = Some(n);
+                    l.set_node(Some(n));
                     l.error = None;
                 }
                 Err(e) => l.error = Some(e),
@@ -382,20 +392,26 @@ impl LightningArea {
         };
         match action {
             A::LKey(fp) => {
+                // What was typed for another source is not this one's.
+                l.typed.set("");
+                l.passphrase.clear();
                 l.source = Some(NodeSource::Key(fp));
                 l.file = None;
                 l.file_asks = false;
                 l.on_passphrase = false;
-                l.node = None;
+                l.set_node(None);
                 l.error = None;
                 self.resolve(c, keys);
             }
             A::LCln(Some(fp)) => {
+                // What was typed for another source is not this one's.
+                l.typed.set("");
+                l.passphrase.clear();
                 l.source = Some(NodeSource::KeyCln(fp));
                 l.file = None;
                 l.file_asks = false;
                 l.on_passphrase = false;
-                l.node = None;
+                l.set_node(None);
                 l.error = None;
                 self.resolve(c, keys);
             }
@@ -409,7 +425,7 @@ impl LightningArea {
                 l.file = None;
                 l.file_asks = false;
                 l.on_passphrase = false;
-                l.node = None;
+                l.set_node(None);
                 l.error = None;
             }
             A::LCln(None) => {
@@ -422,7 +438,7 @@ impl LightningArea {
                 l.file = None;
                 l.file_asks = false;
                 l.on_passphrase = false;
-                l.node = None;
+                l.set_node(None);
                 l.error = None;
             }
             // A file's passphrase is the only field there is to press.
@@ -466,7 +482,7 @@ impl LightningArea {
             let name = l.file.take().unwrap_or_default();
             l.file_asks = false;
             l.on_passphrase = false;
-            l.node = None;
+            l.set_node(None);
             l.error = Some(Text::fill(EN.lightning_hsm_file_gone, &[&name]));
         }
     }
@@ -477,7 +493,7 @@ impl LightningArea {
         if let Some(l) = self.state.as_mut() {
             l.file_asks = asks;
             l.on_passphrase = asks;
-            l.node = None;
+            l.set_node(None);
             l.error = Some(Text::of(EN.lightning_hsm_opening));
         }
     }
@@ -487,7 +503,7 @@ impl LightningArea {
     pub(crate) fn stick_arrived(&mut self) {
         if let Some(l) = self.state.as_mut() {
             l.typed.set("");
-            l.node = None;
+            l.set_node(None);
         }
     }
 
@@ -541,7 +557,7 @@ impl LightningArea {
             use crate::pass_field::{Gate, PassKey};
             return match l.passphrase.key(key, Gate { stick }) {
                 PassKey::Typed => {
-                    l.node = None;
+                    l.set_node(None);
                     true
                 }
                 // Refused, and the screen says why.
@@ -574,7 +590,7 @@ impl LightningArea {
             _ => return false,
         }
         if let Some(l) = self.state.as_mut() {
-            l.node = None;
+            l.set_node(None);
         }
         true
     }
@@ -583,7 +599,7 @@ impl LightningArea {
     pub(crate) fn set_passphrase(&mut self, text: &str) {
         if let Some(l) = self.state.as_mut() {
             l.passphrase.fill(text);
-            l.node = None;
+            l.set_node(None);
             l.error = None;
         }
     }
@@ -615,7 +631,7 @@ impl LightningArea {
             );
             l.source = Some(NodeSource::Aezeed);
             l.typed.set(&typed);
-            l.node = None;
+            l.set_node(None);
             l.error = None;
             l.sample.dismiss();
         }
@@ -625,7 +641,7 @@ impl LightningArea {
     pub(crate) fn use_sample(&mut self, words: &str) {
         if let Some(l) = self.state.as_mut() {
             l.typed.set(words);
-            l.node = None;
+            l.set_node(None);
             l.error = None;
             l.sample.fill();
         }
@@ -644,6 +660,8 @@ impl Faraday {
         }
         self.lightning.open_for_convert();
         self.screen = Screen::Lightning;
+        // Opened from a scrolled page, it starts at its top.
+        self.list_offset = 0.0;
     }
 
     /// The Lightning screen's state, while it is open.
@@ -658,6 +676,8 @@ impl Faraday {
             A::Lightning => {
                 self.lightning.open(self.screen);
                 self.screen = Screen::Lightning;
+                // Opened from a scrolled page, it starts at its top.
+                self.list_offset = 0.0;
             }
             A::LAnother => {
                 if let Some(back) = self.lightning.state().map(|l| l.back) {
@@ -718,6 +738,8 @@ impl Faraday {
     pub(crate) fn lightning_with_aezeed(&mut self, words: &str) {
         self.lightning.open(self.screen);
         self.screen = Screen::Lightning;
+        // Opened over a scrolled page, it starts at its top.
+        self.list_offset = 0.0;
         self.lightning.put_aezeed(words);
     }
 

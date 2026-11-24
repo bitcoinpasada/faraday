@@ -53,9 +53,47 @@ pub(crate) fn key_rows(app: &View, chosen: Option<[u8; 4]>) -> Vec<pick::PickRow
         .collect()
 }
 
+/// A pane's rows from labels, each with whether it is ticked and what its
+/// press does. Labels only.
+pub(crate) fn key_choices(
+    items: impl IntoIterator<Item = (impl AsRef<str>, bool, Action)>,
+) -> Vec<pick::PickRow> {
+    items
+        .into_iter()
+        .map(|(label, chosen, action)| {
+            pick::PickRow::pick(
+                Icon::Keys,
+                label.as_ref().to_owned(),
+                String::new(),
+                chosen,
+                action,
+            )
+        })
+        .collect()
+}
+
 /// The pair's divider and outline, from `top` to `end`.
 pub(crate) fn lines(ui: &mut Ui, x0: f32, p: hub_layout::Place, top: f32, end: f32) {
     let at = x0 + p.pane_x + p.pane_w + p.gap / 2.0;
     let edges = (x0 + p.pane_x, x0 + p.card_x + p.card_w);
     hub_layout::lines(ui, (at, top, end), Some((edges, f32::MAX)));
+}
+
+/// The end of a page where the pair stands, whatever its card shows: the
+/// pair's lines from `y_pane` to the lower of the card (`y`) and the pane
+/// (`pane_end`), and the scroll height to there, with the outline's foot
+/// below it.
+pub(crate) fn foot(
+    app: &View,
+    ui: &mut Ui,
+    (x0, h): (f32, f32),
+    (p, y_pane): (hub_layout::Place, f32),
+    (y, pane_end): (f32, f32),
+) {
+    let end = hub_layout::level(pane_end, y, f32::MAX);
+    lines(ui, x0, p, y_pane, end);
+    // The outline ends a padding below `end`: the page scrolls to a padding
+    // below that.
+    let pad = faraday_draw::tokens::PAD;
+    crate::compact::screen::finish(app, ui, h, end + 2.0 * pad);
 }

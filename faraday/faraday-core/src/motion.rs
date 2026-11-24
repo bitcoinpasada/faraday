@@ -1314,6 +1314,9 @@ impl Faraday {
             | Screen::Randomness
             | Screen::Codes
             | Screen::Explore
+            // The keys' pane can run taller than the window on the wide
+            // layout (`lightning::pane`).
+            | Screen::Lightning
             // Entry scrolls on the wide layout too, not only compact: the
             // word grid can run to 24 cells, taller than the window.
             | Screen::Entry => Place::Screen,
@@ -1326,7 +1329,6 @@ impl Faraday {
             | Screen::Vaults
             | Screen::Unlock
             | Screen::VaultContents
-            | Screen::Lightning
             | Screen::Tools
                 if self.compact =>
             {
@@ -1362,7 +1364,6 @@ impl Faraday {
             | Screen::Vaults
             | Screen::Unlock
             | Screen::VaultContents
-            | Screen::Lightning
             | Screen::Tools => return None,
         })
     }
