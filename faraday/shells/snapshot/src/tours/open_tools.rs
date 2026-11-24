@@ -68,5 +68,35 @@ pub(crate) fn open_tools_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("hashes-typed")?;
     t.press(Action::TStep(1));
     t.shot("hashes-result")?;
+    for (name, text, shot) in [
+        (
+            "Encodings",
+            "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
+            "encodings",
+        ),
+        (
+            "Descriptor checksum",
+            "wpkh(02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5)",
+            "descriptor",
+        ),
+        (
+            "Convert an xpub",
+            "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8",
+            "convert-xpub",
+        ),
+        (
+            "Miniscript compiler",
+            "pk(02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5)",
+            "miniscript",
+        ),
+    ] {
+        t.press(Action::Nav(Screen::Catalog));
+        t.press(Action::Catalog(tile(name)?));
+        t.shot(&format!("{shot}-empty"))?;
+        type_text(t, text);
+        t.shot(&format!("{shot}-typed"))?;
+        t.press(Action::TStep(1));
+        t.shot(&format!("{shot}-result"))?;
+    }
     Ok(())
 }

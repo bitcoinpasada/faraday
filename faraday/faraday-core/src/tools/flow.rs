@@ -1,7 +1,7 @@
 //! The Tools screen's flow: a tool with one way in drawn as the flow's
-//! one card (`docs/FLOW-CONTAINER.md` §2), Input then Result. Only
-//! Hashes is drawn so for now; every other tool, and every tool on a
-//! small panel, draws as the page.
+//! one card (`docs/FLOW-CONTAINER.md` §2), Input then Result. Every
+//! tool but Units is drawn so on a window that is not compact; Units and
+//! every tool on a small panel draw as the page.
 
 use super::Tool;
 use crate::flow::{Contained, Row};
@@ -29,7 +29,7 @@ pub(crate) const TITLES: [&str; COUNT] = [EN.tools_card_input, EN.tools_card_res
 pub(crate) fn contained_tool(app: &Faraday) -> bool {
     app.screen == Screen::Tools
         && !app.compact
-        && app.tools.state().is_some_and(|t| t.tool == Tool::Hashes)
+        && app.tools.state().is_some_and(|t| t.tool != Tool::Units)
 }
 
 /// Whether typed text goes into the field now: a tool drawn as the page

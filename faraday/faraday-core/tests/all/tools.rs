@@ -125,6 +125,8 @@ fn the_miniscript_compiler_says_what_it_refuses_in_the_apps_words() {
     app.press(Action::Tools);
     tool(&mut app, Tool::Miniscript);
     typed(&mut app, "or(pk(A)");
+    app.press(Action::TStep(1));
+    through_fade(&mut app);
     let prefix = EN.tools_miniscript_not_policy.trim_end_matches("{}");
     let shown = app.drawn_texts().join(" ");
     assert!(shown.contains(prefix), "{shown}");
@@ -137,6 +139,8 @@ fn encodings_names_the_encoding() {
     tool(&mut app, Tool::Encodings);
     // BIP-173's P2WPKH example.
     typed(&mut app, "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4");
+    app.press(Action::TStep(1));
+    through_fade(&mut app);
     assert!(
         row(&mut app, "Encoding", "bech32"),
         "{:?}",
@@ -185,12 +189,16 @@ fn the_descriptor_tool_says_which_key_is_used_twice() {
             "wsh(sortedmulti(1,[9a6a2580/48h/1h/0h/3h]{KEY_A}/<0;1>/*,[5d388376/48h/1h/0h/3h]{KEY_B}/<0;1>/*,[00000000/84h/1h/0h]{KEY_A}/<0;1>/*))"
         ),
     );
+    app.press(Action::TStep(1));
+    through_fade(&mut app);
     let texts = app.drawn_texts();
     assert!(texts.iter().any(|t| t == "Keys"), "{texts:?}");
     assert!(
         texts.iter().any(|t| t == "Key 3 is the same as key 1"),
         "{texts:?}"
     );
+    app.press(Action::TStep(0));
+    through_fade(&mut app);
     app.press(Action::TClear);
     typed(
         &mut app,
@@ -198,6 +206,8 @@ fn the_descriptor_tool_says_which_key_is_used_twice() {
             "wsh(sortedmulti(1,[9a6a2580/48h/1h/0h/3h]{KEY_A}/<0;1>/*,[5d388376/48h/1h/0h/3h]{KEY_B}/<0;1>/*))"
         ),
     );
+    app.press(Action::TStep(1));
+    through_fade(&mut app);
     assert!(!app.drawn_texts().iter().any(|t| t == "Keys"));
 }
 
@@ -212,6 +222,8 @@ fn a_descriptor_this_device_loads_is_taken_to_wallets_after_confirmation() {
             "wsh(sortedmulti(1,[9a6a2580/48h/1h/0h/3h]{KEY_A}/<0;1>/*,[5d388376/48h/1h/0h/3h]{KEY_B}/<0;1>/*))"
         ),
     );
+    app.press(Action::TStep(1));
+    through_fade(&mut app);
     let texts = app.drawn_texts();
     assert!(texts.iter().any(|t| t == "Take to Wallets"), "{texts:?}");
     assert!(app.offers(Action::TTake));
@@ -225,6 +237,8 @@ fn a_descriptor_this_device_loads_is_taken_to_wallets_after_confirmation() {
     app.press(Action::Tools);
     tool(&mut app, Tool::Descriptor);
     typed(&mut app, "wpkh(02)");
+    app.press(Action::TStep(1));
+    through_fade(&mut app);
     assert!(!app.drawn_texts().iter().any(|t| t == "Take to Wallets"));
 }
 
@@ -404,4 +418,50 @@ fn hashes_choices_has_no_result_row_that_reads_not_chosen() {
     assert!(has(&mut app, EN.tools_card_input));
     assert!(has(&mut app, "abc"));
     assert!(!has(&mut app, EN.flow_not_chosen_yet));
+}
+
+/// Each of these tools on a wide window: the field, Next, then its
+/// answer on the result card; Back keeps what was typed.
+#[test]
+fn the_other_tools_stand_on_the_one_card_with_the_text_kept() {
+    for (which, text, shown) in [
+        (Tool::Encodings, "00", "Hex"),
+        (
+            Tool::Descriptor,
+            "wpkh(02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5)",
+            EN.tools_checksum,
+        ),
+        (
+            Tool::Miniscript,
+            "pk(02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5)",
+            EN.tools_card_result,
+        ),
+    ] {
+        let mut app = wide();
+        app.press(Action::Tools);
+        tool(&mut app, which);
+        typed(&mut app, text);
+        assert!(has(&mut app, EN.tools_next));
+        app.press(Action::TStep(1));
+        through_fade(&mut app);
+        assert!(has(&mut app, shown), "{which:?}");
+        app.press(Action::Back);
+        through_fade(&mut app);
+        assert_eq!(testkit::tools(&app).unwrap().typed, text);
+    }
+}
+
+/// Convert an xpub: the same card, Back keeps the text.
+#[test]
+fn convert_an_xpub_on_the_card_keeps_its_text_on_back() {
+    let mut app = wide();
+    app.press(Action::Tools);
+    tool(&mut app, Tool::ConvertKey);
+    typed(&mut app, "xpub");
+    assert!(has(&mut app, EN.tools_next));
+    app.press(Action::TStep(1));
+    through_fade(&mut app);
+    app.press(Action::Back);
+    through_fade(&mut app);
+    assert_eq!(testkit::tools(&app).unwrap().typed, "xpub");
 }

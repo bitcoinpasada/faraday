@@ -298,6 +298,10 @@ my wallet's, Read a Bitcoin Core wallet's) ends its last card.
 | Check a timestamp | `ots_check/screen.rs` | its steps | none | none |
 | Krux code | `kef_tool/screen.rs` | its steps | none | none |
 | Hashes (Tools), on a window that is not compact | `faraday/faraday-core/src/tools/screen.rs`, `faraday/faraday-core/src/tools/flow.rs` | Input, Result | none | none |
+| Encodings (Tools), on a window that is not compact | `faraday/faraday-core/src/tools/screen.rs`, `faraday/faraday-core/src/tools/flow.rs` | Input, Result | none | none |
+| Descriptor (Tools), on a window that is not compact | `faraday/faraday-core/src/tools/screen.rs`, `faraday/faraday-core/src/tools/flow.rs` | Input, Result | none | none |
+| Miniscript (Tools), on a window that is not compact | `faraday/faraday-core/src/tools/screen.rs`, `faraday/faraday-core/src/tools/flow.rs` | Input, Result | none | none |
+| Convert an xpub (Tools), on a window that is not compact | `faraday/faraday-core/src/tools/screen.rs`, `faraday/faraday-core/src/tools/flow.rs` | Input, Result | none | none |
 
 The screens are under `faraday/faraday-core/src/`.
 
