@@ -162,7 +162,12 @@ fn a_compact_window_shows_the_bars_five_destinations_and_each_opens() {
         assert!(y >= 800 - 80, "{dest:?} not in the bar at the foot: {y}");
         tap(&mut app, (x, y));
         assert_eq!(app.screen, screen, "{dest:?}");
-        // The bar stays on every destination.
+        if screen == Screen::CreateVault {
+            // New vault is a step of the flow container: no bar, Back leaves.
+            assert!(!bar_shown(&mut app), "the bar on New vault");
+            app.press(Action::Nav(Screen::Home));
+        }
+        // The bar stays on every other destination.
         let (_, y) = at(&mut app, Action::Nav(Screen::Home)).expect("the bar");
         assert!(y >= 800 - 80);
     }
@@ -293,6 +298,44 @@ fn a_flow_in_progress_shows_its_chip_on_every_destination() {
     }
 }
 
+/// Whether the bar's Files button is drawn at the foot of a 400 × 800 window.
+fn bar_shown(app: &mut Faraday) -> bool {
+    at(app, Action::Nav(Screen::Files)).is_some_and(|p| p.1 >= 800 - 80)
+}
+
+#[test]
+fn a_tools_step_hides_the_bar_and_its_back_returns_it_on_the_page_it_began_from() {
+    let mut app = on(400, 800, 160);
+    key_in(&mut app);
+    app.press(Action::Nav(Screen::Catalog));
+    assert!(bar_shown(&mut app), "the bar on Tools");
+    app.press(Action::Bip85);
+    assert_eq!(app.screen, Screen::Bip85);
+    assert!(!bar_shown(&mut app), "the bar on a step of Child seeds");
+    // The step's top bar keeps its ⋮ menu.
+    let more = more_menu(&mut app);
+    let p = at(&mut app, more).expect("the ⋮ on the step");
+    assert!(p.1 < 64);
+    tap(&mut app, p);
+    assert!(app.sheet.is_some(), "the step's ⋮ opens its menu");
+    app.event(Event::Key(Key::Escape));
+    assert_eq!(app.sheet, None, "Escape closes the menu");
+    let _ = at(&mut app, Action::Nav(Screen::Catalog)).expect("the step's Back");
+    app.press(Action::Nav(Screen::Catalog));
+    assert_eq!(app.screen, Screen::Catalog);
+    assert!(bar_shown(&mut app), "the bar back on Tools");
+}
+
+#[test]
+fn a_flows_step_hides_the_bar_and_home_has_it() {
+    let mut app = on(400, 800, 160);
+    app.press(Action::CreateWallet);
+    assert_eq!(app.screen, Screen::Create);
+    assert!(!bar_shown(&mut app), "the bar on a flow's step");
+    app.press(Action::Nav(Screen::Home));
+    assert!(bar_shown(&mut app), "the bar on Home");
+}
+
 /// Whether box `inner` (x, y, w, h) has its middle inside `outer`.
 fn within(inner: (i32, i32, i32, i32), outer: (u16, u16, u16, u16)) -> bool {
     let (cx, cy) = (inner.0 + inner.2 / 2, inner.1 + inner.3 / 2);
@@ -326,7 +369,7 @@ fn files_carries_the_inbox_count_on_the_bar_and_both_rails_until_it_empties() {
             outbox: Vec::new(),
             kept: Vec::new(),
         });
-        app.press(Action::Nav(Screen::Vaults));
+        app.press(Action::Nav(Screen::Catalog));
         let _ = app.frame();
         let badges = drawn_at(&mut app, "3");
         let shown = match app.nav() {

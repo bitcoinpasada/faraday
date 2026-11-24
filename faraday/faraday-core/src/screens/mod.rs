@@ -731,7 +731,7 @@ fn nav_room(app: &crate::Faraday, kb: bool) -> (f32, f32) {
     }
     match app.nav() {
         Nav::Rail => (RAIL_W, 0.0),
-        Nav::Bar if !kb => (0.0, NAV_BAR_H),
+        Nav::Bar if !kb && !app.nav_bar_hidden() => (0.0, NAV_BAR_H),
         _ => (0.0, 0.0),
     }
 }

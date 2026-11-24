@@ -1584,6 +1584,13 @@ change the theme, and found no way back. The flow was kept (pressing
 The code: `faraday-core/src/in_progress.rs`; the sidebar's `flow_row`,
 the small Home's tiles; `Action::Resume`.
 
+**On the phone layout** (the navigation bar at the foot) a step of the flow
+container, a tool or check drawn on it and the backup board included, has
+no bar: the page takes its room and a step is left by its Back (a flow in
+progress is kept; a tool or check ends). Cancel, Lock and Power stay in the
+top app bar. The flow's chip and its row on Home's box are reached from the
+other pages, which keep the bar. No swipe brings the bar back.
+
 1. **A flow in progress has a row in the sidebar, under its tab.** A
    flow is in progress from its first step done until it is finished,
    started over or let go, or its state is wiped (a lock wipes what it

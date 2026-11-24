@@ -417,6 +417,39 @@ impl Faraday {
                 .is_some_and(|f| f.live.writing.is_some() || f.live.making)
     }
 
+    /// Whether the phone layout's bottom bar is left out: where
+    /// [`Self::nav_hidden`] says so, and on every page the flow container
+    /// draws as a step (a flow, a tool or check on it, the backup board),
+    /// which is left only by its Back (`docs/LAYOUT.md` §3). The top bar
+    /// keeps its ⋮ menu, Lock and Power there: this is the bottom bar's
+    /// alone. A lookup.
+    pub(crate) fn nav_bar_hidden(&self) -> bool {
+        use crate::Screen as S;
+        self.nav_hidden()
+            || match self.screen {
+                S::Backup => self.backup().is_some(),
+                S::KeyGen => self.keygen.state().is_some(),
+                S::Create
+                | S::Restore
+                | S::Message
+                | S::Spend
+                | S::Bip85
+                | S::Convert
+                | S::KefTool
+                | S::OtsCheck
+                | S::SeedCheck
+                | S::MultisigCheck
+                | S::CoreWallet
+                | S::Silent
+                | S::Vanity
+                | S::CreateVault
+                | S::BackupFlow
+                | S::SpendBackup
+                | S::SignerCheck => true,
+                _ => false,
+            }
+    }
+
     /// The side of a press's touch target in units: 44 on the compact
     /// and short layout (the 2.8-inch), 48 on every other (F188); 48
     /// held inside the Starter. A lookup.
