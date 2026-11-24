@@ -21,6 +21,8 @@ fn a_tool_opened_from_tools_lights_tools() {
         Action::Lightning,
         Action::Bip85,
         Action::Silent,
+        Action::Tools,
+        Action::OpenCodes,
     ] {
         let mut app = testkit::started();
         app.press(Action::Nav(Screen::Catalog));
@@ -32,10 +34,20 @@ fn a_tool_opened_from_tools_lights_tools() {
     }
 }
 
-/// Each tool Check opens (its Calculator row lights itself) lights Check.
+/// Each tool Check opens lights Check.
 #[test]
 fn a_tool_opened_from_check_lights_check() {
-    for row in [Row::SeedCheck, Row::Multisig, Row::Child, Row::Dice] {
+    for row in [
+        Row::SeedCheck,
+        Row::Multisig,
+        Row::Child,
+        Row::Dice,
+        Row::Address,
+        Row::Transaction,
+        Row::Signed,
+        Row::Message,
+        Row::Xpub,
+    ] {
         let mut app = testkit::started();
         app.press(Action::Nav(Screen::Check));
         app.press(Action::Check(Press::Row(row)));
@@ -43,6 +55,19 @@ fn a_tool_opened_from_check_lights_check() {
         assert_ne!(app.screen, Screen::Check, "{row:?} opened");
         assert_eq!(lit(&app), Screen::Check, "{row:?} from Check");
     }
+}
+
+/// A tool opened from a tool opened from Tools still lights Tools.
+#[test]
+fn a_tool_opened_from_a_tool_keeps_tools() {
+    let mut app = testkit::started();
+    app.press(Action::Nav(Screen::Catalog));
+    app.press(Action::Bip85);
+    let _ = app.frame();
+    app.press(Action::Entry(None));
+    let _ = app.frame();
+    assert_eq!(app.screen, Screen::Entry);
+    assert_eq!(lit(&app), Screen::Catalog);
 }
 
 /// A tool begun from a wallet's page keeps Wallets, and a wallet's own

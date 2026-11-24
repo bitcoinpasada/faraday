@@ -222,8 +222,9 @@ pub(crate) fn lit_destination(app: &crate::Faraday) -> Screen {
     }
 }
 
-/// The screens Tools and Check open: tools, not a wallet's own flows.
-fn is_tool(s: Screen) -> bool {
+/// The screens Tools and Check open, and Set the time, which stands before
+/// Codes: tools, not a wallet's own flows.
+pub(crate) fn is_tool(s: Screen) -> bool {
     matches!(
         s,
         Screen::Vanity
@@ -241,6 +242,14 @@ fn is_tool(s: Screen) -> bool {
             | Screen::Lightning
             | Screen::Message
             | Screen::CheckMessage
+            | Screen::Tools
+            | Screen::Codes
+            | Screen::SetTime
+            | Screen::Decode
+            | Screen::Invoice
+            | Screen::CheckAddress
+            | Screen::NonceCheck
+            | Screen::SignerCheck
     )
 }
 
