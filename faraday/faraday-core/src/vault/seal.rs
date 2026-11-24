@@ -191,6 +191,7 @@ pub(crate) fn secrets_off_screen_but_vaults(app: &mut Faraday) {
 /// from fresh randomness, cannot be shown again and have no eye).
 pub(crate) fn lock_secrets_off_screen(app: &mut Faraday) {
     secrets_off_screen(app);
+    app.scan_drop_at_lock();
     app.backup.drop_paper();
     if let Some(c) = app.canvas.as_mut() {
         c.forget_glyphs();

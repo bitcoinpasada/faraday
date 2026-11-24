@@ -97,6 +97,8 @@ mod pass_fields;
 mod passphrase_kept;
 #[path = "all/rounds.rs"]
 mod rounds;
+#[path = "all/scan_lock.rs"]
+mod scan_lock;
 #[path = "all/steps_hidden.rs"]
 mod steps_hidden;
 #[path = "all/stick_pills.rs"]

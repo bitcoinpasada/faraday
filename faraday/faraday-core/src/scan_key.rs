@@ -1424,6 +1424,20 @@ impl Faraday {
         }
     }
 
+    /// A lock drops the scan whole, at once: the scan's state (frame, chroma,
+    /// decoder, single code, card), the scan sheet over whatever stood
+    /// under it, and the camera goes off, as closing the sheet does.
+    pub(crate) fn scan_drop_at_lock(&mut self) {
+        let held = self.camera.take().is_some();
+        let sheet = self.sheet == Some(Sheet::Scan);
+        if sheet {
+            self.sheet = None;
+        }
+        if held || sheet {
+            self.out.commands.push_back(Command::CameraOff);
+        }
+    }
+
     /// The card shows; the camera goes off, its picture wiped.
     fn read_card_put(&mut self, card: scan_read::ReadCard) {
         if let Some(scan) = self.camera.scan.as_mut() {
@@ -2783,8 +2797,7 @@ impl crate::at_lock::AtLock for Camera {
     }
     fn lock(&mut self) {
         self.clear_kept();
-        if let Some(s) = self.scan.as_mut() {
-            s.card = None;
-        }
+        // The scan whole: its frame, chroma and single code wipe as they drop.
+        self.scan = None;
     }
 }
