@@ -18,6 +18,10 @@ macro_rules! words_screens_visit {
     visit_nothing_waits: "Nothing waits {}",
     /// Text in `visit`. `{}`: `nout`, `if nout == 1 { EN.visit_file } else {…`.
     visit_write: "Write {} {}",
+    /// Headline of Write's row on the wide layout.
+    visit_write_row: "Write",
+    /// Supporting line of Write's row on the wide layout.
+    visit_write_row_line: "The checked files, to the stick",
     /// Text in `visit`.
     visit_file_too_large: "Larger than 18 MB: not read",
     /// Text in `visit`.

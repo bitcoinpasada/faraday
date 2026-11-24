@@ -1137,6 +1137,10 @@ pub const VISIT_ROW_BUTTON_H: f32 = 32.0;
 pub const VISIT_CARD_HEAD: f32 = 62.0;
 /// Files' cards: the room under a list for the foot's buttons.
 pub const VISIT_CARD_FOOT: f32 = 88.0;
+/// Files' In Faraday card on the wide layout: the room under the list for
+/// its "more" line (20), then Write's row, 8 above the row, a two-line
+/// list item's height and 12 below it.
+pub const VISIT_WRITE_FOOT: f32 = 112.0;
 /// Files' cards: the padding a button's label has either side of it.
 pub const VISIT_BUTTON_PAD: f32 = 36.0;
 /// Files' cards: the top of the foot's buttons above the card's bottom.

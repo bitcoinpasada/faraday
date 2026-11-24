@@ -14,7 +14,7 @@ Files shows the files copied in from the stick and the files waiting to be writt
 
 Files is one page whether a stick is attached or not: **In Faraday** holds everything Faraday holds (the open vaults, the settings, the files waiting to be written, and the Inbox) and **On the stick** holds the stick's files. Side by side on a wide window; on a small one they are the tabs **In Faraday** and **On the stick**. The stick's error line shows on **On the stick**, and on a small window above the **In Faraday** list too.
 
-**Write 3 files** at the foot of **In Faraday** writes the ticked files to the stick. At the foot of **On the stick**, **Import 3 files** copies the ticked files in and **Import and load** copies them in and loads them once the stick is pulled; a line under the list says what pulling the stick will do next. Pulling the stick keeps you on Files.
+**Write** at the foot of **In Faraday** writes the ticked files to the stick. At the foot of **On the stick**, **Import 3 files** copies the ticked files in and **Import and load** copies them in and loads them once the stick is pulled; a line under the list says what pulling the stick will do next. Pulling the stick keeps you on Files.
 
 ## The stick
 

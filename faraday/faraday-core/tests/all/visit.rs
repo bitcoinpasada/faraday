@@ -2068,3 +2068,51 @@ fn on_a_small_panel_the_stick_tab_scrolls_to_every_action_without_overlap() {
 fn overlaps(a: (u16, u16, u16, u16), b: (u16, u16, u16, u16)) -> bool {
     a.0 < b.0 + b.2 && b.0 < a.0 + a.2 && a.1 < b.1 + b.3 && b.1 < a.1 + a.3
 }
+
+#[test]
+fn write_stands_in_reach_under_a_long_list_and_writes_what_is_ticked() {
+    let mut app = with_outbox(with_stick(30), 40, false);
+    let (w, h) = (1366_u16, 768_u16);
+    let at = app
+        .where_offered(Action::VisitWrite)
+        .expect("Write is not offered with a long list");
+    assert!(at.0 < w && at.1 < h, "Write is off the screen: {at:?}");
+    app.press(Action::VisitOut(3));
+    tap(&mut app, at);
+    let names = written(&mut app);
+    assert_eq!(names.len(), 39, "{names:?}");
+    assert!(!names.contains(&"backup-03.pdf".to_string()));
+}
+
+#[test]
+fn write_with_nothing_ticked_does_nothing() {
+    let mut app = with_outbox(with_stick(3), 4, false);
+    app.press(Action::VisitOutAll);
+    assert!(app.visit().out.is_empty(), "Unselect all left files ticked");
+    if let Some(at) = app.where_offered(Action::VisitWrite) {
+        tap(&mut app, at);
+    }
+    app.press(Action::VisitWrite);
+    assert!(written(&mut app).is_empty());
+}
+
+#[test]
+fn write_row_on_the_wide_layout_says_what_it_does_and_writes_the_ticked_files() {
+    let mut app = with_outbox(with_stick(3), 4, false);
+    app.press(Action::VisitOut(1));
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == "The checked files, to the stick"),
+        "{texts:?}"
+    );
+    assert!(
+        !texts.iter().any(|t| t.starts_with("Write 3")),
+        "the wide row carries no count: {texts:?}"
+    );
+    let at = app
+        .where_offered(Action::VisitWrite)
+        .expect("Write is not offered");
+    tap(&mut app, at);
+    assert_eq!(written(&mut app).len(), 3);
+}

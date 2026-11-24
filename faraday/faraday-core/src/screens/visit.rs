@@ -12,11 +12,11 @@ use crate::ui::{Style, Ui};
 use crate::wallet::FileKind;
 use crate::{Action, Faraday};
 use faraday_draw::tokens::{
-    BODY_M, BODY_S, BUTTON_H, BUTTON_PAD, GAP_SMALL, GRID, LABEL_L, LABEL_M, ROW, SHAPE_M, TITLE_M,
-    TITLE_S, TOUCH, VISIT_BUTTON_PAD, VISIT_CARD_FOOT, VISIT_CARD_HEAD, VISIT_CHIP_EXTRA,
-    VISIT_CHIP_PRESS_RISE, VISIT_CHIP_TOP, VISIT_COMPACT_HEAD, VISIT_COUNT_GAP, VISIT_FOOT_ROW,
-    VISIT_GROUP_HEAD, VISIT_LOG_H, VISIT_NAME_MIN, VISIT_PAD, VISIT_ROW_BUTTON_H, VISIT_TEXT_X,
-    VISIT_TITLE_X,
+    BODY_L, BODY_M, BODY_S, BUTTON_H, BUTTON_PAD, GAP_SMALL, GRID, ICON_SMALL, LABEL_L, LABEL_M,
+    LIST_2, ROW, SHAPE_M, TITLE_M, TITLE_S, TOUCH, VISIT_BUTTON_PAD, VISIT_CARD_FOOT,
+    VISIT_CARD_HEAD, VISIT_CHIP_EXTRA, VISIT_CHIP_PRESS_RISE, VISIT_CHIP_TOP, VISIT_COMPACT_HEAD,
+    VISIT_COUNT_GAP, VISIT_FOOT_ROW, VISIT_GROUP_HEAD, VISIT_LOG_H, VISIT_NAME_MIN, VISIT_PAD,
+    VISIT_ROW_BUTTON_H, VISIT_TEXT_X, VISIT_TITLE_X, VISIT_WRITE_FOOT,
 };
 use faraday_draw::widgets::Icon;
 use faraday_text::Text;
@@ -510,7 +510,10 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
         None => head,
     };
     // Without a stick the card has no foot row.
-    let foot_h = if usable {
+    let foot_h = if usable && !compact {
+        // Write's row, pinned under the list.
+        VISIT_WRITE_FOOT
+    } else if usable {
         VISIT_CARD_FOOT
     } else {
         VISIT_CARD_FOOT - VISIT_FOOT_ROW
@@ -744,17 +747,78 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
                 }),
             ],
         );
-        let bw = ui.measure_as(TITLE_S, &label) + 36.0;
-        ui.button(
-            x + colw - 20.0 - bw,
-            fy,
-            Some(bw),
-            BUTTON_H,
-            &label,
-            Style::Primary.when(nout > 0),
+        if compact {
+            let bw = ui.measure_as(TITLE_S, &label) + 36.0;
+            ui.button(
+                x + colw - 20.0 - bw,
+                fy,
+                Some(bw),
+                BUTTON_H,
+                &label,
+                Style::Primary.when(nout > 0),
+                Action::VisitWrite,
+            );
+        } else {
+            write_row(
+                ui,
+                (
+                    x + SHAPE_M,
+                    y + colh - SHAPE_M - LIST_2,
+                    colw - 2.0 * SHAPE_M,
+                ),
+                nout > 0,
+            );
+        }
+    }
+}
+
+/// Write as the last row of In Faraday on the wide layout: a tonal row
+/// pinned at the card's foot, its label at the left and a chevron at the
+/// right, in two lines (Write, and what it does), drawn off while nothing
+/// is ticked.
+fn write_row(ui: &mut Ui, (x, y, w): (f32, f32, f32), on: bool) {
+    let h = LIST_2;
+    let ink = Role::OnSecondaryContainer;
+    if on {
+        ui.fill(x, y, w, h, SHAPE_M, Role::SecondaryContainer);
+        ui.press(
+            Shape::new(x, y, w, h, SHAPE_M),
+            ink.paint(),
             Action::VisitWrite,
         );
+    } else {
+        ui.wash(
+            x,
+            y,
+            w,
+            h,
+            SHAPE_M,
+            Role::OnSurface.at(faraday_draw::tokens::DISABLED_CONTAINER),
+        );
     }
+    let ink = if on {
+        ink.paint()
+    } else {
+        Role::OnSurface.at(faraday_draw::tokens::DISABLED_CONTENT)
+    };
+    let (name_h, line_h) = (ui.line_as(BODY_L), ui.line_as(BODY_M));
+    let top = y + (h - name_h - line_h) / 2.0;
+    ui.text_as(x + VISIT_PAD, top, BODY_L, ink, EN.visit_write_row);
+    ui.text_as(
+        x + VISIT_PAD,
+        top + name_h,
+        BODY_M,
+        ink,
+        EN.visit_write_row_line,
+    );
+    ui.icon(
+        x + w - VISIT_PAD - ICON_SMALL,
+        y + (h - ICON_SMALL) / 2.0,
+        ICON_SMALL,
+        Icon::ChevronRight,
+        ICON_SMALL,
+        ink,
+    );
 }
 
 /// The stick's heading buttons: Rename stick and one chip per stick, the
