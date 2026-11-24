@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Partly built: Home's card with its groups (F323, `docs/SESSION-PANE.md`), the flow pair as one card (F324), a change of page at the Speed and in the Motion style (F318) and the flat section cards of the menu pages (F317) are on main; the rest is not built: the session pane as the one view of what is loaded and going on, on the menu pages and in every flow, the page as panes, and the rest of the motion (§6).
-**Open:** To build: the session pane's modes on Wallets and its form in the flows (§2; Home's card in groups and the modes of Tools and Check are built, `docs/SESSION-PANE.md`), the pairs and stacked pages of §4 for Wallets, the pick becoming Your choices at the left in a flow with wide content (the wallet chip as the first row is built where the pair stands) and the backup board, the flow pair's one card there (§4, §6), row buttons on the wallet rows and the shares' file row, and details on the pane (§2, §7; the file rows of Tools and Check carry theirs; Files' row menu and card buttons already read the shared list), the guide as a pane (§7), the rest of the pane container (§14: Wallets, Files, the guide as the third pane and the glide on it), Vaults' pane (§2), Wallets' rows pinned (§2), one order of the groups with Keys first and Waiting a band at the pane's foot, on Home too (§1, §2; HOME.md §2's lead, now the first row of the Waiting group at the card's top, becomes the first row of that band), Tools' and Check's pane at the flow's place at 1920 wide and wider (§4; its drawing cost is not measured), Files first in a pick opened from Check (§2), a flow's pick leaving out the keys it cannot take (§2), the heights (F331: one resting level, the flow's card raised alone with its own fill, §3, §6), the search and the pills constant on every menu page and kept in a flow (§4, §16), Mode inline with its one confirmation (§9), the Scan button under Settings, the viewfinder in the pane, its form over a folded strip and its popout (§4), the backup board's insides and codex32 from dice (§7), the flow's one card for the one-page tools and checks and Units' amounts (§2), the timings on the Pi that §6 and §8 name, the take-away (§15), flows in progress and the way out of a flow (§16), Tools lit in the sidebar by a tool opened from it (§16), starting with files on the boot stick (§17) addresses shown whole (§18) and one sign for each kind of press (F332, §19); what of these is built is in the sections. Not decided: the Pi's default Motion, until its timings (§8); where Tools' and Check's pane stands below 1920 wide where the tile holds two columns (§4); how the flow's card's fill looks (§3); whether a "What you can do" row that acts at once has the chevron the others gain (§19).
+**Open:** To build: the session pane's modes on Wallets and its form in the flows (§2; Home's card in groups and the modes of Tools and Check are built, `docs/SESSION-PANE.md`), the pairs and stacked pages of §4 for Wallets, the pick becoming Your choices at the left in a flow with wide content (the wallet chip as the first row is built where the pair stands) and the backup board, the flow pair's one card there (§4, §6), row buttons on the wallet rows and the shares' file row, and details on the pane (§2, §7; the file rows of Tools and Check carry theirs; Files' row menu and card buttons already read the shared list), the guide as a pane (§7), the rest of the pane container (§14: Wallets, Files, the guide as the third pane and the glide on it), Vaults' pane (§2), Wallets' rows pinned (§2), one order of the groups with Keys first and Waiting a band at the pane's foot, on Home too (§1, §2; HOME.md §2's lead, now the first row of the Waiting group at the card's top, becomes the first row of that band), Tools' and Check's pane at the flow's place at 1920 wide and wider (§4; its drawing cost is not measured), Files first in a pick opened from Check (§2), a flow's pick leaving out the keys it cannot take (§2), the heights (F331: one resting level, the flow's card raised alone with its own fill, §3, §6), the search and the pills constant on every menu page and kept in a flow (§4, §16), Mode inline with its one confirmation (§9), the Scan button under Settings, the viewfinder in the pane, its form over a folded strip and its popout (§4), the backup board's insides and codex32 from dice (§7), the flow's one card for the one-page tools and checks and Units' amounts (§2), the timings on the Pi that §6 and §8 name, the take-away (§15), flows in progress and the way out of a flow (§16), Tools lit in the sidebar by a tool opened from it (§16), starting with files on the boot stick (§17) addresses shown whole (§18) and one sign for each kind of press (F332, §19); what of these is built is in the sections. Not decided: the Pi's default Motion, until its timings (§8); how the flow's card's fill looks (§3).
 
 "This session", Home's raised card, becomes the session pane, Faraday's hub: everything about
 what is loaded and going on lives in it, and it works with every part of
@@ -330,8 +330,10 @@ motion: with motion Off the pane stands where it would after the glide.
    keeps the pair at its width at 1920 (`MENU_TILE_WIDE_MAX` becomes the tile's
    width there) and the pane at the flow's place, so the pane does not move
    there either and the pair stands right of the centre (owner, 2026-11-24).
-   Where the pane stands between 1920 and one column is not decided. A room
-   that holds one column (1366 × 768) keeps the flow's place for both. Wallets
+   Narrower than 1920 the same holds (owner, 2026-11-24): the pane stays at the
+   flow's place, the tile keeps two columns while both fit beside it and has
+   one where they do not. A room that holds one column (1366 × 768) keeps the
+   flow's place for both. Wallets
    and the other pairs move nothing sideways, only heights change.
 4. **A pair always ends level**: tops and bottoms line up, at the height the
    taller pane's content needs. A pane is never longer than its pair's
@@ -1162,8 +1164,9 @@ Where it changes what is drawn today:
   spend's step, stays a plain tag.
 - **Files:** the Write row keeps its tonal fill and has no chevron; "Written
   after Lock", now text in the accent, is a neutral tag.
-- **"What you can do":** its rows have the chevron, at the one size that Tools,
-  Check and the session pane have.
+- **"What you can do":** a row that opens a page or a flow has the chevron, at
+  the one size that Tools, Check and the session pane have; a row that acts at
+  once has none (owner, 2026-11-24).
 - **Spend from a backup, Who signs:** one filled button, Continue; **Scan a
   key** is tonal.
 - **Dangerous acts:** the first press of Delete files, Remove every key, Remove
