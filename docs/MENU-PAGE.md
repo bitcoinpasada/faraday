@@ -127,7 +127,7 @@ so a larger text size steps it down as a narrower window would.
 ### On Tools and Check, one tile
 
 On the wide layout every section of Tools and Check stands in one tile
-(`screens/menu_place.rs`), a raised card `PAD` in from its edge, the sections
+(placed by the pane container, `screens/hub_layout/`), a raised card `PAD` in from its edge, the sections
 in the columns that fit its width, `MENU_GAP` apart, with no search in it (the
 search is in the top bar). The tile stands under This session's card, as wide
 as the card and `SPACER` under it, ending a `MARGIN_WIDE` above the window's
@@ -138,10 +138,10 @@ tile to the right page margin and at most `MENU_TILE_WIDE_MAX` (1248 dp, the
 width a 1920 dp window gives it; a wider window keeps it and centres the
 pair), its sections in as many columns as fit (three at 1920, two at 1600).
 Where the room holds one column, the pair stands at the flow's place
-(`flow/pair.rs`) and the tile scrolls.
+(`docs/HUB-LAYOUT.md`) and the tile scrolls.
 
 While a search is typed (Home's, Tools'), its results stand in a tile of their own at the same
-place by the same rule (`menu_place::draw_results`): under This session's
+place by the same rule (`hub_layout::draw_results`): under This session's
 card where the tile fits under it, else at the right of the pair, This session
 at the left. The tile holds what `home_results` draws, unchanged: the tools, then
 Settings' cards, then the glossary words. On Home the pane is Home's own

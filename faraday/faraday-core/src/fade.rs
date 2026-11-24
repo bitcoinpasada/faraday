@@ -9,8 +9,9 @@ mod bands;
 use faraday_draw::{Canvas, Rect};
 use faraday_shell_api::Command;
 
-use crate::glide::{self, Kind};
+use crate::glide;
 use crate::moved::{Last, Look};
+use crate::screens::hub_layout::{self, Kind};
 use crate::ui::{self, Role, Theme};
 use crate::{Faraday, ScreenKey, Sheet, motion};
 
@@ -162,7 +163,7 @@ impl Fade {
         let ms = if self.theme_fade {
             motion::THEME_FADE_MS
         } else if self.step_fade {
-            motion::STEP_FADE_MS
+            hub_layout::STEP_MS
         } else {
             self.ms.max(1)
         };
@@ -397,7 +398,7 @@ impl Fade {
     fn live_progress(&self, now_ms: u64) -> Option<f32> {
         let live = self.live.as_ref()?;
         Some(live.at.map_or(0.0, |at| {
-            motion::progress(Some(at), now_ms, motion::STEP_FADE_MS)
+            motion::progress(Some(at), now_ms, hub_layout::STEP_MS)
         }))
     }
 
@@ -597,14 +598,13 @@ impl Faraday {
         let page_change =
             fades && !step_change && !self.fade.theme_fade && (screen_change || guide_toggle);
         self.fade.glide_pair = page_change && guide_toggle && !screen_change;
-        self.fade.page = page_change
-            .then(|| Kind::of(self.settings.motion_style()))
+        let turn = page_change
+            .then(|| {
+                hub_layout::page_turn(self.settings.motion_style(), self.settings.motion_speed())
+            })
             .flatten();
-        self.fade.ms = if self.fade.page.is_some() {
-            self.settings.motion_speed().ms()
-        } else {
-            motion::FADE_MS
-        };
+        self.fade.page = turn.map(|(kind, _)| kind);
+        self.fade.ms = turn.map_or(motion::FADE_MS, |(_, ms)| ms);
         // The pane glides when the frame before and this one both drew
         // one; a fade begun over one under way fades through whole.
         let before = if self.fade.glide_pair {

@@ -6,7 +6,6 @@
 use faraday_draw::Rect;
 
 use crate::motion;
-use crate::stick::settings_choice::MotionStyle;
 
 /// The eased progress of a change of page `t` (0 to 1) of the way in:
 /// Material's emphasized easing.
@@ -40,24 +39,4 @@ pub(crate) fn lerp_rect(a: Rect, b: Rect, e: f32) -> Rect {
         lerp(a.w, b.w, e),
         lerp(a.h, b.h, e),
     )
-}
-
-/// What a change of page does under the motion settings.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub(crate) enum Kind {
-    /// The two frames blend, eased.
-    Crossfade,
-    /// The old page goes out to the surface and the new one comes in.
-    Through,
-}
-
-impl Kind {
-    /// What `style` does, `None` for a change shown at once.
-    pub(crate) fn of(style: MotionStyle) -> Option<Kind> {
-        match style {
-            MotionStyle::Smooth => Some(Kind::Through),
-            MotionStyle::Crossfade => Some(Kind::Crossfade),
-            MotionStyle::Off => None,
-        }
-    }
 }

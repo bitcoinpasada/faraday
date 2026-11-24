@@ -53,13 +53,9 @@ pub const SHELL_NOTCH_PX: f32 = 48.0;
 /// since an eased fade of this length is over in a few frames and reads
 /// as a flash, where a straight one reads as a fade. Material's short 4.
 pub(crate) const FADE_MS: u64 = tokens::MOTION_SHORT4;
-/// How long a change of a flow's step takes to fade through: the old
-/// card out over the first `STEP_FADE_OUT` of its eased progress to the page's surface,
-/// the new one in over the rest, and the frame outside the card's place
-/// cross-fading over all of it (`docs/FLOW-CONTAINER.md` §3); Material's
-/// medium 2. Not yet timed on the Pi (F238): the owner's late-flow
-/// session times it.
-pub(crate) const STEP_FADE_MS: u64 = tokens::MOTION_MEDIUM2;
+/// How long the face rolled again takes to drop into its place: Material's
+/// medium 2.
+pub(crate) const DROP_MS: u64 = tokens::MOTION_MEDIUM2;
 /// The part of a step's fade the old card takes to go out, 0 to 1, of
 /// the eased progress.
 pub(crate) const STEP_FADE_OUT: f32 = 0.35;

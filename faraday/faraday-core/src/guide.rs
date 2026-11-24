@@ -709,7 +709,7 @@ impl Faraday {
         let codex32 = self.screen == Screen::KeyGen
             && self.keygen.state().is_some_and(|k| k.codex32.is_some());
         // A flow on the container keeps the place for Your choices, unless
-        // its card and Your choices stand left of it (`flow::unit`), or on the
+        // its card and Your choices stand left of it (`screens::hub_layout`), or on the
         // dice step, which makes room for it.
         !codex32
             && !matches!(self.screen, Screen::Backup | Screen::BackupFlow)

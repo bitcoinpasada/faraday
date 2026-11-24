@@ -30,6 +30,7 @@ need. Each document's header says what kind it is:
 | What does a screen look like, and what is it made of? | `docs/DESIGN.md`; the Starter's screens, `docs/STARTER.md` §3 |
 | What happens, step by step, in a flow? | `docs/FLOWS.md`; backups, `docs/BACKUP-FLOW.md`; spending, `docs/SPEND-FROM-BACKUP.md` |
 | How does a step flow show one step at a time, fade between steps and list Your choices? | `docs/FLOW-CONTAINER.md`; the decision, `docs/decisions/F296.md` |
+| Where do a page's panes stand, and how long does a change of page take? | `docs/HUB-LAYOUT.md`; the decision, `docs/decisions/F322.md` |
 | How are codex32 shares made, checked by hand and repaired? | `docs/CODEX32.md` |
 | How is a lost GPG key restored from its paperkey? | `docs/GPG-PAPERKEY.md` |
 | How is a vault stored? | `docs/VAULT.md`, the KDBX vault (F190); the passphrase in NFC and the seal count are in it (§3, §11) |
@@ -114,6 +115,7 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 - `docs/GUIDE-IN-APP.md`: The guide: one guide, in the app, opened where the person is. Built (F247).
 - `docs/HARDWARE.md`: Hardware: boards, platforms and screens. Built: every platform and screen Faraday is built for, and the boards considered and not supported.
 - `docs/HOME.md`: Home at each layout. Built: the wide layout's Home, the phone-size window's and the rail's windows' (one column with the search bar and the box; the rail's has no place tiles), and the Pi's menu.
+- `docs/HUB-LAYOUT.md`: The pane container. Built (F322): the container (`screens/hub_layout/`); Tools, Check, a typed search's results, the step flows and Explore's keys are placed by it, and it says how long a change of page takes.
 - `docs/IMPACT.md`: Impact: what a change brings with it. Built (F149, narrowed by F258).
 - `docs/KEF.md`: KEF: Krux's encrypted code, read in full and written in two versions. Built (F219, amended by F261).
 - `docs/KERNEL-PATCHES.md`: The kernel patches the images carry. Built.

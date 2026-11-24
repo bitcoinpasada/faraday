@@ -2,9 +2,18 @@
 //! (`docs/FLOW-CONTAINER.md` §4).
 
 use crate::action::ChoicesPress;
+use crate::screens::hub_layout::{Left, Narrow, Panes, Place, Tile, holds_guide};
 use crate::{Faraday, Sheet};
 
 pub(crate) use super::choices::sheet;
+
+/// A step flow's panes: Your choices and the step card.
+pub(super) const PANES: Panes = Panes {
+    left: Left::Own,
+    tile: Tile::Card,
+    stacks: false,
+    narrow: Narrow::PaneAtRight,
+};
 
 impl Faraday {
     /// A press of the bar's **Your choices** button or of the sheet: the
@@ -66,13 +75,13 @@ impl Faraday {
     /// beside the navigation holds the unit at its narrowest and the pane.
     /// A lookup.
     pub(crate) fn unit_guide_fits(&self) -> bool {
-        self.window().width - crate::screens::SIDEBAR_W >= super::unit::guide_min_room()
+        holds_guide(self.window().width - crate::screens::SIDEBAR_W)
     }
 
     /// The unit's place in a `room` wide, as the flow now stands: shifted
     /// only while Guide's pane stands beside it, at its own place whenever
     /// the guide is shut.
-    pub(crate) fn unit_place(&self, room: f32) -> super::unit::Place {
-        super::unit::place(room, self.guide_pane_shown())
+    pub(crate) fn unit_place(&self, room: f32) -> Option<Place> {
+        PANES.place(room, self.guide_pane_shown())
     }
 }

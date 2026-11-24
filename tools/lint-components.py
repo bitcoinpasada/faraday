@@ -84,9 +84,31 @@ RULES = [
         ["faraday/"],
         "the menu page container (faraday-core screens/menu_page.rs, `docs/MENU-PAGE.md`)",
         skip=["faraday/faraday-core/src/screens/menu_page.rs",
-              "faraday/faraday-core/src/screens/menu_place.rs",
+              "faraday/faraday-core/src/screens/hub_layout/",
               "faraday/faraday-core/src/screens/mod.rs",
               "faraday/faraday-core/src/screens/session_pane/"],
+    ),
+    # A page or a flow working out where a pane stands: the panes' widths and
+    # the room a pane leaves belong to the pane container
+    # (`docs/HUB-LAYOUT.md`); a page declares its panes and asks for the place.
+    Rule(
+        "pane-own-place",
+        [r"\b(LIST_PANE|SUPPORT_PANE|CHOICES_PANE_MIN|CHOICES_PANE_MAX|FLOW_CARD_MIN|MENU_TILE_WIDE_MAX)\b",
+         r"\bside_panel_w\(", r"\bsupport_pane_room\("],
+        ["faraday/faraday-core/src/"],
+        "the pane container (faraday-core screens/hub_layout/, `docs/HUB-LAYOUT.md`)",
+        skip=["faraday/faraday-core/src/screens/hub_layout/"],
+    ),
+    # A page timing a change of page itself: how long it takes at the Speed
+    # and what a Motion style does in it belong to the pane container. Reading
+    # the two settings to show them, or handing them to it, is not counted.
+    Rule(
+        "page-own-time",
+        [r"\bSTEP_FADE_MS\b", r"\bmotion_speed\(\)\s*\.ms\(", r"\bKind::of\([^)]*motion_style",
+         r"\bMotionStyle::\w+\s*=>\s*(Some\()?Kind\b"],
+        ["faraday/faraday-core/src/"],
+        "the pane container's `page_turn` and `STEP_MS` (faraday-core screens/hub_layout/, `docs/HUB-LAYOUT.md`)",
+        skip=["faraday/faraday-core/src/screens/hub_layout/"],
     ),
     # A file drawing a row of what the session holds itself: the rows of
     # keys, wallets and what waits, and the card that holds them, belong to

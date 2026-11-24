@@ -349,7 +349,7 @@ extent; a motion left from another screen or sheet is stopped.
     `Out::toast_shown`), shown 4 s (`tokens::TOAST_SHOW_MS`);
   - a change of step in any flow (every step flow is on the container,
     `docs/FLOW-CONTAINER.md`) fades
-    through over 300 ms (`motion::STEP_FADE_MS`, Material's medium 2):
+    through over 300 ms (`hub_layout::STEP_MS`, Material's medium 2):
     on Material's full emphasized curve (`tokens::EASE_EMPHASIZED`), as
     Material's fade through is: the old card goes out to the page's
     surface over the first 35% of the eased progress

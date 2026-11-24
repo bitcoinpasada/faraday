@@ -1068,6 +1068,9 @@ pub const CHOICES_PANE_MIN: f32 = 240.0;
 /// The widest Your choices (and the side panel of a step-by-step column)
 /// grows.
 pub const CHOICES_PANE_MAX: f32 = 320.0;
+/// The share of the page area the pane at a column's right takes, between
+/// its least and its widest.
+pub const CHOICES_PANE_SHARE: f32 = 0.31;
 
 /// The width of the area a reading page is laid out in, centred in the
 /// room beside the navigation once that room is wider than the area

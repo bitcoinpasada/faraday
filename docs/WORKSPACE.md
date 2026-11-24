@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Partly built: Home's card with its groups (F323, `docs/SESSION-PANE.md`), the flow pair as one card (F324), a change of page at the Speed and in the Motion style (F318) and the flat section cards of the menu pages (F317) are on main; the rest is not built: the session pane as the one view of what is loaded and going on, on the menu pages and in every flow, the page as panes, and the rest of the motion (§6).
-**Open:** To build: the session pane's modes on Wallets and its form in the flows (§2; Home's card in groups and the modes of Tools and Check are built, `docs/SESSION-PANE.md`), the pairs and stacked pages of §4 for Wallets, the pick becoming Your choices at the left in a flow with wide content (the wallet chip as the first row is built where the pair stands) and the backup board, the flow pair's one card there (§4, §6), row buttons on the wallet rows and the shares' file row, and details on the pane (§2, §7; the file rows of Tools and Check carry theirs; Files' row menu and card buttons already read the shared list), the guide as a pane (§7), the pane container and its lint (§14), Vaults' pane (§2), Wallets' four rows (§2), the Scan button under Settings, the viewfinder in the pane and its popout (§4), the backup board's insides and codex32 from dice (§7), the flow's one card for the one-page tools and checks and Units' amounts (§2), the timings on the Pi that §6 and §8 name, the take-away (§15), flows in progress and the way out of a flow (§16), starting with files on the boot stick (§17) and addresses shown whole (§18); what of these is built is in the sections. Not decided: the Pi's default Motion, until its timings (§8); how a stacked page's strip holds the viewfinder (§4); where Settings' Mode opens (§9); seven points of the backup board the owner has to confirm (§7).
+**Open:** To build: the session pane's modes on Wallets and its form in the flows (§2; Home's card in groups and the modes of Tools and Check are built, `docs/SESSION-PANE.md`), the pairs and stacked pages of §4 for Wallets, the pick becoming Your choices at the left in a flow with wide content (the wallet chip as the first row is built where the pair stands) and the backup board, the flow pair's one card there (§4, §6), row buttons on the wallet rows and the shares' file row, and details on the pane (§2, §7; the file rows of Tools and Check carry theirs; Files' row menu and card buttons already read the shared list), the guide as a pane (§7), the rest of the pane container (§14: Wallets, Files, the guide as the third pane and the glide on it), Vaults' pane (§2), Wallets' four rows (§2), the Scan button under Settings, the viewfinder in the pane and its popout (§4), the backup board's insides and codex32 from dice (§7), the flow's one card for the one-page tools and checks and Units' amounts (§2), the timings on the Pi that §6 and §8 name, the take-away (§15), flows in progress and the way out of a flow (§16), starting with files on the boot stick (§17) and addresses shown whole (§18); what of these is built is in the sections. Not decided: the Pi's default Motion, until its timings (§8); how a stacked page's strip holds the viewfinder (§4); where Settings' Mode opens (§9); seven points of the backup board the owner has to confirm (§7).
 
 "This session", Home's raised card, becomes the session pane, Faraday's hub: everything about
 what is loaded and going on lives in it, and it works with every part of
@@ -426,7 +426,7 @@ Speed's duration unless the row says otherwise):
   deliberate difference from Material's 450 ms fade through, approved by
   the owner (F318), against
   the 200 ms linear crossfade it replaced and the 300 ms step fade
-  (`motion::STEP_FADE_MS`). A step no longer takes a shorter share of it.
+  (`hub_layout::STEP_MS`). A step no longer takes a shorter share of it.
 - **"Here is your key."** A key added inside a signing flow (scanned, once
   the scanner's sheet has gone) arrives as its row in Your choices or the
   pane with the arriving row's motion; its tonal emphasis (the added
@@ -751,10 +751,10 @@ and Files' row menu (`file_menu.rs`). Each key step of §10 swaps
 its pill row for the picker (`bip85`, `explore`, `convert`, `silent`,
 `lightning`, `screens/create.rs`, `seeds`, `vanity`, `kef_tool`,
 `screens/message.rs`, `ways_in`, `spend_backup`, `vault/screen/save.rs`);
-the flow container (`flow.rs`, `flow/unit.rs`) gives its Your choices rows
+the flow container (`flow.rs`) gives its Your choices rows
 to the pane at the left and drops the wallet chip at the pane head. Files'
 In Faraday (`screens/visit.rs`) takes the component. The take-away
-(§15) is drawn by the flow container (`flow.rs`, `flow/unit.rs`), in the session pane,
+(§15) is drawn by the flow container (`flow.rs`), in the session pane,
 fed by the outbox and the visit's receipt (`stick/visit_taken.rs`,
 `receipt.rs`); the flows of §15's table end on it in place of their own
 Finish, Show as QR and Save buttons, and Files' to-write rows (`screens/
@@ -782,18 +782,18 @@ it names FLOW-CONTAINER.md and MENU-PAGE.md); it is not changed before.
   `wallet_rows` and `going_rows` (`screens/home.rs`), every pill row and
   button list of §10's "picker" places, Files' `in_faraday`
   (`screens/visit.rs`), the Your choices pane of the flow container
-  (`flow.rs`, `flow/unit.rs`: the container keeps declaring the rows, the
+  (`flow.rs`: the container keeps declaring the rows, the
   pane draws them) and the wallet chip at a flow card's head.
   `lint-components` holds that a key step draws no `button_rows` of loaded
   keys and that no screen reads `app.session` to list keys or wallets.
-- **The pane container** (its document to be named HUB-LAYOUT.md). Every
+- **The pane container** (`screens/hub_layout/`, `docs/HUB-LAYOUT.md`; built for Tools, Check, search results, the flows and Explore; Wallets, Files, the guide as the third pane and the glide are not on it). Every
   page is made of panes (F322). A page or flow declares its panes into it,
   and it owns where they stand (§4: centred, the pair, stacked), that a
   pair ends level, the guide as the third pane, the glide between pages (§6)
   and the use of the Motion and Speed settings for page changes. It
   replaces each menu page's own placing of the pane, the flow container's
-  centring of the unit and its pane (`flow/unit.rs`), and the screen fade's
-  own choice of duration (`fade.rs`, `motion::STEP_FADE_MS`). `lint-components` holds that no page places a
+  centring of the unit and its pane, and the screen fade's
+  own choice of duration (`fade.rs`). `lint-components` holds that no page places a
   pane or times a page change itself, as it holds the menu page and flow
   containers, and that no card stands outside a pane.
 - **The section card** (built, `docs/MENU-PAGE.md`): a group of a pane.

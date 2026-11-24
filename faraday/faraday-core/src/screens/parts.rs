@@ -120,16 +120,6 @@ pub(crate) fn spaced(hex: &str) -> Text {
 /// What the Wallets tab offers for a key in no wallet.
 pub(crate) const FROM_KEY: &str = EN.app_wallet_from_key;
 
-/// The side panel beside a step-by-step column (Spend, Back up, Create a
-/// vault): 320 wide in a full-size window, down to 240 as the window
-/// narrows, so that the column keeps its room.
-pub(crate) fn side_panel_w(cw: f32) -> f32 {
-    (cw * 0.31).clamp(
-        faraday_draw::tokens::CHOICES_PANE_MIN,
-        faraday_draw::tokens::CHOICES_PANE_MAX,
-    )
-}
-
 /// The labels of the rows ticked, joined; "None" when none is.
 pub(crate) fn ticked(labels: &[&str], on: &[bool]) -> Text {
     let mut out = Text::new();

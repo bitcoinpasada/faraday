@@ -6,22 +6,27 @@ use crate::Action;
 use crate::drawing::View;
 use crate::explore::Page;
 use crate::pick;
+use crate::screens::hub_layout::{self, Left, Narrow, Panes, Tile};
 use crate::ui::Ui;
 use faraday_draw::widgets::Icon;
 
+/// Explore's panes: the keys and the card.
+const PANES: Panes = Panes {
+    left: Left::Own,
+    tile: Tile::Card,
+    stacks: false,
+    narrow: Narrow::OneColumn,
+};
+
 /// Where the pair stands, when the keys are in a pane at the card's left:
 /// the wide layout, the Path page, a key loaded and the room holds the pair
-/// (`flow::pair`). A lookup.
-pub(crate) fn place(
-    app: &crate::Faraday,
-    compact: bool,
-    room: f32,
-) -> Option<crate::flow::unit::Place> {
+/// (`screens::hub_layout`). A lookup.
+pub(crate) fn place(app: &crate::Faraday, compact: bool, room: f32) -> Option<hub_layout::Place> {
     if compact || app.explore.state().is_none_or(|e| e.page != Page::Path) {
         return None;
     }
     app.session.keys.all().next()?;
-    crate::flow::pair::pair(room, false)
+    PANES.place(room, false)
 }
 
 /// Whether the pair stands in a `room`: the page's area is then the work
@@ -49,8 +54,8 @@ pub(crate) fn key_rows(app: &View, chosen: Option<[u8; 4]>) -> Vec<pick::PickRow
 }
 
 /// The pair's divider and outline, from `top` to `end`.
-pub(crate) fn lines(ui: &mut Ui, x0: f32, p: crate::flow::unit::Place, top: f32, end: f32) {
+pub(crate) fn lines(ui: &mut Ui, x0: f32, p: hub_layout::Place, top: f32, end: f32) {
     let at = x0 + p.pane_x + p.pane_w + p.gap / 2.0;
     let edges = (x0 + p.pane_x, x0 + p.card_x + p.card_w);
-    crate::flow::pair_lines(ui, (at, top, end), Some((edges, f32::MAX)));
+    hub_layout::lines(ui, (at, top, end), Some((edges, f32::MAX)));
 }

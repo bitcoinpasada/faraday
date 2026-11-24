@@ -9,11 +9,9 @@ pub(crate) mod act;
 mod answers;
 mod choices;
 mod container;
-pub(crate) mod pair;
-pub(crate) mod unit;
 
 pub(crate) use choices::{Row, Title};
-pub(crate) use container::{Page, contained, pair_left, pair_lines};
+pub(crate) use container::{Page, contained, pair_left};
 
 use faraday_draw::widgets::Icon;
 

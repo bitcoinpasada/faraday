@@ -138,6 +138,7 @@ plan <paths>` lists the ones a change touches.
   held by `lint-components`). Menu pages (Home, Tools, Check, Wallets
   start, Settings) draw on the menu page container, `docs/MENU-PAGE.md` (held
   by `lint-components`).
+- **The pane container:** a page or flow declares its panes; only `screens/hub_layout/` places them and times a change of page (`docs/HUB-LAYOUT.md`). Held by `lint-components`.
 - **The session pane:** what the session holds (keys, wallets, what waits) is drawn only by the session pane (`faraday-core` `screens/session_pane/`, `docs/SESSION-PANE.md`); no page keeps a list of its own. Held by `lint-components`.
 - **Key forms and passphrases:** a key form is a row of the registry
   (`faraday-forms`, `forms::Form`) and of `docs/KEY-FORMS.md`; a way in to a

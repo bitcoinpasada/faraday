@@ -1,5 +1,6 @@
 //! `Screen::Catalog`: Tools, every flow on one page; Find also reaches a tool by its standards.
 
+use super::hub_layout::{Left, Narrow, Panes, Tile};
 use crate::Action;
 use crate::drawing::View;
 use crate::strings::EN;
@@ -18,6 +19,14 @@ use faraday_ui::parts::section_label;
 
 pub(crate) use super::settings::{card, cards_matching};
 
+/// Tools's panes: the session pane in its own mode, and one tile.
+const PANES: Panes = Panes {
+    left: Left::Session(Some(super::session_pane::Mode::Tools)),
+    tile: Tile::Fill,
+    stacks: true,
+    narrow: Narrow::OneColumn,
+};
+
 /// Tools: every flow by group on the menu page container, with the
 /// search bar standing over them; Find a tool narrows them as it is typed.
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
@@ -35,7 +44,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         above: None,
         bar_still: false,
         ways: false,
-        pane: Some(super::session_pane::Mode::Tools),
+        panes: Some(PANES),
     };
     menu_page::draw(app, ui, (x0, cw, h), &page, &sections);
 }

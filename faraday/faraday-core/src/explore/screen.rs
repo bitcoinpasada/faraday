@@ -265,10 +265,10 @@ fn tail(
     app: &View,
     ui: &mut Ui,
     (x0, h, top): (f32, f32, f32),
-    pair: Option<(crate::flow::unit::Place, f32)>,
+    pair: Option<(crate::screens::hub_layout::Place, f32)>,
     (y, pane_end): (f32, f32),
 ) {
-    let end = pane_end.max(y);
+    let end = crate::screens::hub_layout::level(pane_end, y, f32::MAX);
     if let Some((p, y_pane)) = pair {
         super::pane::lines(ui, x0, p, y_pane, end);
     }

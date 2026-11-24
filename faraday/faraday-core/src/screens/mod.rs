@@ -13,12 +13,12 @@ pub(crate) mod check_message;
 mod create;
 mod create_making;
 pub(crate) mod menu_page;
-mod menu_place;
 use crate::decode::screen as decode;
 mod entry;
 mod files;
 mod guide_pane;
 mod home;
+pub(crate) mod hub_layout;
 mod message;
 mod nonce_check;
 pub(crate) mod parts;
@@ -74,7 +74,7 @@ pub(crate) use parts::{
     code_field, copy_blocks, copy_grid, descriptor_row, first_addresses, grid_never, keys_caution,
     keys_read_as_us_line, kind_line, kind_name, locked_tag, never_below, never_real_seed,
     never_real_seed_if, never_under, next_button, next_button_when, pin_button, row_press,
-    side_panel_w, sign_readiness, size_text, stepper, ticked, working_bar, working_line,
+    sign_readiness, size_text, stepper, ticked, working_bar, working_line,
 };
 pub(crate) use parts::{
     camera_row, card_pad, coin_pad, dice_pad, dice_pad_fit, key_path_line, word_cell_edge,
@@ -196,7 +196,7 @@ fn page_area(app: &crate::Faraday, screen: Screen, room: f32) -> (f32, f32) {
         Area::Work
     } else if matches!(screen, Screen::Catalog | Screen::Check) && !app.is_compact() {
         // Tools and Check place their own column, or the pair at the flow's
-        // place (`screens::menu_place`).
+        // place (`screens::hub_layout`).
         Area::Work
     } else if screen == Screen::Explore && crate::explore::pane::place_in(app, room) {
         // The keys' pane and the card are a pair at the flow's place.
@@ -210,7 +210,7 @@ fn page_area(app: &crate::Faraday, screen: Screen, room: f32) -> (f32, f32) {
         // (`board::screen::column_w`, as `backup`'s own column takes it)
         // and its side panel, with the column's inset and the gap between
         // them, centred as a pair; the board's page stays at the start.
-        let panel = side_panel_w(f32::INFINITY);
+        let panel = hub_layout::side_panel_w(f32::INFINITY);
         Area::Reading(crate::board::screen::column_w() + 72.0 + panel)
     } else {
         area_of(screen)

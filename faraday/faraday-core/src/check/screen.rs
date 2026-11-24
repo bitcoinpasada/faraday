@@ -5,6 +5,7 @@ use super::{GROUPS, Press, backup_of};
 use crate::Action;
 use crate::drawing::View;
 use crate::screens::catalog::Face;
+use crate::screens::hub_layout::{Left, Narrow, Panes, Tile};
 use crate::screens::menu_page::{self, Page, Section};
 use crate::strings::EN;
 use crate::ui::pal::*;
@@ -14,6 +15,14 @@ use faraday_draw::tokens::{
     RADIUS_SMALL, TOUCH,
 };
 use faraday_draw::widgets::Icon;
+
+/// Check's panes: the session pane in its own mode, and one tile.
+const PANES: Panes = Panes {
+    left: Left::Session(Some(crate::screens::PaneMode::Check)),
+    tile: Tile::Fill,
+    stacks: true,
+    narrow: Narrow::OneColumn,
+};
 
 /// Check: the tiles on the menu page container, scrolling where the panel
 /// is short. The top app bar carries the name and the way back.
@@ -46,7 +55,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         above: None,
         bar_still: false,
         ways: false,
-        pane: Some(crate::screens::PaneMode::Check),
+        panes: Some(PANES),
     };
     menu_page::draw(app, ui, (x0, cw, h), &page, &sections);
 }

@@ -4,6 +4,7 @@
 //! draws the rest.
 
 use super::catalog::{Bar, Face, Mark};
+use super::hub_layout::{self, Left, Narrow, Panes, Tile};
 use crate::drawing::View;
 use crate::drawing::{CardSplit, SplitKey};
 use crate::ui::pal::*;
@@ -79,9 +80,9 @@ pub(crate) struct Page<'a> {
     /// Home's top row: the three tonal buttons beside the search bar, the
     /// row at the top of the page (`docs/HOME.md` §5).
     pub ways: bool,
-    /// The mode of the session pane the page has beside its tile on the
-    /// wide layout (`screens::menu_place`); none where the page has no pane.
-    pub pane: Option<super::session_pane::Mode>,
+    /// The page's panes on the wide layout (`screens::hub_layout`): a
+    /// session pane beside its tile; none where the page has no pane.
+    pub panes: Option<Panes>,
 }
 
 /// What a page puts above its search bar: how tall it is, known before it
@@ -90,6 +91,15 @@ pub(crate) struct Above<'a> {
     pub height: f32,
     pub draw: BlockFn<'a>,
 }
+
+/// A search's results where the page has no panes of its own (Home): Home's
+/// rows in the session pane, the results in the tile.
+const RESULTS: Panes = Panes {
+    left: Left::Session(None),
+    tile: Tile::Fill,
+    stacks: true,
+    narrow: Narrow::OneColumn,
+};
 
 /// Where a page starts and how wide it is in an area `cw` wide from `x0`.
 pub(super) fn page_span(compact: bool, x0: f32, cw: f32) -> (f32, f32) {
@@ -186,15 +196,15 @@ pub(crate) fn draw(
     // search is not in the top bar, or the page is the phone's, they take
     // the page.
     if let (true, false, true, Some(bar)) = (typed, compact, app.search_in_bar(), page.search)
-        && super::menu_place::draw_results(app, ui, (x0, cw, h), bar, page.pane)
+        && hub_layout::draw_results(app, ui, (x0, cw, h), bar, page.panes.unwrap_or(RESULTS))
     {
         return;
     }
-    if let (false, Some(mode)) = (compact, page.pane) {
-        if !typed && super::menu_place::draw(app, ui, (x0, cw, h), (page, sections), mode) {
+    if let (false, Some(panes)) = (compact, page.panes) {
+        if !typed && hub_layout::draw(app, ui, (x0, cw, h), (page, sections), panes) {
             return;
         }
-        let (ox, area) = super::menu_place::home_area(cw);
+        let (ox, area) = hub_layout::home_area(cw);
         (x0, cw) = (x0 + ox, area);
     }
     let (x, width) = page_span(compact, x0, cw);

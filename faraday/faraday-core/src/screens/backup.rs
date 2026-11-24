@@ -2,7 +2,7 @@
 
 use super::parts::{
     Cells, buttons_and_next, file_row, keyed_cells, keyed_pills, made_place, made_state,
-    never_below, never_real_seed, next_button, side_panel_w, ticked, typed_cells, word_keys,
+    never_below, never_real_seed, next_button, ticked, typed_cells, word_keys,
 };
 use crate::drawing::{Scrolled, View};
 use crate::plan::Item;
@@ -256,7 +256,7 @@ fn plan_draw(
     // On a window short of the large one the list is a panel at the right
     // and the page area stops before it.
     let panel_w = if work.is_none() && !ui.compact && app.board_shown() {
-        side_panel_w(cw)
+        super::hub_layout::side_panel_w(cw)
     } else {
         0.0
     };

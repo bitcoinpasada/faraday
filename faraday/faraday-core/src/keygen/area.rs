@@ -125,7 +125,7 @@ impl KeyGenArea {
         };
         let drop = k.rerolled.as_mut().is_some_and(|(_, at)| {
             let began = *at.get_or_insert(now_ms);
-            now_ms < began + crate::motion::STEP_FADE_MS
+            now_ms < began + crate::motion::DROP_MS
         });
         let glide = k.arrived.as_mut().is_some_and(|(_, at)| {
             let began = *at.get_or_insert(now_ms);

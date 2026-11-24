@@ -1267,7 +1267,7 @@ impl crate::Faraday {
         let drop = if self.reduce_motion() {
             0.0
         } else {
-            crate::motion::progress(at, self.now_ms, crate::motion::STEP_FADE_MS)
+            crate::motion::progress(at, self.now_ms, crate::motion::DROP_MS)
         };
         Some((face, drop))
     }

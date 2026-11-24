@@ -56,7 +56,7 @@ with none of it the one line "Nothing loaded". It has no Make or Restore row.
 
 ### The pane on Tools and Check
 
-On the wide layout Tools and Check are placed by `screens/menu_place.rs`
+On the wide layout Tools and Check are placed by the pane container (`docs/HUB-LAYOUT.md`)
 (WORKSPACE §4). Stacked, the page's tile stands under this card, which is
 Home's, with Home's rows (`stacked_card`). Beside, the pane is the page's own
 mode (`session_pane/page_mode.rs`): "This session" in Title M, then each

@@ -3,6 +3,7 @@
 //! wide layout (`docs/FLOW-CONTAINER.md` §2, §4).
 
 use super::{Contained, Foot, Room, Scroll, past_end};
+use crate::screens::hub_layout;
 use crate::strings::{EN, fill};
 use crate::ui::{Moves, Region, Ui, pal::*};
 use crate::{Action, Faraday};
@@ -35,34 +36,15 @@ pub(crate) struct Page<'a> {
     pub(crate) moves: Moves,
 }
 
-/// How far the pair's outline stands above the card's top: the heading
-/// starts a padding under the top bar, so the line stands half a padding
-/// under it.
-const OUTLINE_ABOVE: f32 = tokens::PAD / 2.0;
-
-/// The pair's outline: one thin rounded edge from `from` to `to` (the
-/// corners, x and y), round Your choices and the step; no fill, the page
-/// is the surface.
-fn outline(ui: &mut Ui, from: (f32, f32), to: (f32, f32)) {
-    ui.stroke(
-        from.0,
-        from.1,
-        to.0 - from.0,
-        to.1 - from.1,
-        tokens::SHAPE_L,
-        Role::OutlineVariant,
-    );
-}
-
 /// Whether the pair stands with its pane at the card's left in a page
 /// `area_w` wide: a wide layout, a step that is not full width, and room
 /// for the pair. A step with a pick ([`Contained::pick`]) draws no rows in
 /// its card where this is true: the pane holds them. A lookup.
 pub(crate) fn pair_left(app: &Faraday, flow: &dyn Contained, compact: bool, area_w: f32) -> bool {
-    !compact && !flow.full_width(app) && app.unit_on_show() && {
-        let u = app.unit_place(area_w);
-        u.pane_x < u.card_x
-    }
+    !compact
+        && !flow.full_width(app)
+        && app.unit_on_show()
+        && app.unit_place(area_w).is_some_and(|u| u.pane_left())
 }
 
 /// The open step's pick, where the pane stands (`stands`).
@@ -73,50 +55,6 @@ fn open_pick(
     stands: bool,
 ) -> Option<super::Pick> {
     flow.pick(app, steps?.open.filter(|_| stands)?)
-}
-
-/// The card's top and foot limits: where the pair stands, its outline's top
-/// and the line a margin above the window's foot; else the page's.
-fn card_limits(left: bool, compact: bool, top: f32, view_h: f32) -> (f32, f32) {
-    if left {
-        (top - OUTLINE_ABOVE, view_h - tokens::PAD)
-    } else {
-        (if compact { top } else { 0.0 }, view_h)
-    }
-}
-
-/// The lines of one card: the divider at `at` from `top` to `end`, and,
-/// where the pair stands (its left edge and the card's right, the foot
-/// limit), the outline a padding outside it.
-pub(crate) fn pair_lines(
-    ui: &mut Ui,
-    (at, top, end): (f32, f32, f32),
-    pair: Option<((f32, f32), f32)>,
-) {
-    divider(ui, at, top, end);
-    if let Some(((left, right), limit)) = pair {
-        outline(
-            ui,
-            (left - tokens::PAD, top - OUTLINE_ABOVE),
-            (right + tokens::PAD, (end + tokens::PAD).min(limit)),
-        );
-    }
-}
-
-/// One card's divider: at `at`, the middle of the gap, inset by the card's
-/// padding, from `top` to where the taller side ends.
-fn divider(ui: &mut Ui, at: f32, top: f32, end: f32) {
-    let inset = tokens::PAD;
-    if end - top > 2.0 * inset {
-        ui.fill(
-            at,
-            top + inset,
-            1.0,
-            end - top - 2.0 * inset,
-            0.0,
-            Role::OutlineVariant,
-        );
-    }
 }
 
 /// Draws the flow's current step: its chip, heading and `body`, which
@@ -138,19 +76,21 @@ pub(crate) fn contained(
     let compact = ui.compact;
     let full = !compact && flow.full_width(app);
     // A column card and Your choices stand as one unit, centred in the room
-    // (`flow::unit`); the rest keep the pane at the area's right edge.
-    let unit = (!compact && app.unit_on_show()).then(|| app.unit_place(area_w));
+    // (`screens::hub_layout`); the rest keep the pane at the area's right edge.
+    let unit = (!compact && app.unit_on_show())
+        .then(|| app.unit_place(area_w))
+        .flatten();
     let pane_w = if compact || full {
         0.0
     } else if let Some(u) = unit {
         u.pane_w
     } else {
-        crate::screens::side_panel_w(area_w)
+        super::act::PANES.pane_beside_work(area_w)
     };
     // The pair stands with Your choices at the left of the card when the
     // room holds it; the card's room then runs from the divider to the
     // pair's end and a spacer.
-    let left = unit.is_some_and(|u| u.pane_x < u.card_x);
+    let left = unit.is_some_and(|u| u.pane_left());
     let room_w = match unit {
         Some(u) if left => u.card_x + u.card_w + u.gap,
         Some(u) => u.pane_x,
@@ -207,7 +147,7 @@ pub(crate) fn contained(
     });
     // Where the pair stands, its outline's top and foot are the card's
     // limits: nothing scrolls past them.
-    let (clip_top, clip_end) = card_limits(left, compact, top, view_h);
+    let (clip_top, clip_end) = hub_layout::limits(left, compact, top, view_h);
     let clip = ui.rect(
         clip_x,
         clip_top,
@@ -349,8 +289,8 @@ pub(crate) fn contained(
         } else {
             px - gap / 2.0
         };
-        let end = (top + pane_h).max(y - next.y).min(view_h);
-        pair_lines(ui, (at, top, end), left.then_some(((px, x + w), clip_end)));
+        let end = hub_layout::level(top + pane_h, y - next.y, view_h);
+        hub_layout::lines(ui, (at, top, end), left.then_some(((px, x + w), clip_end)));
     }
 
     let mut again = false;

@@ -54,6 +54,30 @@ class CountTests(unittest.TestCase):
                          {("bare", "x/a.rs"): 1})
 
 
+class PaneContainerTests(unittest.TestCase):
+    """The rules of the pane container, on the lines they name and on near misses."""
+
+    def hits(self, name, line):
+        rule = next(r for r in lc.RULES if r.name == name)
+        return any(p.search(line) for p in rule.patterns)
+
+    def test_a_page_placing_a_pane_is_counted(self):
+        for line in ("let x = room - LIST_PANE;", "let w = side_panel_w(cw);", "room - support_pane_room()"):
+            self.assertTrue(self.hits("pane-own-place", line), line)
+        self.assertFalse(self.hits("pane-own-place", "PANES.place(room, guide)"))
+
+    def test_a_page_timing_its_change_is_counted(self):
+        for line in ("let ms = s.motion_speed().ms();", "motion::STEP_FADE_MS", "Kind::of(s.motion_style())"):
+            self.assertTrue(self.hits("page-own-time", line), line)
+        for line in ("app.motion_speed(),", "let style = app.motion_style();", "motion::DROP_MS", "Kind::of(&path)"):
+            self.assertFalse(self.hits("page-own-time", line), line)
+
+    def test_the_container_is_not_looked_at(self):
+        for name in ("pane-own-place", "page-own-time"):
+            rule = next(r for r in lc.RULES if r.name == name)
+            self.assertIn("faraday/faraday-core/src/screens/hub_layout/", rule.skip)
+
+
 class SourceTests(unittest.TestCase):
     SRC = "\n".join([
         "fn a() { Bare(1); }",            # 1 counted

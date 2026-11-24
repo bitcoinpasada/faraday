@@ -79,6 +79,8 @@ mod how_block;
 mod how_reach;
 #[path = "all/how_steps.rs"]
 mod how_steps;
+#[path = "all/hub_layout.rs"]
+mod hub_layout;
 #[path = "all/idle.rs"]
 mod idle;
 #[path = "all/inbox.rs"]

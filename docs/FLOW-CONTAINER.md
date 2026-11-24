@@ -1,7 +1,7 @@
 # One flow container
 
 **Kind:** Spec
-**Status:** Specified (F296); built. Every step flow is drawn by the container (`faraday/faraday-core/src/flow.rs`, `flow/`, `flow::contained`): only the current step's card, Your choices at the right or on the bar's button, the fade through between steps (`motion::STEP_FADE_MS`). The old column that stacked finished steps above the open one is gone from the code.
+**Status:** Specified (F296); built. Every step flow is drawn by the container (`faraday/faraday-core/src/flow.rs`, `flow/`, `flow::contained`): only the current step's card, Your choices at the right or on the bar's button, the fade through between steps (`hub_layout::STEP_MS`). The old column that stacked finished steps above the open one is gone from the code.
 **Open:** the live fade of a step that holds a secret (§3), built, awaiting the owner's approval after testing and a timing on the Pi
 
 Every step flow (Make a new vault, Make a new wallet, Restore an existing
@@ -113,7 +113,7 @@ the whole fade runs on Material's full emphasized curve
 the eased progress (about the first 48 ms) and the incoming the rest
 (`motion::step_fade`), its clock started as a change of screen's is;
 its length, 300 ms (Medium 2), is a named constant in `motion.rs`
-(`STEP_FADE_MS`), stated with how it was timed on the Pi (F238). Outside the
+(`hub_layout::STEP_MS`), stated with how it was timed on the Pi (F238). Outside the
 card's place (the bar's back label, a new row in Your choices) the frame
 cross-fades over the same time.
 
@@ -160,7 +160,7 @@ card. A step's blend touches only the bands that differ.
 not low; `ui.compact` false). A step whose card is a column stands as a
 pair, one card: Your choices at the LEFT, `LIST_PANE` (360 dp), one
 `SPACER` gap, and the step card at its right, up to `COLUMN_MAX`, the
-pair centred in the room beside the navigation (`flow/pair.rs`). The page
+pair centred in the room beside the navigation (placed by the pane container, `docs/HUB-LAYOUT.md`). The page
 is the surface (no fill); one thin rounded outline (`SHAPE_L`, OutlineVariant) goes round the pair, a padding outside the pair's left and right edges and foot and half a padding above the card's top, ending a padding above the window's foot where the pair is taller, so the pane and the step scroll inside it; a divider at the middle of the gap, inset at top and
 bottom by the card's padding, is the only line between the two, and runs
 to where the taller side ends: a pair ends level, tops and bottoms in line,
@@ -172,7 +172,7 @@ before it. Guide's pane is its own card and draws none; a full-width step
 and every one-column layout draw neither. The heading **Your choices** is in Label L at `SIDE_PANEL_TOP`, then one row per
 step: the label, and under it the answer or "Not chosen yet", each row a
 press in its 48 dp target. The current step's row is marked as current.
-Explore and Derive is not a step flow: where the pair fits (`flow/pair.rs`),
+Explore and Derive is not a step flow: where the pair fits (`docs/HUB-LAYOUT.md`),
 its Path page stands as the same pair with the loaded keys as the pick's rows
 (`pick.rs`, one choice, checked against Material's single-choice list row) in place of Your choices, the same divider and outline,
 and the result in the card; the pane scrolls with the page. Addresses and
@@ -202,7 +202,7 @@ cannot take back take no press. On a window too low for the pane, the pane
 scrolls within itself.
 
 On the wide layout a step whose card is a column stands as the pair
-(`flow/pair.rs`, used by `flow/unit.rs`): Your choices 360 dp, a `SPACER`
+(the pane container, `screens/hub_layout/`): Your choices 360 dp, a `SPACER`
 and the card's column up to 720 dp, centred in the room beside the
 navigation. Guide's ? opens its supporting pane at the right (LAYOUT §6),
 instead of the sheet, whenever the pair at its narrowest and the pane fit:

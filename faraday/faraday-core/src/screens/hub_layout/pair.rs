@@ -1,12 +1,13 @@
-//! The pair: Your choices at the left and the step card at its right, one
-//! gap between, centred in the room beside the navigation
-//! (`docs/WORKSPACE.md` §4, `docs/FLOW-CONTAINER.md` §4). Arithmetic on the
-//! room alone, so a menu page's pair and a flow's pair stand at the same
-//! place.
+//! The pair's arithmetic (`docs/WORKSPACE.md` §4): the pane at the left and
+//! the card or tile at its right, one gap between, centred in the room
+//! beside the navigation; on the room alone, so a menu page's pair and a
+//! flow's pair stand at the same place.
 
-use super::unit::Place;
+use super::{Place, guide_room, side_panel_w};
+use crate::screens::menu_page::grid;
 use faraday_draw::tokens::{
-    CHOICES_PANE_MIN, COLUMN_MAX, FLOW_CARD_MIN, LIST_PANE, MARGIN_WIDE, SPACER,
+    CHOICES_PANE_MIN, COLUMN_MAX, FLOW_CARD_MIN, LIST_PANE, MARGIN_WIDE, MENU_TILE_WIDE_MAX, PAD,
+    SPACER,
 };
 
 /// The pair in a `room` wide, with `guide` when Guide's pane stands at the
@@ -15,12 +16,8 @@ use faraday_draw::tokens::{
 /// `FLOW_CARD_MIN`, then the pane down to `CHOICES_PANE_MIN`. With the
 /// guide the pair stands left of its room, as far left as the room
 /// needs. `None` where the pair at its narrowest does not fit.
-pub(crate) fn pair(room: f32, guide: bool) -> Option<Place> {
-    let limit = if guide {
-        room - crate::screens::support_pane_room()
-    } else {
-        room
-    };
+pub(super) fn pair(room: f32, guide: bool) -> Option<Place> {
+    let limit = if guide { room - guide_room() } else { room };
     // A margin at the left, and at the right unless Guide's room has it.
     let avail = limit
         - if guide {
@@ -49,6 +46,58 @@ pub(crate) fn pair(room: f32, guide: bool) -> Option<Place> {
     })
 }
 
+/// The pair whose tile fills the room in two columns or more: the pane
+/// at the room's left page margin, one gap, the tile to the right page
+/// margin and no wider than `MENU_TILE_WIDE_MAX`, the pair centred where
+/// the tile stops. `None` where the room holds one column (the pair is
+/// then a flow's). Arithmetic on the room alone.
+pub(super) fn fill(room: f32) -> Option<Place> {
+    let tile = (room - 2.0 * MARGIN_WIDE - LIST_PANE - SPACER).min(MENU_TILE_WIDE_MAX);
+    if grid(tile - 2.0 * PAD, usize::MAX).columns() < 2 {
+        return None;
+    }
+    let unit = LIST_PANE + SPACER + tile;
+    let pane_x = ((room - unit) / 2.0).max(MARGIN_WIDE);
+    Some(Place {
+        card_x: pane_x + LIST_PANE + SPACER,
+        card_w: tile,
+        pane_x,
+        pane_w: LIST_PANE,
+        gap: SPACER,
+    })
+}
+
+/// A room too narrow for the pair: the card's column, a spacer and the
+/// pane at its right, centred in the `room` beside the navigation. With
+/// `guide` the card narrows from its widest first, then the pane, as far
+/// as Guide's pane needs, and they stand left of its room.
+pub(super) fn pane_at_right(room: f32, guide: bool) -> Place {
+    let limit = if guide { room - guide_room() } else { room };
+    let avail = limit - MARGIN_WIDE;
+    let pane0 = side_panel_w(room);
+    let floor = if guide { FLOW_CARD_MIN } else { 0.0 };
+    let card_w = (avail - SPACER - pane0).clamp(floor, COLUMN_MAX.max(floor));
+    let pane_w = if guide {
+        (avail - SPACER - card_w).clamp(CHOICES_PANE_MIN, pane0)
+    } else {
+        pane0
+    };
+    let unit = card_w + SPACER + pane_w;
+    let centred = ((room - unit) / 2.0).max(MARGIN_WIDE);
+    let card_x = if guide {
+        centred.min(limit - unit)
+    } else {
+        centred
+    };
+    Place {
+        card_x,
+        card_w,
+        pane_x: card_x + card_w + SPACER,
+        pane_w,
+        gap: SPACER,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -74,11 +123,7 @@ mod tests {
             for room in rooms() {
                 let Some(p) = pair(room, guide) else { continue };
                 let end = p.card_x + p.card_w;
-                let limit = if guide {
-                    room - crate::screens::support_pane_room()
-                } else {
-                    room
-                };
+                let limit = if guide { room - guide_room() } else { room };
                 assert!(end <= limit + 0.01, "{room} {guide}");
                 if !guide {
                     assert!(end <= room - MARGIN_WIDE + 0.01, "{room}");

@@ -66,7 +66,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // page area stops before it.
     let work = crate::screens::board_work_end(app);
     let panel_w = if work.is_none() && !ui.compact && app.board_shown() {
-        crate::screens::side_panel_w(cw)
+        crate::screens::hub_layout::side_panel_w(cw)
     } else {
         0.0
     };
