@@ -339,3 +339,4 @@ Read this table, then only the decision you need.
 | [F327](decisions/F327.md) | ACE's implementation and test app live in Faraday, its specification and vectors in their own repository; ACE is offered in Faraday only in Faraday Demo's dev build | 2026-11-23 | Active | standards |
 | [F329](decisions/F329.md) | The Starter's Appearance and About are rows of Home's Settings, not of the menu | 2026-11-24 | Active | Starter |
 | [F331](decisions/F331.md) | Everything raised rests at one level; in a flow the flow's card alone is raised, and the search and the pills stay | 2026-11-24 | Active | design |
+| [F332](decisions/F332.md) | What can be pressed shows it: a chevron opens, a radio or a box chooses, an icon and a verb act, and a fact looks like none of them | 2026-11-24 | Active | design |
