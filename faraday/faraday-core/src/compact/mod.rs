@@ -1442,7 +1442,7 @@ impl Faraday {
         if self.sheet == Some(crate::Sheet::Potential) {
             return self.inbox.potential().is_some_and(|p| p.typing);
         }
-        if self.sheet == Some(crate::Sheet::Import) {
+        if self.import_on_show() {
             return self.vaults.focus == Some(crate::vault::Focus::Passphrase);
         }
         if self.sheet == Some(crate::Sheet::Rename) {

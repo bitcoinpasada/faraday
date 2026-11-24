@@ -201,7 +201,7 @@ fn unlock_start(app: &mut Faraday) -> bool {
     let name = f.name.clone();
     let cost = f.facts.header.cost;
     // Unlocked on the boot import's sheet: the unlock imports.
-    let for_import = app.sheet == Some(crate::Sheet::Import) && app.import.state().is_some();
+    let for_import = app.import_on_show() && app.import.state().is_some();
     // The key file is read for this try and wiped as the job ends; the
     // chip stays for another.
     // A vault just made unlocks at once with the key file it was made with.

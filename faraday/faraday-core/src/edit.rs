@@ -490,7 +490,7 @@ impl Faraday {
         if self.chart_typing() {
             return true;
         }
-        if self.sheet == Some(Sheet::Import) {
+        if self.import_on_show() {
             return self.vaults.focus == Some(vault::Focus::Passphrase);
         }
         if self.sheet == Some(Sheet::SeedRead) {
@@ -590,7 +590,7 @@ impl Faraday {
         if !self.typing_field() {
             return None;
         }
-        if self.sheet == Some(Sheet::Import) {
+        if self.import_on_show() {
             return Some(Action::Vault(V::FocusPassphrase));
         }
         if self.sheet == Some(Sheet::Rename) {

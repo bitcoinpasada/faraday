@@ -2631,7 +2631,7 @@ impl Faraday {
     pub(crate) fn vault_key(&mut self, key: faraday_shell_api::Key) -> bool {
         use faraday_shell_api::Key as K;
         // The boot import's sheet has a passphrase field of its own.
-        let import = self.sheet == Some(crate::Sheet::Import) && self.screen == Screen::Home;
+        let import = self.import_on_show() && self.screen == Screen::Home;
         // So has the sheet of seeds kept with no passphrase (F62).
         let pass_seeds = self.sheet == Some(crate::Sheet::PassphraseSeeds);
         if !import

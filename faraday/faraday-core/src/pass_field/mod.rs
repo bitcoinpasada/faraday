@@ -422,7 +422,7 @@ impl Where {
                                     | crate::spend_backup::page::OPEN
                             ))
                         ))
-                    || sheet(Sheet::Import)
+                    || app.import_held()
             }
             // Drawn on its own screen, or in the backup flow's place while
             // the flow makes a vault. The form itself is kept when it is

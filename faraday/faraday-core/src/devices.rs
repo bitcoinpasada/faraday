@@ -663,7 +663,7 @@ impl Faraday {
         }
         self.devices.after = Some(action);
         self.devices.asking = false;
-        self.devices.over_import = self.sheet == Some(Sheet::Import);
+        self.devices.over_import = self.import_on_show();
         self.sheet = Some(Sheet::Devices);
     }
 

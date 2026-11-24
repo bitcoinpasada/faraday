@@ -583,6 +583,22 @@ impl Faraday {
         true
     }
 
+    /// Whether the import is on show: its sheet is what the screen holds.
+    /// Where it waits (put off while the files are read, or under the
+    /// new-device sheet) it is not. Every place that treats the import as
+    /// being answered asks this, so it is one place to change.
+    pub(crate) fn import_on_show(&self) -> bool {
+        self.sheet == Some(Sheet::Import)
+    }
+
+    /// Whether the import is on show or only covered by the idle warning
+    /// (the warning lifts to it again): where the passphrase field is
+    /// still the screen's.
+    pub(crate) fn import_held(&self) -> bool {
+        self.import_on_show()
+            || (self.sheet == Some(Sheet::IdleWarn) && self.idle.under() == Some(Sheet::Import))
+    }
+
     /// Whether the import's stick is in.
     fn import_stick_in(&self) -> bool {
         self.import
@@ -757,7 +773,7 @@ impl Faraday {
             }
         }
         self.import_if_read();
-        if self.sheet == Some(Sheet::Import) && self.vaults.focus.is_none() {
+        if self.import_on_show() && self.vaults.focus.is_none() {
             self.screen = Screen::Home;
             self.import_field_ready();
         }
@@ -1161,7 +1177,7 @@ impl Faraday {
         }
         // The sheet put off while the files were read stays off: Home
         // leads with the vault's Unlock.
-        if self.sheet == Some(Sheet::Import) {
+        if self.import_on_show() {
             self.import_next();
         } else {
             self.import_settle();
@@ -1249,7 +1265,7 @@ impl Faraday {
             return;
         }
         self.import.clear();
-        if self.sheet == Some(Sheet::Import) {
+        if self.import_on_show() {
             self.sheet = None;
             self.screen = Screen::Home;
         }

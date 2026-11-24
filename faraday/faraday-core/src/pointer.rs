@@ -769,7 +769,7 @@ impl Faraday {
         let typing = matches!(
             self.screen,
             Screen::Unlock | Screen::BackupFlow | Screen::SpendBackup
-        ) || self.sheet == Some(Sheet::Import);
+        ) || self.import_on_show();
         if !typing && self.vaults.working != Some(vault::Work::Unlock) {
             self.vaults.clear_unlock();
         }

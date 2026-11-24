@@ -558,7 +558,7 @@ pub(crate) fn stick_arrived(app: &mut Faraday) {
             let v = app.visit_default_in();
             app.visit.set_inn(v);
         }
-        if app.sheet == Some(Sheet::Import) {
+        if app.import_on_show() {
             app.sheet = None;
         }
         // The boot stick alone at its first look, or back for its

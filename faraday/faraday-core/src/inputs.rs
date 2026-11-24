@@ -886,7 +886,7 @@ impl Faraday {
         if !self.inputs.used(id) {
             return;
         }
-        if self.sheet == Some(Sheet::Import) {
+        if self.import_on_show() {
             self.import.set_under_input(true);
             self.sheet = None;
         } else if self.sheet == Some(Sheet::Devices) {
