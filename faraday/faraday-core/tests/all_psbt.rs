@@ -133,6 +133,8 @@ mod vanity;
 mod wallet_confirm;
 #[path = "all/wallet_files_other.rs"]
 mod wallet_files_other;
+#[path = "all/wallet_id.rs"]
+mod wallet_id;
 #[path = "all/wallet_names.rs"]
 mod wallet_names;
 #[path = "all/wallet_not_your_key.rs"]

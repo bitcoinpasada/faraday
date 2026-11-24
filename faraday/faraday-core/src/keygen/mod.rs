@@ -2131,8 +2131,7 @@ impl crate::Faraday {
             if let Some(w) = self.create.state().and_then(|c| c.built)
                 && let Some(wallet) = self.session.wallets.get(w)
             {
-                let checksum = Text::of(wallet.checksum());
-                self.mark_checked(&checksum);
+                self.mark_checked(wallet.id());
             }
         }
     }

@@ -944,13 +944,13 @@ impl WalletsArea {
 
     /// Costs an inspection when the PSBT or the session changed. Keeps the
     /// open spend in step with the session: its inspection, signers,
-    /// wallet and steps. `checked` says whether a wallet's checksum was
+    /// wallet and steps. `checked` says whether a wallet's id was
     /// checked this power-on.
     pub(crate) fn refresh(
         &mut self,
         c: &Compute,
         session: &Session,
-        checked: impl Fn(&str) -> bool,
+        checked: impl Fn(WalletId) -> bool,
     ) {
         let Some(s) = self.spend.as_mut() else {
             return;
@@ -992,7 +992,7 @@ impl WalletsArea {
         // checked before (`docs/WALLETS.md` §4): the flow opens on
         // the next card without a default instead.
         if let Some(wallet) = wallet
-            && checked(wallet.checksum())
+            && checked(wallet.id())
         {
             s.done[step::CHECK as usize] = true;
         }

@@ -91,7 +91,7 @@ finds them.
 
 Not gated: `Canvas::frost`, `snapshot`, `snapshot_into`, `restore`,
 `blend_between` (pixel work, counted per frame by the budgets);
-`MasterKey::fingerprint`, `for_network`, `WalletPolicy::checksum`
+`MasterKey::fingerprint`, `for_network`, `WalletPolicy::checksum`, `WalletPolicy::id`
 (lookups after §5); `to_descriptor`, `to_text`, `Display` (text from parts
 already parsed); `faraday_crypto::hash::sha256` on small fixed inputs;
 `PolicyKey::parse` (inside gated parses); signature verification
@@ -204,6 +204,11 @@ recompute (it still drops kept addresses and scripts). A wallet is made
 through `Wallet::new(name, policy, source, origin)`; `policy` is private
 (`Wallet::policy`), `Wallet::checksum` a lookup, and `Wallet::set_policy`
 the one change, used by `silent.rs` for a silent payment wallet's labels.
+
+The same constructors set `id` (a `WalletId`, a SHA-256 of the whole
+descriptor), `WalletPolicy::id` a lookup beside `checksum`; `Wallet::id`
+reads it, and a wallet is looked up by it where two wallets may share a
+checksum.
 
 ### 5.3 Hardened steps written `h` (owner-approved; DECISIONS F66)
 

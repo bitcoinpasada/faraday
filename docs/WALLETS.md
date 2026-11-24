@@ -338,11 +338,16 @@ from the cosigner's own screen or the paper backup's code).
 
 The Wallets tab's order, kept for every kind: **load the wallet → the
 transaction → check → the signers → sign → collect → finish.** Check is
-open at entry only the first time a wallet (by descriptor checksum) is
-checked this power-on; once Continue has been pressed on it (here, on
+open at entry only the first time a wallet (by its id, a SHA-256 of its
+whole descriptor, never by its 8-character checksum, which another wallet
+can share) is checked this power-on; once Continue has been pressed on it (here, on
 Create's own Check, or "Yes, my money shows" on the Spend tab), it stays closed
 and done across a lock and the next process, open again only in a fresh
-one with no kept state (`docs/history/SIMPLIFY.md` §2.5). Everything before the
+one with no kept state (`docs/history/SIMPLIFY.md` §2.5). The kept list holds
+the ids as 64 hexadecimal characters, and a list of 8-character checksums
+from before names no wallet. The same id picks the wallet Spend from backup
+chooses and the wallet a spend's Check was passed for, so another wallet of
+the same checksum asks again. Everything before the
 signers is watch-only, so any reason to stop is found before a key is
 used. In Faraday the keys are usually already loaded from a vault, so
 the signers step shows them rather than asking for them, and asks only

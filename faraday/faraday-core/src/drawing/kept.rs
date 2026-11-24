@@ -13,7 +13,7 @@ use std::rc::Rc;
 use faraday_bip::bip39::Mnemonic;
 use faraday_bip::bitcoin::ScriptBuf;
 use faraday_bip::keys::{Fingerprint, Network};
-use faraday_bip::policy::WalletPolicy;
+use faraday_bip::policy::{WalletId, WalletPolicy};
 use faraday_codec::qr::QrMatrix;
 use faraday_crypto::work::Compute;
 use faraday_keys::vault::{RecordView, VaultId};
@@ -112,7 +112,7 @@ type KeptAddress = (Text, Network, Result<Text, Text>);
 struct KeptMessage {
     text: Text,
     network: Network,
-    wallets: Vec<Text>,
+    wallets: Vec<WalletId>,
     check: Option<Rc<MessageCheck>>,
 }
 
@@ -403,11 +403,7 @@ impl Kept {
         session: &Session,
     ) -> Option<Rc<MessageCheck>> {
         let network = session.network();
-        let sums: Vec<Text> = session
-            .wallets
-            .iter()
-            .map(|w| Text::of(w.checksum()))
-            .collect();
+        let sums: Vec<WalletId> = session.wallets.iter().map(Wallet::id).collect();
         if let Some(k) = self.message_checked.borrow().as_ref()
             && k.text == text
             && k.network == network

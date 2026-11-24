@@ -69,7 +69,7 @@ Faraday's own parts: the vault, the stick rule and the lock cycle
   stick visit.
 - What the tab stores is the route what came in set, the page open
   (a page or the spend), the pages closed, the wallet chosen (by its
-  descriptor checksum, as names repeat), whether the walk began from a
+  id, a hash of the whole descriptor, as names and checksums repeat), whether the walk began from a
   card and the names of the files that came in on page 3. That is not
   secret; it is kept across a lock with the settings (`memory.rs`
   `kept()`), so a lock for a stick visit or for idleness returns the

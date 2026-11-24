@@ -3,6 +3,7 @@
 //! moves that keep the answer on the screen's state ([`SpendState::take`]).
 
 use crate::wallet::{InspectInputs, NonceCheck, Session, Signing, Spend, SpendState};
+use faraday_bip::policy::WalletId;
 use faraday_psbt::{Inspection, MusigSessionView, Psbt};
 use faraday_text::Text;
 
@@ -21,8 +22,8 @@ pub(crate) struct Fresh {
     pub(crate) signing: Signing,
     /// The loaded wallet the transaction spends from.
     pub(crate) wallet: Option<usize>,
-    /// That wallet's checksum.
-    pub(crate) wallet_sum: Option<Text>,
+    /// That wallet's id.
+    pub(crate) wallet_id: Option<WalletId>,
     /// Every input can be finalised now.
     pub(crate) complete: bool,
 }
@@ -58,9 +59,7 @@ pub(crate) fn worked_out(
     });
     let signing = spend.signing(c, session, Some(&inspection), view);
     let wallet = session.wallet_for(c, &spend.psbt);
-    let wallet_sum = wallet
-        .and_then(|w| session.wallets.get(w))
-        .map(|w| Text::of(w.checksum()));
+    let wallet_id = wallet.and_then(|w| session.wallets.get(w)).map(|w| w.id());
     let complete = spend.finished.is_some() || spend.finish().is_ok();
     Fresh {
         inputs,
@@ -70,7 +69,7 @@ pub(crate) fn worked_out(
         check,
         signing,
         wallet,
-        wallet_sum,
+        wallet_id,
         complete,
     }
 }
@@ -88,7 +87,7 @@ impl SpendState {
             check,
             signing,
             wallet,
-            wallet_sum,
+            wallet_id,
             complete,
         } = f;
         self.inspection = inspection;
@@ -96,7 +95,7 @@ impl SpendState {
             (psbt, inputs),
             (refused, check),
             &signing,
-            (wallet, wallet_sum, complete),
+            (wallet, wallet_id, complete),
         );
     }
 
@@ -111,7 +110,7 @@ impl SpendState {
             check,
             signing,
             wallet,
-            wallet_sum,
+            wallet_id,
             complete,
         } = f;
         let mut s = Self::new(spend, inspection, inputs.clone());
@@ -119,7 +118,7 @@ impl SpendState {
             (psbt, inputs),
             (refused, check),
             &signing,
-            (wallet, wallet_sum, complete),
+            (wallet, wallet_id, complete),
         );
         s
     }
@@ -129,7 +128,7 @@ impl SpendState {
         (psbt, inputs): (Psbt, InspectInputs),
         (refused, check): (Option<Text>, Option<NonceCheck>),
         signing: &Signing,
-        (wallet, wallet_sum, complete): (Option<usize>, Option<Text>, bool),
+        (wallet, wallet_id, complete): (Option<usize>, Option<WalletId>, bool),
     ) {
         self.refused = refused;
         // `Rc` is not `Send`: it is made here, on the thread that draws.
@@ -155,9 +154,9 @@ impl SpendState {
         // compare, so Check is owed again. `SpendState::refresh` marks it
         // done once more when this wallet was already checked this
         // power-on.
-        if self.spend.wallet_sum != wallet_sum {
+        if self.spend.wallet_id != wallet_id {
             self.done[crate::wallet::step::CHECK as usize] = false;
-            self.spend.wallet_sum = wallet_sum;
+            self.spend.wallet_id = wallet_id;
         }
         self.wallet = wallet;
         self.complete = complete && !self.spend.nonce_hold;
@@ -167,9 +166,9 @@ impl SpendState {
     /// check put on it meanwhile stays, with nothing finished (F227).
     pub(crate) fn take_spend(&mut self, spend: Spend) {
         let hold = self.spend.nonce_hold;
-        let sum = self.spend.wallet_sum.take();
+        let id = self.spend.wallet_id.take();
         self.spend = spend;
-        self.spend.wallet_sum = sum;
+        self.spend.wallet_id = id;
         if hold {
             self.spend.nonce_hold = true;
             self.spend.finished = None;

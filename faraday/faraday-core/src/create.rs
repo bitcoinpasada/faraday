@@ -1714,8 +1714,7 @@ impl Faraday {
                     && let Some(w) = self.create.state.as_ref().and_then(|c| c.built)
                     && let Some(wallet) = self.session.wallets.get(w)
                 {
-                    let checksum = Text::of(wallet.checksum());
-                    self.mark_checked(&checksum);
+                    self.mark_checked(wallet.id());
                 }
                 // It matches is one press: Back up opens on the wallet. A
                 // wallet made to move another's money to stays on Check,

@@ -11,6 +11,7 @@
 
 use faraday_bip::bitcoin::consensus::encode::serialize;
 use faraday_bip::bitcoin::hashes::{Hash, sha256};
+use faraday_bip::policy::WalletId;
 use faraday_psbt::Psbt;
 use faraday_vault::Record;
 use faraday_vault::records::kind;
@@ -145,10 +146,10 @@ pub(crate) struct MemoryArea {
     seal_amounts: bool,
     /// The nonce history (F227).
     pub(crate) nonces: nonces::NonceHistory,
-    /// The wallets, by descriptor checksum, a person has pressed
+    /// The wallets, by id (a hash of the whole descriptor), a person has pressed
     /// Continue on Check (Sign a transaction, Create) or "It matches"
     /// (Spend tab) for, this power-on (`docs/WALLETS.md` §4).
-    checked_wallets: Vec<String>,
+    checked_wallets: Vec<WalletId>,
 }
 
 /// Holds nothing a lock wipes: the public nonces and amounts signed; its entries must reach a vault, so a lock keeps them.
@@ -233,27 +234,26 @@ impl MemoryArea {
         self.seal_amounts = on;
     }
 
-    /// Whether a wallet of this descriptor checksum has been checked
-    /// this power-on.
-    pub(crate) fn is_checked(&self, checksum: &str) -> bool {
-        self.checked_wallets.iter().any(|c| c == checksum)
+    /// Whether a wallet of this id (a hash of its whole descriptor) has
+    /// been checked this power-on.
+    pub(crate) fn is_checked(&self, id: WalletId) -> bool {
+        self.checked_wallets.contains(&id)
     }
 
-    /// Remembers that a wallet of this descriptor checksum has been
-    /// checked.
-    pub(crate) fn mark_checked(&mut self, checksum: &str) {
-        if !self.is_checked(checksum) {
-            self.checked_wallets.push(checksum.to_string());
+    /// Remembers that a wallet of this id has been checked.
+    pub(crate) fn mark_checked(&mut self, id: WalletId) {
+        if !self.is_checked(id) {
+            self.checked_wallets.push(id);
         }
     }
 
-    /// The checksums of the wallets checked this power-on.
-    pub(crate) fn checked(&self) -> &[String] {
+    /// The ids of the wallets checked this power-on.
+    pub(crate) fn checked(&self) -> &[WalletId] {
         &self.checked_wallets
     }
 
     /// Takes in the checked wallets the previous process kept.
-    pub(crate) fn set_checked(&mut self, checked: Vec<String>) {
+    pub(crate) fn set_checked(&mut self, checked: Vec<WalletId>) {
         self.checked_wallets = checked;
     }
 }
@@ -370,16 +370,15 @@ impl Faraday {
         self.memory.take_held(id, held);
     }
 
-    /// Whether a wallet of this descriptor checksum has been checked
-    /// this power-on (`docs/WALLETS.md` §4).
-    pub(crate) fn is_checked(&self, checksum: &str) -> bool {
-        self.memory.is_checked(checksum)
+    /// Whether a wallet of this id has been checked this power-on
+    /// (`docs/WALLETS.md` §4).
+    pub(crate) fn is_checked(&self, id: WalletId) -> bool {
+        self.memory.is_checked(id)
     }
 
-    /// Remembers that a wallet of this descriptor checksum has been
-    /// checked.
-    pub(crate) fn mark_checked(&mut self, checksum: &str) {
-        self.memory.mark_checked(checksum);
+    /// Remembers that a wallet of this id has been checked.
+    pub(crate) fn mark_checked(&mut self, id: WalletId) {
+        self.memory.mark_checked(id);
     }
 
     /// Whether the signed-amount memory is sealed into an open vault on
@@ -420,7 +419,13 @@ impl Faraday {
         if !self.memory.checked().is_empty() {
             out.push((
                 "checked-wallets".to_string(),
-                self.memory.checked().join("\n").into_bytes(),
+                self.memory
+                    .checked()
+                    .iter()
+                    .map(|id| id.to_hex().to_string())
+                    .collect::<Vec<_>>()
+                    .join("\n")
+                    .into_bytes(),
             ));
         }
         // Which Outbox files are secrets let out: read again by the next
@@ -568,7 +573,7 @@ impl Faraday {
                     self.memory.set_checked(
                         String::from_utf8_lossy(bytes)
                             .lines()
-                            .map(str::to_string)
+                            .filter_map(WalletId::from_hex)
                             .collect(),
                     );
                 }

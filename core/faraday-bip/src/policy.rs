@@ -59,6 +59,59 @@ use crate::keys::{Fingerprint, Network, ScriptType};
 use crate::silent_wallet::SilentWallet;
 use crate::spend::SpendPath;
 
+/// Which wallet a policy is: a SHA-256 over a domain tag and the whole
+/// written descriptor ([`WalletPolicy::to_descriptor`], the address text
+/// for a silent payments wallet), so two wallets that differ in any
+/// character have two ids, which the 8-character BIP-380 checksum does
+/// not give (it is 40 bits, found for a second descriptor in seconds).
+/// The checksum stays for what a person reads and for a typed
+/// `#checksum`. There is no way to make one from a checksum or a string
+/// other than the 64-hex form a kept state holds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct WalletId([u8; 32]);
+
+impl WalletId {
+    /// The domain tag the descriptor text is hashed under.
+    const TAG: &'static [u8] = b"faraday/wallet-id/1\0";
+
+    fn of_descriptor(text: &str) -> Self {
+        let mut bytes = alloc::vec::Vec::with_capacity(Self::TAG.len() + text.len());
+        bytes.extend_from_slice(Self::TAG);
+        bytes.extend_from_slice(text.as_bytes());
+        Self(faraday_crypto::sha256(&bytes))
+    }
+
+    /// The id as 64 lower-case hex characters, for a kept form.
+    pub fn to_hex(&self) -> Text {
+        const DIGITS: &[u8; 16] = b"0123456789abcdef";
+        let mut out = Text::new();
+        for b in self.0 {
+            out.push(DIGITS[usize::from(b >> 4)] as char);
+            out.push(DIGITS[usize::from(b & 15)] as char);
+        }
+        out
+    }
+
+    /// The id a kept 64-hex form holds; `None` for any other text (an
+    /// 8-character checksum from before included).
+    pub fn from_hex(hex: &str) -> Option<Self> {
+        let bytes = hex.as_bytes();
+        if bytes.len() != 64 {
+            return None;
+        }
+        let digit = |c: u8| match c {
+            b'0'..=b'9' => Some(c - b'0'),
+            b'a'..=b'f' => Some(c - b'a' + 10),
+            _ => None,
+        };
+        let mut id = [0u8; 32];
+        for (i, pair) in bytes.chunks_exact(2).enumerate() {
+            id[i] = digit(pair[0])? << 4 | digit(pair[1])?;
+        }
+        Some(Self(id))
+    }
+}
+
 /// Why a policy or a descriptor could not be read as a wallet policy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {
@@ -354,6 +407,9 @@ pub struct WalletPolicy {
     /// worked out once when the policy is made. A function of the fields
     /// above, so the derived `PartialEq` is unchanged by it.
     checksum: [u8; 8],
+    /// The [`WalletId`] of [`to_descriptor`](Self::to_descriptor), worked
+    /// out with the checksum.
+    id: WalletId,
 }
 
 impl WalletPolicy {
@@ -419,6 +475,7 @@ impl WalletPolicy {
             silent: None,
             key_path: None,
             checksum: [0; 8],
+            id: WalletId([0; 32]),
         }
         .sealed())
     }
@@ -462,6 +519,7 @@ impl WalletPolicy {
             silent: None,
             key_path: None,
             checksum: [0; 8],
+            id: WalletId([0; 32]),
         }
         .sealed())
     }
@@ -499,6 +557,7 @@ impl WalletPolicy {
             silent: None,
             key_path: None,
             checksum: [0; 8],
+            id: WalletId([0; 32]),
         }
         .sealed())
     }
@@ -515,6 +574,7 @@ impl WalletPolicy {
             silent: Some(silent),
             key_path: None,
             checksum: [0; 8],
+            id: WalletId([0; 32]),
         }
         .sealed()
     }
@@ -773,12 +833,19 @@ impl WalletPolicy {
         core::str::from_utf8(&self.checksum).expect("the checksum alphabet is ASCII")
     }
 
-    /// The policy with its checksum worked out (writes the descriptor
-    /// out and hashes it): every constructor ends here.
+    /// Which wallet this is: the id of the whole descriptor, never the
+    /// checksum; a lookup, worked out when the policy was made.
+    pub fn id(&self) -> WalletId {
+        self.id
+    }
+
+    /// The policy with its checksum and id worked out (writes the
+    /// descriptor out and hashes it): every constructor ends here.
     fn sealed(mut self) -> Self {
         let desc = self.to_descriptor();
         self.checksum =
             descriptor_checksum(&desc).expect("descriptor uses only charset characters");
+        self.id = WalletId::of_descriptor(&desc);
         self
     }
 
@@ -1217,6 +1284,7 @@ fn parse_miniscript(text: &str) -> Result<WalletPolicy, Error> {
         silent: None,
         key_path,
         checksum: [0; 8],
+        id: WalletId([0; 32]),
     }
     .sealed())
 }

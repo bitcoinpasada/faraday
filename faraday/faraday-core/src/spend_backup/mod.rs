@@ -23,6 +23,7 @@ pub(crate) mod text;
 use crate::strings::EN;
 use crate::wallet::KeyTexts;
 use faraday_bip::keys::Fingerprint;
+use faraday_bip::policy::WalletId;
 use faraday_crypto::work::Compute;
 use faraday_shell_api::Command;
 use faraday_text::Text;
@@ -250,9 +251,10 @@ pub struct SpendBackupState {
     pub more: u32,
     /// Addresses shown on each chain beyond the first three.
     pub addresses: u32,
-    /// The wallet chosen to spend from, by its descriptor checksum: it
-    /// survives a lock, places in the session do not, and names repeat.
-    pub wallet: Option<Text>,
+    /// The wallet chosen to spend from, by its id (a hash of its whole
+    /// descriptor): it survives a lock, places in the session do not,
+    /// and names repeat.
+    pub wallet: Option<WalletId>,
     /// The column's scroll.
     pub scroll: flow::Scroll,
     /// The last refusal.
@@ -324,11 +326,6 @@ impl SpendBackupArea {
         } else {
             page::BRING
         }
-    }
-
-    /// Chooses the wallet to spend from, by its descriptor checksum.
-    pub(crate) fn choose(&mut self, checksum: Text) {
-        self.state.wallet = Some(checksum);
     }
 
     /// Sets the column's scroll, as the drawing pass notes it.
@@ -444,7 +441,7 @@ impl Faraday {
         use std::hash::{Hash, Hasher};
         let mut h = std::collections::hash_map::DefaultHasher::new();
         for w in &self.session.wallets {
-            w.checksum().hash(&mut h);
+            w.id().hash(&mut h);
         }
         for (k, it) in self.inbox.iter().enumerate() {
             if let Some(seen) = it.psbt() {
@@ -517,11 +514,8 @@ pub(crate) fn spend_button_on(r: &impl crate::glance::Reads, w: usize) -> (Text,
 impl Faraday {
     /// The wallet chosen to spend from, by its place in the session.
     pub fn spend_backup_wallet(&self) -> Option<usize> {
-        let checksum = self.spend_backup.state.wallet.as_deref()?;
-        self.session
-            .wallets
-            .iter()
-            .position(|w| w.checksum() == checksum)
+        let id = self.spend_backup.state.wallet?;
+        self.session.wallets.iter().position(|w| w.id() == id)
     }
 
     /// A wallet is open and chosen.
@@ -538,9 +532,9 @@ impl Faraday {
                 page::CHECK => {
                     return self.spend_backup_ready()
                         && (self.spend_backup.state.closed[p as usize]
-                            || self.spend_backup_wallet().is_some_and(|i| {
-                                self.is_checked(self.session.wallets[i].checksum())
-                            }));
+                            || self
+                                .spend_backup_wallet()
+                                .is_some_and(|i| self.is_checked(self.session.wallets[i].id())));
                 }
                 // Write the payment ends with the PSBT here.
                 page::WRITE => return self.wallets.spend().is_some(),
@@ -699,8 +693,7 @@ impl Faraday {
                     && let Some(w) = self.spend_backup_wallet()
                     && let Some(wallet) = self.session.wallets.get(w)
                 {
-                    let checksum = Text::of(wallet.checksum());
-                    self.mark_checked(&checksum);
+                    self.mark_checked(wallet.id());
                 }
                 // The spend's own Check is this page, done by the person.
                 // Only when the spend is the checked wallet's.
@@ -988,9 +981,9 @@ impl Faraday {
     /// Chooses the wallet at `i` of the session. Another wallet's pages
     /// said nothing of this one: choosing a different wallet opens the
     /// money check and the write page again.
-    fn spend_backup_set_wallet(&mut self, i: usize) {
-        let chosen = Text::of(self.session.wallets[i].checksum());
-        if self.spend_backup.state.wallet.as_ref() != Some(&chosen) {
+    pub(crate) fn spend_backup_set_wallet(&mut self, i: usize) {
+        let chosen = self.session.wallets[i].id();
+        if self.spend_backup.state.wallet != Some(chosen) {
             self.spend_backup.state.closed[page::CHECK as usize] = false;
             self.spend_backup.state.closed[page::WRITE as usize] = false;
             self.spend_backup.state.addresses = 0;
@@ -1796,10 +1789,8 @@ impl Faraday {
     /// when it is not the one chosen: its own Check, route, pages and
     /// way in. Another wallet's spend does not stay beside it.
     fn spend_backup_fresh_for(&mut self, taken: usize, file: &str) {
-        let checksum = Text::of(self.session.wallets[taken].checksum());
-        if self.spend_backup.state.wallet.is_some()
-            && self.spend_backup.state.wallet.as_ref() != Some(&checksum)
-        {
+        let id = self.session.wallets[taken].id();
+        if self.spend_backup.state.wallet.is_some() && self.spend_backup.state.wallet != Some(id) {
             let old = std::mem::take(&mut self.spend_backup.state);
             let closed = old.closed;
             self.spend_backup.state = SpendBackupState {
@@ -2093,11 +2084,8 @@ impl Faraday {
             text.push_str(p);
         }
         text.push('\n');
-        if let Some(w) = &self.spend_backup.state.wallet {
-            text.push_str(&faraday_text::text!(
-                "wallet={}\n",
-                faraday_text::Text::replaced(w, "\n", " ").as_str()
-            ));
+        if let Some(w) = self.spend_backup.state.wallet {
+            text.push_str(&faraday_text::text!("wallet={}\n", w.to_hex().as_str()));
         }
         if self.spend_backup.state.from_card {
             text.push_str("card=1\n");
@@ -2141,7 +2129,9 @@ impl Faraday {
                         }
                     }
                 }
-                Some(("wallet", v)) if !v.is_empty() => f.wallet = Some(Text::of(v)),
+                // A kept form from before, an 8-character checksum, is no id
+                // and names no wallet.
+                Some(("wallet", v)) => f.wallet = WalletId::from_hex(v),
                 Some(("card", v)) => f.from_card = v == "1",
                 Some(("came", v)) if !v.is_empty() => f.came.push(Came::File(Text::of(v))),
                 _ => {}
@@ -2195,8 +2185,7 @@ impl Faraday {
                 .spend_backup
                 .state
                 .wallet
-                .as_deref()
-                .is_some_and(|n| !self.session.wallets.iter().any(|w| w.name == n))
+                .is_some_and(|id| !self.session.wallets.iter().any(|w| w.id() == id))
             {
                 self.spend_backup.state.wallet = None;
             }

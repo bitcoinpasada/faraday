@@ -32,5 +32,6 @@ mod slip132;
 mod slip39;
 mod vanity;
 mod vectors;
+mod wallet_id;
 mod wif;
 mod wordlists;

@@ -8,7 +8,7 @@ use faraday_bip::bitcoin::ScriptBuf;
 use faraday_bip::bitcoin::bip32::DerivationPath;
 use faraday_bip::bitcoin::secp256k1::Secp256k1;
 use faraday_bip::keys::{Fingerprint, ScriptType};
-use faraday_bip::policy::WalletPolicy;
+use faraday_bip::policy::{WalletId, WalletPolicy};
 use faraday_crypto::work::Compute;
 use faraday_text::{Text, text};
 
@@ -99,9 +99,9 @@ pub(crate) struct Look {
     pub(crate) only: Option<Text>,
     /// How many wallets are looked in.
     pub(crate) wallets: usize,
-    /// The checksums of those wallets' policies, by place: what tells
+    /// The ids of those wallets' policies, by place: what tells
     /// that the loaded wallets are still the ones looked in.
-    loaded: Vec<String>,
+    loaded: Vec<WalletId>,
     /// Whether the loaded wallets changed since the look began: it looks
     /// no further, since a place may hold another wallet.
     ended: bool,
@@ -137,7 +137,7 @@ impl Look {
             address,
             only: (wallets.len() == 1).then(|| wallets[0].name.clone()),
             wallets: wallets.len(),
-            loaded: wallets.iter().map(|w| w.checksum().to_owned()).collect(),
+            loaded: wallets.iter().map(Wallet::id).collect(),
             ended: false,
             accounts,
             looked: DEPTHS[0],
@@ -157,7 +157,7 @@ impl Look {
                 || wallets
                     .iter()
                     .zip(&self.loaded)
-                    .any(|(w, c)| w.checksum() != c))
+                    .any(|(w, id)| w.id() != *id))
         {
             self.ended = true;
             if let Some((_, next, _)) = self.under_way.take() {
@@ -261,7 +261,7 @@ impl Look {
     /// Whether the wallet at `place` is still the one the look began in.
     pub(crate) fn same_wallet(&self, session: &Session, place: usize) -> bool {
         matches!((self.loaded.get(place), session.wallets.get(place)),
-            (Some(c), Some(w)) if w.checksum() == c)
+            (Some(id), Some(w)) if w.id() == *id)
     }
 
     /// Costs an address derivation for each index of each chain of each

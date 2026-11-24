@@ -870,9 +870,9 @@ impl Faraday {
                     crate::wallet::Origin::TypedSeeds,
                 ) {
                     Ok(i) => {
-                        self.spend_backup
-                            .choose(faraday_text::Text::of(&self.session.wallets[i].name));
-                        self.wallets.set_wallet(i);
+                        // As any choice of a wallet: another wallet's Check and
+                        // Write pages and address count do not carry over.
+                        self.spend_backup_set_wallet(i);
                         // Made without its description: a guess, which Check
                         // the money walks through.
                         self.spend_backup_guess_start(n > 1);

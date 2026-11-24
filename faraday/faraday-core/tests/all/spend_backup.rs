@@ -1429,3 +1429,116 @@ fn the_words_read_are_never_in_your_choices() {
     let text = drawn(&mut app);
     assert!(!text.contains(&*words), "{text}");
 }
+
+/// A wallet of the session, chosen on the tab with its Check and Write
+/// pages passed and five more addresses asked for.
+fn chosen_and_passed(app: &mut Faraday, name: &str, descriptor: &str) {
+    let c = testkit::compute();
+    app.session
+        .add_wallet_confirmed(
+            &c,
+            name,
+            descriptor,
+            "kit",
+            faraday_core::wallet::Origin::Named,
+        )
+        .expect("the wallet reads");
+    let at = wallet_at(app, name);
+    app.press(Action::SpendBackup(F::Choose(at)));
+    app.press(Action::SpendBackup(F::MoreAddresses));
+    app.press(Action::SpendBackup(F::Next(page::CHECK)));
+    app.press(Action::SpendBackup(F::Next(page::WRITE)));
+    assert!(app.spend_backup().closed[page::CHECK as usize]);
+    assert!(app.spend_backup().closed[page::WRITE as usize]);
+    assert_ne!(app.spend_backup().addresses, 0);
+}
+
+/// Two seeds read at the camera and made into a wallet without its
+/// description, on the tab with no wallet open.
+fn make_from_two_seeds(app: &mut Faraday) {
+    app.press(Action::SpendBackup(F::Card(page::HOLDING)));
+    scan_seed(app, "bacon");
+    scan_seed(app, "zebra");
+    app.press(Action::Cancel);
+    app.press(Action::SpendBackup(F::NoDescription));
+    app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
+    faraday_core::testkit::confirm_wallets(app);
+}
+
+/// A wallet made from two seeds is the wallet chosen, found by its id.
+#[test]
+fn a_wallet_made_from_seeds_on_the_tab_is_the_wallet_chosen() {
+    let mut app = shown();
+    on_intake(&mut app);
+    // Another wallet is loaded and not chosen: the made one is not the
+    // only wallet, so nothing but its id finds it.
+    let c = testkit::compute();
+    app.session
+        .add_wallet_confirmed(
+            &c,
+            "Savings",
+            &testkit::savings(),
+            "kit",
+            faraday_core::wallet::Origin::Named,
+        )
+        .expect("the wallet reads");
+    make_from_two_seeds(&mut app);
+    assert_eq!(app.session.wallets.len(), 2);
+    assert_eq!(app.spend_backup_wallet(), Some(1));
+}
+
+/// Another wallet's Check and Write pages and address count do not carry
+/// to a wallet made from seeds after it: the money is checked and the
+/// payment written again, and the addresses start over.
+#[test]
+fn a_wallet_made_from_seeds_after_another_starts_its_pages_over() {
+    let mut app = shown();
+    on_intake(&mut app);
+    chosen_and_passed(&mut app, "Savings", &testkit::savings());
+    // That wallet goes; the choice of it is kept.
+    app.press(Action::RemoveWallet(0));
+    assert!(app.session.wallets.is_empty());
+    make_from_two_seeds(&mut app);
+    assert_eq!(app.spend_backup_wallet(), Some(0));
+    let s = app.spend_backup();
+    assert!(!s.closed[page::WRITE as usize], "Write stayed done");
+    assert!(!s.closed[page::CHECK as usize], "Check stayed done");
+    assert_eq!(s.addresses, 0, "the address count carried over");
+}
+
+/// What the tab keeps across a lock names the wallet by its id, which
+/// comes back with it; a line from before, of the 8-character checksum,
+/// names no wallet.
+#[test]
+fn the_kept_wallet_of_the_tab_is_its_id_and_an_old_checksum_names_none() {
+    let mut app = shown();
+    on_intake(&mut app);
+    let c = testkit::compute();
+    app.session
+        .add_wallet_confirmed(
+            &c,
+            "Savings",
+            &testkit::savings(),
+            "kit",
+            faraday_core::wallet::Origin::Named,
+        )
+        .expect("the wallet reads");
+    app.press(Action::SpendBackup(F::Choose(0)));
+    let id = app.session.wallets[0].id();
+    assert!(app.spend_backup().wallet == Some(id));
+    let after = after_lock(app);
+    assert!(
+        after.spend_backup().wallet == Some(id),
+        "the chosen wallet did not come back"
+    );
+
+    let kept = vec![(
+        "spend-backup".to_string(),
+        b"active=1\nroute=\nopen=\nclosed=\nwallet=6kjg6089\n".to_vec(),
+    )];
+    let old = with_files(Vec::new(), kept);
+    assert!(
+        old.spend_backup().wallet.is_none(),
+        "an 8-character checksum chose a wallet"
+    );
+}

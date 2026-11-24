@@ -11,7 +11,7 @@ use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::bitcoin::consensus::encode::serialize_hex;
 use faraday_bip::bitcoin::{OutPoint, Transaction, Txid};
 use faraday_bip::keys::{Fingerprint, Network, ScriptType};
-use faraday_bip::policy::{KeyPath, Template, WalletPolicy, Wrapper};
+use faraday_bip::policy::{KeyPath, Template, WalletId, WalletPolicy, Wrapper};
 use faraday_crypto::work::Compute;
 use faraday_psbt::verify::Verdict;
 use faraday_psbt::{Context, Inspection, KeyRef, Psbt};
@@ -344,9 +344,9 @@ impl Wallet {
     /// Takes home what a [`Wallet::job_copy`] kept while it worked: the
     /// scripts (and the keys derived beside them) and the addresses this
     /// wallet does not hold yet, and its [`Wallet::same`]. Nothing from a
-    /// wallet of another checksum, and nothing already kept is replaced.
+    /// wallet of another id, and nothing already kept is replaced.
     pub fn take_kept(&self, from: Wallet) {
-        if from.checksum() != self.checksum() {
+        if from.id() != self.id() {
             return;
         }
         let mut kept = self.scripts.borrow_mut();
@@ -502,8 +502,15 @@ impl Wallet {
     }
 
     /// The policy's descriptor checksum; a lookup, kept by the policy.
+    /// For what a person reads; which wallet this is, is [`Wallet::id`].
     pub fn checksum(&self) -> &str {
         self.policy.checksum()
+    }
+
+    /// Which wallet this is (a hash of its whole descriptor); a lookup,
+    /// kept by the policy.
+    pub fn id(&self) -> WalletId {
+        self.policy.id()
     }
 
     /// Replaces the policy, dropping the addresses and scripts kept from
@@ -1751,16 +1758,12 @@ impl Session {
 
     /// What an inspection is worked out from beside the PSBT
     /// ([`InspectInputs`]). Lookups: each key's id and each wallet's
-    /// checksum are kept.
+    /// id are kept.
     pub fn inspect_inputs(&self) -> InspectInputs {
         InspectInputs {
             network: self.network(),
             keys: self.keys.all().map(|k| k.id.0).collect(),
-            wallets: self
-                .wallets
-                .iter()
-                .map(|w| Text::of(w.checksum()))
-                .collect(),
+            wallets: self.wallets.iter().map(|w| w.id()).collect(),
         }
     }
 
@@ -1984,12 +1987,12 @@ impl Session {
 
 /// What an inspection of a PSBT is worked out from beside it: the
 /// network, each key (by [`master_id`]) and each wallet (by its
-/// checksum). Two equal ones inspect a PSBT alike. Public.
+/// id). Two equal ones inspect a PSBT alike. Public.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InspectInputs {
     network: Network,
     keys: Vec<[u8; 32]>,
-    wallets: Vec<Text>,
+    wallets: Vec<WalletId>,
 }
 
 /// What a PSBT says that the screens read, taken once when it is read
@@ -2899,10 +2902,10 @@ pub struct Spend {
     /// version 0 form (`wallet/v2.rs`). Set as the spend starts, never
     /// changed: `collect` keeps `psbt` of its transaction.
     pub v2: Option<faraday_psbt::v2::PsbtV2>,
-    /// The checksum of the loaded wallet the transaction was last read as
+    /// The id of the loaded wallet the transaction was last read as
     /// spending from, so that Check is owed again when another wallet
     /// takes its place (`SpendState::keep_fresh`).
-    pub wallet_sum: Option<Text>,
+    pub wallet_id: Option<WalletId>,
 }
 
 /// A MuSig2 partial signature this device wrote: the input, the
@@ -3010,7 +3013,7 @@ impl Spend {
             finished: None,
             nonce_hold: false,
             v2: None,
-            wallet_sum: None,
+            wallet_id: None,
         }
     }
 
@@ -4687,7 +4690,7 @@ impl Faraday {
         let c = self.compute();
         let memory = &self.memory;
         self.wallets
-            .refresh(&c, &self.session, |checksum| memory.is_checked(checksum));
+            .refresh(&c, &self.session, |id| memory.is_checked(id));
         self.refresh_others(&c);
         self.nonce_spend_sync();
         self.spend_files_out();
@@ -4966,8 +4969,8 @@ impl Faraday {
                     && let Some(w) = self.wallets.spend().and_then(|s| s.wallet)
                     && let Some(wallet) = self.session.wallets.get(w)
                 {
-                    let checksum = Text::of(wallet.checksum());
-                    self.mark_checked(&checksum);
+                    let id = wallet.id();
+                    self.mark_checked(id);
                 }
                 // The steps with nothing to decide are passed (never the
                 // review): Continue on one carries on past them.
