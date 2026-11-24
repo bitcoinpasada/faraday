@@ -347,7 +347,11 @@ one with no kept state (`docs/history/SIMPLIFY.md` §2.5). The kept list holds
 the ids as 64 hexadecimal characters, and a list of 8-character checksums
 from before names no wallet. The same id picks the wallet Spend from backup
 chooses and the wallet a spend's Check was passed for, so another wallet of
-the same checksum asks again. Everything before the
+the same checksum asks again. The same id tells the wallet whose money
+moves to a new wallet and the new wallet, and which wallet's share record
+(type 13) the backup checklist's Save to a vault replaces, so a wallet of
+the same checksum keeps its own there. The backup flow's copy to a vault
+still picks share records by checksum. Everything before the
 signers is watch-only, so any reason to stop is found before a key is
 used. In Faraday the keys are usually already loaded from a vault, so
 the signers step shows them rather than asking for them, and asks only

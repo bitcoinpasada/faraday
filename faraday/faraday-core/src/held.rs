@@ -915,13 +915,12 @@ impl Faraday {
                 None => self.toast(&Text::fill(EN.c32_vault_missing, &[&share, &form.1])),
             }
         }
-        let Some((name, cs, desc)) = self.session.wallets.get(w).map(|wl| {
-            (
-                wl.name.clone(),
-                Text::of(wl.checksum()),
-                Faraday::wallet_text(wl),
-            )
-        }) else {
+        let Some((name, wid, desc)) = self
+            .session
+            .wallets
+            .get(w)
+            .map(|wl| (wl.name.clone(), wl.id(), Faraday::wallet_text(wl)))
+        else {
             return;
         };
         // The plan's split sheets go in only where they rebuild the wallet.
@@ -939,7 +938,7 @@ impl Faraday {
             }
         }
         for (j, text, of) in shares {
-            if self.vault_holds_share(&c, cur, &cs, j, &text) {
+            if self.vault_holds_share_wallet(&c, cur, wid, j, &text) {
                 continue;
             }
             let number = u8::try_from(j + 1).unwrap_or(u8::MAX);
@@ -947,7 +946,7 @@ impl Faraday {
             // never by its name, is replaced.
             if let Some(id) = self.vaults.open.get(cur).map(|o| o.id) {
                 self.vaults.edit(id, |s| {
-                    s.remove_where(id, |r| crate::share_record_is(&c, r, &cs, Some(j)))
+                    s.remove_where(id, |r| crate::share_record_is_wallet(&c, r, wid, Some(j)))
                 });
             }
             let record = Record::new(kind::WALLET_SHARE)
@@ -1047,11 +1046,11 @@ pub(crate) fn receive_held_on(r: &impl Reads, wl: &wallet::Wallet) -> bool {
     if held.is_empty() {
         return false;
     }
-    let cs = wl.checksum();
+    let id = wl.id();
     app.session
         .wallets
         .iter()
-        .position(|w| w.checksum() == cs)
+        .position(|w| w.id() == id)
         .is_some_and(|i| !app.wallet_held_in(i, held).is_empty())
 }
 

@@ -15,32 +15,9 @@ use faraday_core::wallet::{Origin, step};
 use faraday_core::{Action, Ask, Faraday, Screen, StorageCommand, StorageEvent, files_from};
 use faraday_shell_api::App;
 
-const FIRST: &str = concat!(
-    "wsh(sortedmulti(2,[9a6a2580/48h/1h/0h/2h]tpubDFZk17LmJpm9HZWfxoggu7yC1KeUm26JA2gCHnCXdo9oV",
-    "PnpGZb9ErVXmiRiDMBgTiQ9oNdC3TDE4PvVy7eMvubhZqkcrPyCkiZvzWBVqrr/<0;1>/*,[5d388376/48h/1h/0h",
-    "/2h]tpubDFcsPThm5auRC835VVQsJ4U3cwqobwd2NUsMBHh7ngRtyRVFtKcWrWMUK5jQ6nFmUVfC5aLckrGaPSkRkx",
-    "DYZL2Qxf3weKxbYb4uSvdc5fb/<0;1>/*,[cf2e083d/48h/1h/0h/2h]tpubDFUzvqxLm1V5MSw6HUgSCEWVUVfzF",
-    "UtPD9hbnCg1uWKdUX9PqYpBqLvcBgDCWfDWZKUMQeczGQyccANPFYyK9nhTcszQGCZrKXDzVacHUzh/<0;1>/*))#6",
-    "kjg6089",
-);
-
-const TWIN: &str = concat!(
-    "wsh(sortedmulti(1,[9a6a2580/48h/1h/0h/2h]tpubDFZk17LmJpm9HZWfxoggu7yC1KeUm26JA2gCHnCXdo9oV",
-    "PnpGZb9ErVXmiRiDMBgTiQ9oNdC3TDE4PvVy7eMvubhZqkcrPyCkiZvzWBVqrr/<0;1>/*,[5d388376/48h/1h/0h",
-    "/2h]tpubDFcsPThm5auRC835VVQsJ4U3cwqobwd2NUsMBHh7ngRtyRVFtKcWrWMUK5jQ6nFmUVfC5aLckrGaPSkRkx",
-    "DYZL2Qxf3weKxbYb4uSvdc5fb/<0;1>/*,[05764152/48h/1h/107727000h/2h]tpubDFUzvqxLm1V5MSw6HUgSC",
-    "EWVUVfzFUtPD9hbnCg1uWKdUX9PqYpBqLvcBgDCWfDWZKUMQeczGQyccANPFYyK9nhTcszQGCZrKXDzVacHUzh/<0;",
-    "1>/*))#6kjg6089",
-);
-
-const ALIAS: &str = concat!(
-    "wsh(sortedmulti(2,[9a6a2580/48h/1h/0h/2h]tpubDFZk17LmJpm9HZWfxoggu7yC1KeUm26JA2gCHnCXdo9oV",
-    "PnpGZb9ErVXmiRiDMBgTiQ9oNdC3TDE4PvVy7eMvubhZqkcrPyCkiZvzWBVqrr/<0;1>/*,[5d388376/48h/1h/0h",
-    "/2h]tpubDFcsPThm5auRC835VVQsJ4U3cwqobwd2NUsMBHh7ngRtyRVFtKcWrWMUK5jQ6nFmUVfC5aLckrGaPSkRkx",
-    "DYZL2Qxf3weKxbYb4uSvdc5fb/<0;1>/*,[75424404/48h/1h/141234000h/2h]tpubDFUzvqxLm1V5MSw6HUgSC",
-    "EWVUVfzFUtPD9hbnCg1uWKdUX9PqYpBqLvcBgDCWfDWZKUMQeczGQyccANPFYyK9nhTcszQGCZrKXDzVacHUzh/<0;",
-    "1>/*))#6kjg6089",
-);
+use faraday_core::testkit::{
+    WALLET_ID_ALIAS as ALIAS, WALLET_ID_FIRST as FIRST, WALLET_ID_TWIN as TWIN,
+};
 
 fn kit(id: &'static str, descriptor: &str) -> Kit {
     Kit {

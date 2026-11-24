@@ -425,14 +425,14 @@ impl GlanceArea {
         self.work.pass.clear();
     }
 
-    /// The wallet whose money is moving to a new wallet, by checksum.
-    pub(crate) fn set_moving(&mut self, sum: &str) {
-        self.work.moving = Some(faraday_text::Text::of(sum));
+    /// The wallet whose money is moving to a new wallet, by id.
+    pub(crate) fn set_moving(&mut self, id: faraday_bip::policy::WalletId) {
+        self.work.moving = Some(id);
     }
 
-    /// The new wallet `sum` is gone: the money is no longer moving to it.
-    pub(crate) fn forget_moving_to(&mut self, sum: &str) {
-        if self.work.moving_to.as_deref() == Some(sum) {
+    /// The new wallet `id` is gone: the money is no longer moving to it.
+    pub(crate) fn forget_moving_to(&mut self, id: faraday_bip::policy::WalletId) {
+        if self.work.moving_to == Some(id) {
             self.work.moving_to = None;
         }
     }

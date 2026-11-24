@@ -111,6 +111,8 @@ mod vault_seal;
 mod vault_seal_count;
 #[path = "all/vault_seal_stop.rs"]
 mod vault_seal_stop;
+#[path = "all/wallet_id_vault.rs"]
+mod wallet_id_vault;
 #[path = "all/wallet_paths.rs"]
 mod wallet_paths;
 #[path = "all/wallet_setup.rs"]

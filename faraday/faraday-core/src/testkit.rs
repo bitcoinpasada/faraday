@@ -245,6 +245,37 @@ pub fn demo_samples() -> &'static crate::samples::Samples {
     })
 }
 
+/// A wallet of the checksum `6kjg6089`; `WALLET_ID_TWIN` and
+/// `WALLET_ID_ALIAS` share it.
+pub const WALLET_ID_FIRST: &str = concat!(
+    "wsh(sortedmulti(2,[9a6a2580/48h/1h/0h/2h]tpubDFZk17LmJpm9HZWfxoggu7yC1KeUm26JA2gCHnCXdo9oV",
+    "PnpGZb9ErVXmiRiDMBgTiQ9oNdC3TDE4PvVy7eMvubhZqkcrPyCkiZvzWBVqrr/<0;1>/*,[5d388376/48h/1h/0h",
+    "/2h]tpubDFcsPThm5auRC835VVQsJ4U3cwqobwd2NUsMBHh7ngRtyRVFtKcWrWMUK5jQ6nFmUVfC5aLckrGaPSkRkx",
+    "DYZL2Qxf3weKxbYb4uSvdc5fb/<0;1>/*,[cf2e083d/48h/1h/0h/2h]tpubDFUzvqxLm1V5MSw6HUgSCEWVUVfzF",
+    "UtPD9hbnCg1uWKdUX9PqYpBqLvcBgDCWfDWZKUMQeczGQyccANPFYyK9nhTcszQGCZrKXDzVacHUzh/<0;1>/*))#6",
+    "kjg6089",
+);
+
+/// A wallet of `WALLET_ID_FIRST`'s checksum: threshold 1, another origin.
+pub const WALLET_ID_TWIN: &str = concat!(
+    "wsh(sortedmulti(1,[9a6a2580/48h/1h/0h/2h]tpubDFZk17LmJpm9HZWfxoggu7yC1KeUm26JA2gCHnCXdo9oV",
+    "PnpGZb9ErVXmiRiDMBgTiQ9oNdC3TDE4PvVy7eMvubhZqkcrPyCkiZvzWBVqrr/<0;1>/*,[5d388376/48h/1h/0h",
+    "/2h]tpubDFcsPThm5auRC835VVQsJ4U3cwqobwd2NUsMBHh7ngRtyRVFtKcWrWMUK5jQ6nFmUVfC5aLckrGaPSkRkx",
+    "DYZL2Qxf3weKxbYb4uSvdc5fb/<0;1>/*,[05764152/48h/1h/107727000h/2h]tpubDFUzvqxLm1V5MSw6HUgSC",
+    "EWVUVfzFUtPD9hbnCg1uWKdUX9PqYpBqLvcBgDCWfDWZKUMQeczGQyccANPFYyK9nhTcszQGCZrKXDzVacHUzh/<0;",
+    "1>/*))#6kjg6089",
+);
+
+/// A wallet of `WALLET_ID_FIRST`'s checksum that pays to its addresses.
+pub const WALLET_ID_ALIAS: &str = concat!(
+    "wsh(sortedmulti(2,[9a6a2580/48h/1h/0h/2h]tpubDFZk17LmJpm9HZWfxoggu7yC1KeUm26JA2gCHnCXdo9oV",
+    "PnpGZb9ErVXmiRiDMBgTiQ9oNdC3TDE4PvVy7eMvubhZqkcrPyCkiZvzWBVqrr/<0;1>/*,[5d388376/48h/1h/0h",
+    "/2h]tpubDFcsPThm5auRC835VVQsJ4U3cwqobwd2NUsMBHh7ngRtyRVFtKcWrWMUK5jQ6nFmUVfC5aLckrGaPSkRkx",
+    "DYZL2Qxf3weKxbYb4uSvdc5fb/<0;1>/*,[75424404/48h/1h/141234000h/2h]tpubDFUzvqxLm1V5MSw6HUgSC",
+    "EWVUVfzFUtPD9hbnCg1uWKdUX9PqYpBqLvcBgDCWfDWZKUMQeczGQyccANPFYyK9nhTcszQGCZrKXDzVacHUzh/<0;",
+    "1>/*))#6kjg6089",
+);
+
 /// The Savings spend's txid on the test network ([`NET`]).
 pub const SPEND_TXID: &str = "e65b496fcae9385082643e05b11fac9bd90461bf3c940a805052fb78a673561f";
 /// Where every spend pays 0.015 tBTC: the testnet address of BIP-84's

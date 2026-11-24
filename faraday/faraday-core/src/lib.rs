@@ -811,11 +811,32 @@ pub(crate) fn share_record_is(
     cs: &str,
     j: Option<usize>,
 ) -> bool {
+    share_record_where(c, r, j, |p| p.checksum() == cs)
+}
+
+/// [`share_record_is`] for the wallet with id `id` (its whole
+/// descriptor), not its checksum: another wallet of the same checksum
+/// keeps its share record.
+pub(crate) fn share_record_is_wallet(
+    c: &Compute,
+    r: faraday_keys::vault::RecordView<'_>,
+    id: faraday_bip::policy::WalletId,
+    j: Option<usize>,
+) -> bool {
+    share_record_where(c, r, j, |p| p.id() == id)
+}
+
+fn share_record_where(
+    c: &Compute,
+    r: faraday_keys::vault::RecordView<'_>,
+    j: Option<usize>,
+    of_wallet: impl Fn(&faraday_bip::policy::WalletPolicy) -> bool,
+) -> bool {
     use faraday_vault::records::{field, kind};
     r.kind() == kind::WALLET_SHARE
         && r.public_text(field::SHARE_WALLET)
             .and_then(|t| wallet::read_wallet(c, t).ok())
-            .is_some_and(|p| p.checksum() == cs)
+            .is_some_and(|p| of_wallet(&p))
         && j.is_none_or(|j| {
             r.public(field::SHARE_NUMBER)
                 .and_then(|b| b.first())

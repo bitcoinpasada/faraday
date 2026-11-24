@@ -401,8 +401,8 @@ impl Faraday {
             self.flows.restore(f, *was);
         }
         if added {
-            let sum = self.session.wallets[w].checksum().to_string();
-            self.glance.forget_moving_to(&sum);
+            let id = self.session.wallets[w].id();
+            self.glance.forget_moving_to(id);
             self.remove_wallet(w);
             self.wallets.set_wallet(w.saturating_sub(1));
             self.spend_after_wallet_removed();

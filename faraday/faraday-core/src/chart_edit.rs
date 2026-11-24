@@ -24,11 +24,11 @@ pub struct Work {
     pub result: Option<bool>,
     /// Why the last key typed in the passphrase was refused.
     pub refused: Option<Text>,
-    /// The wallet whose money is moving to a new wallet, by checksum
+    /// The wallet whose money is moving to a new wallet, by id
     /// (`docs/WALLETS.md` §12).
-    pub moving: Option<Text>,
-    /// The new wallet it moves to, once Create has made it, by checksum.
-    pub moving_to: Option<Text>,
+    pub moving: Option<faraday_bip::policy::WalletId>,
+    /// The new wallet it moves to, once Create has made it, by id.
+    pub moving_to: Option<faraday_bip::policy::WalletId>,
 }
 
 impl Default for Work {
@@ -54,7 +54,7 @@ impl Work {
     /// to, while a move is under way.
     pub(crate) fn moved_to(&mut self, session: &crate::wallet::Session, i: usize) {
         if self.moving.is_some() {
-            self.moving_to = session.wallets.get(i).map(|w| Text::of(w.checksum()));
+            self.moving_to = session.wallets.get(i).map(|w| w.id());
         }
     }
 }
@@ -604,10 +604,10 @@ impl Faraday {
         let Some(w) = self.press_wallet(press) else {
             return;
         };
-        let Some(sum) = self.session.wallets.get(w).map(|x| Text::of(x.checksum())) else {
+        let Some(id) = self.session.wallets.get(w).map(|x| x.id()) else {
             return;
         };
-        self.glance.set_moving(sum.as_str());
+        self.glance.set_moving(id);
         self.glance.set_chart(None);
         self.sheet = None;
         self.act(Action::CreateWallet);
@@ -621,10 +621,7 @@ impl Faraday {
     pub(crate) fn moving_from(&self) -> Option<usize> {
         self.glance.work().moving_to.as_ref()?;
         let from = self.glance.work().moving.as_ref()?;
-        self.session
-            .wallets
-            .iter()
-            .position(|w| w.checksum() == from.as_str())
+        self.session.wallets.iter().position(|w| w.id() == *from)
     }
 
     /// Typing into the open sheet's field: a name, or a passphrase to be
@@ -741,11 +738,7 @@ pub(crate) fn moving_to_on(r: &impl glance::Reads, w: usize) -> Option<(Text, Te
         return None;
     }
     let to = app.glance.work().moving_to.as_ref()?;
-    let nw = app
-        .session
-        .wallets
-        .iter()
-        .find(|x| x.checksum() == to.as_str())?;
+    let nw = app.session.wallets.iter().find(|x| x.id() == *to)?;
     Some((
         Text::of(&nw.name),
         Text::of(&crate::held::receive_line_on(r, nw, false, 0).0),
@@ -774,5 +767,59 @@ fn notes_after_destroyed_what(
             crate::plan::slip39::notes_after_destroyed_slip39(notes, i, id, g, m)
         }
         _ => notes.to_vec(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::wallet::Origin;
+    use crate::{Faraday, testkit};
+
+    /// Two wallets of one checksum loaded, the first the one whose money
+    /// moves: the new wallet is the second, never the first again.
+    fn app_with_the_pair() -> Faraday {
+        let c = testkit::compute();
+        let mut app = Faraday::new();
+        testkit::move_to(&mut app.session, testkit::NET).unwrap();
+        for (name, d) in [
+            ("first", testkit::WALLET_ID_FIRST),
+            ("twin", testkit::WALLET_ID_TWIN),
+        ] {
+            app.session
+                .add_wallet_confirmed(&c, name, d, "kit", Origin::Named)
+                .expect("the wallet reads");
+        }
+        assert_eq!(app.session.wallets.len(), 2);
+        assert_eq!(
+            app.session.wallets[0].checksum(),
+            app.session.wallets[1].checksum()
+        );
+        app
+    }
+
+    #[test]
+    fn the_money_moves_from_the_wallet_chosen_not_from_its_checksum_twin() {
+        let mut app = app_with_the_pair();
+        // The twin's money moves, to the first wallet Create made.
+        app.glance.set_moving(app.session.wallets[1].id());
+        app.glance.moved_to(&app.session, 0);
+        assert_eq!(app.moving_from(), Some(1));
+        // And the other way.
+        app.glance.set_moving(app.session.wallets[0].id());
+        app.glance.moved_to(&app.session, 1);
+        assert_eq!(app.moving_from(), Some(0));
+    }
+
+    #[test]
+    fn a_new_wallet_taken_back_is_forgotten_only_as_itself() {
+        let mut app = app_with_the_pair();
+        app.glance.set_moving(app.session.wallets[0].id());
+        app.glance.moved_to(&app.session, 1);
+        // The first wallet, of the new wallet's checksum, goes: the
+        // money still moves to the twin.
+        app.glance.forget_moving_to(app.session.wallets[0].id());
+        assert_eq!(app.moving_from(), Some(0));
+        app.glance.forget_moving_to(app.session.wallets[1].id());
+        assert_eq!(app.moving_from(), None);
     }
 }

@@ -4821,6 +4821,24 @@ impl Faraday {
         })
     }
 
+    /// [`Self::vault_holds_share`] for the wallet with id `id`.
+    pub(crate) fn vault_holds_share_wallet(
+        &self,
+        c: &Compute,
+        o: usize,
+        id: faraday_bip::policy::WalletId,
+        j: usize,
+        text: &str,
+    ) -> bool {
+        use faraday_vault::records::field;
+        self.vaults.open.get(o).is_some_and(|x| {
+            self.vaults.records(x.id).iter().any(|(_, r)| {
+                crate::share_record_is_wallet(c, r, id, Some(j))
+                    && r.public_text(field::SHARE) == Some(text)
+            })
+        })
+    }
+
     /// The text a vault keeps a wallet under, as Vaults saves it.
     pub(crate) fn wallet_text(w: &crate::wallet::Wallet) -> Text {
         match w.policy().silent() {
