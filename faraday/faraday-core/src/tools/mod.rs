@@ -74,7 +74,7 @@ pub(crate) const MAX_AMOUNTS: usize = 6;
 
 /// One amount of Units: what is typed and the unit it is typed in.
 #[derive(Default)]
-struct Amount {
+struct UnitAmount {
     typed: crate::secret_text::SecretText,
     unit: u8,
 }
@@ -94,7 +94,7 @@ pub struct ToolsState {
     pub script: PolicyScript,
     /// Units' amounts, one slot each; the slot of the amount shown holds
     /// nothing, its text and unit being `typed` and `unit`.
-    amounts: Vec<Amount>,
+    amounts: Vec<UnitAmount>,
     /// Which of the amounts is shown.
     amount: usize,
     /// Where it returns to.
@@ -161,7 +161,7 @@ impl ToolsState {
             return;
         }
         self.park_amount();
-        self.amounts.push(Amount::default());
+        self.amounts.push(UnitAmount::default());
         self.take_amount(self.amounts.len() - 1);
     }
 
@@ -465,7 +465,7 @@ impl ToolsArea {
             read_as: ReadAs::Auto,
             unit: 0,
             script: PolicyScript::Segwit,
-            amounts: vec![Amount::default()],
+            amounts: vec![UnitAmount::default()],
             amount: 0,
             back,
             open: flow::INPUT,
@@ -586,7 +586,7 @@ impl ToolsArea {
                     t.tool = tool;
                     t.typed.clear();
                     t.unit = 0;
-                    t.amounts = vec![Amount::default()];
+                    t.amounts = vec![UnitAmount::default()];
                     t.amount = 0;
                     t.open = flow::INPUT;
                 }
