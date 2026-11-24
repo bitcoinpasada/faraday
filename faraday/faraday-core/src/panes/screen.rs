@@ -3,10 +3,11 @@
 //! Material's two-line list items.
 
 use crate::drawing::View;
+use crate::screens::hub_layout::{self, Left, Narrow, Panes, Place, Tile};
 use crate::ui::{Moves, Region};
 use crate::ui::{Paint, Ui};
 use crate::{Action, Screen};
-use faraday_draw::tokens::{COLUMN_MAX, LIST_PANE, MARGIN_WIDE, PANE_TOP_BAR, SPACER};
+use faraday_draw::tokens::{COLUMN_MAX, PANE_TOP_BAR};
 use faraday_ui::roles::ListItem;
 
 /// Where the two panes stand: each one's left edge and width, and the
@@ -36,35 +37,52 @@ pub(crate) fn shown(app: &View, screen: Screen) -> bool {
     super::has_list(screen) && super::side_by_side(app.window())
 }
 
+/// List and detail's panes: the list pane at the start and the detail
+/// filling the rest.
+const PANES: Panes = Panes {
+    left: Left::Own,
+    tile: Tile::Detail,
+    stacks: false,
+    narrow: Narrow::OneColumn,
+};
+
 /// Whether a page area `cw` wide holds the list pane and, beside it, a
 /// detail at least as wide. A chart's side sheet narrows the page area by
 /// its width; where the rest is too narrow for both, the one chosen
 /// stands alone in it until the sheet closes, as on a medium window (§5),
 /// rather than squeezed beside the list. Arithmetic.
 pub(crate) fn fits(cw: f32) -> bool {
-    cw >= 2.0 * (MARGIN_WIDE + LIST_PANE) + SPACER
+    PANES.place(cw, false).is_some()
 }
 
 /// Where the chosen one stands alone in the page area at `x0`, `cw`
 /// wide, the list pane given way ([`fits`]): the detail from margin to
 /// margin. Arithmetic.
 pub(crate) fn alone(x0: f32, cw: f32) -> Split {
+    let (x, w) = hub_layout::detail_alone(cw);
     Split {
-        list: (x0 + MARGIN_WIDE, 0.0),
-        detail: (x0 + MARGIN_WIDE, (cw - 2.0 * MARGIN_WIDE).max(0.0)),
+        list: (x0 + x, 0.0),
+        detail: (x0 + x, w),
         top: PANE_TOP_BAR,
     }
 }
 
 /// Where the list pane and the detail stand in the page area at `x0`,
-/// `cw` wide: the list `LIST_PANE` wide at the start, the `SPACER`, and
-/// the detail to the area's right margin. Arithmetic.
+/// `cw` wide, as the pane container places them. Arithmetic.
 pub(crate) fn split(x0: f32, cw: f32) -> Split {
-    let lx = x0 + MARGIN_WIDE;
-    let dx = lx + LIST_PANE + SPACER;
+    let p = PANES.place(cw, false).unwrap_or_else(|| {
+        let (x, w) = hub_layout::detail_alone(cw);
+        Place {
+            card_x: x,
+            card_w: w,
+            pane_x: x,
+            pane_w: 0.0,
+            gap: 0.0,
+        }
+    });
     Split {
-        list: (lx, LIST_PANE),
-        detail: (dx, (x0 + cw - MARGIN_WIDE - dx).max(0.0)),
+        list: (x0 + p.pane_x, p.pane_w),
+        detail: (x0 + p.card_x, p.card_w),
         top: PANE_TOP_BAR,
     }
 }

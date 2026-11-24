@@ -481,3 +481,223 @@ fn with_motion_off_the_pair_is_aside_at_once() {
         .collect();
     assert_eq!(frames[0], *frames.last().unwrap(), "Off is final at once");
 }
+
+#[test]
+fn the_guide_slides_in_from_the_right_edge_and_out_again() {
+    let (mut app, t) = on_home((1920, 1080), MotionStyle::Smooth);
+    let shut = at(&mut app, t);
+    app.press(Action::Guide);
+    let open: Vec<_> = (0..=1_000 / 16)
+        .map(|i| at(&mut app, t + 100 + i * 16))
+        .collect();
+    let rest = open.last().unwrap();
+    assert_ne!(open[2], shut, "the first frames are not the shut page");
+    assert_ne!(open[2], *rest, "nor the open one: the pane is between");
+    assert_ne!(open[MID], *rest, "half way it is still on its way");
+    assert_ne!(*rest, shut, "and it ends open");
+    app.press(Action::GuideClose);
+    let shutting: Vec<_> = (0..=1_000 / 16)
+        .map(|i| at(&mut app, t + 2_000 + i * 16))
+        .collect();
+    assert_ne!(shutting[2], *rest, "closing starts from the open page");
+    assert_ne!(shutting[MID], shut, "and is between half way");
+    assert_eq!(*shutting.last().unwrap(), shut, "pixel-equal after close");
+}
+
+/// How far the left part of the guide's rest rectangle in `frame` is
+/// from the shut page `shut` towards the surface colour `s`, 0 to 1, read
+/// at the pixel of the shut page that is furthest from it; and whether
+/// every pixel of the part is at that same strength, so that the part is
+/// the shut page faded to the surface as a whole.
+fn strength(
+    frame: &[u8],
+    shut: &[u8],
+    s: [u8; 4],
+    xs: std::ops::Range<usize>,
+    ys: std::ops::Range<usize>,
+) -> (f32, f32) {
+    let w = 1920usize;
+    let mut best = (0i32, 0usize, 0usize);
+    for y in ys.clone() {
+        for x in xs.clone() {
+            let i = (y * w + x) * 4;
+            let d = (0..3)
+                .map(|c| (shut[i + c] as i32 - s[c] as i32).abs())
+                .max()
+                .unwrap();
+            if d > best.0 {
+                best = (d, x, y);
+            }
+        }
+    }
+    let (d, bx, by) = best;
+    if d == 0 {
+        return (0.0, 0.0);
+    }
+    let i = (by * w + bx) * 4;
+    let c = (0..3)
+        .max_by_key(|c| (shut[i + c] as i32 - s[*c] as i32).abs())
+        .unwrap();
+    let k = (shut[i + c] as f32 - frame[i + c] as f32) / (shut[i + c] as f32 - s[c] as f32);
+    let mut worst = 0f32;
+    for y in ys {
+        for x in xs.clone() {
+            let i = (y * w + x) * 4;
+            for c in 0..3 {
+                let want = shut[i + c] as f32 + (s[c] as f32 - shut[i + c] as f32) * k;
+                worst = worst.max((frame[i + c] as f32 - want).abs());
+            }
+        }
+    }
+    (k, worst)
+}
+
+/// Opens the guide on `page` at 1920 x 1080, then shuts it, and checks
+/// that in the left part of the pane's rest rectangle (which the sliding
+/// pane has not reached) every frame is the page without the guide as the
+/// page's own fade through the surface shows it: the whole part at one
+/// strength, going out to the surface and staying there while the opening
+/// page comes in, coming in from it while the closing page does.
+fn under_the_pane_the_page_is_whole(page: Screen) {
+    let (mut app, t) = on_home((1920, 1080), MotionStyle::Smooth);
+    let _ = change(&mut app, Action::Nav(page), t, false);
+    let t = t + 2_000;
+    let shut = at(&mut app, t);
+    app.press(Action::Guide);
+    let open: Vec<_> = (0..=1_000 / 16)
+        .map(|i| at(&mut app, t + 100 + i * 16))
+        .collect();
+    let (x0, y0, pw, ph) = app.guide_rest_place().expect("the app has drawn");
+    let (x0, y0) = (x0 as usize, y0 as usize);
+    let (x1, y1) = (x0 + pw as usize, y0 + ph as usize);
+    // The sliding pane has not reached the left part in the frames
+    // looked at; the pane's shadow, beyond the rectangle, is left out.
+    let (xs, ys) = (x0 + 24..x0 + (x1 - x0) / 4, y0 + 24..y1 - 24);
+    // The surface: what the part holds most of once the page has gone
+    // out of it, at the fifth frame.
+    let crop: Vec<u8> = ys
+        .clone()
+        .flat_map(|y| open[5][(y * 1920 + xs.start) * 4..(y * 1920 + xs.end) * 4].to_vec())
+        .collect();
+    let surface = background(&crop);
+    let look = |frames: &[Vec<u8>], which: std::ops::Range<usize>, what: &str| -> Vec<(f32, f32)> {
+        which
+            .map(|i| {
+                let (k, worst) = strength(&frames[i], &shut, surface, xs.clone(), ys.clone());
+                eprintln!("{what} frame {i}: strength {k:.3}, off by {worst}");
+                (k, worst)
+            })
+            .collect()
+    };
+    // Where the part is one fade of the page, its strength: the sliding
+    // pane covers it in the other frames.
+    let whole = |v: Vec<(f32, f32)>| -> Vec<f32> {
+        v.into_iter()
+            .filter(|(_, w)| *w <= 8.0)
+            .map(|(k, _)| k)
+            .collect()
+    };
+    // Opening: out to the surface while the old page is there.
+    let up = look(&open, 0..7, "opening");
+    assert!(up.iter().all(|(_, w)| *w <= 8.0), "{up:?}");
+    let up: Vec<f32> = up.into_iter().map(|(k, _)| k).collect();
+    assert!(up.windows(2).all(|w| w[1] >= w[0] - 0.02), "{up:?}");
+    assert!(
+        up.iter().any(|k| *k > 0.3),
+        "the page fades out under the guide: {up:?}"
+    );
+    app.press(Action::GuideClose);
+    let shutting: Vec<_> = (0..=1_000 / 16)
+        .map(|i| at(&mut app, t + 2_000 + i * 16))
+        .collect();
+    // Closing: the surface first, then the page in from it; the first
+    // frames that show the part at all are the surface.
+    let down = whole(look(&shutting, 0..30, "closing"));
+    eprintln!("{down:?}");
+    assert!(
+        down.first().is_some_and(|k| *k > 0.9),
+        "the surface first: {down:?}"
+    );
+    assert!(down.windows(2).all(|w| w[1] <= w[0] + 0.02), "{down:?}");
+}
+
+#[test]
+fn the_page_fading_through_shows_nothing_of_the_guide_at_its_rest_place() {
+    under_the_pane_the_page_is_whole(Screen::Home);
+}
+
+#[test]
+fn a_card_under_the_guides_rest_place_is_whole_while_it_slides() {
+    under_the_pane_the_page_is_whole(Screen::Catalog);
+}
+
+/// Across the guide's rest rectangle's left edge, every frame of the
+/// guide's slide in a flow shows no seam: the step between the columns
+/// either side of the edge is no larger than the steps between the
+/// columns beside them (a seam is a card cut or doubled there).
+#[test]
+fn a_flows_card_has_no_seam_at_the_guides_rest_edge_while_it_slides() {
+    let (mut app, t) = in_a_flow(MotionStyle::Smooth);
+    let _ = at(&mut app, t);
+    app.press(Action::Guide);
+    let open: Vec<_> = (0..=1_000 / 16)
+        .map(|i| at(&mut app, t + 100 + i * 16))
+        .collect();
+    let (x0, y0, _, ph) = app.guide_rest_place().expect("the app has drawn");
+    let (x0, y0, y1) = (x0 as usize, y0 as usize, (y0 + ph) as usize);
+    app.press(Action::GuideClose);
+    let shutting: Vec<_> = (0..=1_000 / 16)
+        .map(|i| at(&mut app, t + 2_000 + i * 16))
+        .collect();
+    let step = |f: &[u8], x: usize| -> i64 {
+        (y0 + 24..y1 - 24)
+            .map(|y| {
+                let (a, b) = ((y * 1920 + x - 1) * 4, (y * 1920 + x) * 4);
+                (0..3)
+                    .map(|c| (f[a + c] as i64 - f[b + c] as i64).abs())
+                    .sum::<i64>()
+            })
+            .sum()
+    };
+    for (what, frames) in [("opening", &open), ("closing", &shutting)] {
+        for (i, f) in frames.iter().enumerate().take(8) {
+            let seam = step(f, x0);
+            let beside = (x0 - 14..x0 - 1)
+                .chain(x0 + 2..x0 + 14)
+                .map(|x| step(f, x))
+                .max()
+                .unwrap();
+            eprintln!("{what} frame {i}: seam {seam}, beside {beside}");
+            assert!(
+                seam <= beside * 3 / 2 + 2_000,
+                "{what} frame {i}: a seam at x {x0}: {seam} against {beside}"
+            );
+        }
+    }
+}
+
+#[test]
+fn with_motion_off_the_guide_is_there_and_gone_at_once() {
+    let (mut app, t) = on_home((1920, 1080), MotionStyle::Off);
+    let shut = at(&mut app, t);
+    app.press(Action::Guide);
+    let open: Vec<_> = (0..=1_000 / 16)
+        .map(|i| at(&mut app, t + 100 + i * 16))
+        .collect();
+    assert_eq!(open[0], *open.last().unwrap(), "Off is final at once");
+    app.press(Action::GuideClose);
+    assert_eq!(at(&mut app, t + 2_000), shut, "and closing is at once");
+}
+
+#[test]
+fn crossfade_keeps_the_guides_own_fade_with_no_slide() {
+    let (mut app, t) = on_home((1920, 1080), MotionStyle::Crossfade);
+    let _ = at(&mut app, t);
+    app.press(Action::Guide);
+    let open: Vec<_> = (0..=1_000 / 16)
+        .map(|i| at(&mut app, t + 100 + i * 16))
+        .collect();
+    // The short fade (200 ms) is over by the frame at 300 ms, whatever
+    // the Speed: a slide at Medium would still be moving.
+    assert_eq!(open[14], *open.last().unwrap());
+}

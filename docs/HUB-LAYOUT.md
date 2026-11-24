@@ -19,7 +19,7 @@ A page or a flow has one `Panes`, a constant beside its code:
 | Field | What it says |
 |---|---|
 | `left` | what stands at the left: the session pane in a mode (`Left::Session`, which the container draws), or a pane the page or flow draws itself at the place it is given (`Left::Own`: Your choices, Explore's keys) |
-| `tile` | the width rule of what stands at its right: `Tile::Card`, a flow's step card, up to `COLUMN_MAX`; `Tile::Fill`, the room in two columns or more, up to `MENU_TILE_WIDE_MAX` (Tools and Check) |
+| `tile` | the width rule of what stands at its right: `Tile::Card`, a flow's step card, up to `COLUMN_MAX`; `Tile::Fill`, the room in two columns or more, up to `MENU_TILE_WIDE_MAX` (Tools and Check); `Tile::Detail`, a detail beside a list pane: the pane at the left margin, the detail to the right margin, none where the room holds less than both (List and detail) |
 | `stacks` | whether the tile stands under This session's card where the window has the height |
 | `narrow` | what a room too narrow for the pair gets: `Narrow::PaneAtRight` (a flow: the card, then its pane at the right) or `Narrow::OneColumn` (no pair) |
 
@@ -50,6 +50,7 @@ page that does not stack is measured as a pair.
   most `most`.
 - `lines` and `limits`: the pair's divider and outline, and the top and foot
   that the panes scroll between.
+- `guide_place((x0, cw, h))`: where Guide's pane stands at the right edge (and `guide_place_at`, `guide_room`, `guide_top`); the glide and the dice sheet's column read it, no page works it out.
 - `holds_guide(room)`: whether the room holds a flow's pair at its narrowest
   with Guide's pane beside it.
 - `home_area(room)`: the area Home's column has, where a page stands that has
@@ -91,7 +92,7 @@ fall:
 - `pane-own-place`: a page or a flow that takes a pane's widths or the room a
   pane leaves (`LIST_PANE`, `SUPPORT_PANE`, `CHOICES_PANE_MIN`,
   `CHOICES_PANE_MAX`, `FLOW_CARD_MIN`, `MENU_TILE_WIDE_MAX`, `side_panel_w`,
-  `support_pane_room`).
+  `support_pane_room`; the container now has the guide's place, so the counts are none).
 - `page-own-time`: a page that times a change of page itself (the
   Speed's `ms()`, what a Motion style does).
 

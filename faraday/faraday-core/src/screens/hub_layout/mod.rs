@@ -15,7 +15,7 @@ pub(crate) use turn::{Kind, STEP_MS, page_turn};
 use super::session_pane::Mode;
 use faraday_draw::tokens::{
     CHOICES_PANE_MAX, CHOICES_PANE_MIN, CHOICES_PANE_SHARE, FLOW_CARD_MIN, MARGIN_WIDE,
-    READING_MENU_W, SPACER,
+    READING_MENU_W, SPACER, SUPPORT_PANE, SUPPORT_PANE_TOP, TOUCH,
 };
 
 /// What stands at a pair's left.
@@ -37,6 +37,11 @@ pub(crate) enum Tile {
     /// `MENU_TILE_WIDE_MAX`; a card's place where it holds one. The room
     /// it is given is the one Guide's pane leaves.
     Fill,
+    /// A detail beside a list pane: the pane at the room's left margin,
+    /// the detail from its gap to the right margin, as wide as the room
+    /// leaves; `None` where the room does not hold both, then the detail
+    /// stands alone ([`detail_alone`]).
+    Detail,
 }
 
 /// What a room too narrow for the pair gets.
@@ -58,6 +63,16 @@ pub(crate) struct Panes {
     pub(crate) stacks: bool,
     pub(crate) narrow: Narrow,
 }
+
+/// The panes of a page whose work fills its area and whose list is a panel
+/// at its right (the backup board's, `docs/WORKSPACE.md` §4): it asks
+/// only [`Panes::pane_beside_work`].
+pub(crate) const WORK_PANES: Panes = Panes {
+    left: Left::Own,
+    tile: Tile::Card,
+    stacks: false,
+    narrow: Narrow::PaneAtRight,
+};
 
 /// Where a pair's two panes stand, from the room's left edge.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -86,6 +101,9 @@ impl Panes {
     /// when Guide's pane stands at the room's right edge; `None` where the
     /// page has one column there.
     pub(crate) fn place(&self, room: f32, guide: bool) -> Option<Place> {
+        if let Tile::Detail = self.tile {
+            return pair::list_detail(room);
+        }
         let guide = guide && holds_guide(room);
         if let (Tile::Fill, false) = (self.tile, guide)
             && let Some(p) = pair::fill(room)
@@ -120,8 +138,47 @@ pub(crate) fn level(a: f32, b: f32, most: f32) -> f32 {
 
 /// The room Guide's pane takes at the right edge: the pane, the spacer
 /// before it and the margin after it.
-fn guide_room() -> f32 {
-    crate::screens::support_pane_room()
+pub(crate) fn guide_room() -> f32 {
+    SUPPORT_PANE + SPACER + MARGIN_WIDE
+}
+
+/// Where a supporting pane stands (`docs/LAYOUT.md` §6, §15): the one
+/// place for every pane at the right edge. For the page area at `x0`,
+/// `cw` wide, in a window `h` tall: the pane's left edge, its top, its
+/// width and the height it shows. Its right edge is `MARGIN_WIDE` from
+/// the area's, which is the window's right edge, and its top is below the
+/// top-right strip. Arithmetic.
+pub(crate) fn guide_place((x0, cw, h): (f32, f32, f32)) -> (f32, f32, f32, f32) {
+    guide_place_at(x0 + cw - MARGIN_WIDE - SUPPORT_PANE, h)
+}
+
+/// The supporting pane's place with its left edge at `x`, in a window `h`
+/// tall: for a page that stands the pane a spacer from its own area's
+/// right edge (the dice sheet). Arithmetic.
+pub(crate) fn guide_place_at(x: f32, h: f32) -> (f32, f32, f32, f32) {
+    (
+        x,
+        SUPPORT_PANE_TOP,
+        SUPPORT_PANE,
+        (h - SUPPORT_PANE_TOP - MARGIN_WIDE).max(TOUCH),
+    )
+}
+
+/// The supporting pane's top, below the top-right strip.
+pub(crate) fn guide_top() -> f32 {
+    SUPPORT_PANE_TOP
+}
+
+/// The widest side panel a page's column can have beside it (a quick
+/// paper backup's pair is centred by it).
+pub(crate) fn side_panel_widest() -> f32 {
+    side_panel_w(f32::INFINITY)
+}
+
+/// Where a detail stands alone in a `room`, the list pane given way
+/// ([`Tile::Detail`]): from margin to margin, as (left edge, width).
+pub(crate) fn detail_alone(room: f32) -> (f32, f32) {
+    (MARGIN_WIDE, (room - 2.0 * MARGIN_WIDE).max(0.0))
 }
 
 /// Whether a `room` beside the navigation holds a flow's pair at its

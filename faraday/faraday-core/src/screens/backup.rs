@@ -256,7 +256,7 @@ fn plan_draw(
     // On a window short of the large one the list is a panel at the right
     // and the page area stops before it.
     let panel_w = if work.is_none() && !ui.compact && app.board_shown() {
-        super::hub_layout::side_panel_w(cw)
+        super::hub_layout::WORK_PANES.pane_beside_work(cw)
     } else {
         0.0
     };
@@ -308,7 +308,7 @@ fn plan_draw(
     // While the board is shown its list is the right-hand column, the
     // map's place (`docs/BACKUP-FLOW.md` §17.14).
     if work.is_some() {
-        let pane = crate::screens::support_pane_place((x0, cw, h));
+        let pane = crate::screens::hub_layout::guide_place((x0, cw, h));
         crate::board::screen::list_pane(app, ui, pane);
     } else if panel_w > 0.0 {
         crate::board::screen::list_panel(app, ui, x0 + cw - panel_w, panel_w, h);

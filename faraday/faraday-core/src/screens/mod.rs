@@ -54,9 +54,8 @@ pub(crate) use entry::{
 };
 use faraday_draw::tokens::{APP_BAR_H, BODY_S, BUTTON_H, TITLE_M};
 use faraday_draw::tokens::{
-    COLUMN_MAX, MARGIN_WIDE, NAV_BAR_H, PAGE_AREA_UNTIL_W, RAIL_W, READING_EXPLORE_W,
-    READING_PAGE_W, READING_RANDOM_W, READING_TIME_W, SPACER, SUPPORT_PANE, SUPPORT_PANE_TOP,
-    TOP_ROW_QUESTION, TOUCH,
+    COLUMN_MAX, NAV_BAR_H, PAGE_AREA_UNTIL_W, RAIL_W, READING_EXPLORE_W, READING_PAGE_W,
+    READING_RANDOM_W, READING_TIME_W, TOP_ROW_QUESTION,
 };
 use faraday_draw::widgets::Icon;
 pub use faraday_ui::parts::qr_code;
@@ -210,7 +209,7 @@ fn page_area(app: &crate::Faraday, screen: Screen, room: f32) -> (f32, f32) {
         // (`board::screen::column_w`, as `backup`'s own column takes it)
         // and its side panel, with the column's inset and the gap between
         // them, centred as a pair; the board's page stays at the start.
-        let panel = hub_layout::side_panel_w(f32::INFINITY);
+        let panel = hub_layout::side_panel_widest();
         Area::Reading(crate::board::screen::column_w() + 72.0 + panel)
     } else {
         area_of(screen)
@@ -225,23 +224,6 @@ fn page_area(app: &crate::Faraday, screen: Screen, room: f32) -> (f32, f32) {
         Area::Until if room <= PAGE_AREA_UNTIL_W => (0.0, room),
         Area::Until => ((room - PAGE_AREA_UNTIL_W) / 2.0, PAGE_AREA_UNTIL_W),
     }
-}
-
-/// Where a supporting pane stands (`docs/LAYOUT.md` §6, §15): the one
-/// place for every pane. For the page area at `x0`, `cw` wide, in a
-/// window `h` tall: the pane's left edge, its top, its width and the
-/// height it shows. Its right edge is `MARGIN_WIDE` from the area's, which
-/// is the window's right edge, and its top is below the top-right strip.
-/// Arithmetic.
-pub(crate) fn support_pane_place((x0, cw, h): (f32, f32, f32)) -> (f32, f32, f32, f32) {
-    let w = SUPPORT_PANE;
-    let top = SUPPORT_PANE_TOP;
-    (
-        x0 + cw - MARGIN_WIDE - w,
-        top,
-        w,
-        (h - top - MARGIN_WIDE).max(TOUCH),
-    )
 }
 
 /// The right end of the backup board's work width, in the page's x, where
@@ -266,7 +248,7 @@ pub(crate) fn backup_work_end(app: &crate::Faraday) -> Option<f32> {
     let full_w = app.size().0;
     let nav = if app.held { 0.0 } else { SIDEBAR_W };
     let room = full_w - nav;
-    (room > PAGE_AREA_UNTIL_W).then(|| nav + room - support_pane_room())
+    (room > PAGE_AREA_UNTIL_W).then(|| nav + room - hub_layout::guide_room())
 }
 
 /// A wide page's head: its name and its way back (the name of where it
@@ -287,12 +269,6 @@ pub(crate) fn bar_head(ui: &mut Ui, back: Option<(&str, Action)>, name: &str) ->
 pub(crate) fn bar_head_back(app: &View, ui: &mut Ui, name: &str) -> f32 {
     let back = app.named_back(crate::compact::page_head(app).0);
     bar_head(ui, Some(back), name)
-}
-
-/// The room a supporting pane takes from the page at its right: the pane,
-/// the spacer before it and the margin after it.
-pub(crate) fn support_pane_room() -> f32 {
-    SUPPORT_PANE + SPACER + MARGIN_WIDE
 }
 
 /// Draws the whole frame.
@@ -359,7 +335,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         let pane = app.guide_pane_shown();
         // A flow's unit makes its own room for the pane.
         let beside = if pane && !app.unit_on_show() {
-            support_pane_room()
+            hub_layout::guide_room()
         } else {
             0.0
         };

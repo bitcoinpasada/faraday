@@ -19,7 +19,7 @@ use crate::ui::{Slot, Ui};
 /// supporting pane's, or none where it stands in the page.
 pub(crate) fn side_room(column: bool) -> f32 {
     if column {
-        crate::screens::support_pane_room()
+        crate::screens::hub_layout::guide_room()
     } else {
         0.0
     }
@@ -41,7 +41,7 @@ pub(crate) fn column_now(
         && m.dice_sheet_shown()
         && m.dice_sheet_open()
         && m.front().is_some();
-    let side = crate::screens::support_pane_room();
+    let side = crate::screens::hub_layout::guide_room();
     if compact || !entering || cw - side - t::MARGIN_WIDE < t::CODEX32_MAIN_MIN {
         return false;
     }
@@ -53,7 +53,8 @@ pub(crate) fn column_now(
     let tall = h - 2.0 * t::MARGIN_WIDE - panel.foot_h();
     sheet_w <= work
         && sheet_h <= tall
-        && t::CODEX32_DICE_COLUMN_H <= h - t::SUPPORT_PANE_TOP - t::MARGIN_WIDE - panel.foot_h()
+        && t::CODEX32_DICE_COLUMN_H
+            <= h - crate::screens::hub_layout::guide_top() - t::MARGIN_WIDE - panel.foot_h()
 }
 
 /// Draws the dice sheet's column at the right of the container's `room`,
@@ -69,9 +70,8 @@ pub(crate) fn draw(
     if !column {
         return;
     }
-    let (x, w) = (room.area_x + room.area_w + t::SPACER, t::SUPPORT_PANE);
-    let y = t::SUPPORT_PANE_TOP;
-    let view = (h - y - t::MARGIN_WIDE).max(t::TOUCH);
+    let (x, y, w, view) =
+        crate::screens::hub_layout::guide_place_at(room.area_x + room.area_w + t::SPACER, h);
     let clip = ui.rect(x, y, w, view);
     let off = m.pane_offset();
     let open = ui.region_open(Region::beside(Slot::DemoPane, clip, off));

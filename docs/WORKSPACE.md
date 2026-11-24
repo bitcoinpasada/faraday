@@ -491,7 +491,9 @@ Speed's duration unless the row says otherwise):
   as the step fade does today (MOTION.md §3.5).
 - **Sheets and dialogs on a computer** blend over 200 ms, whatever the
   Speed setting, the page staying visible under them; Off shows them at
-  once (owner, 2026-11-23).
+  once (owner, 2026-11-23). The guide's tab stays as it is until
+  decided; its pane slides in from the right edge and out again
+  (MOTION §3.5).
 - **One duration** for every page change and every step inside a flow
   (owner, 2026-11-21): the Speed setting's, 600 ms by default, a
   deliberate difference from Material's 450 ms fade through, approved by

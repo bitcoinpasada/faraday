@@ -67,6 +67,23 @@ pub(super) fn fill(room: f32) -> Option<Place> {
     })
 }
 
+/// A list pane and its detail: the pane `LIST_PANE` wide at the left
+/// margin, one gap, the detail to the right margin. `None` where the room
+/// does not hold the pane and a detail at least as wide.
+pub(super) fn list_detail(room: f32) -> Option<Place> {
+    if room < 2.0 * (MARGIN_WIDE + LIST_PANE) + SPACER {
+        return None;
+    }
+    let card_x = MARGIN_WIDE + LIST_PANE + SPACER;
+    Some(Place {
+        card_x,
+        card_w: (room - MARGIN_WIDE - card_x).max(0.0),
+        pane_x: MARGIN_WIDE,
+        pane_w: LIST_PANE,
+        gap: SPACER,
+    })
+}
+
 /// A room too narrow for the pair: the card's column, a spacer and the
 /// pane at its right, centred in the `room` beside the navigation. With
 /// `guide` the card narrows from its widest first, then the pane, as far

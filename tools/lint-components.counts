@@ -5,11 +5,6 @@
 #
 # Format: RULE PATH COUNT
 
-pane-own-place faraday/faraday-core/src/backup_flow/screen.rs 1
-pane-own-place faraday/faraday-core/src/codex32/pane_screen.rs 3
-pane-own-place faraday/faraday-core/src/panes/screen.rs 4
-pane-own-place faraday/faraday-core/src/screens/backup.rs 1
-pane-own-place faraday/faraday-core/src/screens/mod.rs 7
 public-kind-number faraday/faraday-core/src/screens/backup.rs 4
 public-kind-number faraday/shells/snapshot/src/tours/again.rs 1
 public-kind-number faraday/shells/snapshot/src/tours/boot.rs 2

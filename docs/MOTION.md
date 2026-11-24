@@ -342,8 +342,15 @@ extent; a motion left from another screen or sheet is stopped.
     alone. A sheet or dialog on a computer is not a page change for it: it
     blends over 200 ms (`motion::FADE_MS`), linear, whatever the Speed
     setting, the page staying visible under it, and Off shows it at
-    once (owner, 2026-11-23). The guide's tab and pane fade the same way
-    for now;
+    once (owner, 2026-11-23). The guide's tab fades the same way. The
+    guide's pane, on a window that holds it, slides in from the window's
+    right edge as the page or a flow's pair beside it gives way, and goes
+    back out the same way, over the Speed setting's time as the page
+    does (owner, 2026-11-24), its own pixels whole and not faded; the
+    session pane stays where it is. Under
+    Crossfade the pane keeps this blend (a flow's pair crossfades as a
+    page change), and under Off it is there and gone at once. No image is
+    kept of a page that showed a secret, as for any change of page;
   - a toast rises in over 200 ms on Material's standard decelerate
     curve and fades on its standard accelerate (`motion::TOAST_MS`,
     `Out::toast_shown`), shown 4 s (`tokens::TOAST_SHOW_MS`);

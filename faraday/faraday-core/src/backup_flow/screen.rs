@@ -66,7 +66,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // page area stops before it.
     let work = crate::screens::board_work_end(app);
     let panel_w = if work.is_none() && !ui.compact && app.board_shown() {
-        crate::screens::hub_layout::side_panel_w(cw)
+        crate::screens::hub_layout::WORK_PANES.pane_beside_work(cw)
     } else {
         0.0
     };
@@ -120,7 +120,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     app.scroll(Scrolled::BackupFlow, next, again);
     if work.is_some() {
-        let pane = crate::screens::support_pane_place((x0, cw, h));
+        let pane = crate::screens::hub_layout::guide_place((x0, cw, h));
         crate::board::screen::list_pane(app, ui, pane);
     } else if panel_w > 0.0 {
         crate::board::screen::list_panel(app, ui, x0 + cw - panel_w, panel_w, h);
