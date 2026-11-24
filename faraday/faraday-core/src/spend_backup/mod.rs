@@ -1723,7 +1723,7 @@ impl Faraday {
         {
             Ok(i) => {
                 if fresh {
-                    self.spend_backup_fresh_for(i);
+                    self.spend_backup_fresh_for(i, &source);
                 }
                 self.spend_backup_set_wallet(i);
                 self.spend_backup_described_in();
@@ -1772,16 +1772,17 @@ impl Faraday {
                         .is_some_and(|w| *crate::wallet::same_wallet(w.policy()) == **f)
                 })
         });
-        if spend_other {
-            if self
+        // The spend stays until the file is accepted: a refusal or a
+        // cancelled sheet leaves it as it was (`spend_backup_fresh_for`
+        // ends one that is not the taken wallet's).
+        if spend_other
+            && self
                 .cancel_loses(crate::in_progress::Going::Spend)
                 .is_some()
-            {
-                self.sheet = Some(Sheet::CancelFlow(crate::in_progress::Going::Spend));
-                self.spend_backup.state.start_over_asked = true;
-                return;
-            }
-            self.wallets.clear_spend();
+        {
+            self.sheet = Some(Sheet::CancelFlow(crate::in_progress::Going::Spend));
+            self.spend_backup.state.start_over_asked = true;
+            return;
         }
         self.act(Action::Nav(Screen::SpendBackup));
         // A refusal is said on What do you have?, in front of the person.
@@ -1794,7 +1795,7 @@ impl Faraday {
     /// The flow starts again for the wallet taken from Inbox file `i`
     /// when it is not the one chosen: its own Check, route, pages and
     /// way in. Another wallet's spend does not stay beside it.
-    fn spend_backup_fresh_for(&mut self, taken: usize) {
+    fn spend_backup_fresh_for(&mut self, taken: usize, file: &str) {
         let checksum = Text::of(self.session.wallets[taken].checksum());
         if self.spend_backup.state.wallet.is_some()
             && self.spend_backup.state.wallet.as_ref() != Some(&checksum)
@@ -1809,7 +1810,8 @@ impl Faraday {
                     c
                 },
                 from: old.from,
-                came: old.came,
+                // Only the file just taken came in for this wallet.
+                came: vec![Came::File(Text::of(file))],
                 open: Some(Open::Page(page::HOLDING)),
                 walkthrough: true,
                 ..SpendBackupState::default()

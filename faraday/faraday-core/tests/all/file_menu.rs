@@ -1091,27 +1091,96 @@ fn yes_my_money_shows_does_not_mark_another_wallets_spend() {
     assert!(!check_done(&app), "the spend is the first wallet's");
 }
 
+/// Another network's wallet file, with its origin: it is refused.
+const MAINNET: &str = "wpkh([73c5da0a/84h/0h/0h]xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V/0/*)";
+
 #[test]
 fn a_file_taken_for_another_wallet_starts_the_flow_again_on_a_page() {
     use faraday_core::spend_backup::{Open, SpendBackupAction as F};
     let mut app = spend_under_way(false);
-    // The first wallet is open from its card.
+    // The first wallet is open from its card, then its spend is ended.
     app.press(Action::SpendBackup(F::SpendFrom(0)));
     assert!(app.spend_backup().from_card);
+    assert!(app.spend().is_some());
+    app.press(Action::RemoveWallet(0));
+    assert!(app.spend().is_none());
+    assert!(app.spend_backup().from_card, "{:?}", app.spend_backup());
+    // Another wallet's file is taken with nothing to ask.
     app.press(Action::Nav(Screen::Files));
     let other = place(&app, "other.txt");
     let _ = menu_of(&mut app, Row::In(other));
     choose(&mut app, "Spend from backup");
-    // Asked first; started over, the file is taken on the second press.
-    assert!(matches!(app.sheet, Some(Sheet::CancelFlow(_))));
-    app.press(Action::CancelFlowNow);
-    app.press(Action::Nav(Screen::Files));
-    let _ = menu_of(&mut app, Row::In(other));
-    choose(&mut app, "Spend from backup");
-    assert_eq!(app.spend_backup_wallet(), Some(1));
+    assert!(app.sheet.is_none(), "{:?}", app.sheet);
+    assert_eq!(app.spend_backup_wallet(), Some(0));
     assert!(!app.spend_backup().from_card, "the file's flow has no card");
     assert!(matches!(app.spend_backup().open, Some(Open::Page(_))));
     assert!(app.spend().is_none());
+}
+
+fn spend_identity(app: &Faraday) -> (Option<usize>, Vec<bool>) {
+    let s = app.spend().expect("the spend is open");
+    (s.wallet, s.done.to_vec())
+}
+
+#[test]
+fn a_cancelled_sheet_leaves_the_spend_as_it_was() {
+    let mut app = spend_under_way(false);
+    let before = spend_identity(&app);
+    app.press(Action::Nav(Screen::Files));
+    let other = place(&app, "other.txt");
+    let _ = menu_of(&mut app, Row::In(other));
+    choose(&mut app, "Spend from backup");
+    assert!(matches!(app.sheet, Some(Sheet::CancelFlow(_))));
+    app.press(Action::Cancel);
+    assert!(app.sheet.is_none());
+    assert_eq!(app.session.wallets.len(), 1);
+    assert_eq!(spend_identity(&app), before, "a cancelled sheet leaves it");
+}
+
+#[test]
+fn another_wallets_file_taken_leaves_no_seed_of_the_first_as_a_stray() {
+    use faraday_core::spend_backup::Came;
+    let mut app = spend_under_way(false);
+    // A seed typed in the flow came in for the first wallet.
+    app.press(Action::Nav(Screen::SpendBackup));
+    app.press(Action::SpendBackup(
+        faraday_core::spend_backup::SpendBackupAction::SpendFrom(0),
+    ));
+    app.press(Action::Entry(None));
+    for c in faraday_core::testkit::test_words("zebra").chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.press(Action::EntryAdd);
+    assert!(
+        app.spend_backup()
+            .came
+            .iter()
+            .any(|c| matches!(c, Came::Seed(_))),
+        "the typed seed came in"
+    );
+    // The first wallet's spend is gone, its seed still came in.
+    app.press(Action::RemoveWallet(0));
+    assert!(app.spend().is_none());
+    assert!(!app.spend_backup().came.is_empty());
+    eprintln!(
+        "DBG {:?} {}",
+        app.spend_backup().wallet,
+        app.session.wallets.len()
+    );
+    app.press(Action::Nav(Screen::Files));
+    let other = place(&app, "other.txt");
+    let _ = menu_of(&mut app, Row::In(other));
+    choose(&mut app, "Spend from backup");
+    assert!(app.sheet.is_none(), "{:?}", app.sheet);
+    let came = &app.spend_backup().came;
+    assert_eq!(
+        came.len(),
+        1,
+        "{came:?} {:?} {}",
+        app.spend_backup().wallet,
+        app.session.wallets.len()
+    );
+    assert!(matches!(&came[0], Came::File(n) if n.as_str() == "other.txt"));
 }
 
 #[test]
@@ -1142,28 +1211,50 @@ fn a_secret_file_whose_wallet_was_not_read_offers_no_spend_from_backup() {
 
 #[test]
 fn spend_from_backup_on_a_refused_wallet_file_takes_no_wallet_and_keeps_the_words_guess() {
+    use faraday_core::spend_backup::SpendBackupAction as F;
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     // A guess from typed words stands.
     app.press(Action::Nav(Screen::SpendBackup));
-    app.press(Action::SpendBackup(
-        faraday_core::spend_backup::SpendBackupAction::TypeWords,
-    ));
+    app.press(Action::SpendBackup(F::TypeWords));
     app.press(Action::Entry(None));
     for c in faraday_core::testkit::test_words("bacon").chars() {
         app.event(Event::Key(Key::Char(c)));
     }
     app.press(Action::EntryAdd);
-    let before = (app.session.wallets.len(), app.spend_backup_wallet());
-    // A wallet file whose wallet cannot be taken: another network's.
-    let mainnet = "wpkh(xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V/0/*)";
-    faraday_core::testkit::inbox_file(&mut app, "mainnet.txt", mainnet.as_bytes().to_vec());
+    app.press(Action::SpendBackup(F::Everything));
+    let state = |app: &Faraday| {
+        let s = app.spend_backup();
+        (
+            s.guess.is_some(),
+            format!("{:?}", s.route),
+            format!("{:?}", s.seeds),
+        )
+    };
+    let before = (
+        app.session.wallets.len(),
+        app.spend_backup_wallet(),
+        state(&app),
+    );
+    assert!(before.2.0, "the words made a guess");
+    // A wallet file whose wallet cannot be taken: a descriptor that is a
+    // bare key.
+    faraday_core::testkit::inbox_file(&mut app, "mainnet.txt", MAINNET.as_bytes().to_vec());
     let at = place(&app, "mainnet.txt");
-    app.press(Action::SpendBackup(
-        faraday_core::spend_backup::SpendBackupAction::FromFile(at),
-    ));
+    app.press(Action::SpendBackup(F::FromFile(at)));
     assert_eq!(app.screen, Screen::SpendBackup);
+    assert!(
+        app.spend_backup().error.is_some(),
+        "{:?} {:?} {:?}",
+        app.sheet,
+        app.toast_text(),
+        app.spend_backup()
+    );
     assert_eq!(
-        (app.session.wallets.len(), app.spend_backup_wallet()),
+        (
+            app.session.wallets.len(),
+            app.spend_backup_wallet(),
+            state(&app)
+        ),
         before
     );
 }
