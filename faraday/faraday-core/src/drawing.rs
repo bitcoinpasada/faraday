@@ -106,6 +106,8 @@ pub(crate) struct Drawing {
     pub vault_rows: RefCell<Vec<(usize, Vec<crate::vault::VaultRow>)>>,
     /// Everything the Inbox gives ([`crate::Faraday::inbox_found_now`]).
     pub inbox_found: OnceCell<crate::inbox::Found>,
+    /// Each Inbox file's row button, by its place ([`View::inbox_buttons`]).
+    pub inbox_buttons: OnceCell<std::rc::Rc<Vec<crate::items::RowButton>>>,
 }
 
 impl Drawing {

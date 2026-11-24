@@ -114,6 +114,37 @@ impl View<'_> {
             .clone()
     }
 
+    /// Each Inbox file's row button, by its place in the Inbox: the first
+    /// entry of the file's shared list ([`crate::items::offer`]) where its
+    /// kind has a button, once a frame. The offer's own reads are kept
+    /// ([`View::inbox_found`], [`View::spends_from`]), and the memo is
+    /// emptied when the frame ends, so a lock, a load or a change of the
+    /// files shows in the next frame's rows.
+    pub(crate) fn inbox_buttons(&self) -> Rc<Vec<crate::items::RowButton>> {
+        self.drawing
+            .inbox_buttons
+            .get_or_init(|| {
+                let found = std::cell::OnceCell::new();
+                let loaded_at =
+                    |k: usize| found.get_or_init(|| self.inbox_found()).loaded_at_file(k);
+                Rc::new(
+                    (0..self.inbox.len())
+                        .map(|k| {
+                            let offer = crate::items::offer(
+                                self,
+                                k,
+                                &|seen| self.spends_from(seen),
+                                &loaded_at,
+                            );
+                            let (label, action) = offer.button()?;
+                            Some((crate::items::button_label(label)?, *action))
+                        })
+                        .collect(),
+                )
+            })
+            .clone()
+    }
+
     /// Whether key `fp` is held ([`crate::Faraday::key_held`]), from the
     /// memo's [`View::held_keys`].
     pub fn key_held(&self, fp: Fingerprint) -> bool {

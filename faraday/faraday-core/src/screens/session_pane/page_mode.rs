@@ -44,12 +44,14 @@ fn psbt_rows(app: &View) -> Vec<SessionRow> {
 /// wallet or setup file, then the rest; a vault file is a vault's, not
 /// listed. A PSBT is in `psbt_rows`, not here.
 fn file_rows(app: &View) -> Vec<SessionRow> {
-    let mut held: Vec<(u8, &crate::Item)> = app
+    let buttons = app.inbox_buttons();
+    let mut held: Vec<(u8, usize, &crate::Item)> = app
         .inbox
         .iter()
-        .filter(|it| it.facts.is_none())
-        .filter(|it| it.psbt().is_none())
-        .map(|it| {
+        .enumerate()
+        .filter(|(_, it)| it.facts.is_none())
+        .filter(|(_, it)| it.psbt().is_none())
+        .map(|(k, it)| {
             let rank = if it.unsigned_txid.is_some() {
                 0
             } else if it.wallet().is_some() {
@@ -57,18 +59,27 @@ fn file_rows(app: &View) -> Vec<SessionRow> {
             } else {
                 2
             };
-            (rank, it)
+            (rank, k, it)
         })
         .collect();
-    held.sort_by_key(|(rank, _)| *rank);
+    held.sort_by_key(|(rank, _, _)| *rank);
     held.into_iter()
-        .map(|(_, it)| {
-            row(
-                Icon::File,
-                it.name.to_string(),
-                String::new(),
-                Action::Nav(Screen::Files),
-            )
+        .map(|(_, k, it)| {
+            // A file whose kind has a button carries it, and the button
+            // does what the file's menu does first.
+            match buttons.get(k).copied().flatten() {
+                Some((label, action)) => {
+                    let mut r = row(Icon::File, it.name.to_string(), String::new(), action);
+                    r.button = Some((label, true));
+                    r
+                }
+                None => row(
+                    Icon::File,
+                    it.name.to_string(),
+                    String::new(),
+                    Action::Nav(Screen::Files),
+                ),
+            }
         })
         .collect()
 }

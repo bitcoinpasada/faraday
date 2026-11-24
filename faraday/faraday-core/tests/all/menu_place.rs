@@ -152,3 +152,73 @@ fn tools_on_a_narrow_window_stays_in_one_column_where_the_flow_pair_is() {
         "one column, at the flow pair's card: {first_x}"
     );
 }
+
+fn with_files(files: Vec<(&str, Vec<u8>)>) -> Faraday {
+    use faraday_core::StorageEvent;
+    let mut app = sized(1366, 768);
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(
+            files.into_iter().map(|(n, b)| (n.to_string(), b)).collect(),
+        ),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    let _ = app.frame();
+    app
+}
+
+fn spending_descriptor() -> Vec<u8> {
+    let kit = faraday_core::testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "spending")
+        .unwrap();
+    kit.descriptor.into_bytes()
+}
+
+#[test]
+fn a_wallet_file_row_on_tools_carries_the_buttons_its_menu_leads_with() {
+    use faraday_core::file_menu::{FilePress, Row};
+    let mut app = with_files(vec![("spending-wallet.txt", spending_descriptor())]);
+    app.press(Action::Nav(Screen::Check));
+    let _ = app.frame();
+    assert!(
+        common::texts(&mut app)
+            .iter()
+            .any(|t| t == EN.inbox_actions_load_wallet),
+        "the row says Load"
+    );
+    assert!(app.offers(Action::LoadWallet(0)), "and the button is drawn");
+    app.press(Action::Nav(Screen::Files));
+    let _ = app.frame();
+    app.press(Action::File(FilePress::Menu(Row::In(0))));
+    let menu = app.files_menu().menu.as_ref().expect("its menu");
+    assert_eq!(
+        menu.lines.first().map(|(l, _)| l.as_str()),
+        Some(EN.inbox_actions_load_wallet)
+    );
+}
+
+#[test]
+fn a_file_with_no_action_offered_draws_no_button_on_the_pane() {
+    let mut app = with_files(vec![("notes.txt", b"just some words".to_vec())]);
+    app.press(Action::Nav(Screen::Check));
+    let texts = common::texts(&mut app);
+    assert!(texts.iter().any(|t| t == "notes.txt"), "the row is there");
+    assert!(
+        !app.offers(Action::LoadKey(0)) && !app.offers(Action::LoadWallet(0)),
+        "and carries no button"
+    );
+    assert!(
+        app.offers(Action::Nav(Screen::Files)),
+        "the row itself opens Files"
+    );
+}
+
+#[test]
+fn a_loaded_wallets_file_row_draws_no_button() {
+    let mut app = with_files(vec![("spending-wallet.txt", spending_descriptor())]);
+    app.press(Action::LoadWallet(0));
+    app.press(Action::Nav(Screen::Check));
+    let _ = app.frame();
+    assert!(!app.offers(Action::LoadWallet(0)));
+}

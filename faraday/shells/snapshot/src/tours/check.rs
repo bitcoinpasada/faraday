@@ -14,8 +14,60 @@ pub(crate) fn check_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Cancel);
     t.press(Action::Check(Press::Row(Row::Dice)));
     t.shot("check-dice")?;
+    files_on_pane(t)?;
     address_found(t)?;
     message_at_path(t)
+}
+
+/// Files held beside the pane on Check and on Tools: a wallet file to load,
+/// a text file, a PSBT and a loaded wallet's file, each row with its
+/// button where it has one.
+fn files_on_pane(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::StorageEvent;
+    use faraday_core::wallet::FileKind as K;
+    let kits = testkit::kits();
+    let descriptor = |id: &str| -> Result<Vec<u8>, String> {
+        let k = kits.iter().find(|k| k.id == id).ok_or("no test wallet")?;
+        Ok(k.descriptor.clone().into_bytes())
+    };
+    t.press(Action::Cancel);
+    t.app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![
+            ("spending-wallet.txt", descriptor("spending")?),
+            ("notes.txt", b"just some words".to_vec()),
+            ("savings-wallet.txt", descriptor("savings")?),
+        ]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    testkit::inbox_push(
+        &mut t.app,
+        faraday_core::Item {
+            name: faraday_text::Text::of("payment.psbt"),
+            bytes: vec![b'#'; 900].into(),
+            kind: K::Psbt,
+            secret: false,
+            picture: None,
+            sha: None,
+            facts: None,
+            wallet: None,
+            psbt: None,
+            outpoints: Vec::new(),
+            unsigned_txid: None,
+        },
+    );
+    let loaded = t
+        .app
+        .inbox()
+        .iter()
+        .position(|it| it.name.as_str() == "savings-wallet.txt")
+        .ok_or("savings-wallet.txt is not in Files")?;
+    t.press(Action::LoadWallet(loaded));
+    testkit::confirm_wallets(&mut t.app);
+    t.press(Action::Nav(Screen::Check));
+    t.shot("check-files")?;
+    t.press(Action::Nav(Screen::Catalog));
+    t.shot("tools-files")
 }
 
 /// An address of a single-key wallet whose key is loaded, found: the

@@ -11,6 +11,10 @@ use crate::{Action, Faraday, FileKind, Item, Screen};
 /// One thing to do: its label and its action.
 pub(crate) type Pick = (String, Action);
 
+/// A file row's button on the pane: its words and what it does, if its
+/// kind has one.
+pub(crate) type RowButton = Option<(&'static str, Action)>;
+
 /// An item's list and whether its first entry is also its row button.
 pub(crate) struct Offer {
     /// "What you can do", likeliest first.
@@ -94,6 +98,28 @@ pub(crate) fn offer(
         )]),
         _ => Offer::none(),
     }
+}
+
+/// The words of a row button as the text the strings hold them in, for a
+/// row that keeps them as such; none for a label made with a count (the
+/// shares' Restore), which gives no row button.
+pub(crate) fn button_label(label: &str) -> Option<&'static str> {
+    [
+        EN.inbox_actions_add_signatures,
+        EN.inbox_actions_sign,
+        EN.catalog_check_a_signer,
+        EN.files_decode,
+        EN.inbox_actions_load_wallet,
+        EN.inbox_actions_load,
+        EN.read_go_use_key,
+        EN.inbox_actions_unlock,
+        EN.inbox_actions_check,
+        EN.inbox_actions_open_code,
+        EN.inbox_actions_read_wallet,
+        EN.gpg_restore_files_action,
+    ]
+    .into_iter()
+    .find(|s| *s == label)
 }
 
 fn decode(k: usize) -> Pick {

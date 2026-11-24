@@ -65,6 +65,16 @@ Tools with a PSBT waiting, Tools with none and Check, scrolling within
 (`Slot::HomeBox`) where the page's height cuts it. Open vaults, files to write
 and Backups are not in it, and no row of it is also in the tile.
 
+A file row of the page's own mode carries the row button of WORKSPACE §2's
+table: the first entry of the file's shared list (`items::offer(..).button()`),
+the button being the row's press as above. The buttons are worked out once a
+frame for every file held (`View::inbox_buttons`, the drawing memo, emptied
+when the frame ends), so a lock, a load or a change of the files shows in the
+next frame; the offer reads the Inbox's and the spend's kept answers. A file
+whose kind has no button keeps its row, which opens Files. A button whose
+words are made with a count (the shares' Restore) is not drawn, and a PSBT
+keeps the rows of Waiting. A wallet's row still has no button.
+
 ### Where it stands, for the change of page
 
 The one drawer of the pane's surface (`card_surface`) reports its rectangle
