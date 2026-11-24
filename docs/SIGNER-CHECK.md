@@ -247,8 +247,13 @@ Every finding names where it is: "Transaction", "Input {i}" or
 "Output {i}", counted from 0 as the Spend review counts. A key is named
 as the review names one (`SignaturePresent::name`: the fingerprint
 where an origin gives one, else the first eight hex characters).
-Amounts are in BTC (§4.7), scripts as their address in short form
-(§4.5) or "script {n} bytes" where they have none.
+Amounts are in BTC (§4.7). A script is named by its whole address,
+grouped in fours in mono on lines under the finding's words and wrapped
+between groups only, or by "script {n} bytes" under them where it has
+none; a finding that names two (an output pays another script) gives each
+under its own words ("Output 1: pays", the address returned, "not", the
+address sent). The finding carries the words and the addresses as
+separate parts.
 
 Levels, in the check: **Blocked**, the transaction is not the one sent,
 or a signature gives the key away or commits to no output; **Danger**,

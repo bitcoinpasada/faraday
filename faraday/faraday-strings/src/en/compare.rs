@@ -30,20 +30,20 @@ macro_rules! words_compare {
     compare_final_sent_only: "Input {}: final in the sent only",
     /// Text in `words::difference`. `{}`: the outpoint.
     compare_final_returned_only: "Input {}: final in the returned only",
-    /// Text in `words::difference`. `{}`: the output, its amount.
-    compare_output_sent_only: "Output to {}: {}, in the sent only",
-    /// Text in `words::difference`. `{}`: the output, its amount.
-    compare_output_returned_only: "Output to {}: {}, in the returned only",
-    /// Text in `words::difference`. `{}`: the output, the two amounts.
-    compare_output_amount: "Output to {}: {} sent, {} returned",
+    /// Text in `words::difference`. `{}`: its amount; the output's address is under it.
+    compare_output_sent_only: "Output of {}, in the sent only, to",
+    /// Text in `words::difference`. `{}`: its amount; the output's address is under it.
+    compare_output_returned_only: "Output of {}, in the returned only, to",
+    /// Text in `words::difference`. `{}`: the two amounts; the output's address is under it.
+    compare_output_amount: "Output of {} sent and {} returned, to",
     /// Text in `words::difference`. `{}`: the outpoint.
     compare_spent_twice_sent: "Input {}: spent twice in the sent",
     /// Text in `words::difference`. `{}`: the outpoint.
     compare_spent_twice_returned: "Input {}: spent twice in the returned",
-    /// Text in `words::difference`. `{}`: the output.
-    compare_yours_sent_only: "Output to {}: yours in the sent only",
-    /// Text in `words::difference`. `{}`: the output.
-    compare_yours_returned_only: "Output to {}: yours in the returned only",
+    /// Text in `words::difference`; the output's address is under it.
+    compare_yours_sent_only: "Output yours, in the sent only, to",
+    /// Text in `words::difference`; the output's address is under it.
+    compare_yours_returned_only: "Output yours, in the returned only, to",
     /// Text in `words::output`, an output with no address. `{}`: the script's length.
     compare_script_bytes: "script {} bytes",
     /// Text in `words::differences`, where there are none.
@@ -76,24 +76,26 @@ macro_rules! words_compare {
     bump_version: "Version: {} in the original, {} in the replacement",
     /// Text in `words::line`. `{}`: the two locktimes.
     bump_locktime: "Locktime: {} in the original, {} in the replacement",
-    /// Text in `words::line`. `{}`: the replacement's amount, the payee, the original's amount.
-    bump_pays_other: "Pays {} to {}, not {}",
-    /// Text in `words::line`. `{}`: the original's amount, the payee.
-    bump_no_longer_pays: "No longer pays {} to {}",
-    /// Text in `words::line`. `{}`: the replacement's amount, the payee.
-    bump_pays_new: "Pays {} to {}, which the original does not",
+    /// Text in `words::line`. `{}`: the replacement's amount; the payee is under it.
+    bump_pays_other: "Pays {} to",
+    /// Text in `words::line`, under the payee. `{}`: the original's amount.
+    bump_pays_other_original: "The original pays {}",
+    /// Text in `words::line`. `{}`: the original's amount; the payee is under it.
+    bump_no_longer_pays: "No longer pays {} to",
+    /// Text in `words::line`. `{}`: the replacement's amount; the payee is under it.
+    bump_pays_new: "Pays {}, which the original does not, to",
     /// Text in `words::line`. `{}`: the two fees in sat.
     bump_fee: "Fee: {} sat in the original, {} sat in the replacement",
     /// Text in `words::line`. `{}`: the two fee rates in sat/vB.
     bump_fee_rate: "Fee rate: {} sat/vB in the original, {} sat/vB in the replacement",
     /// Text in `words::line`. `{}`: the outpoint.
     bump_amount_not_stated: "Input {}: amount not stated",
-    /// Text in `words::line`. `{}`: the output, the key's fingerprint.
-    bump_change_not_loaded: "Output to {}: change of {}, which is not loaded",
+    /// Text in `words::line`. `{}`: the key's fingerprint; the output's address is under it.
+    bump_change_not_loaded: "Output of change for {}, which is not loaded, to",
     /// Text in `words::line`. `{}`: the outpoint, the key's fingerprint.
     bump_input_not_loaded: "Input {}: added, of {}, which is not loaded",
-    /// Text in `words::line`. `{}`: the output.
-    bump_not_stated_yours: "Output to {}: in the original only, and not stated to be yours",
+    /// Text in `words::line`; the output's address is under it.
+    bump_not_stated_yours: "Output in the original only, and not stated to be yours, to",
     /// Text in `words::compare_facts`, a fact's label.
     compare_fact_transaction: "Transaction",
     /// Text in `words::compare_facts` and `words::bump_facts`, a fact's label.

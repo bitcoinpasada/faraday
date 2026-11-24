@@ -4,6 +4,7 @@
 
 use super::check::{self, CheckState, Facts, Origin, SignerPress, Slot, Tone};
 use super::diff_words::Fact;
+use super::said::{Part, Said};
 use crate::drawing::{Scrolled, View};
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
@@ -310,6 +311,25 @@ pub(crate) fn seed_dialog(app: &View, ui: &mut Ui, w: f32, h: f32) {
     );
 }
 
+/// A sentence and the addresses it names: its words wrapped, each address
+/// grouped in mono under them, wrapped between groups only, never cut. The
+/// height used.
+pub(crate) fn said(ui: &mut Ui, (x, y, w): (f32, f32, f32), role: Role, s: &Said) -> f32 {
+    let mut used = 0.0;
+    for part in &s.parts {
+        used += match part {
+            Part::Words(t) | Part::Script(t) => ui.wrap_as((x, y + used, w), BODY_M, role, t),
+            Part::Address(a) => ui.wrap_as(
+                (x, y + used, w),
+                BODY_M.mono(),
+                role,
+                &faraday_ui::grouped(a),
+            ),
+        };
+    }
+    used
+}
+
 /// The Result card, top down (SIGNER-CHECK §11.5): the fee bump, the
 /// verdict in its tone, the facts, the findings, what is stated, the
 /// differences, the actions. The words were made with the result; this
@@ -324,7 +344,7 @@ fn result(s: &CheckState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
         cy += ui.line_as(TITLE_S) + GAP;
         cy += tone_card(ui, (x, cy, w), b.result, b.tone());
         for line in &b.lines {
-            cy += ui.wrap_as((x, cy, w), BODY_M, Role::OnSurface, line) + GAP;
+            cy += said(ui, (x, cy, w), Role::OnSurface, line) + GAP;
         }
         // The last fact's rule is the divider under the section.
         for f in &b.facts {
@@ -370,7 +390,7 @@ fn result(s: &CheckState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
                 Level::Blocked | Level::Danger => Role::Error,
                 Level::Caution | Level::Info => Role::Warning,
             };
-            let used = ui.wrap_as((x + room, cy, w - room), BODY_M, role, text);
+            let used = said(ui, (x + room, cy, w - room), role, text);
             ui.icon(x, cy, ICON_GLYPH, Icon::Warning, GAP, role);
             cy += used.max(ICON_GLYPH) + GAP;
         }
@@ -387,7 +407,7 @@ fn result(s: &CheckState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     section_label(ui, x, cy, EN.compare_differences_label);
     cy += ui.line_as(TITLE_S) + GAP;
     for line in &shown.differences {
-        cy += ui.wrap_as((x, cy, w), BODY_M, Role::OnSurface, line) + GAP;
+        cy += said(ui, (x, cy, w), Role::OnSurface, line) + GAP;
     }
     cy += GAP_SMALL;
     let mut actions = Vec::new();

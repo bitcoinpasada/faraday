@@ -134,8 +134,10 @@ macro_rules! words_sweep {
     signer_t_sequence: "{}: sequence {} sent, {} returned",
     /// A finding: an output's amount changed. `{}`: where, the amount returned, the one sent.
     signer_t_amount: "{}: {} returned, {} sent",
-    /// A finding: an output pays another script. `{}`: where, the one returned, the one sent.
-    signer_t_pays: "{}: pays {}, not {}",
+    /// A finding: an output pays another script. `{}`: where; the address returned is under it.
+    signer_t_pays: "{}: pays",
+    /// A finding's second part, between the address returned and the address sent.
+    signer_t_pays_not: "not",
     /// A script that has no address. `{}`: its length in bytes.
     signer_script_bytes: "script {} bytes",
     /// A finding: an added signature does not verify. `{}`: where, the key.

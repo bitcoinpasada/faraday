@@ -3,6 +3,7 @@
 //! each one's fee bump result in words.
 
 use super::diff_words::{self, Fact};
+use super::said::Said;
 use crate::Faraday;
 use crate::decode::raw_as_psbt;
 use crate::item::Item;
@@ -30,7 +31,7 @@ pub(crate) struct Other {
     /// The result line, "… from {name}".
     pub result: String,
     /// The lines, in the rules' order.
-    pub lines: Vec<String>,
+    pub lines: Vec<Said>,
     /// The facts under them.
     pub facts: Vec<Fact>,
 }

@@ -6,8 +6,9 @@
 //! comparison and the report on them), kept until a lock or power-off as
 //! Decode's state is.
 
+use crate::decode::said::Said;
 use crate::decode::{check_others, diff_words};
-use crate::strings::EN;
+use crate::strings::{EN, fill};
 use crate::wallet::{InspectInputs, PsbtSeen};
 use crate::{Item, Screen, flow};
 use faraday_bip::base64;
@@ -456,7 +457,7 @@ pub(crate) struct BumpShown {
     /// The result line.
     pub result: &'static str,
     /// The lines, in the rules' order.
-    pub lines: Vec<Text>,
+    pub lines: Vec<Said>,
     /// The facts under them.
     pub facts: Vec<diff_words::Fact>,
 }
@@ -480,14 +481,14 @@ pub(crate) struct Shown {
     /// The facts.
     pub facts: Facts,
     /// A line per finding in the report's order, with its level.
-    pub findings: Vec<(Level, Text)>,
+    pub findings: Vec<(Level, Said)>,
     /// The lines stated, which are no finding.
     pub stated: Vec<Text>,
     /// Whether the findings section is drawn: where the check ran, not
     /// where the two PSBTs share no input.
     pub has_findings: bool,
     /// A line per difference, or "No differences".
-    pub differences: Vec<Text>,
+    pub differences: Vec<Said>,
     /// Whether **Show as QR** is offered: the Returned side is a PSBT.
     pub qr: bool,
     /// The keys that signed and are not loaded, one **Load the seed** row
@@ -620,11 +621,10 @@ pub(crate) fn shown(
             .findings
             .iter()
             .map(|f| {
-                let line = words::finding(f, network);
-                (
-                    f.level,
-                    Text::fill(EN.signer_finding_line, &[words::level_word(f.level), &line]),
-                )
+                let level = words::level_word(f.level);
+                let said =
+                    words::finding(f, network).lead(|w| fill(EN.signer_finding_line, &[level, w]));
+                (f.level, said)
             })
             .collect();
         stated = report
@@ -638,11 +638,7 @@ pub(crate) fn shown(
         bump: bump.map(|b| BumpShown {
             outcome: b.result,
             result: diff_words::result(b.result),
-            lines: b
-                .lines
-                .iter()
-                .map(|l| Text::of(&diff_words::line(l)))
-                .collect(),
+            lines: b.lines.iter().map(diff_words::line).collect(),
             facts: diff_words::bump_facts(b),
         }),
         verdict: checked.map(|(r, _)| verdict_line(r)),
@@ -650,10 +646,7 @@ pub(crate) fn shown(
         findings,
         stated,
         has_findings,
-        differences: diff_words::differences(d)
-            .iter()
-            .map(|l| Text::of(l))
-            .collect(),
+        differences: diff_words::differences(d),
         qr,
         seeds,
         load,

@@ -1103,3 +1103,57 @@ fn the_open_card_is_alone_with_your_choices_beside_it_or_in_the_sheet() {
     assert_eq!(app.sheet, Some(Sheet::Choices));
     assert!(shows(&mut app, "sent.psbt"));
 }
+
+const SIZES: [(u16, u16); 3] = [(1366, 768), (480, 640), (320, 480)];
+
+#[test]
+fn a_finding_that_an_output_pays_another_script_gives_both_addresses_whole() {
+    use faraday_bip::bitcoin::{Address, ScriptBuf};
+    let net = faraday_bip::bitcoin::Network::from(testkit::NET);
+    let sent = std::cell::RefCell::new(ScriptBuf::new());
+    // A P2WSH script: version 0, then a push of 32 bytes.
+    let other = ScriptBuf::from_bytes([&[0x00u8, 0x20][..], &[9u8; 32][..]].concat());
+    for size in SIZES {
+        let mut app = spending_pair(|p| {
+            *sent.borrow_mut() = p.inner().unsigned_tx.output[0].script_pubkey.clone();
+            p.inner_mut().unsigned_tx.output[0].script_pubkey = other.clone();
+        });
+        let returned = Address::from_script(&other, net).unwrap().to_string();
+        let was = Address::from_script(&sent.borrow(), net)
+            .unwrap()
+            .to_string();
+        let want = format!("{returned}not{was}");
+        assert!(
+            under_on_screen(&mut app, size, ": pays", &want),
+            "{size:?}: {returned} not {was}: {:?}",
+            texts(&mut app)
+        );
+    }
+}
+
+/// Resizes to `width` x `height`, then whether, from the line ending in
+/// `mark` on, one screenful of the Result holds `want` once its spaces are
+/// taken out: the finding's words, then each address whole under them.
+fn under_on_screen(app: &mut Faraday, (width, height): (u16, u16), mark: &str, want: &str) -> bool {
+    resize(app, width, height);
+    let mut last: Vec<String> = Vec::new();
+    for _ in 0..60 {
+        let frame = texts(app);
+        if let Some(i) = frame.iter().position(|l| l.ends_with(mark))
+            && frame[i + 1..].concat().replace(' ', "").starts_with(want)
+        {
+            return true;
+        }
+        if frame == last {
+            return false;
+        }
+        last = frame;
+        app.event(Event::Wheel {
+            x: width / 2,
+            y: height / 2,
+            dy: 120,
+        });
+        app.settle();
+    }
+    false
+}

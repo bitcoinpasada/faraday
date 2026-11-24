@@ -5767,8 +5767,8 @@ functions = [
   "faraday/faraday-keys/src/session.rs::Keys::recompute_signatures",
   "faraday/faraday-keys/src/session.rs::Keys::recompute_signatures_all",
   "faraday/faraday-core/src/decode/check.rs::shown",
+  "faraday/faraday-core/src/decode/check_words.rs::naming",
   "faraday/faraday-core/src/decode/check_words.rs::outpoint",
-  "faraday/faraday-core/src/decode/check_words.rs::script",
   "faraday/faraday-core/src/decode/mod.rs::Faraday::nonce_check_open",
   "faraday/faraday-core/src/decode/mod.rs::raw_as_psbt",
 ]

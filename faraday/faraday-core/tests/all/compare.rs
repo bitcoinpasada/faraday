@@ -460,3 +460,75 @@ fn a_false_previous_transaction_gives_a_finished_transaction_no_fee() {
         assert!(holding(&mut app, "in the original").is_empty());
     }
 }
+
+/// Resizes to `width` x `height`, then whether `address` is on screen whole
+/// in the Result: every character of it drawn on one screenful, in the
+/// groups the card wraps it into, the card scrolled down until it does.
+fn whole_on_screen(app: &mut Faraday, (width, height): (u16, u16), address: &str) -> bool {
+    resize(app, width, height);
+    let mut last: Vec<String> = Vec::new();
+    for _ in 0..60 {
+        let frame = texts(app);
+        if frame.concat().replace(' ', "").contains(address) {
+            return true;
+        }
+        if frame == last {
+            return false;
+        }
+        last = frame;
+        app.event(Event::Wheel {
+            x: width / 2,
+            y: height / 2,
+            dy: 120,
+        });
+        app.settle();
+    }
+    false
+}
+
+const SIZES: [(u16, u16); 3] = [(1366, 768), (480, 640), (320, 480)];
+
+/// The resize the helper needs.
+fn resize(app: &mut Faraday, width: u16, height: u16) {
+    app.event(Event::Display(faraday_shell_api::DisplayInfo {
+        width,
+        height,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: faraday_shell_api::SecureHardware::None,
+        boot: faraday_shell_api::BootState::Unknown,
+        memory_mib: None,
+    }));
+    let _ = app.frame();
+}
+
+#[test]
+fn a_line_that_names_an_output_gives_its_address_whole() {
+    use faraday_bip::bitcoin::Address;
+    let net = faraday_bip::bitcoin::Network::from(testkit::NET);
+    let c = testkit::compute();
+    let text = String::from_utf8(replacement()).expect("a text file");
+    let psbt = faraday_psbt::Psbt::parse_base64(&c, text.trim()).expect("a PSBT");
+    let addresses: Vec<String> = psbt
+        .inner()
+        .unsigned_tx
+        .output
+        .iter()
+        .map(|o| {
+            Address::from_script(&o.script_pubkey, net)
+                .unwrap()
+                .to_string()
+        })
+        .collect();
+    for size in SIZES {
+        let mut app = pair();
+        let named: Vec<&String> = addresses
+            .iter()
+            .filter(|a| whole_on_screen(&mut app, size, a))
+            .collect();
+        assert!(!named.is_empty(), "{size:?}: {:?}", texts(&mut app));
+    }
+}

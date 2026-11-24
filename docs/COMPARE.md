@@ -105,8 +105,13 @@ wallets):
 
 Each difference is one line, a plain statement. Where a line names an
 input it names it by its outpoint in short form ("Input 3f2a 91c0 … 8e1d:1",
-DESIGN §4.5), and where it names an output, by its address in short form
-or "script {n} bytes" where it has none. Amounts are in BTC (DESIGN
+DESIGN §4.5), and where it names an output, the sentence ends in "to" and
+the output's whole address stands under it, grouped in fours in mono and
+wrapped between groups only (DESIGN §4.5, "Whole string"), or "script {n}
+bytes" under it where the output has none ("Output of 0.5 BTC, in the sent
+only, to"). The line carries the sentence and the address as separate
+parts. A line that names two addresses (a finding that an output pays
+another script) gives each under its own words. Amounts are in BTC (DESIGN
 §4.7). The two files are named as Check a signer's cards are, sent and
 returned; their wording as Compare first had it is in
 `docs/history/COMPARE-LOG.md`.

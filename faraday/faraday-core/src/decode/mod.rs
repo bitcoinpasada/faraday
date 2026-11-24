@@ -12,6 +12,7 @@ pub(crate) mod check_others;
 pub(crate) mod check_screen;
 pub(crate) mod check_words;
 pub(crate) mod diff_words;
+pub(crate) mod said;
 pub(crate) mod screen;
 
 use crate::strings::EN;

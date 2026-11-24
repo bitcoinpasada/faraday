@@ -3,6 +3,7 @@
 //! `docs/SIGNER-CHECK.md` §6. Each match is exhaustive, with no `_` arm,
 //! so a kind added to the crate fails to compile here until it has words.
 
+use crate::decode::said::Said;
 use crate::review::sighash_text;
 use crate::strings::{EN, fill};
 use faraday_bip::bitcoin::{Address, OutPoint, Script};
@@ -35,11 +36,12 @@ fn amount(sats: u64) -> String {
     String::from(&*crate::decode::btc(sats))
 }
 
-/// A script as its address in short form, or its length where it has none.
-fn script(s: &Script, network: Network) -> String {
+/// `said`, then a script under it: its whole address, or its length where
+/// it has none.
+fn naming(said: Said, s: &Script, network: Network) -> Said {
     match Address::from_script(s, faraday_bip::bitcoin::Network::from(network)) {
-        Ok(a) => String::from(&*faraday_ui::short(&a.to_string())),
-        Err(_) => fill(EN.signer_script_bytes, &[&s.len().to_string()]),
+        Ok(a) => said.address(a.to_string()),
+        Err(_) => said.script(fill(EN.signer_script_bytes, &[&s.len().to_string()])),
     }
 }
 
@@ -182,9 +184,25 @@ fn pair(at: &str, kind: &Kind) -> Option<String> {
     }
 }
 
-/// A finding as one line (SIGNER-CHECK §6), amounts in BTC and scripts as
-/// addresses for `network`.
-pub(crate) fn finding(f: &Finding, network: Network) -> String {
+/// A finding as a sentence (SIGNER-CHECK §6), amounts in BTC and a script
+/// as its whole address for `network`, under the words.
+pub(crate) fn finding(f: &Finding, network: Network) -> Said {
+    match &f.kind {
+        Kind::OutputScript { sent, returned } => {
+            let at = place(f.at);
+            let said = naming(
+                Said::words(fill(EN.signer_t_pays, &[&at])),
+                returned,
+                network,
+            );
+            naming(said.then(EN.signer_t_pays_not), sent, network)
+        }
+        _ => Said::words(finding_words(f)),
+    }
+}
+
+/// A finding that names no address, as one line.
+fn finding_words(f: &Finding) -> String {
     let at = place(f.at);
     let n = |v: usize| v.to_string();
     match &f.kind {
@@ -214,10 +232,8 @@ pub(crate) fn finding(f: &Finding, network: Network) -> String {
             EN.signer_t_amount,
             &[&at, &amount(*returned), &amount(*sent)],
         ),
-        Kind::OutputScript { sent, returned } => fill(
-            EN.signer_t_pays,
-            &[&at, &script(returned, network), &script(sent, network)],
-        ),
+        // Told by `finding`, which keeps the addresses apart.
+        Kind::OutputScript { .. } => String::new(),
         Kind::SignatureInvalid { key } => fill(EN.signer_s_invalid, &[&at, key]),
         Kind::SignatureUnchecked { key, reason } => {
             fill(EN.signer_s_unchecked, &[&at, key, not_checked(*reason)])

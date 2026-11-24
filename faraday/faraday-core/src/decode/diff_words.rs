@@ -5,6 +5,7 @@
 //! added to the crate fails to compile here until it has words.
 
 use crate::decode::check_words::outpoint;
+use crate::decode::said::Said;
 use crate::decode::{btc, locktime_text, sequence_text};
 use crate::strings::{EN, fill};
 use faraday_bip::bitcoin::{Amount, OutPoint, Sequence};
@@ -47,13 +48,16 @@ fn lock(l: Locktime) -> String {
     String::from(&*locktime_text(l.raw))
 }
 
-/// An output by its address in short form, or by its script's length
-/// where it has no address.
-fn output(o: &OutputRef) -> String {
+/// `said` and then the output under it: its whole address, or its script's
+/// length where it has no address.
+fn naming(said: Said, o: &OutputRef) -> Said {
     if o.address.is_empty() {
-        fill(EN.compare_script_bytes, &[&o.script.len().to_string()])
+        said.script(fill(
+            EN.compare_script_bytes,
+            &[&o.script.len().to_string()],
+        ))
     } else {
-        String::from(&*faraday_ui::short(&o.address))
+        said.address(o.address.clone())
     }
 }
 
@@ -74,21 +78,26 @@ fn op(o: &OutPoint) -> String {
     outpoint(o)
 }
 
+/// A sentence of words alone, made from a template.
+fn said_fill(template: &str, args: &[&str]) -> Said {
+    Said::words(fill(template, args))
+}
+
 /// One difference of the comparison as a line.
-pub(crate) fn difference(d: &Difference) -> String {
+pub(crate) fn difference(d: &Difference) -> Said {
     match d {
-        Difference::Version { first, second } => fill(
+        Difference::Version { first, second } => said_fill(
             EN.compare_version,
             &[&first.to_string(), &second.to_string()],
         ),
         Difference::Locktime { first, second } => {
-            fill(EN.compare_locktime, &[&lock(*first), &lock(*second)])
+            said_fill(EN.compare_locktime, &[&lock(*first), &lock(*second)])
         }
-        Difference::PsbtVersion { first, second } => fill(
+        Difference::PsbtVersion { first, second } => said_fill(
             EN.compare_psbt_version,
             &[&first.to_string(), &second.to_string()],
         ),
-        Difference::InputOnly { outpoint, side } => fill(
+        Difference::InputOnly { outpoint, side } => said_fill(
             match side {
                 Which::First => EN.compare_input_sent_only,
                 Which::Second => EN.compare_input_returned_only,
@@ -99,7 +108,7 @@ pub(crate) fn difference(d: &Difference) -> String {
             outpoint,
             first,
             second,
-        } => fill(
+        } => said_fill(
             EN.compare_sequence,
             &[&op(outpoint), &seq(*first), &seq(*second)],
         ),
@@ -107,11 +116,11 @@ pub(crate) fn difference(d: &Difference) -> String {
             outpoint,
             first,
             second,
-        } => fill(
+        } => said_fill(
             EN.compare_spends,
             &[&op(outpoint), &amount(*first), &amount(*second)],
         ),
-        Difference::AmountStatedOnly { outpoint, side } => fill(
+        Difference::AmountStatedOnly { outpoint, side } => said_fill(
             match side {
                 Which::First => EN.compare_amount_sent_only,
                 Which::Second => EN.compare_amount_returned_only,
@@ -122,11 +131,11 @@ pub(crate) fn difference(d: &Difference) -> String {
             outpoint,
             first,
             second,
-        } => fill(
+        } => said_fill(
             EN.compare_signatures,
             &[&op(outpoint), &first.to_string(), &second.to_string()],
         ),
-        Difference::FinalOnly { outpoint, side } => fill(
+        Difference::FinalOnly { outpoint, side } => said_fill(
             match side {
                 Which::First => EN.compare_final_sent_only,
                 Which::Second => EN.compare_final_returned_only,
@@ -137,43 +146,52 @@ pub(crate) fn difference(d: &Difference) -> String {
             output: o,
             amount: a,
             side,
-        } => fill(
-            match side {
-                Which::First => EN.compare_output_sent_only,
-                Which::Second => EN.compare_output_returned_only,
-            },
-            &[&output(o), &amount(*a)],
+        } => naming(
+            said_fill(
+                match side {
+                    Which::First => EN.compare_output_sent_only,
+                    Which::Second => EN.compare_output_returned_only,
+                },
+                &[&amount(*a)],
+            ),
+            o,
         ),
         Difference::OutputAmount {
             output: o,
             first,
             second,
-        } => fill(
-            EN.compare_output_amount,
-            &[&output(o), &amount(*first), &amount(*second)],
+        } => naming(
+            said_fill(
+                EN.compare_output_amount,
+                &[&amount(*first), &amount(*second)],
+            ),
+            o,
         ),
-        Difference::SpentTwice { outpoint, side } => fill(
+        Difference::SpentTwice { outpoint, side } => said_fill(
             match side {
                 Which::First => EN.compare_spent_twice_sent,
                 Which::Second => EN.compare_spent_twice_returned,
             },
             &[&op(outpoint)],
         ),
-        Difference::YoursOnly { output: o, side } => fill(
-            match side {
-                Which::First => EN.compare_yours_sent_only,
-                Which::Second => EN.compare_yours_returned_only,
-            },
-            &[&output(o)],
+        Difference::YoursOnly { output: o, side } => naming(
+            said_fill(
+                match side {
+                    Which::First => EN.compare_yours_sent_only,
+                    Which::Second => EN.compare_yours_returned_only,
+                },
+                &[],
+            ),
+            o,
         ),
     }
 }
 
 /// The lines of the Differences section: one per difference, or "No
 /// differences".
-pub(crate) fn differences(d: &Differences) -> Vec<String> {
+pub(crate) fn differences(d: &Differences) -> Vec<Said> {
     if d.list.is_empty() {
-        vec![EN.compare_no_differences.to_string()]
+        vec![Said::words(EN.compare_no_differences)]
     } else {
         d.list.iter().map(difference).collect()
     }
@@ -207,15 +225,15 @@ fn per_vb(sat_per_kvb: i64) -> f64 {
 }
 
 /// One line of a fee bump's result.
-pub(crate) fn line(l: &Line) -> String {
+pub(crate) fn line(l: &Line) -> Said {
     match l {
-        Line::InputDropped(o) => fill(EN.bump_input_dropped, &[&op(o)]),
-        Line::InputAddedNotYours(o) => fill(EN.bump_input_added, &[&op(o)]),
+        Line::InputDropped(o) => said_fill(EN.bump_input_dropped, &[&op(o)]),
+        Line::InputAddedNotYours(o) => said_fill(EN.bump_input_added, &[&op(o)]),
         Line::Sequence {
             outpoint,
             original,
             replacement,
-        } => fill(
+        } => said_fill(
             EN.bump_sequence,
             &[&op(outpoint), &seq(*original), &seq(*replacement)],
         ),
@@ -223,11 +241,11 @@ pub(crate) fn line(l: &Line) -> String {
             outpoint,
             original,
             replacement,
-        } => fill(
+        } => said_fill(
             EN.bump_spends,
             &[&op(outpoint), &amount(*original), &amount(*replacement)],
         ),
-        Line::SpentTwice { outpoint, side } => fill(
+        Line::SpentTwice { outpoint, side } => said_fill(
             match side {
                 Which::First => EN.bump_spent_twice_original,
                 Which::Second => EN.bump_spent_twice_replacement,
@@ -237,52 +255,50 @@ pub(crate) fn line(l: &Line) -> String {
         Line::Version {
             original,
             replacement,
-        } => fill(
+        } => said_fill(
             EN.bump_version,
             &[&original.to_string(), &replacement.to_string()],
         ),
         Line::Locktime {
             original,
             replacement,
-        } => fill(EN.bump_locktime, &[&lock(*original), &lock(*replacement)]),
+        } => said_fill(EN.bump_locktime, &[&lock(*original), &lock(*replacement)]),
         Line::PaysOther {
             output: o,
             original,
             replacement,
-        } => fill(
-            EN.bump_pays_other,
-            &[&amount(*replacement), &output(o), &amount(*original)],
-        ),
+        } => naming(said_fill(EN.bump_pays_other, &[&amount(*replacement)]), o)
+            .then(fill(EN.bump_pays_other_original, &[&amount(*original)])),
         Line::NoLongerPays {
             output: o,
             original,
-        } => fill(EN.bump_no_longer_pays, &[&amount(*original), &output(o)]),
+        } => naming(said_fill(EN.bump_no_longer_pays, &[&amount(*original)]), o),
         Line::PaysNew {
             output: o,
             replacement,
-        } => fill(EN.bump_pays_new, &[&amount(*replacement), &output(o)]),
+        } => naming(said_fill(EN.bump_pays_new, &[&amount(*replacement)]), o),
         Line::Fee {
             original,
             replacement,
-        } => fill(
+        } => said_fill(
             EN.bump_fee,
             &[&original.to_string(), &replacement.to_string()],
         ),
         Line::FeeRate {
             original,
             replacement,
-        } => fill(
+        } => said_fill(
             EN.bump_fee_rate,
             &[&rate(per_vb(*original)), &rate(per_vb(*replacement))],
         ),
-        Line::AmountNotStated(o) => fill(EN.bump_amount_not_stated, &[&op(o)]),
+        Line::AmountNotStated(o) => said_fill(EN.bump_amount_not_stated, &[&op(o)]),
         Line::ChangeNotLoaded { output: o, key } => {
-            fill(EN.bump_change_not_loaded, &[&output(o), &key.to_string()])
+            naming(said_fill(EN.bump_change_not_loaded, &[&key.to_string()]), o)
         }
         Line::InputNotLoaded { outpoint, key } => {
-            fill(EN.bump_input_not_loaded, &[&op(outpoint), &key.to_string()])
+            said_fill(EN.bump_input_not_loaded, &[&op(outpoint), &key.to_string()])
         }
-        Line::NotStatedYours(o) => fill(EN.bump_not_stated_yours, &[&output(o)]),
+        Line::NotStatedYours(o) => naming(said_fill(EN.bump_not_stated_yours, &[]), o),
     }
 }
 

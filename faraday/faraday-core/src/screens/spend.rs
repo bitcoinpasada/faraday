@@ -2,6 +2,7 @@
 
 use super::parts::{made_place, spaced};
 use crate::decode::check::SignerPress;
+use crate::decode::said::Said;
 use crate::drawing::{Scrolled, View};
 use crate::memory::nonces::History;
 use crate::review::unchecked_text;
@@ -1280,7 +1281,7 @@ impl StepView<'_> {
                 (c, crate::review::warning_text(i, wn))
             }));
         for (c, text) in lines {
-            cy += warning_row(ui, (x, cy, w), c, &text);
+            cy += warning_row(ui, (x, cy, w), c, &Said::words(&*text));
             warned = true;
         }
         // Held for want of a registered wallet: register the one the
@@ -2550,8 +2551,8 @@ fn review_stop_block(
 /// button reading Sign. Returns its height.
 /// One warning line of the review, its icon before it; gives the height
 /// it took with the space after it.
-fn warning_row(ui: &mut Ui, (x, y, w): (f32, f32, f32), tone: Role, text: &str) -> f32 {
-    let used = ui.wrap_as((x + 22.0, y, w - 22.0), BODY_M, tone, text);
+fn warning_row(ui: &mut Ui, (x, y, w): (f32, f32, f32), tone: Role, text: &Said) -> f32 {
+    let used = crate::decode::check_screen::said(ui, (x + 22.0, y, w - 22.0), tone, text);
     ui.icon(x, y, 16.0, Icon::Warning, 10.0, tone);
     used.max(18.0) + 6.0
 }
