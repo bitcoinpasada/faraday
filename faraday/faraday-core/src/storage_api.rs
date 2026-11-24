@@ -1098,7 +1098,18 @@ impl Faraday {
             return;
         }
         self.stick.set_held(false);
-        if !self.stick.is_empty() {
+        if self.stick.attached_unlisted() {
+            // Storage the kernel showed while the camera was on, not yet
+            // listed: the secret fields close as a listed stick closes
+            // them (a scan may have filled one since), and any other than
+            // a clean process locks first.
+            stick::events::secrets_close(self);
+            if !self.clean() {
+                self.lock_sheet_replaces_devices();
+                self.out.redraw();
+                self.out.commands.push_back(Command::Draw);
+            }
+        } else if !self.stick.is_empty() {
             stick::events::stick_arrived(self);
             self.out.redraw();
             self.out.commands.push_back(Command::Draw);
@@ -1115,12 +1126,19 @@ impl Faraday {
         self.session.keys.set_stick_attached(noun);
         if attached {
             stick::events::secrets_close(self);
+            // Held back while the camera is on, as a listed stick is: the
+            // scanner is never replaced with its scan still held.
+            if self.camera_on() {
+                self.stick.set_held(true);
+                return;
+            }
             // Any other than a clean process locks first, as for a
             // listed stick.
             if !self.clean() {
                 self.lock_sheet_replaces_devices();
             }
         } else {
+            self.stick.set_held(false);
             stick::events::nothing_in_the_way(self, true);
         }
     }

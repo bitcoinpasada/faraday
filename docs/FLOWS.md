@@ -59,7 +59,8 @@ attached: Scan, Scan a SeedQR, Scan a key, Scan your copy and a vault
 entry's Scan, pressed with a stick in, open the same sheet, "Pull the
 stick to scan", and the camera turns on once the stick is out. A stick
 plugged in while the camera is on is held back, nothing read from it,
-and arrives as any stick does once the camera is off. Signing by QR
+and arrives as any stick does once the camera is off (storage the kernel
+shows before the disk process lists it is held the same way). Signing by QR
 alone needs no stick.
 
 **Whatever needs a vault leads into making or unlocking one, and back**

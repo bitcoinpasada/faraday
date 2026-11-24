@@ -423,12 +423,12 @@ pub(crate) fn sticks_changed(app: &mut Faraday, sticks: Vec<StickInfo>) {
     app.flow_sticks_changed();
     app.name_taken_pulled();
     if app.stick.is_empty() {
-        app.stick.set_held(false);
         app.stick.set_not_now(false);
         // With the kernel still showing storage (a card reader, now
-        // empty) nothing is out of the way yet: `storage_attached(false)`
-        // runs the step when it is.
+        // empty) nothing is out of the way yet, and a hold stays for the
+        // scan's end: `storage_attached(false)` runs the step when it is.
         if !app.stick.in_the_way() {
+            app.stick.set_held(false);
             nothing_in_the_way(app, had);
         }
         return;

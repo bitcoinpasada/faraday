@@ -70,7 +70,10 @@ scanner. The device has no clipboard and no file picker.
 
 The scanners that load a key open only with no stick in, and a stick
 plugged in while the camera is on is held back until it is off
-(`docs/QR.md` §2).
+(`docs/QR.md` §2), whether the disk process has listed it or the kernel
+only shows storage attached: the scanner is never replaced, and pulling
+the stick leaves the scan as it was. Once the scan ends, a
+process that is not clean is asked to lock first.
 
 ## 2. The kinds
 

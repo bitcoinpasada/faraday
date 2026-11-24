@@ -836,6 +836,27 @@ fn an_aezeed_read_at_a_scanner_is_used_in_lightning() {
     assert!(ways.is_empty());
 }
 
+/// The kernel shows storage while the scan is held, the scan reads an
+/// aezeed and **Use in Lightning** puts its words in Lightning: they are
+/// emptied when the stick's hold is released, as when a listed stick
+/// arrives.
+#[test]
+fn an_aezeed_used_in_lightning_after_storage_was_held_back_is_emptied_at_its_release() {
+    let mut app = testkit::started();
+    open(&mut app, Opened::Home);
+    app.storage(StorageEvent::Attached(true));
+    assert_eq!(app.sheet, Some(Sheet::Scan), "the scanner stays");
+    read(&mut app, AEZEED.as_bytes());
+    assert!(card(&app).is_some());
+    app.press(Action::ReadGo(0));
+    assert_eq!(app.screen, Screen::Lightning);
+    assert!(app.scan().is_none());
+    assert!(
+        app.lightning().unwrap().typed.is_empty(),
+        "the aezeed's words stayed with storage attached"
+    );
+}
+
 /// Text that is none of the kinds Faraday reads shows on the read card
 /// masked behind its eye: a press shows it, the next hides it, nothing
 /// is copied and nothing filed.

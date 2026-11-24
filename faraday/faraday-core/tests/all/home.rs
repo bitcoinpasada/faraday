@@ -416,6 +416,131 @@ fn a_stick_plugged_in_under_the_idle_warning_over_a_scan_is_still_held() {
     assert_eq!(app.screen, before, "the stick was not visited");
 }
 
+/// The kernel shows storage before the disk process lists it: with a scan
+/// held it is held back too, never put a Lock sheet over the scan.
+fn attached_during_a_scan() -> Faraday {
+    let mut app = shown();
+    tap(&mut app, Action::Scan);
+    while app.poll_command().is_some() {}
+    app.storage(StorageEvent::Attached(true));
+    assert_eq!(app.sheet, Some(Sheet::Scan), "the scanner stays");
+    assert!(app.scan().is_some());
+    assert!(!app.clean());
+    app
+}
+
+#[test]
+fn storage_attached_during_a_scan_is_held_until_the_scan_ends() {
+    let mut app = attached_during_a_scan();
+    // The stick listed meanwhile is held back too: the scanner stays and
+    // the stick is visited once the scan ends.
+    stick(&mut app, true);
+    assert_eq!(app.sheet, Some(Sheet::Scan));
+    assert_ne!(app.screen, Screen::Files);
+    app.press(Action::Cancel);
+    let cmds: Vec<_> = std::iter::from_fn(|| app.poll_command()).collect();
+    assert!(cmds.contains(&Command::CameraOff));
+    assert!(app.scan().is_none());
+    assert_eq!(app.screen, Screen::Files);
+}
+
+/// A process that holds a key, so not clean, with Home's scanner up.
+fn tainted_scanning() -> Faraday {
+    let mut app = shown();
+    tap(&mut app, Action::Scan);
+    read(&mut app, SEEDQR.as_bytes());
+    without_passphrase(&mut app);
+    assert_eq!(app.session.keys.len(), 1);
+    app.press(Action::Scan);
+    assert_eq!(app.sheet, Some(Sheet::Scan));
+    while app.poll_command().is_some() {}
+    app
+}
+
+#[test]
+fn storage_attached_during_a_scan_in_a_process_not_clean_asks_for_lock_at_its_end() {
+    let mut app = tainted_scanning();
+    app.storage(StorageEvent::Attached(true));
+    assert_eq!(app.sheet, Some(Sheet::Scan), "the scanner stays");
+    app.press(Action::Cancel);
+    assert!(app.scan().is_none());
+    assert_eq!(app.sheet, Some(Sheet::Lock));
+}
+
+#[test]
+fn a_stick_listed_during_a_scan_in_a_process_not_clean_asks_for_lock_at_its_end() {
+    let mut app = tainted_scanning();
+    app.storage(StorageEvent::Attached(true));
+    stick(&mut app, true);
+    assert_eq!(app.sheet, Some(Sheet::Scan), "the scanner stays");
+    app.press(Action::Cancel);
+    assert!(app.scan().is_none());
+    assert_eq!(app.sheet, Some(Sheet::Lock));
+}
+
+#[test]
+fn a_listing_emptied_with_storage_still_attached_keeps_the_hold_for_the_scans_end() {
+    let mut app = tainted_scanning();
+    app.storage(StorageEvent::Attached(true));
+    stick(&mut app, true);
+    stick(&mut app, false);
+    assert_eq!(app.sheet, Some(Sheet::Scan), "the scanner stays");
+    app.press(Action::Cancel);
+    assert_eq!(app.sheet, Some(Sheet::Lock));
+}
+
+#[test]
+fn storage_pulled_during_a_scan_leaves_the_scan_to_cancel() {
+    let mut app = attached_during_a_scan();
+    app.storage(StorageEvent::Attached(false));
+    assert_eq!(app.sheet, Some(Sheet::Scan));
+    assert!(app.scan().is_some());
+    app.press(Action::Cancel);
+    assert!(app.scan().is_none());
+    assert!(app.clean());
+}
+
+#[test]
+fn storage_attached_under_the_idle_warning_over_a_scan_waits_for_the_scan() {
+    const MIN: u64 = 60_000;
+    let mut app = shown();
+    let kit = faraday_core::testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "spending")
+        .unwrap();
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![(
+            faraday_text::Text::of("spending-wallet.txt"),
+            kit.descriptor.into_bytes(),
+        )]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    faraday_core::testkit::load_wallet(&mut app, 0);
+    tap(&mut app, Action::Scan);
+    app.event(Event::Tick { now_ms: 0 });
+    app.event(Event::Tick { now_ms: 26 * MIN });
+    let _ = app.frame();
+    assert_eq!(app.sheet, Some(Sheet::IdleWarn));
+    app.storage(StorageEvent::Attached(true));
+    stick(&mut app, true);
+    assert_eq!(app.sheet, Some(Sheet::IdleWarn));
+    assert!(app.scan().is_some());
+    assert_ne!(app.screen, Screen::Files);
+    // A touch puts the warning away and the scanner is back, the stick
+    // still waiting for the scan to end.
+    for phase in [TouchPhase::Down, TouchPhase::Up] {
+        app.event(Event::Touch { x: 2, y: 2, phase });
+    }
+    let _ = app.frame();
+    assert_eq!(app.sheet, Some(Sheet::Scan));
+    assert_ne!(app.screen, Screen::Files);
+    app.press(Action::Cancel);
+    let _ = app.frame();
+    assert!(app.scan().is_none(), "no scan is left held with no sheet");
+    assert_eq!(app.screen, Screen::Files, "the stick waited for the scan");
+}
+
 #[test]
 fn a_seedqr_scanned_while_a_stick_is_held_loads_no_key() {
     let mut app = shown();
