@@ -10,6 +10,7 @@ use faraday_core::wallet::step;
 use faraday_core::{Action, Faraday, StorageEvent};
 use faraday_psbt::bitcoin::{Sequence, absolute::LockTime, transaction::Version};
 use faraday_psbt::{Level, Psbt, WarningKind};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 fn kit(id: &str) -> Kit {
     testkit::kits().into_iter().find(|k| k.id == id).unwrap()
@@ -112,6 +113,59 @@ fn a_spend_that_signals_replacement_reads_replaceable() {
     let mut app = reviewing(&spend(2, LockTime::ZERO, Sequence::ENABLE_RBF_NO_LOCKTIME));
     let shown = screen(&mut app);
     assert!(shown.contains(EN.step_replaceable), "{shown}");
+}
+
+/// At each desktop size, the label of a review row and its value leave a
+/// gap: "Replacement" never runs into "Replaceable".
+#[test]
+fn a_rows_label_and_value_never_touch_at_any_size() {
+    for (width, height) in [(1920u16, 1080u16), (1366, 768)] {
+        for dpi in [160u16, 240] {
+            let mut app = reviewing(&spend(2, LockTime::ZERO, Sequence::ENABLE_RBF_NO_LOCKTIME));
+            app.event(Event::Display(DisplayInfo {
+                width,
+                height,
+                dpi,
+                inset_bottom: 0,
+                inset_top: 0,
+                buttons: 0,
+                camera_fixed: false,
+                secure: SecureHardware::None,
+                boot: BootState::Unknown,
+                memory_mib: None,
+            }));
+            let _ = app.frame();
+            let boxes = app.drawn_text_boxes();
+            let mut seen = 0;
+            for label in [
+                EN.step_fee,
+                EN.step_spends,
+                EN.step_replacement,
+                EN.step_txid,
+            ] {
+                let Some((_, (lx, ly, lw, lh))) = boxes.iter().find(|(t, _)| t == label) else {
+                    continue;
+                };
+                // The next text to the right on the same row.
+                let next = boxes
+                    .iter()
+                    .filter(|(t, (x, y, _, h))| {
+                        t != label && x >= lx && y < &(ly + lh) && ly < &(y + h) && x > lx
+                    })
+                    .map(|(_, (x, _, _, _))| *x)
+                    .min();
+                if let Some(x) = next {
+                    seen += 1;
+                    assert!(
+                        x >= lx + lw + 8,
+                        "{label} at {width}x{height}/{dpi}: label ends {} value starts {x}",
+                        lx + lw
+                    );
+                }
+            }
+            assert!(seen >= 3, "{width}x{height}/{dpi}: {seen} rows found");
+        }
+    }
 }
 
 fn lock_stated(app: &mut Faraday) -> (bool, bool) {
