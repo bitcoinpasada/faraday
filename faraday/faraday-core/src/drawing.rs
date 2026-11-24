@@ -295,6 +295,8 @@ pub(crate) enum Scrolled {
     KefTool,
     OtsCheck,
     Tools,
+    /// Decode a Lightning invoice's card, where it is drawn as a flow.
+    Invoice,
     SeedCheck,
     MultisigCheck,
     CoreWallet,
@@ -535,6 +537,9 @@ impl Faraday {
                 }
                 Scrolled::Tools => {
                     self.tools.set_scroll(to);
+                }
+                Scrolled::Invoice => {
+                    self.tools.invoice.set_scroll(to);
                 }
                 Scrolled::SeedCheck => {
                     self.tools.seed_check.set_scroll(to);

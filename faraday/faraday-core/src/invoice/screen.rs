@@ -24,28 +24,9 @@ pub(crate) fn back_of(app: &View) -> (&'static str, Action) {
     (crate::screens::decode_back(back), Action::Nav(back))
 }
 
-pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
-    let Some(s) = app.invoice() else {
-        return;
-    };
-    let compact = ui.compact;
-    let (x, w) = if compact {
-        (x0 + crate::compact::M, cw - 2.0 * crate::compact::M)
-    } else {
-        (x0 + PAGE_INSET, (cw - 2.0 * PAGE_INSET).min(INVOICE_PAGE_W))
-    };
-    let clip = ui.rect(x0, 0.0, cw, h);
-    let open = ui.region_open(Region::page(clip).from_zero(app.list_offset));
-    let top = if compact {
-        INVOICE_TOP
-    } else {
-        let back = app.named_back(back_of(app));
-        crate::screens::bar_head(ui, Some(back), EN.invoice_title)
-    };
-    let mut y = top;
-
-    // Material's outlined text field, its edge thicker and in primary
-    // while typing goes to it, which is always here.
+/// Material's outlined text field, its edge thicker and in primary while
+/// typing goes to it; returns its height with the gap under it.
+fn field(ui: &mut Ui, s: &super::InvoiceState, (x, y, w): (f32, f32, f32)) -> f32 {
     let here = Action::TypeHere(crate::edit::Here::Invoice);
     let field = (x, y, w, INVOICE_FIELD_H);
     crate::menu::outline(
@@ -71,9 +52,12 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.typed_lines(room, BODY_M.mono(), Role::OnSurface, s.text(), (true, here));
     }
     ui.c.pop_clip();
-    y += INVOICE_FIELD_H + INVOICE_GAP;
+    INVOICE_FIELD_H + INVOICE_GAP
+}
 
-    y += wrap_buttons(
+/// The three buttons under the field; returns their height.
+fn buttons(ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+    wrap_buttons(
         ui,
         x,
         y,
@@ -96,25 +80,96 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 Action::Invoice(InvoicePress::Clear),
             ),
         ],
-    ) + INVOICE_BLOCK_GAP;
+    )
+}
 
+/// What the text read as, from `y`: the refusal, or the lines and the
+/// end; returns the height.
+fn reading(ui: &mut Ui, s: &super::InvoiceState, (x, y, w): (f32, f32, f32)) -> f32 {
     match s.read() {
-        None => {}
-        Some(Err(why)) => {
-            y += ui.wrap_as((x, y, w), BODY_M, Role::Error, why) + INVOICE_REFUSAL_GAP;
-        }
+        None => 0.0,
+        Some(Err(why)) => ui.wrap_as((x, y, w), BODY_M, Role::Error, why) + INVOICE_REFUSAL_GAP,
         Some(Ok(rows)) => {
-            y = draw_rows(ui, rows, (x, y, w));
+            let under = draw_rows(ui, rows, (x, y, w));
             // The end: the tool again, empty, or Done to where it was
             // opened.
-            y += crate::screens::parts::ending(
-                ui,
-                (x, y, w),
-                None,
-                (Action::Invoice(InvoicePress::Clear), Action::Nav(s.back())),
-            ) + INVOICE_BLOCK_GAP;
+            under - y
+                + crate::screens::parts::ending(
+                    ui,
+                    (x, under, w),
+                    None,
+                    (Action::Invoice(InvoicePress::Clear), Action::Nav(s.back())),
+                )
+                + INVOICE_BLOCK_GAP
         }
     }
+}
+
+/// The tool as the flow's one card: Input, then Result
+/// (`docs/FLOW-CONTAINER.md` §2).
+fn card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+    let Some(s) = app.invoice() else { return };
+    let back = Some(app.named_back(back_of(app)));
+    let page = crate::flow::Page {
+        area: (x0, cw),
+        h,
+        foot_h: 0.0,
+        back,
+        heading: EN.invoice_title,
+        chip: None,
+        note: None,
+        chip_tap: None,
+        step: None,
+        moves: crate::ui::Moves::No,
+    };
+    let Some(contained) = crate::trail::StepFlow::contained(&super::flow::INVOICE_STEPS) else {
+        return;
+    };
+    let scroll = s.scroll;
+    let (next, again, _) = {
+        let mut body = |ui: &mut Ui, step: u8, x: f32, y: f32, w: f32| -> f32 {
+            if step == super::flow::INPUT {
+                let mut used = field(ui, s, (x, y, w));
+                used += buttons(ui, (x, y + used, w));
+                used
+            } else {
+                reading(ui, s, (x, y, w))
+            }
+        };
+        let mut under = |_: &mut Ui, _: f32, _: f32, _: f32| 0.0;
+        crate::flow::contained(ui, app, contained, &page, scroll, &mut body, &mut under)
+    };
+    app.scroll(crate::drawing::Scrolled::Invoice, next, again);
+}
+
+pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+    let Some(s) = app.invoice() else {
+        return;
+    };
+    if !ui.compact {
+        return card(app, ui, x0, cw, h);
+    }
+    let compact = ui.compact;
+    let (x, w) = if compact {
+        (x0 + crate::compact::M, cw - 2.0 * crate::compact::M)
+    } else {
+        (x0 + PAGE_INSET, (cw - 2.0 * PAGE_INSET).min(INVOICE_PAGE_W))
+    };
+    let clip = ui.rect(x0, 0.0, cw, h);
+    let open = ui.region_open(Region::page(clip).from_zero(app.list_offset));
+    let top = if compact {
+        INVOICE_TOP
+    } else {
+        let back = app.named_back(back_of(app));
+        crate::screens::bar_head(ui, Some(back), EN.invoice_title)
+    };
+    let mut y = top;
+
+    y += field(ui, s, (x, y, w));
+
+    y += buttons(ui, (x, y, w)) + INVOICE_BLOCK_GAP;
+
+    y += reading(ui, s, (x, y, w));
     if compact {
         let guide = EN.invoice_about;
         y += INVOICE_BLOCK_GAP

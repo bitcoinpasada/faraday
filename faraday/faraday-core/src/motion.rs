@@ -1299,6 +1299,9 @@ impl Faraday {
     /// it.
     fn screen_place(&self) -> Option<Place> {
         Some(match self.screen {
+            Screen::Invoice if crate::invoice::flow::contained(self) => {
+                self.tools.invoice.scroll_y().map(|_| Place::Invoice)?
+            }
             Screen::Files
             | Screen::Wallets
             | Screen::WalletsStart
@@ -1397,6 +1400,7 @@ impl Faraday {
             Place::KefTool => y(self.tools.kef_tool.scroll_y()),
             Place::OtsCheck => y(self.tools.ots.scroll_y()),
             Place::Tools => y(self.tools.scroll_y()),
+            Place::Invoice => y(self.tools.invoice.scroll_y()),
             Place::SeedCheck => y(self.tools.seed_check.scroll_y()),
             Place::MultisigCheck => y(self.tools.mscheck.scroll_y()),
             Place::CoreWallet => y(self.tools.core_wallet.scroll_y()),
@@ -1444,6 +1448,7 @@ impl Faraday {
             Place::KefTool => self.tools.kef_tool.set_scroll_y(to),
             Place::OtsCheck => self.tools.ots.set_scroll_y(to),
             Place::Tools => self.tools.set_scroll_y(to),
+            Place::Invoice => self.tools.invoice.set_scroll_y(to),
             Place::SeedCheck => self.tools.seed_check.set_scroll_y(to),
             Place::MultisigCheck => self.tools.mscheck.set_scroll_y(to),
             Place::CoreWallet => self.tools.core_wallet.set_scroll_y(to),
@@ -1483,6 +1488,8 @@ enum Place {
     SpendBackup,
     Vanity,
     KeyGen,
+    /// Decode a Lightning invoice's card, where it is drawn as a flow.
+    Invoice,
     Bip85,
     SignerCheck,
     Convert,

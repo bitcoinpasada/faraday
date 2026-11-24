@@ -2,7 +2,7 @@
 //! invoice opens it decoded, what BOLT #11 says an invoice holds shows,
 //! a refused invoice shows its line, and nothing is kept.
 
-use crate::common::type_text;
+use crate::common::{has, through_fade, type_text};
 use faraday_core::catalog::TILES;
 use faraday_core::testkit::Plain;
 use faraday_core::{Action, Faraday, Screen};
@@ -294,4 +294,26 @@ fn an_offer_description_and_issuer_over_64_bytes_are_shown_whole() {
         value(&app, "Issuer, in its own words").as_deref(),
         Some("An issuer line that is also well over sixty-four bytes long, to be shown whole")
     );
+}
+
+/// On a wide window the field is the Input card; Decode opens the Result
+/// card with what the invoice says, and Back opens the field again with
+/// the text kept.
+#[test]
+fn on_a_wide_window_decode_opens_the_result_card_and_back_keeps_the_text() {
+    let mut app = opened();
+    type_text(&mut app, &coffee());
+    assert!(has(&mut app, faraday_core::strings::EN.invoice_decode));
+    app.press(Action::Invoice(faraday_core::invoice::InvoicePress::Decode));
+    through_fade(&mut app);
+    assert!(has(&mut app, "250000 sat"));
+    assert!(!has(&mut app, faraday_core::strings::EN.invoice_decode));
+    // The result's card takes no typing.
+    type_text(&mut app, "x");
+    assert_eq!(app.invoice().unwrap().text(), coffee());
+    app.press(Action::Back);
+    through_fade(&mut app);
+    assert_eq!(app.screen, Screen::Invoice);
+    assert_eq!(app.invoice().unwrap().text(), coffee());
+    assert!(has(&mut app, faraday_core::strings::EN.invoice_decode));
 }
