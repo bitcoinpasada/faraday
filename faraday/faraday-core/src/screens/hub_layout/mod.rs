@@ -42,6 +42,11 @@ pub(crate) enum Tile {
     /// leaves; `None` where the room does not hold both, then the detail
     /// stands alone ([`detail_alone`]).
     Detail,
+    /// Two columns as wide as each other, as far apart as `VISIT_GAP`, in
+    /// the width Files reads at (`READING_VISIT_W`) between two
+    /// `PAGE_INSET`s, centred in the room; `None` where the room is under
+    /// the pair's least.
+    Equal,
 }
 
 /// What a room too narrow for the pair gets.
@@ -103,6 +108,9 @@ impl Panes {
     pub(crate) fn place(&self, room: f32, guide: bool) -> Option<Place> {
         if let Tile::Detail = self.tile {
             return pair::list_detail(room);
+        }
+        if let Tile::Equal = self.tile {
+            return pair::equal(room);
         }
         let guide = guide && holds_guide(room);
         if let (Tile::Fill, false) = (self.tile, guide)

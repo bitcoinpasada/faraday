@@ -1,7 +1,7 @@
 # The pane container
 
 **Kind:** Reference
-**Status:** Built (F322): the container (`screens/hub_layout/`); Tools, Check, a typed search's results, the step flows and Explore's and Lightning's keys are placed by it, and it says how long a change of page takes. Not on it yet: `docs/WORKSPACE.md` §14.
+**Status:** Built (F322): the container (`screens/hub_layout/`); Tools, Check, a typed search's results, the step flows, Explore's and Lightning's keys, and Files are placed by it, and it says how long a change of page takes. Not on it yet: `docs/WORKSPACE.md` §14.
 
 Every page is made of panes (F322). One piece of code says where they stand,
 so a page or a flow declares its panes and never works out a place itself. The
@@ -19,7 +19,7 @@ A page or a flow has one `Panes`, a constant beside its code:
 | Field | What it says |
 |---|---|
 | `left` | what stands at the left: the session pane in a mode (`Left::Session`, which the container draws), or a pane the page or flow draws itself at the place it is given (`Left::Own`: Your choices, Explore's and Lightning's keys) |
-| `tile` | the width rule of what stands at its right: `Tile::Card`, a flow's step card, up to `COLUMN_MAX`; `Tile::Fill`, the room in two columns or more, up to `MENU_TILE_WIDE_MAX` (Tools and Check); `Tile::Detail`, a detail beside a list pane: the pane at the left margin, the detail to the right margin, none where the room holds less than both (List and detail) |
+| `tile` | the width rule of what stands at its right: `Tile::Card`, a flow's step card, up to `COLUMN_MAX`; `Tile::Fill`, the room in two columns or more, up to `MENU_TILE_WIDE_MAX` (Tools and Check); `Tile::Detail`, a detail beside a list pane: the pane at the left margin, the detail to the right margin, none where the room holds less than both (List and detail); `Tile::Equal`, two columns as wide as each other a `VISIT_GAP` apart, in `READING_VISIT_W` between two `PAGE_INSET`s, centred in the room, none under the pair's least (Files) |
 | `stacks` | whether the tile stands under This session's card where the window has the height |
 | `narrow` | what a room too narrow for the pair gets: `Narrow::PaneAtRight` (a flow: the card, then its pane at the right) or `Narrow::OneColumn` (no pair) |
 
@@ -32,6 +32,7 @@ Its name is the page's own (`menu_page::Page::name`, a flow's heading).
 | A step flow (`flow/act.rs`) | `Own` | `Card` | no | `PaneAtRight` |
 | Explore (`explore/pane.rs`) | `Own` | `Card` | no | `OneColumn` |
 | Lightning (`lightning/pane.rs`) | `Own` | `Card` | no | `OneColumn` |
+| Files (`screens/visit.rs`) | `Own`: In Faraday | `Equal`: the stick | no | `OneColumn`: a small panel's tabs, and a room under the pair's least keeps the two columns it had |
 
 ## 2. What it answers
 

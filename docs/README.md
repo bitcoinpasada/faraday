@@ -115,7 +115,7 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 - `docs/GUIDE-IN-APP.md`: The guide: one guide, in the app, opened where the person is. Built (F247).
 - `docs/HARDWARE.md`: Hardware: boards, platforms and screens. Built: every platform and screen Faraday is built for, and the boards considered and not supported.
 - `docs/HOME.md`: Home at each layout. Built: the wide layout's Home, the phone-size window's and the rail's windows' (one column with the search bar and the box; the rail's has no place tiles), and the Pi's menu.
-- `docs/HUB-LAYOUT.md`: The pane container. Built (F322): the container (`screens/hub_layout/`); Tools, Check, a typed search's results, the step flows and Explore's and Lightning's keys are placed by it, and it says how long a change of page takes.
+- `docs/HUB-LAYOUT.md`: The pane container. Built (F322): the container (`screens/hub_layout/`); Tools, Check, a typed search's results, the step flows, Explore's and Lightning's keys, and Files are placed by it, and it says how long a change of page takes.
 - `docs/IMPACT.md`: Impact: what a change brings with it. Built (F149, narrowed by F258).
 - `docs/KEF.md`: KEF: Krux's encrypted code, read in full and written in two versions. Built (F219, amended by F261).
 - `docs/KERNEL-PATCHES.md`: The kernel patches the images carry. Built.

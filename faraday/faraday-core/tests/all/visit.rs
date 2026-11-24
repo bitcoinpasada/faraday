@@ -2116,3 +2116,59 @@ fn write_row_on_the_wide_layout_says_what_it_does_and_writes_the_ticked_files() 
     tap(&mut app, at);
     assert_eq!(written(&mut app).len(), 3);
 }
+
+/// Both panes of the wide Files stand as two equal columns, level, and
+/// every file's row and press is offered once.
+fn assert_two_equal_columns(app: &mut Faraday, outbox: usize, stick: usize, what: &str) {
+    let _ = app.frame();
+    let offered = app.offered_actions();
+    for i in 0..outbox {
+        let n = offered
+            .iter()
+            .filter(|a| **a == Action::VisitOut(i))
+            .count();
+        assert_eq!(n, 1, "{what}: In Faraday row {i} offered {n} times");
+    }
+    for i in 0..stick {
+        let n = offered.iter().filter(|a| **a == Action::VisitIn(i)).count();
+        assert_eq!(n, 1, "{what}: stick row {i} offered {n} times");
+    }
+    let l = app.hit_box(Action::VisitOut(0)).expect("a row at the left");
+    let r = app.hit_box(Action::VisitIn(0)).expect("a row at the right");
+    assert_eq!(l.2, r.2, "{what}: the columns are as wide as each other");
+    assert!(l.0 + l.2 < r.0, "{what}: In Faraday stands at the left");
+    let boxes = app.drawn_text_boxes();
+    let top = |s: &str| {
+        boxes
+            .iter()
+            .find(|(t, _)| t.starts_with(s))
+            .unwrap_or_else(|| panic!("{what}: no {s:?}"))
+            .1
+            .1
+    };
+    assert_eq!(top("In Faraday"), top("On "), "{what}: level");
+}
+
+#[test]
+fn wide_files_are_two_equal_columns_level_with_every_row_offered_once() {
+    for size in [(1366, 768, 160), (1920, 1080, 160)] {
+        let mut app = with_outbox(with_stick_at(3, size), 2, false);
+        assert_two_equal_columns(&mut app, 2, 3, &format!("{size:?}"));
+    }
+}
+
+#[test]
+fn a_row_removed_or_written_leaves_the_wide_columns_right() {
+    for size in [(1366, 768, 160), (1920, 1080, 160)] {
+        let mut app = with_outbox(with_stick_at(3, size), 3, false);
+        app.press(Action::OutboxRemove(0));
+        assert_two_equal_columns(&mut app, 2, 3, &format!("removed {size:?}"));
+        app.press(Action::VisitWrite);
+        let _ = app.frame();
+        let l = app.hit_box(Action::VisitIn(0)).map(|b| b.2);
+        let r = app.hit_box(Action::VisitOut(0)).map(|b| b.2);
+        if let (Some(l), Some(r)) = (l, r) {
+            assert_eq!(l, r, "written {size:?}");
+        }
+    }
+}

@@ -7,7 +7,7 @@ use super::{Place, guide_room, side_panel_w};
 use crate::screens::menu_page::grid;
 use faraday_draw::tokens::{
     CHOICES_PANE_MIN, COLUMN_MAX, FLOW_CARD_MIN, LIST_PANE, MARGIN_WIDE, MENU_TILE_WIDE_MAX, PAD,
-    SPACER,
+    PAGE_INSET, READING_VISIT_W, SPACER, VISIT_GAP,
 };
 
 /// The pair in a `room` wide, with `guide` when Guide's pane stands at the
@@ -64,6 +64,25 @@ pub(super) fn fill(room: f32) -> Option<Place> {
         pane_x,
         pane_w: LIST_PANE,
         gap: SPACER,
+    })
+}
+
+/// The pair of two equal columns (Files): the room up to `READING_VISIT_W`,
+/// centred, a `PAGE_INSET` inside it at each side, the two columns a
+/// `VISIT_GAP` apart. `None` where the room is under the pair's least.
+pub(super) fn equal(room: f32) -> Option<Place> {
+    if room < 2.0 * MARGIN_WIDE + FLOW_CARD_MIN + SPACER + CHOICES_PANE_MIN {
+        return None;
+    }
+    let reading = room.min(READING_VISIT_W);
+    let col = (reading - 2.0 * PAGE_INSET - VISIT_GAP) / 2.0;
+    let pane_x = (room - reading) / 2.0 + PAGE_INSET;
+    Some(Place {
+        card_x: pane_x + col + VISIT_GAP,
+        card_w: col,
+        pane_x,
+        pane_w: col,
+        gap: VISIT_GAP,
     })
 }
 
@@ -168,6 +187,18 @@ mod tests {
         let q = pair(1366.0, false).unwrap();
         assert_eq!(q.pane_w, LIST_PANE);
         assert!(q.card_w >= FLOW_CARD_MIN);
+    }
+
+    #[test]
+    fn equal_columns_are_as_wide_as_each_other_and_centred() {
+        for room in [872.0, 1366.0, 1920.0, 3840.0] {
+            let p = equal(room).unwrap();
+            assert_eq!(p.pane_w, p.card_w);
+            assert_eq!(p.card_x, p.pane_x + p.pane_w + VISIT_GAP);
+            let right = room - (p.card_x + p.card_w);
+            assert!((right - p.pane_x).abs() < 0.01, "{room}");
+        }
+        assert!(equal(800.0).is_none());
     }
 
     #[test]

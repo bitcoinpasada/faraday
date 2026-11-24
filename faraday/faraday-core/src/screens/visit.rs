@@ -1,6 +1,7 @@
 //! Files (F235, F290): the two cards In Faraday and On the stick, side by
 //! side from expanded windows up and, below that, Material's primary tabs.
 
+use super::hub_layout::{Left, Narrow, Panes, Tile};
 use super::parts::{kind_line, size_text, written_and_checked};
 use crate::drawing::View;
 use crate::strings::EN;
@@ -21,6 +22,15 @@ use faraday_draw::tokens::{
 use faraday_draw::widgets::Icon;
 use faraday_text::Text;
 
+/// Files' panes (`docs/WORKSPACE.md` §4, §14): In Faraday at the left, drawn
+/// here, the stick at the right, two equal columns; never stacked.
+const PANES: Panes = Panes {
+    left: Left::Own,
+    tile: Tile::Equal,
+    stacks: false,
+    narrow: Narrow::OneColumn,
+};
+
 /// Files: the same two cards whether a stick is in or not, In Faraday and
 /// On the stick, from under the top app bar to the page's foot (F290).
 /// From expanded windows up they stand side by side; below that they are
@@ -31,11 +41,23 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         VISIT_NOTICE_GAP, VISIT_NOTICE_H,
     };
     let compact = ui.compact;
-    // The two columns keep the width they read at, centred in Files' room.
-    let cw_all = cw;
+    // Where the container stands the pair: In Faraday at the left, the
+    // stick at the right; none on a small panel or where the room holds
+    // less, and the two columns stand as they did.
+    let pair = if compact {
+        None
+    } else {
+        PANES.place(cw, false)
+    };
+    // Else the two columns keep the width they read at, centred in
+    // Files' room.
+    let (room_x, cw_all) = (x0, cw);
     let cw = if compact { cw } else { cw.min(READING_VISIT_W) };
     let x0 = x0 + (cw_all - cw) / 2.0;
-    let (x, width) = if compact {
+    let (x, width) = if let Some(p) = &pair {
+        // The pair's left edge was placed in the room as given.
+        (room_x + p.pane_x, p.card_x + p.card_w - p.pane_x)
+    } else if compact {
         (x0 + crate::compact::M, cw - 2.0 * crate::compact::M)
     } else {
         (x0 + PAGE_INSET, cw - 2.0 * PAGE_INSET)
@@ -117,10 +139,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ],
         ) + GAP_SMALL;
     }
-    let colw = if compact {
-        width
-    } else {
-        (width - VISIT_GAP) / 2.0
+    // In Faraday's width and the stick's: the pane's and the card's in the
+    // pair, else equal columns.
+    let (colw, stick_w) = match &pair {
+        Some(p) => (p.pane_w, p.card_w),
+        None if compact => (width, width),
+        None => ((width - VISIT_GAP) / 2.0, (width - VISIT_GAP) / 2.0),
     };
     // Where Scan floats over the foot (`foot_room`), the cards end above
     // it; at the top of the rail or the sidebar it takes no room here, and
@@ -177,11 +201,15 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         in_faraday(app, ui, (x, y, colw, colh), usable);
     }
     if !compact || app.visit.tab_stick {
-        let sx = if compact { x } else { x + colw + VISIT_GAP };
+        let sx = match &pair {
+            Some(p) => x + p.card_x - p.pane_x,
+            None if compact => x,
+            None => x + colw + VISIT_GAP,
+        };
         if let Some(i) = &import {
-            crate::boot_import::screen::tile(app, ui, (sx, y, colw, colh), i);
+            crate::boot_import::screen::tile(app, ui, (sx, y, stick_w, colh), i);
         } else {
-            on_the_stick(app, ui, (sx, y, colw, colh), stick, page.is_some());
+            on_the_stick(app, ui, (sx, y, stick_w, colh), stick, page.is_some());
         }
     }
     let foot = y + colh;
