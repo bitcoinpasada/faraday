@@ -646,6 +646,12 @@ impl Faraday {
     /// secrets the sheet hid on the item page go with it. What
     /// waits under a new device's sheet or the import stays.
     pub(crate) fn lock_sheet_replaces_devices(&mut self) {
+        // The read card's Scan again is the one press that goes on: it
+        // waits for the pull as from the Pull sheet, so Not now wipes the
+        // card and a pull turns the camera on.
+        if matches!(self.devices.after, Some(Action::ReadAgain)) {
+            self.visit.set_pull(Action::ReadAgain);
+        }
         self.devices.after = None;
         // What the device hid is not given back after a lock.
         self.vaults.tidy_shown(false);

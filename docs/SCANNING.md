@@ -309,6 +309,8 @@ on, until the card is gone. With a stick in, **Scan again** on a card
 that holds a secret asks for Lock; pulling the stick while that ask is
 up closes it and turns the camera on, as with no stick in (nothing is
 handed out and the secret stays held until Lock).
+A scan of something else pressed over that ask ends it: the card is wiped
+at the press and the waiting Scan again dropped.
 
 Checked against Material 3's Dialogs (a basic dialog: headline,
 supporting text, actions; "purposefully interruptive, so they should be

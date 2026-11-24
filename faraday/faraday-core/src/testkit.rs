@@ -175,6 +175,11 @@ pub const SAMPLE_WORDS: [(&str, u8); 21] = [
     ("sunset", 21),
 ];
 
+/// Whether a press waits for a stick to be pulled (the Pull sheet's own).
+pub fn pull_waits(app: &crate::Faraday) -> bool {
+    app.visit.pull().is_some()
+}
+
 /// Costs what [`demo_samples`] costs, once per process. Puts `app` in
 /// Practice, on Testnet, as Faraday Demo starts: where the "Demo only"
 /// card and the computer's dice roller are offered (`docs/DEMO.md` §14).

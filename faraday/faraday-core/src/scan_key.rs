@@ -2024,11 +2024,35 @@ impl Faraday {
         }
     }
 
+    /// Scan again is over: the read card, if one is up, is wiped, and a
+    /// waiting Scan again press is dropped.
+    pub(crate) fn read_again_end(&mut self) {
+        if self.camera.scan().is_some_and(|s| s.card.is_some()) {
+            self.camera.close();
+        }
+        if matches!(self.visit.pull(), Some(Action::ReadAgain)) {
+            self.visit.clear_pull();
+        }
+    }
+
+    /// A read card with no sheet over it is nothing to draw: the scan is
+    /// closed and its code wiped, and a Scan again press waiting for a
+    /// card that is gone is dropped. A card under another sheet (Pull,
+    /// Lock, Devices, a confirmation) is left to it.
+    pub(crate) fn read_card_tidy(&mut self) {
+        if self.sheet.is_none() {
+            self.read_again_end();
+        }
+    }
+
     /// Cancel while the read card's Scan again waits under the Pull or
     /// device sheet goes back to nothing: the code it showed is wiped.
     pub(crate) fn read_again_cancel(&mut self) {
-        if matches!(self.visit.pull(), Some(Action::ReadAgain))
-            || matches!(self.devices.after, Some(Action::ReadAgain))
+        // Only a scan whose card is up: a running scanner has the camera
+        // on, and its close is the Cancel's CameraOff.
+        if (matches!(self.visit.pull(), Some(Action::ReadAgain))
+            || matches!(self.devices.after, Some(Action::ReadAgain)))
+            && self.camera.scan().is_some_and(|s| s.card.is_some())
         {
             self.camera.close();
         }

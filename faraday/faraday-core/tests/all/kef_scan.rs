@@ -9,7 +9,7 @@ use faraday_codec::kef::{Form, encode, wrap};
 use faraday_core::seeds::kef::KefAct;
 use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent, testkit};
 use faraday_keys::kef::unwrap;
-use faraday_shell_api::{App, Command, EntropyBytes, Event, Key};
+use faraday_shell_api::{App, Command, EntropyBytes, Event, Key, TouchPhase};
 use zeroize::Zeroizing;
 
 fn vectors() -> serde_json::Value {
@@ -613,6 +613,280 @@ fn lock_pressed_on_the_scan_again_ask_locks() {
     // Locking wipes the card and does not turn the camera on.
     assert!(!std::iter::from_fn(|| app.poll_command()).any(|c| c == Command::CameraOn));
     assert!(app.scan().is_none_or(|s| s.card.is_none()));
+}
+
+/// Scan again's Lock sheet, the read card held under it.
+fn scan_again_lock() -> Faraday {
+    let mut app = scanner();
+    let (code, _) = vector("ctr");
+    read(&mut app, &code);
+    app.storage(stick());
+    app.press(Action::ReadAgain);
+    assert_eq!(app.sheet, Some(Sheet::Lock));
+    while app.poll_command().is_some() {}
+    app
+}
+
+/// Not now was the answer: the card's secret is gone, and no later stick
+/// in and out turns the camera on.
+fn assert_declined(app: &mut Faraday) {
+    assert_ne!(app.sheet, Some(Sheet::Lock));
+    assert!(app.scan().is_none_or(|s| s.card.is_none()));
+    assert!(!testkit::pull_waits(app));
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    app.storage(stick());
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    assert!(!std::iter::from_fn(|| app.poll_command()).any(|c| c == Command::CameraOn));
+    assert!(app.scan().is_none_or(|s| s.card.is_none()));
+}
+
+#[test]
+fn not_now_on_scan_agains_lock_wipes_the_card_and_drops_the_press() {
+    let mut app = scan_again_lock();
+    app.press(Action::NotNow);
+    assert_eq!(app.sheet, None);
+    assert_declined(&mut app);
+}
+
+#[test]
+fn a_press_beside_scan_agains_lock_sheet_wipes_the_card_too() {
+    let mut app = scan_again_lock();
+    let _ = app.frame();
+    for phase in [TouchPhase::Down, TouchPhase::Up] {
+        app.event(Event::Touch { x: 2, y: 2, phase });
+    }
+    let _ = app.frame();
+    assert_eq!(app.sheet, None);
+    assert_declined(&mut app);
+}
+
+#[test]
+fn scan_again_with_only_the_kernels_storage_shown_asks_for_lock_and_goes_on_at_the_pull() {
+    let mut app = scanner();
+    let (code, _) = vector("ctr");
+    read(&mut app, &code);
+    app.storage(StorageEvent::Attached(true));
+    while app.poll_command().is_some() {}
+    app.press(Action::ReadAgain);
+    assert_eq!(app.sheet, Some(Sheet::Lock));
+    assert!(app.scan().is_some_and(|s| s.card.is_some()));
+    app.storage(StorageEvent::Attached(false));
+    assert!(std::iter::from_fn(|| app.poll_command()).any(|c| c == Command::CameraOn));
+    assert!(app.scan().is_some_and(|s| s.card.is_none()));
+}
+
+#[test]
+fn not_now_after_scan_again_asked_with_a_usb_device_held_wipes_the_card() {
+    use faraday_core::devices::{DeviceCheck, Interface, UsbDevice};
+    let mut app = scanner();
+    let (code, _) = vector("ctr");
+    read(&mut app, &code);
+    app.devices = DeviceCheck::machine("flags\t: fpu vme", "LENOVO", "20XW", "10");
+    let hid = |protocol| Interface {
+        class: 3,
+        subclass: 1,
+        protocol,
+    };
+    app.usb_devices(&[UsbDevice {
+        port: "1-2".into(),
+        vendor: 0x1d6b,
+        product: 0x0104,
+        manufacturer: "PiKVM".into(),
+        name: "Composite KVM Device".into(),
+        interfaces: vec![hid(1), hid(2)],
+    }]);
+    app.storage(stick());
+    while app.poll_command().is_some() {}
+    app.press(Action::ReadAgain);
+    assert_eq!(app.sheet, Some(Sheet::Lock));
+    app.press(Action::NotNow);
+    assert_declined(&mut app);
+}
+
+/// A stale Scan again pull over a scanner that runs: Cancel turns the
+/// camera off.
+#[test]
+fn cancel_on_a_running_scanner_sends_camera_off_after_a_scan_again_that_went_through_devices() {
+    use faraday_core::devices::{DeviceCheck, Interface, UsbDevice};
+    let mut app = scanner();
+    let (code, _) = vector("ctr");
+    read(&mut app, &code);
+    app.devices = DeviceCheck::machine("flags\t: fpu vme", "LENOVO", "20XW", "10");
+    let hid = |protocol| Interface {
+        class: 3,
+        subclass: 1,
+        protocol,
+    };
+    app.usb_devices(&[UsbDevice {
+        port: "1-2".into(),
+        vendor: 0x1d6b,
+        product: 0x0104,
+        manufacturer: "PiKVM".into(),
+        name: "Composite KVM Device".into(),
+        interfaces: vec![hid(1), hid(2)],
+    }]);
+    app.press(Action::ReadAgain);
+    assert_eq!(app.sheet, Some(Sheet::Devices));
+    app.storage(stick());
+    assert_eq!(app.sheet, Some(Sheet::Lock));
+    app.press(Action::ScanFor(faraday_core::Ask::Any));
+    assert_eq!(app.sheet, Some(Sheet::Devices));
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    app.usb_devices(&[]);
+    for a in [Action::DevicesCheck, Action::DevicesUnderstood] {
+        if app.sheet == Some(Sheet::Devices) {
+            app.press(a);
+        }
+    }
+    assert_eq!(app.sheet, Some(Sheet::Scan), "{:?}", app.sheet);
+    assert!(app.scan().is_some_and(|s| s.card.is_none()));
+    while app.poll_command().is_some() {}
+    app.press(Action::Cancel);
+    assert!(std::iter::from_fn(|| app.poll_command()).any(|c| c == Command::CameraOff));
+}
+
+/// A second stick listed while Scan again's pull stands over Scan
+/// instead: the Lock comes back with the pull ScanFor, and Not now still
+/// wipes the card.
+#[test]
+fn not_now_wipes_the_card_when_scan_instead_was_pressed_first() {
+    let mut app = scan_again_lock();
+    scan_instead(&mut app);
+    app.storage(two_sticks());
+    assert_eq!(app.sheet, Some(Sheet::Lock));
+    app.press(Action::NotNow);
+    assert!(app.scan().is_none_or(|s| s.card.is_none()));
+}
+
+/// Two sticks listed.
+fn two_sticks() -> StorageEvent {
+    let StorageEvent::Sticks(mut one) = stick() else {
+        unreachable!()
+    };
+    let mut other = one[0].clone();
+    other.id = faraday_text::Text::of("other");
+    one.push(other);
+    StorageEvent::Sticks(one)
+}
+
+/// Scan instead pressed over Scan again's Lock: the read card goes at
+/// the press, the waiting Scan again with it.
+fn scan_instead(app: &mut Faraday) {
+    app.press(Action::ScanFor(faraday_core::Ask::SpendPsbt));
+    assert_eq!(app.sheet, Some(Sheet::Pull));
+    assert!(app.scan().is_none_or(|s| s.card.is_none()));
+}
+
+/// Scan instead, the listing changes, and then the stick is pulled: the
+/// Lock goes and nothing holds the card.
+#[test]
+fn scan_instead_then_the_stick_pulled_leaves_no_card() {
+    let mut app = scan_again_lock();
+    scan_instead(&mut app);
+    app.storage(two_sticks());
+    assert_eq!(app.sheet, Some(Sheet::Lock));
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    assert!(app.scan().is_none_or(|s| s.card.is_none()));
+    assert!(!std::iter::from_fn(|| app.poll_command()).any(|c| c == Command::CameraOn));
+}
+
+/// Lock on Scan again's ask where the lock stops at its own ask (a vault
+/// open with changes): the read card and the waiting press are gone, so
+/// no later stick turns the camera on.
+#[test]
+fn lock_on_scan_agains_ask_that_stops_at_lock_ask_wipes_the_card_and_the_pull() {
+    let mut app = vault_device(crate::common::vault("Test", testkit::VAULT_PASSPHRASE, 7));
+    open_and_change(&mut app);
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Scan);
+    let (code, _) = vector("ctr");
+    read(&mut app, &code);
+    app.storage(stick());
+    app.press(Action::ReadAgain);
+    assert_eq!(app.sheet, Some(Sheet::Lock));
+    app.press(Action::Lock);
+    assert_eq!(app.sheet, Some(Sheet::LockAsk));
+    assert!(app.scan().is_none_or(|s| s.card.is_none()));
+    assert!(!testkit::pull_waits(&app));
+    app.press(Action::Cancel);
+    while app.poll_command().is_some() {}
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    app.storage(stick());
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    assert!(!std::iter::from_fn(|| app.poll_command()).any(|c| c == Command::CameraOn));
+}
+
+/// Scan instead, the listing changes, and Lock stops at its own ask,
+/// where a key's Save opens the Keep sheet and its Cancel ends: no card
+/// is left held.
+#[test]
+fn scan_instead_then_lock_stopping_at_lock_ask_and_keep_cancel_leaves_no_card() {
+    let mut app = vault_device(crate::common::vault("Test", testkit::VAULT_PASSPHRASE, 7));
+    open_and_change(&mut app);
+    // A second key, a BIP-85 child, not yet saved: the ask lists it.
+    app.press(Action::Entry(None));
+    type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[2].0));
+    app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
+    let k = app.session.keys.len() - 1;
+    let of = faraday_vault::child::ChildOf {
+        parent: [1, 2, 3, 4],
+        language: 0,
+        words: 24,
+        index: 7,
+    };
+    assert!(app.session.keys.set_child_of(k, Some(of)));
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Scan);
+    let (code, _) = vector("ctr");
+    read(&mut app, &code);
+    app.storage(stick());
+    app.press(Action::ReadAgain);
+    assert_eq!(app.sheet, Some(Sheet::Lock));
+    scan_instead(&mut app);
+    app.storage(two_sticks());
+    assert_eq!(app.sheet, Some(Sheet::Lock));
+    app.press(Action::Lock);
+    assert_eq!(app.sheet, Some(Sheet::LockAsk));
+    app.press(Action::Vault(faraday_core::vault::VaultAction::SaveKey(k)));
+    assert_eq!(app.sheet, Some(Sheet::SaveKeeps));
+    app.press(Action::Vault(faraday_core::vault::VaultAction::KeepCancel));
+    assert_eq!(app.sheet, None);
+    assert!(app.scan().is_none_or(|s| s.card.is_none()));
+}
+
+/// The same with a USB device held: a device plugged in under Pull, the
+/// stick out, in and out again.
+#[test]
+fn scan_instead_with_a_usb_device_then_the_stick_out_leaves_no_card() {
+    use faraday_core::devices::{DeviceCheck, Interface, UsbDevice};
+    let mut app = scanner();
+    let (code, _) = vector("ctr");
+    read(&mut app, &code);
+    app.storage(stick());
+    app.press(Action::ReadAgain);
+    assert_eq!(app.sheet, Some(Sheet::Lock));
+    while app.poll_command().is_some() {}
+    scan_instead(&mut app);
+    app.devices = DeviceCheck::machine("flags\t: fpu vme", "LENOVO", "20XW", "10");
+    let hid = |protocol| Interface {
+        class: 3,
+        subclass: 1,
+        protocol,
+    };
+    app.usb_devices(&[UsbDevice {
+        port: "1-2".into(),
+        vendor: 0x1d6b,
+        product: 0x0104,
+        manufacturer: "PiKVM".into(),
+        name: "Composite KVM Device".into(),
+        interfaces: vec![hid(1), hid(2)],
+    }]);
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    app.storage(stick());
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    assert!(app.scan().is_none_or(|s| s.card.is_none()));
+    assert!(!std::iter::from_fn(|| app.poll_command()).any(|c| c == Command::CameraOn));
 }
 
 /// A note carried as a passphrase, the seed scanner up.

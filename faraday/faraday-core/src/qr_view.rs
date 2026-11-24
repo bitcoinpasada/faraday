@@ -1611,9 +1611,10 @@ impl Faraday {
         self.camera.take_change()
     }
 
-    /// The camera is on, reading codes: a scan is held, whatever stands
-    /// over it (the idle warning, another sheet) or nothing does (the
-    /// scanner in a pane).
+    /// The camera is on, reading codes: a scan is held with no read card
+    /// up, whatever stands over it (the idle warning, another sheet) or
+    /// nothing does (the scanner in a pane); with a card up, only while
+    /// the Scan sheet or the idle warning stands.
     ///
     /// Transfer's Receive, in the online app, does not count: that app is
     /// never clean of the network, and no stick waits on its camera.
@@ -1625,7 +1626,13 @@ impl Faraday {
             .is_some_and(|s| s.purpose == ScanPurpose::Transfer);
         #[cfg(not(feature = "demo"))]
         let transfer = false;
-        (self.camera.scan().is_some() && !transfer) || self.keygen.camera_on()
+        // A read card up has sent CameraOff: the scan counts only while its
+        // sheet, or the idle warning over it, stands (Scan again's Pull
+        // replaces it, and then Lock may be asked).
+        let running = self.camera.scan().is_some_and(|s| {
+            s.card.is_none() || matches!(self.sheet, Some(Sheet::Scan | Sheet::IdleWarn))
+        });
+        (running && !transfer) || self.keygen.camera_on()
     }
 
     pub(crate) fn open_qr(&mut self, view: Result<QrView, impl AsRef<str>>) {

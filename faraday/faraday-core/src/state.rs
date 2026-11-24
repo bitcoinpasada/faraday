@@ -1985,11 +1985,28 @@ impl Faraday {
     /// it: handles lock, power and idle-timer actions (`Lock*`, `NotNow`, `Power*`, `Restart`, `Hold*`, `Idle*`).
     pub(crate) fn power_act(&mut self, action: Action, c: &Compute) {
         match action {
-            Action::Lock => self.lock(),
+            Action::Lock => {
+                // Scan again's Lock answered: the read card goes in any
+                // case, even where the lock stops at its own ask.
+                if matches!(self.visit.pull(), Some(Action::ReadAgain)) {
+                    self.read_again_cancel();
+                    self.visit.clear_pull();
+                }
+                self.lock();
+            }
             Action::LockUnsealed => self.lock_now(true),
             Action::LockAsk => self.lock_ask(false),
             Action::NotNow => {
                 self.visit.set_lock_to_write(None);
+                // Scan again's Lock declined: the read card is wiped and
+                // the press that waited for the pull is dropped.
+                if matches!(self.visit.pull(), Some(Action::ReadAgain)) {
+                    self.visit.clear_pull();
+                }
+                // No Lock is put over a card that is still to be drawn.
+                if self.camera.scan().is_some_and(|s| s.card.is_some()) {
+                    self.camera.close();
+                }
                 self.next_mode.clear();
                 self.sheet = None;
                 self.stick.set_not_now(true);

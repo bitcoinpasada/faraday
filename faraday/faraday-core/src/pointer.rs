@@ -818,6 +818,7 @@ impl Faraday {
         // A device still waiting comes back up once no other sheet is.
         self.input_sheet();
         self.device_sheet();
+        self.read_card_tidy();
         self.drop_forged_wallets();
     }
 

@@ -1356,6 +1356,13 @@ impl Faraday {
             self.sheet = None;
             self.glance.set_chart(None);
         }
+        // Scan instead, pressed over Scan again's Lock, ends Scan again:
+        // the read card is wiped and its waiting press dropped, before
+        // any gate below can hold the new scan under a sheet with the
+        // card still up.
+        if matches!(action, Action::ScanFor(_)) && self.sheet == Some(Sheet::Lock) {
+            self.read_again_end();
+        }
         // While something that can capture the screen or the keys is
         // attached and not let through, what shows a secret waits under
         // its sheet (`docs/STARTER.md` §3.1a).
