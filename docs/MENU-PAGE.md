@@ -90,8 +90,9 @@ rail's Home draws no place tiles (`docs/HOME.md` §3, F313).
 ## 4. Section cards and columns
 
 Each section of a page that lists places or tools (Common, Keys and
-seeds, The wallet, Signing, ...) is one flat card, Material's filled card
-(`SurfaceContainer`, no shadow), holding a Material list (F317). The
+seeds, The wallet, Signing, ...) is one flat card, Material's outlined card
+(`SurfaceContainer` fill, no shadow, a 1 dp `OutlineVariant` line at its edge
+drawn over its rows, m3.material.io/components/cards), holding a Material list (F317). The
 section's label is the card's heading inside it, Title S. A row is an
 icon where the choice has one, its name, the line under it and a chevron
 (and a choice's small tags before the chevron); a press and its hover are

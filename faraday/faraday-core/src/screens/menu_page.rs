@@ -337,7 +337,8 @@ fn card_height(ui: &Ui, s: &Section, w: f32) -> f32 {
 
 /// The card of `s` at `(x, y)`, `w` wide, `h` tall: the heading, then a
 /// list of rows with an icon where the face has one, the name, the line
-/// under it and a chevron, a state layer across each row.
+/// under it and a chevron, a state layer across each row, and a 1 dp
+/// outline-variant line at the edge.
 fn draw_card(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32), s: &Section) {
     if !ui.shows(y, h) {
         return;
@@ -362,6 +363,9 @@ fn draw_card(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32), s: &Section) {
         draw_row(ui, (x, ry, w, rh), face);
         ry += rh;
     }
+    // Material 3's outlined card: the 1 dp line is drawn last, so a row's
+    // state layer that reaches the card's edge does not cover it.
+    ui.stroke(x, y, w, h, SHAPE_M, Role::OutlineVariant);
 }
 
 /// One row at `(x, y)`, `w` wide, `h` tall.
