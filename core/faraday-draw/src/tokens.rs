@@ -1232,6 +1232,10 @@ pub const TABLE_AMOUNT_W: f32 = 110.0;
 /// until its batch gives it the work width (`docs/LAYOUT.md` §17, §19).
 pub const PAGE_AREA_UNTIL_W: f32 = 1360.0;
 
+/// What a card keeps under its group of actions: enough that the touch
+/// target of a line under the group is not trimmed by the last row's.
+pub const ACTIONS_UNDER: f32 = 3.0 * GRID;
+
 /// The space between two panes (`docs/LAYOUT.md` §5): Material's spacer.
 pub const SPACER: f32 = 24.0;
 

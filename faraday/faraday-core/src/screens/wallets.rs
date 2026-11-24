@@ -612,8 +612,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             .moves(Moves::Yes),
     );
     let top = cy;
-    // The group leads the body; the facts follow.
-    cy += actions::draw(ui, (ix, cy, iw), &offers) + 2.0 * faraday_draw::tokens::GRID;
+    // The group leads the body; the facts follow, a touch target clear
+    // of the last row's.
+    cy += actions::draw(ui, (ix, cy, iw), &offers) + faraday_draw::tokens::ACTIONS_UNDER;
     // Where its backup is (§5.2): a press opens Backups on it.
     cy += backup_line(app, ui, ix, cy, iw, app.wallets.wallet());
     ui.fill(
@@ -830,12 +831,13 @@ fn silent_wallet_card(
     );
     let top = y;
     let mut cy = y;
-    // The group leads the body; the facts follow.
+    // The group leads the body; the facts follow, a touch target clear
+    // of the last row's.
     cy += actions::draw(
         ui,
         (ix, cy, iw),
         &actions::offers(app, app.wallets.wallet(), false),
-    ) + 2.0 * faraday_draw::tokens::GRID;
+    ) + faraday_draw::tokens::ACTIONS_UNDER;
     // Where its backup is (§5.2): a press opens Backups on it.
     cy += backup_line(app, ui, ix, cy, iw, app.wallets.wallet());
     ui.text_as(ix, cy, LABEL_M, muted, EN.silent_wallet_card_key);
