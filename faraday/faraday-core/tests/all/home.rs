@@ -377,6 +377,41 @@ fn a_stick_plugged_in_while_scanning_is_held_until_the_camera_is_off() {
 }
 
 #[test]
+fn a_stick_plugged_in_under_the_idle_warning_over_a_scan_is_still_held() {
+    const MIN: u64 = 60_000;
+    // The warning comes only where a lock would wipe something.
+    let mut app = shown();
+    let kit = faraday_core::testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "spending")
+        .unwrap();
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![(
+            faraday_text::Text::of("spending-wallet.txt"),
+            kit.descriptor.into_bytes(),
+        )]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    faraday_core::testkit::load_wallet(&mut app, 0);
+    tap(&mut app, Action::Scan);
+    app.event(Event::Tick { now_ms: 0 });
+    app.event(Event::Tick { now_ms: 26 * MIN });
+    let _ = app.frame();
+    assert_eq!(
+        app.sheet,
+        Some(Sheet::IdleWarn),
+        "the warning is over the scan"
+    );
+    assert!(app.scan().is_some(), "the scan runs under the warning");
+    assert!(!app.clean(), "the camera is on under the warning");
+    let before = app.screen;
+    stick(&mut app, true);
+    assert!(!app.clean(), "a stick may be handed out with the camera on");
+    assert_eq!(app.screen, before, "the stick was not visited");
+}
+
+#[test]
 fn a_seedqr_scanned_while_a_stick_is_held_loads_no_key() {
     let mut app = shown();
     tap(&mut app, Action::Scan);
