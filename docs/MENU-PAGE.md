@@ -140,6 +140,10 @@ pair), its sections in as many columns as fit (three at 1920, two at 1600).
 Where the room holds one column, the pair stands at the flow's place
 (`docs/HUB-LAYOUT.md`) and the tile scrolls.
 
+Once a page or flow has stood side by side, the tile stands beside the pane
+even where it fits under the card, until Home is shown
+(`docs/WORKSPACE.md` §4 rule 5); a typed search's results follow it.
+
 While a search is typed (Home's, Tools'), its results stand in a tile of their own at the same
 place by the same rule (`hub_layout::draw_results`): under This session's
 card where the tile fits under it, else at the right of the pair, This session

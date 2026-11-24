@@ -195,12 +195,19 @@ pub(crate) fn draw(
     // is: stacked under This session's card, else beside it. Where the
     // search is not in the top bar, or the page is the phone's, they take
     // the page.
-    if let (true, false, true, Some(bar)) = (typed, compact, app.search_in_bar(), page.search)
-        && hub_layout::draw_results(app, ui, (x0, cw, h), bar, page.panes.unwrap_or(RESULTS))
-    {
-        return;
+    // Pages stand side by side, not stacked, once a page or flow stood so,
+    // until Home (`docs/WORKSPACE.md` §4 rule 5); Home's results reached
+    // from Home stack, nothing having stood so yet.
+    let apart = app.menu_apart();
+    if let (true, false, true, Some(bar)) = (typed, compact, app.search_in_bar(), page.search) {
+        let mut panes = page.panes.unwrap_or(RESULTS);
+        panes.stacks &= !apart;
+        if hub_layout::draw_results(app, ui, (x0, cw, h), bar, panes) {
+            return;
+        }
     }
-    if let (false, Some(panes)) = (compact, page.panes) {
+    if let (false, Some(mut panes)) = (compact, page.panes) {
+        panes.stacks &= !apart;
         if !typed && hub_layout::draw(app, ui, (x0, cw, h), (page, sections), panes) {
             return;
         }

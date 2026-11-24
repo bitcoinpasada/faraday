@@ -246,6 +246,11 @@ impl<'a> View<'a> {
         a.redraw |= again;
     }
 
+    /// The page stood side by side, noted for after the pass.
+    pub(crate) fn stood_apart(&self) {
+        self.after.borrow_mut().apart = true;
+    }
+
     /// The guide sheet's end and its scroll as drawn, set after the pass.
     pub(crate) fn guide_scroll(&self, max: f32, scroll: f32, section: Option<f32>) {
         self.after.borrow_mut().guide = Some((max, scroll, section));
@@ -330,6 +335,8 @@ pub(crate) struct After {
     pub lift: Option<f32>,
     /// The pointer whose line about Enter this pass drew.
     pub enter_line: Option<u32>,
+    /// The page drew its panes side by side, not stacked.
+    pub apart: bool,
 }
 
 /// A string a frame draws and the box of its ink in pixels (x, y, w, h).
@@ -502,6 +509,7 @@ impl Faraday {
     /// Writes what a drawing pass noted. Cheap.
     pub(crate) fn apply_after(&mut self, a: After) {
         self.input_drawn(a.enter_line);
+        self.trail.drew_apart(self.screen, a.apart);
         for (column, to) in a.scrolls {
             match column {
                 Scrolled::BackupFlow => {

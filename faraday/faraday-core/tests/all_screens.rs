@@ -79,6 +79,8 @@ mod how_block;
 mod how_reach;
 #[path = "all/how_steps.rs"]
 mod how_steps;
+#[path = "all/hub_apart.rs"]
+mod hub_apart;
 #[path = "all/hub_layout.rs"]
 mod hub_layout;
 #[path = "all/idle.rs"]
@@ -99,8 +101,6 @@ mod languages;
 mod left_by_tap;
 #[path = "all/memory_unknown.rs"]
 mod memory_unknown;
-#[path = "all/menu_place.rs"]
-mod menu_place;
 #[path = "all/modes.rs"]
 mod modes;
 #[path = "all/mouse_buttons.rs"]

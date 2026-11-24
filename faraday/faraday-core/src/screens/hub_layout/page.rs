@@ -92,6 +92,7 @@ fn placed(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), body: Body, pan
     let Some(p) = panes.place(cw, false) else {
         return false;
     };
+    app.stood_apart();
     let groups = pane_groups(app, mode);
     let pane_need = page_content_h(ui, p.pane_w, &groups);
     let tile_need =

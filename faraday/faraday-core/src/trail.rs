@@ -71,6 +71,14 @@ pub(crate) struct Trail {
     /// The flow's screen and the step Back or Forward last opened in it:
     /// Forward goes on only while that step is still the one open.
     step_landed: Option<(Screen, u8)>,
+    /// Pages stand side by side, not stacked, since a page or flow stood
+    /// so: until Home opens
+    /// (`docs/WORKSPACE.md` §4 rule 5). Not a secret; a lock starts the
+    /// process over and with it this.
+    apart: bool,
+    /// The screen the last frame drew with its panes side by side where
+    /// it could have stacked (Tools, Check): only a drawn height tells.
+    drawn_apart: Option<Screen>,
 }
 
 /// Holds nothing a lock wipes: the screens gone through, for Back.
@@ -83,6 +91,27 @@ impl Trail {
         if self.entered.is_none() {
             self.entered = Some(here());
         }
+    }
+
+    /// Notes, after a frame, whether it drew `screen` side by side.
+    pub(crate) fn drew_apart(&mut self, screen: Screen, apart: bool) {
+        self.drawn_apart = apart.then_some(screen);
+    }
+
+    /// Whether `screen` stood side by side: a flow, Wallets, Vaults and
+    /// Files always do; Tools and Check where the last frame drew them so;
+    /// Home, Settings and Wallets start have no pane to stand beside.
+    fn stood_apart(&self, screen: Screen) -> bool {
+        match screen {
+            Screen::Home | Screen::Settings | Screen::WalletsStart => false,
+            Screen::Catalog | Screen::Check => self.drawn_apart == Some(screen),
+            _ => true,
+        }
+    }
+
+    /// Whether Tools and Check stand as the pair until Home opens.
+    pub(crate) fn apart(&self) -> bool {
+        self.apart
     }
 
     /// Forgets the screen noted, as a new process starts over.
@@ -99,6 +128,13 @@ impl Trail {
         let Some(before) = self.entered.take() else {
             return;
         };
+        if before.screen != screen {
+            if screen == Screen::Home {
+                self.apart = false;
+            } else if self.stood_apart(before.screen) {
+                self.apart = true;
+            }
+        }
         if backing || before.screen == screen {
             return;
         }
@@ -425,6 +461,12 @@ impl Faraday {
         if open {
             self.fresh_own_from(flow);
         }
+    }
+
+    /// Whether Tools and Check stand as the pair, not stacked, since a
+    /// page or flow stood side by side, until Home opens.
+    pub(crate) fn menu_apart(&self) -> bool {
+        self.trail.apart()
     }
 
     /// The screen on show as it is seen now.

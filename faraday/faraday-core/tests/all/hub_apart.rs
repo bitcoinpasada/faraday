@@ -302,3 +302,122 @@ fn the_search_and_pills_stand_still_as_the_guide_opens() {
         }
     }
 }
+
+/// Whether the tile stands under This session's card, not beside it.
+fn stacked(app: &mut Faraday) -> bool {
+    let (card_x, card_y) = at(app, EN.home_box_heading);
+    let (group_x, group_y) = at(app, EN.check_group_wallet);
+    group_y > card_y && group_x < card_x + 360
+}
+
+#[test]
+fn check_stays_beside_this_session_after_a_check_is_left_until_home() {
+    let mut app = sized(1920, 1080);
+    app.press(Action::Nav(Screen::Check));
+    assert!(stacked(&mut app));
+    app.press(Action::Nav(Screen::Tools));
+    app.press(Action::Back);
+    let _ = app.frame();
+    assert_eq!(app.screen, Screen::Check);
+    assert!(!stacked(&mut app), "Back lands on the pair");
+    app.press(Action::Nav(Screen::Files));
+    app.press(Action::Nav(Screen::Check));
+    assert!(!stacked(&mut app), "Files and back keeps the pair");
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Nav(Screen::Check));
+    assert!(stacked(&mut app), "Home stacks it again");
+}
+
+#[test]
+fn tools_stand_beside_too_once_a_tool_was_left() {
+    let mut app = sized(1920, 1080);
+    app.press(Action::Nav(Screen::Catalog));
+    app.press(Action::Nav(Screen::Tools));
+    app.press(Action::Back);
+    app.press(Action::Nav(Screen::Check));
+    assert!(!stacked(&mut app), "one rule for both pages");
+}
+
+#[test]
+fn a_flow_left_for_check_leaves_it_beside_even_from_home() {
+    let mut app = sized(1920, 1080);
+    app.press(Action::Nav(Screen::Tools));
+    app.press(Action::Nav(Screen::Check));
+    assert!(!stacked(&mut app), "a flow always stands side by side");
+}
+
+#[test]
+fn wallets_left_for_tools_leaves_tools_beside() {
+    let mut app = sized(1920, 1080);
+    app.press(Action::Nav(Screen::Wallets));
+    app.press(Action::Nav(Screen::Check));
+    assert!(
+        !stacked(&mut app),
+        "Wallets never stacks, and Check follows"
+    );
+}
+
+#[test]
+fn home_resets_what_stood_side_by_side() {
+    let mut app = sized(1920, 1080);
+    app.press(Action::Nav(Screen::Wallets));
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Nav(Screen::Check));
+    assert!(stacked(&mut app));
+}
+
+#[test]
+fn settings_sets_nothing() {
+    let mut app = sized(1920, 1080);
+    app.press(Action::Nav(Screen::Settings));
+    app.press(Action::Nav(Screen::Check));
+    assert!(stacked(&mut app));
+}
+
+#[test]
+fn a_tools_page_that_did_not_fit_stacked_holds_the_pair_for_the_next_page() {
+    let mut app = sized(1366, 768);
+    app.press(Action::Nav(Screen::Catalog));
+    let _ = app.frame();
+    app.press(Action::Nav(Screen::Check));
+    let (card_x, _) = at(&mut app, EN.home_box_heading);
+    let (group_x, _) = at(&mut app, EN.check_group_wallet);
+    assert!(group_x > card_x + 360, "beside");
+}
+
+#[test]
+fn search_results_follow_a_page_that_stood_side_by_side() {
+    let results_beside = |first: Screen| {
+        let mut app = sized(1920, 1080);
+        app.press(Action::Nav(first));
+        app.press(Action::Nav(Screen::Catalog));
+        type_on_home(&mut app, "send");
+        let (card_x, _) = at(&mut app, EN.home_box_heading);
+        let (tile_x, _) = at(&mut app, "Sign a transaction");
+        tile_x > card_x + 360
+    };
+    assert!(!results_beside(Screen::Home), "from Home they stack");
+    assert!(results_beside(Screen::Wallets), "after Wallets they do not");
+}
+
+#[test]
+fn a_small_window_and_the_phone_are_as_they_were_after_a_tool_is_left() {
+    let mut app = sized(1366, 768);
+    app.press(Action::Nav(Screen::Check));
+    app.press(Action::Nav(Screen::Tools));
+    app.press(Action::Back);
+    let (card_x, _) = at(&mut app, EN.home_box_heading);
+    let (group_x, _) = at(&mut app, EN.check_group_wallet);
+    assert!(group_x > card_x + 360, "beside, as it was");
+}
+
+#[test]
+fn the_phone_page_is_the_same_after_a_tool_was_left() {
+    let mut app = sized(390, 844);
+    app.press(Action::Nav(Screen::Check));
+    let first = at(&mut app, EN.check_group_wallet);
+    app.press(Action::Nav(Screen::Tools));
+    app.press(Action::Back);
+    assert_eq!(app.screen, Screen::Check);
+    assert_eq!(at(&mut app, EN.check_group_wallet), first);
+}
