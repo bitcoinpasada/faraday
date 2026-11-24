@@ -49,6 +49,8 @@ macro_rules! words_explore {
     seed_check_scan: "Scan a SeedQR",
     /// The keys loaded, on the Seed card of My seed makes my wallet.
     seed_check_loaded: "A key loaded here",
+    /// The question over the loaded keys, at the left of the Seed card of My seed makes my wallet.
+    seed_check_which_key: "Which key?",
     /// A loaded key's mark on the Seed card of My seed makes my wallet.
     seed_check_with_passphrase_mark: "passphrase",
     /// The Seed card's summary of My seed makes my wallet. `{}`: how many words.

@@ -64,7 +64,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let mut body = |ui: &mut Ui, k: u8, x: f32, y: f32, w: f32| -> f32 {
             match app_ref.tools.seed_check.state() {
                 Some(s) => {
-                    let used = card(app_ref, s, ui, k, (x, y, w));
+                    let used = card(app_ref, s, ui, k, (x, y, w), cw);
                     used + foot(s, ui, (x, y + used, w))
                 }
                 None => 0.0,
@@ -123,9 +123,9 @@ pub(super) fn summary(s: &SeedState, k: u8) -> Text {
     text.unwrap_or_default()
 }
 
-fn card(app: &View, s: &SeedState, ui: &mut Ui, k: u8, at: (f32, f32, f32)) -> f32 {
+fn card(app: &View, s: &SeedState, ui: &mut Ui, k: u8, at: (f32, f32, f32), area_w: f32) -> f32 {
     match k {
-        step::SEED => seed(app, s, ui, at, true),
+        step::SEED => seed(app, s, ui, at, Some(area_w)),
         step::PASSPHRASE => passphrase(app, s, ui, at),
         step::ACCOUNT => account(app, s, ui, at),
         _ => result(app, s, ui, at),
@@ -140,11 +140,20 @@ pub(crate) fn check_step(app: &View, s: &SeedState, ui: &mut Ui, at: (f32, f32, 
     if s.open_card() == Some(step::PASSPHRASE) {
         passphrase(app, s, ui, at)
     } else {
-        seed(app, s, ui, at, false)
+        seed(app, s, ui, at, None)
     }
 }
 
-fn seed(app: &View, s: &SeedState, ui: &mut Ui, (x, y, w): (f32, f32, f32), loaded: bool) -> f32 {
+/// The Seed card. `area_w` is the page's width when this is My seed makes
+/// my wallet's card, which offers the loaded keys; `None` for Check's
+/// Check a seed against it, which offers none.
+fn seed(
+    app: &View,
+    s: &SeedState,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    area_w: Option<f32>,
+) -> f32 {
     if s.typing_words() && app.entry.state().form == crate::forms::Form::Krux {
         // Add a key's Krux code form: its two ways to read a code.
         let end = crate::seeds::kef::read_rows(app, ui, (x, y, w), true);
@@ -184,11 +193,20 @@ fn seed(app: &View, s: &SeedState, ui: &mut Ui, (x, y, w): (f32, f32, f32), load
     }
     // Type, Scan and codex32 first; the other forms, and the loaded keys
     // where this card offers them, under Other forms.
-    let opening = if loaded {
+    let opening = if area_w.is_some() {
         crate::Opening::SeedMakesWallet
     } else {
         crate::Opening::SeedAgainst
     };
+    // Where the pair stands the pane holds the loaded keys and the ways in
+    // as the pick's rows (`flow::Contained::pick`); the card holds none.
+    let in_pane = area_w.is_some_and(|aw| {
+        flow::pair_left(app, &super::act::SEED_STEPS, ui.compact, aw)
+            && flow::Contained::pick(&super::act::SEED_STEPS, app, step::SEED).is_some()
+    });
+    if in_pane {
+        return 0.0;
+    }
     let up = button_rows(ui, x, y, w, &opening.up_front(app));
     up + crate::ways_in::screen::other_control(app, ui, (x, y + up, w), opening)
 }

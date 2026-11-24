@@ -15,17 +15,40 @@ use faraday_ui::parts::button_rows;
 
 /// The rows under Other forms: the forms the opener takes and does not
 /// show first, and its loaded keys. Returns the height.
-pub(crate) fn other_rows(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), o: Opening) -> f32 {
-    button_rows(ui, x, y, w, &o.others(app))
+pub(crate) fn other_rows(app: &View, ui: &mut Ui, at: (f32, f32, f32), o: Opening) -> f32 {
+    other_rows_with(app, ui, at, o, o.holders())
+}
+
+/// [`other_rows`] with the loaded keys under it or not: where a pane at the
+/// left holds them as the pick's rows, they are not here too.
+fn other_rows_with(
+    app: &View,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    o: Opening,
+    holders: bool,
+) -> f32 {
+    button_rows(ui, x, y, w, &o.others_with(app, holders))
 }
 
 /// Other forms of a screen that shows its ways as rows of its own: the
 /// text button with its chevron, or, once opened, its rows in place.
 /// Returns the height.
 pub(crate) fn other_control(app: &View, ui: &mut Ui, at: (f32, f32, f32), o: Opening) -> f32 {
+    other_control_with(app, ui, at, o, o.holders())
+}
+
+/// [`other_control`] with the loaded keys among its rows or not.
+pub(crate) fn other_control_with(
+    app: &View,
+    ui: &mut Ui,
+    at: (f32, f32, f32),
+    o: Opening,
+    holders: bool,
+) -> f32 {
     let (x, y, _) = at;
     if app.entry.state().other_forms && !o.sheet_only() {
-        return other_rows(app, ui, at, o);
+        return other_rows_with(app, ui, at, o, holders);
     }
     let lw = ui.button(
         x,
@@ -70,4 +93,70 @@ pub(crate) fn forms(app: &View, ui: &mut Ui, at: (f32, f32, f32), opening: Openi
             0.0
         }
         - y
+}
+
+/// The loaded keys as the pick's rows: fingerprint, then its name, a
+/// passphrase and the wallet that uses it, as the session pane has them.
+/// A press takes the key as the seed.
+pub(crate) fn holder_rows(app: &crate::Faraday) -> Vec<crate::pick::PickRow> {
+    let session = &app.session;
+    session
+        .keys
+        .all()
+        .enumerate()
+        .map(|(i, k)| {
+            let fp = crate::wallet::fp_text(k.fingerprint);
+            let name = crate::bip85::key_name(k);
+            let mut line = String::new();
+            if !name.eq_ignore_ascii_case(&fp) {
+                line.push_str(&name);
+                line.push_str(" · ");
+            }
+            if k.has_passphrase {
+                line.push_str(EN.home_key_passphrase);
+                line.push_str(" · ");
+            }
+            let user = session.wallets.iter().find(|w| {
+                session
+                    .slots(w)
+                    .iter()
+                    .any(|s| s.fingerprint == Some(k.fingerprint))
+            });
+            match user {
+                Some(w) => line.push_str(&crate::strings::fill(EN.home_key_used_by, &[&w.name])),
+                None => line.push_str(EN.home_card_no_wallet_uses_it),
+            }
+            crate::pick::PickRow::pick(
+                faraday_draw::widgets::Icon::Keys,
+                String::from(&*fp),
+                line,
+                false,
+                Action::SeedCheck(crate::seed_check::SeedAction::Loaded(i)),
+            )
+        })
+        .collect()
+}
+
+/// The ways in as the pick's rows, where a pane at the left holds them:
+/// the forms shown first, then Other forms, which opens the rest in
+/// place. A press is the card's own press.
+pub(crate) fn way_rows(app: &crate::Faraday, o: Opening) -> Vec<crate::pick::PickRow> {
+    let row = |(t, _, a): super::Item| {
+        let icon = match a {
+            Action::ScanSeed => Icon::Qr,
+            Action::SeedCheck(crate::seed_check::SeedAction::Type) => Icon::Keyboard,
+            _ => Icon::Keys,
+        };
+        crate::pick::PickRow::way_in(icon, t.as_str(), a)
+    };
+    let mut rows: Vec<_> = o.up_front(app).into_iter().map(row).collect();
+    rows.push(crate::pick::PickRow::way_in(
+        Icon::List,
+        EN.entry_other_forms,
+        Action::EntryOtherForms(o),
+    ));
+    if app.entry.state().other_forms {
+        rows.extend(o.others_with(app, false).into_iter().map(row));
+    }
+    rows
 }

@@ -1054,6 +1054,32 @@ impl crate::flow::Contained for SeedSteps {
             .collect()
     }
 
+    /// The loaded keys, then the ways in, while the Seed card lists its
+    /// ways in: the words form, a code or a source read has the card's own.
+    fn pick(&self, app: &Faraday, k: u8) -> Option<crate::flow::Pick> {
+        let s = app.tools.seed_check.state()?;
+        if k != step::SEED || s.typing || s.source.is_some() || s.for_check() {
+            return None;
+        }
+        let keys = crate::ways_in::screen::holder_rows(app);
+        let loaded = !keys.is_empty();
+        let mut groups = Vec::new();
+        if loaded {
+            groups.push(crate::flow::PickGroup {
+                head: crate::strings::EN.session_group_keys,
+                rows: keys,
+            });
+        }
+        groups.push(crate::flow::PickGroup {
+            head: crate::pick::ways_in_head(loaded),
+            rows: crate::ways_in::screen::way_rows(app, crate::Opening::SeedMakesWallet),
+        });
+        Some(crate::flow::Pick {
+            question: crate::strings::EN.seed_check_which_key,
+            groups,
+        })
+    }
+
     fn hide_shown(&self, app: &mut crate::Faraday) {
         app.typing.pass_eye.close();
     }

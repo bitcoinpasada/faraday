@@ -10,7 +10,6 @@ pub(crate) mod screen;
 
 use crate::Action;
 use crate::decode::check::SignerPress;
-use crate::drawing::View;
 use crate::forms::Form;
 use crate::seed_check::SeedAction;
 use crate::strings::EN;
@@ -121,13 +120,13 @@ impl Opening {
 
     /// Whether the loaded keys are ways of this opener, under Other
     /// forms: the screen does not know which key it wants.
-    fn holders(self) -> bool {
+    pub(super) fn holders(self) -> bool {
         self == Opening::SeedMakesWallet
     }
 
     /// One way as a row: its label and its press. Add a key's rows show
     /// the form chosen.
-    pub(crate) fn item(self, app: &View, way: Way) -> Item {
+    pub(crate) fn item(self, app: &crate::Faraday, way: Way) -> Item {
         let me = if self == Opening::SeedAgainst {
             Opening::SeedMakesWallet
         } else {
@@ -225,7 +224,7 @@ impl Opening {
     }
 
     /// The ways shown first, as rows.
-    pub(crate) fn up_front(self, app: &View) -> Vec<Item> {
+    pub(crate) fn up_front(self, app: &crate::Faraday) -> Vec<Item> {
         self.opener()
             .up_front
             .iter()
@@ -234,8 +233,9 @@ impl Opening {
     }
 
     /// The ways under Other forms, as rows: the forms the opener takes
-    /// less those shown first, then the loaded keys where it lists them.
-    pub(crate) fn others(self, app: &View) -> Vec<Item> {
+    /// less those shown first, then the loaded keys where it lists them
+    /// and `holders` says so.
+    pub(crate) fn others_with(self, app: &crate::Faraday, holders: bool) -> Vec<Item> {
         let mut rows: Vec<Item> = self
             .opener()
             .other_forms()
@@ -249,7 +249,7 @@ impl Opening {
                 .filter(|w| matches!(w, Way::Words(_)))
                 .map(|w| self.item(app, *w)),
         );
-        if self.holders() {
+        if holders {
             let n = app.session.keys.all().count();
             rows.extend((0..n).map(|i| self.item(app, Way::Holder(i))));
         }
@@ -305,4 +305,91 @@ impl Opener {
             .filter(|f| !self.up_front.contains(&Way::Form(*f)))
             .collect()
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Every opener but My seed makes my wallet lists its ways as it
+    /// always did: the rows shown first, then those under Other forms,
+    /// and no loaded key among them.
+    #[test]
+    fn the_other_openers_list_their_ways_as_before() {
+        let app = crate::Faraday::new();
+        let items: Vec<_> = EXPECTED
+            .iter()
+            .map(|(o, _, _)| (*o, o.up_front(&app), o.others_with(&app, o.holders())))
+            .collect();
+        let got: Vec<_> = items
+            .iter()
+            .map(|(o, a, b)| {
+                (
+                    *o,
+                    a.iter().map(|i| i.0.as_str()).collect::<Vec<_>>(),
+                    b.iter().map(|i| i.0.as_str()).collect::<Vec<_>>(),
+                )
+            })
+            .collect();
+        let want: Vec<_> = EXPECTED
+            .iter()
+            .map(|(o, a, b)| (*o, a.to_vec(), b.to_vec()))
+            .collect();
+        assert_eq!(got, want);
+    }
+
+    const EXPECTED: &[(Opening, &[&str], &[&str])] = &[
+        (
+            Opening::AddAKey,
+            &["Scan a SeedQR", "BIP-39 words", "codex32"],
+            &[
+                "SLIP-39 shares",
+                "Seed XOR parts",
+                "Krux code",
+                "Extended private key (xprv)",
+                "Master seed in hex",
+                "15 words",
+                "18 words",
+                "21 words",
+            ],
+        ),
+        (
+            Opening::CheckSigner,
+            &["Type the words", "Scan a SeedQR", "codex32"],
+            &[
+                "SLIP-39 shares",
+                "Seed XOR parts",
+                "Krux code",
+                "Extended private key (xprv)",
+                "Master seed in hex",
+            ],
+        ),
+        (
+            Opening::SpendSign,
+            &["Type the words", "Scan a SeedQR", "codex32"],
+            &[
+                "SLIP-39 shares",
+                "Seed XOR parts",
+                "Krux code",
+                "Extended private key (xprv)",
+                "Master seed in hex",
+            ],
+        ),
+        (
+            Opening::RestoreSlot,
+            &["Type the words", "Scan a SeedQR", "codex32"],
+            &[
+                "SLIP-39 shares",
+                "Seed XOR parts",
+                "Krux code",
+                "Extended private key (xprv)",
+                "Master seed in hex",
+            ],
+        ),
+        (
+            Opening::CheckBackup,
+            &["", "codex32"],
+            &["SLIP-39 shares", "Seed XOR parts", "Krux code"],
+        ),
+    ];
 }

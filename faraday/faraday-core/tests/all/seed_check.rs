@@ -1565,3 +1565,127 @@ fn a_stick_arriving_empties_the_seed_check_s_passphrases() {
         "no key is read with what was typed before the stick came"
     );
 }
+
+// The loaded keys stand as the pick's rows in a pane at the left of the
+// Seed card where the pair stands (docs/FLOW-CONTAINER.md §4).
+
+/// My seed makes my wallet open on a `w` × `h` window with `n` keys loaded.
+fn seed_card_on(w: u16, h: u16, n: usize) -> Faraday {
+    use faraday_bip::bip39::Language;
+    use faraday_shell_api::{BootState, DisplayInfo, SecureHardware};
+    let mut app = Faraday::new();
+    app.event(Event::Display(DisplayInfo {
+        width: w,
+        height: h,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(Vec::<(String, Vec<u8>)>::new()),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    let c = testkit::compute();
+    for i in 0..n {
+        let m = faraday_keys::words::from_entropy(Language::English, &[i as u8 + 1; 16]).unwrap();
+        let words: Vec<&str> = m
+            .indices()
+            .iter()
+            .map(|&w| Language::English.words()[usize::from(w)])
+            .collect();
+        app.session
+            .keys
+            .add_words(&c, &words.join(" "), &format!("Seed {i}"), None)
+            .unwrap();
+    }
+    app.press(Action::Nav(faraday_core::Screen::Catalog));
+    let tile = faraday_core::catalog::TILES
+        .iter()
+        .position(|t| t.name == "My seed makes my wallet")
+        .unwrap();
+    app.press(Action::Catalog(tile as u8));
+    app
+}
+
+fn drawn(app: &mut Faraday, text: &str) -> bool {
+    let _ = app.frame();
+    app.drawn_text_boxes().iter().any(|(t, _)| t == text)
+}
+
+/// The left edge of the hit box of `a`.
+fn left_of(app: &mut Faraday, a: Action) -> i32 {
+    let _ = app.frame();
+    let (x, _, _, _) = app.hit_box(a).expect("a control");
+    i32::from(x)
+}
+
+#[test]
+fn the_keys_and_the_ways_in_stand_in_one_pane_headed_by_the_question() {
+    let mut app = seed_card_on(1366, 768, 2);
+    let pane = left_of(&mut app, Action::SeedCheck(S::Loaded(0)));
+    assert_eq!(left_of(&mut app, Action::SeedCheck(S::Loaded(1))), pane);
+    assert_eq!(left_of(&mut app, Action::SeedCheck(S::Type)), pane);
+    assert_eq!(left_of(&mut app, Action::ScanSeed), pane);
+    assert!(drawn(&mut app, "Which key?"));
+    assert!(drawn(&mut app, "Other ways in"));
+    assert!(!drawn(&mut app, "Your choices"));
+    // Other forms opens its rows in the pane too.
+    app.press(Action::EntryOtherForms(
+        faraday_core::Opening::SeedMakesWallet,
+    ));
+    assert_eq!(
+        left_of(&mut app, Action::SeedCheck(S::Form(0))),
+        pane,
+        "the other forms stand in the pane"
+    );
+}
+
+#[test]
+fn a_press_on_a_row_takes_that_key_as_the_seed() {
+    let mut app = seed_card_on(1366, 768, 2);
+    let _ = app.frame();
+    let (x, y, w, h) = app.hit_box(Action::SeedCheck(S::Loaded(1))).expect("a row");
+    for phase in [
+        faraday_shell_api::TouchPhase::Down,
+        faraday_shell_api::TouchPhase::Up,
+    ] {
+        app.event(Event::Touch {
+            x: x + w / 2,
+            y: y + h / 2,
+            phase,
+        });
+    }
+    assert!(shows(&mut app, "NativeSegWit"), "the Account card");
+    assert!(!drawn(&mut app, "Which key?"));
+    assert!(drawn(&mut app, "Your choices"));
+}
+
+#[test]
+fn with_no_key_loaded_the_pane_holds_the_ways_in() {
+    let mut app = seed_card_on(1366, 768, 0);
+    assert!(drawn(&mut app, "Ways in"));
+    assert!(!drawn(&mut app, "Other ways in"));
+    assert!(app.hit_box(Action::SeedCheck(S::Type)).is_some());
+    assert!(app.hit_box(Action::ScanSeed).is_some());
+}
+
+#[test]
+fn on_a_small_panel_the_keys_stay_under_other_forms() {
+    let mut app = seed_card_on(480, 640, 2);
+    let _ = app.frame();
+    assert!(!drawn(&mut app, "Which key?"));
+    assert!(app.hit_box(Action::SeedCheck(S::Type)).is_some());
+    assert!(app.hit_box(Action::SeedCheck(S::Loaded(0))).is_none());
+    app.press(Action::EntryOtherForms(
+        faraday_core::Opening::SeedMakesWallet,
+    ));
+    let _ = app.frame();
+    assert!(app.hit_box(Action::SeedCheck(S::Loaded(0))).is_some());
+    assert!(app.hit_box(Action::SeedCheck(S::Loaded(1))).is_some());
+}
