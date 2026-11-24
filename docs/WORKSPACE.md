@@ -320,10 +320,10 @@ motion: with motion Off the pane stands where it would after the glide.
    columns or more, so that most of Tools shows without scrolling. The pane
    therefore does not move when a tool opens: it turns into the pick in place
    and the tile turns into the step card, in one movement (§6). A wider window
-   keeps the tile's width at 1920 (`MENU_TILE_WIDE_MAX`) and centres the pair;
-   the pane there glides to the flow's place in that movement. Where the pane
-   stands between that and one column, and whether the pair on a wider window is
-   centred or has its pane at the flow's place, are not decided. A room
+   keeps the pair at its width at 1920 (`MENU_TILE_WIDE_MAX` becomes the tile's
+   width there) and the pane at the flow's place, so the pane does not move
+   there either and the pair stands right of the centre (owner, 2026-11-24).
+   Where the pane stands between 1920 and one column is not decided. A room
    that holds one column (1366 × 768) keeps the flow's place for both. Wallets
    and the other pairs move nothing sideways, only heights change.
 4. **A pair always ends level**: tops and bottoms line up, at the height the
@@ -414,7 +414,7 @@ Every page, with its place:
 | Page | Place |
 |---|---|
 | Home | centred, every group (§2) |
-| Tools, Check | stacked under This session where it all fits; else the pair, the pane at the flow's place at 1920 (rule 3), the tile taking the rest of the width in more columns |
+| Tools, Check | stacked under This session where it all fits; else the pair, the pane at the flow's place at 1920 and wider (rule 3), the tile taking the rest of the width at 1920 in more columns |
 | Wallets | the pair |
 | Vaults | two panes: this session's keys and wallets at the left, the vault files, then an open vault's contents, at the right |
 | Files | In Faraday at the left, the stick at the right |
@@ -460,8 +460,7 @@ Speed's duration unless the row says otherwise):
 | Home to a page with a pane, a page to another | the pane glides (below); the rest fades through | the whole frame blends from the old screen to the new (today's fade of two kept frames) | at once |
 | Home to Tools, Check or Settings where it stacks | the card does not move; the tile fades in under it | blends | at once |
 | Home to Settings, its own page | no pane moves; fades through | blends | at once |
-| Into a flow, from Tools' or Check's pair where the pane stands at the flow's place (at 1920, §4) | the pane does not move and turns into the pick; the tile turns into the step card, in one movement | blends | at once |
-| Into a flow, from Tools' or Check's pair centred on a wider window | the pane glides to the flow's place and the tile turns into the step card, in one movement | blends | at once |
+| Into a flow, from Tools' or Check's pair where the pane stands at the flow's place (at 1920 and wider, §4) | the pane does not move and turns into the pick; the tile turns into the step card, in one movement | blends | at once |
 | Into a flow, from another pair | the pane stays at its place and turns into the pick; the tile turns into the step card; heights change; the two become one card, the join animated, the heights changing with it (below) | blends | at once |
 | Into a flow, from Home or a stacked page | the pane glides into the flow's pair as it turns into the pick; then as from a pair | blends | at once |
 | The pick becoming Your choices | in place, the other rows fading out, the pick folding to its row | blends | at once |
