@@ -279,6 +279,7 @@ impl Faraday {
             return;
         };
         let (cs, name) = (Text::of(wl.checksum()), Text::of(&wl.name));
+        let wid = wl.id();
         let setup = self.flows[i]
             .wallet
             .as_ref()
@@ -301,6 +302,7 @@ impl Faraday {
         let keep = match f.wallet.as_mut() {
             Some(wf) => {
                 wf.checksum = Some(cs.clone());
+                wf.id = Some(wid);
                 wf.name = name.clone();
                 wf.setup = false;
                 wf.answers.remap_seeds(&map, shape.seeds.len());
@@ -911,6 +913,7 @@ impl Faraday {
             return;
         };
         let (checksum, name) = (Text::of(wl.checksum()), Text::of(&wl.name));
+        let wid = wl.id();
         // A backup past its lock and not done keeps its plan: its writes
         // are finished first, then Back up runs again (§17.8).
         if self.backup_locked_flow().is_some() {
@@ -994,6 +997,7 @@ impl Faraday {
             let f = &mut self.flows.all[i];
             if let Some(wf) = f.wallet.as_mut() {
                 wf.checksum = Some(checksum.clone());
+                wf.id = Some(wid);
                 wf.name = name.clone();
                 wf.answers = answers;
                 wf.shape = shape;
@@ -1643,7 +1647,7 @@ impl Faraday {
         Ok(())
     }
 
-    /// Costs a share record made (`wallet_share_record`: a description read and a sheets rebuild) per kept share, and the share answers (`vault_shares`): each share the plan keeps in added vault `v`, and the other shares of this wallet that go.
+    /// Costs the wallet's id (`flow_wallet_ids`, none for a flow that kept it; else a description read per wallet record), a share record made (`wallet_share_record`: a description read and a sheets rebuild) per kept share, and the share answers (`vault_shares`): each share the plan keeps in added vault `v`, and the other shares of this wallet that go.
     fn wallet_copy_shares(
         &mut self,
         cx: &CopyCtx<'_>,
@@ -1655,24 +1659,46 @@ impl Faraday {
         use faraday_vault::records::field;
         let c = cx.c;
         let wf = cx.wf;
-        let cs = cx.cs;
         let holders = cx.holders.as_slice();
         // Each share the plan keeps in the vault (§17.6), as a type 13
         // record of this wallet (told by its field 5, never by its
         // name), with the text the plan's split gives now; any other
         // share of this wallet goes.
         let kept = wf.answers.vault_shares(c, &wf.shape, v);
+        // The flow's wallet by its own id, a loaded twin never standing in;
+        // for a flow saved before the id was kept, the one wallet of its
+        // checksum that is here. Where that is not one wallet, a share
+        // record is told apart by no one's id: none is taken out and none
+        // is put in, and the flow says so where it matters (a share to
+        // put in, or one of this checksum here that the plan does not keep).
+        let id = match crate::backup_flow::flow_wallet_ids(self, c, wf).as_slice() {
+            [id] => *id,
+            ids => {
+                if kept.is_empty() && !self.vault_share_unclaimed(cx, o) {
+                    return Ok(());
+                }
+                return Err(CopyStop::Say(Text::of(
+                    if ids.is_empty() && kept.is_empty() {
+                        EN.backup_flow_share_unknown
+                    } else if ids.is_empty() {
+                        EN.backup_flow_no_description
+                    } else {
+                        EN.backup_flow_two_wallets
+                    },
+                )));
+            }
+        };
         for (k, r) in self.vaults.records(self.vaults.open[o].id).iter() {
-            if crate::share_record_is(c, r, cs, None)
+            if crate::share_record_is_wallet(c, r, id, None)
                 && !kept
                     .iter()
-                    .any(|&j| crate::share_record_is(c, r, cs, Some(j)))
+                    .any(|&j| crate::share_record_is_wallet(c, r, id, Some(j)))
             {
                 w.out.push(k);
             }
         }
         for j in kept {
-            let made = match super::wallet_share_record(self, c, wf, cs, j) {
+            let made = match super::wallet_share_record(self, c, wf, id, j) {
                 Some(Err(why)) => return Err(CopyStop::Say(Text::of(why))),
                 made => made.and_then(Result::ok),
             };
@@ -1682,7 +1708,7 @@ impl Faraday {
                         self.vaults
                             .records(self.vaults.open[h].id)
                             .iter()
-                            .find(|(_, r)| crate::share_record_is(c, *r, cs, Some(j)))
+                            .find(|(_, r)| crate::share_record_is_wallet(c, *r, id, Some(j)))
                             .and_then(|(_, r)| r.to_public())
                     })
                 })
@@ -1693,7 +1719,7 @@ impl Faraday {
             let text = want.view().public_text(field::SHARE).map(Text::of);
             let mut have = false;
             for (k, r) in self.vaults.records(self.vaults.open[o].id).iter() {
-                if crate::share_record_is(c, r, cs, Some(j)) {
+                if crate::share_record_is_wallet(c, r, id, Some(j)) {
                     if !have && r.public_text(field::SHARE).map(Text::of) == text {
                         have = true;
                     } else {
@@ -1705,12 +1731,42 @@ impl Faraday {
                 && !w
                     .add
                     .iter()
-                    .any(|r| crate::share_record_is(c, r.view(), cs, Some(j)))
+                    .any(|r| crate::share_record_is_wallet(c, r.view(), id, Some(j)))
             {
                 w.add.push(want);
             }
         }
         Ok(())
+    }
+
+    /// Costs what `record_tokens` costs. Whether open vault `o` holds a
+    /// share record of the flow's checksum that it did not hold before
+    /// the flow (by token, the old form by checksum too).
+    fn vault_share_unclaimed(&self, cx: &CopyCtx<'_>, o: usize) -> bool {
+        use faraday_vault::records::field;
+        let salt = self.vaults.open[o].vault_id();
+        let before: &[Text] = self.flows[cx.i]
+            .wallet
+            .as_ref()
+            .and_then(|f| f.before.iter().find(|(s, _)| *s == salt))
+            .map_or(&[], |(_, t)| t.as_slice());
+        self.vaults
+            .records(self.vaults.open[o].id)
+            .iter()
+            .any(|(_, r)| {
+                r.kind() == faraday_vault::records::kind::WALLET_SHARE
+                    && self
+                        .record_described(cx.c, r)
+                        .is_some_and(|d| d.checksum == cx.cs)
+                    && !self
+                        .record_tokens(cx.c, r)
+                        .iter()
+                        .any(|t| before.contains(t))
+                    && !r
+                        .public(field::SHARE_NUMBER)
+                        .and_then(|b| b.first())
+                        .is_some_and(|n| before.contains(&text!("s{}:{n}", cx.cs)))
+            })
     }
 
     /// Costs the passphrase answers (`vault_passphrases`) and a key fingerprint per key record of the open vault: each passphrase the plan keeps alone in added vault `v`, and those of this wallet's seeds it no longer keeps there.
@@ -1882,7 +1938,14 @@ impl Faraday {
             };
             let tokens = self.record_tokens(c, r);
             let key = r.kind() == rkind::KEY;
-            !(tokens.iter().any(|t| before.contains(t)) || (key && !others.is_empty()))
+            // A share kept in a flow saved before its token held the
+            // wallet's id is told by the checksum: kept as it was.
+            let old = r.kind() == rkind::WALLET_SHARE
+                && r.public(faraday_vault::records::field::SHARE_NUMBER)
+                    .and_then(|b| b.first())
+                    .zip(self.record_described(c, r))
+                    .is_some_and(|(n, d)| before.contains(&text!("s{}:{n}", d.checksum.as_str())));
+            !(old || tokens.iter().any(|t| before.contains(t)) || (key && !others.is_empty()))
         });
         w.out.extend(stale);
         let adds: Vec<&Staged> = w.add.iter().collect();
@@ -2296,8 +2359,8 @@ impl Faraday {
     /// vault record is, as the flow keeps what a vault held before it:
     /// `k{fp}` a key's record of its words alone, `p{fp}` one with its
     /// passphrase, `a{fp}` a key's passphrase kept alone (type 14),
-    /// `w{sum}` a wallet's description, `s{sum}:{n}` a wallet's share
-    /// (`docs/BACKUP-FLOW.md` §15). Never a secret.
+    /// `w{sum}` a wallet's description, `s{id}:{n}` a wallet's share
+    /// (its id, 64 hex; `docs/BACKUP-FLOW.md` §15). Never a secret.
     pub(crate) fn record_tokens(
         &self,
         c: &Compute,
@@ -2332,7 +2395,10 @@ impl Faraday {
                     .public(field::SHARE_NUMBER)
                     .and_then(|b| b.first())
                     .copied();
-                match (sum(), n) {
+                // The wallet's id, not its checksum: a twin's share of
+                // the same number is another record.
+                let id = self.record_described(c, r).map(|d| d.policy.id().to_hex());
+                match (id, n) {
                     (Some(s), Some(n)) => vec![text!("s{}:{n}", s.as_str())],
                     _ => Vec::new(),
                 }
@@ -2402,6 +2468,7 @@ impl Faraday {
     fn flow_takes_out_foreign(&self, c: &Compute, trial: &BackupFlow) -> Option<Text> {
         let wf = trial.wallet.as_ref()?;
         let cs = wf.checksum.clone().unwrap_or_default();
+        let ids = crate::backup_flow::flow_wallet_ids(self, c, wf);
         for (v, had) in &wf.sealed {
             let Some(salt) = trial.plan.vaults.get(*v).and_then(|vp| vp.salt) else {
                 continue;
@@ -2464,10 +2531,16 @@ impl Faraday {
                     if before.contains(&text!("w{}", &*cs)) {
                         return Some(Text::fill(EN.backup_flow_held_before, &[&n]));
                     }
-                } else if (SHARE_MARK..OMIT_MARK).contains(&m)
-                    && before.contains(&text!("s{}:{}", &*cs, m - SHARE_MARK + 1))
-                {
-                    return Some(Text::fill(EN.backup_flow_held_before, &[&n]));
+                } else if (SHARE_MARK..OMIT_MARK).contains(&m) {
+                    let held = super::wallet_files::share_held_before(
+                        &before,
+                        &cs,
+                        &ids,
+                        m - SHARE_MARK + 1,
+                    );
+                    if held {
+                        return Some(Text::fill(EN.backup_flow_held_before, &[&n]));
+                    }
                 }
             }
         }

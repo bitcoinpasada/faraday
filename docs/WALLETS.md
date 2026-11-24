@@ -351,7 +351,18 @@ the same checksum asks again. The same id tells the wallet whose money
 moves to a new wallet and the new wallet, and which wallet's share record
 (type 13) the backup checklist's Save to a vault replaces, so a wallet of
 the same checksum keeps its own there. The backup flow's copy to a vault
-still picks share records by checksum. Everything before the
+picks and takes out share records by that id too. The flow keeps its
+wallet's id beside the checksum from the time it takes the wallet while it
+is loaded, so a twin loaded later never stands in. A flow saved before that
+goes by the one wallet of its checksum that is here: a loaded wallet, else
+the open vaults' records (a wallet, a plan, a share's wallet field), else
+Files, asked only where the vaults give none. Where it finds two, the copy
+puts in and takes out no share record and says to take the other out of
+Files; where it finds none and a share of this checksum is in the vault
+that the flow did not find there, it says so. With no id kept, a share the
+vault held before the flow is told by its number alone, and is never taken
+out. Restore pools a
+vault's shares of one wallet by its id. Everything before the
 signers is watch-only, so any reason to stop is found before a key is
 used. In Faraday the keys are usually already loaded from a vault, so
 the signers step shows them rather than asking for them, and asks only

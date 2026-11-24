@@ -264,8 +264,95 @@ impl BackupFlow {
     }
 }
 
+/// Costs what `read_wallet` costs per description in Files. The ids of
+/// the wallets of checksum `cs`, each once, from the first place that has
+/// one: the wallets loaded; the open vaults' records (a wallet, a plan's
+/// wallet, a share's wallet); Files, the untrusted side, only where
+/// neither gives any. A flow that kept its wallet's id
+/// ([`flow_wallet_ids`]) does not ask. One id is the wallet; two or more
+/// are never a pick.
+fn wallet_ids_of(
+    app: &crate::Faraday,
+    c: &Compute,
+    cs: &str,
+) -> Vec<faraday_bip::policy::WalletId> {
+    let mut ids: Vec<faraday_bip::policy::WalletId> = Vec::new();
+    for wl in app.session.wallets.iter().filter(|wl| wl.checksum() == cs) {
+        if !ids.contains(&wl.id()) {
+            ids.push(wl.id());
+        }
+    }
+    if !ids.is_empty() {
+        return ids;
+    }
+    for o in &app.vaults.open {
+        for (_, r) in app.vaults.records(o.id).iter() {
+            if matches!(r.kind(), rkind::WALLET | rkind::PLAN | rkind::WALLET_SHARE)
+                && let Some(d) = app.record_described(c, r)
+                && d.checksum == cs
+                && !ids.contains(&d.policy.id())
+            {
+                ids.push(d.policy.id());
+            }
+        }
+    }
+    if !ids.is_empty() {
+        return ids;
+    }
+    let from_files = app
+        .inbox
+        .iter()
+        .chain(app.outbox.iter())
+        .filter(|it| it.kind == crate::wallet::FileKind::Wallet)
+        .filter_map(|it| std::str::from_utf8(&it.bytes).ok().map(Text::of));
+    for t in from_files {
+        if let Ok(p) = crate::wallet::read_wallet(c, &t)
+            && p.checksum() == cs
+            && !ids.contains(&p.id())
+        {
+            ids.push(p.id());
+        }
+    }
+    ids
+}
+
+/// Costs what `wallet_ids_of` costs, none for a flow that kept its
+/// wallet's id. The ids of the wallet a flow is for: its own id where it
+/// has one (a loaded twin never stands in), else those of its checksum.
+pub(crate) fn flow_wallet_ids(
+    app: &crate::Faraday,
+    c: &Compute,
+    wf: &super::WalletFlow,
+) -> Vec<faraday_bip::policy::WalletId> {
+    match (wf.id, wf.checksum.as_deref()) {
+        (Some(id), _) => vec![id],
+        (None, Some(cs)) => wallet_ids_of(app, c, cs),
+        (None, None) => Vec::new(),
+    }
+}
+
+/// Whether share `num` of the flow's wallet is among what a vault held
+/// before the flow (`before`'s tokens). With the wallet's one id, its own
+/// token (and the old form, by checksum `cs`); with none or two, any share
+/// token of that number, so a flow with no id to go by refuses as it
+/// always did.
+pub(crate) fn share_held_before(
+    before: &[Text],
+    cs: &str,
+    ids: &[faraday_bip::policy::WalletId],
+    num: usize,
+) -> bool {
+    before.contains(&text!("s{cs}:{num}"))
+        || match ids {
+            [id] => before.contains(&text!("s{}:{num}", &*id.to_hex())),
+            _ => before
+                .iter()
+                .any(|t| t.starts_with('s') && t.ends_with(&*text!(":{num}"))),
+        }
+}
+
 /// Costs what `read_wallet`, `add_wallet` and `sheets_rebuild` cost. Share
-/// `j` of the wallet with checksum `cs` as a type 13 record
+/// `j` of the wallet with id `id` as a type 13 record
 /// (`docs/BACKUP-FLOW.md` §15.6), made from its description: the wallet
 /// loaded, or its description in an open vault or Files. `None` where no
 /// description is found; a refusal, the toast to show, where the plan's
@@ -274,7 +361,7 @@ pub(crate) fn wallet_share_record(
     app: &crate::Faraday,
     c: &Compute,
     wf: &WalletFlow,
-    cs: &str,
+    id: faraday_bip::policy::WalletId,
     j: usize,
 ) -> Option<Result<faraday_vault::Record, &'static str>> {
     use faraday_vault::records::field;
@@ -282,7 +369,7 @@ pub(crate) fn wallet_share_record(
     let of_wallet = |t: &str| {
         crate::wallet::read_wallet(c, t)
             .ok()
-            .is_some_and(|p| p.checksum() == cs)
+            .is_some_and(|p| p.id() == id)
     };
     let text = |wl: &crate::wallet::Wallet| -> Option<Made> {
         let (m, n) = crate::wallet::Session::quorum_keys(wl);
@@ -297,7 +384,7 @@ pub(crate) fn wallet_share_record(
             Text::of(&crate::Faraday::wallet_text(wl)),
         )))
     };
-    let made = match app.session.wallets.iter().find(|wl| wl.checksum() == cs) {
+    let made = match app.session.wallets.iter().find(|wl| wl.id() == id) {
         Some(wl) => text(wl),
         None => {
             // A wallet record, or a plan record's wallet (its field 1), in
@@ -346,4 +433,83 @@ pub(crate) fn wallet_share_record(
             )
             .with(field::SHARE_OF, &[u8::try_from(of).unwrap_or(u8::MAX)])
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{flow_wallet_ids, wallet_ids_of};
+    use crate::testkit::{self, WALLET_ID_FIRST as FIRST, WALLET_ID_TWIN as TWIN};
+    use crate::wallet::Origin;
+
+    fn app_with(wallets: &[&str]) -> crate::Faraday {
+        let c = testkit::compute();
+        let mut app = crate::Faraday::new();
+        testkit::move_to(&mut app.session, testkit::NET).unwrap();
+        for (name, d) in ["First", "Twin"].into_iter().zip(wallets) {
+            app.session
+                .add_wallet_confirmed(&c, name, d, "kit", Origin::Named)
+                .expect("the wallet reads");
+        }
+        app
+    }
+
+    /// The flow's copy of share records goes by a wallet's id only where
+    /// one wallet of the checksum is here: one is its id, two or none are
+    /// no id to go by.
+    #[test]
+    fn the_ids_of_a_checksum_are_one_none_or_two() {
+        let c = testkit::compute();
+        let first = crate::wallet::read_wallet(&c, &faraday_text::Text::of(FIRST)).unwrap();
+        let cs = first.checksum();
+        let one = wallet_ids_of(&app_with(&[FIRST]), &c, cs);
+        assert_eq!(one.len(), 1);
+        assert!(wallet_ids_of(&app_with(&[]), &c, cs).is_empty());
+        let two = wallet_ids_of(&app_with(&[FIRST, TWIN]), &c, cs);
+        assert_eq!(two.len(), 2);
+        assert_ne!(two[0], two[1]);
+    }
+
+    /// A flow that kept its wallet's id goes by it: a twin loaded later
+    /// never stands in, and no wallet need be loaded. One saved before
+    /// the id was kept goes by what is here.
+    #[test]
+    fn a_flow_goes_by_its_own_id_and_a_loaded_twin_never_stands_in() {
+        let c = testkit::compute();
+        let first = crate::wallet::read_wallet(&c, &faraday_text::Text::of(FIRST)).unwrap();
+        let mut wf = crate::backup_flow::WalletFlow::blank();
+        wf.checksum = Some(faraday_text::Text::of(first.checksum()));
+        wf.id = Some(first.id());
+        let twin_only = app_with(&[TWIN]);
+        assert_eq!(flow_wallet_ids(&twin_only, &c, &wf), vec![first.id()]);
+        assert_eq!(flow_wallet_ids(&app_with(&[]), &c, &wf), vec![first.id()]);
+        wf.id = None;
+        let ids = flow_wallet_ids(&twin_only, &c, &wf);
+        assert_eq!(ids.len(), 1);
+        assert_ne!(
+            ids[0],
+            first.id(),
+            "a flow with no id goes by what is loaded"
+        );
+    }
+
+    /// A share the vault held before the flow is never taken out, whatever
+    /// the flow can tell of its wallet after a restart: with no id found
+    /// any share of that number counts, with one id its own does.
+    #[test]
+    fn a_share_held_before_is_told_by_its_number_where_no_id_is_found() {
+        use super::share_held_before;
+        let c = testkit::compute();
+        let first = crate::wallet::read_wallet(&c, &faraday_text::Text::of(FIRST)).unwrap();
+        let twin = crate::wallet::read_wallet(&c, &faraday_text::Text::of(TWIN)).unwrap();
+        let cs = first.checksum();
+        let before = [faraday_text::text!("s{}:2", &*first.id().to_hex())];
+        assert!(share_held_before(&before, cs, &[], 2), "no id: the number");
+        assert!(!share_held_before(&before, cs, &[], 1));
+        assert!(share_held_before(&before, cs, &[first.id()], 2));
+        assert!(share_held_before(&before, cs, &[first.id(), twin.id()], 2));
+        assert!(
+            !share_held_before(&before, cs, &[twin.id()], 2),
+            "a twin's is its own"
+        );
+    }
 }

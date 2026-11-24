@@ -421,6 +421,10 @@ macro_rules! words_vm_names {
     backup_flow_written_stays: "A stick already written stays on the plan",
     /// Toast: the round has no copy of the descriptor to put in.
     backup_flow_no_description: "No copy of the descriptor is here to put in",
+    /// Toast: two wallets have the flow's checksum, so the round cannot tell their shares apart.
+    backup_flow_two_wallets: "Two wallets have this checksum; take the other one out of Files",
+    /// Toast: a vault holds a share of the flow's wallet that the wallet cannot be told from.
+    backup_flow_share_unknown: "A share of this wallet is in the vault and the wallet is not here to match it",
     /// Toast: a change would leave a key held back kept on no stick.
     backup_flow_held_stays: "A key not yet written stays kept on a stick",
     /// The backup board's card (`docs/BACKUP-FLOW.md` §17): its title.

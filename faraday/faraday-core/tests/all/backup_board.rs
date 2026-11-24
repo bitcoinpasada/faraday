@@ -1627,6 +1627,41 @@ fn an_existing_vaults_contents_are_drawn_dimmed_and_take_no_press() {
     );
 }
 
+/// The wallet's own Share 2 already in an existing vault, and the plan
+/// keeping Share 2 there: the board shows it once (as the plan's), not
+/// again as something the vault held before.
+#[test]
+fn a_share_the_vault_holds_of_this_wallet_is_not_drawn_again_as_held_before() {
+    use faraday_vault::records::field;
+    let mut shell = Shell::light();
+    let (mut app, _) = main_vault_board(&mut shell);
+    let own = app.session.wallets[0].policy().to_descriptor_checksummed();
+    let id = app.vaults().open[0].id;
+    faraday_core::testkit::vault_edit(&mut app, id, |s| {
+        s.insert(
+            id,
+            faraday_vault::Record::new(faraday_vault::records::kind::WALLET_SHARE)
+                .with(field::SHARE, b"a share text")
+                .with(field::SHARE_WALLET_NAME, b"Wallet")
+                .with(field::SHARE_NUMBER, &[2])
+                .with(field::SHARE_OF, &[3])
+                .with(field::SHARE_WALLET, own.as_bytes()),
+        )
+    });
+    if vault_stick(&app, 0, 0).is_none() {
+        tap(&mut app, list(Thing::Vault(0)));
+        tap(&mut app, BP::Zone(Zone::NewStick(0)));
+    }
+    let s = vault_stick(&app, 0, 0).expect("the vault's stick");
+    put(&mut app, Thing::Share(1), Zone::Vault(0, s, 0));
+    assert!(
+        held(&the_map(&app), At::Vault(0)).contains(&What::Share(1)),
+        "the plan keeps Share 2 in Vault 1"
+    );
+    let n = texts(&mut app).iter().filter(|x| *x == "Share 2").count();
+    assert_eq!(n, 1, "Share 2 once: {:?}", texts(&mut app));
+}
+
 // ---- F2b: the guided flow's board, the narrow column, the boxes ----
 
 /// The plan the guided flow's plan card edits: its board opened there,

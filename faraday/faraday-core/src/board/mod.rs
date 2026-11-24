@@ -1632,7 +1632,7 @@ impl Faraday {
     fn board_before(&self, c: &Compute, shape: &Shape, a: &Answers, v: usize) -> Vec<ChipView> {
         // The open vault set up for `v`, what it held before as this
         // backup or flow saw it first, and the wallet's checksum.
-        let (o, before, sum) = match self.board_of() {
+        let (o, before, sum, wid) = match self.board_of() {
             Some(BoardOf::Flow(i)) => {
                 let Some(wf) = self.flows.get(i).and_then(|f| f.wallet.as_ref()) else {
                     return Vec::new();
@@ -1641,18 +1641,16 @@ impl Faraday {
                     self.flow_open_index(i, v),
                     wf.before.clone(),
                     wf.checksum.as_deref().map(String::from).unwrap_or_default(),
+                    wf.id.map(|id| id.to_hex().to_string()).unwrap_or_default(),
                 )
             }
             _ => {
                 let Some(b) = self.backup.state() else {
                     return Vec::new();
                 };
-                let sum = self
-                    .session
-                    .wallets
-                    .get(b.wallet)
-                    .map(|w| w.checksum().to_string())
-                    .unwrap_or_default();
+                let wl = self.session.wallets.get(b.wallet);
+                let sum = wl.map(|w| w.checksum().to_string()).unwrap_or_default();
+                let wid = wl.map(|w| w.id().to_hex().to_string()).unwrap_or_default();
                 (
                     self.backup_vault_set_up(v),
                     b.before
@@ -1660,6 +1658,7 @@ impl Faraday {
                         .map(|(s, t)| (*s, t.iter().map(|x| faraday_text::Text::of(x)).collect()))
                         .collect(),
                     sum,
+                    wid,
                 )
             }
         };
@@ -1723,7 +1722,13 @@ impl Faraday {
                     (
                         Thing::Share(j),
                         fill(EN.board_share, &[&n.to_string()]),
-                        s == sum && held.contains(&What::Share(j)),
+                        // A token holds the wallet's id; one from before
+                        // holds its checksum.
+                        (if s.len() == 64 {
+                            !wid.is_empty() && s == wid
+                        } else {
+                            s == sum
+                        }) && held.contains(&What::Share(j)),
                     )
                 }
                 _ => continue,

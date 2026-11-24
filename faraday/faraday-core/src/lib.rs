@@ -802,21 +802,10 @@ pub(crate) fn plan_cards_on(m: &plan::Mapped) -> Vec<u8> {
 }
 
 /// Costs what `read_wallet` costs. Whether record `r` is a wallet share
-/// (type 13) of the wallet with checksum `cs`, told by its field 5,
-/// never by its name; with `j`, share `j` (field 3, from 1) of it
-/// (`docs/BACKUP-FLOW.md` §15.6).
-pub(crate) fn share_record_is(
-    c: &Compute,
-    r: faraday_keys::vault::RecordView<'_>,
-    cs: &str,
-    j: Option<usize>,
-) -> bool {
-    share_record_where(c, r, j, |p| p.checksum() == cs)
-}
-
-/// [`share_record_is`] for the wallet with id `id` (its whole
-/// descriptor), not its checksum: another wallet of the same checksum
-/// keeps its share record.
+/// (type 13) of the wallet with id `id` (its whole descriptor, not its
+/// checksum: another wallet of the same checksum keeps its share record),
+/// told by its field 5, never by its name; with `j`, share `j` (field 3,
+/// from 1) of it (`docs/BACKUP-FLOW.md` §15.6).
 pub(crate) fn share_record_is_wallet(
     c: &Compute,
     r: faraday_keys::vault::RecordView<'_>,

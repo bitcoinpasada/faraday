@@ -3265,7 +3265,7 @@ impl Faraday {
             && self
                 .backup_vault_shares(c, v)
                 .iter()
-                .all(|(j, text, _)| self.vault_holds_share(c, o, w.checksum(), *j, text))
+                .all(|(j, text, _)| self.vault_holds_share_wallet(c, o, w.id(), *j, text))
             && self
                 .backup_vault_passphrases(c, v)
                 .iter()

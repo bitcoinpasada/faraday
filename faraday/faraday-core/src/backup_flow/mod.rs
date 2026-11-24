@@ -27,7 +27,7 @@ pub(crate) mod stick_sheet;
 pub(crate) use seed_names::{seed_stick_file_of, seed_stick_name};
 pub(crate) mod wallet;
 pub(crate) mod wallet_files;
-pub(crate) use wallet_files::wallet_share_record;
+pub(crate) use wallet_files::{flow_wallet_ids, wallet_share_record};
 pub(crate) mod wallet_screen;
 
 pub(crate) use area::BackupFlowArea;
@@ -1062,6 +1062,10 @@ pub struct WalletFlow {
     pub answers: crate::plan::Answers,
     /// The wallet's descriptor checksum once the wallet exists.
     pub checksum: Option<Text>,
+    /// The wallet's id (its whole descriptor, not its checksum), kept
+    /// beside the checksum where the flow takes its wallet while it is
+    /// loaded; `None` for a flow saved before that.
+    pub id: Option<faraday_bip::policy::WalletId>,
     /// The wallet's name.
     pub name: Text,
     /// The fingerprints, as text, of the keys that spend nothing until
@@ -1073,7 +1077,7 @@ pub struct WalletFlow {
     /// What each vault held before this flow first put anything in it, by
     /// the vault's salt: `k{fp}` a key's record of its words alone,
     /// `p{fp}` one with its passphrase, `w{sum}` a
-    /// wallet's description, `s{sum}:{n}` a wallet's share. The round
+    /// wallet's description, `s{id}:{n}` a wallet's share (its id, 64 hex). The round
     /// takes none of it out (`docs/BACKUP-FLOW.md` §15). Never a secret.
     pub before: Vec<([u8; 32], Vec<Text>)>,
     /// The keys, by fingerprint, another wallet's record in each vault
@@ -1239,6 +1243,7 @@ impl BackupFlow {
             shape,
             answers,
             checksum: None,
+            id: None,
             name: Text::of(name),
             held: Vec::new(),
             sealed: Vec::new(),
@@ -1751,6 +1756,9 @@ pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
                 &*clean(&w.name),
                 &*Text::joined(&w.held, ",")
             ));
+            if let Some(id) = w.id {
+                out.push_str(&text!("wid\t{}\n", &*id.to_hex()));
+            }
             if !w.base.is_empty() {
                 out.push_str(&text!("wbase\t{}\n", &*Text::joined(&w.base, ",")));
             }
@@ -2049,6 +2057,13 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
                 .filter(|x| !x.is_empty())
                 .map(Text::of)
                 .collect();
+            true
+        }
+        ["wid", id] => {
+            let Some(id) = faraday_bip::policy::WalletId::from_hex(id) else {
+                return false;
+            };
+            fl.wallet.get_or_insert_with(WalletFlow::blank).id = Some(id);
             true
         }
         ["wbase", list] => {
@@ -2408,6 +2423,7 @@ impl WalletFlow {
             },
             answers: crate::plan::Answers::default(),
             checksum: None,
+            id: None,
             name: Text::new(),
             held: Vec::new(),
             sealed: Vec::new(),

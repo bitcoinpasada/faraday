@@ -348,9 +348,15 @@ fn a_share_put_into_a_vault_after_the_lock_starts_the_round_and_is_sealed() {
     app.press(Action::BChecklist);
     save_vaults(&mut app);
     app.press(Action::BNext(Item::Envelopes));
+    let wallet_id = app.session.wallets[0].id();
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
     assert_eq!(step(&app), Step::Write);
+    assert_eq!(
+        app.flow().unwrap().wallet.as_ref().unwrap().id,
+        Some(wallet_id),
+        "the flow's wallet after the restart"
+    );
     // Change the plan: in shares, Share 2 in Vault 1.
     shell.flow(&mut app, F::ChangePlan);
     let in_vault = |app: &Faraday| {

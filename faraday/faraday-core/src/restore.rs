@@ -1418,7 +1418,7 @@ impl Faraday {
             .filter_map(|t| parts(t.as_str()))
             .flat_map(|p| p.keys.into_iter().map(|(f, _, x)| (f, x)))
             .collect();
-        let mut wallet: Option<Text> = None;
+        let mut wallet: Option<faraday_bip::policy::WalletId> = None;
         for o in &self.vaults.open {
             for (_, rec) in self.vaults.records(o.id).of(kind::WALLET_SHARE) {
                 let Some(t) = rec.public_text(field::SHARE) else {
@@ -1430,7 +1430,7 @@ impl Faraday {
                 else {
                     continue;
                 };
-                let of = Some(text!("{}", policy.checksum()));
+                let of = Some(policy.id());
                 if wallet.is_some() && of != wallet {
                     continue;
                 }
@@ -1624,9 +1624,9 @@ mod tests {
                 .expect("reads");
             let w = &app.session.wallets[i];
             assert_eq!(crate::wallet_backup::splits(w), splits, "{d}");
-            let cs = text!("{}", w.checksum());
+            let id = w.id();
             for j in 0..3 {
-                let got = crate::backup_flow::wallet_share_record(&app, &c, &wf, &cs, j);
+                let got = crate::backup_flow::wallet_share_record(&app, &c, &wf, id, j);
                 if splits {
                     assert!(matches!(got, Some(Ok(_))), "{d}: sheet {j}");
                 } else {

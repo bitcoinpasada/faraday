@@ -74,7 +74,7 @@ use zeroize::Zeroizing;
 use crate::Sheet;
 use crate::backup_flow::steps::Built;
 use crate::wallet::fp_text;
-use crate::{Action, Faraday, FileKind, Item, Screen, gpg, share_record_is};
+use crate::{Action, Faraday, FileKind, Item, Screen, gpg};
 use crate::{fresh, sha256_of};
 use faraday_bip::keys::Fingerprint;
 use faraday_bip::policy::WalletPolicy;
@@ -4806,26 +4806,9 @@ impl Faraday {
             })
     }
 
-    /// Costs what `share_record_is` costs. Whether open vault `o` holds
-    /// share `j` of the wallet with checksum `cs` (type 13, told by its
+    /// Costs what `share_record_is_wallet` costs. Whether open vault `o`
+    /// holds share `j` of the wallet with id `id` (type 13, told by its
     /// field 5 and field 3), with this text.
-    pub(crate) fn vault_holds_share(
-        &self,
-        c: &Compute,
-        o: usize,
-        cs: &str,
-        j: usize,
-        text: &str,
-    ) -> bool {
-        use faraday_vault::records::field;
-        self.vaults.open.get(o).is_some_and(|x| {
-            self.vaults.records(x.id).iter().any(|(_, r)| {
-                share_record_is(c, r, cs, Some(j)) && r.public_text(field::SHARE) == Some(text)
-            })
-        })
-    }
-
-    /// [`Self::vault_holds_share`] for the wallet with id `id`.
     pub(crate) fn vault_holds_share_wallet(
         &self,
         c: &Compute,
