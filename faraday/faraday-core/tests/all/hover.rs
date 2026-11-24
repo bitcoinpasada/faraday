@@ -78,6 +78,28 @@ fn moving_over_nothing_pressable_draws_no_frame() {
     );
 }
 
+#[test]
+fn a_page_without_the_control_under_a_still_pointer_draws_no_second_frame() {
+    let mut app = settings();
+    // Pages change at once, so no fade asks for frames.
+    app.press(Action::ReduceMotion(true));
+    let chip = Action::Theme(Theme {
+        name: ThemeName::BitcoinOrange,
+        ..app.theme()
+    });
+    let (x, y) = app.where_offered(chip).unwrap();
+    app.event(Event::Hover { x, y });
+    let _ = pixels(&mut app);
+    // The page changes under the pointer, which rests where the chip was.
+    app.press(Action::Nav(Screen::Home));
+    let _ = pixels(&mut app);
+    assert!(!app.offers(chip), "Home has no such chip");
+    assert!(
+        std::iter::from_fn(|| app.poll_command()).next().is_none(),
+        "what was under the pointer is not on the page, so no frame follows"
+    );
+}
+
 /// Tab puts the keyboard on a control, which is ringed, Tab again
 /// moves it on, and Enter presses the one it is on (`docs/DESIGN.md` §4.15).
 #[test]

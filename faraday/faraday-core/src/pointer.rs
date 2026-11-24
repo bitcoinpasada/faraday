@@ -275,12 +275,17 @@ impl Pointer {
     }
 
     /// Finds what can be pressed under the pointer in the frame on
-    /// screen. Returns whether that changed.
+    /// screen. Returns whether that changed what the frame shows: a
+    /// control now under the pointer is drawn lit, and one that was is
+    /// drawn plain, only where the frame offers it. A control the frame
+    /// does not offer (the page changed under a still pointer) changes
+    /// nothing a frame would draw.
     pub(crate) fn find_hovered(&mut self) -> bool {
         let now = self
             .hover
             .and_then(|(x, y)| self.hit_at(x, y).map(|(a, _)| a));
-        std::mem::replace(&mut self.hovered, now) != now
+        let before = std::mem::replace(&mut self.hovered, now);
+        before != now && (now.is_some() || before.is_some_and(|a| self.offers(a)))
     }
 
     /// The owner whose tooltip shows.
