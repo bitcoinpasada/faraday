@@ -271,3 +271,34 @@ fn leaving_the_search_puts_the_page_back() {
     assert!(!texts.iter().any(|t| t == "Sign a transaction"));
     assert!(texts.iter().any(|t| t == EN.home_box_heading));
 }
+
+/// Where the top bar's (64 px tall) search hint stands, and on Home the first pill.
+fn search_places(app: &mut Faraday) -> Vec<(i32, i32)> {
+    let _ = app.frame();
+    let boxes = app.drawn_text_boxes();
+    [EN.home_search_hint, EN.home_ways_new_short]
+        .iter()
+        .filter_map(|want| boxes.iter().find(|(t, b)| t == want && b.1 < 64))
+        .map(|(_, b)| (b.0, b.1))
+        .collect()
+}
+
+#[test]
+fn the_search_and_pills_stand_still_as_the_guide_opens() {
+    for (w, h) in [(1366, 768), (1920, 1080)] {
+        for screen in [Screen::Home, Screen::Catalog] {
+            let mut app = sized(w, h);
+            app.press(Action::Nav(screen));
+            let closed = search_places(&mut app);
+            app.press(Action::Guide);
+            // Below 1600 the guide is a sheet over the page: the page is
+            // compared once it is closed again.
+            if w < 1600 {
+                app.press(Action::GuideClose);
+            }
+            let open = search_places(&mut app);
+            assert!(!closed.is_empty(), "{screen:?} at {w}x{h}: search drawn");
+            assert_eq!(closed, open, "{screen:?} at {w}x{h}");
+        }
+    }
+}

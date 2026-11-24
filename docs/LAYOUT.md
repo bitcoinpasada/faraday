@@ -264,7 +264,7 @@ Faraday Demo's host strip now, outside the app (F118,
 Guide's pane, from 1600 dp: the ? and the
 bar's Cryptography, open it beside the page, which is laid out in the
 room left of it, so nothing of the page is under it and the page takes
-presses as before; nothing else opens it, on any screen or size (owner,
+presses as before; the top bar's search and Home's pills stand where they do with the guide shut, placed from the bar's whole room (the pane stands under the bar), at every width; nothing else opens it, on any screen or size (owner,
 2026-10-29). The pane
 is a card in the surface-container role, Material's large shape. Its
 header row, as Material's side sheet has, holds, at its end, the pin and

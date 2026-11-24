@@ -80,12 +80,9 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, (room, title, ends): (f32, &str, f32
     // The expanded rail centres on the wide page; the narrow rail's page
     // is one column, centred in the area.
     let (ox, cw) = if app.nav() == crate::nav::Nav::ExpandedRail {
-        let beside = if app.guide_pane_shown() && !app.unit_on_show() {
-            super::support_pane_room()
-        } else {
-            0.0
-        };
-        super::page_area(app, app.screen, room - beside)
+        // The guide's pane stands under the bar, so the search is placed
+        // from the bar's whole room and stands still as the guide opens.
+        super::page_area(app, app.screen, room)
     } else {
         (0.0, room)
     };
