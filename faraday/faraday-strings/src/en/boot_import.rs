@@ -93,6 +93,8 @@ macro_rules! words_boot_import {
     boot_import_cancel: "Cancel",
     /// Text in `tile`.
     boot_import_import: "Import",
+    /// Text in `tile`: Import, while a ticked file's name suggests a key.
+    boot_import_import_keys: "Import and load any keys",
     /// Text in `body`.
     boot_import_unlock: "Unlock",
     /// Text in `unlocking`. `{}`: `time`.

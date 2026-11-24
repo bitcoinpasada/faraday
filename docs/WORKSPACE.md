@@ -1111,7 +1111,7 @@ Owner, 2026-11-23 and 2026-11-24. F130 stands: names and sizes until Import.
   to remove it. Pulled before Import, it says "Put the stick back in to import".
 - **One button**: "Import and load any keys" when a ticked file's name suggests
   that it may hold a key, else "Import" (owner, 2026-11-24): only names are known
-  before the import. It does what today's one button does.
+  before the import. It does what today's one button does. Built.
 - **A vault among the ticked files**: its passphrase is asked in the same tile,
   in place of the list, one vault after another, the second shown once the first
   is done.

@@ -374,6 +374,29 @@ pub fn kv<A: Copy + PartialEq>(
     vy + vh + GAP_SMALL + GAP
 }
 
+/// The height [`buttons`] takes for these labels at this width, by the
+/// same rule that decides whether they stack.
+pub fn buttons_height<A: Copy + PartialEq>(ui: &Ui<A>, w: f32, labels: &[&str]) -> f32 {
+    if labels.is_empty() {
+        return 0.0;
+    }
+    let bh = ui.button_height(BUTTON_H);
+    if buttons_fit(ui, w, labels) {
+        bh
+    } else {
+        labels.len() as f32 * (bh + GAP) - GAP
+    }
+}
+
+/// Whether every label fits its share of a row of buttons.
+fn buttons_fit<A: Copy + PartialEq>(ui: &Ui<A>, w: f32, labels: &[&str]) -> bool {
+    let n = labels.len() as f32;
+    let share = (w - (n - 1.0) * GAP) / n;
+    labels
+        .iter()
+        .all(|l| ui.measure_as(LABEL_L, l) + BUTTON_PAD <= share)
+}
+
 /// A row of buttons: side by side when every label fits its share, one
 /// under another, full width, when not. Returns their height.
 pub fn buttons<A: Copy + PartialEq>(
@@ -382,6 +405,21 @@ pub fn buttons<A: Copy + PartialEq>(
     y: f32,
     w: f32,
     items: &[(&str, Style, A)],
+) -> f32 {
+    let labels: Vec<&str> = items.iter().map(|(l, ..)| *l).collect();
+    buttons_by(ui, x, y, w, items, &labels)
+}
+
+/// [`buttons`], where the row stacks by `rule`'s words (one for each
+/// item) rather than the words drawn: a button whose words change keeps
+/// its row. [`buttons_height`] over the same `rule` is its height.
+pub fn buttons_by<A: Copy + PartialEq>(
+    ui: &mut Ui<A>,
+    x: f32,
+    y: f32,
+    w: f32,
+    items: &[(&str, Style, A)],
+    rule: &[&str],
 ) -> f32 {
     if items.is_empty() {
         return 0.0;
@@ -400,10 +438,7 @@ pub fn buttons<A: Copy + PartialEq>(
     let share = (w - (n - 1.0) * GAP) / n;
     // As tall as larger text needs (`docs/TEXT-SIZE.md` §5).
     let bh = ui.button_height(BUTTON_H);
-    let fits = items
-        .iter()
-        .all(|(l, ..)| ui.measure_as(LABEL_L, l) + BUTTON_PAD <= share);
-    if fits {
+    if buttons_fit(ui, w, rule) {
         for (i, &(label, style, action)) in items.iter().enumerate() {
             let bx = x + i as f32 * (share + GAP);
             ui.button(bx, y, Some(share), bh, label, style, action);

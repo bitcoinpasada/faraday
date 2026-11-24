@@ -470,6 +470,32 @@ pub fn stick_kind(name: &str) -> Option<&'static str> {
     }
 }
 
+/// Whether a file's name suggests the boot import may load a key from it:
+/// a text file, an image or a file of no known kind (a note's words, a
+/// SeedQR, a key file). A PSBT, a transaction, a vault, a print sheet, an
+/// EFI image, a descriptor, an .asc and a .sig do not. The extension alone
+/// decides (a file named `sig` has none), and nothing is read before
+/// Import (F130). Allocates nothing: it compares in place, so drawing may
+/// call it every frame.
+pub fn name_may_hold_key(name: &str) -> bool {
+    // The settings file is read at boot, not copied in.
+    if stick::settings::is_file(name) {
+        return false;
+    }
+    let ext = name.rsplit_once('.').map_or("", |(_, e)| e);
+    let no = [
+        "psbt",
+        "txn",
+        "faraday-sheet",
+        "kdbx",
+        "efi",
+        "descriptor",
+        "asc",
+        "sig",
+    ];
+    !no.iter().any(|e| ext.eq_ignore_ascii_case(e))
+}
+
 /// A sheet over the screen.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Sheet {

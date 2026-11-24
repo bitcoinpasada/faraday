@@ -914,6 +914,28 @@ impl Faraday {
             .is_some_and(|i| i.asked && i.unlocking.is_none())
     }
 
+    /// Whether a ticked file's name suggests it may hold a key: the
+    /// Import button then says it loads keys. Names only (F130). The
+    /// words stay as they were at the press: a ticked file Reading or
+    /// answered counts as it did Listed.
+    pub(crate) fn import_may_load_keys(&self) -> bool {
+        self.import.state().is_some_and(|i| {
+            i.files.iter().any(|f| {
+                matches!(
+                    f.state,
+                    Staged::Listed
+                        | Staged::Reading
+                        | Staged::Read
+                        | Staged::Codes(_)
+                        | Staged::Failed(_)
+                        | Staged::Short(_)
+                ) && !f.vault
+                    && !i.skip.contains(&f.name)
+                    && crate::name_may_hold_key(&f.name)
+            })
+        })
+    }
+
     /// Whether Import can be pressed: the list still picks, something is
     /// ticked, and the stick is in to be read.
     pub(crate) fn import_may_go(&self) -> bool {

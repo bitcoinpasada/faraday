@@ -2430,3 +2430,188 @@ fn a_process_that_held_a_secret_raises_the_list_with_import_off_and_says_why() {
     let texts = drawn(&mut app);
     assert!(texts.contains("Import is off"), "{texts}");
 }
+
+/// Whether the one button reads `text` exactly.
+fn button_reads(app: &mut Faraday, text: &str) -> bool {
+    let _ = app.frame();
+    app.drawn_texts().iter().any(|t| t == text)
+}
+
+/// Unticks every file but `keep`.
+fn tick_only(app: &mut Faraday, keep: &[&str]) {
+    let names: Vec<String> = app
+        .import_view()
+        .unwrap()
+        .files
+        .iter()
+        .map(|f| String::from(&*f.name))
+        .collect();
+    for n in names {
+        if !keep.contains(&n.as_str()) {
+            let k = row(app, &n);
+            app.press(Action::Import(I::File(k)));
+        }
+    }
+}
+
+#[test]
+fn the_button_says_it_loads_keys_while_a_ticked_name_may_hold_one() {
+    let mut files = stick_files();
+    files.push(("words.txt".into(), b"a note".to_vec()));
+    let mut app = boot_only(&files);
+    tick_only(&mut app, &["words.txt"]);
+    assert!(button_reads(&mut app, "Import and load any keys"));
+    // Unticked, with a PSBT ticked instead: the plain word.
+    let k = row(&app, "words.txt");
+    app.press(Action::Import(I::File(k)));
+    let k = row(&app, "savings-unsigned.psbt");
+    app.press(Action::Import(I::File(k)));
+    assert!(button_reads(&mut app, "Import"));
+    assert!(!button_reads(&mut app, "Import and load any keys"));
+}
+
+#[test]
+fn the_button_says_import_for_a_psbt_and_a_vault() {
+    let files = stick_files();
+    let mut app = boot_only(&files);
+    tick_only(&mut app, &["savings-unsigned.psbt", "vault.kdbx"]);
+    assert!(button_reads(&mut app, "Import"));
+    assert!(!button_reads(&mut app, "Import and load any keys"));
+    // Pressing reads the two files ticked.
+    assert_eq!(
+        {
+            app.press(Action::Import(I::Go));
+            reads(&mut app, &files)
+        },
+        vec![
+            "savings-unsigned.psbt".to_string(),
+            "vault.kdbx".to_string()
+        ]
+    );
+}
+
+/// The one button's words for each name ticked alone.
+#[test]
+fn the_words_follow_the_extension_of_the_ticked_name_alone() {
+    let names: [(&str, bool); 14] = [
+        ("seed.png", true),
+        ("SEED.PNG", true),
+        ("readme", true),
+        ("data.bin", true),
+        ("sig", true),
+        ("asc", true),
+        ("descriptor", true),
+        ("a.json", true),
+        ("Note.TxT", true),
+        ("wallet.descriptor", false),
+        ("Wallet.DESCRIPTOR", false),
+        ("key.asc", false),
+        ("key.SIG", false),
+        ("tx.txn", false),
+    ];
+    for (name, keys) in names {
+        let mut files = stick_files();
+        files.push((name.into(), b"x".to_vec()));
+        let mut app = boot_only(&files);
+        tick_only(&mut app, &[name]);
+        assert_eq!(
+            button_reads(&mut app, "Import and load any keys"),
+            keys,
+            "{name}"
+        );
+        assert_eq!(button_reads(&mut app, "Import"), !keys, "{name}");
+    }
+}
+
+#[test]
+fn a_vault_under_another_name_reads_import() {
+    let mut files = stick_files();
+    files.push(("backup.dat".into(), spare_vault()));
+    let mut app = boot_only(&files);
+    tick_only(&mut app, &["backup.dat"]);
+    assert!(button_reads(&mut app, "Import"));
+    assert!(!button_reads(&mut app, "Import and load any keys"));
+}
+
+#[test]
+fn the_words_stay_as_they_were_at_the_press_while_the_files_are_read() {
+    let files = stick_files();
+    let mut app = boot_only(&files);
+    tick_only(&mut app, &["notes.txt"]);
+    assert!(button_reads(&mut app, "Import and load any keys"));
+    app.press(Action::Import(I::Go));
+    assert!(button_reads(&mut app, "Import and load any keys"));
+    assert!(!button_reads(&mut app, "Import"));
+    assert_eq!(reads(&mut app, &files), vec!["notes.txt".to_string()]);
+}
+
+/// Shows the display at a size.
+fn display(app: &mut Faraday, width: u16, height: u16, dpi: u16) {
+    app.event(Event::Display(faraday_shell_api::DisplayInfo {
+        width,
+        height,
+        dpi,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: faraday_shell_api::SecureHardware::None,
+        boot: faraday_shell_api::BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.settle();
+}
+
+/// Later's and Import's boxes (y, bottom), pixels, each whole and
+/// pressable.
+fn foot_boxes(app: &mut Faraday, height: u16) -> [(i32, i32); 2] {
+    // A small panel's card is a page taller than the panel: turned to its
+    // end, by the wheel at the page's edge.
+    let _ = app.frame();
+    for _ in 0..40 {
+        app.event(Event::Wheel {
+            x: 1,
+            y: height / 2,
+            dy: 120,
+        });
+        app.settle();
+        let _ = app.frame();
+    }
+    let find = |app: &Faraday, a: Action| {
+        let t = app
+            .drawn_targets()
+            .into_iter()
+            .find(|t| t.0 == a)
+            .unwrap_or_else(|| panic!("{a:?} not drawn"));
+        assert!(!t.3, "{a:?} is cut");
+        assert!(
+            t.2.y >= 0 && t.2.y + t.2.h <= i32::from(height),
+            "{a:?} off the panel"
+        );
+        (t.2.y, t.2.y + t.2.h)
+    };
+    [
+        find(app, Action::Import(I::Later)),
+        find(app, Action::Import(I::Go)),
+    ]
+}
+
+#[test]
+fn at_small_sizes_both_buttons_stay_whole_and_the_same_ticked_or_not() {
+    for (w, h, dpi) in [(320, 480, 160), (480, 640, 286), (240, 320, 160)] {
+        let mut files = stick_files();
+        files.push(("words.txt".into(), b"a note".to_vec()));
+        let mut app = boot_only(&files);
+        display(&mut app, w, h, dpi);
+        // A key-named file ticked: the long words.
+        tick_only(&mut app, &["words.txt"]);
+        let long = foot_boxes(&mut app, h);
+        // A PSBT ticked instead: the short words, the same boxes.
+        let k = row(&app, "words.txt");
+        app.press(Action::Import(I::File(k)));
+        let k = row(&app, "savings-unsigned.psbt");
+        app.press(Action::Import(I::File(k)));
+        let short = foot_boxes(&mut app, h);
+        assert_eq!(long, short, "{w}x{h} at {dpi}");
+    }
+}

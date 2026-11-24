@@ -20,11 +20,11 @@ Files is one page whether a stick is attached or not: **In Faraday** holds every
 
 **Key:** files.stick
 
-The top bar gives the stick's state in a chip: with no stick, **On the stick** waits for one; with a secret held, it says to lock, with a **Lock** button. Otherwise the card lists the stick's files, and its heading has the stick's label as a chip and **Rename stick**. A stick holding one PSBT offers **Import and sign**: only that file comes in, and it lands on its review.
+The top bar gives the stick's state in a chip: with no stick, **On the stick** waits for one; with a secret held, it says to lock, with a **Lock** button. Otherwise the card lists the stick's files, and its heading has the stick's label as a chip and **Rename stick**. A stick holding one PSBT offers **Import and sign**, which lands on its review.
 
-At power-on, **On the stick** first holds the stick's files to import, ticked, with **Later** and **Import**; nothing is read before **Import**. A key from the stick loads as it is pulled. **Later** goes to Home, which leads with the import.
+At power-on, **On the stick** holds the stick's files, ticked, with **Later** and **Import**, which reads **Import and load any keys** when a ticked file may hold a key; nothing is read before it, and a key loads as the stick is pulled. **Later** goes to Home.
 
-A file in Faraday and on the stick with the same name and bytes shows green with a check in both lists. A file of the same name with other bytes is not marked; writing it asks first.
+A file in Faraday and on the stick with the same name and bytes shows green with a check in both lists. Other bytes under the same name are not marked; writing asks first.
 
 ## Formatting a stick
 

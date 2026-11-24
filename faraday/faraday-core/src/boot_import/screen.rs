@@ -20,8 +20,8 @@ use crate::ui::{Glyph, Style, Ui};
 use crate::vault::screen::{stick_banner, stick_field};
 use crate::vault::{Focus, VaultAction as V, Work};
 use faraday_draw::tokens::{
-    BUTTON_H, GRID, IMPORT_TILE_FOOT_GRIDS, IMPORT_TILE_ICON, IMPORT_TILE_ICON_BOX,
-    IMPORT_TILE_MIN_ROWS, IMPORT_TILE_TITLE_X, ROW, SHAPE_M, TITLE_M, VISIT_CARD_HEAD, VISIT_PAD,
+    GRID, IMPORT_TILE_FOOT_GRIDS, IMPORT_TILE_ICON, IMPORT_TILE_ICON_BOX, IMPORT_TILE_MIN_ROWS,
+    IMPORT_TILE_TITLE_X, ROW, SHAPE_M, TITLE_M, VISIT_CARD_HEAD, VISIT_PAD,
 };
 
 fn ia(a: I) -> Action {
@@ -129,7 +129,17 @@ pub(crate) fn tile(
     }
     cy += select_all(ui, ix, cy, view);
     // Later and Import at the foot; the files scroll between.
-    let foot = y + h - VISIT_PAD - BUTTON_H;
+    // Their height is the buttons' own, by the rule that stacks them, over
+    // the longer words whichever are drawn, so ticking moves nothing.
+    let longer = if ui.measure_as(LABEL_L, EN.boot_import_import_keys)
+        > ui.measure_as(LABEL_L, EN.boot_import_import)
+    {
+        EN.boot_import_import_keys
+    } else {
+        EN.boot_import_import
+    };
+    let feet = faraday_ui::sheet::buttons_height(ui, iw, &[EN.boot_import_later, longer]);
+    let foot = y + h - VISIT_PAD - feet;
     // The "more" line the list bar draws stands under the track.
     let track_h = (foot - GRID * IMPORT_TILE_FOOT_GRIDS - cy).max(ROW);
     let list_top = cy;
@@ -137,7 +147,7 @@ pub(crate) fn tile(
     let needed = (list_top - y)
         + IMPORT_TILE_MIN_ROWS * ROW
         + GRID * IMPORT_TILE_FOOT_GRIDS
-        + BUTTON_H
+        + feet
         + VISIT_PAD;
     let clip = ui.rect(x, list_top, w, track_h);
     let total = {
@@ -167,7 +177,7 @@ pub(crate) fn tile(
         total,
         shift,
     );
-    buttons(
+    faraday_ui::sheet::buttons_by(
         ui,
         ix,
         foot,
@@ -175,11 +185,16 @@ pub(crate) fn tile(
         &[
             (EN.boot_import_later, Style::Secondary, ia(I::Later)),
             (
-                EN.boot_import_import,
+                if app.import_may_load_keys() {
+                    EN.boot_import_import_keys
+                } else {
+                    EN.boot_import_import
+                },
                 Style::Primary.when(app.import_may_go()),
                 ia(I::Go),
             ),
         ],
+        &[EN.boot_import_later, longer],
     );
     needed
 }
