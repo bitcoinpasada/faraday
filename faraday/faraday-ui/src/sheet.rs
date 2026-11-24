@@ -381,7 +381,7 @@ pub fn buttons_height<A: Copy + PartialEq>(ui: &Ui<A>, w: f32, labels: &[&str]) 
         return 0.0;
     }
     let bh = ui.button_height(BUTTON_H);
-    if buttons_fit(ui, w, labels) {
+    if buttons_fit(ui, w, labels.len(), labels.iter().copied()) {
         bh
     } else {
         labels.len() as f32 * (bh + GAP) - GAP
@@ -389,12 +389,15 @@ pub fn buttons_height<A: Copy + PartialEq>(ui: &Ui<A>, w: f32, labels: &[&str]) 
 }
 
 /// Whether every label fits its share of a row of buttons.
-fn buttons_fit<A: Copy + PartialEq>(ui: &Ui<A>, w: f32, labels: &[&str]) -> bool {
-    let n = labels.len() as f32;
+fn buttons_fit<'a, A: Copy + PartialEq>(
+    ui: &Ui<A>,
+    w: f32,
+    count: usize,
+    mut labels: impl Iterator<Item = &'a str>,
+) -> bool {
+    let n = count as f32;
     let share = (w - (n - 1.0) * GAP) / n;
-    labels
-        .iter()
-        .all(|l| ui.measure_as(LABEL_L, l) + BUTTON_PAD <= share)
+    labels.all(|l| ui.measure_as(LABEL_L, l) + BUTTON_PAD <= share)
 }
 
 /// A row of buttons: side by side when every label fits its share, one
@@ -406,8 +409,7 @@ pub fn buttons<A: Copy + PartialEq>(
     w: f32,
     items: &[(&str, Style, A)],
 ) -> f32 {
-    let labels: Vec<&str> = items.iter().map(|(l, ..)| *l).collect();
-    buttons_by(ui, x, y, w, items, &labels)
+    buttons_with(ui, x, y, w, items, items.iter().map(|(l, ..)| *l))
 }
 
 /// [`buttons`], where the row stacks by `rule`'s words (one for each
@@ -420,6 +422,18 @@ pub fn buttons_by<A: Copy + PartialEq>(
     w: f32,
     items: &[(&str, Style, A)],
     rule: &[&str],
+) -> f32 {
+    buttons_with(ui, x, y, w, items, rule.iter().copied())
+}
+
+/// [`buttons_by`] with the rule's words as an iterator, one for each item.
+fn buttons_with<'a, A: Copy + PartialEq>(
+    ui: &mut Ui<A>,
+    x: f32,
+    y: f32,
+    w: f32,
+    items: &[(&str, Style, A)],
+    rule: impl Iterator<Item = &'a str>,
 ) -> f32 {
     if items.is_empty() {
         return 0.0;
@@ -438,7 +452,7 @@ pub fn buttons_by<A: Copy + PartialEq>(
     let share = (w - (n - 1.0) * GAP) / n;
     // As tall as larger text needs (`docs/TEXT-SIZE.md` §5).
     let bh = ui.button_height(BUTTON_H);
-    if buttons_fit(ui, w, rule) {
+    if buttons_fit(ui, w, items.len(), rule) {
         for (i, &(label, style, action)) in items.iter().enumerate() {
             let bx = x + i as f32 * (share + GAP);
             ui.button(bx, y, Some(share), bh, label, style, action);

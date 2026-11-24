@@ -2545,6 +2545,96 @@ fn the_words_stay_as_they_were_at_the_press_while_the_files_are_read() {
     assert_eq!(reads(&mut app, &files), vec!["notes.txt".to_string()]);
 }
 
+#[test]
+fn the_words_stay_when_one_file_is_answered_while_another_is_read() {
+    let files = stick_files();
+    // A key-named file read, one whose read fails and a picture's codes,
+    // each beside a PSBT, which does not count.
+    for (named, failed) in [
+        ("notes.txt", false),
+        ("notes.txt", true),
+        ("zebra-seedqr.png", false),
+    ] {
+        let mut app = boot_only(&files);
+        tick_only(&mut app, &[named, "savings-unsigned.psbt"]);
+        assert!(button_reads(&mut app, "Import and load any keys"));
+        app.press(Action::Import(I::Go));
+        // Only the key-named file is answered, the PSBT still Reading.
+        let mut answered = false;
+        while let Some(c) = app.poll_storage() {
+            match c {
+                StorageCommand::Read { stick, name } if &*name == named => {
+                    let bytes = files.iter().find(|(n, _)| n == named).unwrap().1.clone();
+                    app.storage(if failed {
+                        StorageEvent::ReadFailed {
+                            stick,
+                            name,
+                            reason: faraday_text::Text::of("read error"),
+                        }
+                    } else {
+                        StorageEvent::Read {
+                            stick,
+                            name,
+                            bytes: bytes.into(),
+                        }
+                    });
+                    answered = true;
+                }
+                StorageCommand::ReadQr { stick, name } if &*name == named => {
+                    app.storage(StorageEvent::QrRead {
+                        stick,
+                        name,
+                        bytes: (Vec::new()).into(),
+                        payloads: (vec![zebra_seedqr()]).into(),
+                    });
+                    answered = true;
+                }
+                _ => {}
+            }
+        }
+        assert!(answered, "{named}");
+        assert!(
+            button_reads(&mut app, "Import and load any keys"),
+            "{named} {failed}"
+        );
+        assert!(!button_reads(&mut app, "Import"), "{named} {failed}");
+    }
+}
+
+#[test]
+fn the_words_stay_when_a_vault_the_listing_missed_is_read() {
+    let mut files = stick_files();
+    files.push(("backup.txt".into(), spare_vault()));
+    let mut stick = boot_stick(&files);
+    stick.vaults.clear();
+    let mut app = testkit::started();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
+    faraday_core::testkit::vault_speed(&mut app, Some(100));
+    app.storage(StorageEvent::Sticks(vec![stick]));
+    // With a PSBT, which does not count, still being read when the vault
+    // is answered.
+    tick_only(&mut app, &["backup.txt", "savings-unsigned.psbt"]);
+    assert!(button_reads(&mut app, "Import and load any keys"));
+    app.press(Action::Import(I::Go));
+    let mut asked = Vec::new();
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::Read { stick, name } = c {
+            asked.push((stick, name));
+        }
+    }
+    let (stick, name) = asked
+        .into_iter()
+        .find(|(_, n)| &**n == "backup.txt")
+        .expect("the vault is read");
+    app.storage(StorageEvent::Read {
+        stick,
+        name,
+        bytes: spare_vault().into(),
+    });
+    assert!(button_reads(&mut app, "Import and load any keys"));
+    assert!(!button_reads(&mut app, "Import"));
+}
+
 /// Shows the display at a size.
 fn display(app: &mut Faraday, width: u16, height: u16, dpi: u16) {
     app.event(Event::Display(faraday_shell_api::DisplayInfo {
@@ -2564,7 +2654,7 @@ fn display(app: &mut Faraday, width: u16, height: u16, dpi: u16) {
 
 /// Later's and Import's boxes (y, bottom), pixels, each whole and
 /// pressable.
-fn foot_boxes(app: &mut Faraday, height: u16) -> [(i32, i32); 2] {
+fn foot_boxes(app: &mut Faraday, height: u16, dpi: u16) -> [(i32, i32); 2] {
     // A small panel's card is a page taller than the panel: turned to its
     // end, by the wheel at the page's edge.
     let _ = app.frame();
@@ -2590,10 +2680,23 @@ fn foot_boxes(app: &mut Faraday, height: u16) -> [(i32, i32); 2] {
         );
         (t.2.y, t.2.y + t.2.h)
     };
-    [
+    let boxes = [
         find(app, Action::Import(I::Later)),
         find(app, Action::Import(I::Go)),
-    ]
+    ];
+    // The card's own box is not drawn to a test. At the page's end the
+    // card leaves at least the page inset (48 dp) under it, and the
+    // buttons stand VISIT_PAD (20 dp) inside its foot: so what is left
+    // under Import is at least their sum. A card counting one row of
+    // buttons while they stack ends above Import's bottom, and leaves
+    // less.
+    let left = i32::from(height) - boxes[1].1;
+    let least = i32::from(dpi) * (48 + 20) / 160;
+    assert!(
+        left >= least,
+        "Import ends {left} px above the panel's foot, under the card's own {least}"
+    );
+    boxes
 }
 
 #[test]
@@ -2605,13 +2708,13 @@ fn at_small_sizes_both_buttons_stay_whole_and_the_same_ticked_or_not() {
         display(&mut app, w, h, dpi);
         // A key-named file ticked: the long words.
         tick_only(&mut app, &["words.txt"]);
-        let long = foot_boxes(&mut app, h);
+        let long = foot_boxes(&mut app, h, dpi);
         // A PSBT ticked instead: the short words, the same boxes.
         let k = row(&app, "words.txt");
         app.press(Action::Import(I::File(k)));
         let k = row(&app, "savings-unsigned.psbt");
         app.press(Action::Import(I::File(k)));
-        let short = foot_boxes(&mut app, h);
+        let short = foot_boxes(&mut app, h, dpi);
         assert_eq!(long, short, "{w}x{h} at {dpi}");
     }
 }

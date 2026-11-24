@@ -754,7 +754,7 @@ all** above them →
   "A key from it loads as the stick is pulled"; the stick's own
   Import 3 files and Import and load are not drawn while the list is up
   and nothing is read before Import;
-- **Import** (reads **Import and load any keys** while a ticked file's extension may hold a key, by name alone and unchanged once pressed; disabled while nothing is ticked, and while the stick is
+- **Import** (reads **Import and load any keys** while a ticked file's extension may hold a key (a vault is told by the listing's twelve bytes, VAULT.md 1.1, not by its name) and unchanged once pressed; disabled while nothing is ticked, and while the stick is
   out: "Put the stick back in to import") → the ticked files, and no
   other, read from the stick, a file over 18 MiB failing its read, a PNG as what its QR codes hold; the list shows them, "3 of 5
   files read", its ticks fixed → once all are answered, what they held

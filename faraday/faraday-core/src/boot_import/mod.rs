@@ -79,9 +79,8 @@ pub struct StagedFile {
     pub name: Text,
     /// Its size on the stick.
     pub size: u64,
-    /// Whether the listing found it a vault: named `.kdbx`, or told by
-    /// its contents when the listing was made (`docs/VAULT.md`
-    /// §1.1).
+    /// Whether the listing found it a vault, told by its contents when
+    /// the listing was made (`docs/VAULT.md` §1.1).
     pub vault: bool,
     /// Where it stands.
     pub state: Staged,
@@ -915,7 +914,8 @@ impl Faraday {
     }
 
     /// Whether a ticked file's name suggests it may hold a key: the
-    /// Import button then says it loads keys. Names only (F130). The
+    /// Import button then says it loads keys. By names (F130), except that
+    /// a vault the listing found, told by its first bytes, never counts. The
     /// words stay as they were at the press: a ticked file Reading or
     /// answered counts as it did Listed.
     pub(crate) fn import_may_load_keys(&self) -> bool {
@@ -929,6 +929,7 @@ impl Faraday {
                         | Staged::Codes(_)
                         | Staged::Failed(_)
                         | Staged::Short(_)
+                        | Staged::Vault
                 ) && !f.vault
                     && !i.skip.contains(&f.name)
                     && crate::name_may_hold_key(&f.name)
