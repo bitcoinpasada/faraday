@@ -2306,6 +2306,7 @@ impl crate::flow::Contained for SpendBackupSteps {
                 mono: matches!(id, CardId::Step(step::TXID)),
                 opens: card_code(id),
                 current: open == Some(id),
+                mark: None,
             })
             .collect()
     }

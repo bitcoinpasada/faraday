@@ -720,6 +720,7 @@ impl crate::flow::Contained for SignerSteps {
                     mono: false,
                     opens: k,
                     current: s.open == k,
+                    mark: None,
                 }
             })
             .collect()

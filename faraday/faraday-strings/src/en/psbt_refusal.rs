@@ -306,6 +306,10 @@ macro_rules! words_psbt_refusal {
     step_load_from_vault: "Load from vault",
     /// Text in `step_body`.
     step_signs_here: "Signs here",
+    /// A key's row in Your choices (drawn by `SpendState::key_rows`).
+    step_choice_key: "Key",
+    /// A key's mark in Your choices once its signature is in the file (`SpendState::key_rows`).
+    step_choice_signed: "Signed",
     /// Text in `step_body`.
     step_not_here: "Not here",
     /// Text in `step_body`. `{}`: `f.name`.

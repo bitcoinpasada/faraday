@@ -18,6 +18,10 @@ pub(crate) fn takes_press(steps: &Steps, row: &Row) -> bool {
     let Some(open) = steps.open.and_then(place) else {
         return false;
     };
+    // Rows beside the step's own (its keys) stand on the step open.
+    if at == open {
+        return false;
+    }
     if at < open {
         return at >= steps.first.and_then(place).unwrap_or(0);
     }

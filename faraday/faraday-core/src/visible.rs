@@ -168,5 +168,6 @@ pub(crate) fn choice_row(
         mono,
         opens,
         current,
+        mark: None,
     }
 }

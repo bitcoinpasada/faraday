@@ -2670,6 +2670,7 @@ impl crate::flow::Contained for CreateSteps {
                     mono: false,
                     opens: k,
                     current: c.open == Some(k),
+                    mark: None,
                 }
             })
             .collect()

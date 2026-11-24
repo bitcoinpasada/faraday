@@ -593,7 +593,20 @@ Candidates, with the screen each is on:
    Signers, 5 Sign and 6 Signatures for this transaction: `step_keys`, `step_sign`, `step_collect`).
    Kept, moderate: who signs is split over three steps. The pane holds the
    wallet's keys with each one's mark (signs here, signed, waiting) across
-   those steps; a key added there gets §6's "here is your key". Check a
+   those steps; a key added there gets §6's "here is your key". Built for
+   Sign a transaction: once Signers is reached, one row per key under its
+   row in Your choices (fingerprint, name, then "Signs here" where the key is
+   still to sign (not complete, no warning that stops Sign, the key one the
+   spend uses and not yet signed here, and no key the spend uses owing its backup), or "Signed"
+   while a verified signature of it is in the file; no mark for any other
+   key. The mark follows the inspection and what Sign is to sign, not
+   what the signer then does: a refusal or skip found only while signing
+   (a key mismatch, an unsupported input, a leaf not carried, amounts
+   refused, an input already final) is not seen, so a key can read "Signs
+   here" and sign nothing; once the key has signed here its mark goes), a press opening Signers until Sign is done,
+   after which it takes none, as the steps before Sign. The mark is drawn
+   whole after the fingerprint and name, which is what is cut. "Waiting" is
+   not drawn. Check a
    multisig setup (`multisig_check/screen.rs`) has its marks on one card:
    dropped there.
 3. **A long review whose summary scrolls away from the outputs** (Sign,

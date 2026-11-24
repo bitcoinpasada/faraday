@@ -3677,6 +3677,7 @@ impl crate::flow::Contained for FlowSteps {
                     mono: s == Step::Make,
                     opens: s.n(),
                     current: open == Some(s.n()),
+                    mark: None,
                 }
             })
             .collect()

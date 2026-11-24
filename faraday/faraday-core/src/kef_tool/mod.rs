@@ -575,6 +575,7 @@ impl crate::flow::Contained for KefToolSteps {
                     mono: false,
                     opens: k,
                     current: s.open == Some(k),
+                    mark: None,
                 }
             })
             .collect()

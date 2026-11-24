@@ -117,6 +117,7 @@ pub(super) fn rows_of(k: &KeyGen) -> Vec<Row> {
                     mono: card.mono,
                     opens: s,
                     current: is_open,
+                    mark: None,
                 };
             }
             // The entries and the quiz show how far they are.
@@ -128,6 +129,7 @@ pub(super) fn rows_of(k: &KeyGen) -> Vec<Row> {
                 mono: super::screen::mono(k, s),
                 opens: s,
                 current: is_open,
+                mark: None,
             }
         })
         .collect()
@@ -226,6 +228,7 @@ impl crate::flow::Contained for KeyGenSteps {
             mono: true,
             opens: MADE,
             current: true,
+            mark: None,
         });
         rows
     }

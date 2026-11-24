@@ -8,7 +8,7 @@ use faraday_core::testkit;
 use faraday_core::testkit::Plain;
 use faraday_core::wallet::step;
 use faraday_core::{Action, Faraday, Screen, StorageEvent};
-use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware, TouchPhase};
 
 fn kit(id: &str) -> testkit::Kit {
     testkit::kits().into_iter().find(|k| k.id == id).unwrap()
@@ -493,4 +493,643 @@ fn after_signing_the_rows_before_it_take_no_press() {
             "step {before} takes a press after signing"
         );
     }
+}
+
+/// What Your choices says of the keys at Signers: the value of each "Key"
+/// row, as drawn.
+fn key_rows(app: &mut Faraday) -> Vec<String> {
+    key_rows_at(app, (1920, 1080))
+}
+
+fn key_rows_at(app: &mut Faraday, size: (u16, u16)) -> Vec<String> {
+    window(app, size);
+    let boxes = app.drawn_text_boxes();
+    // The pane's rows stand at its heading's left edge, under it.
+    let Some((_, (hx, hy, ..))) = boxes.iter().find(|(t, _)| t.as_str() == "Your choices") else {
+        return Vec::new();
+    };
+    boxes
+        .iter()
+        .filter(|(t, (x, y, ..))| {
+            let t = t.as_str();
+            x == hx
+                && y > hy
+                && t.len() >= 8
+                && t.is_char_boundary(8)
+                && t[..8].chars().all(|c| c.is_ascii_hexdigit())
+                && (t.len() == 8 || t[8..].starts_with(" · "))
+        })
+        .map(|(t, _)| t.as_str().to_string())
+        .collect()
+}
+
+/// The row of the one key that signs here, among the wallet's three.
+fn signing_row(rows: &[String]) -> &String {
+    let own: Vec<&String> = rows
+        .iter()
+        .filter(|r| r.ends_with(" · Signs here"))
+        .collect();
+    assert_eq!(own.len(), 1, "{rows:?}");
+    own[0]
+}
+
+fn marks(app: &mut Faraday) -> (usize, usize) {
+    let rows = key_rows(app);
+    assert!(
+        !rows.is_empty(),
+        "no key row is drawn: {:?}",
+        app.drawn_text_boxes()
+            .iter()
+            .map(|(t, _)| t.as_str().to_string())
+            .collect::<Vec<_>>()
+    );
+    let here = rows.iter().filter(|t| t.ends_with(" · Signs here")).count();
+    let signed = rows.iter().filter(|t| t.ends_with(" · Signed")).count();
+    (here, signed)
+}
+
+/// Savings' spend (a multisig, so it has the Signers step) with one of its
+/// keys loaded, open on Check.
+fn savings_spend() -> Faraday {
+    let k = kit("savings");
+    let (unsigned, _) = testkit::spend_of(&k).unwrap();
+    let mut app = testkit::started();
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![
+            (faraday_text::Text::of("spend.psbt"), unsigned.to_bytes()),
+            (
+                faraday_text::Text::of("savings-wallet.txt"),
+                k.descriptor.clone().into_bytes(),
+            ),
+        ]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    let at = |app: &Faraday, n: &str| app.inbox().iter().position(|i| i.name == n).unwrap();
+    let w = at(&app, "savings-wallet.txt");
+    testkit::load_wallet(&mut app, w);
+    crate::common::add_key(&mut app, "bacon");
+    app.press(Action::StartSpend(at(&app, "spend.psbt")));
+    app
+}
+
+/// A key at Signers is listed in Your choices as signing here before it has
+/// signed, as signed once its signature is in the file, and as signed no
+/// longer when the spend is started again on the unsigned PSBT.
+#[test]
+fn a_key_reads_signed_only_while_its_signature_is_in_the_file() {
+    let mut app = savings_spend();
+    app.press(Action::Step(step::SIGNERS));
+    assert_eq!(marks(&mut app), (1, 0), "loaded, not signed yet");
+    testkit::steps_before_sign_done(&mut app);
+    app.press(Action::Step(step::SIGN));
+    assert_eq!(
+        marks(&mut app),
+        (1, 0),
+        "on the Sign card, still not signed"
+    );
+    app.press(Action::SignHere);
+    assert!(!app.spend().unwrap().spend.signed_here.is_empty());
+    app.press(Action::Step(step::SIGNERS));
+    assert_eq!(
+        marks(&mut app),
+        (0, 1),
+        "signed, no longer only signing here"
+    );
+    // The PSBT replaced by the unsigned one: the signature is gone.
+    app.press(Action::StartSpend(0));
+    app.press(Action::Step(step::SIGNERS));
+    assert_eq!(
+        marks(&mut app),
+        (1, 0),
+        "a fresh spend of the unsigned file"
+    );
+}
+
+/// The centre of the drawn key row whose answer reads `value`.
+fn key_row_at(app: &mut Faraday, value: &str) -> (u16, u16) {
+    let boxes = app.drawn_text_boxes();
+    let (_, (x, y, w, h)) = boxes
+        .iter()
+        .find(|(t, _)| t.as_str() == value)
+        .unwrap_or_else(|| panic!("no key row {value:?} in {boxes:?}"));
+    ((x + w / 2) as u16, (y + h / 2) as u16)
+}
+
+fn tap_at(app: &mut Faraday, (x, y): (u16, u16)) {
+    for phase in [TouchPhase::Down, TouchPhase::Up] {
+        app.event(Event::Touch { x, y, phase });
+    }
+    let _ = app.frame();
+}
+
+/// A press on a key's row, drawn in Your choices, opens the Signers step
+/// from a step after it.
+#[test]
+fn a_press_on_a_key_row_opens_the_signers_step() {
+    let mut app = savings_spend();
+    app.press(Action::Step(step::SIGNERS));
+    testkit::steps_before_sign_done(&mut app);
+    app.press(Action::Step(step::SIGN));
+    assert_eq!(app.spend().unwrap().open, Some(step::SIGN));
+    let rows = key_rows(&mut app);
+    let at = key_row_at(&mut app, signing_row(&rows));
+    tap_at(&mut app, at);
+    assert_eq!(app.spend().unwrap().open, Some(step::SIGNERS));
+}
+
+/// A key row on the step that is open takes no press: no target is drawn
+/// over it.
+#[test]
+fn a_key_row_on_the_open_step_takes_no_press() {
+    let mut app = savings_spend();
+    app.press(Action::Step(step::SIGNERS));
+    let rows = key_rows(&mut app);
+    let (x, y) = key_row_at(&mut app, signing_row(&rows));
+    let over = app.drawn_targets().into_iter().any(|(_, t, ..)| {
+        let (x, y) = (i32::from(x), i32::from(y));
+        t.x <= x && x <= t.x + t.w && t.y <= y && y <= t.y + t.h
+    });
+    assert!(!over, "a press is drawn over the open step's key row");
+}
+
+fn spend_with_key_named(label: &str) -> Faraday {
+    let mut app = savings_spend();
+    let at = app
+        .session
+        .keys
+        .position(testkit::seed_fingerprint(0))
+        .unwrap();
+    app.session.keys.set_label(at, label);
+    app.press(Action::Step(step::SIGNERS));
+    app
+}
+
+/// The narrowest window that draws Your choices beside the card.
+fn narrowest_pane_window(app: &mut Faraday) -> (u16, u16) {
+    for w in (600..1400).step_by(4) {
+        if !key_rows_at(app, (w, 768)).is_empty() {
+            return (w, 768);
+        }
+    }
+    panic!("no window draws the pane");
+}
+
+/// A long name is cut, never the mark, at the pane's narrowest and widest.
+#[test]
+fn a_long_key_name_is_cut_and_the_mark_is_drawn_whole() {
+    let mut app = spend_with_key_named("A very long name for the first of the three keys");
+    let narrow = narrowest_pane_window(&mut app);
+    for size in [narrow, (1920, 1080)] {
+        let rows = key_rows_at(&mut app, size);
+        assert_eq!(rows.len(), 3, "{size:?}: {rows:?}");
+        let own = signing_row(&rows);
+        assert!(own.contains('…'), "{size:?}: the name is cut: {rows:?}");
+    }
+}
+
+/// A name that could read as a mark is left out of the row of a key that
+/// has no mark: the row is the fingerprint only, so no name stands as "Signed".
+#[test]
+fn a_name_that_could_be_a_mark_is_left_out_of_an_unmarked_key() {
+    for name in ["Signed", "Cold · Signed"] {
+        let mut app = spend_with_key_named(name);
+        // Its backup is owed: Sign refuses it, so it has no mark.
+        testkit::mark_made_here(&mut app, testkit::seed_fingerprint(0));
+        for size in [narrowest_pane_window(&mut app), (1920, 1080)] {
+            let rows = key_rows_at(&mut app, size);
+            assert_eq!(rows.len(), 3, "{name}, {size:?}: {rows:?}");
+            assert!(
+                rows.iter().all(|r| r.len() == 8),
+                "{name}, {size:?}: {rows:?}"
+            );
+        }
+    }
+    // A complete spend: the third key has nothing to sign and no mark either.
+    let mut app = spend_with_key_named("Signed");
+    app.press(Action::Step(step::SIGN));
+    testkit::steps_before_sign_done(&mut app);
+    app.press(Action::SignHere);
+    app.press(Action::Step(step::SIGNERS));
+    let rows = key_rows(&mut app);
+    assert!(rows.iter().all(|r| !r.contains("Signed ·")), "{rows:?}");
+}
+
+/// A key whose backup is still owed has no mark: Sign refuses it.
+#[test]
+fn a_key_made_here_whose_backup_waits_has_no_mark() {
+    let mut app = savings_spend();
+    testkit::mark_made_here(&mut app, testkit::seed_fingerprint(0));
+    app.press(Action::Step(step::SIGNERS));
+    assert_eq!(marks(&mut app), (0, 0));
+}
+
+/// The 2-of-3 signed by the other two keys elsewhere is complete: the
+/// third key, loaded, has nothing to sign, and the two that signed read
+/// signed.
+#[test]
+fn a_spend_complete_from_elsewhere_marks_no_key_signs_here() {
+    let k = kit("savings");
+    let (unsigned, cosigned) = testkit::spend_of(&k).unwrap();
+    let cosigned = cosigned.expect("savings has a cosigner").1;
+    // A second cosigner (Test key 3) adds its signature to the file.
+    let mut other = testkit::started();
+    other.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![
+            (faraday_text::Text::of("spend.psbt"), cosigned.to_bytes()),
+            (
+                faraday_text::Text::of("savings-wallet.txt"),
+                k.descriptor.clone().into_bytes(),
+            ),
+        ]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    let w = other
+        .inbox()
+        .iter()
+        .position(|i| i.name == "savings-wallet.txt")
+        .unwrap();
+    testkit::load_wallet(&mut other, w);
+    crate::common::add_key(&mut other, "summer");
+    other.press(Action::StartSpend(
+        other
+            .inbox()
+            .iter()
+            .position(|i| i.name == "spend.psbt")
+            .unwrap(),
+    ));
+    testkit::steps_before_sign_done(&mut other);
+    other.press(Action::Step(step::SIGN));
+    other.press(Action::SignHere);
+    let full = other.spend().unwrap().spend.psbt.to_bytes();
+    drop(unsigned);
+    // The first key, loaded here, opens the file the other two signed.
+    let mut app = testkit::started();
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![
+            (faraday_text::Text::of("spend.psbt"), full),
+            (
+                faraday_text::Text::of("savings-wallet.txt"),
+                k.descriptor.clone().into_bytes(),
+            ),
+        ]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    let w = app
+        .inbox()
+        .iter()
+        .position(|i| i.name == "savings-wallet.txt")
+        .unwrap();
+    testkit::load_wallet(&mut app, w);
+    crate::common::add_key(&mut app, "bacon");
+    app.press(Action::StartSpend(
+        app.inbox()
+            .iter()
+            .position(|i| i.name == "spend.psbt")
+            .unwrap(),
+    ));
+    assert!(app.spend().unwrap().complete, "two of three have signed");
+    app.press(Action::Step(step::SIGNERS));
+    assert_eq!(marks(&mut app), (0, 2));
+}
+
+/// A p2wpkh PSBT with one input of test key 1 and one of test key 2, as a
+/// coordinator that knows no wallet writes it; `edit` changes it before it
+/// is written.
+fn two_owner(edit: impl Fn(&mut faraday_bip::bitcoin::Psbt)) -> Vec<u8> {
+    use faraday_bip::bitcoin::bip32::{DerivationPath, Fingerprint as Fp};
+    use faraday_bip::bitcoin::{
+        Amount, OutPoint, PublicKey, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Witness,
+        absolute::LockTime, transaction::Version,
+    };
+    use std::str::FromStr;
+    let c = testkit::compute();
+    let mut session = testkit::session();
+    let p = DerivationPath::from_str("m/84'/1'/0'/0/0").unwrap();
+    let mut owners = Vec::new();
+    for (word, label) in &testkit::TEST_SEEDS[..2] {
+        let held = session
+            .keys
+            .add_words(&c, &testkit::test_words(word), label, None)
+            .unwrap();
+        let x = session
+            .keys
+            .xpub_at(&c, session.keys.position(held).unwrap(), &p)
+            .unwrap();
+        owners.push((PublicKey::new(x.public_key), held));
+    }
+    let prevs: Vec<Transaction> = owners
+        .iter()
+        .enumerate()
+        .map(|(i, (pk, _))| Transaction {
+            version: Version::TWO,
+            lock_time: LockTime::from_height(i as u32 + 1).unwrap(),
+            input: vec![],
+            output: vec![TxOut {
+                value: Amount::from_sat(50_000),
+                script_pubkey: ScriptBuf::new_p2wpkh(&pk.wpubkey_hash().unwrap()),
+            }],
+        })
+        .collect();
+    let tx = Transaction {
+        version: Version::TWO,
+        lock_time: LockTime::ZERO,
+        input: prevs
+            .iter()
+            .map(|t| TxIn {
+                previous_output: OutPoint::new(t.compute_txid(), 0),
+                script_sig: ScriptBuf::new(),
+                sequence: Sequence::MAX,
+                witness: Witness::new(),
+            })
+            .collect(),
+        output: vec![TxOut {
+            value: Amount::from_sat(99_000),
+            script_pubkey: prevs[0].output[0].script_pubkey.clone(),
+        }],
+    };
+    let mut inner = faraday_bip::bitcoin::Psbt::from_unsigned_tx(tx).unwrap();
+    for (i, prev) in prevs.into_iter().enumerate() {
+        inner.inputs[i].witness_utxo = Some(prev.output[0].clone());
+        inner.inputs[i].non_witness_utxo = Some(prev);
+        inner.inputs[i]
+            .bip32_derivation
+            .insert(owners[i].0.inner, (Fp::from(owners[i].1.0), p.clone()));
+    }
+    edit(&mut inner);
+    faraday_psbt::Psbt::from(inner).to_bytes()
+}
+
+/// An app with `psbt` in the inbox, no wallet, the keys named by their
+/// seeds loaded, the spend started and open on Signers.
+fn app_with_psbt(psbt: Vec<u8>, keys: &[&str]) -> Faraday {
+    let mut app = testkit::started();
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![(faraday_text::Text::of("spend.psbt"), psbt)]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    for k in keys {
+        crate::common::add_key(&mut app, k);
+    }
+    app.press(Action::StartSpend(0));
+    app.press(Action::Step(step::SIGNERS));
+    app
+}
+
+/// Two single-key owners with one input each and no wallet: each key is
+/// still to sign its own input (Signs here), and once both have signed
+/// nothing is left to sign, so neither reads Signs here (the spend is
+/// complete, and no key signed every input, so none reads Signed).
+#[test]
+fn inputs_of_two_loaded_keys_say_signs_here_only_while_a_key_has_one_to_sign() {
+    let mut app = app_with_psbt(two_owner(|_| {}), &["bacon", "zebra"]);
+    assert_eq!(marks(&mut app), (2, 0), "{:?}", key_rows(&mut app));
+    testkit::steps_before_sign_done(&mut app);
+    app.press(Action::Step(step::SIGN));
+    app.press(Action::SignHere);
+    app.press(Action::Step(step::SIGNERS));
+    assert_eq!(marks(&mut app), (0, 0), "{:?}", key_rows(&mut app));
+}
+
+/// A spend not complete, one input of a loaded key already signed in the
+/// file and the other of a second loaded key: the first has nothing left to
+/// sign, so only the second reads Signs here (the spend is not complete, so
+/// only `to_sign` says it).
+#[test]
+fn a_loaded_key_with_nothing_left_to_sign_on_an_incomplete_spend_has_no_mark() {
+    // Only the first key is loaded where the file is signed.
+    let mut first = app_with_psbt(two_owner(|_| {}), &["bacon"]);
+    testkit::steps_before_sign_done(&mut first);
+    first.press(Action::Step(step::SIGN));
+    first.press(Action::SignHere);
+    let signed = first.spend().unwrap().spend.psbt.to_bytes();
+    assert!(!first.spend().unwrap().complete, "one input is still open");
+    // The signed file comes in again, both keys loaded.
+    let mut app = app_with_psbt(signed, &["bacon", "zebra"]);
+    assert!(!app.spend().unwrap().complete);
+    assert_eq!(marks(&mut app), (1, 0), "{:?}", key_rows(&mut app));
+}
+
+/// A spend whose inputs are all final has nothing to sign: no key is
+/// marked.
+#[test]
+fn a_spend_with_every_input_final_marks_no_key() {
+    use faraday_bip::bitcoin::Witness;
+    let psbt = two_owner(|p| {
+        for i in &mut p.inputs {
+            i.final_script_witness = Some(Witness::from_slice(&[vec![1u8; 71], vec![2u8; 33]]));
+        }
+    });
+    let mut app = app_with_psbt(psbt, &["bacon", "zebra"]);
+    assert_eq!(marks(&mut app), (0, 0), "{:?}", key_rows(&mut app));
+}
+
+/// While any key of the spend has its backup owed, Sign refuses every key,
+/// so no loaded key says Signs here.
+#[test]
+fn no_key_says_signs_here_while_another_keys_backup_is_owed() {
+    let mut app = app_with_psbt(two_owner(|_| {}), &["bacon", "zebra"]);
+    assert_eq!(marks(&mut app), (2, 0));
+    testkit::mark_made_here(&mut app, testkit::seed_fingerprint(0));
+    app.press(Action::Step(step::SIGN));
+    app.press(Action::Step(step::SIGNERS));
+    assert_eq!(marks(&mut app), (0, 0), "{:?}", key_rows(&mut app));
+}
+
+/// A MuSig2 partial in the file that this device did not write is "In file",
+/// not Signed, and not Signs here either.
+#[test]
+fn a_musig_partial_in_the_file_is_not_marked_signed() {
+    let (one, _) = testkit::musig_two_inputs().unwrap();
+    let policy = testkit::musig_policy().unwrap();
+    let mut app = testkit::started();
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![
+            (faraday_text::Text::of("spend.psbt"), one.to_bytes()),
+            (
+                faraday_text::Text::of("musig-wallet.txt"),
+                policy
+                    .to_descriptor_checksummed()
+                    .as_str()
+                    .as_bytes()
+                    .to_vec(),
+            ),
+        ]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    let at = |app: &Faraday, n: &str| app.inbox().iter().position(|i| i.name == n).unwrap();
+    let w = at(&app, "musig-wallet.txt");
+    testkit::load_wallet(&mut app, w);
+    crate::common::add_key(&mut app, "bacon");
+    app.press(Action::StartSpend(at(&app, "spend.psbt")));
+    app.press(Action::Step(step::SIGNERS));
+    let (here, signed) = marks(&mut app);
+    assert_eq!(signed, 0, "{:?}", key_rows(&mut app));
+    assert_eq!(here, 0, "{:?}", key_rows(&mut app));
+}
+
+/// A fee that waits for its hold is no stop for Sign: the person holds it
+/// and the key signs, so the mark is true.
+#[test]
+fn a_fee_waiting_for_its_hold_leaves_signs_here() {
+    let psbt = two_owner(|p| {
+        p.unsigned_tx.output[0].value = faraday_bip::bitcoin::Amount::from_sat(10_000)
+    });
+    let mut app = app_with_psbt(psbt, &["bacon", "zebra"]);
+    assert_eq!(marks(&mut app), (2, 0), "{:?}", key_rows(&mut app));
+}
+
+/// A warning that refuses the whole PSBT (a blocked one) leaves no key
+/// saying Signs here, though each still has an input it could sign.
+#[test]
+fn no_key_says_signs_here_while_a_warning_blocks_sign() {
+    let psbt = two_owner(|p| {
+        let utxo = p.inputs[1].witness_utxo.as_mut().unwrap();
+        utxo.value = faraday_bip::bitcoin::Amount::from_sat(1);
+    });
+    let mut app = app_with_psbt(psbt, &["bacon", "zebra"]);
+    assert_eq!(marks(&mut app), (0, 0), "{:?}", key_rows(&mut app));
+}
+
+/// A key loaded of no interest to the spend that owes its backup does not
+/// stop the keys of the spend: only a key the spend uses does.
+#[test]
+fn a_waiting_key_the_spend_does_not_use_leaves_signs_here() {
+    let mut app = app_with_psbt(two_owner(|_| {}), &["bacon", "zebra", "summer"]);
+    testkit::mark_made_here(&mut app, testkit::seed_fingerprint(2));
+    assert_eq!(marks(&mut app), (2, 0), "{:?}", key_rows(&mut app));
+}
+
+fn hex(f: faraday_bip::keys::Fingerprint) -> String {
+    f.0.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+/// A 2-of-3 whose second slot is key 1's fingerprint with another key
+/// (so Review stops with a wallet not registered once key 1 is loaded): the keys loaded
+/// are listed once each, and with key 1 loaded at Signers no key reads
+/// Signs here, since Sign refuses the PSBT.
+#[test]
+fn a_wallet_slot_under_a_loaded_keys_fingerprint_with_another_key_marks_nothing() {
+    let k = kit("savings");
+    let (unsigned, _) = testkit::spend_of(&k).unwrap();
+    let (one, two) = (
+        hex(testkit::seed_fingerprint(0)),
+        hex(testkit::seed_fingerprint(1)),
+    );
+    let descriptor = k
+        .descriptor
+        .split('#')
+        .next()
+        .unwrap()
+        .replace(&format!("[{two}/"), &format!("[{one}/"));
+    assert_ne!(descriptor, k.descriptor);
+    let mut app = testkit::started();
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![
+            (faraday_text::Text::of("spend.psbt"), unsigned.to_bytes()),
+            (
+                faraday_text::Text::of("savings-wallet.txt"),
+                descriptor.into_bytes(),
+            ),
+        ]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    let at = |app: &Faraday, n: &str| app.inbox().iter().position(|i| i.name == n).unwrap();
+    let w = at(&app, "savings-wallet.txt");
+    testkit::load_wallet(&mut app, w);
+    crate::common::add_key(&mut app, "summer");
+    app.press(Action::StartSpend(at(&app, "spend.psbt")));
+    testkit::steps_before_sign_done(&mut app);
+    app.press(Action::Step(step::SIGNERS));
+    // Loading a key leaves the spend; it is opened again.
+    crate::common::add_key(&mut app, "bacon");
+    app.press(Action::StartSpend(at(&app, "spend.psbt")));
+    app.press(Action::Step(step::SIGNERS));
+    // Sign refuses the PSBT (wallet not registered): no row says Signs
+    // here, and a fingerprint is listed once.
+    assert!(
+        app.spend().unwrap().inspection.warnings.iter().any(|w| {
+            w.level == faraday_psbt::Level::Blocked
+                && w.kind == faraday_psbt::WarningKind::WalletNotRegistered
+        }),
+        "no blocking warning"
+    );
+    let rows = key_rows(&mut app);
+    assert_eq!(rows.len(), 2, "one row per fingerprint: {rows:?}");
+    assert!(
+        rows.iter().all(|r| !r.ends_with(" · Signs here")),
+        "{rows:?}"
+    );
+}
+
+/// A third input, a one-key P2WSH script of no loaded wallet naming key 1
+/// (a caution only), which the signer leaves unsigned.
+fn two_owner_and_script() -> Vec<u8> {
+    use faraday_bip::bitcoin::{
+        Amount, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Witness,
+        absolute::LockTime, opcodes::all::OP_CHECKSIG, script::Builder, transaction::Version,
+    };
+    two_owner(|p| {
+        let (pk, (fp, path)) = p.inputs[0]
+            .bip32_derivation
+            .iter()
+            .next()
+            .map(|(k, v)| (*k, v.clone()))
+            .unwrap();
+        let script = Builder::new()
+            .push_key(&faraday_bip::bitcoin::PublicKey::new(pk))
+            .push_opcode(OP_CHECKSIG)
+            .into_script();
+        let spk = ScriptBuf::new_p2wsh(&script.wscript_hash());
+        let prev = Transaction {
+            version: Version::TWO,
+            lock_time: LockTime::from_height(7).unwrap(),
+            input: vec![],
+            output: vec![TxOut {
+                value: Amount::from_sat(50_000),
+                script_pubkey: spk,
+            }],
+        };
+        p.unsigned_tx.input.push(TxIn {
+            previous_output: OutPoint::new(prev.compute_txid(), 0),
+            script_sig: ScriptBuf::new(),
+            sequence: Sequence::MAX,
+            witness: Witness::new(),
+        });
+        p.unsigned_tx.output[0].value = Amount::from_sat(149_000);
+        let mut input = faraday_bip::bitcoin::psbt::Input {
+            witness_utxo: Some(prev.output[0].clone()),
+            non_witness_utxo: Some(prev),
+            witness_script: Some(script),
+            ..Default::default()
+        };
+        input.bip32_derivation.insert(pk, (fp, path));
+        p.inputs.push(input);
+    })
+}
+
+/// Key 1 signed what it could in this session (input 0; the signer leaves
+/// the script input, of no wallet, unsigned): it does not read Signs here
+/// while the spend is kept open, though `to_sign` still lists it for the
+/// script input.
+#[test]
+fn a_key_that_signed_here_does_not_read_signs_here_for_an_input_the_signer_skips() {
+    let mut app = app_with_psbt(two_owner_and_script(), &["bacon", "zebra"]);
+    app.press(Action::Step(step::SIGNERS));
+    assert_eq!(marks(&mut app), (2, 0), "{:?}", key_rows(&mut app));
+    testkit::steps_before_sign_done(&mut app);
+    app.press(Action::Step(step::SIGN));
+    app.press(Action::SignHere);
+    assert!(
+        !app.spend().unwrap().spend.signed_here.is_empty(),
+        "nothing was signed"
+    );
+    app.press(Action::Step(step::SIGNERS));
+    // No row says Signs here or Signed.
+    assert_eq!(marks(&mut app), (0, 0), "{:?}", key_rows(&mut app));
 }

@@ -1048,6 +1048,7 @@ impl crate::flow::Contained for SeedSteps {
                     mono: k == step::ACCOUNT || k == step::RESULT,
                     opens: k,
                     current: s.open == Some(k),
+                    mark: None,
                 }
             })
             .collect()

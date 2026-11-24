@@ -8,7 +8,7 @@ use crate::trail::Steps;
 use crate::ui::{Region, Slot, Ui, pal::*};
 use crate::{Action, Faraday};
 use faraday_draw::tokens::{self, BODY_S, CHOICES_INSET, CHOICES_ROW, LABEL_L};
-use faraday_text::Text;
+use faraday_text::{Text, text};
 
 /// A step's title as the container's heading reads it: text a flow may
 /// build. Named here, where the text type is held, so `flow.rs` names none.
@@ -32,6 +32,9 @@ pub(crate) struct Row {
     pub(crate) opens: u8,
     /// The row stands for the step now open.
     pub(crate) current: bool,
+    /// A mark drawn whole after the answer, which is fitted to what the
+    /// mark leaves; set only where the flow says it.
+    pub(crate) mark: Option<&'static str>,
 }
 
 /// How far a row's highlight and press reach past its text at each side.
@@ -87,7 +90,14 @@ pub(crate) fn rows(
         } else {
             BODY_S
         };
-        let value = ui.fit_as(role, value, w);
+        let value = match row.mark {
+            Some(mark) => {
+                let tail = text!(" · {}", mark);
+                let room = (w - ui.measure_as(role, tail.as_str())).max(0.0);
+                text!("{}{}", ui.fit_as(role, value, room).as_str(), tail.as_str())
+            }
+            None => ui.fit_as(role, value, w),
+        };
         ui.text_as(x, top + lh, role, value_ink, &value);
         if let Some(action) = press {
             ui.press_box(x - BLEED, cy, w + 2.0 * BLEED, CHOICES_ROW, *action);

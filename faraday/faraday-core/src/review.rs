@@ -10,16 +10,28 @@ use crate::wallet::{InspectInputs, Session, Signed, SpendState, context};
 use faraday_bip::keys::Fingerprint;
 use faraday_text::{Text, text};
 
+/// Whether a warning stops Sign with no way past it: a blocked one, or a
+/// danger that is neither holdable nor the absence of a key taking part.
+fn warning_stops(w: &faraday_psbt::Warning) -> bool {
+    match w.level {
+        Level::Blocked => true,
+        Level::Danger => !w.kind.is_holdable() && w.kind != K::NoParticipatingKey,
+        _ => false,
+    }
+}
+
+/// Whether the inspection holds a warning that stops Sign with no way past
+/// it (the `stops` of [`review_stop`]); a fee not yet held is not one.
+pub(crate) fn sign_is_stopped(inspection: &Inspection) -> bool {
+    inspection.warnings.iter().any(warning_stops)
+}
+
 /// Why Review does not go on, from the inspection as it is: a
 /// transaction nothing signs, said with what to do instead, or a
 /// holdable danger not yet held (F136). No key here taking part is no
 /// stop: the spend goes on to collect the signatures made elsewhere.
 pub(crate) fn review_stop(inspection: &Inspection, held: &[K]) -> Option<&'static str> {
-    let stops = |w: &&faraday_psbt::Warning| match w.level {
-        Level::Blocked => true,
-        Level::Danger => !w.kind.is_holdable() && w.kind != K::NoParticipatingKey,
-        _ => false,
-    };
+    let stops = |w: &&faraday_psbt::Warning| warning_stops(w);
     let stopping: Vec<&K> = inspection
         .warnings
         .iter()

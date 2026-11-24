@@ -178,6 +178,10 @@ its Path page stands as the same pair with the loaded keys as the pick's rows
 and the result in the card; the pane scrolls with the page. Addresses and
 Find, the one-column layouts and a room too narrow for the pair keep today's
 row of keys. Changing the key hides what its eyes show (`prune`).
+A flow may list rows under a step's own (Sign a transaction lists its keys
+under Signers, each marked "Signs here" or "Signed" where it is one of these); they open that step,
+and take no press while it is the open one. A row's answer may end in a mark
+that is drawn whole while the text before it is cut to fit (the row's `mark`); a Signers row leaves out a name that could read as a mark.
 A pane taller than the window scrolls within itself (LAYOUT §6), so a low
 window does not drop the pane. The scroll is one offset for every flow
 (`Scroll::choices`), set back to the top when a flow is opened. A flow's

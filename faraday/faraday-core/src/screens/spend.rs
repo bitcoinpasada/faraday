@@ -1556,14 +1556,20 @@ impl StepView<'_> {
                             );
                         }
                         None => {
-                            let (t, status) = if slot.held_by.is_some() {
-                                (EN.step_signs_here, Status::Ok)
+                            // Held and signing here, or not held; a held key
+                            // that signs nothing has no chip.
+                            let chip = if slot.held_by.is_none() {
+                                Some((EN.step_not_here, Status::Neutral))
+                            } else if slot.fingerprint.is_some_and(|f| s.signs_here(app, f.0)) {
+                                Some((EN.step_signs_here, Status::Ok))
                             } else {
-                                (EN.step_not_here, Status::Neutral)
+                                None
                             };
-                            let cw2 = ui.measure_as(BODY_S, t) + 34.0;
-                            let chip_x = if compact { x + 22.0 } else { x + w - cw2 };
-                            ui.tag(chip_x, cy + 8.0, t, status);
+                            if let Some((t, status)) = chip {
+                                let cw2 = ui.measure_as(BODY_S, t) + 34.0;
+                                let chip_x = if compact { x + 22.0 } else { x + w - cw2 };
+                                ui.tag(chip_x, cy + 8.0, t, status);
+                            }
                         }
                     }
                     ui.rule(x, cy + 42.0, w, Role::OutlineVariant);
@@ -1762,7 +1768,7 @@ impl StepView<'_> {
             };
             let label = ui.fit_as(BODY_M, &label, x + w - lx - 90.0);
             ui.text_mid_as((lx, ly, 44.0), BODY_S, Role::OnSurfaceVariant, &label);
-            let signed = raw.map(|r| s.signers.contains(&r)).unwrap_or(false);
+            let signed = raw.is_some_and(|r| s.key_signed(r));
             let here = raw
                 .map(|r| s.spend.signed_here.iter().any(|f| f.0 == r))
                 .unwrap_or(false);

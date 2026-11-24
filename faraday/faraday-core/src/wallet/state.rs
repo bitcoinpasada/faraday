@@ -278,6 +278,114 @@ impl SpendState {
             .collect()
     }
 
+    /// Whether the file now carries a verified signature of the master
+    /// `fp` on every open input (for MuSig2, a partial this device wrote or
+    /// the aggregate): the one answer for "signed", read by Collect's marks and by
+    /// Your choices' key rows. It follows the PSBT as last read, so a
+    /// signature taken back or a PSBT replaced stops it at once.
+    pub(crate) fn key_signed(&self, fp: [u8; 4]) -> bool {
+        self.signers.contains(&fp)
+    }
+
+    /// Whether the key `r` signs here, in the words "Signs here": the spend
+    /// is not complete and no warning stops Sign (it refuses the whole PSBT
+    /// then; a fee not yet held does not, a hold clears it), the key is one the spend uses
+    /// (`participating_keys`), has inputs it can sign (`to_sign`) and no
+    /// key the spend uses owes its backup (`Session::waiting`), and the key
+    /// has not signed here (`signed_here`). Lookups only.
+    pub(crate) fn signs_here(&self, app: &Faraday, r: [u8; 4]) -> bool {
+        let waiting = app.session.waiting();
+        let keys = &self.inspection.participating_keys;
+        !self.complete
+            && !crate::review::sign_is_stopped(&self.inspection)
+            && self.to_sign.contains(&r)
+            && !self.spend.signed_here.iter().any(|f| f.0 == r)
+            && keys.iter().any(|k| k.0 == r)
+            && !keys.iter().any(|k| waiting.iter().any(|w| w.0 == k.0))
+    }
+
+    /// The rows of Your choices for the keys at Signers: one per
+    /// fingerprint of the wallet's keys, or, where no wallet is known, one
+    /// per loaded key the PSBT names (`participating_keys` holds only
+    /// those; a cosigner this device does not hold is not listed). A key
+    /// reads "Signed" while its signature is in the file
+    /// ([`SpendState::key_signed`]), and "Signs here" only where
+    /// [`SpendState::signs_here`] says so and the key is loaded here; any
+    /// other key has no mark. The mark follows the inspection and
+    /// `to_sign`, not what the signer does: a refusal or skip found only
+    /// while signing (a key mismatch with a false pubkey, an unsupported
+    /// input, a leaf not carried, amounts refused, a key's own input
+    /// already final) is not seen, so a key can read "Signs here" and
+    /// then sign nothing; after signing here, `signed_here` removes the
+    /// mark.
+    /// Lookups only.
+    pub(crate) fn key_rows(&self, app: &Faraday, opens: u8) -> Vec<crate::flow::Row> {
+        let keys: Vec<(Option<[u8; 4]>, Option<Text>, bool)> =
+            match self.wallet.and_then(|wi| app.session.wallets.get(wi)) {
+                Some(wl) => app
+                    .session
+                    .slots(wl)
+                    .iter()
+                    .map(|sl| {
+                        (
+                            sl.fingerprint.map(|f| f.0),
+                            sl.held_by.clone(),
+                            sl.held_by.is_some(),
+                        )
+                    })
+                    .collect(),
+                None => self
+                    .inspection
+                    .participating_keys
+                    .iter()
+                    .map(|fp| {
+                        (
+                            Some(fp.0),
+                            app.session.keys.key_label(*fp).map(Text::of),
+                            true,
+                        )
+                    })
+                    .collect(),
+            };
+        let mut seen: Vec<[u8; 4]> = Vec::new();
+        let mut rows = Vec::new();
+        for (raw, name, here) in keys {
+            if let Some(r) = raw {
+                if seen.contains(&r) {
+                    continue;
+                }
+                seen.push(r);
+            }
+            let fp = raw
+                .map(|r| crate::wallet::fp_label(faraday_bip::keys::Fingerprint(r)))
+                .unwrap_or_default();
+            // A name that could be read as a mark is left out.
+            let name = name.filter(|n| !name_reads_as_mark(n.as_str()));
+            let head = match name
+                .as_ref()
+                .map(|n| n.trim())
+                .filter(|n| !n.is_empty() && !n.eq_ignore_ascii_case(fp.as_str()))
+            {
+                Some(n) => text!("{} · {}", fp.as_str(), n),
+                None => fp.clone(),
+            };
+            let mark = match raw {
+                Some(r) if self.key_signed(r) => Some(EN.step_choice_signed),
+                Some(r) if here && self.signs_here(app, r) => Some(EN.step_signs_here),
+                _ => None,
+            };
+            rows.push(crate::flow::Row {
+                label: Text::of(EN.step_choice_key),
+                value: Some(head),
+                mono: false,
+                opens,
+                current: false,
+                mark,
+            });
+        }
+        rows
+    }
+
     /// A spend opened on `spend`, its `inspection` made with the
     /// session's `inputs`. Its open step
     /// is computed in `refresh_spend`, once Check's done state is known:
@@ -1086,20 +1194,23 @@ impl crate::flow::Contained for SpendSteps {
             return Vec::new();
         };
         let shown = SpendSteps::shown(s);
-        s.steps
-            .iter()
-            .map(|&k| {
-                let reached = s.done[usize::from(k)] || shown == Some(k);
-                crate::flow::Row {
-                    label: Text::of(crate::screens::SPEND_TITLES[usize::from(k)]),
-                    value: reached
-                        .then(|| crate::screens::step_summary(app, k, s.wallet, s.needed)),
-                    mono: false,
-                    opens: k,
-                    current: shown == Some(k),
-                }
-            })
-            .collect()
+        let mut rows = Vec::new();
+        for &k in &s.steps {
+            let reached = s.done[usize::from(k)] || shown == Some(k);
+            rows.push(crate::flow::Row {
+                label: Text::of(crate::screens::SPEND_TITLES[usize::from(k)]),
+                value: reached.then(|| crate::screens::step_summary(app, k, s.wallet, s.needed)),
+                mono: false,
+                opens: k,
+                current: shown == Some(k),
+                mark: None,
+            });
+            // The keys stay listed under Signers once chosen.
+            if k == step::SIGNERS && reached {
+                rows.extend(s.key_rows(app, k));
+            }
+        }
+        rows
     }
 
     fn hide_shown(&self, app: &mut crate::Faraday) {
@@ -1125,5 +1236,113 @@ impl crate::at_lock::AtLock for WalletsArea {
     }
     fn lock(&mut self) {
         self.clear_spend();
+    }
+}
+
+/// A drawn character that reads as a plain letter of a mark: a Latin-1
+/// accent as its base letter, `1 l ! |` as `i`, `5 $` as `s`; any other
+/// character as itself.
+fn fold_lookalike(c: char) -> char {
+    match c {
+        '1' | 'l' | '!' | '|' | '¡' | '¦' => 'i',
+        '5' | '$' | '§' => 's',
+        'à'..='å' => 'a',
+        'ç' => 'c',
+        'è'..='ë' => 'e',
+        'ì'..='ï' => 'i',
+        'ð' => 'd',
+        'ñ' => 'n',
+        'ò'..='ö' | 'ø' => 'o',
+        'ù'..='ü' => 'u',
+        'ý' | 'ÿ' => 'y',
+        c => c,
+    }
+}
+
+/// Whether a key's name could be read as the mark drawn after it in a
+/// Signers row ("Signed", "Signs here"): with all but letters taken out
+/// and case folded it holds "signed" or "signshere" ("Designed" too, which
+/// is left out with the rest), or it holds a letter of another script that
+/// looks like a Latin one (Cyrillic, Greek, fullwidth, mathematical
+/// alphanumeric). Such a name is not shown there; the fingerprint is.
+pub(crate) fn name_reads_as_mark(name: &str) -> bool {
+    let like = |c: char| {
+        matches!(c as u32,
+            0x0370..=0x03FF | 0x1F00..=0x1FFF | 0x0400..=0x052F
+            | 0xFF00..=0xFFEF | 0x1D400..=0x1D7FF)
+    };
+    if name.chars().any(like) {
+        return true;
+    }
+    // Read both ways: letters only, and with lookalikes folded first (a
+    // folded `!` is a letter, so "Signs! here" reads as a mark the first
+    // way). The last nine letters of each hold "signshere".
+    let reads = |fold: bool| {
+        let mut last = ['\0'; 9];
+        for c in name
+            .chars()
+            .flat_map(char::to_lowercase)
+            .map(|c| if fold { fold_lookalike(c) } else { c })
+            .filter(|c| c.is_alphabetic())
+        {
+            last.rotate_left(1);
+            last[8] = c;
+            let tail = |w: &str| w.chars().rev().zip(last.iter().rev()).all(|(a, b)| a == *b);
+            if tail("signed") || tail("signshere") {
+                return true;
+            }
+        }
+        false
+    };
+    reads(false) || reads(true)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::name_reads_as_mark;
+
+    #[test]
+    fn a_name_that_could_read_as_a_mark_is_left_out() {
+        for n in [
+            "Signed",
+            "Sígned",
+            "Signéd",
+            "Signeð",
+            "S1gned",
+            "Slgned",
+            "SlGNED",
+            "S!gned",
+            "5igned",
+            "$igned",
+            "Signs hére",
+            "Cold · Signed",
+            "signed",
+            "S i g n e d",
+            "Signs here",
+            "SignsHere",
+            "Signs-here!",
+            "Signs! here",
+            "Signs | here",
+            "Sig1ned",
+            "§igned",
+            "Designed",
+            "Sіgned",
+            "Ѕigned",
+            "Σigned",
+            "Ｓｉｇｎｅｄ",
+            "𝐒𝐢𝐠𝐧𝐞𝐝",
+        ] {
+            assert!(name_reads_as_mark(n), "{n}");
+        }
+        for n in [
+            "Savings key",
+            "Schlüssel",
+            "Design 2",
+            "Cold",
+            "Sign",
+            "Signs",
+        ] {
+            assert!(!name_reads_as_mark(n), "{n}");
+        }
     }
 }

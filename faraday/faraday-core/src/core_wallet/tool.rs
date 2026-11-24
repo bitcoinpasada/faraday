@@ -832,6 +832,7 @@ impl crate::flow::Contained for CoreWalletSteps {
                     mono: false,
                     opens: k,
                     current: s.open == Some(k),
+                    mark: None,
                 }
             })
             .collect()
