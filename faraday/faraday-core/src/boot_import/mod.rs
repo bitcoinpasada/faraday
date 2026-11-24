@@ -230,6 +230,17 @@ fn is_png(name: &str) -> bool {
 }
 
 impl ImportState {
+    /// Whether `stick` holds the listing the list shows: its files, with
+    /// their sizes, bar the settings file.
+    fn lists(&self, stick: &StickInfo) -> bool {
+        let now = stick
+            .files
+            .iter()
+            .filter(|(n, _)| !crate::stick::settings::is_file(n))
+            .map(|(n, s)| (&**n, *s));
+        now.eq(self.files.iter().map(|f| (&*f.name, f.size)))
+    }
+
     /// The place of the file named `name`, while it waits for its read.
     fn waiting(&self, name: &str) -> Option<usize> {
         self.files
@@ -263,6 +274,12 @@ pub(crate) struct BootImportArea {
     /// The boot import's sheet waits under the new-device sheet, and
     /// comes up once every waiting device is decided.
     under_input: bool,
+    /// The list step is up on Files: the import's tile stands where the
+    /// stick's own card does, until Import, Later or a change of stick.
+    tile: bool,
+    /// The vault step waits for whatever sheet stands over the page as the
+    /// reads end: it comes up as that sheet closes ([`Faraday::import_resume`]).
+    resume: bool,
     /// Pictures whose code reads as a seed or as text, waiting to be asked about.
     text: text_ask::TextAsks,
 }
@@ -278,6 +295,11 @@ impl BootImportArea {
         self.state.is_some()
     }
 
+    /// Whether an import waits for Import to be pressed.
+    pub(crate) fn unasked(&self) -> bool {
+        self.state.as_ref().is_some_and(|i| !i.asked)
+    }
+
     /// Starts an import of `state`.
     pub(crate) fn set(&mut self, state: ImportState) {
         self.state = Some(state);
@@ -286,13 +308,38 @@ impl BootImportArea {
     /// Ends the import, leaving the files that wait for the pull.
     pub(crate) fn clear(&mut self) {
         self.state = None;
+        self.tile = false;
+        self.resume = false;
     }
 
     /// Ends the import and forgets the files that wait for the pull.
     pub(crate) fn clear_all(&mut self) {
         self.state = None;
+        self.tile = false;
+        self.resume = false;
         self.load_after.clear();
         self.text_forget();
+    }
+
+    /// Whether the list step stands on Files (the page must be Files too:
+    /// [`Faraday::import_tile_up`]).
+    pub(crate) fn tile(&self) -> bool {
+        self.tile
+    }
+
+    /// Puts the list step up on Files, or takes it down.
+    pub(crate) fn set_tile(&mut self, on: bool) {
+        self.tile = on;
+    }
+
+    /// Notes that the vault step waits for the sheet over the page to close.
+    pub(crate) fn set_resume(&mut self, on: bool) {
+        self.resume = on;
+    }
+
+    /// Takes the wait for the sheet over the page, whether there was one.
+    pub(crate) fn take_resume(&mut self) -> bool {
+        std::mem::take(&mut self.resume)
     }
 
     /// Whether the sheet waits under the new-device sheet.
@@ -519,7 +566,7 @@ impl Faraday {
 
     /// The boot stick has arrived for the first time this power-on with
     /// files on it: they are listed by the names and sizes its listing
-    /// gave, none of them read (F130), and the sheet comes up over Home.
+    /// gave, none of them read (F130), and the list comes up on Files.
     pub(crate) fn import_start(&mut self, boot: &StickInfo) {
         let mut state = ImportState {
             label: Text::of(&boot.label),
@@ -545,26 +592,26 @@ impl Faraday {
         self.import_sheet_up();
     }
 
-    /// The import's sheet over Home, or waiting under the new-device
-    /// sheet.
+    /// The list step up: Files opens on the import's tile, On the stick
+    /// on a small panel. A new-device sheet standing over the page
+    /// stays, and the tile is under it; any other sheet gives way.
     fn import_sheet_up(&mut self) {
         self.visit.clear_after_visit();
-        self.screen = Screen::Home;
-        // A device waiting to be believed is asked about first
-        // (`docs/SECURITY-MODEL.md`); this sheet comes up after.
-        if matches!(self.sheet, Some(Sheet::NewInput)) {
-            self.import.set_under_input(true);
-        } else {
-            self.sheet = Some(Sheet::Import);
+        self.screen = Screen::Files;
+        self.visit.set_tab_stick(true);
+        self.scroll.set_visit_in_offset(0.0);
+        self.import.set_tile(true);
+        if !matches!(self.sheet, Some(Sheet::NewInput)) {
+            self.sheet = None;
         }
     }
 
     /// A stick arrived in a clean process: whether Home stays on screen
     /// instead of a stick visit. It does for the boot stick alone at its
-    /// first look, with the import over it when it holds anything; and
-    /// for the boot stick alone put back while its import waits to be
-    /// pressed, which makes it the import's stick again and brings the
-    /// sheet up over Home (F130).
+    /// first look; and for the boot stick alone put back while its import
+    /// waits to be pressed with the listing the list shows, which makes it
+    /// the import's stick again and brings the list up on Files (F130).
+    /// Any other listing ends the import: the stick is visited as it is.
     pub(crate) fn import_keeps_home(&mut self, first_look: bool, boot: Option<&StickInfo>) -> bool {
         if !self.stick.iter().all(|s| s.boot) {
             return false;
@@ -578,24 +625,54 @@ impl Faraday {
         let Some(imp) = self.import.state.as_mut().filter(|i| !i.asked) else {
             return false;
         };
+        // The listing must be the one the list shows: names and sizes.
+        // Another stick, or this one changed elsewhere, ends the import.
+        if !imp.lists(b) {
+            self.import.clear();
+            return false;
+        }
         imp.stick = Text::of(&b.id);
         self.import_sheet_up();
         true
     }
 
-    /// Whether the import is on show: its sheet is what the screen holds.
-    /// Where it waits (put off while the files are read, or under the
-    /// new-device sheet) it is not. Every place that treats the import as
-    /// being answered asks this, so it is one place to change.
-    pub(crate) fn import_on_show(&self) -> bool {
+    /// Whether the import's sheet is what the screen holds: the vault
+    /// passphrase step, over Home. Where it waits (put off while the files
+    /// are read, or under the new-device sheet) it is not. The passphrase
+    /// field, its typing and its keys exist only here; the list step takes
+    /// none.
+    pub(crate) fn import_sheet_on_show(&self) -> bool {
         self.sheet == Some(Sheet::Import)
     }
 
-    /// Whether the import is on show or only covered by the idle warning
-    /// (the warning lifts to it again): where the passphrase field is
-    /// still the screen's.
+    /// Whether the list step is up on Files: its tile is what the page
+    /// draws, and nothing has been read into the vault step yet. Never
+    /// while a secret is held: only a clean process takes a stick, and the
+    /// Lock card is what Files then draws.
+    pub fn import_tile_up(&self) -> bool {
+        self.import.tile()
+            && self.screen == Screen::Files
+            && self.import.state().is_some()
+            && !self.holds_secret()
+    }
+
+    /// Whether the list step is on show: up, and no sheet over it.
+    pub(crate) fn import_tile_on_show(&self) -> bool {
+        self.import_tile_up() && self.sheet.is_none()
+    }
+
+    /// Whether the import is on show, in either step. Every place that
+    /// treats the import as being answered asks this or
+    /// [`Faraday::import_sheet_on_show`], by which step it means.
+    pub fn import_on_show(&self) -> bool {
+        self.import_sheet_on_show() || self.import_tile_on_show()
+    }
+
+    /// Whether the import's passphrase sheet is on show or only covered by
+    /// the idle warning (the warning lifts to it again): where the
+    /// passphrase field is still the screen's.
     pub(crate) fn import_held(&self) -> bool {
-        self.import_on_show()
+        self.import_sheet_on_show()
             || (self.sheet == Some(Sheet::IdleWarn) && self.idle.under() == Some(Sheet::Import))
     }
 
@@ -773,7 +850,7 @@ impl Faraday {
             }
         }
         self.import_if_read();
-        if self.import_on_show() && self.vaults.focus.is_none() {
+        if self.import_sheet_on_show() && self.vaults.focus.is_none() {
             self.screen = Screen::Home;
             self.import_field_ready();
         }
@@ -841,6 +918,7 @@ impl Faraday {
     /// ticked, and the stick is in to be read.
     pub(crate) fn import_may_go(&self) -> bool {
         self.import_stick_in()
+            && self.clean_now()
             && self.import.state().is_some_and(|i| {
                 !i.asked
                     && i.files
@@ -927,15 +1005,44 @@ impl Faraday {
         use ImportAction as I;
         match a {
             I::Open => {
+                // Home's row after another stick came in: the list is of
+                // the stick it was read from, with the listing it showed.
+                // Once Import was pressed the reads are the import's own and
+                // the listing no longer matters.
+                let other = self.import.state().is_some_and(|i| {
+                    !i.asked
+                        && !self.stick.is_empty()
+                        && !self
+                            .stick
+                            .iter()
+                            .any(|s| i.stick == s.id.as_str() && i.lists(s))
+                });
+                if other {
+                    // Ended: the stick is visited as it is, on Files.
+                    self.import.clear();
+                    self.visit.set_tab_stick(true);
+                    self.act(Action::Nav(Screen::Files));
+                    return;
+                }
                 if self.import.state().is_some() {
                     self.vaults.set_back_to(None);
-                    self.screen = Screen::Home;
-                    self.sheet = Some(Sheet::Import);
                     self.vaults.set_focus(None);
-                    self.import_field_ready();
+                    if self.import_field().is_some() {
+                        // A vault waits for its passphrase: that step
+                        // is the sheet over Home.
+                        self.import_vault_step();
+                    } else {
+                        self.import_sheet_up();
+                    }
                 }
             }
             I::Later => {
+                // The list gives Files back; the import waits.
+                self.import.set_tile(false);
+                self.import.set_resume(false);
+                if self.screen == Screen::Files {
+                    self.screen = Screen::Home;
+                }
                 self.sheet = None;
                 self.vaults.clear_unlock();
                 self.vaults.set_focus(None);
@@ -1180,6 +1287,13 @@ impl Faraday {
         if self.import_on_show() {
             self.import_next();
         } else {
+            // Covered by another sheet: the list step is over, the
+            // vault step (if any) comes back as that sheet closes.
+            let list = self.import_tile_up();
+            self.import.set_tile(false);
+            if list {
+                self.import_covered();
+            }
             self.import_settle();
         }
     }
@@ -1258,20 +1372,61 @@ impl Faraday {
     /// with none left, the sheet closed and the import over.
     fn import_next(&mut self) {
         if self.import_field().is_some() {
-            self.screen = Screen::Home;
-            self.sheet = Some(Sheet::Import);
             self.vaults.set_focus(None);
-            self.import_field_ready();
+            self.import_vault_step();
             return;
         }
+        let shown = self.import_on_show();
         self.import.clear();
-        if self.import_on_show() {
+        if shown {
             self.sheet = None;
             self.screen = Screen::Home;
         }
         self.vaults.clear_passphrase();
         if self.vaults.focus == Some(Focus::Passphrase) {
             self.vaults.set_focus(None);
+        }
+    }
+
+    /// The vault passphrase step up: the sheet over Home, the field of the
+    /// vault it offers ready. Every way in to it comes here.
+    pub(crate) fn import_vault_step(&mut self) {
+        self.import.set_resume(false);
+        self.import.set_tile(false);
+        self.screen = Screen::Home;
+        self.sheet = Some(Sheet::Import);
+        self.import_field_ready();
+    }
+
+    /// A sheet that stood over the import's page closed with a vault still
+    /// waiting for its passphrase: that step comes up.
+    pub(crate) fn import_resume(&mut self) {
+        if self.sheet.is_none() && self.import.take_resume() && self.import_field().is_some() {
+            // A press in the sheet may have taken the person elsewhere:
+            // Home's row brings the step back from there.
+            if self.screen != Screen::Home {
+                return;
+            }
+            self.import_vault_step();
+        }
+    }
+
+    /// The reads ended under a sheet that is not the import's: the list step
+    /// is over and the person is on Home. The vault step, if one waits,
+    /// comes back as that sheet closes, by the way its kind has.
+    fn import_covered(&mut self) {
+        if self.screen == Screen::Files {
+            self.screen = Screen::Home;
+        }
+        if self.import_field().is_none() {
+            return;
+        }
+        match self.sheet {
+            Some(Sheet::NewInput) => self.import.set_under_input(true),
+            Some(Sheet::Devices) => self.devices.over_import = true,
+            Some(Sheet::IdleWarn) => self.idle.set_under(Some(Sheet::Import)),
+            Some(_) => self.import.set_resume(true),
+            None => {}
         }
     }
 

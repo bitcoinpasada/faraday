@@ -71,20 +71,27 @@ macro_rules! words_boot_import {
     /// Text in `import_if_read`.
     boot_import_files_inline: "files",
     // ----- boot_import (faraday-core/src/boot_import/screen.rs) -----
-    /// Text in `body`. `{}`: `label`.
+    /// Text in `tile`, over a large panel's card; a small panel's tab names
+    /// the stick. `{}`: `label`.
     boot_import_read_source: "Read from {}",
     /// Text in `body`. `{}`: `app.medium.noun()`.
     boot_import_pull_medium: "Pull the {} to continue",
-    /// Text in `picker`, the boot stick pulled before Import, which reads
+    /// Text in `tile`, the boot stick pulled before Import, which reads
     /// it. `{}`: `app.medium.noun()`.
     boot_import_put_back: "Put the {} back in to import",
+    /// Text in `tile`, the boot stick in, before Import. `{}`: `app.medium.noun()`.
+    boot_import_remove_when_in: "Remove the {} when the files are in",
+    /// Text in `tile`, under `boot_import_remove_when_in`. `{}`: `app.medium.noun()`.
+    boot_import_key_loads_at_pull: "A key from it loads as the {} is pulled",
+    /// Text in `tile`, under `boot_import_key_loads_at_pull`, once a secret was held or typed in this process.
+    boot_import_not_clean: "Import is off: a secret was held or typed since the start",
     /// Text in `body`. `{}`: `crate::vault::file_text(vault.len)`.
     boot_import_locked: "Locked · {}",
-    /// Text in `picker`.
+    /// Text in `tile`.
     boot_import_later: "Later",
     /// Text in `unlock`.
     boot_import_cancel: "Cancel",
-    /// Text in `body`.
+    /// Text in `tile`.
     boot_import_import: "Import",
     /// Text in `body`.
     boot_import_unlock: "Unlock",

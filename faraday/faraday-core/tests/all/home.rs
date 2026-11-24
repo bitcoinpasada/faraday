@@ -1805,7 +1805,7 @@ fn the_import_lead_is_a_card_with_no_pill_and_typing_a_search_leaves_the_actions
     app.event(Event::Key(faraday_shell_api::Key::Escape));
     let _ = app.frame();
     tap(&mut app, open);
-    assert!(app.sheet.is_some());
+    assert!(app.import_on_show());
 }
 
 #[test]

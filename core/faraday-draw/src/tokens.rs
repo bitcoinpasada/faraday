@@ -1159,6 +1159,18 @@ pub const VISIT_GROUP_HEAD: f32 = 36.0;
 /// A visit card's side padding: where its controls and lines start and
 /// end from the card's edge.
 pub const VISIT_PAD: f32 = 20.0;
+/// The boot import's tile on Files: its icon's box, the icon in it, and
+/// where its title starts right of the card's inner left edge.
+pub const IMPORT_TILE_ICON_BOX: f32 = 22.0;
+/// The icon in that box.
+pub const IMPORT_TILE_ICON: f32 = 14.0;
+/// Where the title starts, right of the card's inner left edge.
+pub const IMPORT_TILE_TITLE_X: f32 = 30.0;
+/// The files a small panel's import card shows at least.
+pub const IMPORT_TILE_MIN_ROWS: f32 = 3.0;
+/// The grid steps between the list and the buttons: the list's "more"
+/// line stands in them.
+pub const IMPORT_TILE_FOOT_GRIDS: f32 = 3.0;
 /// How far a visit card's text lines and group headings stand in.
 pub const VISIT_TEXT_X: f32 = 22.0;
 /// How far a visit card's title stands in, after its icon.

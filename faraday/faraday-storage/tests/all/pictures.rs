@@ -12,7 +12,7 @@ use std::time::{Duration, Instant};
 use crate::compute;
 use faraday_codec::qr::{self, Ecc, Payload, QUIET_ZONE};
 use faraday_core::boot_import::ImportAction;
-use faraday_core::{Action, Faraday, Sheet, StorageEvent, testkit};
+use faraday_core::{Action, Faraday, StorageEvent, testkit};
 use faraday_shell_api::App;
 use faraday_storage::{Boxes, Dirs, serve_with, stick_info};
 
@@ -81,11 +81,7 @@ fn a_sticks_pictures_come_in_while_its_sheet_is_drawn() {
     let mut dirs = Dirs::default();
     serve_with(&mut app, &mut boxes, None, &mut dirs);
     let _ = app.frame();
-    assert_eq!(
-        app.sheet,
-        Some(Sheet::Import),
-        "the boot stick's sheet is up"
-    );
+    assert!(app.import_on_show(), "the boot stick's list is up");
     // Import reads them (F130).
     app.press(Action::Import(ImportAction::Go));
     serve_with(&mut app, &mut boxes, None, &mut dirs);

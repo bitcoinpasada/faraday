@@ -467,7 +467,7 @@ no typing is swallowed.
 | `Potential`: the potential wallet's | `Sheet::Potential` (`screens/sheets.rs`) |
 | `Slot(0 or 1)`: Make a new wallet's passphrase slot | `faraday/faraday-core/src/create.rs` (`pass_slot`, `pass_focus`) |
 | `Phrase(i, again)`: Create a vault's passphrases (every slot) and their repeats | `faraday/faraday-core/src/vault/mod.rs` (`CreateForm::phrases`), `vault/screen.rs` |
-| `Unlock`: unlock, the boot import's passphrase | `vault/mod.rs` `Focus::Passphrase` (`Sheet::Import`) |
+| `Unlock`: unlock, the boot import's passphrase | `vault/mod.rs` `Focus::Passphrase` (`Sheet::Import`, the passphrase step only; the list step is a card on Files, F328) |
 | `Prompt`: a passphrase prompt | `vault/mod.rs` `Focus::Prompt` (`Sheet::PassphraseSeeds`); not the KeePass export's |
 | `Unlock`: the Spend tab's vault passphrase | `faraday/faraday-core/src/spend_backup/mod.rs` |
 | `Check`: Check my copy's passphrase | `faraday/faraday-core/src/screens/backup.rs` (`check.passphrase`) |

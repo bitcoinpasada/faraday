@@ -739,7 +739,10 @@ impl Faraday {
     /// something is dropped.
     pub(crate) fn after_input(&mut self) {
         self.note_added_keys();
-        self.stick.note_visit(self.stick_pane());
+        self.stick.note_visit(self.stick_visit_on());
+        // A sheet that stood over the import's page is gone, however it
+        // closed: the vault step it held back comes up.
+        self.import_resume();
         vault::settle(self);
         self.trail_note();
         // A vault being made or unlocked for another flow: the way back
@@ -774,7 +777,7 @@ impl Faraday {
         let typing = matches!(
             self.screen,
             Screen::Unlock | Screen::BackupFlow | Screen::SpendBackup
-        ) || self.import_on_show();
+        ) || self.import_sheet_on_show();
         if !typing && self.vaults.working != Some(vault::Work::Unlock) {
             self.vaults.clear_unlock();
         }

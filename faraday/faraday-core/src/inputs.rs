@@ -886,7 +886,7 @@ impl Faraday {
         if !self.inputs.used(id) {
             return;
         }
-        if self.import_on_show() {
+        if self.import_sheet_on_show() {
             self.import.set_under_input(true);
             self.sheet = None;
         } else if self.sheet == Some(Sheet::Devices) {
@@ -1031,11 +1031,13 @@ impl Faraday {
                     // An import that came under the new device's sheet
                     // comes back after this one.
                     let import = self.import.take_under_input();
-                    self.devices.over_import |= import && self.import.state().is_some();
+                    self.devices.over_import |= import && self.import_field().is_some();
                     self.sheet = Some(Sheet::Devices);
                 } else {
                     let import = self.import.take_under_input();
-                    self.sheet = (import && self.import.state().is_some()).then_some(Sheet::Import);
+                    if import && self.import_field().is_some() {
+                        self.import_vault_step();
+                    }
                 }
                 if self.inputs.take_locked_under() && self.sheet.is_none() {
                     self.sheet = Some(Sheet::Locked);

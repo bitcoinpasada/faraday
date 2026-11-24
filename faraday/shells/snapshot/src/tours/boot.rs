@@ -14,12 +14,12 @@ use faraday_crypto::work::Compute;
 use faraday_shell_api::{App, Event};
 
 /// Costs what `vault_place`, `keep_vault`, `vault_off` and the rest it
-/// calls cost. A fresh session at boot: the sheet lists the boot stick's
-/// files by name and size, each ticked, nothing read (F60, F130);
-/// pulling the stick leaves the sheet as it was and asks for it back,
-/// and putting it back brings the sheet up again. Import reads the
+/// calls cost. A fresh session at boot: Files opens on the import's list
+/// of the boot stick's files by name and size, each ticked, nothing read
+/// (F60, F130, F328); pulling the stick leaves the list as it was and
+/// asks for it back, and putting it back brings the list up again. Import reads the
 /// ticked files and brings them in, and once the stick is pulled puts
-/// the vault's passphrase on the sheet. A wrong passphrase
+/// the vault's passphrase on the sheet over Home. A wrong passphrase
 /// stays; Later leaves Home leading with the vault's Unlock; the right
 /// passphrase loads the vault's wallets and keys. Then a wallet made
 /// here is saved into the vault.
@@ -30,14 +30,44 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     let mut boot = t.stick();
     boot.boot = true;
     boot.label = faraday_text::Text::of("FARADAY");
+    // A process that held a key raises the list with Import off, and says
+    // why; the rest of the tour stands for a power-on (a lock keeps the
+    // stick's settings, so the list is not raised after one).
+    t.app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    t.app.storage(StorageEvent::Sticks(vec![boot.clone()]));
+    t.pump();
+    t.app.storage(StorageEvent::Sticks(Vec::new()));
+    t.pump();
+    t.press(Action::Entry(None));
+    type_text(t, &testkit::test_words(testkit::TEST_SEEDS[1].0));
+    t.press(Action::EntryAdd);
+    let _ = t.app.clean();
+    t.app.session.keys.remove_all();
+    t.app.storage(StorageEvent::Sticks(vec![boot.clone()]));
+    t.pump();
+    if t.app.sheet == Some(Sheet::Lock) {
+        t.press(Action::NotNow);
+    }
+    t.press(Action::Nav(Screen::Home));
+    t.press(faraday_core::boot_import::OPEN);
+    if !t.app.import_tile_up() {
+        return Err("Home's row raised no list after a key was held".into());
+    }
+    t.shot("boot-import-not-clean")?;
+    t.app.storage(StorageEvent::Sticks(Vec::new()));
+    t.pump();
+    // Stands for a power-on: a clean process.
+    t.press(Action::Lock);
     t.app.storage(StorageEvent::Sticks(vec![boot.clone()]));
     t.pump();
     t.app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
     faraday_core::testkit::vault_speed(&mut t.app, Some(180));
-    if t.app.screen != Screen::Home
-        || t.app.sheet != Some(Sheet::Import)
+    if t.app.screen != Screen::Files
+        || !t.app.import_tile_up()
         || t.app.inbox().iter().any(|i| i.name == "vault.kdbx")
     {
         return Err("the boot stick's files did not come up for the import".into());
@@ -56,13 +86,13 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     // Pulled before Import, the sheet asks for it back: Import reads it.
     t.app.storage(StorageEvent::Sticks(Vec::new()));
     t.pump();
-    if t.app.sheet != Some(Sheet::Import) || t.app.import_field().is_some() {
-        return Err("pulling the boot stick did not leave the sheet's list".into());
+    if !t.app.import_tile_up() || t.app.import_field().is_some() {
+        return Err("pulling the boot stick did not leave the import's list".into());
     }
     t.shot("boot-import-pulled")?;
-    t.app.storage(StorageEvent::Sticks(vec![boot]));
-    if t.app.sheet != Some(Sheet::Import) || t.app.screen != Screen::Home {
-        return Err("the boot stick put back did not bring the sheet up again".into());
+    t.app.storage(StorageEvent::Sticks(vec![boot.clone()]));
+    if !t.app.import_tile_up() || t.app.screen != Screen::Files {
+        return Err("the boot stick put back did not bring the list up again".into());
     }
     let (w, h) = t.size();
     t.app.event(Event::Scroll {
@@ -82,7 +112,7 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.pump();
     t.app.storage(StorageEvent::Sticks(Vec::new()));
     t.pump();
-    if t.app.sheet != Some(Sheet::Import) || t.app.import_field().is_none() {
+    if !on_sheet(t) || t.app.import_field().is_none() {
         return Err("Import did not put the vault's passphrase on the sheet".into());
     }
     t.shot("boot-import")?;
@@ -93,7 +123,7 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     type_text(t, "not the passphrase");
     t.press(Action::Import(I::Submit));
     t.tick();
-    if t.app.sheet != Some(Sheet::Import) || t.app.vaults().unlock_error.is_none() {
+    if !on_sheet(t) || t.app.vaults().unlock_error.is_none() {
         return Err("a wrong passphrase did not stay on the sheet".into());
     }
     t.shot("boot-import-wrong")?;
@@ -102,7 +132,7 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.press(Action::Import(I::Later));
     t.shot("home-import-waiting")?;
     t.press(faraday_core::boot_import::OPEN);
-    if t.app.sheet != Some(Sheet::Import) {
+    if !on_sheet(t) {
         return Err("the import did not open again from Home".into());
     }
     t.press(Action::Vault(V::FocusPassphrase));
@@ -347,4 +377,11 @@ pub(crate) fn description_into_vault(c: &Compute, t: &mut Tour, v: usize) {
     {
         bput(t, Thing::Whole, Zone::Vault(p, s, v));
     }
+}
+
+/// The import's passphrase step: its sheet over Home.
+fn on_sheet(t: &Tour) -> bool {
+    t.app.import_on_show()
+        && !t.app.import_tile_up()
+        && t.app.sheet == Some(faraday_core::Sheet::Import)
 }

@@ -50,8 +50,10 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     } else {
         super::bar_head(ui, None, EN.files_files) + GAP_SMALL
     };
-    // A stick in with nothing held: its files can be written to and read.
-    let usable = app.stick_pane();
+    // A stick in with nothing held, and the import's list not up: its files
+    // can be written to and read. While the list stands, Faraday's own
+    // controls are drawn as with no stick, for they would be refused.
+    let usable = app.stick_visit_on();
     let stick = app.stick.get(app.visit.stick).filter(|_| usable);
     // A stick holding a secret file is named under the cards, in the
     // error tone, with its button.
@@ -97,7 +99,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             faraday_ui::tabs::TabKind::Primary,
             &[
                 faraday_ui::tabs::Tab {
-                    label: EN.visit_in_faraday,
+                    label: if app.import_tile_up() {
+                        EN.home_box_heading
+                    } else {
+                        EN.visit_in_faraday
+                    },
                     on: !on_stick,
                     done: false,
                     action: Action::VisitTab(crate::Column::Outbox),
@@ -138,7 +144,28 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // one page: the card at the height it needs, the notice and the log
     // after it. The tabs stay under the top app bar.
     let mut page = None;
-    if compact && app.visit.tab_stick && stick.is_some() {
+    // The import's list is read once for the frame.
+    let import = app.import_tile_up().then(|| {
+        (
+            app.import_count().unwrap_or_default(),
+            app.import_view().unwrap_or_default(),
+        )
+    });
+    if compact && app.visit.tab_stick && import.is_some() {
+        // The import's list keeps its own scroll; the card is no shorter
+        // than three files and both buttons need.
+        let clip = ui.rect(0.0, 0.0, 0.0, 0.0);
+        ui.c.push_clip(clip);
+        let needed = import.as_ref().map_or(0.0, |i| {
+            crate::boot_import::screen::tile(app, ui, (x, y, colw, colh), i)
+        });
+        ui.c.pop_clip();
+        if needed > colh {
+            colh = needed;
+            let clip = ui.rect(x0, y, cw, (h - y).max(0.0));
+            page = Some(ui.region_open(Region::page(clip).from_zero(app.list_offset)));
+        }
+    } else if compact && app.visit.tab_stick && stick.is_some() {
         let needed = stick_card_needed(app, ui, (x, y, colw, colh), stick);
         if needed > colh {
             colh = needed;
@@ -151,7 +178,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     if !compact || app.visit.tab_stick {
         let sx = if compact { x } else { x + colw + VISIT_GAP };
-        on_the_stick(app, ui, (sx, y, colw, colh), stick, page.is_some());
+        if let Some(i) = &import {
+            crate::boot_import::screen::tile(app, ui, (sx, y, colw, colh), i);
+        } else {
+            on_the_stick(app, ui, (sx, y, colw, colh), stick, page.is_some());
+        }
     }
     let foot = y + colh;
     if let Some(line) = notice {
@@ -484,7 +515,11 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
             (x + 50.0, y + 20.0, 22.0),
             TITLE_M,
             Role::OnSurface,
-            EN.visit_in_faraday,
+            if app.import_tile_up() {
+                EN.home_box_heading
+            } else {
+                EN.visit_in_faraday
+            },
         );
     }
     if usable {
@@ -1477,7 +1512,7 @@ fn visit_unselect_all(ui: &mut Ui, right: f32, y: f32) {
     clippy::too_many_arguments,
     reason = "the visit list bar's view, column, card size, top, track and shift"
 )]
-fn visit_list_bar(
+pub(crate) fn visit_list_bar(
     app: &View,
     ui: &mut Ui,
     column: crate::Column,

@@ -742,15 +742,21 @@ from the seeds card returns to Wallets with the key still loaded.
 
 **Boot.** Firmware loads the system → the boot medium's data partition
 listed, nothing of it read but each file's name and size (F130), nothing
-of it in Files yet → the import sheet over Home (decision 27, F60):
-"Read from {label}", the files counted by their names in one line ("1
+of it in Files yet → Files, open on the import's list in the card where
+On the stick stands (F328; a small panel: the On the stick tab; In Faraday
+is headed "This session" while it is up; before F328 a sheet over Home,
+decision 27, F60): "Read from {label}", the files counted by their names in one line ("1
 vault · 2 PSBTs · 4 other files, by their names"), every vault and file
 with a checkbox and what it is by its name ("PSBT, by its name ·
 1.2 KB"), all ticked (a seed's file too), **Unselect all** / **Select
 all** above them →
+- the stick in, two lines say "Remove the stick when the files are in" and
+  "A key from it loads as the stick is pulled"; the stick's own
+  Import 3 files and Import and load are not drawn while the list is up
+  and nothing is read before Import;
 - **Import** (disabled while nothing is ticked, and while the stick is
   out: "Put the stick back in to import") → the ticked files, and no
-  other, read from the stick, a file over 18 MiB failing its read, a PNG as what its QR codes hold; the sheet lists them, "3 of 5
+  other, read from the stick, a file over 18 MiB failing its read, a PNG as what its QR codes hold; the list shows them, "3 of 5
   files read", its ticks fixed → once all are answered, what they held
   comes in, with "Imported 1 wallet · 2 keys · 5 files" (and "· 1 not
   read" when the stick went first): the files From the stick, their
@@ -759,7 +765,7 @@ all** above them →
   Files, locked → with no vault, Home, leading with **Sign {psbt}** when
   one came; with vaults, each in turn on the sheet: its name, "Pull the
   stick to continue" (Pi: "Pull the SD card to continue") while it is
-  in, then its passphrase field with **Unlock** and **Cancel** →
+  in (this step stays a sheet over Home, F328), then its passphrase field with **Unlock** and **Cancel** →
   **Unlock** → **Load from {vault}** (F62; none when it holds no wallet
   or key, or all are loaded): a card per wallet with its seeds there,
   the Keys card, each ticked from its Load at unlock (a vault of one
@@ -773,14 +779,18 @@ all** above them →
   loaded from vault.kdbx" (decision 43; Home when no wallet loaded); a
   wrong passphrase → stays, says so; **Cancel** → the vault stays in
   Files, locked → the next vault, or Home;
-- **Later**, or a tap beside the sheet → Home, nothing read, nothing
+- **Later** → Home, nothing read, nothing
   brought in; Home leads with **Import from {label}** (after Import,
-  **Unlock {name}**), which opens the sheet again; with the stick still
-  in, Files on the stick brings in what it ticks;
-- the stick pulled before a choice → the sheet stays as it is, Import
-  waiting for the stick; put back, the sheet comes up again over Home,
-  ticks kept;
-- nothing on the medium but the settings file → no sheet; Home, with no Files on the stick tile (the first look was the visit).
+  **Unlock {name}**), which opens the list on Files again (the
+  passphrase step, the sheet); with the stick still
+  in, Files on the stick brings in what it ticks; a different stick ends
+  the import until Import is pressed, and Files then opens;
+- the stick pulled before a choice → the list stays as it is, Import
+  waiting for the stick, the list staying on Files; put back, the list
+  is as it was, ticks kept; another stick, or this one with other files
+  (names or sizes), takes the list down and the stick is visited as it is;
+- nothing on the medium but the settings file → no list; Home, with no Files on the stick tile (the first look was the visit);
+- while the list is up, In Faraday's own controls (ticks, Select all, Write, the end row, the secret-file notice's Delete) are not drawn live, as with no stick, and are refused if pressed; a name-taken answer from an earlier write still works.
 
 **Unlock.** Choose a vault (its memory need shown first) → passphrase →
 - opens → Home, whose lead is the next step of what is in Files (a PSBT

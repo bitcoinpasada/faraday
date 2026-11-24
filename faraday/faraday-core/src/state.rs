@@ -1922,6 +1922,7 @@ impl Faraday {
                 self.next_mode.clear();
                 self.sheet = None;
                 self.stick.set_not_now(true);
+                self.import_resume();
             }
             Action::PowerAsk => {
                 // An open vault's changes are never sealed at power-off:

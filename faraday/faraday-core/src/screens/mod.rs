@@ -30,7 +30,7 @@ pub(crate) mod settings;
 mod sheets;
 mod sidebar;
 mod spend;
-mod visit;
+pub(crate) mod visit;
 mod visit_same;
 mod wallets;
 mod wallets_start;

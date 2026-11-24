@@ -1289,6 +1289,7 @@ impl Faraday {
                 self.glance.cancel_work();
                 self.backup.close_pick();
                 self.input_sheet();
+                self.import_resume();
             }
             // `act_inner` passes only `Action::Cancel`.
             _ => unreachable!(),

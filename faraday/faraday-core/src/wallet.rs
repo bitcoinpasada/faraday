@@ -4447,13 +4447,15 @@ impl Faraday {
         if self.sheet.is_none() {
             self.sheet = match covered {
                 Some(Sheet::Scan) if self.camera.scan().is_none() => None,
-                Some(Sheet::Import) if self.import.state().is_none() => None,
+                Some(Sheet::Import) if self.import_field().is_none() => None,
                 Some(Sheet::Pull) => None,
                 other => other,
             };
         }
-        if self.sheet.is_none() && self.import.state().is_some() {
-            self.sheet = Some(Sheet::Import);
+        // The import's passphrase step, by the way `Open` brings it up: the
+        // page is Home and its field takes typing.
+        if matches!(self.sheet, None | Some(Sheet::Import)) && self.import_field().is_some() {
+            self.import_vault_step();
         }
     }
 

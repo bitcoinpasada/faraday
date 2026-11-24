@@ -536,7 +536,14 @@ impl VisitArea {
         self.files_menu.renaming = Some(r);
     }
 
-    /// The Rename popup closes, giving what it held.
+    /// Whether the popup open is the stick's own name.
+    pub(crate) fn renaming_stick(&self) -> bool {
+        self.files_menu
+            .renaming
+            .as_ref()
+            .is_some_and(|r| matches!(r.what, crate::file_menu::Named::Stick(_)))
+    }
+
     pub(crate) fn take_renaming(&mut self) -> Option<crate::file_menu::Renaming> {
         self.files_menu.renaming.take()
     }
@@ -1685,12 +1692,23 @@ impl Faraday {
         self.screen == Screen::Files && !self.stick.is_empty() && !self.holds_secret()
     }
 
+    /// Whether the stick is being visited: its pane is on screen and the
+    /// boot import's list is not. Files opening on that list at boot is
+    /// not a visit; a press on Files after Later, or Import, is. The stick's
+    /// visit badge stays on Files after either until the stick is visited
+    /// (the base's way too: Import with the stick left in marks nothing).
+    pub(crate) fn stick_visit_on(&self) -> bool {
+        self.stick_pane() && !self.import_tile_up()
+    }
+
     /// The last stick pulled: Files stays on Files, only On the stick going
     /// back to its empty state; a flow the stick came in during, or a vault
     /// sealed for the visit, takes the person back to it, to the flow or to
     /// Unlock (F290).
     pub(crate) fn visit_pulled(&mut self) {
-        if self.screen == Screen::Files {
+        // The import's own page is Files: it stays, with Put the stick
+        // back in to import.
+        if self.screen == Screen::Files && !self.import_tile_up() {
             // A vault sealed for the visit opens again, unless a flow waits.
             let unlock = self
                 .visit
@@ -1713,6 +1731,22 @@ impl Faraday {
 
     /// Handles the stick visit's actions (`Action::Visit*`).
     pub(crate) fn visit_act(&mut self, action: Action) {
+        // Nothing of the stick is read, copied or written before Import:
+        // the import's list stands where the stick's own card does, so
+        // every action of that card is refused, except the ways off the
+        // page (From the stick, the tab and the bar are views).
+        if self.import_tile_up()
+            && !matches!(
+                action,
+                Action::VisitFrom(..)
+                    | Action::VisitTab(..)
+                    | Action::VisitBar(..)
+                    | Action::NameTakenBeside
+                    | Action::NameTakenOverwrite
+            )
+        {
+            return;
+        }
         match action {
             Action::VisitStick(i) => {
                 self.visit.set_stick(i);
@@ -1811,12 +1845,15 @@ impl Faraday {
                     let back = self.entry.state().back.unwrap_or(Screen::Home);
                     self.visit.set_after_visit(back);
                     self.visit.set_for_key(true);
+                    // The stick's own card, as after Later: the import waits.
+                    self.import.set_tile(false);
                     self.act(Action::Nav(Screen::Files));
                 }
             }
             Action::VisitFrom(back) => {
                 if !self.stick.is_empty() && !self.holds_secret() {
                     self.visit.set_after_visit(back);
+                    self.import.set_tile(false);
                     self.act(Action::Nav(Screen::Files));
                 }
             }
@@ -1955,12 +1992,29 @@ impl Faraday {
     /// holds a copy of by name and size, and has not been checked: the
     /// answer says whether the two are the same ([`Faraday::visit_same_hashed`]).
     pub(crate) fn visit_same_ask(&mut self) {
-        if self.holds_secret() {
+        // The stick's files are read for it: not before Import (F130),
+        // which the import's list standing for that stick says, or the
+        // boot stick's first look, where the import is not yet started.
+        let first_look = self.stick.settings().is_none()
+            && self
+                .stick
+                .iter()
+                .any(|s| s.boot && s.files.iter().any(|(n, _)| !super::settings::is_file(n)));
+        if self.holds_secret() || first_look {
             return;
         }
         let Some(stick) = self.stick.get(self.visit.stick) else {
             return;
         };
+        if self.import.unasked()
+            && self.import.tile()
+            && self
+                .import
+                .state()
+                .is_some_and(|i| i.stick == stick.id.as_str())
+        {
+            return;
+        }
         let held = |name: &str, size: u64| {
             self.outbox
                 .iter()

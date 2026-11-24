@@ -337,6 +337,7 @@ Read this table, then only the decision you need.
 | [F325](decisions/F325.md) | Work kept out of the app may also be held by a build switch that only Faraday Demo's dev build turns on | 2026-11-23 | Active | standards |
 | [F326](decisions/F326.md) | Faraday Demo has a dev build, and only it carries the handwriting reader and ACE | 2026-11-23 | Active | release |
 | [F327](decisions/F327.md) | ACE's implementation and test app live in Faraday, its specification and vectors in their own repository; ACE is offered in Faraday only in Faraday Demo's dev build | 2026-11-23 | Active | standards |
+| [F328](decisions/F328.md) | The boot import's list stands on Files where On the stick stands; its passphrase step stays a sheet | 2026-11-24 | Active | stick |
 | [F329](decisions/F329.md) | The Starter's Appearance and About are rows of Home's Settings, not of the menu | 2026-11-24 | Active | Starter |
 | [F331](decisions/F331.md) | Everything raised rests at one level; in a flow the flow's card alone is raised, and the search and the pills stay | 2026-11-24 | Active | design |
 | [F332](decisions/F332.md) | What can be pressed shows it: a chevron opens, a radio or a box chooses, an icon and a verb act, and a fact looks like none of them | 2026-11-24 | Active | design |

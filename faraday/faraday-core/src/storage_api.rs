@@ -1087,7 +1087,7 @@ impl Faraday {
         self.note_here();
         stick::events::storage_event(self, event.in_own_words());
         self.event_settled();
-        self.stick.note_visit(self.stick_pane());
+        self.stick.note_visit(self.stick_visit_on());
         self.storage_left(screen);
         self.drop_forged_wallets();
     }

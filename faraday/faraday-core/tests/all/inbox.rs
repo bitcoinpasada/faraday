@@ -507,8 +507,8 @@ fn every_text(width: u16, height: u16, dpi: u16) -> Vec<(String, String)> {
     // The boot import sheet, then a stick visit with nothing held.
     boot_stick(&mut app, &[("notes.txt".to_string(), b"a note".to_vec())]);
     if app.import().is_some() {
-        app.sheet = Some(Sheet::Import);
-        texts_at(&mut app, "boot import sheet", &mut all);
+        assert!(app.import_tile_up(), "the list stands on Files");
+        texts_at(&mut app, "boot import list", &mut all);
     }
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),

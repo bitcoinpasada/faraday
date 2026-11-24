@@ -1378,8 +1378,8 @@ impl Faraday {
         }
         // Unlocked for the boot import: its sheet again, with the vault's
         // wallets and keys in it.
-        if back == Some(Screen::Home) && self.import.state().is_some() {
-            self.sheet = Some(crate::Sheet::Import);
+        if back == Some(Screen::Home) && self.import_field().is_some() {
+            self.import_vault_step();
         }
         // Unlocked for a secret: its sheet again, with the vault.
         if back.is_some() && self.secrets.out().is_some() {
@@ -2635,7 +2635,7 @@ impl Faraday {
     pub(crate) fn vault_key(&mut self, key: faraday_shell_api::Key) -> bool {
         use faraday_shell_api::Key as K;
         // The boot import's sheet has a passphrase field of its own.
-        let import = self.import_on_show() && self.screen == Screen::Home;
+        let import = self.import_sheet_on_show() && self.screen == Screen::Home;
         // So has the sheet of seeds kept with no passphrase (F62).
         let pass_seeds = self.sheet == Some(crate::Sheet::PassphraseSeeds);
         if !import

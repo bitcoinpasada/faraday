@@ -663,14 +663,17 @@ impl Faraday {
         }
         self.devices.after = Some(action);
         self.devices.asking = false;
-        self.devices.over_import = self.import_on_show();
+        self.devices.over_import = self.import_sheet_on_show();
         self.sheet = Some(Sheet::Devices);
     }
 
     /// The hold ended: what was pressed carries on once nothing holds
     /// it, or comes back to the sheet with the reminders due.
     fn device_released(&mut self) {
-        self.sheet = std::mem::take(&mut self.devices.over_import).then_some(Sheet::Import);
+        self.sheet = None;
+        if std::mem::take(&mut self.devices.over_import) && self.import_field().is_some() {
+            self.import_vault_step();
+        }
         if let Some(a) = self.devices.after.take() {
             self.act(a);
         }

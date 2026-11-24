@@ -9,7 +9,7 @@ use faraday_core::create::NewKind;
 use faraday_core::testkit::KindText;
 use faraday_core::wallet::Session;
 use faraday_core::{
-    Action, DESKTOP_MODES, Faraday, Mode, Sheet, StickInfo, StorageCommand, StorageEvent, testkit,
+    Action, DESKTOP_MODES, Faraday, Mode, StickInfo, StorageCommand, StorageEvent, testkit,
 };
 use faraday_shell_api::App;
 
@@ -195,7 +195,7 @@ fn the_boot_import_offers_its_files_at_once() {
         }
     }
     let _ = app.frame();
-    assert_eq!(app.sheet, Some(Sheet::Import));
+    assert!(app.import_on_show());
 }
 
 #[test]

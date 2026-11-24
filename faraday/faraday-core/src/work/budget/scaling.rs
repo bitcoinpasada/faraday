@@ -219,11 +219,7 @@ fn boot_import(copies: usize) -> Faraday {
         }
     }
     let _ = app.frame();
-    assert_eq!(
-        app.sheet,
-        Some(crate::Sheet::Import),
-        "the import sheet is up"
-    );
+    assert!(app.import_on_show(), "the import's list is up");
     app
 }
 
@@ -243,4 +239,14 @@ fn the_boot_import_sheets_frame_does_the_same_work_with_five_times_the_files() {
         "the import sheet's frame works out nothing but its kept backdrop"
     );
     assert_eq!(text(&hover_work(&mut five)), "", "a pointer move did work");
+}
+
+#[test]
+fn the_boot_import_list_draws_the_rows_that_can_be_seen_not_the_rest() {
+    let (mut few, mut many) = (boot_import(20), boot_import(60));
+    assert_eq!(
+        lines_drawn(&mut few),
+        lines_drawn(&mut many),
+        "the import's list drew lines of text for rows out of sight"
+    );
 }

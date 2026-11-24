@@ -82,12 +82,12 @@ fn unlock(app: &mut Faraday) {
 #[test]
 fn the_boot_sticks_vault_waits_on_the_sheet_and_pulling_the_stick_leaves_it_up() {
     let (mut app, _) = booted();
-    assert_eq!(app.screen, Screen::Home);
-    assert_eq!(app.sheet, Some(Sheet::Import));
+    assert_eq!(app.screen, Screen::Files);
+    assert!(app.import_on_show());
     assert!(!app.inbox().iter().any(|i| i.name == "vault.kdbx"));
     app.storage(StorageEvent::Sticks(Vec::new()));
-    assert_eq!(app.screen, Screen::Home, "pulling the stick left Home");
-    assert_eq!(app.sheet, Some(Sheet::Import));
+    assert_eq!(app.screen, Screen::Files, "pulling the stick left Files");
+    assert!(app.import_on_show());
     assert!(app.vaults().unlock_text().is_empty());
 }
 

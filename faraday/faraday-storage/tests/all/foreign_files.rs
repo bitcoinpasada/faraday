@@ -8,7 +8,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::compute;
-use faraday_core::{Action, Faraday, Screen, Sheet, StorageCommand, StorageEvent, testkit};
+use faraday_core::{Action, Faraday, Screen, StorageCommand, StorageEvent, testkit};
 use faraday_storage::{read, stick_info, write};
 
 const PSBT: &str = "savings-unsigned.psbt";
@@ -91,7 +91,7 @@ fn the_boot_stick_reads_and_counts_the_psbt_alone() {
     )]));
     // Listed, nothing read before Import (F130).
     assert!(pump(&mut app, &dir).is_empty(), "a file read before Import");
-    assert_eq!(app.sheet, Some(Sheet::Import));
+    assert!(app.import_on_show());
     let texts = app.drawn_texts().join("\n");
     assert!(texts.contains("1 PSBT"), "{texts}");
     assert!(!texts.contains("other file"), "{texts}");

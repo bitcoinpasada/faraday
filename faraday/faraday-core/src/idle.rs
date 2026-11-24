@@ -197,6 +197,10 @@ impl Faraday {
             .idle
             .take_under()
             .filter(|s| *s != Sheet::Qr || self.qr().is_some());
+        // The vault step comes back with its field ready.
+        if self.sheet == Some(Sheet::Import) {
+            self.import_vault_step();
+        }
     }
 
     /// Lock asked for: by the person (`for_flow` false), or by a step of

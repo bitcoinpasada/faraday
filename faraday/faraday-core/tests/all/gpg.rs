@@ -1478,7 +1478,7 @@ fn files_from_a_second_stick_after_the_boot_stick_are_offered_for_signing() {
         files: listing(&boot),
         vaults: Vec::new(),
     }]));
-    assert_eq!(app.sheet, Some(Sheet::Import));
+    assert!(app.import_on_show());
     app.press(Action::Import(faraday_core::boot_import::ImportAction::Go));
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::Read { stick, name } = c {
@@ -1620,7 +1620,7 @@ fn files_imported_from_the_boot_sheet_are_offered_for_signing() {
             .collect(),
         vaults: Vec::new(),
     }]));
-    assert_eq!(app.sheet, Some(Sheet::Import));
+    assert!(app.import_on_show());
     let view = app.import_view().unwrap();
     assert!(view.files.iter().all(|f| f.chosen), "{view:?}");
     app.press(Action::Import(faraday_core::boot_import::ImportAction::Go));

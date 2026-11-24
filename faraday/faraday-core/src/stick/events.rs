@@ -533,6 +533,10 @@ pub(crate) fn stick_arrived(app: &mut Faraday) {
     // first (`docs/FLOWS.md`). No passphrase field takes typing while
     // it is attached.
     secrets_close(app);
+    // Any stick arriving takes the import's list down, whichever page
+    // takes the stick: the same boot stick back brings it up again.
+    let import_shown = app.import_on_show();
+    app.import.set_tile(false);
     // The backup flow on screen takes the stick: never the visit, at any
     // step (`docs/BACKUP-FLOW.md` §5).
     if app.flow_stick_arrived() {
@@ -546,6 +550,8 @@ pub(crate) fn stick_arrived(app: &mut Faraday) {
     let first_look = app.stick.settings().is_none();
     let boot = app.stick.iter().find(|s| s.boot).cloned();
     if !app.clean() {
+        // The list stands only for a clean process: the Lock card is what
+        // Files draws, and Import is not offered.
         app.visit.set_write_waiting(None);
         app.stick.set_not_now(false);
         app.lock_sheet_replaces_devices();
@@ -558,11 +564,12 @@ pub(crate) fn stick_arrived(app: &mut Faraday) {
             let v = app.visit_default_in();
             app.visit.set_inn(v);
         }
-        if app.import_on_show() {
+        if import_shown {
             app.sheet = None;
         }
         // The boot stick alone at its first look, or back for its
-        // import, leaves Home on screen (`boot_import`).
+        // import, leaves the page as it is (`boot_import`): Home, or Files with
+        // the list up.
         if !app.import_keeps_home(first_look, boot.as_ref()) {
             // A stick arriving in the middle of Create or Restore
             // brings the person back there when it is pulled.

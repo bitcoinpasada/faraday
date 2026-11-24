@@ -297,7 +297,8 @@ fn reads(app: &mut Faraday, files: &[(String, Vec<u8>)]) -> Vec<String> {
 fn before_import_the_sheet_lists_names_and_sizes_and_nothing_is_read() {
     let files = stick_files();
     let mut app = boot_only(&files);
-    assert_eq!((app.screen, app.sheet), (Screen::Home, Some(Sheet::Import)));
+    assert_eq!((app.screen, app.sheet), (Screen::Files, None));
+    assert!(app.import_on_show());
     let texts = drawn(&mut app);
     assert_eq!(reads(&mut app, &files), Vec::<String>::new());
     // Every file by its name and size, what it is guessed from its name
@@ -417,7 +418,8 @@ fn with_the_stick_pulled_before_import_it_is_asked_back_and_its_return_brings_th
     assert_eq!(reads(&mut app, &files), Vec::<String>::new());
     // Put back, it brings the sheet up again over Home, Import ready.
     app.storage(StorageEvent::Sticks(vec![boot_stick(&files)]));
-    assert_eq!((app.screen, app.sheet), (Screen::Home, Some(Sheet::Import)));
+    assert_eq!((app.screen, app.sheet), (Screen::Files, None));
+    assert!(app.import_on_show());
     let _ = app.frame();
     assert!(app.offers(Action::Import(I::Go)));
     app.press(Action::Import(I::Go));
@@ -428,8 +430,8 @@ fn with_the_stick_pulled_before_import_it_is_asked_back_and_its_return_brings_th
 #[test]
 fn the_boot_stick_is_listed_and_nothing_is_in_files_until_import() {
     let mut app = booted();
-    assert_eq!(app.screen, Screen::Home);
-    assert_eq!(app.sheet, Some(Sheet::Import));
+    assert_eq!((app.screen, app.sheet), (Screen::Files, None));
+    assert!(app.import_on_show());
     assert!(app.inbox().is_empty(), "{:?}", inbox_names(&app));
     let c = app.import_count().unwrap();
     assert_eq!((c.vaults, c.psbts, c.other, c.asked), (1, 1, 5, 0));
@@ -460,7 +462,8 @@ fn with_the_stick_in_the_sheet_lists_every_file_ticked_a_seeds_too() {
 #[test]
 fn pulling_the_stick_before_choosing_keeps_the_sheet_and_brings_in_nothing() {
     let mut app = pulled();
-    assert_eq!((app.screen, app.sheet), (Screen::Home, Some(Sheet::Import)));
+    assert_eq!((app.screen, app.sheet), (Screen::Files, None));
+    assert!(app.import_on_show());
     assert!(
         app.import_field().is_none(),
         "a passphrase field before Import"
@@ -654,7 +657,7 @@ fn later_brings_in_nothing_and_home_leads_with_the_import() {
     assert!(texts.contains("Import from Boot stick"), "{texts}");
     assert!(app.offers(boot_import::OPEN));
     app.press(boot_import::OPEN);
-    assert_eq!(app.sheet, Some(Sheet::Import));
+    assert!(app.import_on_show());
     let _ = app.frame();
     assert!(app.offers(Action::Import(I::Go)));
 }
@@ -877,8 +880,9 @@ fn an_unticked_vault_stays_out_of_files_and_nothing_asks_to_unlock_it() {
 }
 
 #[test]
-fn a_tap_beside_the_sheet_is_later() {
-    let mut app = pulled();
+fn a_tap_beside_the_passphrase_sheet_is_later() {
+    let mut app = imported();
+    assert_eq!(app.sheet, Some(Sheet::Import));
     let _ = app.frame();
     app.event(Event::Touch {
         x: 4,
@@ -891,7 +895,366 @@ fn a_tap_beside_the_sheet_is_later() {
         phase: TouchPhase::Up,
     });
     assert_eq!(app.sheet, None);
-    assert!(app.import().is_some() && app.inbox().is_empty());
+    assert!(app.import().is_some(), "the vault still waits for Home");
+}
+
+/// A fresh process with the boot stick's list up, a file For the stick and
+/// a setting changed: what In Faraday's controls and the stick's card act on.
+fn boot_with_work(files: &[(String, Vec<u8>)]) -> Faraday {
+    use faraday_core::ui::Mode;
+    let mut app = boot_only(files);
+    testkit::outbox_file_at(&mut app, 0, "outgoing.txt", b"going out".to_vec());
+    let mut theme = app.theme();
+    theme.mode = Mode::Dark;
+    app.press(Action::Theme(theme));
+    let _ = app.frame();
+    assert!(app.settings_changed(), "a changed setting to write");
+    assert!(app.import_on_show());
+    app
+}
+
+/// What the list's page refuses: the stick's card, Delete files and the
+/// stick's own file menu. Whatever the page draws live must not be one.
+fn refused_with_the_list(a: Action) -> bool {
+    use faraday_core::file_menu::{FilePress as P, Row};
+    match a {
+        Action::VisitFrom(..) | Action::VisitTab(..) | Action::VisitBar(..) => false,
+        Action::NameTakenBeside | Action::NameTakenOverwrite => false,
+        a if format!("{a:?}").starts_with("Visit") => true,
+        Action::DeleteFiles
+        | Action::DeleteUnprotected
+        | Action::DeleteWhat(..)
+        | Action::DeletePick(..)
+        | Action::DeletePasses(..)
+        | Action::DeleteGo => true,
+        Action::File(P::Menu(r) | P::Rename(r) | P::Details(r) | P::Decode(r)) => {
+            matches!(r, Row::Stick(_))
+        }
+        Action::File(P::StickDelete(_) | P::NameStick) => true,
+        _ => false,
+    }
+}
+
+/// Nothing the list's page offers is refused: In Faraday's ticks, Select
+/// all, Write and the end row are not drawn live while the list stands.
+#[test]
+fn nothing_the_list_page_offers_is_refused() {
+    let files = stick_files();
+    let mut app = boot_with_work(&files);
+    // A secret file written to the stick: its notice and Delete are not
+    // drawn on the list's page.
+    app.outbox.push(faraday_core::Item {
+        name: faraday_text::Text::of("backup-words.txt"),
+        bytes: b"words".to_vec().into(),
+        kind: FileKind::Words,
+        secret: true,
+        picture: None,
+        sha: None,
+        facts: None,
+        wallet: None,
+        psbt: None,
+        outpoints: Vec::new(),
+        unsigned_txid: None,
+    });
+    app.storage(StorageEvent::Written {
+        stick: faraday_text::Text::of(BOOT),
+        name: faraday_text::Text::of("backup-words.txt"),
+        wrote_as: faraday_text::Text::of("backup-words.txt"),
+    });
+    assert!(app.import_on_show());
+    let _ = app.frame();
+    let offered = app.offered_actions();
+    assert!(!offered.is_empty());
+    let refused: Vec<_> = offered
+        .into_iter()
+        .filter(|a| refused_with_the_list(*a))
+        .collect();
+    assert!(refused.is_empty(), "offered and refused: {refused:?}");
+}
+
+/// A file menu of an In Faraday file opened while the reads run and closed
+/// after them: the vault step still comes up, and does not wait to jump in
+/// over a later Cancel.
+#[test]
+fn closing_a_file_menu_over_the_reads_brings_the_vault_step_up() {
+    use faraday_core::file_menu::{FilePress as P, Row};
+    let files = stick_files();
+    let mut app = boot_only(&files);
+    testkit::outbox_file_at(&mut app, 0, "outgoing.txt", b"going out".to_vec());
+    let _ = app.frame();
+    reads_ended_under(&mut app, &files, |a| {
+        a.press(Action::File(P::Menu(Row::Out(0))));
+        assert_eq!(a.sheet, Some(Sheet::FileMenu));
+    });
+    assert_eq!(app.sheet, Some(Sheet::FileMenu));
+    app.press(Action::File(P::Close));
+    assert_eq!(app.sheet, Some(Sheet::Import), "the vault step is lost");
+    assert!(app.import_field().is_some());
+}
+
+/// A stick arriving while a backup flow is on screen takes the list down
+/// all the same: Files does not bring the old list back over the new stick.
+#[test]
+fn a_stick_arriving_in_a_backup_flow_takes_the_list_down() {
+    use faraday_core::backup_flow::Kind;
+    let files = stick_files();
+    let mut app = boot_only(&files);
+    assert!(app.import_on_show());
+    crate::common::start(&mut app, Kind::SecureBoot);
+    assert_eq!(app.screen, Screen::BackupFlow);
+    let other = StickInfo {
+        id: faraday_text::Text::of("other"),
+        boot: false,
+        ..boot_stick(&files)
+    };
+    app.storage(StorageEvent::Sticks(vec![boot_stick(&files), other]));
+    let _ = app.frame();
+    app.press(Action::Nav(Screen::Files));
+    let _ = app.frame();
+    assert!(!app.import_tile_up(), "the old list came back over Files");
+}
+
+/// Home's row after another stick came in: the import is of the stick it
+/// was read from, and its list does not rise over the other's card.
+#[test]
+fn homes_row_does_not_raise_the_list_over_another_stick() {
+    let files = stick_files();
+    let mut app = boot_only(&files);
+    app.press(Action::Import(I::Later));
+    pull(&mut app);
+    let mut changed = files.clone();
+    changed.pop();
+    let other = StickInfo {
+        id: faraday_text::Text::of("other"),
+        boot: false,
+        ..boot_stick(&changed)
+    };
+    app.storage(StorageEvent::Sticks(vec![other]));
+    let _ = app.frame();
+    app.press(boot_import::OPEN);
+    let _ = app.frame();
+    assert!(!app.import_tile_up(), "another stick's card shows the list");
+    assert!(app.import().is_none(), "the import is of another stick");
+}
+
+/// What the stick's files are hashed for: Faraday holds a file of the first
+/// name and size.
+fn boot_holding_a_listed_file(files: &[(String, Vec<u8>)]) -> Faraday {
+    let mut app = testkit::started();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![files[0].clone()]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.storage(StorageEvent::Sticks(vec![boot_stick(files)]));
+    let _ = app.frame();
+    app
+}
+
+fn hashes(app: &mut Faraday) -> usize {
+    let mut n = 0;
+    while let Some(c) = app.poll_storage() {
+        n += usize::from(matches!(c, StorageCommand::Hash { .. }));
+    }
+    n
+}
+
+/// The settings read, a second listing of the stick comes while its list
+/// stands: still nothing of it is hashed. After Later the stick's card is
+/// the person's to visit, and it is.
+#[test]
+fn a_second_listing_hashes_nothing_while_the_list_stands_and_does_after_later() {
+    let files = stick_files();
+    let mut app = boot_holding_a_listed_file(&files);
+    assert_eq!(hashes(&mut app), 0);
+    assert!(app.import_tile_up());
+    app.storage(StorageEvent::Sticks(vec![boot_stick(&files)]));
+    let _ = app.frame();
+    assert_eq!(hashes(&mut app), 0, "hashed under the list");
+    app.press(Action::Import(I::Later));
+    app.press(Action::Nav(Screen::Files));
+    app.storage(StorageEvent::Sticks(vec![boot_stick(&files)]));
+    let _ = app.frame();
+    assert!(!app.import_tile_up());
+    assert!(hashes(&mut app) > 0, "never hashed once the list was down");
+}
+
+/// The stick's own actions do nothing while the import's list stands where
+/// the stick's card does: nothing is read or copied before Import.
+#[test]
+fn the_stick_visit_is_refused_while_the_import_list_stands() {
+    let files = stick_files();
+    for action in [
+        Action::VisitIn(0),
+        Action::VisitInAll,
+        Action::VisitCopy,
+        Action::VisitCopyAndLoad,
+        Action::VisitCopyAndSign,
+    ] {
+        // Each in an app of its own, with the default ticks: one action
+        // changes what the next would have to read.
+        let mut app = boot_only(&files);
+        assert!(app.import_on_show());
+        let ticked = app.visit().inn.clone();
+        assert!(!ticked.is_empty());
+        app.press(action);
+        let _ = app.frame();
+        assert_eq!(reads(&mut app, &files), Vec::<String>::new(), "{action:?}");
+        assert!(app.inbox().is_empty() && app.session.keys.is_empty());
+        assert!(app.import_on_show(), "{action:?} took the list down");
+        assert_eq!(app.visit().inn, ticked, "{action:?} changed the ticks");
+    }
+}
+
+/// Every other action of the stick's own card is refused too, by the one
+/// rule, and the stick's own file actions: nothing is read, hashed, renamed
+/// or deleted before Import.
+#[test]
+fn every_action_of_the_sticks_own_card_is_refused_while_the_import_list_stands() {
+    use faraday_core::file_menu::{FilePress as P, Row};
+    let files = stick_files();
+    for action in [
+        Action::DeleteFiles,
+        Action::DeleteUnprotected,
+        Action::VisitStick(0),
+        Action::VisitOut(0),
+        Action::VisitOutAll,
+        Action::VisitInbox(0),
+        Action::VisitSettings,
+        Action::VisitWrite,
+        Action::VisitReplace,
+        Action::VisitKeepBoth,
+        Action::File(P::Details(Row::Stick(0))),
+        Action::File(P::Menu(Row::Stick(0))),
+        Action::File(P::Rename(Row::Stick(0))),
+        Action::File(P::NameStick),
+        Action::File(P::StickDelete(0)),
+        Action::File(P::RenameGo),
+    ] {
+        // A file For the stick and a setting changed: something to act on.
+        let mut app = boot_with_work(&files);
+        assert!(app.import_on_show());
+        let ticked = app.visit().inn.clone();
+        let out = app.visit().out.clone();
+        let settings = app.visit_settings_on();
+        while app.poll_storage().is_some() {}
+        app.press(action);
+        let _ = app.frame();
+        let mut asked = 0;
+        while app.poll_storage().is_some() {
+            asked += 1;
+        }
+        assert_eq!(asked, 0, "{action:?} asked the stick");
+        assert_eq!(app.visit().out, out, "{action:?} changed the ticks");
+        assert_eq!(app.visit_settings_on(), settings, "{action:?}");
+        assert!(app.import_on_show(), "{action:?} took the list down");
+        assert_eq!(app.visit().inn, ticked, "{action:?} changed the ticks");
+        assert_eq!(app.sheet, None, "{action:?} opened a sheet");
+    }
+}
+
+/// The stick's files are not read for a name Faraday holds while its
+/// import waits: its listing is all that is read before Import (F130).
+#[test]
+fn a_file_of_a_held_name_on_the_stick_is_not_hashed_while_the_import_waits() {
+    let files = stick_files();
+    let mut app = testkit::started();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
+    // Faraday holds a file with the stick's first name and size.
+    let (name, bytes) = files[0].clone();
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![(name, bytes)]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.storage(StorageEvent::Sticks(vec![boot_stick(&files)]));
+    let _ = app.frame();
+    let mut hashed = 0;
+    while let Some(c) = app.poll_storage() {
+        hashed += usize::from(matches!(c, StorageCommand::Hash { .. }));
+    }
+    assert_eq!(
+        hashed, 0,
+        "the import waiting, a file of the stick was hashed"
+    );
+}
+
+/// Another stick put back where the boot stick was, or this one with a
+/// listing that changed, is not the list's: the list is taken down, the
+/// import ends and nothing of the old list is read from it.
+#[test]
+fn a_swapped_stick_takes_the_list_down_and_is_not_read_by_it() {
+    let files = stick_files();
+    let mut other = files.clone();
+    other[0].1.push(b'x');
+    let mut fewer = files.clone();
+    fewer.pop();
+    for changed in [other, fewer] {
+        let mut app = boot_only(&files);
+        assert!(app.import_on_show());
+        pull(&mut app);
+        app.storage(StorageEvent::Sticks(vec![boot_stick(&changed)]));
+        let _ = app.frame();
+        assert!(
+            !app.import_on_show(),
+            "the old list stands for another listing"
+        );
+        assert!(!app.offers(Action::Import(I::Go)));
+        app.press(Action::Import(I::Go));
+        assert_eq!(reads(&mut app, &changed), Vec::<String>::new());
+        assert!(app.inbox().is_empty());
+    }
+}
+
+/// A lock with the import read: nothing it brought is kept, and the stick
+/// seen again in that clean process is not a first look.
+#[test]
+fn a_lock_drops_the_import_and_the_first_look_is_not_repeated() {
+    let files = stick_files();
+    let mut app = booted_with(&files);
+    go(&mut app, &files);
+    assert!(app.session.keys.is_empty());
+    // The sheet stands over the Lock button: Later first.
+    app.press(Action::Import(I::Later));
+    app.press(Action::Lock);
+    // What came in is not kept: Lock asks, and the lock without sealing
+    // goes ahead.
+    if app.sheet == Some(Sheet::LockAsk) {
+        app.press(Action::LockUnsealed);
+    }
+    testkit::settle(&mut app);
+    assert!(
+        app.import().is_none() && !app.import_on_show(),
+        "{:?}",
+        app.sheet
+    );
+    pull(&mut app);
+    assert!(key_fps(&app).is_empty(), "{:?}", key_fps(&app));
+    // The stick back in the same process: no list, no read. A process
+    // that held a secret would lock instead of looking; this one is clean.
+    assert!(app.clean());
+    app.storage(StorageEvent::Sticks(vec![boot_stick(&files)]));
+    let _ = app.frame();
+    assert!(app.import().is_none() && !app.import_on_show());
+    assert_eq!(reads(&mut app, &files), Vec::<String>::new());
+    assert!(key_fps(&app).is_empty());
+}
+
+/// A lock with the list still standing (nothing read) drops the list, and
+/// the stick seen again in that process is not listed again.
+#[test]
+fn a_lock_over_the_list_drops_it_and_the_stick_is_not_listed_again() {
+    let files = stick_files();
+    let mut app = boot_only(&files);
+    assert!(app.import_on_show());
+    app.press(Action::Lock);
+    assert!(app.import().is_none() && !app.import_on_show());
+    assert!(app.clean());
+    app.storage(StorageEvent::Sticks(vec![boot_stick(&files)]));
+    let _ = app.frame();
+    assert!(app.import().is_none() && !app.import_on_show());
+    assert_eq!(reads(&mut app, &files), Vec::<String>::new());
 }
 
 #[test]
@@ -1161,17 +1524,17 @@ fn a_mouse_plugged_in_at_boot_is_asked_about_before_the_import() {
     assert_eq!(app.sheet, Some(Sheet::NewInput));
     app.press(Action::InputUse(9));
     assert_eq!(app.poll_input_decision(), Some((9, true)));
-    assert_eq!(app.sheet, Some(Sheet::Import));
+    assert!(app.import_on_show());
 }
 
 #[test]
 fn a_mouse_seen_after_the_stick_is_asked_about_first_too() {
     let mut app = booted();
-    assert_eq!(app.sheet, Some(Sheet::Import));
+    assert!(app.import_on_show());
     mouse(&mut app);
     assert_eq!(app.sheet, Some(Sheet::NewInput));
     app.press(Action::InputIgnore(9));
-    assert_eq!(app.sheet, Some(Sheet::Import));
+    assert!(app.import_on_show());
 }
 
 #[test]
@@ -1250,7 +1613,7 @@ fn unselect_all_unticks_every_file_and_import_then_waits_for_a_choice() {
     // Import is disabled with nothing ticked: pressed, it does nothing.
     assert!(!app.offers(Action::Import(I::Go)));
     app.press(Action::Import(I::Go));
-    assert_eq!(app.sheet, Some(Sheet::Import));
+    assert!(app.import_on_show());
     assert!(app.import().is_some() && app.inbox().is_empty());
     // Select all ticks them again.
     app.press(Action::Import(I::All));
@@ -1553,11 +1916,11 @@ fn a_file_named_kdbx_that_holds_other_bytes_is_not_counted_as_a_vault() {
 fn a_held_device_that_never_acts_does_not_stop_the_import_and_one_used_takes_the_screen() {
     let mut app = booted();
     silent_mouse(&mut app);
-    assert_eq!(app.sheet, Some(Sheet::Import));
+    assert!(app.import_on_show());
     app.storage(StorageEvent::InputUsed { id: 9 });
     assert_eq!(app.sheet, Some(Sheet::NewInput));
     app.press(Action::InputIgnore(9));
-    assert_eq!(app.sheet, Some(Sheet::Import));
+    assert!(app.import_on_show());
 }
 
 /// The boot stick found while the mouse's sheet is up over the Devices
@@ -1597,7 +1960,7 @@ fn an_import_that_arrives_under_a_mouse_over_the_devices_sheet_comes_up_after_bo
     if app.sheet == Some(Sheet::Devices) {
         app.press(Action::DevicesUnderstood);
     }
-    assert_eq!(app.sheet, Some(Sheet::Import));
+    assert!(app.import_on_show());
 }
 
 /// The boot import under the Devices sheet under the mouse's: each comes
@@ -1605,7 +1968,8 @@ fn an_import_that_arrives_under_a_mouse_over_the_devices_sheet_comes_up_after_bo
 #[test]
 fn a_mouse_over_the_devices_sheet_over_the_import_returns_each_in_turn() {
     use faraday_core::devices::{DeviceCheck, Interface, UsbDevice};
-    let mut app = booted();
+    // The vault step is the sheet the hold covers: the list step is a page.
+    let mut app = imported();
     assert_eq!(app.sheet, Some(Sheet::Import));
     app.devices = DeviceCheck::machine("flags\t: fpu vme", "LENOVO", "20XW", "10");
     let hid = |protocol| Interface {
@@ -1642,7 +2006,7 @@ fn a_mouse_over_the_devices_sheet_over_the_import_returns_each_in_turn() {
     if app.sheet == Some(Sheet::Devices) {
         app.press(Action::DevicesUnderstood);
     }
-    assert_eq!(app.sheet, Some(Sheet::Import));
+    assert!(app.import_on_show());
 }
 
 /// Booted with one text picture, Import pressed and its codes read: the ask is up.
@@ -1794,4 +2158,275 @@ fn a_picture_of_the_same_name_on_another_stick_is_not_taken_for_the_boot_sticks(
         });
     }
     assert_eq!(inbox_names(&app), ["zebra-seedqr-words.txt"]);
+}
+
+/// Only a clean process takes a stick: with a key held the stick's return
+/// shows the Lock card, never the list, and Import reads nothing.
+#[test]
+fn a_key_held_keeps_the_list_down_and_import_asks_nothing_of_the_stick() {
+    let files = stick_files();
+    let mut app = pulled();
+    assert!(app.import_tile_up());
+    crate::common::add_key(&mut app, testkit::TEST_SEEDS[1].0);
+    assert!(!app.session.keys.is_empty());
+    assert!(!app.import_tile_up(), "the list stands with a key held");
+    app.storage(StorageEvent::Sticks(vec![boot_stick(&files)]));
+    let _ = app.frame();
+    assert_eq!(app.sheet, Some(Sheet::Lock));
+    assert!(!app.import_tile_up(), "the list stands over the Lock card");
+    app.press(Action::NotNow);
+    assert_eq!(app.screen, Screen::Files);
+    assert!(!app.import_tile_up());
+    app.press(Action::Import(I::Go));
+    assert_eq!(reads(&mut app, &files), Vec::<String>::new());
+    assert!(app.import_view().unwrap().files.iter().all(|f| f.enabled));
+}
+
+/// The stick arriving in a process that holds a key takes the list down,
+/// not only hides it: with the key gone, it does not come back.
+#[test]
+fn a_stick_arriving_over_a_held_key_takes_the_list_down_for_good() {
+    let files = stick_files();
+    let mut app = pulled();
+    crate::common::add_key(&mut app, testkit::TEST_SEEDS[1].0);
+    app.storage(StorageEvent::Sticks(vec![boot_stick(&files)]));
+    let _ = app.frame();
+    app.press(Action::NotNow);
+    app.session.keys.remove_all();
+    let _ = app.frame();
+    assert_eq!(app.screen, Screen::Files);
+    assert!(
+        !app.import_tile_up(),
+        "the list came back with the key gone"
+    );
+}
+
+/// From the stick in any other flow takes the list down as well.
+#[test]
+fn from_the_stick_in_a_flow_takes_the_list_down() {
+    let mut app = booted_with(&stick_files());
+    assert!(app.import_tile_up());
+    app.press(Action::VisitFrom(Screen::SignerCheck));
+    assert_eq!(app.screen, Screen::Files);
+    assert!(!app.import_tile_up(), "the list stands in the flow's way");
+    assert!(app.import().is_some(), "the import waits");
+}
+
+/// The reads end under a sheet that is not the import's: the person is on
+/// Home, the list is gone, and the vault step comes back as the sheet closes.
+fn reads_ended_under(app: &mut Faraday, files: &[(String, Vec<u8>)], cover: impl Fn(&mut Faraday)) {
+    app.press(Action::Import(I::Go));
+    cover(app);
+    pump(app, files);
+    assert!(!app.import_tile_up());
+    assert_eq!(app.screen, Screen::Home, "the list is not left on Files");
+}
+
+fn unlocked_by_typing(app: &mut Faraday) {
+    pull(app);
+    assert_eq!((app.screen, app.sheet), (Screen::Home, Some(Sheet::Import)));
+    assert!(app.import_field().is_some());
+    type_in(app, testkit::VAULT_PASSPHRASE);
+    app.press(Action::Import(I::Submit));
+    run_unlock(app);
+    assert_eq!(
+        app.vaults().open.len(),
+        1,
+        "{:?}",
+        app.vaults().unlock_error
+    );
+}
+
+#[test]
+fn a_held_mouse_acting_over_the_reads_leaves_the_vault_step_to_come_back() {
+    let files = stick_files();
+    let mut app = booted_with(&files);
+    reads_ended_under(&mut app, &files, mouse);
+    assert_eq!(app.sheet, Some(Sheet::NewInput));
+    app.press(Action::InputIgnore(9));
+    unlocked_by_typing(&mut app);
+}
+
+#[test]
+fn the_idle_warning_over_the_reads_leaves_the_vault_step_to_come_back() {
+    let files = stick_files();
+    let mut app = booted_with(&files);
+    reads_ended_under(&mut app, &files, |app| {
+        app.event(Event::Tick { now_ms: 0 });
+        app.event(Event::Tick {
+            now_ms: 26 * 60_000,
+        });
+        assert_eq!(app.sheet, Some(Sheet::IdleWarn));
+    });
+    assert_eq!(app.sheet, Some(Sheet::IdleWarn));
+    app.event(Event::Key(Key::Char('a')));
+    unlocked_by_typing(&mut app);
+}
+
+#[test]
+fn the_power_sheet_over_the_reads_leaves_the_vault_step_to_come_back() {
+    let files = stick_files();
+    let mut app = booted_with(&files);
+    reads_ended_under(&mut app, &files, |app| {
+        app.press(Action::PowerAsk);
+        assert_eq!(app.sheet, Some(Sheet::Power));
+    });
+    app.press(Action::NotNow);
+    unlocked_by_typing(&mut app);
+}
+
+#[test]
+fn a_sheet_closing_after_the_person_left_home_does_not_bring_the_vault_step_back() {
+    let files = stick_files();
+    let mut app = booted_with(&files);
+    reads_ended_under(&mut app, &files, |app| {
+        app.press(Action::PowerAsk);
+        assert_eq!(app.sheet, Some(Sheet::Power));
+    });
+    app.screen = Screen::Settings;
+    app.press(Action::NotNow);
+    assert_eq!(app.sheet, None);
+    assert_eq!(
+        app.screen,
+        Screen::Settings,
+        "the vault step pulled the person back"
+    );
+}
+
+#[test]
+fn a_mouse_over_the_reads_of_an_import_with_no_vault_leaves_home() {
+    let files: Vec<_> = stick_files()
+        .into_iter()
+        .filter(|(n, _)| n != "vault.kdbx")
+        .collect();
+    let mut app = booted_with(&files);
+    reads_ended_under(&mut app, &files, mouse);
+    app.press(Action::InputIgnore(9));
+    assert_eq!((app.screen, app.sheet), (Screen::Home, None));
+    assert!(app.import().is_none());
+}
+
+/// The wallet of an import that asks after the list was covered: its close
+/// brings the vault step back with the field typing reaches.
+#[test]
+fn a_wallet_asking_after_the_list_was_covered_leaves_the_field_taking_typing() {
+    let mut files = two_wallet_files();
+    files.push(("vault.kdbx".into(), testkit::test_vault().unwrap()));
+    let mut app = booted_with(&files);
+    reads_ended_under(&mut app, &files, mouse);
+    app.press(Action::InputIgnore(9));
+    pull(&mut app);
+    app.event(Event::Tick { now_ms: 2000 });
+    assert_eq!(app.sheet, Some(Sheet::WalletConfirm));
+    app.press(Action::WalletCancel);
+    assert_eq!((app.screen, app.sheet), (Screen::Home, Some(Sheet::Import)));
+    type_in(&mut app, testkit::VAULT_PASSPHRASE);
+    app.press(Action::Import(I::Submit));
+    run_unlock(&mut app);
+    assert_eq!(
+        app.vaults().open.len(),
+        1,
+        "{:?}",
+        app.vaults().unlock_error
+    );
+}
+
+/// From the stick in another flow leaves the list: its own card draws, the
+/// import waits as after Later, and the pull goes back to the flow.
+#[test]
+fn from_the_stick_in_another_flow_takes_the_list_down_and_the_pull_goes_back() {
+    let files = stick_files();
+    let mut app = booted_with(&files);
+    app.press(Action::Nav(Screen::Entry));
+    app.press(Action::VisitFrom(Screen::Entry));
+    assert_eq!(app.screen, Screen::Files);
+    assert!(!app.import_tile_up(), "the list stands in the flow's way");
+    assert!(app.import().is_some(), "the import waits");
+    pull(&mut app);
+    assert_ne!(app.screen, Screen::Files);
+}
+
+/// The listing of the boot stick changed on Files, with the same id: what
+/// a write to it from Files leaves.
+fn rewritten(files: &[(String, Vec<u8>)]) -> Vec<(String, Vec<u8>)> {
+    let mut changed = files.to_vec();
+    changed.push(("written.txt".into(), b"new".to_vec()));
+    changed
+}
+
+/// Import pressed and put off with Later: the stick coming back with
+/// another listing does not end the import, whose files were read already;
+/// Home's row still brings the vault step up.
+#[test]
+fn an_import_pressed_survives_a_changed_listing_and_homes_row_brings_the_step() {
+    let files = stick_files();
+    let mut app = imported_with(&files);
+    app.press(Action::Import(I::Later));
+    app.storage(StorageEvent::Sticks(vec![boot_stick(&rewritten(&files))]));
+    let _ = app.frame();
+    app.press(boot_import::OPEN);
+    assert!(app.import().is_some(), "the pressed import was ended");
+    assert_eq!(app.sheet, Some(Sheet::Import));
+}
+
+/// An import not yet pressed whose stick's listing changed: Home's row
+/// ends it and Files opens, where the stick's card is.
+#[test]
+fn homes_row_over_a_changed_listing_ends_the_import_and_opens_files() {
+    let files = stick_files();
+    let mut app = boot_only(&files);
+    app.press(Action::Import(I::Later));
+    app.press(Action::Nav(Screen::Files));
+    app.storage(StorageEvent::Sticks(vec![boot_stick(&rewritten(&files))]));
+    let _ = app.frame();
+    app.press(Action::Nav(Screen::Home));
+    app.press(boot_import::OPEN);
+    let _ = app.frame();
+    assert!(app.import().is_none());
+    assert_eq!(app.screen, Screen::Files, "the row ended in nothing");
+    assert!(!app.import_tile_up());
+}
+
+/// The list left by the nav bar is not up: a second listing of its stick
+/// still hashes nothing for a name Faraday holds.
+#[test]
+fn a_listing_after_the_nav_bar_left_the_list_hashes_nothing() {
+    let files = stick_files();
+    let mut app = boot_holding_a_listed_file(&files);
+    assert_eq!(hashes(&mut app), 0);
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Nav(Screen::Files));
+    app.press(Action::Nav(Screen::Home));
+    app.storage(StorageEvent::Sticks(vec![boot_stick(&files)]));
+    let _ = app.frame();
+    assert_eq!(hashes(&mut app), 0, "hashed before any answer");
+}
+
+/// A secret held once leaves the process unclean: Home's row
+/// raises the list all the same, with Import off and the reason said, and
+/// pressing it asks nothing of the stick.
+#[test]
+fn a_process_that_held_a_secret_raises_the_list_with_import_off_and_says_why() {
+    let files = stick_files();
+    let mut app = pulled();
+    crate::common::add_key(&mut app, testkit::TEST_SEEDS[1].0);
+    assert!(!app.clean(), "a held key leaves the process unclean");
+    app.session.keys.remove_all();
+    app.storage(StorageEvent::Sticks(vec![boot_stick(&files)]));
+    let _ = app.frame();
+    if app.sheet == Some(Sheet::Lock) {
+        app.press(Action::NotNow);
+    }
+    assert!(app.import().is_some(), "the import ended at the arrival");
+    app.press(Action::Nav(Screen::Home));
+    let _ = app.frame();
+    app.press(boot_import::OPEN);
+    let _ = app.frame();
+    assert!(app.import_tile_up(), "Home's row raised no list");
+    while app.poll_storage().is_some() {}
+    app.press(Action::Import(I::Go));
+    assert_eq!(reads(&mut app, &files), Vec::<String>::new());
+    assert!(app.import_view().unwrap().files.iter().all(|f| f.enabled));
+    let texts = drawn(&mut app);
+    assert!(texts.contains("Import is off"), "{texts}");
 }

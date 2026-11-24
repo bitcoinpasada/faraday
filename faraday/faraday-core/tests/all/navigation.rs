@@ -411,10 +411,10 @@ fn files_carries_a_badge_until_a_boot_stick_holding_a_file_is_visited() {
         files: vec![(faraday_text::Text::of("inheritance.psbt"), 100)],
         vaults: Vec::new(),
     }]));
-    assert_eq!(app.screen, Screen::Home);
-    // The file on it is offered for import; Later leaves Home with Files'
-    // badge still showing.
-    assert_eq!(app.sheet, Some(Sheet::Import));
+    // The file on it is offered for import on Files; Later leaves for Home
+    // with Files' badge still showing.
+    assert_eq!(app.screen, Screen::Files);
+    assert!(app.import_on_show());
     app.press(Action::Import(
         faraday_core::boot_import::ImportAction::Later,
     ));
