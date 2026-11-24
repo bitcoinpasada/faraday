@@ -13,6 +13,7 @@
 //! arrived and works nothing out.
 
 pub(crate) mod file;
+pub(crate) mod pane;
 pub(crate) mod screen;
 
 use crate::address_find::{self, Answer, FoundIn, Look};

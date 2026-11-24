@@ -239,6 +239,8 @@ pane or none, and Guide is the sheet there.
   area, the pane 360 of it). The same laptop's half-screen window (683 dp)
   is medium: the rail, the card, the bar's button.
 
+**The scanner in the pane.** On the wide layout, Check an address' **Scan an address** puts the scanner's frame (`screens/scan_frame.rs`) in the pair's pane in place of Your choices, the card holding the title and **Cancel** (`address_check/pane.rs`); it is Explore's pair at the same place. The scan is the scanner sheet's own state, so a code read, Cancel, Escape, Back, Lock and any press that leaves the page end it as the sheet does. A read card shows in the sheet, as today.
+
 ## 5. The two full-width steps
 
 - **Make codex32 shares**, while its dice rolls, tracks and tree are on

@@ -70,7 +70,37 @@ pub(crate) fn check_address_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::AddressCheck(AddressPress::File(0)));
     t.pump();
     hide_keyboard(t);
-    t.shot("check-address-list")
+    t.shot("check-address-list")?;
+    // The scanner on the wide layout stands in a pane beside the card; a
+    // code that is not an address is read to the sheet's card.
+    t.press(Action::Nav(Screen::Catalog));
+    t.press(Action::Catalog(tile as u8));
+    t.press(Action::ScanFor(faraday_core::Ask::Address));
+    t.app.event(Event::CameraFrame {
+        width: 640,
+        height: 480,
+        luma: (0..640u32 * 480).map(|i| ((i % 640) / 3) as u8).collect(),
+        chroma: None,
+    });
+    t.shot("check-address-scan")?;
+    t.app.event(Event::Scanned {
+        bytes: kit.descriptor.clone().into_bytes(),
+    });
+    t.pump();
+    t.shot("check-address-scan-read")?;
+    // A file's row shown, the scanner beside it; then the guide beside it.
+    t.press(Action::Nav(Screen::Catalog));
+    t.press(Action::Catalog(tile as u8));
+    t.press(Action::AddressCheck(AddressPress::File(0)));
+    t.press(Action::AddressCheck(AddressPress::Row(1)));
+    t.press(Action::ScanFor(faraday_core::Ask::Address));
+    t.pump();
+    t.shot("check-address-scan-row")?;
+    t.press(Action::Cancel);
+    t.press(Action::Guide);
+    t.press(Action::ScanFor(faraday_core::Ask::Address));
+    t.pump();
+    t.shot("check-address-scan-guide")
 }
 
 /// The wallet's receive address at `index`.

@@ -662,18 +662,20 @@ impl Scroll {
     }
 
     /// The regions the last frame drew for `key` that can be reached
-    /// (`reachable`), last drawn first.
+    /// (`reachable`), last drawn first. Under a sheet only the page's own
+    /// are, unless the page stands beside it (`page_open`).
     pub(crate) fn regions(
         &self,
         key: ScreenKey,
         reachable: bool,
+        page_open: bool,
     ) -> std::vec::IntoIter<ui::Scrolled> {
         let v: Vec<ui::Scrolled> = self
             .extent
             .iter()
             .filter(|(k, _)| reachable && *k == key)
             .flat_map(|(_, v)| v.iter().rev().copied())
-            .filter(|e| e.slot == ui::Slot::Page || key.1.is_none())
+            .filter(|e| e.slot == ui::Slot::Page || page_open)
             .collect();
         v.into_iter()
     }
@@ -1282,6 +1284,8 @@ impl Faraday {
     fn page_place(&mut self) -> Option<Place> {
         match self.sheet {
             Some(Sheet::Guide) => Some(Place::Guide),
+            // The scanner beside the page: the page's wheel is the screen's.
+            Some(Sheet::Scan) if crate::address_check::pane::scanning(self) => self.screen_place(),
             Some(Sheet::WordList) => self.wordlist.scroll_y().map(|_| Place::WordList),
             Some(s) => {
                 // Starts at its top when it is not the one scrolled last.
@@ -1519,12 +1523,18 @@ enum Place {
 }
 
 impl Faraday {
+    /// Whether the page is reachable: no sheet stands over it, or the
+    /// scanner stands beside it in a pane (`address_check::pane`). A lookup.
+    pub(crate) fn page_open(&self) -> bool {
+        self.sheet.is_none() || crate::address_check::pane::scanning(self)
+    }
+
     /// Which region scrolls now: the one the pointer last went to, while
     /// it can be reached; else the screen's or the sheet's own.
     pub(crate) fn slot(&self) -> ui::Slot {
         self.scroll.slot(
             self.screen,
-            self.sheet.is_none(),
+            self.page_open(),
             self.compact,
             || self.board_shown(),
             || self.contained_on_show(),
@@ -1545,8 +1555,11 @@ impl Faraday {
     /// drawn first: through a sheet that does not scroll, none.
     pub(crate) fn regions(&self) -> std::vec::IntoIter<ui::Scrolled> {
         let key = self.region_key();
-        self.scroll
-            .regions(key, self.sheet.is_none() || key.1.is_some())
+        self.scroll.regions(
+            key,
+            self.sheet.is_none() || key.1.is_some(),
+            self.page_open(),
+        )
     }
 
     /// What the region that scrolls now rounds an offset to: whole

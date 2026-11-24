@@ -111,6 +111,8 @@ mod review_stops;
 mod scan;
 #[path = "all/scan_kinds.rs"]
 mod scan_kinds;
+#[path = "all/scan_pane.rs"]
+mod scan_pane;
 #[path = "all/scan_viewfinder.rs"]
 mod scan_viewfinder;
 #[path = "all/shared_keys.rs"]

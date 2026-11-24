@@ -24,10 +24,12 @@ mod nonce_check;
 pub(crate) mod parts;
 pub(crate) mod randomness;
 mod restore;
+pub(crate) mod scan_frame;
 mod session_pane;
 mod set_time;
 pub(crate) mod settings;
 mod sheets;
+pub(crate) use sheets::scan_demo_offers;
 mod sidebar;
 mod spend;
 pub(crate) mod visit;
@@ -197,6 +199,9 @@ fn page_area(app: &crate::Faraday, screen: Screen, room: f32) -> (f32, f32) {
         // Tools and Check place their own column, or the pair at the flow's
         // place (`screens::hub_layout`).
         Area::Work
+    } else if screen == Screen::CheckAddress && crate::address_check::pane::place_in(app, room) {
+        // The scanner's pane and the card are a pair at the flow's place.
+        Area::Work
     } else if (screen == Screen::Explore && crate::explore::pane::place_in(app, room))
         || (screen == Screen::Lightning && crate::lightning::pane::place_in(app, room))
     {
@@ -299,7 +304,15 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
     }
     // Under a sheet that has its frosted copy of the page, the page
     // is not drawn again: the copy stands for it.
-    let frosted = app.sheet.is_some() && ui.frost.is_some();
+    // The scanner of Check an address stands in a pane beside its card on the
+    // wide layout: no sheet is drawn, the page stays live.
+    let in_pane = {
+        let guide = app.guide_pane_shown() && !app.unit_on_show();
+        let nav = if app.held { 0.0 } else { SIDEBAR_W };
+        let room = full_w - nav - if guide { hub_layout::guide_room() } else { 0.0 };
+        crate::address_check::pane::place_in(app, room)
+    };
+    let frosted = app.sheet.is_some() && !in_pane && ui.frost.is_some();
     let side = crate::glance::sheet::side_now(app);
     if !frosted && app.is_compact() {
         ui.clear(Role::Surface);
@@ -392,7 +405,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         // Beside the page, which stays as it is and takes presses.
         crate::glance::sheet::draw_side(app, ui, s, w, h);
     }
-    if let Some(sheet) = app.sheet.filter(|_| !side.is_some_and(|s| s.2)) {
+    if let Some(sheet) = app.sheet.filter(|_| !in_pane && !side.is_some_and(|s| s.2)) {
         // Everything under a sheet is out of reach.
         ui.clear_hits();
         ui.in_sheet = true;

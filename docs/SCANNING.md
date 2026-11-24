@@ -414,6 +414,8 @@ no explanation.
 
 In `en/`, prefix `scan_title_`.
 
+The title stands at the head of the scanner sheet, and, on the wide layout, where Check an address' **Scan an address** opens the frame in a pane (`docs/WORKSPACE.md` §14), at the head of the card beside it. The scan is the same state either way: one camera, and the frame, what was seen and the read card are dropped together by every way out (Cancel, Escape, Back, Lock, a press that leaves the page, a code read).
+
 ### 7.2 The read card
 
 In `en/`, prefix `read_`.

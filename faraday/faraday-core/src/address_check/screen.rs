@@ -45,7 +45,9 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             (cw - 2.0 * EXPLORE_INSET).min(COLUMN_MAX),
         )
     };
-    ui.page_begin((x0, cw, h), app.list_offset);
+    // The scanner's pane stands at the top, whatever the list was scrolled to.
+    let pane = super::pane::place(app, ui.compact, cw).is_some();
+    ui.page_begin((x0, cw, h), if pane { 0.0 } else { app.list_offset });
     let top = crate::compact::M;
     let mut y = if ui.compact {
         top
@@ -53,6 +55,13 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         crate::screens::bar_head_back(app, ui, EN.address_check_title);
         PAGE_TOP_BAR
     };
+
+    // The scanner on the wide layout stands in a pane at the card's left.
+    if let Some(p) = super::pane::place(app, ui.compact, cw) {
+        let end = super::pane::draw(app, ui, x0, p, y);
+        crate::compact::screen::finish(app, ui, h, end - top + PAD);
+        return;
+    }
 
     // The field, its refusal as its supporting text.
     ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, EN.address_check_field);

@@ -656,13 +656,16 @@ impl Faraday {
         st.contents
             && !st.how
             && (self.sheet == Some(crate::Sheet::Guide)
-                || (self.sheet.is_none() && self.guide_pane_shown()))
+                || (self.page_open() && self.guide_pane_shown()))
     }
 
     /// Typing on the contents goes to Find in the guide. Returns whether
     /// the key was taken.
     pub(crate) fn guide_find_key(&mut self, key: faraday_shell_api::Key) -> bool {
-        if !self.guide_find_here() {
+        // Escape is the scanner's Cancel while it stands beside the guide.
+        let cancels =
+            key == faraday_shell_api::Key::Escape && crate::address_check::pane::scanning(self);
+        if cancels || !self.guide_find_here() {
             return false;
         }
         let taken = self.guide.type_find(key);
@@ -821,7 +824,7 @@ impl Faraday {
             return;
         };
         let open = self.sheet == Some(crate::Sheet::Guide)
-            || (self.sheet.is_none() && self.guide_pane_shown());
+            || (self.page_open() && self.guide_pane_shown());
         if open {
             self.guide.show_word(word.key);
             self.guide_bar_synced();

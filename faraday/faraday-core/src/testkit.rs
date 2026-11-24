@@ -2131,6 +2131,11 @@ pub fn guide_scroll_to(app: &mut crate::Faraday, y: f32) {
     app.guide.set_scroll_y(y);
 }
 
+/// How far the guide is scrolled, design units.
+pub fn guide_scroll_y(app: &crate::Faraday) -> f32 {
+    app.guide.scroll_y()
+}
+
 /// Marks the open spend's steps before Sign done, as a person who has
 /// been through them has: Sign then signs from any route.
 pub fn steps_before_sign_done(app: &mut crate::Faraday) {

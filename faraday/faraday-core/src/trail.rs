@@ -549,7 +549,11 @@ impl Faraday {
         // A held app's way home goes to its holder, whatever was seen
         // before.
         let held_home = self.held && a == Action::Nav(Screen::Home);
-        if link && self.sheet.is_none() && !stays(a) && !held_home {
+        if link
+            && (self.sheet.is_none() || crate::address_check::pane::scanning(self))
+            && !stays(a)
+            && !held_home
+        {
             Action::Back
         } else {
             a
@@ -561,6 +565,11 @@ impl Faraday {
     /// was seen. A way back that opened a sheet or stayed on its screen
     /// is all there is to it.
     pub(crate) fn back(&mut self) {
+        // The scanner beside the page ends first, as the sheet's Cancel
+        // does; the Back then leaves as it would without a scan.
+        if crate::address_check::pane::scanning(self) {
+            self.act(Action::Cancel);
+        }
         let from = self.screen;
         self.back_from();
         self.search_land();

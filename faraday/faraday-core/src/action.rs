@@ -1170,7 +1170,11 @@ impl Faraday {
 
     fn act_noted(&mut self, action: Action) {
         let on_entry = self.screen == Screen::Entry;
+        let in_pane = crate::address_check::pane::scanning(self);
         self.act_dealt(action);
+        if in_pane {
+            crate::address_check::pane::left(self);
+        }
         self.entry_left(on_entry);
         crate::pass_field::left(self);
         // "Lock and write" waits only while its lock is: on the sheet

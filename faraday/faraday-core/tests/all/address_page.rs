@@ -16,7 +16,7 @@ fn descriptor() -> String {
 }
 
 /// The wallet's address at `index`.
-fn address(index: u32) -> String {
+pub(crate) fn address(index: u32) -> String {
     let c = testkit::compute();
     WalletPolicy::parse_any(&c, &descriptor())
         .unwrap()
@@ -26,12 +26,12 @@ fn address(index: u32) -> String {
 }
 
 /// Faraday with the wallet loaded and the page open.
-fn on_page() -> Faraday {
+pub(crate) fn on_page() -> Faraday {
     on_page_with(Vec::new())
 }
 
 /// The same with `files` in Files after the wallet's own, at places 1 on.
-fn on_page_with(files: Vec<(&str, Vec<u8>)>) -> Faraday {
+pub(crate) fn on_page_with(files: Vec<(&str, Vec<u8>)>) -> Faraday {
     let mut app = testkit::started();
     let mut inbox = vec![(
         faraday_text::Text::of("wallet.txt"),
@@ -66,7 +66,7 @@ fn type_in(app: &mut Faraday, text: &str) {
     let _ = app.frame();
 }
 
-fn said(app: &Faraday) -> String {
+pub(crate) fn said(app: &Faraday) -> String {
     let page = app.address_check_state().unwrap();
     let mut out: Vec<String> = page
         .result_lines()
