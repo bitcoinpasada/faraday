@@ -681,10 +681,26 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         }
     }
 
+    /// The height of one headline line: the mono face's where the headline is
+    /// a whole address.
+    fn head_line(&self, whole: bool) -> f32 {
+        if whole {
+            self.line_as(BODY_L.mono())
+        } else {
+            self.line_as(BODY_L)
+        }
+    }
+
     /// How many lines `it`'s headline takes `w` wide: one at Standard,
     /// where it is cut to fit; at a larger text size two where it does not
     /// fit on one (`docs/TEXT-SIZE.md` §3), the second cut to fit.
-    fn list_head_lines(&self, w: f32, it: &ListItem<'_, A>) -> usize {
+    fn list_head_lines(&self, w: f32, it: &ListItem<'_, A>, whole: bool) -> usize {
+        if whole {
+            let room = self.list_head_room(w, it);
+            return (self.wrap_height_as(BODY_L.mono(), it.headline, room) / self.head_line(true))
+                .round()
+                .max(1.0) as usize;
+        }
         if self.text_factor() <= 1.0
             || self.measure_as(BODY_L, it.headline) <= self.list_head_room(w, it)
         {
@@ -697,15 +713,20 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// The height [`Ui::list_item`] takes for `it`, `w` wide:
     /// [`LIST_1`], [`LIST_2`] or [`LIST_3`], or its lines and Material's
     /// padding where larger text needs more.
-    pub(crate) fn list_item_height(&self, w: f32, it: &ListItem<'_, A>) -> f32 {
-        let (head, sup) = (self.line_as(BODY_L), self.line_as(BODY_M));
+    pub(crate) fn list_item_height(&self, w: f32, it: &ListItem<'_, A>, whole: bool) -> f32 {
+        let (head, sup) = (self.head_line(whole), self.line_as(BODY_M));
         // A headline larger text breaks onto a second line adds it.
-        let head = head * self.list_head_lines(w, it) as f32;
-        match self.list_lines(w, it) {
-            1 => self.row_height(LIST_1, head, LIST_PAD_V),
-            2 => self.row_height(LIST_2, head + sup, LIST_PAD_V),
-            _ => self.row_height(LIST_3, head + 2.0 * sup, LIST_3_TOP),
+        let head = head * self.list_head_lines(w, it, whole) as f32;
+        let (token, lines, pad) = match self.list_lines(w, it) {
+            1 => (LIST_1, head, LIST_PAD_V),
+            2 => (LIST_2, head + sup, LIST_PAD_V),
+            _ => (LIST_3, head + 2.0 * sup, LIST_3_TOP),
+        };
+        // A whole address takes its lines at every text size.
+        if whole {
+            return token.max(lines + 2.0 * pad);
         }
+        self.row_height(token, lines, pad)
     }
 
     /// A list item (Material 3 Lists) from (x, y), `w` wide, of one, two
@@ -713,14 +734,32 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// ellipsis); `chosen` in Material's selected state (secondary
     /// container). The whole item takes its press. Returns its height.
     pub fn list_item(&mut self, at: (f32, f32, f32), it: &ListItem<'_, A>, chosen: bool) -> f32 {
-        self.list_item_as(at, it, chosen, true)
+        self.list_item_as(at, it, chosen, true, false)
+    }
+
+    /// A list item as [`Ui::list_item`] draws it whose headline is an
+    /// address already in groups of four ([`crate::grouped`]): in the mono
+    /// face, never cut, on one line where it fits and wrapped between
+    /// groups where the room requires it; the item grows by the lines.
+    pub fn list_item_whole(
+        &mut self,
+        at: (f32, f32, f32),
+        it: &ListItem<'_, A>,
+        chosen: bool,
+    ) -> f32 {
+        self.list_item_as(at, it, chosen, true, true)
+    }
+
+    /// [`Ui::list_item_whole`] that takes no press.
+    pub fn list_item_whole_still(&mut self, at: (f32, f32, f32), it: &ListItem<'_, A>) -> f32 {
+        self.list_item_as(at, it, false, false, true)
     }
 
     /// A list item as [`Ui::list_item`] draws it that takes no press: a
     /// row that only states what is there (Material 3 Lists, a
     /// non-interactive item). Its `action` is not used. Returns its height.
     pub fn list_item_still(&mut self, at: (f32, f32, f32), it: &ListItem<'_, A>) -> f32 {
-        self.list_item_as(at, it, false, false)
+        self.list_item_as(at, it, false, false, false)
     }
 
     fn list_item_as(
@@ -729,9 +768,10 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         it: &ListItem<'_, A>,
         chosen: bool,
         pressed: bool,
+        whole: bool,
     ) -> f32 {
         let lines = self.list_lines(w, it);
-        let h = self.list_item_height(w, it);
+        let h = self.list_item_height(w, it, whole);
         if !self.shows(y, h) {
             return h;
         }
@@ -742,8 +782,8 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         if pressed {
             self.press(Shape::new(x, y, w, h, SHAPE_L), ink, it.action);
         }
-        let (line, sup) = (self.line_as(BODY_L), self.line_as(BODY_M));
-        let head_lines = self.list_head_lines(w, it);
+        let (line, sup) = (self.head_line(whole), self.line_as(BODY_M));
+        let head_lines = self.list_head_lines(w, it, whole);
         let head = line * head_lines as f32;
         let top = match lines {
             1 => y + (h - head) / 2.0,
@@ -756,7 +796,9 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             let tone = if chosen { ink } else { tone };
             self.text_right_as((x + w - LIST_PAD, top, line), LABEL_S, tone, t);
         }
-        if head_lines == 1 {
+        if whole {
+            self.wrap_as((tx, top, room), BODY_L.mono(), ink, it.headline);
+        } else if head_lines == 1 {
             let name = self.fit_as(BODY_L, it.headline, room);
             self.text_mid_as((tx, top, line), BODY_L, ink, &name);
         } else {

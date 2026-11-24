@@ -216,8 +216,8 @@ fn ending(ui: &mut Ui, (x, y, w): (f32, f32, f32), ends: (Action, Action)) -> f3
     GAP + crate::screens::parts::ending(ui, (x, y + GAP, w), None, ends)
 }
 
-/// The addresses of a file, counted and listed, each a two-line item: the
-/// address in short form, then its answer. Returns the height used.
+/// The addresses of a file, counted and listed, each an item: the
+/// whole address in groups, then its answer. Returns the height used.
 fn listed(ui: &mut Ui, (x, y, w): (f32, f32, f32), list: &super::file::Listed) -> f32 {
     let count = Text::fill(
         EN.address_check_read_count,
@@ -228,7 +228,7 @@ fn listed(ui: &mut Ui, (x, y, w): (f32, f32, f32), list: &super::file::Listed) -
     );
     let mut cy = y + ui.wrap_as((x, y, w), BODY_M, Role::OnSurfaceVariant, &count) + GAP;
     for (i, row) in list.rows().iter().enumerate() {
-        let head = faraday_ui::short(&row.address);
+        let head = faraday_ui::grouped(&row.address);
         let it = ListItem {
             headline: &head,
             supporting: &row.line,
@@ -240,9 +240,9 @@ fn listed(ui: &mut Ui, (x, y, w): (f32, f32, f32), list: &super::file::Listed) -
             }),
         };
         cy += if row.opens() {
-            ui.list_item((x, cy, w), &it, false)
+            ui.list_item_whole((x, cy, w), &it, false)
         } else {
-            ui.list_item_still((x, cy, w), &it)
+            ui.list_item_whole_still((x, cy, w), &it)
         };
     }
     cy - y + GAP

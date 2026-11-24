@@ -3,6 +3,8 @@
 #[path = "all/common.rs"]
 mod common;
 
+#[path = "all/address_list_whole.rs"]
+mod address_list_whole;
 #[path = "all/address_look.rs"]
 mod address_look;
 #[path = "all/address_page.rs"]

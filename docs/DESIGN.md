@@ -910,7 +910,7 @@ file"), nothing read.
 A file holding several addresses (one a line, or a list after other
 text) is read for its addresses: with one, it is checked as typed; with
 more than one, the page lists them in a Material list (two-line items:
-the address in short form, §4.5, then "Savings · receive 12" or **Not
+the whole address in groups of four, §4.5, on one line where it fits and wrapped only between groups where the room requires it, never cut, then "Savings · receive 12" or **Not
 found**), each checked against the first 100 on reading (a compute, `c:
 &Compute`, as a scan's search is), and a press on a row shows that
 address's result card in the list's place, Back returning to the list;
