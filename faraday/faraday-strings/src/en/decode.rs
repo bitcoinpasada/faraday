@@ -106,6 +106,10 @@ macro_rules! words_decode {
     decode_no_transaction_waits: "No transaction waits in Files",
     /// Line in `decode_landing`: the files to choose from.
     decode_choose_transaction: "Choose a transaction",
+    /// Card title in `decode/flow.rs`: the step that picks the transaction.
+    decode_card_transaction: "Transaction",
+    /// Card title in `decode/flow.rs`: the step that shows it taken apart.
+    decode_card_result: "Result",
     /// Line in `landing` (check_message.rs): the files to choose from.
     decode_choose_message: "Choose a signed message",
         }

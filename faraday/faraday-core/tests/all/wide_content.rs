@@ -327,7 +327,8 @@ fn decode_draws_every_address_whole_and_clear_of_the_row_under_it() {
             let mut lines: Vec<_> = boxes
                 .iter()
                 .filter(|(t, _)| {
-                    !t.is_empty()
+                    // A row's number is one digit, not a line of the address.
+                    t.len() > 1
                         && t.split(' ').all(|g| g.len() <= 4)
                         && a.contains(&t.replace(' ', ""))
                 })

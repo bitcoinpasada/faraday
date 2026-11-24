@@ -9,9 +9,12 @@ use crate::ui::{Style, Ui, grouped};
 use crate::{Action, Screen};
 use faraday_draw::tokens::{
     BODY_M, BODY_S, BUTTON_H, DECODE_INDEX_W, DECODE_KIND_GAP, DECODE_ROW_H, DECODE_VALUE_ROOM,
-    LABEL_L, LABEL_M,
+    GAP, GAP_SMALL, LABEL_L, LABEL_M,
 };
 use faraday_ui::parts::{section_label, wrap_buttons};
+
+/// The widest the transaction's column stands.
+const COLUMN_MAX: f32 = 960.0;
 
 /// A transaction taken apart: what it is, what goes in, what comes out
 /// and to whom, and its bytes.
@@ -40,7 +43,9 @@ pub(crate) fn decode_back_to(back: Screen) -> Action {
 }
 
 pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
-    use crate::decode::btc;
+    if crate::decode::flow::contained_decode(app) {
+        return card(app, ui, x0, cw, h);
+    }
     let d = app.decode();
     let back = d.map_or_else(
         || app.decode.landing().unwrap_or(Screen::Catalog),
@@ -52,7 +57,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (x, w) = if compact {
         (x0 + crate::compact::M, cw - 2.0 * crate::compact::M)
     } else {
-        (x0 + 48.0, (cw - 96.0).min(960.0))
+        (x0 + 48.0, (cw - 96.0).min(COLUMN_MAX))
     };
     let clip = ui.rect(x0, 0.0, cw, h);
     let open = ui.region_open(Region::page(clip).from_zero(app.list_offset));
@@ -68,6 +73,22 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.region_close(open, 0.0);
         return;
     };
+    let y = body(app, ui, d, (x, top, w));
+    app.scroll.content_h().set(y - top + 40.0);
+    ui.region_close(open, app.scroll.content_h().get() - h);
+}
+
+/// The transaction taken apart, from (x, top) in a column `w` wide: the
+/// facts, the inputs and outputs as a table, the buttons and the hex.
+/// Returns where it ends.
+fn body(
+    app: &View,
+    ui: &mut Ui,
+    d: &crate::decode::DecodeState,
+    (x, top, w): (f32, f32, f32),
+) -> f32 {
+    use crate::decode::btc;
+    let compact = ui.compact;
     let t = &d.decoded;
     let mut y = top;
     y += ui.wrap_as((x, y, w), BODY_S, Role::OnSurfaceVariant, &t.source) + 14.0;
@@ -120,11 +141,20 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             y += vh + 34.0;
             continue;
         }
-        ui.text_mid_as((x, y, 34.0), BODY_S, Role::OnSurfaceVariant, k);
-        let v = ui.fit_as(face, v, w - 170.0);
-        ui.text_mid_as((x + 160.0, y, 34.0), face, Role::OnSurface, &v);
-        ui.rule(x, y + 34.0, w, Role::OutlineVariant);
-        y += 36.0;
+        let (room, row) = (w - 170.0, 34.0);
+        let fitted = ui.fit_as(face, v, room);
+        ui.text_mid_as((x, y, row), BODY_S, Role::OnSurfaceVariant, k);
+        // A transaction id wider than the card's column is wrapped in
+        // groups, never cut.
+        let h = if *mono && *fitted != **v {
+            ui.wrap_as((x + 160.0, y, room), face, Role::OnSurface, &grouped(v))
+                .max(row)
+        } else {
+            ui.text_mid_as((x + 160.0, y, row), face, Role::OnSurface, &fitted);
+            row
+        };
+        ui.rule(x, y + h, w, Role::OutlineVariant);
+        y += h + 2.0;
     }
     y += 18.0;
     // Beside the navigation, the inputs and outputs are a table as wide as
@@ -155,9 +185,24 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 &input.outpoint,
             ) + 4.0;
         } else {
-            let op = ui.fit_as(BODY_M.mono(), &input.outpoint, tw - DECODE_VALUE_ROOM);
-            ui.text_mid_as((x + 26.0, y, 26.0), BODY_M.mono(), Role::OnSurface, &op);
-            y += 26.0;
+            // The outpoint whole: wrapped in the column when it does not fit.
+            let room = tw - DECODE_VALUE_ROOM;
+            if ui.measure_as(BODY_M.mono(), &input.outpoint) > room {
+                y += ui.wrap_as(
+                    (x + DECODE_INDEX_W, y, room),
+                    BODY_M.mono(),
+                    Role::OnSurface,
+                    &input.outpoint,
+                ) + GAP_SMALL;
+            } else {
+                ui.text_mid_as(
+                    (x + DECODE_INDEX_W, y, DECODE_INDEX_W),
+                    BODY_M.mono(),
+                    Role::OnSurface,
+                    &input.outpoint,
+                );
+                y += 26.0;
+            }
         }
         let line = input_line(input);
         if compact {
@@ -282,8 +327,125 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.stroke(x, y, w, th + 20.0, 8.0, Role::OutlineVariant);
         y += th + 32.0;
     }
-    app.scroll.content_h().set(y - top + 40.0);
-    ui.region_close(open, app.scroll.content_h().get() - h);
+    y
+}
+
+/// The transactions held in Files, then the ways in: Scan and Open Files.
+/// The transaction on show, when it came from a held file, is marked.
+pub(crate) fn pick_groups(app: &crate::Faraday) -> Vec<crate::flow::PickGroup> {
+    let shown = app.decode().map(|d| &*d.decoded.source);
+    let held: Vec<crate::pick::PickRow> = app
+        .inbox
+        .iter()
+        .enumerate()
+        .filter(|(_, i)| i.kind == crate::wallet::FileKind::Transaction)
+        .map(|(k, i)| {
+            crate::pick::PickRow::pick(
+                faraday_draw::widgets::Icon::File,
+                i.name.to_string(),
+                String::new(),
+                shown.is_some_and(|s| s == &*i.name),
+                Action::DecodeInbox(k),
+            )
+        })
+        .collect();
+    let mut groups = Vec::new();
+    let loaded = !held.is_empty();
+    if loaded {
+        groups.push(crate::flow::PickGroup {
+            head: EN.session_group_files,
+            rows: held,
+        });
+    }
+    groups.push(crate::flow::PickGroup {
+        head: crate::pick::ways_in_head(loaded),
+        rows: vec![
+            crate::pick::PickRow::way_in(
+                faraday_draw::widgets::Icon::Scan,
+                EN.compact_scan,
+                Action::ScanFor(crate::Ask::Decode),
+            ),
+            crate::pick::PickRow::way_in(
+                faraday_draw::widgets::Icon::File,
+                EN.parts_open_files,
+                Action::Nav(Screen::Files),
+            ),
+        ],
+    });
+    groups
+}
+
+/// Decode a transaction as the flow's one card: the pick at the left, the
+/// transaction taken apart as the card (`docs/FLOW-CONTAINER.md` §2).
+fn card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+    use crate::decode::flow;
+    let back = app.decode().map_or_else(
+        || app.decode.landing().unwrap_or(Screen::Catalog),
+        |d| d.back,
+    );
+    let link = app.named_back((decode_back(back), decode_back_to(back)));
+    let page = crate::flow::Page {
+        area: (x0, cw),
+        h,
+        foot_h: 0.0,
+        back: Some(link),
+        heading: EN.decode_decode_a_transaction,
+        chip: None,
+        note: None,
+        chip_tap: None,
+        step: None,
+        moves: crate::ui::Moves::No,
+    };
+    let Some(contained) = crate::trail::StepFlow::contained(&flow::DECODE_STEPS) else {
+        return;
+    };
+    let scroll = app.decode.scroll();
+    let (next, again, _) = {
+        let app_ref: &View = app;
+        let mut body_of = |ui: &mut Ui, step: u8, x: f32, y: f32, w: f32| -> f32 {
+            if step == flow::PICK {
+                let mut cy = y;
+                let none = !app_ref
+                    .inbox
+                    .iter()
+                    .any(|i| i.kind == crate::wallet::FileKind::Transaction);
+                if none {
+                    cy += ui.wrap_as(
+                        (x, cy, w),
+                        BODY_M,
+                        Role::OnSurfaceVariant,
+                        EN.decode_no_transaction_waits,
+                    ) + GAP;
+                }
+                // Where the pair stands the pane holds the rows.
+                if crate::flow::pair_left(app_ref, &flow::DECODE_STEPS, ui.compact, cw) {
+                    return cy - y;
+                }
+                for g in pick_groups(app_ref) {
+                    cy += crate::pick::head(ui, x, cy, w, g.head);
+                    cy += crate::pick::rows(ui, x, cy, w, &g.rows);
+                }
+                return cy - y;
+            }
+            let Some(d) = app_ref.decode() else {
+                return 0.0;
+            };
+            // The table's width rule: the card's column, at most 960.
+            let w = ui.flow_work.map_or(w, |end| end - x).min(COLUMN_MAX);
+            body(app_ref, ui, d, (x, y, w)) - y
+        };
+        let mut under = |_: &mut Ui, _: f32, _: f32, _: f32| 0.0;
+        crate::flow::contained(
+            ui,
+            app_ref,
+            contained,
+            &page,
+            scroll,
+            &mut body_of,
+            &mut under,
+        )
+    };
+    app.scroll(crate::drawing::Scrolled::Decode, next, again);
 }
 
 /// An input's line under its outpoint: its sequence, its witness and its

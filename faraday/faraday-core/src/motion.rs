@@ -1302,6 +1302,9 @@ impl Faraday {
             Screen::Invoice if crate::invoice::flow::contained(self) => {
                 self.tools.invoice.scroll_y().map(|_| Place::Invoice)?
             }
+            Screen::Decode if crate::decode::flow::contained_decode(self) => {
+                self.decode.scroll_y().map(|_| Place::Decode)?
+            }
             Screen::Files
             | Screen::Wallets
             | Screen::WalletsStart
@@ -1402,6 +1405,7 @@ impl Faraday {
             Place::OtsCheck => y(self.tools.ots.scroll_y()),
             Place::Tools => y(self.tools.scroll_y()),
             Place::Invoice => y(self.tools.invoice.scroll_y()),
+            Place::Decode => y(self.decode.scroll_y()),
             Place::SeedCheck => y(self.tools.seed_check.scroll_y()),
             Place::MultisigCheck => y(self.tools.mscheck.scroll_y()),
             Place::CoreWallet => y(self.tools.core_wallet.scroll_y()),
@@ -1450,6 +1454,7 @@ impl Faraday {
             Place::OtsCheck => self.tools.ots.set_scroll_y(to),
             Place::Tools => self.tools.set_scroll_y(to),
             Place::Invoice => self.tools.invoice.set_scroll_y(to),
+            Place::Decode => self.decode.set_scroll_y(to),
             Place::SeedCheck => self.tools.seed_check.set_scroll_y(to),
             Place::MultisigCheck => self.tools.mscheck.set_scroll_y(to),
             Place::CoreWallet => self.tools.core_wallet.set_scroll_y(to),
@@ -1498,6 +1503,8 @@ enum Place {
     OtsCheck,
     /// The Tools screen's card, where a tool is drawn as a flow.
     Tools,
+    /// Decode a transaction's card, where it is drawn as a flow.
+    Decode,
     SeedCheck,
     MultisigCheck,
     CoreWallet,

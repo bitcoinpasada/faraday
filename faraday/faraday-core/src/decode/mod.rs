@@ -12,6 +12,7 @@ pub(crate) mod check_others;
 pub(crate) mod check_screen;
 pub(crate) mod check_words;
 pub(crate) mod diff_words;
+pub(crate) mod flow;
 pub(crate) mod said;
 pub(crate) mod screen;
 
@@ -398,9 +399,30 @@ pub(crate) struct DecodeArea {
     /// Check a signer's flow: two PSBTs or transactions, their comparison
     /// and the report on them, public, kept until a lock or power-off. Boxed as `outside` is.
     check: Option<Box<check::CheckState>>,
+    /// How far the flow's card is scrolled, where Decode a transaction is
+    /// drawn as one ([`flow`]).
+    scroll: crate::flow::Scroll,
 }
 
 impl DecodeArea {
+    /// How far the flow's card is scrolled.
+    pub(crate) fn scroll(&self) -> crate::flow::Scroll {
+        self.scroll
+    }
+
+    pub(crate) fn set_scroll(&mut self, to: crate::flow::Scroll) {
+        self.scroll = to;
+    }
+
+    /// The card's scroll, units.
+    pub(crate) fn scroll_y(&self) -> Option<f32> {
+        Some(self.scroll.y)
+    }
+
+    pub(crate) fn set_scroll_y(&mut self, y: f32) {
+        self.scroll.y = y;
+    }
+
     /// The screen the landing returns to, while the tool is open with no
     /// transaction chosen.
     pub(crate) fn landing(&self) -> Option<Screen> {
@@ -427,6 +449,7 @@ impl DecodeArea {
             back,
             show_hex: false,
         });
+        self.scroll = crate::flow::Scroll::default();
         *screen = Screen::Decode;
     }
 
@@ -925,6 +948,7 @@ impl Faraday {
                 let back = self.decode.state.as_ref().map(|d| d.back);
                 if let Some(back) = back {
                     self.decode.state = None;
+                    self.decode.scroll = crate::flow::Scroll::default();
                     self.decode.landing = Some(back);
                     self.list_offset = 0.0;
                 }

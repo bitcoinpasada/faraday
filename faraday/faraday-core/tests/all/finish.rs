@@ -18,7 +18,7 @@ use faraday_core::testkit::Plain;
 use faraday_core::testkit::{self, Kit};
 use faraday_core::wallet::{FileKind, step};
 use faraday_core::{Action, Faraday, Screen, StorageCommand, StorageEvent};
-use faraday_shell_api::App;
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 fn kit(id: &str) -> Kit {
     testkit::kits().into_iter().find(|k| k.id == id).unwrap()
@@ -280,6 +280,35 @@ fn a_signature_that_could_not_be_checked_is_not_called_valid() {
         "{}",
         check.headline()
     );
+}
+
+/// Opened from Sign a transaction on a wide window, the Result card is
+/// the step opened on, and its way back goes to the signing.
+#[test]
+fn the_finished_transaction_opens_on_the_result_card_and_goes_back_to_signing() {
+    use faraday_core::strings::EN;
+    let mut app = spending_finished();
+    app.event(Event::Display(DisplayInfo {
+        width: 1366,
+        height: 768,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.press(Action::DecodeFinished);
+    assert_eq!(app.screen, Screen::Decode);
+    assert_eq!(app.decode().unwrap().back, Screen::Spend);
+    assert!(crate::common::has(&mut app, EN.decode_transaction));
+    assert!(crate::common::offered(&mut app, Action::Nav(Screen::Spend)));
+    assert!(crate::common::offered(
+        &mut app,
+        Action::ScanFor(faraday_core::Ask::Decode)
+    ));
 }
 
 #[test]

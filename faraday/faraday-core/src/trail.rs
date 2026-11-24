@@ -804,6 +804,9 @@ impl Faraday {
             Screen::Invoice if crate::invoice::flow::contained(self) => {
                 &crate::invoice::flow::INVOICE_STEPS
             }
+            Screen::Decode if crate::decode::flow::contained_decode(self) => {
+                &crate::decode::flow::DECODE_STEPS
+            }
             Screen::SeedCheck => &crate::seed_check::SEED_STEPS,
             Screen::MultisigCheck => &crate::multisig_check::MS_STEPS,
             Screen::CoreWallet => &crate::core_wallet::tool::CORE_WALLET_STEPS,

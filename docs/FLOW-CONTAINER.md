@@ -313,6 +313,7 @@ my wallet's, Read a Bitcoin Core wallet's) ends its last card.
 | Miniscript (Tools), on a window that is not compact | `faraday/faraday-core/src/tools/screen.rs`, `faraday/faraday-core/src/tools/flow.rs` | Input, Result | none | none |
 | Convert an xpub (Tools), on a window that is not compact | `faraday/faraday-core/src/tools/screen.rs`, `faraday/faraday-core/src/tools/flow.rs` | Input, Result | none | none |
 | Decode a Lightning invoice, on a window that is not compact | `faraday/faraday-core/src/invoice/screen.rs`, `faraday/faraday-core/src/invoice/flow.rs` | Input, Result | none | none |
+| Decode a transaction, on a window wide enough for the container's pair | `faraday/faraday-core/src/decode/screen.rs`, `faraday/faraday-core/src/decode/flow.rs` | Transaction (the pick at the left, then Result in the card) | none | none |
 
 The screens are under `faraday/faraday-core/src/`.
 

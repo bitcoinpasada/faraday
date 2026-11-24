@@ -3,11 +3,11 @@
 //! when several do, Scan, Open Files and the stick when none, and each
 //! result ends with Another and Done.
 
-use crate::common::has;
+use crate::common::{has, offered, through_fade};
 use faraday_core::core_wallet::tool::CoreWalletAction as W;
 use faraday_core::strings::EN;
 use faraday_core::{Action, Faraday, Screen, StorageEvent, testkit};
-use faraday_shell_api::App;
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 /// The first transaction ever sent, as the hex of its bytes.
 const TX: &str = "0100000001c997a5e56e104102fa209c6a852dd90660a20b2d9c352423edce25857fcd3704000000004847304402204e45e16932b8af514961a1d3a1a25fdf3f4f7732e9d624c6c61548ab5fb8cd410220181522ec8eca07de4860a4acdd12909d831cc56cbbac4622082221a8768d1d0901ffffffff0200ca9a3b00000000434104ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414e7aab37397f554a7df5f142c21c1b7303b8a0626f1baded5c72a704f7e6cd84cac00286bee0000000043410411db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5cb2e0eaddfb84ccf9744464f82e160bfa9b8b64f9d4c03f999b8643f656b412a3ac00000000";
@@ -44,18 +44,21 @@ fn open_tile(app: &mut Faraday, name: &str) {
 #[test]
 fn decode_with_two_transactions_lists_both_and_decodes_the_chosen() {
     let mut app = tools_with(&[("first.txt", TX.as_bytes()), ("second.txt", TX.as_bytes())]);
+    on_wide(&mut app);
     open_tile(&mut app, EN.catalog_decode_a_transaction);
     assert_eq!(app.screen, Screen::Decode);
     assert!(app.decode().is_none());
     assert!(has(&mut app, "first.txt"));
     assert!(has(&mut app, "second.txt"));
     app.press(Action::DecodeInbox(1));
+    through_fade(&mut app);
     let d = app.decode().expect("the chosen one is decoded");
     assert!(d.decoded.source.contains("second.txt"));
     // Another shows the list again; Done goes back to Tools.
     assert!(has(&mut app, EN.bip85_another));
     assert!(has(&mut app, EN.app_done));
     app.press(Action::DecodeAnother);
+    through_fade(&mut app);
     assert!(app.decode().is_none());
     assert!(has(&mut app, "first.txt"));
     app.press(Action::DecodeInbox(0));
@@ -378,4 +381,68 @@ fn add_a_key_from_a_key_tool_comes_back_to_it() {
         assert_eq!(app.screen, screen, "{screen:?}");
         assert!(has(&mut app, EN.convert_add_a_key), "{screen:?}");
     }
+}
+
+/// The app on a wide window, as `tools_with` makes it.
+fn on_wide(app: &mut Faraday) {
+    app.event(Event::Display(DisplayInfo {
+        width: 1366,
+        height: 4000,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+}
+
+/// Decode a transaction on a wide window: the pick holds the transactions
+/// in Files and Scan, and a chosen one is the Result card with its
+/// buttons, the pick still there.
+#[test]
+fn decode_on_a_wide_window_has_the_pick_and_the_result_card() {
+    let mut app = tools_with(&[("first.txt", TX.as_bytes()), ("second.txt", TX.as_bytes())]);
+    on_wide(&mut app);
+    open_tile(&mut app, EN.catalog_decode_a_transaction);
+    through_fade(&mut app);
+    assert_eq!(app.screen, Screen::Decode);
+    assert!(offered(&mut app, Action::DecodeInbox(0)));
+    assert!(offered(&mut app, Action::DecodeInbox(1)));
+    assert!(offered(
+        &mut app,
+        Action::ScanFor(faraday_core::Ask::Decode)
+    ));
+
+    app.press(Action::DecodeInbox(1));
+    through_fade(&mut app);
+    assert!(has(&mut app, EN.decode_transaction));
+    assert!(has(&mut app, EN.decode_show_the_hex));
+    assert!(has(&mut app, EN.bip85_another));
+    // The pick stays at the left, and another file can be chosen from it.
+    assert!(offered(&mut app, Action::DecodeInbox(0)));
+    assert!(offered(
+        &mut app,
+        Action::ScanFor(faraday_core::Ask::Decode)
+    ));
+    app.press(Action::DecodeInbox(0));
+    let d = app.decode().expect("the other file is decoded");
+    assert!(d.decoded.source.contains("first.txt"));
+}
+
+/// The way back from the card goes where the tool was opened from.
+#[test]
+fn decode_on_a_wide_window_goes_back_to_where_it_was_opened_from() {
+    let mut app = tools_with(&[("first.txt", TX.as_bytes()), ("second.txt", TX.as_bytes())]);
+    on_wide(&mut app);
+    open_tile(&mut app, EN.catalog_decode_a_transaction);
+    app.press(Action::DecodeInbox(0));
+    through_fade(&mut app);
+    assert_eq!(app.decode().unwrap().back, Screen::Catalog);
+    assert!(has(&mut app, EN.decode_back_tools));
+    assert!(offered(&mut app, Action::Nav(Screen::Catalog)));
+    app.press(Action::Nav(Screen::Catalog));
+    assert_eq!(app.screen, Screen::Catalog);
 }
