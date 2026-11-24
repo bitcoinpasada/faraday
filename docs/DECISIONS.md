@@ -338,3 +338,4 @@ Read this table, then only the decision you need.
 | [F326](decisions/F326.md) | Faraday Demo has a dev build, and only it carries the handwriting reader and ACE | 2026-11-23 | Active | release |
 | [F327](decisions/F327.md) | ACE's implementation and test app live in Faraday, its specification and vectors in their own repository; ACE is offered in Faraday only in Faraday Demo's dev build | 2026-11-23 | Active | standards |
 | [F329](decisions/F329.md) | The Starter's Appearance and About are rows of Home's Settings, not of the menu | 2026-11-24 | Active | Starter |
+| [F331](decisions/F331.md) | Everything raised rests at one level; in a flow the flow's card alone is raised, and the search and the pills stay | 2026-11-24 | Active | design |
