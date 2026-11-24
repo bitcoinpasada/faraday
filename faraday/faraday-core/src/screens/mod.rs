@@ -198,6 +198,9 @@ fn page_area(app: &crate::Faraday, screen: Screen, room: f32) -> (f32, f32) {
         // Tools and Check place their own column, or the pair at the flow's
         // place (`screens::menu_place`).
         Area::Work
+    } else if screen == Screen::Explore && crate::explore::pane::place_in(app, room) {
+        // The keys' pane and the card are a pair at the flow's place.
+        Area::Work
     } else if screen == Screen::KeyGen && !keygen_wide(app) {
         let t =
             faraday_draw::tokens::KEYGEN_COLUMN_MAX + 2.0 * faraday_draw::tokens::KEYGEN_COLUMN_IN;

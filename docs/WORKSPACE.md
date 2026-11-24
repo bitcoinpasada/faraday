@@ -550,7 +550,7 @@ component with Home's pane.
 | Home's pane (`screens/home.rs`, `key_rows`, `wallet_rows`, `going_rows`) | flows, files, wallets, Backups, keys, All keys | opens | the Home form, in groups, without All keys |
 | Home's one-column box (`compact/mod.rs`, `nav/screen.rs` lines) | vaults open, flows, keys, wallets, files | opens | unchanged (F315) |
 | Child seeds and passwords, key step (`bip85/screen.rs`, `pane`) | loaded keys, Add a key | one, pill row | picker, single |
-| Explore and Derive (`explore/screen.rs`) | loaded keys | one, pill row | picker, single |
+| Explore and Derive (`explore/screen.rs`, `explore/pane.rs`) | loaded keys | one | built: on the wide layout the keys stand as the picker's rows in a pane at the left of the card and the result stays in the card; the one-column layouts and a window too narrow for the pair keep the pill row, and the Addresses and Find pages have no pane |
 | Convert a seed (`convert/screen.rs`) | loaded keys, an aezeed | one, pill row | picker, single |
 | Silent payments, key step (`silent/screen.rs`) | loaded keys | one, pill row | picker, single | Make another record |
 | Lightning node key (`lightning/screen.rs`) | keys, aezeed, Core Lightning | one, pill row | picker, single (its other sources as rows) |

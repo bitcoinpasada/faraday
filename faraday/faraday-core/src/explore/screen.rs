@@ -7,6 +7,7 @@ use faraday_bip::keys::ScriptType;
 
 use crate::explore::shown::xprv_path;
 use crate::explore::{Eye, PRESETS, Page, Shown, XAction};
+use crate::pick;
 use crate::screens::button_rows;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
@@ -31,29 +32,43 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if !compact {
         y = header(app, ui, y);
     }
-    let mut keys: Vec<(Text, Style, Action)> = app
-        .session
-        .keys
-        .all()
-        .map(|k| {
-            let fp = k.fingerprint;
-            (
-                Text::of(&crate::wallet::key_line(fp, &crate::bip85::key_name(k))),
-                Style::chosen(e.key == Some(fp.0)),
-                Action::XKey(fp.0),
-            )
-        })
-        .collect();
-    // With no key loaded the page is the one way to add it, and back here.
-    let none = keys.is_empty();
-    if none {
-        keys.push((
-            Text::of(EN.convert_add_a_key),
-            Style::Secondary,
-            Action::Entry(None),
-        ));
+    let none = app.session.keys.all().next().is_none();
+    // On the wide layout the keys stand in the pane at the left of the card
+    // (`docs/FLOW-CONTAINER.md` §4); elsewhere they are a row of buttons.
+    let pair = super::pane::place(app, compact, cw);
+    let (x, width, y_pane) = match pair {
+        Some(p) => (x0 + p.card_x, p.card_w, y),
+        None => (x, width, y),
+    };
+    let mut pane_end = y_pane;
+    if let Some(p) = pair {
+        let rows = super::pane::key_rows(app, e.key);
+        pane_end += pick::head(ui, x0 + p.pane_x, pane_end, p.pane_w, EN.session_group_keys);
+        pane_end += pick::rows(ui, x0 + p.pane_x, pane_end, p.pane_w, &rows);
+    } else {
+        let mut keys: Vec<(Text, Style, Action)> = app
+            .session
+            .keys
+            .all()
+            .map(|k| {
+                let fp = k.fingerprint;
+                (
+                    Text::of(&crate::wallet::key_line(fp, &crate::bip85::key_name(k))),
+                    Style::chosen(e.key == Some(fp.0)),
+                    Action::XKey(fp.0),
+                )
+            })
+            .collect();
+        // With no key loaded the page is the one way to add it, and back here.
+        if none {
+            keys.push((
+                Text::of(EN.convert_add_a_key),
+                Style::Secondary,
+                Action::Entry(None),
+            ));
+        }
+        y += button_rows(ui, x, y, width, &keys) + 4.0;
     }
-    y += button_rows(ui, x, y, width, &keys) + 4.0;
     if none {
         crate::compact::screen::finish(app, ui, h, y - top + T::GAP);
         return;
@@ -132,7 +147,13 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .collect();
     y += button_rows(ui, px, y, pw, &presets) + 8.0;
     let Some(r) = app.explore_reading() else {
-        crate::compact::screen::finish(app, ui, h, y - top + 16.0);
+        tail(
+            app,
+            ui,
+            (x0, h, top),
+            pair.map(|p| (p, y_pane)),
+            (y, pane_end),
+        );
         return;
     };
     let scripts: Vec<(&str, Style, Action)> = ScriptType::ALL
@@ -228,7 +249,30 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if compact {
         y += crate::compact::screen::about(ui, x, y, width, guide);
     }
-    crate::compact::screen::finish(app, ui, h, y - top + 16.0);
+    tail(
+        app,
+        ui,
+        (x0, h, top),
+        pair.map(|p| (p, y_pane)),
+        (y, pane_end),
+    );
+}
+
+/// The end of the Path page, whichever way it ends: the pair's lines where
+/// it stands, and the scroll height to the lower of the column and the
+/// pane, with the outline's foot below it.
+fn tail(
+    app: &View,
+    ui: &mut Ui,
+    (x0, h, top): (f32, f32, f32),
+    pair: Option<(crate::flow::unit::Place, f32)>,
+    (y, pane_end): (f32, f32),
+) {
+    let end = pane_end.max(y);
+    if let Some((p, y_pane)) = pair {
+        super::pane::lines(ui, x0, p, y_pane, end);
+    }
+    crate::compact::screen::finish(app, ui, h, end - top + 16.0);
 }
 
 /// The account's row of buttons with **Make a wallet** (or **Open the

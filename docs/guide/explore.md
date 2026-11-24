@@ -12,7 +12,7 @@ Explore shows the public side of a loaded key at any path: the address, the publ
 
 **Key:** explore.path
 
-Choose the key with its button, one per loaded key. **Write it in another form** opens Convert on that key.
+The key is picked with its button, or, on a wide window, with its row under Keys. **Write it in another form** opens Convert on that key.
 
 Type **Path** after the fixed m/, with h for a hardened level, up to ten levels; a path that does not parse shows the reason under the field. BIP-84, BIP-86, BIP-49, BIP-44 and BIP-48 fill in the standard path of that purpose for the network, and **Index -1** and **Index +1** step the last level. **Script** is **Native SegWit**, **Taproot**, **Nested SegWit** or **Legacy**; it applies to a path whose purpose level names none, and a path of purpose 84, 86, 49 or 44 uses its own.
 

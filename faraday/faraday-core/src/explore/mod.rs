@@ -10,6 +10,7 @@ pub mod addresses;
 pub(crate) mod made;
 mod make;
 mod pages;
+pub(crate) mod pane;
 pub(crate) mod screen;
 pub mod shown;
 

@@ -67,7 +67,11 @@ fn card_limits(left: bool, compact: bool, top: f32, view_h: f32) -> (f32, f32) {
 /// The lines of one card: the divider at `at` from `top` to `end`, and,
 /// where the pair stands (its left edge and the card's right, the foot
 /// limit), the outline a padding outside it.
-fn pair_lines(ui: &mut Ui, (at, top, end): (f32, f32, f32), pair: Option<((f32, f32), f32)>) {
+pub(crate) fn pair_lines(
+    ui: &mut Ui,
+    (at, top, end): (f32, f32, f32),
+    pair: Option<((f32, f32), f32)>,
+) {
     divider(ui, at, top, end);
     if let Some(((left, right), limit)) = pair {
         outline(

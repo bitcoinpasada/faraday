@@ -168,7 +168,7 @@ fn exploring(w: u16, h: u16) -> Faraday {
 }
 
 #[test]
-fn explore_keeps_its_column_centred_and_wraps_long_values_between_groups() {
+fn explore_keeps_its_pair_centred_and_wraps_long_values_between_groups() {
     for (w, h) in [(1920u16, 1080u16), (2560, 1440)] {
         let mut app = exploring(w, h);
         let _ = app.frame();
@@ -178,12 +178,18 @@ fn explore_keeps_its_column_centred_and_wraps_long_values_between_groups() {
             .filter(|b| b.0 > RAIL)
             .min_by_key(|b| b.1)
             .expect("the path's label");
-        // The 720 dp column's middle is the room's beside the rail.
-        let middle = label.0 + 720 / 2;
+        // The keys' pane and the 720 dp column are one pair, centred in the
+        // room beside the rail.
+        let pane = boxes(&mut app, "Keys")
+            .into_iter()
+            .filter(|b| b.0 > RAIL)
+            .min_by_key(|b| b.1)
+            .expect("the keys' pane");
+        let middle = (pane.0 + label.0 + 720) / 2;
         let room = RAIL + (i32::from(w) - RAIL) / 2;
         assert!(
             (middle - room).abs() <= 2,
-            "{w}: the column's middle {middle}, the room's {room}"
+            "{w}: the pair's middle {middle}, the room's {room}"
         );
         // The address in groups of four, on one line in the column.
         let grouped = "tb1q 6rz2 8mcf axtm d6v7 89l9 rrlr usdp rr9p qcpv kl";

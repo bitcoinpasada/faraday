@@ -236,3 +236,179 @@ fn explore_with_no_key_adds_one_on_the_add_a_key_page_and_returns() {
     assert_eq!(app.session.keys.len(), 1);
     assert_eq!(app.screen, Screen::Explore, "back in Explore");
 }
+
+/// Explore on a 1366 × 768 window with two keys loaded, "abandon … about"
+/// first and "zoo … wrong" second: the keys stand in a pane at the card's
+/// left.
+fn exploring_two_wide() -> Faraday {
+    let mut app = wide_window();
+    for phrase in [
+        "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+        "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong",
+    ] {
+        app.press(Action::Entry(None));
+        for c in phrase.chars() {
+            app.event(Event::Key(Key::Char(c)));
+        }
+        app.press(Action::EntryAdd);
+        faraday_core::testkit::keep_published(&mut app);
+    }
+    app.press(Action::Explore);
+    assert_eq!(app.screen, Screen::Explore);
+    app
+}
+
+/// A started app on a 1366 × 768 window.
+fn wide_window() -> Faraday {
+    use faraday_shell_api::{BootState, DisplayInfo, SecureHardware};
+    let mut app = faraday_core::testkit::started();
+    app.event(Event::Display(DisplayInfo {
+        width: 1366,
+        height: 768,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app
+}
+
+/// Explore on the wide window with `n` keys loaded.
+fn exploring_many(n: u8) -> Faraday {
+    use faraday_bip::bip39::Language;
+    let c = faraday_core::testkit::compute();
+    let mut app = wide_window();
+    for i in 0..n {
+        let m = faraday_keys::words::from_entropy(Language::English, &[i + 1; 16]).unwrap();
+        let words: Vec<&str> = m
+            .indices()
+            .iter()
+            .map(|&w| Language::English.words()[usize::from(w)])
+            .collect();
+        app.session
+            .keys
+            .add_words(&c, &words.join(" "), &format!("Seed {i}"), None)
+            .unwrap();
+    }
+    app.press(Action::Explore);
+    assert_eq!(app.screen, Screen::Explore);
+    app
+}
+
+/// A press and its release at the middle of what offers `a`.
+fn touch(app: &mut Faraday, a: Action) {
+    let (x, y) = app.where_offered(a).expect("offered");
+    for phase in [
+        faraday_shell_api::TouchPhase::Down,
+        faraday_shell_api::TouchPhase::Up,
+    ] {
+        app.event(Event::Touch { x, y, phase });
+    }
+}
+
+/// The left edge of the "Path" label: where the card begins.
+fn card_left(app: &mut Faraday) -> i32 {
+    let _ = app.frame();
+    app.drawn_text_boxes()
+        .into_iter()
+        .filter(|(t, _)| t == "Path")
+        .map(|(_, r)| r.0)
+        .min()
+        .expect("the path's label")
+}
+
+fn second_key(app: &Faraday) -> [u8; 4] {
+    app.session.keys.all().nth(1).unwrap().fingerprint.0
+}
+
+#[test]
+fn a_wide_window_lists_every_key_in_a_pane_and_a_press_picks_one() {
+    let mut app = exploring_two_wide();
+    let second = second_key(&app);
+    let first = app.session.keys.all().next().unwrap().fingerprint.0;
+    assert!(crate::common::offered(&mut app, Action::XKey(first)));
+    let card = card_left(&mut app);
+    for k in [first, second] {
+        let (x, _, w, _) = app.hit_box(Action::XKey(k)).expect("a row");
+        assert!(i32::from(x + w) < card, "the row ends left of the card");
+    }
+    touch(&mut app, Action::XKey(second));
+    assert_eq!(app.explore().unwrap().key, Some(second));
+}
+
+#[test]
+fn a_pane_of_many_keys_scrolls_to_its_last_row() {
+    let mut app = exploring_many(20);
+    let last = app.session.keys.all().last().unwrap().fingerprint.0;
+    let (_, h) = app.size();
+    let _ = app.frame();
+    for _ in 0..40 {
+        if app
+            .hit_box(Action::XKey(last))
+            .is_some_and(|(_, y, _, bh)| f32::from(y + bh) <= h)
+        {
+            return;
+        }
+        let (w, _) = app.size();
+        app.event(Event::Scroll {
+            x: (w * 0.5) as u16,
+            y: (h / 2.0) as u16,
+            dy: 120,
+        });
+        let _ = app.frame();
+    }
+    panic!("the last key's row never came into the window");
+}
+
+#[test]
+fn the_divider_stays_while_the_path_is_unfinished() {
+    let c = faraday_core::testkit::compute();
+    let mut app = exploring_two_wide();
+    for _ in 0..20 {
+        app.event(Event::Key(Key::Backspace));
+    }
+    for ch in "84h//0".chars() {
+        app.event(Event::Key(Key::Char(ch)));
+    }
+    assert!(app.explore_reading(&c).is_none());
+    let first = app.session.keys.all().next().unwrap().fingerprint.0;
+    let card = card_left(&mut app);
+    let (x, _, w, _) = app.hit_box(Action::XKey(first)).expect("a row");
+    let (from, to) = (usize::from(x + w) + 1, usize::try_from(card).unwrap());
+    let (width, _) = app.size();
+    let rgba = app.frame().rgba.to_vec();
+    let row = 330 * width as usize;
+    let at = |col: usize| &rgba[(row + col) * 4..(row + col) * 4 + 4];
+    assert!(
+        (from..to).any(|col| at(col) != at(from)),
+        "a divider between the pane and the card"
+    );
+}
+
+#[test]
+fn the_card_follows_the_key_picked_in_the_pane() {
+    let c = faraday_core::testkit::compute();
+    let mut app = exploring_two_wide();
+    let before = app.explore_reading(&c).unwrap().address.clone();
+    app.press(Action::XKey(second_key(&app)));
+    let after = app.explore_reading(&c).unwrap().address.clone();
+    assert_ne!(before, after);
+    assert!(drawn(&mut app).contains(&after));
+}
+
+#[test]
+fn another_key_picked_in_the_pane_hides_the_words_shown() {
+    let mut app = exploring_two_wide();
+    for e in [Eye::Secret, Eye::Wif, Eye::Xprv] {
+        eye(&mut app, e);
+    }
+    assert_eq!(cells(&mut app, "abandon"), 11);
+    app.press(Action::XKey(second_key(&app)));
+    assert!(!app.explore_shown().unwrap().any());
+    assert_eq!(cells(&mut app, "abandon"), 0);
+    assert_eq!(cells(&mut app, "zoo"), 0);
+}

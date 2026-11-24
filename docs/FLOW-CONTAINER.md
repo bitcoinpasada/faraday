@@ -172,6 +172,12 @@ before it. Guide's pane is its own card and draws none; a full-width step
 and every one-column layout draw neither. The heading **Your choices** is in Label L at `SIDE_PANEL_TOP`, then one row per
 step: the label, and under it the answer or "Not chosen yet", each row a
 press in its 48 dp target. The current step's row is marked as current.
+Explore and Derive is not a step flow: where the pair fits (`flow/pair.rs`),
+its Path page stands as the same pair with the loaded keys as the pick's rows
+(`pick.rs`, one choice, checked against Material's single-choice list row) in place of Your choices, the same divider and outline,
+and the result in the card; the pane scrolls with the page. Addresses and
+Find, the one-column layouts and a room too narrow for the pair keep today's
+row of keys. Changing the key hides what its eyes show (`prune`).
 A pane taller than the window scrolls within itself (LAYOUT §6), so a low
 window does not drop the pane. The scroll is one offset for every flow
 (`Scroll::choices`), set back to the top when a flow is opened. A flow's
