@@ -698,6 +698,7 @@ impl Faraday {
         // A script does not wait for frames: what a press leaves for the tick is done now.
         self.later_all(inline);
         self.worker.set_inline(was_inline);
+        self.refresh_text_files();
         self.backup_settle();
         self.after_input();
         self.out.redraw();
@@ -739,6 +740,7 @@ impl Faraday {
     /// something is dropped.
     pub(crate) fn after_input(&mut self) {
         self.note_added_keys();
+        self.refresh_text_files();
         self.stick.note_visit(self.stick_visit_on());
         // A sheet that stood over the import's page is gone, however it
         // closed: the vault step it held back comes up.

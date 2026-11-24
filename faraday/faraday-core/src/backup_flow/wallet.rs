@@ -196,6 +196,7 @@ impl Faraday {
             ),
             vaults: 0,
             seed_alone_fails: !(standard && kind == K::NativeSegwit),
+            text_files: false,
         })
     }
 
@@ -542,7 +543,7 @@ impl Faraday {
                     .into_iter()
                     .flat_map(|at| plan::holds_at(boxes, at))
                     .filter(|what| plan::is_file(*what))
-                    .flat_map(|what| self.stick_file_names_now(w, &shape, &b.answers, what))
+                    .flat_map(|what| self.stick_file_names_now(c, w, &shape, &b.answers, what))
                     .collect(),
             };
             for n in names.drain(..) {
@@ -554,17 +555,18 @@ impl Faraday {
         out
     }
 
-    /// Splits a long text into its QR parts and makes a share's text to
-    /// name them: the names file `what` of wallet `w` is written as on a
+    /// Costs `held_keys_now` for a silent payments wallet's description,
+    /// and for a picture or a share's pictures the text they are split
+    /// from. The names file `what` of wallet `w` is written as on a
     /// stick under answers `a` (`docs/BACKUP-FLOW.md` §17.12 item 6), a
     /// seed's `seed-{fingerprint}.txt`, `seedqr-{fingerprint}.png`,
     /// `passphrase-{fingerprint}.txt`; the description's
     /// `{wallet}-descriptor.txt` or its pictures; a share's
     /// `{wallet}-share-{j}-of-{n}.txt` or its pictures; the software's own
     /// files. Kept for the frame while one is drawn.
-    ///
     pub(crate) fn stick_file_names_now(
         &self,
+        c: &Compute,
         w: usize,
         shape: &plan::Shape,
         a: &plan::Answers,
@@ -587,6 +589,11 @@ impl Faraday {
         }
         match what {
             P::WalletFile(f) if f == plan::form::TEXT => vec![text!("{stem}-descriptor.txt")],
+            // A picture of a held silent wallet's address is never made:
+            // the text file takes its place, as in the public files.
+            P::WalletFile(_) if !self.descriptor_picture_made(c, w) => {
+                vec![text!("{stem}-descriptor.txt")]
+            }
             P::WalletFile(_) => texts(crate::picture_names(
                 &text!("{stem}-descriptor"),
                 "-",
@@ -657,7 +664,7 @@ impl Faraday {
         }
         let list = self.seed_list_now(w);
         for what in whats {
-            let names = self.stick_file_names_now(w, &shape, &answers, what);
+            let names = self.stick_file_names_now(&c, w, &shape, &answers, what);
             if let Some(i) = what.seed_stick_file_seed() {
                 let Some(k) = list.get(i).and_then(|(_, k)| *k) else {
                     continue;
@@ -677,15 +684,14 @@ impl Faraday {
             }
             match what {
                 P::WalletFile(f) => {
-                    if f == plan::form::QR
-                        && let Some(wl) = self.session.wallets.get(w)
-                    {
+                    let text_file = f == plan::form::TEXT || !self.descriptor_picture_made(&c, w);
+                    if !text_file && let Some(wl) = self.session.wallets.get(w) {
                         let text = wl.policy().to_descriptor_checksummed();
                         expect.extend(pictures_expect(&c, &names, &text));
                     }
                     let made = self.public_made(
                         w,
-                        if f == plan::form::TEXT {
+                        if text_file {
                             crate::public_kind::PublicFile::Descriptor
                         } else {
                             crate::public_kind::PublicFile::DescriptorQr
@@ -878,7 +884,7 @@ impl Faraday {
             }
         };
         let (t, what) = flow.public_clash(c, &shape, &b.answers, &m)?;
-        let file = self.stick_file_names_now(b.wallet, &shape, &b.answers, what);
+        let file = self.stick_file_names_now(c, b.wallet, &shape, &b.answers, what);
         Some((
             Text::joined(&file, ", "),
             flow.target_short(&t, self.medium.noun()),

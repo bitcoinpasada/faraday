@@ -3091,7 +3091,13 @@ fn wallet_rows(app: &View, ui: &mut Ui, r: RecordView<'_>, rows: &mut Rows) {
         } + faraday_draw::tokens::PAD;
     }
     let text = r.public_text(field::WALLET).unwrap_or("");
-    rows.field(ui, EN.vault_descriptor, text, true);
+    // A silent payments record ends in the wallet's address: while its key
+    // made here waits for its backup, the warning stands in its place.
+    if app.silent_record_held(text) {
+        rows.field(ui, EN.vault_descriptor, EN.glance_back_up_before, true);
+    } else {
+        rows.field(ui, EN.vault_descriptor, text, true);
+    }
     let loads = r.loads_at_unlock();
     rows.field(
         ui,
@@ -3114,7 +3120,9 @@ fn wallet_rows(app: &View, ui: &mut Ui, r: RecordView<'_>, rows: &mut Rows) {
         },
         va(V::ToggleLoad),
     ));
-    rows.actions.push((EN.show_as_qr, va(V::WalletQr)));
+    if !app.silent_record_held(text) {
+        rows.actions.push((EN.show_as_qr, va(V::WalletQr)));
+    }
     rows.actions
         .push((EN.vault_save_to_a_stick, va(V::SaveToStick)));
 }

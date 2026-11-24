@@ -1868,6 +1868,7 @@ impl Faraday {
                         if let Some(k) = self.session.keys.position(fp) {
                             self.held_clear_marks(fp, k);
                         }
+                        self.refresh_text_files();
                         Ok(fp)
                     }
                     other => other.map_err(|e| e.text()),

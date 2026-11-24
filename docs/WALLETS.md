@@ -719,7 +719,7 @@ checked, a file for the stick unprotected, not here).
 
 **The backup before the spend** (owner, 2026-10-10;
 `docs/DECISIONS.md` F6, `docs/history/NEW-WALLET.md` §14). A key made here
-(New key's words, or a passphrase added in Create) signs nothing until
+(New key's words, or a passphrase added in Create or found in Vanity) signs nothing until
 a checklist that keeps its seed and passphrase is complete: the
 wallet's card reads **Finish the backup first** (its checklist, or its
 plan when none is made), and Who signs lists it "Waiting for its
@@ -1417,9 +1417,33 @@ never held.
   a spend, Who signs lists the key "Waiting for its backup" with **Finish
   the backup**. No receive address or code of the wallet is shown in
   Create's and Restore's Check, the card, the Key card, the chart's wallet
-  node, the Spend tab's family pages or the message address: "Back up
-  before you receive" stands in its place, in `WARN`, until the hold is
-  released.
+  node, the Spend tab's family pages or the message address, and in a
+  silent payments wallet's card, its item in an open vault, the Silent
+  payments page with its Your choices row, and the Vanity tool's found
+  address (the address, the codes of it and its DNS record, and the
+  wallet's descriptor, which is its address, as a code and as a picture
+  among its public files; the record's own code carries the line first, as
+  a descriptor's does): "Back up before you receive" stands in its place,
+  in `WARN`, until the hold is released. Only the receive path reads it: a
+  silent payments wallet has no key in its plan, so its own backup places
+  no seed and releases nothing, and its plan, Who signs and the plan
+  record's `held` line do not name its key; an ordinary wallet's backup of
+  the key, finished, its vault included, releases the hold (saving the key
+  in a vault only marks it pending, which holds it again at unlock). While
+  the hold stands the plan of a silent payments wallet reads its
+  description as the text file only, wherever the answers keep a QR
+  picture: the checklist, Write to sticks, the public slot, the names, the
+  files made, the board, the map, Backups and the plan record saved in a
+  vault all say and do the text file (the board's toggles edit the stored
+  answer; its read-only mark says the text file). The answers as chosen are
+  not changed, so once the hold is released the plan reads them as chosen
+  again, the picture, whether or not a text file was written: the map, the
+  checklist and the envelopes at once, Backups (at once where it keeps no
+  record of the plan) and the plan record's holds lines at the next sync or
+  save; the record's answers keep the chosen form throughout. A backup past
+  its lock keeps, in its own map and board, the form its files were made in;
+  one not yet locked and kept over a restart follows the release once Back
+  up is open on its wallet.
 - **Which keys, across a lock.** Which keys are made here is known by
   fingerprint only (`faraday-core/src/held.rs`): in memory while the key is
   here, as a flag in the key's vault record beside its seed, and as a

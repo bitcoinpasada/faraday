@@ -298,6 +298,7 @@ mod tests {
             splits: false,
             vaults: 0,
             seed_alone_fails: false,
+            text_files: false,
         }
     }
 
@@ -512,6 +513,7 @@ mod tests {
                 places: by_place(&map),
                 map,
                 needs: a.set_needs(),
+                text_files: false,
                 check: std::cell::OnceCell::new(),
             };
             checklist_on(&sh, a, &m)

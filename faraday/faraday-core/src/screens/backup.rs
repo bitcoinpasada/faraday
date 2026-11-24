@@ -2639,16 +2639,22 @@ fn public_files(
     let stem = crate::file_stem(&wl.name);
     let stem = stem.as_str();
     let codes = |show: Action, png: Action| vec![(EN.show_as_qr, show), ("PNG", png)];
+    // A held silent wallet's address has no code: its row offers none.
+    let described = if app.silent_wallet_held(i) {
+        Vec::new()
+    } else {
+        codes(
+            Action::QrWallet(i),
+            Action::PublicOut(i, PublicFile::DescriptorQr.wire()),
+        )
+    };
     let mut rows: Vec<FileRow<String>> = vec![
         (
             EN.public_files_descriptor.to_string(),
             EN.public_files_any_wallet,
             format!("{stem}-descriptor.txt"),
             Action::PublicOut(i, PublicFile::Descriptor.wire()),
-            codes(
-                Action::QrWallet(i),
-                Action::PublicOut(i, PublicFile::DescriptorQr.wire()),
-            ),
+            described,
         ),
         (
             EN.public_files_wallet.to_string(),
@@ -2801,9 +2807,9 @@ fn public_rows_for(
     i: usize,
     only: Option<&[PublicFile]>,
 ) -> f32 {
-    let qr = app
-        .backup()
-        .is_none_or(|b| only.is_none() || b.answers.form[crate::plan::form::QR]);
+    let qr = app.backup().is_none_or(|b| {
+        only.is_none() || b.answers.form_in(&app.plan_shape(b.wallet))[crate::plan::form::QR]
+    });
     let mut cy = y;
     let (primary, more) = public_files(app, i);
     let open = app.backup().is_some_and(|b| b.wallet == i && b.public_more);

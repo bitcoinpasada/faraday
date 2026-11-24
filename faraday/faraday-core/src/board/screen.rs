@@ -2277,6 +2277,7 @@ pub(crate) fn card_frame(
             splits: false,
             vaults: 0,
             seed_alone_fails: false,
+            text_files: false,
         },
         held,
         drag: drag.map(|(px, py)| (px as f32 / f - ox, py as f32 / f - oy)),

@@ -197,3 +197,45 @@ fn one_step_is_drawn_at_a_time() {
         "{shown}"
     );
 }
+
+#[test]
+fn a_found_code_is_not_shown_while_its_key_waits_for_its_backup_and_is_after() {
+    let shown = |held: bool| {
+        let mut app = with_key();
+        if held {
+            let fp = app.session.keys[0].fingerprint;
+            testkit::mark_made_here(&mut app, fp);
+        }
+        let found = silent_search(&mut app, faraday_core::grind::Dial::Account);
+        let _ = app.frame();
+        let text = app.drawn_texts().join(" ").replace(' ', "");
+        (text, found)
+    };
+    let (text, found) = shown(false);
+    assert!(text.contains(&found[..24]), "{text}");
+    let (text, found) = shown(true);
+    assert!(!text.contains(&found[..24]), "{text}");
+    assert!(text.contains("Backupbeforeyoureceive"), "{text}");
+}
+
+#[test]
+fn a_key_loaded_with_the_passphrase_found_waits_for_its_backup() {
+    for base_held in [true, false] {
+        let mut app = with_key();
+        if base_held {
+            let fp = app.session.keys[0].fingerprint;
+            testkit::mark_made_here(&mut app, fp);
+        }
+        let found = silent_search(&mut app, faraday_core::grind::Dial::Passphrase);
+        app.press(Action::Vanity(V::Use));
+        let _ = app.frame();
+        let text = app.drawn_texts().join(" ").replace(' ', "");
+        assert!(!text.contains(&found[..24]), "{text}");
+        assert!(text.contains("Backupbeforeyoureceive"), "{text}");
+        let fp = app.session.keys[1].fingerprint;
+        testkit::release_made(&mut app, fp);
+        let _ = app.frame();
+        let text = app.drawn_texts().join(" ").replace(' ', "");
+        assert!(text.contains(&found[..24]), "{text}");
+    }
+}

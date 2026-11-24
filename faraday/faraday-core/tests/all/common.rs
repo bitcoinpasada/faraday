@@ -2317,3 +2317,27 @@ pub fn hold_frames(app: &mut Faraday) -> HoldSeen {
         settled_at: fr.iter().position(|f| f == fr.last().unwrap()).unwrap(),
     }
 }
+
+/// The new vault the plan adds for Vault `v + 1`, made from its checklist
+/// item with `phrase` and left open.
+pub fn make_plan_vault(app: &mut Faraday, v: usize, phrase: &str) {
+    if app.backup().unwrap().open != Some(faraday_core::plan::Item::Vault(v)) {
+        app.press(Action::BStep(faraday_core::plan::Item::Vault(v)));
+    }
+    top_up(app);
+    app.press(Action::Vault(V::CreateFrom(Screen::Backup)));
+    assert_eq!(app.screen, Screen::CreateVault);
+    app.press(Action::Vault(V::CFocus(0, false)));
+    type_text(app, phrase);
+    app.press(Action::Vault(V::CFocus(0, true)));
+    type_text(app, phrase);
+    app.press(Action::Vault(V::CGo));
+    settle(app, 10);
+    settle(app, 40);
+    if app.screen == Screen::Unlock {
+        type_text(app, phrase);
+        app.press(Action::Vault(V::Unlock));
+        settle(app, 100);
+    }
+    assert_eq!(app.screen, Screen::Backup, "the vault is made");
+}

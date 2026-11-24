@@ -125,6 +125,8 @@ mod sign_from_card;
 mod signer_count;
 #[path = "all/silent.rs"]
 mod silent;
+#[path = "all/silent_hold.rs"]
+mod silent_hold;
 #[path = "all/spend_backup.rs"]
 mod spend_backup;
 #[path = "all/spend_from_vault.rs"]

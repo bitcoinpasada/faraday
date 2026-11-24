@@ -530,29 +530,26 @@ fn silent_card(
         &r.labels.to_string(),
     );
     cy += 32.0;
-    cy += stack(
-        ui,
-        x,
-        cy,
-        iw,
-        &[
-            (
-                EN.compact_address_labels,
-                Style::Primary,
-                Action::SWallet(app.wallets.wallet()),
-            ),
-            (
-                EN.compact_show_wallet,
-                Style::Secondary,
-                Action::QrWallet(app.wallets.wallet()),
-            ),
-            (
-                EN.compact_remove_from_session,
-                Style::Ghost,
-                Action::RemoveWallet(app.wallets.wallet()),
-            ),
-        ],
-    );
+    let w = app.wallets.wallet();
+    let mut buttons = vec![(
+        EN.compact_address_labels,
+        Style::Primary,
+        Action::SWallet(w),
+    )];
+    // No code of a held address is made: no button for it.
+    if !app.silent_wallet_held(w) {
+        buttons.push((
+            EN.compact_show_wallet,
+            Style::Secondary,
+            Action::QrWallet(w),
+        ));
+    }
+    buttons.push((
+        EN.compact_remove_from_session,
+        Style::Ghost,
+        Action::RemoveWallet(w),
+    ));
+    cy += stack(ui, x, cy, iw, &buttons);
     finish(app, ui, h, cy - top + 8.0);
 }
 

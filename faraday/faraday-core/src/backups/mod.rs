@@ -1066,7 +1066,9 @@ impl Faraday {
                         What::Wallet if spot.at == At::Files => {
                             out.files.extend(public.iter().map(|t| Text::of(t)))
                         }
-                        What::Wallet if spot.at == At::Software && a.form[plan::form::TEXT] => {
+                        What::Wallet
+                            if spot.at == At::Software && a.form_in(&shape)[plan::form::TEXT] =>
+                        {
                             out.files.extend(public.iter().map(|t| Text::of(t)))
                         }
                         _ => {}
@@ -1388,6 +1390,8 @@ impl Faraday {
             seed.passphrase = pass.get(i).copied().unwrap_or(false);
         }
         shape.vaults = 0;
+        // The hold of a key is not in the line either.
+        shape.text_files = false;
         shape
     }
 

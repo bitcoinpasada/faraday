@@ -622,7 +622,7 @@ impl Faraday {
         let mut names: Vec<Text> = Vec::new();
         let mut fps: Vec<Text> = Vec::new();
         for &(_, what) in &added {
-            for n in self.stick_file_names_now(w, shape, &now, what) {
+            for n in self.stick_file_names_now(&c, w, shape, &now, what) {
                 let n = Text::of(&n);
                 if !b.files_warned.iter().any(|x| x.as_str() == n.as_str()) && !names.contains(&n) {
                     names.push(n);
@@ -671,7 +671,7 @@ impl Faraday {
         let b = self.backup.state()?;
         let shape = self.plan_shape_now(b.wallet);
         for (p, what) in plain_files(&crate::plan::map(c, &shape, &b.answers)) {
-            let names = self.stick_file_names_now(b.wallet, &shape, &b.answers, what);
+            let names = self.stick_file_names_now(c, b.wallet, &shape, &b.answers, what);
             if let Some(n) = names
                 .into_iter()
                 .find(|n| !b.files_warned.iter().any(|x| x.as_str() == n.as_str()))

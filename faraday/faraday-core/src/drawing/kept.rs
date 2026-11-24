@@ -138,6 +138,11 @@ pub(crate) struct Kept {
     /// The signed message last checked, by its text, the network and the
     /// loaded wallets' checksums.
     message_checked: RefCell<Option<KeptMessage>>,
+    /// The checksums of the silent payments wallets whose plan reads the
+    /// description as the text file only: their key is held. Worked out
+    /// after each input and before each frame (`Faraday::refresh_text_files`),
+    /// a lookup after.
+    text_wallets: RefCell<Vec<Text>>,
     /// Plans mapped, each by the shape and answers it is the map of.
     plans_mapped: RefCell<Vec<(plan::Shape, plan::Answers, Rc<plan::Mapped>)>>,
     /// First receive addresses of descriptions Seeds puts together, by
@@ -419,6 +424,16 @@ impl Kept {
             check: check.clone(),
         });
         check
+    }
+
+    /// Sets which silent payments wallets, by checksum, read as text only.
+    pub(crate) fn set_text_wallets(&self, list: Vec<Text>) {
+        *self.text_wallets.borrow_mut() = list;
+    }
+
+    /// Whether the wallet of this checksum is among them. A lookup.
+    pub(crate) fn text_wallet(&self, checksum: &str) -> bool {
+        self.text_wallets.borrow().iter().any(|c| &**c == checksum)
     }
 
     /// Costs a map of the plan and its check the first time. The plan of

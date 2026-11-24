@@ -867,6 +867,17 @@ pub(crate) fn silent_address_lines(
         Some((check, address)) => (Some(check), address),
         None => (None, faraday_text::Text::of(&r.address())),
     };
+    // While its key made here waits for its backup, the warning a receive
+    // address is held back with stands in its place.
+    let held = app.silent_wallet_held(app.wallets.wallet());
+    let (address, role) = if held {
+        (
+            faraday_text::Text::of(crate::glance::RECEIVE_WARNING),
+            Role::Warning,
+        )
+    } else {
+        (address, Role::OnSurface)
+    };
     match check {
         Some(RecordCheck::Differs) => ui.wrap_as(
             (x, y, w),
@@ -874,11 +885,9 @@ pub(crate) fn silent_address_lines(
             Role::Error,
             &fill(EN.silent_record_differs, &[&fp]),
         ),
-        Some(RecordCheck::Matches) => {
-            ui.wrap_as((x, y, w), BODY_M.mono(), Role::OnSurface, &address)
-        }
+        Some(RecordCheck::Matches) => ui.wrap_as((x, y, w), BODY_M.mono(), role, &address),
         _ => {
-            let h = ui.wrap_as((x, y, w), BODY_M.mono(), Role::OnSurface, &address) + tokens::GAP;
+            let h = ui.wrap_as((x, y, w), BODY_M.mono(), role, &address) + tokens::GAP;
             h + ui.wrap_as(
                 (x, y + h, w),
                 BODY_S,

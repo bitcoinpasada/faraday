@@ -37,12 +37,23 @@ pub(crate) struct Inputs {
     /// A silent payments record a loaded key contradicts: it has no
     /// public files.
     blank: bool,
+    /// A silent payments wallet whose key made here waits for its backup:
+    /// its "descriptor" is its address, which no code of it carries
+    /// (F31).
+    held: bool,
 }
 
 impl Inputs {
     /// The inputs for `w` of `session`; `omit` is the backup's setting and
-    /// `blank` that the wallet has no public files.
-    pub(crate) fn of(session: &Session, w: &Wallet, omit: Option<usize>, blank: bool) -> Self {
+    /// `blank` that the wallet has no public files; `held` that it is a
+    /// silent payments wallet whose address waits for its key's backup.
+    pub(crate) fn of(
+        session: &Session,
+        w: &Wallet,
+        omit: Option<usize>,
+        blank: bool,
+        held: bool,
+    ) -> Self {
         Self {
             name: String::from(&*w.name),
             policy: w.policy().clone(),
@@ -50,6 +61,7 @@ impl Inputs {
             slots: session.slots(w).iter().map(|s| s.fingerprint).collect(),
             omit,
             blank,
+            held,
         }
     }
 
@@ -153,6 +165,7 @@ pub(crate) fn pictures(c: &Compute, inp: &Inputs, what: PublicFile) -> Vec<pictu
         picture::labelled_parts(codes, names, &w.name, &lines)
     };
     match what {
+        PublicFile::DescriptorQr if inp.held => Vec::new(),
         PublicFile::DescriptorQr => {
             let text = w.policy().to_descriptor_checksummed();
             let all = fps(&|_| true);
@@ -645,10 +658,7 @@ fn checklist_parts(app: &mut Faraday) -> Option<(usize, Vec<Part>)> {
     let c = app.compute();
     let b = app.backup.state()?;
     let w = b.wallet;
-    let (qr, text) = (
-        b.answers.form[plan::form::QR],
-        b.answers.form[plan::form::TEXT],
-    );
+    let [qr, text] = b.answers.form_in(&app.plan_shape_now(w));
     let split = app
         .session
         .wallets
@@ -751,6 +761,13 @@ impl Faraday {
             self.put_outbox(&name, bytes);
         }
         self.backup_sent(wallet, &names);
+        if names.is_empty() && what == PublicFile::DescriptorQr {
+            // A held silent wallet's address has no picture.
+            self.toast(&faraday_text::Text::fill(
+                EN.open_qr_cannot_make,
+                &[EN.code_view_no_address],
+            ));
+        }
         self.toast_out_files(&names);
     }
 
@@ -796,13 +813,20 @@ impl Faraday {
             .collect()
     }
 
-    /// Costs two key derivations for a silent payments wallet, nothing for
-    /// another. What wallet `wallet`'s public files are made from, owned:
+    /// Costs two key derivations and `held_keys_now` for a silent payments
+    /// wallet, nothing for another. What wallet `wallet`'s public files are made from, owned:
     /// `None` where the session has no such wallet.
     pub(crate) fn public_inputs(&self, c: &Compute, wallet: usize) -> Option<public_files::Inputs> {
         let w = self.session.wallets.get(wallet)?;
         let blank = self.public_wallet(c, wallet).is_none();
         let omit = self.backup.state().map(|b| b.answers.omit);
-        Some(public_files::Inputs::of(&self.session, w, omit, blank))
+        let held = !self.descriptor_picture_made(c, wallet);
+        Some(public_files::Inputs::of(
+            &self.session,
+            w,
+            omit,
+            blank,
+            held,
+        ))
     }
 }

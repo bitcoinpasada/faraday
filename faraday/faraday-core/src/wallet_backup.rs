@@ -2950,7 +2950,8 @@ impl Faraday {
         )
     }
 
-    /// Costs what `plan_mapped` costs the first time. The map of the plan
+    /// Costs what `plan_mapped` costs the first time, and
+    /// `descriptor_picture_made`. The map of the plan
     /// the Back up screen is on, worked out before the frame so that the
     /// steps its cards and checklist are known when the frame starts (the
     /// step a fade compares); a lookup after.
@@ -4025,6 +4026,7 @@ impl Faraday {
                 splits: false,
                 vaults: 0,
                 seed_alone_fails: false,
+                text_files: false,
             };
         };
         self.plan_shape_of(wallet)
@@ -4056,6 +4058,7 @@ impl Faraday {
             splits: crate::wallet_backup::splits(wallet),
             vaults,
             seed_alone_fails: !seed_alone_gives(wallet, self.session.network()),
+            text_files: self.silent_text_files(wallet),
         }
     }
 
@@ -4124,7 +4127,8 @@ impl Faraday {
         v
     }
 
-    /// Costs what `account_key_names` costs.
+    /// Costs what `account_key_names` costs, and `held_keys_now` for a
+    /// silent payments wallet.
     /// [`Faraday::backup_public_names`] for loaded wallet `wi` under
     /// answers `a`.
     ///
@@ -4141,8 +4145,9 @@ impl Faraday {
         };
         let stem = file_stem(&w.name);
         let stem = stem.as_str();
-        let (qr, text) = (a.form[plan::form::QR], a.form[plan::form::TEXT]);
+        let [qr, text] = a.form_in(&self.plan_shape_now(wi));
         let mut out = Vec::new();
+        let described = self.descriptor_picture_made(c, wi);
         for what in Self::backup_public_for(w, a) {
             let file = match what {
                 PublicFile::Descriptor => text!("{stem}-descriptor.txt"),
@@ -4152,6 +4157,7 @@ impl Faraday {
                 _ => text!("{stem}-bitcoin-core.json"),
             };
             let picture = match what {
+                PublicFile::Descriptor if !described => None,
                 PublicFile::Descriptor => crate::picture_names(
                     &text!("{stem}-descriptor"),
                     "-",

@@ -473,6 +473,7 @@ fn two_of_three() -> Shape {
         splits: true,
         vaults: 0,
         seed_alone_fails: false,
+        text_files: false,
     }
 }
 

@@ -31,6 +31,7 @@ fn shape(m: usize, seeds: &[(bool, bool, bool)], vaults: usize, paths: Vec<u64>)
         splits: seeds.len() > 1,
         vaults,
         seed_alone_fails: seeds.len() > 1,
+        text_files: false,
     }
 }
 

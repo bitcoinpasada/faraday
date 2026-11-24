@@ -163,6 +163,45 @@ impl View<'_> {
         crate::held::receive_held_on(self, wl)
     }
 
+    /// Whether loaded silent payments wallet `w`'s address waits for its
+    /// key's backup, from the memo's held keys.
+    pub fn silent_wallet_held(&self, w: usize) -> bool {
+        crate::held::silent_wallet_held_on(self, w)
+    }
+
+    /// Whether the silent payments record `text` names a key that waits for
+    /// its backup, from the memo's held keys.
+    ///
+    /// The record is read once a frame, and only while a key is held.
+    pub fn silent_record_held(&self, text: &str) -> bool {
+        if self.held_keys().is_empty() {
+            return false;
+        }
+        let known = self
+            .drawing
+            .silent_records
+            .borrow()
+            .iter()
+            .find(|(t, _)| t.as_str() == text)
+            .map(|(_, fp)| *fp);
+        let fp = known.unwrap_or_else(|| {
+            let fp =
+                faraday_bip::silent_wallet::SilentWallet::parse(text).map(|rec| rec.fingerprint.0);
+            self.drawing
+                .silent_records
+                .borrow_mut()
+                .push((faraday_text::Text::of(text), fp));
+            fp
+        });
+        fp.is_some_and(|fp| crate::held::silent_record_held_on(self, fp))
+    }
+
+    /// Whether the Silent payments page's address waits for its key's
+    /// backup ([`crate::Faraday::silent_held`]), from the memo's held keys.
+    pub fn silent_held(&self) -> bool {
+        crate::held::silent_held_on(self)
+    }
+
     /// An address of `wl` as every screen shows it, and whether it is held
     /// back ([`crate::Faraday::receive_line`]), from the memo's held keys
     /// and the wallet's kept address.

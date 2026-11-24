@@ -455,20 +455,32 @@ impl Faraday {
             return;
         };
         let kind = v.grind.script;
+        let dial = v.grind.dial;
+        let (address, suffix, found_account) = (
+            find.address.as_str().to_string(),
+            find.suffix.as_str().to_string(),
+            find.account,
+        );
         let label = self.session.keys[key].label.clone();
-        let (master_fp, account) = match v.grind.dial {
-            Dial::Account => (self.session.keys[key].fingerprint, find.account),
+        let (master_fp, account) = match dial {
+            Dial::Account => (self.session.keys[key].fingerprint, found_account),
             Dial::Passphrase => {
                 if !self.session.keys[key].has_words() {
                     return;
                 }
-                match self.session.keys.add_with_suffix(
+                let added = self.session.keys.add_with_suffix(
                     &c,
                     key,
-                    find.suffix.as_str(),
+                    &suffix,
                     &fill(EN.vanity_vanity_passphrase, &[&label]),
-                ) {
-                    Ok(fp) => (fp, 0),
+                );
+                match added {
+                    Ok(fp) => {
+                        // A passphrase found here exists nowhere else: its
+                        // key waits for its backup, as one added in Create.
+                        self.mark_made_here(fp);
+                        (fp, 0)
+                    }
                     Err(e) => {
                         self.toast(&e.text());
                         return;
@@ -486,7 +498,7 @@ impl Faraday {
             // only, which is what the passphrase dial finds. The account
             // dial offers no wallet.
             Kind::Silent => {
-                if v.grind.dial == Dial::Account {
+                if dial == Dial::Account {
                     return;
                 }
                 self.vanity.clear();
@@ -516,11 +528,7 @@ impl Faraday {
             ScriptType::NativeSegwit => NewKind::NativeSegwit,
             ScriptType::Taproot => NewKind::Taproot,
         };
-        let name = format!(
-            "{} · {}",
-            &*label,
-            find.address.as_str().get(..10).unwrap_or("")
-        );
+        let name = format!("{} · {}", &*label, address.get(..10).unwrap_or(""));
         match self.session.add_wallet(
             &c,
             &name,

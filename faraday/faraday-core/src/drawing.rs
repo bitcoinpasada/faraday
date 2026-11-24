@@ -69,6 +69,8 @@ pub(crate) struct Drawing {
     pub needing: OnceCell<std::rc::Rc<Vec<usize>>>,
     /// `held_keys`.
     pub held: OnceCell<Vec<Fingerprint>>,
+    /// The key a silent payments record names, by the record's text.
+    pub silent_records: RefCell<Vec<(faraday_text::Text, Option<[u8; 4]>)>>,
     /// `backup_public_names_for` per wallet, for the backup's own answers.
     pub public_names: RefCell<Vec<(usize, Vec<faraday_text::Text>)>>,
     /// The backup board as the frame draws it
@@ -791,6 +793,7 @@ impl Faraday {
         for o in &self.vaults.open {
             self.vaults.warm(&c, o.id);
         }
+        self.refresh_text_files();
         self.backup_plan_warm(&c);
         // The Lock sheet on show names what its Lock without saving lets go.
         if self.sheet == Some(Sheet::LockAsk) {

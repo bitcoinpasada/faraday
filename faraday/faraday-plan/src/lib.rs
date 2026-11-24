@@ -213,6 +213,13 @@ pub struct Shape {
     /// plain key. Its description is then needed to rebuild it, as for a
     /// multisig.
     pub seed_alone_fails: bool,
+    /// The wallet's description is only ever made as a text file, whatever
+    /// the form answers say: its QR picture is not made while its key is
+    /// held (a silent payments wallet's "descriptor" is its address). The
+    /// plan reads the text form in its place; the answers stay as they
+    /// were chosen. Derived; saved only in a flow's shape line, so a flow
+    /// past its lock keeps the form its files were made in.
+    pub text_files: bool,
 }
 
 impl Shape {
@@ -1537,7 +1544,27 @@ pub fn form_name(f: usize) -> &'static str {
 /// checklist and the flows read this one.
 pub fn map(_c: &Compute, shape: &Shape, a: &Answers) -> Vec<Spot> {
     count_map();
-    in_plan(stored_map(shape, a))
+    let mut m = in_plan(stored_map(shape, a));
+    if shape.text_files {
+        // The description's QR picture is not made: the plan keeps its
+        // text file where it keeps the picture.
+        for s in &mut m {
+            let text = What::WalletFile(form::TEXT);
+            let mut out: Vec<(What, Tag)> = Vec::new();
+            for (w, t) in std::mem::take(&mut s.holds) {
+                let w = if w == What::WalletFile(form::QR) {
+                    text
+                } else {
+                    w
+                };
+                if !out.iter().any(|(x, _)| *x == w) {
+                    out.push((w, t));
+                }
+            }
+            s.holds = out;
+        }
+    }
+    m
 }
 
 /// The plan mapped once: its map, the map by place, and its check, for
@@ -1555,6 +1582,8 @@ pub struct Mapped {
     pub places: Vec<Spot>,
     /// The plan's codex32 thresholds ([`Answers::set_needs`]).
     pub needs: sets::Needs,
+    /// The plan's description is only made as text ([`Shape::text_files`]).
+    pub text_files: bool,
     check: std::cell::OnceCell<Check>,
 }
 
@@ -1567,6 +1596,7 @@ impl Mapped {
             map,
             places,
             needs: a.set_needs(),
+            text_files: shape.text_files,
             check: std::cell::OnceCell::new(),
         }
     }
@@ -2815,7 +2845,7 @@ pub fn public_stick_on(a: &Answers, m: &Mapped) -> bool {
                 .iter()
                 .any(|(w, _)| matches!(w, What::Sheet | What::Share(_))))
             || (s.at == At::Files && s.holds.iter().any(|(w, _)| *w == What::Wallet))
-    }) || (software && a.form[form::TEXT])
+    }) || (software && (a.form[form::TEXT] || m.text_files))
 }
 
 /// Whether `w` is a file: kept on a stick, never on paper or in a vault.
@@ -2947,10 +2977,11 @@ pub fn checklist_on(shape: &Shape, a: &Answers, m: &Mapped) -> Vec<Item> {
         out.push(Item::Sheets);
     }
     let software = boxes.iter().any(|s| s.at == At::Software);
-    if files.contains(&What::Wallet) || (software && a.form[form::TEXT]) {
+    let forms = a.form_in(shape);
+    if files.contains(&What::Wallet) || (software && forms[form::TEXT]) {
         out.push(Item::PublicFiles);
     }
-    if software && a.form[form::QR] {
+    if software && forms[form::QR] {
         out.push(Item::ShowDescriptor);
     }
     out.push(Item::Envelopes);
@@ -3761,6 +3792,17 @@ impl Answers {
             self.edit_map(shape, |m| with_vault(m, v));
         }
         v
+    }
+
+    /// The public files' form as the plan reads it: the answers' own, or
+    /// the text form only where the shape says the description is made as
+    /// text ([`Shape::text_files`]).
+    pub fn form_in(&self, shape: &Shape) -> [bool; 2] {
+        if shape.text_files {
+            [false, true]
+        } else {
+            self.form
+        }
     }
 
     /// Costs what `of` costs. The shares place `p` keeps, in any form: on

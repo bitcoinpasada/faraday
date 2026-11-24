@@ -916,8 +916,21 @@ impl Faraday {
 
     /// Costs what `silent_address`, `silent_record` and `of` cost. The QR
     /// view of the address on show or of the record.
+    ///
+    /// While the page's key made here waits for its backup, no code of the
+    /// address or of its DNS record is made, as for a receive address
+    /// (F31), and the record's own code, a public file as a descriptor is,
+    /// carries the warning first, as a descriptor's does.
     pub(crate) fn silent_code(&self, c: &Compute, code: crate::Code) -> Result<QrView, Text> {
-        self.silent.code(c, &self.session, code)
+        let held = self.silent_held(c);
+        if held && matches!(code, crate::Code::Silent(_) | crate::Code::SilentDns) {
+            return Err(Text::of(EN.code_view_no_address));
+        }
+        let mut view = self.silent.code(c, &self.session, code)?;
+        if held {
+            view.label.insert(0, Text::of(EN.glance_back_up_before));
+        }
+        Ok(view)
     }
 
     /// A key for the DNS record's fields; whether it was taken.
@@ -1000,6 +1013,9 @@ impl Faraday {
                 }
             }
             A::SCheck(k) => self.silent_check(k),
+            // No label is stepped to while no address is shown: it would
+            // count as handed out.
+            A::SLabel(_) if self.silent_held(&c) => {}
             _ => {
                 if let Some((i, r)) = self.silent.act(action, &self.session) {
                     self.session.wallets[i]

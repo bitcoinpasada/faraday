@@ -1314,12 +1314,21 @@ impl Faraday {
             }
             let labels: Vec<Option<String>> =
                 all.iter().map(|w| form_label(*w, &software_name)).collect();
-            let marks: Vec<String> = all
+            // A held silent wallet's description is made as the text
+            // file, so the read-only mark says that; the toggles edit the
+            // stored answer and stay as they are.
+            let mut marks: Vec<String> = all
                 .iter()
                 .zip(&labels)
                 .filter(|(w, _)| on.contains(w))
-                .filter_map(|(_, l)| l.clone())
+                .filter_map(|(w, l)| match w {
+                    What::WalletFile(f) if shape.text_files && *f != form::TEXT => {
+                        Some(EN.board_text_file.to_string())
+                    }
+                    _ => l.clone(),
+                })
                 .collect();
+            marks.dedup();
             // While the board takes changes its forms are toggles on the
             // chip; read-only, they read as text (§17.3, §17.6). After
             // the lock paper and files stay as made.

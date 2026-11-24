@@ -47,23 +47,25 @@ pub(crate) fn offers(app: &View, w: usize, new_from: bool) -> Vec<Offer> {
         return Vec::new();
     };
     if wlt.policy().silent().is_some() {
-        return vec![
-            offer(
-                EN.silent_wallet_card_address,
-                Some(Icon::Wallet),
-                Action::SWallet(w),
-            ),
-            offer(
+        let mut list = vec![offer(
+            EN.silent_wallet_card_address,
+            Some(Icon::Wallet),
+            Action::SWallet(w),
+        )];
+        // No code of a held address is made: no button for it.
+        if !app.silent_wallet_held(w) {
+            list.push(offer(
                 EN.silent_wallet_card_show,
                 Some(Icon::Qr),
                 Action::QrWallet(w),
-            ),
-            offer(
-                EN.silent_wallet_card_remove,
-                Some(Icon::Trash),
-                Action::RemoveWallet(w),
-            ),
-        ];
+            ));
+        }
+        list.push(offer(
+            EN.silent_wallet_card_remove,
+            Some(Icon::Trash),
+            Action::RemoveWallet(w),
+        ));
+        return list;
     }
     let (label, action) = app.spend_button(w);
     let first_icon = if matches!(action, Action::BackupFirst(_)) {

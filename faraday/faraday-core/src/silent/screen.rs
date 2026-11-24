@@ -73,7 +73,15 @@ pub(super) fn rows(app: &crate::Faraday) -> Vec<flow::Row> {
                     .silent
                     .shown_kept(&app.session)
                     .and_then(|shown| shown.address)
-                    .map(|a| String::from(&*crate::ui::short(&a))),
+                    .map(|a| {
+                        // As the page: no part of an address a key waiting
+                        // for its backup would receive on.
+                        if app.silent_waits_kept() {
+                            EN.glance_back_up_before.to_string()
+                        } else {
+                            String::from(&*crate::ui::short(&a))
+                        }
+                    }),
                 sstep::SCAN => reached.then(|| EN.silent_a_secret_shows.to_string()),
                 _ => s.check.as_ref().map(|(_, c)| match c.result() {
                     Some(r) => checked_text(r).0,
@@ -132,8 +140,8 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
         sstep::ADDRESS if !app.silent_shown().key_here && s.wallet.is_some() => {
             // The wallet's own address needs no key, and is not checked
             // without it; labels need it.
-            let a = app.silent_shown().address.unwrap_or_default();
-            cy += ui.wrap_as((x, cy, w), BODY_M.mono(), Role::OnSurface, &a) + GAP;
+            let (a, role) = address_on_show(app);
+            cy += ui.wrap_as((x, cy, w), BODY_M.mono(), role, &a) + GAP;
             let fp = s
                 .key
                 .map(|fp| fp_text(faraday_bip::keys::Fingerprint(fp)).to_string())
@@ -150,18 +158,19 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
                 Role::OnSurfaceVariant,
                 EN.silent_its_key_is_not_loaded,
             ) + 12.0;
-            let row = vec![
-                (
+            let mut row = Vec::new();
+            if !app.silent_held() {
+                row.push((
                     EN.show_as_qr.to_string(),
                     Style::Secondary,
                     Action::SQr(false),
-                ),
-                (
-                    EN.silent_add_its_key.to_string(),
-                    Style::Secondary,
-                    Action::Entry(s.key),
-                ),
-            ];
+                ));
+            }
+            row.push((
+                EN.silent_add_its_key.to_string(),
+                Style::Secondary,
+                Action::Entry(s.key),
+            ));
             cy += button_rows(ui, x, cy, w, &row);
             cy += dns_card(app, s, ui, x, cy, w);
         }
@@ -191,20 +200,25 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
                 Action::SLabel(1),
             );
             cy += 52.0;
-            let a = app.silent_shown().address.unwrap_or_default();
-            cy += ui.wrap_as((x, cy, w), BODY_M.mono(), Role::OnSurface, &a)
+            let (a, role) = address_on_show(app);
+            cy += ui.wrap_as((x, cy, w), BODY_M.mono(), role, &a)
                 + faraday_draw::tokens::SILENT_LINE_GAP;
-            let row = vec![
-                (
+            // As a receive address's code is not offered while it is held.
+            let held = app.silent_held();
+            let mut row = Vec::new();
+            if !held {
+                row.push((
                     EN.show_as_qr.to_string(),
                     Style::Secondary,
                     Action::SQr(false),
-                ),
-                (
+                ));
+                row.push((
                     EN.silent_as_a_bitcoin.to_string(),
                     Style::Secondary,
                     Action::SQr(true),
-                ),
+                ));
+            }
+            row.extend([
                 (
                     fill(EN.silent_record, &[app.medium.for_the()]),
                     Style::Secondary,
@@ -220,8 +234,7 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
                     Style::Secondary,
                     Action::CodePng(Code::SilentRecord),
                 ),
-            ];
-            let mut row = row;
+            ]);
             if s.wallet.is_none() {
                 row.push((
                     EN.silent_add_as_a_wallet.to_string(),
@@ -292,6 +305,22 @@ fn ending(ui: &mut Ui, (x, y, w): (f32, f32, f32), back: crate::Screen, last: bo
     button_rows(ui, x, y, w, &row)
 }
 
+/// The address on show and the role it is drawn in: while its key made
+/// here waits for its backup, the warning a receive address is held back
+/// with, in its place.
+fn address_on_show(app: &View) -> (String, Role) {
+    if app.silent_held() {
+        return (EN.glance_back_up_before.to_string(), Role::Warning);
+    }
+    (
+        app.silent_shown()
+            .address
+            .map(|a| a.to_string())
+            .unwrap_or_default(),
+        Role::OnSurface,
+    )
+}
+
 fn dns_card(app: &View, s: &SilentState, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     use crate::edit::Here;
     let Some(address) = app.silent_shown().address else {
@@ -338,7 +367,11 @@ fn dns_card(app: &View, s: &SilentState, ui: &mut Ui, x: f32, y: f32, w: f32) ->
         );
         cy += used + GAP;
     }
-    if let Some((human, record)) = dns.record {
+    if app.silent_held() {
+        // The record holds the address: while its key waits for its
+        // backup it says so, as a receive address does.
+        cy += ui.wrap_as((x, cy, w), BODY_M, Role::Warning, EN.glance_back_up_before);
+    } else if let Some((human, record)) = dns.record {
         cy += ui.wrap_as((x, cy, w), BODY_M, Role::OnSurface, &human) + GAP;
         cy += ui.wrap_as((x, cy, w), BODY_M.mono(), Role::OnSurface, &record)
             + faraday_draw::tokens::SILENT_LINE_GAP;

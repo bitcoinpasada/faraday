@@ -916,11 +916,13 @@ impl Faraday {
                 }
             }
             Action::QrWallet(i) => {
-                if self.screen == Screen::Backup && self.backup.shown(i) {
-                    self.backups_shown();
-                }
                 if i < self.session.wallets.len() {
                     let view = self.code_view(c, Code::Descriptor(i));
+                    // Shown only when the code is: a refused one is no
+                    // item done.
+                    if view.is_ok() && self.screen == Screen::Backup && self.backup.shown(i) {
+                        self.backups_shown();
+                    }
                     self.open_qr(view);
                 }
             }
@@ -1167,6 +1169,11 @@ impl Faraday {
         match code {
             Code::Descriptor(i) => {
                 let w = wallet(i)?;
+                // A silent wallet's descriptor is its address: no code of
+                // it while its key waits for its backup, as for `Silent`.
+                if w.policy().silent().is_some() && self.receive_held(c, w) {
+                    return Err(EN.code_view_no_address.into());
+                }
                 let stem = file_stem(&w.name);
                 let stem = stem.as_str();
                 let mut lines = self.silent_marks(c, i, texts(&self.wallet_label(w)))?;

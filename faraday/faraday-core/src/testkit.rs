@@ -2151,6 +2151,7 @@ pub fn mark_made_here(app: &mut crate::Faraday, fp: faraday_bip::keys::Fingerpri
 /// brings the screens in step, as it does when a flow releases it).
 pub fn release_made(app: &mut crate::Faraday, fp: faraday_bip::keys::Fingerprint) {
     app.flows.release_made(fp, &[]);
+    app.refresh_text_files();
 }
 
 /// Opens the vanity screen's card `step`, as a press on it does.
@@ -2326,6 +2327,32 @@ pub fn inbox_overwrite_bytes(app: &mut crate::Faraday, at: usize, bytes: &[u8]) 
 /// Flips the lowest bit of byte `i` of Inbox file `at`.
 pub fn inbox_flip_byte(app: &mut crate::Faraday, at: usize, i: usize) {
     app.inbox.flip_byte(at, i);
+}
+
+/// The names of the public files the open backup makes.
+pub fn backup_public_names(
+    app: &crate::Faraday,
+    c: &faraday_crypto::work::Compute,
+) -> Vec<faraday_text::Text> {
+    app.backup_public_names(c)
+}
+
+/// The names the open backup of wallet `w` gives the file `what` of its
+/// plan kept on a stick at a place, as the write step names them.
+pub fn stick_file_names(
+    app: &crate::Faraday,
+    c: &faraday_crypto::work::Compute,
+    w: usize,
+    what: crate::plan::What,
+) -> Vec<faraday_text::Text> {
+    let shape = app.plan_shape_now(w);
+    let answers = app.backup.state().expect("Back up is open").answers.clone();
+    app.stick_file_names_now(c, w, &shape, &answers, what)
+}
+
+/// The shape a dated check's place line of wallet `w` is built under.
+pub fn plan_shape_made(app: &crate::Faraday, w: usize) -> crate::plan::Shape {
+    app.plan_shape_made(&app.session.wallets[w], &[])
 }
 
 /// Changes Back up's plan answers as `f` says, and returns what it

@@ -238,30 +238,7 @@ pub(crate) fn bring_in_existing(shell: &mut Shell, app: &mut Faraday) {
     assert_eq!(app.screen, Screen::Create, "{:?}", unlock_error(app));
 }
 
-/// The new vault the plan adds for Vault `v + 1`, made from its checklist
-/// item with `phrase` and left open.
-pub(crate) fn make_plan_vault(app: &mut Faraday, v: usize, phrase: &str) {
-    use faraday_core::vault::VaultAction as V;
-    if app.backup().unwrap().open != Some(Item::Vault(v)) {
-        app.press(Action::BStep(Item::Vault(v)));
-    }
-    crate::common::top_up(app);
-    app.press(Action::Vault(V::CreateFrom(Screen::Backup)));
-    assert_eq!(app.screen, Screen::CreateVault);
-    app.press(Action::Vault(V::CFocus(0, false)));
-    type_text(app, phrase);
-    app.press(Action::Vault(V::CFocus(0, true)));
-    type_text(app, phrase);
-    app.press(Action::Vault(V::CGo));
-    crate::common::settle(app, 10);
-    crate::common::settle(app, 40);
-    if app.screen == Screen::Unlock {
-        type_text(app, phrase);
-        app.press(Action::Vault(V::Unlock));
-        crate::common::settle(app, 100);
-    }
-    assert_eq!(app.screen, Screen::Backup, "the vault is made");
-}
+pub(crate) use crate::common::make_plan_vault;
 
 /// Vault `v` saved into: made first from its checklist item when the plan
 /// added it and it is not open yet.
@@ -620,6 +597,7 @@ fn spots_two_of_three_with_key_3_on_paper() -> (Shape, Answers) {
         splits: true,
         vaults: 0,
         seed_alone_fails: false,
+        text_files: false,
     };
     let mut a = Answers::preset(&shape, Preset::PaperVault);
     a.set_map(vec![
@@ -684,6 +662,7 @@ fn one_key_shape() -> Shape {
         splits: false,
         vaults: 0,
         seed_alone_fails: false,
+        text_files: false,
     }
 }
 
@@ -1060,6 +1039,7 @@ fn shape_with(passphrase: bool, seeds_n: usize) -> Shape {
         splits: seeds_n > 1,
         vaults: 0,
         seed_alone_fails: false,
+        text_files: false,
     }
 }
 
@@ -1768,7 +1748,7 @@ fn a_wallet_the_seed_alone_does_not_give_back_is_remembered_across_a_restart() {
         .lines()
         .find(|l| l.starts_with("wshape\t"))
         .expect("a wshape line");
-    assert!(line.ends_with("\t0"), "the field is written: {line:?}");
+    assert!(line.ends_with("\t0\t0"), "the fields are written: {line:?}");
     let reads = |text: String| -> bool {
         let mut kept = shell.boxes.2.clone();
         for (n, b) in kept.iter_mut() {
@@ -1785,9 +1765,13 @@ fn a_wallet_the_seed_alone_does_not_give_back_is_remembered_across_a_restart() {
             .shape
             .seed_alone_fails
     };
-    let set = flow_text.replace(line, &format!("{}1", &line[..line.len() - 1]));
+    let fields: Vec<&str> = line.split('\t').collect();
+    let set = flow_text.replace(
+        line,
+        &[&fields[..5], &["1"], &fields[6..]].concat().join("\t"),
+    );
     assert!(reads(set), "the field is read back");
-    let old = flow_text.replace(line, &line[..line.len() - 2]);
+    let old = flow_text.replace(line, &fields[..5].join("\t"));
     assert!(!reads(old), "a line without the field reads as false");
 }
 
@@ -2753,6 +2737,7 @@ fn a_one_place_plan_with_a_passphrase_stays_one_place_when_the_wallet_is_made() 
         splits: true,
         vaults: 0,
         seed_alone_fails: false,
+        text_files: false,
     };
     let mut b = Answers::preset(&shape3, Preset::PaperVault);
     b.vaults[0] = vec![true, false, false];

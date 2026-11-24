@@ -92,6 +92,7 @@ impl Faraday {
     pub(crate) fn sync_waiting(&mut self) {
         let c = self.compute();
         let held = self.held_keys_now(&c);
+        self.note_text_files(&held);
         self.session.set_waiting(held);
         self.session.set_waiting_inputs(self.waiting_inputs());
     }
@@ -191,6 +192,8 @@ impl Faraday {
             })
             .collect();
         self.flows.note_copied(released);
+        // A flow's written sticks release its keys: the plan reads that now.
+        self.refresh_text_files();
     }
 
     /// The keys here a wallet's flow held back: those it still holds, or
@@ -332,11 +335,12 @@ impl Faraday {
     pub(crate) fn wallet_waits_kept(&self, w: usize) -> bool {
         let waiting = self.session.waiting();
         !waiting.is_empty()
-            && self
-                .backup_keys(w)
-                .into_iter()
-                .filter_map(|k| self.session.keys.info(k))
-                .any(|k| waiting.contains(&k.fingerprint))
+            && (self.silent_wallet_held_in(w, waiting)
+                || self
+                    .backup_keys(w)
+                    .into_iter()
+                    .filter_map(|k| self.session.keys.info(k))
+                    .any(|k| waiting.contains(&k.fingerprint)))
     }
 
     fn wallet_held_in(&self, w: usize, held: Vec<Fingerprint>) -> Vec<Fingerprint> {
@@ -349,6 +353,118 @@ impl Faraday {
             .map(|k| k.fingerprint)
             .filter(|fp| held.contains(fp))
             .collect()
+    }
+
+    /// Whether the key of loaded silent payments wallet `w` is among `held`
+    /// and loaded. Only the receive path reads it (the address and its
+    /// codes, the card, Home): the wallet has no key in its plan, so its
+    /// backup places no seed and releases nothing, and the plan, Who signs
+    /// and the plan record's `held` line (`wallet_held_in`) do not see it.
+    pub(crate) fn silent_wallet_held_in(&self, w: usize, held: &[Fingerprint]) -> bool {
+        self.session
+            .wallets
+            .get(w)
+            .and_then(|w| w.policy().silent())
+            .is_some_and(|r| !self.silent_key_held(r.fingerprint.0, held).is_empty())
+    }
+
+    /// Costs what `held_keys_now` costs for a silent payments wallet,
+    /// nothing for another. Whether wallet `w`'s descriptor picture is
+    /// made: the one decision the maker (`public_files`) and every namer
+    /// of that picture read. A held silent wallet's "descriptor" is its
+    /// address, which no code of it carries.
+    pub(crate) fn descriptor_picture_made(&self, c: &Compute, w: usize) -> bool {
+        let silent = self
+            .session
+            .wallets
+            .get(w)
+            .is_some_and(|w| w.policy().silent().is_some());
+        !silent || !self.silent_wallet_held_in(w, &self.held_keys_now(c))
+    }
+
+    /// Costs what `held_keys_now` costs where a silent payments wallet is
+    /// loaded, nothing otherwise. Works out which silent payments wallets'
+    /// plans read the description as the text file only
+    /// ([`plan::Shape::text_files`]): those whose key is held, its picture
+    /// never made. After each input and before each frame, so that the
+    /// shape every reader gets says so without working it out.
+    pub(crate) fn refresh_text_files(&mut self) {
+        if !self.has_silent_wallet() {
+            self.kept.set_text_wallets(Vec::new());
+            return;
+        }
+        let c = self.compute();
+        let held = self.held_keys_now(&c);
+        self.note_text_files(&held);
+    }
+
+    fn has_silent_wallet(&self) -> bool {
+        self.session
+            .wallets
+            .iter()
+            .any(|w| w.policy().silent().is_some())
+    }
+
+    /// Lookups. [`Faraday::refresh_text_files`] given the held keys.
+    fn note_text_files(&mut self, held: &[Fingerprint]) {
+        let list = self
+            .session
+            .wallets
+            .iter()
+            .filter(|w| {
+                w.policy()
+                    .silent()
+                    .is_some_and(|r| !self.silent_key_held(r.fingerprint.0, held).is_empty())
+            })
+            .map(|w| Text::of(w.checksum()))
+            .collect();
+        self.kept.set_text_wallets(list);
+    }
+
+    /// Whether the plan of `wallet` reads its description as the text file
+    /// only: a lookup of [`Faraday::refresh_text_files`].
+    pub(crate) fn silent_text_files(&self, wallet: &crate::wallet::Wallet) -> bool {
+        self.kept.text_wallet(wallet.checksum())
+    }
+
+    /// Whether the Silent payments page's key, or its wallet's, is among
+    /// `held` and loaded.
+    fn silent_page_held_in(&self, held: &[Fingerprint]) -> bool {
+        let Some(s) = self.silent.state() else {
+            return false;
+        };
+        let record = self.silent.wallet(&self.session).map(|w| w.fingerprint.0);
+        record
+            .into_iter()
+            .chain(s.key)
+            .any(|fp| !self.silent_key_held(fp, held).is_empty())
+    }
+
+    /// A lookup. Whether the Silent payments page's address waits for its
+    /// key's backup, from the keys kept as waiting
+    /// ([`Faraday::sync_waiting`]): what the page's Your choices row reads,
+    /// which has no frame's memo.
+    pub(crate) fn silent_waits_kept(&self) -> bool {
+        let waiting = self.session.waiting();
+        !waiting.is_empty() && self.silent_page_held_in(waiting)
+    }
+
+    /// The loaded key `fp` of a silent payments address, as a list, if it
+    /// is among `held`: a key not loaded here has no backup to wait for
+    /// here, as for any wallet.
+    fn silent_key_held(&self, fp: [u8; 4], held: &[Fingerprint]) -> Vec<Fingerprint> {
+        let fp = Fingerprint(fp);
+        if held.contains(&fp) && self.session.keys.position_of(fp.0).is_some() {
+            vec![fp]
+        } else {
+            Vec::new()
+        }
+    }
+
+    /// Costs what `silent_held_on` costs. Whether the Silent payments page's
+    /// address waits for its key's backup.
+    pub fn silent_held(&self, c: &Compute) -> bool {
+        silent_held_on(&Now { app: self, c })
     }
 
     /// Costs what `backup_held_seeds_on` costs. The seeds of the wallet
@@ -466,6 +582,8 @@ impl Faraday {
         // The toast names only what signs now: a key another hold keeps is
         // not among them.
         let held = self.held_keys_now(&c);
+        // The plans read the release in this press, not the next one.
+        self.note_text_files(&held);
         let mut names = Text::new();
         for (fp, _) in released.iter().filter(|(fp, _)| !held.contains(fp)) {
             if !names.is_empty() {
@@ -1051,7 +1169,40 @@ pub(crate) fn receive_held_on(r: &impl Reads, wl: &wallet::Wallet) -> bool {
         .wallets
         .iter()
         .position(|w| w.id() == id)
-        .is_some_and(|i| !app.wallet_held_in(i, held).is_empty())
+        .is_some_and(|i| {
+            app.silent_wallet_held_in(i, &held) || !app.wallet_held_in(i, held).is_empty()
+        })
+}
+
+/// Whether loaded silent payments wallet `w`'s address waits for its key's
+/// backup, read through `r` ([`Reads`]): the decision of
+/// [`receive_held_on`] for the wallet's card.
+pub(crate) fn silent_wallet_held_on(r: &impl Reads, w: usize) -> bool {
+    r.app().silent_wallet_held_in(w, &r.held_keys())
+}
+
+/// Whether the key `fp` a silent payments record (a vault item's) names is
+/// made here, waits for its backup and is loaded: its address is held as a
+/// wallet's is ([`silent_wallet_held_on`]). Read through `r` ([`Reads`]).
+pub(crate) fn silent_record_held_on(r: &impl Reads, fp: [u8; 4]) -> bool {
+    let held = r.held_keys();
+    !held.is_empty() && !r.app().silent_key_held(fp, &held).is_empty()
+}
+
+/// Whether the address the Silent payments page shows waits for its key's
+/// backup: the key of the wallet it is the page of, or the key it is
+/// open on, is made here (held as `held_keys` says) and loaded. Either
+/// one holds it: a record of another fingerprint added first answers to
+/// the same address (`same_wallet`), and must not unhold the page of the
+/// key made here. The one decision of [`receive_held_on`], for the page, its
+/// codes and its DNS record. Read through `r` ([`Reads`]).
+pub(crate) fn silent_held_on(r: &impl Reads) -> bool {
+    let app = r.app();
+    let held = r.held_keys();
+    if held.is_empty() {
+        return false;
+    }
+    app.silent_page_held_in(&held)
 }
 
 /// An address of `wl` as every screen shows it, in groups, and whether

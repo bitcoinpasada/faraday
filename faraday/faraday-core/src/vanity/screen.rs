@@ -79,6 +79,17 @@ pub(super) fn rows(app: &crate::Faraday) -> Vec<flow::Row> {
                     .has_free(v.grind.script, net)
                     .then(|| v.grind.prefix.as_str().to_string()),
                 _ => match (&v.grind.find, v.running) {
+                    // As the page: no address while its key waits for its
+                    // backup.
+                    (Some(_), _)
+                        if v.key.is_some_and(|k| {
+                            app.session
+                                .waiting()
+                                .contains(&faraday_bip::keys::Fingerprint(k))
+                        }) =>
+                    {
+                        Some(EN.glance_back_up_before.to_string())
+                    }
                     (Some(f), _) => Some(f.address.as_str().to_string()),
                     (None, true) => {
                         Some(fill(EN.vanity_tried_count, &[&thousands(v.grind.tested)]))
@@ -246,8 +257,14 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
                     .key
                     .is_some_and(|k| app.key_held(faraday_bip::keys::Fingerprint(k)));
                 let open = (!held).then_some(Action::ShowCode(crate::Code::VanityAddress));
-                let text = grouped(f.address.as_str());
-                let size = (BODY_L.mono(), Role::Ok);
+                // Nor is the address shown: the warning a receive address is
+                // held back with stands in its place.
+                let (text, role) = if held {
+                    (EN.glance_back_up_before.to_string(), Role::Warning)
+                } else {
+                    (grouped(f.address.as_str()).to_string(), Role::Ok)
+                };
+                let size = (BODY_L.mono(), role);
                 cy += crate::screens::address_press(ui, (x, cy, w), size, &text, open) + 12.0;
                 match v.grind.dial {
                     Dial::Account => {
