@@ -261,6 +261,13 @@ details only while a vault is open.
   wallet chip at the flow card's head (FLOW-CONTAINER §2) goes: the wallet
   is a row.
 
+
+A typed address is never cut to its end: the field it is typed in (Check an
+address, Explore's Find an address) grows to the lines it needs, the address
+in groups of four, and the page scrolls where the window is too short. The
+spaces are drawn only; the text, the caret, a selection and a paste stay the
+characters typed (`docs/TEXT-CURSOR.md` §3).
+
 ## 3. Its look per form
 
 - **Heights (F331; owner, 2026-11-24).** Everything raised on a menu page

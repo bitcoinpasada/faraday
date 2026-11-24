@@ -71,6 +71,20 @@ A field has the whole of this only when it is (a) a `typing_target`,
   ends. Enter keeps what the field does with it. A field of several
   lines that sizes its box first is broken into lines once
   (`Ui::wrapped_as`), then drawn with its caret (`Ui::draw_typed`).
+- **A typed address.** Check an address' field and Explore's Find an
+  address grow to the lines they need, the address in groups of four
+  (`Ui::typed_address`), and show every character typed: none is cut to
+  the end. A line holds whole groups, as many as fit. The space between
+  groups is drawn, never held, copied or sent; the text, the caret, a
+  selection and a paste count the characters typed. Left and Right move
+  one character, across a group's end as within it; Backspace and Delete
+  take one character; Home and End go to the text's ends. Each line notes
+  its edges as a field of several lines does, so a press, Up and Down
+  find the line first; the caret at a group's end stands right after its
+  last character. The field's box grows with its lines, and what is under
+  it moves with it. Only an address field is drawn so: a descriptor, an
+  xpub, a message or words keep their own fields, and a secret is never
+  grouped.
 - **Fields that take typing unpressed.** A field that takes typing as
   soon as it is shown (a find, a path, an index, a prefix, a message, a
   string, a grid of words) is pressed with `Action::TypeHere`

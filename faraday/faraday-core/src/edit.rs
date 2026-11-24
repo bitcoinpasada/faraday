@@ -824,7 +824,8 @@ impl Faraday {
     /// Up and Down move the caret a line (`docs/TEXT-CURSOR.md` §3).
     fn several_lines(&self, target: Action) -> bool {
         match target {
-            Action::TypeHere(Here::Message | Here::Invoice) | GPG_LINE => true,
+            Action::TypeHere(Here::Message | Here::Invoice | Here::CheckAddress | Here::Query)
+            | GPG_LINE => true,
             #[cfg(feature = "demo")]
             Action::TypeHere(Here::TransferText) => true,
             // Wrapped on a small panel, one line on a wider window.

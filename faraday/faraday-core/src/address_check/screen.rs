@@ -8,11 +8,10 @@ use crate::drawing::View;
 use crate::scan_read::Way;
 use crate::strings::EN;
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Style, Ui};
 use crate::{Action, Screen};
 use faraday_draw::tokens::{
-    BODY_L, BODY_M, BODY_S, BUTTON_H, COLUMN_MAX, EXPLORE_INSET, FIELD_H, FIELD_PAD, GAP,
-    GAP_SMALL, PAD, PAGE_TOP_BAR,
+    BODY_M, BODY_S, BUTTON_H, COLUMN_MAX, EXPLORE_INSET, GAP, GAP_SMALL, PAD, PAGE_TOP_BAR,
 };
 use faraday_draw::widgets::Icon;
 use faraday_text::Text;
@@ -59,19 +58,11 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, EN.address_check_field);
     y += PAD + GAP_SMALL;
     let here = Action::TypeHere(crate::edit::Here::CheckAddress);
-    let used = ui.field_box((x, y, width), true, s.refusal().map(|t| t.as_str()));
-    ui.press_box(x, y, width, FIELD_H, here);
-    ui.typed(
-        x + FIELD_PAD,
-        y,
-        FIELD_H,
-        BODY_L.size,
-        W::M,
-        Role::OnSurface,
+    let used = ui.typed_address(
+        (x, y, width),
         s.typed(),
-        width - FIELD_PAD * 2.0,
-        true,
-        here,
+        s.refusal().map(|t| t.as_str()),
+        (true, here),
     );
     y += used + GAP;
 

@@ -575,6 +575,136 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         }
     }
 
+    /// The lines a typed address is shown in at `room` wide, as ranges of
+    /// its characters: whole groups of four, as many to a line as fit.
+    fn address_lines(&self, role: TypeRole, text: &str, room: f32) -> Vec<(usize, usize)> {
+        let face = self.face(role.size, role.face.into());
+        // In 64ths of a pixel, as the text is laid out.
+        let adv = |c: char| face.advance_64(c);
+        let space = adv(' ');
+        let room = ((room * self.f).max(0.0) as u32) << 6;
+        let chars: Vec<char> = text.chars().collect();
+        let mut lines = Vec::new();
+        let (mut start, mut used) = (0usize, 0u32);
+        let mut g = 0;
+        while g < chars.len() {
+            let end = (g + 4).min(chars.len());
+            let w: u32 = chars[g..end].iter().map(|&c| adv(c)).sum();
+            let with = if g == start { w } else { used + space + w };
+            if g > start && with > room {
+                lines.push((start, g));
+                start = g;
+                used = w;
+            } else {
+                used = with;
+            }
+            g = end;
+        }
+        if start < chars.len() || lines.is_empty() {
+            lines.push((start, chars.len()));
+        }
+        lines
+    }
+
+    /// A typed address as a text field that grows to the lines it needs
+    /// (`docs/TEXT-CURSOR.md` §3): its box at (x, y), `w` wide, the text
+    /// in groups of four with a space drawn between them, never in the
+    /// text, so the caret, the selection and a press count its
+    /// characters. While `focused` the box is in primary and the caret
+    /// and what is selected are drawn. Returns the height with the
+    /// error line under it.
+    pub fn typed_address(
+        &mut self,
+        (x, y, w): (f32, f32, f32),
+        text: &str,
+        error: Option<&str>,
+        (focused, action): (bool, A),
+    ) -> f32 {
+        let role = self.stepped(BODY_L.mono());
+        let room = w - 2.0 * FIELD_PAD;
+        let lines = self.address_lines(role, text, room);
+        let line = self.line_as(role);
+        let min = self.field_h();
+        let pad = ((min - line) / 2.0).max(0.0);
+        let fh = (lines.len() as f32 * line + 2.0 * pad).max(min);
+        let used = self.field_box_sized((x, y, w), fh, (focused, false), error);
+        self.press_box(x, y, w, fh, action);
+        let face = self.face(role.size, role.face.into());
+        let ink = self.ink(Role::OnSurface.paint());
+        let selected_ink = self.ink(crate::SELECTION_INK.paint());
+        let edit = if focused {
+            self.edit
+        } else {
+            crate::Edit::default()
+        };
+        let chars: Vec<char> = text.chars().collect();
+        let n = chars.len();
+        let caret = edit.caret_in(n);
+        let selected = edit.selected(n);
+        let space = face.advance_64(' ');
+        let (tx, ty) = (x + FIELD_PAD, y + pad);
+        let x0 = self.px(tx + self.ox);
+        let mut caret_at: Option<(f32, f32)> = None;
+        for (i, &(a0, a1)) in lines.iter().enumerate() {
+            let ly = ty + i as f32 * line;
+            // Where each character starts and ends in the grouped line.
+            let (mut starts, mut cols) = (Vec::new(), vec![0.0f32]);
+            let count = a1 - a0;
+            let mut shown = faraday_text::Text::with_room(count + count / 4);
+            let mut pen = 0u32;
+            let px = |v: u32| text::px_from_64(v) as f32 / self.f;
+            for (j, &c) in chars[a0..a1].iter().enumerate() {
+                if j > 0 && j % 4 == 0 {
+                    pen += space;
+                    shown.push(' ');
+                }
+                starts.push(px(pen));
+                pen += face.advance_64(c);
+                cols.push(px(pen));
+                shown.push(c);
+            }
+            let py = self.px(ly + self.oy) + self.oy_px;
+            let band = selected.and_then(|(lo, hi)| {
+                let (lo, hi) = (lo.clamp(a0, a1), hi.clamp(a0, a1));
+                (hi > lo).then(|| (starts[lo - a0], cols[hi - a0]))
+            });
+            if let Some((l, r)) = band {
+                self.selection_band(tx + l, ly, r - l, line);
+            }
+            self.c.text_with_face(&face, x0, py, shown.as_str(), ink);
+            if let Some((l, r)) = band {
+                let clip = self.rect(tx + l, ly, r - l, line);
+                self.c.push_clip(clip);
+                self.c
+                    .text_with_face(&face, x0, py, shown.as_str(), selected_ink);
+                self.c.pop_clip();
+            }
+            let last = i + 1 == lines.len();
+            if caret >= a0 && (caret < a1 || (caret == a1 && last)) {
+                caret_at = Some((tx + cols[caret - a0], ly));
+            }
+            let band_px = (py, self.px(ly + line + self.oy) + self.oy_px);
+            let edges = cols.iter().map(|c| self.px(tx + c + self.ox)).collect();
+            self.fields.push(crate::FieldAt {
+                action,
+                first: a0,
+                edges,
+                band: Some(band_px),
+            });
+            debug_assert_eq!(cols.len(), count + 1);
+        }
+        if focused {
+            let (cx, cy) = caret_at.unwrap_or((tx, ty));
+            self.note_focus(tx, cy, room, line);
+            self.focus_action = Some(action);
+            if selected.is_none() {
+                let h = role.size * self.text_factor();
+                self.caret(cx + 1.0, cy + (line - h) / 2.0, h);
+            }
+        }
+        used
+    }
+
     /// A text field's label kept outside it, at (x, y) above where the
     /// field goes. Returns the height it takes with the gap under it.
     pub fn field_label(&mut self, x: f32, y: f32, label: &str) -> f32 {
@@ -589,10 +719,21 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// primary while `focused`, 2 dp in error with `error` as a line under
     /// it while there is one. What is typed is the caller's, from
     /// [`FIELD_PAD`] in. Returns the height with the error line.
-    pub fn field_box(
+    pub fn field_box(&mut self, at: (f32, f32, f32), focused: bool, error: Option<&str>) -> f32 {
+        let fh = self.field_h();
+        self.field_box_sized(at, fh, (focused, true), error)
+    }
+
+    /// [`Ui::field_box`] `fh` tall: a field that grows with its lines.
+    /// `(focused, whole)`: `whole` keeps the whole field in view above a
+    /// keyboard; a field that grows with its text leaves it to the caller,
+    /// which keeps the line being typed. Returns the height with the
+    /// error line.
+    pub fn field_box_sized(
         &mut self,
         (x, y, w): (f32, f32, f32),
-        focused: bool,
+        fh: f32,
+        (focused, whole): (bool, bool),
         error: Option<&str>,
     ) -> f32 {
         let (edge, width) = match (error, focused) {
@@ -600,11 +741,10 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             (None, true) => (Role::Primary, FIELD_EDGE_ACTIVE),
             (None, false) => (Role::Outline, FIELD_EDGE),
         };
-        if focused {
-            let h = self.field_height(w, error);
+        if focused && whole {
+            let h = self.field_height(w, error).max(fh);
             self.note_focus(x, y, w, h);
         }
-        let fh = self.field_h();
         let rect = self.rect(x, y, w, fh);
         let color = self.col(edge);
         let line = (width * self.f).max(1.0);

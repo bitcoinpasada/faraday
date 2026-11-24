@@ -106,6 +106,15 @@ fn field(
     error: Option<&str>,
     (chip, here): (bool, Option<crate::edit::Here>),
 ) -> f32 {
+    // A typed address is shown whole, in groups of four, in a field that
+    // grows with its lines.
+    if let Some(h @ crate::edit::Here::Query) = here {
+        if chip {
+            crate::samples::put::offer(ui, Action::UseSample);
+        }
+        let used = ui.typed_address((x, y, width), text, error, (true, Action::TypeHere(h)));
+        return used + T::GAP;
+    }
     let used = ui.field_box((x, y, width), true, error);
     // Use a sample goes in the "Demo only" card while the field is empty
     // (`docs/DEMO.md` §14).

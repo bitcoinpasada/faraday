@@ -11,6 +11,8 @@ mod address_look;
 mod address_page;
 #[path = "all/address_sign.rs"]
 mod address_sign;
+#[path = "all/address_typed_whole.rs"]
+mod address_typed_whole;
 #[path = "all/blinding.rs"]
 mod blinding;
 #[path = "all/bsms.rs"]
