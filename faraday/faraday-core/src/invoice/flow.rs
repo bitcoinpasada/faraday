@@ -3,10 +3,12 @@
 //! panel draws the page.
 
 use super::InvoicePress;
-use crate::flow::{Contained, Row};
+use crate::flow::{Contained, Pick, PickGroup, Row};
+use crate::pick::{self, PickRow};
 use crate::strings::EN;
 use crate::trail::{StepFlow, Steps};
 use crate::{Action, Faraday, Screen};
+use faraday_draw::widgets::Icon;
 use faraday_text::Text;
 
 /// The step with the field.
@@ -47,6 +49,23 @@ pub(crate) fn open_step(app: &mut Faraday, k: u8) {
     if k == INPUT || (k == RESULT && ready) {
         app.tools.invoice.show(k);
     }
+}
+
+/// The ways in: type the text, or scan it. No held file is offered for an
+/// invoice.
+pub(crate) fn ways_in() -> Vec<PickRow> {
+    vec![
+        PickRow::way_in(
+            Icon::Keyboard,
+            EN.invoice_way_type,
+            Action::TypeHere(crate::edit::Here::Invoice),
+        ),
+        PickRow::way_in(
+            Icon::Scan,
+            EN.invoice_way_scan,
+            Action::Invoice(InvoicePress::Scan),
+        ),
+    ]
 }
 
 /// The steps, plugged into Back, Forward and Your choices.
@@ -95,6 +114,16 @@ impl Contained for InvoiceSteps {
                 mark: None,
             })
             .collect()
+    }
+
+    fn pick(&self, _: &Faraday, k: u8) -> Option<Pick> {
+        (k == INPUT).then(|| Pick {
+            question: EN.invoice_title,
+            groups: vec![PickGroup {
+                head: pick::ways_in_head(false),
+                rows: ways_in(),
+            }],
+        })
     }
 
     fn hide_shown(&self, _: &mut Faraday) {

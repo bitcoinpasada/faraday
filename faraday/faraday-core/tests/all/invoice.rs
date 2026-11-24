@@ -320,3 +320,18 @@ fn on_a_wide_window_decode_opens_the_result_card_and_back_keeps_the_text() {
     assert_eq!(app.invoice().unwrap().text(), coffee());
     assert!(has(&mut app, faraday_core::strings::EN.invoice_decode));
 }
+
+/// The open Input step lists its ways in as rows: Type it and Scan an
+/// invoice, and Scan opens the scanner.
+#[test]
+fn the_input_step_lists_type_it_and_scan_as_ways_in() {
+    let mut app = opened();
+    let en = faraday_core::strings::EN;
+    assert!(has(&mut app, en.pick_ways_in));
+    assert!(has(&mut app, en.invoice_way_type));
+    assert!(has(&mut app, en.invoice_way_scan));
+    assert!(!has(&mut app, en.invoice_clear));
+    app.press(Action::Invoice(faraday_core::invoice::InvoicePress::Scan));
+    through_fade(&mut app);
+    assert_ne!(app.screen, Screen::Invoice);
+}

@@ -1,6 +1,7 @@
 //! `Screen::Invoice`: a Lightning invoice taken apart.
 
 use crate::drawing::View;
+use crate::pick;
 use crate::strings::EN;
 use crate::ui::Region;
 use crate::ui::pal::*;
@@ -56,7 +57,16 @@ fn field(ui: &mut Ui, s: &super::InvoiceState, (x, y, w): (f32, f32, f32)) -> f3
 }
 
 /// The three buttons under the field; returns their height.
-fn buttons(ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+fn buttons(ui: &mut Ui, (x, y, w): (f32, f32, f32), card: bool) -> f32 {
+    let decode = (
+        EN.invoice_decode,
+        Style::Primary,
+        Action::Invoice(InvoicePress::Decode),
+    );
+    // On the card the pick at the left holds Scan; Decode stays.
+    if card {
+        return wrap_buttons(ui, x, y, w, BUTTON_H, &[decode]);
+    }
     wrap_buttons(
         ui,
         x,
@@ -64,11 +74,7 @@ fn buttons(ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
         w,
         BUTTON_H,
         &[
-            (
-                EN.invoice_decode,
-                Style::Primary,
-                Action::Invoice(InvoicePress::Decode),
-            ),
+            decode,
             (
                 EN.invoice_scan,
                 Style::Secondary,
@@ -128,9 +134,16 @@ fn card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let scroll = s.scroll;
     let (next, again, _) = {
         let mut body = |ui: &mut Ui, step: u8, x: f32, y: f32, w: f32| -> f32 {
+            let area_w = cw;
             if step == super::flow::INPUT {
-                let mut used = field(ui, s, (x, y, w));
-                used += buttons(ui, (x, y + used, w));
+                let mut used = 0.0;
+                // Where the pair stands the pane holds the ways in.
+                if !crate::flow::pair_left(app, &super::flow::INVOICE_STEPS, ui.compact, area_w) {
+                    used += pick::head(ui, x, y, w, pick::ways_in_head(false));
+                    used += pick::rows(ui, x, y + used, w, &super::flow::ways_in());
+                }
+                used += field(ui, s, (x, y + used, w));
+                used += buttons(ui, (x, y + used, w), true);
                 used
             } else {
                 reading(ui, s, (x, y, w))
@@ -167,7 +180,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
     y += field(ui, s, (x, y, w));
 
-    y += buttons(ui, (x, y, w)) + INVOICE_BLOCK_GAP;
+    y += buttons(ui, (x, y, w), false) + INVOICE_BLOCK_GAP;
 
     y += reading(ui, s, (x, y, w));
     if compact {
