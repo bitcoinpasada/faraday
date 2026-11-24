@@ -196,9 +196,10 @@ and the card's column up to 720 dp, centred in the room beside the
 navigation. Guide's ? opens its supporting pane at the right (LAYOUT §6),
 instead of the sheet, whenever the pair at its narrowest and the pane fit:
 1536 dp of window. The pair then moves left only as far as the pane needs
-(not at all when it already fits centred), and stays there when the pane
-closes, until the flow ends; a new flow starts centred. The move shows
-through the frame's cross-fade that a pane coming or going has. To make
+(not at all when it already fits centred), and returns to its own place
+when the pane closes. The pair slides between the two places as the pane
+comes or goes, at the Speed setting and Motion style of a change of page
+(`docs/MOTION.md` §3.5). To make
 room, the card's column narrows from 720 to `FLOW_CARD_MIN` (560 dp) first
 and then Your choices from 360 to `CHOICES_PANE_MIN` (240 dp), each only as
 far as the room needs. Below that room Guide is the sheet. The rectangle

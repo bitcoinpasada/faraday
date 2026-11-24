@@ -413,7 +413,11 @@ extent; a motion left from another screen or sheet is stopped.
     `glide::lerp_rect`), where the rest of the page fades through; the
     same place on both sides and the pane stays, its changed pixels
     blending; a pane on one side only and the whole page fades
-    through. Off shows the new page at once. A change of page opened mid-fade
+    through. Where a flow's pair stands (Your choices and the card) and
+    Learn's pane opens or closes, that is a change of page too: the pair,
+    as one rectangle from Your choices to the card's end, glides between
+    its place beside the pane and its own, the rest of the page fading
+    through; it stands aside only while the pane stands. Off shows the new page at once. A change of page opened mid-fade
     starts from the frame on screen and fades through whole. A step's
     fade, the theme's, a toast's and the chart's side sheet keep their
     own times. The frame that shows the

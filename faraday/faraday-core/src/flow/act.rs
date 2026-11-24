@@ -70,16 +70,9 @@ impl Faraday {
     }
 
     /// The unit's place in a `room` wide, as the flow now stands: shifted
-    /// when Guide's pane has stood beside it in this flow.
+    /// only while Guide's pane stands beside it, at its own place whenever
+    /// the guide is shut.
     pub(crate) fn unit_place(&self, room: f32) -> super::unit::Place {
-        super::unit::place(room, self.scroll.unit_shifted())
-    }
-
-    /// Before a frame: the unit stays where Guide's pane put it until the
-    /// flow ends.
-    pub(crate) fn unit_settle(&mut self) {
-        let on = self.unit_on_show();
-        let shifted = on && (self.scroll.unit_shifted() || self.guide_pane_shown());
-        self.scroll.set_unit_shifted(shifted);
+        super::unit::place(room, self.guide_pane_shown())
     }
 }

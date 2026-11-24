@@ -116,6 +116,10 @@ pub(crate) struct Fade {
     /// glides it (Smooth motion, both frames have one); cleared when a
     /// fade ends.
     pane_before: Option<Rect>,
+    /// The change of page under way is a flow's guide pane coming or
+    /// going: the pair (Your choices and the card together) is what
+    /// glides, not the pane alone. Cleared when a fade ends.
+    glide_pair: bool,
     /// An image of the page's surface, as large as the frames, that a
     /// step's card goes out to and comes in from: made when the new frame
     /// of a step's fade is first kept, empty with no step fade. One more
@@ -184,6 +188,7 @@ impl Fade {
         self.card_before = None;
         self.page = None;
         self.pane_before = None;
+        self.glide_pair = false;
         self.live = None;
     }
 
@@ -216,7 +221,12 @@ impl Fade {
         };
         let whole = Rect::new(0, 0, canvas.width(), canvas.height());
         let n = self.cores.blend_all_within(canvas, pair, k, &[whole]);
-        if let (Some(a), Some(b)) = (self.pane_before, self.pane) {
+        let now = if self.glide_pair {
+            self.pair_place()
+        } else {
+            self.pane
+        };
+        if let (Some(a), Some(b)) = (self.pane_before, now) {
             let at = glide::lerp_rect(a, b, e);
             let fill = [
                 self.surface[0],
@@ -227,6 +237,15 @@ impl Fade {
             canvas.blend_shifted((before, &self.after), (a, b), at, e, fill);
         }
         n
+    }
+
+    /// Where the last frame put a flow's pair, Your choices and the card
+    /// with what is between them: a rectangle, `None` without both.
+    fn pair_place(&self) -> Option<Rect> {
+        let (a, b) = (self.pane?, self.card?);
+        let (x, y) = (a.x.min(b.x), a.y.min(b.y));
+        let (r, d) = (a.right().max(b.right()), a.bottom().max(b.bottom()));
+        Some(Rect::new(x, y, r - x, d - y))
     }
 
     /// Where the frame being drawn put the session pane, in pixels, or
@@ -473,7 +492,6 @@ impl Faraday {
         // The pane opening, closing or changing its tab is a change as a
         // sheet's is (`docs/MOTION.md` §3.5, Material's side sheets).
         let pane = self.guide_pane_shown();
-        self.unit_settle();
         let page = if pane || self.sheet == Some(Sheet::Guide) {
             self.guide.state().tab()
         } else {
@@ -567,7 +585,18 @@ impl Faraday {
             .fade
             .last_drawn
             .is_some_and(|(k, _, _, _)| k.0 != drawn_key.0.0);
-        let page_change = fades && !step_change && !self.fade.theme_fade && screen_change;
+        // The guide pane coming or going on a flow whose pair stands is a
+        // change of page as well: the pair slides between its two places
+        // (`docs/MOTION.md` §3.5).
+        let guide_toggle = self.unit_on_show()
+            && self.fade.pair_place().is_some()
+            && self
+                .fade
+                .last_drawn
+                .is_some_and(|(k, p, _, _)| k == drawn_key.0 && p.0 != drawn_key.1.0);
+        let page_change =
+            fades && !step_change && !self.fade.theme_fade && (screen_change || guide_toggle);
+        self.fade.glide_pair = page_change && guide_toggle && !screen_change;
         self.fade.page = page_change
             .then(|| Kind::of(self.settings.motion_style()))
             .flatten();
@@ -578,8 +607,13 @@ impl Faraday {
         };
         // The pane glides when the frame before and this one both drew
         // one; a fade begun over one under way fades through whole.
+        let before = if self.fade.glide_pair {
+            self.fade.pair_place()
+        } else {
+            self.fade.pane
+        };
         self.fade.pane_before = (self.fade.page == Some(Kind::Through) && self.fade.from.is_none())
-            .then_some(self.fade.pane)
+            .then_some(before)
             .flatten();
         // A fade begun over one under way goes through a new surface.
         self.fade.surface = Vec::new();

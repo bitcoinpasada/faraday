@@ -426,3 +426,58 @@ fn off_shows_the_end_at_once_and_crossfade_does_not_glide() {
         assert_eq!(a[MID], b[MID], "{win:?}: Crossfade blends whole frames");
     }
 }
+
+/// A flow with a pair, opened from Tools at 1920 x 1080 and settled, the
+/// guide shut.
+fn in_a_flow(style: MotionStyle) -> (Faraday, u64) {
+    let (mut app, t) = on_home((1920, 1080), style);
+    let _ = change(&mut app, Action::Nav(Screen::Catalog), t, false);
+    let _ = change(
+        &mut app,
+        Action::Catalog(tile("Make a new wallet")),
+        t + 2_000,
+        false,
+    );
+    (app, t + 4_000)
+}
+
+#[test]
+fn the_pair_slides_aside_for_the_guide_and_back_to_where_it_was() {
+    let (mut app, t) = in_a_flow(MotionStyle::Smooth);
+    let shut = at(&mut app, t);
+    let place = app.pane_place();
+    assert!(place.is_some(), "the flow's pair reports its place");
+    let (mut bare, tb) = in_a_flow(MotionStyle::Smooth);
+    let _ = at(&mut bare, tb);
+    app.press(Action::Guide);
+    bare.press(Action::Guide);
+    bare.force_pane(None, false);
+    let open: Vec<_> = (0..=1_000 / 16)
+        .map(|i| at(&mut app, t + 100 + i * 16))
+        .collect();
+    let still: Vec<_> = (0..=1_000 / 16)
+        .map(|i| at(&mut bare, tb + 100 + i * 16))
+        .collect();
+    assert_ne!(app.pane_place(), place, "the guide moves the pair aside");
+    assert_ne!(
+        open[MID], still[MID],
+        "the pair is drawn between its places"
+    );
+    app.press(Action::GuideClose);
+    let _: Vec<_> = (0..=1_000 / 16)
+        .map(|i| at(&mut app, t + 2_000 + i * 16))
+        .collect();
+    assert_eq!(app.pane_place(), place, "the pair is back at its place");
+    assert_eq!(at(&mut app, t + 4_000), shut, "and the page is as it was");
+}
+
+#[test]
+fn with_motion_off_the_pair_is_aside_at_once() {
+    let (mut app, t) = in_a_flow(MotionStyle::Off);
+    let _ = at(&mut app, t);
+    app.press(Action::Guide);
+    let frames: Vec<_> = (0..=1_000 / 16)
+        .map(|i| at(&mut app, t + 100 + i * 16))
+        .collect();
+    assert_eq!(frames[0], *frames.last().unwrap(), "Off is final at once");
+}
