@@ -683,7 +683,10 @@ impl Faraday {
             return;
         };
         // A result pressed on Home's search clears it: Home is Home again.
+        // A way back from what it opens brings the words back.
+        self.tools.keep_home_find();
         self.tools.clear_home_find();
+        self.search_pressed();
         match tile.go {
             Go::NewKey => self.act(Action::KeyGen(None)),
             Go::LoadKey => self.act(Action::Entry(None)),

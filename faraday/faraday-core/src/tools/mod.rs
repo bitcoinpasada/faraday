@@ -194,6 +194,9 @@ pub struct ToolsArea {
     catalog_focus: bool,
     /// What is typed in Home's search bar, kept beside Tools' own.
     home_find: Text,
+    /// The words of the Home search whose result was pressed, kept for
+    /// the way back from what it opened (`in_progress`'s place).
+    home_find_kept: Text,
     /// Whether Home's search bar has been pressed, so it shows its caret
     /// while empty.
     home_focus: bool,
@@ -269,6 +272,21 @@ impl ToolsArea {
     pub(crate) fn clear_home_find(&mut self) {
         self.home_find.clear();
         self.home_focus = false;
+    }
+
+    /// Keeps the words in Home's search bar, as a result is pressed.
+    pub(crate) fn keep_home_find(&mut self) {
+        self.home_find_kept = self.home_find.clone();
+    }
+
+    /// Puts the kept words back in Home's search bar, and forgets them.
+    pub(crate) fn restore_home_find(&mut self) {
+        self.home_find = std::mem::take(&mut self.home_find_kept);
+    }
+
+    /// Forgets the kept words.
+    pub(crate) fn drop_home_find_kept(&mut self) {
+        self.home_find_kept.clear();
     }
 
     /// Whether Home's search bar has been pressed and shows its caret.
@@ -830,6 +848,7 @@ impl crate::at_lock::AtLock for ToolsArea {
             catalog_find,
             catalog_focus,
             home_find,
+            home_find_kept,
             home_focus,
             home_bar_y,
             home_follow,
@@ -845,6 +864,7 @@ impl crate::at_lock::AtLock for ToolsArea {
         public(catalog_find);
         public(catalog_focus);
         public(home_find);
+        public(home_find_kept);
         public(home_focus);
         public(home_bar_y);
         public(home_follow);
@@ -867,6 +887,7 @@ impl crate::at_lock::AtLock for ToolsArea {
             catalog_find: _,
             catalog_focus: _,
             home_find: _,
+            home_find_kept,
             home_focus: _,
             home_bar_y: _,
             home_follow: _,
@@ -880,6 +901,7 @@ impl crate::at_lock::AtLock for ToolsArea {
             address_check: _,
         } = self;
         *tools = None;
+        home_find_kept.clear();
         A::lock(convert);
         A::lock(kef_tool);
         A::lock(seed_check);

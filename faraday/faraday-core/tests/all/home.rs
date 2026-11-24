@@ -1436,6 +1436,133 @@ fn sign_tile() -> u8 {
         .expect("the Sign a transaction tile") as u8
 }
 
+fn wallet_tile() -> u8 {
+    faraday_core::catalog::TILES
+        .iter()
+        .position(|t| t.name == "Make a new wallet")
+        .expect("the Make a new wallet tile") as u8
+}
+
+/// Leaving the flow a Home search's result opened, by Cancel or by Back
+/// from its first step, lands on Home with the words still typed and
+/// the same rows listed.
+#[test]
+fn leaving_a_flow_begun_from_a_search_result_returns_to_the_results() {
+    for leave in [Action::CancelFlow, Action::Back] {
+        for mut app in [shown(), window(400, 800, 160)] {
+            type_on_home(&mut app, "wallet");
+            let rows = app.offers(Action::Catalog(wallet_tile()));
+            assert!(rows, "the result is listed");
+            tap(&mut app, Action::Catalog(wallet_tile()));
+            assert_eq!(app.screen, Screen::Create);
+            assert!(faraday_core::testkit::home_find(&app).is_empty());
+            let _ = app.frame();
+            app.press(leave);
+            if app.sheet == Some(Sheet::CancelFlow(faraday_core::in_progress::Going::Create)) {
+                app.press(Action::CancelFlowNow);
+            }
+            assert_eq!(app.screen, Screen::Home);
+            assert_eq!(faraday_core::testkit::home_find(&app), "wallet");
+            let _ = app.frame();
+            assert!(app.offers(Action::Catalog(wallet_tile())));
+        }
+    }
+}
+
+fn tile_named(name: &str) -> u8 {
+    faraday_core::catalog::TILES
+        .iter()
+        .position(|t| t.name == name)
+        .expect("the tile") as u8
+}
+
+/// A page a search result opens: Back lands on the results; once
+/// another screen was opened after it, Back lands on Home without them.
+#[test]
+fn back_from_a_page_a_search_result_opened_returns_to_the_results() {
+    let mut app = shown();
+    type_on_home(&mut app, "check");
+    tap(&mut app, Action::Catalog(tile_named("Check")));
+    assert_eq!(app.screen, Screen::Check);
+    let _ = app.frame();
+    app.press(Action::Back);
+    assert_eq!(app.screen, Screen::Home);
+    assert_eq!(faraday_core::testkit::home_find(&app), "check");
+
+    let mut app = shown();
+    type_on_home(&mut app, "check");
+    tap(&mut app, Action::Catalog(tile_named("Check")));
+    app.press(Action::Nav(Screen::WalletsStart));
+    let _ = app.frame();
+    app.press(Action::Back);
+    app.press(Action::Back);
+    assert_eq!(app.screen, Screen::Home);
+    assert!(faraday_core::testkit::home_find(&app).is_empty());
+}
+
+/// A second search between: Cancel lands on the words of the last one.
+#[test]
+fn a_second_search_between_returns_to_the_last_results() {
+    let mut app = shown();
+    type_on_home(&mut app, "wallet");
+    tap(&mut app, Action::Catalog(wallet_tile()));
+    let _ = app.frame();
+    app.press(Action::Back);
+    if app.sheet == Some(Sheet::CancelFlow(faraday_core::in_progress::Going::Create)) {
+        app.press(Action::CancelFlowNow);
+    }
+    assert_eq!(faraday_core::testkit::home_find(&app), "wallet");
+    app.event(Event::Key(faraday_shell_api::Key::Escape));
+    type_on_home(&mut app, "check");
+    tap(&mut app, Action::Catalog(tile_named("Check")));
+    let _ = app.frame();
+    app.press(Action::Back);
+    assert_eq!(faraday_core::testkit::home_find(&app), "check");
+}
+
+/// A lock ends the place: no words come back.
+#[test]
+fn a_lock_drops_the_search_a_flow_was_begun_from() {
+    let mut app = shown();
+    type_on_home(&mut app, "wallet");
+    tap(&mut app, Action::Catalog(wallet_tile()));
+    let _ = app.frame();
+    app.press(Action::Lock);
+    app.press(Action::Nav(Screen::Home));
+    assert!(faraday_core::testkit::home_find(&app).is_empty());
+}
+
+/// A flow begun from a wallet's own entry stays as it was: no words.
+#[test]
+fn a_search_does_not_return_for_a_flow_begun_another_way() {
+    let mut app = shown();
+    type_on_home(&mut app, "wallet");
+    tap(&mut app, Action::Nav(Screen::WalletsStart));
+    tap(&mut app, Action::CreateWallet);
+    let _ = app.frame();
+    app.press(Action::Back);
+    if app.sheet == Some(Sheet::CancelFlow(faraday_core::in_progress::Going::Create)) {
+        app.press(Action::CancelFlowNow);
+    }
+    assert_eq!(app.screen, Screen::WalletsStart);
+}
+
+/// The same flow begun from Home's own button lands on Home with no
+/// search, as before.
+#[test]
+fn leaving_a_flow_begun_from_a_home_button_returns_to_home_without_a_search() {
+    let mut app = shown();
+    tap(&mut app, Action::CreateWallet);
+    assert_eq!(app.screen, Screen::Create);
+    let _ = app.frame();
+    app.press(Action::Back);
+    if app.sheet == Some(Sheet::CancelFlow(faraday_core::in_progress::Going::Create)) {
+        app.press(Action::CancelFlowNow);
+    }
+    assert_eq!(app.screen, Screen::Home);
+    assert!(faraday_core::testkit::home_find(&app).is_empty());
+}
+
 #[test]
 fn typing_on_home_searches_on_a_wide_and_a_phone_window() {
     for mut app in [shown(), window(400, 800, 160)] {

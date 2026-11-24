@@ -174,7 +174,7 @@ impl Trail {
     }
 
     /// How many screens are on the trail.
-    fn depth(&self) -> usize {
+    pub(crate) fn depth(&self) -> usize {
         self.trail.len()
     }
 
@@ -472,6 +472,7 @@ impl Faraday {
     /// Home empties it.
     pub(crate) fn trail_note(&mut self) {
         self.trail.note_done(self.screen);
+        self.search_after();
     }
 
     /// The way back the last frame drew on the screen on show, by the
@@ -520,6 +521,7 @@ impl Faraday {
     pub(crate) fn back(&mut self) {
         let from = self.screen;
         self.back_from();
+        self.search_land();
         self.entry_left(from == Screen::Entry);
     }
 
@@ -594,6 +596,7 @@ impl Faraday {
         let now = self.trail_shown();
         self.trail.cut_unshown(was, &now);
         self.land_back();
+        self.search_land();
     }
 
     /// Puts `s` back on show as it was seen.

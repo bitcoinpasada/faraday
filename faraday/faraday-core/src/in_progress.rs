@@ -66,6 +66,23 @@ pub struct Row {
 #[derive(Debug, Default)]
 pub(crate) struct InProgress {
     begun: Vec<(Going, Screen)>,
+    /// The Home search's result pressed to open what is on show.
+    search: Option<SearchPlace>,
+}
+
+/// A result of Home's search was pressed: the words are kept in Tools'
+/// area, and this ties them to what the result opened, so the way back
+/// that leaves it lands on the results. Holds no words.
+#[derive(Debug)]
+struct SearchPlace {
+    /// The flow the result opened, once known.
+    flow: Option<Going>,
+    /// The flow has been seen begun.
+    seen: bool,
+    /// Trail depth at the press, before Home went on it.
+    depth: usize,
+    /// Set at the press, until the press is noted.
+    fresh: bool,
 }
 
 /// Holds nothing a lock wipes: which flows were begun, by screen.
@@ -96,6 +113,55 @@ impl InProgress {
         {
             e.1 = screen;
         }
+    }
+
+    /// A Home search's result is pressed, at trail depth `depth`.
+    fn search_press(&mut self, depth: usize) {
+        self.search = Some(SearchPlace {
+            flow: None,
+            seen: false,
+            depth,
+            fresh: true,
+        });
+    }
+
+    /// After a press: whether the place still holds. It ends when the flow
+    /// it opened leaves begun, when a page it opened has had anything else
+    /// opened after, and when Home is shown again.
+    fn search_note(&mut self, now: &[Going], on_screen: Option<Going>, home: bool) -> bool {
+        let Some(p) = self.search.as_mut() else {
+            return false;
+        };
+        let keep = if p.fresh {
+            p.fresh = false;
+            p.flow = on_screen;
+            p.seen = on_screen.is_some_and(|g| now.contains(&g));
+            true
+        } else if home {
+            false
+        } else if let Some(g) = p.flow {
+            p.seen |= now.contains(&g);
+            !p.seen || now.contains(&g)
+        } else {
+            true
+        };
+        if !keep {
+            self.search = None;
+        }
+        keep
+    }
+
+    /// After the press's screen went on the trail: a page the result opened
+    /// that has had another opened after it no longer returns to the results.
+    fn search_trail(&mut self, depth: usize) -> bool {
+        let gone = self
+            .search
+            .as_ref()
+            .is_some_and(|p| !p.fresh && p.flow.is_none() && depth > p.depth + 1);
+        if gone {
+            self.search = None;
+        }
+        !gone
     }
 
     /// The screen of its own flow `g` was last on.
@@ -266,6 +332,30 @@ impl Faraday {
         self.flow_held_by(i).unwrap_or(Going::Flow(i))
     }
 
+    /// A Home search's result is pressed: what it opens is tied to the
+    /// results, at the press.
+    pub(crate) fn search_pressed(&mut self) {
+        let depth = self.trail.depth();
+        self.in_progress.search_press(depth);
+    }
+
+    /// The screen on show went on the trail, ending an input.
+    pub(crate) fn search_after(&mut self) {
+        let depth = self.trail.depth();
+        if !self.in_progress.search_trail(depth) {
+            self.tools.drop_home_find_kept();
+        }
+    }
+
+    /// A way back or a Cancel landed: on Home, from what a Home search's
+    /// result opened, the words are typed again. Nothing else puts them
+    /// back (Done does not).
+    pub(crate) fn search_land(&mut self) {
+        if self.screen == Screen::Home && self.in_progress.search.take().is_some() {
+            self.tools.restore_home_find();
+        }
+    }
+
     /// Notes, after a press, the order the flows were begun in and the
     /// screen of its own each is on: a flow started over is begun again,
     /// last. Only lookups.
@@ -279,6 +369,10 @@ impl Faraday {
         } else {
             self.screen
         };
+        let home = self.screen == Screen::Home;
+        if !self.in_progress.search_note(&now, on_screen, home) {
+            self.tools.drop_home_find_kept();
+        }
         self.in_progress.note(now, screen, on_screen);
     }
 

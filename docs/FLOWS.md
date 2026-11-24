@@ -1757,6 +1757,11 @@ sidebar row (a press on the row only returns to the flow).
 1. **Cancel** at the top of every flow that has a sidebar row: it ends the flow, its row goes, and the
    screen it was opened from is shown as it was seen (F77); the screen
    in the table's last column only when that one is not known.
+   A flow opened from a result of Home's search lands on the results, with
+   the words still typed, by Cancel and by Back from its first step; a
+   page a result opened does the same by Back while nothing else was
+   opened after it. Done, a lock and a flow ended or started over drop
+   that place, and every other way in lands as above.
 2. **Asked first only when something would be lost** that the person
    would notice: a sheet naming it ("Cancel making this wallet? The plan
    and its places are lost."), **Cancel the flow** and **Keep going**.
