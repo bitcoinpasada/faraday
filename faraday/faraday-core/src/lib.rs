@@ -36,7 +36,7 @@
 //!   event code gets its token), `flow`, `inputs`, `edit` (the caret and
 //!   the selection), `pass_field` (the passphrase fields and their eye), `ways_in` (the ways a key reaches a screen, and Other forms), `motion` (scrolling), `moved` (the moved frame), `out` (what the core
 //!   hands the shell: commands, storage commands, the toast), `pointer` (the
-//!   hits, the press, the drag, the hover), `idle` (the idle lock's timers), `at_lock` (what each area holds and what Lock does with it, `docs/AT-LOCK.md`), `item` (an Inbox or Outbox file), `items` (each kind of held item's row button and "What you can do" list), `worker` (the one thread costly work runs on), `fade` (a
+//!   hits, the press, the drag, the hover), `idle` (the idle lock's timers), `at_lock` (what each area holds and what Lock does with it, `docs/AT-LOCK.md`), `item` (an Inbox or Outbox file), `items` (each kind of held item's row button and "What you can do" list), `pick` (a flow's pick: its rows as data and their one drawer), `worker` (the one thread costly work runs on), `fade` (a
 //!   change fading in), `glide` (the arithmetic of a change of page and the pane that moves in it), `menu` (the ⋮ menus), `nav` (the navigation by
 //!   window class, with `nav/screen.rs`), `file_menu`, `in_progress`,
 //!   `compact` (the small panel), `panes` (list and detail), `medium`
@@ -161,6 +161,7 @@ pub mod nav;
 mod out;
 mod panes;
 mod pass_field;
+mod pick;
 mod pointer;
 mod public_files;
 mod public_kind;

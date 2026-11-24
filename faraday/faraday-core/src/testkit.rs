@@ -2697,3 +2697,8 @@ fn plain_files_t(files: crate::Files) -> Vec<(Text, Vec<u8>)> {
         .map(|(n, b)| (Text::of(&n), b.to_vec()))
         .collect()
 }
+
+/// The control the keyboard is on, while the last frame offered it.
+pub fn focused(app: &crate::Faraday) -> Option<crate::Action> {
+    app.pointer.focused()
+}

@@ -241,6 +241,8 @@ impl Bip85Area {
         if let Some(b) = self.state.as_mut() {
             b.shown = false;
         }
+        // Gone with the eye (F195): Show works it out again from the key.
+        self.held = None;
     }
 
     /// Forgets the flow's state.
@@ -254,6 +256,12 @@ impl Bip85Area {
         self.held
             .as_ref()
             .filter(|_| self.state.as_ref().is_some_and(|b| b.shown))
+    }
+
+    /// Whether a child is kept at all, shown or not.
+    #[cfg(test)]
+    pub(crate) fn keeps_a_child(&self) -> bool {
+        self.held.is_some()
     }
 
     /// The index card counts as done while it is open on an index that
@@ -290,6 +298,20 @@ impl Bip85Area {
         if let Some(b) = self.state.as_mut() {
             b.scroll = to;
         }
+    }
+
+    /// A key added from a way in. Where the pick is open it stands ticked
+    /// on the new key, nothing shown; with a later step open the flow stays
+    /// on the key the person picked. A value shown when the way in was
+    /// pressed is hidden either way.
+    pub(crate) fn took(&mut self, key: [u8; 4]) {
+        if let Some(b) = self.state.as_mut()
+            && b.open == Some(pstep::KEY)
+        {
+            b.key = Some(key);
+            b.loaded = None;
+        }
+        self.hide_secrets();
     }
 
     /// Opens the flow on `key` (the only key loaded, if there is one), to
@@ -421,10 +443,9 @@ impl Bip85Area {
                 }
             }
             A::PKey(fp) => {
+                // A pick only chooses; Next moves on.
                 b.key = Some(fp);
                 b.shown = false;
-                b.done[usize::from(pstep::KEY)] = true;
-                open(b, pstep::APP);
             }
             A::PApp(i) => {
                 if let Some(&app) = APPS.get(usize::from(i)) {
@@ -447,7 +468,9 @@ impl Bip85Area {
             }
             A::PNext => {
                 if let Some(s) = b.open {
-                    if s == pstep::INDEX && b.index().is_none() {
+                    if (s == pstep::INDEX && b.index().is_none())
+                        || (s == pstep::KEY && b.key.is_none())
+                    {
                         return;
                     }
                     b.done[usize::from(s)] = true;
@@ -743,6 +766,17 @@ impl Faraday {
     /// Digits typed into the index. Returns
     /// whether the key was taken.
     pub(crate) fn bip85_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        // Enter on a control the keyboard is on presses that control, as
+        // Space does (DESIGN §4): the pick's rows are not skipped over.
+        // The index field takes what is typed: there Enter goes on (§4.15).
+        if key == faraday_shell_api::Key::Enter
+            && self
+                .pointer
+                .focused()
+                .is_some_and(|a| !matches!(a, crate::Action::TypeHere(_)))
+        {
+            return false;
+        }
         self.bip85.key(key, &mut self.screen)
     }
 }

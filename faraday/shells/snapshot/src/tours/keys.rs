@@ -72,7 +72,10 @@ pub(crate) fn keys_tour(t: &mut Tour) -> Result<(), String> {
 fn child_seed(t: &mut Tour, fp: [u8; 4]) -> Result<(), String> {
     use faraday_core::cstep;
     t.press(Action::Bip85);
+    t.press(Action::PStep(0));
+    t.shot("bip85-key")?;
     t.press(Action::PKey(fp));
+    t.press(Action::PNext);
     t.press(Action::PApp(0));
     t.press(Action::PNext);
     t.press(Action::PNext);

@@ -537,6 +537,8 @@ impl Faraday {
         match back {
             Some(Screen::Restore) => self.restore_took(fp),
             Some(Screen::Create) => self.create_slot_took(fp),
+            // Child seeds and passwords: the pick stands ticked on it.
+            Some(Screen::Bip85) => self.bip85.took(fp.0),
             // On What do you have? with no wallet open yet: the seeds
             // the wallet is worked out from.
             // With a wallet open, a key fills its slot and no more.

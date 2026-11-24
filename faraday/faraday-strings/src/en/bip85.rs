@@ -397,6 +397,11 @@ macro_rules! words_bip85 {
     kdbx_export_file: "keepass-export",
     /// Text in `bip85_out`.
     bip85_secret_warning: "Whoever has it can open what it protects or spend what it holds",
+    // ----- the pick (faraday-core/src/pick.rs) -----
+    /// The group of ways in beside loaded items a flow takes.
+    pick_other_ways_in: "Other ways in",
+    /// The group of ways in when nothing loaded is taken.
+    pick_ways_in: "Ways in",
     // ----- bip85 (faraday-core/src/bip85/screen.rs) -----
     /// Text in `TITLES`.
     bip85_key: "Key",

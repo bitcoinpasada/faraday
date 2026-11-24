@@ -454,6 +454,7 @@ fn bip85_value(app: &mut Faraday, a: u8) {
     app.press(Action::Bip85);
     assert_eq!(app.screen, Screen::Bip85, "BIP-85 opens");
     app.press(Action::PKey(fp));
+    app.press(Action::PNext);
     app.press(Action::PApp(a));
     app.press(Action::PNext);
     app.press(Action::PNext);

@@ -111,7 +111,14 @@ fn a_bip85_child_is_derived_once_when_shown() {
     let (mut app, _) = walk(&c, &mut |_, _| {});
     app.press(Action::Bip85);
     app.press(Action::PKey(app.session.keys[0].fingerprint.0));
-    app.press(Action::PStep(crate::bip85::pstep::RESULT));
+    // The key, the application and the index, then the Value step.
+    for _ in 0..3 {
+        app.press(Action::PNext);
+    }
+    assert_eq!(
+        app.bip85().and_then(|b| b.open),
+        Some(crate::bip85::pstep::RESULT)
+    );
     app.settle();
     let _ = app.frame();
     assert!(app.bip85.held().is_none());
@@ -122,6 +129,33 @@ fn a_bip85_child_is_derived_once_when_shown() {
     frames_work_out_nothing(&mut app);
     let _ = press_work(&mut app, Action::PShow);
     assert!(app.bip85.held().is_none());
+}
+
+#[test]
+fn the_idle_warning_drops_the_bip85_child_and_show_works_it_out_again() {
+    let c = testkit::compute();
+    let (mut app, _) = walk(&c, &mut |_, _| {});
+    app.press(Action::Bip85);
+    app.press(Action::PKey(app.session.keys[0].fingerprint.0));
+    // The key, the application and the index, then the Value step.
+    for _ in 0..3 {
+        app.press(Action::PNext);
+    }
+    assert_eq!(
+        app.bip85().and_then(|b| b.open),
+        Some(crate::bip85::pstep::RESULT)
+    );
+    app.settle();
+    let _ = app.frame();
+    let _ = press_work(&mut app, Action::PShow);
+    assert!(app.bip85.held().is_some());
+    // What the idle warning does to what is on show.
+    crate::vault::seal::secrets_off_screen(&mut app);
+    assert!(app.bip85().is_some_and(|b| !b.shown));
+    assert!(!app.bip85.keeps_a_child(), "the child is gone");
+    let work = press_work(&mut app, Action::PShow);
+    assert!(app.bip85.held().is_some());
+    costs(&work, &[(Work::KeyDerive, 1)]);
 }
 
 /// Convert a seed's value, the eye closed and the flow open on its Result.

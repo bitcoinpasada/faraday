@@ -229,6 +229,7 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     }
     let first = bacon;
     t.press(Action::PKey(first));
+    t.press(Action::PNext);
     t.press(Action::PApp(4));
     t.shot("bip85-app")?;
     t.press(Action::PNext);

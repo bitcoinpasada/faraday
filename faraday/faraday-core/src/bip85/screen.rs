@@ -3,15 +3,17 @@
 use crate::bip85::Bip85App;
 use crate::strings::EN;
 use crate::strings::fill;
-use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, BUTTON_H, TITLE_M};
+use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, BUTTON_H, TITLE_M, TOUCH};
 
 use crate::bip85::{APPS, Bip85State, app_name, lengths, pstep};
 use crate::drawing::{Scrolled, View};
-use crate::screens::{button_rows, next_button};
+use crate::pick;
+use crate::screens::{button_rows, next_button, next_button_when};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::wallet::fp_text;
 use crate::{Action, flow};
+use faraday_draw::widgets::Icon;
 
 pub(crate) const TITLES: [&str; pstep::COUNT] = [
     EN.bip85_key,
@@ -54,6 +56,56 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     app.scroll(Scrolled::Bip85, next, again);
 }
 
+/// Why the flow takes no key as its source; every loaded key holds its
+/// master seed, so none is refused (`Keys::bip85_child` needs only that).
+fn refused(_: &faraday_keys::KeyInfo) -> Option<&'static str> {
+    None
+}
+
+/// The loaded keys as the pick's rows: fingerprint, then its name, a
+/// passphrase and the wallet that uses it, as the session pane has them.
+fn key_rows(app: &View, b: &Bip85State) -> Vec<pick::PickRow> {
+    let session = &app.session;
+    session
+        .keys
+        .all()
+        .map(|k| {
+            let fp = fp_text(k.fingerprint);
+            let name = crate::bip85::key_name(k);
+            let mut line = String::new();
+            if !name.eq_ignore_ascii_case(&fp) {
+                line.push_str(&name);
+                line.push_str(" · ");
+            }
+            if k.has_passphrase {
+                line.push_str(EN.home_key_passphrase);
+                line.push_str(" · ");
+            }
+            let user = session.wallets.iter().find(|w| {
+                session
+                    .slots(w)
+                    .iter()
+                    .any(|s| s.fingerprint == Some(k.fingerprint))
+            });
+            match user {
+                Some(w) => line.push_str(&fill(EN.home_key_used_by, &[&w.name])),
+                None => line.push_str(EN.home_card_no_wallet_uses_it),
+            }
+            let row = pick::PickRow::pick(
+                Icon::Keys,
+                String::from(&*fp),
+                line,
+                b.key == Some(k.fingerprint.0),
+                Action::PKey(k.fingerprint.0),
+            );
+            match refused(k) {
+                Some(reason) => row.dimmed_for(reason),
+                None => row,
+            }
+        })
+        .collect()
+}
+
 fn length_label(b: &Bip85State) -> Option<String> {
     match b.app {
         Bip85App::Words => Some(fill(EN.bip85_words, &[&b.length.to_string()])),
@@ -94,26 +146,29 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
     let mut cy = y;
     match s {
         pstep::KEY => {
-            let mut row: Vec<(String, Style, Action)> = app
-                .session
-                .keys
-                .all()
-                .map(|k| {
-                    let fp = k.fingerprint;
-                    (
-                        String::from(&*crate::wallet::key_line(fp, &crate::bip85::key_name(k))),
-                        Style::chosen(b.key == Some(fp.0)),
-                        Action::PKey(fp.0),
-                    )
-                })
-                .collect();
+            let keys = key_rows(app, b);
+            if !keys.is_empty() {
+                cy += pick::head(ui, x, cy, w, EN.session_group_keys);
+                cy += pick::rows(ui, x, cy, w, &keys);
+            }
+            cy += pick::head(ui, x, cy, w, pick::ways_in_head(!keys.is_empty()));
             // Returns here, with the key loaded.
-            row.push((
-                EN.convert_add_a_key.to_string(),
-                Style::Secondary,
+            let ways = [pick::PickRow::way_in(
+                Icon::Keys,
+                EN.convert_add_a_key,
                 Action::Entry(None),
-            ));
-            cy += button_rows(ui, x, cy, w, &row);
+            )];
+            cy += pick::rows(ui, x, cy, w, &ways);
+            // A press picks; Next goes on once a key is picked (F103).
+            if next_button_when(
+                ui,
+                (x, cy, w),
+                EN.bip85_continue,
+                Action::PNext,
+                b.key.is_some(),
+            ) {
+                cy += TOUCH;
+            }
         }
         pstep::APP => {
             let row: Vec<(String, Style, Action)> = APPS
