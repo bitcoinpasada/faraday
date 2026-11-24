@@ -73,6 +73,10 @@ pub enum Refusal {
     /// A key of the wallet has a loaded key's master fingerprint (this
     /// one) and is not what that key gives at its origin path.
     NotYourKey(Text),
+    /// A key of the wallet is under a fingerprint no loaded key has (this
+    /// one) and is the extended public key of a key made here and not
+    /// backed up yet, at its path.
+    NotBackedUp(Text),
     /// A key that is not one of the wallet's spends it alone by the key
     /// path, and the person has not confirmed it yet (F132).
     Unconfirmed,
@@ -109,6 +113,7 @@ impl Refusal {
             Refusal::StickAttached(noun) => Text::fill(EN.stick_keys_keys_load, &[noun]),
             Refusal::SilentDiffers(fp) => Text::fill(EN.wallet_silent_differs, &[fp]),
             Refusal::NotYourKey(fp) => Text::fill(EN.wallet_not_your_key, &[fp]),
+            Refusal::NotBackedUp(fp) => Text::fill(EN.wallet_not_backed_up, &[fp]),
             Refusal::Unconfirmed => Text::of(EN.wallet_confirm_unconfirmed),
             Refusal::AccountUnchosen => Text::of(EN.wallet_account_unchosen),
             Refusal::MuSigOneSeed => Text::of(EN.wallet_musig_one_seed),

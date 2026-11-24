@@ -817,3 +817,157 @@ fn a_passphrase_typed_in_a_charts_check_is_gone_when_a_row_closes_the_chart() {
     assert_eq!(app.chart_work().pass_text(), "", "the field is empty");
     assert!(!testkit::secret_typed(&app), "nothing typed is held");
 }
+
+/// Seed 0's account key under fingerprint `00000001`, as a wallet.
+fn under_another_fingerprint() -> String {
+    let named = testkit::key(0, "m/84'/1'/0'")
+        .replace(&testkit::seed_fingerprint(0).to_string(), "00000001");
+    format!("wpkh({named}/<0;1>/*)")
+}
+
+fn pending_key_record() -> faraday_vault::Record {
+    key_record(0).with(field::KEY_FLAGS, &[faraday_vault::records::BACKUP_PENDING])
+}
+
+#[test]
+fn a_wallet_record_of_a_vaults_pending_key_under_another_fingerprint_is_refused_in_the_same_load() {
+    let mut app = app_with(vec![
+        pending_key_record(),
+        wallet_record(&under_another_fingerprint(), b"Copy"),
+    ]);
+    testkit::press_on_worker(&mut app, Action::Vault(V::LoadAll(0)));
+    testkit::settle(&mut app);
+    assert_eq!(app.session.keys.len(), 1, "the seed loads");
+    assert!(app.session.wallets.is_empty(), "the wallet does not");
+    let said = app.toast_text().unwrap_or_default().to_string();
+    assert!(said.contains("Copy"), "{said}");
+    assert!(said.contains("not backed up"), "{said}");
+}
+
+#[test]
+fn a_wallet_loaded_before_a_vaults_pending_key_is_taken_out_when_the_key_loads() {
+    let mut app = app_with(vec![pending_key_record()]);
+    let c = testkit::compute();
+    app.session
+        .add_wallet_confirmed(
+            &c,
+            "Copy",
+            &under_another_fingerprint(),
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .expect("no key is loaded: not checked");
+    testkit::press_on_worker(&mut app, Action::Vault(V::LoadAll(0)));
+    testkit::settle(&mut app);
+    assert_eq!(app.session.keys.len(), 1, "the seed loads");
+    // The press after the answer, as the next frame brings the wallets in
+    // step.
+    app.press(Action::Back);
+    assert!(app.session.wallets.is_empty(), "taken out");
+}
+
+/// Types test seed `n` in Add a key, as a person does.
+fn type_key(app: &mut Faraday, n: usize) {
+    app.press(Action::Entry(None));
+    for c in testkit::test_words(testkit::TEST_SEEDS[n].0).chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.press(Action::EntryAdd);
+    if app.sheet == Some(faraday_core::Sheet::Published) {
+        app.press(Action::PublishedKeep);
+    }
+}
+
+/// A 2-of-3 over seed 0 at its own fingerprint, seed 0 at another account
+/// under fingerprint `00000001` and seed 2: it names seed 0, and holds
+/// seed 0's key under a fingerprint nothing here has.
+fn names_seed_0_and_hides_it() -> String {
+    let a = "m/48'/1'/0'/2'";
+    let b = "m/48'/1'/1'/2'";
+    let hidden = testkit::key(0, b).replace(&testkit::seed_fingerprint(0).to_string(), "00000001");
+    format!(
+        "wsh(sortedmulti(2,{}/<0;1>/*,{hidden}/<0;1>/*,{}/<0;1>/*))",
+        testkit::key(0, a),
+        testkit::key(2, a)
+    )
+}
+
+/// The open vault holds seed 0's record as pending; seed 0 is not loaded;
+/// the wallet's file is in Files.
+fn pending_vault_and_wallet_file() -> Faraday {
+    let mut app = app_with(vec![pending_key_record()]);
+    testkit::inbox_file(
+        &mut app,
+        "multisig.txt",
+        names_seed_0_and_hides_it().into_bytes(),
+    );
+    testkit::inbox_file(
+        &mut app,
+        "seed-0.txt",
+        testkit::test_words(testkit::TEST_SEEDS[0].0)
+            .as_str()
+            .as_bytes()
+            .to_vec(),
+    );
+    app
+}
+
+fn said_not_backed_up(app: &Faraday) {
+    let said = app.toast_text().unwrap_or_default().to_string();
+    assert!(said.contains("not backed up"), "{said}");
+}
+
+#[test]
+fn a_wallet_added_before_the_key_typed_in_add_a_key_is_taken_out_when_the_open_vault_holds_its_pending_record()
+ {
+    let mut app = app_with(vec![pending_key_record()]);
+    let c = testkit::compute();
+    app.session
+        .add_wallet_confirmed(
+            &c,
+            "Copy",
+            &under_another_fingerprint(),
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .expect("no key is loaded: not checked");
+    type_key(&mut app, 0);
+    assert_eq!(app.session.keys.len(), 1, "the key is added");
+    assert!(app.session.wallets.is_empty(), "taken out in that event");
+    said_not_backed_up(&app);
+}
+
+#[test]
+fn a_wallet_file_naming_a_key_loaded_from_files_is_refused_while_the_open_vault_holds_its_pending_record()
+ {
+    let mut app = pending_vault_and_wallet_file();
+    let at = app
+        .inbox()
+        .iter()
+        .position(|i| i.name == "seed-0.txt")
+        .unwrap();
+    app.press(Action::LoadKey(at));
+    assert_eq!(app.session.keys.len(), 1, "the key loads");
+    assert!(app.session.wallets.is_empty(), "the wallet does not");
+    said_not_backed_up(&app);
+}
+
+#[test]
+fn a_wallet_file_loaded_with_its_key_by_load_is_refused_while_the_open_vault_holds_its_pending_record()
+ {
+    let mut app = pending_vault_and_wallet_file();
+    app.press(Action::InboxLoad);
+    assert_eq!(app.session.keys.len(), 1, "the key loads");
+    assert!(app.session.wallets.is_empty(), "the wallet does not");
+    // The summary toast replaces the refusal's.
+    let said = app.toast_text().unwrap_or_default().to_string();
+    assert!(said.starts_with("0 wallets"), "{said}");
+}
+
+#[test]
+fn a_wallet_file_names_the_key_typed_in_add_a_key_while_the_open_vault_holds_its_pending_record() {
+    let mut app = pending_vault_and_wallet_file();
+    type_key(&mut app, 0);
+    assert_eq!(app.session.keys.len(), 1, "the key is added");
+    assert!(app.session.wallets.is_empty(), "the wallet does not load");
+}

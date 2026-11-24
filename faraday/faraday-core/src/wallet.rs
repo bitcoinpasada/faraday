@@ -190,6 +190,9 @@ pub struct Wallet {
     /// The fingerprints of the keys loaded when its keys were last
     /// checked against them ([`Session::drop_forged`]).
     checked: Vec<Fingerprint>,
+    /// The fingerprints of the keys waiting for their backup when its keys
+    /// were last checked against them ([`Session::drop_forged`]).
+    waited: Vec<Fingerprint>,
     /// What vouches for each key of a wallet of several keys
     /// ([`Wallet::key_checks`]).
     key_checks: keycheck::KeyChecks,
@@ -285,6 +288,7 @@ impl Wallet {
             scripts: std::cell::RefCell::new(Vec::new()),
             same: std::cell::OnceCell::new(),
             checked: Vec::new(),
+            waited: Vec::new(),
             key_checks: keycheck::KeyChecks::default(),
         }
     }
@@ -336,6 +340,7 @@ impl Wallet {
             scripts: std::cell::RefCell::new(self.scripts.borrow().clone()),
             same: self.same.clone(),
             checked: Vec::new(),
+            waited: Vec::new(),
             key_checks: self.key_checks.clone(),
             waits: self.waits.clone(),
         }
@@ -929,11 +934,19 @@ impl Session {
     }
 
     /// Costs a key derivation (of at most `MAX_PATH_STEPS` steps) per key
-    /// checked.
+    /// of `policy` under a loaded fingerprint (one of `only`, when given),
+    /// and a key derivation per key waiting for its backup (one of `only`,
+    /// when given) for each key of `policy` under a fingerprint that is
+    /// not loaded: the second is none when no key waits.
     ///
-    /// The fingerprint of a key of `policy` that is under a loaded
-    /// fingerprint (one of `only`, when given) and is not what that key
-    /// gives at the key's origin path.
+    /// The refusal for a key of `policy` that is under a loaded
+    /// fingerprint and is not what that key gives at the key's origin path
+    /// ([`Refusal::NotYourKey`]), or that is under no loaded fingerprint
+    /// and is what a key waiting for its backup gives there
+    /// ([`Refusal::NotBackedUp`]). Only the stated origin path is
+    /// compared: a file that also states another origin path for the same
+    /// key is not caught, and whoever can write that could name a key of
+    /// their own.
     fn forged_key(
         &self,
         c: &Compute,
@@ -941,17 +954,30 @@ impl Session {
         only: Option<&[Fingerprint]>,
         derived: &faraday_keys::job::Derived,
         memo: &mut confirm::Gives,
-    ) -> Option<Fingerprint> {
+    ) -> Option<Refusal> {
         for key in policy.keys() {
             let (Some(fp), Some(path)) = (key.fingerprint(), key.path()) else {
+                continue;
+            };
+            let Some(i) = self.keys.position(fp) else {
+                // Another fingerprint over the extended public key of a
+                // key waiting for its backup: the hold finds a key by
+                // fingerprint, so the wallet is refused.
+                if self.keys.all().enumerate().any(|(j, k)| {
+                    self.waiting.contains(&k.fingerprint)
+                        && only.is_none_or(|o| o.contains(&k.fingerprint))
+                        && self.keys.xpub_at(c, j, path).is_some_and(|x| {
+                            x.public_key == key.xpub().public_key
+                                && x.chain_code == key.xpub().chain_code
+                        })
+                }) {
+                    return Some(Refusal::NotBackedUp(fp_text(fp)));
+                }
                 continue;
             };
             if only.is_some_and(|o| !o.contains(&fp)) {
                 continue;
             }
-            let Some(i) = self.keys.position(fp) else {
-                continue;
-            };
             // What a key a load's job added gives there was worked out in
             // the job.
             let gives = match derived.given_at(fp, path) {
@@ -962,26 +988,34 @@ impl Session {
             if !gives.is_some_and(|x| {
                 x.public_key == key.xpub().public_key && x.chain_code == key.xpub().chain_code
             }) {
-                return Some(fp);
+                return Some(Refusal::NotYourKey(fp_text(fp)));
             }
         }
         None
     }
 
     /// Costs a key derivation per wallet key under a fingerprint loaded
-    /// since the wallet was checked, none when no key was loaded.
+    /// since the wallet was checked, and one per key waiting for its backup
+    /// since the wallet was checked for each wallet key under an unloaded
+    /// fingerprint: none when no key was loaded and none began to wait. A
+    /// key that begins to wait also costs one derivation for each wallet key
+    /// under its own (loaded) fingerprint, since a key that begins to wait
+    /// is rechecked against every wallet. Per event (a key loaded, a vault
+    /// opened, a backup started or done), never per frame.
     ///
     /// Takes out of the session every wallet with a key under a
     /// fingerprint that was not loaded when the wallet was added (or last
     /// checked) that is not what that key gives at its path (a wallet
-    /// added before its key), and returns each one's name and the
-    /// refusal's text.
+    /// added before its key), or that is under no loaded fingerprint and is
+    /// a key that began to wait for its backup since, and returns each
+    /// one's name and the refusal's text.
     pub(crate) fn drop_forged(&mut self, c: &Compute) -> Vec<(Text, Text)> {
         let now: Vec<Fingerprint> = self.keys.all().map(|k| k.fingerprint).collect();
+        let waiting = self.waiting.clone();
         let mut dropped = Vec::new();
         let mut i = 0;
         while i < self.wallets.len() {
-            if self.wallets[i].checked == now {
+            if self.wallets[i].checked == now && self.wallets[i].waited == waiting {
                 i += 1;
                 continue;
             }
@@ -990,29 +1024,37 @@ impl Session {
                 .copied()
                 .filter(|f| !self.wallets[i].checked.contains(f))
                 .collect();
+            // Keys loaded, and keys that began to wait, since the check.
+            let mut only = new.clone();
+            only.extend(
+                waiting
+                    .iter()
+                    .copied()
+                    .filter(|f| !self.wallets[i].waited.contains(f) && !new.contains(f)),
+            );
             let mut memo = confirm::Gives::new();
-            let forged = if new.is_empty() {
+            let forged = if only.is_empty() {
                 None
             } else {
                 self.forged_key(
                     c,
                     &self.wallets[i].policy,
-                    Some(&new),
+                    Some(&only),
                     &Default::default(),
                     &mut memo,
                 )
             };
             match forged {
-                Some(fp) => {
+                Some(why) => {
                     let w = self.wallets.remove(i);
-                    let why = Refusal::NotYourKey(fp_text(fp)).text();
-                    dropped.push((w.name, why));
+                    dropped.push((w.name, why.text()));
                 }
                 None => {
                     // A key loaded or removed: what the keys give is
                     // worked out again, the person's ticks kept.
                     self.refresh_key_checks(c, i, (&now, &new), &memo);
                     self.wallets[i].checked.clone_from(&now);
+                    self.wallets[i].waited.clone_from(&waiting);
                     i += 1;
                 }
             }
@@ -1025,7 +1067,9 @@ impl Session {
     /// `MAX_PATH_STEPS` steps) per key of any other wallet that is under a
     /// loaded fingerprint, and, for a wallet held back for its sheet, a
     /// key derivation per key under a loaded fingerprint and the
-    /// descriptor's checksum, worked out once here, never while drawing.
+    /// descriptor's checksum, and a key derivation per key waiting for its
+    /// backup for each key under an unloaded fingerprint (none when no
+    /// key waits), worked out once here, never while drawing.
     /// [`Session::add_wallet`] of a description read before (a vault's
     /// kept records): no parse. A silent payments wallet whose scan key or
     /// spend key is not what a loaded key with its fingerprint gives at
@@ -1126,8 +1170,8 @@ impl Session {
             return Err(Refusal::MuSigOneSeed);
         }
         let mut memo = confirm::Gives::new();
-        if let Some(fp) = self.forged_key(c, &policy, None, derived, &mut memo) {
-            return Err(Refusal::NotYourKey(faraday_text::Text::of(&fp_text(fp))));
+        if let Some(refusal) = self.forged_key(c, &policy, None, derived, &mut memo) {
+            return Err(refusal);
         }
         let descriptor = same_wallet(&policy);
         if let Some(i) = self
@@ -1172,6 +1216,7 @@ impl Session {
         let mut wallet = Wallet::new(name, policy, source, origin);
         wallet.key_checks = key_checks;
         wallet.checked = self.keys.all().map(|k| k.fingerprint).collect();
+        wallet.waited.clone_from(&self.waiting);
         self.wallets.push(wallet);
         Ok(self.wallets.len() - 1)
     }
@@ -4658,6 +4703,7 @@ impl Faraday {
     /// the held keys read changed.
     pub(crate) fn drop_forged_wallets(&mut self) {
         let c = self.compute();
+        self.sync_waiting_if_changed();
         let dropped = self.session.drop_forged(&c);
         self.sync_waiting_if_changed();
         self.sync_psbt_wallets_if_changed();

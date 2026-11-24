@@ -133,3 +133,136 @@ fn my_own_wallet_still_loads() {
     let d = format!("wpkh({}/<0;1>/*)", testkit::key(1, "m/84'/1'/0'"));
     add(&mut session, &d).expect("a key that is not loaded is not checked");
 }
+
+/// A key made here and not backed up, in a started app. Returns it.
+fn made_here(app: &mut faraday_core::Faraday) -> faraday_bip::keys::Fingerprint {
+    use faraday_core::{Action, keygen::Way};
+    app.press(Action::KeyGen(None));
+    app.press(Action::KStart(
+        faraday_core::keygen::Start::Make(faraday_core::forms::Form::Words).index(),
+    ));
+    app.press(Action::KWords(12));
+    app.press(Action::KWay(Way::Coins.index()));
+    app.press(Action::KNext);
+    for i in 0..128 {
+        app.press(Action::KFlip((i * 7 + i / 5) % 2 == 0));
+    }
+    app.press(Action::KNext);
+    app.press(Action::KLock);
+    app.session.keys.last().expect("the key").fingerprint
+}
+
+/// The key made here as a wallet key at `path`: its extended public key
+/// under origin fingerprint `00000001`, which no key here has.
+fn under_another_fingerprint(app: &faraday_core::Faraday, path: &str) -> String {
+    let c = testkit::compute();
+    let p: faraday_bip::keys::DerivationPath = path.parse().expect("a path");
+    let i = app.session.keys.len() - 1;
+    let x = app.session.keys.xpub_at(&c, i, &p).expect("its xpub");
+    format!("[00000001/{}]{x}", path.trim_start_matches("m/"))
+}
+
+fn held_or_refused(
+    app: &mut faraday_core::Faraday,
+    descriptor: &str,
+) -> Result<bool, faraday_core::wallet::Refusal> {
+    let c = testkit::compute();
+    app.session
+        .add_wallet_confirmed(&c, "Copy", descriptor, "test", Origin::Named)?;
+    let wl = app.session.wallets.last().expect("added");
+    let (_, held) = app.receive_line(&c, wl, false, 0);
+    assert_eq!(held, app.receive_held(&c, wl));
+    Ok(held)
+}
+
+fn single(app: &faraday_core::Faraday) -> String {
+    format!(
+        "wpkh({}/<0;1>/*)",
+        under_another_fingerprint(app, "m/84'/1'/0'")
+    )
+}
+
+fn not_backed_up(r: Result<bool, faraday_core::wallet::Refusal>) {
+    let e = r.expect_err("refused");
+    assert!(
+        matches!(e, faraday_core::wallet::Refusal::NotBackedUp(_)),
+        "{}",
+        &*e.text()
+    );
+    assert!(e.text().contains("00000001"), "{}", &*e.text());
+    assert!(e.text().contains("not backed up"), "{}", &*e.text());
+}
+
+#[test]
+fn a_key_made_here_under_another_fingerprint_is_refused_so_its_addresses_are_never_shown_unheld() {
+    let mut app = testkit::started();
+    let fp = made_here(&mut app);
+    assert!(app.key_held(&testkit::compute(), fp));
+    let d = single(&app);
+    not_backed_up(held_or_refused(&mut app, &d));
+}
+
+#[test]
+fn a_multisig_with_a_key_made_here_under_another_fingerprint_is_refused() {
+    let mut app = testkit::started();
+    let fp = made_here(&mut app);
+    assert!(app.key_held(&testkit::compute(), fp));
+    let p = "m/48'/1'/0'/2'";
+    let d = format!(
+        "wsh(sortedmulti(2,{}/<0;1>/*,{}/<0;1>/*,{}/<0;1>/*))",
+        under_another_fingerprint(&app, p),
+        testkit::key(1, p),
+        testkit::key(2, p)
+    );
+    not_backed_up(held_or_refused(&mut app, &d));
+}
+
+#[test]
+fn the_same_wallet_adds_once_the_key_is_backed_up() {
+    let mut app = testkit::started();
+    let fp = made_here(&mut app);
+    let d = single(&app);
+    not_backed_up(held_or_refused(&mut app, &d));
+    testkit::release_made(&mut app, fp);
+    app.press(faraday_core::Action::Back);
+    held_or_refused(&mut app, &d).expect("added once backed up");
+}
+
+#[test]
+fn a_key_that_begins_to_wait_after_the_wallet_was_added_takes_the_wallet_out() {
+    let mut app = testkit::started();
+    let fp = made_here(&mut app);
+    testkit::release_made(&mut app, fp);
+    app.press(faraday_core::Action::Back);
+    let d = single(&app);
+    held_or_refused(&mut app, &d).expect("added: the key does not wait");
+    testkit::mark_made_here(&mut app, fp);
+    app.press(faraday_core::Action::Back);
+    assert!(app.session.wallets.is_empty(), "taken out");
+    let toast = app.toast_text().expect("a toast");
+    assert!(toast.contains("Copy"), "{toast}");
+}
+
+#[test]
+fn a_multisig_held_for_its_sheet_is_refused_when_the_key_waits_by_the_hold() {
+    let mut app = testkit::started();
+    let fp = made_here(&mut app);
+    testkit::release_made(&mut app, fp);
+    app.press(faraday_core::Action::Back);
+    let p = "m/48'/1'/0'/2'";
+    let d = format!(
+        "wsh(sortedmulti(2,{}/<0;1>/*,{}/<0;1>/*,{}/<0;1>/*))",
+        under_another_fingerprint(&app, p),
+        testkit::key(1, p),
+        testkit::key(2, p)
+    );
+    let c = testkit::compute();
+    let e = app
+        .session
+        .add_wallet(&c, "Multi", &d, "test", Origin::Named)
+        .expect_err("held for its sheet");
+    assert!(matches!(e, faraday_core::wallet::Refusal::Unconfirmed));
+    testkit::mark_made_here(&mut app, fp);
+    testkit::confirm_wallets(&mut app);
+    assert!(app.session.wallets.is_empty(), "the hold adds nothing");
+}

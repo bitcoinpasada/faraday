@@ -1735,6 +1735,9 @@ impl Faraday {
         descs: Vec<LoadWallet>,
         derived: &faraday_keys::job::Derived,
     ) -> usize {
+        // The keys just loaded may be the vault's pending ones: what waits
+        // for its backup is current before a wallet is checked against it.
+        self.sync_waiting_if_changed();
         let before = self.session.wallets.len();
         for (policy, name, checked) in descs {
             let to = crate::wallet::Origin::Vault;
@@ -1759,7 +1762,8 @@ impl Faraday {
             match added {
                 Err(
                     e @ (crate::wallet::Refusal::MuSigOneSeed
-                    | crate::wallet::Refusal::NotYourKey(_)),
+                    | crate::wallet::Refusal::NotYourKey(_)
+                    | crate::wallet::Refusal::NotBackedUp(_)),
                 ) => {
                     self.vaults.state.refused = Some((Text::of(&name), Text::of(&e.text())));
                 }

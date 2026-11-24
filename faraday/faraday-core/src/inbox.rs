@@ -1328,6 +1328,7 @@ impl Faraday {
                 }
             }
         }
+        self.sync_waiting_if_changed();
         let mut wallets = 0;
         for w in &chosen {
             let (name, text) = match w.files.first() {
@@ -1349,7 +1350,10 @@ impl Faraday {
                 // Held for its own sheet: counted with the loaded, for it
                 // is brought in once its hold adds it.
                 Err(crate::wallet::Refusal::Unconfirmed) => wallets += 1,
-                Err(e @ crate::wallet::Refusal::NotYourKey(_)) => {
+                Err(
+                    e @ (crate::wallet::Refusal::NotYourKey(_)
+                    | crate::wallet::Refusal::NotBackedUp(_)),
+                ) => {
                     self.toast(&Text::fill(EN.vaults_refused, &[&name, &e.text()]));
                 }
                 Err(_) => {}
@@ -1364,6 +1368,7 @@ impl Faraday {
         let c = self.compute();
         let found = self.inbox_found_now(&c);
         let loaded: Vec<Fingerprint> = self.session.keys.all().map(|k| k.fingerprint).collect();
+        self.sync_waiting_if_changed();
         let mut n = 0;
         for w in found.to_load() {
             if !w.keys.iter().any(|k| loaded.contains(k))
@@ -1390,7 +1395,10 @@ impl Faraday {
                 Ok(_) => n += 1,
                 // Held for its own sheet: counted, as in `load_found_in`.
                 Err(crate::wallet::Refusal::Unconfirmed) => n += 1,
-                Err(e @ crate::wallet::Refusal::NotYourKey(_)) => {
+                Err(
+                    e @ (crate::wallet::Refusal::NotYourKey(_)
+                    | crate::wallet::Refusal::NotBackedUp(_)),
+                ) => {
                     self.toast(&Text::fill(EN.vaults_refused, &[&name, &e.text()]));
                 }
                 Err(_) => {}

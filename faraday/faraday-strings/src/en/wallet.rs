@@ -65,6 +65,10 @@ macro_rules! words_wallet {
     /// loaded key's fingerprint and is not what that key gives at its
     /// path. `{}`: the key's fingerprint.
     wallet_not_your_key: "Key {} in this wallet is not this device's key at its path",
+    /// Text in `text`: a wallet refused because one of its keys is a key
+    /// made here, not backed up yet, under another fingerprint. `{}`: the
+    /// fingerprint the wallet gives the key.
+    wallet_not_backed_up: "Key {} in this wallet is this device's key under another fingerprint, and it is not backed up yet; the wallet loads once it is backed up",
     /// Text in `text`: a silent payments wallet refused because a loaded
     /// key with its fingerprint gives another scan key or spend key. `{}`:
     /// the key's fingerprint.
