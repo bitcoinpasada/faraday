@@ -2836,3 +2836,133 @@ fn at_1024_by_768_the_search_and_buttons_stand_in_the_top_bar_and_open_what_they
     tap(&mut app, Action::Catalog(sign_tile()));
     assert_eq!(app.sheet, Some(faraday_core::Sheet::Scan));
 }
+
+// ----- Add randomness's camera counts as the camera on, as the scan's -----
+
+/// Add randomness open from Settings with its camera taking pictures, in a
+/// clean process.
+fn adding_randomness_with_the_camera() -> Faraday {
+    use faraday_core::fresh::OwnSource;
+    use faraday_core::fresh::page::Act;
+    let mut app = shown();
+    app.storage(StorageEvent::Cameras(vec![(
+        faraday_text::Text::of("cam0"),
+        faraday_text::Text::of("Camera"),
+    )]));
+    app.press(Action::Nav(Screen::Settings));
+    crate::common::settings_section(&mut app, "Randomness");
+    app.press(Action::Own(Act::Open));
+    app.press(Action::Own(Act::Source(OwnSource::Camera)));
+    assert_eq!(app.screen, Screen::Randomness);
+    while app.poll_command().is_some() {}
+    app
+}
+
+/// Camera off by the page's own way: leaving it.
+fn leave_the_page(app: &mut Faraday) {
+    app.press(Action::Back);
+    let _ = app.frame();
+    let cmds: Vec<_> = std::iter::from_fn(|| app.poll_command()).collect();
+    assert!(cmds.contains(&Command::CameraOff));
+}
+
+#[test]
+fn a_stick_shown_while_adding_randomness_with_the_camera_is_held_until_it_is_off() {
+    let mut app = adding_randomness_with_the_camera();
+    assert!(!app.clean(), "a stick may be handed out with the camera on");
+    app.storage(StorageEvent::Attached(true));
+    stick(&mut app, true);
+    assert_ne!(app.sheet, Some(Sheet::Lock));
+    assert_eq!(app.screen, Screen::Randomness, "the page stays");
+    assert!(!app.clean());
+    leave_the_page(&mut app);
+    assert!(app.clean());
+    assert_eq!(
+        app.screen,
+        Screen::Files,
+        "the stick arrives once it is off"
+    );
+}
+
+#[test]
+fn a_stick_listed_while_adding_randomness_with_the_camera_is_held_until_it_is_off() {
+    let mut app = adding_randomness_with_the_camera();
+    stick(&mut app, true);
+    assert_eq!(app.screen, Screen::Randomness, "the page stays");
+    assert_ne!(app.sheet, Some(Sheet::Lock));
+    leave_the_page(&mut app);
+    assert_eq!(app.screen, Screen::Files);
+}
+
+#[test]
+fn a_stick_in_before_the_camera_of_add_randomness_comes_on_is_not_handed_out() {
+    let mut app = shown();
+    stick(&mut app, true);
+    assert!(app.clean());
+    let mut app = {
+        use faraday_core::fresh::OwnSource;
+        use faraday_core::fresh::page::Act;
+        app.storage(StorageEvent::Cameras(vec![(
+            faraday_text::Text::of("cam0"),
+            faraday_text::Text::of("Camera"),
+        )]));
+        app.press(Action::Nav(Screen::Settings));
+        crate::common::settings_section(&mut app, "Randomness");
+        app.press(Action::Own(Act::Open));
+        app.press(Action::Own(Act::Source(OwnSource::Camera)));
+        app
+    };
+    assert!(!app.clean(), "the camera is on, no stick is handed out");
+    leave_the_page(&mut app);
+    assert!(app.clean());
+}
+
+#[test]
+fn storage_pulled_while_adding_randomness_with_the_camera_offers_nothing_later() {
+    let mut app = adding_randomness_with_the_camera();
+    app.storage(StorageEvent::Attached(true));
+    app.storage(StorageEvent::Attached(false));
+    leave_the_page(&mut app);
+    assert!(app.clean());
+    assert_ne!(app.sheet, Some(Sheet::Lock));
+    assert_ne!(app.screen, Screen::Files);
+}
+
+#[test]
+fn a_stick_under_the_idle_warning_over_add_randomness_with_the_camera_is_still_held() {
+    const MIN: u64 = 60_000;
+    use faraday_core::fresh::OwnSource;
+    use faraday_core::fresh::page::Act;
+    let mut app = shown();
+    let kit = faraday_core::testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "spending")
+        .unwrap();
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![(
+            faraday_text::Text::of("spending-wallet.txt"),
+            kit.descriptor.into_bytes(),
+        )]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    faraday_core::testkit::load_wallet(&mut app, 0);
+    app.storage(StorageEvent::Cameras(vec![(
+        faraday_text::Text::of("cam0"),
+        faraday_text::Text::of("Camera"),
+    )]));
+    app.press(Action::Nav(Screen::Settings));
+    crate::common::settings_section(&mut app, "Randomness");
+    app.press(Action::Own(Act::Open));
+    app.press(Action::Own(Act::Source(OwnSource::Camera)));
+    app.event(Event::Tick { now_ms: 0 });
+    app.event(Event::Tick { now_ms: 26 * MIN });
+    let _ = app.frame();
+    assert_eq!(app.sheet, Some(Sheet::IdleWarn));
+    assert!(!app.clean(), "the camera is on under the warning");
+    let before = app.screen;
+    app.storage(StorageEvent::Attached(true));
+    stick(&mut app, true);
+    assert_eq!(app.screen, before, "the stick was not visited");
+    assert_eq!(app.sheet, Some(Sheet::IdleWarn));
+}

@@ -1614,7 +1614,10 @@ impl Faraday {
     /// The camera is on, reading codes: a scan is held with no read card
     /// up, whatever stands over it (the idle warning, another sheet) or
     /// nothing does (the scanner in a pane); with a card up, only while
-    /// the Scan sheet or the idle warning stands.
+    /// the Scan sheet or the idle warning stands. The camera for noise
+    /// counts too, New key's or Add randomness's (`noise_camera_on`): it
+    /// goes off in `cameras_noise` after an input, and `release_held_stick`
+    /// runs after it in the same event.
     ///
     /// Transfer's Receive, in the online app, does not count: that app is
     /// never clean of the network, and no stick waits on its camera.
@@ -1632,7 +1635,7 @@ impl Faraday {
         let running = self.camera.scan().is_some_and(|s| {
             s.card.is_none() || matches!(self.sheet, Some(Sheet::Scan | Sheet::IdleWarn))
         });
-        (running && !transfer) || self.keygen.camera_on()
+        (running && !transfer) || self.noise_camera_on()
     }
 
     pub(crate) fn open_qr(&mut self, view: Result<QrView, impl AsRef<str>>) {
