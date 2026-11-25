@@ -217,6 +217,16 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
                     Action::SQr(true),
                 ));
             }
+            // The key's own backup releases the address: the wallet that
+            // places its seed, as a vault item's Back it up opens.
+            if held && let Some(w) = app.silent_hold_backup() {
+                let label = if app.wallet_backup_unfinished(w) {
+                    EN.backup_flow_continue
+                } else {
+                    EN.wallets_back_up
+                };
+                row.push((label.to_string(), Style::Secondary, Action::Backup(w)));
+            }
             row.extend([
                 (
                     fill(EN.silent_record, &[app.medium.for_the()]),

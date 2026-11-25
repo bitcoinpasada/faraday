@@ -817,3 +817,84 @@ fn saving_a_held_silent_wallet_to_a_vault_stays_allowed_and_its_item_shows_the_a
     assert!(shown.contains(&address[..24]), "{shown}");
     assert!(!shown.contains("does not match"), "{shown}");
 }
+
+/// The held key with an ordinary wallet over it (wallet 0) and its silent
+/// payments wallet (wallet 1), on the silent wallet's page.
+fn held_with_an_ordinary_wallet() -> Faraday {
+    let (mut app, _) = made_here();
+    let fp = app.session.keys[0].fingerprint;
+    app.press(Action::KeyWallet(fp.0, 1));
+    app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
+    app.press(Action::Silent);
+    app.press(Action::SAddWallet);
+    app.press(Action::SWallet(1));
+    app
+}
+
+/// Whether the page being shown offers `action`, after a frame is drawn.
+fn offers(app: &mut Faraday, action: Action) -> bool {
+    app.settle();
+    let _ = app.frame();
+    app.offers(action)
+}
+
+#[test]
+fn a_held_silent_wallets_page_offers_the_keys_backup_and_back_returns_to_the_page() {
+    let mut app = held_with_an_ordinary_wallet();
+    assert!(offers(&mut app, Action::Backup(0)));
+    assert!(drawn(&mut app).contains("Back up"));
+    // The ordinary wallet's backup, which places the key's seed.
+    app.press(Action::Backup(0));
+    assert_eq!(app.screen, Screen::Backup);
+    assert_eq!(app.backup().unwrap().wallet, 0);
+    app.settle();
+    let _ = app.frame();
+    app.event(Event::Key(Key::Escape));
+    assert_eq!(app.screen, Screen::Silent);
+    assert!(offers(&mut app, Action::Backup(0)));
+}
+
+#[test]
+fn finishing_the_keys_backup_releases_the_silent_wallets_address_and_takes_the_button_away() {
+    let mut app = held_with_an_ordinary_wallet();
+    assert!(drawn(&mut app).contains(WARNING));
+    assert!(offers(&mut app, Action::Backup(0)));
+    app.press(Action::Backup(0));
+    let fp = app.session.keys[0].fingerprint;
+    testkit::release_made(&mut app, fp);
+    app.settle();
+    let _ = app.frame();
+    app.event(Event::Key(Key::Escape));
+    assert_eq!(app.screen, Screen::Silent);
+    assert!(!offers(&mut app, Action::Backup(0)));
+    let text = drawn(&mut app);
+    assert!(!text.contains(WARNING), "{text}");
+    assert!(text.contains("Show as QR"), "{text}");
+}
+
+#[test]
+fn an_address_not_held_has_no_backup_button() {
+    let mut app = held_with_an_ordinary_wallet();
+    let fp = app.session.keys[0].fingerprint;
+    testkit::release_made(&mut app, fp);
+    assert!(!offers(&mut app, Action::Backup(0)));
+}
+
+#[test]
+fn a_held_silent_wallet_with_no_ordinary_wallet_of_its_key_has_no_backup_button() {
+    // The silent wallet's own backup places no seed and releases nothing.
+    let (mut app, _) = made_here();
+    app.press(Action::SAddWallet);
+    app.press(Action::SWallet(0));
+    assert!(drawn(&mut app).contains(WARNING));
+    assert!(!offers(&mut app, Action::Backup(0)));
+}
+
+#[test]
+fn a_silent_record_with_no_loaded_key_has_no_backup_button() {
+    let (mut app, _) = made_here();
+    app.press(Action::SAddWallet);
+    app.press(Action::Lock);
+    app.press(Action::SWallet(0));
+    assert!(!offers(&mut app, Action::Backup(0)));
+}

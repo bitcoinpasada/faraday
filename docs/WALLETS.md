@@ -1457,7 +1457,12 @@ never held.
   silent payments wallet has no key in its plan, so its own backup places
   no seed and releases nothing, and its plan, Who signs and the plan
   record's `held` line do not name its key; an ordinary wallet's backup of
-  the key, finished, its vault included, releases the hold (saving the key
+  the key, finished, its vault included, releases the hold. While the
+  Silent payments page's address is held, its address card has **Back up**
+  (**Continue the backup** where one is left part way), which opens the
+  backup of the first ordinary wallet that places the key's seed, as a
+  vault item's Back it up does; Back returns to the page. With no such
+  wallet loaded the card has no button (saving the key
   in a vault only marks it pending, which holds it again at unlock). While
   the hold stands the plan of a silent payments wallet reads its
   description as the text file only, wherever the answers keep a QR

@@ -813,7 +813,9 @@ impl Faraday {
         let (bip85, lightning, silent, vanity) = (
             kept(Screen::Bip85),
             kept(Screen::Lightning),
-            kept(Screen::Silent),
+            // The page's key backup (its Back up) returns to it.
+            kept(Screen::Silent)
+                || (self.screen == Screen::Backup && self.silent.state().is_some()),
             kept(Screen::Vanity),
         );
         // A vault's passphrase, typed or half typed, goes once nothing that

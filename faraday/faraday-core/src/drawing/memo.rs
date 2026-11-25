@@ -202,6 +202,17 @@ impl View<'_> {
         crate::held::silent_held_on(self)
     }
 
+    /// The wallet whose backup releases the Silent payments page's held
+    /// address ([`crate::Faraday::silent_hold_backup_in`]), from the
+    /// memo's held keys; none while the address is not held.
+    pub fn silent_hold_backup(&self) -> Option<usize> {
+        let held = self.held_keys();
+        if held.is_empty() {
+            return None;
+        }
+        self.app.silent_hold_backup_in(&held)
+    }
+
     /// An address of `wl` as every screen shows it, and whether it is held
     /// back ([`crate::Faraday::receive_line`]), from the memo's held keys
     /// and the wallet's kept address.

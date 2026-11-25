@@ -69,5 +69,18 @@ pub(crate) fn silent_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         t.press(Action::SWallet(0));
         t.shot(name)?;
     }
+    // A key made here with its wallet, whose silent payments address waits
+    // for the key's backup: the page offers the backup.
+    t.restart();
+    t.press(Action::Entry(None));
+    t.type_key(0);
+    let fp = t.app.session.keys[0].fingerprint;
+    t.press(Action::KeyWallet(fp.0, 1));
+    t.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
+    t.press(Action::Silent);
+    t.press(Action::SAddWallet);
+    faraday_core::testkit::mark_made_here(&mut t.app, fp);
+    t.press(Action::SWallet(1));
+    t.shot("silent-held")?;
     Ok(())
 }

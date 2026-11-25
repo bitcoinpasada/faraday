@@ -430,14 +430,36 @@ impl Faraday {
     /// Whether the Silent payments page's key, or its wallet's, is among
     /// `held` and loaded.
     fn silent_page_held_in(&self, held: &[Fingerprint]) -> bool {
-        let Some(s) = self.silent.state() else {
-            return false;
-        };
+        self.silent_page_held_key(held).is_some()
+    }
+
+    /// The loaded key, among `held`, that holds the Silent payments page's
+    /// address: the record's on a wallet's page, else the page's own.
+    fn silent_page_held_key(&self, held: &[Fingerprint]) -> Option<[u8; 4]> {
+        let s = self.silent.state()?;
         let record = self.silent.wallet(&self.session).map(|w| w.fingerprint.0);
         record
             .into_iter()
             .chain(s.key)
-            .any(|fp| !self.silent_key_held(fp, held).is_empty())
+            .find(|&fp| !self.silent_key_held(fp, held).is_empty())
+    }
+
+    /// The ordinary wallet whose backup releases the key that holds the
+    /// Silent payments page's address: the first wallet that is not a
+    /// silent payments one, as a vault item's Back it up goes, whose plan
+    /// places the key's seed. None where nothing holds the page or no such
+    /// wallet is loaded (a silent payments wallet's own backup places no
+    /// seed). Read through `r` ([`Reads`]).
+    pub(crate) fn silent_hold_backup_in(&self, held: &[Fingerprint]) -> Option<usize> {
+        let fp = Fingerprint(self.silent_page_held_key(held)?);
+        self.session.wallets.iter().position(|w| {
+            w.policy().silent().is_none()
+                && w.policy()
+                    .keys()
+                    .iter()
+                    .any(|k| k.fingerprint() == Some(fp))
+                && !self.backup_keys_of(w).is_empty()
+        })
     }
 
     /// A lookup. Whether the Silent payments page's address waits for its
