@@ -480,8 +480,15 @@ fn wallet_sheet(c: &Compute, f: &[(String, String)]) -> Vec<u8> {
     p.text(MARGIN, y, 10.0, Font::Sans, EN.pdf_xpubs_only_note);
     y += 28.0;
     let descriptor = get(f, "descriptor").unwrap_or("");
-    let qr_side = 190.0;
-    if let Ok(m) = encode(c, Payload::Bytes(descriptor.as_bytes()), Ecc::Medium) {
+    // `qr: none`: the address waits for its key's backup, so no code of it.
+    let qr_side = if get(f, "qr") == Some("none") {
+        0.0
+    } else {
+        190.0
+    };
+    if qr_side > 0.0
+        && let Ok(m) = encode(c, Payload::Bytes(descriptor.as_bytes()), Ecc::Medium)
+    {
         p.qr(&m, PAGE_W - MARGIN - qr_side, y, qr_side);
     }
     p.text(MARGIN, y, 10.0, Font::Bold, EN.pdf_descriptor);
@@ -489,12 +496,20 @@ fn wallet_sheet(c: &Compute, f: &[(String, String)]) -> Vec<u8> {
     let used = p.wrapped(
         MARGIN,
         y,
-        PAGE_W - 2.0 * MARGIN - qr_side - 16.0,
+        if qr_side > 0.0 {
+            PAGE_W - 2.0 * MARGIN - qr_side - 16.0
+        } else {
+            PAGE_W - 2.0 * MARGIN
+        },
         8.0,
         Font::Mono,
         descriptor,
     );
-    y = (y + used).max(y + qr_side - 16.0) + 24.0;
+    y = if qr_side > 0.0 {
+        (y + used).max(y + qr_side - 16.0) + 24.0
+    } else {
+        y + used + 24.0
+    };
     p.text(MARGIN, y, 10.0, Font::Bold, EN.pdf_xpubs);
     y += 16.0;
     for (k, v) in f.iter().filter(|(k, _)| k == "key") {

@@ -2,10 +2,11 @@
 //! the page scans to the same text as the lines printed beside it, and
 //! that text is the wallet's own, checksum included.
 
-use faraday_core::testkit;
 use faraday_core::wallet::{Origin, Session};
 use faraday_core::wallet_backup::{sheet_share, sheet_wallet, split_plan, split_share};
+use faraday_core::{Action, Faraday, testkit};
 use faraday_paper::pdf;
+use faraday_shell_api::{App, Event, Key};
 
 /// One drawn operator of a page: a filled square or a shown string.
 enum Op {
@@ -144,4 +145,47 @@ fn a_share_sheet_pdf_scans_and_reads_as_the_share_it_carries() {
     let shown: String = printed(&ops).concat();
     let want: String = lines.concat();
     assert_eq!(shown, want);
+}
+
+/// The first test key's silent payments wallet, made here and added,
+/// with its address; its key waits for its backup.
+fn held_silent_wallet() -> (Faraday, String) {
+    let mut app = testkit::started();
+    app.press(Action::Entry(None));
+    for ch in testkit::test_words(testkit::TEST_SEEDS[0].0).chars() {
+        app.event(Event::Key(Key::Char(ch)));
+    }
+    app.press(Action::EntryAdd);
+    testkit::keep_published(&mut app);
+    let c = testkit::compute();
+    app.press(Action::Silent);
+    let address = app.silent_address(&c).unwrap().to_string();
+    let fp = app.session.keys[0].fingerprint;
+    testkit::mark_made_here(&mut app, fp);
+    app.press(Action::SAddWallet);
+    (app, address)
+}
+
+#[test]
+fn the_wallet_sheet_of_a_held_silent_wallet_has_no_code_and_prints_the_whole_address() {
+    let (mut app, address) = held_silent_wallet();
+    let pdf = testkit::backup_sheet_pdf(&mut app, 0).expect("a sheet");
+    let ops = first_page(&pdf);
+    assert!(
+        !ops.iter().any(|o| matches!(o, Op::Square { .. })),
+        "a code is drawn"
+    );
+    let shown: String = printed(&ops).concat();
+    assert!(shown.starts_with(&address), "{shown}");
+}
+
+#[test]
+fn the_wallet_sheet_of_a_released_silent_wallet_has_its_code_and_it_reads_as_the_address() {
+    let (mut app, address) = held_silent_wallet();
+    let fp = app.session.keys[0].fingerprint;
+    testkit::release_made(&mut app, fp);
+    let pdf = testkit::backup_sheet_pdf(&mut app, 0).expect("a sheet");
+    // The descriptor line of a silent wallet is its address and checksum.
+    let read = scanned(&first_page(&pdf));
+    assert_eq!(read.split('#').next(), Some(address.as_str()), "{read}");
 }

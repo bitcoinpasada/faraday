@@ -340,17 +340,20 @@ pub fn sheet_wallet(c: &Compute, session: &Session, wallet: &Wallet) -> Text {
         .iter()
         .map(|s| s.fingerprint)
         .collect();
-    sheet_wallet_on(c, session.network(), &slots, wallet)
+    sheet_wallet_on(c, session.network(), &slots, wallet, false)
 }
 
 /// Costs an address derivation (through `address_on`). [`sheet_wallet`]
 /// from what it reads of the session, owned: the network and each key
-/// slot's fingerprint.
+/// slot's fingerprint. `held` is that the wallet is a silent payments
+/// wallet whose address waits for its key's backup: its sheet says
+/// `qr: none`, and the page draws no code.
 pub(crate) fn sheet_wallet_on(
     c: &Compute,
     network: Network,
     slots: &[Option<Fingerprint>],
     wallet: &Wallet,
+    held: bool,
 ) -> Text {
     let mut out = Text::of("faraday-sheet 1\nkind: wallet\n");
     out.push_str(&text!("network: {}\n", network.name()));
@@ -363,6 +366,9 @@ pub(crate) fn sheet_wallet_on(
     // A silent payments wallet has no keys in its policy: its one slot is
     // the key it was derived from, and the descriptor line is its address.
     if let Some(silent) = wallet.policy().silent() {
+        if held {
+            out.push_str("qr: none\n");
+        }
         out.push_str(&text!(
             "key: 1 {} account {}\n",
             &*fp_of(slots.first().copied().flatten()),

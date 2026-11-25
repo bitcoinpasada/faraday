@@ -2359,6 +2359,15 @@ pub fn inbox_flip_byte(app: &mut crate::Faraday, at: usize, i: usize) {
     app.inbox.flip_byte(at, i);
 }
 
+/// The backup sheet PDF of wallet `w`, as the Back up step makes it
+/// (`None` where none is made).
+pub fn backup_sheet_pdf(app: &mut crate::Faraday, w: usize) -> Option<Vec<u8>> {
+    app.public_made(w, crate::public_kind::PublicFile::BackupSheet)
+        .into_iter()
+        .map(|(_, b)| b)
+        .next()
+}
+
 /// The names of the public files the open backup makes.
 pub fn backup_public_names(
     app: &crate::Faraday,

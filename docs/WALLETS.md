@@ -681,7 +681,7 @@ replaced (2026-10-15, F35).
    `-compactseedqr.png`) go For the stick under Unprotected secrets,
    unticked on a stick visit; never the passphrase. Done when each
    seed's file is there.
-5. **The wallet sheet** (descriptor, keys, first addresses, a PDF) or,
+5. **The wallet sheet** (descriptor, keys, first addresses, a PDF; the descriptor's QR code is left off a silent payments wallet's sheet while its key waits for its backup, the address printed as text) or,
    split, **The shares**: each sheet omits at most M−1 keys, so any
    quorum rebuilds and no one share watches, with the measured minimum
    rebuild group; each share as its PDF, its text and

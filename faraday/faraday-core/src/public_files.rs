@@ -369,7 +369,7 @@ pub(crate) fn files(c: &Compute, inp: &Inputs, what: PublicFile, bytes: bool) ->
         }
         PublicFile::BackupSheet if !bytes => files.push((format!("{stem}-backup.pdf"), Vec::new())),
         PublicFile::BackupSheet => {
-            let sheet = wallet_backup::sheet_wallet_on(c, net, &inp.slots, w);
+            let sheet = wallet_backup::sheet_wallet_on(c, net, &inp.slots, w, inp.held);
             match faraday_paper::pdf::sheet(c, &sheet) {
                 Ok(p) => files.push((format!("{stem}-backup.pdf"), p)),
                 Err(e) => out.toast = Some(fill(EN.public_made_no_pdf, &[&e.to_string()])),
