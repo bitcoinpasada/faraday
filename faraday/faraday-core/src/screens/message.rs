@@ -57,22 +57,24 @@ impl crate::trail::StepFlow for MessageSteps {
     }
 }
 
-/// What the address row says: the address of one picked, or the wallet
-/// and the number of the receive address. A lookup: no address is derived
-/// for a row.
+/// What the address row says: the address of one picked, or the address
+/// of the wallet's receive number kept at the press, and whether it is an
+/// address (one held back for its key's backup says its line instead).
+/// Nothing for a wallet that cannot sign a message. A lookup: no address is
+/// derived for a row.
 fn chosen_address(app: &crate::Faraday) -> Option<(String, bool)> {
     let m = app.message.state()?;
     if let Some(at) = m.at.as_ref() {
         return Some((at.address.to_string(), true));
     }
-    let wl = app.session.wallets.get(m.wallet?)?;
+    let s = app.message_shown()?;
+    if s.held {
+        return Some((s.text.to_string(), false));
+    }
+    // The grouped text, back to the address: the row groups it itself.
     Some((
-        format!(
-            "{} · {}",
-            &*wl.name,
-            fill(EN.message_receive_address, &[&m.index.to_string()])
-        ),
-        false,
+        s.text.chars().filter(|c| !c.is_whitespace()).collect(),
+        true,
     ))
 }
 
@@ -266,15 +268,14 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, (x, y, w): (f32, f32, f32), area
                         Some(&at.line),
                     ))
                 }
-                (None, Some(wl)) => {
-                    let (a, held) = app.receive_line(wl, false, m.index);
-                    Some((
-                        fill(EN.message_receive_address, &[&m.index.to_string()]),
-                        a,
-                        held,
+                (None, Some(_)) => app.message_shown().map(|s| {
+                    (
+                        fill(EN.message_receive_address, &[&s.index.to_string()]),
+                        s.text.clone(),
+                        s.held,
                         None,
-                    ))
-                }
+                    )
+                }),
                 (None, None) => None,
             };
             if let Some((label, address, held, line)) = shown {

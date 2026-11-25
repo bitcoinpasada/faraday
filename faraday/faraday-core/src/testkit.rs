@@ -2215,6 +2215,13 @@ pub fn message(app: &crate::Faraday) -> Option<&crate::MessageState> {
     app.message.state()
 }
 
+/// The receive address Sign a message draws in its row and card: what is
+/// kept for the wallet and number chosen, while the session still says what
+/// it said when it was worked out (nothing otherwise).
+pub fn message_shown(app: &crate::Faraday) -> Option<&crate::state::ShownReceive> {
+    app.message_shown()
+}
+
 /// Puts a receipt in place, as a write answered to a stick would leave
 /// it: `name` written under `hash` and read back.
 pub fn receipt_written(app: &mut crate::Faraday, name: &str, hash: [u8; 32]) {

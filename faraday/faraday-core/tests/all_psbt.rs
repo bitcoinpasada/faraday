@@ -75,6 +75,8 @@ mod key_path;
 mod list_detail;
 #[path = "all/loose_key.rs"]
 mod loose_key;
+#[path = "all/message_address_row.rs"]
+mod message_address_row;
 #[path = "all/message_format.rs"]
 mod message_format;
 #[path = "all/message_pick.rs"]

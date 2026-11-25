@@ -95,6 +95,7 @@ impl Faraday {
         self.note_text_files(&held);
         self.session.set_waiting(held);
         self.session.set_waiting_inputs(self.waiting_inputs());
+        self.message_address(&c);
     }
 
     /// A lookup unless what the held keys are worked out from changed:

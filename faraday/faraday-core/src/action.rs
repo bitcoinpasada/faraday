@@ -1204,6 +1204,7 @@ impl Faraday {
         } else {
             self.act_dealt(action);
         }
+        self.message_address_after();
         if in_pane {
             crate::address_check::pane::left(self);
         }

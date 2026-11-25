@@ -291,7 +291,7 @@ pub use restore::RestoreState;
 pub use row_open::Row;
 pub use screens::qr_code;
 pub use secure_boot::state::SecureBootAtStart;
-pub use state::{EntryState, MessageState};
+pub use state::{EntryState, MessageState, ShownReceive};
 pub use stick::folders::{BOOT_FOLDER, FIRST_BACKUP, backup_folder};
 pub use stick::pills::{Pill, SticksWanted};
 pub use stick::visit_taken::VisitState;

@@ -1008,6 +1008,37 @@ impl MessageState {
     }
 }
 
+/// The receive address Sign a message signs for, kept beside the wallet
+/// and the number it was worked out for.
+#[derive(Clone)]
+pub struct ShownReceive {
+    /// The wallet it is of.
+    pub wallet: usize,
+    /// The receive number it is of.
+    pub index: u32,
+    /// The address in groups of four, or the line said in place of an
+    /// address held back until its key's backup.
+    pub text: faraday_text::Text,
+    /// Held back: `text` is the line, not an address.
+    pub held: bool,
+    /// What the session said of the wallet when it was worked out; it is
+    /// drawn only while the session still says the same
+    /// ([`Faraday::message_shown`]).
+    pub basis: ShownBasis,
+}
+
+/// What an address kept for Sign a message depends on beyond the wallet's
+/// place and the number: the wallet itself (a place names another wallet
+/// once one is removed or added), its name, the network and whether its
+/// key waits for its backup.
+#[derive(Clone, PartialEq)]
+pub struct ShownBasis {
+    id: faraday_bip::policy::WalletId,
+    name: faraday_text::Text,
+    network: faraday_bip::keys::Network,
+    waits: bool,
+}
+
 /// Signing a message: the cards' state.
 #[derive(Default)]
 pub struct MessageState {
@@ -1024,6 +1055,10 @@ pub struct MessageState {
     /// An address of a loaded key by its path, which the address check
     /// found: signed for instead of a wallet's receive address.
     pub at: Option<crate::wallet::MessageAt>,
+    /// The wallet's receive address at `index` as the address row and the
+    /// card say it, worked out where the wallet or the number changes
+    /// ([`Faraday::message_address`]); drawing only reads it.
+    pub shown: Option<ShownReceive>,
     /// The message.
     pub text: faraday_text::Text,
     /// Typing goes to the message.
@@ -1277,6 +1312,81 @@ impl Faraday {
     /// Costs what the actions below cost, the keys' and wallets' work among
     /// it: handles the message-signing flow's actions (`SignMessage`, `M*`, `CheckMessage`).
     pub(crate) fn message_act(&mut self, action: Action, c: &Compute) {
+        self.message_do(action, c);
+        self.message_address(c);
+    }
+
+    /// Costs an address derivation, the first time for a wallet and a
+    /// number. Works the receive address of the chosen wallet and number out
+    /// once, through the function the card uses ([`Faraday::receive_line`],
+    /// which reads the address `Session::sign_message` checks its signature
+    /// against), and keeps it until either changes. A wallet that cannot
+    /// sign a message, or an address picked, has none.
+    pub(crate) fn message_address(&mut self, c: &Compute) {
+        let Some(m) = self.message.state.as_ref() else {
+            return;
+        };
+        let want = match (m.at.is_some(), m.wallet) {
+            (false, Some(w)) if self.session.message_wallets().contains(&w) => {
+                self.message_basis(w).map(|b| (w, m.index, b))
+            }
+            _ => None,
+        };
+        let have = m
+            .shown
+            .as_ref()
+            .map(|s| (s.wallet, s.index, s.basis.clone()));
+        if want == have {
+            return;
+        }
+        let shown = want.and_then(|(wallet, index, basis)| {
+            let wl = self.session.wallets.get(wallet)?;
+            let (text, held) = self.receive_line(c, wl, false, index);
+            Some(ShownReceive {
+                wallet,
+                index,
+                text,
+                held,
+                basis,
+            })
+        });
+        if let Some(m) = self.message.state.as_mut() {
+            m.shown = shown;
+        }
+    }
+
+    /// Costs what `message_address` costs, when Sign a message is open:
+    /// the end of any action, which may have changed the session.
+    pub(crate) fn message_address_after(&mut self) {
+        if self.message.state.is_some() {
+            let c = self.compute();
+            self.message_address(&c);
+        }
+    }
+
+    /// A lookup. What the session says now of wallet `w`, which a kept
+    /// address is drawn only while it still matches.
+    fn message_basis(&self, w: usize) -> Option<ShownBasis> {
+        let wl = self.session.wallets.get(w)?;
+        Some(ShownBasis {
+            id: wl.id(),
+            name: wl.name.clone(),
+            network: self.session.network(),
+            waits: self.wallet_waits_kept(w),
+        })
+    }
+
+    /// A lookup. The kept receive address of Sign a message while the
+    /// session still says what it said when it was worked out; nothing
+    /// otherwise (a wallet removed, added, changed or renamed, the network
+    /// or the key's backup changed): it is worked out again where the
+    /// session changes ([`Faraday::message_address`]).
+    pub(crate) fn message_shown(&self) -> Option<&ShownReceive> {
+        let s = self.message.state()?.shown.as_ref()?;
+        (self.message_basis(s.wallet).as_ref() == Some(&s.basis)).then_some(s)
+    }
+
+    fn message_do(&mut self, action: Action, c: &Compute) {
         if self.message.edit(&action) {
             if matches!(action, Action::MWallet(_)) {
                 self.message_format_fit();
@@ -1299,7 +1409,7 @@ impl Faraday {
             // card done, and the message is next.
             Action::SignMessageWith(wallet) => {
                 if self.session.message_wallets().contains(&wallet) {
-                    self.message_open_at(wallet, 0);
+                    self.message_open_at(c, wallet, 0);
                 } else {
                     self.act(Action::SignMessage);
                 }
@@ -1518,7 +1628,7 @@ impl Faraday {
     /// `wallet`, the address card done: the address check's **Sign a
     /// message with this address**. Nothing opens for a wallet that is no
     /// single-key wallet with its key loaded.
-    pub(crate) fn message_open_at(&mut self, wallet: usize, index: u32) {
+    pub(crate) fn message_open_at(&mut self, c: &Compute, wallet: usize, index: u32) {
         if !self.session.message_wallets().contains(&wallet) {
             return;
         }
@@ -1532,6 +1642,7 @@ impl Faraday {
             m.scroll.follow = true;
         }
         self.message_format_fit();
+        self.message_address(c);
     }
 
     /// Opens Sign a message on the address `at` of a loaded key, the

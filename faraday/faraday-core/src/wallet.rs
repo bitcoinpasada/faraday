@@ -512,6 +512,13 @@ impl Wallet {
         a
     }
 
+    /// Empties the kept addresses, so that a test counts the next one
+    /// asked as derived.
+    #[cfg(test)]
+    pub(crate) fn forget_addresses(&self) {
+        self.addresses.borrow_mut().clear();
+    }
+
     /// The policy, as it was read.
     pub fn policy(&self) -> &WalletPolicy {
         &self.policy
@@ -4893,6 +4900,9 @@ impl Faraday {
             let text = Text::fill(EN.vaults_refused, &[name, why]);
             self.wallets.set_wallet(0);
             self.spend_after_wallet_removed();
+            // Sign a message's kept address is of a place that has moved;
+            // after the loop, when every place is where it ends.
+            self.message_address(&c);
             self.toast(&text);
         }
     }
