@@ -1457,8 +1457,14 @@ A key made here (its words came from New key, or a passphrase was added
 to it in Create) cannot sign a spend until a checklist that keeps its seed,
 and its passphrase, is complete. Receiving is warned about, not blocked. A
 key restored from words, a SeedQR or a vault with no backup pending is
-already backed up and signs at once. A message is not a spend and is
-never held.
+already backed up and signs at once. A message waits as a spend does,
+since the signed message carries the address: Sign a message does not
+offer a wallet or a picked address whose key is held (its row, button or
+tile says "Its key waits for its backup", or is left out), every press
+that would sign, or make the file, the code, its sheet or **Check it**,
+is refused, and a key held after signing drops the signature and what
+**Check it** kept. A signed message's file already For the stick stays
+there.
 
 - **What waits.** The wallet card's first button reads **Finish the backup
   first** and opens the wallet's checklist (its plan when none is made); in

@@ -949,7 +949,9 @@ A find in a single-key wallet, in order:
 Where the find is in a single-key wallet whose key is loaded (receive or
 change), the card ends with **Sign a message with this address**, a text
 button (Material 3 Buttons, Text), which opens Sign a message (§5,
-`Message`) with its Address card done. A receive find opens it with that
+`Message`) with its Address card done. While the key waits for its
+backup the button is greyed, with "Its key waits for its backup" under it.
+A receive find opens it with that
 wallet and index chosen. A change find opens it on the key's path: the
 Address card shows the address, "Change address 1/3" and the Path line
 (§4.6), with no **-** or **+**. A multisig or miniscript wallet, a
