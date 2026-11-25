@@ -7,21 +7,88 @@
 use super::catalog::Bar;
 use crate::drawing::View;
 use crate::strings::EN;
+use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::{Action, Screen};
 use faraday_draw::tokens::{
-    APP_BAR_H, GAP_SMALL, HOME_SEARCH_MIN, LEAD_MAX, MARGIN_COMPACT, MENU_GAP, SEARCH_BAR_H,
-    TITLE_L, TOUCH,
+    APP_BAR_H, ELEVATION_SHEET, GAP_SMALL, HOME_SEARCH_MIN, LEAD_MAX, MARGIN_COMPACT, MENU_GAP,
+    SEARCH_BAR_H, TITLE_L, TOUCH,
 };
 use faraday_draw::widgets::Icon;
 
-/// The search the wide layout's bar holds on `screen`, and whether Home's
-/// pills stand beside it. A page with no search today has none.
-pub(crate) fn on(screen: Screen) -> Option<(Bar, bool)> {
-    match screen {
-        Screen::Home => Some((Bar::Home, true)),
-        Screen::Catalog => Some((Bar::Tools, false)),
-        _ => None,
+/// The menu pages, which hold the one search and the three pills in the top
+/// bar (`docs/WORKSPACE.md` §4), in the sidebar's order.
+const MENU_PAGES: [Screen; 7] = [
+    Screen::Home,
+    Screen::Catalog,
+    Screen::Check,
+    Screen::WalletsStart,
+    Screen::Files,
+    Screen::Vaults,
+    Screen::Settings,
+];
+
+/// Whether `screen` is a menu page, whose top bar holds the search and the
+/// pills, always at one place.
+pub(crate) fn on(screen: Screen) -> bool {
+    MENU_PAGES.contains(&screen)
+}
+
+/// What the menu pages with a search of their own row hold in `Page.search`:
+/// the one search where the bar does not hold it, as on the phone, the Pi
+/// and a compact rail; none where the bar holds it. A lookup.
+pub(crate) fn page_search(app: &View) -> Option<Bar> {
+    app.search_in_bar().then_some(Bar::Tools)
+}
+
+/// Whether a search is typed over a page that shows the results alone, in
+/// the place of its card: a flow's step, or a menu page that is no
+/// `menu_page` (Files, Vaults). A lookup.
+pub(crate) fn results_alone(app: &View) -> bool {
+    !app.tools.home_find().is_empty()
+        && (in_flow(app)
+            || (app.search_in_bar()
+                && !app.is_compact()
+                && matches!(app.screen, Screen::Files | Screen::Vaults)))
+}
+
+/// Whether the page on show is a flow's step on a window whose top bar
+/// holds the search and that does not hold the bar off
+/// (`docs/WORKSPACE.md` §4, F331). A lookup.
+pub(crate) fn in_flow(app: &View) -> bool {
+    app.search_in_bar() && app.nav_bar_hidden() && !app.nav_hidden()
+}
+
+/// Whether the bar holds the search and the pills for the page on show: a
+/// menu page's, or in a flow. A lookup.
+pub(crate) fn here(app: &View) -> bool {
+    on(app.screen) || in_flow(app)
+}
+
+/// Whether the flow of `action`'s way is the one on screen: that pill is
+/// off, so New wallet never starts a second one inside the first.
+pub(crate) fn way_is_here(screen: Screen, action: Action) -> bool {
+    matches!(
+        (screen, action),
+        (Screen::Create, Action::CreateWallet)
+            | (Screen::Restore, Action::RestoreWallet)
+            | (Screen::SpendBackup, Action::Nav(Screen::SpendBackup))
+    )
+}
+
+/// Gives the search or a pill at (x, y, w, h) its height: level 1 on a menu
+/// page and none in a flow, never dimmed; at High contrast, which casts no
+/// shadow, an outline either way. Only the wide layout's bar: the phone-size
+/// window and the Pi's row do not change (F331).
+fn raise(app: &View, ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32)) {
+    if app.nav() != crate::nav::Nav::ExpandedRail {
+        return;
+    }
+    if !in_flow(app) {
+        ui.shadow(x, y, w, h, h / 2.0, ELEVATION_SHEET);
+    }
+    if ui.theme.is_high_contrast() {
+        ui.stroke(x, y, w, h, h / 2.0, Role::Outline);
     }
 }
 
@@ -74,32 +141,63 @@ pub(crate) fn place(
 /// being where the bar's actions begin and `title` the page's name. A
 /// lookup. Nothing where the page has no search.
 pub(crate) fn draw(app: &View, ui: &mut Ui, (room, title, ends): (f32, &str, f32)) {
-    let Some((bar, with_ways)) = on(app.screen) else {
+    if !here(app) {
         return;
-    };
+    }
+    let flow = in_flow(app);
+    let menu = on(app.screen);
     // The expanded rail centres on the wide page; the narrow rail's page
-    // is one column, centred in the area.
+    // is one column, centred in the area. A menu page's is Home's, so the
+    // group stands at one place on every one of them.
     let (ox, cw) = if app.nav() == crate::nav::Nav::ExpandedRail {
         // The guide's pane stands under the bar, so the search is placed
         // from the bar's whole room and stands still as the guide opens.
-        super::page_area(app, app.screen, room)
+        super::page_area(app, if menu { Screen::Home } else { app.screen }, room)
     } else {
         (0.0, room)
     };
-    // The back arrow of a row open in the page stands before the name.
-    let arrow = if crate::row_open::opened(app).is_some() {
+    // The back arrow of a row open in the page stands before the name; on a
+    // menu page the room is kept for it, so the group never moves.
+    let arrow = if flow || menu || crate::row_open::opened(app).is_some() {
         TOUCH
     } else {
         0.0
     };
-    let name_end =
-        MARGIN_COMPACT + arrow + ui.measure_as(TITLE_L, title) + ui.bar_pill_w + MENU_GAP;
+    // A menu page reserves the widest page name, and the bar's actions
+    // that only one page shows (Files' stick chip), so the same field and
+    // pills stand on each.
+    let mut name_w = ui.measure_as(TITLE_L, title);
+    let mut ends = ends;
+    if menu {
+        for s in MENU_PAGES {
+            name_w = name_w.max(ui.measure_as(TITLE_L, crate::compact::screen_name(s)));
+        }
+        // The keyboard's button, which a page with a field to type in shows.
+        if crate::compact::keyboard_action(app).is_none() {
+            ends -= TOUCH;
+        }
+        if app.screen != Screen::Files {
+            let chip = crate::compact::screen::measured(ui, |ui| {
+                crate::screens::files_stick_chip(app, ui, room)
+            });
+            ends -= room - chip;
+        }
+    }
+    let name_end = MARGIN_COMPACT + arrow + name_w + ui.bar_pill_w + MENU_GAP;
     let to = ends - GAP_SMALL;
     let y = (APP_BAR_H - SEARCH_BAR_H) / 2.0;
+    // In a flow they are left out where not even the field at its least
+    // and the one Start button fit beside the heading.
+    if flow {
+        let start = MENU_GAP + ui.button_icon_width(EN.home_ways_start, Style::Tonal);
+        if to - name_end < HOME_SEARCH_MIN + start {
+            return;
+        }
+    }
     group(
         app,
         ui,
-        (bar, with_ways, true),
+        (true, true),
         ((name_end, to), ox + cw / 2.0),
         (y, LEAD_MAX),
     );
@@ -113,11 +211,16 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, (room, title, ends): (f32, &str, f32
 pub(crate) fn group(
     app: &View,
     ui: &mut Ui,
-    (bar, with_ways, pills_ok): (Bar, bool, bool),
+    (with_ways, pills_ok): (bool, bool),
     (range, centre): ((f32, f32), f32),
     (y, want): (f32, f32),
 ) -> f32 {
     let ways: Vec<_> = if with_ways { ways().into() } else { Vec::new() };
+    for (_, action) in &ways {
+        if way_is_here(app.screen, *action) {
+            ui.dimmed.push(*action);
+        }
+    }
     let widths: Vec<f32> = ways
         .iter()
         .map(|(label, _)| MENU_GAP + ui.button_width(label, Style::Tonal))
@@ -129,13 +232,15 @@ pub(crate) fn group(
     };
     let pills = pills_ok.then(|| widths.iter().sum::<f32>());
     let (start, sw, how) = place(range, centre, (pills, start_w), want);
-    super::catalog::home_search_bar(app, ui, (start, y, sw), None, bar);
+    raise(app, ui, (start, y, sw, SEARCH_BAR_H));
+    super::catalog::home_search_bar(app, ui, (start, y, sw), None);
     let mut x = start + sw;
     if !with_ways {
         return x;
     }
     match how {
         Ways::Start => {
+            raise(app, ui, (x + MENU_GAP, y, start_w - MENU_GAP, SEARCH_BAR_H));
             ui.button_icon_after(
                 (x + MENU_GAP, y, Some(start_w - MENU_GAP), SEARCH_BAR_H),
                 Icon::ChevronDown,
@@ -147,6 +252,7 @@ pub(crate) fn group(
         }
         Ways::Pills => {
             for ((label, action), w) in ways.into_iter().zip(widths) {
+                raise(app, ui, (x + MENU_GAP, y, w - MENU_GAP, SEARCH_BAR_H));
                 ui.button(
                     x + MENU_GAP,
                     y,

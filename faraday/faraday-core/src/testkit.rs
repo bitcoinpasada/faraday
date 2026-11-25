@@ -2180,12 +2180,7 @@ pub fn tools(app: &crate::Faraday) -> Option<&crate::tools::ToolsState> {
     app.tools.state()
 }
 
-/// What is typed in Tools' Find a tool.
-pub fn catalog_find(app: &crate::Faraday) -> &str {
-    app.tools.find()
-}
-
-/// What is typed in Home's search bar.
+/// What is typed in the search of the menu pages.
 pub fn home_find(app: &crate::Faraday) -> &str {
     app.tools.home_find()
 }

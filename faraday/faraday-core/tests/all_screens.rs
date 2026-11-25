@@ -51,6 +51,8 @@ mod files_scroll;
 mod finish;
 #[path = "all/flow_choices.rs"]
 mod flow_choices;
+#[path = "all/flow_search.rs"]
+mod flow_search;
 #[path = "all/flow_top_row.rs"]
 mod flow_top_row;
 #[path = "all/glance.rs"]

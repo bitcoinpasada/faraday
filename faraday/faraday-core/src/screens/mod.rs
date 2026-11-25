@@ -50,6 +50,9 @@ use crate::{Action, Screen, Sheet};
 pub(crate) use backup::item_title;
 pub(crate) use backup::{SOFTWARE_ROWS, held_item, item_title_now};
 pub(crate) use bar_search::draw as bar_search_draw;
+pub(crate) use bar_search::on as bar_on;
+pub(crate) use bar_search::page_search;
+pub(crate) use bar_search::way_is_here;
 pub(crate) use create::CSTEPS;
 pub(crate) use decode::{decode_back, decode_back_to};
 pub(crate) use entry::{
@@ -669,6 +672,30 @@ fn dispatch(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
 
 /// [`dispatch`]'s screens.
 fn dispatch_screen(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
+    // A search typed over a flow's step shows its results alone in the
+    // card's place; the step is not drawn, so a secret on it is gone at
+    // once, and its state is kept (`docs/WORKSPACE.md` §4).
+    // Its back arrow and heading stay where the step drew them.
+    if bar_search::results_alone(app) {
+        match app.tools.flow_head() {
+            Some((name, back)) if bar_search::in_flow(app) => {
+                ui.head = Some((name, back));
+            }
+            _ => {
+                bar_head(ui, None, crate::compact::screen_name(app.screen));
+            }
+        }
+        hub_layout::draw_results_alone(app, ui, (x, cw, h));
+        return;
+    }
+    dispatch_page(app, ui, x, cw, h);
+    if bar_search::in_flow(app) {
+        app.tools.note_flow_head(ui.head.as_ref());
+    }
+}
+
+/// [`dispatch_screen`]'s page.
+fn dispatch_page(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
     match app.screen {
         Screen::Home => home::draw(app, ui, x, cw, h),
         Screen::WalletsStart => wallets_start::draw(app, ui, x, cw, h),

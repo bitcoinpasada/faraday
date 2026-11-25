@@ -185,10 +185,7 @@ pub(crate) fn draw(
             super::bar_head(ui, None, page.name);
         }
     }
-    let typed = page.search.is_some_and(|bar| match bar {
-        Bar::Home => !app.tools.home_find().is_empty(),
-        Bar::Tools => !app.tools.find().is_empty(),
-    });
+    let typed = page.search.is_some() && !app.tools.home_find().is_empty();
     // A page with a pane stands placed on the wide layout (stacked, or the
     // pair); where it cannot (a search is typed, the room is narrow) it
     // stands in Home's column, as one page.
@@ -201,10 +198,10 @@ pub(crate) fn draw(
     // until Home (`docs/WORKSPACE.md` §4 rule 5); Home's results reached
     // from Home stack, nothing having stood so yet.
     let apart = app.menu_apart();
-    if let (true, false, true, Some(bar)) = (typed, compact, app.search_in_bar(), page.search) {
+    if let (true, false, true, Some(_)) = (typed, compact, app.search_in_bar(), page.search) {
         let mut panes = page.panes.unwrap_or(RESULTS);
         panes.stacks &= !apart;
-        if hub_layout::draw_results(app, ui, (x0, cw, h), bar, panes) {
+        if hub_layout::draw_results(app, ui, (x0, cw, h), panes) {
             return;
         }
     }
@@ -236,8 +233,7 @@ pub(crate) fn draw(
             return super::home::top_row(app, ui, (x, y, width));
         }
         let sw = if compact { width } else { width.min(LEAD_MAX) };
-        let bar = page.search.unwrap_or(Bar::Tools);
-        super::catalog::home_search_bar(app, ui, (x + (width - sw) / 2.0, y, sw), page_top, bar)
+        super::catalog::home_search_bar(app, ui, (x + (width - sw) / 2.0, y, sw), page_top)
     };
     let above_h = page.above.as_ref().map_or(0.0, |a| a.height);
     let above = |ui: &mut Ui, y: f32| {
@@ -263,8 +259,8 @@ pub(crate) fn draw(
             y += search(ui, y, Some(0.0));
         }
     }
-    if let (true, Some(bar)) = (typed, page.search) {
-        y += super::catalog::home_results(app, ui, (x, y), width, bar);
+    if typed && page.search.is_some() {
+        y += super::catalog::home_results(app, ui, (x, y), width);
     } else {
         y += sections_height(app, ui, (x, y), width, page, sections);
     }

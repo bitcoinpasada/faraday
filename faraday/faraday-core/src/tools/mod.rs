@@ -283,18 +283,16 @@ fn units_takes(typed: &str, unit: u8, c: char) -> bool {
     }
 }
 
-/// Tools' state: the open calculator, and what is typed in the Tools
-/// page's Find a tool.
+/// A page's name and its way back, as the top bar draws them.
+type FlowHead = (Text, Option<(Text, crate::Action)>);
+
+/// Tools' state: the open calculator, and what is typed in the one search
+/// of every menu page.
 #[derive(Default)]
 pub struct ToolsArea {
     /// The calculator on show, while Tools is open.
     tools: Option<ToolsState>,
-    /// What is typed in Tools' Find a tool.
-    catalog_find: Text,
-    /// Whether Tools' search bar has been pressed, so it shows its caret
-    /// while empty.
-    catalog_focus: bool,
-    /// What is typed in Home's search bar, kept beside Tools' own.
+    /// What is typed in the search: one text for every menu page.
     home_find: Text,
     /// The words of the Home search whose result was pressed, kept for
     /// the way back from what it opened (`in_progress`'s place).
@@ -307,6 +305,9 @@ pub struct ToolsArea {
     home_bar_y: std::cell::Cell<f32>,
     /// Whether the page is to follow the results after the next frame.
     home_follow: std::cell::Cell<bool>,
+    /// The name and way back a flow's step last drew in the top bar, so a
+    /// search typed over it keeps them (`docs/WORKSPACE.md` §4).
+    flow_head: std::cell::RefCell<Option<FlowHead>>,
     /// Convert a seed, a tool with a flow of its own.
     pub(crate) convert: crate::convert::ConvertArea,
     /// The Krux code tool.
@@ -378,12 +379,7 @@ impl ToolsArea {
         }
     }
 
-    /// What is typed in Find a tool.
-    pub fn find(&self) -> &str {
-        &self.catalog_find
-    }
-
-    /// What is typed in Home's search bar.
+    /// What is typed in the search.
     pub fn home_find(&self) -> &str {
         &self.home_find
     }
@@ -414,6 +410,16 @@ impl ToolsArea {
         self.home_focus
     }
 
+    /// Keeps the heading a flow's step drew in the top bar.
+    pub(crate) fn note_flow_head(&self, head: Option<&FlowHead>) {
+        *self.flow_head.borrow_mut() = head.cloned();
+    }
+
+    /// The heading a flow's step last drew in the top bar.
+    pub(crate) fn flow_head(&self) -> Option<FlowHead> {
+        self.flow_head.borrow().clone()
+    }
+
     /// Keeps where Home's search bar is drawn in its page.
     pub(crate) fn note_home_bar(&self, y: f32) {
         self.home_bar_y.set(y);
@@ -434,22 +440,6 @@ impl ToolsArea {
     /// Takes the ask of [`ToolsArea::follow_home_find`].
     pub(crate) fn take_home_follow(&self) -> bool {
         self.home_follow.replace(false)
-    }
-
-    /// Clears Tools' search bar, so Tools shows its tiles again.
-    pub(crate) fn clear_catalog_find(&mut self) {
-        self.catalog_find.clear();
-        self.catalog_focus = false;
-    }
-
-    /// Whether Tools' search bar has been pressed and shows its caret.
-    pub(crate) fn catalog_focused(&self) -> bool {
-        self.catalog_focus
-    }
-
-    /// Focuses Tools' search bar, as a press on it does.
-    pub(crate) fn focus_catalog_find(&mut self) {
-        self.catalog_focus = true;
     }
 
     /// Focuses Home's search bar, as a press on it does.
@@ -658,24 +648,7 @@ impl ToolsArea {
         (true, None)
     }
 
-    /// Typing on the Tools page goes to Find a tool. Returns whether the
-    /// key was taken.
-    pub(crate) fn find_key(&mut self, key: faraday_shell_api::Key) -> bool {
-        use faraday_shell_api::Key as K;
-        match key {
-            K::Char(c) if !c.is_control() && self.catalog_find.chars().count() < 40 => {
-                self.catalog_find.push(c);
-            }
-            K::Backspace => {
-                self.catalog_find.pop();
-            }
-            K::Escape => self.catalog_find.clear(),
-            _ => return false,
-        }
-        true
-    }
-
-    /// Typing on Home goes to its search bar. Returns whether the key was
+    /// Typing on a menu page goes to its search bar. Returns whether the key was
     /// taken.
     pub(crate) fn home_find_key(&mut self, key: faraday_shell_api::Key) -> bool {
         use faraday_shell_api::Key as K;
@@ -891,22 +864,14 @@ impl Faraday {
         taken
     }
 
-    /// Typing on the Tools page goes to Find a tool. Returns whether the
-    /// key was taken.
-    pub(crate) fn catalog_key(&mut self, key: faraday_shell_api::Key) -> bool {
-        // A sheet over Tools (the Sweep sheet's field) takes its own keys.
-        if self.screen != Screen::Catalog || self.sheet.is_some() || !self.tools.find_key(key) {
-            return false;
-        }
-        self.list_offset = 0.0;
-        true
-    }
-
-    /// Typing on Home goes to its search bar, on every window but the
-    /// Pi's menu. Returns whether the key was taken.
+    /// Typing on a menu page goes to its search bar, on every window but
+    /// the Pi's menu. Returns whether the key was taken.
     pub(crate) fn home_key(&mut self, key: faraday_shell_api::Key) -> bool {
         if !self.home_search_here() || !self.tools.home_find_key(key) {
             return false;
+        }
+        if self.screen != Screen::Home {
+            self.list_offset = 0.0;
         }
         // The results stand under the buttons: the page scrolls to the
         // foot, as far as it reaches, so the bar and its results show.
@@ -934,10 +899,13 @@ impl Faraday {
         }
     }
 
-    /// Whether Home shows its search bar and takes typing: not on the
-    /// menu (the Pi's compact, short Home), and not under a sheet.
+    /// Whether the page on show has the search and takes typing: a menu
+    /// page's, not on the Pi's menu (its compact, short Home) and not under
+    /// a sheet. Tools' phone page has it too.
     pub(crate) fn home_search_here(&self) -> bool {
-        self.screen == Screen::Home && self.sheet.is_none() && self.nav() != crate::nav::Nav::Menu
+        crate::screens::bar_on(self.screen)
+            && self.sheet.is_none()
+            && (self.screen == Screen::Catalog || self.nav() != crate::nav::Nav::Menu)
     }
 }
 
@@ -996,13 +964,12 @@ impl crate::at_lock::AtLock for ToolsArea {
         use crate::at_lock::{AtLock as A, Holds, public};
         let ToolsArea {
             tools,
-            catalog_find,
-            catalog_focus,
             home_find,
             home_find_kept,
             home_focus,
             home_bar_y,
             home_follow,
+            flow_head,
             convert,
             kef_tool,
             ots,
@@ -1012,13 +979,12 @@ impl crate::at_lock::AtLock for ToolsArea {
             invoice,
             address_check,
         } = self;
-        public(catalog_find);
-        public(catalog_focus);
         public(home_find);
         public(home_find_kept);
         public(home_focus);
         public(home_bar_y);
         public(home_follow);
+        public(flow_head);
         public(ots);
         public(invoice);
         public(address_check);
@@ -1035,13 +1001,12 @@ impl crate::at_lock::AtLock for ToolsArea {
         use crate::at_lock::AtLock as A;
         let ToolsArea {
             tools,
-            catalog_find: _,
-            catalog_focus: _,
             home_find: _,
             home_find_kept,
             home_focus: _,
             home_bar_y: _,
             home_follow: _,
+            flow_head: _,
             convert,
             kef_tool,
             ots: _,

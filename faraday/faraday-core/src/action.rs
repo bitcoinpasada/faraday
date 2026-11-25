@@ -1175,6 +1175,14 @@ impl Faraday {
     }
 
     fn act_noted(&mut self, action: Action) {
+        // A press on a page of the sidebar or on a pill leaves the search:
+        // what was typed goes (a result's press keeps it for the way back).
+        if matches!(
+            action,
+            Action::Nav(_) | Action::CreateWallet | Action::RestoreWallet
+        ) {
+            self.tools.clear_home_find();
+        }
         let on_entry = self.screen == Screen::Entry;
         let in_pane = crate::address_check::pane::scanning(self);
         self.act_dealt(action);
@@ -1485,10 +1493,6 @@ impl Faraday {
             | Action::LVault
             | Action::LOut
             | Action::LAnother => self.lightning_act(action),
-            Action::HomeSearchClear if self.screen == Screen::Catalog => {
-                self.tools.clear_catalog_find();
-                self.tools.focus_catalog_find();
-            }
             Action::HomeSearchClear => {
                 self.tools.clear_home_find();
                 self.tools.focus_home_find();

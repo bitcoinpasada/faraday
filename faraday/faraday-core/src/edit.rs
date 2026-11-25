@@ -231,9 +231,7 @@ pub(crate) const GPG_LINE: Action = Action::Flow(crate::backup_flow::steps::Flow
 /// (`docs/TEXT-CURSOR.md` §3).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Here {
-    /// Tools' Find a tool.
-    Find,
-    /// Home's search bar.
+    /// The search bar of every menu page.
     HomeFind,
     /// The guide contents' Find in the guide.
     GuideFind,
@@ -323,8 +321,7 @@ impl Faraday {
             return None;
         }
         let here = match self.screen {
-            Screen::Catalog => Here::Find,
-            Screen::Home if self.home_search_here() => Here::HomeFind,
+            _ if self.home_search_here() => Here::HomeFind,
             Screen::Explore => match self.explore.state()?.page {
                 Page::Path => Here::Path,
                 Page::Find => Here::Query,
@@ -413,7 +410,6 @@ impl Faraday {
                 });
             }
             Here::HomeFind => self.tools.focus_home_find(),
-            Here::Find => self.tools.focus_catalog_find(),
             Here::GuideFind => self.guide.focus_find(true),
             Here::SilentName | Here::SilentDomain => {
                 self.silent.focus_dns(h == Here::SilentDomain);
@@ -461,9 +457,8 @@ impl Faraday {
         matches!(
             self.here(),
             Some(
-                Action::TypeHere(
-                    Here::WordFind | Here::Find | Here::HomeFind | Here::GuideFind | Here::Chart,
-                ) | Action::PotentialType
+                Action::TypeHere(Here::WordFind | Here::HomeFind | Here::GuideFind | Here::Chart,)
+                    | Action::PotentialType
                     | Action::PotentialTypeAgain
                     | GPG_LINE
             )
@@ -773,7 +768,6 @@ impl Faraday {
     /// its keys.
     fn here_text(&self, h: Here) -> Option<&str> {
         Some(match h {
-            Here::Find => self.tools.find(),
             Here::HomeFind => self.tools.home_find(),
             Here::GuideFind => &self.guide.state().find,
             Here::WordFind => &self.wordlist.state()?.find,
@@ -1160,9 +1154,6 @@ impl Faraday {
         // one that shows its caret.
         if a == Action::TypeHere(Here::HomeFind) {
             self.tools.focus_home_find();
-        }
-        if a == Action::TypeHere(Here::Find) {
-            self.tools.focus_catalog_find();
         }
         if let Action::TypeHere(h @ (Here::Keyed | Here::CheckKeyed)) = a {
             if let Some(i) = index(self, x) {
