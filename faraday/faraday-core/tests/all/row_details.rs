@@ -584,3 +584,400 @@ fn home_a_wallets_details_stand_under_the_card_at_1920x1600() {
         "in the card's column, not beside it: {b:?} vs {row:?}"
     );
 }
+
+const MESSAGE: &str = "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq\nH9L5yLFjti0QTHhPyFrZCT1V/MMnBtXKmoiKDZ78NDBjERki6ZTQZdSMCtkgoNmp17By9ItJr8o7ChX0XxY91nk=\nHello\n";
+
+// ---- Files (WORKSPACE.md §7 point 1: a file of In Faraday opens its
+// details in the stick's place)
+
+fn a_stick() -> faraday_core::StorageEvent {
+    faraday_core::StorageEvent::Sticks(vec![faraday_core::StickInfo {
+        make: Default::default(),
+        serial: None,
+        id: faraday_text::Text::of("S"),
+        label: faraday_text::Text::of("TESTSTICK"),
+        boot: false,
+        files: vec![(faraday_text::Text::of("spend.psbt"), 300)],
+        vaults: Vec::new(),
+    }])
+}
+
+/// Files with a stick in (or none) and two files held, `a.txt` and `b.txt`.
+fn files_of(width: u16, stick: bool) -> Faraday {
+    files_sized(width, 1080, stick)
+}
+
+fn files_sized(width: u16, height: u16, stick: bool) -> Faraday {
+    let mut app = faraday_core::testkit::new_on_test_net();
+    app.event(Event::Display(DisplayInfo {
+        width,
+        height,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    if stick {
+        app.storage(a_stick());
+    }
+    faraday_core::testkit::inbox_file(&mut app, "a.txt", MESSAGE.as_bytes().to_vec());
+    faraday_core::testkit::inbox_file(&mut app, "b.txt", MESSAGE.as_bytes().to_vec());
+    app.press(Action::Nav(Screen::Files));
+    let _ = app.frame();
+    app
+}
+
+fn files_with_stick() -> Faraday {
+    files_of(1366, true)
+}
+
+/// A press at the middle of the row's body, which opens its details.
+fn press_body(app: &mut Faraday, k: usize) {
+    let (x, y, _, _) = app.hit_box(Action::RowOpen(Row::File(k))).expect("the row");
+    // The hit box found is the last one the row drew, its chevron's; the
+    // body is left of it, clear of the row's main button (1366 wide).
+    touch(app, (x - 365, y + 25));
+}
+
+/// The stick's card is on show: it offers Unselect all.
+fn stick_pane(app: &mut Faraday) -> bool {
+    shown(app, Action::VisitInAll)
+}
+
+fn count(app: &mut Faraday, name: &str) -> usize {
+    app.drawn_texts().iter().filter(|t| *t == name).count()
+}
+
+#[test]
+fn files_a_press_on_a_row_opens_its_details_in_the_sticks_place() {
+    for stick in [true, false] {
+        let mut app = files_of(1366, stick);
+        assert!(!app.offers(Action::RowClose));
+        press_body(&mut app, 0);
+        assert!(app.offers(Action::RowClose), "stick {stick}: details open");
+        assert_eq!(app.screen, Screen::Files);
+        assert!(!stick_pane(&mut app), "stick {stick}: the stick's card");
+        // The list stays at the left; the row's own press is the page's.
+        assert!(app.offers(Action::RowOpen(Row::File(1))));
+        assert!(!app.visit().from_inbox.contains("a.txt"), "a tick");
+    }
+}
+
+#[test]
+fn files_back_and_the_tab_return_with_the_ticks_and_the_stick_as_they_were() {
+    let mut app = files_with_stick();
+    let was = app.visit().from_inbox.clone();
+    let (x, y, w, h) = app.hit_box(Action::VisitInbox(1)).expect("the tick");
+    touch(&mut app, (x + w / 2, y + h / 2));
+    let ticks = app.visit().from_inbox.clone();
+    assert_ne!(ticks, was, "the box ticked");
+    assert!(!app.offers(Action::RowClose), "the box opens nothing");
+    for how in 0..3 {
+        press_body(&mut app, 0);
+        assert!(app.offers(Action::RowClose), "way {how}");
+        match how {
+            0 => {
+                let at = app.where_offered(Action::RowClose).expect("the arrow");
+                touch(&mut app, at);
+            }
+            1 => app.press(Action::Nav(Screen::Files)),
+            _ => {
+                app.event(Event::Back);
+                let _ = app.frame();
+            }
+        }
+        let _ = app.frame();
+        assert!(!app.offers(Action::RowClose), "way {how}");
+        assert_eq!(app.screen, Screen::Files);
+        assert!(stick_pane(&mut app), "way {how}: the stick's card");
+        assert_eq!(app.visit().from_inbox, ticks, "way {how}: the ticks");
+    }
+}
+
+#[test]
+fn files_a_press_on_another_row_swaps_the_details() {
+    let mut app = files_with_stick();
+    press_body(&mut app, 0);
+    let _ = app.frame();
+    assert_eq!(
+        count(&mut app, "a.txt"),
+        3,
+        "the list, the bar and the facts"
+    );
+    assert_eq!(count(&mut app, "b.txt"), 1);
+    press_body(&mut app, 1);
+    let _ = app.frame();
+    assert_eq!(count(&mut app, "b.txt"), 3);
+    assert_eq!(count(&mut app, "a.txt"), 1);
+    app.press(Action::RowClose);
+    let _ = app.frame();
+    assert!(stick_pane(&mut app));
+}
+
+#[test]
+fn files_a_rows_tick_and_button_are_their_own_presses() {
+    let mut app = files_of(1366, true);
+    let kit = faraday_core::testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "spending")
+        .unwrap();
+    faraday_core::testkit::inbox_file(&mut app, "spending-wallet.txt", kit.descriptor.into_bytes());
+    let _ = app.frame();
+    let k = app
+        .inbox()
+        .iter()
+        .position(|i| i.name == "spending-wallet.txt")
+        .unwrap();
+    // A public file's tick is a plain press; a secret's asks an acknowledgement.
+    let was = app.visit().from_inbox.contains("a.txt");
+    let (x, y, w, h) = app.hit_box(Action::VisitInbox(0)).expect("the tick");
+    touch(&mut app, (x + w / 2, y + h / 2));
+    assert!(!app.offers(Action::RowClose), "the tick opens nothing");
+    assert_ne!(
+        app.visit().from_inbox.contains("a.txt"),
+        was,
+        "the tick changed"
+    );
+    let at = app
+        .where_offered(Action::LoadWallet(k))
+        .expect("the button");
+    touch(&mut app, at);
+    assert!(!app.offers(Action::RowClose), "the button opens nothing");
+    assert!(!app.session.wallets.is_empty(), "Load loaded the wallet");
+}
+
+#[test]
+fn files_the_file_going_away_returns_the_page() {
+    let mut app = files_with_stick();
+    press_body(&mut app, 0);
+    assert!(app.offers(Action::RowClose));
+    faraday_core::testkit::inbox_retain(&mut app, |it| it.name != "a.txt");
+    // A person's next press, as the real path to it is a press.
+    let (x, y, w, h) = app.hit_box(Action::VisitInbox(0)).expect("a tick");
+    touch(&mut app, (x + w / 2, y + h / 2));
+    assert!(!app.offers(Action::RowClose), "the details are gone");
+    assert!(stick_pane(&mut app));
+    assert!(stick_pane(&mut app));
+}
+
+#[test]
+fn files_lock_clears_the_row_open() {
+    let mut app = files_with_stick();
+    press_body(&mut app, 0);
+    app.press(Action::Lock);
+    faraday_core::testkit::inbox_file(&mut app, "a.txt", MESSAGE.as_bytes().to_vec());
+    app.press(Action::Nav(Screen::Files));
+    let _ = app.frame();
+    assert!(!app.offers(Action::RowClose));
+}
+
+#[test]
+fn files_leaving_a_flow_begun_from_the_details_returns_to_them() {
+    let mut app = files_with_stick();
+    press_body(&mut app, 0);
+    assert!(app.offers(Action::RowClose));
+    // The details' button (the file's own Check) begins the flow.
+    app.press(Action::CheckMessage(0));
+    assert_ne!(app.screen, Screen::Files, "the details offer a flow");
+    let _ = app.frame();
+    let (x, y) = app.back_offered().expect("a way back");
+    touch(&mut app, (x, y));
+    assert_eq!(app.screen, Screen::Files);
+    assert!(app.offers(Action::RowClose), "the details, as they were");
+}
+
+#[test]
+fn files_a_compact_window_and_the_rails_window_open_none() {
+    for width in [400, 800] {
+        let mut app = files_of(width, true);
+        assert!(!app.offers(Action::RowOpen(Row::File(0))), "{width}");
+        app.press(Action::RowOpen(Row::File(0)));
+        let _ = app.frame();
+        assert!(!app.offers(Action::RowClose), "{width}");
+    }
+}
+
+#[test]
+fn files_a_stick_put_in_or_pulled_with_details_open_keeps_the_stick_as_before() {
+    let mut app = files_of(1366, false);
+    press_body(&mut app, 0);
+    app.storage(a_stick());
+    let _ = app.frame();
+    assert!(app.offers(Action::RowClose), "still open");
+    assert!(!stick_pane(&mut app));
+    app.press(Action::RowClose);
+    let _ = app.frame();
+    assert!(stick_pane(&mut app), "the stick put in");
+    press_body(&mut app, 0);
+    app.storage(faraday_core::StorageEvent::Sticks(Vec::new()));
+    let _ = app.frame();
+    assert!(app.offers(Action::RowClose), "still open");
+    app.press(Action::RowClose);
+    let _ = app.frame();
+    assert!(!stick_pane(&mut app), "the stick pulled");
+    assert!(app.offers(Action::RowOpen(Row::File(0))));
+}
+
+/// Files with many files held, so that the page scrolls, scrolled down a
+/// little (the rows still in view).
+fn files_scrolled() -> (Faraday, f32, f32) {
+    let mut app = files_with_stick();
+    for n in 0..60 {
+        faraday_core::testkit::inbox_file(
+            &mut app,
+            &format!("f{n:02}.txt"),
+            MESSAGE.as_bytes().to_vec(),
+        );
+    }
+    let _ = app.frame();
+    for _ in 0..2 {
+        app.event(Event::Scroll {
+            x: 200,
+            y: 400,
+            dy: 300,
+        });
+        app.settle();
+        let _ = app.frame();
+    }
+    let (page, list) = (app.list_offset, app.visit_in_offset());
+    (app, page, list)
+}
+
+#[test]
+fn files_back_keeps_the_lists_scroll() {
+    for how in 0..3 {
+        let (mut app, page, list) = files_scrolled();
+        assert!(page > 0.0, "the page scrolled");
+        let k = (0..62)
+            .find(|k| app.offers(Action::RowOpen(Row::File(*k))))
+            .expect("a row in view");
+        press_body(&mut app, k);
+        let _ = app.frame();
+        assert!(app.offers(Action::RowClose));
+        match how {
+            0 => app.press(Action::RowClose),
+            1 => app.press(Action::Nav(Screen::Files)),
+            _ => {
+                app.event(Event::Back);
+            }
+        }
+        let _ = app.frame();
+        assert!(!app.offers(Action::RowClose), "way {how}");
+        assert_eq!(app.list_offset, page, "way {how}: the page's scroll");
+        assert_eq!(app.visit_in_offset(), list, "way {how}: the list's scroll");
+    }
+}
+
+#[test]
+fn files_the_bar_names_the_file_only_where_the_details_stand() {
+    // Where the room no longer holds the pair (the window narrowed, or the
+    // guide pane beside the page), the arrow and the file's name go with
+    // the details: both or neither.
+    for width in [1366u16, 1280, 1200, 1100, 1000, 900] {
+        let mut app = files_of(1366, true);
+        press_body(&mut app, 0);
+        let _ = app.frame();
+        assert!(app.offers(Action::RowClose));
+        app.event(Event::Display(DisplayInfo {
+            width,
+            height: 1080,
+            dpi: 160,
+            inset_bottom: 0,
+            inset_top: 0,
+            buttons: 0,
+            camera_fixed: false,
+            secure: SecureHardware::None,
+            boot: BootState::Unknown,
+            memory_mib: None,
+        }));
+        let _ = app.frame();
+        let _ = app.frame();
+        let named = count(&mut app, "a.txt");
+        let details = named >= 3;
+        let arrow = app.offers(Action::RowClose);
+        assert_eq!(
+            arrow, details,
+            "{width}: the arrow with the details ({named})"
+        );
+        assert_eq!(
+            named >= 2,
+            details,
+            "{width}: the name with the details ({named})"
+        );
+    }
+}
+
+/// The owner's rule (2026-11-25): the box alone ticks a file for Write; a
+/// press anywhere else on the row opens its details. A file that asks
+/// (seed words) has its box open the secret sheet, never the details.
+#[test]
+fn files_the_box_ticks_and_the_rest_of_the_row_opens_the_details() {
+    for stick in [true, false] {
+        let mut app = files_sized(1366, 768, stick);
+        faraday_core::testkit::inbox_file(&mut app, "seed.txt", WORDS.as_bytes().to_vec());
+        let _ = app.frame();
+        let seed = app
+            .inbox()
+            .iter()
+            .position(|i| i.name == "seed.txt")
+            .unwrap();
+        for (k, asks) in [(0usize, false), (seed, true)] {
+            let name = app.inbox()[k].name.to_string();
+            let ticked = |app: &Faraday| app.visit().from_inbox.contains(name.as_str());
+            if stick {
+                // The box: ticked (or asked), the details not opened.
+                let at = app.where_offered(Action::VisitInbox(k)).expect("the box");
+                touch(&mut app, at);
+                assert!(
+                    !app.offers(Action::RowClose),
+                    "{name}: the box opened details"
+                );
+                if asks {
+                    assert!(!ticked(&app), "{name}: ticked unasked");
+                    assert!(app.sheet.is_some(), "{name}: no secret sheet");
+                    app.press(Action::Cancel);
+                    let _ = app.frame();
+                } else {
+                    assert!(ticked(&app), "{name}: not ticked");
+                }
+            } else {
+                assert!(
+                    !app.offers(Action::VisitInbox(k)),
+                    "{name}: a box, no stick"
+                );
+            }
+            let was = ticked(&app);
+            // The hit box found is the last the row drew: its chevron's, 48
+            // wide at the column's edge, the body's press ending before it.
+            for what in ["name", "line", "chevron"] {
+                let (x, y, w, h) = app.hit_box(Action::RowOpen(Row::File(k))).expect("the row");
+                let at = match what {
+                    "name" => (x - 365, y + 14),
+                    "line" => (x - 365, y + 34),
+                    _ => (x + w / 2, y + h / 2),
+                };
+                touch(&mut app, at);
+                assert!(app.offers(Action::RowClose), "{name} {what}: no details");
+                assert_eq!(ticked(&app), was, "{name} {what}: tick changed");
+                assert!(app.sheet.is_none(), "{name} {what}: a sheet");
+                // The open row pressed again, then back to the list.
+                app.press(Action::RowClose);
+                let _ = app.frame();
+                assert!(!app.offers(Action::RowClose));
+            }
+            // The open row pressed again keeps its details; another swaps.
+            press_body(&mut app, k);
+            press_body(&mut app, k);
+            assert!(app.offers(Action::RowClose), "{name}: again closed");
+            let other = if k == 0 { 1 } else { 0 };
+            press_body(&mut app, other);
+            assert!(app.offers(Action::RowClose), "{name}: swap");
+            app.press(Action::RowClose);
+            let _ = app.frame();
+        }
+    }
+}

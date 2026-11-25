@@ -17,7 +17,7 @@ use faraday_draw::tokens::{
     LIST_2, ROW, SHAPE_M, TITLE_M, TITLE_S, TOUCH, VISIT_BUTTON_PAD, VISIT_CARD_FOOT,
     VISIT_CARD_HEAD, VISIT_CHIP_EXTRA, VISIT_CHIP_PRESS_RISE, VISIT_CHIP_TOP, VISIT_COMPACT_HEAD,
     VISIT_COUNT_GAP, VISIT_FOOT_ROW, VISIT_GROUP_HEAD, VISIT_LOG_H, VISIT_NAME_MIN, VISIT_PAD,
-    VISIT_ROW_BUTTON_H, VISIT_TEXT_X, VISIT_TITLE_X, VISIT_WRITE_FOOT,
+    VISIT_ROW_BUTTON_H, VISIT_TEXT_X, VISIT_TICK_BOX_X, VISIT_TITLE_X, VISIT_WRITE_FOOT,
 };
 use faraday_draw::widgets::Icon;
 use faraday_text::Text;
@@ -49,6 +49,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     } else {
         PANES.place(cw, false)
     };
+    // A file's details stand where the pair does and a file is open: the
+    // one predicate for the details, the bar's arrow and the file's name.
+    let details_stand = pair.is_some() && crate::row_open::opened(app).is_some();
     // Else the two columns keep the width they read at, centred in
     // Files' room.
     let (room_x, cw_all) = (x0, cw);
@@ -70,7 +73,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         app.visit.bar(crate::Column::Stick).set(None);
         12.0
     } else {
-        super::bar_head(ui, None, EN.files_files) + GAP_SMALL
+        super::row_details::bar_when(app, ui, EN.files_files, details_stand) + GAP_SMALL
     };
     // A stick in with nothing held, and the import's list not up: its files
     // can be written to and read. While the list stands, Faraday's own
@@ -198,7 +201,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         }
     }
     if !compact || !app.visit.tab_stick {
-        in_faraday(app, ui, (x, y, colw, colh), usable);
+        let opens = pair.is_some() && crate::row_open::files_opens(app);
+        in_faraday(app, ui, (x, y, colw, colh), (usable, opens));
     }
     if !compact || app.visit.tab_stick {
         let sx = match &pair {
@@ -206,7 +210,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             None if compact => x,
             None => x + colw + VISIT_GAP,
         };
-        if let Some(i) = &import {
+        // A file's details stand in the stick's place; the stick's own state
+        // is not touched, so Back returns it as it was.
+        if details_stand {
+            super::row_details::draw(app, ui, (sx, y, stick_w, colh));
+        } else if let Some(i) = &import {
             crate::boot_import::screen::tile(app, ui, (sx, y, stick_w, colh), i);
         } else {
             on_the_stick(app, ui, (sx, y, stick_w, colh), stick, page.is_some());
@@ -289,6 +297,10 @@ pub(crate) struct ListRow<'a> {
     pub(crate) main: Option<(Text, Style, Action)>,
     /// The name wraps onto more lines rather than ending in "…".
     pub(crate) wrap: bool,
+    /// What a press on the row's body opens (its details), and whether
+    /// they are open now: the row then shows the chevron, the tick box is
+    /// its own press and the open row is marked.
+    pub(crate) open: Option<(Action, bool)>,
 }
 
 /// One [`ListRow`] in a card `colw` wide at `x`, its top at `ry`.
@@ -301,7 +313,12 @@ fn row_parts(ui: &Ui, r: &ListRow) -> (f32, f32, f32) {
         .as_ref()
         .map(|(l, ..)| ui.measure_as(TITLE_S, l) + 2.0 * BUTTON_PAD + GRID)
         .unwrap_or_default();
-    (lead, 48.0, main)
+    let chevron = if r.open.is_some() {
+        ICON_SMALL + GRID + GRID
+    } else {
+        0.0
+    };
+    (lead, 48.0 + chevron, main)
 }
 
 /// The room of a row's name.
@@ -323,11 +340,14 @@ fn extra_h(ui: &Ui, r: &ListRow, colw: f32) -> f32 {
 
 fn list_row(app: &View, ui: &mut Ui, (x, colw, ry): (f32, f32, f32), mut r: ListRow) -> f32 {
     let menu = r.menu.take();
+    let opens = r.open.is_some();
     let h = row(ui, (x, colw, ry), r);
     if let Some(menu) = menu
         && ui.shows(ry, h)
     {
-        crate::file_menu::dots(app, ui, x + colw - 20.0 - 32.0, ry + GRID, 32.0, menu);
+        let chevron = if opens { ICON_SMALL + GRID + GRID } else { 0.0 };
+        let at = x + colw - 20.0 - 32.0 - chevron;
+        crate::file_menu::dots(app, ui, at, ry + GRID, 32.0, menu);
     }
     h
 }
@@ -358,6 +378,17 @@ pub(crate) fn row(ui: &mut Ui, (x, colw, ry): (f32, f32, f32), mut r: ListRow) -
     let room = name_room(ui, &r, colw);
     let chk = super::visit_same::width(r.same);
     let dw = menu + main;
+    // The open row is marked as the session pane's is.
+    if let Some((_, true)) = r.open {
+        ui.fill(
+            x + GAP_SMALL,
+            ry,
+            colw - GAP_SMALL - GAP_SMALL,
+            ROW + extra,
+            SHAPE_M,
+            Role::SecondaryContainer,
+        );
+    }
     if r.same {
         super::visit_same::row(ui, (x, colw, ry), dw);
     }
@@ -401,7 +432,20 @@ pub(crate) fn row(ui: &mut Ui, (x, colw, ry): (f32, f32, f32), mut r: ListRow) -
         r.tag.0,
     );
     let (px, ph, pw) = (x + 12.0, 50.0, colw - 24.0);
-    if let Some(main) = dropped {
+    if let Some((open, _)) = r.open {
+        // The tick box is its own press, the body opens the details and
+        // the chevron, which the body does not reach, does too.
+        let mut from = px;
+        if let (Some(tick), true) = (r.action, r.ticked.is_some()) {
+            let bx = x + VISIT_TICK_BOX_X;
+            ui.press_box(bx, ry + (ROW - TOUCH) / 2.0, TOUCH, TOUCH, tick);
+            from = bx + TOUCH;
+        }
+        ui.press_box(from, ry, (px + pw - dw - from).max(0.0), ph, open);
+        ui.row_chevron(px + pw - GRID, ry, ROW, Role::OnSurfaceVariant);
+        // As wide as a touch target, out to the column's edge.
+        ui.press_box(x + colw - TOUCH, ry, TOUCH, ph, open);
+    } else if let Some(main) = dropped {
         let mut from = px;
         if let (Some(tick), true) = (r.action, r.ticked.is_some()) {
             from = x + lead;
@@ -468,6 +512,7 @@ fn vault_row<'a>(app: &'a View, v: usize, line: &'a str) -> ListRow<'a> {
             Action::Vault(crate::vault::VaultAction::Show(v)),
         )),
         wrap: true,
+        open: None,
     }
 }
 
@@ -544,7 +589,12 @@ fn out_state(app: &View, item: &crate::Item) -> (Text, (&'static str, Role)) {
 /// The left card, In Faraday, `(x, y, colw, colh)`: everything Faraday
 /// holds, and at its foot Write while a stick is in, else the line that
 /// files stay in memory.
-fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32), usable: bool) {
+fn in_faraday(
+    app: &View,
+    ui: &mut Ui,
+    (x, y, colw, colh): (f32, f32, f32, f32),
+    (usable, opens): (bool, bool),
+) {
     ui.card(x, y, colw, colh, Role::OutlineVariant);
     // A small panel's tab names the card, so its heading is left out and
     // only the controls that stood in it remain.
@@ -723,6 +773,7 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
                     menu: Some(crate::file_menu::Row::Out(k)),
                     main: None,
                     wrap: false,
+                    open: None,
                 },
             );
             hidden += below_foot(ry + ROW, foot);
@@ -780,6 +831,12 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
                 menu: Some(crate::file_menu::Row::In(k)),
                 main: main_action(app, k, item),
                 wrap: false,
+                // Where details open, the body opens them and only the box
+                // ticks; the open one is marked.
+                open: opens.then_some((
+                    Action::RowOpen(crate::row_open::Row::File(k)),
+                    crate::row_open::opened(app) == Some(crate::row_open::Opened::File(k)),
+                )),
             },
         );
         hidden += below_foot(ry + ROW, foot);
