@@ -2443,6 +2443,7 @@ impl crate::flow::Contained for SpendBackupSteps {
                 opens: card_code(id),
                 current: open == Some(id),
                 mark: None,
+                address: false,
             })
             .collect()
     }

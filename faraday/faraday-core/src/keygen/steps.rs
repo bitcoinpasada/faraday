@@ -118,6 +118,7 @@ pub(super) fn rows_of(k: &KeyGen) -> Vec<Row> {
                     opens: s,
                     current: is_open,
                     mark: None,
+                    address: false,
                 };
             }
             // The entries and the quiz show how far they are.
@@ -130,6 +131,7 @@ pub(super) fn rows_of(k: &KeyGen) -> Vec<Row> {
                 opens: s,
                 current: is_open,
                 mark: None,
+                address: false,
             }
         })
         .collect()
@@ -229,6 +231,7 @@ impl crate::flow::Contained for KeyGenSteps {
             opens: MADE,
             current: true,
             mark: None,
+            address: false,
         });
         rows
     }

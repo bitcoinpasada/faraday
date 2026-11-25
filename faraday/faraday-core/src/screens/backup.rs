@@ -273,6 +273,7 @@ fn plan_draw(
         area: (x0, cw - panel_w),
         h,
         foot_h: 0.0,
+        pin: None,
         back: Some(backup_back(app, b)),
         heading: &heading,
         // From Create the wallet is the one just made, and the way on is
@@ -356,6 +357,7 @@ fn checklist_draw(
         area: (x0, cw),
         h,
         foot_h: 0.0,
+        pin: None,
         back: Some(backup_back(app, b)),
         heading: &heading,
         // From Create the wallet is the one just made, and the way on is

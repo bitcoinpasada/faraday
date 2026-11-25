@@ -1049,6 +1049,7 @@ impl crate::flow::Contained for SeedSteps {
                     opens: k,
                     current: s.open == Some(k),
                     mark: None,
+                    address: false,
                 }
             })
             .collect()

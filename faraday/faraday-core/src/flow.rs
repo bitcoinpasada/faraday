@@ -12,7 +12,7 @@ mod container;
 mod take_away;
 
 pub(crate) use choices::{KeyMark, Row, Title};
-pub(crate) use container::{Page, contained, pair_left};
+pub(crate) use container::{Page, Pin, contained, pair_left};
 
 use faraday_draw::widgets::Icon;
 

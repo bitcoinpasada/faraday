@@ -59,6 +59,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         area: (x0, cw),
         h,
         foot_h: 0.0,
+        pin: None,
         // Opened from anywhere else, the way back is where it was opened
         // from, by the trail (F77).
         back: app

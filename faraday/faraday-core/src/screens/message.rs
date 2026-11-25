@@ -4,7 +4,7 @@ use super::parts::{file_row, made_state, next_button, pin_button};
 use crate::drawing::{Scrolled, View};
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, short};
+use crate::ui::{Style, Ui};
 use crate::visible::first_line;
 use crate::{Action, Code, Screen, flow};
 use faraday_draw::tokens::{
@@ -64,7 +64,7 @@ impl crate::trail::StepFlow for MessageSteps {
 fn chosen_address(app: &crate::Faraday) -> Option<(String, bool)> {
     let m = app.message.state()?;
     if let Some(at) = m.at.as_ref() {
-        return Some((String::from(&*short(&at.address)), true));
+        return Some((at.address.to_string(), true));
     }
     let wl = app.session.wallets.get(m.wallet?)?;
     Some((
@@ -102,12 +102,16 @@ impl crate::flow::Contained for MessageSteps {
                         None => (m.open == Some(k)).then(|| EN.message_not_signed.to_string()),
                     },
                 };
-                crate::visible::choice_row(
+                let mut row = crate::visible::choice_row(
                     MSTEPS[usize::from(k)],
                     value.as_deref(),
                     k == mstep::ADDRESS && mono,
                     (k, m.open == Some(k)),
-                )
+                );
+                // An address picked is drawn whole; a wallet's receive
+                // address row is a name.
+                row.address = k == mstep::ADDRESS && mono;
+                row
             })
             .collect()
     }
@@ -219,6 +223,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         area: (x0, cw),
         h,
         foot_h: 0.0,
+        pin: None,
         back: Some(app.named_back((EN.message_wallets, Action::Nav(Screen::WalletsStart)))),
         heading: EN.message_sign_a_message,
         chip: None,

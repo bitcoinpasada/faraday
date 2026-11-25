@@ -30,6 +30,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         area: (x0, cw),
         h,
         foot_h: 0.0,
+        pin: None,
         back: Some(app.named_back((EN.silent_wallets, Action::Nav(s.back)))),
         heading: EN.silent_silent_payments,
         chip: None,

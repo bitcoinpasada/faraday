@@ -212,6 +212,8 @@ fn spend_opened(app: &mut Faraday, read: Option<Read>, silent: bool, at: usize) 
     };
     state.done[0] = true;
     app.wallets.set_spend(state);
+    // A new transaction's pane starts at its top.
+    app.scroll.set_choices_offset(0.0);
     app.refresh_spend();
     true
 }

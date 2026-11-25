@@ -9,6 +9,16 @@ use crate::ui::{Moves, Region, Ui, pal::*};
 use crate::{Action, Faraday};
 use faraday_draw::tokens::{self, BODY_S, COLUMN_MAX, MARGIN_COMPACT, MARGIN_WIDE, TITLE_M};
 
+/// A foot the flow declares for Your choices' pane: its height and its
+/// drawing at (x, y) in a width. The pane draws it pinned at its foot with a
+/// hairline over it; the rows and what the flow gives under them scroll above.
+pub(crate) struct Pin<'a> {
+    /// The drawing's height.
+    pub(crate) h: f32,
+    /// Draws it at (x, y) in a width.
+    pub(crate) draw: &'a dyn Fn(&mut Ui, f32, f32, f32),
+}
+
 /// What the container needs of the screen besides the flow's declaration.
 pub(crate) struct Page<'a> {
     /// The page area's left edge and width.
@@ -17,6 +27,9 @@ pub(crate) struct Page<'a> {
     pub(crate) h: f32,
     /// What a panel at the page's foot takes of that height.
     pub(crate) foot_h: f32,
+    /// What the flow keeps at the foot of Your choices' pane, outside what
+    /// scrolls there.
+    pub(crate) pin: Option<Pin<'a>>,
     /// The way back, on the top app bar over the flow.
     pub(crate) back: Option<(&'a str, Action)>,
     /// The flow's name, on the top app bar over it.
@@ -298,6 +311,7 @@ pub(crate) fn contained(
             lead: lead.as_ref(),
             pick: pick.as_ref(),
             take: take.as_ref(),
+            pin: page.pin.as_ref(),
             place: (px, pane_w, if left { clip_end } else { page.h }),
             top,
             offset: app.scroll.choices_offset(),

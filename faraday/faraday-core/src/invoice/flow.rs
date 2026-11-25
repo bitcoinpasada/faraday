@@ -112,6 +112,7 @@ impl Contained for InvoiceSteps {
                 opens: k,
                 current: s.open == k,
                 mark: None,
+                address: false,
             })
             .collect()
     }

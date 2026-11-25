@@ -169,5 +169,6 @@ pub(crate) fn choice_row(
         opens,
         current,
         mark: None,
+        address: false,
     }
 }

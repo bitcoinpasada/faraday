@@ -54,6 +54,16 @@ A flow hands the container, each frame, what only the flow knows:
   rows are the one way back to a step). The backup board's list is the
   exception: it stays in its own supporting pane at the right of the
   full-width step (§5), not under the rows.
+- **A foot pinned in the pane** (`Page::pin`: a height and a drawing): a flow
+  may keep one thing at the foot of Your choices' pane, outside what scrolls,
+  under a hairline, with the rows and what is under them scrolling above it.
+  Sign a transaction's signatures box and its primary stand there on the wide
+  layout where the primary does not sign (Lock and write, and what else
+  Finish shows); where it signs, the box stands after the facts in the
+  pane's scroll, so no way to sign is in view before them. Where the region
+  above the foot would hold under three rows, the pane draws the foot in the
+  scroll after what is under the rows. The small panel has no pane and keeps
+  its own foot.
 - **A first card that is a checklist** (`Contained::checklist`): Back up's
   items are the rows, an item pressed fades to its card, Back from an item
   opens the checklist, and Back from the checklist leaves the flow. An
@@ -186,6 +196,7 @@ of these); they open that step, and take no press while it is the open one. A
 key row draws its fingerprint in the mono face, whole, then the name in the
 body face, which is what is cut to fit, then the mark whole in the `Primary`
 role (the row's `mark`); a key row leaves out a name that could read as a mark.
+A row whose answer is an address (the row's `address`) draws it whole in the small mono face under the label, in groups of four wrapped only between groups, the first two and last two in the full ink and the middle in the quieter one; the row grows in height and is never cut to fit.
 The Lightning node key page stands as the same pair on the wide layout with
 a key loaded: each loaded key's two sources (ldk-node and Core Lightning) are
 the pick's rows, pressing what the buttons press, and the aezeed and
@@ -198,7 +209,7 @@ The private key is hidden whenever the node it shows changes or goes: another
 source, a file, an edit of the words or the passphrase, a read, a stick.
 A pane taller than the window scrolls within itself (LAYOUT §6), so a low
 window does not drop the pane. The scroll is one offset for every flow
-(`Scroll::choices`), set back to the top when a flow is opened. A flow's
+(`Scroll::choices`), set back to the top when a flow is opened and by Back. A flow's
 own right-hand panel is under its rows (§1). Its strings are the common
 ones.
 

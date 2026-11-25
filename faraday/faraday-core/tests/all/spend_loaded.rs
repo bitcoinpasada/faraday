@@ -189,8 +189,20 @@ fn spending_review(claimed: bool) -> Faraday {
 
 /// The single-key wallet's spend, with its key loaded or not.
 fn spending_with(claimed: bool, key_loaded: bool) -> Faraday {
+    spending_to(claimed, key_loaded, None)
+}
+
+/// The same, its first recipient's script `to` where given.
+fn spending_to(
+    claimed: bool,
+    key_loaded: bool,
+    to: Option<faraday_bip::bitcoin::ScriptBuf>,
+) -> Faraday {
     let kit = kit("spending");
     let mut psbt = testkit::unsigned(&kit).unwrap().inner().clone();
+    if let Some(script) = to {
+        psbt.unsigned_tx.output[0].script_pubkey = script;
+    }
     if claimed {
         let key = psbt.outputs[1]
             .bip32_derivation
@@ -414,6 +426,40 @@ fn window(app: &mut Faraday, (width, height): (u16, u16)) {
     let _ = app.frame();
 }
 
+/// The panel's To is the first recipient's address, every group of it drawn
+/// under the label, in order.
+#[test]
+fn the_panel_shows_the_first_recipient_whole() {
+    let mut app = spending_review(false);
+    window(&mut app, (1366, 768));
+    let kit = kit("spending");
+    let psbt = testkit::unsigned(&kit).unwrap().inner().clone();
+    let address = faraday_bip::bitcoin::Address::from_script(
+        &psbt.unsigned_tx.output[0].script_pubkey,
+        faraday_bip::bitcoin::Network::Testnet,
+    )
+    .unwrap()
+    .to_string();
+    let shown = crate::common::texts(&mut app);
+    let panel = shown
+        .iter()
+        .position(|t| t == "This transaction")
+        .unwrap_or_else(|| panic!("{shown:?}"));
+    let groups: Vec<&str> = address
+        .as_bytes()
+        .chunks(4)
+        .map(|c| std::str::from_utf8(c).unwrap())
+        .collect();
+    let mut at = panel;
+    for g in &groups {
+        at += shown[at..]
+            .iter()
+            .position(|t| t == g)
+            .unwrap_or_else(|| panic!("group {g} of {address}: {shown:?}"))
+            + 1;
+    }
+}
+
 /// Where `text` is drawn, the first of it: (x, y, w, h).
 fn drawn_at(app: &mut Faraday, text: &str) -> Option<(i32, i32, i32, i32)> {
     let _ = app.frame();
@@ -422,6 +468,119 @@ fn drawn_at(app: &mut Faraday, text: &str) -> Option<(i32, i32, i32, i32)> {
         .into_iter()
         .find(|(t, _)| t == text)
         .map(|b| b.1)
+}
+
+/// Where `text` is drawn in Your choices' pane, the first of it: (x, y, w, h).
+fn in_pane(app: &mut Faraday, pane_x: i32, text: &str) -> Option<(i32, i32, i32, i32)> {
+    app.drawn_text_boxes()
+        .plain()
+        .into_iter()
+        .find(|(t, b)| t == text && (pane_x..=pane_x + 40).contains(&b.0))
+        .map(|b| b.1)
+}
+
+/// A recipient of `len` characters on testnet or mainnet: 62 is a taproot
+/// address, 74 the longest segwit one (version 1, a 40-byte program).
+fn recipient(len: usize) -> faraday_bip::bitcoin::ScriptBuf {
+    use faraday_bip::bitcoin::ScriptBuf;
+    let mut script = vec![0x51u8];
+    let program = if len == 62 { 32 } else { 40 };
+    script.push(u8::try_from(program).unwrap());
+    script.extend((0..program).map(|k| u8::try_from(k * 5 + 3).unwrap()));
+    ScriptBuf::from_bytes(script)
+}
+
+/// Scrolls Your choices' pane to its end; returns the pane's left edge.
+fn scroll_pane_to_end(app: &mut Faraday) -> i32 {
+    let head = drawn_at(app, "Your choices").expect("the pane is shown");
+    let (x, y) = (
+        u16::try_from(head.0 + 20).unwrap(),
+        u16::try_from(head.1 + 80).unwrap(),
+    );
+    app.event(Event::Hover { x, y });
+    app.event(Event::Scroll { x, y, dy: 4000 });
+    app.event(Event::ScrollEnd { x, y });
+    app.settle();
+    head.0
+}
+
+/// Where the primary signs, the signatures box stands after the facts in
+/// the pane's scroll: no way to sign is in view until the facts are scrolled
+/// past on a low window, and at its end each fact stands above the box.
+#[test]
+fn the_signing_primary_stands_after_the_facts_in_the_panes_scroll() {
+    const FACTS: [&str; 6] = ["Wallet", "Sends", "To", "Fee", "Change", "Txid"];
+    for size in [(1366, 600), (1366, 768)] {
+        for len in [62, 74] {
+            let mut app = spending_to(false, true, Some(recipient(len)));
+            window(&mut app, size);
+            let at = format!("{size:?} with {len} characters");
+            assert!(
+                !crate::common::offered(&mut app, Action::Primary),
+                "the signing primary is not in view before the facts are scrolled past at {at}"
+            );
+            let pane_x = scroll_pane_to_end(&mut app);
+            assert!(
+                crate::common::offered(&mut app, Action::Primary),
+                "the primary is in view at the pane's end at {at}"
+            );
+            let (_, box_y, _, _) = in_pane(&mut app, pane_x, "Signatures").expect("the box");
+            for fact in FACTS {
+                let (_, y, _, h) = in_pane(&mut app, pane_x, fact)
+                    .unwrap_or_else(|| panic!("{fact} is drawn at {at}"));
+                assert!(
+                    y + h <= box_y,
+                    "{fact} (y {y}) is above the box (y {box_y}) at {at}"
+                );
+            }
+        }
+    }
+}
+
+/// A first recipient whose script has no address form (an OP_RETURN, a long
+/// non-standard script) is drawn in the short form, and the pane's scroll
+/// stays bounded: its whole text is never laid out in groups.
+#[test]
+fn a_recipient_without_an_address_form_is_drawn_short_and_bounded() {
+    use faraday_bip::bitcoin::ScriptBuf;
+    let mut op_return = vec![0x6a, 0x4c, 80];
+    op_return.extend((0..80u8).map(|k| k.wrapping_mul(3)));
+    let mut long = vec![0x51u8; 3000];
+    long.push(0x75);
+    // Version 0 with a 25-byte program has no address form (only 20 or 32
+    // bytes do): named by its hex, it is drawn short too.
+    let mut v0 = vec![0x00, 25];
+    v0.extend((0..25u8).map(|k| k.wrapping_mul(7)));
+    let mut ends = Vec::new();
+    for script in [op_return, long, v0] {
+        let mut app = spending_to(false, true, Some(ScriptBuf::from_bytes(script)));
+        window(&mut app, (1366, 600));
+        let before = app.choices_offset();
+        let pane_x = scroll_pane_to_end(&mut app);
+        ends.push(app.choices_offset() - before);
+        let _ = app.frame();
+        let grouped = in_pane(&mut app, pane_x, "6a4c");
+        assert!(grouped.is_none(), "the script is not drawn in groups");
+        assert!(
+            in_pane(&mut app, pane_x, "stan").is_none(),
+            "a named script is not drawn as an address"
+        );
+    }
+    assert!(
+        ends.iter().all(|e| *e < 800.0),
+        "the pane's scroll is bounded: {ends:?}"
+    );
+}
+
+/// A new transaction taken up opens the pane at its top.
+#[test]
+fn a_new_transaction_opens_the_pane_at_its_top() {
+    let mut app = spending_review(false);
+    window(&mut app, (1366, 600));
+    scroll_pane_to_end(&mut app);
+    assert!(app.choices_offset() > 0.0, "the pane scrolled");
+    app.press(Action::StartSpend(0));
+    assert_eq!(app.choices_offset(), 0.0, "the pane is at its top");
 }
 
 /// On a wide window one step's card is drawn at a time, and the pane holds
@@ -455,29 +614,24 @@ fn a_wide_window_shows_one_step_and_the_review_under_your_choices() {
     );
 }
 
-/// On a low wide window the pane scrolls within itself, and the signatures
-/// box under the facts is reached by it.
+/// On a low wide window the facts are reached by scrolling the pane, Txid
+/// too, and the signing action stands after them.
 #[test]
-fn on_a_low_wide_window_the_signatures_box_is_reached_by_scrolling_the_pane() {
+fn on_a_low_wide_window_the_facts_are_reached_by_scrolling_the_pane() {
     let mut app = spending_review(false);
     window(&mut app, (1366, 600));
     assert!(
         !crate::common::offered(&mut app, Action::Primary),
-        "the box is below the window"
+        "the box's action is after the facts"
     );
-    let head = drawn_at(&mut app, "Your choices").expect("the pane is shown");
-    let (x, y) = (
-        u16::try_from(head.0 + 20).unwrap(),
-        u16::try_from(head.1 + 80).unwrap(),
-    );
-    app.event(Event::Hover { x, y });
-    app.event(Event::Scroll { x, y, dy: 1200 });
-    app.event(Event::ScrollEnd { x, y });
-    app.settle();
+    let pane_x = scroll_pane_to_end(&mut app);
     assert!(app.choices_offset() > 0.0, "the pane scrolled");
+    let (_, box_y, _, _) = in_pane(&mut app, pane_x, "Signatures").expect("the box");
+    let (_, txid_y, _, txid_h) = in_pane(&mut app, pane_x, "Txid").expect("Txid is reached");
+    assert!(txid_y + txid_h <= box_y, "Txid is above the box");
     assert!(
         crate::common::offered(&mut app, Action::Primary),
-        "the box's action is reached"
+        "the box's action is in view at the end"
     );
 }
 

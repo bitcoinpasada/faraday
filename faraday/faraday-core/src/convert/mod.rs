@@ -1876,6 +1876,7 @@ impl crate::flow::Contained for ConvertSteps {
                     opens: k,
                     current: s.open == Some(k),
                     mark: None,
+                    address: false,
                 }
             })
             .collect()
