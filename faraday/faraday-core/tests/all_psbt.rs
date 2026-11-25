@@ -75,6 +75,8 @@ mod list_detail;
 mod loose_key;
 #[path = "all/message_format.rs"]
 mod message_format;
+#[path = "all/message_pick.rs"]
+mod message_pick;
 #[path = "all/message_scan.rs"]
 mod message_scan;
 #[path = "all/message_take_away.rs"]

@@ -11,6 +11,7 @@ use faraday_draw::tokens::{
     BODY_M, BODY_S, BUTTON_H, GAP, MESSAGE_FIELD_MIN_H, MESSAGE_FIELD_PAD_X, MESSAGE_FIELD_PAD_Y,
     MESSAGE_SHOWN_GAP, TITLE_S,
 };
+use faraday_draw::widgets::Icon;
 use faraday_ui::parts::wrap_buttons;
 
 pub(crate) const MSTEPS: [&str; 4] = [
@@ -111,6 +112,55 @@ impl crate::flow::Contained for MessageSteps {
             .collect()
     }
 
+    fn pick(&self, app: &crate::Faraday, k: u8) -> Option<flow::Pick> {
+        // Every wallet is a row; one that cannot sign a message is dimmed
+        // with its reason. Labels only.
+        app.message.state()?;
+        if k != crate::mstep::ADDRESS {
+            return None;
+        }
+        let m = app.message.state()?;
+        let usable = app.session.message_wallets();
+        let rows: Vec<_> = app
+            .session
+            .wallets
+            .iter()
+            .enumerate()
+            .map(|(i, wl)| {
+                let on = usable.contains(&i);
+                let single = matches!(
+                    crate::wallet::Kind::of(wl.policy()),
+                    crate::wallet::Kind::Single(_)
+                );
+                let row = crate::pick::PickRow::pick(
+                    Icon::Wallet,
+                    String::from(&*wl.name),
+                    if on {
+                        String::from(&*crate::wallet::Session::shape(wl))
+                    } else {
+                        String::new()
+                    },
+                    on && m.wallet == Some(i),
+                    Action::MWallet(i),
+                );
+                if on {
+                    row
+                } else if single {
+                    row.dimmed_for(EN.message_key_not_held)
+                } else {
+                    row.dimmed_for(EN.message_single_key_only)
+                }
+            })
+            .collect();
+        Some(flow::Pick {
+            question: EN.message_which_wallet,
+            groups: vec![flow::PickGroup {
+                head: EN.session_group_wallets,
+                rows,
+            }],
+        })
+    }
+
     fn hide_shown(&self, _: &mut crate::Faraday) {
         // The message and its signature are public: nothing is shown behind an eye.
     }
@@ -190,16 +240,21 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, (x, y, w): (f32, f32, f32), area
     let mut cy = y;
     match n {
         mstep::ADDRESS => {
-            let mut bx = x;
-            let wallets = app.session.message_wallets();
-            let any = !wallets.is_empty();
-            for wi in wallets {
-                let wl = &app.session.wallets[wi];
-                let style = Style::chosen(m.wallet == Some(wi));
-                bx += ui.button(bx, cy, None, BUTTON_H, &wl.name, style, Action::MWallet(wi)) + 8.0;
-            }
-            if any {
-                cy += 48.0;
+            // Where the pair stands the wallets are the pane's rows
+            // (`flow::Contained::pick`); on other sizes they are buttons here.
+            if !flow::pair_left(app, &MESSAGE_STEPS, ui.compact, area_w) {
+                let mut bx = x;
+                let wallets = app.session.message_wallets();
+                let any = !wallets.is_empty();
+                for wi in wallets {
+                    let wl = &app.session.wallets[wi];
+                    let style = Style::chosen(m.wallet == Some(wi));
+                    bx += ui.button(bx, cy, None, BUTTON_H, &wl.name, style, Action::MWallet(wi))
+                        + 8.0;
+                }
+                if any {
+                    cy += 48.0;
+                }
             }
             let wallet = m.wallet.and_then(|wi| app.session.wallets.get(wi));
             // What the card shows: the label's text, the address, and the

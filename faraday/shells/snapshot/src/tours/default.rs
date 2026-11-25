@@ -891,6 +891,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
         .iter()
         .position(|w| w.name == "Spending")
         .ok_or("no Spending")?;
+    t.shot("message-wallet")?;
     t.press(Action::MWallet(spending));
     t.press(Action::MNext(0));
     for c in "I control this address.".chars() {

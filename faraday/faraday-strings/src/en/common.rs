@@ -982,6 +982,12 @@ macro_rules! words_common {
     message_not_signed: "Not signed yet",
     /// Text in `message_screen`.
     message_wallets: "Wallets",
+    /// Question over the wallets in `MessageSteps::pick`.
+    message_which_wallet: "Which wallet signs?",
+    /// Reason of a dimmed row in `MessageSteps::pick`: a multisig wallet.
+    message_single_key_only: "Single-key wallets only",
+    /// Reason of a dimmed row in `MessageSteps::pick`: its key is not loaded.
+    message_key_not_held: "Its key is not loaded",
     /// Text in `message_screen`.
     message_sign_a_message: "Sign a message",
     /// Text in `message_body`. `{}`: `m.index`.
