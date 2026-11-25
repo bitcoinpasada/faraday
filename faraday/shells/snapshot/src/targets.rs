@@ -356,6 +356,7 @@ walks! {
     walk_boardunsorted = Some("boardunsorted"),
     walk_menu = Some("menu"),
     walk_rowdetails = Some("rowdetails"),
+    walk_band = Some("band"),
     walk_seed_pick = Some("seed-pick"),
     walk_m3 = Some("m3"),
     walk_inbox = Some("inbox"),

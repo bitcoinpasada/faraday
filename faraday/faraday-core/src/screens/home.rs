@@ -65,6 +65,9 @@ pub(crate) struct LeadCard {
     /// False for a job that cannot be done here yet; its second line
     /// then says why.
     pub enabled: bool,
+    /// Whether a menu page's Waiting band holds the job besides the lead: a
+    /// waiting PSBT, an import put off, a locked vault file.
+    pub banded: bool,
 }
 
 /// One job §2 ranks: the flow it opens or starts over when it is one that
@@ -74,6 +77,13 @@ struct Job {
     going: Option<Going>,
     pi: Lead,
     card: LeadCard,
+}
+
+/// Marks the job last pushed as one a menu page's Waiting band holds.
+fn banded(v: &mut [Job]) {
+    if let Some(j) = v.last_mut() {
+        j.card.banded = true;
+    }
 }
 
 /// A job: `pi` as the one-column Home words it, and the card with
@@ -86,6 +96,7 @@ fn job(going: Option<Going>, pi: Lead, button: &'static str, line: String, under
         button,
         action: pi.3,
         enabled: pi.4,
+        banded: false,
     };
     Job { going, pi, card }
 }
@@ -182,6 +193,7 @@ fn home_jobs(app: &View, all: bool) -> Vec<Job> {
             app.inbox[i].name.to_string(),
             EN.home_job_from_files.to_string(),
         ));
+        banded(&mut v);
     }
     // An import waiting (F60). Put off after Import with a vault it
     // brought still locked, it is that vault's Unlock, on the sheet.
@@ -218,6 +230,7 @@ fn home_jobs(app: &View, all: bool) -> Vec<Job> {
             )
         };
         v.push(j);
+        banded(&mut v);
     }
     // A receipt from this power-on's last stick visit, and nothing
     // loaded.
@@ -253,6 +266,7 @@ fn home_jobs(app: &View, all: bool) -> Vec<Job> {
             .collect::<Vec<_>>();
         for &i in locked.iter().take(if all { usize::MAX } else { 1 }) {
             v.push(locked_job(app, i));
+            banded(&mut v);
         }
     }
     // A vault changed since it was written.
@@ -421,6 +435,22 @@ pub(super) fn pane_jobs(app: &View) -> Vec<(Option<Going>, LeadCard)> {
     home_jobs(app, true)
         .into_iter()
         .map(|j| (j.going, j.card))
+        .collect()
+}
+
+/// The jobs a menu page's Waiting band holds (`docs/WORKSPACE.md` §2): the
+/// lead, then each waiting PSBT, import put off and locked vault file; not a
+/// backup, the last write or files to write.
+pub(super) fn band_jobs(app: &View) -> Vec<(Option<Going>, LeadCard)> {
+    let lead = lead_job(app, false);
+    pane_jobs(app)
+        .into_iter()
+        .filter(|(_, c)| {
+            c.banded
+                || lead
+                    .as_ref()
+                    .is_some_and(|(_, l)| l.line == c.line && l.action == c.action)
+        })
         .collect()
 }
 

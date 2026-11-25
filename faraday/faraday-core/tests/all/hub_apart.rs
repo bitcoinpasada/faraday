@@ -86,13 +86,13 @@ fn with_psbt(width: u16, height: u16) -> Faraday {
 }
 
 #[test]
-fn tools_with_a_psbt_waiting_lists_files_before_keys() {
+fn tools_with_a_psbt_waiting_has_it_in_the_band_under_the_keys() {
     let mut app = with_psbt(1366, 768);
     common::add_key(&mut app, faraday_core::testkit::TEST_SEEDS[0].0);
     app.press(Action::Nav(Screen::Catalog));
-    let (_, files_y) = at(&mut app, EN.session_group_files);
+    let (_, waiting_y) = at(&mut app, EN.session_group_waiting);
     let (_, keys_y) = at(&mut app, EN.session_group_keys);
-    assert!(files_y < keys_y, "the waiting PSBT's group comes first");
+    assert!(keys_y < waiting_y, "Waiting is the band at the pane's foot");
 }
 
 #[test]

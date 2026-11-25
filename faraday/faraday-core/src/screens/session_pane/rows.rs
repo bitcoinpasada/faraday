@@ -15,6 +15,8 @@ pub(crate) struct Group {
     pub label: &'static str,
     /// The rows, never none.
     pub rows: Vec<SessionRow>,
+    /// The Waiting band at the pane's foot: always the last group.
+    pub band: bool,
 }
 
 /// The pane's groups in their order: Waiting, Wallets (Backups last), Keys.
@@ -28,15 +30,28 @@ pub(crate) fn groups(app: &View) -> Vec<Group> {
 }
 
 fn home_groups(app: &View) -> Vec<Group> {
-    [
-        (EN.session_group_waiting, waiting_rows(app)),
-        (EN.session_group_wallets, wallet_rows(app)),
-        (EN.session_group_keys, key_rows(app)),
-    ]
-    .into_iter()
-    .filter(|(_, rows)| !rows.is_empty())
-    .map(|(label, rows)| Group { label, rows })
-    .collect()
+    with_band(
+        [
+            (EN.session_group_keys, key_rows(app)),
+            (EN.session_group_wallets, wallet_rows(app)),
+        ],
+        waiting_rows(app),
+    )
+}
+
+/// The pane's groups: `groups` in their order, those with no rows left
+/// out, then Waiting as the band at the foot, left out with no rows.
+pub(super) fn with_band(
+    groups: impl IntoIterator<Item = (&'static str, Vec<SessionRow>)>,
+    waiting: Vec<SessionRow>,
+) -> Vec<Group> {
+    groups
+        .into_iter()
+        .map(|(label, rows)| (label, rows, false))
+        .chain(std::iter::once((EN.session_group_waiting, waiting, true)))
+        .filter(|(_, rows, _)| !rows.is_empty())
+        .map(|(label, rows, band)| Group { label, rows, band })
+        .collect()
 }
 
 /// A row of the wide card: wrapping its second line.

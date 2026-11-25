@@ -137,6 +137,8 @@ mod secure_boot_sign;
 mod select;
 #[path = "all/selftest.rs"]
 mod selftest;
+#[path = "all/session_band.rs"]
+mod session_band;
 #[path = "all/settings_columns.rs"]
 mod settings_columns;
 #[path = "all/settings_tile.rs"]

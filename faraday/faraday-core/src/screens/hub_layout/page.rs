@@ -10,7 +10,9 @@ use super::{Left, Panes, home_area, level};
 use crate::drawing::View;
 use crate::screens::catalog::{Bar, home_results};
 use crate::screens::menu_page::{Page, Section, page_span, sections_height};
-use crate::screens::session_pane::{draw_page_pane, page_content_h, pane_groups, stacked_card};
+use crate::screens::session_pane::{
+    draw_page_pane, page_content_h, pane_groups, stacked_card, stacked_card_h,
+};
 use crate::ui::pal::*;
 use crate::ui::{Region, Ui};
 use faraday_draw::tokens::{ELEVATION_FAB, MARGIN_WIDE, PAD, PANE_TOP_BAR, SHAPE_M};
@@ -70,19 +72,7 @@ pub(crate) fn draw_results(
 /// Draws the open row's details placed the same way, on Home: under
 /// This session's card where they fit, else beside it. Returns false,
 /// drawing nothing, where the room holds neither.
-pub(crate) fn draw_details(
-    app: &View,
-    ui: &mut Ui,
-    area: (f32, f32, f32),
-    mut panes: Panes,
-) -> bool {
-    // A wallet's page fills the room it is given: it stands beside.
-    if matches!(
-        crate::row_open::opened(app),
-        Some(crate::row_open::Opened::Wallet(_))
-    ) {
-        panes.stacks = false;
-    }
+pub(crate) fn draw_details(app: &View, ui: &mut Ui, area: (f32, f32, f32), panes: Panes) -> bool {
     let body =
         |ui: &mut Ui, _: (f32, f32), w: f32| crate::screens::row_details::content_h(app, ui, w);
     placed(app, ui, area, &body, panes)
@@ -96,7 +86,7 @@ fn placed(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), body: Body, pan
     };
     let top = PANE_TOP_BAR;
     let (hx, hw) = home_span(cw);
-    let card_h = crate::menu::measure(ui, &mut |ui| stacked_card(app, ui, (0.0, 0.0), hw));
+    let card_h = stacked_card_h(app, ui, hw);
     let tile_h = crate::menu::measure(ui, &mut |ui| tile_content(ui, (0.0, 0.0, hw), body));
     if let Some(under) = panes.stack(top, card_h, tile_h, h) {
         // Details scroll in their own area, under a card that stands
@@ -122,28 +112,28 @@ fn placed(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), body: Body, pan
     };
     app.stood_apart();
     let groups = pane_groups(app, mode);
-    let pane_need = page_content_h(ui, p.pane_w, &groups);
-    let tile_need =
-        crate::menu::measure(ui, &mut |ui| tile_content(ui, (0.0, 0.0, p.card_w), body));
-    let both = level(pane_need, tile_need, (h - top - MARGIN_WIDE).max(0.0));
     let tx = x0 + p.card_x;
     // A row's details stand in the tile's place, both panes the window's
-    // height.
+    // height; their page is not measured again here.
     let room = (h - top - MARGIN_WIDE).max(0.0);
     if crate::row_open::opened(app).is_some() {
         draw_page_pane(
             ui,
             (x0 + p.pane_x, top, p.pane_w, room),
-            app.scroll.home_box_offset(),
+            (app.scroll.home_box_offset(), app.scroll.home_band_offset()),
             &groups,
         );
         crate::screens::row_details::draw(app, ui, (tx, top, p.card_w, room));
         return true;
     }
+    let pane_need = page_content_h(ui, p.pane_w, &groups);
+    let tile_need =
+        crate::menu::measure(ui, &mut |ui| tile_content(ui, (0.0, 0.0, p.card_w), body));
+    let both = level(pane_need, tile_need, room);
     draw_page_pane(
         ui,
         (x0 + p.pane_x, top, p.pane_w, both),
-        app.scroll.home_box_offset(),
+        (app.scroll.home_box_offset(), app.scroll.home_band_offset()),
         &groups,
     );
     tile_surface(ui, (tx, top, p.card_w, both));

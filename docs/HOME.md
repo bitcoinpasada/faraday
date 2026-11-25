@@ -144,11 +144,11 @@ top left, "This session" (Title Large, SemiBold; `home_box_heading`); three
 groups stand under small headings (Title Small), in this order, a group with
 no rows not drawn (F323):
 
-- **Waiting**: the lead and every other job of §2 as rows with their buttons
-  under their lines (one for each waiting PSBT and each locked vault file),
-  then a row for each flow in progress (its name, its open step under it,
-  Resume), and while files wait to be written, a row with their count,
-  opening Files;
+- **Keys**: a row for every key held, no cap: its fingerprint, under it its
+  name in full (none when the name is the fingerprint), "passphrase" when the
+  key was loaded with one and the wallet that uses it ("Used by {wallet}"),
+  else "No wallet uses it". The row opens the key (`Action::ExploreKey`; on the wide layout its details in Home's second pane, `docs/WORKSPACE.md` §7). There
+  is no All keys row and no Make a wallet button here;
 - **Wallets**: a row for every loaded wallet, ranked (the wallets the keys here
   sign for alone first, then those with some keys here, then watch-only): its
   name and, under it, the first that applies, "Signatures {n} of {m}" while its
@@ -157,11 +157,11 @@ no rows not drawn (F323):
   wallet that needs something has the warning icon. The row opens the wallet's
   card on Wallets (`Action::OpenWallet`), on the wide layout in Home's second pane (`Action::RowOpen`), and has no button; **Backups** is the
   last row, with the shield icon, only while something is not backed up;
-- **Keys**: a row for every key held, no cap: its fingerprint, under it its
-  name in full (none when the name is the fingerprint), "passphrase" when the
-  key was loaded with one and the wallet that uses it ("Used by {wallet}"),
-  else "No wallet uses it". The row opens the key (`Action::ExploreKey`; on the wide layout its details in Home's second pane, `docs/WORKSPACE.md` §7). There
-  is no All keys row and no Make a wallet button here.
+- **Waiting**, last, the band across the card's foot (outside the part that scrolls, a hairline over it, at most a third of the card's height and scrolling within itself, its rows in columns on a wide card): the lead and every other job of §2 as rows with their buttons
+  under their lines (one for each waiting PSBT and each locked vault file),
+  then a row for each flow in progress (its name, its open step under it,
+  Resume), and while files wait to be written, a row with their count,
+  opening Files.
 
 The groups stand in as many columns as fit of at least 336 dp
 (`SESSION_COL_MIN`), 24 dp apart, each group whole and the next into the
