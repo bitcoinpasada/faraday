@@ -76,6 +76,8 @@ pub fn handle(name: &str, req: &Value) -> Answer {
 }
 
 const XPUB: &str = "[73c5da0a/84h/0h/0h]xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V";
+/// A silent payments wallet's record, as `SilentWallet::to_text` writes it.
+const SILENT: &str = "faraday-silent 1\nnetwork testnet\nkey [0f056943/352h/1h/0h]\nlabels 0\ntsp1qqgdw87ws322c7wjaqnzvl5ynv43sarr7ch2nrj6fwn24uv6jxks7jqa2e7v932angyh6q7p540es9xkkmljm54cl2y2fccfyvndt5shrpypt9x3f";
 const DER: &[u8] = &[0x30, 0x03, 0x02, 0x01, 0x01];
 /// BIP 93's vector 2: a share of it and the fingerprint of its key.
 const SHARE: &str = "ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn";
@@ -180,6 +182,13 @@ fn item(n: usize, v: &Value) -> Put {
         "wallet_descriptor" => rec(
             Record::new(kind::WALLET)
                 .with(field::WALLET, format!("wpkh({XPUB}/<0;1>/*)").as_bytes())
+                .with(field::WALLET_NAME, s(v, "name").as_bytes()),
+            "Wallets",
+            "",
+        ),
+        "wallet_silent" => rec(
+            Record::new(kind::WALLET)
+                .with(field::WALLET, SILENT.as_bytes())
                 .with(field::WALLET_NAME, s(v, "name").as_bytes()),
             "Wallets",
             "",

@@ -5,6 +5,7 @@
 use alloc::vec::Vec;
 
 use faraday_bip::policy::WalletPolicy;
+use faraday_bip::silent_wallet::SilentWallet;
 use faraday_crypto::work::Compute;
 use zeroize::Zeroizing;
 
@@ -166,7 +167,10 @@ fn fields_for(c: &Compute, body: &Body, title: &str) -> Result<(Pairs, Pairs), U
         kind::WALLET => {
             fl.push(("Title", z(text_of(r, field::WALLET_NAME)), false));
             let text = text_of(r, field::WALLET);
-            let name = if WalletPolicy::parse(c, text).is_ok() {
+            let silent = SilentWallet::parse(text).is_some_and(|s| s.to_text() == text);
+            let name = if silent {
+                "silent"
+            } else if WalletPolicy::parse(c, text).is_ok() {
                 "policy"
             } else {
                 "descriptor"

@@ -685,7 +685,7 @@ class Vault(Area):
         if kind == "seed_hex":
             return {"kind": kind, "seed": rng.randbytes(rng.randint(16, 64)).hex(),
                     "title": label()}
-        if kind in ("wallet_policy", "wallet_descriptor"):
+        if kind in ("wallet_policy", "wallet_descriptor", "wallet_silent"):
             return {"kind": kind, "name": label()}
         if kind == "sheet":
             return {"kind": kind, "descriptor": word(rng, 1, 60), "name": label(),

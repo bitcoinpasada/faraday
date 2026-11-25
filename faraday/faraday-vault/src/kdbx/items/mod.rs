@@ -61,6 +61,7 @@ use alloc::vec::Vec;
 use faraday_bip::bip39::Language;
 use faraday_bip::descriptor::reads_as_descriptor;
 use faraday_bip::policy::WalletPolicy;
+use faraday_bip::silent_wallet::SilentWallet;
 use faraday_crypto::work::Compute;
 use faraday_text::Text;
 
@@ -121,7 +122,7 @@ const KINDS: [(&str, u8); 9] = [
 fn named(k: u8) -> &'static [&'static str] {
     match k {
         kind::KEY => &["Title", "Password", "hex", "list", "passphrase"],
-        kind::WALLET => &["Title", "policy", "descriptor"],
+        kind::WALLET => &["Title", "policy", "descriptor", "silent"],
         kind::NOTE => &["Title", "Notes"],
         kind::SHEET => &["Title", "descriptor", "Notes"],
         kind::GPG => &["Title", "key", "public", "revocation", "revoked"],
@@ -245,17 +246,27 @@ fn checked(r: Record) -> Result<Body, Damage> {
     Ok(Body::Record(r))
 }
 
-/// The two values of an exclusive pair: exactly one.
+/// The values of an exclusive set of fields: exactly one. None is
+/// missing at the first name; two or more are twice, at the last of them.
 fn one_of<'a>(
     f: &mut Fields<'a>,
-    a: &'static str,
-    b: &'static str,
+    names: &[&'static str],
 ) -> Result<(&'static str, &'a str), Damage> {
-    match (f.get(a), f.get(b)) {
-        (Some(v), None) => Ok((a, v)),
-        (None, Some(v)) => Ok((b, v)),
-        (None, None) => Err(damage(a, Fault::Missing)),
-        (Some(_), Some(_)) => Err(damage(b, Fault::Twice)),
+    let mut found = None;
+    let mut twice = None;
+    for &n in names {
+        if let Some(v) = f.get(n) {
+            if found.is_some() {
+                twice = Some(n);
+            } else {
+                found = Some((n, v));
+            }
+        }
+    }
+    match (found, twice) {
+        (Some(pair), None) => Ok(pair),
+        (_, Some(n)) => Err(damage(n, Fault::Twice)),
+        (None, None) => Err(damage(names[0], Fault::Missing)),
     }
 }
 
@@ -279,7 +290,7 @@ fn is_default_title(title: &str) -> bool {
 /// Costs a parse of the words: a seed item as its key record.
 fn read_seed(c: &Compute, e: &Entry, f: &mut Fields<'_>) -> Result<Body, Damage> {
     let mut r = Record::new(kind::KEY);
-    let (which, value) = one_of(f, "Password", "hex")?;
+    let (which, value) = one_of(f, &["Password", "hex"])?;
     let payload = if which == "Password" {
         let lang = match f.get("list") {
             None => Language::English,
@@ -493,7 +504,7 @@ fn wallet_form_reads(which: &str, text: &str) -> bool {
     any
 }
 
-/// Costs a parse of the words, a policy or a descriptor (two of a wallet
+/// Costs a parse of the words, a policy, a descriptor or a silent record (two of a wallet
 /// the rules refuse, which is read again for its reason): an item of kind
 /// `k` as its body.
 fn read_kind(c: &Compute, k: u8, e: &Entry) -> Result<Body, Damage> {
@@ -505,8 +516,18 @@ fn read_kind(c: &Compute, k: u8, e: &Entry) -> Result<Body, Damage> {
         kind::KEY => read_seed(c, e, &mut f)?,
         kind::WALLET => {
             let mut r = Record::new(kind::WALLET);
-            let (which, text) = one_of(&mut f, "policy", "descriptor")?;
-            let reads = if which == "policy" {
+            let (which, text) = one_of(&mut f, &["policy", "descriptor", "silent"])?;
+            if which == "silent" {
+                // Read only by the record's own strict reader, and only
+                // in the one spelling `to_text` writes.
+                let exact = SilentWallet::parse(text).is_some_and(|w| w.to_text() == text);
+                if !exact {
+                    return Err(damage("silent", Fault::Value));
+                }
+            }
+            let reads = if which == "silent" {
+                true
+            } else if which == "policy" {
                 WalletPolicy::parse(c, text).is_ok()
             } else {
                 reads_as_descriptor(c, text)

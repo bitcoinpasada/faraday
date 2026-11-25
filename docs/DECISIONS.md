@@ -343,3 +343,4 @@ Read this table, then only the decision you need.
 | [F332](decisions/F332.md) | What can be pressed shows it: a chevron opens, a radio or a box chooses, an icon and a verb act, and a fact looks like none of them | 2026-11-24 | Active | design |
 | [F333](decisions/F333.md) | Settings' Mode is a segmented button in its card, and a press on another asks first in one sheet | 2026-11-24 | Active | design |
 | [F334](decisions/F334.md) | A flow in progress is a number on its sidebar tab, with no row under it | 2026-11-24 | Active | design |
+| [F335](decisions/F335.md) | A silent payments wallet's record is kept in the vault file's `silent` field | 2026-11-25 | Active | vault |

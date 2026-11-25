@@ -1,7 +1,7 @@
 # The Faraday vault
 
 **Kind:** Reference
-**Status:** Built (F190; F208; F227); the app reads and seals KDBX 4 file vaults, each seal under the vault's own passphrase, growing by itself from 32 KiB to 128 MiB and at the memory step at or above its own.
+**Status:** Built (F190; F208; F227; F335); the app reads and seals KDBX 4 file vaults, each seal under the vault's own passphrase, growing by itself from 32 KiB to 128 MiB and at the memory step at or above its own.
 
 A vault is one file encrypted under one passphrase with Argon2id, a
 KDBX 4 database (F190), the format of KeePass, holding the person's
@@ -787,7 +787,7 @@ standard fields it leaves empty, must be absent or empty:
 | Kind (`faraday.kind`), group | Record type | Fields, and the published form of each | Custom data |
 |---|---|---|---|
 | `seed`, Bitcoin keys | 2 | `Title`: its label, or "Key {fingerprint}". `Password` (protected): the BIP-39 words of its list, one space between; or `hex` (protected): a BIP-32 seed of 16 to 64 bytes in lower-case hex; exactly one of the two. `list`: a list other than English (`japanese`, `korean`, `spanish`, `chinese-simplified`, `chinese-traditional`, `french`, `italian`, `czech`, `portuguese`). `passphrase` (protected): its BIP-39 passphrase, present only when the person chose to keep it with the seed. | `faraday.load` `false` when it is not loaded at unlock (F62); `faraday.held` `true` while it was made in Faraday with its backup not done; `faraday.online` `true` when Faraday Demo wrote it on an online computer (never removed; Mainnet on the device keeps such a key only after a hold); `faraday.codex32`, `faraday.child`, `faraday.xor` and `faraday.slip39`, below |
-| `wallet`, Wallets | 3 | `Title`: its name. `policy`: its BIP-388 wallet policy, or `descriptor`: its descriptor (BIP 380) for a wallet with no policy form; exactly one. A wallet whose key has no origin is refused, never kept. | `faraday.load` as a seed's; `faraday.checked`, below |
+| `wallet`, Wallets | 3 | `Title`: its name. `policy`: its BIP-388 wallet policy, `descriptor`: its descriptor (BIP 380) for a wallet with no policy form, or `silent`: a silent payments wallet's record as `SilentWallet::to_text` writes it, read only in that one spelling (F335); exactly one. A Faraday without `silent` finds neither `policy` nor `descriptor` and reads the entry as damaged (a field missing). A wallet whose key has no origin is refused, never kept. | `faraday.load` as a seed's; `faraday.checked`, below. |
 | `note`, Notes | 4 | `Title`: "Note". `Notes`: the text. | |
 | `sheet`, Recovery sheets | 5 | `Title`: its name. `descriptor`. `Notes`: the sheet's note. The three together at most 16 KiB. | |
 | `gpg`, GPG keys | 7 | `Title`: the key's primary user ID. `key` (protected): the armored OpenPGP secret key as `gpg --export-secret-keys --armor` writes it, unprotected; required. `public`: the public certificate as last exported, armored. `revocation` (protected): the revocation certificate made with the key (F32), armored. `revoked`: when the key was marked revoked, an RFC 3339 date-time. | |
@@ -920,7 +920,7 @@ does not name, or a required one missing; words that are not a valid
 BIP-39 phrase of their list; a policy or descriptor that does not
 parse (one whose keys each read but a wallet rule refuses, such as a key
 repeated or keys of two networks, is listed with the reason a wallet
-added fresh gives); a PEM block other than the one its field names; a
+added fresh gives); a `silent` record that `SilentWallet::parse` does not read or whose `to_text` differs from it, or a silent record in `policy` or `descriptor`; a PEM block other than the one its field names; a
 `faraday.codex32`, `faraday.child`, `faraday.xor`, `faraday.slip39` or `faraday.plan.{n}` that is not the
 TOML its key names; a GPG key not of Faraday's own shape (an Ed25519
 primary key with one Ed25519 signing subkey, unprotected); an entry with

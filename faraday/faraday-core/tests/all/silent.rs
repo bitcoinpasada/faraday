@@ -478,6 +478,94 @@ fn a_silent_payments_wallet_saved_into_a_vault_reads_back_as_itself() {
 }
 
 #[test]
+fn a_silent_payments_wallet_saved_into_a_vault_is_there_after_the_file_is_written_and_opened() {
+    use faraday_core::StorageCommand;
+    use faraday_core::testkit;
+    use faraday_core::vault::VaultAction as V;
+    use faraday_vault::records::{field, kind};
+    let c = testkit::compute();
+    let mut keyed = with_key();
+    keyed.press(Action::Silent);
+    keyed.press(Action::SLabel(1));
+    let record = keyed.silent_record(&c).unwrap();
+    let want = SilentWallet::parse(&record).unwrap();
+    let mut app = testkit::started();
+    files(
+        &mut app,
+        &[
+            ("vault.kdbx", testkit::test_vault().unwrap()),
+            ("silent-1.txt", record.as_bytes().to_vec()),
+        ],
+    );
+    app.press(Action::Vault(V::OpenFrom(0, Screen::Files)));
+    crate::common::type_text(&mut app, testkit::VAULT_PASSPHRASE);
+    app.press(Action::Vault(V::Unlock));
+    for t in 1..10u64 {
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    let file = app
+        .inbox()
+        .iter()
+        .position(|i| i.name == "silent-1.txt")
+        .unwrap();
+    testkit::load_wallet(&mut app, file);
+    let w = app.wallet_index();
+    app.press(Action::Vault(V::SaveWallet(w)));
+    crate::common::top_up(&mut app);
+    app.press(Action::Lock);
+    testkit::settle(&mut app);
+    let mut written = Vec::new();
+    while let Some(cmd) = app.poll_storage() {
+        if let StorageCommand::SaveBoxes { outbox, .. } = cmd {
+            written = testkit::plain_files(outbox);
+        }
+    }
+    assert_eq!(written.len(), 1, "the vault file was sealed");
+
+    // Power off: a new process with only the written file.
+    let mut app = testkit::started();
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(written),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Open(0)));
+    let _ = app.frame();
+    app.press(Action::Vault(V::FocusPassphrase));
+    crate::common::type_text(&mut app, testkit::VAULT_PASSPHRASE);
+    app.press(Action::Vault(V::Unlock));
+    for t in 1..60u64 {
+        if !app.vaults().open.is_empty() {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    assert_eq!(app.vaults().open.len(), 1);
+    let open = &app.vaults().open[0];
+    let held = app.vaults().store().contents_for_tests(open.id);
+    let (_, saved) = held
+        .of(kind::WALLET)
+        .last()
+        .expect("the wallet item is there");
+    let back = faraday_core::wallet::read_wallet(&c, saved.text(field::WALLET).unwrap()).unwrap();
+    assert_eq!(back.silent(), Some(&want));
+    assert_eq!(back.silent().unwrap().address(), want.address());
+    // Load takes the item as a wallet of the session, with its record.
+    app.press(Action::Vault(V::LoadAll(0)));
+    let loaded = app
+        .session
+        .wallets
+        .iter()
+        .find_map(|w| w.policy().silent())
+        .expect("the saved wallet loads");
+    assert_eq!(loaded, &want);
+    assert_eq!(loaded.labels, 1);
+}
+
+#[test]
 fn after_a_label_is_handed_out_the_wallets_checksum_is_its_exported_files() {
     let c = faraday_core::testkit::compute();
     let mut app = with_key();
@@ -1560,4 +1648,129 @@ fn a_vault_item_whose_record_differs_from_the_loaded_key_says_so_and_shows_no_ad
     );
     assert!(!shown.contains(&bad.address()[..24]), "{shown}");
     assert!(!shown.contains("Show as QR"), "{shown}");
+}
+
+/// A file in Files put into a vault with Add to vault, the vault sealed,
+/// the device powered off and the vault opened again: what its wallet
+/// item holds after, and the wallet Load makes of it.
+fn added_from_a_file_and_reopened(
+    name: &str,
+    bytes: Vec<u8>,
+) -> (Vec<String>, Option<SilentWallet>) {
+    use faraday_core::StorageCommand;
+    use faraday_core::testkit;
+    use faraday_core::vault::VaultAction as V;
+    use faraday_vault::records::{field, kind};
+    let mut app = testkit::started();
+    files(
+        &mut app,
+        &[
+            ("vault.kdbx", testkit::test_vault().unwrap()),
+            (name, bytes),
+        ],
+    );
+    app.press(Action::Vault(V::OpenFrom(0, Screen::Files)));
+    crate::common::type_text(&mut app, testkit::VAULT_PASSPHRASE);
+    app.press(Action::Vault(V::Unlock));
+    for t in 1..10u64 {
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    let file = app.inbox().iter().position(|i| i.name == name).unwrap();
+    app.press(Action::Vault(V::AddFile(file)));
+    crate::common::top_up(&mut app);
+    app.press(Action::Lock);
+    testkit::settle(&mut app);
+    let mut written = Vec::new();
+    while let Some(cmd) = app.poll_storage() {
+        if let StorageCommand::SaveBoxes { outbox, .. } = cmd {
+            written = testkit::plain_files(outbox);
+        }
+    }
+    assert_eq!(written.len(), 1, "the vault file was sealed");
+    let mut app = testkit::started();
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(written),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Open(0)));
+    let _ = app.frame();
+    app.press(Action::Vault(V::FocusPassphrase));
+    crate::common::type_text(&mut app, testkit::VAULT_PASSPHRASE);
+    app.press(Action::Vault(V::Unlock));
+    for t in 1..60u64 {
+        if !app.vaults().open.is_empty() {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    assert_eq!(app.vaults().open.len(), 1);
+    let open = &app.vaults().open[0];
+    let held = app.vaults().store().contents_for_tests(open.id);
+    let mut kept = Vec::new();
+    for (_, r) in held.of(kind::WALLET) {
+        kept.push(r.text(field::WALLET).unwrap_or_default().to_string());
+        kept.push(r.text(field::WALLET_NAME).unwrap_or_default().to_string());
+    }
+    app.press(Action::Vault(V::LoadAll(0)));
+    let loaded = app
+        .session
+        .wallets
+        .iter()
+        .find_map(|w| w.policy().silent().cloned());
+    (kept, loaded)
+}
+
+fn keeps_only_the_record(kept: &[String], want: &SilentWallet) {
+    assert!(kept.iter().all(|t| !t.contains("spscan")), "{kept:?}");
+    assert!(kept.iter().any(|t| *t == want.to_text()), "{kept:?}");
+}
+
+#[test]
+fn a_record_file_with_crlf_lines_added_to_a_vault_is_there_after_power_off() {
+    let c = faraday_core::testkit::compute();
+    let mut keyed = with_key();
+    keyed.press(Action::Silent);
+    keyed.press(Action::SLabel(1));
+    let want = SilentWallet::parse(&keyed.silent_record(&c).unwrap()).unwrap();
+    let crlf = want.to_text().replace('\n', "\r\n");
+    let (kept, loaded) = added_from_a_file_and_reopened("silent-1.txt", crlf.into_bytes());
+    keeps_only_the_record(&kept, &want);
+    let loaded = loaded.expect("the item loads");
+    assert_eq!(loaded.address(), want.address());
+    assert_eq!(loaded.labels, 1);
+}
+
+#[test]
+fn a_record_file_with_a_comment_line_added_to_a_vault_is_there_after_power_off() {
+    let c = faraday_core::testkit::compute();
+    let mut keyed = with_key();
+    keyed.press(Action::Silent);
+    keyed.press(Action::SLabel(1));
+    let want = SilentWallet::parse(&keyed.silent_record(&c).unwrap()).unwrap();
+    let text = format!("# kept for the shop\n{}", want.to_text());
+    let (kept, loaded) = added_from_a_file_and_reopened("silent-1.txt", text.into_bytes());
+    keeps_only_the_record(&kept, &want);
+    let loaded = loaded.expect("the item loads");
+    assert_eq!(loaded.address(), want.address());
+    assert_eq!(loaded.labels, 1);
+}
+
+#[test]
+fn an_sp_descriptor_file_added_to_a_vault_keeps_its_record_and_no_scan_key() {
+    let c = faraday_core::testkit::compute();
+    let sp = include_str!("../vectors/interop/sparrow/keystone-singlesig-sp-keystore-1.txt");
+    let want = faraday_core::wallet::read_wallet(&c, sp)
+        .unwrap()
+        .silent()
+        .cloned()
+        .unwrap();
+    let (kept, loaded) = added_from_a_file_and_reopened("keystone-sp.txt", sp.as_bytes().to_vec());
+    keeps_only_the_record(&kept, &want);
+    let loaded = loaded.expect("the item loads");
+    assert_eq!(loaded.address(), want.address());
+    assert_eq!(loaded.labels, want.labels);
 }

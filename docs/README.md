@@ -144,7 +144,7 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 - `docs/TEXT-SIZE.md`: Text size. Built (F85): the setting in Faraday and the Starter, its storage, the one-column decision, the components and screens that make room for larger text, the Larger renders and their `cut.txt`.
 - `docs/THEMES.md`: Themes on Material 3's colour system. Built (owner, 2026-10-24; F113, `docs/decisions/F113.md`): the roles, the generator and the tables; every screen and component of Faraday and the Starter drawn on the roles by name; Settings › Appearance's Theme, Mode, Contrast and Reduce motion, the settings file's lines and the migration, the Starter's Appearance page; the theme tour.
 - `docs/TOTP.md`: TOTP codes and the time. Built.
-- `docs/VAULT.md`: The Faraday vault. Built (F190; F208; F227); the app reads and seals KDBX 4 file vaults, each seal under the vault's own passphrase, growing by itself from 32 KiB to 128 MiB and at the memory step at or above its own.
+- `docs/VAULT.md`: The Faraday vault. Built (F190; F208; F227; F335); the app reads and seals KDBX 4 file vaults, each seal under the vault's own passphrase, growing by itself from 32 KiB to 128 MiB and at the memory step at or above its own.
 - `docs/WALLETS.md`: The Wallets tab. Built.
 
 **Spec**

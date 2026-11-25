@@ -2173,13 +2173,27 @@ impl Faraday {
                     0,
                 )
             }
-            FileKind::Wallet => (
-                Record::new(kind::WALLET)
-                    .with(field::WALLET, text.trim().as_bytes())
-                    .with(field::WALLET_NAME, stem.as_bytes()),
-                Text::fill(EN.vaults_is_in_the_vault_as, &[&it.name]),
-                1,
-            ),
+            FileKind::Wallet => {
+                // A silent payments wallet is kept as its record, the
+                // rule of `wallet_text`: the file's own spelling (CRLF, a
+                // comment, an `sp()` line with the scan key) is not what
+                // a vault reads back. Any other wallet's text stays as
+                // the file has it.
+                let kept = match crate::wallet::read_wallet(&c, &text)
+                    .ok()
+                    .and_then(|p| p.silent().map(|s| Text::of(&s.to_text())))
+                {
+                    Some(record) => record,
+                    None => Text::of(text.trim()),
+                };
+                (
+                    Record::new(kind::WALLET)
+                        .with(field::WALLET, kept.as_bytes())
+                        .with(field::WALLET_NAME, stem.as_bytes()),
+                    Text::fill(EN.vaults_is_in_the_vault_as, &[&it.name]),
+                    1,
+                )
+            }
             _ => return,
         };
         let before = self.vaults.open.get(self.vaults.current).map(|v| v.changes);

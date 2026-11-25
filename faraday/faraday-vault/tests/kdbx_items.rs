@@ -1790,3 +1790,214 @@ fn a_record_with_a_ticked_value_that_does_not_read_reads_as_none_ticked() {
     faraday_vault::records::set_keys_checked(&mut r, &[]);
     assert!(r.field(field::WALLET_CHECKED).is_none());
 }
+// ---- A silent payments wallet's record ----
+
+fn silent_wallet(labels: u32) -> faraday_bip::silent_wallet::SilentWallet {
+    use faraday_bip::bitcoin::secp256k1::{Secp256k1, SecretKey};
+    let secp = Secp256k1::new();
+    let key = |b: u8| SecretKey::from_slice(&[b; 32]).unwrap().public_key(&secp);
+    faraday_bip::silent_wallet::SilentWallet {
+        network: faraday_bip::keys::Network::Mainnet,
+        fingerprint: faraday_bip::keys::Fingerprint(FP),
+        account: 0,
+        scan: key(0x11),
+        spend: key(0x22),
+        labels,
+    }
+}
+
+fn silent_record(text: &str) -> Record {
+    Record::new(kind::WALLET)
+        .with(field::WALLET, text.as_bytes())
+        .with(field::WALLET_NAME, b"Silent")
+}
+
+#[test]
+fn a_silent_payments_record_is_kept_in_its_own_field_and_reads_back_after_a_reopen() {
+    let c = compute();
+    for labels in [0, 1, 3] {
+        let text = silent_wallet(labels).to_text();
+        let mut doc = Document::new([0xee; 16], "Vault");
+        items::stamp(&mut doc, 1, None).unwrap();
+        items::put(
+            &c,
+            &mut doc,
+            &place(1, "Wallets", "Silent"),
+            &Body::Record(silent_record(&text)),
+        )
+        .unwrap();
+        let written = doc.write(KEY);
+        let xml = String::from_utf8_lossy(&written);
+        assert!(!xml.contains("<Key>descriptor</Key>"));
+        let doc = Document::read(&written, KEY).unwrap();
+        let entry = doc
+            .root()
+            .groups()
+            .next()
+            .unwrap()
+            .entries()
+            .next()
+            .unwrap();
+        assert_eq!(entry.field("silent").unwrap().value(), text.as_str());
+        assert!(entry.field("descriptor").is_none());
+        assert!(entry.field("policy").is_none());
+        assert!(!entry.field("silent").unwrap().protected());
+        let read = items::read(&c, &doc);
+        assert!(read.unreadable.is_empty(), "{:?}", read.unreadable);
+        let r = record_of(&read, 1);
+        assert_eq!(r.text(field::WALLET), Some(text.as_str()));
+        assert_eq!(r.text(field::WALLET_NAME), Some("Silent"));
+    }
+}
+
+/// A document holding `entries` as wallet entries numbered from 1, each
+/// with the fields given.
+fn silent_doc(entries: &[Vec<(&str, &str)>]) -> Document {
+    let mut doc = Document::new([0xee; 16], "Vault");
+    items::stamp(&mut doc, 1, None).unwrap();
+    for (n, fields) in entries.iter().enumerate() {
+        let f: Vec<(&str, &str, bool)> = fields.iter().map(|(k, v)| (*k, *v, false)).collect();
+        doc.root_mut()
+            .push_entry(bad(n as u8 + 1, Some("wallet"), &f, &[]))
+            .unwrap();
+    }
+    doc
+}
+
+#[test]
+fn a_silent_field_that_is_not_the_one_exact_record_is_damaged_with_a_bad_value() {
+    let good = silent_wallet(2).to_text();
+    let address = silent_wallet(2).address();
+    let mut wrong_sum = address.clone();
+    wrong_sum.pop();
+    wrong_sum.push('q');
+    let cases: Vec<(&str, String)> = vec![
+        ("crlf", good.replace('\n', "\r\n")),
+        ("trailing newline", format!("{good}\n")),
+        ("leading newline", format!("\n{good}")),
+        ("extra spaces", good.replace("labels 2", "labels  2")),
+        ("padded line", good.replace("\nlabels", " \nlabels")),
+        ("a comment line", format!("# kept\n{good}")),
+        ("extra line", format!("{good}\n{address}")),
+        (
+            "more labels than a wallet has",
+            good.replace("labels 2", "labels 21"),
+        ),
+        (
+            "other network",
+            good.replace("network mainnet", "network testnet"),
+        ),
+        (
+            "an address that does not read",
+            good.replace(&address, &wrong_sum),
+        ),
+    ];
+    let entries: Vec<Vec<(&str, &str)>> = cases
+        .iter()
+        .map(|(_, t)| vec![("silent", t.as_str())])
+        .collect();
+    let read = read(&silent_doc(&entries));
+    assert!(read.items.is_empty());
+    for (n, (what, _)) in cases.iter().enumerate() {
+        let u = read
+            .unreadable
+            .iter()
+            .find(|u| u.uuid == Some(uuid(n as u8 + 1)))
+            .unwrap_or_else(|| panic!("{what} reads"));
+        assert_eq!(
+            (u.what.at.as_str(), u.what.fault),
+            ("silent", Fault::Value),
+            "{what}"
+        );
+    }
+}
+
+#[test]
+fn a_silent_record_of_another_address_than_a_key_names_reads_as_that_wallet() {
+    // The record's key line holds a fingerprint and an account, not the
+    // address's keys: whether they are one key's is checked when a key is
+    // loaded, not by the file.
+    let mut other = silent_wallet(0);
+    other.account = 5;
+    let text = other.to_text();
+    let read = read(&silent_doc(&[vec![("silent", text.as_str())]]));
+    assert!(read.unreadable.is_empty());
+    assert_eq!(record_of(&read, 1).text(field::WALLET), Some(text.as_str()));
+}
+
+#[test]
+fn a_wallet_entry_has_exactly_one_of_policy_descriptor_and_silent() {
+    let silent = silent_wallet(0).to_text();
+    let policy = format!("wpkh(@0/**)\n{XPUB}");
+    let descriptor = format!("wpkh({XPUB}/<0;1>/*)");
+    type Case<'a> = (Vec<(&'a str, &'a str)>, &'a str, Fault);
+    let cases: Vec<Case> = vec![
+        (vec![], "policy", Fault::Missing),
+        (
+            vec![("silent", &silent), ("descriptor", &descriptor)],
+            "silent",
+            Fault::Twice,
+        ),
+        (
+            vec![("silent", &silent), ("policy", &policy)],
+            "silent",
+            Fault::Twice,
+        ),
+        (
+            vec![("policy", &policy), ("descriptor", &descriptor)],
+            "descriptor",
+            Fault::Twice,
+        ),
+        (vec![("descriptor", &silent)], "descriptor", Fault::Value),
+        (vec![("policy", &silent)], "policy", Fault::Value),
+    ];
+    let entries: Vec<_> = cases.iter().map(|(f, _, _)| f.clone()).collect();
+    let read = read(&silent_doc(&entries));
+    assert!(read.items.is_empty());
+    for (n, (_, at, fault)) in cases.iter().enumerate() {
+        let u = read
+            .unreadable
+            .iter()
+            .find(|u| u.uuid == Some(uuid(n as u8 + 1)))
+            .unwrap_or_else(|| panic!("case {n} reads"));
+        assert_eq!(
+            (u.what.at.as_str(), u.what.fault),
+            (*at, *fault),
+            "case {n}"
+        );
+    }
+}
+
+#[test]
+fn a_policy_and_a_descriptor_wallet_are_written_in_their_own_field_as_before() {
+    let c = compute();
+    let policy = format!("wpkh(@0/**)\n{XPUB}");
+    let descriptor = format!("wpkh({XPUB}/<0;1>/*)");
+    for (text, name, other) in [
+        (&policy, "policy", "descriptor"),
+        (&descriptor, "descriptor", "policy"),
+    ] {
+        let mut doc = Document::new([0xee; 16], "Vault");
+        items::stamp(&mut doc, 1, None).unwrap();
+        items::put(
+            &c,
+            &mut doc,
+            &place(1, "Wallets", "W"),
+            &Body::Record(silent_record(text)),
+        )
+        .unwrap();
+        let doc = Document::read(&doc.write(KEY), KEY).unwrap();
+        let entry = doc
+            .root()
+            .groups()
+            .next()
+            .unwrap()
+            .entries()
+            .next()
+            .unwrap();
+        assert_eq!(entry.field(name).unwrap().value(), text.as_str());
+        assert!(entry.field(other).is_none());
+        assert!(entry.field("silent").is_none());
+        assert!(!entry.field(name).unwrap().protected());
+    }
+}

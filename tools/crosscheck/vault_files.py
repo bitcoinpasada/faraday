@@ -24,13 +24,18 @@ from readers import open_kdbx
 
 XPUB = ("[73c5da0a/84h/0h/0h]xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPsh"
         "WcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V")
-KINDS = ("entry", "note", "seed_words", "seed_hex", "wallet_policy", "wallet_descriptor", "sheet",
+KINDS = ("entry", "note", "seed_words", "seed_hex", "wallet_policy", "wallet_descriptor", "wallet_silent",
+         "sheet",
          "gpg", "secure_boot", "wallet_share", "passphrase", "share", "plan", "signed")
 # The group each kind is put in (§7).
 GROUPS = {"note": "Notes", "seed_words": "Bitcoin keys", "seed_hex": "Bitcoin keys",
-          "wallet_policy": "Wallets", "wallet_descriptor": "Wallets", "sheet": "Recovery sheets",
+          "wallet_policy": "Wallets", "wallet_descriptor": "Wallets", "wallet_silent": "Wallets",
+          "sheet": "Recovery sheets",
           "gpg": "GPG keys", "secure_boot": "Secure Boot", "wallet_share": "Wallet shares",
           "passphrase": "Passphrases", "share": "Codex32 shares"}
+# A silent payments wallet's record, as SilentWallet::to_text writes it.
+SILENT = ("faraday-silent 1\nnetwork testnet\nkey [0f056943/352h/1h/0h]\nlabels 0\n"
+          "tsp1qqgdw87ws322c7wjaqnzvl5ynv43sarr7ch2nrj6fwn24uv6jxks7jqa2e7v932angyh6q7p540es9xkkmljm54cl2y2fccfyvndt5shrpypt9x3f")
 SHARE = "ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn"
 SHARE_KEY = "fab6868a"
 
@@ -171,6 +176,7 @@ def expected(n, item):
          "wallet_policy": lambda: {"Title": item["name"], "policy": "wpkh(@0/**)\n" + XPUB},
          "wallet_descriptor": lambda: {"Title": item["name"],
                                        "descriptor": f"wpkh({XPUB}/<0;1>/*)"},
+         "wallet_silent": lambda: {"Title": item["name"], "silent": SILENT},
          "sheet": lambda: {"Title": item["name"], "descriptor": item["descriptor"],
                            "Notes": item["note"]},
          "gpg": lambda: {"Title": item["title"], "key": item["key"]}
