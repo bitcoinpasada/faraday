@@ -243,6 +243,14 @@ two.
   existing wallet, Spend from a backup, Add a key: at the list's foot where
   the list fits, pinned at the tile's foot where it scrolls). A press
   on a wallet opens its page in the tile's place, Back returning the tile.
+- **Vaults** (`screens/vaults_pair.rs`), on the wide layout the pair, never
+  stacked, as Wallets start is: the session pane in Vaults' mode (Keys, then
+  Wallets) at the left, and at the flow pair's place a tile headed "Vaults"
+  with a card for each vault file (View contents and Lock, or Unlock), the
+  sample offer where none is held, and the neutral row Make a new vault, at
+  the list's foot where it fits and pinned at the tile's foot where it
+  scrolls (the ways' row of Wallets start; not shown in a vault made from
+  another flow). The phone-size window and the Pi keep their list.
 - **Settings** (`screens/settings.rs`): its name, its sections' cards
   (`part`) as a cards section of at most two columns, and on a compact
   window the list.

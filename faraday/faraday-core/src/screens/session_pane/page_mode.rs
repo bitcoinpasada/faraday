@@ -25,6 +25,9 @@ pub(crate) enum Mode {
     /// Wallets: what waits (a PSBT with Sign, wallet files, flows in
     /// progress), then the keys. The wallets are the page's tile.
     Wallets,
+    /// Vaults: the keys, then the wallets (this session's, as the tile's
+    /// vault files take Load and Save later), Waiting at the foot.
+    Vaults,
 }
 
 /// The PSBTs waiting to be signed as rows with Sign, fewest signatures
@@ -117,7 +120,10 @@ fn file_rows(app: &View, keep: impl Fn(&crate::Item) -> bool) -> Vec<SessionRow>
 /// table); a group with no rows is left out.
 pub(crate) fn groups(app: &View, mode: Mode) -> Vec<Group> {
     let mut groups = built_groups(app, mode);
-    opening(app, &mut groups);
+    // Vaults has no details of its own yet: its rows keep their presses.
+    if mode != Mode::Vaults {
+        opening(app, &mut groups);
+    }
     groups
 }
 
@@ -158,6 +164,9 @@ fn built_groups(app: &View, mode: Mode) -> Vec<Group> {
     if mode == Mode::Wallets {
         return wallets_groups(app);
     }
+    if mode == Mode::Vaults {
+        return vaults_groups(app);
+    }
     // A waiting PSBT is the band's, not the files'; each flow in progress
     // that is not the band's is the group after the others.
     let (waiting, band_goings) = band_rows(app);
@@ -168,7 +177,7 @@ fn built_groups(app: &View, mode: Mode) -> Vec<Group> {
         .collect();
     let order = match mode {
         Mode::Tools => [Slotted::Keys, Slotted::Wallets, Slotted::Files],
-        Mode::Wallets => unreachable!("Wallets' groups are `wallets_groups`"),
+        Mode::Wallets | Mode::Vaults => unreachable!("their groups are built before"),
         Mode::Check => [Slotted::Files, Slotted::Keys, Slotted::Wallets],
     };
     let mut files = Some(file_rows(app, |_| true));
@@ -291,4 +300,25 @@ pub(crate) fn draw(
         band::draw(ui, (x, y + h - shown, w, shown), band_offset, g, lay);
     }
     max
+}
+
+/// Vaults' groups: Keys, then Wallets, then Waiting at the foot (a waiting
+/// PSBT with Sign, the flows in progress); the vault files are the tile's.
+fn vaults_groups(app: &View) -> Vec<Group> {
+    let mut waiting = psbt_rows(app);
+    let signing = waiting_spend(&waiting);
+    waiting.extend(progress_rows(app, |g| {
+        signing && g == crate::in_progress::Going::Spend
+    }));
+    let wallets: Vec<SessionRow> = wallet_rows(app)
+        .into_iter()
+        .filter(|r| r.action != Action::Nav(Screen::Backups))
+        .collect();
+    with_band(
+        [
+            (EN.session_group_keys, key_rows(app)),
+            (EN.session_group_wallets, wallets),
+        ],
+        waiting,
+    )
 }

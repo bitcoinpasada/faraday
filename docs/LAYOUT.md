@@ -225,14 +225,14 @@ Wallets on the wide layout is a pair, never stacked: the session pane in
 Wallets' mode at the left (`docs/WORKSPACE.md` §2) and at its right the tile
 of the wallets (Wallets start), replaced by the chosen wallet's page when one
 is opened, Back returning the tile; both at the flow pair's place. The list
-pane and detail below hold for Files, Vaults and Backups, and for Wallets on
+pane and detail below hold for Files and Backups, for Vaults where the pair does not fit, and for Wallets on
 the rail's windows.
 
 Material's canonical layouts, by what a screen shows:
 
 | Screen | Compact, Medium | Expanded and up |
 |---|---|---|
-| Wallets, Files, Vaults, Backups (a list, and the one chosen) | the list; choosing one opens its page | **list and detail**: the list in a pane `LIST_PANE` (360 dp) wide, the chosen one's page beside it; nothing chosen shows the first |
+| Wallets, Files, Backups (a list, and the one chosen); Vaults, where the pair fits, is Wallets' pair (`screens/vaults_pair.rs`: the session pane and the tile of vault files; Unlock keeps list and detail) | the list; choosing one opens its page | **list and detail**: the list in a pane `LIST_PANE` (360 dp) wide, the chosen one's page beside it; nothing chosen shows the first |
 | Settings | compact: the list of its sections, each opening as its own page; medium: every section on one page, one column | every section on one page, as tonal group cards in one tile, two columns where they fit (§17) |
 | Home | §4 | §4 |
 | A form, a sheet's page | one column, at most `COLUMN_MAX` (720 dp), centred in the space beside the navigation | the same; on extra-large, Guide in the supporting pane (§6) |

@@ -112,14 +112,14 @@ fn offered(pills: bool) -> (Vec<(Icon, &'static str, Action)>, usize) {
 }
 
 /// The ways' height: their rows.
-fn ways_height((n, cols): (usize, usize)) -> f32 {
+pub(super) fn ways_height((n, cols): (usize, usize)) -> f32 {
     n.div_ceil(cols) as f32 * LIST_1
 }
 
 /// The tile's ways from `(x, y)`, `w` wide: neutral, each with its icon,
 /// its name and a chevron, doing what the same words do elsewhere, in
 /// `cols` columns, row by row.
-fn way_rows(
+pub(super) fn way_rows(
     ui: &mut Ui,
     (x, y, w): (f32, f32, f32),
     (ways, cols): (Vec<(Icon, &'static str, Action)>, usize),

@@ -195,7 +195,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// Vault `i`'s card in the detail: its lock, title and file, what it
 /// held or where it is, its state, and Unlock, or View contents and Lock.
 /// Returns its height.
-fn card(
+pub(crate) fn card(
     app: &View,
     ui: &mut Ui,
     (x, y, w): (f32, f32, f32),
