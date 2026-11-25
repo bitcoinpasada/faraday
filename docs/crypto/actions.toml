@@ -8240,11 +8240,14 @@ functions = [
   "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::record_words_id",
   "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::same_words",
   "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::holds_session_words",
+  "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::record_id",
+  "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::key_record_holds",
   "faraday/faraday-keys/src/vault/mod.rs::key_identity",
   "faraday/faraday-keys/src/vault/mod.rs::share_record_id",
   "faraday/faraday-keys/src/vault/mod.rs::key_account",
   "faraday/faraday-keys/src/session.rs::Keys::key_record",
   "faraday/faraday-keys/src/session.rs::Keys::seed_record_id",
+  "faraday/faraday-keys/src/session.rs::Keys::seed_record_id_kept",
 ]
 code = ["faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::load_from_vault"]
 
