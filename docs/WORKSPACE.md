@@ -778,6 +778,7 @@ component with Home's pane.
 | Sign a message, wallet (`screens/message.rs`, `MWallet`) | wallets that can sign a message | one, button row | picker, single wallet | Sign another message; Check a signed message |
 | My seed makes my wallet, holders (`ways_in/mod.rs`, `Way::Holder`; `seed_check/screen.rs`) | loaded keys as ways in | one | picker, single |
 | Decode a transaction (`decode/screen.rs`, `decode/flow.rs`) | held transactions, Scan, Open Files; the shown one marked | one | built: where the container's pair stands the rows are the picker's, at the left of the card, and Result stands in the card; where it does not stand the pick is drawn in the card on the Transaction step |
+| Check a signed message (`screens/check_message.rs`) | held signed-message files, Scan, Open Files; the shown one marked | one | built: where the container's pair stands the rows are the picker's, at the left of the card, and Result stands in the card; where it does not stand the pick is drawn in the card; a small panel is the page |
 | Check a signer, seed rows (`decode/check_screen.rs`, `seed_row`) | the keys here that signed | none (facts) | unchanged |
 | Spend from backup (`spend_backup/screen.rs`) | each wallet as a card with readiness | one | picker, single wallet, readiness as the row's line |
 | Back up's wallet menu (`screens/backup.rs`, `BWallets`) | wallets, a menu | one | stays a menu (it switches the board) |

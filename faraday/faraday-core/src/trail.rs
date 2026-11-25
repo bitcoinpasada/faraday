@@ -817,6 +817,9 @@ impl Faraday {
             Screen::Decode if crate::decode::flow::contained_decode(self) => {
                 &crate::decode::flow::DECODE_STEPS
             }
+            Screen::CheckMessage if crate::screens::check_message::contained(self) => {
+                &crate::screens::check_message::CHECK_MESSAGE_STEPS
+            }
             Screen::SeedCheck => &crate::seed_check::SEED_STEPS,
             Screen::MultisigCheck => &crate::multisig_check::MS_STEPS,
             Screen::CoreWallet => &crate::core_wallet::tool::CORE_WALLET_STEPS,

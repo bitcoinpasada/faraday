@@ -300,6 +300,8 @@ pub(crate) enum Scrolled {
     /// Decode a Lightning invoice's card, where it is drawn as a flow.
     Invoice,
     Decode,
+    /// Check a signed message's card, where it is drawn as a flow.
+    CheckMessage,
     SeedCheck,
     MultisigCheck,
     CoreWallet,
@@ -546,6 +548,9 @@ impl Faraday {
                 }
                 Scrolled::Decode => {
                     self.decode.set_scroll(to);
+                }
+                Scrolled::CheckMessage => {
+                    self.message.set_check_scroll(to);
                 }
                 Scrolled::SeedCheck => {
                     self.tools.seed_check.set_scroll(to);

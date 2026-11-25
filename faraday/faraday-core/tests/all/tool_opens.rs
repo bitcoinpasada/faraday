@@ -446,3 +446,72 @@ fn decode_on_a_wide_window_goes_back_to_where_it_was_opened_from() {
     app.press(Action::Nav(Screen::Catalog));
     assert_eq!(app.screen, Screen::Catalog);
 }
+
+/// Check a signed message on a wide window: the pick holds the signed
+/// messages in Files, Scan and Open Files; a chosen one is the Result card
+/// with the pick still at the left, and another can be chosen from it.
+#[test]
+fn check_message_on_a_wide_window_has_the_pick_and_the_result_card() {
+    let mut app = tools_with(&[("a.txt", MESSAGE.as_bytes()), ("b.txt", MESSAGE.as_bytes())]);
+    on_wide(&mut app);
+    open_tile(&mut app, EN.catalog_check_a_signed);
+    through_fade(&mut app);
+    assert_eq!(app.screen, Screen::CheckMessage);
+    assert!(offered(&mut app, Action::CheckMessage(0)));
+    assert!(offered(&mut app, Action::CheckMessage(1)));
+    assert!(offered(&mut app, Action::Scan));
+    assert!(offered(&mut app, Action::Nav(Screen::Files)));
+
+    app.press(Action::CheckMessage(1));
+    through_fade(&mut app);
+    assert!(has(&mut app, EN.check_file));
+    assert!(has(&mut app, EN.check_address));
+    assert!(has(&mut app, EN.bip85_another));
+    // The pick stays at the left.
+    assert!(offered(&mut app, Action::CheckMessage(0)));
+    assert!(offered(&mut app, Action::Scan));
+    app.press(Action::CheckMessage(0));
+    through_fade(&mut app);
+    assert!(has(&mut app, "a.txt"));
+    // Another returns to the pick alone.
+    app.press(Action::CheckMessageAnother);
+    through_fade(&mut app);
+    assert!(!has(&mut app, EN.check_address));
+    assert!(offered(&mut app, Action::CheckMessage(1)));
+}
+
+/// With nothing held the pick on a wide window says so and offers the ways in.
+#[test]
+fn check_message_on_a_wide_window_with_none_offers_the_ways_in() {
+    let mut app = tools_with(&[("only.txt", MESSAGE.as_bytes())]);
+    on_wide(&mut app);
+    open_tile(&mut app, EN.catalog_check_a_signed);
+    app.press(Action::CheckMessageAnother);
+    app.press(Action::InboxRemove(0));
+    through_fade(&mut app);
+    assert!(has(&mut app, EN.check_no_signed_message));
+    assert!(offered(&mut app, Action::Scan));
+    assert!(offered(&mut app, Action::Nav(Screen::Files)));
+}
+
+/// The way back from the card goes where the check was opened from: Tools,
+/// or Files when a held file was pressed there.
+#[test]
+fn check_message_on_a_wide_window_goes_back_to_where_it_was_opened_from() {
+    let mut app = tools_with(&[("a.txt", MESSAGE.as_bytes()), ("b.txt", MESSAGE.as_bytes())]);
+    on_wide(&mut app);
+    open_tile(&mut app, EN.catalog_check_a_signed);
+    app.press(Action::CheckMessage(0));
+    through_fade(&mut app);
+    assert!(offered(&mut app, Action::Nav(Screen::Catalog)));
+    app.press(Action::Nav(Screen::Catalog));
+    assert_eq!(app.screen, Screen::Catalog);
+
+    app.press(Action::Nav(Screen::Files));
+    app.press(Action::CheckMessage(1));
+    through_fade(&mut app);
+    assert_eq!(app.screen, Screen::CheckMessage);
+    assert!(offered(&mut app, Action::Nav(Screen::Files)));
+    app.press(Action::Nav(Screen::Files));
+    assert_eq!(app.screen, Screen::Files);
+}

@@ -320,6 +320,7 @@ For Sign a message the button asks to lock first (signing leaves keys in memory)
 | Convert an xpub (Tools), on a window that is not compact | `faraday/faraday-core/src/tools/screen.rs`, `faraday/faraday-core/src/tools/flow.rs` | Input, Result | none | none |
 | Decode a Lightning invoice, on a window that is not compact | `faraday/faraday-core/src/invoice/screen.rs`, `faraday/faraday-core/src/invoice/flow.rs` | Input, Result | none | none |
 | Decode a transaction, on a window wide enough for the container's pair | `faraday/faraday-core/src/decode/screen.rs`, `faraday/faraday-core/src/decode/flow.rs` | Transaction (the pick at the left, then Result in the card) | none | none |
+| Check a signed message, on a window wide enough for the container's pair | `faraday/faraday-core/src/screens/check_message.rs` | Message (the pick at the left, then Result in the card) | none | none |
 | Units (Tools), on a window that is not compact | `faraday/faraday-core/src/tools/screen.rs`, `faraday/faraday-core/src/tools/flow.rs` | one card (its title alone, no step count) | none | none; the pane lists no rows and its foot holds the Add an amount button |
 
 The screens are under `faraday/faraday-core/src/`.

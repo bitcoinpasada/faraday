@@ -1052,9 +1052,36 @@ pub(crate) struct MessageArea {
     check_back: Option<crate::Screen>,
     /// The message as drawn, kept while it is the same.
     shown: crate::visible::Shown,
+    /// How far Check a signed message's flow card is scrolled, where it is
+    /// drawn as one.
+    check_scroll: crate::flow::Scroll,
 }
 
 impl MessageArea {
+    /// How far Check a signed message's card is scrolled.
+    pub(crate) fn check_scroll(&self) -> crate::flow::Scroll {
+        self.check_scroll
+    }
+
+    pub(crate) fn set_check_scroll(&mut self, to: crate::flow::Scroll) {
+        self.check_scroll = to;
+    }
+
+    /// The card's scroll, units.
+    pub(crate) fn check_scroll_y(&self) -> f32 {
+        self.check_scroll.y
+    }
+
+    pub(crate) fn set_check_scroll_y(&mut self, y: f32) {
+        self.check_scroll.y = y;
+    }
+
+    /// The Files index of the signed message being checked, none for one
+    /// just made.
+    pub(crate) fn checking(&self) -> Option<usize> {
+        self.checking
+    }
+
     /// The message as drawn: its visible form and lines, kept.
     pub(crate) fn shown(&self) -> &crate::visible::Shown {
         &self.shown
@@ -1114,6 +1141,7 @@ impl MessageArea {
         self.checking = None;
         self.made = None;
         self.check_back = None;
+        self.check_scroll = crate::flow::Scroll::default();
         self.shown = crate::visible::Shown::default();
     }
 
