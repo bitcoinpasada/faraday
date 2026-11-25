@@ -573,15 +573,31 @@ fn a_recipient_without_an_address_form_is_drawn_short_and_bounded() {
 }
 
 /// Back onto Spend opens its pane at the top, not where the shared pane was
-/// left by the screen between.
+/// left by the flow between (Decode, opened from Finish by a press that is
+/// not Nav, scrolled on a low window).
 #[test]
 fn back_onto_spend_opens_the_pane_at_its_top() {
     let mut app = spending_review(false);
     window(&mut app, (1366, 600));
-    scroll_pane_to_end(&mut app);
+    testkit::steps_before_sign_done(&mut app);
+    app.press(Action::SignHere);
+    assert!(app.spend().unwrap().spend.finished.is_some());
+    app.press(Action::DecodeFinished);
+    assert_eq!(app.screen, Screen::Decode);
+    for _ in 0..40 {
+        let _ = app.frame();
+    }
+    app.event(Event::Hover { x: 400, y: 300 });
+    app.event(Event::Scroll {
+        x: 400,
+        y: 300,
+        dy: 4000,
+    });
+    app.event(Event::ScrollEnd { x: 400, y: 300 });
+    app.settle();
     assert!(app.choices_offset() > 0.0, "the pane scrolled");
-    app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::Back);
+    assert_eq!(app.screen, Screen::Spend);
     assert_eq!(app.choices_offset(), 0.0, "the pane is at its top");
 }
 

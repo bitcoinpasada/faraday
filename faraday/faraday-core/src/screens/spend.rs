@@ -2441,7 +2441,8 @@ fn review_under(
             // Display only: exactly the scripts that have an address form
             // (a version 0 program only at 20 or 32 bytes), decided on the
             // script, never on the text of a named one. Whole, an address is
-            // at most 74 characters (version 1, a 40-byte program).
+            // at most 76 characters on Regtest, 74 elsewhere (version 1, a
+            // 40-byte program).
             let s = &o.script_pubkey;
             s.is_p2pkh()
                 || s.is_p2sh()

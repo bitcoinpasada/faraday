@@ -209,7 +209,7 @@ The private key is hidden whenever the node it shows changes or goes: another
 source, a file, an edit of the words or the passphrase, a read, a stick.
 A pane taller than the window scrolls within itself (LAYOUT §6), so a low
 window does not drop the pane. The scroll is one offset for every flow
-(`Scroll::choices`), set back to the top when a flow is opened. A flow's
+(`Scroll::choices`), set back to the top when a flow is opened and by Back. A flow's
 own right-hand panel is under its rows (§1). Its strings are the common
 ones.
 
