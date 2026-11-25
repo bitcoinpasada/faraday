@@ -237,9 +237,9 @@ impl View<'_> {
         if self.session.wallets.get(i).is_none() {
             return String::new();
         }
-        let sum = String::from(self.session.wallets[i].checksum());
+        let id = self.app.session.wallets[i].id().to_hex();
         self.app
-            .backup_line_from(&sum, self.filled(|c| self.app.backup_map_of(c, i)))
+            .backup_line_from(&id, self.filled(|c| self.app.backup_map_of(c, i)))
             .as_str()
             .into()
     }

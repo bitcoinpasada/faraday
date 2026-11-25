@@ -773,7 +773,7 @@ least safe of the three.
 ### The Backups screen
 
 **Backups** (`docs/history/SIMPLIFY.md` §5, `docs/FLOWS.md` "Backups") lists
-every wallet the app knows, once each by descriptor checksum: loaded,
+every wallet the app knows, once each by its id: loaded,
 in an open vault, or remembered of a locked one. Under each, the map as
 the plan draws it, a row per place with what it holds, its tag and what
 this device saw of it: a paper place **Checked** only once a copy of

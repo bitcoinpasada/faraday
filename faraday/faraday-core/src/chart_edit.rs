@@ -351,11 +351,11 @@ impl Faraday {
         let Some(wallet) = self.session.wallets.get(w) else {
             return;
         };
-        let sum = Text::of(wallet.checksum());
+        let id = wallet.id().to_hex();
         let mut records = self.backups_area.records().to_vec();
         if let Some(r) = records
             .iter_mut()
-            .find(|r| r.sum == sum && !r.answers.is_empty())
+            .find(|r| r.id == id && !r.answers.is_empty())
         {
             r.answers = Text::of(&answers.to_text());
             self.backups_area.set_records(records);
@@ -433,7 +433,7 @@ impl Faraday {
             let sum = self
                 .press_wallet(press)
                 .and_then(|w| self.session.wallets.get(w))
-                .map(|w| Text::of(w.checksum()));
+                .map(|w| w.id().to_hex());
             if let Some(sum) = sum {
                 for &(at, what) in &things {
                     if let At::Place(p) = at {

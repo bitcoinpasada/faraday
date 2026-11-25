@@ -58,6 +58,12 @@ pub(crate) fn summaries_encode(all: &[VaultSummary]) -> Vec<u8> {
         for c in &s.planned {
             out.push_str(&format!("planned\t{}\n", kept_field(c)));
         }
+        for c in &s.wallet_ids {
+            out.push_str(&format!("wid\t{}\n", kept_field(c)));
+        }
+        for c in &s.planned_ids {
+            out.push_str(&format!("pid\t{}\n", kept_field(c)));
+        }
         for m in &s.map {
             out.push_str(&format!("map\t{}\n", kept_field(m)));
         }
@@ -144,6 +150,17 @@ pub(crate) fn summaries_decode(bytes: &[u8]) -> Vec<VaultSummary> {
                     s.planned.push(Text::of(c));
                 }
             }
+            // Empty beside an empty sum: a record that does not read as a wallet.
+            ["wid", c] => {
+                if let (Some(s), true) = (out.last_mut(), c.is_empty() || is_id(c)) {
+                    s.wallet_ids.push(Text::of(c));
+                }
+            }
+            ["pid", c] => {
+                if let (Some(s), true) = (out.last_mut(), is_id(c)) {
+                    s.planned_ids.push(Text::of(c));
+                }
+            }
             ["map", m] => {
                 if let Some(s) = out.last_mut() {
                     s.map.push(Text::of(m));
@@ -168,7 +185,23 @@ pub(crate) fn summaries_decode(bytes: &[u8]) -> Vec<VaultSummary> {
             _ => skipping = f.first() == Some(&"vault"),
         }
     }
+    // The ids are read strictly: one count short of its list is none.
+    for s in &mut out {
+        if s.wallet_ids.len() != s.sums.len() {
+            s.wallet_ids.clear();
+        }
+        if s.planned_ids.len() != s.planned.len() {
+            s.planned_ids.clear();
+        }
+    }
     out
+}
+
+/// A wallet id as kept: 64 lower-case hex digits.
+fn is_id(c: &str) -> bool {
+    c.len() == 64
+        && c.bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
 }
 
 #[cfg(test)]
@@ -182,6 +215,34 @@ mod tests {
             copies: vec![[copy; 32]],
             ..VaultSummary::default()
         }
+    }
+
+    #[test]
+    fn the_wallet_ids_are_kept_and_read_strictly() {
+        let id = "ab".repeat(32);
+        let mut s = summary(0, 1);
+        s.wallets = vec![(faraday_text::Text::of("w"), faraday_text::Text::of("s"))];
+        s.sums = vec![faraday_text::Text::of("6kjg6089")];
+        s.wallet_ids = vec![faraday_text::Text::of(&id)];
+        s.planned = s.sums.clone();
+        s.planned_ids = s.wallet_ids.clone();
+        let kept = summaries_encode(&[s.clone()]);
+        assert_eq!(summaries_decode(&kept), vec![s.clone()]);
+        let text = String::from_utf8(kept).expect("text");
+        for bad in [id.to_uppercase(), "ab".repeat(31)] {
+            let read = summaries_decode(text.replace(&id, &bad).as_bytes());
+            assert!(read[0].wallet_ids.is_empty() && read[0].planned_ids.is_empty());
+            assert!(!read[0].holds_wallet_id(&id));
+        }
+        let none = text.replace(&format!("wid\t{id}\n"), "");
+        assert!(summaries_decode(none.as_bytes())[0].wallet_ids.is_empty());
+        // A record that does not read as a wallet, beside one that does.
+        s.wallets.push(s.wallets[0].clone());
+        s.sums.push(faraday_text::Text::default());
+        s.wallet_ids.push(faraday_text::Text::default());
+        let read = summaries_decode(&summaries_encode(&[s.clone()]));
+        assert_eq!(read, vec![s]);
+        assert!(read[0].holds_wallet_id(&id) && !read[0].holds_wallet_id(""));
     }
 
     #[test]

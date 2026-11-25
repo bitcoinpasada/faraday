@@ -591,12 +591,9 @@ fn plan_on(r: &impl Reads, w: usize) -> Option<(plan::Answers, Vec<Text>)> {
         ));
     }
     let kept = r.plan_load_of(wallet, &shape);
-    let sum = wallet.checksum();
     let recorded = app
-        .backups_area
-        .records()
-        .iter()
-        .find(|r| r.sum == sum && !r.answers.is_empty())
+        .backup_record_of(wallet)
+        .filter(|r| !r.answers.is_empty())
         .and_then(|r| plan::Answers::from_text(&shape, &r.answers))
         .map(|a| app.kef_dropped(wallet, a));
     match (recorded, kept) {
@@ -624,7 +621,20 @@ pub(crate) fn of_on(r: &impl Reads, w: usize) -> Option<Glance> {
     let app = r.app();
     let wallet = app.session.wallets.get(w)?;
     let plan = plan_on(r, w);
-    let none = locked(app, wallet.checksum());
+    // With a wallet of the same checksum loaded too, no plan is told from a
+    // locked vault.
+    let twin = app
+        .session
+        .wallets
+        .iter()
+        .filter(|x| x.checksum() == wallet.checksum())
+        .count()
+        > 1;
+    let none = if twin {
+        Backup::None
+    } else {
+        locked(app, &wallet.id().to_hex())
+    };
     let notes = r.plan_notes(wallet, None);
     build(
         r,
@@ -838,7 +848,7 @@ fn build(
             }
         })
         .collect();
-    let sum = Text::of(wallet.checksum());
+    let sum = wallet.id().to_hex();
     let charted = plan.as_ref().map(|(a, _)| (shape.clone(), a.clone()));
     let backup = match plan {
         Some((a, names)) => backup_nodes(
@@ -866,7 +876,7 @@ fn build(
     Some(Glance {
         name: Text::of(&wallet.name),
         shape: Text::of(&Session::shape(wallet)),
-        checksum: sum,
+        checksum: Text::of(wallet.checksum()),
         keys,
         backup,
         press,
@@ -890,12 +900,12 @@ fn build(
 }
 
 /// A plan kept in a locked vault seen this power-on, else no plan.
-fn locked(app: &Faraday, sum: &str) -> Backup {
+fn locked(app: &Faraday, id: &str) -> Backup {
     let Some(s) = app
         .vaults()
         .summaries
         .iter()
-        .find(|s| s.planned.iter().any(|c| c == sum))
+        .find(|s| s.plans_wallet_id(id))
     else {
         return Backup::None;
     };
@@ -1033,7 +1043,7 @@ fn backup_nodes(
     let lines = r
         .backups()
         .iter()
-        .find(|e| e.sum == sum)
+        .find(|e| e.id == sum)
         .and_then(|e| e.lines.clone())
         .unwrap_or_default();
     let worst = |t: &[(What, Tag)]| {

@@ -20,8 +20,7 @@ pub struct SealSeen {
     /// The digest of the file at that count.
     pub digest: [u8; 32],
     /// The descriptor checksums of the wallets this vault keeps a plan for
-    /// (the summary's `planned`, as last seen open): what says which
-    /// plans place this vault, for their `seals` lines.
+    /// (the summary's `planned`, as last seen open).
     pub planned: Vec<String>,
 }
 
@@ -331,13 +330,13 @@ impl Vaults {
             let kept = seals_in(old);
             let mut lines = kept.clone();
             for s in self.summaries.iter().filter(|s| s.id != own) {
-                let Some(e) = s.seal.as_ref().filter(|e| {
+                let Some(e) = s.seal.as_ref().filter(|_| {
                     // A vault that keeps the wallet counts as well as
                     // one that keeps its plan: a vault left out of
                     // keeping the plan is still checked for an older
                     // copy (`docs/VAULT.md` §11).
-                    e.planned.iter().any(|p| *p == *d.checksum)
-                        || s.sums.iter().any(|x| *x == *d.checksum)
+                    let id = d.policy.id().to_hex();
+                    s.plans_wallet_id(&id) || s.holds_wallet_id(&id)
                 }) else {
                     continue;
                 };

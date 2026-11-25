@@ -3355,10 +3355,10 @@ impl Faraday {
             return None;
         }
         let (own, others) = self.backup_vault_keys(v);
-        let sum = text!("{}", w.checksum());
+        let id = w.id().to_hex();
         // Each seed told by its whole master id, the session key's else
         // the backup record's (F65); one that cannot be told is not done.
-        let record = self.backups_area.record(&sum);
+        let record = self.backups_area.record(&id);
         let has = |s: &crate::vault::VaultSummary, f: &faraday_bip::keys::Fingerprint| {
             crate::backups::summary_has_seed(s, f.0, self.seed_id(record, f.0))
         };
@@ -3371,7 +3371,7 @@ impl Faraday {
             .iter()
             .filter(|s| !salts.contains(&s.id))
             .find(|s| {
-                crate::backups::summary_fits(s, &sum, wallet_too, &told(s, &own), &told(s, &others))
+                crate::backups::summary_fits(s, &id, wallet_too, &told(s, &own), &told(s, &others))
             })
             .map(|s| Text::of(s.file.as_str()))
     }

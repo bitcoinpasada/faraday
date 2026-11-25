@@ -2410,6 +2410,13 @@ pub fn set_backup_answers(app: &mut crate::Faraday, answers: crate::plan::Answer
     app.backup.set_answers(answers);
 }
 
+/// Dates the copy of `what` at place `p` of the backup under way, as
+/// "Which copy was this?" does once its place is picked.
+pub fn backup_date_copy(app: &mut crate::Faraday, p: usize, what: crate::plan::What) {
+    let c = compute();
+    app.dated_add(&c, p, what);
+}
+
 /// Saves Back up's plan into the vault as the checklist does.
 pub fn backup_plan_save(app: &mut crate::Faraday) {
     app.plan_save();

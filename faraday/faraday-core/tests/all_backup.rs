@@ -113,6 +113,10 @@ mod vault_seal;
 mod vault_seal_count;
 #[path = "all/vault_seal_stop.rs"]
 mod vault_seal_stop;
+#[path = "all/wallet_id_plans.rs"]
+mod wallet_id_plans;
+#[path = "all/wallet_id_summaries.rs"]
+mod wallet_id_summaries;
 #[path = "all/wallet_id_vault.rs"]
 mod wallet_id_vault;
 #[path = "all/wallet_paths.rs"]

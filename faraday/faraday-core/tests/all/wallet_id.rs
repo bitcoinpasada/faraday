@@ -302,3 +302,30 @@ fn a_twins_file_taken_after_the_first_starts_the_flow_again() {
         s.came
     );
 }
+
+/// Backups lists two wallets of one checksum as two entries, and the
+/// record of one is not shown for the other, with the first loaded
+/// or after it is taken out.
+#[test]
+fn backups_keeps_the_record_of_one_twin_to_that_twin() {
+    let kits = first_and_twin();
+    let mut app = with_files(&kits, Vec::new());
+    load(&mut app, &kits);
+    let first = app.session.wallets[0].id().to_hex().to_string();
+    let twin = app.session.wallets[1].id().to_hex().to_string();
+    let sum = app.session.wallets[0].checksum().to_string();
+    let record = format!("backup\t{sum}\tfirst\t1\nwid\t{first}\n");
+    testkit::restore_backups(&mut app, record.as_bytes());
+    let c = testkit::compute();
+    let all = app.backups_now(&c);
+    assert_eq!(all.len(), 2, "two wallets listed: {all:?}");
+    let of = |id: &str| all.iter().find(|e| e.id == id).expect("an entry");
+    assert!(of(&first).lines.is_some(), "the first has its record");
+    assert!(of(&twin).lines.is_none(), "the twin has no record");
+    // The first goes: the twin is listed alone, with no record.
+    app.session.wallets.remove(0);
+    let all = app.backups_now(&c);
+    assert_eq!(all.len(), 1);
+    assert_eq!(all[0].id, *twin);
+    assert!(all[0].lines.is_none(), "the twin took the first's record");
+}

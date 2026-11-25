@@ -1377,11 +1377,11 @@ header past the HMACs, and `kdbx_xml`).
 (owner, 2026-10-10; `docs/history/SIMPLIFY.md` §3.4, decision 4.) While
 a vault is open, the app keeps a summary of it: the file's name and the
 vault identifier, the vault's name, its wallets (name, shape and
-descriptor checksum), its seeds (each key's fingerprint and its 32-byte
+descriptor checksum and wallet id), its seeds (each key's fingerprint and its 32-byte
 master id, the SHA-256 of the master public key and chain code with the
 passphrase applied, `wallet::master_id`; owner, 2026-10-21), how many
 entries it holds, its backup maps' lines (`plan.holds`), the checksums
-of the wallets it keeps a plan for, the time it was last open by this
+and ids of the wallets it keeps a plan for, the time it was last open by this
 computer's clock, and the highest seal count seen of it since power-on
 (the count and the SHA-256 of the file at that count, so two seals of
 one count are told apart; raised at every unlock and every seal).
@@ -1439,7 +1439,7 @@ unlock asks and does not refuse.
 **The plan's `seals` lines.** A line is written for each other
 vault, locked ones included, that has a summary and a count seen
 since power-on and whose summary's wallets or plan wallets hold this plan's wallet
-checksum (the other vault keeps the wallet or a plan record for it, so a
+id (the other vault keeps the wallet or a plan record for it, so a
 vault left out of keeping the plan is still checked for an older copy,
 F283), with the
 highest count and digest seen, counting a seal at this lock. None names the
@@ -1458,7 +1458,7 @@ was sealed 12 times too, with other changes.", otherwise nothing is said. Whoeve
 plan's vault learns from the lines the other vaults' identifiers and how
 many times each was sealed.
 
-**The trade-off.** Wallet names, shapes and descriptor checksums, key
+**The trade-off.** Wallet names, shapes, descriptor checksums and ids, key
 fingerprints and master ids, the backup map's places and the vault's
 name stay in RAM, and in `/run/faraday`, while the vault is locked,
 until power-off. None of it spends: no seed, no words, no entry's

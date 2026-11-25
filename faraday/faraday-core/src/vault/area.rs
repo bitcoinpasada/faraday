@@ -3442,6 +3442,13 @@ pub struct VaultSummary {
     pub sums: Vec<Text>,
     /// The descriptor checksums of the wallets it keeps a plan for.
     pub planned: Vec<Text>,
+    /// Its wallets' ids (`faraday_bip::policy::WalletId` in hex), in the
+    /// same order as `sums`: what tells two wallets of one checksum apart
+    /// while it is locked. Empty for a summary kept without them.
+    pub wallet_ids: Vec<Text>,
+    /// The ids of the wallets it keeps a plan for, in the same order as
+    /// `planned`.
+    pub planned_ids: Vec<Text>,
     /// Its keys' fingerprints.
     pub keys: Vec<Text>,
     /// Its keys' [`crate::wallet::master_id`]s, in the same order: what
@@ -3462,6 +3469,25 @@ pub struct VaultSummary {
 }
 
 impl VaultSummary {
+    /// Whether the vault holds the wallet of id `id` (hex), as it was seen
+    /// open; false for an empty id and for a summary kept without ids.
+    pub fn holds_wallet_id(&self, id: &str) -> bool {
+        !id.is_empty()
+            && self.wallet_ids.len() == self.sums.len()
+            && self
+                .wallet_ids
+                .iter()
+                .take(self.wallets.len())
+                .any(|x| x == id)
+    }
+
+    /// Whether the vault keeps a plan for the wallet of id `id` (hex).
+    pub fn plans_wallet_id(&self, id: &str) -> bool {
+        !id.is_empty()
+            && self.planned_ids.len() == self.planned.len()
+            && self.planned_ids.iter().any(|x| x == id)
+    }
+
     /// The line a locked vault's row and Home's Unlock lead read under
     /// its name: "Savings 2 of 3 · key 9a6a2580 · 12 entries · seen
     /// 14:02". `tz_min` is the device's time zone (`docs/TOTP.md` §2.3).
