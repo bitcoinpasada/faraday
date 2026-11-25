@@ -2172,3 +2172,143 @@ fn a_row_removed_or_written_leaves_the_wide_columns_right() {
         }
     }
 }
+
+/// In Faraday on a `size` display with `n` Outbox files, its own tab up.
+fn in_faraday(size: (u16, u16, u16), n: usize) -> Faraday {
+    let mut app = with_outbox(with_stick_at(3, size), n, false);
+    if app.offers(Action::VisitTab(Column::Outbox)) {
+        app.press(Action::VisitTab(Column::Outbox));
+        let _ = app.frame();
+    }
+    app
+}
+
+/// The "more below" line on screen, with its box (x, y, w, h).
+fn more_line(app: &mut Faraday) -> Option<(String, (i32, i32, i32, i32))> {
+    let _ = app.frame();
+    app.drawn_text_boxes()
+        .into_iter()
+        .find(|(t, _)| t.contains(" more · scroll to see "))
+        .map(|(t, b)| (String::from(&*t), b))
+}
+
+#[test]
+fn the_list_says_how_many_rows_are_below_and_one_reads_it() {
+    let size = (1366, 768, 160);
+    let lines: Vec<Option<String>> = (0..40)
+        .map(|n| more_line(&mut in_faraday(size, n)).map(|l| l.0))
+        .collect();
+    let first = lines
+        .iter()
+        .position(Option::is_some)
+        .expect("never overflows");
+    assert!(first > 0, "{size:?}: no files already overflow");
+    assert_eq!(
+        lines[first].as_deref(),
+        Some("1 more · scroll to see it"),
+        "{size:?}"
+    );
+    assert_eq!(
+        lines[first + 1].as_deref(),
+        Some("2 more · scroll to see them"),
+        "{size:?}"
+    );
+}
+
+#[test]
+fn the_more_line_stands_clear_above_the_write_row_at_every_size() {
+    for size in [(1366, 768, 160), (480, 640, 286), (320, 480, 160)] {
+        let mut app = in_faraday(size, 40);
+        let (_, line) = more_line(&mut app).unwrap_or_else(|| panic!("{size:?}: no line"));
+        let write = app
+            .drawn_text_boxes()
+            .into_iter()
+            .find(|(t, _)| t.starts_with("Write"))
+            .unwrap_or_else(|| panic!("{size:?}: no Write row"))
+            .1;
+        assert!(
+            line.1 + line.3 <= write.1,
+            "{size:?}: line {line:?} meets the Write row {write:?}"
+        );
+    }
+}
+
+#[test]
+fn scrolling_to_the_end_takes_the_more_line_away() {
+    let mut app = in_faraday((1366, 768, 160), 20);
+    assert!(more_line(&mut app).is_some(), "no line to begin with");
+    let over = app.where_offered(Action::VisitOut(0)).unwrap();
+    wheel(&mut app, over, 3000);
+    assert!(more_line(&mut app).is_none(), "the line stays at the end");
+}
+
+/// The Outbox and Inbox rows' foot: the line's top where one stands.
+fn foot_of(size: (u16, u16, u16)) -> i32 {
+    (0..60)
+        .find_map(|n| more_line(&mut in_faraday(size, n)))
+        .expect("never overflows")
+        .1
+        .1
+}
+
+#[test]
+fn only_the_empty_groups_line_past_the_foot_says_nothing() {
+    let size = (1366, 768, 160);
+    let foot = foot_of(size);
+    // The most files whose rows all end at or above the foot: the Inbox's
+    // heading and its Empty line stand below, partly or wholly hidden.
+    let fits = |n: usize| {
+        let mut app = in_faraday(size, n);
+        let _ = app.frame();
+        let last = format!("backup-{:02}", n - 1);
+        app.drawn_text_boxes()
+            .into_iter()
+            .find(|(t, _)| t.starts_with(&last))
+            .is_some_and(|(_, b)| b.1 - 6 + 56 <= foot)
+    };
+    let n = (1..60).take_while(|&n| fits(n)).last().expect("none fits");
+    let mut app = in_faraday(size, n);
+    assert!(
+        more_line(&mut app).is_none(),
+        "{n} files: a line for no hidden row"
+    );
+}
+
+#[test]
+fn one_file_partly_hidden_reads_one_more() {
+    let size = (1366, 768, 160);
+    let first = (0..60)
+        .find(|&n| more_line(&mut in_faraday(size, n)).is_some())
+        .expect("never overflows");
+    let mut app = in_faraday(size, first);
+    let (text, line) = more_line(&mut app).unwrap();
+    assert_eq!(text, "1 more · scroll to see it");
+    let last = app
+        .drawn_text_boxes()
+        .into_iter()
+        .find(|(t, _)| t.starts_with(&format!("backup-{:02}", first - 1)))
+        .expect("last file not drawn");
+    assert!(last.1.1 < line.1, "the last file starts below the foot");
+}
+
+#[test]
+fn the_stick_lists_number_is_its_files_below_the_foot() {
+    let size = (1366, 768, 160);
+    for n in [20usize, 26, 31] {
+        let mut app = with_stick_at(n, size);
+        let line = more_line(&mut app).unwrap_or_else(|| panic!("{n}: no line"));
+        let said: usize = line.0.split(' ').next().unwrap().parse().unwrap();
+        let foot = line.1.1;
+        // A file is hidden unless its row, name line 6 px under its top
+        // and 56 px tall, ends at or above the foot.
+        let all: Vec<_> = app.drawn_text_boxes();
+        let shown = all
+            .iter()
+            .filter(|(t, b)| {
+                (t.ends_with(".psbt") || t == "photo.png" || t == "notes.docx")
+                    && b.1 - 6 + 56 <= foot
+            })
+            .count();
+        assert_eq!(said, n + 2 - shown, "{n} files");
+    }
+}

@@ -637,6 +637,10 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
             .moves(Moves::Yes),
     );
     let mut ry = list_top;
+    // The rows whose bottom edge is below the list's foot, at the positions
+    // they are drawn at.
+    let foot = list_top + shift + track_h;
+    let mut hidden = 0u64;
     // What the Inbox gives, put together, then the open vaults.
     if summary_h > 0.0 {
         super::files::inbox_panel(app, ui, x + 12.0, ry, colw - 24.0);
@@ -644,7 +648,9 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
     }
     for v in 0..app.vaults.open.len() {
         let line = open_line(app, v);
-        ry += list_row(app, ui, (x, colw, ry), vault_row(app, v, &line));
+        let h = list_row(app, ui, (x, colw, ry), vault_row(app, v, &line));
+        hidden += below_foot(ry + h, foot);
+        ry += h;
     }
     // The settings, which are not an Outbox file: a row only once a
     // setting differs from what the boot stick holds.
@@ -677,6 +683,7 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
         ui.rule(x + 20.0, ry + 52.0, colw - 40.0, Role::OutlineVariant);
     }
     if app.settings_changed() {
+        hidden += below_foot(ry + ROW, foot);
         ry += ROW;
     }
     for (exposure, label, tone) in out_groups() {
@@ -718,6 +725,7 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
                     wrap: false,
                 },
             );
+            hidden += below_foot(ry + ROW, foot);
             ry += ROW;
         }
     }
@@ -774,6 +782,7 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
                 wrap: false,
             },
         );
+        hidden += below_foot(ry + ROW, foot);
         ry += ROW;
     }
     if shown.is_empty() {
@@ -798,7 +807,7 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
         );
     }
     ui.region_close(open, max_shift);
-    visit_list_bar(
+    visit_list_bar_counted(
         app,
         ui,
         crate::Column::Outbox,
@@ -807,6 +816,7 @@ fn in_faraday(app: &View, ui: &mut Ui, (x, y, colw, colh): (f32, f32, f32, f32),
         track_h,
         all_h,
         shift,
+        hidden,
     );
     let fy = y + colh - VISIT_FOOT_ROW;
     if usable {
@@ -1080,8 +1090,10 @@ fn on_the_stick(
                 .from_zero(shift),
         )
     });
+    let mut hidden = 0u64;
     for (k, (name, size)) in stick.files.iter().enumerate() {
         let ry = list_top + k as f32 * ROW;
+        hidden += below_foot(ry + ROW, list_top + shift + track_h);
         // A row scrolled out of the list's sight is passed over.
         if !ui.shows(ry, ROW) {
             continue;
@@ -1176,7 +1188,7 @@ fn on_the_stick(
     }
     if let Some(open) = open {
         ui.region_close(open, max_shift);
-        visit_list_bar(
+        visit_list_bar_counted(
             app,
             ui,
             crate::Column::Stick,
@@ -1185,6 +1197,7 @@ fn on_the_stick(
             track_h,
             total as f32 * ROW,
             shift,
+            hidden,
         );
     }
     if stick.files.is_empty() {
@@ -1544,10 +1557,13 @@ fn visit_unselect_all(ui: &mut Ui, right: f32, y: f32) {
     ui.press_box(sx - GRID, y + 7.0, lw + 16.0, TOUCH, Action::VisitInAll);
 }
 
-/// A stick visit column's list's scrollbar, which a finger or the mouse
-/// drags, and under the list how many rows are below it: the card's left
-/// edge and width in `card`, the list's rows from `top`, `track_h` of
-/// them shown of `all_h`, scrolled by `shift`.
+/// One for a row whose bottom edge is below the list's foot, else none.
+fn below_foot(bottom: f32, foot: f32) -> u64 {
+    u64::from(bottom > foot + 0.5)
+}
+
+/// `visit_list_bar` for a list whose hidden rows are the pixels below
+/// its foot, in row heights, a partly hidden one counting as one.
 #[allow(
     clippy::too_many_arguments,
     reason = "the visit list bar's view, column, card size, top, track and shift"
@@ -1561,6 +1577,35 @@ pub(crate) fn visit_list_bar(
     track_h: f32,
     all_h: f32,
     shift: f32,
+) {
+    let below = all_h - shift - track_h;
+    let hidden = if below > 0.0 {
+        (below / ROW).ceil() as u64
+    } else {
+        0
+    };
+    visit_list_bar_counted(app, ui, column, card, top, track_h, all_h, shift, hidden);
+}
+
+/// A stick visit column's list's scrollbar, which a finger or the mouse
+/// drags, and under the list how many rows are below it: the card's left
+/// edge and width in `card`, the list's rows from `top`, `track_h` of
+/// them shown of `all_h`, scrolled by `shift`, `hidden` of them
+/// with their bottom below the foot.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the visit list bar's view, column, card size, top, track and shift"
+)]
+fn visit_list_bar_counted(
+    app: &View,
+    ui: &mut Ui,
+    column: crate::Column,
+    card: (f32, f32),
+    top: f32,
+    track_h: f32,
+    all_h: f32,
+    shift: f32,
+    hidden: u64,
 ) {
     let right = card.0 + card.1;
     let max_shift = (all_h - track_h).max(0.0);
@@ -1585,17 +1630,20 @@ pub(crate) fn visit_list_bar(
     } else {
         bar.set(None);
     }
-    let below = all_h - shift - track_h;
-    if below > 0.0 {
+    if hidden > 0 {
+        // The rows below the foot, one partly hidden counting as one.
+        let rows = hidden;
+        let line = if rows == 1 {
+            Text::fill(EN.visit_list_bar_more_one, &[])
+        } else {
+            Text::fill(EN.visit_list_bar_more, &[&Text::num(rows)])
+        };
         ui.text_as(
             card.0 + 22.0,
             top + track_h,
             BODY_S,
             Role::OnSurfaceVariant,
-            &Text::fill(
-                EN.visit_list_bar_more,
-                &[&Text::num((below / ROW).ceil() as u64)],
-            ),
+            &line,
         );
     }
 }

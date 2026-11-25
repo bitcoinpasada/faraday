@@ -119,6 +119,8 @@ macro_rules! words_screens_visit {
     // ----- visit_list_bar (faraday-core/src/screens/visit.rs) -----
     /// Text in `visit_list_bar`. `{}`: `(below / ROW).ceil() as usize`.
     visit_list_bar_more: "{} more · scroll to see them",
+    /// Text in `visit_list_bar`, when one row is below: no count to state.
+    visit_list_bar_more_one: "1 more · scroll to see it",
         }
     };
 }
