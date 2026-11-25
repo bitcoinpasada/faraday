@@ -44,22 +44,24 @@ pub(crate) fn place_in(app: &crate::Faraday, room: f32) -> bool {
 /// The loaded keys as the pane's rows, two for each (its ldk-node and its
 /// Core Lightning node), the one the source names ticked. Each row presses
 /// what the button of the same name presses.
-pub(crate) fn rows(app: &View, source: Option<NodeSource>) -> Vec<pick::PickRow> {
-    let items = app.session.keys.all().flat_map(|k| {
-        let fp = k.fingerprint;
-        let name = crate::wallet::key_line(fp, &k.label);
-        [
-            (
-                Text::fill(EN.lightning_ldk_node, &[&name]),
-                source == Some(NodeSource::Key(fp.0)),
-                Action::LKey(fp.0),
-            ),
-            (
-                Text::fill(EN.lightning_cln_node, &[&name]),
-                source == Some(NodeSource::KeyCln(fp.0)),
-                Action::LCln(Some(fp.0)),
-            ),
-        ]
-    });
-    crate::explore::pane::key_choices(items)
+pub(crate) fn groups(app: &View, source: Option<NodeSource>) -> Vec<crate::flow::PickGroup> {
+    pick::Decl::new("")
+        .keys_many(app, |_, k| {
+            let fp = k.fingerprint;
+            let name = crate::wallet::key_line(fp, &k.label);
+            vec![
+                (
+                    Text::fill(EN.lightning_ldk_node, &[&name]),
+                    pick::Take::of(source == Some(NodeSource::Key(fp.0)), Action::LKey(fp.0)),
+                ),
+                (
+                    Text::fill(EN.lightning_cln_node, &[&name]),
+                    pick::Take::of(
+                        source == Some(NodeSource::KeyCln(fp.0)),
+                        Action::LCln(Some(fp.0)),
+                    ),
+                ),
+            ]
+        })
+        .groups()
 }

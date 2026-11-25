@@ -1,45 +1,23 @@
 //! Make a new wallet's Keys step as a pick: the open slot's keys and ways
 //! in as rows (`docs/WORKSPACE.md` §3). Labels and fingerprints only.
 
-use crate::pick::PickRow;
+use crate::pick::{PickRow, Take};
 use crate::strings::{EN, fill};
 use faraday_draw::widgets::Icon;
 
-/// The keys held here as the pick's rows for slot `slot`: a key that stands
-/// in another slot stays, dimmed, its line "In slot n" (n from 1) and no
-/// press.
-pub(crate) fn key_rows(app: &crate::Faraday, c: &crate::CreateState, slot: usize) -> Vec<PickRow> {
+/// What Make a new wallet's slot `slot` says of the key `fp`: chosen when it
+/// stands there; a key that stands in another slot stays, refused, its line
+/// "In slot n" (n from 1).
+pub(crate) fn take_key(c: &crate::CreateState, slot: usize, fp: [u8; 4]) -> Take {
     use crate::create::Source;
-    app.session
-        .keys
-        .all()
-        .map(|k| {
-            let fp = crate::wallet::fp_text(k.fingerprint);
-            let label = k.label.trim();
-            let line = if label.eq_ignore_ascii_case(&fp) {
-                ""
-            } else {
-                label
-            };
-            let row = PickRow::pick(
-                Icon::Keys,
-                String::from(&*fp),
-                line.to_string(),
-                c.slots[slot] == Source::Here(k.fingerprint.0),
-                crate::Action::CSlotHere(slot as u8, k.fingerprint.0),
-            );
-            match c
-                .slots
-                .iter()
-                .position(|s| *s == Source::Here(k.fingerprint.0))
-            {
-                Some(i) if i != slot => {
-                    row.dimmed_for(&fill(EN.hub_in_slot, &[&(i + 1).to_string()]))
-                }
-                _ => row,
-            }
-        })
-        .collect()
+    let take = Take::of(
+        c.slots[slot] == Source::Here(fp),
+        crate::Action::CSlotHere(slot as u8, fp),
+    );
+    match c.slots.iter().position(|s| *s == Source::Here(fp)) {
+        Some(i) if i != slot => take.refused(fill(EN.hub_in_slot, &[&(i + 1).to_string()])),
+        _ => take,
+    }
 }
 
 /// The ways in of slot `slot`, as the card offers them for its state:

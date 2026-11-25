@@ -11,7 +11,6 @@ use faraday_draw::tokens::{
     BODY_M, BODY_S, BUTTON_H, GAP, MESSAGE_FIELD_MIN_H, MESSAGE_FIELD_PAD_X, MESSAGE_FIELD_PAD_Y,
     MESSAGE_SHOWN_GAP, TITLE_S,
 };
-use faraday_draw::widgets::Icon;
 use faraday_ui::parts::wrap_buttons;
 
 pub(crate) const MSTEPS: [&str; 4] = [
@@ -125,44 +124,25 @@ impl crate::flow::Contained for MessageSteps {
         }
         let m = app.message.state()?;
         let usable = app.session.message_wallets();
-        let rows: Vec<_> = app
-            .session
-            .wallets
-            .iter()
-            .enumerate()
-            .map(|(i, wl)| {
-                let on = usable.contains(&i);
-                let single = matches!(
-                    crate::wallet::Kind::of(wl.policy()),
-                    crate::wallet::Kind::Single(_)
-                );
-                let row = crate::pick::PickRow::pick(
-                    Icon::Wallet,
-                    String::from(&*wl.name),
-                    if on {
-                        String::from(&*crate::wallet::Session::shape(wl))
+        Some(
+            crate::pick::Decl::new(EN.message_which_wallet)
+                .wallets(app, |i, wl| {
+                    let on = usable.contains(&i);
+                    let single = matches!(
+                        crate::wallet::Kind::of(wl.policy()),
+                        crate::wallet::Kind::Single(_)
+                    );
+                    let take = crate::pick::Take::of(on && m.wallet == Some(i), Action::MWallet(i));
+                    Some(if on {
+                        (take, String::from(&*crate::wallet::Session::shape(wl)))
+                    } else if single {
+                        (take.refused(EN.message_key_not_held), String::new())
                     } else {
-                        String::new()
-                    },
-                    on && m.wallet == Some(i),
-                    Action::MWallet(i),
-                );
-                if on {
-                    row
-                } else if single {
-                    row.dimmed_for(EN.message_key_not_held)
-                } else {
-                    row.dimmed_for(EN.message_single_key_only)
-                }
-            })
-            .collect();
-        Some(flow::Pick {
-            question: EN.message_which_wallet,
-            groups: vec![flow::PickGroup {
-                head: EN.session_group_wallets,
-                rows,
-            }],
-        })
+                        (take.refused(EN.message_single_key_only), String::new())
+                    })
+                })
+                .pick(),
+        )
     }
 
     fn hide_shown(&self, _: &mut crate::Faraday) {

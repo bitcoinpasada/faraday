@@ -183,5 +183,29 @@ class WayInRuleTests(unittest.TestCase):
             self.assertFalse(self.hit(line), line)
 
 
+class PickOwnRowsRuleTests(unittest.TestCase):
+    RULE = next(r for r in lc.RULES if r.name == "pick-own-rows")
+
+    def hit(self, line):
+        return any(p.search(line) for p in self.RULE.patterns)
+
+    def test_a_flow_listing_the_keys_or_wallets_is_a_hit(self):
+        for line in ["        app.session.keys.all()", "    let session = &app.session; session.keys.all()",
+                     "        .wallets.iter()", "    for (i, w) in app.session.wallets.iter().enumerate() {"]:
+            self.assertTrue(self.hit(line), line)
+
+    def test_a_listing_split_over_two_lines_is_a_hit(self):
+        text = "fn f() {\n    let v = app\n        .session\n        .keys\n        .all();\n}\n"
+        self.assertEqual(lc.hit_lines(self.RULE, text), [4])
+
+    def test_the_pane_and_other_lists_are_not(self):
+        for line in ["        .keys(app, |i, k| {", "    let n = app.session.wallets.len();",
+                     "    app.inbox.iter()"]:
+            self.assertFalse(self.hit(line), line)
+
+    def test_the_session_pane_is_not_looked_in(self):
+        self.assertIn("faraday/faraday-core/src/screens/session_pane/", self.RULE.skip)
+
+
 if __name__ == "__main__":
     unittest.main()

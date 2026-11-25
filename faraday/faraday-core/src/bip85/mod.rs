@@ -790,6 +790,20 @@ fn ways_in() -> Vec<crate::pick::PickRow> {
     )]
 }
 
+/// The key step's pick: every loaded key holds its master seed, so none is
+/// refused (`Keys::bip85_child` needs only that); the ways in follow.
+pub(crate) fn pick_of(app: &Faraday, b: &Bip85State) -> crate::flow::Pick {
+    crate::pick::Decl::new(crate::strings::EN.bip85_which_key)
+        .keys(app, |_, k| {
+            Some(crate::pick::Take::of(
+                b.key == Some(k.fingerprint.0),
+                crate::Action::PKey(k.fingerprint.0),
+            ))
+        })
+        .ways(ways_in())
+        .pick()
+}
+
 /// BIP-85's steps, plugged into Back, Forward and the choices that move
 /// on (F103, F104).
 pub(crate) struct Bip85Steps;
@@ -860,23 +874,7 @@ impl crate::flow::Contained for Bip85Steps {
         if k != pstep::KEY {
             return None;
         }
-        let keys = screen::key_rows(app, b);
-        let loaded = !keys.is_empty();
-        let mut groups = Vec::new();
-        if loaded {
-            groups.push(crate::flow::PickGroup {
-                head: crate::strings::EN.session_group_keys,
-                rows: keys,
-            });
-        }
-        groups.push(crate::flow::PickGroup {
-            head: crate::pick::ways_in_head(loaded),
-            rows: ways_in(),
-        });
-        Some(crate::flow::Pick {
-            question: crate::strings::EN.bip85_which_key,
-            groups,
-        })
+        Some(pick_of(app, b))
     }
 
     fn hide_shown(&self, app: &mut Faraday) {

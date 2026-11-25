@@ -121,6 +121,22 @@ RULES = [
         "the session pane (faraday-core screens/session_pane/, `docs/SESSION-PANE.md`)",
         skip=["faraday/faraday-core/src/screens/session_pane/"],
     ),
+    # A flow listing the keys or wallets the session holds to make a row of
+    # its pick: a flow declares what it takes, refuses and offers as ways in,
+    # and the session pane lists, orders and draws the rows
+    # (`screens/session_pane/pick.rs`, `docs/WORKSPACE.md` §2, "The pick").
+    # The chain rustfmt splits (`.keys` on one line, `.all()` on the next) is
+    # held too. An alias (`let ks = &app.session.keys;`), a helper that
+    # returns the list, `for k in &keys` and `keys.len()` with `keys.info(i)`
+    # are not: a line lint cannot hold them.
+    Rule(
+        "pick-own-rows",
+        [r"\bkeys\s*\.all\(\)", r"\bwallets\s*\.iter\(\)"],
+        ["faraday/faraday-core/src/"],
+        "the session pane's pick (faraday-core screens/session_pane/pick.rs: `Decl::keys`, `wallets`, `files`)",
+        skip=["faraday/faraday-core/src/screens/session_pane/"],
+        near=[(r"\b(keys|wallets)\s*$", r"\b(keys\s+\.all|wallets\s+\.iter)\(\)")],
+    ),
     # A page drawing its own section card or row: the card, its list rows,
     # dividers and columns belong to the container (`docs/MENU-PAGE.md` §4); a
     # page gives it sections of faces.

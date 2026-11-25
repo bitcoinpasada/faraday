@@ -158,6 +158,40 @@ pub(crate) fn key_facts(app: &View, fp: [u8; 4]) -> Option<(String, String)> {
         .find_map(|r| (r.action == Action::ExploreKey(fp)).then_some((r.head, r.sub)))
 }
 
+/// A key's second line as the pane says it: its name, a passphrase mark, a
+/// codex32 correction mark, then the wallet that uses it. The pick's key rows
+/// say the same line.
+pub(crate) fn key_line(session: &crate::wallet::Session, k: &faraday_keys::KeyInfo) -> String {
+    let fp = crate::wallet::fp_text(k.fingerprint);
+    let name = crate::bip85::key_name(k);
+    let mut sub = String::new();
+    if !name.eq_ignore_ascii_case(&fp) {
+        sub.push_str(&name);
+        sub.push_str(" · ");
+    }
+    if k.has_passphrase {
+        sub.push_str(EN.home_key_passphrase);
+        sub.push_str(" · ");
+    }
+    // A key that went in by a codex32 correction says so
+    // (`docs/CODEX32.md` §8.4).
+    if let Some(mark) = session.key_marks.of(k.fingerprint.0) {
+        sub.push_str(mark.fingerprint_line());
+        sub.push_str(" · ");
+    }
+    let user = session.wallets.iter().find(|w| {
+        session
+            .slots(w)
+            .iter()
+            .any(|s| s.fingerprint == Some(k.fingerprint))
+    });
+    match user {
+        Some(w) => sub.push_str(&fill(EN.home_key_used_by, &[&w.name])),
+        None => sub.push_str(EN.home_card_no_wallet_uses_it),
+    }
+    sub
+}
+
 /// Keys: every key held, its name in full, the wallet that uses it named in
 /// its line ("No wallet uses it" otherwise). A press opens the key.
 pub(super) fn key_rows(app: &View) -> Vec<SessionRow> {
@@ -167,32 +201,7 @@ pub(super) fn key_rows(app: &View) -> Vec<SessionRow> {
         .all()
         .map(|k| {
             let fp = crate::wallet::fp_text(k.fingerprint);
-            let name = crate::bip85::key_name(k);
-            let mut sub = String::new();
-            if !name.eq_ignore_ascii_case(&fp) {
-                sub.push_str(&name);
-                sub.push_str(" · ");
-            }
-            if k.has_passphrase {
-                sub.push_str(EN.home_key_passphrase);
-                sub.push_str(" · ");
-            }
-            // A key that went in by a codex32 correction says so
-            // (`docs/CODEX32.md` §8.4).
-            if let Some(mark) = session.key_marks.of(k.fingerprint.0) {
-                sub.push_str(mark.fingerprint_line());
-                sub.push_str(" · ");
-            }
-            let user = session.wallets.iter().find(|w| {
-                session
-                    .slots(w)
-                    .iter()
-                    .any(|s| s.fingerprint == Some(k.fingerprint))
-            });
-            match user {
-                Some(w) => sub.push_str(&fill(EN.home_key_used_by, &[&w.name])),
-                None => sub.push_str(EN.home_card_no_wallet_uses_it),
-            }
+            let sub = key_line(session, k);
             row(
                 Icon::Keys,
                 String::from(&*fp),
