@@ -41,6 +41,16 @@ fn top(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, name: &str) -> f32 {
     y + ui.wrap_as((x, y, width), BODY_M.mono(), Role::OnSurface, &line) + T::PAD
 }
 
+/// Where the matched bytes `mark` of an address lie in it drawn in groups
+/// of four (WORKSPACE §18, `faraday_ui::grouped`), the spaces they cross
+/// included. Drawn only: what is copied or put in a code stays the address.
+fn grouped_mark(mark: Option<&std::ops::Range<usize>>) -> std::ops::Range<usize> {
+    match mark {
+        Some(m) if !m.is_empty() => m.start + m.start / 4..m.end + (m.end - 1) / 4,
+        _ => 0..0,
+    }
+}
+
 /// One address row: its name ("Receive 12") above, the address below,
 /// always whole (§4.5), on one line where it fits and else wrapped; a
 /// found address (`mark` is where it matched) has the matched part in the
@@ -68,14 +78,15 @@ fn row(
         &fill(name, &[&at.1.to_string()]),
     );
     let y2 = y + T::PAD + T::GAP_SMALL;
-    let none = 0..0;
+    let shown = faraday_ui::grouped(a);
+    let mark = grouped_mark(mark);
     let used = ui.wrap_marked(
         (x, y2, width),
         (BODY_M.mono()).size,
         W::from((BODY_M.mono()).face),
         (Role::OnSurface.paint(), Role::Primary.paint()),
-        a,
-        mark.unwrap_or(&none).clone(),
+        shown.as_str(),
+        mark,
     );
     let Some(wif) = eye else {
         return y2 - y + used + T::GAP;
@@ -314,4 +325,28 @@ fn result(ui: &mut Ui, x: f32, y: f32, width: f32, s: &Search) -> f32 {
         cy += ui.wrap_as((x, cy, width), BODY_S, Role::OnSurfaceVariant, &line) + T::GAP;
     }
     cy - y
+}
+
+#[cfg(test)]
+mod tests {
+    use super::grouped_mark;
+
+    #[test]
+    fn a_row_is_drawn_in_groups_and_the_match_moves_with_it() {
+        let a = "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq";
+        let shown = faraday_ui::grouped(a);
+        assert_eq!(
+            shown.as_str(),
+            "bc1q ar0s rrr7 xfkv y5l6 43ly dnw9 re59 gtzz wf5m dq"
+        );
+        assert_eq!(a.len(), 42, "the value itself is not grouped");
+        // A match inside one group, one across a group, one at the end.
+        for range in [1..3, 2..11, 0..42, 40..42] {
+            let shown = faraday_ui::grouped(a);
+            let m = grouped_mark(Some(&range));
+            let marked = shown.as_str()[m.clone()].replace(' ', "");
+            assert_eq!(marked, a[range.clone()], "{range:?}");
+            assert!(!shown.as_str()[m].starts_with(' '));
+        }
+    }
 }
