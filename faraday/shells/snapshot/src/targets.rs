@@ -389,6 +389,7 @@ walks! {
     walk_demo = Some("demo"),
     walk_modes = Some("modes"),
     walk_vaultshow = Some("vaultshow"),
+    walk_vaultspair = Some("vaultspair"),
     walk_vaultsheets = Some("vaultsheets"),
     walk_addkey = Some("addkey"),
     walk_keygen = Some("keygen"),
