@@ -3,13 +3,10 @@
 use super::SIDEBAR_W;
 use crate::drawing::View;
 use crate::strings::EN;
-use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{Glyph, NameSuffix, Ui};
 use crate::{Action, Screen};
-use faraday_draw::tokens::{
-    BODY_S, FAB_H, FAB_PAD, ICON_GAP, ICON_GLYPH, LABEL_L, LABEL_M, LABEL_S,
-};
+use faraday_draw::tokens::{FAB_H, FAB_PAD, ICON_GAP, ICON_GLYPH, LABEL_L, LABEL_S};
 use faraday_draw::tokens::{GRID, TOUCH};
 use faraday_draw::widgets::Icon;
 
@@ -21,36 +18,6 @@ pub(crate) fn name_suffix(app: &View) -> NameSuffix {
     } else {
         NameSuffix::Offline
     }
-}
-
-/// A flow in progress's row's height in the sidebar.
-const FLOW_ROW: f32 = faraday_draw::tokens::TOUCH;
-
-/// A flow in progress's row, indented under its tab: its name and, at
-/// the right end in the muted tone, its open step; lit while the flow is
-/// on screen (`docs/FLOWS.md`, Flows in progress).
-fn flow_row(ui: &mut Ui, y: f32, r: &crate::in_progress::Row, lit: bool) {
-    let action = Action::Resume(r.going);
-    let (x, w) = (46.0, SIDEBAR_W - 58.0);
-    if lit {
-        ui.fill(x, y, w, FLOW_ROW, FLOW_ROW / 2.0, Role::SecondaryContainer);
-    }
-    ui.press(
-        Shape::new(x, y, w, FLOW_ROW, FLOW_ROW / 2.0),
-        Role::OnSurface.paint(),
-        action,
-    );
-    let (tx, right) = (54.0, SIDEBAR_W - 24.0);
-    let room = right - tx;
-    // The name keeps what it needs up to a little over half the row; the
-    // step has the rest.
-    let nw = ui.measure_as(LABEL_M, &r.name).min(room * 0.6);
-    let step = ui.fit_as(BODY_S, &r.step, room - nw - 8.0);
-    let sw = ui.measure_as(BODY_S, &step);
-    let name = ui.fit_as(LABEL_M, &r.name, room - sw - 8.0);
-    let fg = crate::ui::pal::on_selected(lit, Role::OnSurfaceVariant);
-    ui.text_mid_as((tx, y, FLOW_ROW), LABEL_M, fg, &name);
-    ui.text_right_as((right, y, FLOW_ROW), BODY_S, fg, &step);
 }
 
 /// The shield's box at the sidebar's top left, and the margin the shield
@@ -102,9 +69,11 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     let mut y = 64.0;
     let (x, w) = (12.0, SIDEBAR_W - 24.0);
     let flows = app.flows_in_progress();
-    let on = app.flow_on_screen();
+    let lit = crate::nav::lit_with_flow(app);
     // Each tab is one of Material's destinations: icon and label in a
     // row, the current one on a pill (`docs/LAYOUT.md` §3).
+    // The flows in progress under a tab are its second badge's number; a
+    // press on the tab is `Action::Nav` as for every tab.
     let row = |ui: &mut Ui, y: f32, icon: Glyph, label: &str, active: bool, action: Action| {
         let d = faraday_ui::nav::Dest {
             icon,
@@ -116,24 +85,17 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
                 _ => faraday_ui::nav::Badge::None,
             },
         };
-        faraday_ui::nav::destination_row(ui, (x, y, w), &d, None);
+        let n = match action {
+            Action::Nav(s) => flows.iter().filter(|r| r.tab == s).count(),
+            _ => 0,
+        };
+        faraday_ui::nav::destination_row(ui, (x, y, w), &d, None, n);
     };
     for (icon, label, screen) in items.into_iter().chain(tail) {
         // A flow lights the tab it belongs to, Spend from a backup the one
         // it was opened from (Home or Wallets).
-        let active = crate::nav::lit_destination(app) == screen;
-        // A flow in progress on screen lights its own row, not its tab.
-        let mine = || flows.iter().filter(move |r| r.tab == screen);
-        let row_lit = mine().any(|r| Some(r.going) == on);
-        row(ui, y, icon, label, active && !row_lit, Action::Nav(screen));
+        row(ui, y, icon, label, lit == screen, Action::Nav(screen));
         y += TOUCH;
-        for r in mine() {
-            flow_row(ui, y, r, Some(r.going) == on);
-            y += FLOW_ROW + 2.0;
-        }
-        if mine().next().is_some() {
-            y += 4.0;
-        }
     }
 
     // Lock and Power off are the top app bar's power button's; what holds

@@ -1,6 +1,6 @@
 //! The sidebar lists the tabs and lists neither keys nor wallets (they
-//! are on Home). Its Files row names the stage of the session. Under its tab, each flow in progress has a
-//! row, its name and open step, which returns to it as it was left.
+//! are on Home). Its Files row names the stage of the session. A tab with flows in progress carries
+//! their number, a second badge; the flows are the session pane's rows.
 
 #![expect(
     clippy::disallowed_methods,
@@ -279,33 +279,121 @@ fn lit(app: &mut Faraday, label: &str) -> bool {
     (from..from + 4).all(|x| at(x) != bg)
 }
 
-#[test]
-fn make_a_new_wallet_left_on_places_for_settings_comes_back_as_it_was_left() {
-    let mut app = create_at_places();
-    let answers = app.backup().unwrap().answers.clone();
-    app.press(Action::Nav(Screen::Settings));
-    let row = Action::Resume(Going::Create);
-    assert!(offered(&mut app, row));
-    let names = sidebar_texts(&mut app);
-    let at = names
+/// The numbers drawn in the sidebar on the tab named `label`'s row
+/// (its icon's corner), top to bottom.
+fn marks(app: &mut Faraday, label: &str) -> Vec<String> {
+    let _ = app.frame();
+    let edge = i32::from(app.where_offered(Action::Nav(Screen::Home)).unwrap().0) * 2;
+    let boxes = app.drawn_text_boxes().plain();
+    let (lx, ly, _, lh) = boxes
         .iter()
-        .position(|t| t == "Make a new wallet")
-        .unwrap_or_else(|| panic!("no row: {names:?}"));
-    assert_eq!(
-        names.get(at + 1).map(String::as_str),
-        Some("Places"),
-        "{names:?}"
-    );
-    // Under Wallets, before Tools.
-    let wallets = names.iter().position(|t| t == "Wallets").unwrap();
-    let tools = names.iter().position(|t| t == "Tools").unwrap();
-    assert!(wallets < at && at < tools, "{names:?}");
+        .find(|(t, (x, _, _, _))| t == label && *x < edge)
+        .unwrap_or_else(|| panic!("no {label} in the sidebar"))
+        .1;
+    let mut v: Vec<(i32, String)> = boxes
+        .iter()
+        .filter(|(t, (x, y, _, _))| {
+            t.chars().all(|c| c.is_ascii_digit()) && *x < lx && (ly - lh..ly + lh * 2).contains(y)
+        })
+        .map(|(t, (_, y, _, _))| (*y, t.clone()))
+        .collect();
+    v.sort();
+    v.into_iter().map(|(_, t)| t).collect()
+}
 
-    app.press(row);
-    assert_eq!(app.screen, Screen::Backup);
-    let b = app.backup().unwrap();
-    assert_eq!(b.q, Some(qstep::BOARD), "on Places");
-    assert_eq!(b.answers, answers, "the board as it was left");
+/// A flow in progress is the number on its tab, not a row under it: the
+/// number counts the flows there, none for none, and no row names the flow
+/// or its step in the sidebar.
+#[test]
+fn a_flow_in_progress_is_a_number_on_its_tab_and_no_row() {
+    let mut app = testkit::started();
+    app.press(Action::Nav(Screen::Settings));
+    assert!(marks(&mut app, "Wallets").is_empty(), "no flow, no number");
+    app.press(Action::CreateWallet);
+    crate::common::ckind(&mut app, 0);
+    app.press(Action::Nav(Screen::Settings));
+    assert_eq!(marks(&mut app, "Wallets"), ["1"]);
+    app.press(Action::RestoreWallet);
+    app.press(Action::RNext(rstep::KIND));
+    app.press(Action::Nav(Screen::Settings));
+    assert_eq!(marks(&mut app, "Wallets"), ["2"]);
+    let names = sidebar_texts(&mut app);
+    assert!(
+        !names
+            .iter()
+            .any(|t| t == "Make a new wallet" || t == "Restore a wallet"),
+        "no row under the tab: {names:?}"
+    );
+    assert!(marks(&mut app, "Tools").is_empty());
+    // The press on the tab is the tab's, as for every tab.
+    app.press(Action::Nav(Screen::WalletsStart));
+    assert_eq!(app.screen, Screen::WalletsStart);
+}
+
+/// A tab with its own badge keeps it, and the flows' number stands beside
+/// it, under it: Vaults with a vault open (its badge) and Create a vault
+/// in progress.
+#[test]
+fn the_flow_number_stands_beside_a_tabs_own_badge() {
+    use faraday_core::vault::{VaultAction as V, vstep};
+    let vault = testkit::test_vault().unwrap();
+    let mut app = with(0, 0);
+    app.storage(faraday_core::StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![(faraday_text::Text::of("vault.kdbx"), vault)]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    let _ = app.frame();
+    app.storage(faraday_core::StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    app.press(Action::Vault(V::Open(0)));
+    for c in testkit::VAULT_PASSPHRASE.chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.press(Action::Vault(V::Unlock));
+    for t in 1..60u64 {
+        if !app.vaults().open.is_empty() {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    assert_eq!(app.vaults().open.len(), 1, "the test vault did not unlock");
+    app.press(Action::Vault(V::LoadTicked));
+    app.press(Action::Nav(Screen::Settings));
+    assert_eq!(marks(&mut app, "Vaults"), ["1"], "its own badge alone");
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Create));
+    app.press(Action::Vault(V::CCustomise));
+    app.press(Action::Vault(V::CNext(vstep::WHERE)));
+    app.press(Action::Vault(V::CNext(vstep::COST)));
+    app.press(Action::Nav(Screen::Settings));
+    assert_eq!(
+        marks(&mut app, "Vaults"),
+        ["1", "1"],
+        "its own badge and the flow's, one under the other"
+    );
+}
+
+/// A GPG keys flow is the number on Tools, which stands lit on its page.
+#[test]
+fn a_gpg_keys_flow_is_a_number_on_tools() {
+    let mut app = crate::common::process(Vec::new(), Vec::new(), Vec::new());
+    crate::common::start(&mut app, Kind::Gpg);
+    assert_eq!(app.screen, Screen::BackupFlow);
+    assert!(marks(&mut app, "Tools").is_empty(), "nothing done yet");
+    crate::common::start(&mut app, Kind::Gpg);
+    app.press(Action::Flow(F::Continue));
+    assert_eq!(app.flow().unwrap().step, Step::Sticks);
+    assert_eq!(marks(&mut app, "Tools"), ["1"]);
+    assert!(lit(&mut app, "Tools"), "the flow's tab is lit on its page");
+    let names = sidebar_texts(&mut app);
+    assert!(!names.iter().any(|t| t == "GPG key"), "no row: {names:?}");
+    app.press(Action::Nav(Screen::Settings));
+    app.press(Action::Resume(Going::Flow(0)));
+    assert_eq!(app.screen, Screen::BackupFlow);
+    assert_eq!(app.flow().unwrap().step, Step::Sticks);
 }
 
 #[test]
@@ -313,15 +401,15 @@ fn no_row_before_a_step_is_done() {
     let mut app = testkit::started();
     app.press(Action::CreateWallet);
     app.press(Action::Nav(Screen::Settings));
-    assert!(!offered(&mut app, Action::Resume(Going::Create)));
+    assert!(!counted(&mut app, Going::Create));
     app.press(Action::RestoreWallet);
     app.press(Action::Nav(Screen::Settings));
-    assert!(!offered(&mut app, Action::Resume(Going::Restore)));
+    assert!(!counted(&mut app, Going::Restore));
     // Its first step done: the row.
     app.press(Action::RestoreWallet);
     app.press(Action::RNext(rstep::KIND));
     app.press(Action::Nav(Screen::Settings));
-    assert!(offered(&mut app, Action::Resume(Going::Restore)));
+    assert!(counted(&mut app, Going::Restore));
 }
 
 /// A flow in progress is a row of Home's box that resumes it.
@@ -340,11 +428,11 @@ fn the_row_goes_when_the_flow_is_started_over() {
     app.press(Action::CreateWallet);
     crate::common::ckind(&mut app, 0);
     app.press(Action::Nav(Screen::Settings));
-    assert!(offered(&mut app, Action::Resume(Going::Create)));
+    assert!(counted(&mut app, Going::Create));
     app.press(Action::Resume(Going::Create));
     assert_eq!(app.screen, Screen::Create);
     app.press(Action::CreateOver);
-    assert!(!offered(&mut app, Action::Resume(Going::Create)));
+    assert!(!counted(&mut app, Going::Create));
 }
 
 #[test]
@@ -355,16 +443,11 @@ fn the_row_goes_when_the_flow_is_finished() {
     app.press(Action::RNext(rstep::KIND));
     app.press(Action::RSeeds);
     app.press(Action::Nav(Screen::Settings));
-    assert!(offered(&mut app, Action::Resume(Going::Restore)));
+    assert!(counted(&mut app, Going::Restore));
     let names = sidebar_texts(&mut app);
-    let at = names
-        .iter()
-        .position(|t| t.starts_with("Restore an existing"))
-        .unwrap();
-    assert_eq!(
-        names.get(at + 1).map(String::as_str),
-        Some("Keys"),
-        "{names:?}"
+    assert!(
+        !names.iter().any(|t| t.starts_with("Restore an existing")),
+        "no row: {names:?}"
     );
     app.press(Action::Resume(Going::Restore));
     assert_eq!(app.screen, Screen::Restore);
@@ -376,51 +459,18 @@ fn the_row_goes_when_the_flow_is_finished() {
     app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
     app.press(Action::RNext(rstep::CHECK));
     assert_eq!(app.restore().unwrap().open, Some(rstep::DONE));
-    assert!(
-        !offered(&mut app, Action::Resume(Going::Restore)),
-        "restored: no row"
-    );
+    assert!(!counted(&mut app, Going::Restore), "restored: not counted");
 }
 
 #[test]
-fn a_gpg_keys_flow_has_its_row_under_tools() {
-    let mut app = crate::common::process(Vec::new(), Vec::new(), Vec::new());
-    crate::common::start(&mut app, Kind::Gpg);
-    assert_eq!(app.screen, Screen::BackupFlow);
-    app.press(Action::Nav(Screen::Settings));
-    assert!(
-        !offered(&mut app, Action::Resume(Going::Flow(0))),
-        "nothing done yet"
-    );
-    crate::common::start(&mut app, Kind::Gpg);
-    app.press(Action::Flow(F::Continue));
-    assert_eq!(app.flow().unwrap().step, Step::Sticks);
-    app.press(Action::Nav(Screen::Settings));
-    let names = sidebar_texts(&mut app);
-    let tools = names.iter().position(|t| t == "Tools").unwrap();
-    let learn = names.iter().position(|t| t == "Settings").unwrap();
-    let row = names
-        .iter()
-        .position(|t| t == "GPG key")
-        .unwrap_or_else(|| panic!("no row: {names:?}"));
-    assert!(tools < row && row < learn, "under Tools: {names:?}");
-    app.press(Action::Resume(Going::Flow(0)));
-    assert_eq!(app.screen, Screen::BackupFlow);
-    assert_eq!(app.flow().unwrap().step, Step::Sticks);
-}
-
-#[test]
-fn the_row_is_lit_on_its_flows_screen_and_its_tab_is_not() {
+fn the_flows_tab_is_lit_on_its_flows_screen() {
     let mut app = create_at_places();
-    assert!(lit(&mut app, "Make a new wallet"), "the row");
-    assert!(!lit(&mut app, "Wallets"), "not Wallets");
+    assert!(lit(&mut app, "Wallets"), "its tab, no row");
     app.press(Action::Nav(Screen::Settings));
-    assert!(!lit(&mut app, "Make a new wallet"));
+    assert!(!lit(&mut app, "Wallets"));
     assert!(lit(&mut app, "Settings"), "Settings is");
-    // On any other screen of the tab, the tab is lit as before.
     app.press(Action::Nav(Screen::WalletsStart));
     assert!(lit(&mut app, "Wallets"));
-    assert!(!lit(&mut app, "Make a new wallet"));
 }
 
 #[test]
@@ -431,24 +481,39 @@ fn a_lock_wipes_what_it_wipes_and_a_kept_flow_keeps_its_row() {
     app.press(Action::Flow(F::Continue));
     app.press(Action::CreateWallet);
     crate::common::ckind(&mut app, 0);
-    assert!(offered(&mut app, Action::Resume(Going::Create)));
+    assert!(counted(&mut app, Going::Create));
     let mut app = shell.lock(&mut app);
     assert!(
-        !offered(&mut app, Action::Resume(Going::Create)),
+        !counted(&mut app, Going::Create),
         "Make a new wallet is wiped"
     );
     assert!(
-        offered(&mut app, Action::Resume(Going::Flow(0))),
+        counted(&mut app, Going::Flow(0)),
         "the GPG key's flow is kept"
     );
 }
 
 // ---- Cancel: leaving a flow for good (`docs/FLOWS.md`, Cancel; F51) ----
 
-/// Whether the flow's row is in the sidebar, on Settings.
+/// The sidebar tab the flow `g` is counted on.
+fn tab_of(g: Going) -> &'static str {
+    match g {
+        Going::Vault => "Vaults",
+        Going::Flow(_) => "Tools",
+        _ => "Wallets",
+    }
+}
+
+/// Whether the flow `g` is counted on its tab in the sidebar now: the tab
+/// carries a number (its own badge, if any, stands above the flows').
+fn counted(app: &mut Faraday, g: Going) -> bool {
+    !marks(app, tab_of(g)).is_empty()
+}
+
+/// Whether the flow `g` is counted on its tab, seen from Settings.
 fn row_on_settings(app: &mut Faraday, g: Going) -> bool {
     app.press(Action::Nav(Screen::Settings));
-    offered(app, Action::Resume(g))
+    counted(app, g)
 }
 
 /// The texts drawn now, the sheet's among them.
@@ -739,5 +804,5 @@ fn the_sidebar_shows_no_key_or_wallet_rows_and_a_flow_in_progress_keeps_its_row(
     for k in 0..3 {
         assert!(!app.offers(Action::ExploreKey(fp(&app, k))), "key {k}");
     }
-    assert!(offered(&mut app, Action::Resume(Going::Create)));
+    assert!(counted(&mut app, Going::Create));
 }

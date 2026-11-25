@@ -247,14 +247,22 @@ fn a_seven_inch_panel_sized_window_shows_the_rail_with_settings_and_lock() {
     the_rail_offers_and_opens(960, 580);
 }
 
-/// The expanded rail at the window's left lists a flow in progress.
+/// The expanded rail at the window's left carries a flow in progress as the
+/// number on its tab, and no row.
 fn the_expanded_rail_lists_a_flow(width: u16, height: u16) {
     let mut app = on(width, height, 160);
     assert_eq!(app.nav(), Nav::ExpandedRail);
     flow_begun(&mut app);
     app.press(Action::Nav(Screen::Settings));
-    let (x, _) = at(&mut app, Action::Resume(Going::Create)).expect("the flow's row");
-    assert!(x < 240, "not in the expanded rail");
+    assert!(
+        at(&mut app, Action::Resume(Going::Create)).is_none_or(|(x, _)| x >= 240),
+        "no row for the flow in the expanded rail"
+    );
+    let marks = drawn_at(&mut app, "1");
+    assert!(
+        marks.iter().any(|b| b.0 + b.2 < 240),
+        "no number on its tab: {marks:?}"
+    );
 }
 
 #[test]

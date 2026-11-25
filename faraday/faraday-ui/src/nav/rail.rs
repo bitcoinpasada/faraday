@@ -9,8 +9,8 @@ use super::{Dest, item};
 use crate::pal::*;
 use crate::{Shape, Ui};
 use faraday_draw::tokens::{
-    FAB_H_COMPACT, GAP, GRID, ICON_SMALL, LABEL_L, LABEL_M, NAV_ICON, NAV_ICON_GAP, NAV_ITEM_H,
-    NAV_RAIL_TOP, PAD, RAIL_MARK_H, RAIL_MARK_W, RAIL_W, TOUCH,
+    BADGE_LARGE, FAB_H_COMPACT, GAP, GRID, ICON_SMALL, LABEL_L, LABEL_M, NAV_ICON, NAV_ICON_GAP,
+    NAV_ITEM_H, NAV_RAIL_TOP, PAD, RAIL_MARK_H, RAIL_MARK_W, RAIL_W, TOUCH,
 };
 use faraday_draw::widgets::Icon;
 
@@ -107,13 +107,16 @@ pub fn rail<A: Copy + PartialEq>(ui: &mut Ui<A>, h: f32, r: &Rail<A>) {
 
 /// An expanded rail's destination `d` at `(x, y, w)`, `w` wide and a
 /// touch target tall: its icon and label in a row, on a pill while it is
-/// current, and `end` at its right end in the label's colour. The whole row
-/// is pressable.
+/// current, and `end` at its right end in the label's colour. `flows`, the
+/// number of flows in progress there, is a second badge in the same
+/// orange: on the icon's corner, or just under the tab's own badge when it
+/// has one. The whole row is pressable.
 pub fn destination_row<A: Copy + PartialEq>(
     ui: &mut Ui<A>,
     (x, y, w): (f32, f32, f32),
     d: &Dest<A>,
     end: Option<&str>,
+    flows: usize,
 ) {
     let (icon, label, current, action) = (d.icon, d.label, d.current, d.action);
     let r = TOUCH / 2.0;
@@ -136,7 +139,15 @@ pub fn destination_row<A: Copy + PartialEq>(
     let iy = y + (TOUCH - ICON_SMALL) / 2.0;
     ui.icon(ix, iy, ICON_SMALL, icon, NAV_ICON, fg);
     let inset = (ICON_SMALL - NAV_ICON) / 2.0;
-    super::badge(ui, (ix + inset, iy + inset, NAV_ICON), d.badge);
+    let glyph = (ix + inset, iy + inset, NAV_ICON);
+    super::badge(ui, glyph, d.badge);
+    let own = !matches!(d.badge, super::Badge::None | super::Badge::Count(0));
+    let low = if own { BADGE_LARGE + 2.0 } else { 0.0 };
+    super::badge(
+        ui,
+        (glyph.0, glyph.1 + low, glyph.2),
+        super::Badge::Count(flows),
+    );
     let tx = ix + ICON_SMALL + NAV_ICON_GAP;
     let right = x + w - PAD;
     let end_w = end.map_or(0.0, |e| ui.measure_as(LABEL_M.regular(), e) + GRID);

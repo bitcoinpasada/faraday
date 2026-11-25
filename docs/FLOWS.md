@@ -1591,7 +1591,7 @@ stays UTC.
 **Why.** The owner was on Places in Create a wallet, opened Settings to
 change the theme, and found no way back. The flow was kept (pressing
 **Create a wallet** again resumes it), but nothing on screen said so.
-The code: `faraday-core/src/in_progress.rs`; the sidebar's `flow_row`,
+The code: `faraday-core/src/in_progress.rs`; the wide sidebar's flow number (`screens/sidebar.rs`),
 the small Home's tiles; `Action::Resume`.
 
 **On the phone layout** (the navigation bar at the foot) a step of the flow
@@ -1601,30 +1601,30 @@ progress is kept; a tool or check ends). Cancel, Lock and Power stay in the
 top app bar. The flow's chip and its row on Home's box are reached from the
 other pages, which keep the bar. No swipe brings the bar back.
 
-1. **A flow in progress has a row in the sidebar, under its tab.** A
-   flow is in progress from its first step done until it is finished,
-   started over or let go, or its state is wiped (a lock wipes what it
-   wipes today). Each has one row, indented under the sidebar entry it
-   is opened from: Make a new wallet, Restore an existing wallet, Back up a
-   wallet, Spend, Sign a message and a wallet's backup flow left on its
-   own ("Backup of {wallet}") under **Wallets**; Create a vault under
-   **Vaults**; the GPG and Secure Boot flows under **Tools**. New
-   key (with Add a key) has none: it keeps nothing when its screen is
-   left (survey below). The row reads the flow's name and, at its right
-   end in the muted tone, its open step ("Make a new wallet · Places");
-   a press opens the flow on that step, as it was left. Make a new
-   wallet, the vaults it sets up before its keys and the Back up it
-   ends in are one row, named Make a new wallet (the name on its own
-   screen and on Home: "Create a wallet" is the old name); Restore and
-   its vault setup are one row too.
-2. **The row is lit while its flow is on screen**, and its tab is not;
-   on any other screen the tab is lit as today.
+1. **A flow in progress is a number on its tab in the wide sidebar** (owner,
+   2026-11-24; this replaces the row under the tab F41 asked for). A flow is
+   in progress from its first step done until it is finished, started over or
+   let go, or its state is wiped (a lock wipes what it wipes today). The tab
+   it is opened from carries the number of flows in progress there as a
+   badge in the destination badge's orange (DESIGN §4.8), beside the tab's
+   own badge (under it when it has one), and none when there is none: Make a
+   new wallet, Restore an existing wallet, Back up a wallet, Spend, Sign a
+   message and a wallet's backup flow left on its own under **Wallets**;
+   Create a vault under **Vaults**; the GPG and Secure Boot flows under
+   **Tools**. No row under a tab names a flow or its step; the session pane's
+   row does, and a press on the tab is the tab's. New key (with Add a key)
+   has none: it keeps nothing when its screen is left (survey below). Make a
+   new wallet, the vaults it sets up before its keys and the Back up it ends
+   in are one flow, named Make a new wallet (the name on its own screen and
+   on Home: "Create a wallet" is the old name); Restore and its vault setup
+   are one flow too. The rail and the phone's bar keep the chips.
+2. **A tab is lit while its flow is on screen**: a flow lights the tab it
+   belongs to (a backup flow the Wallets or Tools tab it is in progress
+   under); on any other screen the tab is lit as today.
 3. **What a row never shows**: a key's words, a passphrase, or any value
    the flow holds. A wallet's or key's name, already on Home, may be its name.
-4. **Room.** Rows are added after their tab, in the order the flows
-   were started; the seeds and wallets groups at the foot give up rows
-   as they do today (`sidebar_caps`). A flow that keeps nothing when
-   left (a calculator, Explore, Check a signer) has no row.
+4. **Room.** The number takes no room of its own. A flow that keeps nothing
+   when left (a calculator, Explore, Check a signer) is not counted.
 5. **The narrow window and the small panel** (the compact layout): the
    small Home leads with the box of what is loaded, a line per flow in
    progress, its name and "in progress", opening it, before the keys and
@@ -1769,9 +1769,9 @@ same job and writes nothing.
 ### Cancel: leaving a flow for good (owner, 2026-10-19; F51)
 
 A flow in progress has a way out where the person is, not on its
-sidebar row (a press on the row only returns to the flow).
+tab's number (a press on the tab only goes to the flow's tab).
 
-1. **Cancel** at the top of every flow that has a sidebar row: it ends the flow, its row goes, and the
+1. **Cancel** at the top of every flow that counts on a sidebar tab: it ends the flow, its number drops, and the
    screen it was opened from is shown as it was seen (F77); the screen
    in the table's last column only when that one is not known.
    A flow opened from a result of Home's search lands on the results, with

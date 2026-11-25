@@ -253,6 +253,26 @@ pub(crate) fn is_tool(s: Screen) -> bool {
     )
 }
 
+/// The destination the wide sidebar lights: [`lit_destination`], and for a
+/// backup flow (GPG keys, Secure Boot keys, a wallet's backup) the tab it
+/// is in progress under, since no row under the tab marks it any more.
+pub(crate) fn lit_with_flow(app: &crate::drawing::View) -> Screen {
+    if app.screen == Screen::BackupFlow
+        && let Some(i) = app.flows.on()
+    {
+        let wallet = app
+            .flows
+            .get(i)
+            .is_some_and(|f| f.kind == crate::backup_flow::Kind::Wallet);
+        return if wallet {
+            Screen::WalletsStart
+        } else {
+            Screen::Catalog
+        };
+    }
+    lit_destination(app)
+}
+
 /// Whether the screen on show is a destination's top page, the one the
 /// sidebar or the rail lists: Home, Check, Wallets' start, Files, Tools,
 /// Vaults' list (not one made from another flow), Settings' list and

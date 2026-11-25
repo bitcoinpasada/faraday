@@ -244,12 +244,14 @@ fn navigation(ui: &mut Ui<u8>) {
             (16.0, 150.0, 240.0),
             &dest("Settings", true, 8, Badge::None),
             Some("end"),
+            0,
         );
         nav::destination_row(
             ui,
             (16.0, 200.0, 240.0),
             &dest("Guide", false, 9, Badge::Dot),
             None,
+            1,
         );
         let bar = [
             dest("Home", true, 10, Badge::None),

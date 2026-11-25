@@ -57,7 +57,7 @@ Read this table, then only the decision you need.
 | [F38](history/decisions/F38.md) | Access layers | 2026-10-16 | Withdrawn | backup |
 | [F39](decisions/F39.md) | One page colour; steps are sections, not cards | 2026-10-16 | Active | design |
 | [F40](decisions/F40.md) | The plan is what the places keep | 2026-10-16 | Active | backup |
-| [F41](decisions/F41.md) | A flow in progress is always one press away | 2026-10-16 | Active | design |
+| [F41](decisions/F41.md) | A flow in progress is always one press away | 2026-10-16 | Amended by F334 | design |
 | [F42](decisions/F42.md) | Restart beside Power off, with the BIOS key | 2026-10-16 | Active | stick |
 | [F43](decisions/F43.md) | The cursor moves by the screen's scale | 2026-10-16 | Active | stick |
 | [F44](decisions/F44.md) | Add a key is the New key flow | 2026-10-19 | Active | keys |
@@ -341,3 +341,4 @@ Read this table, then only the decision you need.
 | [F329](decisions/F329.md) | The Starter's Appearance and About are rows of Home's Settings, not of the menu | 2026-11-24 | Active | Starter |
 | [F331](decisions/F331.md) | Everything raised rests at one level; in a flow the flow's card alone is raised, and the search and the pills stay | 2026-11-24 | Active | design |
 | [F332](decisions/F332.md) | What can be pressed shows it: a chevron opens, a radio or a box chooses, an icon and a verb act, and a fact looks like none of them | 2026-11-24 | Active | design |
+| [F334](decisions/F334.md) | A flow in progress is a number on its sidebar tab, with no row under it | 2026-11-24 | Active | design |

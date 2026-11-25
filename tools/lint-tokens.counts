@@ -30,7 +30,7 @@ faraday/faraday-core/src/screens/restore.rs 72
 faraday/faraday-core/src/screens/set_time.rs 25
 faraday/faraday-core/src/screens/settings.rs 15
 faraday/faraday-core/src/screens/sheets.rs 188
-faraday/faraday-core/src/screens/sidebar.rs 22
+faraday/faraday-core/src/screens/sidebar.rs 14
 faraday/faraday-core/src/screens/spend.rs 243
 faraday/faraday-core/src/screens/visit.rs 123
 faraday/faraday-core/src/screens/wallets.rs 116
