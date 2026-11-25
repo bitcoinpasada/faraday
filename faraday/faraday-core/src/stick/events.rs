@@ -138,6 +138,7 @@ pub(crate) fn storage_event(app: &mut Faraday, event: StorageEvent) {
         }
         StorageEvent::ReadFailed { name, reason, .. } => {
             app.visit.reading_done(&name);
+            app.visit.load_after_remove(&name);
             app.visit
                 .log_push((faraday_text::text!("{}: {}", &*name, &*reason), false));
         }

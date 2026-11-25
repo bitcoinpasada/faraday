@@ -694,7 +694,7 @@ fn phrase(m: &Mnemonic) -> Text {
 
 /// Costs what `parse_words` costs. The words a text file spells, in
 /// whichever BIP-39 list they are in.
-fn words_of(c: &Compute, text: &str) -> Option<Mnemonic> {
+pub(crate) fn words_of(c: &Compute, text: &str) -> Option<Mnemonic> {
     let typed = forms::file_words(text);
     Language::ALL
         .into_iter()
@@ -1985,7 +1985,10 @@ impl Faraday {
         // the others stay in the session and the screen stays.
         let back = back.filter(|&b| self.takes_added_key(b));
         let slot = self.camera.slot_asked();
-        let names = self.visit.take_load_after();
+        let mut names = self.visit.take_load_after();
+        // A name still being read is the stick's file, which is not in
+        // Files yet: an older file of that name there is not the one asked.
+        names.retain(|n| !self.visit.reading_has(n));
         let indices: Vec<usize> = self
             .inbox
             .iter()
@@ -1996,11 +1999,19 @@ impl Faraday {
         let mut n = 0;
         // The words the last key refused said (empty if it said none).
         let mut refusal: Option<faraday_text::Text> = None;
+        // Restore's own error a refused file set: a later key that loads
+        // clears it, and it is set again after the loop.
+        let mut restore_error: Option<faraday_text::Text> = None;
         for i in indices {
             let before = self.toast_text().map(toast_mark);
             if self.load_key_for(i, back) {
                 n += 1;
             } else {
+                if back == Some(crate::Screen::Restore)
+                    && let Some(e) = self.restore().and_then(|r| r.error.clone())
+                {
+                    restore_error = Some(e);
+                }
                 let now = self.toast_text();
                 // A toast unchanged by this key keeps the earlier words.
                 refusal = Some(match now {
@@ -2008,6 +2019,9 @@ impl Faraday {
                     _ => refusal.take().unwrap_or_default(),
                 });
             }
+        }
+        if let Some(e) = restore_error {
+            self.restore.set_error(e.as_ref());
         }
         let said = self.toast_text().map(toast_mark);
         // A wallet in the Inbox that names a seed just loaded loads too.

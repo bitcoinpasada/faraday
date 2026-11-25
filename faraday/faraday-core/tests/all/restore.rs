@@ -1685,3 +1685,123 @@ fn with_reduce_motion_holding_the_sheet_of_make_the_wallet_shows_check_at_once()
     assert_eq!((seen.started, seen.reduced), (0, 1));
     assert_eq!(seen.settled_at, 0, "there at once");
 }
+
+/// Restore's Add a key, a key file from a stick copied and the stick
+/// pulled.
+fn restore_key_file_from_a_stick(app: &mut Faraday, words: &str) {
+    let name = "key-1-words.txt";
+    app.storage(faraday_core::StorageEvent::Sticks(vec![
+        faraday_core::StickInfo {
+            make: Default::default(),
+            serial: None,
+            id: faraday_text::Text::of("S1"),
+            label: faraday_text::Text::of("TESTSTICK"),
+            boot: false,
+            files: vec![(faraday_text::Text::of(name), words.len() as u64)],
+            vaults: Vec::new(),
+        },
+    ]));
+    if app.sheet == Some(Sheet::Lock) {
+        app.press(Action::NotNow);
+    }
+    app.press(Action::VisitFrom(Screen::Entry));
+    app.press(Action::VisitIn(0));
+    app.press(Action::VisitCopy);
+    app.storage(faraday_core::StorageEvent::Read {
+        stick: faraday_text::Text::of("S1"),
+        name: faraday_text::Text::of(name),
+        bytes: words.to_string().into_bytes().into(),
+    });
+    app.storage(faraday_core::StorageEvent::Sticks(Vec::new()));
+}
+
+#[test]
+fn restore_refuses_a_stick_key_file_that_is_none_of_the_wallets_keys_as_typed_words_are() {
+    let mut app = described_to_seeds();
+    let keys = app.session.keys.len();
+    app.press(Action::RSlotWords);
+    restore_key_file_from_a_stick(&mut app, ABANDON);
+    assert_eq!(app.session.keys.len(), keys, "the stranger was loaded");
+    assert_eq!(
+        app.restore().unwrap().error.as_deref(),
+        Some(NOT_A_KEY),
+        "the refusal is Restore's"
+    );
+    assert_eq!(app.screen, Screen::Restore);
+    let toast = app.toast_text().unwrap_or_default().to_string();
+    assert!(
+        toast.ends_with("removed") && !toast.contains('·'),
+        "said {toast}"
+    );
+}
+
+#[test]
+fn restore_takes_a_stick_key_file_that_is_one_of_the_wallets_keys() {
+    let mut app = described_to_seeds();
+    let keys = app.session.keys.len();
+    let held = |app: &Faraday| {
+        let w = app.restore().unwrap().wallet.unwrap();
+        let slots = app.session.slots(&app.session.wallets[w]);
+        slots.iter().filter(|s| s.held_by.is_some()).count()
+    };
+    let before = held(&app);
+    app.press(Action::RSlotWords);
+    restore_key_file_from_a_stick(&mut app, &testkit::test_words("zebra"));
+    assert_eq!(app.session.keys.len(), keys + 1, "the wallet's key loaded");
+    assert_eq!(app.restore().unwrap().error, None);
+    assert_eq!(app.screen, Screen::Restore);
+    assert_eq!(held(&app), before + 1, "the zebra key's slot is not filled");
+}
+
+/// Restore's Add a key with two key files ticked, Import, the stick pulled.
+fn restore_two_key_files(app: &mut Faraday, files: [(&str, &str); 2]) {
+    app.storage(faraday_core::StorageEvent::Sticks(vec![
+        faraday_core::StickInfo {
+            make: Default::default(),
+            serial: None,
+            id: faraday_text::Text::of("S1"),
+            label: faraday_text::Text::of("TESTSTICK"),
+            boot: false,
+            files: files
+                .iter()
+                .map(|(n, w)| (faraday_text::Text::of(n), w.len() as u64))
+                .collect(),
+            vaults: Vec::new(),
+        },
+    ]));
+    if app.sheet == Some(Sheet::Lock) {
+        app.press(Action::NotNow);
+    }
+    app.press(Action::VisitFrom(Screen::Entry));
+    app.press(Action::VisitIn(0));
+    app.press(Action::VisitIn(1));
+    app.press(Action::VisitCopy);
+    for (n, w) in files {
+        app.storage(faraday_core::StorageEvent::Read {
+            stick: faraday_text::Text::of("S1"),
+            name: faraday_text::Text::of(n),
+            bytes: w.to_string().into_bytes().into(),
+        });
+    }
+    app.storage(faraday_core::StorageEvent::Sticks(Vec::new()));
+}
+
+#[test]
+fn restore_says_a_refused_key_file_though_another_loaded_after_it_or_before_it() {
+    let wallets = testkit::test_words("zebra");
+    for files in [
+        [("a-words.txt", ABANDON), ("b-words.txt", wallets.as_str())],
+        [("a-words.txt", wallets.as_str()), ("b-words.txt", ABANDON)],
+    ] {
+        let mut app = described_to_seeds();
+        let keys = app.session.keys.len();
+        app.press(Action::RSlotWords);
+        restore_two_key_files(&mut app, files);
+        assert_eq!(app.session.keys.len(), keys + 1, "{files:?}");
+        assert_eq!(
+            app.restore().unwrap().error.as_deref(),
+            Some(NOT_A_KEY),
+            "{files:?}"
+        );
+    }
+}

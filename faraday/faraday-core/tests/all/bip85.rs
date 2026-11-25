@@ -1323,3 +1323,54 @@ fn leaving_files_drops_the_slot_and_the_return() {
     read_and_pull(&mut app, &words);
     assert!(slots(&app).iter().all(|s| *s == Source::Empty));
 }
+
+#[test]
+fn an_older_file_of_the_stick_files_name_in_files_is_not_loaded_and_ticked_in_its_place() {
+    let older = testkit::test_words(testkit::TEST_SEEDS[1].0).to_string();
+    let words = testkit::test_words(testkit::TEST_SEEDS[0].0).to_string();
+    let mut app = adding_from_the_key_step();
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![(KEY_FILE.to_string(), older.into_bytes())]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    stick_in(&mut app, &words);
+    app.press(Action::VisitFrom(Screen::Entry));
+    app.press(Action::VisitIn(0));
+    app.press(Action::VisitCopy);
+    // The stick is pulled before its file was read.
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    assert_eq!(app.session.keys.len(), 0, "the older file was loaded");
+    assert!(
+        app.bip85().is_none_or(|b| b.key.is_none()),
+        "the older file was ticked as the asked-for key"
+    );
+}
+
+#[test]
+fn a_key_file_whose_read_failed_does_not_load_the_older_file_of_its_name() {
+    let older = testkit::test_words(testkit::TEST_SEEDS[1].0).to_string();
+    let words = testkit::test_words(testkit::TEST_SEEDS[0].0).to_string();
+    let mut app = adding_from_the_key_step();
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![(KEY_FILE.to_string(), older.into_bytes())]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    stick_in(&mut app, &words);
+    app.press(Action::VisitFrom(Screen::Entry));
+    app.press(Action::VisitIn(0));
+    app.press(Action::VisitCopy);
+    // The read fails, then the stick is pulled.
+    app.storage(StorageEvent::ReadFailed {
+        stick: faraday_text::Text::of("S1"),
+        name: faraday_text::Text::of(KEY_FILE),
+        reason: faraday_text::Text::of("unreadable"),
+    });
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    assert_eq!(app.session.keys.len(), 0, "the older file was loaded");
+    assert!(
+        app.bip85().is_none_or(|b| b.key.is_none()),
+        "the older file was ticked as the asked-for key"
+    );
+}

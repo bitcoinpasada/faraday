@@ -1153,6 +1153,16 @@ impl Faraday {
         };
         let label = stem(&item.name);
         let words = forms::file_words(text);
+        // Restore takes a seed only into a slot it fills, as when typed:
+        // a key that is none of the wallet's is refused before it loads.
+        if back == Some(Screen::Restore)
+            && let Some(m) = crate::inbox::words_of(&c, text)
+            && let Some(why) =
+                self.restore_refusal_of(&c, || faraday_keys::identity::Material::Words(&m), "")
+        {
+            self.restore.set_error(why);
+            return false;
+        }
         match self.session.keys.add_words(&c, &words, &label, None) {
             Ok(fp) => {
                 self.toast(&faraday_text::Text::fill(
