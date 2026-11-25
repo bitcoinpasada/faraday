@@ -174,7 +174,8 @@ fn read_origin(text: &str, network: Network) -> Option<(Fingerprint, u32)> {
         return None;
     }
     let account = hardened(parts.next()?)?;
-    if parts.next().is_some() {
+    // A hardened index is below 2^31, as `sp()` reads it.
+    if account >= 1 << 31 || parts.next().is_some() {
         return None;
     }
     Some((Fingerprint(bytes), account))
@@ -267,9 +268,6 @@ pub fn from_scan_key(
 /// checked as a record's is.
 fn wallet_of(read: silent::ScanKeyRead, origin: &str) -> Result<SilentWallet, ReadError> {
     let (fingerprint, account) = read_origin(origin, read.network).ok_or(ReadError::Origin)?;
-    if account >= 1 << 31 {
-        return Err(ReadError::Origin);
-    }
     Ok(SilentWallet {
         network: read.network,
         fingerprint,

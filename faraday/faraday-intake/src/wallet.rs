@@ -70,6 +70,15 @@ pub enum Refusal {
     /// the loaded key with its fingerprint (this one) gives at its
     /// account.
     SilentDiffers(Text),
+    /// A silent payments wallet whose record names a fingerprint no loaded
+    /// key has, over the scan key and spend key of a loaded key (this
+    /// one) that has another.
+    SilentOtherKey {
+        /// The loaded key's fingerprint.
+        key: Text,
+        /// The fingerprint the record names.
+        record: Text,
+    },
     /// A key of the wallet has a loaded key's master fingerprint (this
     /// one) and is not what that key gives at its origin path.
     NotYourKey(Text),
@@ -112,6 +121,9 @@ impl Refusal {
             Refusal::NotAllowed(fp) => Text::fill(EN.wallet_is_not_a_key, &[fp]),
             Refusal::StickAttached(noun) => Text::fill(EN.stick_keys_keys_load, &[noun]),
             Refusal::SilentDiffers(fp) => Text::fill(EN.wallet_silent_differs, &[fp]),
+            Refusal::SilentOtherKey { key, record } => {
+                Text::fill(EN.wallet_silent_other_key, &[key, record])
+            }
             Refusal::NotYourKey(fp) => Text::fill(EN.wallet_not_your_key, &[fp]),
             Refusal::NotBackedUp(fp) => Text::fill(EN.wallet_not_backed_up, &[fp]),
             Refusal::Unconfirmed => Text::of(EN.wallet_confirm_unconfirmed),

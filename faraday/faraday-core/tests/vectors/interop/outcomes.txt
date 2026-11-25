@@ -357,7 +357,7 @@ first bc1q9unqc738dxjg5mk8zqtz33zg59cahrj29s24lp Mainnet
 rebuilt true
 == sparrow/keystone-singlesig-sp-keystore-1.txt
 kind Wallet
-wallet tsp1qqgdw87ws322c7wjaqnzvl5ynv43sarr7ch2nrj6fwn24uv6jxks7jqa2e7v932angyh6q7p540es9xkkmljm54cl2y2fccfyvndt5shrpypt9x3f
+wallet tsp1qqgdw87ws322c7wjaqnzvl5ynv43sarr7ch2nrj6fwn24uv6jxks7jqa2e7v932angyh6q7p540es9xkkmljm54cl2y2fccfyvndt5shrpypt9x3f[0f056943/352h/1h/0h]
 first none
 rebuilt true
 == sparrow/specter-diy-export.txt
@@ -375,7 +375,7 @@ slot NativeSegwit [b317ec86/84h/1h/0h]tpubDCKVXMvGq2YRczuCLcfcY8TaxHGjFTuhFrkRGp
 rebuilt true
 == sparrow/specter-diy-sp-keystore.txt
 kind Wallet
-wallet tsp1qqgdw87ws322c7wjaqnzvl5ynv43sarr7ch2nrj6fwn24uv6jxks7jqa2e7v932angyh6q7p540es9xkkmljm54cl2y2fccfyvndt5shrpypt9x3f
+wallet tsp1qqgdw87ws322c7wjaqnzvl5ynv43sarr7ch2nrj6fwn24uv6jxks7jqa2e7v932angyh6q7p540es9xkkmljm54cl2y2fccfyvndt5shrpypt9x3f[0f056943/352h/1h/0h]
 first none
 rebuilt true
 == sparrow/specter-multisig-wallet.json

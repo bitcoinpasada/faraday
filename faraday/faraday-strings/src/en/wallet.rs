@@ -73,6 +73,11 @@ macro_rules! words_wallet {
     /// key with its fingerprint gives another scan key or spend key. `{}`:
     /// the key's fingerprint.
     wallet_silent_differs: "This wallet's record does not match key {}: its scan key or spend key is not that key's",
+    /// Text in `text`: a silent payments wallet refused because its record
+    /// names a fingerprint no loaded key has, over the scan key and spend
+    /// key a loaded key gives. `{}`: the loaded key's fingerprint, then the
+    /// fingerprint the record names.
+    wallet_silent_other_key: "Key {} gives this wallet's scan key and spend key, and its record names key {}",
     /// Text in `text`: a wallet of several keys, or one a key not of its
     /// own spends alone, not added until its sheet is confirmed (F254).
     wallet_confirm_unconfirmed: "Not added yet: waiting for its confirmation",

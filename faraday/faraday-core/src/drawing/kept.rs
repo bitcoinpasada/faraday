@@ -7,7 +7,7 @@
 //! (`View::kept`).
 
 use faraday_text::{Text, text};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use faraday_bip::bip39::Mnemonic;
@@ -57,7 +57,9 @@ const SEEDS_ADDRESSES_KEPT: usize = 16;
 const CHARTS_KEPT: usize = 8;
 
 /// The most silent payments records kept checked against the loaded keys
-/// ([`Kept::silent_check`]); the next one drops the oldest.
+/// ([`Kept::silent_check`]) when the session holds fewer wallets than
+/// this; otherwise one per session wallet, so every wallet's check stays
+/// with it and a frame works none out. The next one drops the oldest.
 const SILENT_CHECKS_KEPT: usize = 8;
 
 /// The wallet charts and the backup list kept from one moved frame to the
@@ -94,7 +96,7 @@ pub(crate) struct CardSplit {
 }
 
 /// A silent payments record checked, by the record and the ids of the
-/// loaded keys with its fingerprint, with its encoded address
+/// loaded keys, with its encoded address
 /// ([`Kept::silent_card`]).
 type KeptSilentCheck = (
     faraday_bip::silent_wallet::SilentWallet,
@@ -152,8 +154,11 @@ pub(crate) struct Kept {
     /// the Inbox's wallets and seeds are put together on every frame.
     fp_memo: RefCell<Vec<([u8; 32], Fingerprint)>>,
     /// Silent payments records checked against the loaded keys, each by
-    /// the record and the ids of the loaded keys with its fingerprint.
+    /// the record and the ids of the loaded keys.
     silent_checks: RefCell<Vec<KeptSilentCheck>>,
+    /// How many silent checks are kept now: the most of
+    /// [`SILENT_CHECKS_KEPT`] and the session's wallets at the last one.
+    silent_cap: Cell<usize>,
     /// The wallet charts and the backup list, kept only while the frames
     /// drawn are moved ones (`docs/FRAMES.md` §7).
     charts: RefCell<Charts>,
@@ -288,7 +293,7 @@ impl Kept {
             (
                 "silent payments records checked (silent_check)",
                 self.silent_checks.borrow().len(),
-                SILENT_CHECKS_KEPT,
+                self.silent_cap.get().max(SILENT_CHECKS_KEPT),
             ),
             (
                 "wallet charts (chart_get)",
@@ -519,28 +524,30 @@ impl Kept {
     /// Costs two key derivations per loaded key with the record's
     /// fingerprint the first time. Silent payments record `w` checked
     /// against the loaded keys ([`crate::silent::check_record`]): kept by
-    /// the record and the ids of the loaded keys with its fingerprint,
+    /// the record and the ids of the loaded keys,
     /// which are all the check reads, a lookup after.
     pub(crate) fn silent_check(
         &self,
         c: &Compute,
         keys: &faraday_keys::Keys,
         w: &faraday_bip::silent_wallet::SilentWallet,
+        wallets: usize,
     ) -> crate::silent::RecordCheck {
-        self.silent_card(c, keys, w).0
+        self.silent_card(c, keys, w, wallets).0
     }
 
     /// Costs what `silent_check` costs and a bech32m encoding of the
     /// address the first time. Silent payments record `w`'s check and its
-    /// address, kept together by the record and the ids of the loaded keys
-    /// with its fingerprint, a lookup after.
+    /// address, kept together by the record and the ids of the loaded keys,
+    /// a lookup after.
     pub(crate) fn silent_card(
         &self,
         c: &Compute,
         keys: &faraday_keys::Keys,
         w: &faraday_bip::silent_wallet::SilentWallet,
+        wallets: usize,
     ) -> (crate::silent::RecordCheck, faraday_text::Text) {
-        let ids = crate::silent::ids_of(keys, w.fingerprint.0);
+        let ids = crate::silent::ids_of(keys);
         if let Some((.., check, address)) = self
             .silent_checks
             .borrow()
@@ -552,7 +559,9 @@ impl Kept {
         let check = crate::silent::check_record(c, keys, w).0;
         let address = faraday_text::Text::of(&w.address());
         let mut kept = self.silent_checks.borrow_mut();
-        if kept.len() >= SILENT_CHECKS_KEPT {
+        let cap = wallets.max(SILENT_CHECKS_KEPT);
+        self.silent_cap.set(cap);
+        while kept.len() >= cap {
             kept.remove(0);
         }
         kept.push((w.clone(), ids, check, address.duplicate()));
@@ -989,7 +998,7 @@ impl View<'_> {
     }
 
     /// Whether session wallet `i` is a silent payments wallet whose record
-    /// a loaded key with its fingerprint contradicts
+    /// a loaded key contradicts
     /// ([`View::silent_wallet_check`]). Costs two key derivations the
     /// first time.
     pub(crate) fn silent_differs(&self, i: usize) -> bool {

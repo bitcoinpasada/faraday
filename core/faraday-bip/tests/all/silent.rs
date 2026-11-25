@@ -850,3 +850,24 @@ fn a_coldcard_export_of_its_silent_payments_account_alone_is_that_wallet() {
     let moved = only.replace("m/352'/1'/0'", "m/352'/0'/0'");
     assert!(faraday_bip::coldcard::read(&c, &moved).is_err());
 }
+
+#[test]
+fn a_record_names_an_account_below_two_to_the_31() {
+    use faraday_bip::keys::Fingerprint;
+    use faraday_bip::silent_wallet::SilentWallet;
+    let r = vector_receiver(Network::Mainnet);
+    let secp = Secp256k1::new();
+    let w = SilentWallet {
+        network: Network::Mainnet,
+        fingerprint: Fingerprint([0xde, 0xad, 0xbe, 0xef]),
+        account: 0,
+        scan: r.scan_public_key(&secp),
+        spend: r.spend_public_key(),
+        labels: 0,
+    };
+    let with_account = |a: u32| w.to_text().replace("/0h]", &format!("/{a}h]"));
+    let read = SilentWallet::parse(&with_account((1 << 31) - 1)).unwrap();
+    assert_eq!(read.account, (1 << 31) - 1);
+    assert!(SilentWallet::parse(&with_account(1 << 31)).is_none());
+    assert!(SilentWallet::parse(&with_account(u32::MAX)).is_none());
+}

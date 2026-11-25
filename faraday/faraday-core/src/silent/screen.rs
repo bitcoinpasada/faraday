@@ -66,8 +66,9 @@ pub(super) fn rows(app: &crate::Faraday) -> Vec<flow::Row> {
     (0..sstep::COUNT as u8)
         .map(|k| {
             let value = match k {
-                sstep::KEY => s
-                    .key
+                sstep::KEY => app
+                    .silent
+                    .named(&app.session)
                     .map(|fp| String::from(&*fp_text(faraday_bip::keys::Fingerprint(fp)))),
                 sstep::ADDRESS => app
                     .silent
@@ -126,8 +127,9 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
         // A record a loaded key contradicts: no address, no labels, no scan
         // key and no check.
         _ if app.silent_shown().check == Some(RecordCheck::Differs) => {
-            let fp = s
-                .key
+            let fp = app
+                .silent
+                .named(&app.session)
                 .map(|fp| fp_text(faraday_bip::keys::Fingerprint(fp)).to_string())
                 .unwrap_or_default();
             cy += ui.wrap_as(
@@ -142,8 +144,9 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
             // without it; labels need it.
             let (a, role) = address_on_show(app);
             cy += ui.wrap_as((x, cy, w), BODY_M.mono(), role, &a) + GAP;
-            let fp = s
-                .key
+            let fp = app
+                .silent
+                .named(&app.session)
                 .map(|fp| fp_text(faraday_bip::keys::Fingerprint(fp)).to_string())
                 .unwrap_or_default();
             cy += ui.wrap_as(
@@ -169,7 +172,7 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
             row.push((
                 EN.silent_add_its_key.to_string(),
                 Style::Secondary,
-                Action::Entry(s.key),
+                Action::Entry(app.silent.named(&app.session)),
             ));
             cy += button_rows(ui, x, cy, w, &row);
             cy += dns_card(app, s, ui, x, cy, w);

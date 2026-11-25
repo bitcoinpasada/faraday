@@ -994,7 +994,9 @@ impl Session {
         None
     }
 
-    /// Costs a key derivation per wallet key under a fingerprint loaded
+    /// Costs two key derivations per loaded key (four at an account other
+    /// than 0) for each silent payments wallet while a key was loaded since
+    /// it was checked, a key derivation per wallet key under a fingerprint loaded
     /// since the wallet was checked, and one per key waiting for its backup
     /// since the wallet was checked for each wallet key under an unloaded
     /// fingerprint: none when no key was loaded and none began to wait. A
@@ -1006,7 +1008,9 @@ impl Session {
     /// Takes out of the session every wallet with a key under a
     /// fingerprint that was not loaded when the wallet was added (or last
     /// checked) that is not what that key gives at its path (a wallet
-    /// added before its key), or that is under no loaded fingerprint and is
+    /// added before its key), a silent payments record that names a
+    /// fingerprint no loaded key has over the points a loaded key gives,
+    /// or that is under no loaded fingerprint and is
     /// a key that began to wait for its backup since, and returns each
     /// one's name and the refusal's text.
     pub(crate) fn drop_forged(&mut self, c: &Compute) -> Vec<(Text, Text)> {
@@ -1033,7 +1037,18 @@ impl Session {
                     .filter(|f| !self.wallets[i].waited.contains(f) && !new.contains(f)),
             );
             let mut memo = confirm::Gives::new();
-            let forged = if only.is_empty() {
+            // A silent payments record that names another fingerprint over
+            // the points of a key loaded since it was checked.
+            let silent = self.wallets[i].policy.silent().filter(|_| !new.is_empty());
+            let silent = silent
+                .and_then(|w| crate::silent::other_key_gives(c, &self.keys, w).map(|k| (k, w)))
+                .map(|(k, w)| Refusal::SilentOtherKey {
+                    key: Text::of(&fp_text(k)),
+                    record: Text::of(&fp_text(w.fingerprint)),
+                });
+            let forged = if silent.is_some() {
+                silent
+            } else if only.is_empty() {
                 None
             } else {
                 self.forged_key(
@@ -1072,8 +1087,8 @@ impl Session {
     /// key waits), worked out once here, never while drawing.
     /// [`Session::add_wallet`] of a description read before (a vault's
     /// kept records): no parse. A silent payments wallet whose scan key or
-    /// spend key is not what a loaded key with its fingerprint gives at
-    /// its account is refused, and so is a MuSig2 wallet two of whose keys
+    /// spend key is not what the loaded key of its fingerprint gives at
+    /// its account, or is another loaded key's, is refused, and so is a MuSig2 wallet two of whose keys
     /// have one master fingerprint, loaded or not: the MuSig2 check
     /// matches one participant to each master fingerprint, so a second
     /// account of one seed never signs. A wallet of several keys of which
@@ -1162,9 +1177,7 @@ impl Session {
             && crate::silent::check_record(c, &self.keys, w).0
                 == crate::silent::RecordCheck::Differs
         {
-            return Err(Refusal::SilentDiffers(faraday_text::Text::of(&fp_text(
-                w.fingerprint,
-            ))));
+            return Err(silent_refusal(c, &self.keys, w));
         }
         if musig_one_seed(&policy) {
             return Err(Refusal::MuSigOneSeed);
@@ -2205,6 +2218,23 @@ pub fn needed(wallet: &Wallet) -> usize {
     Session::quorum(wallet).0
 }
 
+/// Costs what `check_record` costs. Why silent payments record `w`, which
+/// a loaded key contradicts, is refused: the loaded key under another
+/// fingerprint that gives its points, else the key with its own fingerprint.
+pub(crate) fn silent_refusal(
+    c: &Compute,
+    keys: &faraday_keys::Keys,
+    w: &faraday_bip::silent_wallet::SilentWallet,
+) -> Refusal {
+    match crate::silent::other_key_gives(c, keys, w) {
+        Some(k) => Refusal::SilentOtherKey {
+            key: Text::of(&fp_text(k)),
+            record: Text::of(&fp_text(w.fingerprint)),
+        },
+        None => Refusal::SilentDiffers(Text::of(&fp_text(w.fingerprint))),
+    }
+}
+
 /// A wallet's descriptor, the form the same wallet read from a
 /// descriptor, a wallet .json or a multisig config compares equal in:
 /// the policy writes every hardened step `h` however the file wrote it
@@ -2213,6 +2243,12 @@ pub fn needed(wallet: &Wallet) -> usize {
 /// order it was written in, which it pays to. Writes the descriptor out.
 pub fn same_wallet(policy: &WalletPolicy) -> Text {
     let descriptor = policy.to_descriptor();
+    // A silent payments wallet is its address, and the key and account
+    // its record states: a record of another fingerprint or account over
+    // the same address is another wallet.
+    if let Some(w) = policy.silent() {
+        return text!("{}{}", &*descriptor, w.origin());
+    }
     const OPEN: &str = "sortedmulti(";
     let mut out = Text::of("");
     let mut rest: &str = &descriptor;
@@ -4706,15 +4742,33 @@ impl Faraday {
     pub(crate) fn drop_forged_wallets(&mut self) {
         let c = self.compute();
         self.sync_waiting_if_changed();
+        let page = self.silent_wallet().cloned();
         let dropped = self.session.drop_forged(&c);
         self.sync_waiting_if_changed();
         self.sync_psbt_wallets_if_changed();
+        self.silent_follow_dropped(page.as_ref());
         if let Some((name, why)) = dropped.first() {
             self.wallets.set_list_changed();
             let text = Text::fill(EN.vaults_refused, &[name, why]);
             self.wallets.set_wallet(0);
             self.spend_after_wallet_removed();
             self.toast(&text);
+        }
+    }
+
+    /// A wallet's silent page follows its own record when wallets before it
+    /// were dropped, and ends (back to where it came from) when the record
+    /// it shows was dropped.
+    fn silent_follow_dropped(&mut self, page: Option<&faraday_bip::silent_wallet::SilentWallet>) {
+        let Some(before) = page else {
+            return;
+        };
+        let back = self.silent.state().map(|s| s.back);
+        if self.silent.follow(&self.session, before)
+            && self.screen == Screen::Silent
+            && let Some(back) = back
+        {
+            self.screen = back;
         }
     }
 

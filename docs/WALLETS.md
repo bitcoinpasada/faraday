@@ -1169,7 +1169,10 @@ rule of its flow.
   · {path}` for a key, `Silent payment address · {fp}` for the silent
   payments address and record (with "Not checked: load key {fp} to check
   this address" while a wallet's key is not loaded; no code where a loaded
-  key with its fingerprint gives another scan key or spend key), `Signed by {address}` for a message, the
+  key with its fingerprint gives another scan key or spend key, and a
+  record that names another fingerprint over the points a loaded key gives
+  at its account or at account 0 is refused, or taken out of the session
+  when that key loads), `Signed by {address}` for a message, the
   wallet's shape and keys for its files. A file past one code says so
   instead of writing parts; a PSBT, a transaction, a file shown from
   Files and a secret offer no picture.

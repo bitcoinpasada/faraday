@@ -854,7 +854,7 @@ pub(crate) fn spend_paths_rows(
 /// record stands against the loaded keys: the address where a loaded key
 /// gives both of its points; the address and a caution while no key with
 /// its fingerprint is loaded; no address and a danger line where a loaded
-/// key with its fingerprint gives other points. Returns its height.
+/// key contradicts the record. Returns its height.
 pub(crate) fn silent_address_lines(
     app: &View,
     ui: &mut Ui,

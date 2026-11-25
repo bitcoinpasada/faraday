@@ -845,3 +845,511 @@ fn one_step_is_drawn_at_a_time() {
     let shown = drawn(&mut app);
     assert!(shown.contains("Step 1 of 4") && !shown.contains("Step 2 of 4"));
 }
+
+/// `record` stated under a fingerprint no loaded key has.
+fn under_another_fingerprint(mut record: SilentWallet) -> SilentWallet {
+    record.fingerprint = faraday_bip::keys::Fingerprint([0; 4]);
+    record
+}
+
+#[test]
+fn a_record_naming_the_loaded_keys_points_under_another_fingerprint_is_refused() {
+    // At account 0, at account 1, and with account 0's points under
+    // account 1.
+    for (account, at) in [(0, 0), (1, 1), (1, 0)] {
+        let crafted = under_another_fingerprint(record_of(account, at, None));
+        let mut app = with_key();
+        files(
+            &mut app,
+            &[("silent-1.txt", crafted.to_text().into_bytes())],
+        );
+        faraday_core::testkit::load_wallet(&mut app, 0);
+        assert!(app.session.wallets.is_empty(), "account {account} at {at}");
+        let toast = app.toast_text().unwrap_or_default();
+        assert!(toast.contains("its record names key 00000000"), "{toast}");
+        assert!(
+            toast.contains(&format!(
+                "Key {} gives",
+                &*faraday_core::wallet::fp_text(app.session.keys[0].fingerprint)
+            )),
+            "{toast}"
+        );
+    }
+}
+
+#[test]
+fn a_record_of_a_key_that_is_not_loaded_under_another_fingerprint_stays_not_checked() {
+    let crafted = under_another_fingerprint(record_of(0, 0, None));
+    let mut app = faraday_core::testkit::started();
+    files(
+        &mut app,
+        &[("silent-1.txt", crafted.to_text().into_bytes())],
+    );
+    faraday_core::testkit::load_wallet(&mut app, 0);
+    assert_eq!(app.session.wallets.len(), 1, "{:?}", app.toast_text());
+    app.press(Action::Nav(Screen::Wallets));
+    let text = drawn(&mut app);
+    assert!(text.contains("Not checked"), "{text}");
+}
+
+#[test]
+fn a_record_under_another_fingerprint_shows_no_address_while_the_key_it_names_is_loaded() {
+    let c = faraday_core::testkit::compute();
+    let crafted = under_another_fingerprint(record_of(0, 0, None));
+    let mut app = faraday_core::testkit::started();
+    files(
+        &mut app,
+        &[("silent-1.txt", crafted.to_text().into_bytes())],
+    );
+    faraday_core::testkit::load_wallet(&mut app, 0);
+    assert_eq!(app.session.wallets.len(), 1, "{:?}", app.toast_text());
+    app.press(Action::SWallet(0));
+    assert_eq!(
+        app.silent_address(&c).as_deref(),
+        Some(crafted.address().as_str())
+    );
+    let text = drawn(&mut app);
+    assert!(text.contains("Not checked"), "{text}");
+    // The key is loaded: the record is taken out of the session, with
+    // the refusal's words.
+    add_key(&mut app);
+    assert!(app.session.wallets.is_empty());
+    let toast = app.toast_text().unwrap_or_default();
+    assert!(toast.contains("its record names key 00000000"), "{toast}");
+}
+
+/// A file whose record states `account` hardened, over the test key.
+fn record_at_account(account: u32) -> Vec<u8> {
+    let text = record_of(1, 1, None).to_text();
+    text.replace("/1h]", &format!("/{account}h]")).into_bytes()
+}
+
+#[test]
+fn a_record_of_an_account_of_two_to_the_31_or_more_is_refused_and_nothing_panics() {
+    for account in [1u32 << 31, u32::MAX] {
+        // With the key loaded, and with none (then a key loads).
+        let mut app = with_key();
+        files(&mut app, &[("silent-1.txt", record_at_account(account))]);
+        faraday_core::testkit::load_wallet(&mut app, 0);
+        assert!(app.session.wallets.is_empty(), "{account}");
+        let mut app = faraday_core::testkit::started();
+        files(&mut app, &[("silent-1.txt", record_at_account(account))]);
+        faraday_core::testkit::load_wallet(&mut app, 0);
+        add_key(&mut app);
+        let _ = drawn(&mut app);
+        assert!(
+            app.session
+                .wallets
+                .iter()
+                .all(|w| w.policy().silent().is_none_or(|s| s.account < 1 << 31))
+        );
+    }
+}
+
+#[test]
+fn a_record_that_differs_from_its_key_stays_without_an_address_on_the_pressed_keys_page() {
+    let c = faraday_core::testkit::compute();
+    let bad = record_of(0, 0, Some(another_scan_key()));
+    let mut app = faraday_core::testkit::started();
+    files(&mut app, &[("silent-1.txt", bad.to_text().into_bytes())]);
+    faraday_core::testkit::load_wallet(&mut app, 0);
+    add_key(&mut app);
+    // Another key too.
+    app.press(Action::Entry(None));
+    faraday_core::testkit::type_words(
+        &mut app,
+        &faraday_core::testkit::test_words(faraday_core::testkit::TEST_SEEDS[1].0),
+    );
+    app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
+    let other = app.session.keys[1].fingerprint.0;
+    let at = app
+        .session
+        .wallets
+        .iter()
+        .position(|w| w.policy().silent().is_some_and(|s| s.scan == bad.scan))
+        .unwrap();
+    app.press(Action::SWallet(at));
+    app.press(Action::SStep(faraday_core::silent::sstep::KEY));
+    app.press(Action::SKey(other));
+    assert_eq!(app.silent_address(&c), None);
+    assert_eq!(app.silent_record(&c), None);
+    let text = drawn(&mut app);
+    assert!(!text.contains("Show as QR"), "{text}");
+    assert!(!text.contains(&bad.address()[..16]), "{text}");
+}
+
+#[test]
+fn a_crafted_record_is_taken_out_when_its_key_loads_and_the_honest_one_is_then_added() {
+    let c = faraday_core::testkit::compute();
+    let crafted = under_another_fingerprint(record_of(0, 0, None));
+    let honest = record_of(0, 0, None);
+    let mut app = faraday_core::testkit::started();
+    files(
+        &mut app,
+        &[("silent-1.txt", crafted.to_text().into_bytes())],
+    );
+    faraday_core::testkit::load_wallet(&mut app, 0);
+    assert_eq!(app.session.wallets.len(), 1);
+    add_key(&mut app);
+    assert!(app.session.wallets.is_empty());
+    files(&mut app, &[("silent-2.txt", honest.to_text().into_bytes())]);
+    faraday_core::testkit::load_wallet(&mut app, 0);
+    assert_eq!(app.session.wallets.len(), 1, "{:?}", app.toast_text());
+    app.press(Action::SWallet(0));
+    assert!(app.silent_key_here(&c));
+    assert_eq!(
+        app.silent_address(&c).as_deref(),
+        Some(honest.address().as_str())
+    );
+    // The same file loaded again is still one wallet.
+    files(&mut app, &[("silent-2.txt", honest.to_text().into_bytes())]);
+    faraday_core::testkit::load_wallet(&mut app, 0);
+    assert_eq!(app.session.wallets.len(), 1);
+}
+
+#[test]
+fn a_record_of_the_same_address_under_another_fingerprint_is_not_the_same_wallet() {
+    let c = faraday_core::testkit::compute();
+    let honest = record_of(0, 0, None);
+    let crafted = under_another_fingerprint(record_of(0, 0, None));
+    let at_account_1 = record_of(1, 0, None);
+    let same = |w: &SilentWallet| {
+        faraday_core::wallet::same_wallet(
+            &faraday_core::wallet::read_wallet(&c, &w.to_text()).unwrap(),
+        )
+    };
+    assert_eq!(same(&honest), same(&record_of(0, 0, None)));
+    assert_ne!(same(&honest), same(&crafted));
+    assert_ne!(same(&honest), same(&at_account_1));
+}
+
+/// Adds the first test key from a wallet's page (Add a key, then the
+/// words): the page is still there until the key is added.
+fn add_key_from_page(app: &mut Faraday) {
+    app.press(Action::Entry(None));
+    for c in faraday_core::testkit::test_words(faraday_core::testkit::TEST_SEEDS[0].0).chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    assert!(
+        app.silent().is_some(),
+        "the page is kept while a key is added"
+    );
+    app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(app);
+}
+
+/// Loads the second test seed as a key, returning its fingerprint.
+fn add_other_key(app: &mut Faraday) -> [u8; 4] {
+    app.press(Action::Entry(None));
+    faraday_core::testkit::type_words(
+        app,
+        &faraday_core::testkit::test_words(faraday_core::testkit::TEST_SEEDS[1].0),
+    );
+    app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(app);
+    app.session.keys[app.session.keys.len() - 1].fingerprint.0
+}
+
+fn qr_lines(app: &Faraday) -> String {
+    let c = faraday_core::testkit::compute();
+    let view = app
+        .code_view(&c, faraday_core::Code::Silent(false))
+        .expect("the page offers its code");
+    let mut all = vec![view.title.to_string()];
+    all.push(view.png_name.to_string());
+    all.extend(view.label.iter().map(|l| l.to_string()));
+    all.join(" | ")
+}
+
+#[test]
+fn a_wallets_page_names_its_records_fingerprint_whichever_key_is_pressed() {
+    let crafted = under_another_fingerprint(record_of(0, 0, None));
+    let mut app = faraday_core::testkit::started();
+    files(
+        &mut app,
+        &[("silent-1.txt", crafted.to_text().into_bytes())],
+    );
+    faraday_core::testkit::load_wallet(&mut app, 0);
+    let x = add_other_key(&mut app);
+    let x_text = faraday_core::wallet::fp_text(faraday_bip::keys::Fingerprint(x)).to_string();
+    assert_eq!(app.session.wallets.len(), 1, "{:?}", app.toast_text());
+    app.press(Action::SWallet(0));
+    app.press(Action::SStep(faraday_core::silent::sstep::KEY));
+    app.press(Action::SKey(x));
+    let text = drawn(&mut app);
+    assert!(text.contains("00000000"), "{text}");
+    assert!(!text.contains(&format!("load key {x_text}")), "{text}");
+    let qr = qr_lines(&app);
+    assert!(qr.contains("silent-00000000"), "{qr}");
+    assert!(qr.contains("00000000") && !qr.contains(&x_text), "{qr}");
+    app.press(Action::SRecord);
+    assert_eq!(app.outbox[0].name.to_string(), "silent-00000000.txt");
+}
+
+#[test]
+fn a_record_that_differs_names_its_own_key_whichever_key_is_pressed() {
+    let bad = record_of(0, 0, Some(another_scan_key()));
+    let mut app = faraday_core::testkit::started();
+    files(&mut app, &[("silent-1.txt", bad.to_text().into_bytes())]);
+    faraday_core::testkit::load_wallet(&mut app, 0);
+    add_key(&mut app);
+    let own = faraday_core::wallet::fp_text(app.session.keys[0].fingerprint).to_string();
+    let y = add_other_key(&mut app);
+    let y_text = faraday_core::wallet::fp_text(faraday_bip::keys::Fingerprint(y)).to_string();
+    let at = app
+        .session
+        .wallets
+        .iter()
+        .position(|w| w.policy().silent().is_some())
+        .unwrap();
+    app.press(Action::SWallet(at));
+    app.press(Action::SStep(faraday_core::silent::sstep::KEY));
+    app.press(Action::SKey(y));
+    let text = drawn(&mut app);
+    assert!(
+        text.contains(&format!("does not match key {own}")),
+        "{text}"
+    );
+    assert!(
+        !text.contains(&format!("does not match key {y_text}")),
+        "{text}"
+    );
+}
+
+#[test]
+fn a_record_dropped_while_its_page_adds_a_key_ends_the_page_and_spares_the_other_record() {
+    let crafted = under_another_fingerprint(record_of(0, 0, None));
+    // The key that is added makes the crafted record forged; the other
+    // record beside it (another key's points) stays with its labels.
+    let mut other = record_of(0, 0, Some(another_scan_key()));
+    other.fingerprint = faraday_bip::keys::Fingerprint([0x77; 4]);
+    other.labels = 3;
+    let mut app = faraday_core::testkit::started();
+    files(
+        &mut app,
+        &[
+            ("silent-1.txt", crafted.to_text().into_bytes()),
+            ("silent-2.txt", other.to_text().into_bytes()),
+        ],
+    );
+    faraday_core::testkit::load_wallet(&mut app, 0);
+    faraday_core::testkit::load_wallet(&mut app, 1);
+    assert_eq!(app.session.wallets.len(), 2, "{:?}", app.toast_text());
+    let at = app
+        .session
+        .wallets
+        .iter()
+        .position(|w| w.policy().silent() == Some(&crafted))
+        .unwrap();
+    app.press(Action::SWallet(at));
+    app.press(Action::SStep(faraday_core::silent::sstep::KEY));
+    add_key_from_page(&mut app);
+    assert_eq!(app.session.wallets.len(), 1);
+    let text = drawn(&mut app);
+    assert!(!text.contains(&crafted.address()[..16]), "{text}");
+    assert_ne!(app.screen, Screen::Silent);
+    assert!(app.silent().is_none());
+    // The other record keeps its labels.
+    assert_eq!(app.session.wallets[0].policy().silent().unwrap().labels, 3);
+}
+
+#[test]
+fn a_wallets_page_follows_its_record_when_a_record_before_it_is_dropped() {
+    let crafted = under_another_fingerprint(record_of(0, 0, None));
+    let mut other = record_of(0, 0, Some(another_scan_key()));
+    other.fingerprint = faraday_bip::keys::Fingerprint([0x77; 4]);
+    let mut app = faraday_core::testkit::started();
+    files(
+        &mut app,
+        &[
+            ("silent-1.txt", crafted.to_text().into_bytes()),
+            ("silent-2.txt", other.to_text().into_bytes()),
+        ],
+    );
+    faraday_core::testkit::load_wallet(&mut app, 0);
+    faraday_core::testkit::load_wallet(&mut app, 1);
+    let at = app
+        .session
+        .wallets
+        .iter()
+        .position(|w| w.policy().silent() == Some(&other))
+        .unwrap();
+    app.press(Action::SWallet(at));
+    app.press(Action::SStep(faraday_core::silent::sstep::KEY));
+    add_key_from_page(&mut app);
+    assert_eq!(app.session.wallets.len(), 1);
+    assert_eq!(app.silent_wallet(), Some(&other));
+    let text = drawn(&mut app);
+    assert!(!text.contains(&crafted.address()[..16]), "{text}");
+}
+
+#[test]
+fn the_page_of_the_only_wallet_ends_when_its_record_is_dropped() {
+    let crafted = under_another_fingerprint(record_of(0, 0, None));
+    let mut app = faraday_core::testkit::started();
+    files(
+        &mut app,
+        &[("silent-1.txt", crafted.to_text().into_bytes())],
+    );
+    faraday_core::testkit::load_wallet(&mut app, 0);
+    app.press(Action::SWallet(0));
+    app.press(Action::SStep(faraday_core::silent::sstep::KEY));
+    add_key_from_page(&mut app);
+    assert!(app.session.wallets.is_empty());
+    let text = drawn(&mut app);
+    assert!(!text.contains("Not checked"), "{text}");
+    assert!(!text.contains("Show as QR"), "{text}");
+}
+
+/// An open, empty vault (a file `vault.kdbx` unlocked from the Vaults tab).
+/// A silent record is not kept in a vault file that is read again (the file
+/// reader takes a wallet as a policy or a descriptor), so a vault holds one
+/// here as the session saved it.
+fn open_empty_vault(app: &mut Faraday) {
+    use faraday_core::vault::VaultAction as V;
+    let file = faraday_core::testkit::kdbx_vault(
+        "Test vault",
+        faraday_core::testkit::VAULT_PASSPHRASE,
+        0x7a,
+        Vec::new(),
+    )
+    .unwrap();
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![
+            ("vault.kdbx".to_string(), file),
+            ("silent-1.txt".to_string(), Vec::new()),
+        ]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.press(Action::Nav(Screen::Vaults));
+    let n = app
+        .vault_files()
+        .iter()
+        .position(|f| f.name == "vault.kdbx")
+        .expect("the vault is listed");
+    app.press(Action::Vault(V::Open(n)));
+    crate::common::type_text(app, faraday_core::testkit::VAULT_PASSPHRASE);
+    app.press(Action::Vault(V::Unlock));
+    for t in 1..60u64 {
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    assert_eq!(app.vaults().open.len(), 1);
+}
+
+/// Loads `record`, as a file `silent-1.txt` in Files, into the session.
+fn load_record(app: &mut Faraday, record: &SilentWallet) {
+    let mut inbox: Vec<(String, Vec<u8>)> = app
+        .inbox()
+        .iter()
+        .filter(|i| i.name == "vault.kdbx")
+        .map(|i| (i.name.to_string(), i.bytes.to_vec()))
+        .collect();
+    inbox.push(("silent-1.txt".to_string(), record.to_text().into_bytes()));
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(inbox),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    let at = app
+        .inbox()
+        .iter()
+        .position(|i| i.name == "silent-1.txt")
+        .unwrap();
+    faraday_core::testkit::load_wallet(app, at);
+}
+
+fn silent_records(app: &Faraday) -> Vec<SilentWallet> {
+    app.session
+        .wallets
+        .iter()
+        .filter_map(|w| w.policy().silent().cloned())
+        .collect()
+}
+
+fn wallets_in_vault(app: &Faraday) -> usize {
+    crate::common::contents(app, 0)
+        .of(faraday_vault::records::kind::WALLET)
+        .count()
+}
+
+/// Saves the session's only wallet into the open vault and takes it out of
+/// the session.
+fn save_and_forget(app: &mut Faraday) {
+    app.press(Action::Vault(faraday_core::vault::VaultAction::SaveWallet(
+        0,
+    )));
+    app.press(Action::RemoveWallet(0));
+    assert!(app.session.wallets.is_empty());
+}
+
+#[test]
+fn a_vaults_honest_record_loads_beside_a_crafted_one_of_its_address() {
+    use faraday_core::vault::VaultAction as V;
+    let honest = record_of(0, 0, None);
+    let crafted = under_another_fingerprint(record_of(0, 0, None));
+    let mut app = faraday_core::testkit::started();
+    open_empty_vault(&mut app);
+    load_record(&mut app, &honest);
+    save_and_forget(&mut app);
+    assert_eq!(wallets_in_vault(&app), 1);
+    load_record(&mut app, &crafted);
+    assert_eq!(silent_records(&app), vec![crafted.clone()]);
+    app.press(Action::Vault(V::LoadAll(0)));
+    faraday_core::testkit::settle(&mut app);
+    faraday_core::testkit::confirm_wallets(&mut app);
+    let held = silent_records(&app);
+    assert!(held.contains(&honest), "{held:?}");
+    assert!(held.contains(&crafted), "{held:?}");
+}
+
+#[test]
+fn a_crafted_record_in_the_vault_does_not_make_the_honest_one_already_there() {
+    let honest = record_of(0, 0, None);
+    let crafted = under_another_fingerprint(record_of(0, 0, None));
+    let mut app = faraday_core::testkit::started();
+    open_empty_vault(&mut app);
+    load_record(&mut app, &crafted);
+    save_and_forget(&mut app);
+    assert_eq!(wallets_in_vault(&app), 1);
+    load_record(&mut app, &honest);
+    app.press(Action::Vault(faraday_core::vault::VaultAction::SaveWallet(
+        0,
+    )));
+    assert_eq!(wallets_in_vault(&app), 2, "{}", drawn(&mut app));
+}
+
+fn add_key_waiting_for_backup(app: &mut Faraday, seed: usize) {
+    app.press(Action::Entry(None));
+    faraday_core::testkit::type_words(
+        app,
+        &faraday_core::testkit::test_words(faraday_core::testkit::TEST_SEEDS[seed].0),
+    );
+    app.press(Action::EntryAdd);
+}
+
+#[test]
+fn a_keys_address_under_another_fingerprint_stays_hidden_while_its_backup_waits_and_another_key_is_pressed()
+ {
+    let c = faraday_core::testkit::compute();
+    let crafted = under_another_fingerprint(record_of(0, 0, None));
+    let mut app = faraday_core::testkit::started();
+    files(
+        &mut app,
+        &[("silent-1.txt", crafted.to_text().into_bytes())],
+    );
+    faraday_core::testkit::load_wallet(&mut app, 0);
+    add_key_waiting_for_backup(&mut app, 0);
+    add_key_waiting_for_backup(&mut app, 1);
+    let other = app.session.keys[1].fingerprint.0;
+    app.press(Action::SWallet(0));
+    app.press(Action::SStep(faraday_core::silent::sstep::KEY));
+    app.press(Action::SKey(other));
+    assert_eq!(app.silent_address(&c), None);
+    assert_eq!(app.silent_record(&c), None);
+    let text = drawn(&mut app);
+    assert!(!text.contains(&crafted.address()[..16]), "{text}");
+    assert!(!text.contains("Show as QR"), "{text}");
+}

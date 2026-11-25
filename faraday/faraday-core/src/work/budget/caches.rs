@@ -170,3 +170,44 @@ fn every_kept_list_stays_within_its_bound_over_a_long_session() {
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
+
+#[test]
+fn ten_silent_records_with_keys_loaded_are_each_checked_once_and_read_back_after() {
+    let c = testkit::compute();
+    let (app, _) = walk(&c, &mut |_, _| {});
+    let keys = &app.session.keys;
+    assert!(!keys.is_empty(), "keys are loaded");
+    let records: Vec<_> = (0..10)
+        .map(|account| {
+            let r = keys
+                .silent_receiver(&c, 0, account)
+                .expect("the key gives its points");
+            faraday_bip::silent_wallet::SilentWallet {
+                network: app.session.network(),
+                fingerprint: keys[0].fingerprint,
+                account,
+                scan: r.scan_public_key(),
+                spend: r.spend_public_key(),
+                labels: 0,
+            }
+        })
+        .collect();
+    let kept = |app: &Faraday| {
+        app.kept
+            .sizes()
+            .into_iter()
+            .find(|(name, ..)| name.contains("silent_check"))
+            .map(|(_, len, _)| len)
+    };
+    // The list drawn: each record's check, as the wallet list asks.
+    for r in &records {
+        let _ = app.kept.silent_card(&c, keys, r, records.len());
+    }
+    assert_eq!(kept(&app), Some(10), "every record's check is kept");
+    // Drawn again: every one found kept, none worked out and none dropped
+    // for another.
+    for r in &records {
+        let _ = app.kept.silent_card(&c, keys, r, records.len());
+    }
+    assert_eq!(kept(&app), Some(10));
+}

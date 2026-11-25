@@ -4306,7 +4306,7 @@ impl Vaults {
             .iter()
             .flat_map(|v| {
                 self.described_of(c, v.id, kind::WALLET)
-                    .map(|(_, _, d)| Text::of(&d.policy.to_descriptor()))
+                    .map(|(_, _, d)| d.same.clone())
             })
             .collect();
         let keys = session
@@ -4319,7 +4319,7 @@ impl Vaults {
         let wallets = session
             .wallets
             .iter()
-            .filter(|w| !held_wallets.contains(&Text::of(&w.policy().to_descriptor())))
+            .filter(|w| !held_wallets.iter().any(|h| **h == *w.same()))
             .map(|w| Text::of(&w.name))
             .collect();
         (keys, wallets)
@@ -4339,13 +4339,13 @@ impl Vaults {
         let in_vault = |descriptor: &str| {
             self.open.iter().find_map(|v| {
                 self.described_of(c, v.id, kind::WALLET)
-                    .any(|(_, _, d)| d.policy.to_descriptor() == descriptor)
+                    .any(|(_, _, d)| *d.same == *descriptor)
                     .then(|| v.label(self.store()))
             })
         };
         let can_save = self.current_id().is_some();
         for (i, w) in session.wallets.iter().enumerate() {
-            let vault = in_vault(&w.policy().to_descriptor());
+            let vault = in_vault(w.same());
             let save =
                 (can_save && vault.is_none()).then_some(Action::Vault(VaultAction::SaveWallet(i)));
             let (state, nowhere) = match vault {

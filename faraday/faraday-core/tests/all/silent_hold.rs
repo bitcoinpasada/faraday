@@ -170,6 +170,9 @@ fn other_record_first() -> (Faraday, faraday_bip::silent_wallet::SilentWallet) {
     let text = app.silent_record(&c).unwrap();
     let mut other = faraday_bip::silent_wallet::SilentWallet::parse(&text).unwrap();
     other.fingerprint = faraday_bip::keys::Fingerprint([0; 4]);
+    // Another key's points, not the loaded key's: a record that names the
+    // loaded key's own points under another fingerprint is refused.
+    other.scan = other.spend;
     app.storage(faraday_core::StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![(
             "silent-0.txt".to_string(),
@@ -182,6 +185,8 @@ fn other_record_first() -> (Faraday, faraday_bip::silent_wallet::SilentWallet) {
     assert_eq!(app.session.wallets.len(), 1, "{:?}", app.toast_text());
     app.press(Action::Silent);
     app.press(Action::SAddWallet);
+    // The page is on the other record.
+    app.press(Action::SWallet(0));
     (app, other)
 }
 
@@ -189,25 +194,66 @@ fn other_record_first() -> (Faraday, faraday_bip::silent_wallet::SilentWallet) {
 fn a_record_of_another_fingerprint_added_first_does_not_unhold_the_keys_own_page() {
     let (mut app, _) = other_record_first();
     let c = testkit::compute();
+    // The page is on the other record, whose key is not loaded: nothing
+    // waits for it.
+    assert!(!app.silent_held(&c));
+    let text = drawn(&mut app);
+    assert!(text.contains("Its key is not loaded"), "{text}");
+    assert!(!text.contains(WARNING), "{text}");
+    // The key's own record, second, stays held.
+    app.press(Action::SWallet(1));
     assert!(app.silent_held(&c));
     let text = drawn(&mut app);
     assert!(text.contains(WARNING), "{text}");
-    // The page took the first record: its key is the one not loaded.
-    assert!(text.contains("Its key is not loaded"), "{text}");
 }
 
 #[test]
-fn the_pages_other_key_branch_draws_no_code_button_while_the_key_waits() {
+fn a_record_naming_the_waiting_keys_points_under_another_fingerprint_is_refused() {
+    let (mut app, _) = made_here();
+    let c = testkit::compute();
+    let text = app.silent_record(&c).unwrap();
+    let mut other = faraday_bip::silent_wallet::SilentWallet::parse(&text).unwrap();
+    other.fingerprint = faraday_bip::keys::Fingerprint([0; 4]);
+    app.storage(faraday_core::StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![(
+            "silent-0.txt".to_string(),
+            other.to_text().into_bytes(),
+        )]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    testkit::load_wallet(&mut app, 0);
+    assert!(app.session.wallets.is_empty());
+    let toast = app.toast_text().unwrap_or_default();
+    assert!(toast.contains("its record names key 00000000"), "{toast}");
+}
+
+#[test]
+fn the_other_records_page_offers_its_code_while_another_key_waits() {
     let (mut app, _) = other_record_first();
     let text = drawn(&mut app);
-    // The branch is entered: the page says its key is not loaded.
     assert!(text.contains("Its key is not loaded"), "{text}");
-    assert!(!text.contains("Show as QR"), "{text}");
+    assert!(text.contains("Show as QR"), "{text}");
     let fp = app.session.keys[0].fingerprint;
     testkit::release_made(&mut app, fp);
     let text = drawn(&mut app);
     assert!(text.contains("Its key is not loaded"), "{text}");
     assert!(text.contains("Show as QR"), "{text}");
+}
+
+#[test]
+fn the_other_records_page_on_the_waiting_key_draws_no_code_button_and_is_held() {
+    let (mut app, _) = other_record_first();
+    let c = testkit::compute();
+    let waiting = app.session.keys[0].fingerprint.0;
+    app.press(Action::SStep(faraday_core::silent::sstep::KEY));
+    app.press(Action::SKey(waiting));
+    // The page is still on the other record, whose key is not loaded, and
+    // its Key step is on the key that waits.
+    assert!(app.silent_held(&c));
+    let text = drawn(&mut app);
+    assert!(text.contains("Its key is not loaded"), "{text}");
+    assert!(!text.contains("Show as QR"), "{text}");
 }
 
 #[test]
