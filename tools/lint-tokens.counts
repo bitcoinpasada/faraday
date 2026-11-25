@@ -8,13 +8,13 @@ faraday/faraday-core/src/board/screen.rs 6
 faraday/faraday-core/src/boot_import/screen.rs 38
 faraday/faraday-core/src/codes/screen.rs 51
 faraday/faraday-core/src/codex32_correct/screen.rs 3
-faraday/faraday-core/src/compact/screen.rs 120
+faraday/faraday-core/src/compact/screen.rs 118
 faraday/faraday-core/src/decode/screen.rs 59
 faraday/faraday-core/src/dice_entry/screen.rs 32
 faraday/faraday-core/src/explore/screen.rs 15
-faraday/faraday-core/src/keygen/screen.rs 238
+faraday/faraday-core/src/keygen/screen.rs 237
 faraday/faraday-core/src/lightning/screen.rs 31
-faraday/faraday-core/src/modes/screen.rs 10
+faraday/faraday-core/src/modes/screen.rs 9
 faraday/faraday-core/src/pass_field/screen.rs 12
 faraday/faraday-core/src/screens/backup.rs 151
 faraday/faraday-core/src/screens/catalog.rs 12
@@ -30,7 +30,7 @@ faraday/faraday-core/src/screens/restore.rs 72
 faraday/faraday-core/src/screens/set_time.rs 25
 faraday/faraday-core/src/screens/settings.rs 15
 faraday/faraday-core/src/screens/sheets.rs 188
-faraday/faraday-core/src/screens/sidebar.rs 14
+faraday/faraday-core/src/screens/sidebar.rs 12
 faraday/faraday-core/src/screens/spend.rs 241
 faraday/faraday-core/src/screens/visit.rs 123
 faraday/faraday-core/src/screens/wallets.rs 116
