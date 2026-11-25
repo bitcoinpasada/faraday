@@ -956,10 +956,16 @@ impl Faraday {
     pub fn board_plan(&self) -> Option<(Shape, Answers)> {
         if let Some(i) = self.board_flow() {
             let wf = self.flows.get(i)?.wallet.as_ref()?;
-            return Some((wf.shape.clone(), wf.answers.clone()));
+            return Some((
+                Self::flow_shape_said(&wf.shape, &wf.answers),
+                wf.answers.clone(),
+            ));
         }
         let b = self.backup.state()?;
-        Some((self.plan_shape_now(b.wallet), b.answers.clone()))
+        Some((
+            Self::flow_shape_said(&self.plan_shape_now(b.wallet), &b.answers),
+            b.answers.clone(),
+        ))
     }
 
     /// The flow whose plan the board on screen is: a wallet flow's, or
@@ -1322,13 +1328,20 @@ impl Faraday {
                 all.iter().map(|w| form_label(*w, &software_name)).collect();
             // A held silent wallet's description is made as the text
             // file, so the read-only mark says that; the toggles edit the
-            // stored answer and stay as they are.
+            // stored answer and stay as they are. So does a stick whose
+            // picture the plan says was written as the text file.
+            let zone_at = match z {
+                Zone::Paper(p) => Some(At::Place(p)),
+                Zone::Files(p, s) => Some(At::Stick(p, s)),
+                _ => None,
+            };
+            let text_here = shape.text_files || zone_at.is_some_and(|at| a.written_on(at));
             let mut marks: Vec<String> = all
                 .iter()
                 .zip(&labels)
                 .filter(|(w, _)| on.contains(w))
                 .filter_map(|(w, l)| match w {
-                    What::WalletFile(f) if shape.text_files && *f != form::TEXT => {
+                    What::WalletFile(f) if text_here && *f != form::TEXT => {
                         Some(EN.board_text_file.to_string())
                     }
                     _ => l.clone(),

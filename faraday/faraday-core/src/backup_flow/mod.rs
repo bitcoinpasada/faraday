@@ -1802,13 +1802,16 @@ pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
                 ));
             }
             out.push_str(&text!(
-                "wshape\t{}\t{}\t{}\t{}\t{}\t{}\n",
+                "wshape\t{}\t{}\t{}\t{}\t{}\t{}{}\n",
                 w.shape.m,
                 w.shape.keys,
                 u8::from(w.shape.splits),
                 w.shape.vaults,
                 u8::from(w.shape.seed_alone_fails),
-                u8::from(w.shape.text_files)
+                u8::from(w.shape.text_files),
+                // Only a silent payments wallet's flow has a field more:
+                // every other flow's line is as it was.
+                if w.shape.silent { "\t1" } else { "" }
             ));
             for sd in &w.shape.seeds {
                 out.push_str(&text!(
@@ -2133,7 +2136,8 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
         }
         ["wshape", m, keys, splits, vaults]
         | ["wshape", m, keys, splits, vaults, _]
-        | ["wshape", m, keys, splits, vaults, _, _] => {
+        | ["wshape", m, keys, splits, vaults, _, _]
+        | ["wshape", m, keys, splits, vaults, _, _, _] => {
             let (Ok(m), Ok(keys), Ok(vaults)) = (m.parse(), keys.parse(), vaults.parse()) else {
                 return false;
             };
@@ -2148,6 +2152,7 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
             w.shape.seed_alone_fails = f.get(5) == Some(&"1");
             // Missing in a flow kept before it was written.
             w.shape.text_files = f.get(6) == Some(&"1");
+            w.shape.silent = f.get(7) == Some(&"1");
             true
         }
         // The last field, whether the key is kept as shares, is missing in
@@ -2426,6 +2431,8 @@ impl WalletFlow {
                 vaults: 0,
                 seed_alone_fails: false,
                 text_files: false,
+                silent: false,
+                said: false,
             },
             answers: crate::plan::Answers::default(),
             checksum: None,

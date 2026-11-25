@@ -1524,6 +1524,15 @@ impl WalletBackupArea {
         }
     }
 
+    /// The plan's answers put in place, nothing else of the state touched:
+    /// the lock's marked answers, and the old ones back when its save is
+    /// refused.
+    pub(crate) fn put_answers(&mut self, answers: plan::Answers) {
+        if let Some(b) = self.state.as_mut() {
+            b.answers = answers;
+        }
+    }
+
     /// Wallet `w`'s flow changed its plan: the checklist's answers
     /// follow, where it is open on that wallet.
     pub(crate) fn follow_answers(&mut self, w: usize, answers: plan::Answers) {
@@ -4072,6 +4081,8 @@ impl Faraday {
                 vaults: 0,
                 seed_alone_fails: false,
                 text_files: false,
+                silent: false,
+                said: false,
             };
         };
         self.plan_shape_of(wallet)
@@ -4104,7 +4115,27 @@ impl Faraday {
             vaults,
             seed_alone_fails: !seed_alone_gives(wallet, self.session.network()),
             text_files: self.silent_text_files(wallet),
+            silent: wallet.policy().silent().is_some(),
+            said: false,
         }
+    }
+
+    /// [`Faraday::plan_shape_now`] as the plan says what is written
+    /// ([`plan::Shape::said`]): for what a screen shows of the files, never
+    /// for what a backup makes. Said only for a silent payments wallet, the
+    /// one whose plan can carry the mark; any other shape is the make
+    /// shape, so a plan is mapped once.
+    pub fn plan_shape_said(&self, w: usize) -> plan::Shape {
+        let mut shape = self.plan_shape_now(w);
+        shape.said = shape.silent;
+        shape
+    }
+
+    /// `shape`, a flow's (the make shape), said by the flow's own answers.
+    pub(crate) fn flow_shape_said(shape: &plan::Shape, answers: &plan::Answers) -> plan::Shape {
+        let mut shape = shape.clone();
+        shape.said = answers.written_text();
+        shape
     }
 
     fn spend_ways(wallet: &crate::wallet::Wallet) -> (usize, usize, Vec<u64>) {
@@ -4185,12 +4216,25 @@ impl Faraday {
         wi: usize,
         a: &plan::Answers,
     ) -> Vec<Text> {
+        self.backup_public_names_in(c, wi, a, &self.plan_shape_now(wi))
+    }
+
+    /// Costs what `backup_public_names_for_now` costs. The same under
+    /// `shape`: the make shape names what a backup makes, the said one
+    /// (`plan::Shape::said`) what the plan says was written.
+    pub(crate) fn backup_public_names_in(
+        &self,
+        c: &Compute,
+        wi: usize,
+        a: &plan::Answers,
+        shape: &plan::Shape,
+    ) -> Vec<Text> {
         let Some(w) = self.session.wallets.get(wi) else {
             return Vec::new();
         };
         let stem = file_stem(&w.name);
         let stem = stem.as_str();
-        let [qr, text] = a.form_in(&self.plan_shape_now(wi));
+        let [qr, text] = a.form_in(shape);
         let mut out = Vec::new();
         let described = self.descriptor_picture_made(c, wi);
         for what in Self::backup_public_for(w, a) {
@@ -4633,7 +4677,8 @@ impl Faraday {
         let src = vault::plan_store::PlanSource {
             wallet: w,
             held: self.wallet_held_stored(&c, wi),
-            shape: self.plan_shape_now(wi),
+            // The holds lines say what the answers say is written.
+            shape: Self::flow_shape_said(&self.plan_shape_now(wi), answers),
             medium: self.medium,
             answers,
             names: &names,

@@ -2426,6 +2426,21 @@ pub fn backup_set_q(app: &mut crate::Faraday, q: Option<u8>) {
     app.backup.set_question(q);
 }
 
+/// How many maps and checks of the plan answers `a` cost for wallet `w`
+/// when its said shape has been mapped and its make shape is asked after:
+/// none, where the answers carry no mark of a text file written.
+pub fn plan_maps_for_the_make_shape_after_the_said(
+    app: &crate::Faraday,
+    w: usize,
+    a: &crate::plan::Answers,
+) -> u64 {
+    let c = compute();
+    let _ = app.kept.plan_mapped(&c, &app.plan_shape_said(w), a);
+    let before = faraday_plan::maps_counted();
+    let _ = app.kept.plan_mapped(&c, &app.plan_shape_now(w), a);
+    faraday_plan::maps_counted() - before
+}
+
 /// The backups record as a stick keeps it.
 pub fn backups_record(app: &crate::Faraday) -> Vec<u8> {
     crate::backups::encode(app.backups_area.records())

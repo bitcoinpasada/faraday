@@ -212,7 +212,7 @@ pub(crate) fn place_line(
 /// The most exposed of two tags.
 fn worse(a: Tag, b: Tag) -> Tag {
     let rank = |t: Tag| match t {
-        Tag::Public => 0,
+        Tag::Public | Tag::PublicText => 0,
         Tag::Sealed => 1,
         Tag::Secret => 2,
     };
@@ -955,7 +955,8 @@ impl Faraday {
         wi: Option<usize>,
         a: &plan::Answers,
     ) -> Vec<Spot> {
-        let shape = self.plan_shape_of(wallet);
+        // What the answers say is written reads as the text file.
+        let shape = Self::flow_shape_said(&self.plan_shape_of(wallet), a);
         let seeds = self.backup_seed_list_of(wallet);
         let fp_of = |i: usize| -> Option<[u8; 4]> {
             let k = seeds.get(i)?.1?;
@@ -969,7 +970,9 @@ impl Faraday {
         };
         let stem = file_stem(&wallet.name);
         let stem = stem.as_str();
-        let public = wi.map_or_else(Vec::new, |wi| self.backup_public_names_for_now(c, wi, a));
+        // Named under the shape the places are read by: where the text file
+        // was written, the text file.
+        let public = wi.map_or_else(Vec::new, |wi| self.backup_public_names_in(c, wi, a, &shape));
         // A place with what its sticks keep.
         self.kept
             .plan_mapped(c, &shape, a)

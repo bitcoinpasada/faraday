@@ -170,6 +170,20 @@ impl Faraday {
         .or_else(|| self.flows.iter().position(of))
     }
 
+    /// The flow of the loaded wallet `w` that is not done, found by its id:
+    /// a flow that kept another wallet's id (a twin with the same checksum)
+    /// is not its flow.
+    pub(crate) fn wallet_flow_of(&self, w: &crate::wallet::Wallet) -> Option<usize> {
+        let checksum = w.checksum();
+        self.flows.iter().position(|f| {
+            f.kind == Kind::Wallet
+                && f.step != Step::Done
+                && f.wallet.as_ref().is_some_and(|x| {
+                    x.checksum.as_deref() == Some(&*checksum) && x.id.is_none_or(|id| id == w.id())
+                })
+        })
+    }
+
     /// The wallet flow of that wallet that is not done: a new backup of a
     /// wallet whose last one is done starts a flow of its own.
     pub(crate) fn wallet_flow_active(
@@ -271,6 +285,8 @@ impl Faraday {
             vaults: 0,
             seed_alone_fails: !(standard && kind == K::NativeSegwit),
             text_files: false,
+            silent: false,
+            said: false,
         })
     }
 
@@ -994,6 +1010,7 @@ impl Faraday {
         };
         let (checksum, name) = (Text::of(wl.checksum()), Text::of(&wl.name));
         let wid = wl.id();
+        let silent = wl.policy().silent().is_some();
         // A backup past its lock and not done keeps its plan: its writes
         // are finished first, then Back up runs again (§17.8).
         if self.backup_locked_flow().is_some() {
@@ -1035,8 +1052,23 @@ impl Faraday {
             opens.iter().partition(|&&(v, _)| answers.keeps_plan(v));
         let written: Vec<usize> = kept.iter().map(|&&(_, o)| o).collect();
         let left: Vec<usize> = left.iter().map(|&&(_, o)| o).collect();
+        // What this lock writes is said by the plan it saves: the sticks
+        // it makes as the text file are marked, and a mark of an earlier
+        // lock this one does not write again is cleared.
+        let mut marked = answers.clone();
+        marked.wrote(&shape);
+        let changed = marked != answers;
+        self.backup.put_answers(marked.clone());
         if !self.plan_save_with(&written, &left) {
+            self.backup.put_answers(answers);
             return;
+        }
+        let answers = marked;
+        // Backups' kept record was made at the checklist, before the marks.
+        // A silent wallet's is synced whether or not its marks changed: the
+        // record was made at the checklist, where the key was still held.
+        if changed || silent {
+            self.backups_sync();
         }
         // The flow of this wallet's backup under way; a flow that is done
         // is replaced, and a new backup writes everything its plan names.

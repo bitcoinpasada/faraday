@@ -598,6 +598,8 @@ fn spots_two_of_three_with_key_3_on_paper() -> (Shape, Answers) {
         vaults: 0,
         seed_alone_fails: false,
         text_files: false,
+        silent: false,
+        said: false,
     };
     let mut a = Answers::preset(&shape, Preset::PaperVault);
     a.set_map(vec![
@@ -663,6 +665,8 @@ fn one_key_shape() -> Shape {
         vaults: 0,
         seed_alone_fails: false,
         text_files: false,
+        silent: false,
+        said: false,
     }
 }
 
@@ -1040,6 +1044,8 @@ fn shape_with(passphrase: bool, seeds_n: usize) -> Shape {
         vaults: 0,
         seed_alone_fails: false,
         text_files: false,
+        silent: false,
+        said: false,
     }
 }
 
@@ -2738,6 +2744,8 @@ fn a_one_place_plan_with_a_passphrase_stays_one_place_when_the_wallet_is_made() 
         vaults: 0,
         seed_alone_fails: false,
         text_files: false,
+        silent: false,
+        said: false,
     };
     let mut b = Answers::preset(&shape3, Preset::PaperVault);
     b.vaults[0] = vec![true, false, false];

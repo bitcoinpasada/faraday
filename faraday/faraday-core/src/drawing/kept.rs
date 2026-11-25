@@ -486,6 +486,7 @@ impl Kept {
         shape: &plan::Shape,
         a: &plan::Answers,
     ) -> Rc<plan::Mapped> {
+        let shape = &said_where_marked(shape, a);
         if let Some((_, _, m)) = self
             .plans_mapped
             .borrow()
@@ -517,6 +518,7 @@ impl Kept {
         shape: &plan::Shape,
         a: &plan::Answers,
     ) -> Option<Rc<plan::Mapped>> {
+        let shape = &said_where_marked(shape, a);
         self.plans_mapped
             .borrow()
             .iter()
@@ -1244,4 +1246,14 @@ impl crate::at_lock::AtLock for Kept {
         *self.restore_pooled.borrow_mut() = None;
         *self.silent_parsed.borrow_mut() = None;
     }
+}
+
+/// `shape` as a plan is mapped and kept by it: said only where the answers
+/// carry a mark of a text file written, since without one the said shape
+/// maps as the make shape does, and a silent payments plan with no mark is
+/// mapped once.
+fn said_where_marked(shape: &plan::Shape, a: &plan::Answers) -> plan::Shape {
+    let mut shape = shape.clone();
+    shape.said = shape.said && a.written_text();
+    shape
 }

@@ -86,10 +86,12 @@ impl PlanCtx {
                 }
             })
             .collect();
+        // What the flow's answers say is written reads as the text file.
+        let shape = crate::Faraday::flow_shape_said(&wf.shape, &a);
         Some(PlanCtx {
-            mapped: app.plan_mapped(&wf.shape, &a),
-            check: app.plan_check(&wf.shape, &a),
-            shape: wf.shape.clone(),
+            mapped: app.plan_mapped(&shape, &a),
+            check: app.plan_check(&shape, &a),
+            shape,
             answers: a,
             names,
             flow: Some(i),
@@ -336,7 +338,7 @@ pub(crate) fn map_rows(
             let tone = match tag {
                 Tag::Secret => Role::Warning,
                 Tag::Sealed => Role::Primary,
-                Tag::Public => Role::OnSurfaceVariant,
+                Tag::Public | Tag::PublicText => Role::OnSurfaceVariant,
             };
             let tw = ui.measure_as(BODY_S, tag.label());
             ui.text_right_as((ix + iw, cy, 18.0), BODY_S, tone, tag.label());

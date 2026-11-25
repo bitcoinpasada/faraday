@@ -332,6 +332,8 @@ fn the_board_line_for_a_wallet_with_several_ways_never_says_more_seeds_than_a_wa
         vaults: 0,
         seed_alone_fails: false,
         text_files: false,
+        silent: false,
+        said: false,
     };
     let mut a = faraday_core::plan::Answers::default();
     a.set_map(

@@ -42,6 +42,8 @@ fn a_seed_past_the_checklists_numbers_is_kept_nowhere() {
         vaults: 0,
         seed_alone_fails: false,
         text_files: false,
+        silent: false,
+        said: false,
     };
     let a = Answers::default();
     let line = faraday_core::plan::kept_nowhere(&c, &shape, &a, &[28]);
@@ -61,6 +63,8 @@ fn one_key() -> Shape {
         vaults: 0,
         seed_alone_fails: false,
         text_files: false,
+        silent: false,
+        said: false,
     }
 }
 
@@ -125,6 +129,8 @@ fn three_of_five() -> Shape {
         vaults: 0,
         seed_alone_fails: false,
         text_files: false,
+        silent: false,
+        said: false,
     }
 }
 
@@ -142,6 +148,8 @@ fn two_of_three() -> Shape {
         vaults: 0,
         seed_alone_fails: false,
         text_files: false,
+        silent: false,
+        said: false,
     }
 }
 
@@ -927,6 +935,8 @@ fn no_place_holds_two_different_keys_where_the_places_allow_it() {
         vaults: 0,
         seed_alone_fails: false,
         text_files: false,
+        silent: false,
+        said: false,
     };
     for (shape, name) in [
         (one_key(), "one key"),
@@ -1810,6 +1820,8 @@ fn a_reach_past_the_searchs_bound_says_it_was_not_worked_out() {
         vaults: 0,
         seed_alone_fails: false,
         text_files: false,
+        silent: false,
+        said: false,
     };
     let mut a = faraday_core::plan::Answers::default();
     a.set_map(
@@ -2788,6 +2800,8 @@ fn a_plan_of_64_seeds_counts_its_last_seed_toward_reaching_the_money() {
         vaults: 0,
         seed_alone_fails: false,
         text_files: false,
+        silent: false,
+        said: false,
     };
     let a = Answers::defaults(&shape);
     let r = faraday_core::plan::reach(&c, &shape, &a, 63).expect("place 63 keeps a seed");

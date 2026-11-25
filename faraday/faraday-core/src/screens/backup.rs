@@ -2810,7 +2810,7 @@ fn public_rows_for(
     only: Option<&[PublicFile]>,
 ) -> f32 {
     let qr = app.backup().is_none_or(|b| {
-        only.is_none() || b.answers.form_in(&app.plan_shape(b.wallet))[crate::plan::form::QR]
+        only.is_none() || b.answers.form_in(&app.plan_shape_made(b.wallet))[crate::plan::form::QR]
     });
     let mut cy = y;
     let (primary, more) = public_files(app, i);

@@ -41,13 +41,19 @@ impl Answers {
             out.push('\n');
         }
         // The map edited on the chart, a `spot` line per spot: where, and
-        // what it holds. Never a name, a date or a mark.
+        // what it holds. Never a name or a date.
         for spot in self.map.iter().flatten() {
             out.push_str("spot ");
             out.push_str(&at_code(spot.at));
-            for (w, _) in &spot.holds {
+            for (w, t) in &spot.holds {
                 out.push(' ');
                 out.push_str(&what_code(*w));
+                // Written as the text file where the plan chose the
+                // picture: the item's own mark, only on an unmarked
+                // plan's text it is absent.
+                if *t == Tag::PublicText {
+                    out.push_str(WRITTEN_AS_TEXT);
+                }
             }
             out.push('\n');
         }
@@ -668,6 +674,10 @@ fn place_rows(
     Some(())
 }
 
+/// What follows an item's code on a `spot` line when the item was written
+/// as the text file in the picture's place ([`Tag::PublicText`]).
+const WRITTEN_AS_TEXT: &str = "+txt";
+
 /// The map edited on the chart, its spots read from their `spot` lines and
 /// set into `a`; None when it is not for a wallet of this shape.
 fn read_map(a: &mut Answers, shape: &Shape, lines: Vec<(At, Vec<&str>)>) -> Option<()> {
@@ -679,6 +689,23 @@ fn read_map(a: &mut Answers, shape: &Shape, lines: Vec<(At, Vec<&str>)>) -> Opti
             // test builds: read past.
             if part.starts_with("vpw") {
                 continue;
+            }
+            // The text file written in the picture's place: `+txt` after
+            // the picture's code on a stick, or the software's or the
+            // files' description of a silent payments wallet; refused anywhere
+            // else.
+            let (part, written) = match part.strip_suffix(WRITTEN_AS_TEXT) {
+                Some(p) => (p, true),
+                None => (part, false),
+            };
+            if written
+                && (!shape.silent
+                    || !matches!(
+                        (at, part),
+                        (At::Stick(..), "walletqr") | (At::Software | At::Files, "wallet")
+                    ))
+            {
+                return None;
             }
             // The description's or a share's files saved before the
             // forms: every form the `form` answers had on
@@ -696,7 +723,12 @@ fn read_map(a: &mut Answers, shape: &Shape, lines: Vec<(At, Vec<&str>)>) -> Opti
             };
             for w in whats {
                 if !holds.iter().any(|(x, _)| *x == w) {
-                    holds.push((w, tag_of(at, w)));
+                    let t = if written {
+                        Tag::PublicText
+                    } else {
+                        tag_of(at, w)
+                    };
+                    holds.push((w, t));
                 }
             }
         }

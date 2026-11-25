@@ -44,7 +44,8 @@ use faraday_keys::vault::{RecordView, VaultId};
 pub(crate) trait Reads {
     /// The app, read only.
     fn app(&self) -> &Faraday;
-    /// What loaded wallet `w`'s plan is for ([`Faraday::plan_shape_now`]).
+    /// What loaded wallet `w`'s plan is for, as the plan says what is
+    /// written ([`Faraday::plan_shape_said`]).
     fn plan_shape(&self, w: usize) -> plan::Shape;
     /// The keys here that are held ([`Faraday::held_keys_now`]).
     fn held_keys(&self) -> Vec<faraday_bip::keys::Fingerprint>;
@@ -121,7 +122,7 @@ impl Reads for Now<'_> {
         self.app
     }
     fn plan_shape(&self, w: usize) -> plan::Shape {
-        self.app.plan_shape_now(w)
+        self.app.plan_shape_said(w)
     }
     fn held_keys(&self) -> Vec<faraday_bip::keys::Fingerprint> {
         self.app.held_keys_now(self.c)
@@ -1037,7 +1038,7 @@ fn backup_nodes(
         .unwrap_or_default();
     let worst = |t: &[(What, Tag)]| {
         let rank = |t: Tag| match t {
-            Tag::Public => 0,
+            Tag::Public | Tag::PublicText => 0,
             Tag::Sealed => 1,
             Tag::Secret => 2,
         };
@@ -1425,7 +1426,7 @@ fn tag_color(t: Tag) -> Paint {
     match t {
         Tag::Secret => Role::Warning.paint(),
         Tag::Sealed => Role::Primary.paint(),
-        Tag::Public => Role::OnSurfaceVariant.paint(),
+        Tag::Public | Tag::PublicText => Role::OnSurfaceVariant.paint(),
     }
 }
 

@@ -635,6 +635,8 @@ fn a_passphrase_dropped_in_a_vault_without_its_seed_is_a_record_of_its_own() {
         vaults: 0,
         seed_alone_fails: false,
         text_files: false,
+        silent: false,
+        said: false,
     };
     let mut a = plan::Answers::preset(&shape, plan::Preset::Paper);
     let mut m = plan::map(&c, &shape, &a);

@@ -424,7 +424,19 @@ impl Faraday {
     /// Whether the plan of `wallet` reads its description as the text file
     /// only: a lookup of [`Faraday::refresh_text_files`].
     pub(crate) fn silent_text_files(&self, wallet: &crate::wallet::Wallet) -> bool {
-        self.kept.text_wallet(wallet.checksum())
+        self.kept.text_wallet(wallet.checksum()) || self.flow_text_files(wallet)
+    }
+
+    /// Whether the backup of `wallet` past its lock and not done makes its
+    /// files as text: the flow of that wallet (by its id) kept the shape
+    /// of its lock, and the key held then need not be held now.
+    fn flow_text_files(&self, wallet: &crate::wallet::Wallet) -> bool {
+        self.wallet_flow_of(wallet).is_some_and(|i| {
+            let f = &self.flows[i];
+            f.made
+                && f.step != crate::backup_flow::Step::Done
+                && f.wallet.as_ref().is_some_and(|w| w.shape.text_files)
+        })
     }
 
     /// Whether the Silent payments page's key, or its wallet's, is among

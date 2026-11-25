@@ -313,14 +313,22 @@ impl View<'_> {
         list
     }
 
-    /// What wallet `w`'s plan is for ([`crate::Faraday::plan_shape_now`]),
-    /// once a frame each.
+    /// What wallet `w`'s plan is for, as the plan says what is written
+    /// ([`crate::Faraday::plan_shape_said`]), once a frame each.
     pub(crate) fn plan_shape(&self, w: usize) -> plan::Shape {
         if let Some((_, shape)) = self.drawing.shapes.borrow().iter().find(|(k, _)| *k == w) {
             return shape.clone();
         }
-        let shape = self.filled(|_c| self.app.plan_shape_now(w));
+        let shape = self.filled(|_c| self.app.plan_shape_said(w));
         self.drawing.shapes.borrow_mut().push((w, shape.clone()));
+        shape
+    }
+
+    /// [`View::plan_shape`] as a backup makes it
+    /// ([`crate::Faraday::plan_shape_now`]): what the chosen form decides.
+    pub(crate) fn plan_shape_made(&self, w: usize) -> plan::Shape {
+        let mut shape = self.plan_shape(w);
+        shape.said = false;
         shape
     }
 

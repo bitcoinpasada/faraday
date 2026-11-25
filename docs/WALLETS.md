@@ -1470,14 +1470,34 @@ never held.
   files made, the board, the map, Backups and the plan record saved in a
   vault all say and do the text file (the board's toggles edit the stored
   answer; its read-only mark says the text file). The answers as chosen are
-  not changed, so once the hold is released the plan reads them as chosen
-  again, the picture, whether or not a text file was written: the map, the
-  checklist and the envelopes at once, Backups (at once where it keeps no
-  record of the plan) and the plan record's holds lines at the next sync or
-  save; the record's answers keep the chosen form throughout. A backup past
-  its lock keeps, in its own map and board, the form its files were made in;
-  one not yet locked and kept over a restart follows the release once Back
-  up is open on its wallet.
+  not changed. The lock of a backup that writes the text file in the
+  picture's place marks each stick it writes so, and the software's place
+  where the public files are made as the text file: the mark is the item's
+  in the plan (the vault's `+txt` on its `spot` line, `docs/VAULT.md` §7),
+  so it goes with the item when a place or a stick before it is removed or
+  a file is added, and is dropped with the item when it is dropped,
+  cleared or moved to another stick. The next lock clears it before it
+  marks what that lock writes, so a stick written again as a picture reads
+  as one. Marked, the stick reads as the text file in the map, the
+  checklist's map lines, the envelopes, the board's mark, Backups and the
+  plan record's holds lines after the hold is released too, though the
+  chosen form alone decides what the next backup makes: the checklist's
+  stick rows and its public file buttons say what will be made, the
+  picture. The mark is kept with the plan's answers, in the backup's own
+  sticks, in Backups' record (synced after every lock of a silent
+  payments wallet) and in the plan record of each vault that lock saves
+  the plan in (the one read first, the flow's and the ones written); a
+  vault closed, or open and not of the flow, keeps its older plan whole.
+  The plan text carries `+txt` only for a silent payments wallet: for any
+  other wallet it is refused, and an ordinary wallet's record is
+  unchanged. An older Faraday does not know `+txt` and refuses the whole
+  plan text: its Backups shows no plan for the wallet, nothing warns, and
+  its next save of the plan writes the default one over it (the vault,
+  keys, wallet and notes still read). A backup locked while held and given
+  up with a stick unwritten says the text file for that stick until the
+  next lock. A backup past its lock keeps, in its own map and board, the
+  form its files were made in; one not yet locked and kept over a restart
+  follows the release once Back up is open on its wallet.
 - **Which keys, across a lock.** Which keys are made here is known by
   fingerprint only (`faraday-core/src/held.rs`): in memory while the key is
   here, as a flag in the key's vault record beside its seed, and as a

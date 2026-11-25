@@ -1184,6 +1184,8 @@ fn a_grid_drawn_in_part_is_a_secret_where_it_is_and_no_copy_that_rebuilds() {
         vaults: 0,
         seed_alone_fails: false,
         text_files: false,
+        silent: false,
+        said: false,
     };
     // The words at place 1; place 2 keeps the wallet sheet, and the grid
     // as `second` says.
@@ -1248,6 +1250,8 @@ fn keep_the_words_only_keeps_a_plan_of_answers_its_answers_and_edits_an_edited_o
         vaults: 0,
         seed_alone_fails: false,
         text_files: false,
+        silent: false,
+        said: false,
     };
     // The seeds question answered SeedQR alone: the rows swap, no edits.
     let mut a = Answers::defaults(&shape);

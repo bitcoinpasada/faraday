@@ -29,7 +29,7 @@ fn tag_tone(t: crate::plan::Tag) -> crate::ui::Paint {
     match t {
         crate::plan::Tag::Secret => Role::Warning.paint(),
         crate::plan::Tag::Sealed => Role::Primary.paint(),
-        crate::plan::Tag::Public => Role::OnSurfaceVariant.paint(),
+        crate::plan::Tag::Public | crate::plan::Tag::PublicText => Role::OnSurfaceVariant.paint(),
     }
 }
 

@@ -220,6 +220,15 @@ pub struct Shape {
     /// were chosen. Derived; saved only in a flow's shape line, so a flow
     /// past its lock keeps the form its files were made in.
     pub text_files: bool,
+    /// The wallet is a silent payments wallet, the one whose plan can carry
+    /// the mark of a text file written in the picture's place
+    /// ([`Tag::PublicText`]): any other plan's text refuses it.
+    pub silent: bool,
+    /// The sticks already written are being said: a stick whose item the
+    /// plan marked as written as the text file ([`Tag::PublicText`]) reads
+    /// the text file, the answers staying as chosen. False wherever
+    /// anything is made, so the chosen form alone decides the next backup.
+    pub said: bool,
 }
 
 impl Shape {
@@ -1453,6 +1462,10 @@ pub enum Tag {
     Sealed,
     /// Spends nothing.
     Public,
+    /// Spends nothing, and was written as the text file where the plan
+    /// chose the picture ([`Answers::wrote`]). Only in a stored map; the
+    /// plan's map ([`map`]) gives it as `Public`.
+    PublicText,
 }
 
 impl Tag {
@@ -1461,7 +1474,7 @@ impl Tag {
         match self {
             Tag::Secret => "secret",
             Tag::Sealed => "sealed",
-            Tag::Public => "public",
+            Tag::Public | Tag::PublicText => "public",
         }
     }
 
@@ -1470,7 +1483,7 @@ impl Tag {
         match self {
             Tag::Secret => EN.plan_tag_secret,
             Tag::Sealed => EN.plan_tag_sealed,
-            Tag::Public => EN.plan_tag_public,
+            Tag::Public | Tag::PublicText => EN.plan_tag_public,
         }
     }
 }
@@ -1545,24 +1558,24 @@ pub fn form_name(f: usize) -> &'static str {
 pub fn map(_c: &Compute, shape: &Shape, a: &Answers) -> Vec<Spot> {
     count_map();
     let mut m = in_plan(stored_map(shape, a));
-    if shape.text_files {
-        // The description's QR picture is not made: the plan keeps its
-        // text file where it keeps the picture.
-        for s in &mut m {
-            let text = What::WalletFile(form::TEXT);
-            let mut out: Vec<(What, Tag)> = Vec::new();
-            for (w, t) in std::mem::take(&mut s.holds) {
-                let w = if w == What::WalletFile(form::QR) {
-                    text
-                } else {
-                    w
-                };
-                if !out.iter().any(|(x, _)| *x == w) {
-                    out.push((w, t));
-                }
+    for s in &mut m {
+        let mut out: Vec<(What, Tag)> = Vec::new();
+        for (w, t) in std::mem::take(&mut s.holds) {
+            // The description's QR picture is not made where the shape
+            // says so, or where it was written as the text file and is
+            // being said: the plan keeps its text file there.
+            let text = shape.text_files || shape.said && t == Tag::PublicText;
+            let w = if text && w == What::WalletFile(form::QR) {
+                What::WalletFile(form::TEXT)
+            } else {
+                w
+            };
+            let t = if t == Tag::PublicText { Tag::Public } else { t };
+            if !out.iter().any(|(x, _)| *x == w) {
+                out.push((w, t));
             }
-            s.holds = out;
         }
+        s.holds = out;
     }
     m
 }
@@ -1582,7 +1595,8 @@ pub struct Mapped {
     pub places: Vec<Spot>,
     /// The plan's codex32 thresholds ([`Answers::set_needs`]).
     pub needs: sets::Needs,
-    /// The plan's description is only made as text ([`Shape::text_files`]).
+    /// The public files are read as the text file ([`Shape::text_files`],
+    /// or written so and said).
     pub text_files: bool,
     check: std::cell::OnceCell<Check>,
 }
@@ -1596,7 +1610,7 @@ impl Mapped {
             map,
             places,
             needs: a.set_needs(),
-            text_files: shape.text_files,
+            text_files: shape.text_files || shape.said && a.public_written(),
             check: std::cell::OnceCell::new(),
         }
     }
@@ -3614,6 +3628,74 @@ impl Form {
 }
 
 impl Answers {
+    /// A lock's writing, marked on the plan's items: every mark of an
+    /// earlier writing is cleared, then where `shape` makes the
+    /// description as the text file, each stick's QR picture is marked
+    /// written as the text file, and the public files too while the answers
+    /// chose no text form. The mark is the item's: it goes with it and is
+    /// dropped with it, and the chosen form alone decides what the next
+    /// backup makes. A plan with no stored map gets one only when it has a
+    /// software or files wallet to mark; its stored map is the same.
+    pub fn wrote(&mut self, shape: &Shape) {
+        if let Some(m) = &mut self.map {
+            for s in m.iter_mut() {
+                for h in s.holds.iter_mut().filter(|h| h.1 == Tag::PublicText) {
+                    h.1 = Tag::Public;
+                }
+            }
+        }
+        if !shape.text_files {
+            return;
+        }
+        let public = !self.form[form::TEXT];
+        let marks = |at: At, w: What| match at {
+            At::Stick(..) => w == What::WalletFile(form::QR),
+            At::Software | At::Files => public && w == What::Wallet,
+            _ => false,
+        };
+        if self.map.is_none() {
+            let has = stored_map(shape, self)
+                .iter()
+                .any(|s| s.holds.iter().any(|h| marks(s.at, h.0)));
+            if !has {
+                return;
+            }
+            self.ensure_map(shape);
+        }
+        if let Some(m) = &mut self.map {
+            for s in m.iter_mut() {
+                let at = s.at;
+                for h in s.holds.iter_mut().filter(|h| marks(at, h.0)) {
+                    h.1 = Tag::PublicText;
+                }
+            }
+        }
+    }
+
+    /// Whether any item of the plan was written as the text file in the
+    /// picture's place ([`Tag::PublicText`]).
+    pub fn written_text(&self) -> bool {
+        self.map
+            .iter()
+            .flatten()
+            .any(|s| s.holds.iter().any(|h| h.1 == Tag::PublicText))
+    }
+
+    /// Whether an item at `at` was written as the text file in the
+    /// picture's place.
+    pub fn written_on(&self, at: At) -> bool {
+        self.map
+            .iter()
+            .flatten()
+            .any(|s| s.at == at && s.holds.iter().any(|h| h.1 == Tag::PublicText))
+    }
+
+    /// Whether the public files (the software's description, or a stick of
+    /// files) were written as the text file in the picture's place.
+    pub fn public_written(&self) -> bool {
+        self.written_on(At::Software) || self.written_on(At::Files)
+    }
+
     /// The map the cards edit: from the first answer on a card after the
     /// presets, the plan itself (`docs/BACKUP-FLOW.md` §15.2).
     pub fn ensure_map(&mut self, shape: &Shape) {
@@ -3798,7 +3880,7 @@ impl Answers {
     /// the text form only where the shape says the description is made as
     /// text ([`Shape::text_files`]).
     pub fn form_in(&self, shape: &Shape) -> [bool; 2] {
-        if shape.text_files {
+        if shape.text_files || shape.said && self.public_written() {
             [false, true]
         } else {
             self.form

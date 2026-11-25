@@ -32,17 +32,21 @@ fn shape(m: usize, seeds: &[(bool, bool, bool)], vaults: usize, paths: Vec<u64>)
         vaults,
         seed_alone_fails: seeds.len() > 1,
         text_files: false,
+        silent: false,
+        said: false,
     }
 }
 
 fuzz_target!(|data: &[u8]| {
     let text = String::from_utf8_lossy(data);
-    let shapes = [
+    let mut shapes = [
         shape(1, &[(true, false, false)], 0, vec![]),
         shape(1, &[(false, false, false)], 0, vec![]),
         shape(2, &[(true, false, true), (true, false, false), (false, false, false)], 2, vec![]),
         shape(2, &[(true, false, false), (false, true, false), (true, false, false)], 3, vec![0b011, 0b101]),
     ];
+    // A silent wallet's plan is the one that takes the text file's mark.
+    shapes[0].silent = true;
     for shape in &shapes {
         if let Some(answers) = Answers::from_text(shape, &text) {
             let back = Answers::from_text(shape, &answers.to_text())

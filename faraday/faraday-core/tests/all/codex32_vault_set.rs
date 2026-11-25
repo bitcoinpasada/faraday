@@ -505,6 +505,8 @@ fn plan_text_with(extra: &str, before: bool) -> Option<plan::Answers> {
         vaults: 0,
         seed_alone_fails: false,
         text_files: false,
+        silent: false,
+        said: false,
     };
     let base = String::from(&*plan::Answers::preset(&shape, plan::Preset::Standard).to_text());
     let set = "codex32 0 2 48 ac name 0\n";

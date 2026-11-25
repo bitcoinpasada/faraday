@@ -3438,6 +3438,8 @@ fn one_seed_shape() -> faraday_core::plan::Shape {
         vaults: 0,
         seed_alone_fails: false,
         text_files: false,
+        silent: false,
+        said: false,
     }
 }
 

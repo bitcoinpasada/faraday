@@ -415,6 +415,8 @@ mod tests {
             vaults: 0,
             seed_alone_fails: false,
             text_files: false,
+            silent: false,
+            said: false,
         }
     }
 
