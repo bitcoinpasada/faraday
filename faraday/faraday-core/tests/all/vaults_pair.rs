@@ -113,22 +113,28 @@ fn marked(files: Vec<Vec<u8>>, n: usize, wallet: bool) -> Faraday {
     }
     app.press(Action::Nav(Screen::Vaults));
     for i in 0..n {
-        app.press(Action::Vault(V::Open(i)));
-        let _ = app.frame();
-        type_text(&mut app, PHRASE);
-        app.press(Action::Vault(V::Unlock));
-        for t in 1..60u64 {
-            if app.vaults().open.len() > i {
-                break;
-            }
-            let _ = app.frame();
-            app.event(Event::Tick { now_ms: t * 1000 });
-        }
+        unlock(&mut app, i);
         assert_eq!(app.vaults().open.len(), i + 1, "vault {i} did not open");
     }
     app.press(Action::Nav(Screen::Vaults));
     let _ = app.frame();
     app
+}
+
+/// Unlocks vault file `i` with [`PHRASE`], ticking until it is open.
+fn unlock(app: &mut Faraday, i: usize) {
+    let had = app.vaults().open.len();
+    app.press(Action::Vault(V::Open(i)));
+    let _ = app.frame();
+    type_text(app, PHRASE);
+    app.press(Action::Vault(V::Unlock));
+    for t in 1..60u64 {
+        if app.vaults().open.len() > had {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
 }
 
 fn one(id: u8) -> Vec<u8> {
@@ -328,8 +334,8 @@ fn a_press_on_save_duplicate_is_refused_as_ever() {
     assert_eq!(keys_in_vault(&app), 1, "one record, not two");
 }
 
-#[test]
-fn a_press_on_save_while_the_vault_seals_adds_nothing() {
+/// A vault with a change, its seal held on the worker.
+fn sealing() -> (Faraday, faraday_keys::vault::VaultId) {
     let mut app = marked(vec![one(1)], 1, false);
     let id = app.vaults().open[0].id;
     testkit::vault_edit(&mut app, id, |s| {
@@ -347,15 +353,42 @@ fn a_press_on_save_while_the_vault_seals_adds_nothing() {
     testkit::hold_worker();
     testkit::press_on_worker(&mut app, Action::Lock);
     assert!(app.busy().is_some(), "the vault is sealing");
+    (app, id)
+}
+
+fn seal_ends(mut app: Faraday) {
+    testkit::release_worker();
+    testkit::settle(&mut app);
+    assert!(app.restart_requested() || app.vaults().open.is_empty());
+}
+
+/// The press is refused twice over: by the app while a job runs, and by
+/// the vault, which the next test asks alone.
+#[test]
+fn a_press_on_save_while_the_vault_seals_is_not_taken() {
+    let (mut app, id) = sealing();
     app.press(Action::Vault(V::SaveKey(0)));
     assert_eq!(
         app.vaults().records(id).of(kind::KEY).count(),
         0,
         "nothing added while it seals"
     );
-    testkit::release_worker();
-    testkit::settle(&mut app);
-    assert!(app.restart_requested() || app.vaults().open.is_empty());
+    seal_ends(app);
+}
+
+#[test]
+fn a_vault_takes_no_record_while_it_seals() {
+    let (mut app, id) = sealing();
+    let at = testkit::vault_edit(&mut app, id, |s| {
+        s.insert(
+            id,
+            faraday_vault::Record::new(kind::ENTRY)
+                .with(faraday_vault::records::field::TITLE, b"late"),
+        )
+    });
+    assert!(at.is_none(), "refused");
+    assert_eq!(app.vaults().records(id).of(kind::ENTRY).count(), 1);
+    seal_ends(app);
 }
 
 #[test]
@@ -424,6 +457,29 @@ fn a_vaults_close_empties_the_ids_kept_with_its_records() {
     // False while the seal is on the worker; closed when it is done.
     testkit::vault_lock_one(&mut app, 0);
     testkit::settle(&mut app);
+    assert!(app.vaults().open.is_empty());
+    assert!(app.vaults().store().record_id(&c, id, at).is_none());
+}
+
+/// With nothing to seal, the close alone lets the records go.
+#[test]
+fn an_unchanged_vaults_close_empties_the_ids_kept_with_its_records() {
+    let mut app = marked(vec![one(1)], 1, false);
+    let c = faraday_core::testkit::compute();
+    app.press(Action::Vault(V::SaveKey(0)));
+    testkit::settle(&mut app);
+    feed_the_seal(&mut app);
+    testkit::vault_lock_one(&mut app, 0);
+    testkit::settle(&mut app);
+    assert!(app.vaults().open.is_empty());
+    // The file the seal wrote, opened again and left as it is.
+    app.press(Action::Nav(Screen::Vaults));
+    let _ = app.frame();
+    unlock(&mut app, 0);
+    let id = app.vaults().open[0].id;
+    let at = key_at(&app, id);
+    assert!(app.vaults().store().record_id(&c, id, at).is_some());
+    assert!(testkit::vault_lock_one(&mut app, 0), "closed at once");
     assert!(app.vaults().open.is_empty());
     assert!(app.vaults().store().record_id(&c, id, at).is_none());
 }
