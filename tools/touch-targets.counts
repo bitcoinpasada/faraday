@@ -12,8 +12,6 @@ desktop_1280x800 SpendBackup Vault 3
 desktop_1280x800 Transfer TransferSend 5
 desktop_1280x800 VaultContents OpenCodes 1
 desktop_1280x800 VaultContents Vault 1
-desktop_1280x800 Wallets PickKey 2
-desktop_1280x800 WalletsStart OpenWallet 2
 small_240x320 Backup Board 17
 small_240x320 Backup KefTool 48
 small_240x320 CreateVault WordList 3

@@ -355,6 +355,8 @@ walks! {
     walk_board = Some("board"),
     walk_boardunsorted = Some("boardunsorted"),
     walk_menu = Some("menu"),
+    walk_rowdetails = Some("rowdetails"),
+    walk_seed_pick = Some("seed-pick"),
     walk_m3 = Some("m3"),
     walk_inbox = Some("inbox"),
     walk_silent = Some("silent"),
@@ -405,6 +407,7 @@ walks! {
     walk_codex32 = Some("codex32"),
     walk_codex32form = Some("codex32form"),
     walk_createshares = Some("createshares"),
+    walk_createslots = Some("createslots"),
     walk_codex32backup = Some("codex32backup"),
 }
 
