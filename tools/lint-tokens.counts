@@ -40,7 +40,7 @@ faraday/faraday-core/src/silent/screen.rs 14
 faraday/faraday-core/src/spend_backup/screen.rs 261
 faraday/faraday-core/src/tools/screen.rs 17
 faraday/faraday-core/src/transfer/screen.rs 17
-faraday/faraday-core/src/vanity/screen.rs 41
+faraday/faraday-core/src/vanity/screen.rs 37
 faraday/faraday-core/src/vault/screen.rs 368
 faraday/faraday-core/src/wordlist/screen.rs 27
 faraday/faraday-starter/src/draw/boot_file.rs 3

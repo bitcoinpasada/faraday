@@ -606,6 +606,13 @@ impl crate::flow::Contained for VanitySteps {
         screen::rows(app)
     }
 
+    fn pick(&self, app: &Faraday, k: u8) -> Option<crate::flow::Pick> {
+        if k != vstep::KEY {
+            return None;
+        }
+        screen::pick(app)
+    }
+
     fn hide_shown(&self, app: &mut Faraday) {
         app.vanity.hide_secrets();
     }

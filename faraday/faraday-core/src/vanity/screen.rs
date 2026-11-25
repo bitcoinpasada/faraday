@@ -4,7 +4,7 @@ use crate::grind::Dial;
 use crate::strings::EN;
 use crate::strings::fill;
 use faraday_bip::vanity::Kind;
-use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, BUTTON_H, LABEL_L};
+use faraday_draw::tokens::{BODY_L, BODY_S, BUTTON_H, LABEL_L};
 
 use crate::drawing::{Scrolled, View};
 use crate::screens::{button_rows, next_button};
@@ -50,7 +50,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let app_ref: &View = app;
         let mut body = |ui: &mut Ui, k: u8, x: f32, y: f32, w: f32| -> f32 {
             match app_ref.vanity.state() {
-                Some(v) => card(app_ref, v, ui, k, x, y, w),
+                Some(v) => card(app_ref, v, ui, k, (x, y, w), cw),
                 None => 0.0,
             }
         };
@@ -110,25 +110,39 @@ pub(super) fn rows(app: &crate::Faraday) -> Vec<flow::Row> {
         .collect()
 }
 
-fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) -> f32 {
+/// The key step's pick: the loaded keys as the pane's radio rows, the one
+/// the search uses chosen, a press choosing it and moving on.
+pub(super) fn pick(app: &crate::Faraday) -> Option<flow::Pick> {
+    let v = app.vanity.state()?;
+    Some(
+        crate::pick::Decl::new(EN.vanity_key)
+            .keys(app, |_, k| {
+                let id = k.fingerprint.0;
+                Some(crate::pick::Take::of(v.key == Some(id), va(V::Key(id))))
+            })
+            .pick(),
+    )
+}
+
+fn card(
+    app: &View,
+    v: &VanityState,
+    ui: &mut Ui,
+    s: u8,
+    (x, y, w): (f32, f32, f32),
+    area_w: f32,
+) -> f32 {
     let net = app.session.network();
     let mut cy = y;
     match s {
         vstep::KEY => {
-            let rh = ui.touch.max(40.0);
-            for k in &app.session.keys {
-                let id = k.fingerprint.0;
-                let on = v.key == Some(id);
-                ui.checkbox(x, cy + (rh - 18.0) / 2.0, on, true);
-                ui.text_mid_as((x + 30.0, cy, rh), BODY_M.mono(), Role::OnSurface, &fp(id));
-                ui.text_mid_as(
-                    (x + 130.0, cy, rh),
-                    BODY_S,
-                    Role::OnSurfaceVariant,
-                    &k.label,
-                );
-                ui.press_box(x, cy, w, rh, va(V::Key(id)));
-                cy += rh + 2.0;
+            // Where the pair stands the keys are the pane's rows
+            // (`flow::Contained::pick`); on other sizes the same rows stand
+            // here, one column.
+            if !flow::pair_left(app, &super::VANITY_STEPS, ui.compact, area_w)
+                && let Some(p) = pick(app)
+            {
+                cy += crate::pick::draw_groups(ui, x, cy, w, &p.groups);
             }
             // Returns here, with the key loaded.
             cy += button_rows(

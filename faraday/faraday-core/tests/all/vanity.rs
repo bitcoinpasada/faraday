@@ -241,3 +241,51 @@ fn a_key_loaded_with_the_passphrase_found_waits_for_its_backup() {
         assert!(text.contains(&found[..24]), "{text}");
     }
 }
+
+fn sized(w: u16, h: u16) -> Faraday {
+    use faraday_shell_api::{BootState, DisplayInfo, SecureHardware};
+    let mut app = with_key();
+    app.event(Event::Display(DisplayInfo {
+        width: w,
+        height: h,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.press(Action::Vanity(V::Step(vstep::KEY)));
+    let _ = app.frame();
+    app
+}
+
+fn key_id(app: &Faraday) -> [u8; 4] {
+    app.session.keys.all().next().expect("a key").fingerprint.0
+}
+
+#[test]
+fn the_keys_stand_in_a_pane_left_of_the_card_where_the_pair_stands() {
+    let mut app = sized(1366, 768);
+    let id = key_id(&app);
+    let edge = app
+        .drawn_text_boxes()
+        .into_iter()
+        .filter(|(t, _)| t == "Key")
+        .map(|(_, r)| r.0)
+        .max()
+        .expect("the step's title");
+    let (x, _, w, _) = app.hit_box(Action::Vanity(V::Key(id))).expect("a key row");
+    assert!(i32::from(x + w) < edge, "the row ends left of the card");
+}
+
+#[test]
+fn on_a_phone_size_window_the_keys_stand_in_the_card_and_a_press_chooses() {
+    let mut app = sized(480, 640);
+    let id = key_id(&app);
+    assert!(app.hit_box(Action::Vanity(V::Key(id))).is_some());
+    app.press(Action::Vanity(V::Key(id)));
+    assert_eq!(app.vanity().unwrap().key, Some(id));
+}
