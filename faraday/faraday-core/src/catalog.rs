@@ -625,6 +625,8 @@ impl Faraday {
             Go::SignMessage if self.session.message_wallets().is_empty() => {
                 EN.catalog_needs_a_single
             }
+            // Every wallet it would offer waits for its key's backup.
+            Go::SignMessage if self.message_offered().is_empty() => EN.message_waits_backup,
             Go::CheckMessage
                 if !self.inbox.iter().any(|i| i.kind == FileKind::Message)
                     && self.put_on().is_none() =>

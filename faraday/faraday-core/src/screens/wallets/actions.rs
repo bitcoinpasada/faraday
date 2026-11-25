@@ -89,7 +89,7 @@ pub(crate) fn offers(app: &View, w: usize, new_from: bool) -> Vec<Offer> {
         Some(Icon::Verify),
         Action::AddressCheck(crate::address_check::AddressPress::Another),
     ));
-    if app.session.message_wallets().contains(&w) {
+    if app.message_offered().contains(&w) {
         list.push(offer(
             EN.wallets_sign_a_message,
             Some(Icon::Sign),
