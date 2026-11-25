@@ -317,6 +317,10 @@ pub(crate) struct Key {
     public: std::cell::RefCell<Vec<(Spec, Result<Text, Text>)>>,
     /// Its words' [`WordsId`], once worked out: wiped with the key.
     words_id: std::cell::OnceCell<Option<WordsId>>,
+    /// Its master seed's vault record id ([`Keys::seed_record_id`]), once
+    /// worked out: a hash kept so a frame does not make it again, in a
+    /// wiping type like [`WordsId`]: wiped with the key.
+    seed_id: std::cell::OnceCell<Option<WordsId>>,
     /// The strings of its codex32 set this session has seen: made here,
     /// typed back, or read from a vault's share records
     /// ([`Keys::keep_codex32`]). Shares only, never the secret; each of
@@ -1595,6 +1599,17 @@ impl Keys {
         crate::vault::key_record_id(crate::vault::RecordView::of(&r))
     }
 
+    /// Costs a hash the first time. [`Keys::seed_record_id`], worked out
+    /// once and kept on the key (a [`WordsId`], wiped with the key), for
+    /// a frame that asks every time.
+    pub fn seed_record_id_kept(&self, i: usize) -> Option<&[u8; 32]> {
+        let e = self.entries.get(i).filter(|e| e.key.words.is_none())?;
+        e.key
+            .seed_id
+            .get_or_init(|| self.seed_record_id(i).map(Zeroizing::new))
+            .as_deref()
+    }
+
     /// Sets what is known of key `i`'s codex32 set, or that none is
     /// known. A lookup; refused (false) for no such key or facts the
     /// vault's layout cannot hold.
@@ -2274,6 +2289,7 @@ impl Keys {
                     seed: None,
                     public: std::cell::RefCell::new(Vec::new()),
                     words_id: std::cell::OnceCell::new(),
+                    seed_id: std::cell::OnceCell::new(),
                     codex32: Vec::new(),
                 },
                 info: e.info.clone(),
@@ -2310,6 +2326,7 @@ impl Keys {
                         seed: None,
                         public: std::cell::RefCell::new(Vec::new()),
                         words_id: std::cell::OnceCell::new(),
+                        seed_id: std::cell::OnceCell::new(),
                         codex32: Vec::new(),
                     },
                     info: e.info.clone(),
@@ -2466,6 +2483,7 @@ impl Entry {
                 seed,
                 public: std::cell::RefCell::new(Vec::new()),
                 words_id: std::cell::OnceCell::new(),
+                seed_id: std::cell::OnceCell::new(),
                 codex32: Vec::new(),
             },
             info,

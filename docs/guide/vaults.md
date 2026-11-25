@@ -16,6 +16,12 @@ One row per vault: its name, its file name, where it is and its size, with its s
 
 An open vault offers **View contents** and **Lock**; **Lock** seals it and every other open vault. Its contents page carries **Write it to a stick**, which asks to lock first and then waits for a stick; the sealed file goes out For the stick. A locked vault offers **Unlock**. **Make a new vault** makes a new one. With no vault in Files, Vaults opens **Make a new vault** at once. The state reads **Open**, **Open** with its count of unsaved changes, **Locked**, or **Locked · not written yet**.
 
+## Marks and Save
+
+**Key:** vaults.marks
+
+On a wide screen the keys and wallets this session holds stand beside the list. While exactly one vault is open each is marked **In a vault** or **Not saved**; a key with a BIP-39 passphrase is **In a vault** only where the vault holds it with that passphrase, and reads **Words in a vault** where the vault holds its words alone. A row that is not saved has a **Save** button that puts it into that vault: a key without its BIP-39 passphrase (**Save with passphrase** is on the key's page in the vault). With no vault open or two open there is no mark and no **Save**; a vault open to read only marks but takes no **Save**.
+
 ## Seal count
 
 **Key:** vaults.seals

@@ -84,6 +84,7 @@ pub(crate) mod transfer;
 pub(crate) mod vault_sheets;
 pub(crate) mod vault_show;
 pub(crate) mod vault_states;
+pub(crate) mod vaults_pair;
 pub(crate) mod vaultway;
 pub(crate) mod visit;
 pub(crate) mod wallet_flow;
@@ -183,6 +184,7 @@ pub(crate) const TOURS: &[(&str, TourFn)] = &[
     ("demo", TourFn::Plain(desktop::demo_tour)),
     ("modes", TourFn::Plain(desktop::modes_tour)),
     ("vaultshow", TourFn::Plain(vault_show::vault_show_tour)),
+    ("vaultspair", TourFn::Costly(vaults_pair::vaults_pair_tour)),
     (
         "vaultsheets",
         TourFn::Costly(vault_sheets::vault_sheets_tour),

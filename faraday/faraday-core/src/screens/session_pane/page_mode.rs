@@ -306,17 +306,21 @@ pub(crate) fn draw(
 /// PSBT with Sign, the flows in progress); the vault files are the tile's.
 fn vaults_groups(app: &View) -> Vec<Group> {
     let mut waiting = psbt_rows(app);
+    // The file's page is no page of Vaults: the row has Sign and no open.
+    waiting.iter_mut().for_each(|r| r.open = None);
     let signing = waiting_spend(&waiting);
     waiting.extend(progress_rows(app, |g| {
         signing && g == crate::in_progress::Going::Spend
     }));
-    let wallets: Vec<SessionRow> = wallet_rows(app)
+    let mut wallets: Vec<SessionRow> = wallet_rows(app)
         .into_iter()
         .filter(|r| r.action != Action::Nav(Screen::Backups))
         .collect();
+    let mut keys = key_rows(app);
+    super::vault_marks::mark(app, &mut keys, &mut wallets);
     with_band(
         [
-            (EN.session_group_keys, key_rows(app)),
+            (EN.session_group_keys, keys),
             (EN.session_group_wallets, wallets),
         ],
         waiting,

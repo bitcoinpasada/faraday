@@ -8,6 +8,7 @@ mod band;
 mod page_mode;
 pub(crate) mod pick;
 mod rows;
+mod vault_marks;
 
 use super::home::{CardLead, lead_card};
 use super::menu_page::Section;

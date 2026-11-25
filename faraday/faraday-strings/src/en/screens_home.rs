@@ -72,6 +72,15 @@ macro_rules! words_screens_home {
     session_group_files: "Files",
     /// The heading over the flows in progress a menu page's session pane lists.
     session_group_progress: "In progress",
+    /// The mark on a key or wallet row of Vaults' pane that the one open
+    /// vault holds.
+    session_mark_in_a_vault: "In a vault",
+    /// The mark on a key row of Vaults' pane with a BIP-39 passphrase whose
+    /// words alone the one open vault holds.
+    session_mark_words_in_a_vault: "Words in a vault",
+    /// The mark on a key or wallet row of Vaults' pane that the one open
+    /// vault does not hold.
+    session_mark_not_saved: "Not saved",
     /// The session pane's one line while nothing is loaded.
     session_nothing_loaded: "Nothing loaded",
     /// A flow in progress's row button.
