@@ -147,6 +147,19 @@ impl AddressCheckState {
         self.answer.as_ref()
     }
 
+    /// Wallet `gone` left the session list: the wallet made from the find
+    /// moves up with it, and is none when it is the one gone.
+    pub(crate) fn wallet_left(&mut self, gone: usize) {
+        if let Some(look) = self.look.as_mut()
+            && look.made.is_some()
+        {
+            look.made = look
+                .made
+                .and_then(|m| crate::wallet::place_after_removal(m, gone));
+            self.refresh();
+        }
+    }
+
     /// What was checked and found is forgotten, as the text changes.
     /// The place of the wallet made from the find, once it was.
     pub(crate) fn made(&self) -> Option<usize> {
@@ -204,6 +217,16 @@ impl AddressCheckArea {
     /// The page's state, while it is open.
     pub(crate) fn state(&self) -> Option<&AddressCheckState> {
         self.state.as_ref()
+    }
+
+    /// Wallet `gone` left the session list.
+    pub(crate) fn wallet_left(&mut self, gone: usize) {
+        self.held_for = self
+            .held_for
+            .and_then(|h| crate::wallet::place_after_removal(h, gone));
+        if let Some(s) = self.state.as_mut() {
+            s.wallet_left(gone);
+        }
     }
 
     /// Forgets the text and what was found.

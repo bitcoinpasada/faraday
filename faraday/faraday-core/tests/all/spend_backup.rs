@@ -475,6 +475,99 @@ fn typed_words_open_the_kind_of_wallet_the_transaction_spends_from() {
     assert!(app.spend().unwrap().complete);
 }
 
+/// A wallet of the person's own after the others, and its Back up open.
+fn later_wallet_backed_up(app: &mut Faraday) -> usize {
+    let c = faraday_core::testkit::compute();
+    let d = format!("wpkh({}/<0;1>/*)", testkit::key(0, "m/84'/1'/2'"));
+    app.session
+        .add_wallet_confirmed(&c, "Later", &d, "test", faraday_core::wallet::Origin::Named)
+        .expect("added");
+    let w = app.session.wallets.len() - 1;
+    app.press(Action::Backup(w));
+    w
+}
+
+fn backing_up(app: &Faraday) -> Option<String> {
+    let b = app.backup()?;
+    Some(app.session.wallets.get(b.wallet)?.name.to_string())
+}
+
+#[test]
+fn typed_words_made_again_leave_a_backup_of_a_later_wallet_on_its_wallet() {
+    let taproot = kit("taproot");
+    let (u, _) = testkit::spend_of(&taproot).unwrap();
+    let mut app = with_files(
+        vec![("taproot-unsigned.psbt".to_string(), u.to_bytes())],
+        Vec::new(),
+    );
+    on_intake(&mut app);
+    app.press(Action::SpendBackup(F::TypeWords));
+    type_text(&mut app, &testkit::test_words("bacon"));
+    app.press(Action::EntryAdd);
+    app.press(Action::SpendBackup(F::Everything));
+    assert_eq!(app.session.wallets.len(), 1, "the words' wallet");
+    later_wallet_backed_up(&mut app);
+    assert_eq!(backing_up(&app).as_deref(), Some("Later"));
+    // The Taproot spend makes the words' wallet again, the one before goes.
+    app.press(Action::SpendBackup(F::UsePsbt(0)));
+    assert_eq!(app.session.wallets.len(), 2);
+    assert_eq!(backing_up(&app).as_deref(), Some("Later"));
+}
+
+#[test]
+fn a_guess_held_for_its_sheet_leaves_a_backup_of_a_later_wallet_on_its_wallet() {
+    let mut app = shown();
+    on_intake(&mut app);
+    scan_seed(&mut app, "bacon");
+    scan_seed(&mut app, "zebra");
+    app.press(Action::Cancel);
+    app.press(Action::SpendBackup(F::NoDescription));
+    app.press(Action::Slide(faraday_core::seeds::SLIDE_N, 2));
+    app.event(Event::Key(faraday_shell_api::Key::Right));
+    app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Focus(
+        faraday_core::seeds::Focus::Cosigner(0),
+    )));
+    type_text(&mut app, &testkit::key(2, "m/48'/1'/0'/2'"));
+    app.event(Event::Key(faraday_shell_api::Key::Enter));
+    app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
+    faraday_core::testkit::confirm_wallets(&mut app);
+    later_wallet_backed_up(&mut app);
+    assert_eq!(backing_up(&app).as_deref(), Some("Later"));
+    app.press(Action::SpendBackup(F::NoMoney));
+    assert_eq!(app.sheet, Some(Sheet::WalletConfirm));
+    assert_eq!(backing_up(&app).as_deref(), Some("Later"));
+}
+
+/// The words' wallet with its Back up open, then a transaction that is in
+/// none of its kinds, and the same words typed again: the wallet put back is
+/// the same wallet, and its Back up is still open on it.
+#[test]
+fn typed_words_put_back_the_same_keep_their_backup_open() {
+    let taproot = kit("taproot");
+    let (u, _) = testkit::spend_of(&taproot).unwrap();
+    let mut app = with_files(
+        vec![("taproot-unsigned.psbt".to_string(), u.to_bytes())],
+        Vec::new(),
+    );
+    on_intake(&mut app);
+    app.press(Action::SpendBackup(F::TypeWords));
+    type_text(&mut app, &testkit::test_words("zebra"));
+    app.press(Action::EntryAdd);
+    app.press(Action::SpendBackup(F::Everything));
+    assert_eq!(app.session.wallets.len(), 1, "the words' wallet");
+    app.press(Action::Backup(0));
+    let name = backing_up(&app).expect("its Back up is open");
+    app.press(Action::SpendBackup(F::UsePsbt(0)));
+    assert_eq!(app.session.wallets.len(), 1);
+    assert_eq!(
+        backing_up(&app),
+        Some(name.clone()),
+        "after Use a transaction"
+    );
+    app.press(Action::SpendBackup(F::Everything));
+    assert_eq!(backing_up(&app), Some(name), "after Everything again");
+}
+
 /// Savings' split sheet `k` of three.
 fn sheet(k: usize) -> Vec<u8> {
     testkit::files()
@@ -927,6 +1020,53 @@ fn no_money_shows_walks_through_the_passphrase_taproot_nested_and_legacy() {
     assert!(app.spend_backup_wallet().is_none());
 }
 
+/// The Taproot wallet of the same key is already in the list (made
+/// elsewhere): No money through to Taproot shows its addresses and the
+/// typed Native SegWit wallet is not put back in its place.
+#[test]
+fn no_money_through_to_a_taproot_wallet_already_in_the_list_shows_that_wallets_addresses() {
+    let mut app = guessed_single();
+    let c = faraday_core::testkit::compute();
+    app.session
+        .add_wallet_confirmed(
+            &c,
+            "Made elsewhere",
+            &kit("taproot").descriptor,
+            "kit",
+            faraday_core::wallet::Origin::Named,
+        )
+        .expect("added");
+    app.press(Action::SpendBackup(F::NoMoney));
+    app.press(Action::SpendBackup(F::Passphrase(false)));
+    assert_eq!(chosen_address(&app), kit_address("taproot"));
+    let w = app.spend_backup_wallet().expect("a wallet");
+    assert_eq!(&*app.session.wallets[w].name, "Made elsewhere");
+    assert_eq!(app.session.wallets.len(), 1);
+}
+
+/// After Start over the typed wallet stays in the list; a transaction of
+/// the Taproot wallet loaded opens that wallet, not the typed one.
+#[test]
+fn a_transaction_taken_after_start_over_opens_the_loaded_wallet_it_spends_from() {
+    let mut app = guessed_single();
+    let c = faraday_core::testkit::compute();
+    app.session
+        .add_wallet_confirmed(
+            &c,
+            "Made elsewhere",
+            &kit("taproot").descriptor,
+            "kit",
+            faraday_core::wallet::Origin::Named,
+        )
+        .expect("added");
+    app.press(Action::SpendBackup(F::StartOver));
+    scan_seed(&mut app, "bacon");
+    let (u, _) = testkit::spend_of(&kit("taproot")).unwrap();
+    scan(&mut app, u.to_bytes());
+    let w = app.spend_backup_wallet().expect("a wallet opened");
+    assert_eq!(&*app.session.wallets[w].name, "Made elsewhere");
+}
+
 #[test]
 fn the_ways_tried_fill_a_progress_indicator_as_they_are_counted() {
     let mut app = guessed_single();
@@ -1268,6 +1408,20 @@ fn guessed_nested_multi() -> Faraday {
     faraday_core::testkit::confirm_wallets(&mut app);
     assert_eq!(app.spend_backup().open, Some(Open::Page(page::CHECK)));
     app
+}
+
+/// The multi-key guess made again at the way it stands at is the same
+/// wallet: its Back up, open before, is still open on it.
+#[test]
+fn a_multi_key_guess_made_again_at_its_way_keeps_the_backup_open() {
+    let mut app = guessed_nested_multi();
+    assert_eq!(app.session.wallets.len(), 1);
+    app.press(Action::Backup(0));
+    let name = backing_up(&app).expect("its Back up is open");
+    let at = app.spend_backup_guess().expect("a guess").at;
+    app.press(Action::SpendBackup(F::GuessWay(at)));
+    assert_eq!(app.session.wallets.len(), 1);
+    assert_eq!(backing_up(&app), Some(name));
 }
 
 #[test]

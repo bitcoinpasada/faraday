@@ -189,6 +189,24 @@ impl Camera {
         self.scan = Some(scan);
     }
 
+    /// Wallet `gone` left the session list: a scan for a wallet's key
+    /// moves up with it. Whether the scan was for the one gone (it ends).
+    pub(crate) fn wallet_left(&mut self, gone: usize) -> bool {
+        let Some(scan) = self.scan.as_mut() else {
+            return false;
+        };
+        let ScanPurpose::WalletKey(w) = scan.purpose else {
+            return false;
+        };
+        match crate::wallet::place_after_removal(w, gone) {
+            Some(w) => {
+                scan.purpose = ScanPurpose::WalletKey(w);
+                false
+            }
+            None => true,
+        }
+    }
+
     /// Drops the scan sheet's state.
     pub(crate) fn close(&mut self) {
         self.scan = None;

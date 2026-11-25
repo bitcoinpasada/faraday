@@ -955,6 +955,30 @@ impl WalletBackupArea {
         self.drop_shown();
     }
 
+    /// Wallet `gone` left the session list: the places kept move up, and
+    /// whether the backup under way was of it (it must end).
+    pub(crate) fn wallet_left(&mut self, gone: usize) -> bool {
+        self.xpub_names.retain(|(k, _)| k.0 != gone);
+        for (k, _) in &mut self.xpub_names {
+            if k.0 > gone {
+                k.0 -= 1;
+            }
+        }
+        if let Some(w) = self.omit_remake {
+            self.omit_remake = crate::wallet::place_after_removal(w, gone);
+        }
+        match self.state.as_mut() {
+            Some(b) => match crate::wallet::place_after_removal(b.wallet, gone) {
+                Some(w) => {
+                    b.wallet = w;
+                    false
+                }
+                None => true,
+            },
+            None => false,
+        }
+    }
+
     /// Drops the backup under way, returning it.
     pub(crate) fn take(&mut self) -> Option<BackupState> {
         self.shown = None;

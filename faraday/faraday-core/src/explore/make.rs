@@ -117,4 +117,17 @@ impl ExploreArea {
             }
         }
     }
+
+    /// Wallet `gone` left the session list: the wallet made moves up with
+    /// it, and is none when it is the one gone.
+    pub(crate) fn wallet_left(&mut self, gone: usize) {
+        self.held_for = self
+            .held_for
+            .and_then(|h| crate::wallet::place_after_removal(h, gone));
+        if let Some(e) = self.state.as_mut() {
+            e.made = e
+                .made
+                .and_then(|m| crate::wallet::place_after_removal(m, gone));
+        }
+    }
 }

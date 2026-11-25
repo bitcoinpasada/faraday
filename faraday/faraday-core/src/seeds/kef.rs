@@ -765,6 +765,27 @@ pub(crate) fn kef_stick_arrived(app: &mut Faraday) {
     }
 }
 
+/// Wallet `gone` left the session list: the wallet a Krux code was scanned
+/// for moves up, and the sheet of the one gone closes.
+pub(crate) fn kef_wallet_left(app: &mut Faraday, gone: usize) {
+    let Some(k) = app.seed_read.kef.as_mut() else {
+        return;
+    };
+    let Lands::WalletKey(w) = k.lands else {
+        return;
+    };
+    match crate::wallet::place_after_removal(w, gone) {
+        Some(w) => k.lands = Lands::WalletKey(w),
+        None => {
+            app.kef_job_drop();
+            app.seed_read.set_kef(None);
+            if app.sheet == Some(Sheet::KefRead) {
+                app.sheet = None;
+            }
+        }
+    }
+}
+
 /// Cancel on the sheet: while the key is worked out it stops the work
 /// and asks the passphrase again; anywhere else it closes the sheet.
 pub(crate) fn kef_cancel(app: &mut Faraday) {

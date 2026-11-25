@@ -266,3 +266,256 @@ fn a_multisig_held_for_its_sheet_is_refused_when_the_key_waits_by_the_hold() {
     testkit::confirm_wallets(&mut app);
     assert!(app.session.wallets.is_empty(), "the hold adds nothing");
 }
+
+/// Three wallets in a started app, none checked yet: a forged one (this
+/// device's fingerprint, another seed's key), the person's own and one
+/// more of the person's own. Returns the app.
+fn forged_then_two_real() -> faraday_core::Faraday {
+    let mut app = testkit::started();
+    let c = testkit::compute();
+    let forged_d = format!("wpkh({}/<0;1>/*)", forged("m/84'/1'/0'", "m/84'/1'/0'"));
+    let real = format!("wpkh({}/<0;1>/*)", testkit::key(0, "m/84'/1'/1'"));
+    let other = format!("wpkh({}/<0;1>/*)", testkit::key(0, "m/84'/1'/2'"));
+    for (name, d) in [("Forged", &forged_d), ("Real", &real), ("Other", &other)] {
+        app.session
+            .add_wallet_confirmed(&c, name, d, "test", Origin::Named)
+            .expect("no key is loaded: not checked");
+    }
+    app
+}
+
+/// Loads the key of test seed 0 and lets a press go by, as the person's
+/// typing does: the forged wallet goes.
+fn key_loads(app: &mut faraday_core::Faraday) {
+    app.session
+        .keys
+        .add_words(
+            &testkit::compute(),
+            &testkit::test_words(testkit::TEST_SEEDS[0].0),
+            "Bacon",
+            None,
+        )
+        .expect("the key");
+    app.press(faraday_core::Action::RemoveWallet(99));
+}
+
+fn backing_up(app: &faraday_core::Faraday) -> Option<String> {
+    let b = app.backup()?;
+    Some(app.session.wallets.get(b.wallet)?.name.to_string())
+}
+
+#[test]
+fn a_backup_stays_on_its_wallet_when_an_earlier_one_is_taken_out() {
+    let mut app = forged_then_two_real();
+    app.press(faraday_core::Action::Backup(1));
+    assert_eq!(backing_up(&app).as_deref(), Some("Real"));
+    key_loads(&mut app);
+    let names: Vec<_> = app
+        .session
+        .wallets
+        .iter()
+        .map(|w| w.name.to_string())
+        .collect();
+    assert_eq!(names, ["Real", "Other"]);
+    assert_eq!(backing_up(&app).as_deref(), Some("Real"));
+}
+
+#[test]
+fn a_backup_keeps_its_place_when_a_later_wallet_is_taken_out() {
+    let mut app = forged_then_two_real();
+    app.press(faraday_core::Action::Backup(0));
+    app.press(faraday_core::Action::RemoveWallet(2));
+    assert_eq!(backing_up(&app).as_deref(), Some("Forged"));
+}
+
+/// A backup flow of wallet `w`, not made, as the plan the backup open now
+/// draws gives it.
+fn push_flow_of(app: &mut faraday_core::Faraday, w: usize) {
+    let (shape, answers) = app.board_plan().expect("the plan");
+    let mut f =
+        faraday_core::backup_flow::BackupFlow::new_wallet(&testkit::compute(), shape, answers, "w");
+    f.wallet.as_mut().unwrap().checksum =
+        Some(faraday_text::Text::of(app.session.wallets[w].checksum()));
+    testkit::flow_push(app, f);
+}
+
+/// The checksum each backup flow is of.
+fn flows_of(app: &faraday_core::Faraday) -> Vec<String> {
+    app.backup_flows()
+        .iter()
+        .filter_map(|f| f.wallet.as_ref()?.checksum.as_ref().map(|t| t.to_string()))
+        .collect()
+}
+
+#[test]
+fn a_backup_of_the_wallet_taken_out_closes_with_its_own_flow_and_leaves_the_next_ones() {
+    let mut app = forged_then_two_real();
+    app.press(faraday_core::Action::Backup(0));
+    assert!(app.backup().is_some());
+    push_flow_of(&mut app, 0);
+    push_flow_of(&mut app, 1);
+    key_loads(&mut app);
+    assert!(app.backup().is_none());
+    assert_eq!(app.screen, faraday_core::Screen::Wallets);
+    assert_eq!(
+        flows_of(&app),
+        [app.session.wallets[0].checksum().to_string()],
+        "the flow of the wallet gone ended, the next wallet's stands"
+    );
+}
+
+fn restoring(app: &faraday_core::Faraday) -> Option<String> {
+    let w = app.restore()?.wallet?;
+    Some(app.session.wallets.get(w)?.name.to_string())
+}
+
+/// A restore open on the wallet read from a scanned description, after
+/// a forged wallet.
+fn restore_after_forged() -> faraday_core::Faraday {
+    use faraday_core::Action;
+    use faraday_shell_api::{App as _, Event};
+    let mut app = testkit::started();
+    let c = testkit::compute();
+    let forged_d = format!("wpkh({}/<0;1>/*)", forged("m/84'/1'/0'", "m/84'/1'/0'"));
+    app.session
+        .add_wallet_confirmed(&c, "Forged", &forged_d, "test", Origin::Named)
+        .expect("no key is loaded: not checked");
+    app.press(Action::RestoreWallet);
+    app.press(Action::Scan);
+    app.event(Event::Scanned {
+        bytes: testkit::savings().into_bytes(),
+    });
+    testkit::confirm_wallets(&mut app);
+    app
+}
+
+#[test]
+fn a_restore_stays_on_its_wallet_when_an_earlier_one_is_taken_out() {
+    let mut app = restore_after_forged();
+    assert_eq!(app.session.wallets.len(), 2);
+    let was = restoring(&app).expect("the restored wallet");
+    key_loads(&mut app);
+    assert_eq!(app.session.wallets.len(), 1);
+    assert_eq!(restoring(&app), Some(was));
+}
+
+#[test]
+fn a_restore_ends_when_its_own_wallet_is_taken_out() {
+    let mut app = restore_after_forged();
+    let w = app.restore().and_then(|r| r.wallet).expect("its wallet");
+    app.press(faraday_core::Action::RemoveWallet(w));
+    assert!(app.restore().is_none());
+    assert_ne!(
+        app.screen,
+        faraday_core::Screen::Restore,
+        "the restore's page stays on a wallet that is gone"
+    );
+}
+
+#[test]
+fn a_restore_keeps_its_wallet_when_a_later_one_is_taken_out() {
+    let mut app = restore_after_forged();
+    let was = restoring(&app).expect("the restored wallet");
+    let c = testkit::compute();
+    let late = format!("wpkh({}/<0;1>/*)", testkit::key(0, "m/84'/1'/2'"));
+    app.session
+        .add_wallet_confirmed(&c, "Late", &late, "test", Origin::Named)
+        .expect("added");
+    let last = app.session.wallets.len() - 1;
+    app.press(faraday_core::Action::RemoveWallet(last));
+    assert_eq!(restoring(&app), Some(was));
+}
+
+/// The names of the wallets, in order.
+fn wallet_names(app: &faraday_core::Faraday) -> Vec<String> {
+    app.session
+        .wallets
+        .iter()
+        .map(|w| w.name.to_string())
+        .collect()
+}
+
+/// Two forged wallets and then two of the person's own; the key loads and
+/// both forged wallets go in one event.
+#[test]
+fn two_wallets_taken_out_at_once_leave_the_backup_and_the_flows_of_those_that_stay() {
+    use faraday_core::Action;
+    let mut app = testkit::started();
+    let c = testkit::compute();
+    let f1 = format!("wpkh({}/<0;1>/*)", forged("m/84'/1'/0'", "m/84'/1'/0'"));
+    let f2 = format!("wpkh({}/<0;1>/*)", forged("m/84'/1'/3'", "m/84'/1'/3'"));
+    let real = format!("wpkh({}/<0;1>/*)", testkit::key(0, "m/84'/1'/1'"));
+    let other = format!("wpkh({}/<0;1>/*)", testkit::key(0, "m/84'/1'/2'"));
+    for (name, d) in [
+        ("Forged", &f1),
+        ("Forged2", &f2),
+        ("Real", &real),
+        ("Other", &other),
+    ] {
+        app.session
+            .add_wallet_confirmed(&c, name, d, "test", Origin::Named)
+            .expect("no key is loaded: not checked");
+    }
+    app.press(Action::Backup(0));
+    push_flow_of(&mut app, 0);
+    app.press(Action::Backup(1));
+    push_flow_of(&mut app, 1);
+    app.press(Action::Backup(3));
+    push_flow_of(&mut app, 3);
+    let other_sum = app.session.wallets[3].checksum().to_string();
+    key_loads(&mut app);
+    assert_eq!(wallet_names(&app), ["Real", "Other"]);
+    assert_eq!(backing_up(&app).as_deref(), Some("Other"));
+    assert_eq!(flows_of(&app), [other_sum]);
+}
+
+/// Back up of the wallet after the forged one is open while the forged
+/// one's own flow waits: the forged wallet's flow ends, the open Back up
+/// stays on its wallet.
+#[test]
+fn the_flow_of_a_wallet_taken_out_ends_while_another_wallets_backup_is_open() {
+    use faraday_core::Action;
+    let mut app = forged_then_two_real();
+    app.press(Action::Backup(0));
+    push_flow_of(&mut app, 0);
+    app.press(Action::Backup(1));
+    assert_eq!(backing_up(&app).as_deref(), Some("Real"));
+    key_loads(&mut app);
+    assert_eq!(backing_up(&app).as_deref(), Some("Real"));
+    assert!(
+        flows_of(&app).is_empty(),
+        "a flow of a wallet that is gone stays in progress"
+    );
+}
+
+/// The Krux code tool on the wallet that is then taken out: it asks what
+/// the code is made of again, and shows no other wallet in its place.
+#[test]
+fn the_krux_code_tool_of_a_wallet_taken_out_shows_no_other_wallet() {
+    use faraday_core::Action;
+    use faraday_core::kef_tool::{KefToolAction as K, Pick};
+    let mut app = forged_then_two_real();
+    let tile = faraday_core::catalog::TILES
+        .iter()
+        .position(|t| t.name == "Krux code")
+        .unwrap();
+    app.press(Action::Nav(faraday_core::Screen::Catalog));
+    app.press(Action::Catalog(tile as u8));
+    app.press(Action::KefTool(K::Pick(Pick::Wallet)));
+    app.press(Action::KefTool(K::Wallet(0)));
+    assert!(
+        faraday_core::kef_tool::state(&app)
+            .unwrap()
+            .form()
+            .is_some(),
+        "the wallet's code form opened"
+    );
+    key_loads(&mut app);
+    assert!(
+        faraday_core::kef_tool::state(&app)
+            .unwrap()
+            .form()
+            .is_none(),
+        "the form of the wallet gone stays open on another wallet"
+    );
+}

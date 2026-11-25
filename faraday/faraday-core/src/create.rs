@@ -1097,8 +1097,8 @@ pub struct CreateState {
     /// when the wallet is made.
     pub child: Option<[u8; 4]>,
     /// The creation's backup flow as it stood before the made wallet was
-    /// tied to it, by index: what taking the wallet back puts back.
-    pub before_made: Option<(usize, Box<backup_flow::BackupFlow>)>,
+    /// tied to it, by owner: what taking the wallet back puts back.
+    pub before_made: Option<Box<backup_flow::BackupFlow>>,
 }
 
 impl CreateState {
@@ -1180,7 +1180,7 @@ pub(crate) struct TakenBack {
     /// Whether the creation added it to the session.
     pub(crate) added: bool,
     /// The flow that was open before it was made, to put back.
-    pub(crate) before: Option<(usize, Box<backup_flow::BackupFlow>)>,
+    pub(crate) before: Option<Box<backup_flow::BackupFlow>>,
 }
 
 /// Create's area: the wallet being made, while the flow is open.
@@ -1399,6 +1399,34 @@ impl CreateArea {
                     c.pick_slot = None;
                 }
             }
+        }
+    }
+
+    /// Wallet `gone` left the session list: the made wallet's place moves
+    /// up with it. When it is the made wallet that went, Make a new wallet
+    /// is as after Change on Check: taken back, what to undo returned.
+    pub(crate) fn wallet_left(&mut self, gone: usize) -> Option<TakenBack> {
+        let c = self.state.as_mut()?;
+        let built = c.built?;
+        match crate::wallet::place_after_removal(built, gone) {
+            Some(p) => {
+                c.built = Some(p);
+                None
+            }
+            None => self.take_back(),
+        }
+    }
+
+    /// The number of the flow being made, while there is one.
+    pub(crate) fn owner(&self) -> Option<u64> {
+        self.state.as_ref().map(|c| c.owner)
+    }
+
+    /// Keys' row "a vault already on a stick" goes back to unanswered: the
+    /// flow it set up is gone.
+    pub(crate) fn clear_vaults(&mut self) {
+        if let Some(c) = self.state.as_mut() {
+            c.vaults = VaultAsk::default();
         }
     }
 
@@ -2456,7 +2484,7 @@ impl Faraday {
                 let owner = self.create.state.as_ref().map(|c| c.owner);
                 let before_made = owner
                     .and_then(|o| self.wallet_flow_pre_of(o))
-                    .map(|f| (f, Box::new(self.flows[f].clone())));
+                    .map(|f| Box::new(self.flows[f].clone()));
                 if let Some(c) = self.create.state.as_mut() {
                     c.built = Some(i);
                     c.error = None;

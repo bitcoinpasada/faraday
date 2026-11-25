@@ -236,6 +236,25 @@ pub(crate) struct SilentArea {
 impl crate::at_lock::Public for SilentArea {}
 
 impl SilentArea {
+    /// Wallet `gone` left the session list: the place kept moves up. The
+    /// page of the one gone closes (the state is forgotten, where it
+    /// returns to is given): the key's own page is another page.
+    pub(crate) fn wallet_left(&mut self, gone: usize) -> Option<Screen> {
+        let s = self.state.as_mut()?;
+        let w = s.wallet?;
+        match crate::wallet::place_after_removal(w, gone) {
+            Some(w) => {
+                s.wallet = Some(w);
+                None
+            }
+            None => {
+                let back = s.back;
+                self.state = None;
+                Some(back)
+            }
+        }
+    }
+
     /// The flow's state, while it is open.
     pub(crate) fn state(&self) -> Option<&SilentState> {
         self.state.as_ref()
@@ -383,26 +402,6 @@ impl SilentArea {
         match self.wallet(session) {
             Some(w) => Some(w.fingerprint.0),
             None => self.state.as_ref()?.key,
-        }
-    }
-
-    /// Follows the page's own record after wallets left the session
-    /// (`before` is the record the page showed): its place moves with it,
-    /// and the page ends when the record is gone. Returns whether it ended.
-    pub(crate) fn follow(&mut self, session: &Session, before: &SilentWallet) -> bool {
-        let at = session
-            .wallets
-            .iter()
-            .position(|w| w.policy().silent() == Some(before));
-        match at {
-            Some(i) => {
-                self.set_wallet(i);
-                false
-            }
-            None => {
-                self.state = None;
-                true
-            }
         }
     }
 

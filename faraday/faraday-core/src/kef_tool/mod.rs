@@ -119,6 +119,30 @@ pub struct KefToolArea {
 }
 
 impl KefToolArea {
+    /// Wallet `gone` left the session list: the place kept moves up. When
+    /// it is the one gone the tool is as after a new pick: the descriptor
+    /// taken from the wallet and the steps done with it go.
+    pub(crate) fn wallet_left(&mut self, gone: usize) -> Option<KefForm> {
+        let s = self.state.as_mut()?;
+        let w = s.wallet?;
+        match crate::wallet::place_after_removal(w, gone) {
+            Some(w) => {
+                s.wallet = Some(w);
+                None
+            }
+            None => {
+                s.wallet = None;
+                s.key = None;
+                // The card that was open belonged to the form: Contents
+                // is the one with nothing to hold.
+                s.open = Some(kstep::CONTENTS);
+                s.done = [false; kstep::COUNT];
+                // Handed back to be closed, a code being made cancelled.
+                s.form.take()
+            }
+        }
+    }
+
     /// The tool's state, while it is open.
     pub fn state(&self) -> Option<&KefToolState> {
         self.state.as_ref()

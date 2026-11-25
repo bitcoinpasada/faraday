@@ -157,3 +157,59 @@ fn a_vault_brought_in_first_is_open_for_the_keys_and_the_row_is_refused_once_a_k
     );
     assert!(!app.create().unwrap().uses_existing_vault());
 }
+
+/// The wallet made on Keys with a vault already on a stick, taken out of
+/// the list: Keys' Continue goes on and makes it again, the vault choice
+/// and its flow standing as before or both gone.
+#[test]
+fn a_wallet_made_with_a_vault_on_a_stick_and_taken_out_makes_again_on_continue_at_the_same_step() {
+    use crate::backup_flow_wallet::{bring_in_existing, new_key, sticks};
+    let mut shell = Shell::new();
+    sticks(&mut shell, 1);
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    create_single_key(&mut app);
+    bring_in_existing(&mut shell, &mut app);
+    new_key(&mut app);
+    if app.create().unwrap().built.is_none() {
+        app.press(Action::CNext(cstep::KEYS));
+    }
+    let w = app.create().and_then(|c| c.built).expect("made");
+    app.press(Action::RemoveWallet(w));
+    assert!(app.create().is_some_and(|c| c.built.is_none()));
+    app.press(Action::CNext(cstep::KEYS));
+    assert!(
+        app.create().is_some_and(|c| c.built.is_some()),
+        "Keys' Continue did not make the wallet again"
+    );
+}
+
+/// The same, with the flow on its Sticks step (as a plan changed later
+/// leaves it) before the wallet is taken out: Keys' Continue
+/// still makes the wallet again.
+#[test]
+fn a_wallet_made_with_a_vault_on_a_stick_makes_again_after_its_flow_moved_on() {
+    use crate::backup_flow_wallet::{bring_in_existing, new_key, sticks};
+    let mut shell = Shell::new();
+    sticks(&mut shell, 1);
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    create_single_key(&mut app);
+    bring_in_existing(&mut shell, &mut app);
+    new_key(&mut app);
+    if app.create().unwrap().built.is_none() {
+        app.press(Action::CNext(cstep::KEYS));
+    }
+    let w = app.create().and_then(|c| c.built).expect("made");
+    // The flow, put on its Sticks step as a plan changed later puts it.
+    faraday_core::testkit::change_flows(&mut app, |all| {
+        all.last_mut().unwrap().step = Step::Sticks;
+    });
+    app.press(Action::RemoveWallet(w));
+    app.press(Action::Nav(Screen::Create));
+    app.press(Action::CNext(cstep::KEYS));
+    assert!(
+        app.create().is_some_and(|c| c.built.is_some()),
+        "Keys' Continue did not make the wallet again"
+    );
+}

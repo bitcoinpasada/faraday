@@ -545,7 +545,7 @@ pub(crate) enum Then {
 pub(crate) struct FilesWork {
     inputs: Inputs,
     parts: Vec<Part>,
-    wallet: usize,
+    wallet: faraday_bip::policy::WalletId,
     then: Then,
     screen: Screen,
     sheet: Option<Sheet>,
@@ -554,7 +554,7 @@ pub(crate) struct FilesWork {
 /// A set of files made.
 pub(crate) struct FilesDone {
     made: Made,
-    wallet: usize,
+    wallet: faraday_bip::policy::WalletId,
     then: Then,
     screen: Screen,
     sheet: Option<Sheet>,
@@ -593,7 +593,7 @@ pub(crate) fn start(app: &mut Faraday, wallet: usize, parts: Vec<Part>, then: Th
     let work = FilesWork {
         inputs,
         parts,
-        wallet,
+        wallet: app.session.wallets[wallet].id(),
         then,
         screen: app.screen,
         sheet: app.sheet,
@@ -635,6 +635,11 @@ pub(crate) fn files_made(app: &mut Faraday, done: FilesDone) {
     if (app.screen, app.sheet) != (screen, sheet) {
         return;
     }
+    // The wallet by its id: the list may have changed while the worker made
+    // the files, and a place would name another wallet.
+    let Some(wallet) = app.session.wallets.iter().position(|w| w.id() == wallet) else {
+        return;
+    };
     if then != Then::Out && app.backup.state().is_none_or(|b| b.wallet != wallet) {
         return;
     }

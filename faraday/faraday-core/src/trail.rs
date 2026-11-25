@@ -387,7 +387,7 @@ pub(crate) struct Spot {
     /// changed vault: put back after Add randomness opened from it
     /// (`docs/OWN-RANDOMNESS.md` §8.2).
     lock_ask: bool,
-    /// The wallet whose card was shown.
+    /// The wallet whose card was shown ([`GONE`] when it left the list).
     wallet: usize,
     /// The card was shown as its chart.
     glance: bool,
@@ -424,6 +424,30 @@ pub(crate) fn stays(a: Action) -> bool {
             | Action::KWordClose
             | Action::Vault(VaultAction::Search(crate::vault::SearchAct::Leave(_)))
     )
+}
+
+/// The place of a wallet that left the list: no card is shown there.
+const GONE: usize = usize::MAX;
+
+impl Spot {
+    /// Wallet `gone` left the session list: the card shown moves up with
+    /// the wallets after it, and is none when it is the one gone.
+    fn wallet_left(&mut self, gone: usize) {
+        if self.wallet == GONE {
+            return;
+        }
+        self.wallet = crate::wallet::place_after_removal(self.wallet, gone).unwrap_or(GONE);
+    }
+}
+
+impl Trail {
+    /// Wallet `gone` left the session list: the places the screens left
+    /// kept follow it.
+    pub(crate) fn wallet_left(&mut self, gone: usize) {
+        for s in self.trail.iter_mut().chain(self.entered.iter_mut()) {
+            s.wallet_left(gone);
+        }
+    }
 }
 
 impl Spot {

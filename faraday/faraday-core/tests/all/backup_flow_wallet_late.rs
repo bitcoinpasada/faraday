@@ -2371,3 +2371,111 @@ fn a_wallet_taken_back_from_check_backs_up_as_remade() {
         "the backup is the remade wallet's"
     );
 }
+
+// ---- Make a new wallet taken back when its made wallet leaves ----
+
+/// Make a new wallet with its vaults set up first, the wallet made on a
+/// key from the session: the wallet's place, and the owner of the flow
+/// that set up its vaults. `before` runs with the flow still not made,
+/// just before the wallet is.
+fn made_with_setup_flow(before: impl FnOnce(&mut Faraday)) -> (Faraday, usize, u64) {
+    let mut shell = Shell::light();
+    sticks(&mut shell, 1);
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    create_with_vaults(&mut app, false, 1);
+    crate::backup_flow_wallet::bring_in_existing(&mut shell, &mut app);
+    let fp = key_in(&mut app, 1);
+    app.press(Action::Nav(Screen::Create));
+    app.press(Action::CSlotHere(0, fp));
+    before(&mut app);
+    if app.create().unwrap().built.is_none() {
+        app.press(Action::CNext(cstep::KEYS));
+    }
+    let w = app.create().unwrap().built.expect("the wallet is made");
+    let owner = app.create().unwrap().owner;
+    (app, w, owner)
+}
+
+/// A flow of another owner, as the setup flow is, put in front of it.
+fn another_flow_before(app: &mut Faraday, owner: u64, step: Step) {
+    testkit::change_flows(app, |all| {
+        let mut g = all[0].clone();
+        g.wallet.as_mut().unwrap().owner = owner;
+        g.step = step;
+        all.insert(0, g);
+    });
+}
+
+fn owners(app: &Faraday) -> Vec<u64> {
+    app.backup_flows()
+        .iter()
+        .map(|f| f.wallet.as_ref().map_or(0, |w| w.owner))
+        .collect()
+}
+
+/// Another flow cancelled after the wallet was made moves the setup flow
+/// to an earlier place: taking the made wallet out puts the flow back
+/// where it is, and is no panic.
+#[test]
+fn the_made_wallet_taken_out_after_an_earlier_flow_ended_puts_the_setup_flow_back() {
+    let (mut app, w, owner) = made_with_setup_flow(|app| another_flow_before(app, 900, Step::Make));
+    let step = app.backup_flows()[1].step;
+    testkit::change_flows(&mut app, |all| {
+        all.remove(0);
+    });
+    app.press(Action::RemoveWallet(w));
+    assert!(app.create().is_some_and(|c| c.built.is_none()));
+    assert_eq!(owners(&app), vec![owner]);
+    assert_eq!(app.backup_flows()[0].step, step);
+}
+
+/// A flow of another wallet's Back up that took the place of an ended
+/// one stays as it is: the setup flow found by its owner is put back, not
+/// that wallet's flow overwritten.
+#[test]
+fn the_made_wallet_taken_out_leaves_another_wallets_new_flow_as_it_is() {
+    let (mut app, w, owner) = made_with_setup_flow(|app| another_flow_before(app, 900, Step::Make));
+    testkit::change_flows(&mut app, |all| {
+        all.remove(0);
+        let mut b = all[0].clone();
+        b.wallet.as_mut().unwrap().owner = 901;
+        b.wallet.as_mut().unwrap().checksum = Some(faraday_text::Text::of("another"));
+        b.step = Step::Make;
+        all.push(b);
+    });
+    let before = app.backup_flows().len();
+    app.press(Action::RemoveWallet(w));
+    assert_eq!(app.backup_flows().len(), before);
+    assert_eq!(owners(&app), vec![owner, 901]);
+}
+
+/// A flow of the made wallet that has been made (its plan fixed, its
+/// writes begun) is the record of what was written and what waits: taking
+/// the wallet out leaves it as it is.
+#[test]
+fn the_made_wallet_taken_out_leaves_its_made_flow_with_what_it_wrote() {
+    let (mut app, w, owner) = made_with_setup_flow(|_| {});
+    testkit::change_flows(&mut app, |all| {
+        let f = all
+            .iter_mut()
+            .find(|f| f.wallet.as_ref().is_some_and(|x| x.owner == owner));
+        let f = f.unwrap();
+        f.made = true;
+        f.wallet.as_mut().unwrap().checksum = Some(faraday_text::Text::of("written"));
+    });
+    app.press(Action::RemoveWallet(w));
+    let f = app
+        .backup_flows()
+        .iter()
+        .find(|f| f.wallet.as_ref().is_some_and(|x| x.owner == owner))
+        .expect("its flow stays");
+    assert!(f.made);
+    assert_eq!(
+        f.wallet
+            .as_ref()
+            .and_then(|x| x.checksum.as_ref())
+            .map(|t| t.to_string()),
+        Some("written".to_string())
+    );
+}

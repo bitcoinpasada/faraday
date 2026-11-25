@@ -289,6 +289,17 @@ impl BootImportArea {
         self.state.as_ref()
     }
 
+    /// Wallet `gone` left the session list: the count the landing takes
+    /// from the list's length drops by one when the wallet was one the
+    /// session held before the import.
+    pub(crate) fn wallet_left(&mut self, gone: usize) {
+        if let Some(s) = self.state.as_mut()
+            && gone < s.wallets_before
+        {
+            s.wallets_before -= 1;
+        }
+    }
+
     /// Whether an import waits.
     pub(crate) fn open(&self) -> bool {
         self.state.is_some()

@@ -17,6 +17,7 @@ use std::rc::Rc;
 
 use faraday_crypto::work::Compute;
 
+use crate::Sheet;
 use crate::backup_flow::{Kind, Step};
 use crate::drawing::View;
 use crate::glance::{Now, Reads};
@@ -806,6 +807,15 @@ impl Faraday {
         }
         self.sync_waiting();
         self.in_progress.flow_removed(i);
+        // A Cancel sheet over a flow names it by its place: the flow it
+        // asked about is gone (the sheet closes) or moved one place down.
+        if let Some(Sheet::CancelFlow(Going::Flow(k))) = self.sheet {
+            self.sheet = match k {
+                k if k == i => None,
+                k if k > i => Some(Sheet::CancelFlow(Going::Flow(k - 1))),
+                _ => self.sheet,
+            };
+        }
     }
 
     /// Costs what `backup_step` costs. Flow `g`'s row: its tab, its name

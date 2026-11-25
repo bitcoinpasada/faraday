@@ -450,6 +450,16 @@ impl VaultArea {
         self.state.focus = None;
     }
 
+    /// Wallet `gone` left the session list: the count the landing takes
+    /// from the list's length drops when it was one held before the load.
+    pub(crate) fn wallet_left(&mut self, gone: usize) {
+        if let Some(l) = self.state.load.as_mut()
+            && gone < l.wallets_before
+        {
+            l.wallets_before -= 1;
+        }
+    }
+
     /// Create a vault closed, typing nowhere, with no way back.
     pub(crate) fn leave_create(&mut self) {
         self.state.back_to = None;

@@ -195,6 +195,12 @@ pub(crate) struct EntryArea {
 }
 
 impl EntryArea {
+    /// Wallet `gone` left the session list: the place kept moves up, or
+    /// goes when it is the one gone.
+    pub(crate) fn wallet_left(&mut self, gone: usize) {
+        crate::wallet::kept_place_after_removal(&mut self.state.wallet, gone);
+    }
+
     /// The entry's state.
     pub(crate) fn state(&self) -> &EntryState {
         &self.state
@@ -1080,6 +1086,14 @@ impl MessageArea {
     /// just made.
     pub(crate) fn checking(&self) -> Option<usize> {
         self.checking
+    }
+
+    /// Wallet `gone` left the session list: the place kept moves up, or
+    /// goes when it is the one gone.
+    pub(crate) fn wallet_left(&mut self, gone: usize) {
+        if let Some(s) = self.state.as_mut() {
+            crate::wallet::kept_place_after_removal(&mut s.wallet, gone);
+        }
     }
 
     /// The message as drawn: its visible form and lines, kept.

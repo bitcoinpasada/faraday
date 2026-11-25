@@ -973,9 +973,16 @@ impl Faraday {
     /// (`Origin::TypedSeeds`) is left alone, as the two screens keep their
     /// own guesses on their own terms.
     fn spend_backup_drop_typed_words(&mut self) {
-        self.session
+        // One at a time, each as the list is then: what keeps a place
+        // follows ([`Faraday::wallet_left`]).
+        while let Some(i) = self
+            .session
             .wallets
-            .retain(|w| w.origin != crate::wallet::Origin::TypedWords);
+            .iter()
+            .position(|w| w.origin == crate::wallet::Origin::TypedWords)
+        {
+            self.remove_wallet(i);
+        }
     }
 
     /// Chooses the wallet at `i` of the session. Another wallet's pages
@@ -1331,17 +1338,16 @@ impl Faraday {
         let Some(p) = self.inbox.get(index).and_then(|i| i.psbt()).cloned() else {
             return;
         };
-        for kind in SINGLE {
-            self.spend_backup_words_kind(kind);
-            if self.spend_backup_wallet().is_some()
-                && self.session.spends_from(&c, &p) == self.spend_backup_wallet()
-            {
-                self.spend_backup.state.everything = true;
-                self.spend_backup.state.guess = None;
-                self.refresh_spend();
-                self.spend_backup_opened();
-                return;
-            }
+        let hit = self.spend_backup_words_search(&SINGLE, |s| {
+            s.spend_backup_wallet().is_some()
+                && s.session.spends_from(&c, &p) == s.spend_backup_wallet()
+        });
+        if hit {
+            self.spend_backup.state.everything = true;
+            self.spend_backup.state.guess = None;
+            self.refresh_spend();
+            self.spend_backup_opened();
+            return;
         }
         self.spend_backup_drop_typed_words();
         self.spend_backup.state.wallet = None;
@@ -1501,7 +1507,10 @@ impl Faraday {
                 return false;
             }
         };
-        let kept = self.remove_wallet(w);
+        // Out of the list without telling the places kept: where the
+        // wallet stays out ([`Faraday::wallet_left`], below) they move, and
+        // where it is put back nothing moved.
+        let kept = self.session.wallets.remove(w);
         let name = kept.name.clone();
         match self.session.add_wallet(
             &c,
@@ -1510,7 +1519,16 @@ impl Faraday {
             crate::seeds::SOURCE,
             crate::wallet::Origin::TypedSeeds,
         ) {
+            // The same wallet again: nothing ends, it stands at its place.
+            Ok(i) if self.session.wallets[i].id() == kept.id() => {
+                self.session.wallets.remove(i);
+                self.session.wallets.insert(w, kept);
+                self.spend_backup_set_wallet(w);
+            }
             Ok(i) => {
+                self.wallet_left(w, kept.checksum());
+                // `i` was the end of the list with the old wallet out: the
+                // same place now.
                 self.spend_backup_set_wallet(i);
             }
             // A cosigner's key no loaded key gives holds this guess back
@@ -1528,7 +1546,10 @@ impl Faraday {
                 }
                 return true;
             }
-            Err(e) => self.spend_backup.state.error = Some(e.text()),
+            Err(e) => {
+                self.wallet_left(w, kept.checksum());
+                self.spend_backup.state.error = Some(e.text());
+            }
         }
         false
     }
@@ -1642,19 +1663,137 @@ impl Faraday {
     /// The wallet the last key typed opens as `kind`, in place of the one
     /// it opened before.
     fn spend_backup_words_kind(&mut self, kind: NewKind) {
+        self.spend_backup_words_search(&[kind], |_| true);
+    }
+
+    /// The wallet the last key typed opens as each of `kinds` in turn,
+    /// until `hit` says the one standing is the one wanted (then true; when
+    /// none is, the wallet before stands). What the wallet before had open
+    /// (its Back up, its restore) ends only when it is not the wallet that
+    /// stands at the end: the same wallet put back in one press moves and
+    /// ends nothing.
+    fn spend_backup_words_search(
+        &mut self,
+        kinds: &[NewKind],
+        mut hit: impl FnMut(&mut Self) -> bool,
+    ) -> bool {
+        let keep = self.spend_backup_words_take();
+        let mut found = false;
+        let mut chosen = None;
+        for kind in kinds {
+            let stood = self.spend_backup_words_trial(*kind);
+            if hit(self) {
+                found = true;
+                // Only a wallet the trial put in the list is the one
+                // chosen: a refused trial leaves the wallet before.
+                chosen = self.spend_backup.state.wallet.filter(|_| stood);
+                break;
+            }
+        }
+        self.spend_backup_words_settle(keep, found.then_some(chosen).flatten(), found);
+        found
+    }
+
+    /// The typed-words wallet standing before a press, out of the list
+    /// with its place and nothing told ([`Self::spend_backup_words_settle`]
+    /// does that): any other is a wallet really gone.
+    fn spend_backup_words_take(&mut self) -> Option<(usize, crate::wallet::Wallet)> {
+        let typed = |s: &Self| {
+            s.session
+                .wallets
+                .iter()
+                .position(|w| w.origin == crate::wallet::Origin::TypedWords)
+        };
+        let first = typed(self)?;
+        // The others go first, really, while the first still holds its
+        // place: their places are right then.
+        let rest: Vec<usize> = (first + 1..self.session.wallets.len())
+            .filter(|i| self.session.wallets[*i].origin == crate::wallet::Origin::TypedWords)
+            .collect();
+        for i in rest.into_iter().rev() {
+            self.remove_wallet(i);
+        }
+        let keep = self.session.wallets.remove(first);
+        Some((first, keep))
+    }
+
+    /// The wallet at the end of the press: `found` says the last one tried
+    /// stands (`chosen`: its id, which is a wallet already in the list when
+    /// the kind added nothing), otherwise the one taken before does, and
+    /// where there was none the last kind tried stands.
+    fn spend_backup_words_settle(
+        &mut self,
+        keep: Option<(usize, crate::wallet::Wallet)>,
+        chosen: Option<WalletId>,
+        found: bool,
+    ) {
+        let trial = self
+            .session
+            .wallets
+            .iter()
+            .rposition(|w| w.origin == crate::wallet::Origin::TypedWords)
+            .map(|i| self.session.wallets.remove(i));
+        self.session
+            .wallets
+            .retain(|w| w.origin != crate::wallet::Origin::TypedWords);
+        let trial = trial.filter(|_| found || keep.is_none());
+        let at = match (keep, trial) {
+            (None, Some(t)) => {
+                self.session.wallets.push(t);
+                self.session.wallets.len() - 1
+            }
+            (None, None) => return,
+            (Some((p, k)), Some(t)) if k.id() == t.id() => {
+                self.session.wallets.insert(p, k);
+                p
+            }
+            (Some((p, k)), Some(t)) => {
+                // The wallet before really leaves: the list as it was,
+                // then the one that took its place.
+                self.session.wallets.insert(p, k);
+                self.remove_wallet(p);
+                self.session.wallets.push(t);
+                self.session.wallets.len() - 1
+            }
+            (Some((p, k)), None) => {
+                // A kind that hit a wallet already in the list (another
+                // origin) adds nothing: that wallet is the one chosen and
+                // the typed one before really leaves.
+                let other = chosen.filter(|id| *id != k.id());
+                self.session.wallets.insert(p, k);
+                match other.filter(|id| self.session.wallets.iter().any(|w| w.id() == *id)) {
+                    Some(id) => {
+                        self.remove_wallet(p);
+                        match self.session.wallets.iter().position(|w| w.id() == id) {
+                            Some(i) => i,
+                            None => return,
+                        }
+                    }
+                    None => p,
+                }
+            }
+        };
+        self.spend_backup_set_wallet(at);
+    }
+
+    /// The wallet the last key typed opens as `kind`, put in the list in
+    /// place of any typed-words wallet there.
+    fn spend_backup_words_trial(&mut self, kind: NewKind) -> bool {
         let c = self.compute();
         let Some(key) = self.spend_backup_words_key() else {
-            return;
+            return false;
         };
         let text = match self.session.keys.account_text(&c, key, kind, 0) {
             Ok(t) => t,
             Err(e) => {
                 self.spend_backup.state.error = Some(Text::of(&e));
-                return;
+                return false;
             }
         };
         let descriptor = kind.descriptor(1, &[faraday_text::Text::of(&text)]);
-        self.spend_backup_drop_typed_words();
+        self.session
+            .wallets
+            .retain(|w| w.origin != crate::wallet::Origin::TypedWords);
         let name = Text::fill(EN.spend_backup_words, &[kind_name(kind)]);
         match self.session.add_wallet(
             &c,
@@ -1665,8 +1804,12 @@ impl Faraday {
         ) {
             Ok(i) => {
                 self.spend_backup_set_wallet(i);
+                true
             }
-            Err(e) => self.spend_backup.state.error = Some(e.text()),
+            Err(e) => {
+                self.spend_backup.state.error = Some(e.text());
+                false
+            }
         }
     }
 
@@ -1919,18 +2062,11 @@ impl Faraday {
             && self.spend_backup.state.route == Some(Route::Words)
             && self.spend_backup.state.seeds.keys.len() <= 1
         {
-            let before = self.spend_backup_words_kind_now();
-            let mut found = false;
-            for kind in SINGLE {
-                self.spend_backup_words_kind(kind);
-                self.refresh_spend();
-                if self.wallets.spend().is_some_and(|s| s.wallet.is_some()) {
-                    found = true;
-                    break;
-                }
-            }
-            if !found && let Some(k) = before {
-                self.spend_backup_words_kind(k);
+            let found = self.spend_backup_words_search(&SINGLE, |s| {
+                s.refresh_spend();
+                s.wallets.spend().is_some_and(|s| s.wallet.is_some())
+            });
+            if !found {
                 self.refresh_spend();
             }
         }

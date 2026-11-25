@@ -322,9 +322,51 @@ impl BackupFlowArea {
         }
     }
 
-    /// Flow `i` put back as it was.
-    pub(crate) fn restore(&mut self, i: usize, was: BackupFlow) {
+    /// Create's flow put back as it was before its wallet was made: found
+    /// by its owner, and only where it is still there, not made, and at the
+    /// step it stood at. Otherwise nothing moves and the flow stays as it
+    /// is, and the flow comes back to the caller.
+    pub(crate) fn restore(&mut self, was: BackupFlow) -> Option<BackupFlow> {
+        let Some(owner) = was.wallet.as_ref().map(|w| w.owner).filter(|o| *o != 0) else {
+            return Some(was);
+        };
+        let Some(i) = self.all.iter().position(|f| {
+            f.kind == Kind::Wallet
+                && !f.made
+                && f.step == was.step
+                && f.wallet.as_ref().is_some_and(|w| w.owner == owner)
+        }) else {
+            return Some(was);
+        };
         self.all[i] = was;
+        None
+    }
+
+    /// Whether any flow of Create's `owner` is there, made or not.
+    pub(crate) fn has_owner(&self, owner: u64) -> bool {
+        self.all
+            .iter()
+            .any(|f| f.kind == Kind::Wallet && f.wallet.as_ref().is_some_and(|w| w.owner == owner))
+    }
+
+    /// Puts `was` back as a flow of its own where no flow of its owner is
+    /// there at all, so nothing is overwritten.
+    pub(crate) fn put_back(&mut self, was: BackupFlow) {
+        let owner = was.wallet.as_ref().map_or(0, |w| w.owner);
+        if owner != 0 && !self.has_owner(owner) {
+            self.all.push(was);
+        }
+    }
+
+    /// Whether Create's flow `owner` stands as `was` says it stood: still
+    /// there, not made, at that step.
+    pub(crate) fn stands_as(&self, owner: u64, step: Step) -> bool {
+        self.all.iter().any(|f| {
+            f.kind == Kind::Wallet
+                && !f.made
+                && f.step == step
+                && f.wallet.as_ref().is_some_and(|w| w.owner == owner)
+        })
     }
 
     /// Drops flow `i`; what points past it follows. Whether it was the

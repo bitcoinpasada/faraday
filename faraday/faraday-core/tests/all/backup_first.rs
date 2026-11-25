@@ -111,6 +111,48 @@ fn made_here(app: &mut Faraday) -> (usize, Fingerprint) {
     (w, fp)
 }
 
+/// An earlier wallet taken out moves Create's made wallet with the list:
+/// its Back up is still the made wallet's, and the made wallet taken out
+/// itself takes Make a new wallet back to before it was made.
+#[test]
+fn the_made_wallet_stays_the_made_wallet_when_an_earlier_wallet_is_taken_out() {
+    let mut app = testkit::started();
+    let c = testkit::compute();
+    let early = format!("wpkh({}/<0;1>/*)", testkit::key(0, "m/84'/1'/3'"));
+    app.session
+        .add_wallet_confirmed(
+            &c,
+            "Early",
+            &early,
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .expect("added");
+    let (w, _) = made_here(&mut app);
+    assert_eq!(w, 1);
+    let name = app.session.wallets[1].name.to_string();
+    app.press(Action::RemoveWallet(0));
+    assert_eq!(app.create().and_then(|c| c.built), Some(0));
+    app.press(Action::CBackup);
+    let b = app.backup().expect("the backup opens");
+    assert_eq!(app.session.wallets[b.wallet].name.to_string(), name);
+    assert_eq!(app.create().and_then(|c| c.built), Some(b.wallet));
+}
+
+#[test]
+fn make_a_new_wallet_goes_back_to_before_the_wallet_when_it_is_taken_out() {
+    let mut app = testkit::started();
+    let (w, _) = made_here(&mut app);
+    app.press(Action::RemoveWallet(w));
+    assert!(app.create().is_some_and(|c| c.built.is_none()));
+    assert_eq!(app.screen, Screen::Create);
+    let _ = app.frame();
+    assert!(
+        !app.offers(Action::CBackup),
+        "Back up is offered for a wallet that is gone"
+    );
+}
+
 /// The backup of wallet `w` from Create made into the plan preset `p`
 /// builds, by presses, and its checklist made.
 fn checklist(app: &mut Faraday, p: Preset) {

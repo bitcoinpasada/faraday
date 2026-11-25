@@ -3656,6 +3656,18 @@ impl Faraday {
         self.vaults.state.focus = None;
     }
 
+    /// Wallet `gone` left the session list: the wallet the passphrase
+    /// sheet asks for moves up, and the sheet of the one gone closes.
+    pub(crate) fn pass_seeds_wallet_left(&mut self, gone: usize) {
+        let Some(p) = self.vaults.state.pass_seeds.as_mut() else {
+            return;
+        };
+        match crate::wallet::place_after_removal(p.wallet, gone) {
+            Some(w) => p.wallet = w,
+            None => self.pass_seeds_close(),
+        }
+    }
+
     /// The sheet closed: nothing typed is kept.
     pub(crate) fn pass_seeds_close(&mut self) {
         self.vaults.state.pass_seeds = None;

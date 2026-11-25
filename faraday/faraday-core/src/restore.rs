@@ -628,6 +628,24 @@ impl RestoreArea {
         self.state = Some(state);
     }
 
+    /// Wallet `gone` left the session list: the place kept moves up, and
+    /// whether the flow was on it (it must end).
+    pub(crate) fn wallet_left(&mut self, gone: usize) -> bool {
+        let Some(r) = self.state.as_mut() else {
+            return false;
+        };
+        match r.wallet {
+            Some(w) => match crate::wallet::place_after_removal(w, gone) {
+                Some(w) => {
+                    r.wallet = Some(w);
+                    false
+                }
+                None => true,
+            },
+            None => false,
+        }
+    }
+
     /// Takes the flow out, leaving none.
     pub(crate) fn take(&mut self) -> Option<RestoreState> {
         self.state.take()

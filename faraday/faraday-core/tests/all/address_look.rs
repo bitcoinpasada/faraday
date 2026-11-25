@@ -445,6 +445,34 @@ fn the_made_wallets_dialog_opens_the_wallet() {
     assert_eq!(app.wallet_index(), 0);
 }
 
+/// Another wallet before the one made from the find is taken out: the
+/// dialog's Open opens the wallet made.
+#[test]
+fn the_made_wallets_dialog_opens_the_wallet_after_an_earlier_one_is_taken_out() {
+    let mut app = with_key();
+    let c = testkit::compute();
+    let early = format!("wpkh({}/<0;1>/*)", testkit::key(1, "m/84'/1'/5'"));
+    app.session
+        .add_wallet_confirmed(
+            &c,
+            "Early",
+            &early,
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .expect("added");
+    testkit::keep_published(&mut app);
+    read(&mut app, "tb1q6rz28mcfaxtmd6v789l9rrlrusdprr9pqcpvkl");
+    app.press(way(1));
+    assert_eq!(app.sheet, Some(Sheet::MadeWallet));
+    let _ = app.frame();
+    app.press(Action::RemoveWallet(0));
+    app.press(Action::X(XAction::MadeOpen));
+    assert_eq!(app.screen, Screen::Wallets);
+    assert_eq!(app.session.wallets.len(), 1);
+    assert_eq!(app.wallet_index(), 0);
+}
+
 #[test]
 fn back_from_the_opened_wallet_returns_to_the_address_check() {
     let mut app = with_key();

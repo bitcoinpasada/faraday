@@ -1151,3 +1151,26 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         &items,
     );
 }
+
+impl Faraday {
+    /// Wallet `gone` left the session list: the wallet a seed read keeps
+    /// moves up, and the read asked for the one gone ends, wiped.
+    pub(crate) fn seed_read_wallet_left(&mut self, gone: usize) {
+        let Some(w) = self.seed_read.state.as_ref().and_then(|s| s.wallet) else {
+            return;
+        };
+        match crate::wallet::place_after_removal(w, gone) {
+            Some(w) => {
+                if let Some(s) = self.seed_read.state.as_mut() {
+                    s.wallet = Some(w);
+                }
+            }
+            None => {
+                self.seed_read.clear();
+                if self.sheet == Some(crate::Sheet::SeedRead) {
+                    self.sheet = None;
+                }
+            }
+        }
+    }
+}

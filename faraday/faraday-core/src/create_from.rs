@@ -374,9 +374,7 @@ impl Faraday {
         }
         match c.before_made.as_ref() {
             None => self.wallet_flow_of_owner(c.owner).is_none(),
-            Some((f, was)) => self.flows.get(*f).is_some_and(|now| {
-                now.step == was.step && now.wallet.as_ref().is_some_and(|wf| wf.owner == c.owner)
-            }),
+            Some(was) => self.flows.stands_as(c.owner, was.step),
         }
     }
 
@@ -397,8 +395,8 @@ impl Faraday {
         else {
             return;
         };
-        if let Some((f, was)) = before {
-            self.flows.restore(f, *was);
+        if let Some(was) = before {
+            self.flows.restore(*was);
         }
         if added {
             let id = self.session.wallets[w].id();
