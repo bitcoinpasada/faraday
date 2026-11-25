@@ -58,7 +58,7 @@ pick-own-rows faraday/faraday-core/src/signing/read.rs 1
 pick-own-rows faraday/faraday-core/src/silent/mod.rs 2
 pick-own-rows faraday/faraday-core/src/silent/screen.rs 1
 pick-own-rows faraday/faraday-core/src/spend_backup/mod.rs 7
-pick-own-rows faraday/faraday-core/src/spend_backup/screen.rs 6
+pick-own-rows faraday/faraday-core/src/spend_backup/screen.rs 4
 pick-own-rows faraday/faraday-core/src/tools/mod.rs 1
 pick-own-rows faraday/faraday-core/src/vault/area.rs 5
 pick-own-rows faraday/faraday-core/src/vault/load.rs 5

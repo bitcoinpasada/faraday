@@ -22,8 +22,14 @@ use faraday_draw::widgets::Icon;
 pub(crate) enum Kind {
     /// Something loaded the flow takes: a radio, ticked when `chosen`.
     Pick { chosen: bool },
+    /// Something loaded a step that takes several uses: a checkbox, ticked
+    /// when `ticked`; one button of the step uses the ticked ones.
+    Tick { ticked: bool },
     /// A way to get what the flow takes (Add a key): no radio.
     WayIn,
+    /// An item whose press opens it rather than chooses it (a wallet that
+    /// cannot sign yet): no radio, the chevron at the end.
+    Opens,
 }
 
 /// One row of the pick.
@@ -49,6 +55,22 @@ impl PickRow {
             kind: Kind::Pick { chosen },
             dimmed: false,
             action: a,
+        }
+    }
+
+    /// A loaded item a step that takes several uses: a checkbox.
+    pub(crate) fn tick(icon: Icon, head: String, line: String, ticked: bool, a: Action) -> Self {
+        PickRow {
+            kind: Kind::Tick { ticked },
+            ..PickRow::pick(icon, head, line, false, a)
+        }
+    }
+
+    /// A loaded item a press opens: no radio, a chevron.
+    pub(crate) fn opens(icon: Icon, head: String, line: String, a: Action) -> Self {
+        PickRow {
+            kind: Kind::Opens,
+            ..PickRow::pick(icon, head, line, false, a)
         }
     }
 
@@ -82,6 +104,11 @@ pub(crate) struct Take {
     pub refusal: Option<String>,
     /// The flow's own second line, in place of the pane's.
     pub line: Option<String>,
+    /// The step takes several: a checkbox in the radio's place, `chosen`
+    /// meaning ticked.
+    pub several: bool,
+    /// A press opens the item and chooses nothing: the chevron, no radio.
+    pub opens: bool,
 }
 
 impl Take {
@@ -92,7 +119,21 @@ impl Take {
             action,
             refusal: None,
             line: None,
+            several: false,
+            opens: false,
         }
+    }
+
+    /// A press opens the item (it cannot be taken yet): the chevron.
+    pub(crate) fn opens(mut self) -> Self {
+        self.opens = true;
+        self
+    }
+
+    /// The step takes several items: a checkbox, ticked when chosen.
+    pub(crate) fn several(mut self) -> Self {
+        self.several = true;
+        self
     }
 
     /// The row's second line as the flow says it, in place of the pane's
@@ -180,10 +221,10 @@ impl Decl {
 
     /// Takes wallets: `take` answers for the wallet at an index and gives
     /// the line a taken row carries (a refused one carries its reason).
-    pub(crate) fn wallets(
+    pub(crate) fn wallets<L: std::ops::Deref<Target = str>>(
         mut self,
         app: &crate::Faraday,
-        take: impl Fn(usize, &crate::wallet::Wallet) -> Option<(Take, String)>,
+        take: impl Fn(usize, &crate::wallet::Wallet) -> Option<(Take, L)>,
     ) -> Self {
         self.wallets = app
             .session
@@ -192,7 +233,12 @@ impl Decl {
             .enumerate()
             .filter_map(|(i, w)| {
                 let (t, line) = take(i, w)?;
-                Some(row_of(Icon::Wallet, String::from(&*w.name), || line, t))
+                Some(row_of(
+                    Icon::Wallet,
+                    String::from(&*w.name),
+                    || String::from(&*line),
+                    t,
+                ))
             })
             .collect();
         self
@@ -271,7 +317,13 @@ fn row_of(icon: Icon, head: String, line: impl FnOnce() -> String, t: Take) -> P
     } else {
         t.line.unwrap_or_else(line)
     };
-    let row = PickRow::pick(icon, head, line, t.chosen, t.action);
+    let row = if t.opens {
+        PickRow::opens(icon, head, line, t.action)
+    } else if t.several {
+        PickRow::tick(icon, head, line, t.chosen, t.action)
+    } else {
+        PickRow::pick(icon, head, line, t.chosen, t.action)
+    };
     match t.refusal {
         Some(reason) => row.dimmed_for(&reason),
         None => row,
@@ -330,7 +382,10 @@ fn row(ui: &mut Ui, (x, y, w): (f32, f32, f32), r: &PickRow) -> f32 {
         ui.line_as(BODY_L)
     };
     let h = ui.row_height(if two { LIST_2 } else { LIST_1 }, lines, LIST_PAD_V);
-    let on = matches!(r.kind, Kind::Pick { chosen: true });
+    let on = matches!(
+        r.kind,
+        Kind::Pick { chosen: true } | Kind::Tick { ticked: true }
+    );
     let ink = |role: Role| {
         if r.dimmed {
             Role::OnSurface.at(DISABLED_CONTENT)
@@ -362,6 +417,10 @@ fn row(ui: &mut Ui, (x, y, w): (f32, f32, f32), r: &PickRow) -> f32 {
         }
         tx += ICON_GLYPH_BUTTON + GAP;
     }
+    if let Kind::Tick { ticked } = r.kind {
+        ui.checkbox(tx, y + (h - ICON_GLYPH_BUTTON) / 2.0, ticked, !r.dimmed);
+        tx += ICON_GLYPH_BUTTON + GAP;
+    }
     ui.icon(
         tx,
         y + (h - ICON_GLYPH) / 2.0,
@@ -371,7 +430,20 @@ fn row(ui: &mut Ui, (x, y, w): (f32, f32, f32), r: &PickRow) -> f32 {
         ink(Role::OnSurfaceVariant),
     );
     tx += ICON_GLYPH + GAP;
-    let room = x + w - LIST_PAD - tx;
+    let mut end = x + w - LIST_PAD;
+    if r.kind == Kind::Opens {
+        end -= ICON_GLYPH;
+        ui.icon(
+            end,
+            y + (h - ICON_GLYPH) / 2.0,
+            ICON_GLYPH,
+            Icon::ChevronRight,
+            ICON_GLYPH,
+            ink(Role::OnSurfaceVariant),
+        );
+        end -= GAP;
+    }
+    let room = end - tx;
     let head = ui.fit_as(BODY_L, &r.head, room);
     if two {
         let (lh, vh) = (ui.line_as(BODY_L), ui.line_as(BODY_M));
@@ -436,5 +508,35 @@ mod tests {
         };
         let got = presses(&[row(1), row(2).dimmed_for("No seed held"), row(3)]);
         assert_eq!(got, [Action::PKey([1; 4]), Action::PKey([3; 4])]);
+    }
+
+    #[test]
+    fn a_step_that_takes_several_offers_checkbox_rows() {
+        let take = |on: bool, a: Action| Take::of(on, a).several();
+        let row = |t: Take| row_of(Icon::Keys, "key".into(), || "line".into(), t);
+        let ticked = row(take(true, Action::PKey([1; 4])));
+        let open = row(take(false, Action::PKey([2; 4])));
+        let held = row(take(false, Action::PKey([3; 4])).refused("Already in the wallet"));
+        assert_eq!(ticked.kind, Kind::Tick { ticked: true });
+        assert_eq!(open.kind, Kind::Tick { ticked: false });
+        assert!(held.dimmed && held.line == "Already in the wallet");
+        // A step that takes one stays a radio.
+        let one = row(Take::of(true, Action::PKey([4; 4])));
+        assert_eq!(one.kind, Kind::Pick { chosen: true });
+        let got = presses(&[ticked, open, held]);
+        assert_eq!(got, [Action::PKey([1; 4]), Action::PKey([2; 4])]);
+    }
+
+    #[test]
+    fn a_row_that_opens_has_no_radio_and_a_press_opens() {
+        let row = |t: Take| row_of(Icon::Wallet, "wallet".into(), || "line".into(), t);
+        let opens = row(Take::of(false, Action::OpenWallet(0)).opens());
+        let ready = row(Take::of(false, Action::OpenWallet(1)));
+        assert_eq!(opens.kind, Kind::Opens);
+        assert_eq!(ready.kind, Kind::Pick { chosen: false });
+        assert_eq!(
+            presses(&[opens, ready]),
+            [Action::OpenWallet(0), Action::OpenWallet(1)]
+        );
     }
 }

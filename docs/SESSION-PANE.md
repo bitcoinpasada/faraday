@@ -1,7 +1,7 @@
 # The session pane
 
 **Kind:** Reference
-**Status:** Built: the component (`screens/session_pane/`) and Home's wide card (F323). The phone-size window and the Pi keep their own box (`docs/HOME.md` §4). Wallets' own mode (§1: Waiting, then Keys) stands at the left of Wallets' tile and of a wallet's page on the wide layout. The pick of the flows is a mode of it (§4); not built: the pane in Restore, Spend from a backup, Save to a vault, the backup board, Silent and Vanity, and the checkbox row (`docs/WORKSPACE.md`).
+**Status:** Built: the component (`screens/session_pane/`) and Home's wide card (F323). The phone-size window and the Pi keep their own box (`docs/HOME.md` §4). Wallets' own mode (§1: Waiting, then Keys) stands at the left of Wallets' tile and of a wallet's page on the wide layout. The pick of the flows is a mode of it (§4); The checkbox row (`pick.rs`, `Take::several`: a checkbox in the radio's place, ticked, dimmed with its reason) is built and Restore's share files and Spend from a backup's wallets draw their rows from it; not built: the pane in Save to a vault, the backup board, Silent and Vanity, and a pick of loaded keys that takes several (no step takes one today; `docs/WORKSPACE.md`).
 
 The session pane is the one component that draws what the session holds as
 rows: the keys and wallets loaded (`app.session`), the flows in progress, the

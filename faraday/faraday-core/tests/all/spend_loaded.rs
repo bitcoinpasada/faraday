@@ -263,7 +263,7 @@ fn the_walk_through_is_one_press_away() {
     assert_eq!(app.spend_backup().open, Some(Open::Page(page::MAP)));
 }
 
-/// The ink boxes of a loaded wallet's name, shape and keys' line on the
+/// The ink boxes of a loaded wallet's name and keys' line on the
 /// Pi's panel at `size`, with Savings loaded and one of its keys.
 fn card_lines_at(size: faraday_core::ui::TextSize) -> Vec<(String, (i32, i32, i32, i32))> {
     let mut app = with_files(vec![savings()]);
@@ -287,25 +287,25 @@ fn card_lines_at(size: faraday_core::ui::TextSize) -> Vec<(String, (i32, i32, i3
         .drawn_text_boxes()
         .plain()
         .into_iter()
-        .filter(|(t, _)| t == "Savings" || t.starts_with("2 of 3") || t.starts_with("1 key"))
+        .filter(|(t, _)| t == "Savings" || t.starts_with("1 key"))
         .collect();
-    // The card's own name, the one just over its shape: the bar at the
+    // The row's own name, the one just over its line: the bar at the
     // top names the wallet too.
     let shape = lines
         .iter()
-        .find(|(t, _)| t.starts_with("2 of 3"))
+        .find(|(t, _)| t.starts_with("1 key"))
         .map(|(_, b)| b.1);
-    let shape = shape.expect("the wallet's shape is shown");
+    let shape = shape.expect("the wallet's keys' line is shown");
     let card: Vec<_> = lines
         .into_iter()
         .filter(|(t, b)| t != "Savings" || (b.1 < shape && shape - b.1 < 2 * b.3))
         .collect();
-    assert_eq!(card.len(), 3, "{card:?}");
+    assert_eq!(card.len(), 2, "{card:?}");
     card
 }
 
 /// On a one-column page a loaded wallet's card grows with larger text:
-/// its name, its shape and its keys' line stand one under another, none
+/// its name and its keys' line stand one under another, none
 /// over the next, at every text size.
 #[test]
 fn a_loaded_wallets_card_keeps_its_lines_apart_at_every_text_size() {
@@ -1228,4 +1228,36 @@ fn a_key_row_draws_its_fingerprint_and_its_mark_whole() {
     let rows = key_rows(&mut app);
     assert_eq!(rows.len(), 3, "{rows:?}");
     signing_row(&rows);
+}
+
+#[test]
+fn a_wallets_line_says_whether_it_can_spend_before_its_shape() {
+    use faraday_core::strings::EN;
+    let mut app = with_files(vec![savings()]);
+    testkit::load_wallet(&mut app, 0);
+    app.press(Action::Nav(Screen::SpendBackup));
+    let _ = app.frame();
+    let line = |app: &mut Faraday| {
+        app.drawn_texts()
+            .into_iter()
+            .map(|t| String::from(&*t))
+            .find(|t| t.contains(EN.spend_backup_no_key_here) || t.starts_with("Can spend"))
+            .unwrap_or_default()
+    };
+    assert!(
+        line(&mut app).starts_with(EN.spend_backup_no_key_here),
+        "{}",
+        line(&mut app)
+    );
+    let mut ready = with_files(vec![savings()]);
+    add_key(&mut ready, 0);
+    add_key(&mut ready, 1);
+    testkit::load_wallet(&mut ready, 0);
+    ready.press(Action::Nav(Screen::SpendBackup));
+    let _ = ready.frame();
+    assert!(
+        line(&mut ready).starts_with("Can spend"),
+        "{}",
+        line(&mut ready)
+    );
 }
