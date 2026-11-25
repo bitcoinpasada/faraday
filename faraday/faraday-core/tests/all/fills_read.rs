@@ -229,7 +229,13 @@ fn what_the_screens_write_reads_on_their_fills_in_every_theme() {
             let drawn = all_text(&mut app);
             assert!(!drawn.is_empty(), "{preset:?}: {scene} draws text");
             for (text, got, ink, bg) in drawn {
-                if got < need {
+                // The flow count on a sidebar tab is white on Bitcoin orange
+                // in every theme, the owner's choice over the threshold
+                // (F311, F334): that count, on that fill, and nothing wider.
+                let flow_count = text == "1"
+                    && (ink.r, ink.g, ink.b) == (0xff, 0xff, 0xff)
+                    && (bg.r, bg.g, bg.b) == (0xf7, 0x93, 0x1a);
+                if got < need && !flow_count {
                     short.push(format!(
                         "{preset:?} {scene}: {text:?} is {got:.2}:1 ({:02x}{:02x}{:02x} on {:02x}{:02x}{:02x})",
                         ink.r, ink.g, ink.b, bg.r, bg.g, bg.b

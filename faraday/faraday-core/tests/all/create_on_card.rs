@@ -615,7 +615,15 @@ fn the_key_made_through_other_ways_reads_as_make_a_new_wallet_and_names_its_slot
         texts.iter().any(|t| t == "Key 1"),
         "the slot's name: {texts:?}"
     );
-    assert!(has_text(&mut app, "Keys"), "back names the Keys card");
+    // The key opens on its Length card, Start answered: the way back is
+    // named after the step before (docs/FLOWS.md, "A key made inside Make a
+    // new wallet"), and from the first card it returns to the Keys card.
+    assert!(has_text(&mut app, "Back to Start"), "back names Start");
+    app.press(Action::Back);
+    assert!(
+        has_text(&mut app, "Back to Keys"),
+        "back names the Keys card"
+    );
 }
 
 #[test]

@@ -485,8 +485,9 @@ fn what_the_components_write_reads_on_what_they_are_drawn_on_in_every_scheme() {
                 for (text, got) in lines {
                     // The count on a destination badge is white on Bitcoin
                     // orange in every theme, the owner's choice over the
-                    // threshold (F311): the navigation scene's counts.
-                    if name == "navigation" && matches!(text.as_str(), "3" | "12") {
+                    // threshold (F311): the navigation scene's counts, and its
+                    // expanded row's flow count, the same badge.
+                    if name == "navigation" && matches!(text.as_str(), "1" | "3" | "12") {
                         continue;
                     }
                     if got < floor {

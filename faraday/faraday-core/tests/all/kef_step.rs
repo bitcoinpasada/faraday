@@ -12,7 +12,7 @@ use faraday_core::kef_form::KefAct;
 use faraday_core::kef_tool::KefToolAction as K;
 use faraday_core::plan::{Item, Preset};
 use faraday_core::seeds::SeedsAction as S;
-use faraday_core::{Action, Faraday, Screen, StorageEvent, qstep, testkit};
+use faraday_core::{Action, Faraday, StorageEvent, qstep, testkit};
 use faraday_shell_api::{App, EntropyBytes, Event, Key};
 
 /// A one-key wallet whose plan keeps seed A's Krux code on a new stick,
@@ -538,9 +538,13 @@ fn a_record_kept_before_the_code_files_were_named_still_loads() {
     to_lock(&mut app, &mut shell);
     shell.pump(&mut app);
     let _ = shell.restart();
-    let (inbox, outbox, mut kept) = shell.boxes.clone();
+    let (inbox, outbox, kept) = shell.boxes.clone();
+    // What a restart takes up from the record as kept now.
+    let app = crate::common::process(inbox.clone(), outbox.clone(), kept.clone());
+    let whole = String::from_utf8_lossy(&testkit::backups_record(&app)).to_string();
+    let mut old_kept = kept;
     let mut stripped = 0;
-    for (n, bytes) in kept.iter_mut() {
+    for (n, bytes) in old_kept.iter_mut() {
         if n == "backups" {
             let text = String::from_utf8_lossy(bytes).to_string();
             // The line as it was kept before the hash and the options.
@@ -559,13 +563,21 @@ fn a_record_kept_before_the_code_files_were_named_still_loads() {
         }
     }
     assert_eq!(stripped, 1, "the record named the code");
-    let mut app = crate::common::process(inbox, outbox, kept);
-    app.press(Action::Nav(Screen::Backups));
-    let texts = crate::common::texts(&mut app);
+    // The older record is taken up too, all of it but the code's line, which
+    // reads as not made.
+    let app = crate::common::process(inbox, outbox, old_kept);
+    let read = String::from_utf8_lossy(&testkit::backups_record(&app)).to_string();
+    let without_code: String = whole
+        .lines()
+        .filter(|l| !l.starts_with("kef\t"))
+        .map(|l| format!("{l}\n"))
+        .collect();
     assert!(
-        texts.iter().any(|t| t.starts_with("Backup of")),
-        "the wallet's record still reads: {texts:?}"
+        read.contains("backup\t"),
+        "the wallet's record still reads: {read:?}"
     );
+    assert_ne!(without_code, whole, "the record kept now names the code");
+    assert_eq!(read, without_code);
 }
 
 #[test]
