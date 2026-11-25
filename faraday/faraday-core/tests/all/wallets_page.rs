@@ -483,3 +483,19 @@ fn the_card_offers_check_an_address_and_it_opens() {
     app.press(check);
     assert_eq!(app.screen, Screen::CheckAddress);
 }
+
+#[test]
+fn zz_probe() {
+    for h in [600u16, 768, 900] {
+        for w in (1000u16..1500).step_by(10) {
+            let mut app = with_wallets(w, h, &[WORDS, OTHER_WORDS[0]], 12);
+            let _ = app.frame();
+            let texts = app.drawn_texts();
+            let pair = texts.iter().any(|t| t == EN.session_group_keys);
+            let four = texts.iter().any(|t| t == EN.start_make_a_new_wallet);
+            let start = texts.iter().any(|t| t == EN.home_ways_start);
+            eprintln!("PROBE {h} {w} pair={pair} four={four} start={start}");
+        }
+    }
+    panic!("probe");
+}
