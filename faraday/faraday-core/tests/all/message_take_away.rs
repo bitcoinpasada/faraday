@@ -5,6 +5,7 @@
 //! the card as it was.
 
 use faraday_core::strings::EN;
+use faraday_core::ui::TextSize;
 use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent, testkit};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
@@ -119,16 +120,16 @@ fn a_tick_is_the_visit_chosen_set_and_the_button_follows_it() {
     stick_in(&mut app);
     let name = file(&app);
     assert!(app.visit().out.contains(&*name), "ticked when made");
-    assert!(app.offers(Action::VisitWrite));
+    assert!(app.offers(Action::TakeWrite));
     assert!(shown(&mut app, &write_button()));
     app.press(Action::VisitOut(0));
     let _ = app.frame();
     assert!(!app.visit().out.contains(&*name));
-    assert!(!app.offers(Action::VisitWrite), "off with nothing ticked");
+    assert!(!app.offers(Action::TakeWrite), "off with nothing ticked");
     assert!(shown(&mut app, &write_button()));
     app.press(Action::VisitOut(0));
     let _ = app.frame();
-    assert!(app.offers(Action::VisitWrite));
+    assert!(app.offers(Action::TakeWrite));
 }
 
 #[test]
@@ -141,8 +142,8 @@ fn with_no_stick_the_button_reads_waiting_for_a_stick() {
         .iter()
         .filter(|(t, _)| **t == *waiting)
         .count();
-    assert_eq!(n, 1, "said once, on the button");
-    assert!(!app.offers(Action::VisitWrite));
+    assert_eq!(n, 2, "said on the file's row and on the button");
+    assert!(!app.offers(Action::TakeWrite));
     assert!(app.outbox.len() == 1, "the file waits in the outbox");
 }
 
@@ -150,8 +151,8 @@ fn with_no_stick_the_button_reads_waiting_for_a_stick() {
 fn with_keys_in_memory_the_button_asks_to_lock_before_it_writes() {
     let mut app = signed_at(1366, 768);
     stick_in(&mut app);
-    assert!(app.offers(Action::VisitWrite));
-    app.press(Action::VisitWrite);
+    assert!(app.offers(Action::TakeWrite));
+    app.press(Action::TakeWrite);
     assert_eq!(app.sheet, Some(Sheet::WriteOut));
     assert!(app.outbox.len() == 1, "the file still waits");
 }
@@ -307,6 +308,12 @@ fn a_message_that_is_a_seed_makes_no_file_and_offers_its_code_only() {
         assert!(!shown(&mut app, EN.message_make_the_file));
         assert!(!app.offers(Action::MOut));
         assert!(app.offers(Action::MQr), "the code stays offered");
+        if w >= 1366 {
+            // A code and no file: no button (WORKSPACE §15).
+            assert!(!app.offers(Action::TakeWrite));
+            assert!(!shown(&mut app, &write_button()));
+            assert!(!shown(&mut app, "Waiting for a stick"));
+        }
     }
 }
 
@@ -316,4 +323,348 @@ fn an_ordinary_message_still_waits_as_a_file() {
     let app = signed_at(1366, 768);
     assert_eq!(app.outbox.len(), 1);
     assert!(app.toast_text().is_some_and(|t| t.contains("waits")));
+}
+
+/// The take-away's write sends its own file and nothing else the visit has
+/// chosen; Files' Write still sends everything chosen.
+#[test]
+fn the_take_away_writes_only_its_own_rows_files() {
+    let mut app = signed_at(1366, 768);
+    stick_in(&mut app);
+    let name = file(&app);
+    // Another file chosen in the visit.
+    testkit::outbox_file(&mut app, "other.txt", b"other");
+    app.press(Action::VisitOut(1));
+    assert!(app.visit().out.contains("other.txt"));
+    // A clean process: nothing in memory to lock first.
+    testkit::made_clean(&mut app);
+    let _ = app.frame();
+    assert!(app.visit().out.contains("other.txt"), "still chosen");
+    app.press(Action::TakeWrite);
+    let mut names = Vec::new();
+    while let Some(c) = app.poll_storage() {
+        if let faraday_core::StorageCommand::Write { name, .. } = c {
+            names.push(name.to_string());
+        }
+    }
+    assert_eq!(names, vec![name], "only the take-away's own file");
+}
+
+fn stick_with(files: &[&str]) -> StickInfo {
+    StickInfo {
+        make: Default::default(),
+        serial: None,
+        id: faraday_text::Text::of("one"),
+        label: faraday_text::Text::of("FIRST"),
+        boot: false,
+        files: files
+            .iter()
+            .map(|n| (faraday_text::Text::of(n), 5))
+            .collect(),
+        vaults: Vec::new(),
+    }
+}
+
+fn writes(app: &mut Faraday) -> Vec<String> {
+    let mut names = Vec::new();
+    while let Some(c) = app.poll_storage() {
+        if let faraday_core::StorageCommand::Write { name, .. } = c {
+            names.push(name.to_string());
+        }
+    }
+    names.sort();
+    names
+}
+
+/// The write that waits for the lock and the restart sends the pane's file
+/// only, though another file is chosen in the visit.
+#[test]
+fn the_write_through_the_lock_sends_only_the_panes_file() {
+    let mut app = signed_at(1366, 768);
+    stick_in(&mut app);
+    let name = file(&app);
+    testkit::outbox_file(&mut app, "other.txt", b"other");
+    app.press(Action::VisitOut(1));
+    assert!(app.visit().out.contains("other.txt"));
+    app.press(Action::TakeWrite);
+    assert_eq!(app.sheet, Some(Sheet::WriteOut));
+    app.press(Action::Lock);
+    let mut saved = None;
+    while let Some(c) = app.poll_storage() {
+        if let faraday_core::StorageCommand::SaveBoxes { outbox, kept, .. } = c {
+            saved = Some((outbox, kept));
+        }
+    }
+    let (outbox, kept) = saved.expect("the lock kept the boxes");
+    let mut next = testkit::started();
+    next.storage(StorageEvent::Restored {
+        inbox: Vec::new(),
+        outbox,
+        kept,
+    });
+    while next.poll_storage().is_some() {}
+    // The name is taken on the stick, so the write stops to ask; the other
+    // file's tick pressed under that sheet still does not send it.
+    next.storage(StorageEvent::Sticks(vec![stick_with(&[&name])]));
+    assert_eq!(next.sheet, Some(Sheet::Taken));
+    let other = next
+        .outbox
+        .iter()
+        .position(|i| i.name == "other.txt")
+        .expect("it waits");
+    if !next.visit().out.contains("other.txt") {
+        next.press(Action::VisitOut(other));
+    }
+    assert!(next.visit().out.contains("other.txt"), "chosen");
+    next.press(Action::VisitKeepBoth);
+    assert_eq!(writes(&mut next), vec![name], "the pane's file only");
+}
+
+/// The sheet before the lock says what that write sends and to which
+/// stick: not that the visit writes everything waiting.
+#[test]
+fn the_sheet_before_the_lock_names_what_the_write_sends() {
+    let mut app = signed_at(1366, 768);
+    stick_in(&mut app);
+    let name = file(&app);
+    testkit::outbox_file(&mut app, "other.txt", b"other");
+    app.press(Action::VisitOut(1));
+    app.press(Action::TakeWrite);
+    assert_eq!(app.sheet, Some(Sheet::WriteOut));
+    let _ = app.frame();
+    let drawn: Vec<String> = app
+        .drawn_text_boxes()
+        .iter()
+        .map(|(t, _)| t.to_string())
+        .collect();
+    let drawn = drawn.join(" ");
+    let want = format!("Lock, then write {name} to FIRST");
+    assert!(drawn.contains(&want), "{drawn}");
+    assert!(!drawn.contains(EN.write_out_lock_here), "{drawn}");
+}
+
+/// The idle lock is no press: the write the sheet asked about is not kept,
+/// for the take-away's sheet as for a spend's.
+#[test]
+fn the_idle_lock_gives_the_waiting_write_up() {
+    let mut app = signed_at(1366, 768);
+    stick_in(&mut app);
+    app.event(Event::Tick { now_ms: 0 });
+    app.press(Action::TakeWrite);
+    assert_eq!(app.sheet, Some(Sheet::WriteOut));
+    while app.poll_storage().is_some() {}
+    app.event(Event::Tick {
+        now_ms: u64::from(app.idle_lock_min()) * 60_000,
+    });
+    assert!(app.restart_requested(), "the idle lock came");
+    assert!(!keeps_a_write(&mut app));
+}
+
+/// Whether what the lock kept holds a write waiting for the next stick.
+fn keeps_a_write(app: &mut Faraday) -> bool {
+    let mut kept = None;
+    while let Some(c) = app.poll_storage() {
+        if let faraday_core::StorageCommand::SaveBoxes { kept: k, .. } = c {
+            kept = Some(k);
+        }
+    }
+    testkit::plain_kept(kept.expect("the lock kept the boxes"))
+        .iter()
+        .any(|(n, _)| n == "write-waiting")
+}
+
+/// Not now on the sheet gives the write up: a later Lock keeps none.
+#[test]
+fn not_now_before_the_lock_keeps_no_write_for_a_later_lock() {
+    let mut app = signed_at(1366, 768);
+    stick_in(&mut app);
+    app.press(Action::TakeWrite);
+    assert_eq!(app.sheet, Some(Sheet::WriteOut));
+    app.press(Action::Cancel);
+    assert_eq!(app.sheet, None);
+    while app.poll_storage().is_some() {}
+    app.press(Action::LockUnsealed);
+    assert!(!keeps_a_write(&mut app));
+}
+
+/// The stick pulled and put back while the sheet that names the file is up:
+/// the Lock sheet takes its place, names no file, and its Lock writes none.
+#[test]
+fn a_lock_sheet_that_takes_the_naming_sheets_place_gives_the_write_up() {
+    let mut app = signed_at(1366, 768);
+    stick_in(&mut app);
+    app.press(Action::TakeWrite);
+    assert_eq!(app.sheet, Some(Sheet::WriteOut));
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    app.storage(StorageEvent::Sticks(vec![stick_with(&[])]));
+    assert_eq!(app.sheet, Some(Sheet::Lock));
+    while app.poll_storage().is_some() {}
+    app.press(Action::LockUnsealed);
+    assert!(!keeps_a_write(&mut app));
+}
+
+/// In a clean process, with a changed setting on the boot stick and a file
+/// from the Inbox chosen, the take-away's write sends its own file only.
+#[test]
+fn the_settings_file_and_the_inbox_never_ride_the_take_aways_write() {
+    let mut app = signed_at(1366, 768);
+    stick_in(&mut app);
+    let name = file(&app);
+    testkit::made_clean(&mut app);
+    app.storage(StorageEvent::Sticks(vec![StickInfo {
+        boot: true,
+        ..stick_with(&[])
+    }]));
+    let kit = testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "spending")
+        .unwrap();
+    testkit::inbox_file(&mut app, "wallet.txt", kit.descriptor.into_bytes());
+    app.press(Action::TextSize(TextSize::Large));
+    app.press(Action::VisitInbox(0));
+    let _ = app.frame();
+    assert!(app.visit_settings_on(), "the settings row is ticked");
+    assert!(app.visit().from_inbox.contains("wallet.txt"), "chosen");
+    app.press(Action::TakeWrite);
+    assert_eq!(writes(&mut app), vec![name]);
+}
+
+/// A second press on the sheet's button, which the last frame still shows,
+/// sends nothing more.
+#[test]
+fn a_second_press_on_the_taken_sheet_sends_nothing() {
+    for again in [Action::VisitKeepBoth, Action::VisitReplace] {
+        let mut app = signed_at(1366, 768);
+        stick_in(&mut app);
+        let name = file(&app);
+        testkit::outbox_file(&mut app, "other.txt", b"other");
+        app.press(Action::VisitOut(1));
+        testkit::made_clean(&mut app);
+        app.storage(StorageEvent::Sticks(vec![stick_with(&[&name])]));
+        app.press(Action::TakeWrite);
+        assert_eq!(app.sheet, Some(Sheet::Taken));
+        app.press(again);
+        assert_eq!(writes(&mut app), vec![name]);
+        app.press(again);
+        assert!(writes(&mut app).is_empty());
+    }
+}
+
+/// Files' Rename can put another file under the message file's name: that
+/// is not the take-away's file. Its row makes the file, and Write sends
+/// nothing.
+#[test]
+fn another_file_under_the_name_is_not_the_take_aways() {
+    let mut app = signed_at(1366, 768);
+    stick_in(&mut app);
+    let name = file(&app);
+    testkit::outbox_file(&mut app, "other.txt", b"other");
+    app.press(Action::Nav(Screen::Files));
+    app.outbox[0].name = faraday_text::Text::of("x.txt");
+    app.outbox[1].name = faraday_text::Text::of(&name);
+    app.press(Action::Back);
+    app.press(Action::MStep(faraday_core::mstep::SIGN));
+    testkit::made_clean(&mut app);
+    // Ticked in Files, as the file now under the name would be.
+    if !app.visit().out.contains(&*name) {
+        app.press(Action::VisitOut(1));
+    }
+    let _ = app.frame();
+    assert!(app.visit().out.contains(&*name), "its name is still ticked");
+    assert!(app.offers(Action::MOut), "Make the file");
+    assert!(!app.offers(Action::VisitOut(1)), "no tick row for it");
+    app.press(Action::TakeWrite);
+    assert!(writes(&mut app).is_empty());
+    // Made again, it goes beside the other file and is the one sent.
+    app.press(Action::MOut);
+    app.press(Action::TakeWrite);
+    let sent = writes(&mut app);
+    assert_eq!(sent.len(), 1);
+    assert_ne!(sent[0], name);
+}
+
+/// With the stick gone before the press acts, nothing waits through the
+/// lock: not even for the stick an imported PSBT came from.
+#[test]
+fn a_press_with_no_stick_keeps_no_write() {
+    let mut app = signed_at(1366, 768);
+    stick_in(&mut app);
+    testkit::imported_from(&mut app, "another");
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    app.press(Action::TakeWrite);
+    assert_eq!(app.sheet, Some(Sheet::WriteOut));
+    while app.poll_storage().is_some() {}
+    app.press(Action::Lock);
+    assert!(!keeps_a_write(&mut app));
+}
+
+/// A message's write after the lock does not end on a spend's end card.
+#[test]
+fn a_messages_write_after_the_lock_is_not_a_spends_end() {
+    let mut app = signed_at(1366, 768);
+    stick_in(&mut app);
+    app.press(Action::TakeWrite);
+    while app.poll_storage().is_some() {}
+    app.press(Action::Lock);
+    let mut saved = None;
+    while let Some(c) = app.poll_storage() {
+        if let faraday_core::StorageCommand::SaveBoxes { outbox, kept, .. } = c {
+            saved = Some((outbox, kept));
+        }
+    }
+    let (outbox, kept) = saved.expect("the lock kept the boxes");
+    let mut next = testkit::started();
+    next.storage(StorageEvent::Restored {
+        inbox: Vec::new(),
+        outbox,
+        kept,
+    });
+    while next.poll_storage().is_some() {}
+    next.storage(StorageEvent::Sticks(vec![stick_with(&[])]));
+    assert_eq!(writes(&mut next).len(), 1, "the write went");
+    assert!(!testkit::signed_end(&next));
+}
+
+/// A press from a flow whose rows changed sends nothing of what it offered
+/// before.
+#[test]
+fn a_press_after_the_rows_changed_sends_nothing_of_the_earlier_names() {
+    let mut app = signed_at(1366, 768);
+    stick_in(&mut app);
+    testkit::made_clean(&mut app);
+    let _ = app.frame();
+    assert!(app.offers(Action::TakeWrite));
+    // The format is changed: the signature, and so its file's row, go.
+    app.press(Action::MFormat(true));
+    app.press(Action::TakeWrite);
+    assert!(writes(&mut app).is_empty());
+}
+
+/// The scope goes with the Already on the stick sheet, and is gone with it:
+/// the take-away's Keep both sends its own file only, and Files' Write
+/// after a cancelled sheet sends everything chosen.
+#[test]
+fn the_scope_lives_and_dies_with_the_sheet_it_opened() {
+    let mut app = signed_at(1366, 768);
+    stick_in(&mut app);
+    let name = file(&app);
+    testkit::outbox_file(&mut app, "other.txt", b"other");
+    app.press(Action::VisitOut(1));
+    testkit::made_clean(&mut app);
+    app.storage(StorageEvent::Sticks(vec![stick_with(&[&name])]));
+    let _ = app.frame();
+    app.press(Action::TakeWrite);
+    assert_eq!(app.sheet, Some(Sheet::Taken));
+    app.press(Action::VisitKeepBoth);
+    assert_eq!(writes(&mut app), vec![name.clone()]);
+    // Cancelled, then Files' own Write.
+    app.press(Action::TakeWrite);
+    assert_eq!(app.sheet, Some(Sheet::Taken));
+    app.press(Action::Cancel);
+    assert!(writes(&mut app).is_empty());
+    app.press(Action::VisitWrite);
+    app.press(Action::VisitKeepBoth);
+    let mut want = vec![name, "other.txt".to_string()];
+    want.sort();
+    assert_eq!(writes(&mut app), want);
 }

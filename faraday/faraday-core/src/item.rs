@@ -23,8 +23,9 @@ pub struct Item {
     /// bytes are the picture's, kept to be written out as they came.
     pub picture: Option<FileKind>,
     /// SHA-256 of a vault's or an EFI image's bytes, taken once
-    /// when the file came in (each is public: a vault's file is sealed);
-    /// `None` for any other file. An Item's bytes never change after it
+    /// when the file came in (each is public: a vault's file is sealed),
+    /// and of a signed message's file as it is made, which the take-away
+    /// matches it by; `None` for any other file. An Item's bytes never change after it
     /// is made.
     pub sha: Option<[u8; 32]>,
     /// What a vault file's header and length state, read once when the

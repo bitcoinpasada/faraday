@@ -1049,16 +1049,22 @@ file renamed or removed in Files shows a row with Make the file or Make again
 instead. Files resets the chosen set when it is opened, as it always did, so
 the tick does not outlast a visit to Files.
 
+Each file row says "Waiting for a stick" while no stick is in, and a
+take-away with a code and no file has no button. The pane's "Write to
+stick" writes only its own rows' files (the visit's write is scoped to
+them, the settings file and the Inbox's files left out), as Files' Write
+still sends everything chosen. Where it locks first, the sheet that asks
+names those files and the stick; the idle lock answering that sheet, or
+spend's, gives the write up. A row is its file by name and SHA-256: another
+file under that name shows Make the file and is not sent.
+
 Not built: the other flows (the table below); "Written and checked" reached
 in the flow (the lock ends it first); the tick kept on opening Files and
 through the lock; the next steps in the pane; the pane settling back to its
-session form after a write; the rows' own "Waiting for a stick"; the emphasis
-on arrival; the file's green in the session pane after writing; and the code
-drawn inline on a light square: its row opens the QR sheet when asked, as the
-flow's finish did, and the sheet still makes the PNG. The pane's write counts
-and writes only its own rows' files, but the visit's write sends everything
-chosen; this must be closed before a second flow uses the pane, or before
-a flow ends in a clean process.
+session form after a write; the emphasis on arrival; the file's green in the
+session pane after writing; and the code drawn inline on a light square: its
+row opens the QR sheet when asked, as the flow's finish did, and the sheet
+still makes the PNG.
 
 **What this changes.** F319 puts Your choices at the left in
 every flow and F296 makes the last step a card in the column: Your

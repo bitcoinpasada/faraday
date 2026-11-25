@@ -207,22 +207,33 @@ fn stick_identity(stick: &crate::StickInfo) -> Text {
     }
 }
 
-/// The files a "Lock and write" writes to the stick, and which stick.
+/// The files a "Lock and write", or a take-away's write through the lock,
+/// writes to the stick, and which stick.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct WriteWait {
     /// The stick in when it was pressed, as a visit's receipt names it;
     /// none when no stick was in.
     pub stick: Option<Text>,
-    /// The spend's own results, by name.
+    /// The stick's label, for the sheet that asks before the lock; not
+    /// kept for the next process, which has no such sheet.
+    pub label: Text,
+    /// The spend's own wait: its write ends on the spend's end card.
+    pub spend: bool,
+    /// The files, by name.
     pub names: Vec<Text>,
 }
 
 impl WriteWait {
     /// What the next process keeps: the stick's identity on the first
-    /// line (empty for none), then one name a line.
+    /// line (empty for none), "spend" or nothing on the second, then one
+    /// name a line.
     pub(crate) fn encode(&self) -> Vec<u8> {
         let mut out: Vec<u8> = Vec::new();
         out.extend_from_slice(self.stick.as_deref().unwrap_or("").as_bytes());
+        out.push(b'\n');
+        if self.spend {
+            out.extend_from_slice(b"spend");
+        }
         for n in &self.names {
             out.push(b'\n');
             out.extend_from_slice(n.as_bytes());
@@ -237,11 +248,17 @@ impl WriteWait {
             .next()
             .filter(|l| !l.is_empty())
             .map(Text::from_utf8_lossy);
+        let spend = lines.next() == Some(b"spend".as_slice());
         let names: Vec<Text> = lines
             .filter(|l| !l.is_empty())
             .map(Text::from_utf8_lossy)
             .collect();
-        (!names.is_empty()).then_some(WriteWait { stick, names })
+        (!names.is_empty()).then_some(WriteWait {
+            stick,
+            label: Text::default(),
+            spend,
+            names,
+        })
     }
 }
 
@@ -695,12 +712,20 @@ impl VisitArea {
     }
 
     /// The files whose names are taken, while the sheet asks.
-    pub(crate) fn set_taken(&mut self, taken: Vec<Taken>) {
+    pub(crate) fn set_taken(&mut self, taken: Vec<Taken>, scope: Option<Vec<Text>>) {
         self.visit.taken = taken;
+        self.visit.taken_scope = scope;
+    }
+
+    /// The files the take-away's write named when it opened the sheet that
+    /// asks, given as the sheet stops asking; none for Files' Write.
+    pub(crate) fn take_taken_scope(&mut self) -> Option<Vec<Text>> {
+        self.visit.taken_scope.take()
     }
 
     /// The files whose names were taken, given as the sheet stops asking.
     pub(crate) fn take_taken(&mut self) -> Vec<Taken> {
+        self.visit.taken_scope = None;
         std::mem::take(&mut self.visit.taken)
     }
 
@@ -712,6 +737,7 @@ impl VisitArea {
     /// Nothing is taken: the sheet is not asking.
     pub(crate) fn taken_clear(&mut self) {
         self.visit.taken.clear();
+        self.visit.taken_scope = None;
     }
 
     /// The Outbox files chosen to write are `chosen`.
@@ -1049,14 +1075,22 @@ impl Faraday {
     /// What the visit's Write writes, the settings file aside: each
     /// chosen Outbox file, then each chosen Inbox file the visit lists,
     /// with its bytes and whether it came from the Inbox.
-    fn visit_files(&self) -> Vec<(Text, Zeroizing<Vec<u8>>, bool)> {
+    ///
+    /// `scope` is the take-away's own file names: then only the chosen
+    /// Outbox files among them, never the Inbox's.
+    fn visit_files(&self, scope: Option<&[Text]>) -> Vec<(Text, Zeroizing<Vec<u8>>, bool)> {
         let mut out: Vec<(Text, Zeroizing<Vec<u8>>, bool)> = self
             .outbox
             .iter()
             .filter(|i| self.visit.out.contains(&*i.name))
+            .filter(|i| scope.is_none_or(|s| s.iter().any(|n| **n == *i.name)))
             .map(|i| (Text::of(&i.name), i.bytes.clone(), false))
             .collect();
-        for k in self.visit_inbox_rows() {
+        for k in self
+            .visit_inbox_rows()
+            .into_iter()
+            .filter(|_| scope.is_none())
+        {
             let item = &self.inbox[k];
             if self.visit.from_inbox.contains(&*item.name) {
                 out.push((Text::of(&item.name), item.bytes.clone(), true));
@@ -1102,13 +1136,13 @@ impl Faraday {
 
     /// The files the write would write whose names are taken on the stick
     /// shown, each with what becomes of it.
-    pub fn visit_taken(&self) -> Vec<Taken> {
+    pub(crate) fn visit_taken(&self, scope: Option<&[Text]>) -> Vec<Taken> {
         let Some(stick) = self.stick.get(self.visit.stick) else {
             return Vec::new();
         };
         let mut names: Vec<Text> = stick.files.iter().map(|(n, _)| lower(n)).collect();
         let mut rows = Vec::new();
-        for (name, bytes, _) in self.visit_files() {
+        for (name, bytes, _) in self.visit_files(scope) {
             let on = stick
                 .files
                 .iter()
@@ -1157,12 +1191,14 @@ impl Faraday {
             .or_else(|| self.visit.sign_from().cloned())?;
         (!names.is_empty()).then(|| WriteWait {
             stick: Some(stick),
+            label: Text::default(),
+            spend: true,
             names,
         })
     }
 
-    /// The write a "Lock and write" left for the stick that came: only the
-    /// spend's own files, to the stick it named (any other stick has the
+    /// The write left through a lock for the stick that came: only the
+    /// files it named, to the stick it named (any other stick has the
     /// ordinary visit).
     pub(crate) fn visit_write_waiting(&mut self) {
         let Some(wait) = self.visit.write_waiting().cloned() else {
@@ -1192,11 +1228,11 @@ impl Faraday {
         if names.is_empty() {
             return;
         }
-        self.visit.set_out(names);
+        self.visit.set_out(names.iter());
         self.visit.inbox_pick_none();
         self.visit.set_settings(Some(false));
-        self.visit.set_signed_end(true);
-        self.visit_write_ask();
+        self.visit.set_signed_end(wait.spend);
+        self.visit_write_ask(Some(names));
         if self.sheet != Some(Sheet::Taken) {
             self.visit.set_settings(None);
         }
@@ -1207,23 +1243,56 @@ impl Faraday {
     ///
     /// A process that is no longer clean asks to lock first, as Write from
     /// Files does; the disk process would refuse the write.
-    pub(crate) fn visit_write_ask(&mut self) {
+    ///
+    /// `scope` is the take-away's file names (`None` for Files' Write): it
+    /// goes with the sheet that asks and is dropped as the write is sent.
+    pub(crate) fn visit_write_ask(&mut self, scope: Option<Vec<Text>>) {
         if !self.clean() {
             self.sheet = Some(Sheet::WriteOut);
             return;
         }
-        let taken = self.visit_taken();
+        let taken = self.visit_taken(scope.as_deref());
         if !taken.is_empty() {
-            self.visit.set_taken(taken);
+            self.visit.set_taken(taken, scope);
             self.sheet = Some(Sheet::Taken);
         } else {
-            self.visit_write(false);
+            self.visit_write(false, scope.as_deref());
         }
+    }
+
+    /// The take-away's Write: the files its flow now offers that are
+    /// ticked, read from the flow at the press. A process that is not
+    /// clean locks first, and the lock keeps exactly these names for the
+    /// write that follows; the settings file and the Inbox never ride it.
+    fn take_write(&mut self) {
+        let names: Vec<Text> = crate::screens::take_away_names(self)
+            .into_iter()
+            .filter(|n| self.visit.out.contains(&**n))
+            .collect();
+        if names.is_empty() {
+            return;
+        }
+        if !self.clean() {
+            // With no stick in nothing waits: the files stay For the
+            // stick.
+            let wait = self.stick.get(self.visit.stick).map(|stick| WriteWait {
+                stick: Some(stick_identity(stick)),
+                label: Text::of(&stick.label),
+                spend: false,
+                names,
+            });
+            self.visit.set_lock_to_write(wait);
+            self.sheet = Some(Sheet::WriteOut);
+            return;
+        }
+        self.visit_write_ask(Some(names));
     }
 
     /// Writes the settings file when its row is on, and every chosen
     /// file; a taken file over the old one when `replace`.
-    pub(crate) fn visit_write(&mut self, replace: bool) {
+    ///
+    /// `scope` is the take-away's file names, as in [`Self::visit_write_ask`].
+    pub(crate) fn visit_write(&mut self, replace: bool, scope: Option<&[Text]>) {
         if !self.clean() {
             self.visit.taken_clear();
             self.sheet = Some(Sheet::WriteOut);
@@ -1251,14 +1320,14 @@ impl Faraday {
         self.name_taken_wrote_clear();
         let mut sends: Vec<(Text, Zeroizing<Vec<u8>>, bool)> = Vec::new();
 
-        if self.visit_settings_on() {
+        if scope.is_none() && self.visit_settings_on() {
             sends.push((
                 Text::of(stick::settings::FILE),
                 Zeroizing::new(self.settings_file_text().into_bytes()),
                 false,
             ));
         }
-        for (name, bytes, from_inbox) in self.visit_files() {
+        for (name, bytes, from_inbox) in self.visit_files(scope) {
             if from_inbox {
                 self.visit.writing_inbox_add(&*name);
             }
@@ -1517,7 +1586,7 @@ impl Faraday {
                 .filter(|i| i.exposure() != crate::secrets::Exposure::Secret)
                 .map(|i| (i.bytes.clone(), true))
         } else {
-            self.visit_files()
+            self.visit_files(None)
                 .into_iter()
                 .find(|(n, b, _)| n == name && sha256_of(c, b) == sent)
                 .map(|(_, bytes, from_inbox)| {
@@ -1823,9 +1892,19 @@ impl Faraday {
                 self.visit.set_tab_stick(c == crate::Column::Stick);
                 self.list_offset = 0.0;
             }
-            Action::VisitWrite => self.visit_write_ask(),
-            Action::VisitReplace => self.visit_write(true),
-            Action::VisitKeepBoth => self.visit_write(false),
+            Action::VisitWrite => self.visit_write_ask(None),
+            // Only the files the take-away's flow offers now, ticked: not
+            // the settings file, other chosen files or the Inbox's.
+            Action::TakeWrite => self.take_write(),
+            Action::VisitReplace | Action::VisitKeepBoth => {
+                // Only the sheet that asks is answered: a second press on
+                // its last frame has no scope left to hold it.
+                if self.sheet != Some(Sheet::Taken) {
+                    return;
+                }
+                let scope = self.visit.take_taken_scope();
+                self.visit_write(matches!(action, Action::VisitReplace), scope.as_deref());
+            }
             Action::NameTakenBeside => self.name_taken_answer(false),
             Action::NameTakenOverwrite => self.name_taken_answer(true),
             Action::VisitCopy if self.visit.for_key() => self.act(Action::VisitCopyAndLoad),
@@ -1947,6 +2026,9 @@ pub struct VisitState {
     /// The files the write would write whose names are taken on the
     /// stick, while the Already on the stick sheet asks.
     pub taken: Vec<Taken>,
+    /// With the take-away's write on the Already on the stick sheet: the
+    /// only files it may send (public names). `None` for Files' Write.
+    pub taken_scope: Option<Vec<faraday_text::Text>>,
     /// The sticks this session wrote a secret file on, or read one from,
     /// while they are in: names only, no content.
     pub unprotected: Vec<Unprotected>,
@@ -2363,6 +2445,7 @@ impl crate::at_lock::AtLock for VisitArea {
     }
     fn lock(&mut self) {
         self.pictures_scan = None;
+        self.taken_clear();
         self.name_taken_clear();
         self.clear_after_visit();
     }

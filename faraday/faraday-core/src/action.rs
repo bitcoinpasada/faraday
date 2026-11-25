@@ -153,6 +153,9 @@ pub enum Action {
     /// Write the chosen Outbox files: first the Already on the stick
     /// sheet, when a name is taken there.
     VisitWrite,
+    /// The take-away's Write to stick: writes the ticked files of its own
+    /// rows and nothing else the visit has chosen.
+    TakeWrite,
     /// That sheet's Replace: the taken files written over the old ones.
     VisitReplace,
     /// That sheet's Keep both: the taken files written beside the old
@@ -1216,7 +1219,10 @@ impl Faraday {
         if self.visit.lock_to_write().is_some()
             && !self.restart
             && !self.sealing()
-            && !matches!(self.sheet, Some(Sheet::Lock | Sheet::LockAsk))
+            && !matches!(
+                self.sheet,
+                Some(Sheet::Lock | Sheet::LockAsk | Sheet::WriteOut)
+            )
         {
             self.visit.set_lock_to_write(None);
         }
@@ -1756,6 +1762,7 @@ impl Faraday {
             | Action::VisitBar(..)
             | Action::VisitTab(..)
             | Action::VisitWrite
+            | Action::TakeWrite
             | Action::VisitReplace
             | Action::VisitKeepBoth
             | Action::NameTakenBeside

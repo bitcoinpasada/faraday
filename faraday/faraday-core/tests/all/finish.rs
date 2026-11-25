@@ -1249,6 +1249,24 @@ fn a_cancelled_lock_and_write_does_not_write_at_a_later_lock() {
     a_later_lock_keeps_no_write(&mut app);
 }
 
+/// The idle lock answers the lock that asks with nobody there: it keeps no
+/// write for the next stick.
+#[test]
+fn the_idle_lock_gives_the_spends_write_up() {
+    let mut app = finished_with_vault_change();
+    app.event(faraday_shell_api::Event::Tick { now_ms: 0 });
+    app.storage(StorageEvent::Sticks(vec![a_stick(Vec::new())]));
+    app.press(Action::NotNow);
+    app.press(Action::Primary);
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::LockAsk));
+    let now_ms = 24 * 60 * 60 * 1000;
+    while app.poll_storage().is_some() {}
+    app.event(faraday_shell_api::Event::Tick { now_ms });
+    assert!(app.restart_requested(), "the idle lock came");
+    let (_, kept) = the_lock_kept(&mut app);
+    assert!(!keeps_a_write(&kept));
+}
+
 /// The lock asks, the stick is put in, and Not now on the Lock sheet gives
 /// the write up.
 #[test]

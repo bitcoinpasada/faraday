@@ -2222,6 +2222,31 @@ pub fn message_shown(app: &crate::Faraday) -> Option<&crate::state::ShownReceive
     app.message_shown()
 }
 
+/// Puts a file in the outbox as Files lists it, as a flow's would arrive.
+pub fn outbox_file(app: &mut crate::Faraday, name: &str, bytes: &[u8]) {
+    let c = compute();
+    app.outbox.push(crate::Item::new(&c, name, bytes.to_vec()));
+}
+
+/// As after "Import and sign" from the stick with this volume serial or
+/// place.
+pub fn imported_from(app: &mut crate::Faraday, identity: &str) {
+    app.visit
+        .set_sign_from(Some(faraday_text::Text::of(identity)));
+}
+
+/// Whether the visit on show ends on a spend's end card.
+pub fn signed_end(app: &crate::Faraday) -> bool {
+    app.visit.signed_end()
+}
+
+/// Makes the process as one that never held a secret: the session's keys
+/// gone and the taint cleared, so a write may go to a stick.
+pub fn made_clean(app: &mut crate::Faraday) {
+    app.session = session();
+    app.tainted = false;
+}
+
 /// Puts a receipt in place, as a write answered to a stick would leave
 /// it: `name` written under `hash` and read back.
 pub fn receipt_written(app: &mut crate::Faraday, name: &str, hash: [u8; 32]) {
