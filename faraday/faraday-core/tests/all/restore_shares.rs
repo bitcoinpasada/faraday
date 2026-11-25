@@ -495,3 +495,426 @@ fn files_restore_button_opens_restore_with_one_wallets_sheets() {
     assert_eq!(app.screen, Screen::Restore);
     assert!(app.toast_text().is_none(), "{:?}", app.toast_text());
 }
+
+/// A vault record of `sheet`, kept for the wallet `desc` describes.
+fn share_record(sheet: &str, desc: &str, number: u8) -> Record {
+    Record::new(kind::WALLET_SHARE)
+        .with(field::SHARE, sheet.as_bytes())
+        .with(field::SHARE_WALLET, desc.as_bytes())
+        .with(field::SHARE_WALLET_NAME, b"Twins")
+        .with(field::SHARE_NUMBER, &[number])
+        .with(field::SHARE_OF, &[3])
+}
+
+/// Restore open on a device whose open vault holds `records` and whose
+/// Inbox holds the sheets `files`, each ticked; what the pool adds up to.
+fn pool_of(
+    records: Vec<Record>,
+    files: &[&str],
+) -> (Faraday, Result<faraday_core::restore::Merged, String>) {
+    let mut inbox: Vec<(String, Vec<u8>)> = files
+        .iter()
+        .enumerate()
+        .map(|(i, f)| (format!("twins-share-{i}.txt"), f.as_bytes().to_vec()))
+        .collect();
+    inbox.push(("home.kdbx".into(), vault_of("home phrase", records, 22)));
+    let mut app = device(inbox);
+    unlock_on_vaults(&mut app, "home.kdbx", "home phrase");
+    app.press(Action::RestoreWallet);
+    for i in 0..files.len() {
+        let at = app
+            .inbox()
+            .iter()
+            .position(|f| f.name == format!("twins-share-{i}.txt").as_str())
+            .expect("in the Inbox");
+        app.press(Action::RShare(at));
+    }
+    let c = testkit::compute();
+    let merged = app.restore_merged(&c).map_err(|e| e.to_string());
+    (app, merged)
+}
+
+/// A twin's record of a text the first wallet's keys hold comes first in
+/// the vault, the first's own Share 2 after it, nothing in hand: the
+/// first wallet's three keys are in hand, as before the twin's record.
+#[test]
+fn a_twins_record_first_in_the_vault_does_not_hide_the_wallets_own_shares() {
+    let (first, first_d) = sheets("Twins", testkit::WALLET_ID_FIRST);
+    let (_, alias_d) = sheets("Twins", testkit::WALLET_ID_ALIAS);
+    let (_, m) = pool_of(
+        vec![
+            share_record(&first[0], &alias_d, 1),
+            share_record(&first[1], &first_d, 2),
+        ],
+        &[],
+    );
+    let m = m.expect("merges");
+    assert_eq!((m.have.len(), m.n), (3, 3));
+    assert!(m.whole.is_some());
+}
+
+/// The first wallet's Share 1 in hand too: the twin's record is then a
+/// duplicate of it, and the first still rebuilds.
+#[test]
+fn a_twins_record_of_a_share_in_hand_does_not_hide_the_wallets_own_shares() {
+    let (first, first_d) = sheets("Twins", testkit::WALLET_ID_FIRST);
+    let (_, alias_d) = sheets("Twins", testkit::WALLET_ID_ALIAS);
+    let (_, m) = pool_of(
+        vec![
+            share_record(&first[0], &alias_d, 1),
+            share_record(&first[1], &first_d, 2),
+        ],
+        &[&first[0]],
+    );
+    let m = m.expect("merges");
+    assert_eq!((m.have.len(), m.n), (3, 3));
+    assert!(m.whole.is_some());
+}
+
+/// A crafted twin whose own Share 2 completes it beside the first's
+/// shares, which complete the first: neither loads, and the screen says
+/// two wallets rebuild.
+#[test]
+fn two_wallets_of_one_checksum_that_both_complete_load_neither() {
+    let (first, first_d) = sheets("Twins", testkit::WALLET_ID_FIRST);
+    let (alias, alias_d) = sheets("Twins", testkit::WALLET_ID_ALIAS);
+    let (mut app, m) = pool_of(
+        vec![
+            share_record(&first[0], &first_d, 1),
+            share_record(&first[1], &first_d, 2),
+            share_record(&alias[1], &alias_d, 2),
+        ],
+        &[],
+    );
+    let wallets = app.session.wallets.len();
+    let said = m.err().expect("refused");
+    assert!(said.contains("Twins (") && said.contains("neither is rebuilt"));
+    assert!(!said.contains("delete") && !said.contains("out of the vault"));
+    app.press(Action::RRebuild);
+    testkit::confirm_wallets(&mut app);
+    assert!(app.restore().and_then(|r| r.wallet).is_none());
+    assert_eq!(app.session.wallets.len(), wallets);
+}
+
+/// `desc` with its third key's origin path changed (the fingerprint and
+/// the xpub kept): the same wallet but for one derivation.
+fn third_key_elsewhere(desc: &str) -> String {
+    let at = desc.rfind('[').expect("a third key");
+    let (head, tail) = desc.split_at(at);
+    let tail = tail
+        .replacen("/0'/2']", "/7'/2']", 1)
+        .replacen("/0h/2h]", "/7h/2h]", 1);
+    assert_ne!(tail, &desc[at..]);
+    format!("{head}{tail}")
+}
+
+/// The same text as `sheet` with its last key's derivation changed.
+fn last_derivation_elsewhere(sheet: &str) -> String {
+    let at = sheet.rfind("Derivation: ").expect("a key");
+    let end = at + sheet[at..].find('\n').expect("a line");
+    format!(
+        "{}Derivation: m/48'/1'/7'/2'{}",
+        &sheet[..at],
+        &sheet[end..]
+    )
+}
+
+/// A wallet's description only the 2-of-3 over account 0.
+fn account_zero() -> (Vec<String>, String) {
+    sheets("Twins", &two_of_three(0))
+}
+
+/// Whether the pool's whole is the account-0 wallet's: key 3 at its own
+/// derivation.
+fn is_account_zero(m: &faraday_core::restore::Merged) -> bool {
+    let whole = m.whole.as_deref().expect("whole");
+    !whole.contains("/7'/2'") && whole.contains("/0'/2'")
+}
+
+/// A twin that differs from the wallet in one key's derivation holds two
+/// of its three keys only: its record of the wallet's Share 1 does not
+/// complete it with the wallet's Share 2.
+#[test]
+fn a_derivation_twins_record_does_not_borrow_the_wallets_shares() {
+    let (w, w_d) = account_zero();
+    let (_, t_d) = sheets("Twins", &third_key_elsewhere(&two_of_three(0)));
+    let (_, m) = pool_of(
+        vec![
+            share_record(&w[0], &w_d, 1),
+            share_record(&w[1], &w_d, 2),
+            share_record(&w[0], &t_d, 1),
+        ],
+        &[],
+    );
+    let m = m.expect("one wallet");
+    assert_eq!((m.have.len(), m.n), (3, 3));
+    assert!(is_account_zero(&m));
+}
+
+/// One wallet written in two key orders is one wallet: a record of each
+/// and a sheet in hand still rebuild it.
+#[test]
+fn one_wallet_in_two_key_orders_is_not_two_wallets() {
+    let (w, w_d) = account_zero();
+    let p = "m/48'/1'/0'/2'";
+    let reordered = format!(
+        "wsh(sortedmulti(2,{}/<0;1>/*,{}/<0;1>/*,{}/<0;1>/*))",
+        testkit::key(1, p),
+        testkit::key(2, p),
+        testkit::key(0, p)
+    );
+    let (_, r_d) = sheets("Twins", &reordered);
+    let (_, m) = pool_of(
+        vec![share_record(&w[0], &w_d, 1), share_record(&w[1], &r_d, 2)],
+        &[&w[2]],
+    );
+    let m = m.expect("one wallet");
+    assert!(is_account_zero(&m));
+}
+
+/// Shares ticked in Files that rebuild a wallet alone are taken whatever
+/// the vault holds, a 3-of-3 over the same keys included.
+#[test]
+fn shares_in_hand_that_complete_alone_ignore_the_vaults_wallets() {
+    let (w, w_d) = account_zero();
+    let p = "m/48'/1'/0'/2'";
+    let three = format!(
+        "wsh(sortedmulti(3,{}/<0;1>/*,{}/<0;1>/*,{}/<0;1>/*))",
+        testkit::key(0, p),
+        testkit::key(1, p),
+        testkit::key(2, p)
+    );
+    let (_, three_d) = sheets("Twins", &three);
+    let (_, m) = pool_of(
+        vec![
+            share_record(&w[2], &w_d, 3),
+            share_record(&w[2], &three_d, 3),
+        ],
+        &[&w[0], &w[1]],
+    );
+    let m = m.expect("the hand");
+    assert!(is_account_zero(&m));
+}
+
+/// A person with two wallets of different checksums in the vaults is
+/// never refused: the first wallet's shares rebuild it.
+#[test]
+fn two_wallets_of_different_checksums_rebuild_the_first() {
+    let (w, w_d) = account_zero();
+    let (v, v_d) = sheets("Other", &two_of_three(1));
+    let (_, m) = pool_of(
+        vec![
+            share_record(&w[0], &w_d, 1),
+            share_record(&w[1], &w_d, 2),
+            share_record(&v[0], &v_d, 1),
+            share_record(&v[1], &v_d, 2),
+        ],
+        &[],
+    );
+    let m = m.expect("not refused");
+    assert!(is_account_zero(&m));
+}
+
+/// A record whose wallet does not read is not taken: its changed share
+/// does not stand in for the honest one.
+#[test]
+fn a_record_whose_wallet_does_not_read_is_not_counted() {
+    let (w, w_d) = account_zero();
+    let bare = Record::new(kind::WALLET_SHARE)
+        .with(field::SHARE, last_derivation_elsewhere(&w[1]).as_bytes())
+        .with(field::SHARE_NUMBER, &[2])
+        .with(field::SHARE_OF, &[3]);
+    let (_, m) = pool_of(
+        vec![
+            share_record(&w[0], &w_d, 1),
+            bare,
+            share_record(&w[1], &w_d, 2),
+        ],
+        &[],
+    );
+    let m = m.expect("merges");
+    assert_eq!((m.have.len(), m.n), (3, 3));
+    assert!(is_account_zero(&m));
+}
+
+/// A twin's record of the wallet's Share 1 under another name comes
+/// first: the records that name the wallet are taken before it.
+#[test]
+fn records_naming_the_wallet_come_before_a_twins() {
+    let (first, first_d) = sheets("Twins", testkit::WALLET_ID_FIRST);
+    let (_, alias_d) = sheets("Twins", testkit::WALLET_ID_ALIAS);
+    let renamed = first[0].replacen("Name: Twins", "Name: x", 1);
+    assert_ne!(renamed, first[0]);
+    let (_, m) = pool_of(
+        vec![
+            share_record(&renamed, &alias_d, 1),
+            share_record(&first[0], &first_d, 1),
+            share_record(&first[1], &first_d, 2),
+        ],
+        &[],
+    );
+    let m = m.expect("merges");
+    assert_eq!((m.have.len(), m.n), (3, 3));
+    assert!(m.whole.is_some());
+}
+
+/// What the Restore screen says now, drawn.
+fn screen_says(app: &mut Faraday) -> String {
+    app.drawn_texts()
+        .iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// Restore open on a device whose Inbox holds `files` (name, text), the
+/// vaults `vaults` (file name, phrase, seed, records) open.
+fn restore_with(files: &[(&str, &str)], vaults: Vec<(&str, &str, u8, Vec<Record>)>) -> Faraday {
+    let mut inbox: Vec<(String, Vec<u8>)> = files
+        .iter()
+        .map(|(n, t)| (n.to_string(), t.as_bytes().to_vec()))
+        .collect();
+    let mut opens = Vec::new();
+    for (n, phrase, seed, records) in vaults {
+        inbox.push((n.to_string(), vault_of(phrase, records, seed)));
+        opens.push((n, phrase));
+    }
+    let mut app = device(inbox);
+    for (n, phrase) in opens {
+        unlock_on_vaults(&mut app, n, phrase);
+    }
+    app.press(Action::RestoreWallet);
+    app.press(Action::RStep(faraday_core::rstep::DESCRIPTION));
+    app
+}
+
+fn tick(app: &mut Faraday, name: &str) {
+    let at = app
+        .inbox()
+        .iter()
+        .position(|f| f.name == name)
+        .expect("in the Inbox");
+    app.press(Action::RShare(at));
+}
+
+/// A ticked share file replaced by one of the same name and length: the
+/// answer is the new file's.
+#[test]
+fn a_ticked_share_file_replaced_by_one_of_the_same_size_changes_the_answer() {
+    let (a, _) = sheets("Savings", &two_of_three(0));
+    let (b, _) = sheets("Savings", &two_of_three(1));
+    assert_eq!(a[0].len(), b[0].len());
+    let mut app = restore_with(&[("s-share.txt", &a[0])], vec![]);
+    tick(&mut app, "s-share.txt");
+    let c = testkit::compute();
+    let before = app.restore_share_texts(&c);
+    assert_eq!(before.len(), 1);
+    testkit::inbox_overwrite_bytes(&mut app, 0, b[0].as_bytes());
+    let after = app.restore_share_texts(&c);
+    assert_eq!(after.len(), 1);
+    assert_ne!(before[0].as_str(), after[0].as_str());
+    assert_eq!(after[0].as_str(), b[0].as_str());
+}
+
+/// A lock empties what Restore kept.
+#[test]
+fn a_lock_drops_the_pool_restore_kept() {
+    let (a, _) = sheets("Savings", &two_of_three(0));
+    let mut app = restore_with(&[("s-share.txt", &a[0])], vec![]);
+    tick(&mut app, "s-share.txt");
+    let c = testkit::compute();
+    let _ = app.restore_share_texts(&c);
+    assert!(testkit::restore_pool_kept(&app));
+    app.press(Action::Lock);
+    assert!(!testkit::restore_pool_kept(&app));
+}
+
+/// A file of the name of a ticked share, now holding a seed beside the
+/// share, is not read: the pool holds none of it.
+#[test]
+fn a_secret_file_under_a_ticked_name_is_not_read() {
+    let (a, _) = sheets("Savings", &two_of_three(0));
+    let mut app = restore_with(&[("s-share.txt", &a[0])], vec![]);
+    tick(&mut app, "s-share.txt");
+    let c = testkit::compute();
+    assert_eq!(app.restore_share_texts(&c).len(), 1);
+    testkit::inbox_retain(&mut app, |i| i.name != "s-share.txt");
+    let secret = format!(
+        "{}\n# abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about\n",
+        a[0]
+    );
+    testkit::inbox_file(&mut app, "s-share.txt", secret.into_bytes());
+    assert_eq!(
+        app.inbox().last().map(|i| i.kind),
+        Some(faraday_core::wallet::FileKind::SecretWallet)
+    );
+    assert!(app.restore_share_texts(&c).is_empty());
+}
+
+/// Two vaults, each alone rebuilding one of two wallets of one name and
+/// checksum: the screen says so, and that one vault ends it, with no
+/// "Or" before it.
+#[test]
+fn the_vault_sentence_is_said_alone_on_the_drawn_screen() {
+    let (first, first_d) = sheets("Twins", testkit::WALLET_ID_FIRST);
+    let (alias, alias_d) = sheets("Twins", testkit::WALLET_ID_ALIAS);
+    let mut app = restore_with(
+        &[("x-share.txt", &first[0])],
+        vec![
+            (
+                "home.kdbx",
+                "home phrase",
+                22,
+                vec![
+                    share_record(&first[0], &first_d, 1),
+                    share_record(&first[1], &first_d, 2),
+                ],
+            ),
+            (
+                "work.kdbx",
+                "work phrase",
+                23,
+                vec![share_record(&alias[1], &alias_d, 2)],
+            ),
+        ],
+    );
+    let _ = app.frame();
+    let said = screen_says(&mut app);
+    assert!(said.contains("rebuild both Twins ("), "{said}");
+    assert!(
+        said.contains("Open only the vault of one of them."),
+        "{said}"
+    );
+    assert!(!said.contains("Or open only"), "{said}");
+}
+
+/// A share file only one of the two holds, ticked: the tick sentence is
+/// said, and the vault sentence after it begins with "Or" where it is
+/// said too. The files tried are the share files listed.
+#[test]
+fn the_tick_sentence_is_said_on_the_drawn_screen_for_a_listed_share_file() {
+    let (first, first_d) = sheets("Twins", testkit::WALLET_ID_FIRST);
+    let (alias, alias_d) = sheets("Twins", testkit::WALLET_ID_ALIAS);
+    let mut seen = Vec::new();
+    let mut any = false;
+    for (k, extra) in first.iter().chain(alias.iter()).enumerate() {
+        let mut app = restore_with(
+            &[("x-share.txt", extra)],
+            vec![(
+                "home.kdbx",
+                "home phrase",
+                22,
+                vec![
+                    share_record(&first[0], &first_d, 1),
+                    share_record(&first[1], &first_d, 2),
+                    share_record(&alias[1], &alias_d, 2),
+                ],
+            )],
+        );
+        let _ = app.frame();
+        let said = screen_says(&mut app);
+        any |= said.contains("Tick a share file that only one of them holds.");
+        seen.push(format!("{k}: {said}"));
+    }
+    assert!(any, "{seen:#?}");
+}

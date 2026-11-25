@@ -374,8 +374,20 @@ the vaults give none. Where it finds two, the copy puts in and takes out
 no share record and says to load only this wallet; where it finds none
 and a share is to be put in, it says no copy of the descriptor is here to put in. With no id found, a
 share the vault held before the flow is told by its number among the
-tokens that carry an id or its own checksum, and is never taken out. Restore pools a
-vault's shares of one wallet by its id. Everything before the
+tokens that carry an id or its own checksum, and is never taken out. Restore returns the shares ticked in Files as they are where they merge whole
+on their own: a vault's contents never refuse them. Otherwise it tries each
+wallet the open vaults' share records name, whose description reads and has
+sheets (one wallet in another key order is one), on its own with the ticked
+shares: a text is a share of a wallet where its quorum, Format and each key's
+fingerprint, derivation and xpub are the wallet's, whatever wallet its record
+names (the records that name the wallet come first); a record whose wallet
+does not read counts for none. A wallet is complete where what the texts merge
+to reads as it. The first complete one by record order is rebuilt; where none
+completes the screen shows the count of the one holding most keys; where two
+complete and share a checksum it names both and rebuilds neither, and says what
+from this screen ends it: ticking a share file only one of them holds, or
+opening only the vault of one; where no such step exists it says only that
+neither is rebuilt. Everything before the
 signers is watch-only, so any reason to stop is found before a key is
 used. In Faraday the keys are usually already loaded from a vault, so
 the signers step shows them rather than asking for them, and asks only

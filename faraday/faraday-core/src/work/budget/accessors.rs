@@ -204,9 +204,9 @@ fn reads(app: &Faraday) -> Vec<Read> {
             }),
         ),
         (
-            "restore_share_texts",
+            "restore_pool",
             Box::new(|v| {
-                let _ = v.restore_share_texts();
+                let _ = v.restore_pool();
             }),
         ),
         (

@@ -165,6 +165,9 @@ pub(crate) struct Kept {
     /// Where a menu page's cards divide into two columns, by what it is
     /// worked out from.
     card_split: RefCell<Option<(SplitKey, CardSplit)>>,
+    /// Restore's pool of shares, by a hash of what it is worked out from
+    /// ([`crate::Faraday::restore_pool`]): public text.
+    restore_pooled: RefCell<Option<(u64, Rc<crate::restore::Pool>)>>,
 }
 
 impl Kept {
@@ -174,6 +177,30 @@ impl Kept {
         k.as_ref()
             .filter(|(kept, _)| *kept == key)
             .map(|(_, s)| s.clone())
+    }
+
+    /// The pool kept for `key`, if one is: a lookup.
+    pub(crate) fn pooled(&self, key: u64) -> Option<Rc<crate::restore::Pool>> {
+        let k = self.restore_pooled.borrow();
+        k.as_ref()
+            .filter(|(h, _)| *h == key)
+            .map(|(_, p)| p.clone())
+    }
+
+    /// Whether a pool is kept.
+    #[cfg(feature = "testkit")]
+    pub(crate) fn pooled_any(&self) -> bool {
+        self.restore_pooled.borrow().is_some()
+    }
+
+    /// Forgets Restore's pool: Restore is left.
+    pub(crate) fn pooled_drop(&self) {
+        *self.restore_pooled.borrow_mut() = None;
+    }
+
+    /// Keeps Restore's pool under `key`.
+    pub(crate) fn pooled_put(&self, key: u64, pool: Rc<crate::restore::Pool>) {
+        *self.restore_pooled.borrow_mut() = Some((key, pool));
     }
 
     /// Keeps `split` for `key`, replacing the one before.
@@ -753,12 +780,11 @@ impl View<'_> {
         self.kept(|c| self.app.record_described(c, r))
     }
 
-    /// The texts of the shares the restore screen puts together
-    /// ([`crate::Faraday::restore_share_texts`]), each vault share's
-    /// wallet read once and kept by its text. Costs a parse per vault
-    /// share's wallet the first time.
-    pub fn restore_share_texts(&self) -> Vec<faraday_text::Text> {
-        self.kept(|c| self.app.restore_share_texts(c))
+    /// What the pool of shares adds up to
+    /// ([`crate::Faraday::restore_pool`]), `None` with nothing in it. Kept
+    /// by what it is worked out from; costs the work the first time.
+    pub fn restore_pool(&self) -> Option<Rc<crate::restore::Pool>> {
+        self.kept(|c| Some(self.app.restore_pool(c)).filter(|p| p.shown()))
     }
 
     /// Whether the checklist's writes are done
@@ -1169,5 +1195,6 @@ impl crate::at_lock::AtLock for Kept {
     }
     fn lock(&mut self) {
         self.charts_drop();
+        *self.restore_pooled.borrow_mut() = None;
     }
 }

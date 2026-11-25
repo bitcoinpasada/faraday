@@ -62,6 +62,14 @@ macro_rules! words_screens_restore {
     restore_description_shares: "Shares of a split backup",
     /// Text in `restore_description`. `{}`: `m.have.len()`, `m.n`, `m.have` joined by " ".
     restore_description_progress: "{} of {} keys in hand · {}",
+    /// Text in `restore_description`, where the shares of two wallets of one checksum each complete. `{}`: the first wallet's name, the second's.
+    restore_two_wallets: "The shares rebuild both {} and {}, so neither is rebuilt.",
+    /// Text in `restore_description`, added to `restore_two_wallets` where a share file in Files ends it.
+    restore_two_wallets_tick: "Tick a share file that only one of them holds.",
+    /// Text in `restore_description`, added to `restore_two_wallets` where opening one vault alone ends it.
+    restore_two_wallets_vault: "Open only the vault of one of them.",
+    /// Text in `restore_description`, as `restore_two_wallets_vault` after the tick sentence.
+    restore_two_wallets_vault_or: "Or open only the vault of one of them.",
     /// Button in `restore_description`.
     restore_description_rebuild: "Rebuild the wallet",
     // ----- restore_seeds (faraday-core/src/screens/restore.rs) -----

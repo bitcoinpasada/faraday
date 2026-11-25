@@ -166,8 +166,20 @@ enum Rebuilt {
 /// another wallet, and Restore refuses two keys of one seed
 /// ([`crate::restore::repeats_a_seed`]): those have none.
 fn rebuilt_as(wallet: &Wallet) -> Option<Rebuilt> {
+    rebuilt_as_policy(wallet.policy())
+}
+
+/// The `Format:` line the sheets of the wallet `p` carry, where they
+/// rebuild it ([`rebuilt_as`]).
+pub(crate) fn sheets_format(p: &faraday_bip::policy::WalletPolicy) -> Option<&'static str> {
+    match rebuilt_as_policy(p)? {
+        Rebuilt::Config(f) => Some(f),
+        Rebuilt::Taproot => Some("P2TR"),
+    }
+}
+
+fn rebuilt_as_policy(p: &faraday_bip::policy::WalletPolicy) -> Option<Rebuilt> {
     use faraday_bip::policy::{Template, Wrapper};
-    let p = wallet.policy();
     if crate::restore::repeats_a_seed(p) {
         return None;
     }

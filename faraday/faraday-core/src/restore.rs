@@ -128,6 +128,139 @@ pub fn is_share(text: &str) -> bool {
     parts(text).is_some_and(|p| p.keys.len() < p.n)
 }
 
+/// What Restore's pool of shares comes to ([`Faraday::restore_pool`]).
+pub struct Pool {
+    /// The texts that go to [`merge`].
+    pub texts: Vec<Text>,
+    /// What the screen says where two different wallets of one checksum
+    /// each rebuild from the shares: neither is taken.
+    pub two: Option<Text>,
+    /// What the texts add up to, or `two`.
+    pub merged: Result<Merged, Text>,
+}
+
+impl Pool {
+    fn of(texts: Vec<Text>, two: Option<Text>) -> Pool {
+        let merged = match &two {
+            Some(e) => Err(e.duplicate()),
+            None => merge(&texts),
+        };
+        Pool { texts, two, merged }
+    }
+
+    /// Whether the pool holds anything to show: a share, or two wallets.
+    pub fn shown(&self) -> bool {
+        self.two.is_some() || !self.texts.is_empty()
+    }
+}
+
+/// A wallet some vault share record names, whose sheets rebuild it.
+struct Candidate {
+    /// [`restore_candidate_key`]: one wallet whatever its keys' order.
+    key: Text,
+    /// The descriptor's checksum, as the record's wallet wrote it.
+    checksum: Text,
+    /// The wallet's name in the record, as the screen names a wallet.
+    name: Text,
+    /// What tells it from another of the same name: its keys.
+    tell: Text,
+    quorum: Option<(usize, usize)>,
+    format: &'static str,
+    /// Each key: fingerprint, derivation as a config writes it, xpub.
+    keys: Vec<(Text, Text, Text)>,
+}
+
+impl Candidate {
+    fn of(key: Text, policy: &faraday_bip::policy::WalletPolicy, name: Text) -> Option<Candidate> {
+        let format = crate::wallet_backup::sheets_format(policy)?;
+        let keys: Vec<(Text, Text, Text)> = policy
+            .keys()
+            .iter()
+            .map(|k| {
+                let fp = k
+                    .fingerprint()
+                    .map(fp_text)
+                    .unwrap_or_else(|| Text::of("00000000"));
+                let path = k
+                    .path()
+                    .map(|p| {
+                        let shown = text!("{p}");
+                        text!("m/{}", shown.trim_start_matches("m/"))
+                    })
+                    .unwrap_or_else(|| Text::of("m"));
+                (fp, path, text!("{}", k.xpub()))
+            })
+            .collect();
+        let mut tell = Text::of("");
+        for (i, (f, d, _)) in keys.iter().enumerate() {
+            if i > 0 {
+                tell.push_str(", ");
+            }
+            tell.push_str(&text!("{} {}", &**f, &**d));
+        }
+        let full = policy.to_descriptor_checksummed();
+        let checksum = Text::of(full.rsplit('#').next().unwrap_or(""));
+        Some(Candidate {
+            key,
+            checksum,
+            name,
+            tell,
+            quorum: policy.quorum().or_else(|| policy.tapscript_quorum()),
+            format,
+            keys,
+        })
+    }
+
+    /// Whether `own` is a text of this wallet: its quorum and Format, and
+    /// each of its keys' fingerprint, derivation and xpub.
+    fn holds(&self, own: &ConfigParts) -> bool {
+        self.quorum == Some((own.m, own.n))
+            && own.format.trim().eq_ignore_ascii_case(self.format)
+            && own.keys.iter().all(|(f, d, x)| {
+                self.keys.iter().any(|(cf, cd, cx)| {
+                    cf.eq_ignore_ascii_case(f) && same_derivation(cd, d) && cx.as_str() == x.trim()
+                })
+            })
+    }
+}
+
+/// A vault share record whose wallet reads.
+struct PoolRecord {
+    /// Which open vault it is in.
+    vault: usize,
+    text: Text,
+    own: ConfigParts,
+    /// The candidate its wallet is, where the sheets rebuild it.
+    names: Option<usize>,
+}
+
+/// A wallet told by its descriptor with the keys of each `sortedmulti`
+/// and `sortedmulti_a` in order, so one wallet in two key orders is one.
+fn restore_candidate_key(policy: &faraday_bip::policy::WalletPolicy) -> Text {
+    let once = wallet::same_wallet(policy);
+    const OPEN: &str = "sortedmulti_a(";
+    let mut out = Text::of("");
+    let mut rest: &str = &once;
+    while let Some(at) = rest.find(OPEN) {
+        let args = &rest[at + OPEN.len()..];
+        let Some(end) = args.find(')') else { break };
+        let mut keys: Vec<&str> = args[..end].split(',').collect();
+        if keys.len() > 1 {
+            keys[1..].sort_unstable();
+        }
+        out.push_str(&rest[..at + OPEN.len()]);
+        for (i, k) in keys.iter().enumerate() {
+            if i > 0 {
+                out.push(',');
+            }
+            out.push_str(k);
+        }
+        rest = &args[end..];
+    }
+    out.push_str(rest);
+    out
+}
+
 /// What a set of shares adds up to.
 pub struct Merged {
     /// The quorum and size, from the shares.
@@ -831,6 +964,7 @@ impl Faraday {
             // wallet read in it goes back to the check.
             Action::RestoreFor(check) => {
                 let owner = self.fresh_owner();
+                self.kept.pooled_drop();
                 self.restore.state = Some(RestoreState {
                     owner,
                     then: Some((check, self.screen)),
@@ -840,6 +974,7 @@ impl Faraday {
             }
             Action::RestoreWallet => {
                 let owner = self.fresh_owner();
+                self.kept.pooled_drop();
                 self.restore.state = Some(RestoreState {
                     owner,
                     opener: Some(self.screen),
@@ -957,35 +1092,32 @@ impl Faraday {
                     }
                 }
             }
-            Action::RRebuild => {
-                let texts = self.restore_share_texts(c);
-                match restore::merge(&texts) {
-                    Ok(m) => match m.whole {
-                        Some(whole) => {
-                            let name = rebuilt_name(c, &whole, m.name);
-                            self.restore_wallet(
-                                &name,
-                                &whole,
-                                EN.act_its_shares,
-                                wallet::Origin::Named,
-                            );
-                        }
-                        None => {
-                            if let Some(r) = self.restore.state.as_mut() {
-                                r.error = Some(Text::fill(
-                                    EN.act_of_keys_in_hand,
-                                    &[&Text::num(m.have.len() as u64), &Text::num(m.n as u64)],
-                                ));
-                            }
-                        }
-                    },
-                    Err(e) => {
+            Action::RRebuild => match self.restore_merged(c) {
+                Ok(m) => match m.whole {
+                    Some(whole) => {
+                        let name = rebuilt_name(c, &whole, m.name);
+                        self.restore_wallet(
+                            &name,
+                            &whole,
+                            EN.act_its_shares,
+                            wallet::Origin::Named,
+                        );
+                    }
+                    None => {
                         if let Some(r) = self.restore.state.as_mut() {
-                            r.error = Some(e);
+                            r.error = Some(Text::fill(
+                                EN.act_of_keys_in_hand,
+                                &[&Text::num(m.have.len() as u64), &Text::num(m.n as u64)],
+                            ));
                         }
                     }
+                },
+                Err(e) => {
+                    if let Some(r) = self.restore.state.as_mut() {
+                        r.error = Some(e);
+                    }
                 }
-            }
+            },
             Action::RSeeds => {
                 if let Some(r) = self.restore.state.as_mut() {
                     // The wallet comes from the seeds now, not a file.
@@ -1230,7 +1362,7 @@ impl Faraday {
         r.scroll.follow = true;
         self.restore.state = Some(r);
         self.screen = Screen::Restore;
-        let whole = restore::merge(&self.restore_share_texts(&c)).is_ok_and(|m| m.whole.is_some());
+        let whole = self.restore_merged(&c).is_ok_and(|m| m.whole.is_some());
         if whole {
             self.act(Action::RRebuild);
         }
@@ -1240,7 +1372,7 @@ impl Faraday {
     fn restore_texts_of(&self, r: &RestoreState) -> Vec<Text> {
         self.inbox
             .iter()
-            .filter(|i| r.shares.iter().any(|s| i.name == s.as_str()))
+            .filter(|i| i.kind == FileKind::Share && r.shares.iter().any(|s| i.name == s.as_str()))
             .map(|i| Text::from_utf8_lossy(&i.bytes))
             .collect()
     }
@@ -1271,8 +1403,7 @@ impl Faraday {
                 }
                 r.open = Some(rstep::DESCRIPTION);
                 r.scroll.follow = true;
-                let whole =
-                    restore::merge(&self.restore_share_texts(&c)).is_ok_and(|m| m.whole.is_some());
+                let whole = self.restore_merged(&c).is_ok_and(|m| m.whole.is_some());
                 if whole {
                     self.act(Action::RRebuild);
                 }
@@ -1411,36 +1542,88 @@ impl Faraday {
     }
 
     /// Costs what `read_kept` costs. The texts of the shares chosen on the
-    /// restore screen, and those kept in the open vaults, each vault
-    /// share's wallet read as a description no record keeps
-    /// ([`Kept::read_kept`]): a vault's share only where its wallet holds
-    /// every key of the shares chosen, all of one wallet.
+    /// restore screen and those kept in the open vaults that rebuild one
+    /// wallet with them ([`Faraday::restore_pool`]), for tests.
     pub fn restore_share_texts(&self, c: &Compute) -> Vec<Text> {
+        self.restore_pool(c).texts.clone()
+    }
+
+    /// What the pool adds up to: an error saying so where two different
+    /// wallets of one checksum complete.
+    pub fn restore_merged(&self, c: &Compute) -> Result<restore::Merged, Text> {
+        let pool = self.restore_pool(c);
+        match &pool.two {
+            Some(e) => Err(e.duplicate()),
+            None => restore::merge(&pool.texts),
+        }
+    }
+
+    /// Costs what `read_kept` costs the first time after the shares, the
+    /// Inbox or a vault's share records change. The pool of shares, kept
+    /// by what it is worked out from.
+    pub fn restore_pool(&self, c: &Compute) -> std::rc::Rc<restore::Pool> {
+        let key = self.restore_pool_key();
+        if key == 0 {
+            self.kept.pooled_drop();
+        }
+        if let Some(p) = self.kept.pooled(key) {
+            return p;
+        }
+        let p = std::rc::Rc::new(self.restore_pool_work(c));
+        self.kept.pooled_put(key, p.clone());
+        p
+    }
+
+    /// A sign of everything the pool is worked out from: the shares
+    /// chosen, how often the Inbox's files and the open vaults' records
+    /// changed, and which vaults are open. No file is read.
+    fn restore_pool_key(&self) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut h = std::collections::hash_map::DefaultHasher::new();
         let Some(r) = self.restore.state.as_ref() else {
-            return Vec::new();
+            return 0;
         };
-        let mut texts: Vec<Text> = self
+        r.shares.hash(&mut h);
+        self.inbox.edits().hash(&mut h);
+        self.vaults.edits().hash(&mut h);
+        for o in &self.vaults.open {
+            o.id.hash(&mut h);
+        }
+        h.finish() | 1
+    }
+
+    /// The pool of shares. The shares in hand are returned as they are
+    /// where they merge whole on their own. Otherwise each wallet the
+    /// vaults' share records name, whose description reads and has
+    /// sheets, is tried on its own (key order told apart by
+    /// [`restore_candidate_key`]): the shares in hand and the records'
+    /// texts that agree with it on quorum, Format and each key's
+    /// fingerprint, derivation and extended key, the records that name it
+    /// first. It is complete where what they merge to reads as it. The
+    /// first complete one is taken; two that share a checksum are refused;
+    /// where none completes, the one with the most keys.
+    fn restore_pool_work(&self, c: &Compute) -> restore::Pool {
+        let Some(r) = self.restore.state.as_ref() else {
+            return restore::Pool::of(Vec::new(), None);
+        };
+        let hand_texts: Vec<Text> = self
             .inbox
             .iter()
-            .filter(|i| r.shares.iter().any(|s| i.name == s.as_str()))
+            .filter(|i| i.kind == FileKind::Share && r.shares.iter().any(|s| i.name == s.as_str()))
             .map(|i| Text::from_utf8_lossy(&i.bytes))
             .collect();
-        // The shares kept in every open vault (`docs/BACKUP-FLOW.md`
-        // §15.6), each where it agrees with the shares in hand.
+        if !hand_texts.is_empty() && restore::merge(&hand_texts).is_ok_and(|m| m.whole.is_some()) {
+            return restore::Pool::of(hand_texts, None);
+        }
         use faraday_vault::records::{field, kind};
-        // One wallet's shares, told by field 5, never by name: the first
-        // that merges with what is in hand, and only a share whose wallet
-        // holds every key the sheets in hand name and every key of its
-        // own; a share whose wallet does not read is not taken.
-        let hand: Vec<(Text, Text)> = texts
-            .iter()
-            .filter_map(|t| parts(t.as_str()))
-            .flat_map(|p| p.keys.into_iter().map(|(f, _, x)| (f, x)))
-            .collect();
-        let mut wallet: Option<faraday_bip::policy::WalletId> = None;
-        for o in &self.vaults.open {
+        let mut cands: Vec<Candidate> = Vec::new();
+        let mut recs: Vec<PoolRecord> = Vec::new();
+        for (vi, o) in self.vaults.open.iter().enumerate() {
             for (_, rec) in self.vaults.records(o.id).of(kind::WALLET_SHARE) {
                 let Some(t) = rec.public_text(field::SHARE) else {
+                    continue;
+                };
+                let Some(own) = parts(t) else {
                     continue;
                 };
                 let Some(policy) = rec
@@ -1449,42 +1632,187 @@ impl Faraday {
                 else {
                     continue;
                 };
-                let of = Some(policy.id());
-                if wallet.is_some() && of != wallet {
-                    continue;
-                }
-                let Some(own) = parts(t) else {
-                    continue;
+                let key = restore_candidate_key(&policy);
+                let at = match cands.iter().position(|k| k.key == key) {
+                    Some(at) => at,
+                    None => {
+                        let name = Text::of(&crate::vault::wallet_name_in(
+                            rec,
+                            field::SHARE_WALLET_NAME,
+                            EN.vault_wallet,
+                        ));
+                        match Candidate::of(key, &policy, name) {
+                            Some(k) => {
+                                cands.push(k);
+                                cands.len() - 1
+                            }
+                            None => {
+                                recs.push(PoolRecord {
+                                    vault: vi,
+                                    text: Text::of(t),
+                                    own,
+                                    names: None,
+                                });
+                                continue;
+                            }
+                        }
+                    }
                 };
-                let holds = |(f, x): &(Text, Text)| {
-                    policy.keys().iter().any(|k| {
-                        k.fingerprint()
-                            .is_some_and(|p| fp_text(p).eq_ignore_ascii_case(f))
-                            && text!("{}", k.xpub()) == x.trim()
-                    })
-                };
-                let quorum = policy.quorum().or_else(|| policy.tapscript_quorum());
-                if quorum != Some((own.m, own.n))
-                    || !hand.iter().all(holds)
-                    || !own
-                        .keys
-                        .iter()
-                        .all(|(f, _, x)| holds(&(f.duplicate(), x.duplicate())))
-                {
-                    continue;
-                }
-                if texts.iter().any(|x| x.trim() == t.trim()) {
-                    continue;
-                }
-                let mut trial = texts.clone();
-                trial.push(Text::of(t));
-                if restore::merge(&trial).is_ok() {
-                    texts = trial;
-                    wallet = of;
+                recs.push(PoolRecord {
+                    vault: vi,
+                    text: Text::of(t),
+                    own,
+                    names: Some(at),
+                });
+            }
+        }
+        let built: Vec<Option<(Vec<Text>, bool)>> = (0..cands.len())
+            .map(|ci| self.restore_pool_of(c, &hand_texts, &cands, &recs, ci, None))
+            .collect();
+        let done: Vec<usize> = (0..cands.len())
+            .filter(|i| built[*i].as_ref().is_some_and(|b| b.1))
+            .collect();
+        for (n, a) in done.iter().enumerate() {
+            for b in &done[n + 1..] {
+                if cands[*a].checksum == cands[*b].checksum {
+                    let e = self.restore_two_text(c, &hand_texts, &cands, &recs, (*a, *b));
+                    return restore::Pool::of(hand_texts, Some(e));
                 }
             }
         }
-        texts
+        if let Some(i) = done.first() {
+            let texts = built.into_iter().nth(*i).flatten().map(|b| b.0);
+            return restore::Pool::of(texts.unwrap_or(hand_texts), None);
+        }
+        let mut best: Option<(usize, usize)> = None;
+        for (i, b) in built.iter().enumerate() {
+            let Some((texts, _)) = b else { continue };
+            let have = restore::merge(texts).map_or(0, |m| m.have.len());
+            if best.is_none_or(|(_, h)| have > h) {
+                best = Some((i, have));
+            }
+        }
+        match best {
+            Some((i, _)) => {
+                let texts = built.into_iter().nth(i).flatten().map(|b| b.0);
+                restore::Pool::of(texts.unwrap_or(hand_texts), None)
+            }
+            None => restore::Pool::of(hand_texts, None),
+        }
+    }
+
+    /// One candidate's pool from `hand` and the records (of the open
+    /// vault `only` alone where it is given), and whether it completes as
+    /// that candidate; `None` where a text in hand is not of it.
+    fn restore_pool_of(
+        &self,
+        c: &Compute,
+        hand: &[Text],
+        cands: &[Candidate],
+        recs: &[PoolRecord],
+        ci: usize,
+        only: Option<usize>,
+    ) -> Option<(Vec<Text>, bool)> {
+        let cand = &cands[ci];
+        if !hand
+            .iter()
+            .filter_map(|t| parts(t.as_str()))
+            .all(|p| cand.holds(&p))
+        {
+            return None;
+        }
+        let mut pool: Vec<Text> = hand.to_vec();
+        let named = recs.iter().filter(|r| r.names == Some(ci));
+        let others = recs.iter().filter(|r| r.names != Some(ci));
+        for rec in named.chain(others) {
+            if only.is_some_and(|v| v != rec.vault)
+                || !cand.holds(&rec.own)
+                || pool.iter().any(|x| x.trim() == rec.text.trim())
+            {
+                continue;
+            }
+            let mut trial = pool.clone();
+            trial.push(rec.text.duplicate());
+            if restore::merge(&trial).is_ok() {
+                pool = trial;
+            }
+        }
+        let complete = restore::merge(&pool)
+            .ok()
+            .and_then(|m| m.whole)
+            .and_then(|w| self.kept.read_kept(c, &w))
+            .is_some_and(|p| restore_candidate_key(&p) == cand.key);
+        Some((pool, complete))
+    }
+
+    /// What the screen says where wallets `two` of one checksum both
+    /// rebuild: both named, and the steps from this screen that end it,
+    /// each tried: a share file in the Inbox only one of them holds, or
+    /// only one open vault.
+    fn restore_two_text(
+        &self,
+        c: &Compute,
+        hand: &[Text],
+        cands: &[Candidate],
+        recs: &[PoolRecord],
+        two: (usize, usize),
+    ) -> Text {
+        let (a, b) = two;
+        let ends = |hand: &[Text], only: Option<usize>| {
+            let done = |ci| {
+                self.restore_pool_of(c, hand, cands, recs, ci, only)
+                    .is_some_and(|p| p.1)
+            };
+            done(a) != done(b)
+        };
+        let r = self.restore.state.as_ref();
+        let tick = self.inbox.iter().any(|i| {
+            i.kind == FileKind::Share
+                && !r.is_some_and(|r| r.shares.iter().any(|s| i.name == s.as_str()))
+                && {
+                    let t = Text::from_utf8_lossy(&i.bytes);
+                    parts(t.as_str()).is_some() && {
+                        let mut more = hand.to_vec();
+                        more.push(t);
+                        ends(&more, None)
+                    }
+                }
+        });
+        // One vault alone that rebuilds one wallet its own records name.
+        let vault = (0..self.vaults.open.len()).any(|v| {
+            let names = |ci| recs.iter().any(|r| r.vault == v && r.names == Some(ci));
+            let done = |ci| {
+                self.restore_pool_of(c, hand, cands, recs, ci, Some(v))
+                    .is_some_and(|p| p.1)
+            };
+            (done(a) && names(a) && !done(b)) || (done(b) && names(b) && !done(a))
+        });
+        let (na, nb) = if cands[a].name == cands[b].name {
+            let tell = |k: &Candidate, other: &Candidate| {
+                if k.tell == other.tell {
+                    text!("{} ({}, {})", &*k.name, &*k.tell, &*k.checksum)
+                } else {
+                    text!("{} ({})", &*k.name, &*k.tell)
+                }
+            };
+            (tell(&cands[a], &cands[b]), tell(&cands[b], &cands[a]))
+        } else {
+            (cands[a].name.duplicate(), cands[b].name.duplicate())
+        };
+        let mut out = Text::fill(EN.restore_two_wallets, &[&na, &nb]);
+        if tick {
+            out.push(' ');
+            out.push_str(EN.restore_two_wallets_tick);
+        }
+        if vault {
+            out.push(' ');
+            out.push_str(if tick {
+                EN.restore_two_wallets_vault_or
+            } else {
+                EN.restore_two_wallets_vault
+            });
+        }
+        out
     }
 
     /// Loads the wallet a description gives and fills Restore's Kind and

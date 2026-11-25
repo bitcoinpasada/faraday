@@ -2322,6 +2322,11 @@ pub fn outbox_file_at(app: &mut crate::Faraday, at: usize, name: &str, bytes: Ve
     app.outbox.insert(at, item);
 }
 
+/// Whether Restore keeps a pool of shares now.
+pub fn restore_pool_kept(app: &crate::Faraday) -> bool {
+    app.kept.pooled_any()
+}
+
 /// Puts `item` at the end of the Inbox.
 pub fn inbox_push(app: &mut crate::Faraday, item: crate::Item) {
     app.inbox.push(item);

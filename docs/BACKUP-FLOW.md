@@ -1095,7 +1095,7 @@ it into the whole description.
   the open vault holds every one. Saved twice, a share is kept once (same
   wallet, same share number).
 - **Reading.** The open vault's contents list a share as "{wallet} ·
-  Share 2 of 3". Restore's shares (`restore_share_texts`) take the
+  Share 2 of 3". Restore's shares (`restore_pool`, kept by what it is worked out from) take the
   shares in every open vault beside the ones in the Inbox, so shares
   from vaults and from sticks or paper merge as today
   (`restore::merge`).

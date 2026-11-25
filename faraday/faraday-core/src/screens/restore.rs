@@ -262,9 +262,8 @@ fn restore_description(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             ui.press_box(x, cy, w, 48.0, Action::RShare(*k));
             cy += 52.0;
         }
-        let texts = app.restore_share_texts();
-        if !texts.is_empty() {
-            match crate::restore::merge(&texts) {
+        if let Some(pool) = app.restore_pool() {
+            match &pool.merged {
                 Ok(m) => {
                     let line = fill(
                         EN.restore_description_progress,
@@ -297,7 +296,7 @@ fn restore_description(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     cy += 48.0;
                 }
                 Err(e) => {
-                    cy += ui.wrap_as((x, cy, w), BODY_M, Role::Error, &e) + 10.0;
+                    cy += ui.wrap_as((x, cy, w), BODY_M, Role::Error, e) + 10.0;
                 }
             }
         }
