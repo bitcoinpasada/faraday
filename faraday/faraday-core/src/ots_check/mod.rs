@@ -902,6 +902,7 @@ impl crate::flow::Contained for OtsSteps {
                     opens: k,
                     current: s.open == Some(k),
                     mark: None,
+                    address: false,
                 }
             })
             .collect()

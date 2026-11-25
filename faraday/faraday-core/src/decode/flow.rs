@@ -70,6 +70,7 @@ impl Contained for DecodeSteps {
             opens: PICK,
             current: false,
             mark: None,
+            address: false,
         }]
     }
 

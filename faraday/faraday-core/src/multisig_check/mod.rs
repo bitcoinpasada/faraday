@@ -720,6 +720,7 @@ impl crate::flow::Contained for MsSteps {
                     opens: k,
                     current: s.open == Some(k),
                     mark: None,
+                    address: false,
                 }
             })
             .collect()

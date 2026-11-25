@@ -379,6 +379,7 @@ impl SpendState {
                 opens,
                 current: false,
                 mark: Some(crate::flow::KeyMark { fp, name, mark }),
+                address: false,
             });
         }
         rows
@@ -1229,6 +1230,7 @@ impl crate::flow::Contained for SpendSteps {
                 opens: k,
                 current: shown == Some(k),
                 mark: None,
+                address: false,
             });
             // The keys stay listed under Signers once chosen; a wallet with
             // no Signers step (one key, or no wallet known and one key

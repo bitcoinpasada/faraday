@@ -278,10 +278,22 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let compact = ui.compact;
     let sequence = sequence_line(app);
+    // On the wide layout the signatures box and its primary stand at the
+    // foot of Your choices' pane, outside what scrolls there.
+    let pinned = |ui: &mut Ui, x: f32, y: f32, w: f32| {
+        signatures_box(app, ui, (x, y, w), needed);
+    };
+    // Where the primary signs, the box stands after the facts in the pane's
+    // scroll, so no way to sign is in view before them.
+    let signs = primary_signs(app);
     let page = flow::Page {
         area: (x0, cw),
         h,
         foot_h: if compact { spend_bar_h(ui) } else { 0.0 },
+        pin: (!compact && !signs).then(|| flow::Pin {
+            h: signatures_h(ui),
+            draw: &pinned,
+        }),
         back: Some(app.named_back((EN.spend_wallets, Action::Nav(Screen::WalletsStart)))),
         heading: EN.spend_sign_a_transaction,
         chip: None,
@@ -300,7 +312,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         };
         // Under Your choices' rows: the transaction's review.
         let mut under = |ui: &mut Ui, x: f32, y: f32, w: f32| -> f32 {
-            review_under(app_ref, ui, (x, y, w), wallet_idx, needed)
+            review_under(app_ref, ui, (x, y, w), wallet_idx, signs.then_some(needed))
         };
         let (next, again, _) =
             flow::contained(ui, app_ref, contained, &page, scroll, &mut body, &mut under);
@@ -476,7 +488,7 @@ fn single_key_routes(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), wi: us
 /// Where a signing stands: the signatures there, how many are missing,
 /// the line that says what is left, the main button's label and its
 /// style: off while a check on Transaction stops signing here (F136).
-fn spend_status(app: &View, needed: usize) -> (usize, usize, Text, ActionLabel, Style) {
+fn spend_status(app: &View, needed: usize) -> Status5 {
     let s = app.wallets.spend().expect("spend");
     let i = &s.inspection;
     let signed_count = s.signers.len();
@@ -571,6 +583,10 @@ fn spend_status(app: &View, needed: usize) -> (usize, usize, Text, ActionLabel, 
     };
     (count, missing, need_line, label, style)
 }
+
+/// What `spend_status` says: the count, the missing, the line, the
+/// primary's label and style.
+type Status5 = (usize, usize, Text, ActionLabel, Style);
 
 /// The main button's label: the keys that sign here named, and where
 /// two or more sign, the same counted, for a button too narrow for
@@ -2320,15 +2336,89 @@ impl StepView<'_> {
 /// and a note with its colour.
 type ReviewRow = (Text, Text, Text, Option<(&'static str, crate::ui::Paint)>);
 
+/// The signatures box's height, and the gap above its primary.
+const SIGNATURES_BOX_H: f32 = 82.0;
+const SIGNATURES_GAP: f32 = 14.0;
+
+/// The height of the signatures box and its primary, pinned at the foot of
+/// Your choices' pane.
+fn signatures_h(ui: &Ui) -> f32 {
+    SIGNATURES_BOX_H + SIGNATURES_GAP + ui.button_height(BUTTON_H)
+}
+
+/// The signatures box with its primary, at the foot of Your choices' pane,
+/// outside what scrolls there (`flow::Pin`).
+fn signatures_box(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32), needed: usize) -> f32 {
+    let (count, missing, need_line, action_label, style) = spend_status(app, needed);
+    let fy = y0;
+    ui.fill(
+        x,
+        fy,
+        w,
+        SIGNATURES_BOX_H,
+        12.0,
+        Role::SurfaceContainerHighest,
+    );
+    ui.stroke(x, fy, w, SIGNATURES_BOX_H, 12.0, Role::OutlineVariant);
+    ui.text_mid_as(
+        (x + 16.0, fy + 10.0, 26.0),
+        BODY_S,
+        Role::OnSurfaceVariant,
+        EN.spend_panel_signatures,
+    );
+    let label = Text::fill(
+        EN.spend_panel_count,
+        &[&text!("{}", count), &text!("{}", needed)],
+    );
+    let lw = ui.measure_as(LABEL_L, &label);
+    ui.text_mid_as(
+        (x + w - 16.0 - lw, fy + 10.0, 26.0),
+        LABEL_L,
+        Role::OnSurface,
+        &label,
+    );
+    let pips_w = needed as f32 * 34.0 - 6.0;
+    ui.pips(x + w - 26.0 - lw - pips_w, fy + 18.0, needed, count);
+    ui.text_mid_as(
+        (x + 16.0, fy + 44.0, 26.0),
+        BODY_M,
+        if missing == 0 {
+            Role::Ok
+        } else {
+            Role::Warning
+        },
+        &need_line,
+    );
+    let by = fy + SIGNATURES_BOX_H + SIGNATURES_GAP;
+    let label = action_label.fitted(ui, TITLE_M, w - 32.0);
+    ui.button(x, by, Some(w), BUTTON_H, &label, style, Action::Primary);
+    by + ui.button_height(BUTTON_H) - y0
+}
+
+/// Whether the spend's primary signs: the file not finished, not complete,
+/// and a key here with a signature to give. (Where a review is owed the file
+/// is finished or complete, so it is not this.)
+fn primary_signs(app: &View) -> bool {
+    let s = app.wallets.spend().expect("spend");
+    s.spend.finished.is_none()
+        && !s.complete
+        && s.inspection
+            .participating_keys
+            .iter()
+            .any(|fp| app.session.keys.key_label(*fp).is_some() && s.to_sign.contains(&fp.0))
+}
+
 /// The transaction's review under Your choices' rows: "This transaction",
-/// its six facts as plain lines, and the signatures box with its action.
+/// its six facts as plain lines, and where the primary signs
+/// (`signs_for`: how many sign) the signatures box after them; otherwise
+/// the box is the pane's pinned foot (`signatures_box`).
 /// Returns its height.
 fn review_under(
     app: &View,
     ui: &mut Ui,
     (x, y0, w): (f32, f32, f32),
     wallet: Option<usize>,
-    needed: usize,
+    signs_for: Option<usize>,
 ) -> f32 {
     let s = app.wallets.spend().expect("spend");
     let i = &s.inspection;
@@ -2341,10 +2431,29 @@ fn review_under(
         EN.spend_panel_this_transaction,
     );
     y += ui.advance_as(LABEL_L, 30.0);
-    let to = recipients(i)
-        .first()
-        .map(|o| short(&o.address))
-        .unwrap_or_else(|| Text::of("·"));
+    // The first recipient's address, drawn whole under its label: display
+    // only, never what is signed or checked.
+    // Only where the output has an address form; a script without one (named
+    // by its whole hex) keeps the short form.
+    let first = recipients(i).first().copied();
+    let to_address = first
+        .filter(|o| {
+            // Display only: exactly the scripts that have an address form
+            // (a version 0 program only at 20 or 32 bytes), decided on the
+            // script, never on the text of a named one. Whole, an address is
+            // at most 74 characters (version 1, a 40-byte program).
+            let s = &o.script_pubkey;
+            s.is_p2pkh()
+                || s.is_p2sh()
+                || s.is_p2wpkh()
+                || s.is_p2wsh()
+                || (s.is_witness_program() && s.as_bytes().first() != Some(&0))
+        })
+        .map(|o| text!("{}", o.address));
+    let to = match first {
+        Some(o) if to_address.is_none() => short(&o.address),
+        _ => Text::of("·"),
+    };
     // Change is verified change only: an output that claims to be change
     // and cannot be verified is among what it sends (F136).
     // It names the wallet the change goes to (F254).
@@ -2404,50 +2513,33 @@ fn review_under(
         // Plain lines: Your choices' rows are the way to a step.
         let row = ui.line_as(BODY_M) + 2.0 * faraday_draw::tokens::GAP;
         ui.text_mid_as((x, y, row), BODY_S, Role::OnSurfaceVariant, k);
-        let v = ui.fit_as(*wt, v, w - 70.0);
-        ui.text_right_as((x + w, y, row), *wt, Role::OnSurface, &v);
+        match (&to_address, *k == EN.spend_panel_to_label) {
+            (Some(a), true) => {
+                y += row;
+                y += ui.address_whole(
+                    (x, y, w),
+                    BODY_S.mono(),
+                    (Role::OnSurface.paint(), Role::OnSurfaceVariant.paint()),
+                    a.as_str(),
+                );
+                y += faraday_draw::tokens::GAP;
+                ui.rule(x, y, w, Role::OutlineVariant);
+                y += 2.0;
+                continue;
+            }
+            _ => {
+                let v = ui.fit_as(*wt, v, w - 70.0);
+                ui.text_right_as((x + w, y, row), *wt, Role::OnSurface, &v);
+            }
+        }
         ui.rule(x, y + row, w, Role::OutlineVariant);
         y += row + 2.0;
     }
-    let (count, missing, need_line, action_label, style) = spend_status(app, needed);
-    y += faraday_draw::tokens::GAP;
-    let fy = y;
-    ui.fill(x, fy, w, 82.0, 12.0, Role::SurfaceContainerHighest);
-    ui.stroke(x, fy, w, 82.0, 12.0, Role::OutlineVariant);
-    ui.text_mid_as(
-        (x + 16.0, fy + 10.0, 26.0),
-        BODY_S,
-        Role::OnSurfaceVariant,
-        EN.spend_panel_signatures,
-    );
-    let label = Text::fill(
-        EN.spend_panel_count,
-        &[&text!("{}", count), &text!("{}", needed)],
-    );
-    let lw = ui.measure_as(LABEL_L, &label);
-    ui.text_mid_as(
-        (x + w - 16.0 - lw, fy + 10.0, 26.0),
-        LABEL_L,
-        Role::OnSurface,
-        &label,
-    );
-    let pips_w = needed as f32 * 34.0 - 6.0;
-    ui.pips(x + w - 26.0 - lw - pips_w, fy + 18.0, needed, count);
-    ui.text_mid_as(
-        (x + 16.0, fy + 44.0, 26.0),
-        BODY_M,
-        if missing == 0 {
-            Role::Ok
-        } else {
-            Role::Warning
-        },
-        &need_line,
-    );
-    let by = fy + 82.0 + 14.0;
-    let label = action_label.fitted(ui, TITLE_M, w - 32.0);
-    let bh = ui.button_height(BUTTON_H);
-    ui.button(x, by, Some(w), BUTTON_H, &label, style, Action::Primary);
-    by + bh - y0
+    if let Some(needed) = signs_for {
+        y += faraday_draw::tokens::GAP;
+        y += signatures_box(app, ui, (x, y, w), needed);
+    }
+    y - y0
 }
 
 /// Who signs' count: enough, the count and

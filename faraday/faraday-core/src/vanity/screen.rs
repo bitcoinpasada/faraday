@@ -33,6 +33,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         area: (x0, cw),
         h,
         foot_h: 0.0,
+        pin: None,
         back: Some(app.named_back((EN.vanity_wallets, Action::Nav(v.back)))),
         heading: EN.vanity_vanity_address,
         chip: None,

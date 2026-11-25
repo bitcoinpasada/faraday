@@ -714,6 +714,7 @@ impl crate::flow::Contained for SignerSteps {
                     opens: k,
                     current: s.open == k,
                     mark: None,
+                    address: false,
                 }
             })
             .collect()

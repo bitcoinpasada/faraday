@@ -76,6 +76,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         area: (x0, cw - panel_w),
         h,
         foot_h: 0.0,
+        pin: None,
         back: Some(app.named_back((leave_name(f.kind), fa(F::Back)))),
         heading: match named {
             Some(n) => n.0,

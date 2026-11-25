@@ -695,6 +695,9 @@ impl Faraday {
         self.wallets.set_card_offset(s.card_offset);
         self.vaults.set_item_offset(s.vault_item_offset);
         self.flows.set_board_list_offset(s.board_list_offset);
+        // Your choices' pane is shared by every flow: Back onto a flow opens it
+        // at its top, not where another flow's pane was left.
+        self.scroll.set_choices_offset(0.0);
         match s.screen {
             Screen::Wallets => {
                 self.wallets.set_wallet(s.wallet);

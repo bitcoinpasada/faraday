@@ -2200,6 +2200,21 @@ pub fn qr_close(app: &mut crate::Faraday) {
     app.qr.close();
 }
 
+/// Opens Sign a message on a loaded key's address `address`, as the address
+/// check's find outside a wallet leaves it: the address is shown, never
+/// derived, so any text stands for one.
+pub fn message_on_address(app: &mut crate::Faraday, address: &str) {
+    app.message_open_path(crate::wallet::MessageAt {
+        fingerprint: seed_fingerprint(0),
+        path: DerivationPath::from(vec![ChildNumber::Normal { index: 0 }]),
+        script: faraday_bip::keys::ScriptType::Taproot,
+        change: false,
+        index: 0,
+        address: Text::of(address),
+        line: Text::of("m/0"),
+    });
+}
+
 /// The message-signing flow's state, while it is open.
 pub fn message(app: &crate::Faraday) -> Option<&crate::MessageState> {
     app.message.state()

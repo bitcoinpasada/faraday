@@ -722,6 +722,7 @@ impl crate::flow::Contained for RestoreSteps {
                 opens: k,
                 current: open == Some(k),
                 mark: None,
+                address: false,
             })
             .collect()
     }

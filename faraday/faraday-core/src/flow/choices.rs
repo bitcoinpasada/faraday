@@ -35,6 +35,9 @@ pub(crate) struct Row {
     /// A key's row: its fingerprint, name and mark, set only where the flow
     /// says it; the row's `value` is not drawn then.
     pub(crate) mark: Option<KeyMark>,
+    /// The value is an address: drawn whole in groups of four, the row
+    /// growing to its lines (`Ui::address_whole`), never fitted.
+    pub(crate) address: bool,
 }
 
 /// What a key's row draws: the fingerprint in the mono face, the name
@@ -66,8 +69,9 @@ pub(crate) fn rows(
     let lh = ui.line_as(BODY_S);
     let mut cy = y;
     for (row, press) in list.iter().zip(presses) {
-        let (label_ink, value_ink) = if row.current {
+        let (label_ink, value_ink, quiet_ink) = if row.current {
             (
+                Role::OnSecondaryContainer.paint(),
                 Role::OnSecondaryContainer.paint(),
                 Role::OnSecondaryContainer.paint(),
             )
@@ -79,14 +83,23 @@ pub(crate) fn rows(
                 } else {
                     crate::ui::off()
                 },
+                Role::OnSurfaceVariant.paint(),
             )
+        };
+        let whole = row.address && row.value.is_some() && row.mark.is_none();
+        let pad = (CHOICES_ROW - 2.0 * lh) / 2.0;
+        let height = match (&row.value, whole) {
+            (Some(v), true) => {
+                (2.0 * pad + lh + ui.address_height(BODY_S.mono(), v.as_str(), w)).max(CHOICES_ROW)
+            }
+            _ => CHOICES_ROW,
         };
         if row.current {
             ui.fill(
                 x - BLEED,
                 cy,
                 w + 2.0 * BLEED,
-                CHOICES_ROW,
+                height,
                 tokens::SHAPE_S,
                 Role::SecondaryContainer.paint(),
             );
@@ -124,17 +137,27 @@ pub(crate) fn rows(
                 let full = text!("{}{}", sep, m);
                 ui.text_as(at, top + lh, BODY_S, Role::Primary.paint(), full.as_str());
             }
+        } else if whole {
+            ui.address_whole(
+                (x, top + lh, w),
+                BODY_S.mono(),
+                (value_ink, quiet_ink),
+                value,
+            );
         } else {
             let value = ui.fit_as(role, value, w);
             ui.text_as(x, top + lh, role, value_ink, &value);
         }
         if let Some(action) = press {
-            ui.press_box(x - BLEED, cy, w + 2.0 * BLEED, CHOICES_ROW, *action);
+            ui.press_box(x - BLEED, cy, w + 2.0 * BLEED, height, *action);
         }
-        cy += CHOICES_ROW;
+        cy += height;
     }
     cy - y
 }
+
+/// The fewest rows of Your choices' region a pinned foot leaves above it.
+const PIN_MIN_ROWS: f32 = 3.0;
 
 /// The pane: the flow's rows, and what the flow gives for under them.
 pub(crate) struct Pane<'a> {
@@ -150,6 +173,8 @@ pub(crate) struct Pane<'a> {
     pub(crate) pick: Option<&'a super::Pick>,
     /// The last step's take-away: it stands in place of Your choices.
     pub(crate) take: Option<&'a super::TakeAway>,
+    /// What the flow keeps at the pane's foot, outside what scrolls.
+    pub(crate) pin: Option<&'a super::Pin<'a>>,
     /// The pane's left edge, its width and the window's height.
     pub(crate) place: (f32, f32, f32),
     /// Where its heading starts: the card's top where the pair is level.
@@ -165,17 +190,46 @@ impl Pane<'_> {
     /// end level. A pane taller than the window scrolls within itself
     /// (`Slot::Choices`).
     pub(crate) fn draw(&self, ui: &mut Ui, foot: Foot) -> f32 {
+        let Some(pin) = self.pin else {
+            return self.draw_scrolling(ui, foot, self.place);
+        };
+        // The flow's foot stands under a hairline: at the pane's foot where
+        // the rows and what is under them are cut there and scroll above
+        // it, directly under them where they fit.
+        let (px, pw, h) = self.place;
+        let band = pin.h + tokens::GAP * 2.0 + CHOICES_INSET;
+        // A window so low that the region above it would hold under
+        // `PIN_MIN_ROWS` rows: the foot stands in the scroll, after what is
+        // under the rows.
+        if h - band - self.top < CHOICES_ROW * PIN_MIN_ROWS {
+            let mut with_pin = |ui: &mut Ui, x: f32, y: f32, w: f32| -> f32 {
+                let n = foot(ui, x, y, w);
+                (pin.draw)(ui, x, y + n + tokens::GAP, w);
+                n + tokens::GAP + pin.h
+            };
+            return self.draw_scrolling(ui, &mut with_pin, self.place);
+        }
+        let used = self.draw_scrolling(ui, foot, (px, pw, h - band));
+        let (x, w) = (px + CHOICES_INSET, pw - 2.0 * CHOICES_INSET);
+        let top = (h - band).min(self.top + used);
+        ui.rule(px, top, pw, Role::OutlineVariant);
+        (pin.draw)(ui, x, top + tokens::GAP, w);
+        top + band - self.top
+    }
+
+    /// The rows, scrolling within `place`.
+    fn draw_scrolling(&self, ui: &mut Ui, foot: Foot, place: (f32, f32, f32)) -> f32 {
         if let Some(take) = self.take {
             return super::take_away::Pane {
                 app: self.app,
                 take,
-                place: self.place,
+                place,
                 top: self.top,
                 offset: self.offset,
             }
             .draw(ui, foot);
         }
-        let (px, pw, h) = self.place;
+        let (px, pw, h) = place;
         let top = self.top;
         let clip = ui.rect(px, top, pw, h - top);
         let off = self.offset;

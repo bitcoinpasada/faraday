@@ -100,6 +100,7 @@ impl Contained for CheckMessageSteps {
             opens: PICK,
             current: false,
             mark: None,
+            address: false,
         }]
     }
 
@@ -378,6 +379,7 @@ fn card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         area: (x0, cw),
         h,
         foot_h: 0.0,
+        pin: None,
         back: Some(app.named_back((name, Action::Nav(to)))),
         heading: EN.check_check_a_signed,
         chip: None,

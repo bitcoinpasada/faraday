@@ -398,6 +398,7 @@ fn card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         area: (x0, cw),
         h,
         foot_h: 0.0,
+        pin: None,
         back: Some(link),
         heading: EN.decode_decode_a_transaction,
         chip: None,

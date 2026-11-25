@@ -3707,6 +3707,7 @@ impl crate::flow::Contained for BackupSteps {
                 opens: k,
                 current: at == k,
                 mark: None,
+                address: false,
             };
             let copied = drawn_done(app, plan::Item::Copy(0));
             let mut rows = vec![
@@ -3757,6 +3758,7 @@ impl crate::flow::Contained for BackupSteps {
                     },
                     current: b.open == Some(it),
                     mark: None,
+                    address: false,
                 }
             })
             .collect()
@@ -3854,6 +3856,7 @@ impl crate::flow::Contained for BackupPlanSteps {
                     opens: q,
                     current: open == q,
                     mark: None,
+                    address: false,
                 }
             })
             .collect()
@@ -4946,6 +4949,7 @@ fn wallet_pick_row(app: &Faraday) -> Option<(crate::flow::Row, Option<crate::Act
         opens: 0,
         current: false,
         mark: None,
+        address: false,
     };
     Some((row, Some(crate::Action::BWallets)))
 }

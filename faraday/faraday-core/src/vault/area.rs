@@ -2277,6 +2277,7 @@ impl crate::flow::Contained for CreateVaultSteps {
                 opens,
                 current: c.open == Some(opens),
                 mark: None,
+                address: false,
             }
         })
         .collect()

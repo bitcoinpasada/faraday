@@ -17,6 +17,8 @@ mod address_typed_whole;
 mod blinding;
 #[path = "all/bsms.rs"]
 mod bsms;
+#[path = "all/choices_address_whole.rs"]
+mod choices_address_whole;
 #[path = "all/collect_leaf_not_run.rs"]
 mod collect_leaf_not_run;
 #[path = "all/compare.rs"]

@@ -106,6 +106,7 @@ impl Contained for NonceSteps {
             label: Text::of(EN.nonce_screen_title),
             value: Some(o.source.clone()),
             mono: false,
+            address: false,
             opens: CHECK,
             current: false,
             mark: None,

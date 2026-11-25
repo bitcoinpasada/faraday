@@ -650,6 +650,64 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         lines
     }
 
+    /// The height a whole address takes in `role` at `room` wide: its lines
+    /// in groups of four ([`Ui::address_whole`]). A lookup.
+    pub fn address_height(&self, role: TypeRole, addr: &str, room: f32) -> f32 {
+        let role = self.stepped(role);
+        self.address_lines(role, addr, room).len() as f32 * self.line_as(role)
+    }
+
+    /// A whole address at (x, y) in `role`: groups of four, wrapped only
+    /// between groups and only where `room` requires it, the first two
+    /// groups and the last two in `full`, the ones between in `quiet`. Every
+    /// character is drawn, never cut. Display only. Returns its height.
+    pub fn address_whole(
+        &mut self,
+        (x, y, room): (f32, f32, f32),
+        role: TypeRole,
+        (full, quiet): (impl Into<Paint> + Copy, impl Into<Paint> + Copy),
+        addr: &str,
+    ) -> f32 {
+        let role = self.stepped(role);
+        let lines = self.address_lines(role, addr, room);
+        let line = self.line_as(role);
+        let chars: Vec<char> = addr.chars().collect();
+        let groups = chars.len().div_ceil(4);
+        let one = self.measure_as(role, "0");
+        for (i, &(a0, a1)) in lines.iter().enumerate() {
+            let ly = y + i as f32 * line;
+            let mut shown = faraday_text::Text::with_room(a1 - a0 + (a1 - a0) / 4);
+            for g in (a0..a1).step_by(4) {
+                let end = (g + 4).min(a1);
+                let paint: Paint = if g / 4 < 2 || g / 4 + 2 >= groups {
+                    full.into()
+                } else {
+                    quiet.into()
+                };
+                // Where this group starts: what stands before it, measured
+                // with a character after it so a trailing space counts.
+                let at = if shown.as_str().is_empty() {
+                    0.0
+                } else {
+                    let probe = faraday_text::text!("{} 0", shown.as_str());
+                    self.measure_as(role, probe.as_str()) - one
+                };
+                let mut word = faraday_text::Text::with_room(4);
+                for &c in &chars[g..end] {
+                    word.push(c);
+                }
+                self.text_as(x + at, ly, role, paint, word.as_str());
+                if !shown.as_str().is_empty() {
+                    shown.push(' ');
+                }
+                for &c in &chars[g..end] {
+                    shown.push(c);
+                }
+            }
+        }
+        lines.len() as f32 * line
+    }
+
     /// A typed address as a text field that grows to the lines it needs
     /// (`docs/TEXT-CURSOR.md` §3): its box at (x, y), `w` wide, the text
     /// in groups of four with a space drawn between them, never in the

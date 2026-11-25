@@ -3678,6 +3678,7 @@ impl crate::flow::Contained for FlowSteps {
                     opens: s.n(),
                     current: open == Some(s.n()),
                     mark: None,
+                    address: false,
                 }
             })
             .collect()

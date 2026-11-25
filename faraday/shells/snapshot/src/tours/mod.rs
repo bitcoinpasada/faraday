@@ -75,6 +75,7 @@ pub(crate) mod signer;
 pub(crate) mod silent;
 pub(crate) mod site_tour;
 pub(crate) mod spend;
+pub(crate) mod spend_pane;
 pub(crate) mod standard;
 pub(crate) mod themes;
 pub(crate) mod tooltips;
@@ -156,6 +157,7 @@ pub(crate) const TOURS: &[(&str, TourFn)] = &[
         TourFn::Plain(multisig_check::multisig_check_tour),
     ),
     ("nonce", TourFn::Plain(nonce::nonce_tour)),
+    ("spend-pane", TourFn::Plain(spend_pane::spend_pane_tour)),
     ("signer", TourFn::Plain(signer::signer_tour)),
     ("transfer", TourFn::Plain(transfer::transfer_tour)),
     ("glance", TourFn::Costly(glance::glance_tour)),

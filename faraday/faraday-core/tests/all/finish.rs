@@ -452,6 +452,32 @@ fn a_checked_wallet_has_check_closed_on_its_next_spend_and_after_a_lock() {
     assert!(!check_closed(&app), "open again in a fresh process");
 }
 
+/// At Finish the primary does not sign (it locks and writes): its box is
+/// pinned at the pane's foot, in view unscrolled even on a low window.
+#[test]
+fn at_finish_the_box_is_pinned_in_view_on_a_low_window() {
+    for size in [(1280, 800), (1366, 600)] {
+        let mut app = spending_finished();
+        app.event(Event::Display(DisplayInfo {
+            width: size.0,
+            height: size.1,
+            dpi: 160,
+            inset_bottom: 0,
+            inset_top: 0,
+            buttons: 0,
+            camera_fixed: false,
+            secure: SecureHardware::None,
+            boot: BootState::Unknown,
+            memory_mib: None,
+        }));
+        app.settle();
+        assert!(
+            crate::common::offered(&mut app, Action::Primary),
+            "the primary is in view unscrolled at {size:?}"
+        );
+    }
+}
+
 /// Finishing a spend puts both results For the stick with no further
 /// press: the signed PSBT and the finished
 /// transaction. Each card offers Remove in their place, and the primary

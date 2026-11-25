@@ -933,6 +933,7 @@ pub(crate) fn create(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         area: (x0, cw),
         h,
         foot_h: foot.unwrap_or(0.0),
+        pin: None,
         // Made for another flow: back to it, and where it goes next.
         back: Some(app.named_back(match app.vaults.back_to {
             Some(s) => (app.back_link_name(s), va(V::Back)),

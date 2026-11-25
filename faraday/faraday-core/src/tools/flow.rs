@@ -96,6 +96,7 @@ impl Contained for ToolSteps {
                 opens: k,
                 current: t.open == k,
                 mark: None,
+                address: false,
             })
             .collect()
     }

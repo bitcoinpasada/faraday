@@ -124,6 +124,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         area: (x0, cw - side),
         h,
         foot_h: foot,
+        pin: None,
         back: Some(match &k.made {
             Some(_) => app.named_back((EN.keygen_tools, Action::KMadeDone)),
             None => app.named_back((back_label, Action::Nav(k.back))),
