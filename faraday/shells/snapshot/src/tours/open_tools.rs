@@ -5,7 +5,10 @@
 //! opened with no key loaded; Hashes, opened, typed into and its result.
 
 use crate::tour::{Tour, type_text};
+use faraday_core::OskPress;
+use faraday_core::decode::TypedPress;
 use faraday_core::{Action, Screen, StorageEvent};
+use faraday_shell_api::{App, Event, FileKind, Key};
 
 /// The first transaction ever sent, as the hex of its bytes.
 const TX: &str = "0100000001c997a5e56e104102fa209c6a852dd90660a20b2d9c352423edce25857fcd3704000000004847304402204e45e16932b8af514961a1d3a1a25fdf3f4f7732e9d624c6c61548ab5fb8cd410220181522ec8eca07de4860a4acdd12909d831cc56cbbac4622082221a8768d1d0901ffffffff0200ca9a3b00000000434104ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414e7aab37397f554a7df5f142c21c1b7303b8a0626f1baded5c72a704f7e6cd84cac00286bee0000000043410411db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5cb2e0eaddfb84ccf9744464f82e160bfa9b8b64f9d4c03f999b8643f656b412a3ac00000000";
@@ -56,6 +59,35 @@ pub(crate) fn open_tools_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("decode-list")?;
     t.press(Action::DecodeInbox(1));
     t.shot("decode-result")?;
+    // Type it: the field open, with text, refused, and its result. The
+    // small panel's keyboard is put away to see Next, Clear and the refusal.
+    t.press(Action::Nav(Screen::Catalog));
+    t.press(Action::Catalog(decode));
+    t.press(Action::DecodeTyped(TypedPress::Open));
+    t.shot("decode-type-open")?;
+    type_text(t, &TX[..60]);
+    t.shot("decode-type-text")?;
+    t.press(Action::Osk(OskPress::Hide));
+    t.shot("decode-type-text-put-away")?;
+    t.press(Action::DecodeTyped(TypedPress::Next));
+    t.shot("decode-type-refused")?;
+    t.press(Action::DecodeTyped(TypedPress::Clear));
+    type_text(t, TX);
+    t.shot("decode-type-long")?;
+    t.press(Action::DecodeTyped(TypedPress::Next));
+    t.shot("decode-type-result")?;
+    // A paste over what the field holds: refused, with what was typed kept.
+    t.press(Action::Nav(Screen::Catalog));
+    t.press(Action::Catalog(decode));
+    t.press(Action::DecodeTyped(TypedPress::Open));
+    type_text(t, &TX[..60]);
+    t.app.clipboard = true;
+    t.app.event(Event::Key(Key::Paste));
+    t.app.event(Event::Clipboard {
+        kind: FileKind::Text,
+        text: faraday_text::Text::of(&"a".repeat(faraday_core::decode::TYPED_MAX + 1)),
+    });
+    t.shot("decode-type-too-large")?;
     t.press(Action::Nav(Screen::Catalog));
     t.press(Action::Catalog(check));
     t.shot("message-list")?;

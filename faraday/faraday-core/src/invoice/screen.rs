@@ -25,10 +25,32 @@ pub(crate) fn back_of(app: &View) -> (&'static str, Action) {
     (crate::screens::decode_back(back), Action::Nav(back))
 }
 
+/// The invoice field's hint, where typing goes and its Clear.
+fn invoice_field() -> (&'static str, Action, (&'static str, Action)) {
+    (
+        EN.invoice_field,
+        Action::TypeHere(crate::edit::Here::Invoice),
+        (EN.invoice_clear, Action::Invoice(InvoicePress::Clear)),
+    )
+}
+
+/// The lines a text breaks into at a width, as a caller keeps them between
+/// frames.
+pub(crate) type KeptLines<'a> = dyn Fn(&Ui, f32) -> std::rc::Rc<[(usize, usize)]> + 'a;
+
 /// Material's outlined text field, its edge thicker and in primary while
 /// typing goes to it; returns its height with the gap under it.
-fn field(ui: &mut Ui, s: &super::InvoiceState, (x, y, w): (f32, f32, f32), card: bool) -> f32 {
-    let here = Action::TypeHere(crate::edit::Here::Invoice);
+/// The field is shared with Decode a transaction's Type it: `text` is what
+/// it holds, and `hint`, `here` (where typing goes) and `clear` (the card's
+/// Clear button) are the tool's.
+pub(crate) fn field(
+    ui: &mut Ui,
+    text: &str,
+    (hint, here, clear): (&str, Action, (&str, Action)),
+    (x, y, w): (f32, f32, f32),
+    card: bool,
+    kept: Option<&KeptLines<'_>>,
+) -> f32 {
     let field = (x, y, w, INVOICE_FIELD_H);
     crate::menu::outline(
         ui,
@@ -47,12 +69,12 @@ fn field(ui: &mut Ui, s: &super::InvoiceState, (x, y, w): (f32, f32, f32), card:
         y + INVOICE_FIELD_PAD_Y,
         w - 2.0 * INVOICE_FIELD_PAD_X - beside,
     );
-    if s.text().is_empty() {
-        ui.wrap_as(room, BODY_M, Role::OnSurfaceVariant, EN.invoice_field);
+    if text.is_empty() {
+        ui.wrap_as(room, BODY_M, Role::OnSurfaceVariant, hint);
         let ch = BODY_M.size * ui.text_factor();
         ui.caret(room.0, room.1 + (ui.line_as(BODY_M) - ch) / 2.0, ch);
     } else {
-        ui.typed_lines(room, BODY_M.mono(), Role::OnSurface, s.text(), (true, here));
+        shown_lines(ui, room, text, here, kept);
     }
     ui.c.pop_clip();
     if card {
@@ -61,12 +83,47 @@ fn field(ui: &mut Ui, s: &super::InvoiceState, (x, y, w): (f32, f32, f32), card:
             y + INVOICE_CLEAR_TOP,
             Some(INVOICE_CLEAR_W),
             BUTTON_H,
-            EN.invoice_clear,
+            clear.0,
             Style::Ghost,
-            Action::Invoice(InvoicePress::Clear),
+            clear.1,
         );
     }
     INVOICE_FIELD_H + INVOICE_GAP
+}
+
+/// The lines of `text` that show in the field, the caret's among them: the
+/// field is a few lines tall, so what is above and below is neither
+/// painted nor kept for presses, one line each side apart (Up and Down
+/// find it). `kept` gives the lines a caller keeps between frames for the
+/// room's width, else they are broken here.
+fn shown_lines(
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    text: &str,
+    here: Action,
+    kept: Option<&KeptLines<'_>>,
+) {
+    let role = BODY_M.mono();
+    let laid = match kept {
+        Some(lines) => {
+            let lines = lines(ui, w);
+            ui.wrapped_with(role, text, w, lines)
+        }
+        None => ui.wrapped_as(role, text, w),
+    };
+    let line = ui.line_as(role);
+    let room = INVOICE_FIELD_H - 2.0 * INVOICE_FIELD_PAD_Y;
+    let rows = ((room / line).floor() as usize).max(1);
+    let top = (ui.caret_line(&laid) + 1).saturating_sub(rows);
+    let from = top.saturating_sub(1);
+    let at = y - (top - from) as f32 * line;
+    ui.draw_typed_lines(
+        (x, at),
+        Role::OnSurface,
+        &laid,
+        (true, here),
+        from..top + rows + 1,
+    );
 }
 
 /// The three buttons under the field; returns their height.
@@ -155,7 +212,7 @@ fn card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     used += pick::head(ui, x, y, w, pick::ways_in_head(false));
                     used += pick::rows(ui, x, y + used, w, &super::flow::ways_in());
                 }
-                used += field(ui, s, (x, y + used, w), true);
+                used += field(ui, s.text(), invoice_field(), (x, y + used, w), true, None);
                 used += buttons(ui, (x, y + used, w), true);
                 used
             } else {
@@ -191,7 +248,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let mut y = top;
 
-    y += field(ui, s, (x, y, w), false);
+    y += field(ui, s.text(), invoice_field(), (x, y, w), false, None);
 
     y += buttons(ui, (x, y, w), false) + INVOICE_BLOCK_GAP;
 

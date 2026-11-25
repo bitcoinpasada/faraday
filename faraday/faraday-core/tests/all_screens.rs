@@ -35,6 +35,8 @@ mod clock;
 mod codes;
 #[path = "all/collect.rs"]
 mod collect;
+#[path = "all/decode_typed.rs"]
+mod decode_typed;
 #[path = "all/demo.rs"]
 mod demo;
 #[path = "all/devices.rs"]

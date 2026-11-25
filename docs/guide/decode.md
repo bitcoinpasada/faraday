@@ -12,7 +12,15 @@ This page takes a transaction apart, field by field, for one that you only want 
 
 **Key:** decode.opening
 
-Opened from Tools, it opens on the transaction when exactly one waits in Files, and on a list of the waiting transactions to choose from when several do. With none it says **No transaction waits in Files** and offers **Scan**, **Open Files** and, while a stick is attached, Bring in from that stick. The result ends with **Another**, which shows the list again, and **Done**, which goes back to where Decode was opened.
+Opened from Tools, it opens on the transaction when exactly one waits in Files, and on a list of the waiting transactions to choose from when several do. With none it says **No transaction waits in Files** and offers **Scan**, **Open Files** and, while a stick is attached, Bring in from that stick. The result ends with **Another**, which shows the list again (from a file), and **Done**, which goes back to where Decode was opened.
+
+## Type it
+
+**Key:** decode.type
+
+**Type it** opens a field for a transaction or a PSBT typed or pasted as hex or base64. **Next** reads it as a file of the same bytes is read, and refuses what such a file is refused. The source line says **Typed text**.
+
+The text is not put in Files. **Another** on the result shows the field with the text again; **Back** leaves the page and drops it, as a lock does.
 
 ## Summary
 

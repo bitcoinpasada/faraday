@@ -402,9 +402,130 @@ pub(crate) struct DecodeArea {
     /// How far the flow's card is scrolled, where Decode a transaction is
     /// drawn as one ([`flow`]).
     scroll: crate::flow::Scroll,
+    /// Type it's field: the text typed or pasted, while the field is open
+    /// or the result read from it is on show.
+    typed: Option<Typed>,
+}
+
+/// A press on Decode a transaction's Type it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TypedPress {
+    /// Opens the field, empty or as it was left.
+    Open,
+    /// Reads the text as a file of its bytes is read.
+    Next,
+    /// Empties the field.
+    Clear,
+}
+
+/// The most Type it's field holds, bytes: what the clipboard gives. A
+/// larger text is opened as a file.
+pub const TYPED_MAX: usize = 1 << 20;
+
+/// What Type it's field holds. The text may be a mistyped secret, so it is
+/// wiped as it goes.
+#[derive(Default)]
+pub(crate) struct Typed {
+    text: Text,
+    /// Why the last Next read nothing.
+    refused: Option<Text>,
+    /// Counts the changes of the text, which the kept lines are for.
+    version: u64,
+    /// The lines the text breaks into at the width last drawn, worked out
+    /// once for a text and not at each frame (`docs/SPEED.md` §3.3).
+    kept: std::cell::RefCell<Option<Kept>>,
+}
+
+/// The lines of Type it's text at one width: for a version of the text
+/// and what the lines were broken from.
+struct Kept(
+    u64,
+    faraday_ui::roles::WrapBasis,
+    std::rc::Rc<[(usize, usize)]>,
+);
+
+impl Typed {
+    /// Changes the text with `f`, and the lines kept for it go.
+    fn change(&mut self, f: impl FnOnce(&mut Text)) {
+        f(&mut self.text);
+        self.version += 1;
+        *self.kept.get_mut() = None;
+    }
 }
 
 impl DecodeArea {
+    /// Type it's text, while the field is open or its result is on show.
+    pub(crate) fn typed_text(&self) -> Option<&str> {
+        self.typed.as_ref().map(|t| t.text.as_str())
+    }
+
+    /// The lines Type it's text breaks into at `basis`, from `make` when
+    /// none are kept for the text as it is.
+    pub(crate) fn typed_lines(
+        &self,
+        basis: faraday_ui::roles::WrapBasis,
+        make: impl FnOnce(&str) -> std::rc::Rc<[(usize, usize)]>,
+    ) -> std::rc::Rc<[(usize, usize)]> {
+        let Some(t) = self.typed.as_ref() else {
+            return make("");
+        };
+        let mut kept = t.kept.borrow_mut();
+        if let Some(Kept(v, b, lines)) = kept.as_ref()
+            && *v == t.version
+            && *b == basis
+        {
+            return lines.clone();
+        }
+        let lines = make(t.text.as_str());
+        *kept = Some(Kept(t.version, basis, lines.clone()));
+        lines
+    }
+
+    /// Replaces bytes `lo` to `hi` of Type it's text with `insert`, in
+    /// place: what follows is moved once, the buffer it leaves wiped.
+    /// Returns whether it was done (not past [`TYPED_MAX`]).
+    pub(crate) fn typed_splice(&mut self, (lo, hi): (usize, usize), insert: Option<char>) -> bool {
+        let Some(t) = self.typed.as_mut() else {
+            return false;
+        };
+        let s = t.text.as_str();
+        let (lo, hi) = (lo.min(s.len()), hi.min(s.len()));
+        if !s.is_char_boundary(lo) || !s.is_char_boundary(hi) || lo > hi {
+            return false;
+        }
+        let added = insert.map_or(0, char::len_utf8);
+        if s.len() - (hi - lo) + added > TYPED_MAX {
+            return false;
+        }
+        let mut next = Text::with_room(s.len() - (hi - lo) + added);
+        next.push_str(&s[..lo]);
+        if let Some(c) = insert {
+            next.push(c);
+        }
+        next.push_str(&s[hi..]);
+        t.change(|text| *text = next);
+        t.refused = None;
+        true
+    }
+
+    /// Why the last Next read nothing, shown under the field.
+    pub(crate) fn typed_refusal(&self) -> Option<&Text> {
+        self.typed.as_ref().and_then(|t| t.refused.as_ref())
+    }
+
+    /// Whether Type it's field is the page: open, no transaction on show.
+    pub(crate) fn typing(&self) -> bool {
+        self.typed.is_some() && self.state.is_none()
+    }
+
+    /// Drops Type it's text, and the result when it was read from it: on
+    /// leaving the screen and at a lock.
+    pub(crate) fn drop_typed(&mut self) {
+        if self.typed.take().is_some() {
+            self.state = None;
+        }
+    }
+
     /// How far the flow's card is scrolled.
     pub(crate) fn scroll(&self) -> crate::flow::Scroll {
         self.scroll
@@ -437,13 +558,19 @@ impl DecodeArea {
     /// Shows `decoded` on the Decode screen, whose back link returns to
     /// the screen on show.
     pub(crate) fn show(&mut self, decoded: Decoded, screen: &mut Screen) {
-        // Chosen on the landing: back is where the tool was opened from.
+        // Chosen on the landing: back is where the tool was opened from;
+        // else the back of the result on show; never Decode itself.
         let landing = self.landing.take();
         let back = if *screen == Screen::Decode {
-            landing.unwrap_or(*screen)
+            landing
+                .or(self.state.as_ref().map(|d| d.back))
+                .filter(|b| *b != Screen::Decode)
+                .unwrap_or(Screen::Catalog)
         } else {
             *screen
         };
+        // A transaction from anywhere but Type it leaves its text behind.
+        self.typed = None;
         self.state = Some(DecodeState {
             decoded,
             back,
@@ -944,6 +1071,7 @@ impl Faraday {
                     self.decode_file(c, &name, &bytes, kind);
                 }
             }
+            Action::DecodeTyped(p) => self.decode_typed(p, c),
             Action::DecodeAnother => {
                 let back = self.decode.state.as_ref().map(|d| d.back);
                 if let Some(back) = back {
@@ -989,6 +1117,138 @@ impl Faraday {
             // `act_inner` passes only the actions matched above.
             _ => unreachable!(),
         }
+    }
+}
+
+/// Type it: a transaction typed or pasted as hex or base64.
+impl Faraday {
+    /// Costs what [`Faraday::decode_file`] costs. One press on Type it.
+    fn decode_typed(&mut self, press: TypedPress, c: &Compute) {
+        match press {
+            TypedPress::Open => {
+                // From a result: the field again, the text kept.
+                if let Some(back) = self.decode.state.as_ref().map(|d| d.back) {
+                    self.decode.state = None;
+                    self.decode.scroll = crate::flow::Scroll::default();
+                    self.decode.landing = Some(back);
+                }
+                self.decode.typed.get_or_insert_with(Typed::default);
+                self.list_offset = 0.0;
+            }
+            TypedPress::Clear => {
+                if let Some(t) = self.decode.typed.as_mut() {
+                    t.change(Text::clear);
+                    t.refused = None;
+                }
+            }
+            TypedPress::Next => self.decode_typed_next(c),
+        }
+    }
+
+    /// Costs what [`Faraday::decode_file`] costs. Reads the typed text
+    /// as a file of its bytes is read: no more than `TYPED_MAX`, classified
+    /// as Files classifies it, and only a transaction or a PSBT is taken.
+    fn decode_typed_next(&mut self, c: &Compute) {
+        let Some(t) = self.decode.typed.as_mut() else {
+            return;
+        };
+        t.refused = None;
+        let bytes = Zeroizing::new(t.text.as_bytes().to_vec());
+        let kind = wallet::classify(c, "", &bytes);
+        if !matches!(kind, wallet::FileKind::Psbt | wallet::FileKind::Transaction) {
+            t.refused = Some(Text::of(EN.compare_not_a_transaction));
+            return;
+        }
+        let text = t.text.duplicate();
+        self.decode_file(c, EN.decode_typed_source, &bytes, kind);
+        // Shown or not, the text stays: for Back, or to be mended.
+        self.decode.typed = Some(Typed {
+            text,
+            ..Typed::default()
+        });
+    }
+
+    /// Typing into Type it's field. Returns whether the key was taken.
+    pub(crate) fn decode_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        use faraday_shell_api::Key as K;
+        if self.screen != Screen::Decode || self.sheet.is_some() || !self.decode.typing() {
+            return false;
+        }
+        if key == K::Enter {
+            let c = self.compute();
+            self.decode_typed_next(&c);
+            return true;
+        }
+        let Some(t) = self.decode.typed.as_mut() else {
+            return false;
+        };
+        match key {
+            K::Char(ch) if !ch.is_control() => {
+                if t.text.len() + ch.len_utf8() <= TYPED_MAX {
+                    t.change(|text| text.push(ch));
+                }
+            }
+            K::Backspace => {
+                t.change(|text| {
+                    text.pop();
+                });
+            }
+            _ => return false,
+        }
+        t.refused = None;
+        true
+    }
+
+    /// Whether typing, and so Paste, goes to Type it's field: it is open
+    /// and nothing else (a sheet, the guide's Find) has the keyboard.
+    fn decode_field_here(&self) -> bool {
+        self.screen == Screen::Decode
+            && self.here() == Some(Action::TypeHere(crate::edit::Here::DecodeText))
+    }
+
+    /// The clipboard's text, asked for by Paste, into Type it's field:
+    /// returns whether it was for the field.
+    pub(crate) fn decode_pasted(&mut self, text: &str) -> bool {
+        if !self.decode_field_here() {
+            return false;
+        }
+        let mut reset = false;
+        if let Some(t) = self.decode.typed.as_mut() {
+            // Nothing, or over what the field holds: what was typed stays,
+            // and the words say why nothing came.
+            if text.is_empty() {
+                t.refused = Some(Text::of(EN.pasted_nothing));
+            } else if text.len() > TYPED_MAX {
+                t.refused = Some(Text::of(EN.decode_typed_too_large));
+            } else {
+                t.change(|field| field.set(text));
+                t.refused = None;
+                reset = true;
+            }
+        }
+        if reset {
+            self.typing.set_edit(faraday_ui::Edit {
+                field: Some(Action::TypeHere(crate::edit::Here::DecodeText)),
+                caret: None,
+                anchor: None,
+            });
+        }
+        true
+    }
+
+    /// Asks the shell for the clipboard, where Paste goes to Type it's
+    /// field: returns whether it was for the field.
+    pub(crate) fn decode_paste_wanted(&mut self) -> bool {
+        if !self.decode_field_here() {
+            return false;
+        }
+        if self.clipboard {
+            self.out
+                .command(faraday_shell_api::Command::RequestClipboard {
+                    kind: faraday_shell_api::FileKind::Text,
+                });
+        }
+        true
     }
 }
 
@@ -1632,5 +1892,6 @@ impl crate::at_lock::AtLock for DecodeArea {
     }
     fn lock(&mut self) {
         self.clear_check();
+        self.drop_typed();
     }
 }

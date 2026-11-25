@@ -44,6 +44,13 @@ pub struct Wrapped<'s> {
     pub h: f32,
 }
 
+impl Wrapped<'_> {
+    /// How many lines it was broken into.
+    pub fn line_count(&self) -> usize {
+        self.lines.len()
+    }
+}
+
 /// The lines of a [`Wrapped`]: broken for it, or kept by the caller.
 enum Lines {
     Own(Vec<(usize, usize)>),
@@ -471,13 +478,45 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// for `action`.
     pub fn draw_typed(
         &mut self,
+        pos: (f32, f32),
+        color: impl Into<Paint>,
+        laid: &Wrapped<'_>,
+        typing: (bool, A),
+    ) {
+        self.draw_typed_lines(pos, color, laid, typing, 0..laid.lines.len());
+    }
+
+    /// The line of `laid` the caret stands on: found by the line starts, a
+    /// lookup with no layout; the characters before the caret are walked
+    /// once, and none at all with the caret at the end.
+    pub fn caret_line(&self, laid: &Wrapped<'_>) -> usize {
+        let text = laid.s;
+        let byte = match self.edit.caret {
+            None => text.len(),
+            Some(c) => text.char_indices().nth(c).map_or(text.len(), |(b, _)| b),
+        };
+        // The line starting at or before the caret, so a caret at a
+        // line's start (where one ends at a break) is on that line.
+        laid.lines
+            .partition_point(|&(start, _)| start <= byte)
+            .saturating_sub(1)
+    }
+
+    /// [`Ui::draw_typed`] for the lines `shown` of `laid` only, the first
+    /// of them at (x, y): what is above and below is neither painted nor
+    /// kept for presses, so a text of many lines costs what shows. A
+    /// caller keeps the caret's line among them ([`Ui::caret_line`]).
+    pub fn draw_typed_lines(
+        &mut self,
         (x, y): (f32, f32),
         color: impl Into<Paint>,
         laid: &Wrapped<'_>,
         (focused, action): (bool, A),
+        shown: std::ops::Range<usize>,
     ) {
         let (text, role, width) = (laid.s, laid.role, laid.width);
         let lines: &[(usize, usize)] = &laid.lines;
+        let (from, to) = (shown.start.min(lines.len()), shown.end.min(lines.len()));
         let ink = self.ink(color.into());
         let selected_ink = self.ink(crate::SELECTION_INK.paint());
         let face = self.face(role.size, role.face.into());
@@ -492,12 +531,12 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         let selected = edit.selected(n);
         let x0 = self.px(x + self.ox);
         // The character index each line starts at, counted once.
-        let mut index = 0usize;
-        let mut byte = 0usize;
+        let mut byte = lines.get(from).map_or(0, |l| l.0);
+        let mut index = text[..byte].chars().count();
         let mut caret_at: Option<(f32, f32)> = None;
-        for (i, &(start, end)) in lines.iter().enumerate() {
+        for (i, &(start, end)) in lines.iter().enumerate().take(to).skip(from) {
             index += text[byte..start].chars().count();
-            let ly = y + i as f32 * line;
+            let ly = y + (i - from) as f32 * line;
             // Each edge's column, by the characters' advances.
             let mut pen = 0u32;
             let mut cols = vec![0.0f32];
@@ -516,7 +555,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
                     self.selection_band(x + l, ly, r - l, line);
                 }
             }
-            let py = self.px(y + self.oy + i as f32 * line) + self.oy_px;
+            let py = self.px(y + self.oy + (i - from) as f32 * line) + self.oy_px;
             self.c.text_with_face(&face, x0, py, &text[start..end], ink);
             if let Some((lo, hi)) = selected {
                 let (a, b) = (
@@ -540,17 +579,21 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             } else if caret_at.is_none() && caret >= index + count {
                 // After the line, in the spaces a break leaves out: at
                 // its end, and as far on as the spaces go.
-                let gap: u32 = text[end..]
-                    .chars()
-                    .take(caret - index - count)
-                    .map(|c| face.advance_64(c))
-                    .sum();
+                // The sum stops once it passes the width: it is cut to it.
+                let room_64 = ((width * self.f).max(0.0) as u32 + 1) << 6;
+                let mut gap = 0u32;
+                for c in text[end..].chars().take(caret - index - count) {
+                    gap += face.advance_64(c);
+                    if pen + gap > room_64 {
+                        break;
+                    }
+                }
                 let past = (text::px_from_64(pen + gap) as f32 / self.f).min(width);
                 caret_at = Some((x + past, ly));
             }
             let band = (
                 py,
-                self.px(y + self.oy + (i + 1) as f32 * line) + self.oy_px,
+                self.px(y + self.oy + (i + 1 - from) as f32 * line) + self.oy_px,
             );
             let edges = cols.iter().map(|c| self.px(x + c + self.ox)).collect();
             self.fields.push(crate::FieldAt {

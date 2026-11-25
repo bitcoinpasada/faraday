@@ -286,6 +286,8 @@ pub enum Here {
     Invoice,
     /// Check an address's field.
     CheckAddress,
+    /// Decode a transaction's Type it field.
+    DecodeText,
 }
 
 impl Faraday {
@@ -368,6 +370,7 @@ impl Faraday {
                 Here::Invoice
             }
             Screen::CheckAddress if self.address_check_state().is_some() => Here::CheckAddress,
+            Screen::Decode if self.decode.typing() => Here::DecodeText,
             #[cfg(feature = "demo")]
             Screen::Transfer if self.transfer_text_here() => Here::TransferText,
             Screen::Tools if crate::tools::flow::typing_here(self) => Here::Tools,
@@ -556,6 +559,7 @@ impl Faraday {
             Screen::Message => self.message.state().is_some_and(|m| m.typing),
             Screen::Invoice => self.invoice().is_some(),
             Screen::CheckAddress => self.address_check_state().is_some(),
+            Screen::Decode => self.decode.typing(),
             #[cfg(feature = "demo")]
             Screen::Transfer => self.transfer_text_here(),
             Screen::KeyGen => self.keygen.state().is_some_and(|k| {
@@ -793,6 +797,7 @@ impl Faraday {
             Here::Aezeed => &self.lightning.state()?.typed,
             Here::Invoice => self.invoice()?.text(),
             Here::CheckAddress => self.address_check_state()?.typed(),
+            Here::DecodeText => self.decode.typed_text()?,
             #[cfg(feature = "demo")]
             Here::TransferText => self.transfer.text().text(),
             Here::Chart => {
@@ -828,7 +833,9 @@ impl Faraday {
     /// Up and Down move the caret a line (`docs/TEXT-CURSOR.md` §3).
     fn several_lines(&self, target: Action) -> bool {
         match target {
-            Action::TypeHere(Here::Message | Here::Invoice | Here::CheckAddress | Here::Query)
+            Action::TypeHere(
+                Here::Message | Here::Invoice | Here::CheckAddress | Here::Query | Here::DecodeText,
+            )
             | GPG_LINE => true,
             #[cfg(feature = "demo")]
             Action::TypeHere(Here::TransferText) => true,
@@ -990,6 +997,10 @@ impl Faraday {
     fn splice(&mut self, target: Action, text: &str, lo: usize, hi: usize, insert: Option<char>) {
         let n = text.chars().count();
         let byte = |i: usize| text.char_indices().nth(i).map_or(text.len(), |(b, _)| b);
+        // Type it's text is edited where it stands, whatever its size.
+        if target == Action::TypeHere(Here::DecodeText) {
+            return self.decode_splice((byte(lo), byte(hi)), lo, insert);
+        }
         let passphrase = self
             .backup
             .state()
@@ -1109,6 +1120,22 @@ impl Faraday {
                 anchor: None,
             });
         }
+    }
+
+    /// An edit inside Type it's text: bytes `lo` to `hi` replaced with
+    /// `insert`, made in place. The caret is left after what was typed,
+    /// character `at`.
+    fn decode_splice(&mut self, (lo, hi): (usize, usize), at: usize, insert: Option<char>) {
+        if !self.decode.typed_splice((lo, hi), insert) {
+            return;
+        }
+        let at = at + usize::from(insert.is_some());
+        let n = self.decode.typed_text().map_or(at, |t| t.chars().count());
+        self.typing.set_edit(Edit {
+            field: Some(Action::TypeHere(Here::DecodeText)),
+            caret: (at < n).then_some(at),
+            anchor: None,
+        });
     }
 
     /// A character typed back after an edit: a line's end as Enter.

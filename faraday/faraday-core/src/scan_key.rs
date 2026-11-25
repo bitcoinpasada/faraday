@@ -941,6 +941,8 @@ impl Faraday {
             self.scan_paste();
         } else if self.screen == crate::Screen::CheckAddress && self.sheet.is_none() {
             crate::address_check::request_paste(self);
+        } else if self.decode_paste_wanted() {
+            // Asked for: the text comes back to `pasted`.
         } else if self.on_transfer_text() {
             #[cfg(feature = "demo")]
             self.transfer_paste();
@@ -970,6 +972,7 @@ impl Faraday {
         if self.entry_pasted(&text)
             || self.explore_pasted(&text)
             || crate::address_check::pasted(self, &text)
+            || self.decode_pasted(&text)
             || crate::multisig_check::pasted(self, &text)
             || (!self.scan_pastes() && self.transfer_took(&text))
             || !self.scan_pastes()

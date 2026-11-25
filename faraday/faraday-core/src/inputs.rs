@@ -1288,7 +1288,7 @@ impl Faraday {
         if self.vanity_key_in(key) {
             return;
         }
-        if self.tools_key(key) {
+        if self.decode_key(key) || self.tools_key(key) {
             return;
         }
         if self.lightning_key(key) || self.tool_key(key) {

@@ -1079,6 +1079,8 @@ pub enum Action {
     KMadeDone,
     /// Decode a transaction again, empty: the files to choose from.
     DecodeAnother,
+    /// A press on Decode a transaction's Type it.
+    DecodeTyped(crate::decode::TypedPress),
     /// Check a signed message again, empty: the files to choose from.
     CheckMessageAnother,
     /// Check the signed message Sign a message just made.
@@ -1853,6 +1855,7 @@ impl Faraday {
             | Action::QrDecoded
             | Action::DecodeHex
             | Action::DecodeAnother
+            | Action::DecodeTyped(..)
             | Action::SpendHex) => self.decode_act(a, &c),
             a @ (Action::NonceCheck(..) | Action::SignerCheck(..)) => self.decode_act(a, &c),
             Action::Invoice(p) => invoice::act(self, p),

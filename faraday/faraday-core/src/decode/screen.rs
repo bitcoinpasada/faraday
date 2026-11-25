@@ -69,8 +69,13 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         crate::screens::bar_head(ui, Some(link), EN.decode_decode_a_transaction)
     };
     let Some(d) = d else {
-        landing(app, ui, (x, top, w));
-        ui.region_close(open, 0.0);
+        // As far as the page reaches: Type it, and the field's Next, are
+        // scrolled to.
+        let used = landing(app, ui, (x, top, w));
+        app.scroll
+            .content_h()
+            .set(used + faraday_draw::tokens::INVOICE_TAIL);
+        ui.region_close(open, app.scroll.content_h().get() - h);
         return;
     };
     let y = body(app, ui, d, (x, top, w));
@@ -361,6 +366,11 @@ pub(crate) fn pick_groups(app: &crate::Faraday) -> Vec<crate::flow::PickGroup> {
         head: crate::pick::ways_in_head(loaded),
         rows: vec![
             crate::pick::PickRow::way_in(
+                faraday_draw::widgets::Icon::Keyboard,
+                EN.decode_way_type,
+                Action::DecodeTyped(crate::decode::TypedPress::Open),
+            ),
+            crate::pick::PickRow::way_in(
                 faraday_draw::widgets::Icon::Scan,
                 EN.compact_scan,
                 Action::ScanFor(crate::Ask::Decode),
@@ -409,7 +419,8 @@ fn card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     .inbox
                     .iter()
                     .any(|i| i.kind == crate::wallet::FileKind::Transaction);
-                if none {
+                let typing = app_ref.decode.typing();
+                if none && !typing {
                     cy += ui.wrap_as(
                         (x, cy, w),
                         BODY_M,
@@ -418,12 +429,14 @@ fn card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     ) + GAP;
                 }
                 // Where the pair stands the pane holds the rows.
-                if crate::flow::pair_left(app_ref, &flow::DECODE_STEPS, ui.compact, cw) {
-                    return cy - y;
+                if !crate::flow::pair_left(app_ref, &flow::DECODE_STEPS, ui.compact, cw) {
+                    for g in pick_groups(app_ref) {
+                        cy += crate::pick::head(ui, x, cy, w, g.head);
+                        cy += crate::pick::rows(ui, x, cy, w, &g.rows);
+                    }
                 }
-                for g in pick_groups(app_ref) {
-                    cy += crate::pick::head(ui, x, cy, w, g.head);
-                    cy += crate::pick::rows(ui, x, cy, w, &g.rows);
+                if typing {
+                    cy += typed_field(app_ref, ui, (x, cy, w), true);
                 }
                 return cy - y;
             }
@@ -558,17 +571,76 @@ fn landing(app: &View, ui: &mut Ui, (x, top, w): (f32, f32, f32)) -> f32 {
         .filter(|(_, i)| i.kind == crate::wallet::FileKind::Transaction)
         .map(|(k, i)| (&*i.name, Action::DecodeInbox(k)))
         .collect();
-    if waiting.is_empty() {
+    if app.decode.typing() {
+        return typed_field(app, ui, (x, top, w), false);
+    }
+    let mut y = top;
+    y += if waiting.is_empty() {
         nothing_to_work_on(
             app,
             ui,
-            (x, top, w),
+            (x, y, w),
             EN.decode_no_transaction_waits,
             (Some(Action::ScanFor(crate::Ask::Decode)), Screen::Decode),
         )
     } else {
-        file_choices(ui, (x, top, w), EN.decode_choose_transaction, &waiting)
+        file_choices(ui, (x, y, w), EN.decode_choose_transaction, &waiting)
+    };
+    // Among the ways in: Type it, beside Scan and Open Files above.
+    y += GAP;
+    y += wrap_buttons(
+        ui,
+        x,
+        y,
+        w,
+        BUTTON_H,
+        &[(
+            EN.decode_way_type,
+            Style::Secondary,
+            Action::DecodeTyped(crate::decode::TypedPress::Open),
+        )],
+    );
+    y - top
+}
+
+/// Type it's field with Next under it and the words of a refusal, from
+/// `y`; returns the height. On the card Clear stands in the field.
+fn typed_field(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), card: bool) -> f32 {
+    use crate::decode::TypedPress as P;
+    use faraday_draw::tokens::INVOICE_REFUSAL_GAP;
+    let text = app.decode.typed_text().unwrap_or("");
+    let mut used = crate::invoice::screen::field(
+        ui,
+        text,
+        (
+            EN.decode_field,
+            Action::TypeHere(crate::edit::Here::DecodeText),
+            (EN.decode_clear, Action::DecodeTyped(P::Clear)),
+        ),
+        (x, y, w),
+        card,
+        Some(&|ui: &Ui, room: f32| {
+            let basis = ui.wrap_basis(BODY_M.mono(), room);
+            app.decode
+                .typed_lines(basis, |v| ui.wrap_ranges(BODY_M.mono(), v, room))
+        }),
+    );
+    let next = (EN.decode_next, Style::Primary, Action::DecodeTyped(P::Next));
+    used += if card {
+        wrap_buttons(ui, x, y + used, w, BUTTON_H, &[next])
+    } else {
+        let clear = (
+            EN.decode_clear,
+            Style::Secondary,
+            Action::DecodeTyped(P::Clear),
+        );
+        wrap_buttons(ui, x, y + used, w, BUTTON_H, &[next, clear])
+    };
+    if let Some(why) = app.decode.typed_refusal() {
+        used += GAP;
+        used += ui.wrap_as((x, y + used, w), BODY_M, Role::Error, why) + INVOICE_REFUSAL_GAP;
     }
+    used
 }
 
 #[cfg(test)]

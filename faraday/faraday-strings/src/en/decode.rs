@@ -110,6 +110,19 @@ macro_rules! words_decode {
     decode_card_transaction: "Transaction",
     /// Card title in `decode/flow.rs`: the step that shows it taken apart.
     decode_card_result: "Result",
+    /// Pick row in `decode/screen.rs`: types the transaction into a field.
+    decode_way_type: "Type it",
+    /// The empty field's hint in `decode/screen.rs`.
+    decode_field: "Transaction or PSBT, hex or base64",
+    /// Button in `decode/screen.rs`: reads the text in the field.
+    decode_next: "Next",
+    /// Button in `decode/screen.rs`: empties the field.
+    decode_clear: "Clear",
+    /// Source line of a transaction read from typed or pasted text.
+    decode_typed_source: "Typed text",
+    /// Refusal under Type it's field: a text over what the field holds
+    /// (`decode::TYPED_MAX`); a larger one is opened as a file.
+    decode_typed_too_large: "Larger than 1 MB: not read",
     /// Line in `landing` (check_message.rs): the files to choose from.
     decode_choose_message: "Choose a signed message",
         }

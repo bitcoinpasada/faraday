@@ -77,3 +77,122 @@ fn decode_with_no_wallet_loads_one_and_names_its_change() {
             .any(|o| o.ours.is_some())
     );
 }
+
+/// Decode opened with the wallet's file waiting and no wallet loaded, a
+/// typed transaction of the spending kit read.
+fn typed_transaction() -> (Faraday, usize) {
+    let k = kit();
+    let tx = testkit::unsigned(&k).unwrap().inner().unsigned_tx.clone();
+    let hex = faraday_bip::bitcoin::consensus::encode::serialize_hex(&tx);
+    let mut app = with_files(vec![("wallet.txt", k.descriptor.into_bytes())]);
+    app.press(Action::Nav(Screen::Catalog));
+    let tile = TILES
+        .iter()
+        .position(|t| t.name == faraday_core::strings::EN.catalog_decode_a_transaction)
+        .unwrap();
+    app.press(Action::Catalog(tile as u8));
+    assert_eq!(app.screen, Screen::Decode);
+    app.press(Action::DecodeTyped(faraday_core::decode::TypedPress::Open));
+    for c in hex.chars() {
+        app.event(faraday_shell_api::Event::Key(faraday_shell_api::Key::Char(
+            c,
+        )));
+    }
+    app.press(Action::DecodeTyped(faraday_core::decode::TypedPress::Next));
+    assert!(app.decode().is_some());
+    (app, tile)
+}
+
+#[test]
+fn a_typed_transaction_is_on_show_again_after_loading_a_wallet() {
+    let (mut app, _) = typed_transaction();
+    let _ = app.frame();
+    app.press(Action::RestoreFor(faraday_core::restore::Check::Decode));
+    assert_eq!(app.screen, Screen::Restore);
+    app.press(Action::RUse(0));
+    assert_eq!(app.screen, Screen::Decode, "back on the transaction");
+    assert!(
+        app.decode()
+            .expect("the transaction is on show")
+            .decoded
+            .outputs
+            .iter()
+            .any(|o| o.ours.is_some())
+    );
+}
+
+#[test]
+fn a_typed_transaction_left_through_restore_for_elsewhere_is_dropped() {
+    let (mut app, tile) = typed_transaction();
+    let _ = app.frame();
+    app.press(Action::RestoreFor(faraday_core::restore::Check::Decode));
+    app.press(Action::Nav(Screen::Catalog));
+    assert!(app.decode().is_none(), "dropped on leaving");
+    app.press(Action::Catalog(tile as u8));
+    assert_eq!(app.screen, Screen::Decode);
+    assert!(app.decode().is_none());
+}
+
+fn stick() -> faraday_core::StickInfo {
+    faraday_core::StickInfo {
+        make: Default::default(),
+        serial: None,
+        id: faraday_text::Text::of("S"),
+        label: faraday_text::Text::of("TESTSTICK"),
+        boot: false,
+        files: Vec::new(),
+        vaults: Vec::new(),
+    }
+}
+
+#[test]
+fn a_typed_transaction_survives_a_stick_put_in_while_loading_a_wallet() {
+    let (mut app, _) = typed_transaction();
+    let _ = app.frame();
+    app.press(Action::RestoreFor(faraday_core::restore::Check::Decode));
+    app.storage(StorageEvent::Sticks(vec![stick()]));
+    assert_eq!(app.screen, Screen::Files);
+    assert!(app.decode().is_some(), "kept while Files is up");
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    assert_eq!(app.screen, Screen::Restore);
+    app.press(Action::RUse(0));
+    assert_eq!(app.screen, Screen::Decode);
+    assert!(app.decode().is_some(), "back on the transaction");
+}
+
+#[test]
+fn a_typed_transaction_is_dropped_when_files_from_restore_is_left_for_elsewhere() {
+    let (mut app, _) = typed_transaction();
+    let _ = app.frame();
+    app.press(Action::RestoreFor(faraday_core::restore::Check::Decode));
+    app.storage(StorageEvent::Sticks(vec![stick()]));
+    assert_eq!(app.screen, Screen::Files);
+    app.press(Action::Nav(Screen::Catalog));
+    assert!(app.decode().is_none());
+}
+
+#[test]
+fn a_typed_transaction_is_dropped_at_once_when_restore_is_left_for_elsewhere() {
+    let (mut app, tile) = typed_transaction();
+    let _ = app.frame();
+    app.press(Action::RestoreFor(faraday_core::restore::Check::Decode));
+    app.press(Action::Nav(Screen::Catalog));
+    assert!(app.decode().is_none(), "dropped on leaving");
+    app.press(Action::Catalog(tile as u8));
+    let _ = app.frame();
+    assert!(!app.offers(Action::DecodeTyped(faraday_core::decode::TypedPress::Next)));
+}
+
+#[test]
+fn a_typed_transaction_is_dropped_on_leaving_decode_after_restore_went_back() {
+    let (mut app, tile) = typed_transaction();
+    let _ = app.frame();
+    app.press(Action::RestoreFor(faraday_core::restore::Check::Decode));
+    app.press(Action::Nav(Screen::Decode));
+    assert_eq!(app.screen, Screen::Decode);
+    app.press(Action::Nav(Screen::Catalog));
+    assert!(app.decode().is_none());
+    app.press(Action::Catalog(tile as u8));
+    let _ = app.frame();
+    assert!(!app.offers(Action::DecodeTyped(faraday_core::decode::TypedPress::Next)));
+}

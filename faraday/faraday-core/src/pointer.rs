@@ -781,6 +781,15 @@ impl Faraday {
                 || self.adding_key_for(s)
                 || self.visiting_for(s)
         };
+        // Restore's own stick visit (a stick put in on Restore, or its Copy
+        // files) returns to it too: the wallet's file comes from Files.
+        let for_decode = (kept(Screen::Restore)
+            || (self.screen == Screen::Files
+                && self.visit.after_visit() == &Some(Screen::Restore)))
+            && self
+                .restore
+                .state()
+                .is_some_and(|r| matches!(r.then, Some((crate::restore::Check::Decode, _))));
         let (bip85, lightning, silent, vanity) = (
             kept(Screen::Bip85),
             kept(Screen::Lightning),
@@ -813,6 +822,12 @@ impl Faraday {
         let (screen, wallet) = (self.screen, self.wallets.wallet());
         self.tools
             .tidy(screen, |i| screen == Screen::Wallets && wallet == i);
+        // Type it's text and what was read from it go on leaving Decode,
+        // but for Load a wallet's detour through Restore, which returns to it:
+        // it holds only while Restore or a page reached from it is on show.
+        if screen != Screen::Decode && !for_decode {
+            self.decode.drop_typed();
+        }
         if self.sheet != Some(Sheet::WordList) {
             self.wordlist.clear();
         }
