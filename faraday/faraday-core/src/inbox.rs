@@ -1975,11 +1975,16 @@ impl Faraday {
     }
 
     /// Loads every key an "Import and load" copy asked for, now the stick
-    /// that copy needed gone is gone. Returns how many loaded.
-    pub(crate) fn load_after_pull(&mut self, back: Option<crate::Screen>) -> usize {
+    /// that copy needed gone is gone. Returns how many loaded, and whether a
+    /// key's refusal is what the toast says.
+    pub(crate) fn load_after_pull(&mut self, back: Option<crate::Screen>) -> (usize, bool) {
         if self.visit.load_after.is_empty() {
-            return 0;
+            return (0, false);
         }
+        // Asked once for all the keys: the first that loads fills the slot,
+        // the others stay in the session and the screen stays.
+        let back = back.filter(|&b| self.takes_added_key(b));
+        let slot = self.camera.slot_asked();
         let names = self.visit.take_load_after();
         let indices: Vec<usize> = self
             .inbox
@@ -1988,16 +1993,56 @@ impl Faraday {
             .filter(|(_, i)| names.contains(i.name.as_str()) && i.kind == FileKind::Words)
             .map(|(k, _)| k)
             .collect();
-        let n = indices
-            .into_iter()
-            .filter(|&i| self.load_key_for(i, back))
-            .count();
+        let mut n = 0;
+        // The words the last key refused said (empty if it said none).
+        let mut refusal: Option<faraday_text::Text> = None;
+        for i in indices {
+            let before = self.toast_text().map(toast_mark);
+            if self.load_key_for(i, back) {
+                n += 1;
+            } else {
+                let now = self.toast_text();
+                // A toast unchanged by this key keeps the earlier words.
+                refusal = Some(match now {
+                    Some(t) if Some(toast_mark(t)) != before => faraday_text::Text::of(t),
+                    _ => refusal.take().unwrap_or_default(),
+                });
+            }
+        }
+        let said = self.toast_text().map(toast_mark);
         // A wallet in the Inbox that names a seed just loaded loads too.
         if n > 0 {
             self.inbox_load_named();
         }
-        n
+        // Said last, unless a wallet's words came after the keys (they stay
+        // over a key's refusal): the last refusal when any key was refused,
+        // else the key that filled the slot.
+        if self.toast_text().map(toast_mark) == said {
+            if let Some(words) = refusal.as_ref() {
+                if !words.is_empty() && said != Some(toast_mark(words)) {
+                    self.toast(words);
+                }
+            } else if let Some(slot) = slot.filter(|_| !self.camera.slot_waits())
+                && let Some(crate::create::Source::Here(fp)) =
+                    self.create.state().and_then(|c| c.slots.get(slot as usize))
+            {
+                let text = faraday_text::Text::fill(
+                    EN.load_key_key_added,
+                    &[&crate::wallet::fp_text(Fingerprint(*fp))],
+                );
+                self.toast(&text);
+            }
+        }
+        (n, refusal.is_some())
     }
+}
+
+/// A toast's text as a number, to tell whether it changed.
+fn toast_mark(t: &str) -> u64 {
+    use std::hash::{DefaultHasher, Hash, Hasher};
+    let mut h = DefaultHasher::new();
+    t.hash(&mut h);
+    h.finish()
 }
 
 impl Faraday {

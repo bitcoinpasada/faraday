@@ -2250,6 +2250,11 @@ pub fn create_set_slot(app: &mut crate::Faraday, slot: usize, source: crate::cre
     app.create.set_slot(slot, source);
 }
 
+/// Whether a Create slot waits for the key Add a key brings.
+pub fn camera_slot_waits(app: &crate::Faraday) -> bool {
+    app.camera.slot_waits()
+}
+
 /// Chooses wallet `i` on the Wallets tab.
 pub fn select_wallet(app: &mut crate::Faraday, i: usize) {
     app.wallets.set_wallet(i);

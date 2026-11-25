@@ -391,6 +391,51 @@ fn a_key_file_from_add_a_keys_stick_returns_to_the_pick_ticked() {
 }
 
 #[test]
+fn a_key_loaded_refused_twice_and_loaded_leaves_the_refusal_said() {
+    use faraday_core::create::Source;
+    let w0 = testkit::test_words(testkit::TEST_SEEDS[0].0).to_string();
+    let w1 = testkit::test_words(testkit::TEST_SEEDS[1].0).to_string();
+    let mut app = create_asking_for(1);
+    visit_files_and_pull(
+        &mut app,
+        &[
+            ("a-words.txt", &w0),
+            ("b-words.txt", &w0),
+            ("c-words.txt", &w0),
+            ("d-words.txt", &w1),
+        ],
+    );
+    assert_eq!(app.screen, Screen::Create);
+    assert_eq!(app.session.keys.len(), 2);
+    let fp = app.session.keys[0].fingerprint.0;
+    assert_eq!(slots(&app)[1], Source::Here(fp), "the first key fills it");
+    let t = toast_of(&app);
+    assert!(t.contains("is already loaded"), "{t}");
+}
+
+#[test]
+fn a_key_loaded_refused_and_loaded_leaves_the_refusal_said_not_the_third_key() {
+    use faraday_core::create::Source;
+    let w0 = testkit::test_words(testkit::TEST_SEEDS[0].0).to_string();
+    let w1 = testkit::test_words(testkit::TEST_SEEDS[1].0).to_string();
+    let mut app = create_asking_for(1);
+    visit_files_and_pull(
+        &mut app,
+        &[
+            ("a-words.txt", &w0),
+            ("b-words.txt", &w0),
+            ("c-words.txt", &w1),
+        ],
+    );
+    assert_eq!(app.screen, Screen::Create);
+    assert_eq!(app.session.keys.len(), 2);
+    let fp = app.session.keys[0].fingerprint.0;
+    assert_eq!(slots(&app)[1], Source::Here(fp), "the first key fills it");
+    let t = toast_of(&app);
+    assert!(t.contains("is already loaded"), "{t}");
+}
+
+#[test]
 fn a_pull_that_loads_nothing_returns_to_the_flow_with_its_state() {
     let words = testkit::test_words(testkit::TEST_SEEDS[0].0).to_string();
     let mut app = adding_from_the_key_step();
@@ -474,7 +519,7 @@ fn an_import_and_load_from_files_is_not_ticked_in_a_flow_walked_into() {
 }
 
 #[test]
-fn a_key_file_from_make_a_new_wallets_add_a_key_ends_on_wallets() {
+fn a_key_file_from_add_a_key_opened_with_no_slot_waiting_ends_on_wallets() {
     let words = testkit::test_words(testkit::TEST_SEEDS[0].0).to_string();
     let mut app = testkit::started();
     app.press(Action::Nav(Screen::Create));
@@ -1070,4 +1115,211 @@ fn on_a_small_panel_the_card_draws_the_rows_as_before() {
     let second = fp(&app, 1);
     touch(&mut app, Action::PKey(second));
     assert_eq!(app.bip85().and_then(|b| b.key), Some(second));
+}
+
+/// A 2-of-3 on its signers step, Add a key opened for slot `slot` (Make a
+/// new key, Start's Krux code).
+fn create_asking_for(slot: u8) -> Faraday {
+    let mut app = testkit::started();
+    app.press(Action::CreateWallet);
+    let multi = faraday_core::create::NewKind::ALL
+        .iter()
+        .position(|k| *k == faraday_core::create::NewKind::Multi)
+        .unwrap() as u8;
+    crate::common::ckind(&mut app, multi);
+    app.press(Action::CNext(faraday_core::cstep::KIND));
+    app.press(Action::CNext(faraday_core::cstep::QUORUM));
+    asking_again(&mut app, slot);
+    app
+}
+
+fn asking_again(app: &mut Faraday, slot: u8) {
+    use faraday_core::forms::Form;
+    use faraday_core::keygen::Start;
+    app.press(Action::KeyGen(Some(slot)));
+    app.press(Action::KStart(Start::Type(Form::Krux).index()));
+    app.press(Action::KNext);
+    assert_eq!(app.screen, Screen::Entry);
+}
+
+/// The stick visit of Add a key, the key file copied and the stick pulled.
+fn visit_and_pull(app: &mut Faraday, words: &str) {
+    stick_in(app, words);
+    not_now(app);
+    app.press(Action::VisitFrom(Screen::Entry));
+    app.press(Action::VisitIn(0));
+    app.press(Action::VisitCopy);
+    read_and_pull(app, words);
+}
+
+/// A stick going in raises the Lock sheet while the process holds a secret;
+/// a person presses Not now to go on, and the test does the same.
+fn not_now(app: &mut Faraday) {
+    if app.sheet == Some(faraday_core::Sheet::Lock) {
+        app.press(Action::NotNow);
+    }
+}
+
+fn slots(app: &Faraday) -> Vec<faraday_core::create::Source> {
+    app.create().unwrap().slots.clone()
+}
+
+/// A stick holding these key files (name, words).
+fn stick_with(app: &mut Faraday, files: &[(&str, &str)]) {
+    app.storage(StorageEvent::Sticks(vec![faraday_core::StickInfo {
+        make: Default::default(),
+        serial: None,
+        id: faraday_text::Text::of("S1"),
+        label: faraday_text::Text::of("TESTSTICK"),
+        boot: false,
+        files: files
+            .iter()
+            .map(|(n, w)| (faraday_text::Text::of(n), w.len() as u64))
+            .collect(),
+        vaults: Vec::new(),
+    }]));
+    not_now(app);
+}
+
+/// Add a key's stick visit with every file ticked, copied, the stick pulled.
+fn visit_files_and_pull(app: &mut Faraday, files: &[(&str, &str)]) {
+    stick_with(app, files);
+    app.press(Action::VisitFrom(Screen::Entry));
+    for i in 0..files.len() {
+        app.press(Action::VisitIn(i));
+    }
+    app.press(Action::VisitCopy);
+    for (n, w) in files {
+        app.storage(StorageEvent::Read {
+            stick: faraday_text::Text::of("S1"),
+            name: faraday_text::Text::of(n),
+            bytes: w.to_string().into_bytes().into(),
+        });
+    }
+    app.storage(StorageEvent::Sticks(Vec::new()));
+}
+
+fn toast_of(app: &Faraday) -> String {
+    app.toast_text().unwrap_or_default().to_string()
+}
+
+#[test]
+fn a_key_file_from_a_slots_add_a_key_fills_that_slot_and_returns_to_the_flow() {
+    use faraday_core::create::Source;
+    let words = testkit::test_words(testkit::TEST_SEEDS[0].0).to_string();
+    let mut app = create_asking_for(1);
+    visit_and_pull(&mut app, &words);
+    assert_eq!(app.screen, Screen::Create);
+    assert_eq!(app.create().unwrap().open, Some(faraday_core::cstep::KEYS));
+    let fp = app.session.keys[0].fingerprint.0;
+    let s = slots(&app);
+    assert_eq!(s[1], Source::Here(fp), "the slot that asked is filled");
+    assert_eq!(s[0], Source::Empty);
+    assert!(
+        app.keygen().is_some_and(|k| k.on_card && k.slot == Some(0)),
+        "the making is open on the card for the empty slot"
+    );
+    let t = toast_of(&app);
+    assert!(t.starts_with("Key ") && t.ends_with(" added"), "{t}");
+    assert_eq!(
+        app.create().unwrap().kind,
+        faraday_core::create::NewKind::Multi
+    );
+}
+
+#[test]
+fn a_second_slot_asked_fills_that_one_and_leaves_the_first() {
+    use faraday_core::create::Source;
+    let w1 = testkit::test_words(testkit::TEST_SEEDS[1].0).to_string();
+    let mut app = create_asking_for(0);
+    // The first slot is left for later.
+    app.press(Action::Back);
+    app.press(Action::CSlotLater(0));
+    asking_again(&mut app, 2);
+    visit_and_pull(&mut app, &w1);
+    let key = app.session.keys[0].fingerprint.0;
+    let s = slots(&app);
+    assert_eq!(s[0], Source::Later);
+    assert_eq!(s[1], Source::Empty);
+    assert_eq!(s[2], Source::Here(key));
+}
+
+#[test]
+fn two_key_files_fill_the_slot_with_the_first_and_leave_the_flow_where_it_was() {
+    use faraday_core::create::Source;
+    let w0 = testkit::test_words(testkit::TEST_SEEDS[0].0).to_string();
+    let w1 = testkit::test_words(testkit::TEST_SEEDS[1].0).to_string();
+    let mut app = create_asking_for(1);
+    visit_files_and_pull(&mut app, &[("a-words.txt", &w0), ("b-words.txt", &w1)]);
+    assert_eq!(app.screen, Screen::Create);
+    assert_eq!(app.session.keys.len(), 2, "both keys are loaded");
+    let Source::Here(fp) = slots(&app)[1] else {
+        panic!("the slot is filled");
+    };
+    assert!((0..2).any(|i| app.session.keys[i].fingerprint.0 == fp));
+    assert_eq!(
+        slots(&app).iter().filter(|s| **s != Source::Empty).count(),
+        1,
+        "the other key fills no slot"
+    );
+    let t = toast_of(&app);
+    assert!(
+        t.contains(&String::from(&*faraday_core::wallet::fp_text(
+            faraday_bip::keys::Fingerprint(fp)
+        ))),
+        "the toast names the key in the slot: {t}"
+    );
+}
+
+#[test]
+fn a_key_file_twice_fills_the_slot_once_and_the_refusal_is_what_is_said() {
+    use faraday_core::create::Source;
+    let words = testkit::test_words(testkit::TEST_SEEDS[0].0).to_string();
+    let mut app = create_asking_for(1);
+    visit_files_and_pull(
+        &mut app,
+        &[("a-words.txt", &words), ("b-words.txt", &words)],
+    );
+    assert_eq!(app.screen, Screen::Create);
+    assert_eq!(app.session.keys.len(), 1);
+    let fp = app.session.keys[0].fingerprint.0;
+    assert_eq!(slots(&app)[1], Source::Here(fp));
+    let t = toast_of(&app);
+    assert!(t.contains("is already loaded"), "{t}");
+}
+
+#[test]
+fn a_pull_that_loads_nothing_returns_to_the_flow_with_its_slots() {
+    use faraday_core::create::Source;
+    let words = testkit::test_words(testkit::TEST_SEEDS[0].0).to_string();
+    let mut app = create_asking_for(1);
+    stick_in(&mut app, &words);
+    not_now(&mut app);
+    app.press(Action::VisitFrom(Screen::Entry));
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    assert_eq!(app.screen, Screen::Create);
+    assert!(slots(&app).iter().all(|s| *s == Source::Empty));
+    // No slot waits after the pull: a later key file goes to Wallets.
+    assert!(!testkit::camera_slot_waits(&app));
+}
+
+#[test]
+fn leaving_files_drops_the_slot_and_the_return() {
+    use faraday_core::create::Source;
+    let words = testkit::test_words(testkit::TEST_SEEDS[0].0).to_string();
+    let mut app = create_asking_for(1);
+    stick_in(&mut app, &words);
+    not_now(&mut app);
+    app.press(Action::VisitFrom(Screen::Entry));
+    assert_eq!(app.screen, Screen::Files);
+    assert!(testkit::camera_slot_waits(&app), "kept while Files stands");
+    app.press(Action::Nav(Screen::Home));
+    assert!(!testkit::camera_slot_waits(&app));
+    // Files opened again by its own button, a key file copied, the stick
+    // pulled: nothing goes into the flow's slot.
+    app.press(Action::Nav(Screen::Files));
+    app.press(Action::VisitIn(0));
+    app.press(Action::VisitCopy);
+    read_and_pull(&mut app, &words);
+    assert!(slots(&app).iter().all(|s| *s == Source::Empty));
 }

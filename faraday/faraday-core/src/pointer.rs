@@ -740,6 +740,26 @@ impl Faraday {
         self.screen == Screen::Files && self.visit.for_key() && self.visit.after_visit() == &Some(s)
     }
 
+    /// Drops Add a key's stick visit's return, and with it the Create slot
+    /// that asked for the key.
+    pub(crate) fn drop_visit_return(&mut self) {
+        if self.visit.after_visit() == &Some(Screen::Create) {
+            let _ = self.camera.take_slot();
+        }
+        self.visit.clear_after_visit();
+    }
+
+    /// The return of Add a key's stick visit, dropped as Files is left: the
+    /// Create slot that asked stays only while Add a key for Create is on
+    /// screen again, for its stick button asks anew.
+    pub(crate) fn leave_visit_return(&mut self) {
+        if self.adding_key_for(Screen::Create) {
+            self.visit.clear_after_visit();
+        } else {
+            self.drop_visit_return();
+        }
+    }
+
     /// What every press does once it has acted, however it came (a tap,
     /// a key, the mouse's back button, a scripted press): a screen left
     /// drops what it held, a detour not taken ends, a spent round goes
@@ -751,7 +771,7 @@ impl Faraday {
         // Files is up: leaving it by any way drops the return and what it
         // would keep. Another visit's return stands until the pull.
         if self.screen != Screen::Files && self.visit.for_key() {
-            self.visit.clear_after_visit();
+            self.leave_visit_return();
         }
         self.refresh_text_files();
         self.stick.note_visit(self.stick_visit_on());

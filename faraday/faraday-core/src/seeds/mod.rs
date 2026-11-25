@@ -532,13 +532,14 @@ impl Faraday {
 
     /// Whether the screen `back` has a pick that a key added for it is
     /// ticked in (`seeds_took`), so the key returns to it and not to Wallets.
-    /// Child seeds only while its flow is there; Make a new wallet holds
-    /// its slot only while Add a key stands (a typed key), so a key file
-    /// ends on Wallets there.
+    /// Child seeds only while its flow is there; Make a new wallet only
+    /// while a slot waits for the key (kept while Add a key or its stick
+    /// visit stands), else a key file ends on Wallets.
     pub(crate) fn takes_added_key(&self, back: Screen) -> bool {
         match back {
             Screen::Restore | Screen::SpendBackup => true,
             Screen::Bip85 => self.bip85.state().is_some(),
+            Screen::Create => self.camera.slot_waits() && self.create.state().is_some(),
             _ => false,
         }
     }

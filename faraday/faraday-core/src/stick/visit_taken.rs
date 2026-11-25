@@ -1712,7 +1712,7 @@ impl Faraday {
         let mut for_key = None;
         // A return screen with Files not on screen is stale: nothing keeps it.
         if self.screen != Screen::Files {
-            self.visit.clear_after_visit();
+            self.leave_visit_return();
         }
         // The import's own page is Files: it stays, with Put the stick
         // back in to import.

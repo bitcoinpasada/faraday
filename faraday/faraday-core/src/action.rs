@@ -1230,8 +1230,13 @@ impl Faraday {
         self.read_carried_tidy();
         self.seed_carried_tidy();
         // A Create slot waits for a key only while Add a key or a sheet
-        // is on screen: any other way off it leaves no slot waiting.
-        if self.screen != Screen::Entry && self.sheet.is_none() {
+        // is on screen, or Files opened from that Add a key to bring a key
+        // file in (the pull fills it): any other way off leaves no slot
+        // waiting.
+        if self.screen != Screen::Entry
+            && self.sheet.is_none()
+            && !self.visiting_for(Screen::Create)
+        {
             let _ = self.camera.take_slot();
         }
         self.wallet_after(asked, action);

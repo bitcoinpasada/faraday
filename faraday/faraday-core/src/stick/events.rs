@@ -475,7 +475,14 @@ pub(crate) fn nothing_in_the_way(app: &mut Faraday, had: bool) {
     }
     let back = app.visit_pulled();
     if had {
-        let loaded = app.load_after_pull(back) + app.import_load_after_pull();
+        let waited = app.camera.slot_waits();
+        let (keys, refused) = app.load_after_pull(back);
+        let loaded = keys + app.import_load_after_pull();
+        // A key that filled the slot asked for says so (said last by the
+        // load); a key refused says why, and what is removed is not said
+        // over it.
+        let filled = waited && !app.camera.slot_waits();
+        let held = filled || (back == Some(Screen::Create) && loaded == 0 && refused);
         let said = if loaded == 0 {
             faraday_text::Text::fill(EN.sticks_changed_removed_only, &[app.medium.cap()])
         } else {
@@ -492,7 +499,16 @@ pub(crate) fn nothing_in_the_way(app: &mut Faraday, had: bool) {
                 ],
             )
         };
-        app.toast(&said);
+        if !held {
+            app.toast(&said);
+        }
+    }
+    // Add a key's visit of a Create slot is over with the pull.
+    if back == Some(Screen::Create) {
+        let _ = app.camera.take_slot();
+        // What a press's tail does when the card shows again: a slot filled
+        // leaves the Keys card's making to open or end.
+        app.keygen_card_tidy();
     }
     app.import_stick_gone();
     // What was pressed with the stick in carries on, and the

@@ -216,6 +216,15 @@ details only while a vault is open.
     Tools or at Lock. The small panel is the page as before.
   - The pick grows into the room below it before it scrolls.
   - A key added or scanned from a way in returns to the pick, ticked.
+  - A key file brought in from Add a key's stick button does the same where
+    the flow has a pick for it: Restore's seeds, Spend from a backup, Child
+    seeds, and Make a new wallet's slot that asked (the slot is kept only
+    while Add a key or its Files visit stands, dropped by any way off Files,
+    the pull or a lock). On the device no stick is read while a slot waits; in
+    Faraday Demo the slot fills while no key or vault is open. The flow is
+    back at its step with the slot filled and the toast "Key {fingerprint}
+    added", or the last refusal when a key was refused. A key file opened with no pick waiting,
+    or from Home, ends on Wallets with the key listed.
 
   What each flow's pick holds, where more than "what it takes, then its ways
   in":

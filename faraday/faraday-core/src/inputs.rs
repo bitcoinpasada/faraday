@@ -1145,7 +1145,6 @@ impl Faraday {
         if !self.may_load_keys() {
             return false;
         }
-        let back = back.filter(|&b| self.takes_added_key(b));
         let Some(item) = self.inbox.get(index) else {
             return false;
         };

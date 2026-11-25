@@ -222,6 +222,16 @@ impl Camera {
         self.slot = Some(slot);
     }
 
+    /// Whether a Create slot waits for a key.
+    pub(crate) fn slot_waits(&self) -> bool {
+        self.slot.is_some()
+    }
+
+    /// The Create slot waiting for a key, left in place.
+    pub(crate) fn slot_asked(&self) -> Option<u8> {
+        self.slot
+    }
+
     /// The slot waiting, once.
     pub(crate) fn take_slot(&mut self) -> Option<u8> {
         self.slot.take()
@@ -285,6 +295,8 @@ impl Camera {
     pub(crate) fn clear_kept(&mut self) {
         self.parts = None;
         self.carried = None;
+        // A Create slot waiting for a key does not outlive a lock.
+        self.slot = None;
     }
 
     /// The transfer in parts kept, once.
@@ -1967,7 +1979,9 @@ impl Faraday {
     /// into the slot waiting for it.
     pub(crate) fn create_slot_took(&mut self, fp: Fingerprint) {
         if let Some(slot) = self.camera.take_slot() {
-            self.act(Action::CSlotHere(slot, fp.0));
+            // The slot's own edit, not a press: a job running does not
+            // refuse a key already loaded.
+            self.create.edit(Action::CSlotHere(slot, fp.0));
         }
     }
 

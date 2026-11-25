@@ -606,7 +606,7 @@ impl Faraday {
     /// on a small panel. A new-device sheet standing over the page
     /// stays, and the tile is under it; any other sheet gives way.
     fn import_sheet_up(&mut self) {
-        self.visit.clear_after_visit();
+        self.drop_visit_return();
         self.screen = Screen::Files;
         self.visit.set_tab_stick(true);
         self.scroll.set_visit_in_offset(0.0);
