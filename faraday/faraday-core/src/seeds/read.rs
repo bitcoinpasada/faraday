@@ -1144,6 +1144,8 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let title = match s.read {
         Some(crate::scan_read::Kind::SeedWords) => EN.seed_read_words_read,
         Some(crate::scan_read::Kind::CompactSeedQr) => EN.seed_read_compact_read,
+        // Nothing was read: a loaded key is asked for its passphrase.
+        None if matches!(s.source, Source::Loaded(_)) => EN.seed_read_passphrase_label,
         _ => EN.seed_read_seedqr_read,
     };
     let head = (Icon::Keys.into(), Role::Primary.paint(), title);
