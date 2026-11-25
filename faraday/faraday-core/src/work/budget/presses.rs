@@ -319,6 +319,10 @@ const PANE_GLIDES: &[(Screen, &str, Screen)] = &[
     (Screen::Vaults, "Nav(WalletsStart)", Screen::WalletsStart),
     (Screen::Vaults, "StartSpend(", Screen::Spend),
     (Screen::Vaults, "Vault(Create)", Screen::CreateVault),
+    // The pills stand on Vaults too: the pane glides from the page's place
+    // into the flow pair's, as Home's press of the same pill does.
+    (Screen::Vaults, "CreateWallet", Screen::Create),
+    (Screen::Vaults, "RestoreWallet", Screen::Restore),
     (Screen::Wallets, "StartSpend(", Screen::Spend),
     (Screen::Wallets, "NewWalletFrom(", Screen::Create),
     (
