@@ -721,16 +721,20 @@ fn files_a_press_on_another_row_swaps_the_details() {
 #[test]
 fn files_a_rows_tick_and_button_are_their_own_presses() {
     let mut app = files_of(1366, true);
-    let kit = faraday_core::testkit::kits()
+    // Four wallets, the one pressed last: the summary card loads the first
+    // three or is folded, so its row carries its own Load.
+    let (last, others): (Vec<_>, Vec<_>) = faraday_core::testkit::kits()
         .into_iter()
-        .find(|k| k.id == "spending")
-        .unwrap();
-    faraday_core::testkit::inbox_file(&mut app, "spending-wallet.txt", kit.descriptor.into_bytes());
+        .partition(|k| k.id == "spending");
+    for (n, kit) in others.into_iter().take(3).chain(last).enumerate() {
+        let name = format!("wallet-{n}.txt");
+        faraday_core::testkit::inbox_file(&mut app, &name, kit.descriptor.into_bytes());
+    }
     let _ = app.frame();
     let k = app
         .inbox()
         .iter()
-        .position(|i| i.name == "spending-wallet.txt")
+        .position(|i| i.name == "wallet-3.txt")
         .unwrap();
     // A public file's tick is a plain press; a secret's asks an acknowledgement.
     let was = app.visit().from_inbox.contains("a.txt");
