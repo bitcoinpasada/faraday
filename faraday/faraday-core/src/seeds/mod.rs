@@ -530,6 +530,19 @@ impl Faraday {
         self.seeds().is_some_and(|s| s.shaping && s.focus.is_some())
     }
 
+    /// Whether the screen `back` has a pick that a key added for it is
+    /// ticked in (`seeds_took`), so the key returns to it and not to Wallets.
+    /// Child seeds only while its flow is there; Make a new wallet holds
+    /// its slot only while Add a key stands (a typed key), so a key file
+    /// ends on Wallets there.
+    pub(crate) fn takes_added_key(&self, back: Screen) -> bool {
+        match back {
+            Screen::Restore | Screen::SpendBackup => true,
+            Screen::Bip85 => self.bip85.state().is_some(),
+            _ => false,
+        }
+    }
+
     /// A key added from Add a key, or scanned, that `back` returns to: a
     /// seed of Restore's seeds-first route or of the Spend tab's words
     /// route.

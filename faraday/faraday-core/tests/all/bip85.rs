@@ -342,6 +342,226 @@ fn bip85_with_no_key_adds_one_on_the_add_a_key_page_and_returns() {
     );
 }
 
+const KEY_FILE: &str = "key-1-words.txt";
+
+/// A stick carrying one key file, put in.
+fn stick_in(app: &mut Faraday, words: &str) {
+    app.storage(StorageEvent::Sticks(vec![faraday_core::StickInfo {
+        make: Default::default(),
+        serial: None,
+        id: faraday_text::Text::of("S1"),
+        label: faraday_text::Text::of("TESTSTICK"),
+        boot: false,
+        files: vec![(faraday_text::Text::of(KEY_FILE), words.len() as u64)],
+        vaults: Vec::new(),
+    }]));
+}
+
+/// Child seeds with no key loaded, Add a key opened from its key step.
+fn adding_from_the_key_step() -> Faraday {
+    let mut app = testkit::started();
+    app.press(Action::Bip85);
+    app.press(Action::Entry(None));
+    assert_eq!(app.screen, Screen::Entry);
+    app
+}
+
+#[test]
+fn a_key_file_from_add_a_keys_stick_returns_to_the_pick_ticked() {
+    let words = testkit::test_words(testkit::TEST_SEEDS[0].0).to_string();
+    let mut app = adding_from_the_key_step();
+    stick_in(&mut app, &words);
+    app.press(Action::VisitFrom(Screen::Entry));
+    assert_eq!(app.screen, Screen::Files);
+    app.press(Action::VisitIn(0));
+    app.press(Action::VisitCopy);
+    app.storage(StorageEvent::Read {
+        stick: faraday_text::Text::of("S1"),
+        name: faraday_text::Text::of(KEY_FILE),
+        bytes: words.into_bytes().into(),
+    });
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    assert_eq!(app.session.keys.len(), 1);
+    assert_eq!(app.screen, Screen::Bip85, "back at the pick");
+    let added = app.session.keys[0].fingerprint.0;
+    assert!(
+        app.bip85().is_some_and(|b| b.key == Some(added)),
+        "the key is ticked in the pick"
+    );
+}
+
+#[test]
+fn a_pull_that_loads_nothing_returns_to_the_flow_with_its_state() {
+    let words = testkit::test_words(testkit::TEST_SEEDS[0].0).to_string();
+    let mut app = adding_from_the_key_step();
+    stick_in(&mut app, &words);
+    app.press(Action::VisitFrom(Screen::Entry));
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    assert_eq!(app.screen, Screen::Bip85);
+    assert!(
+        app.bip85().is_some(),
+        "child seeds with no state draws nothing"
+    );
+}
+
+/// A stick with the key file put in and pulled again.
+fn stick_in_and_out(app: &mut Faraday, words: &str) {
+    stick_in(app, words);
+    app.storage(StorageEvent::Sticks(Vec::new()));
+}
+
+#[test]
+fn a_child_shown_is_not_kept_by_a_stale_visit_when_files_is_opened_later() {
+    let words = testkit::test_words(testkit::TEST_SEEDS[0].0).to_string();
+    let mut app = adding_from_the_key_step();
+    stick_in(&mut app, &words);
+    app.press(Action::VisitFrom(Screen::Entry));
+    app.press(Action::Nav(Screen::Home));
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    app.press(Action::Entry(None));
+    type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
+    app.press(Action::EntryAdd);
+    app.press(Action::Bip85);
+    app.press(Action::PApp(4));
+    app.press(Action::PNext);
+    app.press(Action::PNext);
+    app.press(Action::PShow);
+    assert!(app.bip85().is_some_and(|b| b.shown), "the words are shown");
+    app.press(Action::Nav(Screen::Files));
+    assert!(app.bip85().is_none(), "nothing of the child is kept");
+    stick_in_and_out(&mut app, &words);
+    assert_ne!(app.screen, Screen::Bip85, "the pull does not go back to it");
+}
+
+#[test]
+fn a_pull_after_files_was_left_and_opened_again_does_not_go_back_to_a_gone_flow() {
+    let words = testkit::test_words(testkit::TEST_SEEDS[0].0).to_string();
+    let mut app = adding_from_the_key_step();
+    stick_in(&mut app, &words);
+    app.press(Action::VisitFrom(Screen::Entry));
+    app.press(Action::VisitIn(0));
+    app.press(Action::VisitCopy);
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Nav(Screen::Files));
+    app.storage(StorageEvent::Read {
+        stick: faraday_text::Text::of("S1"),
+        name: faraday_text::Text::of(KEY_FILE),
+        bytes: words.into_bytes().into(),
+    });
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    assert_eq!(app.session.keys.len(), 1, "the key loaded");
+    assert_eq!(app.screen, Screen::Wallets, "no blank child seeds page");
+}
+
+#[test]
+fn an_import_and_load_from_files_is_not_ticked_in_a_flow_walked_into() {
+    let words = testkit::test_words(testkit::TEST_SEEDS[0].0).to_string();
+    let mut app = testkit::started();
+    stick_in(&mut app, &words);
+    app.press(Action::Nav(Screen::Files));
+    app.press(Action::VisitIn(0));
+    app.press(Action::VisitCopyAndLoad);
+    app.press(Action::Bip85);
+    assert_eq!(app.screen, Screen::Bip85);
+    app.storage(StorageEvent::Read {
+        stick: faraday_text::Text::of("S1"),
+        name: faraday_text::Text::of(KEY_FILE),
+        bytes: words.into_bytes().into(),
+    });
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    assert_eq!(app.session.keys.len(), 1, "the key loaded");
+    assert_eq!(app.screen, Screen::Wallets, "no flow took it");
+}
+
+#[test]
+fn a_key_file_from_make_a_new_wallets_add_a_key_ends_on_wallets() {
+    let words = testkit::test_words(testkit::TEST_SEEDS[0].0).to_string();
+    let mut app = testkit::started();
+    app.press(Action::Nav(Screen::Create));
+    app.press(Action::Entry(None));
+    stick_in(&mut app, &words);
+    app.press(Action::VisitFrom(Screen::Entry));
+    app.press(Action::VisitIn(0));
+    app.press(Action::VisitCopy);
+    app.storage(StorageEvent::Read {
+        stick: faraday_text::Text::of("S1"),
+        name: faraday_text::Text::of(KEY_FILE),
+        bytes: words.into_bytes().into(),
+    });
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    assert_eq!(app.session.keys.len(), 1);
+    assert_eq!(app.screen, Screen::Wallets);
+}
+
+/// The key file read from the stick, then the stick pulled.
+fn read_and_pull(app: &mut Faraday, words: &str) {
+    app.storage(StorageEvent::Read {
+        stick: faraday_text::Text::of("S1"),
+        name: faraday_text::Text::of(KEY_FILE),
+        bytes: words.to_string().into_bytes().into(),
+    });
+    app.storage(StorageEvent::Sticks(Vec::new()));
+}
+
+#[test]
+fn a_pull_on_files_opened_again_with_nothing_copied_stays_on_files() {
+    let words = testkit::test_words(testkit::TEST_SEEDS[0].0).to_string();
+    let mut app = adding_from_the_key_step();
+    stick_in(&mut app, &words);
+    app.press(Action::VisitFrom(Screen::Entry));
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Nav(Screen::Files));
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    assert_eq!(app.screen, Screen::Files, "not a blank child seeds page");
+}
+
+#[test]
+fn an_import_and_load_on_restore_ends_on_wallets() {
+    let words = testkit::test_words(testkit::TEST_SEEDS[0].0).to_string();
+    let mut app = testkit::started();
+    app.press(Action::Nav(Screen::Restore));
+    stick_in(&mut app, &words);
+    assert_eq!(app.screen, Screen::Files);
+    app.press(Action::VisitIn(0));
+    app.press(Action::VisitCopyAndLoad);
+    read_and_pull(&mut app, &words);
+    assert_eq!(app.session.keys.len(), 1, "the key loaded");
+    assert_eq!(app.screen, Screen::Wallets);
+}
+
+#[test]
+fn a_key_file_from_spend_from_a_backups_add_a_key_is_listed_and_the_page_stays() {
+    let words = testkit::test_words(testkit::TEST_SEEDS[0].0).to_string();
+    let mut app = testkit::started();
+    app.press(Action::Nav(Screen::SpendBackup));
+    app.press(Action::Entry(None));
+    stick_in(&mut app, &words);
+    app.press(Action::VisitFrom(Screen::Entry));
+    app.press(Action::VisitIn(0));
+    app.press(Action::VisitCopy);
+    read_and_pull(&mut app, &words);
+    assert_eq!(app.session.keys.len(), 1, "the key is listed");
+    assert_eq!(app.screen, Screen::SpendBackup);
+}
+
+#[test]
+fn a_tool_opened_by_its_own_stick_returns_after_files_was_left_and_opened_again() {
+    let words = testkit::test_words(testkit::TEST_SEEDS[0].0).to_string();
+    for back in [Screen::Restore, Screen::SignerCheck] {
+        let mut app = testkit::started();
+        app.press(Action::Nav(back));
+        stick_in(&mut app, &words);
+        // The stick comes in over the tool; its own stick button goes to Files.
+        app.press(Action::Nav(back));
+        app.press(Action::VisitFrom(back));
+        assert_eq!(app.screen, Screen::Files);
+        app.press(Action::Nav(Screen::Settings));
+        app.press(Action::Nav(Screen::Files));
+        app.storage(StorageEvent::Sticks(Vec::new()));
+        assert_eq!(app.screen, back, "back to the tool the stick came in on");
+    }
+}
+
 fn drawn_has(app: &mut Faraday, text: &str) -> bool {
     let _ = app.frame();
     app.drawn_texts().join(" ").contains(text)

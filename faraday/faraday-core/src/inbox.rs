@@ -1976,7 +1976,7 @@ impl Faraday {
 
     /// Loads every key an "Import and load" copy asked for, now the stick
     /// that copy needed gone is gone. Returns how many loaded.
-    pub(crate) fn load_after_pull(&mut self) -> usize {
+    pub(crate) fn load_after_pull(&mut self, back: Option<crate::Screen>) -> usize {
         if self.visit.load_after.is_empty() {
             return 0;
         }
@@ -1988,7 +1988,10 @@ impl Faraday {
             .filter(|(_, i)| names.contains(i.name.as_str()) && i.kind == FileKind::Words)
             .map(|(k, _)| k)
             .collect();
-        let n = indices.into_iter().filter(|&i| self.load_key(i)).count();
+        let n = indices
+            .into_iter()
+            .filter(|&i| self.load_key_for(i, back))
+            .count();
         // A wallet in the Inbox that names a seed just loaded loads too.
         if n > 0 {
             self.inbox_load_named();

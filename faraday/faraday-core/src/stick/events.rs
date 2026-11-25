@@ -473,9 +473,9 @@ pub(crate) fn nothing_in_the_way(app: &mut Faraday, had: bool) {
     {
         app.vaults.set_focus(Some(vault::Focus::Passphrase));
     }
-    app.visit_pulled();
+    let back = app.visit_pulled();
     if had {
-        let loaded = app.load_after_pull() + app.import_load_after_pull();
+        let loaded = app.load_after_pull(back) + app.import_load_after_pull();
         let said = if loaded == 0 {
             faraday_text::Text::fill(EN.sticks_changed_removed_only, &[app.medium.cap()])
         } else {

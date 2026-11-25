@@ -1705,7 +1705,15 @@ impl Faraday {
     /// back to its empty state; a flow the stick came in during, or a vault
     /// sealed for the visit, takes the person back to it, to the flow or to
     /// Unlock (F290).
-    pub(crate) fn visit_pulled(&mut self) {
+    ///
+    /// Returns the flow Add a key was opened from, when the pull went back
+    /// to it: the key files imported for it load into its pick.
+    pub(crate) fn visit_pulled(&mut self) -> Option<Screen> {
+        let mut for_key = None;
+        // A return screen with Files not on screen is stale: nothing keeps it.
+        if self.screen != Screen::Files {
+            self.visit.clear_after_visit();
+        }
         // The import's own page is Files: it stays, with Put the stick
         // back in to import.
         if self.screen == Screen::Files && !self.import_tile_up() {
@@ -1716,8 +1724,10 @@ impl Faraday {
                 .is_none()
                 .then(|| self.visit_unlocks())
                 .flatten();
+            let was_for_key = self.visit.for_key();
             if let Some(back) = self.visit.take_after_visit() {
                 self.screen = back;
+                for_key = was_for_key.then_some(back);
                 if back == Screen::SpendBackup {
                     self.spend_backup_settle();
                 }
@@ -1727,6 +1737,7 @@ impl Faraday {
                 self.vault_act(crate::vault::VaultAction::Open(i));
             }
         }
+        for_key
     }
 
     /// Handles the stick visit's actions (`Action::Visit*`).
@@ -2353,6 +2364,7 @@ impl crate::at_lock::AtLock for VisitArea {
     fn lock(&mut self) {
         self.pictures_scan = None;
         self.name_taken_clear();
+        self.clear_after_visit();
     }
 }
 

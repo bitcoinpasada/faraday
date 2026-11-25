@@ -733,6 +733,13 @@ impl Faraday {
             || (self.screen == Screen::Entry && self.entry.state().back == Some(s))
     }
 
+    /// Whether Files, opened from Add a key of tool `s` to bring its key in
+    /// from a stick, is on screen: the tool keeps what it held, for the pull
+    /// returns to it.
+    pub(crate) fn visiting_for(&self, s: Screen) -> bool {
+        self.screen == Screen::Files && self.visit.for_key() && self.visit.after_visit() == &Some(s)
+    }
+
     /// What every press does once it has acted, however it came (a tap,
     /// a key, the mouse's back button, a scripted press): a screen left
     /// drops what it held, a detour not taken ends, a spent round goes
@@ -740,6 +747,12 @@ impl Faraday {
     /// something is dropped.
     pub(crate) fn after_input(&mut self) {
         self.note_added_keys();
+        // The flow Add a key's stick visit returns to is kept only while
+        // Files is up: leaving it by any way drops the return and what it
+        // would keep. Another visit's return stands until the pull.
+        if self.screen != Screen::Files && self.visit.for_key() {
+            self.visit.clear_after_visit();
+        }
         self.refresh_text_files();
         self.stick.note_visit(self.stick_visit_on());
         // A sheet that stood over the import's page is gone, however it
@@ -766,6 +779,7 @@ impl Faraday {
             self.screen == s
                 || (waiting && self.vaults.back_to == Some(s))
                 || self.adding_key_for(s)
+                || self.visiting_for(s)
         };
         let (bip85, lightning, silent, vanity) = (
             kept(Screen::Bip85),

@@ -1134,10 +1134,18 @@ impl Faraday {
     /// into Add a key. Refused while a stick is attached (listed, or shown by
     /// the kernel) and before the self-test has passed.
     pub(crate) fn load_key(&mut self, index: usize) -> bool {
+        self.load_key_for(index, None)
+    }
+
+    /// [`Self::load_key`] for a key Add a key was opened for: `back`, the
+    /// screen it was opened from, takes the key as a typed one would
+    /// (`seeds_took`) and stays on screen when it has a pick for it.
+    pub(crate) fn load_key_for(&mut self, index: usize, back: Option<Screen>) -> bool {
         let c = self.compute();
         if !self.may_load_keys() {
             return false;
         }
+        let back = back.filter(|&b| self.takes_added_key(b));
         let Some(item) = self.inbox.get(index) else {
             return false;
         };
@@ -1152,8 +1160,14 @@ impl Faraday {
                     EN.load_key_key_added,
                     &[&fp_text(fp)],
                 ));
-                self.screen = Screen::Wallets;
+                self.seeds_took(fp, back);
+                if back.is_none() {
+                    self.screen = Screen::Wallets;
+                }
                 self.refresh_spend();
+                if back == Some(Screen::SpendBackup) {
+                    self.spend_backup_key_added();
+                }
                 true
             }
             Err(e) => {
