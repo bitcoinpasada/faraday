@@ -993,10 +993,16 @@ impl Faraday {
                 let Some(f) = self.flows.get(i) else {
                     return false;
                 };
-                let cs = f.wallet.as_ref().and_then(|w| w.checksum.as_deref());
+                let kept = f.wallet.as_ref();
                 !f.made
                     && self.backup.state().is_some_and(|b| {
-                        self.session.wallets.get(b.wallet).map(|w| w.checksum()) == cs
+                        let w = self.session.wallets.get(b.wallet);
+                        match kept.and_then(|k| k.id) {
+                            Some(id) => w.map(|w| w.id()) == Some(id),
+                            None => {
+                                w.map(|w| w.checksum()) == kept.and_then(|k| k.checksum.as_deref())
+                            }
+                        }
                     })
             }
             None => false,

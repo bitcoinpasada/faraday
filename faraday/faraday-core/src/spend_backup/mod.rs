@@ -937,7 +937,7 @@ impl Faraday {
                 continue;
             }
             if let Some(p) = it.wallet() {
-                let d = Text::of(&p.to_descriptor());
+                let d = crate::wallet::same_wallet(p);
                 if !wallets.iter().any(|(_, x)| *x == d) {
                     wallets.push((k, d));
                 }

@@ -339,8 +339,10 @@ from the cosigner's own screen or the paper backup's code).
 The Wallets tab's order, kept for every kind: **load the wallet → the
 transaction → check → the signers → sign → collect → finish.** Check is
 open at entry only the first time a wallet (by its id, a SHA-256 of its
-whole descriptor, never by its 8-character checksum, which another wallet
-can share) is checked this power-on; once Continue has been pressed on it (here, on
+whole descriptor, and for a silent payments wallet of its address and the
+key origin its record states, never by its 8-character checksum, which
+another wallet can share; two silent records over one address with another
+fingerprint or account are two wallets with one checksum) is checked this power-on; once Continue has been pressed on it (here, on
 Create's own Check, or "Yes, my money shows" on the Spend tab), it stays closed
 and done across a lock and the next process, open again only in a fresh
 one with no kept state (`docs/history/SIMPLIFY.md` §2.5). The kept list holds

@@ -60,12 +60,16 @@ use crate::silent_wallet::SilentWallet;
 use crate::spend::SpendPath;
 
 /// Which wallet a policy is: a SHA-256 over a domain tag and the whole
-/// written descriptor ([`WalletPolicy::to_descriptor`], the address text
-/// for a silent payments wallet), so two wallets that differ in any
-/// character have two ids, which the 8-character BIP-380 checksum does
-/// not give (it is 40 bits, found for a second descriptor in seconds).
+/// written descriptor ([`WalletPolicy::to_descriptor`]), so two wallets
+/// that differ in any character have two ids, which the 8-character
+/// BIP-380 checksum does not give (it is 40 bits, found for a second
+/// descriptor in seconds). A silent payments wallet is its address and
+/// the key origin its record states (fingerprint, coin type and account),
+/// under a tag of its own: two records over one address with another
+/// fingerprint or account are two wallets, as `same_wallet` counts them.
 /// The checksum stays for what a person reads and for a typed
-/// `#checksum`. There is no way to make one from a checksum or a string
+/// `#checksum`, and stays over the address alone for a silent wallet
+/// (records already kept hold it). There is no way to make one from a checksum or a string
 /// other than the 64-hex form a kept state holds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct WalletId([u8; 32]);
@@ -74,10 +78,25 @@ impl WalletId {
     /// The domain tag the descriptor text is hashed under.
     const TAG: &'static [u8] = b"faraday/wallet-id/1\0";
 
+    /// The domain tag a silent payments wallet's address and origin are
+    /// hashed under: its own, so no descriptor text can give the same
+    /// input (the address has no `[`, the origin starts with one, so the
+    /// two parts cannot be moved against each other either).
+    const SILENT_TAG: &'static [u8] = b"faraday/wallet-id/silent/1\0";
+
     fn of_descriptor(text: &str) -> Self {
-        let mut bytes = alloc::vec::Vec::with_capacity(Self::TAG.len() + text.len());
-        bytes.extend_from_slice(Self::TAG);
-        bytes.extend_from_slice(text.as_bytes());
+        Self::hashed(Self::TAG, text, "")
+    }
+
+    fn of_silent(address: &str, origin: &str) -> Self {
+        Self::hashed(Self::SILENT_TAG, address, origin)
+    }
+
+    fn hashed(tag: &[u8], first: &str, second: &str) -> Self {
+        let mut bytes = alloc::vec::Vec::with_capacity(tag.len() + first.len() + second.len());
+        bytes.extend_from_slice(tag);
+        bytes.extend_from_slice(first.as_bytes());
+        bytes.extend_from_slice(second.as_bytes());
         Self(faraday_crypto::sha256(&bytes))
     }
 
@@ -407,8 +426,9 @@ pub struct WalletPolicy {
     /// worked out once when the policy is made. A function of the fields
     /// above, so the derived `PartialEq` is unchanged by it.
     checksum: [u8; 8],
-    /// The [`WalletId`] of [`to_descriptor`](Self::to_descriptor), worked
-    /// out with the checksum.
+    /// The [`WalletId`]: of [`to_descriptor`](Self::to_descriptor), and for
+    /// a silent payments wallet also of its record's origin; worked out
+    /// with the checksum.
     id: WalletId,
 }
 
@@ -833,19 +853,25 @@ impl WalletPolicy {
         core::str::from_utf8(&self.checksum).expect("the checksum alphabet is ASCII")
     }
 
-    /// Which wallet this is: the id of the whole descriptor, never the
-    /// checksum; a lookup, worked out when the policy was made.
+    /// Which wallet this is: the id of the whole descriptor (a silent
+    /// wallet: its address and its record's origin), never the checksum;
+    /// a lookup, worked out when the policy was made.
     pub fn id(&self) -> WalletId {
         self.id
     }
 
-    /// The policy with its checksum and id worked out (writes the
-    /// descriptor out and hashes it): every constructor ends here.
+    /// The policy with its checksum (over the descriptor, the address for
+    /// a silent wallet) and id (a silent wallet's over the address and
+    /// the record's origin) worked out (writes the descriptor out and
+    /// hashes it): every constructor ends here.
     fn sealed(mut self) -> Self {
         let desc = self.to_descriptor();
         self.checksum =
             descriptor_checksum(&desc).expect("descriptor uses only charset characters");
-        self.id = WalletId::of_descriptor(&desc);
+        self.id = match &self.silent {
+            Some(w) => WalletId::of_silent(&desc, &w.origin()),
+            None => WalletId::of_descriptor(&desc),
+        };
         self
     }
 

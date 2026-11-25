@@ -169,8 +169,16 @@ pub(super) fn partials(
     let w = match of {
         BoardOf::Backup => app.session.wallets.get(app.backup.state()?.wallet)?,
         BoardOf::Flow(i) => {
-            let sum = app.flows[i].wallet.as_ref()?.checksum.as_deref()?;
-            app.session.wallets.iter().find(|w| w.checksum() == sum)?
+            let f = app.flows[i].wallet.as_ref()?;
+            // By id where the flow keeps one: a twin of the checksum that
+            // came first is another wallet.
+            match f.id {
+                Some(id) => app.session.wallets.iter().find(|w| w.id() == id)?,
+                None => {
+                    let sum = f.checksum.as_deref()?;
+                    app.session.wallets.iter().find(|w| w.checksum() == sum)?
+                }
+            }
         }
     };
     let multisig = matches!(

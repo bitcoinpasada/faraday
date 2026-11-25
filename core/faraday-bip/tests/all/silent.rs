@@ -871,3 +871,52 @@ fn a_record_names_an_account_below_two_to_the_31() {
     assert!(SilentWallet::parse(&with_account(1 << 31)).is_none());
     assert!(SilentWallet::parse(&with_account(u32::MAX)).is_none());
 }
+
+#[test]
+fn two_silent_records_over_one_wallets_points_are_two_wallets_with_one_checksum() {
+    use faraday_bip::keys::Fingerprint;
+    use faraday_bip::policy::WalletPolicy;
+    use faraday_bip::silent_wallet::{SilentWallet, from_scan_key};
+    let c = Compute::unchecked();
+    let secp = Secp256k1::new();
+    let r = vector_receiver(Network::Mainnet);
+    let record = |fp: [u8; 4], account: u32| SilentWallet {
+        network: Network::Mainnet,
+        fingerprint: Fingerprint(fp),
+        account,
+        scan: r.scan_public_key(&secp),
+        spend: r.spend_public_key(),
+        labels: 0,
+    };
+    let policy = |w: &SilentWallet| WalletPolicy::of_silent(w.clone());
+    let honest = policy(&record([0xde, 0xad, 0xbe, 0xef], 0));
+    let other_fingerprint = policy(&record([0; 4], 0));
+    let other_account = policy(&record([0xde, 0xad, 0xbe, 0xef], 1));
+    assert_ne!(honest.id(), other_fingerprint.id());
+    assert_ne!(honest.id(), other_account.id());
+    assert_ne!(other_fingerprint.id(), other_account.id());
+    // The checksum stays over the address: kept records hold it.
+    assert_eq!(honest.checksum(), other_fingerprint.checksum());
+    assert_eq!(honest.checksum(), other_account.checksum());
+
+    // One record by every way in is one wallet: its text, its
+    // descriptor, and its scan key with the origin beside it.
+    let w = record([0xde, 0xad, 0xbe, 0xef], 0);
+    let descriptor = r.descriptor(Some((w.fingerprint, 0))).unwrap();
+    let by_text = WalletPolicy::parse_any(&c, &w.to_text()).unwrap();
+    let by_descriptor =
+        policy(&faraday_bip::silent_wallet::parse_descriptor(&c, descriptor.as_str()).unwrap());
+    let key = descriptor
+        .as_str()
+        .strip_prefix("sp(")
+        .unwrap()
+        .strip_suffix(')')
+        .unwrap()
+        .rsplit(']')
+        .next()
+        .unwrap();
+    let by_key = policy(&from_scan_key(&c, key, "deadbeef", "m/352h/0h/0h").unwrap());
+    assert_eq!(by_text.id(), honest.id());
+    assert_eq!(by_descriptor.id(), honest.id());
+    assert_eq!(by_key.id(), honest.id());
+}

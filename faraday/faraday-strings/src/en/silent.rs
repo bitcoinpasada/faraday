@@ -61,7 +61,12 @@ macro_rules! words_silent {
     /// Danger line in place of a silent payments wallet's address where a
     /// loaded key with its fingerprint gives another scan key or spend
     /// key, and the error of its QR code. `{}`: the key's fingerprint.
-    silent_record_differs: "This wallet's record does not match key {}: its scan key or spend key is not that key's. Do not use its address",
+    silent_record_differs: "This wallet's record does not match key {}: its scan key or spend key is not that key's at its account. Do not use its address",
+    /// Danger line in place of a silent payments wallet's address where
+    /// the key its record names is not loaded and another loaded key gives
+    /// its scan key and spend key, and the error of its QR code. `{}`: the
+    /// named key's fingerprint.
+    silent_record_differs_unloaded: "Key {} is not loaded. A loaded key of another fingerprint gives this wallet's scan key and spend key. Do not use its address",
     // ----- silent (faraday-core/src/silent/screen.rs) -----
     /// Text in `TITLES`.
     silent_key: "Key",

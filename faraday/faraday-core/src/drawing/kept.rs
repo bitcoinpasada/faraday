@@ -521,8 +521,9 @@ impl Kept {
         a
     }
 
-    /// Costs two key derivations per loaded key with the record's
-    /// fingerprint the first time. Silent payments record `w` checked
+    /// Costs what [`crate::silent::check_record`] costs the first time
+    /// (every loaded key, four derivations at an account other than 0).
+    /// Silent payments record `w` checked
     /// against the loaded keys ([`crate::silent::check_record`]): kept by
     /// the record and the ids of the loaded keys,
     /// which are all the check reads, a lookup after.
@@ -980,8 +981,8 @@ impl View<'_> {
 
     /// How session wallet `i`'s silent payments record stands against the
     /// loaded keys ([`crate::Faraday::silent_wallet_check`]), kept by the
-    /// record and the keys; `None` for any other wallet. Costs two key
-    /// derivations the first time.
+    /// record and the keys; `None` for any other wallet. Costs what
+    /// [`crate::silent::check_record`] costs the first time.
     pub(crate) fn silent_wallet_check(&self, i: usize) -> Option<crate::silent::RecordCheck> {
         self.kept(|c| self.app.silent_wallet_check(c, i))
     }
@@ -999,8 +1000,8 @@ impl View<'_> {
 
     /// Whether session wallet `i` is a silent payments wallet whose record
     /// a loaded key contradicts
-    /// ([`View::silent_wallet_check`]). Costs two key derivations the
-    /// first time.
+    /// ([`View::silent_wallet_check`]). Costs what
+    /// [`crate::silent::check_record`] costs the first time.
     pub(crate) fn silent_differs(&self, i: usize) -> bool {
         self.silent_wallet_check(i) == Some(crate::silent::RecordCheck::Differs)
     }

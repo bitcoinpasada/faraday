@@ -206,7 +206,8 @@ through `Wallet::new(name, policy, source, origin)`; `policy` is private
 the one change, used by `silent.rs` for a silent payment wallet's labels.
 
 The same constructors set `id` (a `WalletId`, a SHA-256 of the whole
-descriptor), `WalletPolicy::id` a lookup beside `checksum`; `Wallet::id`
+descriptor; a silent payments wallet's of its address and its record's
+origin), `WalletPolicy::id` a lookup beside `checksum`; `Wallet::id`
 reads it, and a wallet is looked up by it where two wallets may share a
 checksum.
 

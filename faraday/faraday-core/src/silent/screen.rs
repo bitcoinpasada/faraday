@@ -103,6 +103,7 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
     let mut cy = y;
     match k {
         sstep::KEY => {
+            let chosen = app.silent.named(&app.session);
             let mut row: Vec<(String, Style, Action)> = app
                 .session
                 .keys
@@ -111,7 +112,7 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
                     let fp = key.fingerprint;
                     (
                         String::from(&*crate::wallet::key_line(fp, &key.label)),
-                        Style::chosen(s.key == Some(fp.0)),
+                        Style::chosen(chosen == Some(fp.0)),
                         Action::SKey(fp.0),
                     )
                 })
@@ -127,17 +128,11 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
         // A record a loaded key contradicts: no address, no labels, no scan
         // key and no check.
         _ if app.silent_shown().check == Some(RecordCheck::Differs) => {
-            let fp = app
-                .silent
-                .named(&app.session)
-                .map(|fp| fp_text(faraday_bip::keys::Fingerprint(fp)).to_string())
-                .unwrap_or_default();
-            cy += ui.wrap_as(
-                (x, cy, w),
-                BODY_M,
-                Role::Error,
-                &fill(EN.silent_record_differs, &[&fp]),
-            ) + PAD;
+            let line = crate::silent::differs_line(
+                &app.session.keys,
+                app.silent.named(&app.session).unwrap_or_default(),
+            );
+            cy += ui.wrap_as((x, cy, w), BODY_M, Role::Error, &line) + PAD;
         }
         sstep::ADDRESS if !app.silent_shown().key_here && s.wallet.is_some() => {
             // The wallet's own address needs no key, and is not checked

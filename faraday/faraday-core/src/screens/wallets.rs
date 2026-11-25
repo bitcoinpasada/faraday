@@ -883,7 +883,7 @@ pub(crate) fn silent_address_lines(
             (x, y, w),
             BODY_M,
             Role::Error,
-            &fill(EN.silent_record_differs, &[&fp]),
+            &crate::silent::differs_line(&app.session.keys, r.fingerprint.0),
         ),
         Some(RecordCheck::Matches) => ui.wrap_as((x, y, w), BODY_M.mono(), role, &address),
         _ => {

@@ -72,7 +72,7 @@ macro_rules! words_wallet {
     /// Text in `text`: a silent payments wallet refused because a loaded
     /// key with its fingerprint gives another scan key or spend key. `{}`:
     /// the key's fingerprint.
-    wallet_silent_differs: "This wallet's record does not match key {}: its scan key or spend key is not that key's",
+    wallet_silent_differs: "This wallet's record does not match key {}: its scan key or spend key is not that key's at its account",
     /// Text in `text`: a silent payments wallet refused because its record
     /// names a fingerprint no loaded key has, over the scan key and spend
     /// key a loaded key gives. `{}`: the loaded key's fingerprint, then the

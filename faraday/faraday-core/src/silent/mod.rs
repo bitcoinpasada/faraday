@@ -220,6 +220,19 @@ pub(crate) fn other_key_gives(
         .map(|place| keys[place].fingerprint)
 }
 
+/// The line for a record that differs: key `fp` is the one the record
+/// names; where it is not loaded, the line says so, since another loaded
+/// key is what gives the record's points.
+pub(crate) fn differs_line(keys: &faraday_keys::Keys, fp: [u8; 4]) -> Text {
+    let f = faraday_bip::keys::Fingerprint(fp);
+    let named = fp_text(f);
+    if keys.all().any(|k| k.fingerprint == f) {
+        Text::fill(EN.silent_record_differs, &[&named])
+    } else {
+        Text::fill(EN.silent_record_differs_unloaded, &[&named])
+    }
+}
+
 /// The ids of every loaded key: what a record is checked against (a key
 /// of another fingerprint can give its points).
 pub(crate) fn ids_of(keys: &faraday_keys::Keys) -> Vec<[u8; 32]> {
@@ -411,8 +424,9 @@ impl SilentArea {
         session.wallets.get(i)?.policy().silent()
     }
 
-    /// Costs two key derivations per loaded key with the wallet's
-    /// fingerprint. How the record of the wallet the page is of stands
+    /// Costs what [`check_record`] costs on a wallet's page (a derivation
+    /// per loaded key, four at an account other than 0), two on a key's
+    /// page. How the record of the wallet the page is of stands
     /// against the loaded keys (`None` on a key's page with no wallet),
     /// and the scan and spend keys derived from the loaded key with the
     /// key's fingerprint. On a wallet's page they are derived at the
@@ -428,11 +442,9 @@ impl SilentArea {
             return (None, None);
         };
         if let Some(w) = self.wallet(session) {
+            // The record's own key checks it, whichever key the page has
+            // pressed.
             let (check, r) = check_record(c, &session.keys, w);
-            // A record that differs does so whichever key the page is on.
-            if check != RecordCheck::Differs && s.key != Some(w.fingerprint.0) {
-                return (Some(RecordCheck::Unchecked), None);
-            }
             let r = r.map(|(r, place)| (r, session.keys[place].fingerprint.0));
             return (Some(check), r);
         }
@@ -512,7 +524,7 @@ impl SilentArea {
         shown
     }
 
-    /// Costs two key derivations: whether the wallet's key is loaded and
+    /// Costs what [`check_record`] costs: whether the wallet's key is loaded and
     /// gives both of its points, which labels, the scan key and a check
     /// need.
     pub(crate) fn key_here(&self, c: &Compute, session: &Session) -> bool {
@@ -578,7 +590,8 @@ impl SilentArea {
         let mut lines = vec![Text::fill(EN.silent_silent_payment, &[&text!("{}", &*fp)])];
         let check = self.derived(c, session).0;
         if check == Some(RecordCheck::Differs) {
-            return Err(Text::fill(EN.silent_record_differs, &[&text!("{}", &*fp)]));
+            let named = self.named(session).unwrap_or_default();
+            return Err(differs_line(&session.keys, named));
         }
         let (title, text, name) = match code {
             crate::Code::Silent(uri) => {
@@ -890,7 +903,7 @@ impl Faraday {
         self.silent.shown(c, &self.session)
     }
 
-    /// Costs two key derivations the first time. How session wallet `i`'s
+    /// Costs what [`check_record`] costs the first time. How session wallet `i`'s
     /// silent payments record stands against the loaded keys, kept by the
     /// record and the ids of the loaded keys (a
     /// lookup after); `None` for any other wallet.
@@ -913,7 +926,7 @@ impl Faraday {
         )
     }
 
-    /// Costs two key derivations. [`Faraday::silent_wallet_check`] worked
+    /// Costs what [`check_record`] costs. [`Faraday::silent_wallet_check`] worked
     /// out from the record and the keys as they are, for a decision.
     pub(crate) fn silent_wallet_check_now(&self, c: &Compute, i: usize) -> Option<RecordCheck> {
         let w = self.session.wallets.get(i)?.policy().silent()?;
@@ -941,7 +954,7 @@ impl Faraday {
         };
         let fp = fp_text(r.fingerprint);
         match self.silent_wallet_check_now(c, i) {
-            Some(RecordCheck::Differs) => Err(Text::fill(EN.silent_record_differs, &[&fp])),
+            Some(RecordCheck::Differs) => Err(differs_line(&self.session.keys, r.fingerprint.0)),
             Some(RecordCheck::Unchecked) => {
                 lines.push(Text::fill(EN.silent_not_checked, &[&fp]));
                 Ok(lines)
@@ -1103,8 +1116,7 @@ impl Faraday {
 
     /// The key's silent payments wallet into the session's wallets: the
     /// two public keys, the key's origin and the labels handed out.
-    /// Costs two key derivations per loaded key with the wallet's
-    /// fingerprint. Session wallet `i`'s BIP-392 descriptor,
+    /// Costs what [`check_record`] costs. Session wallet `i`'s BIP-392 descriptor,
     /// `sp([fp/352h/coinh/accounth]spscan1q…)`, offered through the secret
     /// sheet, from the loaded key whose scan and spend keys are the
     /// record's at its account; a toast where no such key is loaded.

@@ -1192,9 +1192,8 @@ pub(crate) fn silent_record_held_on(r: &impl Reads, fp: [u8; 4]) -> bool {
 /// Whether the address the Silent payments page shows waits for its key's
 /// backup: the key of the wallet it is the page of, or the key it is
 /// open on, is made here (held as `held_keys` says) and loaded. Either
-/// one holds it: a record of another fingerprint added first answers to
-/// the same address (`same_wallet`), and must not unhold the page of the
-/// key made here. The one decision of [`receive_held_on`], for the page, its
+/// one holds it: a record of another fingerprint over the same address
+/// must not unhold the page of the key made here. The one decision of [`receive_held_on`], for the page, its
 /// codes and its DNS record. Read through `r` ([`Reads`]).
 pub(crate) fn silent_held_on(r: &impl Reads) -> bool {
     let app = r.app();

@@ -1353,3 +1353,124 @@ fn a_keys_address_under_another_fingerprint_stays_hidden_while_its_backup_waits_
     assert!(!text.contains(&crafted.address()[..16]), "{text}");
     assert!(!text.contains("Show as QR"), "{text}");
 }
+
+#[test]
+fn a_wallets_page_with_another_loaded_key_pressed_still_checks_its_own_record() {
+    let honest = record_of(0, 0, None);
+    let mut app = with_key();
+    files(&mut app, &[("silent-1.txt", honest.to_text().into_bytes())]);
+    faraday_core::testkit::load_wallet(&mut app, 0);
+    let y = add_other_key(&mut app);
+    let at = app
+        .session
+        .wallets
+        .iter()
+        .position(|w| w.policy().silent() == Some(&honest))
+        .expect("the record is a session wallet");
+    app.press(Action::SWallet(at));
+    app.press(Action::SStep(faraday_core::silent::sstep::KEY));
+    app.press(Action::SKey(y));
+    let text = drawn(&mut app);
+    assert!(!text.contains("Not checked"), "{text}");
+    assert!(!text.contains("Its key is not loaded"), "{text}");
+    // The key the record names is the one on show, not the one pressed.
+    let c = faraday_core::testkit::compute();
+    let honest = app.silent_wallet().unwrap().address();
+    assert_eq!(app.silent_address(&c).as_deref(), Some(honest.as_str()));
+}
+
+#[test]
+fn a_record_that_differs_under_a_key_no_longer_loaded_says_the_key_is_not_loaded() {
+    let y = {
+        let mut scratch = faraday_core::testkit::started();
+        add_other_key(&mut scratch)
+    };
+    let y_text = faraday_core::wallet::fp_text(faraday_bip::keys::Fingerprint(y)).to_string();
+    // The first test key's points under the second key's fingerprint.
+    let mut crafted = record_of(0, 0, None);
+    crafted.fingerprint = faraday_bip::keys::Fingerprint(y);
+    let mut app = faraday_core::testkit::started();
+    files(
+        &mut app,
+        &[("silent-1.txt", crafted.to_text().into_bytes())],
+    );
+    faraday_core::testkit::load_wallet(&mut app, 0);
+    add_other_key(&mut app);
+    add_key(&mut app);
+    // The key the record names goes; the key whose points it states stays.
+    app.session.keys.remove(0);
+    assert_eq!(app.session.keys.len(), 1);
+    assert_eq!(
+        app.session
+            .wallets
+            .iter()
+            .filter(|w| w.policy().silent().is_some())
+            .count(),
+        1
+    );
+    let at = app
+        .session
+        .wallets
+        .iter()
+        .position(|w| w.policy().silent().is_some())
+        .unwrap();
+    app.press(Action::SWallet(at));
+    let text = drawn(&mut app);
+    assert!(
+        text.contains(&format!("Key {y_text} is not loaded")),
+        "{text}"
+    );
+    assert!(!text.contains("does not match key"), "{text}");
+}
+
+#[test]
+fn two_records_over_one_wallets_points_are_two_rows_and_each_opens_its_own() {
+    use faraday_shell_api::{BootState, DisplayInfo, SecureHardware};
+    let crafted = under_another_fingerprint(record_of(0, 0, None));
+    let honest = record_of(0, 0, None);
+    let mut app = faraday_core::testkit::started();
+    app.event(Event::Display(DisplayInfo {
+        width: 1920,
+        height: 1200,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    files(
+        &mut app,
+        &[
+            ("silent-1.txt", crafted.to_text().into_bytes()),
+            ("silent-2.txt", honest.to_text().into_bytes()),
+        ],
+    );
+    faraday_core::testkit::load_wallet(&mut app, 0);
+    faraday_core::testkit::load_wallet(&mut app, 1);
+    assert_eq!(app.session.wallets.len(), 2, "{:?}", app.toast_text());
+    assert_eq!(
+        app.session.wallets[0].checksum(),
+        app.session.wallets[1].checksum()
+    );
+    app.press(Action::Nav(Screen::Home));
+    let _ = app.frame();
+    let own = |fp: faraday_bip::keys::Fingerprint| faraday_core::wallet::fp_text(fp).to_string();
+    for (w, record) in [(1, &honest), (0, &crafted)] {
+        let row = Action::RowOpen(faraday_core::Row::Wallet(w));
+        assert!(app.offers(row), "wallet {w}");
+        app.press(row);
+        let text = drawn(&mut app);
+        assert!(
+            text.contains(&own(record.fingerprint)),
+            "wallet {w}: {text}"
+        );
+        let other = if w == 1 { &crafted } else { &honest };
+        assert!(
+            !text.contains(&own(other.fingerprint)),
+            "wallet {w}: {text}"
+        );
+    }
+}
