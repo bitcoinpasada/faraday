@@ -199,7 +199,11 @@ fn scan_does_not_float_on_settings_or_inside_a_flow() {
         assert!(!floats_scan(&app, w, h), "Settings at {w}x{h}");
         let mut app = sized(w, h, 160);
         app.press(Action::Nav(Screen::WalletsStart));
-        tap(&mut app, Action::KeyGen(None));
+        tap(&mut app, Action::Entry(None));
+        assert_eq!(app.screen, Screen::Entry, "Add a key at {w}x{h}");
+        // The compact Add a key page keeps New key under its fold.
+        app.press(Action::KeyGen(None));
+        let _ = app.frame();
         assert_eq!(app.screen, Screen::KeyGen);
         assert!(!floats_scan(&app, w, h), "a flow at {w}x{h}");
     }
@@ -274,6 +278,7 @@ fn home_does_not_offer_add_a_key_directly() {
 fn add_a_key_from_wallets_opens_new_key_on_start() {
     let mut app = shown();
     app.press(Action::Nav(Screen::WalletsStart));
+    tap(&mut app, Action::Entry(None));
     tap(&mut app, Action::KeyGen(None));
     assert_eq!(app.screen, Screen::KeyGen);
     assert_eq!(app.sheet, None);
@@ -288,19 +293,19 @@ fn add_a_key_from_wallets_opens_new_key_on_start() {
 fn add_a_key_from_wallets_with_a_stick_in_asks_for_it_and_opens_once_it_is_pulled() {
     let mut app = home_with_stick();
     app.press(Action::Nav(Screen::WalletsStart));
-    tap(&mut app, Action::KeyGen(None));
+    tap(&mut app, Action::Entry(None));
     assert_eq!(app.sheet, Some(Sheet::Pull));
     assert_eq!(app.screen, Screen::WalletsStart);
     stick(&mut app, false);
     assert_eq!(app.sheet, None);
-    assert_eq!(app.screen, Screen::KeyGen);
+    assert_eq!(app.screen, Screen::Entry);
 }
 
 #[test]
 fn cancel_leaves_wallets_and_a_later_pull_opens_nothing() {
     let mut app = home_with_stick();
     app.press(Action::Nav(Screen::WalletsStart));
-    tap(&mut app, Action::KeyGen(None));
+    tap(&mut app, Action::Entry(None));
     tap(&mut app, Action::Cancel);
     assert_eq!(app.sheet, None);
     assert_eq!(app.screen, Screen::WalletsStart);
@@ -312,8 +317,8 @@ fn cancel_leaves_wallets_and_a_later_pull_opens_nothing() {
 fn the_wallets_tab_offers_add_a_key() {
     let mut app = shown();
     app.press(Action::Nav(Screen::WalletsStart));
-    tap(&mut app, Action::KeyGen(None));
-    assert_eq!(app.screen, Screen::KeyGen);
+    tap(&mut app, Action::Entry(None));
+    assert_eq!(app.screen, Screen::Entry);
 }
 
 #[test]

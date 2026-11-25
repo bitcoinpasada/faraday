@@ -1,7 +1,7 @@
 # The session pane
 
 **Kind:** Reference
-**Status:** Built: the component (`screens/session_pane/`) and Home's wide card (F323). The phone-size window and the Pi keep their own box (`docs/HOME.md` §4). Not built: the pane on the menu pages and in the flows (`docs/WORKSPACE.md`).
+**Status:** Built: the component (`screens/session_pane/`) and Home's wide card (F323). The phone-size window and the Pi keep their own box (`docs/HOME.md` §4). Wallets' own mode (§1: Waiting, then Keys) stands at the left of Wallets' tile and of a wallet's page on the wide layout. Not built: the pane in the flows (`docs/WORKSPACE.md`).
 
 The session pane is the one component that draws what the session holds as
 rows: the keys and wallets loaded (`app.session`), the flows in progress, the
@@ -34,6 +34,11 @@ with no rows is not drawn:
    name in full (wrapping), its passphrase mark, and the wallet that uses it
    ("Used by {wallet}", else "No wallet uses it"). A press opens the key. There
    is no All keys row and no Make a wallet button.
+
+**Wallets' mode** (wide layout): two groups, Waiting (a waiting PSBT with Sign,
+the wallet files held, the flows in progress) then Keys; the wallets are the
+page's tile, so the pane has no Wallets group, and a key in no wallet stands
+in its Keys group (`screens/session_pane/page_mode.rs`, `Mode::Wallets`).
 
 A row with a button carries no chevron: the button stands under the row's
 lines at the text's start, as the PSBT's Sign does; the button is the press, and

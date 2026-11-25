@@ -222,6 +222,13 @@ stacked under Home's card at its width and place where the tile fits above a
 `MARGIN_WIDE` margin, else the flow's pair.
 
 
+Wallets on the wide layout is a pair, never stacked: the session pane in
+Wallets' mode at the left (`docs/WORKSPACE.md` §2) and at its right the tile
+of the wallets (Wallets start), replaced by the chosen wallet's page when one
+is opened, Back returning the tile; both at the flow pair's place. The list
+pane and detail below hold for Files, Vaults and Backups, and for Wallets on
+the rail's windows.
+
 Material's canonical layouts, by what a screen shows:
 
 | Screen | Compact, Medium | Expanded and up |

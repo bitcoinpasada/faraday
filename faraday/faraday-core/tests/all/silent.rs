@@ -534,14 +534,20 @@ fn a_record_loaded_before_its_key_shows_no_address_once_the_key_says_it_is_not_i
     app.press(Action::Nav(Screen::Wallets));
     let text = drawn(&mut app);
     assert!(text.contains(&format!("does not match key {fp}")), "{text}");
-    // Its key chip and its row say so, where they said the key is here
-    // and the wallet can spend.
-    assert!(text.contains("Does not match its key"), "{text}");
+    // Its key chip says so, where it said the key is here and the wallet
+    // can spend.
     assert!(text.contains("Does not match"), "{text}");
     assert!(!text.contains("Can spend"), "{text}");
     assert!(!app.drawn_texts().iter().any(|t| t == "Here"), "{text}");
     assert!(!text.contains("Not checked"), "{text}");
     let address = bad.address();
+    assert!(!text.contains(&address[..16]), "{text}");
+    // Its row in the tile of the wallets (the tile where the list stood)
+    // says so too, and shows no address, "Can spend" or key here.
+    app.press(Action::Nav(Screen::WalletsStart));
+    let text = drawn(&mut app);
+    assert!(text.contains("Does not match its key"), "{text}");
+    assert!(!text.contains("Can spend"), "{text}");
     assert!(!text.contains(&address[..16]), "{text}");
     // Its page: no address, no labels, no scan key.
     app.press(Action::SWallet(0));

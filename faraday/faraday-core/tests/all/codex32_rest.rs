@@ -329,7 +329,9 @@ fn a_corrected_keys_line_is_on_wallets() {
     assert_eq!(app.session.keys.len(), 1);
     assert_eq!(app.session.key_marks.of(NAME_FP), Some(Mark::Corrected));
     app.press(Action::Nav(Screen::Wallets));
-    assert!(crate::common::has_part(&mut app, "Share entry corrected"));
+    // The pane's row wraps its line over two lines of text.
+    let seen = crate::common::texts(&mut app).join(" ");
+    assert!(seen.contains("Share entry corrected"), "{seen}");
 }
 
 /// §8.4: New key's Key card shows the mark's line beside the fingerprint
@@ -353,7 +355,11 @@ fn a_corrected_key_card_has_the_marks_line_and_unlocked_leaves_none() {
     add(&mut app, SHARE_C);
     assert_eq!(app.keygen().unwrap().open, Some(kstep::KEY));
     crate::common::through_fade(&mut app);
-    assert!(crate::common::has_part(&mut app, "Share entry corrected"));
+    let seen = crate::common::texts(&mut app);
+    assert!(
+        crate::common::has_part(&mut app, "Share entry corrected"),
+        "{seen:?}"
+    );
     assert_eq!(app.session.key_marks.of(NAME_FP), None, "not locked");
     app.press(Action::Nav(Screen::Wallets));
     assert!(!crate::common::has_part(&mut app, "Share entry corrected"));

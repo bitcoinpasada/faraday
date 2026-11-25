@@ -166,6 +166,18 @@ impl ListPane {
         self.y += list_item(ui, (self.x, self.y, self.w), it, chosen);
     }
 
+    /// A list item as [`ListPane::item`] with a chevron at its end: it
+    /// opens a page.
+    pub(crate) fn item_opens(&mut self, ui: &mut Ui, it: &Item) {
+        let item = ListItem {
+            headline: it.headline,
+            supporting: it.supporting,
+            trailing: it.trailing,
+            action: it.action,
+        };
+        self.y += ui.list_item_opens((self.x, self.y, self.w), &item);
+    }
+
     /// Ends the pane: its clip goes, and its scroll is said, as far as
     /// what was drawn in it goes.
     pub(crate) fn end(self, ui: &mut Ui) {

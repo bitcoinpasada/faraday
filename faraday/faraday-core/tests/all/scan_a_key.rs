@@ -340,13 +340,19 @@ fn with_a_stick_attached_scan_a_key_asks_for_it_to_be_pulled() {
 #[test]
 fn the_wallets_column_offers_scan_a_key_for_the_wallet_while_it_is_short() {
     let (mut app, w) = savings_only();
-    let text = drawn(&mut app);
-    assert!(text.contains("Scan a key for Savings"), "{text}");
+    // On the pair the wallet's page stands in the tile's place
+    // (`docs/WORKSPACE.md` §2) and offers Scan a key for each slot still
+    // empty; the tile lists the wallets and ends in Add a key.
+    app.press(Action::OpenWallet(w));
+    let _ = app.frame();
+    assert!(app.offers(Action::ScanKey(w)), "the wallet's Scan a key");
     app.press(Action::ScanKey(w));
     scan_seedqr(&mut app, &testkit::test_words("bacon"));
     scan_seedqr(&mut app, &testkit::test_words("zebra"));
-    let text = drawn(&mut app);
-    assert!(!text.contains("Scan a key for Savings"), "{text}");
+    let _ = app.frame();
+    assert!(!app.offers(Action::ScanKey(w)), "the wallet is whole");
+    app.press(Action::Nav(Screen::WalletsStart));
+    let _ = app.frame();
     assert!(app.offers(Action::Entry(None)), "Add a key");
 }
 

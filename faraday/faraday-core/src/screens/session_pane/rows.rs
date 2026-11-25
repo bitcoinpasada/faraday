@@ -144,6 +144,12 @@ pub(super) fn key_rows(app: &View) -> Vec<SessionRow> {
                 sub.push_str(EN.home_key_passphrase);
                 sub.push_str(" · ");
             }
+            // A key that went in by a codex32 correction says so
+            // (`docs/CODEX32.md` §8.4).
+            if let Some(mark) = session.key_marks.of(k.fingerprint.0) {
+                sub.push_str(mark.fingerprint_line());
+                sub.push_str(" · ");
+            }
             let user = session.wallets.iter().find(|w| {
                 session
                     .slots(w)

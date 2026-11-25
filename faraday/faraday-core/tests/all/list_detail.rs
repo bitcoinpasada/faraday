@@ -117,42 +117,43 @@ fn nothing_chosen_backups_shows_the_first_wallet_beside_the_list() {
     );
 }
 
-#[test]
-fn choosing_a_wallet_at_1920_shows_its_page_beside_the_list() {
-    let mut app = with_wallets(1920, 1080, 160);
-    app.press(Action::Nav(Screen::Wallets));
-    let right = item_right(&mut app, Action::PickWallet(2));
-    app.press(Action::PickWallet(2));
-    assert_eq!(app.screen, Screen::Wallets, "the list stays on screen");
+/// Wallets is the pair on the pane container (`docs/WORKSPACE.md` §2, §4):
+/// a wallet opened from the tile has its page in the tile's place, the tile
+/// returning with Back; the session pane stays at the left.
+fn the_wallets_page_takes_the_tiles_place(width: u16, height: u16) {
+    let mut app = with_wallets(width, height, 160);
+    app.press(Action::Nav(Screen::WalletsStart));
+    let left = item_left(&mut app, Action::OpenWallet(2));
+    app.press(Action::OpenWallet(2));
+    let _ = app.frame();
+    assert_eq!(app.screen, Screen::Wallets);
+    let (rx, ..) = app.hit_box(Action::Rename).expect("the wallet's Rename");
+    assert!(i32::from(rx) >= left, "the page stands in the tile's place");
+    assert!(
+        app.hit_box(Action::OpenWallet(0)).is_none(),
+        "the tile's list gives way to the page"
+    );
     let third = app.session.wallets[2].name.as_str().to_string();
-    let first = app.session.wallets[0].name.as_str().to_string();
     assert!(
-        boxes(&mut app, &third).iter().any(|b| b.0 > right),
-        "{third}'s page beside the list"
+        boxes(&mut app, &third).iter().any(|b| b.0 >= left),
+        "{third}'s page"
     );
+    app.press(Action::Nav(Screen::WalletsStart));
+    let _ = app.frame();
     assert!(
-        boxes(&mut app, &first).iter().all(|b| b.0 < right),
-        "{first} only in the list now"
-    );
-    assert!(
-        app.hit_box(Action::PickWallet(0)).is_some(),
-        "the list stays"
+        app.hit_box(Action::OpenWallet(0)).is_some(),
+        "Back returns the tile"
     );
 }
 
 #[test]
-fn at_1280_the_chosen_wallet_stands_beside_the_list() {
-    let mut app = with_wallets(1280, 800, 160);
-    app.press(Action::Nav(Screen::Wallets));
-    let right = item_right(&mut app, Action::PickWallet(1));
-    app.press(Action::PickWallet(1));
-    let _ = app.frame();
-    let (rx, ..) = app.hit_box(Action::Rename).expect("the wallet's Rename");
-    assert!(i32::from(rx) > right, "the wallet's page beside the list");
-    assert!(
-        app.hit_box(Action::PickWallet(0)).is_some(),
-        "the list stays"
-    );
+fn choosing_a_wallet_at_1920_shows_its_page_in_the_tiles_place() {
+    the_wallets_page_takes_the_tiles_place(1920, 1080);
+}
+
+#[test]
+fn at_1280_the_chosen_wallet_takes_the_tiles_place() {
+    the_wallets_page_takes_the_tiles_place(1280, 800);
 }
 
 #[test]

@@ -15,7 +15,7 @@ use faraday_ui::parts::wrap_buttons;
 
 /// The five ways in: Create, Load or restore, Spend from a backup, Add a
 /// key and Make a new key.
-fn ways() -> [(Icon, &'static str, &'static str, Action); 5] {
+pub(super) fn ways() -> [(Icon, &'static str, &'static str, Action); 5] {
     [
         (
             Icon::Flag,
@@ -142,6 +142,13 @@ fn unlock_line(app: &View, ui: &mut Ui, (x, y): (f32, f32), width: f32) -> f32 {
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use super::menu_page::{self, Page, Section};
     let compact = ui.compact;
+    // On the wide layout: the pane and the tile of the wallets.
+    if !compact {
+        super::bar_head(ui, None, EN.start_wallets);
+        if super::wallets_pair::draw_start(app, ui, (x0, cw, h)) {
+            return;
+        }
+    }
     // No wallet and no vault yet: the ways in are the page.
     let empty = app.session.wallets.is_empty()
         && app.vaults.open.is_empty()

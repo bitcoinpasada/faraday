@@ -126,8 +126,8 @@ fn a_theme_chosen_in_the_demo_is_the_starters_and_stays_after_leaving_it() {
     assert_eq!(s.demo().expect("open").app.theme(), dark);
 }
 
-/// Wallets with none loaded in the Demo on a big monitor: the page's
-/// column is centred in the room beside the rail (`docs/LAYOUT.md` §15).
+/// Wallets with none loaded in the Demo on a big monitor: the page (the
+/// pair, or the one column on a narrower window) is centred in the room beside the rail (`docs/LAYOUT.md` §15).
 #[test]
 fn the_demos_wallets_page_is_centred_in_the_room_beside_its_rail() {
     let mut off = Vec::new();
@@ -146,27 +146,45 @@ fn the_demos_wallets_page_is_centred_in_the_room_beside_its_rail() {
                 .press(Action::Nav(Screen::WalletsStart));
             let _ = s.frame();
             let f = f32::from(dpi) / 160.0;
+            let wide = (w as f32 / f) >= 1360.0;
+            // Wide, the page is the pair: the session pane and the tile of
+            // the wallets under its heading, which stands at the tile's
+            // left (the rightmost "Wallets" drawn: the rail's is at the
+            // left); narrower, the one-column page under its section's label.
+            let shown = if wide { "Wallets" } else { "Your wallets" };
             let label = s
                 .demo()
                 .expect("open")
                 .app
                 .drawn_text_boxes()
                 .into_iter()
-                .filter(|(t, r)| t == "Your wallets" && r.0 > 0)
+                .filter(|(t, r)| t == shown && r.0 > 0)
                 .map(|(_, r)| r)
-                .next()
-                .expect("the section's label");
-            // Beside the 240 dp rail the wide layout's page is the menu
-            // page, its label at the page's left edge; on a window under
-            // 1360 dp the one-column layout has an 80 dp rail and a column
-            // at most 720 wide between two 12 dp insets. What a person
-            // sees: the gap left of the column from the rail and the gap
-            // right of it to the window's edge are the same.
-            let (rail, inset, col_max) = if (w as f32 / f) < 1360.0 {
-                (80.0f32, 12.0f32, 720.0f32)
-            } else {
-                (240.0, 0.0, faraday_draw::tokens::MENU_PAGE_W)
-            };
+                .max_by_key(|r| r.0)
+                .expect("the page's first text");
+            if wide {
+                // What a person sees: the pair stands in the middle of the
+                // room beside the rail, the gap at its left the same as at
+                // its right. The heading is one tile padding and one list
+                // padding inside the tile.
+                use faraday_draw::tokens::{
+                    CHOICES_PANE_MIN, COLUMN_MAX, FLOW_CARD_MIN, LIST_PAD, LIST_PANE, MARGIN_WIDE,
+                    PAD, SPACER,
+                };
+                let room_w = (w as f32 / f - 240.0).max(0.0);
+                let avail = room_w - 2.0 * MARGIN_WIDE;
+                let card = (avail - SPACER - LIST_PANE).clamp(FLOW_CARD_MIN, COLUMN_MAX);
+                let pane = (avail - SPACER - card).clamp(CHOICES_PANE_MIN, LIST_PANE);
+                let left = label.0 as f32 / f - 240.0 - PAD - LIST_PAD - pane - SPACER;
+                let right = room_w - left - (pane + SPACER + card);
+                if (left - right).abs() > 4.0 {
+                    off.push(format!(
+                        "{w}x{h}@{dpi}: left {left:.0} dp, right {right:.0} dp"
+                    ));
+                }
+                continue;
+            }
+            let (rail, inset, col_max) = (80.0f32, 12.0f32, 720.0f32);
             let room_w = (w as f32 / f - rail).max(0.0);
             let col = col_max.min(room_w);
             let left = label.0 as f32 / f - inset - rail;

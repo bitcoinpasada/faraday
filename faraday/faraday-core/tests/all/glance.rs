@@ -347,7 +347,7 @@ fn at_1280_the_wallet_card_beside_a_places_sheet_takes_the_room_left_whole() {
     let sheet = 1280 - 400;
     assert!(
         app.hit_box(Action::PickWallet(w)).is_none(),
-        "the list gives the card its room while the sheet is open"
+        "no list stands beside the card while the sheet is open"
     );
     let (rx, ry, rw, rh) = app.hit_box(Action::Rename).expect("the card's Rename");
     let rename = (i32::from(rx), i32::from(ry), i32::from(rw), i32::from(rh));
@@ -368,25 +368,25 @@ fn at_1280_the_wallet_card_beside_a_places_sheet_takes_the_room_left_whole() {
         can.iter().all(|&c| sigs.iter().all(|&s| apart(c, s))),
         "Can spend clear of the line beside it: {can:?} {sigs:?}"
     );
-    // Closed, the list stands beside the card again.
+    // Closed, the wallet's page stands in the tile's place whole again
+    // (the list of wallets is the tile's, behind Back).
     app.press(Action::Cancel);
     crate::common::a_moment(&mut app);
     let _ = app.frame();
-    assert!(
-        app.hit_box(Action::PickWallet(w)).is_some(),
-        "the list back"
-    );
+    assert!(app.hit_box(Action::Rename).is_some(), "the card stays");
+    assert!(app.hit_box(Action::PickWallet(w)).is_none());
 }
 
 #[test]
-fn at_1920_the_list_stays_beside_the_wallet_card_and_a_places_sheet() {
+fn at_1920_the_wallets_page_stands_left_of_a_places_sheet() {
     let mut app = device(1920, 1080, 160);
     let w = one_key(&mut app);
     planned(&mut app, w, 2);
     app.press(Action::OpenWallet(w));
     open(&mut app, Press::Loaded(w), Target::Node(0));
     let _ = app.frame();
-    assert!(app.hit_box(Action::PickWallet(w)).is_some(), "the list");
+    // The wallet's page is in the tile's place; no list stands beside it.
+    assert!(app.hit_box(Action::PickWallet(w)).is_none());
     let (rx, _, rw, _) = app.hit_box(Action::Rename).expect("the card's Rename");
     assert!(i32::from(rx) + i32::from(rw) <= 1920 - 400);
 }

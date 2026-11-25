@@ -35,6 +35,7 @@ mod spend;
 pub(crate) mod visit;
 mod visit_same;
 mod wallets;
+mod wallets_pair;
 mod wallets_start;
 
 use crate::drawing::View;
@@ -195,9 +196,14 @@ fn page_area(app: &crate::Faraday, screen: Screen, room: f32) -> (f32, f32) {
     // (`docs/FLOW-CONTAINER.md` §4).
     let area = if app.unit_on_show() {
         Area::Work
-    } else if matches!(screen, Screen::Catalog | Screen::Check) && !app.is_compact() {
+    } else if matches!(
+        screen,
+        Screen::Catalog | Screen::Check | Screen::WalletsStart
+    ) && !app.is_compact()
+    {
         // Tools and Check place their own column, or the pair at the flow's
-        // place (`screens::hub_layout`).
+        // place (`screens::hub_layout`); Wallets start is the pair
+        // (`screens::wallets_pair`).
         Area::Work
     } else if screen == Screen::CheckAddress && crate::address_check::pane::place_in(app, room) {
         // The scanner's pane and the card are a pair at the flow's place.

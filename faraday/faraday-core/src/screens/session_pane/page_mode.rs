@@ -22,6 +22,9 @@ pub(crate) enum Mode {
     Tools,
     /// Check: the files first.
     Check,
+    /// Wallets: what waits (a PSBT with Sign, wallet files, flows in
+    /// progress), then the keys. The wallets are the page's tile.
+    Wallets,
 }
 
 /// The PSBTs waiting to be signed as rows with Sign, fewest signatures
@@ -43,7 +46,7 @@ fn psbt_rows(app: &View) -> Vec<SessionRow> {
 /// The files held that a tool takes, a PSBT or a transaction first, then a
 /// wallet or setup file, then the rest; a vault file is a vault's, not
 /// listed. A PSBT is in `psbt_rows`, not here.
-fn file_rows(app: &View) -> Vec<SessionRow> {
+fn file_rows(app: &View, keep: impl Fn(&crate::Item) -> bool) -> Vec<SessionRow> {
     let buttons = app.inbox_buttons();
     let mut held: Vec<(u8, usize, &crate::Item)> = app
         .inbox
@@ -51,6 +54,7 @@ fn file_rows(app: &View) -> Vec<SessionRow> {
         .enumerate()
         .filter(|(_, it)| it.facts.is_none())
         .filter(|(_, it)| it.psbt().is_none())
+        .filter(|(_, it)| keep(it))
         .map(|(k, it)| {
             let rank = if it.unsigned_txid.is_some() {
                 0
@@ -87,10 +91,13 @@ fn file_rows(app: &View) -> Vec<SessionRow> {
 /// The pane's groups for `mode`, in the page's order (WORKSPACE.md §2's
 /// table); a group with no rows is left out.
 pub(crate) fn groups(app: &View, mode: Mode) -> Vec<Group> {
+    if mode == Mode::Wallets {
+        return wallets_groups(app);
+    }
     let psbts = psbt_rows(app);
     let waiting = !psbts.is_empty();
     let mut files = psbts;
-    files.extend(file_rows(app));
+    files.extend(file_rows(app, |_| true));
     let wallets: Vec<SessionRow> = wallet_rows(app)
         .into_iter()
         .filter(|r| r.action != Action::Nav(Screen::Backups))
@@ -99,6 +106,7 @@ pub(crate) fn groups(app: &View, mode: Mode) -> Vec<Group> {
     let order = match (mode, waiting) {
         (Mode::Tools, true) => [Slotted::Files, Slotted::Keys, Slotted::Wallets],
         (Mode::Tools, false) => [Slotted::Keys, Slotted::Files, Slotted::Wallets],
+        (Mode::Wallets, _) => unreachable!("Wallets' groups are `wallets_groups`"),
         (Mode::Check, _) => [Slotted::Files, Slotted::Wallets, Slotted::Keys],
     };
     let mut files = Some(files);
@@ -116,6 +124,31 @@ pub(crate) fn groups(app: &View, mode: Mode) -> Vec<Group> {
         .filter(|(_, rows)| !rows.is_empty())
         .map(|(label, rows)| Group { label, rows })
         .collect()
+}
+
+/// Wallets' groups: Waiting (a waiting PSBT with Sign, the wallet files
+/// held, the flows in progress), then Keys; the wallets are the tile's.
+fn wallets_groups(app: &View) -> Vec<Group> {
+    let mut waiting = psbt_rows(app);
+    let signing = waiting_spend(&waiting);
+    waiting.extend(file_rows(app, |it| it.wallet().is_some()));
+    waiting.extend(progress_rows(app, |g| {
+        signing && g == crate::in_progress::Going::Spend
+    }));
+    [
+        (EN.session_group_waiting, waiting),
+        (EN.session_group_keys, key_rows(app)),
+    ]
+    .into_iter()
+    .filter(|(_, rows)| !rows.is_empty())
+    .map(|(label, rows)| Group { label, rows })
+    .collect()
+}
+
+/// Whether a row of `rows` is a PSBT's Sign, which names the spend flow.
+fn waiting_spend(rows: &[SessionRow]) -> bool {
+    rows.iter()
+        .any(|r| matches!(r.action, Action::StartSpend(_)))
 }
 
 /// A group's place in a page's order.

@@ -12,13 +12,15 @@ The first page of Wallets shows the wallets that are loaded and every way to bri
 
 **Key:** wallets-start.wallets
 
-Wallets are listed with the ones this computer can spend from first, each with its shape and a marker: **Can spend · 2 of 3** (the numbers vary), **1 of 3 here** for keys present but short of the quorum, **Watch only**, **Does not match its key**, or **2 of 3 here · another key can spend** where a key outside the quorum can also spend. With none loaded the list reads **None loaded**. The wide page shows four, then **+ 2 more** (the number varies), which opens the next wallet.
+Wallets are listed with the ones this computer can spend from first, each with its shape and a marker: **Can spend · 2 of 3** (the numbers vary), **1 of 3 here** for keys present but short of the quorum, **Watch only**, **Does not match its key**, or **2 of 3 here · another key can spend** where a key outside the quorum can also spend. With none loaded the list reads **None loaded**.
 
 ## Ways in
 
 **Key:** wallets-start.ways
 
-With no wallet, no open vault and nothing unfinished, five choices stand side by side: **Make a new wallet** (**Single key or multisig**), **Restore an existing wallet** (**From its backups**), **Spend from a backup, step by step** (**A stick, words, or paper**), **Add a key** (**Keys first, wallets later**, opening the page that takes a key held) and **Make a new key** (**A new key from randomness**). Otherwise **Make a new wallet** and **Restore an existing wallet** stay, beside **Spend from a backup, step by step**, **Add a key** and **Make a new key**.
+With no wallet, no open vault and nothing unfinished, five choices stand side by side: **Make a new wallet** (**Single key or multisig**), **Restore an existing wallet** (**From its backups**), **Spend from a backup, step by step** (**A stick, words, or paper**), **Add a key** (**Keys first, wallets later**, opening the page that takes a key held) and **Make a new key** (**A new key from randomness**). Otherwise the same five stay.
+
+On a wide window these four stand as plain rows in the tile under the wallets, in that order; Make a new key is on the Add a key page.
 
 The first locked vault in Files is named by its file name, with a note that it is locked, and **Unlock** opens it.
 

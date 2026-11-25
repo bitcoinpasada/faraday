@@ -248,13 +248,13 @@ fn a_key_reads_the_same_fingerprint_on_the_wallets_page_on_either_network() {
         .unwrap();
     faraday_core::testkit::keep_published(&mut app);
     app.press(Action::Nav(Screen::Wallets));
-    assert!(crate::common::has(&mut app, "5c9e228d · Seed"));
+    assert!(crate::common::has(&mut app, "5c9e228d"));
 
     testkit::move_to(&mut app.session, Network::Testnet).unwrap();
     app.press(Action::Nav(Screen::Wallets));
-    assert!(crate::common::has(&mut app, "5c9e228d · Seed"));
+    assert!(crate::common::has(&mut app, "5c9e228d"));
 
     testkit::move_to(&mut app.session, Network::Mainnet).unwrap();
     app.press(Action::Nav(Screen::Wallets));
-    assert!(crate::common::has(&mut app, "5c9e228d · Seed"));
+    assert!(crate::common::has(&mut app, "5c9e228d"));
 }

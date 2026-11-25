@@ -338,13 +338,50 @@ mod tests {
             DESKTOP,
             &[
                 "Wallets Card",
-                "Wallets ListPane",
                 "Vault contents VaultItem",
                 "Backup board Page",
                 "GPG key flow Page",
                 "Spend Page",
                 "Backup reopened Page",
             ],
+        );
+    }
+
+    /// The pair's tile of the wallets on a window so short that its list runs
+    /// past the tile, and a scroll step shows what a
+    /// whole frame shows.
+    #[test]
+    fn the_wallets_tile_scrolls_with_moved_frames_that_show_what_a_whole_frame_shows() {
+        let (mut app, _) = heavy_on(Panel {
+            width: 1366,
+            height: 600,
+            dpi: 160,
+        });
+        // The same wallets again under other names, until the list runs
+        // past the tile.
+        let c = testkit::compute();
+        for n in 0..8 {
+            for kit in testkit::kits() {
+                let _ = app.session.add_wallet_confirmed(
+                    &c,
+                    &format!("{} {n}", kit.name),
+                    &kit.descriptor,
+                    "test",
+                    crate::wallet::Origin::Named,
+                );
+            }
+        }
+        app.press(crate::Action::Nav(crate::Screen::WalletsStart));
+        app.settle();
+        let _ = app.frame();
+        let taken = scrolls(&mut app, "Wallets tile");
+        assert!(
+            taken.iter().any(|(n, _)| n == "Wallets tile ListPane"),
+            "the tile's list takes moved frames: {taken:?} {:?} {:?}",
+            app.regions()
+                .map(|e| (e.slot, e.view, e.max))
+                .collect::<Vec<_>>(),
+            app.screen
         );
     }
 

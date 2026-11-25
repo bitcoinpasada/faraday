@@ -1754,13 +1754,19 @@ fn typed(app: &mut Faraday, text: &str) {
     }
 }
 
-/// Add a key pressed on the Wallets page.
+/// Add a key pressed on the Wallets page, then its New key.
 fn add_a_key() -> Faraday {
     let mut app = faraday_core::testkit::started();
     tall(&mut app);
     app.press(Action::Nav(Screen::WalletsStart));
     let _ = app.frame();
-    assert!(app.offers(Action::KeyGen(None)), "Wallets offers Add a key");
+    assert!(app.offers(Action::Entry(None)), "Wallets offers Add a key");
+    app.press(Action::Entry(None));
+    let _ = app.frame();
+    assert!(
+        app.offers(Action::KeyGen(None)),
+        "Add a key offers a new key"
+    );
     app.press(Action::KeyGen(None));
     app
 }

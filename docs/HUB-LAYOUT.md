@@ -1,7 +1,7 @@
 # The pane container
 
 **Kind:** Reference
-**Status:** Built (F322): the container (`screens/hub_layout/`); Tools, Check, a typed search's results, the step flows, Explore's and Lightning's keys, and Files are placed by it, and it says how long a change of page takes. Not on it yet: `docs/WORKSPACE.md` §14.
+**Status:** Built (F322): the container (`screens/hub_layout/`); Tools, Check, a typed search's results, the step flows, Explore's and Lightning's keys, Files and Wallets' pair are placed by it, and it says how long a change of page takes. Not on it yet: `docs/WORKSPACE.md` §14.
 
 Every page is made of panes (F322). One piece of code says where they stand,
 so a page or a flow declares its panes and never works out a place itself. The
@@ -33,6 +33,7 @@ Its name is the page's own (`menu_page::Page::name`, a flow's heading).
 | Explore (`explore/pane.rs`) | `Own` | `Card` | no | `OneColumn` |
 | Lightning (`lightning/pane.rs`) | `Own` | `Card` | no | `OneColumn` |
 | Files (`screens/visit.rs`) | `Own`: In Faraday | `Equal`: the stick | no | `OneColumn`: a small panel's tabs, and a room under the pair's least keeps the two columns it had |
+| Wallets and a wallet's page (`screens/wallets_pair.rs`) | `Session`: Wallets' mode | `Card` | no | `OneColumn` |
 
 ## 2. What it answers
 

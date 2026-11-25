@@ -1772,6 +1772,16 @@ pub fn card_to_text(app: &mut Faraday, want: &str) {
     card_to(app, |a| a.drawn_texts().iter().any(|t| t == want));
 }
 
+/// The wallet card scrolled until a text drawn starts with one of
+/// `starts`.
+pub fn card_to_text_starting(app: &mut Faraday, starts: &[&str]) {
+    card_to(app, |a| {
+        a.drawn_texts()
+            .iter()
+            .any(|t| starts.iter().any(|s| t.starts_with(s)))
+    });
+}
+
 /// The wallet card scrolled until `a` is offered.
 pub fn card_to_action(app: &mut Faraday, a: Action) {
     card_to(app, |f| f.offers(a));

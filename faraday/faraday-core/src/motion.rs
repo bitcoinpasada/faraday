@@ -768,7 +768,10 @@ impl Scroll {
             ui::Slot::VisitIn if screen == Screen::Files && sheet_none => ui::Slot::VisitIn,
             ui::Slot::Card if screen == Screen::Wallets && reach => ui::Slot::Card,
             ui::Slot::VaultItem if screen == Screen::VaultContents && reach => ui::Slot::VaultItem,
-            ui::Slot::ListPane if crate::panes::has_list(screen) && sheet_none => {
+            ui::Slot::ListPane
+                if (crate::panes::has_list(screen) || screen == Screen::WalletsStart)
+                    && sheet_none =>
+            {
                 ui::Slot::ListPane
             }
             ui::Slot::BoardList if reach && board_shown() => ui::Slot::BoardList,

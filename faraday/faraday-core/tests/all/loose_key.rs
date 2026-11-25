@@ -5,6 +5,7 @@
 //! for that seed. Add another key opens the same card at two keys. Back
 //! returns to Wallets with the key still loaded.
 
+use faraday_core::explore::XAction;
 use faraday_core::seeds::SeedsAction as S;
 use faraday_core::wallet::{Session, fp_text, key_line, needed};
 use faraday_core::{Action, Faraday, Screen};
@@ -62,6 +63,10 @@ fn add_key(app: &mut Faraday, words: &str) -> [u8; 4] {
         .expect("no key added")
 }
 
+/// On the wide pair the keys are the session pane's rows (`docs/WORKSPACE.md`
+/// §2: "the loose keys leave" the tile, and "no Make a wallet button on a
+/// key row"): a press on the row opens the key, and Explore's Make a wallet
+/// makes the BIP-84 wallet of its standard account.
 #[test]
 fn a_key_with_no_wallet_makes_the_bip84_wallet() {
     let c = faraday_core::testkit::compute();
@@ -69,15 +74,18 @@ fn a_key_with_no_wallet_makes_the_bip84_wallet() {
     let fp = add_key(&mut app, ABANDON);
     assert_eq!(app.screen, Screen::Wallets);
     assert!(app.session.wallets.is_empty());
-    let from_key = Action::KeyWallet(fp, 1);
     assert!(
-        app.offers(from_key),
-        "Wallets offers no wallet from the key"
+        app.offers(Action::ExploreKey(fp)),
+        "the pane's key row opens no key"
     );
 
-    app.press(from_key);
-    assert_eq!(app.screen, Screen::Restore);
-    app.press(Action::Seeds(S::Make));
+    app.press(Action::ExploreKey(fp));
+    let _ = app.frame();
+    assert!(
+        app.offers(Action::X(XAction::Make)),
+        "the key's page offers no wallet from it"
+    );
+    app.press(Action::X(XAction::Make));
 
     assert_eq!(app.session.wallets.len(), 1);
     let w = &app.session.wallets[0];
@@ -109,6 +117,8 @@ fn add_another_key_opens_the_shape_at_two_keys() {
     assert_eq!(s.cosigners.len(), 1);
 }
 
+/// The seeds card (a phone-size window's Make a wallet from this key) goes
+/// back to Wallets with the key still loaded and in the pane's rows.
 #[test]
 fn back_from_the_seeds_card_returns_to_wallets_with_the_key() {
     let mut app = desktop();
@@ -121,7 +131,7 @@ fn back_from_the_seeds_card_returns_to_wallets_with_the_key() {
     let _ = app.frame();
     assert_eq!(app.screen, Screen::Wallets);
     assert!(app.session.wallets.is_empty());
-    assert!(app.offers(Action::KeyWallet(fp, 1)));
+    assert!(app.offers(Action::ExploreKey(fp)));
 }
 
 #[test]
@@ -134,7 +144,7 @@ fn a_key_with_no_label_is_named_by_its_fingerprint_once() {
 }
 
 #[test]
-fn with_a_wallet_loaded_the_loose_keys_row_offers_a_wallet() {
+fn with_a_wallet_loaded_a_loose_key_is_a_row_of_the_pane() {
     let mut app = desktop();
     let first = add_key(&mut app, ABANDON);
     app.press(Action::KeyWallet(first, 1));
@@ -142,20 +152,28 @@ fn with_a_wallet_loaded_the_loose_keys_row_offers_a_wallet() {
     app.press(Action::Nav(Screen::Wallets));
     let second = add_key(&mut app, &faraday_core::testkit::test_words("zebra"));
     assert_eq!(app.screen, Screen::Wallets);
-    assert!(app.offers(Action::KeyWallet(second, 1)));
-    assert!(!app.offers(Action::KeyWallet(first, 1)));
+    // Both keys are rows of the pane; the second says no wallet uses it.
+    assert!(app.offers(Action::ExploreKey(second)));
+    assert!(app.offers(Action::ExploreKey(first)));
+    assert!(crate::common::has_part(&mut app, "No wallet uses it"));
 }
 
+/// Each key is a row of the pane, each opening its own key.
 #[test]
-fn several_loose_keys_offer_the_one_picked() {
+fn several_loose_keys_are_each_a_row_that_opens_it() {
     let mut app = desktop();
     let a = add_key(&mut app, ABANDON);
     let b = add_key(&mut app, &faraday_core::testkit::test_words("zebra"));
-    assert!(app.offers(Action::KeyWallet(a, 1)));
-    app.press(Action::PickKey(b));
+    assert!(app.offers(Action::ExploreKey(a)));
+    assert!(app.offers(Action::ExploreKey(b)));
+    app.press(Action::ExploreKey(b));
     let _ = app.frame();
-    assert!(app.offers(Action::KeyWallet(b, 1)));
-    assert!(!app.offers(Action::KeyWallet(a, 1)));
+    assert!(app.offers(Action::X(XAction::Make)));
+    app.press(Action::X(XAction::Make));
+    assert_eq!(app.session.wallets.len(), 1);
+    let w = &app.session.wallets[0];
+    let held = app.session.slots(w)[0].fingerprint.map(|f| f.0);
+    assert_eq!(held, Some(b));
 }
 
 #[test]

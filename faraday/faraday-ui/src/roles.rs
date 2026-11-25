@@ -14,10 +14,11 @@ use crate::{Shape, Ui, W};
 use faraday_draw::text;
 use faraday_draw::tokens::{
     BODY_L, BODY_M, BODY_S, BUTTON_PAD_V, DISABLED_CONTAINER, FIELD_EDGE, FIELD_EDGE_ACTIVE,
-    FIELD_GAP, FIELD_H, FIELD_PAD, FIELD_PAD_V, FIELD_RADIUS, GAP, LABEL_L, LABEL_S, LIST_1,
-    LIST_2, LIST_3, LIST_3_TOP, LIST_PAD, LIST_PAD_V, SHAPE_L, TEXT_FIT_STEP_PCT, TypeFace,
-    TypeRole,
+    FIELD_GAP, FIELD_H, FIELD_PAD, FIELD_PAD_V, FIELD_RADIUS, GAP, GAP_SMALL, ICON_SMALL, LABEL_L,
+    LABEL_S, LIST_1, LIST_2, LIST_3, LIST_3_TOP, LIST_PAD, LIST_PAD_V, SHAPE_L, TEXT_FIT_STEP_PCT,
+    TypeFace, TypeRole,
 };
+use faraday_draw::widgets::Icon;
 use faraday_text::Text;
 
 impl From<TypeFace> for W {
@@ -874,7 +875,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// ellipsis); `chosen` in Material's selected state (secondary
     /// container). The whole item takes its press. Returns its height.
     pub fn list_item(&mut self, at: (f32, f32, f32), it: &ListItem<'_, A>, chosen: bool) -> f32 {
-        self.list_item_as(at, it, chosen, true, false)
+        self.list_item_as(at, it, chosen, true, false, false)
     }
 
     /// A list item as [`Ui::list_item`] draws it whose headline is an
@@ -887,19 +888,26 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         it: &ListItem<'_, A>,
         chosen: bool,
     ) -> f32 {
-        self.list_item_as(at, it, chosen, true, true)
+        self.list_item_as(at, it, chosen, true, true, false)
     }
 
     /// [`Ui::list_item_whole`] that takes no press.
     pub fn list_item_whole_still(&mut self, at: (f32, f32, f32), it: &ListItem<'_, A>) -> f32 {
-        self.list_item_as(at, it, false, false, true)
+        self.list_item_as(at, it, false, false, true, false)
+    }
+
+    /// A list item as [`Ui::list_item`] draws it with a chevron at its end,
+    /// which says the item opens a page; its trailing text stands before
+    /// the chevron. Returns its height.
+    pub fn list_item_opens(&mut self, at: (f32, f32, f32), it: &ListItem<'_, A>) -> f32 {
+        self.list_item_as(at, it, false, true, false, true)
     }
 
     /// A list item as [`Ui::list_item`] draws it that takes no press: a
     /// row that only states what is there (Material 3 Lists, a
     /// non-interactive item). Its `action` is not used. Returns its height.
     pub fn list_item_still(&mut self, at: (f32, f32, f32), it: &ListItem<'_, A>) -> f32 {
-        self.list_item_as(at, it, false, false, false)
+        self.list_item_as(at, it, false, false, false, false)
     }
 
     fn list_item_as(
@@ -909,7 +917,16 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         chosen: bool,
         pressed: bool,
         whole: bool,
+        chevron: bool,
     ) -> f32 {
+        // The chevron takes room at the item's end: the text lays out in
+        // what it leaves, the press covers all.
+        let full = w;
+        let w = if chevron {
+            w - ICON_SMALL - GAP_SMALL
+        } else {
+            w
+        };
         let lines = self.list_lines(w, it);
         let h = self.list_item_height(w, it, whole);
         if !self.shows(y, h) {
@@ -920,7 +937,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         }
         let ink = on_selected(chosen, Role::OnSurface);
         if pressed {
-            self.press(Shape::new(x, y, w, h, SHAPE_L), ink, it.action);
+            self.press(Shape::new(x, y, full, h, SHAPE_L), ink, it.action);
         }
         let (line, sup) = (self.head_line(whole), self.line_as(BODY_M));
         let head_lines = self.list_head_lines(w, it, whole);
@@ -959,6 +976,11 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         if lines == 3 {
             let rest = self.fit_as(BODY_M, rest.trim_start(), inner);
             self.text_mid_as((tx, top + head + sup, sup), BODY_M, muted, &rest);
+        }
+        if chevron {
+            let size = ICON_SMALL;
+            let at = (x + full - LIST_PAD - size, y + (h - size) / 2.0);
+            self.icon(at.0, at.1, size, Icon::ChevronRight, size, muted);
         }
         h
     }

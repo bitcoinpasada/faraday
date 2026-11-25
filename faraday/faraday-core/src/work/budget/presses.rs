@@ -228,6 +228,12 @@ const PRESS_BUDGETS: &[(&str, Work, u64, &str)] = &[
         "the sheet opened with a wallet loaded reads each sample wallet once, to show the one loaded ticked and dimmed (one in this test; the real data has thirteen); its frames read nothing",
     ),
     (
+        "QrWallet(",
+        Work::QrEncode,
+        1,
+        "Show wallet QR, which the wallet's page now offers on the screen beside the pane, encodes the wallet's descriptor once for the code it shows",
+    ),
+    (
         "Explore",
         Work::KeyDerive,
         2,
@@ -260,8 +266,52 @@ const SHEET_CANVAS: u64 = 5;
 
 /// What a press from Home may do of `Work::FullCanvas` (the pane glides: the
 /// copy and the blend into each of the two frames after, and one more
-/// blend of the pane between its two places on each, `docs/MOTION.md` §3.5).
+/// blend of the pane between its two places on each, `docs/MOTION.md`
+/// §3.5).
 const HOME_GLIDE_CANVAS: u64 = 5;
+
+/// The presses from Wallets (the pair, its pane at the flow pair's place)
+/// and from the Spend tab (a spend's pair, the same place) that glide the
+/// pane, as Home's do: the screen pressed on, the press's name, the screen
+/// it goes to. Read off each press's frames: the pane stood before and
+/// after, at another place on each, or at the same place on the Spend tab's
+/// own card press (below). Every other press from them keeps the budget of
+/// the base, three canvases.
+const PANE_GLIDES: &[(Screen, &str, Screen)] = &[
+    (Screen::Wallets, "Nav(Home)", Screen::Home),
+    (Screen::Wallets, "Nav(Check)", Screen::Check),
+    (Screen::Wallets, "Nav(Catalog)", Screen::Catalog),
+    // The pane of a wallet's page and the tile's now stand at one place
+    // (`wallets_pair::span`), but `Fade::page_through` blends a pane
+    // whenever both sides have one, so Back still costs the two canvases
+    // (`fade.rs`, shared code).
+    (Screen::Wallets, "Nav(WalletsStart)", Screen::WalletsStart),
+    (Screen::Wallets, "StartSpend(", Screen::Spend),
+    (Screen::Wallets, "NewWalletFrom(", Screen::Create),
+    (
+        Screen::Wallets,
+        "SpendBackup(SpendFrom(",
+        Screen::SpendBackup,
+    ),
+    (Screen::SpendBackup, "Nav(Home)", Screen::Home),
+    (Screen::SpendBackup, "Nav(Check)", Screen::Check),
+    (Screen::SpendBackup, "Nav(Catalog)", Screen::Catalog),
+    (
+        Screen::SpendBackup,
+        "Nav(WalletsStart)",
+        Screen::WalletsStart,
+    ),
+    (Screen::SpendBackup, "Resume(Create)", Screen::Create),
+    (Screen::SpendBackup, "OpenWallet(", Screen::Wallets),
+    // The same place on both sides: the page fades through with the pane
+    // kept, and `Fade::page_through` still blends the pane "shifted" by
+    // nothing, two canvases (`fade.rs`, shared code).
+    (
+        Screen::SpendBackup,
+        "SpendBackup(Card(",
+        Screen::SpendBackup,
+    ),
+];
 
 /// The budget of `kind` for the press called `name`.
 fn budget(name: &str, kind: Work) -> u64 {
@@ -350,7 +400,12 @@ fn presses_hold_on(panel: Panel, least: usize) {
                 if k == Work::FullCanvas && app.sheet.is_some() {
                     b = b.max(SHEET_CANVAS);
                 }
-                if k == Work::FullCanvas && screen == Screen::Home {
+                if k == Work::FullCanvas
+                    && (screen == Screen::Home
+                        || PANE_GLIDES.iter().any(|(from, press, to)| {
+                            *from == screen && name.starts_with(press) && *to == app.screen
+                        }))
+                {
                     b = b.max(HOME_GLIDE_CANVAS);
                 }
                 if n > b {

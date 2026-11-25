@@ -228,6 +228,76 @@ pub(crate) fn loose_card(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
     cy - y
 }
 
+/// One wallet of a list: its name, the line under it (its shape, and
+/// watch only where none can sign), the word at its end in its colour.
+pub(super) struct WalletEntry {
+    pub name: String,
+    pub line: String,
+    pub trailing: Option<(&'static str, crate::ui::Paint)>,
+    pub index: usize,
+}
+
+/// Each loaded wallet as a list entry, in the session's order.
+pub(super) fn wallet_entries(app: &View) -> Vec<WalletEntry> {
+    app.session
+        .wallets
+        .iter()
+        .enumerate()
+        .map(|(i, wlt)| {
+            // Can spend at its end.
+            let can = app.readiness(i) == 2;
+            let differs = app.silent_differs(i);
+            let here = app.session.held_toward_quorum(wlt);
+            let shape = Session::shape(wlt);
+            // The card beside says how many signatures are possible here:
+            // the row says the shape, and watch only where none is.
+            let line = if can || here > 0 {
+                shape.as_str().into()
+            } else {
+                fill(EN.wallets_watch_only, &[&shape])
+            };
+            WalletEntry {
+                name: wlt.name.to_string(),
+                line,
+                trailing: if differs {
+                    Some((EN.wallets_does_not_match, Role::Error.paint()))
+                } else if crate::wallet::another_key_spends(wlt) {
+                    Some((EN.wallets_another_can_spend, Role::Error.paint()))
+                } else {
+                    can.then(|| (EN.wallets_can_spend, Role::Ok.paint()))
+                },
+                index: i,
+            }
+        })
+        .collect()
+}
+
+impl WalletEntry {
+    /// The list pane's item for it, a press doing `open(index)`.
+    pub(super) fn item(&self, open: &dyn Fn(usize) -> Action) -> crate::panes::screen::Item<'_> {
+        crate::panes::screen::Item {
+            headline: &self.name,
+            supporting: &self.line,
+            trailing: self.trailing,
+            action: open(self.index),
+        }
+    }
+}
+
+/// The wallets as the list pane's items, the one the detail shows chosen;
+/// the wallets lead the list unlabelled: the top app bar names the page
+/// Wallets.
+fn wallet_items(
+    app: &View,
+    ui: &mut Ui,
+    pane: &mut crate::panes::screen::ListPane,
+    open: &dyn Fn(usize) -> Action,
+) {
+    for e in wallet_entries(app) {
+        pane.item(ui, &e.item(open), e.index == app.wallets.wallet());
+    }
+}
+
 /// Wallets' list pane (`docs/LAYOUT.md` §5): each wallet, the one the
 /// detail shows chosen, then the keys in no wallet and the ways to more,
 /// in `(x, top, w, h)`, scrolled on its own.
@@ -241,35 +311,7 @@ fn wallet_list(app: &View, ui: &mut Ui, rect: (f32, f32, f32, f32)) {
     // The card offers the loose keys' next steps, and Load or restore,
     // when no wallet is loaded.
     let card_offers = none && !loose.is_empty();
-    // The wallets lead the list unlabelled: the top app bar names the
-    // page Wallets.
-    for (i, wlt) in app.session.wallets.iter().enumerate() {
-        // Can spend at its end.
-        let can = app.readiness(i) == 2;
-        let differs = app.silent_differs(i);
-        let here = app.session.held_toward_quorum(wlt);
-        let shape = Session::shape(wlt);
-        // The card beside says how many signatures are possible here:
-        // the row says the shape, and watch only where none is.
-        let line = if can || here > 0 {
-            shape.as_str().into()
-        } else {
-            fill(EN.wallets_watch_only, &[&shape])
-        };
-        let item = crate::panes::screen::Item {
-            headline: &wlt.name,
-            supporting: &line,
-            trailing: if differs {
-                Some((EN.wallets_does_not_match, Role::Error.paint()))
-            } else if crate::wallet::another_key_spends(wlt) {
-                Some((EN.wallets_another_can_spend, Role::Error.paint()))
-            } else {
-                can.then(|| (EN.wallets_can_spend, Role::Ok.paint()))
-            },
-            action: Action::PickWallet(i),
-        };
-        pane.item(ui, &item, i == app.wallets.wallet());
-    }
+    wallet_items(app, ui, &mut pane, &Action::PickWallet);
     // Keys not in any wallet.
     if !loose.is_empty() {
         pane.advance(GAP);
@@ -370,7 +412,8 @@ fn panes_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 fn bar_head(app: &View, ui: &mut Ui, cw: f32) -> f32 {
     let back = app.named_back(crate::compact::page_head(app).0);
     let names_list = back.0 == EN.compact_wallets && matches!(back.1, Action::Nav(_));
-    let listed = crate::panes::screen::fits(cw);
+    // The pair has no list beside the page: Back names the tile it returns.
+    let listed = crate::panes::screen::fits(cw) && super::wallets_pair::place(cw).is_none();
     super::bar_head(
         ui,
         (!(listed && names_list)).then_some(back),
@@ -429,6 +472,15 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let width = cw - 2.0 * MARGIN_WIDE;
     let mut y = bar_head(app, ui, cw);
 
+    // With no wallet loaded the pair's tile is Wallets' start page: the
+    // keys are in the pane, and the ways in (Add a key among them) stand
+    // in the tile.
+    if app.session.wallets.is_empty() && super::wallets_pair::draw_start(app, ui, (x0, cw, h)) {
+        return;
+    }
+
+    // On the pair the pane's Waiting group holds the waiting PSBT with Sign.
+    let paired = super::wallets_pair::place(cw);
     // An Inbox PSBT leads.
     let lead = match app.wallets.spend() {
         Some(s) => Some((
@@ -447,6 +499,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         }),
     };
     if let Some((name, where_, action, verb)) = lead
+        && paired.is_none()
         && !app.session.wallets.is_empty()
     {
         // The selected wallet's own card carries the action: the banner
@@ -471,13 +524,25 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += 64.0;
     }
 
-    let bottom = h - 28.0;
+    // The pair stands at the place the tile does (`wallets_pair::span`).
+    let (y, bottom) = match paired {
+        Some(_) => super::wallets_pair::span(h),
+        None => (y, h - 28.0),
+    };
     let none = app.session.wallets.is_empty();
     let (loose, _) = app.loose_keys();
-    let card_offers = none && !loose.is_empty();
+    let card_offers = none && !loose.is_empty() && paired.is_none();
     // The list pane, and the chosen wallet's card beside it; the card
     // alone where a chart's side sheet leaves no room for both.
-    let p = if crate::panes::screen::fits(cw) {
+    let p = if let Some(pl) = paired {
+        // The pane at the left; the page stands where the tile does.
+        super::wallets_pair::pane(app, ui, x0, &pl, (y, bottom - y));
+        crate::panes::screen::Split {
+            list: (x0 + pl.pane_x, pl.pane_w),
+            detail: (x0 + pl.card_x, pl.card_w),
+            top: y,
+        }
+    } else if crate::panes::screen::fits(cw) {
         let p = crate::panes::screen::split(x0, cw);
         wallet_list(app, ui, (p.list.0, y, p.list.1, bottom - y));
         p

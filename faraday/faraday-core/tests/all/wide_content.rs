@@ -120,8 +120,11 @@ fn a_wallet_cards_first_receive_address_is_drawn_on_one_line() {
     let mut app = with_wallets(1280, 800);
     app.press(Action::Nav(Screen::Wallets));
     for i in 0..app.session.wallets.len() {
-        app.press(Action::PickWallet(i));
+        app.press(Action::Nav(Screen::WalletsStart));
+        app.press(Action::OpenWallet(i));
         crate::common::card_to_text(&mut app, "First receive address · 0/0");
+        // The address stands under its label: the card turned on to it.
+        crate::common::card_to_text_starting(&mut app, &["bc1", "tb1"]);
         let texts: Vec<String> = app
             .drawn_text_boxes()
             .plain()
@@ -230,11 +233,15 @@ fn room(w: u16, held: bool) -> (i32, i32) {
     }
 }
 
-/// Where Wallets with none loaded starts its column at the window
-/// sizes of a big monitor: the column's middle is the room's,
-/// held and not held.
+/// Where Wallets with none loaded stands at the window sizes of a big
+/// monitor: the pair (the session pane and the tile of the wallets) is
+/// centred in its room, held and not held, the gap at its left the same as
+/// at its right.
 #[test]
 fn a_page_meant_to_be_centred_is_centred_in_its_room_held_or_not() {
+    use faraday_draw::tokens::{
+        CHOICES_PANE_MIN, COLUMN_MAX, FLOW_CARD_MIN, LIST_PAD, LIST_PANE, MARGIN_WIDE, PAD, SPACER,
+    };
     for held in [false, true] {
         for (w, h) in [
             (1366u16, 768u16),
@@ -248,21 +255,22 @@ fn a_page_meant_to_be_centred_is_centred_in_its_room_held_or_not() {
             app.held = held;
             window(&mut app, w, h);
             app.press(Action::Nav(Screen::WalletsStart));
-            let at = boxes(&mut app, "Your wallets")
+            // The tile's heading is the rightmost "Wallets" (the rail's is
+            // at the left), one tile padding and one list padding inside
+            // the tile.
+            let at = boxes(&mut app, "Wallets")
                 .into_iter()
-                .filter(|b| b.0 > 0)
-                .min_by_key(|b| b.1)
-                .expect("the section's label");
+                .max_by_key(|b| b.0)
+                .expect("the tile's heading");
             let (start, width) = room(w, held);
-            // The page is the menu page's width, or the room less a page
-            // inset at each side where that is narrower, and starts at its
-            // label.
-            let page = 1112.min(width - 96);
-            let middle = at.0 + page / 2;
-            let want = start + width / 2;
+            let avail = width as f32 - 2.0 * MARGIN_WIDE;
+            let card = (avail - SPACER - LIST_PANE).clamp(FLOW_CARD_MIN, COLUMN_MAX);
+            let pane = (avail - SPACER - card).clamp(CHOICES_PANE_MIN, LIST_PANE);
+            let left = at.0 as f32 - (start as f32) - PAD - LIST_PAD - pane - SPACER;
+            let right = width as f32 - left - (pane + SPACER + card);
             assert!(
-                (middle - want).abs() <= 4,
-                "{w}x{h} held {held}: middle {middle}, room's {want} ({at:?})"
+                (left - right).abs() <= 4.0,
+                "{w}x{h} held {held}: left {left}, right {right} ({at:?})"
             );
         }
     }

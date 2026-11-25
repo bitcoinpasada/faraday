@@ -890,7 +890,7 @@ it names FLOW-CONTAINER.md and MENU-PAGE.md); it is not changed before.
   pane draws them) and the wallet chip at a flow card's head.
   `lint-components` holds that a key step draws no `button_rows` of loaded
   keys and that no screen reads `app.session` to list keys or wallets.
-- **The pane container** (`screens/hub_layout/`, `docs/HUB-LAYOUT.md`; built for Tools, Check, search results, the flows and Explore; Wallets, the guide as the third pane and the glide are not on it). Every
+- **The pane container** (`screens/hub_layout/`, `docs/HUB-LAYOUT.md`; built for Tools, Check, search results, the flows, Explore, Files and Wallets' pair; the guide as the third pane and the glide are not on it). Every
   page is made of panes (F322). A page or flow declares its panes into it,
   and it owns where they stand (§4: centred, the pair, stacked), that a
   pair ends level, the heights (§3), the guide as the third pane, the glide between pages (§6)

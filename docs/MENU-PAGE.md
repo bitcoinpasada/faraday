@@ -232,7 +232,14 @@ two.
   above the bar; on the Pi's panel, its places two to a row (§7).
 - **Wallets start** (`screens/wallets_start.rs`): its name, the five
   ways in as a tiles section, and its lists of wallets and of keys
-  without a wallet as sections.
+  without a wallet as sections. On the wide layout it is the pair
+  (`screens/wallets_pair.rs`), never stacked: the session pane in Wallets'
+  mode at the left, and a tile of the wallets only at the flow pair's
+  place, headed "Wallets", its wallets with a chevron each and the four
+  neutral ways in under them in Home's order (Make a new wallet, Restore an
+  existing wallet, Spend from a backup, Add a key: at the list's foot where
+  the list fits, pinned at the tile's foot where it scrolls). A press
+  on a wallet opens its page in the tile's place, Back returning the tile.
 - **Settings** (`screens/settings.rs`): its name, its sections' cards
   (`part`) as a cards section of at most two columns, and on a compact
   window the list.
