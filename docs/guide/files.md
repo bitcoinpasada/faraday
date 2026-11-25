@@ -73,9 +73,9 @@ An open vault has a row in the **In Faraday** list, with **Contents**, which ope
 
 **Key:** files.inbox-gives
 
-This panel shows when the Inbox holds something that can be loaded: **Wallets**, **Keys with no wallet**, **Xpubs with no wallet**, and backups that are **Not complete or sealed**.
+**Found in these files** shows above the files when the Inbox holds something that can be loaded: **Wallets**, **Keys with no wallet**, **Xpubs with no wallet**, and backups that are **Not complete or sealed**.
 
-A wallet row names its keys held here, with how many files agree or that they come from split sheets. **Load the wallet** or **Load the wallet with its seeds** loads the chosen ones; **Keys load only with no stick attached** stands in while a stick is attached. **Make it a wallet** makes a wallet of a key, and **Make it a watch-only wallet** of an xpub; an xpub without its origin shows **no origin**.
+A wallet row names its keys held here, with how many files agree or that they come from split sheets. **Load the wallet** or **Load the wallet with its seeds** loads the chosen ones; their files keep Load in the menu only; **Keys load only with no stick attached** stands in while a stick is attached. **Make it a wallet** makes a wallet of a key, and **Make it a watch-only wallet** of an xpub; an xpub without its origin shows **no origin**.
 
 ## Inbox
 

@@ -804,6 +804,8 @@ fn in_faraday(
         .any(|&(k, _)| app.inbox[k].kind == FileKind::Share)
         .then(|| share_note(app))
         .flatten();
+    // The wallets the summary above loads have no Load of their own below.
+    let loads = super::files::summary_loads(app, ui.compact);
     for &(k, held) in &shown {
         let item = &app.inbox[k];
         let mut line = visit_inbox_line(app, item);
@@ -829,7 +831,8 @@ fn in_faraday(
                 same: usable && app.visit_same(&item.name, Some(item.bytes.len() as u64), false),
                 action: (usable && !held).then_some(Action::VisitInbox(k)),
                 menu: Some(crate::file_menu::Row::In(k)),
-                main: main_action(app, k, item),
+                main: main_action(app, k, item)
+                    .filter(|(.., a)| !(matches!(a, Action::LoadWallet(_)) && loads.contains(&k))),
                 wrap: false,
                 // Where details open, the body opens them and only the box
                 // ticks; the open one is marked.

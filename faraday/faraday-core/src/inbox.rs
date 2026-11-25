@@ -613,6 +613,12 @@ impl Found {
     pub fn to_load(&self) -> Vec<&FoundWallet> {
         self.wallets.iter().filter(|w| !w.loaded).collect()
     }
+
+    /// The Inbox places of the files of the first `n` wallets not loaded yet.
+    pub(crate) fn files_to_load(&self, n: usize) -> Vec<usize> {
+        let first = self.to_load().into_iter().take(n);
+        first.flat_map(|w| w.files.iter().copied()).collect()
+    }
 }
 
 /// A seed as bytes to derive from, with what the person may add.
