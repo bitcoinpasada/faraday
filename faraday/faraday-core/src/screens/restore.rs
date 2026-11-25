@@ -238,13 +238,9 @@ fn restore_description(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     }
     cy += wrap_buttons(ui, x, cy, w, BUTTON_H, &items) + 8.0;
     cy += restore_sources(app, ui, x, cy, w);
-    let shares: Vec<(usize, &str)> = app
-        .inbox
-        .iter()
-        .enumerate()
-        .filter(|(_, i)| i.kind == FileKind::Share)
-        .map(|(k, i)| (k, i.name.as_str()))
-        .collect();
+    // The share files held, one checkbox row each (the session pane's row
+    // kind for a step that takes several): ticked as `RShare` toggles them.
+    let shares = shares_rows(app, r);
     if !shares.is_empty() {
         ui.text_as(
             x,
@@ -254,14 +250,7 @@ fn restore_description(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             EN.restore_description_shares,
         );
         cy += ui.advance_as(BODY_S, 22.0);
-        for (k, name) in &shares {
-            let on = r.shares.iter().any(|s| s == name);
-            ui.checkbox(x, cy + 15.0, on, true);
-            let name = ui.fit_as(BODY_M.mono(), name, w - 30.0);
-            ui.text_mid_as((x + 30.0, cy, 48.0), BODY_M.mono(), Role::OnSurface, &name);
-            ui.press_box(x, cy, w, 48.0, Action::RShare(*k));
-            cy += 52.0;
-        }
+        cy += crate::pick::rows(ui, x, cy, w, &shares);
         if let Some(pool) = app.restore_pool() {
             match &pool.merged {
                 Ok(m) => {
@@ -305,6 +294,26 @@ fn restore_description(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy += ui.wrap_as((x, cy, w), BODY_M, Role::Error, e) + 6.0;
     }
     cy - y
+}
+
+/// The held share files as the pane's checkbox rows: each ticked when the
+/// restore has it, a press toggling it. Only share files are offered.
+pub(crate) fn shares_rows(
+    app: &crate::Faraday,
+    r: &crate::RestoreState,
+) -> Vec<crate::pick::PickRow> {
+    use crate::pick::{Decl, Take};
+    Decl::new("")
+        .files(app, |k, i| {
+            (i.kind == FileKind::Share).then(|| {
+                let on = r.shares.iter().any(|s| s == i.name.as_str());
+                Take::of(on, Action::RShare(k)).several()
+            })
+        })
+        .groups()
+        .into_iter()
+        .flat_map(|g| g.rows)
+        .collect()
 }
 
 /// Restore's Seeds card: a slot per key. Each filled slot says what
@@ -863,4 +872,38 @@ pub(crate) fn open_slot_key(app: &View) -> Option<String> {
         .position(|t| t.trim().is_empty())
         .unwrap_or(0);
     Some((app.seeds_here(s).len() + first + 1).to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::screens::session_pane::pick::Kind;
+
+    #[test]
+    fn only_share_files_are_offered_and_ticked_as_held() {
+        let mut app = crate::Faraday::new();
+        for (name, kind) in [
+            ("a.txt", FileKind::Share),
+            ("b.txt", FileKind::Other),
+            ("c.txt", FileKind::Share),
+        ] {
+            let mut item = crate::Item::new(&crate::testkit::compute(), name, b"x".to_vec());
+            item.kind = kind;
+            crate::testkit::inbox_push(&mut app, item);
+        }
+        let mut r = crate::RestoreState::default();
+        r.shares.push(app.inbox[2].name.clone());
+        let rows = shares_rows(&app, &r);
+        let got: Vec<_> = rows
+            .iter()
+            .map(|x| (x.head.as_str(), x.kind, x.action))
+            .collect();
+        assert_eq!(
+            got,
+            [
+                ("a.txt", Kind::Tick { ticked: false }, Action::RShare(0)),
+                ("c.txt", Kind::Tick { ticked: true }, Action::RShare(2)),
+            ]
+        );
+    }
 }

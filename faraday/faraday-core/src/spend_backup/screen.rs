@@ -175,88 +175,7 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
         );
         y += 42.0;
     }
-    for (i, wl) in app.session.wallets.iter().enumerate() {
-        let slots = app.session.slots(wl);
-        let here = app.session.held_toward_quorum(wl);
-        let need = crate::wallet::needed(wl);
-        let ready = here >= need;
-        // What the name's and the marker's lines grow by at a larger
-        // text size: the lines under them move down by it.
-        let (grow, mark_grow) = (ui.line_grown_as(TITLE_M), ui.line_grown_as(LABEL_M));
-        let ch = if ready { 64.0 } else { 108.0 } + grow + mark_grow;
-        ui.card(x, y, w, ch, Role::OutlineVariant);
-        ui.icon(
-            x + 18.0,
-            y + 14.0,
-            20.0,
-            Icon::Wallet,
-            12.0,
-            Role::OnSurfaceVariant,
-        );
-        let nw = ui.text_mid_as(
-            (x + 46.0, y + 4.0, 40.0 + grow),
-            TITLE_M,
-            Role::OnSurface,
-            &wl.name,
-        );
-        ui.text_mid_as(
-            (x + 60.0 + nw, y + 4.0, 40.0 + grow),
-            BODY_S,
-            Role::OnSurfaceVariant,
-            &Session::shape(wl),
-        );
-        let (marker, tone) = keys_marker(here, need);
-        ui.text_mid_as(
-            (x + 46.0, y + 30.0 + grow, 28.0 + mark_grow),
-            LABEL_M,
-            tone,
-            &marker,
-        );
-        let label = if ready {
-            EN.spend_backup_spend_from_button
-        } else {
-            EN.spend_backup_open_button
-        };
-        let bw = ui.measure_as(LABEL_L, label) + 36.0;
-        ui.button(
-            x + w - 16.0 - bw,
-            y + 12.0,
-            Some(bw),
-            BUTTON_H,
-            label,
-            if ready {
-                Style::Primary
-            } else {
-                Style::Secondary
-            },
-            if ready {
-                fa(F::SpendFrom(i))
-            } else {
-                Action::OpenWallet(i)
-            },
-        );
-        if !ready {
-            // The keys still missing: where they may be.
-            let used = crate::screens::missing_keys_line(
-                app,
-                ui,
-                &slots,
-                crate::Screen::SpendBackup,
-                x + 46.0,
-                y + 60.0 + grow + mark_grow,
-                w - 62.0,
-            );
-            if used == 0.0 {
-                ui.text_mid_as(
-                    (x + 46.0, y + 62.0 + grow + mark_grow, 40.0),
-                    BODY_S,
-                    Role::OnSurfaceVariant,
-                    EN.spend_backup_an_open_vault,
-                );
-            }
-        }
-        y += ch + 10.0;
-    }
+    y += wallet_pick(app, ui, x, y, w);
 
     // Seeds that open no wallet loaded.
     let lonely = lonely_keys(app);
@@ -392,9 +311,7 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
         );
         y += 42.0;
     }
-    for (i, wl) in app.session.wallets.iter().enumerate() {
-        y += wallet_card_compact(app, ui, (x, y, w), i, wl) + 10.0;
-    }
+    y += wallet_pick(app, ui, x, y, w);
 
     // Seeds that open no wallet loaded.
     let lonely = lonely_keys(app);
@@ -502,97 +419,73 @@ fn keys_marker(here: usize, need: usize) -> (Text, Role) {
     }
 }
 
-/// A loaded wallet's card on a one-column page, `i` the wallet `wl`,
-/// from (x, y) `w` wide: its name, shape and keys' marker, where the keys
-/// still missing may be, and Spend from it or Open. Its lines advance by
-/// their roles, so the card grows with the text size
-/// (`docs/TEXT-SIZE.md` §5). Returns its height.
-fn wallet_card_compact(
-    app: &View,
-    ui: &mut Ui,
-    (x, y, w): (f32, f32, f32),
-    i: usize,
-    wl: &crate::wallet::Wallet,
-) -> f32 {
-    use crate::compact::screen::measured;
+/// The loaded wallets as the session pane's rows (one choice, a radio),
+/// each with its shape and how many of its keys are here as the line. A
+/// wallet that can sign has the radio and a press spends from it; one that
+/// cannot yet has the chevron and a press opens it.
+fn wallet_rows(app: &Faraday) -> Vec<crate::pick::PickRow> {
+    use crate::pick::{Decl, Take};
+    Decl::new("")
+        .wallets(app, |i, wl| {
+            let (here, need) = (
+                app.session.held_toward_quorum(wl),
+                crate::wallet::needed(wl),
+            );
+            let (marker, _) = keys_marker(here, need);
+            // The keys' readiness first, so a cut line keeps it, then the shape.
+            let line = Text::fill(
+                EN.spend_backup_shape_and_keys,
+                &[&marker, &Session::shape(wl)],
+            );
+            let take = if here >= need {
+                Take::of(false, fa(F::SpendFrom(i)))
+            } else {
+                Take::of(false, Action::OpenWallet(i)).opens()
+            };
+            Some((take, line))
+        })
+        .groups()
+        .into_iter()
+        .flat_map(|g| g.rows)
+        .collect()
+}
+
+/// The wallet pick of the first page, wide and narrow alike: the pane's
+/// rows, and under a wallet that cannot sign yet where its keys may be.
+/// Returns the height used.
+fn wallet_pick(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    use crate::pick;
     use crate::screens::missing_keys_line;
-    let slots = app.session.slots(wl);
-    let here = app.session.held_toward_quorum(wl);
-    let need = crate::wallet::needed(wl);
-    let ready = here >= need;
-    let (marker, tone) = keys_marker(here, need);
-    // The keys still missing: where they may be. Measured first so
-    // the card is drawn at its height.
-    let missing = |ui: &mut Ui, y: f32| -> f32 {
-        if ready {
-            return 0.0;
+    let rows = wallet_rows(app);
+    let mut cy = y;
+    for (i, wl) in app.session.wallets.iter().enumerate() {
+        cy += pick::rows(ui, x, cy, w, &rows[i..=i]);
+        if app.session.held_toward_quorum(wl) >= crate::wallet::needed(wl) {
+            continue;
         }
+        let slots = app.session.slots(wl);
         let used = missing_keys_line(
             app,
             ui,
             &slots,
             crate::Screen::SpendBackup,
             x + 18.0,
-            y,
+            cy,
             w - 32.0,
         );
-        if used > 0.0 {
+        cy += if used > 0.0 {
             used
         } else {
             ui.wrap_as(
-                (x + 14.0, y, w - 28.0),
+                (x + 14.0, cy, w - 28.0),
                 BODY_S,
                 Role::OnSurfaceVariant,
                 EN.spend_backup_an_open_vault,
             ) + GAP
-        }
-    };
-    // What larger text adds to each line: nothing at Standard.
-    let more = 1.0 - 1.0 / ui.text_factor();
-    let (dn, ds, dm) = (
-        ui.line_as(TITLE_M) * more,
-        ui.line_as(BODY_S) * more,
-        ui.line_as(LABEL_M) * more,
-    );
-    let head = 70.0 + dn + ds + dm;
-    let bh = ui.button_height(BUTTON_H);
-    let mh = measured(ui, |ui| missing(ui, y));
-    let ch = head + mh + bh + 14.0;
-    ui.card(x, y, w, ch, Role::OutlineVariant);
-    let ib = ui.row_icon(20.0);
-    let icon = ui.row_icon(12.0);
-    ui.icon(
-        x + 14.0,
-        y + 12.0,
-        ib,
-        Icon::Wallet,
-        icon,
-        Role::OnSurfaceVariant,
-    );
-    let name = ui.fit_as(TITLE_M, &wl.name, w - 60.0);
-    let band = (x + 42.0, y + 4.0, 36.0 + dn);
-    ui.text_mid_as(band, TITLE_M, Role::OnSurface, &name);
-    let shape = ui.fit_as(BODY_S, &Session::shape(wl), w - 56.0);
-    let band = (x + 42.0, y + 28.0 + dn, 18.0 + ds);
-    ui.text_mid_as(band, BODY_S, Role::OnSurfaceVariant, &shape);
-    let marker = ui.fit_as(LABEL_M, &marker, w - 56.0);
-    let band = (x + 42.0, y + 46.0 + dn + ds, 18.0 + dm);
-    ui.text_mid_as(band, LABEL_M, tone, &marker);
-    missing(ui, y + head);
-    let label = if ready {
-        EN.spend_backup_spend_from_button
-    } else {
-        EN.spend_backup_open_button
-    };
-    // The button's top where its grown height starts.
-    let by = y + head + mh + (bh - BUTTON_H) / 2.0;
-    let (style, action) = if ready {
-        (Style::Primary, fa(F::SpendFrom(i)))
-    } else {
-        (Style::Secondary, Action::OpenWallet(i))
-    };
-    ui.button(x + 14.0, by, Some(w - 28.0), BUTTON_H, label, style, action);
-    ch
+        };
+        cy += GAP_SMALL;
+    }
+    cy - y
 }
 
 /// One line of what to do next, with its button. Returns its height.
@@ -1439,35 +1332,28 @@ fn opened(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         EN.spend_backup_spend_from_label,
     );
     cy += ui.advance_as(LABEL_L, 26.0);
-    for (i, wl) in app.session.wallets.iter().enumerate() {
-        let on = chosen == Some(i);
-        ui.checkbox(x, cy + 11.0, on, true);
-        let name = ui.fit_as(LABEL_L, &wl.name, w - 30.0);
-        ui.text_mid_as((x + 30.0, cy, 40.0), LABEL_L, Role::OnSurface, &name);
-        // How many of its keys are here: a vault may hold only some.
-        let slots = app.session.slots(wl);
-        let here = slots.iter().filter(|s| s.held_by.is_some()).count();
-        let line = Text::fill(
-            EN.spend_backup_of_keys_here,
-            &[
-                &Session::shape(wl),
-                &Text::num(here as u64),
-                &Text::num(slots.len() as u64),
-            ],
-        );
-        let tone = Role::OnSurfaceVariant;
-        // Under the name on a small panel.
-        let rh = if ui.compact {
-            let line = ui.fit_as(BODY_S, &line, w - 30.0);
-            ui.text_mid_as((x + 30.0, cy + 30.0, 20.0), BODY_S, tone, &line);
-            56.0
-        } else {
-            ui.text_right_as((x + w, cy, 40.0), BODY_S, tone, &line);
-            40.0
-        };
-        ui.press_box(x, cy, w, rh, fa(F::Choose(i)));
-        cy += rh + 2.0;
-    }
+    // How many of its keys are here (a vault may hold only some), as the
+    // line of each wallet's row.
+    let rows = crate::pick::Decl::new("")
+        .wallets(app, |i, wl| {
+            let slots = app.session.slots(wl);
+            let here = slots.iter().filter(|s| s.held_by.is_some()).count();
+            let line = Text::fill(
+                EN.spend_backup_of_keys_here,
+                &[
+                    &Session::shape(wl),
+                    &Text::num(here as u64),
+                    &Text::num(slots.len() as u64),
+                ],
+            );
+            let take = crate::pick::Take::of(chosen == Some(i), fa(F::Choose(i)));
+            Some((take, line))
+        })
+        .groups()
+        .into_iter()
+        .flat_map(|g| g.rows)
+        .collect::<Vec<_>>();
+    cy += crate::pick::rows(ui, x, cy, w, &rows);
     cy + 8.0 - y
 }
 
