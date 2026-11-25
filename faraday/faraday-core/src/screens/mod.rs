@@ -50,6 +50,7 @@ use crate::{Action, Screen, Sheet};
 pub(crate) use backup::item_title;
 pub(crate) use backup::{SOFTWARE_ROWS, held_item, item_title_now};
 pub(crate) use bar_search::draw as bar_search_draw;
+pub(crate) use bar_search::in_flow;
 pub(crate) use bar_search::on as bar_on;
 pub(crate) use bar_search::page_search;
 pub(crate) use bar_search::way_is_here;

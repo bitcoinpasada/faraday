@@ -1183,6 +1183,16 @@ impl Faraday {
         ) {
             self.tools.clear_home_find();
         }
+        // A press on anything but the search itself takes its caret off in
+        // a flow, so typing goes to the step's field again.
+        if crate::screens::in_flow(self)
+            && !matches!(
+                action,
+                Action::TypeHere(crate::edit::Here::HomeFind) | Action::HomeSearchClear
+            )
+        {
+            self.tools.unfocus_home_find();
+        }
         let on_entry = self.screen == Screen::Entry;
         let in_pane = crate::address_check::pane::scanning(self);
         self.act_dealt(action);

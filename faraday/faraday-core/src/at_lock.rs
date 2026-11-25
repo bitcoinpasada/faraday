@@ -88,9 +88,6 @@ impl Public for faraday_text::Text {}
 impl<T: Public> Public for Option<T> {}
 impl<T: Public> Public for Vec<T> {}
 impl<T: Public + Copy> Public for std::cell::Cell<T> {}
-impl<T: Public> Public for std::cell::RefCell<T> {}
-impl<A: Public, B: Public> Public for (A, B) {}
-impl Public for crate::Action {}
 // The display the shell reported.
 impl Public for faraday_shell_api::DisplayInfo {}
 // The self-test's outcome: which checks passed.

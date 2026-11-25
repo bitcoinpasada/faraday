@@ -55,8 +55,15 @@ pub(crate) fn results_alone(app: &View) -> bool {
 /// Whether the page on show is a flow's step on a window whose top bar
 /// holds the search and that does not hold the bar off
 /// (`docs/WORKSPACE.md` §4, F331). A lookup.
-pub(crate) fn in_flow(app: &View) -> bool {
+pub(crate) fn in_flow(app: &crate::Faraday) -> bool {
     app.search_in_bar() && app.nav_bar_hidden() && !app.nav_hidden()
+}
+
+/// Whether the three pills stand in the bar, as the last frame drew it: not
+/// the one Start button, and not on a window whose bar holds no search. A
+/// lookup.
+pub(crate) fn pills_stand(app: &View) -> bool {
+    app.search_in_bar() && app.tools.pills_up()
 }
 
 /// Whether the bar holds the search and the pills for the page on show: a
@@ -146,6 +153,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, (room, title, ends): (f32, &str, f32
     }
     let flow = in_flow(app);
     let menu = on(app.screen);
+    app.tools.note_pills(false);
     // The expanded rail centres on the wide page; the narrow rail's page
     // is one column, centred in the area. A menu page's is Home's, so the
     // group stands at one place on every one of them.
@@ -156,9 +164,9 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, (room, title, ends): (f32, &str, f32
     } else {
         (0.0, room)
     };
-    // The back arrow of a row open in the page stands before the name; on a
-    // menu page the room is kept for it, so the group never moves.
-    let arrow = if flow || menu || crate::row_open::opened(app).is_some() {
+    // The back arrow stands before the name only where it is drawn: in a
+    // flow, or with a row open in the page.
+    let arrow = if flow || crate::row_open::opened(app).is_some() {
         TOUCH
     } else {
         0.0
@@ -171,10 +179,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, (room, title, ends): (f32, &str, f32
     if menu {
         for s in MENU_PAGES {
             name_w = name_w.max(ui.measure_as(TITLE_L, crate::compact::screen_name(s)));
-        }
-        // The keyboard's button, which a page with a field to type in shows.
-        if crate::compact::keyboard_action(app).is_none() {
-            ends -= TOUCH;
         }
         if app.screen != Screen::Files {
             let chip = crate::compact::screen::measured(ui, |ui| {
@@ -251,6 +255,9 @@ pub(crate) fn group(
             x += start_w;
         }
         Ways::Pills => {
+            if pills_ok {
+                app.tools.note_pills(true);
+            }
             for ((label, action), w) in ways.into_iter().zip(widths) {
                 raise(app, ui, (x + MENU_GAP, y, w - MENU_GAP, SEARCH_BAR_H));
                 ui.button(

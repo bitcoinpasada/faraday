@@ -303,6 +303,9 @@ pub struct ToolsArea {
     /// Where Home's search bar was last drawn in its page, so typing can
     /// scroll the page to it.
     home_bar_y: std::cell::Cell<f32>,
+    /// Whether the last bar drawn held the three pills (not the one Start
+    /// button): Wallets' page leaves out the rows they repeat.
+    pills_up: std::cell::Cell<bool>,
     /// Whether the page is to follow the results after the next frame.
     home_follow: std::cell::Cell<bool>,
     /// The name and way back a flow's step last drew in the top bar, so a
@@ -420,6 +423,16 @@ impl ToolsArea {
         self.flow_head.borrow().clone()
     }
 
+    /// Keeps whether the bar drew the three pills.
+    pub(crate) fn note_pills(&self, up: bool) {
+        self.pills_up.set(up);
+    }
+
+    /// Whether the last bar drawn held the three pills.
+    pub(crate) fn pills_up(&self) -> bool {
+        self.pills_up.get()
+    }
+
     /// Keeps where Home's search bar is drawn in its page.
     pub(crate) fn note_home_bar(&self, y: f32) {
         self.home_bar_y.set(y);
@@ -440,6 +453,12 @@ impl ToolsArea {
     /// Takes the ask of [`ToolsArea::follow_home_find`].
     pub(crate) fn take_home_follow(&self) -> bool {
         self.home_follow.replace(false)
+    }
+
+    /// Takes the caret off Home's search bar, as a press on another field
+    /// does.
+    pub(crate) fn unfocus_home_find(&mut self) {
+        self.home_focus = false;
     }
 
     /// Focuses Home's search bar, as a press on it does.
@@ -867,7 +886,16 @@ impl Faraday {
     /// Typing on a menu page goes to its search bar, on every window but
     /// the Pi's menu. Returns whether the key was taken.
     pub(crate) fn home_key(&mut self, key: faraday_shell_api::Key) -> bool {
-        if !self.home_search_here() || !self.tools.home_find_key(key) {
+        let in_flow = crate::screens::in_flow(self) && self.tools.home_focused();
+        if !(self.home_search_here() || in_flow) {
+            return false;
+        }
+        // In a flow Escape is the search's only while something is typed;
+        // with nothing typed it goes on to leave the step as before.
+        if in_flow && key == faraday_shell_api::Key::Escape && self.tools.home_find().is_empty() {
+            return false;
+        }
+        if !self.tools.home_find_key(key) {
             return false;
         }
         if self.screen != Screen::Home {
@@ -968,6 +996,7 @@ impl crate::at_lock::AtLock for ToolsArea {
             home_find_kept,
             home_focus,
             home_bar_y,
+            pills_up,
             home_follow,
             flow_head,
             convert,
@@ -983,14 +1012,18 @@ impl crate::at_lock::AtLock for ToolsArea {
         public(home_find_kept);
         public(home_focus);
         public(home_bar_y);
+        public(pills_up);
         public(home_follow);
-        public(flow_head);
         public(ots);
         public(invoice);
         public(address_check);
         // The calculator's typed line: an extended private key typed is
         // refused, but it was typed.
-        Holds::typed(tools.as_ref().is_some_and(|t| !t.typed.is_empty()))
+        // A flow's heading can carry a wallet's or a key's name.
+        Holds::session(flow_head.borrow().is_some())
+            .or(Holds::typed(
+                tools.as_ref().is_some_and(|t| !t.typed.is_empty()),
+            ))
             .or(A::holds(convert))
             .or(A::holds(kef_tool))
             .or(A::holds(seed_check))
@@ -1005,8 +1038,9 @@ impl crate::at_lock::AtLock for ToolsArea {
             home_find_kept,
             home_focus: _,
             home_bar_y: _,
+            pills_up: _,
             home_follow: _,
-            flow_head: _,
+            flow_head,
             convert,
             kef_tool,
             ots: _,
@@ -1018,10 +1052,30 @@ impl crate::at_lock::AtLock for ToolsArea {
         } = self;
         *tools = None;
         home_find_kept.clear();
+        flow_head.take();
         A::lock(convert);
         A::lock(kef_tool);
         A::lock(seed_check);
         A::lock(mscheck);
         A::lock(core_wallet);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::at_lock::AtLock;
+
+    /// A flow's heading can carry a wallet's name: it counts as the
+    /// session's, and a lock drops it.
+    #[test]
+    fn a_noted_flow_heading_goes_at_a_lock() {
+        let mut area = ToolsArea::default();
+        let head: FlowHead = (Text::of("Make a new wallet: Savings"), None);
+        area.note_flow_head(Some(&head));
+        assert!(area.holds().session);
+        area.lock();
+        assert!(!area.holds().any());
+        assert!(area.flow_head().is_none());
     }
 }

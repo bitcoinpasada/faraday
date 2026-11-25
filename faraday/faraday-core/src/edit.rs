@@ -322,6 +322,8 @@ impl Faraday {
         }
         let here = match self.screen {
             _ if self.home_search_here() => Here::HomeFind,
+            // A search focused in a flow takes the typing, not the step.
+            _ if crate::screens::in_flow(self) && self.tools.home_focused() => Here::HomeFind,
             Screen::Explore => match self.explore.state()?.page {
                 Page::Path => Here::Path,
                 Page::Find => Here::Query,
