@@ -174,7 +174,7 @@ fn psbt(app: &Faraday, spends_from: SpendsFrom, k: usize, item: &Item) -> Offer 
 /// only while its wallet is not loaded (the wallet decides, not the
 /// file's name; `loaded` is the session's wallet it describes, from the
 /// Inbox's kept answer, and without that answer Load is offered); the
-/// setup check; Back up (the loaded wallet's own flow) and Spend from
+/// setup check; Check an address (a loaded wallet's file); Back up (the loaded wallet's own flow) and Spend from
 /// backup (the flow's own way in), for a file the flow takes as a wallet
 /// file, a secret one whose wallet was read included.
 fn wallet(app: &Faraday, k: usize, item: &Item, loaded: Option<usize>) -> Offer {
@@ -187,6 +187,14 @@ fn wallet(app: &Faraday, k: usize, item: &Item, loaded: Option<usize>) -> Offer 
         list.extend(into_vault(app, k));
     }
     list.extend(crate::multisig_check::menu_line(item.wallet(), false, k));
+    // Check an address searches the loaded wallets, so only a file whose
+    // wallet is loaded offers it; nothing is loaded by the press.
+    if loaded.is_some() {
+        list.push((
+            EN.files_check_an_address.to_string(),
+            Action::AddressCheck(crate::address_check::AddressPress::Another),
+        ));
+    }
     if crate::create::wallet_flow_kind(item) == FileKind::Wallet {
         if let Some(i) = loaded {
             list.push((EN.backups_back_up.to_string(), Action::Backup(i)));

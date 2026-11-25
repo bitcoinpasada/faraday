@@ -877,6 +877,18 @@ fn a_wallet_file_loaded_offers_no_load_but_back_up_and_spend_from_backup() {
 }
 
 #[test]
+fn a_wallet_file_loaded_offers_check_an_address_and_one_not_loaded_does_not() {
+    let mut app = with_wallet_file(false);
+    let menu = menu_of(&mut app, Row::In(0));
+    assert!(!menu.iter().any(|l| l == "Check an address"), "{menu:?}");
+    let mut app = with_wallet_file(true);
+    let menu = menu_of(&mut app, Row::In(0));
+    assert!(menu.iter().any(|l| l == "Check an address"), "{menu:?}");
+    choose(&mut app, "Check an address");
+    assert_eq!(app.screen, Screen::CheckAddress);
+}
+
+#[test]
 fn a_locked_vault_file_in_files_offers_unlock() {
     let v = vault("Savings", "pass one", 7);
     let mut app = process(vec![file("vault.kdbx", &v)], Vec::new(), Vec::new());
