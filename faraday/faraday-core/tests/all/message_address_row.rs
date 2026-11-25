@@ -197,4 +197,5 @@ fn a_lock_leaves_nothing_of_the_row() {
     app.press(Action::SignMessage);
     app.press(Action::Lock);
     assert!(drawn(&app).is_none());
+    assert!(testkit::message(&app).is_none(), "the flow keeps nothing");
 }
