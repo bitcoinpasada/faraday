@@ -220,7 +220,7 @@ macro_rules! words_spend_backup {
     /// Line in `opened`.
     spend_backup_spend_from_label: "Spend from",
     /// Text in `wallet_rows`. `{}`: the keys' marker, `Session::shape(wl)`.
-    spend_backup_shape_and_keys: "{} · {}",
+    spend_backup_shape_and_keys: "{}\n{}",
     /// Text in `opened`. `{}`: `Session::shape(wl)`, `here`, `slots.len()`.
     spend_backup_of_keys_here: "{} · {} of {} keys here",
     /// Line in `shortcut`.

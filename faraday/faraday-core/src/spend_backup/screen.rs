@@ -387,15 +387,12 @@ fn lonely_keys<'a>(app: &'a View<'a>) -> Vec<&'a faraday_keys::KeyInfo> {
 }
 
 /// What a loaded wallet's card says of its keys here: can spend, how
-/// many are here of how many needed, or none, and its tone.
-fn keys_marker(here: usize, need: usize) -> (Text, Role) {
+/// many are here of how many needed, or none.
+fn keys_marker(here: usize, need: usize) -> Text {
     if here >= need {
-        (
-            Text::fill(
-                EN.spend_backup_can_spend_count,
-                &[&Text::num(here.min(need) as u64), &Text::num(need as u64)],
-            ),
-            Role::Ok,
+        Text::fill(
+            EN.spend_backup_can_spend_count,
+            &[&Text::num(here.min(need) as u64), &Text::num(need as u64)],
         )
     } else if here > 0 {
         let keys = if here == 1 {
@@ -403,50 +400,50 @@ fn keys_marker(here: usize, need: usize) -> (Text, Role) {
         } else {
             EN.spend_backup_keys
         };
-        (
-            Text::fill(
-                EN.spend_backup_here_needed,
-                &[&Text::num(here as u64), keys, &Text::num(need as u64)],
-            ),
-            Role::Warning,
+        Text::fill(
+            EN.spend_backup_here_needed,
+            &[&Text::num(here as u64), keys, &Text::num(need as u64)],
         )
     } else {
-        (
-            Text::of(EN.spend_backup_no_key_here),
-            Role::OnSurfaceVariant,
-        )
+        Text::of(EN.spend_backup_no_key_here)
     }
 }
 
-/// The loaded wallets as the session pane's rows (one choice, a radio),
-/// each with its shape and how many of its keys are here as the line. A
-/// wallet that can sign has the radio and a press spends from it; one that
-/// cannot yet has the chevron and a press opens it.
-fn wallet_rows(app: &Faraday) -> Vec<crate::pick::PickRow> {
+/// The loaded wallets as the session pane's rows, each with whether its
+/// keys here can sign. Every wallet's press leads on: a wallet that can
+/// sign starts spending from it, one that cannot yet opens it, and both
+/// end in the chevron (a row that opens; a radio chooses). The line says
+/// which it is, the keys' readiness on its own line and the shape under
+/// it, wrapped whole and not cut.
+fn wallet_rows(app: &Faraday) -> Vec<(crate::pick::PickRow, bool)> {
     use crate::pick::{Decl, Take};
-    Decl::new("")
+    let ready: Vec<bool> = app
+        .session
+        .wallets
+        .iter()
+        .map(|wl| app.session.held_toward_quorum(wl) >= crate::wallet::needed(wl))
+        .collect();
+    let rows = Decl::new("")
         .wallets(app, |i, wl| {
             let (here, need) = (
                 app.session.held_toward_quorum(wl),
                 crate::wallet::needed(wl),
             );
-            let (marker, _) = keys_marker(here, need);
-            // The keys' readiness first, so a cut line keeps it, then the shape.
             let line = Text::fill(
                 EN.spend_backup_shape_and_keys,
-                &[&marker, &Session::shape(wl)],
+                &[&keys_marker(here, need), &Session::shape(wl)],
             );
-            let take = if here >= need {
-                Take::of(false, fa(F::SpendFrom(i)))
+            let action = if ready[i] {
+                fa(F::SpendFrom(i))
             } else {
-                Take::of(false, Action::OpenWallet(i)).opens()
+                Action::OpenWallet(i)
             };
-            Some((take, line))
+            Some((Take::of(false, action).opens().wrapped(), line))
         })
         .groups()
         .into_iter()
-        .flat_map(|g| g.rows)
-        .collect()
+        .flat_map(|g| g.rows);
+    rows.zip(ready).collect()
 }
 
 /// The wallet pick of the first page, wide and narrow alike: the pane's
@@ -455,11 +452,10 @@ fn wallet_rows(app: &Faraday) -> Vec<crate::pick::PickRow> {
 fn wallet_pick(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     use crate::pick;
     use crate::screens::missing_keys_line;
-    let rows = wallet_rows(app);
     let mut cy = y;
-    for (i, wl) in app.session.wallets.iter().enumerate() {
-        cy += pick::rows(ui, x, cy, w, &rows[i..=i]);
-        if app.session.held_toward_quorum(wl) >= crate::wallet::needed(wl) {
+    for ((row, ready), wl) in wallet_rows(app).into_iter().zip(&app.session.wallets) {
+        cy += pick::rows(ui, x, cy, w, std::slice::from_ref(&row));
+        if ready {
             continue;
         }
         let slots = app.session.slots(wl);
@@ -1345,7 +1341,7 @@ fn opened(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     &Text::num(slots.len() as u64),
                 ],
             );
-            let take = crate::pick::Take::of(chosen == Some(i), fa(F::Choose(i)));
+            let take = crate::pick::Take::of(chosen == Some(i), fa(F::Choose(i))).wrapped();
             Some((take, line))
         })
         .groups()
@@ -2081,4 +2077,56 @@ fn away(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         fa(F::StartOver),
     );
     cy + 52.0 - y
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::pick::Kind;
+
+    /// A wallet that can sign and one that cannot yet, together: each row
+    /// ends in the chevron, a press of the first spends from it and a
+    /// press of the second opens it, and the keys' readiness is a line of
+    /// its own above the shape.
+    #[test]
+    fn a_ready_and_a_not_ready_wallet_both_open_and_their_presses_differ() {
+        let c = crate::testkit::compute();
+        let mut app = Faraday::new();
+        let (word, label) = crate::testkit::TEST_SEEDS[0];
+        app.session
+            .keys
+            .add_words(&c, &crate::testkit::test_words(word), label, None)
+            .unwrap();
+        for id in ["spending", "savings"] {
+            let kit = crate::testkit::kits()
+                .into_iter()
+                .find(|k| k.id == id)
+                .unwrap();
+            app.session
+                .add_wallet_confirmed(
+                    &c,
+                    kit.name,
+                    &kit.descriptor,
+                    "Test wallet",
+                    crate::wallet::Origin::Named,
+                )
+                .unwrap();
+        }
+        let rows = wallet_rows(&app);
+        let got: Vec<_> = rows
+            .iter()
+            .map(|(r, ready)| (*ready, r.kind, r.action, r.wrap))
+            .collect();
+        assert_eq!(
+            got,
+            [
+                (true, Kind::Opens, fa(F::SpendFrom(0)), true),
+                (false, Kind::Opens, Action::OpenWallet(1), true),
+            ]
+        );
+        for (r, _) in &rows {
+            let (marker, shape) = r.line.split_once('\n').expect("two lines");
+            assert!(!marker.is_empty() && !shape.is_empty(), "{}", r.line);
+        }
+    }
 }

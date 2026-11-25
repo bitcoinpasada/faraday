@@ -484,8 +484,8 @@ writing it back is safe and optional.)*
 ## 7. From a wallet already open (2026-10-10, `docs/history/NEW-WALLET.md` §11)
 
 A wallet card's **Spend from this wallet** (and **Sign the PSBT from
-the stick**, **Carry on the spend**; the Loaded view's **Spend from
-it** too) opens the tab on that wallet, titled "Spend from {wallet}"
+the stick**, **Carry on the spend**; the Loaded view's wallet row, a
+press on it, too) opens the tab on that wallet, titled "Spend from {wallet}"
 with **Wallets** as its way back and no note. Pages 1 to 3 are not in
 the column; page 5 is **Load the wallet in Sparrow** and pages 6 and 7
 are one page, **Write the payment in Sparrow**:

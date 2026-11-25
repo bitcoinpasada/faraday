@@ -307,7 +307,7 @@ pub(crate) fn shares_rows(
         .files(app, |k, i| {
             (i.kind == FileKind::Share).then(|| {
                 let on = r.shares.iter().any(|s| s == i.name.as_str());
-                Take::of(on, Action::RShare(k)).several()
+                Take::of(on, Action::RShare(k)).several().wrapped()
             })
         })
         .groups()

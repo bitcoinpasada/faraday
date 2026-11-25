@@ -12,8 +12,8 @@ use crate::strings::EN;
 use crate::ui::Ui;
 use crate::ui::pal::*;
 use faraday_draw::tokens::{
-    BODY_L, BODY_M, DISABLED_CONTENT, GAP, GAP_SMALL, ICON_GLYPH, ICON_GLYPH_BUTTON, LABEL_L,
-    LIST_1, LIST_2, LIST_PAD, LIST_PAD_V, PICK_RADIO_DOT_INSET, SHAPE_S,
+    BODY_L, BODY_M, DISABLED_CONTENT, GAP, GAP_SMALL, ICON_GLYPH, ICON_GLYPH_BUTTON, ICON_SMALL,
+    LABEL_L, LIST_1, LIST_2, LIST_PAD, LIST_PAD_V, NAV_ICON, PICK_RADIO_DOT_INSET, SHAPE_S,
 };
 use faraday_draw::widgets::Icon;
 
@@ -43,6 +43,9 @@ pub(crate) struct PickRow {
     /// Dimmed: the row stays and takes no press.
     pub dimmed: bool,
     pub action: Action,
+    /// The head and the line wrap to the row's room instead of being cut
+    /// (a file name, a wallet's line), the row growing to hold them.
+    pub wrap: bool,
 }
 
 impl PickRow {
@@ -55,6 +58,7 @@ impl PickRow {
             kind: Kind::Pick { chosen },
             dimmed: false,
             action: a,
+            wrap: false,
         }
     }
 
@@ -83,7 +87,14 @@ impl PickRow {
             kind: Kind::WayIn,
             dimmed: false,
             action,
+            wrap: false,
         }
+    }
+
+    /// The row with its head and line wrapped, not cut.
+    pub(crate) fn wrapped(mut self) -> Self {
+        self.wrap = true;
+        self
     }
 
     /// The row as it is when the step cannot take it, with its `reason`.
@@ -109,6 +120,8 @@ pub(crate) struct Take {
     pub several: bool,
     /// A press opens the item and chooses nothing: the chevron, no radio.
     pub opens: bool,
+    /// The head and the line wrap instead of being cut ([`PickRow::wrap`]).
+    pub wrap: bool,
 }
 
 impl Take {
@@ -121,7 +134,15 @@ impl Take {
             line: None,
             several: false,
             opens: false,
+            wrap: false,
         }
+    }
+
+    /// The row's head and line wrap, not cut: a long file name, a line
+    /// that must be read whole.
+    pub(crate) fn wrapped(mut self) -> Self {
+        self.wrap = true;
+        self
     }
 
     /// A press opens the item (it cannot be taken yet): the chevron.
@@ -324,6 +345,7 @@ fn row_of(icon: Icon, head: String, line: impl FnOnce() -> String, t: Take) -> P
     } else {
         PickRow::pick(icon, head, line, t.chosen, t.action)
     };
+    let row = if t.wrap { row.wrapped() } else { row };
     match t.refusal {
         Some(reason) => row.dimmed_for(&reason),
         None => row,
@@ -374,14 +396,45 @@ pub(crate) fn rows(ui: &mut Ui, x: f32, y: f32, w: f32, rows: &[PickRow]) -> f32
     cy - y
 }
 
+/// The room a row's text has: after the radio or box and the icon, before
+/// the chevron.
+fn row_room(r: &PickRow, w: f32) -> f32 {
+    let lead = match r.kind {
+        Kind::Pick { .. } | Kind::Tick { .. } => ICON_GLYPH_BUTTON + GAP,
+        Kind::WayIn | Kind::Opens => 0.0,
+    };
+    let tail = if r.kind == Kind::Opens {
+        ICON_SMALL + GAP
+    } else {
+        0.0
+    };
+    w - LIST_PAD * 2.0 - lead - ICON_GLYPH - GAP - tail
+}
+
 fn row(ui: &mut Ui, (x, y, w): (f32, f32, f32), r: &PickRow) -> f32 {
     let two = !r.line.is_empty();
-    let lines = if two {
-        ui.line_as(BODY_L) + ui.line_as(BODY_M)
+    let room = row_room(r, w);
+    // A wrapping row counts the lines its head and line take at its room.
+    let (hh, vh) = if r.wrap {
+        (
+            ui.wrap_height_as(BODY_L, &r.head, room),
+            if two {
+                ui.wrap_height_as(BODY_M, &r.line, room)
+            } else {
+                0.0
+            },
+        )
     } else {
-        ui.line_as(BODY_L)
+        (
+            ui.line_as(BODY_L),
+            if two { ui.line_as(BODY_M) } else { 0.0 },
+        )
     };
-    let h = ui.row_height(if two { LIST_2 } else { LIST_1 }, lines, LIST_PAD_V);
+    let lines = hh + vh;
+    let mut h = ui.row_height(if two { LIST_2 } else { LIST_1 }, lines, LIST_PAD_V);
+    if r.wrap {
+        h = h.max(lines + 2.0 * LIST_PAD_V);
+    }
     let on = matches!(
         r.kind,
         Kind::Pick { chosen: true } | Kind::Tick { ticked: true }
@@ -430,34 +483,43 @@ fn row(ui: &mut Ui, (x, y, w): (f32, f32, f32), r: &PickRow) -> f32 {
         ink(Role::OnSurfaceVariant),
     );
     tx += ICON_GLYPH + GAP;
-    let mut end = x + w - LIST_PAD;
     if r.kind == Kind::Opens {
-        end -= ICON_GLYPH;
+        // The session pane's rows' chevron: the same size.
         ui.icon(
-            end,
-            y + (h - ICON_GLYPH) / 2.0,
-            ICON_GLYPH,
+            x + w - LIST_PAD - ICON_SMALL,
+            y + (h - ICON_SMALL) / 2.0,
+            ICON_SMALL,
             Icon::ChevronRight,
-            ICON_GLYPH,
+            NAV_ICON + GAP_SMALL,
             ink(Role::OnSurfaceVariant),
         );
-        end -= GAP;
     }
-    let room = end - tx;
-    let head = ui.fit_as(BODY_L, &r.head, room);
-    if two {
-        let (lh, vh) = (ui.line_as(BODY_L), ui.line_as(BODY_M));
-        let top = y + (h - lh - vh) / 2.0;
-        ui.text_mid_as((tx, top, lh), BODY_L, ink(Role::OnSurface), &head);
-        let line = ui.fit_as(BODY_M, &r.line, room);
-        ui.text_mid_as(
-            (tx, top + lh, vh),
-            BODY_M,
-            ink(Role::OnSurfaceVariant),
-            &line,
-        );
+    let top = y + (h - lines) / 2.0;
+    if r.wrap {
+        ui.wrap_as((tx, top, room), BODY_L, ink(Role::OnSurface), &r.head);
+        if two {
+            ui.wrap_as(
+                (tx, top + hh, room),
+                BODY_M,
+                ink(Role::OnSurfaceVariant),
+                &r.line,
+            );
+        }
     } else {
-        ui.text_mid_as((tx, y, h), BODY_L, ink(Role::OnSurface), &head);
+        let head = ui.fit_as(BODY_L, &r.head, room);
+        if two {
+            let (lh, vh) = (ui.line_as(BODY_L), ui.line_as(BODY_M));
+            ui.text_mid_as((tx, top, lh), BODY_L, ink(Role::OnSurface), &head);
+            let line = ui.fit_as(BODY_M, &r.line, room);
+            ui.text_mid_as(
+                (tx, top + lh, vh),
+                BODY_M,
+                ink(Role::OnSurfaceVariant),
+                &line,
+            );
+        } else {
+            ui.text_mid_as((tx, y, h), BODY_L, ink(Role::OnSurface), &head);
+        }
     }
     // A dimmed row takes no press: nothing is registered for it.
     if !r.dimmed {
