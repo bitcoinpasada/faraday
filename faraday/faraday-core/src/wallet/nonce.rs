@@ -5,6 +5,17 @@ use crate::memory::nonces::{History, HistorySnapshot, NonceEntry, UsedBefore};
 use crate::strings::{EN, fill};
 use faraday_psbt::verify::Verdict;
 
+/// What the check says of a set of inputs ([`NonceCheck::rest`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Rest {
+    /// Nothing wrong and everything known.
+    Fine,
+    /// A signature or a warning names one of them as wrong.
+    Wrong,
+    /// Nothing wrong, but one is not known: not checked, not run or unread.
+    Unknown,
+}
+
 /// What the nonce check found ([`Session::nonce_check`]).
 #[derive(Clone)]
 pub struct NonceCheck {
@@ -99,6 +110,39 @@ impl NonceCheck {
     /// shown as a code, with no way past (F227). A lookup.
     pub fn held_back(&self) -> bool {
         !self.used_before.is_empty() || !self.reused.is_empty()
+    }
+
+    /// What the check says of the inputs `inputs` together: wrong when one
+    /// is named by a warning or has a wrong signature; not known when one
+    /// has a signature not checked or a script not run, or when any input
+    /// is unread; else fine. One pass: the inputs go into a set once (so
+    /// any order, repeats included, gives the same answer), then each row
+    /// and each warning list is read once, a lookup per entry. Costs
+    /// the inputs plus the rows and warnings, never their product.
+    pub fn rest(&self, inputs: impl IntoIterator<Item = usize>) -> Rest {
+        let set: std::collections::HashSet<usize> = inputs.into_iter().collect();
+        let named = |l: &[usize]| l.iter().any(|i| set.contains(i));
+        if named(&self.mismatched)
+            || self.reused.iter().any(|r| named(&r.inputs))
+            || self.used_before.iter().any(|u| named(&u.inputs))
+            || self
+                .rows
+                .iter()
+                .any(|r| r.wrong() && set.contains(&r.input))
+        {
+            return Rest::Wrong;
+        }
+        if self.unread > 0
+            || named(&self.not_evaluated)
+            || self
+                .rows
+                .iter()
+                .any(|r| r.unchecked() && set.contains(&r.input))
+        {
+            Rest::Unknown
+        } else {
+            Rest::Fine
+        }
     }
 
     /// Every signature that verified, as an entry. A lookup per row.
@@ -282,5 +326,136 @@ impl NonceRow {
     /// Whether this signature could not be checked. A lookup.
     pub fn unchecked(&self) -> bool {
         matches!(self.verdict, Verdict::Unchecked(_))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use faraday_psbt::SigKind;
+    use faraday_psbt::verify::{NonceReuse, Unchecked};
+
+    fn row(input: usize, verdict: Verdict) -> NonceRow {
+        NonceRow {
+            input,
+            name: faraday_text::Text::of("abcd"),
+            verdict,
+            preimage: false,
+            recomputed: None,
+            unmatched: None,
+            entry: None,
+        }
+    }
+
+    fn check() -> NonceCheck {
+        NonceCheck {
+            rows: Vec::new(),
+            reused: Vec::new(),
+            mismatched: Vec::new(),
+            unread: 0,
+            disagree: 0,
+            not_evaluated: Vec::new(),
+            fields_refused: Vec::new(),
+            tx: [0; 32],
+            partials: Vec::new(),
+            used_before: Vec::new(),
+            history: History::Off,
+            history_gen: 0,
+        }
+    }
+
+    /// The answer before `rest` was one pass.
+    fn old(c: &NonceCheck, inputs: &[usize]) -> Rest {
+        let mut out = if c.unread > 0 {
+            Rest::Unknown
+        } else {
+            Rest::Fine
+        };
+        for &i in inputs {
+            let mine = || c.rows.iter().filter(move |r| r.input == i);
+            if c.mismatched.contains(&i)
+                || c.reused.iter().any(|r| r.inputs.contains(&i))
+                || c.used_before.iter().any(|u| u.inputs.contains(&i))
+                || mine().any(|r| r.wrong())
+            {
+                return Rest::Wrong;
+            }
+            if c.not_evaluated.contains(&i) || mine().any(|r| r.unchecked()) {
+                out = Rest::Unknown;
+            }
+        }
+        out
+    }
+
+    fn reuse(inputs: Vec<usize>) -> NonceReuse {
+        NonceReuse {
+            keys: Vec::new(),
+            unread: Vec::new(),
+            kind: SigKind::Ecdsa,
+            nonce: faraday_text::Text::of("00"),
+            inputs,
+        }
+    }
+
+    #[test]
+    fn rest_answers_as_before_for_every_kind_of_finding() {
+        let valid = |i| row(i, Verdict::Valid);
+        let mut cases: Vec<(NonceCheck, Rest)> = Vec::new();
+        let mut c = check();
+        c.rows = vec![valid(0), valid(5), valid(6)];
+        cases.push((c, Rest::Fine));
+        let mut c = check();
+        c.rows = vec![valid(5), row(6, Verdict::Invalid)];
+        cases.push((c, Rest::Wrong));
+        let mut c = check();
+        c.mismatched = vec![6];
+        cases.push((c, Rest::Wrong));
+        let mut c = check();
+        c.reused = vec![reuse(vec![1, 6])];
+        cases.push((c, Rest::Wrong));
+        let mut c = check();
+        c.used_before = vec![UsedBefore {
+            key: [1; 32],
+            name: "k".into(),
+            inputs: vec![5],
+        }];
+        cases.push((c, Rest::Wrong));
+        let mut c = check();
+        c.not_evaluated = vec![5];
+        cases.push((c, Rest::Unknown));
+        let mut c = check();
+        c.rows = vec![row(6, Verdict::Unchecked(Unchecked::NoPrevout))];
+        cases.push((c, Rest::Unknown));
+        let mut c = check();
+        c.unread = 1;
+        cases.push((c, Rest::Unknown));
+        let mut c = check();
+        c.unread = 1;
+        c.mismatched = vec![5];
+        cases.push((c, Rest::Wrong));
+        let mut c = check();
+        c.not_evaluated = vec![5];
+        c.rows = vec![row(6, Verdict::Invalid)];
+        cases.push((c, Rest::Wrong));
+        // Findings on inputs outside the set change nothing.
+        let mut c = check();
+        c.mismatched = vec![1];
+        c.reused = vec![reuse(vec![2])];
+        c.not_evaluated = vec![3];
+        c.rows = vec![
+            row(0, Verdict::Invalid),
+            row(4, Verdict::Unchecked(Unchecked::NoPrevout)),
+        ];
+        cases.push((c, Rest::Fine));
+        for (n, (c, want)) in cases.iter().enumerate() {
+            for set in [vec![5, 6, 7], vec![7, 6, 5], vec![5, 5], vec![]] {
+                assert_eq!(
+                    c.rest(set.iter().copied()),
+                    old(c, &set),
+                    "case {n} {set:?}"
+                );
+            }
+            assert_eq!(c.rest([5, 6, 7]), *want, "case {n}");
+        }
     }
 }

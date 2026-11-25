@@ -64,12 +64,11 @@ pub(crate) fn nonce_card(
     };
     ui.icon(x, cy + 8.0, 20.0, icon, 12.0, tone);
     let room = w - 26.0;
-    if ui.compact || ui.wrap_lines_as(TITLE_S, &head, room) > 1 {
+    let laid = ui.wrapped_as(TITLE_S, &head, room);
+    if ui.compact || laid.line_count() > 1 {
         // Wrapped beside its icon on a small panel, or where it does not fit.
-        cy += ui
-            .wrap_as((x + 26.0, cy + 8.0, room), TITLE_S, tone, &head)
-            .max(20.0)
-            + 16.0;
+        ui.draw_wrapped((x + 26.0, cy + 8.0), tone, &laid);
+        cy += laid.h.max(20.0) + 16.0;
     } else {
         ui.text_mid_as((x + 26.0, cy, 36.0), TITLE_S, tone, &head);
         cy += 40.0;
@@ -134,26 +133,17 @@ pub(crate) fn nonce_card(
     }
     if rows.len() > SHOWN {
         let rest = &rows[SHOWN..];
-        let ok = !rest.iter().any(|r| r.wrong());
+        let state = check.rest(rest.iter().map(|r| r.input));
+        let (words, tone) = match state {
+            crate::wallet::Rest::Fine => (EN.nonce_check_none_wrong, Role::OnSurfaceVariant),
+            crate::wallet::Rest::Wrong => (EN.nonce_check_one_wrong, Role::Error),
+            crate::wallet::Rest::Unknown => ("", Role::OnSurfaceVariant),
+        };
         ui.text_mid_as(
             (x, cy, 30.0),
             BODY_S,
-            if ok {
-                Role::OnSurfaceVariant
-            } else {
-                Role::Error
-            },
-            &Text::fill(
-                EN.nonce_check_more,
-                &[
-                    &text!("{}", rest.len()),
-                    (if ok {
-                        EN.nonce_check_none_wrong
-                    } else {
-                        EN.nonce_check_one_wrong
-                    }),
-                ],
-            ),
+            tone,
+            &Text::fill(EN.nonce_check_more, &[&text!("{}", rest.len()), words]),
         );
         cy += 32.0;
     }

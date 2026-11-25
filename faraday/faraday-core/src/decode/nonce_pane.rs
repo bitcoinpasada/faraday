@@ -7,6 +7,7 @@ use super::nonce_flow::InputRow;
 use crate::flow::PickGroup;
 use crate::pick::PickRow;
 use crate::strings::EN;
+use crate::wallet::Rest;
 use crate::{Action, Faraday};
 use faraday_draw::widgets::Icon;
 
@@ -23,7 +24,7 @@ fn count_line(n: usize) -> String {
 const SHOWN: usize = 12;
 
 /// What a warning at the card's top says of input `i`, in a few words: the
-/// input does not match, its nonce is reused, its key was used before. A
+/// input does not match, its nonce is reused, its nonce was used before. A
 /// warning wins over the signature's own verdict.
 fn warning(check: &crate::wallet::NonceCheck, i: usize) -> Option<&'static str> {
     if check.mismatched.contains(&i) {
@@ -62,6 +63,31 @@ fn input_row(r: &InputRow, warned: Option<&str>, chosen: bool) -> PickRow {
     row
 }
 
+/// The second line of the last row: none wrong, one wrong, or nothing
+/// where an input is not known.
+fn last_row_line(state: Rest) -> &'static str {
+    match state {
+        Rest::Fine => EN.nonce_check_none_wrong.trim_start_matches("· "),
+        Rest::Wrong => EN.nonce_check_one_wrong.trim_start_matches("· "),
+        Rest::Unknown => "",
+    }
+}
+
+/// The row standing for the `n` inputs past [`SHOWN`]: "none wrong" and
+/// dimmed when all are fine, "one is wrong" in the error role when one is,
+/// and no second line, not dimmed, where one is not known.
+fn last_row(n: usize, state: Rest, action: Action) -> PickRow {
+    let head = EN
+        .nonce_check_more
+        .replacen("{}", &n.to_string(), 1)
+        .replacen("{}", "", 1);
+    let mut row = PickRow::way_in(Icon::Hashtag, head.trim(), action);
+    row.line = last_row_line(state).to_string();
+    row.dimmed = state == Rest::Fine;
+    row.error = state == Rest::Wrong;
+    row
+}
+
 /// The pane's groups. Costs a line per input shown, at most [`SHOWN`].
 pub(crate) fn groups(app: &Faraday) -> Vec<PickGroup> {
     let Some(o) = app.decode.outside() else {
@@ -84,23 +110,8 @@ pub(crate) fn groups(app: &Faraday) -> Vec<PickGroup> {
     }
     if o.rows.len() > SHOWN {
         let rest = &o.rows[SHOWN..];
-        let ok = !rest
-            .iter()
-            .any(|r| r.wrong || warning(&o.check, r.input).is_some());
-        let words = if ok {
-            EN.nonce_check_none_wrong
-        } else {
-            EN.nonce_check_one_wrong
-        };
-        let head = EN
-            .nonce_check_more
-            .replacen("{}", &rest.len().to_string(), 1)
-            .replacen("{}", "", 1);
-        let mut row = PickRow::way_in(Icon::Hashtag, head.trim(), press(None));
-        // The words are the second line, so a wrong one is read in the error role.
-        row.line = words.trim_start_matches("· ").to_string();
-        row.dimmed = ok;
-        row.error = !ok;
+        let state = o.check.rest(rest.iter().map(|r| r.input));
+        let row = last_row(rest.len(), state, press(None));
         rows.push(row);
     }
     vec![
@@ -136,6 +147,25 @@ mod tests {
         assert!(row.line.contains(EN.nonce_pane_reused));
         assert!(!input_row(&input(false), None, false).error);
         assert!(input_row(&input(true), None, false).error);
+    }
+
+    #[test]
+    fn the_last_row_reads_as_what_the_rest_is() {
+        let press = || Action::NonceCheck(super::super::CheckPress::Input(None));
+        let fine = last_row(2, Rest::Fine, press());
+        assert!(fine.dimmed && !fine.error);
+        assert_eq!(
+            fine.line,
+            EN.nonce_check_none_wrong.trim_start_matches("· ")
+        );
+        let wrong = last_row(2, Rest::Wrong, press());
+        assert!(wrong.error && !wrong.dimmed);
+        assert_eq!(
+            wrong.line,
+            EN.nonce_check_one_wrong.trim_start_matches("· ")
+        );
+        let unknown = last_row(2, Rest::Unknown, press());
+        assert!(!unknown.error && !unknown.dimmed && unknown.line.is_empty());
     }
 
     #[test]

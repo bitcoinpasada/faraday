@@ -912,7 +912,7 @@ macro_rules! words_common {
     nonce_pane_no_signature: "No signature",
     /// Verdict of a pane row whose input shares a nonce with another input.
     nonce_pane_reused: "Nonce reused",
-    /// Verdict of a pane row whose input's key was used before, on another transaction.
+    /// Verdict of a pane row whose input's nonce was used before, on another transaction.
     nonce_pane_used_before: "Nonce used before",
     /// Verdict of a pane row whose input does not match the output it spends.
     nonce_pane_mismatch: "Does not match",

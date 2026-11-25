@@ -977,6 +977,7 @@ impl Faraday {
         }
         self.screen = Screen::NonceCheck;
         self.list_offset = 0.0;
+        self.scroll.set_choices_offset(0.0);
     }
 
     /// Costs a map lookup per signature. The nonce check page's check
@@ -1058,6 +1059,7 @@ impl Faraday {
                         decoded.amounts_from = from.clone();
                         self.decode.show(decoded, &mut self.screen);
                         self.list_offset = 0.0;
+                        self.scroll.set_choices_offset(0.0);
                     }
                     Err(line) => self.toast(line),
                 }

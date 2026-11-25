@@ -4,7 +4,7 @@
 
 use super::*;
 use crate::common::add_key;
-use crate::common::{has, lock as lock_app, texts};
+use crate::common::{has, has_part, lock as lock_app, texts};
 use faraday_core::decode::CheckPress;
 use faraday_shell_api::{BootState, DisplayInfo, SecureHardware};
 
@@ -387,11 +387,102 @@ fn a_second_file_opens_with_the_pane_at_its_top() {
     assert_eq!(app.choices_offset(), 0.0);
 }
 
+/// What the Out button sends of a two-input taproot file, with `row`
+/// chosen first, and its hex.
+fn sent(row: Option<usize>) -> (Vec<u8>, Option<faraday_text::Text>) {
+    let mut app = open_wide(vec![(
+        "t.psbt",
+        taproot_psbt(&[Tap::Key, Tap::Key]).to_bytes(),
+    )]);
+    if row.is_some() {
+        choose(&mut app, row);
+    }
+    let hex = app.outside_check().unwrap().hex.clone();
+    app.press(Action::NonceCheck(CheckPress::Out));
+    let bytes = app.outbox.last().expect("sent").bytes.to_vec();
+    (bytes, hex)
+}
+
 /// The buttons carry the whole transaction to the stick with a row chosen.
 #[test]
 fn the_file_for_the_stick_is_the_whole_transaction_with_a_row_chosen() {
-    let mut app = open_wide(vec![("low.psbt", signed_elsewhere(How::LowR).to_bytes())]);
-    choose(&mut app, Some(0));
-    app.press(Action::NonceCheck(CheckPress::Out));
-    assert!(app.outside_check().unwrap().out_name.is_some());
+    let (all, all_hex) = sent(None);
+    let (one, one_hex) = sent(Some(0));
+    assert!(all_hex.is_some(), "a finished one");
+    assert_eq!(one_hex, all_hex);
+    assert_eq!(one, all);
+}
+
+/// An input not known, past the twelfth, is not "none wrong".
+#[test]
+fn the_last_row_does_not_say_none_wrong_over_an_input_not_known() {
+    let mut psbt = taproot_psbt(&vec![Tap::Key; 14]);
+    psbt.inner_mut().inputs[13].witness_utxo = None;
+    let mut app = open_wide(vec![("big.psbt", psbt.to_bytes())]);
+    assert_eq!(app.outside_check().unwrap().check.unread, 1);
+    let _ = app.frame();
+    app.event(Event::Hover { x: 330, y: 300 });
+    app.event(Event::Scroll {
+        x: 330,
+        y: 300,
+        dy: 3000,
+    });
+    app.event(Event::ScrollEnd { x: 330, y: 300 });
+    app.settle();
+    assert!(has(&mut app, "2 more"), "the row");
+    for words in [EN.nonce_check_none_wrong, EN.nonce_check_one_wrong] {
+        assert!(!has(&mut app, words.trim_start_matches("· ")), "{words}");
+    }
+}
+
+/// The card's own line over the inputs past the twelfth says what the
+/// pane's does.
+#[test]
+fn the_cards_more_line_names_a_warning_on_a_late_input() {
+    let mut app = open_wide(vec![(
+        "big.psbt",
+        signed_elsewhere_of(How::SameNonce, 14).to_bytes(),
+    )]);
+    let _ = app.frame();
+    app.event(Event::Hover { x: 900, y: 300 });
+    app.event(Event::Scroll {
+        x: 900,
+        y: 300,
+        dy: 6000,
+    });
+    app.event(Event::ScrollEnd { x: 900, y: 300 });
+    app.settle();
+    assert!(has_part(&mut app, "2 more"), "the card's line");
+    assert!(has_part(&mut app, EN.nonce_check_one_wrong));
+    assert!(!has_part(&mut app, EN.nonce_check_none_wrong));
+}
+
+/// Decode and back leave the pane at its top.
+#[test]
+fn the_pane_is_at_its_top_in_decode_and_back() {
+    let mut app = open_wide(vec![(
+        "big.psbt",
+        taproot_psbt(&vec![Tap::Key; 14]).to_bytes(),
+    )]);
+    let _ = app.frame();
+    app.event(Event::Hover { x: 330, y: 300 });
+    app.event(Event::Scroll {
+        x: 330,
+        y: 300,
+        dy: 1500,
+    });
+    app.event(Event::ScrollEnd { x: 330, y: 300 });
+    app.settle();
+    assert!(app.choices_offset() > 0.0, "the pane is scrolled");
+    app.press(Action::NonceCheck(CheckPress::Decode));
+    assert_eq!(app.choices_offset(), 0.0, "Decode");
+    app.event(Event::Scroll {
+        x: 330,
+        y: 300,
+        dy: 1500,
+    });
+    app.event(Event::ScrollEnd { x: 330, y: 300 });
+    app.settle();
+    app.press(Action::NonceCheck(CheckPress::Back));
+    assert_eq!(app.choices_offset(), 0.0, "back");
 }

@@ -33,7 +33,7 @@ pub use faraday_keys::identity::master_id;
 pub use faraday_keys::{WordsId, words_id};
 
 mod nonce;
-pub use nonce::{NonceCheck, NonceRow, Unmatched};
+pub use nonce::{NonceCheck, NonceRow, Rest, Unmatched};
 mod v2;
 pub use v2::{is_silent_payment_psbt, read_psbt, read_psbt_kept};
 mod account;
