@@ -1028,6 +1028,9 @@ pub struct MessageState {
     pub signed: Option<faraday_psbt::message::Signed>,
     /// The name the signed message's file went out under.
     pub out_name: Option<faraday_text::Text>,
+    /// The signed text is itself a secret (a seed, a key or a share): its
+    /// file is refused, so none is offered; its code still is.
+    pub out_refused: bool,
     /// The SHA-256 of that file's bytes, taken when it was made, so that
     /// "written and checked" holds only for these bytes.
     pub out_sha: Option<[u8; 32]>,
@@ -1297,6 +1300,7 @@ impl Faraday {
                             m.signed = Some(signed);
                             m.out_name = None;
                             m.out_sha = None;
+                            m.out_refused = false;
                             m.error = None;
                             m.done[mstep::SIGN as usize] = true;
                         }
@@ -1324,6 +1328,24 @@ impl Faraday {
                             "message-{}.txt",
                             &sig.address[sig.address.len().saturating_sub(6)..]
                         );
+                        // A message that is itself a secret never becomes a
+                        // file (`put_item` refuses it): no name, no toast
+                        // that it waits, the refusal said as a scanner says it.
+                        let held = crate::Item::new(c, &name, text.as_bytes().to_vec());
+                        if held.exposure() == crate::secrets::Exposure::Secret {
+                            let why = match held.holds() {
+                                crate::wallet::FileKind::Words => EN.secret_text_those_are,
+                                crate::wallet::FileKind::KeyLine => EN.secret_text_private_key,
+                                _ => EN.secret_text_file_holds,
+                            };
+                            if let Some(m) = self.message.state.as_mut() {
+                                m.out_name = None;
+                                m.out_sha = None;
+                                m.out_refused = true;
+                            }
+                            self.toast(why);
+                            return;
+                        }
                         let sha = crate::sha256_of(c, text.as_bytes());
                         let name = self.put_outbox_beside(&name, text.as_bytes().to_vec());
                         if let Some(m) = self.message.state.as_mut() {

@@ -178,6 +178,17 @@ impl crate::flow::Contained for MessageSteps {
         // The signed message's file and its code: public, no key moves.
         let m = app.message.state()?;
         m.signed.as_ref().filter(|_| k == crate::mstep::SIGN)?;
+        // A message that is itself a secret has no file: its code only.
+        let codes = vec![flow::TakeCode {
+            name: EN.message_signed_message,
+            show: Action::MQr,
+        }];
+        if m.out_refused {
+            return Some(flow::TakeAway {
+                files: Vec::new(),
+                codes,
+            });
+        }
         let name = m.out_name.as_ref()?.duplicate();
         let base = m.file_name()?;
         // Drawn only while the file is not waiting: the name it is made
@@ -195,10 +206,7 @@ impl crate::flow::Contained for MessageSteps {
                 make_label: EN.message_make_the_file,
                 make: Action::MOut,
             }],
-            codes: vec![flow::TakeCode {
-                name: EN.message_signed_message,
-                show: Action::MQr,
-            }],
+            codes,
         })
     }
 }
@@ -468,30 +476,32 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, (x, y, w): (f32, f32, f32), area
                     // Where the pair stands the pane holds the file and the
                     // code (`flow::Contained::take_away`).
                     if !flow::pair_left(app, &MESSAGE_STEPS, ui.compact, area_w) {
-                        // Made For the stick as it was signed.
-                        let file = format!(
-                            "message-{}.txt",
-                            &sig.address[sig.address.len().saturating_sub(6)..]
-                        );
-                        // The file this message put, under the name it went out as.
-                        let (state, (label, style, action)) = made_state(
-                            app,
-                            m.out_name.as_deref().unwrap_or(""),
-                            None,
-                            (EN.message_make_the_file, Action::MOut),
-                        );
+                        if !m.out_refused {
+                            // Made For the stick as it was signed.
+                            let file = format!(
+                                "message-{}.txt",
+                                &sig.address[sig.address.len().saturating_sub(6)..]
+                            );
+                            // The file this message put, under the name it went out as.
+                            let (state, (label, style, action)) = made_state(
+                                app,
+                                m.out_name.as_deref().unwrap_or(""),
+                                None,
+                                (EN.message_make_the_file, Action::MOut),
+                            );
+                            cy += file_row(
+                                ui,
+                                x,
+                                cy,
+                                w,
+                                &file,
+                                EN.message_signed_message,
+                                state.as_deref(),
+                                (label, style, action),
+                                &[],
+                            ) + 6.0;
+                        }
                         let png = fill(EN.message_png, &[app.medium.for_the()]);
-                        cy += file_row(
-                            ui,
-                            x,
-                            cy,
-                            w,
-                            &file,
-                            EN.message_signed_message,
-                            state.as_deref(),
-                            (label, style, action),
-                            &[],
-                        ) + 6.0;
                         cy += wrap_buttons(
                             ui,
                             x,

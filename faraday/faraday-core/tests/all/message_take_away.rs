@@ -283,3 +283,37 @@ fn the_smaller_sizes_keep_the_card_with_its_file() {
         assert!(!shown(&mut app, &write_button()), "{w}x{h}");
     }
 }
+
+const SEED_MESSAGE: &str =
+    "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+
+/// A message that is itself a seed has no file: nothing waits, no toast
+/// says so, no Make the file is offered; the code still is.
+#[test]
+fn a_message_that_is_a_seed_makes_no_file_and_offers_its_code_only() {
+    for (w, h) in [(1366, 768), (480, 640)] {
+        let mut app = signed_at(w, h);
+        app.press(Action::OutboxRemove(0));
+        assert!(app.outbox.is_empty());
+        app.press(Action::MStep(faraday_core::mstep::TEXT));
+        testkit::message_text(&mut app, SEED_MESSAGE);
+        app.press(Action::MSign);
+        assert!(testkit::message(&app).unwrap().signed.is_some());
+        assert!(app.outbox.is_empty(), "nothing is written");
+        let toast = app.toast_text().unwrap_or_default().to_string();
+        assert!(!toast.contains("waits"), "{toast}");
+        assert_eq!(toast, EN.secret_text_those_are);
+        app.press(Action::MStep(faraday_core::mstep::SIGN));
+        assert!(!shown(&mut app, EN.message_make_the_file));
+        assert!(!app.offers(Action::MOut));
+        assert!(app.offers(Action::MQr), "the code stays offered");
+    }
+}
+
+/// An ordinary message is filed and says it waits, as before.
+#[test]
+fn an_ordinary_message_still_waits_as_a_file() {
+    let app = signed_at(1366, 768);
+    assert_eq!(app.outbox.len(), 1);
+    assert!(app.toast_text().is_some_and(|t| t.contains("waits")));
+}
