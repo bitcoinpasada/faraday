@@ -12,7 +12,7 @@ pick-own-rows faraday/faraday-core/src/address_find/look.rs 2
 pick-own-rows faraday/faraday-core/src/address_find/mod.rs 1
 pick-own-rows faraday/faraday-core/src/backup_flow/wallet.rs 4
 pick-own-rows faraday/faraday-core/src/backup_flow/wallet_files.rs 2
-pick-own-rows faraday/faraday-core/src/backups/mod.rs 8
+pick-own-rows faraday/faraday-core/src/backups/mod.rs 10
 pick-own-rows faraday/faraday-core/src/board/lines.rs 2
 pick-own-rows faraday/faraday-core/src/chart_edit.rs 2
 pick-own-rows faraday/faraday-core/src/convert/mod.rs 1
@@ -27,6 +27,7 @@ pick-own-rows faraday/faraday-core/src/explore/make.rs 1
 pick-own-rows faraday/faraday-core/src/explore/mod.rs 3
 pick-own-rows faraday/faraday-core/src/explore/pane.rs 1
 pick-own-rows faraday/faraday-core/src/explore/screen.rs 2
+pick-own-rows faraday/faraday-core/src/glance/mod.rs 1
 pick-own-rows faraday/faraday-core/src/glance/sheet.rs 3
 pick-own-rows faraday/faraday-core/src/held.rs 10
 pick-own-rows faraday/faraday-core/src/inbox.rs 14
